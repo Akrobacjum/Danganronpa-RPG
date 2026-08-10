@@ -2,7 +2,7 @@
     "id": "danganronpa-rpg",
     "title": "Danganronpa RPG",
     "description": "Turns the Daggerheart system (Foundryborne) into the Danganronpa RPG System: renamed traits, Despair instead of Fear, forced private rolls, a time-of-day action economy, per-room search tokens, Remnants on the map and Truth Bullets in the inventory.",
-    "version": "0.2.9",
+    "version": "0.3.0",
     "compatibility": {
         "minimum": "14",
         "verified": "14"
@@ -35,7 +35,8 @@
         "scripts/module.mjs"
     ],
     "styles": [
-        "styles/danganronpa.css"
+        "styles/danganronpa.css",
+        "styles/messenger.css"
     ],
     "languages": [
         {
