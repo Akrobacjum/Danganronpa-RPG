@@ -1,0 +1,266 @@
+/**
+ * Danganronpa RPG — per-room search tokens.
+ * ---------------------------------------------------------------------------
+ * Guide: "Every room has 3 search tokens per time of day. Once they are spent,
+ * further searching is impossible."
+ *
+ * Counters live in a world setting keyed by `sceneId::roomName`. Only a GM
+ * client may write world settings, so player-side spends are routed through a
+ * socket to the primary GM. The room itself is never typed in — it comes from
+ * whichever Scene Region the acting token is standing in (`roomOfActor`).
+ */
+
+import { MODULE_ID } from "./config.mjs";
+import { SETTINGS } from "./settings.mjs";
+import { isPrimaryGm, activeGmIds, whisperToGms, debug } from "./utils.mjs";
+
+export class SearchTokens {
+
+    /** Maximum tokens a room gets per time of day. */
+    static get max() {
+        return game.settings.get(MODULE_ID, SETTINGS.searchTokensPerRoom);
+    }
+
+    /**
+     * Counters are keyed by "sceneId::roomName", not by room name alone.
+     *
+     * Two scenes in a season will both have a "Kitchen", and sharing one
+     * counter between them would let a player search out a room they have never
+     * been in. Old plain-name keys are still read, so counters saved before
+     * this change are not lost mid-session.
+     */
+    static key(roomName, scene = canvas?.scene) {
+        if (!roomName) return null;
+        // Accept a bare scene id as well as a Scene: the id is what travels over
+        // the socket, and the GM answering a player's request must key the
+        // counter to the *player's* scene, not to whatever they are looking at.
+        const id = typeof scene === "string" ? scene : scene?.id;
+        return id ? `${id}::${roomName}` : roomName;
+    }
+
+    /** The scene a request should be judged against, when none was supplied. */
+    static get currentSceneId() {
+        return canvas?.scene?.id ?? null;
+    }
+
+    /** Raw counter store. Rooms absent from the store are untouched (= full). */
+    static get store() {
+        return game.settings.get(MODULE_ID, SETTINGS.searchTokens) ?? {};
+    }
+
+    /**
+     * Counts a player's client just received straight from the GM, kept until
+     * the world setting itself catches up.
+     *
+     * A player's spend is a round trip: ask the GM, the GM writes the world
+     * setting, the setting then has to propagate back to this client before
+     * `store` reflects it. The GM's reply already carries the true post-spend
+     * count — reading `left()` immediately afterwards (which every action's
+     * chat card does) was reading the stale pre-spend value out of `store`
+     * instead, off by one until the setting arrived. Cleared whenever the real
+     * setting changes; see sync.mjs's `SYNC.searchTokens` handler.
+     */
+    static #freshCounts = new Map();
+
+    /**
+     * How long a "the GM just told me" count is trusted.
+     *
+     * It only exists to bridge the gap until the world setting arrives, and the
+     * only thing that used to clear it was that setting's own sync. If that sync
+     * never landed — a dropped socket, a client that reconnected — the stale
+     * count outlived the value it was standing in for and the room read wrong for
+     * the rest of the session. An expiry makes the cache self-correcting.
+     */
+    static #FRESH_MS = 10000;
+
+    static clearFreshCounts() {
+        this.#freshCounts.clear();
+    }
+
+    /** How many search tokens remain in a room on the current scene. */
+    static left(roomName, scene = canvas?.scene) {
+        if (!roomName) return 0;
+        const scoped = this.key(roomName, scene);
+
+        const fresh = this.#freshCounts.get(scoped);
+        if (fresh) {
+            if (Date.now() - fresh.at < this.#FRESH_MS) return fresh.value;
+            this.#freshCounts.delete(scoped);
+        }
+
+        const store = this.store;
+        // Scene-scoped key first, then the legacy plain-name key.
+        return store[scoped] ?? store[roomName] ?? this.max;
+    }
+
+    /**
+     * Spend one token. Returns true when it was spent, false when the room is
+     * exhausted. Safe to call from a player client — it forwards to the GM.
+     */
+    static async spend(roomName, sceneId = this.currentSceneId) {
+        if (!roomName) return false;
+        if (!game.user.isGM) {
+            const { ok, left } = await requestSpend(roomName, sceneId);
+            // Bank the true count the GM just computed, so the chat card this
+            // spend is about to produce reads it correctly instead of racing
+            // the setting's own propagation back to this client.
+            if (typeof left === "number") {
+                this.#freshCounts.set(this.key(roomName, sceneId), { value: left, at: Date.now() });
+            }
+            return ok;
+        }
+        return this.#spendAsGm(roomName, sceneId);
+    }
+
+    static async #spendAsGm(roomName, sceneId = this.currentSceneId) {
+        const store = foundry.utils.duplicate(this.store);
+        const key = this.key(roomName, sceneId);
+        const current = store[key] ?? store[roomName] ?? this.max;
+        if (current <= 0) return false;
+
+        store[key] = current - 1;
+        // Migrate off the legacy plain-name key — but only when it IS a different
+        // key. With no scene to key against, `key()` falls back to the bare room
+        // name, and deleting it here erased the spend that had just been written
+        // one line above: the counter never moved and the room could be searched
+        // for ever.
+        if (key !== roomName) delete store[roomName];
+        await game.settings.set(MODULE_ID, SETTINGS.searchTokens, store);
+        debug(`Search token spent in "${roomName}". Left: ${store[key]}`);
+        return true;
+    }
+
+    /** Zero out a single room for the rest of the day (project "Tidy the room"). */
+    static async exhaust(roomName) {
+        if (!game.user.isGM || !roomName) return false;
+        const store = foundry.utils.duplicate(this.store);
+        const key = this.key(roomName);
+        store[key] = 0;
+        if (key !== roomName) delete store[roomName];   // same reasoning as above
+        await game.settings.set(MODULE_ID, SETTINGS.searchTokens, store);
+        return true;
+    }
+
+    /** Refill everything. Called whenever the clock advances a time of day. */
+    static async reset({ notify = true } = {}) {
+        if (!game.user.isGM) return false;
+        await game.settings.set(MODULE_ID, SETTINGS.searchTokens, {});
+        if (notify) ui.notifications.info(game.i18n.localize("DRPG.SearchTokens.reset"));
+        return true;
+    }
+
+    /**
+     * GM-only chat readout. Lists every room on the current scene, so a full
+     * room is as visible as a spent one — "which rooms are still worth
+     * searching" is the question actually being asked.
+     */
+    static async report() {
+        const max = this.max;
+        const scene = canvas?.scene;
+
+        const rooms = Array.from(scene?.regions ?? [])
+            .map(r => r.name)
+            .filter(Boolean)
+            .sort((a, b) => a.localeCompare(b));
+
+        const rows = rooms.length
+            ? rooms.map(room => {
+                const n = this.left(room, scene);
+                const style = n === 0 ? ' style="opacity:.5"' : "";
+                return `<tr${style}><td>${foundry.utils.escapeHTML(room)}</td><td style="text-align:center">${n} / ${max}</td></tr>`;
+            }).join("")
+            : Object.entries(this.store)
+                .sort((a, b) => a[0].localeCompare(b[0]))
+                .map(([key, n]) => `<tr><td>${foundry.utils.escapeHTML(key.split("::").pop())}</td><td style="text-align:center">${n} / ${max}</td></tr>`)
+                .join("");
+
+        const content = rows
+            ? `<table><thead><tr><th>Room</th><th>Tokens</th></tr></thead><tbody>${rows}</tbody></table>`
+            : `<p>${game.i18n.format("DRPG.SearchTokens.allFull", { max })}</p>`;
+
+        return whisperToGms(`<h3>${game.i18n.localize("DRPG.SearchTokens.title")}</h3>${content}`);
+    }
+}
+
+/* ==========================================================================
+ * SOCKET BRIDGE — players ask, the primary GM writes
+ * ========================================================================== */
+
+const SOCKET_EVENT = `module.${MODULE_ID}`;
+const ACTION_SPEND = "searchTokens.spend";
+const ACTION_RESULT = "searchTokens.result";
+
+/** Pending player-side promises, keyed by request id. */
+const pending = new Map();
+
+export function registerSearchTokenSocket() {
+    game.socket.on(SOCKET_EVENT, onSocketMessage);
+}
+
+async function onSocketMessage(payload, senderId) {
+    if (!payload?.action) return;
+
+    if (payload.action === ACTION_SPEND) {
+        // Exactly one GM client answers, otherwise every GM would spend a token.
+        if (!isPrimaryGm()) return;
+        // Answered to whoever actually asked, not to the id in the payload —
+        // otherwise one player could make the GM spend a token and report the
+        // result to somebody else.
+        const sceneId = payload.sceneId ?? null;
+        const ok = await SearchTokens.spend(payload.roomName, sceneId);
+        game.socket.emit(SOCKET_EVENT, {
+            action: ACTION_RESULT,
+            requestId: payload.requestId,
+            ok,
+            left: SearchTokens.left(payload.roomName, sceneId)
+        }, { recipients: [senderId] });
+        return;
+    }
+
+    if (payload.action === ACTION_RESULT) {
+        // Only a GM decides whether a room had a token left.
+        //
+        // The request used to be broadcast, so every client saw the `requestId`,
+        // and this end accepted any reply carrying it. A player could answer
+        // another player's request before the GM did — granting a search in a
+        // room that was already exhausted, or denying one that was not. The
+        // request is now addressed to the GMs (see `requestSpend`) and the reply
+        // has to come from one.
+        if (!game.users.get(senderId)?.isGM) return;
+        const resolve = pending.get(payload.requestId);
+        if (!resolve) return;
+        pending.delete(payload.requestId);
+        resolve({ ok: payload.ok, left: payload.left });
+    }
+}
+
+/**
+ * Ask the GM to spend a token on our behalf. Resolves `{ ok: false, left: null }`
+ * if no GM answers in time, so a disconnected GM can never silently grant a
+ * free search.
+ */
+function requestSpend(roomName, sceneId = SearchTokens.currentSceneId, timeoutMs = 5000) {
+    if (!game.users.some(u => u.isGM && u.active)) {
+        ui.notifications.warn(game.i18n.localize("DRPG.SearchTokens.noGm"));
+        return Promise.resolve({ ok: false, left: null });
+    }
+
+    const requestId = foundry.utils.randomID();
+    return new Promise(resolve => {
+        pending.set(requestId, resolve);
+        // Addressed to the GMs. Broadcasting it put the `requestId` in every
+        // player's hands, which is all that was needed to forge the answer.
+        game.socket.emit(SOCKET_EVENT, {
+            action: ACTION_SPEND,
+            requestId,
+            roomName,
+            sceneId
+        }, { recipients: activeGmIds() });
+        setTimeout(() => {
+            if (!pending.has(requestId)) return;
+            pending.delete(requestId);
+            ui.notifications.warn(game.i18n.localize("DRPG.SearchTokens.timeout"));
+            resolve({ ok: false, left: null });
+        }, timeoutMs);
+    });
+}

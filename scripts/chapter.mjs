@@ -1,0 +1,558 @@
+/**
+ * Danganronpa RPG — how a chapter ends, and how a character stops.
+ * ---------------------------------------------------------------------------
+ * Guide, p. 29: "Typ Truth Bullets zostaje ujawniony na finał rozdziału. Na
+ * początku następnej sesji wszystkie zostają usunięte z ekwipunku gracza
+ * z wyjątkiem Faint Truth Bullets."
+ *
+ * Three moments, and none of them fire on their own:
+ *
+ *   the body is found   traces that were doubtful become permanent, everyone is
+ *                       called to the scene, and the phase turns to Investigation
+ *   the chapter ends    every Truth Bullet gives up what it really was
+ *   the session starts  the evidence is cleared out, Faint excepted
+ *
+ * All three are GM buttons rather than clock triggers, and deliberately so. Two
+ * of them delete things that cannot be brought back, and the moment a chapter
+ * "ends" is a judgement about the fiction — after the verdict, after the
+ * execution, when the table is ready — not a number ticking over. A sweep that
+ * fired by itself because somebody nudged the session counter would be the
+ * worst bug this module could have.
+ *
+ * Everything here runs on a GM client: the answer key lives there (see D6 and
+ * truth-bullets.mjs), and only a GM may write to another player's sheet.
+ */
+
+import { MODULE_ID, FLAGS, ITEM_CATEGORIES, REMNANT_TYPES } from "./config.mjs";
+import { getClock, setPhase } from "./clock.mjs";
+import { TRUTH_BULLET_FLAGS, bulletsOf, secretOf, dropSecret } from "./truth-bullets.mjs";
+import { remnantsOn, remnantData, REMNANT_FLAGS } from "./remnants.mjs";
+import { studentActors } from "./monokuma.mjs";
+import { announce, dialogContent, whisperToGms, log, error } from "./utils.mjs";
+
+const DialogV2 = foundry.applications.api.DialogV2;
+
+/* ==========================================================================
+ * DEATH
+ * ========================================================================== */
+
+/** Is this student dead? */
+export function isDeceased(actor) {
+    return Boolean(actor?.getFlag(MODULE_ID, FLAGS.deceased));
+}
+
+/** When they died, or `null`. */
+export function deathRecord(actor) {
+    return actor?.getFlag(MODULE_ID, FLAGS.deceased) ?? null;
+}
+
+/** Every student still alive. */
+export function livingStudents() {
+    return studentActors().filter(a => !isDeceased(a));
+}
+
+/**
+ * Kill a character.
+ *
+ * Decision D1, in one procedure: everything they were carrying goes, Truth
+ * Bullets included, and the answer-key entries go with the bullets so the
+ * ledger does not fill up with rows nothing can ever reach again.
+ *
+ * Quiet on purpose. A murder is a secret until somebody finds the body — the
+ * announcement belongs to `discoverBody`, not here. Only the GMs are told.
+ *
+ * The token stays where it is. A body is usually the thing the cast will be
+ * standing around looking at; what changes is that the rules stop counting them
+ * as a person in the room (see `FLAGS.deceased` and `othersInRoom`).
+ *
+ * @param {Actor} actor
+ * @param {object} [options]
+ * @param {boolean} [options.keepItems]  Leave the inventory alone. For a death
+ *   that is not a killing-game murder — a retcon, a test — where D1's "it all
+ *   vanishes" would just be destructive.
+ */
+export async function killCharacter(actor, { keepItems = false } = {}) {
+    if (!game.user.isGM || !actor) return null;
+    if (isDeceased(actor)) {
+        ui.notifications.warn(game.i18n.format("DRPG.Chapter.alreadyDead", { name: actor.name }));
+        return null;
+    }
+
+    const clock = getClock();
+    const record = { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay };
+
+    let removed = 0;
+    if (!keepItems) {
+        // The ledger entries first, while the items still exist to be read.
+        for (const bullet of bulletsOf(actor)) await dropSecret(bullet.uuid);
+
+        const doomed = actor.items
+            .filter(i => Object.keys(ITEM_CATEGORIES).includes(i.getFlag(MODULE_ID, "category")))
+            .map(i => i.id);
+
+        if (doomed.length) {
+            try {
+                await actor.deleteEmbeddedDocuments("Item", doomed);
+                removed = doomed.length;
+            } catch (err) {
+                error(`Could not clear ${actor.name}'s inventory on death`, err);
+            }
+        }
+    }
+
+    try {
+        await actor.setFlag(MODULE_ID, FLAGS.deceased, record);
+    } catch (err) {
+        error(`Could not mark ${actor.name} as deceased`, err);
+        return null;
+    }
+
+    // Foundry's own dead marker, so the token reads as a body on any client
+    // without this module having to draw anything. Wrapped: it is a convenience,
+    // not the record — `FLAGS.deceased` is what the rules read.
+    try {
+        await actor.toggleStatusEffect("dead", { active: true, overlay: true });
+    } catch (err) {
+        log(`Could not apply the "dead" status to ${actor.name}; the flag is set regardless.`);
+    }
+
+    await whisperToGms(`
+        <h3>${game.i18n.localize("DRPG.Chapter.deathTitle")}</h3>
+        <p>${game.i18n.format("DRPG.Chapter.died", {
+            name: foundry.utils.escapeHTML(actor.name),
+            chapter: record.chapter
+        })}</p>
+        ${keepItems ? "" : `<p>${game.i18n.format("DRPG.Chapter.itemsGone", { n: removed })}</p>`}
+        <p><small>${game.i18n.localize("DRPG.Chapter.vaultPending")}</small></p>`);
+
+    log(`${actor.name} is dead (chapter ${record.chapter}); ${removed} item(s) removed.`);
+    return record;
+}
+
+/**
+ * Undo the marking. The inventory does NOT come back — those documents are
+ * gone — so this is for a mis-click, not for a resurrection.
+ */
+export async function reviveCharacter(actor) {
+    if (!game.user.isGM || !actor) return false;
+
+    try {
+        await actor.unsetFlag(MODULE_ID, FLAGS.deceased);
+        await actor.toggleStatusEffect("dead", { active: false });
+    } catch (err) {
+        error(`Could not un-mark ${actor.name}`, err);
+        return false;
+    }
+
+    ui.notifications.info(game.i18n.format("DRPG.Chapter.revived", { name: actor.name }));
+    return true;
+}
+
+/** Mark somebody dead, from the GM panel. */
+export async function openDeathDialog() {
+    if (!game.user.isGM) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
+        return false;
+    }
+
+    const alive = livingStudents();
+    if (!alive.length) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Chapter.nobodyLeft"));
+        return false;
+    }
+
+    const options = alive
+        .map(a => `<option value="${a.id}">${foundry.utils.escapeHTML(a.name)}</option>`).join("");
+
+    const result = await DialogV2.wait({
+        window: { title: game.i18n.localize("DRPG.Chapter.deathTitle") },
+        classes: ["drpg-panel"],
+        content: dialogContent(`<form>
+            <label>${game.i18n.localize("DRPG.Chapter.whoDied")}
+                <select name="actor">${options}</select></label>
+            <label class="drpg-checkbox">
+                <input type="checkbox" name="keepItems" />
+                ${game.i18n.localize("DRPG.Chapter.keepItems")}</label>
+            <p class="notes">${game.i18n.localize("DRPG.Chapter.deathNote")}</p>
+        </form>`),
+        buttons: [
+            {
+                action: "ok", label: game.i18n.localize("DRPG.Chapter.confirmDeath"), default: true,
+                callback: (e, b, d) => {
+                    const f = d.element.querySelector("form");
+                    return { id: f.actor.value, keepItems: f.keepItems.checked };
+                }
+            },
+            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
+        ],
+        rejectClose: false
+    });
+
+    if (!result || result === "cancel") return false;
+
+    const actor = game.actors.get(result.id);
+    if (!actor) return false;
+    return Boolean(await killCharacter(actor, { keepItems: result.keepItems }));
+}
+
+/* ==========================================================================
+ * THE BODY IS FOUND
+ * ========================================================================== */
+
+/**
+ * Faint Prep traces that belong to this murder stop being doubtful.
+ *
+ * Which ones those are is a judgement only the GM can make — a Prep Remnant is
+ * left by anyone gathering tools, and most of them mean nothing. So this offers
+ * the list and the GM ticks. Ticking sets `tiedToCrime` as well as clearing
+ * `faint`, which is what actually exempts a trace from the chapter-end sweep.
+ */
+async function promoteFaintPrep() {
+    const candidates = [];
+    for (const scene of game.scenes) {
+        for (const token of remnantsOn(scene)) {
+            const data = remnantData(token);
+            if (!data?.faint) continue;
+            if (data.type !== "prep") continue;
+            candidates.push({ token, data, scene });
+        }
+    }
+
+    if (!candidates.length) return 0;
+
+    const rows = candidates.map((c, i) => `
+        <label class="drpg-checkbox">
+            <input type="checkbox" name="promote" value="${i}" />
+            ${foundry.utils.escapeHTML(
+                `${c.data.visibilityLabel} ${REMNANT_TYPES[c.data.type]?.label ?? c.data.type}`
+                + `${c.data.room ? ` · ${c.data.room}` : ""}`
+                + `${c.data.sourceName ? ` · ${c.data.sourceName}` : ""}`
+                + `${c.data.subject ? ` · ${c.data.subject}` : ""}`
+            )}</label>`).join("");
+
+    const picked = await DialogV2.wait({
+        window: { title: game.i18n.localize("DRPG.Chapter.promoteTitle") },
+        classes: ["drpg-panel"],
+        content: dialogContent(`<form>
+            <p>${game.i18n.localize("DRPG.Chapter.promoteIntro")}</p>
+            <fieldset>${rows}</fieldset>
+            <p class="notes">${game.i18n.localize("DRPG.Chapter.promoteNote")}</p>
+        </form>`),
+        buttons: [
+            {
+                action: "ok", label: game.i18n.localize("DRPG.Chapter.promoteConfirm"), default: true,
+                callback: (e, b, d) => Array.from(
+                    d.element.querySelectorAll("[name=promote]:checked")).map(i => Number(i.value))
+            },
+            { action: "skip", label: game.i18n.localize("DRPG.Chapter.promoteSkip") }
+        ],
+        rejectClose: false
+    });
+
+    if (!Array.isArray(picked) || !picked.length) return 0;
+
+    let promoted = 0;
+    for (const index of picked) {
+        const entry = candidates[index];
+        if (!entry) continue;
+        try {
+            await entry.token.update({
+                [`flags.${MODULE_ID}.${REMNANT_FLAGS.faint}`]: false,
+                [`flags.${MODULE_ID}.${REMNANT_FLAGS.tiedToCrime}`]: true
+            });
+            promoted++;
+        } catch (err) {
+            error("Could not promote a Faint Prep Remnant", err);
+        }
+    }
+
+    log(`Promoted ${promoted} Faint Prep Remnant(s) to permanent evidence.`);
+    return promoted;
+}
+
+/**
+ * The body discovery announcement: promote the traces, call everyone to the
+ * scene, and turn the phase over to Investigation.
+ *
+ * @param {object} options
+ * @param {string} options.room     Where the body is.
+ * @param {Actor} [options.victim]  Named in the announcement when given.
+ */
+export async function discoverBody({ room, victim = null } = {}) {
+    if (!game.user.isGM || !room) return null;
+
+    const promoted = await promoteFaintPrep();
+
+    // Stage 7 takes the gloves. The guide puts the cleaning tool's destruction
+    // here rather than at the end of Stage 6 — see CLEANUP.destroysToolsOnDiscovery.
+    await import("./cleanup.mjs")
+        .then(m => m.destroyCleaningTools())
+        .catch(err => error("Could not destroy the cleaning tools at body discovery", err));
+
+    const { gatherEveryone } = await import("./call-effects.mjs");
+    const moved = await gatherEveryone(room);
+
+    await announce({
+        content: `<div class="drpg-evidence-card">
+            <div class="drpg-objection-banner">${
+                game.i18n.localize("DRPG.Chapter.bodyBanner")}</div>
+            <p>${victim
+                ? game.i18n.format("DRPG.Chapter.bodyFoundNamed", {
+                    name: foundry.utils.escapeHTML(victim.name),
+                    room: foundry.utils.escapeHTML(room)
+                })
+                : game.i18n.format("DRPG.Chapter.bodyFound", {
+                    room: foundry.utils.escapeHTML(room)
+                })}</p>
+            <p>${game.i18n.localize("DRPG.Chapter.bodyCalled")}</p>
+        </div>`
+    });
+
+    await setPhase("investigation");
+
+    ui.notifications.info(game.i18n.format("DRPG.Chapter.bodyDone", { moved, promoted }));
+    log(`Body discovered in ${room}: ${promoted} trace(s) promoted, ${moved} token(s) gathered.`);
+    return { promoted, moved };
+}
+
+/** The body-discovery announcement, from the GM panel. */
+export async function openBodyDiscoveryDialog() {
+    if (!game.user.isGM) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
+        return null;
+    }
+
+    const { allRooms } = await import("./movement.mjs");
+    const rooms = allRooms();
+    if (!rooms.length) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Chapter.noRooms"));
+        return null;
+    }
+
+    // The dead are the candidates here — the victim is normally already marked
+    // by the time anybody trips over them.
+    const dead = studentActors().filter(isDeceased);
+    const victims = dead
+        .map(a => `<option value="${a.id}">${foundry.utils.escapeHTML(a.name)}</option>`).join("");
+
+    const result = await DialogV2.wait({
+        window: { title: game.i18n.localize("DRPG.Chapter.bodyTitle") },
+        classes: ["drpg-panel"],
+        content: dialogContent(`<form>
+            <label>${game.i18n.localize("DRPG.Chapter.whereBody")}
+                <select name="room">${rooms
+                    .map(r => `<option value="${foundry.utils.escapeHTML(r)}">${
+                        foundry.utils.escapeHTML(r)}</option>`).join("")}</select></label>
+            <label>${game.i18n.localize("DRPG.Chapter.whoseBody")}
+                <select name="victim">
+                    <option value="">${game.i18n.localize("DRPG.Chapter.unnamedVictim")}</option>
+                    ${victims}
+                </select></label>
+            <p class="notes">${game.i18n.localize("DRPG.Chapter.bodyNote")}</p>
+        </form>`),
+        buttons: [
+            {
+                action: "ok", label: game.i18n.localize("DRPG.Chapter.announce"), default: true,
+                callback: (e, b, d) => {
+                    const f = d.element.querySelector("form");
+                    return { room: f.room.value, victimId: f.victim.value };
+                }
+            },
+            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
+        ],
+        rejectClose: false
+    });
+
+    if (!result || result === "cancel") return null;
+
+    return discoverBody({
+        room: result.room,
+        victim: result.victimId ? game.actors.get(result.victimId) : null
+    });
+}
+
+/* ==========================================================================
+ * CHAPTER END AND THE NEXT SESSION
+ * ========================================================================== */
+
+/** Every Truth Bullet in the world, with the actor holding it. */
+function allBullets() {
+    const out = [];
+    for (const actor of game.actors) {
+        if (actor.type !== "character") continue;
+        for (const item of bulletsOf(actor)) out.push({ actor, item });
+    }
+    return out;
+}
+
+/**
+ * The chapter is over: every Truth Bullet gives up what it really was.
+ *
+ * Reads the answer key and writes it onto the items, so the reveal survives on
+ * the players' sheets rather than being a message they have to remember.
+ */
+export async function revealAllBulletTypes() {
+    if (!game.user.isGM) return 0;
+
+    let revealed = 0;
+    for (const { item } of allBullets()) {
+        const realType = secretOf(item.uuid).realType;
+        if (!realType) continue;
+        if (item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.shownType) === realType
+            && item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.analyzed)) continue;
+
+        try {
+            await item.update({
+                [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.shownType}`]: realType,
+                [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzed}`]: true
+            });
+            revealed++;
+        } catch (err) {
+            error(`Could not reveal the type of "${item.name}"`, err);
+        }
+    }
+
+    log(`Revealed the real type of ${revealed} Truth Bullet(s).`);
+    return revealed;
+}
+
+/**
+ * The next session begins: clear the evidence out, Faint excepted.
+ *
+ * Guide, p. 29. Faint bullets are what survive, and Stage 3's lock is written
+ * per chapter, so a Faint bullet carried across becomes analysable again all by
+ * itself — nothing here has to unlock anything.
+ */
+export async function sweepTruthBullets() {
+    if (!game.user.isGM) return { removed: 0, kept: 0 };
+
+    let removed = 0;
+    let kept = 0;
+
+    for (const actor of game.actors) {
+        if (actor.type !== "character") continue;
+
+        const doomed = [];
+        for (const item of bulletsOf(actor)) {
+            if (item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.faint)) {
+                kept++;
+                continue;
+            }
+            // Guide, p. 32: a Final Truth Bullet is "wyłączony ze sweepu" — it
+            // points at the Mastermind across the whole season, not one chapter's
+            // case, so the same reveal-and-clear cadence that resets everything
+            // else must leave it alone.
+            if (secretOf(item.uuid).realType === "final") {
+                kept++;
+                continue;
+            }
+            doomed.push(item);
+        }
+
+        if (!doomed.length) continue;
+
+        for (const item of doomed) await dropSecret(item.uuid);
+        try {
+            await actor.deleteEmbeddedDocuments("Item", doomed.map(i => i.id));
+            removed += doomed.length;
+        } catch (err) {
+            error(`Could not sweep ${actor.name}'s Truth Bullets`, err);
+        }
+    }
+
+    log(`Swept ${removed} Truth Bullet(s); ${kept} Faint one(s) carried over.`);
+    return { removed, kept };
+}
+
+/**
+ * The GM's end-of-chapter panel.
+ *
+ * One screen with counts, because two of these three cannot be undone and a GM
+ * deserves to see the number before it happens rather than after.
+ */
+export async function openChapterEndDialog() {
+    if (!game.user.isGM) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
+        return null;
+    }
+
+    const bullets = allBullets();
+    // Matches `sweepTruthBullets`'s own logic exactly, so the preview never
+    // promises a number the sweep does not deliver.
+    const kept = bullets.filter(({ item }) =>
+        item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.faint)
+        || secretOf(item.uuid).realType === "final").length;
+    const hidden = bullets.filter(({ item }) =>
+        !item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.analyzed)).length;
+
+    const { finalTruthPlacedThisChapter } = await import("./mastermind.mjs");
+    const finalTruthPlaced = finalTruthPlacedThisChapter();
+
+    let faintRemnants = 0;
+    for (const scene of game.scenes) {
+        faintRemnants += remnantsOn(scene).filter(t => {
+            const d = remnantData(t);
+            return d?.faint && !d.reinforced && !d.tiedToCrime;
+        }).length;
+    }
+
+    const result = await DialogV2.wait({
+        window: { title: game.i18n.localize("DRPG.Chapter.endTitle") },
+        classes: ["drpg-panel"],
+        content: dialogContent(`<form>
+            <p>${game.i18n.format("DRPG.Chapter.endIntro", { chapter: getClock().chapter })}</p>
+            <label class="drpg-checkbox">
+                <input type="checkbox" name="reveal" checked />
+                ${game.i18n.format("DRPG.Chapter.optReveal", { n: hidden })}</label>
+            <label class="drpg-checkbox">
+                <input type="checkbox" name="remnants" />
+                ${game.i18n.format("DRPG.Chapter.optRemnants", { n: faintRemnants })}</label>
+            <label class="drpg-checkbox">
+                <input type="checkbox" name="sweep" />
+                ${game.i18n.format("DRPG.Chapter.optSweep", {
+                    n: bullets.length - kept, kept
+                })}</label>
+            <p class="notes">${game.i18n.localize("DRPG.Chapter.endNote")}</p>
+            <p class="notes${finalTruthPlaced ? "" : " drpg-warning"}">${game.i18n.localize(
+                finalTruthPlaced
+                    ? "DRPG.Mastermind.finalTruthPlaced"
+                    : "DRPG.Mastermind.finalTruthReminder")}</p>
+        </form>`),
+        buttons: [
+            {
+                action: "ok", label: game.i18n.localize("DRPG.Chapter.endConfirm"), default: true,
+                callback: (e, b, d) => {
+                    const f = d.element.querySelector("form");
+                    return {
+                        reveal: f.reveal.checked,
+                        remnants: f.remnants.checked,
+                        sweep: f.sweep.checked
+                    };
+                }
+            },
+            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
+        ],
+        rejectClose: false
+    });
+
+    if (!result || result === "cancel") return null;
+
+    const done = [];
+    if (result.reveal) {
+        done.push(game.i18n.format("DRPG.Chapter.doneReveal", { n: await revealAllBulletTypes() }));
+    }
+    if (result.remnants) {
+        const { clearFaintRemnants } = await import("./remnants.mjs");
+        done.push(game.i18n.format("DRPG.Chapter.doneRemnants", { n: await clearFaintRemnants() }));
+    }
+    if (result.sweep) {
+        const swept = await sweepTruthBullets();
+        done.push(game.i18n.format("DRPG.Chapter.doneSweep", swept));
+    }
+
+    if (!done.length) return null;
+
+    await whisperToGms(`<h3>${game.i18n.localize("DRPG.Chapter.endTitle")}</h3>
+        <ul>${done.map(d => `<li>${d}</li>`).join("")}</ul>`);
+    return done;
+}

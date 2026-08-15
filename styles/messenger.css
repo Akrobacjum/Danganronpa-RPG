@@ -1,0 +1,301 @@
+/* ==========================================================================
+   Danganronpa RPG — the messenger
+   --------------------------------------------------------------------------
+   Three pieces:
+     #drpg-messenger-launcher   fixed button, bottom-right, always on screen
+     #drpg-messenger-roster     the GM's popover picker, anchored above it
+     .drpg-messenger            the conversation window itself (ApplicationV2)
+
+   Reuses the theme tokens from danganronpa.css (--drpg-eye / --drpg-gold /
+   --drpg-crimson) rather than declaring its own palette.
+   ========================================================================== */
+
+#drpg-messenger-launcher {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 70;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: 1px solid var(--drpg-eye);
+    background: light-dark(var(--drpg-paper-alt), var(--drpg-ink));
+    color: var(--drpg-eye);
+    font-size: 1.1rem;
+    cursor: pointer;
+    box-shadow: 0 2px 10px rgba(var(--drpg-shadow-rgb), 0.35);
+}
+
+#drpg-messenger-launcher:hover {
+    box-shadow: 0 0 10px var(--drpg-eye-glow, rgba(var(--drpg-eye-rgb), 0.45));
+}
+
+.drpg-messenger-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: var(--drpg-crimson);
+    color: var(--drpg-bone);
+    font-size: 0.68rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    box-shadow: 0 0 0 2px light-dark(var(--drpg-paper-alt), var(--drpg-ink));
+}
+
+/* ==========================================================================
+   GM ROSTER POPOVER
+   ========================================================================== */
+
+#drpg-messenger-roster {
+    position: fixed;
+    right: 16px;
+    bottom: 68px;
+    z-index: 71;
+    width: 260px;
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: 0.6rem;
+    border-radius: 6px;
+    border: 1px solid var(--drpg-eye);
+    background: light-dark(var(--drpg-paper-alt), var(--drpg-ink));
+    box-shadow: 0 4px 18px rgba(var(--drpg-shadow-rgb), 0.45);
+}
+
+#drpg-messenger-roster h4 {
+    margin: 0 0 0.4rem;
+    border: none;
+    font-size: var(--font-size-13, 0.82rem);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.85;
+}
+
+#drpg-messenger-roster ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.drpg-messenger-roster-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 1.6rem 0.35rem 0.45rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.drpg-messenger-roster-row:hover {
+    background: rgba(var(--drpg-eye-rgb), 0.14);
+}
+
+.drpg-messenger-roster-text {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.drpg-messenger-roster-name {
+    font-weight: 600;
+    font-size: var(--font-size-13, 0.82rem);
+}
+
+.drpg-messenger-roster-preview {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--font-size-11, 0.7rem);
+    opacity: 0.7;
+}
+
+.drpg-messenger-roster-row .drpg-messenger-badge {
+    position: static;
+    box-shadow: none;
+    flex: 0 0 auto;
+}
+
+/* ==========================================================================
+   THE CONVERSATION WINDOW
+   ========================================================================== */
+
+.application.drpg-messenger .window-content {
+    padding: 0;
+    display: flex;
+}
+
+.drpg-messenger-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.drpg-messenger-participants {
+    flex: 0 0 auto;
+    padding: 0.4rem 0.75rem;
+    border-bottom: 1px solid rgba(var(--drpg-eye-rgb), 0.3);
+    font-size: var(--font-size-11, 0.7rem);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    opacity: 0.7;
+}
+
+.drpg-messenger-log {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0.6rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.drpg-messenger-empty {
+    margin: auto 0;
+    text-align: center;
+    opacity: 0.6;
+    font-style: italic;
+}
+
+.drpg-messenger-bubble {
+    max-width: 82%;
+    padding: 0.35rem 0.6rem;
+    border-radius: 8px;
+    font-size: var(--font-size-13, 0.82rem);
+}
+
+.drpg-messenger-bubble.mine {
+    align-self: flex-end;
+    background: light-dark(rgba(var(--drpg-eye-rgb), 0.18), rgba(var(--drpg-eye-rgb), 0.28));
+    border: 1px solid rgba(var(--drpg-eye-rgb), 0.4);
+}
+
+.drpg-messenger-bubble.player {
+    align-self: flex-start;
+    background: light-dark(rgba(var(--drpg-shadow-rgb), 0.05), rgba(var(--drpg-bone-rgb), 0.06));
+    border: 1px solid rgba(var(--drpg-grey-rgb), 0.3);
+}
+
+.drpg-messenger-bubble.gm {
+    align-self: flex-start;
+    background: light-dark(rgba(var(--drpg-gold-rgb), 0.16), rgba(var(--drpg-gold-rgb), 0.14));
+    border: 1px solid rgba(var(--drpg-gold-rgb), 0.45);
+}
+
+/* A callGm() ruling card — a system note, not a chat line. Full width, no
+   author label (the card already names the action), visually distinct so it
+   never reads as something a person typed. */
+.drpg-messenger-bubble.action {
+    align-self: stretch;
+    max-width: 100%;
+    background: light-dark(rgba(var(--drpg-crimson-rgb), 0.08), rgba(var(--drpg-crimson-rgb), 0.14));
+    border: 1px solid rgba(var(--drpg-crimson-rgb), 0.35);
+}
+
+.drpg-messenger-bubble.action h3 {
+    margin: 0 0 0.2rem;
+    border: none;
+    font-size: var(--font-size-13, 0.82rem);
+}
+
+.drpg-messenger-author {
+    margin-bottom: 0.15rem;
+    font-size: var(--font-size-11, 0.7rem);
+    font-weight: 600;
+    opacity: 0.75;
+}
+
+.drpg-messenger-text p:first-child {
+    margin-top: 0;
+}
+
+.drpg-messenger-text p:last-child {
+    margin-bottom: 0;
+}
+
+.drpg-messenger-time {
+    margin-top: 0.15rem;
+    font-size: var(--font-size-10, 0.62rem);
+    text-align: right;
+    opacity: 0.55;
+    font-variant-numeric: tabular-nums;
+}
+
+.drpg-messenger-input {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: flex-end;
+    gap: 0.4rem;
+    padding: 0.5rem 0.6rem;
+    border-top: 1px solid rgba(var(--drpg-eye-rgb), 0.3);
+}
+
+.drpg-messenger-input textarea {
+    flex: 1 1 auto;
+    resize: none;
+    max-height: 6rem;
+}
+
+.drpg-messenger-input button {
+    flex: 0 0 auto;
+    width: 2.2rem;
+    height: 2.2rem;
+    padding: 0;
+    border-radius: 50%;
+    border: 1px solid var(--drpg-eye);
+    background: transparent;
+    color: var(--drpg-eye);
+    cursor: pointer;
+}
+
+.drpg-messenger-input button:hover {
+    background: rgba(var(--drpg-eye-rgb), 0.14);
+}
+
+body.drpg-pixel-font .drpg-messenger-participants,
+body.drpg-pixel-font .drpg-messenger-roster-name,
+body.drpg-pixel-font #drpg-messenger-roster h4 {
+    font-family: var(--drpg-font-pixel, var(--font-primary, sans-serif));
+}
+
+/* ==========================================================================
+   THE TWO FLOATING LAUNCHERS SHARE THE MODULE'S EDGE MARGIN
+   --------------------------------------------------------------------------
+   These live here rather than in danganronpa.css because the manifest loads
+   messenger.css second: the original `right: 16px` in this file beats anything
+   of equal specificity written earlier, whichever order the rules appear in.
+
+   Bigger, too. 44px is a comfortable target only if you never miss, and these
+   are the two controls a player reaches for in the middle of a scene.
+   ========================================================================== */
+
+#drpg-messenger-launcher {
+    right: var(--drpg-edge);
+    bottom: var(--drpg-edge);
+    width: 52px;
+    height: 52px;
+    font-size: 1.15rem;
+}
+
+#drpg-casebook-launcher {
+    right: var(--drpg-edge);
+    bottom: calc(var(--drpg-edge) + 60px);
+    width: 52px;
+    height: 52px;
+    font-size: 1.15rem;
+}

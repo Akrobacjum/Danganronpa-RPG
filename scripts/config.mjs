@@ -1,0 +1,1758 @@
+/**
+ * Danganronpa RPG — static configuration.
+ * ---------------------------------------------------------------------------
+ * Single source of truth for every number, threshold and table that the
+ * "Danganronpa RPG System — Full Guide" defines. Nothing in here touches
+ * Foundry; it is plain data so the rest of the module (and macros) can read
+ * the rules instead of hardcoding them.
+ *
+ * If a rule changes in the guide, change it HERE and nowhere else.
+ */
+
+export const MODULE_ID = "danganronpa-rpg";
+
+/** Socket channel used for player -> GM requests (search tokens, reveals). */
+export const SOCKET = `module.${MODULE_ID}`;
+
+/**
+ * Document flag keys, all stored under `flags["danganronpa-rpg"]`.
+ * Never spell these out inline — a typo in a flag name fails silently.
+ */
+export const FLAGS = {
+    /** Character: the student's Ultimate talent, shown under their name. */
+    ultimate: "ultimate",
+    /**
+     * Character: this student is dead.
+     *
+     * A flag rather than a hidden token. The body is often exactly what the
+     * cast is standing around looking at, so it has to stay on the map — but
+     * the dead do not occupy a room for the rules' purposes: they are not
+     * witnesses, they cannot be handed things, and a murder must still be
+     * possible in the room where one already happened.
+     *
+     * Shape: `{ chapter, day, timeOfDay }` — when, so the timeline can be
+     * reconstructed at the trial.
+     */
+    deceased: "deceased",
+    /**
+     * Character: this dead student has joined the GM side as a Monocub.
+     *
+     * Guide, p. 16: "Po śmierci, gdy jego class trial się zakończy, gracz może
+     * dołączyć do DMów jako Monocub." Opt-in, and only ever set on a character
+     * `isDeceased` already flagged true — a Monocub is a specific way of being
+     * dead, not a third state. The player keeps the same actor: no new sheet,
+     * no ownership change, just a different action panel (see `monocub.mjs`).
+     */
+    monocub: "monocub",
+    /**
+     * Character: locked out of discussing this crime until this chapter ends.
+     *
+     * Guide, p. 17: a Monocub who stumbles onto an incident "otrzymuje zakaz
+     * wypowiadania się na temat zbrodni do końca rozdziału". Which chapter is
+     * recorded rather than just a boolean, so it lapses on its own the moment
+     * the chapter counter moves — the same pattern Stage 3's Analyze lock uses.
+     */
+    silencedChapter: "silencedChapter",
+    /** Character: how many DRPG advances they have taken. */
+    advances: "advances",
+    /** Character: has this character already taken their free Move this time of day? */
+    freeMoveUsed: "freeMoveUsed",
+    /**
+     * Character: when each kind of rest was last taken.
+     * Shape: { short: "<day>:<timeOfDay>", long: <session number> }.
+     *
+     * Stored as the clock reading rather than as a counter that something has to
+     * remember to clear: a short rest is spent while the stamp still matches the
+     * current time of day, and expires by itself when the clock moves on. The
+     * guide's "once per time of day" and "once per session" were declared in
+     * REST and never enforced, so a long rest could be repeated until the
+     * character ran out of actions.
+     */
+    restsTaken: "restsTaken",
+    /**
+     * Character: a Call that has been paid for and is waiting on the next roll.
+     * Shape: { key, kind, grants, from }. Consumed by the roll dialog.
+     */
+    pendingCall: "pendingCall",
+    /**
+     * Character: what the last action rolled, so Reroll has something to undo.
+     * Shape: { messageId, actionKey, trait, total, withFear, isCritical,
+     * projectId, progress }. Overwritten by every action; only the newest one
+     * can ever be taken back.
+     */
+    lastAction: "lastAction",
+    /**
+     * Character: this actor is a Monokuma, not a student.
+     *
+     * A flag rather than a separate actor type on purpose. A Monokuma still
+     * wants the character sheet — a portrait, a name, traits for the rare roll
+     * — and a custom type would mean reimplementing all of it and losing every
+     * Daggerheart feature that keys off `type === "character"`. The flag flips
+     * only what actually differs: no actions, no Hope, Despair Calls instead of
+     * the action grid, and walls do not apply.
+     */
+    monokuma: "monokuma"
+};
+
+/**
+ * Key of the custom Daggerheart resource that carries the action budget.
+ * Registered into CONFIG.DH.RESOURCE.character.custom — see resources.mjs.
+ */
+export const ACTIONS_RESOURCE = "actions";
+
+/* ==========================================================================
+ * TRAITS
+ * --------------------------------------------------------------------------
+ * The guide defines six stats. Daggerheart also has exactly six traits, so we
+ * do not touch the data model at all — we only relabel them via i18n.
+ * `dh` is the key that actually lives in actor.system.traits.
+ * ========================================================================== */
+
+export const TRAITS = {
+    eye: { dh: "instinct", label: "Eye", short: "EYE", hint: "Perceptiveness and noticing things." },
+    head: { dh: "knowledge", label: "Head", short: "HEA", hint: "Connecting facts." },
+    body: { dh: "strength", label: "Body", short: "BOD", hint: "Physical strength." },
+    leg: { dh: "agility", label: "Leg", short: "LEG", hint: "Physical speed." },
+    hand: { dh: "finesse", label: "Hand", short: "HAN", hint: "Dexterity and precise action." },
+    shadow: { dh: "presence", label: "Shadow", short: "SHA", hint: "Hiding and the sixth sense." }
+};
+
+/** Reverse lookup: daggerheart trait key -> drpg trait key. */
+export const TRAIT_BY_DH = Object.fromEntries(
+    Object.entries(TRAITS).map(([key, data]) => [data.dh, key])
+);
+
+/** Character creation spread from the guide: +2, +1, +1, 0, 0, -1. */
+export const TRAIT_ARRAY = [2, 1, 1, 0, 0, -1];
+
+/* ==========================================================================
+ * STARTING RESOURCES
+ * ========================================================================== */
+
+export const STARTING = {
+    hp: 4,
+    stress: 6,
+    hope: 2,
+    hopeMax: 6,
+    /** Per-GM Despair pool cap (Daggerheart "Max Fear"). */
+    despairMax: 12,
+    /** Base actions per time of day. */
+    actions: 2,
+    /** One free Move per time of day, on top of the action budget. */
+    freeMoves: 1,
+    /** Two experiences at +2 each. */
+    experiences: 2,
+    experienceValue: 2,
+    /**
+     * Everybody opens with one Tier 2 item tied to their Ultimate.
+     *
+     * WHAT it is stays a conversation — "do uzgodnienia z każdym graczem z
+     * osobna" — so only the tier lives here. `initCharacter` takes the name.
+     */
+    startingItemTier: 2
+};
+
+/* ==========================================================================
+ * TIME OF DAY
+ * --------------------------------------------------------------------------
+ * One session = one in-fiction day = five times of day. Advancing the clock
+ * resets action budgets, free moves and per-room search tokens.
+ * ========================================================================== */
+
+export const TIMES_OF_DAY = ["morning", "noon", "afternoon", "evening", "night"];
+
+export const TIME_OF_DAY_LABELS = {
+    morning: "Morning",
+    noon: "Noon",
+    afternoon: "Afternoon",
+    evening: "Evening",
+    night: "Night"
+};
+
+/**
+ * The three modes a session runs in. A canonical chapter is five sessions:
+ * three Daily Life (the third carrying the murder), one Investigation, one
+ * Class Trial. The GM sets this by hand — the guide allows stretching a
+ * chapter when no murder has happened yet.
+ */
+export const PHASES = {
+    dailyLife: { label: "Daily Life", hint: "You live inside a closed area. Two actions per time of day." },
+    investigation: { label: "Investigation", hint: "A body was found. Observe and Analyze to build Truth Bullets." },
+    classTrial: { label: "Class Trial", hint: "The moment of truth. Objections, testimony, the vote." }
+};
+
+/** Chapters in a canonical season. The modular variant runs a single chapter. */
+export const CHAPTERS_PER_SEASON = 6;
+
+/* ==========================================================================
+ * ROOMS
+ * ========================================================================== */
+
+/**
+ * Room crossings each character gets during an Eclipse, free of the action
+ * economy. Guide: "before each time of day the player may move their token by 2
+ * connected rooms."
+ *
+ * Kept here rather than in eclipse.mjs because movement.mjs enforces the same
+ * cap and cannot import eclipse.mjs — eclipse.mjs already imports movement.mjs,
+ * and closing that loop would put the constant in a temporal dead zone.
+ */
+export const ECLIPSE_MOVES = 2;
+
+/**
+ * Eclipses that let you start anywhere on the map instead of two rooms away.
+ *
+ * ONE of the five: the Night Eclipse. The handbook's "at night you can pick any
+ * room as your starting point" (p. 12) is the whole of the exception.
+ *
+ * The handbook's opening line — "you pick any room to begin in" — reads like a
+ * second exception for the start of a session, and this list briefly carried
+ * `morning` for that reason. It is not one: at the table the Morning Eclipse is
+ * an ordinary placement window with the ordinary two crossings, and only the
+ * night is free. Corrected on the author's ruling.
+ *
+ * Keyed by the time of day the Eclipse OPENS — a Night Eclipse runs before
+ * Night — which is how they are named everywhere in the interface.
+ */
+export const ECLIPSE_FREE_PLACEMENT = ["night"];
+
+export const ROOMS = {
+    /** Search tokens available per room, per time of day. */
+    searchTokensPerRoom: 3
+};
+
+/* ==========================================================================
+ * ITEMS
+ * --------------------------------------------------------------------------
+ * Tier defines effectiveness. Categories carry hard inventory caps; Truth
+ * Bullets are deliberately uncapped.
+ * ========================================================================== */
+
+export const ITEM_TIERS = [0, 1, 2, 3];
+
+export const ITEM_CATEGORIES = {
+    usable: {
+        label: "Usable Item",
+        plural: "Usable Items",
+        limit: 3,
+        hint: "Restores HP, Stress or Hope."
+    },
+    crimeTool: {
+        label: "Crime Tool",
+        plural: "Crime Tools",
+        limit: 1,
+        hint: "Makes a murder incident easier."
+    },
+    cleaningTool: {
+        label: "Cleaning Tool",
+        plural: "Cleaning Tools",
+        limit: 2,
+        hint: "Makes covering up a murder easier."
+    },
+    truthBullet: {
+        label: "Truth Bullet",
+        plural: "Truth Bullets",
+        limit: null,
+        hint: "Evidence. No carry limit."
+    }
+};
+
+/**
+ * What each tier means per category. Used by the Search roll tables and by the
+ * GM tooling that improvises items.
+ */
+export const TIER_EFFECTS = {
+    usable: {
+        0: "A random, seemingly useless item. Open to creative use.",
+        1: "Restores 1 HP or 1 Stress.",
+        2: "Restores 2 HP or 2 Stress.",
+        3: "Restores 2 HP, 2 Stress and 2 Hope."
+    },
+    crimeTool: {
+        0: "A random, seemingly useless item.",
+        1: "Meant for something else, but usable.",
+        2: "Partly intended for the job.",
+        3: "Made strictly for the job."
+    },
+    cleaningTool: {
+        0: "A random, seemingly useless item.",
+        1: "Meant for something else, but usable.",
+        2: "Partly intended for the job.",
+        3: "Made strictly for the job."
+    }
+};
+
+/**
+ * What using a Usable Item actually restores, by tier.
+ *
+ * Straight off TIER_EFFECTS above, in a shape the Use action can apply. The
+ * guide writes tier 1 and 2 as "restores N HP **or** N Stress" — one object,
+ * either use — so those ask which. Tier 3 gives all three at once and asks
+ * nothing. Tier 0 is "a random, seemingly useless object, open to creative
+ * use": there is no table entry to apply, so it goes to the GM instead.
+ *
+ * HP and Stress are reverse resources; `use-items.mjs` subtracts marks.
+ */
+export const USABLE_EFFECTS = {
+    0: { creative: true },
+    1: { amount: 1, choose: ["hitPoints", "stress"] },
+    2: { amount: 2, choose: ["hitPoints", "stress"] },
+    3: { fixed: { hitPoints: 2, stress: 2, hope: 2 } }
+};
+
+/**
+ * Categories a character can hold ready rather than merely own.
+ *
+ * The guide never says a weapon has to be drawn — but "Jeśli zdobyła przedmiot,
+ * którego może użyć jako broń" and the crime tool being consumed after a murder
+ * both assume a specific object is in hand, and the incident engine had no way
+ * to be told WHICH. Equipping is that answer: one per category, and it is what
+ * `bestWeaponTier` reads first.
+ */
+export const EQUIPPABLE = ["crimeTool", "cleaningTool"];
+
+/* ==========================================================================
+ * REMNANTS & TRUTH BULLETS
+ * --------------------------------------------------------------------------
+ * A Remnant lives on the map. Observing it copies it into a player's
+ * inventory as a Truth Bullet; the Remnant itself stays put.
+ * ========================================================================== */
+
+/** How hard a Remnant is to spot. Order matters: easiest -> hardest. */
+export const REMNANT_VISIBILITY = ["obvious", "evident", "subtle", "hidden"];
+
+export const REMNANT_VISIBILITY_LABELS = {
+    obvious: "Obvious",
+    evident: "Evident",
+    subtle: "Subtle",
+    hidden: "Hidden"
+};
+
+export const REMNANT_TYPES = {
+    key: {
+        label: "Key Remnant",
+        hint: "GM-placed, unremovable, makes the case solvable. Converts to a Truth Bullet without analysis.",
+        reinforced: true
+    },
+    neutral: {
+        label: "Neutral Remnant",
+        hint: "Undetermined origin. Analysis turns it into a real category."
+    },
+    faint: {
+        label: "Faint Remnant",
+        hint: "Doubtful connection to the case. Swept at chapter end unless tied to the murder."
+    },
+    prep: {
+        label: "Prep Remnant",
+        hint: "Left while preparing a murder, gathering tools or sabotaging."
+    },
+    incident: {
+        label: "Incident Remnant",
+        hint: "Left during the confrontation or the victim's death."
+    },
+    resolution: {
+        label: "Resolution Remnant",
+        hint: "Left by the killer's mistakes while cleaning up the scene."
+    },
+    autopsy: {
+        label: "Autopsy Remnant",
+        hint: "The state of the body. Always handed out first, no roll needed. Carries the time it "
+            + "was discovered and the cause of death."
+    },
+    final: {
+        label: "Final Truth Remnant",
+        hint: "One per chapter. Points at the Mastermind and the real reason for the killing game.",
+        // Placed once a chapter and meant to survive the whole season, not just
+        // this case — `placeRemnant` already reads this flag to set the token's
+        // own `reinforced` flag, so nothing else has to know "final" is special.
+        reinforced: true
+    }
+};
+
+/**
+ * Truth Bullet types — same keys as REMNANT_TYPES, since every Truth Bullet
+ * traces back to exactly one Remnant type. Kept as a separate table because the
+ * two are worded for different readers: a Remnant's hint is the GM's note on
+ * the map, a Truth Bullet's is what ends up on a player's inventory card.
+ */
+export const TRUTH_BULLET_TYPES = {
+    key: {
+        label: "Key Truth Bullet",
+        hint: "Evidence from the GMs, so the case is solvable. Identified the moment you pick it up — no Analyze needed."
+    },
+    neutral: {
+        label: "Neutral Truth Bullet",
+        hint: "A trace of undetermined origin. Analyse it to find out what it really is."
+    },
+    faint: {
+        label: "Faint Truth Bullet",
+        hint: "Doubtful connection to the case. Survives the sweep at the start of the next session, and can be analysed again."
+    },
+    prep: {
+        label: "Prep Truth Bullet",
+        hint: "Left by the killer during preparation."
+    },
+    incident: {
+        label: "Incident Truth Bullet",
+        hint: "Created during the murder itself."
+    },
+    resolution: {
+        label: "Resolution Truth Bullet",
+        hint: "Left by the killer's mistakes while cleaning up the crime scene."
+    },
+    autopsy: {
+        label: "Autopsy Truth Bullet",
+        hint: "The state of the body — the time it was discovered, and the cause of death. Handed out "
+            + "at the start of every Investigation, never rolled for."
+    },
+    final: {
+        label: "Final Truth Bullet",
+        hint: "One per chapter. Points at the Mastermind and the real reason for the killing game."
+    }
+};
+
+/**
+ * Observe action DCs — guide "Cel obserwacji" table.
+ * Rows: how visible the Remnant is. Columns: what kind of Remnant it is.
+ *
+ * No `autopsy` column: Autopsy Truth Bullets are handed out by the GM from the
+ * GM panel, never rolled for — see the panel's "Issue Autopsy Truth Bullet".
+ *
+ * `incident` and `resolution` are priced the same as `prep`. The guide's own
+ * table left them blank (crime-scene evidence copying itself into inventory
+ * with no roll at all), which was almost certainly a transcription gap rather
+ * than the intended rule — a Class Trial's evidence should not be free. Table
+ * confirmed this reading explicitly: Observe rolls for both.
+ */
+export const OBSERVE_DC = {
+    obvious: { dailyLife: 8, key: 6, faint: 12, prep: 9, incident: 9, resolution: 9 },
+    evident: { dailyLife: 12, key: 9, faint: 15, prep: 12, incident: 12, resolution: 12 },
+    subtle: { dailyLife: 18, key: 12, faint: 18, prep: 15, incident: 15, resolution: 15 },
+    hidden: { dailyLife: 21, key: 15, faint: 21, prep: 18, incident: 18, resolution: 18 }
+};
+
+/**
+ * Remnant types the Observe/Analyze tables have no column for.
+ *
+ * The guide's tables are written for the types a Remnant is actually left AS:
+ * Key, Faint, Prep, Incident, Resolution, Autopsy. "Neutral" is a state a Truth
+ * BULLET is in — what the player sees before analysing it — not a kind of trace
+ * somebody leaves. `REMNANT_TYPES` mirrors the bullet list all the same, so a GM
+ * can place both on the map and the lookup has to answer for them.
+ *
+ *   neutral → prep    the standard evidence column; a trace of unstated origin
+ *                     is priced like the ordinary evidence it stands in for
+ *   final   → key     both are placed by the GM to be found, not stumbled upon
+ *
+ * `diagnoseTruthBullets` warns about Neutral Remnants on the map, since one is
+ * usually a GM meaning to pick a real category and not getting to it.
+ */
+export const OBSERVE_TYPE_ALIAS = {
+    neutral: "prep",
+    final: "key"
+};
+
+/**
+ * The Observe difficulty for one Remnant, with the aliases applied.
+ * `null` means "no roll" — Autopsy Remnants are handed over, never spotted.
+ */
+export function observeDc(visibility, type) {
+    const column = OBSERVE_TYPE_ALIAS[type] ?? type;
+    return OBSERVE_DC[visibility]?.[column] ?? null;
+}
+
+/** Failing an Observe roll costs the player Stress. */
+export const OBSERVE_FAIL_STRESS = 2;
+
+/**
+ * Analyze action DCs. Turns a Neutral Truth Bullet into an identified category.
+ * A failed analysis locks that Truth Bullet for that player until the chapter
+ * ends.
+ *
+ * THE SAME NUMBERS AS OBSERVE, by the Player Handbook (p. 15): "Thresholds for
+ * analyzing a Truth Bullet are the same as Observation, except for mind stat" —
+ * the statistic changes to Head, the difficulty does not. This used to be a
+ * bespoke table that ran markedly harder than Observe (Prep/obvious was 12
+ * against Observe's 9), which made identifying a trace harder than finding one.
+ *
+ * Derived from OBSERVE_DC rather than copied, so the two cannot drift apart: the
+ * handbook's rule is that they are one table, and this is that rule in code.
+ *
+ * `key: null` is the single deliberate difference, and it is not a gap: Key
+ * Truth Bullets arrive already identified (see KEY_REMNANTS / REMNANT_TYPES.key)
+ * and never reach this lookup. No `autopsy` column for the same reason.
+ */
+export const ANALYZE_DC = Object.fromEntries(
+    Object.entries(OBSERVE_DC).map(([visibility, row]) => [visibility, { ...row, key: null }])
+);
+
+/**
+ * The Analyze difficulty for one Truth Bullet.
+ *
+ * `null` means "no roll" rather than "impossible" — the guide prints "Bez rzutu"
+ * for Key, and gives Autopsy and Final no column at all, because all three
+ * arrive already identified. A bullet that somehow reaches Analyze in one of
+ * those states is converted outright instead of being asked to beat a number
+ * that was never written down.
+ *
+ * No alias table here, unlike `observeDc`: a bullet showing "neutral" is the
+ * normal, expected state of something waiting to be analysed, and its REAL type
+ * is what this looks up.
+ */
+export function analyzeDc(visibility, realType) {
+    return ANALYZE_DC[visibility]?.[realType] ?? null;
+}
+
+/** How many Key Remnants the GM prepares, and the floor after the opening roll. */
+export const KEY_REMNANTS = {
+    prepared: 5,
+    minimum: 3,
+    /** Guide: five clues scaled trivial -> desperate. */
+    scale: ["trivial", "standard", "standard", "complex", "desperate"],
+    /** Together they must narrow the suspect pool to this range. */
+    suspectRange: [3, 8]
+};
+
+/* ==========================================================================
+ * ACTIONS
+ * --------------------------------------------------------------------------
+ * Actions are implemented as character abilities, not as GM calls. Each entry
+ * declares which traits may roll it and what it costs.
+ * ========================================================================== */
+
+/**
+ * `kind` on each entry below is read by the sheet, which draws exactly the
+ * `universal` ones as the action grid — everything else (crisis actions, the
+ * Monocub's Meddle) has a panel of its own.
+ */
+export const ACTIONS = {
+    move: {
+        kind: "universal",
+        label: "Move",
+        icon: "fa-shoe-prints",
+        traits: [],
+        cost: 0,
+        hint: "One free Move per time of day. Every further one costs an action.",
+        description: "Inside your own room, free. Crossing into a connected room spends your free Move "
+            + "for this time of day — after that, an action each.",
+        instruction: "Drag your token. Crossing into another room is what counts — the cost is applied "
+            + "when you arrive."
+    },
+    search: {
+        kind: "universal",
+        label: "Search",
+        icon: "fa-magnifying-glass",
+        traits: ["eye", "hand"],
+        cost: 1,
+        hint: "Loot the room. Spends one of its three search tokens.",
+        description: "You loot the room. Say what you are after.\n\nThree search tokens per room, "
+            + "per time of day. Murder and cleaning tools leave a trace.",
+        thresholds: [
+            { min: 8, tier: 0, remnant: "hidden" },
+            { min: 12, tier: 1, remnant: "subtle" },
+            { min: 18, tier: 2, remnant: "evident" }
+        ],
+        critical: { tierBonus: 1, remnant: "obvious" },
+        failure: "Nothing found.",
+        leavesRemnant: { type: "prep", faint: true, onlyFor: ["crimeTool", "cleaningTool"] }
+    },
+    observe: {
+        kind: "universal",
+        label: "Observe",
+        icon: "fa-eye",
+        traits: ["eye"],
+        cost: 1,
+        callsGm: true,
+        hint: "Look for evidence. Copies a Remnant into your inventory as a Truth Bullet.",
+        description: "You look for evidence. A hit copies a Remnant into your inventory as a Neutral "
+            + "Truth Bullet — the Remnant stays put, so somebody else can still find it.\n\n"
+            + "A failed roll costs 2 Stress.",
+        dcTable: "OBSERVE_DC",
+        failStress: OBSERVE_FAIL_STRESS
+    },
+    /**
+     * Think and Analyze are one action with two uses. Both are Head rolls that
+     * end in a GM ruling, and splitting them only forced players to guess which
+     * button to press before they knew what they wanted.
+     */
+    analyze: {
+        kind: "universal",
+        label: "Analyze",
+        icon: "fa-brain",
+        traits: ["head"],
+        cost: 1,
+        callsGm: true,
+        hint: "Identify a Neutral Truth Bullet, or ask the GM for a hint.",
+        description: "Identify what a Truth Bullet really is, or just ask the GM for a hint.\n\n"
+            + "Failing locks that bullet for you until the chapter ends.",
+        dcTable: "ANALYZE_DC",
+        /** Used when the player asks for a hint rather than analysing evidence. */
+        hintThresholds: [
+            { min: 14, result: "A subtle hint — e.g. “You are far from the target.”" },
+            { min: 18, result: "A direct hint — e.g. “Search the pool room.”" }
+        ],
+        hintCritical: { result: "They ask you one question — e.g. “Did the victim really die in this room?”" },
+        hintFailure: "No help."
+    },
+    listen: {
+        kind: "universal",
+        label: "Listen",
+        icon: "fa-ear-listen",
+        traits: ["shadow"],
+        cost: 1,
+        hint: "Work out who is in a neighbouring room. No GM needed.",
+        description: "You listen at the walls. Pick a neighbouring room.\n\nA modest result gives "
+            + "you a headcount, a strong one gives you names.",
+        thresholds: [
+            { min: 14, result: "Pick one room; learn whether anyone is there." },
+            { min: 18, result: "Pick one room; see the tokens of everyone in it." }
+        ],
+        critical: { result: "See every player token in all adjacent rooms." },
+        failure: "You learn nothing."
+    },
+    project: {
+        kind: "universal",
+        label: "Work on Project",
+        icon: "fa-hammer",
+        traits: ["hand", "body", "leg", "head"],
+        cost: 1,
+        hint: "Push a project agreed with the GM. Several people can work on one and pool progress.",
+        description: "Several times of day, many actions — and the one thing that can change the "
+            + "game. Several people can work on one and their progress adds up.\n\n"
+            + "Trivial 3, Standard 4, Complex 6, Desperate 8. You have to be in the project's room.",
+        thresholds: [
+            { min: 12, progress: 1 },
+            { min: 18, progress: 2 }
+        ],
+        critical: { progress: 2, refundAction: true },
+        failure: "No progress."
+    },
+    sabotage: {
+        kind: "universal",
+        label: "Sabotage",
+        icon: "fa-screwdriver-wrench",
+        traits: ["hand", "body", "leg", "head"],
+        cost: 1,
+        hint: "Break a project or object so it needs a repair project. Always leaves a trace.",
+        description: "You break something the players made, so it needs a repair project first.\n\n"
+            + "Hope hides you; Despair shows you to anyone in the room. Always leaves a trace, and you "
+            + "have to be in the project's room.",
+        thresholds: [
+            { min: 12, result: "Success. The target needs a simple repair project.", remnant: "subtle" },
+            { min: 18, result: "Success. The target needs a complex repair project.", remnant: "evident" }
+        ],
+        critical: { result: "Success. The target needs a hidden-difficulty repair project.", remnant: "obvious" },
+        failure: "Nothing happens.",
+        failureRemnant: "hidden",
+        leavesRemnant: { type: "prep", faint: true }
+    },
+    /**
+     * One tile, two rests. Kept together so the action grid stays two rows of
+     * five; the choice of short or long is made in the dialog, where the costs
+     * and room requirements can be shown side by side.
+     */
+    rest: {
+        kind: "universal",
+        label: "Rest",
+        icon: "fa-bed",
+        traits: [],
+        cost: 1,
+        hint: "Short Rest: 1 action, choose 1. Long Rest: 2 actions, choose 2, bedroom only.",
+        description: "Short Rest — 1 action, choose one. Once per time of day, where the map allows.\n\n"
+            + "Long Rest — 2 actions, choose two. Once per session, bedroom only.\n\n"
+            + "Sleep restores HP, a Meal clears Stress, a Breath gives Hope — all of it on a Long "
+            + "Rest, half on a Short."
+    },
+    directMurder: {
+        kind: "universal",
+        label: "Direct Murder",
+        icon: "fa-skull",
+        traits: [],
+        cost: 1,
+        callsGm: true,
+        hint: "Open a direct murder. Agreed with the GM beforehand.",
+        description: "A face-to-face confrontation, agreed with the GM before the session, with the "
+            + "victim's player consenting.\n\nYou have to be alone with them. A third party ruins "
+            + "the attempt, and the action is lost."
+    }
+};
+
+/**
+ * Indirect murder — the guide makes this a project, with two extra Shadow rolls
+ * layered on top of the normal project roll.
+ */
+export const INDIRECT_MURDER = {
+    /** Hiding your intent when another player is in the room with you. */
+    concealIntent: {
+        label: "Conceal your intent",
+        trait: "shadow",
+        threshold: 16,
+        success: "The others cannot see that you are doing anything. You may lie freely.",
+        successWithDespair: "The others see nothing, and the project gains +1 progress.",
+        failure: "The others get a general description of what you are doing — e.g. 'fiddling with test tubes'.",
+        /** With nobody else in the room, the project simply gains this instead. */
+        aloneBonus: 1
+    },
+    /** Every project action also rolls to hide the traces it leaves. */
+    hideTraces: {
+        label: "Hide the traces",
+        trait: "shadow",
+        thresholds: [
+            { min: 0, remnant: "obvious" },
+            { min: 12, remnant: "evident" },
+            { min: 18, remnant: "subtle" }
+        ],
+        critical: { remnant: "hidden" }
+    },
+    /** The guide splits an indirect murder into at least two sub-projects. */
+    subProjects: [
+        { label: "Prepare the weapon", scale: ["everyday", "complex"], progress: [4, 6],
+          note: "May require a specific room with the right equipment, unless you obtained the tool." },
+        { label: "Set the trap", scale: ["trivial", "everyday"], progress: [3, 4],
+          note: "Always requires a specific room." }
+    ]
+};
+
+/**
+ * Sabotage, when you are not alone.
+ *
+ * The same shape as an indirect murder's conceal-intent roll, and for the same
+ * reason: breaking someone's project in front of them is not something you can
+ * do casually. Rolled *before* the sabotage itself, so a failure is known while
+ * there is still a choice — the player may back out having spent nothing.
+ *
+ * The guide already has Despair on the sabotage roll reveal the attempt; this
+ * covers the other half, the witnesses watching you do it in the first place.
+ */
+export const SABOTAGE_CONCEAL = {
+    label: "Cover what you are doing",
+    trait: "shadow",
+    threshold: 16,
+    success: "Nobody works out what you are really doing. You may lie freely about it.",
+    successWithDespair: "Nobody works out what you are doing — but you fumble, and the sabotage is harder.",
+    /** Despair on a successful concealment still costs you: -1 on the sabotage. */
+    despairPenalty: -1,
+    failure: "The others see roughly what you are up to — 'prying at the lock', 'pulling wires out'.",
+    /** Failing does not stop you. It only means everyone watched you do it. */
+    aloneNote: "Nobody else is in the room, so there is nothing to hide."
+};
+
+/**
+ * Dynamic actions: the player describes something, the GM picks a threshold.
+ * Note the inverted Remnant scale — creativity is rewarded with louder traces
+ * being easier, not harder.
+ */
+export const DYNAMIC_THRESHOLDS = [
+    { range: [8, 12], difficulty: "Trivial. Anyone could do it.", tier: 0, remnant: "obvious" },
+    { range: [13, 15], difficulty: "Takes practice.", tier: 1, remnant: "evident" },
+    { range: [16, 18], difficulty: "Foreign to most people. Hard to get right first try.", tier: 2, remnant: "subtle" },
+    { range: [19, 21], difficulty: "Demands very niche expertise.", tier: 3, remnant: "hidden" }
+];
+
+/* ==========================================================================
+ * REST
+ * --------------------------------------------------------------------------
+ * Long rest: 2 actions, pick 2, once per session, bedroom only.
+ * Short rest: 1 action, pick 1, once per time of day, in designated rooms.
+ * ========================================================================== */
+
+/**
+ * Which rooms allow which rest is NOT here: it is map data, flagged per Scene
+ * Region by the GM in Room Setup — see `roomAllows` in rest.mjs. The guide is
+ * explicit that the short-rest pool "depends entirely on the map prepared for
+ * the season", and a `bedroomOnly: true` constant could only ever contradict
+ * whatever the GM actually flagged.
+ */
+export const REST = {
+    long: { actionCost: 2, picks: 2, perSession: 1 },
+    short: { actionCost: 1, picks: 1, perTimeOfDay: 1 },
+    options: {
+        sleep: { label: "Sleep", long: "Restores all HP", short: "Restores half HP" },
+        meal: { label: "Meal", long: "Restores all Stress", short: "Restores half Stress" },
+        breath: { label: "Breath", long: "Grants 2 Hope", short: "Grants 1 Hope" }
+    }
+};
+
+/* ==========================================================================
+ * HOPE CALLS  (player spends Hope)
+ * ========================================================================== */
+
+/**
+ * Hope Calls.
+ *
+ * `target` says what the call needs pointing at:
+ *   none      nothing to choose
+ *   player    another character
+ *   project   a project in the room
+ *
+ * `grants` is the permission the call buys on the *next* roll — the roll dialog
+ * keeps these controls disabled until a Call has paid for them, which is the
+ * whole point of making them Calls rather than free checkboxes.
+ */
+export const HOPE_CALLS = {
+    support: {
+        label: "Support", icon: "fa-hands-holding-circle", cost: 1, target: "player", grants: "advantage",
+        effect: "Give another player advantage on one roll. You have to be in the same room."
+    },
+    experience: {
+        label: "Experience", icon: "fa-graduation-cap", cost: 1, target: "none", grants: "experience",
+        effect: "Add your experience level to the result. The roll has to relate to that experience. "
+            + "This is entrusted to you — do not spam it on random actions."
+    },
+    ultimate: {
+        label: "Ultimate", icon: "fa-star", cost: 2, target: "none", grants: "advantage",
+        effect: "You get advantage. The roll has to relate to your Ultimate. This is entrusted to you — "
+            + "do not spam it on random actions."
+    },
+    contribution: {
+        label: "Contribution", icon: "fa-screwdriver-wrench", cost: 2, target: "project", progress: 1,
+        effect: "Add +1 progress to a project being worked on in the room you are in."
+    },
+    reroll: {
+        // Not a grant: this one looks backwards, not forwards. It re-rolls the
+        // dice you already threw and replaces what they did to you.
+        reroll: true, label: "Reroll", icon: "fa-rotate-left", cost: 3, target: "none",
+        effect: "Reroll the action. It reverts the previous outcome."
+    },
+    determination: {
+        label: "Determination", icon: "fa-hand-fist", cost: 3, target: "none", grants: "trait",
+        effect: "For one roll, choose which statistic to add yourself."
+    },
+    freeCrit: {
+        label: "Free Critical", icon: "fa-burst", cost: 6, target: "none", grants: "critical",
+        effect: "On the next roll you get an automatic critical with the maximum result."
+    }
+};
+
+/* ==========================================================================
+ * DESPAIR CALLS  (GM spends Despair; pool caps at 12 per Monokuma)
+ * ========================================================================== */
+
+/**
+ * Despair Calls. Same shape as Hope Calls, plus the direct effects a Monokuma's
+ * money can buy: damage, stress, project progress, sealed rooms.
+ */
+export const DESPAIR_CALLS = {
+    obstacle: {
+        label: "Obstacle", icon: "fa-road-barrier", cost: 1, target: "player", grants: "disadvantage",
+        effect: "Disadvantage on a player's roll."
+    },
+    forTheGame: {
+        label: "For the Game", icon: "fa-gift", cost: 1, target: "player", grants: "advantage",
+        effect: "Advantage on a player's roll."
+    },
+    behindClosedDoors: {
+        label: "Behind Closed Doors", icon: "fa-door-closed", cost: 2, target: "room", sealsRoom: true,
+        effect: "Seal a room for one time of day."
+    },
+    thisWillHurt: {
+        label: "This Will Hurt", icon: "fa-heart-crack", cost: 2, target: "player", damage: { hitPoints: 2 },
+        effect: "A player loses 2 HP."
+    },
+    paranoia: {
+        label: "Paranoia", icon: "fa-brain", cost: 2, target: "player", damage: { stress: 2 },
+        effect: "A player loses 2 Stress."
+    },
+    chained: {
+        // Not in the guide's table — added at the table's request. Priced
+        // between Paranoia (2) and Game Integrity (3): losing a time of day's
+        // movement is worse than losing 2 Stress and cheaper than gutting a
+        // project, because a room you are already in may be where you wanted
+        // to be anyway.
+        label: "Chained", icon: "fa-link", cost: 3, target: "player", chains: true,
+        effect: "One player cannot leave their room until the end of the time of day."
+    },
+    silence: {
+        // Priced above Chained: cutting off every Hope Call denies advantage,
+        // experiences, rerolls and the free critical at once.
+        label: "Silence", icon: "fa-comment-slash", cost: 4, target: "player", silences: true,
+        effect: "One player cannot spend Hope Calls until the end of the time of day."
+    },
+    fuelTheCub: {
+        // Guide, p. 16: a Monocub "prosi DMa" for the Hope that Meddle costs, and
+        // that Hope only exists because a GM converted Despair into it. It was
+        // already possible from the Monocub panel; this puts it where a Monokuma
+        // is actually standing when they decide to do it — their own sheet.
+        //
+        // Priced at 1 because it IS the exchange rate: one Despair becomes one
+        // Hope, and the Monokuma is buying a Monocub's single Meddle.
+        label: "Fuel a Monocub", icon: "fa-hand-holding-heart", cost: 1, target: "monocub",
+        grantsHope: 1,
+        effect: "Turn 1 Despair into 1 Hope for a Monocub, so they can use Confusion."
+    },
+    gameIntegrity: {
+        label: "Game Integrity", icon: "fa-arrow-trend-down", cost: 3, target: "project", progress: -2,
+        effect: "Remove 2 progress from a project."
+    },
+    favoriteProject: {
+        label: "Favorite Project", icon: "fa-arrow-trend-up", cost: 3, target: "project", progress: 2,
+        effect: "Add 2 progress to a project."
+    },
+    contraband: {
+        // Guide table: 5 despair. Was priced at 6 here.
+        label: "Contraband", icon: "fa-trash-can", cost: 5, target: "item",
+        effect: "Destroy any one item."
+    },
+    publicAnnouncement: {
+        // Guide table ("Parish Announcements"): 6 despair. Was priced at 9 here,
+        // which put it out of reach of a pool that has spent anything at all.
+        label: "Public Announcement", icon: "fa-bullhorn", cost: 6, target: "room", gathersEveryone: true,
+        effect: "Monokuma moves every player into a single room."
+    },
+    newRule: {
+        label: "New Rule", icon: "fa-gavel", cost: 12, target: "none", announces: true,
+        effect: "Introduce one new killing game rule of your choice."
+    },
+    gameProtection: {
+        label: "Game Protection", icon: "fa-eraser", cost: 12, target: "project", wipesProgress: true,
+        effect: "A player project loses all progress."
+    }
+};
+
+/* ==========================================================================
+ * PROJECTS
+ * ========================================================================== */
+
+export const PROJECT_SCALE = {
+    trivial: { label: "Trivial", progress: 3 },
+    // Key stays `everyday` — it is written on existing project documents. The
+    // Player Handbook calls this tier "Standard", so that is what the label says.
+    everyday: { label: "Standard", progress: 4 },
+    complex: { label: "Complex", progress: 6 },
+    desperate: { label: "Desperate", progress: 8 }
+};
+
+/* ==========================================================================
+ * CHARACTER STATES
+ * ========================================================================== */
+
+/**
+ * The guide's two player states, as real Foundry status effects.
+ *
+ * Guide, "Stany gracza": "Gracz przy utracie całego stresu dostaje disadvantage
+ * na każdy rzut. Przy utracie całego hp w trakcie Daily Life gracz otrzymuje
+ * -1 akcję na porę dnia."
+ *
+ * Daggerheart marks the same two moments with its own conditions — Vulnerable
+ * at full Stress, and a Death Move at full HP — and neither is this game's rule:
+ * a Death Move offers to blaze out in glory, which a killing game does not
+ * grant. `states.mjs` switches both of the system's automations off and applies
+ * these instead.
+ *
+ * `resource` is the reverse resource whose track being FULL turns the state on.
+ */
+export const STATES = {
+    breakdown: {
+        id: "drpgBreakdown",
+        label: "Breakdown",
+        resource: "stress",
+        // The `-red` variant of this icon does not exist in the core set; the
+        // Breakdown condition was showing a broken image on every token.
+        img: "icons/magic/control/fear-fright-monster-grin-red-orange.webp",
+        trigger: "stress === 0",
+        effect: "Disadvantage on every roll."
+    },
+    wounded: {
+        id: "drpgWounded",
+        label: "Wounded",
+        resource: "hitPoints",
+        img: "icons/skills/wounds/injury-triple-slash-bleed.webp",
+        trigger: "hp === 0",
+        effect: "-1 action per time of day."
+    }
+};
+
+/* ==========================================================================
+ * LEVEL UP
+ * --------------------------------------------------------------------------
+ * Replaces the Daggerheart level-up entirely. Players who vote correctly pick
+ * one option; a Blackened who survives the vote picks three.
+ * ========================================================================== */
+
+export const LEVEL_UP_OPTIONS = {
+    hp: { label: "Increase HP by +1" },
+    stress: { label: "Increase Stress by +1" },
+    trait: { label: "Increase one statistic by +1" },
+    experienceUp: { label: "Increase one experience by +1" },
+    experienceNew: { label: "Add a new experience worth +2" }
+};
+
+export const LEVEL_UP = {
+    standard: { picks: 1, when: "Named the Blackened correctly." },
+    reinforced: { picks: 3, when: "The Blackened walked out of a wrong vote." }
+};
+
+/* ==========================================================================
+ * MONOCUB
+ * --------------------------------------------------------------------------
+ * A dead player joins the GM side. Guide, p. 16: "Ma do dyspozycji tyle akcji
+ * co gracze... Ma tylko dwie akcje: ruch i zamieszanie." Same budget as any
+ * living student (STARTING.actions, refilled by the same code — nothing
+ * Monocub-specific needed there), restricted to two action TYPES. Room
+ * visibility stays restricted too: a Monocub is not a Monokuma and does not
+ * see tokens outside its own room.
+ *
+ * Meddle is priced twice over, on purpose: "wymienić ten 1 hope aby użyć akcji
+ * zamieszanie" — it costs an action from the normal budget AND a point of
+ * Hope, and that Hope only exists because a GM chose to convert Despair into
+ * it. A Monocub who has not been given any cannot Meddle at all, however many
+ * actions they have left.
+ *
+ * "Stat: —" in the guide's own table means what it says: this is the one roll
+ * in the whole system with no trait behind it, so it is built as a flat 2d12
+ * in monocub.mjs rather than forced through a trait it does not have.
+ */
+export const MONOCUB = {
+    /** Same as a living student's. Refilled by the same reset pass. */
+    actions: STARTING.actions,
+    meddle: {
+        // Key stays `meddle` throughout the code; the Player Handbook names this
+        // action "Confusion", so that is the label every player and GM sees.
+        label: "Confusion",
+        icon: "fa-hand-sparkles",
+        /** Actions spent from the normal budget. */
+        cost: 1,
+        /** Hope spent on top of the action. Comes only from a GM's conversion. */
+        hopeCost: 1,
+        // The lower tier grants a flat +1/-1, the upper tier grants full
+        // advantage/disadvantage. Both are armed on the target's very next
+        // roll through the same Call machinery Support/Obstacle already use —
+        // which is also how "help a crisis action" falls out for free: an
+        // incident roll goes through the identical roll dialog.
+        thresholds: [
+            { min: 12, grants: "bonus",
+              help: "You grant the player +1 on their next roll.",
+              hinder: "You inflict −1 on the player's next roll." },
+            { min: 16, grants: "advantage",
+              help: "You grant the player advantage on their next roll.",
+              hinder: "You inflict disadvantage on the player's next roll." }
+        ],
+        critical: {
+            help: "The player gets the action back.", hinder: "The player wastes the action."
+        },
+        failure: "The attempt fails."
+    }
+};
+
+/* ==========================================================================
+ * MURDER
+ * ========================================================================== */
+
+/*
+ * The guide's seven stages are not modelled as data.
+ *
+ * Four of them — declaration, preparation, trigger, body discovery — happen at
+ * the table, away from it, or through a GM button that has nothing to do with
+ * the incident state. Only the three the engine actually drives are stored, as
+ * `murderState().stage`: `openingRoll`, `incident`, `resolution`. Their labels
+ * live in `DRPG.Murder.stage.*`, which is what the tracker renders.
+ */
+
+/**
+ * Stage 4 — the opening roll, guide p. 19.
+ *
+ * THERE IS EXACTLY ONE, and the kind of murder decides whose it is:
+ *
+ *   direct     the KILLER rolls. They are in the room and the question is
+ *              whether they go through with it. The victim never rolls, is
+ *              never asked, and on a failure is never told anything happened.
+ *   indirect   the VICTIM rolls. There is nobody to confront — the trap is
+ *              already set — so the only question is whether they notice it in
+ *              time to back out. Being asked to roll is itself the warning.
+ *
+ * `MURDER_OPENING.victim` therefore describes sensing a TRAP, never sensing an
+ * attacker. `openIncidentTracker` offers one button, picked by `state.indirect`.
+ *
+ * An earlier version of this comment described two rolls, one per side, and the
+ * i18n strings were written to match it. That was a misreading of a table the
+ * PDF extracts badly; the code has only ever offered one. The strings have been
+ * corrected — if anything else here still speaks of "both openings", it is
+ * wrong.
+ *
+ * Night swings whichever roll is actually thrown: the killer gets advantage, the
+ * victim disadvantage.
+ *
+ * `keyRemnants` is the guide's sliding scale — the better the killer's roll, the
+ * FEWER clues the case leaves behind, floored at the minimum in KEY_REMNANTS.
+ */
+export const MURDER_OPENING = {
+    killer: {
+        label: "Opening roll — killer",
+        threshold: 8,
+        traits: ["body", "hand"],
+        /** Night favours the killer. */
+        nightAdvantage: true,
+        keyRemnants: { hope: 5, despair: 4, critical: 3 },
+        hope: "The incident begins.",
+        despair: "The incident begins. The victim loses all their Stress and loses access to "
+            + "Role Reversal for this incident.",
+        critical: "The incident begins, and the victim learns who is attacking them.",
+        failure: "No incident, and the victim never learns anything was attempted. The action is "
+            + "spent; the attempt can be made again in another time of day."
+    },
+    /**
+     * INDIRECT MURDERS ONLY. A direct murder never reaches this table.
+     *
+     * The victim is alone with a trap, and this is their one chance to notice it
+     * before it closes. Every outcome below is written from inside that: there is
+     * no attacker in the room to identify, only a thing that is about to happen.
+     *
+     * The victim throws this roll themselves, so unlike a direct murder — where a
+     * failed attempt leaves them none the wiser — being asked is already the
+     * warning. A success is a real way out, and taking it is their choice.
+     */
+    victim: {
+        label: "Opening roll — victim",
+        threshold: 20,
+        traits: ["eye", "head"],
+        /** Night works against the victim. */
+        nightDisadvantage: true,
+        hope: "Something is wrong with this room. A free Move, and no idea why — "
+            + "spend it and you live.",
+        despair: "You work out what has been set up here, and you can tell the others. "
+            + "The project behind it stays active.",
+        critical: "You spot the trap and know whose hands built it.",
+        failure: "You notice nothing. The trap closes.",
+        /**
+         * Noticing leaves a trace of the attempt.
+         *
+         * The guide prints "Wyraźny Incident Remnant" under both halves of the
+         * victim's successful roll — the Hope one where "próba jest niejawna"
+         * and they never learn why, and the Despair one where "ofiara wie, że
+         * próbowano ją zabić". Something happened in that room either way, and
+         * this is the only Remnant in the whole of Stage 4.
+         *
+         * The failure row leaves nothing: the trap simply works, and everything
+         * it leaves behind is produced by the incident that follows.
+         */
+        remnant: { hope: "evident", despair: "evident", critical: "evident" }
+    }
+};
+
+/**
+ * Stage 5 — the incident, guide pp. 20–25.
+ *
+ * A turn-based exchange. The victim always goes first, and every turn costs
+ * them: Stress until it runs out, then HP.
+ */
+export const INCIDENT = {
+    /** Direct murder: 1 per turn. Indirect: the victim is alone and it is 2. */
+    drain: { direct: 1, indirect: 2 },
+    /**
+     * The finishing blow's threshold is five times the victim's remaining HP —
+     * which is what makes it free at zero, with no separate flag needed:
+     * `finishingBlowThreshold()` returns 0 and any roll clears it.
+     */
+    finishingBlowPerHp: 5
+};
+
+/**
+ * Crisis actions, by who may take them. Guide pp. 20–25.
+ *
+ * Every one of these is a roll with three good branches and one bad, and most
+ * of them leave a Remnant either way — which is the point: an incident is the
+ * densest source of evidence in the whole game.
+ *
+ * The module rolls, compares and applies what is mechanical (damage, Remnants,
+ * advantage). The prose under each outcome is shown to the GM, because "the
+ * victim takes something of the killer's and makes evidence of it" is a
+ * sentence a human has to finish.
+ */
+export const CRISIS_ACTIONS = {
+    /* ---- the victim ---------------------------------------------------- */
+    leaveClue: {
+        side: "victim", label: "Leave a clue", icon: "fa-fingerprint",
+        threshold: 12, traits: ["hand", "leg", "shadow"],
+        hint: "Leave a trace at the scene meant to help the others.",
+        remnant: { hope: "evident", despair: "subtle", critical: "obvious" },
+        criticalReinforced: true,
+        failure: "No Remnant, but advantage on the next attempt.",
+        failureGrantsAdvantage: true,
+        /**
+         * Dying to a trap is a different problem from dying to a person.
+         *
+         * The guide prints a SEPARATE table for the indirect victim (p. 20,
+         * "Akcje kryzysowe pośredniej ofiary") and it differs in two ways that
+         * matter: the stat is Body rather than Shadow — you are not hiding from
+         * anyone, there is nobody there — and what a good roll buys is
+         * PERMANENCE rather than visibility. Hope leaves a Reinforced trace,
+         * Despair a plain one, and a critical leaves two Reinforced.
+         *
+         * Visibility is left as the direct table's, because the guide does not
+         * restate it here and something had to be chosen; the axis it does
+         * restate — reinforced, and how many — is what this overrides.
+         */
+        indirectVictim: {
+            traits: ["hand", "leg", "body"],
+            reinforced: { hope: true, critical: true },
+            count: { critical: 2 }
+        }
+    },
+    secureTrace: {
+        side: "victim", label: "Secure a trace", icon: "fa-hand-holding",
+        threshold: 15, traits: ["hand", "leg", "shadow"],
+        hint: "Take something off the killer and turn it into a trace tied to their identity.",
+        remnant: { hope: "evident", despair: "subtle", critical: "obvious" },
+        criticalReinforced: true,
+        failure: "No Remnant, but advantage on the next attempt.",
+        failureGrantsAdvantage: true,
+        /**
+         * Same split as Leave a clue, and the guide's critical here is worded
+         * even more explicitly: "2 nieusuwalne przez mordercę, związane z nim
+         * Incident Remnants" — two traces the killer cannot wipe in Stage 6.
+         * There is no killer in the room to take something FROM, so what the
+         * indirect victim secures is the trap itself.
+         */
+        indirectVictim: {
+            traits: ["hand", "leg", "body"],
+            reinforced: { hope: true, critical: true },
+            count: { critical: 2 }
+        }
+    },
+    /**
+     * The gate on the victim's two ways out.
+     *
+     * Guide, the Samoobrona row: a success "odblokowuje obie akcje kryzysowe
+     * rozwiązania ofiary" on Hope, and on Despair only "odwrócenie ról" — and
+     * either way it "blokuje akcję kryzysową: Samoobrona", so it is one attempt.
+     * A critical also stops the drain outright and hands the victim a free
+     * follow-up.
+     *
+     * Until it lands, Survive and Role reversal are closed: fighting back is
+     * what buys the chance to run or to turn the knife around.
+     */
+    selfDefence: {
+        side: "victim", label: "Self-defence", icon: "fa-shield-halved",
+        threshold: 18, traits: ["hand", "leg", "body"],
+        hint: "You fight. Unlocks Survive and Role reversal. An item usable as a weapon gives advantage.",
+        weaponAdvantage: true,
+        /** Which resolution actions a success opens, per duality band. */
+        unlocks: {
+            hope: ["survive", "roleReversal"],
+            despair: ["roleReversal"],
+            critical: ["survive", "roleReversal"]
+        },
+        /** One attempt: a success closes this action for the rest of the incident. */
+        blocksSelf: true,
+        /** A critical stops the per-turn drain entirely. */
+        criticalStopsDrain: true,
+        remnant: { hope: "evident", despair: "evident", critical: "evident" },
+        criticalReinforced: true,
+        hope: "You keep your feet. Survive and Role reversal are open to you now.",
+        despair: "You keep your feet, but only barely — Role reversal is open to you now.",
+        critical: "You stop the bleeding. Both ways out are open, and you may take one of them "
+            + "this turn without rolling.",
+        failure: "Nothing happens. On a Despair failure you lose an extra 1 HP or Stress.",
+        failureRemnant: { hope: "evident", despair: "evident", critical: "obvious" }
+    },
+    survive: {
+        side: "victim", label: "Survive", icon: "fa-person-running",
+        threshold: 18, traits: ["leg"], kind: "resolution",
+        // Closed until Self-defence lands — see `selfDefence.unlocks`.
+        lockedUntil: "selfDefence",
+        hint: "Withdraw from the incident and stop losing HP and Stress. Needs Self-defence first.",
+        hope: "The incident ends and the drain stops.",
+        despair: "The incident ends and the drain stops. You get a hint about who they were.",
+        critical: "The incident ends, you get a hint about who they were, and immunity for this "
+            + "chapter and the next.",
+        failure: "The incident continues. You lose an extra 1 HP or Stress.",
+        failureExtraDrain: 1,
+        endsIncident: true
+    },
+    roleReversal: {
+        side: "victim", label: "Role reversal", icon: "fa-arrows-rotate",
+        threshold: 15, traits: ["hand", "leg", "body"], kind: "resolution",
+        lockedUntil: "selfDefence",
+        hint: "Tip the scales and become the killer yourself. From then on it is them losing HP and "
+            + "Stress. Needs Self-defence first.",
+        weaponAdvantage: true,
+        hope: "You become the killer and recover all HP and Stress.",
+        despair: "You become the killer.",
+        critical: "You kill them outright. They can take no further action. You recover all HP "
+            + "and Stress and leave one Evident Reinforced Incident Remnant.",
+        failure: "Nothing happens. On a Despair failure you lose an extra 1 HP or Stress.",
+        // The critical's own text promises a trace and nothing was creating one:
+        // `applyRemnant` reads `remnant[band]`, and this entry had no `remnant`
+        // table at all. Same shape of bug as the Dynamic action's missing trace —
+        // the outcome was announced and the map stayed empty.
+        remnant: { critical: "evident" },
+        criticalReinforced: true,
+        swapsRoles: true
+    },
+
+    /* ---- the killer ---------------------------------------------------- */
+    strike: {
+        side: "killer", label: "Strike", icon: "fa-hand-fist",
+        threshold: 15, traits: ["hand", "leg", "body"],
+        hint: "Speed up their decline. Costs 1 HP and 1 Stress from them.",
+        damage: { hope: { hp: 1, stress: 1 }, despair: { hp: 1, stress: 1 }, critical: { choice: true } },
+        remnant: { hope: "hidden", despair: "subtle", critical: null },
+        failure: "Nothing on a Hope failure. On Despair you still take 1 Stress off them and "
+            + "leave an Evident Remnant; a critical failure leaves an Obvious one.",
+        failureDamage: { despair: { stress: 1 } },
+        failureRemnant: { despair: "evident", critical: "obvious" }
+    },
+    pin: {
+        side: "killer", label: "Pin them down", icon: "fa-down-long",
+        threshold: 12, traits: ["body"],
+        hint: "Two turns of disadvantage on Leave a clue and Survive.",
+        hinders: { actions: ["leaveClue", "survive"], turns: 2 },
+        remnant: { despair: "subtle" },
+        failureRemnant: { despair: "evident", critical: "obvious" }
+    },
+    keepDistance: {
+        side: "killer", label: "Keep your distance", icon: "fa-arrows-left-right",
+        threshold: 12, traits: ["leg"],
+        hint: "Two turns of disadvantage on Secure a trace and Role reversal.",
+        hinders: { actions: ["secureTrace", "roleReversal"], turns: 2 },
+        remnant: { despair: "subtle" },
+        failureRemnant: { despair: "evident", critical: "obvious" }
+    },
+    weaponAttack: {
+        side: "killer", label: "Attack with a weapon", icon: "fa-khanda",
+        threshold: 15, traits: ["body", "hand", "leg"],
+        hint: "Use a found item as a weapon. Unarmed works at disadvantage, and succeeds into "
+            + "an improvised tool.",
+        /** 1 + tier/2 rounded up on a normal hit; 1 + full tier on a critical. */
+        weaponDamage: { normal: tier => 1 + Math.ceil(tier / 2), critical: tier => 1 + tier },
+        unarmedDisadvantage: true,
+        /**
+         * Guide: "Przedmiot tieru 0 jest negocjowalny jako tier 1 lub 2 w ramach
+         * kreatywności zabójcy."
+         *
+         * A Tier 0 item is "a random, seemingly useless object" — a stapler, a
+         * skipping rope — and whether swinging it counts for anything is exactly
+         * the kind of call the guide hands to a human. So a Tier 0 weapon asks
+         * the GM to rate this particular use, rather than silently dealing the
+         * 1 damage the formula gives for tier 0 and never mentioning it.
+         */
+        tierZeroNegotiable: { min: 0, max: 2, prompt: true },
+        /**
+         * Guide: "Jeśli zabójca nie ma broni, może wykonać atak z disadvantage.
+         * Przy sukcesie zyskuje broń improwizowaną, czyli narzędzie.
+         * Hope - Tier 2, Despair - Tier 1."
+         *
+         * The improvised tool is a real Crime Tool on the killer's sheet, not a
+         * line of prose — the next Attack with a weapon has to be able to find it.
+         */
+        unarmedImprovises: { hope: 2, despair: 1, critical: 2, name: "Improvised weapon" },
+        remnant: { despair: "subtle" },
+        failureRemnant: { despair: "evident", critical: "obvious" },
+        failureRemnantReinforced: { critical: true }
+    },
+    finishingBlow: {
+        side: "killer", label: "Finishing blow", icon: "fa-skull-crossbones",
+        traits: ["body", "leg", "hand"], kind: "resolution",
+        // The old hint ended "without this the victim keeps taking turns at 0 HP
+        // and 0 Stress", which stopped being true when running out started
+        // ending the incident on its own. What the roll buys is ending it EARLY,
+        // and the critical's free Stage 6 action — neither of which a victim who
+        // simply bled out hands over.
+        hint: "End the incident now. Threshold is five times their remaining HP — free at 0 HP. "
+            + "A victim who runs out of both HP and Stress dies without this, but then nobody "
+            + "earns what a critical here grants.",
+        endsIncident: true,
+        hope: "The incident ends.",
+        despair: "The incident ends and leaves one Incident Remnant.",
+        critical: "The incident ends and you gain one free action in Stage 6.",
+        remnant: { despair: "evident" },
+        failureRemnant: { despair: "evident", critical: "obvious" },
+        failureRemnantReinforced: { critical: true }
+    },
+
+    /* ---- somebody who walks in -----------------------------------------
+     * Guide: "w wypadku, gdy w dowolnym momencie do pomieszczenia w trakcie
+     * Incydentu wejdzie strona trzecia poprzez akcję ruch, strona trzecia
+     * otrzymuje automatyczny, darmowy wybór między akcjami kryzysowymi
+     * rozwiązania bezpośredniej strony trzeciej".
+     *
+     * FOUR of them, and only the first is a roll. The other three are decisions
+     * — the guide gives them no threshold, no stat and no outcome table,
+     * because there is nothing to fail at: you either throw in with one side,
+     * or you leave. `noRoll` marks them so `takeCrisisAction` applies them
+     * outright instead of opening a roll dialog.
+     *
+     * Zdrada — the fifth entry in the guide — is deliberately NOT here. It is
+     * not part of this choice: it happens later ("po zabiciu pierwszego
+     * oryginalnego uczestnika"), it "wymaga Rzutu akcji morderstwo
+     * bezpośrednie", and the guide calls it "jedyny wyjątek od zasady
+     * deklaracji zabójstwa" — that is the Direct Murder action starting a fresh
+     * cycle, which the module already has.
+     */
+    sharedEscape: {
+        side: "third", label: "Escape together", icon: "fa-door-open",
+        threshold: 15, traits: ["leg"], kind: "resolution",
+        hint: "Get the victim out with you.",
+        hope: "Both of you escape. The victim's HP and Stress are restored.",
+        despair: "Both of you escape, but the victim's HP and Stress are not restored.",
+        critical: "Both of you escape with immunity for this chapter and the next, and the "
+            + "victim's HP and Stress are restored.",
+        failure: "Only you escape. On Despair the newcomer joins the incident as a second "
+            + "victim and loses access to the third-party resolution actions.",
+        remnant: { hope: "obvious", despair: "evident" },
+        // A failed escape leaves a trace too. It used to live under
+        // `remnant.failure`, which nothing ever read: the failure branch looks up
+        // `failureRemnant[band]`, and `band` is only ever hope/despair/critical.
+        failureRemnant: { hope: "subtle", despair: "subtle", critical: "subtle" },
+        remnantType: "prep",
+        endsIncident: true
+    },
+
+    /**
+     * "Podwójne odwrócenie ról — strona trzecia i ofiara zostają mordercami,
+     * czyniąc przeżycie oryginalnego zabójcy prawie niemożliwym."
+     *
+     * The victim and the newcomer swap onto the killer's side, and the killer
+     * becomes the victim. `swapsRoles` is the mechanism Role reversal already
+     * uses; `alsoTakesThird` is what makes it double — the third party ends up
+     * beside the old victim rather than watching.
+     */
+    doubleRoleReversal: {
+        side: "third", label: "Double role reversal", icon: "fa-repeat",
+        kind: "resolution", noRoll: true,
+        hint: "You and the victim turn on the attacker together. They become the victim.",
+        effect: "The victim and the third party become the killers. The original killer "
+            + "starts bleeding and their survival is close to impossible.",
+        swapsRoles: true,
+        alsoTakesThird: true,
+        remnant: { hope: "evident", despair: "evident", critical: "evident" }
+    },
+
+    /**
+     * "Partnerzy zbrodni — strona trzecia dołącza do mordercy w zabójstwie,
+     * czyniąc przeżycie oryginalnej ofiary prawie niemożliwym."
+     *
+     * No swap: the sides stay as they are and the newcomer joins the killer's.
+     * `joinsKiller` is read by `resolveCrisisAction`, which moves them onto the
+     * killer side and closes the third party's free choice behind them.
+     */
+    crimePartners: {
+        side: "third", label: "Partners in crime", icon: "fa-handshake",
+        kind: "resolution", noRoll: true,
+        hint: "Side with the attacker. The victim is unlikely to walk out.",
+        effect: "The third party joins the killer. The original victim's survival is "
+            + "close to impossible.",
+        joinsKiller: true,
+        remnant: { hope: "subtle", despair: "subtle", critical: "subtle" }
+    },
+
+    /**
+     * "Odwrócony wzrok — strona trzecia opuszcza pomieszczenie i nie
+     * interweniuje. Może pójść po innych graczy, jednak koszt ruchu z dużym
+     * prawdopodobieństwem mu to uniemożliwi."
+     *
+     * Leaves no trace on purpose: the whole point is that they were never part
+     * of it. The movement cost the guide mentions is not modelled here — it is
+     * simply the ordinary economy in movement.mjs, which is exactly what the
+     * guide means by "koszt ruchu".
+     */
+    avertedEyes: {
+        side: "third", label: "Averted eyes", icon: "fa-eye-slash",
+        kind: "resolution", noRoll: true,
+        hint: "Walk away and stay out of it. Leaves no trace of you.",
+        effect: "The third party leaves the room and does not intervene. They may go and "
+            + "fetch the others, though the cost of moving will probably stop them.",
+        leavesIncident: true
+    }
+};
+
+/**
+ * The Class Trial, guide pp. 31–32.
+ *
+ * Only the parts a module can hold: how long an uninterrupted monologue runs,
+ * and what a vote does. The session's shape (opening, method, testimony,
+ * accusation, closing) is a schedule for humans, not a state machine.
+ */
+export const TRIAL = {
+    /** "Każdy ma maks trzy minuty nieprzerwanego monologu." */
+    speakSeconds: 180,
+    /**
+     * A tie is a loss for the players (guide p. 31), but nothing here reads
+     * that: `closeVote` publishes the counts and says a tie is a tie, and the
+     * GM then presses "Got it wrong" in the verdict dialog. A constant the code
+     * consulted would be deciding a verdict the module deliberately never learns
+     * — it never finds out who the Blackened was.
+     */
+    /**
+     * You may accuse a Monokuma, somebody already dead, or yourself.
+     *
+     * The guide is explicit on all three: "Można głosować na Monokumę oraz na
+     * martwych graczy" and "Można głosować na siebie". This comment used to end
+     * "Not yourself", which was never true of the code — `vote.mjs` has never
+     * filtered the voter out of their own ballot — so the only thing it did was
+     * describe the rules wrongly in the one file that is meant to be the
+     * authority on them.
+     */
+    allowVotingForDead: true,
+    allowVotingForMonokuma: true,
+    allowVotingForSelf: true,
+    /** Consequences of getting it right, and of getting it wrong. */
+    correct: { levelUp: "standard" },
+    wrong: {
+        /** The Blackened stays anonymous, stays in play, and is rewarded. */
+        blackenedLevelUp: "reinforced",
+        /** "Każdy DM (Monokuma) zapełnia swoją pulę Despair na maks." */
+        fillDespair: true,
+        /** "…wprowadza jedną dodatkową, dowolną zasadę za zgodą Monokumy." */
+        newRule: true
+    }
+};
+
+/** Resolution actions cost Stress rather than actions, and need Stress > 0. */
+export const RESOLUTION_STRESS_COST = 1;
+
+/* ==========================================================================
+ * STAGE 6 — CLEANING UP
+ * --------------------------------------------------------------------------
+ * Guide: "Przedmioty sprzątające ułatwiają rozwiązanie morderstwa", and Stage 6
+ * is where the killer finally sees what they left and can spend Stress trying
+ * to erase it.
+ *
+ * The thresholds are the module's own 9/12/15/18 ladder, read the other way up
+ * from Observe's. Finding a trace and destroying one are opposite problems: a
+ * hidden smear is hard to notice and trivial to wipe; something obvious is
+ * impossible to miss and takes real work to make disappear.
+ * ========================================================================== */
+
+export const CLEANUP = {
+    /** How hard this trace is to erase, by how visible it is. */
+    dc: { hidden: 9, subtle: 12, evident: 15, obvious: 18 },
+
+    /**
+     * Covering your tracks is a Shadow job.
+     *
+     * The FIRST entry is what is actually rolled — the same convention
+     * `takeCrisisAction` follows for `CRISIS_ACTIONS[key].traits`. The rest of
+     * the list documents what else a GM could reasonably allow, and is the
+     * single place to change it.
+     *
+     * This rolled Hand until the guide was read against it: every one of Stage
+     * 6's three actions prints "Stat: Cień", and so does the concealment roll
+     * that covers them. Wiping a room down is not dexterity, it is not being
+     * seen to have been there.
+     */
+    traits: ["shadow", "hand", "head"],
+
+    /**
+     * An equipped Cleaning Tool grants advantage and takes its tier off the
+     * threshold — a purpose-built Tier 3 kit turns an Obvious trace into the
+     * same job as an Evident one. `EQUIPPED` is the operative word: the guide's
+     * tools are objects in a hand, not entries on a list.
+     */
+    toolAdvantage: true,
+    toolTierReducesDc: true,
+
+    /**
+     * What each outcome does to the trace, and what it leaves behind.
+     *
+     * A Despair success is the guide's whole shape for this stage: you got rid
+     * of it, and cleaning is itself something a person does in a room. The trace
+     * that replaces it is Faint, so the chapter-end sweep can take it — unlike
+     * the failure's, which is not faint and is not going anywhere.
+     *
+     * Three readings corrected against the guide's own table:
+     *   despair       leaves a "Wyraźny" (evident) trace, not a subtle one.
+     *   critical      "Morderca odzyskuje 1 stres" — the only Stage 6 outcome
+     *                 that hands the Stress back, and it was not doing it.
+     *   failure       the guide splits it. A Hope failure simply does not work
+     *                 ("Morderca nie usuwa Remnant." and nothing more); only a
+     *                 Despair failure adds "Powstaje Jawny Resolution Remnant".
+     *                 One entry for both punished a clean roll that missed as if
+     *                 it had gone wrong.
+     */
+    outcome: {
+        critical: { removes: true, leaves: null, refundStress: 1 },
+        hope: { removes: true, leaves: null },
+        despair: { removes: true, leaves: { visibility: "evident", faint: true } },
+        failureHope: { removes: false, leaves: null },
+        failureDespair: { removes: false, leaves: { visibility: "obvious", faint: false } }
+    },
+
+    /** Traces the clean-up leaves are Resolution Remnants, per REMNANT_TYPES. */
+    remnantType: "resolution",
+
+    /**
+     * Both tools are destroyed when Stage 6 closes, not per attempt.
+     *
+     * The crime tool half is the guide's: a weapon that was used in an incident
+     * is gone. The cleaning tool follows it for the
+     * same reason — one crime scene, one set of gloves — rather than being spent
+     * on each individual wipe, which would make a Tier 3 kit worth exactly one
+     * roll and the carry limit of two meaningless.
+     */
+    /**
+     * The crime tool goes when Stage 6 closes. The cleaning tool does NOT.
+     *
+     * The guide puts them in different stages and it is not an oversight:
+     * "Narzędzie zbrodni, jeśli zostało użyte choć raz, zostaje usunięte z
+     * ekwipunku mordercy" sits in Stage 6, while the cleaning tool's identical
+     * sentence sits in Stage 7, under Odkrycie ciała. Destroying both at once
+     * took the gloves off the killer before the body had even been found — and
+     * with them any chance to clean again in the time between.
+     *
+     * See `CLEANUP.destroysToolsOnDiscovery` for the other half.
+     */
+    destroysTools: ["crimeTool"],
+
+    /** Destroyed when the body is discovered — Stage 7, not Stage 6. */
+    destroysToolsOnDiscovery: ["cleaningTool"],
+
+    /**
+     * Stage 6 has THREE actions, not one.
+     *
+     * Only "Zatarcie śladów" was modelled — the fields above are its own, kept
+     * at the top level because `cleanupDc`, `cleaningTier` and the Reroll
+     * receipt all read them there. The other two are the guide's, verbatim from
+     * pp. 26–27, and they are what makes Stage 6 a decision rather than a
+     * repeated dice roll against the same trace:
+     *
+     *   eraseTrace       remove what you left. Priced by how visible it is.
+     *   misleadingTrail  leave something that points at somebody else.
+     *   moveBody         the body is evidence too, and it can be carried.
+     *
+     * All three cost 1 Stress and need the killer in the room, per
+     * RESOLUTION_STRESS_COST and `isCleaner`.
+     */
+    actions: {
+        eraseTrace: {
+            label: "Erase a trace", icon: "fa-eraser",
+            /** DC comes from the trace itself — see `dc` above. */
+            dcFromVisibility: true,
+            targets: "remnant",
+            hint: "Wipe out one trace you left. The harder it is to see, the easier it is to erase."
+        },
+
+        /**
+         * "Morderca próbuje zostawić dowód włączający innego gracza do kręgu
+         * podejrzanych." Thresh 18, Stat Cień.
+         *
+         * The one Stage 6 action that ADDS evidence on purpose. `pointsAt` has
+         * existed on Remnants since remnants.mjs was written and nothing has
+         * ever set it; this is what it was for.
+         *
+         * Note the failure: it still plants the trace, just a Hidden Faint one
+         * that probably nobody finds. A Despair failure plants nothing at all.
+         */
+        misleadingTrail: {
+            label: "Misleading trail", icon: "fa-signs-post",
+            threshold: 18,
+            targets: "player",
+            hint: "Plant a Prep Remnant pointing at somebody else.",
+            remnant: { hope: "evident", despair: "subtle", critical: "obvious" },
+            failureRemnant: { hope: "hidden" },
+            failureFaint: true,
+            remnantType: "prep",
+            refundStress: { critical: 1 }
+        },
+
+        /**
+         * "Morderca próbuje przenieść ciało ofiary w inne miejsce." Thresh 16,
+         * Stat Ciało — the one Stage 6 action that is not Shadow, because
+         * carrying a body is exactly the physical problem it looks like.
+         *
+         * `rooms` is how far it travels: an adjacent room on Hope, a connected
+         * one on Despair, and two rooms away on a critical. All three leave an
+         * Evident Resolution Remnant — you cannot drag a body quietly.
+         */
+        moveBody: {
+            label: "Move the body", icon: "fa-person-falling",
+            threshold: 16,
+            traits: ["body"],
+            targets: "body",
+            hint: "Carry the body somewhere else. Always leaves an Evident trace.",
+            rooms: { hope: 1, despair: 1, critical: 2 },
+            remnant: { hope: "evident", despair: "evident", critical: "evident" },
+            remnantType: "resolution",
+            refundStress: { critical: 1 },
+            /** A Cleaning Tool helps here too: "+(1*tier narzędzia)". */
+            toolBonusPerTier: 1
+        }
+    },
+
+    /**
+     * "Jeśli min. jeden inny gracz zadeklaruje obecność w pomieszczeniu, w
+     * którym zabójca realizuje akcje rozwiązania, zabójca na początku akcji
+     * musi rzucić kośćmi za ukrycie swoich intencji."
+     *
+     * The same shape as SABOTAGE_CONCEAL and the indirect murder's, and priced
+     * in Stress rather than in the roll: a Despair success still costs you one,
+     * and a Despair failure costs two. Cleaning a room in front of a witness is
+     * the most incriminating thing in the game.
+     *
+     * Called at the top of both Stage 6 entry points — `attemptCleanup` and
+     * `attemptStageSix` — so it covers "akcje rozwiązania" as a whole rather
+     * than the wipe alone.
+     */
+    conceal: {
+        label: "Cover what you are doing",
+        trait: "shadow",
+        threshold: 16,
+        success: "Nobody works out what you are doing. You may lie freely about it.",
+        successWithDespair: "Nobody works out what you are doing, but it costs you.",
+        failure: "The others see roughly what you are up to.",
+        stress: { successDespair: 1, failureHope: 1, failureDespair: 2 },
+        refundStress: { critical: 1 },
+        aloneNote: "Nobody else is in the room, so there is nothing to hide."
+    }
+};
+
+/*
+ * SAFETY is deliberately not modelled here.
+ *
+ * The table's safeword is a sentence somebody types into chat and a GM answers.
+ * A constant nothing reads would only be a second, quieter copy of a rule that
+ * lives with the people playing.
+ */
+
+/** Aggregate export so macros can reach everything through one object. */
+export const DRPG = {
+    MODULE_ID,
+    SOCKET,
+    FLAGS,
+    ACTIONS_RESOURCE,
+    TRAITS,
+    TRAIT_BY_DH,
+    TRAIT_ARRAY,
+    STARTING,
+    TIMES_OF_DAY,
+    TIME_OF_DAY_LABELS,
+    PHASES,
+    CHAPTERS_PER_SEASON,
+    ECLIPSE_MOVES,
+    ECLIPSE_FREE_PLACEMENT,
+    ROOMS,
+    ITEM_TIERS,
+    ITEM_CATEGORIES,
+    TIER_EFFECTS,
+    USABLE_EFFECTS,
+    EQUIPPABLE,
+    REMNANT_VISIBILITY,
+    REMNANT_VISIBILITY_LABELS,
+    REMNANT_TYPES,
+    TRUTH_BULLET_TYPES,
+    OBSERVE_DC,
+    OBSERVE_TYPE_ALIAS,
+    OBSERVE_FAIL_STRESS,
+    ANALYZE_DC,
+    analyzeDc,
+    observeDc,
+    KEY_REMNANTS,
+    ACTIONS,
+    INDIRECT_MURDER,
+    SABOTAGE_CONCEAL,
+    DYNAMIC_THRESHOLDS,
+    REST,
+    HOPE_CALLS,
+    DESPAIR_CALLS,
+    PROJECT_SCALE,
+    STATES,
+    LEVEL_UP_OPTIONS,
+    LEVEL_UP,
+    MONOCUB,
+    MURDER_OPENING,
+    INCIDENT,
+    CRISIS_ACTIONS,
+    TRIAL,
+    RESOLUTION_STRESS_COST,
+    CLEANUP,
+};
