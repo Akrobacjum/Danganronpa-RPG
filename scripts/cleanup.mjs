@@ -49,21 +49,52 @@ export function isResolutionStage() {
 }
 
 /**
- * The killer of the incident currently in Stage 6, if this is them.
+ * WHY this actor cannot clean, or null if they can.
  *
- * Role reversal can have swapped the two sides mid-incident, so this reads the
- * state rather than remembering who opened the murder — the person who ends up
- * cleaning is whoever the state calls the killer when the fight stopped.
+ * Four different situations used to collapse into one refusal — "You are not
+ * the one cleaning up this scene" — and only one of them was that. A killer
+ * standing over a body they had just killed with the GM's death tool was told
+ * the scene was not theirs, which sent the GM looking for the wrong problem
+ * entirely: the truth was that the incident had never reached Stage 6.
+ *
+ * Role reversal can have swapped the two sides mid-incident, so the killer is
+ * read from the state rather than remembered from who opened the murder — the
+ * person who ends up cleaning is whoever the state calls the killer when the
+ * fight stopped.
+ *
+ * @returns {"noIncident"|"notYet"|"notYours"|"monokuma"|null}
  */
-export function isCleaner(actor) {
+export function cleanupBlocker(actor) {
     const state = murderState();
-    if (!state || state.stage !== "resolution") return false;
-    if (state.killerId !== actor?.id) return false;
+    if (!state?.active) return "noIncident";
+    if (state.stage !== "resolution") return "notYet";
+    if (state.killerId !== actor?.id) return "notYours";
     // Guide, p. 26: "Jeśli Monokuma jest zabójcą, to nie ma on możliwości
     // sprzątania miejsca zbrodni - nie chce tego robić." A Monokuma who kills
     // is making a point, not covering their tracks.
-    if (isMonokuma(actor)) return false;
-    return true;
+    if (isMonokuma(actor)) return "monokuma";
+    return null;
+}
+
+/** The killer of the incident currently in Stage 6, if this is them. */
+export function isCleaner(actor) {
+    return cleanupBlocker(actor) === null;
+}
+
+/** Is the victim's body in the same room as this killer? Read by the sheet. */
+export function bodyIsHere(actor) {
+    const victim = game.actors.get(murderState()?.victimId ?? "");
+    if (!victim) return false;
+    const mine = locate(actor);
+    const theirs = locate(victim);
+    return Boolean(mine?.room) && mine.room === theirs?.room;
+}
+
+/** Say which of the four it is, and refuse. @returns {null} always. */
+function refuseCleanup(actor) {
+    ui.notifications.warn(game.i18n.localize(
+        `DRPG.Cleanup.blocked.${cleanupBlocker(actor) ?? "notYours"}`));
+    return null;
 }
 
 /**
@@ -175,10 +206,7 @@ function findRemnantToken(tokenId) {
 export async function attemptCleanup(actor, tokenId) {
     if (!actor || !tokenId) return null;
 
-    if (!isCleaner(actor)) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.notYours"));
-        return null;
-    }
+    if (!isCleaner(actor)) return refuseCleanup(actor);
     if (resourceValue(actor, "stress") >= resourceMax(actor, "stress")) {
         ui.notifications.warn(game.i18n.localize("DRPG.Murder.noStressLeft"));
         return null;
@@ -199,7 +227,8 @@ export async function attemptCleanup(actor, tokenId) {
     let roll;
     try {
         roll = await rollTrait(actor, CLEANUP.traits[0], {
-            actionKey: "cleanup", context: { cleanup: tokenId }
+            actionKey: "cleanup", context: { cleanup: tokenId },
+            title: game.i18n.localize("DRPG.Cleanup.action")
         });
     } finally {
         calls.clearSituational();
@@ -402,7 +431,8 @@ async function concealFromWitnesses(actor) {
     if (!othersInRoom(actor).length) return true;
 
     const { rollTrait } = await import("./action-rolls.mjs");
-    const roll = await rollTrait(actor, def.trait, { remember: false });
+    const roll = await rollTrait(actor, def.trait,
+        { remember: false, title: game.i18n.localize("DRPG.Roll.concealIntent") });
     if (!roll) return false;
 
     const hidden = roll.isCritical || roll.total >= def.threshold;
@@ -443,9 +473,15 @@ async function concealFromWitnesses(actor) {
 /** Common guard for the two below. @returns {object|null} the action def. */
 function stageSixDef(actor, key) {
     const def = CLEANUP.actions?.[key];
-    if (!def) return null;
+    if (!def) {
+        // The one refusal with nothing to say to a player: a key that is not in
+        // the table cannot come from the sheet, only from a bad call. It still
+        // has to reach somebody, so it goes to the log rather than nowhere.
+        error(`No Stage 6 action named "${key}".`);
+        return null;
+    }
     if (!isCleaner(actor)) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.notYours"));
+        refuseCleanup(actor);
         return null;
     }
     if (resourceValue(actor, "stress") >= resourceMax(actor, "stress")) {
@@ -466,6 +502,18 @@ export async function attemptStageSix(actor, key, targetId = null) {
     const def = stageSixDef(actor, key);
     if (!def) return null;
 
+    // You cannot carry a body you are not standing next to.
+    //
+    // `applyMoveBody` walks outwards from the KILLER's room, so a killer in a
+    // different room from the body teleported it out of a room they had never
+    // been in — measured, Round Table to Closet from the Dinner Hall. In a real
+    // incident the two are together and this never fires; it fires for the
+    // states that get there some other way, which is now a supported route.
+    if (key === "moveBody" && !bodyIsHere(actor)) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.bodyNotHere"));
+        return null;
+    }
+
     // The guide's concealment roll covers "akcje rozwiązania" as a whole —
     // planting a false trail or dragging a body past a witness is if anything
     // harder to explain away than wiping a smear.
@@ -483,7 +531,9 @@ export async function attemptStageSix(actor, key, targetId = null) {
     let roll;
     try {
         roll = await rollTrait(actor, (def.traits ?? CLEANUP.traits)[0], {
-            actionKey: "cleanup", context: { cleanup: key, cleanupTarget: targetId }
+            actionKey: "cleanup", context: { cleanup: key, cleanupTarget: targetId },
+            title: game.i18n.localize(key === "moveBody"
+                ? "DRPG.Cleanup.moveAction" : "DRPG.Cleanup.trailAction")
         });
     } finally {
         calls.clearSituational();
@@ -825,10 +875,7 @@ async function report(actor, data, { band, success, total, dc, done }) {
  * to make.
  */
 export async function openCleanupDialog(actor) {
-    if (!isCleaner(actor)) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.notYours"));
-        return null;
-    }
+    if (!isCleaner(actor)) return refuseCleanup(actor);
 
     const traces = cleanableRemnants(actor);
     if (!traces.length) {
@@ -882,6 +929,57 @@ export async function openCleanupDialog(actor) {
 
     if (!picked || picked === "cancel") return null;
     return attemptCleanup(actor, picked);
+}
+
+/**
+ * Who the false trail points at.
+ *
+ * `misleadingTrail` needs a name and had no way to ask for one: the action was
+ * complete — threshold, three outcome bands, the Remnant it plants, the Faint
+ * one it plants on a failure — and reachable only from the console, because
+ * the killer's panel offered a single button and this was not it.
+ *
+ * The victim is not on the list. Framing the person lying dead in the room is
+ * not a suspect pool of one, it is a confession with extra steps.
+ */
+export async function openMisleadingTrailDialog(actor) {
+    if (!isCleaner(actor)) return refuseCleanup(actor);
+
+    const { livingStudents } = await import("./chapter.mjs");
+    const victimId = murderState()?.victimId;
+    const candidates = livingStudents()
+        .filter(a => a.id !== actor.id && a.id !== victimId && !isMonokuma(a));
+
+    if (!candidates.length) {
+        ui.notifications.info(game.i18n.localize("DRPG.Cleanup.trailNobody"));
+        return null;
+    }
+
+    const DialogV2 = foundry.applications.api.DialogV2;
+    const { dialogContent } = await import("./utils.mjs");
+
+    const picked = await DialogV2.wait({
+        window: { title: game.i18n.localize("DRPG.Cleanup.trailTitle") },
+        classes: ["drpg-panel"],
+        content: dialogContent(`<form>
+            <p>${game.i18n.format("DRPG.Cleanup.trailIntro", { n: RESOLUTION_STRESS_COST })}</p>
+            <label>${game.i18n.localize("DRPG.Cleanup.trailWho")}
+                <select name="who">${candidates.map(a =>
+                    `<option value="${a.id}">${foundry.utils.escapeHTML(a.name)}</option>`
+                ).join("")}</select></label>
+        </form>`),
+        buttons: [
+            {
+                action: "ok", label: game.i18n.localize("DRPG.Cleanup.trailConfirm"), default: true,
+                callback: (e, b, d) => d.element.querySelector("[name=who]").value
+            },
+            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
+        ],
+        rejectClose: false
+    });
+
+    if (!picked || picked === "cancel") return null;
+    return attemptStageSix(actor, "misleadingTrail", picked);
 }
 
 /* ==========================================================================

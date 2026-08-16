@@ -20,7 +20,7 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
+import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";   // hasFreeMove: player view only
 import { isEclipse, movesLeft as eclipseMovesLeft } from "./eclipse.mjs";
 import { hopeHeld } from "./calls.mjs";
 import { isMonokuma } from "./monokuma.mjs";
@@ -61,7 +61,16 @@ export function registerPlayerStatus() {
 /** Does this actor's change affect what is currently on screen? */
 function relevant(actor) {
     if (!actor) return false;
+    // The GM's strip counts every student, so any student's change moves it.
+    if (!ownCharacter() && game.user.isGM) {
+        return actor.type === "character" && !isMonokuma(actor);
+    }
     return actor.id === ownCharacter()?.id;
+}
+
+/** Is there anything for this account in that corner at all? */
+function hasStatusToShow() {
+    return Boolean(ownCharacter()) || game.user.isGM;
 }
 
 /**
@@ -110,7 +119,7 @@ function keepMounted() {
     const observer = new MutationObserver(() => {
         if (queued) return;
         if (document.getElementById(WIDGET_ID)) return;
-        if (!ownCharacter()) return;
+        if (!hasStatusToShow()) return;
         queued = true;
         requestAnimationFrame(() => {
             queued = false;
@@ -134,19 +143,20 @@ export function renderPlayerStatus() {
             ?? document.querySelector("#ui-right");
         if (!host) return;
 
-        // No role check here.
+        // Having a character decides WHICH view, not whether there is one.
         //
-        // It used to refuse anyone `game.user.isGM` was true for, and in
-        // Foundry that is BOTH a Gamemaster and an Assistant — so an assistant
-        // running a student of their own saw no panel and had no way to get
-        // one. What decides this is having a character, not what the account
-        // may do to the world; a GM without one still gets nothing, because
-        // `ownCharacter()` returns null for them.
+        // The role check that used to sit here refused anyone `game.user.isGM`
+        // was true for, and in Foundry that is BOTH a Gamemaster and an
+        // Assistant — so an assistant running a student of their own saw no
+        // panel and had no way to get one. An account with a character gets
+        // that character's budget whatever else it may do to the world.
         //
-        // The GM's own view of the same question — how many students still
-        // have actions — is the roster panel top left, which says it with
-        // names rather than with a budget that is not theirs.
-        const el = buildPlayerView();
+        // An account WITHOUT one gets the table's numbers instead. That view
+        // existed until v0.14.2 and was taken out for a good reason: it wore
+        // the player's own labels, "Actions" and "Move", so the counts read as
+        // the GM's personal budget, and a GM has none. The answer to that is
+        // labels that say whose numbers these are — not an empty corner.
+        const el = ownCharacter() ? buildPlayerView() : buildTableView();
         if (!el) return;
 
         el.id = WIDGET_ID;
@@ -245,21 +255,24 @@ function buildPlayerView() {
 
     const el = box();
 
-    // An Eclipse suspends the action economy entirely — see the guard in
-    // action-rolls.mjs. The panel said "2/2" throughout it, which is the one
-    // moment in the cycle when that number is not merely stale but wrong: a
-    // player reading it goes looking for something to spend, and every tile
-    // refuses them. During an Eclipse the count reads zero and the row is
-    // marked spent, and the free crossings take its place below.
+    // An Eclipse suspends the action economy almost entirely — see the guard in
+    // action-rolls.mjs.
+    //
+    // "Almost" is new, and this row had to change with it: Direct Murder is now
+    // the one action that works during placement, and it costs an action like
+    // any other. Reading zero here was right when every tile refused you; with
+    // one that does not, it would tell a killer they cannot afford the thing
+    // they are about to do. So the count stays true and the tooltip carries the
+    // qualification instead.
     const eclipse = safeRow(() => isEclipse()) ?? false;
 
     el.append(...[
         safeRow(() => {
             const max = actionsMax(actor);
-            const left = eclipse ? 0 : actionsLeft(actor);
+            const left = actionsLeft(actor);
             const row = marks("is-actions", game.i18n.localize("DRPG.Actions.label"),
                 pips("drpg-status-pip drpg-action-pip", left, max),
-                eclipse ? "DRPG.Eclipse.actionsLocked"
+                eclipse ? "DRPG.Eclipse.actionsMurderOnly"
                         : left ? "DRPG.Actions.pipReadOnly" : "DRPG.Actions.allSpent",
                 !left);
             if (eclipse) row.classList.add("is-eclipse");
@@ -312,6 +325,88 @@ function buildPlayerView() {
     ].filter(Boolean));
 
     // Every row failed. An empty bordered box says nothing and looks broken.
+    return el.children.length ? el : null;
+}
+
+/**
+ * A count of people, with the label saying so.
+ *
+ * Not `pips()`: those are a budget you spend, drawn as the sheet draws them,
+ * and sixteen students would be sixteen dots meaning something else entirely.
+ * Two numbers and a slash is the honest shape for "how many of them".
+ */
+function field(className, label, value, tooltipKey, spent) {
+    const wrap = document.createElement("div");
+    wrap.className = `drpg-status-field ${className}${spent ? " spent" : ""}`;
+    if (tooltipKey) wrap.dataset.tooltip = game.i18n.localize(tooltipKey);
+
+    const k = document.createElement("span");
+    k.className = "drpg-status-label";
+    k.textContent = label;
+
+    const v = document.createElement("span");
+    v.className = "drpg-status-value";
+    v.textContent = value;
+
+    wrap.append(k, v);
+    return wrap;
+}
+
+/** Living students, which is who the two counts below are about. */
+function trackedStudents() {
+    return game.actors.filter(a =>
+        a.type === "character" && !isMonokuma(a) && !isDeceased(a));
+}
+
+/**
+ * The table's numbers, for an account with no character of its own.
+ *
+ * The same question a player asks — "is there anything left to spend?" — from
+ * the other side of the screen. Deliberately WITHOUT names: the roster panel
+ * top left already spells out who is who, one row per student, and two widgets
+ * competing to list the same people in two corners is how this one came to be
+ * deleted the first time. This is the glance; the roster is the answer.
+ *
+ * "Still to act", not "Actions". The label is the whole fix.
+ */
+function buildTableView() {
+    const students = trackedStudents();
+    if (!students.length) return null;
+
+    const el = box();
+    el.classList.add("is-gm");
+
+    const eclipse = safeRow(() => isEclipse()) ?? false;
+
+    el.append(...[
+        safeRow(() => {
+            // During an Eclipse nobody may act at all, so the count is not
+            // stale — it is meaningless. The row says the same thing the
+            // player's own strip says at that moment: this is suspended.
+            if (eclipse) return null;
+            const left = students.filter(a => actionsLeft(a) > 0).length;
+            return field("is-actions", game.i18n.localize("DRPG.Hud.stillToAct"),
+                `${left} / ${students.length}`, "DRPG.Hud.stillToActTooltip", !left);
+        }),
+
+        // No free-Move row outside an Eclipse.
+        //
+        // It counted students who still held their free Move, but read as the
+        // GM's own — "Free moves 3 / 3" on the GM's panel says the GM has three,
+        // and a GM moves wherever they like. It is also not a thing anybody
+        // waits for: nobody holds up a time of day over an unspent free Move.
+        //
+        // During an Eclipse the same count IS the thing a GM waits for — who has
+        // still to place — so it stays, under a label that says that and nothing
+        // about a budget.
+        safeRow(() => {
+            if (!eclipse) return null;
+            const left = students.filter(a => eclipseMovesLeft(a) > 0).length;
+            return field("is-move", game.i18n.localize("DRPG.Hud.stillPlacing"),
+                `${left} / ${students.length}`, "DRPG.Hud.stillPlacingTooltip", !left);
+        })
+    ].filter(Boolean));
+
     return el.children.length ? el : null;
 }
 

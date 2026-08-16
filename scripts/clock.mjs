@@ -21,7 +21,7 @@ import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES } from "./config.mj
 import { SETTINGS, DEFAULT_CLOCK } from "./settings.mjs";
 import { resetAllActions } from "./actions.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
-import { announce, log, warn } from "./utils.mjs";
+import { announce, log, warn, plural } from "./utils.mjs";
 
 /** Current clock, always with every field present. */
 export function getClock() {
@@ -220,7 +220,7 @@ async function announceTimeOfDay(clock, summary) {
 
     const notes = [];
     if (summary.actions.length) {
-        notes.push(game.i18n.format("DRPG.Clock.actionsRefilled", { count: summary.actions.length }));
+        notes.push(plural("DRPG.Clock.actionsRefilled", { count: summary.actions.length }, "count"));
     }
     if (summary.searchTokensReset) {
         notes.push(game.i18n.localize("DRPG.Clock.searchTokensRestocked"));

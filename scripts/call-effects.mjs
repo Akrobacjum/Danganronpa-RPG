@@ -16,7 +16,7 @@ import { MODULE_ID, FLAGS, HOPE_CALLS, DESPAIR_CALLS, STARTING } from "./config.
 import { SETTINGS } from "./settings.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
-import { announce, whisperToOwner, dialogContent, log, error } from "./utils.mjs";
+import { announce, whisperToOwner, dialogContent, log, error, plural } from "./utils.mjs";
 
 /** Let the victim of a Call know what has been done to them. */
 async function tell(actor, key) {
@@ -312,7 +312,7 @@ export async function applyCall(actor, key, kind, choice = {}) {
         // --- gather everyone ---
         if (call.gathersEveryone && choice.room) {
             const moved = await gatherEveryone(choice.room);
-            done.push(game.i18n.format("DRPG.Calls.gathered", { room: choice.room, n: moved }));
+            done.push(plural("DRPG.Calls.gathered", { room: choice.room, n: moved }));
         }
 
         // --- destroy an item ---

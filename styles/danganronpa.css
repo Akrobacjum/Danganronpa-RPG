@@ -45,14 +45,35 @@
     --drpg-blood-glow: rgba(var(--drpg-blood-rgb), 0.45);
     --drpg-remnant: #7a1440;           /* the Remnant ring — stage 6 rules on it */
 
-    /* --- gold: Hope, Truth Bullets, evidence ----------------------------- */
-    --drpg-gold: #f3c267;
-    --drpg-gold-rgb: 243, 194, 103;
-    --drpg-gold-light: #ffd97a;
-    --drpg-gold-light-rgb: 255, 217, 122;
+    /* --- gold: HOPE, and nothing else ------------------------------------
+       The palette has always said "gold belongs to Hope". It could not be true
+       while our gold was #f3c267, because that is byte-for-byte Daggerheart's
+       own `--golden` — so every piece of system furniture painted with it read
+       as Hope too: the Level Up step tabs, the card frames, the progress fill
+       on the Projects tray. Measured on the running client, 59 elements and
+       270 declarations in the Character Setup window alone.
+
+       So OUR value moved, not theirs. #ffd23f is a brighter, cleaner yellow
+       that nobody mistakes for the system's muted amber side by side, and it
+       reads better while doing it: 12.33:1 on Ink against the old 10.79.
+
+       Evidence got its own token at the same time — see `--drpg-evidence`. A
+       Truth Bullet is not Hope, and the two were sharing a colour because they
+       were sharing a variable. */
+    --drpg-gold: #ffd23f;
+    --drpg-gold-rgb: 255, 210, 63;
+    --drpg-gold-light: #ffe27a;
+    --drpg-gold-light-rgb: 255, 226, 122;
     --drpg-gold-deep: #7a5a00;         /* gold as text on a pale ground */
-    --drpg-gold-antique: #d4af37;
-    --drpg-gold-antique-rgb: 212, 175, 55;
+
+    /* --- evidence: Truth Bullets, the traces they came from ---------------
+       Antique rather than bright: evidence is old, found, dug up. This is the
+       value the Truth Bullet ring already used — it simply had no name of its
+       own, so the badges and the handover button borrowed Hope's instead. */
+    --drpg-evidence: #d4af37;
+    --drpg-evidence-rgb: 212, 175, 55;
+    --drpg-gold-antique: var(--drpg-evidence);
+    --drpg-gold-antique-rgb: var(--drpg-evidence-rgb);
     --drpg-gold-shadow-rgb: 180, 140, 0;
 
     /* --- crimson: refusal, a critical, the whisper stripe ------------------ */
@@ -137,6 +158,16 @@
 
     /* 8x8 pixel skull — Despair */
     --drpg-pix-skull: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 0h4v1H2zM1 1h6v1H1zM1 2h1v1H1zM3 2h2v1H3zM6 2h1v1H6zM1 3h1v1H1zM3 3h2v1H3zM6 3h1v1H6zM1 4h6v1H1zM2 5h4v1H2zM2 6h1v1H2zM3 6h2v1H3zM5 6h1v1H5zM2 7h1v1H2zM5 7h1v1H5z'/%3E%3C/svg%3E");
+
+    /* 8x8 pixel question mark — the skull as a player sees it.
+       Drawn rather than typed. It used to be `content: "?"` in the pixel font,
+       which made it the one glyph in this module that depended on a font file
+       arriving: every other icon here is a mask. On a host where that file does
+       not arrive, a character can come out as an empty box, and an empty box in
+       a row of pips is indistinguishable from a broken pip. A mask cannot do
+       that. It also fills the pip exactly as the skull does, so the row keeps
+       its rhythm instead of dropping to a smaller type size. */
+    --drpg-pix-query: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 0h4v1H2zM1 1h2v1H1zM5 1h2v1H5zM5 2h2v1H5zM4 3h2v1H4zM3 4h2v1H3zM3 5h2v1H3zM3 7h2v1H3z'/%3E%3C/svg%3E");
 }
 
 /* Shared pixel-sprite plumbing. */
@@ -2135,7 +2166,7 @@ body.drpg-pixel-font [contenteditable] {
 
 /* Same palette as the Remnant tints on the map, so a bullet and the trace it
    came from read as the same colour. */
-.drpg-tb-badge.type.key { background: rgba(var(--drpg-gold-rgb), 0.22); border-color: var(--drpg-gold); }
+.drpg-tb-badge.type.key { background: rgba(var(--drpg-evidence-rgb), 0.22); border-color: var(--drpg-evidence); }
 .drpg-tb-badge.type.prep { background: rgba(var(--drpg-eye-rgb), 0.22); border-color: var(--drpg-eye); }
 .drpg-tb-badge.type.incident { background: rgba(var(--drpg-crimson-rgb), 0.22); border-color: var(--drpg-crimson); }
 .drpg-tb-badge.type.resolution { background: rgba(var(--drpg-tb-resolution-rgb), 0.22); border-color: var(--drpg-tb-resolution); }
@@ -2362,21 +2393,32 @@ body.drpg-pixel-font [contenteditable] {
    ========================================================================== */
 
 /* The one weapon (or cleaning tool) this character is actually holding. Read
-   by murder.mjs before it falls back to "the best tier you own". */
+   by murder.mjs before it falls back to "the best tier you own".
+
+   RED, all three marks together.
+   -------------------------------------------------------------------------
+   It was gold, which put it in Hope's colour for saying the opposite thing —
+   and split across three elements that all mean "this is in my hand": the row
+   border, this label, and the fist button. Colouring only the button would
+   have left one row speaking two colours about one fact.
+
+   Red because in this game a readied weapon is not an achievement, it is a
+   sentence about what is probably going to happen. `--drpg-eye-light` on the
+   text (5.72:1, meant to be read) and full Eye on the border, which is chrome. */
 .drpg-item-ready {
     flex: 0 0 auto;
     margin-left: auto;
-    color: var(--drpg-gold);
+    color: var(--drpg-eye-light);
     font-size: 0.8em;
 }
 
 .drpg-inventory-list li.drpg-item-equipped {
-    border-left: 2px solid var(--drpg-gold);
+    border-left: 2px solid var(--drpg-eye);
     padding-left: 4px;
 }
 
 .drpg-row-equip.active {
-    color: var(--drpg-gold);
+    color: var(--drpg-eye-light);
 }
 
 /* Somebody else's stash, standing open in this room. Crimson rather than the
@@ -3492,16 +3534,14 @@ body.drpg-pixel-font .drpg-action-button .drpg-action-cost {
     opacity: 0.7;
 }
 
+/* Swap one mask for another, and nothing else: the pip keeps `currentColor` as
+   its fill and its full 1.1rem box, so a masked row and an unmasked one line up
+   exactly. `content` is reset in case anything set it. */
 #drpg-despair.masked .drpg-despair-pip::before {
-    content: "?";
-    -webkit-mask-image: none;
-    mask-image: none;
-    background: none;
-    background-color: transparent;
-    font-family: var(--drpg-font-pixel, var(--font-primary, sans-serif));
-    font-size: 0.82rem;
-    line-height: 1.1rem;
-    text-align: center;
+    content: "";
+    -webkit-mask-image: var(--drpg-pix-query);
+    mask-image: var(--drpg-pix-query);
+    background-color: currentColor;
     color: inherit;
 }
 
@@ -4047,7 +4087,30 @@ body.drpg-pixel-font .drpg-safeword-button {
 #ui-right-column-1 > #drpg-player-status { order: 0; }
 #ui-right-column-1 > .dh-effects-display,
 #ui-right-column-1 > [class*="effects-display"] { order: 1; }
-#ui-right-column-1 > #countdowns { order: 2; }
+
+/* The Projects tray, moved out of this column entirely — `moveProjectsTray` in
+   hud.mjs re-parents it into #ui-left and this puts it in the corner.
+   `top` is overwritten at runtime by `alignProjectsTray`, which measures the
+   clock so the two sit level; the value here is the fallback for a screen with
+   no clock on it yet. `left` clears the scene controls, the same 76px the
+   roster used to use in this corner. */
+#ui-left > #countdowns {
+    position: absolute;
+    top: calc(var(--drpg-edge, 22px) + 42px);
+    left: calc(var(--drpg-edge, 22px) + 76px);
+    z-index: 60;
+    width: 300px;
+    max-height: calc(100vh - var(--drpg-edge, 22px) * 2 - 42px);
+    overflow-y: auto;
+    pointer-events: auto;
+    /* It has never had a ground of its own — in the right column it borrowed
+       the dark rail behind it. Over the map it needs one, or the title and the
+       gear sit on whatever the scene happens to be painted. Same panel ground
+       the roster used in this corner. */
+    background: rgba(var(--drpg-deep-rgb), 0.92);
+    border: 1px solid var(--drpg-line-strong);
+    border-radius: 3px;
+}
 
 /* ==========================================================================
    LEGIBILITY UNDER THE RED PALETTE
@@ -6138,29 +6201,6 @@ details.drpg-calls-panel[open] > .drpg-action-grid {
     border-top: 1px solid var(--drpg-line);
 }
 
-.drpg-roster-chip {
-    min-width: 22px;
-    padding: 1px 4px;
-    border: 1px solid var(--drpg-line-strong);
-    border-radius: 2px;
-    font-size: var(--drpg-text-xs);
-    line-height: 1.5;
-    text-align: center;
-    letter-spacing: 0.04em;
-    color: var(--drpg-bone);
-    background: rgba(var(--drpg-bone-rgb), 0.08);
-    cursor: default;
-}
-
-/* Spent recedes rather than disappearing — the GM still needs to know that
-   student exists, only that there is nothing left to wait for. */
-.drpg-roster-chip.spent {
-    color: var(--drpg-dim);
-    border-color: var(--drpg-line);
-    background: transparent;
-    opacity: 0.6;
-}
-
 /* ==========================================================================
    STAGE 8c — THE ULTIMATE IS A TITLE
    --------------------------------------------------------------------------
@@ -6375,66 +6415,6 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
 /* If anything still cannot fit, it scrolls — it does not vanish. */
 .application.sheet.actor .tab.active {
     overflow-x: auto;
-}
-
-/* ==========================================================================
-   POPRAWKI Z LISTY — the GM roster panel, alignment, and the last of the gold
-   ========================================================================== */
-
-/* --- 5. the roster as its own panel, top left, GM only ------------------- */
-
-#drpg-roster {
-    position: absolute;
-    top: var(--drpg-edge, 22px);
-    left: calc(var(--drpg-edge, 22px) + 76px);   /* clear of the scene controls */
-    z-index: 70;
-    min-width: 190px;
-    max-width: 280px;
-    padding: 0;
-    background: rgba(var(--drpg-deep-rgb), 0.92);
-    border: 1px solid var(--drpg-line-strong);
-    border-radius: 3px;
-    font-size: var(--drpg-text-xs);
-    pointer-events: auto;
-}
-
-.drpg-roster-summary {
-    cursor: pointer;
-    list-style: none;
-    padding: 5px 8px;
-    background: var(--drpg-bone);
-    color: var(--drpg-ink);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    border-radius: 2px;
-    user-select: none;
-}
-
-.drpg-roster-summary::-webkit-details-marker { display: none; }
-
-.drpg-roster-list {
-    padding: 5px 8px 6px;
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-}
-
-.drpg-roster-row {
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-    color: var(--drpg-bone);
-}
-
-.drpg-roster-count {
-    font-variant-numeric: tabular-nums;
-    color: var(--drpg-eye-light);
-}
-
-/* Done recedes; the GM is waiting on the others. */
-.drpg-roster-row.spent,
-.drpg-roster-row.spent .drpg-roster-count {
-    color: var(--drpg-dim);
 }
 
 /* --- 2. Projects lines up with the clock -------------------------------- */
@@ -6761,4 +6741,214 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
 .drpg-action-grid[data-drpg-tight] .drpg-action-button {
     aspect-ratio: auto !important;
     align-self: stretch !important;
+}
+
+/* ==========================================================================
+   RULING CARDS THAT CAN BE ACTED ON
+   --------------------------------------------------------------------------
+   A declaration arrives in the GM's messenger thread with the two names it is
+   about already printed on it. These are the buttons that use them — see
+   `callGm` and `wireCallActions`. Removed from the DOM entirely on a player's
+   client, so this styling is only ever GM-side.
+   ========================================================================== */
+
+.drpg-call-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.drpg-call-action {
+    flex: 1 1 auto;
+    min-width: 8rem;
+    padding: 5px 9px;
+    font-size: var(--drpg-text-xs);
+    line-height: 1.3;
+    color: var(--drpg-bone);
+    background: rgba(var(--drpg-eye-rgb), 0.22);
+    border: 1px solid var(--drpg-eye);
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.drpg-call-action:hover:not(:disabled) {
+    background: rgba(var(--drpg-eye-rgb), 0.4);
+}
+
+.drpg-call-action:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+/* The Pre-session checks report: fixed-width text in a window rather than a
+   whisper nobody scrolls back to. See `runPreSessionChecks`. */
+.drpg-check-report {
+    max-height: 16rem;
+    overflow: auto;
+    white-space: pre-wrap;
+    font-family: "Cascadia Mono", Consolas, ui-monospace, monospace;
+    font-size: var(--drpg-text-xs);
+    line-height: 1.45;
+    padding: 8px 10px;
+    margin: 0 0 4px;
+    background: rgba(var(--drpg-bone-rgb), 0.06);
+    border: 1px solid var(--drpg-line);
+    border-radius: 3px;
+}
+
+/* ==========================================================================
+   BLOCKED BY THE ECLIPSE, NOT BY THE PURSE
+   --------------------------------------------------------------------------
+   `.unaffordable` means "you do not hold enough". A Call during the placement
+   window is a different refusal: it applies to all of them at once and is fixed
+   by waiting, not by saving up. Sharing one grey put a player with a full Hope
+   pool in front of seven identical dead tiles with no way to tell why — so this
+   keeps the tile lit and puts a padlock on it instead of draining the colour.
+   ========================================================================== */
+
+.drpg-call-button.drpg-locked-eclipse {
+    opacity: 0.75;
+    cursor: default;
+    border-style: dashed;
+}
+
+.drpg-call-button.drpg-locked-eclipse::after {
+    content: "\f023";                       /* fa-lock */
+    font-family: "Font Awesome 6 Pro", "Font Awesome 6 Free", "Font Awesome 5 Free";
+    font-weight: 900;
+    position: absolute;
+    top: 4px;
+    right: 5px;
+    font-size: 0.7em;
+    opacity: 0.85;
+    pointer-events: none;
+}
+
+.drpg-call-button.drpg-locked-eclipse {
+    position: relative;
+}
+
+
+/* ==========================================================================
+   THE MODULE'S OWN WINDOWS READ IN THE MODULE'S OWN INK
+   --------------------------------------------------------------------------
+   Foundry paints application text a warm cream — rgb(239, 230, 216) on the
+   window, rgb(231, 209, 177) on buttons — and every dialog this module opens
+   was inheriting it. Measured on the GM panel: 80 elements carrying that cast
+   and not one line of our own CSS asking for it.
+
+   That warmth is what read as "still gold everywhere" long after the accents
+   had been dealt with. Bone is the palette's own near-white and is already the
+   colour of everything this module draws deliberately.
+   ========================================================================== */
+
+.drpg-panel,
+.drpg-panel .window-content,
+.application.dialog.drpg-panel,
+.drpg-gm-panel,
+.drpg-gm-panel-window .window-content,
+.drpg-messenger .window-content {
+    color: var(--drpg-bone);
+}
+
+/* Buttons do not inherit `color` from their container, so they need saying
+   again — this is the rgb(231, 209, 177) the GM panel was measured at. Headings
+   are the same story: Foundry gives `h1`–`h4` their own colour, so a panel whose
+   body had been cooled still had one warm line across the top of it. */
+.drpg-panel button:not(.drpg-action-button):not(.drpg-call-button),
+.drpg-gm-panel .drpg-gmp-button,
+.drpg-messenger button,
+.drpg-panel h1, .drpg-panel h2, .drpg-panel h3, .drpg-panel h4,
+.drpg-gm-panel h1, .drpg-gm-panel h2, .drpg-gm-panel h3, .drpg-gm-panel h4 {
+    color: var(--drpg-bone);
+}
+
+/* ==========================================================================
+   ONE HOPE, ONE GOLD
+   --------------------------------------------------------------------------
+   Moving `--drpg-gold` away from Daggerheart's `--golden` had one side effect
+   worth chasing: the system's OWN Hope tracker — the "Hope" heading, the
+   diamonds, the pip row — stayed at #f3c267, so the sheet ended up showing
+   Hope in two different golds. Before the move they matched by coincidence.
+
+   These three selectors are not a hunt through somebody else's stylesheet.
+   They are the Hope tracker, they mean exactly what our gold means, and the
+   palette's whole claim is that this colour belongs to Hope.
+   ========================================================================== */
+
+.character-header-sheet .hope-section,
+.character-header-sheet .hope-section .hope-value,
+.character-header-sheet .hope-section .fa-diamond {
+    color: var(--drpg-gold);
+    border-color: var(--drpg-gold);
+}
+
+/* Our own row was inheriting the system colour through its container. The label
+   and the value inside it are already forced to Bone higher up; these are the
+   two wrappers they sit in — nothing shows through them today, and nothing
+   should start showing through if either gains a line of plain text later. */
+.character-header-sheet .drpg-ultimate-row,
+.character-header-sheet .character-details.drpg-ultimate {
+    color: var(--drpg-bone);
+}
+
+
+/* ==========================================================================
+   THE GM'S STRIP IS A COUNT, SO IT SITS IN THE MIDDLE
+   --------------------------------------------------------------------------
+   A player's strip is three fields side by side and reads left to right. The
+   GM's is one — "Still to act 3 / 3" — and left-aligned in a 300px rail it sat
+   in the corner of its own box with the rest of the width empty beside it.
+   ========================================================================== */
+
+#drpg-player-status.is-gm {
+    justify-content: center;
+}
+
+#drpg-player-status.is-gm .drpg-status-field {
+    flex: 0 0 auto;
+    justify-content: center;
+    text-align: center;
+}
+
+/* ==========================================================================
+   WHAT YOU HAVE, AND WHAT IS RIDING ON THE NEXT ROLL — SIDE BY SIDE
+   --------------------------------------------------------------------------
+   The armed-Call badge used to sit under the action pips, which pushed the
+   header down and read as a footnote to the count. It is not a footnote: the
+   pips say what you can spend, the badge says what is already attached to your
+   next roll, and a player wants both in one glance.
+
+   The stack holds two, deliberately. A Hope Call the player armed and a
+   Despair Call or a Monocub's Meddle landing on them are different facts about
+   the same turn; the room is reserved so the second one costs no layout.
+   ========================================================================== */
+
+/* Same specificity as the column rule further up, which this replaces — a
+   plain `.drpg-actions-section` here would lose to it silently. */
+.character-header-sheet .drpg-actions-section {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+}
+
+.character-header-sheet .drpg-actions-section > .drpg-actions {
+    flex: 0 0 auto;
+}
+
+.drpg-pending-stack {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    /* Two badges plus the gap between them. Reserved rather than grown into, so
+       a second one arriving does not nudge the pips sideways. */
+    min-height: 3rem;
+    max-width: 11rem;
+}
+
+/* `margin-top` was the old "below the pips" spacing and fights the stack. */
+.drpg-pending-stack .drpg-pending-call {
+    margin-top: 0;
 }

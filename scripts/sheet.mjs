@@ -23,18 +23,18 @@ import { isEclipse, movesLeft as eclipseMovesLeft } from "./eclipse.mjs";
 import { isTruthBullet, truthBulletData, isAnalysable } from "./truth-bullets.mjs";
 import { inClassTrial } from "./trial.mjs";
 import { vaultRoomFor, vaultContents, openStashHere } from "./vault.mjs";
-import { availableCrisisActions, isTheirTurn } from "./murder.mjs";
+import { availableCrisisActions, isTheirTurn, murderState, sideOf } from "./murder.mjs";
 import { isMonocub, isSilenced } from "./monocub.mjs";
 import { isDeceased } from "./chapter.mjs";
 import { isStashed } from "./inventory.mjs";
 import { isUsable, isEquippable, isEquipped, equippedIn } from "./use-items.mjs";
-import { isCleaner } from "./cleanup.mjs";
+import { isCleaner, bodyIsHere } from "./cleanup.mjs";
 import { roomOfActor, neighbouringRooms } from "./movement.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { projectsAvailableIn, sabotageTargetsIn } from "./projects.mjs";
 import { casebookSummary } from "./casebook.mjs";
 import { rules } from "./rules.mjs";
-import { debug, error } from "./utils.mjs";
+import { debug, error, plural } from "./utils.mjs";
 
 export function registerSheetTweaks() {
     // ApplicationV2 fires a render hook per class in the inheritance chain,
@@ -57,6 +57,7 @@ function onRenderCharacterSheet(app, element) {
         injectCasebookButton(app, element);
         injectActionBar(app, element);
         injectActionPanel(app, element);
+        growForCalls(app);
         fitActionTiles(element);
         watchTileFit(element);
         tidySidebar(element);
@@ -127,6 +128,11 @@ const BREAK_EVERY = 6;
 function softWrap(label) {
     return String(label).split(/(\s+)/).map(part => {
         if (part.length < LONG_WORD || /\s/.test(part)) return part;
+        // A word that already carries a hyphen has a break point of its own,
+        // and it is a better one than counting to six can find: "Self-defence"
+        // was coming out as "Self-d­efence", which reads as a typo rather than
+        // as a hyphenation.
+        if (part.includes("-")) return part;
         let out = "";
         for (let i = 0; i < part.length; i++) {
             // Never offer a break in the last four characters: "Determinatio-n"
@@ -338,19 +344,38 @@ function injectActionBar(app, element) {
     // window. That is too late twice over: a player who has banked a Free
     // Critical forgets it is there, and a player a Monokuma has just saddled
     // with Obstacle has no idea until the dice are already in front of them.
+    //
+    // BESIDE the pips, not below them.
+    //
+    // Underneath, the badge pushed the whole header down and read as a footnote
+    // to the action count. What it actually is, is the other half of the same
+    // sentence: this is what you have, and this is what is riding on your next
+    // roll. Side by side is where a player reads them together.
+    //
+    // A column, not a single slot: a Hope Call the player armed and a Despair
+    // Call or a Monocub's Meddle landing on them are two different facts about
+    // the same turn, and the layout has room for both stacked without moving
+    // anything else. Both go through `pendingCall`, so today only one can be
+    // present at a time — the stack is what makes the second one free when that
+    // changes.
+    const stack = document.createElement("div");
+    stack.className = "drpg-pending-stack";
+
     const pending = actor.getFlag(MODULE_ID, FLAGS.pendingCall);
-    if (pending?.grants) {
+    for (const entry of (Array.isArray(pending) ? pending : [pending]).filter(p => p?.grants)) {
+        const despair = entry.kind === "despair";
         const badge = document.createElement("div");
-        badge.className = `drpg-pending-call drpg-pending-${pending.kind === "despair" ? "despair" : "hope"}`;
+        badge.className = `drpg-pending-call drpg-pending-${despair ? "despair" : "hope"}`;
         badge.dataset.tooltip = game.i18n.format("DRPG.Calls.pendingTooltip", {
-            what: game.i18n.localize(`DRPG.Calls.grants.${pending.grants}`)
+            what: game.i18n.localize(`DRPG.Calls.grants.${entry.grants}`)
         });
-        badge.innerHTML = `<i class="fa-solid ${pending.kind === "despair" ? "fa-skull" : "fa-hand-sparkles"}" inert></i>
+        badge.innerHTML = `<i class="fa-solid ${despair ? "fa-skull" : "fa-hand-sparkles"}" inert></i>
                            <span>${foundry.utils.escapeHTML(
-                               game.i18n.localize(`DRPG.Calls.grants.${pending.grants}`)
+                               game.i18n.localize(`DRPG.Calls.grants.${entry.grants}`)
                            )}</span>`;
-        section.append(badge);
+        stack.append(badge);
     }
+    if (stack.children.length) section.append(stack);
 
     // Sit right after Hope, before the domains/downtime buttons.
     const hope = row.querySelector(".resource-section");
@@ -1449,6 +1474,25 @@ function injectActionPanel(app, element) {
         return;
     }
 
+    // In a fight.
+    //
+    // `performAction` already refuses every ordinary action to the two people
+    // in an incident — the guide's turn structure assumes they are doing
+    // nothing else — but the grid offering them stayed on the sheet regardless.
+    // Measured mid-incident: a victim looking at their own sheet saw the five
+    // crisis actions and, underneath, ten ordinary tiles, every one of which
+    // would refuse them. Ten wrong answers under the five right ones.
+    //
+    // Hope Calls stay, and deliberately: they are bought with Hope rather than
+    // actions, they go through a different path entirely, and they are what a
+    // cornered player reaches for. See the note in `performAction`.
+    if (murderState()?.stage === "incident" && sideOf(actor)) {
+        injectCrisisPanel(tab, actor);
+        injectCallsPanel(tab, actor, false);
+        attachActionDelegate(app, element);
+        return;
+    }
+
     const panel = document.createElement("div");
     panel.className = "drpg-action-panel";
 
@@ -1592,7 +1636,7 @@ function budgetLine(actor) {
         // be worse than saying what the rule actually is.
         parts.push(left === null
             ? game.i18n.localize("DRPG.Actions.eclipseFreePlacement")
-            : game.i18n.format("DRPG.Actions.eclipseMovesLeft", { n: left }));
+            : plural("DRPG.Actions.eclipseMovesLeft", { n: left }));
     }
 
     line.textContent = parts.join(" · ");
@@ -1652,7 +1696,7 @@ function injectCrisisPanel(tab, actor) {
     const grid = document.createElement("div");
     grid.className = "drpg-action-grid";
 
-    for (const { key, def, hindered, blocked, locked, spent, lockedBy } of options) {
+    for (const { key, def, threshold, hindered, blocked, locked, spent, lockedBy } of options) {
         const button = document.createElement("button");
         button.type = "button";
         button.className = `drpg-action-button${blocked ? " drpg-locked" : ""}${
@@ -1676,8 +1720,28 @@ function injectCrisisPanel(tab, actor) {
         // attached to the action even if the Font Awesome fallback is changed
         // — and two entries already share `fa-hand-fist` with a Hope Call.
         button.dataset.drpgCrisis = key;
-        button.innerHTML = `<i class="fa-solid ${def.icon ?? "fa-burst"} drpg-action-icon" inert></i>
-                            <span>${foundry.utils.escapeHTML(def.label)}</span>`;
+        // The same three lines every other tile in the module has: icon, name,
+        // and what it takes.
+        //
+        // This one used to emit a bare `<span>` — no `drpg-action-name` — which
+        // meant it missed the type scale that class carries and rendered at 14px
+        // where every other tile renders at 11. Measured on a 107px tile,
+        // "Finishing blow" ran 21px past its own edge and "Keep your distance"
+        // 7px. The soft hyphens come with the class for the same reason they do
+        // everywhere else: Electron ships no hyphenation dictionary.
+        //
+        // The third line is the number to beat, which the guide prints in the
+        // crisis table anyway — and a player choosing between Strike at 15 and
+        // Pin at 12 is making the decision the table is for. The three
+        // third-party decisions have no dice, and say so.
+        const ask = threshold === null || threshold === undefined
+            ? game.i18n.localize("DRPG.Murder.noRollNeeded")
+            : game.i18n.format("DRPG.Murder.thresholdShort", { n: threshold });
+
+        button.innerHTML = `
+            <i class="fa-solid ${def.icon ?? "fa-burst"} drpg-action-icon" inert></i>
+            <span class="drpg-action-name">${softWrap(foundry.utils.escapeHTML(def.label))}</span>
+            <span class="drpg-action-cost">${foundry.utils.escapeHTML(ask)}</span>`;
 
         button.addEventListener("click", async () => {
             const { takeCrisisAction } = await import("./murder.mjs");
@@ -1713,22 +1777,46 @@ function injectCleanupPanel(tab, actor, { onTop = true } = {}) {
     const grid = document.createElement("div");
     grid.className = "drpg-action-grid";
 
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "drpg-action-button";
-    // A clean-up is paid for in Stress, which is neither of the other two
-    // currencies — it gets its own stripe rather than being filed under
-    // "costs an action" and quietly lying about what it takes.
-    button.dataset.drpgCostKind = "stress";
-    button.dataset.tooltip = game.i18n.localize("DRPG.Cleanup.hint");
-    button.innerHTML = `<i class="fa-solid fa-broom" inert></i>
-                        <span>${game.i18n.localize("DRPG.Cleanup.action")}</span>`;
-    button.addEventListener("click", async () => {
-        const { openCleanupDialog } = await import("./cleanup.mjs");
-        await openCleanupDialog(actor);
-    });
+    // THREE Stage 6 actions, not one.
+    //
+    // The guide gives a killer three things to do with the scene, and the
+    // module implemented all three — thresholds, outcome bands, the Remnants
+    // each one leaves, the Cleaning Tool bonus on the body. Only erasing a
+    // trace had a button. `misleadingTrail` and `moveBody` were reachable from
+    // `game.drpg.attemptStageSix` and from nowhere else, which is to say: from
+    // nowhere a player could get to.
+    const tiles = [
+        { icon: "fa-broom", label: "DRPG.Cleanup.action", tip: "DRPG.Cleanup.hint",
+          run: m => m.openCleanupDialog(actor) },
+        { icon: "fa-signs-post", label: "DRPG.Cleanup.trailAction", tip: "DRPG.Cleanup.trailHint",
+          run: m => m.openMisleadingTrailDialog(actor) },
+        { icon: "fa-person-falling", label: "DRPG.Cleanup.moveAction", tip: "DRPG.Cleanup.moveHint",
+          // Carrying a body you are not standing next to is not a thing, so the
+          // tile says so before it is pressed rather than after.
+          off: !bodyIsHere(actor), offTip: "DRPG.Cleanup.bodyNotHere",
+          run: m => m.attemptStageSix(actor, "moveBody") }
+    ];
 
-    grid.append(button);
+    for (const tile of tiles) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `drpg-action-button${tile.off ? " drpg-locked" : ""}`;
+        button.disabled = Boolean(tile.off);
+        if (tile.off) tile.tip = tile.offTip;
+        // A clean-up is paid for in Stress, which is neither of the other two
+        // currencies — it gets its own stripe rather than being filed under
+        // "costs an action" and quietly lying about what it takes.
+        button.dataset.drpgCostKind = "stress";
+        button.dataset.tooltip = game.i18n.localize(tile.tip);
+        button.innerHTML = `<i class="fa-solid ${tile.icon}" inert></i>
+            <span class="drpg-action-name">${
+                softWrap(foundry.utils.escapeHTML(game.i18n.localize(tile.label)))}</span>`;
+        button.addEventListener("click", async () => {
+            await tile.run(await import("./cleanup.mjs"));
+        });
+        grid.append(button);
+    }
+
     panel.append(grid);
 
     const note = document.createElement("p");
@@ -1760,37 +1848,29 @@ function injectCleanupPanel(tab, actor, { onTop = true } = {}) {
  * dimmed — half the point of the menu is seeing what you are saving towards.
  * ========================================================================== */
 
-/**
- * Which players have opened their Hope Calls, by actor id.
+/*
+ * NOTHING FOLDS ANY MORE.
  *
- * The panel is rebuilt on every render — costs and affordability have to stay
- * current — so a `<details>` would snap shut the moment anything changed, which
- * during a busy time of day is constantly. Kept per client and per actor rather
- * than on the document: whether I have a drawer open is my business, and
- * writing it to the actor would broadcast it to the table and need permissions
- * a player does not have.
+ * Hope Calls were a `<details>` a player had to open, with the open/closed
+ * state kept per client because the panel is rebuilt on every render. The
+ * drawer is gone: a Call is what a cornered player reaches for, and a menu you
+ * have to remember to open is a menu you forget under pressure. The sheet is
+ * taller instead — see `--drpg-sheet-height` in the stylesheet.
  */
-const callsOpen = new Set();
 
 function injectCallsPanel(tab, actor, monokuma) {
     const held = monokuma ? monokumaPool(actor) : hopeHeld(actor);
     const max = monokuma ? STARTING.despairMax : hopeMax(actor);
 
-    // A Monokuma's Despair Calls ARE the sheet — there is no action grid above
-    // them to make room for, so folding them would only hide the whole thing.
-    // A student's Hope Calls sit under ten actions and a clean-up block, and
-    // are reached a few times a session rather than every turn.
-    const foldable = !monokuma;
-    const panel = document.createElement(foldable ? "details" : "div");
+    const panel = document.createElement("div");
     panel.className = `drpg-calls-panel ${monokuma ? "drpg-despair-panel" : "drpg-hope-panel"}`;
-    if (foldable) panel.open = callsOpen.has(actor.id);
 
     // The pool is on the bar for a Monokuma and nowhere else: Despair is the
     // only thing their sheet is about, and the number is not repeated anywhere
     // they can see. A student already reads their Hope twice over — the pips in
     // the sheet header and the player strip in the corner — so a third copy on
     // the drawer was noise on the one line that has to stay scannable.
-    const title = document.createElement(foldable ? "summary" : "h3");
+    const title = document.createElement("h3");
     title.className = "drpg-keep";
     const heading = game.i18n.localize(
         monokuma ? "DRPG.Calls.despairTitle" : "DRPG.Calls.hopeTitle");
@@ -1798,13 +1878,6 @@ function injectCallsPanel(tab, actor, monokuma) {
         ? `<span>${heading}</span><span class="drpg-calls-pool">${held} / ${max}</span>`
         : `<span>${heading}</span>`;
     panel.append(title);
-
-    if (foldable) {
-        panel.addEventListener("toggle", () => {
-            if (panel.open) callsOpen.add(actor.id);
-            else callsOpen.delete(actor.id);
-        });
-    }
 
     const grid = document.createElement("div");
     grid.className = "drpg-action-grid";
@@ -1828,7 +1901,14 @@ function injectCallsPanel(tab, actor, monokuma) {
 function callButton(call, monokuma, locked = false) {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = `drpg-action-button drpg-call-button${(call.affordable && !locked) ? "" : " unaffordable"}`;
+    // Two reasons a Call is grey, and they are not the same reason.
+    //
+    // "You cannot afford it" is fixed by holding Hope; "the Eclipse is running"
+    // is fixed by waiting, and applies to every Call at once regardless of the
+    // pool. Sharing one look meant a player with six Hope saw seven identical
+    // grey tiles next to a full pool and had nothing to read but the tooltip.
+    button.className = `drpg-action-button drpg-call-button${
+        locked ? " drpg-locked-eclipse" : call.affordable ? "" : " unaffordable"}`;
     button.dataset.drpgCall = call.key;
     button.dataset.drpgCallKind = monokuma ? "despair" : "hope";
 
@@ -1836,7 +1916,9 @@ function callButton(call, monokuma, locked = false) {
         monokuma ? "DRPG.Calls.costsDespairShort" : "DRPG.Calls.costsHopeShort",
         { cost: call.cost }
     );
-    const note = locked ? `<br><em>${game.i18n.localize("DRPG.Eclipse.actionsLocked")}</em>` : "";
+    const note = locked
+        ? `<br><em>${game.i18n.localize("DRPG.Eclipse.callsLocked")}</em>`
+        : call.affordable ? "" : `<br><em>${game.i18n.localize("DRPG.Calls.cannotAfford")}</em>`;
     button.dataset.tooltip = `${foundry.utils.escapeHTML(call.effect)}<br><em>${costLabel}</em>${note}`;
 
     button.innerHTML = `
@@ -2015,7 +2097,16 @@ function actionButton(actor, key, def) {
     // The Eclipse is placement-only — see the guard in action-rolls.mjs's
     // `performAction`. Move is exempt there and stays exempt here, since it is
     // the one thing the Eclipse actually is for.
-    const locked = key !== "move" && isEclipse();
+    //
+    // Direct Murder is exempt the other way round, and this tile is the reason
+    // the rule needs stating twice: the guard refuses the action, but a tile
+    // that looks pressable and then refuses is worse than one that says no in
+    // advance. Greyed outside an Eclipse, live inside one — the exact inverse
+    // of every other tile on the sheet.
+    const eclipse = isEclipse();
+    const locked = key === "directMurder"
+        ? !eclipse
+        : (key !== "move" && eclipse);
 
     // Nothing here to do it to — a separate state from "cannot pay for it",
     // because the answer is different: one is fixed by waiting for the next
@@ -2047,10 +2138,11 @@ function actionButton(actor, key, def) {
     // even when something else already applies, because it is the only reason
     // that will still be true after the Eclipse ends.
     const note = locked
-        ? `<br><em>${game.i18n.localize("DRPG.Eclipse.actionsLocked")}</em>`
+        ? `<br><em>${game.i18n.localize(key === "directMurder"
+            ? "DRPG.Eclipse.murderOnlyInEclipse" : "DRPG.Eclipse.actionsLocked")}</em>`
         : affordable
             ? ""
-            : `<br><em>${game.i18n.format("DRPG.Action.cannotAfford", { left: actionsLeft(actor), needed: cost })}</em>`;
+            : `<br><em>${plural("DRPG.Action.cannotAfford", { left: actionsLeft(actor), needed: cost }, "left")}</em>`;
     const why = blocked ? `<br><em>${foundry.utils.escapeHTML(blocked)}</em>` : "";
     button.dataset.tooltip =
         `${foundry.utils.escapeHTML(def.hint ?? "")}<br><em>${costLabel}</em>${note}${why}`;
@@ -2138,4 +2230,35 @@ export function findDuplicateUltimates() {
     return Array.from(seen.entries())
         .filter(([, actors]) => actors.length > 1)
         .map(([ultimate, actors]) => ({ ultimate, actors }));
+}
+
+
+/**
+ * Give the sheet room for the Hope Calls now that they never fold away.
+ *
+ * Daggerheart opens a character sheet at 850x830, which fitted when the Calls
+ * were a closed drawer and does not now: the panel sits under ten action tiles
+ * and a clean-up block, and a menu a cornered player has to scroll to find is
+ * a menu they do not use.
+ *
+ * Grown ONCE per sheet, and only upwards. A GM who drags the window smaller
+ * afterwards keeps their size — the alternative, re-asserting on every render,
+ * would undo a deliberate resize several times a turn.
+ */
+const grown = new WeakSet();
+const SHEET_MIN_HEIGHT = 980;
+
+function growForCalls(app) {
+    try {
+        if (!app || grown.has(app)) return;
+        grown.add(app);
+        const height = app.position?.height;
+        if (typeof height !== "number" || height >= SHEET_MIN_HEIGHT) return;
+        // Never past the window: a sheet taller than the screen is worse than a
+        // sheet that scrolls.
+        const room = Math.max(0, window.innerHeight - 40);
+        app.setPosition({ height: Math.min(SHEET_MIN_HEIGHT, room) });
+    } catch {
+        // Cosmetic. A sheet that opens at its old size still works.
+    }
 }

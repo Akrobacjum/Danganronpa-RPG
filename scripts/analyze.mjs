@@ -21,7 +21,7 @@
 
 import { MODULE_ID, analyzeDc, TRUTH_BULLET_TYPES } from "./config.mjs";
 import { TRUTH_BULLET_FLAGS, secretOf, isTruthBullet } from "./truth-bullets.mjs";
-import { whisperToOwner, whisperToGms, log, warn, error } from "./utils.mjs";
+import { whisperToOwner, whisperToGms, log, warn, error, article } from "./utils.mjs";
 
 /**
  * Score a thrown Analyze against the bullet's real category.
@@ -130,6 +130,7 @@ async function identify(item, actor, realType, isCritical, dc, total) {
     await whisperToOwner(actor, `
         <h3>${game.i18n.localize("DRPG.Analyze.identifiedTitle")}</h3>
         <p>${game.i18n.format("DRPG.Analyze.identified", {
+            a: article(label),
             name: foundry.utils.escapeHTML(item.name),
             type: foundry.utils.escapeHTML(label)
         })}</p>
@@ -141,6 +142,7 @@ async function identify(item, actor, realType, isCritical, dc, total) {
         await whisperToGms(`
             <p><strong>${game.i18n.localize("DRPG.Analyze.critTitle")}</strong></p>
             <p>${game.i18n.format("DRPG.Analyze.critPrompt", {
+                a: article(label),
                 actor: foundry.utils.escapeHTML(actor.name),
                 name: foundry.utils.escapeHTML(item.name),
                 type: foundry.utils.escapeHTML(label)

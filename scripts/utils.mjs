@@ -74,6 +74,51 @@ export function primaryGmId() {
 }
 
 /** The player user who owns this actor, if any. */
+/**
+ * "an evident trace", not "a evident trace".
+ *
+ * Five strings in this module glued the article to a word substituted in
+ * afterwards, and the words they substitute are a closed set that happens to
+ * contain `evident`, `obvious`, `incident` and `autopsy` — so the sentence came
+ * out wrong roughly half the time it was printed.
+ *
+ * The letter rule rather than the sound rule ("an hour", "a unicorn") because
+ * the vocabulary here is closed and contains no such word. It is only ever
+ * asked about a Remnant visibility or a Truth Bullet type.
+ */
+export function article(word) {
+    return /^[aeiou]/i.test(String(word ?? "").trim()) ? "an" : "a";
+}
+
+/**
+ * "1 item destroyed", not "1 item(s) destroyed".
+ *
+ * Foundry has no pluralisation of its own — `game.i18n.format` substitutes and
+ * nothing else, which is why thirty-eight strings in this module were carrying
+ * a bracketed `(s)` and printing it at the table. So each of those keys is a
+ * pair, `.one` and `.other`, and this picks between them.
+ *
+ * `Intl.PluralRules` rather than `n === 1`, because the pair is a category and
+ * not a number: a translation into a language with three or six forms adds the
+ * keys it needs and this finds them, falling back to `.other` for any category
+ * the file does not carry.
+ *
+ * @param {string} key      The pair's base key, without `.one` / `.other`.
+ * @param {object} data     Substitutions, as for `game.i18n.format`.
+ * @param {string} countOn  Which field decides the form. Nearly always `n`.
+ */
+export function plural(key, data = {}, countOn = "n") {
+    const n = Number(data[countOn] ?? 0);
+    let form = "other";
+    try {
+        form = new Intl.PluralRules(game.i18n?.lang || "en").select(n);
+    } catch {
+        form = n === 1 ? "one" : "other";
+    }
+    const picked = game.i18n.has(`${key}.${form}`) ? form : "other";
+    return game.i18n.format(`${key}.${picked}`, data);
+}
+
 export function ownerOf(actor) {
     if (!actor) return null;
     return game.users.find(u => !u.isGM && u.active && actor.testUserPermission(u, "OWNER"))

@@ -19,7 +19,7 @@
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
-import { announce, dialogContent, log, error } from "./utils.mjs";
+import { announce, dialogContent, log, error, plural } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -260,6 +260,6 @@ export async function openRulesManager() {
     }
 
     await write(next);
-    ui.notifications.info(game.i18n.format("DRPG.Rules.saved", { n: next.length }));
+    ui.notifications.info(plural("DRPG.Rules.saved", { n: next.length }));
     return next;
 }

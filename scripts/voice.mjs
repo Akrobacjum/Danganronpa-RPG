@@ -44,7 +44,7 @@ import { SETTINGS, getSetting } from "./settings.mjs";
 import { allRooms } from "./movement.mjs";
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
 import { VOICE, ROOM_PREFIX, applyLocally, forgetDesiredRoom } from "./voice-client.mjs";
-import { isPrimaryGm, debug, error } from "./utils.mjs";
+import { isPrimaryGm, debug, error, plural } from "./utils.mjs";
 
 const AV_MODULE = "avclient-livekit";
 const SOCKET_EVENT = `module.${MODULE_ID}`;
@@ -838,7 +838,7 @@ export async function openEavesdropDialog() {
         // a success message for a button that did nothing.
         ui.notifications[n === null ? "warn" : "info"](n === null
             ? game.i18n.localize("DRPG.Voice.resetRefused")
-            : game.i18n.format("DRPG.Voice.resetDone", { n }));
+            : plural("DRPG.Voice.resetDone", { n }));
         return;
     }
 

@@ -33,7 +33,7 @@ import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import { trialQueue } from "./trial-floor.mjs";
-import { isPrimaryGm, debug, log, error } from "./utils.mjs";
+import { isPrimaryGm, debug, log, error, plural } from "./utils.mjs";
 
 /**
  * True while THIS file is changing playback.
@@ -565,7 +565,7 @@ export async function openMusicDialog() {
     playingState = null;
     schedule();
 
-    ui.notifications.info(game.i18n.format("DRPG.Music.saved", {
+    ui.notifications.info(plural("DRPG.Music.saved", {
         n: Object.keys(result).length
     }));
     return result;

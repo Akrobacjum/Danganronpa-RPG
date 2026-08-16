@@ -98,7 +98,7 @@ import { openVote, closeVote, applyVerdict, openVerdictDialog } from "./vote.mjs
 import {
     murderState, sideOf, isTheirTurn, availableCrisisActions,
     openMurder, resolveKillerOpening, resolveVictimOpening,
-    takeCrisisAction, resolveCrisisAction, passTurn, thirdPartyEnters, endMurder,
+    takeCrisisAction, resolveCrisisAction, passTurn, thirdPartyEnters, beginResolution, endMurder,
     openMurderDialog, openIncidentTracker
 } from "./murder.mjs";
 import {
@@ -646,6 +646,8 @@ export const DrpgApi = {
 
     passTurn,
     thirdPartyEnters,
+    /** Stage 6 without a Finishing Blow, for a victim who died some other way. */
+    beginResolution,
     endMurder,
 
     murderDialog: openMurderDialog,

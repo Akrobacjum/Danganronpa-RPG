@@ -9,7 +9,8 @@
 import { TRIAL } from "./config.mjs";
 import { trialQueue, speaker, secondsLeft, startFloor, nextSpeaker, endFloor }
     from "./trial-floor.mjs";
-import { dialogContent } from "./utils.mjs";
+import { dialogContent, plural } from "./utils.mjs";
+import { getClock } from "./clock.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -147,6 +148,48 @@ export async function endClassTrial() {
 }
 
 /** Open the floor, or drive it once it is open. */
+/**
+ * One door to the Class Trial, labelled by where the table is.
+ *
+ * Starting and ending a trial used to be two tiles in two different sections —
+ * "Start the Class Trial" filed under the case, "End the trial" under the
+ * trial — so the pair a GM reaches for at the two ends of the same scene never
+ * appeared on screen together. This is both, plus the floor, behind the one
+ * name that covers all of it.
+ */
+export async function manageClassTrial() {
+    if (!game.user.isGM) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
+        return null;
+    }
+
+    const running = getClock().phase === "classTrial";
+
+    const action = await DialogV2.wait({
+        classes: ["drpg-panel"],
+        window: { title: game.i18n.localize("DRPG.Floor.manageTrial") },
+        content: dialogContent(`<div>
+            <p>${game.i18n.localize(running
+                ? "DRPG.Floor.manageRunning" : "DRPG.Floor.manageNotRunning")}</p>
+        </div>`),
+        buttons: [
+            ...(running
+                ? [{ action: "floor", default: true,
+                     label: game.i18n.localize("DRPG.Floor.manageTitle") },
+                   { action: "end", label: game.i18n.localize("DRPG.Floor.endTrial") }]
+                : [{ action: "start", default: true,
+                     label: game.i18n.localize("DRPG.Floor.startTrial") }]),
+            { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
+        ],
+        rejectClose: false
+    });
+
+    if (action === "start") return startClassTrial();
+    if (action === "end") return endClassTrial();
+    if (action === "floor") return openFloorDialog();
+    return null;
+}
+
 export async function openFloorDialog() {
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
@@ -303,7 +346,7 @@ export async function openVoteDialog() {
 
     if (action === "open") return openVote();
     if (action === "remind") {
-        ui.notifications.info(game.i18n.format("DRPG.Vote.reminded", { n: remindVoters() }));
+        ui.notifications.info(plural("DRPG.Vote.reminded", { n: remindVoters() }));
         return openVoteDialog();
     }
     if (action === "close") return closeVote();

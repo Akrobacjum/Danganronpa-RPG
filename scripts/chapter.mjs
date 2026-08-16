@@ -28,7 +28,7 @@ import { getClock, setPhase } from "./clock.mjs";
 import { TRUTH_BULLET_FLAGS, bulletsOf, secretOf, dropSecret } from "./truth-bullets.mjs";
 import { remnantsOn, remnantData, REMNANT_FLAGS } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
-import { announce, dialogContent, whisperToGms, log, error } from "./utils.mjs";
+import { announce, dialogContent, whisperToGms, log, error, plural } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -122,11 +122,62 @@ export async function killCharacter(actor, { keepItems = false } = {}) {
             name: foundry.utils.escapeHTML(actor.name),
             chapter: record.chapter
         })}</p>
-        ${keepItems ? "" : `<p>${game.i18n.format("DRPG.Chapter.itemsGone", { n: removed })}</p>`}
+        ${keepItems ? "" : `<p>${plural("DRPG.Chapter.itemsGone", { n: removed })}</p>`}
         <p><small>${game.i18n.localize("DRPG.Chapter.vaultPending")}</small></p>`);
 
     log(`${actor.name} is dead (chapter ${record.chapter}); ${removed} item(s) removed.`);
+
+    // A death that ends an incident should end the incident.
+    try {
+        await offerStageSix(actor);
+    } catch (err) {
+        error("Could not offer the clean-up stage after the death", err);
+    }
+
     return record;
+}
+
+/**
+ * The victim of a running incident just died — offer Stage 6.
+ *
+ * The murder engine only reaches Stage 6 through a Finishing Blow, and a GM
+ * who kills the victim any other way (this screen, a ruling, a Despair Call)
+ * left the incident frozen at stage "incident" around a corpse: `isCleaner`
+ * false, no clean-up screen for the killer, and the whole Stage 6 branch
+ * unreachable. Measured before this existed — the stage stayed "incident" and
+ * `attemptStageSix` refused with "you are not the one cleaning up this scene",
+ * which was not the reason.
+ *
+ * Asked rather than done: the GM may be killing somebody mid-incident for a
+ * reason that is not the incident ending — Monokuma's punishment, a Call, a
+ * mistake being corrected.
+ */
+async function offerStageSix(victim) {
+    const { murderState, beginResolution } = await import("./murder.mjs");
+    const state = murderState();
+    if (!state?.active || state.stage !== "incident") return;
+    if (state.victimId !== victim.id) return;
+
+    const killer = game.actors.get(state.killerId);
+
+    const sure = await DialogV2.confirm({
+        classes: ["drpg-panel"],
+        window: { title: game.i18n.localize("DRPG.Chapter.stageSixTitle") },
+        content: dialogContent(`<div>
+            <p>${game.i18n.format("DRPG.Chapter.stageSixIntro", {
+                victim: foundry.utils.escapeHTML(victim.name),
+                killer: foundry.utils.escapeHTML(killer?.name ?? "?")
+            })}</p>
+            <p>${game.i18n.format("DRPG.Chapter.stageSixWhat", {
+                killer: foundry.utils.escapeHTML(killer?.name ?? "?")
+            })}</p>
+        </div>`),
+        yes: { label: game.i18n.localize("DRPG.Chapter.stageSixYes") },
+        no: { label: game.i18n.localize("DRPG.Chapter.stageSixNo") },
+        rejectClose: false
+    });
+
+    if (sure) await beginResolution("victimKilled");
 }
 
 /**
@@ -310,7 +361,7 @@ export async function discoverBody({ room, victim = null } = {}) {
 
     await setPhase("investigation");
 
-    ui.notifications.info(game.i18n.format("DRPG.Chapter.bodyDone", { moved, promoted }));
+    ui.notifications.info(plural("DRPG.Chapter.bodyDone", { moved, promoted }, "promoted"));
     log(`Body discovered in ${room}: ${promoted} trace(s) promoted, ${moved} token(s) gathered.`);
     return { promoted, moved };
 }
@@ -482,8 +533,20 @@ export async function openChapterEndDialog() {
     const kept = bullets.filter(({ item }) =>
         item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.faint)
         || secretOf(item.uuid).realType === "final").length;
-    const hidden = bullets.filter(({ item }) =>
-        !item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.analyzed)).length;
+    // The SAME test the reveal itself applies, or the preview promises work the
+    // action will not do.
+    //
+    // It used to count every unanalysed bullet, while `revealAllBulletTypes`
+    // skips any bullet with no real type in the answer key. So a table with two
+    // unanalysed bullets that nobody had ever assigned a type to was offered
+    // "reveal 2" and got back "Revealed 0" — and no way to tell whether the
+    // tool had worked.
+    const unanalysed = bullets.filter(({ item }) =>
+        !item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.analyzed));
+    const hidden = unanalysed.filter(({ item }) => secretOf(item.uuid).realType).length;
+    // ...and the difference is worth saying out loud rather than swallowing: a
+    // bullet nobody assigned a type to is a loose end, not a rounding error.
+    const typeless = unanalysed.length - hidden;
 
     const { finalTruthPlacedThisChapter } = await import("./mastermind.mjs");
     const finalTruthPlaced = finalTruthPlacedThisChapter();
@@ -512,6 +575,17 @@ export async function openChapterEndDialog() {
                 ${game.i18n.format("DRPG.Chapter.optSweep", {
                     n: bullets.length - kept, kept
                 })}</label>
+            ${typeless ? `<p class="notes drpg-warning">${
+                plural("DRPG.Chapter.typeless", { n: typeless })}</p>` : ""}
+            <hr />
+            <label class="drpg-checkbox">
+                <input type="checkbox" name="nextChapter" checked />
+                ${game.i18n.format("DRPG.Chapter.optNextChapter", {
+                    from: getClock().chapter, to: getClock().chapter + 1 })}</label>
+            <label class="drpg-checkbox">
+                <input type="checkbox" name="nextSession" checked />
+                ${game.i18n.format("DRPG.Chapter.optNextSession", {
+                    from: getClock().session, to: getClock().session + 1 })}</label>
             <p class="notes">${game.i18n.localize("DRPG.Chapter.endNote")}</p>
             <p class="notes${finalTruthPlaced ? "" : " drpg-warning"}">${game.i18n.localize(
                 finalTruthPlaced
@@ -526,7 +600,9 @@ export async function openChapterEndDialog() {
                     return {
                         reveal: f.reveal.checked,
                         remnants: f.remnants.checked,
-                        sweep: f.sweep.checked
+                        sweep: f.sweep.checked,
+                        nextChapter: f.nextChapter.checked,
+                        nextSession: f.nextSession.checked
                     };
                 }
             },
@@ -539,15 +615,45 @@ export async function openChapterEndDialog() {
 
     const done = [];
     if (result.reveal) {
-        done.push(game.i18n.format("DRPG.Chapter.doneReveal", { n: await revealAllBulletTypes() }));
+        done.push(plural("DRPG.Chapter.doneReveal", { n: await revealAllBulletTypes() }));
     }
     if (result.remnants) {
         const { clearFaintRemnants } = await import("./remnants.mjs");
-        done.push(game.i18n.format("DRPG.Chapter.doneRemnants", { n: await clearFaintRemnants() }));
+        done.push(plural("DRPG.Chapter.doneRemnants", { n: await clearFaintRemnants() }));
     }
     if (result.sweep) {
         const swept = await sweepTruthBullets();
-        done.push(game.i18n.format("DRPG.Chapter.doneSweep", swept));
+        done.push(plural("DRPG.Chapter.doneSweep", swept));
+    }
+
+    // The register of who killed belongs to the chapter that is ending. Cleared
+    // whatever else was ticked, and silently: it is bookkeeping the GM never
+    // asked for and would only wonder about.
+    try {
+        const { clearBlackened, blackenedIds } = await import("./murder.mjs");
+        if (blackenedIds().length) await clearBlackened();
+    } catch (err) {
+        error("Could not clear the chapter's Blackened register", err);
+    }
+
+    // And the chapter actually ends.
+    //
+    // The window is called "End of chapter / new session" and did three
+    // clean-ups without touching either counter — measured, the clock read
+    // Chapter 1 · Session 5 before and after, and the GM had to go and nudge
+    // both by hand in "Edit campaign…". Tidying up and moving on are one event
+    // at the table, so they are one screen here.
+    const clock = getClock();
+    const move = {};
+    if (result.nextChapter) move.chapter = clock.chapter + 1;
+    if (result.nextSession) move.session = clock.session + 1;
+    if (Object.keys(move).length) {
+        const { setClock } = await import("./clock.mjs");
+        await setClock(move);
+        done.push(game.i18n.format("DRPG.Chapter.moved", {
+            chapter: move.chapter ?? clock.chapter,
+            session: move.session ?? clock.session
+        }));
     }
 
     if (!done.length) return null;

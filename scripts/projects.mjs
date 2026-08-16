@@ -106,6 +106,8 @@ export function allProjects() {
                 countsUp: up,
                 room: roomOf(id),
                 indirectMurder: isIndirectMurder(id),
+                condition: metaFor(id).condition ?? "",
+                killerId: metaFor(id).killerId ?? null,
                 trait: metaFor(id).trait ?? null,
                 frozen: Boolean(metaFor(id).frozenBy),
                 repairs: metaFor(id).repairs ?? null
@@ -238,6 +240,8 @@ export async function addProgress(countdownId, amount) {
 
     // Finishing a repair thaws whatever it was repairing.
     await checkRepairCompletion(countdownId);
+    // Finishing a trap arms it, and somebody has to be told.
+    if (before < start && after >= start) await announceTrapReady(countdownId, project.name);
 
     return { id: countdownId, name: project.name, from: before, to: after, target: start, changed: true };
 }
@@ -261,7 +265,11 @@ export async function addProgress(countdownId, amount) {
  */
 export async function createProject({
     name, target = 4, room = null, indirectMurder = false, secret = false,
-    viewers = [], trait = null, img = "icons/magic/time/hourglass-yellow-green.webp"
+    viewers = [], trait = null, img = "icons/magic/time/hourglass-yellow-green.webp",
+    // Whose trap this is, and what sets it off. Both only mean anything on an
+    // indirect murder, and both are what the guide asks for in place of a named
+    // victim: "you do not name the victim - you name a condition".
+    killerId = null, condition = ""
 } = {}) {
     if (!game.user.isGM) return null;
     if (!name) return null;
@@ -270,11 +278,33 @@ export async function createProject({
     const countdowns = foundry.utils.duplicate(data?.countdowns ?? {});
     const id = foundry.utils.randomID();
 
+    // ONE answer to "is this hidden", used for the ownership map AND for the
+    // metadata flag.
+    //
+    // They used to be worked out separately: the ownership from `secret` alone,
+    // the flag from `secret || indirectMurder`. So an indirect murder created
+    // without an explicit `secret: true` came out marked secret in our data and
+    // left at `default: OBSERVER` in Foundry's — the module hid it from every
+    // list it draws, and Daggerheart's own Projects tray showed it to the whole
+    // table. Measured: a murder project sitting in a player's tray while its
+    // own owner could not see it anywhere.
+    const hidden = secret || indirectMurder;
+
+    // The killer sees their own trap without anybody remembering to share it.
+    //
+    // Creating a project and giving somebody sight of it were two independent
+    // steps, and skipping the second produced a project the killer could not
+    // work on: `projectsAvailableIn` filters on `canSee`, so their own murder
+    // was missing from their own Work on Project list.
+    const audience = viewers.length
+        ? viewers
+        : (hidden && killerId ? ownerIdsOf(killerId) : []);
+
     countdowns[id] = {
         type: "narrative",
         name,
         img: img || "icons/magic/time/hourglass-yellow-green.webp",
-        ownership: secret ? ownershipMap(viewers) : { default: OBSERVER },
+        ownership: hidden ? ownershipMap(audience) : { default: OBSERVER },
         progress: {
             current: 0,
             start: target,
@@ -290,7 +320,9 @@ export async function createProject({
     // `countsUp` is stamped rather than left to the default so the direction
     // stays explicit in the data, not just in this file's assumptions.
     await setProjectMeta(id, {
-        room, indirectMurder, secret: secret || indirectMurder, trait, countsUp: true
+        room, indirectMurder, secret: hidden, trait, countsUp: true,
+        killerId: indirectMurder ? killerId : null,
+        condition: indirectMurder ? condition : ""
     });
 
     log(`Created project "${name}" (${target} progress)${room ? ` in ${room}` : ""}${trait ? `, ${trait}` : ""}.`);
@@ -398,6 +430,54 @@ export async function undoSabotage(targetId = null, repairId = null) {
  * the tray beside the project it unblocked reads as an open job. It also kept
  * the tray growing by one row per sabotage for the rest of the season.
  */
+/**
+ * A trap has finished building. Say so, and offer to fire it.
+ *
+ * A repair that completes thaws what it was repairing; a MURDER project that
+ * completed did nothing at all — the bar filled, the trap was armed, and the
+ * only thing that changed was a number on a widget somebody might be looking
+ * at. The GM had to notice.
+ *
+ * Posted into the killer's own thread rather than whispered to the GMs alone,
+ * because that is where the rest of this player's murder already lives and
+ * because "your trap is ready" is news they are entitled to. The buttons on it
+ * are GM-only and are stripped from a player's copy — see `wireCallActions`.
+ *
+ * The condition travels with it. The guide's whole definition of an indirect
+ * murder is "you do not name the victim, you name a condition", and it is the
+ * one thing the GM has to have in front of them when they decide the trap has
+ * gone off.
+ */
+async function announceTrapReady(countdownId, name) {
+    if (!isIndirectMurder(countdownId)) return null;
+
+    const meta = metaFor(countdownId);
+    const killer = game.actors.get(meta.killerId ?? "")
+        ?? game.actors.find(a => a.type === "character" && a.name === meta.by);
+    if (!killer) {
+        log(`Trap "${name}" is ready, but its owner could not be identified.`);
+        return null;
+    }
+
+    const { callGm } = await import("./gm-bridge.mjs");
+    await callGm(killer, {
+        title: game.i18n.localize("DRPG.Project.trapReadyTitle"),
+        body: meta.condition
+            ? `<strong>${game.i18n.localize("DRPG.Project.trapCondition")}</strong> ${
+                foundry.utils.escapeHTML(meta.condition)}`
+            : `<em>${game.i18n.localize("DRPG.Project.trapNoCondition")}</em>`,
+        request: name,
+        actions: [{
+            action: "fireTrap",
+            label: game.i18n.localize("DRPG.Project.trapFire"),
+            data: { killer: killer.id }
+        }]
+    });
+
+    log(`Trap "${name}" is ready (${killer.name}).`);
+    return true;
+}
+
 async function checkRepairCompletion(countdownId) {
     const targetId = repairs(countdownId);
     if (!targetId) return null;
@@ -481,6 +561,8 @@ export async function updateProject(countdownId, patch = {}) {
     if (patch.room !== undefined) meta.room = patch.room || null;
     if (patch.trait !== undefined) meta.trait = patch.trait || null;
     if (patch.indirectMurder !== undefined) meta.indirectMurder = Boolean(patch.indirectMurder);
+    if (patch.condition !== undefined) meta.condition = String(patch.condition ?? "");
+    if (patch.killerId !== undefined) meta.killerId = patch.killerId || null;
     if (Object.keys(meta).length) await setProjectMeta(countdownId, meta);
 
     log(`Project ${countdownId} updated: ${Object.keys({ ...countdownPatch, ...meta }).join(", ")}`);
@@ -536,6 +618,15 @@ const OBSERVER = 2;    // CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER
  * included. Secrecy has to be spelled out per user: an explicit NONE for every
  * player who is not a viewer.
  */
+/** The non-GM users who own this actor — whose eyes "the killer" means. */
+function ownerIdsOf(actorId) {
+    const actor = game.actors.get(actorId ?? "");
+    if (!actor) return [];
+    return game.users
+        .filter(u => !u.isGM && actor.testUserPermission(u, "OWNER"))
+        .map(u => u.id);
+}
+
 function ownershipMap(viewerIds = []) {
     const viewers = new Set(viewerIds.filter(Boolean));
     const map = { default: NONE };          // kept for our own isSecret() read

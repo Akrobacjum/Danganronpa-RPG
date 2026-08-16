@@ -18,7 +18,7 @@ import { SETTINGS } from "./settings.mjs";
 import { actionsLeft, spendAction } from "./actions.mjs";
 import { roomOfActor } from "./movement.mjs";
 import { resourceMax, resourceValue } from "./character.mjs";
-import { whisperToOwner, log, error } from "./utils.mjs";
+import { whisperToOwner, log, error, plural } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -156,9 +156,9 @@ export async function takeRest(actor, kind = "short") {
 
         const cost = rules.actionCost;
         if (actionsLeft(actor) < cost) {
-            ui.notifications.warn(game.i18n.format("DRPG.Actions.notEnough", {
+            ui.notifications.warn(plural("DRPG.Actions.notEnough", {
                 actor: actor.name, left: actionsLeft(actor), needed: cost
-            }));
+            }, "left"));
             return null;
         }
 

@@ -156,7 +156,6 @@ export async function auditAnonymity({ toChat = true } = {}) {
     }
 
     const findings = { exposed, shared, orphaned, assistants };
-    if (!toChat) return findings;
 
     const sections = [];
 
@@ -191,6 +190,13 @@ export async function auditAnonymity({ toChat = true } = {}) {
     const body = sections.length
         ? sections.join("")
         : `<p>${game.i18n.localize("DRPG.Anonymity.audit.clean")}</p>`;
+
+    // The rendered body travels back with the findings, so a caller that puts
+    // the answer on screen itself gets the same prose the whisper would have
+    // carried instead of reassembling it worse.
+    findings.body = body;
+
+    if (!toChat) return findings;
 
     await whisperToGms(`<h3>${game.i18n.localize("DRPG.Anonymity.audit.title")}</h3>${body}`);
     return findings;

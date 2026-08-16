@@ -13,7 +13,7 @@
  */
 
 import { MODULE_ID, ITEM_CATEGORIES, TIER_EFFECTS } from "./config.mjs";
-import { whisperToGms, log, error } from "./utils.mjs";
+import { whisperToGms, log, error, plural } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -296,7 +296,7 @@ export async function installTables({ overwrite = false, prompt = true } = {}) {
     log(`Item tables: ${created.length} created, ${skipped.length} left alone, ${failed.length} failed.`);
 
     if (failed.length) {
-        ui.notifications.error(game.i18n.format("DRPG.Tables.someFailed", { n: failed.length }));
+        ui.notifications.error(plural("DRPG.Tables.someFailed", { n: failed.length }));
     } else {
         ui.notifications.info(game.i18n.format("DRPG.Tables.installed", {
             created: created.length,
@@ -309,7 +309,7 @@ export async function installTables({ overwrite = false, prompt = true } = {}) {
     await whisperToGms(`<h3>${game.i18n.localize("DRPG.Panel.installTables")}</h3>
         <p>${game.i18n.format("DRPG.Tables.installed", { created: created.length, skipped: skipped.length })}</p>
         ${created.length ? list(created) : ""}
-        ${failed.length ? `<p class="drpg-warning">${game.i18n.format("DRPG.Tables.someFailed", { n: failed.length })}</p>${list(failed)}` : ""}
+        ${failed.length ? `<p class="drpg-warning">${plural("DRPG.Tables.someFailed", { n: failed.length })}</p>${list(failed)}` : ""}
         <p><small>${game.i18n.localize("DRPG.Tables.whereNote")}</small></p>`);
 
     await openTablesTab();

@@ -31,7 +31,7 @@ import { remnantsOn, remnantData } from "./remnants.mjs";
 import { bulletsOf, secretOf, truthBulletData } from "./truth-bullets.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { isDeceased } from "./chapter.mjs";
-import { dialogContent } from "./utils.mjs";
+import { dialogContent, plural } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -261,7 +261,7 @@ export async function openKeyPlanner() {
 
     await setKeyPlan({ chapter: plan.chapter, entries });
     ui.notifications.info(created
-        ? game.i18n.format("DRPG.Investigation.plannerCreated", { n: created })
+        ? plural("DRPG.Investigation.plannerCreated", { n: created })
         : game.i18n.localize("DRPG.Investigation.plannerSaved"));
     return entries;
 }
@@ -494,11 +494,28 @@ export async function openInvestigationDashboard() {
         </div>`),
         buttons: [
             { action: "plan", label: game.i18n.localize("DRPG.Investigation.plannerTitle") },
+            // Both used to be tiles in the GM panel's case section. They belong
+            // here: a GM issues the autopsy and reads the evidence log while
+            // looking at the case, not while deciding which screen to open.
+            { action: "autopsy", label: game.i18n.localize("DRPG.TruthBullet.autopsyTitle") },
+            { action: "log", label: game.i18n.localize("DRPG.Trial.logTitle") },
             { action: "close", label: game.i18n.localize("DRPG.Panel.close"), default: true }
         ],
         rejectClose: false
     });
 
     if (action === "plan") return openKeyPlanner();
+    // Each comes back here afterwards, so the dashboard is where the GM lands
+    // rather than on the map — the same pattern the GM panel uses for its tiles.
+    if (action === "autopsy") {
+        const { issueAutopsyDialog } = await import("./gm-items.mjs");
+        await issueAutopsyDialog();
+        return openInvestigationDashboard();
+    }
+    if (action === "log") {
+        const { openObjectionLog } = await import("./trial.mjs");
+        await openObjectionLog();
+        return openInvestigationDashboard();
+    }
     return null;
 }

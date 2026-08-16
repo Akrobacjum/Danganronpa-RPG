@@ -34,7 +34,7 @@ import {
 } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { grantItem, itemsInCategory } from "./inventory.mjs";
-import { gmIds, whisperToOwner, whisperToGms, isPrimaryGm, log, warn, error } from "./utils.mjs";
+import { gmIds, whisperToOwner, whisperToGms, isPrimaryGm, log, warn, error, plural } from "./utils.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 
@@ -227,7 +227,7 @@ export async function importLedger(json) {
     await mergeEntries(data);
     // The importing GM is now the most complete copy; push it outward.
     for (const [uuid, entry] of Object.entries(readLedger())) pushSecret(uuid, entry);
-    ui.notifications.info(game.i18n.format("DRPG.TruthBullet.imported", {
+    ui.notifications.info(plural("DRPG.TruthBullet.imported", {
         n: Object.keys(data).length
     }));
     return true;
@@ -543,7 +543,7 @@ export async function migrateTruthBullets() {
             }</strong> (${REMNANT_VISIBILITY_LABELS[m.visibility] ?? m.visibility})</li>`).join("");
         await whisperToGms(`
             <h3>${game.i18n.localize("DRPG.TruthBullet.migratedTitle")}</h3>
-            <p>${game.i18n.format("DRPG.TruthBullet.migrated", { n: migrated.length })}</p>
+            <p>${plural("DRPG.TruthBullet.migrated", { n: migrated.length })}</p>
             <ul>${rows}</ul>`);
         log(`Migrated ${migrated.length} Truth Bullet(s) to the Stage 1 shape.`);
     }

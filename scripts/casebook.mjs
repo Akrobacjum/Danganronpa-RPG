@@ -24,7 +24,7 @@
 import { TRUTH_BULLET_TYPES } from "./config.mjs";
 import { bulletsOf, truthBulletData, isAnalysable } from "./truth-bullets.mjs";
 import { getClock } from "./clock.mjs";
-import { dialogContent } from "./utils.mjs";
+import { dialogContent, plural } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -103,7 +103,7 @@ export async function openCasebook(actor) {
         window: { title: game.i18n.format("DRPG.Casebook.title", { actor: actor.name }) },
         classes: ["drpg-panel", "drpg-casebook"],
         content: dialogContent(`<div>
-            <p class="notes">${game.i18n.format("DRPG.Casebook.summary", summary)}</p>
+            <p class="notes">${plural("DRPG.Casebook.summary", summary, "total")}</p>
             ${summary.locked ? `<p class="notes">${
                 game.i18n.format("DRPG.Casebook.lockedNote", { n: summary.locked })}</p>` : ""}
             ${sections}

@@ -20,7 +20,7 @@ import { MODULE_ID, FLAGS, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, TIMES_OF_DAY }
 import { SETTINGS } from "./settings.mjs";
 import { getClock, setClock, timeOfDayLabel } from "./clock.mjs";
 import { roomOfActor, neighbouringRooms } from "./movement.mjs";
-import { announce, whisperToOwner, log, error } from "./utils.mjs";
+import { announce, whisperToOwner, log, error, plural } from "./utils.mjs";
 
 /** How many room crossings each character gets during an ordinary Eclipse. */
 export { ECLIPSE_MOVES };
@@ -286,10 +286,10 @@ export async function judgeEclipseCrossing(actor, from, to) {
     await whisperToOwner(actor, `<p><strong>${eclipseLabel()}</strong> — ${
         free
             ? game.i18n.format("DRPG.Eclipse.movedFree", { room })
-            : game.i18n.format("DRPG.Eclipse.moved", {
+            : plural("DRPG.Eclipse.moved", {
                 room,
                 left: Math.max(0, ECLIPSE_MOVES - used)
-            })
+            }, "left")
     }</p>`);
 
     return true;

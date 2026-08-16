@@ -27,7 +27,8 @@ import { MODULE_ID, TRIAL } from "./config.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { monokumas, fillAllDespair, poolLabel } from "./despair.mjs";
 import { isDeceased, livingStudents, killCharacter } from "./chapter.mjs";
-import { announce, dialogContent, whisperToGms, log, warn, error } from "./utils.mjs";
+import { blackenedIds, blackenedActors } from "./murder.mjs";
+import { announce, dialogContent, whisperToGms, log, warn, error, plural } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 const SOCKET_EVENT = `module.${MODULE_ID}`;
@@ -147,13 +148,22 @@ function candidatesFor(voterActorId) {
  *   answer. The GM says how many the night produced; everything downstream
  *   counts names rather than ballots, so the tally needs no special case.
  */
-export async function openVote({ picks = 1 } = {}) {
+export async function openVote({ picks = null } = {}) {
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
     }
 
-    picksRequired = Math.max(1, Math.trunc(picks) || 1);
+    // How many names the night demands, taken from the register rather than
+    // from an argument nobody was passing.
+    //
+    // `openVote()` was called from exactly one place, with no arguments, so
+    // `picks` defaulted to 1 every single time and the two-Blackened ballot
+    // below — which was written, tested and complete — could not be reached
+    // from the interface at all. Now the incidents themselves decide: two
+    // murders in a chapter, two names on the ballot.
+    const recorded = blackenedIds().length;
+    picksRequired = Math.max(1, Math.trunc(picks ?? recorded) || 1);
     ballots = new Map();
 
     const voters = eligibleVoters();
@@ -328,10 +338,18 @@ export async function closeVote() {
         }
     }
 
-    const total = ballots.size;
+    // Out of how many ballots WENT OUT, not how many came back.
+    //
+    // The denominator used to be `ballots.size` — the votes cast — so one vote
+    // out of three issued printed as "1 of 1 votes", which reads as a unanimous
+    // table rather than as two people who never answered. Whether the accusation
+    // carries the room is the whole question the card is trying to settle.
+    const returned = ballots.size;
+    const silent = pendingVoters()?.length ?? 0;
+    const issued = returned + silent;
     ballots = null;
 
-    if (!total) {
+    if (!returned) {
         ui.notifications.warn(game.i18n.localize("DRPG.Vote.nobodyVoted"));
         return null;
     }
@@ -344,8 +362,16 @@ export async function closeVote() {
         .sort((a, b) => b[1] - a[1])
         .map(([id, n]) => ({ id, name: named(id), n }));
 
+    // As many names as the night asked for. A two-Blackened vote whose card
+    // announces one accusation has answered half the question and said so as
+    // though it were the whole answer.
+    const wanted = Math.max(1, picksRequired);
+    const cut = rows[wanted - 1]?.n ?? 0;
+    const accused = rows.filter(r => r.n >= cut && r.n > 0);
     const top = rows[0];
-    const tied = rows.filter(r => r.n === top.n).length > 1;
+    // A tie at the line: more names clear the bar than there are Blackened to
+    // name. One Blackened and two people level on votes is the old tie exactly.
+    const tied = accused.length > wanted;
 
     await announce({
         content: `<div class="drpg-evidence-card">
@@ -356,14 +382,25 @@ export async function closeVote() {
             </tr>`).join("")}</tbody></table>
             <p>${tied
                 ? game.i18n.localize("DRPG.Vote.tied")
-                : game.i18n.format("DRPG.Vote.accused", {
-                    name: foundry.utils.escapeHTML(top.name), n: top.n, total
-                })}</p>
+                : wanted > 1
+                    ? game.i18n.format("DRPG.Vote.accusedMany", {
+                        names: accused.map(r => foundry.utils.escapeHTML(r.name)).join(", ")
+                    })
+                    : game.i18n.format("DRPG.Vote.accused", {
+                        name: foundry.utils.escapeHTML(top.name), n: top.n, total: issued
+                    })}</p>
+            ${silent ? `<p class="notes">${
+                plural("DRPG.Vote.silent", { n: silent })}</p>` : ""}
         </div>`
     });
 
-    log(`Vote closed: ${total} ballot(s), ${tied ? "tied" : `${top.name} accused`}.`);
-    return { rows, total, tied, accusedId: tied ? null : top.id };
+    log(`Vote closed: ${returned} of ${issued} ballot(s) returned, ${
+        tied ? "tied" : `${accused.map(r => r.name).join(", ")} accused`}.`);
+    return {
+        rows, total: issued, tied,
+        accusedId: tied ? null : top?.id ?? null,
+        accusedIds: tied ? [] : accused.map(r => r.id)
+    };
 }
 
 /* ==========================================================================
@@ -371,11 +408,19 @@ export async function closeVote() {
  * ========================================================================== */
 
 /**
- * Apply what the verdict costs. GM-driven, because only the GM knows whether
- * the accused was actually the Blackened — the module never learned it.
+ * Apply what the verdict costs.
  *
- * A tie counts as getting it wrong (guide p. 31), which is why the dialog asks
- * for the verdict rather than reading it off the tally.
+ * The module knows who killed now — every incident that left a body wrote its
+ * killer into the chapter's register — so this no longer asks a GM to name the
+ * Blackened from memory an hour after the fact. It asks the one thing only a
+ * human can answer: did the table get it right.
+ *
+ * A tie counts as getting it wrong (guide p. 31), which is why the verdict is
+ * still a button rather than something read off the tally.
+ *
+ * The register CAN be empty: a chapter whose killing was never run through the
+ * incident engine, or a world upgraded mid-chapter. Then this falls back to the
+ * pair of dropdowns it always had, and nothing is lost.
  */
 export async function openVerdictDialog() {
     if (!game.user.isGM) {
@@ -383,37 +428,43 @@ export async function openVerdictDialog() {
         return null;
     }
 
+    const known = blackenedActors();
     const students = studentActors();
     const options = students
         .map(a => `<option value="${a.id}">${foundry.utils.escapeHTML(a.name)}${
             isDeceased(a) ? ` — ${game.i18n.localize("DRPG.Chapter.deadShort")}` : ""
         }</option>`).join("");
 
+    // What the register says, stated rather than asked. Two names here is an
+    // ordinary evening now: one incident, then the betrayal.
+    const roster = known.length
+        ? `<p><strong>${plural("DRPG.Vote.blackenedKnown", { n: known.length })}</strong>
+             ${known.map(a => foundry.utils.escapeHTML(a.name)).join(", ")}</p>`
+        : "";
+
     const result = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Vote.verdictTitle") },
         classes: ["drpg-panel"],
         content: dialogContent(`<form>
-            <p>${game.i18n.localize("DRPG.Vote.verdictIntro")}</p>
-            <label>${game.i18n.localize("DRPG.Vote.executed")}
+            <p>${game.i18n.localize(known.length
+                ? "DRPG.Vote.verdictIntroKnown" : "DRPG.Vote.verdictIntro")}</p>
+            ${roster}
+            <label>${game.i18n.localize(known.length
+                ? "DRPG.Vote.executedIfWrong" : "DRPG.Vote.executed")}
                 <select name="executed">${options}</select></label>
-            <label>${game.i18n.localize("DRPG.Vote.blackened")}
-                <select name="blackened">${options}</select></label>
-            <p class="notes">${game.i18n.localize("DRPG.Vote.verdictNote")}</p>
+            ${known.length ? "" : `<label>${game.i18n.localize("DRPG.Vote.blackened")}
+                <select name="blackened">${options}</select></label>`}
+            <p class="notes">${game.i18n.localize(known.length
+                ? "DRPG.Vote.verdictNoteKnown" : "DRPG.Vote.verdictNote")}</p>
         </form>`),
         buttons: [
             {
                 action: "correct", label: game.i18n.localize("DRPG.Vote.gotItRight"), default: true,
-                callback: (e, b, d) => {
-                    const f = d.element.querySelector("form");
-                    return { correct: true, executedId: f.executed.value, blackenedId: f.blackened.value };
-                }
+                callback: (e, b, d) => read(d, true, known)
             },
             {
                 action: "wrong", label: game.i18n.localize("DRPG.Vote.gotItWrong"),
-                callback: (e, b, d) => {
-                    const f = d.element.querySelector("form");
-                    return { correct: false, executedId: f.executed.value, blackenedId: f.blackened.value };
-                }
+                callback: (e, b, d) => read(d, false, known)
             },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
         ],
@@ -424,36 +475,66 @@ export async function openVerdictDialog() {
     return applyVerdict(result);
 }
 
+/**
+ * Turn the form into a verdict.
+ *
+ * With a register, a correct verdict executes THE BLACKENED — all of them, and
+ * the dropdown is ignored, because a table that named them right is not also
+ * executing somebody else. A wrong one executes whoever the dropdown says and
+ * leaves every killer standing.
+ */
+function read(dialog, correct, known) {
+    const f = dialog.element.querySelector("form");
+    const blackenedIdList = known.length ? known.map(a => a.id) : [f.blackened.value];
+    return {
+        correct,
+        executedIds: correct && known.length ? blackenedIdList : [f.executed.value],
+        blackenedIds: blackenedIdList
+    };
+}
+
 /** Execute somebody, and hand out what the guide says the table has earned. */
-export async function applyVerdict({ correct, executedId, blackenedId } = {}) {
+export async function applyVerdict({
+    correct, executedIds, blackenedIds: named, executedId, blackenedId
+} = {}) {
     if (!game.user.isGM) return null;
 
-    const executed = game.actors.get(executedId);
-    const blackened = game.actors.get(blackenedId);
+    // Both shapes accepted: the dialog sends lists, and anything older — a
+    // macro, the console — sends the single ids this used to take.
+    const executed = (executedIds ?? [executedId]).filter(Boolean)
+        .map(id => game.actors.get(id)).filter(Boolean);
+    const blackened = (named ?? [blackenedId]).filter(Boolean)
+        .map(id => game.actors.get(id)).filter(Boolean);
     const done = [];
 
-    if (executed && !isDeceased(executed)) {
-        await killCharacter(executed);
+    for (const actor of executed) {
+        if (isDeceased(actor)) continue;
+        await killCharacter(actor);
         done.push(game.i18n.format("DRPG.Vote.wasExecuted", {
-            name: foundry.utils.escapeHTML(executed.name)
+            name: foundry.utils.escapeHTML(actor.name)
         }));
     }
 
     if (correct) {
-        // Everyone still alive advances. The Blackened is dead, so they are not
-        // in this list — which is exactly right.
+        // Everyone still alive advances — unchanged, and deliberately: a right
+        // answer levels the table up. The Blackened have just been executed, so
+        // they are not in this list, which is what keeps that honest even when
+        // there were two of them.
         const survivors = livingStudents();
-        done.push(game.i18n.format("DRPG.Vote.levelUp", {
+        done.push(plural("DRPG.Vote.levelUp", {
             n: survivors.length,
             kind: TRIAL.correct.levelUp
         }));
         await promptAdvancements(survivors, TRIAL.correct.levelUp);
     } else {
-        if (blackened && !isDeceased(blackened)) {
-            done.push(game.i18n.format("DRPG.Vote.blackenedRewarded", {
+        // EVERY killer who is still breathing, not just the first one named.
+        const survivingKillers = blackened.filter(a => !isDeceased(a));
+        if (survivingKillers.length) {
+            done.push(plural("DRPG.Vote.blackenedRewarded", {
+                n: survivingKillers.length,
                 kind: TRIAL.wrong.blackenedLevelUp
             }));
-            await promptAdvancements([blackened], TRIAL.wrong.blackenedLevelUp);
+            await promptAdvancements(survivingKillers, TRIAL.wrong.blackenedLevelUp);
         }
         if (TRIAL.wrong.fillDespair) {
             await fillAllDespair();

@@ -1240,6 +1240,18 @@ export const CRISIS_ACTIONS = {
         critical: "You stop the bleeding. Both ways out are open, and you may take one of them "
             + "this turn without rolling.",
         failure: "Nothing happens. On a Despair failure you lose an extra 1 HP or Stress.",
+        /**
+         * The line above has said this since the action was written and nothing
+         * was doing it — measured while rewriting the outcome cards. Despair
+         * only, exactly as worded.
+         */
+        failureExtraDrain: { despair: 1 },
+        /**
+         * `critical` is unreachable and left as documentation of the table it
+         * came from: a critical is always a success, so the failure branch only
+         * ever sees `hope` and `despair`. Same for the three entries like it
+         * elsewhere in this file.
+         */
         failureRemnant: { hope: "evident", despair: "evident", critical: "obvious" }
     },
     survive: {
@@ -1268,6 +1280,14 @@ export const CRISIS_ACTIONS = {
         critical: "You kill them outright. They can take no further action. You recover all HP "
             + "and Stress and leave one Evident Reinforced Incident Remnant.",
         failure: "Nothing happens. On a Despair failure you lose an extra 1 HP or Stress.",
+        /**
+         * As on Self-defence, and for the same reason: the sentence above was
+         * written from the guide and the code was doing none of it. A victim
+         * who tries to turn the knife around and misses on Despair pays for the
+         * attempt — which is the only thing separating this from a free reroll
+         * every turn.
+         */
+        failureExtraDrain: { despair: 1 },
         // The critical's own text promises a trace and nothing was creating one:
         // `applyRemnant` reads `remnant[band]`, and this entry had no `remnant`
         // table at all. Same shape of bug as the Dynamic action's missing trace —
@@ -1384,8 +1404,15 @@ export const CRISIS_ACTIONS = {
         despair: "Both of you escape, but the victim's HP and Stress are not restored.",
         critical: "Both of you escape with immunity for this chapter and the next, and the "
             + "victim's HP and Stress are restored.",
-        failure: "Only you escape. On Despair the newcomer joins the incident as a second "
-            + "victim and loses access to the third-party resolution actions.",
+        /*
+         * NOT "the newcomer becomes a second victim" — an incident has exactly
+         * one victim, start to finish. That sentence described a rule the
+         * module has never had and the guide does not give: two bodies come
+         * from the betrayal AFTER the incident, not from two people bleeding
+         * inside it. See `afterIncident` in murder.mjs.
+         */
+        failure: "Only you get out. The victim stays where they are, and your one free choice "
+            + "is spent — whatever happens next, it happens without you.",
         remnant: { hope: "obvious", despair: "evident" },
         // A failed escape leaves a trace too. It used to live under
         // `remnant.failure`, which nothing ever read: the failure branch looks up

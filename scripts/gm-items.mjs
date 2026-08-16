@@ -20,7 +20,7 @@ import { grantItem, itemsInCategory, countInCategory, inventorySummary } from ".
 import { createTruthBullet, issueAutopsy, BULLET_CATEGORY } from "./truth-bullets.mjs";
 import { ITEM_POOLS } from "./tables.mjs";
 import { studentActors } from "./monokuma.mjs";
-import { whisperToOwner, dialogContent, log, error } from "./utils.mjs";
+import { whisperToOwner, dialogContent, log, error, plural } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -430,7 +430,7 @@ export async function issueAutopsyDialog() {
         { name, playerText: result.playerText, gmNote: result.gmNote }
     );
 
-    ui.notifications.info(game.i18n.format("DRPG.TruthBullet.autopsyIssued", { n: issued }));
+    ui.notifications.info(plural("DRPG.TruthBullet.autopsyIssued", { n: issued }));
     return issued > 0;
 }
 

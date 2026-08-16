@@ -197,6 +197,27 @@ async function toggleFinalTrialFlag() {
     await setFinalTrial(next);
     ui.notifications.info(game.i18n.localize(
         next ? "DRPG.Mastermind.started" : "DRPG.Mastermind.ended"));
+
+    // Say it out loud, because the window promised to.
+    //
+    // "Announce the Final Trial? This is public — everyone sees it start" is
+    // what the GM agreed to, and then the only thing that happened was a local
+    // notification on their own screen. Checked twice while testing: the flag
+    // flipped, the players saw nothing at all. The one moment the season has
+    // been building to arrived in silence.
+    //
+    // Starting is public. ENDING is not announced: the flag comes down after
+    // the verdict, which has its own card, and a second "the Final Trial is
+    // over" underneath it would be the module talking to itself.
+    if (!next) return;
+
+    await announce({
+        content: `<div class="drpg-evidence-card objection">
+            <div class="drpg-objection-banner">${
+                game.i18n.localize("DRPG.Mastermind.finalBanner")}</div>
+            <p>${game.i18n.localize("DRPG.Mastermind.finalAnnounce")}</p>
+        </div>`
+    });
 }
 
 export async function openMastermindDialog() {
@@ -244,13 +265,29 @@ export async function openMastermindDialog() {
         buttons: [
             {
                 action: "save", label: game.i18n.localize("DRPG.Panel.apply"), default: true,
-                callback: (e, b, d) => d.element.querySelector("[name=who]").value
+                // An OBJECT, not the bare value.
+                //
+                // "Apply with nobody selected" and "the GM shut the window"
+                // both used to arrive here as a falsy `result`, and the code
+                // below read either of them as "clear the Mastermind". So
+                // closing this window with the X — changing nothing, touching
+                // nothing — deleted the secret of the season. Measured: set the
+                // Mastermind, open, close, gone.
+                //
+                // Wrapping the answer makes the two distinguishable: a dismissal
+                // is `null`, a deliberate clear is `{ who: "" }`.
+                callback: (e, b, d) => ({ who: d.element.querySelector("[name=who]").value })
             },
             // The endgame used to be three GM-panel tiles — pick the Mastermind,
             // toggle the Final Trial, rule on it — which is one subject split
             // across three trips through the panel, on a screen that names the
             // one secret the module guards hardest. They are buttons here now.
-            { action: "toggleFinal", label: game.i18n.localize("DRPG.Mastermind.toggleFinalTrial") },
+            //
+            // Labelled by state rather than "start or end": one button doing two
+            // opposite things is a coin flip when the GM is reading quickly, and
+            // this one is next to the button that used to wipe the season.
+            { action: "toggleFinal", label: game.i18n.localize(inFinalTrial()
+                ? "DRPG.Mastermind.endFinalTrial" : "DRPG.Mastermind.startFinalTrial") },
             { action: "finalVerdict", label: game.i18n.localize("DRPG.Mastermind.verdictTitle") },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
         ],
@@ -269,7 +306,10 @@ export async function openMastermindDialog() {
         rejectClose: false
     });
 
-    if (result === undefined || result === "cancel") return null;
+    // Anything that is not one of this dialog's own answers is a dismissal, and
+    // a dismissal changes nothing. `rejectClose: false` turns the X and Escape
+    // into a `null` that used to fall all the way through to the clear.
+    if (!result || result === "cancel") return null;
 
     // Both of these open a window of their own and then come back here, so the
     // GM lands on the screen they pressed the button from rather than on the
@@ -283,10 +323,29 @@ export async function openMastermindDialog() {
         return openMastermindDialog();
     }
 
-    if (!result) await clearMastermind();
-    else if (result !== current?.id) await setMastermind(game.actors.get(result));
+    // Only the Apply button reaches here, and it always brings an object — so
+    // an empty `who` is the GM choosing "Nobody" on purpose.
+    const who = result.who ?? null;
 
-    return result || null;
+    if (!who) {
+        if (current) {
+            await clearMastermind();
+            ui.notifications.info(game.i18n.localize("DRPG.Mastermind.cleared"));
+        }
+        return null;
+    }
+
+    if (who !== current?.id) {
+        const picked = game.actors.get(who);
+        await setMastermind(picked);
+        // Setting it used to confirm nothing at all: no notification, no
+        // whisper, no entry. The secret must not go to chat, but the person who
+        // just set it is entitled to know it took.
+        ui.notifications.info(game.i18n.format("DRPG.Mastermind.confirmed",
+            { name: picked?.name ?? "?" }));
+    }
+
+    return who;
 }
 
 /* ==========================================================================

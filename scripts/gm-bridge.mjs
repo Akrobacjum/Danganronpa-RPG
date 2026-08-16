@@ -42,6 +42,7 @@ const ACTION_VAULT_STEAL = "vault.steal";
 const ACTION_CRISIS = "murder.crisis";
 /** GM -> player: "Stage 4 is yours to throw." */
 const ACTION_OPENING_ASK = "murder.openingAsk";
+const ACTION_OPENING_CANCEL = "murder.openingCancel";
 /** player -> GM: what it came up. */
 const ACTION_OPENING_RESULT = "murder.openingResult";
 const ACTION_CLEANUP = "murder.cleanup";
@@ -65,6 +66,8 @@ export function registerGmBridge() {
     // The one request that travels the other way — GM to player — so it cannot
     // sit behind the `isPrimaryGm` gate in `onSocket` either.
     game.socket.on(SOCKET_EVENT, onOpeningAsk);
+    // And its withdrawal, which travels the same way for the same reason.
+    game.socket.on(SOCKET_EVENT, onOpeningCancel);
 }
 
 /**
@@ -98,6 +101,31 @@ export function askOpeningRoll({ userId, actorId, side }) {
     if (!userId || !game.users.get(userId)?.active) return false;
     game.socket.emit(SOCKET_EVENT, {
         action: ACTION_OPENING_ASK, userId, actorId, side
+    }, { recipients: [userId] });
+    return true;
+}
+
+/**
+ * Take the invitation back.
+ *
+ * An invitation is an instruction to spend a character's resources, so its
+ * withdrawal is checked the same way it was issued: `senderId`, not the claim
+ * in the payload.
+ */
+async function onOpeningCancel(payload, senderId) {
+    if (payload?.action !== ACTION_OPENING_CANCEL) return;
+    if (payload.userId !== game.user.id) return;
+    if (!game.users.get(senderId)?.isGM) return;
+
+    const { closeOpeningRoll } = await import("./murder.mjs");
+    closeOpeningRoll();
+}
+
+/** Withdraw a Stage 4 invitation from whoever is sitting in front of it. */
+export function cancelOpeningRoll({ userId }) {
+    if (!userId || !game.users.get(userId)?.active) return false;
+    game.socket.emit(SOCKET_EVENT, {
+        action: ACTION_OPENING_CANCEL, userId
     }, { recipients: [userId] });
     return true;
 }
@@ -264,9 +292,11 @@ async function onSocket(payload, senderId) {
     if (payload.action === ACTION_ACK || payload.action === ACTION_DIFFICULTY_RESULT
         || payload.action === ACTION_SABOTAGE_RESULT
         || payload.action === ACTION_OBSERVE_TARGET_RESULT
-        // Travels GM -> player and is handled by `onOpeningAsk`. Falling through
-        // would have the primary GM treat its own invitation as a request.
-        || payload.action === ACTION_OPENING_ASK) return;
+        // Travels GM -> player and is handled by `onOpeningAsk` / `onOpeningCancel`.
+        // Falling through would have the primary GM treat its own invitation as
+        // a request.
+        || payload.action === ACTION_OPENING_ASK
+        || payload.action === ACTION_OPENING_CANCEL) return;
     if (!isPrimaryGm()) return;
 
     /*
@@ -1175,7 +1205,23 @@ export function requestProjectShare(countdownId, userId) {
  * @param {string} [params.request] The player's own words.
  * @param {string} [params.room]    Where they are standing.
  */
-export async function callGm(actor, { title, body = "", roll = null, request = "", room = null } = {}) {
+export async function callGm(actor, {
+    title, body = "", roll = null, request = "", room = null,
+    /**
+     * Buttons for the GM, rendered into the card itself.
+     *
+     * Each is `{ action, label, data }`. `data` becomes `data-*` attributes on
+     * the button, which is how the ruling carries its own subject: a Direct
+     * Murder declaration names the killer and the victim, so the card that
+     * announces it can open the incident without a GM re-picking two names off
+     * a list they are already reading.
+     *
+     * Safe to render for everybody. The handler is GM-gated on the clicking
+     * client and every action behind it is GM-gated again on arrival, so a
+     * player who forges a click into their own DOM achieves nothing.
+     */
+    actions = []
+} = {}) {
     const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
     const parts = [];
 
@@ -1202,6 +1248,16 @@ export async function callGm(actor, { title, body = "", roll = null, request = "
     if (request) parts.push(`<blockquote>${esc(request)}</blockquote>`);
     if (body) parts.push(`<p>${body}</p>`);
     parts.push(`<p><em>${game.i18n.localize("DRPG.Bridge.awaitingRuling")}</em></p>`);
+
+    if (actions.length) {
+        parts.push(`<div class="drpg-call-actions">${actions.map(a => {
+            const attrs = Object.entries(a.data ?? {})
+                .map(([k, v]) => ` data-${esc(k)}="${esc(v)}"`).join("");
+            return `<button type="button" class="drpg-call-action" data-drpg-call="${
+                esc(a.action)}"${attrs}>${esc(a.label)}</button>`;
+        }).join("")}</div>`);
+    }
+
     const content = parts.join("");
 
     const owner = ownerOf(actor);
@@ -1232,7 +1288,9 @@ export async function promptAndCallGm(actor, {
     title, prompt, placeholder = "", roll = null, room = null,
     // Optional HTML shown above the prompt. Used to fold an action's briefing
     // into this window instead of spending a separate one on it.
-    intro = ""
+    intro = "",
+    // Buttons for the GM on the card this produces. See `callGm`.
+    actions = []
 }) {
     const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -1257,6 +1315,6 @@ export async function promptAndCallGm(actor, {
 
     if (text === "cancel" || text === null || text === undefined) return null;
 
-    await callGm(actor, { title, roll, request: text, room });
+    await callGm(actor, { title, roll, request: text, room, actions });
     return text;
 }

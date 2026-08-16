@@ -8,11 +8,12 @@
  *     game.drpg.diagnoseCharacters()  who has not been set up yet
  */
 
-import { MODULE_ID, STARTING } from "./config.mjs";
+import { MODULE_ID, STARTING, ITEM_CATEGORIES } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { monokumas, getDespair, despairMax } from "./despair.mjs";
 import { monokumaFor, students, unassigned } from "./assignments.mjs";
 import { studentActors } from "./monokuma.mjs";
+import { listExperiences } from "./character.mjs";
 import { isPrimaryGm } from "./utils.mjs";
 
 /**
@@ -118,67 +119,225 @@ export function diagnoseDespair() {
     return report("Despair diagnostics", lines);
 }
 
+/* The tokens the rest of the stylesheet is built out of. If the `:root` block
+   is on the page at all, every one of these resolves; if the file was truncated,
+   replaced or never attached, they come back empty together. Colours and one
+   sprite, because a sprite is a `url()` and fails differently from a hex. */
+const LOAD_BEARING_TOKENS = [
+    "--drpg-ink", "--drpg-bone", "--drpg-line",
+    "--drpg-eye", "--drpg-blood", "--drpg-gold", "--drpg-evidence",
+    "--drpg-pix-skull", "--drpg-pix-query", "--drpg-g-move"
+];
+
+/* Foundry does not give module CSS its own `<link>`. It writes one inline sheet
+   containing `@import url(...) layer(modules)` per package, so our file is a
+   nested stylesheet — invisible to a scan of `document.styleSheets` hrefs, which
+   is what the previous version of this function did. It reported "the module CSS
+   is not attached to this page at all" on a perfectly healthy client. */
+function findOurSheets(sheet, depth, found) {
+    if (depth > 5) return found;
+    let rules;
+    try {
+        rules = sheet.cssRules;
+    } catch {
+        // Cross-origin sheets refuse `cssRules`. On a CDN host that is normal
+        // and not itself a fault — record it rather than treating it as one.
+        if ((sheet.href ?? "").includes(MODULE_ID)) {
+            found.push({ href: sheet.href, rules: null, layer: null, opaque: true });
+        }
+        return found;
+    }
+    if (!rules) return found;
+
+    for (const rule of rules) {
+        const imported = rule.styleSheet;
+        if (imported) {
+            if ((rule.href ?? "").includes(MODULE_ID) || (imported.href ?? "").includes(MODULE_ID)) {
+                let count = null;
+                try {
+                    count = imported.cssRules.length;
+                } catch {
+                    count = null;
+                }
+                found.push({ href: imported.href ?? rule.href, rules: count, layer: rule.layerName ?? null });
+            }
+            findOurSheets(imported, depth + 1, found);
+        } else if (rule.cssRules) {
+            findOurSheets(rule, depth + 1, found);   // @layer / @media / @supports block
+        }
+    }
+    return found;
+}
+
+/* Does the loaded face actually carry this character, or is the browser quietly
+   substituting? Rasterise it twice — once through the pixel stack, once through
+   a plain fallback — and compare the ink. Identical means we are looking at the
+   fallback, and a character present in neither is the empty box on screen. */
+function rastersDiffer(char, family) {
+    try {
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = 64;
+        const ctx = canvas.getContext("2d");
+        const ink = stack => {
+            ctx.clearRect(0, 0, 64, 64);
+            ctx.font = `40px ${stack}`;
+            ctx.textBaseline = "top";
+            ctx.fillText(char, 2, 2);
+            const data = ctx.getImageData(0, 0, 64, 64).data;
+            let count = 0, signature = 0;
+            for (let i = 3; i < data.length; i += 4) {
+                if (data[i] > 10) { count++; signature = (signature * 31 + i) >>> 0; }
+            }
+            return `${count}:${signature}`;
+        };
+        return ink(`"${family}", monospace`) !== ink("monospace");
+    } catch {
+        return null;
+    }
+}
+
 /**
- * Why the sheet might not look the way it does on another install.
+ * Why the interface might not look the way it does on another install.
  *
- * Written for exactly one situation: identical module version, identical
- * stylesheet, and the trait frames appear locally but not on a hosted server.
- * That can only be the stylesheet failing to load, the custom properties failing
- * to resolve, or the selector matching nothing — and this says which, from the
- * machine where it is going wrong.
+ * Written for exactly one situation, and it is the situation we are in: the same
+ * module version renders correctly on a local server and wrongly on a hosted one
+ * (colours falling back to white, glyphs coming out as empty boxes). Nobody can
+ * read the hosted client's DevTools from here, so the module has to report on
+ * itself from the machine where it is going wrong.
+ *
+ * Four things can produce that, and this separates them:
+ *   - the stylesheet never arrived, or arrived empty
+ *   - it arrived but the `:root` tokens do not resolve, so every `var()` colour
+ *     falls back to inherited text colour, which is white on this theme
+ *   - the pixel font never arrived, so characters drawn in it are substituted
+ *     or come out as boxes
+ *   - everything arrived and something else is overriding it
  *
  *     game.drpg.diagnoseStyles()
+ *
+ * Paste the whole output. Every line is a measurement, not a guess.
  */
 export function diagnoseStyles() {
     const lines = [];
 
-    // 1. Is our stylesheet on the page at all, and did it parse?
-    const sheets = Array.from(document.styleSheets ?? []);
-    const ours = sheets.filter(s => (s.href ?? "").includes(MODULE_ID));
-    lines.push(`Stylesheets from this module: ${ours.length}`);
-    for (const sheet of ours) {
-        let rules = null;
-        try {
-            rules = sheet.cssRules?.length ?? null;
-        } catch {
-            rules = "unreadable (served cross-origin — this is the CDN case)";
-        }
-        lines.push(`   ${sheet.href}`);
-        lines.push(`   rules parsed: ${rules ?? "none"}${rules === 0 ? "  ← loaded but EMPTY" : ""}`);
-    }
-    if (!ours.length) {
-        lines.push("   ← the module CSS is not attached to this page at all.");
-    }
-
-    // 2. Do the theme tokens resolve?
-    const root = getComputedStyle(document.documentElement);
-    const purple = root.getPropertyValue("--drpg-purple").trim();
-    lines.push(`--drpg-purple resolves to: "${purple || "(empty) ← tokens missing"}"`);
-
-    // 3. Did anything on an open sheet actually get framed?
-    const framed = document.querySelectorAll(".drpg-trait-frame");
-    const areas = document.querySelectorAll(".trait-value-area");
-    lines.push(`Elements tagged .drpg-trait-frame right now: ${framed.length}`);
-    lines.push(`Elements matching .trait-value-area right now: ${areas.length}`);
-
-    if (!framed.length && !areas.length) {
-        lines.push("→ Open a character sheet and run this again — with none open there is nothing to measure.");
-    }
-
-    const sample = framed[0] ?? areas[0];
-    if (sample) {
-        const style = getComputedStyle(sample);
-        lines.push(`Computed border on the first one: "${style.border}"`);
-        lines.push(`   border-style: ${style.borderStyle}, width: ${style.borderWidth}, colour: ${style.borderColor}`);
-        if (style.borderStyle === "none") {
-            lines.push("   ← the frame rule is not winning. Something later is overriding it, or the CSS did not load.");
-        }
-    }
-
-    lines.push("");
-    lines.push(`Module version: ${game.modules.get(MODULE_ID)?.version ?? "?"}`);
+    // ---- 1. The page itself -------------------------------------------------
+    lines.push(`Page: ${location.origin} (${location.protocol})`);
+    lines.push(`Module version Foundry loaded: ${game.modules.get(MODULE_ID)?.version ?? "?"}`);
     lines.push(`Foundry ${game.version}, system ${game.system.id} ${game.system.version}`);
     lines.push(`Other active modules: ${game.modules.filter(m => m.active && m.id !== MODULE_ID).map(m => m.id).join(", ") || "none"}`);
+    lines.push("");
+
+    // ---- 2. Did the stylesheet arrive, and did it parse? --------------------
+    const found = [];
+    for (const sheet of Array.from(document.styleSheets ?? [])) findOurSheets(sheet, 0, found);
+
+    lines.push(`Stylesheets from this module: ${found.length} (expected 2)`);
+    for (const sheet of found) {
+        lines.push(`   ${sheet.href}`);
+        lines.push(`      layer: ${sheet.layer ?? "(none)"}, rules parsed: ${
+            sheet.opaque ? "unreadable — served cross-origin, which is normal on a CDN"
+            : sheet.rules === 0 ? "0  ← ARRIVED BUT EMPTY"
+            : sheet.rules}`);
+    }
+    if (!found.length) {
+        lines.push("   ← nothing from this module is attached to the page. Check that the module is enabled,");
+        lines.push("     then look for danganronpa.css in the resource list below.");
+    }
+
+    // ---- 3. Do the tokens resolve? -----------------------------------------
+    const root = getComputedStyle(document.documentElement);
+    const missing = [];
+    lines.push("");
+    lines.push("Theme tokens:");
+    for (const token of LOAD_BEARING_TOKENS) {
+        const value = root.getPropertyValue(token).trim();
+        if (!value) missing.push(token);
+        lines.push(`   ${token.padEnd(20)} ${value ? value.slice(0, 52) : "(EMPTY)  ← unresolved"}`);
+    }
+    if (missing.length === LOAD_BEARING_TOKENS.length) {
+        lines.push("   ← ALL of them are empty. The :root block is not on this page, so every var() colour");
+        lines.push("     in the module falls back to inherited text colour — that is the white-icon symptom.");
+    } else if (missing.length) {
+        lines.push(`   ← ${missing.length} unresolved: ${missing.join(", ")}`);
+    }
+
+    // ---- 4. Did the pixel font arrive, and does it carry its characters? ----
+    lines.push("");
+    const pixelOn = document.body.classList.contains("drpg-pixel-font");
+    lines.push(`Pixel font setting: ${pixelOn ? "on" : "off (body.drpg-pixel-font absent)"}`);
+    const faces = Array.from(document.fonts ?? []).filter(f => f.family.includes("DRPG"));
+    lines.push(`@font-face entries for "DRPG Pixel": ${faces.length} (expected 2 — latin and latin-ext)`);
+    for (const face of faces) {
+        lines.push(`   status: ${face.status}${face.status === "error" ? "  ← THE FILE FAILED TO LOAD" : ""}, range: ${face.unicodeRange.slice(0, 34)}`);
+    }
+    if (pixelOn) {
+        for (const char of ["?", "A", "1"]) {
+            const differs = rastersDiffer(char, "DRPG Pixel");
+            lines.push(`   "${char}" drawn in DRPG Pixel: ${
+                differs === null ? "could not measure"
+                : differs ? "the real glyph"
+                : "IDENTICAL TO THE FALLBACK  ← substituted, the font is not being used here"}`);
+        }
+    }
+
+    // ---- 5. The two things that were reported wrong ------------------------
+    lines.push("");
+    const pip = document.querySelector("#drpg-despair .drpg-despair-pip");
+    if (!pip) {
+        lines.push("Despair bar: not on screen, so nothing to measure there.");
+    } else {
+        const bar = document.querySelector("#drpg-despair");
+        const before = getComputedStyle(pip, "::before");
+        const masked = bar.classList.contains("masked");
+        // Both states are masks — a skull for the GM, a question mark for a
+        // player — so the useful question is which one landed, and whether it
+        // landed at all. No mask plus a background is a solid square on screen.
+        const mask = before.maskImage || before.webkitMaskImage || "none";
+        const wanted = root.getPropertyValue(masked ? "--drpg-pix-query" : "--drpg-pix-skull").trim();
+        lines.push(`Despair bar: ${bar.classList.length ? bar.className : "(no classes)"}${masked ? "  — this client sees question marks" : "  — this client sees skulls"}`);
+        lines.push(`   pip colour: ${getComputedStyle(pip).color}`);
+        lines.push(`   ::before content: ${before.content}, background: ${before.backgroundColor}`);
+        lines.push(`   ::before mask: ${mask.slice(0, 46)}`);
+        if (mask === "none") {
+            lines.push("   ← NO MASK. With a background colour set, that draws a filled square, not a glyph.");
+        } else if (wanted && mask.replace(/\s+/g, "") !== wanted.replace(/\s+/g, "")) {
+            lines.push(`   ← the wrong mask for this state — expected the ${masked ? "question mark" : "skull"}.`);
+        }
+    }
+
+    const callIcon = document.querySelector(".drpg-despair-panel .drpg-call-button .drpg-action-icon");
+    if (!callIcon) {
+        lines.push("Despair Calls: no Monokuma sheet open, so the call icons were not measured.");
+    } else {
+        const style = getComputedStyle(callIcon);
+        const blood = root.getPropertyValue("--drpg-blood").trim();
+        lines.push(`Despair Call icon colour: ${style.color} (background-color: ${style.backgroundColor})`);
+        lines.push(`   should be --drpg-blood = ${blood || "(EMPTY)"}`);
+        lines.push(`   mask: ${(style.maskImage || style.webkitMaskImage || "none").slice(0, 46)}`);
+    }
+
+    // ---- 6. What actually came over the wire -------------------------------
+    lines.push("");
+    const resources = (performance.getEntriesByType?.("resource") ?? [])
+        .filter(r => r.name.includes(MODULE_ID));
+    const origins = [...new Set(resources.map(r => { try { return new URL(r.name).origin; } catch { return "?"; } }))];
+    lines.push(`Module files fetched: ${resources.length}, served from: ${origins.join(", ") || "(none)"}`);
+    for (const r of resources.filter(r => /\.css$|\.woff2$/.test(r.name))) {
+        // A 304 revalidation reports decoded 0 bytes and is perfectly healthy —
+        // the body came from cache. Only the status code separates that from a
+        // 404, so prefer it and stay quiet when the browser does not expose it.
+        const status = r.responseStatus;
+        const verdict =
+            status >= 400 ? `  ← HTTP ${status}, THIS FILE DID NOT ARRIVE`
+            : status ? `  (HTTP ${status})`
+            : r.decodedBodySize === 0 && r.transferSize === 0 ? "  ← nothing transferred and nothing decoded"
+            : "";
+        lines.push(`   ${r.name.split("/").slice(-2).join("/")} — transferred ${r.transferSize}B, decoded ${r.decodedBodySize}B${verdict}`);
+    }
+    if (!resources.some(r => /\.woff2$/.test(r.name))) {
+        lines.push("   no .woff2 was requested at all — either the font setting is off, or no text on screen");
+        lines.push("   is using the pixel face yet. Open the Despair bar or a character sheet and run this again.");
+    }
 
     return report("Style diagnostics", lines);
 }
@@ -332,7 +491,7 @@ export function diagnoseVoice() {
  * `injectInitButton` in sheet.mjs); this answers the same question for the
  * whole roster at once.
  */
-export function diagnoseCharacters() {
+export function diagnoseCharacters({ toChat = true } = {}) {
     const lines = [];
     const roster = studentActors();
 
@@ -362,17 +521,75 @@ export function diagnoseCharacters() {
         lines.push("Every character has the guide's starting resources.");
     }
 
-    return report("Character setup", lines);
+    /*
+     * The four things that are agreed before a season and then never thought
+     * about again — which is exactly why they are worth a list.
+     *
+     * Resources are only half of "is this character ready". A student with the
+     * right HP and Stress can still be sitting there with no Ultimate, no
+     * experiences, no opening item and no Monokuma watching them, and every one
+     * of those is invisible until the moment it matters: the first roll that
+     * wants an experience, the first Despair award with nowhere to go.
+     */
+    const missingUltimate = [];
+    const missingExperiences = [];
+    const missingItem = [];
+    const unwatched = [];
+
+    for (const actor of roster) {
+        if (!actor.getFlag(MODULE_ID, "ultimate")) missingUltimate.push(actor.name);
+
+        const experiences = listExperiences(actor);
+        if (experiences.length < STARTING.experiences) {
+            missingExperiences.push(`${actor.name} (${experiences.length}/${STARTING.experiences})`);
+        }
+
+        const carried = actor.items.filter(i =>
+            Object.keys(ITEM_CATEGORIES).includes(i.getFlag(MODULE_ID, "category")));
+        if (!carried.length) missingItem.push(actor.name);
+
+        if (!monokumaFor(actor)) unwatched.push(actor.name);
+    }
+
+    const roll = (label, names, fix) => {
+        lines.push("");
+        if (!names.length) {
+            lines.push(`✓ ${label}`);
+            return;
+        }
+        lines.push(`✗ ${label} — ${names.length}: ${names.join(", ")}`);
+        if (fix) lines.push(`   ${fix}`);
+    };
+
+    roll("Everybody has an Ultimate", missingUltimate,
+        "Set it on the sheet, under the name.");
+    roll(`Everybody has ${STARTING.experiences} experiences`, missingExperiences,
+        "The guide gives two at +2 each, agreed at character creation.");
+    roll("Everybody carries their opening item", missingItem,
+        `One Tier ${STARTING.startingItemTier} item tied to their Ultimate — hand it out from Give / take items.`);
+    roll("Everybody is assigned to a Despair pool", unwatched,
+        "Without one, Despair from their rolls has nowhere to go. Fix in GM team & Despair pools.");
+
+    return report("Season setup", lines, { toChat });
 }
 
-function report(title, lines) {
+/**
+ * @param {object} [options]
+ * @param {boolean} [options.toChat] Whisper it as well as returning it.
+ *   `false` is for callers that put the result on screen themselves — the
+ *   Pre-session checks tile shows both reports in one window, and a whispered
+ *   copy of each underneath it is the same answer twice.
+ */
+function report(title, lines, { toChat = true } = {}) {
     const text = lines.join("\n");
     console.log(`${MODULE_ID} | ${title}\n${text}`);
 
-    ChatMessage.create({
-        content: `<h3>${title}</h3><pre style="white-space:pre-wrap;font-size:0.85em">${foundry.utils.escapeHTML(text)}</pre>`,
-        whisper: [game.user.id]
-    });
+    if (toChat) {
+        ChatMessage.create({
+            content: `<h3>${title}</h3><pre style="white-space:pre-wrap;font-size:0.85em">${foundry.utils.escapeHTML(text)}</pre>`,
+            whisper: [game.user.id]
+        });
+    }
 
     return text;
 }

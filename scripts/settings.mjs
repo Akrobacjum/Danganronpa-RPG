@@ -99,6 +99,21 @@ export const SETTINGS = {
      */
     murderState: "murderState",
     /**
+     * Who has killed in THIS chapter, in the order they did it.
+     *
+     * The incident state is wiped when a murder closes, so until this existed
+     * nothing in the world remembered who the Blackened was — and the verdict
+     * screen asked a GM to type it in from memory, an hour and two scenes after
+     * the engine had known it exactly. A chapter with two incidents, which the
+     * betrayal rule makes ordinary, meant remembering two.
+     *
+     * GM-visible data by nature: it names the killer. It is world-scoped
+     * because every GM screen that reads it has to agree, and world settings
+     * reach every client — so nothing here is shown to players. See the note in
+     * `openVerdictDialog`.
+     */
+    blackened: "blackened",
+    /**
      * The speaking queue during a Class Trial: who has the floor and since when.
      *
      * World-scoped for the same reason as `murderState` — every player has to
@@ -336,6 +351,14 @@ export function registerSettings() {
         type: Object,
         default: {},
         onChange: () => onWorldChange(SETTINGS.murderState)
+    });
+
+    game.settings.register(MODULE_ID, SETTINGS.blackened, {
+        scope: "world",
+        config: false,
+        type: Array,
+        default: [],
+        onChange: () => onWorldChange(SETTINGS.blackened)
     });
 
     game.settings.register(MODULE_ID, SETTINGS.trialQueue, {

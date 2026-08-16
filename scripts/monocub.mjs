@@ -36,7 +36,7 @@ import { isMonokuma } from "./monokuma.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
 import { actionsLeft, spendAction, refundAction } from "./actions.mjs";
 import { getClock } from "./clock.mjs";
-import { resolveThreshold, dialogContent, whisperToOwner, log, warn } from "./utils.mjs";
+import { resolveThreshold, dialogContent, whisperToOwner, log, warn, plural } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -204,9 +204,9 @@ export async function performMeddle(actor, targetId, help) {
 
     const def = MONOCUB.meddle;
     if (actionsLeft(actor) < def.cost) {
-        ui.notifications.warn(game.i18n.format("DRPG.Actions.notEnough", {
+        ui.notifications.warn(plural("DRPG.Actions.notEnough", {
             actor: actor.name, left: actionsLeft(actor), needed: def.cost
-        }));
+        }, "left"));
         return null;
     }
     const hope = resourceValue(actor, "hope");

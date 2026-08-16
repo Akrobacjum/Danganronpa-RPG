@@ -24,7 +24,7 @@ import { drawItem } from "./tables.mjs";
 import { roomOfActor, othersInRoom } from "./movement.mjs";
 import { projectsAvailableIn, addProgress, isIndirectMurder, scaleFor } from "./projects.mjs";
 import { callGm, promptAndCallGm } from "./gm-bridge.mjs";
-import { announce, resolveThreshold, whisperToOwner, dialogContent, replaceFlag, log, error } from "./utils.mjs";
+import { announce, resolveThreshold, whisperToOwner, dialogContent, replaceFlag, log, error, plural, article } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -68,8 +68,17 @@ export async function performAction(actor, actionKey, options = {}) {
         // available yet: not an action, not a Call. `actionKey === "move"`
         // still passes through, since Move does nothing here besides show its
         // own briefing — the crossing itself is judged by `judgeEclipseCrossing`.
-        if (actionKey !== "move" && isEclipse()) {
+        //
+        // Direct Murder is the exception in BOTH directions: the lights are out
+        // and everybody is crossing the map, which is the one moment the guide
+        // gives for being alone with somebody. So it is the only ordinary action
+        // that works during an Eclipse — and it works at no other time.
+        if (actionKey !== "move" && actionKey !== "directMurder" && isEclipse()) {
             ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.actionsLocked"));
+            return null;
+        }
+        if (actionKey === "directMurder" && !isEclipse()) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.murderOnlyInEclipse"));
             return null;
         }
 
@@ -314,7 +323,8 @@ function dynamicDef() {
  * resolved to `undefined` and every crisis action died on
  * "rollTrait is not a function" before a single die was thrown.
  */
-export async function rollTrait(actor, drpgTrait, { remember = true, actionKey = null, context = null } = {}) {
+export async function rollTrait(actor, drpgTrait,
+    { remember = true, actionKey = null, context = null, title = null } = {}) {
     const calls = await import("./call-effects.mjs");
 
     // `remember: false` marks a supporting roll — concealing an intent, hiding
@@ -323,14 +333,14 @@ export async function rollTrait(actor, drpgTrait, { remember = true, actionKey =
     const supporting = !remember;
     if (supporting) calls.shieldCalls();
     try {
-        return await throwDice(actor, drpgTrait, { remember, actionKey, context });
+        return await throwDice(actor, drpgTrait, { remember, actionKey, context, title });
     } finally {
         if (supporting) calls.unshieldCalls();
     }
 }
 
 /** The roll itself, once it has been decided whether a Call may touch it. */
-async function throwDice(actor, drpgTrait, { remember, actionKey, context }) {
+async function throwDice(actor, drpgTrait, { remember, actionKey, context, title = null }) {
     const dhTrait = TRAITS[drpgTrait]?.dh ?? drpgTrait;
 
     const { pendingCall, consumeCall } = await import("./call-effects.mjs");
@@ -354,7 +364,16 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context }) {
     try {
         result = await actor.rollTrait(dhTrait, {
             event: { shiftKey: false, altKey: false, ctrlKey: false },
-            dialog: { configure: true }
+            dialog: { configure: true },
+            // Say what the roll is FOR.
+            //
+            // Left alone, Daggerheart titles the window from the trait — "Body
+            // Roll: Player A" — which is true and useless: the opening roll of
+            // a murder and a shove in a corridor are the same two words. Worse
+            // for the murder project, where three windows open one after the
+            // other, all called "Shadow Roll", and the player answers the same
+            // question three times without being told which is which.
+            ...(title ? { title, headerTitle: title } : {})
         });
     } finally {
         if (free) {
@@ -583,9 +602,9 @@ async function abort(actor, cost) {
 /** Common guard: enough actions left? */
 function canAfford(actor, cost) {
     if (cost <= 0 || actionsLeft(actor) >= cost) return true;
-    ui.notifications.warn(game.i18n.format("DRPG.Actions.notEnough", {
+    ui.notifications.warn(plural("DRPG.Actions.notEnough", {
         actor: actor.name, left: actionsLeft(actor), needed: cost
-    }));
+    }, "left"));
     return false;
 }
 
@@ -986,6 +1005,10 @@ async function startProject(actor) {
                 </select></label>
             <label class="drpg-checkbox">
                 <input type="checkbox" name="murder" /> ${game.i18n.localize("DRPG.Project.indirectMine")}</label>
+            <label>${game.i18n.localize("DRPG.Project.condition")}
+                <input type="text" name="condition"
+                       placeholder="${game.i18n.localize("DRPG.Project.conditionPlaceholder")}" />
+                <small class="notes">${game.i18n.localize("DRPG.Project.conditionNote")}</small></label>
             <p class="notes">${game.i18n.localize("DRPG.Project.startNote")}</p>
         </form>`),
         buttons: [
@@ -1000,7 +1023,8 @@ async function startProject(actor) {
                         target: Number(f.target.value) || 4,
                         room: f.room.value || null,
                         trait: f.trait.value || null,
-                        murder: f.murder.checked
+                        murder: f.murder.checked,
+                        condition: f.condition.value.trim()
                     };
                 }
             },
@@ -1026,9 +1050,14 @@ async function startProject(actor) {
         room: result.room,
         trait: result.trait,
         indirectMurder: result.murder,
+        condition: result.condition,
         secret: result.murder,
         viewers: owner ? [owner.id] : [],
-        by: actor.name
+        by: actor.name,
+        // So the module knows whose trap it is when the bar fills — see
+        // `announceTrapReady`. The GM's own creation screen fills this in from
+        // whoever the project was made visible to.
+        killerId: actor.id
     });
 
     await whisperToOwner(actor, `<p><strong>${game.i18n.localize("DRPG.Project.startNew")}</strong> — ${
@@ -1081,7 +1110,8 @@ async function workOnProject(actor, def, options) {
     // first; alone, the project simply gains +1 progress.
     if (indirect) {
         if (witnesses.length) {
-            const conceal = await rollTrait(actor, INDIRECT_MURDER.concealIntent.trait, { remember: false });
+            const conceal = await rollTrait(actor, INDIRECT_MURDER.concealIntent.trait,
+                { remember: false, title: game.i18n.localize("DRPG.Roll.concealIntent") });
             if (!conceal) return abort(actor, cost);
             const ok = conceal.isCritical || conceal.total >= INDIRECT_MURDER.concealIntent.threshold;
             lines.push(`<p><strong>${INDIRECT_MURDER.concealIntent.label}</strong> — ${conceal.total}: ${
@@ -1099,6 +1129,7 @@ async function workOnProject(actor, def, options) {
 
     const roll = await rollTrait(actor, trait, {
         actionKey: "project",
+        title: game.i18n.localize(indirect ? "DRPG.Roll.murderProject" : "DRPG.Roll.project"),
         context: { room: roomOfActor(actor), projectId: project.id, bonus, cost }
     });
     if (!roll) return abort(actor, cost);
@@ -1130,14 +1161,16 @@ async function workOnProject(actor, def, options) {
     // Guide: every project action also rolls to hide the traces it leaves.
     let traceRemnant = null;
     if (indirect) {
-        const trace = await rollTrait(actor, INDIRECT_MURDER.hideTraces.trait, { remember: false });
+        const trace = await rollTrait(actor, INDIRECT_MURDER.hideTraces.trait,
+            { remember: false, title: game.i18n.localize("DRPG.Roll.hideTraces") });
         if (trace) {
             const band = trace.isCritical
                 ? INDIRECT_MURDER.hideTraces.critical
                 : resolveThreshold(trace.total, INDIRECT_MURDER.hideTraces.thresholds);
             traceRemnant = band?.remnant ?? "obvious";
             lines.push(`<p><strong>${INDIRECT_MURDER.hideTraces.label}</strong> — ${trace.total}: ${
-                game.i18n.format("DRPG.Action.leavesRemnant", { visibility: traceRemnant })
+                game.i18n.format("DRPG.Action.leavesRemnant",
+                    { a: article(traceRemnant), visibility: traceRemnant })
             }</p>`);
 
             const { dropRemnant } = await import("./remnants.mjs");
@@ -1314,7 +1347,8 @@ async function performSabotage(actor, def, options) {
     if (cost > 0 && !await spendAction(actor, cost)) return null;
 
     if (witnesses.length) {
-        const conceal = await rollTrait(actor, SABOTAGE_CONCEAL.trait, { remember: false });
+        const conceal = await rollTrait(actor, SABOTAGE_CONCEAL.trait,
+            { remember: false, title: game.i18n.localize("DRPG.Roll.concealIntent") });
         if (!conceal) return abort(actor, cost);
 
         const hidden = conceal.isCritical || conceal.total >= SABOTAGE_CONCEAL.threshold;
@@ -1647,9 +1681,18 @@ async function settleObserveRoll(actor, def, roll, observeKey, declaration) {
 
     // Deliberately silent about the outcome: the verdict is the GM's to send,
     // and this client does not know the difficulty it was measured against.
+    //
+    // "The GM is judging what you found" only where a GM actually is. A sweep
+    // of the room is scored on the GM's client without a human touching it, and
+    // the verdict lands about a second later — so the note told the player to
+    // wait for something that had already happened, on the one branch where it
+    // was never true. Naming a target and asking the GM outright do go to a
+    // person, and there the wait is real.
+    const waits = declaration === "specific" || declaration === "anything";
+
     await whisperToOwner(actor, `<p><strong>${def.label}</strong> — ${roll.total}${
         roll.isCritical ? ` · <em>${game.i18n.localize("DRPG.Action.critical")}</em>` : ""
-    }</p><p><small>${game.i18n.localize("DRPG.Observe.sent")}</small></p>`);
+    }</p>${waits ? `<p><small>${game.i18n.localize("DRPG.Observe.sent")}</small></p>` : ""}`);
 
     return { roll, observeKey };
 }
@@ -1998,7 +2041,7 @@ async function performListen(actor, def, options) {
         // Anonymous: a count, no identities.
         const count = occupantsOf(target, actor).length;
         lines.push(`<p>${count
-            ? game.i18n.format("DRPG.Listen.anonymous", { room: foundry.utils.escapeHTML(target), n: count })
+            ? plural("DRPG.Listen.anonymous", { room: foundry.utils.escapeHTML(target), n: count })
             : game.i18n.format("DRPG.Listen.emptyRoom", { room: foundry.utils.escapeHTML(target) })
         }</p>`);
         outcome = { success: true, room: target, count };
@@ -2065,29 +2108,62 @@ async function performDirectMurder(actor, def, options) {
     const cost = options.free ? 0 : def.cost;
     if (!canAfford(actor, cost)) return null;
 
+    // The guide's condition, which the action's own description promises: you
+    // must be alone with your victim. One other character in the room is the
+    // victim; two or more and there is a witness.
+    //
+    // Read BEFORE the question, not after it. The attempt is still spent when
+    // the room is wrong — that is the rule and it does not change — but a player
+    // who did not know somebody else was standing there was not making the
+    // decision the rule is about. So the window says who is in the room, names
+    // the victim when there is exactly one, and says out loud that confirming
+    // costs the action either way. Cancelling costs nothing, and that is the
+    // whole of what this screen adds.
+    const room = roomOfActor(actor);
+    const present = othersInRoom(actor);
+    const alone = present.length === 1;
+
+    const scene = alone
+        ? game.i18n.format("DRPG.Action.murderAloneWith", {
+            victim: foundry.utils.escapeHTML(present[0].name),
+            room: foundry.utils.escapeHTML(room ?? "—")
+        })
+        : present.length === 0
+            ? game.i18n.format("DRPG.Action.murderRoomEmpty",
+                { room: foundry.utils.escapeHTML(room ?? "—") })
+            : game.i18n.format("DRPG.Action.murderRoomCrowded", {
+                who: present.map(a => foundry.utils.escapeHTML(a.name)).join(", "),
+                room: foundry.utils.escapeHTML(room ?? "—")
+            });
+
     const confirmed = await DialogV2.confirm({
         classes: ["drpg-panel"],
         window: { title: def.label },
         content: `${briefingBlock(actor, "directMurder", def)}
-            <p>${game.i18n.localize("DRPG.Action.murderConfirm")}</p>`,
+            <p><strong>${scene}</strong></p>
+            <p class="notes">${game.i18n.localize("DRPG.Action.murderSpendsAnyway")}</p>
+            <p>${alone
+                ? game.i18n.format("DRPG.Action.murderConfirmVictim",
+                    { victim: foundry.utils.escapeHTML(present[0].name) })
+                : game.i18n.localize("DRPG.Action.murderConfirm")}</p>`,
         rejectClose: false
     });
     if (!confirmed) return null;
 
-    // The guide's condition, which the action's own description promises and
-    // nothing used to check: you must be alone with your victim. One other
-    // character in the room is the victim; two or more and there is a witness.
-    const room = roomOfActor(actor);
-    const present = othersInRoom(actor);
+    // Read again. What the window showed was true when it opened, and the
+    // dialog can sit on screen while somebody walks in or out — the attempt is
+    // judged on the room as it is when it happens, not on the room as it was
+    // when the player was asked about it.
+    const now = othersInRoom(actor);
 
-    if (present.length !== 1) {
+    if (now.length !== 1) {
         // The attempt is still spent — "nothing happens and the action is still
         // spent. The attempt can be made again in another time of day."
         if (cost > 0) await spendAction(actor, cost);
 
-        const reason = present.length === 0
+        const reason = now.length === 0
             ? game.i18n.localize("DRPG.Action.murderNobody")
-            : game.i18n.format("DRPG.Action.murderWitness", { n: present.length - 1 });
+            : plural("DRPG.Action.murderWitness", { n: now.length - 1 });
 
         ui.notifications.warn(reason);
         await whisperToOwner(actor, `<p><strong>${foundry.utils.escapeHTML(def.label)}</strong> — ${reason}</p>`);
@@ -2096,12 +2172,14 @@ async function performDirectMurder(actor, def, options) {
             room,
             body: `<p class="drpg-warning">${game.i18n.localize("DRPG.Action.murderBlocked")}</p>`
         });
-        return { blocked: true, present: present.length };
+        return { blocked: true, present: now.length };
     }
 
-    const victim = present[0];
+    const victim = now[0];
 
-    // Only now is the attempt real, so only now does it cost anything.
+    // The same cost as the branch above, and deliberately: an attempt that
+    // comes off and one that walks into a witness both use up the one the
+    // guide allows per time of day. What separates them is what happens next.
     if (cost > 0 && !await spendAction(actor, cost)) return null;
 
     await promptAndCallGm(actor, {
@@ -2110,7 +2188,18 @@ async function performDirectMurder(actor, def, options) {
             victim: foundry.utils.escapeHTML(victim.name)
         }),
         placeholder: game.i18n.localize("DRPG.Action.placeholder.directMurder"),
-        room
+        room,
+        // The card knows both names, so the GM should not have to say them
+        // again. One press opens the incident that the paragraph above the
+        // button is describing.
+        actions: [
+            { action: "openMurder",
+              label: game.i18n.format("DRPG.Bridge.openThisMurder", { victim: victim.name }),
+              data: { killer: actor.id, victim: victim.id } },
+            { action: "declineMurder",
+              label: game.i18n.localize("DRPG.Bridge.declineMurder"),
+              data: { killer: actor.id } }
+        ]
     });
 
     return { calledGm: true, victim: victim.name };
@@ -2359,11 +2448,12 @@ async function report(actor, def, roll, outcome) {
     }
 
     if (outcome.remnant) {
-        lines.push(`<p><em>${game.i18n.format("DRPG.Action.leavesRemnant", { visibility: outcome.remnant })}</em></p>`);
+        lines.push(`<p><em>${game.i18n.format("DRPG.Action.leavesRemnant",
+            { a: article(outcome.remnant), visibility: outcome.remnant })}</em></p>`);
     }
 
     if (outcome.room) {
-        lines.push(`<p><small>${game.i18n.format("DRPG.Action.tokensLeft", {
+        lines.push(`<p><small>${plural("DRPG.Action.tokensLeft", {
             room: esc(outcome.room), n: outcome.tokensLeft
         })}</small></p>`);
     }

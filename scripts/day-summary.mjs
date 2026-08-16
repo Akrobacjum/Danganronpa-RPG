@@ -21,7 +21,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { getClock } from "./clock.mjs";
-import { error } from "./utils.mjs";
+import { error, article } from "./utils.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 
@@ -81,7 +81,8 @@ export async function showDaySummary() {
         }
         if (e.remnant) {
             tail.push(`<span class="drpg-sum-left">${
-                game.i18n.format("DRPG.Summary.left", { visibility: esc(e.remnant) })}</span>`);
+                game.i18n.format("DRPG.Summary.left",
+                    { a: article(e.remnant), visibility: esc(e.remnant) })}</span>`);
         }
         if (e.critical) tail.push(`<span class="drpg-sum-crit">${game.i18n.localize("DRPG.Action.critical")}</span>`);
 

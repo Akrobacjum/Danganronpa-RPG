@@ -17,17 +17,20 @@
 import { MODULE_ID, TIMES_OF_DAY, ECLIPSE_FREE_PLACEMENT } from "./config.mjs";
 import { getClock, setClock, campaignName, phaseLabel, timeOfDayLabel, rewindTimeOfDay } from "./clock.mjs";
 import { isPrimaryGm, error } from "./utils.mjs";
-import { actionsLeft, actionsMax } from "./actions.mjs";
-import { isMonokuma } from "./monokuma.mjs";
-import { isDeceased } from "./chapter.mjs";
 
 const HUD_ID = "drpg-hud";
 
 export function registerHud() {
-    Hooks.once("ready", () => { renderHud(); renderRoster(); });
+    Hooks.once("ready", () => { renderHud(); moveProjectsTray(); });
 
     // Foundry rebuilds parts of the interface on scene changes; re-assert.
-    Hooks.on("canvasReady", () => { renderHud(); renderRoster(); });
+    Hooks.on("canvasReady", () => { renderHud(); moveProjectsTray(); });
+
+    // The tray is Daggerheart's application, not ours, and it puts itself back
+    // in the right column every time it redraws — which is every time a project
+    // advances. So the move is re-asserted after each of its renders rather
+    // than done once.
+    Hooks.on("renderDhCountdowns", () => moveProjectsTray());
 
     // Pausing stops the time-of-day timer. Every client redraws so the frozen
     // reading is the same everywhere; only one GM writes the bookkeeping.
@@ -36,87 +39,18 @@ export function registerHud() {
         renderHud();
     });
 
-    // The roster is only useful if it is current, and what makes it stale is
-    // somebody spending an action. Narrowed to resource writes on characters:
-    // a HUD rebuild on every actor update of any kind would fire on inventory,
-    // biography and effect changes too, several times a turn, for a row of
-    // letters that did not move.
-    Hooks.on("updateActor", (actor, changes) => {
-        if (!game.user.isGM) return;
-        if (actor?.type !== "character") return;
-        if (!changes?.system?.resources) return;
-        renderRoster();
-    });
 }
 
 
-/* ==========================================================================
- * WHO STILL HAS SOMETHING LEFT
- * ==========================================================================
- *
- * A GM running a time of day asks one question over and over: is everybody
- * done. Answering it meant opening five character sheets or interrupting
- * whoever was mid-scene.
- *
- * It lived in the HUD for a while and did not belong there. The HUD is the
- * clock — campaign, chapter, day, time of day, timer — and it is on every
- * screen at the table. A roster of initials squeezed under it read like part
- * of the clock, and two-letter abbreviations are not names: "PA" and "PT" tell
- * a GM nothing at a glance.
- *
- * So it is its own panel now, top left, GM only, collapsible, with the names
- * spelled out. Collapsed it is one line; open it is the table.
+/*
+ * THE ROSTER IS GONE.
+ * --------------------------------------------------------------------------
+ * It answered "is everybody done" with names, and it was the right answer — but
+ * the GM panel answers the same question now, in the line above the tiles
+ * ("N students still have actions to spend"), and the strip in the right column
+ * carries the count. Three widgets, one fact, and this was the one taking a
+ * corner of the map to say it.
  */
-
-const ROSTER_ID = "drpg-roster";
-let rosterOpen = true;
-
-function renderRoster() {
-    try {
-        document.getElementById(ROSTER_ID)?.remove();
-        if (!game.user.isGM) return;
-
-        const students = game.actors.contents.filter(a =>
-            a.type === "character" && !isMonokuma(a) && !isDeceased(a) && a.hasPlayerOwner);
-        if (!students.length) return;
-
-        const left = students.filter(a => actionsLeft(a) > 0);
-
-        const panel = document.createElement("details");
-        panel.id = ROSTER_ID;
-        panel.open = rosterOpen;
-        panel.addEventListener("toggle", () => { rosterOpen = panel.open; });
-
-        // Shut, the summary still answers the question — how many are still
-        // holding actions — so the panel only needs opening to find out WHO.
-        const summary = document.createElement("summary");
-        summary.className = "drpg-roster-summary";
-        summary.textContent = game.i18n.format("DRPG.Roster.summary",
-            { left: left.length, total: students.length });
-        panel.append(summary);
-
-        const list = document.createElement("div");
-        list.className = "drpg-roster-list";
-        for (const actor of students) {
-            const has = actionsLeft(actor);
-            const row = document.createElement("div");
-            row.className = `drpg-roster-row${has > 0 ? "" : " spent"}`;
-            const name = document.createElement("span");
-            name.className = "drpg-roster-name";
-            name.textContent = actor.name;
-            const count = document.createElement("span");
-            count.className = "drpg-roster-count";
-            count.textContent = `${has} / ${actionsMax(actor)}`;
-            row.append(name, count);
-            list.append(row);
-        }
-        panel.append(list);
-
-        (document.querySelector("#ui-left") ?? document.body).append(panel);
-    } catch (err) {
-        error("Could not render the GM roster", err);
-    }
-}
 
 /**
  * Keep the elapsed timer honest across a pause.
@@ -186,8 +120,46 @@ export function renderHud() {
 
         host.append(hud);
         alignRightColumn(hud);
+        // The clock has just been rebuilt, so its top may have moved — and the
+        // tray on the other side is measured off it.
+        alignProjectsTray();
     } catch (err) {
         error("Could not render the campaign HUD", err);
+    }
+}
+
+const TRAY_ID = "countdowns";
+
+/**
+ * Move the Projects tray to the top-left corner.
+ *
+ * The tray is Daggerheart's own `DhCountdowns` application, and it lives in the
+ * right column beside the player's numbers — which is where the strip, the chat
+ * notifications and the effects display also want to be. Four things in one
+ * column, and the tray is the tallest of them. The left corner is empty except
+ * for the scene controls, so that is where it goes.
+ *
+ * The move is a re-parent, not a repositioning: the tray is a flex child of the
+ * right column, so nudging it with `top` would leave a tray-shaped hole behind.
+ * `#ui-left > #countdowns` in the stylesheet does the placing once it is there.
+ *
+ * Called again after every one of the tray's own renders, because it appends
+ * itself back into the right column each time a project advances. Cheap when
+ * there is nothing to do: the parent check short-circuits.
+ */
+function moveProjectsTray() {
+    try {
+        const tray = document.getElementById(TRAY_ID);
+        const host = document.querySelector("#ui-left");
+        if (!tray || !host) return;
+
+        if (tray.parentElement !== host) host.append(tray);
+        alignProjectsTray();
+    } catch (err) {
+        // The tray belongs to the system, not to us. If Daggerheart changes it
+        // out from under this, the tray stays where it was — which is usable —
+        // and nothing else on screen is affected.
+        error("Could not move the Projects tray", err);
     }
 }
 
@@ -200,7 +172,28 @@ export function renderHud() {
  * Despair bars, and how tall those are depends on how many Monokumas the
  * campaign has. So it is measured, the same way popup.mjs measures its own
  * top rather than adding up the widgets above it.
+ *
+ * Measured against the tray's own offset parent rather than the viewport, so it
+ * stays correct if Foundry ever gives #ui-left a position of its own.
  */
+function alignProjectsTray() {
+    try {
+        const tray = document.getElementById(TRAY_ID);
+        const hud = document.getElementById(HUD_ID);
+        if (!tray || !hud) return;
+        if (!tray.closest("#ui-left")) return;      // still in the right column
+
+        const clock = hud.getBoundingClientRect();
+        if (clock.height <= 0) return;              // not laid out yet
+
+        const origin = tray.offsetParent?.getBoundingClientRect().top ?? 0;
+        const top = Math.round(clock.top - origin);
+        if (top > 0) tray.style.top = `${top}px`;
+    } catch {
+        // Being a few pixels out is not worth throwing into the HUD render.
+    }
+}
+
 function alignRightColumn(hud) {
     try {
         const column = document.querySelector("#ui-right-column-1");

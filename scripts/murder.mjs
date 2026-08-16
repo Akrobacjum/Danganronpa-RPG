@@ -44,8 +44,7 @@ import { equippedIn } from "./use-items.mjs";
 import { dropRemnant } from "./remnants.mjs";
 import {
     announce, dialogContent, whisperToGms, whisperToOwner, ownerOf, gmIds,
-    isPrimaryGm, log, warn, error
-} from "./utils.mjs";
+    isPrimaryGm, log, warn, error, plural, article} from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -106,6 +105,15 @@ export function availableCrisisActions(actor) {
     const side = sideOf(actor);
     if (!state || state.stage !== "incident" || !side) return [];
 
+    // Their one free choice, once made, is made.
+    //
+    // `isTheirTurn` already refuses a second one, but this list is what the
+    // crisis panel DRAWS, and it kept drawing four live tiles for somebody who
+    // had already chosen — every one of which would be refused on click.
+    // Measured after a failed Escape together: `thirdActed` true, `isTheirTurn`
+    // false, four options still offered.
+    if (side === "third" && state.thirdActed) return [];
+
     const hindered = state.hindered?.[side] ?? {};
     const blocked = state.blocked?.[side] ?? {};
     const unlocked = new Set(state.unlocked ?? []);
@@ -121,6 +129,13 @@ export function availableCrisisActions(actor) {
             return {
                 key,
                 def,
+                // The number to beat, computed here rather than read off `def`
+                // by the sheet: a Finishing Blow's threshold is not a constant,
+                // it falls as the victim runs out of HP. `null` for the three
+                // decisions that have no dice at all.
+                threshold: def.noRoll
+                    ? null
+                    : (key === "finishingBlow" ? finishingBlowThreshold(state) : def.threshold ?? null),
                 hindered: (hindered[key] ?? 0) > 0,
                 // Self-defence gates the victim's two ways out, and closes
                 // itself once it lands. `blocked` already means "you may not
@@ -416,7 +431,10 @@ export async function takeCrisisAction(actor, key) {
 
     let roll;
     try {
-        roll = await rollTrait(actor, trait, { actionKey: "crisis", context: { crisis: key } });
+        roll = await rollTrait(actor, trait, {
+            actionKey: "crisis", context: { crisis: key },
+            title: def?.label ?? game.i18n.localize("DRPG.Roll.crisis")
+        });
     } finally {
         calls.clearSituational();
     }
@@ -642,6 +660,21 @@ export async function resolveCrisisAction({
     // The advantage a missed attempt earned is spent whatever happens next.
     await clearAdvantage(side);
 
+    // The newcomer's one free choice is spent HERE, before anything it does can
+    // move the incident out from under the write.
+    //
+    // It used to be recorded at the bottom of this function, behind
+    // `stage === "incident"` so it could not write into a state that had just
+    // been cleared. But the one third-party action that can END the incident —
+    // Escape together — moves the stage to "resolution" on its way past, and
+    // the guard then threw away the very record that a choice had been made:
+    // measured, `thirdActed` stayed false with `thirdId` still set.
+    //
+    // Recorded here it survives all four options, including any added later,
+    // and a Reroll still takes it back with the rest of the state, because
+    // `openReceipt` above snapshots the state first.
+    if (side === "third") await writeState({ thirdActed: true });
+
     // Read before anything is applied: `grantImprovisedWeapon` below puts a
     // Crime Tool on the sheet, and asking afterwards would find the weapon the
     // attack itself just produced.
@@ -668,9 +701,14 @@ export async function resolveCrisisAction({
         receipt.remnant = refOf(await applyRemnant(actor, def.failureRemnant?.[band], def, band, done,
             Boolean(def.failureRemnantReinforced?.[band]), side));
         await applyDamage(actor, state, def, band, done, true);
-        if (def.failureExtraDrain) {
-            await drain(state, def.failureExtraDrain, done);
-        }
+        // A flat number drains on any failure; an object drains only on the
+        // bands it names. Survive costs a point however it fails; Self-defence
+        // and Role reversal only on Despair, which is what their own text has
+        // always said and what nothing was doing.
+        const extra = typeof def.failureExtraDrain === "object"
+            ? def.failureExtraDrain?.[band]
+            : def.failureExtraDrain;
+        if (extra) await drain(state, extra, done);
     }
 
     // The third party's decisions are "automatyczny, darmowy wybór" — free in
@@ -690,9 +728,9 @@ export async function resolveCrisisAction({
 
     // A third party's action is free: it is taken out of the victim→killer
     // order and must not advance it, or somebody walking in would silently
-    // skip whoever's turn it actually was. It is also the only one they get.
+    // skip whoever's turn it actually was. It is also the only one they get —
+    // and that is written at the top of this function now, not here.
     if (side === "third") {
-        if (murderState()?.stage === "incident") await writeState({ thirdActed: true });
         await closeReceipt(receipt);
         return { success, band, done, ranOut };
     }
@@ -885,7 +923,7 @@ async function checkVictimSpent(done = null) {
     const victim = game.actors.get(state.victimId);
     if (!isSpent(victim)) return false;
 
-    await writeState({ stage: "resolution" });
+    await writeState({ stage: "resolution", endedBy: "ranOut" });
 
     const line = game.i18n.format("DRPG.Murder.ranOut", { name: victim.name });
     if (done) done.push(line);
@@ -958,7 +996,7 @@ async function applyRemnant(actor, visibility, def, band, done, reinforced = fal
     if (last) {
         done.push(count > 1
             ? game.i18n.format("DRPG.Murder.leftRemnants", { n: count, visibility })
-            : game.i18n.format("DRPG.Murder.leftRemnant", { visibility }));
+            : game.i18n.format("DRPG.Murder.leftRemnant", { a: article(visibility), visibility }));
     }
     return last ?? null;
 }
@@ -1085,10 +1123,15 @@ async function applyHindrance(state, def, band, done) {
  *
  * Written after `swapRoles` on purpose: the swap rewrites `killerId` and
  * `victimId`, and "join the killers" has to mean whoever holds that seat now.
+ *
+ * Neither branch marks the choice as spent any more — `resolveCrisisAction`
+ * does that for every third-party action before any of this runs. Averted eyes
+ * still clears it, and means to: nulling `thirdId` reopens the slot for the
+ * next person who walks in.
  */
 async function applyThirdPartyChoice(actor, def, done) {
     if (def.joinsKiller || def.alsoTakesThird) {
-        await writeState({ thirdSide: "killer", thirdActed: true });
+        await writeState({ thirdSide: "killer" });
         done.push(game.i18n.format("DRPG.Murder.thirdJoined", {
             name: foundry.utils.escapeHTML(actor.name)
         }));
@@ -1157,7 +1200,12 @@ async function swapRoles(state, band, done) {
 }
 
 async function finishIncident(state, key, band, done) {
-    await writeState({ stage: "resolution" });
+    // WHICH action ended it, not only that something did. An incident that
+    // ended in a Finishing Blow and one that ended with two people walking out
+    // of the door both landed on stage "resolution" and were indistinguishable
+    // afterwards — which is how the post-incident checklist came to promise a
+    // body in a room after Escape together. See `afterIncident`.
+    await writeState({ stage: "resolution", endedBy: key });
     done.push(game.i18n.localize(
         key === "finishingBlow" ? "DRPG.Murder.victimDead" : "DRPG.Murder.incidentEnded"));
 
@@ -1167,17 +1215,42 @@ async function finishIncident(state, key, band, done) {
     }
 }
 
+/**
+ * Move a running incident to Stage 6 without a Finishing Blow.
+ *
+ * A victim can stop being alive by routes this engine does not own: the GM's
+ * own "A character dies", a Despair Call, a ruling made out loud. Until now
+ * every one of those left the incident sitting at stage "incident" around a
+ * corpse — `isCleaner` stayed false, the killer never got the clean-up screen,
+ * and the whole of Stage 6 was unreachable by any path except a Finishing Blow.
+ *
+ * Same two effects `finishIncident` has, and deliberately no more: the incident
+ * is not CLOSED here. Closing it is `endMurder`, which wipes the state and puts
+ * up the checklist — and the killer needs the state alive to clean under it.
+ */
+export async function beginResolution(reason = "victimKilled") {
+    if (!game.user.isGM) return null;
+
+    const state = murderState();
+    if (!state?.active || state.stage !== "incident") return null;
+
+    await writeState({ stage: "resolution", endedBy: reason });
+    await whisperToGms(`<p>${game.i18n.localize("DRPG.Murder.resolutionNote")}</p>`);
+    log(`Incident moved to Stage 6 (${reason}).`);
+    return murderState();
+}
+
 /** One turn's cost to the victim: Stress first, then HP. */
 async function drain(state, amount, done) {
-    const victim = game.actors.get(state.victimId);
-    if (!victim) return;
-
     // A critical Self-defence buys the bleeding stopping — guide: "Ofiara
     // przestaje tracić hp i stress."
     if (state.drainStopped) {
         done.push(game.i18n.localize("DRPG.Murder.drainStopped"));
         return;
     }
+
+    const victim = game.actors.get(state.victimId);
+    if (!victim) return;
 
     let left = amount;
     const update = {};
@@ -1371,10 +1444,64 @@ export async function thirdPartyEnters(actor) {
  * import, because cleanup.mjs reads the incident state from this file and a
  * static pair of imports both ways is a cycle for no gain.
  */
+/* ==========================================================================
+ * WHO KILLED THIS CHAPTER
+ * ========================================================================== */
+
+/** The killers of this chapter, in the order they killed. GM-side. */
+export function blackenedIds() {
+    return game.settings.get(MODULE_ID, SETTINGS.blackened) ?? [];
+}
+
+/** Their actors, skipping any that have since been deleted. */
+export function blackenedActors() {
+    return blackenedIds().map(id => game.actors.get(id)).filter(Boolean);
+}
+
+/**
+ * Remember who killed.
+ *
+ * Recorded when the incident CLOSES rather than when it opens, and only when it
+ * left a body: Role reversal can hand the killer's seat to the person who was
+ * the victim halfway through, and Escape together ends an incident with nobody
+ * dead at all. What goes in the register is whoever the state called the killer
+ * when the dust settled, and only if there is a corpse to answer for.
+ *
+ * Appended, never replaced. Two incidents in a chapter — which the betrayal
+ * rule makes an ordinary evening — put two names in here, and the trial asks
+ * for both.
+ */
+async function recordBlackened(state) {
+    if (!game.user.isGM || !state?.killerId) return;
+    // Nobody died: no Blackened. An escape closes an incident and leaves the
+    // chapter exactly as it found it.
+    if (state.endedBy === "sharedEscape") return;
+    if (state.stage !== "resolution") return;
+
+    const current = blackenedIds();
+    if (current.includes(state.killerId)) return;
+    await game.settings.set(MODULE_ID, SETTINGS.blackened, [...current, state.killerId]);
+    log(`Blackened recorded: ${game.actors.get(state.killerId)?.name ?? state.killerId}.`);
+}
+
+/** A new chapter starts with nobody's blood on anybody. Called by chapter.mjs. */
+export async function clearBlackened() {
+    if (!game.user.isGM) return;
+    await game.settings.set(MODULE_ID, SETTINGS.blackened, []);
+}
+
 export async function endMurder({ reason = "closed", followUp = true } = {}) {
     if (!game.user.isGM) return null;
 
     const state = murderState();
+
+    // Before the state is wiped — it is the only place the killer's identity
+    // exists once this function returns.
+    try {
+        await recordBlackened(state);
+    } catch (err) {
+        error("Could not record who the Blackened was", err);
+    }
     const killer = state?.killerId ? game.actors.get(state.killerId) : null;
     if (killer) {
         try {
@@ -1387,6 +1514,19 @@ export async function endMurder({ reason = "closed", followUp = true } = {}) {
 
     await game.settings.set(MODULE_ID, SETTINGS.murderState, {});
     log(`Murder closed (${reason}).`);
+
+    // Take back the Stage 4 invitation, if one is still standing.
+    //
+    // Sent AFTER the state is wiped, so that a client which closes its dialog
+    // and falls out of `throwOpeningRoll` reads the cleared state and stops
+    // rather than re-offering. Sent unconditionally rather than only from the
+    // opening stage: the dialog outlives the stage if a GM moved past it by
+    // hand, and a client with nothing in flight ignores this anyway.
+    try {
+        await revokeOpeningInvitation(state);
+    } catch (err) {
+        error("Could not take back the opening roll invitation", err);
+    }
 
     // What happens next, while the module still remembers the incident.
     //
@@ -1418,18 +1558,27 @@ export async function endMurder({ reason = "closed", followUp = true } = {}) {
  * the kind of murder from how the incident was opened. The GM reads a list of
  * what is now owed and presses the one they want to do first — each button is
  * the screen that does it, not a description of where to find it.
+ *
+ * NOT every incident leaves a body. Escape together ends one with the victim
+ * and the newcomer both walking out, and this screen used to answer that with
+ * "the body is in the Library, issue the autopsy, move to Investigation" — a
+ * checklist for a murder that did not happen. `endedBy` is what tells them
+ * apart; everything else that ends an incident does leave somebody dead, so an
+ * escape is the only case that branches.
  */
 async function afterIncident(state) {
     const victim = game.actors.get(state.victimId);
     const killer = game.actors.get(state.killerId);
     if (!victim) return null;
 
+    if (state.endedBy === "sharedEscape") return afterEscape(state, victim, killer);
+
     const { roomOfActor } = await import("./movement.mjs");
     const room = roomOfActor(victim);
 
     const owed = [];
     if (state.keyRemnants > 0) {
-        owed.push(game.i18n.format("DRPG.Murder.afterKeys", { n: state.keyRemnants }));
+        owed.push(plural("DRPG.Murder.afterKeys", { n: state.keyRemnants }));
     }
     owed.push(game.i18n.localize("DRPG.Murder.afterAutopsy"));
     owed.push(game.i18n.localize(state.indirect
@@ -1437,6 +1586,17 @@ async function afterIncident(state) {
         : "DRPG.Murder.afterDirect"));
 
     const alreadyInvestigating = getClock().phase === "investigation";
+
+    // Zdrada. The guide's fifth walk-in entry, and the one place two bodies come
+    // from: "po zabiciu pierwszego oryginalnego uczestnika" the newcomer may
+    // turn on the killer, it "wymaga Rzutu akcji morderstwo bezpośrednie", and
+    // it is "jedyny wyjątek od zasady deklaracji zabójstwa" — the only killing
+    // in the game that needs no declaration in advance.
+    //
+    // So it is a SECOND murder, not a second victim inside the first: this
+    // incident is over and closed, and a fresh one opens with the newcomer as
+    // the killer and the killer as the victim.
+    const traitor = betrayalCandidate(state, killer);
 
     const action = await DialogV2.wait({
         classes: ["drpg-panel"],
@@ -1450,6 +1610,10 @@ async function afterIncident(state) {
                 ? game.i18n.format("DRPG.Murder.afterRoom", { room: foundry.utils.escapeHTML(room) })
                 : game.i18n.localize("DRPG.Murder.afterNoRoom")}</strong></p>
             <ul class="drpg-briefing-facts">${owed.map(o => `<li>${o}</li>`).join("")}</ul>
+            ${traitor ? `<p class="notes">${game.i18n.format("DRPG.Murder.betrayalNote", {
+                third: foundry.utils.escapeHTML(traitor.name),
+                killer: foundry.utils.escapeHTML(killer?.name ?? "?")
+            })}</p>` : ""}
         </div>`),
         buttons: [
             ...(alreadyInvestigating ? [] : [{
@@ -1459,11 +1623,17 @@ async function afterIncident(state) {
             { action: "body", label: game.i18n.localize("DRPG.Chapter.bodyTitle"),
               default: alreadyInvestigating },
             { action: "autopsy", label: game.i18n.localize("DRPG.TruthBullet.autopsyTitle") },
+            ...(traitor ? [{
+                action: "betrayal", class: "drpg-gm-route",
+                label: game.i18n.format("DRPG.Murder.betrayalButton",
+                    { third: foundry.utils.escapeHTML(traitor.name) })
+            }] : []),
             { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
         ],
         rejectClose: false
     });
 
+    if (action === "betrayal") return openBetrayal(traitor, killer);
     if (action === "investigation") {
         const { setPhase } = await import("./clock.mjs");
         await setPhase("investigation");
@@ -1480,6 +1650,116 @@ async function afterIncident(state) {
     if (action === "autopsy") {
         const { issueAutopsyDialog } = await import("./gm-items.mjs");
         return issueAutopsyDialog();
+    }
+    return null;
+}
+
+/**
+ * Is there somebody who could turn on the killer, and is the killer still alive
+ * to be turned on?
+ *
+ * The newcomer only. `thirdId` survives every branch of the walk-in choice
+ * except Averted eyes, which nulls it — and rightly: somebody who walked back
+ * out is not standing there with an opportunity. Partners in crime and Double
+ * role reversal both leave `thirdSide: "killer"`, and a partner turning on
+ * their partner is exactly the betrayal the guide names.
+ */
+function betrayalCandidate(state, killer) {
+    if (!state?.thirdId || !killer) return null;
+    const third = game.actors.get(state.thirdId);
+    if (!third || third.id === killer.id) return null;
+    if (isMonokuma(third)) return null;
+    return third;
+}
+
+/**
+ * The newcomer kills the killer: a second murder, opened without a declaration.
+ *
+ * This is the guide's one exception to declaring a killing in advance, and it
+ * is a whole fresh incident rather than an extension of the one that just
+ * ended — the stages start again from the opening roll, and this time the
+ * person who did the last killing is the one bleeding.
+ *
+ * Confirmed rather than opened outright: it is a second death, and the screen
+ * it fires from is a checklist a GM is clicking through quickly.
+ */
+async function openBetrayal(third, killer) {
+    const sure = await DialogV2.confirm({
+        classes: ["drpg-panel"],
+        window: { title: game.i18n.localize("DRPG.Murder.betrayalTitle") },
+        content: dialogContent(`<div>
+            <p>${game.i18n.format("DRPG.Murder.betrayalIntro", {
+                third: foundry.utils.escapeHTML(third.name),
+                killer: foundry.utils.escapeHTML(killer.name)
+            })}</p>
+            <p class="notes">${game.i18n.localize("DRPG.Murder.betrayalRule")}</p>
+        </div>`),
+        yes: { label: game.i18n.localize("DRPG.Murder.betrayalConfirm") },
+        no: { label: game.i18n.localize("DRPG.Advance.cancel") },
+        rejectClose: false
+    });
+    if (!sure) return null;
+
+    await announce({
+        content: `<p>${game.i18n.format("DRPG.Murder.betrayalAnnounce", {
+            killer: foundry.utils.escapeHTML(killer.name)
+        })}</p>`,
+        whisper: gmIds()
+    });
+
+    return openMurder({ killerId: third.id, victimId: killer.id });
+}
+
+/**
+ * The same screen for the incident nobody died in.
+ *
+ * Escape together is the one crisis action that ends an incident without a
+ * body, and almost everything the ordinary checklist offers is wrong here: no
+ * autopsy to issue, no Investigation to move to, no Blackened. What IS owed is
+ * the part a GM is most likely to forget, because it is the only thing left —
+ * the traces the fight put on the map, and the fact that two people can now
+ * describe the attacker.
+ *
+ * The room comes from the killer, not the victim: the killer is the one who
+ * stayed.
+ */
+async function afterEscape(state, victim, killer) {
+    const third = state.thirdId ? game.actors.get(state.thirdId) : null;
+    const name = actor => foundry.utils.escapeHTML(actor?.name ?? "?");
+
+    const { roomOfActor } = await import("./movement.mjs");
+    const room = roomOfActor(killer) ?? roomOfActor(victim);
+
+    const owed = [
+        game.i18n.format("DRPG.Murder.escapeWitness",
+            { victim: name(victim), third: name(third) }),
+        game.i18n.format("DRPG.Murder.escapeKiller", { killer: name(killer) })
+    ];
+
+    const action = await DialogV2.wait({
+        classes: ["drpg-panel"],
+        window: { title: game.i18n.localize("DRPG.Murder.escapeTitle") },
+        content: dialogContent(`<div>
+            <p>${game.i18n.format("DRPG.Murder.escapeIntro", {
+                victim: name(victim), third: name(third), killer: name(killer)
+            })}</p>
+            <p><strong>${room
+                ? game.i18n.format("DRPG.Murder.escapeRoom",
+                    { room: foundry.utils.escapeHTML(room) })
+                : game.i18n.localize("DRPG.Murder.escapeNoRoom")}</strong></p>
+            <ul class="drpg-briefing-facts">${owed.map(o => `<li>${o}</li>`).join("")}</ul>
+        </div>`),
+        buttons: [
+            { action: "remnants", default: true,
+              label: game.i18n.localize("DRPG.Murder.escapeRemnants") },
+            { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
+        ],
+        rejectClose: false
+    });
+
+    if (action === "remnants") {
+        const { openRemnantManager } = await import("./remnants.mjs");
+        return openRemnantManager();
     }
     return null;
 }
@@ -1517,7 +1797,22 @@ async function tellGms(text, extra = {}) {
  * the room.
  */
 async function announceCrisis(actor, def, { success, band, total, threshold, done }) {
-    const outcome = success ? (def[band] ?? "") : (def.failure ?? "");
+    // On a success, the sentence for the band that came up. On a failure,
+    // NOTHING from the table — what happened is in `done`.
+    //
+    // `def.failure` is one string covering every branch at once: "Nothing on a
+    // Hope failure. On Despair you still take 1 Stress off them and leave an
+    // Evident Remnant; a critical failure leaves an Obvious one." That is a
+    // reference table, and the player has to work out which third of it applies
+    // to the roll they just made — while the line directly under it already
+    // lists what the module actually did.
+    //
+    // Worse, three of those strings had drifted from the code: Self-defence and
+    // Role reversal both promise an extra point of drain on a Despair failure
+    // and neither has `failureExtraDrain` set, and Escape together promises the
+    // newcomer becomes a second victim, which nothing implements. Printing the
+    // receipt instead of the promise cannot drift.
+    const outcome = success ? (def[band] ?? "") : "";
     const state = murderState();
 
     // A `noRoll` action has no dice and no threshold, so the score line is
@@ -1528,10 +1823,17 @@ async function announceCrisis(actor, def, { success, band, total, threshold, don
         : `<p>${total} ${success ? "≥" : "<"} ${threshold} · ${
             game.i18n.localize(`DRPG.Murder.band.${band}`)}</p>`;
 
+    // A failure that changed nothing at all still gets a sentence. An empty
+    // card under a score line reads as though the module lost the result.
+    const nothing = !success && !done.length
+        ? `<p>${game.i18n.localize("DRPG.Murder.failedNothing")}</p>`
+        : "";
+
     const content = `
         <h3>${foundry.utils.escapeHTML(def.label)} — ${foundry.utils.escapeHTML(actor.name)}</h3>
         ${score}
         ${outcome ? `<p>${foundry.utils.escapeHTML(outcome)}</p>` : ""}
+        ${nothing}
         ${done.length ? `<ul>${done.map(d => `<li>${d}</li>`).join("")}</ul>` : ""}`;
 
     const recipients = new Set(gmIds());
@@ -1548,7 +1850,7 @@ async function announceCrisis(actor, def, { success, band, total, threshold, don
  * ========================================================================== */
 
 /** Open a murder from the GM panel. */
-export async function openMurderDialog() {
+export async function openMurderDialog({ killerId = null, indirect = false } = {}) {
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
@@ -1563,8 +1865,19 @@ export async function openMurderDialog() {
         return null;
     }
 
-    const options = alive
-        .map(a => `<option value="${a.id}">${foundry.utils.escapeHTML(a.name)}</option>`).join("");
+    const optionsFor = selected => alive
+        .map(a => `<option value="${a.id}"${a.id === selected ? " selected" : ""}>${
+            foundry.utils.escapeHTML(a.name)}</option>`).join("");
+    const options = optionsFor(null);
+
+    // Which killers have a finished trap waiting. The checkbox follows the
+    // dropdown from this, so "indirect" stops being a box a GM has to remember
+    // to tick — or remember NOT to tick on a murder that had no project.
+    const { allProjects } = await import("./projects.mjs");
+    const armed = new Set(allProjects()
+        .filter(p => p.indirectMurder && p.current >= p.start)
+        .map(p => p.killerId ?? null)
+        .filter(Boolean));
 
     const result = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Murder.openTitle") },
@@ -1572,13 +1885,20 @@ export async function openMurderDialog() {
         content: dialogContent(`<form>
             <p class="notes">${game.i18n.localize("DRPG.Murder.openIntro")}</p>
             <label>${game.i18n.localize("DRPG.Murder.killer")}
-                <select name="killer">${options}</select></label>
+                <select name="killer">${optionsFor(killerId)}</select></label>
             <label>${game.i18n.localize("DRPG.Murder.victim")}
                 <select name="victim">${options}</select></label>
             <label class="drpg-checkbox">
-                <input type="checkbox" name="indirect" />
+                <input type="checkbox" name="indirect"${
+                    indirect || armed.has(killerId) ? " checked" : ""} />
                 ${game.i18n.localize("DRPG.Murder.indirect")}</label>
         </form>`),
+        render: (event, dialog) => {
+            const form = dialog.element.querySelector("form");
+            form?.killer?.addEventListener("change", () => {
+                form.indirect.checked = armed.has(form.killer.value);
+            });
+        },
         buttons: [
             {
                 action: "ok", label: game.i18n.localize("DRPG.Murder.openConfirm"), default: true,
@@ -1656,6 +1976,71 @@ async function rollOpening(side, state) {
  * `side` is whichever side this murder actually rolls — killer for a direct one,
  * victim for a trap — not a choice made here.
  */
+/**
+ * How many Stage 4 invitations this client is currently sitting inside.
+ *
+ * `closeOpeningRoll` needs to know whether the roll dialog on screen is one of
+ * ours before it closes anything: a player may well have their own Search roll
+ * open at the same moment, and revoking a murder invitation must not shut that.
+ */
+let openingRollsInFlight = 0;
+
+/**
+ * Is the invitation this client is answering still wanted?
+ *
+ * Read from the world state, which every client can see, so the player's own
+ * browser can tell that the incident it is rolling for has been closed. Without
+ * this the retry loop below re-offered a roll for a murder that no longer
+ * existed — three times, per incident, for ever.
+ */
+function openingStillWanted(side, actorId) {
+    const state = murderState();
+    if (!state?.active || state.stage !== "openingRoll") return false;
+    return (side === "killer" ? state.killerId : state.victimId) === actorId;
+}
+
+/**
+ * Take back a Stage 4 invitation on THIS client.
+ *
+ * Called locally when a GM threw the roll themselves, and over the socket when
+ * the roll belongs to a player. Closing the dialog makes Daggerheart's own
+ * promise resolve as a cancellation, so `throwOpeningRoll` falls out of its
+ * loop by the ordinary route rather than by anything exotic.
+ */
+export function closeOpeningRoll() {
+    if (!openingRollsInFlight) return 0;
+
+    let closed = 0;
+    for (const app of foundry.applications.instances?.values?.() ?? []) {
+        if (!app.rendered || app.constructor.name !== "D20RollDialog") continue;
+        app.close();
+        closed++;
+    }
+    return closed;
+}
+
+/**
+ * Tell whoever was invited that the invitation is off.
+ *
+ * Both people are told, not only the side that rolls: the module picks the side
+ * when the murder opens, a GM can have re-sent the invitation from the tracker,
+ * and a message to somebody with nothing in flight costs nothing. The GM's own
+ * client is closed directly, because a roll with no active owner is thrown here.
+ */
+async function revokeOpeningInvitation(state) {
+    closeOpeningRoll();
+    if (!state?.killerId && !state?.victimId) return;
+
+    const { cancelOpeningRoll } = await import("./gm-bridge.mjs");
+    const told = new Set();
+    for (const id of [state.killerId, state.victimId]) {
+        const owner = ownerOf(game.actors.get(id ?? ""));
+        if (!owner || told.has(owner.id)) continue;
+        told.add(owner.id);
+        cancelOpeningRoll({ userId: owner.id });
+    }
+}
+
 export async function throwOpeningRoll(side, actorId) {
     const def = MURDER_OPENING[side];
     const actor = game.actors.get(actorId);
@@ -1677,29 +2062,46 @@ export async function throwOpeningRoll(side, actorId) {
     // So it is re-offered rather than accepted. Capped, because a client that
     // has gone away must not be trapped in a reopening dialog: after the cap the
     // GM is told, and the button is still theirs to press.
+    // ...unless the murder it belongs to is over.
+    //
+    // The re-offer had no way of noticing that. A GM who opened an incident and
+    // closed it again left the invitation standing on the player's screen, and
+    // every attempt to dismiss it reopened the window twice more — measured:
+    // closing it took three closes, and four abandoned incidents left four
+    // stacked "Body Roll" windows warning about a murder that no longer existed.
     const MAX_ATTEMPTS = 3;
     let roll = null;
+    openingRollsInFlight++;
     try {
         const { rollTrait } = await import("./action-rolls.mjs");
         for (let attempt = 1; attempt <= MAX_ATTEMPTS && !roll; attempt++) {
+            if (!openingStillWanted(side, actorId)) break;
             roll = await rollTrait(actor, def.traits[0], {
                 remember: false,
                 actionKey: "murderOpening",
+                title: game.i18n.localize(`DRPG.Roll.opening.${side}`),
                 context: { side }
             });
-            if (!roll && attempt < MAX_ATTEMPTS) {
+            if (!roll && attempt < MAX_ATTEMPTS && openingStillWanted(side, actorId)) {
                 ui.notifications.warn(game.i18n.localize("DRPG.Murder.openingRequired"));
             }
         }
     } finally {
+        openingRollsInFlight = Math.max(0, openingRollsInFlight - 1);
         calls.clearSituational();
     }
 
     if (!roll) {
-        const { whisperToGms } = await import("./utils.mjs");
-        await whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.Murder.openingDeclined", {
-            name: foundry.utils.escapeHTML(actor.name)
-        })}</p>`);
+        // Only a refusal is worth telling the GMs about. An invitation THEY
+        // revoked is not news, and reporting it as "declined their opening
+        // roll" would blame the player for the GM closing the incident.
+        if (openingStillWanted(side, actorId)) {
+            const { whisperToGms } = await import("./utils.mjs");
+            await whisperToGms(`<p class="drpg-warning">${
+                game.i18n.format("DRPG.Murder.openingDeclined", {
+                    name: foundry.utils.escapeHTML(actor.name)
+                })}</p>`);
+        }
         return null;
     }
 
@@ -1875,7 +2277,7 @@ async function cleanupSection(killer) {
 
     return `<h4>${game.i18n.localize("DRPG.Cleanup.title")}</h4>
         <p class="notes">${toolLine}</p>
-        <p class="notes">${game.i18n.format("DRPG.Cleanup.gmAttemptsLeft", { n: left })}</p>
+        <p class="notes">${plural("DRPG.Cleanup.gmAttemptsLeft", { n: left })}</p>
         <table class="drpg-vault-table"><thead><tr>
             <th>${game.i18n.localize("DRPG.Cleanup.gmTrace")}</th>
             <th>${game.i18n.localize("DRPG.Cleanup.gmNote")}</th>

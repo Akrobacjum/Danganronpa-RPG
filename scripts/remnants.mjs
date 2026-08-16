@@ -17,7 +17,7 @@ import { MODULE_ID, REMNANT_TYPES, REMNANT_VISIBILITY_LABELS, observeDc } from "
 // Statically imported: `remnantsInRoom` is synchronous, and movement.mjs does
 // not reach back into this file, so there is no cycle to break.
 import { roomOfToken } from "./movement.mjs";
-import { log, warn, error } from "./utils.mjs";
+import { log, warn, error, plural } from "./utils.mjs";
 
 /**
  * Everything the guide says a Remnant carries, recorded on the token so an
@@ -434,14 +434,14 @@ export async function confirmClearFaint() {
     const sure = await DialogV2.confirm({
         window: { title: game.i18n.localize("DRPG.Panel.clearFaint") },
         classes: ["drpg-panel"],
-        content: `<p>${game.i18n.format("DRPG.Panel.faintConfirm", { n: doomed })}</p>
+        content: `<p>${plural("DRPG.Panel.faintConfirm", { n: doomed })}</p>
                   <p class="notes">${game.i18n.localize("DRPG.Panel.faintConfirmNote")}</p>`,
         rejectClose: false
     });
     if (!sure) return 0;
 
     const cleared = await clearFaintRemnants();
-    ui.notifications.info(game.i18n.format("DRPG.Panel.faintCleared", { n: cleared }));
+    ui.notifications.info(plural("DRPG.Panel.faintCleared", { n: cleared }));
     return cleared;
 }
 
@@ -538,7 +538,7 @@ export async function openRemnantManager(scene = canvas?.scene) {
         changed += 1;
     }
 
-    ui.notifications.info(game.i18n.format("DRPG.Remnant.manageSaved", { n: changed }));
+    ui.notifications.info(plural("DRPG.Remnant.manageSaved", { n: changed }));
     log(`Remnant flags updated on ${changed} token(s).`);
     return changed;
 }

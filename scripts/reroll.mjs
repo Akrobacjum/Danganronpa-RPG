@@ -29,7 +29,7 @@
  */
 
 import { MODULE_ID, FLAGS, ACTIONS, PROJECT_SCALE, DYNAMIC_THRESHOLDS } from "./config.mjs";
-import { resolveThreshold, replaceFlag, log, error } from "./utils.mjs";
+import { resolveThreshold, replaceFlag, log, error, plural } from "./utils.mjs";
 
 /**
  * Reroll this character's last roll.
@@ -636,7 +636,7 @@ async function settleListen(actor, bookmark, after, done) {
     } else if (hit) {
         const count = occupantsOf(target, actor).length;
         done.push(count
-            ? game.i18n.format("DRPG.Listen.anonymous", { room: target, n: count })
+            ? plural("DRPG.Listen.anonymous", { room: target, n: count })
             : game.i18n.format("DRPG.Listen.emptyRoom", { room: target }));
     } else {
         done.push(def.failure);

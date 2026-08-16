@@ -24,7 +24,7 @@ import { MODULE_ID, ITEM_CATEGORIES } from "./config.mjs";
 import { ITEM_FLAGS, LOCATIONS, isStashed, canCarry } from "./inventory.mjs";
 // The one room lookup. movement.mjs does not reach back into this file.
 import { roomOfActor } from "./movement.mjs";
-import { dialogContent, whisperToOwner, log, error } from "./utils.mjs";
+import { dialogContent, whisperToOwner, log, error, plural } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -585,7 +585,7 @@ export async function openRoomSetupDialog() {
         changed++;
     }
 
-    ui.notifications.info(game.i18n.format("DRPG.Vault.saved", { n: changed }));
+    ui.notifications.info(plural("DRPG.Vault.saved", { n: changed }));
     return changed;
 }
 

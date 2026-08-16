@@ -13,7 +13,7 @@
 import { MODULE_ID, FLAGS, ACTIONS_RESOURCE, STARTING } from "./config.mjs";
 import { isWounded } from "./character.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
-import { debug } from "./utils.mjs";
+import { debug, plural } from "./utils.mjs";
 
 /**
  * How many actions this character should get when a new time of day starts.
@@ -44,11 +44,11 @@ export async function spendAction(actor, amount = 1) {
 
     const left = actionsLeft(actor);
     if (left < amount) {
-        ui.notifications.warn(game.i18n.format("DRPG.Actions.notEnough", {
+        ui.notifications.warn(plural("DRPG.Actions.notEnough", {
             actor: actor.name,
             left,
             needed: amount
-        }));
+        }, "left"));
         return false;
     }
 

@@ -368,6 +368,11 @@ async function openProjectDialog({ project = null, rooms = allRooms() } = {}) {
                 <input type="checkbox" name="murder"${
                     project?.indirectMurder ? " checked" : ""} /> ${
                     game.i18n.localize("DRPG.Project.indirect")}</label>
+            <label>${game.i18n.localize("DRPG.Project.condition")}
+                <input type="text" name="condition"
+                       value="${foundry.utils.escapeHTML(project?.condition ?? "")}"
+                       placeholder="${game.i18n.localize("DRPG.Project.conditionPlaceholder")}" />
+                <small class="notes">${game.i18n.localize("DRPG.Project.conditionNote")}</small></label>
             <label class="drpg-checkbox">
                 <input type="checkbox" name="secret"${
                     editing && isSecret(project.id) ? " checked" : ""} /> ${
@@ -393,6 +398,7 @@ async function openProjectDialog({ project = null, rooms = allRooms() } = {}) {
                     room: f.room.value || null,
                     trait: f.trait.value || null,
                     murder: f.murder.checked,
+                    condition: f.condition.value.trim(),
                     secret: f.secret.checked,
                     viewer: f.viewer?.value || null,
                     img: f.img.value || null
@@ -446,7 +452,8 @@ async function openProjectDialog({ project = null, rooms = allRooms() } = {}) {
             img: result.img,
             room: result.room,
             trait: result.trait,
-            indirectMurder: result.murder
+            indirectMurder: result.murder,
+            condition: result.condition
         });
         await applySecrecy(project.id, result.secret || result.murder);
         ui.notifications.info(game.i18n.localize("DRPG.Project.saved"));
@@ -459,9 +466,17 @@ async function openProjectDialog({ project = null, rooms = allRooms() } = {}) {
         room: result.room,
         trait: result.trait,
         indirectMurder: result.murder,
+        condition: result.condition,
         secret: result.secret || result.murder,
         img: result.img,
-        viewers: result.viewer ? [result.viewer] : []
+        viewers: result.viewer ? [result.viewer] : [],
+        // Whose trap it is: the player it was made visible to, when the GM
+        // named one. `startProject` fills this in properly for the player's own
+        // route — see action-rolls.mjs.
+        killerId: result.viewer
+            ? game.actors.find(a => a.type === "character"
+                && a.testUserPermission(game.users.get(result.viewer), "OWNER"))?.id ?? null
+            : null
     });
 
     if (created) ui.notifications.info(game.i18n.format("DRPG.Project.created", { name: created.name }));

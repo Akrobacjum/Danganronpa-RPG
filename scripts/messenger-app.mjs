@@ -20,7 +20,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { gmIds, error } from "./utils.mjs";
+import { gmIds, ownerOf, error } from "./utils.mjs";
 import { showPopup } from "./popup.mjs";
 import {
     MESSENGER_FLAGS, THREAD_KIND,
@@ -127,8 +127,14 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
         // Only set `position` when there is a saved one — passing `undefined`
         // through to ApplicationV2's option merge is not guaranteed to fall
         // back to DEFAULT_OPTIONS.position the way omitting the key does.
+        //
+        // The size comes from DEFAULT_OPTIONS every time and is spread in here
+        // explicitly rather than left to ApplicationV2's option merge, which the
+        // comment above already records as not reliable in this direction.
         const saved = readSavedPosition(playerUserId);
-        if (saved) options.position = saved;
+        if (saved) {
+            options.position = { ...DrpgMessengerApp.DEFAULT_OPTIONS.position, ...saved };
+        }
         super(options);
         this.playerUserId = playerUserId;
     }
@@ -398,6 +404,7 @@ function buildBubble(message) {
     // sendMessage() escapes free text before this ever runs, postToThread()
     // is fed the GM-bridge's own escaped ruling cards.
     body.innerHTML = message.content;
+    wireCallActions(body);
     bubble.append(body);
 
     const time = document.createElement("div");
@@ -408,14 +415,101 @@ function buildBubble(message) {
     return bubble;
 }
 
+/**
+ * Make the buttons on a ruling card work.
+ *
+ * A declaration card used to be a wall of text with "Awaiting a ruling" at the
+ * bottom and nothing to press. Acting on it meant the GM panel, "Open a murder",
+ * and picking the killer and the victim off two lists — retyping, by hand, the
+ * two names printed in the paragraph above the button that was not there.
+ *
+ * Removed for a player rather than hidden by CSS: a button that is not in the
+ * DOM cannot be clicked by anybody reading their own thread.
+ */
+function wireCallActions(body) {
+    const buttons = body.querySelectorAll("[data-drpg-call]");
+    if (!buttons.length) return;
+
+    if (!game.user.isGM) {
+        for (const button of buttons) button.closest(".drpg-call-actions")?.remove();
+        return;
+    }
+
+    for (const button of buttons) {
+        button.addEventListener("click", async event => {
+            event.preventDefault();
+            event.stopPropagation();
+            button.disabled = true;
+            try {
+                await runCallAction(button.dataset.drpgCall, { ...button.dataset });
+            } catch (err) {
+                button.disabled = false;
+                error("Could not act on the ruling card", err);
+            }
+        });
+    }
+}
+
+/** What each button on a ruling card does. GM side, by construction. */
+async function runCallAction(action, data) {
+    if (action === "openMurder") {
+        const { openMurder } = await import("./murder.mjs");
+        return openMurder({ killerId: data.killer, victimId: data.victim });
+    }
+
+    if (action === "fireTrap") {
+        // The trap names a condition, not a victim — so this opens the murder
+        // screen with the killer already filled in and "indirect" already
+        // ticked, and asks the one thing the condition cannot answer: who
+        // walked into it.
+        const { openMurderDialog } = await import("./murder.mjs");
+        return openMurderDialog({ killerId: data.killer, indirect: true });
+    }
+
+    if (action === "declineMurder") {
+        // The refusal is the GM overruling the declaration, not the rules
+        // resolving it — so the action comes back. A witness in the room is the
+        // other thing, and that one keeps the attempt spent (see
+        // `performDirectMurder`).
+        const actor = game.actors.get(data.killer);
+        if (!actor) return null;
+        const { refundAction } = await import("./actions.mjs");
+        await refundAction(actor, 1);
+        const { postToThread } = await import("./messenger.mjs");
+        const owner = ownerOf(actor);
+        const note = `<p><em>${game.i18n.localize("DRPG.Bridge.declined")}</em></p>`;
+        if (owner) await postToThread(owner.id, note);
+        ui.notifications.info(game.i18n.format("DRPG.Bridge.declinedGm", { name: actor.name }));
+        return true;
+    }
+
+    return null;
+}
+
 /* ==========================================================================
  * POSITION MEMORY
  * ========================================================================== */
 
+/**
+ * Where this window was, and NOT how big it was.
+ *
+ * The remembered geometry used to carry the size too, and that quietly cancelled
+ * the popup normalisation for everybody who had ever opened this window before
+ * it: the default went 360 → 544, and every returning GM kept getting 360 back
+ * out of their own settings. Measured — a fresh account opened at 544, an old
+ * one at 360, with nothing in the code to explain the difference.
+ *
+ * Stored sizes are dropped on read rather than deleted from the setting, so a
+ * world that has them loses nothing except their effect, and nobody has to run
+ * a migration to get the width the module says it uses.
+ */
 function readSavedPosition(playerUserId) {
     try {
         const all = game.settings.get(MODULE_ID, SETTINGS.messengerWindowPositions) ?? {};
-        return all[playerUserId] ?? null;
+        const saved = all[playerUserId];
+        if (!saved) return null;
+        const { left, top } = saved;
+        return (left === undefined && top === undefined) ? null : { left, top };
     } catch {
         return null;
     }
@@ -424,10 +518,14 @@ function readSavedPosition(playerUserId) {
 function savePosition(playerUserId, position) {
     try {
         const all = game.settings.get(MODULE_ID, SETTINGS.messengerWindowPositions) ?? {};
-        const { left, top, width, height } = position ?? {};
+        // Position only. A window somebody dragged should reopen where they
+        // left it; a window somebody resized should still obey the module's
+        // one popup width, because that width is a decision about the whole
+        // interface rather than about this window.
+        const { left, top } = position ?? {};
         game.settings.set(MODULE_ID, SETTINGS.messengerWindowPositions, {
             ...all,
-            [playerUserId]: { left, top, width, height }
+            [playerUserId]: { left, top }
         });
     } catch (err) {
         error("Messenger: could not save window position.", err);

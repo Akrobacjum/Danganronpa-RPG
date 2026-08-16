@@ -31,7 +31,7 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { log, error } from "./utils.mjs";
+import { log, error, plural } from "./utils.mjs";
 
 /** User flag holding one player's note. */
 export const NOTE_FLAG = "preSessionNote";
@@ -104,5 +104,5 @@ export function noteStatus(userId) {
     if (!at) return game.i18n.localize("DRPG.Note.statusWritten");
     const days = Math.floor((Date.now() - at) / 86_400_000);
     if (days <= 0) return game.i18n.localize("DRPG.Note.statusToday");
-    return game.i18n.format("DRPG.Note.statusDays", { n: days });
+    return plural("DRPG.Note.statusDays", { n: days });
 }
