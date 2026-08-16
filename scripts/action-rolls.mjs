@@ -28,6 +28,23 @@ import { announce, resolveThreshold, whisperToOwner, dialogContent, replaceFlag,
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
+/**
+ * Marks a dialog button that hands the turn to the GM rather than resolving
+ * against a table.
+ *
+ * The distinction matters at the moment of choosing, not afterwards: pressing
+ * one of these means waiting for a human, and the two branches that do it were
+ * sitting in a row of buttons that looked exactly like the automatic ones.
+ * Red is already the module's colour for "this goes to the GM" — the cost
+ * stripe on the action tiles uses it for the same thing — so the styling is in
+ * `danganronpa.css` next to that rule.
+ *
+ * DialogV2 writes this straight onto the element with `setAttribute("class")`,
+ * replacing whatever was there. Its buttons carry no classes of their own, so
+ * nothing is lost.
+ */
+const GM_ROUTE_CLASS = "drpg-gm-route";
+
 /* ==========================================================================
  * ENTRY POINT
  * ========================================================================== */
@@ -99,10 +116,10 @@ export async function performAction(actor, actionKey, options = {}) {
             return null;
         }
 
-        // Only actions with nothing of their own to ask still get a window here;
-        // the rest carry the briefing inside the window they open anyway. See
-        // `briefingBlock` and FOLDS_BRIEFING_IN.
-        if (!options.skipBriefing && !FOLDS_BRIEFING_IN.has(actionKey)) {
+        // Only an action with nothing of its own to ask still gets a window
+        // here; every other one carries the briefing inside the window it was
+        // going to open anyway. See `briefingBlock` and NEEDS_OWN_BRIEFING.
+        if (!options.skipBriefing && NEEDS_OWN_BRIEFING.has(actionKey)) {
             const go = await briefing(actor, actionKey, def);
             if (!go) return null;
         }
@@ -226,16 +243,20 @@ async function briefing(actor, actionKey, def) {
 }
 
 /**
- * Actions that ask something of their own, and therefore fold the briefing in.
+ * The one action that still gets a briefing window of its own.
  *
- * Move is the only one that asks nothing — you drag a token — so it keeps the
- * standalone briefing. Everything else opens a window regardless, and showing a
- * separate briefing first meant two windows to answer one question.
+ * Move asks nothing — you drag a token — so there is no window to fold into.
+ * Everything else opens one regardless, and a separate briefing in front of it
+ * meant two windows to answer one question.
+ *
+ * This used to be the inverse: a list of the nine actions that DO fold, which
+ * had to be edited every time an action gained a dialog and silently gave a
+ * second window to any key not on it. Stated the other way round, an action
+ * nobody remembered to list gets the folded behaviour by default — including
+ * anything falling through to `performGeneric`, which asks for a statistic and
+ * so has a window to carry the briefing.
  */
-const FOLDS_BRIEFING_IN = new Set([
-    "search", "observe", "analyze", "listen", "project",
-    "sabotage", "rest", "directMurder", "dynamic"
-]);
+const NEEDS_OWN_BRIEFING = new Set(["move"]);
 
 function dynamicDef() {
     return {
@@ -481,11 +502,20 @@ async function commitResources(result) {
     }
 }
 
-/** Ask which trait to use when the action allows a choice. */
-async function chooseTrait(actor, def) {
-    const allowed = def.traits ?? [];
-    if (!allowed.length) return null;
-    if (allowed.length === 1) return allowed[0];
+/**
+ * The "which statistic?" field, as HTML to drop into somebody else's form.
+ *
+ * Three windows built this select by hand, which is why the trait choice kept
+ * turning up as a window of its own: it was easier to open a new dialog than to
+ * repeat fifteen lines inside an existing one. As one function it costs a line,
+ * so an action that already asks something can ask this too.
+ *
+ * Returns "" when there is nothing to choose — one allowed trait, or none —
+ * and the caller falls back to it without a field. See `readTraitField`.
+ */
+function traitFieldHtml(actor, traits, { note = "" } = {}) {
+    const allowed = traits ?? [];
+    if (allowed.length < 2) return "";
 
     const options = allowed.map(key => {
         const t = TRAITS[key];
@@ -493,14 +523,41 @@ async function chooseTrait(actor, def) {
         return `<option value="${key}">${t.label} (${value > 0 ? "+" : ""}${value})</option>`;
     }).join("");
 
+    return `<label class="drpg-trait-field">${game.i18n.localize("DRPG.Advance.whichTrait")}
+        <select name="trait">${options}</select>
+        ${note ? `<small class="notes">${note}</small>` : ""}
+    </label>`;
+}
+
+/** The other half of `traitFieldHtml`: what the form says, or the only option. */
+function readTraitField(element, traits) {
+    const allowed = traits ?? [];
+    if (!allowed.length) return null;
+    if (allowed.length === 1) return allowed[0];
+    return element.querySelector("[name=trait]")?.value ?? allowed[0];
+}
+
+/**
+ * Ask which trait to use, for an action with nothing else to ask.
+ *
+ * `intro` is the briefing. An action that folds its briefing in (see
+ * FOLDS_BRIEFING_IN) has a window of its own to carry it; one that does not
+ * used to get a briefing window, then this one, then the roll dialog — three
+ * windows to answer "Body or Leg?". Passing the briefing here makes it two.
+ */
+async function chooseTrait(actor, def, { intro = "" } = {}) {
+    const allowed = def.traits ?? [];
+    if (!allowed.length) return null;
+    if (allowed.length === 1 && !intro) return allowed[0];
+
     const picked = await DialogV2.wait({
         window: { title: game.i18n.format("DRPG.Action.chooseTrait", { action: def.label }) },
-        content: `<form><label>${game.i18n.localize("DRPG.Advance.whichTrait")}
-                    <select name="trait">${options}</select></label></form>`,
+        classes: ["drpg-panel", "drpg-narrow"],
+        content: dialogContent(`${intro}<form>${traitFieldHtml(actor, allowed)}</form>`),
         buttons: [
             {
                 action: "ok", label: game.i18n.localize("DRPG.Action.roll"), default: true,
-                callback: (e, b, d) => d.element.querySelector("[name=trait]").value
+                callback: (e, b, d) => readTraitField(d.element, allowed)
             },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
         ],
@@ -546,19 +603,17 @@ async function performSearch(actor, def, options) {
         return null;
     }
 
-    const goal = await chooseSearchCategory(actor);
+    const goal = await chooseSearchCategory(actor, def);
     if (!goal) return null;
-    const { category, goal: goalKey, request } = goal;
+    const { category, goal: goalKey, request, trait } = goal;
+    if (!trait) return null;
 
     // Refuse early when the room is already spent, so the player is not walked
-    // through a trait picker and a roll only to be told there was nothing left.
+    // through a roll only to be told there was nothing left.
     if (SearchTokens.left(room) <= 0) {
         ui.notifications.warn(game.i18n.localize("DRPG.SearchTokens.exhausted"));
         return null;
     }
-
-    const trait = await chooseTrait(actor, def);
-    if (!trait) return null;
 
     // What the room is worth to this particular search.
     //
@@ -798,7 +853,7 @@ async function performSearch(actor, def, options) {
  *
  * @returns {Promise<{category: string, goal: string, request: string}|null>}
  */
-async function chooseSearchCategory(actor) {
+async function chooseSearchCategory(actor, def = ACTIONS.search) {
     const options = [
         { value: "healing", category: "usable", icon: "fa-heart",
           label: "DRPG.Action.goalHealing", hint: "DRPG.Action.goalHealingHint" },
@@ -833,6 +888,7 @@ async function chooseSearchCategory(actor) {
                 <textarea name="request" rows="2"
                     placeholder="${game.i18n.localize("DRPG.Action.goalSpecificPlaceholder")}"></textarea>
             </label>
+            ${traitFieldHtml(actor, def.traits)}
         </form>`),
         buttons: [
             {
@@ -844,7 +900,10 @@ async function chooseSearchCategory(actor) {
                     return {
                         goal: value,
                         category: option?.category,
-                        request: form.querySelector('[name="request"]').value.trim()
+                        request: form.querySelector('[name="request"]').value.trim(),
+                        // Was a window of its own until now — Eye or Hand, asked
+                        // after the goal had already been chosen and dismissed.
+                        trait: readTraitField(d.element, def.traits)
                     };
                 }
             },
@@ -869,6 +928,7 @@ async function chooseSearchCategory(actor) {
 /** Start something new (GM ruling) or push an existing project (automatic). */
 async function performProject(actor, def, options) {
     const choice = await DialogV2.wait({
+        classes: ["drpg-panel"],
         window: { title: def.label },
         content: `${briefingBlock(actor, "project", def)}
             <p>${game.i18n.localize("DRPG.Project.choosePrompt")}</p>`,
@@ -1144,15 +1204,11 @@ async function chooseProjectAndTrait(list, promptKey, actor, def) {
         return `<option value="${p.id}">${foundry.utils.escapeHTML(p.name)}${target}${where}</option>`;
     }).join("");
 
-    const traitField = needsTraitField ? `
-        <label>${game.i18n.localize("DRPG.Advance.whichTrait")}
-            <select name="trait">${traitOptions.map(key => {
-                const t = TRAITS[key];
-                const value = actor.system.traits?.[t.dh]?.value ?? 0;
-                return `<option value="${key}">${t.label} (${value > 0 ? "+" : ""}${value})</option>`;
-            }).join("")}</select>
-            <small class="notes">${game.i18n.localize("DRPG.Action.traitOnlyIfOpen")}</small>
-        </label>` : "";
+    const traitField = needsTraitField
+        ? traitFieldHtml(actor, traitOptions, {
+            note: game.i18n.localize("DRPG.Action.traitOnlyIfOpen")
+          })
+        : "";
 
     const result = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Project.title") },
@@ -1281,6 +1337,7 @@ async function performSabotage(actor, def, options) {
             });
 
             const carryOn = await DialogV2.confirm({
+                classes: ["drpg-panel"],
                 window: { title: def.label },
                 content: `<p>${SABOTAGE_CONCEAL.failure}</p>
                           <p>${game.i18n.localize("DRPG.Action.sabotageCarryOn")}</p>`,
@@ -1612,7 +1669,10 @@ async function observeAnything(actor, def, cost) {
     if (cost > 0) await spendAction(actor, cost);
 
     const request = await askRequest(def);
-    return ruleObserve(actor, def, roll, request, game.i18n.localize("DRPG.Observe.anything"));
+    // Not the button's own label: "Ask the GM" is clear on a button the player is
+    // pressing and meaningless as the title of the window it arrives in. The GM
+    // gets a title that says which action this was.
+    return ruleObserve(actor, def, roll, request, game.i18n.localize("DRPG.Observe.anythingTitle"));
 }
 
 /** Hand a roll that has already happened to the GM as a ruling. */
@@ -1647,8 +1707,11 @@ async function ruleObserve(actor, def, roll, request, title = null) {
  */
 async function askDeclaration(actor, def) {
     const choice = await DialogV2.wait({
+        // Not `drpg-narrow` any more. That was chosen when the four choices
+        // were "Look for any clue" and friends, which fitted a 24rem window;
+        // the names now say what each one does and need the room to say it.
+        classes: ["drpg-panel"],
         window: { title: def.label },
-        classes: ["drpg-panel", "drpg-narrow"],
         content: dialogContent(`${briefingBlock(actor, "observe", def)}<form>
             <p>${game.i18n.localize("DRPG.Observe.declarePrompt")}</p>
             <p class="notes">${game.i18n.localize("DRPG.Observe.declareNote")}</p>
@@ -1657,7 +1720,9 @@ async function askDeclaration(actor, def) {
             { action: "general", label: game.i18n.localize("DRPG.Observe.general"), default: true },
             { action: "specific", label: game.i18n.localize("DRPG.Observe.specific") },
             { action: "nonObvious", label: game.i18n.localize("DRPG.Observe.nonObvious") },
-            { action: "anything", label: game.i18n.localize("DRPG.Observe.anything") },
+            // Red, like the cost stripe on a GM-routed tile: this is the branch
+            // that stops being a table lookup and becomes a human ruling.
+            { action: "anything", label: game.i18n.localize("DRPG.Observe.anything"), class: GM_ROUTE_CLASS },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
         ],
         rejectClose: false
@@ -1816,7 +1881,8 @@ async function askWhatToAnalyze(actor, def, bullets) {
         : `<p class="notes">${game.i18n.localize("DRPG.Analyze.noBullets")}</p>`;
 
     const buttons = [
-        { action: "hint", label: game.i18n.localize("DRPG.Analyze.askHint"), default: !bullets.length },
+        { action: "hint", label: game.i18n.localize("DRPG.Analyze.askHint"),
+          class: GM_ROUTE_CLASS, default: !bullets.length },
         { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
     ];
     if (bullets.length) {
@@ -1829,8 +1895,10 @@ async function askWhatToAnalyze(actor, def, bullets) {
     return DialogV2.wait({
         window: { title: def.label },
         classes: ["drpg-panel"],
+        // No prompt line: the briefing above already says what Analyze does,
+        // and the field's own label asks which bullet. Both were saying the
+        // same sentence, one under the other.
         content: dialogContent(`${briefingBlock(actor, "analyze", def)}<form>
-            <p>${game.i18n.localize("DRPG.Analyze.prompt")}</p>
             ${bulletField}
         </form>`),
         buttons,
@@ -1998,6 +2066,7 @@ async function performDirectMurder(actor, def, options) {
     if (!canAfford(actor, cost)) return null;
 
     const confirmed = await DialogV2.confirm({
+        classes: ["drpg-panel"],
         window: { title: def.label },
         content: `${briefingBlock(actor, "directMurder", def)}
             <p>${game.i18n.localize("DRPG.Action.murderConfirm")}</p>`,
@@ -2055,7 +2124,12 @@ async function performGeneric(actor, actionKey, def, options) {
     const cost = options.free ? 0 : (def.cost ?? 1);
     if (!canAfford(actor, cost)) return null;
 
-    const trait = await chooseTrait(actor, def);
+    // The briefing rides in the statistic picker rather than in front of it —
+    // this branch has no other window of its own, and two in a row for one
+    // choice is exactly what NEEDS_OWN_BRIEFING exists to stop.
+    const trait = await chooseTrait(actor, def, {
+        intro: options.skipBriefing ? "" : briefingBlock(actor, actionKey, def)
+    });
     if (!trait) return null;
 
     const roll = await rollTrait(actor, trait, { actionKey });

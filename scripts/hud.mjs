@@ -24,10 +24,10 @@ import { isDeceased } from "./chapter.mjs";
 const HUD_ID = "drpg-hud";
 
 export function registerHud() {
-    Hooks.once("ready", renderHud);
+    Hooks.once("ready", () => { renderHud(); renderRoster(); });
 
     // Foundry rebuilds parts of the interface on scene changes; re-assert.
-    Hooks.on("canvasReady", () => renderHud());
+    Hooks.on("canvasReady", () => { renderHud(); renderRoster(); });
 
     // Pausing stops the time-of-day timer. Every client redraws so the frozen
     // reading is the same everywhere; only one GM writes the bookkeeping.
@@ -45,7 +45,7 @@ export function registerHud() {
         if (!game.user.isGM) return;
         if (actor?.type !== "character") return;
         if (!changes?.system?.resources) return;
-        renderHud();
+        renderRoster();
     });
 }
 
@@ -54,53 +54,68 @@ export function registerHud() {
  * WHO STILL HAS SOMETHING LEFT
  * ==========================================================================
  *
- * A GM running a time of day is asking one question over and over: is everyone
- * done yet. Answering it meant opening five character sheets, or asking out
- * loud and interrupting whoever was mid-scene.
+ * A GM running a time of day asks one question over and over: is everybody
+ * done. Answering it meant opening five character sheets or interrupting
+ * whoever was mid-scene.
  *
- * The answer is a row of initials. Lit means actions in hand, dimmed means
- * spent, and a glance across the row is the whole roster. It costs the GM no
- * clicks and the players no attention, because the numbers were already there
- * — they were just each behind a different window.
+ * It lived in the HUD for a while and did not belong there. The HUD is the
+ * clock — campaign, chapter, day, time of day, timer — and it is on every
+ * screen at the table. A roster of initials squeezed under it read like part
+ * of the clock, and two-letter abbreviations are not names: "PA" and "PT" tell
+ * a GM nothing at a glance.
  *
- * GM only: for a player this would be a live feed of everybody else's
- * remaining budget, which is exactly the kind of table-wide visibility the
- * rest of this module spends its time removing.
+ * So it is its own panel now, top left, GM only, collapsible, with the names
+ * spelled out. Collapsed it is one line; open it is the table.
  */
-function buildRoster(isGM) {
-    if (!isGM) return null;
 
-    const students = game.actors.contents.filter(a =>
-        a.type === "character" && !isMonokuma(a) && !isDeceased(a) && a.hasPlayerOwner);
-    if (!students.length) return null;
+const ROSTER_ID = "drpg-roster";
+let rosterOpen = true;
 
-    const row = document.createElement("div");
-    row.className = "drpg-hud-roster";
+function renderRoster() {
+    try {
+        document.getElementById(ROSTER_ID)?.remove();
+        if (!game.user.isGM) return;
 
-    for (const actor of students) {
-        const left = actionsLeft(actor);
-        const max = actionsMax(actor);
+        const students = game.actors.contents.filter(a =>
+            a.type === "character" && !isMonokuma(a) && !isDeceased(a) && a.hasPlayerOwner);
+        if (!students.length) return;
 
-        const chip = document.createElement("span");
-        chip.className = `drpg-roster-chip${left > 0 ? "" : " spent"}`;
-        chip.textContent = initialsOf(actor.name);
-        chip.dataset.tooltip = `${foundry.utils.escapeHTML(actor.name)} — ${left} / ${max}`;
-        row.append(chip);
+        const left = students.filter(a => actionsLeft(a) > 0);
+
+        const panel = document.createElement("details");
+        panel.id = ROSTER_ID;
+        panel.open = rosterOpen;
+        panel.addEventListener("toggle", () => { rosterOpen = panel.open; });
+
+        // Shut, the summary still answers the question — how many are still
+        // holding actions — so the panel only needs opening to find out WHO.
+        const summary = document.createElement("summary");
+        summary.className = "drpg-roster-summary";
+        summary.textContent = game.i18n.format("DRPG.Roster.summary",
+            { left: left.length, total: students.length });
+        panel.append(summary);
+
+        const list = document.createElement("div");
+        list.className = "drpg-roster-list";
+        for (const actor of students) {
+            const has = actionsLeft(actor);
+            const row = document.createElement("div");
+            row.className = `drpg-roster-row${has > 0 ? "" : " spent"}`;
+            const name = document.createElement("span");
+            name.className = "drpg-roster-name";
+            name.textContent = actor.name;
+            const count = document.createElement("span");
+            count.className = "drpg-roster-count";
+            count.textContent = `${has} / ${actionsMax(actor)}`;
+            row.append(name, count);
+            list.append(row);
+        }
+        panel.append(list);
+
+        (document.querySelector("#ui-left") ?? document.body).append(panel);
+    } catch (err) {
+        error("Could not render the GM roster", err);
     }
-
-    return row;
-}
-
-/**
- * Two letters at most: a first initial, plus the second word's if there is one.
- * "Player A" gives PA, "Makoto" gives MA — enough to tell five students apart
- * without turning the row into a list of names.
- */
-function initialsOf(name) {
-    const words = String(name ?? "").trim().split(/\s+/).filter(Boolean);
-    if (!words.length) return "?";
-    if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-    return (words[0][0] + words[1][0]).toUpperCase();
 }
 
 /**
@@ -163,9 +178,6 @@ export function renderHud() {
             buildElapsed()
         );
 
-        const roster = buildRoster(isGM);
-        if (roster) hud.append(roster);
-
         const incident = buildIncident();
         if (incident) hud.append(incident);
 
@@ -173,8 +185,41 @@ export function renderHud() {
         hud.addEventListener("pointerdown", event => event.stopPropagation());
 
         host.append(hud);
+        alignRightColumn(hud);
     } catch (err) {
         error("Could not render the campaign HUD", err);
+    }
+}
+
+/**
+ * Start the Projects tray level with the clock.
+ *
+ * They are the two things permanently on screen either side of the map, and
+ * they were 60px out of step, which reads as carelessness before it reads as
+ * anything else. The offset cannot be a constant: the HUD sits below the
+ * Despair bars, and how tall those are depends on how many Monokumas the
+ * campaign has. So it is measured, the same way popup.mjs measures its own
+ * top rather than adding up the widgets above it.
+ */
+function alignRightColumn(hud) {
+    try {
+        const column = document.querySelector("#ui-right-column-1");
+        if (!column) return;
+
+        // Align to whatever is highest on the left of the screen, not to the
+        // clock. The Despair bars sit ABOVE the clock, so matching the clock
+        // left the right rail a bar's height too low — which is what it looked
+        // like: two columns starting at different heights for no reason.
+        const anchors = ["#drpg-despair", "#drpg-hud"]
+            .map(sel => document.querySelector(sel))
+            .filter(el => el && el.getBoundingClientRect().height > 0);
+        const top = anchors.length
+            ? Math.round(Math.min(...anchors.map(el => el.getBoundingClientRect().top)))
+            : Math.round(hud?.getBoundingClientRect().top ?? 0);
+
+        if (top > 0) column.style.marginTop = `${top}px`;
+    } catch {
+        // Being a few pixels out is not worth throwing into the HUD render.
     }
 }
 

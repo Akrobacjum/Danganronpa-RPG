@@ -545,8 +545,8 @@ export const ACTIONS = {
         traits: ["eye", "hand"],
         cost: 1,
         hint: "Loot the room. Spends one of its three search tokens.",
-        description: "You loot the room. Say what you are after.\n\nThree search tokens per room, "
-            + "per time of day. Murder and cleaning tools leave a trace.",
+        description: "You loot the room for whatever you name. Each room allows three searches per "
+            + "time of day, and taking a murder or cleaning tool leaves a trace behind.",
         thresholds: [
             { min: 8, tier: 0, remnant: "hidden" },
             { min: 12, tier: 1, remnant: "subtle" },
@@ -564,9 +564,8 @@ export const ACTIONS = {
         cost: 1,
         callsGm: true,
         hint: "Look for evidence. Copies a Remnant into your inventory as a Truth Bullet.",
-        description: "You look for evidence. A hit copies a Remnant into your inventory as a Neutral "
-            + "Truth Bullet — the Remnant stays put, so somebody else can still find it.\n\n"
-            + "A failed roll costs 2 Stress.",
+        description: "You look for evidence here. A hit copies what you find into your inventory as a "
+            + "Neutral Truth Bullet, leaving the original for everyone else. A failed roll costs 2 Stress.",
         dcTable: "OBSERVE_DC",
         failStress: OBSERVE_FAIL_STRESS
     },
@@ -583,8 +582,8 @@ export const ACTIONS = {
         cost: 1,
         callsGm: true,
         hint: "Identify a Neutral Truth Bullet, or ask the GM for a hint.",
-        description: "Identify what a Truth Bullet really is, or just ask the GM for a hint.\n\n"
-            + "Failing locks that bullet for you until the chapter ends.",
+        description: "Identify what one of your Truth Bullets really is, or ask the GM for a hint "
+            + "instead. Failing locks that bullet for you until the chapter ends.",
         dcTable: "ANALYZE_DC",
         /** Used when the player asks for a hint rather than analysing evidence. */
         hintThresholds: [
@@ -601,8 +600,8 @@ export const ACTIONS = {
         traits: ["shadow"],
         cost: 1,
         hint: "Work out who is in a neighbouring room. No GM needed.",
-        description: "You listen at the walls. Pick a neighbouring room.\n\nA modest result gives "
-            + "you a headcount, a strong one gives you names.",
+        description: "You listen at the wall of one neighbouring room. A modest result gives you a "
+            + "headcount, a strong one gives you names.",
         thresholds: [
             { min: 14, result: "Pick one room; learn whether anyone is there." },
             { min: 18, result: "Pick one room; see the tokens of everyone in it." }
@@ -617,9 +616,9 @@ export const ACTIONS = {
         traits: ["hand", "body", "leg", "head"],
         cost: 1,
         hint: "Push a project agreed with the GM. Several people can work on one and pool progress.",
-        description: "Several times of day, many actions — and the one thing that can change the "
-            + "game. Several people can work on one and their progress adds up.\n\n"
-            + "Trivial 3, Standard 4, Complex 6, Desperate 8. You have to be in the project's room.",
+        description: "The slow game: many actions across many times of day, and the one thing that can "
+            + "change how this ends. Several people can work on the same project and their progress "
+            + "adds up. You have to be in the project's room.",
         thresholds: [
             { min: 12, progress: 1 },
             { min: 18, progress: 2 }
@@ -634,9 +633,8 @@ export const ACTIONS = {
         traits: ["hand", "body", "leg", "head"],
         cost: 1,
         hint: "Break a project or object so it needs a repair project. Always leaves a trace.",
-        description: "You break something the players made, so it needs a repair project first.\n\n"
-            + "Hope hides you; Despair shows you to anyone in the room. Always leaves a trace, and you "
-            + "have to be in the project's room.",
+        description: "You break something the players made, so it needs a repair project before it "
+            + "works again. It always leaves a trace, and Despair shows you to everyone in the room.",
         thresholds: [
             { min: 12, result: "Success. The target needs a simple repair project.", remnant: "subtle" },
             { min: 18, result: "Success. The target needs a complex repair project.", remnant: "evident" }
@@ -658,10 +656,9 @@ export const ACTIONS = {
         traits: [],
         cost: 1,
         hint: "Short Rest: 1 action, choose 1. Long Rest: 2 actions, choose 2, bedroom only.",
-        description: "Short Rest — 1 action, choose one. Once per time of day, where the map allows.\n\n"
-            + "Long Rest — 2 actions, choose two. Once per session, bedroom only.\n\n"
-            + "Sleep restores HP, a Meal clears Stress, a Breath gives Hope — all of it on a Long "
-            + "Rest, half on a Short."
+        description: "A Short Rest costs 1 action and buys one benefit; a Long Rest costs 2, needs "
+            + "your bedroom, and buys two. Sleep restores HP, a Meal clears Stress, a Breath gives "
+            + "Hope — in full on a Long Rest, by half on a Short."
     },
     directMurder: {
         kind: "universal",
@@ -671,9 +668,9 @@ export const ACTIONS = {
         cost: 1,
         callsGm: true,
         hint: "Open a direct murder. Agreed with the GM beforehand.",
-        description: "A face-to-face confrontation, agreed with the GM before the session, with the "
-            + "victim's player consenting.\n\nYou have to be alone with them. A third party ruins "
-            + "the attempt, and the action is lost."
+        description: "A face-to-face killing, agreed with the GM before the session and consented to "
+            + "by the victim's player. You have to be alone with them — a witness ruins the attempt, "
+            + "and the action is lost anyway."
     }
 };
 

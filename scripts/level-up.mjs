@@ -45,6 +45,7 @@ export async function openAdvancementFor(actor) {
     }
 
     const kind = await DialogV2.wait({
+        classes: ["drpg-panel"],
         window: { title: game.i18n.format("DRPG.Advance.title", { actor: actor.name }) },
         content: `<p>${game.i18n.format("DRPG.Advance.whichKind", {
             actor: foundry.utils.escapeHTML(actor.name)

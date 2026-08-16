@@ -1237,6 +1237,7 @@ export async function promptAndCallGm(actor, {
     const DialogV2 = foundry.applications.api.DialogV2;
 
     const text = await DialogV2.wait({
+        classes: ["drpg-panel"],
         window: { title },
         content: dialogContent(`${intro}<form>
                     <p>${prompt}</p>

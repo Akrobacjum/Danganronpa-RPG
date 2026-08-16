@@ -4,3 +4,6 @@ module.zip
 # OS/editor noise
 .DS_Store
 Thumbs.db
+
+# Working document, not part of the module.
+PLAN.html

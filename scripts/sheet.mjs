@@ -57,6 +57,8 @@ function onRenderCharacterSheet(app, element) {
         injectCasebookButton(app, element);
         injectActionBar(app, element);
         injectActionPanel(app, element);
+        fitActionTiles(element);
+        watchTileFit(element);
         tidySidebar(element);
         paintResourceBars(element);
         injectEquippedTools(app, element);
@@ -67,6 +69,146 @@ function onRenderCharacterSheet(app, element) {
     } catch (err) {
         error("Failed to render the Danganronpa sheet parts", err);
     }
+}
+
+/* ==========================================================================
+ * TILE FIT
+ * --------------------------------------------------------------------------
+ * A tile is square by design and its label is floored at 11px, and between
+ * those two there is a band of sheet widths where the text simply does not fit.
+ * Measured rather than guessed: at a tile width of 84px "Direct Murder" needs
+ * 108px of content — an icon, a two-line name and a two-line cost — and the
+ * square gives it 84. `overflow: hidden` then cut the cost line off entirely.
+ *
+ * The obvious test is the wrong one. Nothing overflows HORIZONTALLY — the
+ * labels wrap, `scrollWidth` equals `clientWidth` on every button at every
+ * width — so a `scrollWidth > clientWidth` check reports a clean sheet while
+ * the bottom line of six tiles is missing. The overflow is vertical, and it is
+ * the aspect ratio that causes it.
+ *
+ * Nor is the answer smaller type: the type scale bottoms out at 11px because
+ * the pixel face stops being readable below that, and shrinking the label to
+ * fit would undo the reason the floor exists.
+ *
+ * So the square gives way instead, and only where it has to. Each grid is
+ * measured; one whose tiles cannot hold their content is marked, and the mark
+ * turns off `aspect-ratio` and equalises the rows. Per GRID, not per tile —
+ * one rectangle among nine squares reads as a rendering fault, while a grid of
+ * slightly tall tiles reads as a grid.
+ * ========================================================================== */
+
+/**
+ * A tile label with break points marked inside its long words.
+ *
+ * "Determination" is 143px of pixel font against an 80px tile. It has no space
+ * to wrap at, so the only choices are to break it mid-word or to rename a Hope
+ * Call the handbook already named — and the handbook wins.
+ *
+ * `hyphens: auto` is the textbook answer and does not work here: measured on
+ * this build with `lang="en"` set on the root, "Determination" stays on one
+ * 143px line and is clipped. Foundry's Electron ships no hyphenation
+ * dictionary, so the property is inert. `overflow-wrap: anywhere` does break
+ * it, but silently — "Observ / e", "Sabota / ge" — which is what the tiles were
+ * doing and what looks broken.
+ *
+ * A soft hyphen is neither: it is a break point the layout engine takes only
+ * when it needs to, and it draws a hyphen when it does. Invisible otherwise, so
+ * a word that fits is untouched.
+ *
+ * Only words too long for the narrowest tile are marked, and only from the
+ * fifth character, so the break never leaves an orphaned letter or two.
+ */
+const SHY = "­";
+const LONG_WORD = 9;      // characters — below this, every label fits a tile
+// Six, not five: it puts the break where the word reads best — "Experi-ence"
+// and "Contri-bution" rather than "Exper-ience" and "Contr-ibution".
+const BREAK_EVERY = 6;
+
+function softWrap(label) {
+    return String(label).split(/(\s+)/).map(part => {
+        if (part.length < LONG_WORD || /\s/.test(part)) return part;
+        let out = "";
+        for (let i = 0; i < part.length; i++) {
+            // Never offer a break in the last four characters: "Determinatio-n"
+            // is worse than no hyphen at all.
+            if (i > 0 && i % BREAK_EVERY === 0 && part.length - i >= 4) out += SHY;
+            out += part[i];
+        }
+        return out;
+    }).join("");
+}
+
+/** Does any tile in this grid need more room than it has? */
+function tileOverflows(grid) {
+    for (const tile of grid.querySelectorAll(".drpg-action-button")) {
+        // A hidden tile measures zero and would report a false positive.
+        if (!tile.clientHeight) continue;
+
+        const style = getComputedStyle(tile);
+        const gap = parseFloat(style.rowGap) || 0;
+        const needed = [...tile.children]
+                .reduce((total, child) => total + child.getBoundingClientRect().height, 0)
+            + (parseFloat(style.paddingTop) || 0)
+            + (parseFloat(style.paddingBottom) || 0)
+            + Math.max(0, tile.children.length - 1) * gap;
+
+        // A pixel of slack: sub-pixel layout noise must not flip the grid.
+        if (needed - tile.clientHeight > 1) return true;
+    }
+    return false;
+}
+
+/**
+ * Clear the marks, measure, mark again.
+ *
+ * Both passes run in the same task. Reading `clientHeight` forces the layout
+ * synchronously, so the cleared state is measured for real, and nothing is
+ * painted in between — the grid does not flicker on its way to the answer.
+ * Clearing first is what makes this idempotent: a sheet dragged wider is
+ * measured as a square again and drops the mark when it no longer needs it.
+ */
+function fitActionTiles(element) {
+    const root = element instanceof HTMLElement ? element : element?.[0];
+    if (!root) return;
+
+    const grids = [...root.querySelectorAll(".drpg-action-grid")];
+    if (!grids.length) return;
+
+    for (const grid of grids) delete grid.dataset.drpgTight;
+    for (const grid of grids) {
+        if (tileOverflows(grid)) grid.dataset.drpgTight = "";
+    }
+}
+
+/**
+ * Re-fit when the sheet is resized.
+ *
+ * The width a tile ends up with is not a function of the sheet width alone —
+ * the grid drops columns as it narrows, so tiles get SMALLER and then abruptly
+ * larger again. There is no width to hard-code; the only honest answer is to
+ * measure whenever the box changes.
+ */
+function watchTileFit(element) {
+    const root = element instanceof HTMLElement ? element : element?.[0];
+    if (!root || root.dataset.drpgTileFit) return;
+    root.dataset.drpgTileFit = "1";
+
+    // Re-entrancy guard: the fitter changes the height of the very boxes the
+    // observer is watching, which would otherwise call it straight back.
+    let fitting = false;
+    const observer = new ResizeObserver(() => {
+        if (fitting) return;
+        fitting = true;
+        requestAnimationFrame(() => {
+            try {
+                fitActionTiles(root);
+            } finally {
+                fitting = false;
+            }
+        });
+    });
+
+    observer.observe(root);
 }
 
 /* ==========================================================================
@@ -1405,7 +1547,7 @@ function meddleButton(actor) {
     // so the tile spells both out in the same order the tooltip does.
     button.innerHTML = `
         <i class="fa-solid ${def.icon} drpg-action-icon" inert></i>
-        <span class="drpg-action-name">${foundry.utils.escapeHTML(def.label)}</span>
+        <span class="drpg-action-name">${softWrap(foundry.utils.escapeHTML(def.label))}</span>
         <span class="drpg-action-cost">${game.i18n.format("DRPG.Monocub.meddleCostShort", {
             actions: def.cost, hope: def.hopeCost
         })}</span>`;
@@ -1699,7 +1841,7 @@ function callButton(call, monokuma, locked = false) {
 
     button.innerHTML = `
         <i class="fa-solid ${call.icon ?? "fa-circle"} drpg-action-icon" inert></i>
-        <span class="drpg-action-name">${foundry.utils.escapeHTML(call.label)}</span>
+        <span class="drpg-action-name">${softWrap(foundry.utils.escapeHTML(call.label))}</span>
         <span class="drpg-action-cost">${costLabel}</span>`;
 
     return button;
@@ -1913,10 +2055,21 @@ function actionButton(actor, key, def) {
     button.dataset.tooltip =
         `${foundry.utils.escapeHTML(def.hint ?? "")}<br><em>${costLabel}</em>${note}${why}`;
 
+    // Say what the stripe means, or the stripe means nothing.
+    //
+    // Four tiles read "1 action" and carry a grey stripe; five read "1 action"
+    // and carry a red one. From the outside that is the same label with two
+    // random colours. The difference is real — the grey ones hand the turn to
+    // the GM — but it was only ever in the tooltip, and a colour whose key is
+    // hidden is decoration.
+    const gmMark = def.callsGm
+        ? ` <span class="drpg-action-gm">${game.i18n.localize("DRPG.Action.waitsForGm")}</span>`
+        : "";
+
     button.innerHTML = `
         <i class="fa-solid ${def.icon ?? "fa-circle"} drpg-action-icon" inert></i>
-        <span class="drpg-action-name">${foundry.utils.escapeHTML(def.label)}</span>
-        <span class="drpg-action-cost">${costLabel}</span>`;
+        <span class="drpg-action-name">${softWrap(foundry.utils.escapeHTML(def.label))}</span>
+        <span class="drpg-action-cost">${costLabel}${gmMark}</span>`;
 
     return button;
 }

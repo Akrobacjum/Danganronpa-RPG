@@ -195,6 +195,25 @@ export async function openMurder({ killerId, victimId, indirect = false } = {}) 
         <p>${game.i18n.localize(nightNoteKey(indirect))}</p>`);
 
     log(`Murder opened: ${killer.name} → ${victim.name}${indirect ? " (indirect)" : ""}.`);
+
+    // Stage 4 starts itself.
+    //
+    // Which roll opens an incident is not a decision — a direct murder opens on
+    // the killer's roll, a trap on the victim's, and `rollOpening` has always
+    // known which and always sent it to the right person's client. What it
+    // waited for was a GM pressing a button on the tracker to say so, in a state
+    // where there is exactly one thing that can happen next. So it happens.
+    //
+    // Not awaited: the roll is a round trip to another client and can take as
+    // long as that player takes. Awaiting it here would leave `openMurder`
+    // hanging, and with it the dialog that called it.
+    //
+    // The tracker keeps its button. This is the first invitation, not the only
+    // one — a player who dismissed the window, or who was not connected when the
+    // incident opened, still needs a way to be asked again.
+    rollOpening(indirect ? "victim" : "killer", murderState())
+        .catch(err => error("Could not open the Stage 4 roll", err));
+
     return murderState();
 }
 
@@ -215,7 +234,10 @@ export async function resolveKillerOpening({ total, isCritical, withHope }) {
 
     if (!success) {
         await tellGms(def.failure);
-        await endMurder({ reason: "openingFailed" });
+        // No follow-up: the killer lost their nerve, so there is no body, no
+        // room to announce and nothing to investigate. The checklist would be
+        // asking the GM to find a corpse that does not exist.
+        await endMurder({ reason: "openingFailed", followUp: false });
         return { success: false };
     }
 
@@ -1349,7 +1371,7 @@ export async function thirdPartyEnters(actor) {
  * import, because cleanup.mjs reads the incident state from this file and a
  * static pair of imports both ways is a cycle for no gain.
  */
-export async function endMurder({ reason = "closed" } = {}) {
+export async function endMurder({ reason = "closed", followUp = true } = {}) {
     if (!game.user.isGM) return null;
 
     const state = murderState();
@@ -1365,6 +1387,100 @@ export async function endMurder({ reason = "closed" } = {}) {
 
     await game.settings.set(MODULE_ID, SETTINGS.murderState, {});
     log(`Murder closed (${reason}).`);
+
+    // What happens next, while the module still remembers the incident.
+    //
+    // The moment an incident closes is the moment its details stop being
+    // available — the state is wiped one line above — and it is also the moment
+    // a GM has four separate errands: the phase has to change, the body has to
+    // be found, the autopsy has to be issued, the Key Remnants have to be
+    // placed. Each of those lives on a different screen, and the one thing that
+    // ties them together is the incident that has just ended.
+    //
+    // So the checklist is built from the state before it goes, and offered
+    // once. `followUp: false` is for the callers that end an incident as part of
+    // something else and have their own next screen.
+    if (followUp && state?.victimId) {
+        try {
+            await afterIncident(state);
+        } catch (err) {
+            error("Could not show the post-incident checklist", err);
+        }
+    }
+    return null;
+}
+
+/**
+ * The post-murder checklist.
+ *
+ * Everything on it is derived, nothing is asked: the room comes from the
+ * victim's token, the Key Remnant count from the opening roll that produced it,
+ * the kind of murder from how the incident was opened. The GM reads a list of
+ * what is now owed and presses the one they want to do first — each button is
+ * the screen that does it, not a description of where to find it.
+ */
+async function afterIncident(state) {
+    const victim = game.actors.get(state.victimId);
+    const killer = game.actors.get(state.killerId);
+    if (!victim) return null;
+
+    const { roomOfActor } = await import("./movement.mjs");
+    const room = roomOfActor(victim);
+
+    const owed = [];
+    if (state.keyRemnants > 0) {
+        owed.push(game.i18n.format("DRPG.Murder.afterKeys", { n: state.keyRemnants }));
+    }
+    owed.push(game.i18n.localize("DRPG.Murder.afterAutopsy"));
+    owed.push(game.i18n.localize(state.indirect
+        ? "DRPG.Murder.afterIndirect"
+        : "DRPG.Murder.afterDirect"));
+
+    const alreadyInvestigating = getClock().phase === "investigation";
+
+    const action = await DialogV2.wait({
+        classes: ["drpg-panel"],
+        window: { title: game.i18n.localize("DRPG.Murder.afterTitle") },
+        content: dialogContent(`<div>
+            <p>${game.i18n.format("DRPG.Murder.afterIntro", {
+                victim: foundry.utils.escapeHTML(victim.name),
+                killer: foundry.utils.escapeHTML(killer?.name ?? "?")
+            })}</p>
+            <p><strong>${room
+                ? game.i18n.format("DRPG.Murder.afterRoom", { room: foundry.utils.escapeHTML(room) })
+                : game.i18n.localize("DRPG.Murder.afterNoRoom")}</strong></p>
+            <ul class="drpg-briefing-facts">${owed.map(o => `<li>${o}</li>`).join("")}</ul>
+        </div>`),
+        buttons: [
+            ...(alreadyInvestigating ? [] : [{
+                action: "investigation", default: true,
+                label: game.i18n.localize("DRPG.Murder.afterGoInvestigation")
+            }]),
+            { action: "body", label: game.i18n.localize("DRPG.Chapter.bodyTitle"),
+              default: alreadyInvestigating },
+            { action: "autopsy", label: game.i18n.localize("DRPG.TruthBullet.autopsyTitle") },
+            { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
+        ],
+        rejectClose: false
+    });
+
+    if (action === "investigation") {
+        const { setPhase } = await import("./clock.mjs");
+        await setPhase("investigation");
+        // Straight on to the body: moving the phase and announcing the body are
+        // the same beat at the table, and splitting them is what made this two
+        // trips through the GM panel.
+        const { openBodyDiscoveryDialog } = await import("./chapter.mjs");
+        return openBodyDiscoveryDialog();
+    }
+    if (action === "body") {
+        const { openBodyDiscoveryDialog } = await import("./chapter.mjs");
+        return openBodyDiscoveryDialog();
+    }
+    if (action === "autopsy") {
+        const { issueAutopsyDialog } = await import("./gm-items.mjs");
+        return issueAutopsyDialog();
+    }
     return null;
 }
 
@@ -1701,6 +1817,7 @@ export async function openIncidentTracker() {
     }
     if (action === "end") {
         const sure = await DialogV2.confirm({
+            classes: ["drpg-panel"],
             window: { title: game.i18n.localize("DRPG.Murder.endMurder") },
             content: `<p>${game.i18n.localize("DRPG.Murder.endConfirm")}</p>`
         });

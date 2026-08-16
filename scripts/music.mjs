@@ -32,6 +32,7 @@
 import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
+import { trialQueue } from "./trial-floor.mjs";
 import { isPrimaryGm, debug, log, error } from "./utils.mjs";
 
 /**
@@ -71,7 +72,14 @@ async function asOurs(fn) {
 export const MUSIC_STATES = [
     { key: "paused", labelKey: "DRPG.Music.state.paused", test: () => game.paused },
     { key: "eclipse", labelKey: "DRPG.Music.state.eclipse", test: () => getClock().eclipse === true },
-    { key: "trial", labelKey: "DRPG.Music.state.trial", test: () => getClock().phase === "classTrial" },
+    // The floor being OPEN, not the phase being displayed.
+    //
+    // Setting the chapter phase to "Class Trial" in Edit Campaign is
+    // bookkeeping — a GM does it while preparing, often minutes before anyone
+    // is in the room, and it used to start the trial music there and then. The
+    // trial actually begins when the floor opens and somebody has the right to
+    // speak, which is exactly when `trialQueue()` starts answering.
+    { key: "trial", labelKey: "DRPG.Music.state.trial", test: () => trialQueue() !== null },
     { key: "search", labelKey: "DRPG.Music.state.search", test: () => getClock().phase === "investigation" },
     ...TIMES_OF_DAY.map(time => ({
         key: `time.${time}`,
@@ -124,6 +132,11 @@ let interrupted = null;
 
 export function registerMusic() {
     Hooks.on("drpgTimeOfDayChanged", () => schedule());
+    // Opening or closing the floor is now a state change the music follows.
+    // The queue lives in a world setting, so this is the event that carries it.
+    Hooks.on("updateSetting", setting => {
+        if (setting?.key?.endsWith("trialQueue")) schedule();
+    });
     Hooks.on("drpgEclipseChanged", () => schedule());
     Hooks.on("pauseGame", () => schedule());
 

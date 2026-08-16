@@ -1037,8 +1037,11 @@ body:not(.drpg-gm) .character-header-sheet .hope-section .hope-value {
 .drpg-action-button .drpg-action-name {
     color: var(--drpg-bone);
     font-size: var(--drpg-text-sm);
-    overflow-wrap: anywhere;
-    hyphens: auto;
+    /* `break-word`, not `anywhere`: a word breaks only when it has to, and the
+       soft hyphens `softWrap()` puts in the long ones decide where. `anywhere`
+       broke every label at whatever character the edge landed on — "Observ /
+       e", "Sabota / ge" — with no hyphen to say a break had happened. */
+    overflow-wrap: break-word;
 }
 
 .drpg-action-button .drpg-action-cost {
@@ -1562,8 +1565,7 @@ section[data-application-part="inventory"] .items-section:not(.drpg-inventory-gr
     font-size: var(--drpg-text-xs) !important;
     line-height: 1.05;
     letter-spacing: 0;
-    hyphens: auto;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
 }
 
 .drpg-call-button .drpg-action-cost {
@@ -2756,17 +2758,33 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    two cases the markup cannot express.
    ========================================================================== */
 
-/* Default: hug the content. `fit-content` is min(max-content, max(min-content,
-   available)) — with the cap below that reads as "be as narrow as the content
-   allows, and wrap rather than pass 34rem". */
+/* Default: ONE width, the same for every window without a table in it.
+   --------------------------------------------------------------------------
+   This was `fit-content` between a 20rem floor and a 34rem cap, which is a
+   sensible rule per window and a mess across a session: measured on the live
+   sheet, the ordinary action dialogs came out at 384, 400 and 544 px, so the
+   window jumped size and place with every action a player took. A dialog is
+   not a tooltip — it replaces what you were looking at, and the eye should not
+   have to find the buttons again each time.
+
+   34rem, because that is where most of them already sat: the change makes the
+   small ones match the common case rather than shrinking everything to the
+   smallest. A confirm with one sentence in it is now the same window as the
+   Search picker, which is the point. */
 .application.dialog:is(
     .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
-    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
-) {
-    width: fit-content;
-    min-width: min(20rem, 90vw);
-    max-width: min(34rem, 92vw);
+    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window,
+    .drpg-summary-dialog, .drpg-safeword-dialog
+):not(.drpg-wide):not(.drpg-gm-panel-window) {
+    /* `!important` because ApplicationV2 writes the width as an INLINE style,
+       which no stylesheet rule can outrank otherwise — and `DialogV2.confirm`
+       and `.prompt` both default to `position: {width: 400}`, so every yes/no
+       window in the module came out 400px against everything else's 544. The
+       two rules below need it for the same reason and keep their precedence by
+       source order, exactly as before. */
+    width: min(var(--drpg-popup), 92vw) !important;
+    max-width: min(var(--drpg-popup), 92vw) !important;
 }
 
 /* A table states its own width and the window grows to hold it.
@@ -2778,9 +2796,19 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
-):has(.dialog-content table):not(.drpg-compact) {
-    width: max-content;
-    max-width: 94vw;
+):has(.dialog-content table):not(.drpg-compact):not(.drpg-gm-panel-window) {
+    /* `:not(.drpg-gm-panel-window)` because that window states its own width
+       below and a `:has()` selector outranks a plain class list — with both
+       carrying `!important` the GM panel was being sized by its table instead
+       of by its tile grid.
+
+       The wide tier, not the viewport. Left to size themselves these came out
+       at 674, 723, 985 and 1274px — four different windows for four managers
+       that do the same kind of job, and the widest was nearly the whole
+       screen. A table wider than the tier scrolls inside its window, which the
+       rule below the action grid already promises. */
+    width: max-content !important;
+    max-width: min(var(--drpg-popup-wide), 94vw) !important;
 }
 
 /* …but prose inside a wide window still reads at a measure, rather than being
@@ -2797,8 +2825,8 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    tile grid, a wide picker. Same specificity as the default rule above, so it
    wins on source order; keep it after. */
 .application.dialog.drpg-wide {
-    width: max-content;
-    max-width: 94vw;
+    width: min(var(--drpg-popup-wide), 94vw) !important;
+    max-width: min(var(--drpg-popup-wide), 94vw) !important;
 }
 
 .application.dialog.drpg-wide :is(p, blockquote, .notes) {
@@ -2815,12 +2843,13 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     flex-wrap: wrap;
 }
 
-/* `.drpg-narrow` still means "this is a short list, keep it tight". Declared
-   ONCE — it used to appear twice with different caps (26rem here, 22rem two
-   hundred lines later) and the second silently won. */
-.application.dialog.drpg-narrow {
-    max-width: min(24rem, 92vw);
-}
+/* `.drpg-narrow` no longer sets a width.
+   --------------------------------------------------------------------------
+   It meant "this is a short list, keep it tight", and tight is exactly what
+   made the module's windows different sizes from one another — it was the
+   384px in the measurement above. The class is left in the shared `:is()`
+   lists and at its call sites so those windows keep the rest of the panel
+   treatment; it simply takes the standard width now, like everything else. */
 
 /* The GM panel is a tile grid, and the one window here that cannot size itself.
    `repeat(auto-fit, minmax(15rem, 1fr))` needs a DEFINITE width to resolve into
@@ -2828,8 +2857,11 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    collapses into a single tall column. So it is told how wide it is — three
    columns' worth — and the grid does the rest. */
 .application.dialog.drpg-gm-panel-window {
-    width: min(46rem, 92vw);
-    max-width: min(46rem, 92vw);
+    /* The wide tier, like the table managers — it is one of them. It used to
+       have a width of its own (46rem) for no reason beyond being written on a
+       different day. */
+    width: min(var(--drpg-popup-wide), 92vw) !important;
+    max-width: min(var(--drpg-popup-wide), 92vw) !important;
 }
 
 /* Content that outgrows the viewport scrolls in both directions rather than
@@ -3379,8 +3411,11 @@ body.drpg-pixel-font .drpg-camera-dock .camera-view .name {
 
 .drpg-action-button .drpg-action-name,
 .drpg-call-button .drpg-action-name {
-    overflow-wrap: anywhere;
-    hyphens: auto;
+    /* See the note on `.drpg-action-button .drpg-action-name` above: the break
+       points come from the soft hyphens in the markup, not from the edge of
+       the box. `hyphens: auto` is not here because it does nothing in this
+       build — measured, with `lang="en"` on the root. */
+    overflow-wrap: break-word;
 }
 
 .drpg-action-button .drpg-action-cost,
@@ -3510,6 +3545,7 @@ body.drpg-pixel-font .drpg-action-button .drpg-action-cost {
 #drpg-player-status {
     display: flex;
     gap: 6px;
+    justify-content: space-between;
     margin: 0 0 6px;
     padding: 6px 8px;
     border: 1px solid var(--drpg-line-strong);
@@ -3518,8 +3554,15 @@ body.drpg-pixel-font .drpg-action-button .drpg-action-cost {
     pointer-events: auto;
 }
 
+/* Each field is as wide as it needs to be, not a third of the strip.
+   --------------------------------------------------------------------------
+   `flex: 1 1 0` split the width equally, and the three columns do not want
+   equal width: Hope carries six pips and "Actions" is the longest word. On a
+   228px rail that gave every field 67px, and "Actions" — which needs 77 —
+   came out as "Actio…". A label the panel exists to show, truncated by the
+   panel's own layout. */
 #drpg-player-status .drpg-status-field {
-    flex: 1 1 0;
+    flex: 0 1 auto;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -4378,6 +4421,20 @@ html body {
     --drpg-text-base: 1rem;      /* 16px */
     --drpg-text-lg: 1.25rem;     /* 20px */
     --drpg-text-xl: 1.75rem;     /* 28px */
+
+    /* Two window widths, and no third.
+       --------------------------------------------------------------------
+       Every popup the module opens is one of these. Measured before they
+       existed, the same set of windows came out at 360, 400, 544, 723, 736,
+       896 and 1274px — seven sizes for one module, so nothing on screen ever
+       sat where the last thing had been.
+
+       Both are deliberately NARROWER than the character sheet's 850px
+       default. The sheet is the thing you work in; these are the things you
+       answer and dismiss, and a dialog as wide as the sheet reads as another
+       sheet. Wide is for a table with columns to line up — nothing else. */
+    --drpg-popup: 34rem;         /* 544px — every window with prose in it */
+    --drpg-popup-wide: 44rem;    /* 704px — the GM panel and the managers */
 }
 
 /* --- the font takes everything ------------------------------------------ */
@@ -5930,17 +5987,18 @@ details.drpg-calls-panel[open] > .drpg-action-grid {
     background: var(--drpg-bone);
 }
 
-/* One of the two you have. */
+/* One of the two you have, and yours to resolve. Grey: nothing is waiting on
+   anybody. */
 .drpg-action-button[data-drpg-cost-kind="action"]::before {
-    background: var(--drpg-eye);
+    background: var(--drpg-dim);
 }
 
-/* Handed to the GM — the one kind whose timing is not yours. Dim, not gold:
-   gold was reserved for Hope in stage 2 and spending it here would have put a
-   third meaning on the sheet's most loaded colour. Dim already reads as
-   "pending, not in your hands", which is exactly what this is. */
+/* Handed to the GM. Red, because this is the one kind whose timing is not
+   yours — you describe it and then wait. That is the thing worth flagging on a
+   grid of ten tiles, so it takes the loud colour and the ordinary case takes
+   the quiet one. */
 .drpg-action-button[data-drpg-cost-kind="gm"]::before {
-    background: var(--drpg-dim);
+    background: var(--drpg-eye);
 }
 
 /* Paid in Stress, which is the pink resource. */
@@ -6300,15 +6358,407 @@ details.drpg-calls-panel[open] > .drpg-action-grid {
    `auto-fit` alone happily made ten columns on a wide sheet, which turned a
    deliberate 5x2 block into one long strip of small squares. Giving each track
    a floor of one fifth of the row caps the count at five without pinning it
-   there: below that the 4.75rem minimum takes over and the grid drops to four,
-   three, two. */
+   there: below that the minimum takes over and the grid drops to four, three,
+   two.
+
+   That minimum was 4.75rem — 76px — and it is a character too narrow for the
+   pixel face: "Observe" measures 77px and "Sabotage" 88px, so at the floor the
+   commonest labels broke mid-word. 5.75rem fits every action name and all but
+   three Hope Calls on one line, and the grid drops a column a little sooner,
+   which is the better trade. */
 .application.sheet.actor .drpg-action-grid,
 body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     grid-template-columns:
-        repeat(auto-fit, minmax(max(4.75rem, calc((100% - 16px) / 5)), 1fr)) !important;
+        repeat(auto-fit, minmax(max(5.75rem, calc((100% - 16px) / 5)), 1fr)) !important;
 }
 
 /* If anything still cannot fit, it scrolls — it does not vanish. */
 .application.sheet.actor .tab.active {
     overflow-x: auto;
+}
+
+/* ==========================================================================
+   POPRAWKI Z LISTY — the GM roster panel, alignment, and the last of the gold
+   ========================================================================== */
+
+/* --- 5. the roster as its own panel, top left, GM only ------------------- */
+
+#drpg-roster {
+    position: absolute;
+    top: var(--drpg-edge, 22px);
+    left: calc(var(--drpg-edge, 22px) + 76px);   /* clear of the scene controls */
+    z-index: 70;
+    min-width: 190px;
+    max-width: 280px;
+    padding: 0;
+    background: rgba(var(--drpg-deep-rgb), 0.92);
+    border: 1px solid var(--drpg-line-strong);
+    border-radius: 3px;
+    font-size: var(--drpg-text-xs);
+    pointer-events: auto;
+}
+
+.drpg-roster-summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 5px 8px;
+    background: var(--drpg-bone);
+    color: var(--drpg-ink);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    border-radius: 2px;
+    user-select: none;
+}
+
+.drpg-roster-summary::-webkit-details-marker { display: none; }
+
+.drpg-roster-list {
+    padding: 5px 8px 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.drpg-roster-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    color: var(--drpg-bone);
+}
+
+.drpg-roster-count {
+    font-variant-numeric: tabular-nums;
+    color: var(--drpg-eye-light);
+}
+
+/* Done recedes; the GM is waiting on the others. */
+.drpg-roster-row.spent,
+.drpg-roster-row.spent .drpg-roster-count {
+    color: var(--drpg-dim);
+}
+
+/* --- 2. Projects lines up with the clock -------------------------------- */
+
+/* The margin is written by alignRightColumn() in hud.mjs, which measures the
+   clock's actual top — the Despair bars above it are as tall as the campaign
+   has Monokumas, so no constant is right for long. */
+#ui-right-column-1 {
+    padding-top: 0 !important;
+}
+
+#ui-right-column-1 > *:first-child {
+    margin-top: 0 !important;
+}
+
+/* --- 4. the sheet's header controls: white chip, black glyph ------------- */
+/* They were near-black on near-black, and one was gold. Inverted outright —
+   these are the only controls on the sheet a player reaches for by shape
+   rather than by reading, so contrast matters more than restraint. */
+
+.application.sheet.actor .header-control,
+.application.sheet.actor .window-header button,
+.application.sheet.actor .drpg-advance-button,
+.application.sheet.actor .level-button {
+    background: var(--drpg-bone) !important;
+    border: 1px solid var(--drpg-ink) !important;
+    border-radius: 2px;
+    color: var(--drpg-ink) !important;
+}
+
+.application.sheet.actor .header-control i,
+.application.sheet.actor .header-control::before,
+.application.sheet.actor .window-header button i,
+.application.sheet.actor .drpg-advance-button i,
+.application.sheet.actor .level-button i {
+    color: var(--drpg-ink) !important;
+}
+
+.application.sheet.actor .header-control:hover,
+.application.sheet.actor .drpg-advance-button:hover,
+.application.sheet.actor .level-button:hover {
+    background: var(--drpg-eye) !important;
+    border-color: var(--drpg-eye) !important;
+    color: var(--drpg-bone) !important;
+}
+
+.application.sheet.actor .header-control:hover i,
+.application.sheet.actor .drpg-advance-button:hover i,
+.application.sheet.actor .level-button:hover i {
+    color: var(--drpg-bone) !important;
+}
+
+/* --- 6. the GM marker that gives the grey stripe a meaning --------------- */
+
+.drpg-action-gm {
+    display: inline-block;
+    margin-left: 3px;
+    padding: 0 3px;
+    border: 1px solid var(--drpg-eye);
+    border-radius: 2px;
+    color: var(--drpg-eye-light);
+    font-size: 0.85em;
+    letter-spacing: 0.06em;
+    vertical-align: baseline;
+}
+
+/* --- 3. equipped icons are not translucent ------------------------------ */
+
+.application.sheet.actor .item-img,
+.application.sheet.actor .equipment-section img,
+.application.sheet.actor .shortcut-items-section img,
+.application.sheet.actor .inventory-item img,
+.application.sheet.actor .drpg-inventory-list img {
+    opacity: 1 !important;
+    filter: none !important;
+    mix-blend-mode: normal !important;
+}
+
+/* --- 7 + 8. the chat cards: no purple glow, no Daggerheart gold ---------- */
+/* The roll cards were the one surface never touched — they still carried the
+   system's gold on every header, total and formula, and a lilac glow behind
+   the formula that predates the palette entirely. */
+
+#chat .roll-formula,
+.chat-message .roll-formula,
+.chat-message .roll-part-formula {
+    box-shadow: none !important;
+    text-shadow: none !important;
+    background: rgba(var(--drpg-bone-rgb), 0.06) !important;
+    border-color: var(--drpg-line) !important;
+    color: var(--drpg-bone) !important;
+}
+
+#chat .message-header,
+.chat-message .message-header,
+.chat-message .message-sender,
+.chat-message .roll-result-value,
+.chat-message .roll-result-desc,
+.chat-message h4 {
+    color: var(--drpg-bone) !important;
+}
+
+/* Hope and Despair keep their colours — those two mean something. Everything
+   else on a card is chrome and goes neutral. */
+.chat-message.duality.hope .roll-result-value,
+.chat-message.duality.hope .roll-result-desc {
+    color: var(--drpg-gold) !important;
+}
+
+.chat-message.duality.fear .roll-result-value,
+.chat-message.duality.fear .roll-result-desc {
+    color: var(--drpg-blood) !important;
+}
+
+#chat .notification-pip,
+.notification-pip {
+    background: var(--drpg-eye) !important;
+    color: var(--drpg-bone) !important;
+}
+
+/* Folder colours in the sidebar are world data, not ours — but the old module
+   purple sitting on them is a leftover from the palette we retired. */
+#sidebar .folder-header,
+#sidebar .subdirectory {
+    border-color: var(--drpg-line) !important;
+}
+
+/* The last two seams of the system's palette, found by measuring rather than
+   by looking: an amber ring on the Projects tray's concurrent-users marker,
+   and a 10% gold wash behind every chat message header and body. Neither is
+   ours; both predate the Monokuma switch.
+
+   The gold that REMAINS in chat is deliberate — a Hope result is gold because
+   Hope is gold, and the evidence counter is gold because Truth Bullets are.
+   Those are the palette working, not a leftover. */
+
+#ui-right-column-1 .concurrent-users,
+#ui-right-column-1 [class*="concurrent"] {
+    border-color: var(--drpg-line-strong) !important;
+    box-shadow: none !important;
+}
+
+#chat .message-header,
+#chat .message-content,
+.chat-message .message-header,
+.chat-message .message-content {
+    background-color: transparent !important;
+    background-image: none !important;
+}
+
+/* An Eclipse suspends the action economy, and the panel should look suspended
+   rather than merely small. */
+#drpg-player-status .drpg-status-field.is-eclipse .drpg-status-label,
+#drpg-player-status .drpg-status-field.is-eclipse .drpg-status-pip {
+    color: var(--drpg-dim) !important;
+    opacity: 0.55;
+}
+
+/* The crossings the Eclipse does allow are the one live thing on the panel. */
+#drpg-player-status .drpg-free-move.available i {
+    color: var(--drpg-bone) !important;
+}
+
+#drpg-player-status .drpg-free-move i + i {
+    margin-left: 2px;
+}
+
+/* ==========================================================================
+   B3 — WHAT TO DO NEXT
+   --------------------------------------------------------------------------
+   One line above the roster, and the button that does it. Red left edge like
+   every other "this is the live thing" marker in the module, and the button
+   itself is the only filled control on the panel — everything below it is a
+   tile you may want, this is the one you probably want.
+   ========================================================================== */
+
+.drpg-gmp-next {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 10px 0 12px;
+    padding: 9px 12px;
+    border: 1px solid var(--drpg-line-strong);
+    border-left: 3px solid var(--drpg-eye);
+    border-radius: 3px;
+    background: rgba(var(--drpg-eye-rgb), 0.08);
+}
+
+.drpg-gmp-next-label {
+    flex: 0 0 auto;
+    color: var(--drpg-eye-light);
+    font-size: var(--drpg-text-xs);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.drpg-gmp-next-text {
+    flex: 1 1 12rem;
+    color: var(--drpg-bone);
+}
+
+.drpg-gmp-next-go {
+    flex: 0 0 auto;
+    height: auto !important;
+    padding: 4px 12px;
+    border: 1px solid var(--drpg-eye) !important;
+    border-radius: 2px;
+    background: rgba(var(--drpg-eye-rgb), 0.18);
+    color: var(--drpg-bone);
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.drpg-gmp-next-go:hover {
+    background: rgba(var(--drpg-eye-rgb), 0.32);
+    box-shadow: 0 0 8px var(--drpg-eye-glow);
+}
+
+/* A footer button is as tall as its label.
+   --------------------------------------------------------------------------
+   Foundry gives every <button> a fixed height, which is fine for "OK" and not
+   for "Name what you are after". The renamed Observe branches wrapped to two
+   lines and the second line was simply cut off by the button's own edge — the
+   same failure as the action tiles, one window along.
+
+   `height: auto` with the fixed height kept as a floor: short buttons keep the
+   size they have always had, and only the ones that need a second line grow.
+   `line-height` is tightened because two lines of the pixel face at the
+   default leading push the row taller than it needs to be. */
+.application.dialog:is(
+    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
+    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
+    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
+) footer.form-footer button {
+    height: auto !important;
+    min-height: var(--button-size, 2rem);
+    padding-block: 4px;
+    line-height: 1.2;
+    white-space: normal;
+    overflow-wrap: break-word;
+    /* And wide enough to be worth wrapping to. Without a floor the footer
+       divides its width by the number of buttons, so five of them turned
+       "Name what you are after" into five stacked words in a 60px column.
+       With one, the row wraps instead: two or three buttons per line, each
+       wide enough to read. */
+    flex: 1 1 auto;
+    min-width: 8.5rem;
+}
+
+/* The last of the Daggerheart brown, found while measuring the GM-route border
+   against the buttons beside it: every dialog footer button was outlined in
+   rgb(159, 132, 117) — the system's warm grey-gold, not ours. It reads as a
+   different module's window sitting inside this one, and it took the red edge
+   below with it by association. Bone at the module's own line weight instead. */
+.application.dialog:is(
+    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
+    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
+    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
+) footer.form-footer button:not(.drpg-gm-route) {
+    border-color: var(--drpg-line-strong) !important;
+}
+
+.application.dialog:is(
+    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
+    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
+    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
+) footer.form-footer button:not(.drpg-gm-route):hover:not(:disabled) {
+    border-color: var(--drpg-bone) !important;
+}
+
+/* ==========================================================================
+   A3 — THE BUTTON THAT HANDS THE TURN TO THE GM
+   --------------------------------------------------------------------------
+   Observe and Analyze each offer a row of buttons that look identical and are
+   not: three of Observe's four resolve against a table, and the fourth waits
+   for a human. So does Analyze's hint. Nothing on the button said so, and the
+   difference is exactly the one worth knowing BEFORE pressing it — the others
+   answer immediately, this one answers when the GM gets to it.
+
+   Red, because red already means that here. The cost stripe on the action
+   tiles uses `--drpg-eye` for `cost-kind="gm"` and nothing else does, so the
+   convention carries from the grid into the dialogs it opens.
+
+   Border only, no fill: this is a warning about timing, not a destructive
+   action, and a solid red button in a row of four would read as the primary
+   one. The `!important` is not defensive — Foundry's own `.form-footer button`
+   sets `border` in a stylesheet that loads after this module's.
+   ========================================================================== */
+
+.application.dialog button.drpg-gm-route,
+.application.dialog footer.form-footer button.drpg-gm-route {
+    border: 1px solid var(--drpg-eye) !important;
+    color: var(--drpg-eye-light) !important;
+}
+
+.application.dialog button.drpg-gm-route:hover:not(:disabled),
+.application.dialog footer.form-footer button.drpg-gm-route:hover:not(:disabled) {
+    border-color: var(--drpg-eye-light) !important;
+    background: rgba(var(--drpg-eye-rgb), 0.12) !important;
+    box-shadow: 0 0 8px var(--drpg-eye-glow);
+}
+
+/* ==========================================================================
+   A4 — A TILE THAT CANNOT HOLD ITS LABEL STOPS BEING SQUARE
+   --------------------------------------------------------------------------
+   Set by `fitActionTiles` in sheet.mjs, which measures each grid and marks the
+   ones whose content is taller than the square allows. See the comment there
+   for why this is measured rather than expressed as a width breakpoint: the
+   grid drops columns as it narrows, so the tiles shrink and then jump back up,
+   and there is no single width at which the text stops fitting.
+
+   `grid-auto-rows: 1fr` is what keeps the result looking deliberate. Without
+   it each tile takes its own content height and a row of ten comes out as ten
+   different rectangles; with it every row is one height, set by whichever tile
+   in it needs the most.
+   ========================================================================== */
+
+.drpg-action-grid[data-drpg-tight] {
+    grid-auto-rows: 1fr;
+    align-items: stretch;
+}
+
+.drpg-action-grid[data-drpg-tight] .drpg-action-button {
+    aspect-ratio: auto !important;
+    align-self: stretch !important;
 }

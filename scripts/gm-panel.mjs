@@ -10,6 +10,7 @@ import { MODULE_ID, FLAGS, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES, CHAPTERS_PE
 import { getClock, setClock, setTimeOfDay, clockSummary, timeOfDayLabel, phaseLabel, campaignName } from "./clock.mjs";
 import { resetAllActions, actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
+import { isEclipse } from "./eclipse.mjs";
 import { dialogContent, error } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -92,7 +93,13 @@ const PANEL_SECTIONS = [
             { key: "manageRemnants", icon: "fa-triangle-exclamation", labelKey: "DRPG.Remnant.manageTooltip",
               run: () => import("./remnants.mjs").then(m => m.openRemnantManager()) },
             { key: "objectionLog", icon: "fa-gavel", labelKey: "DRPG.Trial.logTitle",
-              run: () => import("./trial.mjs").then(m => m.openObjectionLog()) }
+              run: () => import("./trial.mjs").then(m => m.openObjectionLog()) },
+            // The trial is started from HERE, in the phase you are leaving —
+            // which is the phase you are in when you decide to hold one. It
+              // used to be reachable only after the phase had already been
+            // changed by hand somewhere else.
+            { key: "startTrial", icon: "fa-scale-balanced", labelKey: "DRPG.Floor.startTrial",
+              run: () => import("./trial-floor-ui.mjs").then(m => m.startClassTrial()) }
         ]
     },
     {
@@ -103,6 +110,8 @@ const PANEL_SECTIONS = [
               run: () => import("./trial-floor-ui.mjs").then(m => m.openFloorDialog()) },
             // `The vote` and `The verdict` are steps on the floor window now. A
             // trial runs floor -> vote -> verdict every time, in that order.
+            { key: "endTrial", icon: "fa-flag-checkered", labelKey: "DRPG.Floor.endTrial",
+              run: () => import("./trial-floor-ui.mjs").then(m => m.endClassTrial()) }
         ]
     },
     {
@@ -447,6 +456,59 @@ async function toggleEclipse() {
     return null;
 }
 
+/**
+ * What to do next.
+ * ---------------------------------------------------------------------------
+ * The panel is a list of tools, and a list of tools is the answer to "what can
+ * I do", which is not the question a GM has mid-session. The question is "what
+ * happens now" — and the module already knows, because every input to that
+ * answer is a flag it wrote itself: the phase, the queue, whether an incident
+ * is running, how many students still have actions.
+ *
+ * So one line at the top says it, with the button that does it. The tiles below
+ * are unchanged and still reachable; this only saves the GM from working out
+ * which of thirty of them the current state calls for.
+ *
+ * Ordered by urgency, and the first match wins. An incident interrupts
+ * everything, an Eclipse is a window everyone is waiting inside, and the rest
+ * follows the phase.
+ *
+ * @returns {{text: string, action: string|null}}
+ */
+function nextStep(clock) {
+    const students = game.actors.filter(a =>
+        a.type === "character"
+        && !a.getFlag(MODULE_ID, FLAGS.monokuma)
+        && (!a.getFlag(MODULE_ID, FLAGS.deceased) || a.getFlag(MODULE_ID, FLAGS.monocub)));
+    const stillActing = students.filter(a => actionsLeft(a) > 0);
+
+    if (game.drpg?.murderState?.()?.active) {
+        return { text: game.i18n.localize("DRPG.Panel.nextIncident"), action: "murder" };
+    }
+
+    if (isEclipse()) {
+        return { text: game.i18n.localize("DRPG.Panel.nextEclipse"), action: "eclipse" };
+    }
+
+    if (clock.phase === "classTrial") {
+        const queue = game.drpg?.trialQueue?.() ?? null;
+        return queue
+            ? { text: game.i18n.format("DRPG.Panel.nextFloor", {
+                  who: game.drpg.trialSpeaker?.()?.name ?? "—" }), action: "floor" }
+            : { text: game.i18n.localize("DRPG.Panel.nextNoFloor"), action: "startTrial" };
+    }
+
+    if (clock.phase === "investigation") {
+        return { text: game.i18n.localize("DRPG.Panel.nextInvestigation"), action: "investigation" };
+    }
+
+    // Daily Life. The one number that decides whether the time of day is over.
+    return stillActing.length
+        ? { text: game.i18n.format("DRPG.Panel.nextStillActing", { n: stillActing.length }),
+            action: null }
+        : { text: game.i18n.localize("DRPG.Panel.nextAllDone"), action: "jump" };
+}
+
 /** Current standing: where the clock is and what everyone has left. */
 function buildPanelContent() {
     const clock = getClock();
@@ -494,12 +556,26 @@ function buildPanelContent() {
            </table>`
         : `<p>${game.i18n.localize("DRPG.Panel.noCharacters")}</p>`;
 
+    // The suggestion sits ABOVE the standing, because it is the thing being
+    // looked for. Its button carries an ordinary `data-drpg-run`, so the panel's
+    // existing delegate runs it and reopens the panel afterwards like any tile.
+    const step = nextStep(clock);
+    const suggestion = `<div class="drpg-gmp-next">
+            <span class="drpg-gmp-next-label">${game.i18n.localize("DRPG.Panel.nextLabel")}</span>
+            <span class="drpg-gmp-next-text">${step.text}</span>
+            ${step.action
+                ? `<button type="button" class="drpg-gmp-next-go" data-drpg-run="${step.action}">
+                       ${game.i18n.localize("DRPG.Panel.nextGo")}</button>`
+                : ""}
+        </div>`;
+
     return `<div>
                 <h3>${foundry.utils.escapeHTML(campaignName(clock))}</h3>
                 <p><strong>${game.i18n.format("DRPG.Hud.chapter", { n: clock.chapter })}
                    · ${phaseLabel(clock.phase)}
                    · ${timeOfDayLabel(clock.timeOfDay)}</strong></p>
                 <p>${clockSummary(clock)}</p>
+                ${suggestion}
                 ${table}
             </div>`;
 }

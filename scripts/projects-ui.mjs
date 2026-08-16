@@ -421,6 +421,7 @@ async function openProjectDialog({ project = null, rooms = allRooms() } = {}) {
 
     if (result === "delete") {
         const sure = await DialogV2.confirm({
+            classes: ["drpg-panel"],
             window: { title: game.i18n.localize("DRPG.Project.delete") },
             content: `<p>${game.i18n.format("DRPG.Project.deleteConfirm", {
                 name: foundry.utils.escapeHTML(project.name)

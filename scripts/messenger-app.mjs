@@ -105,9 +105,13 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
             resizable: true,
             minimizable: true
         },
+        // The module's standard popup width, in pixels because DEFAULT_OPTIONS
+        // cannot read a CSS custom property. Keep in step with `--drpg-popup`
+        // in danganronpa.css; it was 360, the narrowest of seven different
+        // window widths the module used to open.
         position: {
-            width: 360,
-            height: 460
+            width: 544,
+            height: 520
         }
     };
 
