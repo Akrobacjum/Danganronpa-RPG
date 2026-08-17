@@ -100,9 +100,40 @@ function trimItemSheet(app, element) {
     const links = root.querySelectorAll(".tab-navigation a");
     if (links.length <= 1) root.querySelector(".tab-navigation")?.remove();
 
+    dropTypeHeading(root);
     labelItemKind(root, app.document);
     lockItemName(root);
 }
+
+/**
+ * Daggerheart's type heading, removed.
+ *
+ * It printed the system's own item type — "Loot" — directly under the name, at
+ * 16px, which is a bigger and louder statement than the name it sat beneath. It
+ * also says nothing: every ordinary item in this game is a `loot`, and the line
+ * that actually distinguishes them is the one `labelItemKind` puts above.
+ */
+function dropTypeHeading(root) {
+    root.querySelector(".item-description > h3")?.remove();
+}
+
+/*
+ * WHY THERE IS NO FITTER HERE.
+ *
+ * The obvious fix for a name that overflows is to measure it and step the font
+ * down until it fits, the way `fitActionTiles` does for the action grid. It was
+ * written, and it does not work on this element: the name field ignores a
+ * font-size set from script entirely. Measured, and worth writing down so nobody
+ * spends the afternoon on it again — with `style.setProperty("font-size",
+ * "12px", "important")` on the live, attached input, `getComputedStyle` still
+ * reported 20px and `scrollWidth` did not move a pixel across sizes 20 down to
+ * 12. The stylesheet CAN size it (that is what took Daggerheart's 30px down to
+ * the 20px below); script cannot.
+ *
+ * So the size is a constant in the stylesheet and a long name is cut with an
+ * ellipsis. Real item names are "Bent pipe" and "Bleach"; the forty-six
+ * character case that started this was a stress test, not a session.
+ */
 
 /**
  * Say what kind of thing this is, under its name.

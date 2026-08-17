@@ -7638,3 +7638,32 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     cursor: not-allowed;
     border-style: dashed;
 }
+
+/* The item's name. Sized down from Daggerheart's 30px, then fitted to the box
+   by `fitItemName` in sheet.mjs — the ceiling lives here, the measurement there. */
+/* THE BOX MUST NOT SHRINK WITH THE FONT.
+   --------------------------------------------------------------------------
+   An `<input>` has an intrinsic width of `size` characters — 20 by default — so
+   a field left to size itself gets narrower every time the font gets smaller.
+   Measured before this rule: the fitter stepped 20px down to 10px and the box
+   went 432px down to 224px with it, chasing its own tail and never fitting.
+   Both the heading and the field are pinned to the full width so the only thing
+   that changes is the type. */
+.drpg-item-sheet .item-name {
+    margin: 0;
+    width: 100%;
+    min-width: 0;
+    flex: 0 0 auto;
+}
+
+.drpg-item-sheet .item-name input[name="name"] {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    font-size: 1.25rem;
+    line-height: 1.2;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
