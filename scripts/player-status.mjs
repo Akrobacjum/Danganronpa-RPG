@@ -26,6 +26,7 @@ import { hopeHeld } from "./calls.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { isDeceased } from "./chapter.mjs";
 import { isMonocub } from "./monocub.mjs";
+import { matchStripToDespair } from "./hud.mjs";
 import { error } from "./utils.mjs";
 
 const WIDGET_ID = "drpg-player-status";
@@ -169,6 +170,13 @@ export function renderPlayerStatus() {
         // orders this column explicitly anyway (`order: 0`), so first is both
         // the honest DOM position and the one that already matches.
         host.prepend(el);
+
+        // The strip is as tall as the Despair panel opposite it, and how tall
+        // that is depends on how many Monokumas the campaign has. Re-measured
+        // here as well as in the HUD render, because this widget redraws far
+        // more often than the clock does — every action spent — and the two
+        // boxes must never be seen at different heights.
+        matchStripToDespair();
     } catch (err) {
         error("Could not render the player status strip", err);
     }

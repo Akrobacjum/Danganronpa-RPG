@@ -466,6 +466,36 @@ async function runCallAction(action, data) {
         return openMurderDialog({ killerId: data.killer, indirect: true });
     }
 
+    if (action === "approveProject") {
+        // Prefilled, not applied. The GM asked for a proposal so they could
+        // change it — approving straight into existence would be the old
+        // behaviour with an extra click in front of it.
+        const { openProjectDialog } = await import("./projects-ui.mjs");
+        return openProjectDialog({
+            preset: {
+                name: data.pname ?? "",
+                target: Number(data.target) || 4,
+                room: data.room || null,
+                trait: data.trait || null,
+                indirectMurder: Boolean(data.murder),
+                condition: data.condition ?? ""
+            }
+        });
+    }
+
+    if (action === "declineProject") {
+        // No action to refund: starting a project is a declaration, and the
+        // cost is paid by working on it afterwards.
+        const actor = game.actors.get(data.by);
+        if (!actor) return null;
+        const { postToThread } = await import("./messenger.mjs");
+        const owner = ownerOf(actor);
+        const note = `<p><em>${game.i18n.localize("DRPG.Project.declinedPlayer")}</em></p>`;
+        if (owner) await postToThread(owner.id, note);
+        ui.notifications.info(game.i18n.format("DRPG.Project.declinedGm", { name: actor.name }));
+        return true;
+    }
+
     if (action === "declineMurder") {
         // The refusal is the GM overruling the declaration, not the rules
         // resolving it — so the action comes back. A witness in the room is the

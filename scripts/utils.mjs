@@ -20,12 +20,78 @@ export function debug(...args) {
     if (on) console.debug(`${MODULE_ID} |`, ...args);
 }
 
+/* ==========================================================================
+ * THIS SESSION'S FAILURES
+ * --------------------------------------------------------------------------
+ * `error()` wrote to `console.error` and nowhere else — 181 call sites, all of
+ * them invisible to anybody without DevTools open. Nobody has DevTools open
+ * during a session. That is exactly how `moveProjectsTray is not defined`
+ * survived a whole stage: it logged faithfully, every render, into a console
+ * nobody was reading, while the feature it belonged to simply did not work.
+ *
+ * IN MEMORY, ON PURPOSE. "Only this session" is not a filter to write — it is
+ * what an array in a module scope already is. Reload the page and the log is
+ * empty, which is the correct answer: a failure from before the reload is not
+ * something the GM can act on now, and a log that accumulates across weeks is a
+ * log nobody opens.
+ *
+ * Capped, because a failure inside a render loop produces thousands. The cap
+ * keeps the FIRST ones — the first occurrence is the one that explains the
+ * cause; the ten thousandth only proves it kept happening — and counts repeats
+ * instead of listing them.
+ * ========================================================================== */
+
+const SESSION_LOG_CAP = 60;
+const sessionLog = [];
+
+function record(level, args) {
+    try {
+        const message = args.map(a =>
+            a instanceof Error ? a.message
+            : typeof a === "string" ? a
+            : (() => { try { return JSON.stringify(a); } catch { return String(a); } })()
+        ).join(" ");
+
+        // The same failure twice is one row with a count, not two rows. A hook
+        // that throws on every token move would otherwise bury everything else
+        // in the log within a minute.
+        const last = sessionLog.find(e => e.level === level && e.message === message);
+        if (last) {
+            last.count += 1;
+            last.at = Date.now();
+            return;
+        }
+        if (sessionLog.length >= SESSION_LOG_CAP) return;
+
+        const stack = args.find(a => a instanceof Error)?.stack ?? null;
+        sessionLog.push({ level, message, stack, at: Date.now(), count: 1 });
+    } catch {
+        // A logger that throws while logging a throw is how a session ends.
+    }
+}
+
+/** Everything this client has failed at since the page loaded, newest last. */
+export function sessionFailures() {
+    return sessionLog.map(e => ({ ...e }));
+}
+
+/** How many, for a badge. Repeats count once — they are one fault. */
+export function sessionFailureCount() {
+    return sessionLog.length;
+}
+
+export function clearSessionFailures() {
+    sessionLog.length = 0;
+}
+
 export function warn(...args) {
     console.warn(`${MODULE_ID} |`, ...args);
+    record("warn", args);
 }
 
 export function error(...args) {
     console.error(`${MODULE_ID} |`, ...args);
+    record("error", args);
 }
 
 /** Ids of every GM user, active or not. */
@@ -113,6 +179,11 @@ export function plural(key, data = {}, countOn = "n") {
     try {
         form = new Intl.PluralRules(game.i18n?.lang || "en").select(n);
     } catch {
+        // An unknown language tag is the only way this throws, and the answer is
+        // not to give up on the sentence — English's own rule is one/other, and
+        // it is right for the language the strings are actually written in.
+        // Silent on purpose: a bad tag would otherwise log once per counted
+        // string, which is several times per render.
         form = n === 1 ? "one" : "other";
     }
     const picked = game.i18n.has(`${key}.${form}`) ? form : "other";

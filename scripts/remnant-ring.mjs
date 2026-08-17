@@ -19,8 +19,8 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { REMNANT_FLAGS } from "./remnants.mjs";
-import { debug } from "./utils.mjs";
+import { REMNANT_FLAGS, remnantData } from "./remnants.mjs";
+import { debug, error } from "./utils.mjs";
 
 const RING_NAME = "drpgRemnantRing";
 
@@ -49,6 +49,80 @@ export function registerRemnantRings() {
         // refresh that follows it already will.
         if (changes.flags?.[MODULE_ID]) doc.object && paint(doc.object);
     });
+
+    // ONE hook only — ApplicationV2 fires a render hook for every class in the
+    // inheritance chain, so listening to the concrete sheet as well runs this
+    // twice. Same reasoning as anonymity.mjs.
+    Hooks.on("renderActorSheetV2", (app, element) => {
+        try {
+            showRemnantCard(app, element);
+        } catch (err) {
+            // A trace that opens the system's sheet is ugly, not broken. Never
+            // let this throw into somebody else's render.
+            error("Could not draw the Remnant card", err);
+        }
+    });
+}
+
+/**
+ * What a Remnant shows when you double-click it on the map.
+ *
+ * It used to show Daggerheart's adversary sheet: 660x600 of stat block, two
+ * tabs, and the token's own name printed twice — for a smear on a floor. None
+ * of what a Remnant actually IS appeared anywhere on it. Measured before this:
+ * type, visibility, the room, who left it and the GM's note were all absent
+ * from the only window the object opens.
+ *
+ * Replaced rather than restyled. There is no arrangement of an adversary sheet
+ * that describes a trace; the fields are not there to lay out.
+ *
+ * WHAT A PLAYER SEES IS NOT WHAT A GM SEES. The note is the answer key — it
+ * says who left the trace and what they were doing — so a player who reaches a
+ * revealed token gets the one line the fiction gives them: there is something
+ * here, and finding out what it means costs an Observe.
+ */
+function showRemnantCard(app, element) {
+    const actor = app?.document;
+    const token = actor?.token ?? actor?.getActiveTokens?.(true, true)?.[0] ?? null;
+    const source = token ?? actor;
+    if (!source?.getFlag?.(MODULE_ID, REMNANT_FLAGS.isRemnant)) return;
+
+    const data = remnantData(token ?? actor);
+    if (!data) return;
+
+    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
+    const body = element.querySelector(".window-content") ?? element;
+    const isGm = game.user.isGM;
+
+    const when = [data.chapter ? `Ch ${data.chapter}` : null,
+                  data.day ? `D ${data.day}` : null,
+                  data.timeOfDay].filter(Boolean).join(" · ");
+
+    const rows = isGm ? [
+        [game.i18n.localize("DRPG.Remnant.cardWhat"), `${esc(data.visibilityLabel)} ${esc(data.typeLabel)}`],
+        [game.i18n.localize("DRPG.Remnant.cardWhere"), esc(data.room ?? "—")],
+        [game.i18n.localize("DRPG.Remnant.cardWhen"), esc(when || "—")],
+        [game.i18n.localize("DRPG.Remnant.cardWho"), esc(data.sourceName ?? "—")],
+        [game.i18n.localize("DRPG.Remnant.cardSubject"), esc(data.subject ?? "—")]
+    ] : [];
+
+    body.innerHTML = `<div class="drpg-panel drpg-remnant-card">
+        <h3>${esc(game.i18n.localize("DRPG.Remnant.cardTitle"))}</h3>
+        ${isGm ? `
+            <dl class="drpg-remnant-facts">
+                ${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v}</dd>`).join("")}
+            </dl>
+            ${data.note ? `<p class="drpg-remnant-note">${esc(data.note)}</p>` : ""}
+            ${data.faint || data.reinforced || data.tiedToCrime ? `<p class="drpg-remnant-tags">${[
+                data.tiedToCrime ? esc(game.i18n.localize("DRPG.Remnant.crimeColumn")) : null,
+                data.faint ? esc(game.i18n.localize("DRPG.Remnant.faintColumn")) : null,
+                data.reinforced ? esc(game.i18n.localize("DRPG.Remnant.reinforcedColumn")) : null
+            ].filter(Boolean).join(" · ")}</p>` : ""}`
+        : `<p>${esc(game.i18n.localize("DRPG.Remnant.cardPlayer"))}</p>`}
+    </div>`;
+
+    // The window is sized for a stat block and this is a card.
+    app.setPosition?.({ height: "auto", width: 380 });
 }
 
 /** Resolve a CSS custom property to the integer PIXI wants. */

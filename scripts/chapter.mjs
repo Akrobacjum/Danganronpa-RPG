@@ -366,6 +366,76 @@ export async function discoverBody({ room, victim = null } = {}) {
     return { promoted, moved };
 }
 
+/**
+ * Two people walk in on a corpse. That is the discovery.
+ *
+ * The guide's trigger is people finding the body, not a GM remembering to press
+ * a button — and the button was the only thing that could fire Stage 7, so an
+ * investigation began when somebody noticed the screen rather than when the
+ * cast noticed the body. Watched on token movement, the same way a third party
+ * walking into a running incident is watched.
+ *
+ * "Unconnected to the incident" is the load-bearing phrase. The killer standing
+ * over their own victim has not discovered anything, and neither has an
+ * accomplice or the third party who was in the room for it: `blackenedIds`
+ * carries all of them across the end of the incident, which is why this can run
+ * after the state is gone. A Monokuma is not a witness either — see
+ * `maybeThirdParty`, same rule — and nor is a hidden token or a second body.
+ *
+ * Two is the count, and it is deliberately not one: a single student alone with
+ * a body is the classic frame-up, and the guide leaves that to the table.
+ */
+let bodyCheckRunning = false;
+
+export async function maybeBodyFound(tokenDoc) {
+    if (!game.user.isGM || bodyCheckRunning) return null;
+    if (getClock().phase === "investigation") return null;   // already in Stage 7
+
+    // Everything here compares actor IDs, never actor objects.
+    //
+    // An unlinked token does not carry the world actor — Foundry hands it a
+    // synthetic copy with the token's own overrides applied — so `includes(actor)`
+    // is false for every unlinked token on the scene, however plainly the person
+    // is standing there. Measured: a student in the room with the body was not
+    // counted as a witness for exactly this reason.
+    const students = new Set(studentActors().map(a => a.id));
+    const bodies = new Set(studentActors().filter(a => isDeceased(a)).map(a => a.id));
+    if (!bodies.size) return null;
+
+    const { roomOfToken } = await import("./movement.mjs");
+    const room = roomOfToken(tokenDoc);
+    if (!room) return null;
+
+    // The body has to be in the room somebody just walked into.
+    const scene = tokenDoc.parent;
+    const bodyHere = scene?.tokens?.find(t =>
+        t.actor && bodies.has(t.actor.id) && !t.hidden && roomOfToken(t) === room);
+    if (!bodyHere) return null;
+
+    const { blackenedIds } = await import("./murder.mjs");
+    const involved = new Set(blackenedIds());
+
+    const witnesses = scene.tokens.filter(t => {
+        const actor = t.actor;
+        if (!actor || actor.type !== "character") return false;
+        if (t.hidden) return false;
+        if (bodies.has(actor.id)) return false;
+        if (involved.has(actor.id)) return false;
+        if (!students.has(actor.id)) return false;            // excludes Monokumas
+        return roomOfToken(t) === room;
+    });
+
+    if (witnesses.length < 2) return null;
+
+    bodyCheckRunning = true;
+    try {
+        log(`Body found in ${room}: ${witnesses.map(t => t.actor.name).join(", ")} walked in.`);
+        return await discoverBody({ room, victim: bodyHere.actor });
+    } finally {
+        bodyCheckRunning = false;
+    }
+}
+
 /** The body-discovery announcement, from the GM panel. */
 export async function openBodyDiscoveryDialog() {
     if (!game.user.isGM) {

@@ -166,24 +166,32 @@ export async function endEclipse({ advance = true } = {}) {
     if (!game.user.isGM) return null;
     if (!isEclipse()) return null;
 
-    await setClock({ eclipse: false });
     await game.settings.set(MODULE_ID, SETTINGS.eclipseMoves, {});
-
     log("Eclipse ended.");
-    await broadcastEclipse(false);
 
+    // The broadcast comes AFTER the clock, for the same reason the flag does.
+    // It redraws the HUD on every other client, and sent first it redrew them
+    // into the half-finished state this function exists to skip past.
     if (advance) {
         const { advanceTimeOfDay } = await import("./clock.mjs");
         // This is where the action economy actually comes back — see the
         // comment on `startEclipse`. `resetActions` is off by default in
         // `advanceTimeOfDay` precisely so the Eclipse is the one thing that
         // turns it on.
-        await advanceTimeOfDay({ resetActions: true });
+        //
+        // `eclipse: false` travels WITH the advance rather than ahead of it.
+        // Cleared first, the clock spent a frame reading as the time of day
+        // that had just finished — the flicker between the Eclipse and the
+        // time it leads into.
+        await advanceTimeOfDay({ resetActions: true, also: { eclipse: false } });
     } else {
+        await setClock({ eclipse: false });
         await announce({
             content: `<p><strong>${timeOfDayLabel()}</strong> — ${game.i18n.localize("DRPG.Eclipse.ended")}</p>`
         });
     }
+
+    await broadcastEclipse(false);
     return true;
 }
 

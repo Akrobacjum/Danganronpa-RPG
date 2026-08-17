@@ -1014,7 +1014,7 @@ async function startProject(actor) {
         buttons: [
             {
                 action: "create",
-                label: game.i18n.localize("DRPG.Project.createButton"),
+                label: game.i18n.localize("DRPG.Project.proposeButton"),
                 default: true,
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
@@ -1039,32 +1039,69 @@ async function startProject(actor) {
         return null;
     }
 
-    // Creating a countdown writes a world setting, so a player's request is
-    // applied by the GM. An indirect murder is secret to everyone but them.
-    const { requestProjectCreate } = await import("./gm-bridge.mjs");
-    const owner = game.users.find(u => !u.isGM && actor.testUserPermission(u, "OWNER"));
+    // A PROPOSAL, NOT A PROJECT.
+    //
+    // This used to create the countdown outright, on the reasoning that the
+    // guide has projects agreed with the GM beforehand and a rubber stamp
+    // mid-turn is friction. In practice the agreement is where the work is: what
+    // it takes, which room it belongs to, whether it is quietly a murder weapon.
+    // A player filling in five fields alone was making all of those calls by
+    // themselves and the GM found out afterwards, from a tray that had grown a
+    // row.
+    //
+    // Same shape as the direct-murder declaration (see `performDirectMurder`):
+    // the form becomes a card the GM reads, with the answers on it, and one
+    // press opens their own creation screen prefilled so they can correct
+    // anything before it lands. Nothing exists in the world until they do.
+    const scaleLabel = Object.values(PROJECT_SCALE)
+        .find(s => s.progress === result.target)?.label ?? `${result.target}`;
+    const esc = foundry.utils.escapeHTML;
 
-    await requestProjectCreate({
-        name: result.name,
-        target: result.target,
-        room: result.room,
-        trait: result.trait,
-        indirectMurder: result.murder,
-        condition: result.condition,
-        secret: result.murder,
-        viewers: owner ? [owner.id] : [],
-        by: actor.name,
-        // So the module knows whose trap it is when the bar fills — see
-        // `announceTrapReady`. The GM's own creation screen fills this in from
-        // whoever the project was made visible to.
-        killerId: actor.id
+    const summary = [
+        `<strong>${esc(result.name)}</strong>`,
+        `${esc(scaleLabel)} · ${result.target} progress`,
+        result.room ? esc(result.room) : game.i18n.localize("DRPG.Project.anyRoom"),
+        result.trait ? (TRAITS[result.trait]?.label ?? result.trait) : game.i18n.localize("DRPG.Project.anyTrait")
+    ].join(" · ");
+
+    await promptAndCallGm(actor, {
+        title: game.i18n.localize("DRPG.Project.proposalTitle"),
+        prompt: game.i18n.localize("DRPG.Project.proposalPrompt"),
+        placeholder: game.i18n.localize("DRPG.Project.proposalPlaceholder"),
+        room,
+        body: `${summary}${result.condition ? `<br><em>${esc(result.condition)}</em>` : ""}${
+            result.murder ? `<br><span class="drpg-warning">${
+                esc(game.i18n.localize("DRPG.Project.indirectMine"))}</span>` : ""}`,
+        actions: [
+            {
+                action: "approveProject",
+                label: game.i18n.localize("DRPG.Project.approveButton"),
+                // Lowercase keys only: `data-*` attributes arrive through
+                // `dataset`, which lowercases everything, so `killerId` would
+                // come back as `killerid` and quietly read undefined.
+                data: {
+                    by: actor.id,
+                    pname: result.name,
+                    target: String(result.target),
+                    room: result.room ?? "",
+                    trait: result.trait ?? "",
+                    murder: result.murder ? "1" : "",
+                    condition: result.condition ?? ""
+                }
+            },
+            {
+                action: "declineProject",
+                label: game.i18n.localize("DRPG.Project.declineButton"),
+                data: { by: actor.id }
+            }
+        ]
     });
 
     await whisperToOwner(actor, `<p><strong>${game.i18n.localize("DRPG.Project.startNew")}</strong> — ${
-        game.i18n.format("DRPG.Project.startedOk", { name: foundry.utils.escapeHTML(result.name) })
+        game.i18n.format("DRPG.Project.proposalSent", { name: esc(result.name) })
     }</p>`);
 
-    return { created: true, name: result.name };
+    return { proposed: true, name: result.name };
 }
 
 async function workOnProject(actor, def, options) {
@@ -1759,12 +1796,22 @@ async function askDeclaration(actor, def) {
             <p>${game.i18n.localize("DRPG.Observe.declarePrompt")}</p>
             <p class="notes">${game.i18n.localize("DRPG.Observe.declareNote")}</p>
         </form>`),
+        // Ordered by who answers, not by how the guide lists them.
+        //
+        // The first two are settled by the table: sweeping the room takes the
+        // easiest trace in it and looking past the obvious takes the hardest,
+        // and both are decided by a number. The last two summon a human — the GM
+        // picks which Remnant a named request lands on, and "ask the GM" is a
+        // ruling outright. Naming what you are after sat between the two
+        // table-lookups wearing their colour, which read as a third automatic
+        // option rather than what it is.
+        //
+        // Red on both, like the cost stripe on a GM-routed tile: red already
+        // means "this waits for somebody" everywhere else in the module.
         buttons: [
             { action: "general", label: game.i18n.localize("DRPG.Observe.general"), default: true },
-            { action: "specific", label: game.i18n.localize("DRPG.Observe.specific") },
             { action: "nonObvious", label: game.i18n.localize("DRPG.Observe.nonObvious") },
-            // Red, like the cost stripe on a GM-routed tile: this is the branch
-            // that stops being a table lookup and becomes a human ruling.
+            { action: "specific", label: game.i18n.localize("DRPG.Observe.specific"), class: GM_ROUTE_CLASS },
             { action: "anything", label: game.i18n.localize("DRPG.Observe.anything"), class: GM_ROUTE_CLASS },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
         ],

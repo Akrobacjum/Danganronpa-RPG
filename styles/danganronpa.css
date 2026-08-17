@@ -156,6 +156,29 @@
     --drpg-pix-dot: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 0h4v1H2zM1 1h6v1H1zM0 2h8v4H0zM1 6h6v1H1zM2 7h4v1H2z'/%3E%3C/svg%3E");
     --drpg-pix-dot-empty: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 0h4v1H2zM1 1h1v1H1zM6 1h1v1H6zM0 2h1v4H0zM7 2h1v4H7zM1 6h1v1H1zM6 6h1v1H6zM2 7h4v1H2z'/%3E%3C/svg%3E");
 
+    /* --- the four phases ----------------------------------------------------
+       The clock is the one thing on screen the whole table looks at, and until
+       now it said which phase it was in with words alone. A colour is read
+       before a word is: somebody glancing up mid-conversation should know that
+       the Trial has started without stopping to read.
+
+       Gold is Hope's and is spent here on purpose — Daily Life is the only
+       phase where the students have anything. The other three are new: violet
+       for the Eclipse (it took the red it had been borrowing from OBJECTION),
+       steel blue for the Investigation, and OBJECTION's own red for the Trial,
+       which is the one place it means what it has always meant.
+
+       Each is bright enough to sit on the dark HUD as text — the `-rgb` twins
+       are for the glow, which is the same colour at low alpha. */
+    --drpg-phase-daily: #ffd23f;
+    --drpg-phase-daily-rgb: 255, 210, 63;
+    --drpg-phase-eclipse: #b58cf0;
+    --drpg-phase-eclipse-rgb: 181, 140, 240;
+    --drpg-phase-investigation: #57b6ff;
+    --drpg-phase-investigation-rgb: 87, 182, 255;
+    --drpg-phase-trial: #ff5566;
+    --drpg-phase-trial-rgb: 255, 85, 102;
+
     /* 8x8 pixel skull — Despair */
     --drpg-pix-skull: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 0h4v1H2zM1 1h6v1H1zM1 2h1v1H1zM3 2h2v1H3zM6 2h1v1H6zM1 3h1v1H1zM3 3h2v1H3zM6 3h1v1H6zM1 4h6v1H1zM2 5h4v1H2zM2 6h1v1H2zM3 6h2v1H3zM5 6h1v1H5zM2 7h1v1H2zM5 7h1v1H5z'/%3E%3C/svg%3E");
 
@@ -1113,9 +1136,17 @@ body.drpg-eclipse #board {
     filter: brightness(0.45) saturate(0.5);
 }
 
+/* The Eclipse edge is violet, not red.
+   ---------------------------------------------------------------------------
+   It was red because red was the only loud colour the palette had when this was
+   written, and it has been quietly saying "Class Trial" ever since — the two
+   loudest moments in a chapter wearing the same edge. The phase tokens give the
+   Eclipse its own, and this rule keeps the brighter glow it has always had: an
+   Eclipse is the one phase that also drains the light out of the map behind it,
+   and the clock is what the table looks at to know why. */
 body.drpg-eclipse #drpg-hud {
-    border-color: var(--drpg-eye);
-    box-shadow: 0 0 16px var(--drpg-eye-glow);
+    border-color: var(--drpg-phase-eclipse);
+    box-shadow: 0 0 16px rgba(var(--drpg-phase-eclipse-rgb), 0.45);
 }
 
 #drpg-hud {
@@ -2049,10 +2080,24 @@ body.drpg-pixel-font [contenteditable] {
     background-image: none !important;
 }
 
+/* THE BORDERS ARE NOT HERE. They cannot be.
+   ---------------------------------------------------------------------------
+   Daggerheart sets `border-style: none !important` on every chat message from
+   `layer system`, and for IMPORTANT declarations the cascade runs the layers in
+   REVERSE — the earlier layer wins. This module's rules live in `layer modules`,
+   which is later, so an `!important` border here loses by rule and not by
+   specificity, and no selector can rescue it. Three such rules sat in this file
+   for months computing to `0px none`.
+
+   The outcome colour is applied inline instead, by `paintRollCard` in
+   private-rolls.mjs — an inline style is the one thing above an author
+   `!important`. The palette stays here: that function reads these tokens back
+   off `:root` rather than repeating the hex.
+
+   What DOES apply from here is the background, because Daggerheart does not
+   force it. */
 #chat-log .chat-message.duality.hope,
 .chat-message.duality.hope {
-    border: 1px solid var(--drpg-gold) !important;
-    border-left: 3px solid var(--drpg-gold) !important;
     background-color: var(--drpg-ink-hope) !important;
     background-image: linear-gradient(100deg, rgba(var(--drpg-gold-rgb), 0.14) 0%, transparent 70%) !important;
     box-shadow: inset 0 0 14px rgba(var(--drpg-gold-rgb), 0.08);
@@ -2060,8 +2105,6 @@ body.drpg-pixel-font [contenteditable] {
 
 #chat-log .chat-message.duality.fear,
 .chat-message.duality.fear {
-    border: 1px solid var(--drpg-blood) !important;
-    border-left: 3px solid var(--drpg-blood) !important;
     background-color: var(--drpg-ink-despair) !important;
     background-image: linear-gradient(100deg, rgba(var(--drpg-blood-rgb), 0.16) 0%, transparent 70%) !important;
     box-shadow: inset 0 0 14px var(--drpg-blood-glow);
@@ -2071,8 +2114,6 @@ body.drpg-pixel-font [contenteditable] {
    than a blend that reads as "somewhere between the other two". */
 #chat-log .chat-message.duality.critical,
 .chat-message.duality.critical {
-    border: 1px solid var(--drpg-crimson) !important;
-    border-left: 3px solid var(--drpg-crimson) !important;
     background-color: var(--drpg-ink-critical) !important;
     background-image: linear-gradient(100deg, rgba(var(--drpg-crimson-rgb), 0.2) 0%, transparent 70%) !important;
     box-shadow: inset 0 0 14px rgba(var(--drpg-crimson-rgb), 0.14);
@@ -2139,6 +2180,196 @@ body.drpg-pixel-font [contenteditable] {
    it is, how hard the original was to spot, and which chapter it belongs to.
    The `real` badge is written into the row only for a GM.
    ========================================================================== */
+
+/* ==========================================================================
+   WHAT HAS GONE WRONG
+   --------------------------------------------------------------------------
+   The session's failures, listed. An error row is red, a warning amber, and the
+   stack is folded down to four lines — anything past that is Foundry's own
+   frames and belongs in DevTools, not in a window a GM opens mid-session.
+   ========================================================================== */
+
+.drpg-failure-log {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    max-height: 46vh;
+    overflow-y: auto;
+}
+
+.drpg-failure {
+    padding: 6px 8px;
+    border-radius: 3px;
+    border-left: 3px solid var(--drpg-eye);
+    background: rgba(var(--drpg-veil-rgb), 0.55);
+}
+
+.drpg-failure.warn {
+    border-left-color: var(--drpg-gold);
+}
+
+.drpg-failure-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--drpg-text-xs, 0.7rem);
+    opacity: 0.65;
+}
+
+/* A repeat count is the difference between "this happened" and "this is still
+   happening", so it is the one part of the header that is not dimmed. */
+.drpg-failure-count {
+    margin-left: auto;
+    opacity: 1;
+    font-variant-numeric: tabular-nums;
+    color: var(--drpg-eye-light);
+}
+
+.drpg-failure-message {
+    overflow-wrap: anywhere;
+}
+
+.drpg-failure-stack {
+    margin: 4px 0 0;
+    padding: 4px 6px;
+    font-size: var(--drpg-text-xs, 0.7rem);
+    opacity: 0.6;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    background: rgba(var(--drpg-shadow-rgb), 0.3);
+    border-radius: 2px;
+}
+
+/* ==========================================================================
+   SETTING A SEASON UP
+   --------------------------------------------------------------------------
+   The same list as the pre-season checks, from the other end. Each row carries
+   its own state, so an outstanding one stays visible with everything it is
+   waiting on named — a count with no names is a second lookup.
+   ========================================================================== */
+
+.drpg-setup-list {
+    list-style: none;
+    margin: 8px 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.drpg-setup-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 3px;
+    border: 1px solid var(--drpg-line);
+    background: rgba(var(--drpg-veil-rgb), 0.5);
+}
+
+/* A finished row steps back rather than disappearing: the list is also the
+   record of what a season needs, and a list that shortens as you work loses
+   the half that explains why the rest matters. */
+.drpg-setup-step.done {
+    opacity: 0.55;
+    border-color: rgba(var(--drpg-line-rgb, 232, 227, 236), 0.12);
+}
+
+.drpg-setup-mark {
+    flex: 0 0 auto;
+    font-weight: 700;
+    line-height: 1.4;
+    color: var(--drpg-eye-light);
+}
+
+.drpg-setup-step.done .drpg-setup-mark {
+    color: var(--drpg-gold);
+}
+
+.drpg-setup-body {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+/* Who the row is waiting on, in the colour of the thing that is missing. */
+.drpg-setup-missing {
+    margin-top: 2px;
+    font-size: var(--drpg-text-xs, 0.7rem);
+    color: var(--drpg-eye-light);
+    overflow-wrap: anywhere;
+}
+
+.drpg-setup-do {
+    flex: 0 0 auto;
+    align-self: center;
+    white-space: nowrap;
+}
+
+/* ==========================================================================
+   THE REMNANT CARD
+   --------------------------------------------------------------------------
+   What a trace shows when it is opened from the map. Replaces the system's
+   adversary sheet wholesale — see `showRemnantCard` in remnant-ring.mjs — so
+   this owns the whole window body rather than decorating part of one.
+
+   A definition list, because that is what the content is: five short labelled
+   facts and a sentence. Laid out in two columns so the labels line up and the
+   values can be read down the right-hand side without reading the labels twice.
+   ========================================================================== */
+
+.drpg-remnant-card {
+    padding: 4px 2px;
+}
+
+.drpg-remnant-card h3 {
+    margin: 0 0 8px;
+    color: var(--drpg-remnant);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: var(--drpg-text-sm, 0.85rem);
+}
+
+.drpg-remnant-facts {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 3px 10px;
+    margin: 0 0 8px;
+}
+
+.drpg-remnant-facts dt {
+    font-size: var(--drpg-text-xs, 0.7rem);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    opacity: 0.6;
+    align-self: baseline;
+}
+
+.drpg-remnant-facts dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+/* The GM's own sentence about the trace. Set apart, because it is the only part
+   of this card that is prose and the only part that is the answer key. */
+.drpg-remnant-note {
+    margin: 0 0 6px;
+    padding: 6px 8px;
+    border-left: 2px solid var(--drpg-remnant);
+    background: rgba(var(--drpg-blood-rgb), 0.08);
+    font-size: var(--drpg-text-sm, 0.85rem);
+    overflow-wrap: anywhere;
+}
+
+.drpg-remnant-tags {
+    margin: 0;
+    font-size: var(--drpg-text-xs, 0.7rem);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    opacity: 0.7;
+}
 
 .drpg-truth-bullet {
     box-shadow: inset 0 0 0 2px var(--drpg-gold-antique);
@@ -2214,6 +2445,53 @@ body.drpg-pixel-font [contenteditable] {
 
 .drpg-row-button:hover {
     background: rgba(var(--drpg-eye-rgb), 0.4);
+}
+
+/* The glyph, which nobody had ever coloured.
+   ---------------------------------------------------------------------------
+   Every one of these buttons styled its own background and border and then let
+   the icon inside take whatever Foundry's button default was — measured on a
+   Truth Bullet row: `rgb(24, 22, 46)`, a near-black glyph sitting on a wash at
+   0.18 alpha over a dark sheet. Both the share and the analyse icons were
+   effectively invisible, which is why the row read as two empty squares.
+
+   Bone as the floor, so a row button added later is legible before anyone
+   thinks about it; each variant then takes the accent its own border already
+   uses, so the glyph and the frame around it say the same thing. */
+.drpg-row-button i {
+    color: var(--drpg-bone);
+}
+
+.drpg-row-handover i {
+    color: var(--drpg-gold-antique);
+}
+
+/* Analyse keeps the bone its own frame uses.
+   Evidence gold would have been the thematic choice — Analyse is the evidence
+   action — but `--drpg-evidence` and `--drpg-gold-antique` are the same #d4af37,
+   and these two buttons sit side by side on the same row. Two identical gold
+   glyphs an inch apart, meaning "hand this over" and "work this out", is worse
+   than one of them matching its own border. */
+.drpg-tb-analyze i {
+    color: var(--drpg-bone);
+}
+
+/* Crimson at full strength is 2.94:1 on Ink — a border colour, not a glyph.
+   The light variant is what the legibility block reaches for everywhere else. */
+.drpg-row-present i {
+    color: var(--drpg-crimson-light);
+}
+
+/* Bookkeeping, and it should look like it. */
+.drpg-row-stash i,
+.drpg-row-equip i {
+    color: var(--drpg-dim);
+}
+
+/* Hover fills the button with red, so every glyph on it goes bone or it ends up
+   coloured-on-coloured. */
+.drpg-row-button:hover i {
+    color: var(--drpg-bone);
 }
 
 /* Handing something over is not an action and costs nothing, so it reads
@@ -2534,30 +2812,62 @@ body.drpg-pixel-font [contenteditable] {
 }
 
 /*
- * Crisis tiles read white.
+ * Crisis tiles read RED.
  *
- * These sit on the crimson incident panel, and Foundry's own button colour is
- * near-black — which on that background is close to unreadable, and is the one
- * panel a player is reading under time pressure. The action grid elsewhere
- * inherits a light colour from the sheet; this panel has to say so itself,
- * including for the icon and for the disabled state, since "not your turn"
- * greys every tile and grey-on-crimson is worse still.
+ * They used to read bone, like every other tile on the sheet, which made the
+ * most dangerous grid in the game look exactly like Search and Rest. Killing
+ * somebody, being killed, walking in on it and cleaning up after it are the four
+ * things this module treats as different in kind from spending an afternoon —
+ * and red already means that here: the cost stripe uses `--drpg-eye` for
+ * GM-routed tiles and nothing else does.
+ *
+ * The BORDER and the ICON carry it; the label stays bone. Eye is 3.68:1 on Ink
+ * — enough for a rule and a glyph, not enough for a word somebody has to read
+ * under time pressure, and the label is the part being read. Same split the
+ * dialog buttons use (see `.drpg-gm-route`).
+ *
+ * The disabled state keeps the red and drops the opacity, rather than going
+ * grey: "not your turn" greys every tile in the grid, and a grid that turns grey
+ * stops looking like an incident at all.
  */
+.drpg-crisis-panel .drpg-action-button {
+    /* `!important` because the legibility block above sets the neutral border
+       with one too — see the note on `.drpg-action-button` there. */
+    border-color: var(--drpg-eye) !important;
+}
+
 .drpg-crisis-panel .drpg-action-button,
-.drpg-crisis-panel .drpg-action-button span,
-.drpg-crisis-panel .drpg-action-button i {
+.drpg-crisis-panel .drpg-action-button span {
     color: var(--drpg-bone);
 }
 
+.drpg-crisis-panel .drpg-action-button i,
+.drpg-crisis-panel .drpg-action-button .drpg-action-icon {
+    color: var(--drpg-eye-light);
+}
+
+.drpg-crisis-panel .drpg-action-button:disabled {
+    border-color: rgba(var(--drpg-eye-rgb), 0.45) !important;
+}
+
 .drpg-crisis-panel .drpg-action-button:disabled,
-.drpg-crisis-panel .drpg-action-button:disabled span,
-.drpg-crisis-panel .drpg-action-button:disabled i {
+.drpg-crisis-panel .drpg-action-button:disabled span {
     color: rgba(var(--drpg-bone-rgb), 0.55);
 }
 
+.drpg-crisis-panel .drpg-action-button:disabled i,
+.drpg-crisis-panel .drpg-action-button:disabled .drpg-action-icon {
+    color: rgba(var(--drpg-eye-rgb), 0.5);
+}
+
+.drpg-crisis-panel .drpg-action-button:hover:not(:disabled) {
+    border-color: var(--drpg-eye-light) !important;
+    background-color: rgba(var(--drpg-eye-rgb), 0.12) !important;
+    box-shadow: 0 0 8px var(--drpg-eye-glow);
+}
+
 .drpg-crisis-panel .drpg-action-button:hover:not(:disabled),
-.drpg-crisis-panel .drpg-action-button:hover:not(:disabled) span,
-.drpg-crisis-panel .drpg-action-button:hover:not(:disabled) i {
+.drpg-crisis-panel .drpg-action-button:hover:not(:disabled) span {
     color: var(--drpg-bone);
 }
 
@@ -3582,10 +3892,24 @@ body.drpg-pixel-font .drpg-action-button .drpg-action-cost {
 
 /* The strip above Projects. Sized to the tray it sits on so the right rail
    reads as one column rather than two widgets that happen to be stacked. */
+/* The strip is as tall as the Despair panel opposite it.
+   --------------------------------------------------------------------------
+   They are the two boxes flanking the clock at the top of the screen, they
+   start on the same line, and they ended on different ones — 42px against 48px,
+   which is close enough to look like a mistake rather than a choice.
+
+   Not a constant: the Despair panel is one row per Monokuma, so its height is a
+   campaign setting, not a number anyone can write here. `--drpg-despair-height`
+   is measured and written on `<body>` by `matchStripToDespair` in hud.mjs. The
+   fallback is the two-Monokuma case, so a client that has not measured yet is
+   already close instead of jumping. */
 #drpg-player-status {
     display: flex;
     gap: 6px;
     justify-content: space-between;
+    align-items: center;
+    box-sizing: border-box;
+    min-height: var(--drpg-despair-height, 48px);
     margin: 0 0 6px;
     padding: 6px 8px;
     border: 1px solid var(--drpg-line-strong);
@@ -3779,9 +4103,58 @@ body.drpg-pixel-font .drpg-hud-incident {
 
 /* The time row while an Eclipse is running: it names the Eclipse, not the time
    of day just finished, so it must not read as an ordinary clock reading. */
+/* ==========================================================================
+   THE CLOCK WEARS THE PHASE
+   --------------------------------------------------------------------------
+   `data-drpg-phase` is written by `renderHud` and holds one of four values:
+   dailyLife, eclipse, investigation, classTrial. An Eclipse is a state rather
+   than a phase in the rules, but on screen it is the loudest thing happening,
+   so it takes the slot while it runs.
+
+   One token per phase drives all three treatments — the phase line, the box
+   edge and the glow around it — so a fifth phase is four values and no new
+   rules. The panel keeps its own ground; only the edge and the light change,
+   because a clock that changes colour wholesale stops reading as the same
+   object between one phase and the next.
+   ========================================================================== */
+
+#drpg-hud[data-drpg-phase="dailyLife"] {
+    --drpg-phase: var(--drpg-phase-daily);
+    --drpg-phase-rgb: var(--drpg-phase-daily-rgb);
+}
+#drpg-hud[data-drpg-phase="eclipse"] {
+    --drpg-phase: var(--drpg-phase-eclipse);
+    --drpg-phase-rgb: var(--drpg-phase-eclipse-rgb);
+}
+#drpg-hud[data-drpg-phase="investigation"] {
+    --drpg-phase: var(--drpg-phase-investigation);
+    --drpg-phase-rgb: var(--drpg-phase-investigation-rgb);
+}
+#drpg-hud[data-drpg-phase="classTrial"] {
+    --drpg-phase: var(--drpg-phase-trial);
+    --drpg-phase-rgb: var(--drpg-phase-trial-rgb);
+}
+
+#drpg-hud[data-drpg-phase] {
+    border-color: rgba(var(--drpg-phase-rgb), 0.55);
+    box-shadow:
+        0 2px 8px rgba(var(--drpg-shadow-rgb), 0.35),
+        0 0 14px rgba(var(--drpg-phase-rgb), 0.28);
+}
+
+#drpg-hud[data-drpg-phase] .drpg-hud-phase {
+    color: var(--drpg-phase);
+    text-shadow: 0 0 8px rgba(var(--drpg-phase-rgb), 0.45);
+}
+
+/* The Eclipse caption sits in the time row, not the phase line, so it takes the
+   colour from the same token rather than from the red it used to hard-code —
+   red is the Trial's, and an Eclipse wearing it said the wrong thing twice. */
 .drpg-hud-time.is-eclipse {
-    color: var(--drpg-eye);
+    color: var(--drpg-phase, var(--drpg-phase-eclipse));
     letter-spacing: 0.04em;
+    opacity: 1;
+    text-shadow: 0 0 8px rgba(var(--drpg-phase-rgb, var(--drpg-phase-eclipse-rgb)), 0.45);
 }
 
 /* ==========================================================================
@@ -4084,33 +4457,27 @@ body.drpg-pixel-font .drpg-safeword-button {
     flex-direction: column;
 }
 
-#ui-right-column-1 > #drpg-player-status { order: 0; }
-#ui-right-column-1 > .dh-effects-display,
-#ui-right-column-1 > [class*="effects-display"] { order: 1; }
+/* The order of the right rail, stated once and in full.
+   ------------------------------------------------------------------------
+   Four things share this column and only two of them matter every turn. The
+   status strip goes first — three numbers a player reads constantly — and the
+   Projects tray directly under it, where it is in view without being in the
+   way. The effects display and the chat notifications follow: badges that
+   change once an hour, and popups that come and go.
 
-/* The Projects tray, moved out of this column entirely — `moveProjectsTray` in
-   hud.mjs re-parents it into #ui-left and this puts it in the corner.
-   `top` is overwritten at runtime by `alignProjectsTray`, which measures the
-   clock so the two sit level; the value here is the fallback for a screen with
-   no clock on it yet. `left` clears the scene controls, the same 76px the
-   roster used to use in this corner. */
-#ui-left > #countdowns {
-    position: absolute;
-    top: calc(var(--drpg-edge, 22px) + 42px);
-    left: calc(var(--drpg-edge, 22px) + 76px);
-    z-index: 60;
-    width: 300px;
-    max-height: calc(100vh - var(--drpg-edge, 22px) * 2 - 42px);
-    overflow-y: auto;
-    pointer-events: auto;
-    /* It has never had a ground of its own — in the right column it borrowed
-       the dark rail behind it. Over the map it needs one, or the title and the
-       gear sit on whatever the scene happens to be painted. Same panel ground
-       the roster used in this corner. */
-    background: rgba(var(--drpg-deep-rgb), 0.92);
-    border: 1px solid var(--drpg-line-strong);
-    border-radius: 3px;
-}
+   Every one of the four is numbered rather than three of them, because a flex
+   item with no `order` falls to 0 and lands among the ones that asked for the
+   top. Leaving the tray unnumbered is how it ended up above the strip.
+
+   This is CSS and not script on purpose. The tray is Daggerheart's own
+   application and re-appends itself into this column on every render, so a
+   scripted move has to be re-asserted on three hooks and can still lose a race;
+   `order` cannot be undone by a redraw. */
+#ui-right-column-1 > #drpg-player-status { order: 0; }
+#ui-right-column-1 > #countdowns { order: 1; }
+#ui-right-column-1 > .dh-effects-display,
+#ui-right-column-1 > [class*="effects-display"] { order: 2; }
+#ui-right-column-1 > #chat-notifications { order: 3; }
 
 /* ==========================================================================
    LEGIBILITY UNDER THE RED PALETTE
@@ -6391,12 +6758,11 @@ details.drpg-calls-panel[open] > .drpg-action-grid {
     width: auto !important;
 }
 
-/* One definition for the action grid, and it reflows. `auto-fit` collapses the
-   empty tracks so four tiles across a narrow sheet stay four tiles wide rather
-   than four squeezed into a fifth of the room. */
-/* Five across when there is room, fewer when there is not — and never more.
-   `auto-fit` alone happily made ten columns on a wide sheet, which turned a
-   deliberate 5x2 block into one long strip of small squares. Giving each track
+/* One definition for the action grid, and it reflows.
+
+   Five across when there is room, fewer when there is not — and never more.
+   Unconstrained, the grid happily made ten columns on a wide sheet, which turned
+   a deliberate 5x2 block into one long strip of small squares. Giving each track
    a floor of one fifth of the row caps the count at five without pinning it
    there: below that the minimum takes over and the grid drops to four, three,
    two.
@@ -6405,11 +6771,25 @@ details.drpg-calls-panel[open] > .drpg-action-grid {
    pixel face: "Observe" measures 77px and "Sabotage" 88px, so at the floor the
    commonest labels broke mid-word. 5.75rem fits every action name and all but
    three Hope Calls on one line, and the grid drops a column a little sooner,
-   which is the better trade. */
+   which is the better trade.
+
+   `auto-fill`, NOT `auto-fit`.
+   ---------------------------------------------------------------------------
+   The difference is what happens to a track with nothing in it: `auto-fit`
+   collapses it and hands its width to the tiles that remain, `auto-fill` keeps
+   it. That collapse made a tile's size depend on how many tiles were beside it
+   — measured on one sheet, one incident: the third party's four options came
+   out 137px square while the victim's five were 109px, and the clean-up panel's
+   three stretched wider still. Three panels on the same sheet, three tile sizes,
+   for no reason a player could see.
+
+   A tile is a fixed thing in this interface. It is the same square whether the
+   panel holds three of them or ten, and the row simply stops early when there
+   are fewer. */
 .application.sheet.actor .drpg-action-grid,
 body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     grid-template-columns:
-        repeat(auto-fit, minmax(max(5.75rem, calc((100% - 16px) / 5)), 1fr)) !important;
+        repeat(auto-fill, minmax(max(5.75rem, calc((100% - 16px) / 5)), 1fr)) !important;
 }
 
 /* If anything still cannot fit, it scrolls — it does not vanish. */
@@ -6951,4 +7331,233 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
 /* `margin-top` was the old "below the pips" spacing and fights the stack. */
 .drpg-pending-stack .drpg-pending-call {
     margin-top: 0;
+}
+
+/* ==========================================================================
+   STAGE 20.6 — THE CAMPAIGN PANELS SHARE ONE GROUND
+   --------------------------------------------------------------------------
+   Four boxes frame the play area — Despair and the clock across the top, the
+   player strip and the Projects tray down the right, the player list bottom
+   left — and they were built at four different times, so they had four
+   different grounds:
+
+       Despair          deep 0.78, radius 6, blur, shadow
+       the clock        deep 0.72, radius 6, blur, shadow
+       the player strip veil 0.82, radius 4, no blur, no shadow
+       Projects         nothing at all
+       the player list  nothing at all
+
+   Close enough to read as a mistake rather than a choice, which is the same
+   complaint that produced `--drpg-despair-height` a few stages ago. One set of
+   tokens now, so the next panel inherits the answer instead of guessing again.
+
+   BORDER COLOUR IS DELIBERATELY NOT IN HERE. Despair is edged in blood and the
+   clock in whatever the current phase is (stage 17.8e) — those hues carry
+   meaning, and flattening them would be aligning away the information. Only the
+   ground, the radius, the blur and the shadow are shared; the two panels with
+   nothing to say take the neutral edge.
+
+   Placed at the end of the file on purpose: every rule above sets these same
+   properties at the same specificity, so this has to be the later one to win.
+   ========================================================================== */
+
+:root {
+    --drpg-panel-ground: light-dark(rgba(var(--drpg-bone-rgb), 0.85), rgba(var(--drpg-deep-rgb), 0.78));
+    --drpg-panel-radius: 6px;
+    --drpg-panel-blur: blur(3px);
+    --drpg-panel-shadow: 0 2px 8px rgba(var(--drpg-shadow-rgb), 0.4);
+}
+
+#drpg-despair,
+#drpg-hud,
+#drpg-player-status,
+#countdowns,
+#players {
+    background: var(--drpg-panel-ground);
+    border-radius: var(--drpg-panel-radius);
+    border-width: 1px;
+    border-style: solid;
+    backdrop-filter: var(--drpg-panel-blur);
+    box-shadow: var(--drpg-panel-shadow);
+}
+
+/* The two that carry no accent of their own. */
+#countdowns,
+#players {
+    border-color: var(--drpg-line-strong);
+}
+
+/* ==========================================================================
+   THE PROJECTS TRAY
+   --------------------------------------------------------------------------
+   Daggerheart's countdown tray, wearing this game's clothes. Everything here is
+   about density: the tray sits under the player strip on the right rail, and at
+   44px a row with a 44px icon and a name allowed to wrap onto two lines, four
+   projects filled a third of the screen height. A campaign runs more than four.
+   ========================================================================== */
+
+#countdowns {
+    --drpg-project-row: 34px;
+    --drpg-project-gap: 6px;
+    padding-bottom: 2px;
+    overflow: hidden;              /* keeps the rounded corners on the scroller */
+}
+
+/* The title bar reads like the other panels' titles, not like a sidebar label. */
+#countdowns .countdowns-header {
+    gap: 6px;
+    padding: 4px 8px;
+    font-size: var(--font-size-14, 0.875rem);
+    letter-spacing: 0.04em;
+}
+
+#countdowns .countdowns-header .window-title {
+    flex: 1 1 auto;
+    font-size: var(--font-size-14, 0.875rem);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--drpg-bone);
+}
+
+/* Daggerheart's own clock glyph, sized to the title beside it. */
+#countdowns .countdowns-header > i {
+    font-size: var(--font-size-13, 0.8125rem);
+    color: var(--drpg-bone);
+    opacity: 0.7;
+}
+
+/* THE GEAR WAS THE SAME COLOUR AS THE PANEL BEHIND IT. `--drpg-ink` is the dark
+   theme's panel ground, so the button that opens the project manager was ink on
+   ink at 60% — present, clickable, and effectively invisible. It belongs to the
+   title, so it takes the title's colour. */
+#countdowns .drpg-projects-gear,
+#countdowns .drpg-projects-fold {
+    flex: 0 0 auto;
+    width: 1.5rem;
+    min-width: unset;
+    height: 1.5rem;
+    min-height: unset;
+    padding: 0;
+    line-height: 1;
+    border: none;
+    background: none;
+    color: var(--drpg-bone);
+    opacity: 0.75;
+}
+
+#countdowns .drpg-projects-gear i,
+#countdowns .drpg-projects-fold i {
+    font-size: var(--font-size-15, 0.9375rem);
+    color: inherit;
+}
+
+#countdowns .drpg-projects-gear:hover,
+#countdowns .drpg-projects-fold:hover {
+    opacity: 1;
+    background: none;
+    color: var(--drpg-gold);
+}
+
+/* Folded away: the title bar stays, everything under it goes. */
+#countdowns.drpg-projects-collapsed .countdowns-container {
+    display: none;
+}
+
+#countdowns.drpg-projects-collapsed {
+    padding-bottom: 0;
+}
+
+/* FIVE ROWS, THEN SCROLL. A cap in rows rather than pixels, so it stays five
+   when the row height changes. */
+#countdowns .countdowns-container {
+    gap: var(--drpg-project-gap);
+    padding: 4px 8px 8px;
+    max-height: calc(5 * var(--drpg-project-row) + 4 * var(--drpg-project-gap) + 12px);
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+
+#countdowns .countdown-category-container {
+    gap: var(--drpg-project-gap);
+}
+
+#countdowns .countdown-container {
+    min-height: var(--drpg-project-row);
+}
+
+#countdowns .countdown-main-container {
+    gap: 8px;
+    align-items: center;
+}
+
+/* `text-overflow: ellipsis` on the name is not enough on its own.
+   --------------------------------------------------------------------------
+   A flex item's default `min-width` is `auto`, which is "as wide as my content"
+   — so the name never overflowed anything and never got an ellipsis; it pushed
+   its own row out instead. Measured with a deliberately long project name: the
+   header reported clientWidth 628 inside a 300px tray, while its four
+   neighbours sat at 230. `min-width: 0` is what lets a flex item be narrower
+   than its text, and it has to be on every ancestor between the name and the
+   row. */
+#countdowns .countdown-main-container,
+#countdowns .countdown-content {
+    min-width: 0;
+}
+
+#countdowns .countdown-container img {
+    width: var(--drpg-project-row);
+    height: var(--drpg-project-row);
+    flex: 0 0 auto;
+    border-radius: 4px;
+}
+
+/* One line, cut with an ellipsis. A project called "Rig the dumbwaiter" used
+   two lines and made its row half again as tall as its neighbours; the full
+   name is still there on hover, where a truncated name belongs. */
+#countdowns .countdown-content > header {
+    font-size: var(--font-size-11, 0.6875rem);
+    line-height: 1.2;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#countdowns .countdown-tools {
+    font-size: var(--font-size-11, 0.6875rem);
+}
+
+#countdowns .countdown-tools .progress-tag {
+    padding: 0 4px;
+    font-size: var(--font-size-11, 0.6875rem);
+    line-height: 1.4;
+}
+
+#countdowns .countdown-tool-controls a {
+    font-size: var(--font-size-11, 0.6875rem);
+}
+
+/* ==========================================================================
+   THE PLAYER LIST, BOTTOM LEFT
+   --------------------------------------------------------------------------
+   Foundry's own box, holding the connected users, the latency and the frame
+   rate. It sat on the map with no ground under it at all, so on a light scene
+   the names were unreadable — and it is the one panel on screen that is not
+   this module's, which is exactly why it looked borrowed.
+   ========================================================================== */
+
+#players {
+    width: max-content;
+    max-width: 16rem;
+    padding: 4px 8px;
+    font-size: var(--font-size-11, 0.6875rem);
+}
+
+#players .player-name {
+    font-size: var(--font-size-11, 0.6875rem);
+}
+
+#players #performance-stats {
+    font-size: var(--font-size-10, 0.625rem);
+    opacity: 0.8;
 }

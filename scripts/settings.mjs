@@ -35,6 +35,7 @@ export const SETTINGS = {
     restrictions: "restrictions",
     hideSystemFear: "hideSystemFear",
     pixelFont: "pixelFont",
+    projectsCollapsed: "projectsCollapsed",
     debug: "debug",
     /** Regions become LiveKit breakout rooms — off by default, needs avclient-livekit. */
     voiceEnabled: "voiceEnabled",
@@ -62,6 +63,22 @@ export const SETTINGS = {
      * synced across every GM and can be exported — see `exportLedger()`.
      */
     truthBulletSecrets: "truthBulletSecrets",
+    /**
+     * What every Remnant on the maps really is: its type, how hard it is to
+     * spot, who left it, and the GM's note about it.
+     *
+     * CLIENT-SCOPED, ON GM BROWSERS, for the same reason as `truthBulletSecrets`
+     * and measured the same way. This used to live in flags on the token — and
+     * Foundry ships every token on a scene to every client, hidden or not, flags
+     * and all. A player's console could enumerate all forty traces on the map
+     * with `sourceName`, `tiedToCrime`, the visibility band and the GM's own
+     * sentence: the whole investigation, for free, and with no way for the GM to
+     * know it had happened.
+     *
+     * Keyed `sceneId.tokenId`. Synced GM-to-GM over a recipient-addressed
+     * socket, the same as the Truth Bullet ledger.
+     */
+    remnantSecrets: "remnantSecrets",
     /**
      * The GM's plan for this murder's five Key Remnants.
      *
@@ -308,10 +325,28 @@ export function registerSettings() {
         default: {}
     });
 
+    // Whether this person has folded the Projects tray away. Client-scoped and
+    // not in the settings menu: it is a state of the screen you are looking at,
+    // set by clicking the caret on the tray itself, and one player folding it up
+    // must not fold it up for the table.
+    game.settings.register(MODULE_ID, SETTINGS.projectsCollapsed, {
+        scope: "client",
+        config: false,
+        type: Boolean,
+        default: false
+    });
+
     // The answer key to every Truth Bullet. Client-scoped on purpose — see the
     // note on SETTINGS.truthBulletSecrets for why no world-scoped store hides
     // anything from a player's console.
     game.settings.register(MODULE_ID, SETTINGS.truthBulletSecrets, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+
+    game.settings.register(MODULE_ID, SETTINGS.remnantSecrets, {
         scope: "client",
         config: false,
         type: Object,

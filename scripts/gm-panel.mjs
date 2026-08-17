@@ -182,7 +182,20 @@ const PANEL_SECTIONS = [
             // had to go and scroll. It is a question with an answer — so the
             // answer arrives as an answer.
             { key: "preSessionChecks", icon: "fa-clipboard-check", labelKey: "DRPG.Panel.seasonChecks",
-              run: () => runPreSessionChecks() }
+              run: () => runPreSessionChecks() },
+
+            // Beside the checks, deliberately. They are the same list read from
+            // the two ends — "what is missing" and "fix it" — and a GM who has
+            // just been told three things are missing should not have to go
+            // looking for where to do them.
+            { key: "seasonSetup", icon: "fa-wand-magic-sparkles", labelKey: "DRPG.Season.title",
+              run: () => import("./season-setup.mjs").then(m => m.openSeasonSetup()) },
+
+            // Last in the section and red: it is the only control here that
+            // destroys anything, and it destroys a chapter's worth at once.
+            { key: "seasonReset", icon: "fa-trash-arrow-up", labelKey: "DRPG.Season.resetTitle",
+              gmRoute: true,
+              run: () => import("./season-setup.mjs").then(m => m.resetSeason()) }
         ]
     },
     {
@@ -199,6 +212,9 @@ const PANEL_SECTIONS = [
             // something went in wrong, not a step of running the case.
             // (`fa-hazard` is not a Font Awesome icon, so this tile used to
             // render with an empty square where every other one has a glyph.)
+            // What has gone wrong since this page loaded. See `openFailureLog`.
+            { key: "failureLog", icon: "fa-bug", labelKey: "DRPG.Failures.title",
+              run: () => openFailureLog() },
             { key: "manageRemnants", icon: "fa-triangle-exclamation", labelKey: "DRPG.Remnant.manageTooltip",
               run: () => import("./remnants.mjs").then(m => m.openRemnantManager()) },
             { key: "whoIsWhat", icon: "fa-user-pen", labelKey: "DRPG.Panel.whoIsWhat",
@@ -240,7 +256,8 @@ export async function openGmPanel() {
             inSeason ? " in-season" : ""}"${open ? " open" : ""}>
             <summary>${game.i18n.localize(`DRPG.Panel.section.${section.key}`)}</summary>
             <div class="drpg-gmp-grid">${section.items.map(item => `
-                <button type="button" class="drpg-gmp-button" data-drpg-run="${item.key}">
+                <button type="button" class="drpg-gmp-button${
+                    item.gmRoute ? " drpg-gm-route" : ""}" data-drpg-run="${item.key}">
                     <i class="fa-solid ${item.icon}" inert></i>
                     <span>${game.i18n.localize(item.labelKey)}</span>
                 </button>`).join("")}</div>
@@ -320,6 +337,61 @@ export async function openGmPanel() {
  * flags and nothing else. Killing somebody properly is still `A character dies`,
  * one section up, where the warning about the inventory lives.
  */
+
+/**
+ * Everything this client has failed at since the page loaded.
+ *
+ * The module reports 181 different failures through `error()`, and until now
+ * every one of them went to `console.error` and stopped there — which is to say
+ * to nobody, because nobody runs a session with DevTools open. A feature could
+ * be completely dead and the only symptom was that it did not happen.
+ *
+ * THIS SESSION ONLY, and that is not a filter — the log is an array in memory,
+ * so a reload empties it. A failure from before the reload is not something the
+ * GM can act on now, and a log that accumulates across weeks is a log nobody
+ * opens.
+ *
+ * Newest last, the way a log reads. Repeats are one row with a count: the first
+ * occurrence explains the cause, the four hundredth only proves it continued.
+ */
+async function openFailureLog() {
+    const { sessionFailures, clearSessionFailures } = await import("./utils.mjs");
+    const rows = sessionFailures();
+    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
+    const when = at => new Date(at).toLocaleTimeString();
+
+    const body = rows.length
+        ? `<ul class="drpg-failure-log">${rows.map(r => `
+            <li class="drpg-failure ${esc(r.level)}">
+                <div class="drpg-failure-head">
+                    <span class="drpg-failure-time">${esc(when(r.at))}</span>
+                    ${r.count > 1 ? `<span class="drpg-failure-count">×${r.count}</span>` : ""}
+                </div>
+                <div class="drpg-failure-message">${esc(r.message)}</div>
+                ${r.stack ? `<pre class="drpg-failure-stack">${esc(r.stack.split("\n").slice(0, 4).join("\n"))}</pre>` : ""}
+            </li>`).join("")}</ul>`
+        : `<p>${esc(game.i18n.localize("DRPG.Failures.none"))}</p>`;
+
+    const action = await DialogV2.wait({
+        classes: ["drpg-panel", "drpg-wide"],
+        window: { title: game.i18n.localize("DRPG.Failures.title") },
+        content: dialogContent(`<div>
+            <p class="notes">${esc(game.i18n.localize("DRPG.Failures.intro"))}</p>
+            ${body}
+        </div>`),
+        buttons: [
+            { action: "close", label: game.i18n.localize("DRPG.Panel.close"), default: true },
+            ...(rows.length ? [{ action: "clear", label: game.i18n.localize("DRPG.Failures.clear") }] : [])
+        ],
+        rejectClose: false
+    });
+
+    if (action === "clear") {
+        clearSessionFailures();
+        ui.notifications.info(game.i18n.localize("DRPG.Failures.cleared"));
+    }
+}
+
 /**
  * Both pre-session checks, answered in one window.
  *

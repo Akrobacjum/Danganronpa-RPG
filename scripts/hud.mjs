@@ -21,16 +21,21 @@ import { isPrimaryGm, error } from "./utils.mjs";
 const HUD_ID = "drpg-hud";
 
 export function registerHud() {
-    Hooks.once("ready", () => { renderHud(); moveProjectsTray(); });
+    Hooks.once("ready", () => renderHud());
 
     // Foundry rebuilds parts of the interface on scene changes; re-assert.
-    Hooks.on("canvasReady", () => { renderHud(); moveProjectsTray(); });
+    Hooks.on("canvasReady", () => renderHud());
 
-    // The tray is Daggerheart's application, not ours, and it puts itself back
-    // in the right column every time it redraws — which is every time a project
-    // advances. So the move is re-asserted after each of its renders rather
-    // than done once.
-    Hooks.on("renderDhCountdowns", () => moveProjectsTray());
+    // Nothing here moves the Projects tray any more.
+    //
+    // It wanted to sit under the player's status strip, and the strip and the
+    // tray are already siblings in `#ui-right-column-1` — so the whole job is
+    // one `order` in the stylesheet. Doing it in script meant re-parenting the
+    // tray on three separate hooks and re-asserting after every one of its own
+    // renders, because it appends itself back into that column each time a
+    // project advances. CSS has no such problem: `order` cannot be undone by a
+    // redraw, so there is nothing to re-assert and nothing to go wrong when the
+    // system changes how it rebuilds.
 
     // Pausing stops the time-of-day timer. Every client redraws so the frozen
     // reading is the same everywhere; only one GM writes the bookkeeping.
@@ -103,6 +108,11 @@ export function renderHud() {
         hud.id = HUD_ID;
         hud.classList.toggle("gm", isGM);
 
+        // Which phase the clock is wearing. An Eclipse is a state rather than a
+        // phase in the rules, but it is the loudest thing on screen while it
+        // runs, so it takes the slot — see the stylesheet's four blocks.
+        hud.dataset.drpgPhase = clock.eclipse === true ? "eclipse" : (clock.phase ?? "dailyLife");
+
         hud.append(
             line("drpg-hud-campaign", campaignName(clock)),
             line("drpg-hud-chapter", game.i18n.format("DRPG.Hud.chapter", { n: clock.chapter })),
@@ -120,89 +130,27 @@ export function renderHud() {
 
         host.append(hud);
         alignRightColumn(hud);
-        // The clock has just been rebuilt, so its top may have moved — and the
-        // tray on the other side is measured off it.
-        alignProjectsTray();
     } catch (err) {
         error("Could not render the campaign HUD", err);
     }
 }
 
-const TRAY_ID = "countdowns";
-
 /**
- * Move the Projects tray to the top-left corner.
+ * Where the right column starts.
  *
- * The tray is Daggerheart's own `DhCountdowns` application, and it lives in the
- * right column beside the player's numbers — which is where the strip, the chat
- * notifications and the effects display also want to be. Four things in one
- * column, and the tray is the tallest of them. The left corner is empty except
- * for the scene controls, so that is where it goes.
+ * Align to whatever is highest on the LEFT of the screen, not to the clock: the
+ * Despair bars sit above the clock, so matching the clock left the right rail a
+ * bar's height too low — which is what it looked like, two columns starting at
+ * different heights for no reason.
  *
- * The move is a re-parent, not a repositioning: the tray is a flex child of the
- * right column, so nudging it with `top` would leave a tray-shaped hole behind.
- * `#ui-left > #countdowns` in the stylesheet does the placing once it is there.
- *
- * Called again after every one of the tray's own renders, because it appends
- * itself back into the right column each time a project advances. Cheap when
- * there is nothing to do: the parent check short-circuits.
+ * The column carries the status strip and the Projects tray, in that order, and
+ * both ride on this one offset — see the `order` rules in the stylesheet.
  */
-function moveProjectsTray() {
-    try {
-        const tray = document.getElementById(TRAY_ID);
-        const host = document.querySelector("#ui-left");
-        if (!tray || !host) return;
-
-        if (tray.parentElement !== host) host.append(tray);
-        alignProjectsTray();
-    } catch (err) {
-        // The tray belongs to the system, not to us. If Daggerheart changes it
-        // out from under this, the tray stays where it was — which is usable —
-        // and nothing else on screen is affected.
-        error("Could not move the Projects tray", err);
-    }
-}
-
-/**
- * Start the Projects tray level with the clock.
- *
- * They are the two things permanently on screen either side of the map, and
- * they were 60px out of step, which reads as carelessness before it reads as
- * anything else. The offset cannot be a constant: the HUD sits below the
- * Despair bars, and how tall those are depends on how many Monokumas the
- * campaign has. So it is measured, the same way popup.mjs measures its own
- * top rather than adding up the widgets above it.
- *
- * Measured against the tray's own offset parent rather than the viewport, so it
- * stays correct if Foundry ever gives #ui-left a position of its own.
- */
-function alignProjectsTray() {
-    try {
-        const tray = document.getElementById(TRAY_ID);
-        const hud = document.getElementById(HUD_ID);
-        if (!tray || !hud) return;
-        if (!tray.closest("#ui-left")) return;      // still in the right column
-
-        const clock = hud.getBoundingClientRect();
-        if (clock.height <= 0) return;              // not laid out yet
-
-        const origin = tray.offsetParent?.getBoundingClientRect().top ?? 0;
-        const top = Math.round(clock.top - origin);
-        if (top > 0) tray.style.top = `${top}px`;
-    } catch {
-        // Being a few pixels out is not worth throwing into the HUD render.
-    }
-}
-
 function alignRightColumn(hud) {
     try {
         const column = document.querySelector("#ui-right-column-1");
         if (!column) return;
 
-        // Align to whatever is highest on the left of the screen, not to the
-        // clock. The Despair bars sit ABOVE the clock, so matching the clock
-        // left the right rail a bar's height too low — which is what it looked
-        // like: two columns starting at different heights for no reason.
         const anchors = ["#drpg-despair", "#drpg-hud"]
             .map(sel => document.querySelector(sel))
             .filter(el => el && el.getBoundingClientRect().height > 0);
@@ -211,9 +159,31 @@ function alignRightColumn(hud) {
             : Math.round(hud?.getBoundingClientRect().top ?? 0);
 
         if (top > 0) column.style.marginTop = `${top}px`;
+        matchStripToDespair();
     } catch {
         // Being a few pixels out is not worth throwing into the HUD render.
     }
+}
+
+/**
+ * Give the player's status strip the Despair panel's height.
+ *
+ * The two boxes either side of the clock start on the same line and should end
+ * on it. How tall the Despair panel is depends on how many Monokumas the
+ * campaign runs — one row each — so the number cannot live in the stylesheet.
+ * It is measured here and published as a custom property on `<body>`, which
+ * `#drpg-player-status` reads as its `min-height`.
+ *
+ * A property rather than an inline height on the element: the strip is rebuilt
+ * from scratch on every action spent, and an inline style would go with it. The
+ * token survives on the body, so a freshly drawn strip is already the right
+ * height instead of snapping to it a frame later.
+ */
+export function matchStripToDespair() {
+    const despair = document.getElementById("drpg-despair");
+    const height = Math.round(despair?.getBoundingClientRect().height ?? 0);
+    if (height > 0) document.body.style.setProperty("--drpg-despair-height", `${height}px`);
+    else document.body.style.removeProperty("--drpg-despair-height");
 }
 
 /**
@@ -366,9 +336,20 @@ function buildIncident() {
     side.className = "drpg-hud-incident-turn";
     // A participant is told whether it is on them; a GM is told which side, since
     // "yours" means nothing to somebody running both.
+    //
+    // The killers' side may hold two people, and only one of them has the turn.
+    // Read straight off `killerTurnId` rather than from `isTheirTurn`, for the
+    // same reason the state itself is read from the setting here: this file is
+    // on the render path the clock calls back into, and one boolean is not worth
+    // closing that loop. The rule is `passTurn`'s and is one line long.
+    const killers = [state.killerId, state.thirdSide === "killer" ? state.thirdId : null]
+        .filter(Boolean);
+    const killerActing = killers.length > 1
+        ? (state.killerTurnId ?? killers[0])
+        : state.killerId;
     const myTurn = involved && (
         (state.turnSide === "victim" && mine === state.victimId)
-        || (state.turnSide === "killer" && mine === state.killerId));
+        || (state.turnSide === "killer" && mine === killerActing));
     side.textContent = involved
         ? game.i18n.localize(myTurn ? "DRPG.Murder.yourTurn" : "DRPG.Murder.theirTurn")
         : game.i18n.format("DRPG.Murder.trackerState", {

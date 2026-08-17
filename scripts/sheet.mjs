@@ -23,8 +23,12 @@ import { isEclipse, movesLeft as eclipseMovesLeft } from "./eclipse.mjs";
 import { isTruthBullet, truthBulletData, isAnalysable } from "./truth-bullets.mjs";
 import { inClassTrial } from "./trial.mjs";
 import { vaultRoomFor, vaultContents, openStashHere } from "./vault.mjs";
-import { availableCrisisActions, isTheirTurn, murderState, sideOf } from "./murder.mjs";
-import { isMonocub, isSilenced } from "./monocub.mjs";
+import { availableCrisisActions, isTheirTurn, murderState, sideOf, betrayalTarget } from "./murder.mjs";
+// Two different silences, so both are renamed at the door rather than one of
+// them shadowing the other: a Monocub silenced for the chapter may not speak,
+// a player silenced by a Despair Call may not spend Hope.
+import { isMonocub, isSilenced, isSilenced as cubSilenced } from "./monocub.mjs";
+import { isSilenced as callSilenced, isChained } from "./call-effects.mjs";
 import { isDeceased } from "./chapter.mjs";
 import { isStashed } from "./inventory.mjs";
 import { isUsable, isEquippable, isEquipped, equippedIn } from "./use-items.mjs";
@@ -355,11 +359,28 @@ function injectActionBar(app, element) {
     // A column, not a single slot: a Hope Call the player armed and a Despair
     // Call or a Monocub's Meddle landing on them are two different facts about
     // the same turn, and the layout has room for both stacked without moving
-    // anything else. Both go through `pendingCall`, so today only one can be
-    // present at a time — the stack is what makes the second one free when that
-    // changes.
+    // anything else.
     const stack = document.createElement("div");
     stack.className = "drpg-pending-stack";
+
+    // WHAT IS ON THEM NOW, not only what is riding on the next roll.
+    //
+    // The badge shipped in 17.5 read `pendingCall` and nothing else, so it
+    // showed the half of this that is about dice and silently dropped the half
+    // that is about the rest of the turn. Silenced and chained do not arrive
+    // through `pendingCall` at all — they live in the world's `restrictions`
+    // setting — and a Monocub silenced for the chapter is a flag on the actor.
+    // A player under all three saw an empty corner.
+    //
+    // Same pink treatment as a Despair Call: these are all things done TO them.
+    for (const effect of standingEffects(actor)) {
+        const badge = document.createElement("div");
+        badge.className = "drpg-pending-call drpg-pending-despair";
+        badge.dataset.tooltip = game.i18n.localize(effect.tooltip);
+        badge.innerHTML = `<i class="fa-solid ${effect.icon}" inert></i>
+                           <span>${foundry.utils.escapeHTML(game.i18n.localize(effect.label))}</span>`;
+        stack.append(badge);
+    }
 
     const pending = actor.getFlag(MODULE_ID, FLAGS.pendingCall);
     for (const entry of (Array.isArray(pending) ? pending : [pending]).filter(p => p?.grants)) {
@@ -381,6 +402,41 @@ function injectActionBar(app, element) {
     const hope = row.querySelector(".resource-section");
     if (hope) hope.after(section);
     else row.prepend(section);
+}
+
+/**
+ * Restrictions currently in force on this character.
+ *
+ * Three separate stores, because they are three separate rules with three
+ * separate lifetimes, and merging them would be a lie about how long each one
+ * lasts:
+ *
+ *   silenced (Call)   world `restrictions`, until the clock moves
+ *   chained           world `restrictions`, until the clock moves
+ *   silenced (cub)    a flag on the actor, for the rest of the chapter
+ *
+ * Read rather than cached: all three can be lifted by somebody else's screen
+ * between one render of this sheet and the next.
+ */
+function standingEffects(actor) {
+    const out = [];
+    if (!actor) return out;
+
+    if (callSilenced(actor)) {
+        out.push({ icon: "fa-comment-slash", label: "DRPG.Calls.silencedBadge",
+                   tooltip: "DRPG.Calls.silencedNotice" });
+    }
+    if (isChained(actor)) {
+        out.push({ icon: "fa-link", label: "DRPG.Calls.chainedBadge",
+                   tooltip: "DRPG.Calls.chainedNotice" });
+    }
+    // The Monocub's is a different silence — it is about speaking at the table,
+    // not about spending Hope — so it says so rather than sharing a label.
+    if (cubSilenced(actor)) {
+        out.push({ icon: "fa-user-slash", label: "DRPG.Monocub.silencedBadge",
+                   tooltip: "DRPG.Monocub.silencedTooltip" });
+    }
+    return out;
 }
 
 /* ==========================================================================
@@ -1797,10 +1853,34 @@ function injectCleanupPanel(tab, actor, { onTop = true } = {}) {
           run: m => m.attemptStageSix(actor, "moveBody") }
     ];
 
+    // The fourth tile only exists for one person, and only for a few minutes.
+    //
+    // Stage 9.5 gave the betrayal to the GM's post-incident checklist, which
+    // made it something a GM had to remember to offer — and it is not their
+    // decision. The guide gives it to the newcomer who threw in with the
+    // killer: the body is on the floor and the only witness is standing next to
+    // them. So it belongs on their sheet, in the panel they are already looking
+    // at, for exactly as long as Stage 6 lasts.
+    //
+    // Red and GM-routed, like every other tile that summons a human ruling: it
+    // opens a second murder, and the GM confirms before anything happens.
+    const partner = betrayalTarget(actor);
+    if (partner) {
+        tiles.push({
+            icon: "fa-user-slash", gmRoute: true,
+            label: "DRPG.Murder.betrayTileLabel", tip: "DRPG.Murder.betrayTileHint",
+            run: async () => {
+                const { requestBetrayal } = await import("./gm-bridge.mjs");
+                return requestBetrayal({ actorId: actor.id });
+            }
+        });
+    }
+
     for (const tile of tiles) {
         const button = document.createElement("button");
         button.type = "button";
-        button.className = `drpg-action-button${tile.off ? " drpg-locked" : ""}`;
+        button.className = `drpg-action-button${tile.off ? " drpg-locked" : ""}${
+            tile.gmRoute ? " drpg-gm-route" : ""}`;
         button.disabled = Boolean(tile.off);
         if (tile.off) tile.tip = tile.offTip;
         // A clean-up is paid for in Stress, which is neither of the other two
@@ -2068,8 +2148,12 @@ function roomBlockFor(actor, key) {
         if (key === "listen" && neighbouringRooms(here).length === 0)
             return game.i18n.localize("DRPG.Listen.noNeighbours");
 
-        if (key === "project" && projectsAvailableIn(here).length === 0)
-            return game.i18n.format("DRPG.Project.noneHere", { room: here });
+        // NOT the project tile. An empty room is a reason there is nothing to
+        // work ON, and the tile has two branches: working on a project and
+        // proposing one. Proposing works anywhere, so striking the tile through
+        // in a room with no projects hid the only route to creating the first
+        // one — and the first one is always proposed from a room with none.
+        // `performProject` still refuses the "work on it" half by itself.
 
         if (key === "sabotage" && sabotageTargetsIn(here).length === 0)
             return game.i18n.localize("DRPG.Project.nothingToSabotage");

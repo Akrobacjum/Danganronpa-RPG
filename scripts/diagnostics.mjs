@@ -14,7 +14,8 @@ import { monokumas, getDespair, despairMax } from "./despair.mjs";
 import { monokumaFor, students, unassigned } from "./assignments.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { listExperiences } from "./character.mjs";
-import { isPrimaryGm } from "./utils.mjs";
+import { competingModuleWarnings } from "./voice.mjs";
+import { isPrimaryGm, log } from "./utils.mjs";
 
 /**
  * Why Dice So Nice might be rolling unskinned dice.
@@ -169,6 +170,177 @@ function findOurSheets(sheet, depth, found) {
     return found;
 }
 
+/**
+ * Is a browser extension repainting the page?
+ *
+ * Found the hard way. Every colour in the interface was wrong on one machine and
+ * right on every other, the stylesheet was byte-identical, every token resolved,
+ * and the rule that should have won was present and correct. The winner turned
+ * out to be Dark Reader: an extension writes its rules into an INLINE stylesheet
+ * with no cascade layer, and unlayered normal declarations beat layered ones no
+ * matter how specific the layered one is. Our whole stylesheet lives in
+ * `layer modules`, so an extension beats all of it with a plain class selector.
+ *
+ * Worse, it works from its own cached reading of the file: the values it was
+ * substituting came from `--drpg-purple`, a token this module stopped having
+ * when the palette moved to Monokuma. When that variable does not resolve, its
+ * fallback paints — which is why Despair skulls came out bone-white and the Call
+ * icons lavender, two colours that appear nowhere in this project.
+ *
+ * Foundry already ships a dark theme and this module is drawn for it, so an
+ * extension darkening it a second time can only make it wrong.
+ *
+ * @returns {{name: string, evidence: string}|null}
+ */
+export function detectPageTinting() {
+    const root = document.documentElement;
+
+    if (root.dataset.darkreaderMode || root.dataset.darkreaderScheme) {
+        return { name: "Dark Reader", evidence: `<html data-darkreader-mode="${root.dataset.darkreaderMode ?? "?"}">` };
+    }
+    const styled = document.querySelector("style.darkreader, style[id^='dark-reader']");
+    if (styled) {
+        return { name: "Dark Reader", evidence: `<style class="${styled.className || styled.id}">` };
+    }
+
+    // Nothing named, so look for the shape of the problem instead: a stylesheet
+    // with no href, no cascade layer, and enough rules to be a whole-page
+    // repaint rather than a widget's few lines.
+    for (const sheet of Array.from(document.styleSheets ?? [])) {
+        if (sheet.href) continue;
+        let rules;
+        try {
+            rules = sheet.cssRules;
+        } catch {
+            continue;
+        }
+        if (!rules || rules.length < 200) continue;
+        for (const rule of rules) {
+            if (rule.cssText?.includes("--darkreader-")) {
+                return { name: "Dark Reader", evidence: `an inline stylesheet of ${rules.length} rules` };
+            }
+        }
+        return { name: "an extension", evidence: `an unlayered inline stylesheet of ${rules.length} rules` };
+    }
+    return null;
+}
+
+/**
+ * Say so, once, on the client it is happening to.
+ *
+ * A warning rather than a fix. The page could tell Dark Reader to leave it alone
+ * with a `<meta name="darkreader-lock">`, but silently switching off somebody's
+ * extension is not this module's call to make — plenty of people run it for
+ * reasons that have nothing to do with taste.
+ */
+export function warnAboutPageTinting() {
+    try {
+        const tint = detectPageTinting();
+        if (!tint) return;
+        log(`${tint.name} is repainting this page — ${tint.evidence}`);
+        ui.notifications.warn(
+            game.i18n.format("DRPG.Diagnostics.pageTinted", { name: tint.name }),
+            { permanent: true }
+        );
+    } catch {
+        // A warning that throws is worse than no warning.
+    }
+}
+
+/**
+ * Every rule on the page that paints this element, in cascade order.
+ *
+ * For the case where a colour is plainly wrong and the token behind it is plainly
+ * right: the declaration exists, resolves, and still loses. Only another rule can
+ * do that, and the browser will not tell you which — `getMatchedCSSRules` was
+ * removed years ago. So walk every stylesheet, test every selector against the
+ * element, and report the ones that declare the property, with the file and the
+ * cascade layer they came from. The last one that applies is the winner.
+ *
+ * Pseudo-element rules are matched on their host: `mask` and `background-color`
+ * for these icons live on `::before`, and `matches()` cannot be given a pseudo.
+ */
+function whoPaints(element, property, pseudo = "") {
+    const hits = [];
+    const suffix = pseudo ? new RegExp(`::?${pseudo}\\s*$`) : null;
+
+    const collect = (rule, layer, href) => {
+        const value = rule.style.getPropertyValue(property);
+        if (!value) return;
+
+        for (const one of rule.selectorText.split(",")) {
+            let selector = one.trim();
+            if (pseudo) {
+                if (!suffix.test(selector)) continue;
+                selector = selector.replace(suffix, "").trim();
+            } else if (/::/.test(selector)) {
+                continue;
+            }
+            try {
+                if (!element.matches(selector)) continue;
+            } catch {
+                continue;                            // a selector we cannot test
+            }
+            hits.push({
+                selector: one.trim(),
+                value: value.trim(),
+                important: rule.style.getPropertyPriority(property) === "important",
+                layer: layer ?? "(none)",
+                from: (href ?? "").split("/").slice(-2).join("/") || "(inline)"
+            });
+            return;                                  // one hit per rule
+        }
+    };
+
+    const walk = (node, depth, layer, href) => {
+        if (depth > 6) return;
+        let rules;
+        try {
+            rules = node.cssRules;
+        } catch {
+            return;                                  // cross-origin, unreadable
+        }
+        if (!rules) return;
+
+        for (const rule of rules) {
+            if (rule.styleSheet) {                    // @import
+                walk(rule.styleSheet, depth + 1, rule.layerName ?? layer, rule.styleSheet.href ?? href);
+                continue;
+            }
+
+            // Order matters. Under nested CSS every CSSStyleRule carries a
+            // `cssRules` list of its own — usually empty — so testing for that
+            // first treats every ordinary rule as a group and skips it. That is
+            // exactly what the first version of this did: it reported zero rules
+            // painting an element that four rules were painting.
+            if (rule.selectorText && rule.style) collect(rule, layer, href);
+            if (rule.cssRules?.length) walk(rule, depth + 1, rule.name || layer, href);
+        }
+    };
+
+    for (const sheet of Array.from(document.styleSheets ?? [])) {
+        walk(sheet, 0, null, sheet.href);
+    }
+    return hits;
+}
+
+/* Print `whoPaints` output as report lines, newest-wins last. */
+function paintLines(label, element, property, pseudo = "") {
+    const lines = [];
+    if (!element) return lines;
+    const hits = whoPaints(element, property, pseudo);
+    lines.push(`   ${label} — rules declaring ${property}${pseudo ? ` on ::${pseudo}` : ""}: ${hits.length}`);
+    if (!hits.length) {
+        lines.push("      none. The colour is inherited from an ancestor, not declared here.");
+    }
+    for (const hit of hits) {
+        lines.push(`      ${hit.value}${hit.important ? " !important" : ""}   ${hit.selector}`);
+        lines.push(`         layer ${hit.layer} · ${hit.from}`);
+    }
+    if (hits.length > 1) lines.push("      ← the LAST one that applies is what you see.");
+    return lines;
+}
+
 /* Does the loaded face actually carry this character, or is the browser quietly
    substituting? Rasterise it twice — once through the pixel stack, once through
    a plain fallback — and compare the ink. Identical means we are looking at the
@@ -221,6 +393,18 @@ export function diagnoseStyles() {
     const lines = [];
 
     // ---- 1. The page itself -------------------------------------------------
+    // First, because it makes every measurement below suspect. An extension
+    // repainting the page wins the cascade over everything in a layer, and this
+    // module's entire stylesheet is in one.
+    const tint = detectPageTinting();
+    if (tint) {
+        lines.push(`!! ${tint.name.toUpperCase()} IS REPAINTING THIS PAGE — ${tint.evidence}`);
+        lines.push("   Its rules sit in no cascade layer, and unlayered rules beat layered ones");
+        lines.push("   whatever their specificity. Every colour below may be its choice, not ours.");
+        lines.push("   Turn it off for this site before trusting anything else in this report.");
+        lines.push("");
+    }
+
     lines.push(`Page: ${location.origin} (${location.protocol})`);
     lines.push(`Module version Foundry loaded: ${game.modules.get(MODULE_ID)?.version ?? "?"}`);
     lines.push(`Foundry ${game.version}, system ${game.system.id} ${game.system.version}`);
@@ -303,6 +487,7 @@ export function diagnoseStyles() {
         } else if (wanted && mask.replace(/\s+/g, "") !== wanted.replace(/\s+/g, "")) {
             lines.push(`   ← the wrong mask for this state — expected the ${masked ? "question mark" : "skull"}.`);
         }
+        lines.push(...paintLines("pip", pip, "color"));
     }
 
     const callIcon = document.querySelector(".drpg-despair-panel .drpg-call-button .drpg-action-icon");
@@ -314,7 +499,22 @@ export function diagnoseStyles() {
         lines.push(`Despair Call icon colour: ${style.color} (background-color: ${style.backgroundColor})`);
         lines.push(`   should be --drpg-blood = ${blood || "(EMPTY)"}`);
         lines.push(`   mask: ${(style.maskImage || style.webkitMaskImage || "none").slice(0, 46)}`);
+        lines.push(`   inline style on the element: ${callIcon.getAttribute("style") || "(none)"}`);
+        lines.push(`   parent colour: ${getComputedStyle(callIcon.parentElement).color}`);
+        lines.push(...paintLines("call icon", callIcon, "color"));
     }
+
+    // The theme the client is actually in. Foundry paints its own chrome from
+    // this, and a module that forces client settings can move it out from under
+    // a player without anyone choosing it.
+    lines.push("");
+    let scheme = "(unreadable)";
+    try {
+        scheme = JSON.stringify(game.settings.get("core", "uiConfig")?.colorScheme ?? "(unset)");
+    } catch { /* older core, or the setting is gone */ }
+    lines.push(`Colour scheme: ${scheme}`);
+    lines.push(`<html> classes: ${document.documentElement.className || "(none)"}`);
+    lines.push(`<body> classes: ${document.body.className || "(none)"}`);
 
     // ---- 6. What actually came over the wire -------------------------------
     lines.push("");
@@ -476,6 +676,12 @@ export function diagnoseVoice() {
     if (!isPrimaryGm() && !game.users.find(u => u.isGM && u.active)) {
         lines.push("   ← and no GM is connected, so nobody is running it at all.");
     }
+
+    // Everything above answers "am I in the right room". None of it answers "can
+    // I hear anyone", and the commonest reason for the second to be no while the
+    // first is yes is another module turning the volume down. See
+    // `competingModuleWarnings` in voice.mjs.
+    for (const line of competingModuleWarnings()) lines.push(line);
 
     return report("Voice diagnostics", lines);
 }

@@ -46,6 +46,7 @@ const ACTION_OPENING_CANCEL = "murder.openingCancel";
 /** player -> GM: what it came up. */
 const ACTION_OPENING_RESULT = "murder.openingResult";
 const ACTION_CLEANUP = "murder.cleanup";
+const ACTION_BETRAYAL = "murder.betrayal";
 const ACTION_MEDDLE = "monocub.meddle";
 const ACTION_ACK = "bridge.ack";
 
@@ -465,8 +466,27 @@ async function onSocket(payload, senderId) {
             withHope: Boolean(payload.withHope),
             // A Reroll replacing this actor's own last crisis action. The GM
             // side checks the receipt belongs to them before unwinding anything.
-            undo: Boolean(payload.undo)
+            undo: Boolean(payload.undo),
+            // Narrowed rather than trusted: the only two answers this can carry
+            // are the two resources a critical Strike may take.
+            choice: payload.choice === "stress" ? "stress"
+                : payload.choice === "hp" ? "hp" : null
         });
+        return;
+    }
+
+    // The newcomer turns on the person they just helped. Opening a murder is a
+    // world write and a second death, so the request travels and the decision
+    // is re-derived from the incident on this side — `betrayAsPlayer` refuses
+    // anyone the state does not put in that position.
+    if (payload?.action === ACTION_BETRAYAL) {
+        const sender = senderOf(senderId);
+        if (!sender) return refuse(ACTION_BETRAYAL, "unknown sender");
+        if (!ownsActor(sender, payload.actorId)) {
+            return refuse(ACTION_BETRAYAL, "sender does not own that character");
+        }
+        const murder = await import("./murder.mjs");
+        await murder.betrayAsPlayer(payload.actorId);
         return;
     }
 
@@ -1085,10 +1105,16 @@ export function requestGiveItem({ fromId, toId, itemId }) {
 }
 
 /** Hand a thrown crisis action to the GM to be scored and applied. */
-export function requestCrisisResult({ actorId, key, total, isCritical, withHope, undo = false }) {
+export function requestCrisisResult({
+    actorId, key, total, isCritical, withHope, undo = false,
+    // Which resource a critical Strike takes. Decided by the killer on their own
+    // client while the dice are still up, and carried here rather than asked
+    // again on the GM's — see `askCriticalTarget`.
+    choice = null
+}) {
     if (game.user.isGM) {
         return import("./murder.mjs")
-            .then(m => m.resolveCrisisAction({ actorId, key, total, isCritical, withHope, undo }));
+            .then(m => m.resolveCrisisAction({ actorId, key, total, isCritical, withHope, undo, choice }));
     }
     if (!hasGm()) return null;
 
@@ -1096,7 +1122,7 @@ export function requestCrisisResult({ actorId, key, total, isCritical, withHope,
         action: ACTION_CRISIS,
         userId: game.user.id,
         requestId: expectAck("Incident"),
-        actorId, key, total, isCritical, withHope, undo
+        actorId, key, total, isCritical, withHope, undo, choice
     });
     return { pending: true };
 }
@@ -1121,6 +1147,27 @@ export function requestCleanup({
         userId: game.user.id,
         requestId: expectAck("Clean-up"),
         actorId, tokenId, total, isCritical, withHope, undo, key, targetId
+    });
+    return { pending: true };
+}
+
+/**
+ * Ask a GM to open the betrayal: the newcomer kills the killer they helped.
+ *
+ * No dice and no numbers travel — this is a declaration, and the GM's own
+ * confirmation is what turns it into a second incident.
+ */
+export function requestBetrayal({ actorId }) {
+    if (game.user.isGM) {
+        return import("./murder.mjs").then(m => m.betrayAsPlayer(actorId));
+    }
+    if (!hasGm()) return null;
+
+    game.socket.emit(SOCKET_EVENT, {
+        action: ACTION_BETRAYAL,
+        userId: game.user.id,
+        requestId: expectAck("Betrayal"),
+        actorId
     });
     return { pending: true };
 }
@@ -1289,6 +1336,10 @@ export async function promptAndCallGm(actor, {
     // Optional HTML shown above the prompt. Used to fold an action's briefing
     // into this window instead of spending a separate one on it.
     intro = "",
+    // Optional HTML for the GM's CARD rather than the player's window — the
+    // answers a form collected, so the GM reads them without opening anything.
+    // `intro` is what the player sees; this is what the GM sees.
+    body = "",
     // Buttons for the GM on the card this produces. See `callGm`.
     actions = []
 }) {
@@ -1315,6 +1366,6 @@ export async function promptAndCallGm(actor, {
 
     if (text === "cancel" || text === null || text === undefined) return null;
 
-    await callGm(actor, { title, roll, request: text, room, actions });
+    await callGm(actor, { title, roll, request: text, room, body, actions });
     return text;
 }

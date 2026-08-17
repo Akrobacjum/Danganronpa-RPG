@@ -33,6 +33,7 @@ import {
     MODULE_ID, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, TRUTH_BULLET_TYPES
 } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
+import { getClock } from "./clock.mjs";
 import { grantItem, itemsInCategory } from "./inventory.mjs";
 import { gmIds, whisperToOwner, whisperToGms, isPrimaryGm, log, warn, error, plural } from "./utils.mjs";
 
@@ -269,13 +270,20 @@ export function isAnalysable(item, chapter = null) {
     return locked !== (chapter ?? currentChapter());
 }
 
-/** The chapter now running, without making every caller import the clock. */
+/**
+ * The chapter now running.
+ *
+ * Through `getClock` rather than reading the setting and defaulting to 1 here.
+ * The old version's `?? 1` decided a rules question — whether an Analyze attempt
+ * is still locked to the chapter it failed in — from a number this file made up,
+ * and it made it up in a different place from the two other copies of the same
+ * fallback elsewhere in the module. The default belongs beside the setting.
+ *
+ * This file already imports `getClock` dynamically twice; a static import costs
+ * nothing here, since clock.mjs has never depended on this one.
+ */
 function currentChapter() {
-    try {
-        return game.settings.get(MODULE_ID, SETTINGS.clock)?.chapter ?? 1;
-    } catch {
-        return 1;
-    }
+    return getClock().chapter;
 }
 
 /** Every bullet this character could still put an Analyze into. */

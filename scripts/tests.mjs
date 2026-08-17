@@ -1,0 +1,608 @@
+/**
+ * Danganronpa RPG — the regression suite.
+ * ---------------------------------------------------------------------------
+ *     game.drpg.runTests()            everything
+ *     game.drpg.runTests({ tier: 1 }) invariants only, world untouched
+ *
+ * WHAT IS IN HERE AND WHY. Not "coverage" — the things that have actually been
+ * broken. Every tier-2 scenario below is a bug somebody hit at the table or a
+ * measurement that caught the module lying: the killers' side acting twice per
+ * round, a Finishing Blow that announced a death and left the victim standing,
+ * a body nobody could discover, Observe reaching past the murder for a trace
+ * from three days earlier. A suite written from the feature list would have
+ * passed on every one of those, because each was a function doing exactly what
+ * it said while the rules underneath it were wrong.
+ *
+ * TWO TIERS, and the split is about consequences, not speed.
+ *
+ *   Tier 1 reads. It cannot change the world, so it is safe to run at any point
+ *          in a session, including during play.
+ *   Tier 2 writes. It opens incidents, kills people and resets seasons — so it
+ *          builds its own fixtures, records what it displaced, and puts
+ *          everything back. Never run it in a world somebody is playing in.
+ *
+ * NO DICE. Every scenario drives the resolver directly with a total, because a
+ * roll dialog needs a browser tab that is compositing frames and a suite that
+ * only passes in a foreground window is a suite that fails in CI and in a
+ * backgrounded tab for reasons that have nothing to do with the module.
+ */
+
+import { MODULE_ID, STARTING, CRISIS_ACTIONS, ACTIONS, TRAITS } from "./config.mjs";
+import { SETTINGS } from "./settings.mjs";
+import { getClock, setClock } from "./clock.mjs";
+import { studentActors } from "./monokuma.mjs";
+import { detectPageTinting } from "./diagnostics.mjs";
+import { voiceTargets, liveKitRoomFor } from "./voice.mjs";
+import { log } from "./utils.mjs";
+
+/* ==========================================================================
+ * HARNESS
+ * ========================================================================== */
+
+class Failure extends Error {}
+
+function ok(condition, message) {
+    if (!condition) throw new Failure(message);
+}
+
+function equal(actual, expected, message) {
+    if (actual !== expected) {
+        throw new Failure(`${message} — expected ${JSON.stringify(expected)}, measured ${JSON.stringify(actual)}`);
+    }
+}
+
+const wait = ms => new Promise(r => setTimeout(r, ms));
+
+/** Let a world write land on this client before reading it back. */
+const settle = () => wait(400);
+
+/* ==========================================================================
+ * TIER 1 — INVARIANTS
+ * ========================================================================== */
+
+const INVARIANTS = [
+    ["every action definition has a label and a cost", () => {
+        for (const [key, def] of Object.entries(ACTIONS)) {
+            ok(def.label, `${key} has no label`);
+            ok(typeof def.cost === "number", `${key} has no numeric cost`);
+        }
+    }],
+
+    ["every crisis action names a side the engine knows", () => {
+        const sides = new Set(["killer", "victim", "third"]);
+        for (const [key, def] of Object.entries(CRISIS_ACTIONS)) {
+            ok(sides.has(def.side), `${key} has side "${def.side}"`);
+            ok(def.label, `${key} has no label`);
+            // A rolled action needs something to roll and something to beat.
+            if (!def.noRoll && key !== "finishingBlow") {
+                ok(def.traits?.length, `${key} rolls but names no trait`);
+                ok(typeof def.threshold === "number", `${key} rolls but has no threshold`);
+            }
+        }
+    }],
+
+    ["every trait a definition names actually exists", () => {
+        const known = new Set(Object.keys(TRAITS));
+        const check = (source, label) => {
+            for (const [key, def] of Object.entries(source)) {
+                for (const trait of def.traits ?? []) {
+                    ok(known.has(trait), `${label} ${key} names unknown trait "${trait}"`);
+                }
+            }
+        };
+        check(ACTIONS, "action");
+        check(CRISIS_ACTIONS, "crisis action");
+    }],
+
+    ["the crisis briefing can be built for every action", () => {
+        // The briefing reads `hint`, `failure` and the threshold. A definition
+        // missing all three renders an empty window, which is how the crisis
+        // actions went to the dice with nothing said about them for months.
+        for (const [key, def] of Object.entries(CRISIS_ACTIONS)) {
+            ok(def.hint || def.failure, `${key} has neither a hint nor a failure line`);
+        }
+    }],
+
+    ["a critical Strike knows how much it takes", () => {
+        const strike = CRISIS_ACTIONS.strike;
+        ok(strike.damage?.critical?.choice, "Strike's critical no longer offers a choice");
+        ok(typeof strike.damage.criticalAmount === "number",
+            "Strike offers a choice but does not say how many marks it moves");
+    }],
+
+    ["every string the code asks for exists in the language file", () => {
+        // Only the keys spelled out as literals — a key built from a variable
+        // cannot be checked from here, and pretending otherwise would make this
+        // test lie in the reassuring direction.
+        const missing = [];
+        for (const key of LITERAL_KEYS) {
+            if (!game.i18n.has(key)) missing.push(key);
+        }
+        ok(!missing.length, `missing: ${missing.slice(0, 8).join(", ")}`);
+    }],
+
+    ["the theme tokens resolve", () => {
+        const root = getComputedStyle(document.documentElement);
+        for (const token of ["--drpg-ink", "--drpg-bone", "--drpg-eye", "--drpg-blood",
+                             "--drpg-gold", "--drpg-pix-skull", "--drpg-pix-query"]) {
+            ok(root.getPropertyValue(token).trim(), `${token} is empty`);
+        }
+    }],
+
+    ["nothing is repainting the page", () => {
+        // Not a module bug when it fails — but every colour measurement in this
+        // suite and every visual judgement at the table is worthless while it is
+        // true, so it is worth saying out loud. See `detectPageTinting`.
+        const tint = detectPageTinting();
+        ok(!tint, `${tint?.name} is restyling the page — ${tint?.evidence}`);
+    }],
+
+    ["no Remnant token carries the answer key", () => {
+        // The leak this suite exists to keep shut. A Remnant token travels to
+        // every client, hidden or not, so anything on it beyond the marker is
+        // readable from a player's console — measured before the fix: forty
+        // traces with who left each one, whether it belonged to the murder, and
+        // the GM's own sentence about it.
+        const leaks = [];
+        for (const scene of game.scenes) {
+            for (const token of scene.tokens) {
+                if (!token.getFlag(MODULE_ID, "isRemnant")) continue;
+                const keys = Object.keys(token.flags?.[MODULE_ID] ?? {})
+                    .filter(k => k !== "isRemnant");
+                if (keys.length) leaks.push(`${token.name}: ${keys.join(", ")}`);
+            }
+        }
+        ok(!leaks.length, `${leaks.length} token(s) still carry it — ${leaks[0]}`);
+    }],
+
+    ["a Remnant token's name gives nothing away", () => {
+        // The name used to BE the answer: "Obvious Faint Prep Remnant · Player B
+        // · Search: Cleaning agent". Names travel with the token.
+        const expected = game.i18n.localize("DRPG.Remnant.tokenName");
+        const talkative = [];
+        for (const scene of game.scenes) {
+            for (const token of scene.tokens) {
+                if (!token.getFlag(MODULE_ID, "isRemnant")) continue;
+                if (token.name !== expected) talkative.push(token.name);
+            }
+        }
+        ok(!talkative.length, `${talkative.length} named for what they are — "${talkative[0]}"`);
+    }],
+
+    ["one account is only ever sent to one voice room", async () => {
+        // A voice client is in a single breakout at a time. The loop used to
+        // walk the ACTOR list and assign per actor, so an account owning two
+        // characters in two rooms was sent to both on every pass — a full
+        // disconnect and reconnect twice a minute, forever, which at the table
+        // is a dropout every sixty seconds for one unlucky player.
+        const { rows, byUser } = await voiceTargets();
+
+        for (const [userId, chosen] of byUser) {
+            const theirs = rows.filter(r => r.user?.id === userId);
+            ok(theirs.includes(chosen),
+                `${game.users.get(userId)?.name}'s room comes from no character of theirs`);
+        }
+
+        // And the same answer every time, or the "conflict" is really a coin
+        // flip that reads as an assignment randomly not sticking.
+        const again = await voiceTargets();
+        for (const [userId, chosen] of byUser) {
+            equal(again.byUser.get(userId)?.target ?? null, chosen.target ?? null,
+                `${game.users.get(userId)?.name} is assigned a different room on a second pass`);
+        }
+    }],
+
+    ["two rooms never share one voice channel", () => {
+        // Room names are slugged, and a slug throws away everything that is not
+        // a letter or a digit — so "Kitchen" and "Kitchen " were two rooms
+        // everywhere else in this module and ONE room to LiveKit. Everybody in
+        // them heard each other, silently, in the subsystem whose whole purpose
+        // is that they should not.
+        const scene = game.scenes.contents[0]?.id ?? "scene";
+        const names = ["Kitchen", "Kitchen ", "Kitchen!", "kitchen", "Dorm A", "Dorm-A", "第一教室", "教室"];
+        const seen = new Map();
+        for (const name of names) {
+            const room = liveKitRoomFor(scene, name);
+            ok(!seen.has(room), `"${name}" and "${seen.get(room)}" both map to ${room}`);
+            seen.set(room, name);
+        }
+
+        // Every real room on every scene, held to the same rule.
+        for (const s of game.scenes) {
+            const used = new Map();
+            for (const region of s.regions ?? []) {
+                if (!region.name) continue;
+                const room = liveKitRoomFor(s.id, region.name);
+                const clash = used.get(room);
+                // Two regions with the SAME name are one room on purpose — a
+                // corridor drawn in two pieces. Two different names are not.
+                ok(clash === undefined || clash === region.name,
+                    `"${s.name}": "${region.name}" and "${clash}" share a voice room`);
+                used.set(room, region.name);
+            }
+        }
+    }],
+
+    ["the clock has one definition of its defaults", () => {
+        const clock = getClock();
+        for (const field of ["chapter", "day", "session", "timeOfDay", "phase"]) {
+            ok(clock[field] !== undefined, `getClock() returns no ${field}`);
+        }
+    }]
+];
+
+/**
+ * i18n keys worth checking, gathered by hand.
+ *
+ * Deliberately not scraped from the source at runtime: the scrape would have to
+ * run over files this module cannot read from the browser, and a half-scrape
+ * that quietly checks forty keys out of six hundred reads as a pass.
+ */
+const LITERAL_KEYS = [
+    "DRPG.Murder.victimUnderAttack", "DRPG.Murder.victimTrapSprung",
+    "DRPG.Murder.briefThreshold", "DRPG.Murder.briefRoll", "DRPG.Murder.briefTake",
+    "DRPG.Murder.criticalChoiceTitle", "DRPG.Murder.criticalChoiceHp", "DRPG.Murder.criticalChoiceStress",
+    "DRPG.Murder.betrayTileLabel", "DRPG.Murder.betrayTileHint",
+    "DRPG.Murder.ranOutTwoKillers", "DRPG.Murder.ranOutEndNow", "DRPG.Murder.ranOutKeepGoing",
+    "DRPG.Calls.silencedBadge", "DRPG.Calls.chainedBadge",
+    "DRPG.Monocub.silencedBadge", "DRPG.Monocub.silencedTooltip",
+    "DRPG.Remnant.cardTitle", "DRPG.Remnant.cardWhat", "DRPG.Remnant.cardPlayer",
+    "DRPG.Project.proposalTitle", "DRPG.Project.approveButton", "DRPG.Project.declineButton",
+    "DRPG.Project.proposeButton", "DRPG.Project.createButton",
+    "DRPG.Season.title", "DRPG.Season.resetTitle", "DRPG.Season.resetWord",
+    "DRPG.Season.step.resources", "DRPG.Season.hint.resources",
+    "DRPG.Diagnostics.pageTinted"
+];
+
+/* ==========================================================================
+ * TIER 2 — SCENARIOS
+ * ========================================================================== */
+
+/**
+ * Everything a scenario is allowed to disturb, recorded so it can be put back.
+ *
+ * The clock and the incident are world settings; resources are actor data. A
+ * scenario that throws half way through still gets restored, because the restore
+ * runs from `finally` in the runner rather than at the end of the test.
+ */
+async function snapshot(cast) {
+    return {
+        clock: foundry.utils.deepClone(getClock()),
+        murder: foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {}),
+        resources: cast.map(a => ({
+            id: a.id,
+            hp: a.system?.resources?.hitPoints?.value ?? 0,
+            stress: a.system?.resources?.stress?.value ?? 0,
+            deceased: a.getFlag(MODULE_ID, "deceased") ?? null
+        })),
+        // WHICH TOKENS AND MESSAGES EXISTED, not how many.
+        //
+        // An incident drops Remnants of its own — the opening roll leaves one,
+        // every crisis action can leave another — and they are world objects
+        // that outlive the test and change what the NEXT measurement sees. The
+        // first version of this suite passed all six scenarios and left three
+        // Remnants behind, which is the failure this file's own header warns
+        // about. Recorded as ids rather than a count so the restore removes
+        // exactly what appeared and never touches anything that was already
+        // there.
+        // `game.scenes` is a Foundry Collection, which has `map` and `filter`
+        // but NOT `flatMap` — the first version used it, threw inside the
+        // snapshot, and the runner reported one failure and skipped every
+        // scenario. A suite that silently runs nothing reads almost the same as
+        // a suite that passes, which is why the runner names the step.
+        remnants: new Set(game.scenes.reduce((ids, scene) => {
+            for (const token of scene.tokens) {
+                if (token.getFlag(MODULE_ID, "isRemnant")) ids.push(`${scene.id}.${token.id}`);
+            }
+            return ids;
+        }, [])),
+        messages: new Set(game.messages.map(m => m.id))
+    };
+}
+
+async function restore(snap) {
+    const { reviveCharacter } = await import("./chapter.mjs");
+    await game.settings.set(MODULE_ID, SETTINGS.murderState, snap.murder);
+    const { clearBlackened } = await import("./murder.mjs");
+    await clearBlackened();
+
+    for (const row of snap.resources) {
+        const actor = game.actors.get(row.id);
+        if (!actor) continue;
+        if (!row.deceased && actor.getFlag(MODULE_ID, "deceased")) await reviveCharacter(actor);
+        await actor.update({
+            "system.resources.hitPoints.value": row.hp,
+            "system.resources.stress.value": row.stress
+        });
+    }
+    // Anything that appeared while the scenario ran, removed.
+    for (const scene of game.scenes) {
+        const strays = scene.tokens
+            .filter(t => t.getFlag(MODULE_ID, "isRemnant") && !snap.remnants.has(`${scene.id}.${t.id}`))
+            .map(t => t.id);
+        if (strays.length) await scene.deleteEmbeddedDocuments("Token", strays);
+    }
+
+    // The chat the scenarios produced. Kept out of the log on purpose: a suite
+    // that leaves forty whispers behind makes the log useless for the session
+    // that follows it, and none of them are a record of anything that happened.
+    const strayMessages = game.messages.filter(m => !snap.messages.has(m.id)).map(m => m.id);
+    if (strayMessages.length) await ChatMessage.deleteDocuments(strayMessages);
+
+    await setClock(snap.clock);
+    await settle();
+}
+
+/** Three students to play with, or the scenarios cannot run. */
+function cast() {
+    const roster = studentActors();
+    if (roster.length < 3) throw new Failure(`need three students, found ${roster.length}`);
+    return roster.slice(0, 3);
+}
+
+const SCENARIOS = [
+    ["a direct murder opens on the killer and tells the victim", async () => {
+        const [killer, victim] = cast();
+        const drpg = game.drpg;
+        const before = game.messages.size;
+
+        await drpg.openMurder({ killerId: killer.id, victimId: victim.id });
+        await settle();
+        equal(drpg.murderState()?.stage, "openingRoll", "stage after opening");
+
+        await drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await settle();
+
+        const state = drpg.murderState();
+        equal(state.stage, "incident", "stage after the opening roll");
+        equal(state.turnSide, "victim", "the victim opens the incident");
+
+        const told = [...game.messages].slice(before).some(m =>
+            m.whisper.includes(game.users.find(u => victim.testUserPermission(u, "OWNER"))?.id ?? "")
+            || /moving on you/i.test(m.content ?? ""));
+        ok(told, "the victim was never told the incident began");
+    }],
+
+    ["two killers alternate instead of both acting", async () => {
+        const [killer, victim, third] = cast();
+        const drpg = game.drpg;
+        const murder = await import("./murder.mjs");
+
+        await drpg.openMurder({ killerId: killer.id, victimId: victim.id });
+        await settle();
+        await drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await settle();
+        await murder.thirdPartyEnters(third);
+        await settle();
+        await drpg.resolveCrisisAction({
+            actorId: third.id, key: "crimePartners", total: 20, isCritical: false, withHope: true
+        });
+        await settle();
+
+        equal(murder.killerIds().length, 2, "the accomplice joined the killers");
+
+        // Walk a full round and record who may act on each killer turn.
+        const acting = [];
+        for (let i = 0; i < 6; i++) {
+            const state = murder.murderState();
+            if (state.turnSide === "killer") {
+                const who = [killer, third].filter(a => murder.isTheirTurn(a));
+                equal(who.length, 1, `killer turn ${i}: exactly one of them may act`);
+                acting.push(who[0].id);
+            }
+            await drpg.passTurn();
+            await settle();
+        }
+        ok(new Set(acting).size === 2, `the turn never changed hands: ${acting.join(", ")}`);
+    }],
+
+    ["a Finishing Blow actually kills", async () => {
+        const [killer, victim] = cast();
+        const drpg = game.drpg;
+        const { isDeceased } = await import("./chapter.mjs");
+
+        await drpg.openMurder({ killerId: killer.id, victimId: victim.id });
+        await settle();
+        await drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await settle();
+        await drpg.passTurn();
+        await settle();
+
+        ok(!isDeceased(victim), "the victim started the test dead");
+        await drpg.resolveCrisisAction({
+            actorId: killer.id, key: "finishingBlow", total: 99, isCritical: false, withHope: true
+        });
+        await wait(1600);
+
+        equal(drpg.murderState()?.stage, "resolution", "stage after the blow");
+        ok(isDeceased(victim), "the victim is not recorded dead");
+        ok(victim.effects.some(e => e.statuses?.has?.("dead")), "no dead marker on the token");
+    }],
+
+    ["both killers may clean up, nobody else may", async () => {
+        const [killer, victim, third] = cast();
+        const drpg = game.drpg;
+        const murder = await import("./murder.mjs");
+        const cleanup = await import("./cleanup.mjs");
+
+        await drpg.openMurder({ killerId: killer.id, victimId: victim.id });
+        await settle();
+        await drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await settle();
+        await murder.thirdPartyEnters(third);
+        await settle();
+        await drpg.resolveCrisisAction({
+            actorId: third.id, key: "crimePartners", total: 20, isCritical: false, withHope: true
+        });
+        await settle();
+        await murder.beginResolution("test");
+        await settle();
+
+        ok(cleanup.isCleaner(killer), "the killer cannot clean up");
+        ok(cleanup.isCleaner(third), "the accomplice cannot clean up");
+        ok(!cleanup.isCleaner(victim), "the victim was offered the clean-up");
+    }],
+
+    ["the accomplice is offered the betrayal, and only them", async () => {
+        const [killer, victim, third] = cast();
+        const drpg = game.drpg;
+        const murder = await import("./murder.mjs");
+
+        await drpg.openMurder({ killerId: killer.id, victimId: victim.id });
+        await settle();
+        await drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await settle();
+        await murder.thirdPartyEnters(third);
+        await settle();
+        await drpg.resolveCrisisAction({
+            actorId: third.id, key: "crimePartners", total: 20, isCritical: false, withHope: true
+        });
+        await settle();
+
+        ok(!murder.betrayalTarget(third), "the betrayal was offered during the incident");
+
+        await murder.beginResolution("test");
+        await settle();
+
+        equal(murder.betrayalTarget(third)?.id, killer.id, "the accomplice turns on the killer");
+        ok(!murder.betrayalTarget(killer), "the killer was offered a betrayal");
+        ok(!murder.betrayalTarget(victim), "the victim was offered a betrayal");
+    }],
+
+    ["Observe prefers the most recent incident, then difficulty", async () => {
+        const remnants = await import("./remnants.mjs");
+        const scene = game.scenes.active;
+        const room = scene?.regions?.find(r => remnants.rankForObserve(r.name, scene).length >= 3)?.name;
+        ok(room, "no room on the active scene holds three Remnants to rank");
+
+        const ranked = remnants.rankForObserve(room, scene);
+        for (let i = 1; i < ranked.length; i++) {
+            const before = ranked[i - 1], after = ranked[i];
+            // Crime-tied first, then ascending difficulty inside each group.
+            if (before.data.tiedToCrime === after.data.tiedToCrime) {
+                ok(before.dc <= after.dc, `${room}: DC ${before.dc} listed before DC ${after.dc}`);
+            } else {
+                ok(before.data.tiedToCrime, `${room}: an untied Remnant is ranked above a tied one`);
+            }
+        }
+    }],
+
+    ["an Eclipse takes every voice off the rooms", async () => {
+        // The Eclipse is the placement window. A voice channel that still
+        // followed the rooms while the lights were out would be the one thing
+        // in the building that could see in the dark — you would hear who came
+        // in with you, and hear the room empty when somebody left.
+        const before = await voiceTargets();
+        ok(!before.eclipse, "an Eclipse was already running before the test began");
+        const placed = [...before.byUser.values()].filter(r => r.room);
+        ok(placed.length, "nobody is standing in a room, so there is nothing to take away");
+
+        await setClock({ ...getClock(), eclipse: true });
+        await settle();
+
+        const during = await voiceTargets();
+        ok(during.eclipse, "the clock says no Eclipse is running");
+
+        const rooms = new Set();
+        for (const [userId, row] of during.byUser) {
+            equal(row.room, null, `${game.users.get(userId)?.name} is still placed in a room`);
+            ok(row.target, `${game.users.get(userId)?.name} was left on an open channel`);
+            // A scene id in the name would leak which map, and a slug would leak
+            // which region — the two things the darkness is hiding.
+            ok(!row.scene, `${game.users.get(userId)?.name}'s assignment still names a scene`);
+            rooms.add(row.target);
+        }
+
+        // Every connected account, including any that owns no character at all.
+        const connected = game.users.filter(u => u.active).length;
+        equal(during.byUser.size, connected, "somebody connected was not given an Eclipse channel");
+
+        // One room each, so each holds one person. GMs deliberately share theirs.
+        const players = [...during.byUser].filter(([id]) => !game.users.get(id)?.isGM);
+        equal(new Set(players.map(([, r]) => r.target)).size, players.length,
+            "two players were put in the same Eclipse channel");
+
+        await setClock({ ...getClock(), eclipse: false });
+        await settle();
+
+        const after = await voiceTargets();
+        ok(!after.eclipse, "the Eclipse did not end");
+        equal([...after.byUser.values()].filter(r => r.room).length, placed.length,
+            "the rooms did not come back when the lights did");
+    }]
+];
+
+/* ==========================================================================
+ * RUNNER
+ * ========================================================================== */
+
+/**
+ * @param {object} [options]
+ * @param {1|2} [options.tier]  1 reads only; 2 also runs the scenarios.
+ */
+export async function runTests({ tier = 2 } = {}) {
+    if (!game.user.isGM) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
+        return null;
+    }
+
+    const lines = [];
+    let passed = 0, failed = 0;
+
+    const record = (name, err) => {
+        if (err) {
+            failed++;
+            lines.push(`  FAIL  ${name}`);
+            lines.push(`        ${err instanceof Failure ? err.message : `threw: ${err?.message ?? err}`}`);
+        } else {
+            passed++;
+            lines.push(`  ok    ${name}`);
+        }
+    };
+
+    lines.push("TIER 1 — invariants (the world is not touched)");
+    for (const [name, fn] of INVARIANTS) {
+        try { await fn(); record(name, null); } catch (err) { record(name, err); }
+    }
+
+    if (tier >= 2) {
+        lines.push("");
+        lines.push("TIER 2 — scenarios (fixtures built and put back)");
+        let snap = null;
+        try {
+            snap = await snapshot(studentActors());
+        } catch (err) {
+            lines.push(`  FAIL  could not record the world before testing: ${err.message}`);
+            failed++;
+        }
+
+        if (snap) {
+            for (const [name, fn] of SCENARIOS) {
+                try {
+                    await fn();
+                    record(name, null);
+                } catch (err) {
+                    record(name, err);
+                } finally {
+                    // After EVERY scenario, not once at the end: a scenario that
+                    // fails half way leaves an incident open, and the next one
+                    // would then be testing the wreckage of the last.
+                    try {
+                        await game.drpg.endMurder({ reason: "test", followUp: false });
+                        await restore(snap);
+                    } catch (err) {
+                        lines.push(`        (could not restore after "${name}": ${err.message})`);
+                    }
+                }
+            }
+        }
+    }
+
+    const summary = `${passed} passed, ${failed} failed`;
+    const text = [`Danganronpa RPG — regression suite`, summary, "", ...lines].join("\n");
+    console.log(text);
+    if (failed) ui.notifications.warn(summary);
+    else ui.notifications.info(summary);
+    log(`Regression suite: ${summary}`);
+    return { passed, failed, text };
+}

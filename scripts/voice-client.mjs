@@ -54,7 +54,14 @@ export const VOICE = {
     /** user -> GM: "I applied it" / "I could not". */
     applied: "voice.applied",
     /** user -> GM: "where do I belong?" — sent on join and on A/V startup. */
-    whoAmI: "voice.whoAmI"
+    whoAmI: "voice.whoAmI",
+    /**
+     * GM -> primary GM: "I picked a room by hand; leave my voice where it is"
+     * (or "I have stopped, steer me again"). Only a GM sends this, and only the
+     * client running the assignment loop acts on it — see `manualUsers` in
+     * voice.mjs.
+     */
+    manual: "voice.manual"
 };
 
 /**

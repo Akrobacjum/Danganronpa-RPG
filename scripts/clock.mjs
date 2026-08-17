@@ -113,7 +113,11 @@ export async function setClock(patch = {}) {
 export async function advanceTimeOfDay({
     resetActions = false,
     resetSearchTokens = true,
-    announce = true
+    announce = true,
+    // Extra fields to fold into the SAME write. `endEclipse` uses it to clear
+    // the Eclipse flag as the clock moves, rather than in a write of its own —
+    // see the note on the flicker below.
+    also = {}
 } = {}) {
     if (!game.user.isGM) return null;
 
@@ -122,9 +126,19 @@ export async function advanceTimeOfDay({
     const nextIndex = (index + 1) % TIMES_OF_DAY.length;
     const rolledOver = nextIndex === 0;
 
+    // ONE write, not two.
+    //
+    // Every setting write redraws the HUD on every client, so a clock moved in
+    // two steps is a clock that is briefly readable in a state it was never
+    // meant to be in. Ending an Eclipse did exactly that: the flag was cleared
+    // first, which left the previous time of day showing as an ordinary label
+    // for a frame, and then the time advanced. On screen that is the old time
+    // of day flashing up between the Eclipse and the new one.
+    //
     // Five times of day make one in-fiction day, so the day ticks over on the
     // same wrap that starts a new session.
     const next = await setClock({
+        ...also,
         timeOfDay: TIMES_OF_DAY[nextIndex],
         session: rolledOver ? clock.session + 1 : clock.session,
         day: rolledOver ? (clock.day ?? 1) + 1 : (clock.day ?? 1)

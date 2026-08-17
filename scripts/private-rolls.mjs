@@ -40,6 +40,59 @@ export function registerPrivateRolls() {
     // message type that renders itself — while the deprecated hook only ever
     // fired on the first. The old listener was strictly the smaller net.
     Hooks.on("renderChatMessageHTML", enforceContentVisibility);
+
+    // The same hook, deliberately, and after the one above: a message this
+    // client may not read is hidden first and never styled. See `paintRollCard`
+    // for why the outcome colour cannot be a stylesheet rule.
+    Hooks.on("renderChatMessageHTML", paintRollCard);
+}
+
+/**
+ * Put the outcome colour on a duality roll — from script, because CSS cannot.
+ *
+ * The stylesheet has carried `border: 1px solid var(--drpg-gold) !important` for
+ * Hope rolls since the palette work, and it has never once applied. Daggerheart
+ * sets `border-style: none !important` on every chat message from `layer system`,
+ * and for IMPORTANT declarations the cascade runs layers in reverse — the
+ * earlier layer wins. Our `!important` sits in `layer modules`, which is later,
+ * so it loses by rule rather than by specificity, and no selector this module
+ * can write will change that. Measured on a real card: the dark background
+ * landed (Daggerheart does not force `background-color`), the border computed to
+ * `0px none`.
+ *
+ * An inline style is the one thing above an author `!important`, so the colour
+ * goes on the element. The palette still lives in the stylesheet — the tokens
+ * are read back off `:root` rather than repeated here, so changing the gold in
+ * one place still changes it here.
+ */
+const OUTCOME_TOKEN = {
+    critical: "--drpg-crimson",
+    fear: "--drpg-blood",
+    hope: "--drpg-gold"
+};
+
+function paintRollCard(message, element) {
+    try {
+        const html = element instanceof HTMLElement ? element : element?.[0];
+        if (!html?.classList?.contains("duality")) return;
+        // Hidden by the pass above: leave it exactly as it is.
+        if (html.classList.contains("drpg-hidden-message")) return;
+
+        // Critical first — a card carries `critical` alongside `hope` or `fear`,
+        // and the rarest outcome is the one worth naming.
+        const outcome = ["critical", "fear", "hope"].find(k => html.classList.contains(k));
+        if (!outcome) return;
+
+        const colour = getComputedStyle(document.documentElement)
+            .getPropertyValue(OUTCOME_TOKEN[outcome]).trim();
+        if (!colour) return;
+
+        html.style.setProperty("border", `1px solid ${colour}`, "important");
+        html.style.setProperty("border-left", `3px solid ${colour}`, "important");
+    } catch (err) {
+        // A card without its border is still a readable card.
+        error("Could not colour a roll card", err);
+    }
 }
 
 /**

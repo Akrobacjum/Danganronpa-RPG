@@ -24,7 +24,7 @@
  * the difficulty.
  */
 
-import { OBSERVE_FAIL_STRESS } from "./config.mjs";
+import { OBSERVE_FAIL_STRESS, TIMES_OF_DAY } from "./config.mjs";
 import { rankForObserve } from "./remnants.mjs";
 import { createTruthBullet, copiedRemnants, dropSecret } from "./truth-bullets.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
@@ -106,10 +106,18 @@ export async function chooseObserveTarget({ actorId, declaration, request = "" }
         // A GM who closes the picker has refused the request, which is a real
         // answer: the player keeps their action and nothing is rolled.
         if (!chosen) return { ok: false, reason: "refused" };
-    } else if (declaration === DECLARATIONS.nonObvious) {
-        chosen = candidates[candidates.length - 1];
     } else {
-        chosen = candidates[0];
+        // The preference picks the SHELF; the declaration picks off it.
+        //
+        // Both of these were reading off the full list, which sorts crime-tied
+        // Remnants first and then by difficulty. "The easiest" therefore did
+        // land on the right one — but "the hardest" walked to the far end of the
+        // list, which is the hardest Remnant that has nothing to do with the
+        // murder. The guide is the other way round: "DM zawsze w pierwszej
+        // kolejności pokazuje Remnants związane z zabójstwem", and a preference
+        // that only holds for one of the two declarations is not a preference.
+        const shelf = mostRelevant(candidates);
+        chosen = declaration === DECLARATIONS.nonObvious ? shelf[shelf.length - 1] : shelf[0];
     }
 
     const key = foundry.utils.randomID();
@@ -127,6 +135,49 @@ export async function chooseObserveTarget({ actorId, declaration, request = "" }
 
     log(`Observe: ${actor.name} is looking at a ${chosen.data.visibility} ${chosen.data.type} in ${room} (DC ${chosen.dc}).`);
     return { ok: true, key };
+}
+
+/**
+ * How recently a Remnant was left, as one comparable number.
+ *
+ * Remnants are stamped with the chapter, day and time of day they were dropped.
+ * Packed largest-unit-first so ordinary `-` comparison sorts them, and a missing
+ * stamp counts as the oldest thing in the room rather than the newest — an
+ * unstamped Remnant is one from before this bookkeeping existed, and it should
+ * not outrank a trace from the body currently on the floor.
+ */
+function recencyOf(data) {
+    const time = TIMES_OF_DAY.indexOf(data?.timeOfDay);
+    return (Number(data?.chapter) || 0) * 1e6
+         + (Number(data?.day) || 0) * 1e3
+         + (time < 0 ? 0 : time);
+}
+
+/**
+ * The shelf an untargeted Observe picks from, in difficulty order.
+ *
+ * Three tiers, and the first non-empty one wins outright:
+ *
+ *   1. traces of the most recent incident   the guide's "w pierwszej kolejności"
+ *   2. anything else tied to a crime        an older murder still beats scenery
+ *   3. everything in the room               nothing is tied; there is no
+ *                                           preference left to express
+ *
+ * Tier 1 is what `tiedToCrime` alone could never give: it is a flag, not a date,
+ * so by the third chapter every Remnant in the building carries it and the
+ * preference stops meaning anything. Measured on the test world — 34 Remnants,
+ * all of them tied, spanning five different days.
+ *
+ * The input is already sorted by difficulty and that order is preserved here, so
+ * the caller can keep taking the first or the last.
+ */
+function mostRelevant(candidates) {
+    const tied = candidates.filter(c => c.data.tiedToCrime);
+    if (!tied.length) return candidates;
+
+    const newest = Math.max(...tied.map(c => recencyOf(c.data)));
+    const latest = tied.filter(c => recencyOf(c.data) === newest);
+    return latest.length ? latest : tied;
 }
 
 /** The GM decides which trace is closest to what the player asked for. */

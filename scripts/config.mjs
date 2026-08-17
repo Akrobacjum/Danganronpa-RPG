@@ -615,10 +615,18 @@ export const ACTIONS = {
         icon: "fa-hammer",
         traits: ["hand", "body", "leg", "head"],
         cost: 1,
-        hint: "Push a project agreed with the GM. Several people can work on one and pool progress.",
+        // The tile has two branches and one of them summons a human: proposing
+        // a project sends the GM a card and waits for them. `callsGm` is what
+        // paints the red stripe and the GM glyph on the tile, and a tile that
+        // can hand the turn over should say so before it is pressed rather than
+        // after — see the cost-stripe note in sheet.mjs.
+        callsGm: true,
+        hint: "Push a project, or propose a new one for the GM to approve. Several people can work "
+            + "on one and pool progress.",
         description: "The slow game: many actions across many times of day, and the one thing that can "
             + "change how this ends. Several people can work on the same project and their progress "
-            + "adds up. You have to be in the project's room.",
+            + "adds up. You have to be in the project's room to work on one — proposing a new one "
+            + "you can do anywhere, and nothing starts until the GM approves it.",
         thresholds: [
             { min: 12, progress: 1 },
             { min: 18, progress: 2 }
@@ -1302,7 +1310,15 @@ export const CRISIS_ACTIONS = {
         side: "killer", label: "Strike", icon: "fa-hand-fist",
         threshold: 15, traits: ["hand", "leg", "body"],
         hint: "Speed up their decline. Costs 1 HP and 1 Stress from them.",
-        damage: { hope: { hp: 1, stress: 1 }, despair: { hp: 1, stress: 1 }, critical: { choice: true } },
+        damage: {
+            hope: { hp: 1, stress: 1 }, despair: { hp: 1, stress: 1 },
+            // A critical is the same two marks, but the killer says where both
+            // of them land instead of one going to each. `criticalAmount` is
+            // stated rather than inferred from the rows above, so changing what
+            // a critical is worth does not mean reading `applyDamage` to find
+            // out where the number came from.
+            critical: { choice: true }, criticalAmount: 2
+        },
         remnant: { hope: "hidden", despair: "subtle", critical: null },
         failure: "Nothing on a Hope failure. On Despair you still take 1 Stress off them and "
             + "leave an Evident Remnant; a critical failure leaves an Obvious one.",

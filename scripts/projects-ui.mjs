@@ -6,7 +6,8 @@
  * the room it belongs to, and who is allowed to know it exists.
  */
 
-import { PROJECT_SCALE, TRAITS } from "./config.mjs";
+import { MODULE_ID, PROJECT_SCALE, TRAITS } from "./config.mjs";
+import { SETTINGS } from "./settings.mjs";
 import {
     allProjects, setProjectMeta, roomOf, isIndirectMurder, isSecret,
     makeSecret, shareWith, unshareWith, revealProject, viewersOf,
@@ -109,6 +110,12 @@ function onRenderCountdowns(app, element) {
         // Shown to everyone, GM or not, so removed for everyone.
         root.querySelector(".header-type-toggles")?.remove();
 
+        // Folding the tray away is everybody's, not the GM's — a player with
+        // four projects on a 1080p screen wants the map back, and the tray sits
+        // directly under their own status strip.
+        addCollapseControl(root);
+        applyCollapsed(root);
+
         if (!game.user.isGM) return;
 
         root.querySelector('[data-action="editCountdowns"]')?.remove();
@@ -134,6 +141,70 @@ function onRenderCountdowns(app, element) {
     } catch (err) {
         error("Could not add the project manager button", err);
     }
+}
+
+/* ==========================================================================
+ * FOLDING THE TRAY AWAY
+ * --------------------------------------------------------------------------
+ * The tray has no collapse of its own. Daggerheart's one header control is
+ * `toggleViewMode`, which swaps the rows for a row of icons — a different thing,
+ * and it leaves the tray exactly as tall.
+ *
+ * So: a caret that hides the body and leaves the title bar, remembered per
+ * client. Re-applied on every render because the tray rebuilds its header from
+ * scratch each time, which is the same reason the gear above is re-added rather
+ * than wired once.
+ * ========================================================================== */
+
+const COLLAPSED_CLASS = "drpg-projects-collapsed";
+
+function collapsed() {
+    try {
+        return Boolean(game.settings.get(MODULE_ID, SETTINGS.projectsCollapsed));
+    } catch {
+        return false;   // too early, or the setting is not registered yet
+    }
+}
+
+function applyCollapsed(root) {
+    const on = collapsed();
+    root.classList.toggle(COLLAPSED_CLASS, on);
+
+    const caret = root.querySelector(".drpg-projects-fold i");
+    if (caret) caret.className = `fa-solid fa-chevron-${on ? "right" : "down"}`;
+
+    const button = root.querySelector(".drpg-projects-fold");
+    if (!button) return;
+    const label = game.i18n.localize(on ? "DRPG.Project.expandTray" : "DRPG.Project.collapseTray");
+    button.dataset.tooltip = label;
+    button.setAttribute("aria-label", label);
+    button.setAttribute("aria-expanded", String(!on));
+}
+
+function addCollapseControl(root) {
+    if (root.querySelector(".drpg-projects-fold")) return;
+
+    const host = root.querySelector(".countdowns-header")
+        ?? root.querySelector(".window-header")
+        ?? root.querySelector("header");
+    if (!host) return;
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "drpg-projects-fold";
+    button.innerHTML = `<i class="fa-solid fa-chevron-down" inert></i>`;
+    button.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        game.settings.set(MODULE_ID, SETTINGS.projectsCollapsed, !collapsed())
+            .then(() => applyCollapsed(root))
+            .catch(err => error("Could not fold the projects tray", err));
+    });
+
+    // First in the header, before the title: a disclosure control belongs on the
+    // side you read from, and the gear on the far side is a different kind of
+    // thing — one changes what you are looking at, the other opens a window.
+    host.prepend(button);
 }
 
 /* ==========================================================================
@@ -305,14 +376,19 @@ export async function openProjectManager() {
  *
  * @param {object} [options]
  * @param {object} [options.project]  Editing this one, from `allProjects()`.
+ * @param {object} [options.preset]   Prefill the fields for a project that does
+ *   not exist yet — a player's proposal, arriving from the approval card. NOT
+ *   the same as `project`: nothing has been created, so this still takes the
+ *   create path and the GM can change every answer before it does.
  */
-async function openProjectDialog({ project = null, rooms = allRooms() } = {}) {
+export async function openProjectDialog({ project = null, preset = null, rooms = allRooms() } = {}) {
     const editing = Boolean(project);
+    const start = project ?? preset ?? null;
     const defaultImg = "icons/magic/time/hourglass-yellow-green.webp";
-    const img = project?.img || defaultImg;
-    const currentTarget = project?.start ?? 4;
-    const currentTrait = project?.trait ?? "";
-    const currentRoom = project?.room ?? "";
+    const img = start?.img || defaultImg;
+    const currentTarget = start?.start ?? start?.target ?? 4;
+    const currentTrait = start?.trait ?? "";
+    const currentRoom = start?.room ?? "";
 
     const scaleOptions = Object.entries(PROJECT_SCALE)
         .map(([key, s]) => {
@@ -355,7 +431,7 @@ async function openProjectDialog({ project = null, rooms = allRooms() } = {}) {
                 <input type="hidden" name="img" value="${foundry.utils.escapeHTML(img)}" />
                 <label>${game.i18n.localize("DRPG.Project.name")}
                     <input type="text" name="name" autofocus
-                           value="${foundry.utils.escapeHTML(project?.name ?? "")}"
+                           value="${foundry.utils.escapeHTML(start?.name ?? "")}"
                            placeholder="${game.i18n.localize("DRPG.Project.namePlaceholder")}" /></label>
             </div>
             <label>${game.i18n.localize("DRPG.Project.scale")}
@@ -366,11 +442,11 @@ async function openProjectDialog({ project = null, rooms = allRooms() } = {}) {
                 <select name="trait">${traitOptions}</select></label>
             <label class="drpg-checkbox">
                 <input type="checkbox" name="murder"${
-                    project?.indirectMurder ? " checked" : ""} /> ${
+                    start?.indirectMurder ? " checked" : ""} /> ${
                     game.i18n.localize("DRPG.Project.indirect")}</label>
             <label>${game.i18n.localize("DRPG.Project.condition")}
                 <input type="text" name="condition"
-                       value="${foundry.utils.escapeHTML(project?.condition ?? "")}"
+                       value="${foundry.utils.escapeHTML(start?.condition ?? "")}"
                        placeholder="${game.i18n.localize("DRPG.Project.conditionPlaceholder")}" />
                 <small class="notes">${game.i18n.localize("DRPG.Project.conditionNote")}</small></label>
             <label class="drpg-checkbox">

@@ -143,11 +143,58 @@ export function registerMusic() {
     Hooks.once("ready", () => {
         watchManualPlayback();
         watchManualEnd();
+        adoptRunningInterruption();
         // Not immediate: at `ready` the canvas and the clock are still settling,
         // and the first thing a GM sees should not be a fade triggered by a
         // state that is about to change again.
         schedule();
     });
+}
+
+/**
+ * Pick up an interruption that started before this client did.
+ *
+ * `interrupted` is a variable, not a setting — it lives for as long as the tab
+ * does. That is fine for the case it was written for and wrong for the one that
+ * actually happens: the GM starts a track, then reloads, or Foundry restarts, or
+ * they hand over to the other GM. The track is still playing and the module has
+ * no memory of it, so `apply()` sees a state with a playlist mapped and starts
+ * the ambient one straight over the top of it — and the paused ambient playlist
+ * from before the reload never comes back, because nothing knows it is holding.
+ *
+ * Found in the test world in exactly that state: a GM cue playing, the module
+ * reporting no interruption.
+ *
+ * So the running state is read from the world rather than remembered. Anything
+ * playing that is not one of ours IS an interruption, whoever started it and
+ * whenever — and a playlist of ours that is paused while that runs is the one
+ * holding, which is what `resumeAmbient` needs to give the music back.
+ */
+function adoptRunningInterruption() {
+    if (!enabled() || interrupted) return;
+
+    try {
+        const mine = ours();
+        const theirs = game.playlists.find(p =>
+            p.playing
+            && !mine.some(o => o.id === p.id)
+            && p.mode !== CONST.PLAYLIST_MODES.DISABLED);
+        if (!theirs) return;
+
+        // Whichever of ours is paused mid-track is the one that was holding.
+        const holding = mine.find(p => p.sounds.some(s => s.pausedTime != null));
+
+        interrupted = {
+            soundId: theirs.sounds.find(s => s.playing)?.id ?? null,
+            playlistId: holding?.id ?? null,
+            sourcePlaylistId: theirs.id,
+            state: currentState()
+        };
+        debug(`Music: adopted "${theirs.name}" as an interruption already in progress.`);
+    } catch (err) {
+        // Never let a recovery attempt stop the music system from starting.
+        error("Could not check for an interruption already running", err);
+    }
 }
 
 function schedule() {

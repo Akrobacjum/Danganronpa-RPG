@@ -17,6 +17,7 @@ import { MODULE_ID, FLAGS, REST, STARTING } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { actionsLeft, spendAction } from "./actions.mjs";
 import { roomOfActor } from "./movement.mjs";
+import { getClock } from "./clock.mjs";
 import { resourceMax, resourceValue } from "./character.mjs";
 import { whisperToOwner, log, error, plural } from "./utils.mjs";
 
@@ -109,12 +110,22 @@ async function markRestTaken(actor, kind, clock) {
     await actor.setFlag(MODULE_ID, FLAGS.restsTaken, all);
 }
 
+/**
+ * The clock, through the one function that owns what it says.
+ *
+ * This used to read the setting itself and, on any failure, hand back a clock it
+ * had invented on the spot: day 1, session 1, morning. That is not a fallback,
+ * it is a lie with consequences — a rest is stamped with the day it was taken,
+ * and a rest stamped day 1 on day six is a Long Rest the character can either
+ * never take again or take twice, depending on which way the comparison falls.
+ *
+ * `getClock` merges `DEFAULT_CLOCK` over whatever is stored, so the defaults are
+ * declared once, in settings.mjs, beside the setting they belong to. There were
+ * three copies of "what the clock says when we cannot read it" in this module
+ * and two of them were written from memory.
+ */
 function currentClock() {
-    try {
-        return game.settings.get(MODULE_ID, SETTINGS.clock) ?? { day: 1, session: 1, timeOfDay: "morning" };
-    } catch {
-        return { day: 1, session: 1, timeOfDay: "morning" };
-    }
+    return getClock();
 }
 
 /* ==========================================================================

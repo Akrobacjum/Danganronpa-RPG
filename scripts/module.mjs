@@ -38,6 +38,7 @@ import { registerResourceGuard } from "./resource-guard.mjs";
 import { registerStates } from "./states.mjs";
 import { registerVisibility } from "./visibility.mjs";
 import { registerRemnantRings } from "./remnant-ring.mjs";
+import { registerRemnantLedger } from "./remnants.mjs";
 import { registerDaySummary } from "./day-summary.mjs";
 import { registerRollDialog } from "./roll-dialog.mjs";
 import { registerForcedRolls } from "./forced-roll.mjs";
@@ -56,6 +57,7 @@ import { registerDiceSync } from "./dice-sync.mjs";
 import { registerSync } from "./sync.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
 import { registerApi } from "./api.mjs";
+import { warnAboutPageTinting } from "./diagnostics.mjs";
 import { log, error } from "./utils.mjs";
 
 /** Minimum Daggerheart version this layer was written against. */
@@ -147,6 +149,10 @@ Hooks.once("setup", () => {
 });
 
 Hooks.once("ready", () => {
+    // Before anything that reads a Remnant: the ledger asks the other GMs for
+    // anything this browser is missing, and a GM who joins mid-session must not
+    // spend the first minute unable to read their own crime scene.
+    safely("the Remnant ledger", registerRemnantLedger);
     safely("the API", registerApi);
     // Before the other socket listeners: this is the one that carries world-state
     // changes to the players. Without it `broadcast()` emits into a socket nobody
@@ -168,6 +174,9 @@ Hooks.once("ready", () => {
     safely("dice appearance sync", registerDiceSync);
     safely("body classes", applyBodyClasses);
     safely("the system check", verifySystem);
+    // After the body classes, so the check sees the interface as it will be
+    // drawn rather than as Foundry left it.
+    safely("the page-tinting check", warnAboutPageTinting);
     safely("project secrecy", sealProjects);
 });
 

@@ -57,13 +57,17 @@ import {
 } from "./assignments.mjs";
 import {
     diagnoseDice, diagnoseDespair, diagnoseStyles, diagnoseTruthBullets, diagnoseVoice,
+} from "./diagnostics.mjs";
+import { runTests } from "./tests.mjs";
+import {
     diagnoseCharacters
 } from "./diagnostics.mjs";
 import { performAction, currentRoom } from "./action-rolls.mjs";
 import { installTables, drawItem, randomItem, tableName } from "./tables.mjs";
 import { roomOfActor, roomOfToken, othersInRoom, allRooms, neighbouringRooms, occupantsOf } from "./movement.mjs";
 import { applyAll as refreshRoomVisibility, visibleCharacters } from "./visibility.mjs";
-import { remnantData, reportRemnants } from "./remnants.mjs";
+import {
+    migrateRemnants, remnantData, reportRemnants } from "./remnants.mjs";
 import {
     allProjects, visibleProjects, canSee, projectsAvailableIn, addProgress, setProjectMeta,
     makeSecret, shareWith, unshareWith, revealProject, isSecret, viewersOf
@@ -156,7 +160,7 @@ import {
 } from "./messenger.mjs";
 import {
     scheduleReconcile as reconcileVoice,
-    eavesdropRoom,
+    eavesdropRoom, voicePlan, voiceTargets,
     stopEavesdropping,
     resetAllVoice,
     openEavesdropDialog as voiceEavesdropDialog
@@ -527,6 +531,7 @@ export const DrpgApi = {
 
     /** Bring bullets made before Stage 1 up to the current shape. Idempotent. */
     migrateTruthBullets,
+    migrateRemnants,
 
     /* ---- Observe --------------------------------------------------------
      * Resolved on the GM's client, never the observer's: the room's Remnants
@@ -766,6 +771,7 @@ export const DrpgApi = {
 
     /** Why does the sheet look different here than on another install? */
     diagnoseStyles,
+    runTests,
 
     /** Are the bullets and their answer key still in step, and do the rows render? */
     diagnoseTruthBullets,
@@ -884,7 +890,16 @@ export const DrpgApi = {
 
     /** Join a room's voice channel as a muted listener. `null` leaves it. */
     eavesdropRoom,
+    voicePlan,
     stopEavesdropping,
+
+    /**
+     * The raw decision behind `voicePlan()` — one entry per connected account,
+     * plus every character's claim on it. The loop, the answer given to a client
+     * that asks, and the printed plan all come from here, so a test that asserts
+     * against this is asserting against the thing that actually runs.
+     */
+    voiceTargets,
 
     /** Send everyone currently assigned back to the main room. */
     resetAllVoice,

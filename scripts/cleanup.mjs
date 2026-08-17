@@ -27,7 +27,7 @@
  */
 
 import { MODULE_ID, CLEANUP, RESOLUTION_STRESS_COST } from "./config.mjs";
-import { murderState } from "./murder.mjs";
+import { murderState, killerIds } from "./murder.mjs";
 import {
     REMNANT_FLAGS, remnantsInRoom, remnantData, removeRemnant, dropRemnant
 } from "./remnants.mjs";
@@ -68,7 +68,12 @@ export function cleanupBlocker(actor) {
     const state = murderState();
     if (!state?.active) return "noIncident";
     if (state.stage !== "resolution") return "notYet";
-    if (state.killerId !== actor?.id) return "notYours";
+    // Both of them, when there are two. An accomplice who joined the killers
+    // during the incident stood in the room while it happened and leaves traces
+    // of their own — refusing them the clean-up screen meant half a crime scene
+    // could never be touched, and the accomplice was told "this is not your
+    // scene to clean" about a murder they had just taken part in.
+    if (!killerIds(state).includes(actor?.id)) return "notYours";
     // Guide, p. 26: "Jeśli Monokuma jest zabójcą, to nie ma on możliwości
     // sprzątania miejsca zbrodni - nie chce tego robić." A Monokuma who kills
     // is making a point, not covering their tracks.
@@ -1010,9 +1015,16 @@ export async function endResolution(actor) {
  */
 export async function destroyCleaningTools() {
     if (!game.user.isGM) return [];
-    const killer = game.actors.get(murderState()?.killerId ?? "");
-    if (!killer) return [];
-    return destroyTools(killer, CLEANUP.destroysToolsOnDiscovery ?? []);
+    // Every killer, not the first one. An accomplice cleaning alongside them is
+    // holding a tool of their own, and leaving it in their bag after the body
+    // turns up is a Truth Bullet the guide says should no longer exist.
+    const destroyed = [];
+    for (const id of killerIds()) {
+        const killer = game.actors.get(id);
+        if (!killer) continue;
+        destroyed.push(...await destroyTools(killer, CLEANUP.destroysToolsOnDiscovery ?? []));
+    }
+    return destroyed;
 }
 
 async function destroyTools(actor, categories) {
