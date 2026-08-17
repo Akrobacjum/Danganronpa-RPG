@@ -115,6 +115,7 @@ export const SETTINGS = {
      * come out anyway.
      */
     murderState: "murderState",
+    pendingMurders: "pendingMurders",
     /**
      * Who has killed in THIS chapter, in the order they did it.
      *
@@ -386,6 +387,21 @@ export function registerSettings() {
         type: Object,
         default: {},
         onChange: () => onWorldChange(SETTINGS.murderState)
+    });
+
+    // Direct murders declared during an Eclipse and not yet judged.
+    //
+    // World-scoped like the incident itself: the declaration outlives the
+    // client that made it, and the judgement runs on the GM's when the lights
+    // come up. Keyed by killer id — one killer, one attempt per Eclipse.
+    // Deliberately carries no victim: who that is depends on where everybody
+    // ends up standing, which is the whole point. See `judgePendingMurders`.
+    game.settings.register(MODULE_ID, SETTINGS.pendingMurders, {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => onWorldChange(SETTINGS.pendingMurders)
     });
 
     game.settings.register(MODULE_ID, SETTINGS.blackened, {

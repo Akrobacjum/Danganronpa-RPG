@@ -192,7 +192,144 @@ export async function endEclipse({ advance = true } = {}) {
     }
 
     await broadcastEclipse(false);
+
+    // LAST, and after the clock has moved. Everything a murder opened here needs
+    // — the new time of day, a refilled action budget, unlocked Hope Calls — is
+    // put in place by the lines above, and an incident opened before them lands
+    // in the placement window this function exists to close.
+    try {
+        await judgePendingMurders();
+    } catch (err) {
+        error("Could not judge the direct murders declared during the Eclipse", err);
+    }
     return true;
+}
+
+/* ==========================================================================
+ * DIRECT MURDERS DECLARED IN THE DARK
+ * --------------------------------------------------------------------------
+ * The guide gives the Eclipse as the one moment you can be alone with somebody,
+ * so a direct murder is declared here and nowhere else. What it must NOT do is
+ * resolve here: the Eclipse is a placement window that sits before the next
+ * time of day, everybody is still crossing the map, Hope Calls are locked, and
+ * the third-party watch would take the first person walking through the room as
+ * a witness. See the long note in `performDirectMurder`.
+ *
+ * So the declaration waits, and is judged against where everyone ENDS UP — the
+ * placement is the answer, not a snapshot of a room half way through it.
+ * ========================================================================== */
+
+function pendingMurders() {
+    try {
+        return game.settings.get(MODULE_ID, SETTINGS.pendingMurders) ?? {};
+    } catch {
+        return {};
+    }
+}
+
+/** Record a declaration. One per killer: declaring twice replaces the first. */
+export async function parkDirectMurder({ killerId, room = null, note = "" } = {}) {
+    if (!killerId) return null;
+    const { requestParkMurder } = await import("./gm-bridge.mjs");
+    return requestParkMurder({ killerId, room, note });
+}
+
+/** GM-side. The write itself, reached from the bridge or directly by a GM. */
+export async function writeParkedMurder({ killerId, room = null, note = "" } = {}) {
+    if (!game.user.isGM || !killerId) return null;
+    const all = { ...pendingMurders() };
+    all[killerId] = { room, note, at: Date.now() };
+    await game.settings.set(MODULE_ID, SETTINGS.pendingMurders, all);
+    log(`Direct murder declared in the dark by ${game.actors.get(killerId)?.name ?? killerId}.`);
+    return all[killerId];
+}
+
+export async function clearParkedMurders() {
+    if (!game.user.isGM) return;
+    await game.settings.set(MODULE_ID, SETTINGS.pendingMurders, {});
+}
+
+/**
+ * The lights come up: judge every declaration made in the dark.
+ *
+ * The condition is the guide's and is read now, off the final placement — one
+ * other character in the killer's room, and that person is the victim. Anything
+ * else is a failed attempt: nobody there to kill, or somebody there to see it.
+ *
+ * Only the FIRST successful declaration opens an incident. Two killings at once
+ * is not something this engine models — `murderState` is a single incident —
+ * and the honest thing is to say so to the second killer rather than to drop
+ * their attempt silently.
+ */
+async function judgePendingMurders() {
+    if (!game.user.isGM) return;
+
+    const all = pendingMurders();
+    const ids = Object.keys(all);
+    if (!ids.length) return;
+    await clearParkedMurders();
+
+    const { othersInRoom, roomOfActor } = await import("./movement.mjs");
+    const { openMurder, murderState } = await import("./murder.mjs");
+    const { whisperToOwner, whisperToGms } = await import("./utils.mjs");
+
+    // Declaration order, so "whoever got there first" is a fact about the table
+    // rather than about object-key ordering.
+    ids.sort((a, b) => (all[a].at ?? 0) - (all[b].at ?? 0));
+
+    for (const killerId of ids) {
+        const killer = game.actors.get(killerId);
+        if (!killer) continue;
+
+        const parked = all[killerId];
+        const room = roomOfActor(killer) ?? parked.room;
+        const present = othersInRoom(killer);
+
+        const say = async (line, cls = "") => {
+            await whisperToOwner(killer,
+                `<p><strong>${game.i18n.localize("DRPG.Action.directMurder")}</strong> — ${
+                    cls ? `<span class="${cls}">${line}</span>` : line}</p>`);
+        };
+
+        if (murderState()) {
+            await say(game.i18n.localize("DRPG.Action.murderAlreadyRunning"), "drpg-warning");
+            await whisperToGms(`<p>${game.i18n.format("DRPG.Action.murderSecondDeclaration", {
+                killer: foundry.utils.escapeHTML(killer.name)
+            })}</p>`);
+            continue;
+        }
+
+        if (present.length !== 1) {
+            const reason = present.length === 0
+                ? game.i18n.localize("DRPG.Action.murderNobody")
+                : plural("DRPG.Action.murderWitness", { n: present.length - 1 });
+            await say(reason, "drpg-warning");
+            await whisperToGms(`<p>${game.i18n.format("DRPG.Action.murderCancelled", {
+                killer: foundry.utils.escapeHTML(killer.name),
+                room: foundry.utils.escapeHTML(room ?? "—"),
+                reason: foundry.utils.escapeHTML(reason)
+            })}</p>`);
+            continue;
+        }
+
+        const victim = present[0];
+
+        // The GM is told, not asked. "It should start once the time of day
+        // begins" is a statement about WHEN, and a button that has to be found
+        // and pressed puts the killer back to waiting on somebody — which is
+        // the thing this whole change is undoing. `endMurder` is one press away
+        // if the GM disagrees.
+        await whisperToGms(`
+            <h3>${game.i18n.localize("DRPG.Action.murderOpensTitle")}</h3>
+            <p>${game.i18n.format("DRPG.Action.murderOpens", {
+                killer: foundry.utils.escapeHTML(killer.name),
+                victim: foundry.utils.escapeHTML(victim.name),
+                room: foundry.utils.escapeHTML(room ?? "—")
+            })}</p>
+            ${parked.note ? `<p class="notes">${foundry.utils.escapeHTML(parked.note)}</p>` : ""}`);
+
+        await openMurder({ killerId: killer.id, victimId: victim.id });
+    }
 }
 
 /** Who has and has not finished placing. For the GM, before ending it. */

@@ -321,10 +321,47 @@ function buildIncident() {
     const state = game.settings.get(MODULE_ID, "murderState") ?? {};
     if (!state.active || state.stage !== "incident") return null;
 
-    const mine = game.user.character?.id;
-    const involved = mine
-        && (mine === state.killerId || mine === state.victimId || mine === state.thirdId);
-    if (!game.user.isGM && !involved) return null;
+    /*
+     * WHO AM I IN THIS, read from ownership rather than from `game.user.character`.
+     *
+     * `game.user.character` is the actor picked in Foundry's own user
+     * configuration, and nothing in this game ever asks anybody to set it. A
+     * table that assigns characters by ownership — which is every table, because
+     * that is what the module's own assignment screen writes — left every
+     * player with `game.user.character === null`, so `involved` was false for
+     * all of them and this row was GM-only in practice. The killer and the
+     * victim were playing the tensest scene in the game blind, which is the
+     * exact failure the header above this function describes.
+     *
+     * Ownership is the answer everywhere else in the module (`ownerOf`,
+     * `activeOwnerOf`, the voice loop), so it is the answer here.
+     */
+    const ids = new Set(game.actors
+        .filter(a => a.type === "character" && a.testUserPermission(game.user, "OWNER"))
+        .map(a => a.id));
+    // Still preferred when it is set: a player who owns two characters gets the
+    // turn indicator for the one they are actually playing.
+    const assigned = game.user.character?.id;
+    if (assigned) ids.add(assigned);
+
+    const seats = [
+        state.killerId,
+        state.victimId,
+        state.thirdId
+    ].filter(Boolean);
+    const ownedSeat = seats.find(id => ids.has(id)) ?? null;
+
+    // A GM owns every character in the world, so ownership alone would make
+    // every incident read as theirs and print "your turn" at somebody running
+    // both sides. The seat only counts as YOURS when it is the character you
+    // are actually playing — which for a GM means one they have deliberately
+    // assigned to themselves, and for a player means the one they own.
+    const mine = (assigned && seats.includes(assigned))
+        ? assigned
+        : (game.user.isGM ? null : ownedSeat);
+    const involved = Boolean(mine);
+
+    if (!game.user.isGM && !ownedSeat) return null;
 
     const victim = game.actors.get(state.victimId);
     if (!victim) return null;

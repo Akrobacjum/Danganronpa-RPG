@@ -47,6 +47,7 @@ const ACTION_OPENING_CANCEL = "murder.openingCancel";
 const ACTION_OPENING_RESULT = "murder.openingResult";
 const ACTION_CLEANUP = "murder.cleanup";
 const ACTION_BETRAYAL = "murder.betrayal";
+const ACTION_PARK_MURDER = "murder.park";
 const ACTION_MEDDLE = "monocub.meddle";
 const ACTION_ACK = "bridge.ack";
 
@@ -471,6 +472,28 @@ async function onSocket(payload, senderId) {
             // are the two resources a critical Strike may take.
             choice: payload.choice === "stress" ? "stress"
                 : payload.choice === "hp" ? "hp" : null
+        });
+        return;
+    }
+
+    // A direct murder declared in the dark. The declaration is a world write and
+    // the killer has no permission for one, so it travels; the judgement happens
+    // when the Eclipse ends, on this side, off the final placement.
+    //
+    // Nothing about the outcome is decided here or sent back — that is the whole
+    // point of parking it, and a bridge that answered "recorded" with anything
+    // more would be the leak this change exists to close.
+    if (payload?.action === ACTION_PARK_MURDER) {
+        const sender = senderOf(senderId);
+        if (!sender) return refuse(ACTION_PARK_MURDER, "unknown sender");
+        if (!ownsActor(sender, payload.killerId)) {
+            return refuse(ACTION_PARK_MURDER, "sender does not own that character");
+        }
+        const eclipse = await import("./eclipse.mjs");
+        await eclipse.writeParkedMurder({
+            killerId: payload.killerId,
+            room: payload.room ?? null,
+            note: payload.note ?? ""
         });
         return;
     }
@@ -1157,6 +1180,22 @@ export function requestCleanup({
  * No dice and no numbers travel — this is a declaration, and the GM's own
  * confirmation is what turns it into a second incident.
  */
+/** Record a direct murder declared during an Eclipse. See eclipse.mjs. */
+export function requestParkMurder({ killerId, room = null, note = "" }) {
+    if (game.user.isGM) {
+        return import("./eclipse.mjs").then(m => m.writeParkedMurder({ killerId, room, note }));
+    }
+    if (!hasGm()) return null;
+
+    game.socket.emit(SOCKET_EVENT, {
+        action: ACTION_PARK_MURDER,
+        userId: game.user.id,
+        requestId: expectAck("Direct murder"),
+        killerId, room, note
+    });
+    return { pending: true };
+}
+
 export function requestBetrayal({ actorId }) {
     if (game.user.isGM) {
         return import("./murder.mjs").then(m => m.betrayAsPlayer(actorId));

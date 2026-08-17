@@ -216,6 +216,7 @@ export async function attemptCleanup(actor, tokenId) {
         ui.notifications.warn(game.i18n.localize("DRPG.Murder.noStressLeft"));
         return null;
     }
+    if (!await spendResolutionAction(actor)) return null;
 
     // Somebody is watching. Cover it before you do it — and learn the answer
     // while there is still a choice about how to behave afterwards.
@@ -460,19 +461,66 @@ async function concealFromWitnesses(actor) {
     await whisperToOwner(actor, `<p><strong>${foundry.utils.escapeHTML(def.label)}</strong> — ${
         roll.total}: ${foundry.utils.escapeHTML(line)}</p>`);
 
-    // A failure is public: the room saw enough to describe it, exactly as a
-    // watched sabotage announces itself.
+    /*
+     * A failure is public TO THE ROOM, and to nowhere else.
+     *
+     * This used to `announce()`, which is a message to the whole table — so a
+     * botched cover story in the Closet told sixteen students, most of them on
+     * the other side of the building, that somebody had been caught cleaning.
+     * That is the investigation handed over for free, by the one roll whose
+     * entire subject is who can see you.
+     *
+     * Who can see you is `othersInRoom`, which this function has already asked
+     * — it is the reason the roll happened at all. So the message goes to those
+     * people's owners, plus the GMs, and the killer's own copy is the whisper
+     * above.
+     */
     if (!hidden) {
-        const { announce } = await import("./utils.mjs");
-        await announce({
-            content: `<p><em>${game.i18n.format("DRPG.Cleanup.seenCleaning", {
-                actor: foundry.utils.escapeHTML(actor.name),
-                room: foundry.utils.escapeHTML(locate(actor)?.room ?? "—")
-            })}</em></p>`
-        });
+        const line = `<p><em>${game.i18n.format("DRPG.Cleanup.seenCleaning", {
+            actor: foundry.utils.escapeHTML(actor.name),
+            room: foundry.utils.escapeHTML(locate(actor)?.room ?? "—")
+        })}</em></p>`;
+
+        const { ownerOf, gmIds, whisperToGms } = await import("./utils.mjs");
+        const witnesses = othersInRoom(actor).map(a => ownerOf(a)?.id).filter(Boolean);
+        const recipients = Array.from(new Set([...witnesses, ...gmIds()]));
+
+        if (recipients.length) {
+            await ChatMessage.create({
+                content: line,
+                whisper: recipients,
+                flags: { [MODULE_ID]: { drpgMessage: true } }
+            });
+        } else {
+            // Nobody in the room has an owner online — an NPC, a player away
+            // from the table. The GMs still hear it, because the fiction still
+            // happened and somebody has to be able to narrate it.
+            await whisperToGms(line);
+        }
     }
 
     return true;
+}
+
+/**
+ * A resolution action costs one of the day's two, on top of the Stress.
+ *
+ * Stage 6 used to run on Stress alone, which meant it ran on nothing the table
+ * could see: a killer with Stress to spare could scrub every trace in the room
+ * one after another, in a stage that is supposed to be a handful of frantic
+ * choices. Charging an action caps it at two per time of day — the same budget
+ * everything else in the game is bought with — and makes "what do I do with the
+ * time I have" the question it was always meant to be.
+ *
+ * Both costs, deliberately (Dawid's call, 2026-08-17). The Stress is what makes
+ * a long clean-up hurt; the action is what makes it finite.
+ *
+ * @returns {Promise<boolean>} false when there is nothing left to spend, in
+ *   which case `spendAction` has already said so and nothing has been touched.
+ */
+async function spendResolutionAction(actor) {
+    const { spendAction } = await import("./actions.mjs");
+    return spendAction(actor, 1);
 }
 
 /** Common guard for the two below. @returns {object|null} the action def. */
@@ -519,10 +567,18 @@ export async function attemptStageSix(actor, key, targetId = null) {
         return null;
     }
 
+    if (!await spendResolutionAction(actor)) return null;
+
     // The guide's concealment roll covers "akcje rozwiązania" as a whole —
     // planting a false trail or dragging a body past a witness is if anything
     // harder to explain away than wiping a smear.
-    if (!await concealFromWitnesses(actor)) return null;
+    //
+    // Moving the body is out. You are not concealing an intent while you carry
+    // a corpse across the hall — there is nothing left to be coy about, and the
+    // action already announces itself by leaving an Evident trace every single
+    // time. Two rolls to move one body, where the first could stop the second
+    // from happening at all, was a stack the stage does not need.
+    if (key !== "moveBody" && !await concealFromWitnesses(actor)) return null;
 
     const { rollTrait } = await import("./action-rolls.mjs");
     const calls = await import("./call-effects.mjs");
@@ -577,7 +633,7 @@ export async function resolveStageSix({
     const done = [];
 
     if (key === "misleadingTrail") await applyMisleadingTrail(actor, def, targetId, success, band, done);
-    else if (key === "moveBody") await applyMoveBody(actor, def, success, band, done);
+    else if (key === "moveBody") await applyMoveBody(actor, def, success, band, done, targetId);
 
     const refund = success ? def.refundStress?.[band] : null;
     if (refund) {
@@ -632,16 +688,16 @@ async function applyMisleadingTrail(actor, def, targetId, success, band, done) {
 /**
  * Carry the body out of the room it died in.
  *
- * Distance is in ROOMS, not in pixels: one step on Hope and Despair, two on a
- * critical. The hop is taken through `neighbouringRooms`, so it obeys the same
- * adjacency the movement rules do — a body cannot be moved somewhere a living
- * character could not walk.
+ * The destination comes from the killer, picked before the roll and carried
+ * here as `chosenRoom`. It is checked against `neighbouringRooms` on this side
+ * rather than trusted: the packet is a claim, and a body must not be moved
+ * somewhere a living character could not walk to.
  *
  * The trace it leaves is dropped where the killer is standing, which is the
  * room the body left. That is the point of it: the guide gives every band an
  * Evident Resolution Remnant, because dragging a corpse is not subtle.
  */
-async function applyMoveBody(actor, def, success, band, done) {
+async function applyMoveBody(actor, def, success, band, done, chosenRoom = null) {
     if (!success) {
         done.push(game.i18n.localize("DRPG.Cleanup.bodyStayed"));
         return;
@@ -655,12 +711,31 @@ async function applyMoveBody(actor, def, success, band, done) {
         return;
     }
 
+    /*
+     * WHERE IT GOES IS THE KILLER'S DECISION, NOT THE DICE'S.
+     *
+     * This used to take `def.rooms[band]` steps outward and pick a RANDOM room
+     * at each one. Two things were wrong with that, and the second is the one
+     * that matters: the killer could not aim. Dragging a body is the most
+     * deliberate thing anybody does in this game — you move it because of what
+     * is in the other room, or who is not — and the engine was rolling a die to
+     * decide which door you went through. On a map with four exits it was three
+     * chances in four of putting the body somewhere you would not have chosen.
+     *
+     * So the destination is chosen up front, before the roll, and travels as
+     * `targetId`. The roll still decides WHETHER it moves; it no longer decides
+     * where. `def.rooms` stays in the table as the reach — the picker offers the
+     * rooms connected to this one — and the random walk is gone.
+     */
     const { neighbouringRooms } = await import("./movement.mjs");
-    let room = here.room;
-    for (let step = 0; step < (def.rooms?.[band] ?? 1); step++) {
-        const next = neighbouringRooms(room).filter(r => r !== here.room);
-        if (!next.length) break;
-        room = next[Math.floor(Math.random() * next.length)];
+    const reachable = neighbouringRooms(here.room).filter(r => r !== here.room);
+    let room = reachable.includes(chosenRoom) ? chosenRoom : reachable[0];
+
+    if (!room) {
+        // Nowhere to take it. Said out loud rather than silently leaving the
+        // body where it is and reporting a success.
+        done.push(game.i18n.localize("DRPG.Cleanup.bodyNowhere"));
+        return;
     }
 
     const region = Array.from(here.scene?.regions ?? []).find(r => r.name === room);
@@ -934,6 +1009,61 @@ export async function openCleanupDialog(actor) {
 
     if (!picked || picked === "cancel") return null;
     return attemptCleanup(actor, picked);
+}
+
+/**
+ * Where the body is going.
+ *
+ * Asked before the roll, because it is a decision and not a result: the killer
+ * is choosing which room to leave a corpse in, and that choice is most of what
+ * Stage 6 is about. The list is the rooms connected to the one the body is
+ * lying in — the same adjacency a living character walks by.
+ */
+export async function openMoveBodyDialog(actor) {
+    if (!isCleaner(actor)) return refuseCleanup(actor);
+    if (!bodyIsHere(actor)) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.bodyNotHere"));
+        return null;
+    }
+
+    const here = locate(actor);
+    const { neighbouringRooms } = await import("./movement.mjs");
+    const rooms = neighbouringRooms(here?.room ?? "").filter(r => r !== here?.room);
+
+    if (!rooms.length) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.bodyNowhere"));
+        return null;
+    }
+
+    const DialogV2 = foundry.applications.api.DialogV2;
+    const { dialogContent } = await import("./utils.mjs");
+
+    const picked = await DialogV2.wait({
+        window: { title: game.i18n.localize("DRPG.Cleanup.moveTitle") },
+        classes: ["drpg-panel"],
+        content: dialogContent(`<form>
+            <p>${game.i18n.format("DRPG.Cleanup.moveIntro", {
+                room: foundry.utils.escapeHTML(here?.room ?? "—"),
+                n: RESOLUTION_STRESS_COST
+            })}</p>
+            <p class="notes">${game.i18n.localize("DRPG.Cleanup.moveAlwaysTrace")}</p>
+            <label>${game.i18n.localize("DRPG.Cleanup.moveWhere")}
+                <select name="room">${rooms.map(r =>
+                    `<option value="${foundry.utils.escapeHTML(r)}">${foundry.utils.escapeHTML(r)}</option>`
+                ).join("")}</select></label>
+        </form>`),
+        buttons: [
+            {
+                action: "ok", label: game.i18n.localize("DRPG.Cleanup.moveConfirm"), default: true,
+                callback: (e, b, d) => d.element.querySelector("[name=room]").value
+            },
+            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
+        ],
+        rejectClose: false
+    });
+
+    if (!picked || picked === "cancel") return null;
+    return attemptStageSix(actor, "moveBody", picked);
 }
 
 /**

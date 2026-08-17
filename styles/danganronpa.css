@@ -7561,3 +7561,80 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     font-size: var(--font-size-10, 0.625rem);
     opacity: 0.8;
 }
+
+/* ==========================================================================
+   ITEM SHEETS  (1.0.1)
+   --------------------------------------------------------------------------
+   Cut back to a picture, a name and a description by `trimItemSheet` in
+   sheet.mjs, and dressed here to match the rest of the module. Daggerheart's
+   own sheet is 550px wide with a 150px portrait, sized for a game where an item
+   carries mechanics; here it carries a sentence.
+   ========================================================================== */
+
+.application.sheet.item.drpg-item-sheet {
+    min-width: 22rem;
+}
+
+.drpg-item-sheet .window-content {
+    background: var(--drpg-panel-ground);
+    gap: 0.6rem;
+}
+
+/* The portrait was a third of the window. It is an icon, not a character. */
+.drpg-item-sheet .item-sheet-header {
+    align-items: center;
+    gap: 0.75rem;
+    padding-bottom: 0.35rem;
+    border-bottom: 1px solid var(--drpg-line-strong);
+}
+
+.drpg-item-sheet .item-sheet-header img.profile {
+    width: 4.5rem;
+    height: 4.5rem;
+    flex: 0 0 auto;
+    border-radius: var(--drpg-panel-radius);
+    border: 1px solid var(--drpg-line-strong);
+    object-fit: cover;
+}
+
+.drpg-item-sheet .item-sheet-header .item-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.25rem;
+}
+
+.drpg-item-sheet .description-section {
+    line-height: 1.45;
+}
+
+/* With three tabs gone the row is one button wide, and `trimItemSheet` removes
+   it — this covers a sheet that still has two for a reason of its own. */
+.drpg-item-sheet .tab-navigation .navigation-container {
+    justify-content: flex-start;
+    gap: 0.5rem;
+}
+
+/* What kind of thing this is, under its name in the item window. */
+.drpg-item-kind {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.2rem;
+}
+
+.drpg-item-kind .drpg-item-kind-label {
+    font-size: var(--font-size-11, 0.6875rem);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.75;
+}
+
+/* A field a player may look at and not set. Distinct from `:disabled`, which
+   Foundry greys out entirely — this one is readable, which is the point. */
+.drpg-locked-field {
+    opacity: 0.75;
+    cursor: not-allowed;
+    border-style: dashed;
+}

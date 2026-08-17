@@ -2155,17 +2155,15 @@ async function performDirectMurder(actor, def, options) {
     const cost = options.free ? 0 : def.cost;
     if (!canAfford(actor, cost)) return null;
 
-    // The guide's condition, which the action's own description promises: you
-    // must be alone with your victim. One other character in the room is the
-    // victim; two or more and there is a witness.
+    // The guide's condition: you must be alone with your victim. One other
+    // character in the room is the victim; two or more and there is a witness.
     //
-    // Read BEFORE the question, not after it. The attempt is still spent when
-    // the room is wrong — that is the rule and it does not change — but a player
-    // who did not know somebody else was standing there was not making the
-    // decision the rule is about. So the window says who is in the room, names
-    // the victim when there is exactly one, and says out loud that confirming
-    // costs the action either way. Cancelling costs nothing, and that is the
-    // whole of what this screen adds.
+    // Shown here as a HINT, not as the verdict. The room is still filling up —
+    // an Eclipse is a placement window and half the cast has yet to move — so
+    // what this describes is the room at the moment of asking, and the answer is
+    // read again when the lights come up. Worth showing anyway: it is what the
+    // killer can see from where they are standing, and it is the difference
+    // between a gamble and a guess.
     const room = roomOfActor(actor);
     const present = othersInRoom(actor);
     const alone = present.length === 1;
@@ -2197,59 +2195,77 @@ async function performDirectMurder(actor, def, options) {
     });
     if (!confirmed) return null;
 
-    // Read again. What the window showed was true when it opened, and the
-    // dialog can sit on screen while somebody walks in or out — the attempt is
-    // judged on the room as it is when it happens, not on the room as it was
-    // when the player was asked about it.
-    const now = othersInRoom(actor);
-
-    if (now.length !== 1) {
-        // The attempt is still spent — "nothing happens and the action is still
-        // spent. The attempt can be made again in another time of day."
-        if (cost > 0) await spendAction(actor, cost);
-
-        const reason = now.length === 0
-            ? game.i18n.localize("DRPG.Action.murderNobody")
-            : plural("DRPG.Action.murderWitness", { n: now.length - 1 });
-
-        ui.notifications.warn(reason);
-        await whisperToOwner(actor, `<p><strong>${foundry.utils.escapeHTML(def.label)}</strong> — ${reason}</p>`);
-        await callGm(actor, {
-            title: def.label,
-            room,
-            body: `<p class="drpg-warning">${game.i18n.localize("DRPG.Action.murderBlocked")}</p>`
-        });
-        return { blocked: true, present: now.length };
-    }
-
-    const victim = now[0];
-
-    // The same cost as the branch above, and deliberately: an attempt that
-    // comes off and one that walks into a witness both use up the one the
-    // guide allows per time of day. What separates them is what happens next.
+    /*
+     * THE ATTEMPT IS PARKED, NOT JUDGED.
+     *
+     * This used to read the room a second time, decide there and then, and hand
+     * the GM a button that opened the incident immediately — in the middle of
+     * the Eclipse. Three things were wrong with that, and they are one thing:
+     * an Eclipse is a placement window, and nobody has finished placing.
+     *
+     *   · Everybody is crossing the map, so the moment the incident opened,
+     *     the third-party watch fired on the first person to walk through the
+     *     room. A corridor became a witness.
+     *   · Hope Calls are locked while `isEclipse()` is true, so the victim of
+     *     an incident opened during one had nothing to reach for.
+     *   · The killer learned they had got away with it while half the cast had
+     *     yet to move, so "alone with your victim" was decided on a snapshot of
+     *     a room that was still filling up.
+     *
+     * So the declaration is stored and the answer waits for the lights. What
+     * counts is where everyone ENDS UP: see `judgePendingMurders` in eclipse.mjs,
+     * which runs as the Eclipse closes and opens the incident then — into a time
+     * of day that has actually begun, with Calls available and the map settled.
+     *
+     * The action is spent here either way, which is the guide's rule and does
+     * not change. What the player does not get here is the outcome.
+     */
     if (cost > 0 && !await spendAction(actor, cost)) return null;
 
-    await promptAndCallGm(actor, {
+    const note = await promptForNote(actor, {
         title: def.label,
-        prompt: game.i18n.format("DRPG.Action.murderPromptVictim", {
-            victim: foundry.utils.escapeHTML(victim.name)
-        }),
-        placeholder: game.i18n.localize("DRPG.Action.placeholder.directMurder"),
-        room,
-        // The card knows both names, so the GM should not have to say them
-        // again. One press opens the incident that the paragraph above the
-        // button is describing.
-        actions: [
-            { action: "openMurder",
-              label: game.i18n.format("DRPG.Bridge.openThisMurder", { victim: victim.name }),
-              data: { killer: actor.id, victim: victim.id } },
-            { action: "declineMurder",
-              label: game.i18n.localize("DRPG.Bridge.declineMurder"),
-              data: { killer: actor.id } }
-        ]
+        prompt: game.i18n.localize("DRPG.Action.murderPromptParked"),
+        placeholder: game.i18n.localize("DRPG.Action.placeholder.directMurder")
     });
 
-    return { calledGm: true, victim: victim.name };
+    const { parkDirectMurder } = await import("./eclipse.mjs");
+    await parkDirectMurder({ killerId: actor.id, room, note });
+
+    await whisperToOwner(actor,
+        `<p><strong>${foundry.utils.escapeHTML(def.label)}</strong> — ${
+            game.i18n.localize("DRPG.Action.murderParked")}</p>`);
+    ui.notifications.info(game.i18n.localize("DRPG.Action.murderParkedToast"));
+
+    return { parked: true, room };
+}
+
+/**
+ * Ask for the sentence that goes to the GM, without calling them yet.
+ *
+ * `promptAndCallGm` does both in one step, and a parked declaration needs the
+ * halves separated: the GM hears about this when the Eclipse ends, not now.
+ * Cancelling the box is not cancelling the attempt — the action is already
+ * spent by the time this opens, and a dismissed dialog must never be a way to
+ * get it back.
+ */
+async function promptForNote(actor, { title, prompt, placeholder }) {
+    const result = await DialogV2.wait({
+        window: { title },
+        classes: ["drpg-panel"],
+        content: dialogContent(`<form>
+            <p>${prompt}</p>
+            <textarea name="note" rows="3" placeholder="${
+                foundry.utils.escapeHTML(placeholder ?? "")}"></textarea>
+        </form>`),
+        buttons: [
+            {
+                action: "ok", label: game.i18n.localize("DRPG.Action.murderParkedConfirm"), default: true,
+                callback: (e, b, d) => d.element.querySelector("[name=note]")?.value.trim() ?? ""
+            }
+        ],
+        rejectClose: false
+    }).catch(() => "");
+    return typeof result === "string" ? result : "";
 }
 
 /* ==========================================================================

@@ -378,6 +378,21 @@ async function writeRemnantLedger(ledger) {
 }
 
 /** Record or amend what a trace is, and tell the other GMs. */
+/**
+ * The same write, addressed by ids rather than by a document.
+ *
+ * Observe resolves on the GM's client, which is very often looking at a
+ * different scene from the one the trace is on — so `canvas.tokens.get` is not
+ * available and the token has to be found through the scene it belongs to. The
+ * two ids are what the pending-observe entry already carries.
+ */
+export async function setRemnantSecretById(sceneId, tokenId, patch = {}) {
+    if (!game.user.isGM || !sceneId || !tokenId) return null;
+    const tokenDoc = game.scenes.get(sceneId)?.tokens?.get(tokenId) ?? null;
+    if (!tokenDoc) return null;
+    return setRemnantSecret(tokenDoc, patch);
+}
+
 export async function setRemnantSecret(tokenDoc, patch = {}) {
     if (!game.user.isGM) return null;
     const key = keyOf(tokenDoc);

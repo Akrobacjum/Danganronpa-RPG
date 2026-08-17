@@ -107,6 +107,7 @@ import {
 } from "./murder.mjs";
 import {
     cleanableRemnants, attemptCleanup, resolveCleanup, openCleanupDialog, isCleaner,
+    openMoveBodyDialog,
     attemptStageSix, resolveStageSix
 } from "./cleanup.mjs";
 import { casebook, casebookSummary, openCasebook } from "./casebook.mjs";
@@ -670,6 +671,9 @@ export const DrpgApi = {
 
     /** The killer's picker, and the roll behind it. */
     cleanupDialog: openCleanupDialog,
+
+    /** Pick where the body goes, then roll to carry it. */
+    moveBodyDialog: openMoveBodyDialog,
     attemptCleanup,
     resolveCleanup,
 

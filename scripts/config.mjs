@@ -232,14 +232,20 @@ export const ITEM_TIERS = [0, 1, 2, 3];
 
 export const ITEM_CATEGORIES = {
     usable: {
-        label: "Usable Item",
-        plural: "Usable Items",
+        label: "Usable",
+        plural: "Usables",
         limit: 3,
         hint: "Restores HP, Stress or Hope."
     },
+    // "Murder Weapon" rather than "Crime Tool" — Dawid's wording, 2026-08-17.
+    // Changed here rather than in the item window alone, because this table is
+    // the one source these names come from: the inventory group header, the
+    // Search tables, the GM's item tooling and the item's own subtitle all read
+    // it, and a subtitle that disagreed with the header directly above it would
+    // be a worse bug than the one being fixed.
     crimeTool: {
-        label: "Crime Tool",
-        plural: "Crime Tools",
+        label: "Murder Weapon",
+        plural: "Murder Weapons",
         limit: 1,
         hint: "Makes a murder incident easier."
     },

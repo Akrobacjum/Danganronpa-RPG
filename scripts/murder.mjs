@@ -1984,25 +1984,31 @@ function betrayalCandidate(state, killer) {
  * ended — the stages start again from the opening roll, and this time the
  * person who did the last killing is the one bleeding.
  *
- * Confirmed rather than opened outright: it is a second death, and the screen
- * it fires from is a checklist a GM is clicking through quickly.
+ * OPENED, NOT ASKED ABOUT.
+ *
+ * This used to raise a confirmation on the GM's screen, and that was wrong in
+ * two ways at once. It is not the GM's decision — the guide gives the betrayal
+ * to the newcomer, and a dialog in front of it turns their choice into a
+ * request. And it stacked: the player's tile fired one socket message per click,
+ * every message raised its own confirm, and a GM working through four of them
+ * opened four incidents, each with its own opening roll that cannot be skipped.
+ * Measured from the report: "wiele niepomijalnych opening rolls".
+ *
+ * So the GM is TOLD. The announcement below already whispers them the whole
+ * thing, and `endMurder` is one press away if it was a misclick.
  */
 async function openBetrayal(third, killer) {
-    const sure = await DialogV2.confirm({
-        classes: ["drpg-panel"],
-        window: { title: game.i18n.localize("DRPG.Murder.betrayalTitle") },
-        content: dialogContent(`<div>
-            <p>${game.i18n.format("DRPG.Murder.betrayalIntro", {
-                third: foundry.utils.escapeHTML(third.name),
-                killer: foundry.utils.escapeHTML(killer.name)
-            })}</p>
-            <p class="notes">${game.i18n.localize("DRPG.Murder.betrayalRule")}</p>
-        </div>`),
-        yes: { label: game.i18n.localize("DRPG.Murder.betrayalConfirm") },
-        no: { label: game.i18n.localize("DRPG.Advance.cancel") },
-        rejectClose: false
-    });
-    if (!sure) return null;
+    // The second half of the spam fix, on the side that cannot be raced.
+    //
+    // The tile guards itself (see `betrayAsPlayer`'s caller in sheet.mjs), but a
+    // guard on the sender is a guard on one client: two clicks in flight at once
+    // both arrive here before either has written anything. `murderState()` is
+    // the only thing both of them see, and the incident this opens is exactly
+    // what makes the second call refuse.
+    if (murderState()?.stage !== "resolution") {
+        warn(`Refused a betrayal: the incident is no longer in its resolution stage.`);
+        return null;
+    }
 
     await announce({
         content: `<p>${game.i18n.format("DRPG.Murder.betrayalAnnounce", {

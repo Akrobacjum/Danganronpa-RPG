@@ -46,7 +46,14 @@ export async function initCharacter(actor, { resetValues = true, startingItem = 
         update["system.resources.hope.value"] = STARTING.hope;
     }
 
-    await actor.update(update);
+    // Through the automation channel, not a bare update. HP and Stress became
+    // GM-only in 1.0.1, and this writes both — so a plain `update()` from a
+    // player pressing the set-up wand on their own sheet would be stripped by
+    // the guard and the character would come out with the maxima set and the
+    // values untouched. Setting a character up IS automation; it just happens to
+    // be the kind a human presses a button for.
+    const { automatedUpdate } = await import("./resource-guard.mjs");
+    await automatedUpdate(actor, update);
 
     // The Tier 2 opening item, when one was agreed.
     //

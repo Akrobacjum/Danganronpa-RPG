@@ -265,7 +265,8 @@
       "groupEmpty": "— empty —"
     },
     "Guard": {
-      "blocked": "Only the GM changes that. Actions, Hope and statistics move through play."
+      "blocked": "Only the GM changes that. Actions, Hope and statistics move through play.",
+      "nameLocked": "Only a GM can rename an item. What a thing is called is part of the evidence."
     },
     "Listen": {
       "prompt": "You are in {room}. Which neighbouring room?",
@@ -457,8 +458,18 @@
       "murderAloneWith": "You are alone with {victim} in {room}.",
       "murderRoomEmpty": "There is nobody else in {room}.",
       "murderRoomCrowded": "{who} are in {room} with you. A direct murder needs the two of you and nobody else.",
-      "murderSpendsAnyway": "Confirming spends the action whatever the room turns out to hold — one attempt per time of day, used up either way. Cancelling costs nothing.",
-      "murderConfirmVictim": "Kill {victim}?"
+      "murderSpendsAnyway": "Confirming spends the action whether or not it comes off — and you will not find out which until the Eclipse ends.",
+      "murderConfirmVictim": "Kill {victim}?",
+      "murderPromptParked": "What are you doing, and how? The GM reads this when the lights come up.",
+      "murderParkedConfirm": "Make the attempt",
+      "murderParked": "Your move is made. Nobody knows how it went — not even you — until the Eclipse ends and the room settles.",
+      "murderParkedToast": "Declared. The answer comes when the Eclipse does.",
+      "murderAlreadyRunning": "Somebody else got there first. An incident was already running when the lights came up, and the action is spent.",
+      "murderSecondDeclaration": "{killer} also declared a direct murder in the dark, but an incident was already open. Their attempt was refused and their action is spent.",
+      "murderCancelled": "{killer}'s direct murder came to nothing in {room} — {reason}",
+      "murderOpensTitle": "A killing in the dark",
+      "murderOpens": "{killer} declared a direct murder during the Eclipse and ended it alone with {victim} in {room}. The incident is open.",
+      "directMurder": "Direct Murder"
     },
     "Analyze": {
       "analyseBullet": "Identify a Truth Bullet",
@@ -733,7 +744,7 @@
       "title": "Cleaning up",
       "action": "Clean up a trace",
       "hint": "Spend 1 Stress to erase one trace you left. A readied Cleaning Tool makes it easier. Reinforced traces do not come off.",
-      "intro": "Pick a trace. Each attempt costs {n} Stress and is not an action.",
+      "intro": "Wiping a trace costs an action and {n} Stress, and you have two actions this time of day.",
       "which": "Which trace?",
       "confirm": "Scrub at it",
       "withTool": "{item} (Tier {tier}) in hand — advantage, and that much off the threshold.",
@@ -750,7 +761,7 @@
       "trailAction": "Misleading trail",
       "trailHint": "Spend 1 Stress to plant a trace pointing at somebody else. A failure still plants something — just a Faint one nobody is likely to find.",
       "trailTitle": "Point it at somebody else",
-      "trailIntro": "The trace you plant will point at whoever you name. It costs {n} Stress and is not an action. On a critical you get the Stress back.",
+      "trailIntro": "Planting a false trail costs an action and {n} Stress.",
       "trailWho": "Frame",
       "trailConfirm": "Plant it",
       "trailNobody": "There is nobody left to frame.",
@@ -798,7 +809,13 @@
       "bodyStuck": "There is nowhere to take it.",
       "noBody": "There is no body here to move.",
       "bodyNote": "{name}'s body was dragged out of here towards {room}.",
-      "seenCleaning": "{actor} is doing something in {room}, and not hiding it well."
+      "seenCleaning": "{actor} is doing something in {room}, and not hiding it well.",
+      "moveTitle": "Move the body",
+      "moveIntro": "The body is in {room}. Choose where you are dragging it. Costs an action and {n} Stress.",
+      "moveAlwaysTrace": "This always leaves an Evident trace behind, whatever the dice say. You cannot drag a corpse quietly.",
+      "moveWhere": "Take it to",
+      "moveConfirm": "Carry it there",
+      "bodyNowhere": "There is nowhere to take it — no room connects to this one."
     },
     "Murder": {
       "openTitle": "Open a murder",
@@ -1157,7 +1174,8 @@
       "describeIntro": "{actor} found something in {room}. Name it as they would, and say what they see.",
       "critPrompt": "Critical — the category is identified for them, and they have earned a substantial hint.",
       "describeConfirm": "Hand it over",
-      "rerollLost": "A Reroll arrived for an Observe this browser has no record of — a reload, or another GM took over — so the declaration is lost. The dice are already rewritten and the player is owed a result: score the new number against the same trace by hand, and take back the Truth Bullet the first roll gave them if it no longer applies."
+      "rerollLost": "A Reroll arrived for an Observe this browser has no record of — a reload, or another GM took over — so the declaration is lost. The dice are already rewritten and the player is owed a result: score the new number against the same trace by hand, and take back the Truth Bullet the first roll gave them if it no longer applies.",
+      "alreadyDescribed": "This trace has been described before. The words below are what the last observer was told — change them only if the critical reveals something new."
     },
     "TruthBullet": {
       "give": "Give a Truth Bullet",

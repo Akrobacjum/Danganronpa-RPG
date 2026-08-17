@@ -30,7 +30,7 @@ import { availableCrisisActions, isTheirTurn, murderState, sideOf, betrayalTarge
 import { isMonocub, isSilenced, isSilenced as cubSilenced } from "./monocub.mjs";
 import { isSilenced as callSilenced, isChained } from "./call-effects.mjs";
 import { isDeceased } from "./chapter.mjs";
-import { isStashed } from "./inventory.mjs";
+import { isStashed, ITEM_FLAGS } from "./inventory.mjs";
 import { isUsable, isEquippable, isEquipped, equippedIn } from "./use-items.mjs";
 import { isCleaner, bodyIsHere } from "./cleanup.mjs";
 import { roomOfActor, neighbouringRooms } from "./movement.mjs";
@@ -44,6 +44,132 @@ export function registerSheetTweaks() {
     // ApplicationV2 fires a render hook per class in the inheritance chain,
     // so the concrete Daggerheart sheet class name is the precise target.
     Hooks.on("renderCharacterSheet", onRenderCharacterSheet);
+
+    // Every item sheet, whatever Daggerheart calls the class. `renderItemSheetV2`
+    // is Foundry's own rung of that ladder, so it catches LootSheet, FeatureSheet
+    // and anything the system adds later — one hook instead of a list that goes
+    // stale. See `trimItemSheet`.
+    Hooks.on("renderItemSheetV2", (app, element) => {
+        try {
+            trimItemSheet(app, element);
+        } catch (err) {
+            error("Could not trim an item sheet", err);
+        }
+    });
+}
+
+/* ==========================================================================
+ * ITEM SHEETS
+ * --------------------------------------------------------------------------
+ * Double-clicking anything in the inventory opened Daggerheart's own item
+ * sheet, untouched: four tabs, of which three are for a game this one is not
+ * playing. Settings edits quantity, weight and the system's own item mechanics;
+ * Actions attaches Daggerheart activities; Effects manages Active Effects. None
+ * of the three has a meaning in Danganronpa RPG — an item here is a thing you
+ * are carrying, and a Truth Bullet is a thing you know — and all three offer a
+ * player controls that silently desync this module's own metadata when used.
+ *
+ * What is left is what an item IS: its picture, its name, and what it says.
+ * ========================================================================== */
+
+/** Tabs with nothing to do in this game. */
+const ITEM_TABS_CUT = ["settings", "actions", "effects"];
+
+function trimItemSheet(app, element) {
+    const root = element instanceof HTMLElement ? element : element?.[0];
+    if (!root) return;
+
+    root.classList.add("drpg-item-sheet");
+
+    for (const key of ITEM_TABS_CUT) {
+        root.querySelector(`.tab-navigation a[data-tab="${key}"]`)?.remove();
+        root.querySelector(`section.tab.${key}`)?.remove();
+    }
+
+    // Whatever survived, one of them has to be showing. Cutting the active tab
+    // — which happens the moment somebody leaves a sheet open on Settings and
+    // it re-renders — otherwise leaves a sheet with a header and a blank body.
+    const tabs = [...root.querySelectorAll("section.tab")];
+    if (tabs.length && !tabs.some(t => t.classList.contains("active"))) {
+        tabs[0].classList.add("active");
+        root.querySelector(`.tab-navigation a[data-tab="${tabs[0].dataset.tab}"]`)
+            ?.classList.add("active");
+    }
+
+    // One tab is not a choice, so it does not need a row of buttons above it.
+    const links = root.querySelectorAll(".tab-navigation a");
+    if (links.length <= 1) root.querySelector(".tab-navigation")?.remove();
+
+    labelItemKind(root, app.document);
+    lockItemName(root);
+}
+
+/**
+ * Say what kind of thing this is, under its name.
+ *
+ * The window showed a name, a picture and a description, and nothing at all
+ * about which of the four kinds it was — so a Murder Weapon and a Usable looked
+ * identical once opened, and the only place the difference appeared was the
+ * group header back on the inventory tab.
+ *
+ * A Truth Bullet gets more than a word: it gets the SAME badges its row on the
+ * character sheet carries, from the same function, because a player who opens a
+ * piece of evidence must not be shown a second, differently-worded account of it.
+ */
+function labelItemKind(root, item) {
+    if (!item || root.querySelector(".drpg-item-kind")) return;
+
+    const info = root.querySelector(".item-sheet-header .item-info");
+    if (!info) return;
+
+    const category = item.getFlag(MODULE_ID, ITEM_FLAGS.category) ?? null;
+    const isBullet = category === "truthBullet";
+    const label = ITEM_CATEGORIES[category]?.label
+        ?? (isBullet ? game.i18n.localize("DRPG.TruthBullet.title") : null);
+    if (!label) return;
+
+    const line = document.createElement("div");
+    line.className = `drpg-item-kind${isBullet ? " is-bullet" : ""}`;
+    line.dataset.drpgCategory = category;
+
+    const kind = document.createElement("span");
+    kind.className = "drpg-item-kind-label";
+    kind.textContent = label;
+    line.append(kind);
+
+    if (isBullet) {
+        const data = truthBulletData(item);
+        if (data) {
+            const badges = document.createElement("span");
+            badges.className = "drpg-tb-badges";
+            badges.innerHTML = bulletBadges(data);
+            line.append(badges);
+        }
+    }
+
+    info.prepend(line);
+}
+
+/**
+ * The name is the GM's to write.
+ *
+ * An item's name is what everybody else at the table will hear it called, and
+ * on a Truth Bullet it is half the evidence — "Bent pipe" and "Bent pipe, wiped
+ * clean" are different claims about the same object. A player renaming their own
+ * copy rewrites the record for the trial.
+ *
+ * Made read-only rather than hidden: seeing the field and finding it locked says
+ * "this is not yours to set", where a missing field says "this item has no name"
+ * and reads as a bug. The write itself is refused in resource-guard.mjs, which
+ * is what actually holds — this is the half a player can see.
+ */
+function lockItemName(root) {
+    if (game.user.isGM) return;
+    for (const field of root.querySelectorAll('input[name="name"]')) {
+        field.readOnly = true;
+        field.classList.add("drpg-locked-field");
+        field.dataset.tooltip = game.i18n.localize("DRPG.Guard.nameLocked");
+    }
 }
 
 function onRenderCharacterSheet(app, element) {
@@ -1202,12 +1328,18 @@ function addStashButton(li, item, app, { stowing }) {
  * from `truthBulletData`, which returns it only to a GM — a player's client
  * never had it to begin with.
  */
-function buildBulletRow(li, item, app) {
-    const data = truthBulletData(item);
-    if (!data) return;
-
-    li.classList.add("drpg-truth-bullet");
-    li.dataset.bulletType = data.shownType;
+/**
+ * The badges a Truth Bullet wears, as one string.
+ *
+ * Extracted so the inventory row and the item window are not two descriptions of
+ * one object that drift apart — they are the same call. A player comparing the
+ * row on their sheet with the window they just opened from it must not find two
+ * different accounts of the same piece of evidence; in a game whose endgame is
+ * people comparing notes, that is a contradiction the table has to spend the
+ * trial resolving.
+ */
+export function bulletBadges(data) {
+    if (!data) return "";
 
     const badge = (text, cls, tooltip = "") =>
         `<span class="drpg-tb-badge ${cls}"${
@@ -1242,9 +1374,19 @@ function buildBulletRow(li, item, app) {
             "real", data.gmNote || game.i18n.localize("DRPG.TruthBullet.reallyTooltip")));
     }
 
+    return badges.join("");
+}
+
+function buildBulletRow(li, item, app) {
+    const data = truthBulletData(item);
+    if (!data) return;
+
+    li.classList.add("drpg-truth-bullet");
+    li.dataset.bulletType = data.shownType;
+
     li.innerHTML = `<img src="${item.img}" alt="" />
                     <span class="drpg-item-name">${foundry.utils.escapeHTML(item.name)}</span>
-                    <span class="drpg-tb-badges">${badges.join("")}</span>`;
+                    <span class="drpg-tb-badges">${bulletBadges(data)}</span>`;
 
     if (!app.isEditable || isMonokuma(app.document)) return;
 
@@ -1850,7 +1992,9 @@ function injectCleanupPanel(tab, actor, { onTop = true } = {}) {
           // Carrying a body you are not standing next to is not a thing, so the
           // tile says so before it is pressed rather than after.
           off: !bodyIsHere(actor), offTip: "DRPG.Cleanup.bodyNotHere",
-          run: m => m.attemptStageSix(actor, "moveBody") }
+          // Through the dialog, not straight to the roll: where the body goes is
+          // the killer's decision and it has to be made before the dice.
+          run: m => m.openMoveBodyDialog(actor) }
     ];
 
     // The fourth tile only exists for one person, and only for a few minutes.
@@ -1862,8 +2006,10 @@ function injectCleanupPanel(tab, actor, { onTop = true } = {}) {
     // them. So it belongs on their sheet, in the panel they are already looking
     // at, for exactly as long as Stage 6 lasts.
     //
-    // Red and GM-routed, like every other tile that summons a human ruling: it
-    // opens a second murder, and the GM confirms before anything happens.
+    // Red, because it opens a second murder. NOT GM-routed any more: the guide
+    // gives this decision to the newcomer, and the confirmation that used to sit
+    // in front of it turned their choice into a request — one the GM could
+    // answer four times if the tile had been clicked four times.
     const partner = betrayalTarget(actor);
     if (partner) {
         tiles.push({
@@ -1883,16 +2029,31 @@ function injectCleanupPanel(tab, actor, { onTop = true } = {}) {
             tile.gmRoute ? " drpg-gm-route" : ""}`;
         button.disabled = Boolean(tile.off);
         if (tile.off) tile.tip = tile.offTip;
-        // A clean-up is paid for in Stress, which is neither of the other two
-        // currencies — it gets its own stripe rather than being filed under
-        // "costs an action" and quietly lying about what it takes.
+        // Stage 6 is paid for in Stress AND in one of the day's two actions —
+        // the Stress is what makes a long clean-up hurt, the action is what
+        // makes it finite. The stripe names the Stress because that is the part
+        // this stage adds on top of the ordinary economy.
         button.dataset.drpgCostKind = "stress";
         button.dataset.tooltip = game.i18n.localize(tile.tip);
         button.innerHTML = `<i class="fa-solid ${tile.icon}" inert></i>
             <span class="drpg-action-name">${
                 softWrap(foundry.utils.escapeHTML(game.i18n.localize(tile.label)))}</span>`;
+        // ONE PRESS PER PRESS.
+        //
+        // Every tile here opens a dialog or sends a request, and both take long
+        // enough for a second click to land. The betrayal was the one that hurt:
+        // each click emitted its own socket message, and each message opened its
+        // own incident with an opening roll nobody can skip. Disabled for the
+        // duration of the handler, re-enabled in `finally` so a refusal or a
+        // cancelled dialog does not leave a dead button behind.
         button.addEventListener("click", async () => {
-            await tile.run(await import("./cleanup.mjs"));
+            if (button.disabled) return;
+            button.disabled = true;
+            try {
+                await tile.run(await import("./cleanup.mjs"));
+            } finally {
+                if (!tile.off) button.disabled = false;
+            }
         });
         grid.append(button);
     }

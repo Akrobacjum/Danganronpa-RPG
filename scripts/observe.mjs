@@ -355,7 +355,49 @@ async function createFind(actor, entry, isCritical) {
     const fallbackName = data.subject
         || game.i18n.format("DRPG.Observe.defaultName", { room: entry.room });
 
-    const described = await describeFind(actor, entry, isCritical, fallbackName);
+    /*
+     * ONE TRACE, ONE DESCRIPTION.
+     *
+     * The GM used to be asked to describe the find on EVERY observation, and the
+     * answer went onto that one player's Truth Bullet and nowhere else. Two
+     * people looking at the same smear on the same wall therefore got two
+     * different names for it, written minutes apart by a GM with no reminder of
+     * what they had said the first time — and in a game whose entire endgame is
+     * players comparing notes in a trial, two names for one object is not a
+     * cosmetic problem. It is a false contradiction the table has to spend the
+     * trial resolving.
+     *
+     * So the description is written back to the Remnant the first time it is
+     * given, and every later observer is handed the same words without the GM
+     * being asked again.
+     *
+     * A CRITICAL still asks. The guide gives it "a big hint from the GM" on top
+     * of the category (p. 30), so there is genuinely something new to say — and
+     * the box opens prefilled with what the trace is already called, so pressing
+     * straight through keeps the name identical.
+     */
+    const stored = data.described ?? null;
+    const described = (stored && !isCritical)
+        ? stored
+        : await describeFind(actor, entry, isCritical, stored?.name || fallbackName, stored);
+
+    // Written back on the GM's client, where the ledger lives. Only when there
+    // is something to write: a dismissed dialog must not overwrite a good
+    // description with an empty one.
+    if (described?.name && described.name !== stored?.name
+        || described?.playerText && described.playerText !== stored?.playerText) {
+        try {
+            const { setRemnantSecretById } = await import("./remnants.mjs");
+            await setRemnantSecretById(entry.sceneId, entry.tokenId, {
+                described: {
+                    name: described.name || stored?.name || fallbackName,
+                    playerText: described.playerText || stored?.playerText || ""
+                }
+            });
+        } catch (err) {
+            error("Could not record the description on the Remnant", err);
+        }
+    }
 
     const item = await createTruthBullet(actor, {
         name: described?.name || fallbackName,
@@ -388,7 +430,7 @@ async function createFind(actor, entry, isCritical) {
 }
 
 /** The GM's sentence, prefilled. Never blocks the result — see `createFind`. */
-async function describeFind(actor, entry, isCritical, fallbackName) {
+async function describeFind(actor, entry, isCritical, fallbackName, stored = null) {
     const data = entry.data;
 
     return DialogV2.wait({
@@ -402,6 +444,9 @@ async function describeFind(actor, entry, isCritical, fallbackName) {
             <p class="notes">${foundry.utils.escapeHTML(
                 `${data.visibilityLabel} ${data.typeLabel}${data.note ? ` — ${data.note}` : ""}`
             )}</p>
+            ${stored
+                ? `<p class="notes">${game.i18n.localize("DRPG.Observe.alreadyDescribed")}</p>`
+                : ""}
             ${isCritical
                 ? `<p><strong>${game.i18n.localize("DRPG.Observe.critPrompt")}</strong></p>`
                 : ""}
@@ -410,7 +455,8 @@ async function describeFind(actor, entry, isCritical, fallbackName) {
                        value="${foundry.utils.escapeHTML(fallbackName)}" /></label>
             <label>${game.i18n.localize("DRPG.TruthBullet.playerText")}
                 <textarea name="playerText" rows="3"
-                    placeholder="${game.i18n.localize("DRPG.TruthBullet.playerTextPlaceholder")}"></textarea></label>
+                    placeholder="${game.i18n.localize("DRPG.TruthBullet.playerTextPlaceholder")}"
+                    >${foundry.utils.escapeHTML(stored?.playerText ?? "")}</textarea></label>
         </form>`),
         buttons: [
             {
