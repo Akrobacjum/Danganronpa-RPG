@@ -78,7 +78,7 @@ import { takeRest, roomAllows, restRooms, setRestRoom, openRestRoomsDialog } fro
 import {
     dropRemnant, placeRemnant, remnantsOn, remnantsInRoom, rankForObserve,
     revealRemnant, removeRemnant, clearFaintRemnants,
-    setRemnantFlags, openRemnantManager
+    setRemnantFlags
 } from "./remnants.mjs";
 import { chooseObserveTarget, resolveObserve, clearPendingObserves } from "./observe.mjs";
 import { resolveAnalyze } from "./analyze.mjs";
@@ -93,7 +93,7 @@ import {
 } from "./chapter.mjs";
 import {
     keyPlan, setKeyPlan, keyPlanStatus,
-    openKeyPlanner, openInvestigationDashboard
+    openInvestigationDashboard
 } from "./investigation.mjs";
 import {
     trialQueue, speaker, secondsLeft, startFloor, nextSpeaker, seizeFloor, endFloor
@@ -427,8 +427,7 @@ export const DrpgApi = {
     /** Chapter end: clear Faint Remnants that are neither reinforced nor tied to the crime. */
     clearFaintRemnants,
 
-    /** Edit which Remnants survive the chapter. Also on the GM panel. */
-    manageRemnants: openRemnantManager,
+    /** Edit which Remnants survive the chapter. Also on the Investigation Dashboard's "Traces" tab. */
     setRemnantFlags,
 
     /** Give or take an item, as the GM. Also on the sheet and the GM panel. */
@@ -629,7 +628,6 @@ export const DrpgApi = {
     casebookSummary,
     openCasebook,
 
-    keyPlanner: openKeyPlanner,
     investigationDashboard: openInvestigationDashboard,
 
     /* ---- the murder engine -------------------------------------------------

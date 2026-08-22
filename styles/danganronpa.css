@@ -2666,6 +2666,22 @@ body.drpg-pixel-font [contenteditable] {
     hyphens: auto;
 }
 
+/* A panel tile that refuses right now — an Eclipse running, for the murder and
+   body-discovery tiles. Greyed with a native tooltip (the `title` attribute)
+   instead of doing nothing on click, so the GM learns why before pressing it,
+   not after. */
+.drpg-gmp-button.drpg-disabled,
+.drpg-gmp-button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.drpg-gmp-button.drpg-disabled:hover,
+.drpg-gmp-button:disabled:hover {
+    background: rgba(var(--drpg-bone-rgb), 0.12);
+    border-color: rgba(var(--drpg-bone-rgb), 0.45);
+}
+
 /* ==========================================================================
    CARRIED ITEMS — held ready, and used up
    ========================================================================== */
@@ -2744,6 +2760,30 @@ body.drpg-pixel-font [contenteditable] {
    sheet.mjs. Styled as a numbered proclamation rather than a list of items,
    because that is what it is: the thing on the wall everybody is bound by.
    ========================================================================== */
+
+/* The tab never scrolled. Daggerheart's own `section.tab` carries
+   `overflow: hidden` — a system-wide default, not something aimed at this
+   content — and a rules list long enough to fill more than one screen was
+   simply cut off below the fold with no way to reach the rest.
+   `overflow-y: auto` on the section this module owns (`.drpg-rules-tab`, added
+   by `replaceEffectsTab()` in sheet.mjs) overrides that.
+
+   `min-height: 0` on the section AND on its flex parent, because a flex
+   item's default minimum size is the height of its own content — without it
+   on both, the section never shrinks below the rules list's natural height
+   and the scrollbar the rule above promises never actually appears. The
+   parent is reached with `:has()` rather than a class name, since that
+   wrapper belongs to Daggerheart and is free to be renamed between versions;
+   this targets whatever element is actually the section's direct parent. */
+.drpg-rules-tab {
+    overflow-y: auto;
+    min-height: 0;
+    max-height: 100%;
+}
+
+.application.sheet.actor.character .window-content *:has(> .drpg-rules-tab) {
+    min-height: 0;
+}
 
 .drpg-rules-panel {
     padding: 4px 2px;
@@ -3154,13 +3194,19 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
        carrying `!important` the GM panel was being sized by its table instead
        of by its tile grid.
 
-       The wide tier, not the viewport. Left to size themselves these came out
-       at 674, 723, 985 and 1274px — four different windows for four managers
-       that do the same kind of job, and the widest was nearly the whole
-       screen. A table wider than the tier scrolls inside its window, which the
-       rule below the action grid already promises. */
+       Bounded by the viewport, not by the wide tier. `min(var(--drpg-popup-
+       wide), 94vw)` used to cap every one of these at 44rem regardless of what
+       `width: max-content` above had just asked for, so a table that measured
+       wider than 704px was squeezed back down to it and left to scroll inside
+       its own window — the wide tier was built for windows the module sizes on
+       purpose (`.drpg-wide`, the GM panel's tile grid), and a table dialog
+       landed in the same bucket by accident. `max-content` here matches the
+       `width` above: the window grows to the table's real size, capped only by
+       the screen. A table wider than 94vw still scrolls inside its window,
+       which the rule below the action grid already promises — that case does
+       not go away, it just stops being the common one. */
     width: max-content !important;
-    max-width: min(var(--drpg-popup-wide), 94vw) !important;
+    max-width: min(max-content, 94vw) !important;
 }
 
 /* …but prose inside a wide window still reads at a measure, rather than being
@@ -3193,6 +3239,27 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
 ) footer.form-footer {
     flex-wrap: wrap;
+}
+
+/* The footer stays on screen while a table-driven window scrolls under it.
+   `.window-content` below is the box the `max-height: 80vh; overflow: auto`
+   rule scrolls, and `footer.form-footer` lives inside it — so on a window tall
+   enough to need that scroll, the buttons (Save, Confirm, Close) were exactly
+   what disappeared first, off the bottom edge. `position: sticky` keeps the
+   footer pinned to the bottom of that same scrolling box instead. Scoped to
+   `:has(.dialog-content table)`: every other module dialog is short enough
+   that this was never the problem, and giving every footer its own opaque
+   background would repaint plenty of windows that do not need it. */
+.application.dialog:is(
+    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
+    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
+    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
+):has(.dialog-content table):not(.drpg-compact) footer.form-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    background: var(--drpg-panel-ground);
+    backdrop-filter: var(--drpg-panel-blur);
 }
 
 /* `.drpg-narrow` no longer sets a width.
@@ -4217,6 +4284,33 @@ body.drpg-pixel-font .drpg-safeword-button {
     gap: 2px;
     padding: 0 6px;
     border-bottom: 1px solid var(--drpg-line);
+}
+
+/* Investigation dashboard: switch between Traces / Key Remnants / Final.
+   Same look as the messenger's tabs, kept as its own rule so the two windows
+   can drift independently if either one ever needs to. */
+.drpg-dashboard-tabs {
+    display: flex;
+    gap: 2px;
+    padding: 0 6px;
+    margin: 0.6em 0;
+    border-bottom: 1px solid var(--drpg-line);
+}
+
+.drpg-dashboard-tab {
+    flex: 0 0 auto;
+    padding: 4px 12px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: none;
+    color: var(--drpg-dim);
+    font-size: var(--font-size-12, 0.75rem);
+    cursor: pointer;
+}
+
+.drpg-dashboard-tab.active {
+    color: var(--drpg-eye);
+    border-bottom-color: var(--drpg-eye);
 }
 
 .drpg-messenger-tab {
@@ -7637,6 +7731,17 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     opacity: 0.75;
     cursor: not-allowed;
     border-style: dashed;
+}
+
+/* The description editor, specifically: `readonly` is not a documented
+   attribute of Foundry's `<prose-mirror>` custom element, so it is set as a
+   harmless best-effort extra rather than trusted alone. `pointer-events: none`
+   is the guarantee — nothing inside the element, including its own edit
+   button, can be clicked — regardless of what that element's internal markup
+   turns out to be. See `lockItemDescription` in sheet.mjs. */
+.drpg-item-sheet .item-description prose-mirror.drpg-locked-field,
+.drpg-item-sheet .item-description prose-mirror.drpg-locked-field * {
+    pointer-events: none;
 }
 
 /* The item's name. Sized down from Daggerheart's 30px, then fitted to the box

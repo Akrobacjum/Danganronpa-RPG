@@ -332,6 +332,17 @@ async function promoteFaintPrep() {
 export async function discoverBody({ room, victim = null } = {}) {
     if (!game.user.isGM || !room) return null;
 
+    // The Eclipse is a placement window nobody has finished crossing yet — see
+    // the note on `maybeBodyFound`. The panel tile that reaches this is greyed
+    // out with a tooltip while an Eclipse runs (see gm-panel.mjs); this is the
+    // backstop for anyone who gets here anyway, `game.drpg` console access
+    // included.
+    const { isEclipse } = await import("./eclipse.mjs");
+    if (isEclipse()) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.bodyLocked"));
+        return null;
+    }
+
     const promoted = await promoteFaintPrep();
 
     // Stage 7 takes the gloves. The guide puts the cleaning tool's destruction
@@ -367,7 +378,8 @@ export async function discoverBody({ room, victim = null } = {}) {
 }
 
 /**
- * Two people walk in on a corpse. That is the discovery.
+ * Two or more people walk in on a corpse, at least one of them with nothing to
+ * do with the death. That is the discovery.
  *
  * The guide's trigger is people finding the body, not a GM remembering to press
  * a button — and the button was the only thing that could fire Stage 7, so an
@@ -375,21 +387,32 @@ export async function discoverBody({ room, victim = null } = {}) {
  * cast noticed the body. Watched on token movement, the same way a third party
  * walking into a running incident is watched.
  *
- * "Unconnected to the incident" is the load-bearing phrase. The killer standing
- * over their own victim has not discovered anything, and neither has an
- * accomplice or the third party who was in the room for it: `blackenedIds`
- * carries all of them across the end of the incident, which is why this can run
- * after the state is gone. A Monokuma is not a witness either — see
- * `maybeThirdParty`, same rule — and nor is a hidden token or a second body.
+ * The killer standing alone over their own victim has not discovered anything —
+ * that is the classic frame-up, and the guide leaves it to the table. But a
+ * killer or an accomplice (`blackenedIds` carries both across the end of the
+ * incident, which is why this can run after the state is gone) DOES count
+ * toward the two once somebody unconnected to the incident is standing there
+ * too: walking back to your own crime scene alongside a witness is still being
+ * found there. A Monokuma is not a witness either — see `maybeThirdParty`,
+ * same rule — and nor is a hidden token or a second body.
  *
- * Two is the count, and it is deliberately not one: a single student alone with
- * a body is the classic frame-up, and the guide leaves that to the table.
+ * Two is the count, and at least one of the two has to be unconnected to the
+ * incident — a room full of nothing but killers and accomplices is not a
+ * discovery.
  */
 let bodyCheckRunning = false;
 
 export async function maybeBodyFound(tokenDoc) {
     if (!game.user.isGM || bodyCheckRunning) return null;
     if (getClock().phase === "investigation") return null;   // already in Stage 7
+
+    // The Eclipse is everyone crossing the map with their eyes shut — the guide
+    // gives that window to placement, not to the cast stumbling over a body
+    // while half of them have not finished moving yet. Without this, two
+    // students placing through the same room mid-Eclipse would "discover" a
+    // body in the middle of a window nobody has confirmed.
+    const { isEclipse } = await import("./eclipse.mjs");
+    if (isEclipse()) return null;
 
     // Everything here compares actor IDs, never actor objects.
     //
@@ -420,12 +443,14 @@ export async function maybeBodyFound(tokenDoc) {
         if (!actor || actor.type !== "character") return false;
         if (t.hidden) return false;
         if (bodies.has(actor.id)) return false;
-        if (involved.has(actor.id)) return false;
         if (!students.has(actor.id)) return false;            // excludes Monokumas
         return roomOfToken(t) === room;
     });
 
+    // Two in the room, and at least one of them did not do this. A killer is
+    // part of the pool, never the whole of it.
     if (witnesses.length < 2) return null;
+    if (!witnesses.some(w => !involved.has(w.actor.id))) return null;
 
     bodyCheckRunning = true;
     try {

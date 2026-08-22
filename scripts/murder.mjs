@@ -41,10 +41,10 @@ import { resourceValue, resourceMax } from "./character.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
 import { carriedInCategory, ITEM_FLAGS } from "./inventory.mjs";
 import { equippedIn } from "./use-items.mjs";
-import { dropRemnant } from "./remnants.mjs";
+import { dropRemnant, traceFeedback } from "./remnants.mjs";
 import {
-    announce, dialogContent, whisperToGms, whisperToOwner, ownerOf, gmIds,
-    isPrimaryGm, log, warn, error, plural, article} from "./utils.mjs";
+    announce, dialogContent, tableDialog, whisperToGms, whisperToOwner, ownerOf, gmIds,
+    isPrimaryGm, log, warn, error, plural} from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -207,6 +207,20 @@ function atNight() {
  */
 export async function openMurder({ killerId, victimId, indirect = false } = {}) {
     if (!game.user.isGM) return null;
+
+    // The Eclipse is a placement window, not a moment in the story — nobody has
+    // finished crossing the map yet. This does NOT catch the one legitimate call
+    // during an Eclipse: `judgePendingMurders` (eclipse.mjs) opens a *parked*
+    // direct murder from `endEclipse`, which clears the Eclipse flag before
+    // judging declarations, so `isEclipse()` already reads false by the time it
+    // calls here. Everywhere else — the GM panel's "Open a murder" tile, a
+    // ruling card's button — is greyed out with a tooltip instead of reaching
+    // this at all; this is the backstop for anyone who gets here anyway.
+    const { isEclipse } = await import("./eclipse.mjs");
+    if (isEclipse()) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.murderLocked"));
+        return null;
+    }
 
     const killer = game.actors.get(killerId);
     const victim = game.actors.get(victimId);
@@ -1185,10 +1199,14 @@ async function applyRemnant(actor, visibility, def, band, done, reinforced = fal
         });
     }
 
-    if (last) {
+    // Never the exact band — see `traceFeedback` in remnants.mjs. Gated on
+    // `band` rather than a roll object because that is all this function
+    // ever had: Hope or a critical tells the killer/victim what they left,
+    // a plain Despair does not.
+    if (last && traceFeedback({ isCritical: band === "critical", withHope: band === "hope" }, last)) {
         done.push(count > 1
-            ? game.i18n.format("DRPG.Murder.leftRemnants", { n: count, visibility })
-            : game.i18n.format("DRPG.Murder.leftRemnant", { a: article(visibility), visibility }));
+            ? plural("DRPG.Murder.leftRemnants", { n: count })
+            : game.i18n.localize("DRPG.Murder.leftRemnant"));
     }
     return last ?? null;
 }
@@ -1544,7 +1562,43 @@ export async function passTurn() {
     const state = murderState();
     if (!state || state.stage !== "incident") return null;
 
-    const next = state.turnSide === "victim" ? "killer" : "victim";
+    /*
+     * A ROUND IS: the victim, then EVERY killer in turn, then back to the
+     * victim. Not victim/killer strictly alternating — that gave a second
+     * killer the victim's own turn as breathing room, which is not what
+     * `killerTurnId` rotating between them was ever meant to buy them. With
+     * two killers the old rule read `turnSide` as "victim" or "killer" and
+     * flipped it every pass, so the sequence ran victim, killer(A), victim,
+     * killer(B), victim... — `killerTurnId` rotated correctly underneath, but
+     * the side switched back to the victim a turn too early every time.
+     *
+     * From the victim's turn, the round always restarts at the FIRST killer —
+     * not "whoever goes next in the rotation", which is `state.killerTurnId`
+     * left over from the round before. From a killer's turn, the round only
+     * returns to the victim once the LAST killer in `killerIds` has gone;
+     * otherwise it stays on the killers' side and steps to the next one.
+     */
+    const killers = killerIds(state);
+    let next;
+    let killerTurnId = state.killerTurnId;
+
+    if (state.turnSide === "victim") {
+        next = "killer";
+        killerTurnId = killers[0] ?? null;
+    } else {
+        const current = state.killerTurnId ?? killers[0];
+        const at = killers.indexOf(current);
+        if (at >= 0 && at + 1 < killers.length) {
+            next = "killer";
+            killerTurnId = killers[at + 1];
+        } else {
+            next = "victim";
+        }
+    }
+
+    // The round completes once per full lap of the killers' side, not once
+    // per killer — see the note above. Everything below that used to key off
+    // "it is the victim's turn" still does, and now only fires that often.
     const turn = next === "victim" ? state.turn + 1 : state.turn;
 
     // Tick down the two-turn hindrances at the top of each round.
@@ -1559,21 +1613,10 @@ export async function passTurn() {
         return out;
     };
 
-    const patch = { turnSide: next, turn };
+    const patch = { turnSide: next, turn, killerTurnId };
     if (next === "victim") {
         patch.hindered = decay("hindered");
         patch.blocked = decay("blocked");
-    } else {
-        // Hand the killers' turn to whichever of them did not have the last one.
-        // With a single killer this rotates a list of one and changes nothing.
-        const killers = killerIds(state);
-        if (killers.length > 1) {
-            const current = state.killerTurnId ?? killers[0];
-            const at = killers.indexOf(current);
-            patch.killerTurnId = killers[(at + 1) % killers.length];
-        } else {
-            patch.killerTurnId = killers[0] ?? null;
-        }
     }
 
     await writeState(patch);
@@ -1721,12 +1764,21 @@ export function blackenedActors() {
  * Recorded when the incident CLOSES rather than when it opens, and only when it
  * left a body: Role reversal can hand the killer's seat to the person who was
  * the victim halfway through, and Escape together ends an incident with nobody
- * dead at all. What goes in the register is whoever the state called the killer
+ * dead at all. What goes in the register is whoever `killerIds(state)` names
  * when the dust settled, and only if there is a corpse to answer for.
  *
+ * `killerIds`, not `state.killerId` alone — an accomplice who really threw in
+ * with the killers (`thirdSide === "killer"`) is a killer in every sense the
+ * rules care about, including this one. Recording only the original killer
+ * left the accomplice off `blackenedIds()`, which is the list `maybeBodyFound`
+ * filters witnesses against: the second killer walked past their own corpse
+ * and counted as an innocent bystander. `killerIds` already restricts to a
+ * third party who actually joined the killers, not one who merely walked into
+ * the room, so nothing extra is needed here to keep a bystanding third party out.
+ *
  * Appended, never replaced. Two incidents in a chapter — which the betrayal
- * rule makes an ordinary evening — put two names in here, and the trial asks
- * for both.
+ * rule makes an ordinary evening — put two (or more) names in here, and the
+ * trial asks for all of them.
  */
 async function recordBlackened(state) {
     if (!game.user.isGM || !state?.killerId) return;
@@ -1736,9 +1788,10 @@ async function recordBlackened(state) {
     if (state.stage !== "resolution") return;
 
     const current = blackenedIds();
-    if (current.includes(state.killerId)) return;
-    await game.settings.set(MODULE_ID, SETTINGS.blackened, [...current, state.killerId]);
-    log(`Blackened recorded: ${game.actors.get(state.killerId)?.name ?? state.killerId}.`);
+    const additions = killerIds(state).filter(id => !current.includes(id));
+    if (!additions.length) return;
+    await game.settings.set(MODULE_ID, SETTINGS.blackened, [...current, ...additions]);
+    log(`Blackened recorded: ${additions.map(id => game.actors.get(id)?.name ?? id).join(", ")}.`);
 }
 
 /** A new chapter starts with nobody's blood on anybody. Called by chapter.mjs. */
@@ -2068,8 +2121,8 @@ async function afterEscape(state, victim, killer) {
     });
 
     if (action === "remnants") {
-        const { openRemnantManager } = await import("./remnants.mjs");
-        return openRemnantManager();
+        const { openInvestigationDashboard } = await import("./investigation.mjs");
+        return openInvestigationDashboard();
     }
     return null;
 }
@@ -2467,7 +2520,9 @@ export async function openIncidentTracker() {
         ? `${resourceMax(victim, res) - resourceValue(victim, res)} / ${resourceMax(victim, res)}`
         : "?";
 
-    const action = await DialogV2.wait({
+    const action = await tableDialog({
+        // `cleanupSection()` below puts a table in this window once Stage 6 has
+        // traces to list — `tableDialog` is what makes it resizable.
         window: { title: game.i18n.localize("DRPG.Murder.trackerTitle") },
         classes: ["drpg-panel"],
         content: dialogContent(`<div>

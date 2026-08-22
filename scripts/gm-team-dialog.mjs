@@ -22,9 +22,7 @@ import {
 } from "./despair.mjs";
 import { isMonokuma, setMonokuma, poolFor, setPools } from "./monokuma.mjs";
 import { students, assignments, monokumaFor, setAssignments, autoAssign, NO_MONOKUMA } from "./assignments.mjs";
-import { dialogContent, error } from "./utils.mjs";
-
-const DialogV2 = foundry.applications.api.DialogV2;
+import { dialogContent, error, tableDialog } from "./utils.mjs";
 
 /** Open the combined panel. GM only. */
 export async function openGmTeamDialog() {
@@ -90,7 +88,7 @@ export async function openGmTeamDialog() {
     if (roster.length) buttons.push({ action: "auto", label: game.i18n.localize("DRPG.Assign.splitEvenly") });
     buttons.push({ action: "cancel", label: game.i18n.localize("DRPG.Panel.close") });
 
-    const result = await DialogV2.wait({
+    const result = await tableDialog({
         window: { title: game.i18n.localize("DRPG.Panel.gmTeam") },
         // `drpg-assign` was missing, and with it five stylesheet rules written
         // for exactly this window: the counts box, the asterisk marking an

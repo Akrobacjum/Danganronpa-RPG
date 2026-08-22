@@ -570,10 +570,9 @@ export async function openMusicDialog() {
         </tr>`;
     }).join("");
 
-    const { dialogContent } = await import("./utils.mjs");
-    const DialogV2 = foundry.applications.api.DialogV2;
+    const { dialogContent, tableDialog } = await import("./utils.mjs");
 
-    const result = await DialogV2.wait({
+    const result = await tableDialog({
         window: { title: game.i18n.localize("DRPG.Music.title") },
         classes: ["drpg-panel", "drpg-projects"],
         content: dialogContent(`<form>

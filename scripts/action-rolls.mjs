@@ -24,7 +24,7 @@ import { drawItem } from "./tables.mjs";
 import { roomOfActor, othersInRoom } from "./movement.mjs";
 import { projectsAvailableIn, addProgress, isIndirectMurder, scaleFor } from "./projects.mjs";
 import { callGm, promptAndCallGm } from "./gm-bridge.mjs";
-import { announce, resolveThreshold, whisperToOwner, dialogContent, replaceFlag, log, error, plural, article } from "./utils.mjs";
+import { announce, resolveThreshold, whisperToOwner, dialogContent, replaceFlag, log, error, plural } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -813,8 +813,9 @@ async function performSearch(actor, def, options) {
     const visibility = roll.isCritical ? def.critical?.remnant : hit?.remnant;
 
     let placed = null;
+    let leftTrace = false;
     if (leaves && visibility) {
-        const { dropRemnant } = await import("./remnants.mjs");
+        const { dropRemnant, traceFeedback } = await import("./remnants.mjs");
         const catLabel = ITEM_CATEGORIES[category]?.label ?? category;
         placed = await dropRemnant(actor, {
             type: "prep",
@@ -834,13 +835,14 @@ async function performSearch(actor, def, options) {
                 total: roll.total
             })
         });
+        leftTrace = traceFeedback(roll, placed);
     }
 
     const outcome = {
         success: true, tier, category,
         item: drawn?.name ?? null,
         carried: Boolean(granted),
-        remnant: leaves ? visibility : null,
+        leftTrace,
         room, tokensLeft: SearchTokens.left(room)
     };
 
@@ -1196,7 +1198,7 @@ async function workOnProject(actor, def, options) {
     });
 
     // Guide: every project action also rolls to hide the traces it leaves.
-    let traceRemnant = null;
+    let traceLeftTrace = false;
     if (indirect) {
         const trace = await rollTrait(actor, INDIRECT_MURDER.hideTraces.trait,
             { remember: false, title: game.i18n.localize("DRPG.Roll.hideTraces") });
@@ -1204,14 +1206,10 @@ async function workOnProject(actor, def, options) {
             const band = trace.isCritical
                 ? INDIRECT_MURDER.hideTraces.critical
                 : resolveThreshold(trace.total, INDIRECT_MURDER.hideTraces.thresholds);
-            traceRemnant = band?.remnant ?? "obvious";
-            lines.push(`<p><strong>${INDIRECT_MURDER.hideTraces.label}</strong> — ${trace.total}: ${
-                game.i18n.format("DRPG.Action.leavesRemnant",
-                    { a: article(traceRemnant), visibility: traceRemnant })
-            }</p>`);
+            const traceRemnant = band?.remnant ?? "obvious";
 
-            const { dropRemnant } = await import("./remnants.mjs");
-            await dropRemnant(actor, {
+            const { dropRemnant, traceFeedback } = await import("./remnants.mjs");
+            const placed = await dropRemnant(actor, {
                 type: "prep",
                 visibility: traceRemnant,
                 faint: true,
@@ -1225,6 +1223,14 @@ async function workOnProject(actor, def, options) {
                     total: trace.total
                 })
             });
+            traceLeftTrace = traceFeedback(trace, placed);
+
+            // Just the score — never the band this rolled into (see
+            // `traceFeedback`). Whether anything is said about the trace
+            // itself is `report()`'s generic `outcome.leftTrace` line below,
+            // the same one every other action uses, so this does not print
+            // its own second copy of that sentence.
+            lines.push(`<p><strong>${INDIRECT_MURDER.hideTraces.label}</strong> — ${trace.total}</p>`);
         }
     }
 
@@ -1238,7 +1244,7 @@ async function workOnProject(actor, def, options) {
         project: project.name,
         applied,
         refundAction: Boolean(hit?.refundAction),
-        remnant: traceRemnant,
+        leftTrace: traceLeftTrace,
         extra: lines.join(""),
         text: progress > 0
             ? game.i18n.format("DRPG.Action.progressOn", { n: progress, project: project.name })
@@ -1466,7 +1472,7 @@ async function performSabotage(actor, def, options) {
 
     // Sabotage always leaves a trace, success or not.
     const visibility = success ? hit.remnant : def.failureRemnant;
-    const { dropRemnant } = await import("./remnants.mjs");
+    const { dropRemnant, traceFeedback } = await import("./remnants.mjs");
     const placed = await dropRemnant(actor, {
         type: "prep",
         visibility,
@@ -1488,7 +1494,7 @@ async function performSabotage(actor, def, options) {
         success,
         applied,
         project: project.name,
-        remnant: visibility,
+        leftTrace: traceFeedback(roll, placed),
         extra: lines.join(""),
         // Despair reveals the attempt to anyone else in the room.
         revealed: roll.withFear && witnesses.length > 0,
@@ -1783,7 +1789,7 @@ async function ruleObserve(actor, def, roll, request, title = null) {
  * in it, and the two that did were asking for a description of a search that had
  * not happened yet — see `observeSpecific`.
  *
- * @returns {Promise<"general"|"specific"|"nonObvious"|"anything"|null>}
+ * @returns {Promise<"general"|"specific"|"nonObvious"|"followTraces"|"anything"|null>}
  */
 async function askDeclaration(actor, def) {
     const choice = await DialogV2.wait({
@@ -1798,19 +1804,21 @@ async function askDeclaration(actor, def) {
         </form>`),
         // Ordered by who answers, not by how the guide lists them.
         //
-        // The first two are settled by the table: sweeping the room takes the
-        // easiest trace in it and looking past the obvious takes the hardest,
-        // and both are decided by a number. The last two summon a human — the GM
-        // picks which Remnant a named request lands on, and "ask the GM" is a
-        // ruling outright. Naming what you are after sat between the two
-        // table-lookups wearing their colour, which read as a third automatic
-        // option rather than what it is.
+        // The first three are settled by the table: sweeping the room takes the
+        // easiest trace in it, looking past the obvious takes the hardest, and
+        // following your own traces takes the easiest one YOU left — all three
+        // decided by a number, none of them asking the player anything first.
+        // The last two summon a human — the GM picks which Remnant a named
+        // request lands on, and "ask the GM" is a ruling outright. Naming what
+        // you are after sat between the table-lookups wearing their colour,
+        // which read as a fourth automatic option rather than what it is.
         //
         // Red on both, like the cost stripe on a GM-routed tile: red already
         // means "this waits for somebody" everywhere else in the module.
         buttons: [
             { action: "general", label: game.i18n.localize("DRPG.Observe.general"), default: true },
             { action: "nonObvious", label: game.i18n.localize("DRPG.Observe.nonObvious") },
+            { action: "followTraces", label: game.i18n.localize("DRPG.Observe.followTraces") },
             { action: "specific", label: game.i18n.localize("DRPG.Observe.specific"), class: GM_ROUTE_CLASS },
             { action: "anything", label: game.i18n.localize("DRPG.Observe.anything"), class: GM_ROUTE_CLASS },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
@@ -2155,42 +2163,21 @@ async function performDirectMurder(actor, def, options) {
     const cost = options.free ? 0 : def.cost;
     if (!canAfford(actor, cost)) return null;
 
-    // The guide's condition: you must be alone with your victim. One other
-    // character in the room is the victim; two or more and there is a witness.
-    //
-    // Shown here as a HINT, not as the verdict. The room is still filling up —
-    // an Eclipse is a placement window and half the cast has yet to move — so
-    // what this describes is the room at the moment of asking, and the answer is
-    // read again when the lights come up. Worth showing anyway: it is what the
-    // killer can see from where they are standing, and it is the difference
-    // between a gamble and a guess.
+    // No preview of the room. The guide's whole point is that you do not know
+    // who else is standing in the dark with you — showing "you are alone with
+    // X" or listing everyone present here would hand the killer the verdict
+    // before they have even declared. `judgePendingMurders` (eclipse.mjs) reads
+    // the room once, for real, after the Eclipse ends and the map has settled;
+    // that is also the only moment the killer learns anything about it, in the
+    // whisper it sends.
     const room = roomOfActor(actor);
-    const present = othersInRoom(actor);
-    const alone = present.length === 1;
-
-    const scene = alone
-        ? game.i18n.format("DRPG.Action.murderAloneWith", {
-            victim: foundry.utils.escapeHTML(present[0].name),
-            room: foundry.utils.escapeHTML(room ?? "—")
-        })
-        : present.length === 0
-            ? game.i18n.format("DRPG.Action.murderRoomEmpty",
-                { room: foundry.utils.escapeHTML(room ?? "—") })
-            : game.i18n.format("DRPG.Action.murderRoomCrowded", {
-                who: present.map(a => foundry.utils.escapeHTML(a.name)).join(", "),
-                room: foundry.utils.escapeHTML(room ?? "—")
-            });
 
     const confirmed = await DialogV2.confirm({
         classes: ["drpg-panel"],
         window: { title: def.label },
         content: `${briefingBlock(actor, "directMurder", def)}
-            <p><strong>${scene}</strong></p>
             <p class="notes">${game.i18n.localize("DRPG.Action.murderSpendsAnyway")}</p>
-            <p>${alone
-                ? game.i18n.format("DRPG.Action.murderConfirmVictim",
-                    { victim: foundry.utils.escapeHTML(present[0].name) })
-                : game.i18n.localize("DRPG.Action.murderConfirm")}</p>`,
+            <p>${game.i18n.localize("DRPG.Action.murderConfirm")}</p>`,
         rejectClose: false
     });
     if (!confirmed) return null;
@@ -2291,8 +2278,11 @@ async function performGeneric(actor, actionKey, def, options) {
     const hit = roll.isCritical ? def.critical : resolveThreshold(roll.total, def.thresholds ?? []);
     const outcome = {
         success: Boolean(hit),
-        text: hit?.result ?? def.failure ?? game.i18n.localize("DRPG.Action.nothing"),
-        remnant: hit?.remnant ?? null
+        text: hit?.result ?? def.failure ?? game.i18n.localize("DRPG.Action.nothing")
+        // No `leftTrace`: this generic fallback never actually calls
+        // `dropRemnant`, so `hit?.remnant` used to report a trace that was
+        // never placed — a lie `traceFeedback`'s contract (nothing to
+        // report if nothing was placed) does not allow.
     };
 
     await report(actor, def, roll, outcome);
@@ -2355,8 +2345,9 @@ async function performDynamic(actor, options) {
     // below has always reported one — but nothing ever created it. The action
     // told the player and the GM that a trace had been left and the map stayed
     // empty, which is the one kind of lie an investigation cannot recover from.
+    let leftTrace = false;
     if (visibility) {
-        const { dropRemnant } = await import("./remnants.mjs");
+        const { dropRemnant, traceFeedback } = await import("./remnants.mjs");
         placed = await dropRemnant(actor, {
             type: "prep",
             visibility,
@@ -2370,12 +2361,13 @@ async function performDynamic(actor, options) {
                 total: roll.total
             })
         });
+        leftTrace = traceFeedback(roll, placed);
     }
 
     const outcome = {
         success,
         tier: success ? band.tier : null,
-        remnant: visibility,
+        leftTrace,
         text: success ? game.i18n.format("DRPG.Action.tierFound", { tier: band.tier })
                       : game.i18n.localize("DRPG.Action.nothing")
     };
@@ -2510,9 +2502,12 @@ async function report(actor, def, roll, outcome) {
         })}</small></p>`);
     }
 
-    if (outcome.remnant) {
-        lines.push(`<p><em>${game.i18n.format("DRPG.Action.leavesRemnant",
-            { a: article(outcome.remnant), visibility: outcome.remnant })}</em></p>`);
+    // Never the exact visibility band — see `traceFeedback` in remnants.mjs.
+    // A plain Despair leaves `outcome.leftTrace` false and prints nothing at
+    // all, which is itself the point: it must read the same as leaving no
+    // trace whatsoever, or its absence would say as much as its presence.
+    if (outcome.leftTrace) {
+        lines.push(`<p><em>${game.i18n.localize("DRPG.Action.leavesRemnant")}</em></p>`);
     }
 
     if (outcome.room) {
@@ -2563,7 +2558,7 @@ async function report(actor, def, roll, outcome) {
                     critical: Boolean(roll?.isCritical),
                     item: outcome.item ?? null,
                     tier: outcome.tier ?? null,
-                    remnant: outcome.remnant ?? null,
+                    leftTrace: outcome.leftTrace ?? false,
                     at: Date.now()
                 }
             }

@@ -11,7 +11,7 @@ import { getClock, setClock, setTimeOfDay, clockSummary, timeOfDayLabel, phaseLa
 import { resetAllActions, actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { isEclipse } from "./eclipse.mjs";
-import { dialogContent, error, plural } from "./utils.mjs";
+import { dialogContent, error, plural, tableDialog } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -90,9 +90,17 @@ const PANEL_SECTIONS = [
             // the body as one beat and opens the body dialog straight after the
             // phase change. A GM reading down this column was being walked
             // through the case in the wrong order.
+            // Both grey out while an Eclipse runs rather than reject silently on
+            // click: `openMurder` and `discoverBody` refuse the call either way
+            // (see the notes there), but a GM should see WHY before pressing,
+            // not after. `judgePendingMurders` still opens a parked Direct
+            // Murder once the Eclipse it was declared in has actually ended —
+            // that path never goes through this tile.
             { key: "murder", icon: "fa-skull", labelKey: "DRPG.Murder.openTitle",
+              disabled: () => isEclipse(), disabledReason: "DRPG.Eclipse.panelLocked",
               run: () => import("./murder.mjs").then(m => m.openMurderDialog()) },
             { key: "bodyFound", icon: "fa-person-falling", labelKey: "DRPG.Chapter.bodyTitle",
+              disabled: () => isEclipse(), disabledReason: "DRPG.Eclipse.panelLocked",
               run: () => import("./chapter.mjs").then(m => m.openBodyDiscoveryDialog()) },
             { key: "investigation", icon: "fa-magnifying-glass-chart",
               labelKey: "DRPG.Investigation.dashboardTitle",
@@ -215,8 +223,9 @@ const PANEL_SECTIONS = [
             // What has gone wrong since this page loaded. See `openFailureLog`.
             { key: "failureLog", icon: "fa-bug", labelKey: "DRPG.Failures.title",
               run: () => openFailureLog() },
-            { key: "manageRemnants", icon: "fa-triangle-exclamation", labelKey: "DRPG.Remnant.manageTooltip",
-              run: () => import("./remnants.mjs").then(m => m.openRemnantManager()) },
+            // Editing a Remnant's flags moved into the Investigation
+            // Dashboard's "Traces" tab, which covers every scene rather than
+            // just the one on screen — see investigation.mjs.
             { key: "whoIsWhat", icon: "fa-user-pen", labelKey: "DRPG.Panel.whoIsWhat",
               run: () => openCharacterStateDialog() },
             { key: "resetActions", icon: "fa-rotate-left", labelKey: "DRPG.Panel.resetActions",
@@ -255,12 +264,16 @@ export async function openGmPanel() {
         <details class="drpg-gmp-section${section.dim ? " dim" : ""}${
             inSeason ? " in-season" : ""}"${open ? " open" : ""}>
             <summary>${game.i18n.localize(`DRPG.Panel.section.${section.key}`)}</summary>
-            <div class="drpg-gmp-grid">${section.items.map(item => `
+            <div class="drpg-gmp-grid">${section.items.map(item => {
+                const blocked = Boolean(item.disabled?.());
+                return `
                 <button type="button" class="drpg-gmp-button${
-                    item.gmRoute ? " drpg-gm-route" : ""}" data-drpg-run="${item.key}">
+                    item.gmRoute ? " drpg-gm-route" : ""}${blocked ? " drpg-disabled" : ""}" data-drpg-run="${item.key}"${
+                    blocked ? ` disabled title="${foundry.utils.escapeHTML(game.i18n.localize(item.disabledReason))}"` : ""}>
                     <i class="fa-solid ${item.icon}" inert></i>
                     <span>${game.i18n.localize(item.labelKey)}</span>
-                </button>`).join("")}</div>
+                </button>`;
+            }).join("")}</div>
         </details>`;
     }).join("");
 
@@ -448,7 +461,7 @@ async function openCharacterStateDialog() {
         </tr>`;
     }).join("");
 
-    const chosen = await DialogV2.wait({
+    const chosen = await tableDialog({
         window: { title: game.i18n.localize("DRPG.Panel.whoIsWhat") },
         classes: ["drpg-panel"],
         content: dialogContent(`<form>
@@ -532,7 +545,7 @@ async function openSearchTokenDialog() {
            </tr></thead><tbody>${rows}</tbody></table>`
         : `<p>${game.i18n.format("DRPG.SearchTokens.allFull", { max })}</p>`;
 
-    const action = await DialogV2.wait({
+    const action = await tableDialog({
         window: { title: game.i18n.localize("DRPG.Panel.searchTokens") },
         classes: ["drpg-panel"],
         content: dialogContent(table),
@@ -565,7 +578,7 @@ async function toggleEclipse() {
             }</td>
         </tr>`).join("");
 
-    const choice = await DialogV2.wait({
+    const choice = await tableDialog({
         window: { title: eclipseLabel() },
         classes: ["drpg-panel"],
         content: `<p>${game.i18n.localize("DRPG.Eclipse.endPrompt")}</p>

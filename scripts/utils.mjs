@@ -326,3 +326,68 @@ export function dialogContent(markup) {
     div.innerHTML = markup;
     return div;
 }
+
+/**
+ * `DialogV2.wait`, for a window built around a table.
+ *
+ * The CSS in the DIALOGS section of danganronpa.css already grows a window
+ * with a table in it up to the table's own width, capped at 94vw — but a GM on
+ * a small screen, or a table that only gets wide once a few rows come in,
+ * still needs to be able to drag the window bigger by hand. Foundry's own
+ * `window.resizable` is what that costs, and forgetting it on any one of the
+ * module's table windows was easy: it is a flag on the caller, not something
+ * the content decides, so nothing in the markup itself catches the omission.
+ *
+ * One function, called wherever a table dialog opens, replaces that with
+ * "forget it in one place". `options.window` still wins over the default —
+ * this hands out a default, it does not reshape what a caller asks for — and
+ * every other option (`content`, `buttons`, `classes`, `render`, …) passes
+ * through untouched.
+ */
+export function tableDialog(options) {
+    const DialogV2 = foundry.applications.api.DialogV2;
+    return DialogV2.wait({
+        ...options,
+        window: { resizable: true, ...options.window }
+    });
+}
+
+/**
+ * Wire a portrait picker to the dialog's real, mounted DOM.
+ *
+ * `content` is handed to `DialogV2.wait` as a detached `<div>`, but DialogV2's
+ * own `_initializeApplicationOptions` immediately reads `content.innerHTML`
+ * and throws the element itself away — the dialog is rebuilt from that string,
+ * so a click listener attached to the original element is attached to a node
+ * that never joins the page. This is documented in Foundry's own dialog.mjs:
+ * "the element will get stringified, so any listeners ... will not carry
+ * forward to the dialog; you must still use the `render` option." Attaching
+ * from `render`, against `dialog.element`, is what actually keeps the click
+ * live — attaching beforehand is exactly why the button did nothing.
+ *
+ * Expects `<img data-drpg-portrait="{id}">` (or a bare `data-drpg-portrait`
+ * for a single-image form) beside `<input type="hidden" name="img.{id}">`
+ * (or `name="img"`) — the same markup `projects-ui.mjs` and
+ * `investigation.mjs` both build their portrait cells from.
+ */
+export function wirePortraitPickers(root, { defaultImg = null } = {}) {
+    for (const portrait of root.querySelectorAll("[data-drpg-portrait]")) {
+        if (portrait.dataset.drpgWired) continue;
+        portrait.dataset.drpgWired = "1";
+
+        const id = portrait.dataset.drpgPortrait || null;
+        const hiddenSelector = id ? `[name="img.${CSS.escape(id)}"]` : '[name="img"]';
+
+        portrait.addEventListener("click", () => {
+            const hidden = root.querySelector(hiddenSelector);
+            new foundry.applications.apps.FilePicker.implementation({
+                type: "image",
+                current: hidden?.value || defaultImg || "",
+                callback: path => {
+                    portrait.src = path;
+                    if (hidden) hidden.value = path;
+                }
+            }).render(true);
+        });
+    }
+}

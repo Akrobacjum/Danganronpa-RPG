@@ -18,8 +18,9 @@
  * this file.
  */
 
-import { MODULE_ID } from "./config.mjs";
-import { REMNANT_FLAGS, remnantData } from "./remnants.mjs";
+import { MODULE_ID, TRUTH_BULLET_TYPES } from "./config.mjs";
+import { REMNANT_FLAGS, remnantData, keyOf as remnantKeyOf } from "./remnants.mjs";
+import { TRUTH_BULLET_FLAGS, bulletsOf } from "./truth-bullets.mjs";
 import { debug, error } from "./utils.mjs";
 
 const RING_NAME = "drpgRemnantRing";
@@ -76,10 +77,15 @@ export function registerRemnantRings() {
  * Replaced rather than restyled. There is no arrangement of an adversary sheet
  * that describes a trace; the fields are not there to lay out.
  *
- * WHAT A PLAYER SEES IS NOT WHAT A GM SEES. The note is the answer key — it
- * says who left the trace and what they were doing — so a player who reaches a
- * revealed token gets the one line the fiction gives them: there is something
- * here, and finding out what it means costs an Observe.
+ * WHAT A PLAYER SEES IS NOT WHAT A GM SEES, and it is not the same as what
+ * `remnantData` returns either — that answers "what does the ledger say",
+ * which is `null` on a player's client by construction (see D6). A player who
+ * reaches a token here has necessarily copied it already — visibility.mjs
+ * hides a revealed Remnant from anyone who has not — so what this renders for
+ * them is THEIR OWN Truth Bullet: its category once Analyze has actually
+ * identified it, and the neutral placeholder before that. Two players who
+ * have and have not analysed the same trace get two different cards, on
+ * purpose — that is exactly what they know.
  */
 function showRemnantCard(app, element) {
     const actor = app?.document;
@@ -87,42 +93,88 @@ function showRemnantCard(app, element) {
     const source = token ?? actor;
     if (!source?.getFlag?.(MODULE_ID, REMNANT_FLAGS.isRemnant)) return;
 
-    const data = remnantData(token ?? actor);
-    if (!data) return;
-
     const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
     const body = element.querySelector(".window-content") ?? element;
-    const isGm = game.user.isGM;
+
+    const html = game.user.isGM
+        ? gmRemnantCard(token ?? actor, esc)
+        : playerRemnantCard(token ?? actor, esc);
+    if (!html) return;
+
+    body.innerHTML = html;
+    // The window is sized for a stat block and this is a card.
+    app.setPosition?.({ height: "auto", width: 380 });
+}
+
+function gmRemnantCard(tokenOrActor, esc) {
+    const data = remnantData(tokenOrActor);
+    if (!data) return null;
 
     const when = [data.chapter ? `Ch ${data.chapter}` : null,
                   data.day ? `D ${data.day}` : null,
                   data.timeOfDay].filter(Boolean).join(" · ");
 
-    const rows = isGm ? [
+    const rows = [
         [game.i18n.localize("DRPG.Remnant.cardWhat"), `${esc(data.visibilityLabel)} ${esc(data.typeLabel)}`],
         [game.i18n.localize("DRPG.Remnant.cardWhere"), esc(data.room ?? "—")],
         [game.i18n.localize("DRPG.Remnant.cardWhen"), esc(when || "—")],
         [game.i18n.localize("DRPG.Remnant.cardWho"), esc(data.sourceName ?? "—")],
         [game.i18n.localize("DRPG.Remnant.cardSubject"), esc(data.subject ?? "—")]
-    ] : [];
+    ];
 
-    body.innerHTML = `<div class="drpg-panel drpg-remnant-card">
-        <h3>${esc(game.i18n.localize("DRPG.Remnant.cardTitle"))}</h3>
-        ${isGm ? `
-            <dl class="drpg-remnant-facts">
-                ${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v}</dd>`).join("")}
-            </dl>
-            ${data.note ? `<p class="drpg-remnant-note">${esc(data.note)}</p>` : ""}
-            ${data.faint || data.reinforced || data.tiedToCrime ? `<p class="drpg-remnant-tags">${[
-                data.tiedToCrime ? esc(game.i18n.localize("DRPG.Remnant.crimeColumn")) : null,
-                data.faint ? esc(game.i18n.localize("DRPG.Remnant.faintColumn")) : null,
-                data.reinforced ? esc(game.i18n.localize("DRPG.Remnant.reinforcedColumn")) : null
-            ].filter(Boolean).join(" · ")}</p>` : ""}`
-        : `<p>${esc(game.i18n.localize("DRPG.Remnant.cardPlayer"))}</p>`}
+    return `<div class="drpg-panel drpg-remnant-card">
+        <h3>${esc(data.public?.name || game.i18n.localize("DRPG.Remnant.cardTitle"))}</h3>
+        <dl class="drpg-remnant-facts">
+            ${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v}</dd>`).join("")}
+        </dl>
+        ${data.note ? `<p class="drpg-remnant-note">${esc(data.note)}</p>` : ""}
+        ${data.faint || data.reinforced || data.tiedToCrime ? `<p class="drpg-remnant-tags">${[
+            data.tiedToCrime ? esc(game.i18n.localize("DRPG.Remnant.crimeColumn")) : null,
+            data.faint ? esc(game.i18n.localize("DRPG.Remnant.faintColumn")) : null,
+            data.reinforced ? esc(game.i18n.localize("DRPG.Remnant.reinforcedColumn")) : null
+        ].filter(Boolean).join(" · ")}</p>` : ""}
     </div>`;
+}
 
-    // The window is sized for a stat block and this is a card.
-    app.setPosition?.({ height: "auto", width: 380 });
+function playerRemnantCard(tokenOrActor, esc) {
+    const tokenDoc = tokenOrActor?.document ?? tokenOrActor;
+    const bullet = myTruthBulletFor(tokenDoc);
+
+    if (!bullet) {
+        return `<div class="drpg-panel drpg-remnant-card">
+            <h3>${esc(game.i18n.localize("DRPG.Remnant.cardTitle"))}</h3>
+            <p>${esc(game.i18n.localize("DRPG.Remnant.cardPlayer"))}</p>
+        </div>`;
+    }
+
+    const flag = key => bullet.getFlag(MODULE_ID, key);
+    const shownType = flag(TRUTH_BULLET_FLAGS.shownType) ?? "neutral";
+    const analyzed = Boolean(flag(TRUTH_BULLET_FLAGS.analyzed));
+    const playerText = flag(TRUTH_BULLET_FLAGS.playerText) ?? "";
+    const tags = flag(TRUTH_BULLET_FLAGS.tags) ?? [];
+
+    return `<div class="drpg-panel drpg-remnant-card">
+        <h3>${esc(bullet.name)}</h3>
+        ${playerText ? `<p>${esc(playerText)}</p>` : ""}
+        ${analyzed
+            ? `<p class="drpg-remnant-category">${esc(TRUTH_BULLET_TYPES[shownType]?.label ?? shownType)}</p>`
+            : `<p class="notes">${esc(game.i18n.localize("DRPG.Remnant.cardUnanalyzed"))}</p>`}
+        ${tags.length ? `<p class="drpg-remnant-tags">${tags.map(esc).join(" · ")}</p>` : ""}
+    </div>`;
+}
+
+/** The current user's own Truth Bullet copied from this exact token, if any. */
+function myTruthBulletFor(tokenDoc) {
+    const key = remnantKeyOf(tokenDoc);
+    if (!key) return null;
+
+    for (const actor of game.actors) {
+        if (actor.type !== "character" || !actor.isOwner) continue;
+        for (const item of bulletsOf(actor)) {
+            if (item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.remnantRef) === key) return item;
+        }
+    }
+    return null;
 }
 
 /** Resolve a CSS custom property to the integer PIXI wants. */
@@ -173,8 +225,11 @@ function paint(token) {
             return;
         }
 
-        const type = token.document.getFlag(MODULE_ID, REMNANT_FLAGS.type);
-        const reinforced = Boolean(token.document.getFlag(MODULE_ID, REMNANT_FLAGS.reinforced));
+        const { type, reinforced } = colourInputsFor(token.document);
+        if (!type) {
+            if (existing) existing.visible = false;
+            return;
+        }
 
         const ring = existing ?? token.addChild(new PIXI.Graphics());
         token[RING_NAME] = ring;
@@ -192,4 +247,30 @@ function paint(token) {
     } catch (err) {
         debug("Could not paint a Remnant ring", err);
     }
+}
+
+/**
+ * What the ring should paint, for whoever is looking.
+ *
+ * `type`/`reinforced` used to be read straight off the token's own flags,
+ * which stopped meaning anything the moment the answer key moved into the
+ * ledger (see the header of remnants.mjs) — every ring on the map painted the
+ * fallback grey for everyone, GM included, because `placeRemnant` never wrote
+ * those flags onto the token in the first place.
+ *
+ * A GM reads the real type off the ledger and gets the reinforced weight with
+ * it. A player reads only what their OWN Truth Bullet currently shows —
+ * `shownType`, already "neutral" until Analyze succeeds or the type is
+ * self-evident — and never the reinforced weight, which is not part of
+ * `public` and stays the GM's to know.
+ */
+function colourInputsFor(tokenDoc) {
+    if (game.user.isGM) {
+        const data = remnantData(tokenDoc);
+        return { type: data?.type ?? null, reinforced: Boolean(data?.reinforced) };
+    }
+
+    const bullet = myTruthBulletFor(tokenDoc);
+    if (!bullet) return { type: null, reinforced: false };
+    return { type: bullet.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.shownType) ?? "neutral", reinforced: false };
 }

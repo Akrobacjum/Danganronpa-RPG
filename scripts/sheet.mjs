@@ -103,6 +103,7 @@ function trimItemSheet(app, element) {
     dropTypeHeading(root);
     labelItemKind(root, app.document);
     lockItemName(root);
+    lockItemDescription(root);
 }
 
 /**
@@ -201,6 +202,40 @@ function lockItemName(root) {
         field.classList.add("drpg-locked-field");
         field.dataset.tooltip = game.i18n.localize("DRPG.Guard.nameLocked");
     }
+}
+
+/**
+ * The description is the GM's to write too, same reasoning as the name — see
+ * resource-guard.mjs, which is what actually refuses the write. This is the
+ * half a player can see: an editor left active would keep taking edits that
+ * the server was silently discarding, which reads as a broken module rather
+ * than a locked field.
+ *
+ * Two shapes, because Foundry's rich-text editor comes in either depending on
+ * version and system upgrade path: the ProseMirror custom element in newer
+ * builds, or a plain textarea behind a "click to edit" link in older ones.
+ * Both get the same read-only treatment `lockItemName` gives the name field;
+ * the edit-toggle link is removed outright rather than disabled, since a
+ * removed control cannot be clicked by anybody reading their own sheet.
+ */
+function lockItemDescription(root) {
+    if (game.user.isGM) return;
+    const wrapper = root.querySelector(".item-description");
+    if (!wrapper) return;
+
+    const label = game.i18n.localize("DRPG.Guard.descriptionLocked");
+
+    for (const editor of wrapper.querySelectorAll("prose-mirror")) {
+        editor.toggleAttribute("readonly", true);
+        editor.classList.add("drpg-locked-field");
+        editor.dataset.tooltip = label;
+    }
+    for (const field of wrapper.querySelectorAll('textarea[name^="system.description"]')) {
+        field.readOnly = true;
+        field.classList.add("drpg-locked-field");
+        field.dataset.tooltip = label;
+    }
+    wrapper.querySelector("a.editor-edit")?.remove();
 }
 
 function onRenderCharacterSheet(app, element) {

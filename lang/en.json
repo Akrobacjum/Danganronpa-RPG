@@ -266,7 +266,9 @@
     },
     "Guard": {
       "blocked": "Only the GM changes that. Actions, Hope and statistics move through play.",
-      "nameLocked": "Only a GM can rename an item. What a thing is called is part of the evidence."
+      "nameLocked": "Only a GM can rename an item. What a thing is called is part of the evidence.",
+      "descriptionLocked": "Only a GM edits what an item says. What a thing is is part of the evidence.",
+      "itemLocked": "Only a GM edits an item's name, picture or description. What a thing is is part of the evidence."
     },
     "Listen": {
       "prompt": "You are in {room}. Which neighbouring room?",
@@ -380,7 +382,7 @@
       "found": "Found a Tier {tier} item: <strong>{item}</strong>",
       "tierFound": "Tier {tier}",
       "progress": "+{n} progress",
-      "leavesRemnant": "Leaves {a} {visibility} Prep Remnant.",
+      "leavesRemnant": "Leaves a trace behind.",
       "tokensLeft": {
         "one": "{room}: {n} search token left this time of day.",
         "other": "{room}: {n} search tokens left this time of day."
@@ -455,11 +457,7 @@
       "costAnyRoom": "any room",
       "tierShort": "Tier {tier}",
       "waitsForGm": "GM",
-      "murderAloneWith": "You are alone with {victim} in {room}.",
-      "murderRoomEmpty": "There is nobody else in {room}.",
-      "murderRoomCrowded": "{who} are in {room} with you. A direct murder needs the two of you and nobody else.",
       "murderSpendsAnyway": "Confirming spends the action whether or not it comes off — and you will not find out which until the Eclipse ends.",
-      "murderConfirmVictim": "Kill {victim}?",
       "murderPromptParked": "What are you doing, and how? The GM reads this when the lights come up.",
       "murderParkedConfirm": "Make the attempt",
       "murderParked": "Your move is made. Nobody knows how it went — not even you — until the Eclipse ends and the room settles.",
@@ -770,13 +768,14 @@
       "bodyNotHere": "The body is not in this room. You have to be standing over it to carry it anywhere.",
       "nothingHere": "Nothing to clean up in this room.",
       "allReinforced": "Every trace here is reinforced. None of it comes off.",
+      "noRuling": "No GM answered in time. Try again once one is at the table.",
       "rerollLost": "A Reroll arrived for a clean-up this browser has no record of — a reload, or another GM took over. The dice are already rewritten, so score the new number against the same trace by hand: put the Remnant back if the first attempt erased it, remove anything the botched wipe left, and refund the Stress.",
       "reinforcedFlag": "reinforced — cannot be removed",
       "reinforced": "The {what} will not come off. Whatever left it, left it for good.",
       "vanished": "The trace you were working on is already gone. The effort still cost you.",
       "removed": "The {what} is gone.",
       "stillThere": "The trace is still there.",
-      "leftTrace": "Your cleaning left a trace of its own ({visibility}).",
+      "leftTrace": "Your cleaning left a trace of its own.",
       "remnantNote": "Left while cleaning up the {what}.",
       "stressSpent": "{n} Stress spent.",
       "toolsGone": "Used up and discarded: {items}.",
@@ -870,7 +869,7 @@
       "yourTurn": "Incident — your turn",
       "theirTurn": "Incident — waiting for them",
       "advantageNext": "Advantage on the next attempt.",
-      "leftRemnant": "Leaves {a} {visibility} Incident Remnant.",
+      "leftRemnant": "Leaves a trace behind.",
       "damaged": "{name} takes {what}.",
       "drained": "{name} loses {n} to the incident.",
       "killerChooses": "Critical — the killer chooses: 2 HP, 2 Stress, or 1 of each.",
@@ -927,7 +926,10 @@
       "openingRequired": "This roll cannot be skipped. Throw it.",
       "openingDeclined": "{name} did not throw the opening roll, after three attempts. Stage 4 cannot be skipped: end this incident, or open it again from the panel to send the invitation afresh.",
       "openingRemnantNote": "{name} sensed the attempt ({band}). Something of the struggle was left to notice.",
-      "leftRemnants": "Leaves {n} traces ({visibility}), and the killer cannot wipe them.",
+      "leftRemnants": {
+        "one": "Leaves a trace behind, and the killer cannot wipe it.",
+        "other": "Leaves {n} traces behind, and the killer cannot wipe them."
+      },
       "keyRemnantsStale": "The roles reversed, so the case changed: the five Key Remnants were planned around a killer who is now the victim. Plan a new set before the Investigation.",
       "nightNoteDirect": "It is night: the killer's opening roll has advantage.",
       "nightNoteIndirect": "It is night: the victim's opening roll has disadvantage.",
@@ -984,6 +986,27 @@
       "plannerCreated": {
         "one": "Plan saved; {n} Key Remnant placed on the map.",
         "other": "Plan saved; {n} Key Remnants placed on the map."
+      },
+      "tabTraces": "Traces",
+      "tabKeyRemnants": "Key Remnants",
+      "tabFinal": "Final",
+      "traceName": "Name",
+      "traceText": "Player description",
+      "traceTags": "Tags",
+      "traceTagsPlaceholder": "comma, separated",
+      "traceRoom": "Room",
+      "traceLeftBy": "Left by",
+      "noTraces": "No traces anywhere yet.",
+      "keyLimitLine": "{used} of {limit} used this chapter — the floor is {min}.",
+      "keyLimitOverride": "Create more than the opening roll allows",
+      "finalHeading": "Final Truth Remnant",
+      "finalAlreadyPlaced": "A Final Truth Remnant has already been placed this chapter.",
+      "finalCreateLabel": "Create a new Final Truth Remnant now",
+      "finalNotePlaceholder": "What it points at",
+      "finalCreated": "Final Truth Remnant placed.",
+      "tracesSaved": {
+        "one": "Updated {n} trace.",
+        "other": "Updated {n} traces."
       }
     },
     "Vault": {
@@ -1147,11 +1170,12 @@
       "general": "Sweep the room",
       "specific": "Name what you are after",
       "nonObvious": "Look past the obvious",
+      "followTraces": "Follow my own traces",
       "anything": "Ask the GM",
       "anythingTitle": "Observe — a question for the GM",
       "request": "What were you after?",
       "requestPlaceholder": "e.g. something to do with the body",
-      "declareNote": "Sweeping the room finds the easiest trace in it; looking past the obvious finds the hardest. Naming what you are after, and asking the GM, both wait for the dice before you say what you meant.",
+      "declareNote": "Sweeping the room finds the easiest trace in it; looking past the obvious finds the hardest; following your own traces finds the easiest one you yourself left, or reads as a sweep if you left nothing here. Naming what you are after, and asking the GM, both wait for the dice before you say what you meant.",
       "requestTitle": "{action} — what were you after?",
       "requestPrompt": "The dice are thrown. Now say what you were looking for. The GM matches it against the room without seeing your roll, so this makes nothing easier or harder.",
       "requestConfirm": "That is what I was after",
@@ -1237,6 +1261,12 @@
       "reinforced": "That Remnant is reinforced and cannot be removed.",
       "reinforcedShort": "reinforced",
       "noneHere": "No Remnants on this scene yet.",
+      "difficulty": {
+        "slight": "Slight lead",
+        "modest": "Modest lead",
+        "firm": "Firm lead",
+        "deep": "Deep lead"
+      },
       "manageTitle": "Remnants on this scene",
       "manageTooltip": "Edit Remnant flags",
       "manageIntro": "What survives the end of the chapter. Faint traces are swept away unless they are tied to the crime; reinforced ones the killer cannot remove at all.",
@@ -1275,7 +1305,9 @@
       "cardWho": "By",
       "cardSubject": "About",
       "cardPlayer": "Something here is out of place. What it means is not obvious from looking — Observe the room to work it out.",
-      "tokenName": "Trace"
+      "cardUnanalyzed": "You have not worked out what this is yet. Analyze it to find out.",
+      "tokenName": "Trace",
+      "finalSubject": "Final Truth"
     },
     "Rest": {
       "short": "Short Rest",
@@ -1403,7 +1435,10 @@
       "movedFree": "Now in {room}.",
       "murderOnlyInEclipse": "Only during an Eclipse. The lights are out and everyone is crossing the map — that is the one moment you can be alone with somebody.",
       "actionsMurderOnly": "Placement is running. The only thing an action buys right now is a Direct Murder.",
-      "callsLocked": "Locked while the Eclipse runs. Every Call comes back with the next time of day — this is not about what you hold."
+      "callsLocked": "Locked while the Eclipse runs. Every Call comes back with the next time of day — this is not about what you hold.",
+      "murderLocked": "The Eclipse is a placement window — nobody has finished moving yet. A Direct Murder declared now waits for the Eclipse to end on its own.",
+      "bodyLocked": "The Eclipse is running. A body cannot be discovered — by hand or automatically — until everyone has finished placing.",
+      "panelLocked": "Locked while the Eclipse runs — nobody has finished placing yet."
     },
     "Move": {
       "title": "Move",
@@ -1718,8 +1753,8 @@
       "itemDrawn": "You find {item} instead (Tier {tier}).",
       "searchNothing": "The new result finds nothing.",
       "tokenKept": "The room's search token stays spent — the room was searched either way.",
-      "remnantRetuned": "The trace you left is now {visibility}.",
-      "remnantLeft": "The new result leaves a trace behind: {visibility}.",
+      "remnantRetuned": "The trace you left has been adjusted to match.",
+      "remnantLeft": "The new result leaves a trace behind.",
       "remnantRemoved": "The trace the first roll left is removed.",
       "remnantManual": "The trace the first roll left cannot be adjusted from here — ask the GM to re-rate it.",
       "sabotageUndone": "The first attempt is undone: the target is unfrozen and its repair project removed.",
@@ -1840,7 +1875,7 @@
       "title": "The time of day is over",
       "lede": "What you did during {phase}.",
       "found": "found a Tier {tier} {item}",
-      "left": "left {a} {visibility} trace",
+      "left": "left a trace behind",
       "totals": "{actions} actions · {found} found · {traces} traces left behind",
       "close": "Into the Eclipse"
     },

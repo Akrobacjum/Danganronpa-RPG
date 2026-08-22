@@ -24,9 +24,7 @@
 import { TRUTH_BULLET_TYPES } from "./config.mjs";
 import { bulletsOf, truthBulletData, isAnalysable } from "./truth-bullets.mjs";
 import { getClock } from "./clock.mjs";
-import { dialogContent, plural } from "./utils.mjs";
-
-const DialogV2 = foundry.applications.api.DialogV2;
+import { dialogContent, plural, tableDialog } from "./utils.mjs";
 
 /**
  * Every Truth Bullet this character holds, grouped by where it was found.
@@ -99,7 +97,7 @@ export async function openCasebook(actor) {
             : [])
     ].join("");
 
-    await DialogV2.wait({
+    await tableDialog({
         window: { title: game.i18n.format("DRPG.Casebook.title", { actor: actor.name }) },
         classes: ["drpg-panel", "drpg-casebook"],
         content: dialogContent(`<div>

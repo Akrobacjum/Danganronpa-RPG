@@ -363,7 +363,7 @@ const SCENARIOS = [
         ok(told, "the victim was never told the incident began");
     }],
 
-    ["two killers alternate instead of both acting", async () => {
+    ["two killers act back to back, not alternating with the victim", async () => {
         const [killer, victim, third] = cast();
         const drpg = game.drpg;
         const murder = await import("./murder.mjs");
@@ -380,20 +380,49 @@ const SCENARIOS = [
         await settle();
 
         equal(murder.killerIds().length, 2, "the accomplice joined the killers");
+        equal(murder.murderState().turnSide, "victim", "the accomplice joining does not steal the victim's turn");
+        const startTurn = murder.murderState().turn;
 
-        // Walk a full round and record who may act on each killer turn.
-        const acting = [];
-        for (let i = 0; i < 6; i++) {
-            const state = murder.murderState();
-            if (state.turnSide === "killer") {
-                const who = [killer, third].filter(a => murder.isTheirTurn(a));
-                equal(who.length, 1, `killer turn ${i}: exactly one of them may act`);
-                acting.push(who[0].id);
-            }
-            await drpg.passTurn();
-            await settle();
-        }
-        ok(new Set(acting).size === 2, `the turn never changed hands: ${acting.join(", ")}`);
+        // The victim's turn always passes to the FIRST killer — not to
+        // whichever of them the rotation happened to leave off on last round.
+        await drpg.passTurn();
+        await settle();
+        let state = murder.murderState();
+        equal(state.turnSide, "killer", "the victim's turn passes to a killer");
+        equal(state.killerTurnId, killer.id, "the round opens on the first killer");
+        let who = [killer, third].filter(a => murder.isTheirTurn(a));
+        equal(who.length, 1, "exactly one killer may act on this turn");
+        equal(who[0].id, killer.id, "the first killer's turn belongs to the first killer");
+
+        // The bug this guards: the old rule alternated `turnSide` on every
+        // pass, so a second killer's turn was really victim, killer(A),
+        // victim, killer(B) — the victim got a breather neither killer earned,
+        // and the round advanced twice for one lap of the killers. The second
+        // killer's turn must follow the first DIRECTLY, with the round number
+        // unmoved.
+        await drpg.passTurn();
+        await settle();
+        state = murder.murderState();
+        equal(state.turnSide, "killer", "the second killer's turn follows the first directly, not the victim's");
+        equal(state.killerTurnId, third.id, "turn hands to the second killer");
+        equal(state.turn, startTurn, "the round has not advanced — the killers' side is not done yet");
+        who = [killer, third].filter(a => murder.isTheirTurn(a));
+        equal(who.length, 1, "exactly one killer may act on this turn");
+        equal(who[0].id, third.id, "the second killer's turn belongs to the second killer");
+
+        // Only once every killer has gone does the turn return to the victim,
+        // and only then does the round advance.
+        await drpg.passTurn();
+        await settle();
+        state = murder.murderState();
+        equal(state.turnSide, "victim", "the victim's turn returns only after every killer has gone");
+        equal(state.turn, startTurn + 1, "the round advances exactly once, after the last killer");
+
+        // And the next round opens the same way: first killer first, not a
+        // continuation of the rotation.
+        await drpg.passTurn();
+        await settle();
+        equal(murder.murderState().killerTurnId, killer.id, "the next round opens on the first killer again");
     }],
 
     ["a Finishing Blow actually kills", async () => {
@@ -419,6 +448,37 @@ const SCENARIOS = [
         ok(victim.effects.some(e => e.statuses?.has?.("dead")), "no dead marker on the token");
     }],
 
+    ["openMurder refuses during an Eclipse, but not once one has actually ended", async () => {
+        // `judgePendingMurders` (eclipse.mjs) is the one legitimate call to
+        // `openMurder` that happens WHILE an Eclipse is closing — a Direct
+        // Murder declared in the dark is parked, not opened, and only judged
+        // from inside `endEclipse`, after the clock has already cleared the
+        // Eclipse flag. This pins both halves of that: the new guard actually
+        // refuses while the flag is set, and the flag really is gone by the
+        // time `endEclipse` would call `openMurder` for a parked declaration —
+        // so the guard added for this bug fix cannot silently swallow the one
+        // call it is supposed to let through.
+        const [killer, victim] = cast();
+        const murder = await import("./murder.mjs");
+        const eclipse = await import("./eclipse.mjs");
+
+        await eclipse.startEclipse();
+        await settle();
+        ok(eclipse.isEclipse(), "the Eclipse did not start");
+
+        const blocked = await murder.openMurder({ killerId: killer.id, victimId: victim.id });
+        equal(blocked, null, "openMurder opened an incident while the Eclipse was still running");
+        equal(murder.murderState(), null, "an incident exists despite the Eclipse lock");
+
+        await eclipse.endEclipse({ advance: false });
+        await settle();
+        ok(!eclipse.isEclipse(), "ending the Eclipse did not clear the flag");
+
+        const opened = await murder.openMurder({ killerId: killer.id, victimId: victim.id });
+        ok(opened, "openMurder still refuses once the Eclipse has actually ended");
+        equal(murder.murderState()?.killerId, killer.id, "the incident that opened has the wrong killer");
+    }],
+
     ["both killers may clean up, nobody else may", async () => {
         const [killer, victim, third] = cast();
         const drpg = game.drpg;
@@ -441,6 +501,43 @@ const SCENARIOS = [
         ok(cleanup.isCleaner(killer), "the killer cannot clean up");
         ok(cleanup.isCleaner(third), "the accomplice cannot clean up");
         ok(!cleanup.isCleaner(victim), "the victim was offered the clean-up");
+    }],
+
+    ["a killer's own client can see what there is to clean up, and nothing more", async () => {
+        // `cleanableRemnants` already answered this correctly for a GM, which is
+        // exactly why the bug — `remnantData()` returning null for anybody else
+        // — never showed up running this suite as the world's GM. What this
+        // scenario actually pins down is the shape `cleanableTracesForPlayer`
+        // hands back over the bridge: it is what a player's client receives
+        // instead, and it must never carry the answer key.
+        const [killer, victim] = cast();
+        const drpg = game.drpg;
+        const murder = await import("./murder.mjs");
+        const cleanup = await import("./cleanup.mjs");
+        const remnants = await import("./remnants.mjs");
+
+        await drpg.openMurder({ killerId: killer.id, victimId: victim.id });
+        await settle();
+        await drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await settle();
+        await murder.beginResolution("test");
+        await settle();
+
+        const dropped = await remnants.dropRemnant(killer, {
+            type: "prep", visibility: "evident", note: "test fixture — cleanup bridge"
+        });
+        ok(dropped, "could not place a trace to clean up");
+        await settle();
+
+        const traces = await cleanup.requestCleanableTraces(killer.id);
+        ok(Array.isArray(traces) && traces.length > 0, "the killer's client sees nothing to clean up");
+        ok(traces.some(t => t.id === dropped.id), "the trace just dropped is not in the killer's own list");
+
+        for (const t of traces) {
+            ok(typeof t.label === "string" && t.label.length > 0, "a trace reached the killer with no label");
+            ok(!("dc" in t), `a trace leaked its DC to the killer's client: ${JSON.stringify(t)}`);
+            ok(!("tiedToCrime" in t), `a trace leaked tiedToCrime to the killer's client: ${JSON.stringify(t)}`);
+        }
     }],
 
     ["the accomplice is offered the betrayal, and only them", async () => {

@@ -21,7 +21,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { getClock } from "./clock.mjs";
-import { error, article } from "./utils.mjs";
+import { error } from "./utils.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 
@@ -79,10 +79,13 @@ export async function showDaySummary() {
             tail.push(`<span class="drpg-sum-found">${
                 game.i18n.format("DRPG.Summary.found", { tier: e.tier ?? "?", item: esc(e.item) })}</span>`);
         }
-        if (e.remnant) {
+        // Never the visibility band a trace was left at — see `traceFeedback`
+        // in remnants.mjs. `e.leftTrace` is already the gated answer to
+        // "does this player get told anything at all", so there is nothing
+        // left to redact here beyond the word itself.
+        if (e.leftTrace) {
             tail.push(`<span class="drpg-sum-left">${
-                game.i18n.format("DRPG.Summary.left",
-                    { a: article(e.remnant), visibility: esc(e.remnant) })}</span>`);
+                game.i18n.localize("DRPG.Summary.left")}</span>`);
         }
         if (e.critical) tail.push(`<span class="drpg-sum-crit">${game.i18n.localize("DRPG.Action.critical")}</span>`);
 
@@ -95,7 +98,7 @@ export async function showDaySummary() {
     });
 
     const found = mine.filter(e => e.item).length;
-    const traces = mine.filter(e => e.remnant).length;
+    const traces = mine.filter(e => e.leftTrace).length;
 
     const content = `
         <div class="drpg-day-summary">

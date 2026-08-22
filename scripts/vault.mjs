@@ -24,7 +24,7 @@ import { MODULE_ID, ITEM_CATEGORIES } from "./config.mjs";
 import { ITEM_FLAGS, LOCATIONS, isStashed, canCarry } from "./inventory.mjs";
 // The one room lookup. movement.mjs does not reach back into this file.
 import { roomOfActor } from "./movement.mjs";
-import { dialogContent, whisperToOwner, log, error, plural } from "./utils.mjs";
+import { dialogContent, tableDialog, whisperToOwner, log, error, plural } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -484,7 +484,7 @@ export async function openRoomSetupDialog() {
         </tr>`;
     }).join("");
 
-    const result = await DialogV2.wait({
+    const result = await tableDialog({
         window: { title: game.i18n.localize("DRPG.Vault.manageTitle") },
         // `drpg-projects` as well as `drpg-panel`: that is the class the
         // stylesheet hangs the table treatment on — full width, a scrolling

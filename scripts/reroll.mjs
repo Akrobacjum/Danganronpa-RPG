@@ -372,7 +372,7 @@ async function settleSearch(actor, bookmark, after, done) {
             tier,
             total: after.total
         })
-    });
+    }, after);
 
     done.push(game.i18n.localize("DRPG.Reroll.tokenKept"));
     return { itemId, tier: found ? tier : null, ...trace };
@@ -439,7 +439,7 @@ async function settleSabotage(actor, bookmark, after, done) {
                 ? game.i18n.format("DRPG.Remnant.sabotageWorked", { repair: "?" })
                 : game.i18n.localize("DRPG.Remnant.sabotageFailed")
         })
-    });
+    }, after);
 
     return { repairId, penalty, ...trace };
 }
@@ -469,7 +469,7 @@ async function settleDynamic(actor, bookmark, after, done) {
             what: bookmark.description ?? "?",
             total: after.total
         })
-    });
+    }, after);
 
     done.push(success
         ? game.i18n.format("DRPG.Action.tierFound", { tier: band.tier })
@@ -695,10 +695,13 @@ async function settleGmRuling(actor, bookmark, after, done) {
  * @param {object} bookmark
  * @param {string|null} visibility  New band, or null when there should be none.
  * @param {object|null} [drop]      What to create if there is no trace yet.
+ * @param {{isCritical?: boolean, withHope?: boolean}|null} [gate]  The reroll's
+ *   new duality result — see `traceFeedback` in remnants.mjs. Never the exact
+ *   band, same as every other action that can leave one.
  * @returns {Promise<object>} bookmark fields describing where the trace now is.
  */
-async function settleRemnant(actor, bookmark, visibility, done, drop = null) {
-    const { retuneRemnant, dropRemnant } = await import("./remnants.mjs");
+async function settleRemnant(actor, bookmark, visibility, done, drop = null, gate = null) {
+    const { retuneRemnant, dropRemnant, traceFeedback } = await import("./remnants.mjs");
 
     // Nothing there yet.
     if (!bookmark.remnantId) {
@@ -712,7 +715,7 @@ async function settleRemnant(actor, bookmark, visibility, done, drop = null) {
 
         const placed = await dropRemnant(actor, { ...drop, visibility });
         const doc = placed?.document ?? placed;
-        done.push(game.i18n.format("DRPG.Reroll.remnantLeft", { visibility }));
+        if (traceFeedback(gate, doc)) done.push(game.i18n.localize("DRPG.Reroll.remnantLeft"));
         return doc?.id
             ? { remnantId: doc.id, remnantScene: doc.parent?.id ?? canvas?.scene?.id ?? null }
             : {};
@@ -724,8 +727,8 @@ async function settleRemnant(actor, bookmark, visibility, done, drop = null) {
         return { remnantId: null, remnantScene: null };
     }
 
-    await retuneRemnant(bookmark.remnantScene, bookmark.remnantId, { visibility });
-    done.push(game.i18n.format("DRPG.Reroll.remnantRetuned", { visibility }));
+    const retuned = await retuneRemnant(bookmark.remnantScene, bookmark.remnantId, { visibility });
+    if (traceFeedback(gate, retuned)) done.push(game.i18n.localize("DRPG.Reroll.remnantRetuned"));
     return {};
 }
 

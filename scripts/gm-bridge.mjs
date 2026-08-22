@@ -35,6 +35,8 @@ const ACTION_DIFFICULTY_RESULT = "dynamic.difficultyResult";
 const ACTION_OBSERVE_TARGET = "observe.target";
 const ACTION_OBSERVE_TARGET_RESULT = "observe.targetResult";
 const ACTION_OBSERVE_RESOLVE = "observe.resolve";
+const ACTION_CLEANUP_TRACES = "cleanup.traces";
+const ACTION_CLEANUP_TRACES_RESULT = "cleanup.tracesResult";
 const ACTION_ANALYZE_RESOLVE = "analyze.resolve";
 const ACTION_SHARE_BULLET = "handover.bullet";
 const ACTION_GIVE_ITEM = "handover.item";
@@ -65,6 +67,8 @@ export function registerGmBridge() {
     game.socket.on(SOCKET_EVENT, onSabotageResult);
     // And again: the chosen Observe target travels back to the observer.
     game.socket.on(SOCKET_EVENT, onObserveTargetResult);
+    // And again: a killer's own cleanable-trace list travels back to them.
+    game.socket.on(SOCKET_EVENT, onCleanupTracesResult);
     // The one request that travels the other way — GM to player — so it cannot
     // sit behind the `isPrimaryGm` gate in `onSocket` either.
     game.socket.on(SOCKET_EVENT, onOpeningAsk);
@@ -223,6 +227,17 @@ function onObserveTargetResult(payload, senderId) {
     resolve(payload.result ?? null);
 }
 
+/** The GM has computed which of a killer's traces their own client may act on. */
+function onCleanupTracesResult(payload, senderId) {
+    if (payload?.action !== ACTION_CLEANUP_TRACES_RESULT) return;
+    if (!replyForMe(payload, senderId)) return;
+
+    const resolve = pendingRulings.get(payload.requestId);
+    if (!resolve) return;
+    pendingRulings.delete(payload.requestId);
+    resolve(payload.result ?? []);
+}
+
 /**
  * The real freeze-and-repair result, once the GM's client has actually written
  * it — not just acknowledged the request. `sabotageProject` used to return
@@ -294,6 +309,7 @@ async function onSocket(payload, senderId) {
     if (payload.action === ACTION_ACK || payload.action === ACTION_DIFFICULTY_RESULT
         || payload.action === ACTION_SABOTAGE_RESULT
         || payload.action === ACTION_OBSERVE_TARGET_RESULT
+        || payload.action === ACTION_CLEANUP_TRACES_RESULT
         // Travels GM -> player and is handled by `onOpeningAsk` / `onOpeningCancel`.
         // Falling through would have the primary GM treat its own invitation as
         // a request.
@@ -346,6 +362,30 @@ async function onSocket(payload, senderId) {
 
         game.socket.emit(SOCKET_EVENT, {
             action: ACTION_OBSERVE_TARGET_RESULT,
+            requestId: payload.requestId,
+            userId: asker,
+            result
+        }, { recipients: [asker] });
+        return;
+    }
+
+    // Stage 6's picker. Which traces a killer's own client may act on is
+    // computed here for the same reason Observe is: the ledger — the answer
+    // key `cleanableRemnants` reads to build the list — lives only on a GM
+    // client, and `cleanableTracesForPlayer` (cleanup.mjs) is what strips it
+    // back down to id, label and the reinforced flag before it goes out.
+    if (payload?.action === ACTION_CLEANUP_TRACES) {
+        const sender = senderOf(senderId);
+        if (!sender) return refuse(ACTION_CLEANUP_TRACES, "unknown sender");
+        if (!ownsActor(sender, payload.actorId)) {
+            return refuse(ACTION_CLEANUP_TRACES, "sender does not own that character");
+        }
+
+        const { cleanableTracesForPlayer } = await import("./cleanup.mjs");
+        const result = cleanableTracesForPlayer(payload.actorId);
+
+        game.socket.emit(SOCKET_EVENT, {
+            action: ACTION_CLEANUP_TRACES_RESULT,
             requestId: payload.requestId,
             userId: asker,
             result
@@ -1041,6 +1081,42 @@ export function requestObserveTarget({ actorId, declaration, request = "" }, tim
             pendingRulings.delete(requestId);
             ui.notifications.warn(game.i18n.localize("DRPG.Observe.noRuling"));
             resolve(null);
+        }, timeoutMs);
+    });
+}
+
+/**
+ * Ask a GM which of a killer's traces they may act on, before Stage 6's picker
+ * opens.
+ *
+ * A GM runs this locally instead of talking to themselves — the same shape as
+ * `requestObserveTarget`. Everyone else waits on the socket.
+ *
+ * @returns {Promise<Array<{id: string, label: string, reinforced: boolean}>>}
+ *   Never DC, never `tiedToCrime` — see `cleanableTracesForPlayer` in
+ *   cleanup.mjs, which is the only thing that ever builds this array.
+ */
+export function requestCleanableTraces(actorId, timeoutMs = 180000) {
+    if (game.user.isGM) {
+        return import("./cleanup.mjs").then(m => m.cleanableTracesForPlayer(actorId));
+    }
+    if (!hasGm()) return Promise.resolve([]);
+
+    const requestId = foundry.utils.randomID();
+    return new Promise(resolve => {
+        pendingRulings.set(requestId, resolve);
+        game.socket.emit(SOCKET_EVENT, {
+            action: ACTION_CLEANUP_TRACES,
+            requestId,
+            userId: game.user.id,
+            actorId
+        });
+
+        setTimeout(() => {
+            if (!pendingRulings.has(requestId)) return;
+            pendingRulings.delete(requestId);
+            ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.noRuling"));
+            resolve([]);
         }, timeoutMs);
     });
 }

@@ -33,7 +33,7 @@ import { MODULE_ID, TRUTH_BULLET_TYPES } from "./config.mjs";
 import { getClock } from "./clock.mjs";
 import { truthBulletData, isTruthBullet } from "./truth-bullets.mjs";
 import { showPopup } from "./popup.mjs";
-import { announce, dialogContent, isPrimaryGm, log, error } from "./utils.mjs";
+import { announce, dialogContent, isPrimaryGm, log, error, tableDialog } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -277,7 +277,7 @@ export async function openObjectionLog() {
 
     const objections = entries.filter(e => e.objection).length;
 
-    return DialogV2.wait({
+    return tableDialog({
         window: { title: game.i18n.localize("DRPG.Trial.logTitle") },
         classes: ["drpg-panel"],
         content: dialogContent(`<div>

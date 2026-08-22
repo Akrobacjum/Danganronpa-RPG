@@ -14,44 +14,9 @@ import {
     createProject, deleteProject, setProjectImage, updateProject
 } from "./projects.mjs";
 import { allRooms } from "./movement.mjs";
-import { dialogContent, error } from "./utils.mjs";
+import { dialogContent, error, tableDialog, wirePortraitPickers } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
-
-/**
- * Wire a portrait picker to the dialog's real, mounted DOM.
- *
- * `content` is handed to `DialogV2.wait` as a detached `<div>`, but DialogV2's
- * own `_initializeApplicationOptions` immediately reads `content.innerHTML`
- * and throws the element itself away — the dialog is rebuilt from that string,
- * so a click listener attached to the original element is attached to a node
- * that never joins the page. This is documented in Foundry's own dialog.mjs:
- * "the element will get stringified, so any listeners ... will not carry
- * forward to the dialog; you must still use the `render` option." Attaching
- * from `render`, against `dialog.element`, is what actually keeps the click
- * live — attaching beforehand is exactly why the button did nothing.
- */
-function wirePortraitPickers(root, { defaultImg = null } = {}) {
-    for (const portrait of root.querySelectorAll("[data-drpg-portrait]")) {
-        if (portrait.dataset.drpgWired) continue;
-        portrait.dataset.drpgWired = "1";
-
-        const id = portrait.dataset.drpgPortrait || null;
-        const hiddenSelector = id ? `[name="img.${CSS.escape(id)}"]` : '[name="img"]';
-
-        portrait.addEventListener("click", () => {
-            const hidden = root.querySelector(hiddenSelector);
-            new foundry.applications.apps.FilePicker.implementation({
-                type: "image",
-                current: hidden?.value || defaultImg || "",
-                callback: path => {
-                    portrait.src = path;
-                    if (hidden) hidden.value = path;
-                }
-            }).render(true);
-        });
-    }
-}
 
 export function registerProjectsUi() {
     // The countdown tray is its own ApplicationV2; label it on every render.
@@ -284,7 +249,7 @@ export async function openProjectManager() {
             <p class="notes">${game.i18n.localize("DRPG.Project.deleteNote")}</p>
         </form>`);
 
-    const result = await DialogV2.wait({
+    const result = await tableDialog({
         window: { title: game.i18n.localize("DRPG.Project.manageTitle") },
         classes: ["drpg-panel", "drpg-projects"],
         content,
