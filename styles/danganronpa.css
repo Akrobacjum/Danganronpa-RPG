@@ -1263,68 +1263,6 @@ section[data-application-part="biography"] .experiences .value {
     opacity: 1;
 }
 
-/* ==========================================================================
-   THE CASEBOOK
-   --------------------------------------------------------------------------
-   The same evidence as the inventory, grouped by room. Colour carries one
-   distinction and only one: whether a bullet still has an open question on it.
-   ========================================================================== */
-
-.drpg-casebook-button {
-    position: relative;
-}
-
-/* How many bullets can still be analysed. On the button because it is the one
-   number worth pulling somebody back to this screen for. */
-.drpg-casebook-badge {
-    position: absolute;
-    top: -3px;
-    right: -3px;
-    min-width: 1.05rem;
-    padding: 0 0.2rem;
-    font-size: 0.62rem;
-    line-height: 1.05rem;
-    font-variant-numeric: tabular-nums;
-    text-align: center;
-    border-radius: 999px;
-    background: var(--drpg-gold);
-    color: var(--drpg-ink-text);
-}
-
-.application.dialog.drpg-casebook h4 {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 0.6rem;
-    margin: 0.9rem 0 0.2rem;
-    padding-bottom: 2px;
-    border-bottom: 1px solid var(--drpg-line);
-}
-
-.application.dialog.drpg-casebook h4:first-of-type {
-    margin-top: 0.4rem;
-}
-
-.drpg-casebook-count {
-    font-variant-numeric: tabular-nums;
-    opacity: 0.6;
-}
-
-/* Identified: settled, so it recedes. */
-.drpg-casebook .drpg-casebook-known td:first-child {
-    opacity: 0.75;
-}
-
-/* Still open, and something can be done about it now. */
-.drpg-casebook .drpg-casebook-open td:nth-child(2) {
-    color: var(--drpg-gold);
-}
-
-/* Still open, and nothing can be done until the chapter turns. */
-.drpg-casebook .drpg-casebook-locked td:nth-child(2) {
-    color: var(--drpg-crimson);
-}
-
 /* The action budget, stated above the grid. Reads as a status line rather than
    as prose: tabular numerals so it does not jitter as actions are spent, and it
    turns red only when there is genuinely nothing left to spend. */
@@ -2971,6 +2909,35 @@ body.drpg-pixel-font [contenteditable] {
     animation: drpg-floor-pulse 1.6s ease-in-out infinite;
 }
 
+/* THE TWO RESTRICTIVE MODES READ AS RESTRICTIVE.
+   --------------------------------------------------------------------------
+   The bar is the only thing telling a table that most of them are supposed to
+   be quiet right now — the module deliberately mutes nobody (the talking
+   happens outside Foundry), so the state has to be unmistakable at a glance
+   from across a call. Crimson for the objection's minute, when exactly one
+   person may speak; gold for the rebuttal, when two may. A free discussion
+   keeps the ordinary gold outline and says "everyone".
+
+   The objection pulses because it is the one that just interrupted somebody
+   and has the shortest clock. The rebuttal does not: two minutes of pulsing
+   border is a distraction during the part that is meant to be argued. */
+.drpg-trial-floor.objection {
+    border-color: var(--drpg-crimson);
+    box-shadow: 0 0 0 1px rgba(var(--drpg-crimson-rgb), 0.35);
+    animation: drpg-floor-pulse 1.6s ease-in-out infinite;
+}
+
+.drpg-trial-floor.rebuttal {
+    border-color: var(--drpg-gold);
+    box-shadow: 0 0 0 1px rgba(var(--drpg-gold-rgb), 0.3);
+}
+
+.drpg-trial-floor.objection .drpg-floor-label {
+    color: var(--drpg-crimson);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+}
+
 .drpg-floor-label {
     font-size: 0.7rem;
     letter-spacing: 0.08em;
@@ -2999,7 +2966,8 @@ body.drpg-pixel-font [contenteditable] {
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .drpg-trial-floor.overrun { animation: none; }
+    .drpg-trial-floor.overrun,
+    .drpg-trial-floor.objection { animation: none; }
 }
 
 /* ==========================================================================
@@ -3179,36 +3147,32 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     max-width: min(var(--drpg-popup), 92vw) !important;
 }
 
-/* A table states its own width and the window grows to hold it.
-   `:not(.drpg-compact)` rather than `!important` on the override, because the
-   `:has()` here would otherwise outrank a plain class selector — a key/value
-   list is a table by markup and a paragraph by intent, and it has to be able to
-   say so. */
-.application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
-    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
-    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
-):has(.dialog-content table):not(.drpg-compact):not(.drpg-gm-panel-window) {
-    /* `:not(.drpg-gm-panel-window)` because that window states its own width
-       below and a `:has()` selector outranks a plain class list — with both
-       carrying `!important` the GM panel was being sized by its table instead
-       of by its tile grid.
+/* A table window is MEASURED and sized in JavaScript, not here.
+   See `tableDialog()` / `fitWindowToTable()` in utils.mjs.
+   --------------------------------------------------------------------------
+   This used to be `width: max-content !important; max-width: min(max-content,
+   94vw) !important`, and both halves of that were actively breaking the thing
+   they were written to fix:
 
-       Bounded by the viewport, not by the wide tier. `min(var(--drpg-popup-
-       wide), 94vw)` used to cap every one of these at 44rem regardless of what
-       `width: max-content` above had just asked for, so a table that measured
-       wider than 704px was squeezed back down to it and left to scroll inside
-       its own window — the wide tier was built for windows the module sizes on
-       purpose (`.drpg-wide`, the GM panel's tile grid), and a table dialog
-       landed in the same bucket by accident. `max-content` here matches the
-       `width` above: the window grows to the table's real size, capped only by
-       the screen. A table wider than 94vw is the one case that still gets
-       clipped rather than scrolled — see the note on `.window-content`'s
-       `overflow-y` further down for why giving this box its own horizontal
-       scrollbar is not actually free. */
-    width: max-content !important;
-    max-width: min(max-content, 94vw) !important;
-}
+     1. `!important` outranks an INLINE style, and everything that sizes an
+        ApplicationV2 window — its own layout, `setPosition`, the resize
+        handle — writes inline widths. So the rule fought whatever the
+        application had just decided, and won, every paint.
+
+     2. `width: max-content` on the WINDOW asks the frame to be as wide as its
+        content, but the frame already has a definite pixel width and the
+        `.window-content` box inside it is what actually scrolls. An intrinsic
+        width on one and a pixel width on the other produced a window that was
+        neither as wide as its table nor scrollable to the rest of it: the
+        columns past the edge were simply unreachable.
+
+   The division of labour now: the TABLE states its natural width (see the
+   `width: max-content` on `.dialog-content table` further down — that is where
+   an intrinsic width belongs), JS reads that measurement back after render and
+   sets the window to match it, clamped to the viewport, and anything still too
+   wide scrolls inside `.window-content`. Nothing in this file sizes these
+   windows any more, which is what keeps the measured size from being
+   overridden a frame later. */
 
 /* …but prose inside a wide window still reads at a measure, rather than being
    stretched to whatever the widest column needed. */
@@ -3284,13 +3248,23 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     max-width: min(var(--drpg-popup-wide), 92vw) !important;
 }
 
-/* Content that outgrows the viewport scrolls in both directions rather than
+/* Content that outgrows the window scrolls in both directions rather than
    being clipped — a column the GM cannot reach is a control that does not
    exist. The vertical half also protects the button footer, which lives inside
    `.window-content` and is the first thing to disappear when a dialog is cut.
-   This is the safe default for windows with a FIXED width (`.drpg-wide`, the
-   GM panel's tile grid) — a table window overrides the horizontal half right
-   below, for a reason that does not apply to a fixed-width window. */
+
+   BOTH axes, unconditionally. An earlier attempt scoped the horizontal half
+   away from table windows, on the theory that a scroll container blocks a
+   `width: max-content` window from measuring its own table. That was true and
+   the wrong lever: the fix was to stop sizing the window from CSS at all (see
+   the note where that rule used to be), not to take away the scrollbar that
+   makes a too-wide table reachable. Now that the window is measured and sized
+   in JS, this is simply where whatever still does not fit goes — which, since
+   the measurement is clamped to 94vw, means a table wider than the screen.
+
+   `max-height` rather than `height`, so a short dialog stays short and only a
+   tall one is capped and scrolled. The window itself opens at `height: auto`
+   for the same reason. */
 .application.dialog:is(
     .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
@@ -3298,38 +3272,6 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
 ) .window-content {
     max-height: 80vh;
     overflow: auto;
-}
-
-/* …except a table window's horizontal half, which stays `visible`.
-   --------------------------------------------------------------------------
-   `overflow-x: auto` on THIS box is what silently broke the rule above ("a
-   table states its own width and the window grows to hold it"): a box with
-   `overflow-x` other than `visible` is a scroll container, and a scroll
-   container's contribution to an ANCESTOR's `width: max-content` is its own
-   box, not its content's — the whole point of `overflow: auto` is "clip to
-   whatever size I end up at and scroll the rest", which is the opposite of
-   "grow to hold it". With the shorthand above left unscoped, `.application`'s
-   `max-content` calculation could not see past this box to the table at all,
-   so the window sized itself to roughly the width of the window-header
-   instead — and the table's right-hand columns had nowhere to go: not
-   visible, and not reachable by any scrollbar, because this element never
-   actually needed to scroll horizontally in the first place; it just never
-   grew.
-
-   Scoped to `:has(.dialog-content table)` rather than folded into the rule
-   above, because a FIXED-width window (`.drpg-wide`, the GM panel's tile
-   grid) never had this problem — its width does not come from `max-content`
-   propagation, so its own horizontal scrollbar is still the right fallback
-   for anything inside it that cannot be reflowed to fit. A table that is
-   still wider than the 94vw cap two rules up is the one case this loses —
-   accepted, because it is the rare edge rather than the common one this was
-   actually breaking. */
-.application.dialog:is(
-    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
-    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
-    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
-):has(.dialog-content table):not(.drpg-compact) .window-content {
-    overflow-x: visible;
 }
 
 /* Tables state their own width. `width: 100%` made a table shrink to whatever
@@ -3838,7 +3780,7 @@ body.drpg-pixel-font .drpg-camera-dock .camera-view .name {
    HIT TARGETS
    --------------------------------------------------------------------------
    The buttons that do the most consequential things on the sheet were the
-   smallest things on it: the Level Up / items / casebook row measured 34x14,
+   smallest things on it: the Level Up / items row measured 34x14,
    and every inventory row button 22x22.
    ========================================================================== */
 
@@ -4312,7 +4254,7 @@ body.drpg-pixel-font .drpg-safeword-button {
 }
 
 /* ==========================================================================
-   THE PRE-SESSION NOTE, AND THE TRIAL CASEBOOK
+   THE PRE-SESSION NOTE
    ========================================================================== */
 
 .drpg-messenger-tabs {
@@ -4433,27 +4375,6 @@ body.drpg-pixel-font .drpg-safeword-button {
     opacity: 0.8;
 }
 
-/* Sits directly above the messenger launcher, same corner, same shape. */
-#drpg-casebook-launcher {
-    position: fixed;
-    right: 16px;
-    bottom: 68px;
-    z-index: 70;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    border: 1px solid var(--drpg-gold);
-    background: rgba(var(--drpg-veil-rgb), 0.92);
-    color: var(--drpg-gold);
-    font-size: 1rem;
-    cursor: pointer;
-    pointer-events: auto;
-}
-
-#drpg-casebook-launcher:hover {
-    background: rgba(var(--drpg-gold-rgb), 0.22);
-}
-
 /* ==========================================================================
    NO DAMAGE, NO HEALING, NO RELOAD
    --------------------------------------------------------------------------
@@ -4549,17 +4470,9 @@ body.drpg-pixel-font .drpg-safeword-button {
 }
 
 /* Bigger, and off the corner. 44px was a comfortable target only if you never
-   missed; these are the two controls a player reaches for mid-scene. */
-/* #drpg-messenger-launcher is overridden in messenger.css, which the manifest
+   missed, and this is a control a player reaches for mid-scene.
+   #drpg-messenger-launcher is overridden in messenger.css, which the manifest
    loads after this file — see the end of that stylesheet. */
-
-#drpg-casebook-launcher {
-    right: var(--drpg-edge);
-    bottom: calc(var(--drpg-edge) + 60px);
-    width: 52px;
-    height: 52px;
-    font-size: 1.15rem;
-}
 
 /* The safeword, bottom-left of the sheet — same reasoning, same margin. */
 .drpg-safeword-button {
@@ -5120,19 +5033,15 @@ body.drpg-pixel-font .application.sheet.actor prose-mirror * {
 }
 
 /* --- the corner launchers ------------------------------------------------ */
-/* Two 52px circles carrying the Casebook and the messenger — the only always-
-   on controls a player has, and both were smaller than a scene-control chip. */
-#drpg-messenger-launcher,
-#drpg-casebook-launcher {
+/* The messenger's 52px circle — the only always-on control a player has,
+   and it was smaller than a scene-control chip. */
+#drpg-messenger-launcher {
     width: 74px !important;
     height: 74px !important;
     font-size: var(--drpg-text-lg) !important;
     border-width: 2px !important;
 }
 
-#drpg-casebook-launcher {
-    bottom: calc(var(--drpg-edge, 22px) + 84px) !important;
-}
 
 /* The floor, restated against the markup that actually carries the size: the
    trait label is a span INSIDE .trait-name, and the resource labels live in

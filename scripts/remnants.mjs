@@ -517,10 +517,23 @@ function defaultPublic(entry) {
  * Read what a player may eventually be shown about this trace. GM-side only —
  * a player's client never holds the ledger this reads from (see `remnantData`).
  *
- * The difficulty tag is computed here rather than stored in `tags`, so it can
- * never go stale: `retuneRemnant` changes a trace's visibility after the fact,
- * and a tag written once at creation would then describe a difficulty the
- * trace no longer has.
+ * TWO TAGS ARE COMPUTED HERE RATHER THAN STORED IN `tags`, for the same
+ * reason in both cases: a tag written once at creation describes the trace as
+ * it was, and both of these facts can change afterwards. `retuneRemnant`
+ * moves a trace's visibility, so a stored difficulty would go stale; and a GM
+ * correcting which room a trace was left in would leave a stored room tag
+ * pointing at the wrong place. Derived on read, they cannot disagree with the
+ * ledger.
+ *
+ * The room tag is what replaces the Casebook's grouping. Grouping was a view —
+ * it existed only inside that one window — whereas a tag is a property of the
+ * object, so it travels automatically onto the token, into the Truth Bullet in
+ * the player's pack, onto the evidence card in the trial and into the
+ * Investigation dashboard. Same information, in every view at once, which is
+ * what makes the Casebook safe to delete in this stage.
+ *
+ * The GM's own manual tags stay first, so the two derived ones read as a
+ * consistent suffix rather than shuffling around whatever was typed.
  */
 export function remnantPublic(tokenDoc) {
     if (!game.user.isGM) return null;
@@ -529,10 +542,14 @@ export function remnantPublic(tokenDoc) {
     if (!entry || entry.deleted) return null;
 
     const pub = { ...defaultPublic(entry), ...(entry.public ?? {}) };
-    const difficulty = difficultyTag(entry.visibility, entry.type);
+    const derived = [entry.room || null, difficultyTag(entry.visibility, entry.type)]
+        .filter(Boolean);
+
     return {
         ...pub,
-        tags: difficulty ? [...pub.tags, difficulty] : [...pub.tags]
+        // Deduplicated: a GM who typed the room name in by hand before this
+        // was derived should not now see it twice on the same card.
+        tags: Array.from(new Set([...pub.tags, ...derived]))
     };
 }
 

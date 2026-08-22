@@ -7,8 +7,10 @@
  */
 
 import { TRIAL } from "./config.mjs";
-import { trialQueue, speaker, secondsLeft, startFloor, nextSpeaker, endFloor }
-    from "./trial-floor.mjs";
+import {
+    trialFloor, floorHolder, floorTarget, secondsLeft, startFloor, endFloor,
+    extendFloor, returnToDiscussion, FLOOR_MODES
+} from "./trial-floor.mjs";
 import { dialogContent, plural } from "./utils.mjs";
 import { getClock } from "./clock.mjs";
 
@@ -22,16 +24,16 @@ const DialogV2 = foundry.applications.api.DialogV2;
  * floor, choose who speaks first. Every one of those is a separate `await`, and
  * they are independent — so the half-states are all reachable. A phase set with
  * no floor open is a trial nobody can speak in; a floor open in Daily Life is a
- * queue running against an action economy that is still live.
+ * clock running against an action economy that is still live.
  *
- * In the fiction none of that is six decisions. The trial starts. So this asks
- * the one question that is genuinely the GM's — who opens — shows exactly what
- * it is about to do, and then does all of it.
+ * In the fiction none of that is six decisions. The trial starts. So this shows
+ * exactly what it is about to do, and then does all of it.
  *
- * No handbook rule moves. These are the same operations in the same order; the
- * music follows the queue on its own (see music.mjs, which watches
- * `trialQueue`), and the speaking order is the same alphabetical rotation
- * `startFloor` has always built.
+ * THE VOLUNTEER QUESTION IS GONE. It existed to seed a clockwise rota, and
+ * there is no rota any more — the trial opens as a discussion the whole table
+ * may speak in, so there is nobody to nominate and no order to preview. The
+ * only thing left to choose is how long the GM expects the discussion to run,
+ * and even that is a budget rather than a limit.
  */
 export async function startClassTrial() {
     if (!game.user.isGM) {
@@ -42,21 +44,13 @@ export async function startClassTrial() {
     // Already running: this is the same button, so it does the useful thing
     // rather than refusing. A GM pressing "start" on a trial in progress means
     // "show me the trial".
-    if (trialQueue()) return openFloorDialog();
+    if (trialFloor()) return openFloorDialog();
 
     const { livingStudents } = await import("./chapter.mjs");
-    const alive = livingStudents().sort((a, b) => a.name.localeCompare(b.name));
-    if (!alive.length) {
+    if (!livingStudents().length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Floor.nobody"));
         return null;
     }
-
-    const names = alive.map(a => foundry.utils.escapeHTML(a.name));
-    const orderFrom = id => {
-        const at = alive.findIndex(a => a.id === id);
-        const rotated = at < 0 ? names : [...names.slice(at), ...names.slice(0, at)];
-        return rotated.join(" → ");
-    };
 
     const result = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Floor.startTrial") },
@@ -68,37 +62,21 @@ export async function startClassTrial() {
                 <li>${game.i18n.localize("DRPG.Floor.startTrialStepFloor")}</li>
                 <li>${game.i18n.localize("DRPG.Floor.startTrialStepAnnounce")}</li>
             </ul>
-            <label>${game.i18n.localize("DRPG.Floor.volunteer")}
-                <select name="who">${alive.map(a =>
-                    `<option value="${a.id}">${foundry.utils.escapeHTML(a.name)}</option>`
-                ).join("")}</select></label>
             <label>${game.i18n.localize("DRPG.Floor.seconds")}
                 <input type="number" name="seconds" min="30" step="10"
                        value="${TRIAL.speakSeconds}" /></label>
-            <p class="notes drpg-trial-order">${game.i18n.format("DRPG.Floor.orderPreview",
-                { order: orderFrom(alive[0].id) })}</p>
+            <p class="notes">${game.i18n.localize("DRPG.Floor.discussionNote")}</p>
         </form>`),
         buttons: [
             {
                 action: "ok", label: game.i18n.localize("DRPG.Floor.startTrial"), default: true,
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
-                    return { who: f.who.value, seconds: Number(f.seconds.value) || TRIAL.speakSeconds };
+                    return { seconds: Number(f.seconds.value) || TRIAL.speakSeconds };
                 }
             },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
         ],
-        // The order is the one thing a GM cannot work out from the field above
-        // it — it depends on who they pick — so it is shown and kept true while
-        // they are still deciding, rather than after they have committed.
-        render: (event, dialog) => {
-            const form = dialog.element.querySelector("form");
-            const line = dialog.element.querySelector(".drpg-trial-order");
-            form?.who?.addEventListener("change", () => {
-                line.textContent = game.i18n.format("DRPG.Floor.orderPreview",
-                    { order: orderFrom(form.who.value) });
-            });
-        },
         rejectClose: false
     });
 
@@ -106,15 +84,13 @@ export async function startClassTrial() {
 
     const { setPhase } = await import("./clock.mjs");
     await setPhase("classTrial");
-    await startFloor(result.who, { seconds: result.seconds });
+    await startFloor({ seconds: result.seconds });
 
     const { announce } = await import("./utils.mjs");
     await announce({
         content: `<div class="drpg-card"><h3>${
             game.i18n.localize("DRPG.Floor.startTrial")}</h3><p>${
-            game.i18n.format("DRPG.Floor.trialOpened", {
-                who: foundry.utils.escapeHTML(game.actors.get(result.who)?.name ?? "?")
-            })}</p><p class="notes">${orderFrom(result.who)}</p></div>`
+            game.i18n.localize("DRPG.Floor.trialOpened")}</p></div>`
     });
 
     return openFloorDialog();
@@ -196,15 +172,13 @@ export async function openFloorDialog() {
         return null;
     }
 
-    const queue = trialQueue();
-    return queue ? driveFloor(queue) : startFloorDialog();
+    const floor = trialFloor();
+    return floor ? driveFloor(floor) : startFloorDialog();
 }
 
 async function startFloorDialog() {
     const { livingStudents } = await import("./chapter.mjs");
-    const alive = livingStudents().sort((a, b) => a.name.localeCompare(b.name));
-
-    if (!alive.length) {
+    if (!livingStudents().length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Floor.nobody"));
         return null;
     }
@@ -214,10 +188,6 @@ async function startFloorDialog() {
         classes: ["drpg-panel"],
         content: dialogContent(`<form>
             <p>${game.i18n.localize("DRPG.Floor.startIntro")}</p>
-            <label>${game.i18n.localize("DRPG.Floor.volunteer")}
-                <select name="who">${alive.map(a =>
-                    `<option value="${a.id}">${foundry.utils.escapeHTML(a.name)}</option>`
-                ).join("")}</select></label>
             <label>${game.i18n.localize("DRPG.Floor.seconds")}
                 <input type="number" name="seconds" min="30" step="10"
                        value="${TRIAL.speakSeconds}" /></label>
@@ -228,7 +198,7 @@ async function startFloorDialog() {
                 action: "ok", label: game.i18n.localize("DRPG.Floor.start"), default: true,
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
-                    return { who: f.who.value, seconds: Number(f.seconds.value) || TRIAL.speakSeconds };
+                    return { seconds: Number(f.seconds.value) || TRIAL.speakSeconds };
                 }
             },
             // The vote and the verdict used to be their own GM-panel tiles. A
@@ -249,44 +219,69 @@ async function startFloorDialog() {
         await openVerdictDialog();
         return openFloorDialog();
     }
-    await startFloor(result.who, { seconds: result.seconds });
+    await startFloor({ seconds: result.seconds });
     return openFloorDialog();
 }
 
-async function driveFloor(queue) {
-    const who = speaker(queue);
-    const left = secondsLeft(queue);
-    const order = queue.order
-        .map((id, i) => {
-            const actor = game.actors.get(id);
-            const name = foundry.utils.escapeHTML(actor?.name ?? "?");
-            return i === queue.current ? `<strong>${name}</strong>` : name;
-        })
-        .join(" → ");
+/**
+ * The floor, while it is running.
+ *
+ * The automatic transitions are the default, not the law. A two-minute
+ * argument that has to be cut off after forty seconds is an ordinary thing at
+ * a table, and so is one that deserves another half minute — so the GM gets
+ * both without having to end the trial to do it.
+ */
+async function driveFloor(floor) {
+    const left = secondsLeft(floor);
+    const holder = floorHolder(floor);
+    const target = floorTarget(floor);
+
+    const line = floor.mode === FLOOR_MODES.discussion
+        ? game.i18n.format("DRPG.Floor.holdingDiscussion", { seconds: left })
+        : floor.mode === FLOOR_MODES.objection
+            ? game.i18n.format("DRPG.Floor.holdingObjection", {
+                who: foundry.utils.escapeHTML(holder?.name ?? "—"),
+                target: foundry.utils.escapeHTML(target?.name ?? "—"),
+                seconds: left
+            })
+            : game.i18n.format("DRPG.Floor.holdingRebuttal", {
+                who: foundry.utils.escapeHTML(holder?.name ?? "—"),
+                target: foundry.utils.escapeHTML(target?.name ?? "—"),
+                seconds: left
+            });
+
+    const restrictive = floor.mode !== FLOOR_MODES.discussion;
 
     const action = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Floor.manageTitle") },
         classes: ["drpg-panel"],
         content: dialogContent(`<div>
-            <p>${game.i18n.format("DRPG.Floor.holding", {
-                name: foundry.utils.escapeHTML(who?.name ?? "—"),
-                seconds: left
-            })}</p>
-            <p class="notes">${order}</p>
-            <p class="notes">${game.i18n.localize("DRPG.Floor.objectionNote")}</p>
+            <p>${line}</p>
+            <p class="notes">${game.i18n.localize(restrictive
+                ? "DRPG.Floor.modeNote" : "DRPG.Floor.objectionNote")}</p>
         </div>`),
         buttons: [
-            { action: "next", label: game.i18n.localize("DRPG.Floor.next"), default: true },
+            { action: "extend", label: game.i18n.localize("DRPG.Floor.extend"), default: restrictive },
+            // Only offered while something is actually running that could be
+            // returned FROM — in a discussion it would be a button that
+            // restarts the clock, which is not what its label promises.
+            ...(restrictive
+                ? [{ action: "discussion", label: game.i18n.localize("DRPG.Floor.backToDiscussion") }]
+                : []),
             { action: "end", label: game.i18n.localize("DRPG.Floor.end") },
-            { action: "vote", label: game.i18n.localize("DRPG.Vote.openTitle") },
+            { action: "vote", label: game.i18n.localize("DRPG.Vote.openTitle"), default: !restrictive },
             { action: "verdict", label: game.i18n.localize("DRPG.Vote.verdictTitle") },
             { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
         ],
         rejectClose: false
     });
 
-    if (action === "next") {
-        await nextSpeaker();
+    if (action === "extend") {
+        await extendFloor(30);
+        return openFloorDialog();
+    }
+    if (action === "discussion") {
+        await returnToDiscussion();
         return openFloorDialog();
     }
     if (action === "vote") { await openVoteDialog(); return openFloorDialog(); }

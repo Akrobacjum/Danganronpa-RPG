@@ -386,7 +386,7 @@ async function wipeSeason() {
     // is deliberately NOT among them — it is reset to the season's opening
     // reading below, campaign name kept, because the name belongs to the table.
     for (const [label, key, value] of [
-        ["the trial queue", SETTINGS.trialQueue, []],
+        ["the trial floor", SETTINGS.trialQueue, {}],
         ["search tokens", SETTINGS.searchTokens, {}],
         ["Eclipse placements", SETTINGS.eclipseMoves, {}],
         ["the Key Remnant plan", SETTINGS.keyRemnantPlan, {}],

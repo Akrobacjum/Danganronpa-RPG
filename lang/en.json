@@ -212,6 +212,10 @@
         "name": "Players only see who is in their room",
         "hint": "Hides other characters unless they stand in the same room. Walls and vision get most of the way there; this closes the gaps left by doorways, archways and maps built without walls. GMs see everything."
       },
+      "regionFog": {
+        "name": "Rooms decide what players can see",
+        "hint": "Switches this scene's own token vision and fog exploration OFF and lights the map globally, so the module's room fog is the only thing hiding anything: the room you are in is clear, rooms you have been to show through a veil, everything else is fogged. Leave this off to keep Foundry's ordinary walls-and-line-of-sight vision instead — with it on, sight lines and doorways stop revealing half a room. GMs always see the whole map."
+      },
       "lockPlayerResources": {
         "name": "Players cannot edit Actions, Hope or statistics",
         "hint": "Those move through play — spend an action, take a rest, earn a Level Up. HP and Stress stay editable: players mark their own damage. GMs are unaffected."
@@ -613,7 +617,6 @@
       "manageTitle": "The floor",
       "nobody": "There is nobody alive to give the floor to.",
       "startIntro": "A volunteer opens, then the floor passes down the order. Three minutes each, uninterrupted — unless somebody objects.",
-      "volunteer": "Who opens?",
       "seconds": "Seconds each",
       "startNote": "The order is everyone still alive, from the volunteer. An OBJECTION takes the floor from whoever holds it.",
       "start": "Open the floor",
@@ -622,19 +625,30 @@
       "startTrialStepPhase": "The campaign moves to Class Trial.",
       "startTrialStepFloor": "The floor opens and the speaking order is built from the living.",
       "startTrialStepAnnounce": "The trial is announced in chat and the music follows.",
-      "orderPreview": "Order: {order}",
       "trialOpened": "The Class Trial is in session. {who} opens.",
       "endTrial": "End the trial",
       "endTrialConfirm": "This closes the floor and opens the vote. The verdict comes after it.",
-      "holding": "{name} has the floor — {seconds}s left.",
       "objectionNote": "You never move the floor for an objection: presenting evidence takes it.",
-      "next": "Next speaker",
       "end": "Close the floor",
       "evidence": "{n} shown",
       "evidenceHint": "Truth Bullets presented in this trial.",
       "manageTrial": "Manage class trial",
       "manageRunning": "A Class Trial is running. Take the floor to move the speaking order along, or end it and go to the vote.",
-      "manageNotRunning": "No Class Trial is running. Starting one sets the phase, opens the floor, builds the speaking order and announces it."
+      "manageNotRunning": "No Class Trial is running. Starting one sets the phase, opens the floor, builds the speaking order and announces it.",
+      "mode": {
+        "discussion": "Open discussion",
+        "objection": "OBJECTION",
+        "rebuttal": "Rebuttal"
+      },
+      "everyone": "everyone",
+      "versus": "vs",
+      "discussionNote": "The trial opens as a free discussion — everyone may speak. The clock is your budget for it, not a limit: running past it turns the bar red and nothing else. An OBJECTION is what takes the floor away from the table.",
+      "holdingDiscussion": "Open discussion — {seconds} s left on your budget. Everyone may speak.",
+      "holdingObjection": "{who} has the floor, objecting to {target} — {seconds} s. Nobody else may speak; the rebuttal follows automatically.",
+      "holdingRebuttal": "Rebuttal: {who} and {target}, {seconds} s. Only those two; it returns to open discussion by itself.",
+      "modeNote": "This runs out on its own. Use the buttons below to cut it short, give it another half minute, or drop straight back to open discussion.",
+      "extend": "+30 seconds",
+      "backToDiscussion": "Back to discussion"
     },
     "Vote": {
       "openTitle": "The vote",
@@ -720,23 +734,6 @@
         "trial": "Class Trial",
         "search": "Investigation"
       }
-    },
-    "Casebook": {
-      "title": "{actor} — what you know",
-      "buttonTooltip": "Your evidence, grouped by where you found it. The badge counts what is still worth analysing.",
-      "empty": "No Truth Bullets yet. Observe a room to start finding them.",
-      "summary": {
-        "one": "{total} Truth Bullet · {identified} identified · {analysable} worth analysing",
-        "other": "{total} Truth Bullets · {identified} identified · {analysable} worth analysing"
-      },
-      "lockedNote": "{n} of them failed an Analyze this chapter. Those copies stay unidentified until the next chapter begins — somebody else's copy of the same trace is not locked.",
-      "noRoom": "Where it came from was never recorded",
-      "what": "What you have",
-      "kind": "What it is",
-      "note": "Your note",
-      "lockedLabel": "Unidentified — locked this chapter",
-      "analysableLabel": "Unidentified — Analyze available",
-      "launcherTooltip": "Your Truth Bullets — open during the Class Trial"
     },
     "Cleanup": {
       "title": "Cleaning up",
@@ -1147,7 +1144,18 @@
       "failed": "That could not be presented. Tell the GM.",
       "logTitle": "Trial evidence log",
       "logSummary": "{total} presented this chapter, {objections} of them as an Objection.",
-      "logEmpty": "Nothing has been presented this chapter yet."
+      "logEmpty": "Nothing has been presented this chapter yet.",
+      "objectionTarget": "Who are you contradicting?",
+      "objectionNobody": "There is nobody else left to object to.",
+      "objectionWarning": "An OBJECTION is not the same as showing evidence. It takes the floor: one minute in which only you may speak, then two minutes of rebuttal between you and the person you name. Showing evidence leaves the discussion running.",
+      "objectionNoFloor": "The floor is not open, so there is nothing to interrupt. Show the evidence instead.",
+      "objectionDuringObjection": "Somebody else's OBJECTION is running. Wait for their minute and the rebuttal that follows it.",
+      "objectionDuringRebuttal": "A rebuttal is running. Wait for it to finish, then the floor is open again.",
+      "objectedTo": "{who} objects to {target}",
+      "logKind": "What",
+      "logWho": "Who",
+      "logAgainst": "Against",
+      "logWhen": "When"
     },
     "Handover": {
       "shareTooltip": "Share a copy with someone in this room",
@@ -1616,7 +1624,7 @@
       "nextIncident": "An incident is running. Take it to the end before anything else.",
       "nextEclipse": "The Eclipse is open. Close it once everyone has placed.",
       "nextNoFloor": "The trial has no floor open — nobody can speak yet.",
-      "nextFloor": "{who} has the floor.",
+      "nextFloor": "The trial floor is open — {mode}.",
       "nextInvestigation": "Investigation. Check what has been found and what is still out there.",
       "nextStillActing": {
         "one": "{n} student still has actions to spend.",
@@ -1678,7 +1686,8 @@
       },
       "stateUnchanged": "Nothing changed.",
       "checksSetup": "Season setup",
-      "seasonChecks": "Pre-season checks"
+      "seasonChecks": "Pre-season checks",
+      "nextFloorHeld": "{mode} — {who} has the floor."
     },
     "Character": {
       "notACharacter": "That only works on a character.",

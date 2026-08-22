@@ -185,7 +185,23 @@ export const SETTINGS = {
      * `sealedRooms`. Written only by the primary GM (see fog.mjs), the same
      * discipline `truth-bullets.mjs` uses for its own ledger writes.
      */
-    discoveredRooms: "discoveredRooms"
+    discoveredRooms: "discoveredRooms",
+    /**
+     * Rooms, not sight lines, decide what a player can see.
+     *
+     * Turning this on makes the module's own region fog the ONLY thing hiding
+     * any part of the map, by switching off Foundry's per-token vision and its
+     * own fog exploration on the scene (see `applySceneVisionMode` in
+     * fog.mjs). That is not a cosmetic preference: leaving Foundry's vision on
+     * alongside the region fog is what produces cone-shaped light wedges that
+     * reveal half a room through a doorway — the exact thing the guide's room
+     * model exists to prevent.
+     *
+     * Off leaves the scene exactly as the GM configured it and disables the
+     * region fog entirely, for a table that would rather use Foundry's walls
+     * and vision as they come.
+     */
+    regionFog: "regionFog"
 };
 
 /** Shape of the campaign clock stored under SETTINGS.clock. */
@@ -473,6 +489,18 @@ export function registerSettings() {
         type: Object,
         default: {},
         onChange: () => onWorldChange(SETTINGS.discoveredRooms)
+    });
+
+    game.settings.register(MODULE_ID, SETTINGS.regionFog, {
+        name: "DRPG.Settings.regionFog.name",
+        hint: "DRPG.Settings.regionFog.hint",
+        scope: "world",
+        config: true,
+        type: Boolean,
+        default: true,
+        onChange: () => {
+            import("./fog.mjs").then(m => m.onFogSettingChanged()).catch(() => {});
+        }
     });
 
     game.settings.register(MODULE_ID, SETTINGS.despairFromRolls, {

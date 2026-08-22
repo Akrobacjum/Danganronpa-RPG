@@ -1510,8 +1510,31 @@ export const CRISIS_ACTIONS = {
  * accusation, closing) is a schedule for humans, not a state machine.
  */
 export const TRIAL = {
-    /** "Każdy ma maks trzy minuty nieprzerwanego monologu." */
+    /**
+     * How long a free discussion runs before the bar turns red.
+     *
+     * NOT a monologue any more. The guide's original shape was a clockwise
+     * queue of three-minute monologues, and that is what this number used to
+     * bound; the trial now opens as a free discussion that anyone may speak
+     * in, and this is the GM's default budget for it, editable every time
+     * they open the floor. It stays 180 because that is the length the table
+     * is used to, and because overrunning it is a red bar rather than a
+     * hard stop — see `overrun` in trial-floor.mjs.
+     */
     speakSeconds: 180,
+    /**
+     * An OBJECTION buys exactly one minute of silence, then the person it was
+     * aimed at gets two minutes to answer back, and then the floor returns to
+     * free discussion.
+     *
+     * Both are fixed rather than GM-editable on purpose: they are the shape of
+     * the interruption, not a budget. A GM who needs to cut a rebuttal short
+     * has the manual controls in the floor window; a GM who needs a longer one
+     * has "+30 s". Making them configurable would turn one rule everybody at
+     * the table already knows into a per-world variable nobody can predict.
+     */
+    objectionSeconds: 60,
+    rebuttalSeconds: 120,
     /**
      * A tie is a loss for the players (guide p. 31), but nothing here reads
      * that: `closeVote` publishes the counts and says a tie is a tie, and the

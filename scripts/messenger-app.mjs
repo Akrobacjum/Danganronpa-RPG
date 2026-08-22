@@ -30,16 +30,12 @@ import {
 import { noteFor, noteStatus, noteTemplate, saveNote } from "./pre-session-note.mjs";
 
 const LAUNCHER_ID = "drpg-messenger-launcher";
-const CASEBOOK_LAUNCHER_ID = "drpg-casebook-launcher";
 
 export function registerMessengerUi() {
     Hooks.once("ready", renderLauncher);
     Hooks.on("canvasReady", () => renderLauncher());
     Hooks.on("drpgMessengerMessage", () => renderLauncher());
     Hooks.on("drpgMessengerRead", () => renderLauncher());
-    // The Casebook launcher appears and disappears with the phase, so it has to
-    // follow the clock as well as the messenger's own events.
-    Hooks.on("drpgTimeOfDayChanged", () => renderLauncher());
 
     // A quick way in from the Players sidebar, mirroring how avclient-livekit
     // adds its own breakout-room entries to the same context menu.
@@ -571,54 +567,8 @@ function savePosition(playerUserId, position) {
  * corner cannot be broken by either one changing shape.
  * ========================================================================== */
 
-/**
- * The Casebook, beside the Messenger, for the length of a Class Trial.
- *
- * A trial is four hours of one activity: reading your own Truth Bullets and
- * putting them in front of the table. The way in was a small icon on the
- * character sheet, so the sheet had to be open and on the right tab — during the
- * one stretch of the game where the sheet is otherwise not needed at all.
- *
- * Only during a Class Trial, and only for somebody with a character. Outside a
- * trial the Casebook is a reference you consult occasionally, and a permanent
- * second launcher would be clutter for a button nobody is reaching for.
- */
-function renderCasebookLauncher() {
-    document.getElementById(CASEBOOK_LAUNCHER_ID)?.remove();
-
-    if (game.user.isGM) return;
-    const actor = game.user.character;
-    if (!actor) return;
-
-    let inTrial = false;
-    try {
-        inTrial = game.settings.get(MODULE_ID, SETTINGS.clock)?.phase === "classTrial";
-    } catch {
-        return;
-    }
-    if (!inTrial) return;
-
-    const button = document.createElement("button");
-    button.type = "button";
-    button.id = CASEBOOK_LAUNCHER_ID;
-    const tip = game.i18n.localize("DRPG.Casebook.launcherTooltip");
-    button.dataset.tooltip = tip;
-    button.setAttribute("aria-label", tip);
-    button.innerHTML = `<i class="fa-solid fa-book-open" inert></i>`;
-
-    button.addEventListener("click", async event => {
-        event.preventDefault();
-        event.stopPropagation();
-        const { openCasebook } = await import("./casebook.mjs");
-        await openCasebook(actor);
-    });
-
-    document.body.append(button);
-}
-
 export function renderLauncher() {
     try {
-        renderCasebookLauncher();
         document.getElementById(LAUNCHER_ID)?.remove();
 
         const button = document.createElement("button");

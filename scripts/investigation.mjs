@@ -405,6 +405,25 @@ async function createFinalRemnant({ room, visibility = "evident", note = "" } = 
  * never found is already its own consequence — the trial gets harder — and
  * the "this is getting thin" warning is what a GM actually needs from here.
  */
+/**
+ * A trace's tags with the DERIVED ones taken back out — the list a GM should
+ * actually be editing.
+ *
+ * `remnantPublic()` appends the room and the difficulty on every read, so
+ * whatever it hands back always carries both. Showing them in the editable
+ * field would invite a GM to change or delete a value that is recomputed a
+ * moment later; saving them back would freeze the state of a trace the ledger
+ * is still free to move. One place decides which tags are derived, and both
+ * the form and the save read it.
+ */
+function withoutDerivedTags(data) {
+    const derived = new Set([
+        data.room || null,
+        difficultyTag(data.visibility, data.type)
+    ].filter(Boolean));
+    return (data.public?.tags ?? []).filter(t => !derived.has(t));
+}
+
 export async function openInvestigationDashboard() {
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
@@ -451,11 +470,11 @@ export async function openInvestigationDashboard() {
     /* ---- Traces ---------------------------------------------------------- */
     const traceRows = traces.map(({ token, data, scene }) => {
         const key = rowKey(scene.id, token.id);
-        const difficulty = difficultyTag(data.visibility, data.type);
-        // The difficulty tag is appended live by `remnantPublic()` and never
-        // stored — editing it back into the saved list would freeze a
-        // difficulty that is meant to track `retuneRemnant` automatically.
-        const manualTags = (data.public?.tags ?? []).filter(t => t !== difficulty);
+        // The difficulty and room tags are appended live by `remnantPublic()`
+        // and never stored — editing either back into the saved list would
+        // freeze a value that is meant to track the ledger automatically
+        // (`retuneRemnant` moves visibility; a GM can correct the room).
+        const manualTags = withoutDerivedTags(data);
         const who = Array.from(finders.get(token.id) ?? []);
         const found = who.length
             ? esc(who.join(", "))
@@ -739,8 +758,7 @@ async function applyDashboardSave(result, { traces, plan }) {
         if (!trace) continue;
         const { token, data } = trace;
 
-        const difficulty = difficultyTag(data.visibility, data.type);
-        const currentTags = (data.public?.tags ?? []).filter(t => t !== difficulty);
+        const currentTags = withoutDerivedTags(data);
 
         const publicPatch = {};
         if (row.name !== (data.public?.name ?? "")) publicPatch.name = row.name;

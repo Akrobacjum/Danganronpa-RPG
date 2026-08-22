@@ -96,7 +96,8 @@ import {
     openInvestigationDashboard
 } from "./investigation.mjs";
 import {
-    trialQueue, speaker, secondsLeft, startFloor, nextSpeaker, seizeFloor, endFloor
+    trialFloor, floorHolder, floorTarget, maySpeak, secondsLeft,
+    startFloor, openObjection, openRebuttal, returnToDiscussion, extendFloor, endFloor
 } from "./trial-floor.mjs";
 import { openVote, closeVote, applyVerdict, openVerdictDialog } from "./vote.mjs";
 import {
@@ -110,7 +111,6 @@ import {
     openMoveBodyDialog,
     attemptStageSix, resolveStageSix
 } from "./cleanup.mjs";
-import { casebook, casebookSummary, openCasebook } from "./casebook.mjs";
 import {
     currentState, musicStatus, diagnoseMusic, refreshMusic, openMusicDialog
 } from "./music.mjs";
@@ -620,14 +620,6 @@ export const DrpgApi = {
     /** The plan scored against the map and the players' sheets. */
     keyPlanStatus,
 
-    /* ---- the player's own side of it ---------------------------------------
-     * The same evidence the inventory holds, grouped by where it was found and
-     * flagged by whether anything can still be done with it. Reveals nothing —
-     * the GM's revealing equivalent is `investigationDashboard`. */
-    casebook,
-    casebookSummary,
-    openCasebook,
-
     investigationDashboard: openInvestigationDashboard,
 
     /* ---- the murder engine -------------------------------------------------
@@ -740,14 +732,23 @@ export const DrpgApi = {
      * addressed to the GMs over the socket and counted in memory, because
      * "wyniki jawne, głosy nie" and world data is not private (D6). */
 
-    trialQueue,
-    trialSpeaker: speaker,
+    /* The floor is three modes rather than a queue: a free discussion, the
+     * minute an OBJECTION buys its objector, and the two minutes of rebuttal
+     * that follow it. `maySpeak` is the one question all of it answers. */
+    trialFloor,
+    /** Kept under its old name: callers only ever asked "is a trial running". */
+    trialQueue: trialFloor,
+    trialHolder: floorHolder,
+    trialTarget: floorTarget,
+    trialMaySpeak: maySpeak,
     trialSecondsLeft: secondsLeft,
     startFloor,
-    nextSpeaker,
 
     /** An OBJECTION calls this by itself — presenting evidence takes the floor. */
-    seizeFloor,
+    openObjection,
+    openRebuttal,
+    returnToDiscussion,
+    extendFloor,
     endFloor,
 
     openVote,

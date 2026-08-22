@@ -5,7 +5,8 @@
  * a dozen identical markers: the GM had to click each one to find out whether
  * it was a preparation trace, an autopsy note or the thing that solves the
  * case. The type was already recorded on the token and shown on every badge in
- * the Casebook — it just never made it onto the map, which is the one place
+ * the player's own Truth Bullet row — it just never made it onto the map,
+ * which is the one place
  * everybody is looking during an investigation.
  *
  * The ring is drawn rather than tinted, because a tint would fight the artwork
@@ -13,7 +14,7 @@
  *
  * Colours are read from the stylesheet at runtime instead of being written
  * here. The palette is declared once in `danganronpa.css` and this reads the
- * same tokens the Casebook badges do, so the map and the list cannot drift
+ * same tokens the Truth Bullet badges do, so the map and the pack cannot drift
  * apart — and re-hueing the palette moves the rings with it, without touching
  * this file.
  */
@@ -27,7 +28,7 @@ const RING_NAME = "drpgRemnantRing";
 
 /**
  * Which token each type borrows. Same assignments the `.drpg-tb-badge.type.*`
- * rules use, so a Remnant reads identically on the map and in the Casebook.
+ * rules use, so a Remnant reads identically on the map and in the pack.
  */
 const TYPE_TOKEN = {
     key: "--drpg-gold",

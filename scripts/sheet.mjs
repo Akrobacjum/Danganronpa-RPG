@@ -36,7 +36,6 @@ import { isCleaner, bodyIsHere } from "./cleanup.mjs";
 import { roomOfActor, neighbouringRooms } from "./movement.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { projectsAvailableIn, sabotageTargetsIn } from "./projects.mjs";
-import { casebookSummary } from "./casebook.mjs";
 import { rules } from "./rules.mjs";
 import { debug, error, plural } from "./utils.mjs";
 
@@ -250,7 +249,6 @@ function onRenderCharacterSheet(app, element) {
         injectInitButton(app, element);
         injectAdvanceButton(app, element);
         injectItemButton(app, element);
-        injectCasebookButton(app, element);
         injectActionBar(app, element);
         injectActionPanel(app, element);
         growForCalls(app);
@@ -754,41 +752,6 @@ function injectItemButton(app, element) {
     button.addEventListener("click", async () => {
         const { openItemManager } = await import("./gm-items.mjs");
         await openItemManager(app.document);
-    });
-
-    nameRow.append(button);
-}
-
-/**
- * The casebook button, next to the item manager.
- *
- * Everyone gets this one, not only the GM: it shows the holder their own
- * evidence rearranged by room, which is how it gets used in a trial. See
- * casebook.mjs. The badge is the number of bullets still carrying an unanswered
- * question — the one figure worth interrupting the sheet for.
- */
-function injectCasebookButton(app, element) {
-    const actor = app.document;
-    if (isMonokuma(actor)) return;
-    if (!actor.isOwner) return;
-
-    const nameRow = element.querySelector(".character-header-sheet .name-row");
-    if (!nameRow || nameRow.querySelector("[data-drpg-casebook]")) return;
-
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "drpg-advance-button drpg-casebook-button";
-    button.dataset.drpgCasebook = "";
-    button.dataset.tooltip = game.i18n.localize("DRPG.Casebook.buttonTooltip");
-    button.setAttribute("aria-label", game.i18n.localize("DRPG.Casebook.buttonTooltip"));
-
-    const open = casebookSummary(actor).analysable;
-    button.innerHTML = `<i class="fa-solid fa-folder-open" inert></i>${
-        open ? `<span class="drpg-casebook-badge">${open}</span>` : ""}`;
-
-    button.addEventListener("click", async () => {
-        const { openCasebook } = await import("./casebook.mjs");
-        await openCasebook(actor);
     });
 
     nameRow.append(button);

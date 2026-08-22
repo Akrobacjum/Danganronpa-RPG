@@ -2522,7 +2522,7 @@ export async function openIncidentTracker() {
 
     const action = await tableDialog({
         // `cleanupSection()` below puts a table in this window once Stage 6 has
-        // traces to list — `tableDialog` is what makes it resizable.
+        // traces to list — `tableDialog` is what sizes the window to it.
         window: { title: game.i18n.localize("DRPG.Murder.trackerTitle") },
         classes: ["drpg-panel"],
         content: dialogContent(`<div>

@@ -635,11 +635,22 @@ function nextStep(clock) {
     }
 
     if (clock.phase === "classTrial") {
-        const queue = game.drpg?.trialQueue?.() ?? null;
-        return queue
-            ? { text: game.i18n.format("DRPG.Panel.nextFloor", {
-                  who: game.drpg.trialSpeaker?.()?.name ?? "—" }), action: "floor" }
-            : { text: game.i18n.localize("DRPG.Panel.nextNoFloor"), action: "startTrial" };
+        const floor = game.drpg?.trialFloor?.() ?? null;
+        if (!floor) {
+            return { text: game.i18n.localize("DRPG.Panel.nextNoFloor"), action: "startTrial" };
+        }
+        // The floor no longer has a single "speaker" to name — in a discussion
+        // everybody may talk, and in the two restrictive modes the interesting
+        // fact is the mode itself, not one name. So the line reports the mode,
+        // and adds who holds it only when somebody actually does.
+        const holder = game.drpg?.trialHolder?.()?.name ?? null;
+        const mode = game.i18n.localize(`DRPG.Floor.mode.${floor.mode}`);
+        return {
+            text: holder
+                ? game.i18n.format("DRPG.Panel.nextFloorHeld", { mode, who: holder })
+                : game.i18n.format("DRPG.Panel.nextFloor", { mode }),
+            action: "floor"
+        };
     }
 
     if (clock.phase === "investigation") {

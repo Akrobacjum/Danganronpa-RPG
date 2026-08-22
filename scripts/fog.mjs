@@ -35,9 +35,9 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { roomOfActor, roomOfToken } from "./movement.mjs";
+import { roomOfToken } from "./movement.mjs";
 import { iAmTheMastermind } from "./mastermind.mjs";
-import { isPrimaryGm, debug, error } from "./utils.mjs";
+import { isPrimaryGm, debug, log, error } from "./utils.mjs";
 
 const CanvasAnimation = foundry.canvas.animation.CanvasAnimation;
 
@@ -52,6 +52,7 @@ const OUTLINE_MS = 1000;
 
 export function registerFog() {
     Hooks.on("canvasReady", () => {
+        applySceneVisionMode();
         mountLayer();
         armRendererFailsafe();
         repaintFog();
@@ -66,6 +67,78 @@ export function registerFog() {
     // but says nothing about rooms — fog only needs to catch up once it ends,
     // when ordinary room logic starts mattering again.
     Hooks.on("drpgEclipseChanged", active => { if (!active) repaintFog(); });
+}
+
+/** Is the room-based fog switched on for this world? */
+export function fogEnabled() {
+    try {
+        return game.settings.get(MODULE_ID, SETTINGS.regionFog) === true;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * ROOMS DECIDE WHAT IS VISIBLE, SO FOUNDRY'S OWN VISION HAS TO STAND DOWN.
+ * --------------------------------------------------------------------------
+ * This is the correction to the first version of this stage, and it is worth
+ * spelling out because the symptom did not look like the cause.
+ *
+ * That version added the region fog as an EXTRA layer over the canvas and
+ * changed nothing else. But Foundry's per-token vision was still running
+ * underneath it, and Foundry's vision is a line-of-sight system: it lights a
+ * cone from the token, through every gap in the walls, and permanently marks
+ * whatever that cone touched as explored. So the map revealed itself in
+ * cone-shaped wedges that stopped in the middle of rooms and spilled through
+ * doorways — per sight line, exactly what the room model exists to replace —
+ * and no amount of drawing on top could take those wedges away, because they
+ * are not fog, they are the lighting of the scene itself.
+ *
+ * The fix is not another layer. It is to make the region fog the only thing
+ * hiding anything:
+ *
+ *   tokenVision      off   no cones, no per-token sight polygons at all
+ *   fog.exploration  off   Foundry stops recording its own "explored" mask,
+ *                          which is what left the ragged half-lit rooms
+ *   globalLight      on    the map is lit everywhere, so what a player can
+ *                          see is decided by our fog and nothing else
+ *
+ * Walls stop mattering for VISION here, which is the point — a room is the
+ * unit, and `movement.mjs` already governs who may walk between them.
+ * `visibility.mjs` still hides other characters' TOKENS to their own room, so
+ * a lit corridor never means "you can see who is standing in it".
+ *
+ * GM-side and idempotent: it only writes when a value actually differs, so it
+ * does not fight a GM editing scene config, and it never touches a scene when
+ * the setting is off.
+ */
+export async function applySceneVisionMode(scene = canvas?.scene) {
+    if (!game.user.isGM || !scene) return false;
+    if (!fogEnabled()) return false;
+    if (!scene.regions?.size) return false;
+
+    const update = {};
+    if (scene.tokenVision !== false) update.tokenVision = false;
+    if (scene.fog?.exploration !== false) update["fog.exploration"] = false;
+    if (scene.environment?.globalLight?.enabled !== true) {
+        update["environment.globalLight.enabled"] = true;
+    }
+    if (!Object.keys(update).length) return false;
+
+    try {
+        await scene.update(update);
+        log(`Room fog: took Foundry's own vision off "${scene.name}" so rooms decide visibility.`);
+        return true;
+    } catch (err) {
+        error("Could not switch the scene to room-based visibility", err);
+        return false;
+    }
+}
+
+/** The setting was toggled: re-apply (or stand down) without a reload. */
+export async function onFogSettingChanged() {
+    if (fogEnabled()) await applySceneVisionMode();
+    repaintFog();
 }
 
 /* ==========================================================================
@@ -201,20 +274,40 @@ function myCurrentRooms() {
  * THE LAYER
  * ========================================================================== */
 
-/** Find or create the fog container, positioned above effects, below UI. */
+/**
+ * Find or create the fog container: above everything that draws the WORLD
+ * (the map, tiles, tokens, lighting), below everything that draws the
+ * INTERFACE (the HUD, rulers, the controls).
+ *
+ * The index matters and is easy to get wrong. Sitting under the lighting
+ * group means the fog is lit — a "dark" room comes out grey and half
+ * readable — and sitting above the interface means the fog paints over the
+ * token HUD and the ruler. So the position is resolved against the interface
+ * group when there is one, and only falls back to "on top of everything" when
+ * the canvas is shaped in a way this does not recognise.
+ *
+ * Re-resolved on every mount rather than cached: `canvas.stage` is rebuilt
+ * from scratch on every scene change, so a cached container is a reference to
+ * a destroyed display object.
+ */
 function mountLayer() {
     if (!canvas?.stage) return null;
 
-    let container = canvas.stage.children.find(c => c.name === LAYER_NAME);
-    if (container && !container.destroyed) return container;
+    const existing = canvas.stage.children.find(c => c.name === LAYER_NAME);
+    if (existing && !existing.destroyed) return existing;
 
-    container = new PIXI.Container();
+    const container = new PIXI.Container();
     container.name = LAYER_NAME;
     container.eventMode = "none";
     container.interactiveChildren = false;
 
-    const before = canvas.interface ? canvas.stage.getChildIndex(canvas.interface) : canvas.stage.children.length;
-    canvas.stage.addChildAt(container, Math.max(0, before));
+    let index = canvas.stage.children.length;
+    const above = canvas.interface ?? canvas.controls ?? null;
+    if (above && !above.destroyed) {
+        const found = canvas.stage.getChildIndex(above);
+        if (found >= 0) index = found;
+    }
+    canvas.stage.addChildAt(container, Math.min(Math.max(0, index), canvas.stage.children.length));
     return container;
 }
 
@@ -258,7 +351,7 @@ function colourOf(name, fallback) {
  */
 export function repaintFog() {
     try {
-        if (!canvas?.ready || game.user.isGM) {
+        if (!canvas?.ready || game.user.isGM || !fogEnabled()) {
             hideLayer();
             return;
         }
@@ -285,19 +378,7 @@ export function repaintFog() {
         }
 
         container.visible = true;
-        // A sprite's `.mask` is not a scene-graph child — PIXI's sprite-mask
-        // fast path samples it directly — so it never appears in
-        // `removeChildren()` and `destroy({children:true})` never reaches it.
-        // Left alone, every repaint would leak the previous mask's Sprite AND
-        // the RenderTexture backing it, both real GPU memory. Destroyed here,
-        // explicitly, before the fog sprite that referenced it goes with it.
-        for (const child of container.removeChildren()) {
-            if (child.mask) {
-                child.mask.destroy({ texture: true, baseTexture: true });
-                child.mask = null;
-            }
-            child.destroy({ children: true });
-        }
+        clearLayer(container);
 
         const dims = canvas.dimensions;
         const rect = dims?.rect ?? { x: 0, y: 0, width: dims?.width ?? 0, height: dims?.height ?? 0 };
@@ -306,14 +387,54 @@ export function repaintFog() {
         const current = myCurrentRooms();
         const discovered = myDiscoveredRooms(scene);
 
-        const fog = buildFogSprite(rect);
-        // The mask is assigned only, never added as a child: adding it too
-        // would render the mask's own texture as an ordinary visible sprite
-        // ON TOP of the fog, instead of using it invisibly to shape it.
-        fog.mask = buildMaskSprite(rect, regions, current, discovered);
-        container.addChild(fog);
+        /*
+         * TWO sprites, each with a plain Graphics mask — not one sprite with
+         * a graduated mask.
+         *
+         * The first version baked a single mask to a RenderTexture, erasing
+         * the current room at alpha 1 and visited rooms at alpha 0.5 with
+         * `BLEND_MODES.ERASE`, so that one fog sprite could show two
+         * different strengths. That is the fragile path: it depends on ERASE
+         * behaving inside an offscreen render pass, on the render texture's
+         * premultiplied alpha, and on the sprite-mask filter sampling that
+         * alpha rather than treating the mask as a silhouette. Any one of
+         * those going the other way gives no fog at all, which is what
+         * happened.
+         *
+         * A Graphics mask is a SILHOUETTE — reliable everywhere, but binary,
+         * so one mask cannot express "half". Two sprites can: full-strength
+         * fog masked to everything undiscovered, and a half-alpha veil masked
+         * to the visited rooms. Same three states, nothing exotic under it.
+         */
+        const undiscovered = buildFogSprite(rect, 1);
+        undiscovered.mask = roomMask(rect, regions, region =>
+            !current.has(region.name) && !discovered.has(region.name), { invert: true });
+        container.addChild(undiscovered, undiscovered.mask);
+
+        const visited = regions.filter(r => !current.has(r.name) && discovered.has(r.name));
+        if (visited.length) {
+            const veil = buildFogSprite(rect, VEIL_ALPHA);
+            veil.mask = roomMask(rect, visited, () => true);
+            container.addChild(veil, veil.mask);
+        }
     } catch (err) {
         error("Could not repaint the fog of war", err);
+    }
+}
+
+/**
+ * Empty the layer, masks included.
+ *
+ * A mask assigned to `sprite.mask` is ALSO added to the container as a child
+ * here (PIXI requires a Graphics mask to be in the scene graph to be
+ * transformed with it), so `removeChildren()` does reach them — but the
+ * `.mask` reference has to be dropped first, or destroying the sprite leaves
+ * the filter pointing at a destroyed Graphics for one frame.
+ */
+function clearLayer(container) {
+    for (const child of container.removeChildren()) {
+        child.mask = null;
+        child.destroy({ children: true });
     }
 }
 
@@ -392,106 +513,120 @@ function cssColour(name, fallback) {
     }
 }
 
-let driftTicker = null;
-
-function buildFogSprite(rect) {
-    const sprite = new PIXI.TilingSprite(fogBaseTexture(), rect.width, rect.height);
-    sprite.tileScale.set(4, 4);
-
-    // A very slow drift, so the fog reads as something rather than a static
-    // image — and stopped the instant nothing needs it, rather than a ticker
-    // left running against a destroyed sprite.
-    if (driftTicker) canvas.app.ticker.remove(driftTicker);
-    driftTicker = () => {
+/**
+ * The drift tickers, one per live sprite.
+ *
+ * A single module-level `driftTicker` was wrong the moment there were two fog
+ * sprites: the second call replaced the first's ticker, so the undiscovered
+ * fog stopped moving as soon as a veil appeared. Each sprite now owns its own,
+ * and each removes itself when its sprite is destroyed on the next repaint.
+ */
+function driftFor(sprite, speed) {
+    const tick = () => {
         if (sprite.destroyed) {
-            canvas.app.ticker.remove(driftTicker);
-            driftTicker = null;
+            canvas.app?.ticker?.remove(tick);
             return;
         }
-        sprite.tilePosition.x += 0.05;
-        sprite.tilePosition.y += 0.03;
+        sprite.tilePosition.x += 0.05 * speed;
+        sprite.tilePosition.y += 0.03 * speed;
     };
-    canvas.app.ticker.add(driftTicker);
+    canvas.app?.ticker?.add(tick);
+}
 
+function buildFogSprite(rect, alpha) {
+    const sprite = new PIXI.TilingSprite(fogBaseTexture(), rect.width, rect.height);
+    sprite.tileScale.set(4, 4);
+    sprite.alpha = alpha;
+    // The veil drifts slower than the full fog, so the two read as depth
+    // rather than as one sheet cut into pieces.
+    driftFor(sprite, alpha < 1 ? 0.6 : 1);
     return sprite;
 }
 
-/* ---- the mask: full fog, minus two kinds of holes ----------------------- */
+/* ---- the masks: plain silhouettes, one per fog strength ------------------ */
 
 /**
- * Build the graduated mask, baked to a texture once per repaint rather than
- * composited live: PIXI's sprite masking samples a mask's own alpha, and the
- * only way to get DIFFERENT alphas for the current room (fully erased) and a
- * visited one (erased to ~50%) is `BLEND_MODES.ERASE` — which only behaves
- * the way it is meant to during an actual render pass, not when handed
- * straight to a live `SpriteMaskFilter`. So the erase passes are rendered to
- * a `RenderTexture` here, once, and that texture becomes the mask.
+ * A Graphics silhouette covering the regions `keep` accepts — or, with
+ * `invert`, the whole scene MINUS those regions, cut out with `beginHole`.
+ *
+ * Binary by nature: a Graphics mask is a shape, not a gradient. That is
+ * exactly why it is reliable, and why the caller uses two of them at
+ * different sprite alphas rather than one graduated mask (see `repaintFog`).
+ *
+ * Positioned at `-rect.x/-rect.y` because region polygons are in scene
+ * coordinates while the layer itself is translated to the padded rect's
+ * origin.
  */
-function buildMaskSprite(rect, regions, currentRooms, discoveredRooms) {
-    const holes = new PIXI.Container();
+function roomMask(rect, regions, keep, { invert = false } = {}) {
+    const mask = new PIXI.Graphics();
+    mask.beginFill(0xffffff, 1);
 
-    const base = new PIXI.Graphics();
-    base.beginFill(0xffffff, 1).drawRect(0, 0, rect.width, rect.height).endFill();
-    holes.addChild(base);
-
-    for (const region of regions) {
-        const isCurrent = currentRooms.has(region.name);
-        const isVisited = !isCurrent && discoveredRooms.has(region.name);
-        if (!isCurrent && !isVisited) continue;
-
-        const erase = new PIXI.Graphics();
-        erase.position.set(-rect.x, -rect.y);
-        erase.blendMode = PIXI.BLEND_MODES.ERASE;
-        drawRegionShape(erase, region, isCurrent ? 1 : VEIL_ALPHA);
-        holes.addChild(erase);
+    if (invert) {
+        mask.drawRect(0, 0, rect.width, rect.height);
+        mask.beginHole();
+        for (const region of regions) {
+            if (keep(region)) continue;          // stays fogged: not a hole
+            traceRegionPathsAt(mask, region, rect);
+        }
+        mask.endHole();
+    } else {
+        for (const region of regions) {
+            if (!keep(region)) continue;
+            traceRegionPathsAt(mask, region, rect);
+        }
     }
 
-    const texture = PIXI.RenderTexture.create({ width: Math.max(1, rect.width), height: Math.max(1, rect.height) });
-    canvas.app.renderer.render(holes, { renderTexture: texture, clear: true });
-    holes.destroy({ children: true });
-
-    return new PIXI.Sprite(texture);
+    mask.endFill();
+    return mask;
 }
 
 /**
- * Trace a region's true shape onto a Graphics object — no fill, no stroke,
- * just the path — so a caller can wrap it in whatever `beginFill`/`beginHole`
- * sequence it needs. `RegionDocument#polygons` first, the raw `shapes` array
- * as the fallback, same ordering `movement.mjs`'s `boundsOf` uses and for the
- * same reason: not every scene state exposes the rendered placeable's
- * computed geometry.
+ * Trace a region's real shape onto a Graphics — `RegionDocument#polygons`
+ * first, the raw `shapes` array as the fallback, the same ordering
+ * `movement.mjs`'s `boundsOf` uses and for the same reason: not every scene
+ * state exposes the rendered placeable's computed geometry. Path only, no
+ * fill, so the caller decides whether it is a fill, a hole or a stroke.
+ *
+ * Coordinates are shifted from SCENE space into the layer's own space, since
+ * the fog container is translated to the padded rect's origin.
  */
-function traceRegionPaths(graphics, region) {
+function traceRegionPathsAt(graphics, region, rect) {
     const polys = region?.polygons ?? region?.object?.polygons;
     if (polys?.length) {
-        for (const poly of polys) graphics.drawPolygon(poly);
+        for (const poly of polys) {
+            const pts = poly.points ?? poly;
+            if (!pts?.length) continue;
+            graphics.drawPolygon(shift(pts, rect));
+        }
         return true;
     }
 
     let drew = false;
     for (const shape of region?.shapes ?? []) {
         if (shape.points?.length) {
-            graphics.drawPolygon(shape.points);
+            graphics.drawPolygon(shift(shape.points, rect));
             drew = true;
         } else if (Number.isFinite(shape.x) && Number.isFinite(shape.width)) {
-            graphics.drawRect(shape.x, shape.y, shape.width, shape.height);
+            graphics.drawRect(shape.x - rect.x, shape.y - rect.y, shape.width, shape.height);
             drew = true;
         } else if (Number.isFinite(shape.radiusX)) {
-            graphics.drawEllipse(shape.x, shape.y, shape.radiusX, shape.radiusY);
+            graphics.drawEllipse(shape.x - rect.x, shape.y - rect.y, shape.radiusX, shape.radiusY);
             drew = true;
         } else if (Number.isFinite(shape.radius)) {
-            graphics.drawCircle(shape.x, shape.y, shape.radius);
+            graphics.drawCircle(shape.x - rect.x, shape.y - rect.y, shape.radius);
             drew = true;
         }
     }
     return drew;
 }
 
-/** `traceRegionPaths`, wrapped in its own fill — the mask's erase passes. */
-function drawRegionShape(graphics, region, alpha) {
-    graphics.beginFill(0xffffff, alpha);
-    traceRegionPaths(graphics, region);
-    graphics.endFill();
+function shift(points, rect) {
+    const out = new Array(points.length);
+    for (let i = 0; i < points.length; i += 2) {
+        out[i] = points[i] - rect.x;
+        out[i + 1] = points[i + 1] - rect.y;
+    }
+    return out;
 }
 
 /* ==========================================================================
@@ -614,7 +749,7 @@ function playDiscoveryAnimation(room, tokenDoc) {
         ontick: () => {
             overlay.clear();
             overlay.beginFill(ink, 1);
-            traceRegionPaths(overlay, region);
+            traceRegionPathsAt(overlay, region, rect);
             overlay.beginHole();
             overlay.drawCircle(origin.x, origin.y, state.radius);
             overlay.endHole();
@@ -649,7 +784,7 @@ function flashOutline(container, region) {
     const outline = new PIXI.Graphics();
     outline.position.set(rect.x, rect.y);
     outline.lineStyle(3, gold, 1);
-    traceRegionPaths(outline, region);
+    traceRegionPathsAt(outline, region, rect);
     container.addChild(outline);
 
     const label = new PIXI.Text(region.name, {

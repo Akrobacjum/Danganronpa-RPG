@@ -45,6 +45,15 @@ export const TRIAL_FLAGS = {
     objection: "objection",
     /** Who presented it, for the GM's log. */
     presenter: "presenter",
+    /**
+     * Who an objection was aimed at — the actor id, because this one is read
+     * back by code (`openObjection`) rather than only printed. `presenter`
+     * above is a NAME because it is only ever displayed, and a name survives
+     * an actor being deleted after the trial.
+     */
+    target: "objectionTarget",
+    /** The name to print for that target, for the same reason as `presenter`. */
+    targetName: "objectionTargetName",
     chapter: "chapter"
 };
 
@@ -60,6 +69,21 @@ export function inClassTrial() {
 /**
  * Ask how this bullet is going on the table, then put it there.
  *
+ * PRESENT AND OBJECTION ARE NOT THE SAME ACT, and this window is where that
+ * stops being a secret. Both buttons used to sit here unlabelled, which made
+ * them look like a formatting choice — gold card or red card. They are not:
+ *
+ *   Present    the evidence goes on the table. The discussion carries on
+ *              around it, and nobody's turn to speak changes.
+ *   Objection  the evidence goes on the table AND the objector takes the
+ *              floor: a minute in which only they may speak, followed by two
+ *              minutes in which only they and the person they named may. It
+ *              is the one action in the game that takes the floor away from
+ *              everybody else, which is why it needs a target and a warning.
+ *
+ * One button in the inventory row still opens this window; what changed is
+ * what the window says about the choice behind it.
+ *
  * @param {Actor} actor
  * @param {Item} item
  */
@@ -73,6 +97,29 @@ export async function presentDialog(actor, item) {
 
     const data = truthBulletData(item);
 
+    const { trialFloor, FLOOR_MODES } = await import("./trial-floor.mjs");
+    const { livingStudents } = await import("./chapter.mjs");
+
+    const floor = trialFloor();
+    // Refused before the card is ever posted, so the player is told why rather
+    // than watching an objection land as an ordinary card because the floor
+    // quietly turned it down. `openObjection` checks this again on the GM's
+    // side — this is the courtesy, that is the rule.
+    const blocked = objectionBlockedReason(floor, FLOOR_MODES);
+
+    const targets = livingStudents()
+        .filter(a => a.id !== actor.id)
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+    const targetField = targets.length
+        ? `<label>${game.i18n.localize("DRPG.Trial.objectionTarget")}
+            <select name="target">${targets.map(a =>
+                `<option value="${a.id}">${foundry.utils.escapeHTML(a.name)}</option>`
+            ).join("")}</select></label>`
+        : `<p class="notes">${game.i18n.localize("DRPG.Trial.objectionNobody")}</p>`;
+
+    const readTarget = d => d.element.querySelector("[name=target]")?.value ?? "";
+
     const choice = await DialogV2.wait({
         window: { title: game.i18n.format("DRPG.Trial.presentTitle", { name: item.name }) },
         classes: ["drpg-panel"],
@@ -85,6 +132,12 @@ export async function presentDialog(actor, item) {
                 <textarea name="comment" rows="2"
                     placeholder="${game.i18n.localize("DRPG.Trial.commentPlaceholder")}"></textarea></label>
             <p class="notes">${game.i18n.localize("DRPG.Trial.presentNote")}</p>
+
+            <fieldset class="drpg-objection-block">
+                <legend>${game.i18n.localize("DRPG.Trial.objection")}</legend>
+                <p class="drpg-warning">${game.i18n.localize("DRPG.Trial.objectionWarning")}</p>
+                ${blocked ? `<p class="notes">${blocked}</p>` : targetField}
+            </fieldset>
         </form>`),
         buttons: [
             {
@@ -96,8 +149,13 @@ export async function presentDialog(actor, item) {
             },
             {
                 action: "objection", label: game.i18n.localize("DRPG.Trial.objection"),
+                // Greyed out rather than hidden: a player needs to see that
+                // Objection exists and why they cannot use it this second,
+                // which is what the reason above the button says.
+                disabled: Boolean(blocked) || !targets.length,
                 callback: (e, b, d) => ({
                     objection: true,
+                    targetId: readTarget(d),
                     comment: d.element.querySelector("[name=comment]").value.trim()
                 })
             },
@@ -111,23 +169,48 @@ export async function presentDialog(actor, item) {
 }
 
 /**
+ * Why this player may not object right now, or `null` when they may.
+ *
+ * An objection during somebody else's objection or rebuttal is the one case
+ * that has to be refused rather than queued: it would reset the clock onto a
+ * new pair, and the rebuttal the first objection had already bought would
+ * never happen at all.
+ */
+function objectionBlockedReason(floor, FLOOR_MODES) {
+    if (!floor) return game.i18n.localize("DRPG.Trial.objectionNoFloor");
+    if (floor.mode === FLOOR_MODES.objection) {
+        return game.i18n.localize("DRPG.Trial.objectionDuringObjection");
+    }
+    if (floor.mode === FLOOR_MODES.rebuttal) {
+        return game.i18n.localize("DRPG.Trial.objectionDuringRebuttal");
+    }
+    return null;
+}
+
+/**
  * Post the card. Built and sent by the presenter's own client — everything on
  * it is already public, and during a trial the delay of a round trip through
  * the GM is exactly the wrong cost to pay for an interruption.
  */
-export async function presentBullet(actor, item, { objection = false, comment = "" } = {}) {
+export async function presentBullet(actor, item, {
+    objection = false, comment = "", targetId = ""
+} = {}) {
     const data = truthBulletData(item);
     if (!data) return false;
 
+    const target = objection && targetId ? (game.actors.get(targetId) ?? null) : null;
+
     try {
         await announce({
-            content: buildCard(actor, data, { objection, comment }),
+            content: buildCard(actor, data, { objection, comment, target }),
             speaker: ChatMessage.getSpeaker({ actor }),
             flags: {
                 [MODULE_ID]: {
                     [TRIAL_FLAGS.present]: true,
                     [TRIAL_FLAGS.objection]: objection,
                     [TRIAL_FLAGS.presenter]: actor.name,
+                    [TRIAL_FLAGS.target]: target?.id ?? null,
+                    [TRIAL_FLAGS.targetName]: target?.name ?? null,
                     [TRIAL_FLAGS.chapter]: getClock().chapter,
                     // This file raises its own sticky card from the
                     // `createChatMessage` hook below; the generic popup layer
@@ -147,7 +230,7 @@ export async function presentBullet(actor, item, { objection = false, comment = 
 }
 
 /** The card itself. Public knowledge only — see the note at the top. */
-function buildCard(actor, data, { objection, comment }) {
+function buildCard(actor, data, { objection, comment, target = null }) {
     const hint = TRUTH_BULLET_TYPES[data.shownType]?.hint ?? "";
 
     const badges = [
@@ -168,9 +251,14 @@ function buildCard(actor, data, { objection, comment }) {
         ${objection
             ? `<div class="drpg-objection-banner">${game.i18n.localize("DRPG.Trial.objectionBanner")}</div>`
             : ""}
-        <div class="drpg-evidence-who">${game.i18n.format("DRPG.Trial.presentedBy", {
-            who: foundry.utils.escapeHTML(actor.name)
-        })}</div>
+        <div class="drpg-evidence-who">${objection && target
+            ? game.i18n.format("DRPG.Trial.objectedTo", {
+                who: foundry.utils.escapeHTML(actor.name),
+                target: foundry.utils.escapeHTML(target.name)
+            })
+            : game.i18n.format("DRPG.Trial.presentedBy", {
+                who: foundry.utils.escapeHTML(actor.name)
+            })}</div>
         <h3 class="drpg-evidence-name">${foundry.utils.escapeHTML(data.name)}</h3>
         <div class="drpg-tb-badges">${badges.join("")}</div>
         ${data.playerText
@@ -212,14 +300,21 @@ export function registerTrial() {
         // Showing the evidence and taking the floor are one act in the guide,
         // so they are one act here. Exactly one client writes it: this hook
         // fires on every GM, and two of them racing on the same setting is how
-        // a queue ends up pointing at the wrong person.
+        // the floor ends up pointing at the wrong person.
         if (!objection || !isPrimaryGm()) return;
-        const actorId = message.speaker?.actor;
-        if (!actorId) return;
+
+        const objectorId = message.speaker?.actor;
+        const targetId = message.getFlag(MODULE_ID, TRIAL_FLAGS.target);
+        // An objection card with no target cannot open the exchange — there is
+        // nobody for the rebuttal to be with. That should be impossible from
+        // the dialog, which requires one, so this is the guard for a card
+        // posted through the API or left over from before this stage: the
+        // evidence still lands, the floor simply does not move.
+        if (!objectorId || !targetId) return;
 
         import("./trial-floor.mjs")
-            .then(m => m.seizeFloor(actorId))
-            .catch(err => error("Could not hand the floor to the objector", err));
+            .then(m => m.openObjection(objectorId, targetId))
+            .catch(err => error("Could not open the objection", err));
     });
 }
 
@@ -248,6 +343,10 @@ export function presentedThisChapter({ objectionsOnly = false, chapter = null } 
             id: m.id,
             presenter: m.getFlag(MODULE_ID, TRIAL_FLAGS.presenter) ?? "?",
             objection: Boolean(m.getFlag(MODULE_ID, TRIAL_FLAGS.objection)),
+            // Null on every card posted before this stage, and on any ordinary
+            // presentation — the log prints a dash for both rather than
+            // pretending an old objection had a target it never recorded.
+            target: m.getFlag(MODULE_ID, TRIAL_FLAGS.targetName) ?? null,
             chapter: m.getFlag(MODULE_ID, TRIAL_FLAGS.chapter) ?? null,
             timestamp: m.timestamp
         }))
@@ -272,6 +371,7 @@ export async function openObjectionLog() {
             ? `<strong>${game.i18n.localize("DRPG.Trial.objectionShort")}</strong>`
             : game.i18n.localize("DRPG.Trial.presentShort")}</td>
         <td>${foundry.utils.escapeHTML(e.presenter)}</td>
+        <td>${e.target ? foundry.utils.escapeHTML(e.target) : "—"}</td>
         <td>${new Date(e.timestamp).toLocaleTimeString()}</td>
     </tr>`).join("");
 
@@ -284,7 +384,12 @@ export async function openObjectionLog() {
             <p>${game.i18n.format("DRPG.Trial.logSummary", {
                 total: entries.length, objections
             })}</p>
-            <table class="drpg-objection-log"><tbody>${rows}</tbody></table>
+            <table class="drpg-objection-log"><thead><tr>
+                <th>${game.i18n.localize("DRPG.Trial.logKind")}</th>
+                <th>${game.i18n.localize("DRPG.Trial.logWho")}</th>
+                <th>${game.i18n.localize("DRPG.Trial.logAgainst")}</th>
+                <th>${game.i18n.localize("DRPG.Trial.logWhen")}</th>
+            </tr></thead><tbody>${rows}</tbody></table>
         </div>`),
         buttons: [{ action: "close", label: game.i18n.localize("DRPG.Panel.close"), default: true }],
         rejectClose: false

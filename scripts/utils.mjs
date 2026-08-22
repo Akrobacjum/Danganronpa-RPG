@@ -346,27 +346,98 @@ export function dialogContent(markup) {
 }
 
 /**
- * `DialogV2.wait`, for a window built around a table.
+ * `DialogV2.wait`, for a window built around a table — sized to fit its own
+ * table, automatically, with no resize handle.
  *
- * The CSS in the DIALOGS section of danganronpa.css already grows a window
- * with a table in it up to the table's own width, capped at 94vw — but a GM on
- * a small screen, or a table that only gets wide once a few rows come in,
- * still needs to be able to drag the window bigger by hand. Foundry's own
- * `window.resizable` is what that costs, and forgetting it on any one of the
- * module's table windows was easy: it is a flag on the caller, not something
- * the content decides, so nothing in the markup itself catches the omission.
+ * WHY NOT CSS, AND WHY NOT A DRAG HANDLE. Two earlier attempts at this failed
+ * in ways worth recording, because both looked correct in the stylesheet:
  *
- * One function, called wherever a table dialog opens, replaces that with
- * "forget it in one place". `options.window` still wins over the default —
- * this hands out a default, it does not reshape what a caller asks for — and
- * every other option (`content`, `buttons`, `classes`, `render`, …) passes
- * through untouched.
+ *   · `width: max-content !important` on the window. `!important` outranks an
+ *     inline style, and both the resize handle AND ApplicationV2's own layout
+ *     write inline widths — so the rule fought whatever the application had
+ *     just decided, and an intrinsic width on a frame that already has a pixel
+ *     width left the overflowing columns invisible AND unreachable.
+ *   · a manual resize handle as the escape hatch. That is a workaround asking
+ *     the GM to fix the window every time they open it, for a size the module
+ *     can simply measure.
+ *
+ * So the window is measured after render instead: the table states its natural
+ * width in the DOM (`width: max-content` on the TABLE, which is where that
+ * belongs), this reads it back and sets the window to exactly that, clamped to
+ * the viewport. A table narrower than the default opens narrow; a wide one
+ * opens wide; nothing has to be dragged, and the one case that still cannot
+ * fit — a table wider than the screen — scrolls inside `.window-content`,
+ * which is what its `overflow: auto` is for.
+ *
+ * `options.window` and `options.position` still win over these defaults, and
+ * a caller's own `render` runs untouched before the measurement.
  */
 export function tableDialog(options) {
     const DialogV2 = foundry.applications.api.DialogV2;
+    const callerRender = options.render;
+
     return DialogV2.wait({
         ...options,
-        window: { resizable: true, ...options.window }
+        // No handle: the size is derived, not chosen. A handle here would only
+        // ever be used to correct a size this function should have got right.
+        window: { resizable: false, ...options.window },
+        // `height: auto` lets the window take its content's height, which the
+        // 80vh cap on `.window-content` then bounds — so a long table scrolls
+        // rather than growing off the bottom of the screen.
+        position: { height: "auto", ...options.position },
+        render: (event, dialog) => {
+            try {
+                callerRender?.(event, dialog);
+            } catch (err) {
+                error("A table dialog's own render hook failed", err);
+            }
+            fitWindowToTable(dialog);
+        }
+    });
+}
+
+/**
+ * Set a dialog's width to the widest table it actually contains.
+ *
+ * Deferred one animation frame: at `render` time the content is in the DOM but
+ * has not necessarily been laid out, and `scrollWidth` before layout reports
+ * the pre-layout width — which is how a measured-fit window ends up the wrong
+ * size in exactly the cases that need it most (the widest tables).
+ *
+ * `scrollWidth` rather than `getBoundingClientRect().width`: the table is the
+ * thing overflowing its container, and the bounding box reports the CLIPPED
+ * width, i.e. the number we already have. `scrollWidth` is the full one.
+ */
+function fitWindowToTable(dialog) {
+    const root = dialog?.element;
+    if (!root) return;
+
+    requestAnimationFrame(() => {
+        try {
+            const content = root.querySelector(".window-content");
+            if (!content) return;
+
+            let widest = 0;
+            for (const table of content.querySelectorAll("table")) {
+                widest = Math.max(widest, table.scrollWidth);
+            }
+            if (!widest) return;                       // no table: leave it alone
+
+            const styles = getComputedStyle(content);
+            const padding = (parseFloat(styles.paddingLeft) || 0)
+                + (parseFloat(styles.paddingRight) || 0);
+            // A couple of pixels of slack for the content box's own borders, so
+            // a table measured at exactly its container's width does not round
+            // down into a scrollbar it does not need.
+            const wanted = Math.ceil(widest + padding) + 4;
+
+            const cap = Math.round((window.innerWidth || 1200) * 0.94);
+            dialog.setPosition({ width: Math.min(wanted, cap), height: "auto" });
+        } catch (err) {
+            // A window that did not resize is readable; one that threw here
+            // would take the whole dialog down with it.
+            debug("Could not fit a table window to its table", err);
+        }
     });
 }
 
