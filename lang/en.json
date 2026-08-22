@@ -1027,6 +1027,7 @@
       "concealedShort": "hidden",
       "table": "Draws from",
       "favours": "Good place to look for",
+      "lockedColumn": "Locked",
       "globalPool": "The global pool",
       "noRooms": "This scene has no room regions yet.",
       "noneSet": "No bedrooms have been assigned yet.",
@@ -1035,6 +1036,15 @@
         "one": "Updated {n} room.",
         "other": "Updated {n} rooms."
       },
+      "tabRooms": "Rooms",
+      "tabFog": "Fog",
+      "student": "Character",
+      "fogIntro": "Which rooms each character has already discovered, on this scene. The room they are standing in right now shows full colour regardless of what is checked here — this is only about ROOMS THEY HAVE ALREADY BEEN TO, which show as a dim veil instead of full fog.",
+      "fogUncovered": "{pct}% of this scene's surface belongs to no room region at all — it will show as permanent fog rather than a wall gap, which usually means a room still needs drawing.",
+      "fogNote": "Discover all / Hide all replace every checkbox above for every character at once. The individual checkboxes are for one room, one character.",
+      "discoverAll": "Discover all",
+      "hideAll": "Hide all",
+      "unlockedAnnounce": "The door to {room} is unlocked.",
       "inspectTitle": "Look inside the stashes",
       "inspectNote": "Take things out from Give / take items — a stashed item is an ordinary item on its owner's sheet.",
       "rifle": "Go through the stash",
@@ -1450,7 +1460,8 @@
       "costAction": "That cost an action — {left} left.",
       "noBudget": "No free Move and no actions left. Move your token back.",
       "notConnected": "{to} is not connected to {from}. From here you can reach: {rooms}",
-      "noBudgetLong": "No free Move and no actions left — this crossing was not paid for. Move back, or ask the GM."
+      "noBudgetLong": "No free Move and no actions left — this crossing was not paid for. Move back, or ask the GM.",
+      "locked": "The door is locked."
     },
     "Project": {
       "heading": "Projects",

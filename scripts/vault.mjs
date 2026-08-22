@@ -23,8 +23,8 @@
 import { MODULE_ID, ITEM_CATEGORIES } from "./config.mjs";
 import { ITEM_FLAGS, LOCATIONS, isStashed, canCarry } from "./inventory.mjs";
 // The one room lookup. movement.mjs does not reach back into this file.
-import { roomOfActor } from "./movement.mjs";
-import { dialogContent, tableDialog, whisperToOwner, log, error, plural } from "./utils.mjs";
+import { roomOfActor, ROOM_FLAGS } from "./movement.mjs";
+import { dialogContent, tableDialog, whisperToOwner, announce, log, error, plural, workingScene } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -46,12 +46,12 @@ export const VAULT_FLAGS = {
 };
 
 /** The RollTable this room draws from, or `null` for the global pool. */
-export function roomTable(room, scene = canvas?.scene) {
+export function roomTable(room, scene = workingScene()) {
     return regionsByName(scene).get(room)?.getFlag(MODULE_ID, VAULT_FLAGS.table) || null;
 }
 
 /** Categories this room is a good place to search for. */
-export function roomFavours(room, scene = canvas?.scene) {
+export function roomFavours(room, scene = workingScene()) {
     return regionsByName(scene).get(room)?.getFlag(MODULE_ID, VAULT_FLAGS.favours) ?? [];
 }
 
@@ -70,7 +70,7 @@ export function favoursCategory(room, category) {
  * WHOSE ROOM IS THIS
  * ========================================================================== */
 
-function regionsByName(scene = canvas?.scene) {
+function regionsByName(scene = workingScene()) {
     const map = new Map();
     for (const region of scene?.regions ?? []) {
         if (region.name) map.set(region.name, region);
@@ -79,17 +79,17 @@ function regionsByName(scene = canvas?.scene) {
 }
 
 /** The actor id whose stash lives in this room, or `null`. */
-export function vaultOwnerOf(room, scene = canvas?.scene) {
+export function vaultOwnerOf(room, scene = workingScene()) {
     return regionsByName(scene).get(room)?.getFlag(MODULE_ID, VAULT_FLAGS.owner) ?? null;
 }
 
 /** Has a "build a stash" project made this room's contents hard to find? */
-export function isConcealed(room, scene = canvas?.scene) {
+export function isConcealed(room, scene = workingScene()) {
     return Boolean(regionsByName(scene).get(room)?.getFlag(MODULE_ID, VAULT_FLAGS.concealed));
 }
 
 /** The room this character stashes things in, or `null`. */
-export function vaultRoomFor(actor, scene = canvas?.scene) {
+export function vaultRoomFor(actor, scene = workingScene()) {
     if (!actor) return null;
     for (const [name, region] of regionsByName(scene)) {
         if (region.getFlag(MODULE_ID, VAULT_FLAGS.owner) === actor.id) return name;
@@ -98,7 +98,7 @@ export function vaultRoomFor(actor, scene = canvas?.scene) {
 }
 
 /** Every room on the scene that belongs to somebody. */
-export function allVaults(scene = canvas?.scene) {
+export function allVaults(scene = workingScene()) {
     const out = [];
     for (const [name, region] of regionsByName(scene)) {
         const owner = region.getFlag(MODULE_ID, VAULT_FLAGS.owner);
@@ -443,12 +443,28 @@ export async function openRoomSetupDialog() {
 
     const { studentActors } = await import("./monokuma.mjs");
     const { REST_FLAGS, setRestRoom } = await import("./rest.mjs");
+    const { discoveredFor, saveDiscoveryMatrix, setDiscovery, sceneUncoveredPercent } =
+        await import("./fog.mjs");
+    const scene = workingScene();
     const students = studentActors();
     const tables = Array.from(game.tables ?? []).map(t => t.name).sort();
     // Truth Bullets are not searched for, so they are not a category a room can
     // stock or favour.
     const categories = Object.entries(ITEM_CATEGORIES).filter(([key]) => key !== "truthBullet");
     const regions = regionsByName();
+
+    const uncovered = sceneUncoveredPercent(scene);
+
+    const fogRows = students.map(actor => {
+        const escName = foundry.utils.escapeHTML(actor.name);
+        const known = new Set(discoveredFor(scene?.id, actor.id));
+        const boxes = rooms.map(room => {
+            const escRoom = foundry.utils.escapeHTML(room);
+            return `<td style="text-align:center"><input type="checkbox"
+                name="fog:${escRoom}:${actor.id}" ${known.has(room) ? "checked" : ""} /></td>`;
+        }).join("");
+        return `<tr><td><strong>${escName}</strong></td>${boxes}</tr>`;
+    }).join("");
 
     const rows = rooms.map(room => {
         const owner = vaultOwnerOf(room) ?? "";
@@ -477,6 +493,8 @@ export async function openRoomSetupDialog() {
                 ${region?.getFlag(MODULE_ID, REST_FLAGS.short) ? "checked" : ""} /></td>
             <td style="text-align:center"><input type="checkbox" name="long:${esc}"
                 ${region?.getFlag(MODULE_ID, REST_FLAGS.long) ? "checked" : ""} /></td>
+            <td style="text-align:center"><input type="checkbox" name="locked:${esc}"
+                ${region?.getFlag(MODULE_ID, ROOM_FLAGS.locked) ? "checked" : ""} /></td>
             <td><select name="table:${esc}">
                 <option value="">${game.i18n.localize("DRPG.Vault.globalPool")}</option>
                 ${tableOptions}</select></td>
@@ -493,50 +511,103 @@ export async function openRoomSetupDialog() {
         // right-hand columns with no way to scroll to them.
         classes: ["drpg-panel", "drpg-projects"],
         content: dialogContent(`<form>
-            <p>${game.i18n.localize("DRPG.Vault.manageIntro")}</p>
-            <table class="drpg-vault-table"><thead><tr>
-                <th>${game.i18n.localize("DRPG.Vault.room")}</th>
-                <th>${game.i18n.localize("DRPG.Vault.owner")}</th>
-                <th>${game.i18n.localize("DRPG.Vault.concealed")}</th>
-                <th>${game.i18n.localize("DRPG.Rest.shortColumn")}</th>
-                <th>${game.i18n.localize("DRPG.Rest.longColumn")}</th>
-                <th>${game.i18n.localize("DRPG.Vault.table")}</th>
-                <th>${game.i18n.localize("DRPG.Vault.favours")}</th>
-            </tr></thead><tbody>${rows}</tbody></table>
-            <p class="notes">${game.i18n.localize("DRPG.Vault.manageNote")}</p>
-            <p class="notes">${game.i18n.localize("DRPG.Rest.manageIntro")}</p>
+            <nav class="drpg-dashboard-tabs">
+                <button type="button" class="drpg-dashboard-tab active" data-drpg-tab="rooms">${
+                    game.i18n.localize("DRPG.Vault.tabRooms")}</button>
+                <button type="button" class="drpg-dashboard-tab" data-drpg-tab="fog">${
+                    game.i18n.localize("DRPG.Vault.tabFog")}</button>
+            </nav>
+
+            <div data-drpg-panel="rooms">
+                <p>${game.i18n.localize("DRPG.Vault.manageIntro")}</p>
+                <table class="drpg-vault-table"><thead><tr>
+                    <th>${game.i18n.localize("DRPG.Vault.room")}</th>
+                    <th>${game.i18n.localize("DRPG.Vault.owner")}</th>
+                    <th>${game.i18n.localize("DRPG.Vault.concealed")}</th>
+                    <th>${game.i18n.localize("DRPG.Rest.shortColumn")}</th>
+                    <th>${game.i18n.localize("DRPG.Rest.longColumn")}</th>
+                    <th>${game.i18n.localize("DRPG.Vault.lockedColumn")}</th>
+                    <th>${game.i18n.localize("DRPG.Vault.table")}</th>
+                    <th>${game.i18n.localize("DRPG.Vault.favours")}</th>
+                </tr></thead><tbody>${rows}</tbody></table>
+                <p class="notes">${game.i18n.localize("DRPG.Vault.manageNote")}</p>
+                <p class="notes">${game.i18n.localize("DRPG.Rest.manageIntro")}</p>
+            </div>
+
+            <div data-drpg-panel="fog" style="display:none">
+                <p>${game.i18n.localize("DRPG.Vault.fogIntro")}</p>
+                ${uncovered > 0 ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vault.fogUncovered",
+                    { pct: uncovered })}</p>` : ""}
+                ${rooms.length ? `<table class="drpg-vault-table"><thead><tr>
+                    <th>${game.i18n.localize("DRPG.Vault.student")}</th>
+                    ${rooms.map(r => `<th>${foundry.utils.escapeHTML(r)}</th>`).join("")}
+                </tr></thead><tbody>${fogRows}</tbody></table>` : ""}
+                <p class="notes">${game.i18n.localize("DRPG.Vault.fogNote")}</p>
+            </div>
         </form>`),
         buttons: [
             {
                 action: "ok", label: game.i18n.localize("DRPG.Panel.apply"), default: true,
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
-                    const pick = name => f.querySelector(`[name="${name}"]`);
-                    return rooms.map(room => ({
+                    const pick = name => f.querySelector(`[name="${CSS.escape(name)}"]`);
+                    const roomRows = rooms.map(room => ({
                         room,
-                        owner: pick(`owner:${CSS.escape(room)}`)?.value ?? "",
-                        concealed: Boolean(pick(`concealed:${CSS.escape(room)}`)?.checked),
-                        shortRest: Boolean(pick(`short:${CSS.escape(room)}`)?.checked),
-                        longRest: Boolean(pick(`long:${CSS.escape(room)}`)?.checked),
-                        table: pick(`table:${CSS.escape(room)}`)?.value ?? "",
+                        owner: pick(`owner:${room}`)?.value ?? "",
+                        concealed: Boolean(pick(`concealed:${room}`)?.checked),
+                        shortRest: Boolean(pick(`short:${room}`)?.checked),
+                        longRest: Boolean(pick(`long:${room}`)?.checked),
+                        locked: Boolean(pick(`locked:${room}`)?.checked),
+                        table: pick(`table:${room}`)?.value ?? "",
                         favours: categories
                             .map(([key]) => key)
-                            .filter(key => pick(`fav:${CSS.escape(room)}:${key}`)?.checked)
+                            .filter(key => pick(`fav:${room}:${key}`)?.checked)
                     }));
+                    const fogMatrix = {};
+                    for (const actor of students) {
+                        fogMatrix[actor.id] = rooms.filter(room =>
+                            pick(`fog:${room}:${actor.id}`)?.checked);
+                    }
+                    return { rooms: roomRows, fog: fogMatrix };
                 }
             },
+            { action: "discoverAll", label: game.i18n.localize("DRPG.Vault.discoverAll") },
+            { action: "hideAll", label: game.i18n.localize("DRPG.Vault.hideAll") },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
         ],
+        render: (event, dialog) => {
+            const root = dialog.element;
+            const tabs = root.querySelectorAll("[data-drpg-tab]");
+            const panels = root.querySelectorAll("[data-drpg-panel]");
+            for (const tab of tabs) {
+                tab.addEventListener("click", () => {
+                    for (const t of tabs) t.classList.toggle("active", t === tab);
+                    for (const p of panels) {
+                        p.style.display = p.dataset.drpgPanel === tab.dataset.drpgTab ? "" : "none";
+                    }
+                });
+            }
+        },
         rejectClose: false
     });
 
-    if (!Array.isArray(result)) return null;
+    if (!result || result === "cancel") return null;
+
+    if (result === "discoverAll" || result === "hideAll") {
+        await setDiscovery(scene, { rooms, value: result === "discoverAll" });
+        return openRoomSetupDialog();
+    }
+
+    if (result.fog) await saveDiscoveryMatrix(scene, result.fog);
+
+    const rowResults = result.rooms;
+    if (!Array.isArray(rowResults)) return null;
 
     // One owner, one room. Two bedrooms pointing at the same student would make
     // `vaultRoomFor` answer differently depending on region order, which is the
     // kind of bug that only shows up mid-session.
     const claimed = new Map();
-    for (const row of result) {
+    for (const row of rowResults) {
         if (!row.owner) continue;
         if (claimed.has(row.owner)) {
             ui.notifications.error(game.i18n.format("DRPG.Vault.twoRooms", {
@@ -549,7 +620,7 @@ export async function openRoomSetupDialog() {
     }
 
     let changed = 0;
-    for (const row of result) {
+    for (const row of rowResults) {
         const region = regionsByName().get(row.room);
         if (!region) continue;
 
@@ -563,6 +634,7 @@ export async function openRoomSetupDialog() {
             short: Boolean(region.getFlag(MODULE_ID, REST_FLAGS.short)),
             long: Boolean(region.getFlag(MODULE_ID, REST_FLAGS.long))
         };
+        const wasLocked = Boolean(region.getFlag(MODULE_ID, ROOM_FLAGS.locked));
 
         const same = before.owner === (row.owner || null)
             && before.concealed === row.concealed
@@ -570,7 +642,8 @@ export async function openRoomSetupDialog() {
             && beforeRest.short === row.shortRest
             && beforeRest.long === row.longRest
             && before.favours.length === row.favours.length
-            && before.favours.every(f => row.favours.includes(f));
+            && before.favours.every(f => row.favours.includes(f))
+            && wasLocked === row.locked;
         if (same) continue;
 
         await setVaultRoom(row.room, {
@@ -582,6 +655,23 @@ export async function openRoomSetupDialog() {
         // Through rest.mjs's own writer rather than a second flag path, so the
         // two rest flags keep one owner.
         await setRestRoom(row.room, { short: row.shortRest, long: row.longRest });
+
+        if (wasLocked !== row.locked) {
+            await region.setFlag(MODULE_ID, ROOM_FLAGS.locked, row.locked);
+            // Only unlocking is announced. A GM locking a door mid-session is
+            // often the point the players finding out is meant to come from
+            // walking into it and reading "Drzwi są zamknięte." themselves —
+            // the same reasoning `toggleFinalTrialFlag` in mastermind.mjs
+            // applies to starting versus ending. Unlocking has no such
+            // in-fiction moment of its own, so it says so out loud.
+            if (wasLocked && !row.locked) {
+                await announce({
+                    content: `<p>${game.i18n.format("DRPG.Vault.unlockedAnnounce",
+                        { room: foundry.utils.escapeHTML(row.room) })}</p>`
+                });
+            }
+        }
+
         changed++;
     }
 

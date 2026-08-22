@@ -18,7 +18,7 @@ import { MODULE_ID, REMNANT_TYPES, REMNANT_VISIBILITY_LABELS, observeDc } from "
 // not reach back into this file, so there is no cycle to break.
 import { roomOfToken } from "./movement.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { gmIds, log, warn, error, plural } from "./utils.mjs";
+import { gmIds, log, warn, error, plural, workingScene } from "./utils.mjs";
 
 /**
  * Everything the guide says a Remnant carries, recorded on the token so an
@@ -947,7 +947,7 @@ export async function retuneRemnant(sceneId, tokenId, { visibility = null, remov
  *   question, and this shelf is what answers theirs instead.
  * @returns {Array<{token: TokenDocument, data: object, dc: number}>} easiest first.
  */
-export function rankForObserve(room, scene = canvas?.scene, { preferSource = null } = {}) {
+export function rankForObserve(room, scene = workingScene(), { preferSource = null } = {}) {
     const ranked = remnantsInRoom(room, scene)
         .map(token => {
             const data = remnantData(token);
@@ -1060,7 +1060,7 @@ async function seedPublicIfMissing(tokenDoc) {
 }
 
 /** Every Remnant token on a scene. */
-export function remnantsOn(scene = canvas?.scene) {
+export function remnantsOn(scene = workingScene()) {
     if (!scene) return [];
     return scene.tokens.filter(t => t.getFlag(MODULE_ID, REMNANT_FLAGS.isRemnant));
 }
@@ -1073,7 +1073,7 @@ export function remnantsOn(scene = canvas?.scene) {
  * all here: Remnant tokens are created by script, and Foundry has not populated
  * their region membership at that point.
  */
-export function remnantsInRoom(room, scene = canvas?.scene) {
+export function remnantsInRoom(room, scene = workingScene()) {
     if (!room) return [];
     return remnantsOn(scene).filter(t => roomOfToken(t) === room);
 }

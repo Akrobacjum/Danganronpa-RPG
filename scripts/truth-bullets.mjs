@@ -500,6 +500,8 @@ export async function propagateRemnantPublic(remnantTokenId, pub) {
                 await item.update({
                     name: pub.name || item.name,
                     img: pub.img || item.img,
+                    "system.description": pub.playerText
+                        ? `<p>${foundry.utils.escapeHTML(pub.playerText)}</p>` : "",
                     [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.playerText}`]: pub.playerText ?? "",
                     [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tags}`]: pub.tags ?? []
                 });

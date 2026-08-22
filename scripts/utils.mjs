@@ -190,6 +190,24 @@ export function plural(key, data = {}, countOn = "n") {
     return game.i18n.format(`${key}.${picked}`, data);
 }
 
+/**
+ * The scene the GM is actually working on.
+ *
+ * `game.scenes.active` is a world flag — whichever scene was last marked
+ * "active" for player navigation, which a GM building next chapter's map
+ * leaves pointed at the CURRENT one while they work on the NEXT. Season setup
+ * used to read `game.scenes.active` for its "rooms" step and told the GM their
+ * freshly-drawn regions did not exist, because the scene showing on their own
+ * canvas was not the one the flag named.
+ *
+ * `canvas?.scene` — what is actually rendered — is what a GM configuring rooms
+ * means by "this scene", so it wins whenever there is one. The world flag is
+ * only the fallback for code running with no canvas at all.
+ */
+export function workingScene() {
+    return canvas?.scene ?? game.scenes.active ?? null;
+}
+
 export function ownerOf(actor) {
     if (!actor) return null;
     return game.users.find(u => !u.isGM && u.active && actor.testUserPermission(u, "OWNER"))

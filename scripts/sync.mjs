@@ -42,7 +42,9 @@ export const SYNC = {
     /** The Class Trial's speaking floor moved. */
     trial: "trial",
     /** A killing game rule was introduced, reworded or revoked. */
-    rules: "rules"
+    rules: "rules",
+    /** A room was discovered, or the GM edited the fog table by hand. */
+    fog: "fog"
 };
 
 /**
@@ -79,7 +81,8 @@ const SETTING_KINDS = {
     // Every sheet carries the rules list, so a new rule has to redraw them all.
     killingGameRules: SYNC.rules,
     // The motive sits beside them and is read the same way.
-    motive: SYNC.rules
+    motive: SYNC.rules,
+    discoveredRooms: SYNC.fog
 };
 
 export function registerSync() {
@@ -255,6 +258,10 @@ function refresh(kind, data = {}) {
 
         case SYNC.rules:
             run("sheets", () => import("./clock.mjs").then(m => m.refreshSheets()));
+            break;
+
+        case SYNC.fog:
+            run("fog", () => import("./fog.mjs").then(m => m.repaintFog()));
             break;
 
         default:

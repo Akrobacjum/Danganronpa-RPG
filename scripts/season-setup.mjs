@@ -25,7 +25,7 @@ import { studentActors } from "./monokuma.mjs";
 import { monokumaFor } from "./assignments.mjs";
 import { listExperiences, initCharacter } from "./character.mjs";
 import { monokumas } from "./despair.mjs";
-import { dialogContent, log, error } from "./utils.mjs";
+import { dialogContent, log, error, workingScene } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -113,7 +113,7 @@ function steps() {
         },
         {
             key: "rooms",
-            done: (game.scenes.active?.regions?.size ?? 0) > 0,
+            done: (workingScene()?.regions?.size ?? 0) > 0,
             missing: () => [],
             open: async () => (await import("./vault.mjs")).openRoomSetupDialog()
         }
@@ -389,7 +389,8 @@ async function wipeSeason() {
         ["the trial queue", SETTINGS.trialQueue, []],
         ["search tokens", SETTINGS.searchTokens, {}],
         ["Eclipse placements", SETTINGS.eclipseMoves, {}],
-        ["the Key Remnant plan", SETTINGS.keyRemnantPlan, {}]
+        ["the Key Remnant plan", SETTINGS.keyRemnantPlan, {}],
+        ["discovered rooms", SETTINGS.discoveredRooms, {}]
     ]) {
         await step(label, () => game.settings.set(MODULE_ID, key, value));
     }

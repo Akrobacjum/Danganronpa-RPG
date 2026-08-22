@@ -154,7 +154,38 @@ export const SETTINGS = {
      * exactly like the Truth Bullet ledger — a player's client never receives
      * it, full stop.
      */
-    mastermind: "mastermind"
+    mastermind: "mastermind",
+    /**
+     * "Is THIS browser the Mastermind's player." Client-scoped, boolean, and
+     * the only thing about the Mastermind that ever reaches a player's client
+     * at all — see mastermind.mjs's `notifyDoorAccess`.
+     *
+     * Exists because `canCross()` in movement.mjs runs synchronously inside a
+     * `preUpdateToken` veto, on the client dragging the token — there is no
+     * chance to ask a GM mid-hook, and `isMastermind()` itself always answers
+     * `false` off a GM client by construction. A GM setting the Mastermind
+     * privately tells the ONE player who already knows they hold the part —
+     * the guide has them agree to it before the season starts — and that
+     * client alone writes `true` here. Every other client's copy stays `false`
+     * forever; there is no broadcast, only a recipient-addressed whisper.
+     *
+     * Read by movement.mjs (locked doors, sealed rooms) and fog.mjs (the
+     * Mastermind knows the building, not who is in it) — never by
+     * visibility.mjs, which stays exactly as blind to other characters as
+     * every other player's client.
+     */
+    iAmMastermind: "iAmMastermind",
+    /**
+     * Which rooms each character has personally discovered, per scene:
+     * `{ [sceneId]: { [actorId]: [roomName, ...] } }`.
+     *
+     * World-scoped. This is not a secret the way the Mastermind's identity is
+     * — a discovered room is a fact about where the party has already been,
+     * not about who anybody is — so it travels the ordinary way, like
+     * `sealedRooms`. Written only by the primary GM (see fog.mjs), the same
+     * discipline `truth-bullets.mjs` uses for its own ledger writes.
+     */
+    discoveredRooms: "discoveredRooms"
 };
 
 /** Shape of the campaign clock stored under SETTINGS.clock. */
@@ -426,6 +457,22 @@ export function registerSettings() {
         config: false,
         type: Object,
         default: {}
+    });
+
+    game.settings.register(MODULE_ID, SETTINGS.iAmMastermind, {
+        scope: "client",
+        config: false,
+        type: Boolean,
+        default: false
+    });
+
+    // Which rooms each character has discovered. Cleared at season reset.
+    game.settings.register(MODULE_ID, SETTINGS.discoveredRooms, {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => onWorldChange(SETTINGS.discoveredRooms)
     });
 
     game.settings.register(MODULE_ID, SETTINGS.despairFromRolls, {

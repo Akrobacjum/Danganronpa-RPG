@@ -18,14 +18,15 @@
  * `applyToRemnantToken` below is that second rule, running on the same hook.
  */
 
-import { MODULE_ID } from "./config.mjs";
+import { MODULE_ID, FLAGS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { roomOfToken } from "./movement.mjs";
+import { roomOfToken, regionsAt } from "./movement.mjs";
 import { REMNANT_FLAGS, keyOf as remnantKeyOf } from "./remnants.mjs";
 import { TRUTH_BULLET_FLAGS, bulletsOf } from "./truth-bullets.mjs";
-import { debug } from "./utils.mjs";
+import { debug, error } from "./utils.mjs";
 
 export function registerVisibility() {
+    registerVisionBoundary();
     // `refreshToken` is the one that matters: Foundry recomputes `visible` from
     // its own vision logic on every refresh, so setting it from `sightRefresh`
     // alone was immediately overwritten — which is why standing at a gap in a
@@ -55,6 +56,87 @@ export function registerVisibility() {
     // this scene moving at all, so nothing above would otherwise catch it.
     Hooks.on("createItem", item => { if (isMyTruthBullet(item)) applyAll(); });
     Hooks.on("deleteItem", item => { if (isMyTruthBullet(item)) applyAll(); });
+}
+
+/**
+ * A token's vision stops at the room it is standing in, even where the map
+ * draws no wall — a gap, an open archway, a scene built without walls at all
+ * are exactly the cases the room-visibility rule above exists to cover for
+ * TOKEN VISIBILITY, and this is its counterpart for VISION ITSELF: without
+ * it, a player could still see the far side of a doorless opening even
+ * though everyone standing over there is correctly hidden from them.
+ *
+ * SPIKE NEEDED, NOT YET CONFIRMED LIVE — the one place in this module that
+ * reaches into a private API. `Token#_getVisionSourceData` is the method
+ * Foundry calls to build the data object a `PointVisionSource` is
+ * (re)initialised from; `boundaryShapes` on that data is documented for
+ * `PointSourcePolygonConfig` as extra clip shapes intersected into the
+ * source's own polygon. Wrapping the method rather than the hook the plan
+ * also considered (`initializeVisionSources`) because a public GitHub issue
+ * on foundryvtt/foundryvtt describes exactly that hook as running AFTER
+ * Foundry's own activation pass, which silently drops anything added there.
+ *
+ * Before relying on this: open a v14 world with two rooms sharing a doorless
+ * gap, stand a player token in one, and confirm in the console that (a)
+ * `boundaryShapes` is still read by whatever polygon backend that build
+ * ships, and (b) the clip survives a full vision recompute (moving the
+ * token, reloading the scene) rather than only the first paint. If either
+ * fails, `visibility.mjs`'s ordinary token-hiding rule above and the fog
+ * layer in fog.mjs still cover the leak — less literally (through a
+ * doorless gap you would see an empty, fogged room rather than a wall) but
+ * completely, so nothing here is a single point of failure for the rule the
+ * guide actually asks for: "Players see other players only in the same room."
+ */
+function registerVisionBoundary() {
+    const proto = foundry?.canvas?.placeables?.Token?.prototype ?? globalThis.Token?.prototype;
+    const original = proto?._getVisionSourceData;
+    if (typeof original !== "function") {
+        debug("Token#_getVisionSourceData not found; the room vision clip is disabled.");
+        return;
+    }
+
+    proto._getVisionSourceData = function (...args) {
+        const data = original.apply(this, args);
+        try {
+            return clipVisionToRoom(this, data);
+        } catch (err) {
+            error("Could not clip vision to the room boundary; leaving it unclipped", err);
+            return data;
+        }
+    };
+}
+
+/**
+ * Add the current room's own polygon(s) to a vision source's clip shapes.
+ *
+ * GMs and Monokumas see the whole map, same exemption `applyToToken` above
+ * makes for token HIDING — a Monokuma walks the story around a scene the
+ * players cannot see all of, and a GM directing that has to see it too.
+ * A token outside every region is left unclipped rather than blinded: the
+ * module cannot draw a boundary it was never told exists, and refusing to
+ * guess is the same call `movement.mjs`'s adjacency check makes for a room
+ * it cannot measure.
+ */
+function clipVisionToRoom(token, data) {
+    const actor = token?.actor;
+    if (!actor || actor.type !== "character") return data;
+    if (game.user.isGM || actor.getFlag(MODULE_ID, FLAGS.monokuma)) return data;
+
+    const tokenDoc = token.document ?? token;
+    const scene = tokenDoc?.parent ?? canvas?.scene;
+    if (!scene?.regions?.size) return data;
+
+    const regions = regionsAt(scene, tokenDoc.x, tokenDoc.y, tokenDoc);
+    if (!regions.length) return data;
+
+    const shapes = [];
+    for (const region of regions) {
+        const polys = region.polygons ?? region.object?.polygons;
+        if (polys?.length) shapes.push(...polys);
+    }
+    if (!shapes.length) return data;
+
+    return { ...data, boundaryShapes: [...(data.boundaryShapes ?? []), ...shapes] };
 }
 
 function isMyTruthBullet(item) {

@@ -21,8 +21,22 @@ import { hasFreeMove, takeMove, actionsLeft } from "./actions.mjs";
 // `preUpdateToken` hook, where there is no opportunity to await an import.
 // call-effects.mjs only reaches back into this file lazily, so there is no cycle.
 import { isSealed, isChained } from "./call-effects.mjs";
+// Same reasoning as call-effects.mjs above: this veto is synchronous, so the
+// reader it needs has to be a static import too. mastermind.mjs does not
+// reach back into this file, so there is no cycle.
+import { iAmTheMastermind } from "./mastermind.mjs";
 // `neighbouringRooms` and `boundsOf` are defined further down this file.
 import { whisperToOwner, isPrimaryGm, debug, error } from "./utils.mjs";
+
+/**
+ * Region flags this file owns. Named like `VAULT_FLAGS`/`REST_FLAGS` in
+ * vault.mjs, which reads this one to draw Room Setup's own "Locked" column —
+ * the enforcement lives here, the flag is set from there.
+ */
+export const ROOM_FLAGS = {
+    /** A GM has locked this room shut. Set from Room Setup only. */
+    locked: "drpgLocked"
+};
 
 /** Last known room per token, so we only react to actual crossings. */
 const lastRoom = new Map();
@@ -230,20 +244,48 @@ function lockedInIncident(actor) {
 }
 
 /**
- * Is a Despair Call standing in the way?
+ * Is a Despair Call — or a GM's own lock — standing in the way?
  *
- * Both of these were previously bookkeeping: "Behind Closed Doors" wrote the
- * room name into a world setting, announced it, and nothing ever read it back,
- * so a sealed room was a sentence in chat that players walked straight through.
+ * The sealed-room checks were previously bookkeeping: "Behind Closed Doors"
+ * wrote the room name into a world setting, announced it, and nothing ever
+ * read it back, so a sealed room was a sentence in chat that players walked
+ * straight through. `drpgLocked` is the same category of rule from a
+ * different source — a GM's own Room Setup, not a Despair Call — and gets the
+ * same absolute treatment: no number of actions buys past a locked door.
+ *
+ * The Mastermind is the one exception, and only for THIS category — doors
+ * their own side locked, and Despair Call seals, are doors they hold the key
+ * to. `isChained` is untouched: that Despair Call targets a specific person,
+ * not a door, and it stays absolute for everyone it is cast on.
  *
  * @returns {false|string} false when the move is allowed, otherwise the reason.
  */
 function restrictedFrom(actor, to) {
     try {
         if (isChained(actor)) return game.i18n.localize("DRPG.Calls.chainedBlocked");
-        if (to && isSealed(to)) return game.i18n.format("DRPG.Calls.sealedBlocked", { room: to });
+        if (to && !iAmTheMastermind()) {
+            if (isLocked(to)) return game.i18n.localize("DRPG.Move.locked");
+            if (isSealed(to)) return game.i18n.format("DRPG.Calls.sealedBlocked", { room: to });
+        }
     } catch {
         // A restriction we cannot read must not block an ordinary move.
+    }
+    return false;
+}
+
+/**
+ * Has a GM locked this room shut, from Room Setup?
+ *
+ * Reads the flag straight off the room's own Region on the scene actually
+ * being dragged on — the same `canvas?.scene` assumption every other room
+ * function in this file makes for the synchronous veto path (see `roomAt`,
+ * `neighbouringRooms`): the crossing being judged is always happening on
+ * whatever scene the dragging client has open.
+ */
+function isLocked(room) {
+    if (!room) return false;
+    for (const region of canvas?.scene?.regions ?? []) {
+        if (region.name === room) return Boolean(region.getFlag(MODULE_ID, ROOM_FLAGS.locked));
     }
     return false;
 }
@@ -287,20 +329,36 @@ function roomAt(x, y, tokenDoc) {
     // treated as the same thing. The chain below distinguishes them explicitly —
     // the bounding box is for a region that cannot be ASKED, not for one that
     // answered no.
+    const regions = regionsAt(scene, x, y, tokenDoc);
+    return regions.map(r => r.name).sort()[0] ?? null;
+}
+
+/**
+ * Every named Region a point falls inside — the plural version of `roomAt`,
+ * for the one caller that needs ALL of them rather than the alphabetically-
+ * first name: a token standing where two rooms overlap is in both at once,
+ * and vision restriction (see `visibility.mjs`'s `clipVisionToRoom`) has to
+ * clip to their union, not silently pick one. Shares every edge case `roomAt`
+ * already worked out — grid size, elevation, the `testPoint` fallback chain —
+ * rather than risking the two drifting apart.
+ */
+export function regionsAt(scene, x, y, tokenDoc) {
+    if (!scene?.regions?.size) return [];
+
     const size = scene.grid?.size ?? canvas?.grid?.size ?? 100;
     const cx = x + ((tokenDoc?.width ?? 1) * size) / 2;
     const cy = y + ((tokenDoc?.height ?? 1) * size) / 2;
     const elevation = Number.isFinite(tokenDoc?.elevation) ? tokenDoc.elevation : 0;
 
-    const names = [];
+    const found = [];
     for (const region of scene.regions) {
         if (!region.name) continue;
         const inside = typeof region.testPoint === "function"
             ? region.testPoint({ x: cx, y: cy, elevation })
             : containedBy(region, cx, cy);
-        if (inside) names.push(region.name);
+        if (inside) found.push(region);
     }
-    return names.sort()[0] ?? null;
+    return found;
 }
 
 /** Bounding-box fallback when a region cannot test a point itself. */
