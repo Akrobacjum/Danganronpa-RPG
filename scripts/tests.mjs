@@ -157,13 +157,22 @@ const INVARIANTS = [
 
     ["a Remnant token's name gives nothing away", () => {
         // The name used to BE the answer: "Obvious Faint Prep Remnant · Player B
-        // · Search: Cleaning agent". Names travel with the token.
+        // · Search: Cleaning agent". Names travel with the token — and so does
+        // the DELTA, which is where the legacy placement path kept the same
+        // label as the unlinked actor's name (`token.delta.name`), readable
+        // from a player's console while `token.name` said a perfectly safe
+        // "Trace" over it. Both halves are scanned, or the second one leaks
+        // for exactly as long as nobody thinks to look at it.
         const expected = game.i18n.localize("DRPG.Remnant.tokenName");
         const talkative = [];
         for (const scene of game.scenes) {
             for (const token of scene.tokens) {
                 if (!token.getFlag(MODULE_ID, "isRemnant")) continue;
                 if (token.name !== expected) talkative.push(token.name);
+                const deltaName = token.delta?.name;
+                if (typeof deltaName === "string" && deltaName && deltaName !== expected) {
+                    talkative.push(`delta: ${deltaName}`);
+                }
             }
         }
         ok(!talkative.length, `${talkative.length} named for what they are — "${talkative[0]}"`);

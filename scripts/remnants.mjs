@@ -1077,6 +1077,17 @@ export function rankForObserve(room, scene = workingScene(), { preferSource = nu
  * run it strips the tokens, and the others pick the entries up over the socket.
  * Safe to run twice — a token whose flags are already gone is skipped rather
  * than overwritten with blanks, which is the mistake that would erase a case.
+ *
+ * THE DELTA IS PART OF THE TOKEN, and it was the half this migration missed.
+ * A Remnant token is unlinked, so it carries an ActorDelta, and the old
+ * placement path left the whole label there as the delta's actor NAME —
+ * "Evident Prep Remnant · Player A · Cleanup: Player B", readable from any
+ * player's console as `token.delta.name` on every legacy trace, while
+ * `token.name` said a perfectly safe "Trace" over it. Measured on a live
+ * world: 39 of 41. The flags-stripping pass above never touched it, and a
+ * token whose flags were stripped in an earlier release lands in the
+ * `already` branch — so the delta is neutralised in BOTH branches, or the
+ * worlds that migrated early would be exactly the ones that stay leaking.
  */
 export async function migrateRemnants() {
     if (!game.user.isGM) {
@@ -1084,7 +1095,7 @@ export async function migrateRemnants() {
         return null;
     }
 
-    let moved = 0, stripped = 0, already = 0, publicSeeded = 0;
+    let moved = 0, stripped = 0, already = 0, publicSeeded = 0, deltaCleaned = 0;
 
     for (const scene of game.scenes) {
         for (const token of scene.tokens) {
@@ -1094,6 +1105,7 @@ export async function migrateRemnants() {
             if (old === undefined) {
                 already++;
                 publicSeeded += await seedPublicIfMissing(token);
+                deltaCleaned += await neutraliseDeltaName(token);
                 continue;
             }
 
@@ -1127,14 +1139,40 @@ export async function migrateRemnants() {
                 "texture.tint": TINTS.neutral
             });
             stripped++;
+            deltaCleaned += await neutraliseDeltaName(token);
         }
     }
 
     const line = `Remnants migrated: ${moved} moved into the ledger, ${stripped} tokens stripped, `
-        + `${already} already done, ${publicSeeded} \`public\` record(s) backfilled.`;
+        + `${already} already done, ${publicSeeded} \`public\` record(s) backfilled, `
+        + `${deltaCleaned} delta name(s) neutralised.`;
     log(line);
     ui.notifications.info(line);
-    return { moved, stripped, already, publicSeeded };
+    return { moved, stripped, already, publicSeeded, deltaCleaned };
+}
+
+/**
+ * Take the answer key out of one token's ActorDelta name — see the note on
+ * `migrateRemnants`. Idempotent: a delta already showing the safe name, or
+ * carrying no name override at all, costs one comparison and no write.
+ *
+ * Written through `token.actor` — the synthetic actor the delta backs, which
+ * is the documented route for editing an unlinked token's actor data — with
+ * the delta document itself as the fallback for a token whose base actor has
+ * gone missing.
+ *
+ * @returns {Promise<number>} 1 if a name was neutralised, 0 otherwise —
+ *   summed by the caller into the summary line.
+ */
+async function neutraliseDeltaName(token) {
+    const safe = game.i18n.localize("DRPG.Remnant.tokenName");
+    const deltaName = token.delta?.name;
+    if (typeof deltaName !== "string" || !deltaName || deltaName === safe) return 0;
+
+    const target = token.actor ?? token.delta;
+    if (!target?.update) return 0;
+    await target.update({ name: safe });
+    return 1;
 }
 
 /**
