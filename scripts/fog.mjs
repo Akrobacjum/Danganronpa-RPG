@@ -51,7 +51,7 @@ const CanvasAnimation = foundry.canvas.animation.CanvasAnimation;
  * from the person testing. `diagnoseFog()` prints this, which turns that into a
  * fact. Bump it whenever the drawing behaviour changes.
  */
-const FOG_BUILD = "2026-08-26 · glow-field-clear";
+const FOG_BUILD = "2026-08-26 · glow-field-trend";
 
 const LAYER_NAME = "drpgFog";
 const FOG_SPRITE = "drpgFogSprite";
@@ -3633,18 +3633,63 @@ function resamplePolyline(points, step) {
  * the local wobble, so a staircase flattens onto its own mean while a genuine
  * corner merely softens by a fraction of a square.
  *
- * The ENDS DO NOT MOVE: the window is clamped to what is available, so it
- * closes to a single point at each end. An opening that grew or shrank while
- * being tidied would be a different opening.
+ * THE ENDS FOLLOW THE LOCAL TREND. A window that simply closes up as it runs
+ * out of samples is anchored on the last one — and the last one is a corner of
+ * the tiled border, up to an amplitude off the line it belongs to. The line
+ * then bends out to meet it and the band bends with it: measured on a
+ * staircase, the glow reached 34.6px from the mean at that end against 31.1px
+ * everywhere else, which is the soft kick in an otherwise straight edge. So
+ * the first and last few points are taken from a straight fit through the
+ * stretch around them, faded into the ordinary average over the same distance
+ * so the two meet without a step.
  */
 function smoothPolyline(points, half) {
-    if (points.length < 3 || half < 1) return points;
-    const out = new Array(points.length);
-    for (let i = 0; i < points.length; i++) {
-        const w = Math.min(half, i, points.length - 1 - i);
+    const n = points.length;
+    if (n < 3 || half < 1) return points;
+
+    const out = new Array(n);
+    for (let i = 0; i < n; i++) {
+        const w = Math.min(half, i, n - 1 - i);
         let sx = 0, sy = 0;
         for (let k = i - w; k <= i + w; k++) { sx += points[k].x; sy += points[k].y; }
         out[i] = { x: sx / (2 * w + 1), y: sy / (2 * w + 1) };
+    }
+
+    // Least squares against distance from the end, over twice the window —
+    // long enough to span a full tile period, which is what makes the fit the
+    // staircase's own mean rather than one of its corners.
+    const span = Math.min(n - 1, half * 2);
+    const trend = step => {
+        const from = step > 0 ? 0 : n - 1;
+        let sk = 0, sx = 0, sy = 0, skk = 0, skx = 0, sky = 0;
+        for (let k = 0; k <= span; k++) {
+            const p = points[from + k * step];
+            sk += k; sx += p.x; sy += p.y; skk += k * k; skx += k * p.x; sky += k * p.y;
+        }
+        const count = span + 1;
+        const den = count * skk - sk * sk;
+        if (!den) return null;
+        return {
+            ax: (sx * skk - sk * skx) / den, bx: (count * skx - sk * sx) / den,
+            ay: (sy * skk - sk * sky) / den, by: (count * sky - sk * sy) / den
+        };
+    };
+
+    const blend = (fit, index, k) => {
+        if (!fit) return;
+        const t = k / half;
+        const fx = fit.ax + fit.bx * k, fy = fit.ay + fit.by * k;
+        out[index] = {
+            x: fx * (1 - t) + out[index].x * t,
+            y: fy * (1 - t) + out[index].y * t
+        };
+    };
+
+    const head = trend(1);
+    const tail = trend(-1);
+    for (let k = 0; k < Math.min(half, n); k++) {
+        blend(head, k, k);
+        blend(tail, n - 1 - k, k);
     }
     return out;
 }
