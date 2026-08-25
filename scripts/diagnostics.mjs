@@ -415,7 +415,11 @@ export function diagnoseStyles() {
     const found = [];
     for (const sheet of Array.from(document.styleSheets ?? [])) findOurSheets(sheet, 0, found);
 
-    lines.push(`Stylesheets from this module: ${found.length} (expected 2)`);
+    // Expected count read off the manifest, not hardcoded — a literal "2" here
+    // went stale the day motion.css shipped and had the diagnostic reporting a
+    // healthy page as suspect.
+    const declared = Array.from(game.modules.get(MODULE_ID)?.styles ?? []).length;
+    lines.push(`Stylesheets from this module: ${found.length} (expected ${declared || "?"})`);
     for (const sheet of found) {
         lines.push(`   ${sheet.href}`);
         lines.push(`      layer: ${sheet.layer ?? "(none)"}, rules parsed: ${
