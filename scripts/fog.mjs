@@ -51,7 +51,7 @@ const CanvasAnimation = foundry.canvas.animation.CanvasAnimation;
  * from the person testing. `diagnoseFog()` prints this, which turns that into a
  * fact. Bump it whenever the drawing behaviour changes.
  */
-const FOG_BUILD = "2026-08-26 · glow-field-cut";
+const FOG_BUILD = "2026-08-26 · glow-field-clear";
 
 const LAYER_NAME = "drpgFog";
 const FOG_SPRITE = "drpgFogSprite";
@@ -3783,11 +3783,62 @@ function addDoorwayGlow(group, region, edges, rect) {
         amplitude: Math.round(amplitude * 10) / 10,
         core: Math.round(core * 10) / 10,
         span: Math.round(span * 10) / 10,
-        reachFromAveragedLine: Math.round((core + span) * 10) / 10
+        reachFromAveragedLine: Math.round((core + span) * 10) / 10,
+        endAngles: []
     };
+    /*
+     * WHICH WAY EACH END RUNS, AND A STUB PAST IT.
+     *
+     * Two things are read off an opening's ends, and both have to be settled
+     * before a single stroke is drawn.
+     *
+     * The direction is taken between two points that are both well inside the
+     * opening. A chain's last point is pinned to the true border, so a
+     * direction measured to it still carries whichever tile it landed on: on
+     * a staircase that leans the cut about thirty degrees off the run.
+     *
+     * And the line is EXTENDED past the end before it is stroked. Otherwise
+     * every level closes itself with a cap square to its own last segment —
+     * axis-aligned, on a staircase — and that cap, not the gradient, is what
+     * decides where the band stops across part of its depth. Running the
+     * strokes off the end and cutting them afterwards leaves the cut as the
+     * only thing shaping it.
+     */
+    const stub = reach + 4;
+    const runs = openings.map(chain => {
+        const tail = chain[chain.length - 1];
+        const closed = Math.hypot(chain[0].x - tail.x, chain[0].y - tail.y) < 0.5;
+        const inner = trimPolyline(chain, depth);
+        const deeper = trimPolyline(chain, depth * 2);
+        const far = deeper.length >= 2 ? deeper : null;
+
+        const direction = (end, near, back) => {
+            let dx = end.x - near.x, dy = end.y - near.y;
+            if (back && Math.hypot(near.x - back.x, near.y - back.y) > 1) {
+                dx = near.x - back.x;
+                dy = near.y - back.y;
+            }
+            const length = Math.hypot(dx, dy);
+            return length < 1e-6 ? null : { x: dx / length, y: dy / length };
+        };
+
+        const heads = closed || inner.length < 2 ? [] : [
+            { at: chain[0], near: inner[0], head: true, dir: direction(chain[0], inner[0], far?.[0] ?? null) },
+            { at: tail, near: inner[inner.length - 1], head: false, dir: direction(tail, inner[inner.length - 1], far?.[far.length - 1] ?? null) }
+        ].filter(h => h.dir);
+
+        const line = [...chain];
+        for (const h of heads) {
+            const past = { x: h.at.x + h.dir.x * stub, y: h.at.y + h.dir.y * stub };
+            if (h.head) line.unshift(past);
+            else line.push(past);
+        }
+        return { heads, line };
+    });
+
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const chain of openings) {
-        for (const p of chain) {
+    for (const run of runs) {
+        for (const p of run.line) {
             minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
             minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
         }
@@ -3813,10 +3864,10 @@ function addDoorwayGlow(group, region, edges, rect) {
             const half = core + span * doorwayFalloffAt((k - 0.5) / DOORWAY_STEPS);
             strokes.clear();
             strokes.lineStyle({ width: half * 2, color: 0xffffff, alpha: 1, cap: "butt", join: "round" });
-            for (const chain of openings) {
-                strokes.moveTo(chain[0].x - box.x, chain[0].y - box.y);
-                for (let i = 1; i < chain.length; i++) {
-                    strokes.lineTo(chain[i].x - box.x, chain[i].y - box.y);
+            for (const { line } of runs) {
+                strokes.moveTo(line[0].x - box.x, line[0].y - box.y);
+                for (let i = 1; i < line.length; i++) {
+                    strokes.lineTo(line[i].x - box.x, line[i].y - box.y);
                 }
             }
             renderer.render(strokes, { renderTexture: level, clear: true });
@@ -3834,44 +3885,59 @@ function addDoorwayGlow(group, region, edges, rect) {
          * on, the segments alternate, and the sixteen ends come out as a
          * ragged step instead of a cut.
          *
-         * So the band is built full length and cut afterwards, by one gradient
-         * laid across it — square to the direction the opening actually runs
-         * in, measured over the whole fade rather than off the last tile. That
-         * is the same straight, single-gradient edge a flat wall gets, because
-         * now it is literally the same operation. Anything past the end goes
-         * entirely, so no light reaches around the doorframe.
+         * So the band is built full length — run past its ends, even, so no
+         * level's own cap can shape it — and cut afterwards, by one gradient
+         * laid across it, square to the direction the opening actually runs
+         * in. That is the same straight, single-gradient edge a flat wall
+         * gets, because now it is literally the same operation. Anything past
+         * the end goes entirely, so no light reaches around the doorframe.
          */
-        const halfBand = reach;
+        // Both cuts have to clear the band comfortably in every direction: the
+        // band reaches `reach` outward from the line and an amplitude inward
+        // of it, and a cut that merely meets those edges leaves an
+        // antialiased sliver standing.
+        const halfBand = reach + amplitude + 6;
         const fadeTexture = doorwayFadeTexture();
         const ends = new PIXI.Container();
-        for (const chain of openings) {
-            const tail = chain[chain.length - 1];
-            // A border open the whole way round has no ends to cut.
-            if (Math.hypot(chain[0].x - tail.x, chain[0].y - tail.y) < 0.5) continue;
+        const ownPolygons = regionShapes(region, rect).map(f => new PIXI.Polygon(f));
+        const insideRoom = (x, y) => ownPolygons.some(p => p.contains(x, y));
+        for (const run of runs) {
+            for (const { at: end, near, dir } of run.heads) {
+                const ux = dir.x, uy = dir.y;
+                lastGlow.endAngles.push(Math.round(Math.atan2(uy, ux) * 180 / Math.PI));
 
-            const inner = trimPolyline(chain, depth);
-            if (inner.length < 2) continue;
-
-            for (const [from, to] of [[inner[0], chain[0]], [inner[inner.length - 1], tail]]) {
-                const dx = to.x - from.x, dy = to.y - from.y;
-                const length = Math.hypot(dx, dy);
-                if (length < 1e-6) continue;
+                /*
+                 * CENTRED ON THE LINE, NOT ON THE END POINT.
+                 *
+                 * Both cuts reach a half-band either side of wherever they are
+                 * anchored, and the end point is a corner of the TRUE border —
+                 * up to an amplitude off the line the band is built around. So
+                 * anchoring there hung the cuts off centre and left the
+                 * outermost few pixels of the band with nothing to stop them:
+                 * measured on a staircase, everything from the wall out to 27px
+                 * was cut square and the last three ran on past it. The end
+                 * point still decides WHERE along the run the cut falls; only
+                 * the centring comes off the line.
+                 */
+                const along = (end.x - near.x) * ux + (end.y - near.y) * uy;
+                const ox = near.x + ux * along - box.x;
+                const oy = near.y + uy * along - box.y;
 
                 if (fadeTexture) {
                     const ramp = new PIXI.Sprite(fadeTexture);
                     ramp.blendMode = PIXI.BLEND_MODES.ERASE;
                     ramp.anchor.set(0, 0.5);
-                    ramp.width = length;
+                    ramp.width = depth;
                     ramp.height = halfBand * 2;
-                    ramp.position.set(from.x - box.x, from.y - box.y);
-                    ramp.rotation = Math.atan2(dy, dx);
+                    ramp.position.set(ox - ux * depth, oy - uy * depth);
+                    ramp.rotation = Math.atan2(uy, ux);
                     ends.addChild(ramp);
                 }
 
-                const ux = dx / length, uy = dy / length;
                 const nx = -uy, ny = ux;
-                const ox = to.x - box.x, oy = to.y - box.y;
-                const past = halfBand + 4;
+                // Past the end of the stub the strokes were run out to, with
+                // room to spare — matching it exactly left a line of pixels.
+                const past = stub + 8;
                 const beyond = new PIXI.Graphics();
                 beyond.blendMode = PIXI.BLEND_MODES.ERASE;
                 beyond.beginFill(0xffffff, 1);
@@ -3883,7 +3949,65 @@ function addDoorwayGlow(group, region, edges, rect) {
                 ]);
                 beyond.endFill();
                 ends.addChild(beyond);
+
             }
+        }
+
+        /*
+         * THE INWARD SIDE GOES, ALL THE WAY ALONG.
+         *
+         * The band is built symmetrically about its line and the inward half
+         * is taken away by erasing the room — which holds for exactly as long
+         * as the room is what lies inward. At the end of an opening the border
+         * turns and stops being that, and what is left is a lobe of glow on
+         * the far side of the wall: measured on a staircase whose far end
+         * meets the room's own bottom edge, 35px past the line there against
+         * 3.5px anywhere else. That lobe is the bulge on an end that is
+         * otherwise cut square.
+         *
+         * Past the lip, the inward side is inside the room at every point
+         * ALONG an opening, so erasing it there costs nothing — and doing it
+         * along the whole run, corners and stubs included, is what closes the
+         * ends without a special case for each way a border can turn. The lip
+         * keeps the sliver that is legitimately lit where the true wall dips
+         * inside the averaged line.
+         *
+         * Which way is inward is asked of the room itself rather than read off
+         * the winding, which no map is obliged to keep consistent.
+         */
+        const lip = Math.max(2, amplitude - out + 2);
+        const deepIn = halfBand + stub + 10;
+        for (const { line } of runs) {
+            if (line.length < 2) continue;
+
+            const normals = line.map((_, i) => {
+                const a = line[Math.max(0, i - 1)], b = line[Math.min(line.length - 1, i + 1)];
+                const dx = b.x - a.x, dy = b.y - a.y;
+                const length = Math.hypot(dx, dy) || 1;
+                return { x: -dy / length, y: dx / length };
+            });
+
+            const mid = Math.floor(line.length / 2);
+            const probe = amplitude + 4;
+            const sign = insideRoom(line[mid].x + normals[mid].x * probe,
+                line[mid].y + normals[mid].y * probe) ? 1 : -1;
+
+            const ribbon = [];
+            for (let i = 0; i < line.length; i++) {
+                ribbon.push(line[i].x + normals[i].x * sign * lip - box.x,
+                    line[i].y + normals[i].y * sign * lip - box.y);
+            }
+            for (let i = line.length - 1; i >= 0; i--) {
+                ribbon.push(line[i].x + normals[i].x * sign * deepIn - box.x,
+                    line[i].y + normals[i].y * sign * deepIn - box.y);
+            }
+
+            const inwardCut = new PIXI.Graphics();
+            inwardCut.blendMode = PIXI.BLEND_MODES.ERASE;
+            inwardCut.beginFill(0xffffff, 1);
+            inwardCut.drawPolygon(ribbon);
+            inwardCut.endFill();
+            ends.addChild(inwardCut);
         }
         if (ends.children.length) renderer.render(ends, { renderTexture: field, clear: false });
         ends.destroy({ children: true });
