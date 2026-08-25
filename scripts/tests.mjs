@@ -513,7 +513,10 @@ const SCENARIOS = [
         const [killer, victim] = cast();
         const drpg = game.drpg;
         const murder = await import("./murder.mjs");
-        const cleanup = await import("./cleanup.mjs");
+        // The bridge is where the player-facing entry point lives; cleanup.mjs
+        // only holds the GM-side builder it delegates to. Importing it from
+        // cleanup.mjs made this whole scenario throw before its assertions ran.
+        const bridge = await import("./gm-bridge.mjs");
         const remnants = await import("./remnants.mjs");
 
         await drpg.openMurder({ killerId: killer.id, victimId: victim.id });
@@ -529,7 +532,7 @@ const SCENARIOS = [
         ok(dropped, "could not place a trace to clean up");
         await settle();
 
-        const traces = await cleanup.requestCleanableTraces(killer.id);
+        const traces = await bridge.requestCleanableTraces(killer.id);
         ok(Array.isArray(traces) && traces.length > 0, "the killer's client sees nothing to clean up");
         ok(traces.some(t => t.id === dropped.id), "the trace just dropped is not in the killer's own list");
 
@@ -566,21 +569,73 @@ const SCENARIOS = [
         ok(!murder.betrayalTarget(victim), "the victim was offered a betrayal");
     }],
 
-    ["Observe prefers the most recent incident, then difficulty", async () => {
+    ["Observe ranks crime-tied traces first, then by difficulty", async () => {
         const remnants = await import("./remnants.mjs");
+        const { roomOfToken } = await import("./movement.mjs");
         const scene = game.scenes.active;
-        const room = scene?.regions?.find(r => remnants.rankForObserve(r.name, scene).length >= 3)?.name;
-        ok(room, "no room on the active scene holds three Remnants to rank");
 
-        const ranked = remnants.rankForObserve(room, scene);
-        for (let i = 1; i < ranked.length; i++) {
-            const before = ranked[i - 1], after = ranked[i];
-            // Crime-tied first, then ascending difficulty inside each group.
-            if (before.data.tiedToCrime === after.data.tiedToCrime) {
-                ok(before.dc <= after.dc, `${room}: DC ${before.dc} listed before DC ${after.dc}`);
-            } else {
-                ok(before.data.tiedToCrime, `${room}: an untied Remnant is ranked above a tied one`);
+        // Build the shelf instead of demanding the world already owns one. The
+        // old form of this test asked the active scene for a room holding three
+        // Remnants and failed on any world that had none — a clean world most
+        // of all.
+        //
+        // Four traces at one point share a room by construction: the same hit
+        // test answers for all of them, holes and all. The anchor is any token
+        // already standing in a room, which spares this test owning any region
+        // geometry of its own.
+        const anchor = scene?.tokens?.find(t => roomOfToken(t));
+        ok(anchor, "no token on the active scene stands in any room — nowhere to build the fixture");
+
+        const spread = [
+            { type: "key", visibility: "obvious", tiedToCrime: true },   // DC 6, tied
+            { type: "prep", visibility: "hidden", tiedToCrime: true },   // DC 18, tied
+            { type: "prep", visibility: "obvious", tiedToCrime: false }, // DC 9
+            { type: "prep", visibility: "subtle", tiedToCrime: false }   // DC 15
+        ];
+
+        const placed = [];
+        try {
+            for (const data of spread) {
+                const token = await remnants.placeRemnant({
+                    ...data, x: anchor.x, y: anchor.y, scene,
+                    note: "test fixture — Observe ranking"
+                });
+                ok(token, "could not place a fixture Remnant");
+                placed.push(token);
             }
+            await settle();
+
+            const room = roomOfToken(placed[0]);
+            ok(room, "the fixture Remnants landed outside every room");
+
+            const ranked = remnants.rankForObserve(room, scene);
+
+            // The room may already hold other traces, so the fixture asserts
+            // RELATIVE order, which extras cannot disturb.
+            const at = token => ranked.findIndex(r => r.token.id === token.id);
+            const [tiedLow, tiedHigh, untiedLow, untiedHigh] = placed.map(at);
+            for (const [i, idx] of [tiedLow, tiedHigh, untiedLow, untiedHigh].entries()) {
+                ok(idx >= 0, `fixture Remnant ${i} is missing from the ranking`);
+            }
+            ok(tiedLow < tiedHigh, "inside the crime-tied group, the harder trace outranked the easier");
+            ok(tiedHigh < untiedLow, "an untied Remnant is ranked above a crime-tied one");
+            ok(untiedLow < untiedHigh, "inside the untied group, the harder trace outranked the easier");
+
+            // And the whole shelf still obeys the two rules, extras included.
+            for (let i = 1; i < ranked.length; i++) {
+                const before = ranked[i - 1], after = ranked[i];
+                if (before.data.tiedToCrime === after.data.tiedToCrime) {
+                    ok(before.dc <= after.dc, `${room}: DC ${before.dc} listed before DC ${after.dc}`);
+                } else {
+                    ok(before.data.tiedToCrime, `${room}: an untied Remnant is ranked above a tied one`);
+                }
+            }
+        } finally {
+            // Tombstone the ledger entries the way the module itself does,
+            // then take the tokens off the map.
+            for (const token of placed) await remnants.dropRemnantSecret(token);
+            const ids = placed.map(t => t.id).filter(id => scene.tokens.has(id));
+            if (ids.length) await scene.deleteEmbeddedDocuments("Token", ids);
         }
     }],
 
