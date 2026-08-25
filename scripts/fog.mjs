@@ -51,7 +51,7 @@ const CanvasAnimation = foundry.canvas.animation.CanvasAnimation;
  * from the person testing. `diagnoseFog()` prints this, which turns that into a
  * fact. Bump it whenever the drawing behaviour changes.
  */
-const FOG_BUILD = "2026-08-25 · avg-glow";
+const FOG_BUILD = "2026-08-26 · glow-field-match";
 
 const LAYER_NAME = "drpgFog";
 const FOG_SPRITE = "drpgFogSprite";
@@ -322,8 +322,9 @@ export function registerFog() {
         try {
             hideLayer();
             dropBackdrop();
-            if (doorwayTile && !doorwayTile.destroyed) doorwayTile.destroy(true);
-            doorwayTile = null;
+            // Outlines and glows belong to the scene being left, and the glow
+            // owns a render texture of its own — see `freeOwned`.
+            clearTransient();
             // The tiles are bound to the renderer that is going away, and the
             // palette may have changed by the time we come back.
             dropRasterTiles();
@@ -1038,12 +1039,36 @@ function motionOff() {
     return !animationsOn || reducedMotion();
 }
 
+/**
+ * Free the render textures a transient overlay built for itself.
+ *
+ * `destroy({children: true})` takes down display objects and leaves their
+ * textures on the GPU, which is right for the shared ones and a leak for the
+ * ones an overlay drew for its own use — the doorway glow renders a fresh
+ * field every time a room is entered, and walking a corridor is a lot of
+ * rooms. Anything that owns a texture says so on itself.
+ */
+function freeOwned(display) {
+    const stack = [display];
+    while (stack.length) {
+        const node = stack.pop();
+        if (!node) continue;
+        const owned = node.drpgOwnedTexture;
+        if (owned) {
+            node.drpgOwnedTexture = null;
+            if (!owned.destroyed) owned.destroy(true);
+        }
+        for (const child of node.children ?? []) stack.push(child);
+    }
+}
+
 /** Remove every transient overlay this layer can put on screen, right now. */
 function clearTransient() {
     roomOutline = null;
     const fx = findLayer()?.children?.find(c => c?.name === FX_GROUP);
     if (!fx || fx.destroyed) return;
     for (const child of fx.removeChildren()) {
+        freeOwned(child);
         if (!child.destroyed) child.destroy({ children: true });
     }
 }
@@ -1062,6 +1087,7 @@ function clearReveals() {
     for (const child of [...fx.children]) {
         if (child.name === OUTLINE_NAME) continue;
         fx.removeChild(child);
+        freeOwned(child);
         if (!child.destroyed) child.destroy({ children: true });
     }
 }
@@ -1416,6 +1442,11 @@ export function diagnoseFog() {
             : container?.parent ? "somewhere else" : null,
         layerVisible: Boolean(container?.visible),
         layerChildren: container?.children?.length ?? 0,
+        // What the last doorway glow was actually built from — the numbers
+        // that decide how deep it reaches and how straight it comes out. A
+        // glow that looks wrong on a map is answered from here rather than
+        // from a screenshot.
+        lastGlow,
         // MEASURED, NOT COUNTED. `lastReason` below says what the fog meant to
         // draw; this says what percentage of the scene it is actually covering,
         // read back off the texture. When those two disagree, believe this one.
@@ -2750,6 +2781,9 @@ const outlineFadeMs = () => Math.max(BEAT(), 1);
  */
 let roomOutline = null;
 
+/** What the last doorway glow measured for itself — read by `diagnoseFog`. */
+let lastGlow = null;
+
 const clamp01 = v => (v < 0 ? 0 : v > 1 ? 1 : v);
 
 /** The container transient effects live in — never emptied by a repaint. */
@@ -3114,17 +3148,8 @@ function flashOutline(fx, region, rect) {
     group.name = OUTLINE_NAME;
     group.eventMode = "none";
 
-    // Measured twice, on two readings of the same border. The outline hugs
-    // the TRUE edge — it has to agree with the fog cut to the pixel. The glow
-    // reads the border the way a reader does: a grid staircase is one diagonal
-    // wall, so its ring is flattened first and each open stretch becomes ONE
-    // band thrown outward from the averaged line. Banded per stretch on the
-    // raw ring, a staircase was a ladder of half-square patches — axis-aligned,
-    // stacking where they overlapped (brighter than designed) and running
-    // across the room's own floor. On a straight border the two readings are
-    // the same line, so nothing there changes.
+    // Measured once; the outline skips these and the glow marks them.
     const edges = doorwayEdges(region);
-    const glowEdges = doorwayEdges(region, { averaged: true });
 
     const outline = new PIXI.Graphics();
     outline.lineStyle(4, bone, 1);
@@ -3157,7 +3182,7 @@ function flashOutline(fx, region, rect) {
 
     group.addChild(outline, label);
     // Under the outline and the name, so neither is softened by it.
-    addDoorwayGlow(group, glowEdges.length ? glowEdges : edges, rect);
+    addDoorwayGlow(group, region, edges, rect);
     group.setChildIndex(outline, group.children.length - 1);
     group.setChildIndex(label, group.children.length - 1);
     fx.addChild(group);
@@ -3239,13 +3264,43 @@ const DOORWAY_ALPHA = 0.6;
  */
 const DOORWAY_DEPTH = 1.3;
 /**
- * How much of each end of a doorway patch is taken up by its fade, as a
- * fraction of its width. Proportional rather than fixed on purpose: a narrow
- * gap should not be mostly fade, and a wide one should not end abruptly.
+ * How many nested outlines the falloff is built from — see `addDoorwayGlow`.
+ *
+ * Each step contributes an equal slice of `DOORWAY_ALPHA`, so this is the
+ * number of levels the gradient is quantised into. Sixteen over a depth of a
+ * grid square and a bit puts a step every couple of pixels, which is below
+ * anything an eye can pick out as banding, and costs sixteen draws of one
+ * small texture once per room entry.
  */
-const DOORWAY_SOFT_END = 0.22;
-/** The longest a tail may spill past the gap it belongs to, in grid squares. */
-const DOORWAY_TAIL = 0.35;
+const DOORWAY_STEPS = 16;
+/**
+ * How far along the border the glow's line is averaged, in grid squares each
+ * side — see `smoothPolyline`.
+ *
+ * A grid staircase repeats every two squares of border walked (one across,
+ * one along), and a moving average whose whole window covers a full period
+ * cancels that period almost exactly: one square each side leaves under a
+ * tenth of the wobble. Wide enough to take the tiles out, narrow enough that
+ * a real corner is only softened by a fraction of a square — and the glow is
+ * the only thing that reads this. The outline still traces the true border.
+ */
+const DOORWAY_SMOOTH = 1;
+/**
+ * How much of the averaging's amplitude is paid back as full-strength core —
+ * the one honest trade-off in this glow, and the knob for it.
+ *
+ * A straight outer edge over a jagged wall cannot also hold the wall at a
+ * constant depth: the wall wanders, the edge does not. Widening the core by
+ * the whole amplitude puts every part of the wall at full brightness and
+ * makes the glow reach about a quarter deeper than a flat wall's. Not
+ * widening it at all matches the depth exactly and lets the brightness ripple
+ * at the pitch of the tiles instead.
+ *
+ * Half splits it: about eight per cent deep and eight per cent of ripple,
+ * both under what anybody picks out on a map. Raise it toward 1 for even
+ * brightness, drop it toward 0 for even depth.
+ */
+const DOORWAY_AVERAGE_BIAS = 0.5;
 /**
  * How far INSIDE the room the wall test starts, in grid squares.
  *
@@ -3277,72 +3332,24 @@ const DOORWAY_PROBE_OUT = 0.95;
  */
 const DOORWAY_OFFSET = 0.12;
 /**
- * How far the glow's AVERAGED line may stray from the true border, in grid
- * squares — the flattening tolerance handed to `simplifyRing`.
+ * How strong the glow is at distance `t` (0 on the border, 1 at full depth).
  *
- * A grid staircase deviates from its own average diagonal by about 0.35 of a
- * square at 1:1 and creeps toward 0.5 as the slope shallows (2:1 ≈ 0.45,
- * 4:1 ≈ 0.49) — while a REAL feature, a one-square alcove, sits a full 0.7+
- * off the line between its neighbours. Half a square is the widest setting
- * that still cannot swallow architecture.
+ * The shape the old gradient texture baked into its colour stops: most of the
+ * strength held through the first half, then a tail — which is what makes a
+ * deep glow read as reaching rather than as merely being large and faint.
  */
-const DOORWAY_AVERAGE_TOLERANCE = 0.5;
-
-let doorwayTile = null;
+function doorwayFalloff(t) {
+    if (t <= 0) return 1;
+    if (t >= 1) return 0;
+    return t <= 0.5 ? 1 - 0.56 * t : 1.44 * (1 - t);
+}
 
 /**
- * The doorway patch: strongest on the edge, gone by the far side, and soft at
- * both ends.
- *
- * TWO GRADIENTS, MULTIPLIED. The first runs outward from the border and is what
- * the glow is for. The second runs ALONG the border and exists because the
- * first one, on its own, ends where the wall begins — with a straight cut and a
- * hard corner, as if the opening had an edge of its own. It does not; it is
- * simply where a wall stops. So the patch fades in and out along its own
- * length, and the eye reads a gap rather than a panel.
- *
- * `destination-in` is what multiplies them: it keeps the vertical gradient only
- * where the horizontal one is opaque, which is exactly alpha times alpha.
+ * The distance at which the glow has fallen to `y` — `doorwayFalloff` read
+ * backwards, which is what turns a strength into an outline width.
  */
-function doorwayTexture() {
-    if (doorwayTile && !doorwayTile.destroyed) return doorwayTile;
-    try {
-        const size = 64;
-        const el = document.createElement("canvas");
-        el.width = size;
-        el.height = size;
-
-        const ctx = el.getContext("2d");
-        if (!ctx) return null;
-
-        // Outward from the border.
-        const outward = ctx.createLinearGradient(0, 0, 0, size);
-        outward.addColorStop(0, `rgba(255, 255, 255, ${DOORWAY_ALPHA})`);
-        // A middle stop above the straight line between the ends: the glow
-        // holds most of its strength through the first half and then tails
-        // off, which is what makes a long one read as reaching rather than as
-        // merely being large and faint.
-        outward.addColorStop(0.5, `rgba(255, 255, 255, ${(DOORWAY_ALPHA * 0.72).toFixed(3)})`);
-        outward.addColorStop(1, "rgba(255, 255, 255, 0)");
-        ctx.fillStyle = outward;
-        ctx.fillRect(0, 0, size, size);
-
-        // And along it, so neither end is a cut.
-        ctx.globalCompositeOperation = "destination-in";
-        const along = ctx.createLinearGradient(0, 0, size, 0);
-        along.addColorStop(0, "rgba(255, 255, 255, 0)");
-        along.addColorStop(DOORWAY_SOFT_END, "rgba(255, 255, 255, 1)");
-        along.addColorStop(1 - DOORWAY_SOFT_END, "rgba(255, 255, 255, 1)");
-        along.addColorStop(1, "rgba(255, 255, 255, 0)");
-        ctx.fillStyle = along;
-        ctx.fillRect(0, 0, size, size);
-
-        doorwayTile = PIXI.Texture.from(el);
-        return doorwayTile;
-    } catch (err) {
-        debug("Fog: could not build the doorway gradient", err);
-        return null;
-    }
+function doorwayFalloffAt(y) {
+    return y >= 0.72 ? (1 - y) / 0.56 : 1 - y / 1.44;
 }
 
 /** Is this point inside that region? Polygons are passed in already built. */
@@ -3399,71 +3406,6 @@ function neighbourBeyond(mx, my, nx, ny, others, reach) {
  * for something that happens when somebody walks through a door.
  */
 /**
- * Ramer–Douglas–Peucker over an open polyline. Endpoints always survive;
- * everything the chord between them can explain to within `tolerance` goes.
- * Iterative, because a grid-snapped ring can carry hundreds of vertices.
- */
-function rdpPoints(pts, tolerance) {
-    if (pts.length < 3) return pts;
-    const keep = new Array(pts.length).fill(false);
-    keep[0] = keep[pts.length - 1] = true;
-
-    const stack = [[0, pts.length - 1]];
-    while (stack.length) {
-        const [a, b] = stack.pop();
-        if (b - a < 2) continue;
-        const ax = pts[a].x, ay = pts[a].y;
-        const dx = pts[b].x - ax, dy = pts[b].y - ay;
-        const chord = Math.hypot(dx, dy) || 1;
-
-        let worst = -1, at = -1;
-        for (let i = a + 1; i < b; i++) {
-            const d = Math.abs((pts[i].x - ax) * dy - (pts[i].y - ay) * dx) / chord;
-            if (d > worst) { worst = d; at = i; }
-        }
-        if (worst > tolerance) {
-            keep[at] = true;
-            stack.push([a, at], [at, b]);
-        }
-    }
-    return pts.filter((_, i) => keep[i]);
-}
-
-/**
- * A closed ring, flattened to within `tolerance` — the grid staircase a
- * diagonal wall becomes on square tiles collapses back into its diagonal.
- *
- * RDP wants an open polyline with fixed endpoints, so the ring is split at
- * vertex 0 and the vertex farthest from it — two anchors that can never both
- * sit on the same removable staircase — and each half is simplified alone.
- * Anything degenerate falls back to the ring it was given: a wrong glow line
- * is worth less than no simplification at all.
- */
-function simplifyRing(flat, tolerance) {
-    const n = flat.length / 2;
-    if (!(tolerance > 0) || n < 5) return flat;
-
-    const pts = [];
-    for (let i = 0; i < n; i++) pts.push({ x: flat[i * 2], y: flat[i * 2 + 1] });
-
-    let far = 0, best = -1;
-    for (let i = 1; i < n; i++) {
-        const d = (pts[i].x - pts[0].x) ** 2 + (pts[i].y - pts[0].y) ** 2;
-        if (d > best) { best = d; far = i; }
-    }
-    if (far === 0) return flat;
-
-    const a = rdpPoints(pts.slice(0, far + 1), tolerance);
-    const b = rdpPoints([...pts.slice(far), pts[0]], tolerance);
-    const ring = [...a.slice(0, -1), ...b.slice(0, -1)];
-    if (ring.length < 3) return flat;
-
-    const out = [];
-    for (const p of ring) out.push(p.x, p.y);
-    return out;
-}
-
-/**
  * Every edge of a room's border, and the stretches along each one that have no
  * wall on them.
  *
@@ -3473,29 +3415,26 @@ function simplifyRing(flat, tolerance) {
  * between a line that stops and a glow that starts is precisely where that
  * would show.
  *
- * `averaged` is the second, deliberate reading of the same border — see
- * `flashOutline`. The ring is flattened first, so a staircase becomes its
- * diagonal and each open stretch on it becomes ONE band; and because the
- * flattened line may sit up to the tolerance away from the true border, both
- * probe distances grow by exactly that much — the inward origin so it still
- * starts unambiguously inside the room behind a protruding tooth, the outward
- * reach so a wall on the far side of a notch is still reached.
+ * The TRUE border, never a smoothed one. Flattening the ring before measuring
+ * was tried, to stop a grid staircase coming out as a ladder of little glow
+ * patches, and it was the wrong cut: it moved the line the glow sits on away
+ * from the wall it describes, which shows up as the glow slicing across
+ * corners — and it left the real defects, which were in how the patches were
+ * composited, exactly where they were. `addDoorwayGlow` handles the staircase
+ * now, on this same honest geometry.
  */
-function doorwayEdges(region, { averaged = false } = {}) {
+function doorwayEdges(region) {
     try {
         const scene = canvas?.scene;
         if (!scene) return [];
 
         const grid = canvas?.grid?.size ?? 100;
         const step = Math.max(8, grid * 0.25);
-        const tolerance = averaged ? grid * DOORWAY_AVERAGE_TOLERANCE : 0;
-        const back = grid * DOORWAY_PROBE_IN + tolerance;
-        const reach = grid * DOORWAY_PROBE_OUT + tolerance;
+        const back = grid * DOORWAY_PROBE_IN;
+        const reach = grid * DOORWAY_PROBE_OUT;
         const shortest = grid * 0.35;
 
-        const own = regionShapes(region, { x: 0, y: 0 })
-            .map(f => (averaged ? simplifyRing(f, tolerance) : f))
-            .map(f => new PIXI.Polygon(f));
+        const own = regionShapes(region, { x: 0, y: 0 }).map(f => new PIXI.Polygon(f));
         if (!own.length) return [];
 
         const others = [];
@@ -3585,49 +3524,337 @@ function doorwayEdges(region, { averaged = false } = {}) {
     }
 }
 
-/** Lay the glow along every open stretch. */
-function addDoorwayGlow(group, edges, rect) {
-    const texture = doorwayTexture();
-    if (!texture || !group || group.destroyed) return;
-
-    const grid = canvas?.grid?.size ?? 100;
-    const bone = colourOf("--drpg-bone", 0xe8e3ec);
-    const depth = grid * DOORWAY_DEPTH;
-    const out = grid * DOORWAY_OFFSET;
-    const longestTail = grid * DOORWAY_TAIL;
-
+/**
+ * The open stretches, chained into the OPENINGS they actually form.
+ *
+ * An opening is a continuous run of unwalled border, and it does not care
+ * where one polygon edge ends and the next begins. A diagonal wall drawn on
+ * square tiles is a staircase of two-dozen little edges, and treating each as
+ * its own opening is the whole reason the glow used to come out as a ladder of
+ * separate patches. Chained here, that staircase is one opening with one
+ * gradient — which is what a reader sees when they look at it.
+ *
+ * Joined on shared endpoints, in ring order, with the last chain allowed to
+ * continue into the first so a border that is open all the way round closes up
+ * rather than showing a seam at vertex zero.
+ */
+function doorwayChains(edges, rect) {
+    const chains = [];
     for (const edge of edges) {
         for (const [from, to] of edge.open) {
-            const run = (to - from) * edge.length;
-
-            /*
-             * THE FULL-STRENGTH PART COVERS THE GAP; ONLY THE TAILS GO PAST IT.
-             *
-             * The fade lives inside the texture as a fixed fraction of its
-             * width, so the sprite is made WIDER than the gap by exactly the
-             * amount that fraction will eat: solve `tail = f · (run + 2·tail)`
-             * and the bright middle lands on the opening itself, with nothing
-             * but gradient spilling beyond either end. Capped, because on a
-             * long shared border a proportional tail would reach halfway into
-             * the next wall.
-             */
-            const tail = Math.min(longestTail,
-                run * DOORWAY_SOFT_END / (1 - 2 * DOORWAY_SOFT_END));
-            const mid = (from + to) / 2;
-
-            const glow = new PIXI.Sprite(texture);
-            glow.tint = bone;
-            // Anchored ON the line it runs along and thrown outward from it.
-            glow.anchor.set(0.5, 0);
-            glow.width = run + tail * 2;
-            glow.height = depth;
-            glow.position.set(
-                edge.ax + edge.dx * mid + edge.nx * out - rect.x,
-                edge.ay + edge.dy * mid + edge.ny * out - rect.y
-            );
-            glow.rotation = Math.atan2(-edge.nx, edge.ny);
-            group.addChild(glow);
+            const a = { x: edge.ax + edge.dx * from - rect.x, y: edge.ay + edge.dy * from - rect.y };
+            const b = { x: edge.ax + edge.dx * to - rect.x, y: edge.ay + edge.dy * to - rect.y };
+            const last = chains[chains.length - 1];
+            const tail = last?.[last.length - 1];
+            if (tail && Math.hypot(tail.x - a.x, tail.y - a.y) < 0.5) last.push(b);
+            else chains.push([a, b]);
         }
+    }
+
+    if (chains.length > 1) {
+        const first = chains[0];
+        const last = chains[chains.length - 1];
+        const tail = last[last.length - 1];
+        if (Math.hypot(tail.x - first[0].x, tail.y - first[0].y) < 0.5) {
+            first.unshift(...last.slice(0, -1));
+            chains.pop();
+        }
+    }
+    return chains;
+}
+
+/**
+ * A polyline resampled at a fixed step, so the smoothing that follows sees
+ * evenly spaced points rather than whatever spacing the map was drawn with.
+ */
+function resamplePolyline(points, step) {
+    const out = [{ x: points[0].x, y: points[0].y }];
+    let carry = 0;
+    for (let i = 1; i < points.length; i++) {
+        const ax = points[i - 1].x, ay = points[i - 1].y;
+        const dx = points[i].x - ax, dy = points[i].y - ay;
+        const length = Math.hypot(dx, dy);
+        if (length < 1e-9) continue;
+        let at = step - carry;
+        while (at <= length) {
+            out.push({ x: ax + dx * (at / length), y: ay + dy * (at / length) });
+            at += step;
+        }
+        carry = length - (at - step);
+    }
+    const end = points[points.length - 1];
+    const tail = out[out.length - 1];
+    if (Math.hypot(tail.x - end.x, tail.y - end.y) > 1e-6) out.push({ x: end.x, y: end.y });
+    return out;
+}
+
+/**
+ * A polyline with the grid out of it — a moving average over `half` samples
+ * each side.
+ *
+ * THE STAIRCASE IS AN ARTEFACT OF THE TILES, NOT A FACT ABOUT THE WALL. A
+ * diagonal drawn on square grid squares zig-zags by about a third of a square
+ * either side of the line it means, and a glow thrown from that zig-zag keeps
+ * the zig-zag: the field bulges into an arc around every outer corner and
+ * scallops back in between them, which is a wavy edge where the reader is
+ * looking at a straight wall.
+ *
+ * Averaging rather than simplifying, and this is the part worth being careful
+ * about. Dropping vertices (Ramer–Douglas–Peucker) replaces a run of border
+ * with the straight chord between two surviving corners, so wherever the
+ * chosen corners sit badly the line cuts visibly across the real geometry —
+ * which is exactly what it did. A moving average moves every point by at most
+ * the local wobble, so a staircase flattens onto its own mean while a genuine
+ * corner merely softens by a fraction of a square.
+ *
+ * The ENDS DO NOT MOVE: the window is clamped to what is available, so it
+ * closes to a single point at each end. An opening that grew or shrank while
+ * being tidied would be a different opening.
+ */
+function smoothPolyline(points, half) {
+    if (points.length < 3 || half < 1) return points;
+    const out = new Array(points.length);
+    for (let i = 0; i < points.length; i++) {
+        const w = Math.min(half, i, points.length - 1 - i);
+        let sx = 0, sy = 0;
+        for (let k = i - w; k <= i + w; k++) { sx += points[k].x; sy += points[k].y; }
+        out[i] = { x: sx / (2 * w + 1), y: sy / (2 * w + 1) };
+    }
+    return out;
+}
+
+/**
+ * A polyline shortened by `cut` of arc length at each end, never below a
+ * pixel of remaining length — a one-square doorway trimmed to nothing would
+ * light nothing at all.
+ */
+function trimPolyline(points, cut) {
+    let total = 0;
+    for (let i = 1; i < points.length; i++) {
+        total += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
+    }
+    const take = Math.min(cut, Math.max(0, (total - 1) / 2));
+    if (take <= 0) return points;
+
+    const at = distance => {
+        let walked = 0;
+        for (let i = 1; i < points.length; i++) {
+            const length = Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
+            if (walked + length >= distance) {
+                const t = length ? (distance - walked) / length : 0;
+                return {
+                    x: points[i - 1].x + (points[i].x - points[i - 1].x) * t,
+                    y: points[i - 1].y + (points[i].y - points[i - 1].y) * t,
+                    seg: i
+                };
+            }
+            walked += length;
+        }
+        const end = points[points.length - 1];
+        return { x: end.x, y: end.y, seg: points.length - 1 };
+    };
+
+    const head = at(take);
+    const foot = at(total - take);
+    const out = [{ x: head.x, y: head.y }];
+    for (let i = head.seg; i < foot.seg; i++) out.push(points[i]);
+    out.push({ x: foot.x, y: foot.y });
+    return out;
+}
+
+/**
+ * The glow along every open stretch of a room's border.
+ *
+ * ONE FIELD, NOT ONE PATCH PER SEGMENT — and that is the whole of this
+ * rewrite. The old version put a rectangular gradient sprite on each open
+ * segment, thrown outward along that segment's own normal, which broke in
+ * three ways the moment a border was not a straight line:
+ *
+ *   they ADDED UP     two sprites overlap and PIXI blends them additively, so
+ *                     a staircase came out at nearly twice the intended alpha
+ *                     — measured at 1.16 against a design value of 0.6
+ *   they SPILLED      a rectangle thrown perpendicular to one little tooth of
+ *                     a staircase crosses the floor of the room it came from
+ *   they were BOXY    two dozen axis-aligned patches where the reader sees one
+ *                     diagonal wall
+ *
+ * None of that is fixable by tidying the geometry the patches sit on — the
+ * first two are compositing, not shape. So the glow is now a DISTANCE FIELD:
+ * strength is a function of how far a pixel is from the nearest open border,
+ * and a function has one value, so nothing can stack with anything.
+ *
+ * Built without a shader, out of nested outlines. Each of `DOORWAY_STEPS`
+ * levels strokes every opening at a decreasing width into a scratch texture —
+ * flat white at full alpha, so overlapping strokes UNION rather than sum — and
+ * that binary silhouette is then added to the accumulator at an equal slice of
+ * the total alpha. A pixel `d` away is inside every level wider than `d`, so it
+ * ends up at `alpha × falloff(d)`: the gradient, by construction, and identical
+ * whether one opening reaches it or five.
+ *
+ * Round caps and joins are what make a staircase read as one straight run:
+ * the isolines of a distance field around a jagged line are smooth a few
+ * pixels out, so the glow leaves the border as a clean diagonal without
+ * anybody having to fake the geometry it came from.
+ *
+ * Finally the room's own shape is ERASED from the field, so a doorway can
+ * never light the floor it belongs to, and the border itself is erased a
+ * little wider so the white outline stays crisp on top of it.
+ */
+function addDoorwayGlow(group, region, edges, rect) {
+    if (!group || group.destroyed) return;
+    const renderer = canvas?.app?.renderer;
+    if (!renderer) return;
+
+    const grid = canvas?.grid?.size ?? 100;
+    const depth = grid * DOORWAY_DEPTH;
+    const out = grid * DOORWAY_OFFSET;
+    const step = Math.max(1, grid / 5);
+    const smoothHalf = Math.max(1, Math.round(grid * DOORWAY_SMOOTH / step));
+
+    let amplitude = 0;
+    const openings = [];
+    for (const chain of doorwayChains(edges, rect)) {
+        const dense = resamplePolyline(chain, step);
+        const averaged = smoothPolyline(dense, smoothHalf);
+        // How far the averaged line strays from the border it stands for —
+        // the staircase's own amplitude, measured rather than assumed.
+        for (let i = 0; i < dense.length; i++) {
+            amplitude = Math.max(amplitude,
+                Math.hypot(dense[i].x - averaged[i].x, dense[i].y - averaged[i].y));
+        }
+        if (averaged.length >= 2) openings.push(averaged);
+    }
+    if (!openings.length) return;
+
+    /*
+     * THE CORE IS WIDENED BY WHATEVER THE AVERAGING MOVED.
+     *
+     * The averaged line runs down the middle of the staircase, so the real
+     * wall sits up to an amplitude either side of it. Left alone, the falloff
+     * would already have started by the time it reached the wall on the teeth
+     * that stick out and not on the ones that do not — a faint beading along
+     * the border, at the pitch of the tiles, which is the artefact this whole
+     * thing exists to remove. A flat full-strength core that wide puts every
+     * part of the wall at full strength instead.
+     *
+     * The core is added to the depth rather than taken out of it. Taking it
+     * out kept the outer edge the same distance from the averaged line and
+     * made the GRADIENT ITSELF shorter on a jagged border than on a flat one —
+     * a quarter shorter on a staircase of single squares, which reads as a
+     * thin, hurried glow next to a straight wall's. The gradient is the thing
+     * that has to match, so it is `depth` everywhere and the core is extra —
+     * and only `DOORWAY_AVERAGE_BIAS` of the amplitude at that, which is where
+     * the depth this adds is traded against the ripple it removes.
+     */
+    amplitude = Math.min(amplitude, grid);
+    const core = out + amplitude * DOORWAY_AVERAGE_BIAS;
+    const span = depth;
+
+    const reach = core + span + 2;
+    lastGlow = {
+        openings: openings.length,
+        points: openings.reduce((n, c) => n + c.length, 0),
+        amplitude: Math.round(amplitude * 10) / 10,
+        core: Math.round(core * 10) / 10,
+        span: Math.round(span * 10) / 10,
+        reachFromAveragedLine: Math.round((core + span) * 10) / 10
+    };
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const chain of openings) {
+        for (const p of chain) {
+            minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+            minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+        }
+    }
+    const box = {
+        x: Math.floor(minX - reach), y: Math.floor(minY - reach),
+        w: Math.ceil(maxX - minX + reach * 2), h: Math.ceil(maxY - minY + reach * 2)
+    };
+    if (!(box.w > 0) || !(box.h > 0)) return;
+
+    let field = null, level = null, strokes = null, blit = null, eraser = null;
+    try {
+        const resolution = Math.min(1, MAX_FOG_TEXTURE / Math.max(box.w, box.h));
+        field = PIXI.RenderTexture.create({ width: box.w, height: box.h, resolution });
+        level = PIXI.RenderTexture.create({ width: box.w, height: box.h, resolution });
+
+        strokes = new PIXI.Graphics();
+        blit = new PIXI.Sprite(level);
+        blit.blendMode = PIXI.BLEND_MODES.ADD;
+        blit.alpha = DOORWAY_ALPHA / DOORWAY_STEPS;
+
+        /*
+         * EACH LEVEL IS ALSO SHORTENED, AND THAT IS THE FADE ALONG THE BORDER.
+         *
+         * A round cap would end an opening in a bulge — light spilling in a
+         * half-circle past the doorframe, and a side that curves where a
+         * straight wall's glow has a straight one. Butt caps end it flat, but
+         * flat on its own is the hard cut this glow has always been written to
+         * avoid: a lit panel stuck over the gap.
+         *
+         * So the levels stop at different places. The widest runs the whole
+         * opening; the narrowest stops a `depth` short of it, and the ones
+         * between are spread across that distance by the same curve that
+         * shapes the falloff outward. Near the end of an opening only the wide
+         * ones are left, which is a band of the full width at a fraction of
+         * the strength — the glow fades out along the wall instead of being
+         * cut off by it, and its sides stay straight.
+         */
+        for (let k = 1; k <= DOORWAY_STEPS; k++) {
+            const spread = doorwayFalloffAt((k - 0.5) / DOORWAY_STEPS);
+            const half = core + span * spread;
+            const cut = depth * (1 - spread);
+            strokes.clear();
+            strokes.lineStyle({ width: half * 2, color: 0xffffff, alpha: 1, cap: "butt", join: "round" });
+            for (const chain of openings) {
+                const line = cut > 0 ? trimPolyline(chain, cut) : chain;
+                if (line.length < 2) continue;
+                strokes.moveTo(line[0].x - box.x, line[0].y - box.y);
+                for (let i = 1; i < line.length; i++) {
+                    strokes.lineTo(line[i].x - box.x, line[i].y - box.y);
+                }
+            }
+            renderer.render(strokes, { renderTexture: level, clear: true });
+            renderer.render(blit, { renderTexture: field, clear: k === 1 });
+        }
+
+        // The room is not lit by its own doorways. Its shape comes out of the
+        // field entirely, and a ring of `out` around the border with it, which
+        // is what keeps the outline sitting on ink rather than on light.
+        eraser = new PIXI.Graphics();
+        eraser.blendMode = PIXI.BLEND_MODES.ERASE;
+        const shapes = regionShapes(region, rect).map(points => {
+            const shifted = new Array(points.length);
+            for (let i = 0; i < points.length; i += 2) {
+                shifted[i] = points[i] - box.x;
+                shifted[i + 1] = points[i + 1] - box.y;
+            }
+            return shifted;
+        });
+        eraser.beginFill(0xffffff, 1);
+        for (const points of shapes) eraser.drawPolygon(points);
+        eraser.endFill();
+        if (out > 0) {
+            eraser.lineStyle({ width: out * 2, color: 0xffffff, alpha: 1, join: "round" });
+            for (const points of shapes) eraser.drawPolygon(points);
+        }
+        renderer.render(eraser, { renderTexture: field, clear: false });
+
+        const glow = new PIXI.Sprite(field);
+        glow.tint = colourOf("--drpg-bone", 0xe8e3ec);
+        glow.position.set(box.x, box.y);
+        // `destroy({children: true})` does not free a texture — see `freeOwned`.
+        glow.drpgOwnedTexture = field;
+        group.addChild(glow);
+        field = null;
+    } catch (err) {
+        debug("Fog: could not build the doorway glow", err);
+        if (field && !field.destroyed) field.destroy(true);
+    } finally {
+        blit?.destroy();
+        if (level && !level.destroyed) level.destroy(true);
+        strokes?.destroy();
+        eraser?.destroy();
     }
 }
 
@@ -3715,7 +3942,11 @@ function fadeRoomOutline() {
 
     const group = going.group;
     const state = { t: 0 };
-    const drop = () => { if (!group.destroyed) group.destroy({ children: true }); };
+    const drop = () => {
+        if (group.destroyed) return;
+        freeOwned(group);
+        group.destroy({ children: true });
+    };
     const animation = CanvasAnimation.animate([{ parent: state, attribute: "t", to: 1 }], {
         duration: outlineFadeMs(),
         ontick: () => {
