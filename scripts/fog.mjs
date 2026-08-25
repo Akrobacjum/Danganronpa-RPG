@@ -51,7 +51,7 @@ const CanvasAnimation = foundry.canvas.animation.CanvasAnimation;
  * from the person testing. `diagnoseFog()` prints this, which turns that into a
  * fact. Bump it whenever the drawing behaviour changes.
  */
-const FOG_BUILD = "2026-08-26 · glow-field-match";
+const FOG_BUILD = "2026-08-26 · glow-field-cut";
 
 const LAYER_NAME = "drpgFog";
 const FOG_SPRITE = "drpgFogSprite";
@@ -3352,6 +3352,32 @@ function doorwayFalloffAt(y) {
     return y >= 0.72 ? (1 - y) / 0.56 : 1 - y / 1.44;
 }
 
+/**
+ * The ramp that cuts an opening off at its ends: transparent where the
+ * opening is still itself, opaque past the end of it.
+ *
+ * Drawn with `ERASE`, so what it takes away is `1 - falloff` and what
+ * survives is the glow times the same curve that shapes it outward — the end
+ * of a doorway's light fades on the same terms as its far edge does.
+ */
+function doorwayFadeTexture() {
+    const width = 64;
+    const el = document.createElement("canvas");
+    el.width = width;
+    el.height = 4;
+    const ctx = el.getContext("2d");
+    if (!ctx) return null;
+
+    const ramp = ctx.createLinearGradient(0, 0, width, 0);
+    for (let i = 0; i <= 8; i++) {
+        const t = i / 8;
+        ramp.addColorStop(t, `rgba(255, 255, 255, ${(1 - doorwayFalloff(t)).toFixed(3)})`);
+    }
+    ctx.fillStyle = ramp;
+    ctx.fillRect(0, 0, width, el.height);
+    return PIXI.Texture.from(el);
+}
+
 /** Is this point inside that region? Polygons are passed in already built. */
 function inPolygons(polygons, x, y) {
     for (const poly of polygons) if (poly.contains(x, y)) return true;
@@ -3783,40 +3809,85 @@ function addDoorwayGlow(group, region, edges, rect) {
         blit.blendMode = PIXI.BLEND_MODES.ADD;
         blit.alpha = DOORWAY_ALPHA / DOORWAY_STEPS;
 
-        /*
-         * EACH LEVEL IS ALSO SHORTENED, AND THAT IS THE FADE ALONG THE BORDER.
-         *
-         * A round cap would end an opening in a bulge — light spilling in a
-         * half-circle past the doorframe, and a side that curves where a
-         * straight wall's glow has a straight one. Butt caps end it flat, but
-         * flat on its own is the hard cut this glow has always been written to
-         * avoid: a lit panel stuck over the gap.
-         *
-         * So the levels stop at different places. The widest runs the whole
-         * opening; the narrowest stops a `depth` short of it, and the ones
-         * between are spread across that distance by the same curve that
-         * shapes the falloff outward. Near the end of an opening only the wide
-         * ones are left, which is a band of the full width at a fraction of
-         * the strength — the glow fades out along the wall instead of being
-         * cut off by it, and its sides stay straight.
-         */
         for (let k = 1; k <= DOORWAY_STEPS; k++) {
-            const spread = doorwayFalloffAt((k - 0.5) / DOORWAY_STEPS);
-            const half = core + span * spread;
-            const cut = depth * (1 - spread);
+            const half = core + span * doorwayFalloffAt((k - 0.5) / DOORWAY_STEPS);
             strokes.clear();
             strokes.lineStyle({ width: half * 2, color: 0xffffff, alpha: 1, cap: "butt", join: "round" });
             for (const chain of openings) {
-                const line = cut > 0 ? trimPolyline(chain, cut) : chain;
-                if (line.length < 2) continue;
-                strokes.moveTo(line[0].x - box.x, line[0].y - box.y);
-                for (let i = 1; i < line.length; i++) {
-                    strokes.lineTo(line[i].x - box.x, line[i].y - box.y);
+                strokes.moveTo(chain[0].x - box.x, chain[0].y - box.y);
+                for (let i = 1; i < chain.length; i++) {
+                    strokes.lineTo(chain[i].x - box.x, chain[i].y - box.y);
                 }
             }
             renderer.render(strokes, { renderTexture: level, clear: true });
             renderer.render(blit, { renderTexture: field, clear: k === 1 });
         }
+
+        /*
+         * THE ENDS ARE CUT ONCE, ACROSS THE WHOLE BAND.
+         *
+         * Shortening each level by a different amount fades the glow out along
+         * the border, and on a straight wall it looks right — every level ends
+         * on a cap perpendicular to the same wall, so the sixteen caps stack
+         * into one clean edge. On a staircase they do not: a cap is
+         * perpendicular to the little axis-aligned segment it happens to land
+         * on, the segments alternate, and the sixteen ends come out as a
+         * ragged step instead of a cut.
+         *
+         * So the band is built full length and cut afterwards, by one gradient
+         * laid across it — square to the direction the opening actually runs
+         * in, measured over the whole fade rather than off the last tile. That
+         * is the same straight, single-gradient edge a flat wall gets, because
+         * now it is literally the same operation. Anything past the end goes
+         * entirely, so no light reaches around the doorframe.
+         */
+        const halfBand = reach;
+        const fadeTexture = doorwayFadeTexture();
+        const ends = new PIXI.Container();
+        for (const chain of openings) {
+            const tail = chain[chain.length - 1];
+            // A border open the whole way round has no ends to cut.
+            if (Math.hypot(chain[0].x - tail.x, chain[0].y - tail.y) < 0.5) continue;
+
+            const inner = trimPolyline(chain, depth);
+            if (inner.length < 2) continue;
+
+            for (const [from, to] of [[inner[0], chain[0]], [inner[inner.length - 1], tail]]) {
+                const dx = to.x - from.x, dy = to.y - from.y;
+                const length = Math.hypot(dx, dy);
+                if (length < 1e-6) continue;
+
+                if (fadeTexture) {
+                    const ramp = new PIXI.Sprite(fadeTexture);
+                    ramp.blendMode = PIXI.BLEND_MODES.ERASE;
+                    ramp.anchor.set(0, 0.5);
+                    ramp.width = length;
+                    ramp.height = halfBand * 2;
+                    ramp.position.set(from.x - box.x, from.y - box.y);
+                    ramp.rotation = Math.atan2(dy, dx);
+                    ends.addChild(ramp);
+                }
+
+                const ux = dx / length, uy = dy / length;
+                const nx = -uy, ny = ux;
+                const ox = to.x - box.x, oy = to.y - box.y;
+                const past = halfBand + 4;
+                const beyond = new PIXI.Graphics();
+                beyond.blendMode = PIXI.BLEND_MODES.ERASE;
+                beyond.beginFill(0xffffff, 1);
+                beyond.drawPolygon([
+                    ox + nx * halfBand, oy + ny * halfBand,
+                    ox - nx * halfBand, oy - ny * halfBand,
+                    ox - nx * halfBand + ux * past, oy - ny * halfBand + uy * past,
+                    ox + nx * halfBand + ux * past, oy + ny * halfBand + uy * past
+                ]);
+                beyond.endFill();
+                ends.addChild(beyond);
+            }
+        }
+        if (ends.children.length) renderer.render(ends, { renderTexture: field, clear: false });
+        ends.destroy({ children: true });
+        if (fadeTexture) fadeTexture.destroy(true);
 
         // The room is not lit by its own doorways. Its shape comes out of the
         // field entirely, and a ring of `out` around the border with it, which
