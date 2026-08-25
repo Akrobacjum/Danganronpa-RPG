@@ -51,7 +51,7 @@ const CanvasAnimation = foundry.canvas.animation.CanvasAnimation;
  * from the person testing. `diagnoseFog()` prints this, which turns that into a
  * fact. Bump it whenever the drawing behaviour changes.
  */
-const FOG_BUILD = "2026-08-24 · fullray";
+const FOG_BUILD = "2026-08-25 · discovery";
 
 const LAYER_NAME = "drpgFog";
 const FOG_SPRITE = "drpgFogSprite";
@@ -667,6 +667,9 @@ async function recordDiscovery(scene, actor, room) {
     return true;
 }
 
+/** One deferred seed at a time — see the readiness guard in `seedDiscovery`. */
+let seedWaitingForReady = false;
+
 /**
  * Record the room every character on a scene is ALREADY STANDING IN.
  *
@@ -686,6 +689,23 @@ async function recordDiscovery(scene, actor, room) {
  * has finished drawing.
  */
 export async function seedDiscovery(scene = canvas?.scene) {
+    // `canvasReady` outruns `ready` at boot, and a world setting may not be
+    // written before the game is ready — so the write threw, `step()` dutifully
+    // logged it, and on a fresh world the seed simply never happened: a
+    // character who never moved stayed under full fog, which is the exact bug
+    // this seed exists to fix. Deferred rather than dropped, and once, however
+    // many callers pile up before ready; the deferred run re-reads the canvas
+    // scene, which at boot is the same scene this call was asked about.
+    if (!game.ready) {
+        if (!seedWaitingForReady) {
+            seedWaitingForReady = true;
+            Hooks.once("ready", () => {
+                seedWaitingForReady = false;
+                step("seed discovery (deferred to ready)", () => seedDiscovery());
+            });
+        }
+        return false;
+    }
     if (!isPrimaryGm() || !scene) return false;
 
     const all = allDiscovered();
@@ -2560,10 +2580,19 @@ async function onUpdateToken(tokenDoc, changes) {
             // depends on where inside a room anybody stands. Repainting anyway
             // was a texture rebuild and a dissolve per step, which is a
             // flickering opportunity bought for nothing.
-            if (!changedRoom) return;
-            repaintFog();
-            if (entered?.isNew) playDiscoveryAnimation(entered.room, tokenDoc);
-            else if (entered) announceRoom(entered.room);
+            //
+            // SCOPED, NOT AN EARLY RETURN. It used to `return` out of the whole
+            // handler, and on the primary GM's client `isOwner` is true for
+            // EVERY token — so a player's move, which never changes which rooms
+            // the GM's own Monokuma occupies, walked out right here and the
+            // write half below was unreachable: `recordDiscovery` could only
+            // ever fire for the GM's own character. The session mirror masked
+            // it until the player's first reload, when their rooms vanished.
+            if (changedRoom) {
+                repaintFog();
+                if (entered?.isNew) playDiscoveryAnimation(entered.room, tokenDoc);
+                else if (entered) announceRoom(entered.room);
+            }
         }
     } catch (err) {
         debug("Fog: could not react to an owned token's move", err);
