@@ -16,13 +16,23 @@ import { MODULE_ID, STARTING, DESPAIR_CALLS, callEffect } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { resourceValue } from "./character.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
-import { announce, whisperToOwner, log, error } from "./utils.mjs";
+import { announce, whisperToOwner, log, error, isPrimaryGm } from "./utils.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
 
 const WIDGET_ID = "drpg-despair";
 
 export function registerDespair() {
-    Hooks.once("ready", renderDespairBar);
+    Hooks.once("ready", () => {
+        renderDespairBar();
+        // The store outlives its authors: worlds carry entries for accounts
+        // long deleted and, in one measured case, a "[object Object]" key an
+        // old caller once wrote. `deleteUser` was the only broom, so junk that
+        // arrived any other way stayed for the life of the world — a sweep at
+        // ready clears it. Primary GM only: one writer, no race between GMs.
+        if (isPrimaryGm()) {
+            prunePools().catch(err => error("Could not prune the Despair pools at ready", err));
+        }
+    });
     Hooks.on("canvasReady", () => renderDespairBar());
     // Keep every client's rows in step when a pool changes.
     Hooks.on("userConnected", () => renderDespairBar());
@@ -204,8 +214,17 @@ export function getDespair(userId) {
 export async function setDespair(userId, value) {
     if (!game.user.isGM) return null;
 
+    // A User object handed to this signature used to be stringified into a
+    // "[object Object]" key — a pool no bar could show and only a deleted-user
+    // prune could remove. Resolve an id, refuse anything that has none.
+    const key = typeof userId === "string" ? userId : userId?.id;
+    if (!key) {
+        error(`setDespair: not a user id: ${String(userId)}`);
+        return null;
+    }
+
     const next = Math.min(Math.max(Math.round(value), 0), despairMax());
-    const store = { ...pools(), [userId]: next };
+    const store = { ...pools(), [key]: next };
     await game.settings.set(MODULE_ID, SETTINGS.despairPools, store);
     return next;
 }
