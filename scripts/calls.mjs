@@ -14,7 +14,7 @@
  * public: when Monokuma acts, the room should know.
  */
 
-import { HOPE_CALLS, DESPAIR_CALLS, STARTING } from "./config.mjs";
+import { MODULE_ID, HOPE_CALLS, DESPAIR_CALLS, STARTING, callEffect } from "./config.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
 import { isEclipse } from "./eclipse.mjs";
@@ -104,14 +104,16 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
         }
 
         const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
+        // A Hope Call is spent Hope. There is no reading to do — the card wears
+        // gold because of what it is, the same gold a Hope roll wears.
         await whisperToOwner(actor, `
             <h3>${esc(call.label)}</h3>
-            <p>${esc(call.effect)}</p>
+            <p>${esc(callEffect(call))}</p>
             ${note ? `<blockquote>${esc(note)}</blockquote>` : ""}
             ${done.length ? `<ul>${done.map(d => `<li>${esc(d)}</li>`).join("")}</ul>` : ""}
             <p><em>${game.i18n.format("DRPG.Calls.hopeSpent", {
                 cost: call.cost, left: held - call.cost
-            })}</em></p>`);
+            })}</em></p>`, { flags: { [MODULE_ID]: { popupTone: "hope" } } });
 
         log(`${actor.name} spent ${call.cost} Hope on ${call.label}.`);
         Hooks.callAll("drpgHopeCall", { actor, key, call, note, choice });
@@ -184,9 +186,11 @@ export async function spendDespairCallFor(actor, key, { note = "", choice = {} }
 
         const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
         if (note || done.length) {
+            // And a Despair Call is spent Despair, so it wears Blood.
             await announce({
                 content: `${note ? `<blockquote>${esc(note)}</blockquote>` : ""}
-                          ${done.length ? `<ul>${done.map(d => `<li>${esc(d)}</li>`).join("")}</ul>` : ""}`
+                          ${done.length ? `<ul>${done.map(d => `<li>${esc(d)}</li>`).join("")}</ul>` : ""}`,
+                flags: { [MODULE_ID]: { popupTone: "fear" } }
             });
         }
 
@@ -222,7 +226,7 @@ export async function confirmCall(call, { kind = "hope", held = 0, choice = {} }
         window: { title: call.label },
         classes: ["drpg-panel", kind === "hope" ? "drpg-hope-dialog" : "drpg-despair-dialog"],
         content: `<div>
-            <p>${foundry.utils.escapeHTML(call.effect)}</p>
+            <p>${foundry.utils.escapeHTML(callEffect(call))}</p>
             ${aimed ? `<p><strong>${game.i18n.localize("DRPG.Calls.aimedAt")}:</strong> ${foundry.utils.escapeHTML(aimed)}</p>` : ""}
             <p class="${affordable ? "notes" : "drpg-warning"}">${
                 game.i18n.format(kind === "hope" ? "DRPG.Calls.costsHope" : "DRPG.Calls.costsDespair", {
@@ -269,16 +273,33 @@ function describeChoice(choice = {}) {
 /** Hope Calls a character could pay for right now. */
 export function affordableHopeCalls(actor) {
     const held = hopeHeld(actor);
-    return Object.entries(HOPE_CALLS).map(([key, call]) => ({
+    return byPrice(Object.entries(HOPE_CALLS).map(([key, call]) => ({
         key, ...call, affordable: held >= call.cost
-    }));
+    })));
 }
 
 /** Despair Calls, with affordability against a pool. */
 export function despairCallsFor(poolValue = 0) {
-    return Object.entries(DESPAIR_CALLS).map(([key, call]) => ({
+    return byPrice(Object.entries(DESPAIR_CALLS).map(([key, call]) => ({
         key, ...call, affordable: poolValue >= call.cost
-    }));
+    })));
+}
+
+/**
+ * Cheapest first.
+ *
+ * SORTED ON THE WAY OUT, not rearranged in config.mjs. That table is the rules
+ * written down, and its order is thematic — the Calls that do similar things
+ * sit together, which is how you read a rulebook. A panel is read the other
+ * way: you look at what you can afford. `fuelTheCub` costs 1 and was listed
+ * after `silence`, which costs 4, so the Despair panel opened with the two
+ * most expensive Calls and buried the cheap one at the bottom.
+ *
+ * Ties keep the table's own order — `sort` is stable — so the thematic
+ * grouping survives inside each price band.
+ */
+function byPrice(calls) {
+    return calls.sort((a, b) => (a.cost ?? 0) - (b.cost ?? 0));
 }
 
 /** Max Hope, for the sheet header. */

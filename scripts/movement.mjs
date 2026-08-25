@@ -14,15 +14,43 @@
  * a half-built map from eating everyone's actions.
  */
 
-import { MODULE_ID, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, TIMES_OF_DAY, FLAGS } from "./config.mjs";
+import { MODULE_ID, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, TIMES_OF_DAY, FLAGS,
+    ROOM_OWNER_FLAG, BEDROOM_KEY_FLAG } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { hasFreeMove, takeMove, actionsLeft } from "./actions.mjs";
 // Statically imported, not lazily: the crossing veto runs inside a synchronous
 // `preUpdateToken` hook, where there is no opportunity to await an import.
 // call-effects.mjs only reaches back into this file lazily, so there is no cycle.
 import { isSealed, isChained } from "./call-effects.mjs";
+// Same reasoning as call-effects.mjs above: this veto is synchronous, so the
+// reader it needs has to be a static import too. mastermind.mjs does not
+// reach back into this file, so there is no cycle.
+import { iAmTheMastermind } from "./mastermind.mjs";
 // `neighbouringRooms` and `boundsOf` are defined further down this file.
 import { whisperToOwner, isPrimaryGm, debug, error } from "./utils.mjs";
+
+/**
+ * Region flags this file owns. Named like `VAULT_FLAGS`/`REST_FLAGS` in
+ * vault.mjs, which reads this one to draw Room Setup's own "Locked" column —
+ * the enforcement lives here, the flag is set from there.
+ */
+export const ROOM_FLAGS = {
+    /** A GM has locked this room shut. Set from Room Setup only. */
+    locked: "drpgLocked",
+
+    /**
+     * Whether this room is locked when a season BEGINS. Also set from Room
+     * Setup, in the column beside the one above, and read by nothing but the
+     * season reset, which copies it back over `locked`.
+     *
+     * A flag on the region rather than a setting somewhere else, because the
+     * lock itself is a flag on the region and travels with the scene. Keeping
+     * the opening layout anywhere but here would mean copying a map into a new
+     * world carried the locks but not the state they are supposed to return
+     * to — which is the kind of split that surfaces two months later.
+     */
+    lockedAtStart: "drpgLockedAtStart"
+};
 
 /** Last known room per token, so we only react to actual crossings. */
 const lastRoom = new Map();
@@ -57,6 +85,30 @@ function onPreUpdateToken(tokenDoc, changes, options) {
         if (!actor || actor.type !== "character") return;
         if (game.user.isGM) return;                    // GMs move anything anywhere
 
+        // A BODY STAYS WHERE IT FELL.
+        //
+        // Checked before anything else, and deliberately not through
+        // `canCross`: that function answers "may this character cross from one
+        // room to another", and every path through it returns early on a move
+        // inside a single room. A corpse being nudged three squares across the
+        // floor it died on is not a crossing, and it is exactly the move that
+        // ruins a crime scene — the body is evidence, and where it is lying is
+        // most of what it says.
+        //
+        // The GM is above this line on purpose. Moving the body is a legitimate
+        // GM act (Stage 6 has the killer doing it, through the clean-up action
+        // that a GM resolves), and the dead have no say in where they are put.
+        //
+        // A Monocub is exempt because a Monocub is not a corpse: it is a dead
+        // student who joined the GM side and is walking around as one. They
+        // carry `deceased` for the rules that count the living, and `monocub`
+        // for everything about being a person on the map — the same pair the
+        // sheet's own action panels test.
+        if (isCorpse(actor)) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Move.dead"));
+            return false;
+        }
+
         const from = roomOfToken(tokenDoc);
         const to = roomAt(
             changes.x ?? tokenDoc.x,
@@ -74,6 +126,24 @@ function onPreUpdateToken(tokenDoc, changes, options) {
         return false;                                  // the move does not happen
     } catch {
         // Never block a move because our own check failed.
+    }
+}
+
+/**
+ * Dead, and not a Monocub — so this token is a body rather than a person.
+ *
+ * Read straight off the two flags rather than through `chapter.mjs` and
+ * `monocub.mjs`: this runs inside the synchronous `preUpdateToken` veto, where
+ * there is no chance to await an import, and the flag names come from
+ * config.mjs so the readers here cannot drift from the writers there.
+ */
+function isCorpse(actor) {
+    try {
+        if (!actor?.getFlag(MODULE_ID, FLAGS.deceased)) return false;
+        return !actor.getFlag(MODULE_ID, FLAGS.monocub);
+    } catch {
+        // A state we cannot read must not freeze a token nobody can move.
+        return false;
     }
 }
 
@@ -230,20 +300,78 @@ function lockedInIncident(actor) {
 }
 
 /**
- * Is a Despair Call standing in the way?
+ * Is a Despair Call — or a GM's own lock — standing in the way?
  *
- * Both of these were previously bookkeeping: "Behind Closed Doors" wrote the
- * room name into a world setting, announced it, and nothing ever read it back,
- * so a sealed room was a sentence in chat that players walked straight through.
+ * The sealed-room checks were previously bookkeeping: "Behind Closed Doors"
+ * wrote the room name into a world setting, announced it, and nothing ever
+ * read it back, so a sealed room was a sentence in chat that players walked
+ * straight through. `drpgLocked` is the same category of rule from a
+ * different source — a GM's own Room Setup, not a Despair Call — and gets the
+ * same absolute treatment: no number of actions buys past a locked door.
+ *
+ * The Mastermind is the one exception, and only for THIS category — doors
+ * their own side locked, and Despair Call seals, are doors they hold the key
+ * to. `isChained` is untouched: that Despair Call targets a specific person,
+ * not a door, and it stays absolute for everyone it is cast on.
  *
  * @returns {false|string} false when the move is allowed, otherwise the reason.
  */
 function restrictedFrom(actor, to) {
     try {
         if (isChained(actor)) return game.i18n.localize("DRPG.Calls.chainedBlocked");
-        if (to && isSealed(to)) return game.i18n.format("DRPG.Calls.sealedBlocked", { room: to });
+        if (to && !iAmTheMastermind()) {
+            if (isLocked(to)) return game.i18n.localize("DRPG.Move.locked");
+            if (isSealed(to)) return game.i18n.format("DRPG.Calls.sealedBlocked", { room: to });
+            // Somebody's bedroom. The owner walks in; anybody else needs the
+            // key they were given — see the note on keys in vault.mjs. A GM
+            // moving a token is not standing in the fiction and is never
+            // stopped by a door.
+            if (!game.user.isGM && bedroomShut(actor, to)) {
+                return game.i18n.format("DRPG.Vault.keyMissing", { room: to });
+            }
+        }
     } catch {
         // A restriction we cannot read must not block an ordinary move.
+    }
+    return false;
+}
+
+/**
+ * Has a GM locked this room shut, from Room Setup?
+ *
+ * Reads the flag straight off the room's own Region on the scene actually
+ * being dragged on — the same `canvas?.scene` assumption every other room
+ * function in this file makes for the synchronous veto path (see `roomAt`,
+ * `neighbouringRooms`): the crossing being judged is always happening on
+ * whatever scene the dragging client has open.
+ */
+function isLocked(room) {
+    if (!room) return false;
+    for (const region of canvas?.scene?.regions ?? []) {
+        if (region.name === room) return Boolean(region.getFlag(MODULE_ID, ROOM_FLAGS.locked));
+    }
+    return false;
+}
+
+/**
+ * Is this somebody else's bedroom, and are they carrying no key to it?
+ *
+ * Read straight off the two documents rather than through vault.mjs — that file
+ * already reaches into this one, and this veto runs inside a synchronous
+ * `preUpdateToken` where a dynamic import is not an option. Both flag names
+ * come from config.mjs so the two readers cannot drift apart.
+ *
+ * A room nobody owns is not a bedroom. The owner never needs a key to their own
+ * door: losing it would otherwise lock them out of the one place the guide says
+ * is theirs.
+ */
+function bedroomShut(actor, to) {
+    for (const region of canvas?.scene?.regions ?? []) {
+        if (region.name !== to) continue;
+        const owner = region.getFlag(MODULE_ID, ROOM_OWNER_FLAG);
+        if (!owner || owner === actor?.id) return false;
+        return !Array.from(actor?.items ?? [])
+            .some(item => item.getFlag(MODULE_ID, BEDROOM_KEY_FLAG) === to);
     }
     return false;
 }
@@ -287,20 +415,69 @@ function roomAt(x, y, tokenDoc) {
     // treated as the same thing. The chain below distinguishes them explicitly —
     // the bounding box is for a region that cannot be ASKED, not for one that
     // answered no.
+    const regions = regionsAt(scene, x, y, tokenDoc);
+    return regions.map(r => r.name).sort()[0] ?? null;
+}
+
+/**
+ * Every named Region a point falls inside — the plural version of `roomAt`,
+ * for the one caller that needs ALL of them rather than the alphabetically-
+ * first name: a token standing where two rooms overlap is in both at once,
+ * and vision restriction (see `visibility.mjs`'s `clipVisionToRoom`) has to
+ * clip to their union, not silently pick one. Shares every edge case `roomAt`
+ * already worked out — grid size, elevation, the `testPoint` fallback chain —
+ * rather than risking the two drifting apart.
+ */
+export function regionsAt(scene, x, y, tokenDoc) {
+    if (!scene?.regions?.size) return [];
+
     const size = scene.grid?.size ?? canvas?.grid?.size ?? 100;
     const cx = x + ((tokenDoc?.width ?? 1) * size) / 2;
     const cy = y + ((tokenDoc?.height ?? 1) * size) / 2;
     const elevation = Number.isFinite(tokenDoc?.elevation) ? tokenDoc.elevation : 0;
 
-    const names = [];
-    for (const region of scene.regions) {
-        if (!region.name) continue;
-        const inside = typeof region.testPoint === "function"
-            ? region.testPoint({ x: cx, y: cy, elevation })
-            : containedBy(region, cx, cy);
-        if (inside) names.push(region.name);
+    const named = Array.from(scene.regions).filter(r => r.name);
+    const found = [];
+    let asked = 0;
+
+    for (const region of named) {
+        if (typeof region.testPoint !== "function") {
+            if (containedBy(region, cx, cy)) found.push(region);
+            continue;
+        }
+        asked++;
+        if (region.testPoint({ x: cx, y: cy, elevation })) found.push(region);
     }
-    return names.sort()[0] ?? null;
+
+    // EVERY region said no, and every region was asked the same way.
+    //
+    // One region answering "outside" is an answer. All of them answering
+    // "outside" for a point that is visibly inside a room is the failure this
+    // function has already been repaired for twice, in a third shape: whatever
+    // `testPoint` is checking this build — an elevation band, a polygon that
+    // carries holes where two rooms share a wall (see the v14 canvas notes) —
+    // is rejecting the point before the geometry is ever consulted. It fails
+    // SCENE-WIDE, not per token, so the symptom is not "one character is in the
+    // wrong room" but "nobody is in any room", and everything downstream goes
+    // quiet at once: room visibility hides nobody, Listen hears nothing, Search
+    // finds no room to spend a token in.
+    //
+    // So when the precise test rejects the point everywhere, fall through to
+    // the bounding box rather than reporting an empty map. A box is coarser
+    // than a polygon and can name a neighbouring room at a corner; being
+    // slightly wrong about which room is recoverable, and being certain there
+    // are no rooms is not.
+    if (!found.length && asked === named.length && named.length) {
+        for (const region of named) {
+            if (containedBy(region, cx, cy)) found.push(region);
+        }
+        if (found.length) {
+            debug(`Region hit test rejected every room at (${Math.round(cx)}, ${Math.round(cy)}); `
+                + `fell back to bounds and found ${found.map(r => r.name).join(", ")}.`);
+        }
+    }
+
+    return found;
 }
 
 /** Bounding-box fallback when a region cannot test a point itself. */
@@ -355,6 +532,18 @@ async function onUpdateToken(tokenDoc, changes, options, userId) {
 
         // Only position changes can cross a boundary.
         if (changes.x === undefined && changes.y === undefined && changes.elevation === undefined) return;
+
+        // ONE CROSSING, ONE CHARGE.
+        //
+        // Foundry v14 delivers a move as a SERIES of updates along the token's
+        // path — the core says as much, deprecating `updateToken` for movement
+        // in favour of `moveToken` / `_onUpdateMovement` since v13. Every one of
+        // those intermediate updates carries new x/y, so this handler ran
+        // several times for a single drag: the player was told "that cost an
+        // action" two, three, four times over, and `takeMove` was called each
+        // time. Only the last update has nothing left pending, which is the
+        // moment the token has actually stopped somewhere.
+        if (tokenDoc.movement?.pending?.waypoints?.length) return;
 
         const actor = tokenDoc.actor;
         if (!actor || actor.type !== "character") return;

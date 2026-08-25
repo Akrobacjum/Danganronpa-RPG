@@ -37,6 +37,7 @@ import { registerMastermind } from "./mastermind.mjs";
 import { registerResourceGuard } from "./resource-guard.mjs";
 import { registerStates } from "./states.mjs";
 import { registerVisibility } from "./visibility.mjs";
+import { registerFog } from "./fog.mjs";
 import { registerRemnantRings } from "./remnant-ring.mjs";
 import { registerRemnantLedger } from "./remnants.mjs";
 import { registerDaySummary } from "./day-summary.mjs";
@@ -52,12 +53,13 @@ import { registerMusic } from "./music.mjs";
 import { registerCameraView } from "./camera-view.mjs";
 import { registerPopups } from "./popup.mjs";
 import { registerStacking } from "./stacking.mjs";
+import { registerMotion } from "./motion.mjs";
 import { registerSafeword } from "./safeword.mjs";
 import { registerDiceSync } from "./dice-sync.mjs";
 import { registerSync } from "./sync.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
 import { registerApi } from "./api.mjs";
-import { warnAboutPageTinting } from "./diagnostics.mjs";
+import { warnAboutPageTinting, verifyStylesheet } from "./diagnostics.mjs";
 import { log, error } from "./utils.mjs";
 
 /** Minimum Daggerheart version this layer was written against. */
@@ -106,6 +108,7 @@ Hooks.once("init", () => {
     // equivalent automations off Daggerheart at `ready`.
     safely("Breakdown and Wounded", registerStates);
     safely("room visibility", registerVisibility);
+    safely("the fog of war", registerFog);
     safely("Remnant rings", registerRemnantRings);
     safely("day summary", registerDaySummary);
     safely("the roll dialog lock", registerRollDialog);
@@ -123,6 +126,11 @@ Hooks.once("init", () => {
     // everyone — no socket, unlike voice. See music.mjs.
     safely("the music", registerMusic);
     safely("the camera dock", registerCameraView);
+    // Before anything that can open a window. The motion layer only listens —
+    // it adds no state and holds no reference — but a window that renders
+    // before the hook exists simply appears, and the first window of a session
+    // is the one worth getting right.
+    safely("the motion layer", registerMotion);
     safely("popups", registerPopups);
     // After popups, before anything that opens one: every module prompt is
     // something the game is waiting on, so none of them may end up under the
@@ -177,8 +185,31 @@ Hooks.once("ready", () => {
     // After the body classes, so the check sees the interface as it will be
     // drawn rather than as Foundry left it.
     safely("the page-tinting check", warnAboutPageTinting);
+    // After the body classes for the same reason, and after the tinting check
+    // because a repainted page is the louder problem of the two.
+    safely("the stylesheet check", verifyStylesheet);
     safely("project secrecy", sealProjects);
+    safely("bedroom keys", issueMissingKeys);
 });
+
+/**
+ * Every bedroom's owner holds the key to it — checked on load, not on change.
+ *
+ * The same reasoning as `sealProjects` right below: this is a statement about
+ * how the world should look, and the world can arrive at load in a state that
+ * predates the rule. Rooms assigned before keys existed are exactly that state,
+ * and no amount of re-saving Room Setup would have reached them, because that
+ * screen only acts on rows whose flags changed.
+ *
+ * Silent, and writes nothing when nothing is missing.
+ */
+function issueMissingKeys() {
+    if (!game.user.isGM) return;
+
+    import("./vault.mjs")
+        .then(m => m.reconcileBedroomKeys())
+        .catch(err => error("Could not issue the missing bedroom keys", err));
+}
 
 /**
  * Re-apply secrecy to every project that claims to be secret.

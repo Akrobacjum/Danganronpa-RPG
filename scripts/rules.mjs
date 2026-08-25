@@ -19,9 +19,7 @@
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
-import { announce, dialogContent, log, error, plural } from "./utils.mjs";
-
-const DialogV2 = foundry.applications.api.DialogV2;
+import { announce, dialogContent, log, error, plural, tableDialog } from "./utils.mjs";
 
 /* ==========================================================================
  * READING
@@ -199,7 +197,7 @@ export async function openRulesManager() {
             </td>
         </tr>`).join("");
 
-    const result = await DialogV2.wait({
+    const result = await tableDialog({
         window: { title: game.i18n.localize("DRPG.Rules.manageTitle") },
         classes: ["drpg-panel", "drpg-projects"],
         content: dialogContent(`<form>

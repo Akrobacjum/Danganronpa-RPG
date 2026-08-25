@@ -8,8 +8,8 @@
  *     game.drpg.diagnoseCharacters()  who has not been set up yet
  */
 
-import { MODULE_ID, STARTING, ITEM_CATEGORIES } from "./config.mjs";
-import { SETTINGS } from "./settings.mjs";
+import { MODULE_ID, BUILD, STARTING, ITEM_CATEGORIES } from "./config.mjs";
+import { SETTINGS, getSetting } from "./settings.mjs";
 import { monokumas, getDespair, despairMax } from "./despair.mjs";
 import { monokumaFor, students, unassigned } from "./assignments.mjs";
 import { studentActors } from "./monokuma.mjs";
@@ -543,6 +543,319 @@ export function diagnoseStyles() {
 }
 
 /**
+ * Is the stylesheet on this page the one that shipped with this module?
+ *
+ * Runs at load and says nothing when the answer is yes, which is almost
+ * always. The two answers worth hearing:
+ *
+ *   the token is EMPTY      the stylesheet is not on this page at all — it did
+ *                           not arrive, or it arrived and failed to parse
+ *   the token DISAGREES     the page has an older copy of the file. A browser
+ *                           or a CDN is holding it; the module cannot fix that
+ *                           from inside the page, and a hard reload can
+ *
+ * Deliberately NOT self-healing. Re-attaching the file with a cache-busting
+ * query would put the new copy OUTSIDE `layer(modules)` — Foundry imports
+ * module CSS into that layer, and unlayered rules beat layered ones whatever
+ * their specificity. The fix would land the whole stylesheet in a different
+ * part of the cascade than it was written for, which is a worse bug than the
+ * one it set out to solve, and a harder one to see.
+ */
+export function stylesheetVersion() {
+    return getComputedStyle(document.documentElement)
+        .getPropertyValue("--drpg-css-version").trim().replace(/^["']|["']$/g, "");
+}
+
+export function verifyStylesheet() {
+    const css = stylesheetVersion();
+    if (css === BUILD) return true;
+
+    if (!css) {
+        console.warn(`${MODULE_ID} | The module stylesheet is not on this page. `
+            + "Run game.drpg.diagnoseStyles() for where it went.");
+        ui.notifications.warn(game.i18n.localize("DRPG.Diagnostics.cssMissing"), { permanent: true });
+        return false;
+    }
+
+    // Which of the two is behind matters, because the fix is different. An old
+    // stylesheet is a browser cache and a hard reload clears it. Old scripts
+    // with a new stylesheet is the other way round — the files were replaced
+    // and this tab still has the previous ones, which a reload also fixes, but
+    // if it survives a reload the host is serving them.
+    console.warn(`${MODULE_ID} | Stylesheet v${css}, scripts v${BUILD}. `
+        + "The two halves of this module are from different builds. Reload; if that does not "
+        + "change it, the host is still serving one of them.");
+    ui.notifications.warn(game.i18n.format("DRPG.Diagnostics.buildMismatch",
+        { css, scripts: BUILD }), { permanent: true });
+    return false;
+}
+
+/**
+ * Why is a Foundry config window cut off at the right edge?
+ *
+ * Open the window that is wrong — Token Config, Scene Config — and then:
+ *
+ *     game.drpg.diagnoseWindows()
+ *
+ * Every line is a measurement of THAT window. The one that matters most is
+ * `scrollWidth vs clientWidth`: that is the definition of "cut off", and it
+ * separates a window whose contents overflow from a window that is simply
+ * narrow. The rest names the four things that can push a form past its own
+ * frame — a fixed-width face on labels laid out in pixels, a UI scale, a
+ * `.form-group` that cannot wrap, and a `.window-content` that cannot scroll.
+ */
+export function diagnoseWindows() {
+    const lines = [];
+
+    const css = stylesheetVersion();
+    const manifest = game.modules.get(MODULE_ID)?.version ?? "?";
+    lines.push(`Foundry ${game.version}, ${game.system.id} ${game.system.version}`);
+    lines.push(`Host: ${location.origin}`);
+    lines.push(`Running: scripts v${BUILD}, stylesheet v${css || "(NOT ON THIS PAGE)"}`
+        + (css && css !== BUILD ? "   ← THE TWO HALVES ARE FROM DIFFERENT BUILDS" : ""));
+    lines.push(`Manifest says: v${manifest}${manifest !== BUILD
+        ? "   (the host's record of what it installed — lagging behind the files is normal "
+          + "on a hosted world and harmless)" : ""}`);
+
+    // The two settings that change how wide text is drawn, either of which can
+    // differ between a local world and a hosted one without anybody meaning it.
+    let fontSize = "(unreadable)";
+    let scale = "(unreadable)";
+    try {
+        const ui = game.settings.get("core", "uiConfig") ?? {};
+        fontSize = String(ui.fontSize ?? "(unset)");
+        scale = String(ui.uiScale ?? "(unset)");
+    } catch { /* older core */ }
+    lines.push(`Core UI: fontSize ${fontSize}, uiScale ${scale}`);
+    lines.push(`Pixel font setting: ${
+        getSetting(SETTINGS.pixelFont) ? "ON" : "off"}, body.drpg-pixel-font: ${
+        document.body.classList.contains("drpg-pixel-font") ? "present" : "absent"}`);
+    lines.push("");
+
+    // ---- the windows themselves --------------------------------------------
+    const windows = Array.from(document.querySelectorAll(".application"))
+        .filter(el => /config|sheet/i.test(el.className) && el.offsetParent !== null
+            && !el.classList.contains("drpg-panel"));
+
+    if (!windows.length) {
+        lines.push("No config window is open. Open Token Config or Scene Config and run this again.");
+        return report("Window diagnostics", lines);
+    }
+
+    for (const win of windows) {
+        const content = win.querySelector(".window-content") ?? win;
+        const winRect = win.getBoundingClientRect();
+        const style = getComputedStyle(win);
+        const contentStyle = getComputedStyle(content);
+        const overflows = content.scrollWidth - content.clientWidth;
+
+        lines.push(`${win.id || "(no id)"}  [${win.className}]`);
+        lines.push(`   window: ${Math.round(winRect.width)}x${Math.round(winRect.height)}px, `
+            + `inline width: ${win.style.width || "(none)"}, max-width: ${style.maxWidth}`);
+        lines.push(`   content: scrollWidth ${content.scrollWidth} vs clientWidth ${content.clientWidth}`
+            + (overflows > 1 ? `   ← ${overflows}px OF THIS WINDOW IS UNREACHABLE` : "   (nothing is cut off)"));
+        lines.push(`   overflow: ${contentStyle.overflowX} / ${contentStyle.overflowY}`);
+
+        const group = win.querySelector(".form-group");
+        if (group) {
+            const gs = getComputedStyle(group);
+            lines.push(`   .form-group: flex-wrap ${gs.flexWrap}, gap ${gs.gap}`);
+        }
+
+        // What face the labels are actually drawn in. A fixed-width pixel face
+        // on a label column sized for a proportional one is the whole of the
+        // original bug, and it is invisible in a screenshot to anyone who does
+        // not already suspect it.
+        const label = win.querySelector("label, .form-group > label, legend");
+        if (label) {
+            const ls = getComputedStyle(label);
+            const pixel = /pixel|press start/i.test(ls.fontFamily);
+            lines.push(`   label font: ${ls.fontFamily.slice(0, 60)}${
+                pixel ? "   ← THE PIXEL FACE IS BEING APPLIED INSIDE A CORE WINDOW" : ""}`);
+            lines.push(`   label width: ${Math.round(label.getBoundingClientRect().width)}px, `
+                + `white-space: ${ls.whiteSpace}`);
+        }
+        lines.push("");
+    }
+
+    return report("Window diagnostics", lines);
+}
+
+/**
+ * WHY DID THAT CLICK NOT DO ANYTHING?
+ *
+ * Reported from the hosted world: controls in Token Config need several
+ * clicks before one takes. That has three possible shapes and they are told
+ * apart by measurement, not by looking:
+ *
+ *   something is ON TOP     the press lands on a different element than the
+ *                           one under the cursor looks like
+ *   it is REPLACED          the element is torn out of the page between press
+ *                           and release, so the browser has nothing to fire a
+ *                           click on — a re-render mid-gesture
+ *   it is CANCELLED         the click happens and something calls
+ *                           preventDefault or stops it propagating
+ *
+ * Run it, then click the control that misbehaves several times:
+ *
+ *     game.drpg.traceClicks()
+ *
+ * It watches for twenty seconds and then posts what it saw. Nothing is
+ * intercepted — every listener is passive and in the capture phase, so this
+ * cannot itself be the reason a click goes missing.
+ */
+export function traceClicks({ seconds = 20 } = {}) {
+    const lines = [];
+    const t0 = performance.now();
+    const at = () => `${String(Math.round(performance.now() - t0)).padStart(5)}ms`;
+
+    const name = el => {
+        if (!el) return "(nothing)";
+        const id = el.id ? `#${el.id}` : "";
+        const cls = typeof el.className === "string" && el.className
+            ? `.${el.className.trim().split(/\s+/).slice(0, 3).join(".")}` : "";
+        return `${el.tagName.toLowerCase()}${id}${cls}`;
+    };
+
+    // A control that fires the same event twelve times a second will fill any
+    // report before the thing being investigated has happened. Consecutive
+    // identical lines collapse into one with a count, which turns a flood from
+    // something that hides the answer into the answer.
+    const push = line => {
+        const last = lines[lines.length - 1];
+        if (last && last.text === line) {
+            last.n += 1;
+            return;
+        }
+        lines.push({ text: line, n: 1 });
+    };
+
+    let pressed = null;
+    const handlers = {
+        pointerdown(event) {
+            pressed = event.target;
+            const covering = document.elementFromPoint(event.clientX, event.clientY);
+            push(`DOWN   on ${name(event.target)}`);
+            if (covering && covering !== event.target && !event.target.contains(covering)) {
+                push(`       ← the point actually belongs to ${name(covering)} `
+                    + `(z-index ${getComputedStyle(covering).zIndex}) — SOMETHING IS ON TOP`);
+            }
+            const target = event.target;
+            requestAnimationFrame(() => {
+                if (!target.isConnected) {
+                    push(`       ← ${name(target)} LEFT THE PAGE one frame after the press. `
+                        + "Something re-rendered this window mid-click.");
+                }
+            });
+        },
+        pointerup(event) {
+            const gone = pressed && !pressed.isConnected;
+            push(`UP     on ${name(event.target)}${
+                gone ? "   ← the element pressed no longer exists, so no click can fire" : ""}`);
+        },
+        click(event) {
+            push(`CLICK  on ${name(event.target)}${
+                event.defaultPrevented ? "   ← already defaultPrevented before it got here" : ""}`);
+        },
+        change(event) {
+            push(`CHANGE on ${name(event.target)} → ${
+                String(event.target?.value ?? "").slice(0, 30)}`);
+        }
+    };
+
+    for (const [type, fn] of Object.entries(handlers)) {
+        document.addEventListener(type, fn, { capture: true, passive: true });
+    }
+
+    ui.notifications.info(game.i18n.format("DRPG.Diagnostics.tracing", { seconds }));
+
+    setTimeout(() => {
+        for (const [type, fn] of Object.entries(handlers)) {
+            document.removeEventListener(type, fn, { capture: true });
+        }
+
+        const out = lines.map(l => l.n > 1 ? `${l.text}   × ${l.n}` : l.text);
+
+        // A control repeating itself hundreds of times in twenty seconds is
+        // not the user pressing anything. Every event it fires on a form that
+        // submits on change costs a re-render, and a window that re-renders
+        // under the pointer cannot be clicked reliably — so this line is
+        // usually the whole answer.
+        const storm = lines
+            .filter(l => l.n >= 20 && l.text.startsWith("CHANGE"))
+            .sort((a, b) => b.n - a.n)[0];
+        if (storm) {
+            out.unshift("", `!! ${storm.text.split(" → ")[0]} fired ${storm.n} times without being `
+                + "touched. Whatever owns that control is re-rendering this window continuously, "
+                + "and a window that re-renders under the pointer eats clicks. Disable the module "
+                + "that field belongs to and try again.", "");
+        }
+
+        if (!out.length) out.push("Nothing happened while this was watching.");
+        out.unshift(`Foundry ${game.version}, ${game.system.id} ${game.system.version}, `
+            + `scripts v${BUILD}, stylesheet v${stylesheetVersion() || "(none)"}`, "");
+        report("Click trace", out);
+    }, seconds * 1000);
+
+    return `Watching clicks for ${seconds} seconds.`;
+}
+
+/**
+ * WHICH OF THIS MODULE'S FILES DID THE SERVER ACTUALLY UPDATE?
+ *
+ *     await game.drpg.fileSizes()
+ *
+ * Fetches each script and stylesheet straight from the host, bypassing the
+ * browser cache, and reports the size of what came back. Sizes are not a
+ * checksum and are not meant to be: paste the list, and the same list taken
+ * from the working copy answers "is this file the one I edited" in one glance.
+ *
+ * It exists because the ordinary answers do not work on a hosted world. The
+ * manifest version is the host's record of an install, not a description of
+ * the files; `BUILD` and the stylesheet stamp cover two files out of seventy;
+ * and a deployment that replaced some files and not others looks exactly like
+ * a deployment that worked.
+ */
+export async function fileSizes() {
+    const lines = [];
+    const files = [
+        "module.json",
+        "styles/motion.css",
+        "styles/danganronpa.css",
+        "scripts/motion.mjs",
+        "scripts/config.mjs",
+        "scripts/action-rolls.mjs",
+        "scripts/sheet.mjs",
+        "scripts/gm-panel.mjs",
+        "scripts/diagnostics.mjs",
+        "scripts/stacking.mjs",
+        "scripts/hud.mjs",
+        "lang/en.json"
+    ];
+
+    lines.push(`scripts v${BUILD}, stylesheet v${stylesheetVersion() || "(none)"}, `
+        + `manifest v${game.modules.get(MODULE_ID)?.version ?? "?"}`);
+    lines.push(`Host: ${location.origin}`);
+    lines.push("");
+
+    for (const file of files) {
+        try {
+            const res = await fetch(`modules/${MODULE_ID}/${file}`, { cache: "reload" });
+            if (!res.ok) {
+                lines.push(`${file.padEnd(30)} HTTP ${res.status}  ← DID NOT ARRIVE`);
+                continue;
+            }
+            const text = await res.text();
+            lines.push(`${file.padEnd(30)} ${String(text.length).padStart(7)} chars`);
+        } catch (err) {
+            lines.push(`${file.padEnd(30)} could not be fetched: ${err.message}`);
+        }
+    }
+
+    return report("File sizes", lines);
+}
+
+/**
  * Are the Truth Bullets whole?
  *
  * Two things can go quietly wrong. The rows are injected into Daggerheart's own
@@ -702,7 +1015,7 @@ export function diagnoseCharacters({ toChat = true } = {}) {
     const roster = studentActors();
 
     lines.push(`Students (Monokumas excluded): ${roster.length}`);
-    lines.push(`Guide's starting resources: ${STARTING.hp} HP, ${STARTING.stress} Stress, ${STARTING.hope} Hope`);
+    lines.push(`Starting resources: ${STARTING.hp} HP, ${STARTING.stress} Stress, ${STARTING.hope} Hope`);
     lines.push("");
 
     const pending = [];
@@ -724,7 +1037,7 @@ export function diagnoseCharacters({ toChat = true } = {}) {
         lines.push("Fix: open the sheet and press the wand button next to the name,");
         lines.push("or run  game.drpg.initCharacter(actor)  for each.");
     } else if (roster.length) {
-        lines.push("Every character has the guide's starting resources.");
+        lines.push("Every character has the starting resources.");
     }
 
     /*
@@ -770,11 +1083,11 @@ export function diagnoseCharacters({ toChat = true } = {}) {
     roll("Everybody has an Ultimate", missingUltimate,
         "Set it on the sheet, under the name.");
     roll(`Everybody has ${STARTING.experiences} experiences`, missingExperiences,
-        "The guide gives two at +2 each, agreed at character creation.");
+        "Two at +2 each, agreed at character creation.");
     roll("Everybody carries their opening item", missingItem,
         `One Tier ${STARTING.startingItemTier} item tied to their Ultimate — hand it out from Give / take items.`);
     roll("Everybody is assigned to a Despair pool", unwatched,
-        "Without one, Despair from their rolls has nowhere to go. Fix in GM team & Despair pools.");
+        "Without one, Despair from their rolls has nowhere to go. Fix it in GM Team.");
 
     return report("Season setup", lines, { toChat });
 }

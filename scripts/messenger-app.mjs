@@ -20,7 +20,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { gmIds, ownerOf, error } from "./utils.mjs";
+import { gmIds, ownerOf, whisperToGms, error } from "./utils.mjs";
 import { showPopup } from "./popup.mjs";
 import {
     MESSENGER_FLAGS, THREAD_KIND,
@@ -28,18 +28,16 @@ import {
     unreadCount, totalUnread, markThreadRead, sendMessage
 } from "./messenger.mjs";
 import { noteFor, noteStatus, noteTemplate, saveNote } from "./pre-session-note.mjs";
+// The chat log's own roll-card painter, shared rather than reimplemented.
+import { markOutcome, rollOutcomeOf } from "./private-rolls.mjs";
 
 const LAUNCHER_ID = "drpg-messenger-launcher";
-const CASEBOOK_LAUNCHER_ID = "drpg-casebook-launcher";
 
 export function registerMessengerUi() {
     Hooks.once("ready", renderLauncher);
     Hooks.on("canvasReady", () => renderLauncher());
     Hooks.on("drpgMessengerMessage", () => renderLauncher());
     Hooks.on("drpgMessengerRead", () => renderLauncher());
-    // The Casebook launcher appears and disappears with the phase, so it has to
-    // follow the clock as well as the messenger's own events.
-    Hooks.on("drpgTimeOfDayChanged", () => renderLauncher());
 
     // A quick way in from the Players sidebar, mirroring how avclient-livekit
     // adds its own breakout-room entries to the same context menu.
@@ -407,6 +405,24 @@ function buildBubble(message) {
     wireCallActions(body);
     bubble.append(body);
 
+    // A ROLL IN A THREAD LOOKS LIKE A ROLL.
+    //
+    // The chat log has dressed duality rolls since the private-roll work —
+    // gold for Hope, blood for Fear, crimson for a critical, on the card's own
+    // border. A roll that arrived in a messenger thread instead got none of
+    // that: the same numbers, in the same table, inside a plain grey bubble,
+    // because this function renders `message.content` and stops. Two places
+    // showing one thing in two visual languages is exactly the seam this stage
+    // is closing, so the bubble borrows the card's own painter.
+    if (message.rolls?.length) {
+        bubble.classList.add("roll");
+        const outcome = rollOutcomeOf(message);
+        if (outcome) {
+            bubble.classList.add(outcome);
+            markOutcome(bubble, outcome);
+        }
+    }
+
     const time = document.createElement("div");
     time.className = "drpg-messenger-time";
     time.textContent = new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -457,6 +473,14 @@ async function runCallAction(action, data) {
         return openMurder({ killerId: data.killer, victimId: data.victim });
     }
 
+    // The two halves of the direct-murder gate. The declaration is already
+    // parked and the action already spent; what these decide is whether it is
+    // allowed to become an incident when the lights come up.
+    if (action === "approveMurder" || action === "refuseMurder") {
+        const { ruleOnParkedMurder } = await import("./eclipse.mjs");
+        return ruleOnParkedMurder(data.killer, action === "approveMurder");
+    }
+
     if (action === "fireTrap") {
         // The trap names a condition, not a victim — so this opens the murder
         // screen with the killer already filled in and "indirect" already
@@ -494,6 +518,104 @@ async function runCallAction(action, data) {
         if (owner) await postToThread(owner.id, note);
         ui.notifications.info(game.i18n.format("DRPG.Project.declinedGm", { name: actor.name }));
         return true;
+    }
+
+    // ---------------------------------------------------------------- generic
+    //
+    // Every action that calls the GM now carries at least one of these two.
+    // The mechanism was already here and only Direct Murder and Propose a
+    // Project used it, so a Search for something specific, an Observe at a
+    // point of interest, a Listen, an Analyze hint and a Dynamic action all
+    // arrived as a card with a roll on it and nothing to press — the GM read
+    // the number and then went looking for the window that answers it.
+
+    if (action === "reply") {
+        // A ruling in words. Most of these branches have no mechanical answer
+        // at all — "what do you overhear", "what does that door tell you" — and
+        // the module's own answer to that has always been the thread the card
+        // is already sitting in.
+        const actor = game.actors.get(data.by);
+        if (!actor) return null;
+
+        const DialogV2 = foundry.applications.api.DialogV2;
+        const text = await DialogV2.wait({
+            classes: ["drpg-panel"],
+            window: { title: game.i18n.format("DRPG.Bridge.replyTitle",
+                { name: actor.name }) },
+            content: `<form><p>${game.i18n.localize("DRPG.Bridge.replyPrompt")}</p>
+                <textarea name="reply" rows="4"></textarea></form>`,
+            buttons: [
+                {
+                    action: "send", label: game.i18n.localize("DRPG.Bridge.send"), default: true,
+                    callback: (e, b, d) => d.element.querySelector("[name=reply]").value.trim()
+                },
+                { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
+            ],
+            rejectClose: false
+        });
+
+        if (!text || text === "cancel") return null;
+
+        const { postToThread } = await import("./messenger.mjs");
+        const owner = ownerOf(actor);
+        const body = `<p><strong>${game.i18n.localize("DRPG.Bridge.rulingLabel")}</strong> ${
+            foundry.utils.escapeHTML(text)}</p>`;
+        if (owner) await postToThread(owner.id, body);
+        else await whisperToGms(body);
+        return true;
+    }
+
+    if (action === "decline") {
+        // The action comes BACK. Same reasoning as `declineMurder`: a refusal
+        // here is the GM overruling the declaration rather than the rules
+        // resolving it, and a player who spent an action on a question that was
+        // never answered has spent nothing.
+        const actor = game.actors.get(data.by);
+        if (!actor) return null;
+
+        const cost = Number(data.cost) || 0;
+        if (cost > 0) {
+            const { refundAction } = await import("./actions.mjs");
+            await refundAction(actor, cost);
+        }
+
+        const { postToThread } = await import("./messenger.mjs");
+        const owner = ownerOf(actor);
+        const note = `<p><em>${game.i18n.localize("DRPG.Bridge.declined")}</em></p>`;
+        if (owner) await postToThread(owner.id, note);
+        ui.notifications.info(game.i18n.format("DRPG.Bridge.declinedGm", { name: actor.name }));
+        return true;
+    }
+
+    if (action === "createItem") {
+        // Prefilled, never applied — same rule as `approveProject`. The roll
+        // already decided the tier and the player already named the category
+        // and the room, so the form opens with all three answered and the GM
+        // writes the one thing only they know: what was actually there.
+        const { openItemTables } = await import("./tables.mjs");
+        return openItemTables({
+            preset: {
+                category: data.category || null,
+                tier: Number(data.tier) || 0,
+                room: data.room || null,
+                name: data.want || ""
+            }
+        });
+    }
+
+    if (action === "giveItem") {
+        // The other half of the same ruling: the thing they were looking for
+        // exists already, so it goes straight onto the sheet rather than into a
+        // table first.
+        const actor = game.actors.get(data.by);
+        if (!actor) return null;
+        const { giveItemDialog } = await import("./gm-items.mjs");
+        return giveItemDialog(actor);
+    }
+
+    if (action === "keyRemnantHere") {
+        const { openKeyRemnantHere } = await import("./investigation.mjs");
+        return openKeyRemnantHere({ room: data.room || null, note: data.want || "" });
     }
 
     if (action === "declineMurder") {
@@ -571,54 +693,8 @@ function savePosition(playerUserId, position) {
  * corner cannot be broken by either one changing shape.
  * ========================================================================== */
 
-/**
- * The Casebook, beside the Messenger, for the length of a Class Trial.
- *
- * A trial is four hours of one activity: reading your own Truth Bullets and
- * putting them in front of the table. The way in was a small icon on the
- * character sheet, so the sheet had to be open and on the right tab — during the
- * one stretch of the game where the sheet is otherwise not needed at all.
- *
- * Only during a Class Trial, and only for somebody with a character. Outside a
- * trial the Casebook is a reference you consult occasionally, and a permanent
- * second launcher would be clutter for a button nobody is reaching for.
- */
-function renderCasebookLauncher() {
-    document.getElementById(CASEBOOK_LAUNCHER_ID)?.remove();
-
-    if (game.user.isGM) return;
-    const actor = game.user.character;
-    if (!actor) return;
-
-    let inTrial = false;
-    try {
-        inTrial = game.settings.get(MODULE_ID, SETTINGS.clock)?.phase === "classTrial";
-    } catch {
-        return;
-    }
-    if (!inTrial) return;
-
-    const button = document.createElement("button");
-    button.type = "button";
-    button.id = CASEBOOK_LAUNCHER_ID;
-    const tip = game.i18n.localize("DRPG.Casebook.launcherTooltip");
-    button.dataset.tooltip = tip;
-    button.setAttribute("aria-label", tip);
-    button.innerHTML = `<i class="fa-solid fa-book-open" inert></i>`;
-
-    button.addEventListener("click", async event => {
-        event.preventDefault();
-        event.stopPropagation();
-        const { openCasebook } = await import("./casebook.mjs");
-        await openCasebook(actor);
-    });
-
-    document.body.append(button);
-}
-
 export function renderLauncher() {
     try {
-        renderCasebookLauncher();
         document.getElementById(LAUNCHER_ID)?.remove();
 
         const button = document.createElement("button");

@@ -142,6 +142,25 @@ export const SETTINGS = {
      */
     trialQueue: "trialQueue",
     /**
+     * How far through the trial the table has got: `{ chapter, seconds,
+     * voteClosed, verdictApplied }`.
+     *
+     * Separate from `trialQueue` because it outlives it. The floor is closed
+     * and reopened several times in a trial and cleared entirely when the
+     * debate ends; whether the vote has been counted is a fact about the whole
+     * trial, and the one thing the verdict button has to know before it lets
+     * anybody press it.
+     *
+     * Chapter-stamped rather than explicitly cleared. A record from an earlier
+     * chapter is read as "none of this has happened", so a table that forgets
+     * to reset — or a GM who nudges the chapter by hand — gets a fresh trial
+     * rather than one that believes its vote was counted last week.
+     *
+     * Nothing secret: it is three booleans about whether a screen has been
+     * opened. The votes themselves never enter world data at all (see vote.mjs).
+     */
+    trialProgress: "trialProgress",
+    /**
      * Who the Mastermind is, on GM browsers only.
      *
      * The single most important secret in the game, so it gets the strictest
@@ -154,7 +173,54 @@ export const SETTINGS = {
      * exactly like the Truth Bullet ledger — a player's client never receives
      * it, full stop.
      */
-    mastermind: "mastermind"
+    mastermind: "mastermind",
+    /**
+     * "Is THIS browser the Mastermind's player." Client-scoped, boolean, and
+     * the only thing about the Mastermind that ever reaches a player's client
+     * at all — see mastermind.mjs's `notifyDoorAccess`.
+     *
+     * Exists because `canCross()` in movement.mjs runs synchronously inside a
+     * `preUpdateToken` veto, on the client dragging the token — there is no
+     * chance to ask a GM mid-hook, and `isMastermind()` itself always answers
+     * `false` off a GM client by construction. A GM setting the Mastermind
+     * privately tells the ONE player who already knows they hold the part —
+     * the guide has them agree to it before the season starts — and that
+     * client alone writes `true` here. Every other client's copy stays `false`
+     * forever; there is no broadcast, only a recipient-addressed whisper.
+     *
+     * Read by movement.mjs (locked doors, sealed rooms) and fog.mjs (the
+     * Mastermind knows the building, not who is in it) — never by
+     * visibility.mjs, which stays exactly as blind to other characters as
+     * every other player's client.
+     */
+    iAmMastermind: "iAmMastermind",
+    /**
+     * Which rooms each character has personally discovered, per scene:
+     * `{ [sceneId]: { [actorId]: [roomName, ...] } }`.
+     *
+     * World-scoped. This is not a secret the way the Mastermind's identity is
+     * — a discovered room is a fact about where the party has already been,
+     * not about who anybody is — so it travels the ordinary way, like
+     * `sealedRooms`. Written only by the primary GM (see fog.mjs), the same
+     * discipline `truth-bullets.mjs` uses for its own ledger writes.
+     */
+    discoveredRooms: "discoveredRooms",
+    /**
+     * Rooms, not sight lines, decide what a player can see.
+     *
+     * Turning this on makes the module's own region fog the ONLY thing hiding
+     * any part of the map, by switching off Foundry's per-token vision and its
+     * own fog exploration on the scene (see `applySceneVisionMode` in
+     * fog.mjs). That is not a cosmetic preference: leaving Foundry's vision on
+     * alongside the region fog is what produces cone-shaped light wedges that
+     * reveal half a room through a doorway — the exact thing the guide's room
+     * model exists to prevent.
+     *
+     * Off leaves the scene exactly as the GM configured it and disables the
+     * region fog entirely, for a table that would rather use Foundry's walls
+     * and vision as they come.
+     */
+    regionFog: "regionFog"
 };
 
 /** Shape of the campaign clock stored under SETTINGS.clock. */
@@ -420,12 +486,48 @@ export function registerSettings() {
         onChange: () => onWorldChange(SETTINGS.trialQueue)
     });
 
+    game.settings.register(MODULE_ID, SETTINGS.trialProgress, {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => onWorldChange(SETTINGS.trialProgress)
+    });
+
     // Client-scoped, deliberately: see the note on SETTINGS.mastermind.
     game.settings.register(MODULE_ID, SETTINGS.mastermind, {
         scope: "client",
         config: false,
         type: Object,
         default: {}
+    });
+
+    game.settings.register(MODULE_ID, SETTINGS.iAmMastermind, {
+        scope: "client",
+        config: false,
+        type: Boolean,
+        default: false
+    });
+
+    // Which rooms each character has discovered. Cleared at season reset.
+    game.settings.register(MODULE_ID, SETTINGS.discoveredRooms, {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => onWorldChange(SETTINGS.discoveredRooms)
+    });
+
+    game.settings.register(MODULE_ID, SETTINGS.regionFog, {
+        name: "DRPG.Settings.regionFog.name",
+        hint: "DRPG.Settings.regionFog.hint",
+        scope: "world",
+        config: true,
+        type: Boolean,
+        default: true,
+        onChange: () => {
+            import("./fog.mjs").then(m => m.onFogSettingChanged()).catch(() => {});
+        }
     });
 
     game.settings.register(MODULE_ID, SETTINGS.despairFromRolls, {

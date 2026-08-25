@@ -12,8 +12,8 @@
  */
 
 import {
-    MODULE_ID, FLAGS, ACTIONS, STARTING, ITEM_CATEGORIES, MONOCUB, ECLIPSE_MOVES, EQUIPPABLE
-} from "./config.mjs";
+    MODULE_ID, FLAGS, ACTIONS, STARTING, ITEM_CATEGORIES, MONOCUB, ECLIPSE_MOVES, EQUIPPABLE,
+    BEDROOM_KEY_FLAG, callEffect } from "./config.mjs";
 import { actionsLeft, actionsMax, actionBudget, hasFreeMove, setActions } from "./actions.mjs";
 import { resourceMax, initCharacter } from "./character.mjs";
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
@@ -30,14 +30,14 @@ import { availableCrisisActions, isTheirTurn, murderState, sideOf, betrayalTarge
 import { isMonocub, isSilenced, isSilenced as cubSilenced } from "./monocub.mjs";
 import { isSilenced as callSilenced, isChained } from "./call-effects.mjs";
 import { isDeceased } from "./chapter.mjs";
-import { isStashed, ITEM_FLAGS } from "./inventory.mjs";
+import { isStashed, ITEM_FLAGS, isBroken } from "./inventory.mjs";
 import { isUsable, isEquippable, isEquipped, equippedIn } from "./use-items.mjs";
 import { isCleaner, bodyIsHere } from "./cleanup.mjs";
 import { roomOfActor, neighbouringRooms } from "./movement.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
-import { projectsAvailableIn, sabotageTargetsIn } from "./projects.mjs";
-import { casebookSummary } from "./casebook.mjs";
+import { sabotageTargetsIn } from "./projects.mjs";
 import { rules } from "./rules.mjs";
+import { spentSince, markSpent } from "./motion.mjs";
 import { debug, error, plural } from "./utils.mjs";
 
 export function registerSheetTweaks() {
@@ -103,6 +103,7 @@ function trimItemSheet(app, element) {
     dropTypeHeading(root);
     labelItemKind(root, app.document);
     lockItemName(root);
+    lockItemDescription(root);
 }
 
 /**
@@ -168,6 +169,17 @@ function labelItemKind(root, item) {
     kind.textContent = label;
     line.append(kind);
 
+    // The window opened from a row that said Broken has to say it too. Without
+    // this, the one screen that shows an item in full was the one screen that
+    // did not mention the only thing that had changed about it.
+    if (isBroken(item)) {
+        const tag = document.createElement("span");
+        tag.className = "drpg-item-broken";
+        tag.dataset.tooltip = game.i18n.localize("DRPG.Items.brokenTooltip");
+        tag.textContent = game.i18n.localize("DRPG.Items.broken");
+        line.append(tag);
+    }
+
     if (isBullet) {
         const data = truthBulletData(item);
         if (data) {
@@ -203,9 +215,53 @@ function lockItemName(root) {
     }
 }
 
-function onRenderCharacterSheet(app, element) {
+/**
+ * The description is the GM's to write too, same reasoning as the name — see
+ * resource-guard.mjs, which is what actually refuses the write. This is the
+ * half a player can see: an editor left active would keep taking edits that
+ * the server was silently discarding, which reads as a broken module rather
+ * than a locked field.
+ *
+ * Two shapes, because Foundry's rich-text editor comes in either depending on
+ * version and system upgrade path: the ProseMirror custom element in newer
+ * builds, or a plain textarea behind a "click to edit" link in older ones.
+ * Both get the same read-only treatment `lockItemName` gives the name field;
+ * the edit-toggle link is removed outright rather than disabled, since a
+ * removed control cannot be clicked by anybody reading their own sheet.
+ */
+function lockItemDescription(root) {
+    if (game.user.isGM) return;
+    const wrapper = root.querySelector(".item-description");
+    if (!wrapper) return;
+
+    const label = game.i18n.localize("DRPG.Guard.descriptionLocked");
+
+    for (const editor of wrapper.querySelectorAll("prose-mirror")) {
+        editor.toggleAttribute("readonly", true);
+        editor.classList.add("drpg-locked-field");
+        editor.dataset.tooltip = label;
+    }
+    for (const field of wrapper.querySelectorAll('textarea[name^="system.description"]')) {
+        field.readOnly = true;
+        field.classList.add("drpg-locked-field");
+        field.dataset.tooltip = label;
+    }
+    wrapper.querySelector("a.editor-edit")?.remove();
+}
+
+/**
+ * @param {object} options  The render's own options. `isFirstRender` is the one
+ *   that matters here: it is set by ApplicationV2 itself from the app's state,
+ *   and closing a sheet drops that state — so reopening one counts as a first
+ *   render again. That is exactly the line the spend flashes need. Without it,
+ *   opening a sheet would replay every action spent while it was shut, as
+ *   though they had just happened.
+ */
+function onRenderCharacterSheet(app, element, context, options) {
     try {
         if (app?.document?.type !== "character") return;
+        // A first draw has nothing to compare against and nothing to announce.
+        const fresh = Boolean(options?.isFirstRender);
         // CSS keys off this to grey out the parts a Monokuma does not use.
         const root = element instanceof HTMLElement ? element : element?.[0];
         root?.classList?.toggle("drpg-monokuma", isMonokuma(app.document));
@@ -215,8 +271,8 @@ function onRenderCharacterSheet(app, element) {
         injectInitButton(app, element);
         injectAdvanceButton(app, element);
         injectItemButton(app, element);
-        injectCasebookButton(app, element);
-        injectActionBar(app, element);
+        injectActionBar(app, element, fresh);
+        flashHope(app, element, fresh);
         injectActionPanel(app, element);
         growForCalls(app);
         fitActionTiles(element);
@@ -228,8 +284,63 @@ function onRenderCharacterSheet(app, element) {
         tidyBiography(element);
         groupInventory(app, element);
         replaceEffectsTab(app, element);
+        removeSystemCreators(app, element);
     } catch (err) {
         error("Failed to render the Danganronpa sheet parts", err);
+    }
+}
+
+/**
+ * TAKE THE "+" OUT OF THE DOM, not out of the paint.
+ * ---------------------------------------------------------------------------
+ * The buttons that create a Feature or an Item by hand have been hidden in the
+ * stylesheet for several versions, matched three different ways because the
+ * system keeps moving them: `.add-feature`, then `[data-action="createItem"]`,
+ * then `legend a[data-action="addNewItem"]`. Each time the markup moved, the
+ * button came back — silently, because a rule that matches nothing looks
+ * exactly like a rule that is working.
+ *
+ * Reported back on screen on 2026-08-23, so the approach changes rather than
+ * the selector list: whatever this finds is REMOVED. A node that is not there
+ * cannot be un-hidden by a system update, a cascade layer or a theme, and the
+ * failure mode of removing too little is the same as today rather than worse.
+ *
+ * WHAT COUNTS AS A CREATOR: an element whose `data-action` is one of the
+ * system's create verbs, or one that carries `data-type="feature"`. Matched on
+ * a substring so a rename to `addNewItemV2` does not restart this cycle.
+ *
+ * FEATURES for everybody, INVENTORY for players only — the same split the
+ * stylesheet already makes. Features in this game come from the module's own
+ * grid, so a hand-made one is noise even for the GM; a GM handing out an item
+ * by hand is an ordinary ruling.
+ */
+const CREATE_ACTIONS = ["addnewitem", "createitem", "createdoc", "additem", "newitem"];
+
+function removeSystemCreators(app, element) {
+    const root = element instanceof HTMLElement ? element : element?.[0];
+    if (!root) return;
+
+    const sections = [
+        ...root.querySelectorAll('section[data-application-part="features"], section.tab[data-tab="features"]')
+    ];
+    if (!game.user.isGM) {
+        sections.push(...root.querySelectorAll(
+            'section[data-application-part="inventory"], section.tab[data-tab="inventory"]'));
+    }
+
+    for (const section of sections) {
+        for (const el of section.querySelectorAll("[data-action], [data-type]")) {
+            const action = (el.dataset.action ?? "").toLowerCase();
+            const type = (el.dataset.type ?? "").toLowerCase();
+            const creates = CREATE_ACTIONS.some(verb => action.includes(verb));
+            if (!creates && type !== "feature") continue;
+            // A creator that is the only child of its legend takes the empty
+            // legend with it — otherwise the fieldset keeps a blank caption bar
+            // where the button used to be.
+            const legend = el.closest("legend");
+            if (legend && legend.querySelectorAll("a, button").length === 1) legend.remove();
+            else el.remove();
+        }
     }
 }
 
@@ -426,7 +537,36 @@ function frameTraits(element) {
  * next to Hope, with the current time of day beside it.
  * ========================================================================== */
 
-function injectActionBar(app, element) {
+/**
+ * Flash the Hope that was just spent.
+ *
+ * Hope is Daggerheart's own track and this module only restyles it — the pixel
+ * diamonds in the stylesheet are masks over the system's markup, not a widget
+ * of ours. So the flash is a class added to the system's slots after it has
+ * drawn them, which is also why there is nothing to clean up: the sheet rebuilds
+ * them from scratch on the next render.
+ *
+ * The count comes from the DOM rather than from `hopeHeld`, because the DOM is
+ * what is being animated. A slot is filled when the system has put a solid
+ * glyph in it — the same test the stylesheet's `:has()` makes to choose the
+ * filled sprite — so the two cannot disagree about which diamonds are lit.
+ */
+function flashHope(app, element, fresh = false) {
+    const actor = app.document;
+    const slots = element.querySelectorAll(
+        ".character-header-sheet .hope-section .hope-value");
+    if (!slots.length) return;
+
+    const held = Array.from(slots).filter(s => s.querySelector("i.fa-solid")).length;
+    const spent = spentSince("sheet:hope", actor.id, held);
+    if (fresh || !spent) return;
+
+    for (let i = spent.from; i <= Math.min(spent.to, slots.length); i++) {
+        markSpent(slots[i - 1], spent, i);
+    }
+}
+
+function injectActionBar(app, element, fresh = false) {
     const row = element.querySelector(".character-header-sheet .character-row");
     if (!row || row.querySelector(".drpg-actions-section")) return;
 
@@ -434,6 +574,12 @@ function injectActionBar(app, element) {
     const left = actionsLeft(actor);
     const max = actionsMax(actor);
     const { wounded } = actionBudget(actor);
+
+    // What went out since this sheet last drew itself. Recorded even when it is
+    // not shown — a first draw still has to know where the count started, or
+    // the NEXT draw would flash the whole difference.
+    const spentActions = spentSince("sheet:actions", actor.id, left);
+    const spentMove = spentSince("sheet:move", actor.id, hasFreeMove(actor) ? 1 : 0);
 
     const section = document.createElement("div");
     section.className = "drpg-actions-section";
@@ -460,6 +606,10 @@ function injectActionBar(app, element) {
 
         const pip = document.createElement("span");
         pip.className = `drpg-action-pip${filled ? " filled" : ""}${locked ? " locked" : ""}`;
+        // The pips between the old reading and the new one: the ones just paid.
+        // Built empty like any other unspent socket; the mark only says how
+        // they got that way. See the keyframes in the stylesheet.
+        markSpent(pip, fresh ? null : spentActions, i);
         pip.dataset.value = String(i);
         pip.innerHTML = `<i class="fa-${filled ? "solid" : "regular"} fa-circle" inert></i>`;
 
@@ -491,10 +641,15 @@ function injectActionBar(app, element) {
     const move = document.createElement("span");
     const freeMove = hasFreeMove(actor);
     move.className = `drpg-free-move${freeMove ? " available" : " spent"}`;
+    markSpent(move, fresh ? null : spentMove);
     move.dataset.tooltip = game.i18n.localize(
         freeMove ? "DRPG.Actions.freeMoveAvailable" : "DRPG.Actions.freeMoveSpent"
     );
-    move.innerHTML = `<i class="fa-solid fa-shoe-prints" inert></i>`;
+    // Solid while it is there, OUTLINED once it is gone — the same pair the
+    // action pips use (`fa-solid fa-circle` / `fa-regular fa-circle`), so a
+    // spent Move and a spent action say the same thing in the same way. Foundry
+    // ships Font Awesome Pro, which carries every icon in both weights.
+    move.innerHTML = `<i class="fa-${freeMove ? "solid" : "regular"} fa-shoe-prints" inert></i>`;
     actions.append(move);
 
     section.append(actions);
@@ -719,41 +874,6 @@ function injectItemButton(app, element) {
     button.addEventListener("click", async () => {
         const { openItemManager } = await import("./gm-items.mjs");
         await openItemManager(app.document);
-    });
-
-    nameRow.append(button);
-}
-
-/**
- * The casebook button, next to the item manager.
- *
- * Everyone gets this one, not only the GM: it shows the holder their own
- * evidence rearranged by room, which is how it gets used in a trial. See
- * casebook.mjs. The badge is the number of bullets still carrying an unanswered
- * question — the one figure worth interrupting the sheet for.
- */
-function injectCasebookButton(app, element) {
-    const actor = app.document;
-    if (isMonokuma(actor)) return;
-    if (!actor.isOwner) return;
-
-    const nameRow = element.querySelector(".character-header-sheet .name-row");
-    if (!nameRow || nameRow.querySelector("[data-drpg-casebook]")) return;
-
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "drpg-advance-button drpg-casebook-button";
-    button.dataset.drpgCasebook = "";
-    button.dataset.tooltip = game.i18n.localize("DRPG.Casebook.buttonTooltip");
-    button.setAttribute("aria-label", game.i18n.localize("DRPG.Casebook.buttonTooltip"));
-
-    const open = casebookSummary(actor).analysable;
-    button.innerHTML = `<i class="fa-solid fa-folder-open" inert></i>${
-        open ? `<span class="drpg-casebook-badge">${open}</span>` : ""}`;
-
-    button.addEventListener("click", async () => {
-        const { openCasebook } = await import("./casebook.mjs");
-        await openCasebook(actor);
     });
 
     nameRow.append(button);
@@ -1065,8 +1185,16 @@ const INVENTORY_GROUPS = [
     { key: "usable", labelKey: "DRPG.Sheet.groupUsables" },
     { key: "crimeTool", labelKey: "DRPG.Sheet.groupWeapons" },
     { key: "cleaningTool", labelKey: "DRPG.Sheet.groupCleaners" },
-    { key: "truthBullet", labelKey: "DRPG.Sheet.groupTruthBullets" }
+    { key: "truthBullet", labelKey: "DRPG.Sheet.groupTruthBullets" },
+    // Last, under the evidence: a key is not something you found or made, it is
+    // something a door means. See the note on keys in vault.mjs.
+    { key: "bedroomKey", labelKey: "DRPG.Sheet.groupKeys" }
 ];
+
+/** A key to somebody's bedroom — see vault.mjs. */
+function isBedroomKey(item) {
+    return Boolean(item?.getFlag?.(MODULE_ID, BEDROOM_KEY_FLAG));
+}
 
 function groupInventory(app, element) {
     const tab = element.querySelector('section[data-application-part="inventory"]');
@@ -1125,9 +1253,18 @@ function groupInventory(app, element) {
                 } else {
                     const tier = item.getFlag(MODULE_ID, "tier");
                     const ready = isEquipped(item);
+                    const broken = isBroken(item);
                     if (ready) li.classList.add("drpg-item-equipped");
+                    // The row is still the row. A used-up thing is the same
+                    // object in the same slot — what changes is that it says so,
+                    // and that the two buttons which would use it are refused.
+                    if (broken) li.classList.add("drpg-item-broken-row");
                     li.innerHTML = `<img src="${item.img}" alt="" />
                                     <span class="drpg-item-name">${foundry.utils.escapeHTML(item.name)}</span>
+                                    ${broken ? `<span class="drpg-item-broken" data-tooltip="${
+                                        foundry.utils.escapeHTML(game.i18n.localize("DRPG.Items.brokenTooltip"))
+                                    }">${foundry.utils.escapeHTML(
+                                        game.i18n.localize("DRPG.Items.broken"))}</span>` : ""}
                                     ${ready ? `<span class="drpg-item-ready" data-tooltip="${
                                         foundry.utils.escapeHTML(game.i18n.localize("DRPG.Items.readyTooltip"))
                                     }"><i class="fa-solid fa-hand-fist" inert></i></span>` : ""}
@@ -1135,7 +1272,11 @@ function groupInventory(app, element) {
                                         ? `<span class="drpg-item-tier">T${tier}</span>` : ""}`;
                     addUseButton(li, item, app);
                     addEquipButton(li, item, app);
-                    addHandoverButton(li, item, app, { copying: false });
+                    addDiscardButton(li, item, app);
+                    // A key is COPIED, like a Truth Bullet: letting somebody
+                    // into your room is not the same as giving your room away,
+                    // and the guide's whole social engine runs on the first.
+                    addHandoverButton(li, item, app, { copying: isBedroomKey(item) });
                     if (vaultRoomFor(actor)) addStashButton(li, item, app, { stowing: true });
                 }
 
@@ -1240,8 +1381,17 @@ function buildStashSection(box, actor, app) {
             const li = document.createElement("li");
             li.dataset.itemUuid = item.uuid;
             const tier = item.getFlag(MODULE_ID, "tier");
+            // Putting a ruined thing in a drawer is one of the two ways out of
+            // carrying it, so the drawer has to admit what is in it — otherwise
+            // the stash is where broken tools go to become anonymous again.
+            const broken = isBroken(item);
+            if (broken) li.classList.add("drpg-item-broken-row");
             li.innerHTML = `<img src="${item.img}" alt="" />
                             <span class="drpg-item-name">${foundry.utils.escapeHTML(item.name)}</span>
+                            ${broken ? `<span class="drpg-item-broken" data-tooltip="${
+                                foundry.utils.escapeHTML(game.i18n.localize("DRPG.Items.brokenTooltip"))
+                            }">${foundry.utils.escapeHTML(
+                                game.i18n.localize("DRPG.Items.broken"))}</span>` : ""}
                             ${tier !== undefined && tier !== null
                                 ? `<span class="drpg-item-tier">T${tier}</span>` : ""}`;
             addStashButton(li, item, app, { stowing: false });
@@ -1269,12 +1419,19 @@ function addUseButton(li, item, app) {
     if (!isUsable(item)) return;
     if (isDeceased(app.document) && !isMonocub(app.document)) return;
 
-    const tip = game.i18n.localize("DRPG.Items.useTooltip");
+    // SHOWN, AND DEAD. An opened kit keeps its button so the row does not
+    // quietly change shape when it is spent — the player looks at the same
+    // three controls and one of them has stopped working, which is the fact.
+    // Hiding it would read as the item having changed into something else.
+    const broken = isBroken(item);
+    const tip = game.i18n.localize(broken
+        ? "DRPG.Items.brokenTooltip" : "DRPG.Items.useTooltip");
 
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "drpg-row-button drpg-row-use";
+    button.className = `drpg-row-button drpg-row-use${broken ? " is-broken" : ""}`;
     button.dataset.drpgRowAction = "use";
+    button.disabled = broken;
     button.dataset.tooltip = tip;
     button.setAttribute("aria-label", tip);
     button.innerHTML = `<i class="fa-solid fa-flask" inert></i>`;
@@ -1301,12 +1458,17 @@ function addEquipButton(li, item, app) {
     if (!isEquippable(item)) return;
 
     const ready = isEquipped(item);
-    const tip = game.i18n.localize(ready ? "DRPG.Items.unequipTooltip" : "DRPG.Items.equipTooltip");
+    const broken = isBroken(item);
+    const tip = game.i18n.localize(broken
+        ? "DRPG.Items.brokenTooltip"
+        : ready ? "DRPG.Items.unequipTooltip" : "DRPG.Items.equipTooltip");
 
     const button = document.createElement("button");
     button.type = "button";
-    button.className = `drpg-row-button drpg-row-equip${ready ? " active" : ""}`;
+    button.className = `drpg-row-button drpg-row-equip${ready ? " active" : ""}${
+        broken ? " is-broken" : ""}`;
     button.dataset.drpgRowAction = "equip";
+    button.disabled = broken;
     button.dataset.tooltip = tip;
     button.setAttribute("aria-label", tip);
     button.innerHTML = `<i class="fa-${ready ? "solid" : "regular"} fa-hand-fist" inert></i>`;
@@ -1314,6 +1476,48 @@ function addEquipButton(li, item, app) {
     button.addEventListener("click", async () => {
         const { toggleEquipped } = await import("./use-items.mjs");
         await toggleEquipped(app.document, item);
+        app.render(false);
+    });
+
+    li.append(button);
+}
+
+/**
+ * Throw the ruined thing away, and leave the trace of having done it.
+ *
+ * Only ever on a broken item, because it is not a general "delete from
+ * inventory" — the guide has no such move, and one would let a killer make the
+ * murder weapon cease to exist for free. This is the priced version: a Shadow
+ * roll decides how obvious the trace is, and the trace stays on the map for the
+ * investigation to find. See `discardBroken` in use-items.mjs.
+ *
+ * The other way out of the same problem is the stash button already on this
+ * row, which costs nothing and hides nothing from anybody who searches the
+ * bedroom.
+ */
+function addDiscardButton(li, item, app) {
+    if (!app.isEditable || isMonokuma(app.document)) return;
+    if (!isBroken(item)) return;
+    // A corpse throws nothing away. Same gate as the Use button, and a Monocub
+    // is on the other side of it for the same reason.
+    if (isDeceased(app.document) && !isMonocub(app.document)) return;
+    // The stash is the OTHER answer, not a place to act from: something already
+    // put away has to be taken back out before it can be thrown away.
+    if (isStashed(item)) return;
+
+    const tip = game.i18n.localize("DRPG.Items.discardTooltip");
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "drpg-row-button drpg-row-discard";
+    button.dataset.drpgRowAction = "discard";
+    button.dataset.tooltip = tip;
+    button.setAttribute("aria-label", tip);
+    button.innerHTML = `<i class="fa-solid fa-trash" inert></i>`;
+
+    button.addEventListener("click", async () => {
+        const { discardBroken } = await import("./use-items.mjs");
+        await discardBroken(app.document, item);
         app.render(false);
     });
 
@@ -1454,19 +1658,34 @@ function buildBulletRow(li, item, app) {
  * Only during a Class Trial. It reaches the whole table at once, and outside
  * the trial the cast is spread across rooms that are meant to stay separate —
  * the same-room Share button covers those phases instead.
+ *
+ * ONE BUTTON, TWO ACTS, and which one it is depends on whether a debate is
+ * open — see `presentDialog`. The window behind it decides for real; this
+ * matches it so the player is not told one thing on the row and another in the
+ * window. Read straight off the setting rather than through trial-floor.mjs:
+ * this file is on the render path and the shape is one boolean.
  */
 function addPresentButton(li, item, app) {
     if (!inClassTrial()) return;
 
-    const tip = game.i18n.localize("DRPG.Trial.presentTooltip");
+    // A floor open at all means evidence takes it.
+    let objecting = false;
+    try {
+        objecting = Boolean(game.settings.get(MODULE_ID, "trialQueue")?.active);
+    } catch {
+        // Present is the quieter of the two and the safer thing to promise.
+    }
+
+    const tip = game.i18n.localize(objecting
+        ? "DRPG.Trial.objectionTooltip" : "DRPG.Trial.presentTooltip");
 
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "drpg-row-button drpg-row-present";
+    button.className = `drpg-row-button drpg-row-present${objecting ? " is-objection" : ""}`;
     button.dataset.drpgRowAction = "present";
     button.dataset.tooltip = tip;
     button.setAttribute("aria-label", tip);
-    button.innerHTML = `<i class="fa-solid fa-gavel" inert></i>`;
+    button.innerHTML = `<i class="fa-solid ${objecting ? "fa-hand" : "fa-gavel"}" inert></i>`;
 
     button.addEventListener("click", async () => {
         const { presentDialog } = await import("./trial.mjs");
@@ -1502,8 +1721,16 @@ function addHandoverButton(li, item, app, { copying }) {
 
     button.addEventListener("click", async () => {
         const { shareBulletDialog, giveItemDialog } = await import("./handover.mjs");
-        if (copying) await shareBulletDialog(app.document, item);
-        else await giveItemDialog(app.document, item);
+        // TWO THINGS ARE COPIED, AND ONLY ONE OF THEM IS A TRUTH BULLET.
+        // `copying` above chooses the icon and the wording; it does not choose
+        // the route. `shareBulletDialog` refuses anything that is not a Truth
+        // Bullet on its first line, so sending a bedroom key down it made the
+        // share button on a key do nothing at all — no dialog, no error, no
+        // console line. A key goes the ordinary way and is turned into a copy
+        // by `giveItem` on the GM side, which is the only place that can see
+        // both sheets anyway.
+        if (copying && isTruthBullet(item)) await shareBulletDialog(app.document, item);
+        else await giveItemDialog(app.document, item, { copying });
     });
 
     li.append(button);
@@ -2191,7 +2418,7 @@ function callButton(call, monokuma, locked = false) {
     const note = locked
         ? `<br><em>${game.i18n.localize("DRPG.Eclipse.callsLocked")}</em>`
         : call.affordable ? "" : `<br><em>${game.i18n.localize("DRPG.Calls.cannotAfford")}</em>`;
-    button.dataset.tooltip = `${foundry.utils.escapeHTML(call.effect)}<br><em>${costLabel}</em>${note}`;
+    button.dataset.tooltip = `${foundry.utils.escapeHTML(callEffect(call))}<br><em>${costLabel}</em>${note}`;
 
     button.innerHTML = `
         <i class="fa-solid ${call.icon ?? "fa-circle"} drpg-action-icon" inert></i>
@@ -2330,7 +2557,33 @@ function roomBlockFor(actor, key) {
         // `.name` off it silently yields undefined, which reads as "outside
         // every room" no matter where the token is standing.
         const here = roomOfActor(actor);
+
+        // SABOTAGE ASKS FIRST, because it is the one that does not always need
+        // a room. The SAME question `performSabotage` asks, including who is
+        // asking: a Monokuma reaches every room on the map, so measuring their
+        // reach by the room their token happens to be in would put the tile out
+        // for the one character the room rule never applied to.
+        //
+        // For everybody else the room rule is now absolute — see
+        // `sabotageTargetsIn` — so standing nowhere and having nothing to break
+        // are the same answer, and the second one is the more useful sentence.
+        if (key === "sabotage") {
+            // `isMonokuma(actor)` alone, not `game.user.isGM ||` — the same
+            // correction `performSabotage` carries, and the two must agree or a
+            // live tile opens a window with nothing in it.
+            const anyRoom = isMonokuma(actor);
+            return sabotageTargetsIn(here, { anyRoom }).length === 0
+                ? game.i18n.localize("DRPG.Project.nothingToSabotage")
+                : null;
+        }
+
         if (!here) return game.i18n.localize("DRPG.Action.noRoomNote");
+
+        // Sealed first: it outranks the counter, and it is the more useful
+        // sentence. A room with nothing to find in it reading "already picked
+        // clean" sends the player back at the next time of day to try again.
+        if (key === "search" && SearchTokens.sealed(here))
+            return game.i18n.localize("DRPG.SearchTokens.sealed");
 
         // `exhausted`, not `pickedClean` — the latter says "the action is
         // spent", which is true after a roll and a lie before one.
@@ -2346,9 +2599,6 @@ function roomBlockFor(actor, key) {
         // in a room with no projects hid the only route to creating the first
         // one — and the first one is always proposed from a room with none.
         // `performProject` still refuses the "work on it" half by itself.
-
-        if (key === "sabotage" && sabotageTargetsIn(here).length === 0)
-            return game.i18n.localize("DRPG.Project.nothingToSabotage");
 
         return null;
     } catch (err) {
@@ -2370,6 +2620,27 @@ function actionButton(actor, key, def) {
     // half of deciding whether to save an action for it.
     const cost = costOf(actor, key, def);
     const affordable = cost === 0 || actionsLeft(actor) >= cost;
+    const eclipse = isEclipse();
+
+    // Nothing here to do it to — a separate state from "cannot pay for it",
+    // because the answer is different: one is fixed by waiting for the next
+    // time of day, the other by walking into another room.
+    const blocked = roomBlockFor(actor, key);
+
+    // SABOTAGE WITH NOTHING TO SABOTAGE IS NOT ADVICE, IT IS A CLOSED DOOR.
+    //
+    // Every other entry in `roomBlockFor` dims its tile and leaves it
+    // clickable, because the tile still does something worth doing: Search with
+    // no tokens left still shows its briefing, and the Project tile has a second
+    // half — proposing one — that works in an empty room. Sabotage has no second
+    // half. With no target in the room there is no version of the action that
+    // does anything, so it goes out entirely, exactly as Direct Murder does
+    // outside an Eclipse. Same class, same look, same reason: a tile that looks
+    // pressable and then refuses is worse than one that says no in advance.
+    const nothingToBreak = key === "sabotage" && Boolean(blocked);
+
+    // WHICH TILES ARE OUT, AND WHY EACH ONE IS.
+    //
     // The Eclipse is placement-only — see the guard in action-rolls.mjs's
     // `performAction`. Move is exempt there and stays exempt here, since it is
     // the one thing the Eclipse actually is for.
@@ -2379,18 +2650,12 @@ function actionButton(actor, key, def) {
     // that looks pressable and then refuses is worse than one that says no in
     // advance. Greyed outside an Eclipse, live inside one — the exact inverse
     // of every other tile on the sheet.
-    const eclipse = isEclipse();
-    const locked = key === "directMurder"
+    const locked = nothingToBreak || (key === "directMurder"
         ? !eclipse
-        : (key !== "move" && eclipse);
-
-    // Nothing here to do it to — a separate state from "cannot pay for it",
-    // because the answer is different: one is fixed by waiting for the next
-    // time of day, the other by walking into another room.
-    const blocked = roomBlockFor(actor, key);
+        : (key !== "move" && eclipse));
 
     button.className = `drpg-action-button${(affordable && !locked) ? "" : " unaffordable"}${
-        blocked ? " drpg-no-subject" : ""}`;
+        blocked && !nothingToBreak ? " drpg-no-subject" : ""}`;
 
     // NOT `data-action`: ApplicationV2 claims that attribute for its own action
     // dispatch and swallows the click looking for a handler it does not have.
@@ -2406,20 +2671,26 @@ function actionButton(actor, key, def) {
     //
     // Derived from the definition rather than listed here, so an action whose
     // cost or GM involvement changes in config.mjs brings its stripe with it.
-    button.dataset.drpgCostKind = cost === 0 ? "free" : def.callsGm ? "gm" : "action";
+    const callsGm = callsGmFor(actor, def);
+    button.dataset.drpgCostKind = cost === 0 ? "free" : callsGm ? "gm" : "action";
 
     const costLabel = costLabelFor(actor, key, def);
     // Order matters: an Eclipse stops everything, so it is said first; not
     // being able to pay comes next; and "nothing here" is the one worth adding
     // even when something else already applies, because it is the only reason
     // that will still be true after the Eclipse ends.
-    const note = locked
+    const note = nothingToBreak
+        ? `<br><em>${foundry.utils.escapeHTML(blocked)}</em>`
+        : locked
         ? `<br><em>${game.i18n.localize(key === "directMurder"
             ? "DRPG.Eclipse.murderOnlyInEclipse" : "DRPG.Eclipse.actionsLocked")}</em>`
         : affordable
             ? ""
             : `<br><em>${plural("DRPG.Action.cannotAfford", { left: actionsLeft(actor), needed: cost }, "left")}</em>`;
-    const why = blocked ? `<br><em>${foundry.utils.escapeHTML(blocked)}</em>` : "";
+    // Already said above when the tile is out entirely; saying it twice on one
+    // tooltip reads as two different problems.
+    const why = (blocked && !nothingToBreak)
+        ? `<br><em>${foundry.utils.escapeHTML(blocked)}</em>` : "";
     button.dataset.tooltip =
         `${foundry.utils.escapeHTML(def.hint ?? "")}<br><em>${costLabel}</em>${note}${why}`;
 
@@ -2430,7 +2701,7 @@ function actionButton(actor, key, def) {
     // random colours. The difference is real — the grey ones hand the turn to
     // the GM — but it was only ever in the tooltip, and a colour whose key is
     // hidden is decoration.
-    const gmMark = def.callsGm
+    const gmMark = callsGm
         ? ` <span class="drpg-action-gm">${game.i18n.localize("DRPG.Action.waitsForGm")}</span>`
         : "";
 
@@ -2440,6 +2711,30 @@ function actionButton(actor, key, def) {
         <span class="drpg-action-cost">${costLabel}${gmMark}</span>`;
 
     return button;
+}
+
+/**
+ * Does this action hand the turn to the GM — for THIS character, right now?
+ *
+ * `callsGm` used to be a constant, and for four of the five actions carrying it
+ * that is still the truth: a Direct Murder always waits for a ruling. For the
+ * other two it was a half-truth that showed on the tile as a promise the action
+ * often did not keep — Analyze with three unidentified bullets in the bag is a
+ * roll, and Work on Project in a room with a project in it is a roll.
+ *
+ * So the flag may also be a predicate, and both forms are read here, in the one
+ * place both consumers can share: the cost stripe and the "waits for the GM"
+ * mark on the tile. Anything that throws counts as false — see the note on the
+ * predicates in config.mjs.
+ */
+function callsGmFor(actor, def) {
+    const flag = def?.callsGm;
+    if (typeof flag !== "function") return Boolean(flag);
+    try {
+        return Boolean(flag(actor));
+    } catch {
+        return false;
+    }
 }
 
 /**

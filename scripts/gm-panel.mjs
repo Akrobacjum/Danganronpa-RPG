@@ -6,12 +6,12 @@
  * where everyone stands.
  */
 
-import { MODULE_ID, FLAGS, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES, CHAPTERS_PER_SEASON } from "./config.mjs";
+import { MODULE_ID, BUILD, FLAGS, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES,
+    CHAPTERS_PER_SEASON } from "./config.mjs";
 import { getClock, setClock, setTimeOfDay, clockSummary, timeOfDayLabel, phaseLabel, campaignName } from "./clock.mjs";
-import { resetAllActions, actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
-import { SearchTokens } from "./search-tokens.mjs";
+import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
-import { dialogContent, error, plural } from "./utils.mjs";
+import { dialogContent, error, plural, tableDialog } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -64,133 +64,96 @@ const PANEL_SECTIONS = [
         always: true,
         items: [
             // The tray's own manager, first: it is the screen a GM opens most
-            // often during a Daily Life and it used to be in Season setup,
-            // three sections down, behind a fold.
+            // often during a Daily Life.
             { key: "projects", icon: "fa-list-check", labelKey: "DRPG.Project.manageTitle",
               run: () => import("./projects-ui.mjs").then(m => m.openProjectManager()) },
-            { key: "eclipse", icon: "fa-moon", labelKey: "DRPG.Eclipse.button",
-              run: () => toggleEclipse() },
-            { key: "voiceEavesdrop", icon: "fa-headphones", labelKey: "DRPG.Panel.voiceEavesdrop",
-              run: () => import("./voice.mjs").then(m => m.openEavesdropDialog()) },
             { key: "jump", icon: "fa-calendar-days", labelKey: "DRPG.Panel.jump",
               run: () => openClockDialog() },
             { key: "rules", icon: "fa-gavel", labelKey: "DRPG.Rules.manageTitle",
-              run: () => import("./rules.mjs").then(m => m.openRulesManager()) }
+              run: () => import("./rules.mjs").then(m => m.openRulesManager()) },
+            // Moved up from "People and things", which no longer exists: giving
+            // somebody a thing is a mid-scene act, not a between-sessions one.
+            { key: "items", icon: "fa-box-open", labelKey: "DRPG.Items.manage",
+              run: () => import("./gm-items.mjs").then(m => m.openItemManager()) },
+            // Moved UP from Season setup, where it sat because it was only a
+            // state-to-playlist mapping table. It now also puts a track on and
+            // takes it off again — something a GM reaches for in the middle of
+            // a scene, which is what this section is.
+            { key: "music", icon: "fa-music", labelKey: "DRPG.Music.title",
+              run: () => import("./music.mjs").then(m => m.openMusicDialog()) },
+            // Three windows in one: "A character dies", the Monocub manager and
+            // the alive/dead/Monocub repair table. All three were about the same
+            // question — who in this cast is still breathing, and as what.
+            { key: "whoIsAlive", icon: "fa-heart-pulse", labelKey: "DRPG.Panel.whoIsAlive",
+              run: () => openWhoIsAliveDialog() }
+            // GONE FROM HERE:
+            //   Eclipse — the HUD's own chevron has done both halves of it for
+            //     several versions; a second door to it was a second thing to
+            //     keep in step. `nextStep` still offers it when one is running,
+            //     see EXTRA_ACTIONS.
+            //   Listen in on a voice room — reachable from the console
+            //     (`game.drpg.voiceEavesdropDialog()`) and from nowhere a GM
+            //     goes twice a session.
         ]
     },
     {
         key: "case",
-        phases: ["dailyLife", "investigation"],
+        // Also open during a Class Trial, because the trial console lives here
+        // now — and during Daily Life, because that is when a GM decides to
+        // hold one.
+        phases: ["dailyLife", "investigation", "classTrial"],
         items: [
             // IN THE ORDER THEY HAPPEN.
             //
-            // The dashboard used to sit above "A body is discovered", which is
-            // backwards at the table and backwards in this module's own code:
-            // `afterIncident` treats moving to the Investigation and announcing
-            // the body as one beat and opens the body dialog straight after the
-            // phase change. A GM reading down this column was being walked
-            // through the case in the wrong order.
+            // Greys out while an Eclipse runs rather than rejecting silently on
+            // click: `openMurder` refuses the call either way (see the notes
+            // there), but a GM should see WHY before pressing, not after.
+            // `judgePendingMurders` still opens a parked Direct Murder once the
+            // Eclipse it was declared in has ended — that path never goes
+            // through this tile.
             { key: "murder", icon: "fa-skull", labelKey: "DRPG.Murder.openTitle",
+              disabled: () => isEclipse(), disabledReason: "DRPG.Eclipse.panelLocked",
               run: () => import("./murder.mjs").then(m => m.openMurderDialog()) },
-            { key: "bodyFound", icon: "fa-person-falling", labelKey: "DRPG.Chapter.bodyTitle",
-              run: () => import("./chapter.mjs").then(m => m.openBodyDiscoveryDialog()) },
+            // "A body is discovered" is a button on the dashboard: a GM
+            // announces the body while looking at the case, not while deciding
+            // which screen to open. Same for the autopsy and the evidence log.
             { key: "investigation", icon: "fa-magnifying-glass-chart",
               labelKey: "DRPG.Investigation.dashboardTitle",
               run: () => import("./investigation.mjs").then(m => m.openInvestigationDashboard()) },
-            // The autopsy and the evidence log are buttons on the Investigation
-            // dashboard now. Both are things a GM reaches for while looking at
-            // the case rather than while deciding what to open next, and the
-            // dashboard is the screen that has the case on it.
+            // Start, floor, vote, verdict and the chapter's end, behind one
+            // name. Two tiles for one scene meant a GM mid-trial had to know
+            // which of them held the button they wanted.
+            { key: "trial", icon: "fa-scale-balanced", labelKey: "DRPG.Floor.manageTrial",
+              run: () => import("./trial-floor-ui.mjs").then(m => m.manageClassTrial()) }
         ]
     },
     {
-        key: "trial",
-        // Also open during Daily Life and the Investigation, because that is
-        // when a GM decides to hold one — the section that starts a trial being
-        // folded away until a trial is running was the old ordering problem in
-        // a different shape.
-        phases: ["dailyLife", "investigation", "classTrial"],
-        items: [
-            // Starting and ending were two tiles in two different sections, so
-            // the pair a GM reaches for at the two ends of one scene never
-            // appeared together. One door, labelled by where the table is.
-            { key: "manageTrial", icon: "fa-scale-balanced", labelKey: "DRPG.Floor.manageTrial",
-              run: () => import("./trial-floor-ui.mjs").then(m => m.manageClassTrial()) },
-            // `The vote` and `The verdict` are steps on the floor window now. A
-            // trial runs floor -> vote -> verdict every time, in that order.
-            { key: "floor", icon: "fa-microphone-lines", labelKey: "DRPG.Floor.manageTitle",
-              run: () => import("./trial-floor-ui.mjs").then(m => m.openFloorDialog()) }
-        ]
-    },
-    {
-        key: "season",
-        phases: ["classTrial"],
-        items: [
-            { key: "mastermind", icon: "fa-user-secret", labelKey: "DRPG.Mastermind.dialogTitle",
-              run: () => import("./mastermind.mjs").then(m => m.openMastermindDialog()) },
-            // `Start or end the Final Trial` and `Final Trial verdict` are
-            // buttons on the Mastermind window now. All three were one subject
-            // split across three trips through the panel.
-        ]
-    },
-    {
-        key: "people",
-        phases: ["dailyLife", "investigation", "classTrial"],
-        items: [
-            { key: "items", icon: "fa-box-open", labelKey: "DRPG.Items.manage",
-              run: () => import("./gm-items.mjs").then(m => m.openItemManager()) },
-            // `Look inside the stashes` is a button on Give / take items: a stashed
-            // item is an ordinary item on its owner's sheet, so the two screens
-            // were always about the same thing.
-            { key: "death", icon: "fa-skull-crossbones", labelKey: "DRPG.Chapter.deathTitle",
-              run: () => import("./chapter.mjs").then(m => m.openDeathDialog()) },
-            { key: "monocub", icon: "fa-ghost", labelKey: "DRPG.Monocub.manageTitle",
-              run: () => import("./monocub.mjs").then(m => m.openMonocubDialog()) },
-            { key: "chapterEnd", icon: "fa-flag-checkered", labelKey: "DRPG.Chapter.endTitle",
-              run: () => import("./chapter.mjs").then(m => m.openChapterEndDialog()) }
-        ]
-    },
-    {
-        key: "setup",
+        key: "between",
         collapsed: true,
         items: [
             { key: "gmTeam", icon: "fa-users-gear", labelKey: "DRPG.Panel.gmTeam",
               run: () => import("./gm-team-dialog.mjs").then(m => m.openGmTeamDialog()) },
-            // Moved out of "Right now". It is a mapping table — state to
-            // playlist — filled in once and then driven by the module itself;
-            // nothing about it belongs to the minute a GM is currently running.
-            { key: "music", icon: "fa-music", labelKey: "DRPG.Music.title",
-              run: () => import("./music.mjs").then(m => m.openMusicDialog()) },
-            // Room Setup now carries the rest columns too, so the separate
-            // "which rooms allow rest" entry would open the same window twice.
+            // Room Setup carries the locks and the search-token counters now, so
+            // the two quick toggles that used to live in the panel are columns
+            // on the table that already says everything else about a room.
             { key: "roomSetup", icon: "fa-door-closed", labelKey: "DRPG.Vault.manageTitle",
               run: () => import("./vault.mjs").then(m => m.openRoomSetupDialog()) },
-            { key: "installTables", icon: "fa-table-list", labelKey: "DRPG.Panel.installTables",
-              run: () => import("./tables.mjs").then(m => m.installTables()) },
-            // Two checks that were only ever reachable from the console, and both
-            // of them answer a question you want answered BEFORE a session rather
-            // than after: is everybody set up, and can anybody read a sheet they
-            // should not.
-            // Both of these answer "is the table ready", both are run at the
-            // same moment — before a session — and neither is worth its own
-            // trip through the panel. One tile runs both.
-            // Answered on screen, not into the chat log.
-            //
-            // Both checks used to whisper their findings and nothing else, so
-            // pressing the tile looked like it had done nothing: the answer was
-            // behind the window the GM was still looking at, in a sidebar they
-            // had to go and scroll. It is a question with an answer — so the
-            // answer arrives as an answer.
-            { key: "preSessionChecks", icon: "fa-clipboard-check", labelKey: "DRPG.Panel.seasonChecks",
-              run: () => runPreSessionChecks() },
-
-            // Beside the checks, deliberately. They are the same list read from
-            // the two ends — "what is missing" and "fix it" — and a GM who has
-            // just been told three things are missing should not have to go
-            // looking for where to do them.
+            // The editor, not the installer. Installing is still in there, as a
+            // button — it is a thing you do once, and everything after that
+            // first minute is editing.
+            { key: "tables", icon: "fa-table-list", labelKey: "DRPG.Tables.editorTitle",
+              run: () => import("./tables.mjs").then(m => m.openItemTables()) },
+            // Beside the checks it answers: the season checklist carries the
+            // pre-session diagnostics as a button now, because "what is missing"
+            // and "fix it" are the same list read from the two ends.
             { key: "seasonSetup", icon: "fa-wand-magic-sparkles", labelKey: "DRPG.Season.title",
               run: () => import("./season-setup.mjs").then(m => m.openSeasonSetup()) },
-
+            // Moved out of the trial-only section it used to sit in. The
+            // endgame is prepared between sessions, and this is the one place
+            // it is edited: the Mastermind's identity, the Final Trial and the
+            // Final Key Remnants, all on one window.
+            { key: "mastermind", icon: "fa-user-secret", labelKey: "DRPG.Mastermind.dialogTitle",
+              run: () => import("./mastermind.mjs").then(m => m.openMastermindDialog()) },
             // Last in the section and red: it is the only control here that
             // destroys anything, and it destroys a chapter's worth at once.
             { key: "seasonReset", icon: "fa-trash-arrow-up", labelKey: "DRPG.Season.resetTitle",
@@ -203,41 +166,38 @@ const PANEL_SECTIONS = [
         dim: true,
         collapsed: true,
         items: [
-            // The state-of-a-character tools. Everything else in this section
-            // repairs the world; these three repair a person, and until now the
-            // only routes to them were the console and a dialog that refused to
-            // touch anybody still breathing.
-            // A repair tool among the flow steps is a repair tool in the wrong
-            // section: editing a Remnant's flags is something a GM does when
-            // something went in wrong, not a step of running the case.
-            // (`fa-hazard` is not a Font Awesome icon, so this tile used to
-            // render with an empty square where every other one has a glyph.)
             // What has gone wrong since this page loaded. See `openFailureLog`.
             { key: "failureLog", icon: "fa-bug", labelKey: "DRPG.Failures.title",
               run: () => openFailureLog() },
-            { key: "manageRemnants", icon: "fa-triangle-exclamation", labelKey: "DRPG.Remnant.manageTooltip",
-              run: () => import("./remnants.mjs").then(m => m.openRemnantManager()) },
-            { key: "whoIsWhat", icon: "fa-user-pen", labelKey: "DRPG.Panel.whoIsWhat",
-              run: () => openCharacterStateDialog() },
-            { key: "resetActions", icon: "fa-rotate-left", labelKey: "DRPG.Panel.resetActions",
-              run: async () => {
-                  const results = await resetAllActions();
-                  ui.notifications.info(plural("DRPG.Panel.actionsReset",
-                      { count: results.length }, "count"));
-              } },
-            // One tile, not two. "Show search tokens" and "Restock search
-            // tokens" were the same errand split in half: you look because you
-            // are deciding whether to restock, and you restock having looked. So
-            // the report IS the dialog, and restocking is a button on it.
-            { key: "searchTokens", icon: "fa-list-check", labelKey: "DRPG.Panel.searchTokens",
-              run: () => openSearchTokenDialog() },
-            // `Clear Faint Remnants` and `Reset all voice rooms` used to be tiles
-            // here. Both are now buttons on the window they were always about —
-            // the Remnant table and the voice room list — because each is a
-            // decision you make while looking at that window, not before opening it.
+            // GONE FROM HERE: the search-token report is two columns in Room
+            // Setup, editing a Remnant's flags is the dashboard's Traces tab,
+            // and "Alive / dead / Monocub" is the top section's Player status.
+            // Each of them is now a control on the window that already held the
+            // rest of its subject.
+            //
+            // "Refill everyone's actions" went too, and for a different reason:
+            // it was a button that undid the clock. Actions come back when the
+            // time of day advances, which is the one event the whole economy is
+            // built on — a tile that hands them out without moving the clock is
+            // a way to lose track of which time of day the table is actually
+            // in. `game.drpg.resetAllActions()` is still there for a GM who
+            // genuinely needs to repair a botched advance.
         ]
     }
 ];
+
+/**
+ * Things `nextStep()` can suggest that are not tiles.
+ *
+ * The suggestion line is not a list of tools, it is one instruction — so it is
+ * allowed to point at something the tile grid deliberately does not carry. The
+ * Eclipse is the whole of it: the HUD owns that button, but "the Eclipse is
+ * open, close it once everyone has placed" is still the right next step to be
+ * told, and the "Do it" beside it should work.
+ */
+const EXTRA_ACTIONS = {
+    eclipse: { key: "eclipse", run: () => toggleEclipse() }
+};
 
 /** Open the panel. */
 export async function openGmPanel() {
@@ -255,21 +215,44 @@ export async function openGmPanel() {
         <details class="drpg-gmp-section${section.dim ? " dim" : ""}${
             inSeason ? " in-season" : ""}"${open ? " open" : ""}>
             <summary>${game.i18n.localize(`DRPG.Panel.section.${section.key}`)}</summary>
-            <div class="drpg-gmp-grid">${section.items.map(item => `
+            <div class="drpg-gmp-grid">${section.items.map(item => {
+                const blocked = Boolean(item.disabled?.());
+                return `
                 <button type="button" class="drpg-gmp-button${
-                    item.gmRoute ? " drpg-gm-route" : ""}" data-drpg-run="${item.key}">
+                    item.gmRoute ? " drpg-gm-route" : ""}${blocked ? " drpg-disabled" : ""}" data-drpg-run="${item.key}"${
+                    blocked ? ` disabled title="${foundry.utils.escapeHTML(game.i18n.localize(item.disabledReason))}"` : ""}>
                     <i class="fa-solid ${item.icon}" inert></i>
                     <span>${game.i18n.localize(item.labelKey)}</span>
-                </button>`).join("")}</div>
+                </button>`;
+            }).join("")}</div>
         </details>`;
     }).join("");
 
+    // Which version is actually running, on the screen a GM opens most.
+    //
+    // It is read off the manifest rather than written here, so it cannot go
+    // stale — and it is on the panel rather than in the console because the
+    // question it answers ("is the fix I was sent actually loaded?") is asked
+    // by somebody looking at the interface, not at a debugger. On a hosted
+    // world that is the first thing worth knowing when something looks wrong.
+    // The build that is RUNNING, which is the useful one — see the note on
+    // `BUILD` in config.mjs. The manifest is shown beside it only when they
+    // disagree, because on a hosted world that gap is normal and the question
+    // it answers ("did my upload land?") is worth being able to see.
+    const manifest = game.modules.get(MODULE_ID)?.version ?? "?";
+    const version = manifest === BUILD ? BUILD : `${BUILD} (manifest ${manifest})`;
     const body = dialogContent(`<div class="drpg-gm-panel">
         ${buildPanelContent()}
         ${sections}
+        <p class="drpg-gmp-version">Danganronpa RPG v${foundry.utils.escapeHTML(version)}</p>
     </div>`);
 
-    const lookup = new Map(PANEL_SECTIONS.flatMap(s => s.items.map(i => [i.key, i])));
+    // The suggestion's own actions are in the same lookup as the tiles, so the
+    // "Do it" button works whether or not what it points at is on screen.
+    const lookup = new Map([
+        ...PANEL_SECTIONS.flatMap(s => s.items.map(i => [i.key, i])),
+        ...Object.entries(EXTRA_ACTIONS)
+    ]);
 
     await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Panel.title") },
@@ -393,40 +376,37 @@ async function openFailureLog() {
 }
 
 /**
- * Both pre-session checks, answered in one window.
+ * WHO IS ALIVE — three windows, one table.
+ * ---------------------------------------------------------------------------
+ * "A character dies", the Monocub manager and the alive/dead/Monocub repair
+ * table were three tiles in two sections answering one question about one
+ * cast, and each of them could only see part of it: the death dialog listed
+ * only the living, the Monocub dialog only the dead, and the repair table
+ * could move the flags but refused to run either procedure properly.
  *
- * "Is everybody set up" and "can anybody read a sheet they should not" are one
- * question asked at one moment — before a session — so they are one tile and
- * now one answer. Neither report goes to chat from here: they are handed back
- * as text and put on screen, because a question asked with a button should be
- * answered where the button was.
+ * THE DROPDOWN IS STILL THE REPAIR TOOL, exactly as it was — it moves the two
+ * flags and nothing else, which is what you want after a mis-click. The two
+ * row buttons are the real procedures:
+ *
+ *   Kill                 `openDeathDialog` for that one character, with the
+ *                        warning about the inventory it destroys.
+ *   Invite as a Monocub  the guide's offer to somebody already dead.
+ *
+ * The Monocub half of the old window comes across whole: how much Hope a cub
+ * is holding, the donation control that spends a real Despair pool, and the
+ * silence a cub is put under after a crime they watched.
+ *
+ * Built from a list of everything the three windows did, checked off after the
+ * merge — see the stage's verification. The one thing deliberately NOT carried
+ * across is the death dialog's own character picker: this table is the picker.
  */
-async function runPreSessionChecks() {
-    const [{ diagnoseCharacters }, { auditAnonymity }] = await Promise.all([
-        import("./diagnostics.mjs"), import("./anonymity.mjs")
-    ]);
-
-    const setup = diagnoseCharacters({ toChat: false });
-    const anon = await auditAnonymity({ toChat: false });
-
-    await DialogV2.wait({
-        classes: ["drpg-panel", "drpg-wide"],
-        window: { title: game.i18n.localize("DRPG.Panel.seasonChecks") },
-        content: dialogContent(`<div>
-            <h3>${game.i18n.localize("DRPG.Panel.checksSetup")}</h3>
-            <pre class="drpg-check-report">${foundry.utils.escapeHTML(setup)}</pre>
-            <h3>${game.i18n.localize("DRPG.Anonymity.audit.title")}</h3>
-            ${anon.body ?? ""}
-        </div>`),
-        buttons: [{ action: "close", label: game.i18n.localize("DRPG.Panel.close"), default: true }],
-        rejectClose: false
-    });
-}
-
-async function openCharacterStateDialog() {
-    const { isDeceased, reviveCharacter, killCharacter } = await import("./chapter.mjs");
-    const { isMonocub, setMonocub } = await import("./monocub.mjs");
+async function openWhoIsAliveDialog() {
+    const { isDeceased, reviveCharacter, killCharacter, openDeathDialog } =
+        await import("./chapter.mjs");
+    const { isMonocub, setMonocub, isSilenced, setSilenced } = await import("./monocub.mjs");
     const { isMonokuma } = await import("./monokuma.mjs");
+    const { monokumas, poolLabel, getDespair } = await import("./despair.mjs");
+    const { resourceValue, resourceMax } = await import("./character.mjs");
 
     const students = game.actors.filter(a => a.type === "character" && !isMonokuma(a));
     if (!students.length) {
@@ -434,38 +414,115 @@ async function openCharacterStateDialog() {
         return;
     }
 
+    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
     const stateOf = a => isMonocub(a) ? "monocub" : isDeceased(a) ? "dead" : "alive";
+    const donors = monokumas().map(u =>
+        `<option value="${u.id}">${esc(poolLabel(u))} (${getDespair(u.id)})</option>`).join("");
 
     const rows = students.map(a => {
         const state = stateOf(a);
+        const cub = state === "monocub";
+
         return `<tr data-actor="${a.id}">
-            <td>${foundry.utils.escapeHTML(a.name)}</td>
+            <td>${esc(a.name)}</td>
             <td><select name="state.${a.id}">
-                ${["alive", "dead", "monocub"].map(s =>
-                    `<option value="${s}"${s === state ? " selected" : ""}>${
-                        game.i18n.localize(`DRPG.Panel.state.${s}`)}</option>`).join("")}
+                ${["alive", "dead", "monocub"].map(sKey =>
+                    `<option value="${sKey}"${sKey === state ? " selected" : ""}>${
+                        game.i18n.localize(`DRPG.Panel.state.${sKey}`)}</option>`).join("")}
             </select></td>
+            <td>${cub ? `${resourceValue(a, "hope")} / ${resourceMax(a, "hope")}` : "—"}</td>
+            <td>${cub && donors ? `
+                <select name="donor:${a.id}">${donors}</select>
+                <input type="number" name="amount:${a.id}" min="1" value="1" style="width:3.5em" />
+                <button type="button" class="drpg-mini-button" data-drpg-give="${a.id}">
+                    ${game.i18n.localize("DRPG.Monocub.give")}</button>` : "—"}</td>
+            <td style="text-align:center">${cub
+                ? `<input type="checkbox" name="silenced:${a.id}" ${
+                    isSilenced(a) ? "checked" : ""} />`
+                : "—"}</td>
+            <td>${state === "alive"
+                ? `<button type="button" class="drpg-mini-button drpg-gm-route"
+                       data-drpg-kill="${a.id}">${
+                       game.i18n.localize("DRPG.Chapter.deathTitle")}</button>`
+                : state === "dead"
+                    ? `<button type="button" class="drpg-mini-button" data-drpg-cub="${a.id}">${
+                        game.i18n.localize("DRPG.Monocub.invite")}</button>`
+                    : "—"}</td>
         </tr>`;
     }).join("");
 
-    const chosen = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Panel.whoIsWhat") },
-        classes: ["drpg-panel"],
+    // The per-row buttons act at once rather than waiting for Apply: each one
+    // runs a real procedure — a death that empties an inventory, a donation
+    // that spends a Despair pool — and a GM who then cancels the form should
+    // not find those undone with it. The window closes and reopens so the table
+    // is rebuilt around what actually happened.
+    const wireRow = (dialog, attribute, run) => {
+        for (const button of dialog.element.querySelectorAll(`[${attribute}]`)) {
+            button.addEventListener("click", async ev => {
+                ev.preventDefault();
+                const actor = game.actors.get(button.getAttribute(attribute));
+                if (!actor) return;
+                await dialog.close();
+                try {
+                    await run(actor, dialog);
+                } catch (err) {
+                    error(`GM panel: "${attribute}" failed`, err);
+                }
+                await openWhoIsAliveDialog();
+            });
+        }
+    };
+
+    const chosen = await tableDialog({
+        window: { title: game.i18n.localize("DRPG.Panel.whoIsAlive") },
+        classes: ["drpg-panel", "drpg-projects"],
         content: dialogContent(`<form>
-            <p class="notes">${game.i18n.localize("DRPG.Panel.whoIsWhatNote")}</p>
-            <table><thead><tr>
+            <p class="notes">${game.i18n.localize("DRPG.Panel.whoIsAliveNote")}</p>
+            <table class="drpg-vault-table"><thead><tr>
                 <th>${game.i18n.localize("DRPG.Panel.character")}</th>
                 <th>${game.i18n.localize("DRPG.Panel.stateColumn")}</th>
+                <th>${game.i18n.localize("DRPG.Monocub.hope")}</th>
+                <th>${game.i18n.localize("DRPG.Monocub.giveHope")}</th>
+                <th>${game.i18n.localize("DRPG.Monocub.silenced")}</th>
+                <th>${game.i18n.localize("DRPG.Panel.doColumn")}</th>
             </tr></thead><tbody>${rows}</tbody></table>
+            <p class="notes">${game.i18n.localize("DRPG.Monocub.silencedNote")}</p>
         </form>`),
         buttons: [
             {
                 action: "save", label: game.i18n.localize("DRPG.Panel.apply"), default: true,
-                callback: (e, b, d) => Object.fromEntries(students.map(a =>
-                    [a.id, d.element.querySelector(`[name="state.${a.id}"]`).value]))
+                callback: (e, b, d) => Object.fromEntries(students.map(a => [a.id, {
+                    state: d.element.querySelector(`[name="state.${a.id}"]`)?.value ?? null,
+                    silenced: Boolean(d.element.querySelector(`[name="silenced:${a.id}"]`)?.checked)
+                }]))
             },
             { action: "cancel", label: game.i18n.localize("DRPG.Panel.close") }
         ],
+        render: (event, dialog) => {
+            // The full death procedure, on the one character the row is about.
+            // `openDeathDialog` owns the warning about the inventory and the
+            // "keep their things" choice; repeating either here would be a
+            // second copy of a rule that can only be right in one place.
+            wireRow(dialog, "data-drpg-kill", actor => openDeathDialog({ actor }));
+            wireRow(dialog, "data-drpg-cub", actor => setMonocub(actor, true));
+
+            for (const button of dialog.element.querySelectorAll("[data-drpg-give]")) {
+                button.addEventListener("click", async ev => {
+                    ev.preventDefault();
+                    const id = button.dataset.drpgGive;
+                    const actor = game.actors.get(id);
+                    const donorId = dialog.element.querySelector(`[name="donor:${id}"]`)?.value;
+                    const amount = Number(
+                        dialog.element.querySelector(`[name="amount:${id}"]`)?.value) || 0;
+                    if (!actor || !donorId || amount <= 0) return;
+
+                    const { convertDespairToHope } = await import("./despair.mjs");
+                    await convertDespairToHope(donorId, actor, amount);
+                    await dialog.close();
+                    await openWhoIsAliveDialog();
+                });
+            }
+        },
         rejectClose: false
     });
 
@@ -474,78 +531,42 @@ async function openCharacterStateDialog() {
     let changed = 0;
     for (const actor of students) {
         const want = chosen[actor.id];
-        if (!want || want === stateOf(actor)) continue;
+        if (!want?.state) continue;
 
         // Order matters: a Monocub is a dead student with a second flag, so the
         // flags are set from the outside in — deceased first, then Monocub.
         //
-        // Dying goes through `killCharacter` rather than writing the flag here.
-        // Setting the flag alone leaves the token unmarked on every client and
-        // leaves a running incident frozen around a corpse — `killCharacter`
-        // applies the dead overlay and offers Stage 6, and this screen has no
-        // business doing half of a death. `keepItems` because this is a state
-        // correction, not a murder: nobody expects a dropdown to empty a bag.
-        if (want === "alive") {
-            await setMonocub(actor, false);
-            await reviveCharacter(actor);
-        } else if (want === "dead") {
-            await setMonocub(actor, false);
-            if (!isDeceased(actor)) await killCharacter(actor, { keepItems: true });
-        } else {
-            if (!isDeceased(actor)) await killCharacter(actor, { keepItems: true });
-            await setMonocub(actor, true);
+        // Dying through the DROPDOWN keeps the inventory. This half of the
+        // window is the repair tool: nobody expects a select to empty a bag,
+        // and the row's own Kill button is the one that runs the real
+        // procedure, warning and all.
+        if (want.state !== stateOf(actor)) {
+            if (want.state === "alive") {
+                await setMonocub(actor, false);
+                await reviveCharacter(actor);
+            } else if (want.state === "dead") {
+                await setMonocub(actor, false);
+                if (!isDeceased(actor)) await killCharacter(actor, { keepItems: true });
+            } else {
+                if (!isDeceased(actor)) await killCharacter(actor, { keepItems: true });
+                await setMonocub(actor, true);
+            }
+            changed++;
         }
-        changed++;
+
+        // Silence only means anything for a cub, and only after the state above
+        // has settled — a student promoted to Monocub in this same pass can be
+        // silenced in it too.
+        if (isMonocub(actor) && want.silenced !== isSilenced(actor)) {
+            await setSilenced(actor, want.silenced);
+            changed++;
+        }
     }
 
     ui.notifications.info(changed
         ? plural("DRPG.Panel.stateSaved", { n: changed })
         : game.i18n.localize("DRPG.Panel.stateUnchanged"));
 }
-
-/**
- * The search-token report, with the restock button on it.
- *
- * `SearchTokens.report()` whispers a table to the GMs, which is the right place
- * for a record and the wrong place for a decision — you end up reading the chat
- * log, then hunting the panel again for the button the table just told you to
- * press. Here the same table is the dialog, and the button is under it.
- */
-async function openSearchTokenDialog() {
-    const max = SearchTokens.max;
-    const scene = canvas?.scene;
-
-    const rooms = Array.from(scene?.regions ?? [])
-        .map(r => r.name).filter(Boolean).sort((a, b) => a.localeCompare(b));
-
-    const rows = rooms.map(room => {
-        const n = SearchTokens.left(room, scene);
-        return `<tr${n === 0 ? ' style="opacity:.5"' : ""}>
-            <td>${foundry.utils.escapeHTML(room)}</td>
-            <td style="text-align:center">${n} / ${max}</td></tr>`;
-    }).join("");
-
-    const table = rows
-        ? `<table><thead><tr>
-               <th>${game.i18n.localize("DRPG.Vault.room")}</th>
-               <th>${game.i18n.localize("DRPG.SearchTokens.title")}</th>
-           </tr></thead><tbody>${rows}</tbody></table>`
-        : `<p>${game.i18n.format("DRPG.SearchTokens.allFull", { max })}</p>`;
-
-    const action = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Panel.searchTokens") },
-        classes: ["drpg-panel"],
-        content: dialogContent(table),
-        buttons: [
-            { action: "restock", label: game.i18n.localize("DRPG.Panel.resetSearch"), default: true },
-            { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
-        ],
-        rejectClose: false
-    });
-
-    if (action === "restock") await SearchTokens.reset();
-}
-
 
 async function toggleEclipse() {
     const { isEclipse, startEclipse, endEclipse, placementStatus, eclipseLabel } =
@@ -565,7 +586,7 @@ async function toggleEclipse() {
             }</td>
         </tr>`).join("");
 
-    const choice = await DialogV2.wait({
+    const choice = await tableDialog({
         window: { title: eclipseLabel() },
         classes: ["drpg-panel"],
         content: `<p>${game.i18n.localize("DRPG.Eclipse.endPrompt")}</p>
@@ -622,11 +643,33 @@ function nextStep(clock) {
     }
 
     if (clock.phase === "classTrial") {
-        const queue = game.drpg?.trialQueue?.() ?? null;
-        return queue
-            ? { text: game.i18n.format("DRPG.Panel.nextFloor", {
-                  who: game.drpg.trialSpeaker?.()?.name ?? "—" }), action: "floor" }
-            : { text: game.i18n.localize("DRPG.Panel.nextNoFloor"), action: "startTrial" };
+        // THE TRIAL HAS AN ORDER NOW, so this line follows it rather than
+        // asking for a debate for the rest of the trial. The two finished steps
+        // are read from the trial's own progress record; see vote.mjs.
+        const progress = game.drpg?.trialProgress?.() ?? {};
+        if (progress.verdictApplied) {
+            return { text: game.i18n.localize("DRPG.Panel.nextChapterEnd"), action: "trial" };
+        }
+        if (progress.voteClosed) {
+            return { text: game.i18n.localize("DRPG.Panel.nextVerdict"), action: "trial" };
+        }
+
+        const floor = game.drpg?.trialFloor?.() ?? null;
+        if (!floor) {
+            return { text: game.i18n.localize("DRPG.Panel.nextNoFloor"), action: "trial" };
+        }
+        // The floor no longer has a single "speaker" to name — in a discussion
+        // everybody may talk, and in the two restrictive modes the interesting
+        // fact is the mode itself, not one name. So the line reports the mode,
+        // and adds who holds it only when somebody actually does.
+        const holder = game.drpg?.trialHolder?.()?.name ?? null;
+        const mode = game.i18n.localize(`DRPG.Floor.mode.${floor.mode}`);
+        return {
+            text: holder
+                ? game.i18n.format("DRPG.Panel.nextFloorHeld", { mode, who: holder })
+                : game.i18n.format("DRPG.Panel.nextFloor", { mode }),
+            action: "trial"
+        };
     }
 
     if (clock.phase === "investigation") {
@@ -663,7 +706,7 @@ function buildPanelContent() {
             const left = actionsLeft(a);
             const max = actionsMax(a);
             const move = hasFreeMove(a)
-                ? `<i class="fa-solid fa-shoe-prints" title="free Move available"></i>`
+                ? `<i class="fa-solid fa-shoe-prints drpg-pix-foot" title="free Move available"></i>`
                 : "—";
             const cub = a.getFlag(MODULE_ID, FLAGS.monocub)
                 ? ` <span class="notes">(${game.i18n.localize("DRPG.Monocub.isOne")})</span>` : "";

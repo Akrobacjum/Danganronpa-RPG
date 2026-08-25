@@ -22,6 +22,7 @@ import { MODULE_ID, FLAGS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { roomOfActor, occupantsOf } from "./movement.mjs";
 import { gmIds, ownerOf, error, debug } from "./utils.mjs";
+import { play, ENTER, ARRIVE } from "./motion.mjs";
 
 export function registerPrivateRolls() {
     Hooks.on("preCreateChatMessage", onPreCreateChatMessage);
@@ -42,9 +43,14 @@ export function registerPrivateRolls() {
     Hooks.on("renderChatMessageHTML", enforceContentVisibility);
 
     // The same hook, deliberately, and after the one above: a message this
-    // client may not read is hidden first and never styled. See `paintRollCard`
-    // for why the outcome colour cannot be a stylesheet rule.
-    Hooks.on("renderChatMessageHTML", paintRollCard);
+    // client may not read is hidden first and never styled. See `paintChatCard`
+    // for why a chat card's border cannot be a stylesheet rule.
+    Hooks.on("renderChatMessageHTML", paintChatCard);
+
+    // Everything already in the log is history. Registered here rather than at
+    // module scope because `game.messages` does not exist until the world is
+    // ready, and `ready` fires before the chat log has rendered a single card.
+    Hooks.once("ready", rememberExistingMessages);
 }
 
 /**
@@ -71,28 +77,215 @@ const OUTCOME_TOKEN = {
     hope: "--drpg-gold"
 };
 
-function paintRollCard(message, element) {
+/**
+ * Every message that was already in the log when this client finished loading.
+ *
+ * `renderChatMessageHTML` fires for every card in the log, not only for new ones
+ * — opening the tab, reloading, scrolling back far enough — so "is this new"
+ * has to be answered somehow, and the obvious answer is wrong. Comparing
+ * `message.timestamp` against `Date.now()` compares a stamp written by the
+ * SERVER against a reading taken from the CLIENT's clock, and on a hosted world
+ * those two disagree by however far the two machines have drifted apart. A
+ * server a few seconds behind makes every new roll look like history, which is
+ * exactly the symptom: no animation, ever, on the newest card in the log.
+ *
+ * Identity instead of time. Everything present at `ready` is history by
+ * definition; everything that turns up afterwards is new, and gets marked as it
+ * is handled so a re-render cannot slash the same card twice. No clocks
+ * involved, so nothing to drift.
+ */
+const alreadySeen = new Set();
+
+let historyLoaded = false;
+
+function rememberExistingMessages() {
+    for (const message of game.messages ?? []) alreadySeen.add(message.id);
+    historyLoaded = true;
+}
+
+/**
+ * The outcome frame arrives on a cut.
+ *
+ * A roll's result is the only thing in the chat log that is an EVENT rather
+ * than a record — everything else there is something you go and read, and this
+ * is something that just happened to you. It used to appear the way a log entry
+ * appears, which is to say not at all: the card was simply the next thing down
+ * the column.
+ *
+ * A diagonal wipe, left to right, over the enter time. Not a fade — a fade is
+ * the grammar of something settling into place, and the whole visual language
+ * this game is built on is hard cuts. One slash, and the frame is there.
+ *
+ * `clip-path` and nothing else: no layout is read, no layout is written, and
+ * the Web Animations API leaves no clip behind when it finishes, so a card that
+ * has been cut in is afterwards an entirely ordinary card.
+ */
+/**
+ * Wait until a chat card is actually on the page, then do something with it.
+ *
+ * `renderChatMessageHTML` fires while the message is still being assembled — it
+ * has not been appended to the log yet. An animation started at that moment
+ * runs to completion on a detached node, perfectly, without one frame of it
+ * ever being composited, which is why the cut was invisible for a release.
+ *
+ * A handful of frames of patience, then the element as the reader sees it — or
+ * nothing, if it never lands, which is the correct answer for a card that was
+ * thrown away before it was shown.
+ */
+function whenOnScreen(html, then) {
+    let frames = 6;
+    const check = () => {
+        if (html.isConnected) return void then();
+        if (frames-- > 0) requestAnimationFrame(check);
+    };
+    requestAnimationFrame(check);
+}
+
+function cutIn(html) {
+    play(html, [
+        { clipPath: "polygon(0% 0%, 0% 0%, -20% 100%, -20% 100%)" },
+        { clipPath: "polygon(0% 0%, 120% 0%, 100% 100%, 0% 100%)" }
+    ], ENTER(), ARRIVE());
+}
+
+/** New means "not in the log when this client loaded", and only once. */
+function isNew(message) {
+    // The chat log renders its history BEFORE `ready` fires, so until the set
+    // above has been filled, nothing can be judged — and judging it wrong here
+    // means the whole log slashes itself in and raises a card per roll on load.
+    if (!historyLoaded) return false;
+    if (!message?.id || alreadySeen.has(message.id)) return false;
+    alreadySeen.add(message.id);
+    return true;
+}
+
+/**
+ * Which of the three outcomes this card carries — asked of the DOCUMENT.
+ *
+ * This used to read the element's classes, and it has never once worked.
+ * Daggerheart puts `duality`, `hope`, `fear` and `critical` on the message
+ * element inside `enrichChatMessage()`, and it calls that from its own
+ * `renderHTML()` — AFTER `super.renderHTML()`, which is the call that fires the
+ * hook this module listens on. Every duality card reaching `paintChatCard` is
+ * still wearing nothing but `chat-message message flexcol dh-chat-message
+ * dh-style`, so the test could only ever come back false.
+ *
+ * The consequence was quiet and had nothing to do with animation: the outcome
+ * BORDER — gold for Hope, blood for Fear, crimson for a Critical — has been
+ * falling through to the plain Bone edge on every roll since it was written.
+ *
+ * The same three facts live on the message, before anything is rendered at all,
+ * and this is the same test Daggerheart itself makes: withHope, else withFear,
+ * else a Critical.
+ */
+function dualityOutcome(message, html) {
+    if (message?.type === "dualityRoll") {
+        const roll = message.system?.roll;
+        if (roll) {
+            if (roll.withHope) return "hope";
+            if (roll.withFear) return "fear";
+            return "critical";
+        }
+    }
+
+    // A re-render of a card Daggerheart has already decorated, and any future
+    // message type that adopts the same classes. Costs one lookup and covers
+    // the case where the document does not carry the answer.
+    if (html?.classList?.contains?.("duality")) {
+        return ["critical", "fear", "hope"].find(k => html.classList.contains(k)) ?? null;
+    }
+    return null;
+}
+
+function paintChatCard(message, element) {
     try {
         const html = element instanceof HTMLElement ? element : element?.[0];
-        if (!html?.classList?.contains("duality")) return;
+        if (!html?.classList) return;
         // Hidden by the pass above: leave it exactly as it is.
         if (html.classList.contains("drpg-hidden-message")) return;
 
-        // Critical first — a card carries `critical` alongside `hope` or `fear`,
-        // and the rarest outcome is the one worth naming.
-        const outcome = ["critical", "fear", "hope"].find(k => html.classList.contains(k));
-        if (!outcome) return;
+        {
+            const outcome = dualityOutcome(message, html);
+            if (outcome) {
+                markOutcome(html, outcome);
+                if (isNew(message)) whenOnScreen(html, () => cutIn(html));
+                return;
+            }
+        }
 
-        const colour = getComputedStyle(document.documentElement)
-            .getPropertyValue(OUTCOME_TOKEN[outcome]).trim();
-        if (!colour) return;
-
-        html.style.setProperty("border", `1px solid ${colour}`, "important");
-        html.style.setProperty("border-left", `3px solid ${colour}`, "important");
+        // Everything else gets the module's window edge. Same mechanism, same
+        // reason: the chat log was the one surface in this interface with no
+        // frame at all, next to popups and dialogs that have one, and it looked
+        // like an oversight rather than a choice. An outcome colour still wins
+        // where there is one — a Hope roll says Hope before it says "a card".
+        markFrame(html);
     } catch (err) {
         // A card without its border is still a readable card.
-        error("Could not colour a roll card", err);
+        error("Could not paint a chat card", err);
     }
+}
+
+/**
+ * The module's window edge, on a chat card, inline.
+ *
+ * Everything the note on `markOutcome` says about why this cannot be a
+ * stylesheet rule applies here unchanged — Daggerheart's `border-style: none
+ * !important` from `layer system` beats any `!important` this module writes.
+ * The colour is read off `:root` so the palette stays in one place.
+ */
+function markFrame(element) {
+    if (!element) return false;
+
+    // `var()` rather than a colour read off `:root`, which is what `markOutcome`
+    // does above. An inline style may reference a custom property, and the
+    // property is inherited from `:root` like any other — so the edge stays one
+    // declaration in the stylesheet, and a client on the light theme resolves
+    // `light-dark()` for itself instead of getting whatever this browser
+    // happened to compute at the moment the card rendered.
+    element.style.setProperty("border", "1px solid var(--drpg-window-edge)", "important");
+    element.style.setProperty("border-radius", "4px", "important");
+    return true;
+}
+
+/**
+ * Put the outcome's colour on one element, as an inline border.
+ *
+ * Exported because a roll now appears in two places — the chat log and the
+ * messenger thread the action was declared in — and two copies of this would
+ * be two palettes the moment one of them was tuned. Inline rather than a class
+ * for the reason the note above gives: the system writes its own `!important`
+ * borders on the chat card, and an inline style is the only thing that outranks
+ * an author `!important`. The colour itself is still read off `:root`, so it
+ * follows the stylesheet.
+ *
+ * @param {HTMLElement} element
+ * @param {"critical"|"fear"|"hope"} outcome
+ */
+export function markOutcome(element, outcome) {
+    const token = OUTCOME_TOKEN[outcome];
+    if (!element || !token) return null;
+
+    const colour = getComputedStyle(document.documentElement)
+        .getPropertyValue(token).trim();
+    if (!colour) return null;
+
+    element.style.setProperty("border", `1px solid ${colour}`, "important");
+    element.style.setProperty("border-left", `3px solid ${colour}`, "important");
+    return colour;
+}
+
+/**
+ * Which of the three outcomes a message carries, or `null` for a roll that is
+ * not a duality roll at all. Reads the message rather than the DOM, so it works
+ * before anything has been rendered — which is what the messenger needs.
+ */
+export function rollOutcomeOf(message) {
+    if (!message?.rolls?.length) return null;
+    const flavour = `${message.flavor ?? ""} ${message.content ?? ""}`;
+    if (/\bcritical\b/i.test(flavour)) return "critical";
+    if (/\bfear\b|despair/i.test(flavour)) return "fear";
+    if (/\bhope\b/i.test(flavour)) return "hope";
+    return null;
 }
 
 /**

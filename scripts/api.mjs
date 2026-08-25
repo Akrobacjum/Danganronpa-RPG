@@ -57,19 +57,22 @@ import {
 } from "./assignments.mjs";
 import {
     diagnoseDice, diagnoseDespair, diagnoseStyles, diagnoseTruthBullets, diagnoseVoice,
+    diagnoseWindows, traceClicks, fileSizes,
 } from "./diagnostics.mjs";
 import { runTests } from "./tests.mjs";
 import {
     diagnoseCharacters
 } from "./diagnostics.mjs";
 import { performAction, currentRoom } from "./action-rolls.mjs";
-import { installTables, drawItem, randomItem, tableName } from "./tables.mjs";
+import { installTables, openItemTables, drawItem, randomItem, tableName } from "./tables.mjs";
 import { roomOfActor, roomOfToken, othersInRoom, allRooms, neighbouringRooms, occupantsOf } from "./movement.mjs";
-import { applyAll as refreshRoomVisibility, visibleCharacters } from "./visibility.mjs";
+import { applyAll as refreshRoomVisibility, visibleCharacters, diagnoseVisibility }
+    from "./visibility.mjs";
 import {
     migrateRemnants, remnantData, reportRemnants } from "./remnants.mjs";
 import {
-    allProjects, visibleProjects, canSee, projectsAvailableIn, addProgress, setProjectMeta,
+    allProjects, visibleProjects, canSee, projectsAvailableIn, projectsListedIn,
+    isComplete, addProgress, setProjectMeta,
     makeSecret, shareWith, unshareWith, revealProject, isSecret, viewersOf
 } from "./projects.mjs";
 import { openProjectManager, openShareDialog } from "./projects-ui.mjs";
@@ -78,7 +81,7 @@ import { takeRest, roomAllows, restRooms, setRestRoom, openRestRoomsDialog } fro
 import {
     dropRemnant, placeRemnant, remnantsOn, remnantsInRoom, rankForObserve,
     revealRemnant, removeRemnant, clearFaintRemnants,
-    setRemnantFlags, openRemnantManager
+    setRemnantFlags
 } from "./remnants.mjs";
 import { chooseObserveTarget, resolveObserve, clearPendingObserves } from "./observe.mjs";
 import { resolveAnalyze } from "./analyze.mjs";
@@ -93,12 +96,14 @@ import {
 } from "./chapter.mjs";
 import {
     keyPlan, setKeyPlan, keyPlanStatus,
-    openKeyPlanner, openInvestigationDashboard
+    openInvestigationDashboard, openKeyRemnantHere
 } from "./investigation.mjs";
 import {
-    trialQueue, speaker, secondsLeft, startFloor, nextSpeaker, seizeFloor, endFloor
+    trialFloor, floorHolder, floorTarget, maySpeak, secondsLeft,
+    startFloor, openObjection, openRebuttal, returnToDiscussion, advanceFloorNow,
+    extendFloor, endFloor
 } from "./trial-floor.mjs";
-import { openVote, closeVote, applyVerdict, openVerdictDialog } from "./vote.mjs";
+import { openVote, closeVote, applyVerdict, openVerdictDialog, trialProgress } from "./vote.mjs";
 import {
     murderState, sideOf, isTheirTurn, availableCrisisActions,
     openMurder, resolveKillerOpening, resolveVictimOpening,
@@ -110,10 +115,12 @@ import {
     openMoveBodyDialog,
     attemptStageSix, resolveStageSix
 } from "./cleanup.mjs";
-import { casebook, casebookSummary, openCasebook } from "./casebook.mjs";
 import {
-    currentState, musicStatus, diagnoseMusic, refreshMusic, openMusicDialog
+    currentState, musicStatus, diagnoseMusic, refreshMusic, openMusicDialog,
+    playTrack, resetMusic, situationalPlaylist
 } from "./music.mjs";
+import { repaintFog, diagnoseFog, applySceneVisionMode, seedDiscovery, prepareScenes,
+    restoreSceneVisionMode, diagnoseScenes, whyBlack, fogAnimations, fogPeek, doorwayReport } from "./fog.mjs";
 import {
     isMonocub, monocubActors, eligibleForMonocub, setMonocub, setSilenced, isSilenced,
     meddleTargets, performMeddle, resolveMeddle, meddleDialog,
@@ -121,22 +128,24 @@ import {
 } from "./monocub.mjs";
 import {
     mastermindActor, isMastermind, setMastermind, clearMastermind,
-    finalTruthPlacedThisChapter, inFinalTrial, setFinalTrial,
+    finalTruthPlacedThisChapter, finalRemnants, placeFinalRemnant,
+    inFinalTrial, setFinalTrial,
     openMastermindDialog, openFinalVerdictDialog, applyFinalVerdict
 } from "./mastermind.mjs";
 import {
     grantItem, canCarry, countInCategory, itemsInCategory, carriedInCategory,
-    inventorySummary, isStashed, locationOf
+    inventorySummary, isStashed, locationOf, isBroken, breakItem
 } from "./inventory.mjs";
 import {
     vaultRoomFor, vaultOwnerOf, vaultContents, allVaults, isConcealed,
     roomTable, roomFavours, favoursCategory, setVaultRoom,
     stow, retrieve, stealFromVault, openRoomSetupDialog, openVaultInspector,
-    openStashHere, rifleStashDialog
+    openStashHere, rifleStashDialog,
+    keysHeldBy, mayEnterBedroom, grantBedroomKey, reconcileBedroomKeys
 } from "./vault.mjs";
 import {
     useItem, toggleEquipped, isUsable, isEquippable, isEquipped, equippedIn,
-    grantItemEffect
+    grantItemEffect, discardBroken
 } from "./use-items.mjs";
 import { syncStates, syncAll as syncAllStates } from "./states.mjs";
 import { openItemManager, issueAutopsyDialog } from "./gm-items.mjs";
@@ -166,7 +175,9 @@ import {
     resetAllVoice,
     openEavesdropDialog as voiceEavesdropDialog
 } from "./voice.mjs";
-import { startEclipse, endEclipse, isEclipse, movesLeft, placementStatus } from "./eclipse.mjs";
+import {
+    startEclipse, endEclipse, isEclipse, movesLeft, placementStatus, ruleOnParkedMurder
+} from "./eclipse.mjs";
 import { createProject, deleteProject, updateProject } from "./projects.mjs";
 import {
     actionBudget,
@@ -375,6 +386,13 @@ export const DrpgApi = {
     visibleProjects,
     canSee,
     projectsAvailableIn,
+
+    /** The same list with finished projects left in, which is what a picker
+     *  shows: struck through rather than absent. */
+    projectsListedIn,
+
+    /** Is this project already at its target? */
+    isComplete,
     addProgress,
     setProjectMeta,
     createProject,
@@ -427,8 +445,7 @@ export const DrpgApi = {
     /** Chapter end: clear Faint Remnants that are neither reinforced nor tied to the crime. */
     clearFaintRemnants,
 
-    /** Edit which Remnants survive the chapter. Also on the GM panel. */
-    manageRemnants: openRemnantManager,
+    /** Edit which Remnants survive the chapter. Also on the Investigation Dashboard's "Traces" tab. */
     setRemnantFlags,
 
     /** Give or take an item, as the GM. Also on the sheet and the GM panel. */
@@ -475,6 +492,18 @@ export const DrpgApi = {
      *  tier 0 is "open to creative use" and goes to the GM as a ruling. */
     useItem,
 
+    /** Throw away something that has been used up. Rolls Shadow and leaves a
+     *  Remnant priced by the result — the only route out of an inventory for a
+     *  broken item apart from a bedroom stash. */
+    discardBroken,
+
+    /** Has this been used up? A broken item still occupies its carry slot. */
+    isBroken,
+
+    /** Mark something as used up without deleting it. GM-side repair for a
+     *  world where a tool went missing the old way. */
+    breakItem,
+
     /** Hold one Crime Tool or Cleaning Tool ready. One per category — this is
      *  what the incident engine reads before falling back to "the best you own". */
     toggleEquipped,
@@ -504,6 +533,19 @@ export const DrpgApi = {
     /** Owner, concealment, table and favoured categories, on one screen. */
     roomSetup: openRoomSetupDialog,
     inspectVaults: openVaultInspector,
+
+    /* ---- bedroom keys -----------------------------------------------------
+     * A bedroom is shut to everybody but its owner and whoever they let in, and
+     * the way in is an item. `issueMissingKeys` is the repair: it runs on load
+     * and on every Room Setup save, and it is here so a GM who suspects a key
+     * never arrived can say so out loud rather than reassigning a room to force
+     * it. It reports how many it had to make — zero means the world was already
+     * right. */
+
+    keysHeldBy,
+    mayEnterBedroom,
+    giveBedroomKey: grantBedroomKey,
+    issueMissingKeys: reconcileBedroomKeys,
 
     /* ---- Truth Bullets --------------------------------------------------
      * A bullet is split in two: the Item the player holds carries only what
@@ -580,6 +622,11 @@ export const DrpgApi = {
     presentedThisChapter,
     objectionLog: openObjectionLog,
 
+    /** Open and close the Nonstop Debate inside a running trial. The player's
+     *  Truth Bullet button is a Present outside one and an Objection inside. */
+    openDebate: (...a) => import("./trial-floor-ui.mjs").then(m => m.openDebate(...a)),
+    closeDebate: (...a) => import("./trial-floor-ui.mjs").then(m => m.closeDebate(...a)),
+
     /* ---- the chapter's life -----------------------------------------------
      * None of these fire on a clock tick. Two of them delete things that do not
      * come back, and "the chapter has ended" is a judgement about the fiction,
@@ -621,16 +668,10 @@ export const DrpgApi = {
     /** The plan scored against the map and the players' sheets. */
     keyPlanStatus,
 
-    /* ---- the player's own side of it ---------------------------------------
-     * The same evidence the inventory holds, grouped by where it was found and
-     * flagged by whether anything can still be done with it. Reveals nothing —
-     * the GM's revealing equivalent is `investigationDashboard`. */
-    casebook,
-    casebookSummary,
-    openCasebook,
-
-    keyPlanner: openKeyPlanner,
     investigationDashboard: openInvestigationDashboard,
+    /** One clue, in one room, optionally filling a slot in the plan. Also the
+     *  button on an Observe ruling card. */
+    keyRemnantHere: openKeyRemnantHere,
 
     /* ---- the murder engine -------------------------------------------------
      * Two opening rolls, then a turn-based incident. The module owns the
@@ -729,6 +770,10 @@ export const DrpgApi = {
     /** The guide's "co rozdział" cadence check — informational only. */
     finalTruthPlacedThisChapter,
 
+    /** The endgame's own clues, and the one place they are placed from. */
+    finalRemnants,
+    placeFinalRemnant,
+
     /** Flavour flag only: everyone already knows a Final Trial is happening. */
     inFinalTrial,
     setFinalTrial,
@@ -742,14 +787,31 @@ export const DrpgApi = {
      * addressed to the GMs over the socket and counted in memory, because
      * "wyniki jawne, głosy nie" and world data is not private (D6). */
 
-    trialQueue,
-    trialSpeaker: speaker,
+    /* The floor is three modes rather than a queue: a free discussion, the
+     * minute an OBJECTION buys its objector, and the two minutes of rebuttal
+     * that follow it. `maySpeak` is the one question all of it answers. */
+    trialFloor,
+
+    /** How far through this chapter's trial the table has got: the debate's
+     *  budget, whether the vote has been counted and whether the verdict has
+     *  been applied. The GM console's two gates read this. */
+    trialProgress,
+
+    /** Kept under its old name: callers only ever asked "is a trial running". */
+    trialQueue: trialFloor,
+    trialHolder: floorHolder,
+    trialTarget: floorTarget,
+    trialMaySpeak: maySpeak,
     trialSecondsLeft: secondsLeft,
     startFloor,
-    nextSpeaker,
 
     /** An OBJECTION calls this by itself — presenting evidence takes the floor. */
-    seizeFloor,
+    openObjection,
+    openRebuttal,
+    returnToDiscussion,
+    /** The transition the clock would have made, made now. */
+    advanceFloorNow,
+    extendFloor,
     endFloor,
 
     openVote,
@@ -759,6 +821,8 @@ export const DrpgApi = {
 
     /** Item pools and the RollTables built from them. */
     installTables,
+    /** The editor over those tables: what is in them, and adding to them. */
+    itemTables: openItemTables,
     drawItem,
     randomItem,
     tableName,
@@ -767,6 +831,10 @@ export const DrpgApi = {
 
     /** Why are the dice unskinned? Why is no Despair being awarded? */
     diagnoseDice,
+    /** Why can this player see a token in another room? Run it on THEIR
+     *  client: it prints every character's room beside whether the token is
+     *  visible, which is what tells the two failure modes apart. */
+    diagnoseVisibility,
     diagnoseDespair,
 
     /** Who is still missing the guide's starting resources — run before a session
@@ -775,6 +843,25 @@ export const DrpgApi = {
 
     /** Why does the sheet look different here than on another install? */
     diagnoseStyles,
+
+    /** Why is a Foundry config window cut off at its right edge? Open the
+     *  window that is wrong FIRST, then run this — every line measures that
+     *  window. It also reports which version of the stylesheet this page has,
+     *  which is the answer whenever a fix works locally and not on a host. */
+    diagnoseWindows,
+
+    /** Why did that click not do anything? Run it, then click the control that
+     *  misbehaves a few times. Twenty seconds later it posts what it saw:
+     *  whether something was on top of the control, whether the control was
+     *  torn out of the page mid-click, or whether the click fired and was
+     *  cancelled. Every listener it adds is passive, so it cannot be the cause
+     *  of what it is measuring. */
+    traceClicks,
+
+    /** Which of this module's files the server is actually serving, by size,
+     *  fetched past the browser cache. The answer to "I updated it and the fix
+     *  is still not there" on a hosted world. */
+    fileSizes,
     runTests,
 
     /** Are the bullets and their answer key still in step, and do the rows render? */
@@ -836,6 +923,12 @@ export const DrpgApi = {
     isEclipse,
     eclipseMovesLeft: movesLeft,
     placementStatus,
+
+    /** Allow or refuse a direct murder declared in the dark, when the card that
+     *  asks has been lost: `game.drpg.ruleOnParkedMurder(killerId, true)`. The
+     *  GM is asked again at the lights either way, so this is a shortcut rather
+     *  than the only way through. */
+    ruleOnParkedMurder,
 
     /* ---- actions ------------------------------------------------------- */
 
@@ -929,7 +1022,51 @@ export const DrpgApi = {
     /** Re-evaluate now, after changing the map or the clock by hand. */
     refreshMusic,
 
+    /* ---- the room fog ------------------------------------------------------
+     * "I can see the whole map" looks identical whether the setting is off,
+     * the scene has no Regions, the layer failed to mount, or every room is
+     * already discovered. `diagnoseFog()` names which one it is, in the order
+     * the checks actually run — run it on the PLAYER's client, since the fog
+     * deliberately never draws on a GM's. */
+    diagnoseFog,
+    /** Repaint now, after editing the fog table or a Region by hand. */
+    repaintFog,
+    /** GM: put this scene into room-based visibility (token vision off). */
+    applySceneVisionMode,
+    /** Primary GM: do the same for EVERY scene that has rooms drawn on it. */
+    prepareScenes,
+    /** GM: give one scene back the vision settings it had before the module. */
+    restoreSceneVisionMode,
+    /** Which scenes with rooms are ready for players, as text. */
+    diagnoseScenes,
+    /** Every object the fog layer currently has on screen. Run it WHILE the
+     *  picture is wrong — `diagnoseFog` says what the fog meant to do, this
+     *  says what is actually in front of the map. */
+    whyBlack,
+    /** Why each stretch of the current room's border counts as a doorway or
+     *  not — the neighbour test and the wall test, reported separately. */
+    doorwayReport,
+    /** Hide both fog layers for a few seconds, then put them back. Answers
+     *  "is that thing on screen ours?" without pasting a chain of lookups. */
+    fogPeek,
+    /** Turn the reveal and the dissolve off (or back on) without a reload.
+     *  The way out of a bad frame mid-session: `game.drpg.fogAnimations(false)`. */
+    fogAnimations,
+    /** Primary GM: record the room every character is ALREADY standing in.
+     *  Runs itself on `canvasReady`; exposed so "why is nothing discovered"
+     *  can be answered by calling it and reading what it returns. */
+    seedDiscovery,
+
     musicDialog: openMusicDialog,
+    /** One track from the cue playlist on repeat, holding everything that was
+     *  playing; and the way back. `playTrack` takes a sound id or a track name,
+     *  `resetMusic` stops the cue dead and gives back what it interrupted. */
+    playTrack,
+    resetMusic,
+    /** The playlist those two work on, found by name. Null when the world has
+     *  no playlist called "Situational" — which is the whole of "the Play
+     *  button does nothing". */
+    situationalPlaylist,
 
     /* ---- misc ---------------------------------------------------------- */
 

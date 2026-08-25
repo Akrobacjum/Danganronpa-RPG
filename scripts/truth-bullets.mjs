@@ -65,6 +65,18 @@ export const TRUTH_BULLET_FLAGS = {
     timeOfDay: "timeOfDay",
     /** The description written for the player. */
     playerText: "playerText",
+    /** Tags from the source Remnant's `public` record — e.g. a difficulty band. */
+    tags: "tags",
+    /**
+     * `${sceneId}.${tokenId}` of the Remnant this bullet was copied from —
+     * PUBLIC, unlike `remnantId` in the secret ledger (see `secretOf`). It
+     * says only "this is the same object as one of your other bullets, or as
+     * that token on the map" — never what the trace actually is — which is
+     * exactly the fact visibility.mjs needs to decide whether a REVEALED
+     * Remnant token belongs on THIS player's screen, on a client that cannot
+     * read the ledger at all.
+     */
+    remnantRef: "remnantRef",
     /**
      * Chapter in which this holder burned their analysis of this bullet.
      * Written from Stage 3 onwards; recorded here now so the flag has one
@@ -335,6 +347,8 @@ const SELF_EVIDENT = ["key", "autopsy", "final"];
  * @param {string} [data.visibility]   obvious | evident | subtle | hidden
  * @param {boolean} [data.faint]
  * @param {string} [data.playerText]   Description for the player.
+ * @param {string} [data.img]          Portrait. Defaults to the category icon.
+ * @param {string[]} [data.tags]       Public tags — e.g. a difficulty band.
  * @param {string} [data.gmNote]       Note for the GM. Never leaves the ledger.
  * @param {string} [data.remnantId]    Source token id, when there is one.
  * @param {string} [data.sceneId]
@@ -350,7 +364,8 @@ const SELF_EVIDENT = ["key", "autopsy", "final"];
  */
 export async function createTruthBullet(actor, {
     name, realType = "neutral", shownType = null, visibility = "evident",
-    faint = false, playerText = "", gmNote = "", remnantId = null, sceneId = null,
+    faint = false, playerText = "", img = null, tags = [], gmNote = "",
+    remnantId = null, sceneId = null,
     room = null, analyzed = null, stamp = null
 } = {}) {
     if (!actor || !name) return null;
@@ -385,6 +400,7 @@ export async function createTruthBullet(actor, {
         // so the sheet can tell "no tier" from "tier 0" — the old macro used to
         // smuggle a visibility index through this field.
         tier: null,
+        img,
         description: playerText ? `<p>${foundry.utils.escapeHTML(playerText)}</p>` : "",
         extraFlags: {
             [TRUTH_BULLET_FLAGS.isBullet]: true,
@@ -397,6 +413,8 @@ export async function createTruthBullet(actor, {
             [TRUTH_BULLET_FLAGS.day]: stamp?.day ?? clock.day,
             [TRUTH_BULLET_FLAGS.timeOfDay]: stamp?.timeOfDay ?? clock.timeOfDay,
             [TRUTH_BULLET_FLAGS.playerText]: playerText,
+            [TRUTH_BULLET_FLAGS.tags]: tags,
+            [TRUTH_BULLET_FLAGS.remnantRef]: remnantId && sceneId ? `${sceneId}.${remnantId}` : null,
             // Never inherited. A failed analysis is a fact about the person who
             // failed, not about the evidence — guide, Stage 3.
             [TRUTH_BULLET_FLAGS.lockedChapter]: null
@@ -439,6 +457,8 @@ export function truthBulletData(item) {
         day: flag(TRUTH_BULLET_FLAGS.day) ?? null,
         timeOfDay: flag(TRUTH_BULLET_FLAGS.timeOfDay) ?? null,
         playerText: flag(TRUTH_BULLET_FLAGS.playerText) ?? "",
+        tags: flag(TRUTH_BULLET_FLAGS.tags) ?? [],
+        remnantRef: flag(TRUTH_BULLET_FLAGS.remnantRef) ?? null,
         lockedChapter: flag(TRUTH_BULLET_FLAGS.lockedChapter) ?? null,
         /** So a caller can tell a live lock from a spent one without the clock. */
         chapterNow: currentChapter(),
@@ -453,6 +473,45 @@ export function truthBulletData(item) {
         remnantId: game.user.isGM ? (secret.remnantId ?? null) : undefined,
         sceneId: game.user.isGM ? (secret.sceneId ?? null) : undefined
     };
+}
+
+/**
+ * Bring every Truth Bullet copied from one trace into line with its `public`
+ * record.
+ *
+ * Called from remnants.mjs's `setRemnantPublic` — never on its own — because
+ * finding "every bullet copied from this trace" reads `secretOf(item.uuid)
+ * .remnantId`, the answer key, and that only resolves on a GM's client.
+ * Which fields move: name, portrait, the description and the tags a player
+ * reads — never `realType`, `gmNote` or anything else the ledger's secret
+ * half holds.
+ *
+ * @returns {Promise<number>} how many bullets were updated.
+ */
+export async function propagateRemnantPublic(remnantTokenId, pub) {
+    if (!game.user.isGM || !remnantTokenId || !pub) return 0;
+
+    let touched = 0;
+    for (const actor of game.actors) {
+        if (actor.type !== "character") continue;
+        for (const item of bulletsOf(actor)) {
+            if (secretOf(item.uuid).remnantId !== remnantTokenId) continue;
+            try {
+                await item.update({
+                    name: pub.name || item.name,
+                    img: pub.img || item.img,
+                    "system.description": pub.playerText
+                        ? `<p>${foundry.utils.escapeHTML(pub.playerText)}</p>` : "",
+                    [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.playerText}`]: pub.playerText ?? "",
+                    [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tags}`]: pub.tags ?? []
+                });
+                touched++;
+            } catch (err) {
+                error(`Could not propagate the Remnant's public record onto "${item.name}"`, err);
+            }
+        }
+    }
+    return touched;
 }
 
 /**

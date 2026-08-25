@@ -25,11 +25,11 @@
  * hiding things; drinking what you already found is not one of the ten.
  */
 
-import { MODULE_ID, USABLE_EFFECTS, EQUIPPABLE, STARTING } from "./config.mjs";
-import { ITEM_FLAGS, isStashed } from "./inventory.mjs";
+import { MODULE_ID, USABLE_EFFECTS, EQUIPPABLE, STARTING, BROKEN_ITEMS } from "./config.mjs";
+import { ITEM_FLAGS, isStashed, isBroken, breakItem } from "./inventory.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
-import { dialogContent, whisperToOwner, log, error } from "./utils.mjs";
+import { dialogContent, whisperToOwner, resolveThreshold, log, error } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -49,11 +49,21 @@ export function isEquipped(item) {
     return Boolean(item?.getFlag(MODULE_ID, EQUIPPED_FLAG));
 }
 
-/** The item this character is holding ready in one category, if any. */
+/**
+ * The item this character is holding ready in one category, if any.
+ *
+ * Broken is excluded here rather than only at the point of equipping, and that
+ * is the important half: this is what the incident engine asks for its weapon
+ * and what Stage 6 asks for its gloves. `breakItem` already clears the readied
+ * flag, so this is the belt to that braces — a tool broken by any other route
+ * (a GM's hand-edit, a world restored from an older save) still cannot be
+ * swung.
+ */
 export function equippedIn(actor, category) {
     return actor?.items?.find(i =>
         i.getFlag(MODULE_ID, ITEM_FLAGS.category) === category
         && i.getFlag(MODULE_ID, EQUIPPED_FLAG)
+        && !isBroken(i)
         && !isStashed(i)) ?? null;
 }
 
@@ -69,6 +79,13 @@ export async function toggleEquipped(actor, item) {
 
     if (isStashed(item)) {
         ui.notifications.warn(game.i18n.localize("DRPG.Items.equipStashed"));
+        return false;
+    }
+
+    if (isBroken(item)) {
+        ui.notifications.warn(game.i18n.format("DRPG.Items.brokenUseless", {
+            item: item.name
+        }));
         return false;
     }
 
@@ -112,6 +129,15 @@ export function isUsable(item) {
  */
 export async function useItem(actor, item) {
     if (!actor || !isUsable(item)) return null;
+
+    // An opened kit is an empty box. It is still in the bag, and it still takes
+    // up the slot — see `consume` below and BROKEN_ITEMS in config.mjs.
+    if (isBroken(item)) {
+        ui.notifications.warn(game.i18n.format("DRPG.Items.brokenUseless", {
+            item: item.name
+        }));
+        return null;
+    }
 
     if (isStashed(item)) {
         ui.notifications.warn(game.i18n.localize("DRPG.Items.useStashed"));
@@ -312,15 +338,142 @@ function describe(restored) {
         .join(", ");
 }
 
-/** A usable item is one-shot: spend a charge, delete when it runs out. */
+/**
+ * A usable item is one-shot: spend a charge, and break when it runs out.
+ *
+ * `break`, not `delete`. The empty packet is still in the bag and still counts
+ * against the two you may carry, so using the last of your kit is a moment that
+ * costs you something afterwards as well as at the time — see BROKEN_ITEMS.
+ */
 async function consume(item) {
     const quantity = Number(item.system?.quantity ?? 1);
     try {
         if (quantity > 1) await item.update({ "system.quantity": quantity - 1 });
-        else await item.delete();
+        else await breakItem(item);
     } catch (err) {
         error("Could not consume the item", err);
     }
+}
+
+/* ==========================================================================
+ * THROWING A RUINED THING AWAY
+ * ========================================================================== */
+
+/**
+ * Get rid of a broken item, somewhere, and leave the trace of having done it.
+ *
+ * The only route out of an inventory for something that has been used up, apart
+ * from putting it in your own stash. Free — no action is charged, for the same
+ * reason using an item is not: the guide charges actions for finding, making
+ * and hiding things, and dropping a broken screwdriver in a bin is none of the
+ * three. What it costs is not an action, it is a Remnant.
+ *
+ * How loud that Remnant is comes off a Shadow roll against the same table the
+ * indirect murder's hide-traces roll uses (BROKEN_ITEMS.thresholds). A critical
+ * leaves a Hidden trace: got rid of it, and nobody will ever prove where.
+ *
+ * The item goes for real at the end of this — a thrown-away thing is not in your
+ * pockets any more. What is left on the map is the trace, and that is the
+ * evidence the trial will be arguing about.
+ *
+ * @returns {Promise<object|null>} `{ visibility, told }`, or null if nothing happened.
+ */
+export async function discardBroken(actor, item) {
+    if (!actor || !item) return null;
+
+    if (!isBroken(item)) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Items.discardOnlyBroken"));
+        return null;
+    }
+    // From your hands. A thing in the stash is already put away, and throwing it
+    // out of a drawer you are not standing at is not a move anybody can make.
+    if (isStashed(item)) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Items.discardStashed"));
+        return null;
+    }
+
+    const go = await DialogV2.confirm({
+        window: { title: game.i18n.format("DRPG.Items.discardTitle", { item: item.name }) },
+        classes: ["drpg-panel", "drpg-narrow"],
+        content: `<p>${game.i18n.format("DRPG.Items.discardPrompt", {
+            item: foundry.utils.escapeHTML(item.name)
+        })}</p>
+        <p class="notes">${game.i18n.localize("DRPG.Items.discardNote")}</p>`,
+        rejectClose: false
+    });
+    if (!go) return null;
+
+    // Kept before the roll: everything below reports on an object that is about
+    // to stop existing, and reading a name off a deleted document is undefined.
+    const name = item.name;
+
+    const { rollTrait } = await import("./action-rolls.mjs");
+    const roll = await rollTrait(actor, BROKEN_ITEMS.trait, {
+        remember: false,
+        title: game.i18n.format("DRPG.Items.discardTitle", { item: name })
+    });
+    // A cancelled roll is a cancelled decision. The item stays; the player has
+    // spent nothing and thrown nothing away.
+    if (!roll) return null;
+
+    const hit = roll.isCritical
+        ? BROKEN_ITEMS.critical
+        : resolveThreshold(roll.total, BROKEN_ITEMS.thresholds);
+    const visibility = hit?.remnant ?? "obvious";
+
+    const { dropRemnant, traceFeedback } = await import("./remnants.mjs");
+    const { roomOfActor } = await import("./movement.mjs");
+    const placed = await dropRemnant(actor, {
+        type: BROKEN_ITEMS.remnantType,
+        visibility,
+        faint: BROKEN_ITEMS.faint,
+        action: "discard",
+        subject: name,
+        note: game.i18n.format("DRPG.Remnant.discardNote", {
+            actor: actor.name,
+            item: name,
+            room: roomOfActor(actor) ?? "?",
+            total: roll.total
+        })
+    });
+
+    // NO TRACE, NO DISPOSAL.
+    //
+    // `dropRemnant` returns nothing in exactly two situations, and both mean
+    // the act did not happen: the character has no token on any scene, so there
+    // is nowhere for the thing to have been left, and no GM is connected, so
+    // nobody can create the token that records it. It says so loudly itself in
+    // both cases.
+    //
+    // Deleting the item anyway would be the one outcome this whole feature
+    // exists to prevent — the murder weapon ceasing to exist, for free, with
+    // nothing left behind. So it stays in the bag and the player is told why.
+    if (!placed) {
+        await whisperToOwner(actor, `<p class="drpg-warning">${
+            game.i18n.format("DRPG.Items.discardNoTrace", {
+                item: foundry.utils.escapeHTML(name)
+            })}</p>`);
+        return null;
+    }
+
+    try {
+        await item.delete();
+    } catch (err) {
+        error("Could not remove the discarded item", err);
+    }
+
+    // Whether they are told they left something is the module's one uniform
+    // rule for every action that leaves a trace — Hope and criticals show it,
+    // a plain Despair does not. See `traceFeedback`.
+    const told = traceFeedback(roll, placed);
+    await whisperToOwner(actor, `
+        <p><strong>${game.i18n.format("DRPG.Items.discarded", {
+            item: foundry.utils.escapeHTML(name)
+        })}</strong></p>
+        ${told ? `<p><em>${game.i18n.localize("DRPG.Items.discardTrace")}</em></p>` : ""}`);
+
+    log(`${actor.name} threw away "${name}" (${visibility} trace).`);
+    return { visibility, told };
 }
 
 /* ==========================================================================

@@ -24,8 +24,82 @@ export const ITEM_FLAGS = {
      * everything that sweeps a character's belongings — the death procedure
      * above all (decision D1) — reaches it without knowing stashes exist.
      */
-    location: "location"
+    location: "location",
+    /**
+     * This one has been used up, and is still here.
+     *
+     * `{ at }` — a timestamp, so the flag is truthy and says when. See
+     * BROKEN_ITEMS in config.mjs for why the three moments that used to delete
+     * an item now set this instead.
+     *
+     * A flag on the item rather than a name change or a new category: the guide
+     * is clear that what stays behind is the same object, and the carry limit,
+     * the tier, the description and the picture all still describe it. Only what
+     * it can DO has changed, and that is a question three functions ask (`isUsable`,
+     * `isEquippable` and the incident engine's weapon lookup) rather than a
+     * property of the row on the sheet.
+     */
+    broken: "broken"
 };
+
+/**
+ * The flags a COPY of an item has to carry to still be the same object.
+ *
+ * An item that changes hands is not moved, it is recreated on the other person
+ * and deleted from this one — see `handover.mjs` and the stash theft in
+ * `vault.mjs`. That is fine for everything `grantItem` already takes (name,
+ * category, tier, description, picture) and was quietly a laundry service for
+ * anything else: a ruined Crime Tool handed to an accomplice, or stolen out of
+ * a bedroom, came out of the transfer working again.
+ *
+ * One entry today. It is a function rather than a spread at each call site so
+ * the next piece of per-item state has one place to be added to instead of two
+ * to be remembered in.
+ */
+export function preservedFlags(item) {
+    return isBroken(item)
+        ? { [ITEM_FLAGS.broken]: item.getFlag(MODULE_ID, ITEM_FLAGS.broken) }
+        : {};
+}
+
+/** Has this been used up? A broken item still occupies its slot. */
+export function isBroken(item) {
+    return Boolean(item?.getFlag(MODULE_ID, ITEM_FLAGS.broken));
+}
+
+/**
+ * Use this thing up without taking it off the sheet.
+ *
+ * Replaces the `item.delete()` that used to sit at the end of a murder, a
+ * clean-up and every Usable Item. Also puts the thing DOWN — a ruined tool that
+ * is still marked as readied would go on arming its owner in the incident
+ * engine, which reads `equippedIn`.
+ *
+ * Idempotent: breaking what is already broken changes nothing and reports
+ * success, because the caller's intent — "this is used up now" — is satisfied.
+ *
+ * @returns {Promise<boolean>} whether the item is now broken.
+ */
+export async function breakItem(item) {
+    if (!item) return false;
+    if (isBroken(item)) return true;
+
+    try {
+        // One write, two facts. Written through `update` rather than two
+        // `setFlag` calls so a sheet cannot render between them and show a
+        // broken tool that is still in somebody's hand.
+        await item.update({
+            [`flags.${MODULE_ID}.${ITEM_FLAGS.broken}`]: { at: Date.now() },
+            [`flags.${MODULE_ID}.equipped`]: false
+        });
+    } catch (err) {
+        warn("Could not mark the item as broken", err);
+        return false;
+    }
+
+    log(`"${item.name}" is broken and stays in ${item.parent?.name ?? "the"} inventory.`);
+    return true;
+}
 
 /** The two places an item can be. Anything unmarked is carried. */
 export const LOCATIONS = { carried: "carried", vault: "vault" };

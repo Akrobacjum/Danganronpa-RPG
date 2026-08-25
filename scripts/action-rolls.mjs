@@ -22,9 +22,9 @@ import { isEclipse } from "./eclipse.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { drawItem } from "./tables.mjs";
 import { roomOfActor, othersInRoom } from "./movement.mjs";
-import { projectsAvailableIn, addProgress, isIndirectMurder, scaleFor } from "./projects.mjs";
+import { projectsAvailableIn, addProgress, isIndirectMurder, scaleFor, projectsListedIn } from "./projects.mjs";
 import { callGm, promptAndCallGm } from "./gm-bridge.mjs";
-import { announce, resolveThreshold, whisperToOwner, dialogContent, replaceFlag, log, error, plural, article } from "./utils.mjs";
+import { announce, resolveThreshold, whisperToOwner, dialogContent, replaceFlag, log, error, plural } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -223,7 +223,31 @@ function briefingFacts(actor, actionKey, def) {
         ? game.i18n.format("DRPG.Action.youAreIn", { room: foundry.utils.escapeHTML(room) })
         : game.i18n.localize("DRPG.Action.noRoomNote"));
 
-    if (def.callsGm) facts.push(game.i18n.localize("DRPG.Action.callsGmNote"));
+    // How many searches this room has left, from the counter itself. The
+    // description used to promise "three searches per time of day" — three is
+    // the DEFAULT of a world setting a GM may set anywhere from 0 to 10, so
+    // for any table that touched it the sentence was simply false. This says
+    // what is true of the room the character is standing in, now.
+    if (actionKey === "search" && room) {
+        facts.push(game.i18n.format("DRPG.Action.searchTokensLeft", {
+            left: SearchTokens.left(room),
+            max: SearchTokens.max
+        }));
+    }
+
+    // Observe's miss price, from the constant the roll actually charges.
+    if (def.failStress) {
+        facts.push(game.i18n.format("DRPG.Action.failStress", { n: def.failStress }));
+    }
+
+    // Same question the tile's stripe asks, and it has to be asked the same
+    // way: `callsGm` can be a predicate on the character now. A briefing that
+    // says "this waits for the GM" over a tile that does not is worse than
+    // saying nothing — see `callsGmFor` in sheet.mjs.
+    const callsGm = typeof def.callsGm === "function"
+        ? (() => { try { return Boolean(def.callsGm(actor)); } catch { return false; } })()
+        : Boolean(def.callsGm);
+    if (callsGm) facts.push(game.i18n.localize("DRPG.Action.callsGmNote"));
 
     return facts;
 }
@@ -622,6 +646,14 @@ async function performSearch(actor, def, options) {
         return null;
     }
 
+    // BEFORE the picker, not after it. A sealed room is not a question about
+    // what you are looking for — there is nothing in there to look for — so
+    // asking is a form the answer to which was always going to be no.
+    if (SearchTokens.sealed(room)) {
+        ui.notifications.warn(game.i18n.localize("DRPG.SearchTokens.sealed"));
+        return null;
+    }
+
     const goal = await chooseSearchCategory(actor, def);
     if (!goal) return null;
     const { category, goal: goalKey, request, trait } = goal;
@@ -736,7 +768,35 @@ async function performSearch(actor, def, options) {
             room,
             body: hit || roll.isCritical
                 ? game.i18n.format("DRPG.Action.specificFound", { tier })
-                : game.i18n.localize("DRPG.Action.specificNothing")
+                : game.i18n.localize("DRPG.Action.specificNothing"),
+            // Three answers, because those are the three a GM actually gives to
+            // "I am looking for X": it exists and I will make it, it exists
+            // already and here it is, or there is none. Each opens the window
+            // that does the thing with everything the card already knows filled
+            // in — see `runCallAction`.
+            //
+            // Lowercase data keys only: `dataset` lowercases everything, so a
+            // `tierWanted` would come back as `tierwanted` and read undefined.
+            actions: [
+                {
+                    action: "createItem",
+                    label: game.i18n.localize("DRPG.Bridge.createItem"),
+                    data: {
+                        by: actor.id, category, tier: String(tier),
+                        room: room ?? "", want: request ?? ""
+                    }
+                },
+                {
+                    action: "giveItem",
+                    label: game.i18n.localize("DRPG.Bridge.giveItem"),
+                    data: { by: actor.id }
+                },
+                {
+                    action: "decline",
+                    label: game.i18n.localize("DRPG.Bridge.nothingThere"),
+                    data: { by: actor.id, cost: String(cost) }
+                }
+            ]
         });
 
         // Ruled by a human, so Reroll can only re-ask — see reroll.mjs.
@@ -805,7 +865,14 @@ async function performSearch(actor, def, options) {
     let granted = null;
     if (drawn?.name) {
         const { grantItem } = await import("./inventory.mjs");
-        granted = await grantItem(actor, { name: drawn.name, category, tier, goal: goalKey });
+        // The icon and the sentence the GM wrote on the table entry travel with
+        // it — see `drawItem`. Both are `null` for a built-in pool, which is
+        // exactly what `grantItem` already treats as "use the category icon and
+        // the tier line".
+        granted = await grantItem(actor, {
+            name: drawn.name, category, tier, goal: goalKey,
+            img: drawn.img ?? null, description: drawn.description ?? ""
+        });
     }
 
     // Only murder and cleaning gear leaves a trace, per the guide.
@@ -813,8 +880,9 @@ async function performSearch(actor, def, options) {
     const visibility = roll.isCritical ? def.critical?.remnant : hit?.remnant;
 
     let placed = null;
+    let leftTrace = false;
     if (leaves && visibility) {
-        const { dropRemnant } = await import("./remnants.mjs");
+        const { dropRemnant, traceFeedback } = await import("./remnants.mjs");
         const catLabel = ITEM_CATEGORIES[category]?.label ?? category;
         placed = await dropRemnant(actor, {
             type: "prep",
@@ -834,13 +902,14 @@ async function performSearch(actor, def, options) {
                 total: roll.total
             })
         });
+        leftTrace = traceFeedback(roll, placed);
     }
 
     const outcome = {
         success: true, tier, category,
         item: drawn?.name ?? null,
         carried: Boolean(granted),
-        remnant: leaves ? visibility : null,
+        leftTrace,
         room, tokensLeft: SearchTokens.left(room)
     };
 
@@ -872,6 +941,170 @@ async function performSearch(actor, def, options) {
  *
  * @returns {Promise<{category: string, goal: string, request: string}|null>}
  */
+/* ==========================================================================
+ * ONE MENU, FIVE PLACES
+ * --------------------------------------------------------------------------
+ * Five actions ask the same shape of question — which flavour of this do you
+ * want — and until now each answered it in a different idiom: Search had a
+ * radio list with icons and hints, Observe and Project had rows of footer
+ * buttons, Analyze had a select, Rest had a bulleted list with the buttons
+ * underneath. Same decision, four layouts, and only one of them could say why
+ * an option was not available.
+ *
+ * This is Search's list, lifted out: an icon, a title, a line of explanation,
+ * and the two things the button rows could never carry.
+ *
+ *   UNAVAILABLE OPTIONS STAY ON THE LIST, struck through, with the reason
+ *   where the hint goes. Seeing what you cannot do is half of what a menu is
+ *   for — the same rule the Calls panel already follows.
+ *
+ *   OPTIONS THAT SUMMON A HUMAN ARE RED, with `drpg-gm-route`, the same class
+ *   the buttons carry today. Red already means "this waits for somebody"
+ *   everywhere else in the module.
+ *
+ * @param {object}   config
+ * @param {Actor}    config.actor
+ * @param {string}   config.title      Window title.
+ * @param {string}   [config.intro]    HTML above the list — usually a briefing.
+ * @param {string}   [config.prompt]   One line asking the question.
+ * @param {Array}    config.options    `{ value, label, hint, icon, gmRoute,
+ *                                        disabled, why }` — `label`/`hint`/`why`
+ *                                        are literal text, already localised.
+ * @param {string[]} [config.traits]   Show a trait picker for these.
+ * @param {string}   [config.extra]    Extra HTML inside the form, under the list.
+ * @param {string}   [config.confirm]  Label for the confirm button.
+ * @returns {Promise<{value: string, trait: string|null, form: HTMLFormElement}|null>}
+ */
+/* ==========================================================================
+ * THE SENTENCE COMES FIRST
+ * --------------------------------------------------------------------------
+ * Every action that can end in a GM ruling used to ask for the player's own
+ * words AFTER the dice: choose the action, choose the trait, roll, and only
+ * then a second window asking what you were actually trying to do. Search was
+ * the exception — its box sits in the first window, next to the goal — and
+ * Search is the one that reads right.
+ *
+ * The order matters for more than clicks. Typing "I check whether the lock has
+ * been forced" before the roll is a declaration; typing it after a 6 is a
+ * negotiation. The guide asks for the first.
+ *
+ * So the box is offered in the FIRST window of every action that has a GM
+ * branch, and the answer travels with the roll. Nothing else about those
+ * actions changes: the roll still happens where it happened, the card still
+ * carries the same three parts.
+ * ========================================================================== */
+
+/**
+ * The one window Think, Listen and their kin open before the dice: the
+ * briefing, the trait (when there is a choice) and the box for what you are
+ * actually trying to do.
+ *
+ * ALWAYS OPENS, even when the action has a single trait and nothing to pick —
+ * `chooseTrait` short-circuits in that case, and short-circuiting past this
+ * window would take the sentence with it.
+ */
+async function askTraitAndRequest(actor, actionKey, def) {
+    const traits = def.traits ?? [];
+
+    const picked = await DialogV2.wait({
+        window: { title: def.label },
+        classes: ["drpg-panel"],
+        content: dialogContent(`${briefingBlock(actor, actionKey, def)}<form>
+            ${requestFieldHtml({
+                prompt: game.i18n.format("DRPG.Action.gmPrompt", { action: def.label }),
+                placeholder: game.i18n.localize(`DRPG.Action.placeholder.${actionKey}`)
+            })}
+            ${traits.length ? traitFieldHtml(actor, traits) : ""}
+        </form>`),
+        buttons: [
+            {
+                action: "ok", label: game.i18n.localize("DRPG.Action.roll"), default: true,
+                callback: (e, b, d) => ({
+                    trait: traits.length ? readTraitField(d.element, traits) : null,
+                    request: readRequestField(d.element)
+                })
+            },
+            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
+        ],
+        rejectClose: false
+    });
+
+    if (!picked || picked === "cancel") return null;
+    return picked;
+}
+
+/** The textarea, with whatever prompt the action wants above it. */
+function requestFieldHtml({ prompt, placeholder, optional = true }) {
+    return `<label class="drpg-specific-note">
+        <span>${prompt}</span>
+        <textarea name="request" rows="2" placeholder="${
+            foundry.utils.escapeHTML(placeholder ?? "")}"></textarea>
+        ${optional ? `<small class="notes">${
+            game.i18n.localize("DRPG.Action.requestOptional")}</small>` : ""}
+    </label>`;
+}
+
+/** Whatever was typed into that field, from a dialog that has already closed. */
+function readRequestField(root) {
+    return root?.querySelector('[name="request"]')?.value.trim() ?? "";
+}
+
+export async function chooseVariant({
+    actor, title, intro = "", prompt = "", options = [], traits = null,
+    extra = "", confirm = null, traitNote = ""
+} = {}) {
+    const usable = options.filter(o => !o.disabled);
+    if (!usable.length) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Action.noVariants"));
+        return null;
+    }
+
+    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
+    const first = usable[0].value;
+
+    const rows = options.map(o => `
+        <label class="drpg-choice${o.disabled ? " unavailable" : ""}${
+            o.gmRoute ? " drpg-gm-route" : ""}">
+            <input type="radio" name="variant" value="${esc(o.value)}"${
+                o.value === first ? " checked" : ""}${o.disabled ? " disabled" : ""}>
+            <i class="fa-solid ${esc(o.icon ?? "fa-circle")}" inert></i>
+            <span class="drpg-choice-text">
+                <strong>${esc(o.label)}</strong>
+                <small>${esc(o.disabled ? (o.why ?? o.hint ?? "") : (o.hint ?? ""))}</small>
+            </span>
+        </label>`).join("");
+
+    const picked = await DialogV2.wait({
+        window: { title },
+        classes: ["drpg-panel"],
+        content: dialogContent(`${intro}<form>
+            ${prompt ? `<p>${prompt}</p>` : ""}
+            <div class="drpg-choice-list">${rows}</div>
+            ${extra}
+            ${traits?.length ? traitFieldHtml(actor, traits, { note: traitNote }) : ""}
+        </form>`),
+        buttons: [
+            {
+                action: "ok", default: true,
+                label: confirm ?? game.i18n.localize("DRPG.Action.proceed"),
+                callback: (e, b, d) => {
+                    const form = d.element.querySelector("form");
+                    return {
+                        value: form.querySelector('input[name="variant"]:checked')?.value ?? first,
+                        trait: traits?.length ? readTraitField(d.element, traits) : null,
+                        form
+                    };
+                }
+            },
+            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
+        ],
+        rejectClose: false
+    });
+
+    if (!picked || picked === "cancel") return null;
+    return picked;
+}
+
 async function chooseSearchCategory(actor, def = ACTIONS.search) {
     const options = [
         { value: "healing", category: "usable", icon: "fa-heart",
@@ -886,58 +1119,42 @@ async function chooseSearchCategory(actor, def = ACTIONS.search) {
           label: "DRPG.Action.goalSpecific", hint: "DRPG.Action.goalSpecificHint" }
     ];
 
-    const rows = options.map((o, i) => `
-        <label class="drpg-choice">
-            <input type="radio" name="goal" value="${o.value}"${i === 0 ? " checked" : ""}>
-            <i class="fa-solid ${o.icon}" inert></i>
-            <span class="drpg-choice-text">
-                <strong>${game.i18n.localize(o.label)}</strong>
-                <small>${game.i18n.localize(o.hint)}</small>
-            </span>
-        </label>`).join("");
-
-    const picked = await DialogV2.wait({
-        window: { title: ACTIONS.search.label },
-        classes: ["drpg-panel", "drpg-narrow"],
-        content: dialogContent(`${briefingBlock(actor, "search", ACTIONS.search)}<form>
-            <p>${game.i18n.localize("DRPG.Action.searchGoalHint")}</p>
-            <div class="drpg-choice-list">${rows}</div>
-            <label class="drpg-specific-note">
+    // The list this menu was lifted from — see `chooseVariant`. The textarea
+    // rides along as `extra`, because "what specifically" belongs to exactly
+    // one of the five rows and a second window for it would be the friction
+    // this whole pattern removes.
+    const picked = await chooseVariant({
+        actor,
+        title: ACTIONS.search.label,
+        intro: briefingBlock(actor, "search", ACTIONS.search),
+        prompt: game.i18n.localize("DRPG.Action.searchGoalHint"),
+        confirm: game.i18n.localize("DRPG.Action.roll"),
+        traits: def.traits,
+        options: options.map(o => ({
+            value: o.value,
+            icon: o.icon,
+            gmRoute: o.value === "specific",
+            label: game.i18n.localize(o.label),
+            hint: game.i18n.localize(o.hint)
+        })),
+        extra: `<label class="drpg-specific-note">
                 <span>${game.i18n.localize("DRPG.Action.goalSpecificPrompt")}</span>
                 <textarea name="request" rows="2"
                     placeholder="${game.i18n.localize("DRPG.Action.goalSpecificPlaceholder")}"></textarea>
-            </label>
-            ${traitFieldHtml(actor, def.traits)}
-        </form>`),
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Action.roll"), default: true,
-                callback: (e, b, d) => {
-                    const form = d.element.querySelector("form");
-                    const value = form.querySelector('input[name="goal"]:checked')?.value ?? "healing";
-                    const option = options.find(o => o.value === value);
-                    return {
-                        goal: value,
-                        category: option?.category,
-                        request: form.querySelector('[name="request"]').value.trim(),
-                        // Was a window of its own until now — Eye or Hand, asked
-                        // after the goal had already been chosen and dismissed.
-                        trait: readTraitField(d.element, def.traits)
-                    };
-                }
-            },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
-        rejectClose: false
+            </label>`
     });
 
-    if (!picked || picked === "cancel") return null;
+    if (!picked) return null;
 
-    if (picked.goal === "specific" && !picked.request) {
+    const option = options.find(o => o.value === picked.value);
+    const request = picked.form.querySelector('[name="request"]')?.value.trim() ?? "";
+
+    if (picked.value === "specific" && !request) {
         ui.notifications.warn(game.i18n.localize("DRPG.Action.goalSpecificNeeded"));
         return null;
     }
-    return picked;
+
+    return { goal: picked.value, category: option?.category, request, trait: picked.trait };
 }
 
 /* ==========================================================================
@@ -946,23 +1163,68 @@ async function chooseSearchCategory(actor, def = ACTIONS.search) {
 
 /** Start something new (GM ruling) or push an existing project (automatic). */
 async function performProject(actor, def, options) {
-    const choice = await DialogV2.wait({
-        classes: ["drpg-panel"],
-        window: { title: def.label },
-        content: `${briefingBlock(actor, "project", def)}
-            <p>${game.i18n.localize("DRPG.Project.choosePrompt")}</p>`,
-        buttons: [
-            { action: "work", label: game.i18n.localize("DRPG.Project.workOn"), default: true },
-            { action: "start", label: game.i18n.localize("DRPG.Project.startNew") },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
+    const { projectsAvailableIn } = await import("./projects.mjs");
+    const room = roomOfActor(actor);
+    const here = room ? projectsAvailableIn(room) : [];
+
+    // ONE WINDOW: which kind of work, WHICH project, and which statistic.
+    //
+    // It used to be two — pick "Work on", then pick the project on a screen of
+    // its own. Sabotage has never done that; it asks for its target and its
+    // statistic together, and there was never a reason for the two to differ.
+    // The second window carried one <select> and a button.
+    //
+    // The list rides along as `extra`, the same way Search's "what
+    // specifically" textarea does: it belongs to exactly one of the two rows,
+    // and a window of its own is the friction this pattern exists to remove.
+    //
+    // "Work on" is struck through rather than missing when there is nothing
+    // here to push — the reason is the useful half of the answer, and a player
+    // who cannot see the option cannot tell whether they are in the wrong room
+    // or the module has forgotten the project exists.
+    const traitOptions = openTraits(here, def);
+
+    const picked = await chooseVariant({
+        actor,
+        title: def.label,
+        intro: briefingBlock(actor, "project", def),
+        prompt: game.i18n.localize("DRPG.Project.choosePrompt"),
+        traits: traitOptions.length ? traitOptions : null,
+        traitNote: game.i18n.localize("DRPG.Action.traitOnlyIfOpen"),
+        options: [
+            {
+                value: "work", icon: "fa-hammer",
+                label: game.i18n.localize("DRPG.Project.workOn"),
+                hint: plural("DRPG.Project.workOnHint", { n: here.length }),
+                disabled: !here.length,
+                why: game.i18n.localize(room
+                    ? "DRPG.Project.noneHere" : "DRPG.Action.noRoomNote")
+            },
+            {
+                value: "start", icon: "fa-lightbulb", gmRoute: true,
+                label: game.i18n.localize("DRPG.Project.startNew"),
+                hint: game.i18n.localize("DRPG.Project.startNewHint")
+            }
         ],
-        rejectClose: false
+        extra: here.length
+            ? `<label class="drpg-specific-note">
+                <span>${game.i18n.localize("DRPG.Project.whichWork")}</span>
+                <select name="project">${projectOptionsHtml(here)}</select>
+            </label>`
+            : ""
     });
 
-    if (!choice || choice === "cancel") return null;
+    if (!picked) return null;
+    if (picked.value === "start") return startProject(actor);
 
-    if (choice === "start") return startProject(actor);
-    return workOnProject(actor, def, options);
+    // The window is closed by now, but `chooseVariant` hands back the form it
+    // was read from, so the two fields are still there to be read.
+    const chosen = here.find(pr => pr.id === picked.form?.querySelector("[name=project]")?.value)
+        ?? here[0];
+    const trait = resolveProjectTrait(chosen, picked.trait, def.traits ?? []);
+    if (!trait) return null;
+
+    return workOnProject(actor, def, options, { project: chosen, trait });
 }
 
 /**
@@ -1015,6 +1277,11 @@ async function startProject(actor) {
             {
                 action: "create",
                 label: game.i18n.localize("DRPG.Project.proposeButton"),
+                // Red, like the variant that opened this window and like every
+                // other control that ends in somebody else deciding. Proposing
+                // a project does not start one — it sends the GM a card and
+                // waits, and the button that does that should say so.
+                class: GM_ROUTE_CLASS,
                 default: true,
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
@@ -1104,12 +1371,15 @@ async function startProject(actor) {
     return { proposed: true, name: result.name };
 }
 
-async function workOnProject(actor, def, options) {
+async function workOnProject(actor, def, options, chosen = null) {
     const cost = options.free ? 0 : def.cost;
     if (!canAfford(actor, cost)) return null;
 
     const room = roomOfActor(actor);
-    const here = projectsAvailableIn(room);
+    // Two lists, because a finished project is neither absent nor workable.
+    // `listed` is what the player sees; `workable` is what they may pick.
+    const listed = projectsListedIn(room);
+    const here = listed.filter(p => !p.complete);
     if (!here.length) {
         // Say that there is nothing here, and nothing else.
         //
@@ -1118,14 +1388,26 @@ async function workOnProject(actor, def, options) {
         // murders included. "Prepare the poison (Chemistry Lab)" handed to the
         // whole table by a mis-click is not a hint, it is the answer to the
         // chapter. Where other people's projects are is theirs to reveal.
-        ui.notifications.warn(game.i18n.format("DRPG.Project.noneHere", { room: room ?? "—" }));
+        //
+        // A room whose only projects are finished gets a different sentence:
+        // "there is nothing here" is a lie the player can see out of the window,
+        // and it is the sentence that used to send them looking for the bug.
+        ui.notifications.warn(listed.length
+            ? game.i18n.format("DRPG.Project.allComplete", { room: room ?? "—" })
+            : game.i18n.format("DRPG.Project.noneHere", { room: room ?? "—" }));
         return null;
     }
 
-    // The GM fixes which kind of work a project demands. The trait picker
-    // only actually asks anything when at least one project here leaves it
-    // open — see chooseProjectAndTrait().
-    const picked = await chooseProjectAndTrait(here, "DRPG.Project.whichWork", actor, def);
+    // Normally both of these were answered in the window that got us here.
+    // The fallback is not dead code: this function is the one entry point that
+    // knows how to run a project roll, and a caller that has not asked yet —
+    // or has asked about a project that has since been finished or frozen —
+    // still needs somewhere to ask.
+    const stillThere = chosen?.project && here.some(pr => pr.id === chosen.project.id);
+    const picked = stillThere
+        ? chosen
+        : await chooseProjectAndTrait(listed, "DRPG.Project.whichWork", actor, def,
+            { disableComplete: true });
     if (!picked) return null;
     const { project, trait } = picked;
 
@@ -1196,7 +1478,7 @@ async function workOnProject(actor, def, options) {
     });
 
     // Guide: every project action also rolls to hide the traces it leaves.
-    let traceRemnant = null;
+    let traceLeftTrace = false;
     if (indirect) {
         const trace = await rollTrait(actor, INDIRECT_MURDER.hideTraces.trait,
             { remember: false, title: game.i18n.localize("DRPG.Roll.hideTraces") });
@@ -1204,14 +1486,10 @@ async function workOnProject(actor, def, options) {
             const band = trace.isCritical
                 ? INDIRECT_MURDER.hideTraces.critical
                 : resolveThreshold(trace.total, INDIRECT_MURDER.hideTraces.thresholds);
-            traceRemnant = band?.remnant ?? "obvious";
-            lines.push(`<p><strong>${INDIRECT_MURDER.hideTraces.label}</strong> — ${trace.total}: ${
-                game.i18n.format("DRPG.Action.leavesRemnant",
-                    { a: article(traceRemnant), visibility: traceRemnant })
-            }</p>`);
+            const traceRemnant = band?.remnant ?? "obvious";
 
-            const { dropRemnant } = await import("./remnants.mjs");
-            await dropRemnant(actor, {
+            const { dropRemnant, traceFeedback } = await import("./remnants.mjs");
+            const placed = await dropRemnant(actor, {
                 type: "prep",
                 visibility: traceRemnant,
                 faint: true,
@@ -1225,6 +1503,14 @@ async function workOnProject(actor, def, options) {
                     total: trace.total
                 })
             });
+            traceLeftTrace = traceFeedback(trace, placed);
+
+            // Just the score — never the band this rolled into (see
+            // `traceFeedback`). Whether anything is said about the trace
+            // itself is `report()`'s generic `outcome.leftTrace` line below,
+            // the same one every other action uses, so this does not print
+            // its own second copy of that sentence.
+            lines.push(`<p><strong>${INDIRECT_MURDER.hideTraces.label}</strong> — ${trace.total}</p>`);
         }
     }
 
@@ -1238,7 +1524,7 @@ async function workOnProject(actor, def, options) {
         project: project.name,
         applied,
         refundAction: Boolean(hit?.refundAction),
-        remnant: traceRemnant,
+        leftTrace: traceLeftTrace,
         extra: lines.join(""),
         text: progress > 0
             ? game.i18n.format("DRPG.Action.progressOn", { n: progress, project: project.name })
@@ -1264,17 +1550,81 @@ async function workOnProject(actor, def, options) {
  * @returns {Promise<{project: object, trait: string}|null>} null on cancel,
  *   or if the resolved trait is empty (no trait allowed at all).
  */
-async function chooseProjectAndTrait(list, promptKey, actor, def) {
-    const traitOptions = def.traits ?? [];
-    const needsTraitField = traitOptions.length > 1 && list.some(p => !p.trait);
-
-    const projectOptions = list.map(p => {
+/**
+ * One project as an <option>: its name, how far along it is, and where.
+ *
+ * `disableComplete` is only ever set by Work on Project. A finished project is
+ * shown — struck through and unpickable — rather than dropped from the list,
+ * because dropping it looks like the project was cleared away and sends the
+ * player to ask a GM what happened to it. Sabotage does not pass the flag: a
+ * finished project is a perfectly good thing to break.
+ *
+ * The first project that can still be worked on is marked `selected` by hand.
+ * Browsers do skip disabled options when choosing a default, but only in the
+ * absence of an explicit one, and a picker whose default depends on that is a
+ * picker one browser update away from opening on an unpickable row.
+ */
+function projectOptionsHtml(list, { disableComplete = false } = {}) {
+    let defaulted = false;
+    return list.map(p => {
         const target = p.start ? ` — ${p.current}/${p.start}${scaleFor(p.start) ? `, ${scaleFor(p.start)}` : ""}` : "";
         const where = p.room ? ` · ${p.room}` : "";
-        return `<option value="${p.id}">${foundry.utils.escapeHTML(p.name)}${target}${where}</option>`;
-    }).join("");
+        const done = disableComplete && p.complete;
 
-    const traitField = needsTraitField
+        let mark = "";
+        if (done) {
+            mark = ` disabled class="is-complete"`;
+        } else if (!defaulted) {
+            mark = " selected";
+            defaulted = true;
+        }
+
+        // The word as well as the line through it. The strike is the glance and
+        // the word is the answer, and only one of the two survives a picker
+        // drawn by a browser that will not style an <option>.
+        const suffix = done ? ` — ${game.i18n.localize("DRPG.Project.completeTag")}` : "";
+        return `<option value="${p.id}"${mark}>${
+            foundry.utils.escapeHTML(p.name)}${target}${where}${suffix}</option>`;
+    }).join("");
+}
+
+/**
+ * Which statistics this window has to ask about, if any.
+ *
+ * A project may fix the statistic its work demands, and most do. The field is
+ * only worth showing when the action offers a choice AND at least one project
+ * in the list leaves that choice open — otherwise it is a control that changes
+ * nothing, which is worse than no control.
+ */
+function openTraits(list, def) {
+    const traits = def.traits ?? [];
+    return traits.length > 1 && list.some(p => !p.trait) ? traits : [];
+}
+
+/**
+ * The statistic this roll ends up using, and saying so when it was not a choice.
+ *
+ * Order matters: the project's own demand outranks anything the player picked,
+ * because a fixed project is fixed for everybody. Shared by both windows that
+ * lead into a project roll, so Work on Project and Sabotage cannot drift.
+ */
+function resolveProjectTrait(project, chosen, traitOptions) {
+    const trait = project?.trait ?? chosen ?? (traitOptions.length === 1 ? traitOptions[0] : null);
+    if (!trait) return null;
+
+    if (project?.trait) {
+        ui.notifications.info(game.i18n.format("DRPG.Project.traitFixed", {
+            trait: TRAITS[project.trait]?.label ?? project.trait
+        }));
+    }
+    return trait;
+}
+
+async function chooseProjectAndTrait(list, promptKey, actor, def, { disableComplete = false } = {}) {
+    const traitOptions = def.traits ?? [];
+    const projectOptions = projectOptionsHtml(list, { disableComplete });
+
+    const traitField = openTraits(list, def).length
         ? traitFieldHtml(actor, traitOptions, {
             note: game.i18n.localize("DRPG.Action.traitOnlyIfOpen")
           })
@@ -1308,14 +1658,20 @@ async function chooseProjectAndTrait(list, promptKey, actor, def) {
     const project = list.find(p => p.id === result.id) ?? null;
     if (!project) return null;
 
-    const trait = project.trait ?? result.trait ?? (traitOptions.length === 1 ? traitOptions[0] : null);
-    if (!trait) return null;
-
-    if (project.trait) {
-        ui.notifications.info(game.i18n.format("DRPG.Project.traitFixed", {
-            trait: TRAITS[project.trait]?.label ?? project.trait
+    // The row was disabled, so this should be unreachable — and it is the kind
+    // of unreachable that a keyboard, a screen reader or a browser that draws
+    // its own picker can reach anyway. Refusing here costs one comparison and
+    // is the difference between "the option was greyed" and "the option cannot
+    // be taken".
+    if (disableComplete && project.complete) {
+        ui.notifications.warn(game.i18n.format("DRPG.Project.alreadyComplete", {
+            name: project.name
         }));
+        return null;
     }
+
+    const trait = resolveProjectTrait(project, result.trait, traitOptions);
+    if (!trait) return null;
 
     return { project, trait };
 }
@@ -1331,9 +1687,22 @@ async function performSabotage(actor, def, options) {
     const room = roomOfActor(actor);
     const { sabotageTargetsIn, sabotageProject } = await import("./projects.mjs");
 
-    // A Monokuma reaches anywhere; a student has to be standing in the room.
+    // WHICH CHARACTER, NOT WHICH ACCOUNT.
+    //
+    // This used to read `game.user.isGM || isMonokuma(actor)`, and the first
+    // half is the bug: it asks who is holding the mouse rather than who is in
+    // the fiction. A GM opening a student's sheet — to test it, to play an
+    // absent player's character, to walk somebody through their turn — got the
+    // whole map as targets, because the ACCOUNT was privileged even though the
+    // CHARACTER was a student standing in one room. That is the "sabotage
+    // reaches projects in other rooms" report, and no player ever saw it,
+    // which is why it looked intermittent.
+    //
+    // A Monokuma still reaches anywhere: they walk the map freely and are not
+    // standing in the players' geography at all. That is a fact about the
+    // character, and it survives whoever is logged in as them.
     const { isMonokuma } = await import("./monokuma.mjs");
-    const anyRoom = game.user.isGM || isMonokuma(actor);
+    const anyRoom = isMonokuma(actor);
     const targets = sabotageTargetsIn(room, { anyRoom });
 
     // Say what is being held back and why.
@@ -1342,9 +1711,12 @@ async function performSabotage(actor, def, options) {
     // frozen by an earlier sabotage, and a repair project, which there is no
     // sense in breaking. Both are correct and both were invisible, so a Monokuma
     // saw some projects and not others with nothing to explain the difference.
+    // The SAME reach `sabotageTargetsIn` uses, or this list names projects in
+    // other rooms — which is both a leak and a lie, since they were never
+    // candidates and are not being "held back" from anything.
     const { visibleProjects, isFrozen, repairs } = await import("./projects.mjs");
     const withheld = visibleProjects()
-        .filter(p => anyRoom || !p.room || (room && p.room === room))
+        .filter(p => anyRoom || (room && p.room === room))
         .filter(p => isFrozen(p.id) || repairs(p.id));
 
     if (!targets.length) {
@@ -1466,7 +1838,7 @@ async function performSabotage(actor, def, options) {
 
     // Sabotage always leaves a trace, success or not.
     const visibility = success ? hit.remnant : def.failureRemnant;
-    const { dropRemnant } = await import("./remnants.mjs");
+    const { dropRemnant, traceFeedback } = await import("./remnants.mjs");
     const placed = await dropRemnant(actor, {
         type: "prep",
         visibility,
@@ -1488,7 +1860,7 @@ async function performSabotage(actor, def, options) {
         success,
         applied,
         project: project.name,
-        remnant: visibility,
+        leftTrace: traceFeedback(roll, placed),
         extra: lines.join(""),
         // Despair reveals the attempt to anyone else in the room.
         revealed: roll.withFear && witnesses.length > 0,
@@ -1537,8 +1909,12 @@ async function performGmAction(actor, actionKey, def, options) {
     const cost = options.free ? 0 : def.cost;
     if (!canAfford(actor, cost)) return null;
 
-    const trait = await chooseTrait(actor, def);
-    if (!trait) return null;
+    // One window, before anything is thrown: the trait and the sentence.
+    const asked = await askTraitAndRequest(actor, actionKey, def);
+    if (!asked) return null;
+    const { trait, request } = asked;
+    // An action with traits to choose between and none chosen is a dismissal.
+    if ((def.traits?.length ?? 0) && !trait) return null;
 
     const roll = await rollTrait(actor, trait, { actionKey });
     if (!roll) return null;
@@ -1546,12 +1922,16 @@ async function performGmAction(actor, actionKey, def, options) {
 
     const body = buildGmBody(actionKey, def, roll);
 
-    const request = await promptAndCallGm(actor, {
+    await callGm(actor, {
         title: def.label,
-        prompt: game.i18n.format("DRPG.Action.gmPrompt", { action: def.label }),
-        placeholder: game.i18n.localize(`DRPG.Action.placeholder.${actionKey}`),
+        request,
         roll,
-        room: roomOfActor(actor)
+        room: roomOfActor(actor),
+        body,
+        // Nothing mechanical to apply — Think and Listen end in a sentence — so
+        // the card carries the two answers that ARE the ruling: say it, or say
+        // there is nothing and hand the action back.
+        actions: gmRulingActions(actor, cost)
     });
 
     // Ruled by a human. Reroll cannot undo a ruling, so it re-asks — see
@@ -1565,6 +1945,28 @@ async function performGmAction(actor, actionKey, def, options) {
     }</p>${body}`);
 
     return { calledGm: true, roll };
+}
+
+/**
+ * The two buttons every ruling gets when there is nothing mechanical to apply.
+ *
+ * "Reply" posts the GM's sentence into the thread the question arrived in;
+ * "There is nothing" hands the action back, because a question that is never
+ * answered has not been paid for. Both are handled in `runCallAction`.
+ */
+function gmRulingActions(actor, cost = 0) {
+    return [
+        {
+            action: "reply",
+            label: game.i18n.localize("DRPG.Bridge.reply"),
+            data: { by: actor.id }
+        },
+        {
+            action: "decline",
+            label: game.i18n.localize("DRPG.Bridge.nothingThere"),
+            data: { by: actor.id, cost: String(cost) }
+        }
+    ];
 }
 
 /** The reference the GM needs to rule, right next to the roll. */
@@ -1609,19 +2011,20 @@ async function performObserve(actor, def, options) {
     const cost = options.free ? 0 : def.cost;
     if (!canAfford(actor, cost)) return null;
 
-    const declaration = await askDeclaration(actor, def);
-    if (!declaration) return null;
+    const asked = await askDeclaration(actor, def);
+    if (!asked) return null;
+    const { declaration, request } = asked;
 
     // Looking at something that is not a trace at all — a room, a person, a
     // machine, the weather. The guide's "Daily Life" column: Observe can simply
     // turn something interesting up, and only a human can say what. No Remnant
     // is involved, so there is nothing to rank and nothing to score.
-    if (declaration === "anything") return observeAnything(actor, def, cost);
+    if (declaration === "anything") return observeAnything(actor, def, cost, request);
 
     // "Specific" is the only declaration whose target depends on a sentence from
-    // the player, so it is the only one that has to wait for the dice — see
-    // `observeSpecific`.
-    if (declaration === "specific") return observeSpecific(actor, def, cost);
+    // the player — and that sentence now arrives with the declaration rather
+    // than after the roll, so this branch simply carries it through.
+    if (declaration === "specific") return observeSpecific(actor, def, cost, request);
 
     return observeRanked(actor, def, cost, options, declaration);
 }
@@ -1671,13 +2074,16 @@ async function observeRanked(actor, def, cost, options, declaration) {
  * than throwing the throw away, and a GM who has nothing to point at gets a
  * ruling built on the dice already on the table — never a second roll.
  */
-async function observeSpecific(actor, def, cost) {
-    const roll = await rollTrait(actor, "eye", { actionKey: "observe" });
-    if (!roll) return null;
-
-    const request = await askRequest(def);
+async function observeSpecific(actor, def, cost, request = "") {
+    // The sentence was typed in the declaration window, before the dice — see
+    // "THE SENTENCE COMES FIRST". Leaving it empty is still allowed and still
+    // means the same thing: with nothing named, this is an ordinary sweep of
+    // the room and it is scored as one.
     const declaration = request ? "specific" : "general";
     if (!request) ui.notifications.info(game.i18n.localize("DRPG.Observe.requestSkipped"));
+
+    const roll = await rollTrait(actor, "eye", { actionKey: "observe" });
+    if (!roll) return null;
 
     const { requestObserveTarget } = await import("./gm-bridge.mjs");
     const target = await requestObserveTarget({ actorId: actor.id, declaration, request });
@@ -1692,7 +2098,7 @@ async function observeSpecific(actor, def, cost) {
     // Refused, empty room, no room at all: the GM rules on the roll that has
     // already been thrown. Calling `performGmAction` here would roll a second
     // time for the same action.
-    if (!target.ok) return ruleObserve(actor, def, roll, request);
+    if (!target.ok) return ruleObserve(actor, def, roll, request, null, cost);
 
     return settleObserveRoll(actor, def, roll, target.key, declaration);
 }
@@ -1743,20 +2149,20 @@ async function settleObserveRoll(actor, def, roll, observeKey, declaration) {
  * Reroll re-asks rather than pretending to recompute a table that does not
  * exist for this branch.
  */
-async function observeAnything(actor, def, cost) {
+async function observeAnything(actor, def, cost, request = "") {
     const roll = await rollTrait(actor, "eye", { actionKey: "observe" });
     if (!roll) return null;
     if (cost > 0) await spendAction(actor, cost);
 
-    const request = await askRequest(def);
     // Not the button's own label: "Ask the GM" is clear on a button the player is
     // pressing and meaningless as the title of the window it arrives in. The GM
     // gets a title that says which action this was.
-    return ruleObserve(actor, def, roll, request, game.i18n.localize("DRPG.Observe.anythingTitle"));
+    return ruleObserve(actor, def, roll, request,
+        game.i18n.localize("DRPG.Observe.anythingTitle"), cost);
 }
 
 /** Hand a roll that has already happened to the GM as a ruling. */
-async function ruleObserve(actor, def, roll, request, title = null) {
+async function ruleObserve(actor, def, roll, request, title = null, cost = 0) {
     const { callGm } = await import("./gm-bridge.mjs");
     const label = title ?? def.label;
     const room = roomOfActor(actor);
@@ -1766,7 +2172,28 @@ async function ruleObserve(actor, def, roll, request, title = null) {
         body: `<p><small>${game.i18n.format("DRPG.Action.observeGm", { total: roll.total })}</small></p>`,
         roll,
         request,
-        room
+        room,
+        // This is the branch where a GM decides there IS something at the point
+        // of interest the player named — so the first button places it, as a
+        // Key Remnant in the room they are standing in, and offers to hang it
+        // on a planned clue that has no trace yet.
+        actions: [
+            {
+                action: "keyRemnantHere",
+                label: game.i18n.localize("DRPG.Bridge.keyRemnantHere"),
+                data: { by: actor.id, room: room ?? "", want: request ?? "" }
+            },
+            {
+                action: "reply",
+                label: game.i18n.localize("DRPG.Bridge.reply"),
+                data: { by: actor.id }
+            },
+            {
+                action: "decline",
+                label: game.i18n.localize("DRPG.Bridge.nothingThere"),
+                data: { by: actor.id, cost: String(cost) }
+            }
+        ]
     });
 
     await noteRollContext(actor, {
@@ -1783,69 +2210,53 @@ async function ruleObserve(actor, def, roll, request, title = null) {
  * in it, and the two that did were asking for a description of a search that had
  * not happened yet — see `observeSpecific`.
  *
- * @returns {Promise<"general"|"specific"|"nonObvious"|"anything"|null>}
+ * @returns {Promise<"general"|"specific"|"nonObvious"|"followTraces"|"anything"|null>}
  */
 async function askDeclaration(actor, def) {
-    const choice = await DialogV2.wait({
-        // Not `drpg-narrow` any more. That was chosen when the four choices
-        // were "Look for any clue" and friends, which fitted a 24rem window;
-        // the names now say what each one does and need the room to say it.
-        classes: ["drpg-panel"],
-        window: { title: def.label },
-        content: dialogContent(`${briefingBlock(actor, "observe", def)}<form>
-            <p>${game.i18n.localize("DRPG.Observe.declarePrompt")}</p>
-            <p class="notes">${game.i18n.localize("DRPG.Observe.declareNote")}</p>
-        </form>`),
-        // Ordered by who answers, not by how the guide lists them.
-        //
-        // The first two are settled by the table: sweeping the room takes the
-        // easiest trace in it and looking past the obvious takes the hardest,
-        // and both are decided by a number. The last two summon a human — the GM
-        // picks which Remnant a named request lands on, and "ask the GM" is a
-        // ruling outright. Naming what you are after sat between the two
-        // table-lookups wearing their colour, which read as a third automatic
-        // option rather than what it is.
-        //
-        // Red on both, like the cost stripe on a GM-routed tile: red already
-        // means "this waits for somebody" everywhere else in the module.
-        buttons: [
-            { action: "general", label: game.i18n.localize("DRPG.Observe.general"), default: true },
-            { action: "nonObvious", label: game.i18n.localize("DRPG.Observe.nonObvious") },
-            { action: "specific", label: game.i18n.localize("DRPG.Observe.specific"), class: GM_ROUTE_CLASS },
-            { action: "anything", label: game.i18n.localize("DRPG.Observe.anything"), class: GM_ROUTE_CLASS },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
-        rejectClose: false
+    // Ordered by who answers, not by how the guide lists them.
+    //
+    // The first three are settled by the table: sweeping the room takes the
+    // easiest trace in it, looking past the obvious takes the hardest, and
+    // following your own traces takes the easiest one YOU left — all three
+    // decided by a number, none of them asking the player anything first. The
+    // last two summon a human — the GM picks which Remnant a named request
+    // lands on, and "examine a point of interest" is a ruling outright.
+    const picked = await chooseVariant({
+        actor,
+        title: def.label,
+        intro: briefingBlock(actor, "observe", def),
+        prompt: game.i18n.localize("DRPG.Observe.declarePrompt"),
+        confirm: game.i18n.localize("DRPG.Action.roll"),
+        // The two red rows below are the ones that end with a person reading
+        // this; the other three never see it. One box for both, in the window
+        // where the choice is made — see "THE SENTENCE COMES FIRST".
+        extra: requestFieldHtml({
+            prompt: game.i18n.localize("DRPG.Observe.requestPrompt"),
+            placeholder: game.i18n.localize("DRPG.Observe.requestPlaceholder")
+        }),
+        options: [
+            { value: "general", icon: "fa-eye",
+              label: game.i18n.localize("DRPG.Observe.general"),
+              hint: game.i18n.localize("DRPG.Observe.generalHint") },
+            { value: "nonObvious", icon: "fa-eye-low-vision",
+              label: game.i18n.localize("DRPG.Observe.nonObvious"),
+              hint: game.i18n.localize("DRPG.Observe.nonObviousHint") },
+            { value: "followTraces", icon: "fa-shoe-prints",
+              label: game.i18n.localize("DRPG.Observe.followTraces"),
+              hint: game.i18n.localize("DRPG.Observe.followTracesHint") },
+            { value: "specific", icon: "fa-crosshairs", gmRoute: true,
+              label: game.i18n.localize("DRPG.Observe.specific"),
+              hint: game.i18n.localize("DRPG.Observe.specificHint") },
+            { value: "anything", icon: "fa-magnifying-glass-location", gmRoute: true,
+              label: game.i18n.localize("DRPG.Observe.anything"),
+              hint: game.i18n.localize("DRPG.Observe.anythingHint") }
+        ]
     });
 
-    if (!choice || choice === "cancel") return null;
-    return choice;
+    if (!picked) return null;
+    return { declaration: picked.value, request: readRequestField(picked.form) };
 }
 
-/** What were you after? Asked after the dice, never before. */
-async function askRequest(def) {
-    const typed = await DialogV2.wait({
-        window: { title: game.i18n.format("DRPG.Observe.requestTitle", { action: def.label }) },
-        classes: ["drpg-panel"],
-        content: dialogContent(`<form>
-            <p>${game.i18n.localize("DRPG.Observe.requestPrompt")}</p>
-            <label>${game.i18n.localize("DRPG.Observe.request")}
-                <textarea name="request" rows="2" autofocus
-                    placeholder="${game.i18n.localize("DRPG.Observe.requestPlaceholder")}"></textarea></label>
-        </form>`),
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Observe.requestConfirm"), default: true,
-                callback: (e, b, d) => d.element.querySelector("[name=request]").value.trim()
-            }
-        ],
-        rejectClose: false
-    // Dismissing it resolves to null, which every caller reads as "no sentence
-    // given" — the roll still lands. See `observeSpecific`.
-    }).catch(() => null);
-
-    return typeof typed === "string" ? typed : "";
-}
 
 /**
  * Analyze: one action, two uses, and they no longer end the same way.
@@ -1873,7 +2284,10 @@ async function performAnalyze(actor, def, options) {
         ? (bullets.find(b => b.id === options.bulletId) ?? null)
         : null;
 
-    const choice = preselected ? preselected.id : await askWhatToAnalyze(actor, def, bullets);
+    const asked = preselected
+        ? { choice: preselected.id, request: "" }
+        : await askWhatToAnalyze(actor, def, bullets);
+    const choice = asked?.choice ?? null;
     if (!choice || choice === "cancel") return null;
 
     // "hint" is the literal action id; anything else is the bullet id the
@@ -1887,7 +2301,7 @@ async function performAnalyze(actor, def, options) {
 
     return subject
         ? analyseBullet(actor, def, roll, subject)
-        : askForHint(actor, def, roll);
+        : askForHint(actor, def, roll, asked?.request ?? "");
 }
 
 /**
@@ -1926,7 +2340,7 @@ async function analyseBullet(actor, def, roll, subject) {
 }
 
 /** The other half of the action: no evidence, just a nudge from the GM. */
-async function askForHint(actor, def, roll) {
+async function askForHint(actor, def, roll, request = "") {
     const rows = def.hintThresholds.map(t =>
         `<li>${t.min}+ — ${foundry.utils.escapeHTML(t.result)}</li>`).join("");
     const body = `<ul class="drpg-gm-reference">${rows}
@@ -1934,12 +2348,19 @@ async function askForHint(actor, def, roll) {
                 foundry.utils.escapeHTML(def.hintCritical.result)}</em></li></ul>`;
 
     const title = game.i18n.localize("DRPG.Analyze.askHint");
-    const request = await promptAndCallGm(actor, {
+
+    // The question was typed in the variant window, with the two branches in
+    // front of the player — see "THE SENTENCE COMES FIRST".
+    await callGm(actor, {
         title,
-        prompt: game.i18n.format("DRPG.Action.gmPrompt", { action: def.label }),
-        placeholder: game.i18n.localize("DRPG.Action.placeholder.analyze"),
+        request,
         roll,
-        room: roomOfActor(actor)
+        room: roomOfActor(actor),
+        body,
+        // The hint IS the answer, so it goes back down the thread the question
+        // came up. The action has already been spent by the time this runs, so
+        // the refusal hands it back — see `decline` in `runCallAction`.
+        actions: gmRulingActions(actor, def.cost ?? 1)
     });
 
     await noteRollContext(actor, {
@@ -1964,36 +2385,43 @@ async function askForHint(actor, def, roll) {
  * @returns {Promise<string|null>}  "hint", a bullet id, "cancel", or null.
  */
 async function askWhatToAnalyze(actor, def, bullets) {
-    const bulletField = bullets.length
-        ? `<label>${game.i18n.localize("DRPG.Analyze.whichBullet")}
-            <select name="bullet">${bullets
-                .map(b => `<option value="${b.id}">${foundry.utils.escapeHTML(b.name)}</option>`).join("")}</select></label>`
-        : `<p class="notes">${game.i18n.localize("DRPG.Analyze.noBullets")}</p>`;
-
-    const buttons = [
-        { action: "hint", label: game.i18n.localize("DRPG.Analyze.askHint"),
-          class: GM_ROUTE_CLASS, default: !bullets.length },
-        { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-    ];
-    if (bullets.length) {
-        buttons.unshift({
-            action: "bullet", label: game.i18n.localize("DRPG.Analyze.analyseBullet"), default: true,
-            callback: (e, b, d) => d.element.querySelector("[name=bullet]").value
-        });
-    }
-
-    return DialogV2.wait({
-        window: { title: def.label },
-        classes: ["drpg-panel"],
-        // No prompt line: the briefing above already says what Analyze does,
-        // and the field's own label asks which bullet. Both were saying the
-        // same sentence, one under the other.
-        content: dialogContent(`${briefingBlock(actor, "analyze", def)}<form>
-            ${bulletField}
-        </form>`),
-        buttons,
-        rejectClose: false
+    // Two variants and one select, rather than two buttons and one select: the
+    // select belongs to the first variant only, and as a footer button pair
+    // there was nothing to say so. It rides along as `extra` and is simply not
+    // read when the hint is what was chosen.
+    const picked = await chooseVariant({
+        actor,
+        title: def.label,
+        intro: briefingBlock(actor, "analyze", def),
+        options: [
+            {
+                value: "bullet", icon: "fa-magnifying-glass-chart",
+                label: game.i18n.localize("DRPG.Analyze.analyseBullet"),
+                hint: plural("DRPG.Analyze.analyseBulletHint", { n: bullets.length }),
+                disabled: !bullets.length,
+                why: game.i18n.localize("DRPG.Analyze.noBullets")
+            },
+            {
+                value: "hint", icon: "fa-comment-question", gmRoute: true,
+                label: game.i18n.localize("DRPG.Analyze.askHint"),
+                hint: game.i18n.localize("DRPG.Analyze.askHintHint")
+            }
+        ],
+        extra: `${bullets.length
+            ? `<label>${game.i18n.localize("DRPG.Analyze.whichBullet")}
+                <select name="bullet">${bullets
+                    .map(b => `<option value="${b.id}">${
+                        foundry.utils.escapeHTML(b.name)}</option>`).join("")}</select></label>`
+            : ""}${requestFieldHtml({
+                prompt: game.i18n.format("DRPG.Action.gmPrompt", { action: def.label }),
+                placeholder: game.i18n.localize("DRPG.Action.placeholder.analyze")
+            })}`
     });
+
+    if (!picked) return null;
+    const request = readRequestField(picked.form);
+    if (picked.value === "hint") return { choice: "hint", request };
+    return { choice: picked.form.querySelector("[name=bullet]")?.value ?? null, request };
 }
 
 /**
@@ -2113,41 +2541,46 @@ async function performRest(actor) {
     const { takeRest, roomAllows, restRooms, restSpent } = await import("./rest.mjs");
     const room = roomOfActor(actor);
 
-    const line = kind => {
+    // One row per rest, each carrying its own price and its own reason for
+    // being unavailable — spent already, or not allowed in this room. Both
+    // reasons used to be printed above a pair of buttons that stayed live
+    // regardless, so the player could pick the one the list had just told them
+    // they could not have.
+    const variant = kind => {
+        const spent = restSpent(actor, kind);
         const allowed = roomAllows(room, kind);
         const rooms = restRooms(kind);
-        // Say up front that this one is already used up, rather than letting the
-        // player pick it and bounce off the check.
-        if (restSpent(actor, kind)) {
-            return `<li style="opacity:.55"><strong>${game.i18n.localize(kind === "long" ? "DRPG.Rest.long" : "DRPG.Rest.short")}</strong> — <em>${
-                game.i18n.localize(kind === "long" ? "DRPG.Rest.alreadyThisSessionShort" : "DRPG.Rest.alreadyThisTimeOfDayShort")
-            }</em></li>`;
-        }
-        return `<li><strong>${game.i18n.localize(kind === "long" ? "DRPG.Rest.long" : "DRPG.Rest.short")}</strong> — ${
-            game.i18n.format("DRPG.Action.willCost", { n: kind === "long" ? 2 : 1, left: actionsLeft(actor) })
-        }<br>${allowed
-            ? `<em>${game.i18n.format("DRPG.Rest.allowedHere", { room: foundry.utils.escapeHTML(room) })}</em>`
-            : `<em>${rooms.length
-                ? game.i18n.format("DRPG.Rest.allowedIn", { rooms: foundry.utils.escapeHTML(rooms.join(", ")) })
-                : game.i18n.format("DRPG.Rest.noRooms", { kind: "" })}</em>`
-        }</li>`;
+
+        return {
+            value: kind,
+            icon: kind === "long" ? "fa-bed" : "fa-mug-hot",
+            label: game.i18n.localize(kind === "long" ? "DRPG.Rest.long" : "DRPG.Rest.short"),
+            hint: `${game.i18n.format("DRPG.Action.willCost",
+                { n: kind === "long" ? 2 : 1, left: actionsLeft(actor) })} · ${
+                allowed
+                    ? game.i18n.format("DRPG.Rest.allowedHere", { room: room ?? "" })
+                    : rooms.length
+                        ? game.i18n.format("DRPG.Rest.allowedIn", { rooms: rooms.join(", ") })
+                        : game.i18n.format("DRPG.Rest.noRooms", { kind: "" })}`,
+            disabled: spent || !allowed,
+            why: spent
+                ? game.i18n.localize(kind === "long"
+                    ? "DRPG.Rest.alreadyThisSessionShort" : "DRPG.Rest.alreadyThisTimeOfDayShort")
+                : rooms.length
+                    ? game.i18n.format("DRPG.Rest.allowedIn", { rooms: rooms.join(", ") })
+                    : game.i18n.format("DRPG.Rest.noRooms", { kind: "" })
+        };
     };
 
-    const choice = await DialogV2.wait({
-        window: { title: ACTIONS.rest.label },
-        classes: ["drpg-panel", "drpg-rest"],
-        content: `${briefingBlock(actor, "rest", ACTIONS.rest)}
-            <ul class="drpg-briefing-facts">${line("short")}${line("long")}</ul>`,
-        buttons: [
-            { action: "short", label: game.i18n.localize("DRPG.Rest.short"), default: true },
-            { action: "long", label: game.i18n.localize("DRPG.Rest.long") },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
-        rejectClose: false
+    const picked = await chooseVariant({
+        actor,
+        title: ACTIONS.rest.label,
+        intro: briefingBlock(actor, "rest", ACTIONS.rest),
+        options: [variant("short"), variant("long")]
     });
 
-    if (!choice || choice === "cancel") return null;
-    return takeRest(actor, choice);
+    if (!picked) return null;
+    return takeRest(actor, picked.value);
 }
 
 /** Direct Murder: never automatic, always a conversation. */
@@ -2155,42 +2588,21 @@ async function performDirectMurder(actor, def, options) {
     const cost = options.free ? 0 : def.cost;
     if (!canAfford(actor, cost)) return null;
 
-    // The guide's condition: you must be alone with your victim. One other
-    // character in the room is the victim; two or more and there is a witness.
-    //
-    // Shown here as a HINT, not as the verdict. The room is still filling up —
-    // an Eclipse is a placement window and half the cast has yet to move — so
-    // what this describes is the room at the moment of asking, and the answer is
-    // read again when the lights come up. Worth showing anyway: it is what the
-    // killer can see from where they are standing, and it is the difference
-    // between a gamble and a guess.
+    // No preview of the room. The guide's whole point is that you do not know
+    // who else is standing in the dark with you — showing "you are alone with
+    // X" or listing everyone present here would hand the killer the verdict
+    // before they have even declared. `judgePendingMurders` (eclipse.mjs) reads
+    // the room once, for real, after the Eclipse ends and the map has settled;
+    // that is also the only moment the killer learns anything about it, in the
+    // whisper it sends.
     const room = roomOfActor(actor);
-    const present = othersInRoom(actor);
-    const alone = present.length === 1;
-
-    const scene = alone
-        ? game.i18n.format("DRPG.Action.murderAloneWith", {
-            victim: foundry.utils.escapeHTML(present[0].name),
-            room: foundry.utils.escapeHTML(room ?? "—")
-        })
-        : present.length === 0
-            ? game.i18n.format("DRPG.Action.murderRoomEmpty",
-                { room: foundry.utils.escapeHTML(room ?? "—") })
-            : game.i18n.format("DRPG.Action.murderRoomCrowded", {
-                who: present.map(a => foundry.utils.escapeHTML(a.name)).join(", "),
-                room: foundry.utils.escapeHTML(room ?? "—")
-            });
 
     const confirmed = await DialogV2.confirm({
         classes: ["drpg-panel"],
         window: { title: def.label },
         content: `${briefingBlock(actor, "directMurder", def)}
-            <p><strong>${scene}</strong></p>
             <p class="notes">${game.i18n.localize("DRPG.Action.murderSpendsAnyway")}</p>
-            <p>${alone
-                ? game.i18n.format("DRPG.Action.murderConfirmVictim",
-                    { victim: foundry.utils.escapeHTML(present[0].name) })
-                : game.i18n.localize("DRPG.Action.murderConfirm")}</p>`,
+            <p>${game.i18n.localize("DRPG.Action.murderConfirm")}</p>`,
         rejectClose: false
     });
     if (!confirmed) return null;
@@ -2291,8 +2703,11 @@ async function performGeneric(actor, actionKey, def, options) {
     const hit = roll.isCritical ? def.critical : resolveThreshold(roll.total, def.thresholds ?? []);
     const outcome = {
         success: Boolean(hit),
-        text: hit?.result ?? def.failure ?? game.i18n.localize("DRPG.Action.nothing"),
-        remnant: hit?.remnant ?? null
+        text: hit?.result ?? def.failure ?? game.i18n.localize("DRPG.Action.nothing")
+        // No `leftTrace`: this generic fallback never actually calls
+        // `dropRemnant`, so `hit?.remnant` used to report a trace that was
+        // never placed — a lie `traceFeedback`'s contract (nothing to
+        // report if nothing was placed) does not allow.
     };
 
     await report(actor, def, roll, outcome);
@@ -2313,7 +2728,16 @@ async function performDynamic(actor, options) {
         intro: briefingBlock(actor, "dynamic", dynDef),
         prompt: game.i18n.localize("DRPG.Action.dynamicDescribe"),
         placeholder: game.i18n.localize("DRPG.Action.dynamicPlaceholder"),
-        room: roomOfActor(actor)
+        room: roomOfActor(actor),
+        // Only "reply" here, and no refusal: nothing has been spent yet at this
+        // point — the difficulty window that follows is where this action is
+        // accepted or not, and it already refunds nothing because it has
+        // charged nothing.
+        actions: [{
+            action: "reply",
+            label: game.i18n.localize("DRPG.Bridge.reply"),
+            data: { by: actor.id }
+        }]
     });
     if (description === null) return null;
 
@@ -2355,8 +2779,9 @@ async function performDynamic(actor, options) {
     // below has always reported one — but nothing ever created it. The action
     // told the player and the GM that a trace had been left and the map stayed
     // empty, which is the one kind of lie an investigation cannot recover from.
+    let leftTrace = false;
     if (visibility) {
-        const { dropRemnant } = await import("./remnants.mjs");
+        const { dropRemnant, traceFeedback } = await import("./remnants.mjs");
         placed = await dropRemnant(actor, {
             type: "prep",
             visibility,
@@ -2370,12 +2795,13 @@ async function performDynamic(actor, options) {
                 total: roll.total
             })
         });
+        leftTrace = traceFeedback(roll, placed);
     }
 
     const outcome = {
         success,
         tier: success ? band.tier : null,
-        remnant: visibility,
+        leftTrace,
         text: success ? game.i18n.format("DRPG.Action.tierFound", { tier: band.tier })
                       : game.i18n.localize("DRPG.Action.nothing")
     };
@@ -2510,9 +2936,12 @@ async function report(actor, def, roll, outcome) {
         })}</small></p>`);
     }
 
-    if (outcome.remnant) {
-        lines.push(`<p><em>${game.i18n.format("DRPG.Action.leavesRemnant",
-            { a: article(outcome.remnant), visibility: outcome.remnant })}</em></p>`);
+    // Never the exact visibility band — see `traceFeedback` in remnants.mjs.
+    // A plain Despair leaves `outcome.leftTrace` false and prints nothing at
+    // all, which is itself the point: it must read the same as leaving no
+    // trace whatsoever, or its absence would say as much as its presence.
+    if (outcome.leftTrace) {
+        lines.push(`<p><em>${game.i18n.localize("DRPG.Action.leavesRemnant")}</em></p>`);
     }
 
     if (outcome.room) {
@@ -2555,6 +2984,19 @@ async function report(actor, def, roll, outcome) {
         flags: {
             [MODULE_ID]: {
                 popupTitle: def.label,
+                // WHAT THE DICE DID, AS A COLOUR.
+                //
+                // The card already prints the total; what it could not say at a
+                // glance is which way the roll went, and that is the one thing
+                // a player wants from across the table. The title bar takes it:
+                // gold for Hope, Blood for Despair, crimson for a Critical.
+                //
+                // A Critical is checked first because a roll can be critical
+                // AND carry a side, and the rarer fact is the one worth the
+                // colour.
+                popupTone: roll?.isCritical ? "critical"
+                    : roll?.withHope ? "hope"
+                        : roll?.withFear ? "fear" : null,
                 summary: {
                     actorId: actor?.id ?? null,
                     action: def.label,
@@ -2563,7 +3005,7 @@ async function report(actor, def, roll, outcome) {
                     critical: Boolean(roll?.isCritical),
                     item: outcome.item ?? null,
                     tier: outcome.tier ?? null,
-                    remnant: outcome.remnant ?? null,
+                    leftTrace: outcome.leftTrace ?? false,
                     at: Date.now()
                 }
             }

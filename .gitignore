@@ -8,3 +8,6 @@ Thumbs.db
 # Working document, not part of the module.
 PLAN.html
 AUDYT-*.html
+
+# Font surgery backups (F5.5) — never ship, never commit.
+fonts/*.orig

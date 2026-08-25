@@ -18,14 +18,17 @@
  * what there is to do, in the order a season is actually built.
  */
 
-import { MODULE_ID, STARTING, ITEM_CATEGORIES, CHAPTERS_PER_SEASON } from "./config.mjs";
+import { MODULE_ID, FLAGS, STARTING, ITEM_CATEGORIES, CHAPTERS_PER_SEASON } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { monokumaFor } from "./assignments.mjs";
 import { listExperiences, initCharacter } from "./character.mjs";
 import { monokumas } from "./despair.mjs";
-import { dialogContent, log, error } from "./utils.mjs";
+import { mastermindActor } from "./mastermind.mjs";
+import { dialogContent, log, error, workingScene, MESSAGE_FLAG } from "./utils.mjs";
+import { MESSENGER_FLAGS } from "./messenger.mjs";
+import { NOTE_FLAG } from "./pre-session-note.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -113,9 +116,23 @@ function steps() {
         },
         {
             key: "rooms",
-            done: (game.scenes.active?.regions?.size ?? 0) > 0,
+            done: (workingScene()?.regions?.size ?? 0) > 0,
             missing: () => [],
             open: async () => (await import("./vault.mjs")).openRoomSetupDialog()
+        },
+        {
+            key: "mastermind",
+            // The one row that is allowed to stay unticked for ever.
+            //
+            // A season without a Mastermind is a legal season — the guide's
+            // endgame is one way to end a killing game, not the only one — so
+            // this reports its state without the red cross that means "you have
+            // forgotten something". Everything else on this list is a promise
+            // the module has made to a rule; this is an offer.
+            optional: true,
+            done: Boolean(mastermindActor()),
+            missing: () => [],
+            open: async () => (await import("./mastermind.mjs")).openMastermindDialog()
         }
     ];
 }
@@ -150,8 +167,13 @@ export async function openSeasonSetup() {
             : `<button type="button" class="drpg-setup-do" data-step="${step.key}">${
                 esc(game.i18n.localize(step.fix ? "DRPG.Season.doIt" : "DRPG.Season.openIt"))}</button>`;
 
-        return `<li class="drpg-setup-step${step.done ? " done" : ""}">
-            <span class="drpg-setup-mark">${step.done ? "✓" : "✗"}</span>
+        // An optional row that is not done is not a failure, so it gets neither
+        // the cross nor the "outstanding" styling — a dash and its own note.
+        const mark = step.done ? "✓" : step.optional ? "–" : "✗";
+
+        return `<li class="drpg-setup-step${step.done ? " done" : ""}${
+            step.optional && !step.done ? " optional" : ""}">
+            <span class="drpg-setup-mark">${mark}</span>
             <div class="drpg-setup-body">
                 <strong>${esc(game.i18n.localize(`DRPG.Season.step.${step.key}`))}</strong>
                 <div class="notes">${esc(game.i18n.localize(`DRPG.Season.hint.${step.key}`))}</div>
@@ -161,7 +183,7 @@ export async function openSeasonSetup() {
         </li>`;
     }).join("");
 
-    const outstanding = list.filter(s => !s.done).length;
+    const outstanding = list.filter(s => !s.done && !s.optional).length;
 
     const result = await DialogV2.wait({
         classes: ["drpg-panel", "drpg-wide"],
@@ -190,6 +212,10 @@ export async function openSeasonSetup() {
                     return { campaignName: f.campaignName.value.trim(), chapter: Number(f.chapter.value) || 1 };
                 }
             },
+            // The other end of this same list. "What is missing" and "fix it"
+            // are one errand, and the checks used to be a GM-panel tile of
+            // their own next to this one — one door fewer, same two answers.
+            { action: "checks", label: game.i18n.localize("DRPG.Panel.seasonChecks") },
             { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
         ],
         // Wire the per-row buttons against the mounted DOM — a listener attached
@@ -223,9 +249,51 @@ export async function openSeasonSetup() {
 
     if (!result || result === "close") return null;
 
+    if (result === "checks") {
+        await runPreSessionChecks();
+        return openSeasonSetup();
+    }
+
     await setClock({ campaignName: result.campaignName, chapter: result.chapter });
     log(`Season setup saved: "${result.campaignName}", chapter ${result.chapter}.`);
     return result;
+}
+
+/**
+ * Both pre-session checks, answered in one window.
+ *
+ * "Is everybody set up" and "can anybody read a sheet they should not" are one
+ * question asked at one moment — before a session — so they are one tile and
+ * now one answer. Neither report goes to chat from here: they are handed back
+ * as text and put on screen, because a question asked with a button should be
+ * answered where the button was.
+ */
+async function runPreSessionChecks() {
+    const [{ diagnoseCharacters }, { auditAnonymity }, { diagnoseScenes }] = await Promise.all([
+        import("./diagnostics.mjs"), import("./anonymity.mjs"), import("./fog.mjs")
+    ]);
+
+    const setup = diagnoseCharacters({ toChat: false });
+    const anon = await auditAnonymity({ toChat: false });
+    // A scene that has rooms but still uses Foundry's own vision renders as a
+    // black screen for players on v14 and says nothing about why, so it belongs
+    // on the list of things checked before anybody sits down.
+    const scenes = diagnoseScenes();
+
+    await DialogV2.wait({
+        classes: ["drpg-panel", "drpg-wide"],
+        window: { title: game.i18n.localize("DRPG.Panel.seasonChecks") },
+        content: dialogContent(`<div>
+            <h3>${game.i18n.localize("DRPG.Panel.checksSetup")}</h3>
+            <pre class="drpg-check-report">${foundry.utils.escapeHTML(setup)}</pre>
+            <h3>${game.i18n.localize("DRPG.Fog.checksScenes")}</h3>
+            <pre class="drpg-check-report">${foundry.utils.escapeHTML(scenes)}</pre>
+            <h3>${game.i18n.localize("DRPG.Anonymity.audit.title")}</h3>
+            ${anon.body ?? ""}
+        </div>`),
+        buttons: [{ action: "close", label: game.i18n.localize("DRPG.Panel.close"), default: true }],
+        rejectClose: false
+    });
 }
 
 /* ==========================================================================
@@ -241,6 +309,47 @@ export async function openSeasonSetup() {
  * season that just ended. That split is why this is safe to offer at all — the
  * expensive half is never touched.
  * ========================================================================== */
+
+/**
+ * Items a season put in somebody's hands, wherever they ended up.
+ *
+ * Truth Bullets are excluded on purpose: they are one of these categories, and
+ * they have their own step that drops the answer key behind each one before
+ * deleting it. Counting them here would say the same thing twice, and clearing
+ * them here would skip that step.
+ */
+function seasonItems(actor) {
+    const categories = Object.keys(ITEM_CATEGORIES).filter(c => c !== "truthBullet");
+    return actor.items.filter(i => categories.includes(i.getFlag(MODULE_ID, "category")));
+}
+
+/** Chat this module wrote, and the messenger threads underneath it. */
+function moduleMessages() {
+    return game.messages.filter(m =>
+        m.getFlag(MODULE_ID, MESSAGE_FLAG) || m.getFlag(MODULE_ID, MESSENGER_FLAGS.thread));
+}
+
+/**
+ * The free-text note on a character sheet, wherever this system keeps it.
+ *
+ * NOT the biography. Pronouns, age, faith and connections are who somebody is —
+ * the same side of the line as the name, the portrait and the Ultimate, all of
+ * which this reset leaves alone. A note is what got written down during the
+ * season that just ended.
+ *
+ * Both paths are probed because the field has moved between Daggerheart
+ * versions, and a path that is not there simply is not written.
+ */
+const NOTE_PATHS = ["system.notes", "system.biography.notes"];
+
+function writtenNotes(actor) {
+    const found = {};
+    for (const path of NOTE_PATHS) {
+        const current = foundry.utils.getProperty(actor, path);
+        if (typeof current === "string" && current.trim()) found[path] = "";
+    }
+    return found;
+}
 
 /** What a reset would destroy, counted now rather than described in general. */
 function resetTally() {
@@ -261,7 +370,25 @@ function resetTally() {
         projects = 0;
     }
 
-    return { projects, remnants, bullets, dead };
+    const students = studentActors();
+    const items = students.reduce((n, a) => n + seasonItems(a).length, 0);
+    const advances = students.reduce((n, a) =>
+        n + Number(a.getFlag(MODULE_ID, FLAGS.advances) ?? 0), 0);
+    const notes = students.filter(a => Object.keys(writtenNotes(a)).length).length
+        + game.users.filter(u => u.getFlag(MODULE_ID, NOTE_FLAG)).length;
+
+    const cards = moduleMessages().length;
+    const chat = game.messages.size;
+
+    let despair = 0;
+    try {
+        despair = Object.values(game.settings.get(MODULE_ID, SETTINGS.despairPools) ?? {})
+            .filter(v => Number(v) > 0).length;
+    } catch {
+        despair = 0;
+    }
+
+    return { projects, remnants, bullets, dead, items, advances, notes, cards, chat, despair };
 }
 
 /**
@@ -294,9 +421,25 @@ export async function resetSeason() {
                 <li>${esc(game.i18n.format("DRPG.Season.resetRemnants", { n: tally.remnants }))}</li>
                 <li>${esc(game.i18n.format("DRPG.Season.resetBullets", { n: tally.bullets }))}</li>
                 <li>${esc(game.i18n.format("DRPG.Season.resetDead", { n: tally.dead }))}</li>
+                <li>${esc(game.i18n.format("DRPG.Season.resetItems", { n: tally.items }))}</li>
+                <li>${esc(game.i18n.format("DRPG.Season.resetAdvances", { n: tally.advances }))}</li>
+                <li>${esc(game.i18n.format("DRPG.Season.resetCards", { n: tally.cards }))}</li>
+                <li>${esc(game.i18n.format("DRPG.Season.resetNotes", { n: tally.notes }))}</li>
+                <li>${esc(game.i18n.format("DRPG.Season.resetPools",
+                    { n: tally.despair, hope: STARTING.hope }))}</li>
+                <li>${esc(game.i18n.localize("DRPG.Season.resetDoors"))}</li>
                 <li>${esc(game.i18n.localize("DRPG.Season.resetState"))}</li>
             </ul>
             <p><strong>${esc(game.i18n.localize("DRPG.Season.resetKeeps"))}</strong></p>
+
+            <!-- The one line of this that reaches outside the module. Everything
+                 above is the module's own bookkeeping; the rest of the chat log
+                 belongs to Foundry and to whoever typed in it, so it is asked
+                 for separately and can be left alone without cancelling. -->
+            <label class="drpg-inline-check"><input type="checkbox" name="alsoChat" checked />
+                ${esc(game.i18n.format("DRPG.Season.resetChat",
+                    { n: Math.max(tally.chat - tally.cards, 0) }))}</label>
+
             <label>${esc(game.i18n.format("DRPG.Season.resetType", { word }))}
                 <input type="text" name="confirm" autocomplete="off" autofocus /></label>
         </form>`),
@@ -304,20 +447,38 @@ export async function resetSeason() {
             {
                 action: "reset", label: game.i18n.localize("DRPG.Season.resetButton"),
                 class: "drpg-gm-route",
-                callback: (e, b, d) => d.element.querySelector("[name=confirm]").value.trim()
+                callback: (e, b, d) => ({
+                    word: d.element.querySelector("[name=confirm]").value.trim(),
+                    alsoChat: Boolean(d.element.querySelector("[name=alsoChat]")?.checked)
+                })
             },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel"), default: true }
         ],
         rejectClose: false
     });
 
-    if (!typed || typed === "cancel") return null;
-    if (typed.toLowerCase() !== word.toLowerCase()) {
+    if (!typed || typed === "cancel" || !typed.word) return null;
+    if (typed.word.toLowerCase() !== word.toLowerCase()) {
         ui.notifications.warn(game.i18n.format("DRPG.Season.resetMistyped", { word }));
         return null;
     }
 
-    return wipeSeason();
+    return wipeSeason({ alsoChat: typed.alsoChat });
+}
+
+/**
+ * Delete chat in batches.
+ *
+ * A season's worth of messages deleted one document at a time is one socket
+ * round trip each, and a few thousand of those locks the GM's client for long
+ * enough to look like a crash. Five hundred at a time is well inside what a
+ * single update can carry and short enough that nothing times out.
+ */
+async function deleteMessages(ids) {
+    for (let i = 0; i < ids.length; i += 500) {
+        await ChatMessage.deleteDocuments(ids.slice(i, i + 500));
+    }
+    return ids.length;
 }
 
 /**
@@ -328,7 +489,7 @@ export async function resetSeason() {
  * of the reset rather than stopping at the first throw and leaving the season
  * half-cleared, which is a worse state than either end.
  */
-async function wipeSeason() {
+async function wipeSeason({ alsoChat = false } = {}) {
     const done = [];
     const step = async (label, fn) => {
         try {
@@ -344,6 +505,11 @@ async function wipeSeason() {
             const ids = scene.tokens.filter(t => t.getFlag(MODULE_ID, "isRemnant")).map(t => t.id);
             if (ids.length) await scene.deleteEmbeddedDocuments("Token", ids);
         }
+        // The tokens are the half everyone can see. The register of what each
+        // one really was is the half that matters, and it does not go with them
+        // — deleting a token has never pruned it.
+        const { clearRemnantLedger } = await import("./remnants.mjs");
+        await clearRemnantLedger();
     });
 
     await step("Truth Bullets", async () => {
@@ -368,8 +534,18 @@ async function wipeSeason() {
 
     await step("the incident", async () => {
         const { endMurder, clearBlackened } = await import("./murder.mjs");
+        const { clearParkedMurders } = await import("./eclipse.mjs");
         await endMurder({ reason: "seasonReset", followUp: false });
         await clearBlackened();
+        // A murder declared in the dark and never judged is an incident that
+        // has not happened yet. It would open on the first Eclipse of the new
+        // season, against a cast that has no idea what it is about.
+        await clearParkedMurders();
+    });
+
+    await step("projects", async () => {
+        const { clearAllProjects } = await import("./projects.mjs");
+        await clearAllProjects();
     });
 
     await step("the Mastermind", async () => {
@@ -382,14 +558,84 @@ async function wipeSeason() {
         await clearSeals();
     });
 
+    await step("the module's chat and the messenger", async () => {
+        await deleteMessages(moduleMessages().map(m => m.id));
+    });
+
+    // Separate step, and separate from the checkbox that authorised it: if the
+    // module's own cards fail to clear, the rest of the log should still go
+    // when it was asked for, and the other way round.
+    if (alsoChat) {
+        await step("the rest of the chat log", async () => {
+            await deleteMessages(game.messages.map(m => m.id));
+        });
+    }
+
+    await step("notes", async () => {
+        for (const user of game.users) {
+            if (user.getFlag(MODULE_ID, NOTE_FLAG)) {
+                await user.setFlag(MODULE_ID, NOTE_FLAG, "");
+            }
+        }
+        for (const actor of studentActors()) {
+            const cleared = writtenNotes(actor);
+            if (Object.keys(cleared).length) await actor.update(cleared);
+        }
+    });
+
+    await step("what the cast is carrying", async () => {
+        for (const actor of studentActors()) {
+            const ids = seasonItems(actor).map(i => i.id);
+            if (ids.length) await actor.deleteEmbeddedDocuments("Item", ids);
+        }
+    });
+
+    // The most irreversible thing here, and the reason the dialog names the
+    // number of advances before the word is typed.
+    await step("advancement", async () => {
+        const { restoreStartingSheet } = await import("./character.mjs");
+        for (const actor of studentActors()) {
+            // Restore first, THEN re-initialise: `initCharacter` stamps the
+            // starting sheet as it goes, and stamping before the restore would
+            // record the advanced spread as the one to come back to.
+            await restoreStartingSheet(actor);
+            await initCharacter(actor, { quiet: true });
+        }
+    });
+
+    await step("Despair pools", async () => {
+        const { zeroAllDespair } = await import("./despair.mjs");
+        await zeroAllDespair();
+    });
+
+    await step("locked doors", async () => {
+        const { ROOM_FLAGS } = await import("./movement.mjs");
+        const { startLocked } = await import("./vault.mjs");
+        for (const scene of game.scenes) {
+            // A room is a region with a name; the rest are shapes somebody drew.
+            for (const region of Array.from(scene.regions ?? []).filter(r => r.name)) {
+                const shouldBe = startLocked(region);
+                if (Boolean(region.getFlag(MODULE_ID, ROOM_FLAGS.locked)) !== shouldBe) {
+                    await region.setFlag(MODULE_ID, ROOM_FLAGS.locked, shouldBe);
+                }
+            }
+        }
+    });
+
     // World settings that hold nothing but this season's bookkeeping. The clock
     // is deliberately NOT among them — it is reset to the season's opening
     // reading below, campaign name kept, because the name belongs to the table.
     for (const [label, key, value] of [
-        ["the trial queue", SETTINGS.trialQueue, []],
+        ["the trial floor", SETTINGS.trialQueue, {}],
         ["search tokens", SETTINGS.searchTokens, {}],
         ["Eclipse placements", SETTINGS.eclipseMoves, {}],
-        ["the Key Remnant plan", SETTINGS.keyRemnantPlan, {}]
+        ["the Key Remnant plan", SETTINGS.keyRemnantPlan, {}],
+        ["discovered rooms", SETTINGS.discoveredRooms, {}],
+        // Written directly rather than through `setMotive("")`, which announces
+        // the withdrawal in chat. Nobody needs to be told a motive is over
+        // during a reset that is also clearing the chat it would be posted in.
+        ["the motive", SETTINGS.motive, {}],
+        ["the trial's progress", SETTINGS.trialProgress, {}]
     ]) {
         await step(label, () => game.settings.set(MODULE_ID, key, value));
     }

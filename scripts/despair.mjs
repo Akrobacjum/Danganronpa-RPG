@@ -12,11 +12,12 @@
  * Pools are public. When Monokuma spends Despair the table is meant to see it.
  */
 
-import { MODULE_ID, STARTING, DESPAIR_CALLS } from "./config.mjs";
+import { MODULE_ID, STARTING, DESPAIR_CALLS, callEffect } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { resourceValue } from "./character.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
 import { announce, whisperToOwner, log, error } from "./utils.mjs";
+import { spentSince, markSpent } from "./motion.mjs";
 
 const WIDGET_ID = "drpg-despair";
 
@@ -230,6 +231,35 @@ export async function fillAllDespair() {
 }
 
 /**
+ * Every pool back to nothing, for the season reset.
+ *
+ * The mirror of `fillAllDespair` above, and deliberately next to it: two
+ * functions in one file are much harder to let drift apart than one function
+ * and a loop written into the reset.
+ *
+ * It differs from the mirror in one way. Filling walks the CURRENT Monokumas,
+ * because a pool for somebody who is not one has nothing to fill. Zeroing walks
+ * every entry in the store, because a pool left behind by somebody who has
+ * since left the team is still last season's number — and the next GM handed
+ * that role would open the bar on a stranger's Despair.
+ *
+ * The keys stay. They are the record of who has a pool at all, which belongs to
+ * the table the same way `poolNames` and `gmAssignments` do; only the values
+ * belong to the season.
+ */
+export async function zeroAllDespair() {
+    if (!game.user.isGM) return null;
+
+    const store = { ...pools() };
+    for (const id of Object.keys(store)) store[id] = 0;
+    for (const user of monokumas()) store[user.id] = 0;
+    await game.settings.set(MODULE_ID, SETTINGS.despairPools, store);
+
+    log("Every Despair pool emptied.");
+    return store;
+}
+
+/**
  * Turn a Monokuma's Despair into Hope for somebody else, 1:1.
  *
  * The guide gives this exact exchange to two very different people for two
@@ -307,7 +337,7 @@ export async function spendDespairCall(userId, callKey) {
         const user = game.users?.get?.(userId) ?? game.users?.find?.(u => u.id === userId);
         await announce({
             content: `<h3>${game.i18n.localize("DRPG.Despair.callTitle")}</h3>
-                      <p><strong>${foundry.utils.escapeHTML(call.label)}</strong> — ${foundry.utils.escapeHTML(call.effect)}</p>
+                      <p><strong>${foundry.utils.escapeHTML(call.label)}</strong> — ${foundry.utils.escapeHTML(callEffect(call))}</p>
                       <p><em>${game.i18n.format("DRPG.Despair.spent", {
                           name: foundry.utils.escapeHTML(user?.name ?? "?"),
                           cost: call.cost,
@@ -358,6 +388,14 @@ function buildRow(user, showName) {
     const isGM = game.user.isGM;
     const isOwnPool = game.user.id === user.id;
 
+    // Only a GM has a reading to lose. A player's bar is question marks by
+    // design (see the note on the pips below), so there is nothing to confirm
+    // and nothing to give away by confirming it — which is also why this is not
+    // even asked on their client: `spentSince` records as it reads, and a
+    // player recording a pool they cannot see would be keeping a copy of the
+    // one number this bar exists to withhold.
+    const spent = isGM ? spentSince("despair", user.id, held) : null;
+
     const row = document.createElement("div");
     row.className = "drpg-despair-row";
     row.dataset.userId = user.id;
@@ -394,6 +432,11 @@ function buildRow(user, showName) {
         // console (see the note on world-scoped data in settings.mjs). This is
         // about not putting the answer on screen unasked.
         pip.className = `drpg-despair-pip${isGM && i <= held ? " filled" : ""}`;
+        // The pips between the old reading and the new one: the ones that were
+        // just paid. They are built empty, like every other unspent socket, and
+        // the class only says how they got that way. See the keyframes in the
+        // stylesheet.
+        markSpent(pip, spent, i);
         pip.dataset.value = String(i);
 
         if (isGM) {

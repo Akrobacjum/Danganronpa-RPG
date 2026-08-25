@@ -96,11 +96,15 @@ export function allProjects() {
             const start = c.progress?.start ?? 0;
             const raw = c.progress?.current ?? 0;
             const up = countsUp(id);
+            // Named rather than written twice: `complete` below is the same
+            // arithmetic compared against the target, and two copies of it is
+            // two places for the direction to be got wrong.
+            const current = up ? raw : Math.max(0, start - raw);
             return {
                 id,
                 name: c.name,
                 img: c.img,
-                current: up ? raw : Math.max(0, start - raw),
+                current,
                 start,
                 raw,
                 countsUp: up,
@@ -110,7 +114,11 @@ export function allProjects() {
                 killerId: metaFor(id).killerId ?? null,
                 trait: metaFor(id).trait ?? null,
                 frozen: Boolean(metaFor(id).frozenBy),
-                repairs: metaFor(id).repairs ?? null
+                repairs: metaFor(id).repairs ?? null,
+                // Full. Not the same as gone: a finished project sits on the
+                // board until a GM clears it, and everything that reads this
+                // list has to be able to tell the two apart. See `isComplete`.
+                complete: start > 0 && current >= start
             };
         });
     } catch {
@@ -142,14 +150,49 @@ export function visibleProjects(user = game.user) {
 }
 
 /**
- * Projects a character can actually work on right now: those tied to the room
- * they are standing in, plus any project with no room set. Frozen projects are
- * excluded — they need their repair finishing first.
+ * Is this project already full?
+ *
+ * A project at its target is DONE. Nothing else in the game can be advanced past
+ * its own ceiling, and `addProgress` has refused to move one for some time — but
+ * it refused at the end, after the player had spent an action, chosen a
+ * statistic and thrown dice for progress that could not land anywhere. The
+ * picker knows the answer before any of that happens.
+ *
+ * Takes an entry from `allProjects()` rather than an id, because every caller
+ * already has one and re-reading the countdown to answer a question the row in
+ * front of you can answer is how two readers drift apart.
  */
-export function projectsAvailableIn(room, user = game.user) {
+export function isComplete(project) {
+    return Boolean(project?.complete);
+}
+
+/**
+ * Every project this character can SEE from where they are standing — finished
+ * ones included.
+ *
+ * The picker's list, and the reason it is not `projectsAvailableIn`: a finished
+ * project has to be visible and struck through rather than quietly absent.
+ * Absent, it looks like the project was cleared away, and the obvious next move
+ * is to ask a GM what happened to it.
+ */
+export function projectsListedIn(room, user = game.user) {
     return visibleProjects(user)
         .filter(p => !p.room || (room && p.room === room))
         .filter(p => !isFrozen(p.id));
+}
+
+/**
+ * Projects a character can actually work on right now: those tied to the room
+ * they are standing in, plus any project with no room set. Frozen projects are
+ * excluded — they need their repair finishing first, and finished ones because
+ * there is nothing left to add.
+ *
+ * This is the "is there anything to do here" question, and three screens ask it:
+ * the HUD's room block, the Work on Project tile's own dimming, and the guard
+ * inside the action. All three were counting a finished project as work.
+ */
+export function projectsAvailableIn(room, user = game.user) {
+    return projectsListedIn(room, user).filter(p => !isComplete(p));
 }
 
 /**
@@ -164,7 +207,21 @@ export function projectsAvailableIn(room, user = game.user) {
  */
 export function sabotageTargetsIn(room, { anyRoom = false, user = game.user } = {}) {
     return visibleProjects(user)
-        .filter(p => anyRoom || !p.room || (room && p.room === room))
+        // YOU HAVE TO BE STANDING AT THE THING TO BREAK IT.
+        //
+        // This used to read `anyRoom || !p.room || (room && p.room === room)`,
+        // and the middle clause is the one that was wrong. It is right for Work
+        // on Project — a project with no room set is abstract work you can do
+        // anywhere — but sabotage is not abstract. It is prying at a lock,
+        // pulling wires out, putting sugar in a tank: a physical act on a
+        // physical object, in a room. With the clause in, every roomless project
+        // on the board was reachable from anywhere on the map, so a player could
+        // break something on the other side of the school without leaving their
+        // chair.
+        //
+        // A Monokuma still reaches everywhere (`anyRoom`) — they are not
+        // standing in the players' geography at all.
+        .filter(p => anyRoom || (room && p.room === room))
         .filter(p => !isFrozen(p.id))
         .filter(p => !repairs(p.id));   // repairing a repair makes no sense
 }
@@ -583,6 +640,35 @@ export async function deleteProject(countdownId) {
     delete meta[countdownId];
     await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
     return true;
+}
+
+/**
+ * Every project at once, for the season reset.
+ *
+ * Not `deleteProject` in a loop: that is two settings writes per project, and
+ * a season's worth of them is a visible stall on the GM's client for a result
+ * that two writes give exactly.
+ *
+ * Everything in the countdowns setting goes, not only the ids this module has
+ * metadata for. That is not overreach -- `allProjects()` reads every countdown
+ * as a project and the reset dialog counts them the same way, so a countdown
+ * the module has never written to is still a project as far as this game is
+ * concerned. Anything else would leave the GM a bar the module refuses to
+ * explain.
+ */
+export async function clearAllProjects() {
+    if (!game.user.isGM) return null;
+
+    const data = game.settings.get(DH, COUNTDOWNS);
+    const gone = Object.keys(data?.countdowns ?? {}).length;
+
+    // Spread the rest of Daggerheart's own setting back, exactly as
+    // `deleteProject` does — `countdowns` is one key inside it, not all of it.
+    await game.settings.set(DH, COUNTDOWNS, { ...data, countdowns: {} });
+    await game.settings.set(MODULE_ID, SETTINGS.projectMeta, {});
+
+    log(`Season reset: cleared ${gone} project(s).`);
+    return gone;
 }
 
 /** Human-readable scale label for a progress target. */

@@ -11,6 +11,22 @@
 
 export const MODULE_ID = "danganronpa-rpg";
 
+/**
+ * Which build of the SCRIPTS this is.
+ *
+ * Not read from the manifest, deliberately. On a hosted world the manifest is
+ * a record the host keeps — The Forge stamps a version when it installs a
+ * package and goes on reporting it after the files underneath have been
+ * replaced — so `game.modules.get(MODULE_ID).version` answers "what does the
+ * host think is installed", which is a different question from "what is this
+ * browser running". This constant travels inside the file it describes, and so
+ * does `--drpg-css-version` in the stylesheet. Comparing those two compares the
+ * two halves of what actually loaded.
+ *
+ * Kept in step with module.json and the stylesheet by the release check.
+ */
+export const BUILD = "1.0.53";
+
 /** Socket channel used for player -> GM requests (search tokens, reveals). */
 export const SOCKET = `module.${MODULE_ID}`;
 
@@ -55,6 +71,17 @@ export const FLAGS = {
     silencedChapter: "silencedChapter",
     /** Character: how many DRPG advances they have taken. */
     advances: "advances",
+
+    /**
+     * Character: the trait and experience spread they started the season with.
+     *
+     * Stamped by `initCharacter`, read only by the season reset. An advance
+     * writes `+delta` into traits and experiences and increments `advances`,
+     * and nothing anywhere records what those numbers were before — so without
+     * this, a reset can zero the counter or leave the bonuses, and either one
+     * is a character whose sheet disagrees with itself.
+     */
+    sheetAtStart: "sheetAtStart",
     /** Character: has this character already taken their free Move this time of day? */
     freeMoveUsed: "freeMoveUsed",
     /**
@@ -230,6 +257,23 @@ export const ROOMS = {
 
 export const ITEM_TIERS = [0, 1, 2, 3];
 
+/**
+ * TWO FLAG NAMES THAT TWO FILES BOTH NEED.
+ *
+ * The owner of a bedroom is written on its Region by vault.mjs; the key to that
+ * bedroom is written on an Item by the same file. movement.mjs has to read both
+ * to decide whether a token may cross the threshold, and it has to do it
+ * synchronously, inside `preUpdateToken` — where there is no opportunity to
+ * await an import.
+ *
+ * Importing vault.mjs into movement.mjs would close a cycle (vault already
+ * reaches movement), and copying the strings into both files is how they drift.
+ * config.mjs imports nothing and is imported by everything, so the names live
+ * here and both readers agree by construction.
+ */
+export const ROOM_OWNER_FLAG = "drpgVaultOwner";
+export const BEDROOM_KEY_FLAG = "bedroomKey";
+
 export const ITEM_CATEGORIES = {
     usable: {
         label: "Usable",
@@ -260,6 +304,21 @@ export const ITEM_CATEGORIES = {
         plural: "Truth Bullets",
         limit: null,
         hint: "Evidence. No carry limit."
+    },
+    /**
+     * A key to somebody's bedroom.
+     *
+     * Uncapped, like evidence, and for the same kind of reason: a key is not
+     * something you carry instead of something else. It is not searched for
+     * either — `tables.mjs` skips it, the same way it skips Truth Bullets —
+     * because a key exists because a GM assigned a room, not because anybody
+     * turned out a cupboard.
+     */
+    bedroomKey: {
+        label: "Room Key",
+        plural: "Room Keys",
+        limit: null,
+        hint: "Opens one bedroom. Copy it to let somebody else in."
     }
 };
 
@@ -337,7 +396,7 @@ export const REMNANT_VISIBILITY_LABELS = {
 export const REMNANT_TYPES = {
     key: {
         label: "Key Remnant",
-        hint: "GM-placed, unremovable, makes the case solvable. Converts to a Truth Bullet without analysis.",
+        hint: "GM-placed, unremovable. Becomes a Truth Bullet unanalysed.",
         reinforced: true
     },
     neutral: {
@@ -346,11 +405,11 @@ export const REMNANT_TYPES = {
     },
     faint: {
         label: "Faint Remnant",
-        hint: "Doubtful connection to the case. Swept at chapter end unless tied to the murder."
+        hint: "Doubtful. Swept at chapter end unless tied to the murder."
     },
     prep: {
         label: "Prep Remnant",
-        hint: "Left while preparing a murder, gathering tools or sabotaging."
+        hint: "Left while preparing a murder or gathering tools."
     },
     incident: {
         label: "Incident Remnant",
@@ -362,12 +421,11 @@ export const REMNANT_TYPES = {
     },
     autopsy: {
         label: "Autopsy Remnant",
-        hint: "The state of the body. Always handed out first, no roll needed. Carries the time it "
-            + "was discovered and the cause of death."
+        hint: "The state of the body. Handed out first, no roll needed."
     },
     final: {
         label: "Final Truth Remnant",
-        hint: "One per chapter. Points at the Mastermind and the real reason for the killing game.",
+        hint: "One per chapter. Points at the Mastermind.",
         // Placed once a chapter and meant to survive the whole season, not just
         // this case — `placeRemnant` already reads this flag to set the token's
         // own `reinforced` flag, so nothing else has to know "final" is special.
@@ -384,7 +442,8 @@ export const REMNANT_TYPES = {
 export const TRUTH_BULLET_TYPES = {
     key: {
         label: "Key Truth Bullet",
-        hint: "Evidence from the GMs, so the case is solvable. Identified the moment you pick it up — no Analyze needed."
+        hint: "Evidence from the GMs, so the case is solvable. Identified the moment you pick it "
+            + "up — no Analyze needed."
     },
     neutral: {
         label: "Neutral Truth Bullet",
@@ -392,7 +451,8 @@ export const TRUTH_BULLET_TYPES = {
     },
     faint: {
         label: "Faint Truth Bullet",
-        hint: "Doubtful connection to the case. Survives the sweep at the start of the next session, and can be analysed again."
+        hint: "Doubtful connection to the case. Survives the sweep at the start of the next "
+            + "session, and can be analysed again."
     },
     prep: {
         label: "Prep Truth Bullet",
@@ -408,12 +468,12 @@ export const TRUTH_BULLET_TYPES = {
     },
     autopsy: {
         label: "Autopsy Truth Bullet",
-        hint: "The state of the body — the time it was discovered, and the cause of death. Handed out "
-            + "at the start of every Investigation, never rolled for."
+        hint: "The state of the body — when it was discovered, and the cause of death. Handed out "
+            + "at the start of every Investigation."
     },
     final: {
         label: "Final Truth Bullet",
-        hint: "One per chapter. Points at the Mastermind and the real reason for the killing game."
+        hint: "One per chapter. Points at the Mastermind."
     }
 };
 
@@ -513,8 +573,22 @@ export function analyzeDc(visibility, realType) {
 export const KEY_REMNANTS = {
     prepared: 5,
     minimum: 3,
-    /** Guide: five clues scaled trivial -> desperate. */
+    /** Five clues, scaled trivial -> desperate. */
     scale: ["trivial", "standard", "standard", "complex", "desperate"],
+    /**
+     * What each step of that scale is called.
+     *
+     * Here rather than in the language file, and here rather than in
+     * investigation.mjs where a copy of this object used to live: these are the
+     * names of a rule, and the rule is the line above. The dashboard reads them
+     * from here now.
+     */
+    scaleLabels: {
+        trivial: "Trivial",
+        standard: "Standard",
+        complex: "Complex",
+        desperate: "Desperate"
+    },
     /** Together they must narrow the suspect pool to this range. */
     suspectRange: [3, 8]
 };
@@ -538,11 +612,11 @@ export const ACTIONS = {
         icon: "fa-shoe-prints",
         traits: [],
         cost: 0,
-        hint: "One free Move per time of day. Every further one costs an action.",
-        description: "Inside your own room, free. Crossing into a connected room spends your free Move "
-            + "for this time of day — after that, an action each.",
-        instruction: "Drag your token. Crossing into another room is what counts — the cost is applied "
-            + "when you arrive."
+        hint: "Crossing into another room costs your free Move, then an action each.",
+        description: "Moving inside your own room is free. Crossing into a connected room spends "
+            + "this time of day's free Move.",
+        instruction: "Drag your token. Crossing into another room is what counts — the cost "
+            + "is applied when you arrive."
     },
     search: {
         kind: "universal",
@@ -550,9 +624,14 @@ export const ACTIONS = {
         icon: "fa-magnifying-glass",
         traits: ["eye", "hand"],
         cost: 1,
-        hint: "Loot the room. Spends one of its three search tokens.",
-        description: "You loot the room for whatever you name. Each room allows three searches per "
-            + "time of day, and taking a murder or cleaning tool leaves a trace behind.",
+        // The count of searches a room allows is a WORLD SETTING (0-10), not the
+        // three this sentence used to promise. The briefing reads the real
+        // number off the room and prints it as a fact line; a description that
+        // states it in prose is a second copy, and the first GM to change the
+        // setting turns it into a lie.
+        hint: "Loot the room for something you name. Spends one of its search tokens.",
+        description: "You loot the room for whatever you name. Taking a crime tool or a cleaning "
+            + "tool leaves a trace behind.",
         thresholds: [
             { min: 8, tier: 0, remnant: "hidden" },
             { min: 12, tier: 1, remnant: "subtle" },
@@ -568,10 +647,19 @@ export const ACTIONS = {
         icon: "fa-eye",
         traits: ["eye"],
         cost: 1,
-        callsGm: true,
+        // NOT a GM action any more, and that is the honest reading of the menu
+        // behind it: sweeping the room, looking past the obvious and following
+        // your own traces are all settled by a number against the ledger. Only
+        // "focus your gaze" and "examine point of interest" summon a human, and
+        // those are two of five — a red stripe on the tile promised a wait that
+        // three of the five branches never have.
+        callsGm: false,
         hint: "Look for evidence. Copies a Remnant into your inventory as a Truth Bullet.",
-        description: "You look for evidence here. A hit copies what you find into your inventory as a "
-            + "Neutral Truth Bullet, leaving the original for everyone else. A failed roll costs 2 Stress.",
+        // The Stress a miss costs is `failStress` two lines down, and the
+        // briefing prints it from there. It was written out here as well, and
+        // the two would part company the first time the number moved.
+        description: "You look for evidence here. A hit copies what you find into your inventory "
+            + "as a Neutral Truth Bullet and leaves the original in place.",
         dcTable: "OBSERVE_DC",
         failStress: OBSERVE_FAIL_STRESS
     },
@@ -586,10 +674,26 @@ export const ACTIONS = {
         icon: "fa-brain",
         traits: ["head"],
         cost: 1,
-        callsGm: true,
+        /**
+         * A FUNCTION, not a flag — see `callsGmFor` in sheet.mjs.
+         *
+         * Analyze is two actions behind one tile: identifying a bullet is a
+         * roll against a number, and asking for a hint is a question for a
+         * person. Which one it will be is not a property of the action, it is a
+         * property of the character at that moment — somebody holding three
+         * unidentified bullets is going to analyse one, and somebody holding
+         * none has only the hint left.
+         */
+        callsGm: actor => {
+            try {
+                return analysableBulletCount(actor) === 0;
+            } catch {
+                return false;
+            }
+        },
         hint: "Identify a Neutral Truth Bullet, or ask the GM for a hint.",
-        description: "Identify what one of your Truth Bullets really is, or ask the GM for a hint "
-            + "instead. Failing locks that bullet for you until the chapter ends.",
+        description: "Identify what a Truth Bullet really is, or ask the GM for a hint. Failing "
+            + "locks that bullet until the chapter ends.",
         dcTable: "ANALYZE_DC",
         /** Used when the player asks for a hint rather than analysing evidence. */
         hintThresholds: [
@@ -606,7 +710,7 @@ export const ACTIONS = {
         traits: ["shadow"],
         cost: 1,
         hint: "Work out who is in a neighbouring room. No GM needed.",
-        description: "You listen at the wall of one neighbouring room. A modest result gives you a "
+        description: "You listen at the wall of a neighbouring room. A modest result gives you a "
             + "headcount, a strong one gives you names.",
         thresholds: [
             { min: 14, result: "Pick one room; learn whether anyone is there." },
@@ -626,13 +730,28 @@ export const ACTIONS = {
         // paints the red stripe and the GM glyph on the tile, and a tile that
         // can hand the turn over should say so before it is pressed rather than
         // after — see the cost-stripe note in sheet.mjs.
-        callsGm: true,
-        hint: "Push a project, or propose a new one for the GM to approve. Several people can work "
-            + "on one and pool progress.",
-        description: "The slow game: many actions across many times of day, and the one thing that can "
-            + "change how this ends. Several people can work on the same project and their progress "
-            + "adds up. You have to be in the project's room to work on one — proposing a new one "
-            + "you can do anywhere, and nothing starts until the GM approves it.",
+        //
+        // Which branch it will be is decided by the room, not by the action:
+        // standing in a room with a project in it, this is a roll; standing
+        // anywhere else, the only thing the tile can do is propose one and
+        // wait. So the stripe asks the character rather than reading a
+        // constant — see `callsGmFor`.
+        callsGm: actor => {
+            try {
+                return workableProjectCount(actor) === 0;
+            } catch {
+                return false;
+            }
+        },
+        hint: "Push a project here, or propose a new one for the GM to approve.",
+        // The room requirement is not written here any more. `roomBlockFor()`
+        // refuses the roll where it applies and says why, the tile greys out
+        // before that, and the project list in the window is already the list
+        // of what is workable from where you stand — three places that state it
+        // at the moment it binds, against one paragraph that stated it in
+        // advance and made this the longest text in the module.
+        description: "The slow game: many actions over many times of day, and the one thing that "
+            + "can change how this ends.",
         thresholds: [
             { min: 12, progress: 1 },
             { min: 18, progress: 2 }
@@ -646,9 +765,14 @@ export const ACTIONS = {
         icon: "fa-screwdriver-wrench",
         traits: ["hand", "body", "leg", "head"],
         cost: 1,
-        hint: "Break a project or object so it needs a repair project. Always leaves a trace.",
-        description: "You break something the players made, so it needs a repair project before it "
-            + "works again. It always leaves a trace, and Despair shows you to everyone in the room.",
+        hint: "Break a project in this room so it needs a repair project. Always leaves a trace.",
+        // "In this room" is the rule, not a hint: sabotage is a physical act on
+        // a physical object, and only projects tied to the room you are standing
+        // in can be targets. It used to reach every project with no room set,
+        // from anywhere on the map. See `sabotageTargetsIn` in projects.mjs.
+        description: "You break something the players made in the room you are standing in, so "
+            + "it needs a repair project. It always leaves a trace, and Despair shows you to "
+            + "the room.",
         thresholds: [
             { min: 12, result: "Success. The target needs a simple repair project.", remnant: "subtle" },
             { min: 18, result: "Success. The target needs a complex repair project.", remnant: "evident" }
@@ -669,10 +793,14 @@ export const ACTIONS = {
         icon: "fa-bed",
         traits: [],
         cost: 1,
-        hint: "Short Rest: 1 action, choose 1. Long Rest: 2 actions, choose 2, bedroom only.",
-        description: "A Short Rest costs 1 action and buys one benefit; a Long Rest costs 2, needs "
-            + "your bedroom, and buys two. Sleep restores HP, a Meal clears Stress, a Breath gives "
-            + "Hope — in full on a Long Rest, by half on a Short."
+        // "Bedroom only" was wrong, not just long: a Long Rest asks for a room
+        // the GM flagged for it in Room Setup, which may be anybody's room or
+        // nobody's. The dialog prices Short against Long and names the rooms
+        // that allow each — see `DRPG.Rest.allowedIn` — so both the costs and
+        // the room live where they are checked.
+        hint: "Recover HP, Stress or Hope. A Long Rest costs more and buys more.",
+        description: "Sleep restores HP, a Meal clears Stress, a Breath gives Hope — in full on a "
+            + "Long Rest, by half on a Short."
     },
     directMurder: {
         kind: "universal",
@@ -682,11 +810,42 @@ export const ACTIONS = {
         cost: 1,
         callsGm: true,
         hint: "Open a direct murder. Agreed with the GM beforehand.",
-        description: "A face-to-face killing, agreed with the GM before the session and consented to "
-            + "by the victim's player. You have to be alone with them — a witness ruins the attempt, "
-            + "and the action is lost anyway."
+        description: "A face-to-face killing, agreed with the GM beforehand and consented to by "
+            + "the victim's player. You have to be alone with them."
     }
 };
+
+/* ==========================================================================
+ * WHAT THE STATE-DEPENDENT `callsGm` PREDICATES ASK
+ * --------------------------------------------------------------------------
+ * Both live here rather than inline in the table so the table stays a table.
+ * Both are deliberately defensive: this file is imported by everything and is
+ * evaluated before the world is ready, so a predicate that throws would take
+ * the action grid with it. A wrong stripe is a cosmetic mistake; a sheet that
+ * fails to render is not.
+ *
+ * Both also go through dynamic imports on purpose. config.mjs is the bottom of
+ * the import graph — truth-bullets.mjs and projects.mjs both import IT — so a
+ * static import either way round would be a genuine cycle. The predicates only
+ * run from a rendered sheet, by which point every module is long since loaded,
+ * and the cached module registry makes the call as cheap as a property read.
+ * ========================================================================== */
+
+/** Truth Bullets this character could still put an Analyze into. */
+function analysableBulletCount(actor) {
+    const api = globalThis.game?.drpg;
+    if (!actor || !api?.analysableBullets) return 1;      // unknown: assume there is work
+    return api.analysableBullets(actor)?.length ?? 0;
+}
+
+/** Projects this character could work on from where they are standing. */
+function workableProjectCount(actor) {
+    const api = globalThis.game?.drpg;
+    if (!actor || !api?.projectsAvailableIn || !api?.roomOfActor) return 1;
+    const room = api.roomOfActor(actor);
+    if (!room) return 0;                                  // nothing here to push
+    return api.projectsAvailableIn(room)?.length ?? 0;
+}
 
 /**
  * Indirect murder — the guide makes this a project, with two extra Shadow rolls
@@ -722,6 +881,53 @@ export const INDIRECT_MURDER = {
         { label: "Set the trap", scale: ["trivial", "everyday"], progress: [3, 4],
           note: "Always requires a specific room." }
     ]
+};
+
+/**
+ * A RUINED THING IS STILL A THING, AND GETTING RID OF IT IS A DECISION.
+ * ---------------------------------------------------------------------------
+ * Three moments in the guide destroy an object: a Crime Tool that has been
+ * swung, a Cleaning Tool once the body turns up, and a Usable Item once it has
+ * been opened. All three used to delete the item, and deleting it is the one
+ * outcome that costs the killer nothing — the murder weapon left the world by
+ * itself, tidily, the instant it stopped being useful.
+ *
+ * So nothing is deleted. What was used is marked Broken: the same object, in
+ * the same slot, against the same carry limit, and no longer good for anything.
+ * That leaves the holder with a problem the guide is full of and the module had
+ * no way to express — an incriminating object nobody can put down for free.
+ *
+ * There are exactly two ways out of it, and both are already in the rules:
+ *
+ *   throw it away   somewhere, which is a thing a person does in a room, and
+ *                   rooms remember. The roll below decides how loudly.
+ *   stash it        in your own bedroom, which costs nothing and hides nothing
+ *                   from anybody who searches the room (see vault.mjs).
+ *
+ * The table is `INDIRECT_MURDER.hideTraces` verbatim, and deliberately so:
+ * dropping the knife in a bin is the same kind of act as wiping the bench, it
+ * is rolled on the same statistic, and a second scale for it would be a second
+ * thing to keep in step for no gain.
+ */
+export const BROKEN_ITEMS = {
+    /** The word on the tag. Not a name change: the object is what it was. */
+    label: "Broken",
+    /** Not being seen to have done it — the same read as every other cover-up. */
+    trait: "shadow",
+    /** A Prep Remnant: this is somebody tidying up around a crime, not the crime. */
+    remnantType: "prep",
+    /**
+     * NOT faint. A faint trace is swept at chapter end unless it is tied to the
+     * murder, and the whole point of this object is that it is tied to the
+     * murder — the trace of it being got rid of has to survive to the trial.
+     */
+    faint: false,
+    thresholds: [
+        { min: 0, remnant: "obvious" },
+        { min: 12, remnant: "evident" },
+        { min: 18, remnant: "subtle" }
+    ],
+    critical: { remnant: "hidden" }
 };
 
 /**
@@ -807,17 +1013,15 @@ export const HOPE_CALLS = {
     },
     experience: {
         label: "Experience", icon: "fa-graduation-cap", cost: 1, target: "none", grants: "experience",
-        effect: "Add your experience level to the result. The roll has to relate to that experience. "
-            + "This is entrusted to you — do not spam it on random actions."
+        effect: "Add your experience level to a roll that experience genuinely applies to."
     },
     ultimate: {
         label: "Ultimate", icon: "fa-star", cost: 2, target: "none", grants: "advantage",
-        effect: "You get advantage. The roll has to relate to your Ultimate. This is entrusted to you — "
-            + "do not spam it on random actions."
+        effect: "Advantage on a roll your Ultimate genuinely applies to."
     },
     contribution: {
         label: "Contribution", icon: "fa-screwdriver-wrench", cost: 2, target: "project", progress: 1,
-        effect: "Add +1 progress to a project being worked on in the room you are in."
+        effect: "Add +{progress} progress to a project being worked on in the room you are in."
     },
     reroll: {
         // Not a grant: this one looks backwards, not forwards. It re-rolls the
@@ -858,11 +1062,11 @@ export const DESPAIR_CALLS = {
     },
     thisWillHurt: {
         label: "This Will Hurt", icon: "fa-heart-crack", cost: 2, target: "player", damage: { hitPoints: 2 },
-        effect: "A player loses 2 HP."
+        effect: "A player loses {hp} HP."
     },
     paranoia: {
         label: "Paranoia", icon: "fa-brain", cost: 2, target: "player", damage: { stress: 2 },
-        effect: "A player loses 2 Stress."
+        effect: "A player loses {stress} Stress."
     },
     chained: {
         // Not in the guide's table — added at the table's request. Priced
@@ -889,15 +1093,15 @@ export const DESPAIR_CALLS = {
         // Hope, and the Monokuma is buying a Monocub's single Meddle.
         label: "Fuel a Monocub", icon: "fa-hand-holding-heart", cost: 1, target: "monocub",
         grantsHope: 1,
-        effect: "Turn 1 Despair into 1 Hope for a Monocub, so they can use Confusion."
+        effect: "Turn {cost} Despair into {hope} Hope for a Monocub, so they can use Confusion."
     },
     gameIntegrity: {
         label: "Game Integrity", icon: "fa-arrow-trend-down", cost: 3, target: "project", progress: -2,
-        effect: "Remove 2 progress from a project."
+        effect: "Remove {progress} progress from a project."
     },
     favoriteProject: {
         label: "Favorite Project", icon: "fa-arrow-trend-up", cost: 3, target: "project", progress: 2,
-        effect: "Add 2 progress to a project."
+        effect: "Add {progress} progress to a project."
     },
     contraband: {
         // Guide table: 5 despair. Was priced at 6 here.
@@ -919,6 +1123,41 @@ export const DESPAIR_CALLS = {
         effect: "A player project loses all progress."
     }
 };
+
+/**
+ * A Call's effect line, with its own numbers put back into it.
+ *
+ * The magnitudes were written out twice: once as data the code acts on
+ * (`damage.stress`, `progress`, `grantsHope`, `cost`) and once as a digit in
+ * the sentence a GM reads before spending. Rebalancing one of these would have
+ * moved the effect and left the sentence describing the old game — and nothing
+ * would have failed, which is the worst version of that.
+ *
+ * The placeholders are the entry's own field names, so a Call that gains a
+ * number needs no change here: write `{cost}` in the sentence and it is filled.
+ *
+ * Not `game.i18n.format` — these strings live in config.mjs, which is the
+ * single source of truth about the rules and is deliberately not in the
+ * language file (see the note at the top of this file).
+ */
+export function callEffect(call) {
+    const text = call?.effect ?? "";
+    if (!text.includes("{")) return text;
+
+    const values = {
+        cost: call.cost,
+        hp: call.damage?.hitPoints,
+        stress: call.damage?.stress,
+        hope: call.grantsHope,
+        // Written as a negative on the entry, because that is what it does to
+        // the project; read as a magnitude here, because "Remove -2 progress"
+        // is not a sentence.
+        progress: call.progress === undefined ? undefined : Math.abs(call.progress)
+    };
+
+    return text.replace(/\{(\w+)\}/g, (whole, key) =>
+        values[key] === undefined ? whole : String(values[key]));
+}
 
 /* ==========================================================================
  * PROJECTS
@@ -1235,7 +1474,8 @@ export const CRISIS_ACTIONS = {
     selfDefence: {
         side: "victim", label: "Self-defence", icon: "fa-shield-halved",
         threshold: 18, traits: ["hand", "leg", "body"],
-        hint: "You fight. Unlocks Survive and Role reversal. An item usable as a weapon gives advantage.",
+        hint: "You fight. Unlocks Survive and Role reversal. An item usable as a weapon gives "
+            + "advantage.",
         weaponAdvantage: true,
         /** Which resolution actions a success opens, per duality band. */
         unlocks: {
@@ -1286,8 +1526,8 @@ export const CRISIS_ACTIONS = {
         side: "victim", label: "Role reversal", icon: "fa-arrows-rotate",
         threshold: 15, traits: ["hand", "leg", "body"], kind: "resolution",
         lockedUntil: "selfDefence",
-        hint: "Tip the scales and become the killer yourself. From then on it is them losing HP and "
-            + "Stress. Needs Self-defence first.",
+        hint: "Tip the scales and become the killer yourself. From then on it is them losing "
+            + "HP and Stress. Needs Self-defence first.",
         weaponAdvantage: true,
         hope: "You become the killer and recover all HP and Stress.",
         despair: "You become the killer.",
@@ -1510,8 +1750,31 @@ export const CRISIS_ACTIONS = {
  * accusation, closing) is a schedule for humans, not a state machine.
  */
 export const TRIAL = {
-    /** "Każdy ma maks trzy minuty nieprzerwanego monologu." */
+    /**
+     * How long a free discussion runs before the bar turns red.
+     *
+     * NOT a monologue any more. The guide's original shape was a clockwise
+     * queue of three-minute monologues, and that is what this number used to
+     * bound; the trial now opens as a free discussion that anyone may speak
+     * in, and this is the GM's default budget for it, editable every time
+     * they open the floor. It stays 180 because that is the length the table
+     * is used to, and because overrunning it is a red bar rather than a
+     * hard stop — see `overrun` in trial-floor.mjs.
+     */
     speakSeconds: 180,
+    /**
+     * An OBJECTION buys exactly one minute of silence, then the person it was
+     * aimed at gets two minutes to answer back, and then the floor returns to
+     * free discussion.
+     *
+     * Both are fixed rather than GM-editable on purpose: they are the shape of
+     * the interruption, not a budget. A GM who needs to cut a rebuttal short
+     * has the manual controls in the floor window; a GM who needs a longer one
+     * has "+30 s". Making them configurable would turn one rule everybody at
+     * the table already knows into a per-world variable nobody can predict.
+     */
+    objectionSeconds: 60,
+    rebuttalSeconds: 120,
     /**
      * A tie is a loss for the players (guide p. 31), but nothing here reads
      * that: `closeVote` publishes the counts and says a tie is a tie, and the
@@ -1742,6 +2005,22 @@ export const CLEANUP = {
     }
 };
 
+/**
+ * The playlist the GM's "put a track on now" control draws from.
+ *
+ * ONE playlist, by name. The control used to offer every playlist in the world,
+ * which made it a second copy of Foundry's own Playlists sidebar sitting inside
+ * a panel about the game's state — and it meant the button that is supposed to
+ * mean "score this moment" could just as easily start the Investigation's
+ * ambient loop by hand and leave the state machine arguing with the GM about
+ * which of them was in charge.
+ *
+ * Matched by name rather than by a stored id: a name is visible in the sidebar
+ * and fixable by renaming, an id is neither. The GM makes a playlist called
+ * this and puts their stings, their reveals and their silences in it.
+ */
+export const SITUATIONAL_PLAYLIST = "Situational";
+
 /*
  * SAFETY is deliberately not modelled here.
  *
@@ -1785,6 +2064,7 @@ export const DRPG = {
     KEY_REMNANTS,
     ACTIONS,
     INDIRECT_MURDER,
+    BROKEN_ITEMS,
     SABOTAGE_CONCEAL,
     DYNAMIC_THRESHOLDS,
     REST,
@@ -1801,4 +2081,5 @@ export const DRPG = {
     TRIAL,
     RESOLUTION_STRESS_COST,
     CLEANUP,
+    SITUATIONAL_PLAYLIST,
 };

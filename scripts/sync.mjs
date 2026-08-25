@@ -42,7 +42,9 @@ export const SYNC = {
     /** The Class Trial's speaking floor moved. */
     trial: "trial",
     /** A killing game rule was introduced, reworded or revoked. */
-    rules: "rules"
+    rules: "rules",
+    /** A room was discovered, or the GM edited the fog table by hand. */
+    fog: "fog"
 };
 
 /**
@@ -76,10 +78,14 @@ const SETTING_KINDS = {
     // The floor passing to somebody else changes a countdown every client is
     // watching, so it has to land everywhere at once.
     trialQueue: SYNC.trial,
+    // The vote being counted changes which buttons the GM's trial console will
+    // let them press, so it travels the same road as the floor.
+    trialProgress: SYNC.trial,
     // Every sheet carries the rules list, so a new rule has to redraw them all.
     killingGameRules: SYNC.rules,
     // The motive sits beside them and is read the same way.
-    motive: SYNC.rules
+    motive: SYNC.rules,
+    discoveredRooms: SYNC.fog
 };
 
 export function registerSync() {
@@ -251,10 +257,21 @@ function refresh(kind, data = {}) {
 
         case SYNC.trial:
             run("floor", () => import("./trial-floor.mjs").then(m => m.renderTrialFloor()));
+            // The trial's three facts are three rows of the campaign HUD now —
+            // which mode, how long is left, and the room — so the floor moving
+            // is a HUD redraw. Without this the mode label was only ever
+            // refreshed when the clock happened to move, which during a trial it
+            // does not, and the turn-over animation between one mode and the
+            // next never played at all.
+            run("hud", () => import("./hud.mjs").then(m => m.renderHud()));
             break;
 
         case SYNC.rules:
             run("sheets", () => import("./clock.mjs").then(m => m.refreshSheets()));
+            break;
+
+        case SYNC.fog:
+            run("fog", () => import("./fog.mjs").then(m => m.repaintFog()));
             break;
 
         default:

@@ -14,6 +14,19 @@ import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { isPrimaryGm, activeGmIds, whisperToGms, debug } from "./utils.mjs";
 
+/**
+ * Region flags this file owns.
+ *
+ * Set from Room Setup, enforced here — the same split `ROOM_FLAGS` in
+ * movement.mjs uses for a locked door, and for the same reason: the column in
+ * the GM's table is a checkbox, and the rule it turns on belongs with the code
+ * that has to answer for it.
+ */
+export const SEARCH_FLAGS = {
+    /** This room cannot be searched at all. Not "not right now" — at all. */
+    sealed: "drpgNoSearch"
+};
+
 export class SearchTokens {
 
     /** Maximum tokens a room gets per time of day. */
@@ -94,6 +107,34 @@ export class SearchTokens {
     }
 
     /**
+     * Has the GM closed this room to searching entirely?
+     *
+     * A different question from `left() <= 0`, and the difference is the whole
+     * point: an exhausted room is one the cast has already been through this
+     * time of day and it comes back at the next one. A sealed room is a place
+     * with nothing in it to find — a corridor, a wing nobody has opened, the
+     * Monokuma statue — and no amount of waiting changes that.
+     *
+     * Read off the Region rather than out of the counter store, so it survives
+     * every refill and every reset the tokens go through.
+     *
+     * @param {string} roomName
+     * @param {Scene|string|null} [scene]  A Scene or a bare scene id: the id is
+     *   what travels over the socket, and a player's spend has to be judged
+     *   against THEIR scene rather than whatever the GM is looking at.
+     */
+    static sealed(roomName, scene = canvas?.scene) {
+        if (!roomName) return false;
+        const where = typeof scene === "string" ? game.scenes?.get(scene) : scene;
+        for (const region of (where ?? canvas?.scene)?.regions ?? []) {
+            if (region.name === roomName) {
+                return Boolean(region.getFlag(MODULE_ID, SEARCH_FLAGS.sealed));
+            }
+        }
+        return false;
+    }
+
+    /**
      * Spend one token. Returns true when it was spent, false when the room is
      * exhausted. Safe to call from a player client — it forwards to the GM.
      */
@@ -113,6 +154,14 @@ export class SearchTokens {
     }
 
     static async #spendAsGm(roomName, sceneId = this.currentSceneId) {
+        // THE LAST WORD, and deliberately down here rather than only in front
+        // of the action. Every route to a search ends at this method — the
+        // sheet's tile, a player's socket request, `game.drpg.useToken` from a
+        // console — so a room the GM has sealed cannot be searched by any of
+        // them, including one that arrives from a client whose copy of the map
+        // is a few seconds out of date.
+        if (this.sealed(roomName, sceneId)) return false;
+
         const store = foundry.utils.duplicate(this.store);
         const key = this.key(roomName, sceneId);
         const current = store[key] ?? store[roomName] ?? this.max;
@@ -139,6 +188,36 @@ export class SearchTokens {
         if (key !== roomName) delete store[roomName];   // same reasoning as above
         await game.settings.set(MODULE_ID, SETTINGS.searchTokens, store);
         return true;
+    }
+
+    /**
+     * Set one room's counter outright.
+     *
+     * The Room Setup table's −1 / +1 / reset controls, which move a single room
+     * rather than restocking the map: a GM who has just ruled that a cupboard
+     * was already turned out wants that cupboard empty, not every room in the
+     * building refilled.
+     *
+     * Clamped to 0…max. Without the clamp the arrows are held down and the
+     * counter goes to −3, which every screen that reads `left()` then renders
+     * as a room owing three searches.
+     *
+     * @returns {Promise<number|null>}  The value actually stored.
+     */
+    static async setFor(roomName, value, scene = canvas?.scene) {
+        if (!game.user.isGM || !roomName) return null;
+        const max = this.max;
+        const n = Math.max(0, Math.min(max, Math.round(Number(value) || 0)));
+
+        const store = foundry.utils.duplicate(this.store);
+        const key = this.key(roomName, scene);
+        store[key] = n;
+        // Same reasoning as `#spendAsGm`: drop the legacy plain-name key only
+        // when it is genuinely a different key, or this erases the write above.
+        if (key !== roomName) delete store[roomName];
+        await game.settings.set(MODULE_ID, SETTINGS.searchTokens, store);
+        debug(`Search tokens in "${roomName}" set to ${n}.`);
+        return n;
     }
 
     /** Refill everything. Called whenever the clock advances a time of day. */
@@ -175,7 +254,10 @@ export class SearchTokens {
                 .join("");
 
         const content = rows
-            ? `<table><thead><tr><th>Room</th><th>Tokens</th></tr></thead><tbody>${rows}</tbody></table>`
+            ? `<table><thead><tr>
+                    <th>${game.i18n.localize("DRPG.SearchTokens.roomColumn")}</th>
+                    <th>${game.i18n.localize("DRPG.SearchTokens.tokensColumn")}</th>
+               </tr></thead><tbody>${rows}</tbody></table>`
             : `<p>${game.i18n.format("DRPG.SearchTokens.allFull", { max })}</p>`;
 
         return whisperToGms(`<h3>${game.i18n.localize("DRPG.SearchTokens.title")}</h3>${content}`);

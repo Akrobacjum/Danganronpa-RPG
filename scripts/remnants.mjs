@@ -13,12 +13,13 @@
  * to manipulate.
  */
 
-import { MODULE_ID, REMNANT_TYPES, REMNANT_VISIBILITY_LABELS, observeDc } from "./config.mjs";
+import { MODULE_ID, ACTIONS, REMNANT_TYPES, REMNANT_VISIBILITY_LABELS, TIME_OF_DAY_LABELS,
+    observeDc } from "./config.mjs";
 // Statically imported: `remnantsInRoom` is synchronous, and movement.mjs does
 // not reach back into this file, so there is no cycle to break.
 import { roomOfToken } from "./movement.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { gmIds, log, warn, error, plural } from "./utils.mjs";
+import { gmIds, log, warn, error, plural, workingScene } from "./utils.mjs";
 
 /**
  * Everything the guide says a Remnant carries, recorded on the token so an
@@ -97,6 +98,61 @@ const TINTS = {
     neutral: "#8a8a8a",
     final: "#ffffff"
 };
+
+/**
+ * Difficulty as a tag a player can read, not a number.
+ *
+ * Four bands over `observeDc()`'s six actual values (6, 9, 12, 15, 18, 21),
+ * named for how solid the lead feels rather than for what a GM would call the
+ * visibility band — "Obvious" and "Evident" are already spoken for, and this
+ * is a different axis: a Faint trace at Obvious (12) is genuinely harder to
+ * spot than a Key one at Obvious (6), which is the whole reason `observeDc`
+ * takes the type as well as the visibility. Naming the bands after the DC
+ * range rather than reusing REMNANT_VISIBILITY_LABELS keeps the two axes from
+ * being read as the same thing.
+ *
+ * NO EXACT NUMBER, ever — DC is derived from the trace's REAL type
+ * (`OBSERVE_TYPE_ALIAS` in config.mjs), so printing "DC 9" would let a player
+ * back out whether they are looking at a Key trace or a Prep one just by
+ * comparing it to a Key trace they found earlier. The four bands are wide
+ * enough that neighbouring types usually land in the same one.
+ */
+const DIFFICULTY_BANDS = [
+    { max: 9, key: "slight" },
+    { max: 12, key: "modest" },
+    { max: 15, key: "firm" },
+    { max: Infinity, key: "deep" }
+];
+
+/** The difficulty tag for a trace, or `null` when it has no Observe DC at all. */
+export function difficultyTag(visibility, type) {
+    const dc = observeDc(visibility, type);
+    if (dc === null) return null;
+    const band = DIFFICULTY_BANDS.find(b => dc <= b.max) ?? DIFFICULTY_BANDS[DIFFICULTY_BANDS.length - 1];
+    return game.i18n.localize(`DRPG.Remnant.difficulty.${band.key}`);
+}
+
+/**
+ * Whether a player is told anything at all about a trace they (or their
+ * side) just left — the one gate `report()` in action-rolls.mjs and its
+ * counterparts in cleanup.mjs, murder.mjs and reroll.mjs all share.
+ *
+ * Guide-approved: Hope shows it, a plain Despair does not, and a critical
+ * always does — uniformly, with no exception per action. What is shown, when
+ * it is shown, is never the exact visibility band a trace was left at: that
+ * word is the ledger's own DC lookup key (`observeDc`'s `OBSERVE_TYPE_ALIAS`),
+ * and a player told "Obvious" or "Hidden" for their own trace could compare
+ * it against later finds and back out what type each one really was — the
+ * same leak `difficultyTag` exists to close on the finder's side of the same
+ * question.
+ *
+ * @param {{isCritical?: boolean, withHope?: boolean}} roll
+ * @param {*} placed  What `dropRemnant`/`placeRemnant`/`retuneRemnant`
+ *   returned — nothing to report if nothing was actually placed or changed.
+ */
+export function traceFeedback(roll, placed) {
+    return Boolean(placed) && Boolean(roll?.isCritical || roll?.withHope);
+}
 
 /* ==========================================================================
  * CREATION
@@ -352,8 +408,12 @@ async function ensureRemnantActor() {
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 const RM = { secret: "rm.secret", request: "rm.ledgerRequest", full: "rm.ledgerFull" };
 
-/** Ledger key. Token ids are only unique inside their own scene. */
-function keyOf(tokenDoc) {
+/**
+ * Ledger key. Token ids are only unique inside their own scene.
+ * Exported for visibility.mjs, which needs the SAME shape to match a Truth
+ * Bullet's public `remnantRef` flag against a token — see `applyToRemnantToken`.
+ */
+export function keyOf(tokenDoc) {
     const scene = tokenDoc?.parent?.id ?? tokenDoc?.parent ?? null;
     return scene && tokenDoc?.id ? `${scene}.${tokenDoc.id}` : null;
 }
@@ -375,6 +435,36 @@ async function writeRemnantLedger(ledger) {
     } catch (err) {
         error("Could not write the Remnant ledger", err);
     }
+}
+
+/**
+ * Forget all of them, for the season reset.
+ *
+ * Tombstones rather than an empty object, one per key, through the same push
+ * `dropRemnantSecret` uses. This setting is client-scoped: every GM holds their
+ * own copy, and `mergeRemnantEntries` is newest-wins PER ENTRY, so an empty
+ * ledger sent across merges into nothing and changes no other GM's mind. A
+ * tombstone is the only shape the merge understands, which is the same reason
+ * the single-item drop writes one.
+ *
+ * Called after the reset has deleted the tokens themselves. An entry whose
+ * token is gone is already unreachable — `remnantData` is looked up by token —
+ * so this is about not carrying a dead season's answer key forward, not about
+ * a wrong answer today.
+ */
+export async function clearRemnantLedger() {
+    if (!game.user.isGM) return null;
+
+    const ledger = readRemnantLedger();
+    const keys = Object.keys(ledger).filter(k => !ledger[k]?.deleted);
+    if (!keys.length) return 0;
+
+    const stamp = Date.now();
+    for (const key of keys) ledger[key] = { deleted: true, updated: stamp };
+    await writeRemnantLedger(ledger);
+    for (const key of keys) pushRemnantSecret(key, ledger[key]);
+
+    return keys.length;
 }
 
 /** Record or amend what a trace is, and tell the other GMs. */
@@ -419,6 +509,188 @@ export async function dropRemnantSecret(tokenDoc) {
     ledger[key] = { deleted: true, updated: Date.now() };
     await writeRemnantLedger(ledger);
     pushRemnantSecret(key, ledger[key]);
+}
+
+/* ==========================================================================
+ * ONE RECORD, THREE VIEWS
+ * --------------------------------------------------------------------------
+ * The description used to live in three places that could disagree: this
+ * ledger's own `described` (a sentence appended the first time somebody
+ * Observed the trace), a Truth Bullet item's own `playerText` and `name`, and
+ * the token's permanently neutral name on the map. Whichever the GM edited,
+ * the other two stayed stale.
+ *
+ * `public` is the one structure a player is ever shown anything from:
+ * `{ name, img, playerText, tags }`. Every one of the three views below reads
+ * ONLY from it — never from `type`, `note`, `tiedToCrime`, `pointsAt` or
+ * `sourceActor`, which stay answer-key fields for exactly the reason D6 (see
+ * the header of this file) already gives.
+ * ========================================================================== */
+
+function defaultPublic(entry) {
+    return {
+        // `entry.label` is NOT a fallback here, on purpose — it is the GM's own
+        // reading of the token, "Obvious Faint Prep Remnant · Player B ·
+        // Search: Cleaning agent", built for the ledger and readable only by a
+        // GM. `entry.described`, by contrast, is exactly what a GM has already
+        // typed FOR a player on an earlier find, which is safe by construction.
+        // A trace nobody has described yet gets the same neutral name the
+        // token already carries — no more information than "something is
+        // here", which is all a hidden token has ever said.
+        name: entry?.described?.name || game.i18n.localize("DRPG.Remnant.tokenName"),
+        img: ICON,
+        playerText: entry?.described?.playerText || "",
+        tags: []
+    };
+}
+
+/**
+ * Read what a player may eventually be shown about this trace. GM-side only —
+ * a player's client never holds the ledger this reads from (see `remnantData`).
+ *
+ * TWO TAGS ARE COMPUTED HERE RATHER THAN STORED IN `tags`, for the same
+ * reason in both cases: a tag written once at creation describes the trace as
+ * it was, and both of these facts can change afterwards. `retuneRemnant`
+ * moves a trace's visibility, so a stored difficulty would go stale; and a GM
+ * correcting which room a trace was left in would leave a stored room tag
+ * pointing at the wrong place. Derived on read, they cannot disagree with the
+ * ledger.
+ *
+ * The room tag is what replaces the Casebook's grouping. Grouping was a view —
+ * it existed only inside that one window — whereas a tag is a property of the
+ * object, so it travels automatically onto the token, into the Truth Bullet in
+ * the player's pack, onto the evidence card in the trial and into the
+ * Investigation dashboard. Same information, in every view at once, which is
+ * what makes the Casebook safe to delete in this stage.
+ *
+ * The GM's own manual tags stay first, so the two derived ones read as a
+ * consistent suffix rather than shuffling around whatever was typed.
+ */
+export function remnantPublic(tokenDoc) {
+    if (!game.user.isGM) return null;
+    const key = keyOf(tokenDoc);
+    const entry = key ? readRemnantLedger()[key] : null;
+    if (!entry || entry.deleted) return null;
+
+    const pub = { ...defaultPublic(entry), ...(entry.public ?? {}) };
+    const derived = [entry.room || null, difficultyTag(entry.visibility, entry.type)]
+        .filter(Boolean);
+
+    return {
+        ...pub,
+        // Deduplicated: a GM who typed the room name in by hand before this
+        // was derived should not now see it twice on the same card.
+        tags: Array.from(new Set([...pub.tags, ...derived]))
+    };
+}
+
+/**
+ * Change what a player may eventually be shown, and push the change out to
+ * every view that reads it.
+ *
+ * @param {object} patch  Any of `name`, `img`, `playerText`, `tags` — merged
+ *   over what is already stored, so a caller changing one field does not have
+ *   to resend the other three.
+ */
+export async function setRemnantPublic(tokenDoc, patch = {}) {
+    if (!game.user.isGM || !tokenDoc) return null;
+    const key = keyOf(tokenDoc);
+    if (!key) return null;
+
+    const ledger = readRemnantLedger();
+    const entry = ledger[key];
+    if (!entry || entry.deleted) return null;
+
+    const merged = { ...defaultPublic(entry), ...(entry.public ?? {}), ...patch };
+    await setRemnantSecret(tokenDoc, { public: merged });
+    await propagatePublic(tokenDoc, merged);
+    return merged;
+}
+
+/**
+ * Token and Truth Bullets, brought into line with `public`.
+ *
+ * The token only moves once it is actually revealed — see the note on
+ * `revealRemnantToFinder` — because writing a player-facing name onto a
+ * token that is still `hidden: true` would be the answer key leaking through
+ * a field nobody thought to check.
+ *
+ * The token gets a COPY, never a reference: it is a world document a scene
+ * exports and imports independently of the ledger, so anything short of a
+ * copy would desync the moment either one changed without the other.
+ */
+async function propagatePublic(tokenDoc, pub) {
+    if (tokenDoc && !tokenDoc.hidden) {
+        try {
+            await tokenDoc.update({
+                name: pub.name || game.i18n.localize("DRPG.Remnant.tokenName"),
+                "texture.src": pub.img || ICON
+            });
+        } catch (err) {
+            error("Could not copy `public` onto the Remnant token", err);
+        }
+    }
+
+    try {
+        const { propagateRemnantPublic } = await import("./truth-bullets.mjs");
+        await propagateRemnantPublic(tokenDoc.id, pub);
+    } catch (err) {
+        error("Could not propagate `public` to the Truth Bullets copied from this trace", err);
+    }
+}
+
+/**
+ * The moment a trace stops being only the GM's note: somebody just copied it
+ * as a Truth Bullet, so the object it came from is real now, not merely a
+ * marker on the map.
+ *
+ * Only the FIRST copy reveals it — a second finder walks up to a token
+ * already sitting there. Nothing happens if it is already revealed, so this
+ * is safe to call on every copy without checking first.
+ *
+ * REVEALING BY UNSETTING `hidden`, never by forcing `token.visible` — Foundry
+ * recomputes `visible` from its own vision logic on every refresh (see the
+ * note in visibility.mjs's `hide()`), so overwriting it directly is exactly
+ * as unreliable there as it would be here. `hidden: false` is the one flag
+ * Foundry actually owns and keeps honest across versions. Per-player secrecy
+ * from here on is a DIFFERENT question — whether each individual player who
+ * has NOT yet found this trace still sees it — and that is answered in
+ * visibility.mjs, the same way the room rule already is: by forcing
+ * `visible = false` back down on `refreshToken` for anyone who does not
+ * qualify, not by keeping the token `hidden` for everyone.
+ */
+export async function revealRemnantToFinder(tokenDoc) {
+    if (!game.user.isGM || !tokenDoc) return null;
+    if (!tokenDoc.hidden) return tokenDoc;
+
+    await tokenDoc.update({ hidden: false });
+    const pub = remnantPublic(tokenDoc);
+    if (pub) await propagatePublic(tokenDoc, pub);
+    return tokenDoc;
+}
+
+/**
+ * By ids rather than a document — Observe resolves on the GM's client, which
+ * is very often looking at a scene other than the one the trace is on, the
+ * same reason `setRemnantSecretById` exists.
+ */
+function tokenById(sceneId, tokenId) {
+    return game.scenes.get(sceneId)?.tokens?.get(tokenId) ?? null;
+}
+
+export function remnantPublicById(sceneId, tokenId) {
+    const tokenDoc = tokenById(sceneId, tokenId);
+    return tokenDoc ? remnantPublic(tokenDoc) : null;
+}
+
+export async function setRemnantPublicById(sceneId, tokenId, patch = {}) {
+    const tokenDoc = tokenById(sceneId, tokenId);
+    return tokenDoc ? setRemnantPublic(tokenDoc, patch) : null;
+}
+
+export async function revealRemnantToFinderById(sceneId, tokenId) {
+    const tokenDoc = tokenById(sceneId, tokenId);
+    return tokenDoc ? revealRemnantToFinder(tokenDoc) : null;
 }
 
 function pushRemnantSecret(key, entry) {
@@ -515,13 +787,50 @@ export function remnantData(tokenDoc) {
         subject: entry.subject,
         note: entry.note,
         pointsAt: entry.pointsAt,
+        sourceActor: entry.sourceActor,
         sourceName: entry.sourceName,
         room: entry.room,
         chapter: entry.chapter,
         day: entry.day,
         timeOfDay: entry.timeOfDay,
-        hidden: tokenDoc.hidden
+        hidden: tokenDoc.hidden,
+        // What a player is shown, or would be once they find it — see
+        // `remnantPublic`. Included here so a GM screen reading `remnantData`
+        // does not have to make a second pass over the ledger for it.
+        public: remnantPublic(tokenDoc)
     };
+}
+
+/**
+ * One line of context about a trace: who left it, where, when and doing what.
+ *
+ * Every one of these facts is already in `remnantData()`, and until now each
+ * screen decided for itself which subset of them to render — the dashboard's
+ * Key Remnant row showed the scale and the note, the planner's "on the map"
+ * picker showed the visibility and the room, and a GM planning the fifth clue
+ * had to open the card on the map to find out who had left the other four.
+ * They are the same six facts everywhere now, in the same order, formatted
+ * once here.
+ *
+ * Empty fields are DROPPED rather than dashed. A row of "— · — · Ch 2" reads
+ * as missing data; a shorter line reads as a trace that simply has no source,
+ * which is what a GM-placed clue is.
+ *
+ * @param {object} data  A `remnantData()` record.
+ * @returns {string}  Plain text, unescaped — the caller escapes it.
+ */
+export function traceContextLine(data) {
+    if (!data) return "";
+    const timeOfDay = data.timeOfDay
+        ? (TIME_OF_DAY_LABELS[data.timeOfDay] ?? data.timeOfDay) : null;
+    return [
+        data.sourceName || null,
+        data.room || null,
+        data.chapter ? `Ch ${data.chapter}` : null,
+        data.day ? `D ${data.day}` : null,
+        timeOfDay,
+        data.action ? (ACTIONS[data.action]?.label ?? data.action) : null
+    ].filter(Boolean).join(" · ");
 }
 
 /**
@@ -540,20 +849,39 @@ export async function reportRemnants(scene = null) {
     const rows = scenes.flatMap(s =>
         remnantsOn(s).map(t => remnantData(t)).filter(Boolean).map(r => `
         <tr>
-            <td>${foundry.utils.escapeHTML(r.visibilityLabel)} ${foundry.utils.escapeHTML(r.typeLabel)}${r.faint ? " (Faint)" : ""}${r.reinforced ? " ★" : ""}</td>
+            <td>${foundry.utils.escapeHTML(r.visibilityLabel)} ${foundry.utils.escapeHTML(r.typeLabel)}${r.faint ? ` ${game.i18n.localize("DRPG.Remnant.report.faintTag")}` : ""}${r.reinforced ? " ★" : ""}</td>
             ${multi ? `<td>${foundry.utils.escapeHTML(s.name)}</td>` : ""}
             <td>${foundry.utils.escapeHTML(r.room ?? "—")}</td>
             <td>${foundry.utils.escapeHTML(r.sourceName ?? "—")}<br><small>${foundry.utils.escapeHTML(r.action ?? "")}${r.subject ? `: ${foundry.utils.escapeHTML(r.subject)}` : ""}</small></td>
-            <td>Ch ${r.chapter ?? "?"} · D ${r.day ?? "?"}<br><small>${foundry.utils.escapeHTML(r.timeOfDay ?? "")}</small></td>
-            <td>${r.hidden ? "hidden" : "revealed"}</td>
+            <td>${game.i18n.format("DRPG.Remnant.report.stamp", {
+                chapter: r.chapter ?? "?", day: r.day ?? "?"
+            })}<br><small>${foundry.utils.escapeHTML(r.timeOfDay ?? "")}</small></td>
+            <td>${game.i18n.localize(r.hidden
+                ? "DRPG.Remnant.report.hidden" : "DRPG.Remnant.report.revealed")}</td>
         </tr>`)
     ).join("");
 
     const { whisperToGms } = await import("./utils.mjs");
+    // The headings used to be typed into this template in English, which put
+    // them outside i18n and outside every measurement made of the rest of the
+    // module's text. Four of the five columns already had a key — the Remnant
+    // card asks the same questions of the same record — so they are reused
+    // rather than written twice.
+    const t = key => game.i18n.localize(key);
+    const heading = `<h3>${t("DRPG.Remnant.report.heading")}</h3>`;
+
     return whisperToGms(rows
-        ? `<h3>Remnants</h3><table><thead><tr><th>What</th>${multi ? "<th>Scene</th>" : ""}<th>Room</th><th>Left by</th><th>When</th><th></th></tr></thead><tbody>${rows}</tbody></table>
-           <p><small>★ = reinforced, cannot be removed by the killer.</small></p>`
-        : `<h3>Remnants</h3><p>${scene ? "None on this scene." : "None anywhere."}</p>`);
+        ? `${heading}<table><thead><tr>
+               <th>${t("DRPG.Remnant.cardWhat")}</th>
+               ${multi ? `<th>${t("DRPG.Remnant.report.scene")}</th>` : ""}
+               <th>${t("DRPG.Remnant.cardWhere")}</th>
+               <th>${t("DRPG.Remnant.leftBy")}</th>
+               <th>${t("DRPG.Remnant.report.when")}</th>
+               <th></th>
+           </tr></thead><tbody>${rows}</tbody></table>
+           <p><small>${t("DRPG.Remnant.report.reinforcedNote")}</small></p>`
+        : `${heading}<p>${t(scene
+            ? "DRPG.Remnant.report.noneScene" : "DRPG.Remnant.report.noneAnywhere")}</p>`);
 }
 
 /* ==========================================================================
@@ -634,104 +962,6 @@ export async function confirmClearFaint() {
     return cleared;
 }
 
-export async function openRemnantManager(scene = canvas?.scene) {
-    if (!game.user.isGM) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
-        return null;
-    }
-
-    const DialogV2 = foundry.applications.api.DialogV2;
-    const tokens = remnantsOn(scene);
-
-    if (!tokens.length) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Remnant.noneHere"));
-        return null;
-    }
-
-    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
-
-    const rows = tokens.map(t => {
-        const r = remnantData(t);
-        if (!r) return "";
-        const when = [r.chapter ? `Ch ${r.chapter}` : null, r.day ? `D ${r.day}` : null, r.timeOfDay]
-            .filter(Boolean).join(" · ");
-        return `<tr>
-            <td>
-                <strong>${esc(r.visibilityLabel)} ${esc(r.typeLabel)}</strong>
-                <br><small>${esc(r.room ?? "—")}${when ? ` · ${esc(when)}` : ""}</small>
-                <br><small>${esc(r.sourceName ?? "—")}${r.subject ? ` · ${esc(r.subject)}` : ""}</small>
-            </td>
-            <td style="text-align:center"><input type="checkbox" name="faint.${t.id}" ${r.faint ? "checked" : ""} /></td>
-            <td style="text-align:center"><input type="checkbox" name="crime.${t.id}" ${r.tiedToCrime ? "checked" : ""} /></td>
-            <td style="text-align:center"><input type="checkbox" name="reinf.${t.id}" ${r.reinforced ? "checked" : ""} /></td>
-        </tr>`;
-    }).join("");
-
-    const result = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Remnant.manageTitle") },
-        classes: ["drpg-panel", "drpg-projects"],
-        content: `<form>
-            <p>${game.i18n.localize("DRPG.Remnant.manageIntro")}</p>
-            <table>
-                <thead><tr>
-                    <th>${game.i18n.localize("DRPG.Remnant.what")}</th>
-                    <th>${game.i18n.localize("DRPG.Remnant.faintColumn")}</th>
-                    <th>${game.i18n.localize("DRPG.Remnant.crimeColumn")}</th>
-                    <th>${game.i18n.localize("DRPG.Remnant.reinforcedColumn")}</th>
-                </tr></thead>
-                <tbody>${rows}</tbody>
-            </table>
-            <p class="notes">${game.i18n.localize("DRPG.Remnant.manageNote")}</p>
-        </form>`,
-        buttons: [
-            {
-                action: "save",
-                label: game.i18n.localize("DRPG.Assign.save"),
-                default: true,
-                callback: (e, b, d) => {
-                    const form = d.element.querySelector("form");
-                    return tokens.map(t => ({
-                        id: t.id,
-                        faint: form.querySelector(`[name="faint.${CSS.escape(t.id)}"]`)?.checked ?? false,
-                        tiedToCrime: form.querySelector(`[name="crime.${CSS.escape(t.id)}"]`)?.checked ?? false,
-                        reinforced: form.querySelector(`[name="reinf.${CSS.escape(t.id)}"]`)?.checked ?? false
-                    }));
-                }
-            },
-            // Used to be its own GM-panel tile. Clearing the Faint traces is a
-            // decision made while looking at exactly this table — which ones are
-            // Faint, which are tied to the crime — so the button belongs on it.
-            { action: "clearFaint", label: game.i18n.localize("DRPG.Panel.clearFaint") },
-            { action: "cancel", label: game.i18n.localize("DRPG.Panel.close") }
-        ],
-        rejectClose: false
-    });
-
-    if (!result || result === "cancel") return null;
-
-    if (result === "clearFaint") {
-        await confirmClearFaint();
-        return openRemnantManager();          // back to the table it was pressed on
-    }
-
-    let changed = 0;
-    for (const entry of result) {
-        const token = tokens.find(t => t.id === entry.id);
-        if (!token) continue;
-        const before = remnantData(token);
-        if (before.faint === entry.faint
-            && before.tiedToCrime === entry.tiedToCrime
-            && before.reinforced === entry.reinforced) continue;
-
-        await setRemnantFlags(token, entry);
-        changed += 1;
-    }
-
-    ui.notifications.info(plural("DRPG.Remnant.manageSaved", { n: changed }));
-    log(`Remnant flags updated on ${changed} token(s).`);
-    return changed;
-}
-
 /**
  * Change or remove a Remnant that has already been placed.
  *
@@ -808,9 +1038,15 @@ export async function retuneRemnant(sceneId, tokenId, { visibility = null, remov
  * Autopsy Remnants are dropped: their column says "no roll", because the
  * Autopsy bullet is handed out rather than found.
  *
+ * @param {object} [options]
+ * @param {string} [options.preferSource]  An actor id. "Follow my traces"
+ *   asks for the observer's OWN traces first — see action-rolls.mjs — which
+ *   outranks even `tiedToCrime`: a player looking for what they themselves
+ *   left behind is not asking the guide's "show me the murder first"
+ *   question, and this shelf is what answers theirs instead.
  * @returns {Array<{token: TokenDocument, data: object, dc: number}>} easiest first.
  */
-export function rankForObserve(room, scene = canvas?.scene) {
+export function rankForObserve(room, scene = workingScene(), { preferSource = null } = {}) {
     const ranked = remnantsInRoom(room, scene)
         .map(token => {
             const data = remnantData(token);
@@ -821,6 +1057,11 @@ export function rankForObserve(room, scene = canvas?.scene) {
         .filter(Boolean);
 
     return ranked.sort((a, b) => {
+        if (preferSource) {
+            const aMine = a.data.sourceActor === preferSource;
+            const bMine = b.data.sourceActor === preferSource;
+            if (aMine !== bMine) return aMine ? -1 : 1;
+        }
         if (a.data.tiedToCrime !== b.data.tiedToCrime) return a.data.tiedToCrime ? -1 : 1;
         return a.dc - b.dc;
     });
@@ -843,14 +1084,18 @@ export async function migrateRemnants() {
         return null;
     }
 
-    let moved = 0, stripped = 0, already = 0;
+    let moved = 0, stripped = 0, already = 0, publicSeeded = 0;
 
     for (const scene of game.scenes) {
         for (const token of scene.tokens) {
             if (!token.getFlag(MODULE_ID, REMNANT_FLAGS.isRemnant)) continue;
 
             const old = token.getFlag(MODULE_ID, REMNANT_FLAGS.type);
-            if (old === undefined) { already++; continue; }
+            if (old === undefined) {
+                already++;
+                publicSeeded += await seedPublicIfMissing(token);
+                continue;
+            }
 
             const f = key => token.getFlag(MODULE_ID, REMNANT_FLAGS[key]);
             await setRemnantSecret(token, {
@@ -866,6 +1111,7 @@ export async function migrateRemnants() {
                 label: token.name
             });
             moved++;
+            publicSeeded += await seedPublicIfMissing(token);
 
             // Strip the flags and neutralise the name in one write. `-=` is
             // Foundry's delete syntax; anything less removes the value and
@@ -884,14 +1130,36 @@ export async function migrateRemnants() {
         }
     }
 
-    const line = `Remnants migrated: ${moved} moved into the ledger, ${stripped} tokens stripped, ${already} already done.`;
+    const line = `Remnants migrated: ${moved} moved into the ledger, ${stripped} tokens stripped, `
+        + `${already} already done, ${publicSeeded} \`public\` record(s) backfilled.`;
     log(line);
     ui.notifications.info(line);
-    return { moved, stripped, already };
+    return { moved, stripped, already, publicSeeded };
+}
+
+/**
+ * Backfill `public` on a ledger entry that predates it, from `described` and
+ * `label` — the two fields that already carried a player-facing name and
+ * sentence before `public` existed. Idempotent: an entry that already has a
+ * `public` is left alone, so this is safe to run over every Remnant on every
+ * migration pass rather than only the ones this run happens to touch.
+ *
+ * @returns {Promise<number>} 1 if a record was seeded, 0 otherwise — summed
+ *   by the caller into a single count for the summary line.
+ */
+async function seedPublicIfMissing(tokenDoc) {
+    const key = keyOf(tokenDoc);
+    if (!key) return 0;
+    const ledger = readRemnantLedger();
+    const entry = ledger[key];
+    if (!entry || entry.deleted || entry.public) return 0;
+
+    await setRemnantSecret(tokenDoc, { public: defaultPublic(entry) });
+    return 1;
 }
 
 /** Every Remnant token on a scene. */
-export function remnantsOn(scene = canvas?.scene) {
+export function remnantsOn(scene = workingScene()) {
     if (!scene) return [];
     return scene.tokens.filter(t => t.getFlag(MODULE_ID, REMNANT_FLAGS.isRemnant));
 }
@@ -904,7 +1172,7 @@ export function remnantsOn(scene = canvas?.scene) {
  * all here: Remnant tokens are created by script, and Foundry has not populated
  * their region membership at that point.
  */
-export function remnantsInRoom(room, scene = canvas?.scene) {
+export function remnantsInRoom(room, scene = workingScene()) {
     if (!room) return [];
     return remnantsOn(scene).filter(t => roomOfToken(t) === room);
 }

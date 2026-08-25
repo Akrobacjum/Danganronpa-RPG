@@ -206,11 +206,15 @@
       },
       "lockRollDialog": {
         "name": "Lock the roll window for players",
-        "hint": "Players cannot touch the dice, the statistic, advantage, experiences or the situational bonus. Those come from the action, a Hope Call or the GM. Picking an experience no longer charges Hope quietly either — spending it is the Experience Hope Call. GMs are unaffected."
+        "hint": "Players cannot touch the dice, the statistic, advantage, experiences or the bonus — those come from the action, a Hope Call or the GM. Spending an experience is the Experience Hope Call. GMs are unaffected."
       },
       "roomVisibility": {
         "name": "Players only see who is in their room",
         "hint": "Hides other characters unless they stand in the same room. Walls and vision get most of the way there; this closes the gaps left by doorways, archways and maps built without walls. GMs see everything."
+      },
+      "regionFog": {
+        "name": "Rooms decide what players can see",
+        "hint": "Lights the whole map and lets the module's room fog do the hiding: the room you are in is clear, rooms you have been to show through a veil, the rest is fogged. Off, Foundry's own line-of-sight vision applies. GMs see everything."
       },
       "lockPlayerResources": {
         "name": "Players cannot edit Actions, Hope or statistics",
@@ -252,7 +256,16 @@
       "exhausted": "This room is searched out. Try again next time of day.",
       "pickedClean": "Somebody got here first. The action is spent.",
       "noGm": "No GM is connected, so no search token can be spent.",
-      "timeout": "No GM answered. The search was not counted."
+      "timeout": "No GM answered. The search was not counted.",
+      "spendOne": "Spend one",
+      "giveOne": "Give one back",
+      "refillRoom": "Refill this room",
+      "roomSetupNote": "Search tokens: {max} per room per time of day. The arrows move this room only and take effect at once; the clock refills every room when the time of day changes.",
+      "roomColumn": "Room",
+      "tokensColumn": "Tokens",
+      "sealed": "This room cannot be searched. There is nothing in here to find, and no time of day changes that.",
+      "sealedColumn": "No search",
+      "sealedNote": "“No search” closes a room to the Search action completely — not for this time of day, but until you clear it. Its tokens are left where they are and come back the moment you do."
     },
     "Sheet": {
       "ultimateLabel": "Ultimate",
@@ -262,11 +275,14 @@
       "groupWeapons": "Weapons",
       "groupCleaners": "Cleaners",
       "groupTruthBullets": "Truth Bullets",
-      "groupEmpty": "— empty —"
+      "groupEmpty": "— empty —",
+      "groupKeys": "Room Keys"
     },
     "Guard": {
       "blocked": "Only the GM changes that. Actions, Hope and statistics move through play.",
-      "nameLocked": "Only a GM can rename an item. What a thing is called is part of the evidence."
+      "nameLocked": "Only a GM can rename an item. What a thing is called is part of the evidence.",
+      "descriptionLocked": "Only a GM edits what an item says. What a thing is is part of the evidence.",
+      "itemLocked": "Only a GM edits an item's name, picture or description. What a thing is is part of the evidence."
     },
     "Listen": {
       "prompt": "You are in {room}. Which neighbouring room?",
@@ -307,7 +323,6 @@
       "intro": "A roll that lands with Despair feeds that student's Monokuma.",
       "monokuma": "Monokuma",
       "save": "Save",
-      "saved": "Student division saved.",
       "splitEvenly": "Split evenly",
       "splitDone": "Students split evenly between Monokumas.",
       "failed": "The division could not be saved. See the console.",
@@ -341,8 +356,6 @@
       "chapter": "Chapter {n}",
       "day": "Day {n}",
       "sessionTooltip": "Session {session}",
-      "advance": "Next time of day — refills actions, free Moves and search tokens",
-      "startEclipse": "Start the Eclipse — lights out, everyone places their token (2 crossings)",
       "endEclipse": "End the Eclipse and begin the next time of day",
       "rewind": "Step back one time of day. A correction — it refills nothing",
       "elapsed": "{minutes} min in",
@@ -350,20 +363,32 @@
       "elapsedTooltip": "How long this time of day has run. It turns amber at 15 minutes and red at 30 — the handbook's advice is one action by the first mark and both by the second.",
       "stillToAct": "Still to act",
       "stillToActTooltip": "Students with actions left. The roster on the left says which ones.",
-      "freeMoves": "Free moves",
       "stillPlacing": "Still placing",
       "stillPlacingTooltip": "Students who have a crossing of the Eclipse left to use.",
-      "freeMovesLeftTooltip": "Students who still have their free Move.",
       "startEclipseNamed": "Start the {time} Eclipse — lights out, everyone places their token (2 crossings)",
       "startEclipseFree": "Start the {time} Eclipse — lights out, everyone picks any room on the map",
       "startEclipseNewSession": "End the session and open the {time} Eclipse — a new session, and everyone places their token (2 crossings)",
-      "eclipseRunningTooltip": "The placement window before this time of day. It has not begun yet — the clock moves when the Eclipse ends."
+      "eclipseRunningTooltip": "The placement window before this time of day. It has not begun yet — the clock moves when the Eclipse ends.",
+      "roomNowhere": "Between rooms",
+      "roomProject": "Available project",
+      "roomNoProject": "No available project",
+      "roomTokens": "{left} of {max} search tokens left in this room",
+      "roomTokensTooltip": "Search tokens: {left} of {max} left here this time of day.",
+      "trial": {
+        "discussion": "Discussion",
+        "debate": "Debate",
+        "objection": "Objection",
+        "rebuttal": "Rebuttal"
+      },
+      "trialTooltip": "The Class Trial. The debate is driven by the GM's trial console and by evidence being presented — not from here.",
+      "trialClockTooltip": "How long this part of the debate has left.",
+      "trialEveryone": "Everyone",
+      "trialVersus": "vs {who}"
     },
     "Action": {
       "panelTitle": "Actions",
       "unknown": "Unknown action: {key}.",
       "failed": "That action could not be completed. See the console.",
-      "cancelled": "Cancelled.",
       "nothing": "Nothing happens.",
       "roll": "Roll",
       "critical": "Critical",
@@ -375,24 +400,17 @@
         "one": "You have {left} action left and this needs {needed}.",
         "other": "You have {left} actions left and this needs {needed}."
       },
-      "costMove": "free once per time of day",
       "noRoom": "Your token is outside every room. Move it into one, or ask the GM.",
       "found": "Found a Tier {tier} item: <strong>{item}</strong>",
       "tierFound": "Tier {tier}",
-      "progress": "+{n} progress",
-      "leavesRemnant": "Leaves {a} {visibility} Prep Remnant.",
+      "leavesRemnant": "Leaves a trace behind.",
       "tokensLeft": {
         "one": "{room}: {n} search token left this time of day.",
         "other": "{room}: {n} search tokens left this time of day."
       },
       "actionReturned": "Critical — the action is returned.",
-      "moveFree": "Used the free Move for this time of day.",
-      "movePaid": "No free Move left, so this one cost an action.",
-      "observeCrit": "Critical — a Truth Bullet with its category identified, and a substantial hint from the GM.",
       "observeGm": "Total {total}. Score it against the Observe table for whatever they are looking at. A failure costs them 2 Stress.",
-      "searchGoalTitle": "What are you looking for?",
       "searchGoalHint": "What turns up depends on the room and the roll.",
-      "goalUsable": "Something usable",
       "goalHealing": "Something to patch me up",
       "goalHealingHint": "Food and medicine. Restores HP.",
       "goalStress": "Something to settle my nerves",
@@ -414,7 +432,6 @@
       "dynamicHint": "Describe what you are doing; the GM sets the difficulty. Dynamic actions have gentler thresholds than the standard ones — that is the reward for inventing something.",
       "dynamicDescribe": "Describe what your character does. The GM reads this and sets the difficulty.",
       "dynamicPlaceholder": "e.g. I water the plants in the garden, looking for anything buried.",
-      "dynamicSetBy": "Now set the difficulty and the statistic:",
       "dynamicFrom": "{actor} is attempting something in {room}:",
       "dynamicSet": "Set the difficulty",
       "dynamicRefuse": "Refuse",
@@ -439,14 +456,11 @@
       },
       "analyzeGm": "Score this against the Analyze table for that Truth Bullet. A failure locks it for them until the chapter ends.",
       "murderConfirm": "This opens a direct murder. It needs prior agreement with the GM and the consent of the other player. The action is spent even if the conditions fail.",
-      "murderPrompt": "Confirm the plan for the GM: the victim, the room, and anything you are relying on.",
-      "murderPromptVictim": "You are alone with {victim}. Confirm the plan for the GM: how you are doing it, and anything you are relying on.",
       "murderNobody": "Nobody here to kill. The attempt is spent; try again another time of day.",
       "murderWitness": {
         "one": "You are not alone with your victim — {n} other person would see it. The attempt is spent; try again another time of day.",
         "other": "You are not alone with your victim — {n} other people would see it. The attempt is spent; try again another time of day."
       },
-      "murderBlocked": "The conditions were not met. Nothing happened, and the action is spent.",
       "progressOn": "+{n} progress on {project}",
       "sabotageSeen": "{actor} is seen doing something to a project in {room}.",
       "sabotageWatched": "{actor} is doing something to {project} in {room}, and everyone here can see roughly what.",
@@ -455,25 +469,35 @@
       "costAnyRoom": "any room",
       "tierShort": "Tier {tier}",
       "waitsForGm": "GM",
-      "murderAloneWith": "You are alone with {victim} in {room}.",
-      "murderRoomEmpty": "There is nobody else in {room}.",
-      "murderRoomCrowded": "{who} are in {room} with you. A direct murder needs the two of you and nobody else.",
       "murderSpendsAnyway": "Confirming spends the action whether or not it comes off — and you will not find out which until the Eclipse ends.",
-      "murderConfirmVictim": "Kill {victim}?",
       "murderPromptParked": "What are you doing, and how? The GM reads this when the lights come up.",
       "murderParkedConfirm": "Make the attempt",
-      "murderParked": "Your move is made. Nobody knows how it went — not even you — until the Eclipse ends and the room settles.",
+      "murderParked": "Your move is made. The GM has to allow it, and nobody knows how it went — not even you — until the Eclipse ends and the room settles.",
       "murderParkedToast": "Declared. The answer comes when the Eclipse does.",
       "murderAlreadyRunning": "Somebody else got there first. An incident was already running when the lights came up, and the action is spent.",
       "murderSecondDeclaration": "{killer} also declared a direct murder in the dark, but an incident was already open. Their attempt was refused and their action is spent.",
       "murderCancelled": "{killer}'s direct murder came to nothing in {room} — {reason}",
       "murderOpensTitle": "A killing in the dark",
       "murderOpens": "{killer} declared a direct murder during the Eclipse and ended it alone with {victim} in {room}. The incident is open.",
-      "directMurder": "Direct Murder"
+      "directMurder": "Direct Murder",
+      "noVariants": "Nothing here can be done right now.",
+      "requestOptional": "Optional — leave it empty and the GM rules on the roll alone.",
+      "searchTokensLeft": "Searches left here: {left} of {max}.",
+      "failStress": "A failed roll costs {n} Stress.",
+      "murderNeedsApproval": "A direct murder, declared in the dark. Nothing opens until you allow it — and who they end up alone with is not settled yet.",
+      "murderApprove": "Allow it",
+      "murderRefuse": "Refuse",
+      "murderApproved": "The GM has allowed the attempt. What comes of it still depends on where everyone ends up.",
+      "murderRefused": "The GM did not allow it. The action is spent.",
+      "murderApprovedGm": "{name}'s direct murder is allowed. It resolves when the Eclipse ends.",
+      "murderRefusedGm": "{name}'s direct murder is refused. Their action is spent.",
+      "murderNotParked": "That declaration is no longer waiting — the Eclipse has ended, or it has already been ruled on.",
+      "murderAsk": "{killer} declared a direct murder in the dark and has ended up alone with {victim} in {room}. Open the incident?",
+      "murderAskNote": "You were asked this when it was declared and it is still unanswered. Refusing opens nothing; the action stays spent either way."
     },
     "Analyze": {
       "analyseBullet": "Identify a Truth Bullet",
-      "askHint": "Ask the GM for a hint",
+      "askHint": "Fixate on a specific matter",
       "whichBullet": "Which Truth Bullet?",
       "onBullet": "Analyse: {name}",
       "noBullets": "You have nothing left to analyse.",
@@ -483,7 +507,12 @@
       "failedTitle": "You get nowhere",
       "failed": "You cannot make sense of {name}. It stays with you, still Neutral, and you cannot try this one again until the next chapter.",
       "critTitle": "Critical Analyze",
-      "critPrompt": "{actor} identified {name} as {a} {type} on a critical — they have earned a substantial hint on top of it."
+      "critPrompt": "{actor} identified {name} as {a} {type} on a critical — they have earned a substantial hint on top of it.",
+      "analyseBulletHint": {
+        "one": "Work out what one of your {n} unidentified Truth Bullets really is.",
+        "other": "Work out what one of your {n} unidentified Truth Bullets really is."
+      },
+      "askHintHint": "No evidence in hand — ask the GM to point you somewhere instead."
     },
     "Items": {
       "manage": "Give / take items",
@@ -536,11 +565,22 @@
       "creativeSent": "Sent to the GM. The item stays with you until they rule on it.",
       "confirmUse": "Use {item}?",
       "wouldRestore": "It will restore {what}.",
-      "wouldRestoreNothing": "It restores nothing — you are already full on everything it gives."
+      "wouldRestoreNothing": "It restores nothing — you are already full on everything it gives.",
+      "broken": "Broken",
+      "brokenTooltip": "Used up. It still takes up its slot — throw it away or put it in your stash.",
+      "brokenUseless": "{item} is broken.",
+      "discardTooltip": "Throw it away. Leaves a trace.",
+      "discardTitle": "Throw away {item}",
+      "discardPrompt": "Get rid of {item} here, in this room.",
+      "discardNote": "Rolled on Shadow. How obvious the trace is depends on the roll — and the trace stays where you leave it. Your own stash is the quiet alternative.",
+      "discarded": "{item} — thrown away.",
+      "discardTrace": "You left something behind.",
+      "discardOnlyBroken": "Only a broken item can be thrown away.",
+      "discardStashed": "Take it out of your stash first.",
+      "discardNoTrace": "{item} is still on you — there was nowhere to leave it. A thing thrown away has to be thrown away somewhere."
     },
     "Monocub": {
       "panelTitle": "Monocub",
-      "hopeReadout": "Hope: {held} / {max}. Only a GM tops this up.",
       "meddleCost": "{hope} Hope, {actions} action.",
       "cannotMeddle": "Not enough action, or not enough Hope.",
       "mustBeDead": "Only a character who has already died becomes a Monocub.",
@@ -571,7 +611,8 @@
       "silenceOff": "The silence is lifted. You may discuss the crime again.",
       "meddleCostShort": "{hope} Hope, {actions} action",
       "silencedBadge": "Cannot speak",
-      "silencedTooltip": "A Monokuma has taken your voice for the rest of the chapter. You may act, but you may not speak at the table."
+      "silencedTooltip": "A Monokuma has taken your voice for the rest of the chapter. You may act, but you may not speak at the table.",
+      "invite": "Invite as a Monocub"
     },
     "Mastermind": {
       "dialogTitle": "The Mastermind",
@@ -608,35 +649,57 @@
       "confirmed": "{name} is the Mastermind. Only the GMs know, and nothing was written to the world.",
       "cleared": "The Mastermind is cleared. Nobody is set.",
       "finalBanner": "THE FINAL TRIAL",
-      "finalAnnounce": "This is the last one. Everything you have been told about this place is on the table, and so is whoever has been telling it to you."
+      "finalAnnounce": "This is the last one. Everything you have been told about this place is on the table, and so is whoever has been telling it to you.",
+      "finalRemnantsTitle": "Final Key Remnants",
+      "finalRemnantsNote": "The clues the endgame turns on. Their type reinforces them, so nobody can clean one away.",
+      "noFinals": "None placed yet.",
+      "finalAddNote": "Leave the room empty to change nothing. The clue is placed on the scene you are looking at, somewhere inside the room.",
+      "finalPlacedIn": "Final Key Remnant placed in {room}."
     },
     "Floor": {
-      "speaking": "Speaking",
-      "manageTitle": "The floor",
-      "nobody": "There is nobody alive to give the floor to.",
-      "startIntro": "A volunteer opens, then the floor passes down the order. Three minutes each, uninterrupted — unless somebody objects.",
-      "volunteer": "Who opens?",
-      "seconds": "Seconds each",
-      "startNote": "The order is everyone still alive, from the volunteer. An OBJECTION takes the floor from whoever holds it.",
-      "start": "Open the floor",
+      "nobody": "There is nobody alive to open the debate with.",
+      "seconds": "Debate length (seconds)",
       "startTrial": "Start the Class Trial",
-      "startTrialIntro": "Everything the trial needs, in one step. Choose who opens and this does the rest.",
+      "startTrialIntro": "A Class Trial opens in discussion: everybody talks, and evidence goes on the table without taking the floor. The Nonstop Debate is something you open inside it.",
       "startTrialStepPhase": "The campaign moves to Class Trial.",
-      "startTrialStepFloor": "The floor opens and the speaking order is built from the living.",
       "startTrialStepAnnounce": "The trial is announced in chat and the music follows.",
-      "orderPreview": "Order: {order}",
-      "trialOpened": "The Class Trial is in session. {who} opens.",
+      "trialOpened": "The Class Trial is in session. Talk it through; the debate opens when the GM says so.",
       "endTrial": "End the trial",
-      "endTrialConfirm": "This closes the floor and opens the vote. The verdict comes after it.",
-      "holding": "{name} has the floor — {seconds}s left.",
-      "objectionNote": "You never move the floor for an objection: presenting evidence takes it.",
-      "next": "Next speaker",
-      "end": "Close the floor",
-      "evidence": "{n} shown",
-      "evidenceHint": "Truth Bullets presented in this trial.",
-      "manageTrial": "Manage class trial",
-      "manageRunning": "A Class Trial is running. Take the floor to move the speaking order along, or end it and go to the vote.",
-      "manageNotRunning": "No Class Trial is running. Starting one sets the phase, opens the floor, builds the speaking order and announces it."
+      "endTrialConfirm": "This closes the debate, ends the Class Trial and returns the campaign to Daily Life.",
+      "objectionNote": "You never move the debate for an objection: presenting evidence takes it.",
+      "manageTrial": "Class Trial",
+      "manageRunning": "A Class Trial is running. Open the debate when the room is ready to argue, and work down the sections below: the vote, the verdict, then the end of the chapter.",
+      "manageNotRunning": "No Class Trial is running. Starting one sets the phase and announces it to the table — the trial opens in discussion, and you open the debate inside it.",
+      "mode": {
+        "discussion": "Nonstop Debate",
+        "objection": "OBJECTION",
+        "rebuttal": "Rebuttal"
+      },
+      "versus": "vs",
+      "discussionNote": "The debate's clock is your budget for it, not a limit: running past it turns the clock red and nothing else. An OBJECTION is what takes the debate away from the table.",
+      "holdingDiscussion": "Open discussion — {seconds} s left on your budget. Everyone may speak.",
+      "holdingObjection": "{who} holds the debate, objecting to {target} — {seconds} s. Nobody else may speak; the rebuttal follows automatically.",
+      "holdingRebuttal": "Rebuttal: {who} and {target}, {seconds} s. Only those two; it returns to open discussion by itself.",
+      "modeNote": "This runs out on its own. Use the buttons below to cut it short, give it another half minute, or drop straight back to the open debate.",
+      "extend": "+30 seconds",
+      "noDebate": "No Class Trial is running, so there is no debate to hold.",
+      "sectionTrial": "The trial",
+      "sectionDebate": "The debate",
+      "sectionVote": "The vote, the verdict, the chapter",
+      "endNow": "End this mode now",
+      "openDebate": "Open Debate",
+      "closeDebate": "Close Debate",
+      "debateOpened": "The Nonstop Debate is open. Presenting a Truth Bullet is now an OBJECTION: it takes the floor.",
+      "debateClosed": "The debate is closed. The trial carries on as an open discussion.",
+      "inDiscussion": "The trial is in open discussion — everybody may talk, and evidence goes on the table without taking the floor.",
+      "backToDebate": "Back to the debate",
+      "trialClosed": "The Class Trial is over. Daily Life resumes.",
+      "startTrialStepDiscussion": "The trial opens in discussion. You open the debate when you want one.",
+      "gateVote": "The verdict opens once the vote has been counted.",
+      "gateVerdict": "The vote is counted. Deliver the verdict, then end the chapter.",
+      "gateDone": "The verdict is in. The chapter can end.",
+      "startTrialNote": "The clock starts over: the campaign's elapsed timer restarts with the trial, and again when it ends.",
+      "openDebateIntro": "How long is this debate worth? Each one in a trial gets its own budget, and the last number you used is offered."
     },
     "Vote": {
       "openTitle": "The vote",
@@ -672,7 +735,7 @@
       "verdictIntro": "Only you know whether they got it right. Name who is executed and who the Blackened really was, then pick the outcome.",
       "executed": "Who is executed",
       "blackened": "Who the Blackened really is",
-      "verdictNote": "Right: the Blackened is executed and every survivor takes a Level Up. Wrong — a tie counts as wrong — the accused is executed, the Blackened stays anonymous and in play with a Reinforced Level Up and one new rule of their choosing, and every Monokuma fills their Despair.",
+      "verdictNote": "Right: the Blackened is executed and every survivor takes a Level Up. Wrong — a tie counts as wrong — the accused is executed, the Blackened stays in play with a Reinforced Level Up and a new rule, and every Monokuma fills their Despair.",
       "gotItRight": "They got it right",
       "gotItWrong": "They got it wrong",
       "correctSummary": "The students named the Blackened.",
@@ -701,14 +764,15 @@
       "executedIfWrong": "Executed instead, if the table got it wrong",
       "verdictNoteKnown": "Getting it right executes the Blackened above — you do not have to name anybody. Getting it wrong executes whoever the table accused, and every killer walks away with a Reinforced Level Up. A tie counts as wrong.",
       "accusedMany": "Named by the table: {names}.",
-      "verdictIntroKnown": "Only you know whether they got it right. The module remembers who killed — all you have to say is whether the table found them."
+      "verdictIntroKnown": "Only you know whether they got it right. The module remembers who killed — all you have to say is whether the table found them.",
+      "counted": "The vote has been counted."
     },
     "Music": {
-      "title": "Music by state",
+      "title": "Music",
       "intro": "Pick which playlist plays when. The module never starts a playlist you have not chosen here, and ships no audio of its own.",
       "orderNote": "The first state that applies wins, in the order listed. A Class Trial at night uses the trial's playlist; an Eclipse during one uses the Eclipse's.",
       "incidentNote": "A murder incident has no entry on purpose. A track that only ever played during one would tell the whole table a murder is happening. Whatever is playing keeps playing.",
-      "fadeNote": "Fades are the playlist's own — set Fade Duration on the playlist or on a track, and both directions use it. Play a track by hand and the state's playlist pauses where it stands, then resumes from there.",
+      "fadeNote": "Fades are the playlist's own — set Fade Duration on the playlist or on a track, and both directions use it. Put a track on and everything else pauses where it stands, then resumes from there.",
       "when": "When",
       "playlist": "Plays",
       "saved": {
@@ -721,24 +785,18 @@
         "eclipse": "Eclipse (placement window)",
         "trial": "Class Trial",
         "search": "Investigation"
-      }
-    },
-    "Casebook": {
-      "title": "{actor} — what you know",
-      "buttonTooltip": "Your evidence, grouped by where you found it. The badge counts what is still worth analysing.",
-      "empty": "No Truth Bullets yet. Observe a room to start finding them.",
-      "summary": {
-        "one": "{total} Truth Bullet · {identified} identified · {analysable} worth analysing",
-        "other": "{total} Truth Bullets · {identified} identified · {analysable} worth analysing"
       },
-      "lockedNote": "{n} of them failed an Analyze this chapter. Those copies stay unidentified until the next chapter begins — somebody else's copy of the same trace is not locked.",
-      "noRoom": "Where it came from was never recorded",
-      "what": "What you have",
-      "kind": "What it is",
-      "note": "Your note",
-      "lockedLabel": "Unidentified — locked this chapter",
-      "analysableLabel": "Unidentified — Analyze available",
-      "launcherTooltip": "Your Truth Bullets — open during the Class Trial"
+      "playNow": "Put a track on now",
+      "playNowNote": "Plays one track from the “{name}” playlist on repeat. Whatever is playing pauses where it stands and comes back when you reset.",
+      "track": "Track",
+      "play": "Play",
+      "reset": "Reset music",
+      "playing": "Playing “{track}”.",
+      "wasReset": "The track is off and whatever it interrupted is back where it left off.",
+      "noTrack": "Pick a track first.",
+      "noTracks": "This playlist has no tracks",
+      "playFailed": "That track would not play. See the console.",
+      "noSituational": "This world has no playlist called “{name}”. Make one in the Playlists sidebar and put your scene tracks in it — stings, reveals, the quiet bits."
     },
     "Cleanup": {
       "title": "Cleaning up",
@@ -751,7 +809,6 @@
       "bareHands": "Nothing readied. Bare hands, then.",
       "readied": "Readied: {item}.",
       "noneReadied": "No Cleaning Tool readied. Hold one ready on the Inventory tab first.",
-      "notYours": "You are not the one cleaning up this scene.",
       "blocked": {
         "noIncident": "No incident is running, so there is nothing to clean up. Stage 6 opens when one ends.",
         "notYet": "The incident is still going on. Clean-up opens the moment it is over — as a Finishing Blow, or by the GM ending it.",
@@ -770,16 +827,16 @@
       "bodyNotHere": "The body is not in this room. You have to be standing over it to carry it anywhere.",
       "nothingHere": "Nothing to clean up in this room.",
       "allReinforced": "Every trace here is reinforced. None of it comes off.",
-      "rerollLost": "A Reroll arrived for a clean-up this browser has no record of — a reload, or another GM took over. The dice are already rewritten, so score the new number against the same trace by hand: put the Remnant back if the first attempt erased it, remove anything the botched wipe left, and refund the Stress.",
+      "noRuling": "No GM answered in time. Try again once one is at the table.",
+      "rerollLost": "A Reroll arrived for a clean-up with no record here. Score the new number against that trace by hand, then put the Remnant back or refund the Stress to match.",
       "reinforcedFlag": "reinforced — cannot be removed",
       "reinforced": "The {what} will not come off. Whatever left it, left it for good.",
       "vanished": "The trace you were working on is already gone. The effort still cost you.",
       "removed": "The {what} is gone.",
       "stillThere": "The trace is still there.",
-      "leftTrace": "Your cleaning left a trace of its own ({visibility}).",
+      "leftTrace": "Your cleaning left a trace of its own.",
       "remnantNote": "Left while cleaning up the {what}.",
       "stressSpent": "{n} Stress spent.",
-      "toolsGone": "Used up and discarded: {items}.",
       "band": {
         "critical": "Spotless.",
         "hope": "Clean.",
@@ -815,10 +872,11 @@
       "moveAlwaysTrace": "This always leaves an Evident trace behind, whatever the dice say. You cannot drag a corpse quietly.",
       "moveWhere": "Take it to",
       "moveConfirm": "Carry it there",
-      "bodyNowhere": "There is nowhere to take it — no room connects to this one."
+      "bodyNowhere": "There is nowhere to take it — no room connects to this one.",
+      "toolsBroken": "{items} is ruined. It is still in your inventory, and it is still evidence."
     },
     "Murder": {
-      "openTitle": "Open a murder",
+      "openTitle": "Murder",
       "openIntro": "One opening roll, then a turn-based incident. A direct murder opens on the killer's roll; a trap opens on the victim's.",
       "killer": "Killer",
       "victim": "Victim",
@@ -833,7 +891,7 @@
       "trackerTitle": "Incident tracker",
       "ranOutTitle": "They ran out",
       "ranOut": "{name} is out of HP and out of Stress. The incident ends and they are dead — no Finishing Blow was needed, and none was earned.",
-      "rerollLost": "A Reroll arrived for a crisis action this incident has no record of — another action has happened since, or it was somebody else's roll. Nothing was replayed, so the FIRST result stands and the dice on the player's screen no longer match it. Score the new number by hand, or have them take the action again.",
+      "rerollLost": "A Reroll arrived for a crisis action with no record here. Nothing was replayed, so the first result stands. Score the new number by hand.",
       "trackerState": "{stage} · turn {turn} · {side} to act",
       "victimLeft": "Victim: {hp} HP, {stress} Stress left.",
       "thirdIs": "{name} walked in",
@@ -870,7 +928,7 @@
       "yourTurn": "Incident — your turn",
       "theirTurn": "Incident — waiting for them",
       "advantageNext": "Advantage on the next attempt.",
-      "leftRemnant": "Leaves {a} {visibility} Incident Remnant.",
+      "leftRemnant": "Leaves a trace behind.",
       "damaged": "{name} takes {what}.",
       "drained": "{name} loses {n} to the incident.",
       "killerChooses": "Critical — the killer chooses: 2 HP, 2 Stress, or 1 of each.",
@@ -925,13 +983,16 @@
       "thirdLeft": "{name} turns away and leaves. They take no part in this.",
       "openingYours": "This roll is yours, and it is the only one. It cannot be skipped.",
       "openingRequired": "This roll cannot be skipped. Throw it.",
-      "openingDeclined": "{name} did not throw the opening roll, after three attempts. Stage 4 cannot be skipped: end this incident, or open it again from the panel to send the invitation afresh.",
+      "openingDeclined": "{name} did not throw the opening roll. Stage 4 cannot be skipped: end this incident, or open it again from the panel.",
       "openingRemnantNote": "{name} sensed the attempt ({band}). Something of the struggle was left to notice.",
-      "leftRemnants": "Leaves {n} traces ({visibility}), and the killer cannot wipe them.",
+      "leftRemnants": {
+        "one": "Leaves a trace behind, and the killer cannot wipe it.",
+        "other": "Leaves {n} traces behind, and the killer cannot wipe them."
+      },
       "keyRemnantsStale": "The roles reversed, so the case changed: the five Key Remnants were planned around a killer who is now the victim. Plan a new set before the Investigation.",
       "nightNoteDirect": "It is night: the killer's opening roll has advantage.",
       "nightNoteIndirect": "It is night: the victim's opening roll has disadvantage.",
-      "betrayalNote": "{third} walked in on this and is still standing. The guide lets them turn on {killer} now — the one killing in the game that needs no declaration in advance.",
+      "betrayalNote": "{third} walked in on this and is still standing. They may turn on {killer} now — the one killing in the game that needs no declaration in advance.",
       "betrayalButton": "{third} turns on the killer",
       "betrayalTitle": "Betrayal",
       "betrayalIntro": "{third} kills {killer}. This closes as a second murder, with {third} as the killer and {killer} as the victim — a fresh incident from the opening roll, not a continuation of the one that just ended.",
@@ -953,13 +1014,13 @@
       "ranOutTwoKillers": "{victim} has nothing left. {killers} are both in this.",
       "ranOutTwoKillersNote": "End it now and the incident moves to the clean-up. Keep going and the turn order carries on — nobody loses a turn they were owed, and you can end it from the tracker whenever you like.",
       "ranOutEndNow": "End the incident",
-      "ranOutKeepGoing": "Keep going"
+      "ranOutKeepGoing": "Keep going",
+      "crowdedTitle": "Too many people",
+      "crowded": "{name} walked in on top of {third}. Four people in one room is not a murder anybody can carry out — the incident is cancelled.",
+      "crowdedNote": "Nobody dies. What the fight already did stands: the wounds, the Stress, and anything it left on the floor."
     },
     "Investigation": {
-      "plannerTitle": "Plan the Key Remnants",
       "plannerIntro": "Five clues for chapter {chapter}. Together they should narrow the suspects to {min}–{max} people.",
-      "plannerNote": "The floor is {min} reachable clues. Below that the case may not be solvable.",
-      "plannerSaved": "Key Remnant plan saved.",
       "notePlaceholder": "What this clue tells them",
       "difficulty": "Difficulty",
       "clue": "Clue",
@@ -967,11 +1028,10 @@
       "notPlaced": "Not placed yet",
       "tokenGone": "Its Remnant is gone from the map",
       "notFound": "Nobody has found it",
-      "dashboardTitle": "Investigation dashboard",
-      "keyHeading": "Key Remnants",
+      "dashboardTitle": "Investigation",
       "keySummary": "{found} of {total} found, {placed} on the map.",
       "foundBy": "Found by",
-      "tooThin": "Only {found} Key Remnants have been found. The floor is {min} — below that the trial has no honest answer. Point the players at what is left, or let it stand and pay for it at the vote.",
+      "tooThin": "Only {found} Key Remnants have been found. The minimum is {min} — below that the trial has no honest answer. Point the players at what is left, or let it stand and pay for it at the vote.",
       "whoHasWhat": "Who has what",
       "student": "Student",
       "bullets": "Bullets",
@@ -984,7 +1044,26 @@
       "plannerCreated": {
         "one": "Plan saved; {n} Key Remnant placed on the map.",
         "other": "Plan saved; {n} Key Remnants placed on the map."
-      }
+      },
+      "tabTraces": "Traces",
+      "tabKeyRemnants": "Key Remnants",
+      "traceName": "Name",
+      "traceText": "Player description",
+      "traceTags": "Tags",
+      "traceTagsPlaceholder": "comma, separated",
+      "noTraces": "No traces anywhere yet.",
+      "keyLimitLine": "{used} of {limit} used this chapter — the minimum is {min}.",
+      "keyLimitOverride": "Create more than the opening roll allows",
+      "finalNotePlaceholder": "What it points at",
+      "tracesSaved": {
+        "one": "Updated {n} trace.",
+        "other": "Updated {n} traces."
+      },
+      "createHereTitle": "Create a Key Remnant here",
+      "createHereIntro": "They named a point of interest and you have decided there is something there. This puts it on the map, and can hang it on one of the five clues you planned.",
+      "whichSlot": "Which planned clue is this?",
+      "noSlot": "Not one of the five",
+      "createdHere": "Key Remnant placed in {room}."
     },
     "Vault": {
       "section": "Stash — {room}",
@@ -1004,6 +1083,7 @@
       "concealedShort": "hidden",
       "table": "Draws from",
       "favours": "Good place to look for",
+      "lockedColumn": "Locked",
       "globalPool": "The global pool",
       "noRooms": "This scene has no room regions yet.",
       "noneSet": "No bedrooms have been assigned yet.",
@@ -1012,6 +1092,15 @@
         "one": "Updated {n} room.",
         "other": "Updated {n} rooms."
       },
+      "tabRooms": "Rooms",
+      "tabFog": "Fog",
+      "student": "Character",
+      "fogIntro": "Which rooms each character has already discovered on this scene. The room they are standing in is always clear; this is only about rooms they have BEEN to, which show as a dim veil rather than full fog.",
+      "fogUncovered": "{pct}% of this scene's surface belongs to no room region at all — it will show as permanent fog rather than a wall gap, which usually means a room still needs drawing.",
+      "fogNote": "Discover all / Hide all replace every checkbox above for every character at once. The individual checkboxes are for one room, one character.",
+      "discoverAll": "Discover all",
+      "hideAll": "Hide all",
+      "unlockedAnnounce": "The door to {room} is unlocked.",
       "inspectTitle": "Look inside the stashes",
       "inspectNote": "Take things out from Give / take items — a stashed item is an ordinary item on its owner's sheet.",
       "rifle": "Go through the stash",
@@ -1022,7 +1111,21 @@
       "stashEmpty": "{who}'s stash is empty.",
       "openStashSection": "{who}'s stash — {room}",
       "openStashNote": "Not hidden. Anyone standing here can go through it.",
-      "take": "Take it"
+      "take": "Take it",
+      "keyName": "Key — {room}",
+      "keyDescription": "Opens the door to {room}, which belongs to {owner}. Share a copy to let somebody else in.",
+      "keyGranted": "You have the key to {room}.",
+      "keyShared": "{who} gave you a copy of the key to {room}.",
+      "keyGave": "{who} now has a copy of your key to {room}.",
+      "keyMissing": "The door to {room} is locked. You do not have that key.",
+      "giveKey": "Give a room key",
+      "giveKeyTo": "Give {actor} a room key",
+      "whichKey": "Whose room?",
+      "giveKeyNote": "A copy — the owner keeps theirs. Only rooms that belong to somebody are listed: a room with no owner has no door to unlock.",
+      "keyGivenGm": "{actor} now holds the key to {room}.",
+      "noKeysToGive": "No keys left to hand over — this character already holds one for every bedroom that has an owner.",
+      "lockedAtStartColumn": "Locked at start",
+      "lockedAtStartHint": "Whether this door is locked when a season begins. A season reset puts every door back to this."
     },
     "Chapter": {
       "deathTitle": "A character dies",
@@ -1097,12 +1200,12 @@
       }
     },
     "Trial": {
-      "presentTooltip": "Put this in front of the whole trial",
+      "presentTooltip": "Present — put this on the table for everyone to see.",
       "presentTitle": "Present — {name}",
       "presentIntro": "You are about to show {name} ({type}) to everyone. Only what you can see goes on the card. Never the GM's notes.",
       "comment": "Say something with it (optional)",
       "commentPlaceholder": "e.g. This is why the timeline does not work.",
-      "presentNote": "Present speaks in your turn. OBJECTION cuts somebody off — allowed only if you show a Truth Bullet, which is what this does.",
+      "presentNote": "The debate is not open, so this simply goes on the table — nobody's turn to speak changes. Once the GM opens the debate, the same button becomes an OBJECTION.",
       "present": "Present",
       "presentShort": "Presented",
       "objection": "OBJECTION!",
@@ -1114,7 +1217,19 @@
       "failed": "That could not be presented. Tell the GM.",
       "logTitle": "Trial evidence log",
       "logSummary": "{total} presented this chapter, {objections} of them as an Objection.",
-      "logEmpty": "Nothing has been presented this chapter yet."
+      "logEmpty": "Nothing has been presented this chapter yet.",
+      "objectionTarget": "Who are you contradicting?",
+      "objectionNobody": "There is nobody else left to object to.",
+      "objectionWarning": "An OBJECTION is not the same as showing evidence. It takes the debate: {objection} seconds in which only you may speak, then {rebuttal} seconds of rebuttal between you and the person you name. Showing evidence leaves the discussion running.",
+      "objectionNoFloor": "The debate is not open, so there is nothing to interrupt. Show the evidence instead.",
+      "objectionDuringObjection": "Somebody else's OBJECTION is running. Wait for their minute and the rebuttal that follows it.",
+      "objectedTo": "{who} objects to {target}",
+      "logKind": "What",
+      "logWho": "Who",
+      "logAgainst": "Against",
+      "logWhen": "When",
+      "objectionTooltip": "OBJECTION — put this on the table and take the floor.",
+      "objectionNotYourRebuttal": "This rebuttal is not yours. Only the two on the floor may object inside it."
     },
     "Handover": {
       "shareTooltip": "Share a copy with someone in this room",
@@ -1144,17 +1259,14 @@
     },
     "Observe": {
       "declarePrompt": "How are you looking?",
-      "general": "Sweep the room",
-      "specific": "Name what you are after",
+      "general": "Glance for a bullet",
+      "specific": "Focus your gaze",
       "nonObvious": "Look past the obvious",
-      "anything": "Ask the GM",
+      "followTraces": "Follow my traces",
+      "anything": "Examine point of interest",
       "anythingTitle": "Observe — a question for the GM",
-      "request": "What were you after?",
       "requestPlaceholder": "e.g. something to do with the body",
-      "declareNote": "Sweeping the room finds the easiest trace in it; looking past the obvious finds the hardest. Naming what you are after, and asking the GM, both wait for the dice before you say what you meant.",
-      "requestTitle": "{action} — what were you after?",
       "requestPrompt": "The dice are thrown. Now say what you were looking for. The GM matches it against the room without seeing your roll, so this makes nothing easier or harder.",
-      "requestConfirm": "That is what I was after",
       "requestSkipped": "Nothing named — read as simply looking around.",
       "sent": "The GM is judging what you found.",
       "noRuling": "No GM settled what you were looking at. Your action is not spent.",
@@ -1174,10 +1286,16 @@
       "describeIntro": "{actor} found something in {room}. Name it as they would, and say what they see.",
       "critPrompt": "Critical — the category is identified for them, and they have earned a substantial hint.",
       "describeConfirm": "Hand it over",
-      "rerollLost": "A Reroll arrived for an Observe this browser has no record of — a reload, or another GM took over — so the declaration is lost. The dice are already rewritten and the player is owed a result: score the new number against the same trace by hand, and take back the Truth Bullet the first roll gave them if it no longer applies.",
-      "alreadyDescribed": "This trace has been described before. The words below are what the last observer was told — change them only if the critical reveals something new."
+      "rerollLost": "A Reroll arrived for an Observe with no record here. Score the new number against the same trace by hand, and take back the Truth Bullet if it no longer fits.",
+      "alreadyDescribed": "This trace has been described before. The words below are what the last observer was told — change them only if the critical reveals something new.",
+      "generalHint": "Take whatever is easiest to spot in this room. Settled by the dice.",
+      "nonObviousHint": "Go for the hardest thing here instead. Settled by the dice.",
+      "followTracesHint": "Retrace your own steps and find what you left behind. Settled by the dice.",
+      "specificHint": "Say what you are looking for. The GM decides what your gaze lands on.",
+      "anythingHint": "Something that is not a trace — a person, a machine, the weather. The GM rules on it."
     },
     "TruthBullet": {
+      "title": "Truth Bullet",
       "give": "Give a Truth Bullet",
       "giveTo": "Give a Truth Bullet to {actor}",
       "gave": "{actor} received the Truth Bullet {item}.",
@@ -1236,16 +1354,12 @@
     "Remnant": {
       "reinforced": "That Remnant is reinforced and cannot be removed.",
       "reinforcedShort": "reinforced",
-      "noneHere": "No Remnants on this scene yet.",
-      "manageTitle": "Remnants on this scene",
-      "manageTooltip": "Edit Remnant flags",
-      "manageIntro": "What survives the end of the chapter. Faint traces are swept away unless they are tied to the crime; reinforced ones the killer cannot remove at all.",
-      "manageNote": "Tick “tied to the crime” for anything the trial will need: a murder tool, a cleaning tool, or a trace left by the murder itself.",
-      "manageSaved": {
-        "one": "Updated {n} Remnant.",
-        "other": "Updated {n} Remnants."
+      "difficulty": {
+        "slight": "Slight lead",
+        "modest": "Modest lead",
+        "firm": "Firm lead",
+        "deep": "Deep lead"
       },
-      "what": "Remnant",
       "faintColumn": "Faint",
       "crimeColumn": "Tied to crime",
       "reinforcedColumn": "Reinforced",
@@ -1266,6 +1380,7 @@
         "dynamic": "Dynamic action",
         "incident": "Incident",
         "resolution": "Clean-up",
+        "discard": "Thrown away",
         "manual": "Placed by the GM"
       },
       "cardTitle": "A trace",
@@ -1275,7 +1390,24 @@
       "cardWho": "By",
       "cardSubject": "About",
       "cardPlayer": "Something here is out of place. What it means is not obvious from looking — Observe the room to work it out.",
-      "tokenName": "Trace"
+      "cardUnanalyzed": "You have not worked out what this is yet. Analyze it to find out.",
+      "tokenName": "Trace",
+      "finalSubject": "Final Truth",
+      "cardEditNote": "What the player reads. Saved when you leave the field, and copied onto the token and every Truth Bullet taken from this trace.",
+      "cardSaveFailed": "That did not save. See the console.",
+      "report": {
+        "heading": "Remnants",
+        "scene": "Scene",
+        "when": "When",
+        "stamp": "Ch {chapter} · D {day}",
+        "faintTag": "(Faint)",
+        "hidden": "hidden",
+        "revealed": "revealed",
+        "reinforcedNote": "★ = reinforced, and the killer cannot remove it.",
+        "noneScene": "None on this scene.",
+        "noneAnywhere": "None anywhere."
+      },
+      "discardNote": "{actor} threw away {item} in {room} (rolled {total})."
     },
     "Rest": {
       "short": "Short Rest",
@@ -1290,12 +1422,9 @@
       "allowedIn": "Not here. Allowed in: {rooms}",
       "wrongRoom": "No {kind} in {room}. Rooms that allow it: {rooms}",
       "noRooms": "No room on this map is marked for a {kind} yet. The GM sets that up per scene.",
-      "manageTitle": "Rest rooms",
-      "manageIntro": "Mark which rooms allow a Short Rest, and which are bedrooms allowing a Long Rest. Per scene, so every season's map can differ.",
-      "manageTooltip": "Choose which rooms allow rest",
+      "manageIntro": "Mark which rooms allow a Short Rest and which allow a Long Rest. Per scene, so every season's map can differ.",
       "shortColumn": "Short Rest",
-      "longColumn": "Long Rest (bedroom)",
-      "saved": "Rest rooms updated.",
+      "longColumn": "Long Rest",
       "noRegions": "This scene has no room regions. Draw them on the Regions layer first."
     },
     "Calls": {
@@ -1307,8 +1436,6 @@
       "costsDespairShort": "{cost} Despair",
       "spend": "Spend {cost}",
       "aimedAt": "Aimed at",
-      "aimPlaceholderHope": "e.g. Backing up the search of the library.",
-      "aimPlaceholderDespair": "e.g. Slamming the kitchen door in their face.",
       "notEnoughHope": "{call} costs {cost} Hope and you hold {held}.",
       "hopeSpent": "Spent {cost} Hope · {left} left.",
       "noPool": "This Monokuma has no Despair pool. Check the Despair bar.",
@@ -1321,7 +1448,6 @@
       "noItems": "Nobody carries anything that can be destroyed.",
       "armed": "{name} may now use {what} on their next roll.",
       "damaged": "{name} takes {what}.",
-      "progressed": "{name}: {n} progress.",
       "wiped": "{name} loses all progress.",
       "sealed": "{room} is sealed for this time of day.",
       "gathered": {
@@ -1380,8 +1506,6 @@
       "saved": "Monokumas and pools saved."
     },
     "Eclipse": {
-      "title": "Eclipse",
-      "button": "Eclipse",
       "already": "An Eclipse is already running.",
       "announce": "Lights out. Place your token — up to {n} connected rooms. Nobody sees anyone else until the Eclipse ends, and no actions or Calls until then.",
       "yourMoves": "{n} room crossings. You are in {room}. Drag your token — doors and gaps still apply.",
@@ -1403,7 +1527,10 @@
       "movedFree": "Now in {room}.",
       "murderOnlyInEclipse": "Only during an Eclipse. The lights are out and everyone is crossing the map — that is the one moment you can be alone with somebody.",
       "actionsMurderOnly": "Placement is running. The only thing an action buys right now is a Direct Murder.",
-      "callsLocked": "Locked while the Eclipse runs. Every Call comes back with the next time of day — this is not about what you hold."
+      "callsLocked": "Locked while the Eclipse runs. Every Call comes back with the next time of day — this is not about what you hold.",
+      "murderLocked": "The Eclipse is a placement window — nobody has finished moving yet. A Direct Murder declared now waits for the Eclipse to end on its own.",
+      "bodyLocked": "The Eclipse is running. A body cannot be discovered — by hand or automatically — until everyone has finished placing.",
+      "panelLocked": "Locked while the Eclipse runs — nobody has finished placing yet."
     },
     "Move": {
       "title": "Move",
@@ -1415,19 +1542,17 @@
       "costAction": "That cost an action — {left} left.",
       "noBudget": "No free Move and no actions left. Move your token back.",
       "notConnected": "{to} is not connected to {from}. From here you can reach: {rooms}",
-      "noBudgetLong": "No free Move and no actions left — this crossing was not paid for. Move back, or ask the GM."
+      "noBudgetLong": "No free Move and no actions left — this crossing was not paid for. Move back, or ask the GM.",
+      "locked": "The door is locked.",
+      "dead": "They are dead. The body stays where it fell."
     },
     "Project": {
-      "heading": "Projects",
       "title": "Project",
       "choosePrompt": "Start something new, or push a project that already exists?",
       "startNew": "Propose a project",
       "workOn": "Work on project",
-      "startPrompt": "Describe the project for the GM: what you want to build or achieve, and where.",
-      "startPlaceholder": "e.g. Build a hidden compartment under the library floor.",
       "agreedWarning": "Fill this in as your side of the agreement. The GM reads it, may change the scale, the room or the wording, and only then does the project exist.",
       "startNote": "Nothing is created yet. This goes to the GM as a proposal — they approve it, adjust it, or turn it down.",
-      "startedOk": "“{name}” created and added to Projects. The GM has been told.",
       "indirectMine": "Indirect murder — kept secret, so only you and the GMs see it",
       "gmCanAdjust": "Made by a player. Change the scale, room or secrecy from the Projects gear, or delete it.",
       "trait": "Required work",
@@ -1439,11 +1564,9 @@
       "alreadyFrozen": "{name} is already broken and waiting on a repair.",
       "sabotageNotApplied": "The roll succeeded, but no GM confirmed the damage in time. Tell your GM: {name} may not actually be broken.",
       "nothingToSabotage": "Nothing here can be sabotaged.",
-      "frozenNote": "frozen — needs its repair finishing",
       "whichWork": "Which project?",
       "whichSabotage": "Sabotage which project?",
       "none": "No projects yet. Start one first.",
-      "wrongRoom": "Nothing you can work on in {room}. Elsewhere: {names}",
       "now": "{project} is now at {current}/{target}.",
       "aloneBonus": "Nobody else is in the room, so the project gains +1 progress.",
       "room": "Room",
@@ -1459,7 +1582,7 @@
       "scale": "Scale",
       "needsName": "A project needs a name.",
       "visibleTo": "Also visible to",
-      "manageTitle": "Projects — rooms and secrecy",
+      "manageTitle": "Projects",
       "manageTooltip": "Set which room each project belongs to, and who may see it",
       "manageIntro": "A project can belong to a room. Only characters standing there can work on it or sabotage it.",
       "secretNote": "Indirect murder projects are secret by default: only the killer and the GMs see them. Share to bring in a co-conspirator.",
@@ -1490,7 +1613,7 @@
       "deleteConfirm": "Delete \"{name}\"? Its progress goes with it.",
       "condition": "Trap condition",
       "conditionPlaceholder": "whoever opens the dumbwaiter after dark",
-      "conditionNote": "Indirect murder only. The guide has you name a condition instead of a victim — whoever meets it is who the trap catches.",
+      "conditionNote": "Indirect murder only. Name a condition instead of a victim — whoever meets it is who the trap catches.",
       "trapReadyTitle": "The trap is ready",
       "trapCondition": "It goes off when:",
       "trapNoCondition": "No condition was written down for this trap. Agree one before firing it.",
@@ -1505,7 +1628,15 @@
       "declinedGm": "Turned down {name}'s project.",
       "proposeButton": "Send it to the GM",
       "collapseTray": "Fold the projects away",
-      "expandTray": "Show the projects"
+      "expandTray": "Show the projects",
+      "workOnHint": {
+        "one": "Push the {n} project running in this room.",
+        "other": "Push one of the {n} projects running in this room."
+      },
+      "startNewHint": "Describe something new. Nothing exists until the GM approves it.",
+      "completeTag": "Complete",
+      "alreadyComplete": "{name} is finished. There is no work left in it.",
+      "allComplete": "Every project in {room} is already finished."
     },
     "RollDialog": {
       "locked": "Not yours to choose. Advantage and experiences are Hope Calls — ask the GM.",
@@ -1528,10 +1659,16 @@
       "awaitingRuling": "Awaiting a ruling.",
       "noGm": "No GM is connected, so that could not be sent.",
       "noAnswer": "No GM answered the “{what}” request. Nothing was applied — try again once a GM is connected.",
-      "openThisMurder": "Open this incident on {victim}",
-      "declineMurder": "Turn it down",
       "declined": "The GM turned the attempt down. Your action is back.",
-      "declinedGm": "Turned down. {name} has the action back."
+      "declinedGm": "Turned down. {name} has the action back.",
+      "replyTitle": "Reply to {name}",
+      "replyPrompt": "Your ruling, in your own words. It goes into their thread.",
+      "rulingLabel": "The GM:",
+      "reply": "Reply",
+      "nothingThere": "There is nothing",
+      "createItem": "Create an item",
+      "giveItem": "Give an existing item",
+      "keyRemnantHere": "Create a Key Remnant here"
     },
     "Tables": {
       "installed": "Item tables ready: {created} created, {skipped} already existed.",
@@ -1543,7 +1680,27 @@
         "one": "{n} item table could not be created. See the console.",
         "other": "{n} item tables could not be created. See the console."
       },
-      "whereNote": "The tables live in the Rollable Tables sidebar, in the “Danganronpa RPG” folder. Search reads them before falling back to the module's built-in lists."
+      "whereNote": "The tables live in the Rollable Tables sidebar, in the “Danganronpa RPG” folder. Search reads them before falling back to the module's built-in lists.",
+      "editorTitle": "Item tables",
+      "editorIntro": "Everything a Search can turn up. Pick a table on the left to see what is in it; the form below adds one item to as many tables as you tick.",
+      "tableEmpty": "Nothing in this table yet.",
+      "removeItem": "Remove from this table",
+      "noneYet": "No item tables yet — create the default set below.",
+      "addItem": "Add an item",
+      "tierTarget": "Tier table (an item lives in exactly one):",
+      "roomTargets": "Room tables it also appears in:",
+      "noRoomTables": "No room tables yet — create one below.",
+      "addNote": "The icon and the description travel with it: whoever finds this item gets both on their sheet.",
+      "needsName": "The item needs a name.",
+      "needsTable": "Pick a tier table or tick at least one room table.",
+      "itemAdded": "“{name}” added to {n} table(s).",
+      "changeIcon": "Change this item's icon",
+      "newPool": "New room table",
+      "newPoolPlaceholder": "e.g. Kitchen",
+      "newPoolNote": "A room table is what a room stocks — point a room at it in Room Setup's “Draws from”. Tier tables (“DRPG … — Tier N”) answer dice rolls and cannot be assigned to rooms. Optional precision: a table named “«Room» — Tier N” answers that roll in that room before the flat room table does.",
+      "newPoolTierName": "That name matches the tier-table pattern (“DRPG … — Tier N”) — a room table needs its own name.",
+      "newPoolExists": "A table called “{name}” already exists.",
+      "poolCreated": "Room table “{name}” created. Point a room at it in Room Setup."
     },
     "Clock": {
       "summary": "Chapter {chapter} · Day {day} · Session {session} · {time}",
@@ -1569,24 +1726,21 @@
       "nextGo": "Do it",
       "nextIncident": "An incident is running. Take it to the end before anything else.",
       "nextEclipse": "The Eclipse is open. Close it once everyone has placed.",
-      "nextNoFloor": "The trial has no floor open — nobody can speak yet.",
-      "nextFloor": "{who} has the floor.",
+      "nextNoFloor": "The trial is in discussion. Open the debate when the room is ready for one.",
+      "nextFloor": "The debate is open — {mode}.",
       "nextInvestigation": "Investigation. Check what has been found and what is still out there.",
       "nextStillActing": {
         "one": "{n} student still has actions to spend.",
         "other": "{n} students still have actions to spend."
       },
       "nextAllDone": "Everyone has spent their actions. Move the clock on.",
-      "jump": "Edit campaign…",
+      "jump": "Edit campaign",
       "resetHint": "Leave this off when you are only correcting a typo — refilling hands everyone a fresh set of actions.",
       "section": {
         "now": "Right now",
         "case": "The case",
-        "people": "People and things",
-        "trial": "The trial",
-        "season": "The season",
-        "setup": "Season setup",
-        "fixes": "If something is stuck"
+        "fixes": "Repairs",
+        "between": "In Between Sessions"
       },
       "close": "Close",
       "apply": "Apply",
@@ -1594,21 +1748,14 @@
       "character": "Character",
       "freeMove": "Free Move",
       "noCharacters": "No characters in this world yet.",
-      "resetActions": "Refill everyone's actions",
-      "resetSearch": "Restock search tokens",
       "installTables": "Create item tables",
-      "gmTeam": "GM team & Despair pools",
+      "gmTeam": "GM Team",
       "clearFaint": "Clear Faint Remnants",
       "faintCleared": {
         "one": "{n} Faint Remnant cleared.",
         "other": "{n} Faint Remnants cleared."
       },
-      "voiceEavesdrop": "Listen in on a room's voice",
       "voiceReset": "Reset all voice rooms",
-      "actionsReset": {
-        "one": "Actions refilled for {count} character.",
-        "other": "Actions refilled for {count} characters."
-      },
       "failed": "That did not work. See the console.",
       "faintNone": "No Faint Remnants to clear — every trace on the map is reinforced or tied to the crime.",
       "faintConfirm": {
@@ -1616,10 +1763,6 @@
         "other": "Delete {n} Faint Remnants, across every scene?"
       },
       "faintConfirmNote": "Reinforced traces and anything tied to the crime are left alone. The rest go for good.",
-      "searchTokens": "Search tokens",
-      "checks": "Pre-session checks",
-      "whoIsWhat": "Alive / dead / Monocub",
-      "whoIsWhatNote": "Move a character between the three states. This only moves the flags — it does not destroy an inventory and does not bring one back. To kill somebody properly, use “A character dies”.",
       "stateColumn": "State",
       "state": {
         "alive": "Alive",
@@ -1632,7 +1775,13 @@
       },
       "stateUnchanged": "Nothing changed.",
       "checksSetup": "Season setup",
-      "seasonChecks": "Pre-season checks"
+      "seasonChecks": "Pre-season checks",
+      "nextFloorHeld": "{mode} — {who} holds it.",
+      "whoIsAlive": "Player status",
+      "whoIsAliveNote": "The dropdown only moves the flags — that is the repair tool, for a mis-click. The buttons on the right run the real thing: a death empties an inventory, an invitation makes a Monocub.",
+      "doColumn": "Do",
+      "nextVerdict": "The vote is counted. Deliver the verdict.",
+      "nextChapterEnd": "The verdict is in. End the chapter."
     },
     "Character": {
       "notACharacter": "That only works on a character.",
@@ -1640,12 +1789,6 @@
       "initTooltip": "Not set up yet. Give them their starting resources: {hp} HP, {stress} Stress, {hope} Hope.",
       "initConfirm": "Give {actor} their starting resources: {hp} HP, {stress} Stress and {hope} Hope?",
       "initNote": "Until this is done the character counts as Wounded and in Breakdown: one action instead of two, and disadvantage on every roll.",
-      "initNeeded": {
-        "one": "{n} character still has no starting resources.",
-        "other": "{n} characters still have no starting resources."
-      },
-      "initReady": "Every character has their starting resources.",
-      "initColumn": "HP / Stress",
       "startingItemNote": "Agreed at character creation, tied to {ultimate}.",
       "startingItemMissing": "No starting item named. Every student begins with one Tier 2 item tied to their Ultimate."
     },
@@ -1664,7 +1807,9 @@
       "whichKind": "Which Level Up did <strong>{actor}</strong> earn?",
       "kind": {
         "standard": "Level Up (pick 1)",
-        "reinforced": "Reinforced Level Up (pick 3)"
+        "reinforced": "Reinforced Level Up (pick 3)",
+        "standardHint": "The ordinary step, with the standard picks.",
+        "reinforcedHint": "The heavier step, for a chapter that earned it."
       },
       "choice": "Choice {n}",
       "whichTrait": "Which statistic?",
@@ -1706,7 +1851,6 @@
       "critHopeGained": "The new result is a critical: you gain the second point of Hope a crit is worth.",
       "critHopeReturned": "The old result was a critical: the second point of Hope it paid is taken back.",
       "progressAdjusted": "{name}: progress from this action changed from {was} to {now}.",
-      "leftovers": "Anything the first roll already produced — an item drawn, a trace left — stays put. Ask the GM to remove it if the new result does not justify it.",
       "noReplay": "Nothing but the dice to take back: this roll left no lasting effect.",
       "replayFailed": "The dice were rerolled, but the action could not be replayed. Tell the GM what the first roll had already done.",
       "observeReplayed": "The same trace goes back to the GM with the new roll. They will say what you find this time.",
@@ -1718,8 +1862,8 @@
       "itemDrawn": "You find {item} instead (Tier {tier}).",
       "searchNothing": "The new result finds nothing.",
       "tokenKept": "The room's search token stays spent — the room was searched either way.",
-      "remnantRetuned": "The trace you left is now {visibility}.",
-      "remnantLeft": "The new result leaves a trace behind: {visibility}.",
+      "remnantRetuned": "The trace you left has been adjusted to match.",
+      "remnantLeft": "The new result leaves a trace behind.",
       "remnantRemoved": "The trace the first roll left is removed.",
       "remnantManual": "The trace the first roll left cannot be adjusted from here — ask the GM to re-rate it.",
       "sabotageUndone": "The first attempt is undone: the target is unfrozen and its repair project removed.",
@@ -1840,13 +1984,11 @@
       "title": "The time of day is over",
       "lede": "What you did during {phase}.",
       "found": "found a Tier {tier} {item}",
-      "left": "left {a} {visibility} trace",
+      "left": "left a trace behind",
       "totals": "{actions} actions · {found} found · {traces} traces left behind",
       "close": "Into the Eclipse"
     },
-    "Roster": {
-      "summary": "{left} of {total} still acting"
-    },
+    "Roster": {},
     "Roll": {
       "opening": {
         "killer": "Opening the murder — your roll",
@@ -1859,7 +2001,10 @@
       "hideTraces": "Cover your traces"
     },
     "Diagnostics": {
-      "pageTinted": "{name} is repainting this page, and its colours are not this module's. Foundry is already in a dark theme — turn the extension off for this site so the interface reads the way it was drawn. Run game.drpg.diagnoseStyles() for the detail."
+      "pageTinted": "{name} is repainting this page in colours that are not this module's. Foundry is already dark — turn the extension off for this site.",
+      "cssMissing": "This module's stylesheet did not load on this page, so the interface is unstyled. Reload; if it persists, run game.drpg.diagnoseStyles().",
+      "buildMismatch": "This module's stylesheet (v{css}) and scripts (v{scripts}) are from different builds. Reload the page; if that does not fix it, the server is still serving one of them.",
+      "tracing": "Watching clicks for {seconds} seconds. Click the control that misbehaves."
     },
     "Season": {
       "title": "Set the season up",
@@ -1871,7 +2016,7 @@
       "note": "Nothing here is done for you that you would not have done yourself. What it does is say what there is to do, in the order a season is actually built.",
       "doIt": "Do it",
       "openIt": "Open",
-      "fixed": "Set up {n} character(s) with the guide's starting resources.",
+      "fixed": "Set up {n} character(s) with the starting resources.",
       "step.name": "Name the campaign",
       "hint.name": "Shown at the top of everyone's screen, above the chapter and the clock.",
       "step.cast": "The cast exists",
@@ -1890,6 +2035,8 @@
       "hint.assignments": "Despair from a student's rolls goes to their Monokuma's pool. Unwatched, it goes nowhere.",
       "step.rooms": "The map has rooms",
       "hint.rooms": "Rooms are Scene Regions. Movement, Search, Listen and every incident are answered in terms of them.",
+      "step.mastermind": "The Mastermind (optional)",
+      "hint.mastermind": "Who is hiding among the students, and the Final Key Remnants that prove it. A season without a Mastermind is a legal season — this row never turns red.",
       "resetTitle": "Reset the season",
       "resetWarning": "This cannot be undone, by this module or by anything else.",
       "resetGoes": "This goes:",
@@ -1897,8 +2044,15 @@
       "resetRemnants": "{n} Remnant(s) on the maps",
       "resetBullets": "{n} Truth Bullet(s), and the answer key behind them",
       "resetDead": "{n} death(s) and every Monocub, undone",
+      "resetItems": "{n} item(s) the cast is carrying or has stowed",
+      "resetAdvances": "{n} advancement(s), and the traits and rises they bought",
+      "resetCards": "{n} card(s) this module wrote, and every messenger thread",
+      "resetNotes": "{n} note(s): before the session, and on the sheets",
+      "resetPools": "every Despair pool to zero ({n} not empty), and every Hope back to {hope}",
+      "resetDoors": "every door back to how the season opened",
       "resetState": "the incident, the Mastermind, the trial queue, the search tokens, every Despair Call still in force, and the clock back to Chapter 1, Day 1, Morning",
-      "resetKeeps": "This stays: the cast, the maps, the rooms, who watches whom, and the campaign name.",
+      "resetKeeps": "This stays: the cast with their names, portraits and Ultimates, the maps, the rooms and who owns them, who watches whom, the Monokuma team, and the campaign name.",
+      "resetChat": "Also delete the rest of the chat log — {n} message(s) this module did not write",
       "resetType": "Type {word} to confirm",
       "resetWord": "RESET",
       "resetButton": "Reset the season",
@@ -1906,11 +2060,25 @@
       "resetDone": "The season has been reset. The cast and the maps are untouched."
     },
     "Failures": {
-      "title": "What has gone wrong",
+      "title": "Debug log",
       "intro": "Everything this browser has failed at since the page loaded. Reloading empties it — a failure from before a reload is not one you can still act on. Repeats are one row with a count.",
       "none": "Nothing has gone wrong since this page loaded.",
       "clear": "Clear the log",
       "cleared": "Failure log cleared."
+    },
+    "Fog": {
+      "scenesPrepared": "Room-based visibility switched on for {count} scene(s).",
+      "scenesFailed": "Could not switch these scenes to room-based visibility: {scenes}",
+      "noRoomScenes": "No scene has named Regions, so no scene uses room-based visibility.",
+      "checksScenes": "Scenes and rooms"
+    },
+    "Popup": {
+      "kind": {
+        "info": "Notice",
+        "error": "Refused",
+        "evidence": "Evidence",
+        "objection": "Objection"
+      }
     }
   }
 }

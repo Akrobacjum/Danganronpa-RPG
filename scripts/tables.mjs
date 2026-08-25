@@ -12,8 +12,9 @@
  * then edit freely — once they exist, these definitions are only a fallback.
  */
 
-import { MODULE_ID, ITEM_CATEGORIES, TIER_EFFECTS } from "./config.mjs";
-import { whisperToGms, log, error, plural } from "./utils.mjs";
+import { MODULE_ID, ITEM_CATEGORIES, ITEM_TIERS, TIER_EFFECTS } from "./config.mjs";
+import { dialogContent, wirePortraitPickers, whisperToGms, log, error, plural }
+    from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -22,6 +23,22 @@ export function tableName(category, tier, goal = null) {
     const base = ITEM_CATEGORIES[category]?.plural ?? category;
     const suffix = USABLE_GOALS[goal] ? ` (${USABLE_GOALS[goal].label})` : "";
     return `DRPG ${base}${suffix} — Tier ${tier}`;
+}
+
+/**
+ * A TIER pool feeds dice draws and is never a room's pool.
+ *
+ * Two families of table, two jobs. Tier pools — everything `tableName()`
+ * produces — answer "a Tier N roll came up, what was found". Room pools —
+ * the global fallthrough plus whatever the GM creates — answer "what does
+ * THIS room stock". Room Setup's "Draws from" only offers the second family;
+ * offering the first let a room be pointed at "DRPG Crime Tools — Tier 2",
+ * which then answered every Search in that room regardless of the roll.
+ */
+const TIER_POOL_PATTERN = /^DRPG .+ — Tier \d+$/;
+
+export function isTierPool(name) {
+    return TIER_POOL_PATTERN.test(String(name ?? ""));
 }
 
 /**
@@ -137,9 +154,18 @@ export async function drawItem(category, tier, { goal = null, room = null } = {}
     // would hand back an apple and then label it a weapon. So "Kitchen — Crime
     // Tools" is tried before plain "Kitchen". A GM who does not want that
     // precision makes one flat table and it answers everything.
+    // THE ROLL MATTERS IN ROOMS TOO (F5.5, Dawid 2026-08-25). A room table can
+    // be split by tier the same way it can be split by category: "Kuchnia —
+    // Tier 2" answers a Tier 2 roll in the Kuchnia before the flat "Kuchnia"
+    // does. A GM who does not want that precision keeps one flat table and the
+    // lookup falls straight through — same bargain as the category split.
     const roomBase = room ? await tableForRoom(room) : null;
     const roomNames = roomBase
-        ? [`${roomBase} — ${ITEM_CATEGORIES[category]?.plural ?? category}`, roomBase]
+        ? [
+            `${roomBase} — Tier ${tier}`,
+            `${roomBase} — ${ITEM_CATEGORIES[category]?.plural ?? category}`,
+            roomBase
+        ]
         : [];
 
     const names = [
@@ -155,7 +181,20 @@ export async function drawItem(category, tier, { goal = null, room = null } = {}
             const draw = await table.draw({ displayChat: false });
             const result = draw?.results?.[0];
             const drawn = result?.name ?? result?.text ?? result?.description;
-            if (drawn) return { name: drawn, fromTable: true };
+            if (drawn) {
+                return {
+                    name: drawn,
+                    fromTable: true,
+                    // Carried onto the Item when it is granted. `installTables`
+                    // writes the name into `description` as well, so a
+                    // description that is only the name again is dropped here
+                    // rather than overwriting the tier line every found item
+                    // gets — see `grantItem`.
+                    img: result?.img ?? result?.icon ?? null,
+                    description: result?.description && result.description !== drawn
+                        ? result.description : null
+                };
+            }
         } catch {
             // A broken table should not stop the action — fall through.
         }
@@ -314,6 +353,456 @@ export async function installTables({ overwrite = false, prompt = true } = {}) {
 
     await openTablesTab();
     return { created, skipped, failed };
+}
+
+/* ==========================================================================
+ * THE TABLE EDITOR
+ * --------------------------------------------------------------------------
+ * `installTables()` was what the GM-panel tile did, and installing is a thing
+ * you do once. Everything after that first minute — adding the knife somebody
+ * invented at the table, taking out the item that turned out to be a bad idea,
+ * checking what a room can actually produce — meant the Rollable Tables
+ * sidebar, with the module's naming convention held in the GM's head.
+ *
+ * So the installer stays an installer and this is the door: every table the
+ * module knows about on the left, what is in the selected one on the right,
+ * and one form that puts a new item into as many of them as the GM ticks.
+ *
+ * THE CONTRACT IS THE TABLE, not an Item document. What a Search produces is a
+ * TableResult, `drawItem` reads its name, and `grantItem` builds the Item from
+ * the category and tier at the moment it lands on a sheet. Writing Items here
+ * instead would be a second, parallel model of the same thing — so the icon and
+ * the description go onto the TableResult (`img` and `description`), and
+ * `drawItem` carries them across when the item is actually found.
+ * ========================================================================== */
+
+const DEFAULT_RESULT_IMG = "icons/svg/item-bag.svg";
+
+/**
+ * Every table this window is willing to show.
+ *
+ * Two families: the module's own, which follow `tableName()`, and whatever a
+ * room has been pointed at in Room Setup — those carry arbitrary names and are
+ * every bit as much a part of what a Search can produce (see `drawItem`).
+ */
+function moduleTables() {
+    const roomTables = new Set();
+    try {
+        for (const scene of game.scenes) {
+            for (const region of scene.regions ?? []) {
+                const name = region.getFlag(MODULE_ID, "drpgItemTable");
+                if (name) roomTables.add(name);
+            }
+        }
+    } catch (err) {
+        // A room pointing at a table is a convenience here, not the subject.
+        error("Could not read the rooms' item tables", err);
+    }
+
+    return Array.from(game.tables ?? [])
+        .filter(t => t.name.startsWith("DRPG ")
+            || roomTables.has(t.name)
+            || Array.from(roomTables).some(base => t.name.startsWith(`${base} — `))
+            // A room pool the GM created here but has not pointed a room at
+            // yet — without this clause it vanished from the very window that
+            // made it until Room Setup used it once.
+            || t.getFlag(MODULE_ID, "roomPool"))
+        .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** The entries of one table, as the right-hand column renders them. */
+function tableItemsHtml(table) {
+    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
+    const results = Array.from(table?.results ?? []);
+    if (!results.length) {
+        return `<p class="notes">${game.i18n.localize("DRPG.Tables.tableEmpty")}</p>`;
+    }
+
+    // EDITED IN PLACE, not in a second window.
+    //
+    // The list was read-only, which meant fixing a typo in an item's name was:
+    // delete the entry, retype it in the form below, tick the same three tables
+    // again. Every field here is the field itself, saved when it loses focus —
+    // the same pattern the Remnant card on the map uses, and for the same
+    // reason: there is nothing here worth a two-step commit.
+    return `<ul class="drpg-table-items">${results.map(r => {
+        const name = r.name ?? r.text ?? "";
+        const note = r.description && r.description !== name ? r.description : "";
+        return `<li data-drpg-result="${r.id}" data-drpg-table="${table.id}">
+            <img src="${esc(r.img || DEFAULT_RESULT_IMG)}" alt="" class="drpg-table-item-icon"
+                 data-drpg-result-img="${r.id}"
+                 title="${esc(game.i18n.localize("DRPG.Tables.changeIcon"))}" />
+            <input type="text" class="drpg-table-item-name" data-drpg-field="name"
+                   value="${esc(name)}" />
+            <input type="text" class="drpg-table-item-note notes" data-drpg-field="description"
+                   value="${esc(note)}"
+                   placeholder="${esc(game.i18n.localize("DRPG.Items.descriptionPlaceholder"))}" />
+            <button type="button" class="drpg-mini-button" data-drpg-drop="${r.id}"
+                data-drpg-drop-table="${table.id}" title="${
+                    esc(game.i18n.localize("DRPG.Tables.removeItem"))}">✕</button>
+        </li>`;
+    }).join("")}</ul>`;
+}
+
+/**
+ * Add one entry to a table and keep it rollable.
+ *
+ * `normalize()` is what makes this safe to call on a table a GM has been
+ * editing by hand: it re-ranges every result and rewrites the formula, so a
+ * table that was `1d4` with four entries becomes `1d5` with five rather than a
+ * table whose fifth item can never come up.
+ */
+async function addResult(table, { name, description = "", img = null }) {
+    if (!table || !name) return false;
+    try {
+        const next = (table.results?.size ?? 0) + 1;
+        await table.createEmbeddedDocuments("TableResult", [{
+            type: CONST.TABLE_RESULT_TYPES?.TEXT ?? "text",
+            // `text` as well as `name`, for the same reason `installTables`
+            // writes both: a world still on the old shape reads `text`.
+            text: name,
+            name,
+            description: description || name,
+            img: img || undefined,
+            weight: 1,
+            // v14 validates `range` at creation ("cannot have fewer than 2
+            // elements"), so it cannot be left for `normalize()` to invent —
+            // the write below is provisional and normalize re-ranges the lot.
+            range: [next, next]
+        }]);
+        await table.normalize();
+        return true;
+    } catch (err) {
+        error(`Could not add "${name}" to "${table.name}"`, err);
+        return false;
+    }
+}
+
+/**
+ * Write one field of one entry back.
+ *
+ * `name` and `text` move together: `text` is the pre-v13 shape and `drawItem`
+ * still reads it as a fallback, so a name saved into only one of the two would
+ * come out of the table differently depending on which world it was rolled in.
+ */
+async function editResult(table, resultId, field, value) {
+    const result = table?.results?.get(resultId);
+    if (!result) return false;
+
+    const patch = field === "name"
+        ? { name: value, text: value }
+        : { description: value || (result.name ?? result.text ?? "") };
+
+    try {
+        await result.update(patch);
+        return true;
+    } catch (err) {
+        error(`Could not edit "${table.name}"`, err);
+        return false;
+    }
+}
+
+/** Take one entry out, and re-range what is left. Same reasoning as `addResult`. */
+async function dropResult(table, resultId) {
+    if (!table || !resultId) return false;
+    try {
+        await table.deleteEmbeddedDocuments("TableResult", [resultId]);
+        await table.normalize();
+        return true;
+    } catch (err) {
+        error("Could not remove a table entry", err);
+        return false;
+    }
+}
+
+/**
+ * The item tables, editable.
+ *
+ * @param {object} [options]
+ * @param {object} [options.preset]  Prefill for the "add an item" form:
+ *   `{ category, tier, room, name }`. Handed in by the ruling card a Search for
+ *   "something specific" produces — the GM pressed "Create an item" while
+ *   reading a roll that already says which category, which tier and which room,
+ *   and re-picking all three here would be answering a question they have just
+ *   answered.
+ */
+export async function openItemTables({ preset = null } = {}) {
+    if (!game.user.isGM) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
+        return null;
+    }
+
+    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
+    const tables = moduleTables();
+
+    // Which tables the preset points at: the ones this category and tier would
+    // actually be drawn from, plus the room's own if it has one. Ticked, not
+    // forced — the GM can add or clear any of them before pressing Add.
+    const presetTargets = new Set();
+    if (preset?.category) {
+        const wanted = [tableName(preset.category, preset.tier ?? 0)];
+        if (preset.room) {
+            const base = await tableForRoom(preset.room);
+            if (base) {
+                wanted.push(base, `${base} — ${ITEM_CATEGORIES[preset.category]?.plural ?? ""}`);
+            }
+        }
+        for (const t of tables) if (wanted.includes(t.name)) presetTargets.add(t.id);
+    }
+
+    const selected = tables.find(t => presetTargets.has(t.id)) ?? tables[0] ?? null;
+
+    const listHtml = tables.length
+        ? `<ul class="drpg-tables-list">${tables.map(t => `
+            <li><button type="button" class="drpg-table-pick${
+                t.id === selected?.id ? " active" : ""}" data-drpg-table="${t.id}">
+                <span>${esc(t.name)}</span>
+                <span class="notes">${t.results.size}</span>
+            </button></li>`).join("")}</ul>`
+        : `<p class="notes">${game.i18n.localize("DRPG.Tables.noneYet")}</p>`;
+
+    const categories = Object.entries(ITEM_CATEGORIES)
+        .filter(([key]) => key !== "truthBullet")
+        .map(([key, cat]) => `<option value="${key}"${
+            key === preset?.category ? " selected" : ""}>${esc(cat.label)}</option>`).join("");
+
+    const tiers = ITEM_TIERS.map(t => `<option value="${t}"${
+        t === Number(preset?.tier ?? 2) ? " selected" : ""}>${
+        game.i18n.format("DRPG.Items.tierN", { n: t })}</option>`).join("");
+
+    // ONE tier table, ANY number of room tables (F5.5, 2026-08-25).
+    //
+    // An item lives in exactly one tier pool — that is what the tier is — so
+    // the tier family is a dropdown with a single choice ("—" for an item that
+    // only ever appears in rooms). Room tables keep the checkboxes: a knife can
+    // sit in the Kitchen and the Workshop at once.
+    const tierTables = tables.filter(t => isTierPool(t.name));
+    const roomTablesList = tables.filter(t => !isTierPool(t.name));
+
+    const tierOptions = `<option value="">—</option>` + tierTables.map(t =>
+        `<option value="${t.id}"${presetTargets.has(t.id) ? " selected" : ""}>${
+            esc(t.name)}</option>`).join("");
+    const roomChecks = roomTablesList.map(t => `<label class="drpg-inline-check">
+        <input type="checkbox" name="target:${t.id}"${
+            presetTargets.has(t.id) ? " checked" : ""} /> ${esc(t.name)}</label>`).join(" ");
+
+    // Not `tableDialog()`: there is no table in here to measure. Its two panes
+    // are a list and a form, and a window sized by `fitWindowToTable` with
+    // nothing to measure keeps whatever width the dialog opened at — which is
+    // 400px, and half of what this layout needs. `drpg-wide` is the manual
+    // override that exists for exactly this case.
+    const action = await DialogV2.wait({
+        window: { title: game.i18n.localize("DRPG.Tables.editorTitle") },
+        classes: ["drpg-panel", "drpg-projects", "drpg-wide"],
+        position: { height: "auto" },
+        content: dialogContent(`<form>
+            <p class="notes">${game.i18n.localize("DRPG.Tables.editorIntro")}</p>
+
+            <div class="drpg-tables-layout">
+                <div class="drpg-tables-left">${listHtml}</div>
+                <div class="drpg-tables-right">
+                    <h4 data-drpg-table-name>${esc(selected?.name ?? "")}</h4>
+                    <div data-drpg-table-body>${
+                        selected ? tableItemsHtml(selected)
+                            : `<p class="notes">${game.i18n.localize("DRPG.Tables.noneYet")}</p>`
+                    }</div>
+                </div>
+            </div>
+
+            <fieldset class="drpg-tables-new">
+                <legend>${game.i18n.localize("DRPG.Tables.addItem")}</legend>
+                <div class="drpg-tables-new-head">
+                    <img src="${esc(preset?.img || DEFAULT_RESULT_IMG)}" alt=""
+                         class="drpg-project-portrait" data-drpg-portrait="new" />
+                    <input type="hidden" name="img.new" value="${esc(preset?.img || "")}" />
+                    <label>${game.i18n.localize("DRPG.Items.name")}
+                        <input type="text" name="newName" value="${esc(preset?.name ?? "")}"
+                               placeholder="${esc(game.i18n.localize("DRPG.Items.namePlaceholder"))}" /></label>
+                </div>
+                <label>${game.i18n.localize("DRPG.Items.description")}
+                    <textarea name="newText" rows="2"
+                        placeholder="${esc(game.i18n.localize("DRPG.Items.descriptionPlaceholder"))}"></textarea></label>
+                <label>${game.i18n.localize("DRPG.Items.category")}
+                    <select name="newCategory">${categories}</select></label>
+                <label>${game.i18n.localize("DRPG.Items.tier")}
+                    <select name="newTier">${tiers}</select></label>
+                <label>${game.i18n.localize("DRPG.Tables.tierTarget")}
+                    <select name="tierTarget">${tierOptions}</select></label>
+                <div class="drpg-tables-targets">
+                    <span class="notes">${game.i18n.localize("DRPG.Tables.roomTargets")}</span>
+                    ${roomChecks || `<span class="notes">${game.i18n.localize("DRPG.Tables.noRoomTables")}</span>`}
+                </div>
+                <p class="notes">${game.i18n.localize("DRPG.Tables.addNote")}</p>
+            </fieldset>
+
+            <fieldset class="drpg-tables-new">
+                <legend>${game.i18n.localize("DRPG.Tables.newPool")}</legend>
+                <label>${game.i18n.localize("DRPG.Items.name")}
+                    <input type="text" name="newPoolName"
+                        placeholder="${esc(game.i18n.localize("DRPG.Tables.newPoolPlaceholder"))}" /></label>
+                <p class="notes">${game.i18n.localize("DRPG.Tables.newPoolNote")}</p>
+            </fieldset>
+        </form>`),
+        buttons: [
+            {
+                action: "add", label: game.i18n.localize("DRPG.Tables.addItem"), default: true,
+                callback: (e, b, d) => {
+                    const f = d.element.querySelector("form");
+                    return {
+                        name: f.newName.value.trim(),
+                        description: f.newText.value.trim(),
+                        img: f.querySelector('[name="img.new"]')?.value ?? "",
+                        category: f.newCategory.value,
+                        tier: Number(f.newTier.value),
+                        tables: [
+                            f.tierTarget?.value || null,
+                            ...roomTablesList
+                                .filter(t => f.querySelector(`[name="target:${CSS.escape(t.id)}"]`)?.checked)
+                                .map(t => t.id)
+                        ].filter(Boolean)
+                    };
+                }
+            },
+            {
+                action: "newPool", label: game.i18n.localize("DRPG.Tables.newPool"),
+                callback: (e, b, d) => ({ newPool: d.element.querySelector("[name=newPoolName]")?.value.trim() ?? "" })
+            },
+            { action: "install", label: game.i18n.localize("DRPG.Panel.installTables") },
+            { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
+        ],
+        render: (event, dialog) => {
+            const root = dialog.element;
+            wirePortraitPickers(root, { defaultImg: DEFAULT_RESULT_IMG });
+
+            const nameEl = root.querySelector("[data-drpg-table-name]");
+            const bodyEl = root.querySelector("[data-drpg-table-body]");
+
+            const show = table => {
+                nameEl.textContent = table?.name ?? "";
+                bodyEl.innerHTML = table ? tableItemsHtml(table) : "";
+            };
+
+            for (const button of root.querySelectorAll("[data-drpg-table]")) {
+                button.addEventListener("click", ev => {
+                    ev.preventDefault();
+                    for (const b of root.querySelectorAll("[data-drpg-table]")) {
+                        b.classList.toggle("active", b === button);
+                    }
+                    show(game.tables.get(button.dataset.drpgTable));
+                });
+            }
+
+            // Delegated, because the entry list is rebuilt whenever a table is
+            // picked or an entry is dropped — listeners bound to the old rows
+            // would go with them. The same delegation carries the editing:
+            // `focusout` bubbles where `blur` does not, which is exactly why it
+            // exists.
+            bodyEl?.addEventListener("click", async ev => {
+                const drop = ev.target.closest("[data-drpg-drop]");
+                if (drop) {
+                    ev.preventDefault();
+                    const table = game.tables.get(drop.dataset.drpgDropTable);
+                    if (await dropResult(table, drop.dataset.drpgDrop)) show(table);
+                    return;
+                }
+
+                const icon = ev.target.closest("[data-drpg-result-img]");
+                if (!icon) return;
+                ev.preventDefault();
+
+                const row = icon.closest("[data-drpg-result]");
+                const table = game.tables.get(row?.dataset.drpgTable);
+                const result = table?.results?.get(row?.dataset.drpgResult);
+                if (!result) return;
+
+                new foundry.applications.apps.FilePicker.implementation({
+                    type: "image",
+                    current: result.img || DEFAULT_RESULT_IMG,
+                    callback: async path => {
+                        try {
+                            await result.update({ img: path });
+                            icon.src = path;
+                        } catch (err) {
+                            error("Could not change a table entry's icon", err);
+                        }
+                    }
+                }).render(true);
+            });
+
+            bodyEl?.addEventListener("focusout", async ev => {
+                const field = ev.target.closest("[data-drpg-field]");
+                if (!field) return;
+
+                const row = field.closest("[data-drpg-result]");
+                const table = game.tables.get(row?.dataset.drpgTable);
+                if (!table) return;
+
+                const saved = await editResult(
+                    table, row.dataset.drpgResult, field.dataset.drpgField, field.value.trim());
+                if (saved) {
+                    // The same brief mark the Remnant card uses for "that
+                    // landed", removed again so a window left open does not
+                    // keep claiming it.
+                    field.classList.add("drpg-saved");
+                    setTimeout(() => field.classList.remove("drpg-saved"), 1200);
+                }
+            });
+        },
+        rejectClose: false
+    });
+
+    if (!action || action === "close") return null;
+
+    if (action === "install") {
+        await installTables();
+        return openItemTables({ preset });
+    }
+
+    if (typeof action.newPool === "string") {
+        const name = action.newPool;
+        if (!name) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Tables.needsName"));
+        } else if (isTierPool(name)) {
+            // A pool NAMED like a tier table would be picked up by the draw
+            // order's tier lookup and shadow the real one. Refused at the door.
+            ui.notifications.warn(game.i18n.localize("DRPG.Tables.newPoolTierName"));
+        } else if (game.tables.getName(name)) {
+            ui.notifications.warn(game.i18n.format("DRPG.Tables.newPoolExists", { name }));
+        } else {
+            await RollTable.create({
+                name,
+                formula: "1d1",
+                flags: { [MODULE_ID]: { roomPool: true } }
+            });
+            ui.notifications.info(game.i18n.format("DRPG.Tables.poolCreated", { name }));
+            log(`Item tables: room pool "${name}" created.`);
+        }
+        return openItemTables({ preset });
+    }
+
+    if (!action.name) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Tables.needsName"));
+        return openItemTables({ preset });
+    }
+    if (!action.tables.length) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Tables.needsTable"));
+        return openItemTables({ preset });
+    }
+
+    let added = 0;
+    for (const id of action.tables) {
+        const table = game.tables.get(id);
+        if (await addResult(table, {
+            name: action.name, description: action.description, img: action.img
+        })) added++;
+    }
+
+    log(`Item tables: "${action.name}" added to ${added} table(s).`);
+    ui.notifications.info(game.i18n.format("DRPG.Tables.itemAdded", { name: action.name, n: added }));
+
+    // The preset is spent: it described one ruling, and the GM is now looking
+    // at a window that has already acted on it.
+    return openItemTables({ preset: null });
 }
 
 /** Put the tables in front of the GM, so the button visibly did something. */

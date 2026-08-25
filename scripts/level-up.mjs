@@ -44,22 +44,30 @@ export async function openAdvancementFor(actor) {
         return null;
     }
 
-    const kind = await DialogV2.wait({
-        classes: ["drpg-panel"],
-        window: { title: game.i18n.format("DRPG.Advance.title", { actor: actor.name }) },
-        content: `<p>${game.i18n.format("DRPG.Advance.whichKind", {
+    // The module's one menu shape — see `chooseVariant` in action-rolls.mjs.
+    // Imported dynamically because this window is opened from a sheet button
+    // and a GM console, neither of which is on a path that has already paid
+    // for that module.
+    const { chooseVariant } = await import("./action-rolls.mjs");
+
+    const picked = await chooseVariant({
+        actor,
+        title: game.i18n.format("DRPG.Advance.title", { actor: actor.name }),
+        prompt: game.i18n.format("DRPG.Advance.whichKind", {
             actor: foundry.utils.escapeHTML(actor.name)
-        })}</p>`,
-        buttons: [
-            { action: "standard", label: game.i18n.localize("DRPG.Advance.kind.standard"), default: true },
-            { action: "reinforced", label: game.i18n.localize("DRPG.Advance.kind.reinforced") },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
-        rejectClose: false
+        }),
+        options: [
+            { value: "standard", icon: "fa-arrow-up",
+              label: game.i18n.localize("DRPG.Advance.kind.standard"),
+              hint: game.i18n.localize("DRPG.Advance.kind.standardHint") },
+            { value: "reinforced", icon: "fa-shield-halved",
+              label: game.i18n.localize("DRPG.Advance.kind.reinforced"),
+              hint: game.i18n.localize("DRPG.Advance.kind.reinforcedHint") }
+        ]
     });
 
-    if (!kind || kind === "cancel") return null;
-    return openAdvancement(actor, kind);
+    if (!picked) return null;
+    return openAdvancement(actor, picked.value);
 }
 
 /**

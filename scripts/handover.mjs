@@ -20,8 +20,8 @@
  * player's sheet in the first place.
  */
 
-import { MODULE_ID, ITEM_CATEGORIES } from "./config.mjs";
-import { grantItem, canCarry } from "./inventory.mjs";
+import { MODULE_ID, ITEM_CATEGORIES, BEDROOM_KEY_FLAG } from "./config.mjs";
+import { grantItem, canCarry, preservedFlags } from "./inventory.mjs";
 import { createTruthBullet, truthBulletData, secretOf, isTruthBullet } from "./truth-bullets.mjs";
 import { dialogContent, whisperToOwner, log, warn, error } from "./utils.mjs";
 
@@ -97,14 +97,59 @@ export async function shareBulletDialog(actor, item) {
     return true;
 }
 
-/** Hand one of my items to somebody in this room. I lose it. */
-export async function giveItemDialog(actor, item) {
-    const targetId = await askRecipient(actor, item, { copying: false });
+/**
+ * Hand one of my items to somebody in this room.
+ *
+ * `copying` is about the WORDING, not the mechanism. The GM side decides what
+ * actually happens to the document — an ordinary item moves, a bedroom key is
+ * copied (see `shareKey`) — and this flag makes the dialog say the same thing
+ * the item is about to do. Getting it wrong is worse than it sounds: "you will
+ * no longer have it" on a key would make a player think twice about the one
+ * social move keys exist for.
+ */
+export async function giveItemDialog(actor, item, { copying = false } = {}) {
+    const targetId = await askRecipient(actor, item, { copying });
     if (!targetId) return false;
 
     const { requestGiveItem } = await import("./gm-bridge.mjs");
     await requestGiveItem({ fromId: actor.id, toId: targetId, itemId: item.id });
     return true;
+}
+
+/**
+ * Copy a bedroom key onto somebody else's sheet.
+ *
+ * One key per room per person: two copies of the same key open the same door
+ * and only make the inventory longer. Refusing quietly would look broken, so
+ * the giver is told.
+ */
+async function shareKey({ from, to, item }) {
+    const room = item.getFlag(MODULE_ID, BEDROOM_KEY_FLAG);
+    if (!room) return null;
+
+    const already = to.items.some(i => i.getFlag(MODULE_ID, BEDROOM_KEY_FLAG) === room);
+    if (already) {
+        await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.alreadyHasIt", {
+            who: foundry.utils.escapeHTML(to.name),
+            name: foundry.utils.escapeHTML(item.name)
+        })}</p>`);
+        return null;
+    }
+
+    const { grantBedroomKey } = await import("./vault.mjs");
+    const copy = await grantBedroomKey(to, room, { silent: true });
+    if (!copy) return null;
+
+    await whisperToOwner(to, `<p>${game.i18n.format("DRPG.Vault.keyShared", {
+        room: foundry.utils.escapeHTML(room),
+        who: foundry.utils.escapeHTML(from.name)
+    })}</p>`);
+    await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Vault.keyGave", {
+        room: foundry.utils.escapeHTML(room),
+        who: foundry.utils.escapeHTML(to.name)
+    })}</p>`);
+    log(`${from.name} shared the key to ${room} with ${to.name}.`);
+    return copy;
 }
 
 /* ==========================================================================
@@ -259,6 +304,11 @@ export async function giveItem({ fromId, toId, itemId } = {}) {
     // Truth Bullets are copied, never moved — see `shareBullet`.
     if (isTruthBullet(item)) return shareBullet({ fromId, toId, itemId });
 
+    // So are keys, for the same reason in a different shape: handing somebody
+    // the key to your room should not take you out of it. The copy carries the
+    // room flag, which is the only thing that makes a key a key.
+    if (item.getFlag(MODULE_ID, BEDROOM_KEY_FLAG)) return shareKey({ from, to, item });
+
     const category = item.getFlag(MODULE_ID, "category");
     if (!category) {
         warn(`Handover refused: "${item.name}" is not an item this module tracks.`);
@@ -281,7 +331,10 @@ export async function giveItem({ fromId, toId, itemId } = {}) {
         category,
         tier: item.getFlag(MODULE_ID, "tier") ?? null,
         description: item.system?.description ?? "",
-        img: item.img
+        img: item.img,
+        // A ruined thing stays ruined on the other side of the table. Without
+        // this, handing the murder weapon to an accomplice repaired it.
+        extraFlags: preservedFlags(item)
     });
 
     if (!copy) {

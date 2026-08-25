@@ -52,22 +52,26 @@ export function registerResourceGuard() {
 }
 
 /**
- * An item's name is the GM's to write.
+ * What an item IS is the GM's to write: its name, its picture, what it says.
  *
  * What a thing is CALLED is what everybody else at the table will hear it
- * called, and on a Truth Bullet it is half the evidence — "Bent pipe" and "Bent
- * pipe, wiped clean" are two different claims about one object. A player
- * renaming their own copy edits the record the Class Trial runs on, from a text
- * field, with nobody told.
+ * called, and on a Truth Bullet the name and the description together ARE the
+ * evidence — "Bent pipe" and "Bent pipe, wiped clean" are two different claims
+ * about one object, and so is the paragraph under either name. A player editing
+ * their own copy of any of the three rewrites the record the Class Trial runs
+ * on, from a text field, with nobody told. This used to guard only `name` —
+ * the description and the picture went through untouched, which is the same
+ * hole with a different field name.
  *
- * Only the name. Players still move items, stash them, equip them, hand them
- * over and spend them; none of that is touched.
+ * Only these three. Players still move items, stash them, equip them, hand
+ * them over and spend them; none of that is touched.
  */
+const ITEM_GUARDED = ["name", "img", "system.description"];
+
 function onPreUpdateItem(item, changes, options) {
     try {
         if (game.user.isGM) return;
         if (options?.[SYSTEM_WRITE]) return;
-        if (!("name" in changes)) return;
         // Only an item somebody is carrying. A world item in a compendium or in
         // the sidebar is not part of anybody's inventory and not this guard's
         // business — and a player cannot edit those anyway.
@@ -79,10 +83,28 @@ function onPreUpdateItem(item, changes, options) {
         } catch { /* setting not registered yet */ }
         if (!enforcing) return;
 
-        delete changes.name;
+        // Flattened and matched by prefix, the same way `onPreUpdateActor` reads
+        // `GUARDED` below — `system.description` may arrive as a bare string or
+        // as `{ value, chat, ... }` depending on the field type, and a plain
+        // `"system.description" in changes` check misses the second shape
+        // entirely, which is exactly how the picture and the description got
+        // past this guard while the name did not.
+        const flat = foundry.utils.flattenObject(changes);
+        const blocked = Object.keys(flat).filter(path =>
+            ITEM_GUARDED.some(g => path === g || path.startsWith(`${g}.`)));
+        if (!blocked.length) return;
+
+        for (const path of blocked) {
+            const parts = path.split(".");
+            const last = parts.pop();
+            let node = changes;
+            for (const part of parts) node = node?.[part];
+            if (node && last in node) delete node[last];
+        }
+
         prune(changes);
-        ui.notifications.warn(game.i18n.localize("DRPG.Guard.nameLocked"));
-        debug(`Blocked a player rename of "${item.name}"`);
+        ui.notifications.warn(game.i18n.localize("DRPG.Guard.itemLocked"));
+        debug(`Blocked a player edit of "${item.name}": ${blocked.join(", ")}`);
     } catch {
         // Never let the guard itself break an update.
     }

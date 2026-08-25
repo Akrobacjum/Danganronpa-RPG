@@ -1,0 +1,117 @@
+/* ===========================================================================
+   Danganronpa RPG — THE MOTION LAYER
+   ---------------------------------------------------------------------------
+   Tokens. Times, curves, distances, and nothing else. Every animation in this
+   module — in the stylesheet, on the canvas, in JavaScript — reads its timing
+   from here, and nothing anywhere writes a number in place.
+
+   That rule is not tidiness. It is what makes the switch at the bottom of this
+   file real: one media query zeroes these three times, and because everything
+   reads them, everything stops. A single `setTimeout(…, 300)` written into a
+   script would survive that switch and quietly keep moving for a reader who
+   asked the operating system for stillness.
+
+   WHAT THE MODULE DOES NOT DO WITH THIS FILE. Nothing here is on a loop. After
+   this layer landed there is not one animation in the module without a trigger:
+   no raster crawling behind a window, no drift under text somebody is reading,
+   no parallax, nothing turning over while the table talks. An idle Foundry
+   computes nothing. The three infinite animations that remain — the trial floor
+   bar, a pending Despair Call, the pause veil — are each tied to a state that
+   only exists while something is genuinely happening, and all three stop when
+   it stops.
+
+   THE THREE TIMES. Not a scale to pick from; three different KINDS of event.
+
+     snap    90ms   the interface answering a press. Below roughly a tenth of a
+                    second a movement reads as the control responding rather
+                    than as an animation playing, which is the whole point.
+     enter  180ms   something arriving that was not there — a window, a card,
+                    a field. Long enough to be seen as arriving from somewhere.
+     beat   420ms   a moment the table is meant to look at: the time of day
+                    turning over, a room coming out of the fog, evidence landing
+                    on the floor of a trial. Rare, deliberate, and never in the
+                    way of a click.
+
+   THE TWO CURVES, AND THE NAME TRAP THEY AVOID. These are named for what the
+   thing does, not for CSS's own keywords, because those keywords mean the
+   opposite of what they sound like here. "Ease in" reads as "comes in", but
+   `ease-in` is the slow, dragging start you want on something LEAVING. Getting
+   that backwards is the single easiest way to make an interface feel like it
+   is struggling, so the names in this file describe the motion:
+
+     arrive  fast off the mark, softly landed. A decisive entrance, which is
+             what Danganronpa's hard cuts are made of.
+     leave   reluctant for a moment, then gone. Nothing chases what is already
+             on its way out.
+
+   =========================================================================== */
+
+:root {
+    --drpg-t-snap: 90ms;
+    --drpg-t-enter: 180ms;
+    --drpg-t-beat: 420ms;
+
+    /* The clock turning over, and it is slower than a beat on purpose.
+       --------------------------------------------------------------------
+       A beat is a moment you notice. This is a moment you READ: two labels
+       cross a window in opposite directions and both have to be legible while
+       they travel, or the one leaving registers as a wrong value flashing
+       rather than as the value that was just there. At 420ms it did exactly
+       that. Two beats is enough to see where each of them went.
+
+       Written as its own token rather than as `calc()` on the beat, because
+       `motion.mjs` reads these off `:root` and an unregistered custom property
+       hands back the calc() expression rather than a number. The comment is
+       the arithmetic: this is two beats, and it moves when the beat moves. */
+    --drpg-t-turn: 840ms;
+
+    /* Not one of the three, and deliberately apart from them.
+       The Eclipse draining the colour out of the map is the world changing
+       mood, not the interface answering anybody — it belongs to the scene and
+       runs on a scale nothing in a window ever should. It is a token all the
+       same, because the rule is that no animation carries a number of its
+       own. */
+    --drpg-t-eclipse: 1400ms;
+
+    --drpg-ease-arrive: cubic-bezier(0.16, 0.84, 0.28, 1);
+    --drpg-ease-leave: cubic-bezier(0.55, 0, 0.9, 0.35);
+
+    /* Distances. A window arrives by growing the last four percent of the way
+       and leaves by giving up three — small enough to read as weight rather
+       than as a zoom, and small enough that a full-screen dialog does not
+       appear to lurch. */
+    --drpg-scale-in: 0.96;
+    --drpg-scale-out: 0.97;
+
+    /* How far a thing travels when it slides rather than scales: the time of
+       day crossing its slot, a card coming in from the edge. */
+    --drpg-slide: 1.25rem;
+}
+
+/* ===========================================================================
+   THE SWITCH
+   ---------------------------------------------------------------------------
+   A reader who has asked their operating system to stop moving things gets a
+   module that does not move. Zeroing the times is enough BECAUSE of the rule
+   at the top of this file: a CSS transition of 0ms does not run, a keyframe
+   animation of 0ms does not play, and `Element.animate()` with a duration of 0
+   finishes in the frame it starts.
+
+   Nothing disappears and nothing becomes unreachable. Everything that would
+   have arrived is simply already there — which is exactly the promise, and the
+   thing to check when verifying this stage.
+   =========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --drpg-t-snap: 0ms;
+        --drpg-t-enter: 0ms;
+        --drpg-t-beat: 0ms;
+        --drpg-t-turn: 0ms;
+        --drpg-t-eclipse: 0ms;
+
+        --drpg-scale-in: 1;
+        --drpg-scale-out: 1;
+        --drpg-slide: 0px;
+    }
+}

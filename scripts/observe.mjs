@@ -37,7 +37,8 @@ const DialogV2 = foundry.applications.api.DialogV2;
 export const DECLARATIONS = {
     general: "general",
     specific: "specific",
-    nonObvious: "nonObvious"
+    nonObvious: "nonObvious",
+    followTraces: "followTraces"
 };
 
 /**
@@ -95,7 +96,9 @@ export async function chooseObserveTarget({ actorId, declaration, request = "" }
     // A Remnant already copied is not a second find — the guide's Truth Bullet
     // is the player's copy of a trace, and one trace yields one copy per person.
     const already = copiedRemnants(actor);
-    const candidates = rankForObserve(where.room, where.scene)
+    const followingTraces = declaration === DECLARATIONS.followTraces;
+    const candidates = rankForObserve(where.room, where.scene,
+        { preferSource: followingTraces ? actorId : null })
         .filter(c => !already.has(c.token.id));
     if (!candidates.length) return { ok: false, reason: "none" };
     const room = where.room;
@@ -106,6 +109,14 @@ export async function chooseObserveTarget({ actorId, declaration, request = "" }
         // A GM who closes the picker has refused the request, which is a real
         // answer: the player keeps their action and nothing is rolled.
         if (!chosen) return { ok: false, reason: "refused" };
+    } else if (followingTraces) {
+        // `preferSource` above already put the observer's own traces first,
+        // sorted the normal way within that group — so the first one IS the
+        // easiest of their own. When they have none here, this reads exactly
+        // as "general": no message saying so, because "you left nothing here"
+        // is information the action never paid for.
+        const mine = candidates.filter(c => c.data.sourceActor === actorId);
+        chosen = mine.length ? mine[0] : mostRelevant(candidates)[0];
     } else {
         // The preference picks the SHELF; the declaration picks off it.
         //
@@ -356,7 +367,8 @@ async function createFind(actor, entry, isCritical) {
         || game.i18n.format("DRPG.Observe.defaultName", { room: entry.room });
 
     /*
-     * ONE TRACE, ONE DESCRIPTION.
+     * ONE TRACE, ONE DESCRIPTION — now `public` on the Remnant itself, not a
+     * field private to this file.
      *
      * The GM used to be asked to describe the find on EVERY observation, and the
      * answer went onto that one player's Truth Bullet and nowhere else. Two
@@ -367,32 +379,40 @@ async function createFind(actor, entry, isCritical) {
      * cosmetic problem. It is a false contradiction the table has to spend the
      * trial resolving.
      *
-     * So the description is written back to the Remnant the first time it is
-     * given, and every later observer is handed the same words without the GM
-     * being asked again.
+     * So the description IS the Remnant's `public.name`/`public.playerText` —
+     * see remnants.mjs — written back the first time it is given, and every
+     * later observer (and the Investigation Dashboard, and the token itself
+     * once revealed) reads the same words without the GM being asked again.
      *
      * A CRITICAL still asks. The guide gives it "a big hint from the GM" on top
      * of the category (p. 30), so there is genuinely something new to say — and
      * the box opens prefilled with what the trace is already called, so pressing
      * straight through keeps the name identical.
      */
-    const stored = data.described ?? null;
-    const described = (stored && !isCritical)
-        ? stored
-        : await describeFind(actor, entry, isCritical, stored?.name || fallbackName, stored);
+    const {
+        remnantPublicById, setRemnantPublicById, revealRemnantToFinderById
+    } = await import("./remnants.mjs");
+
+    const stored = remnantPublicById(entry.sceneId, entry.tokenId);
+    const neutralName = game.i18n.localize("DRPG.Remnant.tokenName");
+    // Has anybody actually described this yet, or is `stored.name` just the
+    // neutral placeholder every fresh trace starts with?
+    const described = stored?.name && stored.name !== neutralName ? stored : null;
+
+    const written = (described && !isCritical)
+        ? described
+        : await describeFind(actor, entry, isCritical, described?.name || stored?.name || fallbackName, described);
 
     // Written back on the GM's client, where the ledger lives. Only when there
     // is something to write: a dismissed dialog must not overwrite a good
     // description with an empty one.
-    if (described?.name && described.name !== stored?.name
-        || described?.playerText && described.playerText !== stored?.playerText) {
+    let pub = stored;
+    if (written?.name && written.name !== described?.name
+        || written?.playerText && written.playerText !== described?.playerText) {
         try {
-            const { setRemnantSecretById } = await import("./remnants.mjs");
-            await setRemnantSecretById(entry.sceneId, entry.tokenId, {
-                described: {
-                    name: described.name || stored?.name || fallbackName,
-                    playerText: described.playerText || stored?.playerText || ""
-                }
+            pub = await setRemnantPublicById(entry.sceneId, entry.tokenId, {
+                name: written.name || described?.name || fallbackName,
+                playerText: written.playerText || described?.playerText || ""
             });
         } catch (err) {
             error("Could not record the description on the Remnant", err);
@@ -400,14 +420,16 @@ async function createFind(actor, entry, isCritical) {
     }
 
     const item = await createTruthBullet(actor, {
-        name: described?.name || fallbackName,
+        name: pub?.name || written?.name || fallbackName,
         realType: data.type,
         // A critical identifies the category outright — guide, p. 30: "Truth
         // Bullet ze zidentyfikowaną kategorią i duża podpowiedź od DMa."
         shownType: isCritical ? data.type : "neutral",
         visibility: data.visibility,
         faint: Boolean(data.faint),
-        playerText: described?.playerText ?? "",
+        playerText: pub?.playerText ?? written?.playerText ?? "",
+        img: pub?.img ?? null,
+        tags: pub?.tags ?? [],
         gmNote: data.note ?? "",
         remnantId: entry.tokenId,
         sceneId: entry.sceneId,
@@ -418,10 +440,21 @@ async function createFind(actor, entry, isCritical) {
 
     if (!item) return null;
 
+    // The object is real now, not just a note in the GM's ledger — the first
+    // person to copy it reveals the token it came from. See
+    // `revealRemnantToFinder` in remnants.mjs for why this is `hidden: false`
+    // rather than forcing `visible`, and visibility.mjs for how it then stays
+    // invisible to everyone who has not found it themselves.
+    try {
+        await revealRemnantToFinderById(entry.sceneId, entry.tokenId);
+    } catch (err) {
+        error("Could not reveal the Remnant token to its finder", err);
+    }
+
     await whisperToOwner(actor, `
         <h3>${game.i18n.localize("DRPG.TruthBullet.received")}</h3>
         <p><strong>${foundry.utils.escapeHTML(item.name)}</strong></p>
-        ${described?.playerText ? `<p>${foundry.utils.escapeHTML(described.playerText)}</p>` : ""}
+        ${pub?.playerText ? `<p>${foundry.utils.escapeHTML(pub.playerText)}</p>` : ""}
         ${isCritical ? `<p><em>${game.i18n.localize("DRPG.Observe.critIdentified")}</em></p>` : ""}
         <p><small>${game.i18n.localize("DRPG.TruthBullet.whereToFind")}</small></p>`);
 

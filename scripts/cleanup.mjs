@@ -133,6 +133,33 @@ export function cleanableRemnants(actor, where = null) {
 }
 
 /**
+ * What a killer's own client may know about a trace: which one it is, a label
+ * built from what Stage 6 already lets them see, and whether it can be acted
+ * on at all. GM-side only — this is the function `requestCleanableTraces` (in
+ * gm-bridge.mjs) actually calls, on behalf of a killer's client that cannot
+ * run `cleanableRemnants` itself and get anything back from it.
+ *
+ * The DC (`cleanupDc`) and `tiedToCrime` never leave this function — that is
+ * the answer key `openCleanupDialog` used to have no business rendering
+ * client-side and now has no way to, because it never receives them. Only the
+ * label is built from `visibilityLabel`/`typeLabel`, which the guide already
+ * gives the killer at Stage 6 — see the note on `openCleanupDialog`.
+ */
+export function cleanableTracesForPlayer(actorId) {
+    const actor = game.actors.get(actorId);
+    if (!actor) return [];
+
+    return cleanableRemnants(actor).map(t => ({
+        id: t.token.id,
+        label: [
+            `${t.data.visibilityLabel} ${t.data.typeLabel}`,
+            t.data.reinforced ? game.i18n.localize("DRPG.Cleanup.reinforcedFlag") : null
+        ].filter(Boolean).join(" · "),
+        reinforced: Boolean(t.data.reinforced)
+    }));
+}
+
+/**
  * Where this character is standing: scene, token AND room.
  *
  * The room is the whole point — `cleanableRemnants` filters on it — and the
@@ -355,6 +382,7 @@ export async function resolveCleanup({
     }
 
     if (outcome.leaves) {
+        const { traceFeedback } = await import("./remnants.mjs");
         const placed = await dropRemnant(actor, {
             type: CLEANUP.remnantType,
             visibility: outcome.leaves.visibility,
@@ -373,9 +401,19 @@ export async function resolveCleanup({
         });
         if (placed) {
             receipt.leftBehind = refOf(placed);
-            done.push(game.i18n.format("DRPG.Cleanup.leftTrace", {
-                visibility: outcome.leaves.visibility
-            }));
+            // `outcome.leaves` only exists on the despair bands (see
+            // CLEANUP.outcome in config.mjs) — this is a trace the killer did
+            // NOT select and does not already know about, unlike the one
+            // `Cleanup.removed`/`Cleanup.reinforced` name above, which the
+            // killer already saw on the picker before rolling. Gated the same
+            // way every other action's fresh trace is: Hope or a critical
+            // tells them, a plain Despair never does — and `outcome.leaves`
+            // is despair-only, so this never actually fires today. Written
+            // through the shared gate anyway, so a future rebalance of
+            // CLEANUP.outcome cannot reopen the leak by accident.
+            if (traceFeedback({ isCritical, withHope }, placed)) {
+                done.push(game.i18n.localize("DRPG.Cleanup.leftTrace"));
+            }
         }
     }
 
@@ -953,11 +991,21 @@ async function report(actor, data, { band, success, total, dc, done }) {
  * the trial's whole question. Reinforced traces are the exception and are named
  * outright: "this one is not going anywhere" is a decision they have to be able
  * to make.
+ *
+ * `cleanableRemnants(actor)` cannot be called here directly and expect
+ * anything back — `remnantData()`, underneath it, answers `null` for every
+ * client that is not a GM, which is the correct answer to "what does this
+ * client know about the ledger" and the wrong list to hand a killer. The GM
+ * client that actually holds the ledger has to compute this, which is exactly
+ * what `requestCleanableTraces` asks for: a GM runs it locally, a player asks
+ * over the bridge and gets back only what `cleanableTracesForPlayer` (in this
+ * same file) is willing to say — no DC, no `tiedToCrime`.
  */
 export async function openCleanupDialog(actor) {
     if (!isCleaner(actor)) return refuseCleanup(actor);
 
-    const traces = cleanableRemnants(actor);
+    const { requestCleanableTraces } = await import("./gm-bridge.mjs");
+    const traces = await requestCleanableTraces(actor.id);
     if (!traces.length) {
         ui.notifications.info(game.i18n.localize("DRPG.Cleanup.nothingHere"));
         return null;
@@ -966,19 +1014,15 @@ export async function openCleanupDialog(actor) {
     // Every trace here refuses to be removed. The picker would open with every
     // option disabled, no value to submit, and a confirm button that did nothing
     // — a dead end that looks like a bug. Say what is actually true instead.
-    if (traces.every(t => t.data.reinforced)) {
+    if (traces.every(t => t.reinforced)) {
         ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.allReinforced"));
         return null;
     }
 
-    const options = traces.map(t => {
-        const label = [
-            `${t.data.visibilityLabel} ${t.data.typeLabel}`,
-            t.data.reinforced ? game.i18n.localize("DRPG.Cleanup.reinforcedFlag") : null
-        ].filter(Boolean).join(" · ");
-        return `<option value="${t.token.id}"${t.data.reinforced ? " disabled" : ""}>${
-            foundry.utils.escapeHTML(label)}</option>`;
-    }).join("");
+    const options = traces.map(t =>
+        `<option value="${t.id}"${t.reinforced ? " disabled" : ""}>${
+            foundry.utils.escapeHTML(t.label)}</option>`
+    ).join("");
 
     const tool = cleaningTool(actor);
     const DialogV2 = foundry.applications.api.DialogV2;
@@ -1157,26 +1201,41 @@ export async function destroyCleaningTools() {
     return destroyed;
 }
 
+/**
+ * RUINED, NOT VANISHED.
+ *
+ * These used to be deleted, and deleting them is the one outcome that costs the
+ * killer nothing: the murder weapon left the world by itself, tidily, the
+ * instant it stopped being useful. The guide's sentence is that the tool "zostaje
+ * usunięte z ekwipunku" — removed from what you can use — and the module read
+ * that as removed from existence.
+ *
+ * It stays now, marked Broken, in the same slot and against the same carry
+ * limit. Getting rid of it is the killer's own problem and their own decision:
+ * throw it away and leave a trace somewhere, or put it in their bedroom stash.
+ * See BROKEN_ITEMS in config.mjs and `discardBroken` in use-items.mjs.
+ */
 async function destroyTools(actor, categories) {
     if (!game.user.isGM || !actor || !categories?.length) return [];
 
+    const { breakItem } = await import("./inventory.mjs");
     const destroyed = [];
     for (const category of categories) {
         const item = equippedIn(actor, category);
         if (!item) continue;
         try {
             destroyed.push(item.name);
-            await item.delete();
+            await breakItem(item);
         } catch (err) {
-            error(`Could not destroy the ${category} used in the incident`, err);
+            error(`Could not ruin the ${category} used in the incident`, err);
         }
     }
 
     if (destroyed.length) {
-        await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Cleanup.toolsGone", {
+        await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Cleanup.toolsBroken", {
             items: foundry.utils.escapeHTML(destroyed.join(", "))
         })}</p>`);
-        log(`Cleanup: destroyed ${destroyed.join(", ")} used by ${actor.name}.`);
+        log(`Cleanup: ${destroyed.join(", ")} used by ${actor.name} is broken and still on them.`);
     }
     return destroyed;
 }

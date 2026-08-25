@@ -20,11 +20,15 @@
  * change at all.
  */
 
-import { MODULE_ID, ITEM_CATEGORIES } from "./config.mjs";
+import { MODULE_ID, ITEM_CATEGORIES, BEDROOM_KEY_FLAG } from "./config.mjs";
 import { ITEM_FLAGS, LOCATIONS, isStashed, canCarry } from "./inventory.mjs";
 // The one room lookup. movement.mjs does not reach back into this file.
-import { roomOfActor } from "./movement.mjs";
-import { dialogContent, whisperToOwner, log, error, plural } from "./utils.mjs";
+import { roomOfActor, ROOM_FLAGS } from "./movement.mjs";
+import { SEARCH_FLAGS } from "./search-tokens.mjs";
+import { SearchTokens } from "./search-tokens.mjs";
+// Static is safe: tables.mjs only reaches back into this file lazily.
+import { isTierPool } from "./tables.mjs";
+import { dialogContent, tableDialog, whisperToOwner, announce, log, error, plural, workingScene } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -45,13 +49,140 @@ export const VAULT_FLAGS = {
     favours: "drpgFavours"
 };
 
+/* ==========================================================================
+ * BEDROOM KEYS
+ * --------------------------------------------------------------------------
+ * The guide gives every student a room of their own, and a room of your own is
+ * only worth having if the door means something. So a bedroom is shut to
+ * everybody except the person it belongs to — and the way in for anybody else
+ * is a KEY, which is an ordinary item on a character sheet.
+ *
+ * An item rather than a permission list, deliberately. A key can be copied and
+ * handed over exactly like a Truth Bullet, so "let me into your room" is a
+ * thing two players do between themselves, at the table, with an object that
+ * shows up in the inventory of whoever is holding it. A permission list would
+ * have been the GM's to edit and invisible to everyone else.
+ *
+ * The key names its room in a flag rather than in its name, because a GM can
+ * rename a region and a key that stopped matching would silently stop working.
+ * ========================================================================== */
+
+/** The flag that makes an item a key, holding the room it opens. Declared in
+    config.mjs, because movement.mjs reads the same flag and cannot import this
+    file — see the note there. */
+export const KEY_FLAG = BEDROOM_KEY_FLAG;
+
+/** Is this item a key, and to what? */
+export function keyRoomOf(item) {
+    return item?.getFlag?.(MODULE_ID, KEY_FLAG) ?? null;
+}
+
+/** Every key this character is carrying, as room names. */
+export function keysHeldBy(actor) {
+    const rooms = new Set();
+    for (const item of actor?.items ?? []) {
+        const room = keyRoomOf(item);
+        if (room) rooms.add(room);
+    }
+    return rooms;
+}
+
+/**
+ * May this character open this room's door?
+ *
+ * A room nobody owns is not a bedroom and is not locked by this rule. The owner
+ * never needs a key to their own room — losing your own key would otherwise
+ * lock you out of the one place the guide says is yours.
+ */
+export function mayEnterBedroom(actor, room, scene = workingScene()) {
+    if (!actor || !room) return true;
+    const owner = vaultOwnerOf(room, scene);
+    if (!owner || owner === actor.id) return true;
+    return keysHeldBy(actor).has(room);
+}
+
+/**
+ * Put a key to `room` on a character's sheet, unless they already hold one.
+ *
+ * Idempotent on purpose: Room Setup saves the whole table every time, so this
+ * runs on rooms whose owner has not changed at all.
+ */
+export async function grantBedroomKey(actor, room, { silent = false, scene } = {}) {
+    if (!game.user.isGM || !actor || !room) return null;
+    if (keysHeldBy(actor).has(room)) return null;
+
+    const { grantItem } = await import("./inventory.mjs");
+    // Named on the key, so it reads as "Kaede's room" rather than "Room 3".
+    // The scene is passed in by the sweep, which walks rooms on scenes nobody
+    // is currently looking at — the default lookup would find no owner there
+    // and write a dash into the description of a perfectly good key.
+    const owner = game.actors.get(vaultOwnerOf(room, scene ?? workingScene()) ?? "");
+    const item = await grantItem(actor, {
+        name: game.i18n.format("DRPG.Vault.keyName", { room }),
+        category: "bedroomKey",
+        tier: null,
+        description: `<p>${game.i18n.format("DRPG.Vault.keyDescription", {
+            room: foundry.utils.escapeHTML(room),
+            owner: foundry.utils.escapeHTML(owner?.name ?? "—")
+        })}</p>`,
+        img: "icons/svg/padlock.svg",
+        extraFlags: { [KEY_FLAG]: room }
+    });
+
+    if (item && !silent) {
+        await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Vault.keyGranted",
+            { room: foundry.utils.escapeHTML(room) })}</p>`);
+    }
+    return item;
+}
+
+/**
+ * Make the world true: every bedroom's owner holds the key to it.
+ *
+ * WHY A SWEEP AND NOT AN EVENT. The first version issued the key from the one
+ * place a room changes hands — the owner column in Room Setup — and that is
+ * exactly the room that had none. The save loop skips a row whose flags did not
+ * change, so every bedroom assigned BEFORE keys existed was, by definition, a
+ * row nothing had changed about; the key was never issued for any of them, and
+ * re-saving the screen could not fix it because there was nothing left to
+ * change. An event fires once and cannot be replayed. A sweep is a statement
+ * about how the world should look, and it can be run again.
+ *
+ * Every scene, not the viewed one: a GM setting the dorms up from the trial
+ * hall is an ordinary thing to do, and rooms on a scene nobody is looking at
+ * are still somebody's bedroom.
+ *
+ * Writes nothing when there is nothing missing, so running it on every load
+ * costs one pass over the regions.
+ *
+ * @returns {Promise<number>} how many keys had to be made.
+ */
+export async function reconcileBedroomKeys({ silent = true } = {}) {
+    if (!game.user.isGM) return 0;
+
+    let made = 0;
+    for (const scene of game.scenes ?? []) {
+        for (const region of scene.regions ?? []) {
+            if (!region.name) continue;
+            const ownerId = region.getFlag(MODULE_ID, VAULT_FLAGS.owner);
+            if (!ownerId) continue;
+            const owner = game.actors.get(ownerId);
+            if (!owner) continue;
+            if (await grantBedroomKey(owner, region.name, { silent, scene })) made++;
+        }
+    }
+
+    if (made) log(`Issued ${made} missing bedroom key(s).`);
+    return made;
+}
+
 /** The RollTable this room draws from, or `null` for the global pool. */
-export function roomTable(room, scene = canvas?.scene) {
+export function roomTable(room, scene = workingScene()) {
     return regionsByName(scene).get(room)?.getFlag(MODULE_ID, VAULT_FLAGS.table) || null;
 }
 
 /** Categories this room is a good place to search for. */
-export function roomFavours(room, scene = canvas?.scene) {
+export function roomFavours(room, scene = workingScene()) {
     return regionsByName(scene).get(room)?.getFlag(MODULE_ID, VAULT_FLAGS.favours) ?? [];
 }
 
@@ -70,7 +201,7 @@ export function favoursCategory(room, category) {
  * WHOSE ROOM IS THIS
  * ========================================================================== */
 
-function regionsByName(scene = canvas?.scene) {
+function regionsByName(scene = workingScene()) {
     const map = new Map();
     for (const region of scene?.regions ?? []) {
         if (region.name) map.set(region.name, region);
@@ -79,17 +210,34 @@ function regionsByName(scene = canvas?.scene) {
 }
 
 /** The actor id whose stash lives in this room, or `null`. */
-export function vaultOwnerOf(room, scene = canvas?.scene) {
+export function vaultOwnerOf(room, scene = workingScene()) {
     return regionsByName(scene).get(room)?.getFlag(MODULE_ID, VAULT_FLAGS.owner) ?? null;
 }
 
 /** Has a "build a stash" project made this room's contents hard to find? */
-export function isConcealed(room, scene = canvas?.scene) {
+/**
+ * Is this room locked when a season begins?
+ *
+ * A room nobody has answered for falls back to how it is locked right now. That
+ * is the honest default for a world where this column did not exist yesterday:
+ * whatever the map is set to today is what it was built as, and a reset that
+ * changed nothing is better than one that flings every door open because a flag
+ * was missing.
+ */
+export function startLocked(region) {
+    const stored = region?.getFlag(MODULE_ID, ROOM_FLAGS.lockedAtStart);
+    if (stored === undefined || stored === null) {
+        return Boolean(region?.getFlag(MODULE_ID, ROOM_FLAGS.locked));
+    }
+    return Boolean(stored);
+}
+
+export function isConcealed(room, scene = workingScene()) {
     return Boolean(regionsByName(scene).get(room)?.getFlag(MODULE_ID, VAULT_FLAGS.concealed));
 }
 
 /** The room this character stashes things in, or `null`. */
-export function vaultRoomFor(actor, scene = canvas?.scene) {
+export function vaultRoomFor(actor, scene = workingScene()) {
     if (!actor) return null;
     for (const [name, region] of regionsByName(scene)) {
         if (region.getFlag(MODULE_ID, VAULT_FLAGS.owner) === actor.id) return name;
@@ -98,7 +246,7 @@ export function vaultRoomFor(actor, scene = canvas?.scene) {
 }
 
 /** Every room on the scene that belongs to somebody. */
-export function allVaults(scene = canvas?.scene) {
+export function allVaults(scene = workingScene()) {
     const out = [];
     for (const [name, region] of regionsByName(scene)) {
         const owner = region.getFlag(MODULE_ID, VAULT_FLAGS.owner);
@@ -386,14 +534,18 @@ export async function stealFromVault({ thiefId, ownerId, itemId, viaSearch = fal
     }
 
     const category = item.getFlag(MODULE_ID, ITEM_FLAGS.category);
-    const { grantItem } = await import("./inventory.mjs");
+    const { grantItem, preservedFlags } = await import("./inventory.mjs");
 
     const copy = await grantItem(thief, {
         name: item.name,
         category,
         tier: item.getFlag(MODULE_ID, ITEM_FLAGS.tier) ?? null,
         description: item.system?.description ?? "",
-        img: item.img
+        img: item.img,
+        // Stealing a ruined thing out of somebody's drawer does not mend it —
+        // and hiding one there and having it lifted was the obvious way to
+        // launder a broken murder weapon back into a working one.
+        extraFlags: preservedFlags(item)
     });
     if (!copy) return null;
 
@@ -443,12 +595,34 @@ export async function openRoomSetupDialog() {
 
     const { studentActors } = await import("./monokuma.mjs");
     const { REST_FLAGS, setRestRoom } = await import("./rest.mjs");
+    const { discoveredFor, saveDiscoveryMatrix, setDiscovery, sceneUncoveredPercent } =
+        await import("./fog.mjs");
+    const scene = workingScene();
     const students = studentActors();
-    const tables = Array.from(game.tables ?? []).map(t => t.name).sort();
+    // Room pools only. The tier pools (`tableName()`'s family) answer dice
+    // rolls and are never a room's stock — see `isTierPool` in tables.mjs.
+    const tables = Array.from(game.tables ?? [])
+        .map(t => t.name)
+        .filter(n => !isTierPool(n))
+        .sort();
     // Truth Bullets are not searched for, so they are not a category a room can
     // stock or favour.
     const categories = Object.entries(ITEM_CATEGORIES).filter(([key]) => key !== "truthBullet");
     const regions = regionsByName();
+
+    const uncovered = sceneUncoveredPercent(scene);
+    const maxTokens = SearchTokens.max;
+
+    const fogRows = students.map(actor => {
+        const escName = foundry.utils.escapeHTML(actor.name);
+        const known = new Set(discoveredFor(scene?.id, actor.id));
+        const boxes = rooms.map(room => {
+            const escRoom = foundry.utils.escapeHTML(room);
+            return `<td style="text-align:center"><input type="checkbox"
+                name="fog:${escRoom}:${actor.id}" ${known.has(room) ? "checked" : ""} /></td>`;
+        }).join("");
+        return `<tr><td><strong>${escName}</strong></td>${boxes}</tr>`;
+    }).join("");
 
     const rows = rooms.map(room => {
         const owner = vaultOwnerOf(room) ?? "";
@@ -477,6 +651,26 @@ export async function openRoomSetupDialog() {
                 ${region?.getFlag(MODULE_ID, REST_FLAGS.short) ? "checked" : ""} /></td>
             <td style="text-align:center"><input type="checkbox" name="long:${esc}"
                 ${region?.getFlag(MODULE_ID, REST_FLAGS.long) ? "checked" : ""} /></td>
+            <td style="text-align:center"><input type="checkbox" name="locked:${esc}"
+                ${region?.getFlag(MODULE_ID, ROOM_FLAGS.locked) ? "checked" : ""} /></td>
+            <td style="text-align:center" title="${
+                game.i18n.localize("DRPG.Vault.lockedAtStartHint")}"><input type="checkbox"
+                name="startlocked:${esc}"
+                ${startLocked(region) ? "checked" : ""} /></td>
+            <td style="text-align:center"><input type="checkbox" name="nosearch:${esc}"
+                ${region?.getFlag(MODULE_ID, SEARCH_FLAGS.sealed) ? "checked" : ""} /></td>
+            <td class="drpg-token-cell" style="text-align:center">
+                <span data-drpg-tokens="${esc}">${SearchTokens.left(room, scene)}</span> / ${maxTokens}
+                <button type="button" class="drpg-mini-button" data-drpg-token="${esc}"
+                    data-drpg-token-by="-1" title="${
+                        game.i18n.localize("DRPG.SearchTokens.spendOne")}">−</button>
+                <button type="button" class="drpg-mini-button" data-drpg-token="${esc}"
+                    data-drpg-token-by="1" title="${
+                        game.i18n.localize("DRPG.SearchTokens.giveOne")}">+</button>
+                <button type="button" class="drpg-mini-button" data-drpg-token="${esc}"
+                    data-drpg-token-by="max" title="${
+                        game.i18n.localize("DRPG.SearchTokens.refillRoom")}">↺</button>
+            </td>
             <td><select name="table:${esc}">
                 <option value="">${game.i18n.localize("DRPG.Vault.globalPool")}</option>
                 ${tableOptions}</select></td>
@@ -484,7 +678,7 @@ export async function openRoomSetupDialog() {
         </tr>`;
     }).join("");
 
-    const result = await DialogV2.wait({
+    const result = await tableDialog({
         window: { title: game.i18n.localize("DRPG.Vault.manageTitle") },
         // `drpg-projects` as well as `drpg-panel`: that is the class the
         // stylesheet hangs the table treatment on — full width, a scrolling
@@ -493,50 +687,133 @@ export async function openRoomSetupDialog() {
         // right-hand columns with no way to scroll to them.
         classes: ["drpg-panel", "drpg-projects"],
         content: dialogContent(`<form>
-            <p>${game.i18n.localize("DRPG.Vault.manageIntro")}</p>
-            <table class="drpg-vault-table"><thead><tr>
-                <th>${game.i18n.localize("DRPG.Vault.room")}</th>
-                <th>${game.i18n.localize("DRPG.Vault.owner")}</th>
-                <th>${game.i18n.localize("DRPG.Vault.concealed")}</th>
-                <th>${game.i18n.localize("DRPG.Rest.shortColumn")}</th>
-                <th>${game.i18n.localize("DRPG.Rest.longColumn")}</th>
-                <th>${game.i18n.localize("DRPG.Vault.table")}</th>
-                <th>${game.i18n.localize("DRPG.Vault.favours")}</th>
-            </tr></thead><tbody>${rows}</tbody></table>
-            <p class="notes">${game.i18n.localize("DRPG.Vault.manageNote")}</p>
-            <p class="notes">${game.i18n.localize("DRPG.Rest.manageIntro")}</p>
+            <nav class="drpg-dashboard-tabs">
+                <button type="button" class="drpg-dashboard-tab active" data-drpg-tab="rooms">${
+                    game.i18n.localize("DRPG.Vault.tabRooms")}</button>
+                <button type="button" class="drpg-dashboard-tab" data-drpg-tab="fog">${
+                    game.i18n.localize("DRPG.Vault.tabFog")}</button>
+            </nav>
+
+            <div data-drpg-panel="rooms">
+                <p>${game.i18n.localize("DRPG.Vault.manageIntro")}</p>
+                <table class="drpg-vault-table"><thead><tr>
+                    <th>${game.i18n.localize("DRPG.Vault.room")}</th>
+                    <th>${game.i18n.localize("DRPG.Vault.owner")}</th>
+                    <th>${game.i18n.localize("DRPG.Vault.concealed")}</th>
+                    <th>${game.i18n.localize("DRPG.Rest.shortColumn")}</th>
+                    <th>${game.i18n.localize("DRPG.Rest.longColumn")}</th>
+                    <th>${game.i18n.localize("DRPG.Vault.lockedColumn")}</th>
+                    <th>${game.i18n.localize("DRPG.Vault.lockedAtStartColumn")}</th>
+                    <th>${game.i18n.localize("DRPG.SearchTokens.sealedColumn")}</th>
+                    <th>${game.i18n.localize("DRPG.SearchTokens.title")}</th>
+                    <th>${game.i18n.localize("DRPG.Vault.table")}</th>
+                    <th>${game.i18n.localize("DRPG.Vault.favours")}</th>
+                </tr></thead><tbody>${rows}</tbody></table>
+                <p class="notes">${game.i18n.localize("DRPG.Vault.manageNote")}</p>
+                <p class="notes">${game.i18n.localize("DRPG.Rest.manageIntro")}</p>
+                <p class="notes">${game.i18n.format("DRPG.SearchTokens.roomSetupNote",
+                    { max: maxTokens })}</p>
+                <p class="notes">${game.i18n.localize("DRPG.SearchTokens.sealedNote")}</p>
+            </div>
+
+            <div data-drpg-panel="fog" style="display:none">
+                <p>${game.i18n.localize("DRPG.Vault.fogIntro")}</p>
+                ${uncovered > 0 ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vault.fogUncovered",
+                    { pct: uncovered })}</p>` : ""}
+                ${rooms.length ? `<table class="drpg-vault-table"><thead><tr>
+                    <th>${game.i18n.localize("DRPG.Vault.student")}</th>
+                    ${rooms.map(r => `<th>${foundry.utils.escapeHTML(r)}</th>`).join("")}
+                </tr></thead><tbody>${fogRows}</tbody></table>` : ""}
+                <p class="notes">${game.i18n.localize("DRPG.Vault.fogNote")}</p>
+            </div>
         </form>`),
         buttons: [
             {
                 action: "ok", label: game.i18n.localize("DRPG.Panel.apply"), default: true,
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
-                    const pick = name => f.querySelector(`[name="${name}"]`);
-                    return rooms.map(room => ({
+                    const pick = name => f.querySelector(`[name="${CSS.escape(name)}"]`);
+                    const roomRows = rooms.map(room => ({
                         room,
-                        owner: pick(`owner:${CSS.escape(room)}`)?.value ?? "",
-                        concealed: Boolean(pick(`concealed:${CSS.escape(room)}`)?.checked),
-                        shortRest: Boolean(pick(`short:${CSS.escape(room)}`)?.checked),
-                        longRest: Boolean(pick(`long:${CSS.escape(room)}`)?.checked),
-                        table: pick(`table:${CSS.escape(room)}`)?.value ?? "",
+                        owner: pick(`owner:${room}`)?.value ?? "",
+                        concealed: Boolean(pick(`concealed:${room}`)?.checked),
+                        shortRest: Boolean(pick(`short:${room}`)?.checked),
+                        longRest: Boolean(pick(`long:${room}`)?.checked),
+                        locked: Boolean(pick(`locked:${room}`)?.checked),
+                        lockedAtStart: Boolean(pick(`startlocked:${room}`)?.checked),
+                        noSearch: Boolean(pick(`nosearch:${room}`)?.checked),
+                        table: pick(`table:${room}`)?.value ?? "",
                         favours: categories
                             .map(([key]) => key)
-                            .filter(key => pick(`fav:${CSS.escape(room)}:${key}`)?.checked)
+                            .filter(key => pick(`fav:${room}:${key}`)?.checked)
                     }));
+                    const fogMatrix = {};
+                    for (const actor of students) {
+                        fogMatrix[actor.id] = rooms.filter(room =>
+                            pick(`fog:${room}:${actor.id}`)?.checked);
+                    }
+                    return { rooms: roomRows, fog: fogMatrix };
                 }
             },
+            { action: "discoverAll", label: game.i18n.localize("DRPG.Vault.discoverAll") },
+            { action: "hideAll", label: game.i18n.localize("DRPG.Vault.hideAll") },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
         ],
+        render: (event, dialog) => {
+            const root = dialog.element;
+            const tabs = root.querySelectorAll("[data-drpg-tab]");
+            const panels = root.querySelectorAll("[data-drpg-panel]");
+            for (const tab of tabs) {
+                tab.addEventListener("click", () => {
+                    for (const t of tabs) t.classList.toggle("active", t === tab);
+                    for (const p of panels) {
+                        p.style.display = p.dataset.drpgPanel === tab.dataset.drpgTab ? "" : "none";
+                    }
+                });
+            }
+
+            // The search-token controls act AT ONCE and recount in place.
+            //
+            // They are not part of Apply, for the same reason the Monocub
+            // manager's "give Hope" button is not: this is a counter the table
+            // is currently spending, and a GM who nudges it and then cancels the
+            // rest of the form should not find the nudge undone with it. The
+            // count is re-read from `SearchTokens` after the write rather than
+            // guessed from the cell, so a spend that arrived from a player's
+            // client mid-edit is reflected instead of overwritten.
+            for (const button of root.querySelectorAll("[data-drpg-token]")) {
+                button.addEventListener("click", async ev => {
+                    ev.preventDefault();
+                    const room = button.dataset.drpgToken;
+                    const by = button.dataset.drpgTokenBy;
+                    const now = SearchTokens.left(room, scene);
+                    const want = by === "max" ? SearchTokens.max : now + Number(by);
+                    const stored = await SearchTokens.setFor(room, want, scene);
+                    const cell = root.querySelector(`[data-drpg-tokens="${CSS.escape(room)}"]`);
+                    if (cell && stored !== null) cell.textContent = String(stored);
+                });
+            }
+        },
         rejectClose: false
     });
 
-    if (!Array.isArray(result)) return null;
+    if (!result || result === "cancel") return null;
+
+    if (result === "discoverAll" || result === "hideAll") {
+        await setDiscovery(scene, { rooms, value: result === "discoverAll" });
+        return openRoomSetupDialog();
+    }
+
+    if (result.fog) await saveDiscoveryMatrix(scene, result.fog);
+
+    const rowResults = result.rooms;
+    if (!Array.isArray(rowResults)) return null;
 
     // One owner, one room. Two bedrooms pointing at the same student would make
     // `vaultRoomFor` answer differently depending on region order, which is the
     // kind of bug that only shows up mid-session.
     const claimed = new Map();
-    for (const row of result) {
+    for (const row of rowResults) {
         if (!row.owner) continue;
         if (claimed.has(row.owner)) {
             ui.notifications.error(game.i18n.format("DRPG.Vault.twoRooms", {
@@ -549,7 +826,7 @@ export async function openRoomSetupDialog() {
     }
 
     let changed = 0;
-    for (const row of result) {
+    for (const row of rowResults) {
         const region = regionsByName().get(row.room);
         if (!region) continue;
 
@@ -563,6 +840,9 @@ export async function openRoomSetupDialog() {
             short: Boolean(region.getFlag(MODULE_ID, REST_FLAGS.short)),
             long: Boolean(region.getFlag(MODULE_ID, REST_FLAGS.long))
         };
+        const wasLocked = Boolean(region.getFlag(MODULE_ID, ROOM_FLAGS.locked));
+        const wasLockedAtStart = startLocked(region);
+        const wasSealed = Boolean(region.getFlag(MODULE_ID, SEARCH_FLAGS.sealed));
 
         const same = before.owner === (row.owner || null)
             && before.concealed === row.concealed
@@ -570,7 +850,10 @@ export async function openRoomSetupDialog() {
             && beforeRest.short === row.shortRest
             && beforeRest.long === row.longRest
             && before.favours.length === row.favours.length
-            && before.favours.every(f => row.favours.includes(f));
+            && before.favours.every(f => row.favours.includes(f))
+            && wasLocked === row.locked
+            && wasLockedAtStart === row.lockedAtStart
+            && wasSealed === row.noSearch;
         if (same) continue;
 
         await setVaultRoom(row.room, {
@@ -579,11 +862,50 @@ export async function openRoomSetupDialog() {
             table: row.table,
             favours: row.favours
         });
+
         // Through rest.mjs's own writer rather than a second flag path, so the
         // two rest flags keep one owner.
         await setRestRoom(row.room, { short: row.shortRest, long: row.longRest });
+
+        // No announcement either way. A room nobody can search says so on the
+        // action tile the moment anybody stands in it and looks — which is a
+        // better place to learn it than a chat line scrolling past hours
+        // earlier, and it does not tell the whole cast which room the GM has
+        // just decided is interesting enough to close.
+        if (wasSealed !== row.noSearch) {
+            await region.setFlag(MODULE_ID, SEARCH_FLAGS.sealed, row.noSearch);
+        }
+
+        // Written whether or not it changed, because "unset" and "unset but
+        // equal to the current lock" are the same thing to `startLocked` and
+        // only one of them survives a mid-season change to the lock itself.
+        await region.setFlag(MODULE_ID, ROOM_FLAGS.lockedAtStart, row.lockedAtStart);
+
+        if (wasLocked !== row.locked) {
+            await region.setFlag(MODULE_ID, ROOM_FLAGS.locked, row.locked);
+            // Only unlocking is announced. A GM locking a door mid-session is
+            // often the point the players finding out is meant to come from
+            // walking into it and reading "Drzwi są zamknięte." themselves —
+            // the same reasoning `toggleFinalTrialFlag` in mastermind.mjs
+            // applies to starting versus ending. Unlocking has no such
+            // in-fiction moment of its own, so it says so out loud.
+            if (wasLocked && !row.locked) {
+                await announce({
+                    content: `<p>${game.i18n.format("DRPG.Vault.unlockedAnnounce",
+                        { room: foundry.utils.escapeHTML(row.room) })}</p>`
+                });
+            }
+        }
+
         changed++;
     }
+
+    // AFTER the loop, and outside it: keys are issued by sweeping every owned
+    // room, not by noticing an owner change. See `reconcileBedroomKeys` for why
+    // — in short, a row the GM did not touch is skipped above, and rooms
+    // assigned before keys existed are all of those. Not silent: a key arriving
+    // on your sheet is news, and the sweep only writes when one was missing.
+    await reconcileBedroomKeys({ silent: false });
 
     ui.notifications.info(plural("DRPG.Vault.saved", { n: changed }));
     return changed;

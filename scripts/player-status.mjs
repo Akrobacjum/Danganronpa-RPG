@@ -27,6 +27,7 @@ import { isMonokuma } from "./monokuma.mjs";
 import { isDeceased } from "./chapter.mjs";
 import { isMonocub } from "./monocub.mjs";
 import { matchStripToDespair } from "./hud.mjs";
+import { spentSince, markSpent } from "./motion.mjs";
 import { error } from "./utils.mjs";
 
 const WIDGET_ID = "drpg-player-status";
@@ -44,6 +45,15 @@ export function registerPlayerStatus() {
     Hooks.on("updateActor", actor => {
         if (relevant(actor)) renderPlayerStatus();
     });
+
+    // The system's effects widget only ever has something to say in this game
+    // when a character is Wounded or in Breakdown — see `syncEffectsWidget`.
+    Hooks.on("createActiveEffect", effect => {
+        if (relevant(effect?.parent)) syncEffectsWidget();
+    });
+    Hooks.on("deleteActiveEffect", effect => {
+        if (relevant(effect?.parent)) syncEffectsWidget();
+    });
     // The clock refills budgets.
     Hooks.on("updateSetting", setting => {
         if (setting?.key?.startsWith(`${MODULE_ID}.`)) renderPlayerStatus();
@@ -57,6 +67,37 @@ export function registerPlayerStatus() {
     });
     // The Eclipse rewrites every row on this panel and is not an actor update.
     Hooks.on("drpgEclipseChanged", () => renderPlayerStatus());
+}
+
+/**
+ * HIDE THE EFFECTS WIDGET WHEN THERE ARE NO EFFECTS.
+ * ---------------------------------------------------------------------------
+ * Daggerheart draws an effects panel in the right rail, under the player strip,
+ * and it draws the frame whether or not anything is in it. In most games that
+ * is a reasonable default — a character usually has a few effects. In this one
+ * `states.mjs` removes the system's own statuses and puts exactly two back:
+ * Breakdown (Stress full) and Wounded (HP at zero). So "no active effects" and
+ * "unhurt and composed" are the same sentence here, and the widget spends the
+ * entire session as an empty box in the corner.
+ *
+ * A class on `<body>` rather than a style on the widget: the rail rebuilds its
+ * children whenever the system feels like it, and an inline style goes with
+ * them — the same reasoning `matchStripToDespair` gives for publishing the
+ * Despair height as a custom property instead of setting a height.
+ *
+ * Safe if the system already removes its own empty widget: hiding something
+ * that is not there does nothing.
+ */
+export function syncEffectsWidget() {
+    try {
+        const actor = ownCharacter();
+        // No character to speak for — leave the widget alone rather than
+        // hiding a panel that might belong to somebody else's view.
+        const empty = Boolean(actor) && (actor.effects?.size ?? 0) === 0;
+        document.body.classList.toggle("drpg-no-effects", empty);
+    } catch {
+        // Cosmetic to the last.
+    }
 }
 
 /** Does this actor's change affect what is currently on screen? */
@@ -112,6 +153,11 @@ function ownCharacter() {
  * feed itself.
  */
 function keepMounted() {
+    // Every render is also a chance to get the effects widget right: an actor
+    // update that changed HP is what removes Wounded, and the strip redraws for
+    // it anyway.
+    syncEffectsWidget();
+
     const root = document.getElementById("interface") ?? document.body;
     if (!root || root.dataset.drpgStatusWatch) return;
     root.dataset.drpgStatusWatch = "1";
@@ -134,6 +180,9 @@ function keepMounted() {
 export function renderPlayerStatus() {
     try {
         document.getElementById(WIDGET_ID)?.remove();
+        // Same rail, same moment: whatever redrew the strip may also have
+        // changed whether the effects widget has anything to show.
+        syncEffectsWidget();
 
         // Above the Projects tray. Falling back through the column and then the
         // right rail keeps this working on a layout module that has moved or
@@ -201,7 +250,13 @@ function box() {
  * The classes are the sheet's own, so the masks, the filled/empty states and
  * the pixel rendering all come from the rules that already style them.
  */
-function pips(className, held, max, { cap = 12 } = {}) {
+/**
+ * @param {{from: number, to: number}|null} [options.spent]  Which pips went out
+ *   since this tray last drew this pool — see `spentSince`. The tray keeps its
+ *   own memory separate from the sheet's, so both surfaces flash the same
+ *   spend rather than racing each other for it.
+ */
+function pips(className, held, max, { cap = 12, spent = null } = {}) {
     const row = document.createElement("span");
     row.className = "drpg-status-pips";
 
@@ -219,6 +274,7 @@ function pips(className, held, max, { cap = 12 } = {}) {
     for (let i = 1; i <= max; i++) {
         const pip = document.createElement("span");
         pip.className = `${className}${i <= held ? " filled" : ""}`;
+        markSpent(pip, spent, i);
         row.append(pip);
     }
     return row;
@@ -279,7 +335,8 @@ function buildPlayerView() {
             const max = actionsMax(actor);
             const left = actionsLeft(actor);
             const row = marks("is-actions", game.i18n.localize("DRPG.Actions.label"),
-                pips("drpg-status-pip drpg-action-pip", left, max),
+                pips("drpg-status-pip drpg-action-pip", left, max,
+                    { spent: spentSince("strip:actions", actor.id, left) }),
                 eclipse ? "DRPG.Eclipse.actionsMurderOnly"
                         : left ? "DRPG.Actions.pipReadOnly" : "DRPG.Actions.allSpent",
                 !left);
@@ -295,17 +352,35 @@ function buildPlayerView() {
                 // One footprint per crossing the Eclipse still allows. This is
                 // the whole of what a player can do right now, so it is the one
                 // row that should be lit while everything above it is not.
+                //
+                // Its own memory, separate from the ordinary free Move's: the
+                // two are different counts of different things, and sharing a
+                // key would flash a spend every time an Eclipse opened or shut
+                // and the number changed shape underneath the row.
                 const moves = eclipseMovesLeft(actor);
-                foot.className = `drpg-status-pips drpg-free-move ${moves > 0 ? "available" : "spent"}`;
+                const wentOut = spentSince("strip:eclipseMove", actor.id, moves);
+                foot.className = `drpg-status-pips drpg-free-move ${
+                    moves > 0 ? "available" : "spent"}`;
+                // One element for the whole pool, so any crossing going out
+                // flares the row. The index `markSpent` takes is meant for a
+                // track drawn a pip each; here the second of three would be
+                // asked for at position one and quietly declined.
+                markSpent(foot, wentOut && { ...wentOut, from: 1 });
+                // Crossings still available are solid; with none left the row
+                // keeps one outlined footprint rather than emptying itself, so
+                // there is still something there saying what it is.
                 foot.innerHTML = Array.from({ length: Math.max(moves, 0) },
                     () => `<i class="fa-solid fa-shoe-prints" inert></i>`).join("")
-                    || `<i class="fa-solid fa-shoe-prints" inert></i>`;
+                    || `<i class="fa-regular fa-shoe-prints" inert></i>`;
                 return marks("is-move", game.i18n.localize("DRPG.Move.title"), foot,
                     "DRPG.Eclipse.actionsLocked", moves <= 0);
             }
             const free = hasFreeMove(actor);
-            foot.className = `drpg-status-pips drpg-free-move ${free ? "available" : "spent"}`;
-            foot.innerHTML = `<i class="fa-solid fa-shoe-prints" inert></i>`;
+            const wentOut = spentSince("strip:move", actor.id, free ? 1 : 0);
+            foot.className = `drpg-status-pips drpg-free-move ${
+                free ? "available" : "spent"}`;
+            markSpent(foot, wentOut);
+            foot.innerHTML = `<i class="fa-${free ? "solid" : "regular"} fa-shoe-prints" inert></i>`;
             return marks("is-move", game.i18n.localize("DRPG.Move.title"), foot,
                 free ? "DRPG.Actions.freeMoveAvailable" : "DRPG.Actions.freeMoveSpent",
                 !free);
@@ -327,7 +402,8 @@ function buildPlayerView() {
             const held = hopeHeld(actor);
             const hopeMax = Number(actor.system?.resources?.hope?.max ?? held);
             return marks("is-hope", game.i18n.localize("DAGGERHEART.GENERAL.hope") || "Hope",
-                pips("drpg-status-pip drpg-status-hope-pip", held, hopeMax),
+                pips("drpg-status-pip drpg-status-hope-pip", held, hopeMax,
+                    { spent: spentSince("strip:hope", actor.id, held) }),
                 null, held === 0);
         })
     ].filter(Boolean));

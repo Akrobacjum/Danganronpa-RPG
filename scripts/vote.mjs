@@ -24,6 +24,8 @@
  */
 
 import { MODULE_ID, TRIAL } from "./config.mjs";
+import { SETTINGS } from "./settings.mjs";
+import { getClock } from "./clock.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { monokumas, fillAllDespair, poolLabel } from "./despair.mjs";
 import { isDeceased, livingStudents, killCharacter } from "./chapter.mjs";
@@ -43,6 +45,55 @@ const ACTION_OPEN = "vote.open";
  * exist for the five minutes of the vote and then stop existing.
  */
 let ballots = null;
+
+/* ==========================================================================
+ * HOW FAR THROUGH THE TRIAL THE TABLE HAS GOT
+ * --------------------------------------------------------------------------
+ * Three of the trial's steps only make sense in order — you cannot deliver a
+ * verdict on a vote nobody has counted, and the chapter does not end before the
+ * verdict is applied — and until now nothing anywhere knew which of them had
+ * happened. The GM's console offered all three at once, and the destructive one
+ * (a verdict executes people and hands out level-ups) was as pressable on an
+ * empty trial as on a finished one.
+ *
+ * The two writers are both in this file, which is why the record lives here
+ * rather than with the floor: `closeVote` is the only thing that produces a
+ * count, and `applyVerdict` the only thing that acts on one.
+ * ========================================================================== */
+
+/** What has happened in THIS chapter's trial. Never throws; never null. */
+export function trialProgress() {
+    const chapter = getClock().chapter;
+    const blank = { chapter, seconds: TRIAL.speakSeconds, voteClosed: false, verdictApplied: false };
+    try {
+        const stored = game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {};
+        // A record from another chapter describes another trial. Read as blank
+        // rather than migrated: the alternative is a fresh trial that thinks
+        // its vote is already in.
+        if (stored.chapter !== chapter) return blank;
+        return { ...blank, ...stored };
+    } catch {
+        return blank;
+    }
+}
+
+/** Amend the record. GM only, and always stamped with the chapter it is about. */
+export async function setTrialProgress(patch = {}) {
+    if (!game.user.isGM) return null;
+    const next = { ...trialProgress(), ...patch, chapter: getClock().chapter };
+    try {
+        await game.settings.set(MODULE_ID, SETTINGS.trialProgress, next);
+    } catch (err) {
+        error("Could not record how far the trial has got", err);
+    }
+    return next;
+}
+
+/** A trial is starting: nothing has happened in it yet. */
+export async function resetTrialProgress({ seconds = TRIAL.speakSeconds } = {}) {
+    if (!game.user.isGM) return null;
+    return setTrialProgress({ seconds, voteClosed: false, verdictApplied: false });
+}
 
 /* ==========================================================================
  * RUNNING A VOTE
@@ -354,6 +405,12 @@ export async function closeVote() {
         return null;
     }
 
+    // There is a count now, so the verdict becomes pressable. Below both early
+    // returns on purpose: a vote that was never opened and a vote nobody
+    // answered are not results, and a verdict on either would be the GM
+    // executing somebody on the strength of an empty room.
+    await setTrialProgress({ voteClosed: true });
+
     const named = id => id === "monokuma"
         ? game.i18n.localize("DRPG.Vote.monokuma")
         : (game.actors.get(id)?.name ?? "?");
@@ -549,6 +606,8 @@ export async function applyVerdict({
         <h3>${game.i18n.localize("DRPG.Vote.verdictTitle")}</h3>
         <p>${game.i18n.localize(correct ? "DRPG.Vote.correctSummary" : "DRPG.Vote.wrongSummary")}</p>
         <ul>${done.map(d => `<li>${d}</li>`).join("")}</ul>`);
+
+    await setTrialProgress({ verdictApplied: true });
 
     log(`Verdict applied: ${correct ? "correct" : "wrong"}.`);
     return done;

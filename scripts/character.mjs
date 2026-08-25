@@ -27,7 +27,9 @@ import { log } from "./utils.mjs";
  *   meaningfully tied to "Ultimate Baseballista", and should not pretend to.
  *   Omitted, nothing is granted and the GM is reminded.
  */
-export async function initCharacter(actor, { resetValues = true, startingItem = null } = {}) {
+export async function initCharacter(actor, {
+    resetValues = true, startingItem = null, quiet = false
+} = {}) {
     if (!actor || actor.type !== "character") {
         ui.notifications.warn(game.i18n.localize("DRPG.Character.notACharacter"));
         return null;
@@ -73,12 +75,91 @@ export async function initCharacter(actor, { resetValues = true, startingItem = 
             })
         });
         log(`${actor.name} starts with "${startingItem}" (Tier ${STARTING.startingItemTier}).`);
-    } else if (game.user.isGM) {
+    } else if (game.user.isGM && !quiet) {
+        // Worth saying once, from the season checklist. Said once per student
+        // during a reset, it is a wall of notices about something the reset was
+        // not asked to do.
         ui.notifications.info(game.i18n.localize("DRPG.Character.startingItemMissing"));
     }
 
+    // What this sheet looks like now, so a season reset has something to come
+    // back to. See `restoreStartingSheet`.
+    await stampStartingSheet(actor);
+
     log(`Initialised ${actor.name}: HP ${STARTING.hp}, Stress ${STARTING.stress}, Hope ${STARTING.hope}.`);
     return actor;
+}
+
+/**
+ * Write down the spread a character begins with.
+ *
+ * Traits and experiences are the one part of a character this module never
+ * writes on its own — they are settled in conversation with the GM, and
+ * `validateTraitSpread` only ever reports on them. Advancement is the
+ * exception: it adds `+delta` to both and bumps `FLAGS.advances`.
+ *
+ * That leaves a season reset with nothing to restore and two bad choices —
+ * zero the counter and leave the bonuses, so the sheet says "no advances" over
+ * advanced numbers, or re-deal `TRAIT_ARRAY` and scramble a spread the player
+ * chose. This is the third choice, and it is the same one Room Setup makes for
+ * locks: record the opening state next to the current one.
+ */
+async function stampStartingSheet(actor) {
+    const traits = {};
+    for (const trait of Object.values(TRAITS)) {
+        traits[trait.dh] = actor.system?.traits?.[trait.dh]?.value ?? 0;
+    }
+
+    const experiences = {};
+    for (const [id, entry] of Object.entries(actor.system?.experiences ?? {})) {
+        experiences[id] = entry?.value ?? 0;
+    }
+
+    await actor.setFlag(MODULE_ID, FLAGS.sheetAtStart, { traits, experiences, at: Date.now() });
+}
+
+/**
+ * Put a character back to the sheet they started the season on.
+ *
+ * Restores the recorded trait spread and the values of the experiences that
+ * existed then, and clears the advance counter — those three move together, and
+ * clearing one without the others is what leaves a sheet arguing with itself.
+ *
+ * Experiences ADDED by an advance keep their names and whatever value they
+ * hold. An experience is a sentence about who somebody is, which puts it on the
+ * far side of the line this reset draws — the same side as the portrait and the
+ * Ultimate. Their values are not restored because there is nothing to restore
+ * them to; they did not exist on day one.
+ *
+ * A character never run through `initCharacter` has no record, and gets no
+ * silent guess: the caller is told nothing was restored and says so in the log.
+ */
+export async function restoreStartingSheet(actor) {
+    if (!actor || actor.type !== "character") return null;
+
+    const snapshot = actor.getFlag(MODULE_ID, FLAGS.sheetAtStart);
+    const hadAdvances = Number(actor.getFlag(MODULE_ID, FLAGS.advances) ?? 0);
+    await actor.setFlag(MODULE_ID, FLAGS.advances, 0);
+
+    if (!snapshot?.traits) return { restored: false, advances: hadAdvances };
+
+    const update = {};
+    for (const [key, value] of Object.entries(snapshot.traits)) {
+        update[`system.traits.${key}.value`] = value;
+    }
+    for (const [id, value] of Object.entries(snapshot.experiences ?? {})) {
+        if (actor.system?.experiences?.[id]) update[`system.experiences.${id}.value`] = value;
+    }
+
+    if (Object.keys(update).length) {
+        // `system.traits` is guarded against hand-editing, so a plain update
+        // would have the trait writes stripped and the rest go through — the
+        // same half-application `applyAdvancement` guards against.
+        const { automatedUpdate } = await import("./resource-guard.mjs");
+        await automatedUpdate(actor, update);
+    }
+
+    return { restored: true, advances: hadAdvances };
 }
 
 /** Effective max of a resource, accounting for Daggerheart's nullable max. */

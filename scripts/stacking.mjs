@@ -57,21 +57,38 @@ function raiseOwnDialogs() {
         });
 }
 
+/**
+ * The one window a prompt has to stay above.
+ *
+ * This used to be "anything at all": every press on any `.application`
+ * re-raised the module's dialogs. That is far more than the problem needs and
+ * it has a cost measured at the table — a GM editing a token, with any module
+ * prompt open behind, had a window jumping over the one they were working in
+ * on every single press, and half their clicks landed on the wrong thing.
+ *
+ * The fault this file exists to fix is narrow and specific: the character
+ * SHEET buries the prompt it launched, because Foundry raises the sheet when
+ * you glance at your own Hope while deciding. Token Config, Scene Config, a
+ * file picker and every other window in Foundry were never part of that story.
+ */
+const OVERTAKEN = ".application.sheet.actor";
+
 export function registerStacking() {
     // Capture phase, so this is queued before Foundry's own pointerdown handler
     // raises the clicked window; the microtask then runs after it has.
     document.addEventListener("pointerdown", event => {
-        const clicked = event.target.closest?.(".application");
+        const clicked = event.target.closest?.(OVERTAKEN);
         // Clicking a module dialog is already handled by Foundry raising it.
         if (!clicked || clicked.matches(KEEP_ON_TOP)) return;
         queueMicrotask(raiseOwnDialogs);
     }, { capture: true });
 
-    // A window can also be raised without a click — `render(true)` on an
+    // A sheet can also be raised without a click — `render(true)` on an
     // already-open sheet does it, which is how the item manager and the Truth
     // Bullet cards surface.
     Hooks.on("renderApplicationV2", app => {
-        if (app?.element?.matches?.(KEEP_ON_TOP)) return;
+        if (!app?.element?.matches?.(OVERTAKEN)) return;
+        if (app.element.matches(KEEP_ON_TOP)) return;
         queueMicrotask(raiseOwnDialogs);
     });
 

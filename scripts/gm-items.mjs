@@ -52,6 +52,11 @@ export async function openItemManager(actor = null) {
         buttons: [
             { action: "give", label: game.i18n.localize("DRPG.Items.give"), default: true },
             { action: "bullet", label: game.i18n.localize("DRPG.TruthBullet.give") },
+            // A key is not something to type a name for — it names a room, and
+            // the rooms are already on the map. See the note on keys in
+            // vault.mjs; this is the GM's way to hand somebody a copy of
+            // another player's key without either player being involved.
+            { action: "key", label: game.i18n.localize("DRPG.Vault.giveKey") },
             { action: "take", label: game.i18n.localize("DRPG.Items.take") },
             // A stashed item is an ordinary item on its owner's sheet, which is
             // exactly what this window edits — so the inspector is a button on
@@ -77,11 +82,68 @@ export async function openItemManager(actor = null) {
         const made = await giveTruthBulletDialog(target);
         return made ? openItemManager(target) : null;
     }
+    if (choice === "key") {
+        const given = await giveKeyDialog(target);
+        return given ? openItemManager(target) : null;
+    }
     if (choice === "take") {
         const taken = await takeItemDialog(target);
         return taken ? openItemManager(target) : null;
     }
     return null;
+}
+
+/**
+ * Hand this character a key to somebody's bedroom.
+ *
+ * Only rooms that HAVE an owner are offered: a room nobody sleeps in is not a
+ * bedroom and its door is not shut in the first place, so a key to it would
+ * open nothing. Each option says whose room it is, because "Room 3" is not how
+ * anybody at the table refers to it.
+ */
+async function giveKeyDialog(actor) {
+    const { allVaults, grantBedroomKey, keysHeldBy } = await import("./vault.mjs");
+
+    const held = keysHeldBy(actor);
+    const rooms = allVaults()
+        .filter(v => v.owner && v.owner.id !== actor.id && !held.has(v.room));
+
+    if (!rooms.length) {
+        ui.notifications.info(game.i18n.localize("DRPG.Vault.noKeysToGive"));
+        return false;
+    }
+
+    const options = rooms.map(v =>
+        `<option value="${foundry.utils.escapeHTML(v.room)}">${
+            foundry.utils.escapeHTML(v.room)} — ${
+            foundry.utils.escapeHTML(v.owner.name)}</option>`).join("");
+
+    const room = await DialogV2.wait({
+        window: { title: game.i18n.format("DRPG.Vault.giveKeyTo", { actor: actor.name }) },
+        classes: ["drpg-panel"],
+        content: dialogContent(`<form>
+            <label>${game.i18n.localize("DRPG.Vault.whichKey")}
+                <select name="room">${options}</select></label>
+            <p class="notes">${game.i18n.localize("DRPG.Vault.giveKeyNote")}</p>
+        </form>`),
+        buttons: [
+            {
+                action: "ok", label: game.i18n.localize("DRPG.Items.give"), default: true,
+                callback: (e, b, d) => d.element.querySelector("[name=room]").value
+            },
+            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
+        ],
+        rejectClose: false
+    });
+
+    if (!room || room === "cancel") return false;
+
+    const made = await grantBedroomKey(actor, room);
+    if (made) {
+        ui.notifications.info(game.i18n.format("DRPG.Vault.keyGivenGm",
+            { room, actor: actor.name }));
+    }
+    return Boolean(made);
 }
 
 /** Which student. Monokumas are excluded — they carry nothing. */
@@ -128,12 +190,16 @@ async function pickCharacter() {
  * on a sheet is making a ruling, and being told "Crime Tools 1/1" is more useful
  * than being refused. Going over the cap is deliberate and flagged.
  */
-async function giveItemDialog(actor) {
+export async function giveItemDialog(actor) {
     // Truth Bullets have their own dialog. They share nothing with a physical
     // item but the word "give": no tier, no carry limit, and half a dozen fields
     // this form has no place for.
     const categories = Object.entries(ITEM_CATEGORIES)
-        .filter(([key]) => key !== BULLET_CATEGORY)
+        // Truth Bullets and keys both have windows of their own: one carries a
+        // secret this form has no fields for, the other names a room rather
+        // than being typed. Offering either here would produce an item that
+        // looks right and does nothing.
+        .filter(([key]) => key !== BULLET_CATEGORY && key !== "bedroomKey")
         .map(([key, cat]) => {
             const held = countInCategory(actor, key);
             const cap = cat.limit ? ` — ${held}/${cat.limit}` : ` — ${held}`;

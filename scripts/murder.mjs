@@ -32,19 +32,19 @@
 
 import {
     MODULE_ID, FLAGS, MURDER_OPENING, INCIDENT, CRISIS_ACTIONS, KEY_REMNANTS,
-    RESOLUTION_STRESS_COST, TRAITS
+    RESOLUTION_STRESS_COST, TRAITS, callEffect
 } from "./config.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
-import { carriedInCategory, ITEM_FLAGS } from "./inventory.mjs";
+import { carriedInCategory, ITEM_FLAGS, isBroken } from "./inventory.mjs";
 import { equippedIn } from "./use-items.mjs";
-import { dropRemnant } from "./remnants.mjs";
+import { dropRemnant, traceFeedback } from "./remnants.mjs";
 import {
-    announce, dialogContent, whisperToGms, whisperToOwner, ownerOf, gmIds,
-    isPrimaryGm, log, warn, error, plural, article} from "./utils.mjs";
+    announce, dialogContent, tableDialog, whisperToGms, whisperToOwner, ownerOf, gmIds,
+    isPrimaryGm, log, warn, error, plural} from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -95,6 +95,23 @@ export function killerIds(state = murderState()) {
     const ids = [state.killerId];
     if (state.thirdId && state.thirdSide === "killer") ids.push(state.thirdId);
     return ids.filter(Boolean);
+}
+
+/**
+ * Everybody the incident already contains: both killers, the victim, and the
+ * one third party who walked in.
+ *
+ * The set the "somebody walked in" watch measures newcomers against, and the
+ * list the incident's own announcements are whispered to. `killerIds` rather
+ * than `state.killerId`, so an accomplice who threw in with the killers is not
+ * read as a stranger walking into a room they have been standing in for the
+ * last ten minutes.
+ */
+export function participantIds(state = murderState()) {
+    const ids = new Set(killerIds(state));
+    if (state?.victimId) ids.add(state.victimId);
+    if (state?.thirdId) ids.add(state.thirdId);
+    return ids;
 }
 
 /**
@@ -207,6 +224,20 @@ function atNight() {
  */
 export async function openMurder({ killerId, victimId, indirect = false } = {}) {
     if (!game.user.isGM) return null;
+
+    // The Eclipse is a placement window, not a moment in the story — nobody has
+    // finished crossing the map yet. This does NOT catch the one legitimate call
+    // during an Eclipse: `judgePendingMurders` (eclipse.mjs) opens a *parked*
+    // direct murder from `endEclipse`, which clears the Eclipse flag before
+    // judging declarations, so `isEclipse()` already reads false by the time it
+    // calls here. Everywhere else — the GM panel's "Open a murder" tile, a
+    // ruling card's button — is greyed out with a tooltip instead of reaching
+    // this at all; this is the backstop for anyone who gets here anyway.
+    const { isEclipse } = await import("./eclipse.mjs");
+    if (isEclipse()) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.murderLocked"));
+        return null;
+    }
 
     const killer = game.actors.get(killerId);
     const victim = game.actors.get(victimId);
@@ -652,9 +683,17 @@ function hasWeapon(actor) {
  * So the two questions are asked separately. Advantage, disadvantage and damage
  * come from what is in the hand; whether there is anything to improvise from
  * comes from what is on the person.
+ *
+ * BROKEN DOES NOT COUNT, and it is the same bug the paragraph above describes,
+ * in a new shape. A killer whose only Crime Tool was ruined in an earlier
+ * incident is carrying a slot, not a weapon: they have "nie ma broni" in every
+ * sense the clause means, and reading the ruined one as a weapon would refuse
+ * them the improvised tool the rule promises. The grant overrides the carry cap
+ * anyway (see `grantImprovisedWeapon`), so the broken one staying in the way is
+ * not a reason to withhold it.
  */
 function carriesWeapon(actor) {
-    return carriedInCategory(actor, "crimeTool").length > 0;
+    return carriedInCategory(actor, "crimeTool").some(i => !isBroken(i));
 }
 
 /**
@@ -1185,10 +1224,14 @@ async function applyRemnant(actor, visibility, def, band, done, reinforced = fal
         });
     }
 
-    if (last) {
+    // Never the exact band — see `traceFeedback` in remnants.mjs. Gated on
+    // `band` rather than a roll object because that is all this function
+    // ever had: Hope or a critical tells the killer/victim what they left,
+    // a plain Despair does not.
+    if (last && traceFeedback({ isCritical: band === "critical", withHope: band === "hope" }, last)) {
         done.push(count > 1
-            ? game.i18n.format("DRPG.Murder.leftRemnants", { n: count, visibility })
-            : game.i18n.format("DRPG.Murder.leftRemnant", { a: article(visibility), visibility }));
+            ? plural("DRPG.Murder.leftRemnants", { n: count })
+            : game.i18n.localize("DRPG.Murder.leftRemnant"));
     }
     return last ?? null;
 }
@@ -1544,7 +1587,43 @@ export async function passTurn() {
     const state = murderState();
     if (!state || state.stage !== "incident") return null;
 
-    const next = state.turnSide === "victim" ? "killer" : "victim";
+    /*
+     * A ROUND IS: the victim, then EVERY killer in turn, then back to the
+     * victim. Not victim/killer strictly alternating — that gave a second
+     * killer the victim's own turn as breathing room, which is not what
+     * `killerTurnId` rotating between them was ever meant to buy them. With
+     * two killers the old rule read `turnSide` as "victim" or "killer" and
+     * flipped it every pass, so the sequence ran victim, killer(A), victim,
+     * killer(B), victim... — `killerTurnId` rotated correctly underneath, but
+     * the side switched back to the victim a turn too early every time.
+     *
+     * From the victim's turn, the round always restarts at the FIRST killer —
+     * not "whoever goes next in the rotation", which is `state.killerTurnId`
+     * left over from the round before. From a killer's turn, the round only
+     * returns to the victim once the LAST killer in `killerIds` has gone;
+     * otherwise it stays on the killers' side and steps to the next one.
+     */
+    const killers = killerIds(state);
+    let next;
+    let killerTurnId = state.killerTurnId;
+
+    if (state.turnSide === "victim") {
+        next = "killer";
+        killerTurnId = killers[0] ?? null;
+    } else {
+        const current = state.killerTurnId ?? killers[0];
+        const at = killers.indexOf(current);
+        if (at >= 0 && at + 1 < killers.length) {
+            next = "killer";
+            killerTurnId = killers[at + 1];
+        } else {
+            next = "victim";
+        }
+    }
+
+    // The round completes once per full lap of the killers' side, not once
+    // per killer — see the note above. Everything below that used to key off
+    // "it is the victim's turn" still does, and now only fires that often.
     const turn = next === "victim" ? state.turn + 1 : state.turn;
 
     // Tick down the two-turn hindrances at the top of each round.
@@ -1559,21 +1638,10 @@ export async function passTurn() {
         return out;
     };
 
-    const patch = { turnSide: next, turn };
+    const patch = { turnSide: next, turn, killerTurnId };
     if (next === "victim") {
         patch.hindered = decay("hindered");
         patch.blocked = decay("blocked");
-    } else {
-        // Hand the killers' turn to whichever of them did not have the last one.
-        // With a single killer this rotates a list of one and changes nothing.
-        const killers = killerIds(state);
-        if (killers.length > 1) {
-            const current = state.killerTurnId ?? killers[0];
-            const at = killers.indexOf(current);
-            patch.killerTurnId = killers[(at + 1) % killers.length];
-        } else {
-            patch.killerTurnId = killers[0] ?? null;
-        }
     }
 
     await writeState(patch);
@@ -1653,11 +1721,14 @@ async function maybeThirdParty(tokenDoc) {
     const state = murderState();
     if (!state || state.stage !== "incident") return;
     if (state.indirect) return;          // nothing to interrupt
-    if (state.thirdId) return;           // the guide gives the scene one
 
     const actor = tokenDoc?.actor;
     if (!actor || actor.type !== "character") return;
-    if (actor.id === state.killerId || actor.id === state.victimId) return;
+    // Anybody already in it. Moving around the room they are standing in is not
+    // walking into it — and that includes the third party themselves, who used
+    // to be covered by an early return on `state.thirdId` that also swallowed
+    // everybody who came after them.
+    if (participantIds(state).has(actor.id)) return;
     if (isMonokuma(actor)) return;       // the GM on the map is not a witness
     if (actor.getFlag(MODULE_ID, FLAGS.deceased)) return;
     // A token the GM has hidden is not in the scene as far as the fiction is
@@ -1671,6 +1742,18 @@ async function maybeThirdParty(tokenDoc) {
     // one room — `sameRoom` makes the same distinction for a handover.
     if (tokenDoc.parent?.id !== scene.scene?.id) return;
     if (roomOfToken(tokenDoc) !== scene.room) return;
+
+    // The guide gives the scene one third party. The second one to walk in is
+    // the fourth person in the room, and at four this stops being a murder
+    // anybody could carry out — so it ends, rather than continuing around them.
+    //
+    // Decided HERE and not at the top of the function, because it is a fact
+    // about the room: somebody crossing the map with an incident running
+    // elsewhere ends nothing.
+    if (state.thirdId) {
+        await crowdedOut(actor);
+        return;
+    }
 
     await thirdPartyEnters(actor);
 }
@@ -1691,6 +1774,57 @@ export async function thirdPartyEnters(actor) {
         <p>${game.i18n.localize("DRPG.Murder.thirdIntro")}</p>`);
     log(`${actor.name} walked into the incident.`);
     return murderState();
+}
+
+/**
+ * A fourth person walks in, and there is no murder to be had.
+ *
+ * Automatic, and not put to the GM. The condition is countable — four people in
+ * one room — and every other reading of it would be the module asking a
+ * question it already knows the answer to while the fight carried on in the
+ * background.
+ *
+ * NOBODY DIES. The incident is cancelled where it stands: no body, no Blackened
+ * (`recordBlackened` only fires from the resolution stage), no post-incident
+ * checklist. What has already happened stays happened — the damage taken, the
+ * Stress spent, the Remnants the fight has already put on the floor.
+ *
+ * THE NEWCOMER IS NOT TOLD, and that is deliberate. Everyone who was in the
+ * incident hears it; the person who walked in gets whatever the GM decides they
+ * saw. A whisper naming an interrupted murder would hand a fourth player the
+ * killer's identity for the price of walking through a door, and the guide's
+ * whole trial rests on that being something people work out.
+ */
+async function crowdedOut(actor) {
+    if (!game.user.isGM || !actor) return null;
+
+    const state = murderState();
+    if (!state || state.stage !== "incident") return null;
+    if (state.indirect || !state.thirdId) return null;
+
+    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
+    const third = game.actors.get(state.thirdId);
+
+    // The GMs and everybody in the room it was happening in — the same audience
+    // `announceCrisis` writes to, and for the same reason.
+    const recipients = new Set(gmIds());
+    for (const id of participantIds(state)) {
+        const owner = ownerOf(game.actors.get(id));
+        if (owner) recipients.add(owner.id);
+    }
+
+    await announce({
+        content: `
+            <h3>${game.i18n.localize("DRPG.Murder.crowdedTitle")}</h3>
+            <p>${game.i18n.format("DRPG.Murder.crowded", {
+                name: esc(actor.name), third: esc(third?.name ?? "?")
+            })}</p>
+            <p class="notes">${game.i18n.localize("DRPG.Murder.crowdedNote")}</p>`,
+        whisper: Array.from(recipients)
+    });
+
+    log(`${actor.name} made a fourth in the room; the incident is cancelled.`);
+    return endMurder({ reason: "crowded", followUp: false });
 }
 
 /**
@@ -1721,12 +1855,21 @@ export function blackenedActors() {
  * Recorded when the incident CLOSES rather than when it opens, and only when it
  * left a body: Role reversal can hand the killer's seat to the person who was
  * the victim halfway through, and Escape together ends an incident with nobody
- * dead at all. What goes in the register is whoever the state called the killer
+ * dead at all. What goes in the register is whoever `killerIds(state)` names
  * when the dust settled, and only if there is a corpse to answer for.
  *
+ * `killerIds`, not `state.killerId` alone — an accomplice who really threw in
+ * with the killers (`thirdSide === "killer"`) is a killer in every sense the
+ * rules care about, including this one. Recording only the original killer
+ * left the accomplice off `blackenedIds()`, which is the list `maybeBodyFound`
+ * filters witnesses against: the second killer walked past their own corpse
+ * and counted as an innocent bystander. `killerIds` already restricts to a
+ * third party who actually joined the killers, not one who merely walked into
+ * the room, so nothing extra is needed here to keep a bystanding third party out.
+ *
  * Appended, never replaced. Two incidents in a chapter — which the betrayal
- * rule makes an ordinary evening — put two names in here, and the trial asks
- * for both.
+ * rule makes an ordinary evening — put two (or more) names in here, and the
+ * trial asks for all of them.
  */
 async function recordBlackened(state) {
     if (!game.user.isGM || !state?.killerId) return;
@@ -1736,9 +1879,10 @@ async function recordBlackened(state) {
     if (state.stage !== "resolution") return;
 
     const current = blackenedIds();
-    if (current.includes(state.killerId)) return;
-    await game.settings.set(MODULE_ID, SETTINGS.blackened, [...current, state.killerId]);
-    log(`Blackened recorded: ${game.actors.get(state.killerId)?.name ?? state.killerId}.`);
+    const additions = killerIds(state).filter(id => !current.includes(id));
+    if (!additions.length) return;
+    await game.settings.set(MODULE_ID, SETTINGS.blackened, [...current, ...additions]);
+    log(`Blackened recorded: ${additions.map(id => game.actors.get(id)?.name ?? id).join(", ")}.`);
 }
 
 /** A new chapter starts with nobody's blood on anybody. Called by chapter.mjs. */
@@ -2068,8 +2212,8 @@ async function afterEscape(state, victim, killer) {
     });
 
     if (action === "remnants") {
-        const { openRemnantManager } = await import("./remnants.mjs");
-        return openRemnantManager();
+        const { openInvestigationDashboard } = await import("./investigation.mjs");
+        return openInvestigationDashboard();
     }
     return null;
 }
@@ -2129,7 +2273,7 @@ async function announceCrisis(actor, def, { success, band, total, threshold, don
     // nonsense for it — it printed "0 ≥ undefined · with Hope". What it has
     // instead is the sentence describing the choice.
     const score = def.noRoll
-        ? `<p><em>${foundry.utils.escapeHTML(def.effect ?? def.hint ?? "")}</em></p>`
+        ? `<p><em>${foundry.utils.escapeHTML(callEffect(def) || def.hint || "")}</em></p>`
         : `<p>${total} ${success ? "≥" : "<"} ${threshold} · ${
             game.i18n.localize(`DRPG.Murder.band.${band}`)}</p>`;
 
@@ -2467,7 +2611,9 @@ export async function openIncidentTracker() {
         ? `${resourceMax(victim, res) - resourceValue(victim, res)} / ${resourceMax(victim, res)}`
         : "?";
 
-    const action = await DialogV2.wait({
+    const action = await tableDialog({
+        // `cleanupSection()` below puts a table in this window once Stage 6 has
+        // traces to list — `tableDialog` is what sizes the window to it.
         window: { title: game.i18n.localize("DRPG.Murder.trackerTitle") },
         classes: ["drpg-panel"],
         content: dialogContent(`<div>

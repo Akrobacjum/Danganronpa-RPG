@@ -500,18 +500,54 @@ async function fallbackGather(region, tokens, REVERT) {
  * empty object when the Call needs nothing.
  */
 export async function pickTarget(actor, call, kind) {
-    // The one Call whose content is the point: a new rule has to be written
-    // before it can be announced.
-    if (call.announces) return pickText(call);
+    // WHAT AM I BUYING? — asked before the first decision, not after it.
+    //
+    // A Call with no target (Reroll) goes straight to `confirmCall`, which
+    // opens with the name, the sentence and the price. A Call WITH a target
+    // used to open with a bare dropdown of names and no explanation at all,
+    // and only reached that sentence once the target had been chosen. Same
+    // purchase, two different orders, and the one that showed the price last
+    // was the one where the choice mattered more.
+    //
+    // Carried on `pendingHeader` rather than passed down through six pickers:
+    // every one of them ends in `choose()` or a small form of its own, and
+    // threading a header parameter through all of them to reach two template
+    // strings is more moving parts than the same fact read once at the point
+    // it is rendered.
+    pendingHeader = callHeader(call, kind);
+    try {
+        // The one Call whose content is the point: a new rule has to be written
+        // before it can be announced.
+        if (call.announces) return await pickText(call);
 
-    switch (call.target) {
-        case "player": return pickPlayer(actor, call, kind);
-        case "monocub": return pickMonocub();
-        case "project": return pickProject(actor);
-        case "room": return pickRoom();
-        case "item": return pickItem();
-        default: return {};
+        switch (call.target) {
+            case "player": return await pickPlayer(actor, call, kind);
+            case "monocub": return await pickMonocub();
+            case "project": return await pickProject(actor);
+            case "room": return await pickRoom();
+            case "item": return await pickItem();
+            default: return {};
+        }
+    } finally {
+        pendingHeader = "";
     }
+}
+
+/**
+ * The name, the effect and the price — the same three lines `confirmCall`
+ * shows, rendered above whichever picker this Call needs.
+ */
+let pendingHeader = "";
+
+function callHeader(call, kind) {
+    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
+    return `<div class="drpg-call-header">
+        <h3>${esc(call.label)}</h3>
+        <p>${esc(call.effect)}</p>
+        <p class="notes">${game.i18n.format(
+            kind === "hope" ? "DRPG.Calls.costsHopeShort" : "DRPG.Calls.costsDespairShort",
+            { cost: call.cost })}</p>
+    </div>`;
 }
 
 /**
@@ -545,7 +581,7 @@ async function pickText(call) {
     const text = await DialogV2.wait({
         window: { title: call.label },
         classes: ["drpg-panel", "drpg-despair-dialog"],
-        content: dialogContent(`<form>
+        content: dialogContent(`${pendingHeader}<form>
             <p>${game.i18n.localize("DRPG.Calls.newRulePrompt")}</p>
             <textarea name="text" rows="3"
                 placeholder="${game.i18n.localize("DRPG.Calls.newRulePlaceholder")}"></textarea>
@@ -651,7 +687,7 @@ async function choose(promptKey, options) {
     const picked = await DialogV2.wait({
         window: { title: game.i18n.localize(promptKey) },
         classes: ["drpg-panel"],
-        content: `<form><label>${game.i18n.localize(promptKey)}
+        content: `${pendingHeader}<form><label>${game.i18n.localize(promptKey)}
                     <select name="choice">${html}</select></label></form>`,
         buttons: [
             {

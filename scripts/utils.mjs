@@ -190,6 +190,24 @@ export function plural(key, data = {}, countOn = "n") {
     return game.i18n.format(`${key}.${picked}`, data);
 }
 
+/**
+ * The scene the GM is actually working on.
+ *
+ * `game.scenes.active` is a world flag — whichever scene was last marked
+ * "active" for player navigation, which a GM building next chapter's map
+ * leaves pointed at the CURRENT one while they work on the NEXT. Season setup
+ * used to read `game.scenes.active` for its "rooms" step and told the GM their
+ * freshly-drawn regions did not exist, because the scene showing on their own
+ * canvas was not the one the flag named.
+ *
+ * `canvas?.scene` — what is actually rendered — is what a GM configuring rooms
+ * means by "this scene", so it wins whenever there is one. The world flag is
+ * only the fallback for code running with no canvas at all.
+ */
+export function workingScene() {
+    return canvas?.scene ?? game.scenes.active ?? null;
+}
+
 export function ownerOf(actor) {
     if (!actor) return null;
     return game.users.find(u => !u.isGM && u.active && actor.testUserPermission(u, "OWNER"))
@@ -212,11 +230,20 @@ export const MESSAGE_FLAG = "drpgMessage";
 
 /** Merge our marker into a ChatMessage payload without disturbing its flags. */
 function stamped(data = {}) {
-    return foundry.utils.mergeObject(
+    const payload = foundry.utils.mergeObject(
         data,
         { flags: { [MODULE_ID]: { [MESSAGE_FLAG]: true } } },
         { inplace: false }
     );
+
+    // Daggerheart 2.6.5's own `DhpChatMessage.migrateData` reads
+    // `source.rolls.length` without checking that it is there, and a message
+    // created without dice has no `rolls` in its source at all — the schema
+    // fills that in later. Every announcement and whisper this module posts
+    // threw two migration errors into the console because of it. Handing it an
+    // empty array costs nothing and is what the field would have become.
+    if (payload.rolls === undefined) payload.rolls = [];
+    return payload;
 }
 
 /**
@@ -325,4 +352,173 @@ export function dialogContent(markup) {
     const div = document.createElement("div");
     div.innerHTML = markup;
     return div;
+}
+
+/**
+ * `DialogV2.wait`, for a window built around a table — sized to fit its own
+ * table, automatically, with no resize handle.
+ *
+ * WHY NOT CSS, AND WHY NOT A DRAG HANDLE. Two earlier attempts at this failed
+ * in ways worth recording, because both looked correct in the stylesheet:
+ *
+ *   · `width: max-content !important` on the window. `!important` outranks an
+ *     inline style, and both the resize handle AND ApplicationV2's own layout
+ *     write inline widths — so the rule fought whatever the application had
+ *     just decided, and an intrinsic width on a frame that already has a pixel
+ *     width left the overflowing columns invisible AND unreachable.
+ *   · a manual resize handle as the escape hatch. That is a workaround asking
+ *     the GM to fix the window every time they open it, for a size the module
+ *     can simply measure.
+ *
+ * So the window is measured after render instead: the table states its natural
+ * width in the DOM (`width: max-content` on the TABLE, which is where that
+ * belongs), this reads it back and sets the window to exactly that, clamped to
+ * the viewport. A table narrower than the default opens narrow; a wide one
+ * opens wide; nothing has to be dragged, and the one case that still cannot
+ * fit — a table wider than the screen — scrolls inside `.window-content`,
+ * which is what its `overflow: auto` is for.
+ *
+ * `options.window` and `options.position` still win over these defaults, and
+ * a caller's own `render` runs untouched before the measurement.
+ */
+export function tableDialog(options) {
+    const DialogV2 = foundry.applications.api.DialogV2;
+    const callerRender = options.render;
+
+    return DialogV2.wait({
+        ...options,
+        // `drpg-table-window` is not decoration: it is what keeps the default
+        // width rule in danganronpa.css — which carries `!important` — from
+        // matching this window and overriding the measured width. See the note
+        // on that rule. Appended to whatever the caller asked for, so nobody
+        // has to remember it at the call site.
+        classes: [...(options.classes ?? []), "drpg-table-window"],
+        // No handle: the size is derived, not chosen. A handle here would only
+        // ever be used to correct a size this function should have got right.
+        window: { resizable: false, ...options.window },
+        // `height: auto` lets the window take its content's height, which the
+        // 80vh cap on `.window-content` then bounds — so a long table scrolls
+        // rather than growing off the bottom of the screen.
+        position: { height: "auto", ...options.position },
+        render: (event, dialog) => {
+            try {
+                callerRender?.(event, dialog);
+            } catch (err) {
+                error("A table dialog's own render hook failed", err);
+            }
+            fitWindowToTable(dialog);
+        }
+    });
+}
+
+/**
+ * Set a dialog's width to the widest table it actually contains.
+ *
+ * Deferred one animation frame: at `render` time the content is in the DOM but
+ * has not necessarily been laid out, and `scrollWidth` before layout reports
+ * the pre-layout width — which is how a measured-fit window ends up the wrong
+ * size in exactly the cases that need it most (the widest tables).
+ *
+ * `scrollWidth` rather than `getBoundingClientRect().width`: the table is the
+ * thing overflowing its container, and the bounding box reports the CLIPPED
+ * width, i.e. the number we already have. `scrollWidth` is the full one.
+ */
+function fitWindowToTable(dialog) {
+    const root = dialog?.element;
+    if (!root) return;
+
+    // TWO frames, not one. One `requestAnimationFrame` gets us past the point
+    // where the markup is in the DOM, but ApplicationV2 also sets the window's
+    // own position after render, and a fonts-still-loading table remeasures
+    // once its real face arrives. Measuring on the second frame lands after
+    // both, which is the difference between fitting the table and fitting the
+    // fallback font's idea of it.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+        try {
+            const content = root.querySelector(".window-content");
+            if (!content) return;
+
+            let widest = 0;
+            for (const table of content.querySelectorAll("table")) {
+                // `scrollWidth` is an integer and rounds DOWN, which on a table
+                // whose columns land on fractional pixels is exactly enough to
+                // clip the last one. `getBoundingClientRect().width` keeps the
+                // fraction, and is the larger of the two whenever the table is
+                // not being clipped, so taking the max of both is right in
+                // either case.
+                widest = Math.max(widest, table.scrollWidth, table.getBoundingClientRect().width);
+            }
+            if (!widest) return;                       // no table: leave it alone
+
+            const styles = getComputedStyle(content);
+            const padding = (parseFloat(styles.paddingLeft) || 0)
+                + (parseFloat(styles.paddingRight) || 0)
+                + (parseFloat(styles.borderLeftWidth) || 0)
+                + (parseFloat(styles.borderRightWidth) || 0);
+
+            // The window frame itself is wider than its content box. Measuring
+            // the difference rather than guessing a constant: the frame carries
+            // its own border and padding, and a hard-coded fudge factor is what
+            // makes a window look right in one theme and clipped in another.
+            const frame = Math.max(0, root.getBoundingClientRect().width - content.clientWidth);
+
+            // Two pixels of slack so a table measured at exactly its container's
+            // width does not round into a scrollbar it does not need.
+            const wanted = Math.ceil(widest + padding + frame) + 2;
+
+            const cap = Math.round((window.innerWidth || 1200) * 0.94);
+            const width = Math.min(wanted, cap);
+
+            // Nothing to do when we are already there — `setPosition` triggers
+            // a re-render, and re-rendering on every open for no change is how
+            // a window ends up flickering.
+            if (Math.abs(root.getBoundingClientRect().width - width) < 2) return;
+
+            dialog.setPosition({ width, height: "auto" });
+        } catch (err) {
+            // A window that did not resize is readable; one that threw here
+            // would take the whole dialog down with it.
+            debug("Could not fit a table window to its table", err);
+        }
+    }));
+}
+
+/**
+ * Wire a portrait picker to the dialog's real, mounted DOM.
+ *
+ * `content` is handed to `DialogV2.wait` as a detached `<div>`, but DialogV2's
+ * own `_initializeApplicationOptions` immediately reads `content.innerHTML`
+ * and throws the element itself away — the dialog is rebuilt from that string,
+ * so a click listener attached to the original element is attached to a node
+ * that never joins the page. This is documented in Foundry's own dialog.mjs:
+ * "the element will get stringified, so any listeners ... will not carry
+ * forward to the dialog; you must still use the `render` option." Attaching
+ * from `render`, against `dialog.element`, is what actually keeps the click
+ * live — attaching beforehand is exactly why the button did nothing.
+ *
+ * Expects `<img data-drpg-portrait="{id}">` (or a bare `data-drpg-portrait`
+ * for a single-image form) beside `<input type="hidden" name="img.{id}">`
+ * (or `name="img"`) — the same markup `projects-ui.mjs` and
+ * `investigation.mjs` both build their portrait cells from.
+ */
+export function wirePortraitPickers(root, { defaultImg = null } = {}) {
+    for (const portrait of root.querySelectorAll("[data-drpg-portrait]")) {
+        if (portrait.dataset.drpgWired) continue;
+        portrait.dataset.drpgWired = "1";
+
+        const id = portrait.dataset.drpgPortrait || null;
+        const hiddenSelector = id ? `[name="img.${CSS.escape(id)}"]` : '[name="img"]';
+
+        portrait.addEventListener("click", () => {
+            const hidden = root.querySelector(hiddenSelector);
+            new foundry.applications.apps.FilePicker.implementation({
+                type: "image",
+                current: hidden?.value || defaultImg || "",
+                callback: path => {
+                    portrait.src = path;
+                    if (hidden) hidden.value = path;
+                }
+            }).render(true);
+        });
+    }
 }

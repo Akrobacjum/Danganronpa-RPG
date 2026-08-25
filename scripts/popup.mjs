@@ -30,6 +30,7 @@
 import { MODULE_ID } from "./config.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
 import { MESSAGE_FLAG } from "./utils.mjs";
+import { play, BEAT, ARRIVE, SNAP } from "./motion.mjs";
 
 const CONTAINER_ID = "drpg-popups";
 const AUTO_DISMISS_MS = 12000;
@@ -74,7 +75,7 @@ function container() {
  * widgets is accounted for too. The 96px stays as the fallback for a screen
  * where none of them have rendered yet.
  */
-const WIDGET_SELECTORS = ["#drpg-despair", "#drpg-hud", ".drpg-trial-floor"];
+const WIDGET_SELECTORS = ["#drpg-despair", "#drpg-hud"];
 const FALLBACK_TOP = 96;
 const WIDGET_GAP = 8;
 
@@ -109,11 +110,14 @@ function trimStack() {
  * Show a floating, auto-dismissing card on THIS client. Several can stack if
  * things happen close together.
  *
- * @param {string} bodyHtml       Already-escaped HTML.
+ * @param {string|Element} bodyHtml  Already-escaped HTML, or a ready-made
+ *   element to adopt. The element form exists because a copy of a chat card is
+ *   a DOM subtree, and serialising it to a string only to have the parser
+ *   rebuild it is a round trip that can lose things — a `<li>` outside a list
+ *   being the obvious one.
  * @param {object} [options]
- * @param {string} [options.title]     Shown in a header bar. Omitted entirely
- *   when there is none — most whispers were never built with a clean title to
- *   pull out of them, and a generic placeholder label helps nobody.
+ * @param {string} [options.title]     Shown in the header bar. Falls back to the
+ *   name of the card's kind — every card gets a bar, see below.
  * @param {"info"|"error"|"evidence"|"objection"} [options.kind]  Only the accent
  *   changes: purple for an ordinary update (default), red for something
  *   refused, gold for evidence, loud red for an Objection.
@@ -122,22 +126,36 @@ function trimStack() {
  * @param {boolean} [options.sticky]  Stay until dismissed by hand. Evidence put
  *   in front of the table has to survive being read and argued with, which is
  *   considerably longer than twelve seconds.
+ * @param {"hope"|"fear"|"critical"|null} [options.tone]  What the card is about,
+ *   when that has a colour of its own. The title bar takes it: gold for Hope,
+ *   Blood for Despair, crimson for a Critical. A name rather than a colour, so
+ *   the palette stays in the stylesheet where the rest of it lives — see
+ *   `.drpg-popup-tone-*` there.
  */
 const KINDS = ["info", "error", "evidence", "objection"];
 
+const TONES = ["hope", "fear", "critical"];
+
 export function showPopup(bodyHtml, {
-    title = null, kind = "info", onClick = null, sticky = false
+    title = null, kind = "info", onClick = null, sticky = false, tone = null
 } = {}) {
     const card = document.createElement("div");
     card.className = `drpg-popup drpg-popup-${KINDS.includes(kind) ? kind : "info"}${
-        sticky ? " drpg-popup-sticky" : ""}`;
+        sticky ? " drpg-popup-sticky" : ""}${
+        TONES.includes(tone) ? ` drpg-popup-tone-${tone}` : ""}`;
 
-    // A sticky card must be closeable, so it grows a header even when the
-    // caller did not ask for one — otherwise the only way out is the click
-    // handler, which is not obvious and is not always harmless.
-    if (!title && sticky) title = game.i18n.localize("DRPG.Panel.close");
+    // EVERY CARD HAS A TITLE BAR.
+    //
+    // It used to be optional, on the reasoning that a generic label helps
+    // nobody — and the result was two kinds of card on screen: the ones with
+    // the module's Bone bar across the top and the ones that were a paragraph
+    // floating in a box. The bar is what makes a card read as this module's,
+    // and a card with no title of its own can still say what kind of thing it
+    // is. It also carries the close button, which a card without a bar simply
+    // did not have.
+    if (!title) title = game.i18n.localize(`DRPG.Popup.kind.${KINDS.includes(kind) ? kind : "info"}`);
 
-    if (title) {
+    {
         const head = document.createElement("div");
         head.className = "drpg-popup-title";
         head.textContent = title;
@@ -159,7 +177,8 @@ export function showPopup(bodyHtml, {
 
     const body = document.createElement("div");
     body.className = "drpg-popup-body";
-    body.innerHTML = bodyHtml ?? "";
+    if (bodyHtml instanceof Element) body.append(bodyHtml);
+    else body.innerHTML = bodyHtml ?? "";
     card.append(body);
 
     container().append(card);
@@ -169,7 +188,31 @@ export function showPopup(bodyHtml, {
         if (dismissed) return;
         dismissed = true;
         card.classList.add("leaving");
-        setTimeout(() => card.remove(), 300);
+
+        // WAIT FOR THE TRANSITION, NOT FOR A NUMBER.
+        //
+        // This was `setTimeout(…, 300)`, and 300 was a guess at a duration
+        // written in the stylesheet — two files holding the same fact, which is
+        // how they drift. Worse: it was unreachable. A reader who asks their
+        // operating system to stop animations gets the tokens zeroed, the
+        // transition never runs, and a hardcoded timeout would still have held
+        // a finished card on screen for a third of a second.
+        //
+        // The timeout that remains is a backstop and nothing else. A card
+        // dismissed while its tab is in the background gets no `transitionend`
+        // at all — browsers do not run transitions nobody can see — and a card
+        // that never leaves the DOM is a leak. Generous enough never to cut a
+        // real transition short, short enough that nothing piles up.
+        let gone = false;
+        const remove = () => {
+            if (gone) return;
+            gone = true;
+            card.remove();
+        };
+        card.addEventListener("transitionend", event => {
+            if (event.target === card) remove();
+        });
+        setTimeout(remove, Math.max(SNAP(), 0) + 1000);
     };
 
     // So `trimStack` can retire this card without holding a reference to its
@@ -188,6 +231,29 @@ export function showPopup(bodyHtml, {
     }
 
     requestAnimationFrame(() => card.classList.add("visible"));
+
+    // EVIDENCE LANDS. IT DOES NOT APPEAR.
+    //
+    // An ordinary card slides down a few pixels and fades in, which is right
+    // for a receipt: it is information, it can be ignored, and it will retire
+    // by itself in twelve seconds. Evidence in a Class Trial is the opposite of
+    // all three. Somebody has put a fact in front of the table and the table has
+    // to deal with it, so it arrives from the side, overshoots, and stops hard —
+    // Danganronpa's own grammar, where nothing eases into frame.
+    //
+    // Over the beat, once, on the card that just arrived. Nothing waits for it:
+    // the card is already in the DOM, already clickable, already readable, and
+    // this runs on top of a card that is fully there.
+    if (kind === "evidence" || kind === "objection") {
+        const from = kind === "objection" ? "120%" : "60%";
+        play(card, [
+            { transform: `translateX(${from}) scale(1.04)`, opacity: 0, offset: 0 },
+            { transform: "translateX(-4%) scale(1.02)", opacity: 1, offset: 0.55 },
+            { transform: "translateX(2%) scale(0.995)", opacity: 1, offset: 0.78 },
+            { transform: "translateX(0) scale(1)", opacity: 1, offset: 1 }
+        ], BEAT(), ARRIVE());
+    }
+
     if (!sticky) setTimeout(dismiss, AUTO_DISMISS_MS);
 }
 
@@ -264,6 +330,10 @@ function onCreateChatMessage(message) {
     // gets the same card with the same title.
     showPopup(message.content, {
         kind,
-        title: message.getFlag(MODULE_ID, "popupTitle") ?? null
+        title: message.getFlag(MODULE_ID, "popupTitle") ?? null,
+        // Carried on the message rather than worked out here, for the same
+        // reason the title is: the card appears on every screen the whisper
+        // reached, and only the client that posted it knows what the roll did.
+        tone: message.getFlag(MODULE_ID, "popupTone") ?? null
     });
 }

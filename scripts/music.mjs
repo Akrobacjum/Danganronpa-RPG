@@ -29,7 +29,7 @@
  * never animates a volume itself.
  */
 
-import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS } from "./config.mjs";
+import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, SITUATIONAL_PLAYLIST } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import { trialQueue } from "./trial-floor.mjs";
@@ -46,6 +46,16 @@ import { isPrimaryGm, debug, log, error, plural } from "./utils.mjs";
  * the GM's own.
  */
 let applying = false;
+
+/**
+ * Written on a playlist while it is paused for somebody else's track.
+ *
+ * On the DOCUMENT, not in a variable, because the question "what is holding?"
+ * outlives the tab that answered it: the GM reloads, or the other GM presses
+ * reset, and the record has to be readable from a client that never saw the
+ * cue start.
+ */
+const HELD_FLAG = "held";
 
 async function asOurs(fn) {
     applying = true;
@@ -127,7 +137,18 @@ let settleTimer = null;
 /** What we last started, so an unchanged state is not restarted every tick. */
 let playingState = null;
 
-/** The GM's own track, while it is interrupting the ambient one. */
+/**
+ * The GM's own track, while it is interrupting whatever was playing.
+ *
+ * `held` is a list, not one playlist. It used to be a single id — the one
+ * mapped playlist that happened to be playing — and everything else audible
+ * carried on underneath the cue: a second cue, a playlist the GM had started
+ * from the sidebar, an ambient one for a state that is no longer mapped. What
+ * is put on hold is now simply everything that was playing, and every one of
+ * them comes back.
+ *
+ *   { soundId, sourcePlaylistId, held: [playlistId], state }
+ */
 let interrupted = null;
 
 export function registerMusic() {
@@ -175,19 +196,24 @@ function adoptRunningInterruption() {
 
     try {
         const mine = ours();
-        const theirs = game.playlists.find(p =>
-            p.playing
-            && !mine.some(o => o.id === p.id)
-            && p.mode !== CONST.PLAYLIST_MODES.DISABLED);
+        const situational = situationalPlaylist();
+        // The cue playlist first: it is where a cue comes from, so a track
+        // running there is far more likely to be the interruption than
+        // whatever else the world happens to have going.
+        const theirs = (situational?.playing ? situational : null)
+            ?? game.playlists.find(p =>
+                p.playing
+                && !mine.some(o => o.id === p.id)
+                && p.mode !== CONST.PLAYLIST_MODES.DISABLED);
         if (!theirs) return;
 
-        // Whichever of ours is paused mid-track is the one that was holding.
-        const holding = mine.find(p => p.sounds.some(s => s.pausedTime != null));
+        // Anything paused mid-track is something that was holding for it.
+        const held = playlistsHolding().filter(p => p.id !== theirs.id).map(p => p.id);
 
         interrupted = {
             soundId: theirs.sounds.find(s => s.playing)?.id ?? null,
-            playlistId: holding?.id ?? null,
             sourcePlaylistId: theirs.id,
+            held,
             state: currentState()
         };
         debug(`Music: adopted "${theirs.name}" as an interruption already in progress.`);
@@ -320,6 +346,10 @@ function crossfade(next) {
  * A sound whose audio has not decoded yet has no `currentTime` to record. It is
  * stopped rather than paused: restarting a track that had barely begun is not a
  * loss, and a `pausedTime` of zero would read as "not paused" anyway.
+ *
+ * @returns {Promise<boolean>} whether anything was actually put on hold. The
+ *   caller uses it to decide whether this playlist is worth remembering: a
+ *   playlist with nothing running in it has nothing to come back to.
  */
 function pausePlaylist(playlist) {
     return asOurs(async () => {
@@ -331,11 +361,33 @@ function pausePlaylist(playlist) {
                 pausedTime: Number(s.sound?.currentTime) || null
             }));
 
-        if (!updates.length) return;
+        if (!updates.length) {
+            // The document claims to be playing and nothing inside it is. Left
+            // alone this outlives the session and makes every later reading of
+            // "what is playing" wrong, including this file's own.
+            if (playlist.playing) {
+                try {
+                    await playlist.update({ playing: false });
+                } catch (err) {
+                    error(`Could not tidy up "${playlist.name}"`, err);
+                }
+            }
+            return false;
+        }
+
         try {
-            await playlist.update({ playing: false, sounds: updates });
+            // The flag rides along in the same write. It is what makes "give
+            // back what was holding" answerable by a client that never saw the
+            // cue start — see `playlistsHolding`.
+            await playlist.update({
+                playing: false,
+                sounds: updates,
+                [`flags.${MODULE_ID}.${HELD_FLAG}`]: true
+            });
+            return true;
         } catch (err) {
             error(`Could not pause "${playlist.name}"`, err);
+            return false;
         }
     });
 }
@@ -351,25 +403,185 @@ function resumePlaylist(playlist) {
 }
 
 /**
- * Cut the GM's track off, because the scene it was chosen for has ended.
+ * The one playlist the GM's own cues come from.
+ *
+ * Matched by NAME, not by an id stored in a setting. A name is something the
+ * GM can see in the sidebar and fix by renaming; an id is invisible, and a
+ * setting pointing at a playlist somebody deleted fails in a way that looks
+ * like the module being broken. The cost is that renaming the playlist
+ * unhooks it — which is why the window says which name it is looking for
+ * rather than leaving the GM to guess.
+ */
+export function situationalPlaylist() {
+    const wanted = SITUATIONAL_PLAYLIST.trim().toLowerCase();
+    try {
+        return game.playlists?.find(p => p.name?.trim().toLowerCase() === wanted) ?? null;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Put EVERYTHING that is playing on hold, except the playlist taking over.
+ *
+ * "Everything" rather than "the one playlist this module started" on purpose.
+ * A GM pressing play under a moment means *this* is the music now, and the old
+ * behaviour left anything the module had not started itself running underneath
+ * the cue — two pieces of music at once, and no way to tell from the panel
+ * which one was which.
+ *
+ * A soundboard playlist is left alone. Those are one-shots — a sting, a door,
+ * a gunshot — and pausing one halfway to resume it three minutes later is not
+ * a thing anybody wants; Foundry already treats that mode as "not scene music"
+ * by refusing to play the playlist as a whole.
+ *
+ * @returns {Promise<string[]>} the ids to give back, in the order they were taken.
+ */
+async function holdEverything(except = null) {
+    const held = [];
+    for (const playlist of game.playlists) {
+        if (except && playlist.id === except.id) continue;
+        if (playlist.mode === CONST.PLAYLIST_MODES.DISABLED) continue;
+        if (!playlist.playing && !playlist.sounds.some(s => s.playing)) continue;
+        if (await pausePlaylist(playlist)) held.push(playlist.id);
+    }
+    if (held.length) debug(`Music: ${held.length} playlist(s) put on hold for the cue.`);
+    return held;
+}
+
+/** Give back, where they left off, the playlists a cue put on hold. */
+async function resumeHeld(ids = []) {
+    for (const id of ids) {
+        const playlist = game.playlists.get(id);
+        if (!playlist) continue;
+        if (!playlist.playing) await resumePlaylist(playlist);
+        await clearHeld(playlist);
+    }
+}
+
+/**
+ * This playlist is no longer holding for anything.
+ *
+ * Set to false rather than deleted. Deleting a key here means `-=held`, and in
+ * this Foundry that quietly does nothing unless the update is a forced
+ * replacement — a flag that cannot be cleared is worse than a flag that reads
+ * `false`.
+ */
+async function clearHeld(playlist) {
+    if (!playlist?.getFlag?.(MODULE_ID, HELD_FLAG)) return;
+    await asOurs(async () => {
+        try {
+            await playlist.update({ [`flags.${MODULE_ID}.${HELD_FLAG}`]: false });
+        } catch (err) {
+            error(`Could not clear the hold on "${playlist.name}"`, err);
+        }
+    });
+}
+
+/**
+ * Everything this module has put on hold and not yet given back.
+ *
+ * The fallback for "a cue is playing and this client has no memory of starting
+ * it" — after a reload, or when the other GM pressed the button. The flag,
+ * rather than a stored `pausedTime`: `pausedTime` is written by pausing and
+ * NOT cleared by `Playlist#stopAll`, so a playlist paused once and stopped by
+ * hand an hour later still looks paused for the rest of the world's life, and
+ * a reset would drag it back into the room. Caught by the headless test doing
+ * exactly that.
+ */
+function playlistsHolding() {
+    return game.playlists.filter(p =>
+        !p.playing
+        && p.mode !== CONST.PLAYLIST_MODES.DISABLED
+        && p.getFlag?.(MODULE_ID, HELD_FLAG));
+}
+
+/**
+ * Is any scene music actually audible?
+ *
+ * Read from the SOUNDS, not from the playlist's own `playing` flag, and with
+ * soundboards left out. `Playlist#playSound` sets `playing: true` on the
+ * playlist whatever its mode, so a soundboard that fired one sting in the last
+ * hour can still be claiming to play — and a reset that believed it would
+ * decide the room already had music and leave the paused track paused.
+ */
+function anythingPlaying() {
+    return game.playlists.some(p =>
+        p.mode !== CONST.PLAYLIST_MODES.DISABLED
+        && p.sounds.some(s => s.playing));
+}
+
+/**
+ * Clear the cue playlist down to the one track about to play.
+ *
+ * `Playlist#playSound` already does this for a Sequential or Shuffle playlist
+ * and does NOT for a Simultaneous or Soundboard one, where it starts the new
+ * sound and leaves the others running — which is how pressing Play twice ended
+ * up with two cues playing at once.
+ *
+ * The track that is about to start has its own `pausedTime` cleared as well, so
+ * it begins at the beginning. A cue is chosen for a moment at the table, not
+ * resumed from wherever it happened to stop the last time it was used.
+ */
+function clearCuePlaylist(playlist, keepId) {
+    return asOurs(async () => {
+        const updates = playlist.sounds
+            .filter(s => s.id !== keepId && (s.playing || s.pausedTime))
+            .map(s => ({ _id: s.id, playing: false, pausedTime: null }));
+
+        if (playlist.sounds.get(keepId)?.pausedTime) {
+            // No `playing` key: this one is not being stopped, only rewound.
+            updates.push({ _id: keepId, pausedTime: null });
+        }
+
+        if (!updates.length) return;
+        try {
+            await playlist.update({ sounds: updates });
+        } catch (err) {
+            error(`Could not clear "${playlist.name}"`, err);
+        }
+    });
+}
+
+/**
+ * Stop a playlist dead: not playing, and not paused either.
+ *
+ * `Playlist#stopAll` writes `{_id, playing: false}` per sound and leaves every
+ * `pausedTime` exactly as it found it. That field is only ever read as a start
+ * offset — `PlaylistSound#sync` passes it as `offset` — so a playlist stopped
+ * with `stopAll` starts again halfway through whichever track was cut off, at
+ * whatever later moment anything plays it. Fine for an ambient playlist that
+ * is meant to resume where it left off; wrong for a cue, which is chosen for
+ * one moment and should never turn up again on its own.
  *
  * Wrapped in `asOurs` so the stop we cause is not read back as the GM stopping
  * it by hand — `watchManualEnd` and `watchManualPlayback` both bail while
  * `applying` is true, which is the whole reason that marker exists.
  */
+function stopPlaylistDead(playlist) {
+    return asOurs(async () => {
+        try {
+            await playlist.update({
+                playing: false,
+                sounds: playlist.sounds.map(s => ({ _id: s.id, playing: false, pausedTime: null })),
+                // Whatever it was holding for, it is not holding now.
+                [`flags.${MODULE_ID}.${HELD_FLAG}`]: false
+            });
+        } catch (err) {
+            error(`Could not stop "${playlist.name}"`, err);
+        }
+    });
+}
+
+/** Cut the GM's track off, because the scene it was chosen for has ended. */
 async function stopInterruption() {
     const source = interrupted?.sourcePlaylistId
         ? game.playlists.get(interrupted.sourcePlaylistId)
         : null;
-    if (!source?.playing) return;
+    if (!source) return;
+    if (!source.playing && !source.sounds.some(s => s.playing || s.pausedTime)) return;
 
-    await asOurs(async () => {
-        try {
-            await source.stopAll();
-        } catch (err) {
-            error(`Could not stop "${source.name}"`, err);
-        }
-    });
+    await stopPlaylistDead(source);
 }
 
 /**
@@ -443,34 +655,38 @@ function watchManualPlayback() {
 function onManualStart(sound) {
     if (interrupted) return;
 
-    const ambient = ours().find(p => p.playing);
-    // `sourcePlaylistId` is the GM's OWN playlist, and it is what makes the
-    // interruption end when nothing of ours was holding.
+    const source = sound.parent ?? null;
+
+    // Recorded BEFORE the holding starts, and filled in after.
     //
-    // Without it this was a one-way door. `watchManualEnd` only ever compared
-    // against `playlistId` — the ambient playlist we paused — so an interruption
-    // that started while no ambient track was playing recorded `playlistId:
-    // null`, and `playlist.id !== null` is true for every playlist that will
-    // ever stop. `resumeAmbient()` could not be reached, `interrupted` stayed
+    // `holdEverything` awaits a write per playlist, and any of those can put
+    // another update on the wire; an empty record in place from the first line
+    // is what stops a second sound arriving mid-hold from starting the whole
+    // thing again and taking a second, emptier reading of what was playing.
+    //
+    // `sourcePlaylistId` is the GM's OWN playlist, and it is what makes the
+    // interruption end when nothing was holding. Without it this was a one-way
+    // door: an interruption that started in silence had nothing to compare a
+    // stop against, `resumeAmbient()` could not be reached, `interrupted` stayed
     // set for the rest of the session, and `apply()` opens with
-    // `if (interrupted) return`. One scene cue played at the wrong moment — the
-    // start of a session, or any state the GM has not mapped — and the Class
-    // Trial and the Investigation never changed the music again.
+    // `if (interrupted) return` — so the Class Trial and the Investigation never
+    // changed the music again.
     interrupted = {
         soundId: sound.id,
-        playlistId: ambient?.id ?? null,
-        sourcePlaylistId: sound.parent?.id ?? null,
+        sourcePlaylistId: source?.id ?? null,
+        held: [],
         // The scene the GM chose this track FOR. `apply()` compares against it,
         // so a track keeps the floor for its own state and loses it the moment
         // the state changes.
         state: currentState()
     };
 
-    if (!ambient) return;
-
-    pausePlaylist(ambient)
-        .then(() => debug(`Music: "${sound.name}" took over; "${ambient.name}" is holding.`))
-        .catch(err => error(`Could not hold "${ambient.name}"`, err));
+    holdEverything(source)
+        .then(held => {
+            if (interrupted) interrupted.held = held;
+            if (held.length) debug(`Music: "${sound.name}" took over; ${held.length} holding.`);
+        })
+        .catch(err => error("Could not hold what was already playing", err));
 }
 
 /**
@@ -490,12 +706,13 @@ function watchManualEnd() {
         if (applying) return;
         if (changes.playing !== false) return;
         if (!interrupted) return;
-        // Either end counts: the ambient playlist we paused, or the GM's own
-        // playlist finishing. The second is the only signal available when
-        // nothing of ours was playing when they started.
-        const mine = playlist.id === interrupted.playlistId;
-        const theirs = playlist.id === interrupted.sourcePlaylistId;
-        if (!mine && !theirs) return;
+        // The CUE's own playlist stopping, and nothing else.
+        //
+        // A held playlist stopping used to count too, and it was wrong in the
+        // one case it fired: that is the GM reaching into the sidebar and
+        // stopping the thing we paused, and answering "you stopped it" with
+        // "here it is again" is the module arguing with them.
+        if (playlist.id !== interrupted.sourcePlaylistId) return;
         resumeAmbient();
     });
 }
@@ -509,14 +726,12 @@ function onManualEnd(sound) {
     resumeAmbient();
 }
 
-/** Give the music back to the state machine. */
+/** Give the music back to whatever was playing, and then to the state machine. */
 function resumeAmbient() {
-    const ambient = interrupted?.playlistId
-        ? game.playlists.get(interrupted.playlistId)
-        : null;
+    const held = interrupted?.held ?? [];
     interrupted = null;
 
-    if (!ambient) {
+    if (!held.length) {
         // Nothing was holding, so there is nothing to resume — but the state may
         // well have moved on while the GM's track was running.
         playingState = null;
@@ -525,19 +740,182 @@ function resumeAmbient() {
     }
 
     // Straight back, no settle window: the silence after a scene cue is exactly
-    // where the ambient track is missed.
+    // where the music that was playing is missed.
     //
     // `playAll` resumes rather than restarts, because `pausePlaylist` left a
     // `pausedTime` behind for it to find.
-    resumePlaylist(ambient)
+    resumeHeld(held)
         .then(() => {
-            debug(`Music: "${ambient.name}" resumed.`);
+            debug(`Music: ${held.length} playlist(s) resumed.`);
             // The state may have changed while the GM's track ran — a trial can
             // start behind a scene cue. Re-check rather than assume the room we
             // came back to is the one we left.
             schedule();
         })
-        .catch(err => error(`Could not resume "${ambient.name}"`, err));
+        .catch(err => error("Could not resume what the cue interrupted", err));
+}
+
+/* ==========================================================================
+ * THE GM PUTTING A TRACK UNDER A MOMENT
+ * --------------------------------------------------------------------------
+ * The machinery for this already existed and was only reachable by reaching
+ * past the module: a GM pressed play in Foundry's own Playlists sidebar and
+ * `watchManualPlayback` picked it up. That works, and it is two panels away
+ * from everything else a GM touches mid-scene. These two are the same thing
+ * with a door on it.
+ * ========================================================================== */
+
+/**
+ * Play one track now, on repeat, holding everything that was already playing.
+ *
+ * Three steps, in this order, and the order is the whole behaviour:
+ *
+ *   1. pause what is playing, wherever it is playing from, so it can come back
+ *      at the bar it reached rather than from the top;
+ *   2. clear the cue playlist, so a second press replaces the first cue instead
+ *      of stacking a second one on top of it;
+ *   3. start the chosen track, on repeat.
+ *
+ * IT DOES ITS OWN BOOKKEEPING. It used to do none: it played the sound and let
+ * `watchManualPlayback` notice, which meant the pausing, the record of what to
+ * resume and therefore Reset itself all quietly did nothing in a world where
+ * "music follows the game state" is switched off — the hook bails on that
+ * setting, and this button has nothing to do with it. So the writes are wrapped
+ * in `asOurs` (the hook stays out of the way) and the record is written here.
+ *
+ * `repeat: true` because a track chosen for a moment at the table should last
+ * as long as the moment does. It also sidesteps the one awkward edge in the
+ * hand-off: a Sequential playlist would otherwise roll on to its next track,
+ * and this is a GM picking ONE piece of music, not starting a set.
+ *
+ * @param {string} track  A sound id in the cue playlist, or its name.
+ * @param {string} [soundId]  Ignored except as the old `(playlistId, soundId)`
+ *   signature, from before the playlist stopped being a choice.
+ */
+export async function playTrack(track, soundId) {
+    if (!game.user.isGM) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
+        return null;
+    }
+
+    const playlist = situationalPlaylist();
+    if (!playlist) {
+        ui.notifications.warn(game.i18n.format("DRPG.Music.noSituational",
+            { name: SITUATIONAL_PLAYLIST }));
+        return null;
+    }
+
+    const wanted = String(soundId ?? track ?? "").trim();
+    const sound = playlist.sounds.get(wanted)
+        ?? playlist.sounds.find(s => s.name?.trim().toLowerCase() === wanted.toLowerCase());
+    if (!sound) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Music.noTrack"));
+        return null;
+    }
+
+    try {
+        let held;
+        if (interrupted) {
+            // A cue is already running, so what it displaced is recorded and
+            // still paused. Reading "what is playing" again now would find only
+            // the cue itself and record an empty list — losing the way back.
+            //
+            // The old cue is STOPPED rather than held: it was an interruption
+            // in its own right, and Reset gives the music back to what was
+            // playing before the first press, not to the previous cue.
+            held = interrupted.held ?? [];
+            await stopInterruption();
+        } else {
+            held = await holdEverything(playlist);
+        }
+
+        await clearCuePlaylist(playlist, sound.id);
+
+        // `repeat` carries no `playing` key, so it is not the write that starts
+        // anything; it is set first so the track is already on repeat by the
+        // time it does start.
+        if (!sound.repeat) await sound.update({ repeat: true });
+
+        interrupted = {
+            soundId: sound.id,
+            sourcePlaylistId: playlist.id,
+            held,
+            // The scene the GM chose this track FOR — see `apply`.
+            state: currentState()
+        };
+
+        await asOurs(() => playlist.playSound(sound));
+    } catch (err) {
+        error(`Could not play "${sound.name}"`, err);
+        ui.notifications.error(game.i18n.localize("DRPG.Music.playFailed"));
+        return null;
+    }
+
+    log(`Music: the GM put "${sound.name}" on.`);
+    return sound;
+}
+
+/**
+ * Stop the cue outright and give the music back to what it interrupted.
+ *
+ * Both halves, because either one alone leaves the world in a state the GM
+ * cannot see: stopping without resuming leaves silence with `interrupted` still
+ * set, and resuming without stopping fades the old track in underneath one that
+ * is still playing.
+ *
+ * STOPPED, not paused. The cue playlist is emptied of playback entirely — every
+ * sound in it, and its `pausedTime` with it — because "reset" that leaves the
+ * cue paused mid-track means the next `playAll` on that playlist picks up the
+ * cue again, minutes later, under a scene it was never chosen for.
+ *
+ * Safe with nothing recorded, which is the case that actually turns up: this
+ * client reloaded, or the other GM pressed Play. The cue playlist is known by
+ * name whether or not anybody remembers starting it, and anything left paused
+ * mid-track is what was holding for it.
+ */
+export async function resetMusic() {
+    if (!game.user.isGM) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
+        return null;
+    }
+
+    const record = interrupted;
+    interrupted = null;
+
+    // Everything the cue could be coming out of: the playlist it was started
+    // from, and the cue playlist itself — the same one nine times out of ten.
+    const cues = new Set();
+    if (record?.sourcePlaylistId) cues.add(record.sourcePlaylistId);
+    const situational = situationalPlaylist();
+    if (situational) cues.add(situational.id);
+
+    for (const id of cues) {
+        const playlist = game.playlists.get(id);
+        if (!playlist) continue;
+        if (!playlist.playing && !playlist.sounds.some(s => s.playing || s.pausedTime)) continue;
+        await stopPlaylistDead(playlist);
+    }
+
+    // What comes back. The record if there is one; otherwise whatever is left
+    // stopped mid-track — but only INTO SILENCE. Without that last condition a
+    // reset would resume a playlist the state machine had already moved on
+    // from, and two pieces of music would be playing where there had been one.
+    let held = record?.held ?? [];
+    if (!held.length && !anythingPlaying()) {
+        held = playlistsHolding().map(p => p.id);
+    }
+    // Never the cue itself, however it got into the list: it was just stopped
+    // on purpose and resuming it here would undo the other half of the button.
+    const giveBack = held.filter(id => !cues.has(id));
+    await resumeHeld(giveBack);
+
+    // Whatever is playing now was not chosen under the current state, so the
+    // state machine gets to say again — if it is switched on at all.
+    playingState = null;
+    schedule();
+
+    log(`Music: reset. ${giveBack.length} playlist(s) given back.`);
+    return true;
 }
 
 /* ==========================================================================
@@ -570,13 +948,36 @@ export async function openMusicDialog() {
         </tr>`;
     }).join("");
 
-    const { dialogContent } = await import("./utils.mjs");
-    const DialogV2 = foundry.applications.api.DialogV2;
+    // The cue playlist, if the world has one. Its absence is not an error —
+    // the state-to-playlist table below is the other half of this window and
+    // works perfectly well without it — so it is reported in place rather than
+    // refused at the door.
+    const situational = situationalPlaylist();
+    // An empty cue playlist is the same to this button as a missing one.
+    const canPlay = Boolean(situational?.sounds.size);
 
-    const result = await DialogV2.wait({
+    const { dialogContent, tableDialog } = await import("./utils.mjs");
+
+    const result = await tableDialog({
         window: { title: game.i18n.localize("DRPG.Music.title") },
         classes: ["drpg-panel", "drpg-projects"],
         content: dialogContent(`<form>
+            <fieldset class="drpg-music-now">
+                <legend>${game.i18n.localize("DRPG.Music.playNow")}</legend>
+                <p class="notes">${game.i18n.format("DRPG.Music.playNowNote",
+                    { name: SITUATIONAL_PLAYLIST })}</p>
+                ${situational
+                    ? `<label>${game.i18n.localize("DRPG.Music.track")}
+                    <select name="playTrack">${trackOptions(situational)}</select></label>`
+                    : `<p class="notes drpg-warning">${game.i18n.format(
+                        "DRPG.Music.noSituational", { name: SITUATIONAL_PLAYLIST })}</p>`}
+                <button type="button" class="drpg-mini-button" data-drpg-play${
+                    canPlay ? "" : " disabled"}>${
+                    game.i18n.localize("DRPG.Music.play")}</button>
+                <button type="button" class="drpg-mini-button" data-drpg-reset-music>${
+                    game.i18n.localize("DRPG.Music.reset")}</button>
+            </fieldset>
+
             <p>${game.i18n.localize("DRPG.Music.intro")}</p>
             <p class="notes">${game.i18n.localize("DRPG.Music.orderNote")}</p>
             <p class="notes">${game.i18n.localize("DRPG.Music.incidentNote")}</p>
@@ -600,6 +1001,27 @@ export async function openMusicDialog() {
             },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
         ],
+        // Both controls act at once and the window stays open, like the Monocub
+        // manager's "give Hope": a GM putting a track under a moment at the
+        // table is not filling in a form, and Apply is about the mapping table
+        // below rather than about what is playing right now.
+        render: (event, dialog) => {
+            const root = dialog.element;
+            const track = root.querySelector("[name=playTrack]");
+
+            root.querySelector("[data-drpg-play]")?.addEventListener("click", async () => {
+                const sound = await playTrack(track?.value);
+                if (sound) {
+                    ui.notifications.info(game.i18n.format("DRPG.Music.playing",
+                        { track: sound.name }));
+                }
+            });
+
+            root.querySelector("[data-drpg-reset-music]")?.addEventListener("click", async () => {
+                await resetMusic();
+                ui.notifications.info(game.i18n.localize("DRPG.Music.wasReset"));
+            });
+        },
         rejectClose: false
     });
 
@@ -618,6 +1040,17 @@ export async function openMusicDialog() {
     return result;
 }
 
+/** The sounds inside one playlist, as <option>s. Empty when it has none. */
+function trackOptions(playlist) {
+    const sounds = Array.from(playlist?.sounds ?? [])
+        .sort((a, b) => a.name.localeCompare(b.name));
+    if (!sounds.length) {
+        return `<option value="">${game.i18n.localize("DRPG.Music.noTracks")}</option>`;
+    }
+    return sounds.map(s =>
+        `<option value="${s.id}">${foundry.utils.escapeHTML(s.name)}</option>`).join("");
+}
+
 /**
  * Re-evaluate now. For the setting's own `onChange` and for the console.
  *
@@ -632,12 +1065,19 @@ export function refreshMusic() {
 /** Console tool: what the module thinks is going on. */
 export function musicStatus() {
     const state = currentState();
+    const cue = interrupted?.sourcePlaylistId
+        ? game.playlists.get(interrupted.sourcePlaylistId)
+        : null;
     return {
         enabled: enabled(),
         state,
         playlist: playlistFor(state)?.name ?? null,
-        playing: ours().filter(p => p.playing).map(p => p.name),
-        interrupted: Boolean(interrupted)
+        playing: game.playlists.filter(p => p.playing).map(p => p.name),
+        situational: situationalPlaylist()?.name ?? null,
+        interrupted: Boolean(interrupted),
+        // What a reset would stop, and what it would give back.
+        cue: cue?.sounds.get(interrupted.soundId)?.name ?? null,
+        held: (interrupted?.held ?? []).map(id => game.playlists.get(id)?.name ?? id)
     };
 }
 
@@ -662,6 +1102,12 @@ export function diagnoseMusic() {
         `Clock: phase=${clock.phase ?? "(unset)"} timeOfDay=${clock.timeOfDay ?? "(unset)"} eclipse=${
             clock.eclipse === true} paused=${game.paused}`,
         `Playlists in this world: ${game.playlists.size}`,
+        `Cue playlist ("${SITUATIONAL_PLAYLIST}"): ${
+            situationalPlaylist()
+                ? `${situationalPlaylist().sounds.size} track(s)`
+                : "MISSING — the Play button has nothing to draw from"}`,
+        `A cue is running: ${interrupted ? "yes" : "no"}${
+            interrupted?.held?.length ? `, holding ${interrupted.held.length} playlist(s)` : ""}`,
         "",
         "state            applies  playlist"
     ];

@@ -36,7 +36,7 @@ import { isMonokuma } from "./monokuma.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
 import { actionsLeft, spendAction, refundAction } from "./actions.mjs";
 import { getClock } from "./clock.mjs";
-import { resolveThreshold, dialogContent, whisperToOwner, log, warn, plural } from "./utils.mjs";
+import { resolveThreshold, dialogContent, whisperToOwner, log, warn, plural, tableDialog } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -400,7 +400,7 @@ export async function openMonocubDialog() {
         </tr>`;
     }).join("");
 
-    const result = await DialogV2.wait({
+    const result = await tableDialog({
         window: { title: game.i18n.localize("DRPG.Monocub.manageTitle") },
         classes: ["drpg-panel"],
         content: dialogContent(`<div>

@@ -20,7 +20,9 @@ import { MODULE_ID, FLAGS, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, TIMES_OF_DAY }
 import { SETTINGS } from "./settings.mjs";
 import { getClock, setClock, timeOfDayLabel } from "./clock.mjs";
 import { roomOfActor, neighbouringRooms } from "./movement.mjs";
-import { announce, whisperToOwner, log, error, plural } from "./utils.mjs";
+import { announce, whisperToOwner, whisperToGms, dialogContent, log, error, plural } from "./utils.mjs";
+
+const DialogV2 = foundry.applications.api.DialogV2;
 
 /** How many room crossings each character gets during an ordinary Eclipse. */
 export { ECLIPSE_MOVES };
@@ -238,10 +240,102 @@ export async function parkDirectMurder({ killerId, room = null, note = "" } = {}
 export async function writeParkedMurder({ killerId, room = null, note = "" } = {}) {
     if (!game.user.isGM || !killerId) return null;
     const all = { ...pendingMurders() };
-    all[killerId] = { room, note, at: Date.now() };
+    // `approved: null` is undecided, and it is written explicitly: a
+    // declaration parked before this gate existed carries no field at all, and
+    // `undefined` reading as "not yet allowed" is exactly the right answer for
+    // it — the GM is asked at the lights instead.
+    all[killerId] = { room, note, at: Date.now(), approved: null };
     await game.settings.set(MODULE_ID, SETTINGS.pendingMurders, all);
     log(`Direct murder declared in the dark by ${game.actors.get(killerId)?.name ?? killerId}.`);
+
+    await askGmToAllow(killerId, all[killerId]);
     return all[killerId];
+}
+
+/**
+ * Put the declaration to the GM, now, while the Eclipse is still running.
+ *
+ * Into the killer's own messenger thread, like every other ruling this module
+ * asks for — which means the killer sees the card too, and should: it is their
+ * declaration and their sentence quoted in it. The buttons are stripped for
+ * anybody who is not a GM before they are ever rendered.
+ *
+ * It cannot name a victim, because there is not one yet. Nobody has finished
+ * placing and the room the killer ends up in is the whole question the Eclipse
+ * exists to answer, so what the GM is being asked here is whether this player
+ * may attempt it at all.
+ */
+async function askGmToAllow(killerId, parked) {
+    const killer = game.actors.get(killerId);
+    if (!killer) return;
+
+    try {
+        const { callGm } = await import("./gm-bridge.mjs");
+        await callGm(killer, {
+            title: game.i18n.localize("DRPG.Action.directMurder"),
+            body: game.i18n.localize("DRPG.Action.murderNeedsApproval"),
+            request: parked.note ?? "",
+            room: parked.room ?? null,
+            actions: [
+                {
+                    action: "approveMurder",
+                    label: game.i18n.localize("DRPG.Action.murderApprove"),
+                    data: { killer: killerId }
+                },
+                {
+                    action: "refuseMurder",
+                    label: game.i18n.localize("DRPG.Action.murderRefuse"),
+                    data: { killer: killerId }
+                }
+            ]
+        });
+    } catch (err) {
+        // A card that could not be posted must not lose the declaration. The
+        // gate at the lights asks again, which is the whole reason it exists.
+        error("Could not put the direct murder to the GM", err);
+    }
+}
+
+/**
+ * The GM's ruling on a parked declaration, from the card's two buttons.
+ *
+ * Refusing DELETES the record rather than marking it refused. A refusal is not
+ * a thing the judging step needs to reason about — there is nothing to judge —
+ * and leaving it in the setting only creates a second way for a dead
+ * declaration to be reconsidered at the lights.
+ *
+ * The action stays spent either way. That is the guide's rule for a direct
+ * murder and it does not change because the GM said no: declaring is the cost.
+ */
+export async function ruleOnParkedMurder(killerId, allow) {
+    if (!game.user.isGM || !killerId) return null;
+
+    const all = { ...pendingMurders() };
+    const parked = all[killerId];
+    const killer = game.actors.get(killerId);
+    if (!parked) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Action.murderNotParked"));
+        return null;
+    }
+
+    if (allow) all[killerId] = { ...parked, approved: true };
+    else delete all[killerId];
+    await game.settings.set(MODULE_ID, SETTINGS.pendingMurders, all);
+
+    if (killer) {
+        await whisperToOwner(killer,
+            `<p><strong>${game.i18n.localize("DRPG.Action.directMurder")}</strong> — ${
+                allow
+                    ? game.i18n.localize("DRPG.Action.murderApproved")
+                    : `<span class="drpg-warning">${
+                        game.i18n.localize("DRPG.Action.murderRefused")}</span>`}</p>`);
+    }
+
+    log(`Direct murder by ${killer?.name ?? killerId} ${allow ? "allowed" : "refused"}.`);
+    ui.notifications.info(game.i18n.format(
+        allow ? "DRPG.Action.murderApprovedGm" : "DRPG.Action.murderRefusedGm",
+        { name: killer?.name ?? "?" }));
+    return allow;
 }
 
 export async function clearParkedMurders() {
@@ -260,6 +354,14 @@ export async function clearParkedMurders() {
  * is not something this engine models — `murderState` is a single incident —
  * and the honest thing is to say so to the second killer rather than to drop
  * their attempt silently.
+ *
+ * AND NOTHING OPENS WITHOUT THE GM. The room condition is the guide's and the
+ * module can read it; whether this killing happens at this table tonight is not
+ * a thing a rule can answer. Most declarations are already ruled on from the
+ * card posted when they were parked — see `askGmToAllow` — and this is the
+ * backstop for the ones that are not, asked at the one moment the question is
+ * fully formed: the killer, the victim, the room, and the killer's own sentence
+ * about what they are doing.
  */
 async function judgePendingMurders() {
     if (!game.user.isGM) return;
@@ -314,11 +416,14 @@ async function judgePendingMurders() {
 
         const victim = present[0];
 
-        // The GM is told, not asked. "It should start once the time of day
-        // begins" is a statement about WHEN, and a button that has to be found
-        // and pressed puts the killer back to waiting on somebody — which is
-        // the thing this whole change is undoing. `endMurder` is one press away
-        // if the GM disagrees.
+        // Ruled on already, or ruled on now. Asked AFTER the room condition, so
+        // the GM is never made to decide about an attempt that came to nothing
+        // on its own.
+        if (parked.approved !== true && !await askAtTheLights(killer, victim, room, parked)) {
+            await say(game.i18n.localize("DRPG.Action.murderRefused"), "drpg-warning");
+            continue;
+        }
+
         await whisperToGms(`
             <h3>${game.i18n.localize("DRPG.Action.murderOpensTitle")}</h3>
             <p>${game.i18n.format("DRPG.Action.murderOpens", {
@@ -329,6 +434,42 @@ async function judgePendingMurders() {
             ${parked.note ? `<p class="notes">${foundry.utils.escapeHTML(parked.note)}</p>` : ""}`);
 
         await openMurder({ killerId: killer.id, victimId: victim.id });
+    }
+}
+
+/**
+ * The question the card asked, asked again with the answers filled in.
+ *
+ * Only reached when the GM did not rule during the Eclipse. It BLOCKS the end
+ * of the Eclipse, which is the point: everything else `endEclipse` does has
+ * already happened by the time this runs, and the alternative to blocking is a
+ * spent action failing because a card scrolled off the bottom of a thread.
+ *
+ * Closing the window is a refusal. There is no third answer here — the
+ * incident either opens now or it does not — and a dialog dismissed with the
+ * escape key must not open one.
+ */
+async function askAtTheLights(killer, victim, room, parked) {
+    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
+    try {
+        return Boolean(await DialogV2.confirm({
+            classes: ["drpg-panel"],
+            window: { title: game.i18n.localize("DRPG.Action.murderOpensTitle") },
+            content: dialogContent(`<div>
+                <p>${game.i18n.format("DRPG.Action.murderAsk", {
+                    killer: esc(killer.name), victim: esc(victim.name), room: esc(room ?? "—")
+                })}</p>
+                ${parked.note ? `<blockquote>${esc(parked.note)}</blockquote>` : ""}
+                <p class="notes">${game.i18n.localize("DRPG.Action.murderAskNote")}</p>
+            </div>`),
+            yes: { label: game.i18n.localize("DRPG.Action.murderApprove") },
+            no: { label: game.i18n.localize("DRPG.Action.murderRefuse"), default: true },
+            rejectClose: false
+        }));
+    } catch (err) {
+        // A dialog that could not open must not open an incident by accident.
+        error("Could not ask the GM about the direct murder", err);
+        return false;
     }
 }
 
