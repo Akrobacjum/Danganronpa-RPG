@@ -51,7 +51,7 @@ const CanvasAnimation = foundry.canvas.animation.CanvasAnimation;
  * from the person testing. `diagnoseFog()` prints this, which turns that into a
  * fact. Bump it whenever the drawing behaviour changes.
  */
-const FOG_BUILD = "2026-08-25 · discovery";
+const FOG_BUILD = "2026-08-25 · avg-glow";
 
 const LAYER_NAME = "drpgFog";
 const FOG_SPRITE = "drpgFogSprite";
@@ -3114,8 +3114,17 @@ function flashOutline(fx, region, rect) {
     group.name = OUTLINE_NAME;
     group.eventMode = "none";
 
-    // Measured once; the outline skips these and the glow marks them.
+    // Measured twice, on two readings of the same border. The outline hugs
+    // the TRUE edge — it has to agree with the fog cut to the pixel. The glow
+    // reads the border the way a reader does: a grid staircase is one diagonal
+    // wall, so its ring is flattened first and each open stretch becomes ONE
+    // band thrown outward from the averaged line. Banded per stretch on the
+    // raw ring, a staircase was a ladder of half-square patches — axis-aligned,
+    // stacking where they overlapped (brighter than designed) and running
+    // across the room's own floor. On a straight border the two readings are
+    // the same line, so nothing there changes.
     const edges = doorwayEdges(region);
+    const glowEdges = doorwayEdges(region, { averaged: true });
 
     const outline = new PIXI.Graphics();
     outline.lineStyle(4, bone, 1);
@@ -3148,7 +3157,7 @@ function flashOutline(fx, region, rect) {
 
     group.addChild(outline, label);
     // Under the outline and the name, so neither is softened by it.
-    addDoorwayGlow(group, edges, rect);
+    addDoorwayGlow(group, glowEdges.length ? glowEdges : edges, rect);
     group.setChildIndex(outline, group.children.length - 1);
     group.setChildIndex(label, group.children.length - 1);
     fx.addChild(group);
@@ -3267,6 +3276,17 @@ const DOORWAY_PROBE_OUT = 0.95;
  * far side, which is the space it is telling you about.
  */
 const DOORWAY_OFFSET = 0.12;
+/**
+ * How far the glow's AVERAGED line may stray from the true border, in grid
+ * squares — the flattening tolerance handed to `simplifyRing`.
+ *
+ * A grid staircase deviates from its own average diagonal by about 0.35 of a
+ * square at 1:1 and creeps toward 0.5 as the slope shallows (2:1 ≈ 0.45,
+ * 4:1 ≈ 0.49) — while a REAL feature, a one-square alcove, sits a full 0.7+
+ * off the line between its neighbours. Half a square is the widest setting
+ * that still cannot swallow architecture.
+ */
+const DOORWAY_AVERAGE_TOLERANCE = 0.5;
 
 let doorwayTile = null;
 
@@ -3379,6 +3399,71 @@ function neighbourBeyond(mx, my, nx, ny, others, reach) {
  * for something that happens when somebody walks through a door.
  */
 /**
+ * Ramer–Douglas–Peucker over an open polyline. Endpoints always survive;
+ * everything the chord between them can explain to within `tolerance` goes.
+ * Iterative, because a grid-snapped ring can carry hundreds of vertices.
+ */
+function rdpPoints(pts, tolerance) {
+    if (pts.length < 3) return pts;
+    const keep = new Array(pts.length).fill(false);
+    keep[0] = keep[pts.length - 1] = true;
+
+    const stack = [[0, pts.length - 1]];
+    while (stack.length) {
+        const [a, b] = stack.pop();
+        if (b - a < 2) continue;
+        const ax = pts[a].x, ay = pts[a].y;
+        const dx = pts[b].x - ax, dy = pts[b].y - ay;
+        const chord = Math.hypot(dx, dy) || 1;
+
+        let worst = -1, at = -1;
+        for (let i = a + 1; i < b; i++) {
+            const d = Math.abs((pts[i].x - ax) * dy - (pts[i].y - ay) * dx) / chord;
+            if (d > worst) { worst = d; at = i; }
+        }
+        if (worst > tolerance) {
+            keep[at] = true;
+            stack.push([a, at], [at, b]);
+        }
+    }
+    return pts.filter((_, i) => keep[i]);
+}
+
+/**
+ * A closed ring, flattened to within `tolerance` — the grid staircase a
+ * diagonal wall becomes on square tiles collapses back into its diagonal.
+ *
+ * RDP wants an open polyline with fixed endpoints, so the ring is split at
+ * vertex 0 and the vertex farthest from it — two anchors that can never both
+ * sit on the same removable staircase — and each half is simplified alone.
+ * Anything degenerate falls back to the ring it was given: a wrong glow line
+ * is worth less than no simplification at all.
+ */
+function simplifyRing(flat, tolerance) {
+    const n = flat.length / 2;
+    if (!(tolerance > 0) || n < 5) return flat;
+
+    const pts = [];
+    for (let i = 0; i < n; i++) pts.push({ x: flat[i * 2], y: flat[i * 2 + 1] });
+
+    let far = 0, best = -1;
+    for (let i = 1; i < n; i++) {
+        const d = (pts[i].x - pts[0].x) ** 2 + (pts[i].y - pts[0].y) ** 2;
+        if (d > best) { best = d; far = i; }
+    }
+    if (far === 0) return flat;
+
+    const a = rdpPoints(pts.slice(0, far + 1), tolerance);
+    const b = rdpPoints([...pts.slice(far), pts[0]], tolerance);
+    const ring = [...a.slice(0, -1), ...b.slice(0, -1)];
+    if (ring.length < 3) return flat;
+
+    const out = [];
+    for (const p of ring) out.push(p.x, p.y);
+    return out;
+}
+
+/**
  * Every edge of a room's border, and the stretches along each one that have no
  * wall on them.
  *
@@ -3387,19 +3472,30 @@ function neighbourBeyond(mx, my, nx, ny, others, reach) {
  * independently would eventually disagree by a pixel somewhere, and the seam
  * between a line that stops and a glow that starts is precisely where that
  * would show.
+ *
+ * `averaged` is the second, deliberate reading of the same border — see
+ * `flashOutline`. The ring is flattened first, so a staircase becomes its
+ * diagonal and each open stretch on it becomes ONE band; and because the
+ * flattened line may sit up to the tolerance away from the true border, both
+ * probe distances grow by exactly that much — the inward origin so it still
+ * starts unambiguously inside the room behind a protruding tooth, the outward
+ * reach so a wall on the far side of a notch is still reached.
  */
-function doorwayEdges(region) {
+function doorwayEdges(region, { averaged = false } = {}) {
     try {
         const scene = canvas?.scene;
         if (!scene) return [];
 
         const grid = canvas?.grid?.size ?? 100;
         const step = Math.max(8, grid * 0.25);
-        const back = grid * DOORWAY_PROBE_IN;
-        const reach = grid * DOORWAY_PROBE_OUT;
+        const tolerance = averaged ? grid * DOORWAY_AVERAGE_TOLERANCE : 0;
+        const back = grid * DOORWAY_PROBE_IN + tolerance;
+        const reach = grid * DOORWAY_PROBE_OUT + tolerance;
         const shortest = grid * 0.35;
 
-        const own = regionShapes(region, { x: 0, y: 0 }).map(f => new PIXI.Polygon(f));
+        const own = regionShapes(region, { x: 0, y: 0 })
+            .map(f => (averaged ? simplifyRing(f, tolerance) : f))
+            .map(f => new PIXI.Polygon(f));
         if (!own.length) return [];
 
         const others = [];
