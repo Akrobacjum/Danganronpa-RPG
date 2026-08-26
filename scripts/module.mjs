@@ -40,6 +40,7 @@ import { registerVisibility } from "./visibility.mjs";
 import { registerFog } from "./fog.mjs";
 import { registerIsoShield } from "./iso-shield.mjs";
 import { registerRemnantRings } from "./remnant-ring.mjs";
+import { registerRemnantIcons } from "./remnant-icons.mjs";
 import { registerRemnantLedger } from "./remnants.mjs";
 import { registerDaySummary } from "./day-summary.mjs";
 import { registerRollDialog } from "./roll-dialog.mjs";
@@ -114,6 +115,7 @@ Hooks.once("init", () => {
     safely("the fog of war", registerFog);
     safely("the isometric token shield", registerIsoShield);
     safely("Remnant rings", registerRemnantRings);
+    safely("Remnant icons", registerRemnantIcons);
     safely("day summary", registerDaySummary);
     safely("the roll dialog lock", registerRollDialog);
     safely("forced rolls", registerForcedRolls);

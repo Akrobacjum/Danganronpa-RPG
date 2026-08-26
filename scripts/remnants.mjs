@@ -19,7 +19,7 @@ import { MODULE_ID, ACTIONS, REMNANT_TYPES, REMNANT_VISIBILITY_LABELS, TIME_OF_D
 // not reach back into this file, so there is no cycle to break.
 import { roomOfToken } from "./movement.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { gmIds, log, warn, error, plural, workingScene } from "./utils.mjs";
+import { gmIds, isPrimaryGm, log, warn, error, plural, workingScene } from "./utils.mjs";
 
 /**
  * Everything the guide says a Remnant carries, recorded on the token so an
@@ -85,7 +85,19 @@ function tokenFor(actor) {
 /** Name of the hidden actor every Remnant token is built from. */
 const REMNANT_ACTOR = "Remnant";
 
-const ICON = "icons/svg/hazard.svg";
+/**
+ * What a trace looks like until YOU have analysed it: the same 8x8 question
+ * mark the Despair pool shows (Dawid, 26.08). The document carries this and
+ * nothing else — the icon of the action that left the trace exists only as a
+ * client-side swap for the GM and for a finder whose own Truth Bullet is
+ * identified. See remnant-icons.mjs; putting the real icon on the document
+ * would hand every client the answer, the same leak the ledger exists to
+ * close. Exported for the reconcile pass and for remnant-icons.mjs.
+ */
+export const ICON = `modules/${MODULE_ID}/icons/remnant-unknown.svg`;
+
+/** What every Remnant token wore before the question mark existed. */
+const OLD_ICON = "icons/svg/hazard.svg";
 
 /** Colour per Remnant type, so a glance at the map reads. */
 const TINTS = {
@@ -442,6 +454,48 @@ export async function reconcileRemnantActor() {
     if (!game.user.isGM) return;
     const actor = game.actors.getName(REMNANT_ACTOR);
     if (actor) await raiseRemnantOwnership(actor);
+    await adoptQuestionMark(actor);
+}
+
+/**
+ * Move every trace still wearing the old hazard triangle onto the question
+ * mark — tokens, the base actor, and the `public` records that seeded `img`
+ * before the icon changed. Only the exact old default moves: an image a GM
+ * chose on purpose is a choice, not a leftover.
+ *
+ * Same load-time statement-about-the-world shape as the ownership fix above,
+ * and for the same reason: every existing world placed its traces under the
+ * old icon, and `placeRemnant` only reaches the ones placed from now on.
+ */
+async function adoptQuestionMark(actor) {
+    // One GM does the sweep; the ledger writes reach the others over the
+    // socket and the token writes are world data anyway.
+    if (!isPrimaryGm()) return;
+    try {
+        if (actor && actor.img === OLD_ICON) await actor.update({ img: ICON });
+
+        let moved = 0;
+        for (const scene of game.scenes) {
+            const stale = remnantsOn(scene).filter(t => t.texture?.src === OLD_ICON);
+            if (!stale.length) continue;
+            await scene.updateEmbeddedDocuments("Token", stale.map(t => ({
+                _id: t.id, "texture.src": ICON
+            })));
+            moved += stale.length;
+        }
+
+        const ledger = readRemnantLedger();
+        for (const [key, entry] of Object.entries(ledger)) {
+            if (entry?.deleted || entry?.public?.img !== OLD_ICON) continue;
+            const [sceneId, tokenId] = key.split(".");
+            const tokenDoc = game.scenes.get(sceneId)?.tokens?.get(tokenId);
+            if (tokenDoc) await setRemnantPublic(tokenDoc, { img: ICON });
+        }
+
+        if (moved) log(`Moved ${moved} Remnant token(s) onto the question-mark icon.`);
+    } catch (err) {
+        error("Could not move existing Remnants onto the question-mark icon", err);
+    }
 }
 
 /* ==========================================================================
@@ -562,6 +616,10 @@ export async function setRemnantSecret(tokenDoc, patch = {}) {
 
     await writeRemnantLedger(ledger);
     pushRemnantSecret(key, entry);
+    // The trace on the map may have just learned which action it wears — see
+    // `repaintRemnants`. Fire-and-forget: a repaint is cosmetic and must
+    // never fail a ledger write.
+    import("./remnant-icons.mjs").then(m => m.repaintRemnants()).catch(() => {});
     return entry;
 }
 
@@ -783,7 +841,11 @@ async function mergeRemnantEntries(incoming = {}) {
         ledger[key] = entry;
         changed = true;
     }
-    if (changed) await writeRemnantLedger(ledger);
+    if (changed) {
+        await writeRemnantLedger(ledger);
+        // Same nudge as `setRemnantSecret`: this GM's map may now know more.
+        import("./remnant-icons.mjs").then(m => m.repaintRemnants()).catch(() => {});
+    }
 }
 
 /**
@@ -981,6 +1043,18 @@ export async function setRemnantFlags(tokenDoc, { faint = null, tiedToCrime = nu
     // trace from the murder and a trace from somebody's laundry — and it used to
     // be a flag every client could read.
     await setRemnantSecret(tokenDoc, patch);
+
+    // A changed verdict follows the copies already in players' packs — the
+    // murder-first sort reads it off the bullets, and only identified ones
+    // learn it. See `propagateCrimeTie` for the two halves of that rule.
+    if (patch.tiedToCrime !== undefined) {
+        try {
+            const { propagateCrimeTie } = await import("./truth-bullets.mjs");
+            await propagateCrimeTie(tokenDoc.id, patch.tiedToCrime);
+        } catch (err) {
+            error("Could not propagate the crime tie to the copied bullets", err);
+        }
+    }
     return tokenDoc;
 }
 
