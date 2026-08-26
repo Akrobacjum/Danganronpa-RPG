@@ -21,7 +21,7 @@
 import { MODULE_ID, FLAGS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { roomOfActor, occupantsOf } from "./movement.mjs";
-import { gmIds, ownerOf, error, debug } from "./utils.mjs";
+import { gmIds, ownerOf, error, debug, MESSAGE_FLAG } from "./utils.mjs";
 import { play, ENTER, ARRIVE } from "./motion.mjs";
 
 export function registerPrivateRolls() {
@@ -203,6 +203,16 @@ function paintChatCard(message, element) {
         if (!html?.classList) return;
         // Hidden by the pass above: leave it exactly as it is.
         if (html.classList.contains("drpg-hidden-message")) return;
+
+        // SAY WHICH CARDS ARE OURS.
+        //
+        // Everything below marks every card in the log — the frame is for the
+        // whole surface — so nothing here has ever distinguished a card this
+        // module wrote from one the system did. The stylesheet needs to: small
+        // print inside our cards is ours to weight, and inside Daggerheart's is
+        // not. The flag is the same one `stamped()` puts on every message this
+        // module posts, so the class means exactly "we wrote this".
+        if (message?.getFlag?.(MODULE_ID, MESSAGE_FLAG)) html.classList.add("drpg-chat-card");
 
         {
             const outcome = dualityOutcome(message, html);

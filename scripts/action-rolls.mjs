@@ -3018,6 +3018,9 @@ async function report(actor, def, roll, outcome) {
         room,
         total: roll?.total,
         result,
+        // The two the slot can name are also the two it can colour: something
+        // found is evidence, a critical is a critical.
+        resultKind: outcome.item ? "evidence" : roll?.isCritical ? "critical" : null,
         trait: traitLabel
     }));
 

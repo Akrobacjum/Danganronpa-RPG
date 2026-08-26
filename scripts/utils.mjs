@@ -329,16 +329,24 @@ export async function whisperToGms(content, extra = {}) {
  *                                does not already say so in a sentence.
  * @param {?(number|string)} slots.total  a roll total, to compare against a DC.
  * @param {?string} slots.result  the short answer — a tier, "Critical", a price.
+ * @param {?string} slots.resultKind  what KIND of answer, when the caller knows:
+ *   `"evidence"` for something found, `"critical"` for a critical. The slot was
+ *   documented as taking "the colour of what happened" and then painted one
+ *   colour for everything, which is the same as taking none. Callers that
+ *   cannot say leave it out and keep the neutral gold.
  * @param {?string} slots.trait   carried on the element, shown on hover.
  * @returns {string} the `<p>`, or "" when there is nothing to put in it.
  */
-export function cardHead({ action = null, room = null, total = null, result = null, trait = null } = {}) {
+export function cardHead({ action = null, room = null, total = null, result = null, resultKind = null, trait = null } = {}) {
     const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
     const slots = [
         action ? `<span class="drpg-card-action">${esc(action)}</span>` : null,
         room ? `<span class="drpg-card-room">${esc(room)}</span>` : null,
         total != null && total !== "" ? `<span class="drpg-card-total">${esc(total)}</span>` : null,
-        result ? `<span class="drpg-card-result">${esc(result)}</span>` : null
+        result
+            ? `<span class="drpg-card-result"${
+                resultKind ? ` data-kind="${esc(resultKind)}"` : ""}>${esc(result)}</span>`
+            : null
     ].filter(Boolean);
 
     if (!slots.length) return "";

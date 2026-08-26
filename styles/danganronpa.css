@@ -4383,8 +4383,12 @@ body:not(.drpg-gm) .character-header-sheet .character-traits .trait input[name*=
     width: min(28rem, 92vw);
 }
 
+/* Evidence's own antique gold, not Hope's bright one. The token exists for
+   exactly this — "a Truth Bullet is not Hope", see the palette — and this card
+   was already half-converted: its title underline used the evidence value
+   while its frame still used Hope's, so one element carried both golds. */
 .drpg-popup-evidence {
-    border-color: var(--drpg-gold);
+    border-color: var(--drpg-evidence);
 }
 
 .drpg-popup-evidence .drpg-popup-title {
@@ -7759,8 +7763,20 @@ details.drpg-calls-panel[open] > .drpg-action-grid {
     font-weight: 700;
 }
 
+/* "The result is the answer, and takes the colour of what happened" — which it
+   did not: every answer was gold, which is the same as taking no colour at all
+   and, worse, told a reader that something found and a critical were the same
+   kind of event. A caller that knows says so; one that does not keeps gold. */
 .drpg-card-head .drpg-card-result {
     color: var(--drpg-gold);
+}
+
+.drpg-card-head .drpg-card-result[data-kind="evidence"] {
+    color: var(--drpg-evidence);
+}
+
+.drpg-card-head .drpg-card-result[data-kind="critical"] {
+    color: var(--drpg-eye-light, var(--drpg-eye));
 }
 
 /* The separators are structure, and structure is quiet. */
@@ -7781,6 +7797,23 @@ details.drpg-calls-panel[open] > .drpg-action-grid {
 
 .drpg-card-head[data-trait]:hover::after {
     opacity: 1;
+}
+
+/* SMALL PRINT THAT READS AS SMALL PRINT.
+   --------------------------------------------------------------------------
+   Twenty-one lines across the module's cards are wrapped in `<small>` — how
+   many search tokens a room has left, a project's new total, "sent to the GM".
+   Measured on a live card and a live popup, every one of them came out the
+   SAME COLOUR as the sentence above it: only the size changed, which at 11.7px
+   against 14px is not a hierarchy, it is a slightly smaller paragraph.
+
+   Dim is the palette's token for "this is here if you want it", and it is what
+   the day summary's own footnotes already use. Scoped to cards this module
+   wrote (see `drpg-chat-card` in private-rolls.mjs) and to its popups —
+   Daggerheart's small print is Daggerheart's business. */
+.chat-message.drpg-chat-card small,
+.drpg-popup small {
+    color: var(--drpg-dim);
 }
 
 /* ==========================================================================
@@ -8446,6 +8479,16 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
 .application.dialog footer.form-footer button.drpg-gm-route {
     border: 1px solid var(--drpg-eye) !important;
     color: var(--drpg-eye-light) !important;
+}
+
+/* "Border only, no fill" is the rule above; `.drpg-mini-button` did not know
+   about it and supplied a pale Bone wash of its own. Crimson text on that wash
+   measured 3.43:1 on the Player status window — under the 4.5:1 floor, on the
+   buttons that kill a character and make a Monocub. The route's intent wins:
+   the wash goes, the border stays, and the same crimson on Ink reads 5.1:1.
+   Hover keeps its red glow — that rule is `!important` and outranks this. */
+.application.dialog .drpg-mini-button.drpg-gm-route {
+    background: transparent;
 }
 
 .application.dialog button.drpg-gm-route:hover:not(:disabled),
