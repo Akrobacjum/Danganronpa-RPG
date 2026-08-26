@@ -191,6 +191,15 @@
     /* --- derived --------------------------------------------------------- */
     --drpg-rule: var(--drpg-line);
 
+    /* The padding Foundry puts inside `.window-content`, named so a rule can
+       reach past it. Anything pinned with `position: sticky` inside that box
+       stops at the PADDING edge, not the box's edge — a sticky footer left a
+       strip of scrolled content showing underneath it — so the bar bleeds out
+       by exactly this much and puts the padding back as its own. Measured off
+       a live window rather than assumed; if core ever changes it, this is the
+       one place to follow. */
+    --drpg-window-pad: 16px;
+
     /* How full a resource bar is. Written per element by paintResourceBars()
        in sheet.mjs — value and max are attributes, and CSS cannot read them.
        Declared here so a bar renders empty rather than broken on a client
@@ -3518,16 +3527,42 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    footer pinned to the bottom of that same scrolling box instead. Scoped to
    `:has(.dialog-content table)`: every other module dialog is short enough
    that this was never the problem, and giving every footer its own opaque
-   background would repaint plenty of windows that do not need it. */
+   background would repaint plenty of windows that do not need it.
+
+   THE BAR HAS TO COVER THE WHOLE BOTTOM OF THE BOX, not most of it.
+   ------------------------------------------------------------------------
+   Pinned with `bottom: 0` alone it did not, in three separate ways, all of
+   them measured on Player status at a 1280px viewport:
+
+     26px of scrolled content showed BELOW it. `position: sticky` pins to the
+     PADDING box, and `.window-content` carries 16px of it, so the bar stopped
+     short of the real bottom edge and a sliced row sat in the gap. Bleeding
+     the footer out over that padding — negative margins, the padding put back
+     as its own — puts its edge where the box's edge is.
+
+     A row showed THROUGH it. `--drpg-panel-ground` is translucent, which is
+     right for a window floating over the map and wrong for a bar something
+     scrolls under; the blur softened the row without hiding it. Opaque ink
+     under the same ground keeps the panel's colour and stops the show-through.
+
+     It slid off sideways. A table window scrolls horizontally too, and sticky
+     only sticks on the axes it is given offsets for — at 419px of scroll the
+     footer's left edge was 352px off the left of the box, taking the buttons
+     with it. `left: 0` pins the other axis as well. */
 .application.dialog:is(
     .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
 ):has(.dialog-content table):not(.drpg-compact) footer.form-footer {
     position: sticky;
-    bottom: 0;
+    bottom: calc(-1 * var(--drpg-window-pad));
+    left: 0;
     z-index: 1;
-    background: var(--drpg-panel-ground);
+    margin: 0 calc(-1 * var(--drpg-window-pad)) calc(-1 * var(--drpg-window-pad));
+    padding: var(--drpg-window-pad);
+    background:
+        linear-gradient(var(--drpg-panel-ground), var(--drpg-panel-ground)),
+        var(--drpg-ink);
     backdrop-filter: var(--drpg-panel-blur);
 }
 
