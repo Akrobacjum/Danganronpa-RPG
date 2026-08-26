@@ -606,12 +606,29 @@ async function pickText(call) {
 async function pickPlayer(actor, call, kind) {
     const { isMonokuma } = await import("./monokuma.mjs");
     const { othersInRoom } = await import("./movement.mjs");
+    const { isDeceased } = await import("./chapter.mjs");
 
     // Support explicitly requires the same room; Monokuma reaches anyone.
     const sameRoomOnly = kind === "hope";
-    const pool = sameRoomOnly
+    const reachable = sameRoomOnly
         ? othersInRoom(actor)
         : game.actors.filter(a => a.type === "character" && !isMonokuma(a) && a.id !== actor.id);
+
+    /*
+     * THE DEAD ARE NOT A TARGET (D-F4).
+     *
+     * The wide pool filtered on type, on Monokuma and on "not me", and never
+     * asked whether the person was still alive — so every Obstacle offered the
+     * cast plus everybody the cast had already buried. Neither Call means
+     * anything on a corpse: there is no roll of theirs to help and none to
+     * hinder.
+     *
+     * Filtered here rather than at each Call, because it is a fact about who
+     * can be targeted at all, not about what a particular Call does. A dead
+     * student who opted in as a Monocub is still reachable — through
+     * `pickMonocub`, which is the Call written for them.
+     */
+    const pool = reachable.filter(a => !isDeceased(a));
 
     if (!pool.length) {
         ui.notifications.warn(game.i18n.localize(
