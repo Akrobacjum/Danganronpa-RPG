@@ -1884,6 +1884,17 @@
       "wrongSystem": "The Danganronpa RPG module needs the Daggerheart system (Foundryborne). Found: {found}.",
       "oldSystem": "Written against Daggerheart {required} or newer. Found {found} — some features may misbehave."
     },
+    "Requirements": {
+      "title": "Danganronpa RPG is not running",
+      "intro": "This module needs the following, and one of them is not available. Nothing else in the module has started.",
+      "state": {
+        "absent": "not installed",
+        "disabled": "installed, but switched off"
+      },
+      "how": "Install or enable them in Manage Modules — on the Forge, in the game's module list — then reload the world. Nothing has been changed here, so that is the whole of the repair.",
+      "understood": "Understood",
+      "playerNotice": "Danganronpa RPG is not running: it needs {modules}. Ask your GM to enable it."
+    },
     "Reroll": {
       "title": "Reroll",
       "nothingToReroll": "You have not rolled anything, so there is nothing to take back.",

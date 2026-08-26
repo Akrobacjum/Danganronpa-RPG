@@ -62,6 +62,7 @@ import { registerDiceSync } from "./dice-sync.mjs";
 import { registerSync } from "./sync.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
 import { registerApi } from "./api.mjs";
+import { requirementsMet, announceMissingRequirements } from "./requirements.mjs";
 import { warnAboutPageTinting, verifyStylesheet } from "./diagnostics.mjs";
 import { log, error, injectSelectPickerSkin } from "./utils.mjs";
 
@@ -87,6 +88,20 @@ function safely(label, fn) {
 }
 
 Hooks.once("init", () => {
+    // FOUR MODULES ARE NOT OPTIONAL — see requirements.mjs, and the
+    // `relationships.requires` block in module.json that this reads.
+    //
+    // Nothing registers when one of them is missing or switched off. Half of
+    // this layer on isometric maps that are not being projected, with dice
+    // nobody can see, is worse than an honest stop: the table would spend the
+    // evening working around symptoms rather than ticking one checkbox.
+    // Nothing is written on this path, so enabling them and reloading is the
+    // whole of the repair.
+    if (!requirementsMet()) {
+        log("Not starting: a required module is missing or disabled.");
+        return;
+    }
+
     log("Initialising the Danganronpa RPG layer.");
 
     // Settings first and unguarded: every other subsystem reads them, so if this
@@ -161,10 +176,19 @@ Hooks.once("init", () => {
 });
 
 Hooks.once("setup", () => {
+    if (!requirementsMet()) return;
     safely("the Actions resource", registerActionResource);
 });
 
 Hooks.once("ready", () => {
+    // The one thing this layer still does when it is not running: say so, now
+    // that there is an interface to say it in.
+    if (!requirementsMet()) {
+        announceMissingRequirements().catch(err =>
+            error("Could not announce the missing modules", err));
+        return;
+    }
+
     // Before anything that reads a Remnant: the ledger asks the other GMs for
     // anything this browser is missing, and a GM who joins mid-session must not
     // spend the first minute unable to read their own crime scene.
