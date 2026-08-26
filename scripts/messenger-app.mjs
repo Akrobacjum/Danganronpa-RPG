@@ -319,6 +319,18 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
         textarea?.focus();
     }
 
+    /**
+     * One bubble said something different — redraw that bubble and nothing
+     * else. A full `render()` would work and would also wipe the half-written
+     * message in the box below it.
+     */
+    replaceMessage(message) {
+        const old = this.element?.querySelector(
+            `.drpg-messenger-bubble[data-message-id="${message.id}"]`);
+        if (!old) return;
+        old.replaceWith(buildBubble(message));
+    }
+
     /** Called by the module-level createChatMessage hook — no re-render. */
     appendMessage(message) {
         const log = this.element?.querySelector(".drpg-messenger-log");
@@ -363,7 +375,7 @@ Hooks.on("drpgMessengerMessage", (playerUserId, message) => {
      * sitting at that screen. Ordinary chatter keeps the badge. */
     if (game.user.isGM) {
         if (!message.getFlag(MODULE_ID, MESSENGER_FLAGS.gmAsk)) return;
-        showPopup(message.content, {
+        showPopup(cardPreview(message.content), {
             title: game.i18n.localize("DRPG.Messenger.gmActionTitle"),
             onClick: () => openMessenger(playerUserId)
         });
@@ -377,11 +389,32 @@ Hooks.on("drpgMessengerMessage", (playerUserId, message) => {
     const authorId = message.author?.id ?? message.user?.id;
     if (authorId === game.user.id) return;
 
-    showPopup(message.content, {
+    showPopup(cardPreview(message.content), {
         title: game.i18n.localize("DRPG.Messenger.playerWindowTitle"),
         onClick: () => openMessenger(playerUserId)
     });
 });
+
+// A card that changed while a window is open redraws in place. A card that
+// changed while it is closed needs nothing: the window builds from the
+// messages when it opens, and they are already the new ones.
+Hooks.on("drpgMessengerEdited", (playerUserId, message) => {
+    DrpgMessengerApp.instances.get(playerUserId)?.replaceMessage(message);
+});
+
+/**
+ * The card as a notification: the same words, minus the buttons.
+ *
+ * A popup is a COPY of the message, and nothing wires a copy — so every button
+ * on one looked live and did nothing at all. The real ones are one click away:
+ * a popup raised from a thread opens that thread.
+ */
+function cardPreview(html) {
+    const wrap = document.createElement("div");
+    wrap.innerHTML = html ?? "";
+    wrap.querySelectorAll(".drpg-call-actions").forEach(el => el.remove());
+    return wrap;
+}
 
 function participantsLine(player, gms) {
     const names = [player?.name, ...gms.map(g => g.name)].filter(Boolean);
@@ -419,7 +452,7 @@ function buildBubble(message) {
     // sendMessage() escapes free text before this ever runs, postToThread()
     // is fed the GM-bridge's own escaped ruling cards.
     body.innerHTML = message.content;
-    wireCallActions(body);
+    wireCallActions(body, message);
     bubble.append(body);
 
     // A ROLL IN A THREAD LOOKS LIKE A ROLL.
@@ -459,9 +492,16 @@ function buildBubble(message) {
  * Removed for a player rather than hidden by CSS: a button that is not in the
  * DOM cannot be clicked by anybody reading their own thread.
  */
-function wireCallActions(body) {
+function wireCallActions(body, message = null) {
     const buttons = body.querySelectorAll("[data-drpg-call]");
     if (!buttons.length) return;
+
+    // Already answered. The card's own text says so — see `settleCall` — and a
+    // card from before that existed still gets its buttons taken off here.
+    if (message?.getFlag(MODULE_ID, MESSENGER_FLAGS.settled)) {
+        for (const button of buttons) button.closest(".drpg-call-actions")?.remove();
+        return;
+    }
 
     if (!game.user.isGM) {
         for (const button of buttons) button.closest(".drpg-call-actions")?.remove();
@@ -472,22 +512,49 @@ function wireCallActions(body) {
         button.addEventListener("click", async event => {
             event.preventDefault();
             event.stopPropagation();
+
+            // Disabled for the duration of the click and NOT one moment longer.
+            // It used to be disabled on the way in and re-enabled only in the
+            // catch, so a GM who opened the reply box and closed it again was
+            // left looking at a greyed-out button on an unanswered card, with
+            // no way back except closing the whole window and opening it again
+            // (Dawid, 26.08). Backing out of a ruling is not an error and must
+            // not be punished like one.
             button.disabled = true;
             try {
-                await runCallAction(button.dataset.drpgCall, { ...button.dataset });
+                const outcome = await runCallAction(button.dataset.drpgCall, { ...button.dataset });
+                if (message && outcome?.settled) {
+                    const { settleCall } = await import("./gm-bridge.mjs");
+                    await settleCall(message, outcome.settled);
+                    return; // The card redraws itself; this button is gone.
+                }
             } catch (err) {
-                button.disabled = false;
                 error("Could not act on the ruling card", err);
             }
+            button.disabled = false;
         });
     }
+}
+
+/**
+ * A ruling that is now made, and the line the card should carry instead of
+ * "Awaiting a ruling."
+ *
+ * Returned only by the branches that actually END the question. Opening the
+ * item tables is not one of them: that window is an editor a GM can close
+ * without writing anything, and a card that closed itself on the strength of a
+ * window being opened would be lying in the other direction.
+ */
+function settled(key) {
+    return { settled: game.i18n.format(key, { name: game.user.name }) };
 }
 
 /** What each button on a ruling card does. GM side, by construction. */
 async function runCallAction(action, data) {
     if (action === "openMurder") {
         const { openMurder } = await import("./murder.mjs");
-        return openMurder({ killerId: data.killer, victimId: data.victim });
+        const opened = await openMurder({ killerId: data.killer, victimId: data.victim });
+        return opened ? settled("DRPG.Bridge.settledHandled") : null;
     }
 
     // The two halves of the direct-murder gate. The declaration is already
@@ -495,7 +562,11 @@ async function runCallAction(action, data) {
     // allowed to become an incident when the lights come up.
     if (action === "approveMurder" || action === "refuseMurder") {
         const { ruleOnParkedMurder } = await import("./eclipse.mjs");
-        return ruleOnParkedMurder(data.killer, action === "approveMurder");
+        const ruled = await ruleOnParkedMurder(data.killer, action === "approveMurder");
+        // `false` is a refusal that went through; `null` is nothing happening
+        // at all, and only that leaves the card open.
+        if (ruled === null || ruled === undefined) return null;
+        return settled(ruled ? "DRPG.Bridge.settledApproved" : "DRPG.Bridge.settledDeclined");
     }
 
     if (action === "fireTrap") {
@@ -504,7 +575,8 @@ async function runCallAction(action, data) {
         // ticked, and asks the one thing the condition cannot answer: who
         // walked into it.
         const { openMurderDialog } = await import("./murder.mjs");
-        return openMurderDialog({ killerId: data.killer, indirect: true });
+        const opened = await openMurderDialog({ killerId: data.killer, indirect: true });
+        return opened ? settled("DRPG.Bridge.settledHandled") : null;
     }
 
     if (action === "approveProject") {
@@ -512,7 +584,7 @@ async function runCallAction(action, data) {
         // change it — approving straight into existence would be the old
         // behaviour with an extra click in front of it.
         const { openProjectDialog } = await import("./projects-ui.mjs");
-        return openProjectDialog({
+        const made = await openProjectDialog({
             preset: {
                 name: data.pname ?? "",
                 target: Number(data.target) || 4,
@@ -522,6 +594,7 @@ async function runCallAction(action, data) {
                 condition: data.condition ?? ""
             }
         });
+        return made ? settled("DRPG.Bridge.settledApproved") : null;
     }
 
     if (action === "declineProject") {
@@ -535,7 +608,7 @@ async function runCallAction(action, data) {
             game.i18n.format("DRPG.Project.declinedPlayer", { name: game.user.name }))}</em></p>`;
         if (owner) await postToThread(owner.id, note);
         ui.notifications.info(game.i18n.format("DRPG.Project.declinedGm", { name: actor.name }));
-        return true;
+        return settled("DRPG.Bridge.settledDeclined");
     }
 
     // ---------------------------------------------------------------- generic
@@ -588,7 +661,7 @@ async function runCallAction(action, data) {
             foundry.utils.escapeHTML(text)}</p>`;
         if (owner) await postToThread(owner.id, body);
         else await whisperToGms(body);
-        return true;
+        return settled("DRPG.Bridge.settledAnswered");
     }
 
     if (action === "decline") {
@@ -611,7 +684,7 @@ async function runCallAction(action, data) {
             game.i18n.format("DRPG.Bridge.declined", { name: game.user.name }))}</em></p>`;
         if (owner) await postToThread(owner.id, note);
         ui.notifications.info(game.i18n.format("DRPG.Bridge.declinedGm", { name: actor.name }));
-        return true;
+        return settled("DRPG.Bridge.settledDeclined");
     }
 
     if (action === "createItem") {
@@ -637,12 +710,14 @@ async function runCallAction(action, data) {
         const actor = game.actors.get(data.by);
         if (!actor) return null;
         const { giveItemDialog } = await import("./gm-items.mjs");
-        return giveItemDialog(actor);
+        const given = await giveItemDialog(actor);
+        return given ? settled("DRPG.Bridge.settledHandled") : null;
     }
 
     if (action === "keyRemnantHere") {
         const { openKeyRemnantHere } = await import("./investigation.mjs");
-        return openKeyRemnantHere({ room: data.room || null, note: data.want || "" });
+        const placed = await openKeyRemnantHere({ room: data.room || null, note: data.want || "" });
+        return placed ? settled("DRPG.Bridge.settledHandled") : null;
     }
 
     if (action === "declineMurder") {
@@ -660,7 +735,7 @@ async function runCallAction(action, data) {
             game.i18n.format("DRPG.Bridge.declined", { name: game.user.name }))}</em></p>`;
         if (owner) await postToThread(owner.id, note);
         ui.notifications.info(game.i18n.format("DRPG.Bridge.declinedGm", { name: actor.name }));
-        return true;
+        return settled("DRPG.Bridge.settledDeclined");
     }
 
     return null;

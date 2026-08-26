@@ -34,7 +34,11 @@ export const MESSENGER_FLAGS = {
      *  several asks are posted BY a GM client on a player's behalf — the
      *  bridge writes a parked murder's card from the GM's own session — and
      *  an author check reads those as the GM talking to themselves. */
-    gmAsk: "gmAsk"
+    gmAsk: "gmAsk",
+    /** This card HAS been answered — see `settleCall` in gm-bridge.mjs. The
+     *  card's own text already says so; the flag is what lets a renderer know
+     *  without reading the HTML back. */
+    settled: "settled"
 };
 
 export const THREAD_KIND = {
@@ -46,6 +50,7 @@ const NOTIFY_SOUND = "sounds/notify.wav";
 
 export function registerMessenger() {
     Hooks.on("createChatMessage", onCreateChatMessage);
+    Hooks.on("updateChatMessage", onUpdateChatMessage);
 }
 
 /* ==========================================================================
@@ -180,6 +185,9 @@ async function createThreadMessage(playerUserId, content, kind, gmAsk = false) {
  * full re-render (and without losing whatever the player was mid-typing).
  * `drpgMessengerRead` lets the launcher badge and the roster popover refresh
  * the moment a window is opened, on whichever client that happened.
+ * `drpgMessengerEdited` carries a message that CHANGED — a ruling card being
+ * closed out, today — so an open window can redraw that one bubble instead of
+ * re-rendering itself and throwing away whatever is half-typed in the box.
  * ========================================================================== */
 
 function onCreateChatMessage(message) {
@@ -200,4 +208,15 @@ function onCreateChatMessage(message) {
     } catch {
         // A blocked autoplay policy is not worth surfacing to the user.
     }
+}
+
+/**
+ * A message in a thread changed. No sound and no badge: nothing new arrived,
+ * something already read said something different.
+ */
+function onUpdateChatMessage(message) {
+    const thread = message.getFlag(MODULE_ID, MESSENGER_FLAGS.thread);
+    if (!thread) return;
+    if (!game.user.isGM && game.user.id !== thread) return;
+    Hooks.callAll("drpgMessengerEdited", thread, message);
 }

@@ -8980,6 +8980,19 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     cursor: default;
 }
 
+/* The line that replaces "Awaiting a ruling." once somebody has ruled. A
+   receipt, not an ask: no buttons beside it and the evidence gold down its
+   edge, the same colour the module uses everywhere for something settled. */
+.drpg-call-settled {
+    margin-top: 8px;
+    padding: 3px 8px;
+    border-left: 2px solid var(--drpg-gold-antique);
+    background: rgba(var(--drpg-gold-antique-rgb), 0.1);
+    font-size: var(--drpg-text-xs);
+    font-style: italic;
+    color: var(--drpg-bone);
+}
+
 /* The Pre-session checks report: fixed-width text in a window rather than a
    whisper nobody scrolls back to. See `runPreSessionChecks`. */
 .drpg-check-report {

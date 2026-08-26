@@ -1471,7 +1471,9 @@ export async function callGm(actor, {
     // threshold table is the thing you look at last, to price the answer.
     if (request) parts.push(`<blockquote>${esc(request)}</blockquote>`);
     if (body) parts.push(`<p>${body}</p>`);
-    parts.push(`<p><em>${game.i18n.localize("DRPG.Bridge.awaitingRuling")}</em></p>`);
+    // Classed so `settleCall` can take it off again once the card is answered.
+    parts.push(`<p class="drpg-call-awaiting"><em>${
+        game.i18n.localize("DRPG.Bridge.awaitingRuling")}</em></p>`);
 
     if (actions.length) {
         parts.push(`<div class="drpg-call-actions">${actions.map(a => {
@@ -1504,6 +1506,52 @@ export async function callGm(actor, {
     } catch (err) {
         error("Could not reach the GM", err);
         return false;
+    }
+}
+
+/**
+ * Close a ruling card out: the ask becomes a receipt.
+ *
+ * A card kept saying "Awaiting a ruling." after the ruling had been made. The
+ * GM answered in words, the answer landed two bubbles further down, and the
+ * card above it still read as an open question — with its buttons still on it,
+ * inviting a second ruling on something already ruled (Dawid, 26.08).
+ *
+ * Rewritten on the MESSAGE, not hidden on the client that clicked: the card
+ * lives in a thread the player and every other GM are reading, and a receipt
+ * only one screen can see is the bug again with a smaller audience.
+ *
+ * @param {ChatMessage} message  The card.
+ * @param {string} text          What settled it, in plain words.
+ */
+export async function settleCall(message, text) {
+    if (!message || !game.user.isGM) return null;
+
+    const wrap = document.createElement("div");
+    wrap.innerHTML = message.content ?? "";
+
+    wrap.querySelectorAll(".drpg-call-actions, .drpg-call-awaiting").forEach(el => el.remove());
+    // Cards posted before the marker class existed carry the same sentence with
+    // nothing to hook onto, so they are matched by what they say.
+    const awaiting = game.i18n.localize("DRPG.Bridge.awaitingRuling");
+    for (const p of wrap.querySelectorAll("p")) {
+        if (p.textContent.trim() === awaiting) p.remove();
+    }
+
+    const note = document.createElement("p");
+    note.className = "drpg-call-settled";
+    note.textContent = text;
+    wrap.append(note);
+
+    try {
+        const { MESSENGER_FLAGS } = await import("./messenger.mjs");
+        return await message.update({
+            content: wrap.innerHTML,
+            flags: { [MODULE_ID]: { [MESSENGER_FLAGS.settled]: true } }
+        });
+    } catch (err) {
+        error("Could not close out the ruling card", err);
+        return null;
     }
 }
 
