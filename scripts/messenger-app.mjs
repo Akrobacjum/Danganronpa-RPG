@@ -71,6 +71,28 @@ export function openMessenger(playerUserId = game.user.id) {
         ui.notifications.warn(game.i18n.localize("DRPG.Messenger.onlyOwnThread"));
         return null;
     }
+
+    /*
+     * A GM ASKING FOR "THE MESSENGER" MEANS THE ROSTER (D-F4).
+     *
+     * The default is the caller's own id, and a GM has no thread of their own —
+     * threads belong to players and a GM is the other end of all of them. So
+     * `game.drpg.openMessenger()` from a GM's console or a macro fell straight
+     * through to "that is not a player" and opened nothing at all: the one call
+     * with an obvious meaning was the one call that did nothing.
+     *
+     * It means "show me my conversations", and that list already exists — it is
+     * what the launcher's own button opens. Only the no-argument case is
+     * redirected; a GM naming a player still gets that player's thread, and a
+     * player still gets their own.
+     */
+    if (game.user.isGM && playerUserId === game.user.id && !isThreadUser(playerUserId)) {
+        // No anchor: that argument only exists so the click which opened the
+        // panel does not immediately close it, and this call came from script.
+        buildRoster(null);
+        return null;
+    }
+
     if (!isThreadUser(playerUserId)) {
         ui.notifications.warn(game.i18n.localize("DRPG.Messenger.notAPlayer"));
         return null;
