@@ -66,6 +66,11 @@ export function refreshProjects() {
  *     category in this tray, so a filter for it is a control with nothing to
  *     do — and reads as a mysterious pair of buttons that just narrow what
  *     you can see for no visible reason.
+ *   - "Toggle Icon Only" is removed, and anyone already in that view is taken
+ *     out of it — see `leaveIconOnly`. It strips the name and the progress off
+ *     every row, and a project is its name: what is left is four identical
+ *     hourglasses in a tray whose entire job is telling them apart. The caret
+ *     below is the control for wanting the space back.
  */
 function onRenderCountdowns(app, element) {
     try {
@@ -74,6 +79,8 @@ function onRenderCountdowns(app, element) {
 
         // Shown to everyone, GM or not, so removed for everyone.
         root.querySelector(".header-type-toggles")?.remove();
+        root.querySelector('[data-action="toggleViewMode"]')?.remove();
+        leaveIconOnly(app, root);
 
         localiseRawKeys(root);
 
@@ -111,6 +118,42 @@ function onRenderCountdowns(app, element) {
 }
 
 /**
+ * Nobody is left standing in a room whose door has just been removed.
+ *
+ * "Toggle Icon Only" swaps every project for a bare icon — a row of little
+ * hourglasses with no name and no progress, which in this module is a tray of
+ * things you cannot tell apart. It is gone (above), and that is the whole of
+ * the change EXCEPT for one thing: the system remembers the choice in a user
+ * flag, so anyone who had already flipped it would have been shut in there
+ * with no control left to flip it back.
+ *
+ * So the flag is put back the one time it is found set, per person, on their
+ * own User. Read from CONFIG rather than written out here, so a system that
+ * renames its flag or its modes turns this into a no-op instead of a wrong
+ * write.
+ *
+ * The re-render is not optional and was measured being needed: the names are
+ * left out by the TEMPLATE, `{{#unless iconOnly}}`, so this pass is already
+ * looking at markup that has none — dropping the class and writing the flag
+ * left a player staring at a tray of bare numbers until something else
+ * happened to redraw it. Rendering from inside a render hook is safe here
+ * because the flag is textIcon by the time the new pass reads it, so the
+ * second pass does nothing and there is no third.
+ */
+function leaveIconOnly(app, root) {
+    const id = CONFIG?.DH?.id;
+    const key = CONFIG?.DH?.FLAGS?.userFlags?.countdownMode;
+    const modes = CONFIG?.DH?.GENERAL?.countdownAppMode;
+    if (!id || !key || !modes?.textIcon || !modes?.iconOnly) return;
+    if (game.user.getFlag(id, key) !== modes.iconOnly) return;
+
+    root.classList.remove(modes.iconOnly);
+    game.user.setFlag(id, key, modes.textIcon)
+        .then(() => app?.render?.())
+        .catch(err => error("Could not take the projects tray out of icon-only view", err));
+}
+
+/**
  * Translate labels the system left as raw keys.
  *
  * The tray's own view-mode control announces itself as
@@ -139,9 +182,9 @@ function localiseRawKeys(root) {
 /* ==========================================================================
  * FOLDING THE TRAY AWAY
  * --------------------------------------------------------------------------
- * The tray has no collapse of its own. Daggerheart's one header control is
- * `toggleViewMode`, which swaps the rows for a row of icons — a different thing,
- * and it leaves the tray exactly as tall.
+ * The tray has no collapse of its own. Daggerheart's one header control was
+ * `toggleViewMode`, which swapped the rows for a row of icons — a different
+ * thing, which left the tray exactly as tall, and which is no longer there.
  *
  * So: a caret that hides the body and leaves the title bar, remembered per
  * client. Re-applied on every render because the tray rebuilds its header from
