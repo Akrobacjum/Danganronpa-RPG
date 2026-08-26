@@ -209,6 +209,13 @@ export const SETTINGS = {
      */
     myMastermindLair: "myMastermindLair",
     /**
+     * While `isometric-perspective` is active, keep its fingers out of token
+     * configuration windows — see iso-shield.mjs for what exactly is parked
+     * and why. World-scoped: the glitch it guards against hits whoever edits
+     * tokens, and that is a table-level decision, not a per-browser one.
+     */
+    isoTokenShield: "isoTokenShield",
+    /**
      * Which rooms each character has personally discovered, per scene:
      * `{ [sceneId]: { [actorId]: [roomName, ...] } }`.
      *
@@ -528,6 +535,19 @@ export function registerSettings() {
         config: false,
         type: String,
         default: ""
+    });
+
+    game.settings.register(MODULE_ID, SETTINGS.isoTokenShield, {
+        name: "DRPG.Settings.isoTokenShield.name",
+        hint: "DRPG.Settings.isoTokenShield.hint",
+        scope: "world",
+        config: true,
+        type: Boolean,
+        default: true,
+        onChange: async () => {
+            const { applyIsoShield } = await import("./iso-shield.mjs");
+            applyIsoShield();
+        }
     });
 
     // Which rooms each character has discovered. Cleared at season reset.

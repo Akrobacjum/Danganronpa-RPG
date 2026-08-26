@@ -212,6 +212,10 @@
         "name": "Players only see who is in their room",
         "hint": "Hides other characters unless they stand in the same room. Walls and vision get most of the way there; this closes the gaps left by doorways, archways and maps built without walls. GMs see everything."
       },
+      "isoTokenShield": {
+        "name": "Guard token editing from Isometric Perspective",
+        "hint": "While the isometric-perspective module is active, its additions to token configuration windows are kept out — they are what breaks token editing on some setups. The map's projection is untouched, and so is the Scene configuration. Turn this off to reach that module's own Isometric tab on tokens; it comes back immediately, no reload."
+      },
       "regionFog": {
         "name": "Rooms decide what players can see",
         "hint": "Lights the whole map and lets the module's room fog do the hiding: the room you are in is clear, rooms you have been to show through a veil, the rest is fogged. Off, Foundry's own line-of-sight vision applies. GMs see everything."

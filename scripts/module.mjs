@@ -38,6 +38,7 @@ import { registerResourceGuard } from "./resource-guard.mjs";
 import { registerStates } from "./states.mjs";
 import { registerVisibility } from "./visibility.mjs";
 import { registerFog } from "./fog.mjs";
+import { registerIsoShield } from "./iso-shield.mjs";
 import { registerRemnantRings } from "./remnant-ring.mjs";
 import { registerRemnantLedger } from "./remnants.mjs";
 import { registerDaySummary } from "./day-summary.mjs";
@@ -111,6 +112,7 @@ Hooks.once("init", () => {
     safely("Breakdown and Wounded", registerStates);
     safely("room visibility", registerVisibility);
     safely("the fog of war", registerFog);
+    safely("the isometric token shield", registerIsoShield);
     safely("Remnant rings", registerRemnantRings);
     safely("day summary", registerDaySummary);
     safely("the roll dialog lock", registerRollDialog);
