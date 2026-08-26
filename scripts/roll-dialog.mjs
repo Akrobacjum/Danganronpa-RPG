@@ -93,6 +93,7 @@ function onRenderApplication(app, element) {
 
         if (locking()) {
             lockControls(root, app);
+            maybeRollItself(root, app, actor);
             return;
         }
 
@@ -246,9 +247,23 @@ function lockControls(root, app) {
 
         // The tooltip has to say WHICH, or a player sees a locked advantage they
         // never bought and reads it as a bug.
+        //
+        // THREE sources, three answers. This used to fall back to "set by where
+        // you are and what you are looking for" for everything that was not a
+        // Call — which told a character in Breakdown that the disadvantage they
+        // are carrying everywhere came from the room they happen to be standing
+        // in. Measured on the live window with Sanity full: the chip was
+        // correctly selected and locked, and correctly explained by the wrong
+        // cause.
+        //
+        // It matters more since the window stopped opening at all when there is
+        // nothing forced (see `maybeRollItself`): a dialog a player now only
+        // ever sees BECAUSE of a modifier had better name the right one.
         const reason = fromCall !== 0
             ? "DRPG.RollDialog.forcedByCall"
-            : "DRPG.RollDialog.forcedBySituation";
+            : fromRoom !== 0
+                ? "DRPG.RollDialog.forcedBySituation"
+                : "DRPG.RollDialog.forcedByState";
 
         for (const chip of adv) {
             chip.classList.toggle("selected", value === 1);
@@ -308,6 +323,66 @@ function lockControls(root, app) {
     // Roll mode: privacy is enforced by the module, not chosen per roll.
     const mode = root.querySelector('select[name="selectedMessageMode"]');
     if (mode) disable(mode, "DRPG.RollDialog.modeLocked");
+}
+
+/**
+ * A window with nothing in it presses its own button (F).
+ *
+ * With the lock on and no Call armed, this dialog offers a student exactly
+ * nothing: the dice are fixed by the guide, the trait was chosen before the
+ * window opened, advantage is not self-served, the experiences are greyed out,
+ * the bonus field is disabled and the roll mode is the module's. Every control
+ * `lockControls` touches is disabled by the time this runs. What is left is a
+ * modal whose only live element is Roll — a click that cannot mean anything but
+ * yes, on every action, every time.
+ *
+ * THE CANCEL IS NOT LOST, WHICH IS WHY THIS IS SAFE. An action's cost is
+ * charged AFTER the roll comes back (`if (!roll) return null;` precedes every
+ * `spendAction`), so backing out here has always been free — and it stays free,
+ * because it is not the only place to back out. Every action opens its own
+ * briefing first, with the cost written on it ("Action cost 1. You have 2.")
+ * and a Cancel beside the Roll. That screen is where a mis-click is caught; the
+ * dialog after it was a second confirmation of a decision already made.
+ *
+ * FOUR THINGS STOP IT, and they are all "the window has something to say":
+ *
+ *   a Call is armed        the player paid Hope or a Monokuma paid Despair.
+ *                          Trait and Experience Calls unlock real controls;
+ *                          Free Critical opens a red window on purpose; a
+ *                          bonus Call fills a field the player should see fill.
+ *   forced advantage       from a Call, from the room, or from Breakdown. The
+ *   or disadvantage        chips carry the tooltip that says WHICH — skipping
+ *                          past it would apply a modifier nobody was told about.
+ *   locking is off         the setting means "the players drive this window".
+ *   not a student roll     a Monokuma has no action grid and no Call economy.
+ *
+ * `setTimeout`, not `requestAnimationFrame`: a client whose tab is in the
+ * background gets no frames at all (see the note in visibility.mjs on the
+ * reassert pass), and a roll that waits for one would simply never happen.
+ * Guarded so it fires once per dialog — the system re-renders this window on
+ * every config change, and a second click on a submitted dialog is a second
+ * roll.
+ */
+const ROLLED_ITSELF = Symbol("drpgAutoRolled");
+
+function maybeRollItself(root, app, actor) {
+    if (app[ROLLED_ITSELF]) return;
+    if (pendingGrants(actor)) return;
+    if (Math.max(-1, Math.min(1, situationalGrant() + stateGrant(actor))) !== 0) return;
+
+    const submit = root.querySelector("button.submit-btn");
+    // No button found means the system's template moved. Leave the window alone
+    // and let the player press whatever is there — never guess at a click.
+    if (!submit || submit.disabled) return;
+
+    app[ROLLED_ITSELF] = true;
+    setTimeout(() => {
+        try {
+            if (app.rendered && !submit.disabled) submit.click();
+        } catch (err) {
+            debug("Could not submit the empty roll dialog", err);
+        }
+    }, 0);
 }
 
 /**
