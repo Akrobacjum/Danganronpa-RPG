@@ -5250,12 +5250,17 @@ body[data-drpg-phase="classTrial"] {
    because the phase changing is one event and two durations would make it look
    like two. */
 #drpg-player-status,
-#countdowns {
+#countdowns,
+#players {
     transition: border-color var(--drpg-t-turn) var(--drpg-ease-arrive),
                 box-shadow var(--drpg-t-turn) var(--drpg-ease-arrive);
 }
 
-body[data-drpg-phase] :is(#drpg-player-status, #countdowns) {
+/* `#players` joined the family late (Dawid, 26.08): once the corner became a
+   gauge it was the one module panel on screen whose edge said nothing, and a
+   phase edge on the performance box means the phase is readable from every
+   corner of the screen. Same token, same alpha, same duration as the rest. */
+body[data-drpg-phase] :is(#drpg-player-status, #countdowns, #players) {
     border-color: rgba(var(--drpg-phase-now-rgb), 0.55) !important;
     box-shadow:
         0 2px 8px rgba(var(--drpg-shadow-rgb), 0.35),
@@ -6293,11 +6298,14 @@ body.drpg-pixel-font .application.sheet.actor prose-mirror * {
 }
 
 /* --- the corner launchers ------------------------------------------------ */
-/* The messenger's 52px circle — the only always-on control a player has,
-   and it was smaller than a scene-control chip. */
+/* The messenger circle sits in one corner of the bottom edge and the
+   performance gauge in the other, and at 74px against the gauge's 66px the
+   two ends of the same line disagreed (Dawid, 26.08). The circle takes the
+   gauge's height — still the largest control on the player's screen, now
+   level with its opposite number. */
 #drpg-messenger-launcher {
-    width: 74px !important;
-    height: 74px !important;
+    width: 66px !important;
+    height: 66px !important;
     font-size: var(--drpg-text-lg) !important;
     border-width: 2px !important;
 }
@@ -10141,7 +10149,12 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
        this shipped broken and verified green. */
     pointer-events: all;
     margin: 0 0 6px;
-    padding: 6px 8px;
+    /* The scene button next door is 32px tall; at its own padding the
+       launcher came out 26px, so the row's two red controls disagreed by six
+       pixels of bottom edge. Same height, flex does the centring. */
+    box-sizing: border-box;
+    height: 32px;
+    padding: 0 8px;
     background: var(--drpg-eye);
     border: 1px solid var(--drpg-eye-light);
     border-radius: 3px;
