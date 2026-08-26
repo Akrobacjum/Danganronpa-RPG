@@ -52,11 +52,80 @@ const ACTION_BETRAYAL = "murder.betrayal";
 const ACTION_PARK_MURDER = "murder.park";
 const ACTION_MEDDLE = "monocub.meddle";
 const ACTION_ACK = "bridge.ack";
+/** A GM's world has finished loading — see `registerGmBridge`. */
+const ACTION_GM_READY = "bridge.gmReady";
 
-/** Player-side promises waiting on a GM ruling, keyed by request id. */
+/**
+ * Player-side promises waiting on a GM ruling, keyed by request id.
+ *
+ * Each entry is `{ resolve, payload, resent }` rather than a bare `resolve`,
+ * so a request that went unanswered can be ASKED AGAIN — see
+ * `resendPendingRulings`, which is what makes a GM's reload survivable.
+ */
 const pendingRulings = new Map();
 
+/**
+ * Ask again for every ruling still outstanding, once per request.
+ *
+ * THE GM'S BROWSER IS ALLOWED TO CRASH. A ruling lives in a dialog open on
+ * their screen and in nothing else: reloading with that window open threw the
+ * question away, and the player sat on "Awaiting a ruling." until their own
+ * three-minute timeout gave up. The action was spent and the roll was thrown,
+ * so what they lost was real, and neither side had any way back to it (B-F5-1).
+ *
+ * The asking client is the one that survives all this, so it is the one that
+ * repeats itself: when a GM connects and this browser is still waiting, the
+ * original request goes out again with the SAME request id, so the answer
+ * lands in the promise that is already waiting for it. Three minutes is long
+ * enough for a browser to restart, which is what makes repeating the question
+ * a real repair rather than a nicety.
+ *
+ * Once per request, and only while it is still outstanding: an answered
+ * request is gone from this map, so nothing can ask a GM the same question
+ * twice over.
+ */
+function resendPendingRulings() {
+    for (const entry of pendingRulings.values()) {
+        if (entry.resent || !entry.payload) continue;
+        entry.resent = true;
+        game.socket.emit(SOCKET_EVENT, entry.payload);
+        debug(`Re-sent a ruling request after a GM reconnected: ${entry.payload.action}`);
+    }
+}
+
+/** A GM has finished loading and can answer questions again. */
+function onGmReady(payload, senderId) {
+    if (payload?.action !== ACTION_GM_READY) return;
+    if (!game.users.get(senderId)?.isGM) return;
+    resendPendingRulings();
+}
+
+/** Remember a request, and how to ask it again. */
+function awaitRuling(requestId, resolve, payload) {
+    pendingRulings.set(requestId, { resolve, payload, resent: false });
+    game.socket.emit(SOCKET_EVENT, payload);
+}
+
+/** Hand an arrived answer to whoever is waiting for it. */
+function settleRuling(requestId, value) {
+    const entry = pendingRulings.get(requestId);
+    if (!entry) return false;
+    pendingRulings.delete(requestId);
+    entry.resolve(value);
+    return true;
+}
+
 export function registerGmBridge() {
+    /* THE RESCUE SIGNAL IS "A GM IS LISTENING", NOT "A GM IS CONNECTED".
+       -----------------------------------------------------------------------
+       `userConnected` fires when a GM's socket comes up, which is many seconds
+       before their world has finished loading and this very function has run —
+       measured on a live reload: the re-sent question left before the GM had a
+       listener for it and vanished. So the GM announces themselves once, HERE,
+       at the point where they can actually answer, and anybody still waiting
+       asks again. */
+    if (game.user.isGM) game.socket.emit(SOCKET_EVENT, { action: ACTION_GM_READY });
+    else game.socket.on(SOCKET_EVENT, onGmReady);
     game.socket.on(SOCKET_EVENT, onSocket);
     // The answer travels back to the asking player, who is not a GM — so this
     // listener has to sit outside the `isPrimaryGm` gate in `onSocket`.
@@ -210,10 +279,7 @@ function onRulingResult(payload, senderId) {
     if (payload?.action !== ACTION_DIFFICULTY_RESULT) return;
     if (!replyForMe(payload, senderId)) return;
 
-    const resolve = pendingRulings.get(payload.requestId);
-    if (!resolve) return;
-    pendingRulings.delete(payload.requestId);
-    resolve(payload.ruling ?? null);
+    settleRuling(payload.requestId, payload.ruling ?? null);
 }
 
 /** The GM has settled which Remnant this Observe is aimed at. */
@@ -221,10 +287,7 @@ function onObserveTargetResult(payload, senderId) {
     if (payload?.action !== ACTION_OBSERVE_TARGET_RESULT) return;
     if (!replyForMe(payload, senderId)) return;
 
-    const resolve = pendingRulings.get(payload.requestId);
-    if (!resolve) return;
-    pendingRulings.delete(payload.requestId);
-    resolve(payload.result ?? null);
+    settleRuling(payload.requestId, payload.result ?? null);
 }
 
 /** The GM has computed which of a killer's traces their own client may act on. */
@@ -232,10 +295,7 @@ function onCleanupTracesResult(payload, senderId) {
     if (payload?.action !== ACTION_CLEANUP_TRACES_RESULT) return;
     if (!replyForMe(payload, senderId)) return;
 
-    const resolve = pendingRulings.get(payload.requestId);
-    if (!resolve) return;
-    pendingRulings.delete(payload.requestId);
-    resolve(payload.result ?? []);
+    settleRuling(payload.requestId, payload.result ?? []);
 }
 
 /**
@@ -253,10 +313,7 @@ function onSabotageResult(payload, senderId) {
     if (payload?.action !== ACTION_SABOTAGE_RESULT) return;
     if (!replyForMe(payload, senderId)) return;
 
-    const resolve = pendingRulings.get(payload.requestId);
-    if (!resolve) return;
-    pendingRulings.delete(payload.requestId);
-    resolve(payload.result ?? null);
+    settleRuling(payload.requestId, payload.result ?? null);
 }
 
 /**
@@ -934,8 +991,7 @@ export function requestSabotage(targetId, difficulty) {
 
     const requestId = foundry.utils.randomID();
     return new Promise(resolve => {
-        pendingRulings.set(requestId, resolve);
-        game.socket.emit(SOCKET_EVENT, {
+        awaitRuling(requestId, resolve, {
             action: ACTION_SABOTAGE, userId: game.user.id, requestId, targetId, difficulty
         });
 
@@ -1027,8 +1083,7 @@ export function requestDynamicDifficulty({ description, actorName, room }, timeo
 
     const requestId = foundry.utils.randomID();
     return new Promise(resolve => {
-        pendingRulings.set(requestId, resolve);
-        game.socket.emit(SOCKET_EVENT, {
+        awaitRuling(requestId, resolve, {
             action: ACTION_DIFFICULTY,
             requestId,
             userId: game.user.id,
@@ -1068,8 +1123,7 @@ export function requestObserveTarget({ actorId, declaration, request = "" }, tim
 
     const requestId = foundry.utils.randomID();
     return new Promise(resolve => {
-        pendingRulings.set(requestId, resolve);
-        game.socket.emit(SOCKET_EVENT, {
+        awaitRuling(requestId, resolve, {
             action: ACTION_OBSERVE_TARGET,
             requestId,
             userId: game.user.id,
@@ -1104,8 +1158,7 @@ export function requestCleanableTraces(actorId, timeoutMs = 180000) {
 
     const requestId = foundry.utils.randomID();
     return new Promise(resolve => {
-        pendingRulings.set(requestId, resolve);
-        game.socket.emit(SOCKET_EVENT, {
+        awaitRuling(requestId, resolve, {
             action: ACTION_CLEANUP_TRACES,
             requestId,
             userId: game.user.id,
