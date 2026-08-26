@@ -38,6 +38,18 @@ export function registerGmPanel() {
 function injectLauncher() {
     try {
         if (!game.user?.isGM) return;
+
+        /* The GM-only styling is keyed on classes THIS function puts on the
+         * elements themselves, not on `body.drpg-gm`: on a long-lived client
+         * an ancestor-class selector was measured matching the element and
+         * still not applying — present in the sheet, `matches()` true,
+         * computed style ignoring it — while a same-element class works
+         * everywhere. The scene navigation is hidden by default in the
+         * stylesheet and only a GM's client ever runs this line to show it,
+         * so a player needs no selector gymnastics at all. */
+        document.getElementById("scene-controls")?.classList.add("drpg-gm-rail");
+        document.getElementById("scene-navigation")?.classList.add("drpg-gm-nav");
+
         if (document.getElementById("drpg-gm-launcher")) return;
         const column = document.getElementById("ui-left-column-1");
         if (!column) return;

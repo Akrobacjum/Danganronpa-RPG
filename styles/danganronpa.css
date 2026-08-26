@@ -5985,11 +5985,14 @@ html body {
 #sidebar-tabs button.ui-control,
 #sidebar .tabs button.ui-control {
     background: transparent !important;
-    border: none !important;
+    /* A hairline each — Dawid's second pass (26.08): borderless buttons read
+       as loose glyphs floating on the map, not as controls. */
+    border: 1px solid rgba(var(--drpg-bone-rgb), 0.25) !important;
     border-radius: 3px !important;
     color: rgba(var(--drpg-bone-rgb), 0.5) !important;
     box-shadow: none !important;
     transition: color var(--drpg-t-snap) var(--drpg-ease-arrive),
+                border-color var(--drpg-t-snap) var(--drpg-ease-arrive),
                 background-color var(--drpg-t-snap) var(--drpg-ease-arrive);
 }
 
@@ -5997,6 +6000,7 @@ html body {
 #sidebar-tabs button.ui-control:hover,
 #sidebar .tabs button.ui-control:hover {
     background: rgba(var(--drpg-bone-rgb), 0.08) !important;
+    border-color: rgba(var(--drpg-bone-rgb), 0.5) !important;
     color: rgba(var(--drpg-bone-rgb), 0.9) !important;
 }
 
@@ -6007,21 +6011,34 @@ html body {
 #sidebar .tabs button.ui-control.active,
 #sidebar .tabs button.ui-control[aria-pressed="true"] {
     background: rgba(var(--drpg-bone-rgb), 0.12) !important;
+    border-color: rgba(var(--drpg-bone-rgb), 0.7) !important;
     color: var(--drpg-bone) !important;
 }
 
-body.drpg-gm #scene-controls button.ui-control {
-    color: rgba(var(--drpg-eye-rgb), 0.65) !important;
+/* The GM's red at FULL strength — the first pass sat it at 0.65 alpha, which
+   over the map's greys came out pastel and unreadable (Dawid, 26.08). The
+   translucency stays where it belongs, on the background; the glyph is ink.
+
+   `.drpg-gm-rail` is put on the RAIL ITSELF by the GM's client (see
+   injectLauncher in gm-panel.mjs) rather than read off `body.drpg-gm`: an
+   ancestor-class selector was measured on a long-lived client matching the
+   button and still not applying — in the sheet, `matches()` true, computed
+   style ignoring it — while a same-element class held everywhere. */
+#scene-controls.drpg-gm-rail button.ui-control {
+    border-color: rgba(var(--drpg-eye-rgb), 0.45) !important;
+    color: var(--drpg-eye) !important;
 }
 
-body.drpg-gm #scene-controls button.ui-control:hover {
+#scene-controls.drpg-gm-rail button.ui-control:hover {
     background: rgba(var(--drpg-eye-rgb), 0.1) !important;
-    color: rgba(var(--drpg-eye-rgb), 0.95) !important;
+    border-color: var(--drpg-eye) !important;
+    color: var(--drpg-eye-light) !important;
 }
 
-body.drpg-gm #scene-controls button.ui-control.active,
-body.drpg-gm #scene-controls button.ui-control[aria-pressed="true"] {
+#scene-controls.drpg-gm-rail button.ui-control.active,
+#scene-controls.drpg-gm-rail button.ui-control[aria-pressed="true"] {
     background: rgba(var(--drpg-eye-rgb), 0.16) !important;
+    border-color: var(--drpg-eye) !important;
     color: var(--drpg-eye-light) !important;
 }
 
@@ -10059,6 +10076,16 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     display: none !important;
 }
 
+/* The SECOND frame, found by walking the corner's children: core draws its
+   own ground, border and radius on `#players-active` — a plain div, so the
+   `.players-list` strip above never touched it — and the gauge sat in a frame
+   inside the module's frame. Core's chrome goes; the module's panel stays. */
+#players :is(#players-active, #players-inactive) {
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
 #players #performance-stats {
     display: flex;
     gap: 10px;
@@ -10107,6 +10134,12 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
        rails, so stretching is what lines the button up with them flush on
        both edges (Dawid, 26.08). */
     align-self: stretch;
+    /* Core turns pointer events OFF for the whole interface layer and each
+       control opts back in. A button that does not opt in LOOKS clickable and
+       hands every real click to the canvas underneath — the programmatic
+       `.click()` in the tests bypasses hit-testing entirely, which is why
+       this shipped broken and verified green. */
+    pointer-events: all;
     margin: 0 0 6px;
     padding: 6px 8px;
     background: var(--drpg-eye);
@@ -10128,6 +10161,59 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
 
 #drpg-gm-launcher i {
     color: inherit;
+}
+
+/* ---- the scene button, and the rest of the left rail's geometry --------- */
+
+/* The scene navigation is the GM's — a player has one scene and no business
+   being reminded of the others. Hidden by DEFAULT and shown by the class the
+   GM's own client puts on it (injectLauncher, gm-panel.mjs) — the fail-safe
+   direction: a client where the module never ran shows a player nothing
+   extra, and the ancestor-class trap documented on the rail above cannot
+   reopen it. */
+#scene-navigation {
+    display: none !important;
+}
+
+#scene-navigation.drpg-gm-nav {
+    display: flex !important;
+}
+
+/* Module dress for the scene buttons: transparent, red, a hairline — the
+   launcher's palette at rail volume. The player dots are hidden: who is
+   standing on which scene is the roster question again, and the corner
+   already stopped answering it (see the players gauge). */
+#scene-navigation .ui-control.scene {
+    background: transparent !important;
+    border: 1px solid rgba(var(--drpg-eye-rgb), 0.45) !important;
+    border-radius: 3px !important;
+    color: var(--drpg-eye) !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+}
+
+#scene-navigation .ui-control.scene:hover {
+    background: rgba(var(--drpg-eye-rgb), 0.1) !important;
+    border-color: var(--drpg-eye) !important;
+    color: var(--drpg-eye-light) !important;
+}
+
+#scene-navigation .ui-control.scene.active {
+    border-color: var(--drpg-eye) !important;
+    color: var(--drpg-eye-light) !important;
+}
+
+#scene-navigation .scene-players {
+    display: none !important;
+}
+
+/* The whole left flank starts where the right flank does. Measured: the
+   right column and the Despair bars sit at y=22, the left column and the
+   scene navigation at y=16 — six pixels of visible disagreement across the
+   top of the screen. Same top, same 16px side margins both flanks. */
+#ui-left-column-1,
+#scene-navigation {
+    margin-top: 6px;
 }
 
 /* ==========================================================================
