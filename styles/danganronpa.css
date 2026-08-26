@@ -12317,3 +12317,39 @@ i.drpg-pix-foot {
 }
 
 /* == /CHROME PIXEL ICONS == */
+/* ==========================================================================
+   PRESENT AND OBJECTION WEAR THE COURTROOM GAVEL
+   --------------------------------------------------------------------------
+   The Truth Bullet row's button was the last Font Awesome glyph on the sheet:
+   `fa-gavel` outside a debate, `fa-hand` inside one. Both states now wear the
+   pixel gavel the courtroom already uses — `--drpg-g-new-rule`, the same
+   drawing on the New Rule call and the GM panel's Rules tile — so "this goes
+   before the court" is one shape everywhere it appears (Dawid, 26.08).
+   Present and Objection stay told apart the way they already were: by the
+   button's own colours, not by the glyph.
+
+   The mask follows the GM panel's pattern: the <i> itself becomes the mask
+   box, `font-size: 0` retires the vector glyph (with !important, because the
+   sheet's own row-glyph rule sets a text size the same way), and
+   `currentColor` keeps whatever colour the button rules decide. */
+.drpg-row-present i {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    vertical-align: middle;
+    font-size: 0 !important;
+    background-color: currentColor;
+    -webkit-mask-image: var(--drpg-g-new-rule);
+    mask-image: var(--drpg-g-new-rule);
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
+    -webkit-mask-position: center;
+    mask-position: center;
+    image-rendering: pixelated;
+}
+
+.drpg-row-present i::before {
+    content: none !important;
+}
