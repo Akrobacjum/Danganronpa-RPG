@@ -3789,6 +3789,33 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     white-space: normal;
 }
 
+/* ==========================================================================
+   COLUMNS GET THE LINE ROWS ALREADY HAD
+   --------------------------------------------------------------------------
+   Every table in the module ruled between its rows and nothing between its
+   columns, which reads as a list of rows rather than a grid — and these tables
+   are grids: Room Setup is eight columns of per-room settings, the
+   investigation dashboard is a column per student. Dawid asked for the same
+   line both ways (26.08), so this is deliberately the SAME declaration the row
+   rule uses — one line weight, one colour, stated once here rather than copied
+   per table.
+
+   Every module dialog, by the `drpg-` prefix rather than by a list of window
+   classes: a table in a window nobody thought to name is still a table. The
+   last cell in a row is skipped — a line down the right edge is a border on
+   the table, not a separator between anything.
+
+   `border-collapse: collapse` is in force (measured), so these meet the row
+   lines cleanly instead of doubling up at the crossings.
+   ========================================================================== */
+.application.dialog[class*="drpg-"] table :is(th, td) {
+    border-right: 1px solid rgba(var(--drpg-bone-rgb), 0.1);
+}
+
+.application.dialog[class*="drpg-"] table tr > :is(th, td):last-child {
+    border-right: none;
+}
+
 .application.dialog:is(.drpg-projects, .drpg-monokuma-panel) select {
     min-width: 8rem;
     box-sizing: border-box;
@@ -6736,17 +6763,32 @@ body.drpg-pixel-font .application.sheet.actor prose-mirror * {
     animation-delay: var(--drpg-spent-age, 0ms);
 }
 
+/* IT HAS TO READ THE SAME BOTH WAYS.
+   --------------------------------------------------------------------------
+   Measured, the two directions already ran the identical keyframe — but they
+   do not LOOK identical, and Dawid was right to say so (26.08). Marking lays
+   the band over ground the fill has just taken, so the colour arrives and
+   stays; clearing lays it over ground the fill has just given up, so the
+   colour merely lingers and goes. Same animation, half the punch.
+
+   So the flare opens on Bone rather than on the resource's own colour: a white
+   strike that resolves into the colour and then leaves. Arriving and departing
+   both start with something that was not there a frame ago, which is what
+   makes a change register at the edge of vision. */
 @keyframes drpg-bar-flare {
     0% {
         opacity: 1;
+        background-color: var(--drpg-bone);
         filter: drop-shadow(0 0 6px var(--drpg-spent-glow));
     }
     30% {
         opacity: 1;
+        background-color: var(--drpg-spent-glow);
         filter: drop-shadow(0 0 4px var(--drpg-spent-glow));
     }
     100% {
         opacity: 0;
+        background-color: var(--drpg-spent-glow);
         filter: none;
     }
 }
@@ -6777,6 +6819,71 @@ body.drpg-pixel-font .application.sheet.actor prose-mirror * {
     .drpg-resource-bar[data-resource="stress"] {
     --drpg-bar-fill: var(--drpg-blood);
     --drpg-spent-glow: var(--drpg-blood);
+}
+
+/* The speech bubble beside every Experience. It posts the Experience to chat,
+   which in this game is the one thing a player would never want done with one:
+   Experiences are what they spend Hope on mid-scene, not an announcement, and
+   the button sat where the eye lands while reading the row (Dawid, 26.08).
+   Hidden rather than removed — the system wires its own listener to it, and a
+   missing element is a listener with nothing to bind. */
+.application.sheet.actor .experience-section [data-action="sendExpToChat"] {
+    display: none !important;
+}
+
+/* THE NAME CHIP WAS CUTTING THE NAME OFF, and not by overflow.
+   --------------------------------------------------------------------------
+   `.status-label.pointy` carries a clip-path from the system — a banner with a
+   point at the bottom — written as an ABSOLUTE path: `path("M 0 0 H 79 …")`.
+   79 pixels, measured for the labels it was drawn around. The chip is 94 wide
+   here and "Health" ends at 80, so the last pixels of the word were being
+   clipped away — invisibly to any script that asks about overflow, because a
+   clip-path does not change layout. `scrollWidth` said the text fitted while
+   the screen showed it shaved (Dawid, 26.08).
+
+   Same banner, stated in percentages, so it is the shape of whatever the chip
+   actually is: the original path's own vertices divided by its 79x22 box —
+   (74,16.5) is (93.7%, 75%), (39,22) is (49.4%, 100%), (4,16.5) is (5.1%, 75%).
+   `!important` because the system writes its path in a rule of its own. */
+.application.sheet.actor .character-sidebar-sheet .status-bar .status-label.pointy,
+.application.sheet.actor .character-header-sheet .status-bar .status-label.pointy {
+    clip-path: polygon(0% 0%, 100% 0%, 93.7% 75%, 49.4% 100%, 5.1% 75%) !important;
+}
+
+/* VALUE AND MAX ON ONE LINE.
+   --------------------------------------------------------------------------
+   The chip is 100px wide and the system draws the three numerals at 20px:
+   input 40, slash 20, max 40 — exactly 100 before the 3px flex gaps, so the
+   maximum wrapped onto a line of its own and the reading became "2" over "4"
+   rather than "2 / 4" (measured). The wrap has to stay, because the bar claims
+   a full line beneath them; what changes is that the numerals themselves fit.
+   Smaller, per Dawid — they are a caption under a bar that already carries the
+   proportion, not the headline they were sized as. */
+.application.sheet.actor .character-sidebar-sheet .status-value:has(.drpg-resource-bar) {
+    column-gap: 0;
+}
+
+.application.sheet.actor .character-sidebar-sheet
+    .status-value:has(.drpg-resource-bar) > * {
+    font-size: 0.78rem !important;
+    line-height: 1.15 !important;
+    height: auto !important;
+    min-width: 0 !important;
+    flex: 0 0 auto !important;
+}
+
+.application.sheet.actor .character-sidebar-sheet
+    .status-value:has(.drpg-resource-bar) > :is(.bar-input, .bar-label) {
+    width: 1.9rem !important;
+    padding: 0 !important;
+}
+
+/* The bar is the exception to the shrink above: it is not a numeral, and it
+   keeps its own line and its own height. */
+.application.sheet.actor .character-sidebar-sheet
+    .status-value:has(.drpg-resource-bar) > .drpg-resource-bar {
+    flex: 0 0 100% !important;
+    height: 0.62rem !important;
 }
 
 /* --- the stat frames go red ---------------------------------------------- */
