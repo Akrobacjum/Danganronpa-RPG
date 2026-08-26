@@ -32,6 +32,32 @@ import { NOTE_FLAG } from "./pre-session-note.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
+/**
+ * The two roles that run the game. Read from the constants rather than written
+ * as 3 and 4, because the numbers are Foundry's to change and the names are not.
+ */
+const GM_ROLES = [CONST.USER_ROLES.ASSISTANT, CONST.USER_ROLES.GAMEMASTER];
+
+/** Which GM roles currently broadcast their pointer. See the `cursor` step. */
+function gmRolesSharingCursor() {
+    try {
+        const allowed = game.settings.get("core", "permissions")?.SHOW_CURSOR ?? [];
+        return GM_ROLES.filter(r => allowed.includes(r));
+    } catch {
+        // Unreadable permissions are not a finding — say nothing rather than
+        // put a repair button under a question this cannot answer.
+        return [];
+    }
+}
+
+/** A role number as the word core prints for it. */
+function roleName(role) {
+    const key = Object.entries(CONST.USER_ROLES).find(([, v]) => v === role)?.[0] ?? String(role);
+    const label = `USER.Role${key.charAt(0)}${key.slice(1).toLowerCase()}`;
+    const localized = game.i18n.localize(label);
+    return localized === label ? key : localized;
+}
+
 /* ==========================================================================
  * WHAT THE SEASON STILL NEEDS
  * ========================================================================== */
@@ -119,6 +145,46 @@ function steps() {
             done: (workingScene()?.regions?.size ?? 0) > 0,
             missing: () => [],
             open: async () => (await import("./vault.mjs")).openRoomSetupDialog()
+        },
+        {
+            /*
+             * THE GM'S CURSOR HAS A NAME ON IT.
+             *
+             * Foundry broadcasts every user's pointer to everyone who can see
+             * the scene, labelled. In an ordinary game that is a feature — it is
+             * how a GM points at the door they mean. In a killing game it is a
+             * live feed of what the GM is looking at: the room where the body
+             * is, the token they are about to move, the region they are checking
+             * before anybody has walked into it. The module already hides the
+             * player roster for a smaller version of the same leak (a second GM
+             * account logging in is a spoiler), and it hides the clock from
+             * outsiders during an incident. The pointer is the loudest of the
+             * three and the only one Foundry owns.
+             *
+             * OFFERED, NOT IMPOSED, and the same shape as the Mastermind row
+             * below: a dash rather than a cross, because a table that wants to
+             * point at things has decided something rather than forgotten it.
+             * The button is here because the repair is one line and lives four
+             * screens away in core's own permission matrix.
+             *
+             * Players keep theirs. `SHOW_CURSOR` is a per-role list and only the
+             * two GM roles come off it — a player pointing at the map is the
+             * table talking, which is the thing this is protecting.
+             */
+            key: "cursor",
+            optional: true,
+            done: !gmRolesSharingCursor().length,
+            missing: () => gmRolesSharingCursor().map(roleName),
+            fix: async () => {
+                const perms = foundry.utils.deepClone(
+                    game.settings.get("core", "permissions") ?? {});
+                const before = perms.SHOW_CURSOR ?? [];
+                const after = before.filter(r => !GM_ROLES.includes(r));
+                if (after.length === before.length) return 0;
+                perms.SHOW_CURSOR = after;
+                await game.settings.set("core", "permissions", perms);
+                return before.length - after.length;
+            }
         },
         {
             key: "mastermind",

@@ -2164,6 +2164,8 @@
       "hint.assignments": "Despair from a student's rolls goes to their Monokuma's pool. Unwatched, it goes nowhere.",
       "step.rooms": "The map has rooms",
       "hint.rooms": "Rooms are Scene Regions. Movement, Search, Listen and every incident are answered in terms of them.",
+      "step.cursor": "The GM's pointer is private (recommended)",
+      "hint.cursor": "Foundry shows every user's cursor to the table with a name on it. Yours is a live feed of what you are looking at — the room with the body in it, the token you are about to move. This turns it off for the two GM roles and leaves the players' pointers alone. Their ruler is a separate switch in core's permissions, if you want that too.",
       "step.mastermind": "The Mastermind (optional)",
       "hint.mastermind": "Who is hiding among the students, and the Final Key Remnants that prove it. A season without a Mastermind is a legal season — this row never turns red.",
       "resetTitle": "Reset the season",
