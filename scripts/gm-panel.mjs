@@ -311,24 +311,93 @@ export async function openGmPanel() {
         // Reopened only when a tile was actually used, never when the panel was
         // dismissed.
         render: (event, dialog) => {
-            for (const button of dialog.element.querySelectorAll("[data-drpg-run]")) {
-                button.addEventListener("click", async ev => {
-                    ev.preventDefault();
-                    const item = lookup.get(button.dataset.drpgRun);
-                    if (!item) return;
-                    await dialog.close();
-                    try {
-                        await item.run();
-                    } catch (err) {
-                        error(`GM panel action "${item.key}" failed`, err);
-                        ui.notifications.error(game.i18n.localize("DRPG.Panel.failed"));
-                    }
-                    openGmPanel().catch(err =>
-                        error("Could not reopen the GM panel", err));
-                });
-            }
+            // ONE delegated listener, not one per button. The standing block
+            // above the tiles redraws itself while the panel is open (see
+            // below), and a listener bound to a button that has since been
+            // replaced is a "Do it" that does nothing.
+            dialog.element.addEventListener("click", async ev => {
+                const button = ev.target.closest?.("[data-drpg-run]");
+                if (!button || !dialog.element.contains(button)) return;
+                ev.preventDefault();
+                const item = lookup.get(button.dataset.drpgRun);
+                if (!item) return;
+                await dialog.close();
+                try {
+                    await item.run();
+                } catch (err) {
+                    error(`GM panel action "${item.key}" failed`, err);
+                    ui.notifications.error(game.i18n.localize("DRPG.Panel.failed"));
+                }
+                openGmPanel().catch(err =>
+                    error("Could not reopen the GM panel", err));
+            });
+
+            keepStandingFresh(dialog);
         },
         rejectClose: false
+    });
+}
+
+/**
+ * Keep "what happens now" true for as long as the panel is open.
+ *
+ * The line and the table under it were worked out once, while the panel was
+ * being built, and then sat there — so a GM watching the panel while the table
+ * played saw the same suggestion after an incident opened, after the Eclipse
+ * started, and after the last student spent their last action. The only way to
+ * get a current answer was to close the panel and open it again (Dawid, 26.08),
+ * which is a strange thing to have to do to a screen whose whole job is to say
+ * what the state of the world is.
+ *
+ * Every input to that answer is either a flag on an actor (actions left, the
+ * free Move, dead or a Monocub) or one of this module's world settings (the
+ * clock, the incident, the Eclipse, the trial's floor and progress), so two
+ * hooks cover all of it. Debounced because a single action spent writes both.
+ *
+ * Only the standing block is rebuilt. The tiles below it are a fixed list and
+ * redrawing them would take the GM's open sections and scroll position with it.
+ */
+function keepStandingFresh(dialog) {
+    const refresh = foundry.utils.debounce(() => {
+        const block = dialog.element?.querySelector(".drpg-gmp-standing");
+        // Closed, or replaced by a newer panel: stop listening rather than
+        // redrawing something nobody is looking at.
+        if (!block?.isConnected) return stop();
+        try {
+            const fresh = document.createElement("div");
+            fresh.innerHTML = buildPanelContent();
+            const next = fresh.firstElementChild;
+            if (next) block.replaceWith(next);
+        } catch (err) {
+            error("Could not refresh the GM panel's standing", err);
+            stop();
+        }
+    }, 120);
+
+    const hooks = [
+        ["updateActor", () => refresh()],
+        ["createActor", () => refresh()],
+        ["deleteActor", () => refresh()],
+        ["updateSetting", setting => {
+            if (setting?.key?.startsWith(`${MODULE_ID}.`)) refresh();
+        }],
+        // The Eclipse and the time of day arrive over the socket on a GM client
+        // that did not write them, where no setting update fires locally.
+        ["drpgEclipseChanged", () => refresh()],
+        ["drpgTimeOfDayChanged", () => refresh()]
+    ].map(([event, fn]) => [event, Hooks.on(event, fn)]);
+
+    function stop() {
+        for (const [event, id] of hooks) Hooks.off(event, id);
+    }
+
+    // The ordinary way out. `stop` is idempotent — Hooks.off on an id that is
+    // already gone is a no-op — so the guard inside `refresh` staying as a
+    // backstop costs nothing.
+    const closeId = Hooks.on("closeDialogV2", app => {
+        if (app !== dialog) return;
+        Hooks.off("closeDialogV2", closeId);
+        stop();
     });
 }
 
@@ -779,7 +848,7 @@ function buildPanelContent() {
                 : ""}
         </div>`;
 
-    return `<div>
+    return `<div class="drpg-gmp-standing">
                 <h3>${foundry.utils.escapeHTML(campaignName(clock))}</h3>
                 <p><strong>${game.i18n.format("DRPG.Hud.chapter", { n: clock.chapter })}
                    · ${phaseLabel(clock.phase)}
