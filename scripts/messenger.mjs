@@ -28,7 +28,13 @@ export const MESSENGER_FLAGS = {
     /** Which player's thread this message belongs to — a User id. */
     thread: "thread",
     /** "dm" (typed in the messenger window) | "action" (a callGm() ruling card). */
-    kind: "kind"
+    kind: "kind",
+    /** This card ASKS the GM for something and waits on the answer.
+     *  Carried as its own flag rather than derived from the author, because
+     *  several asks are posted BY a GM client on a player's behalf — the
+     *  bridge writes a parked murder's card from the GM's own session — and
+     *  an author check reads those as the GM talking to themselves. */
+    gmAsk: "gmAsk"
 };
 
 export const THREAD_KIND = {
@@ -142,12 +148,12 @@ export async function sendMessage(playerUserId, text, { kind = THREAD_KIND.dm } 
  * Post pre-built HTML — the callGm() ruling cards — into a player's thread.
  * The caller is responsible for escaping anything it interpolated.
  */
-export async function postToThread(playerUserId, html, { kind = THREAD_KIND.action } = {}) {
+export async function postToThread(playerUserId, html, { kind = THREAD_KIND.action, gmAsk = false } = {}) {
     if (!isThreadUser(playerUserId)) return null;
-    return createThreadMessage(playerUserId, html, kind);
+    return createThreadMessage(playerUserId, html, kind, gmAsk);
 }
 
-async function createThreadMessage(playerUserId, content, kind) {
+async function createThreadMessage(playerUserId, content, kind, gmAsk = false) {
     const whisper = Array.from(new Set([playerUserId, ...gmIds()]));
     try {
         return await ChatMessage.create({
@@ -156,7 +162,8 @@ async function createThreadMessage(playerUserId, content, kind) {
             flags: {
                 [MODULE_ID]: {
                     [MESSENGER_FLAGS.thread]: playerUserId,
-                    [MESSENGER_FLAGS.kind]: kind
+                    [MESSENGER_FLAGS.kind]: kind,
+                    ...(gmAsk ? { [MESSENGER_FLAGS.gmAsk]: true } : {})
                 }
             }
         });

@@ -1497,7 +1497,10 @@ export async function callGm(actor, {
 
     try {
         const { postToThread } = await import("./messenger.mjs");
-        return Boolean(await postToThread(owner.id, content));
+        // Every callGm card is, by definition, a call ON the GM — the flag is
+        // what tells the messenger's notifier to interrupt them for it. See
+        // MESSENGER_FLAGS.gmAsk for why this cannot be derived from the author.
+        return Boolean(await postToThread(owner.id, content, { gmAsk: true }));
     } catch (err) {
         error("Could not reach the GM", err);
         return false;

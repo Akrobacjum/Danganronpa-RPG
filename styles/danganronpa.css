@@ -9906,6 +9906,37 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
 .drpg-messenger .window-content,
 #drpg-messenger-roster {
     background: light-dark(var(--drpg-paper-alt), var(--drpg-ink));
+
+    /* The roster arrives and leaves like the popups do — a short rise on the
+       way in, the same path back out — instead of blinking into existence
+       next to a corner full of things that animate (Dawid, 26.08). The
+       classes are driven from `toggleRoster` / `closeRoster`; the resting
+       state here IS the hidden one, so a client that never runs the script
+       shows nothing half-faded. */
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+    transition: opacity var(--drpg-t-enter) var(--drpg-ease-arrive),
+                transform var(--drpg-t-enter) var(--drpg-ease-arrive);
+}
+
+#drpg-messenger-roster.visible {
+    opacity: 1;
+    transform: none;
+}
+
+#drpg-messenger-roster.leaving {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+    pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #drpg-messenger-roster {
+        transition: none;
+        opacity: 1;
+        transform: none;
+    }
+    #drpg-messenger-roster.leaving { opacity: 0; }
 }
 
 #drpg-messenger-launcher,

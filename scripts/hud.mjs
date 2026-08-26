@@ -27,6 +27,8 @@ import { roomOfActor, roomOfToken } from "./movement.mjs";
 import { projectsAvailableIn } from "./projects.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
+// Static, and safe: nothing imports hud.mjs, so no path leads back here.
+import { murderState, participantIds } from "./murder.mjs";
 // The fifth, added when the trial's own bar was folded into this widget. Walked
 // like the four above and clean: trial-floor.mjs reaches config, settings and
 // utils and nothing else — it stopped importing trial.mjs when the evidence
@@ -156,6 +158,47 @@ async function settleElapsedPause(paused) {
     }
 }
 
+/**
+ * The last clock this client was ALLOWED to display. See `clockForDisplay`.
+ */
+let lastPublicClock = null;
+
+/**
+ * The clock as this client may show it.
+ *
+ * While a murder runs, the clock moves in private (Dawid, 26.08): the change
+ * of time is part of the incident, and the HUD flipping to "Morning" on every
+ * screen would tell each outsider that the GM is doing something at this hour.
+ * So an outsider's HUD keeps showing the clock as it stood when the incident
+ * began, and catches up the moment it ends — `murderState` clearing travels
+ * the sync bus, which re-renders the HUD on every client (SYNC.restrictions).
+ *
+ * The GM and the participants' owners see the truth throughout; they are the
+ * people the incident is happening TO. Note the world SETTING still reaches
+ * every client — nothing world-scoped can be hidden from a console (see the
+ * settings notes) — this hides the answer from the SCREEN, which is where the
+ * table actually reads it.
+ */
+function clockForDisplay(clock) {
+    try {
+        const state = murderState();
+        const hide = state
+            && !game.user.isGM
+            && ![...participantIds(state)].some(id =>
+                game.actors.get(id)?.testUserPermission(game.user, "OWNER"));
+
+        if (!hide) {
+            lastPublicClock = foundry.utils.duplicate(clock);
+            return clock;
+        }
+        return lastPublicClock ?? clock;
+    } catch {
+        // A HUD that cannot decide shows the truth — a wrong clock for one
+        // render beats no clock at all.
+        return clock;
+    }
+}
+
 /** Build or rebuild the HUD in place. Safe to call as often as you like. */
 export function renderHud() {
     try {
@@ -217,7 +260,7 @@ export function renderHud() {
         const hud = outgoing ?? buildHudShell();
         hud.replaceChildren();
 
-        const clock = getClock();
+        const clock = clockForDisplay(getClock());
         const isGM = game.user.isGM;
 
         hud.classList.toggle("gm", isGM);

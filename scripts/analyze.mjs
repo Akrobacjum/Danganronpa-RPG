@@ -137,16 +137,37 @@ async function identify(item, actor, realType, isCritical, dc, total) {
         ${hint ? `<p><em>${foundry.utils.escapeHTML(hint)}</em></p>` : ""}`);
 
     // The critical's second half is a human's to give, so the GMs are told to
-    // give it rather than the module inventing one.
+    // give it rather than the module inventing one. Through the messenger, not
+    // a bare GM whisper: this WAITS on an answer, and the thread is both where
+    // the GM is interrupted for asks (the `gmAsk` notifier) and where their
+    // reply already has a road back to the player. The whisper it replaces
+    // sat in the sidebar log, which after the notification diet nobody was
+    // told to read.
     if (isCritical) {
-        await whisperToGms(`
-            <p><strong>${game.i18n.localize("DRPG.Analyze.critTitle")}</strong></p>
-            <p>${game.i18n.format("DRPG.Analyze.critPrompt", {
-                a: article(label),
-                actor: foundry.utils.escapeHTML(actor.name),
-                name: foundry.utils.escapeHTML(item.name),
-                type: foundry.utils.escapeHTML(label)
-            })}</p>`);
+        try {
+            const { callGm } = await import("./gm-bridge.mjs");
+            await callGm(actor, {
+                title: game.i18n.localize("DRPG.Analyze.critTitle"),
+                body: game.i18n.format("DRPG.Analyze.critPrompt", {
+                    a: article(label),
+                    actor: foundry.utils.escapeHTML(actor.name),
+                    name: foundry.utils.escapeHTML(item.name),
+                    type: foundry.utils.escapeHTML(label)
+                })
+            });
+        } catch (err) {
+            // The old road, so a broken bridge cannot swallow the guide's owed
+            // hint outright.
+            error("Could not put the Analyze critical to the GM", err);
+            await whisperToGms(`
+                <p><strong>${game.i18n.localize("DRPG.Analyze.critTitle")}</strong></p>
+                <p>${game.i18n.format("DRPG.Analyze.critPrompt", {
+                    a: article(label),
+                    actor: foundry.utils.escapeHTML(actor.name),
+                    name: foundry.utils.escapeHTML(item.name),
+                    type: foundry.utils.escapeHTML(label)
+                })}</p>`);
+        }
     }
 
     log(`Analyze: ${actor.name} rolled ${total} vs DC ${dc ?? "—"} and identified "${item.name}" as ${realType}.`);

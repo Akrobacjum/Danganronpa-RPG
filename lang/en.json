@@ -1895,6 +1895,7 @@
     "Messenger": {
       "launcherTooltip": "Messenger",
       "playerWindowTitle": "GM Chat",
+      "gmActionTitle": "Waiting on your ruling",
       "gmWindowTitle": "{player} — GM Chat",
       "rosterTitle": "Messenger",
       "rosterEmpty": "No players in this world yet.",

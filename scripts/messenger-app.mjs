@@ -352,11 +352,28 @@ Hooks.on("drpgMessengerMessage", (playerUserId, message) => {
         return;
     }
 
+    /* A GM used to keep only the roster badge for this — a passive dot in the
+     * corner — which was the right volume for a player's "hey" and the wrong
+     * one for everything that WAITS on the GM: a parked murder's approve card,
+     * a project proposal, an Analyze critical. An ask that nobody is told
+     * about is an ask that hangs (Dawid, 26.08). The `gmAsk` flag is stamped
+     * where the card is made, and deliberately not derived from the author —
+     * the bridge posts several of these FROM the GM's own session on a
+     * player's behalf, so even a self-authored card can be news to the GM
+     * sitting at that screen. Ordinary chatter keeps the badge. */
+    if (game.user.isGM) {
+        if (!message.getFlag(MODULE_ID, MESSENGER_FLAGS.gmAsk)) return;
+        showPopup(message.content, {
+            title: game.i18n.localize("DRPG.Messenger.gmActionTitle"),
+            onClick: () => openMessenger(playerUserId)
+        });
+        return;
+    }
+
     // The player's own window is not open — surface the reply the same way
     // every other message on their screen appears, with a click that jumps
-    // straight to the conversation. GMs keep the roster badge for this; it
-    // already tells them who wrote.
-    if (game.user.isGM || game.user.id !== playerUserId) return;
+    // straight to the conversation.
+    if (game.user.id !== playerUserId) return;
     const authorId = message.author?.id ?? message.user?.id;
     if (authorId === game.user.id) return;
 
@@ -734,10 +751,26 @@ function launcherTooltip() {
 function toggleRoster(anchor) {
     const existing = document.getElementById("drpg-messenger-roster");
     if (existing) {
-        existing.remove();
+        closeRoster(existing);
         return;
     }
     buildRoster(anchor);
+}
+
+/**
+ * Take the roster off screen the way the popups leave — a beat out, then gone.
+ *
+ * The class drives the transition (see the stylesheet); the timeout is the
+ * guarantee, because a `transitionend` that never fires — reduced motion, a
+ * backgrounded tab — must not leave a dead roster blocking the next open.
+ */
+function closeRoster(panel) {
+    if (panel.classList.contains("leaving")) return;
+    panel.classList.remove("visible");
+    panel.classList.add("leaving");
+    const drop = () => panel.remove();
+    panel.addEventListener("transitionend", drop, { once: true });
+    setTimeout(drop, 400);
 }
 
 function buildRoster(anchor) {
@@ -764,11 +797,17 @@ function buildRoster(anchor) {
 
     document.body.append(panel);
 
+    // Two frames, not one: the element has to be laid out in its resting
+    // (hidden) state before the class flips, or the browser coalesces both
+    // states into a single style and nothing animates. Same dance as the
+    // popups.
+    requestAnimationFrame(() => requestAnimationFrame(() => panel.classList.add("visible")));
+
     // Close on an outside click, but not on the click that just opened it.
     setTimeout(() => document.addEventListener("click", onOutsideClick, { once: true }), 0);
     function onOutsideClick(event) {
         if (panel.contains(event.target) || event.target === anchor) return;
-        panel.remove();
+        closeRoster(panel);
     }
 }
 

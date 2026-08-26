@@ -241,11 +241,31 @@ async function announceTimeOfDay(clock, summary) {
     }
 
     const body = notes.length ? `<p><em>${notes.join(" · ")}</em></p>` : "";
+    const content = `<h3>${timeOfDayLabel(clock.timeOfDay)}</h3>
+                  <p>${clockSummary(clock)}</p>${body}`;
 
-    await announce({
-        content: `<h3>${timeOfDayLabel(clock.timeOfDay)}</h3>
-                  <p>${clockSummary(clock)}</p>${body}`
-    });
+    /* WHILE A MURDER RUNS, THE CLOCK MOVES IN PRIVATE (Dawid, 26.08).
+     *
+     * An incident is a secret between its participants and the GM, and a
+     * public "Morning" card mid-incident tells every outsider that the GM is
+     * doing SOMETHING at this hour — which is most of the secret. So the
+     * announcement narrows to the people already inside it: the GMs and the
+     * participants' owners. The HUD's copy of the time freezes for everyone
+     * else (see `clockForDisplay` in hud.mjs) and catches up the moment the
+     * incident ends. Everything else the change did — refills, restocks —
+     * happened either way; only who is TOLD changes.
+     */
+    const { murderState, participantIds } = await import("./murder.mjs");
+    const state = murderState();
+    if (state) {
+        const { whisperToGms, ownerOf, gmIds } = await import("./utils.mjs");
+        const owners = [...participantIds(state)]
+            .map(id => ownerOf(game.actors.get(id))?.id)
+            .filter(Boolean);
+        await whisperToGms(content, { whisper: Array.from(new Set([...gmIds(), ...owners])) });
+    } else {
+        await announce({ content });
+    }
 
     // Who is down an action is the GM's business, not the table's.
     if (wounded.length) {
