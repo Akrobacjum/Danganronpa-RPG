@@ -6172,6 +6172,18 @@ html body {
     box-shadow: none !important;
 }
 
+/* THE RIGHT RAIL STARTS WHERE EVERY OTHER TOP-ROW PANEL STARTS.
+   Core pads this column by 16px, while the interface's own top margin is 22 —
+   the actions-and-Hope panel, the Despair rows and the GM launcher all begin
+   there. Six pixels is not much to argue about in isolation, and it is exactly
+   enough for the tiles beside a panel to look like they missed the line
+   (Dawid, 26.08). Pushed down rather than the panels pulled up, because 22 is
+   the number the rest of the screen already agrees on. Players get it too:
+   their sidebar has fewer tabs and the same top edge. */
+#sidebar-tabs {
+    padding-top: 22px !important;
+}
+
 /* The pass above caught the fills and left the edges. Borders carry the same
    gold, and on a `legend` or a resource label that edge is most of what you
    see. The action cost and the Hope value keep theirs — those two ARE Hope. */
@@ -10317,7 +10329,16 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
        `.click()` in the tests bypasses hit-testing entirely, which is why
        this shipped broken and verified green. */
     pointer-events: all;
-    margin: 0 0 6px;
+    /* THE TILES BELOW SIT 4px UNDER THIS BUTTON, not 22.
+       The right-hand column is the module's ruler for vertical rhythm: the
+       Projects tray sits 4px under the actions-and-Hope panel, and the left
+       rail read as a stray button floating above its own toolbar by
+       comparison (Dawid, 26.08). The arithmetic is forced by whose property
+       is whose — Foundry's `#ui-left-column-1` is a flex column with a 16px
+       gap, and that gap also spaces the players list off the bottom of the
+       rail, where 16 is right. So the correction goes on this button, which
+       the module owns: 16 - 12 = 4. */
+    margin: 0 0 -12px;
     /* The scene button next door is 32px tall; at its own padding the
        launcher came out 26px, so the row's two red controls disagreed by six
        pixels of bottom edge. Same height, flex does the centring. */
