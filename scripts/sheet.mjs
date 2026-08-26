@@ -771,7 +771,7 @@ function standingEffects(actor) {
 /* ==========================================================================
  * STARTING RESOURCES
  * --------------------------------------------------------------------------
- * Daggerheart derives max HP and Stress from a class, and this game has no
+ * Daggerheart derives max Health and Sanity from a class, and this game has no
  * classes — so `initCharacter` is the only thing that ever writes them. Until
  * it runs, a fresh student reads `max: 0` on both tracks, which means
  * `remaining() <= 0` on both: Wounded AND Breakdown, one action instead of two,
@@ -1005,7 +1005,7 @@ function tidySidebar(element) {
 /**
  * Publish how full each resource bar is, so the stylesheet can draw it.
  *
- * HP and Stress are `<progress>` elements, and the module styles them with
+ * Health and Sanity are `<progress>` elements, and the module styles them with
  * `appearance: none` to get rid of the platform look. That switch also removes
  * the element's native shadow DOM, which is where `::-webkit-progress-value`
  * lives — so the fill cannot be coloured from CSS at all. The rules for it were
@@ -1021,39 +1021,32 @@ function tidySidebar(element) {
  * MARKED, not what is left — so a bar at 100% is a student out of road.
  */
 /**
- * How many pips this is willing to draw before it gives up and leaves the bar.
+ * Health and Sanity as one flat bar apiece, filled by proportion.
  *
- * The guide's numbers are small — HP tops out in single figures, Stress at six —
- * which is the whole argument for pips: you can COUNT them, and counting is
- * what a player actually does with these two. Past a dozen that stops being
- * true and a row of identical marks is worse than a bar, so a homebrew that
- * hands somebody forty Hit Points keeps the bar rather than getting a smear.
- */
-const PIP_LIMIT = 12;
-
-/**
- * HP and Stress as pips rather than a continuous bar.
+ * These were pips for a while — countable points, one per mark — and Dawid
+ * asked for the bar back (26.08): a plain rectangle that fills the fraction of
+ * itself the numerals beside it already state. Flat and square, drawn by this
+ * module rather than by Daggerheart's `<progress>`, because `appearance: none`
+ * on a progress element removes the shadow DOM its fill lives in and the fill
+ * then cannot be coloured from CSS at all — which is the bug the pips were
+ * originally routed around. Two spans obey a stylesheet; a progress element
+ * argues with one.
  *
- * Both are REVERSE resources: `value` is what has been marked, not what is
- * left, and both have small maxima. That makes them points, not a quantity —
- * "three of my four" is the reading, and a bar is the one shape that cannot
- * give it without the numerals beside it doing the work. The module already
- * speaks in pips everywhere else it counts something small: actions, Hope,
- * the Despair pool. These two were the holdout, still wearing Daggerheart's
- * `<progress>` under this module's paint.
+ * Both are REVERSE resources: `value` is what has been MARKED, not what is
+ * left, so a bar at 100% is a student out of road.
  *
  * WHICH ROW IS WHICH, WITHOUT COUNTING ROWS. The stylesheet reaches these two
- * bars through `:nth-child(1)` and `:nth-child(2)` — the risk the audit flagged
- * — but script does not have to: each row carries an input whose `name` is
+ * through `:nth-child(1)` and `:nth-child(2)` — the risk the audit flagged —
+ * but script does not have to: each row carries an input whose `name` is
  * `system.resources.<key>.value`, which says what it is no matter what order
  * the system renders them in or what a future version puts between them.
  *
- * The flare is the one the rest of the module uses. A newly marked point is a
- * spend, so it gets `drpg-spent`; a point that clears gets the arrival flare.
- * `spentSince` counts what is HELD, and for a reverse resource that is the
- * capacity still unmarked — hence `max - value`, and hence the mirrored index
- * handed to `markSpent`: pip 1 is the first mark, which is the LAST of the
- * held sockets to go.
+ * THE FLARE IS THE ONE THE PIPS HAD, aimed at the piece that changed. A pip
+ * that went out flashed; here the BAND between the old fill and the new one
+ * flashes, in the same colours, on the same beat, resuming mid-animation on a
+ * redraw exactly as a pip did (`markSpent` carries the age). `spentSince`
+ * counts what is HELD, which for a reverse resource is the capacity still
+ * unmarked — so its `from`/`to` are mirrored back into marked units here.
  *
  * The system's own controls are untouched. The number input, its `/`, the max
  * and the +/- it wires up all stay exactly where they were; only the bar is
@@ -1070,18 +1063,16 @@ function paintResourceBars(app, element) {
         const max = Number(progress.max) || 0;
         const value = Math.max(0, Math.min(max, Number(progress.value) || 0));
 
-        // Kept fed even when the bar is hidden: the gradient fill in the
-        // stylesheet is the fallback below, and a stale percentage on a bar
-        // that comes back is a wrong bar.
-        const pct = max > 0 ? Math.round((value / max) * 100) : 0;
+        // Kept fed: a stale percentage on a bar that comes back is a wrong bar.
+        const pct = max > 0 ? (value / max) * 100 : 0;
         progress.style.setProperty("--drpg-bar-pct", `${pct}%`);
 
-        bar.querySelectorAll(".drpg-resource-pips").forEach(row => row.remove());
+        bar.querySelectorAll(".drpg-resource-pips, .drpg-resource-bar").forEach(el => el.remove());
 
         const key = bar.querySelector("input.bar-input")?.name
             ?.match(/resources\.([A-Za-z]+)\./)?.[1] ?? null;
 
-        if (!key || max < 1 || max > PIP_LIMIT) {
+        if (!key || max < 1) {
             progress.classList.remove("drpg-bar-replaced");
             continue;
         }
@@ -1090,19 +1081,44 @@ function paintResourceBars(app, element) {
         const held = max - value;
         const change = actorId ? spentSince(`resource:${key}`, actorId, held) : null;
 
-        const row = document.createElement("div");
-        row.className = "drpg-resource-pips";
-        row.dataset.resource = key;
+        const track = document.createElement("div");
+        track.className = "drpg-resource-bar";
+        track.dataset.resource = key;
+        track.dataset.value = String(value);
+        track.dataset.max = String(max);
 
-        for (let i = 1; i <= max; i++) {
-            const pip = document.createElement("span");
-            pip.className = `drpg-resource-pip${i <= value ? " filled" : ""}`;
-            pip.dataset.value = String(i);
-            markSpent(pip, change, max - i + 1);
-            row.append(pip);
+        const fill = document.createElement("span");
+        fill.className = "drpg-resource-fill";
+        fill.style.width = `${pct}%`;
+        track.append(fill);
+
+        // The band that just changed, laid over the fill.
+        //
+        // `spentSince` counts HELD sockets and reports the range of them that
+        // moved; the bar is drawn in MARKED units, and the two run in opposite
+        // directions — held socket `h` is marked slot `max - h + 1`. So the
+        // range flips end for end: held [from..to] is marked
+        // [max - to + 1 .. max - from + 1], which is the band that just changed
+        // colour whichever way it went.
+        if (change) {
+            const lo = max - change.to + 1;
+            const hi = max - change.from + 1;
+            const from = Math.max(0, lo - 1);
+            const to = Math.min(max, hi);
+            if (to > from) {
+                const band = document.createElement("span");
+                band.className = "drpg-resource-delta";
+                band.style.left = `${(from / max) * 100}%`;
+                band.style.width = `${((to - from) / max) * 100}%`;
+                // Same helper the pips used, so the class, the resume offset
+                // and the "is this one of the ones that moved" test are all
+                // the module's one implementation rather than a second copy.
+                markSpent(band, change, change.from);
+                track.append(band);
+            }
         }
 
-        progress.after(row);
+        progress.after(track);
     }
 }
 
@@ -2322,7 +2338,7 @@ function injectCrisisPanel(tab, actor) {
  * Stage 6, on the killer's own sheet.
  *
  * One button, because there is one thing to do: pick a trace and scrub at it,
- * for a Stress a go. The count is what they can SEE — the guide opens their eyes
+ * for a Sanity a go. The count is what they can SEE — the guide opens their eyes
  * to their own traces at this stage — and says nothing about how hard any of it
  * will be to remove.
  */
@@ -2394,9 +2410,9 @@ function injectCleanupPanel(tab, actor, { onTop = true } = {}) {
             tile.gmRoute ? " drpg-gm-route" : ""}`;
         button.disabled = Boolean(tile.off);
         if (tile.off) tile.tip = tile.offTip;
-        // Stage 6 is paid for in Stress AND in one of the day's two actions —
-        // the Stress is what makes a long clean-up hurt, the action is what
-        // makes it finite. The stripe names the Stress because that is the part
+        // Stage 6 is paid for in Sanity AND in one of the day's two actions —
+        // the Sanity is what makes a long clean-up hurt, the action is what
+        // makes it finite. The stripe names the Sanity because that is the part
         // this stage adds on top of the ordinary economy.
         button.dataset.drpgCostKind = "stress";
         button.dataset.tooltip = game.i18n.localize(tile.tip);
