@@ -570,6 +570,7 @@
     },
     "Items": {
       "manage": "Give / take items",
+      "rowButton": "Items",
       "title": "Items — {actor}",
       "buttonTooltip": "Give or take an item",
       "whichCharacter": "Which character?",

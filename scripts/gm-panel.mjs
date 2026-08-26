@@ -567,6 +567,20 @@ async function openWhoIsAliveDialog() {
      */
     const anyCub = students.some(a => stateOf(a) === "monocub");
 
+    /*
+     * ITEMS FROM THE ROW (F).
+     *
+     * The item manager's own route opens with "which character?" — a select and
+     * a Do it — and this table is nothing but a column of that answer. Reaching
+     * a student's inventory from the GM panel meant the Items tile, the picker,
+     * and then the hub; reaching it from the row the GM is already reading takes
+     * the row.
+     *
+     * On EVERY row, not only the living ones, because that is what
+     * `pickCharacter` offers — `studentActors()`, the dead included. A shortcut
+     * that reaches fewer people than the long way round is a second rule to
+     * remember.
+     */
     const rows = students.map(a => {
         const state = stateOf(a);
         const cub = state === "monocub";
@@ -590,14 +604,17 @@ async function openWhoIsAliveDialog() {
                     `<option value="${sKey}"${sKey === state ? " selected" : ""}>${
                         game.i18n.localize(`DRPG.Panel.state.${sKey}`)}</option>`).join("")}
             </select></td>${cubCells}
-            <td>${state === "alive"
-                ? `<button type="button" class="drpg-mini-button drpg-gm-route"
-                       data-drpg-kill="${a.id}">${
-                       game.i18n.localize("DRPG.Chapter.deathTitle")}</button>`
-                : state === "dead"
-                    ? `<button type="button" class="drpg-mini-button" data-drpg-cub="${a.id}">${
-                        game.i18n.localize("DRPG.Monocub.invite")}</button>`
-                    : "—"}</td>
+            <td>
+                <button type="button" class="drpg-mini-button" data-drpg-items="${a.id}">${
+                    game.i18n.localize("DRPG.Items.rowButton")}</button>
+                ${state === "alive"
+                    ? `<button type="button" class="drpg-mini-button drpg-gm-route"
+                           data-drpg-kill="${a.id}">${
+                           game.i18n.localize("DRPG.Chapter.deathTitle")}</button>`
+                    : state === "dead"
+                        ? `<button type="button" class="drpg-mini-button" data-drpg-cub="${a.id}">${
+                            game.i18n.localize("DRPG.Monocub.invite")}</button>`
+                        : ""}</td>
         </tr>`;
     }).join("");
 
@@ -657,6 +674,12 @@ async function openWhoIsAliveDialog() {
             // second copy of a rule that can only be right in one place.
             wireRow(dialog, "data-drpg-kill", actor => openDeathDialog({ actor }));
             wireRow(dialog, "data-drpg-cub", actor => setMonocub(actor, true));
+            // Straight into the hub with the character already decided. Through
+            // `wireRow` like the others, so the table closes, the manager runs
+            // for as long as the GM wants it, and the table comes back after —
+            // the manager's own Close is the one exit, exactly as D-F5-2 left it.
+            wireRow(dialog, "data-drpg-items", actor =>
+                import("./gm-items.mjs").then(m => m.openItemManager(actor)));
 
             for (const button of dialog.element.querySelectorAll("[data-drpg-give]")) {
                 button.addEventListener("click", async ev => {
