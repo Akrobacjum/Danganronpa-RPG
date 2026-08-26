@@ -12980,3 +12980,33 @@ body.drpg-explainers :is(#drpg-hud, #drpg-despair, #drpg-player-status, #countdo
 #drpg-gm-panel :is(h2, h3, h4) {
     text-wrap: balance;
 }
+
+/* ==========================================================================
+   D-F5-4 — THE FOG MATRIX STANDS ITS HEADINGS ON END
+   --------------------------------------------------------------------------
+   Room Setup's Fog tab is a checkbox per student per room, and every column was
+   as wide as the room's NAME rather than as wide as the checkbox in it —
+   between 55 and 251 pixels of heading above a 13-pixel box. Measured with
+   eighteen rooms: a 3230px table in a 1502px window, 1760px of horizontal
+   scrolling to reach the last room.
+
+   Turned on their side the columns collapse to the checkbox: 56px each, the
+   table to 1460, and the horizontal scroll disappears entirely — the whole
+   matrix is visible at once, which is the only way a matrix is any use. It
+   costs a tall heading strip (251px, the length of the longest room name
+   standing up) and that is the right trade for a window opened between
+   sessions to set a map up.
+
+   `vertical-rl` plus a half turn is what reads bottom-to-top; the alternative
+   (`sideways-lr`) is not supported in Chromium. Scoped to this one table: every
+   other table in the module has a handful of columns and reads correctly lying
+   down.
+   ========================================================================== */
+
+[data-drpg-panel="fog"] table thead th:not(:first-child) {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    white-space: nowrap;
+    vertical-align: bottom;
+    padding: 6px 3px;
+}
