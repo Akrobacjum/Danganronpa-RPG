@@ -10,7 +10,10 @@
  * everybody is looking during an investigation.
  *
  * The ring is drawn rather than tinted, because a tint would fight the artwork
- * a Remnant already uses to say what it depicts.
+ * a Remnant already uses to say what it depicts. Its shape is a SQUARE pixel
+ * frame (Dawid, 26.08) — filled bars one sprite-cell thick on the token's own
+ * 12-cell grid, hard edges, no antialiased stroke — so the marker speaks the
+ * same pixel language as the glyph inside it.
  *
  * Colours are read from the stylesheet at runtime instead of being written
  * here. The palette is declared once in `danganronpa.css` and this reads the
@@ -293,14 +296,22 @@ function paint(token) {
         ring.visible = true;
         ring.clear();
 
-        const w = token.w ?? token.document.width * (canvas.grid?.size ?? 100);
-        const h = token.h ?? token.document.height * (canvas.grid?.size ?? 100);
-        const radius = Math.min(w, h) / 2;
+        const w = Math.round(token.w ?? token.document.width * (canvas.grid?.size ?? 100));
+        const h = Math.round(token.h ?? token.document.height * (canvas.grid?.size ?? 100));
 
-        // A reinforced trace cannot be cleaned up, so it gets the heavier ring —
-        // the one distinction a GM acts on without opening anything.
-        ring.lineStyle(reinforced ? 4 : 2, colourOf(type), 0.95);
-        ring.drawCircle(w / 2, h / 2, Math.max(4, radius - 2));
+        // A square pixel frame: four filled bars on integer coordinates, one
+        // cell of the sprite's own 12-cell grid thick — hard edges, no
+        // antialiased stroke. A reinforced trace cannot be cleaned up, so it
+        // gets the heavier frame (two cells) — the one distinction a GM acts
+        // on without opening anything.
+        const cell = Math.max(1, Math.round(Math.min(w, h) / 12));
+        const t = (reinforced ? 2 : 1) * cell;
+        ring.beginFill(colourOf(type), 0.95);
+        ring.drawRect(0, 0, w, t);
+        ring.drawRect(0, h - t, w, t);
+        ring.drawRect(0, t, t, h - 2 * t);
+        ring.drawRect(w - t, t, t, h - 2 * t);
+        ring.endFill();
     } catch (err) {
         debug("Could not paint a Remnant ring", err);
     }
