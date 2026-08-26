@@ -75,6 +75,8 @@ function onRenderCountdowns(app, element) {
         // Shown to everyone, GM or not, so removed for everyone.
         root.querySelector(".header-type-toggles")?.remove();
 
+        localiseRawKeys(root);
+
         // Folding the tray away is everybody's, not the GM's — a player with
         // four projects on a 1080p screen wants the map back, and the tray sits
         // directly under their own status strip.
@@ -105,6 +107,32 @@ function onRenderCountdowns(app, element) {
         host.append(gear);
     } catch (err) {
         error("Could not add the project manager button", err);
+    }
+}
+
+/**
+ * Translate labels the system left as raw keys.
+ *
+ * The tray's own view-mode control announces itself as
+ * "DAGGERHEART.UI.Countdowns.toggleIconMode" — the key exists and resolves to
+ * "Toggle Icon Only", the system simply does not localise it when it builds
+ * the header. A screen reader reads the key aloud, and it surfaces as a
+ * tooltip. Reported as B-F5-2.
+ *
+ * Repaired here because this module already relabels this window on every
+ * render, and the tray rebuilds its header from scratch each time — the same
+ * reason the gear and the collapse caret are re-added rather than wired once.
+ * A value is only touched when it looks like a key AND the key is one the
+ * active language actually has, so this can never invent a label of its own.
+ */
+function localiseRawKeys(root) {
+    const KEYLIKE = /^[A-Z][\w.]*\.[\w.]+$/;
+    for (const element of root.querySelectorAll("[aria-label], [data-tooltip]")) {
+        for (const attribute of ["aria-label", "data-tooltip"]) {
+            const value = element.getAttribute(attribute);
+            if (!value || !KEYLIKE.test(value) || !game.i18n.has(value)) continue;
+            element.setAttribute(attribute, game.i18n.localize(value));
+        }
     }
 }
 
