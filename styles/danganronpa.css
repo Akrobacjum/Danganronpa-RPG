@@ -9438,7 +9438,10 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
 :root {
     --drpg-panel-ground: light-dark(rgba(var(--drpg-bone-rgb), 0.85), rgba(var(--drpg-deep-rgb), 0.78));
     --drpg-panel-radius: 6px;
-    --drpg-panel-blur: blur(3px);
+    /* `none` since the ground went opaque at the end of this file: a
+       backdrop-filter behind something nothing shows through is a compositing
+       layer per panel, every frame, for an effect that cannot be seen. */
+    --drpg-panel-blur: none;
     --drpg-panel-shadow: 0 2px 8px rgba(var(--drpg-shadow-rgb), 0.4);
 }
 
@@ -10692,8 +10695,15 @@ body.drpg-pixel-font #pause.paused figcaption {
    are late-cascade surfaces and this file's own convention is that the last
    word about a shared surface lives at the end.
 
-   The panels stay TRANSLUCENT — they float over the map and the map should
-   read through them; only the colour being thinned changes, from Deep to Ink.
+   THE PANELS ARE OPAQUE (Dawid, 26.08). They used to be thinned to 0.82 so the
+   map read through them, and that is what made the four of them look like four
+   different colours: identical CSS, but each one sits over something else —
+   the clock over a bright floor, the Despair rows over the dark top strip, the
+   right-hand trays over the edge of the canvas — and a translucent ground
+   takes the colour of whatever is behind it. Measured before the change: all
+   five computed to exactly `rgba(29, 26, 33, 0.82)` and no two looked alike on
+   screen. The only way for "the same colour" to survive being put in different
+   places is for it to stop borrowing from underneath.
    ========================================================================== */
 
 :root {
@@ -10703,8 +10713,8 @@ body.drpg-pixel-font #pause.paused figcaption {
        every browser Foundry ships to. */
     --drpg-ink-rgb: 29, 26, 33;
     --drpg-panel-ground: light-dark(
-        rgba(var(--drpg-bone-rgb), 0.85),
-        rgba(var(--drpg-ink-rgb), 0.82)
+        rgb(var(--drpg-bone-rgb)),
+        rgb(var(--drpg-ink-rgb))
     );
 }
 
@@ -12888,5 +12898,17 @@ body.drpg-explainers :is(#drpg-hud, #drpg-despair, #drpg-player-status, #countdo
     display: block;
     padding-left: 0.6rem;
     border-left: 2px solid var(--drpg-gold-antique, var(--drpg-line-strong));
+    opacity: 0.92;
+}
+
+/* The GM's own words about a room, on the card you get for walking into it —
+   see `chargeForCrossing` in movement.mjs. Set apart from the module's own two
+   lines above it the same way the state window sets it apart: this is the one
+   piece of prose on the card that a person wrote. */
+.drpg-room-prose {
+    margin: 0.4rem 0 0;
+    padding-left: 0.6rem;
+    border-left: 2px solid var(--drpg-gold-antique, var(--drpg-line-strong));
+    font-style: italic;
     opacity: 0.92;
 }
