@@ -517,6 +517,12 @@ export async function openInvestigationDashboard() {
     const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
     const { allRooms } = await import("./movement.mjs");
     const { murderState } = await import("./murder.mjs");
+    // The Final Key Remnant planner lived on the Mastermind screen, where it
+    // shared a window with the one secret the module guards hardest — a GM
+    // planting the endgame clue had the Mastermind's name on screen every
+    // time. It is a tab of the case dashboard now (Dawid, 26.08); the
+    // Mastermind screen keeps only the role and the lair.
+    const { finalRemnants, finalTruthPlacedThisChapter } = await import("./mastermind.mjs");
 
     const students = evidenceByStudent();
     const traces = allTraces();
@@ -656,6 +662,8 @@ export async function openInvestigationDashboard() {
                 game.i18n.localize("DRPG.Investigation.tabTraces")}</button>
             <button type="button" class="drpg-dashboard-tab" data-drpg-tab="key">${
                 game.i18n.localize("DRPG.Investigation.tabKeyRemnants")}</button>
+            <button type="button" class="drpg-dashboard-tab" data-drpg-tab="final">${
+                game.i18n.localize("DRPG.Mastermind.finalRemnantsTitle")}</button>
         </nav>
 
         <div data-drpg-panel="traces">
@@ -697,6 +705,36 @@ export async function openInvestigationDashboard() {
             <p class="notes">${game.i18n.localize("DRPG.Investigation.createNote")}</p>
         </div>
 
+        <div data-drpg-panel="final" style="display:none">
+            <p class="notes">${game.i18n.localize("DRPG.Mastermind.finalRemnantsNote")}</p>
+            ${(() => {
+                const placedFinals = finalRemnants();
+                return placedFinals.length
+                    ? `<ul class="drpg-final-list">${placedFinals.map(f => `<li>
+                        <strong>${esc(f.data.public?.name
+                            || game.i18n.localize("DRPG.Remnant.finalSubject"))}</strong>
+                        <span class="notes">${esc(traceContextLine(f.data))}</span>
+                        ${f.data.note ? `<span class="notes">${esc(f.data.note)}</span>` : ""}
+                    </li>`).join("")}</ul>`
+                    : `<p class="notes">${game.i18n.localize("DRPG.Mastermind.noFinals")}</p>`;
+            })()}
+            <p class="notes${finalTruthPlacedThisChapter() ? "" : " drpg-warning"}">${game.i18n.localize(
+                finalTruthPlacedThisChapter() ? "DRPG.Mastermind.finalTruthPlaced"
+                    : "DRPG.Mastermind.finalTruthReminder")}</p>
+            <label>${game.i18n.localize("DRPG.Investigation.pickRoom")}
+                <select name="finalRoom">
+                    <option value="">—</option>
+                    ${roomOptions}
+                </select></label>
+            <label>${game.i18n.localize("DRPG.Investigation.difficulty")}
+                <select name="finalVis">${visOptions}</select></label>
+            <label>${game.i18n.localize("DRPG.Investigation.clue")}
+                <input type="text" name="finalNote"
+                    placeholder="${game.i18n.localize(
+                        "DRPG.Investigation.finalNotePlaceholder")}" /></label>
+            <p class="notes">${game.i18n.localize("DRPG.Mastermind.finalAddNote")}</p>
+        </div>
+
     </form>`);
 
     const action = await tableDialog({
@@ -710,6 +748,13 @@ export async function openInvestigationDashboard() {
                     const form = d.element.querySelector("form");
                     const q = name => form.querySelector(`[name="${CSS.escape(name)}"]`);
                     return {
+                        // The Final Key Remnant fields ride the same Save the
+                        // whole dashboard uses — same reasoning their old home
+                        // gave for riding Apply: planting the endgame clue must
+                        // not need a second button to remember.
+                        finalRoom: q("finalRoom")?.value ?? "",
+                        finalVis: q("finalVis")?.value || "evident",
+                        finalNote: q("finalNote")?.value.trim() ?? "",
                         traces: traces.map(({ token, scene }) => {
                             const key = rowKey(scene.id, token.id);
                             return {
@@ -797,6 +842,20 @@ export async function openInvestigationDashboard() {
         const { openBodyDiscoveryDialog } = await import("./chapter.mjs");
         await openBodyDiscoveryDialog();
         return openInvestigationDashboard();
+    }
+
+    // The clue first, because it is the half that can fail: a room that no
+    // longer exists warns and places nothing, and the GM should see that on
+    // the window they pressed Save on. Same order its old home kept.
+    if (action.finalRoom) {
+        const { placeFinalRemnant } = await import("./mastermind.mjs");
+        const placedFinal = await placeFinalRemnant({
+            room: action.finalRoom, visibility: action.finalVis, note: action.finalNote
+        });
+        if (placedFinal) {
+            ui.notifications.info(game.i18n.format("DRPG.Mastermind.finalPlacedIn",
+                { room: action.finalRoom }));
+        }
     }
 
     await applyDashboardSave(action, { traces, plan });

@@ -56,13 +56,22 @@ function readStore() {
     }
 }
 
-async function writeStore(actorId) {
+async function writeStore(actorId, room) {
     if (!game.user.isGM) return;
-    const previous = readStore().actorId ?? null;
-    const entry = { actorId: actorId || null, updated: Date.now() };
+    const before = readStore();
+    const previous = before.actorId ?? null;
+    // The lair rides in the same entry as the identity because it is the same
+    // kind of secret: where the Mastermind's own room is says almost as much
+    // as who they are. `room === undefined` keeps whatever is stored, so the
+    // callers that only ever meant the identity cannot silently drop it.
+    const entry = {
+        actorId: actorId || null,
+        room: room === undefined ? (before.room ?? null) : (room || null),
+        updated: Date.now()
+    };
     await game.settings.set(MODULE_ID, SETTINGS.mastermind, entry);
     syncToGms(entry);
-    notifyDoorAccess(previous, entry.actorId);
+    notifyDoorAccess(previous, entry.actorId, entry.room);
 }
 
 function syncToGms(entry) {
@@ -89,21 +98,27 @@ function syncToGms(entry) {
  * who somehow owns both never ends up cleared by the second half of their own
  * promotion.
  */
-function notifyDoorAccess(previousActorId, nextActorId) {
+function notifyDoorAccess(previousActorId, nextActorId, room = null) {
     if (previousActorId && previousActorId !== nextActorId) {
         const outgoing = ownerOf(game.actors.get(previousActorId));
         if (outgoing && !outgoing.isGM) sendDoorFlag(outgoing.id, false);
     }
     if (nextActorId) {
         const incoming = ownerOf(game.actors.get(nextActorId));
-        if (incoming && !incoming.isGM) sendDoorFlag(incoming.id, true);
+        // Sent on every write, not only on a change of WHO — the lair moving
+        // is the other thing this flag carries now, and the recipient's copy
+        // must follow it.
+        if (incoming && !incoming.isGM) sendDoorFlag(incoming.id, true, room);
     }
 }
 
-function sendDoorFlag(userId, value) {
+function sendDoorFlag(userId, value, room = null) {
     try {
         game.socket.emit(SOCKET_EVENT,
-            { action: ACTION_DOOR, from: game.user.id, value },
+            // `room` travels only alongside `value: true` — a "you are not the
+            // Mastermind" carries no location, so a cleared player's client
+            // holds nothing worth reading.
+            { action: ACTION_DOOR, from: game.user.id, value, room: value ? (room ?? null) : null },
             { recipients: [userId] });
     } catch (err) {
         error("Could not deliver the Mastermind's private door flag", err);
@@ -124,6 +139,30 @@ export function iAmTheMastermind() {
     }
 }
 
+/**
+ * The Mastermind's own room, on the client that holds the part — null for
+ * everyone else, including every GM (they read the store instead). Delivered
+ * over the same private whisper as the door flag; see `sendDoorFlag`.
+ *
+ * What standing in it buys is decided elsewhere: visibility.mjs shows the
+ * whole cast to a Mastermind whose own token is in this room, and takes it
+ * away the moment they leave.
+ */
+export function myLairRoom() {
+    if (!iAmTheMastermind()) return null;
+    try {
+        return game.settings.get(MODULE_ID, SETTINGS.myMastermindLair) || null;
+    } catch {
+        return null;
+    }
+}
+
+/** The lair as the GMs know it. `null` off a non-GM client — not an error. */
+export function mastermindLair() {
+    if (!game.user.isGM) return null;
+    return readStore().room ?? null;
+}
+
 /** The Mastermind's actor. `null` for anyone who is not a GM — not an error. */
 export function mastermindActor() {
     if (!game.user.isGM) return null;
@@ -142,17 +181,23 @@ export function isMastermind(actor) {
  * starts. That agreement is a conversation this module cannot have for you;
  * the dialog only says so.
  */
-export async function setMastermind(actor) {
+export async function setMastermind(actor, { room } = {}) {
     if (!game.user.isGM || !actor) return null;
-    await writeStore(actor.id);
+    await writeStore(actor.id, room);
     log(`Mastermind set (visible to GMs only).`);
     return actor;
 }
 
-/** Clear the pick — a fresh season, or a correction. */
+/** Point the Mastermind's lair at a room, or clear it, without touching WHO. */
+export async function setMastermindLair(room) {
+    if (!game.user.isGM) return;
+    await writeStore(readStore().actorId ?? null, room ?? null);
+}
+
+/** Clear the pick — a fresh season, or a correction. The lair goes with it. */
 export async function clearMastermind() {
     if (!game.user.isGM) return;
-    await writeStore(null);
+    await writeStore(null, null);
 }
 
 export function registerMastermind() {
@@ -186,7 +231,7 @@ export function registerMastermind() {
             const mine = readStore();
             const owns = Boolean(mine.actorId
                 && ownerOf(game.actors.get(mine.actorId))?.id === senderId);
-            sendDoorFlag(senderId, owns);
+            sendDoorFlag(senderId, owns, owns ? (mine.room ?? null) : null);
             return;
         }
 
@@ -236,6 +281,14 @@ export function registerMastermind() {
         if (!game.users.get(senderId)?.isGM) return;
         try {
             await game.settings.set(MODULE_ID, SETTINGS.iAmMastermind, Boolean(payload.value));
+            // The lair travels with the flag and dies with it — a cleared
+            // player keeps no record of where the room was.
+            await game.settings.set(MODULE_ID, SETTINGS.myMastermindLair,
+                payload.value ? (payload.room ?? "") : "");
+            // Standing in the lair may already be true the moment the part
+            // arrives — repaint rather than waiting for the next token move.
+            const { applyAll } = await import("./visibility.mjs");
+            applyAll();
         } catch (err) {
             error("Could not record the Mastermind's private door flag", err);
         }
@@ -289,7 +342,13 @@ export function registerMastermind() {
  * to own a tile for it; it is the same subject as the Mastermind screen and
  * belongs on the same window.
  */
-async function toggleFinalTrialFlag() {
+/**
+ * Exported for the Class Trial console, which is where the button lives now
+ * (Dawid, 26.08): announcing the Final Trial is a trial-table act, and the
+ * Mastermind screen — the one window that names the season's secret — keeps
+ * only the role and the lair.
+ */
+export async function toggleFinalTrialFlag() {
     const DialogV2 = foundry.applications.api.DialogV2;
     const next = !inFinalTrial();
 
@@ -348,17 +407,15 @@ export async function openMastermindDialog() {
     ).join("");
 
     const { allRooms } = await import("./movement.mjs");
-    const { REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS } = await import("./config.mjs");
-    const { traceContextLine } = await import("./remnants.mjs");
 
-    const placedFinals = finalRemnants();
-    const thisChapter = finalTruthPlacedThisChapter();
+    // The Final Key Remnant planner that used to sit here lives on the
+    // Investigation dashboard now (Dawid, 26.08) — this screen names the one
+    // secret the module guards hardest, and planting endgame clues gave a GM
+    // reasons to have it open. What is left is the role and the lair.
+    const lair = readStore().room ?? "";
     const roomOptions = allRooms().map(r =>
-        `<option value="${foundry.utils.escapeHTML(r)}">${
+        `<option value="${foundry.utils.escapeHTML(r)}"${r === lair ? " selected" : ""}>${
             foundry.utils.escapeHTML(r)}</option>`).join("");
-    const visOptions = REMNANT_VISIBILITY.map(v =>
-        `<option value="${v}"${v === "evident" ? " selected" : ""}>${
-            foundry.utils.escapeHTML(REMNANT_VISIBILITY_LABELS[v] ?? v)}</option>`).join("");
 
     const result = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Mastermind.dialogTitle") },
@@ -372,35 +429,12 @@ export async function openMastermindDialog() {
                 </select></label>
             <p class="notes">${game.i18n.localize("DRPG.Mastermind.dialogIntro")}</p>
 
-            <fieldset class="drpg-final-remnants">
-                <legend>${game.i18n.localize("DRPG.Mastermind.finalRemnantsTitle")}</legend>
-                <p class="notes">${game.i18n.localize("DRPG.Mastermind.finalRemnantsNote")}</p>
-                ${placedFinals.length
-                    ? `<ul class="drpg-final-list">${placedFinals.map(f => `<li>
-                        <strong>${foundry.utils.escapeHTML(f.data.public?.name
-                            || game.i18n.localize("DRPG.Remnant.finalSubject"))}</strong>
-                        <span class="notes">${foundry.utils.escapeHTML(
-                            traceContextLine(f.data))}</span>
-                        ${f.data.note ? `<span class="notes">${
-                            foundry.utils.escapeHTML(f.data.note)}</span>` : ""}
-                    </li>`).join("")}</ul>`
-                    : `<p class="notes">${game.i18n.localize("DRPG.Mastermind.noFinals")}</p>`}
-                <p class="notes${thisChapter ? "" : " drpg-warning"}">${game.i18n.localize(
-                    thisChapter ? "DRPG.Mastermind.finalTruthPlaced"
-                        : "DRPG.Mastermind.finalTruthReminder")}</p>
-                <label>${game.i18n.localize("DRPG.Investigation.pickRoom")}
-                    <select name="finalRoom">
-                        <option value="">—</option>
-                        ${roomOptions}
-                    </select></label>
-                <label>${game.i18n.localize("DRPG.Investigation.difficulty")}
-                    <select name="finalVis">${visOptions}</select></label>
-                <label>${game.i18n.localize("DRPG.Investigation.clue")}
-                    <input type="text" name="finalNote"
-                        placeholder="${game.i18n.localize(
-                            "DRPG.Investigation.finalNotePlaceholder")}" /></label>
-                <p class="notes">${game.i18n.localize("DRPG.Mastermind.finalAddNote")}</p>
-            </fieldset>
+            <label>${game.i18n.localize("DRPG.Mastermind.lairLabel")}
+                <select name="lair">
+                    <option value="">—</option>
+                    ${roomOptions}
+                </select></label>
+            <p class="notes">${game.i18n.localize("DRPG.Mastermind.lairNote")}</p>
 
             ${current ? `
             <fieldset>
@@ -428,31 +462,19 @@ export async function openMastermindDialog() {
                 //
                 // Wrapping the answer makes the two distinguishable: a dismissal
                 // is `null`, a deliberate clear is `{ who: "" }`.
-                //
-                // The Final Key Remnant fields ride along on the same Apply: a
-                // GM naming the Mastermind and planting the clue that proves it
-                // is doing one thing, and a second button for the second half
-                // would be a second chance to forget it.
                 callback: (e, b, d) => {
                     const q = name => d.element.querySelector(`[name=${name}]`);
                     return {
                         who: q("who").value,
-                        finalRoom: q("finalRoom")?.value ?? "",
-                        finalVis: q("finalVis")?.value || "evident",
-                        finalNote: q("finalNote")?.value.trim() ?? ""
+                        lair: q("lair")?.value ?? ""
                     };
                 }
             },
-            // The endgame used to be three GM-panel tiles — pick the Mastermind,
-            // toggle the Final Trial, rule on it — which is one subject split
-            // across three trips through the panel, on a screen that names the
-            // one secret the module guards hardest. They are buttons here now.
-            //
-            // Labelled by state rather than "start or end": one button doing two
-            // opposite things is a coin flip when the GM is reading quickly, and
-            // this one is next to the button that used to wipe the season.
-            { action: "toggleFinal", label: game.i18n.localize(inFinalTrial()
-                ? "DRPG.Mastermind.endFinalTrial" : "DRPG.Mastermind.startFinalTrial") },
+            // The start/end Final Trial button that used to sit here is gone
+            // (Dawid, 26.08): the Class Trial console already owns that toggle,
+            // and a second copy next to the button that can wipe the season was
+            // a duplicate with worse neighbours. The verdict stays — it has no
+            // other home.
             { action: "finalVerdict", label: game.i18n.localize("DRPG.Mastermind.verdictTitle") },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
         ],
@@ -476,30 +498,12 @@ export async function openMastermindDialog() {
     // into a `null` that used to fall all the way through to the clear.
     if (!result || result === "cancel") return null;
 
-    // Both of these open a window of their own and then come back here, so the
-    // GM lands on the screen they pressed the button from rather than on the
-    // scene. Same pattern the GM panel uses for its own tiles.
-    if (result === "toggleFinal") {
-        await toggleFinalTrialFlag();
-        return openMastermindDialog();
-    }
+    // Opens a window of its own and then comes back here, so the GM lands on
+    // the screen they pressed the button from rather than on the scene. Same
+    // pattern the GM panel uses for its own tiles.
     if (result === "finalVerdict") {
         await openFinalVerdictDialog();
         return openMastermindDialog();
-    }
-
-    // The clue first, because it is the half that can fail: a room that no
-    // longer exists on this scene warns and places nothing, and the GM should
-    // find that out on the window they pressed Apply on rather than after it
-    // has closed on a Mastermind change they think went through together.
-    if (result.finalRoom) {
-        const placed = await placeFinalRemnant({
-            room: result.finalRoom, visibility: result.finalVis, note: result.finalNote
-        });
-        if (placed) {
-            ui.notifications.info(game.i18n.format("DRPG.Mastermind.finalPlacedIn",
-                { room: result.finalRoom }));
-        }
     }
 
     // Only the Apply button reaches here, and it always brings an object — so
@@ -516,12 +520,16 @@ export async function openMastermindDialog() {
 
     if (who !== current?.id) {
         const picked = game.actors.get(who);
-        await setMastermind(picked);
+        await setMastermind(picked, { room: result.lair || null });
         // Setting it used to confirm nothing at all: no notification, no
         // whisper, no entry. The secret must not go to chat, but the person who
         // just set it is entitled to know it took.
         ui.notifications.info(game.i18n.format("DRPG.Mastermind.confirmed",
             { name: picked?.name ?? "?" }));
+    } else if ((result.lair || null) !== (readStore().room ?? null)) {
+        // Same Mastermind, different lair: the private whisper follows the
+        // room without renaming anybody.
+        await setMastermindLair(result.lair || null);
     }
 
     return who;

@@ -276,6 +276,10 @@ export async function manageClassTrial() {
     const floor = trialFloor();
     const running = getClock().phase === "classTrial";
     const restrictive = Boolean(floor) && floor.mode !== FLOOR_MODES.discussion;
+    // The Final Trial toggle moved here from the Mastermind screen (Dawid,
+    // 26.08): announcing it is a trial-table act, and this is the trial table.
+    const { inFinalTrial } = await import("./mastermind.mjs");
+    const finalNow = inFinalTrial();
 
     const { pendingVoters, trialProgress } = await import("./vote.mjs");
     const progress = trialProgress();
@@ -351,6 +355,8 @@ export async function manageClassTrial() {
             <h4>${game.i18n.localize("DRPG.Floor.sectionTrial")}</h4>
             <p>${game.i18n.localize(running
                 ? "DRPG.Floor.manageRunning" : "DRPG.Floor.manageNotRunning")}</p>
+            ${finalNow ? `<p class="drpg-warning">${
+                game.i18n.localize("DRPG.Mastermind.finalRunningNote")}</p>` : ""}
 
             <h4>${game.i18n.localize("DRPG.Floor.sectionDebate")}</h4>
             ${debateLine}
@@ -397,6 +403,10 @@ export async function manageClassTrial() {
                 ? [{ action: "end", label: game.i18n.localize("DRPG.Floor.endTrial") }]
                 : [{ action: "start", default: isDefault("start"),
                      label: game.i18n.localize("DRPG.Floor.startTrial") }]),
+            // Labelled by state rather than "start or end": one button doing
+            // two opposite things is a coin flip when the GM reads quickly.
+            { action: "toggleFinal", label: game.i18n.localize(finalNow
+                ? "DRPG.Mastermind.endFinalTrial" : "DRPG.Mastermind.startFinalTrial") },
             { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
         ],
         rejectClose: false
@@ -447,6 +457,11 @@ export async function manageClassTrial() {
     if (action === "chapterEnd") {
         const { openChapterEndDialog } = await import("./chapter.mjs");
         await openChapterEndDialog();
+        return manageClassTrial();
+    }
+    if (action === "toggleFinal") {
+        const { toggleFinalTrialFlag } = await import("./mastermind.mjs");
+        await toggleFinalTrialFlag();
         return manageClassTrial();
     }
     return null;

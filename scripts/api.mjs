@@ -128,6 +128,7 @@ import {
 } from "./monocub.mjs";
 import {
     mastermindActor, isMastermind, setMastermind, clearMastermind,
+    mastermindLair, setMastermindLair, myLairRoom,
     finalTruthPlacedThisChapter, finalRemnants, placeFinalRemnant,
     inFinalTrial, setFinalTrial,
     openMastermindDialog, openFinalVerdictDialog, applyFinalVerdict
@@ -769,6 +770,11 @@ export const DrpgApi = {
     isMastermind,
     setMastermind,
     clearMastermind,
+
+    /** The lair: GM-side read/write, and the private client-side read. */
+    mastermindLair,
+    setMastermindLair,
+    myLairRoom,
 
     /** The guide's "co rozdział" cadence check — informational only. */
     finalTruthPlacedThisChapter,

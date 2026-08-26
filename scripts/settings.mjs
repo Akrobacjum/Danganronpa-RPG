@@ -188,12 +188,26 @@ export const SETTINGS = {
      * client alone writes `true` here. Every other client's copy stays `false`
      * forever; there is no broadcast, only a recipient-addressed whisper.
      *
-     * Read by movement.mjs (locked doors, sealed rooms) and fog.mjs (the
-     * Mastermind knows the building, not who is in it) — never by
-     * visibility.mjs, which stays exactly as blind to other characters as
+     * Read by movement.mjs (locked doors, sealed rooms), fog.mjs (the
+     * Mastermind knows the building, not who is in it), vault.mjs (a
+     * concealed stash is their own furniture) and — since 26.08 —
+     * visibility.mjs, but only through `myLairRoom()`: standing in their own
+     * room shows them the cast, anywhere else they are exactly as blind as
      * every other player's client.
      */
     iAmMastermind: "iAmMastermind",
+    /**
+     * The Mastermind's own room, on the ONE client that holds the part —
+     * delivered over the same recipient-addressed whisper as `iAmMastermind`
+     * and cleared with it. Every other client's copy stays empty forever.
+     *
+     * Read by visibility.mjs: a Mastermind whose own token stands in this
+     * room sees the whole cast, the way the GM does, and loses that the
+     * moment they leave. (This is the 26.08 revision of the old contract —
+     * the note on `iAmMastermind` used to promise visibility.mjs would never
+     * read either of these.)
+     */
+    myMastermindLair: "myMastermindLair",
     /**
      * Which rooms each character has personally discovered, per scene:
      * `{ [sceneId]: { [actorId]: [roomName, ...] } }`.
@@ -507,6 +521,13 @@ export function registerSettings() {
         config: false,
         type: Boolean,
         default: false
+    });
+
+    game.settings.register(MODULE_ID, SETTINGS.myMastermindLair, {
+        scope: "client",
+        config: false,
+        type: String,
+        default: ""
     });
 
     // Which rooms each character has discovered. Cleared at season reset.
