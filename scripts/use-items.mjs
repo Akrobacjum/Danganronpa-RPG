@@ -148,9 +148,11 @@ export function usableKindOf(item) {
 /**
  * Use a Usable Item.
  *
- * Consumed whatever happens — the guide's usable items are one-shot, and an
+ * Consumed when actually used — the guide's usable items are one-shot, and an
  * item that restores nothing because the character was already whole is still
- * an item that has been opened. The dialog says so before it is spent.
+ * an item that has been opened. Cancelling either dialog spends nothing. The
+ * dialogs used to say "the item is used up either way", which read as though
+ * cancelling destroyed it too; the line is gone (Dawid, 2026-08-26).
  *
  * @returns {Promise<object|null>} what was restored, or null if it did not happen.
  */
@@ -279,7 +281,6 @@ async function askWhichResource(item, effect) {
             <div class="drpg-choice-list">${rows}</div>
             ${effect.bonus?.hope ? `<p class="notes">${game.i18n.format(
                 "DRPG.Items.choiceBonus", { n: effect.bonus.hope })}</p>` : ""}
-            <p class="notes">${game.i18n.localize("DRPG.Items.useConsumes")}</p>
         </form>`),
         buttons: [
             {
@@ -333,8 +334,7 @@ async function confirmUse(item, preview, pointless) {
             pointless
                 ? game.i18n.localize("DRPG.Items.wouldRestoreNothing")
                 : game.i18n.format("DRPG.Items.wouldRestore", { what: summary })
-        }</p>
-        <p class="notes">${game.i18n.localize("DRPG.Items.useConsumes")}</p>`,
+        }</p>`,
         rejectClose: false
     });
 }

@@ -559,7 +559,6 @@
       "useTooltip": "Use this item.",
       "usePrompt": "What are you using it for?",
       "useConfirm": "Use it",
-      "useConsumes": "The item is used up either way.",
       "choiceBonus": "Whichever you pick, it also restores {n} Hope.",
       "used": "Used {item}.",
       "usedNothing": "Nothing to restore. You were already whole.",
