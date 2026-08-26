@@ -82,7 +82,21 @@ export const TRUTH_BULLET_FLAGS = {
      * Written from Stage 3 onwards; recorded here now so the flag has one
      * spelling across the whole module.
      */
-    lockedChapter: "lockedChapter"
+    lockedChapter: "lockedChapter",
+    /**
+     * TWO FACTS THAT GO PUBLIC AT THE MOMENT OF ANALYSIS, and not before
+     * (Dawid, 26.08: "to o czym piszę wchodzi w życie do truth bullets które
+     * gracz przeanalizował"). Both live in the bullet's SECRET from creation —
+     * `secretOf(uuid).sourceAction` / `.tiedToCrime` — and are copied onto
+     * the item as flags only once the bullet is identified: at creation for a
+     * self-evident or critical find, in analyze.mjs's `identify` otherwise.
+     * Until then the item carries `null`, which is exactly what a player's
+     * console may know.
+     */
+    /** Which action left the source trace — drives the Remnant token's icon. */
+    sourceAction: "sourceAction",
+    /** Whether the source trace belongs to the murder — drives the sort. */
+    tiedToCrime: "tiedToCrime"
 };
 
 /** Socket actions, all addressed to GMs only. */
@@ -272,6 +286,21 @@ export function bulletsOf(actor) {
  * stamped in chapter 1 stops mattering the moment chapter 2 begins, which is
  * the guide's "można je przeanalizować ponownie w trakcie Investigation".
  */
+/**
+ * Does the holder know what this bullet is?
+ *
+ * Two ways to know, and `analyzed` alone misses one: a critical Observe hands
+ * the bullet over with its category already shown (`shownType` set, `analyzed`
+ * still false). Everything that gates on "has this player earned the truth" —
+ * the Remnant token's action icon, the murder-first sort — asks this, not the
+ * bare flag.
+ */
+export function isIdentified(item) {
+    if (!isTruthBullet(item)) return false;
+    if (item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.analyzed)) return true;
+    return (item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.shownType) ?? "neutral") !== "neutral";
+}
+
 export function isAnalysable(item, chapter = null) {
     if (!isTruthBullet(item)) return false;
     if (item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.analyzed)) return false;
@@ -360,13 +389,18 @@ const SELF_EVIDENT = ["key", "autopsy", "final"];
  *   handing over identified evidence hands over what the giver knows.
  * @param {object} [data.stamp]        `{chapter, day, timeOfDay}` override. A
  *   copy records the discovery it documents, not the moment it was copied.
+ * @param {string} [data.sourceAction] Which action left the source trace.
+ *   Secret until the bullet is identified — see TRUTH_BULLET_FLAGS.
+ * @param {boolean} [data.tiedToCrime] Whether the source trace belongs to the
+ *   murder. Same rule.
  * @returns {Promise<Item|null>}
  */
 export async function createTruthBullet(actor, {
     name, realType = "neutral", shownType = null, visibility = "evident",
     faint = false, playerText = "", img = null, tags = [], gmNote = "",
     remnantId = null, sceneId = null,
-    room = null, analyzed = null, stamp = null
+    room = null, analyzed = null, stamp = null,
+    sourceAction = null, tiedToCrime = null
 } = {}) {
     if (!actor || !name) return null;
 
@@ -385,6 +419,12 @@ export async function createTruthBullet(actor, {
 
     const selfEvident = SELF_EVIDENT.includes(realType);
     const shown = shownType ?? (selfEvident ? realType : "neutral");
+
+    // Born knowing? A self-evident type, an explicit `analyzed`, or a critical
+    // find whose category is already shown. Only then do the two post-analysis
+    // facts land on the item itself; otherwise they wait in the secret for
+    // `identify` in analyze.mjs to publish them.
+    const identified = (analyzed ?? selfEvident) || shown !== "neutral";
 
     const { getClock } = await import("./clock.mjs");
     const { roomOfActor } = await import("./movement.mjs");
@@ -415,6 +455,8 @@ export async function createTruthBullet(actor, {
             [TRUTH_BULLET_FLAGS.playerText]: playerText,
             [TRUTH_BULLET_FLAGS.tags]: tags,
             [TRUTH_BULLET_FLAGS.remnantRef]: remnantId && sceneId ? `${sceneId}.${remnantId}` : null,
+            [TRUTH_BULLET_FLAGS.sourceAction]: identified ? sourceAction : null,
+            [TRUTH_BULLET_FLAGS.tiedToCrime]: identified ? tiedToCrime : null,
             // Never inherited. A failed analysis is a fact about the person who
             // failed, not about the evidence — guide, Stage 3.
             [TRUTH_BULLET_FLAGS.lockedChapter]: null
@@ -423,7 +465,7 @@ export async function createTruthBullet(actor, {
 
     if (!item) return null;
 
-    await setSecret(item.uuid, { realType, gmNote, remnantId, sceneId });
+    await setSecret(item.uuid, { realType, gmNote, remnantId, sceneId, sourceAction, tiedToCrime });
 
     log(`${actor.name} gained Truth Bullet "${name}" (really ${realType}, ${visibility}).`);
     return item;
@@ -459,6 +501,9 @@ export function truthBulletData(item) {
         playerText: flag(TRUTH_BULLET_FLAGS.playerText) ?? "",
         tags: flag(TRUTH_BULLET_FLAGS.tags) ?? [],
         remnantRef: flag(TRUTH_BULLET_FLAGS.remnantRef) ?? null,
+        /* Null until the bullet is identified — see TRUTH_BULLET_FLAGS. */
+        sourceAction: flag(TRUTH_BULLET_FLAGS.sourceAction) ?? null,
+        tiedToCrime: flag(TRUTH_BULLET_FLAGS.tiedToCrime) ?? null,
         lockedChapter: flag(TRUTH_BULLET_FLAGS.lockedChapter) ?? null,
         /** So a caller can tell a live lock from a spent one without the clock. */
         chapterNow: currentChapter(),
@@ -515,6 +560,39 @@ export async function propagateRemnantPublic(remnantTokenId, pub) {
 }
 
 /**
+ * A GM changed their mind about whether a trace belongs to the murder — see
+ * `setRemnantFlags` in remnants.mjs, the only caller. The verdict moves into
+ * every bullet copied from that trace: into the secret always, and onto the
+ * item only where the holder has already earned the truth. Anything less and
+ * the murder-first sort keeps ordering the pack by a retracted ruling.
+ *
+ * @returns {Promise<number>} how many bullets were touched.
+ */
+export async function propagateCrimeTie(remnantTokenId, tied) {
+    if (!game.user.isGM || !remnantTokenId) return 0;
+
+    let touched = 0;
+    for (const actor of game.actors) {
+        if (actor.type !== "character") continue;
+        for (const item of bulletsOf(actor)) {
+            if (secretOf(item.uuid).remnantId !== remnantTokenId) continue;
+            try {
+                await setSecret(item.uuid, { tiedToCrime: Boolean(tied) });
+                if (isIdentified(item)) {
+                    await item.update({
+                        [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tiedToCrime}`]: Boolean(tied)
+                    });
+                }
+                touched++;
+            } catch (err) {
+                error(`Could not move the crime tie onto "${item.name}"`, err);
+            }
+        }
+    }
+    return touched;
+}
+
+/**
  * The Autopsy bullet — decision D2: issued by hand from the GM panel, never
  * rolled for. Guide, p. 29: "Zawsze dostarczana graczom w każdym rozdziale jako
  * pierwsza poszlaka."
@@ -532,7 +610,11 @@ export async function issueAutopsy(actors, { name, playerText = "", gmNote = "" 
             // Autopsy findings are handed over openly — there is nothing to spot.
             visibility: "obvious",
             playerText,
-            gmNote
+            gmNote,
+            // The autopsy is BY DEFINITION about the murder, and it arrives
+            // identified — so it takes its place at the top of the pack's
+            // murder-first sort from the moment it lands.
+            tiedToCrime: true
         });
         if (!item) continue;
         issued++;

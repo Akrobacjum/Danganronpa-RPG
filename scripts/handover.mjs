@@ -258,7 +258,12 @@ export async function shareBullet({ fromId, toId, itemId } = {}) {
         sceneId: secret.sceneId ?? null,
         // The copy documents the original discovery, not the moment of copying.
         room: data.room,
-        stamp: { chapter: data.chapter, day: data.day, timeOfDay: data.timeOfDay }
+        stamp: { chapter: data.chapter, day: data.day, timeOfDay: data.timeOfDay },
+        // From the SECRET, not the item: `createTruthBullet` publishes these
+        // onto the copy only if it is born identified, so handing over an
+        // unidentified bullet still hands over nothing the giver cannot see.
+        sourceAction: secret.sourceAction ?? null,
+        tiedToCrime: secret.tiedToCrime ?? null
     });
 
     if (!copy) {

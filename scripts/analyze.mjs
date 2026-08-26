@@ -58,7 +58,11 @@ export async function resolveAnalyze({
     if (undo) {
         const patch = {
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.shownType}`]: "neutral",
-            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzed}`]: false
+            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzed}`]: false,
+            // The two facts `identify` published go back into the secret with
+            // the rest of the truth — an un-analysed bullet knows nothing.
+            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.sourceAction}`]: null,
+            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tiedToCrime}`]: null
         };
         if (item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.lockedChapter) === chapter) {
             patch[`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.lockedChapter}`] = null;
@@ -114,10 +118,18 @@ async function lockOut(item, actor, chapter, total) {
 
 /** Success converts the bullet: what it really is becomes what the player sees. */
 async function identify(item, actor, realType, isCritical, dc, total) {
+    // The moment of analysis is when two more facts go public — which action
+    // left the source trace (the Remnant token's icon on this player's map)
+    // and whether it belongs to the murder (the pack's sort). Both were
+    // waiting in the bullet's secret since creation, so a trace the killer
+    // has since wiped still identifies completely.
+    const secret = secretOf(item.uuid);
     try {
         await item.update({
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.shownType}`]: realType,
-            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzed}`]: true
+            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzed}`]: true,
+            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.sourceAction}`]: secret.sourceAction ?? null,
+            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tiedToCrime}`]: secret.tiedToCrime ?? null
         });
     } catch (err) {
         error("Could not identify the Truth Bullet after a successful Analyze", err);

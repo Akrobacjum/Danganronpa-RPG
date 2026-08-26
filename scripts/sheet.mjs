@@ -20,7 +20,10 @@ import { isMonokuma, poolUserFor } from "./monokuma.mjs";
 import { getDespair } from "./despair.mjs";
 import { hopeHeld, hopeMax, affordableHopeCalls, despairCallsFor } from "./calls.mjs";
 import { isEclipse, movesLeft as eclipseMovesLeft } from "./eclipse.mjs";
-import { isTruthBullet, truthBulletData, isAnalysable } from "./truth-bullets.mjs";
+import {
+    isTruthBullet, truthBulletData, isAnalysable, isIdentified, TRUTH_BULLET_FLAGS
+} from "./truth-bullets.mjs";
+import { getClock } from "./clock.mjs";
 import { inClassTrial } from "./trial.mjs";
 import { vaultRoomFor, vaultContents, openStashHere } from "./vault.mjs";
 import { availableCrisisActions, isTheirTurn, murderState, sideOf, betrayalTarget } from "./murder.mjs";
@@ -1304,6 +1307,19 @@ function groupInventory(app, element) {
         const items = actor.items.filter(i =>
             i.getFlag(MODULE_ID, "category") === group.key && !isStashed(i));
         const limit = cat?.limit;
+
+        // Evidence of the murder floats to the top of the pack — but only
+        // evidence whose holder has EARNED that fact: `tiedToCrime` sits on
+        // the item exclusively once the bullet is identified (analyze.mjs),
+        // so an unanalysed bullet cannot leak its relevance through its place
+        // in the list. The sort is stable; everything else keeps its order.
+        if (group.key === "truthBullet" && items.length > 1) {
+            const chapter = getClock().chapter;
+            const ofTheMurder = i => Number(isIdentified(i)
+                && i.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.tiedToCrime) === true
+                && i.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.chapter) === chapter);
+            items.sort((a, b) => ofTheMurder(b) - ofTheMurder(a));
+        }
 
         const section = document.createElement("div");
         section.className = "drpg-inventory-group";

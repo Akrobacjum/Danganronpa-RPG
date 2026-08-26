@@ -435,7 +435,11 @@ async function createFind(actor, entry, isCritical) {
         sceneId: entry.sceneId,
         // Passed explicitly: this is the GM's client, which may be looking at a
         // different scene entirely, so the canvas-bound default would stamp null.
-        room: entry.room
+        room: entry.room,
+        // Into the bullet's secret; public on the item only once identified —
+        // immediately for this critical find, at Analyze for everyone else.
+        sourceAction: data.action ?? null,
+        tiedToCrime: Boolean(data.tiedToCrime)
     });
 
     if (!item) return null;
