@@ -11895,6 +11895,8 @@ i.drpg-pix-foot {
 #sidebar-tabs button.ui-control.fa-clock::before,
 #sidebar .tabs button.ui-control.fa-clock::before,
 #drpg-gm-launcher i::before,
+.application .window-header .header-control[data-action="close"]::before,
+.application .window-header .header-control[data-action="toggleControls"]::before,
 #sidebar-tabs button[data-tab="daggerheartMenu"]::before {
     content: "" !important;
     display: inline-block;
@@ -12326,6 +12328,16 @@ i.drpg-pix-foot {
     mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M23 5h1v1H23zM22 6h2v1H22zM20 7h3v1H20zM19 8h4v1H19zM17 9h6v1H17zM7 10h1v1H7zM16 10h6v1H16zM6 11h3v1H6zM14 11h8v1H14zM5 12h5v1H5zM12 12h9v1H12zM4 13h17v1H4zM4 14h10v1H4zM16 14h4v1H16zM4 15h7v1H4zM17 15h1v1H17zM2 16h7v1H2zM1 17h3v1H1zM8 17h1v1H8zM0 18h2v1H0z'/%3E%3C/svg%3E");
 }
 
+.application .window-header .header-control[data-action="close"]::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 1h2v1H1zM9 1h2v1H9zM1 2h3v1H1zM8 2h3v1H8zM2 3h3v1H2zM7 3h3v1H7zM3 4h6v1H3zM4 5h4v1H4zM4 6h4v1H4zM3 7h6v1H3zM2 8h3v1H2zM7 8h3v1H7zM1 9h3v1H1zM8 9h3v1H8zM1 10h2v1H1zM9 10h2v1H9z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 1h2v1H1zM9 1h2v1H9zM1 2h3v1H1zM8 2h3v1H8zM2 3h3v1H2zM7 3h3v1H7zM3 4h6v1H3zM4 5h4v1H4zM4 6h4v1H4zM3 7h6v1H3zM2 8h3v1H2zM7 8h3v1H7zM1 9h3v1H1zM8 9h3v1H8zM1 10h2v1H1zM9 10h2v1H9z'/%3E%3C/svg%3E");
+}
+
+.application .window-header .header-control[data-action="toggleControls"]::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 0h3v1H4zM4 1h3v1H4zM4 2h3v1H4zM4 4h3v1H4zM4 5h3v1H4zM4 6h3v1H4zM4 8h3v1H4zM4 9h3v1H4zM4 10h3v1H4z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 0h3v1H4zM4 1h3v1H4zM4 2h3v1H4zM4 4h3v1H4zM4 5h3v1H4zM4 6h3v1H4zM4 8h3v1H4zM4 9h3v1H4zM4 10h3v1H4z'/%3E%3C/svg%3E");
+}
+
 #sidebar-tabs button[data-tab="daggerheartMenu"]::before {
     -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 0h4v1H4zM5 1h2v1H5zM5 2h2v1H5zM1 3h10v1H1zM1 4h10v1H1zM4 5h4v1H4zM4 6h4v1H4zM4 7h4v1H4zM4 8h4v1H4zM5 9h2v1H5zM5 10h2v1H5zM5 11h2v1H5z'/%3E%3C/svg%3E");
     mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 0h4v1H4zM5 1h2v1H5zM5 2h2v1H5zM1 3h10v1H1zM1 4h10v1H1zM4 5h4v1H4zM4 6h4v1H4zM4 7h4v1H4zM4 8h4v1H4zM5 9h2v1H5zM5 10h2v1H5zM5 11h2v1H5z'/%3E%3C/svg%3E");
@@ -12510,5 +12522,13 @@ i.drpg-pix-foot {
 }
 
 .application.sheet.actor .tab.inventory .filter-button {
+    display: none !important;
+}
+
+/* A third eviction, same batch (Dawid, 26.08): the character sheet's "Copy
+   document UID" passport button. A player never needs a UUID, and the GM has
+   the console; on the sheet header it was one more glyph between the player
+   and the close button. */
+.application.sheet.actor .window-header .header-control[data-action="copyUuid"] {
     display: none !important;
 }

@@ -853,6 +853,40 @@ const ICONS = {
         "##......................"
     ],
 
+    /* ---- window headers ---- */
+
+    // The close X, chunky and symmetric. Worn by every window's close button
+    // (Dawid, 26.08: the close and toggle-controls glyphs go pixel wherever
+    // they appear) — targeted by SPECIAL selectors, since the header buttons
+    // live outside the rail-and-sidebar HOSTS.
+    "drpg-x-close": [
+        "##......##",
+        "###....###",
+        ".###..###.",
+        "..######..",
+        "...####...",
+        "...####...",
+        "..######..",
+        ".###..###.",
+        "###....###",
+        "##......##"
+    ],
+
+    // Toggle controls: the vertical ellipsis, three square dots.
+    "drpg-toggle-controls": [
+        "###",
+        "###",
+        "###",
+        "...",
+        "###",
+        "###",
+        "###",
+        "...",
+        "###",
+        "###",
+        "###"
+    ],
+
     /* ---- the Daggerheart menu ---- */
 
     // The system's sidebar button ships an <img> logo, not a Font Awesome
@@ -926,7 +960,13 @@ const HOSTS = [
  *  HOSTS selectors they would otherwise emit are dead by construction. */
 const SPECIAL = {
     "drpg-monokuma-eye": ["#drpg-gm-launcher i::before"],
-    "drpg-daggerheart": ['#sidebar-tabs button[data-tab="daggerheartMenu"]::before']
+    "drpg-daggerheart": ['#sidebar-tabs button[data-tab="daggerheartMenu"]::before'],
+    // Every ApplicationV2 window header, whole app: the close X and the
+    // toggle-controls ellipsis. The glyph is the button's OWN ::before (the
+    // header controls carry the Font Awesome classes themselves, no inner
+    // <i>), so that is what the mask replaces.
+    "drpg-x-close": ['.application .window-header .header-control[data-action="close"]::before'],
+    "drpg-toggle-controls": ['.application .window-header .header-control[data-action="toggleControls"]::before']
 };
 
 function buildCss() {
