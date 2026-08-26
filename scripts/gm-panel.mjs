@@ -15,22 +15,44 @@ import { dialogContent, error, plural, tableDialog } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
-/** Add the panel button to the token toolbar, GM only. */
+/**
+ * The panel's launcher — a standalone red button above the scene controls.
+ *
+ * It used to be one more tool in the token toolbar, which made the single
+ * most-used GM control in the module a 26th grey icon in a column of grey
+ * icons (Dawid, 26.08: out of there, bigger, named, red). It sits at the TOP
+ * of the left column now, above the controls: the corner a GM's eye already
+ * visits for tools, but outside the toolbar's grammar — solid crimson where
+ * everything below it is translucent, with a label where everything below it
+ * is an icon. Red is the module's "this goes through the GM" colour, and this
+ * button is the purest case of it on the screen.
+ *
+ * Re-injected on every scene-controls render because the left column is
+ * core's and a re-render may rebuild it.
+ */
 export function registerGmPanel() {
-    Hooks.on("getSceneControlButtons", controls => {
-        if (!game.user.isGM) return;
-        const tokens = controls.tokens;
-        if (!tokens?.tools) return;
+    Hooks.once("ready", injectLauncher);
+    Hooks.on("renderSceneControls", injectLauncher);
+}
 
-        tokens.tools.drpgGmPanel = {
-            name: "drpgGmPanel",
-            title: "DRPG.Panel.title",
-            icon: "fa-solid fa-clock",
-            button: true,
-            visible: true,
-            onChange: () => openGmPanel()
-        };
-    });
+function injectLauncher() {
+    try {
+        if (!game.user?.isGM) return;
+        if (document.getElementById("drpg-gm-launcher")) return;
+        const column = document.getElementById("ui-left-column-1");
+        if (!column) return;
+
+        const btn = document.createElement("button");
+        btn.id = "drpg-gm-launcher";
+        btn.type = "button";
+        btn.dataset.tooltip = game.i18n.localize("DRPG.Panel.title");
+        btn.innerHTML = `<i class="fa-solid fa-clock" inert></i>
+            <span>${game.i18n.localize("DRPG.Panel.launcher")}</span>`;
+        btn.addEventListener("click", () => openGmPanel());
+        column.prepend(btn);
+    } catch (err) {
+        error("Could not place the GM panel launcher", err);
+    }
 }
 
 /**
