@@ -25,7 +25,11 @@
 import { MODULE_ID, TRUTH_BULLET_TYPES, ACTIONS, REMNANT_VISIBILITY_LABELS } from "./config.mjs";
 import { REMNANT_FLAGS, remnantData, setRemnantPublic, keyOf as remnantKeyOf }
     from "./remnants.mjs";
-import { TRUTH_BULLET_FLAGS, bulletsOf, isIdentified } from "./truth-bullets.mjs";
+import { TRUTH_BULLET_FLAGS, isIdentified } from "./truth-bullets.mjs";
+// The viewer's own bullets, indexed by the Remnant they came from and memoised
+// there — see `myTruthBulletFor`. visibility.mjs does not reach back into this
+// file, so the static import is safe.
+import { myBulletForRemnant } from "./visibility.mjs";
 import { debug, error } from "./utils.mjs";
 
 const RING_NAME = "drpgRemnantRing";
@@ -292,18 +296,24 @@ function playerRemnantCard(tokenOrActor, esc) {
     </div>`;
 }
 
-/** The current user's own Truth Bullet copied from this exact token, if any. */
+/**
+ * The current user's own Truth Bullet copied from this exact token, if any.
+ *
+ * This used to walk every actor the viewer owns and every Truth Bullet on each
+ * of them, per token, per paint — the same double loop visibility.mjs already
+ * ran one file away, and had already memoised there for exactly this reason
+ * ("every revealed Remnant on the scene would otherwise re-scan every character
+ * this user owns"). Two copies of one question with two lifetimes; now one,
+ * built once per `applyAll` pass and read here.
+ *
+ * Measured before the change, on a player's client: 0.0026 ms per scan with one
+ * owned character and no bullets, and it ran zero times on a 41-Remnant scene
+ * because a Remnant a player has not copied is not visible to them and `paint`
+ * returns before asking. So the saving is small and the duplication was the
+ * real cost — this is one loop deleted, not a hot path rescued.
+ */
 function myTruthBulletFor(tokenDoc) {
-    const key = remnantKeyOf(tokenDoc);
-    if (!key) return null;
-
-    for (const actor of game.actors) {
-        if (actor.type !== "character" || !actor.isOwner) continue;
-        for (const item of bulletsOf(actor)) {
-            if (item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.remnantRef) === key) return item;
-        }
-    }
-    return null;
+    return myBulletForRemnant(remnantKeyOf(tokenDoc));
 }
 
 /** Resolve a CSS custom property to the integer PIXI wants. */
