@@ -947,10 +947,18 @@
       "victim": "Victim",
       "indirect": "Indirect murder — the victim is alone, and the drain is doubled",
       "openConfirm": "Open it",
-      "sameActor": "The killer and the victim cannot be the same person.",
-      "needTwo": "There must be at least two living students.",
+      "needOne": "There must be at least one living student.",
+      "openSelfNote": "One name in both seats: this opens as a death by their own hand. There is no Stage 5 — the opening roll decides whether they go through with it and how many Key Remnants the scene keeps, and the incident goes straight to Stage 6.",
+      "selfInflicted": "By their own hand",
       "openedTitle": "Murder opened",
       "opened": "{killer} is moving on {victim}. The opening roll has gone to {roller}.",
+      "openedSelf": "{name} is moving on themselves. The opening roll has gone to them.",
+      "openedSelfNote": "Stage 5 is skipped: there is no confrontation to run. If the roll lands, the incident goes straight to Stage 6 — the arrangements they make before dying. They stay alive until you close the incident, which is what records the death.",
+      "selfWentThrough": "<strong>You went through with it.</strong> There is no fight to have. Stage 6 is open on your sheet: whatever you leave the room as, you leave it as now.",
+      "resolutionNoteSelf": "Stage 6, with nobody left to hide it from but the class. They can see and clean their own traces, and they are still alive to do it — closing the incident is what makes the death real.",
+      "trackerStateSelf": "{stage} · no turns — Stage 5 does not run",
+      "afterSelf": "By their own hand — nobody else was in the room, and the class has only the scene to go on.",
+      "afterIntroSelf": "{name}, by their own hand. Everything below follows from what just happened, and the module has stopped tracking the incident itself.",
       "dayNote": "Not night, so the opening roll is unmodified.",
       "keyCount": "This case will leave {n} Key Remnants.",
       "trackerTitle": "Incident tracker",
@@ -2102,7 +2110,8 @@
     "Roll": {
       "opening": {
         "killer": "Opening the murder — your roll",
-        "victim": "The trap goes off — their roll"
+        "victim": "The trap goes off — their roll",
+        "selfInflicted": "Going through with it — your roll"
       },
       "crisis": "Crisis action",
       "project": "Work on a project",

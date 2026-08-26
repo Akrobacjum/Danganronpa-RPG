@@ -241,12 +241,49 @@ export async function openMurder({ killerId, victimId, indirect = false } = {}) 
 
     const killer = game.actors.get(killerId);
     const victim = game.actors.get(victimId);
-    if (!killer || !victim || killer.id === victim.id) return null;
+    if (!killer || !victim) return null;
+
+    /*
+     * ONE PERSON ON BOTH SIDES.
+     *
+     * A student who takes their own life is a Blackened like any other, and the
+     * class still has to work out what happened in that room — it is one of the
+     * oldest shapes this story has. This used to be refused outright, so the one
+     * incident the guide's own trial rules already handle ("można głosować na
+     * martwych graczy") was the one incident the engine could not open.
+     *
+     * What it costs: Stage 5 cannot run. The incident is a turn order between
+     * two sides, a drain that falls on one of them, damage the other deals, and
+     * four ways out that are all about the person opposite. With one name in
+     * both seats every one of those is either nonsense or a no-op — Role
+     * reversal swaps two ids that are already equal, Self-defence defends
+     * against the person throwing the dice, and `passTurn` hands the turn from
+     * somebody to themselves.
+     *
+     * So it does not run. Stage 4 still does, and it is the half that matters:
+     * it decides whether they go through with it and HOW MANY Key Remnants the
+     * scene keeps. Then the incident goes straight to Stage 6, which is exactly
+     * the fiction — what they arranged before dying. The death itself is
+     * recorded when the incident closes, so there is somebody alive to do the
+     * arranging; see `endMurder`.
+     */
+    const selfInflicted = killer.id === victim.id;
+
+    // A trap opens on the VICTIM's roll: their one chance to notice it before it
+    // closes. Nobody fails to notice a trap they built for themselves, so an
+    // indirect self-inflicted death would open on a roll that cannot mean
+    // anything — and a success on it would end the incident with a warning to
+    // the others about a project they set up. Direct, always.
+    if (selfInflicted && indirect) {
+        warn("A self-inflicted death cannot be indirect; opening it as a direct murder.");
+        indirect = false;
+    }
 
     await writeState({
         active: true,
         stage: "openingRoll",
         indirect,
+        selfInflicted,
         killerId, victimId, thirdId: null,
         turn: 0,
         turnSide: "victim",
@@ -267,17 +304,26 @@ export async function openMurder({ killerId, victimId, indirect = false } = {}) 
 
     await whisperToGms(`
         <h3>${game.i18n.localize("DRPG.Murder.openedTitle")}</h3>
-        <p>${game.i18n.format("DRPG.Murder.opened", {
-            killer: foundry.utils.escapeHTML(killer.name),
-            victim: foundry.utils.escapeHTML(victim.name),
-            // Which side owes the roll is the kind of murder, not a choice —
-            // and naming them here is the only notice a GM gets that it went
-            // out, now that there is no button to press.
-            roller: foundry.utils.escapeHTML((indirect ? victim : killer).name)
-        })}</p>
-        <p>${game.i18n.localize(nightNoteKey(indirect))}</p>`);
+        <p>${selfInflicted
+            ? game.i18n.format("DRPG.Murder.openedSelf", {
+                name: foundry.utils.escapeHTML(killer.name)
+            })
+            : game.i18n.format("DRPG.Murder.opened", {
+                killer: foundry.utils.escapeHTML(killer.name),
+                victim: foundry.utils.escapeHTML(victim.name),
+                // Which side owes the roll is the kind of murder, not a choice —
+                // and naming them here is the only notice a GM gets that it went
+                // out, now that there is no button to press.
+                roller: foundry.utils.escapeHTML((indirect ? victim : killer).name)
+            })}</p>
+        <p>${game.i18n.localize(nightNoteKey(indirect))}</p>
+        ${selfInflicted
+            ? `<p class="notes">${game.i18n.localize("DRPG.Murder.openedSelfNote")}</p>`
+            : ""}`);
 
-    log(`Murder opened: ${killer.name} → ${victim.name}${indirect ? " (indirect)" : ""}.`);
+    log(selfInflicted
+        ? `Murder opened: ${killer.name}, by their own hand.`
+        : `Murder opened: ${killer.name} → ${victim.name}${indirect ? " (indirect)" : ""}.`);
 
     // Stage 4 starts itself.
     //
@@ -351,10 +397,14 @@ export async function resolveKillerOpening({ total, isCritical, withHope }) {
     }
 
     const def = MURDER_OPENING.killer;
+    // The numbers are the killer's table either way — threshold, traits, the
+    // sliding scale of Key Remnants. Only the prose changes for somebody who is
+    // both sides of it; see MURDER_OPENING.killer.selfInflicted.
+    const prose = (state.selfInflicted && def.selfInflicted) || def;
     const success = isCritical || total >= def.threshold;
 
     if (!success) {
-        await tellGms(def.failure);
+        await tellGms(prose.failure);
         // No follow-up: the killer lost their nerve, so there is no body, no
         // room to announce and nothing to investigate. The checklist would be
         // asking the GM to find a corpse that does not exist.
@@ -364,6 +414,54 @@ export async function resolveKillerOpening({ total, isCritical, withHope }) {
 
     const band = isCritical ? "critical" : (withHope ? "hope" : "despair");
     const keys = Math.max(KEY_REMNANTS.minimum, def.keyRemnants[band]);
+
+    /*
+     * A SELF-INFLICTED DEATH SKIPS STAGE 5 (see `openMurder`).
+     *
+     * There is no confrontation to run — nobody is defending, nobody is taking
+     * turns, and the drain has one person to fall on who is also the person
+     * dealing the damage. What Stage 4 produced is the whole mechanical output:
+     * how many Key Remnants the scene keeps. So the incident lands on Stage 6,
+     * which for this one shape of death means the arrangements they make before
+     * dying — and `endedBy` names it, because `afterIncident` and
+     * `recordBlackened` both read that field to tell one ending from another.
+     *
+     * The Despair penalties below are deliberately NOT applied: emptying the
+     * victim's Sanity buys the killer a shorter fight, and denying Role reversal
+     * closes a way out. Both are Stage 5 prices for a Stage 5 that never runs,
+     * and marking a sheet for a mechanic nobody will reach is noise on a
+     * character who is about to be dead. The Despair BAND still counts, which is
+     * the part that leaves its mark: four Key Remnants instead of three.
+     */
+    if (state.selfInflicted) {
+        await writeState({
+            stage: "resolution", endedBy: "selfInflicted", keyRemnants: keys, turn: 0
+        });
+        await tellGms(prose[band], { keys });
+        await whisperToGms(`<p>${game.i18n.localize("DRPG.Murder.resolutionNoteSelf")}</p>`);
+
+        // And the player, who is the only person in this incident.
+        //
+        // Stage 4's result goes to the GM alone everywhere else, and that is
+        // right when the roller is a killer who will find out what it bought
+        // them by playing Stage 5. There is no Stage 5 here: the next thing
+        // that happens is Stage 6 opening on their own sheet, and they would
+        // have watched dice land and then been shown a clean-up screen with no
+        // sentence in between. This is the beat `tellVictimTheIncidentBegan`
+        // covers for an ordinary murder, and it is skipped along with the rest.
+        try {
+            const actor = game.actors.get(state.victimId);
+            if (actor) {
+                await whisperToOwner(actor,
+                    `<p>${game.i18n.localize("DRPG.Murder.selfWentThrough")}</p>`);
+            }
+        } catch (err) {
+            error("Could not tell the player their Stage 4 roll had landed", err);
+        }
+        log(`${game.actors.get(state.killerId)?.name ?? "?"} went through with it; `
+            + `Stage 5 is skipped and Stage 6 opens with ${keys} Key Remnants.`);
+        return { success: true, band, keys, selfInflicted: true };
+    }
 
     const patch = { stage: "incident", keyRemnants: keys, turn: 1, turnSide: "victim" };
 
@@ -379,7 +477,7 @@ export async function resolveKillerOpening({ total, isCritical, withHope }) {
     }
 
     await writeState(patch);
-    await tellGms(def[band], { keys });
+    await tellGms(prose[band], { keys });
     await tellVictimTheIncidentBegan(murderState());
     return { success: true, band, keys };
 }
@@ -1907,6 +2005,32 @@ export async function endMurder({ reason = "closed", followUp = true } = {}) {
 
     const state = murderState();
 
+    /*
+     * A SELF-INFLICTED DEATH IS RECORDED HERE, NOT AT STAGE 4.
+     *
+     * Every other route to a corpse has a moment the engine owns — a Finishing
+     * Blow, the victim running out — and kills them there. This one does not:
+     * Stage 6 for a self-inflicted death IS the arrangements made before dying,
+     * and `cleanupBlocker` hands the clean-up screen to whoever the state calls
+     * the killer. Killing them the instant Stage 4 succeeded would have meant a
+     * corpse rolling to scrub its own scene and spending Sanity it no longer
+     * has.
+     *
+     * So the GM closing the incident is what makes it true, which is also the
+     * beat they close it on. Before `recordBlackened`, so the register and the
+     * death cannot disagree, and guarded on stage the same way it is: a Stage 4
+     * that failed closes through here too, and nobody died in that one.
+     */
+    if (state?.selfInflicted && state.stage === "resolution") {
+        try {
+            const { killCharacter, isDeceased } = await import("./chapter.mjs");
+            const actor = game.actors.get(state.victimId);
+            if (actor && !isDeceased(actor)) await killCharacter(actor);
+        } catch (err) {
+            error("Could not record a self-inflicted death when the incident closed", err);
+        }
+    }
+
     // Before the state is wiped — it is the only place the killer's identity
     // exists once this function returns.
     try {
@@ -1993,9 +2117,11 @@ async function afterIncident(state) {
         owed.push(plural("DRPG.Murder.afterKeys", { n: state.keyRemnants }));
     }
     owed.push(game.i18n.localize("DRPG.Murder.afterAutopsy"));
-    owed.push(game.i18n.localize(state.indirect
-        ? "DRPG.Murder.afterIndirect"
-        : "DRPG.Murder.afterDirect"));
+    owed.push(game.i18n.localize(state.selfInflicted
+        ? "DRPG.Murder.afterSelf"
+        : state.indirect
+            ? "DRPG.Murder.afterIndirect"
+            : "DRPG.Murder.afterDirect"));
 
     const alreadyInvestigating = getClock().phase === "investigation";
 
@@ -2014,10 +2140,15 @@ async function afterIncident(state) {
         classes: ["drpg-panel"],
         window: { title: game.i18n.localize("DRPG.Murder.afterTitle") },
         content: dialogContent(`<div>
-            <p>${game.i18n.format("DRPG.Murder.afterIntro", {
-                victim: foundry.utils.escapeHTML(victim.name),
-                killer: foundry.utils.escapeHTML(killer?.name ?? "?")
-            })}</p>
+            <p>${state.selfInflicted
+                // "X was killed by X" is the sentence this used to produce.
+                ? game.i18n.format("DRPG.Murder.afterIntroSelf", {
+                    name: foundry.utils.escapeHTML(victim.name)
+                })
+                : game.i18n.format("DRPG.Murder.afterIntro", {
+                    victim: foundry.utils.escapeHTML(victim.name),
+                    killer: foundry.utils.escapeHTML(killer?.name ?? "?")
+                })}</p>
             <p><strong>${room
                 ? game.i18n.format("DRPG.Murder.afterRoom", { room: foundry.utils.escapeHTML(room) })
                 : game.i18n.localize("DRPG.Murder.afterNoRoom")}</strong></p>
@@ -2325,8 +2456,12 @@ export async function openMurderDialog({ killerId = null, indirect = false } = {
 
     const { livingStudents } = await import("./chapter.mjs");
     const alive = livingStudents();
-    if (alive.length < 2) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Murder.needTwo"));
+    // One is enough, now that a student can be both sides of it. The old floor
+    // of two was the last place the engine still assumed a murder needs two
+    // people — and the case it locked out, a single survivor with nothing left
+    // to do, is the one where this ending is likeliest.
+    if (!alive.length) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Murder.needOne"));
         return null;
     }
 
@@ -2339,15 +2474,18 @@ export async function openMurderDialog({ killerId = null, indirect = false } = {
      *
      * Both dropdowns are built from the same list of the living, and a select
      * with nothing marked shows its first option — so the window opened
-     * proposing that somebody murder themselves. It was refused, but only after
-     * Confirm, and the refusal throws the whole window away: the GM re-picks
-     * everything to correct a pair the window itself suggested.
+     * proposing that somebody kill themselves.
      *
-     * So the victim opens on the first person who is NOT the killer, and the
-     * render hook below keeps the two apart as the killer changes. The check
-     * after Confirm stays as the belt to this braces — a GM can still reach
-     * the illegal pair through the victim dropdown, and that one is a
-     * deliberate choice rather than a default nobody touched.
+     * That pair is now LEGAL (see `openMurder`), which changes what this
+     * defence is for rather than removing the need for it. It is no longer
+     * about heading off a refusal; it is about not proposing one of the two
+     * heaviest things at this table as the value nobody touched. A GM who wants
+     * it picks it, and the note below says out loud what they have picked.
+     *
+     * The old render hook that MOVED the victim whenever the killer landed on
+     * them is gone with the refusal: it would now silently undo a deliberate
+     * choice, and it fired on exactly the gesture a GM reaching for this ending
+     * is most likely to make.
      */
     const defaultKiller = killerId ?? alive[0]?.id ?? null;
     const defaultVictim = (alive.find(a => a.id !== defaultKiller) ?? alive[0])?.id ?? null;
@@ -2376,18 +2514,43 @@ export async function openMurderDialog({ killerId = null, indirect = false } = {
                 <input type="checkbox" name="indirect"${
                     indirect || armed.has(killerId) ? " checked" : ""} />
                 ${game.i18n.localize("DRPG.Murder.indirect")}</label>
+            <p class="notes drpg-warning" data-drpg-self hidden>${
+                game.i18n.localize("DRPG.Murder.openSelfNote")}</p>
         </form>`),
         render: (event, dialog) => {
             const form = dialog.element.querySelector("form");
-            form?.killer?.addEventListener("change", () => {
-                form.indirect.checked = armed.has(form.killer.value);
-                // Picking a killer who is currently also the victim moves the
-                // victim rather than leaving a pair the GM will be refused for
-                // at Confirm. Nothing is moved when the two already differ.
-                if (form.victim.value !== form.killer.value) return;
-                const next = alive.find(a => a.id !== form.killer.value);
-                if (next) form.victim.value = next.id;
+            if (!form) return;
+            const note = dialog.element.querySelector("[data-drpg-self]");
+
+            /*
+             * Say it, rather than prevent it.
+             *
+             * One name in both dropdowns is a real incident now, and it is also
+             * something a GM can arrive at by accident — picking a killer who
+             * happened to be the selected victim used to be corrected for them.
+             * Correcting it silently is the wrong half of the trade in both
+             * directions, so what happens instead is that the window tells them
+             * which of the two they are looking at, live, before Confirm.
+             *
+             * The trap checkbox goes with it: an indirect self-inflicted death
+             * opens on a roll that cannot mean anything (see `openMurder`), so
+             * it is cleared and locked rather than quietly ignored downstream.
+             */
+            const sync = () => {
+                const self = form.killer.value === form.victim.value;
+                if (note) note.hidden = !self;
+                form.indirect.disabled = self;
+                if (self) form.indirect.checked = false;
+            };
+
+            form.killer.addEventListener("change", () => {
+                if (form.killer.value !== form.victim.value) {
+                    form.indirect.checked = armed.has(form.killer.value);
+                }
+                sync();
             });
+            form.victim.addEventListener("change", sync);
+            sync();
         },
         buttons: [
             {
@@ -2407,11 +2570,10 @@ export async function openMurderDialog({ killerId = null, indirect = false } = {
     });
 
     if (!result || result === "cancel") return null;
-    if (result.killerId === result.victimId) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Murder.sameActor"));
-        return null;
-    }
 
+    // One name in both seats no longer needs confirming twice. It was refused
+    // here; the window now says what it is while the GM is still looking at it,
+    // and `openMurder` is the one place that decides what such an incident does.
     await openMurder(result);
     return openIncidentTracker();
 }
@@ -2440,6 +2602,20 @@ export async function openMurderDialog({ killerId = null, indirect = false } = {
  * an owner who is not connected. That is not a fallback for convenience — an
  * incident cannot wait on somebody who has gone home.
  */
+/**
+ * What this Stage 4 roll is called, on the window and in the whisper.
+ *
+ * Prose from config.mjs rather than an i18n key — see MURDER_OPENING. The
+ * self-inflicted variant matters here more than anywhere else it is read: the
+ * roll goes to the player's own client, and a dialog titled "Opening roll —
+ * killer" is a strange thing to put in front of somebody rolling for their own
+ * death.
+ */
+function openingLabel(side, state = murderState()) {
+    const def = MURDER_OPENING[side];
+    return ((state?.selfInflicted && def?.selfInflicted) || def)?.label ?? "";
+}
+
 async function rollOpening(side, state) {
     const actor = game.actors.get(side === "killer" ? state.killerId : state.victimId);
     if (!actor) return null;
@@ -2450,7 +2626,7 @@ async function rollOpening(side, state) {
         if (askOpeningRoll({ userId: owner.id, actorId: actor.id, side })) {
             // `label` is prose from config.mjs, not an i18n key — see MURDER_OPENING.
             await whisperToOwner(actor, `<p><strong>${
-                foundry.utils.escapeHTML(MURDER_OPENING[side].label)
+                foundry.utils.escapeHTML(openingLabel(side, state))
             }</strong> — ${game.i18n.localize("DRPG.Murder.openingYours")}</p>`);
             return { asked: true, of: owner.name };
         }
@@ -2569,7 +2745,10 @@ export async function throwOpeningRoll(side, actorId) {
             roll = await rollTrait(actor, def.traits[0], {
                 remember: false,
                 actionKey: "murderOpening",
-                title: game.i18n.localize(`DRPG.Roll.opening.${side}`),
+                // Thrown on the participant's own client — see `openingLabel`.
+                title: game.i18n.localize(murderState()?.selfInflicted
+                    ? "DRPG.Roll.opening.selfInflicted"
+                    : `DRPG.Roll.opening.${side}`),
                 context: { side }
             });
             if (!roll && attempt < MAX_ATTEMPTS && openingStillWanted(side, actorId)) {
@@ -2653,16 +2832,26 @@ export async function openIncidentTracker() {
         window: { title: game.i18n.localize("DRPG.Murder.trackerTitle") },
         classes: ["drpg-panel"],
         content: dialogContent(`<div>
-            <p><strong>${foundry.utils.escapeHTML(killer?.name ?? "?")}</strong> →
-               <strong>${foundry.utils.escapeHTML(victim?.name ?? "?")}</strong>${
-                third ? ` · ${game.i18n.format("DRPG.Murder.thirdIs", {
-                    name: foundry.utils.escapeHTML(third.name)
-                })}` : ""}</p>
-            <p>${game.i18n.format("DRPG.Murder.trackerState", {
-                stage: game.i18n.localize(`DRPG.Murder.stage.${state.stage}`),
-                turn: state.turn,
-                side: game.i18n.localize(`DRPG.Murder.side.${state.turnSide}`)
-            })}</p>
+            <p>${state.selfInflicted
+                // One name, and an arrow pointing at itself would be the only
+                // thing on this line that is not true.
+                ? `<strong>${foundry.utils.escapeHTML(victim?.name ?? "?")}</strong> · ${
+                    game.i18n.localize("DRPG.Murder.selfInflicted")}`
+                : `<strong>${foundry.utils.escapeHTML(killer?.name ?? "?")}</strong> →
+                   <strong>${foundry.utils.escapeHTML(victim?.name ?? "?")}</strong>${
+                    third ? ` · ${game.i18n.format("DRPG.Murder.thirdIs", {
+                        name: foundry.utils.escapeHTML(third.name)
+                    })}` : ""}`}</p>
+            <p>${state.selfInflicted
+                // No turn and no side to report: there is no Stage 5 in this one.
+                ? game.i18n.format("DRPG.Murder.trackerStateSelf", {
+                    stage: game.i18n.localize(`DRPG.Murder.stage.${state.stage}`)
+                })
+                : game.i18n.format("DRPG.Murder.trackerState", {
+                    stage: game.i18n.localize(`DRPG.Murder.stage.${state.stage}`),
+                    turn: state.turn,
+                    side: game.i18n.localize(`DRPG.Murder.side.${state.turnSide}`)
+                })}</p>
             <p>${game.i18n.format("DRPG.Murder.victimLeft", {
                 hp: left("hitPoints"), stress: left("stress")
             })}</p>
@@ -2690,7 +2879,10 @@ export async function openIncidentTracker() {
             // an invitation in the first place — `rollOpening` sees that and
             // throws the roll on the GM's own client — and an owner who is here
             // is re-offered three times before anyone has to intervene.
-            ...(state.stage === "openingRoll" ? [] : [
+            // And none at all for a self-inflicted death: there is no turn to
+            // pass, so the window's DEFAULT button — the one Enter presses —
+            // would have been a control for a stage this incident never enters.
+            ...(state.stage === "openingRoll" || state.selfInflicted ? [] : [
                 // No "somebody walks in" button. The guide's third party is
                 // whoever "wejdzie do pomieszczenia poprzez akcję ruch", and
                 // `maybeThirdParty` already watches token movement into the

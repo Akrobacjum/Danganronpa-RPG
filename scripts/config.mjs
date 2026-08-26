@@ -1383,7 +1383,34 @@ export const MURDER_OPENING = {
             + "Role Reversal for this incident.",
         critical: "The incident begins, and the victim learns who is attacking them.",
         failure: "No incident, and the victim never learns anything was attempted. The action is "
-            + "spent; the attempt can be made again in another time of day."
+            + "spent; the attempt can be made again in another time of day.",
+        /**
+         * The same roll, thrown by somebody who is both sides of it.
+         *
+         * A student taking their own life is a Blackened like any other — it is
+         * one of the oldest shapes this story has — and the roll they throw is
+         * still the killer's: the numbers, the thresholds and the sliding scale
+         * of Key Remnants are all unchanged. Only the prose is, because every
+         * line of the ordinary table speaks about a victim who is somebody else.
+         * "The victim learns who is attacking them" is not a critical success
+         * when the victim already knows; "the victim loses Role Reversal" is a
+         * Stage 5 penalty for an incident that has no Stage 5.
+         *
+         * Read as `def.selfInflicted ?? def`, the same variant idiom
+         * `indirectVictim` uses in CRISIS_ACTIONS.
+         */
+        selfInflicted: {
+            label: "Opening roll — by their own hand",
+            hope: "It is done. Nothing about the room was arranged: the scene is exactly as "
+                + "plain as the act, and it will read that way.",
+            despair: "It is done, and something in how it was left will read as somebody "
+                + "else's work.",
+            critical: "It is done, and left so cleanly that the room barely argues with any "
+                + "story the class decides to tell about it.",
+            failure: "They could not go through with it. Nobody died, and nobody else ever "
+                + "learns it was considered. The action is spent; it can be attempted again "
+                + "in another time of day."
+        }
     },
     /**
      * INDIRECT MURDERS ONLY. A direct murder never reaches this table.
