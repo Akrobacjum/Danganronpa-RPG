@@ -469,10 +469,37 @@ async function openFailureLog() {
         </div>`),
         buttons: [
             { action: "close", label: game.i18n.localize("DRPG.Panel.close"), default: true },
-            ...(rows.length ? [{ action: "clear", label: game.i18n.localize("DRPG.Failures.clear") }] : [])
+            ...(rows.length ? [
+                { action: "copy", label: game.i18n.localize("DRPG.Failures.copy") },
+                { action: "clear", label: game.i18n.localize("DRPG.Failures.clear") }
+            ] : [])
         ],
         rejectClose: false
     });
+
+    // Plain text, with the WHOLE stack — the window truncates each trace to
+    // four lines because a wall of frames is noise to read past, but the copy
+    // exists to be pasted at whoever will debug it, and they want the rest.
+    // The header line carries the versions, because a pasted log always
+    // arrives without them and they are always the first question back.
+    if (action === "copy") {
+        const text = [
+            `Danganronpa RPG ${game.modules.get(MODULE_ID)?.version ?? "?"} — `
+                + `Foundry ${game.version} — ${game.user.name} — ${new Date().toISOString()}`,
+            ...rows.map(r => [
+                `[${when(r.at)}] (${r.level}${r.count > 1 ? ` ×${r.count}` : ""}) ${r.message}`,
+                ...(r.stack ? [r.stack.split("\n").map(l => `    ${l}`).join("\n")] : [])
+            ].join("\n"))
+        ].join("\n\n");
+        try {
+            await game.clipboard.copyPlainText(text);
+            ui.notifications.info(game.i18n.localize("DRPG.Failures.copied"));
+        } catch (err) {
+            error("Could not copy the debug log", err);
+        }
+        // Back to the log — the button copied, it did not mean "and close".
+        return openFailureLog();
+    }
 
     if (action === "clear") {
         clearSessionFailures();

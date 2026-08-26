@@ -2120,7 +2120,9 @@
       "intro": "Everything this browser has failed at since the page loaded. Reloading empties it — a failure from before a reload is not one you can still act on. Repeats are one row with a count.",
       "none": "Nothing has gone wrong since this page loaded.",
       "clear": "Clear the log",
-      "cleared": "Failure log cleared."
+      "cleared": "Failure log cleared.",
+      "copy": "Copy to clipboard",
+      "copied": "Debug log copied — paste it (Ctrl+V) wherever it needs to go."
     },
     "Fog": {
       "scenesPrepared": "Room-based visibility switched on for {count} scene(s).",
