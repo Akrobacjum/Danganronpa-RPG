@@ -2472,28 +2472,132 @@ body.drpg-pixel-font [contenteditable] {
    adversary sheet wholesale — see `showRemnantCard` in remnant-ring.mjs — so
    this owns the whole window body rather than decorating part of one.
 
-   A definition list, because that is what the content is: five short labelled
-   facts and a sentence. Laid out in two columns so the labels line up and the
-   values can be read down the right-hand side without reading the labels twice.
+   Rebuilt (Dawid, 26.08) to speak the sheet's language: the trace's pixel
+   glyph as an emblem, the Truth Bullet badge vocabulary under the name, and
+   the facts and the player-facing half each in a boxed section like the GM
+   panel's tabs — instead of a bare list running into bare form fields.
    ========================================================================== */
 
 .drpg-remnant-card {
     padding: 4px 2px;
+    display: grid;
+    gap: 10px;
+}
+
+/* The window this card takes over is Daggerheart's NPC sheet, whose content
+   area dresses a stat block: a GRID whose first column is 275px of sidebar —
+   measured 26.08, the card landed in that track and kept its width no matter
+   how wide the window went. When the body IS the card, the content area is a
+   plain block and the card takes the whole window. */
+.application.sheet:has(.drpg-remnant-card) .window-content {
+    padding: 12px;
+    display: block;
+}
+
+.application.sheet:has(.drpg-remnant-card) {
+    min-height: 0;
+}
+
+/* ---- the emblem and the name ------------------------------------------- */
+
+.drpg-remnant-head {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    min-width: 0;
+}
+
+/* The same drawing the token wears on the map — see remnant-icons.mjs and
+   the [data-drpg-act] map below. A mask, like every pixel glyph here. */
+.drpg-remnant-glyph {
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    background-color: var(--drpg-remnant);
+    -webkit-mask-image: var(--drpg-pix-query);
+    mask-image: var(--drpg-pix-query);
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-position: center;
+    mask-position: center;
+    image-rendering: pixelated;
+}
+
+.drpg-remnant-glyph[data-drpg-act="search"] { -webkit-mask-image: var(--drpg-g-search); mask-image: var(--drpg-g-search); }
+.drpg-remnant-glyph[data-drpg-act="project"] { -webkit-mask-image: var(--drpg-g-project); mask-image: var(--drpg-g-project); }
+.drpg-remnant-glyph[data-drpg-act="sabotage"] { -webkit-mask-image: var(--drpg-g-sabotage); mask-image: var(--drpg-g-sabotage); }
+.drpg-remnant-glyph[data-drpg-act="dynamic"] { -webkit-mask-image: var(--drpg-g-dynamic); mask-image: var(--drpg-g-dynamic); }
+.drpg-remnant-glyph[data-drpg-act="resolution"] { -webkit-mask-image: var(--drpg-g-cleanup); mask-image: var(--drpg-g-cleanup); }
+.drpg-remnant-glyph[data-drpg-act="incident"] { -webkit-mask-image: var(--drpg-g-direct-murder); mask-image: var(--drpg-g-direct-murder); }
+.drpg-remnant-glyph[data-drpg-act="discard"] { -webkit-mask-image: var(--drpg-r-trash); mask-image: var(--drpg-r-trash); }
+.drpg-remnant-glyph[data-drpg-act="manual"] { -webkit-mask-image: var(--drpg-g-monokuma-eye); mask-image: var(--drpg-g-monokuma-eye); }
+
+.drpg-remnant-title {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
 }
 
 .drpg-remnant-card h3 {
-    margin: 0 0 8px;
+    margin: 0;
     color: var(--drpg-remnant);
     letter-spacing: 0.08em;
     text-transform: uppercase;
     font-size: var(--drpg-text-sm, 0.85rem);
+    overflow-wrap: anywhere;
+}
+
+/* Badge row inherits the Truth Bullet badge family; wraps when crowded. */
+.drpg-remnant-card .drpg-tb-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+/* Two verdicts the sheet's rows never needed a chip for. Crime in the
+   module's "through the GM" red; reinforced holds the antique gold the
+   killer's clean-up refuses to argue with. */
+.drpg-tb-badge.crime {
+    background: rgba(var(--drpg-blood-rgb), 0.25);
+    border-color: var(--drpg-crimson);
+}
+
+.drpg-tb-badge.reinforced {
+    background: rgba(var(--drpg-gold-antique-rgb), 0.18);
+    border-color: var(--drpg-gold-antique);
+}
+
+.drpg-tb-badge.tag {
+    opacity: 0.85;
+}
+
+/* ---- the boxed sections ------------------------------------------------- */
+
+.drpg-remnant-box {
+    border: 1px solid rgba(var(--drpg-bone-rgb), 0.2);
+    background: rgba(0, 0, 0, 0.22);
+    padding: 8px 10px;
+    display: grid;
+    gap: 6px;
+}
+
+.drpg-remnant-box > h4 {
+    margin: 0;
+    padding-bottom: 4px;
+    border-bottom: 1px solid rgba(var(--drpg-bone-rgb), 0.15);
+    font-size: var(--drpg-text-xs, 0.7rem);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--drpg-dim);
 }
 
 .drpg-remnant-facts {
     display: grid;
     grid-template-columns: max-content 1fr;
-    gap: 3px 10px;
-    margin: 0 0 8px;
+    gap: 3px 12px;
+    margin: 0;
 }
 
 .drpg-remnant-facts dt {
@@ -2512,7 +2616,7 @@ body.drpg-pixel-font [contenteditable] {
 /* The GM's own sentence about the trace. Set apart, because it is the only part
    of this card that is prose and the only part that is the answer key. */
 .drpg-remnant-note {
-    margin: 0 0 6px;
+    margin: 0;
     padding: 6px 8px;
     border-left: 2px solid var(--drpg-remnant);
     background: rgba(var(--drpg-blood-rgb), 0.08);
@@ -2520,12 +2624,16 @@ body.drpg-pixel-font [contenteditable] {
     overflow-wrap: anywhere;
 }
 
-.drpg-remnant-tags {
+/* What the finder was told they see — the player card's prose. */
+.drpg-remnant-text {
     margin: 0;
-    font-size: var(--drpg-text-xs, 0.7rem);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    opacity: 0.7;
+    overflow-wrap: anywhere;
+}
+
+.drpg-remnant-tagrow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
 }
 
 .drpg-truth-bullet {
@@ -9663,14 +9771,15 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
 
 /* ---- the Remnant card, now editable ------------------------------------ */
 
-/* Below the answer key, separated by a rule: everything above this line is
-   what the GM knows, everything below it is what the player will read. */
-.drpg-remnant-public {
+/* The player-facing half. The separation the old border-top drew is carried
+   by the section box now (see THE REMNANT CARD); what stays here is the
+   fields filling their column — and STACKING under their captions: the
+   shared panel label layout puts the control beside the text, which at card
+   width squeezed both into unreadable slivers (measured 26.08). */
+.drpg-remnant-public label {
     display: grid;
-    gap: 4px;
-    margin-top: 8px;
-    padding-top: 8px;
-    border-top: 1px solid rgba(var(--drpg-bone-rgb), 0.2);
+    gap: 3px;
+    font-size: var(--drpg-text-sm, 0.85rem);
 }
 
 .drpg-remnant-public input,
@@ -11716,6 +11825,10 @@ i.drpg-pix-foot {
    degrades gracefully instead of turning into a blank square. To change an
    icon, edit its ASCII art in the tool and re-run it.
    ========================================================================== */
+
+:root {
+    --drpg-g-monokuma-eye: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M23 5h1v1H23zM22 6h2v1H22zM20 7h3v1H20zM19 8h4v1H19zM17 9h6v1H17zM7 10h1v1H7zM16 10h6v1H16zM6 11h3v1H6zM14 11h8v1H14zM5 12h5v1H5zM12 12h9v1H12zM4 13h17v1H4zM4 14h10v1H4zM16 14h4v1H16zM4 15h7v1H4zM17 15h1v1H17zM2 16h7v1H2zM1 17h3v1H1zM8 17h1v1H8zM0 18h2v1H0z'/%3E%3C/svg%3E");
+}
 
 #scene-controls button.ui-control.fa-user-large::before,
 #sidebar-tabs button.ui-control.fa-user-large::before,

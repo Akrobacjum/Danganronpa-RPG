@@ -22,10 +22,10 @@
  * this file.
  */
 
-import { MODULE_ID, TRUTH_BULLET_TYPES } from "./config.mjs";
+import { MODULE_ID, TRUTH_BULLET_TYPES, ACTIONS, REMNANT_VISIBILITY_LABELS } from "./config.mjs";
 import { REMNANT_FLAGS, remnantData, setRemnantPublic, keyOf as remnantKeyOf }
     from "./remnants.mjs";
-import { TRUTH_BULLET_FLAGS, bulletsOf } from "./truth-bullets.mjs";
+import { TRUTH_BULLET_FLAGS, bulletsOf, isIdentified } from "./truth-bullets.mjs";
 import { debug, error } from "./utils.mjs";
 
 const RING_NAME = "drpgRemnantRing";
@@ -109,7 +109,28 @@ function showRemnantCard(app, element) {
     body.innerHTML = html;
     if (game.user.isGM) wireCardEditing(body, token ?? actor);
     // The window is sized for a stat block and this is a card.
-    app.setPosition?.({ height: "auto", width: 380 });
+    app.setPosition?.({ height: "auto", width: 480 });
+}
+
+/**
+ * The card's pixel emblem — the same glyph the token itself wears on the map
+ * (remnant-icons.mjs), so opening a trace confirms what the map already said
+ * instead of introducing a second visual language. Keyed by the trace's
+ * ACTION; anything unrecognised (or unearned) wears the Despair pool's
+ * question mark, exactly like the token does.
+ */
+const GLYPH_ACTIONS = ["search", "project", "sabotage", "dynamic", "resolution",
+    "incident", "discard", "manual"];
+
+function glyph(action) {
+    const act = GLYPH_ACTIONS.includes(action) ? action : "unknown";
+    return `<span class="drpg-remnant-glyph" data-drpg-act="${act}" aria-hidden="true"></span>`;
+}
+
+/** The action that left a trace, as a label — same read traceContextLine uses. */
+function actionLabelOf(action) {
+    if (!action) return null;
+    return ACTIONS[action]?.label ?? action;
 }
 
 /**
@@ -157,42 +178,64 @@ function gmRemnantCard(tokenOrActor, esc) {
     const data = remnantData(tokenOrActor);
     if (!data) return null;
 
+    const t = key => game.i18n.localize(key);
     const when = [data.chapter ? `Ch ${data.chapter}` : null,
                   data.day ? `D ${data.day}` : null,
                   data.timeOfDay].filter(Boolean).join(" · ");
 
+    // The same badge vocabulary the Truth Bullet rows on the sheet speak:
+    // type in the type's colour, visibility beside it, then the three GM
+    // verdicts as chips — which used to be a whispered line of plain text at
+    // the bottom of the card.
+    const badges = [
+        `<span class="drpg-tb-badge type ${esc(data.type)}">${esc(data.typeLabel)}</span>`,
+        `<span class="drpg-tb-badge visibility">${esc(data.visibilityLabel)}</span>`,
+        data.tiedToCrime ? `<span class="drpg-tb-badge crime">${esc(t("DRPG.Remnant.crimeColumn"))}</span>` : null,
+        data.faint ? `<span class="drpg-tb-badge faint">${esc(t("DRPG.TruthBullet.faint"))}</span>` : null,
+        data.reinforced ? `<span class="drpg-tb-badge reinforced">${esc(t("DRPG.Remnant.reinforcedColumn"))}</span>` : null
+    ].filter(Boolean).join("");
+
     const rows = [
-        [game.i18n.localize("DRPG.Remnant.cardWhat"), `${esc(data.visibilityLabel)} ${esc(data.typeLabel)}`],
-        [game.i18n.localize("DRPG.Remnant.cardWhere"), esc(data.room ?? "—")],
-        [game.i18n.localize("DRPG.Remnant.cardWhen"), esc(when || "—")],
-        [game.i18n.localize("DRPG.Remnant.cardWho"), esc(data.sourceName ?? "—")],
-        [game.i18n.localize("DRPG.Remnant.cardSubject"), esc(data.subject ?? "—")]
+        [t("DRPG.Remnant.cardWhere"), esc(data.room ?? "—")],
+        [t("DRPG.Remnant.cardWhen"), esc(when || "—")],
+        [t("DRPG.Remnant.cardWho"), esc(data.sourceName ?? "—")],
+        [t("DRPG.Remnant.cardAction"), esc(actionLabelOf(data.action) ?? "—")],
+        [t("DRPG.Remnant.cardSubject"), esc(data.subject ?? "—")]
     ];
 
     const pub = data.public ?? {};
+    const tagRow = (pub.tags ?? []).length
+        ? `<div class="drpg-remnant-tagrow">${pub.tags.map(x =>
+            `<span class="drpg-tb-badge tag">${esc(x)}</span>`).join("")}</div>`
+        : "";
 
     return `<div class="drpg-panel drpg-remnant-card">
-        <h3>${esc(pub.name || game.i18n.localize("DRPG.Remnant.cardTitle"))}</h3>
-        <dl class="drpg-remnant-facts">
-            ${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v}</dd>`).join("")}
-        </dl>
-        ${data.note ? `<p class="drpg-remnant-note">${esc(data.note)}</p>` : ""}
-        <div class="drpg-remnant-public">
-            <label>${esc(game.i18n.localize("DRPG.TruthBullet.name"))}
+        <header class="drpg-remnant-head">
+            ${glyph(data.action)}
+            <div class="drpg-remnant-title">
+                <h3>${esc(pub.name || t("DRPG.Remnant.cardTitle"))}</h3>
+                <div class="drpg-tb-badges">${badges}</div>
+            </div>
+        </header>
+        <section class="drpg-remnant-box">
+            <h4>${esc(t("DRPG.Remnant.cardFacts"))}</h4>
+            <dl class="drpg-remnant-facts">
+                ${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v}</dd>`).join("")}
+            </dl>
+            ${data.note ? `<p class="drpg-remnant-note">${esc(data.note)}</p>` : ""}
+        </section>
+        <section class="drpg-remnant-box drpg-remnant-public">
+            <h4>${esc(t("DRPG.Remnant.cardPlayerHalf"))}</h4>
+            <label>${esc(t("DRPG.TruthBullet.name"))}
                 <input type="text" data-drpg-public="name" data-drpg-was="${esc(pub.name ?? "")}"
                        value="${esc(pub.name ?? "")}" /></label>
-            <label>${esc(game.i18n.localize("DRPG.TruthBullet.playerText"))}
+            <label>${esc(t("DRPG.TruthBullet.playerText"))}
                 <textarea rows="3" data-drpg-public="playerText"
                     data-drpg-was="${esc(pub.playerText ?? "")}"
-                    placeholder="${esc(game.i18n.localize(
-                        "DRPG.TruthBullet.playerTextPlaceholder"))}">${esc(pub.playerText ?? "")}</textarea></label>
-            <p class="notes">${esc(game.i18n.localize("DRPG.Remnant.cardEditNote"))}</p>
-        </div>
-        ${data.faint || data.reinforced || data.tiedToCrime ? `<p class="drpg-remnant-tags">${[
-            data.tiedToCrime ? esc(game.i18n.localize("DRPG.Remnant.crimeColumn")) : null,
-            data.faint ? esc(game.i18n.localize("DRPG.Remnant.faintColumn")) : null,
-            data.reinforced ? esc(game.i18n.localize("DRPG.Remnant.reinforcedColumn")) : null
-        ].filter(Boolean).join(" · ")}</p>` : ""}
+                    placeholder="${esc(t("DRPG.TruthBullet.playerTextPlaceholder"))}">${esc(pub.playerText ?? "")}</textarea></label>
+            ${tagRow}
+            <p class="notes">${esc(t("DRPG.Remnant.cardEditNote"))}</p>
+        </section>
     </div>`;
 }
 
@@ -202,24 +245,50 @@ function playerRemnantCard(tokenOrActor, esc) {
 
     if (!bullet) {
         return `<div class="drpg-panel drpg-remnant-card">
-            <h3>${esc(game.i18n.localize("DRPG.Remnant.cardTitle"))}</h3>
-            <p>${esc(game.i18n.localize("DRPG.Remnant.cardPlayer"))}</p>
+            <header class="drpg-remnant-head">
+                ${glyph(null)}
+                <div class="drpg-remnant-title">
+                    <h3>${esc(game.i18n.localize("DRPG.Remnant.cardTitle"))}</h3>
+                </div>
+            </header>
+            <p class="notes">${esc(game.i18n.localize("DRPG.Remnant.cardPlayer"))}</p>
         </div>`;
     }
 
     const flag = key => bullet.getFlag(MODULE_ID, key);
     const shownType = flag(TRUTH_BULLET_FLAGS.shownType) ?? "neutral";
-    const analyzed = Boolean(flag(TRUTH_BULLET_FLAGS.analyzed));
+    const known = isIdentified(bullet);
     const playerText = flag(TRUTH_BULLET_FLAGS.playerText) ?? "";
     const tags = flag(TRUTH_BULLET_FLAGS.tags) ?? [];
+    const visibility = flag(TRUTH_BULLET_FLAGS.visibility) ?? null;
+
+    // The emblem the player has EARNED, exactly as on the map: the action's
+    // glyph once their copy is identified, the question mark before —
+    // `sourceAction` is null on the item until analyze.mjs publishes it, so
+    // `glyph` falls back on its own.
+    const emblem = glyph(known ? flag(TRUTH_BULLET_FLAGS.sourceAction) : null);
+
+    const badges = [
+        `<span class="drpg-tb-badge type ${esc(shownType)}">${
+            esc(TRUTH_BULLET_TYPES[shownType]?.label ?? shownType)}</span>`,
+        visibility ? `<span class="drpg-tb-badge visibility">${
+            esc(REMNANT_VISIBILITY_LABELS[visibility] ?? visibility)}</span>` : null
+    ].filter(Boolean).join("");
 
     return `<div class="drpg-panel drpg-remnant-card">
-        <h3>${esc(bullet.name)}</h3>
-        ${playerText ? `<p>${esc(playerText)}</p>` : ""}
-        ${analyzed
-            ? `<p class="drpg-remnant-category">${esc(TRUTH_BULLET_TYPES[shownType]?.label ?? shownType)}</p>`
-            : `<p class="notes">${esc(game.i18n.localize("DRPG.Remnant.cardUnanalyzed"))}</p>`}
-        ${tags.length ? `<p class="drpg-remnant-tags">${tags.map(esc).join(" · ")}</p>` : ""}
+        <header class="drpg-remnant-head">
+            ${emblem}
+            <div class="drpg-remnant-title">
+                <h3>${esc(bullet.name)}</h3>
+                <div class="drpg-tb-badges">${badges}</div>
+            </div>
+        </header>
+        ${playerText || !known ? `<section class="drpg-remnant-box">
+            ${playerText ? `<p class="drpg-remnant-text">${esc(playerText)}</p>` : ""}
+            ${known ? "" : `<p class="notes">${esc(game.i18n.localize("DRPG.Remnant.cardUnanalyzed"))}</p>`}
+        </section>` : ""}
+        ${tags.length ? `<div class="drpg-remnant-tagrow">${tags.map(x =>
+            `<span class="drpg-tb-badge tag">${esc(x)}</span>`).join("")}</div>` : ""}
     </div>`;
 }
 

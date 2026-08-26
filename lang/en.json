@@ -1390,6 +1390,9 @@
       "faintColumn": "Faint",
       "crimeColumn": "Tied to crime",
       "reinforcedColumn": "Reinforced",
+      "cardFacts": "The trace",
+      "cardPlayerHalf": "What the player reads",
+      "cardAction": "Action",
       "deathTied": {
         "one": "The victim is dead: {n} trace from this chapter is now marked as tied to the murder. Untick the laundry in the Investigation Dashboard.",
         "other": "The victim is dead: {n} traces from this chapter are now marked as tied to the murder. Untick the laundry in the Investigation Dashboard."
@@ -1424,7 +1427,7 @@
       "cardUnanalyzed": "You have not worked out what this is yet. Analyze it to find out.",
       "tokenName": "Trace",
       "finalSubject": "Final Truth",
-      "cardEditNote": "What the player reads. Saved when you leave the field, and copied onto the token and every Truth Bullet taken from this trace.",
+      "cardEditNote": "Saved when you leave the field, and copied onto the token and every Truth Bullet taken from this trace.",
       "cardSaveFailed": "That did not save. See the console.",
       "report": {
         "heading": "Remnants",
