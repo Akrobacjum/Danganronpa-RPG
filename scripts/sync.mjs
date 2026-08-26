@@ -271,7 +271,14 @@ function refresh(kind, data = {}) {
             break;
 
         case SYNC.fog:
-            run("fog", () => import("./fog.mjs").then(m => m.repaintFog()));
+            // The mirror first: a ledger that SHRANK (season reset, "hide
+            // all") has to take this client's session mirror with it, or the
+            // repaint redraws the stale union and the reset only shows after a
+            // reload — see `reconcileMirror` in fog.mjs.
+            run("fog", () => import("./fog.mjs").then(m => {
+                m.reconcileMirror();
+                return m.repaintFog();
+            }));
             break;
 
         default:

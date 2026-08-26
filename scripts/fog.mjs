@@ -787,6 +787,33 @@ function mirroredFor(scene) {
 }
 
 /**
+ * Bring the mirror back in line with a ledger that changed under it.
+ *
+ * The mirror only ever ADDS rooms, which is right for the one job it was built
+ * for — smoothing the round-trip on a discovery this client made itself. But
+ * the ledger can also SHRINK: the season reset wipes it, and the Fog tab's
+ * "hide all" empties it per scene. Measured on two clients (2026-08-26): after
+ * such a shrink the data was gone everywhere, yet every room this client had
+ * walked through in the session stayed revealed until a reload, because
+ * `myDiscoveredRooms` kept unioning the stale mirror in. A reset that only
+ * takes effect after everyone relogs looks like a reset that did not work.
+ *
+ * So when the ledger arrives changed, mirror entries it no longer vouches for
+ * are dropped, and what my tokens stand in right now is put straight back —
+ * the floor under your feet never veils, reset or no reset. The one trade-off:
+ * a discovery still in flight (my move made, the GM's write not yet landed)
+ * can be pruned if somebody else's write lands in that same window; its own
+ * write follows within the sync's coalescing window and repaints it back.
+ */
+export function reconcileMirror() {
+    for (const key of Array.from(mirroredRooms)) {
+        const [sceneId, actorId, room] = JSON.parse(key);
+        if (!discoveredFor(sceneId, actorId).includes(room)) mirroredRooms.delete(key);
+    }
+    rememberMine();
+}
+
+/**
  * Mark every room on a scene discovered, or forget them all, for one actor —
  * or for everyone at once when `actorId` is omitted. The Fog tab's two
  * buttons in Room Setup.
