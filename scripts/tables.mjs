@@ -440,8 +440,12 @@ const DEFAULT_RESULT_IMG = "icons/svg/item-bag.svg";
  * Two families: the module's own, which follow `tableName()`, and whatever a
  * room has been pointed at in Room Setup — those carry arbitrary names and are
  * every bit as much a part of what a Search can produce (see `drawItem`).
+ *
+ * Exported for the GM's give-item window, whose "give existing" tab is this
+ * same catalogue read the other way round: not "what can a Search produce"
+ * but "what is there to hand over".
  */
-function moduleTables() {
+export function moduleTables() {
     const roomTables = new Set();
     try {
         for (const scene of game.scenes) {

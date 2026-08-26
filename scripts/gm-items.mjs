@@ -18,9 +18,10 @@ import {
 } from "./config.mjs";
 import { grantItem, itemsInCategory, countInCategory, inventorySummary } from "./inventory.mjs";
 import { createTruthBullet, issueAutopsy, BULLET_CATEGORY } from "./truth-bullets.mjs";
-import { ITEM_POOLS, USABLE_GOALS } from "./tables.mjs";
+import { ITEM_POOLS, USABLE_GOALS, moduleTables } from "./tables.mjs";
 import { studentActors } from "./monokuma.mjs";
-import { whisperToOwner, dialogContent, log, error, plural, cardHead } from "./utils.mjs";
+import { whisperToOwner, dialogContent, panelTabs, wirePanelTabs, log, error, plural, cardHead }
+    from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -228,43 +229,113 @@ export async function giveItemDialog(actor) {
         ...Object.values(USABLE_GOALS).flatMap(({ pool }) => Object.values(pool).flat())
     ])).sort();
 
+    // THE CATALOGUE — the item tables read the other way round: not "what can
+    // a Search produce" but "what is there to hand over". Giving from here is
+    // what keeps a hand-out consistent with the world: the entry's own icon
+    // and description come along, and a usable's kind is whatever its table
+    // already says. (Dawid, 2026-08-26: create-new was the only mode, so every
+    // give retyped an item the tables already knew.)
+    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
+    const catalogue = moduleTables().filter(t => t.results.size);
+    const catalogueOptions = catalogue.map(table => {
+        const cat = table.getFlag(MODULE_ID, "category") ?? "";
+        const tier = table.getFlag(MODULE_ID, "tier");
+        const goal = table.getFlag(MODULE_ID, "goal") ?? "";
+        return `<optgroup label="${esc(table.name)}">${Array.from(table.results).map(r =>
+            `<option value="${table.id}:${r.id}" data-category="${esc(cat)}" data-tier="${
+                tier ?? ""}" data-goal="${esc(goal)}">${esc(r.name ?? r.text ?? "")}</option>`
+        ).join("")}</optgroup>`;
+    }).join("");
+
+    const existingPane = catalogue.length
+        ? `<label>${game.i18n.localize("DRPG.Items.pickExisting")}
+                <select name="existing">${catalogueOptions}</select></label>
+            <label>${game.i18n.localize("DRPG.Items.category")}
+                <select name="exCategory">${categories}</select></label>
+            <label>${game.i18n.localize("DRPG.Items.tier")}
+                <select name="exTier">${tiers}</select></label>
+            <p class="notes">${game.i18n.localize("DRPG.Items.existingNote")}</p>`
+        : `<p class="notes">${game.i18n.localize("DRPG.Items.existingEmpty")}</p>`;
+
     const result = await DialogV2.wait({
         window: { title: game.i18n.format("DRPG.Items.giveTo", { actor: actor.name }) },
         classes: ["drpg-panel"],
-        content: dialogContent(`<form>
+        // Two tabs, one verb (Dawid, 2026-08-26). The footer's Give reads
+        // whichever pane is showing; the tell-player switch and the cap note
+        // sit below the tabs because they are true of both.
+        content: dialogContent(`<form>${panelTabs([
+            { key: "existing", label: game.i18n.localize("DRPG.Items.tabGiveExisting"),
+              html: existingPane },
+            { key: "create", label: game.i18n.localize("DRPG.Items.tabCreateNew"), html: `
             <label>${game.i18n.localize("DRPG.Items.category")}
                 <select name="category">${categories}</select></label>
             <label>${game.i18n.localize("DRPG.Items.tier")}
                 <select name="tier">${tiers}</select></label>
             <label>${game.i18n.localize("DRPG.Items.name")}
-                <input type="text" name="name" list="drpg-item-names" autofocus
+                <input type="text" name="name" list="drpg-item-names"
                        placeholder="${game.i18n.localize("DRPG.Items.namePlaceholder")}" /></label>
             <datalist id="drpg-item-names">${
-                suggestions.map(n => `<option value="${foundry.utils.escapeHTML(n)}"></option>`).join("")
+                suggestions.map(n => `<option value="${esc(n)}"></option>`).join("")
             }</datalist>
             <label>${game.i18n.localize("DRPG.Items.description")}
                 <textarea name="description" rows="2"
-                    placeholder="${game.i18n.localize("DRPG.Items.descriptionPlaceholder")}"></textarea></label>
+                    placeholder="${game.i18n.localize("DRPG.Items.descriptionPlaceholder")}"></textarea></label>` }
+        ])}
             <label class="drpg-checkbox">
                 <input type="checkbox" name="tell" checked />
                 ${game.i18n.localize("DRPG.Items.tellPlayer")}</label>
             <p class="notes">${game.i18n.localize("DRPG.Items.overCapNote")}</p>
         </form>`),
+        render: (event, dialog) => {
+            wirePanelTabs(dialog.element);
+
+            // The picked entry announces its table's category, tier and kind,
+            // and the two selects follow. They stay editable: a room pool's
+            // table says nothing, and there the GM's choice is the only one.
+            const form = dialog.element.querySelector("form");
+            const existing = form?.elements?.existing;
+            if (!existing) return;
+            const sync = () => {
+                const opt = existing.selectedOptions?.[0];
+                if (!opt) return;
+                const { category, tier, goal } = opt.dataset;
+                if (category) {
+                    const value = category === "usable" && goal ? `${category}:${goal}` : category;
+                    if (form.elements.exCategory.querySelector(`option[value="${CSS.escape(value)}"]`)) {
+                        form.elements.exCategory.value = value;
+                    }
+                }
+                if (tier !== "") form.elements.exTier.value = tier;
+            };
+            existing.addEventListener("change", sync);
+            sync();
+        },
         buttons: [
             {
                 action: "ok", label: game.i18n.localize("DRPG.Items.give"), default: true,
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
+                    const active = d.element.querySelector(".drpg-gmt-section.active")
+                        ?.dataset.drpgGmtSection ?? "create";
+
+                    if (active === "existing" && f.elements.existing) {
+                        const [tableId, resultId] = f.elements.existing.value.split(":");
+                        const [category, kind = null] = f.elements.exCategory.value.split(":");
+                        return { mode: "existing", tableId, resultId, category, kind,
+                                 tier: Number(f.elements.exTier.value), tell: f.elements.tell.checked };
+                    }
+
                     // "usable:healing" carries the kind after the colon; the
                     // plain categories have nothing to split.
-                    const [category, kind = null] = f.category.value.split(":");
+                    const [category, kind = null] = f.elements.category.value.split(":");
                     return {
+                        mode: "create",
                         category,
                         kind,
-                        tier: Number(f.tier.value),
-                        name: f.name.value.trim(),
-                        description: f.description.value.trim(),
-                        tell: f.tell.checked
+                        tier: Number(f.elements.tier.value),
+                        name: f.elements.name.value.trim(),
+                        description: f.elements.description.value.trim(),
+                        tell: f.elements.tell.checked
                     };
                 }
             },
@@ -274,18 +345,43 @@ export async function giveItemDialog(actor) {
     });
 
     if (!result || result === "cancel") return false;
-    if (!result.name) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Items.needsName"));
-        return false;
+
+    // Both tabs funnel into one shape, so everything below — the grant, the
+    // receipt, the log line — cannot diverge between them.
+    let give;
+    if (result.mode === "existing") {
+        const entry = game.tables.get(result.tableId)?.results?.get(result.resultId);
+        if (!entry) {
+            ui.notifications.error(game.i18n.localize("DRPG.Items.failed"));
+            return false;
+        }
+        const name = entry.name ?? entry.text ?? "";
+        give = {
+            name,
+            category: result.category,
+            kind: result.kind,
+            tier: result.tier,
+            // The same rule drawItem applies: a description that is only the
+            // name again adds nothing over the tier line the item will get.
+            description: entry.description && entry.description !== name ? entry.description : "",
+            img: entry.img ?? null
+        };
+    } else {
+        if (!result.name) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Items.needsName"));
+            return false;
+        }
+        give = { ...result, img: null };
     }
 
     const item = await grantItem(actor, {
-        name: result.name,
-        category: result.category,
-        tier: result.tier,
-        goal: result.kind,
-        description: result.description
-            ? `<p>${foundry.utils.escapeHTML(result.description)}</p>`
+        name: give.name,
+        category: give.category,
+        tier: give.tier,
+        goal: give.kind,
+        img: give.img,
+        description: give.description
+            ? `<p>${esc(give.description)}</p>`
             : "",
         // A GM handing something over outranks the carry limit.
         override: true
@@ -296,24 +392,23 @@ export async function giveItemDialog(actor) {
         return false;
     }
 
-    log(`GM gave ${actor.name} "${result.name}" (${result.category}, Tier ${result.tier}).`);
+    log(`GM gave ${actor.name} "${give.name}" (${give.category}, Tier ${give.tier}).`);
     ui.notifications.info(game.i18n.format("DRPG.Items.gave", {
-        item: result.name, actor: actor.name
+        item: give.name, actor: actor.name
     }));
 
     if (result.tell) {
-        const effect = USABLE_KIND_EFFECTS[result.kind]?.[result.tier]
-            ?? TIER_EFFECTS[result.category]?.[result.tier] ?? "";
-        const label = USABLE_KINDS[result.kind]
-            ? `${ITEM_CATEGORIES[result.category]?.label} — ${USABLE_KINDS[result.kind].label}`
-            : ITEM_CATEGORIES[result.category]?.label ?? result.category;
+        const effect = USABLE_KIND_EFFECTS[give.kind]?.[give.tier]
+            ?? TIER_EFFECTS[give.category]?.[give.tier] ?? "";
+        const label = USABLE_KINDS[give.kind]
+            ? `${ITEM_CATEGORIES[give.category]?.label} — ${USABLE_KINDS[give.kind].label}`
+            : ITEM_CATEGORIES[give.category]?.label ?? give.category;
         await whisperToOwner(actor, `
             <h3>${game.i18n.localize("DRPG.Items.received")}</h3>
-            <p><strong>${foundry.utils.escapeHTML(result.name)}</strong> — ${
-                foundry.utils.escapeHTML(label)
-            }, ${game.i18n.format("DRPG.Items.tierN", { n: result.tier })}</p>
-            ${result.description ? `<p>${foundry.utils.escapeHTML(result.description)}</p>` : ""}
-            ${effect ? `<p><em>${foundry.utils.escapeHTML(effect)}</em></p>` : ""}`);
+            <p><strong>${esc(give.name)}</strong> — ${esc(label)
+            }, ${game.i18n.format("DRPG.Items.tierN", { n: give.tier })}</p>
+            ${give.description ? `<p>${esc(give.description)}</p>` : ""}
+            ${effect ? `<p><em>${esc(effect)}</em></p>` : ""}`);
     }
 
     return true;
