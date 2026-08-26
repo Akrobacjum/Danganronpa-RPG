@@ -8544,10 +8544,11 @@ details.drpg-calls-panel[open] > .drpg-action-grid {
    question asked out loud. hud.mjs never built it — `.drpg-hud-roster` was
    painted here and named nowhere in the module.
 
-   It is not owed, either: the Player status window answers exactly that
-   question and answers it better, with each student's actions, free move and
-   Hope on their own row rather than a lit initial. The rule is gone; the note
-   stays so nobody reads its absence as something dropped by accident.
+   It is not owed, either, and hud.mjs says so in its own words a few lines
+   below the hooks ("THE ROSTER IS GONE"): the GM panel answers the same
+   question in the line above the tiles, and the strip in the right column
+   carries the count. The rule is gone; the note stays so nobody reads its
+   absence as something dropped by accident.
    ========================================================================== */
 
 /* ==========================================================================
