@@ -257,6 +257,28 @@ export async function announce(data = {}) {
     return ChatMessage.create(stamped(data));
 }
 
+/**
+ * Whisper to an actor's owner alone — no GM copy.
+ *
+ * For the notes that exist to tell the PLAYER what just happened, at moments
+ * when the whole point is that the GM's screen stays quiet: an Eclipse
+ * crossing card names the room somebody walked into, and during an Eclipse
+ * nobody is told who went where — the GM reads the placement table when they
+ * want the answer, they do not get it pushed at them move by move.
+ *
+ * With no player owner the card goes to the acting user instead: somebody
+ * moved that token, and a whisper list with nobody on it would post publicly.
+ */
+export async function whisperToOwnerOnly(actor, content, extra = {}) {
+    const owner = ownerOf(actor);
+    return ChatMessage.create(stamped({
+        content,
+        speaker: actor ? ChatMessage.getSpeaker({ actor }) : undefined,
+        whisper: [owner?.id ?? game.user.id],
+        ...extra
+    }));
+}
+
 /** Whisper to an actor's owner plus every GM. */
 export async function whisperToOwner(actor, content, extra = {}) {
     const owner = ownerOf(actor);

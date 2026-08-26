@@ -20,7 +20,7 @@ import { MODULE_ID, FLAGS, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, TIMES_OF_DAY }
 import { SETTINGS } from "./settings.mjs";
 import { getClock, setClock, timeOfDayLabel } from "./clock.mjs";
 import { roomOfActor, neighbouringRooms } from "./movement.mjs";
-import { announce, whisperToOwner, whisperToGms, dialogContent, log, error, plural } from "./utils.mjs";
+import { announce, whisperToOwner, whisperToOwnerOnly, whisperToGms, dialogContent, log, error, plural } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -569,7 +569,13 @@ export async function judgeEclipseCrossing(actor, from, to) {
     const used = await recordMove(actor);
     const room = foundry.utils.escapeHTML(to ?? "—");
 
-    await whisperToOwner(actor, `<p><strong>${eclipseLabel()}</strong> — ${
+    // Owner ONLY — no GM copy, on purpose. This card names the room the
+    // character just walked into, and an Eclipse is everybody crossing the
+    // map in the dark: a copy of every crossing landing on the GM's screen
+    // was a running commentary on exactly the thing the phase hides. The GM
+    // who wants the answer opens the placement table, which `recordMove`
+    // above keeps current either way.
+    await whisperToOwnerOnly(actor, `<p><strong>${eclipseLabel()}</strong> — ${
         free
             ? game.i18n.format("DRPG.Eclipse.movedFree", { room })
             : plural("DRPG.Eclipse.moved", {
