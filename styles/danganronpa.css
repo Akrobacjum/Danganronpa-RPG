@@ -10100,7 +10100,18 @@ body .drpg-gm-panel .drpg-gmp-button.drpg-disabled i {
    ========================================================================== */
 
 #pause.paused {
-    background-color: rgba(var(--drpg-veil-rgb), 0.82) !important;
+    /* Core hands `#pause` a `margin: 16px 0` its own band layout wanted. On
+       this module's full-viewport box that margin was a 16px letterbox of bare
+       map above the veil — and 16px of veil pushed uselessly past the bottom.
+       The margin goes, and the padding puts the flex centre back exactly where
+       the margined box had it: the box grows 16px up and shrinks 16px at the
+       bottom overflow, so the word itself does not move a pixel. */
+    margin: 0;
+    box-sizing: border-box;
+    padding-top: 32px;
+    /* 0.65, down from 0.82 — the veil says "held", it does not have to say
+       "gone"; the table asked to keep the scene readable underneath. */
+    background-color: rgba(var(--drpg-veil-rgb), 0.65) !important;
     background-image: repeating-linear-gradient(
         0deg,
         transparent 0 28.5px,
@@ -10108,7 +10119,9 @@ body .drpg-gm-panel .drpg-gmp-button.drpg-disabled i {
         transparent 31.5px 60px
     ) !important;
     background-size: 100% 60px !important;
-    background-position: center center !important;
+    /* Centred on the WORD, which now sits 16px below the grown box's own
+       centre — the padding above moved the box's middle, not the caption's. */
+    background-position: 50% calc(50% + 16px) !important;
     background-repeat: repeat !important;
     background-attachment: scroll !important;
 }
