@@ -828,21 +828,50 @@ const ICONS = {
     // Font Awesome class on purpose: the launcher is its only wearer, and the
     // generator routes this sprite to `#drpg-gm-launcher i` directly, so the
     // `<i>`'s own class stays a plain fallback glyph.
-    // Redrawn after seeing it at size: a flat vertical inner edge with a
-    // symmetric taper read as a play-button arrow, not an eye. The flash needs
-    // its asymmetry — a rounded mass at one end, the point slashing away
-    // diagonally, and the tooth cut into the underside of the taper.
+    // Drawn against Dawid's reference (26.08), corrected once more to it:
+    // the TOP is not one smooth sweep — a horn rises at about a third of the
+    // width and a concave notch drops behind it before the long climb to the
+    // tall right tip. The left tip is a one-pixel point. Below, two scooped
+    // arcs hang cusps of different depths: the first claw (~38% width)
+    // reaches lowest, the second sits further right (~71%) and higher. On
+    // the 24 grid, not 12: these curves die at 12px. The generator picks the
+    // viewBox per sprite, so this one costs the others nothing.
     "drpg-monokuma-eye": [
-        "..........##",
-        ".......#####",
-        "....########",
-        ".###########",
-        "############",
-        "########....",
-        "#########...",
-        ".#####......",
-        "..####......",
-        "...##......."
+        ".......................#",
+        "......................##",
+        "....................###.",
+        "...................####.",
+        ".................######.",
+        ".......#........######..",
+        "......###.....########..",
+        ".....#####..#########...",
+        "....#################...",
+        "....##########..####....",
+        "....#######......#......",
+        "..#######...............",
+        ".###....#...............",
+        "##......................"
+    ],
+
+    /* ---- the Daggerheart menu ---- */
+
+    // The system's sidebar button ships an <img> logo, not a Font Awesome
+    // class — the one button on the rail the mask set could not reach. A
+    // dagger, point down; the stylesheet hides the logo and this takes the
+    // rail's own bone, like every neighbour (Dawid, 26.08).
+    "drpg-daggerheart": [
+        "...####...",
+        "....##....",
+        "....##....",
+        "##########",
+        "##########",
+        "...####...",
+        "...####...",
+        "...####...",
+        "...####...",
+        "....##....",
+        "....##....",
+        "....##...."
     ]
 };
 
@@ -864,9 +893,13 @@ const MAPPING = {
 function encode(art) {
     const h = art.length;
     const w = Math.max(...art.map(r => r.length));
-    if (h > GRID || w > GRID) throw new Error(`sprite larger than ${GRID}px`);
-    const ox = Math.floor((GRID - w) / 2);
-    const oy = Math.floor((GRID - h) / 2);
+    // The grid is per sprite: 12 for the chrome set, 24 when a drawing needs
+    // the resolution (the Monokuma eye's curves die at 12px). The mask always
+    // scales to the icon box, so the two grids cost each other nothing.
+    const grid = (w > GRID || h > GRID) ? GRID * 2 : GRID;
+    if (h > grid || w > grid) throw new Error(`sprite larger than ${grid}px`);
+    const ox = Math.floor((grid - w) / 2);
+    const oy = Math.floor((grid - h) / 2);
 
     let d = "";
     for (let y = 0; y < h; y++) {
@@ -879,7 +912,7 @@ function encode(art) {
             x += run;
         }
     }
-    return `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 ${GRID} ${GRID}' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='${d}'/%3E%3C/svg%3E")`;
+    return `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 ${grid} ${grid}' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='${d}'/%3E%3C/svg%3E")`;
 }
 
 const HOSTS = [
@@ -888,6 +921,14 @@ const HOSTS = [
     "#sidebar .tabs button.ui-control"
 ];
 
+/** Sprites keyed by something other than a Font Awesome class, and exactly
+ *  where each one lands. Their keys never match a real button class, so the
+ *  HOSTS selectors they would otherwise emit are dead by construction. */
+const SPECIAL = {
+    "drpg-monokuma-eye": ["#drpg-gm-launcher i::before"],
+    "drpg-daggerheart": ['#sidebar-tabs button[data-tab="daggerheartMenu"]::before']
+};
+
 function buildCss() {
     const perIcon = [];
     const allSelectors = [];
@@ -895,9 +936,7 @@ function buildCss() {
     for (const [cls, spriteKey] of Object.entries(MAPPING)) {
         const art = ICONS[spriteKey];
         if (!art) continue;
-        const selectors = cls === "drpg-monokuma-eye"
-            ? ["#drpg-gm-launcher i::before"]
-            : HOSTS.map(h => `${h}.${cls}::before`);
+        const selectors = SPECIAL[cls] ?? HOSTS.map(h => `${h}.${cls}::before`);
         allSelectors.push(...selectors);
         perIcon.push(`${selectors.join(",\n")} {\n    -webkit-mask-image: ${encode(art)};\n    mask-image: ${encode(art)};\n}`);
     }

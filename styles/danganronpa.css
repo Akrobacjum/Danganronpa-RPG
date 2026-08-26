@@ -11885,7 +11885,8 @@ i.drpg-pix-foot {
 #scene-controls button.ui-control.fa-clock::before,
 #sidebar-tabs button.ui-control.fa-clock::before,
 #sidebar .tabs button.ui-control.fa-clock::before,
-#drpg-gm-launcher i::before {
+#drpg-gm-launcher i::before,
+#sidebar-tabs button[data-tab="daggerheartMenu"]::before {
     content: "" !important;
     display: inline-block;
     width: 1em;
@@ -12312,26 +12313,61 @@ i.drpg-pix-foot {
 }
 
 #drpg-gm-launcher i::before {
-    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 1h2v1H10zM7 2h5v1H7zM4 3h8v1H4zM1 4h11v1H1zM0 5h12v1H0zM0 6h8v1H0zM0 7h9v1H0zM1 8h5v1H1zM2 9h4v1H2zM3 10h2v1H3z'/%3E%3C/svg%3E");
-    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 1h2v1H10zM7 2h5v1H7zM4 3h8v1H4zM1 4h11v1H1zM0 5h12v1H0zM0 6h8v1H0zM0 7h9v1H0zM1 8h5v1H1zM2 9h4v1H2zM3 10h2v1H3z'/%3E%3C/svg%3E");
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M23 5h1v1H23zM22 6h2v1H22zM20 7h3v1H20zM19 8h4v1H19zM17 9h6v1H17zM7 10h1v1H7zM16 10h6v1H16zM6 11h3v1H6zM14 11h8v1H14zM5 12h5v1H5zM12 12h9v1H12zM4 13h17v1H4zM4 14h10v1H4zM16 14h4v1H16zM4 15h7v1H4zM17 15h1v1H17zM2 16h7v1H2zM1 17h3v1H1zM8 17h1v1H8zM0 18h2v1H0z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M23 5h1v1H23zM22 6h2v1H22zM20 7h3v1H20zM19 8h4v1H19zM17 9h6v1H17zM7 10h1v1H7zM16 10h6v1H16zM6 11h3v1H6zM14 11h8v1H14zM5 12h5v1H5zM12 12h9v1H12zM4 13h17v1H4zM4 14h10v1H4zM16 14h4v1H16zM4 15h7v1H4zM17 15h1v1H17zM2 16h7v1H2zM1 17h3v1H1zM8 17h1v1H8zM0 18h2v1H0z'/%3E%3C/svg%3E");
+}
+
+#sidebar-tabs button[data-tab="daggerheartMenu"]::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 0h4v1H4zM5 1h2v1H5zM5 2h2v1H5zM1 3h10v1H1zM1 4h10v1H1zM4 5h4v1H4zM4 6h4v1H4zM4 7h4v1H4zM4 8h4v1H4zM5 9h2v1H5zM5 10h2v1H5zM5 11h2v1H5z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 0h4v1H4zM5 1h2v1H5zM5 2h2v1H5zM1 3h10v1H1zM1 4h10v1H1zM4 5h4v1H4zM4 6h4v1H4zM4 7h4v1H4zM4 8h4v1H4zM5 9h2v1H5zM5 10h2v1H5zM5 11h2v1H5z'/%3E%3C/svg%3E");
 }
 
 /* == /CHROME PIXEL ICONS == */
 /* ==========================================================================
-   PRESENT AND OBJECTION WEAR THE COURTROOM GAVEL
+   THE ROW BUTTONS GO PIXEL
    --------------------------------------------------------------------------
-   The Truth Bullet row's button was the last Font Awesome glyph on the sheet:
-   `fa-gavel` outside a debate, `fa-hand` inside one. Both states now wear the
-   pixel gavel the courtroom already uses — `--drpg-g-new-rule`, the same
-   drawing on the New Rule call and the GM panel's Rules tile — so "this goes
-   before the court" is one shape everywhere it appears (Dawid, 26.08).
-   Present and Objection stay told apart the way they already were: by the
-   button's own colours, not by the glyph.
+   The inventory and Truth Bullet rows were the sheet's last Font Awesome
+   colony: flask, fist, trash, box, brain, share, holding hand — seven vector
+   glyphs in a module where everything else is drawn on a pixel grid
+   (Dawid, 26.08). All of them now wear hand-drawn 24-grid sprites, the same
+   grid as the GM panel's set.
+
+   Two are borrowed rather than redrawn, on the set's own rule that one word
+   gets one shape: Analyze wears the Analyze action's glyph, and
+   Present/Objection wear the courtroom gavel that New Rule and the Rules
+   tile already use. Where one button means two things, the sprite is keyed
+   off the Font Awesome class the sheet already switches (stow/retrieve,
+   share/give), so the JS did not have to change.
 
    The mask follows the GM panel's pattern: the <i> itself becomes the mask
    box, `font-size: 0` retires the vector glyph (with !important, because the
    sheet's own row-glyph rule sets a text size the same way), and
-   `currentColor` keeps whatever colour the button rules decide. */
+   `currentColor` keeps whatever colour the button rules decide. A row button
+   added later without a sprite here keeps its vector glyph. */
+
+:root {
+    --drpg-r-flask:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M7 3h10v1H7zM7 4h10v1H7zM10 5h4v1H10zM10 6h4v1H10zM10 7h4v1H10zM10 8h4v1H10zM9 9h6v1H9zM8 10h2v1H8zM14 10h2v1H14zM7 11h2v1H7zM15 11h2v1H15zM6 12h2v1H6zM16 12h2v1H16zM5 13h2v1H5zM17 13h2v1H17zM4 14h2v1H4zM18 14h2v1H18zM4 15h2v1H4zM18 15h2v1H18zM3 16h18v1H3zM2 17h20v1H2zM2 18h20v1H2zM2 19h20v1H2zM3 20h18v1H3z'/%3E%3C/svg%3E");
+    --drpg-r-fist:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 7h4v1H3zM9 7h4v1H9zM15 7h4v1H15zM3 8h4v1H3zM9 8h4v1H9zM15 8h4v1H15zM3 9h16v1H3zM3 10h16v1H3zM3 11h16v1H3zM3 12h16v1H3zM3 13h16v1H3zM4 14h14v1H4zM5 15h12v1H5zM6 16h10v1H6z'/%3E%3C/svg%3E");
+    --drpg-r-trash:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 4h6v1H9zM4 5h16v1H4zM4 6h16v1H4zM6 8h12v1H6zM6 9h12v1H6zM6 10h12v1H6zM6 11h12v1H6zM6 12h12v1H6zM6 13h12v1H6zM7 14h10v1H7zM7 15h10v1H7zM7 16h10v1H7zM7 17h10v1H7zM7 18h10v1H7z'/%3E%3C/svg%3E");
+    --drpg-r-stow:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 3h4v1H10zM10 4h4v1H10zM10 5h4v1H10zM6 6h12v1H6zM7 7h10v1H7zM8 8h8v1H8zM9 9h6v1H9zM10 10h4v1H10zM11 11h2v1H11zM3 13h18v1H3zM3 14h18v1H3zM3 16h18v1H3zM3 17h18v1H3zM3 18h18v1H3zM3 19h18v1H3z'/%3E%3C/svg%3E");
+    --drpg-r-retrieve:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 3h2v1H11zM10 4h4v1H10zM9 5h6v1H9zM8 6h8v1H8zM7 7h10v1H7zM6 8h12v1H6zM10 9h4v1H10zM10 10h4v1H10zM10 11h4v1H10zM3 13h18v1H3zM3 14h18v1H3zM3 16h18v1H3zM3 17h18v1H3zM3 18h18v1H3zM3 19h18v1H3z'/%3E%3C/svg%3E");
+    --drpg-r-share:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M16 0h6v1H16zM16 1h6v1H16zM16 2h6v1H16zM16 3h6v1H16zM16 4h6v1H16zM14 5h8v1H14zM12 6h2v1H12zM10 7h2v1H10zM8 8h2v1H8zM0 9h8v1H0zM0 10h6v1H0zM0 11h6v1H0zM0 12h6v1H0zM0 13h6v1H0zM0 14h8v1H0zM8 15h2v1H8zM10 16h2v1H10zM12 17h2v1H12zM14 18h8v1H14zM16 19h6v1H16zM16 20h6v1H16zM16 21h6v1H16zM16 22h6v1H16zM16 23h6v1H16z'/%3E%3C/svg%3E");
+    --drpg-r-give:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 4h6v1H9zM9 5h6v1H9zM9 6h6v1H9zM9 7h6v1H9zM2 10h2v1H2zM20 10h2v1H20zM2 11h2v1H2zM20 11h2v1H20zM2 12h3v1H2zM19 12h3v1H19zM3 13h3v1H3zM18 13h3v1H18zM4 14h4v1H4zM16 14h4v1H16zM6 15h4v1H6zM14 15h4v1H14zM8 16h8v1H8zM8 17h8v1H8zM10 18h4v1H10zM10 19h4v1H10z'/%3E%3C/svg%3E");
+}
+
+.drpg-row-use i,
+.drpg-row-equip i,
+.drpg-row-discard i,
+.drpg-row-stash i,
+.drpg-tb-analyze i,
+.drpg-row-handover i,
 .drpg-row-present i {
     display: inline-block;
     width: 16px;
@@ -12339,8 +12375,6 @@ i.drpg-pix-foot {
     vertical-align: middle;
     font-size: 0 !important;
     background-color: currentColor;
-    -webkit-mask-image: var(--drpg-g-new-rule);
-    mask-image: var(--drpg-g-new-rule);
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -12350,6 +12384,122 @@ i.drpg-pix-foot {
     image-rendering: pixelated;
 }
 
+.drpg-row-use i::before,
+.drpg-row-equip i::before,
+.drpg-row-discard i::before,
+.drpg-row-stash i::before,
+.drpg-tb-analyze i::before,
+.drpg-row-handover i::before,
 .drpg-row-present i::before {
     content: none !important;
+}
+
+.drpg-row-use i {
+    -webkit-mask-image: var(--drpg-r-flask);
+    mask-image: var(--drpg-r-flask);
+}
+
+.drpg-row-equip i {
+    -webkit-mask-image: var(--drpg-r-fist);
+    mask-image: var(--drpg-r-fist);
+}
+
+.drpg-row-discard i {
+    -webkit-mask-image: var(--drpg-r-trash);
+    mask-image: var(--drpg-r-trash);
+}
+
+.drpg-row-stash i.fa-box-archive {
+    -webkit-mask-image: var(--drpg-r-stow);
+    mask-image: var(--drpg-r-stow);
+}
+
+.drpg-row-stash i.fa-hand-back-fist {
+    -webkit-mask-image: var(--drpg-r-retrieve);
+    mask-image: var(--drpg-r-retrieve);
+}
+
+.drpg-tb-analyze i {
+    -webkit-mask-image: var(--drpg-g-analyze);
+    mask-image: var(--drpg-g-analyze);
+}
+
+.drpg-row-handover i.fa-share-nodes {
+    -webkit-mask-image: var(--drpg-r-share);
+    mask-image: var(--drpg-r-share);
+}
+
+.drpg-row-handover i.fa-hand-holding {
+    -webkit-mask-image: var(--drpg-r-give);
+    mask-image: var(--drpg-r-give);
+}
+
+.drpg-row-present i {
+    -webkit-mask-image: var(--drpg-g-new-rule);
+    mask-image: var(--drpg-g-new-rule);
+}
+
+/* ==========================================================================
+   THE GM TEAM PANEL GETS TABS
+   --------------------------------------------------------------------------
+   Pools, Monokumas and the student split were three sections in one scroll;
+   they are three tabs now (Dawid, 26.08). The switching is class-only —
+   every pane stays in the DOM because Save reads all three forms at once.
+   Active tab takes the module's GM red; `!important` for the same reason
+   every module surface states its colours loudly (see THE RED WINS THE
+   ARGUMENT): core's own button rules are unlayered and would repaint these. */
+.drpg-gmt-tabs {
+    display: flex;
+    gap: 6px;
+    padding-bottom: 8px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid rgba(var(--drpg-bone-rgb), 0.25);
+}
+
+.drpg-gmt-tabs button {
+    flex: 1 1 0;
+    padding: 6px 10px;
+    background: rgba(var(--drpg-bone-rgb), 0.08) !important;
+    border: 1px solid rgba(var(--drpg-bone-rgb), 0.3) !important;
+    border-radius: 3px !important;
+    color: var(--drpg-bone) !important;
+    box-shadow: none !important;
+    font-size: var(--drpg-text-sm);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+}
+
+.drpg-gmt-tabs button:hover:not(.active) {
+    background: rgba(var(--drpg-eye-rgb), 0.15) !important;
+}
+
+.drpg-gmt-tabs button.active {
+    background: rgba(var(--drpg-eye-rgb), 0.25) !important;
+    border-color: var(--drpg-eye) !important;
+}
+
+.drpg-gmt-section {
+    display: none;
+}
+
+.drpg-gmt-section.active {
+    display: block;
+}
+
+/* ==========================================================================
+   TWO SMALL EVICTIONS AROUND THE PIXEL SET
+   --------------------------------------------------------------------------
+   The Daggerheart sidebar button ships its logo as an <img>; the generated
+   section above gives its ::before the dagger sprite, and this retires the
+   logo so the two do not stack. And the inventory tab's filter funnel goes
+   entirely — the module's inventory is grouped by its own categories and the
+   system's filter row only ever filtered a list the module has already
+   reorganised (Dawid, 26.08). */
+#sidebar-tabs button[data-tab="daggerheartMenu"] img {
+    display: none;
+}
+
+.application.sheet.actor .tab.inventory .filter-button {
+    display: none !important;
 }
