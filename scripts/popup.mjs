@@ -7,8 +7,11 @@
  * card in the middle of the screen, purple for an ordinary update, red for
  * something that was refused, gold for evidence.
  *
- * Everyone gets them, GMs included. The chat log is still the paper trail, but
- * it is not a notification channel — during an incident nobody is reading it.
+ * Every player gets them. A GM gets the ones addressed to the table or to them
+ * — see the whisper rule in `onCreateChatMessage` below; the records of what
+ * everyone did reach a GM through the chat log and the day summary instead.
+ * The chat log is still the paper trail, but it is not a notification channel —
+ * during an incident nobody is reading it.
  *
  * Two ways something ends up here:
  *   showPopup()              called directly, when the caller wants a title or
@@ -303,25 +306,35 @@ function onCreateChatMessage(message) {
 
     /* ---- a GM is not an audience for every receipt in the world ----------
      *
-     * Most of what this module whispers to the GMs is a RECORD, not a request:
-     * a Remnant was placed, a Search drew a Tier 2 item, a Despair Call was
-     * paid for, a clean-up rolled 14 against DC 12. Every one of those raised a
-     * card in the middle of the GM's screen, and during a busy time of day —
-     * five players acting, an incident running — the GM's screen was the one
-     * least able to afford it. The cards a GM actually has to answer arrive by
-     * a different road: a ruling request goes through the messenger thread,
-     * which is skipped above and raises its own card.
+     * Most of what this module whispers is a RECORD, not a request: a Remnant
+     * was placed, a Search drew a Tier 2 item, a Despair Call was paid for, a
+     * clean-up rolled 14 against DC 12. Every one of those raised a card in the
+     * middle of the GM's screen, and during a busy time of day — five players
+     * acting, an incident running — the GM's screen was the one least able to
+     * afford it.
      *
-     * So a GM-only whisper stays in the chat log, where a record belongs, and
-     * anything genuinely addressed to a GM still interrupts them:
+     * The first pass at this only skipped whispers addressed to GMs ALONE,
+     * which turned out to be the smaller half of the problem: a player's action
+     * card goes through `whisperToOwner` (utils.mjs), and that list is the owner
+     * PLUS every GM, so it was never GM-only and every one of the sixty-odd call
+     * sites still interrupted the GM. Measured on two clients: a `whisperToGms`
+     * record raised nothing, a `whisperToOwner` record raised a card.
      *
-     *   public announcements   everyone sees them, GMs included
+     * So a whisper — any whisper — stays in the chat log for the GM, where a
+     * record belongs, and the GM's roundup of who did what is the day summary
+     * (day-summary.mjs), which already carries a "who" column for GMs. What
+     * still interrupts a GM:
+     *
+     *   public announcements   no whisper list at all; that IS an announcement
      *   messenger threads      handled above; that IS the GM being called
-     *   `popupForce`           the poster insists — the safeword uses this
-     *   a player recipient     not a GM-only whisper at all
+     *   `gmPopup`              the poster says this one is for the GM to answer
+     *   `popupForce`           the poster insists, for every recipient
+     *
+     * Players are untouched: their own cards are the whole point of the popup.
      */
-    const gmOnly = whisper.length && whisper.every(id => game.users.get(id)?.isGM);
-    if (game.user.isGM && gmOnly && !message.getFlag(MODULE_ID, "popupForce")) return;
+    const forGm = message.getFlag(MODULE_ID, "gmPopup")
+        || message.getFlag(MODULE_ID, "popupForce");
+    if (game.user.isGM && whisper.length && !forGm) return;
 
     // A header, when the poster gave one. An action's result card says which
     // action it is about — "Search", "Sabotage" — and that used to be possible
