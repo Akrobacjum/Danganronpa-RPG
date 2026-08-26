@@ -154,10 +154,12 @@ async function pickCharacter() {
         return null;
     }
 
+    // The name alone. The options used to append `inventorySummary`, which
+    // made every row a full line of counts — the same information the give
+    // dialog already shows for the chosen character, one step later, where it
+    // is actually needed (Dawid, 26.08).
     const options = actors
-        .map(a => `<option value="${a.id}">${foundry.utils.escapeHTML(a.name)} — ${
-            foundry.utils.escapeHTML(inventorySummary(a))
-        }</option>`)
+        .map(a => `<option value="${a.id}">${foundry.utils.escapeHTML(a.name)}</option>`)
         .join("");
 
     const id = await DialogV2.wait({
