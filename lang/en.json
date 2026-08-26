@@ -738,7 +738,6 @@
         "objection": "OBJECTION",
         "rebuttal": "Rebuttal"
       },
-      "versus": "vs",
       "discussionNote": "The debate's clock is your budget for it, not a limit: running past it turns the clock red and nothing else. An OBJECTION is what takes the debate away from the table.",
       "holdingDiscussion": "Open discussion — {seconds} s left on your budget. Everyone may speak.",
       "holdingObjection": "{who} holds the debate, objecting to {target} — {seconds} s. Nobody else may speak; the rebuttal follows automatically.",

@@ -118,10 +118,6 @@ export function unreadCount(playerUserId) {
         .length;
 }
 
-export function hasUnread(playerUserId) {
-    return unreadCount(playerUserId) > 0;
-}
-
 /** Total unread across every thread this client can see. */
 export function totalUnread() {
     const mine = game.user.isGM ? threadUsers().map(u => u.id) : [game.user.id];

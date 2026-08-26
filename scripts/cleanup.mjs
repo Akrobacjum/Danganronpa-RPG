@@ -43,11 +43,6 @@ import { whisperToGms, whisperToOwner, log, error, cardHead } from "./utils.mjs"
  * WHO MAY CLEAN, AND WHAT
  * ========================================================================== */
 
-/** Is a clean-up possible at all right now? */
-export function isResolutionStage() {
-    return murderState()?.stage === "resolution";
-}
-
 /**
  * WHY this actor cannot clean, or null if they can.
  *

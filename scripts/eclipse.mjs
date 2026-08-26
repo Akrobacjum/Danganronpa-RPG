@@ -67,17 +67,6 @@ export function eclipseAllowance(clock = getClock()) {
     return isFreePlacement(clock) ? null : ECLIPSE_MOVES;
 }
 
-/**
- * Is the clock sitting on the last time of day of the session?
- *
- * Night closes a session — "most players take a long rest and finish for the
- * day". The Eclipse that follows belongs to the NEXT session's Morning, so the
- * control that opens it says so rather than pretending the evening continues.
- */
-export function atSessionEnd(clock = getClock()) {
-    return clock.timeOfDay === TIMES_OF_DAY[TIMES_OF_DAY.length - 1];
-}
-
 /** Per-character crossings used, keyed by actor id. Cleared when it ends. */
 export function eclipseMoves() {
     return game.settings.get(MODULE_ID, SETTINGS.eclipseMoves) ?? {};

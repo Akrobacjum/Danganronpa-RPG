@@ -853,12 +853,6 @@ async function studentActorIds() {
     return studentActors().map(a => a.id);
 }
 
-/** Wipe the whole ledger. Called from season reset. */
-export async function clearAllDiscovery() {
-    if (!game.user.isGM) return;
-    await game.settings.set(MODULE_ID, SETTINGS.discoveredRooms, {});
-}
-
 /**
  * Every room this VIEWER's own characters currently know about on this
  * scene — the "visited" half of the three states.

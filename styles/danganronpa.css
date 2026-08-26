@@ -331,8 +331,7 @@
 #drpg-popups,
 #drpg-despair,
 #drpg-messenger-launcher,
-#drpg-messenger-roster,
-#drpg-casebook-launcher {
+#drpg-messenger-roster {
     color-scheme: dark;
 
     --color-text-primary: #efe6d8;
@@ -1421,7 +1420,6 @@ body:not(.drpg-pixel-font) .chat-message .roll-part-title span {
    Start 2P is a wide face, so a size that looks modest in a normal font still
    dominates here. */
 .character-header-sheet .experience-value,
-.drpg-experience-value,
 .experience-chip .label {
     font-size: var(--font-size-10, 0.625rem);
 }
@@ -3321,10 +3319,6 @@ body.drpg-pixel-font [contenteditable] {
     border-radius: 4px;
     padding: 6px;
     margin-bottom: 6px;
-}
-
-.drpg-monocub-hope {
-    margin: 2px 0 6px;
 }
 
 .drpg-monocub-silenced {
@@ -8543,22 +8537,18 @@ details.drpg-calls-panel[open] > .drpg-action-grid {
 }
 
 /* ==========================================================================
-   STAGE 8b — THE ROSTER IN THE GM BAR
+   STAGE 8b — THE ROSTER IN THE GM BAR — SUPERSEDED, NOT MISSING
    --------------------------------------------------------------------------
-   One row of initials under the clock, GM only. Lit means that student still
-   has actions; dimmed means they are done. "Is everyone finished" stops being
-   a question asked out loud across five open sheets.
-   ========================================================================== */
+   This described a row of initials under the clock, GM only, lit while a
+   student still had actions, so that "is everyone finished" stopped being a
+   question asked out loud. hud.mjs never built it — `.drpg-hud-roster` was
+   painted here and named nowhere in the module.
 
-.drpg-hud-roster {
-    display: flex;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 3px;
-    margin-top: 4px;
-    padding-top: 4px;
-    border-top: 1px solid var(--drpg-line);
-}
+   It is not owed, either: the Player status window answers exactly that
+   question and answers it better, with each student's actions, free move and
+   Hope on their own row rather than a lit initial. The rule is gone; the note
+   stays so nobody reads its absence as something dropped by accident.
+   ========================================================================== */
 
 /* ==========================================================================
    STAGE 8c — THE ULTIMATE IS A TITLE
@@ -9955,11 +9945,6 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
 
 /* ---- the endgame's clues, on the Mastermind window --------------------- */
 
-.drpg-final-remnants {
-    display: grid;
-    gap: 6px;
-}
-
 .drpg-final-list {
     margin: 0;
     padding: 0;
@@ -10871,7 +10856,6 @@ body.drpg-pixel-font #pause.paused figcaption {
 #countdowns .drpg-projects-fold,
 .drpg-panel .drpg-mini-button,
 .drpg-projects .drpg-mini-button,
-.drpg-panel button.drpg-choice-button,
 .drpg-messenger .drpg-call-action {
     background-image: none !important;
     color: var(--drpg-bone) !important;
@@ -11152,7 +11136,6 @@ body.drpg-pixel-font #pause.paused figcaption {
 
 /* A project row in the manager: the same list treatment the inventory groups
    got, so the two tables in the module read as one kind of object. */
-.drpg-projects .drpg-project-row,
 .drpg-projects tbody tr {
     background: rgba(var(--drpg-bone-rgb), 0.04);
 }

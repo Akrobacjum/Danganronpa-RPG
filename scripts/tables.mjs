@@ -295,8 +295,19 @@ export const ITEM_POOLS = {
 };
 
 /**
- * Items the guide names as project results rather than search finds. Offered to
- * the GM as suggestions; not part of the Search tables.
+ * Items the guide names as project results rather than search finds.
+ *
+ * NOT WIRED UP, AND KEPT ON PURPOSE. The comment above this used to end
+ * "offered to the GM as suggestions", and nothing offers them: no screen reads
+ * this, and a dead-surface sweep finds it referenced from nowhere in the
+ * module. It is not dead code, though — it is guide content that never reached
+ * a screen, and deleting it would delete three rules rather than tidy an
+ * unused helper. Left standing, and named here so the next sweep does not
+ * mistake it for litter.
+ *
+ * Where it would belong: the project result screen, beside the item the GM is
+ * about to hand over — the same shape `gm-items.mjs` already uses to prefill
+ * from a table.
  */
 export const PROJECT_ITEMS = {
     3: [

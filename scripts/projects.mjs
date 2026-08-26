@@ -227,17 +227,6 @@ export function sabotageTargetsIn(room, { anyRoom = false, user = game.user } = 
 }
 
 /**
- * Projects explicitly tied to a room the character is not in.
- *
- * Visibility-filtered like everything else, but note that nothing player-facing
- * should be naming these: knowing that "Prepare the poison" is being run in the
- * Chemistry Lab is the whole mystery. See `DRPG.Project.noneHere`.
- */
-export function projectsElsewhere(room, user = game.user) {
-    return visibleProjects(user).filter(p => p.room && p.room !== room);
-}
-
-/**
  * Add progress to a project. Countdowns live in a world setting, so only a GM
  * can write — a player's progress is applied through the GM bridge.
  *

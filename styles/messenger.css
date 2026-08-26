@@ -280,21 +280,18 @@ body.drpg-pixel-font #drpg-messenger-roster h4 {
    messenger.css second: the original `right: 16px` in this file beats anything
    of equal specificity written earlier, whichever order the rules appear in.
 
-   Bigger, too. 44px is a comfortable target only if you never miss, and these
-   are the two controls a player reaches for in the middle of a scene.
+   Bigger, too. 44px is a comfortable target only if you never miss, and this
+   is a control a player reaches for in the middle of a scene.
+
+   There were two. The Casebook was deliberately removed — remnants.mjs records
+   why, and the room tag on a Remnant is what replaced its grouping — but its
+   launcher kept a reserved slot above this one for a button that stopped
+   existing. Gone with it.
    ========================================================================== */
 
 #drpg-messenger-launcher {
     right: var(--drpg-edge);
     bottom: var(--drpg-edge);
-    width: 52px;
-    height: 52px;
-    font-size: 1.15rem;
-}
-
-#drpg-casebook-launcher {
-    right: var(--drpg-edge);
-    bottom: calc(var(--drpg-edge) + 60px);
     width: 52px;
     height: 52px;
     font-size: 1.15rem;

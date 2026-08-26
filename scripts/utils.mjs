@@ -75,11 +75,6 @@ export function sessionFailures() {
     return sessionLog.map(e => ({ ...e }));
 }
 
-/** How many, for a badge. Repeats count once — they are one fault. */
-export function sessionFailureCount() {
-    return sessionLog.length;
-}
-
 export function clearSessionFailures() {
     sessionLog.length = 0;
 }

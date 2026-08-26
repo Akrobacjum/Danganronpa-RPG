@@ -467,16 +467,6 @@ export async function manageClassTrial() {
     return null;
 }
 
-/**
- * The old name for the same screen.
- *
- * `nextStep()` in the GM panel points at whatever the current state calls for,
- * and a trial has two of those — "no floor is open" and "the floor is in
- * rebuttal". Both are this window now, so both names lead here rather than one
- * of them leading nowhere.
- */
-export const openFloorDialog = manageClassTrial;
-
 /** Open or close the vote. One button, because it is one moment either way. */
 export async function openVoteDialog() {
     if (!game.user.isGM) {

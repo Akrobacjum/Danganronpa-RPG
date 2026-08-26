@@ -2485,7 +2485,19 @@ function injectCallsPanel(tab, actor, monokuma) {
     const max = monokuma ? STARTING.despairMax : hopeMax(actor);
 
     const panel = document.createElement("div");
-    panel.className = `drpg-calls-panel ${monokuma ? "drpg-despair-panel" : "drpg-hope-panel"}`;
+    // A Despair Call that silences somebody closes this whole menu until the
+    // clock moves, and until now it closed it INVISIBLY: `calls.mjs` refuses a
+    // silenced player's Call with a notification, and every button on the panel
+    // went on looking exactly as available as it had a moment earlier. The
+    // stylesheet has had the greyed-out state written for it the whole time —
+    // `.drpg-calls-panel.drpg-silenced`, dimmed with a `not-allowed` cursor on
+    // the buttons — and nothing ever put the class on. Found by sweeping for
+    // CSS classes the code never names.
+    //
+    // Refusal stays where it is. The dimming says "not now"; pressing anyway is
+    // still how a player is told why.
+    panel.className = `drpg-calls-panel ${monokuma ? "drpg-despair-panel" : "drpg-hope-panel"}${
+        callSilenced(actor) ? " drpg-silenced" : ""}`;
 
     // The pool is on the bar for a Monokuma and nowhere else: Despair is the
     // only thing their sheet is about, and the number is not repeated anywhere
