@@ -129,9 +129,24 @@
       "Countdowns": {
         "title": "Projects",
         "noPlayerAccess": "This project is not visible to any players"
+      },
+      "Notifications": {
+        "notEnoughStress": "You don't have enough Sanity"
+      },
+      "ItemBrowser": {
+        "stressMin": "Sanity (Min)",
+        "stressMax": "Sanity (Max)",
+        "hitPointsMin": "Health (Min)",
+        "hitPointsMax": "Health (Max)"
       }
     },
     "APPLICATIONS": {
+      "DamageReduction": {
+        "stress": "Sanity",
+        "stressReduction": "Reduce By Sanity",
+        "unncessaryStress": "You don't need to spend Sanity",
+        "armorWithStress": "Spend 1 Sanity to use an extra mark"
+      },
       "CombatTracker": {
         "openCountdowns": "Projects"
       },

@@ -228,7 +228,24 @@ Hooks.once("ready", () => {
     safely("project secrecy", sealProjects);
     safely("bedroom keys", issueMissingKeys);
     safely("the Remnant actor", reconcileRemnantActorOnLoad);
+    safely("item table wording", refreshTableCopyOnLoad);
 });
+
+/**
+ * Bring installed item tables up to today's wording — see `refreshTableCopy`.
+ *
+ * A world already in play keeps the names and blurbs it was built with, so a
+ * relabelled resource goes on showing the old word in the tables sidebar long
+ * after every other surface has moved on. Silent, GM-only, and writes nothing
+ * when there is nothing to change.
+ */
+function refreshTableCopyOnLoad() {
+    if (!game.user.isGM) return;
+
+    import("./tables.mjs")
+        .then(m => m.refreshTableCopy())
+        .catch(err => error("Could not bring the item tables' wording up to date", err));
+}
 
 /**
  * A trace a player has copied must open when they double-click it.

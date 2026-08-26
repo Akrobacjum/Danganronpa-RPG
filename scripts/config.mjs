@@ -279,7 +279,7 @@ export const ITEM_CATEGORIES = {
         label: "Usable",
         plural: "Usables",
         limit: 3,
-        hint: "Healing items restore Health, stress-relief items clear Sanity. Tier 3 lets you pick."
+        hint: "Healing items restore Health, sanity-relief items clear Sanity. Tier 3 lets you pick."
     },
     // "Murder Weapon" rather than "Crime Tool" — Dawid's wording, 2026-08-17.
     // Changed here rather than in the item window alone, because this table is
@@ -333,8 +333,8 @@ export const TIER_EFFECTS = {
     // USABLE_KIND_EFFECTS below instead.
     usable: {
         0: "A random, seemingly useless item. Open to creative use.",
-        1: "Restores 1 Health (healing) or 1 Sanity (stress relief), by its kind.",
-        2: "Restores 2 Health (healing) or 2 Sanity (stress relief), by its kind.",
+        1: "Restores 1 Health (healing) or 1 Sanity (sanity relief), by its kind.",
+        2: "Restores 2 Health (healing) or 2 Sanity (sanity relief), by its kind.",
         3: "Restores 2 Health or 2 Sanity — your choice — plus 2 Hope."
     },
     crimeTool: {

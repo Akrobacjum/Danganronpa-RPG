@@ -82,6 +82,87 @@ export function existingTableName(category, tier, goal = null) {
     return names.find(n => game.tables?.getName?.(n)) ?? names[0];
 }
 
+/** The description `installTables` writes for one table. One reader, two callers. */
+function tableDescription(category, tier, goal = null) {
+    return `${ITEM_CATEGORIES[category]?.label ?? category}${
+        USABLE_KINDS[goal] ? ` (${USABLE_KINDS[goal].label})` : ""
+    }, Tier ${tier}. ${
+        USABLE_KIND_EFFECTS[goal]?.[tier] ?? TIER_EFFECTS[category]?.[tier] ?? ""}`;
+}
+
+/**
+ * Bring already-installed tables up to today's wording.
+ *
+ * The aliases above keep a renamed label from BREAKING anything, and that is a
+ * different job from this one: a table called "DRPG Usable Items (Stress
+ * Relief) — Tier 1", described as "Restores 1 HP or 1 Stress", still says
+ * Stress and HP to every GM who opens the sidebar. Dawid asked for the rename
+ * everywhere (26.08), and a world already in play is part of everywhere.
+ *
+ * WHAT IT WILL AND WILL NOT TOUCH. Only a table carrying this module's own
+ * `category`/`tier` flags, sitting under a name this module is known to have
+ * generated, is considered — a GM's own table that merely looks similar is not
+ * ours to rename. The description is only rewritten when it still matches the
+ * shape `installTables` writes ("<Label>, Tier N. …"), which is the signature
+ * of boilerplate nobody has edited; a description somebody has written over is
+ * theirs and is left exactly as it is, even though it may still say Stress.
+ *
+ * Idempotent, and silent when there is nothing to do — it runs at `ready` on
+ * every GM client, and a migration that announces itself every session is one
+ * people learn to click past.
+ *
+ * @returns {Promise<{renamed: string[], redescribed: string[]}>}
+ */
+export async function refreshTableCopy() {
+    const renamed = [];
+    const redescribed = [];
+    if (!game.user.isGM) return { renamed, redescribed };
+
+    // The shape installTables writes, under ANY label this module has used —
+    // that is what marks a description as untouched boilerplate.
+    const labels = Object.values(ITEM_CATEGORIES).map(c => c.label)
+        .concat(["Usable Item", "Crime Tool"]);
+    const generated = new RegExp(`^(${labels.map(l =>
+        l.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})( \\([^)]*\\))?, Tier \\d+\\.`);
+
+    // BY FLAG, NOT BY TODAY'S JOB LIST. Walking `tableJobs()` would only visit
+    // the tables this version still builds, and miss every one it used to: the
+    // mixed "DRPG Usable Items — Tier N" pools stopped being generated when
+    // usables split by kind, and they are exactly the tables still carrying the
+    // oldest wording. What makes a table ours is its flags, so that is what is
+    // walked — retired shapes included.
+    for (const table of Array.from(game.tables ?? [])) {
+        const category = table.getFlag(MODULE_ID, "category");
+        const tier = table.getFlag(MODULE_ID, "tier");
+        const goal = table.getFlag(MODULE_ID, "goal") ?? null;
+        if (!category || tier === undefined || tier === null) continue;
+
+        const update = {};
+        const wanted = tableName(category, tier, goal);
+        if (table.name !== wanted && !game.tables.getName(wanted)) update.name = wanted;
+
+        const description = tableDescription(category, tier, goal);
+        if (table.description !== description && generated.test(table.description ?? "")) {
+            update.description = description;
+        }
+
+        if (!Object.keys(update).length) continue;
+        try {
+            const was = table.name;
+            await table.update(update);
+            if (update.name) renamed.push(`${was} → ${update.name}`);
+            if (update.description) redescribed.push(table.name);
+        } catch (err) {
+            error(`Could not bring "${table.name}" up to date`, err);
+        }
+    }
+
+    if (renamed.length || redescribed.length) {
+        log(`Item tables: ${renamed.length} renamed, ${redescribed.length} re-described.`);
+    }
+    return { renamed, redescribed };
+}
+
 /**
  * A TIER pool feeds dice draws and is never a room's pool.
  *
@@ -424,10 +505,7 @@ export async function installTables({ overwrite = false, prompt = true } = {}) {
             await RollTable.create({
                 name,
                 folder: folder?.id ?? null,
-                description: `${ITEM_CATEGORIES[category]?.label ?? category}${
-                    USABLE_KINDS[goal] ? ` (${USABLE_KINDS[goal].label})` : ""
-                }, Tier ${tier}. ${
-                    USABLE_KIND_EFFECTS[goal]?.[tier] ?? TIER_EFFECTS[category]?.[tier] ?? ""}`,
+                description: tableDescription(category, tier, goal),
                 formula: `1d${names.length}`,
                 replacement: true,
                 displayRoll: false,

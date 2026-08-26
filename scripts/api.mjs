@@ -64,8 +64,8 @@ import {
     diagnoseCharacters
 } from "./diagnostics.mjs";
 import { performAction, currentRoom } from "./action-rolls.mjs";
-import { installTables, openItemTables, drawItem, randomItem, tableName, usableKindFor }
-    from "./tables.mjs";
+import { installTables, openItemTables, drawItem, randomItem, tableName, usableKindFor,
+    tableNameCandidates, refreshTableCopy } from "./tables.mjs";
 import { roomOfActor, roomOfToken, othersInRoom, allRooms, neighbouringRooms, occupantsOf } from "./movement.mjs";
 import { applyAll as refreshRoomVisibility, visibleCharacters, diagnoseVisibility }
     from "./visibility.mjs";
@@ -845,6 +845,12 @@ export const DrpgApi = {
     /** Which kind of usable a NAME is, read off the Healing and Sanity Relief
      *  tables: "healing", "stress", "both" or null. */
     usableKindFor,
+    /** Every name a tier table could be sitting under, today's first — labels
+     *  get reworded and the old names stay valid. See LEGACY_PLURALS. */
+    tableNameCandidates,
+    /** Bring installed tables' names and blurbs up to today's wording. Runs
+     *  itself at load; here for a GM who wants to see what it did. */
+    refreshTableCopy,
 
     /* ---- diagnostics --------------------------------------------------- */
 
