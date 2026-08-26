@@ -73,23 +73,38 @@ export async function openItemManager(actor = null) {
         await openVaultInspector();
         return openItemManager(target);
     }
+    /*
+     * CANCELLING A STEP COMES BACK HERE (D-F5-2).
+     *
+     * Every branch used to read `made ? openItemManager(target) : null`, so
+     * succeeding returned to the hub and CANCELLING closed the whole thing —
+     * and with it the character this window is about. A GM who opened Give,
+     * thought better of it and pressed Cancel was put back in the GM panel
+     * having to pick the student again, which is the one thing the hub exists
+     * to save them.
+     *
+     * Two different depths for the same gesture, and the wrong one was the
+     * cheaper to reach. Now every step returns to the hub whatever the answer,
+     * and the hub's own Close is the single way out — one exit, at the level
+     * the GM opened.
+     */
     if (choice === "give") {
-        const made = await giveItemDialog(target);
+        await giveItemDialog(target);
         // Straight back to the manager, so handing over three things is three
         // clicks rather than three trips through the menu.
-        return made ? openItemManager(target) : null;
+        return openItemManager(target);
     }
     if (choice === "bullet") {
-        const made = await giveTruthBulletDialog(target);
-        return made ? openItemManager(target) : null;
+        await giveTruthBulletDialog(target);
+        return openItemManager(target);
     }
     if (choice === "key") {
-        const given = await giveKeyDialog(target);
-        return given ? openItemManager(target) : null;
+        await giveKeyDialog(target);
+        return openItemManager(target);
     }
     if (choice === "take") {
-        const taken = await takeItemDialog(target);
-        return taken ? openItemManager(target) : null;
+        await takeItemDialog(target);
+        return openItemManager(target);
     }
     return null;
 }
