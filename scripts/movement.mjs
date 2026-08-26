@@ -754,12 +754,28 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
 
     if (tokenDoc) lastPosition.set(tokenDoc.id, { x: tokenDoc.x, y: tokenDoc.y });
 
+    // What the room looks like, when the GM has written it — the Description
+    // tab in Room Setup. Walking in is the moment somebody wants to be told
+    // what they are looking at (Dawid, 26.08), and it saves them opening the
+    // clock to read it. Escaped: it is the GM's own typed prose, and this card
+    // is HTML.
+    let described = "";
+    try {
+        const { roomDescription } = await import("./vault.mjs");
+        const text = to ? roomDescription(to) : "";
+        if (text) described = `<p class="drpg-room-prose">${foundry.utils.escapeHTML(text)}</p>`;
+    } catch (err) {
+        // A description is a courtesy; the move itself has already been paid
+        // for and must be reported either way.
+        debug(`Could not read the description of "${to}": ${err?.message ?? err}`);
+    }
+
     // The room goes in the header's own slot rather than only inside `where`'s
     // sentence: the header is the line somebody skims a whole time of day by,
     // and "MOVE — Dinner Hall" answers the question the log is being read for.
     await whisperToOwner(actor, `${cardHead({
         action: game.i18n.localize("DRPG.Move.title"), room: to
-    })}<p>${where}<br>${price}</p>`);
+    })}<p>${where}<br>${price}</p>${described}`);
     debug(`${actor.name}: ${from ?? "—"} -> ${to ?? "—"} (${cost})`);
     return true;
 }
