@@ -531,6 +531,100 @@ export function dualityOf(roll) {
     };
 }
 
+/**
+ * The two dice, the modifier and the total — drawn in the module's own card.
+ *
+ * The card said "14" and stopped there. Which way the roll went was carried by
+ * the popup's title colour alone, and the two faces that decided it were only
+ * ever on Daggerheart's own chat card: a second card, in a second visual
+ * language, that a player had to look away to read. This draws the same
+ * sentence the system rolled, in this module's language, next to the result it
+ * produced — one card, one paper trail, in chat and in the popup alike.
+ *
+ * NOT a clone of the system's card, deliberately. That was the other option and
+ * it loses three ways: its CSS is outside our layer, it carries interactive
+ * buttons this card has no business re-firing, and it arrives on Dice So Nice's
+ * schedule rather than ours.
+ *
+ * WHERE THE NUMBERS COME FROM, and why three ways of asking. A live roll
+ * answers `roll.hope` / `roll.fear`; the same roll read back off a chat message
+ * does not — those are gone by the time `Roll.fromData` has rebuilt it, which
+ * is measured, not assumed. The terms survive, so `HopeDie` / `FearDie` by
+ * class name is the fallback, and the last resort is the dice in formula order.
+ *
+ * The modifier is `total - hope - fear` rather than a sum of the numeric terms:
+ * an advantage or disadvantage die is a term too, and a card that printed "+0"
+ * while a d6 was quietly making up the difference would be lying about the one
+ * line it exists to explain.
+ *
+ * @returns {string} the bar, or "" when this was not a duality roll at all.
+ */
+function dualityBar(outcome) {
+    const roll = outcome?.raw?.roll ?? outcome?.raw ?? null;
+    if (!roll) return "";
+
+    const byClass = name => (roll.terms ?? []).find(t => t?.constructor?.name === name);
+    const dieAt = i => roll.dice?.[i]?.total ?? roll.dice?.[i]?.results?.[0]?.result;
+
+    const hope = Number(roll.hope?.total ?? roll.hope?.value ?? byClass("HopeDie")?.total ?? dieAt(0));
+    const fear = Number(roll.fear?.total ?? roll.fear?.value ?? byClass("FearDie")?.total ?? dieAt(1));
+    const total = Number(outcome?.total ?? roll.total);
+    if (![hope, fear, total].every(Number.isFinite)) return "";
+
+    const modifier = total - hope - fear;
+    const side = outcome?.isCritical ? "critical" : outcome?.withHope ? "hope" : outcome?.withFear ? "despair" : null;
+    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
+    const L = key => game.i18n.localize(`DRPG.Action.duality.${key}`);
+
+    const parts = [
+        `<span class="drpg-duality-die is-hope" data-tooltip="${esc(L("hopeDie"))}">${esc(hope)}</span>`,
+        `<span class="drpg-duality-op">+</span>`,
+        `<span class="drpg-duality-die is-despair" data-tooltip="${esc(L("despairDie"))}">${esc(fear)}</span>`
+    ];
+
+    // A zero modifier is left out rather than printed. "1 + 10 + 0 = 11" asks
+    // the reader to check that the nothing really is nothing.
+    if (modifier !== 0) {
+        parts.push(`<span class="drpg-duality-op">${modifier < 0 ? "−" : "+"}</span>`);
+        parts.push(`<span class="drpg-duality-mod" data-tooltip="${esc(L("modifier"))}">${esc(Math.abs(modifier))}</span>`);
+    }
+
+    parts.push(`<span class="drpg-duality-op is-equals">=</span>`);
+    parts.push(`<span class="drpg-duality-total">${esc(total)}</span>`);
+    if (side) parts.push(`<span class="drpg-duality-badge">${esc(L(side))}</span>`);
+
+    return `<div class="drpg-duality"${side ? ` data-side="${side}"` : ""}>${parts.join("")}</div>`;
+}
+
+/**
+ * How long the card will wait for 3D dice before giving up on them.
+ *
+ * The animation is a courtesy. The card is not: a roll whose animation never
+ * reports itself finished — a client that lost focus mid-throw is the ordinary
+ * way — must not be able to swallow the result of an action somebody paid for.
+ */
+const DICE_SETTLE_MS = 6000;
+
+/**
+ * Wait for Dice So Nice to finish throwing, if it is throwing at all.
+ *
+ * The card prints the two faces now, so posting it while the dice are still
+ * tumbling hands the reader the answer to the animation they are watching.
+ * Resolves immediately when Dice So Nice is not installed, when this roll had
+ * no chat message to animate, and — via the race — when the animation takes
+ * longer than anyone should be made to wait for it.
+ */
+async function diceSettled(messageId) {
+    const wait = game.dice3d?.waitFor3DAnimationByMessageID;
+    if (!messageId || typeof wait !== "function") return;
+    try {
+        await Promise.race([
+            wait.call(game.dice3d, messageId),
+            new Promise(resolve => setTimeout(resolve, DICE_SETTLE_MS))
+        ]);
+    } catch { /* see DICE_SETTLE_MS */ }
+}
+
 /** Apply the Hope/Stress/Fear changes the roll produced, plus any costs. */
 async function commitResources(result) {
     const updates = result?.resourceUpdates;
@@ -2927,6 +3021,12 @@ async function report(actor, def, roll, outcome) {
         trait: traitLabel
     }));
 
+    // Directly under the header, because it is the header's own number shown
+    // its working. Empty for anything that reached here without a duality roll
+    // behind it — an unanswered Search, a GM's ruling — and an empty string
+    // joins into nothing.
+    lines.push(dualityBar(roll));
+
     if (outcome.extra) lines.push(outcome.extra);
 
     if (outcome.item) {
@@ -2972,6 +3072,9 @@ async function report(actor, def, roll, outcome) {
     }
 
     const html = lines.join("");
+
+    // The dice land before the card says what they landed on. See `diceSettled`.
+    await diceSettled(roll?.raw?.message?.id ?? roll?.raw?.message?._id);
 
     // Whispered to the player as well as the GMs, and left to popup.mjs to
     // surface on both.

@@ -392,6 +392,14 @@
       "nothing": "Nothing happens.",
       "roll": "Roll",
       "critical": "Critical",
+      "duality": {
+        "hope": "with Hope",
+        "despair": "with Despair",
+        "critical": "critical",
+        "hopeDie": "Hope die",
+        "despairDie": "Despair die",
+        "modifier": "Modifier"
+      },
       "chooseTrait": "{action} — which statistic?",
       "traitOnlyIfOpen": "Used only if the project above demands nothing of its own.",
       "costActions": "{n} action",

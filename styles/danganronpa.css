@@ -7784,6 +7784,86 @@ details.drpg-calls-panel[open] > .drpg-action-grid {
 }
 
 /* ==========================================================================
+   THE DUALITY BAR — the header's number, showing its working
+   --------------------------------------------------------------------------
+   The card gave the total and stopped. Which way the roll went lived in the
+   popup's title colour, and the two faces that decided it lived on
+   Daggerheart's own chat card — a second card, in a second visual language,
+   that a player had to look away from this one to read.
+
+   So the same sentence is drawn here:
+
+       [1] + [10] = 11   with Despair
+        ^      ^     ^        ^
+        Hope   Despair total  which way it went
+
+   Hope is gold and Despair is Blood, the two colours those words own
+   everywhere else in this palette; the operators are structure and stay quiet,
+   like the header's separators. The whole thing is one line, because it is one
+   sentence, and it wraps rather than scrolls on a narrow card.
+   ========================================================================== */
+
+.drpg-duality {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    margin: 0 0 6px 0;
+    font-size: var(--drpg-text-xs);
+    line-height: 1.4;
+    font-variant-numeric: tabular-nums;
+}
+
+.drpg-duality .drpg-duality-die {
+    min-width: 1.5em;
+    padding: 1px 4px;
+    text-align: center;
+    font-weight: 700;
+    border: 1px solid currentColor;
+    border-radius: 2px;
+}
+
+.drpg-duality .drpg-duality-die.is-hope { color: var(--drpg-gold); }
+.drpg-duality .drpg-duality-die.is-despair { color: var(--drpg-blood); }
+
+/* Structure is quiet — the same rule the header's separators follow. */
+.drpg-duality .drpg-duality-op {
+    color: var(--drpg-line-strong);
+}
+
+.drpg-duality .drpg-duality-mod {
+    color: var(--drpg-dim);
+    font-weight: 700;
+}
+
+.drpg-duality .drpg-duality-total {
+    color: var(--drpg-bone);
+    font-weight: 700;
+}
+
+/* The badge says the thing the colours already imply, for the reader who is
+   scanning the log rather than looking at it. It takes the side's own colour. */
+.drpg-duality .drpg-duality-badge {
+    margin-left: auto;
+    padding: 0 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.92em;
+    color: var(--drpg-dim);
+}
+
+.drpg-duality[data-side="hope"] .drpg-duality-badge { color: var(--drpg-gold); }
+.drpg-duality[data-side="despair"] .drpg-duality-badge { color: var(--drpg-blood); }
+.drpg-duality[data-side="critical"] .drpg-duality-badge { color: var(--drpg-eye); }
+
+/* A critical is the one case where both dice agree, and the pair is the fact —
+   so the pair is what gets marked, not one of them. */
+.drpg-duality[data-side="critical"] .drpg-duality-die {
+    color: var(--drpg-eye);
+    box-shadow: 0 0 5px var(--drpg-eye-glow, transparent);
+}
+
+/* ==========================================================================
    STAGE 8a — NOTHING HERE TO DO IT TO
    --------------------------------------------------------------------------
    Two different kinds of "no", which used to look identical:
