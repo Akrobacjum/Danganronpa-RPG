@@ -346,6 +346,9 @@ async function giveTruthBulletDialog(actor) {
             <label class="drpg-checkbox">
                 <input type="checkbox" name="faint" />
                 ${game.i18n.localize("DRPG.TruthBullet.faintField")}</label>
+            <label class="drpg-checkbox">
+                <input type="checkbox" name="tied" />
+                ${game.i18n.localize("DRPG.TruthBullet.tiedField")}</label>
             <label>${game.i18n.localize("DRPG.TruthBullet.playerText")}
                 <textarea name="playerText" rows="2"
                     placeholder="${game.i18n.localize("DRPG.TruthBullet.playerTextPlaceholder")}"></textarea></label>
@@ -368,6 +371,7 @@ async function giveTruthBulletDialog(actor) {
                         shown: f.shown.value,
                         visibility: f.visibility.value,
                         faint: f.faint.checked,
+                        tied: f.tied.checked,
                         playerText: f.playerText.value.trim(),
                         gmNote: f.gmNote.value.trim(),
                         tell: f.tell.checked
@@ -396,6 +400,9 @@ async function giveTruthBulletDialog(actor) {
         shownType,
         visibility: result.visibility,
         faint: result.faint,
+        // The GM's manual verdict (Dawid, 26.08). Into the bullet's secret at
+        // creation; public on the item only once identified, like every tie.
+        tiedToCrime: result.tied,
         playerText: result.playerText,
         gmNote: result.gmNote
     });

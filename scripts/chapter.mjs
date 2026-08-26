@@ -127,6 +127,22 @@ export async function killCharacter(actor, { keepItems = false } = {}) {
 
     log(`${actor.name} is dead (chapter ${record.chapter}); ${removed} item(s) removed.`);
 
+    // The VICTIM of the running incident died — and only then (Dawid, 26.08):
+    // the chapter's traces are the case now, so they arrive in the
+    // Investigation Dashboard with "Tied to crime" already checked. Gated on
+    // `sideOf` so an execution after the trial, the mastermind's end or a
+    // GM's story ruling ties nothing. Checked BEFORE `offerStageSix` below,
+    // which can close the incident and take the answer with it.
+    try {
+        const { sideOf } = await import("./murder.mjs");
+        if (sideOf(actor) === "victim") {
+            const { tieChapterTraces } = await import("./remnants.mjs");
+            await tieChapterTraces(record.chapter);
+        }
+    } catch (err) {
+        error("Could not mark the chapter's traces as tied to the murder", err);
+    }
+
     // A death that ends an incident should end the incident.
     try {
         await offerStageSix(actor);

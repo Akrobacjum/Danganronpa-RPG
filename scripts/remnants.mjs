@@ -1059,6 +1059,46 @@ export async function setRemnantFlags(tokenDoc, { faint = null, tiedToCrime = nu
 }
 
 /**
+ * The victim is dead, so the chapter's traces are presumed part of the case.
+ *
+ * Dawid (26.08): the moment a murder's VICTIM actually dies — and only then —
+ * every trace stamped with the current chapter gets "Tied to crime" checked,
+ * so the Investigation Dashboard opens with the presumption already in place
+ * and the GM unticks the laundry instead of hunting for the murder. Called
+ * from `killCharacter` in chapter.mjs, gated there on the active incident's
+ * victim: an execution after the trial, a mastermind's end or a GM's story
+ * ruling changes nothing.
+ *
+ * Only traces that are NOT yet tied move, so nothing is re-announced for the
+ * incident's own drops (already tied at placement), and running twice — two
+ * bodies in a betrayal chapter — only picks up what appeared in between.
+ * `setRemnantFlags` is the write, so the verdict propagates onto copied
+ * bullets exactly as a hand-ticked box would.
+ *
+ * @returns {Promise<number>} how many traces were tied.
+ */
+export async function tieChapterTraces(chapter) {
+    if (!game.user.isGM || !chapter) return 0;
+
+    let tied = 0;
+    for (const scene of game.scenes) {
+        for (const token of remnantsOn(scene)) {
+            const data = remnantData(token);
+            if (!data || data.tiedToCrime || data.chapter !== chapter) continue;
+            await setRemnantFlags(token, { tiedToCrime: true });
+            tied++;
+        }
+    }
+
+    if (tied) {
+        const { whisperToGms } = await import("./utils.mjs");
+        await whisperToGms(`<p>${plural("DRPG.Remnant.deathTied", { n: tied })}</p>`);
+        log(`Victim death: ${tied} trace(s) from chapter ${chapter} marked as tied to the murder.`);
+    }
+    return tied;
+}
+
+/**
  * Table of every Remnant on the scene, with its three flags editable.
  *
  * Deliberately a table rather than a per-token control: the question the GM is

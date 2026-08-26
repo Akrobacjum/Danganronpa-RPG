@@ -1335,6 +1335,7 @@
       "visibility": "How hard the original was to spot",
       "visibilityTooltip": "How visible the original Remnant was. This sets the difficulty of analysing it.",
       "faintField": "Faint — survives the sweep at the start of the next session",
+      "tiedField": "Tied to the murder — floats to the top of the pack once identified",
       "faint": "Faint",
       "faintTooltip": "Doubtful connection to the case. Survives into the next session and can be analysed again.",
       "locked": "Analysed in vain",
@@ -1389,6 +1390,10 @@
       "faintColumn": "Faint",
       "crimeColumn": "Tied to crime",
       "reinforcedColumn": "Reinforced",
+      "deathTied": {
+        "one": "The victim is dead: {n} trace from this chapter is now marked as tied to the murder. Untick the laundry in the Investigation Dashboard.",
+        "other": "The victim is dead: {n} traces from this chapter are now marked as tied to the murder. Untick the laundry in the Investigation Dashboard."
+      },
       "noToken": "{actor} has no token on any scene, so the trace could not be left. Tell the GM.",
       "noTokenGm": "{actor} performed “{action}” with no token anywhere, so no Remnant was placed. Place one by hand if it matters.",
       "leftBy": "Left by",
