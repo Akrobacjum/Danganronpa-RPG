@@ -398,7 +398,9 @@
         "critical": "critical",
         "hopeDie": "Hope die",
         "despairDie": "Despair die",
-        "modifier": "Modifier"
+        "modifier": "Modifier",
+        "statistic": "Statistic modifier",
+        "bonus": "Advantage, disadvantage and experience"
       },
       "chooseTrait": "{action} — which statistic?",
       "traitOnlyIfOpen": "Used only if the project above demands nothing of its own.",

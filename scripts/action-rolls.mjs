@@ -583,6 +583,27 @@ function dualityBar(outcome) {
     const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
     const L = key => game.i18n.localize(`DRPG.Action.duality.${key}`);
 
+    /* WHICH STATISTIC, AND WHAT THE REST WAS.
+     *
+     * The card named the dice and lumped everything else into one unlabelled
+     * number — so it never said WHAT was rolled (the one fact Dawid flagged as
+     * missing from the result), and an advantage die hid inside the same
+     * figure as the trait. The roll carries its own RollData, so the trait's
+     * value is read back off `roll.data.traits` and split out: the statistic
+     * as a chip that names itself, and whatever remains — advantage,
+     * disadvantage, an experience — as a second chip only when it is not
+     * nothing. A roll whose data cannot answer keeps the old single figure.
+     */
+    const trait = TRAITS[outcome?.trait];
+    // On a LIVE result the RollData hangs off the result itself and `.roll` is
+    // a summary object without it; a roll rebuilt from a chat message carries
+    // `.data` directly. Measured both ways — ask both.
+    const rollData = roll.data ?? outcome?.raw?.data;
+    const statValue = Number(rollData?.traits?.[trait?.dh]?.value);
+    const hasStat = Boolean(trait) && Number.isFinite(statValue);
+    const bonus = hasStat ? modifier - statValue : modifier;
+    const signed = n => `${n < 0 ? "−" : "+"}${Math.abs(n)}`;
+
     /* THE RESULT FIRST, ITS WORKING UNDER IT.
      *
      * This was one line — `1 + 10 + 1 = 12  with Despair` — which is the same
@@ -598,11 +619,19 @@ function dualityBar(outcome) {
         `<span class="drpg-duality-die is-despair" data-tooltip="${esc(L("despairDie"))}">${esc(fear)}</span>`
     ];
 
-    // A zero modifier is left out rather than printed. "1 + 10 + 0" asks the
-    // reader to check that the nothing really is nothing.
-    if (modifier !== 0) {
-        formula.push(`<span class="drpg-duality-op">${modifier < 0 ? "−" : "+"}</span>`);
-        formula.push(`<span class="drpg-duality-mod" data-tooltip="${esc(L("modifier"))}">${esc(Math.abs(modifier))}</span>`);
+    // The statistic is shown even at +0: its job is to NAME what was rolled,
+    // and the name is information at any value. The remainder and the
+    // unattributed fallback keep the zero rule — "+ 0" asks the reader to
+    // check that the nothing really is nothing.
+    if (hasStat) {
+        formula.push(`<span class="drpg-duality-op">+</span>`);
+        formula.push(`<span class="drpg-duality-stat" data-tooltip="${esc(L("statistic"))}">${
+            esc(trait.label)} ${esc(signed(statValue))}</span>`);
+    }
+    if (bonus !== 0) {
+        formula.push(`<span class="drpg-duality-op">${bonus < 0 ? "−" : "+"}</span>`);
+        formula.push(`<span class="drpg-duality-mod" data-tooltip="${esc(L(hasStat ? "bonus" : "modifier"))}">${
+            esc(Math.abs(bonus))}</span>`);
     }
 
     return `<div class="drpg-duality"${side ? ` data-side="${side}"` : ""}>
