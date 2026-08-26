@@ -141,7 +141,33 @@ function applyToToken(token) {
         }
 
         if (!token?.actor || token.actor.type !== "character") return;
-        if (game.user.isGM || !enforcing()) return;
+        // The GM sees the whole cast, always. Not a judgement call and never a
+        // setting: they are running the game, not standing in a room.
+        if (game.user.isGM) return;
+
+        /* THE ECLIPSE SITS ABOVE `roomVisibility`, NOT BEHIND IT.
+           -------------------------------------------------------------------
+           This branch used to live below the `enforcing()` gate, so a table
+           with room visibility switched off got an Eclipse in which everybody
+           could watch everybody cross the map — confirmed live, and reported
+           as B-F2-3. Dawid settled the design question on 2026-08-26: an
+           Eclipse always hides players' tokens from other players, and the GM
+           always sees them all.
+
+           So the darkness is answered here, before the setting is consulted:
+           `roomVisibility` governs the ROOM rule below, which is about where
+           you are standing. An Eclipse is not about rooms — it is the lights
+           going out, and there is no configuration under which the lights are
+           out for one player and on for another. Your own token still shows,
+           for the same reason it does below: you have to be able to move it. */
+        if (isEclipse()) {
+            if (token.isOwner) show(token);
+            else hide(token);
+            return;
+        }
+
+        // Everything below is the room rule, which is what the setting governs.
+        if (!enforcing()) return;
 
         // YOUR OWN TOKEN IS ALWAYS VISIBLE TO YOU, unconditionally.
         //
@@ -155,12 +181,6 @@ function applyToToken(token) {
         // so this states it rather than assuming it.
         if (token.isOwner) {
             show(token);
-            return;
-        }
-
-        // During an Eclipse nobody sees anybody — see eclipse.mjs.
-        if (isEclipse()) {
-            hide(token);
             return;
         }
 
