@@ -12941,3 +12941,33 @@ body.drpg-explainers :is(#drpg-hud, #drpg-despair, #drpg-player-status, #countdo
     font-style: italic;
     opacity: 0.92;
 }
+
+/* ==========================================================================
+   C-F5-4 / C-F5-6 — TWO THINGS THE AUDIT CAUGHT IN THE TYPOGRAPHY
+   ========================================================================== */
+
+/* A textarea in a label takes the room the label has.
+   --------------------------------------------------------------------------
+   `.drpg-panel label` is a flex row, and a flex item does not stretch along
+   the main axis on its own — so every textarea in the module kept the 308px
+   the browser gives a `cols`-less box, whatever the window around it. Measured
+   on Killing game rules: a 308px field for a whole house rule, in a label
+   1502px wide. `flex: 1 1 auto` with `min-width: 0` is what lets it take the
+   rest of the row without the label's own text being squeezed out of it. */
+.application.dialog[class*="drpg-"] label > textarea {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+/* Headings break between phrases, not inside them.
+   --------------------------------------------------------------------------
+   "The vote, the / verdict and what follows" — a two-line heading whose break
+   lands mid-phrase reads as two thoughts. `text-wrap: balance` evens the lines
+   instead, which for a heading of a handful of words is the whole fix. Applied
+   to headings only: it is capped at a few lines by the spec and is the wrong
+   tool for body text. */
+.application.dialog[class*="drpg-"] :is(h1, h2, h3, h4),
+.drpg-dashboard-tabs + * :is(h3, h4),
+#drpg-gm-panel :is(h2, h3, h4) {
+    text-wrap: balance;
+}
