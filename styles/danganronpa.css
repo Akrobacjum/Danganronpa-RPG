@@ -463,7 +463,11 @@
 .character-sidebar-sheet .resources-section .status-label h4,
 .character-sidebar-sheet .resources-section .bar-input,
 .character-sidebar-sheet .resources-section .bar-label,
-.character-sidebar-sheet .resources-section .status-value span,
+/* Not the resource pips. They are `<span>`s inside `.status-value` too, and
+   this rule's `!important` was repainting every one of them Bone — an empty
+   socket and a marked point came out the same colour, which is the one thing
+   a row of pips has to get right. */
+.character-sidebar-sheet .resources-section .status-value span:not(:where(.drpg-resource-pip)),
 .character-sidebar-sheet .resources-section .slot-label .label,
 .character-sidebar-sheet .resources-section .slot-label .value {
     color: var(--drpg-bone) !important;
@@ -3987,9 +3991,17 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
 .character-header-sheet .hope-section .hope-value.drpg-spent,
 .character-header-sheet .drpg-free-move.drpg-spent,
 #drpg-player-status .drpg-status-pip.drpg-spent,
-#drpg-player-status .drpg-free-move.drpg-spent {
+#drpg-player-status .drpg-free-move.drpg-spent,
+.character-sidebar-sheet .drpg-resource-pip.drpg-spent {
     --drpg-spent-glow: var(--drpg-eye);
     animation: drpg-spent-out var(--drpg-t-beat) var(--drpg-ease-leave) 1;
+}
+
+/* Stress marks in Despair's pink, like the pip it is filling. A point of
+   Stress going on is not a point of HP going on, and the flash is most of what
+   tells you which one just happened when you were looking somewhere else. */
+.character-sidebar-sheet .drpg-resource-pips[data-resource="stress"] .drpg-resource-pip.drpg-spent {
+    --drpg-spent-glow: var(--drpg-blood);
 }
 
 /* Hope flares gold. Gold belongs to Hope and to nothing else in this palette —
@@ -4072,9 +4084,15 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
 .character-header-sheet .hope-section .hope-value.drpg-gained,
 .character-header-sheet .drpg-free-move.drpg-gained,
 #drpg-player-status .drpg-status-pip.drpg-gained,
-#drpg-player-status .drpg-free-move.drpg-gained {
+#drpg-player-status .drpg-free-move.drpg-gained,
+.character-sidebar-sheet .drpg-resource-pip.drpg-gained {
     --drpg-spent-glow: var(--drpg-eye);
     animation: drpg-gained-in var(--drpg-t-beat) var(--drpg-ease-arrive) 1;
+}
+
+/* Clearing Stress flares pink, for the same reason marking it does. */
+.character-sidebar-sheet .drpg-resource-pips[data-resource="stress"] .drpg-resource-pip.drpg-gained {
+    --drpg-spent-glow: var(--drpg-blood);
 }
 
 #drpg-player-status .drpg-status-hope-pip.drpg-gained {
@@ -6103,7 +6121,19 @@ body.drpg-pixel-font .application.sheet.actor prose-mirror * {
     color: var(--drpg-ink) !important;
 }
 
-.application.sheet.actor .character-sidebar-sheet *:not(i):not([class*="fa-"]) {
+/* `.drpg-resource-pip` is out because it is not IN the white rail in the sense
+   this rule means: the HP and Stress chips are ink blocks sitting on the rail,
+   and a pip carries its own resource colour on that ink. Re-inking them made
+   every pip the colour of the chip they sit on — invisible, marked and unmarked
+   alike. Everything else in the rail still gets re-inked, which is the point.
+
+   `:not(:where(…))` AND NOT `:not(…)`. This rule ties on specificity with the
+   one that whitens the HP / Stress captions further down, and won that tie on
+   source order — for exactly as long as nobody touched it. A plain `:not(.x)`
+   adds a class's worth of weight, which broke the tie the other way and left
+   both captions ink-on-ink: invisible, and nothing to do with pips. `:where()`
+   weighs nothing, so the exclusion lands without moving anything else. */
+.application.sheet.actor .character-sidebar-sheet *:not(i):not([class*="fa-"]):not(:where(.drpg-resource-pip)) {
     color: var(--drpg-ink) !important;
     border-color: rgba(var(--drpg-shadow-rgb), 0.22) !important;
 }
@@ -6224,12 +6254,15 @@ body.drpg-pixel-font .application.sheet.actor prose-mirror * {
     background-color: transparent !important;
 }
 
-/* Every numeral and slash on the chip, white regardless of the fill under it. */
+/* Every numeral and slash on the chip, white regardless of the fill under it.
+   NOT the pips: they carry the resource's own colour and a dim empty socket,
+   and this rule's wildcard plus `!important` painted all of them Bone, which
+   made a marked point and an unmarked one identical. See the pip block above. */
 .application.sheet.actor .character-sidebar-sheet .status-bar .status-value,
-.application.sheet.actor .character-sidebar-sheet .status-bar .status-value *,
+.application.sheet.actor .character-sidebar-sheet .status-bar .status-value *:not(:where(.drpg-resource-pips, .drpg-resource-pip)),
 .application.sheet.actor .character-sidebar-sheet .status-bar .bar-input,
 .application.sheet.actor .character-sidebar-sheet .status-bar .bar-label,
-.application.sheet.actor .character-sidebar-sheet .status-bar span {
+.application.sheet.actor .character-sidebar-sheet .status-bar span:not(:where(.drpg-resource-pip)) {
     color: var(--drpg-bone) !important;
 }
 
@@ -6277,6 +6310,103 @@ body.drpg-pixel-font .application.sheet.actor prose-mirror * {
 .application.sheet.actor .character-sidebar-sheet .status-bar .status-label {
     background-color: var(--drpg-ink) !important;
     border: 1px solid var(--drpg-eye) !important;
+}
+
+/* ==========================================================================
+   …AND THEN AS PIPS, WHICH IS WHAT THEY ALWAYS WERE
+   --------------------------------------------------------------------------
+   The section above got both bars wearing this module's colours. What it could
+   not change is the SHAPE: a `<progress>` draws a continuous quantity, and
+   neither of these is one. HP tops out in single figures and Stress at six,
+   both are reverse (the fill is what has been MARKED), and what a player does
+   with them is count — "three of my four". A bar cannot say that on its own;
+   it needs the numerals beside it to do the work, which is why they are there.
+
+   So the bar is hidden and `paintResourceBars()` in sheet.mjs puts a row of
+   pips in its place, in the language the rest of the module already counts in:
+   pixel dots, filled for marked, hollow for the capacity still to go. HP keeps
+   the red it filled with and Stress the Despair pink, so nothing about the
+   reading changes except that it can now be read at a glance.
+
+   The bar rules above are deliberately left in place. `paintResourceBars()`
+   falls back to the bar for a maximum too large to count (see `PIP_LIMIT`), and
+   a fallback that has no styling is a worse bug than the one this replaced.
+   ========================================================================== */
+
+.application.sheet.actor .character-sidebar-sheet progress.progress-bar.drpg-bar-replaced {
+    display: none;
+}
+
+/* THE PIPS GET THEIR OWN LINE, and they have to be given one.
+   --------------------------------------------------------------------------
+   The chip the system draws is 100px wide and holds the number input, a slash
+   and the maximum, in a `nowrap` flex row. Six Stress pips do not fit beside
+   that — measured: the row was handed a width of 0 and the pips overlapped the
+   input. So the chip is allowed to wrap and the pips take a full line under
+   the numerals, which is also the better reading: the count above, the points
+   below. Scoped with `:has()` so a resource that fell back to the bar (see
+   `PIP_LIMIT`) keeps the fixed-height chip it was designed for. */
+.application.sheet.actor .character-sidebar-sheet .status-value:has(.drpg-resource-pips) {
+    flex-wrap: wrap;
+    height: auto;
+    justify-content: center;
+    row-gap: 3px;
+}
+
+.application.sheet.actor .character-sidebar-sheet .drpg-resource-pips {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    line-height: 1;
+    flex: 0 0 100%;
+}
+
+.application.sheet.actor .character-sidebar-sheet .drpg-resource-pip {
+    width: 0.72rem;
+    height: 0.72rem;
+    flex: 0 0 auto;
+    line-height: 1;
+    /* An empty socket has to be visible to be one — the same lesson the tray
+       learned. Dim, not the resource's own colour at low alpha. */
+    color: var(--drpg-dim);
+    opacity: 0.7;
+}
+
+.application.sheet.actor .character-sidebar-sheet .drpg-resource-pip::before {
+    content: "";
+    display: inline-block;
+    width: 100%;
+    height: 100%;
+    background-color: currentColor;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
+    image-rendering: pixelated;
+    -webkit-mask-image: var(--drpg-pix-dot-empty);
+    mask-image: var(--drpg-pix-dot-empty);
+}
+
+.application.sheet.actor .character-sidebar-sheet .drpg-resource-pip.filled {
+    opacity: 1;
+}
+
+.application.sheet.actor .character-sidebar-sheet .drpg-resource-pip.filled::before {
+    -webkit-mask-image: var(--drpg-pix-dot);
+    mask-image: var(--drpg-pix-dot);
+}
+
+/* Named by the row's `data-resource`, not by its position — the same reason
+   sheet.mjs reads the field name instead of counting children. */
+.application.sheet.actor .character-sidebar-sheet
+    .drpg-resource-pips[data-resource="hitPoints"] .drpg-resource-pip.filled {
+    color: var(--drpg-eye);
+}
+
+.application.sheet.actor .character-sidebar-sheet
+    .drpg-resource-pips[data-resource="stress"] .drpg-resource-pip.filled {
+    color: var(--drpg-blood);
 }
 
 /* --- the stat frames go red ---------------------------------------------- */

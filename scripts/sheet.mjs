@@ -286,7 +286,7 @@ function onRenderCharacterSheet(app, element, context, options) {
         fitActionTiles(element);
         watchTileFit(element);
         tidySidebar(element);
-        paintResourceBars(element);
+        paintResourceBars(app, element);
         injectEquippedTools(app, element);
         injectSafeword(app, element);
         tidyBiography(element);
@@ -1011,12 +1011,89 @@ function tidySidebar(element) {
  * Both are reverse resources in this game — `value` counts what has been
  * MARKED, not what is left — so a bar at 100% is a student out of road.
  */
-function paintResourceBars(element) {
-    for (const bar of element.querySelectorAll(".character-sidebar-sheet progress")) {
-        const max = Number(bar.max) || 0;
-        const value = Number(bar.value) || 0;
-        const pct = max > 0 ? Math.max(0, Math.min(100, Math.round((value / max) * 100))) : 0;
-        bar.style.setProperty("--drpg-bar-pct", `${pct}%`);
+/**
+ * How many pips this is willing to draw before it gives up and leaves the bar.
+ *
+ * The guide's numbers are small — HP tops out in single figures, Stress at six —
+ * which is the whole argument for pips: you can COUNT them, and counting is
+ * what a player actually does with these two. Past a dozen that stops being
+ * true and a row of identical marks is worse than a bar, so a homebrew that
+ * hands somebody forty Hit Points keeps the bar rather than getting a smear.
+ */
+const PIP_LIMIT = 12;
+
+/**
+ * HP and Stress as pips rather than a continuous bar.
+ *
+ * Both are REVERSE resources: `value` is what has been marked, not what is
+ * left, and both have small maxima. That makes them points, not a quantity —
+ * "three of my four" is the reading, and a bar is the one shape that cannot
+ * give it without the numerals beside it doing the work. The module already
+ * speaks in pips everywhere else it counts something small: actions, Hope,
+ * the Despair pool. These two were the holdout, still wearing Daggerheart's
+ * `<progress>` under this module's paint.
+ *
+ * WHICH ROW IS WHICH, WITHOUT COUNTING ROWS. The stylesheet reaches these two
+ * bars through `:nth-child(1)` and `:nth-child(2)` — the risk the audit flagged
+ * — but script does not have to: each row carries an input whose `name` is
+ * `system.resources.<key>.value`, which says what it is no matter what order
+ * the system renders them in or what a future version puts between them.
+ *
+ * The flare is the one the rest of the module uses. A newly marked point is a
+ * spend, so it gets `drpg-spent`; a point that clears gets the arrival flare.
+ * `spentSince` counts what is HELD, and for a reverse resource that is the
+ * capacity still unmarked — hence `max - value`, and hence the mirrored index
+ * handed to `markSpent`: pip 1 is the first mark, which is the LAST of the
+ * held sockets to go.
+ *
+ * The system's own controls are untouched. The number input, its `/`, the max
+ * and the +/- it wires up all stay exactly where they were; only the bar is
+ * hidden, and it is hidden rather than removed so nothing the system does to
+ * it later lands on a missing element.
+ */
+function paintResourceBars(app, element) {
+    const actorId = app?.document?.id ?? null;
+
+    for (const bar of element.querySelectorAll(".character-sidebar-sheet .resources-section .status-bar")) {
+        const progress = bar.querySelector("progress.progress-bar");
+        if (!progress) continue;
+
+        const max = Number(progress.max) || 0;
+        const value = Math.max(0, Math.min(max, Number(progress.value) || 0));
+
+        // Kept fed even when the bar is hidden: the gradient fill in the
+        // stylesheet is the fallback below, and a stale percentage on a bar
+        // that comes back is a wrong bar.
+        const pct = max > 0 ? Math.round((value / max) * 100) : 0;
+        progress.style.setProperty("--drpg-bar-pct", `${pct}%`);
+
+        bar.querySelectorAll(".drpg-resource-pips").forEach(row => row.remove());
+
+        const key = bar.querySelector("input.bar-input")?.name
+            ?.match(/resources\.([A-Za-z]+)\./)?.[1] ?? null;
+
+        if (!key || max < 1 || max > PIP_LIMIT) {
+            progress.classList.remove("drpg-bar-replaced");
+            continue;
+        }
+        progress.classList.add("drpg-bar-replaced");
+
+        const held = max - value;
+        const change = actorId ? spentSince(`resource:${key}`, actorId, held) : null;
+
+        const row = document.createElement("div");
+        row.className = "drpg-resource-pips";
+        row.dataset.resource = key;
+
+        for (let i = 1; i <= max; i++) {
+            const pip = document.createElement("span");
+            pip.className = `drpg-resource-pip${i <= value ? " filled" : ""}`;
+            pip.dataset.value = String(i);
+            markSpent(pip, change, max - i + 1);
+            row.append(pip);
+        }
+
+        progress.after(row);
     }
 }
 
