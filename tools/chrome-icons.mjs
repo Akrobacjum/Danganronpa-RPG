@@ -807,8 +807,8 @@ const ICONS = {
         ".........."
     ],
 
-    /* ---- the GM launcher ---- */
-
+    // Kept for any chrome button that carries the class — the GM launcher,
+    // which this was drawn for, wears the eye below instead (Dawid, 26.08).
     "fa-clock": [
         "...####...",
         ".##....##.",
@@ -820,6 +820,29 @@ const ICONS = {
         ".#......#.",
         ".##....##.",
         "...####..."
+    ],
+
+    /* ---- the GM launcher ---- */
+
+    // Monokuma's jagged red eye, the point slashing outward. The key is not a
+    // Font Awesome class on purpose: the launcher is its only wearer, and the
+    // generator routes this sprite to `#drpg-gm-launcher i` directly, so the
+    // `<i>`'s own class stays a plain fallback glyph.
+    // Redrawn after seeing it at size: a flat vertical inner edge with a
+    // symmetric taper read as a play-button arrow, not an eye. The flash needs
+    // its asymmetry — a rounded mass at one end, the point slashing away
+    // diagonally, and the tooth cut into the underside of the taper.
+    "drpg-monokuma-eye": [
+        "..........##",
+        ".......#####",
+        "....########",
+        ".###########",
+        "############",
+        "########....",
+        "#########...",
+        ".#####......",
+        "..####......",
+        "...##......."
     ]
 };
 
@@ -872,8 +895,9 @@ function buildCss() {
     for (const [cls, spriteKey] of Object.entries(MAPPING)) {
         const art = ICONS[spriteKey];
         if (!art) continue;
-        const selectors = HOSTS.map(h => `${h}.${cls}::before`);
-        if (cls === "fa-clock") selectors.push("#drpg-gm-launcher i.fa-clock::before");
+        const selectors = cls === "drpg-monokuma-eye"
+            ? ["#drpg-gm-launcher i::before"]
+            : HOSTS.map(h => `${h}.${cls}::before`);
         allSelectors.push(...selectors);
         perIcon.push(`${selectors.join(",\n")} {\n    -webkit-mask-image: ${encode(art)};\n    mask-image: ${encode(art)};\n}`);
     }

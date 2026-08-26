@@ -58,7 +58,9 @@ function injectLauncher() {
         btn.id = "drpg-gm-launcher";
         btn.type = "button";
         btn.dataset.tooltip = game.i18n.localize("DRPG.Panel.title");
-        btn.innerHTML = `<i class="fa-solid fa-clock" inert></i>
+        // `fa-eye` is the fallback if the pixel mask ever fails to load — the
+        // sprite itself is keyed to `#drpg-gm-launcher i` and ignores the class.
+        btn.innerHTML = `<i class="fa-solid fa-eye" inert></i>
             <span>${game.i18n.localize("DRPG.Panel.launcher")}</span>`;
         btn.addEventListener("click", () => openGmPanel());
         column.prepend(btn);
