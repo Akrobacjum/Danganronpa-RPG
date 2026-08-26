@@ -339,6 +339,17 @@ export async function resolveKillerOpening({ total, isCritical, withHope }) {
     const state = murderState();
     if (!state) return null;
 
+    // The mirror of the guard in `resolveVictimOpening`. An indirect murder's
+    // ONLY roll is the victim's, and this is exported on `game.drpg` — and
+    // `resolveOpening` cannot catch it either, because the killer of a trap is
+    // still genuinely `state.killerId`. Accepting the roll here would score a
+    // trap against the direct table, and a failure would END an incident whose
+    // victim was never asked anything.
+    if (state.indirect) {
+        warn("Refused a killer opening roll: this is an indirect murder, which opens on the victim's roll.");
+        return null;
+    }
+
     const def = MURDER_OPENING.killer;
     const success = isCritical || total >= def.threshold;
 
