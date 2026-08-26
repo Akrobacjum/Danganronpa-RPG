@@ -61,6 +61,9 @@ import {
 } from "./diagnostics.mjs";
 import { runTests } from "./tests.mjs";
 import {
+    openStateExplainer, openDespairExplainer, openStatusExplainer, openProjectsExplainer
+} from "./explain.mjs";
+import {
     diagnoseCharacters
 } from "./diagnostics.mjs";
 import { performAction, currentRoom } from "./action-rolls.mjs";
@@ -851,6 +854,16 @@ export const DrpgApi = {
     /** Bring installed tables' names and blurbs up to today's wording. Runs
      *  itself at load; here for a GM who wants to see what it did. */
     refreshTableCopy,
+
+    /* ---- the panels explain themselves ---------------------------------
+     * What each on-screen widget is, plus where things stand right now.
+     * Opened by clicking the panel; here so a macro or a journal button can
+     * hand somebody the same window. Anyone may open any of them — each one
+     * shows only what its own widget already shows that user. */
+    explainState: openStateExplainer,
+    explainDespair: openDespairExplainer,
+    explainStatus: openStatusExplainer,
+    explainProjects: openProjectsExplainer,
 
     /* ---- diagnostics --------------------------------------------------- */
 

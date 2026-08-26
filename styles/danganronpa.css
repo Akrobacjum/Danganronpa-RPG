@@ -12827,3 +12827,66 @@ i.drpg-pix-foot {
 .application.sheet.actor .window-header .header-control[data-action="copyUuid"] {
     display: none !important;
 }
+
+/* ==========================================================================
+   THE PANELS EXPLAIN THEMSELVES
+   --------------------------------------------------------------------------
+   Four widgets sit on screen all session and none of them said what they were.
+   Clicking one opens a window that does — see explain.mjs. These rules are the
+   window's own reading layout plus the one hint that the panels are clickable
+   at all: a pointer. Nothing else changes about them, deliberately, because a
+   panel that grew a hover state would be a panel that looks like a button and
+   these are still readouts.
+   ========================================================================== */
+
+body.drpg-explainers :is(#drpg-hud, #drpg-despair, #drpg-player-status, #countdowns) {
+    cursor: help;
+}
+
+/* …except the controls inside them, which are still controls. The listener
+   ignores clicks on these; the cursor has to agree with it. */
+body.drpg-explainers :is(#drpg-hud, #drpg-despair, #drpg-player-status, #countdowns)
+    :is(button, a, input, select, textarea, [data-action]) {
+    cursor: pointer;
+}
+
+.drpg-explain .drpg-explain-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    /* Prose, not a table: this is the one window in the module somebody READS
+       rather than scans, so it gets a measure rather than the full width. */
+    max-width: 46ch;
+}
+
+.drpg-explain .drpg-explain-section h4 {
+    margin: 0 0 0.25rem;
+    font-size: var(--drpg-text-sm);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--drpg-eye);
+    border-bottom: 1px solid var(--drpg-line);
+    padding-bottom: 0.15rem;
+}
+
+.drpg-explain .drpg-explain-section p {
+    margin: 0 0 0.35rem;
+    line-height: 1.45;
+}
+
+/* The time-of-day strip: where you are in the day, at a glance. */
+.drpg-explain .drpg-explain-now {
+    color: var(--drpg-bone);
+}
+
+.drpg-explain .drpg-explain-later {
+    opacity: 0.45;
+}
+
+/* The GM's own words about a room, set apart from the module's. */
+.drpg-explain .drpg-explain-prose {
+    display: block;
+    padding-left: 0.6rem;
+    border-left: 2px solid var(--drpg-gold-antique, var(--drpg-line-strong));
+    opacity: 0.92;
+}

@@ -57,6 +57,7 @@ import { registerPopups } from "./popup.mjs";
 import { registerStacking } from "./stacking.mjs";
 import { registerNoCollapse } from "./no-collapse.mjs";
 import { registerNoScrollingText } from "./no-scrolling-text.mjs";
+import { registerExplainers } from "./explain.mjs";
 import { registerMotion } from "./motion.mjs";
 import { registerSafeword } from "./safeword.mjs";
 import { registerDiceSync } from "./dice-sync.mjs";
@@ -164,6 +165,9 @@ Hooks.once("init", () => {
     // canvas is drawn — and it holds no per-canvas state, so `init` is early
     // enough and every later scene inherits it.
     safely("the token caption block", registerNoScrollingText);
+    // One delegated listener on the document, so it outlives every redraw the
+    // four panels do on their own — see explain.mjs.
+    safely("the panel explanations", registerExplainers);
     // After popups, because the safeword raises one. This is the safety tool —
     // it registers early and depends on nothing that can fail.
     safely("the safeword", registerSafeword);

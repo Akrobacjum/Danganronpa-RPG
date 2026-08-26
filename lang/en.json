@@ -1164,6 +1164,11 @@
       "tabDoors": "Doors",
       "tabSearching": "Searching",
       "tabRest": "Rests",
+      "tabDescription": "Description",
+      "descriptionColumn": "What it looks like",
+      "descriptionPlaceholder": "e.g. Long tables, a serving hatch, and a smell of bleach nobody can place.",
+      "descriptionIntro": "What each room looks like, in your own words. Anyone standing in a room can read its description by clicking the clock at the top of the screen.",
+      "descriptionNote": "Plain text — it is shown to players exactly as typed. Leave one blank and the room simply has nothing written about it.",
       "tabFog": "Fog",
       "student": "Character",
       "fogIntro": "Which rooms each character has already discovered on this scene. The room they are standing in is always clear; this is only about rooms they have BEEN to, which show as a dim veil rather than full fog.",
@@ -2159,6 +2164,60 @@
       "resetButton": "Reset the season",
       "resetMistyped": "Not reset — you have to type {word} exactly.",
       "resetDone": "The season has been reset. The cast and the maps are untouched."
+    },
+    "Explain": {
+      "state": {
+        "window": "Where things stand",
+        "title": "The season"
+      },
+      "phase": {
+        "eclipseTitle": "Eclipse",
+        "eclipse": "The lights are out. Everyone moves once, anywhere on the map, and nobody can see who went where. Nothing else happens until it ends — it is the game's one moment of total cover, and it is where a murder usually starts.",
+        "dailyLife": "Ordinary days inside the school. You have two actions each time of day to search rooms, work on projects, rest, talk, and prepare. Nobody has died yet this chapter — this is the part where you decide who you trust.",
+        "investigation": "A body has been found. The clock is still running, but what you do with it has changed: Observe traces on the map and Analyze what you collect, and every Truth Bullet you build is something you can present at the trial. What you fail to find, you will not have.",
+        "classTrial": "Everyone is in the room and one of you did it. Testimony, Objections, and finally the vote. Get it right and the killer is punished; get it wrong and everybody else is."
+      },
+      "time": {
+        "title": "Time of day",
+        "position": "{time} — {n} of {of}",
+        "what": "Actions refill at the start of each one, and each room's search tokens come back with them. When the last one ends, the day turns over."
+      },
+      "room": {
+        "title": "Where you are",
+        "noActor": "No character is assigned to you, so there is nothing to say about where you are standing.",
+        "tokens": "Search tokens here: {left} of {max} left this time of day."
+      },
+      "despair": {
+        "window": "Despair",
+        "title": "What Despair is",
+        "what": "Despair is the GM side's currency. It fills when rolls at the table come up with Despair rather than Hope — which is to say, it is fed by your bad luck and your risks.",
+        "spent": "It is spent on Despair Calls: the moves that make life harder — pushing a scene, hardening a room, turning a screw. The more of it there is, the more the school can do to you.",
+        "masked": "How much is held is the GM's to see. The rows on screen show that it exists, not how much.",
+        "noPools": "No Monokuma has a pool yet."
+      },
+      "status": {
+        "window": "Actions, Move and Hope",
+        "actionsTitle": "Actions",
+        "actionsWhat": "Two each time of day. Searching a room, working on a project, resting, observing a trace, analysing a Truth Bullet — each of those is one.",
+        "actionsWounded": "With all your Health marked you get one instead of two, until somebody patches you up.",
+        "actionsNow": "You have {left} of {max} left this time of day.",
+        "moveTitle": "Free Move",
+        "moveWhat": "One move between rooms each time of day that costs you nothing. After that, changing rooms costs an action like anything else.",
+        "moveSpent": "Your free Move is gone this time of day — moving now costs an action.",
+        "hopeTitle": "Hope",
+        "hopeWhat": "Hope is yours, and it is spent on Hope Calls: helping somebody else's roll, leaning on an Experience, invoking your Ultimate, rerolling. It comes back when rolls go your way.",
+        "hopeNow": "You hold {held} of {max} Hope.",
+        "standing": "Right now"
+      },
+      "projects": {
+        "window": "Projects",
+        "title": "What a project is",
+        "what": "A project is something that takes longer than one action: building it, fixing it, poisoning it, digging through it. Each one lives in a room and only moves when somebody works on it there.",
+        "progress": "Working on a project is an action, and a roll — how well it goes decides how much progress it takes. When the bar fills, the thing is done.",
+        "secret": "Some projects are private to the people working on them. If you cannot see one, it is not on your list.",
+        "yours": "What you can see",
+        "none": "Nothing yet — no project is visible to you."
+      }
     },
     "Failures": {
       "title": "Debug log",
