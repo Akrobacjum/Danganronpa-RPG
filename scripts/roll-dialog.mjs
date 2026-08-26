@@ -79,6 +79,16 @@ function onRenderApplication(app, element) {
         stripExperienceCosts(app);
 
         const actor = actorOf(app);
+
+        // A Free Critical opens a roll window whose outcome is already
+        // decided, and the window should say so before the dice do. Red — the
+        // sanctioned exception to "red means the GM" (Dawid, 26.08): this is
+        // the rarest, most expensive thing a player can buy, and the six Hope
+        // deserve a window that does not look like every other roll.
+        if (actor && pendingGrants(actor) === "critical") {
+            root.classList.add("drpg-forced-critical");
+        }
+
         if (!isStudentRoll(actor)) return;
 
         if (locking()) {
@@ -186,9 +196,18 @@ function lockControls(root, app) {
     const actor = actorOf(app);
     const armed = actor ? pendingGrants(actor) : null;
 
-    // Dice size: fixed by the rules, always.
-    for (const select of root.querySelectorAll('select[name^="roll.dice."]')) {
-        if (select.name.includes("advantage") && armed === "advantage") continue;
+    // Dice size: fixed by the rules, always — the advantage die INCLUDED.
+    // This used to skip the advantage selects while advantage was armed, on
+    // the reasoning that the Call had bought the player the controls. It had
+    // bought them the DIE: the guide's advantage is one d6, and the unlocked
+    // selects let the beneficiary quietly upgrade it to four d20s (Dawid,
+    // 26.08: locked).
+    // Both selector shapes on purpose: the hope/fear dice are named
+    // `roll.dice.*`, while the advantage pair (count and faces) sits in the
+    // modifier fieldset's `.nest-inputs` — one net would miss the other.
+    for (const select of root.querySelectorAll(
+        'select[name^="roll.dice."], .modifier-container .nest-inputs select'
+    )) {
         disable(select, "DRPG.RollDialog.diceFixed");
     }
 
