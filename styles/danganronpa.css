@@ -4746,6 +4746,33 @@ body.drpg-pixel-font .drpg-action-button .drpg-action-cost {
     border-color: var(--drpg-bone) !important;
 }
 
+/* A FREE CRITICAL'S WINDOW IS RED — the sanctioned exception.
+   --------------------------------------------------------------------------
+   "Red means the GM" everywhere else; Dawid's carve-out (26.08) is the roll
+   window whose outcome is already bought: six Hope for an automatic critical
+   is the rarest, most expensive thing a player can do, and the window should
+   not look like every other roll. The class comes from the render hook in
+   roll-dialog.mjs, which reads the armed Call. */
+.application.roll-selection.drpg-forced-critical {
+    border: 1px solid var(--drpg-eye) !important;
+    box-shadow: 0 0 18px rgba(var(--drpg-eye-rgb), 0.4);
+}
+
+.application.roll-selection.drpg-forced-critical .dialog-header h1 {
+    color: var(--drpg-eye-light);
+}
+
+.application.roll-selection.drpg-forced-critical button.submit-btn {
+    background: rgba(var(--drpg-eye-rgb), 0.28) !important;
+    border-color: var(--drpg-eye) !important;
+}
+
+.application.roll-selection.drpg-forced-critical button.submit-btn:hover:not(:disabled) {
+    background: rgba(var(--drpg-eye-rgb), 0.4) !important;
+    border-color: var(--drpg-eye-light) !important;
+    box-shadow: 0 0 8px var(--drpg-eye-glow);
+}
+
 /* THE DICE ARE PIXELS, LIKE EVERYTHING ELSE THE MODULE DRAWS.
    --------------------------------------------------------------------------
    The two duality dice were the system's rendered SVGs (`hope/d12.svg`,
@@ -5945,35 +5972,57 @@ html body {
 }
 
 /* --- the icon rails ------------------------------------------------------ */
-/* Left: scene controls. Right: sidebar tabs. Same treatment — an Ink chip with
-   a hairline, Bone glyph, and red reserved for the one that is active. */
+/* Left: scene controls. Right: sidebar tabs. These used to be Ink chips with
+   red hover and a red slab on the active tool — which made forty pieces of
+   furniture as loud as the content. Dawid's redirection (26.08): the rails are
+   TRANSPARENT and washed-out, the glyphs pixel (see pixel-icons.mjs), and the
+   only thing state changes is the glyph's own strength. The GM's LEFT rail
+   runs the same scheme in red — their side of the table — while players keep
+   Bone, and the right rail is Bone for everyone. The `!important`s are what
+   this replaced already needed against core. */
 
 #scene-controls button.ui-control,
-#sidebar-tabs button.ui-control {
-    background: var(--drpg-ink) !important;
-    border: 1px solid var(--drpg-line) !important;
+#sidebar-tabs button.ui-control,
+#sidebar .tabs button.ui-control {
+    background: transparent !important;
+    border: none !important;
     border-radius: 3px !important;
-    color: var(--drpg-bone) !important;
+    color: rgba(var(--drpg-bone-rgb), 0.5) !important;
     box-shadow: none !important;
-    transition: border-color var(--drpg-t-snap) var(--drpg-ease-arrive),
-                color var(--drpg-t-snap) var(--drpg-ease-arrive),
+    transition: color var(--drpg-t-snap) var(--drpg-ease-arrive),
                 background-color var(--drpg-t-snap) var(--drpg-ease-arrive);
 }
 
 #scene-controls button.ui-control:hover,
-#sidebar-tabs button.ui-control:hover {
-    background: rgba(var(--drpg-eye-rgb), 0.16) !important;
-    border-color: var(--drpg-eye) !important;
-    color: var(--drpg-bone) !important;
+#sidebar-tabs button.ui-control:hover,
+#sidebar .tabs button.ui-control:hover {
+    background: rgba(var(--drpg-bone-rgb), 0.08) !important;
+    color: rgba(var(--drpg-bone-rgb), 0.9) !important;
 }
 
 #scene-controls button.ui-control.active,
 #scene-controls button.ui-control[aria-pressed="true"],
 #sidebar-tabs button.ui-control.active,
-#sidebar-tabs button.ui-control[aria-pressed="true"] {
-    background: var(--drpg-eye) !important;
-    border-color: var(--drpg-eye-light) !important;
+#sidebar-tabs button.ui-control[aria-pressed="true"],
+#sidebar .tabs button.ui-control.active,
+#sidebar .tabs button.ui-control[aria-pressed="true"] {
+    background: rgba(var(--drpg-bone-rgb), 0.12) !important;
     color: var(--drpg-bone) !important;
+}
+
+body.drpg-gm #scene-controls button.ui-control {
+    color: rgba(var(--drpg-eye-rgb), 0.65) !important;
+}
+
+body.drpg-gm #scene-controls button.ui-control:hover {
+    background: rgba(var(--drpg-eye-rgb), 0.1) !important;
+    color: rgba(var(--drpg-eye-rgb), 0.95) !important;
+}
+
+body.drpg-gm #scene-controls button.ui-control.active,
+body.drpg-gm #scene-controls button.ui-control[aria-pressed="true"] {
+    background: rgba(var(--drpg-eye-rgb), 0.16) !important;
+    color: var(--drpg-eye-light) !important;
 }
 
 /* The rails themselves lose Foundry's translucent slab. */
@@ -9791,10 +9840,22 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
 
 .drpg-popup-title {
     /* The Bone bar is applied further down with the sheet's own headers; what
-       is set here is the geometry, so the bar is the same height everywhere. */
+       is set here is the geometry, so the bar is the same height everywhere.
+       The line-height is for the title that WRAPS: the pixel face fills its
+       em-box to the brim, so at normal leading a two-line title's rows sat
+       flush against each other (Dawid's example: "Partners in crime"). */
     padding: 3px 7px;
     font-size: var(--drpg-text-xs);
     letter-spacing: 0.08em;
+    line-height: 1.55;
+}
+
+/* The same leading for the card under the bar, for the same reason — the
+   subtitle and hint lines are where two-line text is the ordinary case. */
+.drpg-popup-body p,
+.drpg-popup-body em,
+.drpg-popup-body small {
+    line-height: 1.6;
 }
 
 .drpg-popup-body {
@@ -9982,16 +10043,91 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
    nothing and says something true about the character — but nothing hangs on
    it any more. */
 
-/* ---- the players list: one border, not two ----------------------------- */
+/* ---- the corner is a gauge, not a roster -------------------------------- */
 
 /* The module dresses `#players` as a panel — ground, radius, rule — while
    Foundry draws its own frame on the `.players-list` inside it, so the corner
-   carried two rectangles one inside the other. The panel treatment stays where
-   it is (it is what makes the rail consistent) and the inner frame goes. */
-#players .players-list {
-    border: none !important;
-    background: none !important;
-    box-shadow: none !important;
+   carried two rectangles one inside the other. Stripping the inner frame was
+   the first pass; Dawid's second (26.08) removed the reason for the frames to
+   coexist at all: the corner shows LATENCY AND FPS AND NOTHING ELSE. Who is
+   connected is not information this table wants on screen — in a killing game
+   "the GM just logged their second account in" is a spoiler — and the module's
+   own Player status window carries the roster for the GM who needs it. One
+   module frame remains, around two numbers. */
+#players .players-list,
+#players #players-inactive {
+    display: none !important;
+}
+
+#players #performance-stats {
+    display: flex;
+    gap: 10px;
+    opacity: 1;
+    font-size: var(--drpg-text-xs);
+}
+
+#players #performance-stats label {
+    color: var(--drpg-dim);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+#players #performance-stats :is(.average, span) {
+    color: var(--drpg-bone);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ==========================================================================
+   THE CHROME SPEAKS PIXEL, QUIETLY
+   --------------------------------------------------------------------------
+   The scene controls and the sidebar tabs keep Foundry's own iconography,
+   redrawn by hand: every glyph has a 12px sprite in tools/chrome-icons.mjs,
+   whose generated section at the end of this file maps it onto the button's
+   own Font Awesome class. A tool the sprites do not know keeps its vector
+   glyph, so another module degrades gracefully.
+
+   And quietly is the point (Dawid, 26.08): these buttons are furniture, not
+   content. Resting state is washed-out — Bone for players, red for the GM's
+   left rail — hover wakes it, the pressed tool is full strength. The colour
+   scheme lives with the old "icon rails" block further up, where it replaced
+   the Ink-chip treatment in place; the one button allowed to shout in this
+   corner is the GM launcher below.
+   ========================================================================== */
+
+/* ---- the GM panel launcher ---------------------------------------------- */
+
+/* Solid crimson, named, and OUTSIDE the toolbar's grammar — see the note in
+   gm-panel.mjs. Everything around it is translucent so that this is not. */
+#drpg-gm-launcher {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    /* Stretched, not sized: the column is exactly as wide as the control
+       rails, so stretching is what lines the button up with them flush on
+       both edges (Dawid, 26.08). */
+    align-self: stretch;
+    margin: 0 0 6px;
+    padding: 6px 8px;
+    background: var(--drpg-eye);
+    border: 1px solid var(--drpg-eye-light);
+    border-radius: 3px;
+    color: var(--drpg-bone);
+    font-size: var(--drpg-text-sm);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(var(--drpg-eye-rgb), 0.35);
+}
+
+#drpg-gm-launcher:hover {
+    background: var(--drpg-eye-light);
+    box-shadow: 0 0 12px var(--drpg-eye-glow);
+}
+
+#drpg-gm-launcher i {
+    color: inherit;
 }
 
 /* ==========================================================================
@@ -11424,3 +11560,619 @@ i.drpg-pix-foot {
    mid-swing — a tool being worked with against a tool being brought down,
    which is the difference between the two actions anyway.
    ========================================================================== */
+
+/* ==========================================================================
+   CHROME PIXEL ICONS — GENERATED by tools/chrome-icons.mjs. DO NOT EDIT HERE.
+   --------------------------------------------------------------------------
+   Hand-drawn 12px sprites for the scene controls, the sidebar tabs and the GM
+   launcher, mapped by the Font Awesome class each button already carries. A
+   button with no sprite here keeps its vector glyph, so another module's tool
+   degrades gracefully instead of turning into a blank square. To change an
+   icon, edit its ASCII art in the tool and re-run it.
+   ========================================================================== */
+
+#scene-controls button.ui-control.fa-user-large::before,
+#sidebar-tabs button.ui-control.fa-user-large::before,
+#sidebar .tabs button.ui-control.fa-user-large::before,
+#scene-controls button.ui-control.fa-bullseye::before,
+#sidebar-tabs button.ui-control.fa-bullseye::before,
+#sidebar .tabs button.ui-control.fa-bullseye::before,
+#scene-controls button.ui-control.fa-ruler::before,
+#sidebar-tabs button.ui-control.fa-ruler::before,
+#sidebar .tabs button.ui-control.fa-ruler::before,
+#scene-controls button.ui-control.fa-ghost::before,
+#sidebar-tabs button.ui-control.fa-ghost::before,
+#sidebar .tabs button.ui-control.fa-ghost::before,
+#scene-controls button.ui-control.fa-game-board::before,
+#sidebar-tabs button.ui-control.fa-game-board::before,
+#sidebar .tabs button.ui-control.fa-game-board::before,
+#scene-controls button.ui-control.fa-expand::before,
+#sidebar-tabs button.ui-control.fa-expand::before,
+#sidebar .tabs button.ui-control.fa-expand::before,
+#scene-controls button.ui-control.fa-ruler-combined::before,
+#sidebar-tabs button.ui-control.fa-ruler-combined::before,
+#sidebar .tabs button.ui-control.fa-ruler-combined::before,
+#scene-controls button.ui-control.icon-fa-rectangle::before,
+#sidebar-tabs button.ui-control.icon-fa-rectangle::before,
+#sidebar .tabs button.ui-control.icon-fa-rectangle::before,
+#scene-controls button.ui-control.fa-circle::before,
+#sidebar-tabs button.ui-control.fa-circle::before,
+#sidebar .tabs button.ui-control.fa-circle::before,
+#scene-controls button.ui-control.fa-circle-regular::before,
+#sidebar-tabs button.ui-control.fa-circle-regular::before,
+#sidebar .tabs button.ui-control.fa-circle-regular::before,
+#scene-controls button.ui-control.icon-fa-ellipse::before,
+#sidebar-tabs button.ui-control.icon-fa-ellipse::before,
+#sidebar .tabs button.ui-control.icon-fa-ellipse::before,
+#scene-controls button.ui-control.icon-fa-cone::before,
+#sidebar-tabs button.ui-control.icon-fa-cone::before,
+#sidebar .tabs button.ui-control.icon-fa-cone::before,
+#scene-controls button.ui-control.fa-eye::before,
+#sidebar-tabs button.ui-control.fa-eye::before,
+#sidebar .tabs button.ui-control.fa-eye::before,
+#scene-controls button.ui-control.fa-horizontal-rule::before,
+#sidebar-tabs button.ui-control.fa-horizontal-rule::before,
+#sidebar .tabs button.ui-control.fa-horizontal-rule::before,
+#scene-controls button.ui-control.fa-podcast::before,
+#sidebar-tabs button.ui-control.fa-podcast::before,
+#sidebar .tabs button.ui-control.fa-podcast::before,
+#scene-controls button.ui-control.fa-draw-polygon::before,
+#sidebar-tabs button.ui-control.fa-draw-polygon::before,
+#sidebar .tabs button.ui-control.fa-draw-polygon::before,
+#scene-controls button.ui-control.fa-object-subtract::before,
+#sidebar-tabs button.ui-control.fa-object-subtract::before,
+#sidebar .tabs button.ui-control.fa-object-subtract::before,
+#scene-controls button.ui-control.fa-trash::before,
+#sidebar-tabs button.ui-control.fa-trash::before,
+#sidebar .tabs button.ui-control.fa-trash::before,
+#scene-controls button.ui-control.fa-pencil::before,
+#sidebar-tabs button.ui-control.fa-pencil::before,
+#sidebar .tabs button.ui-control.fa-pencil::before,
+#scene-controls button.ui-control.fa-signature::before,
+#sidebar-tabs button.ui-control.fa-signature::before,
+#sidebar .tabs button.ui-control.fa-signature::before,
+#scene-controls button.ui-control.fa-font::before,
+#sidebar-tabs button.ui-control.fa-font::before,
+#sidebar .tabs button.ui-control.fa-font::before,
+#scene-controls button.ui-control.fa-palette::before,
+#sidebar-tabs button.ui-control.fa-palette::before,
+#sidebar .tabs button.ui-control.fa-palette::before,
+#scene-controls button.ui-control.fa-cubes::before,
+#sidebar-tabs button.ui-control.fa-cubes::before,
+#sidebar .tabs button.ui-control.fa-cubes::before,
+#scene-controls button.ui-control.fa-cube::before,
+#sidebar-tabs button.ui-control.fa-cube::before,
+#sidebar .tabs button.ui-control.fa-cube::before,
+#scene-controls button.ui-control.fa-folder::before,
+#sidebar-tabs button.ui-control.fa-folder::before,
+#sidebar .tabs button.ui-control.fa-folder::before,
+#scene-controls button.ui-control.fa-block-brick::before,
+#sidebar-tabs button.ui-control.fa-block-brick::before,
+#sidebar .tabs button.ui-control.fa-block-brick::before,
+#scene-controls button.ui-control.fa-share-nodes::before,
+#sidebar-tabs button.ui-control.fa-share-nodes::before,
+#sidebar .tabs button.ui-control.fa-share-nodes::before,
+#scene-controls button.ui-control.fa-bars::before,
+#sidebar-tabs button.ui-control.fa-bars::before,
+#sidebar .tabs button.ui-control.fa-bars::before,
+#scene-controls button.ui-control.fa-mountain::before,
+#sidebar-tabs button.ui-control.fa-mountain::before,
+#sidebar .tabs button.ui-control.fa-mountain::before,
+#scene-controls button.ui-control.fa-eye-slash::before,
+#sidebar-tabs button.ui-control.fa-eye-slash::before,
+#sidebar .tabs button.ui-control.fa-eye-slash::before,
+#scene-controls button.ui-control.fa-mask::before,
+#sidebar-tabs button.ui-control.fa-mask::before,
+#sidebar .tabs button.ui-control.fa-mask::before,
+#scene-controls button.ui-control.fa-door-open::before,
+#sidebar-tabs button.ui-control.fa-door-open::before,
+#sidebar .tabs button.ui-control.fa-door-open::before,
+#scene-controls button.ui-control.fa-user-secret::before,
+#sidebar-tabs button.ui-control.fa-user-secret::before,
+#sidebar .tabs button.ui-control.fa-user-secret::before,
+#scene-controls button.ui-control.fa-window-frame::before,
+#sidebar-tabs button.ui-control.fa-window-frame::before,
+#sidebar .tabs button.ui-control.fa-window-frame::before,
+#scene-controls button.ui-control.fa-door-closed::before,
+#sidebar-tabs button.ui-control.fa-door-closed::before,
+#sidebar .tabs button.ui-control.fa-door-closed::before,
+#scene-controls button.ui-control.fa-music::before,
+#sidebar-tabs button.ui-control.fa-music::before,
+#sidebar .tabs button.ui-control.fa-music::before,
+#scene-controls button.ui-control.fa-volume-high::before,
+#sidebar-tabs button.ui-control.fa-volume-high::before,
+#sidebar .tabs button.ui-control.fa-volume-high::before,
+#scene-controls button.ui-control.fa-headphones::before,
+#sidebar-tabs button.ui-control.fa-headphones::before,
+#sidebar .tabs button.ui-control.fa-headphones::before,
+#scene-controls button.ui-control.fa-lightbulb::before,
+#sidebar-tabs button.ui-control.fa-lightbulb::before,
+#sidebar .tabs button.ui-control.fa-lightbulb::before,
+#scene-controls button.ui-control.fa-sun::before,
+#sidebar-tabs button.ui-control.fa-sun::before,
+#sidebar .tabs button.ui-control.fa-sun::before,
+#scene-controls button.ui-control.fa-moon::before,
+#sidebar-tabs button.ui-control.fa-moon::before,
+#sidebar .tabs button.ui-control.fa-moon::before,
+#scene-controls button.ui-control.fa-cloud::before,
+#sidebar-tabs button.ui-control.fa-cloud::before,
+#sidebar .tabs button.ui-control.fa-cloud::before,
+#scene-controls button.ui-control.fa-bookmark::before,
+#sidebar-tabs button.ui-control.fa-bookmark::before,
+#sidebar .tabs button.ui-control.fa-bookmark::before,
+#scene-controls button.ui-control.fa-book-open::before,
+#sidebar-tabs button.ui-control.fa-book-open::before,
+#sidebar .tabs button.ui-control.fa-book-open::before,
+#scene-controls button.ui-control.fa-map-pin::before,
+#sidebar-tabs button.ui-control.fa-map-pin::before,
+#sidebar .tabs button.ui-control.fa-map-pin::before,
+#scene-controls button.ui-control.fa-comments::before,
+#sidebar-tabs button.ui-control.fa-comments::before,
+#sidebar .tabs button.ui-control.fa-comments::before,
+#scene-controls button.ui-control.fa-swords::before,
+#sidebar-tabs button.ui-control.fa-swords::before,
+#sidebar .tabs button.ui-control.fa-swords::before,
+#scene-controls button.ui-control.fa-map::before,
+#sidebar-tabs button.ui-control.fa-map::before,
+#sidebar .tabs button.ui-control.fa-map::before,
+#scene-controls button.ui-control.fa-puzzle-piece::before,
+#sidebar-tabs button.ui-control.fa-puzzle-piece::before,
+#sidebar .tabs button.ui-control.fa-puzzle-piece::before,
+#scene-controls button.ui-control.fa-user::before,
+#sidebar-tabs button.ui-control.fa-user::before,
+#sidebar .tabs button.ui-control.fa-user::before,
+#scene-controls button.ui-control.fa-suitcase::before,
+#sidebar-tabs button.ui-control.fa-suitcase::before,
+#sidebar .tabs button.ui-control.fa-suitcase::before,
+#scene-controls button.ui-control.fa-table-list::before,
+#sidebar-tabs button.ui-control.fa-table-list::before,
+#sidebar .tabs button.ui-control.fa-table-list::before,
+#scene-controls button.ui-control.fa-cards::before,
+#sidebar-tabs button.ui-control.fa-cards::before,
+#sidebar .tabs button.ui-control.fa-cards::before,
+#scene-controls button.ui-control.fa-code::before,
+#sidebar-tabs button.ui-control.fa-code::before,
+#sidebar .tabs button.ui-control.fa-code::before,
+#scene-controls button.ui-control.fa-book-atlas::before,
+#sidebar-tabs button.ui-control.fa-book-atlas::before,
+#sidebar .tabs button.ui-control.fa-book-atlas::before,
+#scene-controls button.ui-control.fa-dice-d20::before,
+#sidebar-tabs button.ui-control.fa-dice-d20::before,
+#sidebar .tabs button.ui-control.fa-dice-d20::before,
+#scene-controls button.ui-control.fa-gears::before,
+#sidebar-tabs button.ui-control.fa-gears::before,
+#sidebar .tabs button.ui-control.fa-gears::before,
+#scene-controls button.ui-control.fa-caret-left::before,
+#sidebar-tabs button.ui-control.fa-caret-left::before,
+#sidebar .tabs button.ui-control.fa-caret-left::before,
+#scene-controls button.ui-control.fa-clock::before,
+#sidebar-tabs button.ui-control.fa-clock::before,
+#sidebar .tabs button.ui-control.fa-clock::before,
+#drpg-gm-launcher i.fa-clock::before {
+    content: "" !important;
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    background-color: currentColor;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
+    image-rendering: pixelated;
+}
+
+#scene-controls button.ui-control.fa-user-large::before,
+#sidebar-tabs button.ui-control.fa-user-large::before,
+#sidebar .tabs button.ui-control.fa-user-large::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 1h4v1H4zM3 2h6v1H3zM3 3h6v1H3zM3 4h6v1H3zM4 5h4v1H4zM2 7h8v1H2zM1 8h10v1H1zM1 9h10v1H1zM1 10h10v1H1z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 1h4v1H4zM3 2h6v1H3zM3 3h6v1H3zM3 4h6v1H3zM4 5h4v1H4zM2 7h8v1H2zM1 8h10v1H1zM1 9h10v1H1zM1 10h10v1H1z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-bullseye::before,
+#sidebar-tabs button.ui-control.fa-bullseye::before,
+#sidebar .tabs button.ui-control.fa-bullseye::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 1h4v1H4zM2 2h2v1H2zM8 2h2v1H8zM2 3h1v1H2zM9 3h1v1H9zM1 4h1v1H1zM5 4h2v1H5zM10 4h1v1H10zM1 5h1v1H1zM4 5h4v1H4zM10 5h1v1H10zM1 6h1v1H1zM4 6h4v1H4zM10 6h1v1H10zM1 7h1v1H1zM5 7h2v1H5zM10 7h1v1H10zM2 8h1v1H2zM9 8h1v1H9zM2 9h2v1H2zM8 9h2v1H8zM4 10h4v1H4z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 1h4v1H4zM2 2h2v1H2zM8 2h2v1H8zM2 3h1v1H2zM9 3h1v1H9zM1 4h1v1H1zM5 4h2v1H5zM10 4h1v1H10zM1 5h1v1H1zM4 5h4v1H4zM10 5h1v1H10zM1 6h1v1H1zM4 6h4v1H4zM10 6h1v1H10zM1 7h1v1H1zM5 7h2v1H5zM10 7h1v1H10zM2 8h1v1H2zM9 8h1v1H9zM2 9h2v1H2zM8 9h2v1H8zM4 10h4v1H4z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-ruler::before,
+#sidebar-tabs button.ui-control.fa-ruler::before,
+#sidebar .tabs button.ui-control.fa-ruler::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 1h3v1H8zM7 2h4v1H7zM6 3h2v1H6zM9 3h2v1H9zM5 4h4v1H5zM4 5h2v1H4zM7 5h2v1H7zM3 6h4v1H3zM2 7h2v1H2zM5 7h2v1H5zM1 8h4v1H1zM1 9h3v1H1zM1 10h2v1H1z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 1h3v1H8zM7 2h4v1H7zM6 3h2v1H6zM9 3h2v1H9zM5 4h4v1H5zM4 5h2v1H4zM7 5h2v1H7zM3 6h4v1H3zM2 7h2v1H2zM5 7h2v1H5zM1 8h4v1H1zM1 9h3v1H1zM1 10h2v1H1z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-ghost::before,
+#sidebar-tabs button.ui-control.fa-ghost::before,
+#sidebar .tabs button.ui-control.fa-ghost::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 1h4v1H4zM3 2h6v1H3zM2 3h8v1H2zM2 4h2v1H2zM5 4h2v1H5zM8 4h2v1H8zM2 5h8v1H2zM2 6h8v1H2zM2 7h8v1H2zM2 8h8v1H2zM2 9h8v1H2zM2 10h1v1H2zM4 10h1v1H4zM7 10h1v1H7zM9 10h1v1H9z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 1h4v1H4zM3 2h6v1H3zM2 3h8v1H2zM2 4h2v1H2zM5 4h2v1H5zM8 4h2v1H8zM2 5h8v1H2zM2 6h8v1H2zM2 7h8v1H2zM2 8h8v1H2zM2 9h8v1H2zM2 10h1v1H2zM4 10h1v1H4zM7 10h1v1H7zM9 10h1v1H9z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-game-board::before,
+#sidebar-tabs button.ui-control.fa-game-board::before,
+#sidebar .tabs button.ui-control.fa-game-board::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 1h10v1H1zM1 2h1v1H1zM4 2h2v1H4zM8 2h3v1H8zM1 3h1v1H1zM4 3h2v1H4zM8 3h3v1H8zM1 4h3v1H1zM6 4h2v1H6zM10 4h1v1H10zM1 5h3v1H1zM6 5h2v1H6zM10 5h1v1H10zM1 6h1v1H1zM4 6h2v1H4zM8 6h3v1H8zM1 7h1v1H1zM4 7h2v1H4zM8 7h3v1H8zM1 8h3v1H1zM6 8h2v1H6zM10 8h1v1H10zM1 9h3v1H1zM6 9h2v1H6zM10 9h1v1H10zM1 10h10v1H1z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 1h10v1H1zM1 2h1v1H1zM4 2h2v1H4zM8 2h3v1H8zM1 3h1v1H1zM4 3h2v1H4zM8 3h3v1H8zM1 4h3v1H1zM6 4h2v1H6zM10 4h1v1H10zM1 5h3v1H1zM6 5h2v1H6zM10 5h1v1H10zM1 6h1v1H1zM4 6h2v1H4zM8 6h3v1H8zM1 7h1v1H1zM4 7h2v1H4zM8 7h3v1H8zM1 8h3v1H1zM6 8h2v1H6zM10 8h1v1H10zM1 9h3v1H1zM6 9h2v1H6zM10 9h1v1H10zM1 10h10v1H1z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-expand::before,
+#sidebar-tabs button.ui-control.fa-expand::before,
+#sidebar .tabs button.ui-control.fa-expand::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 1h4v1H1zM8 1h3v1H8zM1 2h2v1H1zM9 2h2v1H9zM1 3h1v1H1zM3 3h1v1H3zM8 3h1v1H8zM10 3h1v1H10zM4 4h1v1H4zM7 4h1v1H7zM4 7h1v1H4zM7 7h1v1H7zM1 8h1v1H1zM3 8h1v1H3zM8 8h1v1H8zM10 8h1v1H10zM1 9h2v1H1zM9 9h2v1H9zM1 10h4v1H1zM8 10h3v1H8z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 1h4v1H1zM8 1h3v1H8zM1 2h2v1H1zM9 2h2v1H9zM1 3h1v1H1zM3 3h1v1H3zM8 3h1v1H8zM10 3h1v1H10zM4 4h1v1H4zM7 4h1v1H7zM4 7h1v1H4zM7 7h1v1H7zM1 8h1v1H1zM3 8h1v1H3zM8 8h1v1H8zM10 8h1v1H10zM1 9h2v1H1zM9 9h2v1H9zM1 10h4v1H1zM8 10h3v1H8z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-ruler-combined::before,
+#sidebar-tabs button.ui-control.fa-ruler-combined::before,
+#sidebar .tabs button.ui-control.fa-ruler-combined::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 1h5v1H1zM1 2h5v1H1zM1 3h2v1H1zM5 3h1v1H5zM1 4h5v1H1zM1 5h2v1H1zM5 5h1v1H5zM1 6h5v1H1zM1 7h2v1H1zM5 7h6v1H5zM1 8h5v1H1zM9 8h2v1H9zM1 9h4v1H1zM7 9h1v1H7zM9 9h2v1H9zM1 10h10v1H1z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 1h5v1H1zM1 2h5v1H1zM1 3h2v1H1zM5 3h1v1H5zM1 4h5v1H1zM1 5h2v1H1zM5 5h1v1H5zM1 6h5v1H1zM1 7h2v1H1zM5 7h6v1H5zM1 8h5v1H1zM9 8h2v1H9zM1 9h4v1H1zM7 9h1v1H7zM9 9h2v1H9zM1 10h10v1H1z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.icon-fa-rectangle::before,
+#sidebar-tabs button.ui-control.icon-fa-rectangle::before,
+#sidebar .tabs button.ui-control.icon-fa-rectangle::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 2h10v1H1zM1 3h1v1H1zM10 3h1v1H10zM1 4h1v1H1zM10 4h1v1H10zM1 5h1v1H1zM10 5h1v1H10zM1 6h1v1H1zM10 6h1v1H10zM1 7h1v1H1zM10 7h1v1H10zM1 8h1v1H1zM10 8h1v1H10zM1 9h10v1H1z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 2h10v1H1zM1 3h1v1H1zM10 3h1v1H10zM1 4h1v1H1zM10 4h1v1H10zM1 5h1v1H1zM10 5h1v1H10zM1 6h1v1H1zM10 6h1v1H10zM1 7h1v1H1zM10 7h1v1H10zM1 8h1v1H1zM10 8h1v1H10zM1 9h10v1H1z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-circle::before,
+#sidebar-tabs button.ui-control.fa-circle::before,
+#sidebar .tabs button.ui-control.fa-circle::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 1h4v1H4zM2 2h2v1H2zM8 2h2v1H8zM2 3h1v1H2zM9 3h1v1H9zM1 4h1v1H1zM10 4h1v1H10zM1 5h1v1H1zM10 5h1v1H10zM1 6h1v1H1zM10 6h1v1H10zM1 7h1v1H1zM10 7h1v1H10zM2 8h1v1H2zM9 8h1v1H9zM2 9h2v1H2zM8 9h2v1H8zM4 10h4v1H4z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 1h4v1H4zM2 2h2v1H2zM8 2h2v1H8zM2 3h1v1H2zM9 3h1v1H9zM1 4h1v1H1zM10 4h1v1H10zM1 5h1v1H1zM10 5h1v1H10zM1 6h1v1H1zM10 6h1v1H10zM1 7h1v1H1zM10 7h1v1H10zM2 8h1v1H2zM9 8h1v1H9zM2 9h2v1H2zM8 9h2v1H8zM4 10h4v1H4z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-circle-regular::before,
+#sidebar-tabs button.ui-control.fa-circle-regular::before,
+#sidebar .tabs button.ui-control.fa-circle-regular::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 1h4v1H4zM2 2h2v1H2zM8 2h2v1H8zM2 3h1v1H2zM9 3h1v1H9zM1 4h1v1H1zM10 4h1v1H10zM1 5h1v1H1zM10 5h1v1H10zM1 6h1v1H1zM10 6h1v1H10zM1 7h1v1H1zM10 7h1v1H10zM2 8h1v1H2zM9 8h1v1H9zM2 9h2v1H2zM8 9h2v1H8zM4 10h4v1H4z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 1h4v1H4zM2 2h2v1H2zM8 2h2v1H8zM2 3h1v1H2zM9 3h1v1H9zM1 4h1v1H1zM10 4h1v1H10zM1 5h1v1H1zM10 5h1v1H10zM1 6h1v1H1zM10 6h1v1H10zM1 7h1v1H1zM10 7h1v1H10zM2 8h1v1H2zM9 8h1v1H9zM2 9h2v1H2zM8 9h2v1H8zM4 10h4v1H4z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.icon-fa-ellipse::before,
+#sidebar-tabs button.ui-control.icon-fa-ellipse::before,
+#sidebar .tabs button.ui-control.icon-fa-ellipse::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 2h4v1H4zM2 3h2v1H2zM8 3h2v1H8zM1 4h1v1H1zM10 4h1v1H10zM1 5h1v1H1zM10 5h1v1H10zM1 6h1v1H1zM10 6h1v1H10zM1 7h1v1H1zM10 7h1v1H10zM2 8h2v1H2zM8 8h2v1H8zM4 9h4v1H4z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 2h4v1H4zM2 3h2v1H2zM8 3h2v1H8zM1 4h1v1H1zM10 4h1v1H10zM1 5h1v1H1zM10 5h1v1H10zM1 6h1v1H1zM10 6h1v1H10zM1 7h1v1H1zM10 7h1v1H10zM2 8h2v1H2zM8 8h2v1H8zM4 9h4v1H4z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.icon-fa-cone::before,
+#sidebar-tabs button.ui-control.icon-fa-cone::before,
+#sidebar .tabs button.ui-control.icon-fa-cone::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M5 1h2v1H5zM5 2h2v1H5zM4 3h1v1H4zM7 3h1v1H7zM4 4h1v1H4zM7 4h1v1H7zM3 5h1v1H3zM8 5h1v1H8zM3 6h1v1H3zM8 6h1v1H8zM2 7h1v1H2zM9 7h1v1H9zM2 8h1v1H2zM9 8h1v1H9zM1 9h1v1H1zM10 9h1v1H10zM1 10h10v1H1z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M5 1h2v1H5zM5 2h2v1H5zM4 3h1v1H4zM7 3h1v1H7zM4 4h1v1H4zM7 4h1v1H7zM3 5h1v1H3zM8 5h1v1H8zM3 6h1v1H3zM8 6h1v1H8zM2 7h1v1H2zM9 7h1v1H9zM2 8h1v1H2zM9 8h1v1H9zM1 9h1v1H1zM10 9h1v1H10zM1 10h10v1H1z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-eye::before,
+#sidebar-tabs button.ui-control.fa-eye::before,
+#sidebar .tabs button.ui-control.fa-eye::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 2h4v1H4zM2 3h2v1H2zM8 3h2v1H8zM1 4h1v1H1zM5 4h2v1H5zM10 4h1v1H10zM1 5h1v1H1zM4 5h4v1H4zM10 5h1v1H10zM1 6h1v1H1zM4 6h4v1H4zM10 6h1v1H10zM1 7h1v1H1zM5 7h2v1H5zM10 7h1v1H10zM2 8h2v1H2zM8 8h2v1H8zM4 9h4v1H4z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 2h4v1H4zM2 3h2v1H2zM8 3h2v1H8zM1 4h1v1H1zM5 4h2v1H5zM10 4h1v1H10zM1 5h1v1H1zM4 5h4v1H4zM10 5h1v1H10zM1 6h1v1H1zM4 6h4v1H4zM10 6h1v1H10zM1 7h1v1H1zM5 7h2v1H5zM10 7h1v1H10zM2 8h2v1H2zM8 8h2v1H8zM4 9h4v1H4z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-horizontal-rule::before,
+#sidebar-tabs button.ui-control.fa-horizontal-rule::before,
+#sidebar .tabs button.ui-control.fa-horizontal-rule::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 5h10v1H1zM1 6h10v1H1z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 5h10v1H1zM1 6h10v1H1z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-podcast::before,
+#sidebar-tabs button.ui-control.fa-podcast::before,
+#sidebar .tabs button.ui-control.fa-podcast::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 2h1v1H2zM9 2h1v1H9zM1 3h1v1H1zM4 3h4v1H4zM10 3h1v1H10zM1 4h1v1H1zM3 4h1v1H3zM8 4h1v1H8zM10 4h1v1H10zM1 5h1v1H1zM3 5h1v1H3zM5 5h2v1H5zM8 5h1v1H8zM10 5h1v1H10zM1 6h1v1H1zM3 6h1v1H3zM5 6h2v1H5zM8 6h1v1H8zM10 6h1v1H10zM1 7h1v1H1zM3 7h1v1H3zM8 7h1v1H8zM10 7h1v1H10zM1 8h1v1H1zM4 8h4v1H4zM10 8h1v1H10zM2 9h1v1H2zM9 9h1v1H9z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 2h1v1H2zM9 2h1v1H9zM1 3h1v1H1zM4 3h4v1H4zM10 3h1v1H10zM1 4h1v1H1zM3 4h1v1H3zM8 4h1v1H8zM10 4h1v1H10zM1 5h1v1H1zM3 5h1v1H3zM5 5h2v1H5zM8 5h1v1H8zM10 5h1v1H10zM1 6h1v1H1zM3 6h1v1H3zM5 6h2v1H5zM8 6h1v1H8zM10 6h1v1H10zM1 7h1v1H1zM3 7h1v1H3zM8 7h1v1H8zM10 7h1v1H10zM1 8h1v1H1zM4 8h4v1H4zM10 8h1v1H10zM2 9h1v1H2zM9 9h1v1H9z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-draw-polygon::before,
+#sidebar-tabs button.ui-control.fa-draw-polygon::before,
+#sidebar .tabs button.ui-control.fa-draw-polygon::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 1h2v1H1zM7 1h2v1H7zM1 2h2v1H1zM6 2h3v1H6zM2 3h1v1H2zM5 3h1v1H5zM8 3h1v1H8zM2 4h1v1H2zM4 4h1v1H4zM9 4h1v1H9zM2 5h2v1H2zM9 5h1v1H9zM2 6h1v1H2zM10 6h1v1H10zM2 7h1v1H2zM9 7h2v1H9zM1 8h2v1H1zM8 8h1v1H8zM1 9h2v1H1zM5 9h3v1H5zM2 10h4v1H2z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 1h2v1H1zM7 1h2v1H7zM1 2h2v1H1zM6 2h3v1H6zM2 3h1v1H2zM5 3h1v1H5zM8 3h1v1H8zM2 4h1v1H2zM4 4h1v1H4zM9 4h1v1H9zM2 5h2v1H2zM9 5h1v1H9zM2 6h1v1H2zM10 6h1v1H10zM2 7h1v1H2zM9 7h2v1H9zM1 8h2v1H1zM8 8h1v1H8zM1 9h2v1H1zM5 9h3v1H5zM2 10h4v1H2z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-object-subtract::before,
+#sidebar-tabs button.ui-control.fa-object-subtract::before,
+#sidebar .tabs button.ui-control.fa-object-subtract::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 1h8v1H1zM1 2h8v1H1zM1 3h2v1H1zM7 3h2v1H7zM1 4h2v1H1zM7 4h2v1H7zM1 5h2v1H1zM7 5h4v1H7zM1 6h2v1H1zM7 6h1v1H7zM10 6h1v1H10zM1 7h8v1H1zM10 7h1v1H10zM1 8h8v1H1zM10 8h1v1H10zM5 9h1v1H5zM10 9h1v1H10zM5 10h6v1H5z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 1h8v1H1zM1 2h8v1H1zM1 3h2v1H1zM7 3h2v1H7zM1 4h2v1H1zM7 4h2v1H7zM1 5h2v1H1zM7 5h4v1H7zM1 6h2v1H1zM7 6h1v1H7zM10 6h1v1H10zM1 7h8v1H1zM10 7h1v1H10zM1 8h8v1H1zM10 8h1v1H10zM5 9h1v1H5zM10 9h1v1H10zM5 10h6v1H5z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-trash::before,
+#sidebar-tabs button.ui-control.fa-trash::before,
+#sidebar .tabs button.ui-control.fa-trash::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 1h4v1H4zM1 2h10v1H1zM1 3h10v1H1zM2 4h1v1H2zM9 4h1v1H9zM2 5h1v1H2zM4 5h1v1H4zM6 5h2v1H6zM9 5h1v1H9zM2 6h1v1H2zM4 6h1v1H4zM6 6h2v1H6zM9 6h1v1H9zM2 7h1v1H2zM4 7h1v1H4zM6 7h2v1H6zM9 7h1v1H9zM2 8h1v1H2zM4 8h1v1H4zM6 8h2v1H6zM9 8h1v1H9zM2 9h1v1H2zM9 9h1v1H9zM2 10h8v1H2z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 1h4v1H4zM1 2h10v1H1zM1 3h10v1H1zM2 4h1v1H2zM9 4h1v1H9zM2 5h1v1H2zM4 5h1v1H4zM6 5h2v1H6zM9 5h1v1H9zM2 6h1v1H2zM4 6h1v1H4zM6 6h2v1H6zM9 6h1v1H9zM2 7h1v1H2zM4 7h1v1H4zM6 7h2v1H6zM9 7h1v1H9zM2 8h1v1H2zM4 8h1v1H4zM6 8h2v1H6zM9 8h1v1H9zM2 9h1v1H2zM9 9h1v1H9zM2 10h8v1H2z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-pencil::before,
+#sidebar-tabs button.ui-control.fa-pencil::before,
+#sidebar .tabs button.ui-control.fa-pencil::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 1h3v1H8zM7 2h4v1H7zM6 3h4v1H6zM5 4h4v1H5zM4 5h4v1H4zM3 6h4v1H3zM2 7h4v1H2zM1 8h4v1H1zM1 9h2v1H1zM1 10h1v1H1z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 1h3v1H8zM7 2h4v1H7zM6 3h4v1H6zM5 4h4v1H5zM4 5h4v1H4zM3 6h4v1H3zM2 7h4v1H2zM1 8h4v1H1zM1 9h2v1H1zM1 10h1v1H1z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-signature::before,
+#sidebar-tabs button.ui-control.fa-signature::before,
+#sidebar .tabs button.ui-control.fa-signature::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 2h2v1H3zM2 3h1v1H2zM5 3h1v1H5zM2 4h1v1H2zM5 4h1v1H5zM8 4h2v1H8zM2 5h1v1H2zM4 5h1v1H4zM7 5h1v1H7zM10 5h1v1H10zM2 6h1v1H2zM4 6h1v1H4zM7 6h1v1H7zM10 6h1v1H10zM1 7h1v1H1zM4 7h2v1H4zM7 7h1v1H7zM9 7h1v1H9zM1 8h1v1H1zM1 9h10v1H1z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 2h2v1H3zM2 3h1v1H2zM5 3h1v1H5zM2 4h1v1H2zM5 4h1v1H5zM8 4h2v1H8zM2 5h1v1H2zM4 5h1v1H4zM7 5h1v1H7zM10 5h1v1H10zM2 6h1v1H2zM4 6h1v1H4zM7 6h1v1H7zM10 6h1v1H10zM1 7h1v1H1zM4 7h2v1H4zM7 7h1v1H7zM9 7h1v1H9zM1 8h1v1H1zM1 9h10v1H1z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-font::before,
+#sidebar-tabs button.ui-control.fa-font::before,
+#sidebar .tabs button.ui-control.fa-font::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M5 1h2v1H5zM4 2h4v1H4zM4 3h1v1H4zM7 3h1v1H7zM3 4h2v1H3zM7 4h2v1H7zM3 5h1v1H3zM8 5h1v1H8zM2 6h8v1H2zM2 7h1v1H2zM9 7h1v1H9zM1 8h2v1H1zM9 8h2v1H9zM1 9h3v1H1zM8 9h3v1H8z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M5 1h2v1H5zM4 2h4v1H4zM4 3h1v1H4zM7 3h1v1H7zM3 4h2v1H3zM7 4h2v1H7zM3 5h1v1H3zM8 5h1v1H8zM2 6h8v1H2zM2 7h1v1H2zM9 7h1v1H9zM1 8h2v1H1zM9 8h2v1H9zM1 9h3v1H1zM8 9h3v1H8z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-palette::before,
+#sidebar-tabs button.ui-control.fa-palette::before,
+#sidebar .tabs button.ui-control.fa-palette::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 1h5v1H4zM2 2h2v1H2zM9 2h1v1H9zM1 3h1v1H1zM4 3h1v1H4zM7 3h1v1H7zM10 3h1v1H10zM1 4h1v1H1zM10 4h1v1H10zM1 5h1v1H1zM3 5h1v1H3zM10 5h1v1H10zM1 6h1v1H1zM6 6h2v1H6zM10 6h1v1H10zM1 7h1v1H1zM3 7h1v1H3zM6 7h4v1H6zM2 8h1v1H2zM7 8h2v1H7zM3 9h6v1H3z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 1h5v1H4zM2 2h2v1H2zM9 2h1v1H9zM1 3h1v1H1zM4 3h1v1H4zM7 3h1v1H7zM10 3h1v1H10zM1 4h1v1H1zM10 4h1v1H10zM1 5h1v1H1zM3 5h1v1H3zM10 5h1v1H10zM1 6h1v1H1zM6 6h2v1H6zM10 6h1v1H10zM1 7h1v1H1zM3 7h1v1H3zM6 7h4v1H6zM2 8h1v1H2zM7 8h2v1H7zM3 9h6v1H3z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-cubes::before,
+#sidebar-tabs button.ui-control.fa-cubes::before,
+#sidebar .tabs button.ui-control.fa-cubes::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M5 1h2v1H5zM3 2h6v1H3zM2 3h2v1H2zM8 3h2v1H8zM2 4h1v1H2zM5 4h2v1H5zM9 4h1v1H9zM3 5h6v1H3zM2 6h2v1H2zM8 6h2v1H8zM1 7h1v1H1zM4 7h4v1H4zM10 7h1v1H10zM1 8h1v1H1zM4 8h1v1H4zM7 8h1v1H7zM10 8h1v1H10zM2 9h2v1H2zM8 9h2v1H8zM4 10h4v1H4z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M5 1h2v1H5zM3 2h6v1H3zM2 3h2v1H2zM8 3h2v1H8zM2 4h1v1H2zM5 4h2v1H5zM9 4h1v1H9zM3 5h6v1H3zM2 6h2v1H2zM8 6h2v1H8zM1 7h1v1H1zM4 7h4v1H4zM10 7h1v1H10zM1 8h1v1H1zM4 8h1v1H4zM7 8h1v1H7zM10 8h1v1H10zM2 9h2v1H2zM8 9h2v1H8zM4 10h4v1H4z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-cube::before,
+#sidebar-tabs button.ui-control.fa-cube::before,
+#sidebar .tabs button.ui-control.fa-cube::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 1h4v1H4zM2 2h2v1H2zM8 2h2v1H8zM1 3h1v1H1zM10 3h1v1H10zM1 4h1v1H1zM3 4h2v1H3zM7 4h2v1H7zM10 4h1v1H10zM1 5h1v1H1zM5 5h2v1H5zM10 5h1v1H10zM1 6h1v1H1zM5 6h2v1H5zM10 6h1v1H10zM2 7h1v1H2zM5 7h2v1H5zM9 7h1v1H9zM2 8h2v1H2zM5 8h2v1H5zM8 8h2v1H8zM4 9h4v1H4z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 1h4v1H4zM2 2h2v1H2zM8 2h2v1H8zM1 3h1v1H1zM10 3h1v1H10zM1 4h1v1H1zM3 4h2v1H3zM7 4h2v1H7zM10 4h1v1H10zM1 5h1v1H1zM5 5h2v1H5zM10 5h1v1H10zM1 6h1v1H1zM5 6h2v1H5zM10 6h1v1H10zM2 7h1v1H2zM5 7h2v1H5zM9 7h1v1H9zM2 8h2v1H2zM5 8h2v1H5zM8 8h2v1H8zM4 9h4v1H4z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-folder::before,
+#sidebar-tabs button.ui-control.fa-folder::before,
+#sidebar .tabs button.ui-control.fa-folder::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 2h5v1H1zM1 3h1v1H1zM5 3h2v1H5zM1 4h10v1H1zM1 5h1v1H1zM10 5h1v1H10zM1 6h1v1H1zM10 6h1v1H10zM1 7h1v1H1zM10 7h1v1H10zM1 8h1v1H1zM10 8h1v1H10zM1 9h10v1H1z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 2h5v1H1zM1 3h1v1H1zM5 3h2v1H5zM1 4h10v1H1zM1 5h1v1H1zM10 5h1v1H10zM1 6h1v1H1zM10 6h1v1H10zM1 7h1v1H1zM10 7h1v1H10zM1 8h1v1H1zM10 8h1v1H10zM1 9h10v1H1z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-block-brick::before,
+#sidebar-tabs button.ui-control.fa-block-brick::before,
+#sidebar .tabs button.ui-control.fa-block-brick::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 1h10v1H1zM1 2h1v1H1zM4 2h1v1H4zM7 2h1v1H7zM10 2h1v1H10zM1 3h10v1H1zM1 4h1v1H1zM6 4h1v1H6zM10 4h1v1H10zM1 5h10v1H1zM1 6h1v1H1zM4 6h1v1H4zM7 6h1v1H7zM10 6h1v1H10zM1 7h10v1H1zM1 8h1v1H1zM6 8h1v1H6zM10 8h1v1H10zM1 9h10v1H1z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 1h10v1H1zM1 2h1v1H1zM4 2h1v1H4zM7 2h1v1H7zM10 2h1v1H10zM1 3h10v1H1zM1 4h1v1H1zM6 4h1v1H6zM10 4h1v1H10zM1 5h10v1H1zM1 6h1v1H1zM4 6h1v1H4zM7 6h1v1H7zM10 6h1v1H10zM1 7h10v1H1zM1 8h1v1H1zM6 8h1v1H6zM10 8h1v1H10zM1 9h10v1H1z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-share-nodes::before,
+#sidebar-tabs button.ui-control.fa-share-nodes::before,
+#sidebar .tabs button.ui-control.fa-share-nodes::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 1h2v1H9zM8 2h3v1H8zM7 3h1v1H7zM9 3h2v1H9zM6 4h1v1H6zM5 5h1v1H5zM4 6h1v1H4zM1 7h2v1H1zM4 7h1v1H4zM1 8h3v1H1zM1 9h2v1H1z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 1h2v1H9zM8 2h3v1H8zM7 3h1v1H7zM9 3h2v1H9zM6 4h1v1H6zM5 5h1v1H5zM4 6h1v1H4zM1 7h2v1H1zM4 7h1v1H4zM1 8h3v1H1zM1 9h2v1H1z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-bars::before,
+#sidebar-tabs button.ui-control.fa-bars::before,
+#sidebar .tabs button.ui-control.fa-bars::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 2h10v1H1zM1 3h10v1H1zM1 5h10v1H1zM1 6h10v1H1zM1 8h10v1H1zM1 9h10v1H1z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 2h10v1H1zM1 3h10v1H1zM1 5h10v1H1zM1 6h10v1H1zM1 8h10v1H1zM1 9h10v1H1z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-mountain::before,
+#sidebar-tabs button.ui-control.fa-mountain::before,
+#sidebar .tabs button.ui-control.fa-mountain::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 2h1v1H6zM5 3h3v1H5zM4 4h2v1H4zM7 4h2v1H7zM4 5h5v1H4zM3 6h2v1H3zM8 6h2v1H8zM2 7h2v1H2zM9 7h2v1H9zM2 8h1v1H2zM10 8h1v1H10zM1 9h10v1H1z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 2h1v1H6zM5 3h3v1H5zM4 4h2v1H4zM7 4h2v1H7zM4 5h5v1H4zM3 6h2v1H3zM8 6h2v1H8zM2 7h2v1H2zM9 7h2v1H9zM2 8h1v1H2zM10 8h1v1H10zM1 9h10v1H1z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-eye-slash::before,
+#sidebar-tabs button.ui-control.fa-eye-slash::before,
+#sidebar .tabs button.ui-control.fa-eye-slash::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 1h1v1H1zM2 2h1v1H2zM5 2h3v1H5zM2 3h2v1H2zM8 3h2v1H8zM1 4h1v1H1zM3 4h1v1H3zM5 4h2v1H5zM10 4h1v1H10zM1 5h1v1H1zM4 5h1v1H4zM6 5h2v1H6zM10 5h1v1H10zM1 6h1v1H1zM4 6h2v1H4zM7 6h1v1H7zM10 6h1v1H10zM1 7h1v1H1zM5 7h2v1H5zM8 7h1v1H8zM10 7h1v1H10zM2 8h2v1H2zM7 8h1v1H7zM9 8h1v1H9zM4 9h3v1H4zM9 9h1v1H9zM10 10h1v1H10z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 1h1v1H1zM2 2h1v1H2zM5 2h3v1H5zM2 3h2v1H2zM8 3h2v1H8zM1 4h1v1H1zM3 4h1v1H3zM5 4h2v1H5zM10 4h1v1H10zM1 5h1v1H1zM4 5h1v1H4zM6 5h2v1H6zM10 5h1v1H10zM1 6h1v1H1zM4 6h2v1H4zM7 6h1v1H7zM10 6h1v1H10zM1 7h1v1H1zM5 7h2v1H5zM8 7h1v1H8zM10 7h1v1H10zM2 8h2v1H2zM7 8h1v1H7zM9 8h1v1H9zM4 9h3v1H4zM9 9h1v1H9zM10 10h1v1H10z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-mask::before,
+#sidebar-tabs button.ui-control.fa-mask::before,
+#sidebar .tabs button.ui-control.fa-mask::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 1h6v1H3zM2 2h8v1H2zM1 3h10v1H1zM1 4h1v1H1zM4 4h1v1H4zM7 4h1v1H7zM10 4h1v1H10zM1 5h1v1H1zM4 5h1v1H4zM7 5h1v1H7zM10 5h1v1H10zM1 6h10v1H1zM2 7h3v1H2zM7 7h3v1H7zM3 8h2v1H3zM7 8h2v1H7zM4 9h4v1H4z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 1h6v1H3zM2 2h8v1H2zM1 3h10v1H1zM1 4h1v1H1zM4 4h1v1H4zM7 4h1v1H7zM10 4h1v1H10zM1 5h1v1H1zM4 5h1v1H4zM7 5h1v1H7zM10 5h1v1H10zM1 6h10v1H1zM2 7h3v1H2zM7 7h3v1H7zM3 8h2v1H3zM7 8h2v1H7zM4 9h4v1H4z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-door-open::before,
+#sidebar-tabs button.ui-control.fa-door-open::before,
+#sidebar .tabs button.ui-control.fa-door-open::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M5 1h6v1H5zM5 2h1v1H5zM10 2h1v1H10zM5 3h1v1H5zM8 3h1v1H8zM10 3h1v1H10zM5 4h1v1H5zM8 4h1v1H8zM10 4h1v1H10zM5 5h1v1H5zM10 5h1v1H10zM5 6h1v1H5zM10 6h1v1H10zM5 7h1v1H5zM10 7h1v1H10zM5 8h1v1H5zM10 8h1v1H10zM3 9h3v1H3zM10 9h1v1H10zM1 10h10v1H1z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M5 1h6v1H5zM5 2h1v1H5zM10 2h1v1H10zM5 3h1v1H5zM8 3h1v1H8zM10 3h1v1H10zM5 4h1v1H5zM8 4h1v1H8zM10 4h1v1H10zM5 5h1v1H5zM10 5h1v1H10zM5 6h1v1H5zM10 6h1v1H10zM5 7h1v1H5zM10 7h1v1H10zM5 8h1v1H5zM10 8h1v1H10zM3 9h3v1H3zM10 9h1v1H10zM1 10h10v1H1z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-user-secret::before,
+#sidebar-tabs button.ui-control.fa-user-secret::before,
+#sidebar .tabs button.ui-control.fa-user-secret::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 1h4v1H4zM4 2h4v1H4zM2 3h8v1H2zM3 4h6v1H3zM4 5h4v1H4zM2 7h8v1H2zM1 8h2v1H1zM5 8h2v1H5zM9 8h2v1H9zM1 9h10v1H1zM1 10h10v1H1z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 1h4v1H4zM4 2h4v1H4zM2 3h8v1H2zM3 4h6v1H3zM4 5h4v1H4zM2 7h8v1H2zM1 8h2v1H1zM5 8h2v1H5zM9 8h2v1H9zM1 9h10v1H1zM1 10h10v1H1z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-window-frame::before,
+#sidebar-tabs button.ui-control.fa-window-frame::before,
+#sidebar .tabs button.ui-control.fa-window-frame::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 1h10v1H1zM1 2h1v1H1zM6 2h1v1H6zM10 2h1v1H10zM1 3h1v1H1zM6 3h1v1H6zM10 3h1v1H10zM1 4h1v1H1zM6 4h1v1H6zM10 4h1v1H10zM1 5h10v1H1zM1 6h1v1H1zM6 6h1v1H6zM10 6h1v1H10zM1 7h1v1H1zM6 7h1v1H6zM10 7h1v1H10zM1 8h1v1H1zM6 8h1v1H6zM10 8h1v1H10zM1 9h10v1H1z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 1h10v1H1zM1 2h1v1H1zM6 2h1v1H6zM10 2h1v1H10zM1 3h1v1H1zM6 3h1v1H6zM10 3h1v1H10zM1 4h1v1H1zM6 4h1v1H6zM10 4h1v1H10zM1 5h10v1H1zM1 6h1v1H1zM6 6h1v1H6zM10 6h1v1H10zM1 7h1v1H1zM6 7h1v1H6zM10 7h1v1H10zM1 8h1v1H1zM6 8h1v1H6zM10 8h1v1H10zM1 9h10v1H1z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-door-closed::before,
+#sidebar-tabs button.ui-control.fa-door-closed::before,
+#sidebar .tabs button.ui-control.fa-door-closed::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 1h6v1H3zM3 2h1v1H3zM8 2h1v1H8zM3 3h1v1H3zM8 3h1v1H8zM3 4h1v1H3zM7 4h2v1H7zM3 5h1v1H3zM7 5h2v1H7zM3 6h1v1H3zM8 6h1v1H8zM3 7h1v1H3zM8 7h1v1H8zM3 8h1v1H3zM8 8h1v1H8zM3 9h1v1H3zM8 9h1v1H8zM1 10h10v1H1z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 1h6v1H3zM3 2h1v1H3zM8 2h1v1H8zM3 3h1v1H3zM8 3h1v1H8zM3 4h1v1H3zM7 4h2v1H7zM3 5h1v1H3zM7 5h2v1H7zM3 6h1v1H3zM8 6h1v1H8zM3 7h1v1H3zM8 7h1v1H8zM3 8h1v1H3zM8 8h1v1H8zM3 9h1v1H3zM8 9h1v1H8zM1 10h10v1H1z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-music::before,
+#sidebar-tabs button.ui-control.fa-music::before,
+#sidebar .tabs button.ui-control.fa-music::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 1h7v1H4zM4 2h7v1H4zM4 3h1v1H4zM10 3h1v1H10zM4 4h1v1H4zM10 4h1v1H10zM4 5h1v1H4zM10 5h1v1H10zM4 6h1v1H4zM10 6h1v1H10zM3 7h2v1H3zM9 7h2v1H9zM2 8h3v1H2zM8 8h3v1H8zM2 9h3v1H2zM8 9h3v1H8zM3 10h1v1H3zM9 10h1v1H9z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 1h7v1H4zM4 2h7v1H4zM4 3h1v1H4zM10 3h1v1H10zM4 4h1v1H4zM10 4h1v1H10zM4 5h1v1H4zM10 5h1v1H10zM4 6h1v1H4zM10 6h1v1H10zM3 7h2v1H3zM9 7h2v1H9zM2 8h3v1H2zM8 8h3v1H8zM2 9h3v1H2zM8 9h3v1H8zM3 10h1v1H3zM9 10h1v1H9z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-volume-high::before,
+#sidebar-tabs button.ui-control.fa-volume-high::before,
+#sidebar .tabs button.ui-control.fa-volume-high::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M5 1h1v1H5zM9 1h1v1H9zM4 2h2v1H4zM7 2h1v1H7zM10 2h1v1H10zM1 3h4v1H1zM6 3h1v1H6zM8 3h1v1H8zM10 3h1v1H10zM1 4h1v1H1zM4 4h1v1H4zM6 4h1v1H6zM8 4h1v1H8zM10 4h1v1H10zM1 5h1v1H1zM4 5h1v1H4zM6 5h1v1H6zM8 5h1v1H8zM10 5h1v1H10zM1 6h1v1H1zM4 6h1v1H4zM6 6h1v1H6zM8 6h1v1H8zM10 6h1v1H10zM1 7h4v1H1zM6 7h1v1H6zM8 7h1v1H8zM10 7h1v1H10zM4 8h2v1H4zM7 8h1v1H7zM10 8h1v1H10zM5 9h1v1H5zM9 9h1v1H9z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M5 1h1v1H5zM9 1h1v1H9zM4 2h2v1H4zM7 2h1v1H7zM10 2h1v1H10zM1 3h4v1H1zM6 3h1v1H6zM8 3h1v1H8zM10 3h1v1H10zM1 4h1v1H1zM4 4h1v1H4zM6 4h1v1H6zM8 4h1v1H8zM10 4h1v1H10zM1 5h1v1H1zM4 5h1v1H4zM6 5h1v1H6zM8 5h1v1H8zM10 5h1v1H10zM1 6h1v1H1zM4 6h1v1H4zM6 6h1v1H6zM8 6h1v1H8zM10 6h1v1H10zM1 7h4v1H1zM6 7h1v1H6zM8 7h1v1H8zM10 7h1v1H10zM4 8h2v1H4zM7 8h1v1H7zM10 8h1v1H10zM5 9h1v1H5zM9 9h1v1H9z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-headphones::before,
+#sidebar-tabs button.ui-control.fa-headphones::before,
+#sidebar .tabs button.ui-control.fa-headphones::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 1h4v1H4zM2 2h2v1H2zM8 2h2v1H8zM2 3h1v1H2zM9 3h1v1H9zM1 4h1v1H1zM10 4h1v1H10zM1 5h1v1H1zM10 5h1v1H10zM1 6h2v1H1zM9 6h2v1H9zM1 7h3v1H1zM8 7h3v1H8zM1 8h3v1H1zM8 8h3v1H8zM1 9h2v1H1zM9 9h2v1H9z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 1h4v1H4zM2 2h2v1H2zM8 2h2v1H8zM2 3h1v1H2zM9 3h1v1H9zM1 4h1v1H1zM10 4h1v1H10zM1 5h1v1H1zM10 5h1v1H10zM1 6h2v1H1zM9 6h2v1H9zM1 7h3v1H1zM8 7h3v1H8zM1 8h3v1H1zM8 8h3v1H8zM1 9h2v1H1zM9 9h2v1H9z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-lightbulb::before,
+#sidebar-tabs button.ui-control.fa-lightbulb::before,
+#sidebar .tabs button.ui-control.fa-lightbulb::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 1h4v1H4zM2 2h2v1H2zM8 2h2v1H8zM2 3h1v1H2zM9 3h1v1H9zM2 4h1v1H2zM9 4h1v1H9zM2 5h1v1H2zM9 5h1v1H9zM2 6h2v1H2zM8 6h2v1H8zM3 7h1v1H3zM8 7h1v1H8zM3 8h6v1H3zM4 9h1v1H4zM7 9h1v1H7zM4 10h4v1H4z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 1h4v1H4zM2 2h2v1H2zM8 2h2v1H8zM2 3h1v1H2zM9 3h1v1H9zM2 4h1v1H2zM9 4h1v1H9zM2 5h1v1H2zM9 5h1v1H9zM2 6h2v1H2zM8 6h2v1H8zM3 7h1v1H3zM8 7h1v1H8zM3 8h6v1H3zM4 9h1v1H4zM7 9h1v1H7zM4 10h4v1H4z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-sun::before,
+#sidebar-tabs button.ui-control.fa-sun::before,
+#sidebar .tabs button.ui-control.fa-sun::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 1h1v1H3zM5 1h2v1H5zM8 1h1v1H8zM2 2h1v1H2zM4 2h4v1H4zM9 2h1v1H9zM3 3h6v1H3zM1 4h10v1H1zM2 5h8v1H2zM2 6h8v1H2zM1 7h10v1H1zM3 8h6v1H3zM2 9h1v1H2zM4 9h4v1H4zM9 9h1v1H9zM3 10h1v1H3zM5 10h2v1H5zM8 10h1v1H8z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 1h1v1H3zM5 1h2v1H5zM8 1h1v1H8zM2 2h1v1H2zM4 2h4v1H4zM9 2h1v1H9zM3 3h6v1H3zM1 4h10v1H1zM2 5h8v1H2zM2 6h8v1H2zM1 7h10v1H1zM3 8h6v1H3zM2 9h1v1H2zM4 9h4v1H4zM9 9h1v1H9zM3 10h1v1H3zM5 10h2v1H5zM8 10h1v1H8z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-moon::before,
+#sidebar-tabs button.ui-control.fa-moon::before,
+#sidebar .tabs button.ui-control.fa-moon::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M5 1h4v1H5zM3 2h3v1H3zM2 3h3v1H2zM2 4h2v1H2zM1 5h3v1H1zM1 6h3v1H1zM2 7h2v1H2zM2 8h3v1H2zM3 9h3v1H3zM5 10h4v1H5z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M5 1h4v1H5zM3 2h3v1H3zM2 3h3v1H2zM2 4h2v1H2zM1 5h3v1H1zM1 6h3v1H1zM2 7h2v1H2zM2 8h3v1H2zM3 9h3v1H3zM5 10h4v1H5z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-cloud::before,
+#sidebar-tabs button.ui-control.fa-cloud::before,
+#sidebar .tabs button.ui-control.fa-cloud::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 3h3v1H4zM3 4h1v1H3zM7 4h2v1H7zM2 5h1v1H2zM9 5h1v1H9zM1 6h1v1H1zM10 6h1v1H10zM1 7h1v1H1zM10 7h1v1H10zM2 8h8v1H2z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 3h3v1H4zM3 4h1v1H3zM7 4h2v1H7zM2 5h1v1H2zM9 5h1v1H9zM1 6h1v1H1zM10 6h1v1H10zM1 7h1v1H1zM10 7h1v1H10zM2 8h8v1H2z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-bookmark::before,
+#sidebar-tabs button.ui-control.fa-bookmark::before,
+#sidebar .tabs button.ui-control.fa-bookmark::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 1h8v1H2zM2 2h1v1H2zM9 2h1v1H9zM2 3h1v1H2zM9 3h1v1H9zM2 4h1v1H2zM9 4h1v1H9zM2 5h1v1H2zM9 5h1v1H9zM2 6h1v1H2zM9 6h1v1H9zM2 7h1v1H2zM9 7h1v1H9zM2 8h1v1H2zM5 8h2v1H5zM9 8h1v1H9zM2 9h2v1H2zM5 9h2v1H5zM8 9h2v1H8zM2 10h2v1H2zM8 10h2v1H8z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 1h8v1H2zM2 2h1v1H2zM9 2h1v1H9zM2 3h1v1H2zM9 3h1v1H9zM2 4h1v1H2zM9 4h1v1H9zM2 5h1v1H2zM9 5h1v1H9zM2 6h1v1H2zM9 6h1v1H9zM2 7h1v1H2zM9 7h1v1H9zM2 8h1v1H2zM5 8h2v1H5zM9 8h1v1H9zM2 9h2v1H2zM5 9h2v1H5zM8 9h2v1H8zM2 10h2v1H2zM8 10h2v1H8z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-book-open::before,
+#sidebar-tabs button.ui-control.fa-book-open::before,
+#sidebar .tabs button.ui-control.fa-book-open::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 2h4v1H1zM7 2h4v1H7zM1 3h1v1H1zM5 3h2v1H5zM10 3h1v1H10zM1 4h1v1H1zM5 4h2v1H5zM10 4h1v1H10zM1 5h1v1H1zM5 5h2v1H5zM10 5h1v1H10zM1 6h1v1H1zM5 6h2v1H5zM10 6h1v1H10zM1 7h1v1H1zM5 7h2v1H5zM10 7h1v1H10zM1 8h1v1H1zM3 8h6v1H3zM10 8h1v1H10zM1 9h3v1H1zM8 9h3v1H8z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 2h4v1H1zM7 2h4v1H7zM1 3h1v1H1zM5 3h2v1H5zM10 3h1v1H10zM1 4h1v1H1zM5 4h2v1H5zM10 4h1v1H10zM1 5h1v1H1zM5 5h2v1H5zM10 5h1v1H10zM1 6h1v1H1zM5 6h2v1H5zM10 6h1v1H10zM1 7h1v1H1zM5 7h2v1H5zM10 7h1v1H10zM1 8h1v1H1zM3 8h6v1H3zM10 8h1v1H10zM1 9h3v1H1zM8 9h3v1H8z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-map-pin::before,
+#sidebar-tabs button.ui-control.fa-map-pin::before,
+#sidebar .tabs button.ui-control.fa-map-pin::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 1h4v1H4zM2 2h2v1H2zM8 2h2v1H8zM2 3h1v1H2zM9 3h1v1H9zM2 4h1v1H2zM9 4h1v1H9zM2 5h2v1H2zM8 5h2v1H8zM4 6h4v1H4zM5 7h2v1H5zM5 8h2v1H5zM5 9h2v1H5zM5 10h2v1H5z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 1h4v1H4zM2 2h2v1H2zM8 2h2v1H8zM2 3h1v1H2zM9 3h1v1H9zM2 4h1v1H2zM9 4h1v1H9zM2 5h2v1H2zM8 5h2v1H8zM4 6h4v1H4zM5 7h2v1H5zM5 8h2v1H5zM5 9h2v1H5zM5 10h2v1H5z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-comments::before,
+#sidebar-tabs button.ui-control.fa-comments::before,
+#sidebar .tabs button.ui-control.fa-comments::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 1h8v1H1zM1 2h1v1H1zM8 2h1v1H8zM1 3h1v1H1zM8 3h1v1H8zM1 4h1v1H1zM8 4h3v1H8zM1 5h8v1H1zM10 5h1v1H10zM3 6h1v1H3zM8 6h1v1H8zM10 6h1v1H10zM4 7h1v1H4zM8 7h1v1H8zM10 7h1v1H10zM5 8h4v1H5zM10 8h1v1H10zM8 9h3v1H8z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 1h8v1H1zM1 2h1v1H1zM8 2h1v1H8zM1 3h1v1H1zM8 3h1v1H8zM1 4h1v1H1zM8 4h3v1H8zM1 5h8v1H1zM10 5h1v1H10zM3 6h1v1H3zM8 6h1v1H8zM10 6h1v1H10zM4 7h1v1H4zM8 7h1v1H8zM10 7h1v1H10zM5 8h4v1H5zM10 8h1v1H10zM8 9h3v1H8z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-swords::before,
+#sidebar-tabs button.ui-control.fa-swords::before,
+#sidebar .tabs button.ui-control.fa-swords::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 1h1v1H1zM9 1h2v1H9zM1 2h2v1H1zM8 2h3v1H8zM2 3h2v1H2zM7 3h2v1H7zM3 4h2v1H3zM6 4h2v1H6zM4 5h3v1H4zM4 6h3v1H4zM3 7h2v1H3zM6 7h2v1H6zM2 8h2v1H2zM7 8h2v1H7zM1 9h3v1H1zM9 9h2v1H9zM1 10h2v1H1zM10 10h1v1H10z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 1h1v1H1zM9 1h2v1H9zM1 2h2v1H1zM8 2h3v1H8zM2 3h2v1H2zM7 3h2v1H7zM3 4h2v1H3zM6 4h2v1H6zM4 5h3v1H4zM4 6h3v1H4zM3 7h2v1H3zM6 7h2v1H6zM2 8h2v1H2zM7 8h2v1H7zM1 9h3v1H1zM9 9h2v1H9zM1 10h2v1H1zM10 10h1v1H10z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-map::before,
+#sidebar-tabs button.ui-control.fa-map::before,
+#sidebar .tabs button.ui-control.fa-map::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 2h1v1H1zM4 2h6v1H4zM1 3h2v1H1zM4 3h1v1H4zM9 3h2v1H9zM1 4h2v1H1zM4 4h1v1H4zM7 4h1v1H7zM9 4h2v1H9zM1 5h1v1H1zM4 5h1v1H4zM7 5h1v1H7zM10 5h1v1H10zM1 6h1v1H1zM4 6h1v1H4zM7 6h1v1H7zM10 6h1v1H10zM1 7h2v1H1zM4 7h1v1H4zM7 7h1v1H7zM9 7h2v1H9zM1 8h2v1H1zM7 8h1v1H7zM9 8h2v1H9zM2 9h6v1H2zM10 9h1v1H10z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 2h1v1H1zM4 2h6v1H4zM1 3h2v1H1zM4 3h1v1H4zM9 3h2v1H9zM1 4h2v1H1zM4 4h1v1H4zM7 4h1v1H7zM9 4h2v1H9zM1 5h1v1H1zM4 5h1v1H4zM7 5h1v1H7zM10 5h1v1H10zM1 6h1v1H1zM4 6h1v1H4zM7 6h1v1H7zM10 6h1v1H10zM1 7h2v1H1zM4 7h1v1H4zM7 7h1v1H7zM9 7h2v1H9zM1 8h2v1H1zM7 8h1v1H7zM9 8h2v1H9zM2 9h6v1H2zM10 9h1v1H10z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-puzzle-piece::before,
+#sidebar-tabs button.ui-control.fa-puzzle-piece::before,
+#sidebar .tabs button.ui-control.fa-puzzle-piece::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M5 1h2v1H5zM4 2h4v1H4zM1 3h8v1H1zM1 4h1v1H1zM8 4h3v1H8zM1 5h1v1H1zM8 5h3v1H8zM1 6h1v1H1zM4 6h1v1H4zM8 6h1v1H8zM1 7h1v1H1zM3 7h3v1H3zM8 7h1v1H8zM1 8h1v1H1zM4 8h1v1H4zM8 8h1v1H8zM1 9h8v1H1z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M5 1h2v1H5zM4 2h4v1H4zM1 3h8v1H1zM1 4h1v1H1zM8 4h3v1H8zM1 5h1v1H1zM8 5h3v1H8zM1 6h1v1H1zM4 6h1v1H4zM8 6h1v1H8zM1 7h1v1H1zM3 7h3v1H3zM8 7h1v1H8zM1 8h1v1H1zM4 8h1v1H4zM8 8h1v1H8zM1 9h8v1H1z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-user::before,
+#sidebar-tabs button.ui-control.fa-user::before,
+#sidebar .tabs button.ui-control.fa-user::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 1h4v1H4zM3 2h6v1H3zM3 3h6v1H3zM4 4h4v1H4zM3 6h6v1H3zM2 7h8v1H2zM1 8h10v1H1zM1 9h10v1H1z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 1h4v1H4zM3 2h6v1H3zM3 3h6v1H3zM4 4h4v1H4zM3 6h6v1H3zM2 7h8v1H2zM1 8h10v1H1zM1 9h10v1H1z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-suitcase::before,
+#sidebar-tabs button.ui-control.fa-suitcase::before,
+#sidebar .tabs button.ui-control.fa-suitcase::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 1h4v1H4zM4 2h1v1H4zM7 2h1v1H7zM1 3h10v1H1zM1 4h1v1H1zM10 4h1v1H10zM1 5h1v1H1zM3 5h1v1H3zM8 5h1v1H8zM10 5h1v1H10zM1 6h1v1H1zM3 6h1v1H3zM8 6h1v1H8zM10 6h1v1H10zM1 7h1v1H1zM3 7h1v1H3zM8 7h1v1H8zM10 7h1v1H10zM1 8h1v1H1zM10 8h1v1H10zM1 9h10v1H1z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 1h4v1H4zM4 2h1v1H4zM7 2h1v1H7zM1 3h10v1H1zM1 4h1v1H1zM10 4h1v1H10zM1 5h1v1H1zM3 5h1v1H3zM8 5h1v1H8zM10 5h1v1H10zM1 6h1v1H1zM3 6h1v1H3zM8 6h1v1H8zM10 6h1v1H10zM1 7h1v1H1zM3 7h1v1H3zM8 7h1v1H8zM10 7h1v1H10zM1 8h1v1H1zM10 8h1v1H10zM1 9h10v1H1z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-table-list::before,
+#sidebar-tabs button.ui-control.fa-table-list::before,
+#sidebar .tabs button.ui-control.fa-table-list::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 1h10v1H1zM1 2h1v1H1zM10 2h1v1H10zM1 3h10v1H1zM1 4h1v1H1zM3 4h1v1H3zM10 4h1v1H10zM1 5h10v1H1zM1 6h1v1H1zM3 6h1v1H3zM10 6h1v1H10zM1 7h10v1H1zM1 8h1v1H1zM3 8h1v1H3zM10 8h1v1H10zM1 9h10v1H1z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 1h10v1H1zM1 2h1v1H1zM10 2h1v1H10zM1 3h10v1H1zM1 4h1v1H1zM3 4h1v1H3zM10 4h1v1H10zM1 5h10v1H1zM1 6h1v1H1zM3 6h1v1H3zM10 6h1v1H10zM1 7h10v1H1zM1 8h1v1H1zM3 8h1v1H3zM10 8h1v1H10zM1 9h10v1H1z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-cards::before,
+#sidebar-tabs button.ui-control.fa-cards::before,
+#sidebar .tabs button.ui-control.fa-cards::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 1h5v1H3zM3 2h1v1H3zM7 2h1v1H7zM10 2h1v1H10zM3 3h1v1H3zM7 3h1v1H7zM9 3h2v1H9zM3 4h1v1H3zM7 4h4v1H7zM3 5h1v1H3zM7 5h1v1H7zM10 5h1v1H10zM1 6h7v1H1zM10 6h1v1H10zM1 7h1v1H1zM4 7h1v1H4zM7 7h1v1H7zM10 7h1v1H10zM1 8h1v1H1zM4 8h7v1H4zM1 9h1v1H1zM4 9h1v1H4zM1 10h4v1H1z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 1h5v1H3zM3 2h1v1H3zM7 2h1v1H7zM10 2h1v1H10zM3 3h1v1H3zM7 3h1v1H7zM9 3h2v1H9zM3 4h1v1H3zM7 4h4v1H7zM3 5h1v1H3zM7 5h1v1H7zM10 5h1v1H10zM1 6h7v1H1zM10 6h1v1H10zM1 7h1v1H1zM4 7h1v1H4zM7 7h1v1H7zM10 7h1v1H10zM1 8h1v1H1zM4 8h7v1H4zM1 9h1v1H1zM4 9h1v1H4zM1 10h4v1H1z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-code::before,
+#sidebar-tabs button.ui-control.fa-code::before,
+#sidebar .tabs button.ui-control.fa-code::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 2h2v1H2zM8 2h2v1H8zM1 3h2v1H1zM9 3h2v1H9zM1 4h1v1H1zM4 4h1v1H4zM7 4h1v1H7zM10 4h1v1H10zM1 5h1v1H1zM3 5h1v1H3zM8 5h1v1H8zM10 5h1v1H10zM1 6h1v1H1zM3 6h1v1H3zM8 6h1v1H8zM10 6h1v1H10zM1 7h1v1H1zM4 7h1v1H4zM7 7h1v1H7zM10 7h1v1H10zM1 8h2v1H1zM9 8h2v1H9zM2 9h2v1H2zM8 9h2v1H8z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 2h2v1H2zM8 2h2v1H8zM1 3h2v1H1zM9 3h2v1H9zM1 4h1v1H1zM4 4h1v1H4zM7 4h1v1H7zM10 4h1v1H10zM1 5h1v1H1zM3 5h1v1H3zM8 5h1v1H8zM10 5h1v1H10zM1 6h1v1H1zM3 6h1v1H3zM8 6h1v1H8zM10 6h1v1H10zM1 7h1v1H1zM4 7h1v1H4zM7 7h1v1H7zM10 7h1v1H10zM1 8h2v1H1zM9 8h2v1H9zM2 9h2v1H2zM8 9h2v1H8z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-book-atlas::before,
+#sidebar-tabs button.ui-control.fa-book-atlas::before,
+#sidebar .tabs button.ui-control.fa-book-atlas::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 1h8v1H2zM1 2h2v1H1zM9 2h1v1H9zM1 3h1v1H1zM5 3h2v1H5zM9 3h1v1H9zM1 4h1v1H1zM4 4h1v1H4zM7 4h1v1H7zM9 4h1v1H9zM1 5h1v1H1zM4 5h4v1H4zM9 5h1v1H9zM1 6h1v1H1zM4 6h1v1H4zM7 6h1v1H7zM9 6h1v1H9zM1 7h1v1H1zM5 7h2v1H5zM9 7h1v1H9zM1 8h2v1H1zM9 8h1v1H9zM2 9h8v1H2z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 1h8v1H2zM1 2h2v1H1zM9 2h1v1H9zM1 3h1v1H1zM5 3h2v1H5zM9 3h1v1H9zM1 4h1v1H1zM4 4h1v1H4zM7 4h1v1H7zM9 4h1v1H9zM1 5h1v1H1zM4 5h4v1H4zM9 5h1v1H9zM1 6h1v1H1zM4 6h1v1H4zM7 6h1v1H7zM9 6h1v1H9zM1 7h1v1H1zM5 7h2v1H5zM9 7h1v1H9zM1 8h2v1H1zM9 8h1v1H9zM2 9h8v1H2z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-dice-d20::before,
+#sidebar-tabs button.ui-control.fa-dice-d20::before,
+#sidebar .tabs button.ui-control.fa-dice-d20::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M5 1h2v1H5zM3 2h2v1H3zM7 2h2v1H7zM2 3h1v1H2zM5 3h2v1H5zM9 3h1v1H9zM1 4h1v1H1zM4 4h1v1H4zM7 4h1v1H7zM10 4h1v1H10zM1 5h1v1H1zM3 5h1v1H3zM8 5h1v1H8zM10 5h1v1H10zM1 6h1v1H1zM3 6h1v1H3zM8 6h1v1H8zM10 6h1v1H10zM1 7h1v1H1zM4 7h1v1H4zM7 7h1v1H7zM10 7h1v1H10zM2 8h1v1H2zM5 8h2v1H5zM9 8h1v1H9zM3 9h2v1H3zM7 9h2v1H7zM5 10h2v1H5z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M5 1h2v1H5zM3 2h2v1H3zM7 2h2v1H7zM2 3h1v1H2zM5 3h2v1H5zM9 3h1v1H9zM1 4h1v1H1zM4 4h1v1H4zM7 4h1v1H7zM10 4h1v1H10zM1 5h1v1H1zM3 5h1v1H3zM8 5h1v1H8zM10 5h1v1H10zM1 6h1v1H1zM3 6h1v1H3zM8 6h1v1H8zM10 6h1v1H10zM1 7h1v1H1zM4 7h1v1H4zM7 7h1v1H7zM10 7h1v1H10zM2 8h1v1H2zM5 8h2v1H5zM9 8h1v1H9zM3 9h2v1H3zM7 9h2v1H7zM5 10h2v1H5z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-gears::before,
+#sidebar-tabs button.ui-control.fa-gears::before,
+#sidebar .tabs button.ui-control.fa-gears::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 1h1v1H2zM5 1h1v1H5zM1 2h8v1H1zM2 3h6v1H2zM1 4h2v1H1zM4 4h2v1H4zM7 4h2v1H7zM2 5h6v1H2zM10 5h1v1H10zM1 6h8v1H1zM10 6h1v1H10zM2 7h1v1H2zM5 7h1v1H5zM7 7h4v1H7zM7 8h4v1H7zM6 9h2v1H6zM9 9h2v1H9zM7 10h4v1H7z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 1h1v1H2zM5 1h1v1H5zM1 2h8v1H1zM2 3h6v1H2zM1 4h2v1H1zM4 4h2v1H4zM7 4h2v1H7zM2 5h6v1H2zM10 5h1v1H10zM1 6h8v1H1zM10 6h1v1H10zM2 7h1v1H2zM5 7h1v1H5zM7 7h4v1H7zM7 8h4v1H7zM6 9h2v1H6zM9 9h2v1H9zM7 10h4v1H7z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-caret-left::before,
+#sidebar-tabs button.ui-control.fa-caret-left::before,
+#sidebar .tabs button.ui-control.fa-caret-left::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M7 1h2v1H7zM6 2h3v1H6zM5 3h4v1H5zM4 4h5v1H4zM3 5h6v1H3zM4 6h5v1H4zM5 7h4v1H5zM6 8h3v1H6zM7 9h2v1H7z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M7 1h2v1H7zM6 2h3v1H6zM5 3h4v1H5zM4 4h5v1H4zM3 5h6v1H3zM4 6h5v1H4zM5 7h4v1H5zM6 8h3v1H6zM7 9h2v1H7z'/%3E%3C/svg%3E");
+}
+
+#scene-controls button.ui-control.fa-clock::before,
+#sidebar-tabs button.ui-control.fa-clock::before,
+#sidebar .tabs button.ui-control.fa-clock::before,
+#drpg-gm-launcher i.fa-clock::before {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 1h4v1H4zM2 2h2v1H2zM8 2h2v1H8zM2 3h1v1H2zM6 3h1v1H6zM9 3h1v1H9zM1 4h1v1H1zM6 4h1v1H6zM10 4h1v1H10zM1 5h1v1H1zM6 5h1v1H6zM10 5h1v1H10zM1 6h1v1H1zM6 6h2v1H6zM10 6h1v1H10zM1 7h1v1H1zM10 7h1v1H10zM2 8h1v1H2zM9 8h1v1H9zM2 9h2v1H2zM8 9h2v1H8zM4 10h4v1H4z'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 1h4v1H4zM2 2h2v1H2zM8 2h2v1H8zM2 3h1v1H2zM6 3h1v1H6zM9 3h1v1H9zM1 4h1v1H1zM6 4h1v1H6zM10 4h1v1H10zM1 5h1v1H1zM6 5h1v1H6zM10 5h1v1H10zM1 6h1v1H1zM6 6h2v1H6zM10 6h1v1H10zM1 7h1v1H1zM10 7h1v1H10zM2 8h1v1H2zM9 8h1v1H9zM2 9h2v1H2zM8 9h2v1H8zM4 10h4v1H4z'/%3E%3C/svg%3E");
+}
+
+/* == /CHROME PIXEL ICONS == */

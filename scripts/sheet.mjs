@@ -13,7 +13,7 @@
 
 import {
     MODULE_ID, FLAGS, ACTIONS, STARTING, ITEM_CATEGORIES, MONOCUB, ECLIPSE_MOVES, EQUIPPABLE,
-    BEDROOM_KEY_FLAG, callEffect } from "./config.mjs";
+    BEDROOM_KEY_FLAG, callEffect, HOPE_CALLS, DESPAIR_CALLS } from "./config.mjs";
 import { actionsLeft, actionsMax, actionBudget, hasFreeMove, setActions } from "./actions.mjs";
 import { resourceMax, initCharacter } from "./character.mjs";
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
@@ -705,15 +705,21 @@ function injectActionBar(app, element, fresh = false) {
     const pending = actor.getFlag(MODULE_ID, FLAGS.pendingCall);
     for (const entry of (Array.isArray(pending) ? pending : [pending]).filter(p => p?.grants)) {
         const despair = entry.kind === "despair";
+        // The badge wears the CALL'S NAME — "Determination", "Obstacle" — not
+        // the grant phrase behind it. The phrases were written for sentences
+        // ("waiting on your next roll: …") and did not fit the sheet, which is
+        // exactly where Dawid met "a statistic of their choice" overflowing
+        // its badge. The armed entry has carried the call's key all along; the
+        // phrase stays as the fallback for an entry old enough not to.
+        const call = (despair ? DESPAIR_CALLS : HOPE_CALLS)[entry.key];
+        const label = call?.label ?? game.i18n.localize(`DRPG.Calls.grants.${entry.grants}`);
         const badge = document.createElement("div");
         badge.className = `drpg-pending-call drpg-pending-${despair ? "despair" : "hope"}`;
         badge.dataset.tooltip = game.i18n.format("DRPG.Calls.pendingTooltip", {
             what: game.i18n.localize(`DRPG.Calls.grants.${entry.grants}`)
         });
         badge.innerHTML = `<i class="fa-solid ${despair ? "fa-skull" : "fa-hand-sparkles"}" inert></i>
-                           <span>${foundry.utils.escapeHTML(
-                               game.i18n.localize(`DRPG.Calls.grants.${entry.grants}`)
-                           )}</span>`;
+                           <span>${foundry.utils.escapeHTML(label)}</span>`;
         stack.append(badge);
     }
     if (stack.children.length) section.append(stack);
