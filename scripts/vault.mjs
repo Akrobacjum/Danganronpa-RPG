@@ -53,7 +53,17 @@ export const VAULT_FLAGS = {
     /** Item categories this room is a POOR place to look for — the mirror of
         `favours`: disadvantage instead of advantage on a Search aimed at one.
         A category is never on both lists; Room Setup keeps them exclusive. */
-    hinders: "drpgHinders"
+    hinders: "drpgHinders",
+    /**
+     * What this room looks like, in the GM's own words.
+     *
+     * Written in Room Setup, read by anyone standing in it — see the state
+     * window in `explain.mjs`. Plain text rather than HTML: it is typed into a
+     * textarea by a GM mid-session, it is shown to players, and a description
+     * box that renders markup is a description box somebody can put a script
+     * tag in. Escaped at every point of display.
+     */
+    description: "drpgRoomDescription"
 };
 
 /* ==========================================================================
@@ -188,6 +198,16 @@ export function roomTable(room, scene = workingScene()) {
     return regionsByName(scene).get(room)?.getFlag(MODULE_ID, VAULT_FLAGS.table) || null;
 }
 
+/**
+ * What the GM wrote about this room, or "" if they wrote nothing.
+ *
+ * Read by every client, not just the GM's — a room description is one of the
+ * few pieces of the GM's own prose this game means for the table to see.
+ */
+export function roomDescription(room, scene = workingScene()) {
+    return regionsByName(scene).get(room)?.getFlag(MODULE_ID, VAULT_FLAGS.description) ?? "";
+}
+
 /** Categories this room is a good place to search for. */
 export function roomFavours(room, scene = workingScene()) {
     return regionsByName(scene).get(room)?.getFlag(MODULE_ID, VAULT_FLAGS.favours) ?? [];
@@ -287,7 +307,7 @@ export function allVaults(scene = workingScene()) {
 /** GM: point a room at an owner, and say whether it is concealed. */
 export async function setVaultRoom(room, {
     owner = undefined, concealed = undefined, table = undefined,
-    favours = undefined, hinders = undefined
+    favours = undefined, hinders = undefined, description = undefined
 } = {}) {
     if (!game.user.isGM) return null;
 
@@ -305,6 +325,9 @@ export async function setVaultRoom(room, {
     }
     if (hinders !== undefined) {
         update[`flags.${MODULE_ID}.${VAULT_FLAGS.hinders}`] = Array.isArray(hinders) ? hinders : [];
+    }
+    if (description !== undefined) {
+        update[`flags.${MODULE_ID}.${VAULT_FLAGS.description}`] = String(description ?? "");
     }
     if (!Object.keys(update).length) return null;
 
@@ -720,7 +743,14 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
                 <option value="">${game.i18n.localize("DRPG.Vault.globalPool")}</option>
                 ${tableOptions}</select></td>`,
             favours: `<td>${categoryBoxes("fav", favours)}</td>`,
-            hinders: `<td>${categoryBoxes("hin", hinders)}</td>`
+            hinders: `<td>${categoryBoxes("hin", hinders)}</td>`,
+            // A textarea, not an input: these are sentences. The cell escapes
+            // the wrapping-cell rule the rest of this table lives under — see
+            // the `:has(input[type="text"], textarea)` exception in the
+            // stylesheet — so the prose wraps instead of stretching the window.
+            description: `<td><textarea name="desc:${esc}" rows="2"
+                placeholder="${game.i18n.localize("DRPG.Vault.descriptionPlaceholder")}"
+                >${foundry.utils.escapeHTML(roomDescription(room))}</textarea></td>`
         };
     });
 
@@ -735,6 +765,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
         ["doors", "DRPG.Vault.tabDoors"],
         ["search", "DRPG.Vault.tabSearching"],
         ["rest", "DRPG.Vault.tabRest"],
+        ["description", "DRPG.Vault.tabDescription"],
         ["fog", "DRPG.Vault.tabFog"]
     ];
     const initial = TABS.some(([key]) => key === tab) ? tab : "bedrooms";
@@ -790,6 +821,12 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
                     ["short", "long"])}
             `)}
 
+            ${panel("description", `
+                <p>${game.i18n.localize("DRPG.Vault.descriptionIntro")}</p>
+                ${tableFor([th("DRPG.Vault.descriptionColumn")], ["description"])}
+                <p class="notes">${game.i18n.localize("DRPG.Vault.descriptionNote")}</p>
+            `)}
+
             ${panel("fog", `
                 <p>${game.i18n.localize("DRPG.Vault.fogIntro")}</p>
                 ${uncovered > 0 ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vault.fogUncovered",
@@ -816,6 +853,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
                         locked: Boolean(pick(`locked:${room}`)?.checked),
                         lockedAtStart: Boolean(pick(`startlocked:${room}`)?.checked),
                         noSearch: Boolean(pick(`nosearch:${room}`)?.checked),
+                        description: (pick(`desc:${room}`)?.value ?? "").trim(),
                         table: pick(`table:${room}`)?.value ?? "",
                         favours: categories
                             .map(([key]) => key)
@@ -936,7 +974,8 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
             concealed: Boolean(region.getFlag(MODULE_ID, VAULT_FLAGS.concealed)),
             table: region.getFlag(MODULE_ID, VAULT_FLAGS.table) ?? null,
             favours: region.getFlag(MODULE_ID, VAULT_FLAGS.favours) ?? [],
-            hinders: region.getFlag(MODULE_ID, VAULT_FLAGS.hinders) ?? []
+            hinders: region.getFlag(MODULE_ID, VAULT_FLAGS.hinders) ?? [],
+            description: region.getFlag(MODULE_ID, VAULT_FLAGS.description) ?? ""
         };
         const beforeRest = {
             short: Boolean(region.getFlag(MODULE_ID, REST_FLAGS.short)),
@@ -957,7 +996,8 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
             && before.hinders.every(h => row.hinders.includes(h))
             && wasLocked === row.locked
             && wasLockedAtStart === row.lockedAtStart
-            && wasSealed === row.noSearch;
+            && wasSealed === row.noSearch
+            && before.description === row.description;
         if (same) continue;
 
         await setVaultRoom(row.room, {
@@ -965,7 +1005,8 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
             concealed: row.concealed,
             table: row.table,
             favours: row.favours,
-            hinders: row.hinders
+            hinders: row.hinders,
+            description: row.description
         });
 
         // Through rest.mjs's own writer rather than a second flag path, so the
