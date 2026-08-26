@@ -262,6 +262,83 @@
 }
 
 /* ==========================================================================
+   DARK-FIRST — the module's surfaces do not follow the client's theme
+   --------------------------------------------------------------------------
+   A killing game is played in the dark, and every colour in the block above is
+   tuned for it. On a client that chose Foundry's light theme the module did not
+   merely look different, it disappeared: measured on a live client, the GM
+   panel's tiles and the character table came out at 1.21:1, the "Still to act"
+   line and the Projects window's title at 1.4:1, the HUD's phase line at
+   1.18:1. Bone-coloured text was being painted onto Foundry's pale ground,
+   because the ground follows the theme and the ink does not.
+
+   Dawid's call (25.08): the module renders dark whatever the client picked.
+   Not a second, lighter palette — one look, the one the game is played in.
+
+   How, in two parts, both of them measured rather than assumed:
+
+     `color-scheme: dark`   every `light-dark()` inside this subtree — ours and
+                            Foundry's alike — takes its dark branch. That alone
+                            took the GM panel from 1.21:1 to 12.88:1.
+     the variables below    a custom property inherited from `body.theme-light`
+                            does NOT re-resolve just because a descendant
+                            changed its colour scheme, so the theme's own
+                            variables are re-declared here at the values
+                            `body.theme-dark` gives them. Text that comes from
+                            Foundry rather than from us — the HUD's clock line,
+                            the Projects rows — went 8.53:1 on pale to 14.61:1
+                            on ink with these in place.
+
+   The values are core's, copied on purpose: a dark-theme client must see no
+   change at all from this block, and the only way to promise that is to hand
+   the light-theme client the same numbers. To re-derive them after a Foundry
+   upgrade, read every `--*` off `body` under each theme and diff the two — that
+   is where this list came from, and it was twenty-two properties, of which the
+   four sidebar ones and the chat input's border cannot appear inside a module
+   surface and are left out.
+
+   Surfaces are listed rather than matched by prefix: `.drpg-panel` is on 88 of
+   the module's 91 windows, and the strays are named alongside it. `#countdowns`
+   is Daggerheart's, but the module renames it, restyles it and calls it
+   Projects, so it is ours to keep legible.
+   ========================================================================== */
+
+.application.drpg-panel,
+.application.drpg-messenger,
+.application.drpg-advance,
+.application.drpg-summary-dialog,
+#countdowns,
+#drpg-hud,
+#drpg-player-status,
+#drpg-popups,
+#drpg-despair,
+#drpg-messenger-launcher,
+#drpg-messenger-roster,
+#drpg-casebook-launcher {
+    color-scheme: dark;
+
+    --color-text-primary: #efe6d8;
+    --color-text-secondary: #e7d1b1;
+    --color-text-subtle: #9f8475;
+    --color-text-selection-bg: #584a75;
+
+    --table-background-color: rgba(11, 10, 19, 0.5);
+    --table-header-bg-color: #302831;
+    --table-header-border-color: #302831;
+    --table-row-color-even: rgba(255, 255, 255, 0.1);
+    --table-row-color-highlight: #584a75;
+
+    --content-link-background: rgba(11, 10, 19, 0.9);
+    --content-link-text-color: #efe6d8;
+    --content-link-border-color: #816b66;
+    --content-link-icon-color: #d0b8a3;
+
+    --hr-border: 0;
+    --hr-gradient: linear-gradient(90deg, transparent 0%, #e7d1b1 50%, transparent 100%);
+    --fa-inverse: #0b0a13;
+}
+
+/* ==========================================================================
    Danganronpa RPG — sheet cosmetics
    --------------------------------------------------------------------------
    Hides the parts of Daggerheart the guide does not use. Nothing is deleted;
