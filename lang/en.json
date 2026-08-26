@@ -651,6 +651,7 @@
       "isOne": "Monocub",
       "hope": "Hope",
       "giveHope": "Turn a Monokuma's Despair into Hope",
+      "giveHopeColumn": "Despair → Hope",
       "give": "Give",
       "silenced": "Silenced this chapter",
       "silencedNote": "Tick if this Monocub stumbled onto the crime scene. They cannot discuss it until the chapter ends, but Confusion still works on the incident's crisis actions.",

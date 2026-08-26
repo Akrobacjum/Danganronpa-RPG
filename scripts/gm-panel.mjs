@@ -551,17 +551,27 @@ async function openWhoIsAliveDialog() {
     const donors = monokumas().map(u =>
         `<option value="${u.id}">${esc(poolLabel(u))} (${getDespair(u.id)})</option>`).join("");
 
+    /*
+     * THE THREE MONOCUB COLUMNS ONLY EXIST WHEN A MONOCUB DOES (D-F4).
+     *
+     * Hope, the donation controls and Silenced are meaningless for a living
+     * student and for an ordinary corpse — they were rendered as "—", three
+     * columns wide, for every row. In a cast where nobody has opted in yet
+     * that is a table two thirds made of dashes, and the widest heading on it
+     * ("Turn a Monokuma's Despair into Hope") was paying for a column that had
+     * nothing in it.
+     *
+     * So they appear the moment somebody accepts the invitation and not before.
+     * The alternative — keeping the columns and hiding the dashes — leaves the
+     * headings, which are the expensive part.
+     */
+    const anyCub = students.some(a => stateOf(a) === "monocub");
+
     const rows = students.map(a => {
         const state = stateOf(a);
         const cub = state === "monocub";
 
-        return `<tr data-actor="${a.id}">
-            <td>${esc(a.name)}</td>
-            <td><select name="state.${a.id}">
-                ${["alive", "dead", "monocub"].map(sKey =>
-                    `<option value="${sKey}"${sKey === state ? " selected" : ""}>${
-                        game.i18n.localize(`DRPG.Panel.state.${sKey}`)}</option>`).join("")}
-            </select></td>
+        const cubCells = !anyCub ? "" : `
             <td>${cub ? `${resourceValue(a, "hope")} / ${resourceMax(a, "hope")}` : "—"}</td>
             <td>${cub && donors ? `
                 <select name="donor:${a.id}">${donors}</select>
@@ -571,7 +581,15 @@ async function openWhoIsAliveDialog() {
             <td style="text-align:center">${cub
                 ? `<input type="checkbox" name="silenced:${a.id}" ${
                     isSilenced(a) ? "checked" : ""} />`
-                : "—"}</td>
+                : "—"}</td>`;
+
+        return `<tr data-actor="${a.id}">
+            <td>${esc(a.name)}</td>
+            <td><select name="state.${a.id}">
+                ${["alive", "dead", "monocub"].map(sKey =>
+                    `<option value="${sKey}"${sKey === state ? " selected" : ""}>${
+                        game.i18n.localize(`DRPG.Panel.state.${sKey}`)}</option>`).join("")}
+            </select></td>${cubCells}
             <td>${state === "alive"
                 ? `<button type="button" class="drpg-mini-button drpg-gm-route"
                        data-drpg-kill="${a.id}">${
@@ -613,12 +631,14 @@ async function openWhoIsAliveDialog() {
             <table class="drpg-vault-table"><thead><tr>
                 <th>${game.i18n.localize("DRPG.Panel.character")}</th>
                 <th>${game.i18n.localize("DRPG.Panel.stateColumn")}</th>
+                ${anyCub ? `
                 <th>${game.i18n.localize("DRPG.Monocub.hope")}</th>
-                <th>${game.i18n.localize("DRPG.Monocub.giveHope")}</th>
-                <th>${game.i18n.localize("DRPG.Monocub.silenced")}</th>
+                <th>${game.i18n.localize("DRPG.Monocub.giveHopeColumn")}</th>
+                <th>${game.i18n.localize("DRPG.Monocub.silenced")}</th>` : ""}
                 <th>${game.i18n.localize("DRPG.Panel.doColumn")}</th>
             </tr></thead><tbody>${rows}</tbody></table>
-            <p class="notes">${game.i18n.localize("DRPG.Monocub.silencedNote")}</p>
+            ${anyCub ? `<p class="notes">${
+                game.i18n.localize("DRPG.Monocub.silencedNote")}</p>` : ""}
         </form>`),
         buttons: [
             {
