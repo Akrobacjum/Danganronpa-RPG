@@ -56,6 +56,7 @@ import { registerCameraView } from "./camera-view.mjs";
 import { registerPopups } from "./popup.mjs";
 import { registerStacking } from "./stacking.mjs";
 import { registerNoCollapse } from "./no-collapse.mjs";
+import { registerNoScrollingText } from "./no-scrolling-text.mjs";
 import { registerMotion } from "./motion.mjs";
 import { registerSafeword } from "./safeword.mjs";
 import { registerDiceSync } from "./dice-sync.mjs";
@@ -159,6 +160,10 @@ Hooks.once("init", () => {
     // sheet that launched them. See stacking.mjs.
     safely("window stacking", registerStacking);
     safely("the double-click collapse block", registerNoCollapse);
+    // Patches a canvas prototype, so it has to be in place before the first
+    // canvas is drawn — and it holds no per-canvas state, so `init` is early
+    // enough and every later scene inherits it.
+    safely("the token caption block", registerNoScrollingText);
     // After popups, because the safeword raises one. This is the safety tool —
     // it registers early and depends on nothing that can fail.
     safely("the safeword", registerSafeword);
