@@ -1682,6 +1682,7 @@
       "replyPrompt": "Your ruling, in your own words. It goes into their thread.",
       "rulingLabel": "The GM:",
       "reply": "Reply",
+      "sendRuling": "Send the ruling",
       "nothingThere": "There is nothing",
       "createItem": "Create an item",
       "giveItem": "Give an existing item",

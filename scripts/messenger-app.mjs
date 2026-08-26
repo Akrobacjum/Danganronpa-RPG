@@ -563,7 +563,10 @@ async function runCallAction(action, data) {
                 <textarea name="reply" rows="4"></textarea></form>`,
             buttons: [
                 {
-                    action: "send", label: game.i18n.localize("DRPG.Bridge.send"), default: true,
+                    // Not `DRPG.Bridge.send` — that key reads "Send to GM",
+                    // which is the right label on the PLAYER's window and the
+                    // wrong one here, where the GM is answering the player.
+                    action: "send", label: game.i18n.localize("DRPG.Bridge.sendRuling"), default: true,
                     callback: (e, b, d) => d.element.querySelector("[name=reply]").value.trim()
                 },
                 { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
