@@ -3691,7 +3691,36 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
      It slid off sideways. A table window scrolls horizontally too, and sticky
      only sticks on the axes it is given offsets for — at 419px of scroll the
      footer's left edge was 352px off the left of the box, taking the buttons
-     with it. `left: 0` pins the other axis as well. */
+     with it. `left: 0` pins the other axis as well.
+
+   C-F5-8: `left: 0` DID NOT CLOSE IT, and the reason is worth writing down.
+   ------------------------------------------------------------------------
+   Measured on Room Setup's Fog tab (1502px of scrollport, 3230px of table):
+   with `left: 0` already in force, scrolling to the end still put the footer's
+   left edge 1744px off the box and every button out of reach. Two things are
+   wrong at once.
+
+     THE FORM IS NARROWER THAN WHAT SCROLLS. `sticky` travels inside its
+     containing block, and the footer's is the form — which takes the
+     CONTAINER's width while the table inside it runs far wider. Past the
+     form's own width there is no containing block left to stick to.
+
+     AND THE FOOTER FILLS THAT BLOCK COMPLETELY. This is the half the earlier
+     diagnosis missed: widen the form and the footer widens with it, and an
+     element spanning its whole containing block has ZERO travel — sticky has
+     nothing to do and the bar rides the scroll anyway.
+
+   NEITHER IS FIXED HERE, and the reason is a regression this file caused
+   before it was measured: `min-width: max-content` on every table form forced
+   the Investigation dashboard's table from the 1470px it was happily
+   compressed to out to its full 1560, inventing 90px of horizontal scroll in a
+   window that had none and pushing its own buttons out of reach. A window that
+   does not scroll sideways must not be made to.
+
+   So the two widths are set from script instead, and only where the content
+   actually overflows — see `pinFooterAcrossScroll()` in utils.mjs, which reads
+   the scrollport it is pinning against rather than guessing at it with a
+   percentage that resolves against the wrong box. */
 .application.dialog:is(
     .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,

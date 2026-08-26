@@ -31,7 +31,8 @@ import { SEARCH_FLAGS } from "./search-tokens.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 // Static is safe: tables.mjs only reaches back into this file lazily.
 import { isTierPool } from "./tables.mjs";
-import { dialogContent, tableDialog, whisperToOwner, announce, log, error, plural, workingScene } from "./utils.mjs";
+import { dialogContent, tableDialog, whisperToOwner, announce, log, error, plural, workingScene,
+    pinFooterAcrossScroll } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -888,11 +889,17 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
                     for (const p of panels) {
                         p.style.display = p.dataset.drpgPanel === tabButton.dataset.drpgTab ? "" : "none";
                     }
-                    // Deliberately no refit here. The window was measured for
+                    // Deliberately no REFIT here. The window was measured for
                     // the biggest tab when it opened and keeps that size for
                     // all of them: switching tabs is a comparison, and a
                     // window that resizes under a comparison is the thing
                     // being complained about.
+                    //
+                    // The footer pin is a different question and does have to
+                    // be redone: each tab holds a different table, so whether
+                    // this window scrolls sideways changes with the tab, and a
+                    // bar pinned for the Fog tab is wrong for Bedrooms (C-F5-8).
+                    requestAnimationFrame(() => pinFooterAcrossScroll(dialog));
                 });
             }
 

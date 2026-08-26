@@ -537,9 +537,17 @@ export function fitWindowToTable(dialog) {
             // Nothing to do when we are already there — `setPosition` triggers
             // a re-render, and re-rendering on every open for no change is how
             // a window ends up flickering.
-            if (Math.abs(root.getBoundingClientRect().width - width) < 2) return;
+            if (Math.abs(root.getBoundingClientRect().width - width) < 2) {
+                return pinFooterAcrossScroll(dialog);
+            }
 
             dialog.setPosition({ width, height: "auto" });
+            // TWO frames, like the fit itself: one for the new width to land on
+            // the element, a second for the table to reflow inside it. Pinned
+            // after a single frame, the scrollport still measured the old size
+            // and the bar was told there was nothing to stick to.
+            requestAnimationFrame(() =>
+                requestAnimationFrame(() => pinFooterAcrossScroll(dialog)));
         } catch (err) {
             // A window that did not resize is readable; one that threw here
             // would take the whole dialog down with it.
@@ -633,13 +641,78 @@ export function fitWindowToTabs(dialog) {
                 Math.min(tallest, Number.isFinite(capped) ? capped : tallest) + chrome);
 
             const box = root.getBoundingClientRect();
-            if (Math.abs(box.width - width) < 2 && Math.abs(box.height - height) < 2) return;
+            if (Math.abs(box.width - width) < 2 && Math.abs(box.height - height) < 2) {
+                return pinFooterAcrossScroll(dialog);
+            }
 
             dialog.setPosition({ width, height });
+            requestAnimationFrame(() =>
+                requestAnimationFrame(() => pinFooterAcrossScroll(dialog)));
         } catch (err) {
             debug("Could not fit a tabbed window to its tabs", err);
         }
     }));
+}
+
+/**
+ * Keep a table window's button bar reachable when the window scrolls sideways.
+ *
+ * C-F5-8. `position: sticky; left: 0` is on the footer already and does nothing
+ * on its own, for two reasons that have to be fixed together:
+ *
+ *   Sticky travels inside its CONTAINING BLOCK, and the footer's is the form —
+ *   which takes the container's width while the table inside it runs far wider.
+ *   Past the form's own width there is no block left to stick to.
+ *
+ *   And the footer FILLS that block. Widen the form and the footer widens with
+ *   it; an element spanning its whole containing block has zero travel, so
+ *   sticky has nothing to do and the bar rides the scroll anyway.
+ *
+ * WHY THIS IS SCRIPT AND NOT CSS. Both widths are conditional on something a
+ * stylesheet cannot ask: whether this window actually scrolls sideways. Writing
+ * `min-width: max-content` on every table form instead forced the Investigation
+ * dashboard's table out of the 1470px it was comfortably compressed to, to its
+ * full 1560 — inventing 90px of scroll in a window that had none, and pushing
+ * that window's own buttons out of reach. Measured, and the reason this reads
+ * the box rather than trusting a percentage: `max-width: 100%` on the footer
+ * resolves against the widened form, not against the window anyone is looking
+ * at, so it clamps to the wrong number by exactly the amount that matters.
+ *
+ * Idempotent, and it puts everything back when the overflow goes away, so a
+ * window re-fitted after a resize does not keep a stale pin.
+ */
+export function pinFooterAcrossScroll(dialog) {
+    const root = dialog?.element;
+    if (!root) return;
+
+    try {
+        const content = root.querySelector(".window-content");
+        const form = content?.querySelector("form");
+        const footer = root.querySelector("footer.form-footer");
+        if (!content || !form || !footer) return;
+
+        // The scrollport, measured — this is the number the bar has to fit in.
+        const port = content.clientWidth;
+        const scrolls = content.scrollWidth > port + 1;
+
+        if (!scrolls) {
+            form.style.removeProperty("min-width");
+            footer.style.removeProperty("width");
+            footer.style.removeProperty("max-width");
+            return;
+        }
+
+        // The form spans what scrolls, so there is somewhere to stick…
+        form.style.minWidth = "max-content";
+        // …and the bar is no wider than the window, so it has room to travel.
+        // `fit-content(port)` in one property: as wide as the buttons need, and
+        // never wider than what can be seen.
+        footer.style.width = "max-content";
+        footer.style.maxWidth = `${port}px`;
+    } catch (err) {
+        // A bar that did not get pinned is still a usable window at scroll 0.
+        debug("Could not pin a table window's footer", err);
+    }
 }
 
 /**
