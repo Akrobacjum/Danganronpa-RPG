@@ -1814,11 +1814,20 @@ body.drpg-pixel-font .drpg-call-button .drpg-action-cost {
 /* Priced out of reach. Action tiles and Call tiles share this so the sheet reads
    the same way everywhere: an action you cannot pay for looks exactly like a Hope
    Call you cannot pay for. Both stay clickable — the briefing and the tooltip are
-   how a player decides what to save their last action for. */
+   how a player decides what to save their last action for.
+
+   THE CURSOR TOLD A DIFFERENT STORY (D-F5-3). Dimmed to 0.35 and greyed, but
+   still `cursor: pointer` — so the tile said "unavailable" with its colour and
+   "press me" with the pointer, and the player only learned which by pressing.
+   `not-allowed` is the same word the sheet already uses for a forfeited action
+   pip. The button deliberately stays ENABLED: pressing it is how you find out
+   WHY it is out of reach, and that explanation is the feature. Only the cursor
+   changes, so the tile now says the same thing twice instead of once each way. */
 .drpg-call-button.unaffordable,
 .drpg-action-button.unaffordable {
     opacity: 0.35;
     filter: grayscale(0.5);
+    cursor: not-allowed;
 }
 
 .drpg-call-button.unaffordable:hover,
