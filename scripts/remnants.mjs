@@ -354,10 +354,39 @@ async function announceRemnant(tokenDoc) {
         }</small></p>`);
 }
 
-/** The hidden actor Remnant tokens are instances of. Created once. */
+/**
+ * The actor Remnant tokens are instances of. Created once.
+ *
+ * OBSERVER BY DEFAULT, AND THAT IS NOT A LEAK.
+ * ---------------------------------------------------------------------------
+ * It was NONE, which meant a player double-clicking a trace they had already
+ * copied got nothing at all: `sheet.render()` refuses silently at that level —
+ * measured on a player's client, no window, no error — so the per-player card
+ * in remnant-ring.mjs was dead code in practice. LIMITED is not enough either;
+ * the system's sheet still refuses to render. OBSERVER is the level that
+ * opens, so it is the level this asks for. (B-F3-1.)
+ *
+ * What a player can then see is unchanged: `showRemnantCard` replaces the
+ * sheet's whole body with `playerRemnantCard`, which is built from THEIR OWN
+ * Truth Bullet and nothing else — the GM's note and the ledger never enter it,
+ * and a player who has not copied this trace cannot reach the token at all
+ * (visibility.mjs hides it). The base actor itself is an empty NPC called
+ * "Remnant" with a hazard icon; there is nothing on it to read.
+ *
+ * The one visible consequence: at OBSERVER the actor appears in a player's
+ * Actors directory, as one empty entry. Accepted — the alternative was a
+ * second, module-owned window for a card the sheet already knows how to show.
+ *
+ * Existing worlds are corrected in place rather than left behind: this actor
+ * is created once and lives forever, so a fix that only applied to new worlds
+ * would apply to nobody.
+ */
 async function ensureRemnantActor() {
     let actor = game.actors.getName(REMNANT_ACTOR);
-    if (actor) return actor;
+    if (actor) {
+        await raiseRemnantOwnership(actor);
+        return actor;
+    }
 
     if (!game.user.isGM) return null;
 
@@ -366,15 +395,53 @@ async function ensureRemnantActor() {
             name: REMNANT_ACTOR,
             type: "npc",
             img: ICON,
-            ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE },
+            ownership: { default: REMNANT_OWNERSHIP },
             flags: { [MODULE_ID]: { [REMNANT_FLAGS.isRemnant]: true } }
         });
-        log("Created the hidden Remnant actor.");
+        log("Created the Remnant actor.");
         return actor;
     } catch (err) {
         error("Could not create the Remnant actor", err);
         return null;
     }
+}
+
+/** See `ensureRemnantActor` for why this is the level. */
+const REMNANT_OWNERSHIP = CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER;
+
+/**
+ * Raised, never lowered: a GM who has deliberately given somebody more than
+ * this keeps it, and only the default floor moves.
+ */
+async function raiseRemnantOwnership(actor) {
+    if (!game.user.isGM || !actor) return;
+    if ((actor.ownership?.default ?? 0) >= REMNANT_OWNERSHIP) return;
+
+    try {
+        await actor.update({ "ownership.default": REMNANT_OWNERSHIP });
+        log("Raised the Remnant actor so players can open a trace they have copied.");
+    } catch (err) {
+        error("Could not raise the Remnant actor's ownership", err);
+    }
+}
+
+/**
+ * Bring an existing world's Remnant actor up to the level the card needs.
+ *
+ * Called at load, in the shape `issueMissingKeys` and `sealProjects` use: this
+ * is a statement about how the world should look, and a world can arrive at
+ * load in a state that predates the rule. Every world that has ever placed a
+ * trace already owns this actor at NONE, and `ensureRemnantActor` above only
+ * runs when the next one is placed — so without this, the fix would reach a
+ * table only once their GM planted another trace.
+ *
+ * Creates nothing: a world with no traces yet has no actor to correct, and the
+ * one it eventually gets is created at the right level.
+ */
+export async function reconcileRemnantActor() {
+    if (!game.user.isGM) return;
+    const actor = game.actors.getName(REMNANT_ACTOR);
+    if (actor) await raiseRemnantOwnership(actor);
 }
 
 /* ==========================================================================

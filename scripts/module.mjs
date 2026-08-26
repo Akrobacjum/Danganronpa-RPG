@@ -192,7 +192,24 @@ Hooks.once("ready", () => {
     safely("the stylesheet check", verifyStylesheet);
     safely("project secrecy", sealProjects);
     safely("bedroom keys", issueMissingKeys);
+    safely("the Remnant actor", reconcileRemnantActorOnLoad);
 });
+
+/**
+ * A trace a player has copied must open when they double-click it.
+ *
+ * Same shape and same reason as `issueMissingKeys` below: the actor every
+ * Remnant token is built from was created with no player access at all, so the
+ * per-player card was unreachable in every world that already exists. See
+ * `reconcileRemnantActor` in remnants.mjs.
+ */
+function reconcileRemnantActorOnLoad() {
+    if (!game.user.isGM) return;
+
+    import("./remnants.mjs")
+        .then(m => m.reconcileRemnantActor())
+        .catch(err => error("Could not reconcile the Remnant actor", err));
+}
 
 /**
  * Every bedroom's owner holds the key to it — checked on load, not on change.
