@@ -55,6 +55,7 @@ import { registerMusic } from "./music.mjs";
 import { registerCameraView } from "./camera-view.mjs";
 import { registerPopups } from "./popup.mjs";
 import { registerStacking } from "./stacking.mjs";
+import { registerNoCollapse } from "./no-collapse.mjs";
 import { registerMotion } from "./motion.mjs";
 import { registerSafeword } from "./safeword.mjs";
 import { registerDiceSync } from "./dice-sync.mjs";
@@ -142,6 +143,7 @@ Hooks.once("init", () => {
     // something the game is waiting on, so none of them may end up under the
     // sheet that launched them. See stacking.mjs.
     safely("window stacking", registerStacking);
+    safely("the double-click collapse block", registerNoCollapse);
     // After popups, because the safeword raises one. This is the safety tool —
     // it registers early and depends on nothing that can fail.
     safely("the safeword", registerSafeword);
