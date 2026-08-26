@@ -12028,6 +12028,16 @@ i.drpg-pix-foot {
     display: inline-block;
     width: 1em;
     height: 1em;
+    /* Foundry builds three of its Region tools out of Font Awesome glyphs it
+       does not have: the rectangle and the ellipse are a squashed square and
+       circle (scaleY .75), and the cone is a glyph MIRRORED AND DOUBLED,
+       scale(-2, 2) translated by (-7px, 8px). Those transforms fit THAT glyph.
+       A sprite that already draws the shape at the right size inherits them
+       and comes out twice as big, flipped, and shoved out of its own tile —
+       which is exactly what the cone did (Dawid, 26.08). Important because the
+       module's stylesheet is layered and Foundry's is not: without it, an
+       unlayered transform wins no matter how specific this rule is. */
+    transform: none !important;
     background-color: currentColor;
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
