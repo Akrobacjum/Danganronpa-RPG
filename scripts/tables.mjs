@@ -12,7 +12,8 @@
  * then edit freely — once they exist, these definitions are only a fallback.
  */
 
-import { MODULE_ID, ITEM_CATEGORIES, ITEM_TIERS, TIER_EFFECTS } from "./config.mjs";
+import { MODULE_ID, ITEM_CATEGORIES, ITEM_TIERS, TIER_EFFECTS, USABLE_KINDS, USABLE_KIND_EFFECTS }
+    from "./config.mjs";
 import { dialogContent, wirePortraitPickers, panelTabs, wirePanelTabs, whisperToGms, log, error, plural }
     from "./utils.mjs";
 
@@ -42,21 +43,21 @@ export function isTierPool(name) {
 }
 
 /**
- * Usable items, split by what the player was looking for.
+ * Usable items, split by kind.
  *
- * The guide's tier text says an item "restores 1 point of HP *or* Stress" — one
- * object, either use. But the player declares which they want before rolling,
- * and handing someone chewing gum when they asked for something to patch a cut
- * reads as a bug even when it is rules-legal. So the guide's own examples are
- * sorted by which they obviously are: food and medicine mend the body, calming
- * things settle the nerves.
+ * This split used to be cosmetic — a courtesy so a Search for "something to
+ * patch me up" did not hand over chewing gum. Since 2026-08-26 it is the rules:
+ * which table an item belongs to IS what the item does. A healing usable
+ * restores HP, a stress-relief one clears Stress, and nobody is asked which at
+ * the moment of use — `usableKindFor` below is how the Use action reads the
+ * answer back off these tables.
  *
- * Tier 3 appears in both because the guide's Tier 3 usable restores HP, Stress
- * and Hope at once.
+ * Tier 3 appears in both because it is the one tier where the kinds meet: it
+ * restores 2 HP or 2 Stress at the player's choice, plus 2 Hope.
  */
 export const USABLE_GOALS = {
     healing: {
-        label: "Healing",
+        label: USABLE_KINDS.healing.label,
         pool: {
             0: ["Spoiled cheese", "Half a sandwich", "Flat lemonade", "Stale crackers"],
             1: ["Apple", "Cereal bar", "Instant noodles", "Sports drink"],
@@ -65,7 +66,7 @@ export const USABLE_GOALS = {
         }
     },
     stress: {
-        label: "Stress Relief",
+        label: USABLE_KINDS.stress.label,
         pool: {
             0: ["Fidget spinner", "Torn magazine", "Cracked handheld game", "Dried-out marker"],
             1: ["Chewing gum", "Cold tea", "Cigarettes", "Worn paperback"],
@@ -74,6 +75,50 @@ export const USABLE_GOALS = {
         }
     }
 };
+
+/**
+ * Which kind of usable an item of this name is, read off the tables.
+ *
+ * The world's Healing and Stress Relief tables are the authority — they are
+ * what the GM edits, so an item moved from one to the other changes what it
+ * does the next time anybody drinks it, with no flag to chase. The built-in
+ * pools only answer when no world table knows the name at all (a world where
+ * the tables were never installed).
+ *
+ * @returns {"healing"|"stress"|"both"|null} `"both"` when the name sits in
+ *   tables of both kinds — genuinely ambiguous, the caller decides what that
+ *   means — and `null` when nothing anywhere claims it.
+ */
+export function usableKindFor(name) {
+    const wanted = String(name ?? "").trim().toLowerCase();
+    if (!wanted) return null;
+
+    const matches = pools => {
+        const kinds = new Set();
+        for (const [goal, names] of pools) {
+            if (names.some(n => String(n ?? "").trim().toLowerCase() === wanted)) {
+                kinds.add(goal);
+            }
+        }
+        return kinds;
+    };
+
+    const worldPools = [];
+    for (const table of game.tables ?? []) {
+        const goal = table.getFlag(MODULE_ID, "goal");
+        if (!USABLE_GOALS[goal]) continue;
+        worldPools.push([goal, Array.from(table.results ?? []).map(r => r.name ?? r.text ?? "")]);
+    }
+
+    let kinds = matches(worldPools);
+    if (!kinds.size) {
+        kinds = matches(Object.entries(USABLE_GOALS)
+            .map(([goal, { pool }]) => [goal, Object.values(pool).flat()]));
+    }
+
+    if (!kinds.size) return null;
+    return kinds.size === 1 ? kinds.values().next().value : "both";
+}
 
 /**
  * Item pools, keyed by category then tier.
@@ -215,14 +260,22 @@ async function tableForRoom(room) {
 }
 
 /**
- * Every table this module knows how to build: crime tools, cleaning tools and
- * the generic usable list, plus one table per usable goal so a GM can curate
- * "what mends you" separately from "what calms you down".
+ * Every table this module knows how to build: crime tools, cleaning tools, and
+ * one table per usable kind so "what mends you" and "what calms you down" are
+ * curated separately.
+ *
+ * No generic usable table any more. Usables are split into healing and stress
+ * relief BY table — that assignment is what decides what the item does when it
+ * is drunk — so a mixed pool would be a pool of items whose effects nobody
+ * chose. A world that already has "DRPG Usables — Tier N" keeps it: `drawItem`
+ * still consults it as a fallback, and `usableKindFor` never reads it.
  */
 function tableJobs() {
     return [
-        ...Object.entries(ITEM_POOLS).flatMap(([category, tiers]) =>
-            Object.entries(tiers).map(([tier, names]) => ({ category, tier, names, goal: null }))),
+        ...Object.entries(ITEM_POOLS)
+            .filter(([category]) => category !== "usable")
+            .flatMap(([category, tiers]) =>
+                Object.entries(tiers).map(([tier, names]) => ({ category, tier, names, goal: null }))),
         ...Object.entries(USABLE_GOALS).flatMap(([goal, { pool }]) =>
             Object.entries(pool).map(([tier, names]) => ({ category: "usable", tier, names, goal })))
     ];
@@ -309,7 +362,10 @@ export async function installTables({ overwrite = false, prompt = true } = {}) {
             await RollTable.create({
                 name,
                 folder: folder?.id ?? null,
-                description: `${ITEM_CATEGORIES[category]?.label ?? category}, Tier ${tier}. ${TIER_EFFECTS[category]?.[tier] ?? ""}`,
+                description: `${ITEM_CATEGORIES[category]?.label ?? category}${
+                    USABLE_KINDS[goal] ? ` (${USABLE_KINDS[goal].label})` : ""
+                }, Tier ${tier}. ${
+                    USABLE_KIND_EFFECTS[goal]?.[tier] ?? TIER_EFFECTS[category]?.[tier] ?? ""}`,
                 formula: `1d${names.length}`,
                 replacement: true,
                 displayRoll: false,

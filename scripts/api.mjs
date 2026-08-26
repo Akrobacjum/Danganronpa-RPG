@@ -64,7 +64,8 @@ import {
     diagnoseCharacters
 } from "./diagnostics.mjs";
 import { performAction, currentRoom } from "./action-rolls.mjs";
-import { installTables, openItemTables, drawItem, randomItem, tableName } from "./tables.mjs";
+import { installTables, openItemTables, drawItem, randomItem, tableName, usableKindFor }
+    from "./tables.mjs";
 import { roomOfActor, roomOfToken, othersInRoom, allRooms, neighbouringRooms, occupantsOf } from "./movement.mjs";
 import { applyAll as refreshRoomVisibility, visibleCharacters, diagnoseVisibility }
     from "./visibility.mjs";
@@ -145,7 +146,7 @@ import {
     keysHeldBy, mayEnterBedroom, grantBedroomKey, reconcileBedroomKeys
 } from "./vault.mjs";
 import {
-    useItem, toggleEquipped, isUsable, isEquippable, isEquipped, equippedIn,
+    useItem, toggleEquipped, isUsable, usableKindOf, isEquippable, isEquipped, equippedIn,
     grantItemEffect, discardBroken
 } from "./use-items.mjs";
 import { syncStates, syncAll as syncAllStates } from "./states.mjs";
@@ -489,9 +490,15 @@ export const DrpgApi = {
      * Neither costs an action — the guide charges for finding and making
      * things, not for opening them. */
 
-    /** Spend a Usable Item. Tier 1/2 ask HP or Stress; tier 3 gives all three;
-     *  tier 0 is "open to creative use" and goes to the GM as a ruling. */
+    /** Spend a Usable Item. Tiers 1/2 restore what the item's kind says —
+     *  healing items HP, stress-relief items Stress, read off the item tables;
+     *  tier 3 asks HP or Stress and adds 2 Hope; tier 0 is "open to creative
+     *  use" and goes to the GM as a ruling. */
     useItem,
+
+    /** Which kind of usable this item is: "healing", "stress", or null when
+     *  neither the item tables nor the item itself say. */
+    usableKindOf,
 
     /** Throw away something that has been used up. Rolls Shadow and leaves a
      *  Remnant priced by the result — the only route out of an inventory for a
@@ -835,6 +842,9 @@ export const DrpgApi = {
     drawItem,
     randomItem,
     tableName,
+    /** Which kind of usable a NAME is, read off the Healing and Stress Relief
+     *  tables: "healing", "stress", "both" or null. */
+    usableKindFor,
 
     /* ---- diagnostics --------------------------------------------------- */
 

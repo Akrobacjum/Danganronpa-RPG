@@ -13,12 +13,12 @@
  */
 
 import {
-    MODULE_ID, ITEM_CATEGORIES, ITEM_TIERS, TIER_EFFECTS,
+    MODULE_ID, ITEM_CATEGORIES, ITEM_TIERS, TIER_EFFECTS, USABLE_KINDS, USABLE_KIND_EFFECTS,
     TRUTH_BULLET_TYPES, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS
 } from "./config.mjs";
 import { grantItem, itemsInCategory, countInCategory, inventorySummary } from "./inventory.mjs";
 import { createTruthBullet, issueAutopsy, BULLET_CATEGORY } from "./truth-bullets.mjs";
-import { ITEM_POOLS } from "./tables.mjs";
+import { ITEM_POOLS, USABLE_GOALS } from "./tables.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { whisperToOwner, dialogContent, log, error, plural, cardHead } from "./utils.mjs";
 
@@ -202,10 +202,19 @@ export async function giveItemDialog(actor) {
         // than being typed. Offering either here would produce an item that
         // looks right and does nothing.
         .filter(([key]) => key !== BULLET_CATEGORY && key !== "bedroomKey")
-        .map(([key, cat]) => {
+        .flatMap(([key, cat]) => {
             const held = countInCategory(actor, key);
             const cap = cat.limit ? ` — ${held}/${cat.limit}` : ` — ${held}`;
-            return `<option value="${key}">${foundry.utils.escapeHTML(cat.label)}${cap}</option>`;
+            // A usable is a healing or a stress-relief item — that decides what
+            // it does when drunk, so the GM says which here rather than the
+            // player being asked later. Both halves share the one carry count:
+            // the inventory does not split the category, only the effect does.
+            if (key === "usable") {
+                return Object.entries(USABLE_KINDS).map(([kind, def]) =>
+                    `<option value="${key}:${kind}">${foundry.utils.escapeHTML(
+                        `${cat.label} — ${def.label}`)}${cap}</option>`);
+            }
+            return [`<option value="${key}">${foundry.utils.escapeHTML(cat.label)}${cap}</option>`];
         }).join("");
 
     const tiers = ITEM_TIERS
@@ -214,9 +223,10 @@ export async function giveItemDialog(actor) {
         }</option>`).join("");
 
     // Every built-in name, offered as autocomplete. The GM can type anything.
-    const suggestions = Array.from(new Set(
-        Object.values(ITEM_POOLS).flatMap(byTier => Object.values(byTier).flat())
-    )).sort();
+    const suggestions = Array.from(new Set([
+        ...Object.values(ITEM_POOLS).flatMap(byTier => Object.values(byTier).flat()),
+        ...Object.values(USABLE_GOALS).flatMap(({ pool }) => Object.values(pool).flat())
+    ])).sort();
 
     const result = await DialogV2.wait({
         window: { title: game.i18n.format("DRPG.Items.giveTo", { actor: actor.name }) },
@@ -245,8 +255,12 @@ export async function giveItemDialog(actor) {
                 action: "ok", label: game.i18n.localize("DRPG.Items.give"), default: true,
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
+                    // "usable:healing" carries the kind after the colon; the
+                    // plain categories have nothing to split.
+                    const [category, kind = null] = f.category.value.split(":");
                     return {
-                        category: f.category.value,
+                        category,
+                        kind,
                         tier: Number(f.tier.value),
                         name: f.name.value.trim(),
                         description: f.description.value.trim(),
@@ -269,6 +283,7 @@ export async function giveItemDialog(actor) {
         name: result.name,
         category: result.category,
         tier: result.tier,
+        goal: result.kind,
         description: result.description
             ? `<p>${foundry.utils.escapeHTML(result.description)}</p>`
             : "",
@@ -287,11 +302,15 @@ export async function giveItemDialog(actor) {
     }));
 
     if (result.tell) {
-        const effect = TIER_EFFECTS[result.category]?.[result.tier] ?? "";
+        const effect = USABLE_KIND_EFFECTS[result.kind]?.[result.tier]
+            ?? TIER_EFFECTS[result.category]?.[result.tier] ?? "";
+        const label = USABLE_KINDS[result.kind]
+            ? `${ITEM_CATEGORIES[result.category]?.label} — ${USABLE_KINDS[result.kind].label}`
+            : ITEM_CATEGORIES[result.category]?.label ?? result.category;
         await whisperToOwner(actor, `
             <h3>${game.i18n.localize("DRPG.Items.received")}</h3>
             <p><strong>${foundry.utils.escapeHTML(result.name)}</strong> — ${
-                foundry.utils.escapeHTML(ITEM_CATEGORIES[result.category]?.label ?? result.category)
+                foundry.utils.escapeHTML(label)
             }, ${game.i18n.format("DRPG.Items.tierN", { n: result.tier })}</p>
             ${result.description ? `<p>${foundry.utils.escapeHTML(result.description)}</p>` : ""}
             ${effect ? `<p><em>${foundry.utils.escapeHTML(effect)}</em></p>` : ""}`);

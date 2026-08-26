@@ -11,10 +11,13 @@
  * happened to own. Two verbs close both gaps:
  *
  *   USE      a Usable Item, spent on the spot. What it restores comes from
- *            USABLE_EFFECTS, which is TIER_EFFECTS in an appliable shape. The
- *            guide writes tiers 1 and 2 as "N HP **or** N Stress", so those ask
- *            which; tier 3 gives all three at once; tier 0 is "open to creative
- *            use" and has no table entry, so it goes to the GM as a ruling.
+ *            USABLE_EFFECTS plus the item's KIND: every usable is a healing
+ *            item (HP) or a stress-relief item (Stress), decided by which item
+ *            table it belongs to — see `usableKindOf`. Tiers 1 and 2 apply
+ *            that kind's resource without asking; tier 3 is the one tier that
+ *            still offers the HP-or-Stress choice, with 2 Hope on top either
+ *            way; tier 0 is "open to creative use" and has no table entry, so
+ *            it goes to the GM as a ruling.
  *
  *   EQUIP    a Crime Tool or a Cleaning Tool, held ready. One per category —
  *            you have two hands and the fiction only ever cares which single
@@ -25,7 +28,9 @@
  * hiding things; drinking what you already found is not one of the ten.
  */
 
-import { MODULE_ID, USABLE_EFFECTS, EQUIPPABLE, STARTING, BROKEN_ITEMS } from "./config.mjs";
+import { MODULE_ID, USABLE_EFFECTS, USABLE_KINDS, EQUIPPABLE, STARTING, BROKEN_ITEMS }
+    from "./config.mjs";
+import { usableKindFor } from "./tables.mjs";
 import { ITEM_FLAGS, isStashed, isBroken, breakItem } from "./inventory.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
@@ -119,6 +124,28 @@ export function isUsable(item) {
 }
 
 /**
+ * Which kind of usable this item is: "healing", "stress", or null when the
+ * module honestly does not know.
+ *
+ * The item tables are asked first and outrank the flag on the item, because the
+ * tables are what the GM edits: move "Pills" from Stress Relief to Healing and
+ * every jar of pills in every inventory changes with it, including the ones
+ * found last week. The flag answers when the tables cannot — an item drawn off
+ * a room's own pool, or renamed on the sheet — and a name that sits in tables
+ * of BOTH kinds falls back to the flag too, since the search that found it knew
+ * which of the two it was.
+ */
+export function usableKindOf(item) {
+    if (!item) return null;
+
+    const assigned = usableKindFor(item.name);
+    if (USABLE_KINDS[assigned]) return assigned;
+
+    const flagged = item.getFlag(MODULE_ID, ITEM_FLAGS.kind);
+    return USABLE_KINDS[flagged] ? flagged : null;
+}
+
+/**
  * Use a Usable Item.
  *
  * Consumed whatever happens — the guide's usable items are one-shot, and an
@@ -151,17 +178,40 @@ export async function useItem(actor, item) {
     // there is no table row to apply, so a human decides what it is worth.
     if (!effect || effect.creative) return useCreatively(actor, item);
 
-    const choice = effect.choose ? await askWhichResource(item, effect) : "fixed";
-    if (!choice) return null;
+    // What lands where. Tier 3 asks HP-or-Stress and adds its Hope on top;
+    // tiers 1 and 2 read the item's kind and ask nothing — the only time the
+    // dialog still appears there is when the kind is unknown (an item in no
+    // table, with no flag), because guessing which half of somebody's sheet to
+    // heal is worse than asking.
+    let asked = false;
+    let amounts;
 
-    const amounts = effect.fixed ? effect.fixed : { [choice]: effect.amount };
+    if (effect.choose) {
+        const choice = await askWhichResource(item, effect);
+        if (!choice) return null;
+        asked = true;
+        amounts = { [choice]: effect.amount, ...(effect.bonus ?? {}) };
+    } else {
+        const kind = usableKindOf(item);
+        const resource = USABLE_KINDS[kind]?.resource;
+        if (resource) {
+            amounts = { [resource]: effect.amount };
+        } else {
+            const choice = await askWhichResource(item, {
+                ...effect, choose: ["hitPoints", "stress"]
+            });
+            if (!choice) return null;
+            asked = true;
+            amounts = { [choice]: effect.amount };
+        }
+    }
 
     // Ask before destroying it.
     //
-    // Tier 1 and 2 have already been through the which-resource dialog, so that
-    // was the confirmation. Tier 3 has nothing to choose — it restores all three
-    // at once — and so used to be spent by a single click on a small icon, with
-    // no way back. It is the rarest item the guide describes.
+    // Whatever went through the which-resource dialog has had its confirmation.
+    // Everything else — which is now the common case, a tier 1 or 2 item whose
+    // kind the tables already decided — used to be spent by a single click on a
+    // small icon, with no way back, so it gets the confirm instead.
     //
     // Either way, an item that would restore NOTHING gets stopped: drinking a
     // first aid kit at full health is a mistake the sheet can see coming, and
@@ -169,7 +219,7 @@ export async function useItem(actor, item) {
     const preview = wouldRestore(actor, amounts);
     const pointless = !Object.keys(preview).length;
 
-    if (pointless || effect.fixed) {
+    if (pointless || !asked) {
         const go = await confirmUse(item, preview, pointless);
         if (!go) return null;
     }
@@ -227,6 +277,8 @@ async function askWhichResource(item, effect) {
         content: dialogContent(`<form>
             <p>${game.i18n.localize("DRPG.Items.usePrompt")}</p>
             <div class="drpg-choice-list">${rows}</div>
+            ${effect.bonus?.hope ? `<p class="notes">${game.i18n.format(
+                "DRPG.Items.choiceBonus", { n: effect.bonus.hope })}</p>` : ""}
             <p class="notes">${game.i18n.localize("DRPG.Items.useConsumes")}</p>
         </form>`),
         buttons: [

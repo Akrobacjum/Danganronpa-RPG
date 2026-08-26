@@ -9,13 +9,24 @@
  * loot (they persist until used in a crime and removed).
  */
 
-import { MODULE_ID, ITEM_CATEGORIES, TIER_EFFECTS } from "./config.mjs";
+import { MODULE_ID, ITEM_CATEGORIES, TIER_EFFECTS, USABLE_KINDS, USABLE_KIND_EFFECTS }
+    from "./config.mjs";
 import { whisperToOwner, log, warn } from "./utils.mjs";
 
 /** Flag keys stored on every item this module creates. */
 export const ITEM_FLAGS = {
     category: "category",
     tier: "tier",
+    /**
+     * Which kind of usable this is: "healing" or "stress" (USABLE_KINDS).
+     *
+     * A record of where the item came from, not the authority on what it does —
+     * the item tables outrank it (see `usableKindOf` in use-items.mjs). It is
+     * what keeps a room-table find working: "Herbal tea" drawn in the infirmary
+     * exists in no Healing table, and this flag is the only place its kind was
+     * ever written down.
+     */
+    kind: "usableKind",
     /**
      * Where the thing physically is: in their hands, or in their stash.
      *
@@ -52,14 +63,19 @@ export const ITEM_FLAGS = {
  * anything else: a ruined Crime Tool handed to an accomplice, or stolen out of
  * a bedroom, came out of the transfer working again.
  *
- * One entry today. It is a function rather than a spread at each call site so
- * the next piece of per-item state has one place to be added to instead of two
- * to be remembered in.
+ * A function rather than a spread at each call site so the next piece of
+ * per-item state has one place to be added to instead of two to be
+ * remembered in.
  */
 export function preservedFlags(item) {
-    return isBroken(item)
-        ? { [ITEM_FLAGS.broken]: item.getFlag(MODULE_ID, ITEM_FLAGS.broken) }
-        : {};
+    const flags = {};
+    if (isBroken(item)) {
+        flags[ITEM_FLAGS.broken] = item.getFlag(MODULE_ID, ITEM_FLAGS.broken);
+    }
+    // A healing item is still a healing item in somebody else's hands.
+    const kind = item?.getFlag(MODULE_ID, ITEM_FLAGS.kind);
+    if (kind) flags[ITEM_FLAGS.kind] = kind;
+    return flags;
 }
 
 /** Has this been used up? A broken item still occupies its slot. */
@@ -171,10 +187,25 @@ export function canCarry(actor, category) {
  * @returns {Promise<Item|null>}
  */
 export async function grantItem(actor, {
-    name, category, tier, description = "", override = false, img = null, extraFlags = {},
-    location = LOCATIONS.carried
+    name, category, tier, goal = null, description = "", override = false, img = null,
+    extraFlags = {}, location = LOCATIONS.carried
 }) {
     if (!actor || !name) return null;
+
+    // Search hands its goal straight through ("healing", "stress" — but also
+    // "crimeTool", which is not a usable kind). A usable granted with no goal
+    // — the GM's console, a season's starting item — asks the item tables for
+    // its name instead, so an Apple says "Restores 1 HP" however it arrived.
+    // Only the two kinds are worth writing down, and only on a usable.
+    let kind = null;
+    if (category === "usable") {
+        kind = USABLE_KINDS[goal] ? goal : null;
+        if (!kind) {
+            const { usableKindFor } = await import("./tables.mjs");
+            const assigned = usableKindFor(name);
+            kind = USABLE_KINDS[assigned] ? assigned : null;
+        }
+    }
 
     const room = canCarry(actor, category);
     if (!room.ok && location !== LOCATIONS.vault) {
@@ -211,7 +242,7 @@ export async function grantItem(actor, {
     }
 
     const type = category === "usable" ? "consumable" : "loot";
-    const effect = TIER_EFFECTS[category]?.[tier] ?? "";
+    const effect = USABLE_KIND_EFFECTS[kind]?.[tier] ?? TIER_EFFECTS[category]?.[tier] ?? "";
 
     // The tier line is a fallback for things that HAVE a tier. A Truth Bullet
     // does not, and passing `tier: null` through the old unconditional template
@@ -234,6 +265,7 @@ export async function grantItem(actor, {
                     [ITEM_FLAGS.category]: category,
                     [ITEM_FLAGS.tier]: tier,
                     [ITEM_FLAGS.location]: location,
+                    ...(kind ? { [ITEM_FLAGS.kind]: kind } : {}),
                     ...extraFlags
                 }
             }

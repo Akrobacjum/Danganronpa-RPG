@@ -279,7 +279,7 @@ export const ITEM_CATEGORIES = {
         label: "Usable",
         plural: "Usables",
         limit: 3,
-        hint: "Restores HP, Stress or Hope."
+        hint: "Healing items restore HP, stress-relief items clear Stress. Tier 3 lets you pick."
     },
     // "Murder Weapon" rather than "Crime Tool" — Dawid's wording, 2026-08-17.
     // Changed here rather than in the item window alone, because this table is
@@ -327,11 +327,15 @@ export const ITEM_CATEGORIES = {
  * GM tooling that improvises items.
  */
 export const TIER_EFFECTS = {
+    // The kind-neutral wording, for the few places that talk about usables in
+    // general (an item whose kind nobody has recorded yet). Anything that KNOWS
+    // whether the item is a healing or a stress-relief one reads
+    // USABLE_KIND_EFFECTS below instead.
     usable: {
         0: "A random, seemingly useless item. Open to creative use.",
-        1: "Restores 1 HP or 1 Stress.",
-        2: "Restores 2 HP or 2 Stress.",
-        3: "Restores 2 HP, 2 Stress and 2 Hope."
+        1: "Restores 1 HP (healing) or 1 Stress (stress relief), by its kind.",
+        2: "Restores 2 HP (healing) or 2 Stress (stress relief), by its kind.",
+        3: "Restores 2 HP or 2 Stress — your choice — plus 2 Hope."
     },
     crimeTool: {
         0: "A random, seemingly useless item.",
@@ -348,21 +352,62 @@ export const TIER_EFFECTS = {
 };
 
 /**
+ * The two kinds of Usable Item, and which resource each one mends.
+ *
+ * Every usable is one or the other — a first aid kit patches the body, a music
+ * player settles the nerves — and which it is comes from the item tables: the
+ * Healing tables hold what restores HP, the Stress Relief tables what clears
+ * Stress (Dawid, 2026-08-26). The player used to be asked at the moment of use;
+ * now the table has already answered.
+ *
+ * `resource` is the Daggerheart resource key `use-items.mjs` writes to. The
+ * labels feed the table names ("DRPG Usables (Healing) — Tier 2") through
+ * USABLE_GOALS in tables.mjs, so renaming one here renames what a fresh world
+ * installs.
+ */
+export const USABLE_KINDS = {
+    healing: { label: "Healing", resource: "hitPoints" },
+    stress: { label: "Stress Relief", resource: "stress" }
+};
+
+/**
+ * What each kind restores per tier, in words. The item descriptions, the GM's
+ * give-item receipt and the goal tables' own descriptions all read this, so an
+ * item says what IT does rather than what usables in general can do.
+ *
+ * Tier 3 reads the same in both columns on purpose: the top-tier usable is
+ * where the two kinds meet, and the only place the player still chooses.
+ */
+export const USABLE_KIND_EFFECTS = {
+    healing: {
+        1: "Restores 1 HP.",
+        2: "Restores 2 HP.",
+        3: "Restores 2 HP or 2 Stress — your choice — plus 2 Hope."
+    },
+    stress: {
+        1: "Restores 1 Stress.",
+        2: "Restores 2 Stress.",
+        3: "Restores 2 HP or 2 Stress — your choice — plus 2 Hope."
+    }
+};
+
+/**
  * What using a Usable Item actually restores, by tier.
  *
- * Straight off TIER_EFFECTS above, in a shape the Use action can apply. The
- * guide writes tier 1 and 2 as "restores N HP **or** N Stress" — one object,
- * either use — so those ask which. Tier 3 gives all three at once and asks
- * nothing. Tier 0 is "a random, seemingly useless object, open to creative
- * use": there is no table entry to apply, so it goes to the GM instead.
+ * Tiers 1 and 2 are `byKind`: the amount lands on whichever resource the item's
+ * kind names (USABLE_KINDS above), no question asked — the choice was made when
+ * the item came off a Healing or a Stress Relief table. Only tier 3 still asks,
+ * and it restores 2 Hope on top whichever way the player answers. Tier 0 is "a
+ * random, seemingly useless object, open to creative use": there is no table
+ * entry to apply, so it goes to the GM instead.
  *
  * HP and Stress are reverse resources; `use-items.mjs` subtracts marks.
  */
 export const USABLE_EFFECTS = {
     0: { creative: true },
-    1: { amount: 1, choose: ["hitPoints", "stress"] },
-    2: { amount: 2, choose: ["hitPoints", "stress"] },
-    3: { fixed: { hitPoints: 2, stress: 2, hope: 2 } }
+    1: { amount: 1, byKind: true },
+    2: { amount: 2, byKind: true },
+    3: { amount: 2, choose: ["hitPoints", "stress"], bonus: { hope: 2 } }
 };
 
 /**
@@ -2049,6 +2094,8 @@ export const DRPG = {
     ITEM_TIERS,
     ITEM_CATEGORIES,
     TIER_EFFECTS,
+    USABLE_KINDS,
+    USABLE_KIND_EFFECTS,
     USABLE_EFFECTS,
     EQUIPPABLE,
     REMNANT_VISIBILITY,
