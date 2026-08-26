@@ -2333,7 +2333,26 @@ export async function openMurderDialog({ killerId = null, indirect = false } = {
     const optionsFor = selected => alive
         .map(a => `<option value="${a.id}"${a.id === selected ? " selected" : ""}>${
             foundry.utils.escapeHTML(a.name)}</option>`).join("");
-    const options = optionsFor(null);
+
+    /*
+     * THE VICTIM DOES NOT START AS THE KILLER (D-F5-1).
+     *
+     * Both dropdowns are built from the same list of the living, and a select
+     * with nothing marked shows its first option — so the window opened
+     * proposing that somebody murder themselves. It was refused, but only after
+     * Confirm, and the refusal throws the whole window away: the GM re-picks
+     * everything to correct a pair the window itself suggested.
+     *
+     * So the victim opens on the first person who is NOT the killer, and the
+     * render hook below keeps the two apart as the killer changes. The check
+     * after Confirm stays as the belt to this braces — a GM can still reach
+     * the illegal pair through the victim dropdown, and that one is a
+     * deliberate choice rather than a default nobody touched.
+     */
+    const defaultKiller = killerId ?? alive[0]?.id ?? null;
+    const defaultVictim = (alive.find(a => a.id !== defaultKiller) ?? alive[0])?.id ?? null;
+
+    const options = optionsFor(defaultVictim);
 
     // Which killers have a finished trap waiting. The checkbox follows the
     // dropdown from this, so "indirect" stops being a box a GM has to remember
@@ -2350,7 +2369,7 @@ export async function openMurderDialog({ killerId = null, indirect = false } = {
         content: dialogContent(`<form>
             <p class="notes">${game.i18n.localize("DRPG.Murder.openIntro")}</p>
             <label>${game.i18n.localize("DRPG.Murder.killer")}
-                <select name="killer">${optionsFor(killerId)}</select></label>
+                <select name="killer">${optionsFor(defaultKiller)}</select></label>
             <label>${game.i18n.localize("DRPG.Murder.victim")}
                 <select name="victim">${options}</select></label>
             <label class="drpg-checkbox">
@@ -2362,6 +2381,12 @@ export async function openMurderDialog({ killerId = null, indirect = false } = {
             const form = dialog.element.querySelector("form");
             form?.killer?.addEventListener("change", () => {
                 form.indirect.checked = armed.has(form.killer.value);
+                // Picking a killer who is currently also the victim moves the
+                // victim rather than leaving a pair the GM will be refused for
+                // at Confirm. Nothing is moved when the two already differ.
+                if (form.victim.value !== form.killer.value) return;
+                const next = alive.find(a => a.id !== form.killer.value);
+                if (next) form.victim.value = next.id;
             });
         },
         buttons: [
