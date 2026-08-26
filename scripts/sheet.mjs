@@ -228,25 +228,33 @@ function lockItemName(root) {
  * Both get the same read-only treatment `lockItemName` gives the name field;
  * the edit-toggle link is removed outright rather than disabled, since a
  * removed control cannot be clicked by anybody reading their own sheet.
+ *
+ * SEARCHED FROM THE ROOT, LIKE `lockItemName`, AND NOT INSIDE `.item-description`.
+ * That wrapper still exists in Daggerheart 2.6.5 — so this returned nothing and
+ * failed silently rather than loudly — but the editor moved out of it into
+ * `.description-section`. Measured on a player's client: the name field came
+ * back read-only and locked, the editor came back untouched, and the writes it
+ * accepted were discarded server-side by resource-guard.mjs. A live editor
+ * whose edits vanish is the "looks like a broken module" report. Matching on
+ * the field NAME rather than on a container is what stops the next reshuffle of
+ * the system's markup from breaking this again.
  */
 function lockItemDescription(root) {
     if (game.user.isGM) return;
-    const wrapper = root.querySelector(".item-description");
-    if (!wrapper) return;
 
     const label = game.i18n.localize("DRPG.Guard.descriptionLocked");
 
-    for (const editor of wrapper.querySelectorAll("prose-mirror")) {
+    for (const editor of root.querySelectorAll('prose-mirror[name^="system.description"]')) {
         editor.toggleAttribute("readonly", true);
         editor.classList.add("drpg-locked-field");
         editor.dataset.tooltip = label;
     }
-    for (const field of wrapper.querySelectorAll('textarea[name^="system.description"]')) {
+    for (const field of root.querySelectorAll('textarea[name^="system.description"]')) {
         field.readOnly = true;
         field.classList.add("drpg-locked-field");
         field.dataset.tooltip = label;
     }
-    wrapper.querySelector("a.editor-edit")?.remove();
+    root.querySelector("a.editor-edit")?.remove();
 }
 
 /**
