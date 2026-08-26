@@ -31,7 +31,7 @@ import { SEARCH_FLAGS } from "./search-tokens.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 // Static is safe: tables.mjs only reaches back into this file lazily.
 import { isTierPool } from "./tables.mjs";
-import { dialogContent, tableDialog, fitWindowToTable, whisperToOwner, announce, log, error, plural, workingScene } from "./utils.mjs";
+import { dialogContent, tableDialog, whisperToOwner, announce, log, error, plural, workingScene } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -752,6 +752,10 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
         // for 860px, lost to the 26rem `.drpg-panel` cap, and clipped its own
         // right-hand columns with no way to scroll to them.
         classes: ["drpg-panel", "drpg-projects"],
+        // One size for all five tabs, taken from the biggest of them — see
+        // `fitWindowToTabs`. Without it the window is fitted to whichever tab
+        // is showing and jumps between 708px and 1504px as the GM switches.
+        fitTabs: true,
         content: dialogContent(`<form>
             <p class="notes">${game.i18n.localize("DRPG.Vault.manageIntro")}</p>
             <nav class="drpg-dashboard-tabs">${nav}</nav>
@@ -846,11 +850,11 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
                     for (const p of panels) {
                         p.style.display = p.dataset.drpgPanel === tabButton.dataset.drpgTab ? "" : "none";
                     }
-                    // Every tab is its own table and the window was measured
-                    // for the one that was showing — refit to the one showing
-                    // now. A hidden table measures zero, so the fit lands on
-                    // exactly the visible one.
-                    fitWindowToTable(dialog);
+                    // Deliberately no refit here. The window was measured for
+                    // the biggest tab when it opened and keeps that size for
+                    // all of them: switching tabs is a comparison, and a
+                    // window that resizes under a comparison is the thing
+                    // being complained about.
                 });
             }
 

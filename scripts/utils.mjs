@@ -459,29 +459,33 @@ export function dialogContent(markup) {
 export function tableDialog(options) {
     const DialogV2 = foundry.applications.api.DialogV2;
     const callerRender = options.render;
+    // A tabbed window measures every tab and settles on one size. Stripped out
+    // rather than passed on: it is this helper's option, not DialogV2's.
+    const { fitTabs = false, ...rest } = options;
 
     return DialogV2.wait({
-        ...options,
+        ...rest,
         // `drpg-table-window` is not decoration: it is what keeps the default
         // width rule in danganronpa.css — which carries `!important` — from
         // matching this window and overriding the measured width. See the note
         // on that rule. Appended to whatever the caller asked for, so nobody
         // has to remember it at the call site.
-        classes: [...(options.classes ?? []), "drpg-table-window"],
+        classes: [...(rest.classes ?? []), "drpg-table-window"],
         // No handle: the size is derived, not chosen. A handle here would only
         // ever be used to correct a size this function should have got right.
-        window: { resizable: false, ...options.window },
+        window: { resizable: false, ...rest.window },
         // `height: auto` lets the window take its content's height, which the
         // 80vh cap on `.window-content` then bounds — so a long table scrolls
         // rather than growing off the bottom of the screen.
-        position: { height: "auto", ...options.position },
+        position: { height: "auto", ...rest.position },
         render: (event, dialog) => {
             try {
                 callerRender?.(event, dialog);
             } catch (err) {
                 error("A table dialog's own render hook failed", err);
             }
-            fitWindowToTable(dialog);
+            if (fitTabs) fitWindowToTabs(dialog);
+            else fitWindowToTable(dialog);
         }
     });
 }
@@ -498,10 +502,8 @@ export function tableDialog(options) {
  * thing overflowing its container, and the bounding box reports the CLIPPED
  * width, i.e. the number we already have. `scrollWidth` is the full one.
  *
- * Exported for the one window that changes which table is showing after
- * render: Room Setup's tabs each hold their own table, and a window fitted to
- * the first tab is the wrong size for every other. A hidden table measures
- * zero, so calling this again after a switch fits exactly the visible one.
+ * A window whose tabs each hold their own table wants `fitWindowToTabs` below
+ * instead — one size for all of them, rather than this one re-run per switch.
  */
 export function fitWindowToTable(dialog) {
     const root = dialog?.element;
@@ -530,24 +532,7 @@ export function fitWindowToTable(dialog) {
             }
             if (!widest) return;                       // no table: leave it alone
 
-            const styles = getComputedStyle(content);
-            const padding = (parseFloat(styles.paddingLeft) || 0)
-                + (parseFloat(styles.paddingRight) || 0)
-                + (parseFloat(styles.borderLeftWidth) || 0)
-                + (parseFloat(styles.borderRightWidth) || 0);
-
-            // The window frame itself is wider than its content box. Measuring
-            // the difference rather than guessing a constant: the frame carries
-            // its own border and padding, and a hard-coded fudge factor is what
-            // makes a window look right in one theme and clipped in another.
-            const frame = Math.max(0, root.getBoundingClientRect().width - content.clientWidth);
-
-            // Two pixels of slack so a table measured at exactly its container's
-            // width does not round into a scrollbar it does not need.
-            const wanted = Math.ceil(widest + padding + frame) + 2;
-
-            const cap = Math.round((window.innerWidth || 1200) * 0.94);
-            const width = Math.min(wanted, cap);
+            const width = windowWidthFor(root, content, widest);
 
             // Nothing to do when we are already there — `setPosition` triggers
             // a re-render, and re-rendering on every open for no change is how
@@ -559,6 +544,100 @@ export function fitWindowToTable(dialog) {
             // A window that did not resize is readable; one that threw here
             // would take the whole dialog down with it.
             debug("Could not fit a table window to its table", err);
+        }
+    }));
+}
+
+/** The window width that shows a table of `widest` pixels without clipping. */
+function windowWidthFor(root, content, widest) {
+    const styles = getComputedStyle(content);
+    const padding = (parseFloat(styles.paddingLeft) || 0)
+        + (parseFloat(styles.paddingRight) || 0)
+        + (parseFloat(styles.borderLeftWidth) || 0)
+        + (parseFloat(styles.borderRightWidth) || 0);
+
+    // The window frame itself is wider than its content box. Measuring the
+    // difference rather than guessing a constant: the frame carries its own
+    // border and padding, and a hard-coded fudge factor is what makes a window
+    // look right in one theme and clipped in another.
+    const frame = Math.max(0, root.getBoundingClientRect().width - content.clientWidth);
+
+    // Two pixels of slack so a table measured at exactly its container's width
+    // does not round into a scrollbar it does not need.
+    const wanted = Math.ceil(widest + padding + frame) + 2;
+    return Math.min(wanted, Math.round((window.innerWidth || 1200) * 0.94));
+}
+
+/**
+ * One size for a tabbed window, taken from its biggest tab.
+ *
+ * Room Setup holds five tables behind five tabs and they are nothing like each
+ * other: Bedrooms is two columns, Fog is one column per room. Fitting the
+ * window on every switch made it right for whichever tab was showing and made
+ * the window itself jump — measured at 708px on Bedrooms and 1504 on Fog, on
+ * the same screen, in one sitting. A GM comparing two tabs was watching the
+ * window resize under them, and Dawid asked for the big one and no jumping
+ * (26.08).
+ *
+ * So every tab is measured once, on open, and the window takes the largest —
+ * which is Fog, by construction, since it grows a column per room.
+ *
+ * A hidden panel measures zero, so each is shown in turn for the measurement
+ * and put back exactly as it was. Nothing is painted in between: this all runs
+ * inside one animation-frame callback, and the browser paints after it, not
+ * during it.
+ *
+ * The height cap is READ from the content's own computed `max-height` rather
+ * than written here again — the 80vh lives in the stylesheet, and a copy of it
+ * in this file is a second place for it to be wrong.
+ */
+export function fitWindowToTabs(dialog) {
+    const root = dialog?.element;
+    if (!root) return;
+
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+        try {
+            const content = root.querySelector(".window-content");
+            if (!content) return;
+
+            const panels = [...content.querySelectorAll("[data-drpg-panel]")];
+            if (!panels.length) return fitWindowToTable(dialog);
+
+            const was = panels.map(panel => panel.style.display);
+            let widest = 0;
+            let tallest = 0;
+
+            try {
+                for (const shown of panels) {
+                    for (const panel of panels) {
+                        panel.style.display = panel === shown ? "" : "none";
+                    }
+                    for (const table of shown.querySelectorAll("table")) {
+                        widest = Math.max(widest, table.scrollWidth,
+                            table.getBoundingClientRect().width);
+                    }
+                    // Read off the CONTENT, not the panel: the intro line and
+                    // the tab strip are part of what the window has to hold.
+                    tallest = Math.max(tallest, content.scrollHeight);
+                }
+            } finally {
+                panels.forEach((panel, i) => { panel.style.display = was[i]; });
+            }
+
+            if (!widest) return;
+
+            const width = windowWidthFor(root, content, widest);
+            const capped = parseFloat(getComputedStyle(content).maxHeight);
+            const chrome = Math.max(0, root.getBoundingClientRect().height - content.clientHeight);
+            const height = Math.round(
+                Math.min(tallest, Number.isFinite(capped) ? capped : tallest) + chrome);
+
+            const box = root.getBoundingClientRect();
+            if (Math.abs(box.width - width) < 2 && Math.abs(box.height - height) < 2) return;
+
+            dialog.setPosition({ width, height });
+        } catch (err) {
+            debug("Could not fit a tabbed window to its tabs", err);
         }
     }));
 }
