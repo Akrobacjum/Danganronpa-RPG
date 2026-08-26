@@ -533,17 +533,33 @@ async function onUpdateToken(tokenDoc, changes, options, userId) {
         // Only position changes can cross a boundary.
         if (changes.x === undefined && changes.y === undefined && changes.elevation === undefined) return;
 
-        // ONE CROSSING, ONE CHARGE.
-        //
-        // Foundry v14 delivers a move as a SERIES of updates along the token's
-        // path — the core says as much, deprecating `updateToken` for movement
-        // in favour of `moveToken` / `_onUpdateMovement` since v13. Every one of
-        // those intermediate updates carries new x/y, so this handler ran
-        // several times for a single drag: the player was told "that cost an
-        // action" two, three, four times over, and `takeMove` was called each
-        // time. Only the last update has nothing left pending, which is the
-        // moment the token has actually stopped somewhere.
-        if (tokenDoc.movement?.pending?.waypoints?.length) return;
+        /* ONE CHARGE PER CROSSING — AND EVERY CROSSING ALONG THE WAY.
+           -------------------------------------------------------------------
+           Foundry v14 delivers a move as a SERIES of updates along the token's
+           path — the core says as much, deprecating `updateToken` for movement
+           in favour of `moveToken` / `_onUpdateMovement` since v13. Every one of
+           those intermediate updates carries new x/y, so charging on each of
+           them told the player "that cost an action" two, three, four times for
+           one drag. Waiting for the last update fixed that and introduced
+           B-F2-1: the settlement then compared only the ENDS of the operation,
+           so a route out through a neighbour and back again cost nothing at all
+           — a free look into the next room — and a two-room route cost one Move
+           instead of two.
+
+           Both are answered by remembering the rooms the token passes through
+           and settling the whole path at the end: still one settlement per
+           drag, but the price is what the route actually cost. The veto in
+           `onPreUpdateToken` already works per segment (it is not gated here),
+           so adjacency and locks were never fooled by a multi-waypoint route —
+           only the price was. */
+        if (tokenDoc.movement?.pending?.waypoints?.length) {
+            notePathRoom(tokenDoc.id, roomOfToken(tokenDoc));
+            return;
+        }
+
+        // Taken — not read — so every `return` below leaves nothing behind for
+        // the next drag to inherit.
+        const path = takePath(tokenDoc.id);
 
         const actor = tokenDoc.actor;
         if (!actor || actor.type !== "character") return;
@@ -572,9 +588,15 @@ async function onUpdateToken(tokenDoc, changes, options, userId) {
             return;
         }
 
-        // Same room, or a scene with no regions at all: free. Remember the new
-        // spot so a later refused crossing snaps back to somewhere sensible.
-        if (before === after || (!after && !before)) {
+        // Every boundary this drag actually crossed, in the order it crossed
+        // them. Ending where you started is no longer the same as going
+        // nowhere: the route is what is charged for.
+        const crossings = crossingsAlong(before, path, after);
+
+        // Nothing crossed — a move inside one room, or a scene with no regions
+        // at all: free. Remember the new spot so a later refused crossing snaps
+        // back to somewhere sensible.
+        if (!crossings.length) {
             lastPosition.set(tokenDoc.id, { x: tokenDoc.x, y: tokenDoc.y });
             lastRoom.set(tokenDoc.id, after);
             return;
@@ -605,9 +627,17 @@ async function onUpdateToken(tokenDoc, changes, options, userId) {
         // way through the window.
         const { isEclipse, judgeEclipseCrossing } = await import("./eclipse.mjs");
         if (isEclipse()) {
-            const allowed = await judgeEclipseCrossing(actor, before, after);
-            if (!allowed) await sendBack(tokenDoc, previous, before);
-            else if (tokenDoc) lastPosition.set(tokenDoc.id, { x: tokenDoc.x, y: tokenDoc.y });
+            // Per crossing, like the economy below: the Eclipse's cap is two
+            // CROSSINGS, and settling a whole route as one would have let a
+            // multi-waypoint drag walk the map on a single allowance.
+            for (const [from, to] of crossings) {
+                const allowed = await judgeEclipseCrossing(actor, from, to);
+                if (!allowed) {
+                    await sendBack(tokenDoc, previous, before);
+                    return;
+                }
+            }
+            if (tokenDoc) lastPosition.set(tokenDoc.id, { x: tokenDoc.x, y: tokenDoc.y });
             return;
         }
 
@@ -620,12 +650,79 @@ async function onUpdateToken(tokenDoc, changes, options, userId) {
             return;
         }
 
-        await chargeForCrossing(actor, before, after, tokenDoc, previous);
+        // One at a time, in the order they were crossed. The first one that
+        // cannot be paid for stops the route and puts the token back where the
+        // drag began — the moves already paid for stay paid, because they were
+        // made: the refusal is about the step that could not be afforded, and
+        // `sendBack` returns the token to the only position it is certain the
+        // character could legally be standing in.
+        for (const [from, to] of crossings) {
+            const paid = await chargeForCrossing(actor, from, to, tokenDoc, previous);
+            if (!paid) return;
+        }
     } catch (err) {
         error("Movement charge failed", err);
     }
 }
 
+/**
+ * Rooms a token has passed through during the drag currently in flight, keyed
+ * by token id and emptied when that drag settles.
+ */
+const pathRooms = new Map();
+
+/**
+ * Note a room an in-flight drag is passing through.
+ *
+ * NULLS ARE NOT RECORDED, deliberately. A position part-way through a drag can
+ * land in a doorway or on the seam between two regions, where `roomOfToken`
+ * answers null quite correctly — but that is the token being mid-step, not the
+ * character leaving the building. Recording those would charge two crossings
+ * (into nowhere, and out of it again) for one ordinary walk between neighbours.
+ * Leaving the rooms for real is judged from where the token STOPS, which is the
+ * final update's own answer and not this function's business.
+ */
+function notePathRoom(tokenId, room) {
+    if (!room) return;
+    const seen = pathRooms.get(tokenId);
+    if (!seen) {
+        pathRooms.set(tokenId, [room]);
+        return;
+    }
+    if (seen[seen.length - 1] !== room) seen.push(room);
+}
+
+/** The noted path for a token, removed as it is read. */
+function takePath(tokenId) {
+    const path = pathRooms.get(tokenId) ?? [];
+    pathRooms.delete(tokenId);
+    return path;
+}
+
+/**
+ * Every boundary a route actually crossed, as `[from, to]` pairs in order.
+ *
+ * The whole route is `where it started → what it passed through → where it
+ * stopped`; a pair whose ends are the same room is not a crossing and drops
+ * out. So a drag inside one room yields nothing, an ordinary walk to a
+ * neighbour yields one, and a there-and-back route yields two — which is what
+ * it costs at the table.
+ */
+function crossingsAlong(before, path, after) {
+    const route = [before, ...path, after];
+    const crossings = [];
+    for (let i = 1; i < route.length; i++) {
+        if (route[i - 1] === route[i]) continue;
+        crossings.push([route[i - 1], route[i]]);
+    }
+    return crossings;
+}
+
+/**
+ * @returns {Promise<boolean>} whether the crossing was paid for. A route
+ *   settles one crossing at a time and stops at the first refusal, so the
+ *   caller needs to know which happened.
+ */
 async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = null) {
     const free = hasFreeMove(actor);
 
@@ -641,11 +738,11 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
         }</p>`, { flags: { [MODULE_ID]: { popupKind: "error" } } });
 
         await sendBack(tokenDoc, previous, from);
-        return;
+        return false;
     }
 
     const cost = await takeMove(actor);
-    if (!cost) return;
+    if (!cost) return false;
 
     const where = to
         ? game.i18n.format("DRPG.Move.entered", { room: foundry.utils.escapeHTML(to) })
@@ -659,6 +756,7 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
 
     await whisperToOwner(actor, `<p><strong>${game.i18n.localize("DRPG.Move.title")}</strong> — ${where}<br>${price}</p>`);
     debug(`${actor.name}: ${from ?? "—"} -> ${to ?? "—"} (${cost})`);
+    return true;
 }
 
 /**
