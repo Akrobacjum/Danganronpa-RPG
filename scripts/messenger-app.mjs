@@ -531,7 +531,8 @@ async function runCallAction(action, data) {
         if (!actor) return null;
         const { postToThread } = await import("./messenger.mjs");
         const owner = ownerOf(actor);
-        const note = `<p><em>${game.i18n.localize("DRPG.Project.declinedPlayer")}</em></p>`;
+        const note = `<p><em>${foundry.utils.escapeHTML(
+            game.i18n.format("DRPG.Project.declinedPlayer", { name: game.user.name }))}</em></p>`;
         if (owner) await postToThread(owner.id, note);
         ui.notifications.info(game.i18n.format("DRPG.Project.declinedGm", { name: actor.name }));
         return true;
@@ -578,7 +579,12 @@ async function runCallAction(action, data) {
 
         const { postToThread } = await import("./messenger.mjs");
         const owner = ownerOf(actor);
-        const body = `<p><strong>${game.i18n.localize("DRPG.Bridge.rulingLabel")}</strong> ${
+        // Named, not "The GM": rulings land as `action`-kind bubbles, which
+        // carry no author line — with two Gamemasters at the table the player
+        // had no way to tell whose ruling this was (Dawid, 26.08). `game.user`
+        // is the GM who clicked, by construction.
+        const body = `<p><strong>${foundry.utils.escapeHTML(
+            game.i18n.format("DRPG.Bridge.rulingBy", { name: game.user.name }))}</strong> ${
             foundry.utils.escapeHTML(text)}</p>`;
         if (owner) await postToThread(owner.id, body);
         else await whisperToGms(body);
@@ -601,7 +607,8 @@ async function runCallAction(action, data) {
 
         const { postToThread } = await import("./messenger.mjs");
         const owner = ownerOf(actor);
-        const note = `<p><em>${game.i18n.localize("DRPG.Bridge.declined")}</em></p>`;
+        const note = `<p><em>${foundry.utils.escapeHTML(
+            game.i18n.format("DRPG.Bridge.declined", { name: game.user.name }))}</em></p>`;
         if (owner) await postToThread(owner.id, note);
         ui.notifications.info(game.i18n.format("DRPG.Bridge.declinedGm", { name: actor.name }));
         return true;
@@ -649,7 +656,8 @@ async function runCallAction(action, data) {
         await refundAction(actor, 1);
         const { postToThread } = await import("./messenger.mjs");
         const owner = ownerOf(actor);
-        const note = `<p><em>${game.i18n.localize("DRPG.Bridge.declined")}</em></p>`;
+        const note = `<p><em>${foundry.utils.escapeHTML(
+            game.i18n.format("DRPG.Bridge.declined", { name: game.user.name }))}</em></p>`;
         if (owner) await postToThread(owner.id, note);
         ui.notifications.info(game.i18n.format("DRPG.Bridge.declinedGm", { name: actor.name }));
         return true;
