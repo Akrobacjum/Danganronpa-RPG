@@ -956,12 +956,13 @@ export async function openMusicDialog() {
     // An empty cue playlist is the same to this button as a missing one.
     const canPlay = Boolean(situational?.sounds.size);
 
-    const { dialogContent, tableDialog } = await import("./utils.mjs");
+    const { dialogContent, tableDialog, panelTabs, wirePanelTabs } = await import("./utils.mjs");
 
-    const result = await tableDialog({
-        window: { title: game.i18n.localize("DRPG.Music.title") },
-        classes: ["drpg-panel", "drpg-projects"],
-        content: dialogContent(`<form>
+    // Two tabs, Play first (Dawid, 26.08): the cue controls a GM reaches for
+    // mid-scene, and the state-to-playlist mapping they set up once. Apply
+    // still reads the mapping selects whichever tab is showing — panes are
+    // hidden by class, never removed; see `panelTabs` in utils.mjs.
+    const playPane = `
             <fieldset class="drpg-music-now">
                 <legend>${game.i18n.localize("DRPG.Music.playNow")}</legend>
                 <p class="notes">${game.i18n.format("DRPG.Music.playNowNote",
@@ -976,8 +977,9 @@ export async function openMusicDialog() {
                     game.i18n.localize("DRPG.Music.play")}</button>
                 <button type="button" class="drpg-mini-button" data-drpg-reset-music>${
                     game.i18n.localize("DRPG.Music.reset")}</button>
-            </fieldset>
+            </fieldset>`;
 
+    const playlistsPane = `
             <p>${game.i18n.localize("DRPG.Music.intro")}</p>
             <p class="notes">${game.i18n.localize("DRPG.Music.orderNote")}</p>
             <p class="notes">${game.i18n.localize("DRPG.Music.incidentNote")}</p>
@@ -985,8 +987,15 @@ export async function openMusicDialog() {
                 <th>${game.i18n.localize("DRPG.Music.when")}</th>
                 <th>${game.i18n.localize("DRPG.Music.playlist")}</th>
             </tr></thead><tbody>${rows}</tbody></table>
-            <p class="notes">${game.i18n.localize("DRPG.Music.fadeNote")}</p>
-        </form>`),
+            <p class="notes">${game.i18n.localize("DRPG.Music.fadeNote")}</p>`;
+
+    const result = await tableDialog({
+        window: { title: game.i18n.localize("DRPG.Music.title") },
+        classes: ["drpg-panel", "drpg-projects"],
+        content: dialogContent(`<form>${panelTabs([
+            { key: "play", label: game.i18n.localize("DRPG.Music.tabPlay"), html: playPane },
+            { key: "playlists", label: game.i18n.localize("DRPG.Music.tabPlaylists"), html: playlistsPane }
+        ])}</form>`),
         buttons: [
             {
                 action: "save", label: game.i18n.localize("DRPG.Panel.apply"), default: true,
@@ -1007,6 +1016,7 @@ export async function openMusicDialog() {
         // below rather than about what is playing right now.
         render: (event, dialog) => {
             const root = dialog.element;
+            wirePanelTabs(root);
             const track = root.querySelector("[name=playTrack]");
 
             root.querySelector("[data-drpg-play]")?.addEventListener("click", async () => {

@@ -642,3 +642,42 @@ export function wirePortraitPickers(root, { defaultImg = null } = {}) {
         });
     }
 }
+
+/**
+ * A tabbed body for a GM-panel window: one bar, one pane per section, the
+ * GM Team look everywhere it is used (Dawid, 26.08 — "if a GM panel window
+ * has tabs, they look like GM Team's").
+ *
+ * Markup only; wire it from the dialog's `render` with `wirePanelTabs`, for
+ * the same reason `wirePortraitPickers` documents above — DialogV2 stringifies
+ * the content, so listeners must be attached to the mounted DOM.
+ *
+ * Every pane STAYS in the DOM whichever tab is showing: a hidden input still
+ * answers a selector, so a single Save/Apply that reads the whole form keeps
+ * working. That is the whole trick, and why switching is class-only.
+ *
+ * @param {Array<{key: string, label: string, html: string}>} sections
+ * @returns {string} the nav and every section, ready to drop into a <form>.
+ */
+export function panelTabs(sections) {
+    const nav = `<nav class="drpg-gmt-tabs">${sections.map((s, i) =>
+        `<button type="button" data-drpg-gmt-tab="${s.key}"${i ? "" : ' class="active"'}>${s.label}</button>`).join("")}</nav>`;
+    const panes = sections.map((s, i) =>
+        `<section class="drpg-gmt-section${i ? "" : " active"}" data-drpg-gmt-section="${s.key}">${s.html}</section>`).join("");
+    return nav + panes;
+}
+
+/** Make a `panelTabs` bar switch its panes. Purely visual — see above. */
+export function wirePanelTabs(root) {
+    for (const tab of root.querySelectorAll("[data-drpg-gmt-tab]")) {
+        tab.addEventListener("click", () => {
+            const key = tab.dataset.drpgGmtTab;
+            for (const t of root.querySelectorAll("[data-drpg-gmt-tab]")) {
+                t.classList.toggle("active", t === tab);
+            }
+            for (const pane of root.querySelectorAll("[data-drpg-gmt-section]")) {
+                pane.classList.toggle("active", pane.dataset.drpgGmtSection === key);
+            }
+        });
+    }
+}

@@ -13,7 +13,7 @@
  */
 
 import { MODULE_ID, ITEM_CATEGORIES, ITEM_TIERS, TIER_EFFECTS } from "./config.mjs";
-import { dialogContent, wirePortraitPickers, whisperToGms, log, error, plural }
+import { dialogContent, wirePortraitPickers, panelTabs, wirePanelTabs, whisperToGms, log, error, plural }
     from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -595,9 +595,13 @@ export async function openItemTables({ preset = null } = {}) {
         window: { title: game.i18n.localize("DRPG.Tables.editorTitle") },
         classes: ["drpg-panel", "drpg-projects", "drpg-wide"],
         position: { height: "auto" },
-        content: dialogContent(`<form>
+        // Four tabs (Dawid, 26.08): editing what a table holds, the three
+        // creation jobs behind it. The footer buttons act across tabs — each
+        // reads its own pane's inputs, which stay in the DOM whichever tab is
+        // showing (see `panelTabs` in utils.mjs).
+        content: dialogContent(`<form>${panelTabs([
+            { key: "edit", label: game.i18n.localize("DRPG.Tables.tabEdit"), html: `
             <p class="notes">${game.i18n.localize("DRPG.Tables.editorIntro")}</p>
-
             <div class="drpg-tables-layout">
                 <div class="drpg-tables-left">${listHtml}</div>
                 <div class="drpg-tables-right">
@@ -607,8 +611,8 @@ export async function openItemTables({ preset = null } = {}) {
                             : `<p class="notes">${game.i18n.localize("DRPG.Tables.noneYet")}</p>`
                     }</div>
                 </div>
-            </div>
-
+            </div>` },
+            { key: "newItem", label: game.i18n.localize("DRPG.Tables.tabNewItem"), html: `
             <fieldset class="drpg-tables-new">
                 <legend>${game.i18n.localize("DRPG.Tables.addItem")}</legend>
                 <div class="drpg-tables-new-head">
@@ -633,16 +637,19 @@ export async function openItemTables({ preset = null } = {}) {
                     ${roomChecks || `<span class="notes">${game.i18n.localize("DRPG.Tables.noRoomTables")}</span>`}
                 </div>
                 <p class="notes">${game.i18n.localize("DRPG.Tables.addNote")}</p>
-            </fieldset>
-
+            </fieldset>` },
+            { key: "newRoom", label: game.i18n.localize("DRPG.Tables.newPool"), html: `
             <fieldset class="drpg-tables-new">
                 <legend>${game.i18n.localize("DRPG.Tables.newPool")}</legend>
                 <label>${game.i18n.localize("DRPG.Items.name")}
                     <input type="text" name="newPoolName"
                         placeholder="${esc(game.i18n.localize("DRPG.Tables.newPoolPlaceholder"))}" /></label>
                 <p class="notes">${game.i18n.localize("DRPG.Tables.newPoolNote")}</p>
-            </fieldset>
-        </form>`),
+            </fieldset>` },
+            { key: "install", label: game.i18n.localize("DRPG.Tables.tabInstall"), html: `
+            <p class="notes">${game.i18n.localize("DRPG.Tables.whereNote")}</p>
+            <p class="notes">${game.i18n.localize("DRPG.Tables.installTabNote")}</p>` }
+        ])}</form>`),
         buttons: [
             {
                 action: "add", label: game.i18n.localize("DRPG.Tables.addItem"), default: true,
@@ -672,6 +679,7 @@ export async function openItemTables({ preset = null } = {}) {
         ],
         render: (event, dialog) => {
             const root = dialog.element;
+            wirePanelTabs(root);
             wirePortraitPickers(root, { defaultImg: DEFAULT_RESULT_IMG });
 
             const nameEl = root.querySelector("[data-drpg-table-name]");
