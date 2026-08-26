@@ -8,10 +8,10 @@
  * Two states, at exactly the two moments Daggerheart also marks — and it marks
  * them with the wrong things:
  *
- *   full Stress  the system applies **Vulnerable**, which in Daggerheart means
+ *   full Sanity  the system applies **Vulnerable**, which in Daggerheart means
  *                "attacks against you have advantage". This game's rule points
  *                the other way: YOUR rolls take the disadvantage.
- *   full HP      the system offers a **Death Move** — blaze of glory, risk it
+ *   full Health      the system offers a **Death Move** — blaze of glory, risk it
  *                all. A killing game does not grant a heroic exit; the guide
  *                says you lose an action and keep going, and dying is something
  *                a murderer does to you on purpose.
@@ -83,7 +83,7 @@ export function registerStates() {
     });
 }
 
-/** Only HP and Stress writes can change either state. */
+/** Only Health and Sanity writes can change either state. */
 function touchesTracks(changes) {
     const r = changes?.system?.resources;
     return Boolean(r?.hitPoints || r?.stress);
@@ -100,7 +100,7 @@ function touchesTracks(changes) {
  * Vulnerable from the character model's own `_preUpdate` and the defeated
  * condition from `toggleDefeated`, and there is no hook between either of them
  * and the write. Removing the effect afterwards would leave it visible for a
- * frame and would fight the system every time HP moved.
+ * frame and would fight the system every time Health moved.
  *
  * Idempotent, and it says what it did — silently rewriting somebody else's
  * settings is the kind of thing a GM should be able to find in the log.
@@ -179,7 +179,7 @@ function shouldHave(actor, state) {
 /**
  * One pass at a time, per actor.
  *
- * The hook that drives this fires on every HP and Stress write, and an incident
+ * The hook that drives this fires on every Health and Sanity write, and an incident
  * writes both within a turn. Two passes overlapping is a real prospect, and
  * `toggleStatusEffect` is not atomic: both would read `actor.statuses` before
  * either had finished creating the effect, both would decide it was missing,

@@ -1006,8 +1006,8 @@ export function diagnoseVoice() {
 /**
  * Which characters have never been given the guide's starting resources.
  *
- * The one check worth running before a session zero. Daggerheart derives max HP
- * and Stress from a class; this game has none, so `initCharacter` is the only
+ * The one check worth running before a session zero. Daggerheart derives max Health
+ * and Sanity from a class; this game has none, so `initCharacter` is the only
  * thing that ever writes them — and a character it has not touched reads
  * `max: 0` on both tracks, which is indistinguishable from a character who has
  * been beaten unconscious. The sheet grows a button while that is true (see
@@ -1019,7 +1019,7 @@ export function diagnoseCharacters({ toChat = true } = {}) {
     const roster = studentActors();
 
     lines.push(`Students (Monokumas excluded): ${roster.length}`);
-    lines.push(`Starting resources: ${STARTING.hp} HP, ${STARTING.stress} Stress, ${STARTING.hope} Hope`);
+    lines.push(`Starting resources: ${STARTING.hp} Health, ${STARTING.stress} Sanity, ${STARTING.hope} Hope`);
     lines.push("");
 
     const pending = [];
@@ -1028,7 +1028,7 @@ export function diagnoseCharacters({ toChat = true } = {}) {
         const stress = actor.system?.resources?.stress?.max ?? 0;
         const ok = hp === STARTING.hp && stress === STARTING.stress;
         if (!ok) pending.push(actor);
-        lines.push(`   ${ok ? "✓" : "✗"} ${actor.name} — HP max ${hp}, Stress max ${stress}${
+        lines.push(`   ${ok ? "✓" : "✗"} ${actor.name} — Health max ${hp}, Sanity max ${stress}${
             ok ? "" : "  ← not set up"}`);
     }
 
@@ -1049,7 +1049,7 @@ export function diagnoseCharacters({ toChat = true } = {}) {
      * about again — which is exactly why they are worth a list.
      *
      * Resources are only half of "is this character ready". A student with the
-     * right HP and Stress can still be sitting there with no Ultimate, no
+     * right Health and Sanity can still be sitting there with no Ultimate, no
      * experiences, no opening item and no Monokuma watching them, and every one
      * of those is invisible until the moment it matters: the first roll that
      * wants an experience, the first Despair award with nowhere to go.

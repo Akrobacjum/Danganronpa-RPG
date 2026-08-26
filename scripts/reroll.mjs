@@ -10,7 +10,7 @@
  *
  *   the dice      the chat message is rewritten in place, so the table sees one
  *                 roll with new numbers rather than two contradictory rolls
- *   Hope / Stress Daggerheart's own `DualityRoll#reroll` reverses these, since
+ *   Hope / Sanity Daggerheart's own `DualityRoll#reroll` reverses these, since
  *                 it already knows what the previous duality granted
  *   Despair       ours, not the system's — a Despair result that becomes a Hope
  *                 result has to hand the point back to the Monokuma that got it
@@ -54,7 +54,7 @@ export async function rerollLastAction(actor) {
     const before = dualityOfRoll(original);
 
     // `liveRoll` is what makes the system show the dice again and reverse the
-    // Hope and Stress the first result granted.
+    // Hope and Sanity the first result granted.
     let rerolled;
     try {
         rerolled = await original.reroll({ liveRoll: true });
@@ -557,8 +557,8 @@ async function settleCrisis(actor, bookmark, after, done) {
  * Take back a Stage 6 clean-up and run it again.
  *
  * The trace it erased comes back, the trace a botched wipe left is removed, and
- * the Stress is refunded before the new number is scored — so a reroll costs the
- * Hope and one attempt's Stress, not two attempts' worth.
+ * the Sanity is refunded before the new number is scored — so a reroll costs the
+ * Hope and one attempt's Sanity, not two attempts' worth.
  *
  * `bookmark.cleanup` is the Remnant token id, written by `attemptCleanup`
  * through `rollTrait`'s `context`.

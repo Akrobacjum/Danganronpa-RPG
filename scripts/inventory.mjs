@@ -195,7 +195,7 @@ export async function grantItem(actor, {
     // Search hands its goal straight through ("healing", "stress" — but also
     // "crimeTool", which is not a usable kind). A usable granted with no goal
     // — the GM's console, a season's starting item — asks the item tables for
-    // its name instead, so an Apple says "Restores 1 HP" however it arrived.
+    // its name instead, so an Apple says "Restores 1 Health" however it arrived.
     // Only the two kinds are worth writing down, and only on a usable.
     let kind = null;
     if (category === "usable") {

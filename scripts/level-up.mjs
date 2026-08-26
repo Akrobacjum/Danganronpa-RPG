@@ -6,8 +6,8 @@
  *   Standard    — everyone who voted for the correct Blackened picks ONE.
  *   Reinforced  — a Blackened who survived a wrong vote picks THREE.
  *
- * Options (repeatable — picking "+1 max HP" three times means +3):
- *   +1 max HP · +1 max Stress · +1 to a trait · +1 to an experience ·
+ * Options (repeatable — picking "+1 max Health" three times means +3):
+ *   +1 max Health · +1 max Sanity · +1 to a trait · +1 to an experience ·
  *   a new experience at +2
  */
 
@@ -79,7 +79,7 @@ export async function openAdvancementFor(actor) {
 export async function openAdvancement(actor, kind = "standard") {
     // Advancement is the GM's to award. The sheet button is already GM-only, but
     // this is also on `game.drpg`, so without the check any player could call it
-    // from the console and raise their own max HP and traits.
+    // from the console and raise their own max Health and traits.
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
@@ -226,14 +226,14 @@ function readForm(dialog, picks) {
  * ========================================================================== */
 
 /**
- * Turn a list of picks into a single actor update, so three "+1 max HP" picks
+ * Turn a list of picks into a single actor update, so three "+1 max Health" picks
  * accumulate instead of overwriting each other.
  */
 export async function applyAdvancement(actor, picks, kind = "standard") {
     // Same guard as `openAdvancement`, and for the same reason. This is also on
     // `game.drpg`, and it writes through `automatedUpdate` — which bypasses the
     // resource guard by design — so without it a player could raise their own
-    // max HP and traits from the console with a single call, walking straight
+    // max Health and traits from the console with a single call, walking straight
     // past the check the dialog in front of it makes.
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
@@ -324,7 +324,7 @@ export async function applyAdvancement(actor, picks, kind = "standard") {
     try {
         // Marked as automation: `system.traits` is guarded against hand-editing,
         // so a plain update would have the trait rise silently stripped while the
-        // HP and Stress rises went through — a half-applied advancement.
+        // Health and Sanity rises went through — a half-applied advancement.
         const { automatedUpdate } = await import("./resource-guard.mjs");
         await automatedUpdate(actor, update);
         const taken = (actor.getFlag(MODULE_ID, FLAGS.advances) ?? 0) + 1;

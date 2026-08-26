@@ -2,8 +2,8 @@
  * Danganronpa RPG — nothing floats off a token.
  * ---------------------------------------------------------------------------
  * Daggerheart throws a scrolling caption off a token for every resource that
- * moves: "Hope +1", "Stress -2", HP, actions, the lot. In this game those
- * numbers are nobody else's business — HP and Stress are GM-only, rolls are
+ * moves: "Hope +1", "Sanity -2", Health, actions, the lot. In this game those
+ * numbers are nobody else's business — Health and Sanity are GM-only, rolls are
  * private, and a caption that drifts up off a portrait announces to the whole
  * table something the sheet deliberately keeps quiet. Dawid asked for them
  * gone outright (26.08): "nie chcę, by te napisy się w ogóle pojawiały".

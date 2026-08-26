@@ -16,7 +16,7 @@
  * like it vanished. The action is still pending, nothing on screen says so, and
  * the player's only route back is to drag the sheet out of the way.
  *
- * The fix is deliberately not `modal: true`. Checking your own Hope, Stress or
+ * The fix is deliberately not `modal: true`. Checking your own Hope, Sanity or
  * inventory while deciding is exactly what these prompts are for, and a modal
  * would forbid it. Instead the dialog is re-raised whenever something else is
  * brought forward: the sheet still comes to the front of everything else, the

@@ -12,10 +12,10 @@
  *
  *   USE      a Usable Item, spent on the spot. What it restores comes from
  *            USABLE_EFFECTS plus the item's KIND: every usable is a healing
- *            item (HP) or a stress-relief item (Stress), decided by which item
+ *            item (Health) or a stress-relief item (Sanity), decided by which item
  *            table it belongs to — see `usableKindOf`. Tiers 1 and 2 apply
  *            that kind's resource without asking; tier 3 is the one tier that
- *            still offers the HP-or-Stress choice, with 2 Hope on top either
+ *            still offers the Health-or-Sanity choice, with 2 Hope on top either
  *            way; tier 0 is "open to creative use" and has no table entry, so
  *            it goes to the GM as a ruling.
  *
@@ -128,7 +128,7 @@ export function isUsable(item) {
  * module honestly does not know.
  *
  * The item tables are asked first and outrank the flag on the item, because the
- * tables are what the GM edits: move "Pills" from Stress Relief to Healing and
+ * tables are what the GM edits: move "Pills" from Sanity Relief to Healing and
  * every jar of pills in every inventory changes with it, including the ones
  * found last week. The flag answers when the tables cannot — an item drawn off
  * a room's own pool, or renamed on the sheet — and a name that sits in tables
@@ -180,7 +180,7 @@ export async function useItem(actor, item) {
     // there is no table row to apply, so a human decides what it is worth.
     if (!effect || effect.creative) return useCreatively(actor, item);
 
-    // What lands where. Tier 3 asks HP-or-Stress and adds its Hope on top;
+    // What lands where. Tier 3 asks Health-or-Sanity and adds its Hope on top;
     // tiers 1 and 2 read the item's kind and ask nothing — the only time the
     // dialog still appears there is when the kind is unknown (an item in no
     // table, with no flag), because guessing which half of somebody's sheet to
@@ -342,10 +342,10 @@ async function confirmUse(item, preview, pointless) {
 /**
  * Apply the restore.
  *
- * HP and Stress are reverse resources — marks count UP toward max — so healing
+ * Health and Sanity are reverse resources — marks count UP toward max — so healing
  * subtracts. Hope is a normal one and adds. Everything is clamped, and what was
  * actually restored is reported rather than what was offered: a character with
- * one mark of HP who drinks a Tier 2 kit recovers one, not two.
+ * one mark of Health who drinks a Tier 2 kit recovers one, not two.
  */
 async function restore(actor, amounts) {
     const update = {};

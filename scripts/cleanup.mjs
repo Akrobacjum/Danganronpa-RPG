@@ -2,7 +2,7 @@
  * Danganronpa RPG — Stage 6, the killer cleaning up.
  * ---------------------------------------------------------------------------
  * Guide: once the incident is over the killer can finally see the Remnants they
- * left, and spend Stress trying to make them go away. "Przedmioty sprzątające
+ * left, and spend Sanity trying to make them go away. "Przedmioty sprzątające
  * ułatwiają rozwiązanie morderstwa" — this is the stage the Cleaning Tool exists
  * for.
  *
@@ -226,9 +226,9 @@ function findRemnantToken(tokenId) {
 /**
  * Attempt to erase one trace.
  *
- * Costs Stress rather than an action, as the guide has it: Stage 6 is not part
+ * Costs Sanity rather than an action, as the guide has it: Stage 6 is not part
  * of the day's economy, and a killer with nothing left to give simply cannot
- * keep scrubbing. Refused before the dice when there is no Stress to spend, so
+ * keep scrubbing. Refused before the dice when there is no Sanity to spend, so
  * nobody rolls for something they cannot pay for.
  *
  * The threshold is not computed here and never travels to this client — see the
@@ -305,7 +305,7 @@ export async function resolveCleanup({
 
     // A Reroll: put the scene back the way it was before scoring the new number,
     // or the second attempt would be measured against a room the first one had
-    // already changed — and the Stress would be charged twice for one attempt.
+    // already changed — and the Sanity would be charged twice for one attempt.
     //
     // A rewind that could not happen aborts the replay rather than scoring on
     // top of the first attempt. `undoLastCleanup` has already told the GMs what
@@ -321,7 +321,7 @@ export async function resolveCleanup({
     const data = token ? remnantData(token) : null;
     if (!data) {
         // The trace is gone — another attempt got it, or the GM removed it by
-        // hand between the player picking and the dice landing. The Stress is
+        // hand between the player picking and the dice landing. The Sanity is
         // still spent: they scrubbed at something.
         await spendStress(actor);
         await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Cleanup.vanished")}</p>`);
@@ -329,7 +329,7 @@ export async function resolveCleanup({
     }
 
     // Reinforced traces refuse to be removed at all — remnants.mjs has said so
-    // since the flag was introduced. Checked here as well as there so the Stress
+    // since the flag was introduced. Checked here as well as there so the Sanity
     // is not taken for an attempt that was never possible.
     if (data.reinforced) {
         await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Cleanup.reinforced", {
@@ -418,7 +418,7 @@ export async function resolveCleanup({
     }
 
     // "Morderca odzyskuje 1 stres" — the critical's own line, and the only
-    // outcome in Stage 6 that gives the Stress back. Applied after `spendStress`
+    // outcome in Stage 6 that gives the Sanity back. Applied after `spendStress`
     // rather than instead of it, so the receipt's `stressBefore` still describes
     // the state a Reroll has to restore.
     if (outcome.refundStress) {
@@ -440,7 +440,7 @@ export async function resolveCleanup({
  * unrelated: one manufactures evidence against somebody else, the other moves
  * the largest piece of evidence in the room.
  *
- * They share the erase-trace shape — 1 Stress, killer in the room, rolled on
+ * They share the erase-trace shape — 1 Sanity, killer in the room, rolled on
  * this client and scored on the GM's — but not its difficulty: both have a flat
  * threshold from the guide rather than one read off how visible a trace is.
  * ========================================================================== */
@@ -452,11 +452,11 @@ export async function resolveCleanup({
  * pomieszczeniu, w którym zabójca realizuje akcje rozwiązania, zabójca na
  * początku akcji musi rzucić kośćmi za ukrycie swoich intencji." Thresh 16,
  * Shadow — the same shape as the sabotage and indirect-murder concealment rolls,
- * and priced the way neither of those is: entirely in Stress.
+ * and priced the way neither of those is: entirely in Sanity.
  *
  * It never blocks the action. Failing means the room watched you scrub a murder
  * scene, which is a social catastrophe rather than a mechanical one, and the
- * guide gives it no "you may not continue" clause. What it costs is Stress —
+ * guide gives it no "you may not continue" clause. What it costs is Sanity —
  * the currency Stage 6 runs on — so a botched cover story really does shorten
  * how long the killer can keep cleaning.
  *
@@ -541,16 +541,16 @@ async function concealFromWitnesses(actor) {
 }
 
 /**
- * A resolution action costs one of the day's two, on top of the Stress.
+ * A resolution action costs one of the day's two, on top of the Sanity.
  *
- * Stage 6 used to run on Stress alone, which meant it ran on nothing the table
- * could see: a killer with Stress to spare could scrub every trace in the room
+ * Stage 6 used to run on Sanity alone, which meant it ran on nothing the table
+ * could see: a killer with Sanity to spare could scrub every trace in the room
  * one after another, in a stage that is supposed to be a handful of frantic
  * choices. Charging an action caps it at two per time of day — the same budget
  * everything else in the game is bought with — and makes "what do I do with the
  * time I have" the question it was always meant to be.
  *
- * Both costs, deliberately (Dawid's call, 2026-08-17). The Stress is what makes
+ * Both costs, deliberately (Dawid's call, 2026-08-17). The Sanity is what makes
  * a long clean-up hurt; the action is what makes it finite.
  *
  * @returns {Promise<boolean>} false when there is nothing left to spend, in
@@ -870,7 +870,7 @@ function recreationDataFor(token) {
  * Put the room back the way it was before this actor's last clean-up attempt.
  *
  * Order matters: the trace it left behind goes first, then the one it erased
- * comes back, then the Stress. Doing it the other way round would briefly leave
+ * comes back, then the Sanity. Doing it the other way round would briefly leave
  * two traces describing the same wipe, and `cleanableRemnants` runs off exactly
  * that list.
  */
@@ -916,7 +916,7 @@ async function undoLastCleanup(actor, tokenId) {
                 "system.resources.stress.value": receipt.stressBefore
             });
         } catch (err) {
-            error("Could not refund the Stress a rerolled clean-up spent", err);
+            error("Could not refund the Sanity a rerolled clean-up spent", err);
         }
     }
 
@@ -933,12 +933,12 @@ async function spendStress(actor) {
             "system.resources.stress.value": Math.min(max, marks + RESOLUTION_STRESS_COST)
         });
     } catch (err) {
-        error("Could not charge the Stress for a clean-up", err);
+        error("Could not charge the Sanity for a clean-up", err);
     }
 }
 
 /**
- * Hand Stress back. Stress is a reverse resource, so "restoring" it is
+ * Hand Sanity back. Sanity is a reverse resource, so "restoring" it is
  * subtracting marks — the same direction `use-items.mjs` moves it.
  */
 async function restoreStress(actor, amount = 1) {
@@ -949,7 +949,7 @@ async function restoreStress(actor, amount = 1) {
             "system.resources.stress.value": Math.max(0, marks - amount)
         });
     } catch (err) {
-        error("Could not give back the Stress a critical clean-up earned", err);
+        error("Could not give back the Sanity a critical clean-up earned", err);
     }
 }
 

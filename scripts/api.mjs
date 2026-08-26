@@ -244,7 +244,7 @@ export const DrpgApi = {
 
     /* ---- characters ---------------------------------------------------- */
 
-    /** Write the guide's starting resources onto an actor: HP 4, Stress 6, Hope 2. */
+    /** Write the guide's starting resources onto an actor: Health 4, Sanity 6, Hope 2. */
     initCharacter,
 
     /** Read/write the Ultimate shown under the character's name. */
@@ -254,7 +254,7 @@ export const DrpgApi = {
     /** Every Ultimate that appears on more than one character this season. */
     findDuplicateUltimates,
 
-    /** Resource readers. HP and Stress are reverse resources — see character.mjs. */
+    /** Resource readers. Health and Sanity are reverse resources — see character.mjs. */
     resourceMax,
     resourceValue,
     remaining,
@@ -491,8 +491,8 @@ export const DrpgApi = {
      * things, not for opening them. */
 
     /** Spend a Usable Item. Tiers 1/2 restore what the item's kind says —
-     *  healing items HP, stress-relief items Stress, read off the item tables;
-     *  tier 3 asks HP or Stress and adds 2 Hope; tier 0 is "open to creative
+     *  healing items Health, stress-relief items Sanity, read off the item tables;
+     *  tier 3 asks Health or Sanity and adds 2 Hope; tier 0 is "open to creative
      *  use" and goes to the GM as a ruling. */
     useItem,
 
@@ -712,7 +712,7 @@ export const DrpgApi = {
     incidentTracker: openIncidentTracker,
 
     /* ---- Stage 6: cleaning up ----------------------------------------------
-     * Once the incident ends the killer can see what they left and spend Stress
+     * Once the incident ends the killer can see what they left and spend Sanity
      * trying to erase it. Reinforced traces refuse to go; a botched wipe leaves
      * a Resolution Remnant of its own; the tools used are destroyed when the
      * murder is closed. Scored on a GM's client, because the threshold is read
@@ -734,7 +734,7 @@ export const DrpgApi = {
 
     /** The guide's other two Stage 6 actions: plant a Prep Remnant pointing at
      *  somebody else ("misleadingTrail"), or carry the body out of the room
-     *  ("moveBody"). Both cost 1 Stress and need the killer standing there. */
+     *  ("moveBody"). Both cost 1 Sanity and need the killer standing there. */
     attemptStageSix,
     resolveStageSix,
 
@@ -842,7 +842,7 @@ export const DrpgApi = {
     drawItem,
     randomItem,
     tableName,
-    /** Which kind of usable a NAME is, read off the Healing and Stress Relief
+    /** Which kind of usable a NAME is, read off the Healing and Sanity Relief
      *  tables: "healing", "stress", "both" or null. */
     usableKindFor,
 
@@ -951,7 +951,7 @@ export const DrpgApi = {
 
     /* ---- actions ------------------------------------------------------- */
 
-    /** 2 per time of day, or 1 while all HP is marked. */
+    /** 2 per time of day, or 1 while all Health is marked. */
     actionBudget,
     actionsLeft,
     actionsMax,

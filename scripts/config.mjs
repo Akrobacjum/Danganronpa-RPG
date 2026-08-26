@@ -279,7 +279,7 @@ export const ITEM_CATEGORIES = {
         label: "Usable",
         plural: "Usables",
         limit: 3,
-        hint: "Healing items restore HP, stress-relief items clear Stress. Tier 3 lets you pick."
+        hint: "Healing items restore Health, stress-relief items clear Sanity. Tier 3 lets you pick."
     },
     // "Murder Weapon" rather than "Crime Tool" — Dawid's wording, 2026-08-17.
     // Changed here rather than in the item window alone, because this table is
@@ -333,9 +333,9 @@ export const TIER_EFFECTS = {
     // USABLE_KIND_EFFECTS below instead.
     usable: {
         0: "A random, seemingly useless item. Open to creative use.",
-        1: "Restores 1 HP (healing) or 1 Stress (stress relief), by its kind.",
-        2: "Restores 2 HP (healing) or 2 Stress (stress relief), by its kind.",
-        3: "Restores 2 HP or 2 Stress — your choice — plus 2 Hope."
+        1: "Restores 1 Health (healing) or 1 Sanity (stress relief), by its kind.",
+        2: "Restores 2 Health (healing) or 2 Sanity (stress relief), by its kind.",
+        3: "Restores 2 Health or 2 Sanity — your choice — plus 2 Hope."
     },
     crimeTool: {
         0: "A random, seemingly useless item.",
@@ -356,8 +356,8 @@ export const TIER_EFFECTS = {
  *
  * Every usable is one or the other — a first aid kit patches the body, a music
  * player settles the nerves — and which it is comes from the item tables: the
- * Healing tables hold what restores HP, the Stress Relief tables what clears
- * Stress (Dawid, 2026-08-26). The player used to be asked at the moment of use;
+ * Healing tables hold what restores Health, the Sanity Relief tables what clears
+ * Sanity (Dawid, 2026-08-26). The player used to be asked at the moment of use;
  * now the table has already answered.
  *
  * `resource` is the Daggerheart resource key `use-items.mjs` writes to. The
@@ -367,7 +367,7 @@ export const TIER_EFFECTS = {
  */
 export const USABLE_KINDS = {
     healing: { label: "Healing", resource: "hitPoints" },
-    stress: { label: "Stress Relief", resource: "stress" }
+    stress: { label: "Sanity Relief", resource: "stress" }
 };
 
 /**
@@ -380,14 +380,14 @@ export const USABLE_KINDS = {
  */
 export const USABLE_KIND_EFFECTS = {
     healing: {
-        1: "Restores 1 HP.",
-        2: "Restores 2 HP.",
-        3: "Restores 2 HP or 2 Stress — your choice — plus 2 Hope."
+        1: "Restores 1 Health.",
+        2: "Restores 2 Health.",
+        3: "Restores 2 Health or 2 Sanity — your choice — plus 2 Hope."
     },
     stress: {
-        1: "Restores 1 Stress.",
-        2: "Restores 2 Stress.",
-        3: "Restores 2 HP or 2 Stress — your choice — plus 2 Hope."
+        1: "Restores 1 Sanity.",
+        2: "Restores 2 Sanity.",
+        3: "Restores 2 Health or 2 Sanity — your choice — plus 2 Hope."
     }
 };
 
@@ -396,12 +396,12 @@ export const USABLE_KIND_EFFECTS = {
  *
  * Tiers 1 and 2 are `byKind`: the amount lands on whichever resource the item's
  * kind names (USABLE_KINDS above), no question asked — the choice was made when
- * the item came off a Healing or a Stress Relief table. Only tier 3 still asks,
+ * the item came off a Healing or a Sanity Relief table. Only tier 3 still asks,
  * and it restores 2 Hope on top whichever way the player answers. Tier 0 is "a
  * random, seemingly useless object, open to creative use": there is no table
  * entry to apply, so it goes to the GM instead.
  *
- * HP and Stress are reverse resources; `use-items.mjs` subtracts marks.
+ * Health and Sanity are reverse resources; `use-items.mjs` subtracts marks.
  */
 export const USABLE_EFFECTS = {
     0: { creative: true },
@@ -572,7 +572,7 @@ export function observeDc(visibility, type) {
     return OBSERVE_DC[visibility]?.[column] ?? null;
 }
 
-/** Failing an Observe roll costs the player Stress. */
+/** Failing an Observe roll costs the player Sanity. */
 export const OBSERVE_FAIL_STRESS = 2;
 
 /**
@@ -700,7 +700,7 @@ export const ACTIONS = {
         // three of the five branches never have.
         callsGm: false,
         hint: "Look for evidence. Copies a Remnant into your inventory as a Truth Bullet.",
-        // The Stress a miss costs is `failStress` two lines down, and the
+        // The Sanity a miss costs is `failStress` two lines down, and the
         // briefing prints it from there. It was written out here as well, and
         // the two would part company the first time the number moved.
         description: "You look for evidence here. A hit copies what you find into your inventory "
@@ -843,8 +843,8 @@ export const ACTIONS = {
         // nobody's. The dialog prices Short against Long and names the rooms
         // that allow each — see `DRPG.Rest.allowedIn` — so both the costs and
         // the room live where they are checked.
-        hint: "Recover HP, Stress or Hope. A Long Rest costs more and buys more.",
-        description: "Sleep restores HP, a Meal clears Stress, a Breath gives Hope — in full on a "
+        hint: "Recover Health, Sanity or Hope. A Long Rest costs more and buys more.",
+        description: "Sleep restores Health, a Meal clears Sanity, a Breath gives Hope — in full on a "
             + "Long Rest, by half on a Short."
     },
     directMurder: {
@@ -1029,8 +1029,8 @@ export const REST = {
     long: { actionCost: 2, picks: 2, perSession: 1 },
     short: { actionCost: 1, picks: 1, perTimeOfDay: 1 },
     options: {
-        sleep: { label: "Sleep", long: "Restores all HP", short: "Restores half HP" },
-        meal: { label: "Meal", long: "Restores all Stress", short: "Restores half Stress" },
+        sleep: { label: "Sleep", long: "Restores all Health", short: "Restores half Health" },
+        meal: { label: "Meal", long: "Restores all Sanity", short: "Restores half Sanity" },
         breath: { label: "Breath", long: "Grants 2 Hope", short: "Grants 1 Hope" }
     }
 };
@@ -1107,16 +1107,16 @@ export const DESPAIR_CALLS = {
     },
     thisWillHurt: {
         label: "This Will Hurt", icon: "fa-heart-crack", cost: 2, target: "player", damage: { hitPoints: 2 },
-        effect: "A player loses {hp} HP."
+        effect: "A player loses {hp} Health."
     },
     paranoia: {
         label: "Paranoia", icon: "fa-brain", cost: 2, target: "player", damage: { stress: 2 },
-        effect: "A player loses {stress} Stress."
+        effect: "A player loses {stress} Sanity."
     },
     chained: {
         // Not in the guide's table — added at the table's request. Priced
         // between Paranoia (2) and Game Integrity (3): losing a time of day's
-        // movement is worse than losing 2 Stress and cheaper than gutting a
+        // movement is worse than losing 2 Sanity and cheaper than gutting a
         // project, because a room you are already in may be where you wanted
         // to be anyway.
         label: "Chained", icon: "fa-link", cost: 3, target: "player", chains: true,
@@ -1229,7 +1229,7 @@ export const PROJECT_SCALE = {
  * -1 akcję na porę dnia."
  *
  * Daggerheart marks the same two moments with its own conditions — Vulnerable
- * at full Stress, and a Death Move at full HP — and neither is this game's rule:
+ * at full Sanity, and a Death Move at full Health — and neither is this game's rule:
  * a Death Move offers to blaze out in glory, which a killing game does not
  * grant. `states.mjs` switches both of the system's automations off and applies
  * these instead.
@@ -1265,8 +1265,8 @@ export const STATES = {
  * ========================================================================== */
 
 export const LEVEL_UP_OPTIONS = {
-    hp: { label: "Increase HP by +1" },
-    stress: { label: "Increase Stress by +1" },
+    hp: { label: "Increase Health by +1" },
+    stress: { label: "Increase Sanity by +1" },
     trait: { label: "Increase one statistic by +1" },
     experienceUp: { label: "Increase one experience by +1" },
     experienceNew: { label: "Add a new experience worth +2" }
@@ -1379,7 +1379,7 @@ export const MURDER_OPENING = {
         nightAdvantage: true,
         keyRemnants: { hope: 5, despair: 4, critical: 3 },
         hope: "The incident begins.",
-        despair: "The incident begins. The victim loses all their Stress and loses access to "
+        despair: "The incident begins. The victim loses all their Sanity and loses access to "
             + "Role Reversal for this incident.",
         critical: "The incident begins, and the victim learns who is attacking them.",
         failure: "No incident, and the victim never learns anything was attempted. The action is "
@@ -1428,13 +1428,13 @@ export const MURDER_OPENING = {
  * Stage 5 — the incident, guide pp. 20–25.
  *
  * A turn-based exchange. The victim always goes first, and every turn costs
- * them: Stress until it runs out, then HP.
+ * them: Sanity until it runs out, then Health.
  */
 export const INCIDENT = {
     /** Direct murder: 1 per turn. Indirect: the victim is alone and it is 2. */
     drain: { direct: 1, indirect: 2 },
     /**
-     * The finishing blow's threshold is five times the victim's remaining HP —
+     * The finishing blow's threshold is five times the victim's remaining Health —
      * which is what makes it free at zero, with no separate flag needed:
      * `finishingBlowThreshold()` returns 0 and any roll clears it.
      */
@@ -1538,7 +1538,7 @@ export const CRISIS_ACTIONS = {
         despair: "You keep your feet, but only barely — Role reversal is open to you now.",
         critical: "You stop the bleeding. Both ways out are open, and you may take one of them "
             + "this turn without rolling.",
-        failure: "Nothing happens. On a Despair failure you lose an extra 1 HP or Stress.",
+        failure: "Nothing happens. On a Despair failure you lose an extra 1 Health or Sanity.",
         /**
          * The line above has said this since the action was written and nothing
          * was doing it — measured while rewriting the outcome cards. Despair
@@ -1558,12 +1558,12 @@ export const CRISIS_ACTIONS = {
         threshold: 18, traits: ["leg"], kind: "resolution",
         // Closed until Self-defence lands — see `selfDefence.unlocks`.
         lockedUntil: "selfDefence",
-        hint: "Withdraw from the incident and stop losing HP and Stress. Needs Self-defence first.",
+        hint: "Withdraw from the incident and stop losing Health and Sanity. Needs Self-defence first.",
         hope: "The incident ends and the drain stops.",
         despair: "The incident ends and the drain stops. You get a hint about who they were.",
         critical: "The incident ends, you get a hint about who they were, and immunity for this "
             + "chapter and the next.",
-        failure: "The incident continues. You lose an extra 1 HP or Stress.",
+        failure: "The incident continues. You lose an extra 1 Health or Sanity.",
         failureExtraDrain: 1,
         endsIncident: true
     },
@@ -1572,13 +1572,13 @@ export const CRISIS_ACTIONS = {
         threshold: 15, traits: ["hand", "leg", "body"], kind: "resolution",
         lockedUntil: "selfDefence",
         hint: "Tip the scales and become the killer yourself. From then on it is them losing "
-            + "HP and Stress. Needs Self-defence first.",
+            + "Health and Sanity. Needs Self-defence first.",
         weaponAdvantage: true,
-        hope: "You become the killer and recover all HP and Stress.",
+        hope: "You become the killer and recover all Health and Sanity.",
         despair: "You become the killer.",
-        critical: "You kill them outright. They can take no further action. You recover all HP "
-            + "and Stress and leave one Evident Reinforced Incident Remnant.",
-        failure: "Nothing happens. On a Despair failure you lose an extra 1 HP or Stress.",
+        critical: "You kill them outright. They can take no further action. You recover all Health "
+            + "and Sanity and leave one Evident Reinforced Incident Remnant.",
+        failure: "Nothing happens. On a Despair failure you lose an extra 1 Health or Sanity.",
         /**
          * As on Self-defence, and for the same reason: the sentence above was
          * written from the guide and the code was doing none of it. A victim
@@ -1600,7 +1600,7 @@ export const CRISIS_ACTIONS = {
     strike: {
         side: "killer", label: "Strike", icon: "fa-hand-fist",
         threshold: 15, traits: ["hand", "leg", "body"],
-        hint: "Speed up their decline. Costs 1 HP and 1 Stress from them.",
+        hint: "Speed up their decline. Costs 1 Health and 1 Sanity from them.",
         damage: {
             hope: { hp: 1, stress: 1 }, despair: { hp: 1, stress: 1 },
             // A critical is the same two marks, but the killer says where both
@@ -1611,7 +1611,7 @@ export const CRISIS_ACTIONS = {
             critical: { choice: true }, criticalAmount: 2
         },
         remnant: { hope: "hidden", despair: "subtle", critical: null },
-        failure: "Nothing on a Hope failure. On Despair you still take 1 Stress off them and "
+        failure: "Nothing on a Hope failure. On Despair you still take 1 Sanity off them and "
             + "leave an Evident Remnant; a critical failure leaves an Obvious one.",
         failureDamage: { despair: { stress: 1 } },
         failureRemnant: { despair: "evident", critical: "obvious" }
@@ -1667,13 +1667,13 @@ export const CRISIS_ACTIONS = {
     finishingBlow: {
         side: "killer", label: "Finishing blow", icon: "fa-skull-crossbones",
         traits: ["body", "leg", "hand"], kind: "resolution",
-        // The old hint ended "without this the victim keeps taking turns at 0 HP
-        // and 0 Stress", which stopped being true when running out started
+        // The old hint ended "without this the victim keeps taking turns at 0 Health
+        // and 0 Sanity", which stopped being true when running out started
         // ending the incident on its own. What the roll buys is ending it EARLY,
         // and the critical's free Stage 6 action — neither of which a victim who
         // simply bled out hands over.
-        hint: "End the incident now. Threshold is five times their remaining HP — free at 0 HP. "
-            + "A victim who runs out of both HP and Stress dies without this, but then nobody "
+        hint: "End the incident now. Threshold is five times their remaining Health — free at 0 Health. "
+            + "A victim who runs out of both Health and Sanity dies without this, but then nobody "
             + "earns what a critical here grants.",
         endsIncident: true,
         hope: "The incident ends.",
@@ -1707,10 +1707,10 @@ export const CRISIS_ACTIONS = {
         side: "third", label: "Escape together", icon: "fa-door-open",
         threshold: 15, traits: ["leg"], kind: "resolution",
         hint: "Get the victim out with you.",
-        hope: "Both of you escape. The victim's HP and Stress are restored.",
-        despair: "Both of you escape, but the victim's HP and Stress are not restored.",
+        hope: "Both of you escape. The victim's Health and Sanity are restored.",
+        despair: "Both of you escape, but the victim's Health and Sanity are not restored.",
         critical: "Both of you escape with immunity for this chapter and the next, and the "
-            + "victim's HP and Stress are restored.",
+            + "victim's Health and Sanity are restored.",
         /*
          * NOT "the newcomer becomes a second victim" — an incident has exactly
          * one victim, start to finish. That sentence described a rule the
@@ -1852,14 +1852,14 @@ export const TRIAL = {
     }
 };
 
-/** Resolution actions cost Stress rather than actions, and need Stress > 0. */
+/** Resolution actions cost Sanity rather than actions, and need Sanity > 0. */
 export const RESOLUTION_STRESS_COST = 1;
 
 /* ==========================================================================
  * STAGE 6 — CLEANING UP
  * --------------------------------------------------------------------------
  * Guide: "Przedmioty sprzątające ułatwiają rozwiązanie morderstwa", and Stage 6
- * is where the killer finally sees what they left and can spend Stress trying
+ * is where the killer finally sees what they left and can spend Sanity trying
  * to erase it.
  *
  * The thresholds are the module's own 9/12/15/18 ladder, read the other way up
@@ -1907,7 +1907,7 @@ export const CLEANUP = {
      * Three readings corrected against the guide's own table:
      *   despair       leaves a "Wyraźny" (evident) trace, not a subtle one.
      *   critical      "Morderca odzyskuje 1 stres" — the only Stage 6 outcome
-     *                 that hands the Stress back, and it was not doing it.
+     *                 that hands the Sanity back, and it was not doing it.
      *   failure       the guide splits it. A Hope failure simply does not work
      *                 ("Morderca nie usuwa Remnant." and nothing more); only a
      *                 Despair failure adds "Powstaje Jawny Resolution Remnant".
@@ -1964,7 +1964,7 @@ export const CLEANUP = {
      *   misleadingTrail  leave something that points at somebody else.
      *   moveBody         the body is evidence too, and it can be carried.
      *
-     * All three cost 1 Stress and need the killer in the room, per
+     * All three cost 1 Sanity and need the killer in the room, per
      * RESOLUTION_STRESS_COST and `isCleaner`.
      */
     actions: {
@@ -2029,7 +2029,7 @@ export const CLEANUP = {
      * musi rzucić kośćmi za ukrycie swoich intencji."
      *
      * The same shape as SABOTAGE_CONCEAL and the indirect murder's, and priced
-     * in Stress rather than in the roll: a Despair success still costs you one,
+     * in Sanity rather than in the roll: a Despair success still costs you one,
      * and a Despair failure costs two. Cleaning a room in front of a witness is
      * the most incriminating thing in the game.
      *

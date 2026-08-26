@@ -79,7 +79,7 @@ async function onChatMessage(message) {
  * Pay the second point of Hope a critical is worth.
  *
  * Guide: "A crit gives the player +2 hope." Daggerheart's own duality pipeline
- * pushes `{ key: 'hope', value: 1 }` on a critical (plus a Stress clear), so one
+ * pushes `{ key: 'hope', value: 1 }` on a critical (plus a Sanity clear), so one
  * point is already in place by the time this runs and only the difference is
  * owed.
  */

@@ -236,7 +236,7 @@ async function choosePicks(kind, count) {
 /**
  * Apply the chosen benefits.
  *
- * HP and Stress are reverse resources — `value` counts marks upward — so
+ * Health and Sanity are reverse resources — `value` counts marks upward — so
  * recovering means subtracting. A long rest clears the track; a short rest
  * clears half, rounded up in the character's favour.
  */
@@ -252,14 +252,14 @@ async function applyRest(actor, kind, picks) {
             const marks = resourceValue(actor, "hitPoints");
             const healed = full ? marks : Math.ceil(marks / 2);
             update["system.resources.hitPoints.value"] = marks - healed;
-            applied.push(`${opt.label}: ${healed} HP recovered`);
+            applied.push(`${opt.label}: ${healed} Health recovered`);
         }
 
         if (pick === "meal") {
             const marks = resourceValue(actor, "stress");
             const cleared = full ? marks : Math.ceil(marks / 2);
             update["system.resources.stress.value"] = marks - cleared;
-            applied.push(`${opt.label}: ${cleared} Stress cleared`);
+            applied.push(`${opt.label}: ${cleared} Sanity cleared`);
         }
 
         if (pick === "breath") {

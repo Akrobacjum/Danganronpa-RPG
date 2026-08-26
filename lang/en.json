@@ -65,6 +65,14 @@
           "name": "Despair",
           "abbreviation": "DE",
           "inChatRoll": "Despair"
+        },
+        "stress": {
+          "name": "Sanity",
+          "inChatRoll": "Sanity"
+        },
+        "hitPoints": {
+          "name": "Health",
+          "abbreviation": "Health"
         }
       },
       "CountdownProgressType": {
@@ -83,6 +91,12 @@
     },
     "GENERAL": {
       "fear": "Despair",
+      "stress": "Sanity",
+      "HitPoints": {
+        "single": "Health",
+        "plural": "Health",
+        "short": "Health"
+      },
       "Tabs": {
         "features": "Actions"
       },
@@ -97,7 +111,18 @@
     },
     "ACTORS": {
       "Character": {
-        "defaultFearDice": "Default Despair Dice"
+        "defaultFearDice": "Default Despair Dice",
+        "maxHPBonus": "Max Health Increase"
+      }
+    },
+    "EFFECTS": {
+      "Types": {
+        "stress": {
+          "name": "Sanity"
+        },
+        "hitPoints": {
+          "name": "Health"
+        }
       }
     },
     "UI": {
@@ -222,7 +247,7 @@
       },
       "lockPlayerResources": {
         "name": "Players cannot edit Actions, Hope or statistics",
-        "hint": "Those move through play — spend an action, take a rest, earn a Level Up. HP and Stress stay editable: players mark their own damage. GMs are unaffected."
+        "hint": "Those move through play — spend an action, take a rest, earn a Level Up. Health and Sanity stay editable: players mark their own damage. GMs are unaffected."
       },
       "chargeMovement": {
         "name": "Crossing rooms costs a Move",
@@ -308,8 +333,8 @@
         "one": "{actor} has {left} action left and needs {needed}.",
         "other": "{actor} has {left} actions left and needs {needed}."
       },
-      "woundedTooltip": "All HP is marked — one action per time of day.",
-      "lockedTooltip": "Forfeit. All HP is marked, so this stays shut until they heal.",
+      "woundedTooltip": "All Health is marked — one action per time of day.",
+      "lockedTooltip": "Forfeit. All Health is marked, so this stays shut until they heal.",
       "pipReadOnly": "{left} of {max} actions this time of day. Spent by acting.",
       "freeMoveAvailable": "Free Move still available this time of day.",
       "freeMoveSpent": "Free Move used. The next crossing costs an action.",
@@ -423,12 +448,12 @@
         "other": "{room}: {n} search tokens left this time of day."
       },
       "actionReturned": "Critical — the action is returned.",
-      "observeGm": "Total {total}. Score it against the Observe table for whatever they are looking at. A failure costs them 2 Stress.",
+      "observeGm": "Total {total}. Score it against the Observe table for whatever they are looking at. A failure costs them 2 Sanity.",
       "searchGoalHint": "What turns up depends on the room and the roll.",
       "goalHealing": "Something to patch me up",
-      "goalHealingHint": "Food and medicine. Restores HP.",
+      "goalHealingHint": "Food and medicine. Restores Health.",
       "goalStress": "Something to settle my nerves",
-      "goalStressHint": "Small comforts. Clears Stress.",
+      "goalStressHint": "Small comforts. Clears Sanity.",
       "goalCrimeHint": "A potential murder tool. Leaves a Prep Remnant.",
       "goalCleaningHint": "A cleaning tool. Leaves a Prep Remnant.",
       "goalSpecific": "Something specific",
@@ -497,7 +522,7 @@
       "noVariants": "Nothing here can be done right now.",
       "requestOptional": "Optional — leave it empty and the GM rules on the roll alone.",
       "searchTokensLeft": "Searches left here: {left} of {max}.",
-      "failStress": "A failed roll costs {n} Stress.",
+      "failStress": "A failed roll costs {n} Sanity.",
       "murderNeedsApproval": "A direct murder, declared in the dark. Nothing opens until you allow it — and who they end up alone with is not settled yet.",
       "murderApprove": "Allow it",
       "murderRefuse": "Refuse",
@@ -575,8 +600,8 @@
       "noneReadied": "Nothing is held ready — only what is in your hand counts in an incident or a clean-up.",
       "restoreN": "Restores {n}.",
       "restore": {
-        "hitPoints": "HP",
-        "stress": "Stress",
+        "hitPoints": "Health",
+        "stress": "Sanity",
         "hope": "Hope"
       },
       "creativePrompt": "{item} is Tier 0: a random, seemingly useless item. Tell the GM what you are doing with it.",
@@ -825,8 +850,8 @@
     "Cleanup": {
       "title": "Cleaning up",
       "action": "Clean up a trace",
-      "hint": "Spend 1 Stress to erase one trace you left. A readied Cleaning Tool makes it easier. Reinforced traces do not come off.",
-      "intro": "Wiping a trace costs an action and {n} Stress, and you have two actions this time of day.",
+      "hint": "Spend 1 Sanity to erase one trace you left. A readied Cleaning Tool makes it easier. Reinforced traces do not come off.",
+      "intro": "Wiping a trace costs an action and {n} Sanity, and you have two actions this time of day.",
       "which": "Which trace?",
       "confirm": "Scrub at it",
       "withTool": "{item} (Tier {tier}) in hand — advantage, and that much off the threshold.",
@@ -840,19 +865,19 @@
         "monokuma": "Monokuma does not clean up after himself. A killing made as a point is meant to be found."
       },
       "trailAction": "Misleading trail",
-      "trailHint": "Spend 1 Stress to plant a trace pointing at somebody else. A failure still plants something — just a Faint one nobody is likely to find.",
+      "trailHint": "Spend 1 Sanity to plant a trace pointing at somebody else. A failure still plants something — just a Faint one nobody is likely to find.",
       "trailTitle": "Point it at somebody else",
-      "trailIntro": "Planting a false trail costs an action and {n} Stress.",
+      "trailIntro": "Planting a false trail costs an action and {n} Sanity.",
       "trailWho": "Frame",
       "trailConfirm": "Plant it",
       "trailNobody": "There is nobody left to frame.",
       "moveAction": "Move the body",
-      "moveHint": "Spend 1 Stress to carry the body out of this room. It always leaves an Evident trace — a body cannot be dragged quietly.",
+      "moveHint": "Spend 1 Sanity to carry the body out of this room. It always leaves an Evident trace — a body cannot be dragged quietly.",
       "bodyNotHere": "The body is not in this room. You have to be standing over it to carry it anywhere.",
       "nothingHere": "Nothing to clean up in this room.",
       "allReinforced": "Every trace here is reinforced. None of it comes off.",
       "noRuling": "No GM answered in time. Try again once one is at the table.",
-      "rerollLost": "A Reroll arrived for a clean-up with no record here. Score the new number against that trace by hand, then put the Remnant back or refund the Stress to match.",
+      "rerollLost": "A Reroll arrived for a clean-up with no record here. Score the new number against that trace by hand, then put the Remnant back or refund the Sanity to match.",
       "reinforcedFlag": "reinforced — cannot be removed",
       "reinforced": "The {what} will not come off. Whatever left it, left it for good.",
       "vanished": "The trace you were working on is already gone. The effort still cost you.",
@@ -860,7 +885,7 @@
       "stillThere": "The trace is still there.",
       "leftTrace": "Your cleaning left a trace of its own.",
       "remnantNote": "Left while cleaning up the {what}.",
-      "stressSpent": "{n} Stress spent.",
+      "stressSpent": "{n} Sanity spent.",
       "band": {
         "critical": "Spotless.",
         "hope": "Clean.",
@@ -878,10 +903,10 @@
       "gmNoTool": "No Cleaning Tool readied — bare hands, no advantage.",
       "gmNothingHere": "No traces in the room the killer is standing in.",
       "gmAttemptsLeft": {
-        "one": "Stress left for {n} more attempt. Stage 6 ends when that runs out, or when you close the murder — closing destroys the tools that were used.",
-        "other": "Stress left for {n} more attempts. Stage 6 ends when that runs out, or when you close the murder — closing destroys the tools that were used."
+        "one": "Sanity left for {n} more attempt. Stage 6 ends when that runs out, or when you close the murder — closing destroys the tools that were used.",
+        "other": "Sanity left for {n} more attempts. Stage 6 ends when that runs out, or when you close the murder — closing destroys the tools that were used."
       },
-      "stressBack": "You get {n} Stress back.",
+      "stressBack": "You get {n} Sanity back.",
       "trailPlanted": "Planted a Prep Remnant ({visibility}) pointing at {name}.",
       "trailNote": "Planted to implicate {name}. {visibility}.",
       "trailFailed": "Nothing usable was left behind.",
@@ -892,7 +917,7 @@
       "bodyNote": "{name}'s body was dragged out of here towards {room}.",
       "seenCleaning": "{actor} is doing something in {room}, and not hiding it well.",
       "moveTitle": "Move the body",
-      "moveIntro": "The body is in {room}. Choose where you are dragging it. Costs an action and {n} Stress.",
+      "moveIntro": "The body is in {room}. Choose where you are dragging it. Costs an action and {n} Sanity.",
       "moveAlwaysTrace": "This always leaves an Evident trace behind, whatever the dice say. You cannot drag a corpse quietly.",
       "moveWhere": "Take it to",
       "moveConfirm": "Carry it there",
@@ -914,10 +939,10 @@
       "keyCount": "This case will leave {n} Key Remnants.",
       "trackerTitle": "Incident tracker",
       "ranOutTitle": "They ran out",
-      "ranOut": "{name} is out of HP and out of Stress. The incident ends and they are dead — no Finishing Blow was needed, and none was earned.",
+      "ranOut": "{name} is out of Health and out of Sanity. The incident ends and they are dead — no Finishing Blow was needed, and none was earned.",
       "rerollLost": "A Reroll arrived for a crisis action with no record here. Nothing was replayed, so the first result stands. Score the new number by hand.",
       "trackerState": "{stage} · turn {turn} · {side} to act",
-      "victimLeft": "Victim: {hp} HP, {stress} Stress left.",
+      "victimLeft": "Victim: {hp} Health, {stress} Sanity left.",
       "thirdIs": "{name} walked in",
       "passTurn": "Pass the turn",
       "addThird": "Somebody walks in",
@@ -948,14 +973,14 @@
       "notYourTurn": "It is not your turn.",
       "actionBlocked": "They have shut this one down for now.",
       "actionHindered": "They have made this harder — you roll at disadvantage.",
-      "noStressLeft": "Resolution actions cost Stress, and you have none.",
+      "noStressLeft": "Resolution actions cost Sanity, and you have none.",
       "yourTurn": "Incident — your turn",
       "theirTurn": "Incident — waiting for them",
       "advantageNext": "Advantage on the next attempt.",
       "leftRemnant": "Leaves a trace behind.",
       "damaged": "{name} takes {what}.",
       "drained": "{name} loses {n} to the incident.",
-      "killerChooses": "Critical — the killer chooses: 2 HP, 2 Stress, or 1 of each.",
+      "killerChooses": "Critical — the killer chooses: 2 Health, 2 Sanity, or 1 of each.",
       "hinderedActions": {
         "one": "{n} of their action at disadvantage for {turns} turns.",
         "other": "{n} of their actions at disadvantage for {turns} turns."
@@ -968,7 +993,7 @@
       "incidentEnded": "The incident is over.",
       "victimDead": "The victim is dead. The killer is Blackened.",
       "resolutionNote": "Stage 6. The killer now sees the Remnants on the map and can use resolution actions. Reinforced traces stay put. A crime tool that was used is destroyed.",
-      "spentStress": "Costs {n} Stress.",
+      "spentStress": "Costs {n} Sanity.",
       "thirdTitle": "You walk in on it",
       "thirdIntro": "One free choice: get them out with you, take a side, or turn away.",
       "band": {
@@ -992,7 +1017,7 @@
       "thresholdShort": "Beat {n}",
       "noRollNeeded": "No roll",
       "unlockedActions": "Unlocked: {names}.",
-      "drainStopped": "The bleeding stops — no further HP or Stress is lost this incident.",
+      "drainStopped": "The bleeding stops — no further Health or Sanity is lost this incident.",
       "indirectBegins": "The trap closes. The incident begins with the victim alone, losing 2 a turn.",
       "asTier": "As Tier {n}",
       "tierZeroTitle": "Tier 0 weapon — your ruling",
@@ -1027,21 +1052,21 @@
       "victimTrapSprung": "<strong>The trap closes.</strong> You did not see it in time. The incident has begun and the first turn is yours — your crisis actions are on your character sheet, under Actions.",
       "betrayTileLabel": "Turn on your partner",
       "betrayTileHint": "Kill the person you just helped. This opens a second incident with you as the killer and them as the victim, and leaves two bodies from one night. The GM confirms before anything happens.",
-      "briefCostStress": "Costs {n} Stress.",
+      "briefCostStress": "Costs {n} Sanity.",
       "briefThreshold": "Beat {n}.",
       "briefRoll": "Roll it",
       "briefTake": "Do it",
       "criticalChoiceTitle": "A clean hit",
       "criticalChoiceIntro": "The blow lands exactly where you wanted it. Take both marks off the same place — their body, or their nerve.",
-      "criticalChoiceHp": "Both off HP",
-      "criticalChoiceStress": "Both off Stress",
+      "criticalChoiceHp": "Both off Health",
+      "criticalChoiceStress": "Both off Sanity",
       "ranOutTwoKillers": "{victim} has nothing left. {killers} are both in this.",
       "ranOutTwoKillersNote": "End it now and the incident moves to the clean-up. Keep going and the turn order carries on — nobody loses a turn they were owed, and you can end it from the tracker whenever you like.",
       "ranOutEndNow": "End the incident",
       "ranOutKeepGoing": "Keep going",
       "crowdedTitle": "Too many people",
       "crowded": "{name} walked in on top of {third}. Four people in one room is not a murder anybody can carry out — the incident is cancelled.",
-      "crowdedNote": "Nobody dies. What the fight already did stands: the wounds, the Stress, and anything it left on the floor."
+      "crowdedNote": "Nobody dies. What the fight already did stands: the wounds, the Sanity, and anything it left on the floor."
     },
     "Investigation": {
       "plannerIntro": "Five clues for chapter {chapter}. Together they should narrow the suspects to {min}–{max} people.",
@@ -1172,7 +1197,7 @@
       "vaultPending": "Their stash was emptied with them — the count above includes anything put away.",
       "stageSixTitle": "That was the victim of the incident",
       "stageSixIntro": "{victim} is the victim of the incident {killer} is in, and the incident is still running.",
-      "stageSixWhat": "Moving it to Stage 6 lets {killer} see the traces they left and spend Stress trying to erase them. The incident stays open until you close it, so nothing is announced yet.",
+      "stageSixWhat": "Moving it to Stage 6 lets {killer} see the traces they left and spend Sanity trying to erase them. The incident stays open until you close it, so nothing is announced yet.",
       "stageSixYes": "Move to Stage 6",
       "stageSixNo": "Leave the incident running",
       "alreadyDead": "{name} is already marked as dead.",
@@ -1302,7 +1327,7 @@
       "sent": "The GM is judging what you found.",
       "noRuling": "No GM settled what you were looking at. Your action is not spent.",
       "failedTitle": "You find nothing",
-      "failed": "Nothing catches your eye. You take {stress} Stress.",
+      "failed": "Nothing catches your eye. You take {stress} Sanity.",
       "critIdentified": "You found it, and you know what kind of trace it is.",
       "defaultName": "Trace — {room}",
       "pickTitle": "Observe — which trace?",
@@ -1765,7 +1790,7 @@
         "other": "Actions refilled for {count} characters"
       },
       "searchTokensRestocked": "Every room restocked with search tokens",
-      "woundedNote": "Down to one action this time of day, all HP marked: {names}."
+      "woundedNote": "Down to one action this time of day, all Health marked: {names}."
     },
     "Panel": {
       "title": "Danganronpa — GM Panel",
@@ -1835,8 +1860,8 @@
     "Character": {
       "notACharacter": "That only works on a character.",
       "initTitle": "Starting resources",
-      "initTooltip": "Not set up yet. Give them their starting resources: {hp} HP, {stress} Stress, {hope} Hope.",
-      "initConfirm": "Give {actor} their starting resources: {hp} HP, {stress} Stress and {hope} Hope?",
+      "initTooltip": "Not set up yet. Give them their starting resources: {hp} Health, {stress} Sanity, {hope} Hope.",
+      "initConfirm": "Give {actor} their starting resources: {hp} Health, {stress} Sanity and {hope} Hope?",
       "initNote": "Until this is done the character counts as Wounded and in Breakdown: one action instead of two, and disadvantage on every roll.",
       "startingItemNote": "Agreed at character creation, tied to {ultimate}.",
       "startingItemMissing": "No starting item named. Every student begins with one Tier 2 item tied to their Ultimate."
@@ -1916,7 +1941,7 @@
       "observeReplayed": "The same trace goes back to the GM with the new roll. They will say what you find this time.",
       "analyzeReplayed": "The same Truth Bullet is analysed again with the new roll. Any lock the first attempt left is lifted first.",
       "crisisReplayed": "The crisis action is taken back and made again with the new roll — the damage, the trace and any hindrance go with it. The turn is not spent twice.",
-      "cleanupReplayed": "The clean-up is taken back and attempted again. The trace comes back, anything the botched wipe left is removed, and the Stress is refunded first.",
+      "cleanupReplayed": "The clean-up is taken back and attempted again. The trace comes back, anything the botched wipe left is removed, and the Sanity is refunded first.",
       "itemTakenBack": "{item} is taken back out of your inventory.",
       "itemStuck": "{item} could not be removed automatically — ask the GM to take it.",
       "itemDrawn": "You find {item} instead (Tier {tier}).",
@@ -1974,11 +1999,11 @@
     "States": {
       "drpgBreakdown": {
         "name": "Breakdown",
-        "description": "Every point of Stress is marked. Disadvantage on every roll."
+        "description": "Every point of Sanity is marked. Disadvantage on every roll."
       },
       "drpgWounded": {
         "name": "Wounded",
-        "description": "Every point of HP is marked. One action fewer per time of day."
+        "description": "Every point of Health is marked. One action fewer per time of day."
       }
     },
     "Rules": {
@@ -2084,7 +2109,7 @@
       "hint.cast": "One character per student. Monokumas are separate and do not count here.",
       "step.monokumas": "At least one Monokuma",
       "hint.monokumas": "A Monokuma holds a Despair pool. With none, Despair has nowhere to go.",
-      "step.resources": "Starting HP, Stress and Hope",
+      "step.resources": "Starting Health, Sanity and Hope",
       "hint.resources": "Until this is set, a character counts as Wounded AND Broken Down: one action instead of two, and disadvantage on every roll.",
       "step.ultimate": "Everybody has an Ultimate",
       "hint.ultimate": "The title is the character. It is a sentence somebody writes, so this opens the sheet rather than inventing one.",

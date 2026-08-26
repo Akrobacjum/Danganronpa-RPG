@@ -211,7 +211,7 @@ export async function applyCall(actor, key, kind, choice = {}) {
         if (call.damage && choice.target) {
             const update = {};
             for (const [resource, amount] of Object.entries(call.damage)) {
-                // HP and Stress are reverse resources: marks count up to max.
+                // Health and Sanity are reverse resources: marks count up to max.
                 const marks = resourceValue(choice.target, resource);
                 const max = resourceMax(choice.target, resource);
                 update[`system.resources.${resource}.value`] = Math.min(max, marks + amount);
@@ -219,7 +219,7 @@ export async function applyCall(actor, key, kind, choice = {}) {
             await automatedUpdate(choice.target, update);
             done.push(game.i18n.format("DRPG.Calls.damaged", {
                 name: choice.target.name,
-                what: Object.entries(call.damage).map(([r, n]) => `${n} ${r === "hitPoints" ? "HP" : "Stress"}`).join(", ")
+                what: Object.entries(call.damage).map(([r, n]) => `${n} ${r === "hitPoints" ? "Health" : "Sanity"}`).join(", ")
             }));
         }
 

@@ -20,7 +20,7 @@
  *
  * So the observer's client does exactly two things: ask for a target, and throw
  * the dice. The number travels here; the verdict, the Truth Bullet and the
- * Stress are all produced on this side. The player is told the outcome, never
+ * Sanity are all produced on this side. The player is told the outcome, never
  * the difficulty.
  */
 
@@ -311,7 +311,7 @@ async function undoPrevious(actor, entry) {
         }
     }
 
-    // Stress taken for a miss that is no longer a miss has to come back, or a
+    // Sanity taken for a miss that is no longer a miss has to come back, or a
     // Reroll would charge for a failure it just erased.
     if (previous.stress) {
         const marks = resourceValue(actor, "stress");
@@ -320,7 +320,7 @@ async function undoPrevious(actor, entry) {
             try {
                 await automatedUpdate(actor, { "system.resources.stress.value": next });
             } catch (err) {
-                error("Could not return the Stress a reroll undid", err);
+                error("Could not return the Sanity a reroll undid", err);
             }
         }
     }
@@ -329,7 +329,7 @@ async function undoPrevious(actor, entry) {
 }
 
 /**
- * A failed Observe costs 2 Stress. Stress is a reverse resource in Daggerheart:
+ * A failed Observe costs 2 Sanity. Sanity is a reverse resource in Daggerheart:
  * marks count up towards the maximum, so a failure raises the value.
  */
 async function applyFailure(actor, total, entry) {
@@ -341,7 +341,7 @@ async function applyFailure(actor, total, entry) {
         try {
             await automatedUpdate(actor, { "system.resources.stress.value": next });
         } catch (err) {
-            error("Could not apply the Stress from a failed Observe", err);
+            error("Could not apply the Sanity from a failed Observe", err);
         }
     }
 

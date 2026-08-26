@@ -19,11 +19,67 @@ import { dialogContent, wirePortraitPickers, panelTabs, wirePanelTabs, whisperTo
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
-/** Table name pattern: "DRPG Usable Items — Tier 2", or "… (Healing) — Tier 2". */
+/** Table name pattern: "DRPG Usables — Tier 2", or "… (Healing) — Tier 2". */
 export function tableName(category, tier, goal = null) {
     const base = ITEM_CATEGORIES[category]?.plural ?? category;
     const suffix = USABLE_GOALS[goal] ? ` (${USABLE_GOALS[goal].label})` : "";
     return `DRPG ${base}${suffix} — Tier ${tier}`;
+}
+
+/**
+ * WHAT THESE TABLES USED TO BE CALLED, and why it has to be written down.
+ *
+ * A table is found by NAME, and its name is built out of labels that are
+ * ordinary display copy — the kind that gets reworded. Every time one was, the
+ * lookup started missing a table that was sitting right there: "Crime Tools"
+ * became "Murder Weapons", "Usable Items" became "Usables", and (26.08)
+ * "Stress Relief" became "Sanity Relief". Measured in the QA world before this
+ * was written: ZERO of the eight usable tier tables were being found, and the
+ * crime tool tables none either.
+ *
+ * It failed silently, which is the worst part. `drawItem` falls through to the
+ * built-in pools when no table answers, so a Search still produced an item —
+ * just never one the GM had put in a table. Everything they curated was being
+ * ignored, and `installTables` would have gone on to build a second, parallel
+ * set under the new names beside the ones already there.
+ *
+ * So every label these names have ever carried lives here, oldest last, and
+ * lookups try the current name first and then the history. Nothing is renamed
+ * in anybody's world: a table the GM has been editing for a season keeps the
+ * name they know it by, and a fresh world gets today's. Add to this list — do
+ * not edit it — whenever a label above changes.
+ */
+const LEGACY_PLURALS = {
+    usable: ["Usable Items"],
+    crimeTool: ["Crime Tools"]
+};
+
+const LEGACY_GOAL_LABELS = {
+    stress: ["Stress Relief"]
+};
+
+/**
+ * Every name this table could be sitting under, current one first.
+ *
+ * @returns {string[]}
+ */
+export function tableNameCandidates(category, tier, goal = null) {
+    const bases = [ITEM_CATEGORIES[category]?.plural ?? category, ...(LEGACY_PLURALS[category] ?? [])];
+    const suffixes = USABLE_GOALS[goal]
+        ? [USABLE_GOALS[goal].label, ...(LEGACY_GOAL_LABELS[goal] ?? [])].map(l => ` (${l})`)
+        : [""];
+
+    const names = [];
+    for (const base of bases) {
+        for (const suffix of suffixes) names.push(`DRPG ${base}${suffix} — Tier ${tier}`);
+    }
+    return names;
+}
+
+/** The one that actually exists in this world, if any — else today's name. */
+export function existingTableName(category, tier, goal = null) {
+    const names = tableNameCandidates(category, tier, goal);
+    return names.find(n => game.tables?.getName?.(n)) ?? names[0];
 }
 
 /**
@@ -48,12 +104,12 @@ export function isTierPool(name) {
  * This split used to be cosmetic — a courtesy so a Search for "something to
  * patch me up" did not hand over chewing gum. Since 2026-08-26 it is the rules:
  * which table an item belongs to IS what the item does. A healing usable
- * restores HP, a stress-relief one clears Stress, and nobody is asked which at
+ * restores Health, a stress-relief one clears Sanity, and nobody is asked which at
  * the moment of use — `usableKindFor` below is how the Use action reads the
  * answer back off these tables.
  *
  * Tier 3 appears in both because it is the one tier where the kinds meet: it
- * restores 2 HP or 2 Stress at the player's choice, plus 2 Hope.
+ * restores 2 Health or 2 Sanity at the player's choice, plus 2 Hope.
  */
 export const USABLE_GOALS = {
     healing: {
@@ -79,7 +135,7 @@ export const USABLE_GOALS = {
 /**
  * Which kind of usable an item of this name is, read off the tables.
  *
- * The world's Healing and Stress Relief tables are the authority — they are
+ * The world's Healing and Sanity Relief tables are the authority — they are
  * what the GM edits, so an item moved from one to the other changes what it
  * does the next time anybody drinks it, with no flag to chase. The built-in
  * pools only answer when no world table knows the name at all (a world where
@@ -163,7 +219,7 @@ export const ITEM_POOLS = {
  */
 export const PROJECT_ITEMS = {
     3: [
-        { name: "Sleeping draught", note: "Restores 3 Stress, or puts a victim to sleep." },
+        { name: "Sleeping draught", note: "Restores 3 Sanity, or puts a victim to sleep." },
         { name: "Lethal poison", note: "A Desperate project." },
         { name: "Gift", note: "Must be handed over immediately. Grants the maker 3 Hope." }
     ]
@@ -215,8 +271,11 @@ export async function drawItem(category, tier, { goal = null, room = null } = {}
 
     const names = [
         ...roomNames,
-        tableName(category, tier, goal),
-        tableName(category, tier)
+        // Every name these have ever been called — see LEGACY_PLURALS. A world
+        // whose tables were built before a label was reworded is still the
+        // world whose tables answer.
+        ...tableNameCandidates(category, tier, goal),
+        ...tableNameCandidates(category, tier)
     ].filter(Boolean);
 
     for (const name of names) {
@@ -306,7 +365,7 @@ export async function installTables({ overwrite = false, prompt = true } = {}) {
 
     // Already complete: offer the rebuild rather than reporting a silent no-op.
     if (prompt && !overwrite) {
-        const present = jobs.filter(j => game.tables.getName(tableName(j.category, j.tier, j.goal)));
+        const present = jobs.filter(j => game.tables.getName(existingTableName(j.category, j.tier, j.goal)));
         if (present.length === jobs.length) {
             const choice = await DialogV2.wait({
                 window: { title: game.i18n.localize("DRPG.Panel.installTables") },
@@ -325,7 +384,7 @@ export async function installTables({ overwrite = false, prompt = true } = {}) {
             if (choice === "keep") {
                 ui.notifications.info(game.i18n.format("DRPG.Tables.allPresent", { n: present.length }));
                 await openTablesTab();
-                return { created: [], skipped: present.map(j => tableName(j.category, j.tier, j.goal)), failed: [] };
+                return { created: [], skipped: present.map(j => existingTableName(j.category, j.tier, j.goal)), failed: [] };
             }
             overwrite = true;
         }
@@ -348,7 +407,10 @@ export async function installTables({ overwrite = false, prompt = true } = {}) {
     const failed = [];
 
     for (const { category, tier, names, goal } of jobs) {
-        const name = tableName(category, tier, goal);
+        // Under whatever name it is ALREADY sitting, or today's if it is new —
+        // otherwise a world whose tables predate a reworded label gets a second
+        // parallel set built beside the ones the GM has been editing.
+        const name = existingTableName(category, tier, goal);
         const existing = game.tables.getName(name);
 
         if (existing && !overwrite) {
@@ -600,7 +662,7 @@ export async function openItemTables({ preset = null } = {}) {
     // forced — the GM can add or clear any of them before pressing Add.
     const presetTargets = new Set();
     if (preset?.category) {
-        const wanted = [tableName(preset.category, preset.tier ?? 0)];
+        const wanted = tableNameCandidates(preset.category, preset.tier ?? 0);
         if (preset.room) {
             const base = await tableForRoom(preset.room);
             if (base) {

@@ -76,7 +76,7 @@ export function registerPlayerStatus() {
  * and it draws the frame whether or not anything is in it. In most games that
  * is a reasonable default — a character usually has a few effects. In this one
  * `states.mjs` removes the system's own statuses and puts exactly two back:
- * Breakdown (Stress full) and Wounded (HP at zero). So "no active effects" and
+ * Breakdown (Sanity full) and Wounded (Health at zero). So "no active effects" and
  * "unhurt and composed" are the same sentence here, and the widget spends the
  * entire session as an empty box in the corner.
  *
@@ -154,7 +154,7 @@ function ownCharacter() {
  */
 function keepMounted() {
     // Every render is also a chance to get the effects widget right: an actor
-    // update that changed HP is what removes Wounded, and the strip redraws for
+    // update that changed Health is what removes Wounded, and the strip redraws for
     // it anyway.
     syncEffectsWidget();
 

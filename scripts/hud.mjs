@@ -876,8 +876,8 @@ function buildTimeRow(clock, isGM) {
 /* ==========================================================================
  * WHOSE TURN IT IS
  * --------------------------------------------------------------------------
- * An incident is turn-based, and every turn costs the victim Stress and then
- * HP. All of that state lived in one place: the Incident tracker window. Close
+ * An incident is turn-based, and every turn costs the victim Sanity and then
+ * Health. All of that state lived in one place: the Incident tracker window. Close
  * it — or never open it, which is every player's situation, since it is a GM
  * window — and you are playing the tensest scene in the game blind.
  *
@@ -987,7 +987,7 @@ function buildIncident() {
 }
 
 /**
- * HP and Stress are reverse resources in Daggerheart — `value` counts marks,
+ * Health and Sanity are reverse resources in Daggerheart — `value` counts marks,
  * not what is left. Duplicated from character.mjs rather than imported for the
  * same cycle reason as the state read above.
  */

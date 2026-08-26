@@ -349,7 +349,7 @@ function situationalGrant() {
  * Disadvantage the character is carrying around with them.
  *
  * Breakdown only, and it is not shielded the way a Call is: a supporting roll
- * made while every point of Stress is marked is still made by somebody in
+ * made while every point of Sanity is marked is still made by somebody in
  * pieces, so `shieldCalls()` deliberately does not reach this.
  */
 function stateGrant(actor) {

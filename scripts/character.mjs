@@ -1,9 +1,9 @@
 /**
  * Danganronpa RPG — character helpers.
  * ---------------------------------------------------------------------------
- * Daggerheart derives a character's max HP from their class. We have no
+ * Daggerheart derives a character's max Health from their class. We have no
  * classes, so the starting resources from the guide have to be written onto
- * the actor directly: HP 4, Stress 6, Hope 2.
+ * the actor directly: Health 4, Sanity 6, Hope 2.
  *
  * Max Hope (6) and the GM's max Despair (12) already default to exactly the
  * guide's numbers in Daggerheart's homebrew settings, so they are left alone.
@@ -18,7 +18,7 @@ import { log } from "./utils.mjs";
  *
  * @param {Actor} actor
  * @param {object} [options]
- * @param {boolean} [options.resetValues]  Also refill HP/Stress and reset Hope.
+ * @param {boolean} [options.resetValues]  Also refill Health/Sanity and reset Hope.
  * @param {string|null} [options.startingItem]  Name of the Tier 2 item this
  *   student begins with. The guide gives everybody one — "rozpoczyna grę z
  *   jednym przedmiotem Tier 2 związanym z jego Ultimate" — and in the same
@@ -48,7 +48,7 @@ export async function initCharacter(actor, {
         update["system.resources.hope.value"] = STARTING.hope;
     }
 
-    // Through the automation channel, not a bare update. HP and Stress became
+    // Through the automation channel, not a bare update. Health and Sanity became
     // GM-only in 1.0.1, and this writes both — so a plain `update()` from a
     // player pressing the set-up wand on their own sheet would be stripped by
     // the guard and the character would come out with the maxima set and the
@@ -86,7 +86,7 @@ export async function initCharacter(actor, {
     // back to. See `restoreStartingSheet`.
     await stampStartingSheet(actor);
 
-    log(`Initialised ${actor.name}: HP ${STARTING.hp}, Stress ${STARTING.stress}, Hope ${STARTING.hope}.`);
+    log(`Initialised ${actor.name}: Health ${STARTING.hp}, Sanity ${STARTING.stress}, Hope ${STARTING.hope}.`);
     return actor;
 }
 
@@ -173,19 +173,19 @@ export function resourceValue(actor, key) {
 }
 
 /**
- * Remaining HP/Stress as the players read it on the sheet. Both are reverse
+ * Remaining Health/Sanity as the players read it on the sheet. Both are reverse
  * resources, so "how much is left" is max minus marks.
  */
 export function remaining(actor, key) {
     return resourceMax(actor, key) - resourceValue(actor, key);
 }
 
-/** True when the character has taken every point of Stress (Daggerheart: vulnerable). */
+/** True when the character has taken every point of Sanity (Daggerheart: vulnerable). */
 export function isBrokenDown(actor) {
     return remaining(actor, "stress") <= 0;
 }
 
-/** True when the character has taken every point of HP. */
+/** True when the character has taken every point of Health. */
 export function isWounded(actor) {
     return remaining(actor, "hitPoints") <= 0;
 }

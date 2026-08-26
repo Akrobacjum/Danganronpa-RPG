@@ -4,7 +4,7 @@
  * Guide:
  *   "Each player has 2 actions per time of day by default."
  *   "Move: one free move per time of day. Every further move costs an action."
- *   "Losing all HP during Daily Life costs the character -1 action per time of day."
+ *   "Losing all Health during Daily Life costs the character -1 action per time of day."
  *
  * The budget is derived, never stored: a character who heals mid-day gets their
  * action back on the next reset instead of being stuck at one.

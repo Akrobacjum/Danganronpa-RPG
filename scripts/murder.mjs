@@ -12,7 +12,7 @@
  *            the roll, the fewer clues. The victim's decides whether they
  *            sense it coming.
  *   Stage 5  the incident. The victim always moves first, and every turn costs
- *            them Stress until it runs out and then HP. Both sides pick crisis
+ *            them Sanity until it runs out and then Health. Both sides pick crisis
  *            actions; a third party who walks in gets a free one.
  *   Stage 6  resolution. The killer cleans up — and now, for the first time,
  *            can see the Remnants they left.
@@ -178,7 +178,7 @@ export function availableCrisisActions(actor) {
                 def,
                 // The number to beat, computed here rather than read off `def`
                 // by the sheet: a Finishing Blow's threshold is not a constant,
-                // it falls as the victim runs out of HP. `null` for the three
+                // it falls as the victim runs out of Health. `null` for the three
                 // decisions that have no dice at all.
                 threshold: def.noRoll
                     ? null
@@ -367,7 +367,7 @@ export async function resolveKillerOpening({ total, isCritical, withHope }) {
 
     const patch = { stage: "incident", keyRemnants: keys, turn: 1, turnSide: "victim" };
 
-    // A Despair success costs the victim their Stress and their way out.
+    // A Despair success costs the victim their Sanity and their way out.
     if (band === "despair") {
         const victim = game.actors.get(state.victimId);
         if (victim) {
@@ -475,7 +475,7 @@ export async function resolveVictimOpening({ total, isCritical, withHope }) {
  * which statistic it rolls, the number to beat and what a miss does — so the
  * window is the rules entry rather than a second, drifting description of it.
  * The threshold comes from `availableCrisisActions` because a Finishing Blow's
- * is not a constant: it falls as the victim runs out of HP, and quoting the
+ * is not a constant: it falls as the victim runs out of Health, and quoting the
  * table value would be a lie exactly when the number matters most.
  *
  * @returns {Promise<boolean>} false if they backed out.
@@ -575,10 +575,10 @@ export async function takeCrisisAction(actor, key) {
         ui.notifications.warn(game.i18n.localize("DRPG.Murder.actionBlocked"));
         return null;
     }
-    // A resolution action costs Stress rather than an action, and needs some.
+    // A resolution action costs Sanity rather than an action, and needs some.
     //
     // The third party's three decisions are exempt: the guide hands them an
-    // "automatyczny, darmowy wybór", and charging Stress to somebody who has
+    // "automatyczny, darmowy wybór", and charging Sanity to somebody who has
     // only just walked through the door — and may be choosing to walk straight
     // back out — is not what "darmowy" means.
     if (def.kind === "resolution" && !def.noRoll
@@ -926,7 +926,7 @@ export async function resolveCrisisAction({
     }
 
     // The third party's decisions are "automatyczny, darmowy wybór" — free in
-    // the guide's own words — so they are exempt from the Stress a resolution
+    // the guide's own words — so they are exempt from the Sanity a resolution
     // action normally costs, exactly as they are exempt from the check for it
     // in `takeCrisisAction`.
     if (def.kind === "resolution" && !def.noRoll) await spendStress(actor, done);
@@ -1101,7 +1101,7 @@ async function restoreResource(actor, field, value) {
 /* ==========================================================================
  * RUNNING OUT
  * --------------------------------------------------------------------------
- * A victim whose HP and Stress are both full of marks has nothing left to
+ * A victim whose Health and Sanity are both full of marks has nothing left to
  * spend, and the incident is over whether or not anybody presses a button.
  *
  * This used to wait for a Finishing Blow. The victim kept taking turns at zero
@@ -1115,7 +1115,7 @@ async function restoreResource(actor, field, value) {
  * all. The incident simply stops and Stage 6 opens.
  * ========================================================================== */
 
-/** Both tracks full: HP and Stress are reverse resources, marks count up. */
+/** Both tracks full: Health and Sanity are reverse resources, marks count up. */
 function isSpent(actor) {
     if (!actor) return false;
     return resourceValue(actor, "hitPoints") >= resourceMax(actor, "hitPoints")
@@ -1185,11 +1185,11 @@ async function checkVictimSpent(done = null) {
         error(`Could not record ${victim.name}'s death when they ran out`, err);
     }
 
-    log(`${victim.name} ran out of HP and Stress; the incident ended by itself.`);
+    log(`${victim.name} ran out of Health and Sanity; the incident ended by itself.`);
     return true;
 }
 
-/** Five times the victim's remaining HP; free once they are at zero. */
+/** Five times the victim's remaining Health; free once they are at zero. */
 function finishingBlowThreshold(state) {
     const victim = game.actors.get(state.victimId);
     if (!victim) return 0;
@@ -1247,7 +1247,7 @@ async function applyRemnant(actor, visibility, def, band, done, reinforced = fal
     return last ?? null;
 }
 
-/** Damage the killer deals. HP and Stress are reverse resources. */
+/** Damage the killer deals. Health and Sanity are reverse resources. */
 async function applyDamage(actor, state, def, band, done, failed = false, choice = null) {
     const table = failed ? def.failureDamage : def.damage;
     let hit = table?.[band];
@@ -1493,7 +1493,7 @@ async function finishIncident(state, key, band, done) {
         // counted as a person in the room by `othersInRoom`, still on the
         // living roster the Class Trial votes from. The one route the engine
         // owns end to end was the one route that did not record the death —
-        // running out of HP and Stress has always called this (see
+        // running out of Health and Sanity has always called this (see
         // `checkVictimSpent`), and so has the GM's own screen.
         //
         // After the stage write, deliberately: a death that fails must not
@@ -1533,7 +1533,7 @@ export async function beginResolution(reason = "victimKilled") {
     return murderState();
 }
 
-/** One turn's cost to the victim: Stress first, then HP. */
+/** One turn's cost to the victim: Sanity first, then Health. */
 async function drain(state, amount, done) {
     // A critical Self-defence buys the bleeding stopping — guide: "Ofiara
     // przestaje tracić hp i stress."
@@ -1798,7 +1798,7 @@ export async function thirdPartyEnters(actor) {
  * NOBODY DIES. The incident is cancelled where it stands: no body, no Blackened
  * (`recordBlackened` only fires from the resolution stage), no post-incident
  * checklist. What has already happened stays happened — the damage taken, the
- * Stress spent, the Remnants the fight has already put on the floor.
+ * Sanity spent, the Remnants the fight has already put on the floor.
  *
  * THE NEWCOMER IS NOT TOLD, and that is deliberate. Everyone who was in the
  * incident hears it; the person who walked in gets whatever the GM decides they
@@ -2266,7 +2266,7 @@ async function announceCrisis(actor, def, { success, band, total, threshold, don
     // NOTHING from the table — what happened is in `done`.
     //
     // `def.failure` is one string covering every branch at once: "Nothing on a
-    // Hope failure. On Despair you still take 1 Stress off them and leave an
+    // Hope failure. On Despair you still take 1 Sanity off them and leave an
     // Evident Remnant; a critical failure leaves an Obvious one." That is a
     // reference table, and the player has to work out which third of it applies
     // to the roll they just made — while the line directly under it already
@@ -2407,7 +2407,7 @@ export async function openMurderDialog({ killerId = null, indirect = false } = {
  *
  * These two dice decide whether a murder happens at all, and they used to be
  * thrown on the GM's client — so the roll window opened on the wrong screen, the
- * Hope or Stress it produced was committed by the GM, and a Call the killer had
+ * Hope or Sanity it produced was committed by the GM, and a Call the killer had
  * armed for exactly this moment could not be reached. The guide gives the roll
  * to the killer and to the victim; this gives them the dice.
  *
@@ -2700,7 +2700,7 @@ export async function openIncidentTracker() {
  * What the killer is standing in, once the fight is over.
  *
  * Read-only on purpose. The clean-up itself is the killer's action and costs
- * their Stress — the GM watching it happen needs to know what is still there and
+ * their Sanity — the GM watching it happen needs to know what is still there and
  * what will not come off, not a button to do it for them. Reinforced traces are
  * listed and marked rather than hidden: "there is one you cannot touch" is the
  * single most useful thing this table says.
@@ -2737,7 +2737,7 @@ async function cleanupSection(killer) {
     </tr>`).join("");
 
     // How much scrubbing the killer still has in them. Stage 6 has no turn
-    // limit — it ends when the Stress runs out or the GM says so — and without
+    // limit — it ends when the Sanity runs out or the GM says so — and without
     // this the GM had no way to see which of those was coming.
     const left = Math.max(0,
         Math.floor((resourceMax(killer, "stress") - resourceValue(killer, "stress"))

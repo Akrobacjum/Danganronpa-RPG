@@ -311,7 +311,7 @@ function dynamicDef() {
  * Roll through the system so dice, skins and chat cards behave normally.
  *
  * Daggerheart's roll pipeline only *prepares* the resource changes a duality
- * roll causes — +1 Hope, -1 Stress on a critical, +1 Fear — and leaves them in
+ * roll causes — +1 Hope, -1 Sanity on a critical, +1 Fear — and leaves them in
  * `result.resourceUpdates` for the caller to commit. The sheet's own trait
  * button calls `updateResources()`; ours has to as well, or actions roll dice
  * and quietly hand out nothing.
@@ -672,7 +672,7 @@ async function diceSettled(messageId) {
     } catch { /* see DICE_SETTLE_MS */ }
 }
 
-/** Apply the Hope/Stress/Fear changes the roll produced, plus any costs. */
+/** Apply the Hope/Sanity/Fear changes the roll produced, plus any costs. */
 async function commitResources(result) {
     const updates = result?.resourceUpdates;
     if (!updates?.updateResources) return;
@@ -758,7 +758,7 @@ async function chooseTrait(actor, def, { intro = "" } = {}) {
  *
  * Used by the actions that must pay before rolling — an indirect murder or a
  * watched sabotage throws a concealment roll first, and every roll commits its
- * Hope, Stress and Despair. Charging afterwards let a player collect those and
+ * Hope, Sanity and Despair. Charging afterwards let a player collect those and
  * then cancel; charging first means an honest cancel has to be refunded.
  */
 async function abort(actor, cost) {
@@ -1567,7 +1567,7 @@ async function workOnProject(actor, def, options, chosen = null) {
     // Pay before any dice are thrown.
     //
     // An indirect murder rolls to conceal intent *before* the project roll, and
-    // every roll commits its resources — Hope, Stress, and a Despair point to a
+    // every roll commits its resources — Hope, Sanity, and a Despair point to a
     // Monokuma. With the charge sitting after the main roll, backing out of that
     // roll left the conceal roll's winnings in place at no cost, which is a Hope
     // generator anyone could run all day.

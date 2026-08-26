@@ -1180,7 +1180,7 @@ export function requestCleanableTraces(actorId, timeoutMs = 180000) {
  * Hand a thrown Observe to the GM to be scored.
  *
  * Fire-and-forget by design: the answer is the whisper the player gets when the
- * GM's client has finished — a Truth Bullet on their sheet or 2 Stress — so
+ * GM's client has finished — a Truth Bullet on their sheet or 2 Sanity — so
  * there is nothing for a second reply to add.
  */
 export function requestObserveResolve({ actorId, key, total, isCritical, undo = false }) {

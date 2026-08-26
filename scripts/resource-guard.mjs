@@ -8,7 +8,7 @@
  * So those fields become read-only for players and writable only by the GM or
  * by this module's own automation.
  *
- * HP AND STRESS ARE IN THAT LIST AS OF 1.0.1. They used to be the exception, on
+ * Health AND STRESS ARE IN THAT LIST AS OF 1.0.1. They used to be the exception, on
  * the grounds that players mark their own damage — but nothing in this game
  * asks them to. Damage arrives from a crisis action, a Despair Call, a failed
  * Observe, a Rest; all of it through `automatedUpdate`, all of it already
