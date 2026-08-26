@@ -37,12 +37,6 @@
         "reason": "The academy maps are drawn isometric. Without it the scenes, tokens and Remnants are laid out on a grid the art was never made for."
       },
       {
-        "id": "lib-wrapper",
-        "type": "module",
-        "manifest": "https://github.com/ruipin/fvtt-lib-wrapper/releases/latest/download/module.json",
-        "reason": "The shared library the modules above patch Foundry through. Without it they fight each other over the same core methods."
-      },
-      {
         "id": "avclient-livekit",
         "type": "module",
         "manifest": "https://github.com/bekriebel/fvtt-module-avclient-livekit/releases/latest/download/module.json",
