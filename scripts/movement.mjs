@@ -16,16 +16,16 @@
 
 import { MODULE_ID, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, TIMES_OF_DAY, FLAGS,
     ROOM_OWNER_FLAG, BEDROOM_KEY_FLAG } from "./config.mjs";
-import { SETTINGS } from "./settings.mjs";
+import { SETTINGS, iAmTheMastermind } from "./settings.mjs";
 import { hasFreeMove, takeMove, actionsLeft } from "./actions.mjs";
 // Statically imported, not lazily: the crossing veto runs inside a synchronous
 // `preUpdateToken` hook, where there is no opportunity to await an import.
 // call-effects.mjs only reaches back into this file lazily, so there is no cycle.
 import { isSealed, isChained } from "./call-effects.mjs";
-// Same reasoning as call-effects.mjs above: this veto is synchronous, so the
-// reader it needs has to be a static import too. mastermind.mjs does not
-// reach back into this file, so there is no cycle.
-import { iAmTheMastermind } from "./mastermind.mjs";
+// `iAmTheMastermind` comes from settings.mjs — a leaf — for the same reason:
+// the veto is synchronous, so it has to be a static import. It used to come
+// from mastermind.mjs, and that one edge was what closed every static import
+// cycle in the module; see the note above the function.
 // `neighbouringRooms` and `boundsOf` are defined further down this file.
 import { whisperToOwner, isPrimaryGm, debug, error, cardHead } from "./utils.mjs";
 

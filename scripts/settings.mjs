@@ -750,3 +750,42 @@ export function getSetting(key) {
 export function setSetting(key, value) {
     return game.settings.set(MODULE_ID, key, value);
 }
+
+/**
+ * Is THIS browser the Mastermind's player, for the narrow purpose of locked
+ * doors, the fog layer and a concealed stash? See `SETTINGS.iAmMastermind`'s
+ * own header — this is the only thing about the Mastermind a player's client
+ * ever holds, and reading one client-scoped boolean is the whole of it.
+ *
+ * IT LIVES HERE RATHER THAN IN mastermind.mjs, AND THAT IS THE POINT.
+ *
+ * Every static import cycle in this module ran through one edge: movement.mjs
+ * reaching into mastermind.mjs for this function, while mastermind.mjs reaches
+ * for chapter.mjs and remnants.mjs, which reach back through movement.mjs.
+ *
+ *   chapter -> remnants -> movement -> mastermind -> chapter
+ *   mastermind -> remnants -> movement -> mastermind
+ *
+ * Both worked, because every binding in them is called at runtime and not one
+ * is touched while the modules are still evaluating. That is a property of
+ * today's call sites, not of the graph: the first `const` initialised from an
+ * imported binding at the top level of any file on those rings is a
+ * `ReferenceError` at boot, thrown before anything renders, from a file that
+ * looks innocent.
+ *
+ * Nothing about this predicate needed mastermind.mjs. It reads a setting, and
+ * the setting exists precisely so `canCross()` can ask synchronously inside a
+ * `preUpdateToken` veto — which is the note already written above the key
+ * itself. Moving the reader next to what it reads is what removes the edge, and
+ * with it both cycles; the GM-side Mastermind machinery stays where it is.
+ */
+export function iAmTheMastermind() {
+    if (game.user.isGM) return false;
+    try {
+        return game.settings.get(MODULE_ID, SETTINGS.iAmMastermind) === true;
+    } catch {
+        // Asked before the settings are registered — during boot, or from a
+        // client that never received the whisper. Not the Mastermind.
+        return false;
+    }
+}

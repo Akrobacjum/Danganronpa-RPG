@@ -24,9 +24,10 @@ import { MODULE_ID, ITEM_CATEGORIES, BEDROOM_KEY_FLAG } from "./config.mjs";
 import { ITEM_FLAGS, LOCATIONS, isStashed, canCarry } from "./inventory.mjs";
 // The one room lookup. movement.mjs does not reach back into this file.
 import { roomOfActor, ROOM_FLAGS } from "./movement.mjs";
-// Static for the same reason movement.mjs imports it statically: the readers
-// are synchronous. mastermind.mjs never imports this file, so no cycle.
-import { iAmTheMastermind } from "./mastermind.mjs";
+// Static because the reader is synchronous. From settings.mjs, which is a leaf
+// — this is one client-scoped boolean, and the note above the function there
+// explains why it stopped living in mastermind.mjs.
+import { iAmTheMastermind } from "./settings.mjs";
 import { SEARCH_FLAGS } from "./search-tokens.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 // Static is safe: tables.mjs only reaches back into this file lazily.

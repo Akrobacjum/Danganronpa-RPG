@@ -34,9 +34,9 @@
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
-import { SETTINGS } from "./settings.mjs";
+import { SETTINGS, iAmTheMastermind } from "./settings.mjs";
 import { roomOfToken } from "./movement.mjs";
-import { iAmTheMastermind, isMastermind } from "./mastermind.mjs";
+import { isMastermind } from "./mastermind.mjs";
 import { isPrimaryGm, debug, log, warn, error, plural } from "./utils.mjs";
 import { ENTER, BEAT } from "./motion.mjs";
 

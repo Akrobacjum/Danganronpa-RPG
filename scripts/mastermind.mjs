@@ -27,7 +27,7 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { SETTINGS } from "./settings.mjs";
+import { SETTINGS, iAmTheMastermind } from "./settings.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { isDeceased, killCharacter } from "./chapter.mjs";
 import { remnantsOn, remnantData } from "./remnants.mjs";
@@ -126,18 +126,14 @@ function sendDoorFlag(userId, value, room = null) {
 }
 
 /**
- * Is THIS browser the Mastermind's player, for the narrow purpose of locked
- * doors and the fog layer? See `SETTINGS.iAmMastermind`'s own header — this
- * is the only thing about the Mastermind a player's client ever holds.
+ * `iAmTheMastermind()` used to live here and now lives in settings.mjs, beside
+ * the client-scoped setting it reads. It was the single edge every static
+ * import cycle in the module passed through — movement.mjs had to reach into
+ * this file for it — and the note above the function there says why moving it
+ * was the fix rather than a workaround.
+ *
+ * Still imported here, because `myLairRoom` asks the same question.
  */
-export function iAmTheMastermind() {
-    if (game.user.isGM) return false;
-    try {
-        return game.settings.get(MODULE_ID, SETTINGS.iAmMastermind) === true;
-    } catch {
-        return false;
-    }
-}
 
 /**
  * The Mastermind's own room, on the client that holds the part — null for
