@@ -48,6 +48,7 @@ const HOOK_NAMES = {
 /** What has been taken down, so the setting can put it back. */
 let parkedHooks = [];   // [{ hook, fn }]
 let parkedParts = [];   // [{ cls, part, tabEntry }]
+let parkedRefreshState = null;   // { proto, fn }
 
 function shieldWanted() {
     try {
@@ -82,8 +83,49 @@ function configClasses() {
     return Array.from(classes).filter(Boolean);
 }
 
+/**
+ * THE LOOP THAT ACTUALLY KILLED TOKEN EDITING, found by measurement
+ * (2026-08-26, sandbox, full local stack): the module MIXES INTO the Token
+ * class (`isoDepthSortTokenMixin` at its init: `CONFIG.Token.objectClass =
+ * mixin(objectClass)`) and its `_refreshState()` override calls
+ * `setFlag("currentRegion", regions[0] ?? null)` — a DATABASE WRITE inside
+ * the refresh path, on every refresh, with no change check. On a map built
+ * of overlapping room Regions, `document.regions` is a Set whose first
+ * member is not stable, so the flag ping-pongs between two answers forever:
+ * measured 18 token updates/second, ~1100 refreshToken/s, and the open
+ * token config re-rendering 26 times a second — which is why tabs and
+ * buttons died (their DOM nodes were replaced mid-click) while text inputs
+ * (focus is preserved across renders) and selects (native popups) kept
+ * working.
+ *
+ * A hook can't take a class override down, so this one is bypassed in the
+ * prototype chain: the mixin's own `_refreshState` — found by owning the
+ * property AND mentioning `currentRegion`, so any other module's override
+ * is left alone — is replaced with a pass-through to the class below it.
+ * That is exactly the `super._refreshState()` call their override opens
+ * with; the only thing skipped is the flag write. Restored on unpark.
+ */
+function parkRefreshStateOverride() {
+    let proto = CONFIG.Token?.objectClass?.prototype;
+    const floor = foundry.canvas?.placeables?.Token?.prototype ?? null;
+    while (proto && proto !== Object.prototype) {
+        if (Object.prototype.hasOwnProperty.call(proto, "_refreshState")
+            && String(proto._refreshState).includes("currentRegion")) {
+            const below = Object.getPrototypeOf(proto);
+            parkedRefreshState = { proto, fn: proto._refreshState };
+            proto._refreshState = function (...args) {
+                return below._refreshState.apply(this, args);
+            };
+            return true;
+        }
+        if (proto === floor) break;
+        proto = Object.getPrototypeOf(proto);
+    }
+    return false;
+}
+
 function park() {
-    if (parkedHooks.length || parkedParts.length) return;
+    if (parkedHooks.length || parkedParts.length || parkedRefreshState) return;
 
     for (const [hook, names] of Object.entries(HOOK_NAMES)) {
         for (const entry of Array.from(Hooks.events[hook] ?? [])) {
@@ -103,9 +145,13 @@ function park() {
         if (part || tabEntry) parkedParts.push({ cls, part, tabEntry });
     }
 
-    if (parkedHooks.length || parkedParts.length) {
-        log(`Iso shield up: ${parkedHooks.length} handler(s) and `
-            + `${parkedParts.length} config tab(s) parked while token editing is guarded.`);
+    const loopParked = parkRefreshStateOverride();
+
+    if (parkedHooks.length || parkedParts.length || loopParked) {
+        log(`Iso shield up: ${parkedHooks.length} handler(s), `
+            + `${parkedParts.length} config tab(s)`
+            + `${loopParked ? " and the currentRegion write loop" : ""} parked `
+            + `while token editing is guarded.`);
     } else {
         // The module is active but nothing matched — a future version has
         // renamed things. Said out loud rather than silently guarding nothing.
@@ -116,6 +162,11 @@ function park() {
 
 function unpark() {
     for (const { hook, fn } of parkedHooks.splice(0)) Hooks.on(hook, fn);
+
+    if (parkedRefreshState) {
+        parkedRefreshState.proto._refreshState = parkedRefreshState.fn;
+        parkedRefreshState = null;
+    }
 
     for (const { cls, part, tabEntry } of parkedParts.splice(0)) {
         if (tabEntry && cls.TABS?.sheet?.tabs
@@ -140,7 +191,7 @@ function unpark() {
 export function applyIsoShield() {
     if (!isoActive()) return;
     if (shieldWanted()) park();
-    else if (parkedHooks.length || parkedParts.length) unpark();
+    else if (parkedHooks.length || parkedParts.length || parkedRefreshState) unpark();
 }
 
 export function registerIsoShield() {
