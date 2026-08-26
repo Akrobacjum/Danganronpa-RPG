@@ -20,7 +20,7 @@ import { grantItem, itemsInCategory, countInCategory, inventorySummary } from ".
 import { createTruthBullet, issueAutopsy, BULLET_CATEGORY } from "./truth-bullets.mjs";
 import { ITEM_POOLS } from "./tables.mjs";
 import { studentActors } from "./monokuma.mjs";
-import { whisperToOwner, dialogContent, log, error, plural } from "./utils.mjs";
+import { whisperToOwner, dialogContent, log, error, plural, cardHead } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -570,7 +570,9 @@ async function takeItemDialog(actor) {
     ui.notifications.info(game.i18n.format("DRPG.Items.took", { item: name, actor: actor.name }));
 
     if (result.tell) {
-        await whisperToOwner(actor, `<p><strong>${game.i18n.localize("DRPG.Items.lostTitle")}</strong> — ${
+        await whisperToOwner(actor, `${cardHead({
+            action: game.i18n.localize("DRPG.Items.lostTitle")
+        })}<p>${
             game.i18n.format("DRPG.Items.lost", { item: foundry.utils.escapeHTML(name) })
         }</p>`);
     }

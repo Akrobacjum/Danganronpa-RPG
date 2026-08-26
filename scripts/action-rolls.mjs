@@ -24,7 +24,7 @@ import { drawItem } from "./tables.mjs";
 import { roomOfActor, othersInRoom } from "./movement.mjs";
 import { projectsAvailableIn, addProgress, isIndirectMurder, scaleFor, projectsListedIn } from "./projects.mjs";
 import { callGm, promptAndCallGm } from "./gm-bridge.mjs";
-import { announce, resolveThreshold, whisperToOwner, dialogContent, replaceFlag, log, error, plural } from "./utils.mjs";
+import { announce, resolveThreshold, whisperToOwner, dialogContent, replaceFlag, log, error, plural, cardHead } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -424,7 +424,9 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
     };
 
     if (free) {
-        await whisperToOwner(actor, `<p><strong>${game.i18n.localize("DRPG.Calls.freeCritTitle")}</strong> — ${
+        await whisperToOwner(actor, `${cardHead({
+            action: game.i18n.localize("DRPG.Calls.freeCritTitle")
+        })}<p>${
             game.i18n.format("DRPG.Calls.freeCritUsed", { name: foundry.utils.escapeHTML(actor.name) })
         }</p>`);
     }
@@ -1367,7 +1369,9 @@ async function startProject(actor) {
         ]
     });
 
-    await whisperToOwner(actor, `<p><strong>${game.i18n.localize("DRPG.Project.startNew")}</strong> — ${
+    await whisperToOwner(actor, `${cardHead({
+        action: game.i18n.localize("DRPG.Project.startNew")
+    })}<p>${
         game.i18n.format("DRPG.Project.proposalSent", { name: esc(result.name) })
     }</p>`);
 
@@ -1943,9 +1947,7 @@ async function performGmAction(actor, actionKey, def, options) {
         actionKey, gmRuled: true, request, label: def.label, room: roomOfActor(actor)
     });
 
-    await whisperToOwner(actor, `<p><strong>${def.label}</strong> — ${roll.total}${
-        roll.isCritical ? ` · <em>${game.i18n.localize("DRPG.Action.critical")}</em>` : ""
-    }</p>${body}`);
+    await whisperToOwner(actor, `${rollHead(def, roll)}${body}`);
 
     return { calledGm: true, roll };
 }
@@ -2136,9 +2138,8 @@ async function settleObserveRoll(actor, def, roll, observeKey, declaration) {
     // person, and there the wait is real.
     const waits = declaration === "specific" || declaration === "anything";
 
-    await whisperToOwner(actor, `<p><strong>${def.label}</strong> — ${roll.total}${
-        roll.isCritical ? ` · <em>${game.i18n.localize("DRPG.Action.critical")}</em>` : ""
-    }</p>${waits ? `<p><small>${game.i18n.localize("DRPG.Observe.sent")}</small></p>` : ""}`);
+    await whisperToOwner(actor, `${rollHead(def, roll)}${
+        waits ? `<p><small>${game.i18n.localize("DRPG.Observe.sent")}</small></p>` : ""}`);
 
     return { roll, observeKey };
 }
@@ -2333,11 +2334,10 @@ async function analyseBullet(actor, def, roll, subject) {
 
     // Silent on the outcome on purpose: this client does not know the number it
     // was measured against, and must not be told.
-    await whisperToOwner(actor, `<p><strong>${def.label}</strong> — ${roll.total}${
-        roll.isCritical ? ` · <em>${game.i18n.localize("DRPG.Action.critical")}</em>` : ""
-    }</p><p><small>${game.i18n.format("DRPG.Analyze.sent", {
-        name: foundry.utils.escapeHTML(subject.name)
-    })}</small></p>`);
+    await whisperToOwner(actor, `${rollHead(def, roll)}<p><small>${
+        game.i18n.format("DRPG.Analyze.sent", {
+            name: foundry.utils.escapeHTML(subject.name)
+        })}</small></p>`);
 
     return { roll, subject: subject.name };
 }
@@ -2370,9 +2370,7 @@ async function askForHint(actor, def, roll, request = "") {
         actionKey: "analyze", gmRuled: true, request, label: title, room: roomOfActor(actor)
     });
 
-    await whisperToOwner(actor, `<p><strong>${def.label}</strong> — ${roll.total}${
-        roll.isCritical ? ` · <em>${game.i18n.localize("DRPG.Action.critical")}</em>` : ""
-    }</p>${body}`);
+    await whisperToOwner(actor, `${rollHead(def, roll)}${body}`);
 
     return { calledGm: true, roll, subject: null };
 }
@@ -2528,9 +2526,7 @@ async function performListen(actor, def, options) {
         outcome = { success: false };
     }
 
-    await whisperToOwner(actor, `<p><strong>${def.label}</strong> · Shadow · <strong>${roll.total}</strong>${
-        roll.isCritical ? ` · <em>${game.i18n.localize("DRPG.Action.critical")}</em>` : ""
-    }</p>${lines.join("")}`);
+    await whisperToOwner(actor, `${rollHead(def, roll)}${lines.join("")}`);
 
     Hooks.callAll("drpgActionResolved", { actor, actionKey: "listen", roll, outcome });
     return outcome;
@@ -2647,7 +2643,7 @@ async function performDirectMurder(actor, def, options) {
     await parkDirectMurder({ killerId: actor.id, room, note });
 
     await whisperToOwner(actor,
-        `<p><strong>${foundry.utils.escapeHTML(def.label)}</strong> — ${
+        `${cardHead({ action: def.label })}<p>${
             game.i18n.localize("DRPG.Action.murderParked")}</p>`);
     ui.notifications.info(game.i18n.localize("DRPG.Action.murderParkedToast"));
 
@@ -2874,6 +2870,26 @@ export async function askDynamicDifficulty({ description, actorName, room } = {}
  * REPORTING
  * ========================================================================== */
 
+/**
+ * The header for a card that reports a roll and nothing more about it.
+ *
+ * Five call sites in this file had these exact three slots written out
+ * longhand, and they had drifted: four used `Label — total · <em>Critical</em>`
+ * and Listen used `Label · Shadow · total`, with the trait name typed in as an
+ * English literal rather than read off the roll. Same card, three shapes.
+ *
+ * `report()` does not go through here because it has a room and an outcome to
+ * put in the other two slots.
+ */
+function rollHead(def, roll) {
+    return cardHead({
+        action: def.label,
+        total: roll?.total,
+        result: roll?.isCritical ? game.i18n.localize("DRPG.Action.critical") : null,
+        trait: TRAITS[roll?.trait]?.label
+    });
+}
+
 async function report(actor, def, roll, outcome) {
     if (!outcome) return;
 
@@ -2888,13 +2904,10 @@ async function report(actor, def, roll, outcome) {
      * was somewhere in the paragraphs below. Reading the log after the fact —
      * which is the whole reason the log exists — meant reading each card whole.
      *
-     * Four slots, same order, every time:
-     *
-     *     Search — Dinner Hall — 14 — Tier 2
-     *     action   where          roll  what came of it
-     *
-     * A slot with nothing in it is dropped rather than filled with a dash, so
-     * the header never claims a room for an action that has none.
+     * The grammar itself now lives in `cardHead()` (utils.mjs), because it was
+     * written here and stayed here: this was the only card in the module that
+     * had it. Everything about the four slots, and what goes in them, is
+     * documented there.
      */
     const room = roomOfActor(actor);
     // Only two outcomes are short enough to be a header slot and precise enough
@@ -2906,15 +2919,13 @@ async function report(actor, def, roll, outcome) {
             ? game.i18n.localize("DRPG.Action.critical")
             : "";
 
-    const slots = [
-        `<span class="drpg-card-action">${esc(def.label)}</span>`,
-        room ? `<span class="drpg-card-room">${esc(room)}</span>` : null,
-        roll?.total != null ? `<span class="drpg-card-total">${esc(roll.total)}</span>` : null,
-        result ? `<span class="drpg-card-result">${esc(result)}</span>` : null
-    ].filter(Boolean);
-
-    lines.push(`<p class="drpg-card-head"${traitLabel ? ` data-trait="${esc(traitLabel)}"` : ""}>${
-        slots.join('<span class="drpg-card-sep">—</span>')}</p>`);
+    lines.push(cardHead({
+        action: def.label,
+        room,
+        total: roll?.total,
+        result,
+        trait: traitLabel
+    }));
 
     if (outcome.extra) lines.push(outcome.extra);
 

@@ -302,6 +302,51 @@ export async function whisperToGms(content, extra = {}) {
 }
 
 /**
+ * The header every card in this module skims by.
+ *
+ *     Search — Dinner Hall — 14 — Tier 2
+ *     action   where          roll  what came of it
+ *
+ * WHY THIS IS A FUNCTION NOW. The four-slot grammar was written for the action
+ * result cards and lived inside `report()` in action-rolls.mjs, which meant
+ * exactly ONE of the module's 134 chat cards had it. The other hundred and
+ * thirty-three opened with a hand-built `<p><strong>Label</strong> — value</p>`
+ * — the same grammar, narrower, and with none of the weighting that makes the
+ * first one skimmable: the action loud, the room dim, the total tabular, the
+ * outcome in the colour of what happened. A log you have to read card by card
+ * is the thing the header was built to fix, and it only fixed a twelfth of it.
+ *
+ * A slot with nothing in it is DROPPED rather than dashed, so a card with no
+ * room does not claim one, and a header with no slots at all returns an empty
+ * string rather than an empty rule across the card.
+ *
+ * Everything is escaped here. Call sites pass raw strings — several of the ones
+ * this replaced escaped some of their values and not others.
+ *
+ * @param {object}  slots
+ * @param {string}  slots.action  what was done. The one slot worth being loud.
+ * @param {?string} slots.room    where, when the card knows and the body below
+ *                                does not already say so in a sentence.
+ * @param {?(number|string)} slots.total  a roll total, to compare against a DC.
+ * @param {?string} slots.result  the short answer — a tier, "Critical", a price.
+ * @param {?string} slots.trait   carried on the element, shown on hover.
+ * @returns {string} the `<p>`, or "" when there is nothing to put in it.
+ */
+export function cardHead({ action = null, room = null, total = null, result = null, trait = null } = {}) {
+    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
+    const slots = [
+        action ? `<span class="drpg-card-action">${esc(action)}</span>` : null,
+        room ? `<span class="drpg-card-room">${esc(room)}</span>` : null,
+        total != null && total !== "" ? `<span class="drpg-card-total">${esc(total)}</span>` : null,
+        result ? `<span class="drpg-card-result">${esc(result)}</span>` : null
+    ].filter(Boolean);
+
+    if (!slots.length) return "";
+    return `<p class="drpg-card-head"${trait ? ` data-trait="${esc(trait)}"` : ""}>${
+        slots.join('<span class="drpg-card-sep">—</span>')}</p>`;
+}
+
+/**
  * Pick the highest threshold entry whose `min` the roll total reaches.
  * Returns null when the roll misses every threshold.
  *

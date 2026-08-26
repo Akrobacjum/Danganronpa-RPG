@@ -19,7 +19,7 @@ import { actionsLeft, spendAction } from "./actions.mjs";
 import { roomOfActor } from "./movement.mjs";
 import { getClock } from "./clock.mjs";
 import { resourceMax, resourceValue } from "./character.mjs";
-import { whisperToOwner, log, error, plural } from "./utils.mjs";
+import { whisperToOwner, log, error, plural, cardHead } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -185,7 +185,7 @@ export async function takeRest(actor, kind = "short") {
         const applied = await applyRest(actor, kind, picks);
         await markRestTaken(actor, kind, clock);
 
-        await whisperToOwner(actor, `<p><strong>${kindLabel(kind)}</strong> — ${foundry.utils.escapeHTML(room)}</p>
+        await whisperToOwner(actor, `${cardHead({ action: kindLabel(kind), room })}
             <ul>${applied.map(a => `<li>${foundry.utils.escapeHTML(a)}</li>`).join("")}</ul>`);
 
         log(`${actor.name} took a ${kind} rest in ${room}: ${picks.join(", ")}`);

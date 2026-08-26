@@ -15,7 +15,7 @@
 import {
     MODULE_ID, TRAITS, HOPE_CALLS, DESPAIR_CALLS, STARTING, PROJECT_SCALE
 } from "./config.mjs";
-import { announce, whisperToGms, whisperToOwner, ownerOf, isPrimaryGm, dialogContent, debug, warn, error } from "./utils.mjs";
+import { announce, whisperToGms, whisperToOwner, ownerOf, isPrimaryGm, dialogContent, debug, warn, error, cardHead } from "./utils.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 const ACTION_PROGRESS = "project.progress";
@@ -878,7 +878,9 @@ async function onSocket(payload, senderId) {
         debug(`Armed ${payload.call?.key} on ${actor.name} on behalf of a player.`);
         // The beneficiary is not the buyer: tell them what they have been given,
         // or they will meet a locked roll dialog with no idea why it opened up.
-        await whisperToOwner(actor, `<p><strong>${game.i18n.localize("DRPG.Calls.armedTitle")}</strong> — ${
+        await whisperToOwner(actor, `${cardHead({
+            action: game.i18n.localize("DRPG.Calls.armedTitle")
+        })}<p>${
             game.i18n.format("DRPG.Calls.armedForYou", {
                 what: game.i18n.localize(`DRPG.Calls.grants.${payload.call?.grants}`)
             })

@@ -16,7 +16,7 @@ import { MODULE_ID, FLAGS, HOPE_CALLS, DESPAIR_CALLS, STARTING } from "./config.
 import { SETTINGS } from "./settings.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
-import { announce, whisperToOwner, dialogContent, log, error, plural } from "./utils.mjs";
+import { announce, whisperToOwner, dialogContent, log, error, plural, cardHead } from "./utils.mjs";
 
 /** Let the victim of a Call know what has been done to them. */
 async function tell(actor, key) {
@@ -114,7 +114,9 @@ export async function armCall(actor, { key, kind, grants, amount = null, from = 
     // window with disadvantage already switched on and locked, and no reason
     // given. The socket path told them; the path that actually matters did not.
     if (from && from !== actor.id) {
-        await whisperToOwner(actor, `<p><strong>${game.i18n.localize("DRPG.Calls.armedTitle")}</strong> — ${
+        await whisperToOwner(actor, `${cardHead({
+            action: game.i18n.localize("DRPG.Calls.armedTitle")
+        })}<p>${
             game.i18n.format("DRPG.Calls.armedForYou", {
                 what: game.i18n.localize(`DRPG.Calls.grants.${grants}`)
             })

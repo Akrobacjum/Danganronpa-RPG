@@ -20,7 +20,7 @@ import { MODULE_ID, FLAGS, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, TIMES_OF_DAY }
 import { SETTINGS } from "./settings.mjs";
 import { getClock, setClock, timeOfDayLabel } from "./clock.mjs";
 import { roomOfActor, neighbouringRooms } from "./movement.mjs";
-import { announce, whisperToOwner, whisperToOwnerOnly, whisperToGms, dialogContent, log, error, plural } from "./utils.mjs";
+import { announce, whisperToOwner, whisperToOwnerOnly, whisperToGms, dialogContent, log, error, plural, cardHead } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -324,7 +324,7 @@ export async function ruleOnParkedMurder(killerId, allow) {
 
     if (killer) {
         await whisperToOwner(killer,
-            `<p><strong>${game.i18n.localize("DRPG.Action.directMurder")}</strong> — ${
+            `${cardHead({ action: game.i18n.localize("DRPG.Action.directMurder") })}<p>${
                 allow
                     ? game.i18n.localize("DRPG.Action.murderApproved")
                     : `<span class="drpg-warning">${
@@ -389,7 +389,7 @@ async function judgePendingMurders() {
 
         const say = async (line, cls = "") => {
             await whisperToOwner(killer,
-                `<p><strong>${game.i18n.localize("DRPG.Action.directMurder")}</strong> — ${
+                `${cardHead({ action: game.i18n.localize("DRPG.Action.directMurder") })}<p>${
                     cls ? `<span class="${cls}">${line}</span>` : line}</p>`);
         };
 
@@ -575,7 +575,7 @@ export async function judgeEclipseCrossing(actor, from, to) {
     // was a running commentary on exactly the thing the phase hides. The GM
     // who wants the answer opens the placement table, which `recordMove`
     // above keeps current either way.
-    await whisperToOwnerOnly(actor, `<p><strong>${eclipseLabel()}</strong> — ${
+    await whisperToOwnerOnly(actor, `${cardHead({ action: eclipseLabel(), room: to })}<p>${
         free
             ? game.i18n.format("DRPG.Eclipse.movedFree", { room })
             : plural("DRPG.Eclipse.moved", {

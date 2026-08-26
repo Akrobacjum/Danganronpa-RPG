@@ -37,7 +37,7 @@ import { isMonokuma } from "./monokuma.mjs";
 import { ITEM_FLAGS } from "./inventory.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
-import { whisperToGms, whisperToOwner, log, error } from "./utils.mjs";
+import { whisperToGms, whisperToOwner, log, error, cardHead } from "./utils.mjs";
 
 /* ==========================================================================
  * WHO MAY CLEAN, AND WHAT
@@ -496,8 +496,8 @@ async function concealFromWitnesses(actor) {
         ? (band === "despair" ? def.successWithDespair : def.success)
         : def.failure;
 
-    await whisperToOwner(actor, `<p><strong>${foundry.utils.escapeHTML(def.label)}</strong> — ${
-        roll.total}: ${foundry.utils.escapeHTML(line)}</p>`);
+    await whisperToOwner(actor, `${cardHead({ action: def.label, total: roll.total })}<p>${
+        foundry.utils.escapeHTML(line)}</p>`);
 
     /*
      * A failure is public TO THE ROOM, and to nowhere else.
@@ -679,11 +679,15 @@ export async function resolveStageSix({
         done.push(game.i18n.format("DRPG.Cleanup.stressBack", { n: refund }));
     }
 
-    await whisperToOwner(actor, `<h3>${foundry.utils.escapeHTML(def.label)}</h3>
-        <p>${total} ${success ? "≥" : "<"} ${threshold}</p>
-        ${done.length ? `<ul>${done.map(d => `<li>${d}</li>`).join("")}</ul>` : ""}`);
-    await whisperToGms(`<p><strong>${foundry.utils.escapeHTML(def.label)}</strong> — ${
-        foundry.utils.escapeHTML(actor.name)}: ${total} vs ${threshold} (${band})</p>`);
+    // Three shapes for one idea lived here: this card led with an `<h3>`, the
+    // one above with `<strong>Label</strong> —`, and the GM's copy below with a
+    // third. All three are the same sentence — what was done, what it rolled,
+    // what came of it — so all three are the header now.
+    await whisperToOwner(actor, `${cardHead({
+        action: def.label, total, result: `${success ? "≥" : "<"} ${threshold}`
+    })}${done.length ? `<ul>${done.map(d => `<li>${d}</li>`).join("")}</ul>` : ""}`);
+    await whisperToGms(`${cardHead({ action: def.label, total, result: band })}<p>${
+        foundry.utils.escapeHTML(actor.name)} vs ${threshold}</p>`);
 
     log(`Stage 6 ${key}: ${actor.name} rolled ${total} vs ${threshold} — ${band}.`);
     return { success, band, done };

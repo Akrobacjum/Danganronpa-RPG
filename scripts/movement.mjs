@@ -27,7 +27,7 @@ import { isSealed, isChained } from "./call-effects.mjs";
 // reach back into this file, so there is no cycle.
 import { iAmTheMastermind } from "./mastermind.mjs";
 // `neighbouringRooms` and `boundsOf` are defined further down this file.
-import { whisperToOwner, isPrimaryGm, debug, error } from "./utils.mjs";
+import { whisperToOwner, isPrimaryGm, debug, error, cardHead } from "./utils.mjs";
 
 /**
  * Region flags this file owns. Named like `VAULT_FLAGS`/`REST_FLAGS` in
@@ -733,7 +733,7 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
         // Tagged as an error popup (red border) rather than the default
         // info one — this is a refusal, the concrete case the red variant
         // exists for. See popup.mjs's catch-all createChatMessage hook.
-        await whisperToOwner(actor, `<p><strong>${game.i18n.localize("DRPG.Move.title")}</strong> — ${
+        await whisperToOwner(actor, `${cardHead({ action: game.i18n.localize("DRPG.Move.title") })}<p>${
             game.i18n.localize("DRPG.Move.noBudgetLong")
         }</p>`, { flags: { [MODULE_ID]: { popupKind: "error" } } });
 
@@ -754,7 +754,12 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
 
     if (tokenDoc) lastPosition.set(tokenDoc.id, { x: tokenDoc.x, y: tokenDoc.y });
 
-    await whisperToOwner(actor, `<p><strong>${game.i18n.localize("DRPG.Move.title")}</strong> — ${where}<br>${price}</p>`);
+    // The room goes in the header's own slot rather than only inside `where`'s
+    // sentence: the header is the line somebody skims a whole time of day by,
+    // and "MOVE — Dinner Hall" answers the question the log is being read for.
+    await whisperToOwner(actor, `${cardHead({
+        action: game.i18n.localize("DRPG.Move.title"), room: to
+    })}<p>${where}<br>${price}</p>`);
     debug(`${actor.name}: ${from ?? "—"} -> ${to ?? "—"} (${cost})`);
     return true;
 }
