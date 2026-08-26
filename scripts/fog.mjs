@@ -36,7 +36,7 @@
 import { MODULE_ID, FLAGS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { roomOfToken } from "./movement.mjs";
-import { iAmTheMastermind } from "./mastermind.mjs";
+import { iAmTheMastermind, isMastermind } from "./mastermind.mjs";
 import { isPrimaryGm, debug, log, warn, error } from "./utils.mjs";
 import { ENTER, BEAT } from "./motion.mjs";
 
@@ -654,6 +654,17 @@ export async function saveDiscoveryMatrix(scene, matrix) {
 async function recordDiscovery(scene, actor, room) {
     if (!isPrimaryGm() || !scene || !actor || !room) return false;
 
+    /* THE MASTERMIND LEAVES NO TRACK IN THE LEDGER (Dawid, 26.08).
+       -----------------------------------------------------------------------
+       The GM's own veil is `ledgerRooms` — the union of every actor's row —
+       so recording the Mastermind's walks would lift the veil on rooms only
+       they have been to, and the GM's map would quietly narrate the season's
+       secret moving around the building. They lose nothing by the skip: their
+       own fog already counts every room as known (`myDiscoveredRooms`),
+       because they built the place. `isMastermind` answers on GM clients and
+       this only ever runs on the primary GM's. */
+    if (isMastermind(actor)) return false;
+
     const all = allDiscovered();
     const forScene = all[scene.id] ?? {};
     const forActor = forScene[actor.id] ?? [];
@@ -716,6 +727,9 @@ export async function seedDiscovery(scene = canvas?.scene) {
     for (const tokenDoc of scene.tokens ?? []) {
         const actor = tokenDoc.actor;
         if (!actor || actor.type !== "character") continue;
+        // Same skip as `recordDiscovery`, for the same reason: the seed is
+        // just discovery for people who were already standing somewhere.
+        if (isMastermind(actor)) continue;
 
         const room = roomOfToken(tokenDoc);
         if (!room) continue;

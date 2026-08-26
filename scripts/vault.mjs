@@ -24,6 +24,9 @@ import { MODULE_ID, ITEM_CATEGORIES, BEDROOM_KEY_FLAG } from "./config.mjs";
 import { ITEM_FLAGS, LOCATIONS, isStashed, canCarry } from "./inventory.mjs";
 // The one room lookup. movement.mjs does not reach back into this file.
 import { roomOfActor, ROOM_FLAGS } from "./movement.mjs";
+// Static for the same reason movement.mjs imports it statically: the readers
+// are synchronous. mastermind.mjs never imports this file, so no cycle.
+import { iAmTheMastermind } from "./mastermind.mjs";
 import { SEARCH_FLAGS } from "./search-tokens.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 // Static is safe: tables.mjs only reaches back into this file lazily.
@@ -417,7 +420,10 @@ export function openStashHere(actor) {
 
     const ownerId = vaultOwnerOf(room);
     if (!ownerId || ownerId === actor.id) return null;   // yours is not a theft
-    if (isConcealed(room)) return null;                  // hidden: needs a Search
+    // Hidden: needs a Search — unless you are the Mastermind, to whom a
+    // hiding place is furniture they watched being built (Dawid, 26.08). The
+    // GM-side authority in `stealFromVault` makes the same exception.
+    if (isConcealed(room) && !iAmTheMastermind()) return null;
 
     const owner = game.actors.get(ownerId);
     if (!owner) return null;
@@ -555,7 +561,13 @@ export async function stealFromVault({ thiefId, ownerId, itemId, viaSearch = fal
      * above still bind — so it is worth no more than the action it skips.
      */
     if (!viaSearch && isConcealed(where.room, where.scene)) {
-        return refuse("that stash is concealed and has to be found first");
+        // The Mastermind's exception, verified on THIS side the way every
+        // other claim in this function is: `isMastermind` reads the GM's own
+        // synced copy of the pick, never anything the packet says.
+        const { isMastermind } = await import("./mastermind.mjs");
+        if (!isMastermind(thief)) {
+            return refuse("that stash is concealed and has to be found first");
+        }
     }
 
     const category = item.getFlag(MODULE_ID, ITEM_FLAGS.category);

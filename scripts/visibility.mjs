@@ -23,6 +23,11 @@ import { SETTINGS } from "./settings.mjs";
 import { roomOfToken } from "./movement.mjs";
 import { REMNANT_FLAGS, keyOf as remnantKeyOf } from "./remnants.mjs";
 import { TRUTH_BULLET_FLAGS, bulletsOf } from "./truth-bullets.mjs";
+// Static, like movement.mjs's own import of the same file: `applyToToken`
+// runs on every token of every refresh, so its readers cannot be dynamic.
+// mastermind.mjs does not reach back into this file at load time — its one
+// call to `applyAll` is a dynamic import — so there is no cycle.
+import { myLairRoom } from "./mastermind.mjs";
 import { debug, error } from "./utils.mjs";
 
 export function registerVisibility() {
@@ -183,6 +188,21 @@ function applyToToken(token) {
             show(token);
             return;
         }
+
+        /* THE MASTERMIND'S ROOM IS A WATCHTOWER (Dawid, 26.08).
+           -------------------------------------------------------------------
+           A Mastermind whose own token stands in their lair sees the whole
+           cast, the way the GM's branch above does — they built the cameras.
+           Standing anywhere else they are exactly as blind as anyone, which
+           is why this reads their CURRENT rooms rather than remembering
+           anything: walk out, and the next refresh takes it away.
+
+           Deliberately below the Eclipse branch — the lights going out spare
+           nobody — and deliberately only in this function: Remnant tokens go
+           through `applyToRemnantToken`, so the watchtower never shows a
+           trace they have not personally observed. */
+        const lair = myLairRoom();
+        if (lair && myRooms().has(lair)) return;
 
         const mine = myRooms();
         const room = roomOfToken(token.document);
