@@ -3200,17 +3200,38 @@ function flashOutline(fx, region, rect) {
     // A square cap extends each end by half the width, so the two ends
     // overlap into a full, sharp corner. Miter joins keep the drawPolygon
     // path's corners pointed instead of rounding them off.
+    //
+    // TWO PASSES, INK UNDER BONE. The white line is narrower than it was and
+    // an ink keyline is drawn beneath it, wider by a pixel or two each side —
+    // the sprite outline every pixel-art tile has, and what makes the border
+    // hold against a bright floor instead of dissolving into it.
+    //
+    // Both passes walk the SAME gapped path, which is the whole reason the ink
+    // is drawn here rather than as a filled backing shape: where the wall opens
+    // there is no white line and there must be no black one either, or the
+    // keyline would draw a lid across the doorway the glow is marking as a way
+    // out. One trace, one set of gaps, and the two can never disagree.
+    const boneWidth = Math.max(7, Math.round(grid * 0.11));
+    const inkWidth = boneWidth + Math.max(4, Math.round(grid * 0.05));
+    // Measured off the WIDER pass, and used by both: the gaps have to clear
+    // the ink, and a bone line cut back to a different margin would poke out
+    // past the keyline at every opening.
+    const gapPad = grid * 0.05 + inkWidth / 2;
+
     const outline = new PIXI.Graphics();
-    outline.lineStyle({
-        width: Math.max(10, Math.round(grid * 0.15)),
-        color: bone,
-        alpha: 1,
-        cap: "square",
-        join: "miter",
-        miterLimit: 8
+    const stroke = (width, color) => outline.lineStyle({
+        width, color, alpha: 1, cap: "square", join: "miter", miterLimit: 8
     });
-    if (edges.length) traceOutlineGapped(outline, edges, rect);
-    else traceRegionPathsAt(outline, region, rect);
+
+    const trace = () => {
+        if (edges.length) traceOutlineGapped(outline, edges, rect, gapPad);
+        else traceRegionPathsAt(outline, region, rect);
+    };
+
+    stroke(inkWidth, colourOf("--drpg-ink", 0x1a1620));
+    trace();
+    stroke(boneWidth, bone);
+    trace();
 
     // Sized from the grid rather than fixed. A flat 28px in scene units is
     // eleven pixels on screen at a zoom of 0.4, which is where this label spent
@@ -4160,13 +4181,14 @@ function addDoorwayGlow(group, region, edges, rect) {
  * A white line straight across an opening says the opposite of what the glow
  * beside it is saying. Where the wall stops, the outline stops.
  */
-function traceOutlineGapped(graphics, edges, rect) {
+function traceOutlineGapped(graphics, edges, rect, pad = null) {
     const grid = canvas?.grid?.size ?? 100;
     // Square caps stick out half a line-width past every segment end — that is
     // what makes the corners whole — so the doorway gaps have to be widened by
     // the same amount, or the fattened line pokes into the opening it was told
-    // to leave clear.
-    const pad = grid * 0.05 + (graphics.line?.width ?? 0) / 2;
+    // to leave clear. Handed in when one path is walked twice at two widths:
+    // both passes then cut back to the wider one's margin and stay aligned.
+    pad ??= grid * 0.05 + (graphics.line?.width ?? 0) / 2;
 
     const segment = (edge, from, to) => {
         if (to - from < 1e-4) return;
