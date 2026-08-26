@@ -69,6 +69,13 @@ function onRenderApplication(app, element) {
     if (!root?.classList?.contains?.("roll-selection")) return;
 
     try {
+        // The submit button's die. The system draws `fa-dice` — a d6 pair from
+        // a game with no d6 in it. This one rolls two d12s and the module says
+        // so; a class swap in the render hook because the glyph lives in the
+        // system's template, not in anything CSS can reword.
+        const die = root.querySelector("button.submit-btn i.fa-dice");
+        die?.classList.replace("fa-dice", "fa-dice-d12");
+
         stripExperienceCosts(app);
 
         const actor = actorOf(app);

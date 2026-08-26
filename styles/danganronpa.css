@@ -1839,9 +1839,17 @@ body.drpg-pixel-font .drpg-call-button .drpg-action-cost {
 
 /* ==========================================================================
    ACTION BRIEFING
+   --------------------------------------------------------------------------
+   Scoped to the bare classes, NOT to `.drpg-briefing`. These rules were
+   written when the briefing was a standalone window carrying that class; the
+   briefing then moved INSIDE the action windows (`briefingBlock()` in
+   action-rolls.mjs) and the styling did not follow — measured in the Search
+   window, the facts list rendered at the body's own 14px/400, one voice for
+   the lead sentence, the metadata and the question alike. The classes are
+   module-owned and unambiguous, so the scope wrapper bought nothing.
    ========================================================================== */
 
-.drpg-briefing .drpg-briefing-instruction {
+.drpg-briefing-instruction {
     margin-top: 0.5rem;
     padding: 0.4rem 0.6rem;
     border-left: 3px solid var(--drpg-eye);
@@ -1849,11 +1857,25 @@ body.drpg-pixel-font .drpg-call-button .drpg-action-cost {
     font-style: italic;
 }
 
-.drpg-briefing .drpg-briefing-facts {
+/* Cost, rolls, where you are: metadata, not prose. Smaller and Dim — the
+   token for "here if you want it" — instead of an opacity trick on the body
+   colour that computed to nearly the same grey without saying why. */
+.drpg-briefing-facts {
     margin-top: 0.5rem;
     padding-left: 1.1rem;
-    font-size: var(--font-size-13, 0.82rem);
-    opacity: 0.85;
+    font-size: var(--drpg-text-sm);
+    color: var(--drpg-dim);
+}
+
+.drpg-briefing-facts li::marker {
+    color: var(--drpg-line-strong);
+}
+
+/* The lead — the sentence that says what this action IS. One step above the
+   body, which is all the loudness a lead needs when everything else steps
+   down around it. */
+.drpg-briefing-block > p:first-child {
+    font-size: var(--drpg-text-md);
 }
 
 .drpg-gm-reference {
@@ -4661,6 +4683,58 @@ body.drpg-pixel-font .drpg-action-button .drpg-action-cost {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+/* THE ROLL DIALOG SPEAKS BONE, NOT DAGGERHEART'S AMBER.
+   --------------------------------------------------------------------------
+   Measured on the live window: the title, the Reaction Roll chip, both
+   legends and the Experience labels all rendered rgb(243, 194, 103) — which
+   is #f3c267, byte-for-byte the system's `--golden`, the exact value this
+   module's palette moved its own gold AWAY from so that gold could mean Hope
+   and nothing else. The most-opened window in the module was the last one
+   still wearing it. Dawid's call (26.08): this text is Bone.
+
+   Deliberately NOT `* { color }`: the Advantage and Disadvantage chips are
+   green and red because those words mean something, and the Hope / Despair
+   die labels are already Bone. Only the four amber sites are named.  */
+.application.roll-selection .dialog-header h1,
+.application.roll-selection .reaction-chip .label,
+.application.roll-selection .reaction-chip i,
+.application.roll-selection fieldset > legend,
+.application.roll-selection .experience-chip .label,
+.application.roll-selection .experience-chip i {
+    color: var(--drpg-bone);
+}
+
+/* The Experience labels also sat at 10px — under the 11px floor the type
+   scale declares as its hard minimum. */
+.application.roll-selection .experience-chip .label {
+    font-size: var(--drpg-text-xs);
+}
+
+/* And the Roll button, in the module's own button language: the Bone wash
+   over Ink that every Do it, Apply and Close already wears — not the system's
+   amber slab with its dark-blue label, which was the loudest single patch of
+   Daggerheart's palette left anywhere in the interface.
+
+   NOT red, by Dawid's rule (26.08): red on a button means "this interaction
+   goes through the GM" — `drpg-gm-route` and its kin — and a player rolls
+   their own dice dozens of times a session. A submit this frequent is
+   ordinary furniture; the hover may warm, the resting state may not.
+   `!important` because the system paints `.submit-btn` from its own sheet
+   with its own weight. */
+.application.roll-selection button.submit-btn {
+    background: rgba(var(--drpg-bone-rgb), 0.10) !important;
+    border: 1px solid var(--drpg-line-strong) !important;
+    color: var(--drpg-bone) !important;
+    border-radius: 2px;
+    box-shadow: none !important;
+    text-shadow: none !important;
+}
+
+.application.roll-selection button.submit-btn:hover:not(:disabled) {
+    background: rgba(var(--drpg-bone-rgb), 0.18) !important;
+    border-color: var(--drpg-bone) !important;
 }
 
 /* ==========================================================================
@@ -8713,6 +8787,98 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
 .drpg-messenger button,
 .drpg-panel h1, .drpg-panel h2, .drpg-panel h3, .drpg-panel h4,
 .drpg-gm-panel h1, .drpg-gm-panel h2, .drpg-gm-panel h3, .drpg-gm-panel h4 {
+    color: var(--drpg-bone);
+}
+
+/* ==========================================================================
+   ONE VOICE PER ROLE — the dialog type hierarchy
+   --------------------------------------------------------------------------
+   The block above got every window speaking in one COLOUR. What it left them
+   with is one voice: measured on the live Projects window, 83 text leaves out
+   of 90 rendered at an identical 14px/400/Bone — the intro prose, the field
+   labels, the option lists and the values, all indistinguishable. Search was
+   the same shape. The scale below already existed as tokens (--drpg-text-*);
+   almost nothing in the dialogs was spending it.
+
+   The hierarchy, top to bottom:
+
+     lead        text-md         the sentence that says what the window is for
+     heading     text-sm 700     a section title, caps and a hairline — the
+                                 same grammar the card header and the drawer
+                                 bars already speak
+     body        (inherited)     ordinary prose, untouched
+     label       text-sm         a field's name is smaller than what you put
+                                 in the field
+     notes       text-sm Dim     the fine print — same treatment the cards'
+                                 <small> got in the E-P2 batch
+
+   Scoped to the shared window list, so every GM sub-window — Murder, Music,
+   Player status, GM Team, Room setup, Projects, the calls dialogs — gets it
+   from one place. Option tiles (`.drpg-choice`, `.drpg-rest-option`) are
+   labels to the parser but controls to the reader, and keep their own rules.
+   ========================================================================== */
+
+/* The lead, for windows that do not open with a briefing block. */
+.application.dialog:is(
+    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
+    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
+    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
+) .dialog-form > div > p:first-child {
+    font-size: var(--drpg-text-md);
+}
+
+/* Section headings: quiet caps over a hairline, not a bigger paragraph.
+   Size and tracking do the work so the heading reads as STRUCTURE — the same
+   move the chat card's action slot and the GM panel's section bars make. */
+.application.dialog:is(
+    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
+    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
+    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
+) .dialog-form :is(h3, h4):not(table *) {
+    font-size: var(--drpg-text-sm);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding-bottom: 3px;
+    border-bottom: 1px solid var(--drpg-line);
+}
+
+/* A field's name steps under the field's value. `.drpg-choice` and
+   `.drpg-rest-option` are excluded: those labels ARE the control. */
+.application.dialog:is(
+    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
+    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
+    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
+) .dialog-form label:not(.drpg-choice):not(.drpg-rest-option):not(:has(.drpg-choice)) {
+    font-size: var(--drpg-text-sm);
+}
+
+/* The fine print. `:not(td)` because `.notes` is ALSO a table-cell class in
+   the Investigation window — see the width rules above, which learned this
+   the hard way. */
+.application.dialog:is(
+    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
+    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
+    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
+) .dialog-form .notes:not(td):not(th):not(table *) {
+    font-size: var(--drpg-text-sm);
+    color: var(--drpg-dim);
+}
+
+/* What the fine print emphasises is the one thing in it that must not be
+   dim — "costs 2 Stress", "once per chapter". */
+.application.dialog:is(
+    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
+    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
+    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
+) .dialog-form .notes:not(td):not(th):not(table *) strong {
+    color: var(--drpg-bone);
+}
+
+/* The popup's body speaks the module's own Bone rather than the warm
+   parchment it inherited from core's dark theme — the one surface in the
+   module that was still reading in somebody else's ink. */
+.drpg-popup .drpg-popup-body {
     color: var(--drpg-bone);
 }
 
