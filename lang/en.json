@@ -1786,7 +1786,10 @@
       "addNote": "The icon and the description travel with it: whoever finds this item gets both on their sheet.",
       "needsName": "The item needs a name.",
       "needsTable": "Pick a tier table or tick at least one room table.",
-      "itemAdded": "“{name}” added to {n} table(s).",
+      "itemAdded": {
+        "one": "“{name}” added to {n} table.",
+        "other": "“{name}” added to {n} tables."
+      },
       "changeIcon": "Change this item's icon",
       "newPool": "New room table",
       "newPoolPlaceholder": "e.g. Kitchen",
@@ -2122,7 +2125,10 @@
       "note": "Nothing here is done for you that you would not have done yourself. What it does is say what there is to do, in the order a season is actually built.",
       "doIt": "Do it",
       "openIt": "Open",
-      "fixed": "Set up {n} character(s) with the starting resources.",
+      "fixed": {
+        "one": "Set up {n} character with the starting resources.",
+        "other": "Set up {n} characters with the starting resources."
+      },
       "step.name": "Name the campaign",
       "hint.name": "Shown at the top of everyone's screen, above the chapter and the clock.",
       "step.cast": "The cast exists",
@@ -2146,19 +2152,46 @@
       "resetTitle": "Reset the season",
       "resetWarning": "This cannot be undone, by this module or by anything else.",
       "resetGoes": "This goes:",
-      "resetProjects": "{n} project(s)",
-      "resetRemnants": "{n} Remnant(s) on the maps",
-      "resetBullets": "{n} Truth Bullet(s), and the answer key behind them",
-      "resetDead": "{n} death(s) and every Monocub, undone",
-      "resetItems": "{n} item(s) the cast is carrying or has stowed",
-      "resetAdvances": "{n} advancement(s), and the traits and rises they bought",
-      "resetCards": "{n} card(s) this module wrote, and every messenger thread",
-      "resetNotes": "{n} note(s): before the session, and on the sheets",
+      "resetProjects": {
+        "one": "{n} project",
+        "other": "{n} projects"
+      },
+      "resetRemnants": {
+        "one": "{n} Remnant on the maps",
+        "other": "{n} Remnants on the maps"
+      },
+      "resetBullets": {
+        "one": "{n} Truth Bullet, and the answer key behind it",
+        "other": "{n} Truth Bullets, and the answer key behind them"
+      },
+      "resetDead": {
+        "one": "{n} death and every Monocub, undone",
+        "other": "{n} deaths and every Monocub, undone"
+      },
+      "resetItems": {
+        "one": "{n} item the cast is carrying or has stowed",
+        "other": "{n} items the cast is carrying or has stowed"
+      },
+      "resetAdvances": {
+        "one": "{n} advancement, and the traits and rises it bought",
+        "other": "{n} advancements, and the traits and rises they bought"
+      },
+      "resetCards": {
+        "one": "{n} card this module wrote, and every messenger thread",
+        "other": "{n} cards this module wrote, and every messenger thread"
+      },
+      "resetNotes": {
+        "one": "{n} note: before the session, and on the sheets",
+        "other": "{n} notes: before the session, and on the sheets"
+      },
       "resetPools": "every Despair pool to zero ({n} not empty), and every Hope back to {hope}",
       "resetDoors": "every door back to how the season opened",
       "resetState": "the incident, the Mastermind, the trial queue, the search tokens, every Despair Call still in force, and the clock back to Chapter 1, Day 1, Morning",
       "resetKeeps": "This stays: the cast with their names, portraits and Ultimates, the maps, the rooms and who owns them, who watches whom, the Monokuma team, and the campaign name.",
-      "resetChat": "Also delete the rest of the chat log — {n} message(s) this module did not write",
+      "resetChat": {
+        "one": "Also delete the rest of the chat log — {n} message this module did not write",
+        "other": "Also delete the rest of the chat log — {n} messages this module did not write"
+      },
       "resetType": "Type {word} to confirm",
       "resetWord": "RESET",
       "resetButton": "Reset the season",
@@ -2229,7 +2262,10 @@
       "copied": "Debug log copied — paste it (Ctrl+V) wherever it needs to go."
     },
     "Fog": {
-      "scenesPrepared": "Room-based visibility switched on for {count} scene(s).",
+      "scenesPrepared": {
+        "one": "Room-based visibility switched on for {count} scene.",
+        "other": "Room-based visibility switched on for {count} scenes."
+      },
       "scenesFailed": "Could not switch these scenes to room-based visibility: {scenes}",
       "noRoomScenes": "No scene has named Regions, so no scene uses room-based visibility.",
       "checksScenes": "Scenes and rooms"

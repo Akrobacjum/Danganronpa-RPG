@@ -26,7 +26,7 @@ import { monokumaFor } from "./assignments.mjs";
 import { listExperiences, initCharacter } from "./character.mjs";
 import { monokumas } from "./despair.mjs";
 import { mastermindActor } from "./mastermind.mjs";
-import { dialogContent, log, error, workingScene, MESSAGE_FLAG } from "./utils.mjs";
+import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG } from "./utils.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
 import { NOTE_FLAG } from "./pre-session-note.mjs";
 
@@ -230,7 +230,7 @@ export async function openSeasonSetup() {
                     try {
                         if (step.fix) {
                             const n = await step.fix();
-                            ui.notifications.info(game.i18n.format("DRPG.Season.fixed", { n }));
+                            ui.notifications.info(plural("DRPG.Season.fixed", { n }));
                         } else {
                             await step.open(step.missing());
                         }
@@ -417,14 +417,14 @@ export async function resetSeason() {
             <p class="drpg-warning">${esc(game.i18n.localize("DRPG.Season.resetWarning"))}</p>
             <p><strong>${esc(game.i18n.localize("DRPG.Season.resetGoes"))}</strong></p>
             <ul>
-                <li>${esc(game.i18n.format("DRPG.Season.resetProjects", { n: tally.projects }))}</li>
-                <li>${esc(game.i18n.format("DRPG.Season.resetRemnants", { n: tally.remnants }))}</li>
-                <li>${esc(game.i18n.format("DRPG.Season.resetBullets", { n: tally.bullets }))}</li>
-                <li>${esc(game.i18n.format("DRPG.Season.resetDead", { n: tally.dead }))}</li>
-                <li>${esc(game.i18n.format("DRPG.Season.resetItems", { n: tally.items }))}</li>
-                <li>${esc(game.i18n.format("DRPG.Season.resetAdvances", { n: tally.advances }))}</li>
-                <li>${esc(game.i18n.format("DRPG.Season.resetCards", { n: tally.cards }))}</li>
-                <li>${esc(game.i18n.format("DRPG.Season.resetNotes", { n: tally.notes }))}</li>
+                <li>${esc(plural("DRPG.Season.resetProjects", { n: tally.projects }))}</li>
+                <li>${esc(plural("DRPG.Season.resetRemnants", { n: tally.remnants }))}</li>
+                <li>${esc(plural("DRPG.Season.resetBullets", { n: tally.bullets }))}</li>
+                <li>${esc(plural("DRPG.Season.resetDead", { n: tally.dead }))}</li>
+                <li>${esc(plural("DRPG.Season.resetItems", { n: tally.items }))}</li>
+                <li>${esc(plural("DRPG.Season.resetAdvances", { n: tally.advances }))}</li>
+                <li>${esc(plural("DRPG.Season.resetCards", { n: tally.cards }))}</li>
+                <li>${esc(plural("DRPG.Season.resetNotes", { n: tally.notes }))}</li>
                 <li>${esc(game.i18n.format("DRPG.Season.resetPools",
                     { n: tally.despair, hope: STARTING.hope }))}</li>
                 <li>${esc(game.i18n.localize("DRPG.Season.resetDoors"))}</li>
@@ -437,7 +437,7 @@ export async function resetSeason() {
                  belongs to Foundry and to whoever typed in it, so it is asked
                  for separately and can be left alone without cancelling. -->
             <label class="drpg-inline-check"><input type="checkbox" name="alsoChat" checked />
-                ${esc(game.i18n.format("DRPG.Season.resetChat",
+                ${esc(plural("DRPG.Season.resetChat",
                     { n: Math.max(tally.chat - tally.cards, 0) }))}</label>
 
             <label>${esc(game.i18n.format("DRPG.Season.resetType", { word }))}

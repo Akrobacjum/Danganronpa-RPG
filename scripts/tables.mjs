@@ -1006,7 +1006,7 @@ export async function openItemTables({ preset = null } = {}) {
     }
 
     log(`Item tables: "${action.name}" added to ${added} table(s).`);
-    ui.notifications.info(game.i18n.format("DRPG.Tables.itemAdded", { name: action.name, n: added }));
+    ui.notifications.info(plural("DRPG.Tables.itemAdded", { name: action.name, n: added }));
 
     // The preset is spent: it described one ruling, and the GM is now looking
     // at a window that has already acted on it.

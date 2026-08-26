@@ -37,7 +37,7 @@ import { MODULE_ID, FLAGS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { roomOfToken } from "./movement.mjs";
 import { iAmTheMastermind, isMastermind } from "./mastermind.mjs";
-import { isPrimaryGm, debug, log, warn, error } from "./utils.mjs";
+import { isPrimaryGm, debug, log, warn, error, plural } from "./utils.mjs";
 import { ENTER, BEAT } from "./motion.mjs";
 
 const CanvasAnimation = foundry.canvas.animation.CanvasAnimation;
@@ -467,7 +467,7 @@ export async function prepareScenes() {
     // SAID OUT LOUD, both ways. A write to a world document that fails quietly
     // is the shape of failure this file has paid for more than once.
     if (changed) {
-        ui.notifications.info(game.i18n.format("DRPG.Fog.scenesPrepared", { count: changed }));
+        ui.notifications.info(plural("DRPG.Fog.scenesPrepared", { count: changed }));
     }
     if (failed.length) {
         ui.notifications.warn(game.i18n.format("DRPG.Fog.scenesFailed", { scenes: failed.join(", ") }));
