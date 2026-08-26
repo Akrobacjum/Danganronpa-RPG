@@ -670,9 +670,11 @@ async function performSearch(actor, def, options) {
     //
     //   +1  it is a sensible place to look for this — the medic's office for
     //       bandages. Set per room by the GM when the map is built.
+    //   -1  it is a POOR place to look for this — bandages in the boiler
+    //       room. The favour's mirror, set on the same Room Setup screen.
     //   -1  it is somebody else's stash and they have hidden it. Only bites
     //       when there is actually something in there to find.
-    const { favoursCategory, vaultOwnerOf, isConcealed, vaultContents } =
+    const { favoursCategory, hindersCategory, vaultOwnerOf, isConcealed, vaultContents } =
         await import("./vault.mjs");
     const stashOwnerId = vaultOwnerOf(room);
     const stashOwner = stashOwnerId && stashOwnerId !== actor.id
@@ -682,6 +684,7 @@ async function performSearch(actor, def, options) {
 
     let situational = 0;
     if (favoursCategory(room, category)) situational += 1;
+    if (hindersCategory(room, category)) situational -= 1;
     if (stashLoot.length && isConcealed(room)) situational -= 1;
 
     const calls = await import("./call-effects.mjs");

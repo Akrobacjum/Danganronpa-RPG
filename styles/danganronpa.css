@@ -2601,6 +2601,12 @@ body.drpg-pixel-font [contenteditable] {
 .drpg-vault-table {
     width: 100%;
     border-collapse: collapse;
+    /* Core says `table { overflow: hidden }`, and any ancestor with overflow
+       other than `visible` becomes the box a sticky heading sticks INSIDE —
+       the table does not scroll, so the heading below simply never stuck.
+       Measured, not guessed: the sticky th sat 65px above the scrollport
+       until this line. */
+    overflow: visible;
 }
 
 .drpg-vault-table th,
@@ -2608,6 +2614,22 @@ body.drpg-pixel-font [contenteditable] {
     padding: 3px 6px;
     border-bottom: 1px solid rgba(var(--drpg-bone-rgb), 0.1);
     vertical-align: middle;
+}
+
+/* The column headings hold still while the rooms scroll under them — twenty
+   rows of checkboxes with the labels gone off the top made "which column is
+   this" a memory exercise. Sticky against `.window-content`, the scrolling box
+   these tables live in. The ground is stated and opaque on purpose: a sticky
+   heading with no background is a heading the rows show through as they pass. */
+.drpg-vault-table thead th {
+    position: sticky;
+    /* Minus the scrollport's own 16px padding: sticky pins to the PADDING box,
+       so at `top: 0` a strip of scrolled rows kept sliding past above the
+       heading. Lifting it by the padding parks it flush with the visible top
+       and its opaque ground covers that strip. */
+    top: -16px;
+    z-index: 2;
+    background: var(--drpg-ink);
 }
 
 .drpg-vault-table select {

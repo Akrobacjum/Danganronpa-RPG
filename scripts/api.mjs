@@ -138,7 +138,7 @@ import {
 } from "./inventory.mjs";
 import {
     vaultRoomFor, vaultOwnerOf, vaultContents, allVaults, isConcealed,
-    roomTable, roomFavours, favoursCategory, setVaultRoom,
+    roomTable, roomFavours, favoursCategory, roomHinders, hindersCategory, setVaultRoom,
     stow, retrieve, stealFromVault, openRoomSetupDialog, openVaultInspector,
     openStashHere, rifleStashDialog,
     keysHeldBy, mayEnterBedroom, grantBedroomKey, reconcileBedroomKeys
@@ -523,11 +523,14 @@ export const DrpgApi = {
     syncAllStates,
 
     /* ---- what a room is ---------------------------------------------------
-     * Which table it draws from, and what it is a sensible place to look for. */
+     * Which table it draws from, and what it is a sensible — or a poor —
+     * place to look for. */
 
     roomTable,
     roomFavours,
     favoursCategory,
+    roomHinders,
+    hindersCategory,
     setVaultRoom,
 
     /** Owner, concealment, table and favoured categories, on one screen. */

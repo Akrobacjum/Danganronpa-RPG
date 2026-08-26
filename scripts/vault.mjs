@@ -28,7 +28,7 @@ import { SEARCH_FLAGS } from "./search-tokens.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 // Static is safe: tables.mjs only reaches back into this file lazily.
 import { isTierPool } from "./tables.mjs";
-import { dialogContent, tableDialog, whisperToOwner, announce, log, error, plural, workingScene } from "./utils.mjs";
+import { dialogContent, tableDialog, fitWindowToTable, whisperToOwner, announce, log, error, plural, workingScene } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -46,7 +46,11 @@ export const VAULT_FLAGS = {
     /** Name of a RollTable this room draws from, instead of the global pool. */
     table: "drpgItemTable",
     /** Item categories this room is a sensible place to look for. */
-    favours: "drpgFavours"
+    favours: "drpgFavours",
+    /** Item categories this room is a POOR place to look for — the mirror of
+        `favours`: disadvantage instead of advantage on a Search aimed at one.
+        A category is never on both lists; Room Setup keeps them exclusive. */
+    hinders: "drpgHinders"
 };
 
 /* ==========================================================================
@@ -197,6 +201,23 @@ export function favoursCategory(room, category) {
     return roomFavours(room).includes(category);
 }
 
+/** Categories this room is a poor place to search for. */
+export function roomHinders(room, scene = workingScene()) {
+    return regionsByName(scene).get(room)?.getFlag(MODULE_ID, VAULT_FLAGS.hinders) ?? [];
+}
+
+/**
+ * Does looking for this here make no sense?
+ *
+ * The other half of `favoursCategory`: bandages in the boiler room. Marked per
+ * room by the GM on the same screen as the favours, and worth a real
+ * disadvantage rather than mere absence of the bonus — a room can be actively
+ * the wrong place to dig for a thing, not just not the best one.
+ */
+export function hindersCategory(room, category) {
+    return roomHinders(room).includes(category);
+}
+
 /* ==========================================================================
  * WHOSE ROOM IS THIS
  * ========================================================================== */
@@ -262,7 +283,8 @@ export function allVaults(scene = workingScene()) {
 
 /** GM: point a room at an owner, and say whether it is concealed. */
 export async function setVaultRoom(room, {
-    owner = undefined, concealed = undefined, table = undefined, favours = undefined
+    owner = undefined, concealed = undefined, table = undefined,
+    favours = undefined, hinders = undefined
 } = {}) {
     if (!game.user.isGM) return null;
 
@@ -277,6 +299,9 @@ export async function setVaultRoom(room, {
     if (table !== undefined) update[`flags.${MODULE_ID}.${VAULT_FLAGS.table}`] = table || null;
     if (favours !== undefined) {
         update[`flags.${MODULE_ID}.${VAULT_FLAGS.favours}`] = Array.isArray(favours) ? favours : [];
+    }
+    if (hinders !== undefined) {
+        update[`flags.${MODULE_ID}.${VAULT_FLAGS.hinders}`] = Array.isArray(hinders) ? hinders : [];
     }
     if (!Object.keys(update).length) return null;
 
@@ -581,13 +606,16 @@ export async function stealFromVault({ thiefId, ownerId, itemId, viaSearch = fal
  * Every column is a region flag written when the map is built. `rest.mjs` still
  * owns the two rest flags and their readers; this only edits them.
  */
-export async function openRoomSetupDialog() {
+export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
     }
 
-    const rooms = Array.from(regionsByName().keys());
+    // Alphabetical, because a GM opens this looking for ONE room by name. The
+    // order regions come in is the order somebody happened to draw the map,
+    // which is nobody's mental model of the building.
+    const rooms = Array.from(regionsByName().keys()).sort((a, b) => a.localeCompare(b));
     if (!rooms.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Vault.noRooms"));
         return null;
@@ -624,10 +652,15 @@ export async function openRoomSetupDialog() {
         return `<tr><td><strong>${escName}</strong></td>${boxes}</tr>`;
     }).join("");
 
-    const rows = rooms.map(room => {
+    /* One pass gathers every fact about a room; the tabs then deal the same
+     * cells into four thematic tables. The input NAMES are the contract with
+     * the Apply callback below, identical whichever table a cell sits in —
+     * Apply reads the whole form and never asks which tab was showing. */
+    const cells = rooms.map(room => {
         const owner = vaultOwnerOf(room) ?? "";
         const table = roomTable(room) ?? "";
         const favours = roomFavours(room);
+        const hinders = roomHinders(room);
         const region = regions.get(room);
         const esc = foundry.utils.escapeHTML(room);
 
@@ -637,29 +670,29 @@ export async function openRoomSetupDialog() {
         const tableOptions = tables.map(t =>
             `<option value="${foundry.utils.escapeHTML(t)}"${t === table ? " selected" : ""}>${
                 foundry.utils.escapeHTML(t)}</option>`).join("");
-        const boxes = categories.map(([key, cat]) =>
+        // The same set of category boxes twice, under two prefixes: `fav` for
+        // the advantage column, `hin` for the disadvantage one. The render
+        // hook below keeps one category from being ticked in both.
+        const categoryBoxes = (prefix, ticked) => categories.map(([key, cat]) =>
             `<label class="drpg-inline-check"><input type="checkbox"
-                name="fav:${esc}:${key}" ${favours.includes(key) ? "checked" : ""} />${
+                name="${prefix}:${esc}:${key}" ${ticked.includes(key) ? "checked" : ""} />${
                 foundry.utils.escapeHTML(cat.label)}</label>`).join(" ");
 
-        return `<tr>
-            <td><strong>${esc}</strong></td>
-            <td><select name="owner:${esc}"><option value="">—</option>${people}</select></td>
-            <td style="text-align:center"><input type="checkbox" name="concealed:${esc}"
-                ${isConcealed(room) ? "checked" : ""} /></td>
-            <td style="text-align:center"><input type="checkbox" name="short:${esc}"
-                ${region?.getFlag(MODULE_ID, REST_FLAGS.short) ? "checked" : ""} /></td>
-            <td style="text-align:center"><input type="checkbox" name="long:${esc}"
-                ${region?.getFlag(MODULE_ID, REST_FLAGS.long) ? "checked" : ""} /></td>
-            <td style="text-align:center"><input type="checkbox" name="locked:${esc}"
-                ${region?.getFlag(MODULE_ID, ROOM_FLAGS.locked) ? "checked" : ""} /></td>
-            <td style="text-align:center" title="${
-                game.i18n.localize("DRPG.Vault.lockedAtStartHint")}"><input type="checkbox"
-                name="startlocked:${esc}"
-                ${startLocked(region) ? "checked" : ""} /></td>
-            <td style="text-align:center"><input type="checkbox" name="nosearch:${esc}"
-                ${region?.getFlag(MODULE_ID, SEARCH_FLAGS.sealed) ? "checked" : ""} /></td>
-            <td class="drpg-token-cell" style="text-align:center">
+        const check = (name, on, title = "") => `<td style="text-align:center"${
+            title ? ` title="${title}"` : ""}><input type="checkbox" name="${name}:${esc}"
+                ${on ? "checked" : ""} /></td>`;
+
+        return {
+            name: `<td><strong>${esc}</strong></td>`,
+            owner: `<td><select name="owner:${esc}"><option value="">—</option>${people}</select></td>`,
+            concealed: check("concealed", isConcealed(room)),
+            short: check("short", region?.getFlag(MODULE_ID, REST_FLAGS.short)),
+            long: check("long", region?.getFlag(MODULE_ID, REST_FLAGS.long)),
+            locked: check("locked", region?.getFlag(MODULE_ID, ROOM_FLAGS.locked)),
+            startlocked: check("startlocked", startLocked(region),
+                game.i18n.localize("DRPG.Vault.lockedAtStartHint")),
+            nosearch: check("nosearch", region?.getFlag(MODULE_ID, SEARCH_FLAGS.sealed)),
+            tokens: `<td class="drpg-token-cell" style="text-align:center">
                 <span data-drpg-tokens="${esc}">${SearchTokens.left(room, scene)}</span> / ${maxTokens}
                 <button type="button" class="drpg-mini-button" data-drpg-token="${esc}"
                     data-drpg-token-by="-1" title="${
@@ -670,13 +703,34 @@ export async function openRoomSetupDialog() {
                 <button type="button" class="drpg-mini-button" data-drpg-token="${esc}"
                     data-drpg-token-by="max" title="${
                         game.i18n.localize("DRPG.SearchTokens.refillRoom")}">↺</button>
-            </td>
-            <td><select name="table:${esc}">
+            </td>`,
+            table: `<td><select name="table:${esc}">
                 <option value="">${game.i18n.localize("DRPG.Vault.globalPool")}</option>
-                ${tableOptions}</select></td>
-            <td>${boxes}</td>
-        </tr>`;
-    }).join("");
+                ${tableOptions}</select></td>`,
+            favours: `<td>${categoryBoxes("fav", favours)}</td>`,
+            hinders: `<td>${categoryBoxes("hin", hinders)}</td>`
+        };
+    });
+
+    const th = key => `<th>${game.i18n.localize(key)}</th>`;
+    const tableFor = (heads, cols) => `<table class="drpg-vault-table"><thead><tr>${
+        th("DRPG.Vault.room")}${heads.join("")}</tr></thead><tbody>${
+        cells.map(c => `<tr>${c.name}${cols.map(k => c[k]).join("")}</tr>`).join("")
+    }</tbody></table>`;
+
+    const TABS = [
+        ["bedrooms", "DRPG.Vault.tabBedrooms"],
+        ["doors", "DRPG.Vault.tabDoors"],
+        ["search", "DRPG.Vault.tabSearching"],
+        ["rest", "DRPG.Vault.tabRest"],
+        ["fog", "DRPG.Vault.tabFog"]
+    ];
+    const initial = TABS.some(([key]) => key === tab) ? tab : "bedrooms";
+    const nav = TABS.map(([key, label]) =>
+        `<button type="button" class="drpg-dashboard-tab${key === initial ? " active" : ""}"
+            data-drpg-tab="${key}">${game.i18n.localize(label)}</button>`).join("");
+    const panel = (key, inner) =>
+        `<div data-drpg-panel="${key}"${key === initial ? "" : ' style="display:none"'}>${inner}</div>`;
 
     const result = await tableDialog({
         window: { title: game.i18n.localize("DRPG.Vault.manageTitle") },
@@ -687,45 +741,49 @@ export async function openRoomSetupDialog() {
         // right-hand columns with no way to scroll to them.
         classes: ["drpg-panel", "drpg-projects"],
         content: dialogContent(`<form>
-            <nav class="drpg-dashboard-tabs">
-                <button type="button" class="drpg-dashboard-tab active" data-drpg-tab="rooms">${
-                    game.i18n.localize("DRPG.Vault.tabRooms")}</button>
-                <button type="button" class="drpg-dashboard-tab" data-drpg-tab="fog">${
-                    game.i18n.localize("DRPG.Vault.tabFog")}</button>
-            </nav>
+            <p class="notes">${game.i18n.localize("DRPG.Vault.manageIntro")}</p>
+            <nav class="drpg-dashboard-tabs">${nav}</nav>
 
-            <div data-drpg-panel="rooms">
-                <p>${game.i18n.localize("DRPG.Vault.manageIntro")}</p>
-                <table class="drpg-vault-table"><thead><tr>
-                    <th>${game.i18n.localize("DRPG.Vault.room")}</th>
-                    <th>${game.i18n.localize("DRPG.Vault.owner")}</th>
-                    <th>${game.i18n.localize("DRPG.Vault.concealed")}</th>
-                    <th>${game.i18n.localize("DRPG.Rest.shortColumn")}</th>
-                    <th>${game.i18n.localize("DRPG.Rest.longColumn")}</th>
-                    <th>${game.i18n.localize("DRPG.Vault.lockedColumn")}</th>
-                    <th>${game.i18n.localize("DRPG.Vault.lockedAtStartColumn")}</th>
-                    <th>${game.i18n.localize("DRPG.SearchTokens.sealedColumn")}</th>
-                    <th>${game.i18n.localize("DRPG.SearchTokens.title")}</th>
-                    <th>${game.i18n.localize("DRPG.Vault.table")}</th>
-                    <th>${game.i18n.localize("DRPG.Vault.favours")}</th>
-                </tr></thead><tbody>${rows}</tbody></table>
+            ${panel("bedrooms", `
+                <p>${game.i18n.localize("DRPG.Vault.bedroomsIntro")}</p>
+                ${tableFor([th("DRPG.Vault.owner"), th("DRPG.Vault.concealed")],
+                    ["owner", "concealed"])}
+            `)}
+
+            ${panel("doors", `
+                <p>${game.i18n.localize("DRPG.Vault.doorsIntro")}</p>
+                ${tableFor([th("DRPG.Vault.lockedColumn"), th("DRPG.Vault.lockedAtStartColumn")],
+                    ["locked", "startlocked"])}
+            `)}
+
+            ${panel("search", `
+                <p>${game.i18n.localize("DRPG.Vault.searchIntro")}</p>
+                ${tableFor([
+                    th("DRPG.SearchTokens.sealedColumn"), th("DRPG.SearchTokens.title"),
+                    th("DRPG.Vault.table"), th("DRPG.Vault.favours"), th("DRPG.Vault.hinders")
+                ], ["nosearch", "tokens", "table", "favours", "hinders"])}
                 <p class="notes">${game.i18n.localize("DRPG.Vault.manageNote")}</p>
-                <p class="notes">${game.i18n.localize("DRPG.Rest.manageIntro")}</p>
                 <p class="notes">${game.i18n.format("DRPG.SearchTokens.roomSetupNote",
                     { max: maxTokens })}</p>
                 <p class="notes">${game.i18n.localize("DRPG.SearchTokens.sealedNote")}</p>
-            </div>
+            `)}
 
-            <div data-drpg-panel="fog" style="display:none">
+            ${panel("rest", `
+                <p>${game.i18n.localize("DRPG.Rest.manageIntro")}</p>
+                ${tableFor([th("DRPG.Rest.shortColumn"), th("DRPG.Rest.longColumn")],
+                    ["short", "long"])}
+            `)}
+
+            ${panel("fog", `
                 <p>${game.i18n.localize("DRPG.Vault.fogIntro")}</p>
                 ${uncovered > 0 ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vault.fogUncovered",
                     { pct: uncovered })}</p>` : ""}
-                ${rooms.length ? `<table class="drpg-vault-table"><thead><tr>
+                <table class="drpg-vault-table"><thead><tr>
                     <th>${game.i18n.localize("DRPG.Vault.student")}</th>
                     ${rooms.map(r => `<th>${foundry.utils.escapeHTML(r)}</th>`).join("")}
-                </tr></thead><tbody>${fogRows}</tbody></table>` : ""}
+                </tr></thead><tbody>${fogRows}</tbody></table>
                 <p class="notes">${game.i18n.localize("DRPG.Vault.fogNote")}</p>
-            </div>
+            `)}
         </form>`),
         buttons: [
             {
@@ -745,7 +803,14 @@ export async function openRoomSetupDialog() {
                         table: pick(`table:${room}`)?.value ?? "",
                         favours: categories
                             .map(([key]) => key)
-                            .filter(key => pick(`fav:${room}:${key}`)?.checked)
+                            .filter(key => pick(`fav:${room}:${key}`)?.checked),
+                        // The render hook keeps the two columns exclusive in
+                        // the UI; the filter repeats it here so a row somebody
+                        // edited by other means still cannot say both.
+                        hinders: categories
+                            .map(([key]) => key)
+                            .filter(key => pick(`hin:${room}:${key}`)?.checked
+                                && !pick(`fav:${room}:${key}`)?.checked)
                     }));
                     const fogMatrix = {};
                     for (const actor of students) {
@@ -763,14 +828,32 @@ export async function openRoomSetupDialog() {
             const root = dialog.element;
             const tabs = root.querySelectorAll("[data-drpg-tab]");
             const panels = root.querySelectorAll("[data-drpg-panel]");
-            for (const tab of tabs) {
-                tab.addEventListener("click", () => {
-                    for (const t of tabs) t.classList.toggle("active", t === tab);
+            for (const tabButton of tabs) {
+                tabButton.addEventListener("click", () => {
+                    for (const t of tabs) t.classList.toggle("active", t === tabButton);
                     for (const p of panels) {
-                        p.style.display = p.dataset.drpgPanel === tab.dataset.drpgTab ? "" : "none";
+                        p.style.display = p.dataset.drpgPanel === tabButton.dataset.drpgTab ? "" : "none";
                     }
+                    // Every tab is its own table and the window was measured
+                    // for the one that was showing — refit to the one showing
+                    // now. A hidden table measures zero, so the fit lands on
+                    // exactly the visible one.
+                    fitWindowToTable(dialog);
                 });
             }
+
+            // A room cannot favour and hinder the same category. Ticking one
+            // side clears the other quietly — refusing at Apply instead would
+            // send the GM hunting through checkboxes for the contradiction.
+            // The room name may itself contain ":", so the category is read
+            // from the LAST segment and the room is everything between.
+            root.querySelector("form")?.addEventListener("change", ev => {
+                const m = ev.target?.name?.match(/^(fav|hin):(.+):([^:]+)$/);
+                if (!m || !ev.target.checked) return;
+                const twin = root.querySelector(`[name="${
+                    CSS.escape(`${m[1] === "fav" ? "hin" : "fav"}:${m[2]}:${m[3]}`)}"]`);
+                if (twin) twin.checked = false;
+            });
 
             // The search-token controls act AT ONCE and recount in place.
             //
@@ -801,7 +884,9 @@ export async function openRoomSetupDialog() {
 
     if (result === "discoverAll" || result === "hideAll") {
         await setDiscovery(scene, { rooms, value: result === "discoverAll" });
-        return openRoomSetupDialog();
+        // Back onto the tab those two buttons act on — reopening at the first
+        // tab made the GM walk back to Fog to see what they just did.
+        return openRoomSetupDialog({ tab: "fog" });
     }
 
     if (result.fog) await saveDiscoveryMatrix(scene, result.fog);
@@ -834,7 +919,8 @@ export async function openRoomSetupDialog() {
             owner: region.getFlag(MODULE_ID, VAULT_FLAGS.owner) ?? null,
             concealed: Boolean(region.getFlag(MODULE_ID, VAULT_FLAGS.concealed)),
             table: region.getFlag(MODULE_ID, VAULT_FLAGS.table) ?? null,
-            favours: region.getFlag(MODULE_ID, VAULT_FLAGS.favours) ?? []
+            favours: region.getFlag(MODULE_ID, VAULT_FLAGS.favours) ?? [],
+            hinders: region.getFlag(MODULE_ID, VAULT_FLAGS.hinders) ?? []
         };
         const beforeRest = {
             short: Boolean(region.getFlag(MODULE_ID, REST_FLAGS.short)),
@@ -851,6 +937,8 @@ export async function openRoomSetupDialog() {
             && beforeRest.long === row.longRest
             && before.favours.length === row.favours.length
             && before.favours.every(f => row.favours.includes(f))
+            && before.hinders.length === row.hinders.length
+            && before.hinders.every(h => row.hinders.includes(h))
             && wasLocked === row.locked
             && wasLockedAtStart === row.lockedAtStart
             && wasSealed === row.noSearch;
@@ -860,7 +948,8 @@ export async function openRoomSetupDialog() {
             owner: row.owner,
             concealed: row.concealed,
             table: row.table,
-            favours: row.favours
+            favours: row.favours,
+            hinders: row.hinders
         });
 
         // Through rest.mjs's own writer rather than a second flag path, so the

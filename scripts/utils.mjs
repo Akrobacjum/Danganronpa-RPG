@@ -444,8 +444,13 @@ export function tableDialog(options) {
  * `scrollWidth` rather than `getBoundingClientRect().width`: the table is the
  * thing overflowing its container, and the bounding box reports the CLIPPED
  * width, i.e. the number we already have. `scrollWidth` is the full one.
+ *
+ * Exported for the one window that changes which table is showing after
+ * render: Room Setup's tabs each hold their own table, and a window fitted to
+ * the first tab is the wrong size for every other. A hidden table measures
+ * zero, so calling this again after a switch fits exactly the visible one.
  */
-function fitWindowToTable(dialog) {
+export function fitWindowToTable(dialog) {
     const root = dialog?.element;
     if (!root) return;
 
