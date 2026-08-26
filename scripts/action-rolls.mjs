@@ -25,6 +25,8 @@ import { roomOfActor, othersInRoom } from "./movement.mjs";
 import { projectsAvailableIn, addProgress, isIndirectMurder, scaleFor, projectsListedIn } from "./projects.mjs";
 import { callGm, promptAndCallGm } from "./gm-bridge.mjs";
 import { announce, resolveThreshold, whisperToOwner, dialogContent, replaceFlag, log, error, plural, cardHead } from "./utils.mjs";
+// Static, and safe to be: nothing private-rolls.mjs imports leads back here.
+import { supersedingRoll } from "./private-rolls.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -386,7 +388,12 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
     // to use a Call. Both are supplied explicitly.
     let result;
     try {
-        result = await actor.rollTrait(dhTrait, {
+        // The system's own card for this roll is claimed as it is created and
+        // never rendered: this module reports the same roll in its own card,
+        // with the same two faces and the same total. See `supersedingRoll` in
+        // private-rolls.mjs — and note the claim covers only THIS call, so a
+        // trait rolled straight off the sheet keeps Daggerheart's card.
+        result = await supersedingRoll(() => actor.rollTrait(dhTrait, {
             event: { shiftKey: false, altKey: false, ctrlKey: false },
             dialog: { configure: true },
             // Say what the roll is FOR.
@@ -398,7 +405,7 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
             // other, all called "Shadow Roll", and the player answers the same
             // question three times without being told which is which.
             ...(title ? { title, headerTitle: title } : {})
-        });
+        }));
     } finally {
         if (free) {
             const { disarmMaximum } = await import("./forced-roll.mjs");
@@ -576,24 +583,35 @@ function dualityBar(outcome) {
     const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
     const L = key => game.i18n.localize(`DRPG.Action.duality.${key}`);
 
-    const parts = [
+    /* THE RESULT FIRST, ITS WORKING UNDER IT.
+     *
+     * This was one line — `1 + 10 + 1 = 12  with Despair` — which is the same
+     * facts and a worse card: the total, the thing the whole roll is for, was
+     * the fourth item on a row of seven and the same size as the operators
+     * around it. Daggerheart's own card gets this right and it is why it reads
+     * better, so the composition follows it: the answer large and centred, the
+     * arithmetic beneath it as a quiet second line for anyone checking.
+     */
+    const formula = [
         `<span class="drpg-duality-die is-hope" data-tooltip="${esc(L("hopeDie"))}">${esc(hope)}</span>`,
         `<span class="drpg-duality-op">+</span>`,
         `<span class="drpg-duality-die is-despair" data-tooltip="${esc(L("despairDie"))}">${esc(fear)}</span>`
     ];
 
-    // A zero modifier is left out rather than printed. "1 + 10 + 0 = 11" asks
-    // the reader to check that the nothing really is nothing.
+    // A zero modifier is left out rather than printed. "1 + 10 + 0" asks the
+    // reader to check that the nothing really is nothing.
     if (modifier !== 0) {
-        parts.push(`<span class="drpg-duality-op">${modifier < 0 ? "−" : "+"}</span>`);
-        parts.push(`<span class="drpg-duality-mod" data-tooltip="${esc(L("modifier"))}">${esc(Math.abs(modifier))}</span>`);
+        formula.push(`<span class="drpg-duality-op">${modifier < 0 ? "−" : "+"}</span>`);
+        formula.push(`<span class="drpg-duality-mod" data-tooltip="${esc(L("modifier"))}">${esc(Math.abs(modifier))}</span>`);
     }
 
-    parts.push(`<span class="drpg-duality-op is-equals">=</span>`);
-    parts.push(`<span class="drpg-duality-total">${esc(total)}</span>`);
-    if (side) parts.push(`<span class="drpg-duality-badge">${esc(L(side))}</span>`);
-
-    return `<div class="drpg-duality"${side ? ` data-side="${side}"` : ""}>${parts.join("")}</div>`;
+    return `<div class="drpg-duality"${side ? ` data-side="${side}"` : ""}>
+        <div class="drpg-duality-result">
+            <span class="drpg-duality-total">${esc(total)}</span>
+            ${side ? `<span class="drpg-duality-badge">${esc(L(side))}</span>` : ""}
+        </div>
+        <div class="drpg-duality-formula">${formula.join("")}</div>
+    </div>`;
 }
 
 /**
@@ -2041,7 +2059,7 @@ async function performGmAction(actor, actionKey, def, options) {
         actionKey, gmRuled: true, request, label: def.label, room: roomOfActor(actor)
     });
 
-    await whisperToOwner(actor, `${rollHead(def, roll)}${body}`);
+    await whisperToOwner(actor, `${rollHead(def, roll)}${body}`, rollCardFlags(def, roll));
 
     return { calledGm: true, roll };
 }
@@ -2233,7 +2251,7 @@ async function settleObserveRoll(actor, def, roll, observeKey, declaration) {
     const waits = declaration === "specific" || declaration === "anything";
 
     await whisperToOwner(actor, `${rollHead(def, roll)}${
-        waits ? `<p><small>${game.i18n.localize("DRPG.Observe.sent")}</small></p>` : ""}`);
+        waits ? `<p><small>${game.i18n.localize("DRPG.Observe.sent")}</small></p>` : ""}`, rollCardFlags(def, roll));
 
     return { roll, observeKey };
 }
@@ -2431,7 +2449,7 @@ async function analyseBullet(actor, def, roll, subject) {
     await whisperToOwner(actor, `${rollHead(def, roll)}<p><small>${
         game.i18n.format("DRPG.Analyze.sent", {
             name: foundry.utils.escapeHTML(subject.name)
-        })}</small></p>`);
+        })}</small></p>`, rollCardFlags(def, roll));
 
     return { roll, subject: subject.name };
 }
@@ -2464,7 +2482,7 @@ async function askForHint(actor, def, roll, request = "") {
         actionKey: "analyze", gmRuled: true, request, label: title, room: roomOfActor(actor)
     });
 
-    await whisperToOwner(actor, `${rollHead(def, roll)}${body}`);
+    await whisperToOwner(actor, `${rollHead(def, roll)}${body}`, rollCardFlags(def, roll));
 
     return { calledGm: true, roll, subject: null };
 }
@@ -2620,7 +2638,7 @@ async function performListen(actor, def, options) {
         outcome = { success: false };
     }
 
-    await whisperToOwner(actor, `${rollHead(def, roll)}${lines.join("")}`);
+    await whisperToOwner(actor, `${rollHead(def, roll)}${lines.join("")}`, rollCardFlags(def, roll));
 
     Hooks.callAll("drpgActionResolved", { actor, actionKey: "listen", roll, outcome });
     return outcome;
@@ -2974,14 +2992,47 @@ export async function askDynamicDifficulty({ description, actorName, room } = {}
  *
  * `report()` does not go through here because it has a room and an outcome to
  * put in the other two slots.
+ *
+ * The duality bar comes with it. These cards replace Daggerheart's — the
+ * system's copy of the roll is claimed and never rendered, see
+ * `supersedingRoll` — so a card that showed only a total would have taken the
+ * two faces off the table rather than moved them.
  */
+/**
+ * WHAT THE DICE DID, AS A COLOUR.
+ *
+ * The card prints the total; what it cannot say at a glance is which way the
+ * roll went, and that is the one thing a player wants from across the table.
+ * It reaches the popup's title bar and the chat card's whole ground from here.
+ *
+ * A Critical is checked first because a roll can be critical AND carry a side,
+ * and the rarer fact is the one worth the colour.
+ */
+function rollTone(roll) {
+    return roll?.isCritical ? "critical"
+        : roll?.withHope ? "hope"
+            : roll?.withFear ? "fear" : null;
+}
+
+/**
+ * The flags every roll card carries — its header, and its outcome as a colour.
+ *
+ * Five cards in this file went out with neither, so they arrived in flat
+ * neutral ink and with no title on their popup while `report()`'s carried both.
+ * Same roll, same kind of card, two different surfaces.
+ */
+function rollCardFlags(def, roll) {
+    return { flags: { [MODULE_ID]: { popupTitle: def.label, popupTone: rollTone(roll) } } };
+}
+
 function rollHead(def, roll) {
     return cardHead({
         action: def.label,
         total: roll?.total,
         result: roll?.isCritical ? game.i18n.localize("DRPG.Action.critical") : null,
+        resultKind: roll?.isCritical ? "critical" : null,
         trait: TRAITS[roll?.trait]?.label
-    });
+    }) + dualityBar(roll);
 }
 
 async function report(actor, def, roll, outcome) {
@@ -3104,19 +3155,9 @@ async function report(actor, def, roll, outcome) {
         flags: {
             [MODULE_ID]: {
                 popupTitle: def.label,
-                // WHAT THE DICE DID, AS A COLOUR.
-                //
-                // The card already prints the total; what it could not say at a
-                // glance is which way the roll went, and that is the one thing
-                // a player wants from across the table. The title bar takes it:
-                // gold for Hope, Blood for Despair, crimson for a Critical.
-                //
-                // A Critical is checked first because a roll can be critical
-                // AND carry a side, and the rarer fact is the one worth the
-                // colour.
-                popupTone: roll?.isCritical ? "critical"
-                    : roll?.withHope ? "hope"
-                        : roll?.withFear ? "fear" : null,
+                // See `rollTone`, which the five cards that go through
+                // `rollHead` share with this one.
+                popupTone: rollTone(roll),
                 summary: {
                     actorId: actor?.id ?? null,
                     action: def.label,

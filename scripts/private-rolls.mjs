@@ -212,7 +212,26 @@ function paintChatCard(message, element) {
         // print inside our cards is ours to weight, and inside Daggerheart's is
         // not. The flag is the same one `stamped()` puts on every message this
         // module posts, so the class means exactly "we wrote this".
-        if (message?.getFlag?.(MODULE_ID, MESSAGE_FLAG)) html.classList.add("drpg-chat-card");
+        if (message?.getFlag?.(MODULE_ID, MESSAGE_FLAG)) {
+            html.classList.add("drpg-chat-card");
+
+            /* AND WHICH WAY ITS ROLL WENT.
+             *
+             * The module's own result card knew its outcome — `popupTone` has
+             * carried it to the popup's title bar since the popup existed — and
+             * spent it on nothing in the chat log, where the same card sat in
+             * neutral ink beside Daggerheart's, which is tinted, gradient-washed
+             * and lit from inside. That is most of why the system's card looked
+             * better: not the composition, the CARD. Same treatment, same
+             * tokens, applied to ours.
+             */
+            const tone = message.getFlag(MODULE_ID, "popupTone");
+            if (tone && OUTCOME_TOKEN[tone]) {
+                html.classList.add("drpg-outcome", `drpg-outcome-${tone}`);
+                markOutcome(html, tone);
+                return;
+            }
+        }
 
         {
             const outcome = dualityOutcome(message, html);
@@ -326,6 +345,16 @@ function enforceContentVisibility(message, element) {
     try {
         const html = element instanceof HTMLElement ? element : element?.[0];
         if (!html) return;
+
+        // A roll this module already reported in its own card. Hidden the same
+        // way and for a related reason — the log should carry one account of
+        // what happened, not two. See `supersedingRoll`.
+        if (message.getFlag?.(MODULE_ID, SUPERSEDED_FLAG)) {
+            html.classList.add("drpg-hidden-message");
+            html.style.setProperty("display", "none", "important");
+            return;
+        }
+
         // Core's own rule, asked directly. It already accounts for the author,
         // blind rolls and GMs, so there is nothing to re-derive here.
         if (message.isContentVisible) return;
@@ -419,7 +448,78 @@ function sameRoomAudience(actor) {
     }
 }
 
+/**
+ * The flag that says "this module posted its own card for this roll".
+ *
+ * Written into the message AS IT IS CREATED rather than set afterwards, which
+ * matters: a flag added later means an update, an update means a re-render, and
+ * a re-render means the system's card is on screen for a moment and then
+ * vanishes. Stamped at creation it is simply never seen — and, being a real
+ * flag on a real document, it is still not seen after a reload.
+ */
+const SUPERSEDED_FLAG = "supersededRoll";
+
+/**
+ * Open claims — one per `supersedingRoll` call in flight. A list rather than a
+ * boolean because nothing here promises the roll paths never nest.
+ *
+ * EACH CLAIM IS SPENT ON ONE MESSAGE. A trait roll produces exactly one, and
+ * without that limit a roll that never finishes leaves its claim open forever:
+ * observed once, and the cost was every subsequent roll on that client being
+ * swallowed silently. Foundry's own dice animation does not run on a
+ * BACKGROUNDED tab — the roll then hangs after its message exists — so this is
+ * the ordinary case, not an exotic one. Marking the claim spent at the moment
+ * it stamps means a hang can cost the roll it belongs to and nothing after it.
+ */
+let rollClaims = [];
+
+/**
+ * Run something that posts a system roll card this module replaces with its own.
+ *
+ * Daggerheart's duality card is the same roll said twice: the module's card
+ * already carries the two faces, the modifier, the total and which way it went,
+ * and having both meant a player read the result on one card and looked away to
+ * a second in another visual language. So the system's copy is claimed as it is
+ * created and never rendered.
+ *
+ * Scoped to the window in which the module is deliberately rolling — a plain
+ * trait roll from the sheet has no module card to replace it and keeps its own,
+ * which is the whole reason this is a claim and not a blanket rule.
+ *
+ * @param {() => Promise<any>} fn  the call that produces the roll.
+ */
+export async function supersedingRoll(fn) {
+    const claim = { spent: false };
+    rollClaims.push(claim);
+    try {
+        return await fn();
+    } finally {
+        rollClaims = rollClaims.filter(c => c !== claim);
+    }
+}
+
+/** Stamp a roll message created inside a claim. See `supersedingRoll`. */
+function claimRollMessage(message, data) {
+    const claim = rollClaims.find(c => !c.spent);
+    if (!claim) return;
+
+    const hasRoll = (message.rolls?.length ?? 0) > 0
+        || !!data?.roll
+        || (data?.rolls?.length ?? 0) > 0;
+    if (!hasRoll) return;
+
+    claim.spent = true;
+    message.updateSource({ [`flags.${MODULE_ID}.${SUPERSEDED_FLAG}`]: true });
+}
+
 function onPreCreateChatMessage(message, data, options, userId) {
+    try {
+        claimRollMessage(message, data);
+    } catch (err) {
+        // A card we failed to claim is a duplicate card, not a broken one.
+        error("Could not claim a superseded roll card", err);
+    }
+
     try {
         if (!game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls)) return;
 

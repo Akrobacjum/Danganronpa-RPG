@@ -7837,14 +7837,54 @@ details.drpg-calls-panel[open] > .drpg-action-grid {
    ========================================================================== */
 
 .drpg-duality {
+    margin: 2px 0 8px;
+    padding-top: 6px;
+    border-top: 1px solid var(--drpg-line);
+    font-variant-numeric: tabular-nums;
+}
+
+/* The answer, at the size of an answer. */
+.drpg-duality .drpg-duality-result {
     display: flex;
-    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: center;
+    gap: 0.4em;
+    flex-wrap: nowrap;
+}
+
+.drpg-duality .drpg-duality-total {
+    font-size: 2.1em;
+    font-weight: 700;
+    line-height: 1.05;
+    color: var(--drpg-bone);
+}
+
+/* "With Despair" is four characters longer than "with Hope" and would wrap
+   under the number — the same trap the system's own card fell into and the
+   same fix: the wording scales down and stays on one line while the total
+   stays large. */
+.drpg-duality .drpg-duality-badge {
+    font-size: 0.95em;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    color: var(--drpg-dim);
+}
+
+.drpg-duality[data-side="hope"] :is(.drpg-duality-total, .drpg-duality-badge) { color: var(--drpg-gold); }
+.drpg-duality[data-side="despair"] :is(.drpg-duality-total, .drpg-duality-badge) { color: var(--drpg-blood); }
+.drpg-duality[data-side="critical"] :is(.drpg-duality-total, .drpg-duality-badge) { color: var(--drpg-crimson-light); }
+
+/* The working, underneath and quiet: for the reader who wants to check the
+   number, not the one who wants to know it. */
+.drpg-duality .drpg-duality-formula {
+    display: flex;
     align-items: center;
+    justify-content: center;
     gap: 4px;
-    margin: 0 0 6px 0;
+    margin-top: 3px;
     font-size: var(--drpg-text-xs);
     line-height: 1.4;
-    font-variant-numeric: tabular-nums;
 }
 
 .drpg-duality .drpg-duality-die {
@@ -7869,31 +7909,63 @@ details.drpg-calls-panel[open] > .drpg-action-grid {
     font-weight: 700;
 }
 
-.drpg-duality .drpg-duality-total {
-    color: var(--drpg-bone);
-    font-weight: 700;
-}
-
-/* The badge says the thing the colours already imply, for the reader who is
-   scanning the log rather than looking at it. It takes the side's own colour. */
-.drpg-duality .drpg-duality-badge {
-    margin-left: auto;
-    padding: 0 4px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    font-size: 0.92em;
-    color: var(--drpg-dim);
-}
-
-.drpg-duality[data-side="hope"] .drpg-duality-badge { color: var(--drpg-gold); }
-.drpg-duality[data-side="despair"] .drpg-duality-badge { color: var(--drpg-blood); }
-.drpg-duality[data-side="critical"] .drpg-duality-badge { color: var(--drpg-eye); }
-
 /* A critical is the one case where both dice agree, and the pair is the fact —
    so the pair is what gets marked, not one of them. */
 .drpg-duality[data-side="critical"] .drpg-duality-die {
-    color: var(--drpg-eye);
-    box-shadow: 0 0 5px var(--drpg-eye-glow, transparent);
+    color: var(--drpg-crimson-light);
+    box-shadow: 0 0 5px rgba(var(--drpg-crimson-rgb), 0.45);
+}
+
+/* ==========================================================================
+   AND THE CARD ITSELF, LIT LIKE THE SYSTEM'S
+   --------------------------------------------------------------------------
+   Daggerheart's duality card reads better than this module's did, and the
+   reason turned out not to be its composition — it was that the card is a
+   SURFACE: an outcome-tinted ground, a gradient wash across it and a glow lit
+   from inside. This module wrote those three rules, for Daggerheart's card,
+   two thousand lines up. Its own card sat next to them in flat neutral ink.
+
+   Same three, same tokens, on ours. `popupTone` already knew which outcome it
+   was — it has been colouring the popup's title bar all along — so nothing new
+   is computed, only spent where it was already earned. The border comes from
+   `markOutcome` inline, for the reason documented up there: Daggerheart forces
+   `border-style: none` from an earlier layer, and important declarations run
+   the layers in reverse.
+   ========================================================================== */
+
+#chat-log .chat-message.drpg-chat-card.drpg-outcome-hope,
+.chat-message.drpg-chat-card.drpg-outcome-hope {
+    background-color: var(--drpg-ink-hope) !important;
+    background-image: linear-gradient(100deg, rgba(var(--drpg-gold-rgb), 0.14) 0%, transparent 70%) !important;
+    box-shadow: inset 0 0 14px rgba(var(--drpg-gold-rgb), 0.08);
+}
+
+#chat-log .chat-message.drpg-chat-card.drpg-outcome-fear,
+.chat-message.drpg-chat-card.drpg-outcome-fear {
+    background-color: var(--drpg-ink-despair) !important;
+    background-image: linear-gradient(100deg, rgba(var(--drpg-blood-rgb), 0.16) 0%, transparent 70%) !important;
+    box-shadow: inset 0 0 14px var(--drpg-blood-glow);
+}
+
+#chat-log .chat-message.drpg-chat-card.drpg-outcome-critical,
+.chat-message.drpg-chat-card.drpg-outcome-critical {
+    background-color: var(--drpg-ink-critical) !important;
+    background-image: linear-gradient(100deg, rgba(var(--drpg-crimson-rgb), 0.2) 0%, transparent 70%) !important;
+    box-shadow: inset 0 0 14px rgba(var(--drpg-crimson-rgb), 0.1);
+}
+
+/* The popup shows the same card, so it gets the same ground. Its title bar
+   already carried the tone; the body under it did not. */
+.drpg-popup.drpg-popup-tone-hope {
+    background-image: linear-gradient(100deg, rgba(var(--drpg-gold-rgb), 0.12) 0%, transparent 70%);
+}
+
+.drpg-popup.drpg-popup-tone-fear {
+    background-image: linear-gradient(100deg, rgba(var(--drpg-blood-rgb), 0.14) 0%, transparent 70%);
+}
+
+.drpg-popup.drpg-popup-tone-critical {
+    background-image: linear-gradient(100deg, rgba(var(--drpg-crimson-rgb), 0.18) 0%, transparent 70%);
 }
 
 /* ==========================================================================
