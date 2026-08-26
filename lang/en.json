@@ -843,7 +843,7 @@
         "one": "{n} state mapped to a playlist.",
         "other": "{n} states mapped to a playlist."
       },
-      "noPlaylists": "This world has no playlists. Make one in the Playlists sidebar first.",
+      "noPlaylists": "This world has no playlists, so there is nothing to map to yet. Make them in the Playlists sidebar; the cue playlist on the Play tab can be made from here.",
       "state": {
         "paused": "Game on hold",
         "eclipse": "Eclipse (placement window)",
@@ -860,7 +860,10 @@
       "noTrack": "Pick a track first.",
       "noTracks": "This playlist has no tracks",
       "playFailed": "That track would not play. See the console.",
-      "noSituational": "This world has no playlist called “{name}”. Make one in the Playlists sidebar and put your scene tracks in it — stings, reveals, the quiet bits."
+      "noSituational": "This world has no playlist called “{name}”. The button below makes it with exactly that name — the module finds it by name, so a near miss is a playlist it will quietly ignore.",
+      "makeSituational": "Create the “{name}” playlist",
+      "situationalMade": "“{name}” exists now. Put your scene tracks in it from the Playlists sidebar — stings, reveals, the quiet bits — and they will appear here.",
+      "makeFailed": "The playlist could not be created. See the console."
     },
     "Cleanup": {
       "title": "Cleaning up",

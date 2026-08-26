@@ -929,11 +929,20 @@ export async function openMusicDialog() {
         return null;
     }
 
+    /*
+     * A WORLD WITH NO PLAYLISTS STILL OPENS THIS WINDOW.
+     *
+     * It used to be refused at the door with "make one in the Playlists sidebar
+     * first" — which was true right up until the Play tab grew a button that
+     * makes the cue playlist itself. The one action that fixes an empty world
+     * now lives inside the window the empty world was not allowed to open.
+     *
+     * The mapping table below is the part that genuinely needs playlists to
+     * exist, and it says so in place rather than closing the door on the other
+     * tab. Same reasoning as the missing cue playlist: report it where it is,
+     * do not refuse the whole screen over it.
+     */
     const playlists = Array.from(game.playlists).sort((a, b) => a.name.localeCompare(b.name));
-    if (!playlists.length) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Music.noPlaylists"));
-        return null;
-    }
 
     const map = musicMap();
     const rows = MUSIC_STATES.map(state => {
@@ -970,8 +979,23 @@ export async function openMusicDialog() {
                 ${situational
                     ? `<label>${game.i18n.localize("DRPG.Music.track")}
                     <select name="playTrack">${trackOptions(situational)}</select></label>`
-                    : `<p class="notes drpg-warning">${game.i18n.format(
-                        "DRPG.Music.noSituational", { name: SITUATIONAL_PLAYLIST })}</p>`}
+                    // MADE FROM HERE, NOT DESCRIBED FROM HERE.
+                    //
+                    // This said "make one in the Playlists sidebar" and left the
+                    // GM to do it: find the tab, press Create Playlist, and type
+                    // the name — where the name is the whole hinge, because the
+                    // playlist is matched BY NAME (see `situationalPlaylist`). A
+                    // typo produces a playlist this module silently ignores, and
+                    // nothing on any screen says why.
+                    //
+                    // So the module spells it. The button exists only while the
+                    // playlist is missing, and it disappears the moment there is
+                    // one.
+                    : `<p class="notes drpg-warning" data-drpg-no-cue>${game.i18n.format(
+                        "DRPG.Music.noSituational", { name: SITUATIONAL_PLAYLIST })}</p>
+                    <button type="button" class="drpg-mini-button" data-drpg-make-cue>${
+                        game.i18n.format("DRPG.Music.makeSituational",
+                            { name: SITUATIONAL_PLAYLIST })}</button>`}
                 <button type="button" class="drpg-mini-button" data-drpg-play${
                     canPlay ? "" : " disabled"}>${
                     game.i18n.localize("DRPG.Music.play")}</button>
@@ -981,6 +1005,8 @@ export async function openMusicDialog() {
 
     const playlistsPane = `
             <p>${game.i18n.localize("DRPG.Music.intro")}</p>
+            ${playlists.length ? "" : `<p class="notes drpg-warning">${
+                game.i18n.localize("DRPG.Music.noPlaylists")}</p>`}
             <p class="notes">${game.i18n.localize("DRPG.Music.orderNote")}</p>
             <p class="notes">${game.i18n.localize("DRPG.Music.incidentNote")}</p>
             <table class="drpg-vault-table"><thead><tr>
@@ -1030,6 +1056,53 @@ export async function openMusicDialog() {
             root.querySelector("[data-drpg-reset-music]")?.addEventListener("click", async () => {
                 await resetMusic();
                 ui.notifications.info(game.i18n.localize("DRPG.Music.wasReset"));
+            });
+
+            /*
+             * Make the cue playlist, and swap the fieldset over IN PLACE.
+             *
+             * Not by reopening the window, which is the obvious way and the
+             * wrong one: the Playlists tab beside this holds a table of selects
+             * the GM may already have changed, and Apply has not run yet.
+             * Reopening would throw that away to save a redraw.
+             *
+             * The Play button deliberately stays disabled. A playlist made this
+             * second has no tracks in it, and a button that says it will play
+             * something is lying until the GM has put something there — which
+             * is what the replacement note asks for.
+             */
+            root.querySelector("[data-drpg-make-cue]")?.addEventListener("click", async event => {
+                const button = event.currentTarget;
+                button.disabled = true;
+                try {
+                    const made = situationalPlaylist()
+                        ?? await Playlist.create({ name: SITUATIONAL_PLAYLIST });
+                    if (!made) throw new Error("Playlist.create returned nothing");
+
+                    const note = root.querySelector("[data-drpg-no-cue]");
+                    if (note) {
+                        note.classList.remove("drpg-warning");
+                        note.textContent = game.i18n.format("DRPG.Music.situationalMade",
+                            { name: made.name });
+                    }
+
+                    // The track picker the fieldset would have been built with.
+                    const label = document.createElement("label");
+                    label.textContent = `${game.i18n.localize("DRPG.Music.track")} `;
+                    const select = document.createElement("select");
+                    select.name = "playTrack";
+                    select.innerHTML = trackOptions(made);
+                    label.append(select);
+                    note?.after(label);
+
+                    button.remove();
+                    ui.notifications.info(game.i18n.format("DRPG.Music.situationalMade",
+                        { name: made.name }));
+                } catch (err) {
+                    button.disabled = false;
+                    error("Could not create the cue playlist", err);
+                    ui.notifications.error(game.i18n.localize("DRPG.Music.makeFailed"));
+                }
             });
         },
         rejectClose: false
