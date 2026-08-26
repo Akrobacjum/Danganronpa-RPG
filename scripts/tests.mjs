@@ -33,7 +33,7 @@ import { getClock, setClock } from "./clock.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { detectPageTinting } from "./diagnostics.mjs";
 import { voiceTargets, liveKitRoomFor } from "./voice.mjs";
-import { log } from "./utils.mjs";
+import { log, warn } from "./utils.mjs";
 
 /* ==========================================================================
  * HARNESS
@@ -698,6 +698,32 @@ const SCENARIOS = [
  * ========================================================================== */
 
 /**
+ * Is a run already in flight on this client?
+ *
+ * TWO RUNS AT ONCE CORRUPT THE WORLD, and quietly. Measured: a probe that
+ * appeared to time out was still running when a second `runTests()` was
+ * started, and the pair reported 16/22 with six murder scenarios failing on
+ * "stage after opening — expected openingRoll, measured undefined". Not one of
+ * those failures was real. The Eclipse scenario sets `clock.eclipse` true for
+ * the length of its own check, and `openMurder` refuses outright during an
+ * Eclipse — so every murder scenario in the other run was declined by a gate
+ * working exactly as designed.
+ *
+ * The damage outlives the run. `snapshot()` records the clock as the baseline
+ * to put back, and the second run took its snapshot while the first was mid-
+ * Eclipse: it then faithfully restored the world to a darkness that was a
+ * fixture. The world was left with `eclipse: true` set, which is a state a GM
+ * cannot easily see and which silently refuses every murder in the session
+ * after it.
+ *
+ * So a second run is refused rather than queued. Queueing would be the wrong
+ * answer for a suite whose whole contract is "the world is put back exactly as
+ * it was found" — a caller who did not know the first run was in flight does
+ * not want the second one to happen later either; they want to be told.
+ */
+let inFlight = false;
+
+/**
  * @param {object} [options]
  * @param {1|2} [options.tier]  1 reads only; 2 also runs the scenarios.
  */
@@ -707,6 +733,21 @@ export async function runTests({ tier = 2 } = {}) {
         return null;
     }
 
+    if (inFlight) {
+        const why = game.i18n.localize("DRPG.Tests.alreadyRunning");
+        ui.notifications.warn(why);
+        warn("Refused a second regression suite: one is already running on this client.");
+        return { passed: 0, failed: 0, text: why, refused: true };
+    }
+    inFlight = true;
+    try {
+        return await runSuite(tier);
+    } finally {
+        inFlight = false;
+    }
+}
+
+async function runSuite(tier) {
     const lines = [];
     let passed = 0, failed = 0;
 

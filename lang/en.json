@@ -2125,6 +2125,9 @@
       "buildMismatch": "This module's stylesheet (v{css}) and scripts (v{scripts}) are from different builds. Reload the page; if that does not fix it, the server is still serving one of them.",
       "tracing": "Watching clicks for {seconds} seconds. Click the control that misbehaves."
     },
+    "Tests": {
+      "alreadyRunning": "The regression suite is already running on this client. Wait for it to finish — a second run would take its snapshot of a world the first one has fixtures standing in, and put that back as the baseline."
+    },
     "Season": {
       "title": "Set the season up",
       "introOutstanding": "{n} of these still need doing. A season can start without them — it just starts wrong, and the pieces that are missing only show up at the moment they matter.",
