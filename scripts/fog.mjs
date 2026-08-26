@@ -3192,8 +3192,23 @@ function flashOutline(fx, region, rect) {
     // Measured once; the outline skips these and the glow marks them.
     const edges = doorwayEdges(region);
 
+    // Chunky and angular, in the pixel-art register the reveal raster set
+    // (Dawid, 2026-08-26 — the old 4px stroke read thin and soft at play
+    // zoom). Square caps are what close the corners: the gapped tracing draws
+    // every edge as its own stroke, and two butt-capped strokes meeting at a
+    // vertex each stop half a line-width short, leaving a notch in the corner.
+    // A square cap extends each end by half the width, so the two ends
+    // overlap into a full, sharp corner. Miter joins keep the drawPolygon
+    // path's corners pointed instead of rounding them off.
     const outline = new PIXI.Graphics();
-    outline.lineStyle(4, bone, 1);
+    outline.lineStyle({
+        width: Math.max(10, Math.round(grid * 0.15)),
+        color: bone,
+        alpha: 1,
+        cap: "square",
+        join: "miter",
+        miterLimit: 8
+    });
     if (edges.length) traceOutlineGapped(outline, edges, rect);
     else traceRegionPathsAt(outline, region, rect);
 
@@ -4147,7 +4162,11 @@ function addDoorwayGlow(group, region, edges, rect) {
  */
 function traceOutlineGapped(graphics, edges, rect) {
     const grid = canvas?.grid?.size ?? 100;
-    const pad = grid * 0.05;
+    // Square caps stick out half a line-width past every segment end — that is
+    // what makes the corners whole — so the doorway gaps have to be widened by
+    // the same amount, or the fattened line pokes into the opening it was told
+    // to leave clear.
+    const pad = grid * 0.05 + (graphics.line?.width ?? 0) / 2;
 
     const segment = (edge, from, to) => {
         if (to - from < 1e-4) return;
