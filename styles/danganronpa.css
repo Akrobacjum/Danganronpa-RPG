@@ -7113,6 +7113,21 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     color: rgba(var(--drpg-bone-rgb), 0.3) !important;
 }
 
+/* A SPENT ACTION WEIGHS THE SAME HERE AS ON THE SHEET (Dawid, 26.08).
+   --------------------------------------------------------------------------
+   The two places that draw the same row of actions disagreed by more than
+   double: the sheet spends its pip at `opacity: 0.45` over a full-strength
+   colour, while the tray was carrying the 0.3 alpha of the rule above AND its
+   own `opacity: 0.7` — 0.21 effective against the sheet's 0.45. So the action
+   pips follow the sheet's model exactly: colour at full, brightness carried by
+   `opacity` alone, same number. `!important` because the rule above is
+   `!important` too and this is the same file arguing with itself; the `.filled`
+   rule is one class more specific and still takes a held action back to 1. */
+#drpg-player-status .drpg-action-pip {
+    color: var(--drpg-bone) !important;
+    opacity: 0.45;
+}
+
 #drpg-player-status .drpg-status-pip.filled,
 #drpg-player-status .drpg-free-move,
 #drpg-player-status .drpg-status-pips.drpg-free-move,
