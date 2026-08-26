@@ -603,6 +603,25 @@ async function wipeSeason({ alsoChat = false } = {}) {
         }
     });
 
+    /* THE ACTION BUDGET, REFILLED — AFTER the sheet is back.
+       -----------------------------------------------------------------------
+       A character who had spent their actions started the new season on 0 / 2
+       at Chapter 1 · Day 1 · Morning, because the reset moves the clock by
+       writing it rather than by advancing it, and the refill rides on the
+       advance. Reported as B-F6-1, from a full reset on a cold copy.
+
+       The same writer the "refill actions" checkbox in Edit campaign uses, so
+       there is one definition of what a full budget is. It runs after the
+       advancement step above on purpose: `resetActionsFor` sizes the budget
+       from the character's own state, and that state is only correct once the
+       starting sheet has been restored. Search tokens need no step of their
+       own — the settings pass below clears their store, and an empty store
+       reads as a full room. */
+    await step("the action budget", async () => {
+        const { resetAllActions } = await import("./actions.mjs");
+        await resetAllActions();
+    });
+
     await step("Despair pools", async () => {
         const { zeroAllDespair } = await import("./despair.mjs");
         await zeroAllDespair();
