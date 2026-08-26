@@ -484,6 +484,46 @@ function fitWindowToTable(dialog) {
 }
 
 /**
+ * A `<style>` element carrying the select picker's row states — a workaround,
+ * not a stylistic choice, and worth the paragraph:
+ *
+ * The module's stylesheet reaches the page through Foundry's
+ * `@import … layer(modules)`, and Chromium 146–148 PAINTS a `base-select`
+ * picker's checked row from everything EXCEPT that kind of sheet: computed
+ * style reports the module's colour, the pixels show the browser's own pale
+ * highlight. Measured on 2026-08-26 with three probes — the same rule
+ * injected as a `<style>` element paints correctly on a fresh open, with or
+ * without `!important`, layered or not; from the imported sheet it never
+ * does. So the row-state declarations live twice: canonically in
+ * danganronpa.css (which wins the cascade and serves every browser that
+ * paints correctly), and here as an element rules-copy for the paint path
+ * that loses them. Values are the same three, with palette literals as
+ * fallbacks so nothing here depends on where variables resolve from.
+ * See "OPAQUE ROWS, DELIBERATELY" in danganronpa.css for why they are opaque.
+ */
+export function injectSelectPickerSkin() {
+    if (document.getElementById("drpg-select-picker-skin")) return;
+    const GROUP = ":is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger, "
+        + ".drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection))";
+    const style = document.createElement("style");
+    style.id = "drpg-select-picker-skin";
+    style.textContent = `
+        ${GROUP} select option {
+            background: var(--drpg-ink, #1d1a21);
+            color: var(--drpg-bone, #e4ded8);
+        }
+        ${GROUP} select option:hover,
+        ${GROUP} select option:focus {
+            background: color-mix(in srgb, var(--drpg-bone, #e4ded8) 12%, var(--drpg-ink, #1d1a21));
+        }
+        ${GROUP} select option:checked {
+            background: color-mix(in srgb, var(--drpg-gold, #ffd23f) 18%, var(--drpg-ink, #1d1a21));
+        }
+    `;
+    document.head.append(style);
+}
+
+/**
  * Wire a portrait picker to the dialog's real, mounted DOM.
  *
  * `content` is handed to `DialogV2.wait` as a detached `<div>`, but DialogV2's

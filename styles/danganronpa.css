@@ -9678,7 +9678,9 @@ body.drpg-pixel-font #pause.paused figcaption {
 .drpg-panel select,
 .drpg-advance select,
 .drpg-messenger select,
-.drpg-summary-dialog select {
+.drpg-summary-dialog select,
+.application.sheet.actor select,
+.application.roll-selection select {
     color-scheme: dark;
     accent-color: var(--drpg-gold);
 }
@@ -9687,7 +9689,9 @@ body.drpg-pixel-font #pause.paused figcaption {
 .drpg-panel select option,
 .drpg-advance select option,
 .drpg-messenger select option,
-.drpg-summary-dialog select option {
+.drpg-summary-dialog select option,
+.application.sheet.actor select option,
+.application.roll-selection select option {
     background: var(--drpg-ink);
     color: var(--drpg-bone);
 }
@@ -9706,19 +9710,22 @@ body.drpg-pixel-font #pause.paused figcaption {
    so does its picker, or the picker stays native under a custom button. */
 @supports (appearance: base-select) {
 
-    .drpg-projects select, .drpg-projects select::picker(select),
-    .drpg-panel select, .drpg-panel select::picker(select),
-    .drpg-advance select, .drpg-advance select::picker(select),
-    .drpg-messenger select, .drpg-messenger select::picker(select),
-    .drpg-summary-dialog select, .drpg-summary-dialog select::picker(select) {
+    /* One group for every surface that gets the module's picker. The five
+       drpg-* classes are the module's own windows; the two system surfaces
+       (the character sheet and the system's roll dialog) join through
+       `:where()` so the group's specificity stays at one class — the handful
+       of narrower module rules that size particular selects (the vault table,
+       the dice pickers) must keep outranking this skin. */
+
+    :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
+        .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select,
+    :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
+        .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select::picker(select) {
         appearance: base-select;
     }
 
-    .drpg-projects select,
-    .drpg-panel select,
-    .drpg-advance select,
-    .drpg-messenger select,
-    .drpg-summary-dialog select {
+    :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
+        .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select {
         display: flex;
         align-items: center;
         gap: 0.4rem;
@@ -9733,39 +9740,27 @@ body.drpg-pixel-font #pause.paused figcaption {
         text-align: start;
     }
 
-    .drpg-projects select:hover,
-    .drpg-panel select:hover,
-    .drpg-advance select:hover,
-    .drpg-messenger select:hover,
-    .drpg-summary-dialog select:hover {
+    :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
+        .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select:hover {
         border-color: var(--drpg-bone);
     }
 
     /* The arrow. It turns over when the list is open, which is the one piece of
        state a closed control cannot otherwise show. */
-    .drpg-projects select::picker-icon,
-    .drpg-panel select::picker-icon,
-    .drpg-advance select::picker-icon,
-    .drpg-messenger select::picker-icon,
-    .drpg-summary-dialog select::picker-icon {
+    :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
+        .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select::picker-icon {
         margin-inline-start: auto;
         color: rgba(var(--drpg-bone-rgb), 0.65);
         transition: transform var(--drpg-t-snap, 90ms) var(--drpg-ease-arrive, ease-out);
     }
 
-    .drpg-projects select:open::picker-icon,
-    .drpg-panel select:open::picker-icon,
-    .drpg-advance select:open::picker-icon,
-    .drpg-messenger select:open::picker-icon,
-    .drpg-summary-dialog select:open::picker-icon {
+    :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
+        .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select:open::picker-icon {
         transform: rotate(180deg);
     }
 
-    .drpg-projects select::picker(select),
-    .drpg-panel select::picker(select),
-    .drpg-advance select::picker(select),
-    .drpg-messenger select::picker(select),
-    .drpg-summary-dialog select::picker(select) {
+    :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
+        .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select::picker(select) {
         background: var(--drpg-ink);
         border: 1px solid var(--drpg-line-strong);
         border-radius: 3px;
@@ -9776,35 +9771,37 @@ body.drpg-pixel-font #pause.paused figcaption {
         box-shadow: 0 6px 18px rgba(var(--drpg-shadow-rgb), 0.55);
     }
 
-    .drpg-projects select option,
-    .drpg-panel select option,
-    .drpg-advance select option,
-    .drpg-messenger select option,
-    .drpg-summary-dialog select option {
+    /* OPAQUE ROWS, DELIBERATELY.
+       ----------------------------------------------------------------------
+       These three used to be `transparent` with translucent tints over it,
+       trusting the picker's own ink to show through. Chromium paints an
+       internal selection strip of its own UNDER the checked row's background —
+       measured on 146/148: a translucent gold over that strip renders as a
+       cream bar with the module's light text on it, unreadable and foreign.
+       Mixing the same tints into Ink gives the identical intended colour and
+       leaves the strip nothing to show through. */
+    :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
+        .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select option {
         display: flex;
         align-items: center;
         gap: 0.4rem;
         padding: 0.25rem 0.45rem;
         border-radius: 2px;
-        background: transparent;
+        background: var(--drpg-ink);
         color: var(--drpg-bone);
     }
 
-    .drpg-projects select option:hover, .drpg-projects select option:focus,
-    .drpg-panel select option:hover, .drpg-panel select option:focus,
-    .drpg-advance select option:hover, .drpg-advance select option:focus,
-    .drpg-messenger select option:hover, .drpg-messenger select option:focus,
-    .drpg-summary-dialog select option:hover, .drpg-summary-dialog select option:focus {
-        background: rgba(var(--drpg-bone-rgb), 0.12);
+    :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
+        .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select option:hover,
+    :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
+        .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select option:focus {
+        background: color-mix(in srgb, var(--drpg-bone) 12%, var(--drpg-ink));
         outline: none;
     }
 
-    .drpg-projects select option:checked,
-    .drpg-panel select option:checked,
-    .drpg-advance select option:checked,
-    .drpg-messenger select option:checked,
-    .drpg-summary-dialog select option:checked {
-        background: color-mix(in srgb, var(--drpg-gold) 18%, transparent);
+    :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
+        .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select option:checked {
+        background: color-mix(in srgb, var(--drpg-gold) 18%, var(--drpg-ink));
     }
 
     /* A PROJECT THAT IS ALREADY FULL.
@@ -9818,11 +9815,8 @@ body.drpg-pixel-font #pause.paused figcaption {
        half a player can see before they try. Both are needed, and the option
        carries a word as well (see `projectOptionsHtml`) for the browsers that
        will not style an `<option>` at all. */
-    .drpg-projects select option.is-complete,
-    .drpg-panel select option.is-complete,
-    .drpg-advance select option.is-complete,
-    .drpg-messenger select option.is-complete,
-    .drpg-summary-dialog select option.is-complete {
+    :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
+        .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select option.is-complete {
         text-decoration: line-through;
         text-decoration-color: var(--drpg-crimson-light);
         opacity: 0.5;
@@ -9831,11 +9825,8 @@ body.drpg-pixel-font #pause.paused figcaption {
     /* The tick the picker puts against the chosen row. Gold, and reserving its
        space on every row so the list does not shuffle sideways as the choice
        moves down it. */
-    .drpg-projects select option::checkmark,
-    .drpg-panel select option::checkmark,
-    .drpg-advance select option::checkmark,
-    .drpg-messenger select option::checkmark,
-    .drpg-summary-dialog select option::checkmark {
+    :is(.drpg-projects, .drpg-panel, .drpg-advance, .drpg-messenger,
+        .drpg-summary-dialog, :where(.application.sheet.actor, .application.roll-selection)) select option::checkmark {
         color: var(--drpg-gold);
         font-size: 0.75em;
     }
