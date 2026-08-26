@@ -99,6 +99,7 @@ export async function openGmTeamDialog() {
         content: buildContent(actors, gms, roster, candidates, removable),
         buttons,
         render: (event, dialog) => {
+            wireGmtTabs(dialog);
             wireMonokumaLive(dialog);
             if (roster.length) wireAssignmentLive(dialog, gms);
         },
@@ -179,7 +180,6 @@ function buildContent(actors, gms, roster, candidates, removable) {
         </label>` : "";
 
     const poolSection = `
-        <h3>${game.i18n.localize("DRPG.Despair.poolsTitle")}</h3>
         <p>${game.i18n.localize("DRPG.Despair.poolsIntro")}</p>
         <table>
             <thead><tr>
@@ -217,8 +217,6 @@ function buildContent(actors, gms, roster, candidates, removable) {
     }).join("");
 
     const monokumaSection = `
-        <hr />
-        <h3>${game.i18n.localize("DRPG.Monokuma.panelTitle")}</h3>
         <p>${game.i18n.localize("DRPG.Monokuma.panelIntro")}</p>
         <div class="drpg-monokuma-warning"></div>
         <table>
@@ -232,8 +230,6 @@ function buildContent(actors, gms, roster, candidates, removable) {
         <p class="notes">${game.i18n.localize("DRPG.Monokuma.panelNote")}</p>`;
 
     const assignSection = roster.length ? `
-        <hr />
-        <h3>${game.i18n.localize("DRPG.Assign.title")}</h3>
         <p>${game.i18n.localize("DRPG.Assign.intro")}</p>
         <div class="drpg-assign-counts"></div>
         <table>
@@ -245,11 +241,42 @@ function buildContent(actors, gms, roster, candidates, removable) {
         </table>
         <p class="notes">${game.i18n.localize("DRPG.Assign.footnote")}</p>` : "";
 
+    // Three stacked sections made one long scroll; they are tabs now, with
+    // the old <h3> headings as the tab labels (Dawid, 26.08). Every section
+    // stays in the DOM — hidden by class, not removed — because Save reads
+    // all three forms at once and a hidden input still answers a selector.
+    const sections = [
+        { key: "pools", label: game.i18n.localize("DRPG.Despair.poolsTitle"), html: poolSection },
+        { key: "monokumas", label: game.i18n.localize("DRPG.Monokuma.panelTitle"), html: monokumaSection },
+        ...(roster.length ? [{ key: "students", label: game.i18n.localize("DRPG.Assign.title"), html: assignSection }] : [])
+    ];
+
+    const nav = `<nav class="drpg-gmt-tabs">${sections.map((s, i) =>
+        `<button type="button" data-drpg-gmt-tab="${s.key}"${i ? "" : ' class="active"'}>${s.label}</button>`).join("")}</nav>`;
+    const panes = sections.map((s, i) =>
+        `<section class="drpg-gmt-section${i ? "" : " active"}" data-drpg-gmt-section="${s.key}">${s.html}</section>`).join("");
+
     // Built as an element, not a string: DialogV2 runs a string `content`
     // through `cleanHTML`, whose allow-list drops `placeholder` — so the pool
     // name fields lost the hint telling the GM what the default is. Same reason
     // every other form in this module goes through `dialogContent()`.
-    return dialogContent(`<form>${poolSection}${monokumaSection}${assignSection}</form>`);
+    return dialogContent(`<form>${nav}${panes}</form>`);
+}
+
+/** Make the tab bar switch panes. Purely visual — Save still reads them all. */
+function wireGmtTabs(dialog) {
+    const root = dialog.element;
+    for (const tab of root.querySelectorAll("[data-drpg-gmt-tab]")) {
+        tab.addEventListener("click", () => {
+            const key = tab.dataset.drpgGmtTab;
+            for (const t of root.querySelectorAll("[data-drpg-gmt-tab]")) {
+                t.classList.toggle("active", t === tab);
+            }
+            for (const pane of root.querySelectorAll("[data-drpg-gmt-section]")) {
+                pane.classList.toggle("active", pane.dataset.drpgGmtSection === key);
+            }
+        });
+    }
 }
 
 function buildAssignRows(roster, gms) {
