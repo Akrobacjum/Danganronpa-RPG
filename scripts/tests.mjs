@@ -278,10 +278,23 @@ async function snapshot(cast) {
     return {
         clock: foundry.utils.deepClone(getClock()),
         murder: foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {}),
+        // HOPE AS WELL AS THE TWO REVERSE RESOURCES.
+        //
+        // It was missing, and the suite therefore paid its fixture actor one
+        // Hope per run and never took it back. Measured: three students set to
+        // 3, one clean 22/22 pass, and the roller came out at 4 while the other
+        // two were untouched — so three runs in an afternoon leave a character
+        // three Hope richer than the GM last saw them. Hope buys Calls; that is
+        // a real resource quietly appearing out of a test.
+        //
+        // Same class of defect as the re-entrancy one: the contract this file
+        // opens with is "fixtures built and put back", and a resource nobody
+        // recorded cannot be put back.
         resources: cast.map(a => ({
             id: a.id,
             hp: a.system?.resources?.hitPoints?.value ?? 0,
             stress: a.system?.resources?.stress?.value ?? 0,
+            hope: a.system?.resources?.hope?.value ?? 0,
             deceased: a.getFlag(MODULE_ID, "deceased") ?? null
         })),
         // WHICH TOKENS AND MESSAGES EXISTED, not how many.
@@ -321,7 +334,8 @@ async function restore(snap) {
         if (!row.deceased && actor.getFlag(MODULE_ID, "deceased")) await reviveCharacter(actor);
         await actor.update({
             "system.resources.hitPoints.value": row.hp,
-            "system.resources.stress.value": row.stress
+            "system.resources.stress.value": row.stress,
+            "system.resources.hope.value": row.hope
         });
     }
     // Anything that appeared while the scenario ran, removed.
