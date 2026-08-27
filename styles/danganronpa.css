@@ -10509,7 +10509,12 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     font-size: var(--drpg-text-xs);
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: rgba(var(--drpg-bone-rgb), 0.65);
+    /* Despair's own colour (Dawid, 28.08). Bone was the neutral choice and it
+       was the wrong one: this heading names the one number on screen that only
+       ever means Despair, and the module already spends `--drpg-blood` on
+       nothing else. A label in the colour of the thing it labels is read
+       without being read. */
+    color: var(--drpg-blood);
     line-height: 1.1;
 }
 
