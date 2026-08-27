@@ -2288,6 +2288,14 @@
       "noRoomScenes": "No scene has named Regions, so no scene uses room-based visibility.",
       "checksScenes": "Scenes and rooms"
     },
+    "Migrate": {
+      "gmOnly": "Only a GM can run the data migration.",
+      "done": {
+        "one": "Danganronpa RPG: one thing in this world was brought up to date for {version}.",
+        "other": "Danganronpa RPG: {n} things in this world were brought up to date for {version}."
+      },
+      "failed": "Danganronpa RPG: the data migration stopped short — {clauses}. Nothing was marked as migrated; the console has the details."
+    },
     "Popup": {
       "kind": {
         "info": "Notice",

@@ -74,6 +74,7 @@ import { applyAll as refreshRoomVisibility, visibleCharacters, diagnoseVisibilit
     from "./visibility.mjs";
 import {
     migrateRemnants, remnantData, reportRemnants } from "./remnants.mjs";
+import { migrate1_2_0, migrationStatus } from "./migrate.mjs";
 import {
     allProjects, visibleProjects, canSee, projectsAvailableIn, projectsListedIn,
     isComplete, addProgress, setProjectMeta,
@@ -589,6 +590,16 @@ export const DrpgApi = {
     /** Bring bullets made before Stage 1 up to the current shape. Idempotent. */
     migrateTruthBullets,
     migrateRemnants,
+
+    /* ---- 1.2.0 data migration -------------------------------------------
+     * Runs by itself at `ready` on the primary GM's client whenever the
+     * installed version has moved. These are the repair route. */
+
+    /** Re-run every clause. `{ force: true }` ignores the version stamp. */
+    migrate1_2_0,
+
+    /** What the migration thinks of this world, without writing anything. */
+    migrationStatus,
 
     /* ---- Observe --------------------------------------------------------
      * Resolved on the GM's client, never the observer's: the room's Remnants

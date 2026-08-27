@@ -14,6 +14,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { registerSettings } from "./settings.mjs";
+import { runMigrationOnLoad } from "./migrate.mjs";
 import { registerPrivateRolls } from "./private-rolls.mjs";
 import { registerSearchTokenSocket } from "./search-tokens.mjs";
 import { registerSheetTweaks } from "./sheet.mjs";
@@ -197,6 +198,14 @@ Hooks.once("ready", () => {
             error("Could not announce the missing modules", err));
         return;
     }
+
+    // First, and before anything below reads a saved shape: bring this world's
+    // data up to the shape this build expects. Primary GM only, silent when
+    // there is nothing to do, and deliberately NOT awaited — a slow pass must
+    // not hold the interface shut. The consequence is written down where the
+    // clauses live: a clause that repairs something one of the passes below has
+    // already read is responsible for asking that pass to run again.
+    safely("the 1.2.0 migration", runMigrationOnLoad);
 
     // Before anything that reads a Remnant: the ledger asks the other GMs for
     // anything this browser is missing, and a GM who joins mid-session must not
