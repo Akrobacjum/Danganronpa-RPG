@@ -167,7 +167,11 @@ export function availableCrisisActions(actor) {
     const spent = new Set(state.spent ?? []);
 
     return Object.entries(CRISIS_ACTIONS)
-        .filter(([, def]) => def.side === side)
+        // `both` is a real side, and only one action has it: using an item is
+        // the same act whoever is doing it. Everything downstream that needs to
+        // know WHOSE turn this is asks `sideOf(actor)` instead — see
+        // `resolveCrisisAction`.
+        .filter(([, def]) => def.side === side || def.side === "both")
         // The guide takes Role Reversal away from a victim whose killer opened
         // on a Despair success.
         .filter(([key]) => !(state.deniedToVictim ?? []).includes(key))
@@ -189,6 +193,11 @@ export function availableCrisisActions(actor) {
                 // press this", so both reasons fold into it — and each carries
                 // its own explanation for the tooltip.
                 blocked: (blocked[key] ?? 0) > 0 || locked || spent.has(key),
+                // In the list, out of the grid (trap 65). Kept in the list on
+                // purpose: `takeCrisisAction` reads this same list for its
+                // locked/spent guards, so filtering it out here would leave
+                // those guards looking at nothing. The panel skips it.
+                hidden: Boolean(def.hidden),
                 locked,
                 spent: spent.has(key),
                 lockedBy: def.lockedUntil ? CRISIS_ACTIONS[def.lockedUntil]?.label ?? null : null
@@ -646,12 +655,20 @@ async function askCriticalTarget(def) {
     return picked === "stress" ? "stress" : "hp";
 }
 
-export async function takeCrisisAction(actor, key) {
+export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
     const state = murderState();
     const side = sideOf(actor);
     const def = CRISIS_ACTIONS[key];
 
-    if (!state || state.stage !== "incident" || !def || def.side !== side) return null;
+    if (!state || state.stage !== "incident" || !def || !side) return null;
+    if (def.side !== side && def.side !== "both") return null;
+
+    // An action that spends something has to be told what. Refused rather than
+    // rolled: a roll that cannot apply its own result is worse than no roll.
+    if (def.usesItem && !actor.items.get(itemId)) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Murder.useItemGone"));
+        return null;
+    }
     if (!isTheirTurn(actor)) {
         ui.notifications.warn(game.i18n.localize("DRPG.Murder.notYourTurn"));
         return null;
@@ -705,7 +722,7 @@ export async function takeCrisisAction(actor, key) {
     if (def.noRoll) {
         const { requestCrisisResult } = await import("./gm-bridge.mjs");
         return requestCrisisResult({
-            actorId: actor.id, key, total: 0, isCritical: false, withHope: true
+            actorId: actor.id, key, total: 0, isCritical: false, withHope: true, itemId
         });
     }
 
@@ -782,13 +799,44 @@ export async function takeCrisisAction(actor, key) {
     // Asked here, while the person who threw the dice is still looking at them.
     const choice = roll.isCritical ? await askCriticalTarget(def) : null;
 
+    /*
+     * THE ITEM IS SPENT HERE, ON THE PLAYER'S OWN CLIENT.
+     *
+     * `useItem` is a conversation — which resource a tier 3 restores, a confirm
+     * before something is used up — and those questions belong to the person
+     * whose character it is. Handing them to the GM's browser would ask a GM to
+     * decide, for somebody else, which half of their sheet to heal.
+     *
+     * So the player applies it and tells the GM WHICH id went, and the GM's
+     * side does what only it can: the trace, the turn, the drain, and the
+     * receipt that lets a Reroll put the thing back.
+     *
+     * SUCCESS IS NOT ENOUGH. The guide's row: a critical or a success with Hope
+     * and the item goes in; a success with DESPAIR leaves the trace and nothing
+     * else — you were seen fumbling with it and it stayed in your pocket.
+     */
+    let usedItemId = null;
+    if (def.usesItem) {
+        const hit = roll.isCritical || roll.total >= def.threshold;
+        if (hit && (roll.isCritical || roll.withHope)) {
+            const item = actor.items.get(itemId);
+            const { useItem } = await import("./use-items.mjs");
+            // `useItem` can still be backed out of at its own confirm. The roll
+            // and the turn are spent either way — a player who changes their
+            // mind at the last dialog has still done the thing on the clock.
+            if (item && await useItem(actor, item)) usedItemId = item.id;
+        }
+    }
+
     const { requestCrisisResult } = await import("./gm-bridge.mjs");
     await requestCrisisResult({
         actorId: actor.id, key,
         total: roll.total,
         isCritical: Boolean(roll.isCritical),
         withHope: Boolean(roll.withHope),
-        choice
+        choice,
+        // What was actually spent, so a Reroll can give it back.
+        usedItemId
     });
 
     return { roll, choice };
@@ -975,7 +1023,7 @@ async function grantImprovisedWeapon(actor, def, band, done) {
  *   once: the reroll costs Hope, not a turn.
  */
 export async function resolveCrisisAction({
-    actorId, key, total, isCritical, withHope, undo = false, choice = null
+    actorId, key, total, isCritical, withHope, undo = false, choice = null, usedItemId = null
 } = {}) {
     if (!game.user.isGM) return null;
 
@@ -999,7 +1047,10 @@ export async function resolveCrisisAction({
     const def = CRISIS_ACTIONS[key];
     if (!state || !actor || !def) return null;
 
-    const side = def.side;
+    // WHOSE SIDE, not the entry's. One action is written `side: "both"` — using
+    // an item is the same act whoever does it — and everything below is about
+    // the person who took it: the advantage it clears, whether the turn passes.
+    const side = def.side === "both" ? sideOf(actor) : def.side;
     const threshold = key === "finishingBlow"
         ? finishingBlowThreshold(state)
         : def.threshold;
@@ -1046,6 +1097,12 @@ export async function resolveCrisisAction({
         receipt.remnant = refOf(await applyRemnant(actor, def.remnant?.[band], def, band, done, false, side));
         await applyDamage(actor, state, def, band, done, false, choice);
         if (wasUnarmed) receipt.itemId = await grantImprovisedWeapon(actor, def, band, done);
+        // Spent on the player's client; recorded here so a Reroll can undo it.
+        if (def.usesItem) {
+            receipt.usedItemId = usedItemId;
+            done.push(game.i18n.localize(usedItemId
+                ? "DRPG.Murder.useItemWorked" : "DRPG.Murder.useItemFumbled"));
+        }
         await applyHindrance(state, def, band, done);
         await applyUnlocks(state, def, key, band, done);
         if (def.swapsRoles) await swapRoles(state, band, done);
@@ -1093,9 +1150,18 @@ export async function resolveCrisisAction({
         return { success, band, done, ranOut };
     }
 
-    // The turn passes unless the incident just ended — which now includes the
-    // victim running out, not only an action that says `endsIncident`.
-    if (murderState()?.stage === "incident") await passTurn();
+    /*
+     * The turn passes unless the incident just ended — which now includes the
+     * victim running out, not only an action that says `endsIncident`.
+     *
+     * A CRITICAL CAN HOLD IT. The guide gives the direct victim a second action
+     * on a critical use of an item and the indirect victim the action back; at a
+     * table those are the same thing, so this module has one behaviour for them
+     * rather than two mechanisms for one effect. Nothing else in the crisis
+     * table keeps a turn, which is why it reads as an exception.
+     */
+    if (murderState()?.stage === "incident"
+        && !(isCritical && def.criticalKeepsTurn)) await passTurn();
 
     await closeReceipt(receipt);
     return { success, band, done, ranOut };
@@ -1192,6 +1258,28 @@ async function undoLastCrisis({ actorId, key }) {
             await scene?.tokens?.get(receipt.remnant.id)?.delete();
         } catch (err) {
             error("Could not take back the Remnant a rerolled crisis action left", err);
+        }
+    }
+
+    /*
+     * The thing a use spent.
+     *
+     * Put back rather than remade: it is the same object in the same slot, and
+     * using it up only ever wrote a flag. Set to `false` rather than removed,
+     * because deleting a flag key needs a forced replacement in this Foundry and
+     * a flag that cannot be cleared is worse than one that reads false.
+     *
+     * What does NOT come back is the readied state. Using a thing puts it down
+     * as well, and with one hand (E9) the character may be holding something
+     * else by now; a Reroll that quietly swapped what is in somebody's hand
+     * would be a worse surprise than an item that needs picking up again.
+     */
+    if (receipt.usedItemId) {
+        try {
+            await game.actors.get(actorId)?.items?.get(receipt.usedItemId)
+                ?.setFlag(MODULE_ID, ITEM_FLAGS.broken, false);
+        } catch (err) {
+            error("Could not give back the item a rerolled crisis action used", err);
         }
     }
 

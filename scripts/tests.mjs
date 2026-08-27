@@ -72,7 +72,12 @@ const INVARIANTS = [
     }],
 
     ["every crisis action names a side the engine knows", () => {
-        const sides = new Set(["killer", "victim", "third"]);
+        // `both` since E9, and it is a real side rather than a wildcard: the
+        // grid filter, `takeCrisisAction`'s guard and the resolver each had to
+        // learn it, and the resolver now reads the side off the PERSON rather
+        // than off the entry. This test is what said so — it failed the moment
+        // "use an item" arrived, which is exactly its job.
+        const sides = new Set(["killer", "victim", "third", "both"]);
         for (const [key, def] of Object.entries(CRISIS_ACTIONS)) {
             ok(sides.has(def.side), `${key} has side "${def.side}"`);
             ok(def.label, `${key} has no label`);

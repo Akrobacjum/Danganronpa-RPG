@@ -569,7 +569,12 @@ async function onSocket(payload, senderId) {
             // Narrowed rather than trusted: the only two answers this can carry
             // are the two resources a critical Strike may take.
             choice: payload.choice === "stress" ? "stress"
-                : payload.choice === "hp" ? "hp" : null
+                : payload.choice === "hp" ? "hp" : null,
+            // An id, and one the sender's own character actually holds. It only
+            // ever becomes a receipt line, but a receipt naming somebody else's
+            // item would give a Reroll the run of another sheet.
+            usedItemId: game.actors.get(payload.actorId)?.items?.has(payload.usedItemId)
+                ? payload.usedItemId : null
         });
         return;
     }
@@ -1304,6 +1309,10 @@ export function requestGiveItem({ fromId, toId, itemId }) {
 /** Hand a thrown crisis action to the GM to be scored and applied. */
 export function requestCrisisResult({
     actorId, key, total, isCritical, withHope, undo = false,
+    // What the player's own client used up, if the action was "use an item".
+    // Carried rather than decided here: the GM records it so a Reroll can put
+    // it back, but the spending happened where the dialogs belong.
+    usedItemId = null,
     // Which resource a critical Strike takes. Decided by the killer on their own
     // client while the dice are still up, and carried here rather than asked
     // again on the GM's — see `askCriticalTarget`.
@@ -1311,7 +1320,9 @@ export function requestCrisisResult({
 }) {
     if (game.user.isGM) {
         return import("./murder.mjs")
-            .then(m => m.resolveCrisisAction({ actorId, key, total, isCritical, withHope, undo, choice }));
+            .then(m => m.resolveCrisisAction({
+                actorId, key, total, isCritical, withHope, undo, choice, usedItemId
+            }));
     }
     if (!hasGm()) return null;
 
@@ -1319,7 +1330,7 @@ export function requestCrisisResult({
         action: ACTION_CRISIS,
         userId: game.user.id,
         requestId: expectAck("Incident"),
-        actorId, key, total, isCritical, withHope, undo, choice
+        actorId, key, total, isCritical, withHope, undo, choice, usedItemId
     });
     return { pending: true };
 }

@@ -1575,6 +1575,47 @@ export const INCIDENT = {
  * sentence a human has to finish.
  */
 export const CRISIS_ACTIONS = {
+    /**
+     * USE AN ITEM, mid-incident. Guide p. 21 ("Użycie przedmiotu"), threshold
+     * 15, Hand — and missing from this table until E9, which left the one hole
+     * the whole stage had: `useItem()` was reachable straight from the
+     * inventory row, so a victim drank a healing kit in the middle of a murder
+     * with no roll, no turn and no cost while every other act in the incident
+     * paid all three.
+     *
+     * BOTH SIDES, and that is a deliberate departure. The guide gives it to the
+     * victim alone. Symmetry is easier to say at a table than an exception, and
+     * a killer in a Role Reversal is losing resources by then too.
+     *
+     * `hidden`, because it is not a tile. It is reached by pressing "use" on
+     * the thing you want to use, which is where a player already looks for it —
+     * a fifth tile in the crisis grid saying "use an item" and then asking
+     * WHICH would be two decisions where the sheet already offers one.
+     *
+     * WHAT "SUCCESS" MEANS HERE IS NARROWER THAN ELSEWHERE. A success with
+     * Despair still leaves a trace — you were seen fumbling with it — but the
+     * item does not go in: see `usesItem` in `resolveCrisisAction`. That is the
+     * guide's own table and it is the reason this action needed a field of its
+     * own rather than the generic success branch.
+     */
+    useItem: {
+        side: "both", label: "Use an item", icon: "fa-flask",
+        threshold: 15, traits: ["hand"],
+        hidden: true,
+        usesItem: true,
+        hint: "Get something out of your pocket while this is happening. "
+            + "It works on a critical or a success with Hope; a success with Despair "
+            + "leaves a trace and nothing else.",
+        remnant: { hope: "evident", despair: "subtle", critical: "obvious" },
+        criticalReinforced: true,
+        // The guide gives the direct victim a second action and the indirect one
+        // the action back. At a table those are the same thing — you act again —
+        // so this module has one behaviour and says so rather than building two.
+        criticalKeepsTurn: true,
+        failure: "It stays in your pocket.",
+        failureExtraDrain: { despair: 1 }
+    },
+
     /* ---- the victim ---------------------------------------------------- */
     leaveClue: {
         side: "victim", label: "Leave a clue", icon: "fa-fingerprint",

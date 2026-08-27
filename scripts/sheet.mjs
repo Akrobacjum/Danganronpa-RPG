@@ -2017,12 +2017,49 @@ function addUseButton(li, item, app) {
     button.innerHTML = `<i class="fa-solid fa-flask" inert></i>`;
 
     button.addEventListener("click", async () => {
+        /*
+         * DURING AN INCIDENT THIS IS A CRISIS ACTION (E9, G-21).
+         *
+         * `useItem` had no idea a murder was happening. Every other act in the
+         * incident pays a turn, a roll and a threshold; this one was reachable
+         * straight from the row, so a victim drank a first aid kit mid-murder
+         * for nothing while the killer spent their turn swinging.
+         *
+         * The same button, because it is the same intention. What changes is
+         * what happens after it: threshold 15 on Hand, a trace either way, and
+         * the item only actually goes in on a critical or a success with Hope.
+         */
+        if (inCrisis(app.document)) {
+            const { takeCrisisAction } = await import("./murder.mjs");
+            await takeCrisisAction(app.document, "useItem", { itemId: item.id });
+            app.render(false);
+            return;
+        }
+
         const { useItem } = await import("./use-items.mjs");
         await useItem(app.document, item);
         app.render(false);
     });
 
     li.append(button);
+}
+
+/**
+ * Is this character inside a running incident, on a side that acts?
+ *
+ * Not "is there an incident" — a third party who has walked in has their own
+ * four decisions and using a pocketful of bandages is not among them, and
+ * anybody outside it entirely is just a student having a drink.
+ */
+function inCrisis(actor) {
+    try {
+        const state = murderState();
+        if (!state || state.stage !== "incident") return false;
+        const side = sideOf(actor);
+        return side === "victim" || side === "killer";
+    } catch {
+        return false;
+    }
 }
 
 /**
@@ -2732,7 +2769,13 @@ function injectCrisisPanel(tab, actor) {
     const grid = document.createElement("div");
     grid.className = "drpg-action-grid";
 
-    for (const { key, def, threshold, hindered, blocked, locked, spent, lockedBy } of options) {
+    for (const { key, def, threshold, hindered, blocked, locked, spent, lockedBy, hidden }
+        of options) {
+        // Reached from the thing it is about, not from a tile of its own — see
+        // `hidden` in CRISIS_ACTIONS. A tile saying "use an item" that then asked
+        // WHICH would be two decisions where the inventory row already offers
+        // one.
+        if (hidden) continue;
         const button = document.createElement("button");
         button.type = "button";
         button.className = `drpg-action-button${blocked ? " drpg-locked" : ""}${
