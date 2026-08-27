@@ -2146,8 +2146,8 @@ export const SFX_CATEGORIES = {
 };
 
 export const SFX_SLIDERS = {
-    sound: { label: "Sound", hint: "Everything this module plays — windows, chat, doors, the trial floor." },
-    music: { label: "Music", hint: "Playlists.", proxiesFoundryMusic: true }
+    sound: { label: "Sound", hint: "The sound effects — windows, chat, doors, the trial floor. Not the music." },
+    music: { label: "Music", hint: "The playlists. Foundry's own playlist volume, not a second one beside it.", proxiesFoundryMusic: true }
 };
 
 /** The sliders this module actually stores a volume for — see above. */

@@ -115,8 +115,11 @@ const PANEL_SECTIONS = [
             // state-to-playlist mapping table. It now also puts a track on and
             // takes it off again — something a GM reaches for in the middle of
             // a scene, which is what this section is.
-            { key: "music", icon: "fa-music", labelKey: "DRPG.Music.title",
-              run: () => import("./music.mjs").then(m => m.openMusicDialog()) },
+            // "Sound" rather than "Music" since E3: the window grew a third
+            // tab of sound-effect files and the two volume sliders, so naming
+            // the tile after one of its three tabs stopped being true.
+            { key: "sound", icon: "fa-volume-high", labelKey: "DRPG.Sound.title",
+              run: () => import("./music.mjs").then(m => m.openSoundDialog()) },
             // Three windows in one: "A character dies", the Monocub manager and
             // the alive/dead/Monocub repair table. All three were about the same
             // question — who in this cast is still breathing, and as what.

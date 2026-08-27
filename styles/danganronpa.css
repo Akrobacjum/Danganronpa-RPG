@@ -255,6 +255,12 @@
        its rhythm instead of dropping to a smaller type size. */
     --drpg-pix-query: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 0h4v1H2zM1 1h2v1H1zM5 1h2v1H5zM5 2h2v1H5zM4 3h2v1H4zM3 4h2v1H3zM3 5h2v1H3zM3 7h2v1H3z'/%3E%3C/svg%3E");
 
+    /* 24x24 pixel speaker — the sound launcher, and the Sound panel's own
+       heading. Drawn rather than borrowed from Font Awesome for the same
+       reason the query mark above is: every icon this module puts on the map
+       is a mask, so none of them depends on a font file arriving. */
+    --drpg-pix-speaker: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 4h2v1H11zM18 4h2v1H18zM10 5h3v1H10zM18 5h2v1H18zM9 6h4v1H9zM19 6h2v1H19zM8 7h5v1H8zM19 7h2v1H19zM8 8h5v1H8zM15 8h2v1H15zM20 8h2v1H20zM3 9h10v1H3zM15 9h2v1H15zM20 9h2v1H20zM3 10h10v1H3zM16 10h2v1H16zM20 10h2v1H20zM3 11h10v1H3zM16 11h2v1H16zM20 11h2v1H20zM3 12h10v1H3zM16 12h2v1H16zM20 12h2v1H20zM3 13h10v1H3zM16 13h2v1H16zM20 13h2v1H20zM3 14h10v1H3zM15 14h2v1H15zM20 14h2v1H20zM8 15h5v1H8zM15 15h2v1H15zM20 15h2v1H20zM8 16h5v1H8zM19 16h2v1H19zM9 17h4v1H9zM19 17h2v1H19zM10 18h3v1H10zM18 18h2v1H18zM11 19h2v1H11zM18 19h2v1H18z'/%3E%3C/svg%3E");
+
     /* 24x24 pixel line-art d12 — a dodecahedron face-on: decagon silhouette,
        pentagon face, five spokes. Drawn for the roll dialog (the two duality
        dice and the Roll button), where the system's rendered SVG dice and
@@ -3702,6 +3708,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    which is exactly the kind of win that vanishes the next time somebody moves a
    block. Measured: without it the paragraph computed to 672px, centred. */
 .application.dialog.drpg-room-setup :is(p, .notes):not(td):not(th):not(table *),
+.application.dialog.drpg-sound :is(p, .notes):not(td):not(th):not(table *),
 .drpg-room-guide :is(p, .notes) {
     max-width: none !important;
     margin-inline: 0 !important;
@@ -5889,6 +5896,17 @@ body.drpg-pixel-font .drpg-safeword-button {
 
 :root {
     --drpg-edge: 22px;
+
+    /* THE TWO CORNER CIRCLES, AS ONE MEASUREMENT.
+       The chat launcher takes its 66px from the performance gauge at the other
+       end of the bottom edge (Dawid, 26.08) — two ends of the same line that
+       must agree. The sound launcher then takes its size and its offset FROM
+       the chat one, because it is stacked on top of it: hard-coding 52 and 66
+       in three places is how a stack ends up overlapping itself the next time
+       the gauge changes. Which is exactly what happened while this was being
+       built. */
+    --drpg-launcher: 66px;
+    --drpg-launcher-small: 52px;
 }
 
 /* Despair and the HUD are flex items in #ui-top, not fixed boxes — `top` on
@@ -6555,8 +6573,8 @@ body.drpg-pixel-font .application.sheet.actor prose-mirror * {
    gauge's height — still the largest control on the player's screen, now
    level with its opposite number. */
 #drpg-messenger-launcher {
-    width: 66px !important;
-    height: 66px !important;
+    width: var(--drpg-launcher) !important;
+    height: var(--drpg-launcher) !important;
     font-size: var(--drpg-text-lg) !important;
     border-width: 2px !important;
 }
@@ -10344,6 +10362,231 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     color: var(--drpg-bone);
 }
 
+/* ==========================================================================
+   THE SOUND LAUNCHER
+   --------------------------------------------------------------------------
+   A second circle, stacked on the chat one. It takes the slot messenger.css
+   describes a few hundred lines further down as "a reserved slot above this
+   one for a button that stopped existing" — the Casebook's. The slot was right;
+   only its occupant was wrong.
+
+   Two circles stacked have to be told apart at a glance and without reading
+   either icon, so they differ in the two things the eye takes first:
+   SIZE (52 against 66) and COLOUR (bone against eye). Bone is the module's
+   neutral — this button changes nothing about the game, only about what this
+   one browser hears — and the chat's eye-violet keeps meaning "somebody may be
+   talking to you".
+
+   Centred over the larger one rather than aligned to the same right edge, so
+   the two read as one stack instead of two buttons that happen to be near each
+   other.
+   ========================================================================== */
+#drpg-sound-launcher {
+    position: fixed;
+    /* Centred over the larger circle, and clear of it by 8px. Both derived, so
+       the stack survives the next change to either size. */
+    right: calc(var(--drpg-edge) + (var(--drpg-launcher) - var(--drpg-launcher-small)) / 2);
+    bottom: calc(var(--drpg-edge) + var(--drpg-launcher) + 8px);
+    z-index: 70;
+    width: var(--drpg-launcher-small);
+    height: var(--drpg-launcher-small);
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: 2px solid var(--drpg-bone) !important;
+    background: light-dark(var(--drpg-paper-alt), var(--drpg-ink)) !important;
+    color: var(--drpg-bone) !important;
+    box-shadow: 0 2px 10px rgba(var(--drpg-shadow-rgb), 0.35) !important;
+    cursor: pointer;
+}
+
+#drpg-sound-launcher:hover {
+    box-shadow: 0 0 10px rgba(var(--drpg-bone-rgb), 0.45) !important;
+}
+
+/* The mask carries the colour from `currentColor`, so the icon follows the
+   button rather than being painted twice. Half the circle, like the chat
+   glyph beneath it — and derived for the same reason the sizes above are. */
+#drpg-sound-launcher i {
+    display: block;
+    width: calc(var(--drpg-launcher-small) / 2);
+    height: calc(var(--drpg-launcher-small) / 2);
+    background: currentColor;
+    -webkit-mask-image: var(--drpg-pix-speaker);
+    mask-image: var(--drpg-pix-speaker);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+}
+
+/* Muted: the button says so without opening. Zero is a state a player can put
+   themselves in and then forget, and "the module went quiet" is a bug report
+   nobody enjoys chasing. */
+#drpg-sound-launcher.drpg-muted {
+    border-color: var(--drpg-line-strong) !important;
+    color: var(--drpg-line-strong) !important;
+}
+
+/* The selected table's name and the two things you can do to it, on one line.
+   They live beside the heading rather than in the footer because that is where
+   the thing they act on is — see `wirePanelTabs`. */
+.drpg-table-heading {
+    display: flex !important;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.drpg-table-heading h4 {
+    margin: 0 auto 0 0 !important;
+}
+
+/* ==========================================================================
+   THE SOUND PANEL
+   --------------------------------------------------------------------------
+   Two volume sliders above a three-tab body. The sliders are the only part a
+   player sees, so they are laid out to stand on their own rather than as a
+   header strip for the tabs beneath them.
+   ========================================================================== */
+.drpg-sound-volumes {
+    margin-bottom: 12px;
+}
+
+/* name | slider | reading, with the hint on its own line underneath. The name
+   column is fixed so the two sliders start at the same x — two controls that
+   move together must look like they belong to one instrument. */
+/* `!important` on every line of the layout, and it is not defensive noise.
+   This module's stylesheet is IMPORTED INTO A CASCADE LAYER, and an unlayered
+   rule beats a layered one however specific it is — Foundry's own
+   `.standard-form label { display: flex }` is unlayered, so a plain
+   `display: grid` here loses to it and the three columns never happen. An
+   important declaration reverses that order, which is the only lever available
+   from inside the layer. Measured: without them the label computed to
+   `display: flex` and the hint sat in a fourth column beside the reading. */
+.drpg-sound-slider {
+    display: grid !important;
+    grid-template-columns: 5.5em 1fr 3.2em !important;
+    align-items: center !important;
+    gap: 4px 10px !important;
+    margin: 8px 0 !important;
+}
+
+.drpg-sound-slider-name {
+    font-weight: 600;
+    color: var(--drpg-bone);
+    text-align: left !important;
+}
+
+.drpg-sound-slider input[type="range"] {
+    width: 100% !important;
+    margin: 0 !important;
+}
+
+.drpg-sound-slider output {
+    text-align: right !important;
+    font-variant-numeric: tabular-nums;
+    color: var(--drpg-bone);
+}
+
+/* The hint sits under all three columns rather than beside the reading, where
+   it would push the slider narrow on the one window that is mostly slider. */
+.drpg-sound-slider .notes {
+    grid-column: 1 / -1 !important;
+    margin: 0 !important;
+    text-align: left !important;
+}
+
+/* --------------------------------------------------------------------------
+   The mapping table. Thirty-five rows, so the columns are declared rather than
+   negotiated: a path is long, an event's hint is longer, and left to itself the
+   browser gives the buttons half the window.
+   -------------------------------------------------------------------------- */
+.drpg-sfx-table {
+    table-layout: fixed !important;
+    width: 100% !important;
+    /* NO MINIMUM, ON PURPOSE (Dawid, 28.08 — leave the GM window's width
+       alone). A fixed table never asks for room: `width: 100%` means
+       `scrollWidth` only ever reports the width it was already given, so the
+       window's measured fit has nothing to widen and the table has to live
+       inside the width the window already had. The columns below are cut to
+       that, rather than the window being cut to the columns. */
+}
+
+/* Measured, not guessed. The three buttons come to 213px in this module's
+   pixel face — wider than the same words in a proportional font, which is what
+   made the first two attempts wrap "Clear" onto its own line. The actions
+   column is cut to hold them and the other two share what is left. */
+.drpg-sfx-table th:nth-child(1), .drpg-sfx-table td:nth-child(1) { width: 38%; }
+.drpg-sfx-table th:nth-child(2), .drpg-sfx-table td:nth-child(2) { width: 26%; }
+.drpg-sfx-table th:nth-child(3), .drpg-sfx-table td:nth-child(3) { width: 36%; }
+
+/* Wrapping, not scrolling. A fixed layout with `nowrap` still inherited from
+   somewhere is how a table looks unchanged after being "fixed" — the cell is
+   the right width and holds one very long line. Said on the cell AND on what
+   is inside it, because `white-space` inherits and a stray `<small>` with its
+   own rule would otherwise put the line back.
+
+   Buttons are the exception: a three-word button broken across two lines is
+   not a wrapped paragraph, it is a broken button. */
+.drpg-sfx-table td,
+.drpg-sfx-table td *:not(button) {
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+}
+
+.drpg-sfx-table button {
+    white-space: nowrap !important;
+}
+
+.drpg-sfx-table td {
+    vertical-align: top;
+}
+
+.drpg-sfx-table input[type="text"] {
+    width: 100% !important;
+    font-size: var(--drpg-text-sm);
+}
+
+/* A category heading inside the table body: the panel groups thirty-five rows
+   into five, so the eye lands on a block before it lands on a row. */
+.drpg-sfx-group td {
+    padding-top: 14px;
+    border-bottom: 1px solid rgba(var(--drpg-bone-rgb), 0.25);
+    background: rgba(var(--drpg-bone-rgb), 0.05);
+}
+
+.drpg-sfx-group td strong {
+    color: var(--drpg-eye);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: var(--drpg-text-sm);
+}
+
+.drpg-sfx-group td .notes {
+    display: block;
+    margin: 2px 0 0;
+}
+
+/* Three small buttons in a row, inside the cell rather than instead of it: a
+   `<td>` given `display: flex` stops being a table cell, and a fixed layout
+   that has lost one of its cells is a layout with a hole in it. */
+.drpg-sfx-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+}
+
+.drpg-sfx-actions .drpg-mini-button {
+    flex: 0 0 auto;
+    padding: 2px 6px !important;
+    font-size: var(--drpg-text-xs, 0.72rem) !important;
+}
+
 .drpg-messenger-bubble {
     border-radius: var(--drpg-panel-radius, 4px);
     font-size: var(--drpg-text-sm);
@@ -12902,6 +13145,15 @@ i.drpg-pix-foot {
 .drpg-gmt-tabs button.active {
     background: rgba(var(--drpg-eye-rgb), 0.25) !important;
     border-color: var(--drpg-eye) !important;
+}
+
+/* A footer button that does not belong to the visible tab — see
+   `wirePanelTabs`. `[hidden]` alone is a UA-stylesheet `display: none`, and any
+   rule that gives dialog footer buttons a display value outranks it; this is
+   the one place that has to win, because the alternative is a button that is
+   invisible and still clickable at its old size. */
+footer.form-footer button[hidden] {
+    display: none !important;
 }
 
 .drpg-gmt-section {

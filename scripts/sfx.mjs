@@ -400,6 +400,13 @@ export function registerSfx() {
         .then(() => { unlocked = true; })
         .catch(() => { /* a browser that never unlocks is not an error */ });
 
+    // The player's only door to the two sliders, and a GM's shortcut past
+     // their own panel. Mounted at `ready` and again on every canvas draw,
+     // like the messenger launcher it sits above: Foundry rebuilds the body's
+     // furniture more often than it looks.
+    Hooks.once("ready", renderSoundLauncher);
+    Hooks.on("canvasReady", () => renderSoundLauncher());
+
     log("Sound engine ready.");
 }
 
@@ -529,4 +536,208 @@ export function diagnoseSfx() {
         orphanedMappings: Object.keys(map).filter(key => !SFX_EVENTS[key]),
         unplayableThisSession: Array.from(reportedMissing)
     };
+}
+
+/* ========================================================================== *
+ *  The launcher, and the panel it opens
+ * ========================================================================== */
+
+const LAUNCHER_ID = "drpg-sound-launcher";
+
+/**
+ * A second circle above the chat one (Dawid, 28.08).
+ *
+ * THE PLAYER NEEDS A DOOR, AND THIS IS THE ONLY ONE THEY HAVE. The GM reaches
+ * the Sound panel from the tile in their own panel; a player has no panel, and
+ * the two volumes are THEIR settings — the one part of that window that is not
+ * the GM's business. Left without a way in, the sliders would exist for nobody.
+ *
+ * Deliberately not a menu in Foundry's own settings, which was the cheap
+ * option: volume is something you reach for while a sound is playing, and a
+ * control three menus deep is a control nobody moves twice.
+ *
+ * Smaller and bone against the chat button's eye-violet — see the stylesheet
+ * for why those two differences and not others.
+ */
+export function renderSoundLauncher() {
+    try {
+        document.getElementById(LAUNCHER_ID)?.remove();
+        if (!game.user) return;
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.id = LAUNCHER_ID;
+
+        const tip = game.i18n.localize("DRPG.Sound.launcherTooltip");
+        button.dataset.tooltip = tip;
+        button.setAttribute("aria-label", tip);
+        // `inert` so the mask element cannot become the click target and eat
+        // the press — the same guard the messenger launcher's glyph carries.
+        button.innerHTML = `<i inert></i>`;
+
+        button.addEventListener("click", async event => {
+            event.preventDefault();
+            event.stopPropagation();
+            try {
+                const { openSoundDialog } = await import("./music.mjs");
+                await openSoundDialog();
+            } catch (err) {
+                error("Could not open the Sound panel", err);
+            }
+        });
+
+        document.body.append(button);
+        refreshSoundLauncher();
+    } catch (err) {
+        error("Could not render the sound launcher", err);
+    }
+}
+
+/**
+ * Show on the button itself that this browser is silent.
+ *
+ * Zero is a state somebody puts themselves in and then forgets, and "the module
+ * went quiet" is a bug report nobody enjoys chasing. Both sliders down, because
+ * one of the two at zero is an ordinary preference.
+ */
+export function refreshSoundLauncher() {
+    const button = document.getElementById(LAUNCHER_ID);
+    if (!button) return;
+    button.classList.toggle("drpg-muted",
+        sfxVolume("sound") <= 0 && sfxVolume("music") <= 0);
+}
+
+/** The two sliders. The whole of the window for a player — see `openSoundDialog`. */
+export function soundSlidersHtml() {
+    const rows = Object.entries(SFX_SLIDERS).map(([key, slider]) => `
+        <label class="drpg-sound-slider" data-drpg-slider="${key}">
+            <span class="drpg-sound-slider-name">${foundry.utils.escapeHTML(slider.label)}</span>
+            <input type="range" min="0" max="100" step="1"
+                   name="vol:${key}" value="${Math.round(sfxVolume(key) * 100)}" />
+            <output>${Math.round(sfxVolume(key) * 100)}%</output>
+            <span class="notes">${foundry.utils.escapeHTML(slider.hint)}</span>
+        </label>`).join("");
+
+    return `<fieldset class="drpg-sound-volumes">
+        <legend>${game.i18n.localize("DRPG.Sound.volumes")}</legend>
+        ${rows}
+        <p class="notes">${game.i18n.localize("DRPG.Sound.volumeNote")}</p>
+    </fieldset>`;
+}
+
+/** The mapping table: one row per event, grouped by category. GM only. */
+export function soundEffectsHtml() {
+    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
+    const keys = Object.keys(SFX_EVENTS);
+
+    const body = Object.entries(SFX_CATEGORIES).map(([category, meta]) => {
+        const rows = keys.filter(key => SFX_EVENTS[key].category === category).map(key => {
+            const event = SFX_EVENTS[key];
+            const src = soundFor(key) ?? "";
+            return `<tr data-drpg-sfx="${key}">
+                <td>
+                    <strong>${esc(event.label)}</strong><br>
+                    <small class="notes">${esc(event.hint)}</small>
+                </td>
+                <td><input type="text" name="sfx:${key}" value="${esc(src)}"
+                        placeholder="${esc(game.i18n.localize("DRPG.Sound.notAssigned"))}" /></td>
+                <td><div class="drpg-sfx-actions">
+                    <button type="button" class="drpg-mini-button" data-drpg-sfx-pick>${
+                        esc(game.i18n.localize("DRPG.Sound.choose"))}</button>
+                    <button type="button" class="drpg-mini-button" data-drpg-sfx-test>${
+                        esc(game.i18n.localize("DRPG.Sound.test"))}</button>
+                    <button type="button" class="drpg-mini-button" data-drpg-sfx-clear>${
+                        esc(game.i18n.localize("DRPG.Sound.clear"))}</button>
+                </div></td>
+            </tr>`;
+        }).join("");
+
+        return `<tr class="drpg-sfx-group"><td colspan="3">
+            <strong>${esc(meta.label)}</strong>
+            <small class="notes">${esc(meta.hint)}</small>
+        </td></tr>${rows}`;
+    }).join("");
+
+    return `
+        <p class="notes">${game.i18n.localize("DRPG.Sound.effectsIntro")}</p>
+        <p class="notes" data-drpg-sfx-count>${countLine()}</p>
+        <table class="drpg-vault-table drpg-sfx-table"><thead><tr>
+            <th>${game.i18n.localize("DRPG.Sound.event")}</th>
+            <th>${game.i18n.localize("DRPG.Sound.file")}</th>
+            <th></th>
+        </tr></thead><tbody>${body}</tbody></table>`;
+}
+
+/** "12 of 35 events have a file." — the empty state, said as a number. */
+function countLine() {
+    const keys = Object.keys(SFX_EVENTS);
+    return game.i18n.format("DRPG.Sound.assigned", {
+        n: keys.filter(key => soundFor(key)).length,
+        total: keys.length
+    });
+}
+
+/**
+ * Wire the panel from the dialog's `render`, never before it.
+ *
+ * DialogV2 stringifies its content, so listeners attached to markup do not
+ * survive the trip — the same reason `wirePortraitPickers` documents, and the
+ * reason the FilePicker here has to be opened from a live element.
+ *
+ * EVERYTHING HERE SAVES AS IT IS TOUCHED, and there is no Apply for it. The
+ * volumes are this browser's and want to be heard while being dragged; a
+ * mapping wants to be testable the moment it is chosen, and a Test button that
+ * needs the window closed and reopened first is a Test button nobody trusts.
+ */
+export function wireSoundPanel(root) {
+    /* ---- volumes ---------------------------------------------------- */
+    for (const label of root.querySelectorAll("[data-drpg-slider]")) {
+        const key = label.dataset.drpgSlider;
+        const input = label.querySelector("input[type=range]");
+        const out = label.querySelector("output");
+        if (!input) continue;
+
+        input.addEventListener("input", () => {
+            const percent = Number(input.value);
+            if (out) out.textContent = `${percent}%`;
+            setSfxVolume(key, percent / 100)
+                .then(refreshSoundLauncher)
+                .catch(err => error(`Could not set the ${key} volume`, err));
+        });
+    }
+
+    /* ---- the mapping table ------------------------------------------ */
+    const counter = root.querySelector("[data-drpg-sfx-count]");
+    const recount = () => { if (counter) counter.textContent = countLine(); };
+
+    for (const row of root.querySelectorAll("[data-drpg-sfx]")) {
+        const key = row.dataset.drpgSfx;
+        const input = row.querySelector(`input[name="sfx:${CSS.escape(key)}"]`);
+
+        const write = async value => {
+            await setSoundFor(key, value);
+            if (input) input.value = value ?? "";
+            recount();
+        };
+
+        row.querySelector("[data-drpg-sfx-pick]")?.addEventListener("click", () => {
+            new foundry.applications.apps.FilePicker.implementation({
+                type: "audio",
+                current: input?.value || "",
+                callback: path => write(path)
+            }).render(true);
+        });
+
+        // Typed by hand rather than picked — a path pasted from somewhere else
+        // has to save too, or the box lies about what is mapped.
+        input?.addEventListener("change", () => write(input.value));
+
+        row.querySelector("[data-drpg-sfx-test]")?.addEventListener("click", async () => {
+            const result = await testSfx(key);
+            if (result?.played) return;
+            ui.notifications.warn(`${SFX_EVENTS[key]?.label ?? key}: ${result?.why ?? ""}`);
+        });
+
+        row.querySelector("[data-drpg-sfx-clear]")?.addEventListener("click", () => write(null));
+    }
 }

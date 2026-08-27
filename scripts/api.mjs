@@ -121,7 +121,7 @@ import {
     attemptStageSix, resolveStageSix
 } from "./cleanup.mjs";
 import {
-    currentState, musicStatus, diagnoseMusic, refreshMusic, openMusicDialog,
+    currentState, musicStatus, diagnoseMusic, refreshMusic, openSoundDialog,
     playTrack, resetMusic, situationalPlaylist
 } from "./music.mjs";
 import {
@@ -1116,7 +1116,11 @@ export const DrpgApi = {
      *  can be answered by calling it and reading what it returns. */
     seedDiscovery,
 
-    musicDialog: openMusicDialog,
+    /** The Sound window: Play, Music and Effects, with the two volume sliders
+     *  above them. `musicDialog` is the name it had while it was only about
+     *  music and still works. */
+    soundDialog: openSoundDialog,
+    musicDialog: openSoundDialog,
     /** One track from the cue playlist on repeat, holding everything that was
      *  playing; and the way back. `playTrack` takes a sound id or a track name,
      *  `resetMusic` stops the cue dead and gives back what it interrupted. */

@@ -764,6 +764,23 @@
       "startTrialNote": "The clock starts over: the campaign's elapsed timer restarts with the trial, and again when it ends.",
       "openDebateIntro": "How long is this debate worth? Each one in a trial gets its own budget, and the last number you used is offered."
     },
+    "Sound": {
+      "title": "Sound",
+      "launcherTooltip": "Sound and music",
+      "tabPlay": "Play",
+      "tabMusic": "Music",
+      "tabEffects": "Effects",
+      "volumes": "Volume",
+      "volumeNote": "Both live in this browser only.",
+      "effectsIntro": "This module ships no audio, the same bargain the playlists make. Point an event at a file of your own; anything left blank stays silent, which is a choice rather than a fault.",
+      "assigned": "{n} of {total} events have a file.",
+      "event": "Event",
+      "file": "File",
+      "notAssigned": "not assigned yet",
+      "choose": "Choose",
+      "test": "Test",
+      "clear": "Clear"
+    },
     "Vote": {
       "openTitle": "The vote",
       "openIntro": "Send every player a ballot, then count them. Both halves are this button.",
@@ -1809,7 +1826,15 @@
       "newPoolNote": "A room table is what a room stocks — point a room at it in Room Setup's “Draws from”. Tier tables (“DRPG … — Tier N”) answer dice rolls and cannot be assigned to rooms. Optional precision: a table named “«Room» — Tier N” answers that roll in that room before the flat room table does.",
       "newPoolTierName": "That name matches the tier-table pattern (“DRPG … — Tier N”) — a room table needs its own name.",
       "newPoolExists": "A table called “{name}” already exists.",
-      "poolCreated": "Room table “{name}” created. Point a room at it in Room Setup."
+      "poolCreated": "Room table “{name}” created. Point a room at it in Room Setup.",
+      "renameTable": "Rename table",
+      "deleteTable": "Delete table",
+      "createTable": "Create table",
+      "installAction": "Install / reinstall",
+      "renameNote": "This module finds its tables by name. If this is one of the tables the game draws from, a name it does not recognise means those draws quietly stop finding it.",
+      "renamed": "Renamed to “{name}”.",
+      "deleteConfirm": "Delete “{name}” and the {n} entries in it? This cannot be undone.",
+      "deleted": "Deleted “{name}”."
     },
     "Clock": {
       "summary": "Chapter {chapter} · Day {day} · Session {session} · {time}",
