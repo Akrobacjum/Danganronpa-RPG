@@ -727,6 +727,30 @@ async function dropResult(table, resultId) {
 }
 
 /**
+ * Ask for a table's new name, with the warning attached to the asking.
+ *
+ * @returns {Promise<string|null>} the trimmed name, or `null` if cancelled.
+ */
+async function promptForTableName(currentName) {
+    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
+    const result = await foundry.applications.api.DialogV2.prompt({
+        window: { title: game.i18n.localize("DRPG.Tables.renameTable") },
+        content: `
+            <p class="notes">${game.i18n.localize("DRPG.Tables.renameNote")}</p>
+            <label>${game.i18n.localize("DRPG.Items.name")}
+                <input type="text" name="tableName" value="${esc(currentName)}" /></label>`,
+        ok: {
+            label: game.i18n.localize("DRPG.Tables.renameTable"),
+            callback: (event, button, dialog) =>
+                dialog.element.querySelector("[name=tableName]")?.value.trim() ?? ""
+        },
+        rejectClose: false,
+        modal: true
+    });
+    return typeof result === "string" ? result : null;
+}
+
+/**
  * The item tables, editable.
  *
  * @param {object} [options]
@@ -816,7 +840,13 @@ export async function openItemTables({ preset = null } = {}) {
             <div class="drpg-tables-layout">
                 <div class="drpg-tables-left">${listHtml}</div>
                 <div class="drpg-tables-right">
-                    <h4 data-drpg-table-name>${esc(selected?.name ?? "")}</h4>
+                    <div class="drpg-table-heading">
+                        <h4 data-drpg-table-name>${esc(selected?.name ?? "")}</h4>
+                        <button type="button" class="drpg-mini-button" data-drpg-rename-table>${
+                            esc(game.i18n.localize("DRPG.Tables.renameTable"))}</button>
+                        <button type="button" class="drpg-mini-button" data-drpg-delete-table>${
+                            esc(game.i18n.localize("DRPG.Tables.deleteTable"))}</button>
+                    </div>
                     <div data-drpg-table-body>${
                         selected ? tableItemsHtml(selected)
                             : `<p class="notes">${game.i18n.localize("DRPG.Tables.noneYet")}</p>`
@@ -882,24 +912,55 @@ export async function openItemTables({ preset = null } = {}) {
                 }
             },
             {
-                action: "newPool", label: game.i18n.localize("DRPG.Tables.newPool"),
+                // "Create table", not "New room table": the tab is called that
+                // already, and a button repeating its tab's name says nothing
+                // about what pressing it does.
+                action: "newPool", label: game.i18n.localize("DRPG.Tables.createTable"),
                 callback: (e, b, d) => ({ newPool: d.element.querySelector("[name=newPoolName]")?.value.trim() ?? "" })
             },
-            { action: "install", label: game.i18n.localize("DRPG.Panel.installTables") },
+            { action: "install", label: game.i18n.localize("DRPG.Tables.installAction") },
             { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
         ],
         render: (event, dialog) => {
             const root = dialog.element;
-            wirePanelTabs(root);
+            /*
+             * ONE FOOTER, FOUR TABS, AND UNTIL NOW ALL FOUR BUTTONS ON EACH.
+             *
+             * The default button said "Add an item" on the Edit tab and read
+             * the new-item form from a pane that was not on screen — press the
+             * obvious button and the window answers about a question you cannot
+             * see. Editing has no footer action at all: its rows save
+             * themselves, and the two things it does need are beside the
+             * heading, where the thing they act on is.
+             */
+            wirePanelTabs(root, {
+                buttons: {
+                    edit: [],
+                    newItem: ["add"],
+                    newRoom: ["newPool"],
+                    install: ["install"]
+                },
+                always: ["close"]
+            });
             wirePortraitPickers(root, { defaultImg: DEFAULT_RESULT_IMG });
 
             const nameEl = root.querySelector("[data-drpg-table-name]");
             const bodyEl = root.querySelector("[data-drpg-table-body]");
+            const renameButton = root.querySelector("[data-drpg-rename-table]");
+            const deleteButton = root.querySelector("[data-drpg-delete-table]");
+
+            let current = selected ?? null;
 
             const show = table => {
+                current = table ?? null;
                 nameEl.textContent = table?.name ?? "";
                 bodyEl.innerHTML = table ? tableItemsHtml(table) : "";
+                // Nothing selected is a real state — an empty world has no
+                // tables at all — and a live button over nothing is a trap.
+                if (renameButton) renameButton.disabled = !table;
+                if (deleteButton) deleteButton.disabled = !table;
             };
+            show(current);
 
             for (const button of root.querySelectorAll("[data-drpg-table]")) {
                 button.addEventListener("click", ev => {
@@ -910,6 +971,76 @@ export async function openItemTables({ preset = null } = {}) {
                     show(game.tables.get(button.dataset.drpgTable));
                 });
             }
+
+            /*
+             * RENAMING A TABLE CAN SILENTLY BREAK EVERY DRAW FROM IT.
+             *
+             * This module finds its tables BY NAME — built from the display
+             * labels of a category and a tier (see `tableName`) — so a table
+             * renamed to something the lookup does not build is a table the
+             * game stops drawing from, with nothing on any screen to say so.
+             * That is the whole reason this asks before it writes rather than
+             * being an editable heading.
+             */
+            renameButton?.addEventListener("click", async ev => {
+                ev.preventDefault();
+                if (!current) return;
+
+                const name = await promptForTableName(current.name);
+                if (name === null || name === current.name) return;
+
+                if (!name) {
+                    ui.notifications.warn(game.i18n.localize("DRPG.Tables.needsName"));
+                    return;
+                }
+                if (game.tables.getName(name)) {
+                    ui.notifications.warn(game.i18n.format("DRPG.Tables.newPoolExists", { name }));
+                    return;
+                }
+
+                try {
+                    await current.update({ name });
+                    nameEl.textContent = name;
+                    const entry = root.querySelector(
+                        `[data-drpg-table="${CSS.escape(current.id)}"] span`);
+                    if (entry) entry.textContent = name;
+                    ui.notifications.info(game.i18n.format("DRPG.Tables.renamed", { name }));
+                } catch (err) {
+                    error("Could not rename an item table", err);
+                }
+            });
+
+            deleteButton?.addEventListener("click", async ev => {
+                ev.preventDefault();
+                if (!current) return;
+
+                // The count is the point of the question. "Delete this table?"
+                // and "delete this table and the fourteen items in it?" deserve
+                // different answers, and only one of them is on screen.
+                const ok = await foundry.applications.api.DialogV2.confirm({
+                    window: { title: game.i18n.localize("DRPG.Tables.deleteTable") },
+                    content: `<p>${game.i18n.format("DRPG.Tables.deleteConfirm", {
+                        name: esc(current.name), n: current.results.size
+                    })}</p>`,
+                    rejectClose: false, modal: true
+                });
+                if (!ok) return;
+
+                const gone = current;
+                try {
+                    await gone.delete();
+                } catch (err) {
+                    error("Could not delete an item table", err);
+                    return;
+                }
+
+                root.querySelector(`[data-drpg-table="${CSS.escape(gone.id)}"]`)
+                    ?.closest("li")?.remove();
+                const next = root.querySelector("[data-drpg-table]");
+                if (next) next.click();
+                else show(null);
+                ui.notifications.info(game.i18n.format("DRPG.Tables.deleted", { name: gone.name }));
+            });
 
             // Delegated, because the entry list is rebuilt whenever a table is
             // picked or an entry is dropped — listeners bound to the old rows
