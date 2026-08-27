@@ -784,7 +784,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
         // window-content and sane select sizing. Without it this dialog asked
         // for 860px, lost to the 26rem `.drpg-panel` cap, and clipped its own
         // right-hand columns with no way to scroll to them.
-        classes: ["drpg-panel", "drpg-projects"],
+        classes: ["drpg-panel", "drpg-projects", "drpg-room-setup"],
         // One size for all five tabs, taken from the biggest of them — see
         // `fitWindowToTabs`. Without it the window is fitted to whichever tab
         // is showing and jumps between 708px and 1504px as the GM switches.

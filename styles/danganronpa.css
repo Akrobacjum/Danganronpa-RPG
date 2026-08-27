@@ -2869,10 +2869,17 @@ body.drpg-pixel-font [contenteditable] {
     max-width: 100% !important;
 }
 
-.drpg-room-check-table td {
-    text-align: left;
-    white-space: normal;
-    overflow-wrap: anywhere;
+/* And the same for the wrapping, for the same reason plus one more: `white-space`
+   is INHERITED, so the value that was reaching these cells came from an ancestor
+   rather than from any rule naming them — a probe that only looks for rules
+   matching the cell finds nothing and the cause looks like magic. The `*` is
+   because the detail sits in a `<small>` that inherits it too. Measured before
+   this: a cell 1187px wide holding 3679px of one unbroken line. */
+.drpg-room-check-table td,
+.drpg-room-check-table td * {
+    text-align: left !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
 }
 
 .drpg-room-check-table td:first-child { width: 2.5ch; }
@@ -3662,6 +3669,38 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
 .application.dialog.drpg-wide :is(p, .notes, h3, h4):not(td):not(th):not(table *) {
     margin-inline: auto;
     text-align: center;
+}
+
+/* ROOM SETUP IS THE EXCEPTION, AND IT IS A DELIBERATE ONE.
+   --------------------------------------------------------------------------
+   Everything above is right for a window whose prose is a sentence or two over
+   a table. Room setup is not that window: each tab opens with a paragraph of
+   instruction, and the Fog tab now carries a whole short guide to drawing
+   rooms. A 42rem measure centred in a 1500px window turns that into a tall
+   narrow ribbon with two empty thirds beside it, which is what Dawid was
+   looking at on 27.08 — and it reads as a broken window rather than a careful
+   one.
+
+   So here the prose takes the window's width and sits against its left edge.
+   Left, not centred: centring is for a line or two, and it costs the eye the
+   start of every line in a paragraph of eight.
+
+   Scoped to this one window on purpose. The measure is correct for the eleven
+   other dialogs the rule above covers, and rewriting it for all of them to fix
+   one would be trading a real problem here for an invented one everywhere
+   else. Headings keep their centring — they are one line and they mark the
+   middle of the window.
+
+   `!important`, not a longer selector. The rule it has to beat is
+   `.application.dialog:is(…):has(…):not(…) :is(p, .notes, h3, h4):not(td):not(th):not(table *)`
+   — six classes and four elements — and matching that by piling on a seventh
+   class would leave the two tied on specificity and settled by source order,
+   which is exactly the kind of win that vanishes the next time somebody moves a
+   block. Measured: without it the paragraph computed to 672px, centred. */
+.application.dialog.drpg-room-setup :is(p, .notes):not(td):not(th):not(table *) {
+    max-width: none !important;
+    margin-inline: 0 !important;
+    text-align: left !important;
 }
 
 /* A quotation keeps its own left edge — it is somebody's sentence, set apart,
