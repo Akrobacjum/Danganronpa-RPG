@@ -84,6 +84,7 @@ function onRenderSheet(app, element) {
         if (game.user.isGM || actor.testUserPermission(game.user, "OWNER")) return;
         if (!root) return;
 
+        disarmSheet(root);
         redactTabs(root);
         redactValues(root);
         root.classList.add("drpg-redacted-sheet");
@@ -95,6 +96,37 @@ function onRenderSheet(app, element) {
         } catch {
             // Nothing left to try. The error above is the record.
         }
+    }
+}
+
+/**
+ * Nothing on this sheet does anything, and the list of what may is short.
+ *
+ * AN ALLOW-LIST, NOT A HUNT. Stripping the controls one at a time is how you
+ * ship a leak: the sheet was rolling somebody else's traits from `div.trait`
+ * (Dawid found it), and beside it sat `toggleHope` on the Hope pips,
+ * `toggleResourceManagement`, `useItem` on the portrait and `editImage` — every
+ * one a thing a viewer could do to a character that is not theirs. A system
+ * update adds another next month and a blacklist would not know.
+ *
+ * So everything with a `data-action` is disarmed except what lives in the
+ * window frame, which is Foundry's own furniture: close the window, copy the
+ * uuid, toggle the frame controls. Those belong to the viewer, not to the
+ * character.
+ *
+ * `data-action` is REMOVED as well as the click swallowed, because
+ * ApplicationV2 dispatches on the attribute — a listener alone is one missed
+ * event from a roll nobody meant to make. Marked `drpg-disarmed` rather than
+ * `drpg-locked`: the greyed look belongs to the tabs and the settings button,
+ * which are meant to be seen as shut; greying every element on the sheet would
+ * grey the sheet.
+ */
+function disarmSheet(root) {
+    for (const el of root.querySelectorAll("[data-action]")) {
+        if (el.closest(".window-header")) continue;
+        delete el.dataset.action;
+        el.classList.add("drpg-disarmed");
+        el.addEventListener("click", stop, { capture: true });
     }
 }
 
@@ -161,6 +193,14 @@ function redactValues(root) {
     // Hope keeps its colour. A hidden Hope is still Hope, and the gold is how
     // this module says so everywhere else.
     for (const pip of root.querySelectorAll(".hope-value")) mark(pip, "?", "drpg-redacted-hope");
+
+    // The free Move is a drawn mark rather than a number, so it is replaced
+    // rather than overwritten: whether somebody still has their step is as much
+    // of a tell as how many actions they have left.
+    for (const move of root.querySelectorAll(".drpg-free-move")) {
+        move.classList.remove("available");
+        mark(move, "?");
+    }
 
     for (const row of root.querySelectorAll(".experience-row")) {
         const value = row.querySelector(".experience-value");
