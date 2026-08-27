@@ -24,8 +24,9 @@
  * in this module waits on an animation to finish before it computes anything.
  */
 
-import { MODULE_ID } from "./config.mjs";
+import { MODULE_ID, GAME_WINDOWS } from "./config.mjs";
 import { log, warn } from "./utils.mjs";
+import { playSfx } from "./sfx.mjs";
 
 /* ==========================================================================
  * READING THE TOKENS
@@ -259,23 +260,14 @@ export function markSpent(element, change, index = 1) {
  * ========================================================================== */
 
 /**
- * Which windows this module is entitled to move.
+ * Which windows this module is entitled to move — see `GAME_WINDOWS`.
  *
- * This started as "its own, and only its own", which sounded like restraint and
- * was in fact a bug: the window a player opens more often than every other one
- * put together is the CHARACTER SHEET, and the sheet belongs to Daggerheart. A
- * motion layer that misses the sheet has not animated the interface, it has
- * animated the corners of it.
- *
- * So the line is drawn around the windows this game is PLAYED in — the module's
- * own prompts, the character sheet, and the item cards that are Truth Bullets —
- * rather than around who wrote them. What stays outside is Foundry's own
- * configuration furniture: Token Config, Scene Config, the file picker, the
- * settings screens. That is not modesty either. Those windows are full of
- * `position: fixed` colour pickers and pop-outs, they are the ones that were
- * already glitching on The Forge, and none of them is a moment in a session.
+ * The selector itself moved to config.mjs in E4, when the sound layer needed
+ * the same list. Two files importing it from each other is a cycle, and this
+ * module has paid for one of those before; a shared fact belongs in the file
+ * that imports nothing.
  */
-const MOVED = ".application[class*='drpg-'], .application.sheet.actor, .application.sheet.item";
+const MOVED = GAME_WINDOWS;
 
 function animateWindowIn(app, _element, _context, options) {
     const el = app?.element;
@@ -291,6 +283,12 @@ function animateWindowIn(app, _element, _context, options) {
     // same element, and a flag left on it would have swallowed the entrance
     // exactly where it matters most.
     if (!options?.isFirstRender) return;
+
+    // BEFORE THE ANIMATION, NOT INSIDE IT. A table that has asked for reduced
+    // motion still wants to hear the window open — the sound is the event, the
+    // growth is only how it is drawn. `play()` below is the part that stands
+    // down for that preference; this is not.
+    playSfx("windowOpen");
 
     // A window that was closed and is being opened again on the same element
     // would otherwise still be wearing the mark from last time.
@@ -341,7 +339,14 @@ function markClosingWindows() {
     proto.close = function(options = {}) {
         try {
             const el = this.element;
-            if (el?.matches?.(MOVED)) el.classList.add("drpg-closing");
+            if (el?.matches?.(MOVED)) {
+                el.classList.add("drpg-closing");
+                // The same place the mark goes, for the same reason it goes
+                // here: this is the one moment that means "closing" rather
+                // than "minimising", and Foundry's own class cannot tell the
+                // two apart. A re-render never reaches this line.
+                playSfx("windowClose");
+            }
         } catch {
             // A window that closes without the mark closes the way Foundry
             // closes it, which is a perfectly good way to close a window.

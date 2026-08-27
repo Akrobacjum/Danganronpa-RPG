@@ -30,6 +30,7 @@ import {
 import { noteFor, noteStatus, noteTemplate, saveNote } from "./pre-session-note.mjs";
 // The chat log's own roll-card painter, shared rather than reimplemented.
 import { markOutcome, rollOutcomeOf } from "./private-rolls.mjs";
+import { playSfx } from "./sfx.mjs";
 
 const LAUNCHER_ID = "drpg-messenger-launcher";
 
@@ -842,6 +843,10 @@ export function renderLauncher() {
         button.addEventListener("click", event => {
             event.preventDefault();
             event.stopPropagation();
+            // Its own key rather than the generic button one: this circle is
+            // not inside any window, so the delegated listener in sfx.mjs
+            // never sees it — and the chat opening is a moment of its own.
+            playSfx("chatOpen");
             if (game.user.isGM) toggleRoster(button);
             else openMessenger(game.user.id);
         });

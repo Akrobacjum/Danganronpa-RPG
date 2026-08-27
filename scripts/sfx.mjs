@@ -58,10 +58,11 @@
  *    rather than hanging, and refuses before it asks.
  */
 
-import { MODULE_ID, SFX_EVENTS, SFX_CATEGORIES, SFX_SLIDERS, SFX_VOLUME_KEYS }
-    from "./config.mjs";
+import { MODULE_ID, SFX_EVENTS, SFX_CATEGORIES, SFX_SLIDERS, SFX_VOLUME_KEYS,
+    GAME_WINDOWS } from "./config.mjs";
 import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
 import { log, warn, error, clamp } from "./utils.mjs";
+
 
 /**
  * The chat-message flag that carries a sound to the people a message reaches.
@@ -383,6 +384,40 @@ function onCreateChatMessage(message) {
 }
 
 /**
+ * Every button in every window this game is played in, from one listener.
+ *
+ * ONE HANDLER, TWO KEYS. A character sheet IS a window — it matches the motion
+ * layer's list and its opening plays the window sound — so without an explicit
+ * test its buttons would be window buttons too, and the busiest surface in the
+ * game would sound like a dialog. The distinction is made where it can be made
+ * honestly: what the button is INSIDE.
+ *
+ * Capture phase, so a handler that stops propagation cannot silence the press
+ * that reached it. Nothing here reads or changes the event.
+ *
+ * What deliberately does not sound:
+ *   disabled controls      nothing happened, so nothing should be heard
+ *   the window frame       close has its own sound and minimise is not a move
+ *                          the game made
+ *   the Sound panel's Test the whole point of that button is to hear ONE sound
+ */
+function onDocumentClick(event) {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+
+    const control = target.closest("button, [role='button']");
+    if (!control) return;
+    if (control.disabled || control.getAttribute("aria-disabled") === "true") return;
+    if (control.hasAttribute("data-drpg-sfx-test")) return;
+    if (control.closest(".window-header, .controls-dropdown")) return;
+
+    const app = control.closest(GAME_WINDOWS);
+    if (!app) return;
+
+    playSfx(app.matches(".sheet.actor") ? "sheetButton" : "windowButton");
+}
+
+/**
  * Register the one hook this engine needs.
  *
  * Nothing else is registered anywhere: `playSfx` is a plain function, so the
@@ -392,6 +427,10 @@ function onCreateChatMessage(message) {
  */
 export function registerSfx() {
     Hooks.on("createChatMessage", onCreateChatMessage);
+
+    // One listener on the document, so it outlives every redraw every window
+    // does on its own — the same reason the panel explainers use one.
+    document.addEventListener("click", onDocumentClick, true);
 
     // Not used to gate anything — the drop rule above does that. This exists so
     // `diagnoseSfx()` can answer "has this browser been clicked yet", which is

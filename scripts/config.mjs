@@ -2117,6 +2117,29 @@ export const CLEANUP = {
 export const SITUATIONAL_PLAYLIST = "Situational";
 
 /**
+ * The windows this game is PLAYED in, as a selector.
+ *
+ * Written for the motion layer and now shared with the sound layer, which is
+ * why it lives here rather than in either of them: two files importing it from
+ * each other is a cycle, and this module has paid for one of those before.
+ *
+ * The line is drawn around the windows a session happens in — this module's own
+ * prompts, the character sheet, and the item cards that are Truth Bullets —
+ * rather than around who wrote them. The sheet is the point: it is the window a
+ * player opens more often than every other one put together, it belongs to
+ * Daggerheart, and a layer that misses it has not covered the interface, it has
+ * covered the corners of it.
+ *
+ * What stays outside is Foundry's own configuration furniture: Token Config,
+ * Scene Config, the file picker, the settings screens. Not modesty — those
+ * windows are full of `position: fixed` colour pickers and pop-outs, they are
+ * the ones that were already glitching on The Forge, and none of them is a
+ * moment in a session.
+ */
+export const GAME_WINDOWS =
+    ".application[class*='drpg-'], .application.sheet.actor, .application.sheet.item";
+
+/**
  * The five blocks the Sound panel files its table under.
  *
  * The catalogue of events itself is `SFX_EVENTS` below; the categories come
@@ -2182,7 +2205,12 @@ export const SFX_VOLUME_KEYS = Object.entries(SFX_SLIDERS)
  *                 volume is `SFX_SLIDERS`, and there are two of those.
  *   yieldsTo      optional. Keys that beat this one when both fire at about the
  *                 same moment — see the precedence note in sfx.mjs. Pressing a
- *                 button that opens a window is one gesture and two events.
+ *                 button that opens a window is one gesture and two events, and
+ *                 so is pressing the one that closes it: measured on the Sound
+ *                 panel, open → tab → Close produced four sounds for three
+ *                 acts. The window winning both ways is what makes the footer's
+ *                 Close and the frame's X sound alike, which they should,
+ *                 because they do the same thing.
  *   ignoresVolume optional. Plays at full whatever the Sound slider says. The
  *                 safeword has it and nothing else ever should.
  *
@@ -2219,15 +2247,15 @@ export const SFX_EVENTS = {
     },
     windowButton: {
         label: "Button in a window",
-        hint: "A button pressed anywhere except a character sheet. Stays quiet when the press opens a window — you hear the window instead.",
+        hint: "A button pressed anywhere except a character sheet. Stays quiet when the press opens or closes a window — you hear the window instead.",
         category: "ui",
-        yieldsTo: ["windowOpen"]
+        yieldsTo: ["windowOpen", "windowClose"]
     },
     sheetButton: {
         label: "Button on a character sheet",
         hint: "The sheet's own controls — actions, equipment, the pips. Separate from the other buttons because a sheet is a window too, and one key could not tell them apart.",
         category: "ui",
-        yieldsTo: ["windowOpen"]
+        yieldsTo: ["windowOpen", "windowClose"]
     },
     chatOpen: {
         label: "Chat opens",
@@ -2468,6 +2496,7 @@ export const DRPG = {
     RESOLUTION_STRESS_COST,
     CLEANUP,
     SITUATIONAL_PLAYLIST,
+    GAME_WINDOWS,
     SFX_CATEGORIES,
     SFX_SLIDERS,
     SFX_VOLUME_KEYS,
