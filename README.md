@@ -128,10 +128,10 @@ and works the same on any Foundry VTT v14 host.
 
 ## Credits
 
-Designed, directed and play-tested by **Dawid (Akrobacjum)**.
+Designed, directed and play-tested by **Akrobacjum**.
 
 Built in pair with **Claude Code**, Anthropic's AI coding agent, which wrote
-much of the code and copy under Dawid's direction. The AI contribution comes
+much of the code and copy under Akrobacjum's direction. The AI contribution comes
 with **no copyright claim and no financial interest of any kind** — this
 module is and will remain completely **free, for everyone**. See
 [LICENSE](LICENSE): the whole module is dedicated to the public domain
