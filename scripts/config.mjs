@@ -2117,36 +2117,286 @@ export const CLEANUP = {
 export const SITUATIONAL_PLAYLIST = "Situational";
 
 /**
- * The five volume groups every sound event belongs to.
+ * The five blocks the Sound panel files its table under.
  *
- * The catalogue of events itself (`SFX_EVENTS`) arrives with the sound engine;
- * the categories come first because three separate things need to agree on them
- * before a single event exists: the client-scoped volumes in `SETTINGS`, the
- * sliders at the top of the Sound panel, and the mixer inside `playSfx`.
+ * The catalogue of events itself is `SFX_EVENTS` below; the categories come
+ * first because the panel groups by them, and a GM hunting for the door sound
+ * should not have to read thirty-five rows to find it.
  *
- * Ordered as the panel shows them, loudest-to-quietest in the sense that
- * matters — the ones a player hears constantly come first, so the slider they
- * reach for most is the one nearest the top.
+ * These are FILING, NOT VOLUME. There are two sliders — see `SFX_SLIDERS` —
+ * and they are deliberately not one per category: a per-category mixing desk is
+ * a control nobody at this table asked for, and the only split a player
+ * actually reaches for mid-session is "the music" against "everything else".
  *
- * `music` is here so it can be labelled and ordered with the rest, but it is
- * NOT stored in this module's volumes: its slider is a proxy for Foundry's own
- * `globalPlaylistVolume`. Two independent music volumes would fight each other
- * and the loser would be whichever one the GM did not think to check. The flag
- * says so, so the panel does not have to know the exception by heart.
+ * SAFETY IS A CATEGORY OF ONE, AND THAT IS THE POINT. The safeword is the only
+ * sound in this game that plays whatever the slider says, and the only one that
+ * has to be unmistakable. Filed under "Interface" it would be the sixth row of
+ * a block about buttons. Alone at the top of the panel it is a decision the GM
+ * has to make on purpose, which is the correct amount of friction for the
+ * control that stops the scene.
+ *
+ * After that, ordered by how often a player hears them.
  */
 export const SFX_CATEGORIES = {
-    ui:       { label: "Interface", hint: "Windows, tabs, buttons, dice picked up and put down." },
+    safety:   { label: "Safety",    hint: "The safeword. Ignores the Sound slider — see the event's own note." },
+    ui:       { label: "Interface", hint: "Windows, buttons and the chat in the corner." },
     chat:     { label: "Chat",      hint: "Messages, cards, announcements and Calls." },
-    world:    { label: "World",     hint: "Doors, rooms, the clock, the map." },
-    incident: { label: "Incident",  hint: "Murder, cleanup, the trial floor." },
-    music:    { label: "Music",     hint: "Playlists.", proxiesFoundryMusic: true }
+    world:    { label: "World",     hint: "Rooms, the clock, and the everyday business of a Daily Life." },
+    incident: { label: "Incident",  hint: "A death, the investigation, the trial floor and the states that lead there." }
 };
 
-/** The categories this module actually stores a volume for — see above. */
-export const SFX_VOLUME_KEYS = ["master"].concat(
-    Object.entries(SFX_CATEGORIES)
-        .filter(([, c]) => !c.proxiesFoundryMusic)
-        .map(([key]) => key));
+export const SFX_SLIDERS = {
+    sound: { label: "Sound", hint: "Everything this module plays — windows, chat, doors, the trial floor." },
+    music: { label: "Music", hint: "Playlists.", proxiesFoundryMusic: true }
+};
+
+/** The sliders this module actually stores a volume for — see above. */
+export const SFX_VOLUME_KEYS = Object.entries(SFX_SLIDERS)
+    .filter(([, slider]) => !slider.proxiesFoundryMusic)
+    .map(([key]) => key);
+
+/**
+ * Every sound this module can play, and nothing beyond that.
+ *
+ * Thirty-five events: the seventeen Dawid listed, plus the eighteen the plan
+ * proposed on top of them. Every one of the additions is a moment that ALREADY
+ * has its own place in the code — its own card, its own animation, its own
+ * status effect — so wiring it is a line, not a feature.
+ *
+ * A ROW IN THE PANEL IS A PROMISE. Map a file here and you will hear it. An
+ * entry with no call site behind it is a GM choosing a file, hearing silence,
+ * and having no way to tell a missing hook from a broken speaker — and the
+ * panel's honest empty state ("not assigned yet") makes that worse rather than
+ * better, because it reads as though the silence were their fault. So the
+ * catalogue and the call sites ship together: the interface events are wired in
+ * E4, everything else in E5, and nothing is listed here ahead of the stage that
+ * gives it a voice.
+ *
+ *   label         what the panel calls it. Handbook copy, not a working label.
+ *   hint          one sentence saying WHEN it fires and WHO hears it. "Who"
+ *                 carries more than it looks: almost all of these are local to
+ *                 the client the thing happened on, and the few that are not
+ *                 have to say so — "why did the GM hear that" is the question
+ *                 this module's notification diet was written to answer.
+ *   category      which block of the table it is filed under. FILING ONLY;
+ *                 volume is `SFX_SLIDERS`, and there are two of those.
+ *   yieldsTo      optional. Keys that beat this one when both fire at about the
+ *                 same moment — see the precedence note in sfx.mjs. Pressing a
+ *                 button that opens a window is one gesture and two events.
+ *   ignoresVolume optional. Plays at full whatever the Sound slider says. The
+ *                 safeword has it and nothing else ever should.
+ *
+ * WHERE THE FILING DIFFERS FROM THE PLAN'S OWN TABLE. That table put death,
+ * the Truth Bullets, Analyze and the Monocubs under World, leaving Incident
+ * with a single member. The category labels are shipped copy a GM reads in the
+ * panel, and "World — rooms, the clock, the everyday business of a Daily Life"
+ * is not where anybody would look for a corpse. Filed by what the labels say
+ * instead. It changes which block a row is drawn in and nothing else.
+ *
+ * Grouped in `SFX_CATEGORIES` order so the panel can draw the table by walking
+ * this object once.
+ */
+export const SFX_EVENTS = {
+    /* ---- Safety ---------------------------------------------------------
+     * One event, and the only one in the file with a rule of its own. */
+    safeword: {
+        label: "The safeword",
+        hint: "Somebody stopped the scene. Heard by everyone, at full volume whatever the Sound slider says, and it should sound like nothing else in the game.",
+        category: "safety",
+        ignoresVolume: true
+    },
+
+    /* ---- Interface ------------------------------------------------------ */
+    windowOpen: {
+        label: "Window opens",
+        hint: "Any window this module draws, and a character sheet. Heard by whoever opened it.",
+        category: "ui"
+    },
+    windowClose: {
+        label: "Window closes",
+        hint: "The same windows on the way out. Heard by whoever closed it.",
+        category: "ui"
+    },
+    windowButton: {
+        label: "Button in a window",
+        hint: "A button pressed anywhere except a character sheet. Stays quiet when the press opens a window — you hear the window instead.",
+        category: "ui",
+        yieldsTo: ["windowOpen"]
+    },
+    sheetButton: {
+        label: "Button on a character sheet",
+        hint: "The sheet's own controls — actions, equipment, the pips. Separate from the other buttons because a sheet is a window too, and one key could not tell them apart.",
+        category: "ui",
+        yieldsTo: ["windowOpen"]
+    },
+    chatOpen: {
+        label: "Chat opens",
+        hint: "The messenger in the corner of the screen. Heard by whoever opened it.",
+        category: "ui"
+    },
+
+    /* ---- Chat ----------------------------------------------------------- */
+    chatSend: {
+        label: "Message sent",
+        hint: "Heard by the sender, on the browser that sent it.",
+        category: "chat"
+    },
+    chatReceive: {
+        label: "Message arrives",
+        hint: "Heard by everyone the thread belongs to — its player and every GM — and never by the sender.",
+        category: "chat"
+    },
+    gmAsk: {
+        label: "A player calls for a GM",
+        hint: "Heard by the GMs. The request lands in a thread, and a thread is easy to miss in the middle of a busy time of day.",
+        category: "chat"
+    },
+    hopeCall: {
+        label: "Hope Call used",
+        hint: "Heard by the player who spent it.",
+        category: "chat"
+    },
+    despairCall: {
+        label: "Despair Call",
+        hint: "A Monokuma spends one. Heard by whoever it lands on, and by the whole table when it is announced publicly.",
+        category: "chat"
+    },
+    newRule: {
+        label: "A new rule",
+        hint: "A Monokuma adds one to the handbook. Heard by the whole table.",
+        category: "chat"
+    },
+
+    /* ---- World ---------------------------------------------------------- */
+    roomDiscovered: {
+        label: "New room discovered",
+        hint: "A room entered for the first time. Heard by the student who walked in.",
+        category: "world"
+    },
+    roomEntered: {
+        label: "Room entered",
+        hint: "A room already on the map. Heard by whoever crossed the border.",
+        category: "world"
+    },
+    refused: {
+        label: "Crossing refused",
+        hint: "A wall, a locked door or a sealed room turns somebody back. Heard by whoever tried — the one mistake a player makes regularly.",
+        category: "world"
+    },
+    actionSpent: {
+        label: "Action spent",
+        hint: "Heard by the player who spent it.",
+        category: "world"
+    },
+    searchNothing: {
+        label: "A search finds nothing",
+        hint: "Heard by the searcher. The only common failure in the game that is otherwise completely silent.",
+        category: "world"
+    },
+    observeFail: {
+        label: "Observe fails",
+        hint: "Heard by the observer. It costs 2 Sanity and looks exactly like a success until the card is read.",
+        category: "world"
+    },
+    toolBroke: {
+        label: "A tool breaks",
+        hint: "Heard by its owner. It changes the next roll, so it has to be noticed at the moment it happens.",
+        category: "world"
+    },
+    stolen: {
+        label: "Something was stolen from you",
+        hint: "Heard by the victim, and only when the thief was clumsy enough to be noticed.",
+        category: "world"
+    },
+    eclipseStart: {
+        label: "The Eclipse begins",
+        hint: "Heard by the whole table.",
+        category: "world"
+    },
+    eclipseEnd: {
+        label: "The Eclipse ends",
+        hint: "Heard by the whole table.",
+        category: "world"
+    },
+
+    /* ---- Incident ------------------------------------------------------- */
+    death: {
+        label: "A student dies",
+        hint: "Heard by the GMs and by everyone whose character was part of the incident. Nobody else learns of a death this way.",
+        category: "incident"
+    },
+    bodyFound: {
+        label: "A body is found",
+        hint: "Heard by the whole table. The moment the chapter changes genre.",
+        category: "incident"
+    },
+    breakdown: {
+        label: "Breakdown",
+        hint: "Sanity reached zero. Heard by that student's player and by the GMs.",
+        category: "incident"
+    },
+    wounded: {
+        label: "Wounded",
+        hint: "Health reached zero. Heard by that student's player and by the GMs.",
+        category: "incident"
+    },
+    monocub: {
+        label: "Monocub changes",
+        hint: "A dead student joins the Monocubs, or stops being one. Heard by their player and by the GMs.",
+        category: "incident"
+    },
+    yourTurn: {
+        label: "Your turn in an incident",
+        hint: "Heard by whoever is up. An incident is turn-based and the only other signal is a redrawn HUD.",
+        category: "incident"
+    },
+    truthBullet: {
+        label: "Truth Bullet found",
+        hint: "Heard by whoever found it.",
+        category: "incident"
+    },
+    analyzeHit: {
+        label: "Evidence identified",
+        hint: "A successful Analyze. Heard by the student who ran it.",
+        category: "incident"
+    },
+    debateOpen: {
+        label: "Nonstop Debate opens",
+        hint: "Heard by the whole table. It changes what everyone's Truth Bullet button does.",
+        category: "incident"
+    },
+    objection: {
+        label: "Objection",
+        hint: "Somebody takes the trial floor. Heard by the whole table.",
+        category: "incident"
+    },
+    voteOpen: {
+        label: "The vote opens",
+        hint: "Heard by the whole table.",
+        category: "incident"
+    },
+    verdict: {
+        label: "The verdict",
+        hint: "Heard by the whole table. The most ceremonial moment of a chapter, and the last one that should be silent.",
+        category: "incident"
+    },
+    levelUp: {
+        label: "Level up",
+        hint: "Heard by the survivor it happened to. The only reward in the whole game.",
+        category: "incident"
+    }
+};
+
+/*
+ * WHAT IS DELIBERATELY SILENT, so that nobody adds it back without knowing why.
+ *
+ *   the time of day changing   the HUD has a scrolling animation and that IS
+ *                              its moment; a sound would compete with it
+ *   gaining Hope or Despair    the pips already flash, and at two or three
+ *                              points a roll a sound becomes a rattle
+ *   progress on a project      the same act as spending an action, which
+ *                              already has one — two sounds back to back
+ */
 
 /*
  * SAFETY IS MODELLED, BUT NOT AS A CONSTANT IN THIS FILE.
@@ -2219,5 +2469,7 @@ export const DRPG = {
     CLEANUP,
     SITUATIONAL_PLAYLIST,
     SFX_CATEGORIES,
+    SFX_SLIDERS,
     SFX_VOLUME_KEYS,
+    SFX_EVENTS,
 };

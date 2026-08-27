@@ -58,8 +58,7 @@ export const SETTINGS = {
      */
     sfxMap: "sfxMap",
     /**
-     * How loud each group is on THIS browser: `{ master, ui, chat, world,
-     * incident }`, each 0–1. Effective volume is `master × category`.
+     * How loud this module is on THIS browser: `{ sound }`, 0–1.
      *
      * Client-scoped, because volume is the one thing about sound that is
      * genuinely personal — a GM on headphones and a player on laptop speakers
@@ -69,8 +68,9 @@ export const SETTINGS = {
      * Sliders, not switches: zero is silence, so a switch would be a poorer
      * version of the same control with a worse bottom end.
      *
-     * `music` is deliberately absent from this object. Its slider is a proxy
-     * for Foundry's `globalPlaylistVolume` — see `SFX_CATEGORIES`.
+     * ONE number, not one per category. The panel shows two sliders and the
+     * second is `music`, deliberately absent from this object: it is a proxy
+     * for Foundry's `globalPlaylistVolume` — see `SFX_SLIDERS`.
      */
     sfxVolumes: "sfxVolumes",
     /**
