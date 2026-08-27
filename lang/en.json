@@ -1186,9 +1186,6 @@
       "fogIntro": "Which rooms each character has already discovered on this scene. The room they are standing in is always clear; this is only about rooms they have BEEN to, which show as a dim veil rather than full fog.",
       "fogUncovered": "{pct}% of this scene's surface belongs to no room region at all — it will show as permanent fog rather than a wall gap, which usually means a room still needs drawing.",
       "fogNote": "Discover all / Hide all replace every checkbox above for every character at once. The individual checkboxes are for one room, one character.",
-      "checkRooms": "Check the rooms on this scene",
-      "checkIntro": "How to draw rooms so the fog and the doorway glow are right. Walls first, then regions drawn to them. One named Region per room — an unnamed one is not a room and never counts as a neighbour. Neighbours touch along a shared edge and do not overlap. Draw with snapping on: region corners land on half-squares. Keep a room's border on the line of the wall it describes, within about half a square. A doorway is simply a gap in the walls, of any width — the wall may be one diagonal line while the region steps along the grid, and a room open along a whole side is allowed. No strip regions across open floor: if a room has two zones it is two rooms or one room. There is room for error in both directions, and it is the engine's own: an overlap shallower than a quarter of a square is ignored, and two rooms may stand nearly a square apart and still find each other. This looks for what lies past that — rooms that overlap, borders drawn away from their walls, corners off the lattice the rest of the scene uses. It reports; it never edits your map.",
-      "checkClean": "Nothing to report — the rooms on this scene are clean.",
       "discoverAll": "Discover all",
       "hideAll": "Hide all",
       "unlockedAnnounce": "The door to {room} is unlocked.",
@@ -2217,7 +2214,10 @@
       "resetWord": "RESET",
       "resetButton": "Reset the season",
       "resetMistyped": "Not reset — you have to type {word} exactly.",
-      "resetDone": "The season has been reset. The cast and the maps are untouched."
+      "resetDone": "The season has been reset. The cast and the maps are untouched.",
+      "roomGuide": "How to draw rooms so the fog and the doorway glow are right. Walls first, then regions drawn to them. One named Region per room — an unnamed one is not a room and never counts as a neighbour. Neighbours touch along a shared edge and do not overlap. Draw with snapping on: region corners land on half-squares. Keep a room's border on the line of the wall it describes, within about half a square. A doorway is simply a gap in the walls, of any width — the wall may be one diagonal line while the region steps along the grid, and a room open along a whole side is allowed. No strip regions across open floor: if a room has two zones it is two rooms or one room. There is room for error in both directions, and it is the engine's own: an overlap shallower than a quarter of a square is ignored, and two rooms may stand nearly a square apart and still find each other. This looks for what lies past that — rooms that overlap, borders drawn away from their walls, corners off the lattice the rest of the scene uses. It reports; it never edits your map.",
+      "checkRooms": "Check the rooms on this scene",
+      "checkClean": "Nothing to report — the rooms on this scene are clean."
     },
     "Explain": {
       "state": {

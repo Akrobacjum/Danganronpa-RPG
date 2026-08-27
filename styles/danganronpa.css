@@ -3691,13 +3691,18 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    else. Headings keep their centring — they are one line and they mark the
    middle of the window.
 
+   `.drpg-room-guide` rides along because it carries the same kind of text —
+   the how-to-draw-rooms block, which now lives in Season setup — and that
+   window is `drpg-wide`, where the same measure would squeeze it just as badly.
+
    `!important`, not a longer selector. The rule it has to beat is
    `.application.dialog:is(…):has(…):not(…) :is(p, .notes, h3, h4):not(td):not(th):not(table *)`
    — six classes and four elements — and matching that by piling on a seventh
    class would leave the two tied on specificity and settled by source order,
    which is exactly the kind of win that vanishes the next time somebody moves a
    block. Measured: without it the paragraph computed to 672px, centred. */
-.application.dialog.drpg-room-setup :is(p, .notes):not(td):not(th):not(table *) {
+.application.dialog.drpg-room-setup :is(p, .notes):not(td):not(th):not(table *),
+.drpg-room-guide :is(p, .notes) {
     max-width: none !important;
     margin-inline: 0 !important;
     text-align: left !important;

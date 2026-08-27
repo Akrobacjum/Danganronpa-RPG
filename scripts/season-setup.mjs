@@ -144,7 +144,26 @@ function steps() {
             key: "rooms",
             done: (workingScene()?.regions?.size ?? 0) > 0,
             missing: () => [],
-            open: async () => (await import("./vault.mjs")).openRoomSetupDialog()
+            open: async () => (await import("./vault.mjs")).openRoomSetupDialog(),
+            /*
+             * THE GUIDE AND THE CHECK BELONG HERE, NOT IN ROOM SETUP.
+             *
+             * Room setup is opened between sessions to say who has a bedroom and
+             * who has seen which room. Drawing the regions themselves is a job
+             * done once, when a scene is built — which is this window, next to
+             * the row that says whether the scene has any rooms at all.
+             *
+             * The check goes with the instructions for the same reason: reading
+             * how it should be done and asking whether it was done are one
+             * errand, and splitting them across two windows is how the second
+             * half stops happening.
+             */
+            extra: () => `<div class="drpg-room-guide">
+                <p>${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Season.roomGuide"))}</p>
+                <p><button type="button" data-drpg-check>${
+                    foundry.utils.escapeHTML(game.i18n.localize("DRPG.Season.checkRooms"))}</button></p>
+                <div data-drpg-check-out class="drpg-room-check"></div>
+            </div>`
         },
         {
             /*
@@ -244,6 +263,7 @@ export async function openSeasonSetup() {
                 <strong>${esc(game.i18n.localize(`DRPG.Season.step.${step.key}`))}</strong>
                 <div class="notes">${esc(game.i18n.localize(`DRPG.Season.hint.${step.key}`))}</div>
                 ${detail}
+                ${step.extra ? step.extra() : ""}
             </div>
             ${button}
         </li>`;
@@ -288,6 +308,35 @@ export async function openSeasonSetup() {
         // to the detached content element never reaches the page. Same reason
         // projects-ui.mjs wires its portrait pickers from `render`.
         render: (event, dialog) => {
+            /*
+             * The room check reports INTO THE WINDOW, not only to the console.
+             * The person who has to act on "this room overlaps that one" is a GM
+             * in the region editor, and telling them to open devtools is telling
+             * them not to bother. The console copy stays: it carries the
+             * coordinates in a form that can be pasted.
+             */
+            const checkButton = dialog.element.querySelector("[data-drpg-check]");
+            const checkOut = dialog.element.querySelector("[data-drpg-check-out]");
+            checkButton?.addEventListener("click", async ev => {
+                ev.preventDefault();
+                const { checkRegions } = await import("./fog.mjs");
+                const findings = checkRegions();
+                if (!findings.length) {
+                    checkOut.innerHTML = `<p class="notes">${
+                        esc(game.i18n.localize("DRPG.Season.checkClean"))}</p>`;
+                    return;
+                }
+                const marks = { error: "\u2715", warning: "!", info: "\u00b7" };
+                checkOut.innerHTML = `<table class="drpg-vault-table drpg-room-check-table"><tbody>${
+                    findings.map(f => `<tr>
+                        <td>${marks[f.level] ?? "\u00b7"}</td>
+                        <td>${esc(f.room)}</td>
+                        <td><strong>${esc(f.problem)}</strong><br>
+                            <small>${esc(f.detail)}${f.at ? ` (${f.at.x}, ${f.at.y})` : ""}</small></td>
+                    </tr>`).join("")
+                }</tbody></table>`;
+            });
+
             for (const button of dialog.element.querySelectorAll(".drpg-setup-do")) {
                 button.addEventListener("click", async ev => {
                     ev.preventDefault();
