@@ -1569,12 +1569,30 @@ export function doorwayReport() {
                 : "n/a",
             neighbourAt: target ? Math.round(Math.hypot(target.x - mx, target.y - my)) : "—",
             openRuns: edge.open.length,
-            wallsWithin1sq: (scene.walls ?? []).filter(w => {
-                const [x1, y1, x2, y2] = w.c ?? [0, 0, 0, 0];
-                const cx = (x1 + x2) / 2;
-                const cy = (y1 + y2) / 2;
-                return Math.hypot(cx - mx, cy - my) < grid;
-            }).length
+            // HOW MUCH of this edge reads as a way out, in grid squares — the
+            // number the count alone never gave. "Two openings" says nothing
+            // about whether they are two doors or two thirds of a wall, and
+            // that difference is the whole subject of this report.
+            openSquares: Math.round(
+                edge.open.reduce((a, [from, to]) => a + (to - from) * edge.length, 0)
+                / grid * 100) / 100,
+            // MEASURED ACROSS THE WALL, NOT TO ITS MIDDLE. This used to count
+            // walls whose CENTRE fell within a square of the sample, which is
+            // the measure that fails on exactly the maps this report is for: a
+            // corridor wall drawn as one long segment has its middle far from
+            // most of the border it runs alongside, so the count read zero
+            // where the wall was plainly there. Now it is the distance to the
+            // nearest wall that actually stops movement, in grid squares.
+            nearestWall: (() => {
+                const NONE = CONST?.WALL_MOVEMENT_TYPES?.NONE ?? 0;
+                let best = Infinity;
+                for (const w of scene.walls ?? []) {
+                    const c = w.c;
+                    if (!c || c.length < 4 || w.move === NONE) continue;
+                    best = Math.min(best, distanceToSegment(mx, my, c[0], c[1], c[2], c[3]));
+                }
+                return Number.isFinite(best) ? Math.round(best / grid * 100) / 100 : "—";
+            })()
         });
     }
 
@@ -1730,6 +1748,48 @@ export function checkRegions() {
                 + "alongside them. A border drawn away from the wall it describes is the second "
                 + "way a whole side of a room turns into a doorway — the wall is never found, so "
                 + "nothing closes it.", adriftAt);
+        }
+
+        /*
+         * 3. A ROOM WITH NO WAY OUT AT ALL.
+         *
+         * Found by walking every room on the QA scene rather than by reading
+         * the code: one of them reported not a single open stretch, and the
+         * reason was neither a wall nor an overlap — its region simply sits a
+         * full square from its neighbour's, and the neighbour probe reaches
+         * 0.95. Nothing was wrong with the walls; the two rooms had never been
+         * introduced.
+         *
+         * A player standing in a room the module says has no exit sees a closed
+         * box with no glow anywhere, which is indistinguishable from the fog
+         * being broken. Naming it is the difference between "this map has a
+         * gap" and "this feature does not work".
+         *
+         * Warning, not error: a genuinely sealed room is a thing a killing game
+         * may well want.
+         */
+        const openTotal = edges.reduce((a, e) =>
+            a + (e.open ?? []).reduce((b, [from, to]) => b + (to - from) * e.length, 0), 0);
+        if (edges.length && openTotal <= 0) {
+            const others = [];
+            for (const other of scene.regions ?? []) {
+                if (!other.name || other === region) continue;
+                others.push(regionShapes(other, { x: 0, y: 0 }).map(f => new PIXI.Polygon(f)));
+            }
+            const reach = grid * DOORWAY_PROBE_OUT;
+            const anyNeighbour = edges.some(e => {
+                const mx = e.ax + e.dx * 0.5;
+                const my = e.ay + e.dy * 0.5;
+                return Boolean(neighbourBeyond(mx, my, e.nx, e.ny, others, reach));
+            });
+            add("warning", region.name, "No way out",
+                anyNeighbour
+                    ? "Every stretch of this room's border is walled, so nothing will glow as a "
+                      + "doorway. If that is deliberate, ignore it; if not, the door is missing."
+                    : "No neighbouring room lies within reach of any part of this border — the "
+                      + "next region is more than a square away, so the two rooms never see each "
+                      + "other. Rooms should touch along the edge they share.",
+                pointOf(region));
         }
 
         // 3. (there is no check on how LONG an opening is. A doorway has no
@@ -3860,6 +3920,19 @@ function distanceToSegment(px, py, x1, y1, x2, y2) {
  * because a door exists in it is precisely backwards.
  */
 function wallAlongEdge(mx, my, ex, ey, walls, near) {
+    try {
+        return wallAlongEdgeUnguarded(mx, my, ex, ey, walls, near);
+    } catch (err) {
+        // FAILS CLOSED, the same way `nothingInTheWay` does and for the same
+        // reason: a doorway that is really a wall is a lie the player walks
+        // into, and a wall that is really a doorway costs them a moment's doubt
+        // and a second try. When this cannot tell, it says there is a wall.
+        debug("Fog: could not test a border sample for a wall alongside it", err);
+        return true;
+    }
+}
+
+function wallAlongEdgeUnguarded(mx, my, ex, ey, walls, near) {
     const NONE = CONST?.WALL_MOVEMENT_TYPES?.NONE ?? 0;
     const OPEN = CONST?.WALL_DOOR_STATES?.OPEN ?? 1;
 
