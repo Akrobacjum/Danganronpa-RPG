@@ -27,6 +27,7 @@ import { callGm, promptAndCallGm } from "./gm-bridge.mjs";
 import { announce, resolveThreshold, whisperToOwner, dialogContent, replaceFlag, log, error, plural, cardHead } from "./utils.mjs";
 // Static, and safe to be: nothing private-rolls.mjs imports leads back here.
 import { supersedingRoll } from "./private-rolls.mjs";
+import { playSfx } from "./sfx.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -3066,6 +3067,10 @@ function rollHead(def, roll) {
 
 async function report(actor, def, roll, outcome) {
     if (!outcome) return;
+
+    // The one moment at a roll the whole table waits for. Local: this runs on
+    // the client that rolled, and the card it is about is on its way.
+    if (roll?.isCritical) playSfx("critical");
 
     const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
     const traitLabel = TRAITS[roll?.trait]?.label ?? "";

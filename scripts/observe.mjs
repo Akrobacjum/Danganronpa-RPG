@@ -30,6 +30,7 @@ import { createTruthBullet, copiedRemnants, dropSecret } from "./truth-bullets.m
 import { automatedUpdate } from "./resource-guard.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { dialogContent, whisperToOwner, whisperToGms, log, warn, error } from "./utils.mjs";
+import { playSfx } from "./sfx.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -344,6 +345,10 @@ async function applyFailure(actor, total, entry) {
             error("Could not apply the Sanity from a failed Observe", err);
         }
     }
+
+    // It costs 2 Sanity and looks exactly like a success until the card is
+    // read. Local, on the observer's client — the card is theirs.
+    playSfx("observeFail");
 
     await whisperToOwner(actor, `
         <p><strong>${game.i18n.localize("DRPG.Observe.failedTitle")}</strong></p>

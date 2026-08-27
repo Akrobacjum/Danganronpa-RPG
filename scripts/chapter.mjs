@@ -28,7 +28,8 @@ import { getClock, setPhase } from "./clock.mjs";
 import { TRUTH_BULLET_FLAGS, bulletsOf, secretOf, dropSecret } from "./truth-bullets.mjs";
 import { remnantsOn, remnantData, REMNANT_FLAGS } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
-import { announce, dialogContent, whisperToGms, log, error, plural } from "./utils.mjs";
+import { announce, dialogContent, whisperToGms, gmIds, ownerOf, log, error, plural }
+    from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -116,6 +117,39 @@ export async function killCharacter(actor, { keepItems = false } = {}) {
         log(`Could not apply the "dead" status to ${actor.name}; the flag is set regardless.`);
     }
 
+    /*
+     * WHO IS TOLD A STUDENT DIED (Dawid, 28.08 — widen it).
+     *
+     * The card used to reach the GMs alone. It now also reaches the owners of
+     * everyone inside a running incident, which is the audience the sound is
+     * for and therefore the audience the card has to have: the flag rides the
+     * message, so the two cannot drift apart. Nobody learns anything they did
+     * not already know — they were in the room.
+     *
+     * Outside an incident there are no participants and this is exactly what
+     * it always was, a whisper to the GMs.
+     *
+     * The list is built the way `announceTimeOfDay` builds it in clock.mjs,
+     * from `gmIds()` plus the participants' owners — same function, same
+     * shape, no second idea of who counts as "inside this".
+     */
+    const deathAudience = await (async () => {
+        try {
+            const { murderState, participantIds } = await import("./murder.mjs");
+            const state = murderState();
+            if (!state) return null;
+            const owners = [...participantIds(state)]
+                .map(id => ownerOf(game.actors.get(id))?.id)
+                .filter(Boolean);
+            return Array.from(new Set([...gmIds(), ...owners]));
+        } catch (err) {
+            // A death that cannot work out its audience is still a death the
+            // GMs must be told about.
+            error("Could not widen the death card to the incident", err);
+            return null;
+        }
+    })();
+
     await whisperToGms(`
         <h3>${game.i18n.localize("DRPG.Chapter.deathTitle")}</h3>
         <p>${game.i18n.format("DRPG.Chapter.died", {
@@ -123,7 +157,10 @@ export async function killCharacter(actor, { keepItems = false } = {}) {
             chapter: record.chapter
         })}</p>
         ${keepItems ? "" : `<p>${plural("DRPG.Chapter.itemsGone", { n: removed })}</p>`}
-        <p><small>${game.i18n.localize("DRPG.Chapter.vaultPending")}</small></p>`);
+        <p><small>${game.i18n.localize("DRPG.Chapter.vaultPending")}</small></p>`, {
+        whisper: deathAudience ?? gmIds(),
+        flags: { [MODULE_ID]: { sfx: { key: "death", gm: true } } }
+    });
 
     log(`${actor.name} is dead (chapter ${record.chapter}); ${removed} item(s) removed.`);
 
@@ -381,7 +418,10 @@ export async function discoverBody({ room, victim = null } = {}) {
     const { gatherEveryone } = await import("./call-effects.mjs");
     const moved = await gatherEveryone(room);
 
+    // The moment the chapter changes genre, on every screen at once. The card
+    // is already public, so the flag needs nothing else from anybody.
     await announce({
+        flags: { [MODULE_ID]: { sfx: { key: "bodyFound", gm: true } } },
         content: `<div class="drpg-evidence-card">
             <div class="drpg-objection-banner">${
                 game.i18n.localize("DRPG.Chapter.bodyBanner")}</div>

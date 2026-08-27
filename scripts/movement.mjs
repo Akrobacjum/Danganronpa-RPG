@@ -28,6 +28,7 @@ import { isSealed, isChained } from "./call-effects.mjs";
 // cycle in the module; see the note above the function.
 // `neighbouringRooms` and `boundsOf` are defined further down this file.
 import { whisperToOwner, isPrimaryGm, debug, error, cardHead } from "./utils.mjs";
+import { playSfx } from "./sfx.mjs";
 
 /**
  * Region flags this file owns. Named like `VAULT_FLAGS`/`REST_FLAGS` in
@@ -790,6 +791,10 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
  */
 async function sendBack(tokenDoc, previous, room) {
     if (!tokenDoc || !previous) return;
+
+    // The only "error" a player makes regularly, and until now the only signal
+    // was the token sliding back. Local, on the client that tried it.
+    playSfx("refused");
 
     const apply = async () => {
         try {

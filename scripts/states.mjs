@@ -35,6 +35,7 @@ import { STATES } from "./config.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { remaining } from "./character.mjs";
 import { isPrimaryGm, log, debug, error } from "./utils.mjs";
+import { playSfx } from "./sfx.mjs";
 
 const DH = "daggerheart";
 const AUTOMATION = "Automation";
@@ -206,6 +207,9 @@ export async function syncStates(actor) {
     }
 }
 
+/** Which state announces itself, and with which sound. */
+const SFX_FOR_STATE = { breakdown: "breakdown", wounded: "wounded" };
+
 async function syncOnce(actor) {
     await clearSystemConditions(actor);
 
@@ -218,6 +222,12 @@ async function syncOnce(actor) {
         try {
             await actor.toggleStatusEffect(state.id, { active: wanted });
             applied.push(`${state.label}: ${wanted ? "on" : "off"}`);
+
+            // ARRIVING ONLY. Coming back from Breakdown or Wounded is a relief
+            // and does not need announcing over whatever healed it. Keyed off
+            // the state's own id, so a third state added later either names a
+            // sound or stays silent rather than borrowing one.
+            if (wanted && SFX_FOR_STATE[state.id]) playSfx(SFX_FOR_STATE[state.id]);
         } catch (err) {
             error(`Could not toggle ${state.label} on ${actor.name}`, err);
         }

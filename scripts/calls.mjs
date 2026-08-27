@@ -185,14 +185,26 @@ export async function spendDespairCallFor(actor, key, { note = "", choice = {} }
         }
 
         const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
-        if (note || done.length) {
-            // And a Despair Call is spent Despair, so it wears Blood.
-            await announce({
-                content: `${note ? `<blockquote>${esc(note)}</blockquote>` : ""}
-                          ${done.length ? `<ul>${done.map(d => `<li>${esc(d)}</li>`).join("")}</ul>` : ""}`,
-                flags: { [MODULE_ID]: { popupTone: "fear" } }
-            });
-        }
+
+        /*
+         * THE TABLE IS ALWAYS TOLD (Dawid, 28.08).
+         *
+         * This used to post only when the Monokuma had typed a note or the
+         * call had produced a list — so a Despair Call spent without either
+         * happened in complete silence, with no card and, once sounds existed,
+         * nothing to carry one. A Despair Call is the loudest thing a Monokuma
+         * can do; the table finding out is the point of it.
+         *
+         * The name of the call is the content when there is nothing else, so
+         * an empty card cannot happen. It wears Blood, because a Despair Call
+         * is spent Despair.
+         */
+        const body = `${note ? `<blockquote>${esc(note)}</blockquote>` : ""}
+                      ${done.length ? `<ul>${done.map(d => `<li>${esc(d)}</li>`).join("")}</ul>` : ""}`;
+        await announce({
+            content: `<h3>${esc(call.label)}</h3>${body}`,
+            flags: { [MODULE_ID]: { popupTone: "fear", sfx: { key: "despairCall", gm: true } } }
+        });
 
         Hooks.callAll("drpgDespairCall", { actor, user, key, call, note, choice });
         return call;

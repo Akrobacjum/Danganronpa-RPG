@@ -61,6 +61,10 @@ export async function callSafeword({ room = null } = {}) {
         // off — the pause and the card both hang from this one message rather
         // than from a socket, so a client that missed a packet still stops.
         await announce({
+            // `gm: true` because a GM is the person this is aimed at most of
+            // all. The event itself ignores the Sound slider — see
+            // `ignoresVolume` in the catalogue.
+            flags: { [MODULE_ID]: { sfx: { key: "safeword", gm: true } } },
             content: `<h3 class="drpg-safeword-heading">${
                 game.i18n.localize("DRPG.Safeword.banner")}</h3>
                 <p>${game.i18n.localize("DRPG.Safeword.announced")}</p>`,

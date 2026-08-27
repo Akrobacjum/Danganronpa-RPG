@@ -127,6 +127,7 @@ export async function startEclipse() {
     const allowance = eclipseAllowance();
 
     await announce({
+        flags: { [MODULE_ID]: { sfx: { key: "eclipseStart", gm: true } } },
         content: `<h3>${eclipseLabel()}</h3>
                   <p>${free
                       ? game.i18n.localize("DRPG.Eclipse.announceFree")
@@ -178,6 +179,7 @@ export async function endEclipse({ advance = true } = {}) {
     } else {
         await setClock({ eclipse: false });
         await announce({
+        flags: { [MODULE_ID]: { sfx: { key: "eclipseEnd", gm: true } } },
             content: `<p><strong>${timeOfDayLabel()}</strong> — ${game.i18n.localize("DRPG.Eclipse.ended")}</p>`
         });
     }

@@ -93,6 +93,7 @@ export async function setMotive(text) {
     await game.settings.set(MODULE_ID, SETTINGS.motive, record);
 
     await announce({
+        flags: { [MODULE_ID]: { sfx: { key: "newRule", gm: true } } },
         content: `<div class="drpg-evidence-card">
             <div class="drpg-objection-banner">${game.i18n.localize("DRPG.Motive.banner")}</div>
             <p>${foundry.utils.escapeHTML(trimmed)}</p>
