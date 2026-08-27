@@ -9925,22 +9925,40 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
        were, so both arrived from Daggerheart and the item's own name was the
        one label on the window still speaking the other game. Bone and the
        structural hairline — the same pair the trait names and the character
-       name wear in the white-labels section. */
-    color: var(--drpg-bone);
-    border: 1px solid var(--drpg-line-strong);
+       name wear in the white-labels section.
+
+       THE OUTLINE AND THE SHADOW ARE PINNED HERE TOO, AND THAT IS THE FIX FOR
+       "it lights up after the mouse leaves" (Dawid, 28.08). The first attempt
+       named them only in the hover rule below, so they were suppressed WHILE
+       hovering and released the moment the pointer left — at which point
+       Daggerheart's own gold came back and the system's `transition: all 0.3s`
+       faded it in, which looks exactly like a highlight that waits for you to
+       go away. Both states have to say the same thing, or the transition has
+       something to travel between. */
+    color: var(--drpg-bone) !important;
+    border: 1px solid var(--drpg-line-strong) !important;
+    outline: none !important;
+    box-shadow: none !important;
+    /* Transparent, which is what it computes to at rest anyway. Named because
+       the FILL was the last thing still changing under the pointer: with the
+       border, outline and shadow all pinned, `getAnimations()` on leaving still
+       showed a `background-color` transition running, and a box whose inside
+       fades a beat after the mouse leaves reads as the frame lighting up. */
+    background: transparent !important;
+    /* And nothing here animates. The system puts `transition: all 0.3s` on its
+       inputs; every difference between two states of this control is now
+       pinned away, but a rule that says "all" will find anything that is left
+       — a backdrop blur, a scrollbar colour — and give it 300ms to arrive
+       after the gesture that caused it is over. */
+    transition: none !important;
 }
 
-/* AND IT HAS TO SURVIVE THE POINTER (Dawid, 28.08).
-   The resting state above was enough to stop the name arriving gold, and the
-   gold came straight back the moment anybody moved the mouse over it —
-   Daggerheart styles the hover and the focus of its own inputs, unlayered, so
-   it outranks anything this layered stylesheet says without `!important`.
-
-   All three carriers, because the highlight can arrive as any of them and
-   there is no reading of the computed style that tells you which one a rule you
-   cannot see is using. Removing an outline this module never asked for costs
-   nothing; leaving one of the three unnamed costs another round of "it is still
-   gold". */
+/* The same four declarations again, for hover and focus.
+   Daggerheart styles the hover and the focus of its own inputs unlayered, which
+   outranks anything this layered stylesheet says without `!important` — so the
+   states have to be restated rather than inherited. Restating them is also what
+   keeps every state identical, which is the point: a control whose appearance
+   never changes has nothing for `transition: all` to animate. */
 .drpg-item-sheet .item-name input[name="name"]:hover,
 .drpg-item-sheet .item-name input[name="name"]:focus,
 .drpg-item-sheet .item-name input[name="name"]:focus-visible {
@@ -9948,6 +9966,8 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     border-color: var(--drpg-line-strong) !important;
     outline: none !important;
     box-shadow: none !important;
+    background: transparent !important;
+    transition: none !important;
 }
 
 /* ==========================================================================
