@@ -110,9 +110,35 @@ function trimItemSheet(app, element) {
     if (links.length <= 1) root.querySelector(".tab-navigation")?.remove();
 
     dropTypeHeading(root);
+    dropItemEditors(root);
     labelItemKind(root, app.document);
     lockItemName(root);
     lockItemDescription(root);
+}
+
+/**
+ * The two buttons on an item card that belong to another game (Dawid, 28.08).
+ *
+ * "Add GM note" is Daggerheart's own mechanic, in the same family as the three
+ * tabs this file already cuts: it is a place to keep rules text about an item
+ * that has rules. An item here is a thing you are carrying.
+ *
+ * The pencil beside the description goes for a different reason. What an item
+ * SAYS is authored in the item tables, where it is written once and drawn from
+ * by every Search — an item card that offers to edit its own copy is offering
+ * to make this one differ from the row it came from, silently, with nothing to
+ * say which is right afterwards.
+ *
+ * FOR EVERYBODY, NOT ONLY PLAYERS. `lockItemDescription` below leaves early for
+ * a GM, because its job is the read-only guard rather than the shape of the
+ * card. It also removes `a.editor-edit`, which is the OLD markup: in
+ * Daggerheart 2.6.5 the toggle is a `<button class="icon toggle">`, so that
+ * line has been matching nothing. Left in place, because a world upgraded from
+ * an older system still carries the anchor.
+ */
+function dropItemEditors(root) {
+    root.querySelectorAll('[data-action="editGMNote"]').forEach(node => node.remove());
+    root.querySelectorAll("button.icon.toggle").forEach(node => node.remove());
 }
 
 /**

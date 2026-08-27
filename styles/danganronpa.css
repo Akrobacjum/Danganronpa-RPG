@@ -4940,14 +4940,17 @@ body.drpg-pixel-font .drpg-action-button .drpg-action-cost {
     overflow-wrap: anywhere;
 }
 
-.application.roll-selection .dice-select {
-    flex-wrap: wrap !important;
-    min-width: 0 !important;
-}
+/* WITHDRAWN, 28.08, and worth leaving the reason here.
+   This carried `flex-wrap: wrap` on `.dice-select` and `min-width: 0` on every
+   container in the window. The blanket `min-width` is what broke it: a flex
+   child allowed to shrink below its content collapsed, and the three duality
+   dice spilled down over the Experiences fieldset — a window that was too wide
+   became a window that was too short. Dawid caught it within the hour.
 
-.application.roll-selection .window-content :is(form, fieldset, section, div) {
-    min-width: 0;
-}
+   The raised ceiling above stays: it is measured against the dice row and it
+   changed nothing else. Making the modifiers row wrap is still worth doing, but
+   it needs the real markup in front of me rather than a selector inferred from
+   two rules elsewhere in this file. It goes back on the E4 list. */
 
 /* The title bar has its own copy of the same string. It must never be the thing
    that sets the width either — it truncates instead. */
@@ -9925,6 +9928,26 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
        name wear in the white-labels section. */
     color: var(--drpg-bone);
     border: 1px solid var(--drpg-line-strong);
+}
+
+/* AND IT HAS TO SURVIVE THE POINTER (Dawid, 28.08).
+   The resting state above was enough to stop the name arriving gold, and the
+   gold came straight back the moment anybody moved the mouse over it —
+   Daggerheart styles the hover and the focus of its own inputs, unlayered, so
+   it outranks anything this layered stylesheet says without `!important`.
+
+   All three carriers, because the highlight can arrive as any of them and
+   there is no reading of the computed style that tells you which one a rule you
+   cannot see is using. Removing an outline this module never asked for costs
+   nothing; leaving one of the three unnamed costs another round of "it is still
+   gold". */
+.drpg-item-sheet .item-name input[name="name"]:hover,
+.drpg-item-sheet .item-name input[name="name"]:focus,
+.drpg-item-sheet .item-name input[name="name"]:focus-visible {
+    color: var(--drpg-bone) !important;
+    border-color: var(--drpg-line-strong) !important;
+    outline: none !important;
+    box-shadow: none !important;
 }
 
 /* ==========================================================================
