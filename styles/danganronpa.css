@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json — the suite fails if it does not. */
-    --drpg-css-version: "1.1.20";
+    --drpg-css-version: "1.1.21";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -10237,114 +10237,77 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
 /* ==========================================================================
    SOMEBODY ELSE'S CHARACTER SHEET  (E9)
    --------------------------------------------------------------------------
-   The system renders only its `limited` part for a viewer at exactly LIMITED,
-   so there is nothing here to hide — this dresses the little that is built.
-   See anonymity.mjs.
+   The whole sheet renders and anonymity.mjs takes things out of it. Nothing
+   here HIDES anything — the panes are emptied in JS, because a pane left in the
+   page with `display: none` is one devtools click from being read. What is left
+   for CSS is saying which things are shut.
    ========================================================================== */
 
-.drpg-redacted {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    margin-top: 0.75rem;
-}
-
-.drpg-redacted-vitals {
-    display: flex;
-    justify-content: center;
-    gap: 1.25rem;
-    margin: 0;
-}
-
-.drpg-redacted-vitals > div {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-}
-
-.drpg-redacted-vitals dt {
-    font-size: var(--drpg-text-xs);
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+/* A number nobody may read. Dim rather than blank: "?" where a 2 would be says
+   there is a 2. */
+.drpg-redacted-sheet .drpg-redacted-value {
     color: var(--drpg-dim);
-}
-
-.drpg-redacted-vitals dd {
-    margin: 0;
     font-variant-numeric: tabular-nums;
-    color: var(--drpg-bone);
+    letter-spacing: 0;
 }
 
-/* What they are holding: the one line on this card that changes during play,
-   and the reason the card is worth opening. */
-.drpg-redacted-hand {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    padding: 0.5rem;
-    border: 1px solid var(--drpg-line-strong);
-    border-radius: var(--drpg-panel-radius);
-    background: rgba(var(--drpg-bone-rgb), 0.05);
-}
-
-.drpg-redacted-hand .dt {
-    font-size: var(--drpg-text-xs);
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--drpg-dim);
-}
-
-.drpg-redacted-hand .dd {
+/* Hope keeps its colour — a hidden Hope is still Hope, and gold is how this
+   module says Hope everywhere else. The pips are drawn shapes, so the mark has
+   to sit on top of whatever background they carry. */
+.drpg-redacted-sheet .drpg-redacted-value.drpg-redacted-hope {
+    color: var(--drpg-gold);
+    background: none;
+    text-shadow: 0 0 3px rgba(255, 210, 63, 0.35);
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
+    justify-content: center;
 }
 
-.drpg-redacted-hand .dd.empty {
-    color: var(--drpg-dim);
-    font-style: italic;
+/* Action pips lose their fill and become the same question mark. */
+.drpg-redacted-sheet .drpg-action-pip.drpg-redacted-value {
+    background: none;
+    border-color: var(--drpg-line-strong);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--drpg-text-xs);
 }
 
-.drpg-redacted-hand img {
-    width: 1.4rem;
-    height: 1.4rem;
-    border: 0;
-    border-radius: 3px;
+/* A shut tab, and the settings button nobody opens. Greyed and left in place:
+   a control that disappears teaches nothing about who it belongs to. */
+.drpg-redacted-sheet [data-tab].drpg-locked,
+.application.sheet.actor [data-action] .drpg-locked,
+.application.sheet.actor .drpg-locked {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: auto;
+    filter: grayscale(1);
 }
 
-.drpg-redacted-tiles {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
-    gap: 0.5rem;
+/* An emptied pane. It reads as locked rather than as broken, which is the whole
+   job of the mark in it. */
+.drpg-redacted-pane {
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-/* THE LOCK SAYS "THERE IS SOMETHING HERE".
-   An empty panel and a hidden one must not look alike, which is the whole job
-   of this tile — it is decoration by decision (Dawid, 27.08), so it takes no
-   pointer and offers nothing to click. */
-.drpg-redacted-tile {
+.drpg-redacted-empty {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
-    padding: 0.6rem 0.35rem;
-    border: 1px dashed var(--drpg-line-strong);
-    border-radius: var(--drpg-panel-radius);
-    background: rgba(var(--drpg-bone-rgb), 0.03);
+    gap: 0.5rem;
+    padding: 2rem 1rem;
     color: var(--drpg-dim);
     font-size: var(--drpg-text-xs);
     text-align: center;
-    cursor: default;
     user-select: none;
 }
 
-.drpg-redacted-tile i {
+.drpg-redacted-empty i {
     display: block;
-    width: 16px;
-    height: 16px;
+    width: 28px;
+    height: 28px;
     background: currentColor;
     -webkit-mask-image: var(--drpg-pix-query);
     mask-image: var(--drpg-pix-query);
@@ -10352,7 +10315,7 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     mask-size: contain;
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
-    opacity: 0.8;
+    opacity: 0.7;
 }
 
 /* ---- the endgame's clues, on the Mastermind window --------------------- */

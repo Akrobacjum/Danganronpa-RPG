@@ -10,46 +10,47 @@
  * G-44). Some of what a sheet holds is not secret in the fiction at all: you can
  * see that somebody is hurt, and you can see what they are holding. Making the
  * interface hide those was making players ask for information the room already
- * gives them. So another student's sheet opens, and shows:
+ * gives them.
  *
- *     name, portrait, Ultimate, Health, Sanity, and the one thing in their hands
+ * SO THE SHEET KEEPS ITS SHAPE (Dawid, 27.08, second pass). The first attempt
+ * used Daggerheart's own `limited` part, which is safe — the other parts are
+ * never built at all — and wrong to look at: no tabs, no traits, no anything,
+ * just a card. A sheet that has been emptied tells you nothing about the person;
+ * a sheet that has been CENSORED tells you there is a person there. So the whole
+ * sheet renders, and this file takes things out of it:
  *
- * and everything else — actions, Hope, the inventory, the biography, the Truth
- * Bullets — sits behind a pixel question mark. The lock is decoration: it does
- * not open, and it is not meant to. Its job is to say THERE IS SOMETHING HERE,
- * because an empty panel and a hidden one must not look alike.
+ *     shown        name, portrait, Ultimate, Health, Sanity, what is in their
+ *                  hands, and how many Experiences they have
+ *     "?"          every trait value, every Action pip, every Hope pip (in the
+ *                  Hope gold, because a redacted Hope is still Hope)
+ *     "???" / "+?" each Experience — that they have one, and that it is worth
+ *                  something, without saying what or how much
+ *     greyed       every tab, unclickable, and its contents removed from the
+ *                  page rather than merely hidden
  *
- * HOW THE HIDING ACTUALLY WORKS, and it is not this file.
+ * THE PANES ARE EMPTIED, NOT HIDDEN, and that is the one place this file works
+ * harder than it looks. A greyed-out tab whose inventory is still sitting in the
+ * DOM is a curtain drawn over an open window: `display: none` is one devtools
+ * click from undone. The tab STAYS so the sheet still reads as a sheet; what was
+ * inside it goes.
  *
- * Daggerheart's character sheet declares a `limited` part and
- * `_configureRenderParts` returns THAT PART ALONE to a viewer whose permission
- * is exactly LIMITED. So the sidebar, the tabs, the inventory and the biography
- * are never built, never sent to the DOM, and never in reach of a right-click.
- * This file's job is therefore the smaller and safer one: keep the permission at
- * exactly LIMITED, trim the handful of Daggerheart concepts the limited view
- * shows and this game does not use, and add the six things above.
+ * FAIL CLOSED. Everything below runs inside one try/catch, and the catch CLOSES
+ * THE SHEET. This is the trade the second pass made: the old design could not
+ * leak because nothing was rendered, and this one can if the redaction does not
+ * finish. So a redaction that throws must not leave a readable sheet on screen.
  *
- * "EXACTLY" IS LOAD-BEARING. `testUserPermission(user, "LIMITED", {exact: true})`
- * is what the system checks, so OBSERVER does not mean "a bit more" — it means
- * the whole sheet. Raising a student above LIMITED is the one mistake that
- * undoes all of this, which is why the guard below now watches that direction.
- *
- * AND IT IS A CURTAIN, NOT A WALL. Foundry sends every world document to every
- * client, so a player with a console can read anything here regardless. That was
- * equally true of the old closed sheet. It means only one thing, and it is worth
- * writing down: nothing may sit behind that lock whose leak would spoil the
- * game.
+ * AND IT IS STILL A CURTAIN, NOT A WALL. Foundry sends every world document to
+ * every client, so a player with a console can read anything here regardless.
+ * That was equally true of the old closed sheet. It means one thing, worth
+ * writing down: nothing may sit behind this whose leak would spoil the game.
  */
 
-import { MODULE_ID, FLAGS, ITEM_CATEGORIES } from "./config.mjs";
+import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { remaining, resourceMax } from "./character.mjs";
-import { rolesOf } from "./inventory.mjs";
-import { readiedItem } from "./use-items.mjs";
 import { whisperToGms, warn, debug, error } from "./utils.mjs";
 
-const NONE = 0;    // CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE
-const LIMITED = 1; // …LIMITED — exactly this, or the whole sheet opens.
+const NONE = 0;     // CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE
+const OBSERVER = 2; // …OBSERVER — enough to render the sheet, never to edit it.
 
 export function registerAnonymity() {
     Hooks.on("preCreateActor", onPreCreateActor);
@@ -60,117 +61,139 @@ export function registerAnonymity() {
     Hooks.on("renderActorSheetV2", onRenderSheet);
 }
 
-/** Sheets already refused this render, so we only complain once. */
-const refused = new Set();
-
 /**
- * Somebody else's sheet: keep the six public things, lock the rest.
+ * Somebody else's sheet: everything is there, and almost nothing is readable.
  *
- * Runs only on the limited view, which is the only thing the system built for
- * this viewer. Everything removed below is a Daggerheart concept this game does
- * not use (class, subclass, community, ancestry, level, domains) or something
- * the decision above puts behind the lock (the biography characteristics —
- * pronouns, age and faith are biography, and biography is not public).
+ * Fails CLOSED — see the header. If any step throws, the sheet is shut rather
+ * than left half-redacted.
  */
 function onRenderSheet(app, element) {
-    try {
-        if (game.user.isGM || !enforcing()) return;
+    const root = element instanceof HTMLElement ? element : element?.[0];
 
+    try {
+        if (!enforcing()) return;
         const actor = app?.document;
         if (!actor || actor.type !== "character") return;
-        if (actor.testUserPermission(game.user, "OWNER")) return;
 
-        const root = element instanceof HTMLElement ? element : element?.[0];
-        const box = root?.querySelector(".limited-container");
-        // No limited view means the system rendered something else entirely —
-        // a sheet class we do not know, or a permission above LIMITED that the
-        // guard failed to hold. Say so rather than dressing the wrong window.
-        if (!box) {
-            warn(`No limited view on ${actor.name}'s sheet; leaving it alone.`);
-            return;
-        }
+        // Nobody may open the settings sheet, their own included (Dawid,
+        // 27.08). It is Daggerheart's configuration for the character, and it
+        // is the GM's business — a player who opens it is looking at knobs no
+        // rule in this game lets them turn.
+        if (!game.user.isGM) lockSettings(root);
 
-        for (const gone of box.querySelectorAll(
-            ".character-details, .level-details, .domain-details, .bio-details"
-        )) gone.remove();
+        if (game.user.isGM || actor.testUserPermission(game.user, "OWNER")) return;
+        if (!root) return;
 
-        // Idempotent: the sheet re-renders on every change to the actor, and a
-        // second card under the first is worse than no card.
-        box.querySelector(".drpg-redacted")?.remove();
-        box.append(buildRedactedCard(actor));
+        redactTabs(root);
+        redactValues(root);
         root.classList.add("drpg-redacted-sheet");
     } catch (err) {
-        // A sheet that failed to be dressed is still only the limited view —
-        // the system never built the rest of it — so this can fail safely.
-        error("Could not redact a character sheet", err);
+        error("Could not redact a character sheet — closing it instead", err);
+        try {
+            if (root) root.style.display = "none";
+            app?.close?.({ force: true, animate: false })?.catch?.(() => {});
+        } catch {
+            // Nothing left to try. The error above is the record.
+        }
     }
-}
-
-/** What one student may see of another. */
-function buildRedactedCard(actor) {
-    const card = document.createElement("div");
-    card.className = "drpg-redacted";
-
-    const esc = foundry.utils.escapeHTML;
-    const ultimate = actor.getFlag(MODULE_ID, FLAGS.ultimate) || "—";
-
-    /*
-     * POINTS, NOT A STATE (Dawid, 27.08).
-     *
-     * Both are reverse resources — the stored value counts marks taken — so
-     * what a player reads is max minus marks, which is what `remaining` gives.
-     * Exact numbers make the morning after a body is found into a list of
-     * suspects, and that is the intended cost.
-     */
-    const hp = `${remaining(actor, "hitPoints")} / ${resourceMax(actor, "hitPoints")}`;
-    const sanity = `${remaining(actor, "stress")} / ${resourceMax(actor, "stress")}`;
-
-    card.innerHTML = `
-        <dl class="drpg-redacted-vitals">
-            <div><dt>${game.i18n.localize("DRPG.Redacted.ultimate")}</dt><dd>${esc(ultimate)}</dd></div>
-            <div><dt>${game.i18n.localize("DRPG.Redacted.health")}</dt><dd>${hp}</dd></div>
-            <div><dt>${game.i18n.localize("DRPG.Redacted.sanity")}</dt><dd>${sanity}</dd></div>
-        </dl>
-        <div class="drpg-redacted-hand">${handLine(actor)}</div>
-        <div class="drpg-redacted-locked">
-            <p class="notes">${game.i18n.localize("DRPG.Redacted.lockedNote")}</p>
-            <div class="drpg-redacted-tiles">${LOCKED_PANELS.map(key =>
-                `<div class="drpg-redacted-tile"><i aria-hidden="true"></i><span>${
-                    game.i18n.localize(`DRPG.Redacted.panel.${key}`)}</span></div>`).join("")}</div>
-        </div>`;
-
-    return card;
 }
 
 /**
- * What is in their hands, and nothing about what else they are carrying.
+ * The tabs stay, greyed, and their contents go.
  *
- * The sharpest line on this card. One thing may be readied at a time (E9), so
- * this is a single legible public fact: a student walking around with a knife
- * out is a student who chose to. It also makes readying a social act, which is
- * the point rather than a side effect.
+ * Greyed rather than removed (Dawid, 27.08): a sheet with no tabs says nothing
+ * about the person, while a sheet whose tabs are shut says there is something
+ * behind them. `data-action` is stripped as well as the click being swallowed,
+ * because ApplicationV2 dispatches on that attribute — leaving it and relying on
+ * the listener alone would mean one missed event is one opened tab.
+ *
+ * EMPTIED, NOT HIDDEN. A pane left in the page with `display: none` is a
+ * devtools click from being read; there is no version of this where the
+ * inventory may stay in the DOM.
  */
-function handLine(actor) {
-    const esc = foundry.utils.escapeHTML;
-    const label = game.i18n.localize("DRPG.Redacted.inHand");
-    const item = readiedItem(actor);
-    if (!item) {
-        return `<span class="dt">${label}</span>
-                <span class="dd empty">${game.i18n.localize("DRPG.Redacted.emptyHanded")}</span>`;
+function redactTabs(root) {
+    for (const tab of root.querySelectorAll('[data-action="tab"]')) {
+        delete tab.dataset.action;
+        tab.classList.add("drpg-locked");
+        tab.setAttribute("aria-disabled", "true");
+        tab.dataset.tooltip = game.i18n.localize("DRPG.Redacted.tabLocked");
+        tab.addEventListener("click", stop, { capture: true });
     }
 
-    const tags = [actor.items.get(item.id)?.getFlag(MODULE_ID, "category"), ...rolesOf(item)]
-        .filter(Boolean)
-        .map(role => `<span class="drpg-tb-badge drpg-role-${role}">${
-            esc(ITEM_CATEGORIES[role]?.label ?? role)}</span>`).join("");
-
-    return `<span class="dt">${label}</span>
-            <span class="dd"><img src="${item.img}" alt="" />${esc(item.name)}
-            <span class="drpg-tb-badges">${tags}</span></span>`;
+    for (const pane of root.querySelectorAll("section.tab[data-tab]")) {
+        pane.replaceChildren(lockedPlaceholder());
+        pane.classList.add("drpg-redacted-pane");
+    }
 }
 
-/** The panels that exist and are not yours to read. */
-const LOCKED_PANELS = ["actions", "hope", "inventory", "biography", "evidence"];
+/** One pixel question mark, so an emptied pane does not read as a broken one. */
+function lockedPlaceholder() {
+    const box = document.createElement("div");
+    box.className = "drpg-redacted-empty";
+    box.innerHTML = `<i aria-hidden="true"></i><span>${
+        game.i18n.localize("DRPG.Redacted.tabLocked")}</span>`;
+    return box;
+}
+
+/**
+ * Numbers become question marks; names become nothing at all.
+ *
+ * WHAT SURVIVES IS THE POINT. Health and Sanity keep their figures and the
+ * Equipped panel keeps its item, because those are the things the fiction shows
+ * anyone in the room. Everything with a number attached to it — traits, Actions,
+ * Hope — becomes a question mark, and an Experience keeps its ROW while losing
+ * both its name and its size: you can see that they have two of them and that
+ * both are worth something, which is exactly what watching somebody work would
+ * tell you.
+ */
+function redactValues(root) {
+    const mark = (el, text, cls) => {
+        el.textContent = text;
+        el.classList.add("drpg-redacted-value");
+        if (cls) el.classList.add(cls);
+    };
+
+    for (const value of root.querySelectorAll(".trait-value")) mark(value, "?");
+    for (const pip of root.querySelectorAll(".drpg-action-pip")) {
+        pip.classList.remove("filled");
+        mark(pip, "?");
+    }
+    // Hope keeps its colour. A hidden Hope is still Hope, and the gold is how
+    // this module says so everywhere else.
+    for (const pip of root.querySelectorAll(".hope-value")) mark(pip, "?", "drpg-redacted-hope");
+
+    for (const row of root.querySelectorAll(".experience-row")) {
+        const value = row.querySelector(".experience-value");
+        const name = row.querySelector(".experience-name");
+        if (value) mark(value, "+?");
+        if (name) mark(name, "???");
+        // The little "send to chat" control belongs to whoever owns it.
+        row.querySelector(".controls")?.remove();
+        row.removeAttribute("data-tooltip-text");
+    }
+}
+
+/**
+ * The settings sheet is nobody's but the GM's.
+ *
+ * Left in place and greyed for the same reason the tabs are: a button that
+ * disappears teaches nothing about who it belongs to.
+ */
+function lockSettings(root) {
+    for (const button of root?.querySelectorAll('[data-action="openSettings"]') ?? []) {
+        delete button.dataset.action;
+        button.classList.add("drpg-locked");
+        button.setAttribute("aria-disabled", "true");
+        button.dataset.tooltip = game.i18n.localize("DRPG.Redacted.settingsLocked");
+        button.addEventListener("click", stop, { capture: true });
+    }
+}
+
+function stop(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+}
 
 function enforcing() {
     try {
@@ -181,40 +204,43 @@ function enforcing() {
 }
 
 /**
- * New characters open at exactly LIMITED.
+ * New characters open at OBSERVER.
  *
- * Not NONE any more: at NONE the sheet does not open at all, and the redacted
- * view is a window nobody could reach. Not higher either — see the header.
+ * Which is the level that renders the sheet in full and still refuses every
+ * edit — `isEditable` is false below OWNER, so every field arrives disabled
+ * without this file touching one. NONE would leave a window nobody can open and
+ * a redaction with nothing to redact.
  */
 function onPreCreateActor(actor, data) {
     if (actor.type !== "character" || !enforcing()) return;
-    if ((data.ownership?.default ?? NONE) === LIMITED) return;
+    if ((data.ownership?.default ?? NONE) === OBSERVER) return;
 
-    actor.updateSource({ "ownership.default": LIMITED });
-    debug(`Set default ownership to LIMITED on new character "${data.name}".`);
+    actor.updateSource({ "ownership.default": OBSERVER });
+    debug(`Set default ownership to OBSERVER on new character "${data.name}".`);
 }
 
 /**
- * Stop anyone raising a student ABOVE limited.
+ * Stop anyone handing a student to the whole table as OWNER.
  *
- * The direction of the danger has turned over. It used to be that any sharing
- * at all was the leak; now the leak is precisely OBSERVER, because the system
- * asks for LIMITED *exactly* and anything above it renders the entire sheet —
- * inventory, Truth Bullets and all. Lowering to NONE is not blocked: a GM who
- * wants one character sealed shut is making a ruling, and the only thing they
- * lose is a window that would have shown a portrait.
+ * OBSERVER is the ceiling because it is exactly enough: the sheet opens, the
+ * redaction below runs, and nothing can be changed. OWNER by default would give
+ * every player the run of somebody else's character — and it would skip the
+ * redaction entirely, since that only runs for a viewer who is not the owner.
+ *
+ * Lowering is not blocked. A GM sealing one character shut is making a ruling,
+ * and all they lose is a window.
  */
 function onPreUpdateActor(actor, changes) {
     if (actor.type !== "character" || !enforcing()) return;
 
     const next = changes.ownership?.default;
-    if (next === undefined || next <= LIMITED) return;
+    if (next === undefined || next <= OBSERVER) return;
 
     delete changes.ownership.default;
     if (!Object.keys(changes.ownership).length) delete changes.ownership;
 
     ui.notifications.warn(game.i18n.format("DRPG.Anonymity.blocked", { actor: actor.name }));
-    debug(`Blocked a default-ownership raise on "${actor.name}" — LIMITED is the ceiling.`);
+    debug(`Blocked a default-ownership raise on "${actor.name}" — OBSERVER is the ceiling.`);
 }
 
 /* ==========================================================================

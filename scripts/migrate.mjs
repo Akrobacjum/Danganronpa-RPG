@@ -305,38 +305,38 @@ const CLAUSES = [
     },
     {
         key: "openStudentSheets",
-        since: "1.1.20",
+        since: "1.1.21",
         /*
          * CUDZA KARTA MUSI DAĆ SIĘ OTWORZYĆ, ŻEBY DAŁO SIĘ JĄ OCENZUROWAĆ.
          *
          * Before E9 every character sat at `ownership.default: NONE`, which is
          * what the old rule wanted: the sheet did not open at all. The redacted
-         * view (G-44) needs it to open, and Daggerheart renders its `limited`
-         * part — and nothing else — to a viewer whose permission is EXACTLY
-         * LIMITED.
+         * view (G-44) needs the sheet to render IN FULL so it can be censored
+         * in place, and OBSERVER is the level that renders everything and still
+         * refuses every edit.
          *
-         * So: NONE becomes LIMITED. Anything already above LIMITED is left
-         * alone and REPORTED instead of lowered, because a GM who granted
-         * somebody OBSERVER on a character did it for a reason — but they
-         * should know that on such a character the redaction does nothing, the
-         * whole sheet opens, and that is now the one configuration that leaks.
+         * So: anything below becomes OBSERVER. Anything already ABOVE it — a
+         * character handed to the table as OWNER — is left alone and REPORTED
+         * rather than lowered, because a GM did that on purpose; they should
+         * know the redaction never runs for an owner, so on that character the
+         * sheet opens whole.
          */
         run: async () => {
-            const LIMITED = CONST.DOCUMENT_OWNERSHIP_LEVELS.LIMITED;
+            const OBSERVER = CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER;
             const opened = [];
             const wideOpen = [];
 
             for (const actor of game.actors ?? []) {
                 if (actor.type !== "character") continue;
                 const level = actor.ownership?.default ?? 0;
-                if (level > LIMITED) { wideOpen.push(actor.name); continue; }
-                if (level === LIMITED) continue;
+                if (level > OBSERVER) { wideOpen.push(actor.name); continue; }
+                if (level === OBSERVER) continue;
 
                 try {
-                    await actor.update({ "ownership.default": LIMITED });
+                    await actor.update({ "ownership.default": OBSERVER });
                     opened.push(actor.name);
                 } catch (err) {
-                    error(`Could not open ${actor.name}'s sheet to the limited view`, err);
+                    error(`Could not open ${actor.name}'s sheet to the redacted view`, err);
                 }
             }
 

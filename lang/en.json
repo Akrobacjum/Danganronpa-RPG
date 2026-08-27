@@ -1982,25 +1982,14 @@
       "failed": "The Level Up could not be saved. See the console."
     },
     "Redacted": {
-      "health": "Health",
-      "sanity": "Sanity",
-      "ultimate": "Ultimate",
-      "inHand": "In hand",
-      "emptyHanded": "Nothing — their hands are empty",
-      "lockedNote": "Everything else about them is theirs to tell you.",
-      "panel": {
-        "actions": "Actions",
-        "hope": "Hope",
-        "inventory": "What they carry",
-        "biography": "Biography",
-        "evidence": "Truth Bullets"
-      }
+      "tabLocked": "Theirs to tell you, not yours to read.",
+      "settingsLocked": "The character's settings are the GM's."
     },
     "Anonymity": {
       "notYours": "Not your character. Sheets are private in this game.",
       "forcedOnCreate": "Default ownership was set to None to keep this sheet private.",
-      "aboveLimited": "These characters are shared above the limited view, so anyone can read their whole sheet — inventory and Truth Bullets included: {actors}. Set them back to Limited unless that is what you want.",
-      "blocked": "Blocked: that would open “{actor}”’s whole sheet to every player — the redacted view only holds at Limited. Give the one player Owner instead.",
+      "aboveLimited": "These characters are shared as Owner to everyone, so the redaction never runs on them and any player reads the whole sheet — inventory and Truth Bullets included: {actors}. Set them back to Observer unless that is what you want.",
+      "blocked": "Blocked: that would hand “{actor}” to every player as Owner — the redaction never runs for an owner. Give the one player who plays them Owner instead.",
       "audit": {
         "title": "Sheet Anonymity Audit",
         "clean": "Every character sheet is private. Nothing to fix.",
