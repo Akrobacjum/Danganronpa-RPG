@@ -25,6 +25,7 @@
 import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES } from "./config.mjs";
 import { getClock, campaignName, phaseLabel, timeOfDayLabel } from "./clock.mjs";
 import { dialogContent, error, workingScene } from "./utils.mjs";
+import { isMonokuma } from "./monokuma.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -213,7 +214,28 @@ export async function openStatusExplainer() {
         const { actionsLeft, actionsMax, hasFreeMove } = await import("./actions.mjs");
         const { resourceValue, resourceMax } = await import("./character.mjs");
 
-        const standing = actor
+        /*
+         * A MONOKUMA HAS NONE OF THE THREE THINGS THIS SECTION COUNTS.
+         *
+         * "Right now" answered with actions, the free Move and Hope — three
+         * sentences about something a GM's character does not have, on the one
+         * screen that exists to explain what the strip in the corner means.
+         *
+         * Every line below is a rule this module already keeps, said out loud:
+         * `resetActionsFor` skips a Monokuma on purpose, movement charges them
+         * nothing and grants them nothing, they spend Despair where a student
+         * spends Hope, and walls do not stop them. All four are written in the
+         * comment on `FLAGS.monokuma`; this is describing the existing game,
+         * not adding to it.
+         */
+        const standing = actor && isMonokuma(actor)
+            ? [
+                esc(t("DRPG.Explain.status.monokumaActions")),
+                esc(t("DRPG.Explain.status.monokumaMove")),
+                esc(t("DRPG.Explain.status.monokumaDespair")),
+                esc(t("DRPG.Explain.status.monokumaWalls"))
+            ]
+            : actor
             ? [
                 esc(t("DRPG.Explain.status.actionsNow", {
                     left: actionsLeft(actor), max: actionsMax(actor)
@@ -304,7 +326,18 @@ const PANELS = [
  * somebody's button press would make every one of those controls feel broken,
  * so anything that is or sits inside an interactive element is left alone.
  */
-const INTERACTIVE = "button, a, input, select, textarea, [data-action], [contenteditable='true']";
+/*
+ * A TAG LIST MISSES THE CONTROLS THIS MODULE ACTUALLY BUILDS.
+ *
+ * The Despair pips and the sheet's action pips are `<span role="button"
+ * tabindex="0">`, which none of the selectors above matches — so clicking a pip
+ * set the value AND opened the explainer on top of the panel the person was
+ * still using. Roles and focusability are what make a thing a control here, not
+ * its tag name. `tabindex="-1"` is excluded because it means the opposite:
+ * focusable by script, not by a person.
+ */
+const INTERACTIVE = "button, a, input, select, textarea, [data-action],"
+    + " [contenteditable='true'], [role='button'], [tabindex]:not([tabindex='-1'])";
 
 export function registerExplainers() {
     document.addEventListener("click", event => {

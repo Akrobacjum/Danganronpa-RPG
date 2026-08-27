@@ -4911,15 +4911,42 @@ body.drpg-pixel-font .drpg-action-button .drpg-action-cost {
    heading wraps and the window settles onto the dice row, where it belongs.
    ========================================================================== */
 
+/* 720, not 620 — and the second half of this is the part that lasts.
+   ---------------------------------------------------------------------------
+   The ceiling was put on the WINDOW to stop the pixel heading stretching it,
+   and it worked. What it also did was cap the row of advantage and
+   disadvantage chips, which no longer fits in 620px. Raising the number fixes
+   what is on screen today and nothing else: the same collision comes back on a
+   narrower browser window, or with a longer translation of the same labels.
+
+   So the row is told to wrap, and everything it sits in is told it may be
+   narrower than its content — `min-width: 0`, without which a flex child
+   refuses to shrink below its intrinsic width and the chips overlap instead of
+   moving down a line. A narrow window now breaks the row; it does not stack
+   things on top of each other. */
 .application.roll-selection {
-    max-width: min(620px, 92vw);
+    max-width: min(720px, 92vw);
 }
 
 .application.roll-selection .dialog-header h1 {
+    /* The constraint belongs HERE, on the thing that was too wide, rather than
+       on the window that was only guilty of containing it. The heading already
+       wraps (`overflow-wrap`, its own size), so bounding it lets the window
+       grow to whatever the dice row needs. */
+    max-width: 100%;
     font-size: var(--font-size-18, 1.125rem);
     line-height: 1.35;
     text-wrap: balance;
     overflow-wrap: anywhere;
+}
+
+.application.roll-selection .dice-select {
+    flex-wrap: wrap !important;
+    min-width: 0 !important;
+}
+
+.application.roll-selection .window-content :is(form, fieldset, section, div) {
+    min-width: 0;
 }
 
 /* The title bar has its own copy of the same string. It must never be the thing
@@ -6206,6 +6233,19 @@ html body {
 .application.sheet.actor .status-value {
     border-color: var(--drpg-line-strong) !important;
     color: var(--drpg-bone) !important;
+}
+
+/* The dot beside a trait's name is drawn as a BACKGROUND, so the two
+   declarations above never touched it and it kept Daggerheart's gold. Bone,
+   because it sits against a bone label and the red in this module already means
+   something else.
+
+   Worth knowing while looking at it: this marks a tier from Daggerheart's
+   advancement, which this module replaces outright and never sets — so the dot
+   is permanently in its unmarked state. Painting it is the smaller change;
+   hiding it is the other honest option. */
+.application.sheet.actor .trait-name .tier-mark {
+    background: var(--drpg-bone) !important;
 }
 
 .application.sheet.actor .glassy,
@@ -9878,6 +9918,13 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    /* Size and clipping were set here from the start; colour and border never
+       were, so both arrived from Daggerheart and the item's own name was the
+       one label on the window still speaking the other game. Bone and the
+       structural hairline — the same pair the trait names and the character
+       name wear in the white-labels section. */
+    color: var(--drpg-bone);
+    border: 1px solid var(--drpg-line-strong);
 }
 
 /* ==========================================================================
@@ -10360,6 +10407,67 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
        floating over the map, not a panel. */
     border-radius: 50%;
     color: var(--drpg-bone);
+}
+
+/* The backstory box, in place of the system's editor. `!important` on the
+   colours for the reason everything else on this sheet carries it: this
+   stylesheet is layered and Daggerheart's textarea rules are not. */
+.drpg-biography-text {
+    width: 100% !important;
+    min-height: 8rem;
+    resize: vertical;
+    color: var(--drpg-bone) !important;
+    background: var(--drpg-fill) !important;
+    border: 1px solid var(--drpg-line-strong) !important;
+    border-radius: 4px;
+    font-size: var(--drpg-text-sm);
+    line-height: 1.5;
+}
+
+/* ==========================================================================
+   SETTLING: WHY A SHEET THAT REDRAWS DOES NOT HAVE TO BLINK
+   --------------------------------------------------------------------------
+   Daggerheart puts `transition: all 0.3s` on the sidebar's resource inputs.
+   MEASURED on the live sheet: `transition-property: all`, `duration: 0.3s`,
+   and there is no `transition: all` anywhere in this module's own stylesheets.
+
+   On its own that rule is harmless, and before this module existed it never
+   fired: ApplicationV2 replaces the whole `<aside>` on every render, a fresh
+   element has no previous value to travel from, and nothing changed its style
+   afterwards. Then we started changing it afterwards — `paintResourceBars`
+   marks the native `<progress>` as replaced and inserts our own bar beside it,
+   which moves the input's width, its line-height and its flex — and the
+   system's `transition: all` obligingly animated all of it, for 300ms, on
+   every single render. That is the flicker of the whole left column, and it is
+   ours: a side effect of injecting into a freshly painted element.
+
+   THE REPAIR IS TO MAKE OUR OWN WORK INSTANT, not to remove the system's rule
+   (which belongs to controls we do not own) and not to stop redrawing. The
+   class goes on for the frame in which the injections run and comes off on the
+   next one, so everything the module does to a new sheet lands in the state it
+   was always going to land in, without a journey.
+
+   Transitions only. Animations are left alone on purpose: the deliberate
+   flashes — the band on a bar that just changed, the spent and gained pips —
+   are animations, and they are the one thing here that IS meant to be seen.
+   ========================================================================== */
+.drpg-settling,
+.drpg-settling * {
+    transition: none !important;
+}
+
+/* The Despair widget's heading. Sized and spaced to add as little height as
+   possible: this strip sits next to the clock HUD and `alignRightColumn()`
+   measures the taller of the two, so every pixel here moves the player's status
+   strip and the projects tray down with it. */
+.drpg-despair-title {
+    grid-column: 1 / -1;
+    margin: 0 0 2px;
+    font-size: var(--drpg-text-xs);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(var(--drpg-bone-rgb), 0.65);
+    line-height: 1.1;
 }
 
 /* ==========================================================================

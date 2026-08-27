@@ -245,10 +245,30 @@
     border-top: 1px solid rgba(var(--drpg-eye-rgb), 0.3);
 }
 
+/* An explicit border, because without one this box takes whatever Foundry
+   gives a textarea and reads as part of the window rather than as the thing you
+   type in. Crimson and not blood: blood is Despair's colour, crimson is this
+   module's settled red for "this goes to a GM" — it is what `.drpg-gm-route`
+   wears on every button that hands the turn to a person. A message to a GM is
+   exactly that thought, so the colour carries meaning instead of diluting it. */
 .drpg-messenger-input textarea {
     flex: 1 1 auto;
     resize: none;
     max-height: 6rem;
+    border: 1px solid var(--drpg-crimson) !important;
+    border-radius: 6px;
+}
+
+/* `!important` AND `:focus-visible` alongside `:focus`, and neither is padding.
+   This stylesheet is imported into a cascade layer, so an unlayered rule beats
+   it however specific — and Foundry styles a focused input unlayered, which is
+   why the border went violet the moment anybody clicked into the box to type.
+   The outline goes too: it is the other half of the same purple. */
+.drpg-messenger-input textarea:focus,
+.drpg-messenger-input textarea:focus-visible {
+    border-color: var(--drpg-crimson) !important;
+    outline: none !important;
+    box-shadow: 0 0 0 2px rgba(var(--drpg-crimson-rgb), 0.25) !important;
 }
 
 .drpg-messenger-input button {

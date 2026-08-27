@@ -320,7 +320,8 @@
       "groupCleaners": "Cleaners",
       "groupTruthBullets": "Truth Bullets",
       "groupEmpty": "— empty —",
-      "groupKeys": "Room Keys"
+      "groupKeys": "Room Keys",
+      "biographyPlaceholder": "Who they were before the killing game."
     },
     "Guard": {
       "blocked": "Only the GM changes that. Actions, Hope and statistics move through play.",
@@ -394,7 +395,8 @@
       "removePool": "Remove pool",
       "revokeFrom": "Revoke the pool from",
       "poolAdded": "Pool granted.",
-      "poolRemoved": "Pool revoked."
+      "poolRemoved": "Pool revoked.",
+      "widgetTitle": "Despair Pools"
     },
     "Hud": {
       "chapter": "Chapter {n}",
@@ -2186,6 +2188,8 @@
       "hint.items": "The opening item. A student with an empty bag has nothing to search with, nothing to give away and nothing to kill with.",
       "step.assignments": "Every student has a Monokuma watching",
       "hint.assignments": "Despair from a student's rolls goes to their Monokuma's pool. Unwatched, it goes nowhere.",
+      "step.sound": "Sound files",
+      "hint.sound": "This module ships no audio and assigns none — the files are yours, the same bargain the playlists make. Map what you want to hear in the Sound panel; anything left blank stays silent, which is a choice rather than a fault.",
       "step.rooms": "The map has rooms",
       "hint.rooms": "Rooms are Scene Regions. Movement, Search, Listen and every incident are answered in terms of them.",
       "step.cursor": "The GM's pointer is private (recommended)",
@@ -2286,7 +2290,11 @@
         "hopeTitle": "Hope",
         "hopeWhat": "Hope is yours, and it is spent on Hope Calls: helping somebody else's roll, leaning on an Experience, invoking your Ultimate, rerolling. It comes back when rolls go your way.",
         "hopeNow": "You hold {held} of {max} Hope.",
-        "standing": "Right now"
+        "standing": "Right now",
+        "monokumaActions": "You have no action economy. A Monokuma is skipped when actions are refilled, and spends none.",
+        "monokumaMove": "Movement costs you nothing and grants you nothing — there is no free Move to keep track of.",
+        "monokumaDespair": "You spend Despair where a student spends Hope. The pools are at the top of the screen.",
+        "monokumaWalls": "Walls and locked doors do not apply to you."
       },
       "projects": {
         "window": "Projects",

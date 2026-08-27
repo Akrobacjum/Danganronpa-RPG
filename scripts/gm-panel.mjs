@@ -878,9 +878,15 @@ function buildPanelContent() {
         .map(a => {
             const left = actionsLeft(a);
             const max = actionsMax(a);
-            const move = hasFreeMove(a)
-                ? `<i class="fa-solid fa-shoe-prints drpg-pix-foot" title="free Move available"></i>`
-                : "—";
+            // The sheet says this with a PAIR — solid when the free Move is
+            // there, outline when it has been used — exactly as the action pips
+            // do with `fa-circle`. This column used to answer with a footprint
+            // or an em dash, which is a second language for the same fact. An
+            // empty outline says "used" in the one the rest of the interface
+            // already speaks.
+            const move = `<i class="${hasFreeMove(a) ? "fa-solid" : "fa-regular"} `
+                + `fa-shoe-prints drpg-pix-foot" title="${
+                    hasFreeMove(a) ? "free Move available" : "free Move used"}"></i>`;
             const cub = a.getFlag(MODULE_ID, FLAGS.monocub)
                 ? ` <span class="notes">(${game.i18n.localize("DRPG.Monocub.isOne")})</span>` : "";
             const low = left === 0 ? ' style="opacity:.55"' : "";

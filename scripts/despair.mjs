@@ -392,6 +392,24 @@ export function renderDespairBar() {
         // Players keep the bar but not the numbers — see `buildRow`.
         wrapper.classList.toggle("masked", !game.user.isGM);
 
+        /*
+         * A HEADING, BECAUSE THE ROWS DO NOT SAY WHAT THEY ARE.
+         *
+         * Each row carries a pool's name or a generic label, so a strip of
+         * numbers at the top of the screen was identifiable only to somebody
+         * who already knew what it was. One line in the same pixel type as the
+         * rest of the HUD beside it.
+         *
+         * It is inside the wrapper rather than above it because the wrapper is
+         * what gets removed and rebuilt, and a heading outside would outlive
+         * the thing it titles. There is no "no pools" case to hide for: this
+         * function has already returned when there are no Monokumas.
+         */
+        const heading = document.createElement("div");
+        heading.className = "drpg-despair-title";
+        heading.textContent = game.i18n.localize("DRPG.Despair.widgetTitle");
+        wrapper.append(heading);
+
         for (const user of gms) wrapper.append(buildRow(user, gms.length > 1));
 
         wrapper.addEventListener("pointerdown", event => event.stopPropagation());
