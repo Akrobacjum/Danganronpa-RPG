@@ -15,6 +15,7 @@
 import { MODULE_ID } from "./config.mjs";
 import { registerSettings } from "./settings.mjs";
 import { runMigrationOnLoad } from "./migrate.mjs";
+import { registerSfx } from "./sfx.mjs";
 import { registerPrivateRolls } from "./private-rolls.mjs";
 import { registerSearchTokenSocket } from "./search-tokens.mjs";
 import { registerSheetTweaks } from "./sheet.mjs";
@@ -140,6 +141,11 @@ Hooks.once("init", () => {
     safely("forced rolls", registerForcedRolls);
     safely("the Eclipse", registerEclipse);
     safely("Monokumas", registerMonokuma);
+    // Before the messenger, whose arrival chime is now a mapped event. Only a
+    // hook goes up here — `playSfx` is a plain function and works whether or
+    // not this ran, which is the point: a chime must never be able to take a
+    // subsystem down with it.
+    safely("the sound engine", registerSfx);
     safely("the messenger", registerMessenger);
     safely("the messenger UI", registerMessengerUi);
     safely("regional voice", registerVoice);

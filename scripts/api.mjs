@@ -124,6 +124,9 @@ import {
     currentState, musicStatus, diagnoseMusic, refreshMusic, openMusicDialog,
     playTrack, resetMusic, situationalPlaylist
 } from "./music.mjs";
+import {
+    playSfx, testSfx, diagnoseSfx, soundFor, setSoundFor, sfxVolume, setSfxVolume
+} from "./sfx.mjs";
 import { repaintFog, diagnoseFog, applySceneVisionMode, seedDiscovery, prepareScenes,
     restoreSceneVisionMode, diagnoseScenes, whyBlack, fogAnimations, fogPeek, doorwayReport,
     checkRegions } from "./fog.mjs";
@@ -1123,6 +1126,31 @@ export const DrpgApi = {
      *  no playlist called "Situational" — which is the whole of "the Play
      *  button does nothing". */
     situationalPlaylist,
+
+    /* ---- Sound ----------------------------------------------------------
+     * The module ships no audio; a GM maps their own files in the Sound panel.
+     * An event with no file is silent and that is not a fault — so when
+     * something is expected and nothing is heard, `diagnoseSfx` is the answer
+     * and `testSfx` is the proof. */
+
+    /** Play one event on THIS browser. Silent if no file is mapped to it. */
+    playSfx,
+    /** Play one event now, past the cooldown and the autoplay lock, and say
+     *  WHY if it could not — five different things make a test button silent
+     *  and only one of them is a broken file. `await` it: the last of the five
+     *  is whether the file loads, which is not known when it is asked for. */
+    testSfx,
+    /** Everything this browser knows about sound without playing any: what is
+     *  mapped, what is muted (ours AND Foundry's), whether the browser has been
+     *  clicked yet, and which files have already failed. */
+    diagnoseSfx,
+    /** The file mapped to an event, and the GM-only way to change it. */
+    soundFor,
+    setSoundFor,
+    /** The two volume sliders, per browser. `music` is a proxy for Foundry's
+     *  own playlist volume rather than a second, competing number. */
+    sfxVolume,
+    setSfxVolume,
 
     /* ---- misc ---------------------------------------------------------- */
 
