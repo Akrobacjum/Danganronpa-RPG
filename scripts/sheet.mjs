@@ -36,7 +36,7 @@ import { isSilenced as callSilenced, isChained } from "./call-effects.mjs";
 import { isDeceased } from "./chapter.mjs";
 import { isStashed, ITEM_FLAGS, isBroken } from "./inventory.mjs";
 import { isUsable, isEquippable, isEquipped, equippedIn, equippedFor } from "./use-items.mjs";
-import { countInGroup, rolesOf } from "./inventory.mjs";
+import { countInGroup, categoriesInGroup, rolesOf } from "./inventory.mjs";
 import { isCleaner, bodyIsHere } from "./cleanup.mjs";
 import { roomOfActor, neighbouringRooms } from "./movement.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
@@ -1655,11 +1655,24 @@ function tidyBiography(app, element) {
  * counting.
  * ========================================================================== */
 
+/*
+ * ONE ROW FOR EVERYTHING YOU HOLD (E9, Dawid 27.08).
+ *
+ * E8 gave the three gear categories one shared budget of three, which left the
+ * sheet drawing the same "2 / 3" three times under three headings — three
+ * statements of one fact, and a player reading "1 / 3" over a full inventory in
+ * three places has been told three contradictory things by one window.
+ *
+ * So they become one row, and what an item IS moves onto the item, as tags.
+ * The category has not gone anywhere: it is still the key to the search table,
+ * to Stage 6's confiscation and to the item manager. It is simply no longer
+ * what decides which heading a thing sits under.
+ */
+const GEAR_GROUP = "gear";
+
 const INVENTORY_GROUPS = [
     { key: "usable", labelKey: "DRPG.Sheet.groupUsables" },
-    { key: "crimeTool", labelKey: "DRPG.Sheet.groupWeapons" },
-    { key: "cleaningTool", labelKey: "DRPG.Sheet.groupCleaners" },
-    { key: "tool", labelKey: "DRPG.Sheet.groupTools" },
+    { group: GEAR_GROUP, labelKey: "DRPG.Sheet.groupGear" },
     { key: "truthBullet", labelKey: "DRPG.Sheet.groupTruthBullets" },
     // Last, under the evidence: a key is not something you found or made, it is
     // something a door means. See the note on keys in vault.mjs.
@@ -1682,11 +1695,30 @@ function groupInventory(app, element) {
     box.className = "drpg-inventory-groups";
 
     for (const group of INVENTORY_GROUPS) {
-        const cat = ITEM_CATEGORIES[group.key];
+        const cat = group.key ? ITEM_CATEGORIES[group.key] : null;
+        const inGroup = group.group ? new Set(categoriesInGroup(group.group)) : null;
         // Carried only. What is in the stash gets its own section below, or the
-        // counts would say "Crime Tools 3 / 1" for somebody obeying the rules.
-        const items = actor.items.filter(i =>
-            i.getFlag(MODULE_ID, "category") === group.key && !isStashed(i));
+        // counts would say "Gear 4 / 3" for somebody obeying the rules.
+        const items = actor.items.filter(i => {
+            if (isStashed(i)) return false;
+            const key = i.getFlag(MODULE_ID, "category");
+            return inGroup ? inGroup.has(key) : key === group.key;
+        });
+
+        /*
+         * SORTED BY HOME, so one row still reads like three.
+         *
+         * Weapons, then cleaning gear, then tools — the order they had as
+         * headings, kept as an order within the list. Without it a knife, a rag
+         * and a second knife arrive in creation order and the row is a pile.
+         * Stable within a home, so nothing else anybody cares about moves.
+         */
+        if (inGroup) {
+            const rank = categoriesInGroup(group.group);
+            items.sort((a, b) =>
+                rank.indexOf(a.getFlag(MODULE_ID, "category"))
+                - rank.indexOf(b.getFlag(MODULE_ID, "category")));
+        }
 
         /*
          * THE COUNTER IS THE BUDGET, NOT THE ROW (E8, trap 69).
@@ -1698,7 +1730,7 @@ function groupInventory(app, element) {
          * inventory in three places at once, which is three lies rather than
          * one. Ungrouped rows are unchanged: Usables still count their own.
          */
-        const group_ = cat?.limitGroup ?? null;
+        const group_ = group.group ?? cat?.limitGroup ?? null;
         const limit = group_ ? LIMIT_GROUPS[group_]?.limit : cat?.limit;
         const counted = group_ ? countInGroup(actor, group_) : items.length;
 
@@ -1717,7 +1749,7 @@ function groupInventory(app, element) {
 
         const section = document.createElement("div");
         section.className = "drpg-inventory-group";
-        section.dataset.category = group.key;
+        section.dataset.category = group.key ?? group.group;
 
         const head = document.createElement("h4");
         head.innerHTML = `<span>${game.i18n.localize(group.labelKey)}</span>
@@ -1730,7 +1762,8 @@ function groupInventory(app, element) {
         // does anything now: an unreadied Crime Tool arms nobody, and an
         // unreadied Cleaning Tool helps with nothing in Stage 6. That is a rule
         // worth stating on the sheet rather than one to be discovered mid-murder.
-        if (items.length && EQUIPPABLE.includes(group.key) && !items.some(isEquipped)) {
+        if (items.length && (group.group === GEAR_GROUP || EQUIPPABLE.includes(group.key))
+            && !items.some(isEquipped)) {
             const nudge = document.createElement("p");
             nudge.className = "notes drpg-equip-nudge";
             nudge.textContent = game.i18n.localize("DRPG.Items.noneReadied");
@@ -1756,12 +1789,18 @@ function groupInventory(app, element) {
                     const tier = item.getFlag(MODULE_ID, "tier");
                     const ready = isEquipped(item);
                     const broken = isBroken(item);
-                    // What else this one can do. Trap 68: a screwdriver sits in
-                    // the Tools row and the fact that it is also a weapon lives
-                    // in a flag — invisible is the same as absent to a player
-                    // deciding what to ready, and to a GM confiscating weapons
-                    // at the end of Stage 6.
-                    const extraRoles = rolesOf(item);
+                    /*
+                     * WHAT THIS THING IS, on the row.
+                     *
+                     * The heading used to say it. One row means the item has to
+                     * say it itself — the home first, because it is the one tied
+                     * to the table the thing came from, then anything else it
+                     * can do. Only gear: a Usable is in a row that still names
+                     * itself, and a chip reading "Usable" on every line is
+                     * furniture.
+                     */
+                    const home = item.getFlag(MODULE_ID, "category");
+                    const tags = inGroup ? [home, ...rolesOf(item)] : rolesOf(item);
                     if (ready) li.classList.add("drpg-item-equipped");
                     // The row is still the row. A used-up thing is the same
                     // object in the same slot — what changes is that it says so,
@@ -1776,12 +1815,16 @@ function groupInventory(app, element) {
                                     ${ready ? `<span class="drpg-item-ready" data-tooltip="${
                                         foundry.utils.escapeHTML(game.i18n.localize("DRPG.Items.readyTooltip"))
                                     }"><i class="fa-solid fa-hand-fist" inert></i></span>` : ""}
-                                    ${extraRoles.map(role => `<span class="drpg-item-role" data-tooltip="${
-                                        foundry.utils.escapeHTML(game.i18n.format("DRPG.Items.alsoServes", {
-                                            role: ITEM_CATEGORIES[role]?.label ?? role
-                                        }))
-                                    }">${foundry.utils.escapeHTML(
-                                        ITEM_CATEGORIES[role]?.label ?? role)}</span>`).join("")}
+                                    ${tags.length ? `<span class="drpg-tb-badges">${tags.map((role, index) =>
+                                        `<span class="drpg-tb-badge drpg-role-${role}" data-tooltip="${
+                                            foundry.utils.escapeHTML(index === 0 && inGroup
+                                                ? game.i18n.format("DRPG.Items.isA", {
+                                                    role: ITEM_CATEGORIES[role]?.label ?? role })
+                                                : game.i18n.format("DRPG.Items.alsoServes", {
+                                                    role: ITEM_CATEGORIES[role]?.label ?? role }))
+                                        }">${foundry.utils.escapeHTML(
+                                            ITEM_CATEGORIES[role]?.label ?? role)}</span>`).join("")
+                                    }</span>` : ""}
                                     ${tier !== undefined && tier !== null
                                         ? `<span class="drpg-item-tier">T${tier}</span>` : ""}`;
                     addUseButton(li, item, app);

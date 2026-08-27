@@ -94,14 +94,28 @@ export function equippedIn(actor, category) {
  * its gloves.
  */
 export function equippedFor(actor, role) {
-    const ready = actor?.items?.filter(i =>
-        i.getFlag(MODULE_ID, EQUIPPED_FLAG)
-        && servesAs(i, role)
-        && !isBroken(i)
-        && !isStashed(i)) ?? [];
+    // At most one, since E9 — but read as a list anyway. A world mid-upgrade
+    // can still have several readied from the per-category rule, and the
+    // preference below is what decides between them until the next time
+    // anybody picks something up: the item whose HOME is the role wins, so a
+    // knife beats a screwdriver at being a weapon.
+    const ready = readiedItems(actor).filter(i => servesAs(i, role));
     if (!ready.length) return null;
 
     return ready.find(i => i.getFlag(MODULE_ID, ITEM_FLAGS.category) === role) ?? ready[0];
+}
+
+/** Everything this character is holding ready and could actually use. */
+export function readiedItems(actor) {
+    return actor?.items?.filter(i =>
+        i.getFlag(MODULE_ID, EQUIPPED_FLAG)
+        && !isBroken(i)
+        && !isStashed(i)) ?? [];
+}
+
+/** The one thing in their hands, whatever it is. */
+export function readiedItem(actor) {
+    return readiedItems(actor)[0] ?? null;
 }
 
 /**
@@ -162,9 +176,20 @@ export async function breakOnDespair(actor, tool, roll) {
 /**
  * Hold this one ready, putting away whatever was.
  *
- * One per category, enforced by clearing the others rather than by refusing:
- * "equip" means "this is the one I am using now", and making the player
- * un-equip first would be a second click for no decision.
+ * ONE THING IN YOUR HANDS, WHATEVER IT IS (Dawid, 27.08). This used to be one
+ * per category, so a character could hold a knife, a rag and a screwdriver at
+ * the same time — which was invisible while the sheet drew three separate rows
+ * and absurd the moment they became one. Three items marked "ready" in a list
+ * of three reads as a limit that does nothing.
+ *
+ * It is also what makes the tags matter. With one hand, an item that fills two
+ * roles lets you hold one thing and do two jobs, and that is a real decision
+ * rather than a curiosity — which is why the two-tag rule and this rule arrived
+ * together.
+ *
+ * Enforced by clearing whatever was, rather than by refusing: "equip" means
+ * "this is the one I am using now", and making the player un-equip first would
+ * be a second click for no decision.
  */
 export async function toggleEquipped(actor, item) {
     if (!actor || !item || !isEquippable(item)) return false;
@@ -181,13 +206,16 @@ export async function toggleEquipped(actor, item) {
         return false;
     }
 
-    const category = item.getFlag(MODULE_ID, ITEM_FLAGS.category);
     const wasEquipped = isEquipped(item);
 
     try {
         if (!wasEquipped) {
-            const previous = equippedIn(actor, category);
-            if (previous && previous.id !== item.id) {
+            // Everything else goes down, not just the others of its kind. A
+            // list rather than one item: a world that has been through the
+            // per-category rule can have three things readied already, and the
+            // first hand that picks something up has to tidy all of them.
+            for (const previous of readiedItems(actor)) {
+                if (previous.id === item.id) continue;
                 await previous.setFlag(MODULE_ID, EQUIPPED_FLAG, false);
             }
         }

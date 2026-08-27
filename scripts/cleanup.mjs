@@ -26,7 +26,7 @@
  * murder.mjs. This owns the numbers and the tokens.
  */
 
-import { MODULE_ID, CLEANUP, RESOLUTION_STRESS_COST } from "./config.mjs";
+import { MODULE_ID, FLAGS, CLEANUP, RESOLUTION_STRESS_COST } from "./config.mjs";
 import { murderState, killerIds } from "./murder.mjs";
 import {
     REMNANT_FLAGS, remnantsInRoom, remnantData, removeRemnant, dropRemnant
@@ -34,7 +34,7 @@ import {
 import { roomOfToken } from "./movement.mjs";
 import { equippedFor, breakOnDespair } from "./use-items.mjs";
 import { isMonokuma } from "./monokuma.mjs";
-import { ITEM_FLAGS } from "./inventory.mjs";
+import { ITEM_FLAGS, isBroken, isStashed } from "./inventory.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
 import { whisperToGms, whisperToOwner, log, error, cardHead } from "./utils.mjs";
@@ -1222,17 +1222,40 @@ export async function destroyCleaningTools() {
  * throw it away and leave a trace somewhere, or put it in their bedroom stash.
  * See BROKEN_ITEMS in config.mjs and `discardBroken` in use-items.mjs.
  */
+/**
+ * The thing this character used in the incident, if anything wrote it down.
+ *
+ * Only the weapon is remembered — the swing is a single identifiable moment,
+ * while cleaning is several actions with possibly several rags, and "the one in
+ * your hands when the body turned up" is the honest answer for those.
+ */
+function rememberedTool(actor, category) {
+    if (category !== "crimeTool") return null;
+    const id = actor?.getFlag?.(MODULE_ID, FLAGS.swungWeapon);
+    const item = id ? actor.items.get(id) : null;
+    // Gone, already ruined, or stashed since: fall back to the hand.
+    return item && !isBroken(item) && !isStashed(item) ? item : null;
+}
+
 async function destroyTools(actor, categories) {
     if (!game.user.isGM || !actor || !categories?.length) return [];
 
     const { breakItem } = await import("./inventory.mjs");
     const destroyed = [];
     for (const category of categories) {
-        // BY ROLE. The killer who wiped the scene with a rag filed under Tools
-        // used a cleaning tool, and the guide's "the gloves come off when the
-        // body turns up" is about what was used, not about which row it sits in.
-        // Readied only, still — an unopened spare in the stash was not used.
-        const item = equippedFor(actor, category);
+        /*
+         * WHAT WAS USED, and only then what is in hand.
+         *
+         * BY ROLE: the killer who wiped the scene with a rag filed under Tools
+         * used a cleaning tool, and the guide's "the gloves come off when the
+         * body turns up" is about what was used, not which row it sits in.
+         *
+         * BY MEMORY for the weapon: with one hand (E9) a killer holds the knife
+         * for the murder and the gloves for the clean-up, so reading the hand at
+         * closing time would spare the murder weapon every single time. The
+         * swing wrote down what it swung; that is the thing this destroys.
+         */
+        const item = rememberedTool(actor, category) ?? equippedFor(actor, category);
         if (!item) continue;
         try {
             destroyed.push(item.name);

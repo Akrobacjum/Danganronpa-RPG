@@ -741,6 +741,28 @@ export async function takeCrisisAction(actor, key) {
      */
     const swung = def.weaponAdvantage ? equippedWeapon(actor) : null;
 
+    /*
+     * WRITTEN DOWN, BECAUSE ONE HAND MADE STAGE 6 FORGETFUL (E9).
+     *
+     * `destroysTools` ruins what is READIED when Stage 6 closes. That was fine
+     * while a killer could hold the knife and the gloves at once; with one hand
+     * they hold the knife for the murder and the gloves for the clean-up, so at
+     * closing time the gloves are in hand and the knife walks away.
+     *
+     * On the actor rather than on the incident state: the player's own client
+     * runs this roll and can write its own actor, where `murderState` is a
+     * world setting only a GM may touch. One flag, cleared when the incident
+     * ends, holding the id of the thing that was actually used.
+     */
+    if (swung) {
+        try {
+            await actor.setFlag(MODULE_ID, FLAGS.swungWeapon, swung.id);
+        } catch {
+            // A weapon nobody wrote down is destroyed by the old rule instead
+            // of not at all. Never let bookkeeping stop a swing.
+        }
+    }
+
     let roll;
     try {
         roll = await rollTrait(actor, trait, {
@@ -2069,6 +2091,23 @@ export async function endMurder({ reason = "closed", followUp = true } = {}) {
             await endResolution(killer);
         } catch (err) {
             error("Could not destroy the tools the incident used", err);
+        }
+    }
+
+    /*
+     * The swing memo goes with the incident it belonged to.
+     *
+     * AFTER `endResolution`, which is the one thing that reads it, and for
+     * everybody rather than the killer alone: a victim who fought back swung
+     * something too, and a stale id would have Stage 6 of the NEXT incident
+     * destroying a weapon from this one.
+     */
+    for (const id of participantIds(state ?? {})) {
+        try {
+            await game.actors.get(id)?.unsetFlag(MODULE_ID, FLAGS.swungWeapon);
+        } catch {
+            // A memo that outlives its incident costs one wrong confiscation,
+            // and only if the same character swings nothing in the next one.
         }
     }
 

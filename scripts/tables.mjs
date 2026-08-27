@@ -295,8 +295,8 @@ export const ITEM_POOLS = {
     },
     tool: {
         0: ["Bent nail", "Plastic ruler", "Blunt pencil", "Paperclip chain"],
-        1: ["Screwdriver", "Duct tape", "Pliers", "Hand drill"],
-        2: ["Spanner set", "Soldering iron", "Cordless drill", "Crowbar"],
+        1: ["Screwdriver", "Pliers", "Hand drill", "Sewing kit"],
+        2: ["Duct tape", "Spanner set", "Soldering iron", "Crowbar"],
         3: ["Portable workshop", "Angle grinder", "Master toolkit"]
     }
 };
@@ -318,25 +318,32 @@ export const ITEM_POOLS = {
  */
 export const POOL_ROLES = {
     // Weapons that are also tools.
-    "Scissors": ["tool"],
-    "Bent pipe": ["tool"],
-    "Hammer": ["tool"],
     "Axe": ["tool"],
     "Bolt cutters": ["tool"],
     "Industrial saw": ["tool"],
     // Cleaning gear that is also a tool.
-    "Rope": ["tool"],
-    "Bucket and sponge": ["tool"],
+    "Mop": ["tool"],
+    "Pressure washer": ["tool"],
     // Tools that are also something else.
     "Duct tape": ["cleaningTool"],
-    "Pliers": ["crimeTool"],
-    "Hand drill": ["crimeTool"],
     "Soldering iron": ["crimeTool"],
-    "Cordless drill": ["crimeTool"],
     "Crowbar": ["crimeTool"],
     "Angle grinder": ["crimeTool"],
-    "Master toolkit": ["crimeTool", "cleaningTool"]
+    "Master toolkit": ["crimeTool"]
 };
+
+/** No item may carry more than this many roles beside its home. */
+export const MAX_EXTRA_ROLES = 1;
+
+/**
+ * The lowest tier at which an item may do two jobs.
+ *
+ * A two-tag item is unconditionally better than a one-tag one, so it has no
+ * business lying at the bottom of the table (Dawid, 27.08). Duct tape moved up
+ * to tier 2 rather than losing its second tag — it is still worth finding, and
+ * two tags are meant to cost something.
+ */
+export const MULTI_ROLE_TIER = 2;
 
 /** The roles a built-in pool entry carries. Empty for anything unlisted. */
 export function rolesForPoolItem(name) {
@@ -972,7 +979,8 @@ export async function openItemTables({ preset = null } = {}) {
                 <label>${game.i18n.localize("DRPG.Tables.tierTarget")}
                     <select name="tierTarget">${tierOptions}</select></label>
                 <div class="drpg-tables-roles">
-                    <span class="notes">${game.i18n.localize("DRPG.Tables.rolesNote")}</span>
+                    <span class="notes" data-drpg-roles-note>${
+                        game.i18n.localize("DRPG.Tables.rolesNote")}</span>
                     ${roleChecks}
                 </div>
                 <div class="drpg-tables-targets">
@@ -1027,6 +1035,41 @@ export async function openItemTables({ preset = null } = {}) {
         ],
         render: (event, dialog) => {
             const root = dialog.element;
+
+            /*
+             * TWO TAGS START AT TIER 2 (Dawid, 27.08).
+             *
+             * Enforced where the choice is made rather than checked afterwards:
+             * a rule that only complains once the entry exists is a rule the GM
+             * meets as an error message. Below the threshold the boxes go grey
+             * and clear themselves, so moving the tier down cannot leave a tick
+             * behind that nobody can see any more.
+             */
+            const tierSelect = root.querySelector("[name=newTier]");
+            const roleBoxes = [...root.querySelectorAll('[name^="role:"]')];
+            const gateRoles = () => {
+                const allowed = Number(tierSelect?.value) >= MULTI_ROLE_TIER;
+                for (const box of roleBoxes) {
+                    box.disabled = !allowed;
+                    if (!allowed) box.checked = false;
+                    box.closest("label")?.classList.toggle("drpg-locked", !allowed);
+                }
+                root.querySelector("[data-drpg-roles-note]")
+                    ?.classList.toggle("drpg-warning", !allowed);
+            };
+            tierSelect?.addEventListener("change", gateRoles);
+            // ONE EXTRA ROLE, NOT TWO. The home is a tag as well, so a second
+            // tick would make three — see MAX_EXTRA_ROLES.
+            for (const box of roleBoxes) {
+                box.addEventListener("change", () => {
+                    if (!box.checked) return;
+                    const ticked = roleBoxes.filter(b => b.checked);
+                    for (const other of ticked) {
+                        if (other !== box) other.checked = false;
+                    }
+                });
+            }
+            gateRoles();
             /*
              * ONE FOOTER, FOUR TABS, AND UNTIL NOW ALL FOUR BUTTONS ON EACH.
              *

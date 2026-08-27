@@ -61,6 +61,16 @@ export const FLAGS = {
     /** Character: the student's Ultimate talent, shown under their name. */
     ultimate: "ultimate",
     /**
+     * Character: the id of the weapon this character actually swung.
+     *
+     * Written by the crisis roll, read by Stage 6's confiscation. It exists
+     * because a character may hold only one thing at a time (E9): a killer
+     * swings the knife and then picks up the gloves to clean, so "what is in
+     * their hands when the stage closes" is the wrong question and would spare
+     * the murder weapon every time.
+     */
+    swungWeapon: "swungWeapon",
+    /**
      * Character: this student is dead.
      *
      * A flag rather than a hidden token. The body is often exactly what the
