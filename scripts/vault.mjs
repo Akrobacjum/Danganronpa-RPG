@@ -836,7 +836,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
                 <p>${game.i18n.localize("DRPG.Vault.checkIntro")}</p>
                 <p><button type="button" data-drpg-check>${
                     game.i18n.localize("DRPG.Vault.checkRooms")}</button></p>
-                <div data-drpg-check-out></div>
+                <div data-drpg-check-out class="drpg-room-check"></div>
                 <hr>
                 <table class="drpg-vault-table"><thead><tr>
                     <th>${game.i18n.localize("DRPG.Vault.student")}</th>
@@ -905,7 +905,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
                     return;
                 }
                 const marks = { error: "✕", warning: "!", info: "·" };
-                checkOut.innerHTML = `<table class="drpg-vault-table"><tbody>${
+                checkOut.innerHTML = `<table class="drpg-vault-table drpg-room-check-table"><tbody>${
                     findings.map(f => `<tr>
                         <td>${marks[f.level] ?? "·"}</td>
                         <td>${foundry.utils.escapeHTML(f.room)}</td>

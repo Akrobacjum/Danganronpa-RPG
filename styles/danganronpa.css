@@ -2846,6 +2846,38 @@ body.drpg-pixel-font [contenteditable] {
     overflow: visible;
 }
 
+/* THE ROOM CHECK'S REPORT LIVES IN ITS OWN SCROLLING BOX.
+
+   Without it the report is a table of thirty-odd rows of prose dropped into a
+   window that was measured for a checkbox matrix, and Room setup grows until
+   its own tabs run off the screen — seen on the first build that shipped the
+   button. Fixed layout and a wrapping third column keep the long sentences
+   inside the window's width instead of pushing it wider. */
+.drpg-room-check {
+    max-height: 38vh;
+    overflow: auto;
+    margin-top: 8px;
+}
+
+/* `!important` because this module's sheet is imported into a cascade layer,
+   and an UNLAYERED core rule beats a layered one however specific it is — see
+   the same trick on the select pickers. Measured: without it `table-layout`
+   computed to `auto` and the report ran 3971px wide inside a 1456px window. */
+.drpg-room-check-table {
+    table-layout: fixed !important;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+.drpg-room-check-table td {
+    text-align: left;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.drpg-room-check-table td:first-child { width: 2.5ch; }
+.drpg-room-check-table td:nth-child(2) { width: 16ch; }
+
 .drpg-vault-table th,
 .drpg-vault-table td {
     padding: 3px 6px;
