@@ -113,7 +113,7 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
             ${done.length ? `<ul>${done.map(d => `<li>${esc(d)}</li>`).join("")}</ul>` : ""}
             <p><em>${game.i18n.format("DRPG.Calls.hopeSpent", {
                 cost: call.cost, left: held - call.cost
-            })}</em></p>`, { flags: { [MODULE_ID]: { popupTone: "hope" } } });
+            })}</em></p>`, { flags: { [MODULE_ID]: { popupTone: "hope", sfx: "hopeCall" } } });
 
         log(`${actor.name} spent ${call.cost} Hope on ${call.label}.`);
         Hooks.callAll("drpgHopeCall", { actor, key, call, note, choice });

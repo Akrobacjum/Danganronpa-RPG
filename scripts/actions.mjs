@@ -14,6 +14,7 @@ import { MODULE_ID, FLAGS, ACTIONS_RESOURCE, STARTING } from "./config.mjs";
 import { isWounded } from "./character.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
 import { debug, plural } from "./utils.mjs";
+import { playSfx } from "./sfx.mjs";
 
 /**
  * How many actions this character should get when a new time of day starts.
@@ -53,6 +54,24 @@ export async function spendAction(actor, amount = 1) {
     }
 
     await automatedUpdate(actor, { [`system.resources.${ACTIONS_RESOURCE}.value`]: left - amount });
+
+    /*
+     * EVERY SPEND, NOT ONLY THE ACTION GRID — trap 44, decided here.
+     *
+     * This function is also how a Rest, a Move beyond the free one and the
+     * crisis actions take their price. The sound means "an action just left
+     * your budget", and that is equally true of all of them: the player is
+     * watching the same three pips go down. Restricting it to the grid would
+     * make the pip drop SILENTLY in exactly the cases nobody is expecting it
+     * to drop at all, which is the opposite of what a sound is for.
+     *
+     * Local and unguarded. It plays wherever the spend was made, which is the
+     * acting player's browser almost always and a GM's when they correct
+     * somebody's budget by hand — where a click is honest feedback that the
+     * write landed.
+     */
+    playSfx("actionSpent");
+
     debug(`${actor.name} spent ${amount} action(s); ${left - amount} left.`);
     return true;
 }

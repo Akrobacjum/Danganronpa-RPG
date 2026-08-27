@@ -22,6 +22,7 @@
 import { MODULE_ID, analyzeDc, TRUTH_BULLET_TYPES } from "./config.mjs";
 import { TRUTH_BULLET_FLAGS, secretOf, isTruthBullet } from "./truth-bullets.mjs";
 import { whisperToOwner, whisperToGms, log, warn, error, article } from "./utils.mjs";
+import { playSfx } from "./sfx.mjs";
 
 /**
  * Score a thrown Analyze against the bullet's real category.
@@ -118,6 +119,10 @@ async function lockOut(item, actor, chapter, total) {
 
 /** Success converts the bullet: what it really is becomes what the player sees. */
 async function identify(item, actor, realType, isCritical, dc, total) {
+    // The moment the bullet stops being a guess. Local: whoever ran the
+    // Analyze is the client this function is running on.
+    playSfx("analyzeHit");
+
     // The moment of analysis is when two more facts go public — which action
     // left the source trace (the Remnant token's icon on this player's map)
     // and whether it belongs to the murder (the pack's sort). Both were

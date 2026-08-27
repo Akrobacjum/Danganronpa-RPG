@@ -39,6 +39,7 @@ import { roomOfToken } from "./movement.mjs";
 import { isMastermind } from "./mastermind.mjs";
 import { isPrimaryGm, debug, log, warn, error, plural } from "./utils.mjs";
 import { ENTER, BEAT } from "./motion.mjs";
+import { playSfx } from "./sfx.mjs";
 
 const CanvasAnimation = foundry.canvas.animation.CanvasAnimation;
 
@@ -3124,6 +3125,11 @@ function roomEnteredByMe(tokenDoc) {
  * you already know looks like.
  */
 function announceRoom(room) {
+    // BEFORE THE EARLY RETURNS. Crossing into a room you already know is the
+    // event; whether this client can draw the outline for it is a separate
+    // question, and a scene without a usable region should not also go silent.
+    playSfx("roomEntered");
+
     const fx = fxLayer();
     const scene = canvas?.scene;
     if (!fx || !scene) return;
@@ -3231,6 +3237,10 @@ function bandQuad(cA, cB, tMin, tMax) {
 }
 
 function playDiscoveryAnimation(room, tokenDoc) {
+    // Same rule as `announceRoom`: the sound belongs to the discovery, not to
+    // this client's ability to animate it.
+    playSfx("roomDiscovered");
+
     const fx = fxLayer();
     const scene = canvas?.scene;
     if (!fx || !scene) return;

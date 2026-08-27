@@ -155,6 +155,13 @@ export async function postToThread(playerUserId, html, { kind = THREAD_KIND.acti
 
 async function createThreadMessage(playerUserId, content, kind, gmAsk = false) {
     const whisper = Array.from(new Set([playerUserId, ...gmIds()]));
+
+    // The SENDER's sound, and it is deliberately not carried on the message:
+    // the message already plays `chatReceive` for everyone it reaches, and the
+    // sender is one of those people. Played here instead, on the one client
+    // that is doing the sending.
+    playSfx("chatSend");
+
     try {
         return await ChatMessage.create({
             content,

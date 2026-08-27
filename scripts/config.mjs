@@ -2316,6 +2316,11 @@ export const SFX_EVENTS = {
         hint: "Heard by the player who spent it.",
         category: "world"
     },
+    critical: {
+        label: "A critical roll",
+        hint: "Heard by whoever rolled it. The one moment at a roll that the whole table waits for, and until now the only one with a card colour and no sound.",
+        category: "world"
+    },
     searchNothing: {
         label: "A search finds nothing",
         hint: "Heard by the searcher. The only common failure in the game that is otherwise completely silent.",

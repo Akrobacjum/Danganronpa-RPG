@@ -36,6 +36,7 @@ import { SETTINGS } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import { grantItem, itemsInCategory } from "./inventory.mjs";
 import { gmIds, whisperToOwner, whisperToGms, isPrimaryGm, log, warn, error, plural } from "./utils.mjs";
+import { playSfx } from "./sfx.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 
@@ -466,6 +467,10 @@ export async function createTruthBullet(actor, {
     if (!item) return null;
 
     await setSecret(item.uuid, { realType, gmNote, remnantId, sceneId, sourceAction, tiedToCrime });
+
+    // After the secret is filed, so the sound cannot arrive before the thing
+    // it is about is completely written.
+    playSfx("truthBullet");
 
     log(`${actor.name} gained Truth Bullet "${name}" (really ${realType}, ${visibility}).`);
     return item;
