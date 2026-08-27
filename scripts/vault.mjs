@@ -678,15 +678,34 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
     const uncovered = sceneUncoveredPercent(scene);
     const maxTokens = SearchTokens.max;
 
-    const fogRows = students.map(actor => {
-        const escName = foundry.utils.escapeHTML(actor.name);
-        const known = new Set(discoveredFor(scene?.id, actor.id));
-        const boxes = rooms.map(room => {
-            const escRoom = foundry.utils.escapeHTML(room);
-            return `<td style="text-align:center"><input type="checkbox"
-                name="fog:${escRoom}:${actor.id}" ${known.has(room) ? "checked" : ""} /></td>`;
-        }).join("");
-        return `<tr><td><strong>${escName}</strong></td>${boxes}</tr>`;
+    /*
+     * ROOMS DOWN, PEOPLE ACROSS — the same way round as every other tab here.
+     *
+     * It used to be the other way, and it was the only table in the window that
+     * was: rooms across the top, students down the side. With eighteen rooms the
+     * headings had to be stood on end to fit, and a column heading you read by
+     * tilting your head is one you read twice.
+     *
+     * The shape decides it. A cast is four to eight; a map is six to thirty-six.
+     * The long axis belongs to the side that scrolls, and the short one to the
+     * side that has to stay on screen — so rooms are rows and people are columns
+     * whose names lie down and read at a glance.
+     *
+     * THE INPUT NAMES DO NOT CHANGE. `fog:${room}:${actorId}` carries both
+     * coordinates, so Apply reads the same form it always did and never learns
+     * which way the table was laid out.
+     */
+    const known = new Map(students.map(a => [a.id, new Set(discoveredFor(scene?.id, a.id))]));
+    const fogHeads = students
+        .map(a => `<th>${foundry.utils.escapeHTML(a.name)}</th>`)
+        .join("");
+    const fogRows = rooms.map(room => {
+        const escRoom = foundry.utils.escapeHTML(room);
+        const boxes = students.map(actor =>
+            `<td style="text-align:center"><input type="checkbox"
+                name="fog:${escRoom}:${actor.id}" ${
+                known.get(actor.id)?.has(room) ? "checked" : ""} /></td>`).join("");
+        return `<tr><td><strong>${escRoom}</strong></td>${boxes}</tr>`;
     }).join("");
 
     /* One pass gathers every fact about a room; the tabs then deal the same
@@ -839,8 +858,8 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
                 <div data-drpg-check-out class="drpg-room-check"></div>
                 <hr>
                 <table class="drpg-vault-table"><thead><tr>
-                    <th>${game.i18n.localize("DRPG.Vault.student")}</th>
-                    ${rooms.map(r => `<th>${foundry.utils.escapeHTML(r)}</th>`).join("")}
+                    <th>${game.i18n.localize("DRPG.Vault.room")}</th>
+                    ${fogHeads}
                 </tr></thead><tbody>${fogRows}</tbody></table>
                 <p class="notes">${game.i18n.localize("DRPG.Vault.fogNote")}</p>
             `)}
