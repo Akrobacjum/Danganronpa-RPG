@@ -111,7 +111,6 @@ and works the same on any Foundry VTT v14 host.
 | [Dice So Nice!](https://foundryvtt.com/packages/dice-so-nice) | The duality dice you actually see roll |
 | [Isometric Perspective](https://foundryvtt.com/packages/isometric-perspective) | The school is drawn isometrically |
 | [LiveKit AVClient](https://foundryvtt.com/packages/avclient-livekit) | Per-room voice chat and eavesdropping |
-| [libWrapper](https://foundryvtt.com/packages/lib-wrapper) | Required by Isometric Perspective |
 
 ## First-time setup
 
