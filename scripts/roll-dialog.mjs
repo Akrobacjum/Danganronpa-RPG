@@ -107,7 +107,9 @@ function onRenderApplication(app, element) {
         // is not in the game. So the state modifier is imposed either way; only
         // the chips stay clickable.
         const fromState = stateGrant(actor);
-        if (fromState !== 0) forceAdvantage(app, fromState);
+        // One die, explicitly: Breakdown is a single standing penalty, and the
+        // stacking above is about sources this branch deliberately ignores.
+        if (fromState !== 0) forceAdvantage(app, fromState, 1);
     } catch {
         // Never break the roll dialog itself.
     }
@@ -232,48 +234,49 @@ function lockControls(root, app) {
     const adv = root.querySelectorAll(".advantage-chip");
     const dis = root.querySelectorAll(".disadvantage-chip");
 
-    // Three sources now, all added and then clamped so they cancel rather than
-    // one silently outranking another: a Call somebody paid for, the situation,
-    // and the character's own state. Breakdown is the guide's "Gracz przy
-    // utracie całego stresu dostaje disadvantage na każdy rzut" — a standing
-    // penalty that was declared in config and never reached a die.
-    const fromCall = armed === "advantage" ? 1 : armed === "disadvantage" ? -1 : 0;
-    const fromRoom = situationalGrant();
-    const fromState = stateGrant(actor);
-    const value = Math.max(-1, Math.min(1, fromCall + fromRoom + fromState));
+    const { sign, count, capped, sources } = advantageSources(actor, armed);
 
-    if (value !== 0) {
-        forceAdvantage(app, value);
+    if (sign !== 0) {
+        forceAdvantage(app, sign, count);
 
         // The tooltip has to say WHICH, or a player sees a locked advantage they
         // never bought and reads it as a bug.
         //
-        // THREE sources, three answers. This used to fall back to "set by where
-        // you are and what you are looking for" for everything that was not a
-        // Call — which told a character in Breakdown that the disadvantage they
-        // are carrying everywhere came from the room they happen to be standing
-        // in. Measured on the live window with Sanity full: the chip was
-        // correctly selected and locked, and correctly explained by the wrong
-        // cause.
+        // ONE SOURCE GETS ITS OWN SENTENCE; two or more get the list. This used
+        // to fall back to "set by where you are and what you are looking for"
+        // for everything that was not a Call — which told a character in
+        // Breakdown that the disadvantage they carry everywhere came from the
+        // room they happen to be standing in. Measured on the live window with
+        // Sanity full: the chip was correctly selected and locked, and correctly
+        // explained by the wrong cause.
+        //
+        // Since E7 there is a second way to be wrong about it, and it is worse:
+        // two sources that partly cancel leave ONE die and two explanations, so
+        // naming either one alone is a half-truth about a number the player is
+        // being held to. The list is used the moment there is more than one.
         //
         // It matters more since the window stopped opening at all when there is
         // nothing forced (see `maybeRollItself`): a dialog a player now only
-        // ever sees BECAUSE of a modifier had better name the right one.
-        const reason = fromCall !== 0
-            ? "DRPG.RollDialog.forcedByCall"
-            : fromRoom !== 0
-                ? "DRPG.RollDialog.forcedBySituation"
-                : "DRPG.RollDialog.forcedByState";
+        // ever sees BECAUSE of a modifier had better say what it is.
+        const reason = explainAdvantage(sign, count, capped, sources);
 
         for (const chip of adv) {
-            chip.classList.toggle("selected", value === 1);
-            lockChip(chip, value === 1 ? reason : "DRPG.RollDialog.lockedByCall");
-            if (value === 1) chip.classList.add("drpg-call-unlocked");
+            const mine = sign === 1;
+            chip.classList.toggle("selected", mine);
+            lockChip(chip, mine ? reason : "DRPG.RollDialog.lockedByCall");
+            if (mine) {
+                chip.classList.add("drpg-call-unlocked");
+                markChipCount(chip, count);
+            }
         }
         for (const chip of dis) {
-            chip.classList.toggle("selected", value === -1);
-            lockChip(chip, value === -1 ? reason : "DRPG.RollDialog.lockedByCall");
-            if (value === -1) chip.classList.add("drpg-call-unlocked");
+            const mine = sign === -1;
+            chip.classList.toggle("selected", mine);
+            lockChip(chip, mine ? reason : "DRPG.RollDialog.lockedByCall");
+            if (mine) {
+                chip.classList.add("drpg-call-unlocked");
+                markChipCount(chip, count);
+            }
         }
     } else {
         for (const chip of [...adv, ...dis]) lockChip(chip, "DRPG.RollDialog.advantageLocked");
@@ -368,7 +371,10 @@ const ROLLED_ITSELF = Symbol("drpgAutoRolled");
 function maybeRollItself(root, app, actor) {
     if (app[ROLLED_ITSELF]) return;
     if (pendingGrants(actor)) return;
-    if (Math.max(-1, Math.min(1, situationalGrant() + stateGrant(actor))) !== 0) return;
+    // The same sum the chips are drawn from, so the window cannot decide it has
+    // nothing to say about a modifier it is about to impose. No Call is armed by
+    // the line above, so this is the situation and the state.
+    if (advantageSources(actor, null).sign !== 0) return;
 
     const submit = root.querySelector("button.submit-btn");
     // No button found means the system's template moved. Leave the window alone
@@ -435,16 +441,149 @@ function stateGrant(actor) {
     }
 }
 
+/* ==========================================================================
+ * HOW MANY DICE, AND WHY
+ * --------------------------------------------------------------------------
+ * CANCELLING ALREADY WORKED. The three sources were summed and then clamped to
+ * [-1, 1], so a player's advantage and a Monokuma's Obstacle met and produced a
+ * normal roll — which is right, and is the half of this the module got correct
+ * from the start.
+ *
+ * WHAT THE CLAMP ALSO DID was flatten two advantages into one. Every source
+ * beyond the first was silently free: a Hope Call spent in a room that favours
+ * exactly what you are looking for bought nothing the room had not already
+ * given. And the arithmetic being thrown away was real — `performSearch` sums a
+ * favouring room, a hindering room and a concealed stash; a crisis roll sums a
+ * weapon in hand, a second try after a miss and the guide's compensation for
+ * dying alone to a trap. All of it computed, then rounded to a sign.
+ *
+ * So the sum stands and only its SIZE is capped. Disadvantage subtracts from
+ * the same total, which means a Monokuma's Obstacle takes away one die rather
+ * than the whole bonus — the cancelling behaviour, kept, now with a scale
+ * underneath it.
+ *
+ * THREE IS THE CEILING. Above it the difference stops being measurable: `kh` on
+ * four d6 is a flat +6 in all but name, and a roll nobody can lose is not a
+ * roll. Three is also the most sources this game can actually hand one
+ * character at once, so the cap is a guard rather than a rule players will meet.
+ * ========================================================================== */
+
+/** The most dice any one roll can be given, in either direction. */
+const ADVANTAGE_CAP = 3;
+
+/**
+ * Everything pushing on this roll, added up.
+ *
+ * @param {Actor}  actor
+ * @param {string|null} armed  What the pending Call grants, if any.
+ * @returns {{net:number, sign:number, count:number, capped:boolean, sources:object[]}}
+ */
+function advantageSources(actor, armed) {
+    const sources = [];
+
+    // A Call somebody paid Hope or Despair for. Always one die: a Call is a
+    // purchase, and two purchases are two Calls, which sum here like anything
+    // else.
+    const fromCall = armed === "advantage" ? 1 : armed === "disadvantage" ? -1 : 0;
+    if (fromCall) sources.push({ key: "call", value: fromCall });
+
+    // The situation, already summed by whoever armed it - see armSituational.
+    const fromRoom = situationalGrant();
+    if (fromRoom) sources.push({ key: "situation", value: fromRoom });
+
+    // The guide's "Gracz przy utracie całego stresu dostaje disadvantage na
+    // każdy rzut" — a standing penalty that was declared in config and never
+    // reached a die until it was wired here.
+    const fromState = stateGrant(actor);
+    if (fromState) sources.push({ key: "state", value: fromState });
+
+    const net = fromCall + fromRoom + fromState;
+    const size = Math.abs(net);
+    return {
+        net,
+        sign: Math.sign(net),
+        count: Math.min(ADVANTAGE_CAP, size),
+        capped: size > ADVANTAGE_CAP,
+        sources
+    };
+}
+
+/** What the locked chip says when the player hovers it. */
+function explainAdvantage(sign, count, capped, sources) {
+    // One source, one die: the sentence that names the cause outright. Kept
+    // because it reads better than a list of one, and because these three
+    // strings are what a player has learned to recognise.
+    if (sources.length === 1 && count === 1) {
+        return sources[0].key === "call"
+            ? "DRPG.RollDialog.forcedByCall"
+            : sources[0].key === "situation"
+                ? "DRPG.RollDialog.forcedBySituation"
+                : "DRPG.RollDialog.forcedByState";
+    }
+
+    const list = sources
+        .map(source => `${game.i18n.localize(`DRPG.RollDialog.source.${source.key}`)} ${
+            source.value > 0 ? "+" : "\u2212"}${Math.abs(source.value)}`)
+        .join(", ");
+
+    // THREE SHAPES, NOT TWO. Several sources can still come to one die — a Call
+    // against a doubly hostile room is exactly that — and the counting sentence
+    // then has to say "1 dice", which is the sort of thing a player reads as the
+    // module not knowing what it is doing. So that case gets its own wording,
+    // which is about the sources rather than about the number.
+    const stacked = count > 1;
+    const text = game.i18n.format(
+        stacked
+            ? (sign === 1 ? "DRPG.RollDialog.stackedAdvantage" : "DRPG.RollDialog.stackedDisadvantage")
+            : (sign === 1 ? "DRPG.RollDialog.mixedAdvantage" : "DRPG.RollDialog.mixedDisadvantage"),
+        { n: count, sources: list });
+
+    return capped
+        ? `${text} ${game.i18n.format("DRPG.RollDialog.advantageCapped", { cap: ADVANTAGE_CAP })}`
+        : text;
+}
+
+/**
+ * Put the number on the chip.
+ *
+ * Trap 55: this window opens for a student ONLY when something is forced, so
+ * the chip is the entire report. A chip that looks identical at one die and at
+ * three tells a player they have advantage while saying nothing about the
+ * advantage they are actually getting — and the tooltip is a hover away on a
+ * modal they are about to dismiss with the one live button on it.
+ *
+ * Appended rather than written into the label: the label is the system's, and
+ * a render replaces the whole chip, so this runs again on fresh markup every
+ * time and needs no cleanup.
+ */
+function markChipCount(chip, count) {
+    if (count <= 1) return;
+    if (chip.querySelector(".drpg-adv-count")) return;
+
+    const badge = document.createElement("span");
+    badge.className = "drpg-adv-count";
+    badge.textContent = `\u00d7${count}`;
+    chip.append(badge);
+}
+
 function disable(el, tooltipKey) {
     el.disabled = true;
     el.classList.add("drpg-locked");
     el.dataset.tooltip = game.i18n.localize(tooltipKey);
 }
 
-function lockChip(chip, tooltipKey) {
+/**
+ * @param {string} tooltip  A lang KEY, or text already built.
+ *   `game.i18n.localize` returns its argument unchanged when there is no such
+ *   key, so the stacked explanation — which is assembled from three strings and
+ *   a list — passes through untouched. One parameter rather than two, because a
+ *   second one would have to be threaded through every one of the nine call
+ *   sites that only ever pass a key.
+ */
+function lockChip(chip, tooltip) {
     chip.disabled = true;
     chip.classList.add("drpg-locked");
-    chip.dataset.tooltip = game.i18n.localize(tooltipKey);
+    chip.dataset.tooltip = game.i18n.localize(tooltip);
     chip.addEventListener("click", stop, { capture: true });
 }
 
@@ -460,17 +599,47 @@ function lockChip(chip, tooltipKey) {
  * re-enters this hook, so without the guard this would loop forever.
  * ========================================================================== */
 
-const forced = new WeakSet();
+const forced = new WeakMap();
 
-function forceAdvantage(app, advantage) {
+/**
+ * Impose a direction AND a number of dice.
+ *
+ * The count is Daggerheart's own: `DualityRoll` carries `advantageNumber`, and
+ * its `applyAdvantage()` builds `new advDieClass({faces, number})` and attaches
+ * `kh` as soon as the number is above one. So two advantage dice are 2d6 keep
+ * the highest — not 2d6 added — and it renders in the formula and in Dice So
+ * Nice with nothing further from us.
+ *
+ * THE GUARD REMEMBERS THE PAIR, NOT THE FACT (trap 53). It used to be a
+ * WeakSet, which answers "has this dialog been forced" — and that was enough
+ * while there was only ever one thing to force. It is not enough now: a dialog
+ * whose advantage is already 1 would satisfy the old early-out and never get
+ * its second die, so a Hope Call in a favouring room would quietly be worth the
+ * same as either one alone. The key is the direction and the count together;
+ * asking for what is already set is still free, which is what keeps the render
+ * this triggers from looping.
+ */
+function forceAdvantage(app, advantage, count = 1) {
     try {
-        if (app.config.roll.advantage === advantage) return;
-        if (forced.has(app)) return;
-        forced.add(app);
+        const want = `${advantage}:${count}`;
+        if (forced.get(app) === want) return;
+
+        // Already exactly right — from a previous pass, or because the player
+        // is a Monokuma whose window we do not lock. Recorded so the next
+        // render short-circuits above rather than re-deriving this.
+        if (app.config.roll.advantage === advantage
+            && Number(app.roll?.advantageNumber) === count) {
+            forced.set(app, want);
+            return;
+        }
+        forced.set(app, want);
 
         app.config.roll.advantage = advantage;
         app.advantage = advantage === 1;
         app.disadvantage = advantage === -1;
+        // Written even when it is 1: "one die" has to be said out loud, or a
+        // count left over from an earlier pass would outlive the reason for it.
+        if (app.roll) app.roll.advantageNumber = count;
 
         // Match what clicking the button would have done to the bonus dice.
         const rules = app.config.data?.rules?.roll;

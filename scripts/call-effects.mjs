@@ -62,13 +62,36 @@ export function unshieldCalls() { shielded = Math.max(0, shielded - 1); }
  *
  * A module-level value for the same reason `shielded` is one: the roll dialog
  * reads this from its own hook and never sees the action's arguments.
+ *
+ * IT IS A COUNT, NOT A SIGN (E7). This used to store `Math.sign(value)`, and
+ * the arithmetic it flattened was already being done: `performSearch` adds a
+ * favouring room, a hindering room and somebody's concealed stash; a crisis
+ * roll adds a weapon in hand, a second try after a miss and the guide's
+ * "the victim gets advantage on every roll" for dying alone to a trap. All of
+ * that was summed, carefully, and then thrown away at this line. A victim with
+ * three reasons to be helped got exactly as much as one with a single reason.
  */
 let situational = 0;
 
-export function armSituational(value) { situational = Math.sign(value) || 0; }
+/**
+ * @param {number} value  Signed, and its SIZE matters: +2 means two dice.
+ *   Truncated because a die count is a whole number and a caller that computed
+ *   a fraction has made a mistake this file should not carry forward.
+ */
+export function armSituational(value) {
+    situational = Math.trunc(Number(value)) || 0;
+}
+
 export function clearSituational() { situational = 0; }
 
-/** -1, 0 or 1. Zero while a supporting roll is shielded. */
+/**
+ * A signed count. Zero while a supporting roll is shielded.
+ *
+ * The shield is why trap 57 needs nothing done to it: a concealment roll sees
+ * zero here and `null` from `pendingCall`, so BOTH bought sources vanish
+ * together, whatever their size. The character's own Breakdown is deliberately
+ * not shielded and never was — see `stateGrant` in roll-dialog.mjs.
+ */
 export function situationalAdvantage() {
     return shielded ? 0 : situational;
 }

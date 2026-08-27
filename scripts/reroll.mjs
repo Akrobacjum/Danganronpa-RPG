@@ -32,6 +32,57 @@ import { MODULE_ID, FLAGS, ACTIONS, PROJECT_SCALE, DYNAMIC_THRESHOLDS } from "./
 import { resolveThreshold, replaceFlag, log, error, plural } from "./utils.mjs";
 
 /**
+ * Reroll, with the dice the first roll was actually made with.
+ *
+ * `Roll#reroll()` is `clone()` then `evaluate()`, and `clone()` is
+ * `new this.constructor(this._formula, this.data, this.options)`. For a
+ * `DualityRoll` that constructor calls `constructFormula()` immediately — which
+ * throws the passed formula away and rebuilds the terms from
+ * `this.advantageNumber`. On a brand-new instance that field has not been
+ * initialised yet (a class field runs after `super()` returns), so it reads as
+ * `undefined` and the advantage die is built with `number: 1`.
+ *
+ * Which was invisible until E7, because one die rebuilt as one die. Now a roll
+ * made with three advantage dice came back from a Reroll with one — measured on
+ * the sandbox: `1d12 + 1d12 + 2d6kh` went in and `1d12 + 1d12 + 1d6` came out.
+ * That is exactly the silent loss Reroll exists not to inflict: a player spends
+ * three Hope to throw the dice again and is quietly handed a weaker roll than
+ * the one they are replacing.
+ *
+ * So the clone is made here, told how many dice it is meant to have, and asked
+ * to build its formula again. `constructFormula` re-reads the same options the
+ * clone already carries, so the experiences, the extra formula and the flat
+ * modifiers come back with it — this adds the one thing the round trip drops
+ * and changes nothing else.
+ *
+ * The one-die case still goes through `reroll()` untouched. It is the system's
+ * own path, it is what every roll in the game before this used, and there is no
+ * reason to route it through a reconstruction to arrive at the same place.
+ */
+async function rerollKeepingDice(original) {
+    const wanted = advantageDice(original);
+    if (wanted <= 1) return original.reroll({ liveRoll: true });
+
+    const clone = original.clone();
+    clone.advantageNumber = wanted;
+    clone.constructFormula(clone.options);
+    return clone.evaluate({ liveRoll: true });
+}
+
+/**
+ * How many bonus dice this roll was thrown with.
+ *
+ * Read off the die itself rather than from `advantageNumber`, which is the
+ * field the round trip loses — the TERM survives serialisation with its count
+ * intact, so the dice are their own record of how many there were.
+ */
+function advantageDice(roll) {
+    const die = roll?.dAdvantage ?? roll?.dDisadvantage ?? null;
+    const number = Number(die?.number);
+    return Number.isFinite(number) && number > 0 ? number : 1;
+}
+
+/**
  * Reroll this character's last roll.
  * @returns {Promise<string[]>} lines describing what changed, for the Call's receipt.
  */
@@ -57,7 +108,7 @@ export async function rerollLastAction(actor) {
     // Hope and Sanity the first result granted.
     let rerolled;
     try {
-        rerolled = await original.reroll({ liveRoll: true });
+        rerolled = await rerollKeepingDice(original);
         await message.update({ rolls: [rerolled] });
     } catch (err) {
         error("Could not reroll the last action", err);

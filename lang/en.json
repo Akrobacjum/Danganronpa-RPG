@@ -868,9 +868,9 @@
       "state": {
         "paused": "Game on hold",
         "eclipse": "Eclipse (placement window)",
-        "trialObjection": "Class Trial — an Objection has the floor",
-        "trialDebate": "Class Trial — the debate is open",
-        "trialDiscussion": "Class Trial — in session",
+        "trialObjection": "Objection",
+        "trialDebate": "Debate",
+        "trialDiscussion": "Discussion",
         "search": "Investigation"
       },
       "playNow": "Put a track on now",
@@ -1770,7 +1770,17 @@
       "forcedByCall": "Set by a Call you paid for. It cannot be turned off.",
       "forcedBySituation": "Set by where you are and what you are looking for. It cannot be turned off.",
       "forcedByState": "You are in Breakdown — every roll is at disadvantage until some Sanity comes back. It cannot be turned off.",
-      "lockedByCall": "A Call has already decided this roll's modifier."
+      "lockedByCall": "A Call has already decided this roll's modifier.",
+      "stackedAdvantage": "Advantage ×{n} — {sources}. You roll {n} bonus dice and the best one counts. It cannot be turned off.",
+      "stackedDisadvantage": "Disadvantage ×{n} — {sources}. You roll {n} penalty dice and the worst one counts. It cannot be turned off.",
+      "mixedAdvantage": "Advantage — {sources}. Together that is one bonus die. It cannot be turned off.",
+      "mixedDisadvantage": "Disadvantage — {sources}. Together that is one penalty die. It cannot be turned off.",
+      "advantageCapped": "More than {cap} dice stops being a roll, so it stops at {cap}.",
+      "source": {
+        "call": "a Call",
+        "situation": "where you are",
+        "state": "Breakdown"
+      }
     },
     "Bridge": {
       "criticalHint": "Critical — this player is owed a substantial hint.",

@@ -248,6 +248,27 @@ const INVARIANTS = [
     // Fail here, at the moment before a release, rather than in front of a
     // table afterwards.
     /*
+     * E7 RESTS ENTIRELY ON A FIELD THE SYSTEM OWNS.
+     *
+     * Stacked advantage is `DualityRoll#advantageNumber` and the `kh` its
+     * `applyAdvantage()` attaches. If a Daggerheart update drops either, nothing
+     * throws and nothing looks wrong: every roll simply gets one bonus die, and
+     * a Hope Call spent in a favouring room is worth what the room was worth
+     * alone. That is the same class of silent failure as the music, and it is
+     * caught the same way — by asking whether the thing we are standing on is
+     * still there.
+     */
+    ["Daggerheart still supports more than one advantage die", () => {
+        const DualityRoll = game.system?.api?.dice?.DualityRoll;
+        ok(DualityRoll, "Daggerheart's DualityRoll is not where this module looks for it");
+        ok(Object.getOwnPropertyDescriptor(DualityRoll.prototype, "advantageNumber")?.set,
+            "DualityRoll has no advantageNumber setter any more — stacked advantage would "
+            + "collapse to a single die without a word from anybody");
+        ok(typeof DualityRoll.prototype.applyAdvantage === "function",
+            "DualityRoll.applyAdvantage is gone — it is what turns a count into `kh`");
+    }],
+
+    /*
      * THE MUSIC'S FAILURES ARE ALL SILENT (E6).
      *
      * Every other subsystem announces a mistake: a card that does not post, a

@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json — the suite fails if it does not. */
-    --drpg-css-version: "1.1.15";
+    --drpg-css-version: "1.1.16";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -1799,6 +1799,24 @@ body.drpg-pixel-font .drpg-call-button .drpg-action-cost {
     cursor: default;
     background: rgba(var(--drpg-gold-rgb), 0.15);
     color: var(--drpg-gold);
+}
+
+/* How many dice, on the chip itself (E7).
+
+   The roll window opens for a student ONLY when something is forced, so this
+   chip is the whole report — and one die and three dice looked identical on it.
+   `!important` because the module stylesheet is imported into a cascade layer
+   and the system's own chip rules are not, so an unlayered rule of any
+   specificity would otherwise win. */
+.roll-selection .drpg-adv-count {
+    margin-left: 0.3em !important;
+    padding: 0 0.25em !important;
+    border-radius: 3px !important;
+    font-size: var(--drpg-text-xs) !important;
+    font-weight: 700 !important;
+    line-height: 1.4 !important;
+    background: rgba(var(--drpg-gold-rgb), 0.28) !important;
+    color: var(--drpg-gold) !important;
 }
 
 .drpg-free-crit-banner {
