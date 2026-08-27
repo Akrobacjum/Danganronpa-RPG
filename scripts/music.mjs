@@ -27,25 +27,49 @@
  * FADES are Foundry's. A playlist's `fade`, or a sound's own, is read by
  * `PlaylistSound#fadeDuration` and applied on both start and stop — this file
  * never animates a volume itself.
+ *
+ * THE TRIAL IS THREE STATES, NOT ONE (E6). Everything else in this file is one
+ * mood that lasts as long as the scene does. A Class Trial is not: it is a
+ * discussion that keeps being taken away by an Objection and handed back, and
+ * scoring all of it with one playlist is the difference between a trial that
+ * builds and a trial that is forty minutes of the same track. So the trial
+ * reads the FLOOR, which is the module's own record of who may speak, and it
+ * brings two behaviours nothing else here needs: a random track per takeover
+ * (`randomTrack`) so a second Objection is not the first one again, and a path
+ * that skips the settle window (`immediate`) because an Objection lasts sixty
+ * seconds and half of one spent arriving is audible.
  */
 
 import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, SITUATIONAL_PLAYLIST } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
-import { trialQueue } from "./trial-floor.mjs";
-import { isPrimaryGm, debug, log, error, plural } from "./utils.mjs";
+import { trialFloor, FLOOR_MODES } from "./trial-floor.mjs";
+import { isPrimaryGm, debug, log, warn, error, plural } from "./utils.mjs";
 
 /**
- * True while THIS file is changing playback.
+ * How deep we are inside THIS file changing playback.
  *
  * `resource-guard.mjs` tells automation apart from hand-editing with a flag in
  * the update options, which is the tidier mechanism — but `Playlist#playAll`
  * and `#stopAll` build their own `update()` call and accept no options to pass
  * one through. So the marker has to live here instead: everything this file
- * does goes through `asOurs`, and an update that arrives while that is false is
+ * does goes through `asOurs`, and an update that arrives while that is zero is
  * the GM's own.
+ *
+ * A COUNTER RATHER THAN A BOOLEAN, and that is not tidiness. A boolean is
+ * wrong the moment one `asOurs` block calls another: the inner block's
+ * `finally` clears the marker, and THE REST OF THE OUTER BLOCK then runs
+ * looking exactly like a GM reaching into the sidebar — `watchManualPlayback`
+ * would read our own write as a scene cue and start holding playlists for it.
+ * Nothing nested until E6; `crossfade` now rewinds a playlist before it plays
+ * a track, and both halves are ours.
  */
-let applying = false;
+let applyDepth = 0;
+
+/** Is this file the one making the change that just arrived? */
+function ourDoing() {
+    return applyDepth > 0;
+}
 
 /**
  * Written on a playlist while it is paused for somebody else's track.
@@ -58,11 +82,11 @@ let applying = false;
 const HELD_FLAG = "held";
 
 async function asOurs(fn) {
-    applying = true;
+    applyDepth++;
     try {
         return await fn();
     } finally {
-        applying = false;
+        applyDepth--;
     }
 }
 
@@ -82,14 +106,46 @@ async function asOurs(fn) {
 export const MUSIC_STATES = [
     { key: "paused", labelKey: "DRPG.Music.state.paused", test: () => game.paused },
     { key: "eclipse", labelKey: "DRPG.Music.state.eclipse", test: () => getClock().eclipse === true },
-    // The floor being OPEN, not the phase being displayed.
-    //
-    // Setting the chapter phase to "Class Trial" in Edit Campaign is
-    // bookkeeping — a GM does it while preparing, often minutes before anyone
-    // is in the room, and it used to start the trial music there and then. The
-    // trial actually begins when the floor opens and somebody has the right to
-    // speak, which is exactly when `trialQueue()` starts answering.
-    { key: "trial", labelKey: "DRPG.Music.state.trial", test: () => trialQueue() !== null },
+    /*
+     * THE TRIAL, IN THE ORDER ITS OWN MODES OUTRANK EACH OTHER.
+     *
+     * There used to be one entry here, testing "is the floor open" — which
+     * meant a Class Trial with no debate running played the time of day, and
+     * an Objection played whatever the debate had been playing. Both are the
+     * trial's loudest moments arriving with no change in the room.
+     *
+     * REBUTTAL HAS NO STATE OF ITS OWN, on purpose. Dawid's rule is "on a
+     * rebuttal the debate plays again", and that is one condition rather than a
+     * table of transitions: the rebuttal is the same argument continuing, with
+     * the pair narrowed. Giving it a fourth playlist would ask a GM to choose
+     * music for a distinction the table does not hear.
+     *
+     * `trial.discussion` is the trial WITHOUT an open floor — the phase set,
+     * everybody in the room, nobody holding anything. It is last of the three
+     * because it is the widest: the floor being open is also the phase being
+     * `classTrial`, so an unordered version of this would never reach the
+     * other two.
+     */
+    {
+        key: "trial.objection", labelKey: "DRPG.Music.state.trialObjection",
+        randomTrack: true,
+        // Sixty seconds, all of them audible. See `schedule`.
+        immediate: true,
+        test: () => trialFloor()?.mode === FLOOR_MODES.objection
+    },
+    {
+        key: "trial.debate", labelKey: "DRPG.Music.state.trialDebate",
+        randomTrack: true,
+        test: () => {
+            const mode = trialFloor()?.mode;
+            return mode === FLOOR_MODES.discussion || mode === FLOOR_MODES.rebuttal;
+        }
+    },
+    {
+        key: "trial.discussion", labelKey: "DRPG.Music.state.trialDiscussion",
+        randomTrack: true,
+        test: () => getClock().phase === "classTrial"
+    },
     { key: "search", labelKey: "DRPG.Music.state.search", test: () => getClock().phase === "investigation" },
     ...TIMES_OF_DAY.map(time => ({
         key: `time.${time}`,
@@ -97,6 +153,11 @@ export const MUSIC_STATES = [
         test: () => getClock().timeOfDay === time
     }))
 ];
+
+/** One state's declaration, for the two behaviours only the trial uses. */
+function stateDef(key) {
+    return MUSIC_STATES.find(s => s.key === key) ?? null;
+}
 
 /** Which state owns the music right now. */
 export function currentState() {
@@ -153,10 +214,31 @@ let interrupted = null;
 
 export function registerMusic() {
     Hooks.on("drpgTimeOfDayChanged", () => schedule());
-    // Opening or closing the floor is now a state change the music follows.
-    // The queue lives in a world setting, so this is the event that carries it.
+    /*
+     * The two world settings the states are read out of.
+     *
+     * The FLOOR carries the trial's modes, so this is what makes an Objection
+     * change the music at the moment it takes the floor rather than at the
+     * moment something else happens to fire.
+     *
+     * The CLOCK is new in E6 and it is not decoration: `trial.discussion` is
+     * true because the phase says `classTrial`, and nothing here was listening
+     * for the phase moving. A GM opening the trial from the campaign window
+     * would have set a state that only took effect the next time something
+     * else changed. The time of day has its own hook above and arrives here
+     * too — `apply` no-ops on an unchanged state, so the overlap costs one
+     * comparison and buys not having to reason about which route fired.
+     *
+     * Matched on the whole key rather than its ending, because "ends with
+     * trialQueue" is also true of another module's setting of the same name.
+     */
     Hooks.on("updateSetting", setting => {
-        if (setting?.key?.endsWith("trialQueue")) schedule();
+        const key = setting?.key;
+        if (key !== `${MODULE_ID}.${SETTINGS.trialQueue}`
+            && key !== `${MODULE_ID}.${SETTINGS.clock}`) return;
+        // Asked AFTER the setting has landed, so this is the state we are
+        // moving TO rather than the one we are leaving.
+        schedule({ now: stateDef(currentState())?.immediate === true });
     });
     Hooks.on("drpgEclipseChanged", () => schedule());
     Hooks.on("pauseGame", () => schedule());
@@ -223,13 +305,47 @@ function adoptRunningInterruption() {
     }
 }
 
-function schedule() {
+/**
+ * Ask for the music to be brought in line with the state.
+ *
+ * @param {object}  [options]
+ * @param {boolean} [options.now]  Skip the settle window. For a state that is
+ *   over before the window would have closed — see `immediate` in the
+ *   catalogue, which today is the Objection alone.
+ */
+function schedule({ now = false } = {}) {
     if (!enabled()) return;
-    if (settleTimer) clearTimeout(settleTimer);
+    if (settleTimer) {
+        clearTimeout(settleTimer);
+        settleTimer = null;
+    }
+    if (now) {
+        runApply();
+        return;
+    }
     settleTimer = setTimeout(() => {
         settleTimer = null;
-        apply().catch(err => error("Could not follow the state with the music", err));
+        runApply();
     }, SETTLE_MS);
+}
+
+/**
+ * One `apply()` at a time, in the order they were asked for.
+ *
+ * `apply()` awaits several playlist writes, so it is perfectly possible for a
+ * second one to start while the first is between stopping and starting — and
+ * two crossfades interleaved leave two playlists running and `playingState`
+ * naming neither. The settle window used to make that vanishingly unlikely by
+ * spacing every call 400ms apart; the immediate path removes exactly that
+ * spacing, so the ordering has to be said out loud instead of assumed.
+ */
+let applyChain = Promise.resolve();
+
+function runApply() {
+    applyChain = applyChain
+        .then(() => apply())
+        .catch(err => error("Could not follow the state with the music", err));
+    return applyChain;
 }
 
 function enabled() {
@@ -279,6 +395,16 @@ async function apply() {
     //
     // So the interruption is held against the state it began in. Same state:
     // let it finish. Different state: take the music back now.
+    //
+    // E6 MADE THIS BITE HARDER, and that is worth knowing before it surprises
+    // somebody at the table. The whole Class Trial used to be ONE state, so a
+    // track a GM put on mid-trial survived the entire trial. The trial is three
+    // states now, and an Objection is a different one - so an Objection takes
+    // the music off the GM's cue, and when it ends the debate takes it rather
+    // than the cue coming back. That is almost certainly right: an Objection is
+    // the loudest beat in the game, and a GM who wants their own track through
+    // one can simply leave the Objection unmapped. But it is a change in
+    // behaviour rather than a consequence of one, and it belongs in writing.
     if (interrupted) {
         const moved = currentState();
         // Nothing mapped for the new state means we have nothing to replace it
@@ -300,7 +426,7 @@ async function apply() {
         return;
     }
 
-    await crossfade(next);
+    await crossfade(next, { randomTrack: stateDef(state)?.randomTrack === true });
     playingState = state;
     log(`Music: ${state} -> "${next.name}".`);
 }
@@ -311,8 +437,14 @@ async function apply() {
  * Sequential rather than simultaneous on purpose: Foundry fades a stopping
  * playlist out and a starting one in, and starting the second before the first
  * has been told to stop gives a few seconds of both at once.
+ *
+ * @param {Playlist} next
+ * @param {object}  [options]
+ * @param {boolean} [options.randomTrack]  Start ONE track, chosen at random,
+ *   rather than letting the playlist resume wherever it left off. The trial's
+ *   three states ask for this; see `playRandomTrack`.
  */
-function crossfade(next) {
+function crossfade(next, { randomTrack = false } = {}) {
     return asOurs(async () => {
         for (const playlist of ours()) {
             if (playlist.id === next.id) continue;
@@ -326,11 +458,62 @@ function crossfade(next) {
 
         if (next.playing) return;
         try {
-            await next.playAll();
+            if (randomTrack) await playRandomTrack(next);
+            else await next.playAll();
         } catch (err) {
             error(`Could not start "${next.name}"`, err);
         }
     });
+}
+
+/**
+ * What each playlist started last, so it does not start it again next time.
+ *
+ * A variable, not a flag on the document. It only has to be right within one
+ * trial, on the one client that drives playback, and the cost of being wrong is
+ * that a track repeats once after a reload — which is not worth a world write
+ * per objection.
+ */
+const lastTrack = new Map();
+
+/**
+ * Start ONE track from this playlist, and not the one it started last time.
+ *
+ * This is what makes a second Objection sound like a second Objection.
+ * `playAll()` — what every other state uses — resumes a playlist where it left
+ * off, and for an ambient mood that is exactly right: an afternoon carrying on
+ * from where the afternoon stopped. A trial state takes over in bursts, four or
+ * five times in the same trial, and resuming means the same sting from the same
+ * second, every time.
+ *
+ * THE EXCLUSION IS SKIPPED FOR A ONE-TRACK PLAYLIST rather than leaving nothing
+ * to choose from. A GM with one Objection sting has said what they want.
+ *
+ * THE TRACK IS REWOUND FIRST, and that is not optional: `Playlist#stopAll`
+ * writes `playing: false` and leaves every `pausedTime` exactly where it was,
+ * so a track this file stopped an hour ago is still carrying an offset. Without
+ * the rewind a "random track" starts at 1:47 — the same trap the cue playlist
+ * hit, and it is now the same function that answers both.
+ */
+async function playRandomTrack(playlist) {
+    const sounds = Array.from(playlist.sounds ?? []);
+    if (!sounds.length) {
+        // Not an error: a playlist can be mapped before it has anything in it.
+        // Said out loud because the symptom — the music stopping the moment the
+        // trial starts — looks nothing like the cause.
+        warn(`Music: "${playlist.name}" is mapped but has no tracks, so there is `
+            + "nothing to play for this state.");
+        return;
+    }
+
+    const last = lastTrack.get(playlist.id);
+    const pool = sounds.length > 1 ? sounds.filter(s => s.id !== last) : sounds;
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+
+    lastTrack.set(playlist.id, pick.id);
+    await rewindTo(playlist, pick.id);
+    await playlist.playSound(pick);
+    debug(`Music: "${playlist.name}" -> "${pick.name}".`);
 }
 
 /**
@@ -512,18 +695,23 @@ function anythingPlaying() {
 }
 
 /**
- * Clear the cue playlist down to the one track about to play.
+ * Clear a playlist down to the one track about to play, and rewind that track.
  *
- * `Playlist#playSound` already does this for a Sequential or Shuffle playlist
- * and does NOT for a Simultaneous or Soundboard one, where it starts the new
- * sound and leaves the others running — which is how pressing Play twice ended
- * up with two cues playing at once.
+ * `Playlist#playSound` already does the first half for a Sequential or Shuffle
+ * playlist and does NOT for a Simultaneous or Soundboard one, where it starts
+ * the new sound and leaves the others running — which is how pressing Play
+ * twice ended up with two cues playing at once.
  *
  * The track that is about to start has its own `pausedTime` cleared as well, so
- * it begins at the beginning. A cue is chosen for a moment at the table, not
- * resumed from wherever it happened to stop the last time it was used.
+ * it begins at the beginning. That is the half both callers need and neither
+ * gets for free: `stopAll` never clears an offset, so any track this file has
+ * stopped is still carrying one, however long ago. A cue is chosen for a moment
+ * at the table and a trial track for a beat in an argument; neither is resumed
+ * from wherever it happened to stop the last time it was used.
+ *
+ * Was `clearCuePlaylist`, back when the cue was the only thing that needed it.
  */
-function clearCuePlaylist(playlist, keepId) {
+function rewindTo(playlist, keepId) {
     return asOurs(async () => {
         const updates = playlist.sounds
             .filter(s => s.id !== keepId && (s.playing || s.pausedTime))
@@ -556,7 +744,7 @@ function clearCuePlaylist(playlist, keepId) {
  *
  * Wrapped in `asOurs` so the stop we cause is not read back as the GM stopping
  * it by hand — `watchManualEnd` and `watchManualPlayback` both bail while
- * `applying` is true, which is the whole reason that marker exists.
+ * `ourDoing()` is true, which is the whole reason that marker exists.
  */
 function stopPlaylistDead(playlist) {
     return asOurs(async () => {
@@ -629,9 +817,9 @@ function ours() {
 function watchManualPlayback() {
     Hooks.on("updatePlaylistSound", (sound, changes) => {
         if (!enabled()) return;
-        // Ours. See `applying`: this cannot be a flag in the update options,
+        // Ours. See `applyDepth`: this cannot be a flag in the update options,
         // because the methods that produce these updates take none.
-        if (applying) return;
+        if (ourDoing()) return;
         if (!("playing" in changes)) return;
 
         // A sound inside a playlist we drive is the state machine's business,
@@ -703,7 +891,7 @@ function onManualStart(sound) {
 function watchManualEnd() {
     Hooks.on("updatePlaylist", (playlist, changes) => {
         if (!enabled()) return;
-        if (applying) return;
+        if (ourDoing()) return;
         if (changes.playing !== false) return;
         if (!interrupted) return;
         // The CUE's own playlist stopping, and nothing else.
@@ -829,7 +1017,7 @@ export async function playTrack(track, soundId) {
             held = await holdEverything(playlist);
         }
 
-        await clearCuePlaylist(playlist, sound.id);
+        await rewindTo(playlist, sound.id);
 
         // `repeat` carries no `playing` key, so it is not the write that starts
         // anything; it is set first so the track is already on repeat by the
@@ -1037,6 +1225,7 @@ export async function openSoundDialog() {
             ${playlists.length ? "" : `<p class="notes drpg-warning">${
                 game.i18n.localize("DRPG.Music.noPlaylists")}</p>`}
             <p class="notes">${game.i18n.localize("DRPG.Music.orderNote")}</p>
+            <p class="notes">${game.i18n.localize("DRPG.Music.trialNote")}</p>
             <p class="notes">${game.i18n.localize("DRPG.Music.incidentNote")}</p>
             <table class="drpg-vault-table"><thead><tr>
                 <th>${game.i18n.localize("DRPG.Music.when")}</th>
@@ -1248,7 +1437,7 @@ export function diagnoseMusic() {
         `A cue is running: ${interrupted ? "yes" : "no"}${
             interrupted?.held?.length ? `, holding ${interrupted.held.length} playlist(s)` : ""}`,
         "",
-        "state            applies  playlist"
+        "state              applies  playlist"
     ];
 
     for (const state of MUSIC_STATES) {
@@ -1258,11 +1447,16 @@ export function diagnoseMusic() {
         } catch (err) {
             applies = `error: ${err.message}`;
         }
-        const playlist = map[state.key]
-            ? game.playlists.get(map[state.key])?.name ?? "MAPPED TO A MISSING PLAYLIST"
-            : "—";
+        const mapped = map[state.key] ? game.playlists.get(map[state.key]) : null;
+        // "Mapped to a playlist with nothing in it" is silence that looks
+        // exactly like a correct mapping from every other angle.
+        const playlist = !map[state.key] ? "—"
+            : !mapped ? "MAPPED TO A MISSING PLAYLIST"
+            : !mapped.sounds.size ? `${mapped.name} — EMPTY, nothing to play`
+            : mapped.name;
         const mark = state.key === winner ? " <- wins" : "";
-        lines.push(`${state.key.padEnd(16)} ${String(applies).padEnd(8)} ${playlist}${mark}`);
+        const random = state.randomTrack ? " (random track)" : "";
+        lines.push(`${state.key.padEnd(18)} ${String(applies).padEnd(8)} ${playlist}${mark}${random}`);
     }
 
     if (!winner) lines.push("", "No state applies at all — nothing will play.");

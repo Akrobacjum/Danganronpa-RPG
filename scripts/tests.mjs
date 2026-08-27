@@ -33,6 +33,7 @@ import { getClock, setClock } from "./clock.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { detectPageTinting, stylesheetVersion } from "./diagnostics.mjs";
 import { voiceTargets, liveKitRoomFor } from "./voice.mjs";
+import { MUSIC_STATES, musicMap } from "./music.mjs";
 import { log, warn } from "./utils.mjs";
 
 /* ==========================================================================
@@ -246,6 +247,60 @@ const INVARIANTS = [
     // "v1.0.53 (manifest 1.1.0)" off a second stamp nobody remembered to bump.
     // Fail here, at the moment before a release, rather than in front of a
     // table afterwards.
+    /*
+     * THE MUSIC'S FAILURES ARE ALL SILENT (E6).
+     *
+     * Every other subsystem announces a mistake: a card that does not post, a
+     * button that refuses. The music's mistakes are all the same shape — the
+     * right thing not happening — and a table hears a state with no music as a
+     * GM who has not got round to mapping it yet. So they are checked here
+     * rather than at the table.
+     */
+    ["every music state has a label somebody can read", () => {
+        for (const state of MUSIC_STATES) {
+            const label = state.label ?? game.i18n.localize(state.labelKey);
+            ok(label && label !== state.labelKey,
+                `the music state "${state.key}" has no label — "${state.labelKey}" `
+                + "is missing from lang/en.json, and the GM's mapping table would "
+                + "show the key instead of a name");
+        }
+    }],
+
+    // Order IS the rule in this list — the first state that applies wins — so
+    // an order that puts a wider state above a narrower one does not fail, it
+    // makes the narrower one unreachable for good. All three trial states are
+    // true during an Objection; only the order decides which is heard.
+    ["the trial's three music states are ordered so each one can win", () => {
+        const at = key => MUSIC_STATES.findIndex(s => s.key === key);
+        const objection = at("trial.objection");
+        const debate = at("trial.debate");
+        const discussion = at("trial.discussion");
+
+        ok(objection >= 0 && debate >= 0 && discussion >= 0,
+            "the trial is missing one of its three music states");
+        ok(objection < debate,
+            "trial.objection is below trial.debate, so an Objection would never "
+            + "take the music — the debate matches first");
+        ok(debate < discussion,
+            "trial.debate is below trial.discussion, so an open floor would never "
+            + "take the music — the phase matches first");
+        ok(discussion < at("search"),
+            "the trial's states are below the Investigation's");
+    }],
+
+    // Trap 47. The old `trial` key was mapped by hand in every world that used
+    // the music, and no state answers to it any more: left behind, it is a
+    // mapping that looks right in the setting and produces silence at the one
+    // moment of the game that most needs music. The migration moves it; this is
+    // what says the migration actually ran here.
+    ["nothing is mapped to a music state that no longer exists", () => {
+        const known = new Set(MUSIC_STATES.map(s => s.key));
+        const orphans = Object.keys(musicMap()).filter(key => !known.has(key));
+        ok(!orphans.length,
+            `this world maps ${orphans.join(", ")} to a playlist, and no music state `
+            + "answers to that name — run game.drpg.migrate1_2_0({ force: true })");
+    }],
+
     ["the stylesheet ships with the version it says it does", () => {
         const css = stylesheetVersion();
         ok(css, "the stylesheet is not on this page at all — run game.drpg.diagnoseStyles()");

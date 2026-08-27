@@ -86,9 +86,10 @@ const SEEDED_CHIME = "sounds/notify.wav";
  * route is untouched, and that is the only moment anybody wants every clause
  * re-entered regardless.
  *
- * Empty at E0 by design. The five clauses named in the plan arrive with the
- * stages that need them: trial playlists (E6), stash seeding and `stashRoom`
- * (E11), the old motive record (E14) and the safeword (E15).
+ * Empty at E0 by design. The clauses named in the plan arrive with the stages
+ * that need them: the messenger chime (E2, and then taken back out again by the
+ * same clause), trial playlists (E6), stash seeding and `stashRoom` (E11), the
+ * old motive record (E14) and the safeword (E15).
  *
  * A CLAUSE THAT REPAIRS SOMETHING THE BOOT PASSES HAVE ALREADY READ MUST ASK
  * THEM TO RUN AGAIN. This function is started at `ready` and not awaited, so
@@ -139,6 +140,72 @@ const CLAUSES = [
             const after = getSetting(SETTINGS.sfxMap) ?? {};
             if (after.chatReceive) throw new Error("the seeded chime is still mapped");
             return { removed: { chatReceive: SEEDED_CHIME } };
+        }
+    },
+    {
+        key: "trialMusicStates",
+        since: "1.1.15",
+        /*
+         * THE TRIAL'S ONE MUSIC STATE BECAME THREE, AND THE OLD KEY WOULD
+         * OTHERWISE BE ORPHANED.
+         *
+         * Before E6 the whole Class Trial was one state, `trial`, mapped to one
+         * playlist. It is now `trial.objection`, `trial.debate` and
+         * `trial.discussion` — and none of those is spelled `trial`, so a world
+         * that had trial music chosen would have had trial SILENCE the moment it
+         * updated, with a mapping still sitting in the setting pointing at a
+         * state nothing tests any more. Silence that arrives with an update and
+         * a setting that looks correct is the worst pair of symptoms this file
+         * exists to prevent.
+         *
+         * IT GOES TO `trial.debate`, which is what the old state actually was:
+         * `trial` tested "is the floor open", and an open floor is a debate or
+         * a rebuttal in every case but one. That one — an Objection — is left
+         * unmapped on purpose. Nothing mapped means the music is left alone
+         * (see `apply` in music.mjs), so a GM who has not yet chosen an
+         * Objection playlist keeps hearing the debate through it, which is
+         * exactly what they heard before this update. The new sound is
+         * something they opt into, not something the migration invents.
+         *
+         * Never over a choice already made: if `trial.debate` is set, the GM has
+         * been in the new window and said something, and this only clears up
+         * after them.
+         */
+        run: async () => {
+            const map = getSetting(SETTINGS.musicMap) ?? {};
+            if (!map.trial) return null;
+
+            const next = { ...map };
+            const kept = Boolean(next["trial.debate"]);
+            if (!kept) next["trial.debate"] = map.trial;
+            delete next.trial;
+            await setSetting(SETTINGS.musicMap, next);
+
+            // Read back: this clause REMOVES a key, and a resolved write is not
+            // proof of that in this Foundry — see the header.
+            const after = getSetting(SETTINGS.musicMap) ?? {};
+            if (after.trial) throw new Error("the old trial mapping is still there");
+
+            // The music has already decided what to play by now. `ready` starts
+            // this pass without awaiting it, so `registerMusic`'s first look at
+            // the world happened while the map still said `trial` — which no
+            // state answers to, so it found nothing mapped and left the room
+            // alone. Asking again is the three lines the header calls not
+            // optional.
+            try {
+                const { refreshMusic } = await import("./music.mjs");
+                refreshMusic();
+            } catch (err) {
+                // A mapping that is right but not yet acted on is fixed by the
+                // next state change. Never fail the clause over it.
+                error("Could not re-assert the music after moving the trial mapping", err);
+            }
+
+            return {
+                movedTo: kept ? null : "trial.debate",
+                keptExisting: kept,
+                playlist: game.playlists?.get(map.trial)?.name ?? map.trial
+            };
         }
     }
 ];

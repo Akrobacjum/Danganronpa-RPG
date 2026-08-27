@@ -854,7 +854,8 @@
       "tabPlay": "Play",
       "tabPlaylists": "Playlists",
       "intro": "Pick which playlist plays when. The module never starts a playlist you have not chosen here, and ships no audio of its own.",
-      "orderNote": "The first state that applies wins, in the order listed. A Class Trial at night uses the trial's playlist; an Eclipse during one uses the Eclipse's.",
+      "orderNote": "The first state that applies wins, in the order listed. A Class Trial at night uses the trial's playlists; an Eclipse during one uses the Eclipse's.",
+      "trialNote": "The trial's three rows are read in that order too: an Objection beats the open debate, and the debate beats the trial merely being in session. A rebuttal has no row of its own — it plays the debate again. All three pick a random track whenever they take over, never the one they played last, so a second Objection is not a repeat of the first. An Objection runs for one minute, so give that playlist a short fade: five seconds of it would be spent arriving.",
       "incidentNote": "A murder incident has no entry on purpose. A track that only ever played during one would tell the whole table a murder is happening. Whatever is playing keeps playing.",
       "fadeNote": "Fades are the playlist's own — set Fade Duration on the playlist or on a track, and both directions use it. Put a track on and everything else pauses where it stands, then resumes from there.",
       "when": "When",
@@ -867,7 +868,9 @@
       "state": {
         "paused": "Game on hold",
         "eclipse": "Eclipse (placement window)",
-        "trial": "Class Trial",
+        "trialObjection": "Class Trial — an Objection has the floor",
+        "trialDebate": "Class Trial — the debate is open",
+        "trialDiscussion": "Class Trial — in session",
         "search": "Investigation"
       },
       "playNow": "Put a track on now",
