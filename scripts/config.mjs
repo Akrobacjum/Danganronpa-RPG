@@ -12,20 +12,27 @@
 export const MODULE_ID = "danganronpa-rpg";
 
 /**
- * Which build of the SCRIPTS this is.
+ * The version of this module, from the one place a version is written.
  *
- * Not read from the manifest, deliberately. On a hosted world the manifest is
- * a record the host keeps — The Forge stamps a version when it installs a
- * package and goes on reporting it after the files underneath have been
- * replaced — so `game.modules.get(MODULE_ID).version` answers "what does the
- * host think is installed", which is a different question from "what is this
- * browser running". This constant travels inside the file it describes, and so
- * does `--drpg-css-version` in the stylesheet. Comparing those two compares the
- * two halves of what actually loaded.
+ * There used to be a hand-written `BUILD` constant here as well, on the
+ * reasoning that a hosted world's manifest records what the HOST installed
+ * while the files underneath may already have been replaced — two different
+ * questions, two stamps. The reasoning was sound and the practice was not: the
+ * two numbers had to be kept in step by hand, they promptly stopped being, and
+ * the GM panel spent a release telling people "v1.0.53 (manifest 1.1.0)" about
+ * a module whose only real version was 1.1.0. A stamp nobody trusts answers
+ * nothing. One number that cannot go stale beats two that need tending.
  *
- * Kept in step with module.json and the stylesheet by the release check.
+ * The question the second stamp was meant to answer — "are the files on this
+ * host the ones I uploaded?" — has a better tool in `fileSizes()`, which
+ * answers it per file instead of guessing from a single constant.
+ *
+ * Called, not captured at import time: `game.modules` does not exist yet when
+ * this file is first evaluated.
  */
-export const BUILD = "1.0.53";
+export function moduleVersion() {
+    return game.modules.get(MODULE_ID)?.version ?? "?";
+}
 
 /** Socket channel used for player -> GM requests (search tokens, reveals). */
 export const SOCKET = `module.${MODULE_ID}`;

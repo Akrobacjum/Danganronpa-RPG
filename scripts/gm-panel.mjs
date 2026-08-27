@@ -6,7 +6,7 @@
  * where everyone stands.
  */
 
-import { MODULE_ID, BUILD, FLAGS, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES,
+import { MODULE_ID, moduleVersion, FLAGS, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES,
     CHAPTERS_PER_SEASON } from "./config.mjs";
 import { getClock, setClock, setTimeOfDay, clockSummary, timeOfDayLabel, phaseLabel, campaignName } from "./clock.mjs";
 import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
@@ -264,19 +264,14 @@ export async function openGmPanel() {
         </details>`;
     }).join("");
 
-    // Which version is actually running, on the screen a GM opens most.
+    // Which version is running, on the screen a GM opens most.
     //
-    // It is read off the manifest rather than written here, so it cannot go
-    // stale — and it is on the panel rather than in the console because the
-    // question it answers ("is the fix I was sent actually loaded?") is asked
-    // by somebody looking at the interface, not at a debugger. On a hosted
-    // world that is the first thing worth knowing when something looks wrong.
-    // The build that is RUNNING, which is the useful one — see the note on
-    // `BUILD` in config.mjs. The manifest is shown beside it only when they
-    // disagree, because on a hosted world that gap is normal and the question
-    // it answers ("did my upload land?") is worth being able to see.
-    const manifest = game.modules.get(MODULE_ID)?.version ?? "?";
-    const version = manifest === BUILD ? BUILD : `${BUILD} (manifest ${manifest})`;
+    // One number, read off the manifest, so it cannot go stale — see the note
+    // on `moduleVersion` in config.mjs for the second stamp that used to sit
+    // beside it and why it is gone. It is on the panel rather than in the
+    // console because the question it answers ("is the fix I was sent actually
+    // loaded?") is asked by somebody looking at the interface, not a debugger.
+    const version = moduleVersion();
     const body = dialogContent(`<div class="drpg-gm-panel">
         ${buildPanelContent()}
         ${sections}

@@ -2126,7 +2126,6 @@
     "Diagnostics": {
       "pageTinted": "{name} is repainting this page in colours that are not this module's. Foundry is already dark — turn the extension off for this site.",
       "cssMissing": "This module's stylesheet did not load on this page, so the interface is unstyled. Reload; if it persists, run game.drpg.diagnoseStyles().",
-      "buildMismatch": "This module's stylesheet (v{css}) and scripts (v{scripts}) are from different builds. Reload the page; if that does not fix it, the server is still serving one of them.",
       "tracing": "Watching clicks for {seconds} seconds. Click the control that misbehaves."
     },
     "Tests": {

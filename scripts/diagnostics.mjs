@@ -8,7 +8,7 @@
  *     game.drpg.diagnoseCharacters()  who has not been set up yet
  */
 
-import { MODULE_ID, BUILD, STARTING, ITEM_CATEGORIES } from "./config.mjs";
+import { MODULE_ID, moduleVersion, STARTING, ITEM_CATEGORIES } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
 import { monokumas, getDespair, despairMax } from "./despair.mjs";
 import { monokumaFor, students, unassigned } from "./assignments.mjs";
@@ -572,7 +572,8 @@ export function stylesheetVersion() {
 
 export function verifyStylesheet() {
     const css = stylesheetVersion();
-    if (css === BUILD) return true;
+    const version = moduleVersion();
+    if (css === version) return true;
 
     if (!css) {
         console.warn(`${MODULE_ID} | The module stylesheet is not on this page. `
@@ -581,16 +582,22 @@ export function verifyStylesheet() {
         return false;
     }
 
-    // Which of the two is behind matters, because the fix is different. An old
-    // stylesheet is a browser cache and a hard reload clears it. Old scripts
-    // with a new stylesheet is the other way round — the files were replaced
-    // and this tab still has the previous ones, which a reload also fixes, but
-    // if it survives a reload the host is serving them.
-    console.warn(`${MODULE_ID} | Stylesheet v${css}, scripts v${BUILD}. `
-        + "The two halves of this module are from different builds. Reload; if that does not "
-        + "change it, the host is still serving one of them.");
-    ui.notifications.warn(game.i18n.format("DRPG.Diagnostics.buildMismatch",
-        { css, scripts: BUILD }), { permanent: true });
+    // A stamp that disagrees means this page is holding an older stylesheet
+    // than the version it is running — a browser or CDN cache, which a hard
+    // reload clears.
+    //
+    // Console and the diagnostic reports only, deliberately: no notification.
+    // The stamp in the stylesheet is written by hand and the version beside it
+    // now comes from the manifest, so the other way to reach this line is a
+    // release that bumped one and not the other. That is a mistake worth
+    // catching, but not at the price of a permanent banner in front of every
+    // player at the table for something none of them can act on. The suite
+    // holds the release side of it — see "the stylesheet ships with the version
+    // it says it does" in tests.mjs, which fails before a release rather than
+    // after one.
+    console.warn(`${MODULE_ID} | Stylesheet stamped v${css}, module running v${version}. `
+        + "This page is holding an older stylesheet than the scripts it loaded. Reload; if that "
+        + "does not change it, the host is still serving the old file.");
     return false;
 }
 
@@ -612,14 +619,11 @@ export function diagnoseWindows() {
     const lines = [];
 
     const css = stylesheetVersion();
-    const manifest = game.modules.get(MODULE_ID)?.version ?? "?";
+    const version = moduleVersion();
     lines.push(`Foundry ${game.version}, ${game.system.id} ${game.system.version}`);
     lines.push(`Host: ${location.origin}`);
-    lines.push(`Running: scripts v${BUILD}, stylesheet v${css || "(NOT ON THIS PAGE)"}`
-        + (css && css !== BUILD ? "   ← THE TWO HALVES ARE FROM DIFFERENT BUILDS" : ""));
-    lines.push(`Manifest says: v${manifest}${manifest !== BUILD
-        ? "   (the host's record of what it installed — lagging behind the files is normal "
-          + "on a hosted world and harmless)" : ""}`);
+    lines.push(`Running: Danganronpa RPG v${version}, stylesheet v${css || "(NOT ON THIS PAGE)"}`
+        + (css && css !== version ? "   ← THIS PAGE IS HOLDING AN OLDER STYLESHEET" : ""));
 
     // The two settings that change how wide text is drawn, either of which can
     // differ between a local world and a hosted one without anybody meaning it.
@@ -797,7 +801,7 @@ export function traceClicks({ seconds = 20 } = {}) {
 
         if (!out.length) out.push("Nothing happened while this was watching.");
         out.unshift(`Foundry ${game.version}, ${game.system.id} ${game.system.version}, `
-            + `scripts v${BUILD}, stylesheet v${stylesheetVersion() || "(none)"}`, "");
+            + `module v${moduleVersion()}, stylesheet v${stylesheetVersion() || "(none)"}`, "");
         report("Click trace", out);
     }, seconds * 1000);
 
@@ -815,10 +819,10 @@ export function traceClicks({ seconds = 20 } = {}) {
  * from the working copy answers "is this file the one I edited" in one glance.
  *
  * It exists because the ordinary answers do not work on a hosted world. The
- * manifest version is the host's record of an install, not a description of
- * the files; `BUILD` and the stylesheet stamp cover two files out of seventy;
- * and a deployment that replaced some files and not others looks exactly like
- * a deployment that worked.
+ * version is the host's record of an install, not a description of the files;
+ * the stylesheet stamp covers one file out of eighty; and a deployment that
+ * replaced some files and not others looks exactly like a deployment that
+ * worked.
  */
 export async function fileSizes() {
     const lines = [];
@@ -837,8 +841,8 @@ export async function fileSizes() {
         "lang/en.json"
     ];
 
-    lines.push(`scripts v${BUILD}, stylesheet v${stylesheetVersion() || "(none)"}, `
-        + `manifest v${game.modules.get(MODULE_ID)?.version ?? "?"}`);
+    lines.push(`Danganronpa RPG v${moduleVersion()}, `
+        + `stylesheet v${stylesheetVersion() || "(none)"}`);
     lines.push(`Host: ${location.origin}`);
     lines.push("");
 

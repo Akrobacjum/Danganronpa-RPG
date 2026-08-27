@@ -31,7 +31,8 @@
        — a stale copy and a current one look identical from the inside, and the
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
-    --drpg-css-version: "1.0.53";
+    /* Must equal `version` in module.json — the suite fails if it does not. */
+    --drpg-css-version: "1.1.0";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was

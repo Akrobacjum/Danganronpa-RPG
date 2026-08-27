@@ -27,11 +27,11 @@
  * backgrounded tab for reasons that have nothing to do with the module.
  */
 
-import { MODULE_ID, STARTING, CRISIS_ACTIONS, ACTIONS, TRAITS } from "./config.mjs";
+import { MODULE_ID, moduleVersion, STARTING, CRISIS_ACTIONS, ACTIONS, TRAITS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { studentActors } from "./monokuma.mjs";
-import { detectPageTinting } from "./diagnostics.mjs";
+import { detectPageTinting, stylesheetVersion } from "./diagnostics.mjs";
 import { voiceTargets, liveKitRoomFor } from "./voice.mjs";
 import { log, warn } from "./utils.mjs";
 
@@ -237,6 +237,20 @@ const INVARIANTS = [
         for (const field of ["chapter", "day", "session", "timeOfDay", "phase"]) {
             ok(clock[field] !== undefined, `getClock() returns no ${field}`);
         }
+    }],
+
+    // The module has ONE version, in module.json, and one hand-written copy of
+    // it: the stamp in the stylesheet, which cannot read a manifest. This is
+    // the only thing keeping the two in step, and it exists because they did
+    // not stay in step on their own — the panel shipped a release reading
+    // "v1.0.53 (manifest 1.1.0)" off a second stamp nobody remembered to bump.
+    // Fail here, at the moment before a release, rather than in front of a
+    // table afterwards.
+    ["the stylesheet ships with the version it says it does", () => {
+        const css = stylesheetVersion();
+        ok(css, "the stylesheet is not on this page at all — run game.drpg.diagnoseStyles()");
+        equal(css, moduleVersion(),
+            "--drpg-css-version in danganronpa.css does not match module.json");
     }]
 ];
 
