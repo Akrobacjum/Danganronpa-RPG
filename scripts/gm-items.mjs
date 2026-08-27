@@ -13,10 +13,12 @@
  */
 
 import {
-    MODULE_ID, ITEM_CATEGORIES, ITEM_TIERS, TIER_EFFECTS, USABLE_KINDS, USABLE_KIND_EFFECTS,
+    MODULE_ID, ITEM_CATEGORIES, LIMIT_GROUPS, ITEM_TIERS, TIER_EFFECTS, USABLE_KINDS,
+    USABLE_KIND_EFFECTS,
     TRUTH_BULLET_TYPES, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS
 } from "./config.mjs";
-import { grantItem, itemsInCategory, countInCategory, inventorySummary } from "./inventory.mjs";
+import { grantItem, itemsInCategory, countInCategory, countInGroup, inventorySummary }
+    from "./inventory.mjs";
 import { createTruthBullet, issueAutopsy, BULLET_CATEGORY } from "./truth-bullets.mjs";
 import { ITEM_POOLS, USABLE_GOALS, moduleTables } from "./tables.mjs";
 import { studentActors } from "./monokuma.mjs";
@@ -219,8 +221,13 @@ export async function giveItemDialog(actor) {
         // looks right and does nothing.
         .filter(([key]) => key !== BULLET_CATEGORY && key !== "bedroomKey")
         .flatMap(([key, cat]) => {
-            const held = countInCategory(actor, key);
-            const cap = cat.limit ? ` — ${held}/${cat.limit}` : ` — ${held}`;
+            // The shared budget, where there is one: three rows drawing on
+            // three slots have to show the same number, or the GM reads "1/1"
+            // beside a free slot and believes it. See `capacityLabel`.
+            const group = cat.limitGroup ?? null;
+            const held = group ? countInGroup(actor, group) : countInCategory(actor, key);
+            const limit = group ? LIMIT_GROUPS[group]?.limit : cat.limit;
+            const cap = limit ? ` — ${held}/${limit}` : ` — ${held}`;
             // A usable is a healing or a stress-relief item — that decides what
             // it does when drunk, so the GM says which here rather than the
             // player being asked later. Both halves share the one carry count:

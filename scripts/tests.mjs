@@ -27,7 +27,9 @@
  * backgrounded tab for reasons that have nothing to do with the module.
  */
 
-import { MODULE_ID, moduleVersion, STARTING, CRISIS_ACTIONS, ACTIONS, TRAITS } from "./config.mjs";
+import { MODULE_ID, moduleVersion, STARTING, CRISIS_ACTIONS, ACTIONS, TRAITS,
+    ITEM_CATEGORIES, LIMIT_GROUPS, EQUIPPABLE } from "./config.mjs";
+import { rolesOf } from "./inventory.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { studentActors } from "./monokuma.mjs";
@@ -247,6 +249,52 @@ const INVARIANTS = [
     // "v1.0.53 (manifest 1.1.0)" off a second stamp nobody remembered to bump.
     // Fail here, at the moment before a release, rather than in front of a
     // table afterwards.
+    /*
+     * THE CARRY LIMITS AFTER E8 ARE TWO MECHANISMS, NOT ONE.
+     *
+     * A category either caps itself or draws on a shared budget, and a category
+     * that does neither is uncapped on purpose (Truth Bullets, keys). What must
+     * not happen is a category naming a group that is not there: `canCarry`
+     * would read `undefined` as "no limit" and quietly let a character carry
+     * eleven knives. Silent, again, and in the direction nobody notices.
+     */
+    ["every carry limit resolves to something", () => {
+        for (const [key, cat] of Object.entries(ITEM_CATEGORIES)) {
+            if (!cat.limitGroup) continue;
+            ok(LIMIT_GROUPS[cat.limitGroup],
+                `"${key}" draws on the limit group "${cat.limitGroup}", and there is no such group`);
+            ok(Number.isInteger(LIMIT_GROUPS[cat.limitGroup].limit),
+                `the limit group "${cat.limitGroup}" has no whole number for a limit`);
+        }
+    }],
+
+    ["everything that can be held ready is a real category", () => {
+        for (const key of EQUIPPABLE) {
+            ok(ITEM_CATEGORIES[key], `EQUIPPABLE names "${key}", which is not an item category`);
+        }
+    }],
+
+    /*
+     * A ROLE THAT NAMES NOTHING DOES NOTHING, AND SAYS SO NOWHERE.
+     *
+     * `servesAs` compares the role against category keys, so a typo in a table
+     * entry's flag produces an item that looks tagged on the sheet and answers
+     * no question anybody asks of it. Scanned across the world rather than
+     * across the catalogue, because the flag is written by GMs.
+     */
+    ["no item claims a role that does not exist", () => {
+        const known = new Set(Object.keys(ITEM_CATEGORIES));
+        const wrong = [];
+        for (const actor of game.actors) {
+            for (const item of actor.items) {
+                for (const role of rolesOf(item)) {
+                    if (!known.has(role)) wrong.push(`${actor.name}/${item.name}: "${role}"`);
+                }
+            }
+        }
+        ok(!wrong.length, `these items carry a role no category answers to — ${wrong.join(", ")}`);
+    }],
+
     /*
      * E7 RESTS ENTIRELY ON A FIELD THE SYSTEM OWNS.
      *

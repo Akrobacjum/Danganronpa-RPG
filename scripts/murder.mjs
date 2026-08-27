@@ -39,8 +39,8 @@ import { SETTINGS } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
-import { carriedInCategory, ITEM_FLAGS, isBroken } from "./inventory.mjs";
-import { equippedIn } from "./use-items.mjs";
+import { carriedInCategory, carriedFor, ITEM_FLAGS, isBroken } from "./inventory.mjs";
+import { equippedFor, breakOnDespair } from "./use-items.mjs";
 import { dropRemnant, traceFeedback } from "./remnants.mjs";
 import {
     announce, dialogContent, tableDialog, whisperToGms, whisperToOwner, ownerOf, gmIds,
@@ -729,6 +729,18 @@ export async function takeCrisisAction(actor, key) {
     const trait = (variant?.traits ?? def.traits)?.[0] ?? "body";
     if (situational) calls.armSituational(situational);
 
+    /*
+     * WHICH WEAPON THIS SWING IS ABOUT, decided before the dice.
+     *
+     * Only an action that swings something can break it, which is what
+     * `weaponAdvantage` marks. Captured here rather than after the roll for the
+     * two reasons in `breakOnDespair`: the incident moves items around, and an
+     * unarmed attack that succeeds HANDS the killer an improvised weapon —
+     * looking it up afterwards would break a tool the same roll had just
+     * created.
+     */
+    const swung = def.weaponAdvantage ? equippedWeapon(actor) : null;
+
     let roll;
     try {
         roll = await rollTrait(actor, trait, {
@@ -739,6 +751,11 @@ export async function takeCrisisAction(actor, key) {
         calls.clearSituational();
     }
     if (!roll) return null;
+
+    // A knife that snaps halfway through a fight changes the next turn — the
+    // one place this rule is genuinely interesting. `bestWeaponTier` stops
+    // seeing it, so the next swing is an unarmed one.
+    await breakOnDespair(actor, swung, roll);
 
     // Asked here, while the person who threw the dice is still looking at them.
     const choice = roll.isCritical ? await askCriticalTarget(def) : null;
@@ -767,12 +784,19 @@ export async function takeCrisisAction(actor, key) {
  * so an unarmed killer who improvises one is armed for the next swing without
  * having to stop and click.
  *
- * Through `equippedIn` rather than a flag name spelled out here: it already
- * means "this category, readied, and not in the stash", and it owns the spelling
- * of the flag.
+ * Through `equippedFor` rather than a flag name spelled out here: it already
+ * means "readied, not in the stash, not broken, and able to do this job", and it
+ * owns the spelling of the flag.
+ *
+ * BY ROLE, NOT BY CATEGORY (E8). A saw filed under Tools is a weapon in
+ * anybody's hands, and the character sheet's row is not the place that decides
+ * that. Everything downstream reads the weapon through this one function —
+ * advantage, the unarmed penalty, the damage tier — so the role reaches the
+ * damage and not only the bonus, which is the one half-migrated state worth
+ * being afraid of here.
  */
 function equippedWeapon(actor) {
-    return equippedIn(actor, "crimeTool");
+    return equippedFor(actor, "crimeTool");
 }
 
 function hasWeapon(actor) {
@@ -802,7 +826,7 @@ function hasWeapon(actor) {
  * not a reason to withhold it.
  */
 function carriesWeapon(actor) {
-    return carriedInCategory(actor, "crimeTool").some(i => !isBroken(i));
+    return carriedFor(actor, "crimeTool").some(i => !isBroken(i));
 }
 
 /**

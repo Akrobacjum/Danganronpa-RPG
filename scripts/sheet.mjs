@@ -12,7 +12,8 @@
  */
 
 import {
-    MODULE_ID, FLAGS, ACTIONS, STARTING, ITEM_CATEGORIES, MONOCUB, ECLIPSE_MOVES, EQUIPPABLE,
+    MODULE_ID, FLAGS, ACTIONS, STARTING, ITEM_CATEGORIES, LIMIT_GROUPS, MONOCUB, ECLIPSE_MOVES,
+    EQUIPPABLE,
     BEDROOM_KEY_FLAG, callEffect, HOPE_CALLS, DESPAIR_CALLS } from "./config.mjs";
 import { actionsLeft, actionsMax, actionBudget, hasFreeMove, setActions } from "./actions.mjs";
 import { resourceMax, initCharacter } from "./character.mjs";
@@ -34,7 +35,8 @@ import { isMonocub, isSilenced, isSilenced as cubSilenced } from "./monocub.mjs"
 import { isSilenced as callSilenced, isChained } from "./call-effects.mjs";
 import { isDeceased } from "./chapter.mjs";
 import { isStashed, ITEM_FLAGS, isBroken } from "./inventory.mjs";
-import { isUsable, isEquippable, isEquipped, equippedIn } from "./use-items.mjs";
+import { isUsable, isEquippable, isEquipped, equippedIn, equippedFor } from "./use-items.mjs";
+import { countInGroup, rolesOf } from "./inventory.mjs";
 import { isCleaner, bodyIsHere } from "./cleanup.mjs";
 import { roomOfActor, neighbouringRooms } from "./movement.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
@@ -1657,6 +1659,7 @@ const INVENTORY_GROUPS = [
     { key: "usable", labelKey: "DRPG.Sheet.groupUsables" },
     { key: "crimeTool", labelKey: "DRPG.Sheet.groupWeapons" },
     { key: "cleaningTool", labelKey: "DRPG.Sheet.groupCleaners" },
+    { key: "tool", labelKey: "DRPG.Sheet.groupTools" },
     { key: "truthBullet", labelKey: "DRPG.Sheet.groupTruthBullets" },
     // Last, under the evidence: a key is not something you found or made, it is
     // something a door means. See the note on keys in vault.mjs.
@@ -1684,7 +1687,20 @@ function groupInventory(app, element) {
         // counts would say "Crime Tools 3 / 1" for somebody obeying the rules.
         const items = actor.items.filter(i =>
             i.getFlag(MODULE_ID, "category") === group.key && !isStashed(i));
-        const limit = cat?.limit;
+
+        /*
+         * THE COUNTER IS THE BUDGET, NOT THE ROW (E8, trap 69).
+         *
+         * Murder Weapons, Cleaning Tools and Tools share three slots between
+         * them, so each of those three rows shows the SAME "2 / 3" — the number
+         * of things in your hands and how many you may hold. Showing the row's
+         * own count against the shared cap would put "1 / 3" over a full
+         * inventory in three places at once, which is three lies rather than
+         * one. Ungrouped rows are unchanged: Usables still count their own.
+         */
+        const group_ = cat?.limitGroup ?? null;
+        const limit = group_ ? LIMIT_GROUPS[group_]?.limit : cat?.limit;
+        const counted = group_ ? countInGroup(actor, group_) : items.length;
 
         // Evidence of the murder floats to the top of the pack — but only
         // evidence whose holder has EARNED that fact: `tiedToCrime` sits on
@@ -1705,8 +1721,9 @@ function groupInventory(app, element) {
 
         const head = document.createElement("h4");
         head.innerHTML = `<span>${game.i18n.localize(group.labelKey)}</span>
-                          <span class="drpg-group-count${limit && items.length >= limit ? " full" : ""}">${
-                              items.length}${limit ? ` / ${limit}` : ""}</span>`;
+                          <span class="drpg-group-count${limit && counted >= limit ? " full" : ""}"${
+                              group_ ? ` data-tooltip="${game.i18n.localize("DRPG.Sheet.sharedSlots")}"` : ""
+                          }>${counted}${limit ? ` / ${limit}` : ""}</span>`;
         section.append(head);
 
         // Carrying one and holding one are different things, and only the second
@@ -1739,6 +1756,12 @@ function groupInventory(app, element) {
                     const tier = item.getFlag(MODULE_ID, "tier");
                     const ready = isEquipped(item);
                     const broken = isBroken(item);
+                    // What else this one can do. Trap 68: a screwdriver sits in
+                    // the Tools row and the fact that it is also a weapon lives
+                    // in a flag — invisible is the same as absent to a player
+                    // deciding what to ready, and to a GM confiscating weapons
+                    // at the end of Stage 6.
+                    const extraRoles = rolesOf(item);
                     if (ready) li.classList.add("drpg-item-equipped");
                     // The row is still the row. A used-up thing is the same
                     // object in the same slot — what changes is that it says so,
@@ -1753,6 +1776,12 @@ function groupInventory(app, element) {
                                     ${ready ? `<span class="drpg-item-ready" data-tooltip="${
                                         foundry.utils.escapeHTML(game.i18n.localize("DRPG.Items.readyTooltip"))
                                     }"><i class="fa-solid fa-hand-fist" inert></i></span>` : ""}
+                                    ${extraRoles.map(role => `<span class="drpg-item-role" data-tooltip="${
+                                        foundry.utils.escapeHTML(game.i18n.format("DRPG.Items.alsoServes", {
+                                            role: ITEM_CATEGORIES[role]?.label ?? role
+                                        }))
+                                    }">${foundry.utils.escapeHTML(
+                                        ITEM_CATEGORIES[role]?.label ?? role)}</span>`).join("")}
                                     ${tier !== undefined && tier !== null
                                         ? `<span class="drpg-item-tier">T${tier}</span>` : ""}`;
                     addUseButton(li, item, app);
@@ -2805,7 +2834,8 @@ function injectCleanupPanel(tab, actor, { onTop = true } = {}) {
 
     const note = document.createElement("p");
     note.className = "notes drpg-keep";
-    const tool = equippedIn(actor, "cleaningTool");
+    // What the cleaning roll will actually use, which is a role and not a row.
+    const tool = equippedFor(actor, "cleaningTool");
     note.textContent = tool
         ? game.i18n.format("DRPG.Cleanup.readied", { item: tool.name })
         : game.i18n.localize("DRPG.Cleanup.noneReadied");

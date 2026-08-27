@@ -9,7 +9,7 @@
  * loot (they persist until used in a crime and removed).
  */
 
-import { MODULE_ID, ITEM_CATEGORIES, TIER_EFFECTS, USABLE_KINDS, USABLE_KIND_EFFECTS }
+import { MODULE_ID, ITEM_CATEGORIES, LIMIT_GROUPS, TIER_EFFECTS, USABLE_KINDS, USABLE_KIND_EFFECTS }
     from "./config.mjs";
 import { whisperToOwner, log, warn } from "./utils.mjs";
 
@@ -17,6 +17,18 @@ import { whisperToOwner, log, warn } from "./utils.mjs";
 export const ITEM_FLAGS = {
     category: "category",
     tier: "tier",
+    /**
+     * What else this item can do, beyond the category it lives in.
+     *
+     * An array of category keys — `["crimeTool"]` on a screwdriver filed under
+     * Tools. Set from the item table the thing was drawn from, so a found
+     * screwdriver arrives knowing it can be swung and nobody has to remember;
+     * the GM can change it on the item afterwards.
+     *
+     * Absent means an empty list, which means exactly the behaviour this module
+     * had before roles existed. That is why this needs no migration clause.
+     */
+    roles: "roles",
     /**
      * Which kind of usable this is: "healing" or "stress" (USABLE_KINDS).
      *
@@ -164,14 +176,79 @@ export function countInCategory(actor, category) {
         i.getFlag(MODULE_ID, ITEM_FLAGS.category) === category && !isStashed(i)).length;
 }
 
+/** Every category drawing on one shared budget. See LIMIT_GROUPS. */
+export function categoriesInGroup(group) {
+    return Object.entries(ITEM_CATEGORIES)
+        .filter(([, cat]) => cat.limitGroup === group)
+        .map(([key]) => key);
+}
+
+/** How much of a shared budget this character has spent. */
+export function countInGroup(actor, group) {
+    return categoriesInGroup(group)
+        .reduce((total, key) => total + countInCategory(actor, key), 0);
+}
+
 /**
  * Is there room for another one? Truth Bullets are deliberately uncapped.
- * @returns {{ok: boolean, held: number, limit: number|null}}
+ *
+ * A category belonging to a LIMIT GROUP is counted across the whole group, so
+ * "one more Murder Weapon?" is really "is there a free slot?" — three between
+ * the weapons, the cleaning tools and the tools (G-43, Dawid 27.08). A category
+ * with no group behaves exactly as it always did.
+ *
+ * The shape of the answer is unchanged on purpose: four callers put `limit` into
+ * a refusal message, and they should not have to learn about groups to say "2 of
+ * 3" instead of "1 of 1".
+ *
+ * @returns {{ok: boolean, held: number, limit: number|null, group: string|null}}
  */
 export function canCarry(actor, category) {
+    const group = ITEM_CATEGORIES[category]?.limitGroup ?? null;
+    if (group) {
+        const limit = LIMIT_GROUPS[group]?.limit ?? null;
+        const held = countInGroup(actor, group);
+        return { ok: limit === null || held < limit, held, limit, group };
+    }
+
     const limit = ITEM_CATEGORIES[category]?.limit ?? null;
     const held = countInCategory(actor, category);
-    return { ok: limit === null || held < limit, held, limit };
+    return { ok: limit === null || held < limit, held, limit, group: null };
+}
+
+/* ==========================================================================
+ * ONE HOME, SEVERAL ROLES
+ * --------------------------------------------------------------------------
+ * A saw is a tool and a weapon. Duct tape is a cleaning tool and a tool. A
+ * screwdriver is both, depending on what the moment needs.
+ *
+ * The category stays ONE value, because it is the key to five separate things —
+ * the carry slot, the row on the sheet, the search table, what may be held
+ * ready, and the mechanic — and only the last of those is what this is about.
+ * So the category remains the item's HOME, and a second flag lists the other
+ * roles it can fill.
+ *
+ * Every question of the form "is this a weapon" goes through `servesAs`; every
+ * question of the form "which slot does this take" stays on the category. An
+ * item costs one slot, in its home, whatever else it can do — which is only
+ * fair because the slots are shared (see LIMIT_GROUPS).
+ * ========================================================================== */
+
+/** The roles this item fills beyond its home. Always an array. */
+export function rolesOf(item) {
+    const roles = item?.getFlag?.(MODULE_ID, ITEM_FLAGS.roles);
+    return Array.isArray(roles) ? roles : [];
+}
+
+/** Can this item do the job of `role` — either as its home or as a role? */
+export function servesAs(item, role) {
+    if (!item || !role) return false;
+    return item.getFlag(MODULE_ID, ITEM_FLAGS.category) === role || rolesOf(item).includes(role);
+}
+
+/** Everything on them that can do this job, stash excluded. */
+export function carriedFor(actor, role) {
+    return actor?.items?.filter(i => servesAs(i, role) && !isStashed(i)) ?? [];
 }
 
 /**
@@ -188,7 +265,7 @@ export function canCarry(actor, category) {
  */
 export async function grantItem(actor, {
     name, category, tier, goal = null, description = "", override = false, img = null,
-    extraFlags = {}, location = LOCATIONS.carried
+    roles = null, extraFlags = {}, location = LOCATIONS.carried
 }) {
     if (!actor || !name) return null;
 
@@ -215,7 +292,7 @@ export async function grantItem(actor, {
         if (override) {
             ui.notifications.warn(game.i18n.format("DRPG.Inventory.overCap", {
                 actor: actor.name,
-                category: ITEM_CATEGORIES[category]?.plural ?? category,
+                category: capacityLabel(category),
                 held: room.held + 1,
                 limit: room.limit
             }));
@@ -233,7 +310,7 @@ export async function grantItem(actor, {
                 })}</p>`);
             } else {
                 ui.notifications.warn(game.i18n.format("DRPG.Inventory.full", {
-                    category: ITEM_CATEGORIES[category]?.plural ?? category,
+                    category: capacityLabel(category),
                     limit: room.limit
                 }));
                 return null;
@@ -266,6 +343,10 @@ export async function grantItem(actor, {
                     [ITEM_FLAGS.tier]: tier,
                     [ITEM_FLAGS.location]: location,
                     ...(kind ? { [ITEM_FLAGS.kind]: kind } : {}),
+                    // Only when there are any: an empty array and a missing
+                    // flag mean the same thing, and the missing one is what
+                    // every item written before E8 already has.
+                    ...(roles?.length ? { [ITEM_FLAGS.roles]: [...roles] } : {}),
                     ...extraFlags
                 }
             }
@@ -323,10 +404,44 @@ export function carriedInCategory(actor, category) {
     return itemsInCategory(actor, category).filter(i => !isStashed(i));
 }
 
-/** A short inventory summary for the GM. */
+/**
+ * What the carry limit for this category is really about.
+ *
+ * Trap 69: four screens put a limit in front of somebody — the sheet's rows,
+ * this summary, the item manager and the refusal message — and with a shared
+ * budget all four have to say "2/3 Gear" rather than three separate "1/1"s. A
+ * player who reads "Murder Weapons 1/1" beside an empty slot has been told two
+ * contradictory things by the same window.
+ */
+export function capacityLabel(category) {
+    const group = ITEM_CATEGORIES[category]?.limitGroup ?? null;
+    return group
+        ? (LIMIT_GROUPS[group]?.label ?? group)
+        : (ITEM_CATEGORIES[category]?.plural ?? category);
+}
+
+/**
+ * A short inventory summary for the GM.
+ *
+ * Grouped categories are folded into one entry, because that is what they are:
+ * "Gear: 2/3" rather than three counters that each look nearly full.
+ */
 export function inventorySummary(actor) {
-    return Object.entries(ITEM_CATEGORIES).map(([key, cat]) => {
+    const seen = new Set();
+    const parts = [];
+
+    for (const [key, cat] of Object.entries(ITEM_CATEGORIES)) {
+        if (cat.limitGroup) {
+            if (seen.has(cat.limitGroup)) continue;
+            seen.add(cat.limitGroup);
+            const group = LIMIT_GROUPS[cat.limitGroup];
+            parts.push(`${group?.label ?? cat.limitGroup}: ${
+                countInGroup(actor, cat.limitGroup)}/${group?.limit ?? "?"}`);
+            continue;
+        }
         const held = countInCategory(actor, key);
-        return `${cat.plural}: ${held}${cat.limit ? `/${cat.limit}` : ""}`;
-    }).join(" · ");
+        parts.push(`${cat.plural}: ${held}${cat.limit ? `/${cat.limit}` : ""}`);
+    }
+
+    return parts.join(" · ");
 }

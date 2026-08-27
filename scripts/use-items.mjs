@@ -31,7 +31,7 @@
 import { MODULE_ID, USABLE_EFFECTS, USABLE_KINDS, EQUIPPABLE, STARTING, BROKEN_ITEMS }
     from "./config.mjs";
 import { usableKindFor } from "./tables.mjs";
-import { ITEM_FLAGS, isStashed, isBroken, breakItem } from "./inventory.mjs";
+import { ITEM_FLAGS, isStashed, isBroken, breakItem, servesAs } from "./inventory.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
 import { dialogContent, whisperToOwner, resolveThreshold, log, error } from "./utils.mjs";
@@ -70,6 +70,93 @@ export function equippedIn(actor, category) {
         && i.getFlag(MODULE_ID, EQUIPPED_FLAG)
         && !isBroken(i)
         && !isStashed(i)) ?? null;
+}
+
+/**
+ * What this character is holding ready that can do the job of `role`.
+ *
+ * The capability question, where `equippedIn` is the slot question. An item's
+ * category is its HOME — which slot it takes, which row it sits in, which table
+ * it came from — and `servesAs` is what it can actually do. A screwdriver filed
+ * under Tools answers `equippedFor(actor, "crimeTool")` because it can be swung;
+ * `equippedIn(actor, "crimeTool")` still says no, and `toggleEquipped` needs it
+ * to, or readying the screwdriver would put the knife away.
+ *
+ * THE SPECIALIST WINS. Both can be readied at once — one per home, and the
+ * homes are different — so this has to choose. It prefers the item whose home
+ * IS the role: the knife is a better weapon than the screwdriver, and the
+ * screwdriver wears out before the knife does when the roll goes badly. A rule
+ * that is easy to say out loud at the table beats one that depends on which
+ * item was picked up first.
+ *
+ * Broken and stashed are excluded here, for the same reason `equippedIn` does
+ * it: this is what the incident asks for its weapon and what Stage 6 asks for
+ * its gloves.
+ */
+export function equippedFor(actor, role) {
+    const ready = actor?.items?.filter(i =>
+        i.getFlag(MODULE_ID, EQUIPPED_FLAG)
+        && servesAs(i, role)
+        && !isBroken(i)
+        && !isStashed(i)) ?? [];
+    if (!ready.length) return null;
+
+    return ready.find(i => i.getFlag(MODULE_ID, ITEM_FLAGS.category) === role) ?? ready[0];
+}
+
+/**
+ * Despair breaks whatever was in your hands.
+ *
+ * The guide has no durability rule, so this is the module's, and it is decided
+ * by the SIDE OF THE ROLL rather than by a threshold of its own:
+ *
+ *     critical              whole
+ *     success with Hope     whole
+ *     success with Despair  BREAKS
+ *     failure with Hope     whole
+ *     failure with Despair  BREAKS
+ *
+ * One sentence to remember: Despair breaks the tool, whether or not the action
+ * worked. That is consistent with everything else Despair does in this system —
+ * it exposes a sabotage, it spoils a cleanup, it costs Sanity — and it is the
+ * reason the rejected alternative ("total under 12 breaks it") is not here: that
+ * would break the tool exactly when it had already achieved nothing, which is
+ * two punishments for one bad roll and leaves Despair meaning nothing at all.
+ *
+ * THE TOOL IS PASSED IN, NOT LOOKED UP (trap 62). Reading `equippedFor` after
+ * the roll can return something else or nothing at all — the roll's own
+ * consequences move items around, and an unarmed attack that succeeds hands the
+ * killer an improvised weapon. Capturing the reference before the dice means a
+ * tool created by this roll cannot be broken by it (trap 63), which is the
+ * difference between a rule and a joke.
+ *
+ * @param {Actor}     actor
+ * @param {Item|null} tool  Captured BEFORE the roll.
+ * @param {object}    roll  What `rollTrait` returned.
+ * @returns {Promise<string|null>} the name of what broke, or null.
+ */
+export async function breakOnDespair(actor, tool, roll) {
+    if (!tool || !roll) return null;
+    if (!roll.withFear || roll.isCritical) return null;
+    if (isBroken(tool)) return null;
+
+    try {
+        if (!await breakItem(tool)) return null;
+    } catch (err) {
+        // A tool that failed to break is a great deal better than an action
+        // that failed to resolve.
+        error("Could not break the tool the roll ruined", err);
+        return null;
+    }
+
+    try {
+        await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Items.brokeOnDespair", {
+            item: foundry.utils.escapeHTML(tool.name)
+        })}</p>`);
+    } catch {
+        // The item is broken either way; the card is the courtesy.
+    }
+    return tool.name;
 }
 
 /**

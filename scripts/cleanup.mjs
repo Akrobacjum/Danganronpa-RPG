@@ -32,7 +32,7 @@ import {
     REMNANT_FLAGS, remnantsInRoom, remnantData, removeRemnant, dropRemnant
 } from "./remnants.mjs";
 import { roomOfToken } from "./movement.mjs";
-import { equippedIn } from "./use-items.mjs";
+import { equippedFor, breakOnDespair } from "./use-items.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { ITEM_FLAGS } from "./inventory.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
@@ -195,13 +195,13 @@ export function cleanupDc(visibility, actor) {
 
 /** The tier of the readied Cleaning Tool, or 0 for bare hands. */
 export function cleaningTier(actor) {
-    const tool = equippedIn(actor, "cleaningTool");
+    const tool = equippedFor(actor, "cleaningTool");
     if (!tool) return 0;
     return Number(tool.getFlag(MODULE_ID, ITEM_FLAGS.tier) ?? 0);
 }
 
 export function cleaningTool(actor) {
-    return equippedIn(actor, "cleaningTool");
+    return equippedFor(actor, "cleaningTool");
 }
 
 /** One Remnant token by id, from whichever scene it is on. */
@@ -262,6 +262,10 @@ export async function attemptCleanup(actor, tokenId) {
         calls.clearSituational();
     }
     if (!roll) return null;
+
+    // One crime scene, one set of gloves — and Despair is what wears them out
+    // early. The reference was taken before the dice; see `breakOnDespair`.
+    await breakOnDespair(actor, tool, roll);
 
     const { requestCleanup } = await import("./gm-bridge.mjs");
     await requestCleanup({
@@ -633,6 +637,10 @@ export async function attemptStageSix(actor, key, targetId = null) {
         calls.clearSituational();
     }
     if (!roll) return null;
+
+    // Including "move the body", where the tool lowers the threshold instead of
+    // granting advantage: it is still the thing in their hands.
+    await breakOnDespair(actor, tool, roll);
 
     const { requestCleanup } = await import("./gm-bridge.mjs");
     await requestCleanup({
@@ -1220,7 +1228,11 @@ async function destroyTools(actor, categories) {
     const { breakItem } = await import("./inventory.mjs");
     const destroyed = [];
     for (const category of categories) {
-        const item = equippedIn(actor, category);
+        // BY ROLE. The killer who wiped the scene with a rag filed under Tools
+        // used a cleaning tool, and the guide's "the gloves come off when the
+        // body turns up" is about what was used, not about which row it sits in.
+        // Readied only, still — an unopened spare in the stash was not used.
+        const item = equippedFor(actor, category);
         if (!item) continue;
         try {
             destroyed.push(item.name);

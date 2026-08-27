@@ -391,7 +391,8 @@ async function settleSearch(actor, bookmark, after, done) {
             drawnName = drawn.name;
             const { grantItem } = await import("./inventory.mjs");
             const granted = await grantItem(actor, {
-                name: drawn.name, category: bookmark.category, tier, goal: bookmark.goal ?? null
+                name: drawn.name, category: bookmark.category, tier, goal: bookmark.goal ?? null,
+                roles: drawn.roles ?? []
             });
             if (granted) itemId = granted.id;
             done.push(game.i18n.format("DRPG.Reroll.itemDrawn", { item: drawn.name, tier }));

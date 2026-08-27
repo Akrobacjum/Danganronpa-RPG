@@ -12,7 +12,8 @@
  * then edit freely — once they exist, these definitions are only a fallback.
  */
 
-import { MODULE_ID, ITEM_CATEGORIES, ITEM_TIERS, TIER_EFFECTS, USABLE_KINDS, USABLE_KIND_EFFECTS }
+import { MODULE_ID, ITEM_CATEGORIES, EQUIPPABLE, ITEM_TIERS, TIER_EFFECTS, USABLE_KINDS,
+    USABLE_KIND_EFFECTS }
     from "./config.mjs";
 import { dialogContent, wirePortraitPickers, panelTabs, wirePanelTabs, whisperToGms, log, error, plural }
     from "./utils.mjs";
@@ -291,8 +292,56 @@ export const ITEM_POOLS = {
         1: ["Rope", "Rubber gloves", "Bin bags", "Bucket and sponge"],
         2: ["Mop", "Bleach", "Vacuum cleaner", "Blowtorch"],
         3: ["Cleaning agent", "Pressure washer", "Incinerator key"]
+    },
+    tool: {
+        0: ["Bent nail", "Plastic ruler", "Blunt pencil", "Paperclip chain"],
+        1: ["Screwdriver", "Duct tape", "Pliers", "Hand drill"],
+        2: ["Spanner set", "Soldering iron", "Cordless drill", "Crowbar"],
+        3: ["Portable workshop", "Angle grinder", "Master toolkit"]
     }
 };
+
+/**
+ * Which of the built-in items can do more than one job.
+ *
+ * Read once, at INSTALL time: the roles are written onto the TableResult as
+ * flags, and from then on the table is the authority, not this map. That is
+ * what keeps it from becoming the fragile thing it looks like — a lookup by
+ * display name would break the moment a GM renamed an entry, and here the
+ * rename simply keeps whatever flag the entry already had.
+ *
+ * The choices are meant to be arguable rather than exhaustive. A crowbar is a
+ * tool that opens skulls; duct tape cleans as readily as it fixes; a hammer has
+ * been a murder weapon in every story ever told. Anything not listed does one
+ * job, which is the honest default — a fire extinguisher is a weapon and not a
+ * workshop.
+ */
+export const POOL_ROLES = {
+    // Weapons that are also tools.
+    "Scissors": ["tool"],
+    "Bent pipe": ["tool"],
+    "Hammer": ["tool"],
+    "Axe": ["tool"],
+    "Bolt cutters": ["tool"],
+    "Industrial saw": ["tool"],
+    // Cleaning gear that is also a tool.
+    "Rope": ["tool"],
+    "Bucket and sponge": ["tool"],
+    // Tools that are also something else.
+    "Duct tape": ["cleaningTool"],
+    "Pliers": ["crimeTool"],
+    "Hand drill": ["crimeTool"],
+    "Soldering iron": ["crimeTool"],
+    "Cordless drill": ["crimeTool"],
+    "Crowbar": ["crimeTool"],
+    "Angle grinder": ["crimeTool"],
+    "Master toolkit": ["crimeTool", "cleaningTool"]
+};
+
+/** The roles a built-in pool entry carries. Empty for anything unlisted. */
+export function rolesForPoolItem(name) {
+    return POOL_ROLES[name] ? [...POOL_ROLES[name]] : [];
+}
 
 /**
  * Items the guide names as project results rather than search finds.
@@ -316,6 +365,21 @@ export const PROJECT_ITEMS = {
         { name: "Gift", note: "Must be handed over immediately. Grants the maker 3 Hope." }
     ]
 };
+
+/**
+ * The roles written on one table entry.
+ *
+ * Falls back to the built-in map for an entry that predates roles entirely —
+ * a world whose tables were installed before E8 has no flags on them, and a
+ * hammer drawn from such a table should still be a hammer. That fallback is by
+ * NAME, which is fragile, and it is deliberately the last resort rather than
+ * the mechanism.
+ */
+function rolesOfResult(result) {
+    const flagged = result?.getFlag?.(MODULE_ID, "roles");
+    if (Array.isArray(flagged)) return [...flagged];
+    return rolesForPoolItem(result?.name ?? result?.text ?? "");
+}
 
 /** One random item name for a category and tier. */
 export function randomItem(category, tier, goal = null) {
@@ -381,6 +445,10 @@ export async function drawItem(category, tier, { goal = null, room = null } = {}
                 return {
                     name: drawn,
                     fromTable: true,
+                    // What else the thing can do — see POOL_ROLES. Read off the
+                    // entry, so a GM who ticked "also a weapon" on their own
+                    // screwdriver gets a weapon.
+                    roles: rolesOfResult(result),
                     // Carried onto the Item when it is granted. `installTables`
                     // writes the name into `description` as well, so a
                     // description that is only the name again is dropped here
@@ -397,7 +465,9 @@ export async function drawItem(category, tier, { goal = null, room = null } = {}
     }
 
     const picked = randomItem(category, tier, goal);
-    return picked ? { name: picked, fromTable: false } : null;
+    return picked
+        ? { name: picked, fromTable: false, roles: rolesForPoolItem(picked) }
+        : null;
 }
 
 /** The RollTable a room draws from, if the GM pointed it at one. */
@@ -529,7 +599,12 @@ export async function installTables({ overwrite = false, prompt = true } = {}) {
                     name: text,
                     description: text,
                     range: [index + 1, index + 1],
-                    weight: 1
+                    weight: 1,
+                    // The roles ride on the ENTRY, so a found screwdriver
+                    // arrives knowing it can be swung and nobody has to
+                    // remember. Written once here; edited afterwards on the
+                    // table, which is then the only authority.
+                    flags: { [MODULE_ID]: { roles: rolesForPoolItem(text) } }
                 }))
             });
             created.push(name);
@@ -663,7 +738,7 @@ function tableItemsHtml(table) {
  * table that was `1d4` with four entries becomes `1d5` with five rather than a
  * table whose fifth item can never come up.
  */
-async function addResult(table, { name, description = "", img = null }) {
+async function addResult(table, { name, description = "", img = null, roles = null }) {
     if (!table || !name) return false;
     try {
         const next = (table.results?.size ?? 0) + 1;
@@ -676,6 +751,10 @@ async function addResult(table, { name, description = "", img = null }) {
             description: description || name,
             img: img || undefined,
             weight: 1,
+            // An entry the GM typed gets whatever roles they ticked; one they
+            // did not think about falls back to the built-in map, so adding
+            // "Hammer" by hand still produces a hammer that works.
+            flags: { [MODULE_ID]: { roles: roles ?? rolesForPoolItem(name) } },
             // v14 validates `range` at creation ("cannot have fewer than 2
             // elements"), so it cannot be left for `normalize()` to invent —
             // the write below is provisional and normalize re-ranges the lot.
@@ -796,6 +875,25 @@ export async function openItemTables({ preset = null } = {}) {
             </button></li>`).join("")}</ul>`
         : `<p class="notes">${game.i18n.localize("DRPG.Tables.noneYet")}</p>`;
 
+    /*
+     * WHAT ELSE THIS ENTRY CAN DO (E8).
+     *
+     * The roles ride on the table entry rather than being set on each item
+     * afterwards (Dawid, 27.08), so a screwdriver drawn from a Search arrives
+     * already knowing it can be swung. Only the three equippable categories are
+     * offered: a role is about what you do with a thing in your hands, and
+     * "also a Truth Bullet" means nothing.
+     *
+     * The item's own category is left in the list on purpose rather than
+     * filtered out live — ticking a role an item already has by being what it
+     * is changes nothing (`servesAs` checks the home first), and a checkbox
+     * list that reshuffles as the category dropdown moves is a worse thing to
+     * use than one redundant box.
+     */
+    const roleChecks = EQUIPPABLE.map(key =>
+        `<label class="drpg-check"><input type="checkbox" name="role:${key}" />
+            ${foundry.utils.escapeHTML(ITEM_CATEGORIES[key]?.label ?? key)}</label>`).join("");
+
     const categories = Object.entries(ITEM_CATEGORIES)
         .filter(([key]) => key !== "truthBullet")
         .map(([key, cat]) => `<option value="${key}"${
@@ -873,6 +971,10 @@ export async function openItemTables({ preset = null } = {}) {
                     <select name="newTier">${tiers}</select></label>
                 <label>${game.i18n.localize("DRPG.Tables.tierTarget")}
                     <select name="tierTarget">${tierOptions}</select></label>
+                <div class="drpg-tables-roles">
+                    <span class="notes">${game.i18n.localize("DRPG.Tables.rolesNote")}</span>
+                    ${roleChecks}
+                </div>
                 <div class="drpg-tables-targets">
                     <span class="notes">${game.i18n.localize("DRPG.Tables.roomTargets")}</span>
                     ${roomChecks || `<span class="notes">${game.i18n.localize("DRPG.Tables.noRoomTables")}</span>`}
@@ -902,6 +1004,8 @@ export async function openItemTables({ preset = null } = {}) {
                         img: f.querySelector('[name="img.new"]')?.value ?? "",
                         category: f.newCategory.value,
                         tier: Number(f.newTier.value),
+                        roles: EQUIPPABLE.filter(key =>
+                            f.querySelector(`[name="role:${key}"]`)?.checked),
                         tables: [
                             f.tierTarget?.value || null,
                             ...roomTablesList
@@ -1143,7 +1247,11 @@ export async function openItemTables({ preset = null } = {}) {
     for (const id of action.tables) {
         const table = game.tables.get(id);
         if (await addResult(table, {
-            name: action.name, description: action.description, img: action.img
+            name: action.name, description: action.description, img: action.img,
+            // An empty tick-list means "just what it is", which is different
+            // from "nobody said" — so it is passed as [] rather than null, and
+            // the built-in fallback in `addResult` stays out of the way.
+            roles: action.roles ?? []
         })) added++;
     }
 

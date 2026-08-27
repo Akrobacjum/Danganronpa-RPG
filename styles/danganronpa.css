@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json — the suite fails if it does not. */
-    --drpg-css-version: "1.1.16";
+    --drpg-css-version: "1.1.17";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -1520,6 +1520,24 @@ section[data-application-part="biography"] .experiences .value {
 .drpg-inventory-list .drpg-item-tier {
     font-size: var(--font-size-11, 0.7rem);
     opacity: 0.6;
+}
+
+/* What else this one can do (E8).
+
+   A screwdriver lives in the Tools row and can be swung; that fact was a flag
+   and nothing else, which is the same as absent to a player deciding what to
+   ready. Quieter than the tier — it is a second thing about the item, not the
+   first — and it sits before the tier so the tier stays where the eye expects
+   it at the end of the row. */
+.drpg-inventory-list .drpg-item-role {
+    padding: 0 0.3em;
+    border: 1px solid var(--drpg-line-strong);
+    border-radius: 3px;
+    font-size: var(--font-size-10, 0.625rem);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--drpg-dim);
+    white-space: nowrap;
 }
 
 .drpg-inventory-list .drpg-inventory-empty {

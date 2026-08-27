@@ -1033,7 +1033,9 @@ async function performSearch(actor, def, options) {
         // the tier line".
         granted = await grantItem(actor, {
             name: drawn.name, category, tier, goal: goalKey,
-            img: drawn.img ?? null, description: drawn.description ?? ""
+            img: drawn.img ?? null, description: drawn.description ?? "",
+            // What else it can do, from the table entry it came out of.
+            roles: drawn.roles ?? []
         });
     }
 
@@ -1610,12 +1612,36 @@ async function workOnProject(actor, def, options, chosen = null) {
         }
     }
 
-    const roll = await rollTrait(actor, trait, {
-        actionKey: "project",
-        title: game.i18n.localize(indirect ? "DRPG.Roll.murderProject" : "DRPG.Roll.project"),
-        context: { room: roomOfActor(actor), projectId: project.id, bonus, cost }
-    });
+    /*
+     * A TOOL IN HAND IS WORTH A DIE (E8).
+     *
+     * `armSituational` rather than a flat bonus, so after E7 it adds to the
+     * room's favour and to a Hope Call rather than replacing either: a tool, in
+     * a room that suits the work, with an Ultimate behind it is genuinely three
+     * dice. The concealment roll above cannot pick this up — it goes through
+     * `remember: false`, which shields it (trap 61), and that was already true
+     * before this line existed.
+     */
+    const { equippedFor, breakOnDespair } = await import("./use-items.mjs");
+    const calls = await import("./call-effects.mjs");
+    const tool = equippedFor(actor, "tool");
+    if (tool) calls.armSituational(1);
+
+    let roll;
+    try {
+        roll = await rollTrait(actor, trait, {
+            actionKey: "project",
+            title: game.i18n.localize(indirect ? "DRPG.Roll.murderProject" : "DRPG.Roll.project"),
+            context: { room: roomOfActor(actor), projectId: project.id, bonus, cost }
+        });
+    } finally {
+        // Cleared whatever happened, like every other armed situation: one that
+        // outlived its roll would attach itself to the next unrelated one.
+        calls.clearSituational();
+    }
     if (!roll) return abort(actor, cost);
+
+    await breakOnDespair(actor, tool, roll);
 
     const hit = roll.isCritical ? def.critical : resolveThreshold(roll.total, def.thresholds);
     const thresholdProgress = hit?.progress ?? 0;
@@ -1962,11 +1988,27 @@ async function performSabotage(actor, def, options) {
         lines.push(`<p><em>${SABOTAGE_CONCEAL.aloneNote}</em></p>`);
     }
 
-    const roll = await rollTrait(actor, trait, {
-        actionKey: "sabotage",
-        context: { room, targetProjectId: project.id, penalty, witnesses: witnesses.length }
-    });
+    // Sabotage is project work with the sign flipped, so the tool counts here
+    // too — the guide's own "including sabotage". `performSabotage` did not look
+    // at the inventory at all before this (trap 60), so it is armed here rather
+    // than assumed to arrive from the project path.
+    const { equippedFor, breakOnDespair } = await import("./use-items.mjs");
+    const calls = await import("./call-effects.mjs");
+    const tool = equippedFor(actor, "tool");
+    if (tool) calls.armSituational(1);
+
+    let roll;
+    try {
+        roll = await rollTrait(actor, trait, {
+            actionKey: "sabotage",
+            context: { room, targetProjectId: project.id, penalty, witnesses: witnesses.length }
+        });
+    } finally {
+        calls.clearSituational();
+    }
     if (!roll) return abort(actor, cost);
+
+    await breakOnDespair(actor, tool, roll);
 
     const score = roll.total + penalty;
     const hit = roll.isCritical ? def.critical : resolveThreshold(score, def.thresholds);

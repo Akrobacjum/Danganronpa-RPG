@@ -313,14 +313,28 @@ export const ITEM_CATEGORIES = {
     crimeTool: {
         label: "Murder Weapon",
         plural: "Murder Weapons",
-        limit: 1,
+        limitGroup: "gear",
         hint: "Makes a murder incident easier."
     },
     cleaningTool: {
         label: "Cleaning Tool",
         plural: "Cleaning Tools",
-        limit: 2,
+        limitGroup: "gear",
         hint: "Makes covering up a murder easier."
+    },
+    /**
+     * A tool, in the ordinary sense: something you work with.
+     *
+     * Held ready, it gives advantage on project work and on sabotage. It is the
+     * one category here that is not about a murder, which is exactly why it
+     * shares its slots with the two that are — see LIMIT_GROUPS. A character
+     * carrying a full workshop is a character not carrying a knife.
+     */
+    tool: {
+        label: "Tool",
+        plural: "Tools",
+        limitGroup: "gear",
+        hint: "Held ready, it gives advantage on project work — sabotage included. It can break."
     },
     truthBullet: {
         label: "Truth Bullet",
@@ -442,7 +456,37 @@ export const USABLE_EFFECTS = {
  * to be told WHICH. Equipping is that answer: one per category, and it is what
  * `bestWeaponTier` reads first.
  */
-export const EQUIPPABLE = ["crimeTool", "cleaningTool"];
+export const EQUIPPABLE = ["crimeTool", "cleaningTool", "tool"];
+
+/**
+ * Categories that share one carry limit between them.
+ *
+ * THREE SLOTS FOR EVERYTHING YOU HOLD IN YOUR HANDS (Dawid, 27.08, G-43).
+ *
+ * The guide gives one Murder Weapon and two Cleaning Tools: three, in fixed
+ * proportions. The total stands; the division goes. Which three you have is
+ * decided by what the dice turned up and what you chose to keep — a player who
+ * found two knives no longer has to leave one behind while a slot sits empty
+ * beside it, and the new Tool category does not quietly make the number five.
+ *
+ * A GROUP RATHER THAN A NUMBER ON EACH CATEGORY, because the question
+ * `canCarry` asks changes shape: it stops being "how many of these" and becomes
+ * "how much of this budget is spent". Categories with no group keep the old
+ * behaviour exactly — Usables still cap at three of their own, Truth Bullets and
+ * keys are still uncapped — so nothing outside this group notices.
+ *
+ * It is also what makes item ROLES safe. With separate counters, moving an
+ * item's home moved which counter it drew from, so a screwdriver filed under
+ * Tools could serve as a weapon without spending the weapon slot. With one
+ * counter every item costs one slot whatever its home and whatever it can do.
+ */
+export const LIMIT_GROUPS = {
+    gear: {
+        label: "Gear",
+        limit: 3,
+        hint: "Murder Weapons, Cleaning Tools and Tools share three slots."
+    }
+};
 
 /* ==========================================================================
  * REMNANTS & TRUTH BULLETS
@@ -2470,6 +2514,7 @@ export const DRPG = {
     USABLE_KIND_EFFECTS,
     USABLE_EFFECTS,
     EQUIPPABLE,
+    LIMIT_GROUPS,
     REMNANT_VISIBILITY,
     REMNANT_VISIBILITY_LABELS,
     REMNANT_TYPES,
