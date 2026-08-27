@@ -12,7 +12,8 @@
  */
 
 import {
-    MODULE_ID, FLAGS, ACTIONS, STARTING, ITEM_CATEGORIES, LIMIT_GROUPS, MONOCUB, ECLIPSE_MOVES,
+    MODULE_ID, FLAGS, ACTIONS, STARTING, ITEM_CATEGORIES, LIMIT_GROUPS, USABLE_KINDS, MONOCUB,
+    ECLIPSE_MOVES,
     EQUIPPABLE,
     BEDROOM_KEY_FLAG, callEffect, HOPE_CALLS, DESPAIR_CALLS } from "./config.mjs";
 import { actionsLeft, actionsMax, actionBudget, hasFreeMove, setActions } from "./actions.mjs";
@@ -35,7 +36,8 @@ import { isMonocub, isSilenced, isSilenced as cubSilenced } from "./monocub.mjs"
 import { isSilenced as callSilenced, isChained } from "./call-effects.mjs";
 import { isDeceased } from "./chapter.mjs";
 import { isStashed, ITEM_FLAGS, isBroken } from "./inventory.mjs";
-import { isUsable, isEquippable, isEquipped, equippedIn, equippedFor } from "./use-items.mjs";
+import { isUsable, isEquippable, isEquipped, equippedIn, equippedFor, usableKindOf }
+    from "./use-items.mjs";
 import { countInGroup, categoriesInGroup, rolesOf } from "./inventory.mjs";
 import { isCleaner, bodyIsHere } from "./cleanup.mjs";
 import { roomOfActor, neighbouringRooms } from "./movement.mjs";
@@ -1679,6 +1681,43 @@ const INVENTORY_GROUPS = [
     { key: "bedroomKey", labelKey: "DRPG.Sheet.groupKeys" }
 ];
 
+/**
+ * The chips on one inventory row: what this is, then what else it can do.
+ *
+ * ONE PLACE, because three kinds of row want tags for three different reasons
+ * and each of them would otherwise grow its own version. Gear names its home
+ * first — the category is the tag tied to the table the thing came out of — and
+ * then its extra roles. A Usable names the resource it refills, which is the
+ * only thing anybody wants to know about one at a glance. Truth Bullets and
+ * keys get nothing here: bullets carry their own richer badges (see
+ * `bulletBadges`) and a key row that said "Room Key" under a heading reading
+ * Room Keys would be furniture.
+ *
+ * @returns {{key: string, label: string, hint: string}[]}
+ */
+function itemTags(item, inGearRow) {
+    const named = (key, label, hint) => ({ key, label, hint });
+
+    if (isUsable(item)) {
+        const kind = usableKindOf(item);
+        const def = kind ? USABLE_KINDS[kind] : null;
+        return def
+            ? [named(kind, def.chip ?? def.label,
+                game.i18n.format("DRPG.Items.restores", { what: def.chip ?? def.label }))]
+            : [];
+    }
+
+    if (!inGearRow) return [];
+
+    const home = item.getFlag(MODULE_ID, "category");
+    const label = role => ITEM_CATEGORIES[role]?.label ?? role;
+    return [
+        named(home, label(home), game.i18n.format("DRPG.Items.isA", { role: label(home) })),
+        ...rolesOf(item).map(role =>
+            named(role, label(role), game.i18n.format("DRPG.Items.alsoServes", { role: label(role) })))
+    ];
+}
+
 /** A key to somebody's bedroom — see vault.mjs. */
 function isBedroomKey(item) {
     return Boolean(item?.getFlag?.(MODULE_ID, BEDROOM_KEY_FLAG));
@@ -1789,18 +1828,7 @@ function groupInventory(app, element) {
                     const tier = item.getFlag(MODULE_ID, "tier");
                     const ready = isEquipped(item);
                     const broken = isBroken(item);
-                    /*
-                     * WHAT THIS THING IS, on the row.
-                     *
-                     * The heading used to say it. One row means the item has to
-                     * say it itself — the home first, because it is the one tied
-                     * to the table the thing came from, then anything else it
-                     * can do. Only gear: a Usable is in a row that still names
-                     * itself, and a chip reading "Usable" on every line is
-                     * furniture.
-                     */
-                    const home = item.getFlag(MODULE_ID, "category");
-                    const tags = inGroup ? [home, ...rolesOf(item)] : rolesOf(item);
+                    const tags = itemTags(item, Boolean(inGroup));
                     if (ready) li.classList.add("drpg-item-equipped");
                     // The row is still the row. A used-up thing is the same
                     // object in the same slot — what changes is that it says so,
@@ -1815,15 +1843,10 @@ function groupInventory(app, element) {
                                     ${ready ? `<span class="drpg-item-ready" data-tooltip="${
                                         foundry.utils.escapeHTML(game.i18n.localize("DRPG.Items.readyTooltip"))
                                     }"><i class="fa-solid fa-hand-fist" inert></i></span>` : ""}
-                                    ${tags.length ? `<span class="drpg-tb-badges">${tags.map((role, index) =>
-                                        `<span class="drpg-tb-badge drpg-role-${role}" data-tooltip="${
-                                            foundry.utils.escapeHTML(index === 0 && inGroup
-                                                ? game.i18n.format("DRPG.Items.isA", {
-                                                    role: ITEM_CATEGORIES[role]?.label ?? role })
-                                                : game.i18n.format("DRPG.Items.alsoServes", {
-                                                    role: ITEM_CATEGORIES[role]?.label ?? role }))
-                                        }">${foundry.utils.escapeHTML(
-                                            ITEM_CATEGORIES[role]?.label ?? role)}</span>`).join("")
+                                    ${tags.length ? `<span class="drpg-tb-badges">${tags.map(tag =>
+                                        `<span class="drpg-tb-badge drpg-role-${tag.key}" data-tooltip="${
+                                            foundry.utils.escapeHTML(tag.hint)
+                                        }">${foundry.utils.escapeHTML(tag.label)}</span>`).join("")
                                     }</span>` : ""}
                                     ${tier !== undefined && tier !== null
                                         ? `<span class="drpg-item-tier">T${tier}</span>` : ""}`;

@@ -1,20 +1,55 @@
 /**
- * Danganronpa RPG — sheet anonymity.
+ * Danganronpa RPG — what one student may see of another.
  * ---------------------------------------------------------------------------
- * Guide: "Character sheets are anonymous during play — other players have no
- * access to someone else's sheet."
+ * THE GUIDE SAYS SHEETS ARE PRIVATE, AND THIS FILE USED TO ENFORCE THAT:
+ * "Character sheets are anonymous during play — other players have no access to
+ * someone else's sheet." Ownership was pinned at NONE and any sheet that reached
+ * a non-owner was closed on sight.
  *
- * In Foundry that means `ownership.default` must stay at NONE on every
- * character. A single stray OBSERVER hands the whole table someone's stats,
- * inventory and Truth Bullets, so this guards both creation and updates and
- * gives the GM an audit they can run before a session.
+ * Since E9 it is a REDACTION rather than a refusal (Dawid, 27.08 — recorded as
+ * G-44). Some of what a sheet holds is not secret in the fiction at all: you can
+ * see that somebody is hurt, and you can see what they are holding. Making the
+ * interface hide those was making players ask for information the room already
+ * gives them. So another student's sheet opens, and shows:
+ *
+ *     name, portrait, Ultimate, Health, Sanity, and the one thing in their hands
+ *
+ * and everything else — actions, Hope, the inventory, the biography, the Truth
+ * Bullets — sits behind a pixel question mark. The lock is decoration: it does
+ * not open, and it is not meant to. Its job is to say THERE IS SOMETHING HERE,
+ * because an empty panel and a hidden one must not look alike.
+ *
+ * HOW THE HIDING ACTUALLY WORKS, and it is not this file.
+ *
+ * Daggerheart's character sheet declares a `limited` part and
+ * `_configureRenderParts` returns THAT PART ALONE to a viewer whose permission
+ * is exactly LIMITED. So the sidebar, the tabs, the inventory and the biography
+ * are never built, never sent to the DOM, and never in reach of a right-click.
+ * This file's job is therefore the smaller and safer one: keep the permission at
+ * exactly LIMITED, trim the handful of Daggerheart concepts the limited view
+ * shows and this game does not use, and add the six things above.
+ *
+ * "EXACTLY" IS LOAD-BEARING. `testUserPermission(user, "LIMITED", {exact: true})`
+ * is what the system checks, so OBSERVER does not mean "a bit more" — it means
+ * the whole sheet. Raising a student above LIMITED is the one mistake that
+ * undoes all of this, which is why the guard below now watches that direction.
+ *
+ * AND IT IS A CURTAIN, NOT A WALL. Foundry sends every world document to every
+ * client, so a player with a console can read anything here regardless. That was
+ * equally true of the old closed sheet. It means only one thing, and it is worth
+ * writing down: nothing may sit behind that lock whose leak would spoil the
+ * game.
  */
 
-import { MODULE_ID } from "./config.mjs";
+import { MODULE_ID, FLAGS, ITEM_CATEGORIES } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { whisperToGms, warn, debug } from "./utils.mjs";
+import { remaining, resourceMax } from "./character.mjs";
+import { rolesOf } from "./inventory.mjs";
+import { readiedItem } from "./use-items.mjs";
+import { whisperToGms, warn, debug, error } from "./utils.mjs";
 
-const NONE = 0; // CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE
+const NONE = 0;    // CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE
+const LIMITED = 1; // …LIMITED — exactly this, or the whole sheet opens.
 
 export function registerAnonymity() {
     Hooks.on("preCreateActor", onPreCreateActor);
@@ -29,12 +64,13 @@ export function registerAnonymity() {
 const refused = new Set();
 
 /**
- * Last line of defence: close a character sheet a player should not be reading.
+ * Somebody else's sheet: keep the six public things, lock the rest.
  *
- * Ownership already stops most routes, but a sheet can still be reached through
- * a token they can see, a chat card, or a compendium copy. In a killing game a
- * single glance at someone else's inventory is the whole mystery, so the sheet
- * is closed outright rather than trusted to be empty.
+ * Runs only on the limited view, which is the only thing the system built for
+ * this viewer. Everything removed below is a Daggerheart concept this game does
+ * not use (class, subclass, community, ancestry, level, domains) or something
+ * the decision above puts behind the lock (the biography characteristics —
+ * pronouns, age and faith are biography, and biography is not public).
  */
 function onRenderSheet(app, element) {
     try {
@@ -44,24 +80,97 @@ function onRenderSheet(app, element) {
         if (!actor || actor.type !== "character") return;
         if (actor.testUserPermission(game.user, "OWNER")) return;
 
-        // Not ours. Shut it, quietly and exactly once.
         const root = element instanceof HTMLElement ? element : element?.[0];
-        if (root) root.style.display = "none";
-
-        const key = `${actor.id}:${app.id}`;
-        if (!refused.has(key)) {
-            refused.add(key);
-            setTimeout(() => refused.delete(key), 2000);
-            ui.notifications.warn(game.i18n.localize("DRPG.Anonymity.notYours"));
-            warn(`Closed ${actor.name}'s sheet — not owned by ${game.user.name}.`);
+        const box = root?.querySelector(".limited-container");
+        // No limited view means the system rendered something else entirely —
+        // a sheet class we do not know, or a permission above LIMITED that the
+        // guard failed to hold. Say so rather than dressing the wrong window.
+        if (!box) {
+            warn(`No limited view on ${actor.name}'s sheet; leaving it alone.`);
+            return;
         }
 
-        // `force` skips the submit/close pipeline that was throwing.
-        app.close({ force: true, animate: false }).catch(() => {});
-    } catch {
-        // Never let this break a sheet the player is entitled to.
+        for (const gone of box.querySelectorAll(
+            ".character-details, .level-details, .domain-details, .bio-details"
+        )) gone.remove();
+
+        // Idempotent: the sheet re-renders on every change to the actor, and a
+        // second card under the first is worse than no card.
+        box.querySelector(".drpg-redacted")?.remove();
+        box.append(buildRedactedCard(actor));
+        root.classList.add("drpg-redacted-sheet");
+    } catch (err) {
+        // A sheet that failed to be dressed is still only the limited view —
+        // the system never built the rest of it — so this can fail safely.
+        error("Could not redact a character sheet", err);
     }
 }
+
+/** What one student may see of another. */
+function buildRedactedCard(actor) {
+    const card = document.createElement("div");
+    card.className = "drpg-redacted";
+
+    const esc = foundry.utils.escapeHTML;
+    const ultimate = actor.getFlag(MODULE_ID, FLAGS.ultimate) || "—";
+
+    /*
+     * POINTS, NOT A STATE (Dawid, 27.08).
+     *
+     * Both are reverse resources — the stored value counts marks taken — so
+     * what a player reads is max minus marks, which is what `remaining` gives.
+     * Exact numbers make the morning after a body is found into a list of
+     * suspects, and that is the intended cost.
+     */
+    const hp = `${remaining(actor, "hitPoints")} / ${resourceMax(actor, "hitPoints")}`;
+    const sanity = `${remaining(actor, "stress")} / ${resourceMax(actor, "stress")}`;
+
+    card.innerHTML = `
+        <dl class="drpg-redacted-vitals">
+            <div><dt>${game.i18n.localize("DRPG.Redacted.ultimate")}</dt><dd>${esc(ultimate)}</dd></div>
+            <div><dt>${game.i18n.localize("DRPG.Redacted.health")}</dt><dd>${hp}</dd></div>
+            <div><dt>${game.i18n.localize("DRPG.Redacted.sanity")}</dt><dd>${sanity}</dd></div>
+        </dl>
+        <div class="drpg-redacted-hand">${handLine(actor)}</div>
+        <div class="drpg-redacted-locked">
+            <p class="notes">${game.i18n.localize("DRPG.Redacted.lockedNote")}</p>
+            <div class="drpg-redacted-tiles">${LOCKED_PANELS.map(key =>
+                `<div class="drpg-redacted-tile"><i aria-hidden="true"></i><span>${
+                    game.i18n.localize(`DRPG.Redacted.panel.${key}`)}</span></div>`).join("")}</div>
+        </div>`;
+
+    return card;
+}
+
+/**
+ * What is in their hands, and nothing about what else they are carrying.
+ *
+ * The sharpest line on this card. One thing may be readied at a time (E9), so
+ * this is a single legible public fact: a student walking around with a knife
+ * out is a student who chose to. It also makes readying a social act, which is
+ * the point rather than a side effect.
+ */
+function handLine(actor) {
+    const esc = foundry.utils.escapeHTML;
+    const label = game.i18n.localize("DRPG.Redacted.inHand");
+    const item = readiedItem(actor);
+    if (!item) {
+        return `<span class="dt">${label}</span>
+                <span class="dd empty">${game.i18n.localize("DRPG.Redacted.emptyHanded")}</span>`;
+    }
+
+    const tags = [actor.items.get(item.id)?.getFlag(MODULE_ID, "category"), ...rolesOf(item)]
+        .filter(Boolean)
+        .map(role => `<span class="drpg-tb-badge drpg-role-${role}">${
+            esc(ITEM_CATEGORIES[role]?.label ?? role)}</span>`).join("");
+
+    return `<span class="dt">${label}</span>
+            <span class="dd"><img src="${item.img}" alt="" />${esc(item.name)}
+            <span class="drpg-tb-badges">${tags}</span></span>`;
+}
+
+/** The panels that exist and are not yours to read. */
+const LOCKED_PANELS = ["actions", "hope", "inventory", "biography", "evidence"];
 
 function enforcing() {
     try {
@@ -71,28 +180,41 @@ function enforcing() {
     }
 }
 
-/** New characters are private by default, whatever the folder says. */
+/**
+ * New characters open at exactly LIMITED.
+ *
+ * Not NONE any more: at NONE the sheet does not open at all, and the redacted
+ * view is a window nobody could reach. Not higher either — see the header.
+ */
 function onPreCreateActor(actor, data) {
     if (actor.type !== "character" || !enforcing()) return;
-    if ((data.ownership?.default ?? NONE) <= NONE) return;
+    if ((data.ownership?.default ?? NONE) === LIMITED) return;
 
-    actor.updateSource({ "ownership.default": NONE });
-    warn(`Forced default ownership to NONE on new character "${data.name}".`);
-    if (game.user.isGM) ui.notifications.info(game.i18n.localize("DRPG.Anonymity.forcedOnCreate"));
+    actor.updateSource({ "ownership.default": LIMITED });
+    debug(`Set default ownership to LIMITED on new character "${data.name}".`);
 }
 
-/** Block anyone raising default ownership on an existing character. */
+/**
+ * Stop anyone raising a student ABOVE limited.
+ *
+ * The direction of the danger has turned over. It used to be that any sharing
+ * at all was the leak; now the leak is precisely OBSERVER, because the system
+ * asks for LIMITED *exactly* and anything above it renders the entire sheet —
+ * inventory, Truth Bullets and all. Lowering to NONE is not blocked: a GM who
+ * wants one character sealed shut is making a ruling, and the only thing they
+ * lose is a window that would have shown a portrait.
+ */
 function onPreUpdateActor(actor, changes) {
     if (actor.type !== "character" || !enforcing()) return;
 
     const next = changes.ownership?.default;
-    if (next === undefined || next <= NONE) return;
+    if (next === undefined || next <= LIMITED) return;
 
     delete changes.ownership.default;
     if (!Object.keys(changes.ownership).length) delete changes.ownership;
 
     ui.notifications.warn(game.i18n.format("DRPG.Anonymity.blocked", { actor: actor.name }));
-    debug(`Blocked a default-ownership raise on "${actor.name}".`);
+    debug(`Blocked a default-ownership raise on "${actor.name}" — LIMITED is the ceiling.`);
 }
 
 /* ==========================================================================

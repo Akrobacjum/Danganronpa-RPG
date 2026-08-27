@@ -412,9 +412,17 @@ export const TIER_EFFECTS = {
  * USABLE_GOALS in tables.mjs, so renaming one here renames what a fresh world
  * installs.
  */
+/**
+ * `chip` is the short form, for the tag on an inventory row.
+ *
+ * Separate from `label` rather than replacing it: the long names go into item
+ * descriptions, the GM's give-item receipt and the goal tables, where "Sanity
+ * Relief" says what the thing does. On a row beside a Murder Weapon, next to
+ * the resource it refills, "Sanity" is what a player is reading for.
+ */
 export const USABLE_KINDS = {
-    healing: { label: "Healing", resource: "hitPoints" },
-    stress: { label: "Sanity Relief", resource: "stress" }
+    healing: { label: "Healing", chip: "Health", resource: "hitPoints" },
+    stress: { label: "Sanity Relief", chip: "Sanity", resource: "stress" }
 };
 
 /**

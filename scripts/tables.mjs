@@ -746,9 +746,39 @@ function tableItemsHtml(table) {
     // again. Every field here is the field itself, saved when it loses focus —
     // the same pattern the Remnant card on the map uses, and for the same
     // reason: there is nothing here worth a two-step commit.
+    /*
+     * THE ROLES ARE ON THE ROW, because an entry that cannot be inspected is an
+     * entry nobody can trust. They were settable when an item was ADDED and
+     * invisible ever after — so a GM wanting to know whether their screwdriver
+     * could be swung had to delete it and add it again to find out.
+     *
+     * Gated on the TABLE's tier, which is the tier every entry in it has: two
+     * jobs start at tier 2 (E9), so the boxes on a Tier 0 or Tier 1 table are
+     * disabled and say why rather than being absent — a control that vanishes
+     * teaches nothing about the rule that removed it.
+     *
+     * Only the three equippable categories, and not the one the table itself
+     * is: an entry in the Murder Weapons table is already a Murder Weapon, and
+     * a box saying so would be a box that cannot be unticked.
+     */
+    const tier = Number(table?.getFlag(MODULE_ID, "tier"));
+    const home = table?.getFlag(MODULE_ID, "category");
+    const rolesAllowed = Number.isFinite(tier) && tier >= MULTI_ROLE_TIER;
+    const offerable = EQUIPPABLE.filter(key => key !== home);
+
     return `<ul class="drpg-table-items">${results.map(r => {
         const name = r.name ?? r.text ?? "";
         const note = r.description && r.description !== name ? r.description : "";
+        const roles = r.getFlag(MODULE_ID, "roles") ?? [];
+        const roleBoxes = offerable.length && EQUIPPABLE.includes(home)
+            ? `<span class="drpg-table-item-roles"${rolesAllowed ? "" : ` data-tooltip="${
+                    esc(game.i18n.format("DRPG.Tables.rolesTierOnly", { tier: MULTI_ROLE_TIER }))}"`
+              }>${offerable.map(key =>
+                `<label class="drpg-check${rolesAllowed ? "" : " drpg-locked"}"><input type="checkbox"
+                    data-drpg-role="${key}"${roles.includes(key) ? " checked" : ""}${
+                    rolesAllowed ? "" : " disabled"} />${
+                    esc(ITEM_CATEGORIES[key]?.label ?? key)}</label>`).join("")}</span>`
+            : "";
         return `<li data-drpg-result="${r.id}" data-drpg-table="${table.id}">
             <img src="${esc(r.img || DEFAULT_RESULT_IMG)}" alt="" class="drpg-table-item-icon"
                  data-drpg-result-img="${r.id}"
@@ -758,6 +788,7 @@ function tableItemsHtml(table) {
             <input type="text" class="drpg-table-item-note notes" data-drpg-field="description"
                    value="${esc(note)}"
                    placeholder="${esc(game.i18n.localize("DRPG.Items.descriptionPlaceholder"))}" />
+            ${roleBoxes}
             <button type="button" class="drpg-mini-button" data-drpg-drop="${r.id}"
                 data-drpg-drop-table="${table.id}" title="${
                     esc(game.i18n.localize("DRPG.Tables.removeItem"))}">✕</button>
@@ -1252,6 +1283,43 @@ export async function openItemTables({ preset = null } = {}) {
                         }
                     }
                 }).render(true);
+            });
+
+            /*
+             * Ticking a role saves it immediately, like every other field here.
+             *
+             * `change`, not `focusout`: a checkbox that waits for the blur is a
+             * checkbox the GM has to click away from to commit, and half of
+             * them will not.
+             *
+             * ONE EXTRA ROLE. The home is a tag too, so a second tick would
+             * make three — the other boxes in the row clear themselves, which
+             * reads as "moving the choice" rather than as a refusal.
+             */
+            bodyEl?.addEventListener("change", async ev => {
+                const box = ev.target.closest("[data-drpg-role]");
+                if (!box) return;
+
+                const row = box.closest("[data-drpg-result]");
+                const table = game.tables.get(row?.dataset.drpgTable);
+                const result = table?.results?.get(row?.dataset.drpgResult);
+                if (!result) return;
+
+                const siblings = [...row.querySelectorAll("[data-drpg-role]")];
+                if (box.checked) {
+                    for (const other of siblings) {
+                        if (other !== box) other.checked = false;
+                    }
+                }
+                const roles = siblings.filter(b => b.checked).map(b => b.dataset.drpgRole);
+
+                try {
+                    await result.setFlag(MODULE_ID, "roles", roles);
+                    box.closest("label")?.classList.add("drpg-saved");
+                    setTimeout(() => box.closest("label")?.classList.remove("drpg-saved"), 1200);
+                } catch (err) {
+                    error(`Could not change the roles on "${result.name ?? result.text}"`, err);
+                }
             });
 
             bodyEl?.addEventListener("focusout", async ev => {

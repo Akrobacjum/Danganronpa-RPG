@@ -44,7 +44,7 @@
 
 import { MODULE_ID, moduleVersion } from "./config.mjs";
 import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
-import { log, error, isPrimaryGm, plural } from "./utils.mjs";
+import { log, error, isPrimaryGm, plural, whisperToGms } from "./utils.mjs";
 
 /**
  * The chime the messenger played from a hard-coded path until E2, and which
@@ -257,6 +257,97 @@ const CLAUSES = [
             }
 
             return touched.length ? { tables: touched.length, entries: touched } : null;
+        }
+    },
+    {
+        key: "seedItemRoles",
+        since: "1.1.20",
+        /*
+         * AND THE THINGS PEOPLE ARE ALREADY CARRYING.
+         *
+         * `seedTableRoles` fixed the tables; it did nothing for the knife
+         * already in somebody's pocket. An item written before E8 has no roles
+         * flag, so a Crowbar a player found last session is a tool and nothing
+         * else — and the sheet, which now shows what a thing can do, says so.
+         *
+         * Same guard as the tables: only where no flag is set. And by NAME,
+         * which is the fragile way — but the item came out of a pool by that
+         * name, and the alternative is leaving live inventories wrong.
+         */
+        run: async () => {
+            const { POOL_ROLES } = await import("./tables.mjs");
+            const { ITEM_FLAGS } = await import("./inventory.mjs");
+            const touched = [];
+
+            for (const actor of game.actors ?? []) {
+                const updates = [];
+                for (const item of actor.items) {
+                    if (Array.isArray(item.getFlag(MODULE_ID, ITEM_FLAGS.roles))) continue;
+                    const roles = POOL_ROLES[item.name];
+                    if (!roles?.length) continue;
+                    updates.push({
+                        _id: item.id,
+                        [`flags.${MODULE_ID}.${ITEM_FLAGS.roles}`]: [...roles]
+                    });
+                }
+
+                if (!updates.length) continue;
+                try {
+                    await actor.updateEmbeddedDocuments("Item", updates);
+                    touched.push(`${actor.name}: ${updates.length}`);
+                } catch (err) {
+                    error(`Could not write roles onto ${actor.name}'s items`, err);
+                }
+            }
+
+            return touched.length ? { actors: touched.length, items: touched } : null;
+        }
+    },
+    {
+        key: "openStudentSheets",
+        since: "1.1.20",
+        /*
+         * CUDZA KARTA MUSI DAĆ SIĘ OTWORZYĆ, ŻEBY DAŁO SIĘ JĄ OCENZUROWAĆ.
+         *
+         * Before E9 every character sat at `ownership.default: NONE`, which is
+         * what the old rule wanted: the sheet did not open at all. The redacted
+         * view (G-44) needs it to open, and Daggerheart renders its `limited`
+         * part — and nothing else — to a viewer whose permission is EXACTLY
+         * LIMITED.
+         *
+         * So: NONE becomes LIMITED. Anything already above LIMITED is left
+         * alone and REPORTED instead of lowered, because a GM who granted
+         * somebody OBSERVER on a character did it for a reason — but they
+         * should know that on such a character the redaction does nothing, the
+         * whole sheet opens, and that is now the one configuration that leaks.
+         */
+        run: async () => {
+            const LIMITED = CONST.DOCUMENT_OWNERSHIP_LEVELS.LIMITED;
+            const opened = [];
+            const wideOpen = [];
+
+            for (const actor of game.actors ?? []) {
+                if (actor.type !== "character") continue;
+                const level = actor.ownership?.default ?? 0;
+                if (level > LIMITED) { wideOpen.push(actor.name); continue; }
+                if (level === LIMITED) continue;
+
+                try {
+                    await actor.update({ "ownership.default": LIMITED });
+                    opened.push(actor.name);
+                } catch (err) {
+                    error(`Could not open ${actor.name}'s sheet to the limited view`, err);
+                }
+            }
+
+            if (wideOpen.length) {
+                await whisperToGms(`<p class="drpg-warning">${game.i18n.format(
+                    "DRPG.Anonymity.aboveLimited", {
+                        actors: foundry.utils.escapeHTML(wideOpen.join(", "))
+                    })}</p>`);
+            }
+
+            return opened.length || wideOpen.length ? { opened, wideOpen } : null;
         }
     }
 ];

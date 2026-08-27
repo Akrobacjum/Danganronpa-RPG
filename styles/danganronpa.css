@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json — the suite fails if it does not. */
-    --drpg-css-version: "1.1.19";
+    --drpg-css-version: "1.1.20";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -1500,6 +1500,10 @@ section[data-application-part="biography"] .experiences .value {
     padding: 2px 4px;
     border-radius: 3px;
     cursor: pointer;
+    /* Tags live on a line of their own below the row — see the note on
+       `.drpg-tb-badges` further down. Without this they squeeze in beside the
+       name and push it into a second line of its own. */
+    flex-wrap: wrap;
 }
 
 .drpg-inventory-list li:hover {
@@ -1544,10 +1548,33 @@ section[data-application-part="biography"] .experiences .value {
     border-color: rgba(var(--drpg-bone-rgb), 0.3);
 }
 
-/* The row is name, chips, tier — so the chips need room without pushing the
-   tier off the end. */
+/* TAGS SIT ON THEIR OWN LINE, UNDER THE ROW (Dawid, 27.08).
+
+   Exactly what a Truth Bullet's badges already do, which is the point: one
+   visual grammar for "what this thing is", whether the thing is a crowbar or a
+   piece of evidence.
+
+   `order` rather than moving the markup: the row's buttons are appended by JS
+   after the name, so DOM order cannot put the chips last without threading them
+   through every button call. `flex-basis: 100%` is what guarantees the break —
+   relying on the chips being too wide to fit gives a layout that changes with
+   the window. Indented to the name, not to the icon. */
 .drpg-inventory-list .drpg-tb-badges {
-    margin-left: auto;
+    order: 2;
+    flex: 0 0 100%;
+    margin: 2px 0 1px 1.8rem;
+}
+
+/* Usables say which resource they refill — the one thing worth knowing about
+   one at a glance. Health borrows the module's blood; Sanity the eye. */
+.drpg-inventory-list .drpg-tb-badge.drpg-role-healing {
+    background: rgba(var(--drpg-blood-rgb), 0.2);
+    border-color: var(--drpg-blood);
+}
+
+.drpg-inventory-list .drpg-tb-badge.drpg-role-stress {
+    background: rgba(var(--drpg-eye-rgb), 0.2);
+    border-color: var(--drpg-eye);
 }
 
 .drpg-inventory-list .drpg-inventory-empty {
@@ -10173,6 +10200,159 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     flex-wrap: wrap;
     gap: 4px 10px;
     align-items: baseline;
+}
+
+/* ---- roles, on the add form and on every existing entry ---------------- */
+
+.drpg-tables-roles,
+.drpg-table-item-roles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px 10px;
+    align-items: baseline;
+}
+
+.drpg-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--drpg-text-xs);
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+/* Disabled because the tier is too low for two jobs — greyed rather than
+   removed, because a control that vanishes teaches nothing about the rule
+   that removed it. */
+.drpg-check.drpg-locked {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+/* The same brief "that landed" mark the other fields in this window use. */
+.drpg-check.drpg-saved {
+    color: var(--drpg-gold);
+}
+
+/* ==========================================================================
+   SOMEBODY ELSE'S CHARACTER SHEET  (E9)
+   --------------------------------------------------------------------------
+   The system renders only its `limited` part for a viewer at exactly LIMITED,
+   so there is nothing here to hide — this dresses the little that is built.
+   See anonymity.mjs.
+   ========================================================================== */
+
+.drpg-redacted {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+}
+
+.drpg-redacted-vitals {
+    display: flex;
+    justify-content: center;
+    gap: 1.25rem;
+    margin: 0;
+}
+
+.drpg-redacted-vitals > div {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.drpg-redacted-vitals dt {
+    font-size: var(--drpg-text-xs);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--drpg-dim);
+}
+
+.drpg-redacted-vitals dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+    color: var(--drpg-bone);
+}
+
+/* What they are holding: the one line on this card that changes during play,
+   and the reason the card is worth opening. */
+.drpg-redacted-hand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    border: 1px solid var(--drpg-line-strong);
+    border-radius: var(--drpg-panel-radius);
+    background: rgba(var(--drpg-bone-rgb), 0.05);
+}
+
+.drpg-redacted-hand .dt {
+    font-size: var(--drpg-text-xs);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--drpg-dim);
+}
+
+.drpg-redacted-hand .dd {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.drpg-redacted-hand .dd.empty {
+    color: var(--drpg-dim);
+    font-style: italic;
+}
+
+.drpg-redacted-hand img {
+    width: 1.4rem;
+    height: 1.4rem;
+    border: 0;
+    border-radius: 3px;
+}
+
+.drpg-redacted-tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
+    gap: 0.5rem;
+}
+
+/* THE LOCK SAYS "THERE IS SOMETHING HERE".
+   An empty panel and a hidden one must not look alike, which is the whole job
+   of this tile — it is decoration by decision (Dawid, 27.08), so it takes no
+   pointer and offers nothing to click. */
+.drpg-redacted-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 0.6rem 0.35rem;
+    border: 1px dashed var(--drpg-line-strong);
+    border-radius: var(--drpg-panel-radius);
+    background: rgba(var(--drpg-bone-rgb), 0.03);
+    color: var(--drpg-dim);
+    font-size: var(--drpg-text-xs);
+    text-align: center;
+    cursor: default;
+    user-select: none;
+}
+
+.drpg-redacted-tile i {
+    display: block;
+    width: 16px;
+    height: 16px;
+    background: currentColor;
+    -webkit-mask-image: var(--drpg-pix-query);
+    mask-image: var(--drpg-pix-query);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    opacity: 0.8;
 }
 
 /* ---- the endgame's clues, on the Mastermind window --------------------- */

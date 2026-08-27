@@ -633,6 +633,7 @@
       "wouldRestoreNothing": "It restores nothing — you are already full on everything it gives.",
       "broken": "Broken",
       "brokenTooltip": "Used up. It still takes up its slot — throw it away or put it in your stash.",
+      "restores": "Restores {what}.",
       "isA": "This is a {role} — the table it came from.",
       "alsoServes": "Also works as a {role}.",
       "brokeOnDespair": "“{item}” did not survive that. It stays in your pack, useless — Despair breaks a tool whether or not the work succeeded.",
@@ -1834,6 +1835,7 @@
       "tierTarget": "Tier table (an item lives in exactly one):",
       "roomTargets": "Room tables it also appears in:",
       "noRoomTables": "No room tables yet — create one below.",
+      "rolesTierOnly": "Two jobs start at tier {tier} — an item this cheap does one.",
       "rolesNote": "Also works as — tick anything this entry can do besides the category it lives in. A screwdriver filed under Tools that is also a Murder Weapon gives advantage on an attack as well as on project work, and still takes one slot.",
       "addNote": "The icon and the description travel with it: whoever finds this item gets both on their sheet.",
       "needsName": "The item needs a name.",
@@ -1979,10 +1981,26 @@
       "unknownKind": "Unknown Level Up type: {kind}.",
       "failed": "The Level Up could not be saved. See the console."
     },
+    "Redacted": {
+      "health": "Health",
+      "sanity": "Sanity",
+      "ultimate": "Ultimate",
+      "inHand": "In hand",
+      "emptyHanded": "Nothing — their hands are empty",
+      "lockedNote": "Everything else about them is theirs to tell you.",
+      "panel": {
+        "actions": "Actions",
+        "hope": "Hope",
+        "inventory": "What they carry",
+        "biography": "Biography",
+        "evidence": "Truth Bullets"
+      }
+    },
     "Anonymity": {
       "notYours": "Not your character. Sheets are private in this game.",
       "forcedOnCreate": "Default ownership was set to None to keep this sheet private.",
-      "blocked": "Blocked: that would show “{actor}” to every player. Give the one player Owner instead.",
+      "aboveLimited": "These characters are shared above the limited view, so anyone can read their whole sheet — inventory and Truth Bullets included: {actors}. Set them back to Limited unless that is what you want.",
+      "blocked": "Blocked: that would open “{actor}”’s whole sheet to every player — the redacted view only holds at Limited. Give the one player Owner instead.",
       "audit": {
         "title": "Sheet Anonymity Audit",
         "clean": "Every character sheet is private. Nothing to fix.",
