@@ -603,7 +603,15 @@ export function fitWindowToTabs(dialog) {
             const content = root.querySelector(".window-content");
             if (!content) return;
 
-            const panels = [...content.querySelectorAll("[data-drpg-panel]")];
+            // BOTH tab mechanisms, because this module has two. Room Setup
+            // rolls its own panels with `data-drpg-panel` and inline display;
+            // every other tabbed window uses `panelTabs`, whose sections are
+            // switched by a class. Measuring only the first meant `fitTabs:
+            // true` silently fell through to `fitWindowToTable` on the second
+            // — one tab measured instead of all of them, which is the exact
+            // failure the option exists to prevent.
+            const panels = [...content.querySelectorAll(
+                "[data-drpg-panel], [data-drpg-gmt-section]")];
             if (!panels.length) return fitWindowToTable(dialog);
 
             const was = panels.map(panel => panel.style.display);
@@ -613,7 +621,11 @@ export function fitWindowToTabs(dialog) {
             try {
                 for (const shown of panels) {
                     for (const panel of panels) {
-                        panel.style.display = panel === shown ? "" : "none";
+                        // `block`, not `""`. An empty string hands the element
+                        // back to the stylesheet, and `.drpg-gmt-section` is
+                        // `display: none` there unless it carries `.active` —
+                        // so the panel being measured would measure as hidden.
+                        panel.style.display = panel === shown ? "block" : "none";
                     }
                     for (const table of shown.querySelectorAll("table")) {
                         widest = Math.max(widest, table.scrollWidth,
@@ -814,8 +826,64 @@ export function panelTabs(sections) {
     return nav + panes;
 }
 
-/** Make a `panelTabs` bar switch its panes. Purely visual — see above. */
-export function wirePanelTabs(root) {
+/**
+ * Make a `panelTabs` bar switch its panes, and its FOOTER follow along.
+ *
+ *     wirePanelTabs(root, {
+ *         buttons: { edit: [], newItem: ["add"], install: ["install"] },
+ *         always:  ["close"]
+ *     });
+ *
+ * Without `buttons` this is what it always was: pure pane switching.
+ *
+ * WHY THE FOOTER IS THIS FUNCTION'S PROBLEM AT ALL.
+ *
+ * A DialogV2 has one footer for the whole window, so a four-tab window shows
+ * all four tabs' buttons on all four tabs. In Item Tables that produced a
+ * default button reading "Add an item" while the pane it reads from was not on
+ * screen — the GM pressed the obvious button and the window answered about a
+ * form they could not see. It is not that footer's bug: it is a gap here, and
+ * the same gap was waiting for every tabbed window added afterwards.
+ *
+ * HIDDEN IS NOT ENOUGH, AND THAT IS THE WHOLE TRAP. Measured against
+ * DialogV2 on 14.365: footer buttons are `type="submit"` inside the dialog's
+ * form, and `_onKeyDown` intercepts Escape only — so Enter goes through the
+ * browser's implicit submission, which picks the FIRST SUBMIT BUTTON IN TREE
+ * ORDER and does not care whether it is visible. `autofocus` (which is all
+ * `default: true` sets) does not decide it either. A hidden button therefore
+ * still answers the Enter key. It has to be DISABLED as well, because the spec
+ * skips a disabled default button and nothing else in the chain does.
+ *
+ * Assumes the footer's buttons are not disabled for reasons of their own —
+ * true everywhere this is used, and `_onSubmit` restores its own temporary
+ * disabling from a snapshot, so a submit mid-switch cannot strand one.
+ *
+ * @param {HTMLElement} root                the dialog element
+ * @param {object}      [options]
+ * @param {Object<string, string[]>} [options.buttons]  tab key → footer actions
+ * @param {string[]}    [options.always]    actions shown on every tab
+ */
+export function wirePanelTabs(root, { buttons = null, always = [] } = {}) {
+    const footerButtons = () =>
+        root.querySelectorAll("footer.form-footer button[data-action]");
+
+    const showButtonsFor = key => {
+        if (!buttons) return;
+        const allowed = new Set([...(buttons[key] ?? []), ...always]);
+
+        let first = null;
+        for (const button of footerButtons()) {
+            const mine = allowed.has(button.dataset.action);
+            button.hidden = !mine;
+            button.disabled = !mine;
+            button.removeAttribute("autofocus");
+            if (mine && !first) first = button;
+        }
+        // Enter has to land somewhere sensible, and the leftmost surviving
+        // button of the active tab is the one a person would have pressed.
+        first?.setAttribute("autofocus", "");
+    };
+
     for (const tab of root.querySelectorAll("[data-drpg-gmt-tab]")) {
         tab.addEventListener("click", () => {
             const key = tab.dataset.drpgGmtTab;
@@ -825,6 +893,13 @@ export function wirePanelTabs(root) {
             for (const pane of root.querySelectorAll("[data-drpg-gmt-section]")) {
                 pane.classList.toggle("active", pane.dataset.drpgGmtSection === key);
             }
+            showButtonsFor(key);
         });
     }
+
+    // The window opens on a tab too, and that tab's footer has to be right
+    // before anybody clicks anything.
+    const active = root.querySelector("[data-drpg-gmt-tab].active")
+        ?? root.querySelector("[data-drpg-gmt-tab]");
+    if (active) showButtonsFor(active.dataset.drpgGmtTab);
 }
