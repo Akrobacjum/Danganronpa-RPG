@@ -141,6 +141,22 @@ function steps() {
             open: async () => (await import("./gm-team-dialog.mjs")).openGmTeamDialog()
         },
         {
+            /*
+             * THE MODULE SHIPS NO AUDIO AND ASSIGNS NONE (Dawid, 28.08).
+             *
+             * Which makes this row necessary rather than decorative: without it
+             * the only way to find out that the game can make sounds at all is
+             * to open a panel nobody has told you about. Optional, and it means
+             * it — a table that wants to play silent has decided something,
+             * not forgotten it, so this gets the dash rather than the cross.
+             */
+            key: "sound",
+            optional: true,
+            done: Object.keys(game.settings.get(MODULE_ID, SETTINGS.sfxMap) ?? {}).length > 0,
+            missing: () => [],
+            open: async () => (await import("./music.mjs")).openSoundDialog()
+        },
+        {
             key: "rooms",
             done: (workingScene()?.regions?.size ?? 0) > 0,
             missing: () => [],

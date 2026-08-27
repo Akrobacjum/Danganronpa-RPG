@@ -47,13 +47,14 @@ import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
 import { log, error, isPrimaryGm, plural } from "./utils.mjs";
 
 /**
- * The chime the messenger played from a hard-coded path until E2.
+ * The chime the messenger played from a hard-coded path until E2, and which
+ * E2's first migration clause then wrote into the sound map as a default.
  *
- * A Foundry file, not one of ours — which is why seeding it is safe: it is
- * there in every installation, and the world it is being written into has been
- * hearing it all along.
+ * IT IS NOT A DEFAULT ANY MORE (Dawid, 28.08 — no default sounds; the GM
+ * assigns every file). Kept only as the fingerprint of that seed, so the clause
+ * below can take back exactly what was put in and nothing else.
  */
-const MESSENGER_CHIME = "sounds/notify.wav";
+const SEEDED_CHIME = "sounds/notify.wav";
 
 /**
  * One entry per saved shape this update changes.
@@ -101,26 +102,43 @@ const MESSENGER_CHIME = "sounds/notify.wav";
  */
 const CLAUSES = [
     {
-        key: "messengerChime",
-        since: "1.1.8",
+        key: "unseedMessengerChime",
+        since: "1.1.10",
         /*
-         * The messenger's arrival sound became a mapped event in E2, and an
-         * unmapped event is silent. Left alone, every world already in play
-         * would have lost a sound it had been hearing since the messenger was
-         * written — a silent regression, the kind nobody reports because it
-         * reads as "I must have imagined it".
+         * THE MODULE HAS NO DEFAULT SOUNDS, AND THIS UNDOES THE ONE IT HAD.
          *
-         * So the mapping starts life holding the exact path the code used to
-         * name. The GM can point it somewhere else, or clear it, and the gate
-         * on `since` is what makes clearing it stick.
+         * E2 seeded `chatReceive` with the path the messenger used to hard-code,
+         * so that no world in play went quiet. Dawid's rule (28.08) is simpler
+         * and better: the module ships no audio and assigns none either — every
+         * file is the GM's choice, made in the Sound panel, and Season setup now
+         * has a row telling them so. A mapping the module wrote is a mapping
+         * nobody chose, and on a table that never wanted that chime it is a
+         * sound arriving from nowhere.
+         *
+         * REMOVES ONLY WHAT IT PUT THERE. The value is compared against the
+         * seeded path first: a GM who has since pointed the event at their own
+         * file keeps it. A GM who deliberately chose that same Foundry file
+         * loses it once and can pick it again — the two are indistinguishable
+         * from here, and of the two mistakes this is the recoverable one.
+         *
+         * Deletes the key rather than blanking it, through the same write the
+         * panel uses: "never assigned" and "assigned to nothing" have to stay
+         * one state, and `-=key` cannot be trusted to remove anything in this
+         * Foundry — so the whole object is written back and read back.
          */
         run: async () => {
             const map = getSetting(SETTINGS.sfxMap) ?? {};
-            if (map.chatReceive) return null;
+            if (map.chatReceive !== SEEDED_CHIME) return null;
 
-            await setSetting(SETTINGS.sfxMap,
-                { ...map, chatReceive: MESSENGER_CHIME });
-            return { chatReceive: MESSENGER_CHIME };
+            const next = { ...map };
+            delete next.chatReceive;
+            await setSetting(SETTINGS.sfxMap, next);
+
+            // Read back, because a clause that REMOVES something cannot take
+            // the write having resolved as proof — see the header.
+            const after = getSetting(SETTINGS.sfxMap) ?? {};
+            if (after.chatReceive) throw new Error("the seeded chime is still mapped");
+            return { removed: { chatReceive: SEEDED_CHIME } };
         }
     }
 ];

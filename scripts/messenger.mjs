@@ -198,11 +198,11 @@ function onCreateChatMessage(message) {
     const authorId = message.author?.id ?? message.user?.id;
     if (authorId === game.user.id) return; // do not ping yourself
 
-    // Was a hard-coded chime. It is a mapped event now, so a table that wants
-    // its own notification sound changes it in the Sound panel instead of in
-    // this file — and the migration seeded the mapping with the very file this
-    // line used to name, so nothing went quiet in a world that was already
-    // playing. `playSfx` swallows its own failures; there is nothing to guard.
+    // Was a hard-coded chime. It is a mapped event now, and NOT a mapped event
+    // by default: this module ships no audio and assigns none, so a world that
+    // has not been through the Sound panel hears nothing here. That is the
+    // bargain the playlists already make, and Season setup carries the row that
+    // says so. `playSfx` swallows its own failures; there is nothing to guard.
     playSfx("chatReceive");
 }
 
