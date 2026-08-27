@@ -125,7 +125,8 @@ import {
     playTrack, resetMusic, situationalPlaylist
 } from "./music.mjs";
 import { repaintFog, diagnoseFog, applySceneVisionMode, seedDiscovery, prepareScenes,
-    restoreSceneVisionMode, diagnoseScenes, whyBlack, fogAnimations, fogPeek, doorwayReport } from "./fog.mjs";
+    restoreSceneVisionMode, diagnoseScenes, whyBlack, fogAnimations, fogPeek, doorwayReport,
+    checkRegions } from "./fog.mjs";
 import {
     isMonocub, monocubActors, eligibleForMonocub, setMonocub, setSilenced, isSilenced,
     meddleTargets, performMeddle, resolveMeddle, meddleDialog,
@@ -1093,8 +1094,14 @@ export const DrpgApi = {
      *  says what is actually in front of the map. */
     whyBlack,
     /** Why each stretch of the current room's border counts as a doorway or
-     *  not — the neighbour test and the wall test, reported separately. */
+     *  not — the overlap test, the wall test and the passability test, each
+     *  reported in its own column. */
     doorwayReport,
+    /** Check every room on this scene against the rules the fog depends on:
+     *  overlapping rooms, borders drawn away from their walls, openings too
+     *  long to be doorways, corners off the grid. Reports, never repairs — the
+     *  map belongs to the GM. Also on a button in Room setup ▸ Fog. */
+    checkRegions,
     /** Hide both fog layers for a few seconds, then put them back. Answers
      *  "is that thing on screen ours?" without pasting a chain of lookups. */
     fogPeek,

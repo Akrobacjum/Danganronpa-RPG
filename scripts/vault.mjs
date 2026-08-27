@@ -660,8 +660,8 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
 
     const { studentActors } = await import("./monokuma.mjs");
     const { REST_FLAGS, setRestRoom } = await import("./rest.mjs");
-    const { discoveredFor, saveDiscoveryMatrix, setDiscovery, sceneUncoveredPercent } =
-        await import("./fog.mjs");
+    const { discoveredFor, saveDiscoveryMatrix, setDiscovery, sceneUncoveredPercent,
+        checkRegions } = await import("./fog.mjs");
     const scene = workingScene();
     const students = studentActors();
     // Room pools only. The tier pools (`tableName()`'s family) answer dice
@@ -833,6 +833,11 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
                 <p>${game.i18n.localize("DRPG.Vault.fogIntro")}</p>
                 ${uncovered > 0 ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vault.fogUncovered",
                     { pct: uncovered })}</p>` : ""}
+                <p>${game.i18n.localize("DRPG.Vault.checkIntro")}</p>
+                <p><button type="button" data-drpg-check>${
+                    game.i18n.localize("DRPG.Vault.checkRooms")}</button></p>
+                <div data-drpg-check-out></div>
+                <hr>
                 <table class="drpg-vault-table"><thead><tr>
                     <th>${game.i18n.localize("DRPG.Vault.student")}</th>
                     ${rooms.map(r => `<th>${foundry.utils.escapeHTML(r)}</th>`).join("")}
@@ -882,6 +887,40 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
         ],
         render: (event, dialog) => {
             const root = dialog.element;
+
+            /*
+             * The room check reports INTO THE WINDOW, not only to the console.
+             * The person who has to act on "this room overlaps that one" is a
+             * GM in the region editor, and telling them to open devtools is
+             * telling them not to bother. The console copy stays — it carries
+             * the coordinates in a form that can be pasted.
+             */
+            const checkButton = root.querySelector("[data-drpg-check]");
+            const checkOut = root.querySelector("[data-drpg-check-out]");
+            checkButton?.addEventListener("click", () => {
+                const findings = checkRegions();
+                if (!findings.length) {
+                    checkOut.innerHTML = `<p class="notes">${
+                        game.i18n.localize("DRPG.Vault.checkClean")}</p>`;
+                    return;
+                }
+                const marks = { error: "✕", warning: "!", info: "·" };
+                checkOut.innerHTML = `<table class="drpg-vault-table"><tbody>${
+                    findings.map(f => `<tr>
+                        <td>${marks[f.level] ?? "·"}</td>
+                        <td>${foundry.utils.escapeHTML(f.room)}</td>
+                        <td><strong>${foundry.utils.escapeHTML(f.problem)}</strong><br>
+                            <small>${foundry.utils.escapeHTML(f.detail)}${
+                                f.at ? ` (${f.at.x}, ${f.at.y})` : ""}</small></td>
+                    </tr>`).join("")
+                }</tbody></table>`;
+                // The report is taller than the space it appeared in, and the
+                // footer is sticky — without this the last findings sit under
+                // it. Not a refit of the window: the window was measured for
+                // its biggest tab and keeps that size on purpose.
+                requestAnimationFrame(() => pinFooterAcrossScroll(dialog));
+            });
+
             const tabs = root.querySelectorAll("[data-drpg-tab]");
             const panels = root.querySelectorAll("[data-drpg-panel]");
             for (const tabButton of tabs) {
