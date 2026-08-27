@@ -7,6 +7,22 @@
  * the rules instead of hardcoding them.
  *
  * If a rule changes in the guide, change it HERE and nowhere else.
+ *
+ * WHO OWNS THE WORDING, AND WHY IT IS DIFFERENT FOR 1.2.0.
+ *
+ * The standing rule of this project is that the English handbook rules the
+ * wording: the module is brought into line with the handbook, not the other way
+ * round. For the Sweet & Sound update that rule is inverted, and it is written
+ * down here so nobody spends an afternoon "correcting" this file back to an
+ * older document. The handbooks — the short player and GM briefings and the
+ * full guides — are being written AFTER 1.2.0, out of what is written here.
+ *
+ * The practical consequence: every `label`, `hint` and `effect` added in this
+ * release is finished copy, not a working title to tidy up later. Tamper and
+ * Steal, the four new Hope Calls and the new Motive, the Tools category and the
+ * catalogue of sound events all go into the briefings in the words this file
+ * gives them. "Tamper" in particular is a name coined during the 1.2.0 plan and
+ * found in neither the guide nor Dawid's notes: it is the name now.
  */
 
 export const MODULE_ID = "danganronpa-rpg";
@@ -2100,12 +2116,51 @@ export const CLEANUP = {
  */
 export const SITUATIONAL_PLAYLIST = "Situational";
 
-/*
- * SAFETY is deliberately not modelled here.
+/**
+ * The five volume groups every sound event belongs to.
  *
- * The table's safeword is a sentence somebody types into chat and a GM answers.
- * A constant nothing reads would only be a second, quieter copy of a rule that
- * lives with the people playing.
+ * The catalogue of events itself (`SFX_EVENTS`) arrives with the sound engine;
+ * the categories come first because three separate things need to agree on them
+ * before a single event exists: the client-scoped volumes in `SETTINGS`, the
+ * sliders at the top of the Sound panel, and the mixer inside `playSfx`.
+ *
+ * Ordered as the panel shows them, loudest-to-quietest in the sense that
+ * matters — the ones a player hears constantly come first, so the slider they
+ * reach for most is the one nearest the top.
+ *
+ * `music` is here so it can be labelled and ordered with the rest, but it is
+ * NOT stored in this module's volumes: its slider is a proxy for Foundry's own
+ * `globalPlaylistVolume`. Two independent music volumes would fight each other
+ * and the loser would be whichever one the GM did not think to check. The flag
+ * says so, so the panel does not have to know the exception by heart.
+ */
+export const SFX_CATEGORIES = {
+    ui:       { label: "Interface", hint: "Windows, tabs, buttons, dice picked up and put down." },
+    chat:     { label: "Chat",      hint: "Messages, cards, announcements and Calls." },
+    world:    { label: "World",     hint: "Doors, rooms, the clock, the map." },
+    incident: { label: "Incident",  hint: "Murder, cleanup, the trial floor." },
+    music:    { label: "Music",     hint: "Playlists.", proxiesFoundryMusic: true }
+};
+
+/** The categories this module actually stores a volume for — see above. */
+export const SFX_VOLUME_KEYS = ["master"].concat(
+    Object.entries(SFX_CATEGORIES)
+        .filter(([, c]) => !c.proxiesFoundryMusic)
+        .map(([key]) => key));
+
+/*
+ * SAFETY IS MODELLED, BUT NOT AS A CONSTANT IN THIS FILE.
+ *
+ * This used to read "SAFETY is deliberately not modelled here — the table's
+ * safeword is a sentence somebody types into chat and a GM answers", and it
+ * stopped being true the day safeword.mjs was written: the word is a button
+ * that pauses the game, tells every GM who pressed it and from where, and puts
+ * the same card in front of everybody.
+ *
+ * The word itself is not a constant here because the table gets to choose it.
+ * It lives in `SETTINGS.safeword`, is edited in Season setup next to the
+ * campaign name, and defaults to "Safe Word" — with worlds that predate the
+ * setting keeping MISIUBOMBO, which is what their players have been told.
  */
 
 /** Aggregate export so macros can reach everything through one object. */
@@ -2163,4 +2218,6 @@ export const DRPG = {
     RESOLUTION_STRESS_COST,
     CLEANUP,
     SITUATIONAL_PLAYLIST,
+    SFX_CATEGORIES,
+    SFX_VOLUME_KEYS,
 };
