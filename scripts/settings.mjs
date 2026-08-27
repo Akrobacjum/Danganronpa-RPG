@@ -6,7 +6,7 @@
  * never clutters the settings window.
  */
 
-import { MODULE_ID, ROOMS, TIMES_OF_DAY } from "./config.mjs";
+import { MODULE_ID, ROOMS, TIMES_OF_DAY, SFX_VOLUME_KEYS } from "./config.mjs";
 
 /** Setting keys, so nothing else in the module has to spell them out. */
 export const SETTINGS = {
@@ -43,6 +43,65 @@ export const SETTINGS = {
     musicEnabled: "musicEnabled",
     /** Which playlist each state uses: `{ stateKey: playlistId }`. */
     musicMap: "musicMap",
+    /**
+     * Which file each sound event plays: `{ eventKey: "path/to/file.ogg" }`.
+     *
+     * World-scoped, exactly like `musicMap` and for the same reason: which
+     * sound means what is one fact about the table. A player who mapped their
+     * own files would be playing a different game from everybody else — the
+     * door they heard open would not be the door anyone else heard.
+     *
+     * The module ships no audio and is not going to: the files are the GM's,
+     * the same bargain the playlists already make. An event with no file is
+     * SILENT, not broken, and the panel says "not assigned yet" rather than
+     * showing an error — see the empty-state note in the 1.2.0 plan.
+     */
+    sfxMap: "sfxMap",
+    /**
+     * How loud each group is on THIS browser: `{ master, ui, chat, world,
+     * incident }`, each 0–1. Effective volume is `master × category`.
+     *
+     * Client-scoped, because volume is the one thing about sound that is
+     * genuinely personal — a GM on headphones and a player on laptop speakers
+     * do not want the same numbers, and neither should be setting the other's.
+     * It is also the only part of the Sound panel a player sees at all.
+     *
+     * Sliders, not switches: zero is silence, so a switch would be a poorer
+     * version of the same control with a worse bottom end.
+     *
+     * `music` is deliberately absent from this object. Its slider is a proxy
+     * for Foundry's `globalPlaylistVolume` — see `SFX_CATEGORIES`.
+     */
+    sfxVolumes: "sfxVolumes",
+    /**
+     * The word that stops the scene — Player Handbook, ch. 13.
+     *
+     * A setting rather than a constant because the word belongs to the table,
+     * not to the module: a group playing in another language, or one for whom
+     * the default lands wrong, has to be able to change it without touching
+     * code. Edited in Season setup, next to the campaign name, because that is
+     * where a table sets up the things that are true for a whole season.
+     *
+     * Default "Safe Word". Worlds that predate this setting keep MISIUBOMBO,
+     * which is the word their players have already been taught — see the
+     * migration. Changing it must redraw the sheets, or the button goes on
+     * showing the old word until somebody reopens their character.
+     */
+    safeword: "safeword",
+    /**
+     * The module version whose data migration this world has already run.
+     *
+     * Empty in a world that has never run one. Compared against the manifest
+     * version, not against a hardcoded target: when they differ the migration
+     * runs, and it stamps only when every clause has been through. That is
+     * deliberately looser than a "has 1.2.0 run yet" boolean would be, and the
+     * looseness is the point — during the test builds this update ships a new
+     * clause every stage, and a world stamped once at the first build would
+     * never see any of the later ones. Every clause is idempotent, so running
+     * the whole set again on each bump costs a handful of reads and heals a
+     * world that was upgraded halfway.
+     */
+    migratedVersion: "migratedVersion",
     /** Per-client: the last time each messenger thread was read, by player user id. */
     messengerLastRead: "messengerLastRead",
     /** Per-client: remembered position/size of each messenger window, by player user id. */
@@ -244,6 +303,16 @@ export const SETTINGS = {
     regionFog: "regionFog"
 };
 
+/**
+ * The word a table gets if it never chooses one.
+ *
+ * Plain English on purpose. The module is published for tables that have never
+ * met this group's in-jokes, and a safeword nobody can guess the meaning of is
+ * a safeword somebody hesitates over for a second — which is exactly the second
+ * it exists to remove. Tables that want their own word set it in Season setup.
+ */
+export const DEFAULT_SAFEWORD = "Safe Word";
+
 /** Shape of the campaign clock stored under SETTINGS.clock. */
 export const DEFAULT_CLOCK = {
     /**
@@ -394,6 +463,44 @@ export function registerSettings() {
         config: false,
         type: Object,
         default: {}
+    });
+
+    // Which file each sound event plays. Mapped by a GM in the Sound panel; the
+    // module ships no audio, so this is empty until somebody fills it in.
+    game.settings.register(MODULE_ID, SETTINGS.sfxMap, {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {}
+    });
+
+    // Per-browser volumes. Client-scoped, so no `onChange` broadcast: the only
+    // screen that has to react is the one whose slider moved.
+    game.settings.register(MODULE_ID, SETTINGS.sfxVolumes, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: Object.fromEntries(SFX_VOLUME_KEYS.map(key => [key, 1]))
+    });
+
+    // The word that stops the scene. Set in Season setup, shown on every sheet,
+    // so a change has to redraw them — otherwise the button keeps offering the
+    // old word to everyone who has not reopened their character since.
+    game.settings.register(MODULE_ID, SETTINGS.safeword, {
+        scope: "world",
+        config: false,
+        type: String,
+        default: DEFAULT_SAFEWORD,
+        onChange: () => onWorldChange(SETTINGS.safeword)
+    });
+
+    // Migration bookkeeping. Never shown, never edited by hand — except by
+    // somebody deliberately clearing it to force the whole set to run again.
+    game.settings.register(MODULE_ID, SETTINGS.migratedVersion, {
+        scope: "world",
+        config: false,
+        type: String,
+        default: ""
     });
 
     // Read state is personal — the player's and each GM's own idea of what
