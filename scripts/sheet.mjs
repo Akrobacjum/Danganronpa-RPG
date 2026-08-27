@@ -48,6 +48,12 @@ export function registerSheetTweaks() {
     // so the concrete Daggerheart sheet class name is the precise target.
     Hooks.on("renderCharacterSheet", onRenderCharacterSheet);
 
+    // The flicker. See the block comment above `onlyResourceKeys` for what
+    // these two do and, more importantly, for the measurement that decides
+    // which of them does what — the order is not the one it looks like.
+    Hooks.on("preUpdateActor", markResourceOnlyUpdate);
+    Hooks.on("updateActor", repaintAfterResourceUpdate);
+
     // Every item sheet, whatever Daggerheart calls the class. `renderItemSheetV2`
     // is Foundry's own rung of that ladder, so it catches LootSheet, FeatureSheet
     // and anything the system adds later — one hook instead of a list that goes
@@ -260,6 +266,217 @@ function lockItemDescription(root) {
     root.querySelector("a.editor-edit")?.remove();
 }
 
+/* ==========================================================================
+ * THE FLICKER
+ * --------------------------------------------------------------------------
+ * Every write to `system.resources.*` made the WHOLE SHEET redraw. Not an
+ * animation problem — a full re-render, which also replays every injection this
+ * file makes: the action panel, the tabs, `tidyBiography`, `paintResourceBars`.
+ * One cause, two symptoms: the equipped tab blinking on a roll (a roll spends
+ * Hope, and Hope is a resource) and the whole window blinking on a Health or
+ * Sanity change.
+ *
+ * The repair is to stop rendering for those updates and repaint the bar in
+ * place instead — `paintResourceBars` already exists and already knows how to
+ * resume a half-finished animation.
+ *
+ * WHERE THE PLAN HAD IT BACKWARDS, AND THE MEASUREMENT THAT SHOWED IT.
+ *
+ * The plan put the "skip the next render" mark in `updateActor`. Instrumented
+ * on 14.365, the real order of one `actor.update()` is:
+ *
+ *     preUpdateActor  →  render (the sheet)  →  updateActor  →  render (sidebar)
+ *
+ * The render being skipped has ALREADY HAPPENED by the time `updateActor`
+ * runs. So the mark goes down in `preUpdateActor`, which is the only hook that
+ * fires early enough, and `updateActor` does the repainting afterwards.
+ *
+ * A NO-OP UPDATE IS THE TRAP THIS OPENS. Setting a resource to the value it
+ * already holds fires `preUpdateActor` and then NOTHING — no render, no
+ * `updateActor` — so a mark laid down for it would still be armed when
+ * something legitimate rendered next, and would eat that instead. Measured, not
+ * imagined: `orderNoop` was exactly `["preUpdateActor"]`. Hence the value
+ * comparison below; the mark is only laid for an update that will really change
+ * something and therefore really render.
+ *
+ * THE CONDITION IS STRICT ON PURPOSE. Anything else in the same package — a
+ * flag, an item, an effect — and the render happens. A skipped render that was
+ * needed is a sheet showing something untrue, which is worse than a blink.
+ *
+ * "RESOURCES" IS NARROWER THAN IT SOUNDS, AND THAT MATTERS.
+ *
+ * `system.resources` holds five things here: hitPoints, stress, hope, actions
+ * and armor. Only the first three are drawn by something that can be repainted
+ * without a render — the two bars in the sidebar and the Hope diamonds in the
+ * header. Actions are drawn by this file's own action panel and again by the
+ * player's status strip; armor by the system's template. Skipping a render for
+ * one of those would leave a number on screen that is no longer true, which is
+ * the failure this whole apparatus exists to avoid, so they are left alone and
+ * still render exactly as they did.
+ *
+ * A SKIPPED RENDER LEAVES THE OLD NUMBERS IN THE DOM. Obvious in hindsight and
+ * not obvious while writing it: `paintResourceBars` reads the `<progress>` and
+ * the number input, both of which the render would have rewritten. Repainting
+ * from them repaints the OLD value — measured, the bar sat at 0 while the actor
+ * held 1. So the inputs are fed from the actor first, and only then painted.
+ * ========================================================================== */
+
+/** Sheets holding a one-shot "do not render" mark. */
+const skipNextRender = new WeakSet();
+
+const RESOURCE_PREFIX = "system.resources.";
+
+/**
+ * The resources this file can redraw in place — see the note above.
+ *
+ * Adding one here is a promise that `repaintInPlace` below draws it.
+ */
+const REPAINTABLE = new Set(["hitPoints", "stress", "hope"]);
+
+/**
+ * Is every key in this update a resource this file can repaint itself?
+ *
+ * `_id` and `_stats` are not part of the answer. MEASURED: the package handed
+ * to `preUpdateActor` is exactly what the caller wrote, but by `updateActor`
+ * the server has added `_stats.modifiedTime` — so a predicate that only
+ * forgives `_id` says "no" on the second hook and the repaint never runs. That
+ * failure is silent and looks exactly like the flicker fix working, except the
+ * numbers stop moving.
+ */
+function onlyResourceKeys(changes) {
+    const keys = Object.keys(foundry.utils.flattenObject(changes ?? {}))
+        .filter(key => key !== "_id" && !key.startsWith("_stats."));
+    if (!keys.length) return false;
+
+    return keys.every(key => {
+        if (!key.startsWith(RESOURCE_PREFIX)) return false;
+        const name = key.slice(RESOURCE_PREFIX.length).split(".")[0];
+        return REPAINTABLE.has(name);
+    });
+}
+
+/**
+ * Will this update actually change a value — that is, will it render at all?
+ *
+ * ONLY ANSWERABLE BEFORE THE WRITE. Asked from `updateActor` it is always
+ * false, because by then the actor already holds the new values, and a repaint
+ * gated on it would never happen. That is why the two hooks below do not share
+ * one predicate: the earlier one asks this, the later one must not.
+ */
+function willReallyChange(actor, changes) {
+    const flat = foundry.utils.flattenObject(changes ?? {});
+    return Object.keys(flat)
+        .filter(key => key !== "_id" && !key.startsWith("_stats."))
+        .some(key => foundry.utils.getProperty(actor, key) !== flat[key]);
+}
+
+/** Every open character sheet for this actor. */
+function sheetsFor(actor) {
+    return Object.values(actor?.apps ?? {})
+        .filter(app => app?.document?.type === "character" && app.element);
+}
+
+/**
+ * Give an instance its own `render` that eats one mark and then behaves.
+ *
+ * On the INSTANCE rather than on `ApplicationV2.prototype`: this concerns
+ * character sheets and nothing else, and a global wrap would put every window
+ * in the application through a check that can only ever be true for one kind.
+ * An own property shadows the prototype's method for this object alone.
+ */
+function armRenderGuard(app) {
+    if (Object.hasOwn(app, "render")) return;
+
+    const proto = Object.getPrototypeOf(app);
+    const original = proto?.render;
+    if (typeof original !== "function") return;
+
+    Object.defineProperty(app, "render", {
+        configurable: true,
+        writable: true,
+        value: function(...args) {
+            if (skipNextRender.has(this)) {
+                skipNextRender.delete(this);
+                return Promise.resolve(this);
+            }
+            return original.apply(this, args);
+        }
+    });
+}
+
+/** Before the write, because the sheet redraws before `updateActor` runs. */
+function markResourceOnlyUpdate(actor, changes) {
+    try {
+        if (!onlyResourceKeys(changes)) return;
+        if (!willReallyChange(actor, changes)) return;
+        for (const app of sheetsFor(actor)) {
+            armRenderGuard(app);
+            skipNextRender.add(app);
+        }
+    } catch (err) {
+        // A sheet that renders is the safe failure, so this never rethrows.
+        error("Could not mark a resource-only update", err);
+    }
+}
+
+/**
+ * Everything the skipped render would have redrawn, drawn here instead.
+ *
+ * Two surfaces, because that is how many the three repaintable resources have:
+ * the sidebar bars (whose own controls have to be fed from the actor first —
+ * see the note above) and the Hope diamonds in the header, which the module
+ * paints from `:has(> i.fa-solid)`, so the class on the inner glyph IS the
+ * state and toggling it is the whole repaint.
+ */
+function repaintInPlace(actor, element) {
+    for (const bar of element.querySelectorAll(
+        ".character-sidebar-sheet .resources-section .status-bar")) {
+        const input = bar.querySelector("input.bar-input");
+        const progress = bar.querySelector("progress.progress-bar");
+        const name = input?.name;
+        if (!name) continue;
+
+        const value = Number(foundry.utils.getProperty(actor, name) ?? 0);
+        const max = Number(
+            foundry.utils.getProperty(actor, name.replace(/\.value$/, ".max"))
+            ?? progress?.max ?? 0);
+
+        // The system's own controls, which the render would have rewritten.
+        // Left stale they say something untrue right next to a correct bar.
+        input.value = String(value);
+        if (progress) {
+            progress.max = max;
+            progress.value = value;
+        }
+    }
+
+    const hope = Number(foundry.utils.getProperty(actor, "system.resources.hope.value") ?? 0);
+    for (const slot of element.querySelectorAll(".hope-section .hope-value")) {
+        const n = Number(slot.dataset.value);
+        const glyph = slot.querySelector("i");
+        if (!glyph || !Number.isFinite(n)) continue;
+        glyph.classList.toggle("fa-solid", n <= hope);
+        glyph.classList.toggle("fa-regular", n > hope);
+    }
+}
+
+/** After the write: what the skipped render would have drawn. */
+function repaintAfterResourceUpdate(actor, changes) {
+    // Shape only. The value test belongs to the hook before this one, and a
+    // no-op never reaches here anyway — Foundry does not fire `updateActor`
+    // for an update that changed nothing.
+    if (!onlyResourceKeys(changes)) return;
+
+    for (const app of sheetsFor(actor)) {
+        try {
+            repaintInPlace(actor, app.element);
+            paintResourceBars(app, app.element);
+        } catch (err) {
+            error("Could not repaint a resource in place", err);
+        }
+    }
+}
+
 /**
  * @param {object} options  The render's own options. `isFirstRender` is the one
  *   that matters here: it is set by ApplicationV2 itself from the app's state,
@@ -268,6 +485,34 @@ function lockItemDescription(root) {
  *   opening a sheet would replay every action spent while it was shut, as
  *   though they had just happened.
  */
+/**
+ * Run the module's injections with the system's transitions held still.
+ *
+ * See the SETTLING block in danganronpa.css for the measurement behind this.
+ * Short version: Daggerheart puts `transition: all 0.3s` on the sidebar's
+ * resource inputs, and everything this file does to a freshly rendered sheet
+ * changes their layout — so every redraw animated the whole left column for
+ * 300ms. The work is the same; it just stops being a journey.
+ *
+ * The class comes off on the next frame rather than immediately, and the
+ * layout is read back before that to force the style recalculation while it is
+ * still on. Without that read the browser can coalesce both changes into one
+ * pass and animate after all, which is the version of this fix that looks like
+ * it works and does not.
+ */
+function settle(root, work) {
+    if (!root?.classList) return work();
+
+    root.classList.add("drpg-settling");
+    try {
+        work();
+    } finally {
+        // Read, to commit the new styles while transitions are still off.
+        void root.offsetWidth;
+        requestAnimationFrame(() => root.classList.remove("drpg-settling"));
+    }
+}
+
 function onRenderCharacterSheet(app, element, context, options) {
     try {
         if (app?.document?.type !== "character") return;
@@ -277,25 +522,27 @@ function onRenderCharacterSheet(app, element, context, options) {
         const root = element instanceof HTMLElement ? element : element?.[0];
         root?.classList?.toggle("drpg-monokuma", isMonokuma(app.document));
 
-        frameTraits(element);
-        injectUltimate(app, element);
-        injectInitButton(app, element);
-        injectAdvanceButton(app, element);
-        injectItemButton(app, element);
-        injectActionBar(app, element, fresh);
-        flashHope(app, element, fresh);
-        injectActionPanel(app, element);
-        growForCalls(app);
-        fitActionTiles(element);
-        watchTileFit(element);
-        tidySidebar(element);
-        paintResourceBars(app, element);
-        injectEquippedTools(app, element);
-        injectSafeword(app, element);
-        tidyBiography(element);
-        groupInventory(app, element);
-        replaceEffectsTab(app, element);
-        removeSystemCreators(app, element);
+        settle(root, () => {
+            frameTraits(element);
+            injectUltimate(app, element);
+            injectInitButton(app, element);
+            injectAdvanceButton(app, element);
+            injectItemButton(app, element);
+            injectActionBar(app, element, fresh);
+            flashHope(app, element, fresh);
+            injectActionPanel(app, element);
+            growForCalls(app);
+            fitActionTiles(element);
+            watchTileFit(element);
+            tidySidebar(element);
+            paintResourceBars(app, element);
+            injectEquippedTools(app, element);
+            injectSafeword(app, element);
+            tidyBiography(app, element);
+            groupInventory(app, element);
+            replaceEffectsTab(app, element);
+            removeSystemCreators(app, element);
+        });
     } catch (err) {
         error("Failed to render the Danganronpa sheet parts", err);
     }
@@ -1067,13 +1314,14 @@ function paintResourceBars(app, element) {
         const pct = max > 0 ? (value / max) * 100 : 0;
         progress.style.setProperty("--drpg-bar-pct", `${pct}%`);
 
-        bar.querySelectorAll(".drpg-resource-pips, .drpg-resource-bar").forEach(el => el.remove());
+        bar.querySelectorAll(".drpg-resource-pips").forEach(el => el.remove());
 
         const key = bar.querySelector("input.bar-input")?.name
             ?.match(/resources\.([A-Za-z]+)\./)?.[1] ?? null;
 
         if (!key || max < 1) {
             progress.classList.remove("drpg-bar-replaced");
+            bar.querySelectorAll(".drpg-resource-bar").forEach(el => el.remove());
             continue;
         }
         progress.classList.add("drpg-bar-replaced");
@@ -1081,16 +1329,45 @@ function paintResourceBars(app, element) {
         const held = max - value;
         const change = actorId ? spentSince(`resource:${key}`, actorId, held) : null;
 
-        const track = document.createElement("div");
-        track.className = "drpg-resource-bar";
+        /*
+         * THE BAR IS UPDATED, NOT REBUILT — AND THAT IS THE REST OF THE FLICKER.
+         *
+         * Skipping the sheet's re-render (see THE FLICKER above) removed most
+         * of the blink and left a shorter one, which is what Dawid reported.
+         * A MutationObserver over one Health change found the whole of what was
+         * left: `div.drpg-resource-bar` removed and re-added, twice — once per
+         * bar. A brand-new element has no previous width to travel from, so its
+         * transition has nothing to animate and the fill snaps into place.
+         *
+         * Keeping the element and moving its width is what makes the change a
+         * movement instead of a replacement. On a full render there is nothing
+         * to reuse and this builds one exactly as before.
+         */
+        for (const stale of bar.querySelectorAll(".drpg-resource-bar")) {
+            if (stale.dataset.resource !== key) stale.remove();
+        }
+
+        let track = bar.querySelector(".drpg-resource-bar");
+        let fill = track?.querySelector(".drpg-resource-fill") ?? null;
+
+        if (!track || !fill) {
+            track?.remove();
+            track = document.createElement("div");
+            track.className = "drpg-resource-bar";
+            fill = document.createElement("span");
+            fill.className = "drpg-resource-fill";
+            track.append(fill);
+            progress.after(track);
+        }
+
+        // The band from last time goes whatever happens: it describes a change
+        // that is no longer the most recent one.
+        track.querySelectorAll(".drpg-resource-delta").forEach(band => band.remove());
+
         track.dataset.resource = key;
         track.dataset.value = String(value);
         track.dataset.max = String(max);
-
-        const fill = document.createElement("span");
-        fill.className = "drpg-resource-fill";
         fill.style.width = `${pct}%`;
-        track.append(fill);
 
         // The band that just changed, laid over the fill.
         //
@@ -1117,8 +1394,6 @@ function paintResourceBars(app, element) {
                 track.append(band);
             }
         }
-
-        progress.after(track);
     }
 }
 
@@ -1255,9 +1530,70 @@ function findHeadingByText(root, text) {
 const BIOGRAPHY_CUTS = ["pronouns", "age", "faith", "connections"];
 const BIOGRAPHY_ANCESTORS = "fieldset, .form-group, .biography-field, .input, label";
 
-function tidyBiography(element) {
+/**
+ * HTML to something a textarea can hold, keeping the line breaks.
+ *
+ * One direction only, and never written back on its own: a field that has held
+ * formatting since before this change keeps holding it until somebody edits it,
+ * and what they see meanwhile is the text without the markup. Flattening on
+ * open would be this module rewriting a player's backstory because they looked
+ * at it.
+ */
+function plainBiography(html) {
+    if (!html) return "";
+    const box = document.createElement("div");
+    box.innerHTML = String(html)
+        .replace(/<\s*br\s*\/?>/gi, "\n")
+        .replace(/<\/\s*(p|div|li|h[1-6])\s*>/gi, "\n");
+    return (box.textContent ?? "").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+function tidyBiography(app, element) {
     const tab = element.querySelector('section[data-application-part="biography"]');
     if (!tab) return;
+
+    /*
+     * THREE SENTENCES OF BACKSTORY DO NOT NEED BOLD.
+     *
+     * The field arrives as a `<prose-mirror>` with its own edit toggle: an
+     * editor to open, a toolbar to read, and a save step to remember, for a
+     * paragraph. It becomes a textarea that writes itself on `focusout` —
+     * exactly how the item tables edit their rows and how the pre-session note
+     * already works, so this is the module's one way of editing text rather
+     * than a third one.
+     *
+     * The toggle goes with it because it lives INSIDE the element being
+     * replaced. Nothing is left to restyle, which is a better outcome than the
+     * plan's — that asked for the button to be re-dressed in the module's own
+     * skin, and a button nobody needs is better removed than repainted.
+     */
+    const actor = app?.document ?? null;
+    const editor = tab.querySelector('prose-mirror[name="system.biography.background"]');
+
+    if (actor && editor) {
+        const area = document.createElement("textarea");
+        area.name = "system.biography.background";
+        area.className = "drpg-biography-text";
+        area.rows = 8;
+        area.value = plainBiography(
+            foundry.utils.getProperty(actor, "system.biography.background"));
+        area.placeholder = game.i18n.localize("DRPG.Sheet.biographyPlaceholder");
+
+        area.addEventListener("focusout", () => {
+            const next = area.value.trim();
+            const now = plainBiography(
+                foundry.utils.getProperty(actor, "system.biography.background"));
+            // Nothing typed is not a save. Compared against the FLATTENED
+            // current value, so merely opening a formatted backstory and
+            // clicking away does not rewrite it.
+            if (next === now) return;
+
+            actor.update({ "system.biography.background": next })
+                .catch(err => error("Could not save the backstory", err));
+        });
+
+        editor.replaceWith(area);
+    }
 
     // Every characteristics field, plus connections, found by name.
     for (const field of tab.querySelectorAll('[name*="characteristics"], [name*="connections"]')) {
