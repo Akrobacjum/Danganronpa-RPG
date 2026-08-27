@@ -345,10 +345,19 @@ async function tellPlayer(actor, kind, summary, taken) {
     const { whisperToOwner } = await import("./utils.mjs");
     const title = game.i18n.localize(`DRPG.Advance.reason.${kind}`);
     const items = summary.map(s => `<li>${foundry.utils.escapeHTML(s)}</li>`).join("");
+    /*
+     * On the card that already reaches the player, and NOT marked for the GMs.
+     *
+     * Advancement is the survivor's reward and the GMs are on this whisper as
+     * witnesses — the same reason the popup diet leaves them out of a card they
+     * were merely copied into. A GM applying an advancement already knows: they
+     * are the one who pressed it.
+     */
     return whisperToOwner(
         actor,
         `<h3>${game.i18n.format("DRPG.Advance.chatTitle", { n: taken })}</h3>
          <p><em>${title}</em></p>
-         <ul>${items}</ul>`
+         <ul>${items}</ul>`,
+        { flags: { [MODULE_ID]: { sfx: "levelUp" } } }
     );
 }

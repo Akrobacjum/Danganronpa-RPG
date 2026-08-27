@@ -962,6 +962,21 @@ async function performSearch(actor, def, options) {
 
     if (!hit && !roll.isCritical) {
         await noteRollContext(actor, { actionKey: "search", room, category, goal: goalKey, tier: null });
+
+        /*
+         * THE ONE COMMON FAILURE IN THIS GAME THAT WAS COMPLETELY SILENT.
+         *
+         * A Search that finds nothing still costs an action and still burns one
+         * of the room's three tokens, and until now the only sign of either was
+         * a card saying so. Local, on the searcher's client: this branch runs
+         * where the roll was made.
+         *
+         * The two other ways a Search ends nothing are deliberately NOT here. A
+         * critical is not a failure, and a "something specific" request has gone
+         * to a GM rather than come up empty — that one is waiting, not lost.
+         */
+        playSfx("searchNothing");
+
         await report(actor, def, roll, { text: def.failure, room, tokensLeft: SearchTokens.left(room) });
         return { success: false };
     }
