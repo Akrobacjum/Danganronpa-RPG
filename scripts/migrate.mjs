@@ -47,6 +47,15 @@ import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
 import { log, error, isPrimaryGm, plural } from "./utils.mjs";
 
 /**
+ * The chime the messenger played from a hard-coded path until E2.
+ *
+ * A Foundry file, not one of ours — which is why seeding it is safe: it is
+ * there in every installation, and the world it is being written into has been
+ * hearing it all along.
+ */
+const MESSENGER_CHIME = "sounds/notify.wav";
+
+/**
  * One entry per saved shape this update changes.
  *
  * Each stage that changes a saved shape appends here rather than writing its
@@ -54,11 +63,27 @@ import { log, error, isPrimaryGm, plural } from "./utils.mjs";
  * a later clause is allowed to assume the earlier ones have been through.
  *
  *   key    stable identifier, used in the report and in the console
- *   since  the build that introduced the clause — the first question anybody
- *          debugging a half-migrated world asks is "when did this appear"
- *   run    async () => object|null. Return what changed, or `null` for
- *          "nothing to do". NEVER throw for an absent world shape; a world
- *          that has no trials yet is not an error.
+ *   since  the build that introduced the clause. NOT DOCUMENTATION: a clause is
+ *          skipped when this world has already been stamped by a build at or
+ *          after it. See the note below — this is what stops a clause that
+ *          seeds a default from putting the default back every time the version
+ *          moves, after a GM has deliberately removed it.
+ *   run    async ({ from, to, force }) => object|null. Return what changed, or
+ *          `null` for "nothing to do". NEVER throw for an absent world shape; a
+ *          world that has no trials yet is not an error.
+ *
+ * WHY `since` GATES INSTEAD OF ANNOTATING (changed in E2).
+ *
+ * The stamp holds a version and this update ships a ladder of test builds, so
+ * the set is re-entered on almost every rung. Idempotence makes that safe for a
+ * clause that REPAIRS something — it finds nothing to do and leaves. It is not
+ * enough for a clause that SEEDS something: "the mapping is missing" is true
+ * both before the seed and after a GM has cleared it on purpose, and those two
+ * must not be treated alike. Gating on `since` tells them apart by the one fact
+ * that distinguishes them — whether this world has already been through a
+ * build that carried the clause. `force: true` ignores the gate, so the repair
+ * route is untouched, and that is the only moment anybody wants every clause
+ * re-entered regardless.
  *
  * Empty at E0 by design. The five clauses named in the plan arrive with the
  * stages that need them: trial playlists (E6), stash seeding and `stashRoom`
@@ -74,7 +99,31 @@ import { log, error, isPrimaryGm, plural } from "./utils.mjs";
  * changes projects re-runs project secrecy. It is three lines at the bottom of
  * the clause and it is not optional.
  */
-const CLAUSES = [];
+const CLAUSES = [
+    {
+        key: "messengerChime",
+        since: "1.1.8",
+        /*
+         * The messenger's arrival sound became a mapped event in E2, and an
+         * unmapped event is silent. Left alone, every world already in play
+         * would have lost a sound it had been hearing since the messenger was
+         * written — a silent regression, the kind nobody reports because it
+         * reads as "I must have imagined it".
+         *
+         * So the mapping starts life holding the exact path the code used to
+         * name. The GM can point it somewhere else, or clear it, and the gate
+         * on `since` is what makes clearing it stick.
+         */
+        run: async () => {
+            const map = getSetting(SETTINGS.sfxMap) ?? {};
+            if (map.chatReceive) return null;
+
+            await setSetting(SETTINGS.sfxMap,
+                { ...map, chatReceive: MESSENGER_CHIME });
+            return { chatReceive: MESSENGER_CHIME };
+        }
+    }
+];
 
 /**
  * Bring this world's saved data up to the shape the installed build expects.
@@ -108,11 +157,21 @@ export async function migrate1_2_0({ force = false, quiet = false } = {}) {
         return null;
     }
 
-    const report = { from, to, forced: force, clauses: {}, changed: 0, failed: [] };
+    const report = {
+        from, to, forced: force, clauses: {}, changed: 0, skipped: [], failed: []
+    };
 
     for (const clause of CLAUSES) {
+        // Already been through a build that carried this clause — see the note
+        // on `since`. An unstamped world has been through nothing, so it runs
+        // everything, which is also exactly what a brand-new world needs.
+        if (!force && from && !foundry.utils.isNewerVersion(clause.since, from)) {
+            report.skipped.push(clause.key);
+            continue;
+        }
+
         try {
-            const result = await clause.run();
+            const result = await clause.run({ from, to, force });
             if (result) {
                 report.clauses[clause.key] = result;
                 report.changed++;
@@ -142,8 +201,10 @@ export async function migrate1_2_0({ force = false, quiet = false } = {}) {
             n: report.changed, version: to
         }));
     }
+    const considered = CLAUSES.length - report.skipped.length;
     log(`Migration: ${from || "an unstamped world"} → ${to}, `
-        + `${report.changed} of ${CLAUSES.length} clause(s) had something to do.`, report);
+        + `${report.changed} of ${considered} clause(s) considered had something `
+        + `to do, ${report.skipped.length} already been through.`, report);
     return report;
 }
 
@@ -178,6 +239,12 @@ export function migrationStatus() {
         stampedAt: from || null,
         installed: to,
         current: from === to,
-        clauses: CLAUSES.map(c => ({ key: c.key, since: c.since }))
+        // `pending` is the question the stamp alone cannot answer: a world can
+        // be behind on the version and still have nothing owing.
+        clauses: CLAUSES.map(c => ({
+            key: c.key,
+            since: c.since,
+            pending: !from || foundry.utils.isNewerVersion(c.since, from)
+        }))
     };
 }

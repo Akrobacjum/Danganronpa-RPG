@@ -22,6 +22,7 @@
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { gmIds, error, warn } from "./utils.mjs";
+import { playSfx } from "./sfx.mjs";
 
 /** Flag keys, all stored under `flags["danganronpa-rpg"]` on a ChatMessage. */
 export const MESSENGER_FLAGS = {
@@ -45,8 +46,6 @@ export const THREAD_KIND = {
     dm: "dm",
     action: "action"
 };
-
-const NOTIFY_SOUND = "sounds/notify.wav";
 
 export function registerMessenger() {
     Hooks.on("createChatMessage", onCreateChatMessage);
@@ -199,11 +198,12 @@ function onCreateChatMessage(message) {
     const authorId = message.author?.id ?? message.user?.id;
     if (authorId === game.user.id) return; // do not ping yourself
 
-    try {
-        foundry.audio.AudioHelper.play({ src: NOTIFY_SOUND, volume: 0.5, autoplay: true }, false);
-    } catch {
-        // A blocked autoplay policy is not worth surfacing to the user.
-    }
+    // Was a hard-coded chime. It is a mapped event now, so a table that wants
+    // its own notification sound changes it in the Sound panel instead of in
+    // this file — and the migration seeded the mapping with the very file this
+    // line used to name, so nothing went quiet in a world that was already
+    // playing. `playSfx` swallows its own failures; there is nothing to guard.
+    playSfx("chatReceive");
 }
 
 /**
