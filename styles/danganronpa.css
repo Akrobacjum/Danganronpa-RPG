@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json — the suite fails if it does not. */
-    --drpg-css-version: "1.1.22";
+    --drpg-css-version: "1.1.23";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -10298,6 +10298,63 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     cursor: not-allowed;
     pointer-events: auto;
     filter: grayscale(1);
+}
+
+/* ---- what a body was carrying ------------------------------------------
+   The one pane on a redacted sheet that opens, and the only place in the game
+   where you take something from somebody who cannot refuse. */
+
+.drpg-loot {
+    padding: 0.75rem;
+}
+
+.drpg-loot h4 {
+    margin: 0 0 0.5rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--drpg-dim);
+    font-size: var(--drpg-text-xs);
+}
+
+.drpg-loot-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.drpg-loot-list li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 3px 4px;
+    border: 1px solid var(--drpg-line-strong);
+    border-radius: 3px;
+    background: rgba(var(--drpg-bone-rgb), 0.04);
+}
+
+.drpg-loot-list img {
+    width: 1.4rem;
+    height: 1.4rem;
+    border: 0;
+    flex: 0 0 auto;
+}
+
+.drpg-loot-list .drpg-item-name {
+    flex: 1 1 auto;
+}
+
+/* Taking is one press and it is not undoable, so the button says so by being
+   the only lit thing in a window of grey. */
+.drpg-loot-take {
+    flex: 0 0 auto;
+}
+
+.drpg-loot-take[disabled] {
+    opacity: 0.5;
+    cursor: default;
 }
 
 /* An emptied pane. It reads as locked rather than as broken, which is the whole

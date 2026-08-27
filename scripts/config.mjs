@@ -61,6 +61,15 @@ export const FLAGS = {
     /** Character: the student's Ultimate talent, shown under their name. */
     ultimate: "ultimate",
     /**
+     * Character (a dead one): the trace left by people going through them.
+     *
+     * `{ sceneId, tokenId, taken: [name] }` — ONE remnant per body however many
+     * things leave it, because you cannot count hands from a turned-out pocket,
+     * and because three traces would mean three clean-up actions and nobody
+     * would ever loot anything. The list grows; the trace does not.
+     */
+    lootTrace: "lootTrace",
+    /**
      * Character: the id of the weapon this character actually swung.
      *
      * Written by the crisis roll, read by Stage 6's confiscation. It exists

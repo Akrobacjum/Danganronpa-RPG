@@ -47,6 +47,9 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
+import { isDeceased } from "./chapter.mjs";
+import { isStashed } from "./inventory.mjs";
+import { isTruthBullet } from "./truth-bullets.mjs";
 import { whisperToGms, warn, debug, error } from "./utils.mjs";
 
 const NONE = 0;     // CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE
@@ -87,6 +90,7 @@ function onRenderSheet(app, element) {
         disarmSheet(root);
         redactTabs(root);
         redactValues(root);
+        buildBodyLoot(root, actor);
         root.classList.add("drpg-redacted-sheet");
     } catch (err) {
         error("Could not redact a character sheet — closing it instead", err);
@@ -144,7 +148,12 @@ function disarmSheet(root) {
  * inventory may stay in the DOM.
  */
 function redactTabs(root) {
-    for (const tab of root.querySelectorAll('[data-action="tab"]')) {
+    // BY `data-tab`, NOT BY `data-action`. `disarmSheet` runs first and has
+    // already taken the action off every one of them, so selecting on the
+    // action found nothing and the tabs came out disarmed but not greyed —
+    // which is the worst of both, because an ungreyed tab invites the click it
+    // will not honour. Shipped that way in 1.1.22 and caught by looking.
+    for (const tab of root.querySelectorAll("a[data-tab]")) {
         delete tab.dataset.action;
         tab.classList.add("drpg-locked");
         tab.setAttribute("aria-disabled", "true");
@@ -156,6 +165,116 @@ function redactTabs(root) {
         pane.replaceChildren(lockedPlaceholder());
         pane.classList.add("drpg-redacted-pane");
     }
+}
+
+/**
+ * A body's pockets are the one thing on a redacted sheet you may look through.
+ *
+ * THE THIRD STATE (trap 138). Your own sheet, somebody else's, and somebody
+ * else's corpse are three things, not two — and the corpse differs in two ways
+ * at once: its belongings are visible AND takeable, while its Truth Bullets do
+ * not exist at all, having died with it.
+ *
+ * So the Inventory tab is given back — just that one — and filled with a list
+ * this file builds rather than the sheet's own. Not because the sheet's list
+ * would be wrong, but because it holds the Truth Bullet rows, the stash, the
+ * use buttons and the handover buttons, none of which belong to somebody
+ * standing over a body.
+ */
+function buildBodyLoot(root, actor) {
+    if (!isDeceased(actor)) return;
+
+    const pane = root.querySelector('section.tab[data-tab="inventory"]');
+    const tab = root.querySelector('a[data-tab="inventory"]');
+    if (!pane || !tab) return;
+
+    reopenTab(tab);
+    pane.classList.remove("drpg-redacted-pane");
+
+    const box = document.createElement("div");
+    box.className = "drpg-loot";
+
+    const items = actor.items.filter(i =>
+        i.getFlag(MODULE_ID, "category") && !isTruthBullet(i) && !isStashed(i));
+
+    box.innerHTML = `<h4>${game.i18n.localize("DRPG.Loot.heading")}</h4>`;
+    if (!items.length) {
+        box.innerHTML += `<p class="notes">${game.i18n.localize("DRPG.Loot.empty")}</p>`;
+        pane.replaceChildren(box);
+        return;
+    }
+
+    const list = document.createElement("ul");
+    list.className = "drpg-loot-list";
+    for (const item of items) {
+        const row = document.createElement("li");
+        row.innerHTML = `<img src="${item.img}" alt="" />
+            <span class="drpg-item-name">${foundry.utils.escapeHTML(item.name)}</span>`;
+
+        const take = document.createElement("button");
+        take.type = "button";
+        take.className = "drpg-mini-button drpg-loot-take";
+        take.textContent = game.i18n.localize("DRPG.Loot.take");
+        take.dataset.tooltip = game.i18n.localize("DRPG.Loot.takeTooltip");
+        take.addEventListener("click", async event => {
+            event.preventDefault();
+            event.stopPropagation();
+            // Disabled on the way in, not on the way back: the round trip goes
+            // through the GM's client and a second click would take the same
+            // object twice.
+            take.disabled = true;
+            await takeFromBody(actor, item);
+        });
+        row.append(take);
+        list.append(row);
+    }
+
+    box.append(list);
+    pane.replaceChildren(box);
+}
+
+/**
+ * Whose character is doing the taking.
+ *
+ * The one the viewer plays, which is nearly always exactly one — and if it is
+ * somehow none, the button says so rather than sending a request the GM will
+ * refuse.
+ */
+async function takeFromBody(body, item) {
+    const taker = myCharacter();
+    if (!taker) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Loot.noCharacter"));
+        return;
+    }
+
+    const { requestBodyLoot } = await import("./gm-bridge.mjs");
+    await requestBodyLoot({ takerId: taker.id, bodyId: body.id, itemId: item.id });
+    ui.notifications.info(game.i18n.format("DRPG.Loot.took", { item: item.name }));
+}
+
+/**
+ * The character this viewer is playing.
+ *
+ * By OWNERSHIP first, then by `game.user.character` — the order hud.mjs settled
+ * on and for the reason written out there: nothing in this game asks anybody to
+ * set the actor in Foundry's user configuration, so a table that assigns
+ * characters the module's own way leaves it null for every player.
+ */
+function myCharacter() {
+    const owned = game.actors.filter(a =>
+        a.type === "character" && a.testUserPermission(game.user, "OWNER"));
+    if (owned.length === 1) return owned[0];
+    // Two characters, or none owned: the one they picked, if they picked one.
+    return game.user.character ?? owned[0] ?? null;
+}
+
+/** Give one tab back what `disarmSheet` and `redactTabs` took off it. */
+function reopenTab(tab) {
+    tab.dataset.action = "tab";
+    tab.classList.remove("drpg-locked", "drpg-disarmed");
+    tab.removeAttribute("aria-disabled");
+    delete tab.dataset.tooltip;
+    tab.removeEventListener("click", stop, { capture: true });
 }
 
 /** One pixel question mark, so an emptied pane does not read as a broken one. */

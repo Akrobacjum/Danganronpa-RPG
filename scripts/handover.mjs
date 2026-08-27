@@ -20,7 +20,7 @@
  * player's sheet in the first place.
  */
 
-import { MODULE_ID, ITEM_CATEGORIES, BEDROOM_KEY_FLAG } from "./config.mjs";
+import { MODULE_ID, FLAGS, ITEM_CATEGORIES, BEDROOM_KEY_FLAG } from "./config.mjs";
 import { grantItem, canCarry, preservedFlags } from "./inventory.mjs";
 import { createTruthBullet, truthBulletData, secretOf, isTruthBullet } from "./truth-bullets.mjs";
 import { dialogContent, whisperToOwner, log, warn, error } from "./utils.mjs";
@@ -299,6 +299,176 @@ export async function shareBullet({ fromId, toId, itemId } = {}) {
  * Created before deleted, deliberately. If the create fails the giver still has
  * their item; the other order can lose it entirely.
  */
+/**
+ * Take something off a body.
+ *
+ * A handover with nobody on the other side of it: the dead cannot refuse, so
+ * this is the one transfer in the module that no one consents to. Everything
+ * else about it is `giveItem` — the object MOVES, it is not copied, because a
+ * knife that is both on the corpse and in a pocket is the sort of bug an
+ * investigation cannot recover from.
+ *
+ * TWO THINGS HAPPEN BESIDES THE MOVE, and they are the point of the feature
+ * rather than decoration on it:
+ *
+ *   the taker gets a TRUTH BULLET naming what they took and off whom. Not
+ *   analysed — the name says what and where, and whether it MATTERS is what an
+ *   Analyze answers. Looting gives you a lead, not a conclusion.
+ *
+ *   the body gets ONE TRACE, and one only, however many things leave it. "Ktoś
+ *   grzebał przy ciele" (Dawid, 27.08): the GM writes what it looks like, the
+ *   analysis names the objects, and it never names the person — you cannot read
+ *   a hand off a turned-out pocket.
+ *
+ * The trace is what stops this being the only free, invisible way to destroy
+ * evidence in the game. Everything else that hides something goes through Stage
+ * 6: an action, a roll, a threshold, and Despair breaking your tool. Looting
+ * bypassed all of it. The trace does not take the suppression away — it prices
+ * it, in the machinery that already exists.
+ */
+export async function lootBody({ takerId, bodyId, itemId } = {}) {
+    if (!game.user.isGM) return null;
+
+    const taker = game.actors.get(takerId);
+    const body = game.actors.get(bodyId);
+    const item = body?.items?.get(itemId);
+    if (!taker || !body || !item) return null;
+
+    const { isDeceased } = await import("./chapter.mjs");
+    if (!isDeceased(body)) {
+        warn(`Refused to loot ${body.name}: they are not dead.`);
+        return null;
+    }
+    if (isTruthBullet(item)) {
+        // They perish at death and should never be here to take.
+        warn("Refused to loot a Truth Bullet from a body.");
+        return null;
+    }
+
+    const category = item.getFlag(MODULE_ID, "category");
+    if (!category) return null;
+
+    const name = item.name;
+    const taken = await grantItem(taker, {
+        name,
+        category,
+        tier: item.getFlag(MODULE_ID, "tier") ?? null,
+        description: item.system?.description ?? "",
+        img: item.img,
+        // Roles included since E9 — see `preservedFlags`. A crowbar off a body
+        // is still a crowbar that can be swung.
+        extraFlags: preservedFlags(item)
+    });
+    // `grantItem` puts it in the stash when the hands are full and says so, so
+    // "no room" is not a failure here — only a refusal is.
+    if (!taken) return null;
+
+    try {
+        await item.delete();
+    } catch (err) {
+        error("Could not take the item off the body", err);
+        const { whisperToGms } = await import("./utils.mjs");
+        await whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.Handover.stuck", {
+            name: foundry.utils.escapeHTML(name),
+            who: foundry.utils.escapeHTML(body.name)
+        })}</p>`);
+    }
+
+    const trace = await markBodyDisturbed(body, name);
+    await mintLootBullet(taker, body, item, name, category, trace);
+
+    log(`${taker.name} took "${name}" from ${body.name}'s body.`);
+    return taken;
+}
+
+/**
+ * One trace per body, and the list of what has left it grows inside it.
+ *
+ * The remnant is recorded on the CORPSE rather than looked up on the map,
+ * because "is there already a trace here" is a question the map answers badly:
+ * a room can hold a dozen traces and none of them about this body.
+ *
+ * NO TOKEN, NO TRACE, AND NO FAILURE (trap 142). `dropRemnant` is loud about a
+ * missing token — rightly, since a silent missing trace is the one failure an
+ * investigation never recovers from — but a body with no token on the scene is
+ * a situation rather than a fault, and it must not cost the player their loot.
+ */
+async function markBodyDisturbed(body, itemName) {
+    const record = body.getFlag(MODULE_ID, FLAGS.lootTrace) ?? null;
+    const taken = [...(record?.taken ?? []), itemName];
+
+    const { setRemnantSecretById } = await import("./remnants.mjs");
+    const existing = record?.tokenId
+        ? game.scenes.get(record.sceneId)?.tokens?.get(record.tokenId)
+        : null;
+
+    if (existing) {
+        // The same trace, saying that one more thing has gone.
+        await setRemnantSecretById(record.sceneId, record.tokenId, {
+            note: game.i18n.format("DRPG.Loot.traceNote", { items: taken.join(", ") })
+        });
+        await body.setFlag(MODULE_ID, FLAGS.lootTrace, { ...record, taken });
+        return record;
+    }
+
+    const { dropRemnant } = await import("./remnants.mjs");
+    const token = await dropRemnant(body, {
+        type: "neutral",
+        // Subtle: it has to be found. Evident would make a billboard of it and
+        // looting would stop being worth doing at all.
+        visibility: "subtle",
+        note: game.i18n.format("DRPG.Loot.traceNote", { items: taken.join(", ") }),
+        action: "loot",
+        subject: body.name,
+        // About the body, so it survives the chapter-end sweep.
+        tiedToCrime: true
+    }).catch(() => null);
+
+    if (!token) return null;
+
+    const next = { sceneId: token.parent?.id ?? null, tokenId: token.id, taken };
+    await body.setFlag(MODULE_ID, FLAGS.lootTrace, next);
+    return next;
+}
+
+/**
+ * The Truth Bullet the taker walks away with.
+ *
+ * `neutral` and NOT analysed on purpose. The name already says what was taken
+ * and off whom — that is the fact, and it is free. Whether the thing bears on
+ * the murder is the question, and questions cost an Analyze in this game.
+ *
+ * `tiedToCrime` mirrors what Search already does with crime gear: true when the
+ * thing can do a killer's work, left undecided otherwise. It is the GM-side
+ * answer key, published on analysis, so a cereal bar off a body does not arrive
+ * pre-labelled as meaningless either.
+ */
+async function mintLootBullet(taker, body, item, name, category, trace) {
+    try {
+        const { createTruthBullet } = await import("./truth-bullets.mjs");
+        const { servesAs } = await import("./inventory.mjs");
+        const incriminating = ["crimeTool", "cleaningTool"].some(role => servesAs(item, role));
+
+        await createTruthBullet(taker, {
+            name: game.i18n.format("DRPG.Loot.bulletName", { item: name }),
+            realType: "neutral",
+            visibility: "evident",
+            playerText: game.i18n.format("DRPG.Loot.bulletText", {
+                item: name, who: body.name
+            }),
+            img: item.img,
+            sourceAction: "loot",
+            tiedToCrime: incriminating ? true : null,
+            remnantId: trace?.tokenId ?? null,
+            sceneId: trace?.sceneId ?? null
+        });
+    } catch (err) {
+        // The object moved; the record of it did not. Worth saying out loud,
+        // because the investigation is what this whole feature is for.
+        error("Could not record what was taken off the body", err);
+    }
+}
+
 export async function giveItem({ fromId, toId, itemId } = {}) {
     if (!game.user.isGM) return null;
 

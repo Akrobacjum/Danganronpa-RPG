@@ -54,6 +54,7 @@ const ACTION_MEDDLE = "monocub.meddle";
 const ACTION_ACK = "bridge.ack";
 /** A GM's world has finished loading — see `registerGmBridge`. */
 const ACTION_GM_READY = "bridge.gmReady";
+const ACTION_LOOT = "body.loot";
 
 /**
  * Player-side promises waiting on a GM ruling, keyed by request id.
@@ -849,6 +850,26 @@ async function onSocket(payload, senderId) {
         return;
     }
 
+    if (payload?.action === ACTION_LOOT) {
+        const sender = senderOf(senderId);
+        if (!sender) return refuse(ACTION_LOOT, "unknown sender");
+
+        // You may fill your own pockets and nobody else's. Without this, "move
+        // that knife onto whoever I like" was a single socket emit away.
+        if (!ownsActor(sender, payload.takerId)) {
+            return refuse(ACTION_LOOT, "sender does not own the character doing the taking");
+        }
+
+        const { lootBody } = await import("./handover.mjs");
+        // Everything else it needs to refuse — the body being alive, the item
+        // being a Truth Bullet — `lootBody` checks itself, because the GM's own
+        // button goes through the same door.
+        await lootBody({
+            takerId: payload.takerId, bodyId: payload.bodyId, itemId: payload.itemId
+        });
+        return;
+    }
+
     if (payload?.action === ACTION_ARM) {
         const actor = game.actors.get(payload.actorId);
         if (!actor) return;
@@ -941,6 +962,28 @@ async function onSocket(payload, senderId) {
  * which the buyer has no write access to — hence "Player A lacks permission".
  * The GM owns everything, so they set it.
  */
+/**
+ * Take something off a body.
+ *
+ * Everything the taking does needs the GM: the Truth Bullet's answer key exists
+ * only on their browser (`createTruthBullet` refuses elsewhere), placing a token
+ * needs their permission, and the item has to leave a sheet the player does not
+ * own. ONE request rather than three, because three would have intermediate
+ * states in which the knife has left the body and arrived nowhere.
+ */
+export async function requestBodyLoot({ takerId, bodyId, itemId }) {
+    if (game.user.isGM) {
+        const { lootBody } = await import("./handover.mjs");
+        return lootBody({ takerId, bodyId, itemId });
+    }
+    if (!hasGm()) return null;
+    game.socket.emit(SOCKET_EVENT, {
+        action: ACTION_LOOT, userId: game.user.id,
+        requestId: expectAck("Take from the body"), takerId, bodyId, itemId
+    });
+    return true;
+}
+
 export async function requestArmCall(actorId, call) {
     if (game.user.isGM) {
         const actor = game.actors.get(actorId);

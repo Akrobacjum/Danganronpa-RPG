@@ -87,6 +87,13 @@ export function preservedFlags(item) {
     // A healing item is still a healing item in somebody else's hands.
     const kind = item?.getFlag(MODULE_ID, ITEM_FLAGS.kind);
     if (kind) flags[ITEM_FLAGS.kind] = kind;
+
+    // And a crowbar is still a weapon. Missing until E9, so handing over a
+    // two-tag item quietly halved it — the receiver got a tool where the giver
+    // had a tool that could be swung.
+    const roles = rolesOf(item);
+    if (roles.length) flags[ITEM_FLAGS.roles] = roles;
+
     return flags;
 }
 

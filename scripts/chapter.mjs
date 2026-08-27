@@ -82,14 +82,25 @@ export async function killCharacter(actor, { keepItems = false } = {}) {
     const clock = getClock();
     const record = { chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay };
 
+    /*
+     * WHAT DIES WITH THEM, AND WHAT DOES NOT (Dawid, 27.08).
+     *
+     * This used to take the whole inventory — decision D1's "it all vanishes" —
+     * which made a body a thing to look at and nothing to search. The belongings
+     * stay now: they are on the sheet, other students can take them, and taking
+     * one is evidence (see `lootBody`).
+     *
+     * TRUTH BULLETS STILL PERISH, and that half is unchanged. What somebody
+     * worked out is not an object in their pocket; it died with them, and a
+     * murder that handed the killer their victim's conclusions would be a murder
+     * that pays.
+     */
     let removed = 0;
     if (!keepItems) {
         // The ledger entries first, while the items still exist to be read.
         for (const bullet of bulletsOf(actor)) await dropSecret(bullet.uuid);
 
-        const doomed = actor.items
-            .filter(i => Object.keys(ITEM_CATEGORIES).includes(i.getFlag(MODULE_ID, "category")))
-            .map(i => i.id);
+        const doomed = bulletsOf(actor).map(i => i.id);
 
         if (doomed.length) {
             try {

@@ -1981,6 +1981,17 @@
       "unknownKind": "Unknown Level Up type: {kind}.",
       "failed": "The Level Up could not be saved. See the console."
     },
+    "Loot": {
+      "take": "Take",
+      "takeTooltip": "Take this from the body. You will be able to say where you found it.",
+      "heading": "What they were carrying",
+      "empty": "Their pockets are empty.",
+      "bulletName": "“{item}”, taken from a body",
+      "bulletText": "Taken from {who}’s body.",
+      "traceNote": "Somebody has been through this body. Gone: {items}.",
+      "noCharacter": "You are not playing a character the module knows about, so there is nowhere for this to go.",
+      "took": "You take “{item}”. Where you found it is worth remembering — it is in your evidence now."
+    },
     "Redacted": {
       "tabLocked": "Theirs to tell you, not yours to read.",
       "settingsLocked": "The character's settings are the GM's."
