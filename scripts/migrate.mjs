@@ -207,6 +207,57 @@ const CLAUSES = [
                 playlist: game.playlists?.get(map.trial)?.name ?? map.trial
             };
         }
+    },
+    {
+        key: "seedTableRoles",
+        since: "1.1.19",
+        /*
+         * THE TABLES A WORLD ALREADY HAS DO NOT KNOW ABOUT ROLES.
+         *
+         * `installTables` is idempotent on purpose — a GM's edits are never
+         * overwritten — so a world that installed its tables before E8 keeps
+         * entries with no `roles` flag on them, and the pools rebuilt in E9
+         * (tier 2 and 3 do two jobs) reach nobody who is already playing.
+         *
+         * `rolesOfResult` falls back to the name map at draw time, so those
+         * worlds were not broken; they were relying on a last resort that
+         * breaks the moment somebody renames an entry. This writes the flag,
+         * which is what the fallback exists to avoid needing.
+         *
+         * ONLY WHERE THE FLAG IS ABSENT. A GM who ticked "also a weapon" on
+         * their own screwdriver has said something, and a migration that knows
+         * better than the person who runs the game is a migration nobody should
+         * trust. An empty array counts as having been said.
+         */
+        run: async () => {
+            const { POOL_ROLES } = await import("./tables.mjs");
+            const touched = [];
+
+            for (const table of game.tables ?? []) {
+                if (!table.getFlag(MODULE_ID, "category")) continue;
+
+                const updates = [];
+                for (const result of table.results ?? []) {
+                    if (Array.isArray(result.getFlag(MODULE_ID, "roles"))) continue;
+                    const name = result.name ?? result.text ?? "";
+                    const roles = POOL_ROLES[name] ? [...POOL_ROLES[name]] : [];
+                    updates.push({
+                        _id: result.id,
+                        [`flags.${MODULE_ID}.roles`]: roles
+                    });
+                }
+
+                if (!updates.length) continue;
+                try {
+                    await table.updateEmbeddedDocuments("TableResult", updates);
+                    touched.push(`${table.name}: ${updates.length}`);
+                } catch (err) {
+                    error(`Could not write roles onto "${table.name}"`, err);
+                }
+            }
+
+            return touched.length ? { tables: touched.length, entries: touched } : null;
+        }
     }
 ];
 

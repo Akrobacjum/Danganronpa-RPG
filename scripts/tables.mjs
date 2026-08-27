@@ -281,23 +281,38 @@ export const ITEM_POOLS = {
         2: ["Canned soup", "Pills", "First aid kit", "Music player"],
         3: ["Candy floss"]
     },
+    /*
+     * TIER IS WHAT AN OBJECT CAN DO, NOT ONLY HOW WELL (E9, Dawid 27.08).
+     *
+     * Tiers 0 and 1 do one job. **Every** entry at tier 2 and 3 does two — that
+     * is what the tier buys, alongside the number. The first pass gave a second
+     * tag to about half of the high-tier entries, which read as an oversight
+     * rather than a rule: a Bolt cutters that doubles as a tool sitting beside a
+     * Fire extinguisher that does not teaches nobody anything.
+     *
+     * Three entries were REPLACED rather than tagged, because the second job had
+     * to be invented for them and an invented job is worse than a missing item:
+     * Handgun and Crossbow (a firearm is not a tool and not a cleaner) and
+     * Incinerator key (a key, which was always an odd thing to hold in a hand as
+     * a cleaning tool). Their replacements do two jobs honestly.
+     */
     crimeTool: {
         0: ["Scissors", "Letter opener", "Broken bottle", "Skipping rope"],
         1: ["Bent pipe", "Hammer", "Baseball bat", "Kitchen knife"],
         2: ["Axe", "Bolt cutters", "Fire extinguisher", "Chemistry acid"],
-        3: ["Handgun", "Crossbow", "Industrial saw"]
+        3: ["Industrial saw", "Nail gun", "Quicklime barrel"]
     },
     cleaningTool: {
         0: ["Toilet paper", "Old newspaper", "Gym towel"],
         1: ["Rope", "Rubber gloves", "Bin bags", "Bucket and sponge"],
         2: ["Mop", "Bleach", "Vacuum cleaner", "Blowtorch"],
-        3: ["Cleaning agent", "Pressure washer", "Incinerator key"]
+        3: ["Cleaning agent", "Pressure washer", "Lye drum"]
     },
     tool: {
         0: ["Bent nail", "Plastic ruler", "Blunt pencil", "Paperclip chain"],
         1: ["Screwdriver", "Pliers", "Hand drill", "Sewing kit"],
         2: ["Duct tape", "Spanner set", "Soldering iron", "Crowbar"],
-        3: ["Portable workshop", "Angle grinder", "Master toolkit"]
+        3: ["Angle grinder", "Master toolkit", "Steam cleaner"]
     }
 };
 
@@ -317,19 +332,32 @@ export const ITEM_POOLS = {
  * workshop.
  */
 export const POOL_ROLES = {
-    // Weapons that are also tools.
+    // --- Murder Weapons, tier 2 and 3 -------------------------------------
     "Axe": ["tool"],
     "Bolt cutters": ["tool"],
+    "Fire extinguisher": ["cleaningTool"],
+    "Chemistry acid": ["cleaningTool"],
     "Industrial saw": ["tool"],
-    // Cleaning gear that is also a tool.
+    "Nail gun": ["tool"],
+    "Quicklime barrel": ["cleaningTool"],
+
+    // --- Cleaning Tools, tier 2 and 3 -------------------------------------
     "Mop": ["tool"],
+    "Bleach": ["crimeTool"],
+    "Vacuum cleaner": ["tool"],
+    "Blowtorch": ["crimeTool"],
+    "Cleaning agent": ["crimeTool"],
     "Pressure washer": ["tool"],
-    // Tools that are also something else.
+    "Lye drum": ["crimeTool"],
+
+    // --- Tools, tier 2 and 3 ----------------------------------------------
     "Duct tape": ["cleaningTool"],
+    "Spanner set": ["crimeTool"],
     "Soldering iron": ["crimeTool"],
     "Crowbar": ["crimeTool"],
     "Angle grinder": ["crimeTool"],
-    "Master toolkit": ["crimeTool"]
+    "Master toolkit": ["crimeTool"],
+    "Steam cleaner": ["cleaningTool"]
 };
 
 /** No item may carry more than this many roles beside its home. */
