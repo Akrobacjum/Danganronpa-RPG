@@ -488,6 +488,11 @@ function repaintInPlace(actor, element) {
         glyph.classList.toggle("fa-solid", n <= hope);
         glyph.classList.toggle("fa-regular", n > hope);
     }
+
+    // AFTER the glyphs, because the mark is counted off them. A repaint stands
+    // in for a render and owes what the render owed — including saying that
+    // something moved. See `markHopeChange`.
+    markHopeChange(actor, element);
 }
 
 /** After the write: what the skipped render would have drawn. */
@@ -840,14 +845,62 @@ function frameTraits(element) {
  * filled sprite — so the two cannot disagree about which diamonds are lit.
  */
 function flashHope(app, element, fresh = false) {
-    const actor = app.document;
-    const slots = element.querySelectorAll(
-        ".character-header-sheet .hope-section .hope-value");
+    markHopeChange(app.document, element, fresh);
+}
+
+/**
+ * Mark the Hope diamonds that just moved.
+ *
+ * SPLIT OUT BECAUSE THE FLARE HAD TWO WAYS IN AND ONLY ONE OF THEM WORKED.
+ *
+ * E4's flicker fix skips the whole render for an update that touches nothing
+ * but a repaintable resource, and `repaintInPlace` draws what the render would
+ * have drawn. It drew the diamonds correctly and never announced the change:
+ * Hope moved, the pip count followed, and nothing flashed. The comment there
+ * called toggling the glyph "the whole repaint", which was the mistake — the
+ * mark is part of what a render does, and a repaint that stands in for a render
+ * owes everything the render owed.
+ *
+ * `spentSince` is called even on a first draw, and only the MARKING is skipped:
+ * a surface that never learned where the count started would flash the whole
+ * difference on its second draw.
+ */
+function markHopeChange(actor, element, fresh = false) {
+    const slots = element?.querySelectorAll?.(
+        ".character-header-sheet .hope-section .hope-value") ?? [];
     if (!slots.length) return;
 
     const held = Array.from(slots).filter(s => s.querySelector("i.fa-solid")).length;
     const spent = spentSince("sheet:hope", actor.id, held);
     if (fresh || !spent) return;
+
+    /*
+     * WIPE THE LAST MARK BEFORE MAKING A NEW ONE.
+     *
+     * `markSpent` adds a class and never takes it off, which was always true
+     * and never mattered: a render builds new elements, so the mark went with
+     * the old ones. Since E4 a Hope change SKIPS the render — `repaintInPlace`
+     * stands in for it — and these same six diamonds live on across every
+     * change. Two things then went wrong at once, and together they are
+     * exactly "it does not fire and it shows the wrong thing":
+     *
+     *   the class stayed, so a pip spent an hour ago still read as spent, and a
+     *   pip that was spent and later regained carried BOTH marks;
+     *
+     *   and adding a class an element already has does not restart a CSS
+     *   animation, so the second spend of the same diamond flashed nothing.
+     *
+     * Cleared on every slot rather than only the ones about to be marked: the
+     * stale mark is on whichever pips moved LAST time, which is not the set
+     * moving now. The read of `offsetWidth` is what makes the browser commit the
+     * removal, so re-adding counts as a change and the animation runs again.
+     */
+    for (const slot of slots) {
+        slot.classList.remove("drpg-spent", "drpg-gained");
+        slot.style.removeProperty("animation-delay");
+        slot.style.removeProperty("--drpg-spent-age");
+    }
+    void slots[0].offsetWidth;
 
     for (let i = spent.from; i <= Math.min(spent.to, slots.length); i++) {
         markSpent(slots[i - 1], spent, i);
