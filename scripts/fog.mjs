@@ -1549,10 +1549,21 @@ export function doorwayReport() {
             inPolygons(o.polys, mx + edge.nx * reach * f, my + edge.ny * reach * f)));
         const target = neighbourBeyond(mx, my, edge.nx, edge.ny, others.map(o => o.polys), reach);
 
+        // The three gates, each shown separately — the whole point of this
+        // report is that "open" and "closed" fail in opposite-looking ways and
+        // the map cannot tell you which test decided.
+        const inX = mx - edge.nx * grid * DOORWAY_OVERLAP_INSET;
+        const inY = my - edge.ny * grid * DOORWAY_OVERLAP_INSET;
+        const overlapping = others.find(o => inPolygons(o.polys, inX, inY));
+
         rows.push({
             edge: `${Math.round(edge.ax)},${Math.round(edge.ay)} → ${Math.round(edge.ax + edge.dx)},${Math.round(edge.ay + edge.dy)}`,
             length: Math.round(edge.length),
             neighbour: found?.name ?? "—",
+            insideOf: overlapping?.name ?? "—",
+            wallAlong: wallAlongEdge(mx, my, edge.dx / edge.length, edge.dy / edge.length,
+                Array.from(scene.walls ?? []), grid * DOORWAY_WALL_NEAR),
+            capped: Boolean(edge.capped),
             clear: target
                 ? nothingInTheWay({ x: mx - edge.nx * back, y: my - edge.ny * back },
                                   { x: mx + edge.nx * reach, y: my + edge.ny * reach })
@@ -1571,6 +1582,342 @@ export function doorwayReport() {
     console.log(`${MODULE_ID} | doorways in "${room}" — ${scene.walls?.size ?? 0} walls on this scene`);
     console.table(rows);
     return rows;
+}
+
+/**
+ * Check every room on this scene against the rules the fog layer depends on.
+ *
+ *     game.drpg.checkRegions()
+ *
+ * THE MAP IS DATA, AND DATA GETS VALIDATED. Every symptom this stage was built
+ * to fix — a corridor glowing along its whole length, a white bar across open
+ * floor, a doorway with no door — traces back to region geometry rather than to
+ * the code that draws it. Those faults are invisible in the region editor and
+ * obvious the moment they are measured, which is the definition of something
+ * that should be a check.
+ *
+ * IT REPORTS AND DOES NOT REPAIR. An automatic "snap the region to the wall"
+ * would rewrite a GM's map without asking, and the map is theirs. Every row
+ * carries the room's name and a coordinate, and the fixing happens in the
+ * region editor by somebody who can see what the room is meant to be.
+ *
+ * @returns {Array<object>} one row per problem, worst first.
+ */
+export function checkRegions() {
+    const scene = canvas?.scene;
+    if (!scene) {
+        console.log(`${MODULE_ID} | checkRegions: no scene is on the canvas.`);
+        return [];
+    }
+
+    const grid = canvas?.grid?.size ?? 100;
+    const walls = Array.from(scene.walls ?? []);
+    const findings = [];
+    const add = (level, room, problem, detail, at = null) =>
+        findings.push({ level, room, problem, detail, at });
+
+    const named = [];
+    for (const region of scene.regions ?? []) {
+        if (!region.name) {
+            add("info", "(unnamed)", "Region with no name",
+                "Rooms are matched by name, so this one is not a room: it never counts as a "
+                + "neighbour, which is one quiet way to get a doorway that leads nowhere.",
+                pointOf(region));
+            continue;
+        }
+        const shapes = regionShapes(region, { x: 0, y: 0 });
+        if (!shapes.length) {
+            add("error", region.name, "No geometry the fog can read",
+                "The region exists but its shape came back empty — nothing about this room "
+                + "will be drawn.", pointOf(region));
+            continue;
+        }
+        named.push({ region, polys: shapes.map(f => new PIXI.Polygon(f)) });
+    }
+
+    /*
+     * WHERE THE LATTICE ACTUALLY IS, read off the map rather than assumed.
+     *
+     * `canvas.dimensions.sceneX` is NOT it: on this project's own scene it is
+     * 641 against a grid of 20, so measuring from there puts every corner four
+     * pixels out and the check fires on all eighteen rooms — a check that has
+     * learnt to cry wolf is worse than no check. `getSnappedPoint` is no help
+     * either; asked about a dirty coordinate it hands the same one back.
+     *
+     * The honest question is not "where does Foundry think the grid starts" but
+     * "do these corners agree with one another", and that can be measured: the
+     * commonest offset among every corner on the scene IS the lattice. A room
+     * drawn to the same lattice as the rest of the map reads clean; one drawn to
+     * its own reads dirty, which is the fault worth naming.
+     */
+    const lattice = grid / 2;
+    const latticeOrigin = commonestOffset(named, lattice);
+
+    /* ---- 1. overlapping rooms — the first cause on the list --------------- */
+    for (let i = 0; i < named.length; i++) {
+        for (let j = i + 1; j < named.length; j++) {
+            const area = overlapArea(named[i].polys, named[j].polys, grid);
+            if (area <= 0) continue;
+            const squares = area / (grid * grid);
+            add("error", named[i].region.name, `Overlaps "${named[j].region.name}"`,
+                `About ${squares.toFixed(1)} grid square(s) of floor belong to both rooms. `
+                + "Where they overlap, one room's border runs across the other's floor with no "
+                + "wall anywhere near it, and the whole shared border reads as one doorway. "
+                + "Rooms must touch, never overlap.",
+                pointOf(named[i].region));
+        }
+    }
+
+    /* ---- 2..4 — per room, measured off the same edges the fog uses -------- */
+    for (const { region, polys } of named) {
+        const edges = doorwayEdges(region);
+
+        /*
+         * 2. BORDER DRAWN AWAY FROM ITS WALLS.
+         *
+         * Asked with the SAME predicate the doorway test uses, and that is the
+         * point: a validator measuring something slightly different can pass a
+         * scene whose glow still misbehaves.
+         *
+         * Measured as the longest CONTIGUOUS stretch, never as a total. Every
+         * room has border with no wall on it — that is what a doorway is — so a
+         * total flags every room on every map and says nothing. The threshold is
+         * twice the longest opening the module will accept: an archway's worth
+         * of slack either side of a real door, and past that the border is not
+         * following a wall any more. Measured across this map, that line falls
+         * in a real gap in the data (4.3 squares against 7.3).
+         */
+        let adrift = 0;
+        let adriftAt = null;
+        let run = 0;
+        for (const edge of edges) {
+            if (!edge.length) continue;
+            const ex = edge.dx / edge.length;
+            const ey = edge.dy / edge.length;
+            const steps = Math.max(1, Math.round(edge.length / (grid * 0.25)));
+            for (let k = 0; k < steps; k++) {
+                const t = (k + 0.5) / steps;
+                const mx = edge.ax + edge.dx * t;
+                const my = edge.ay + edge.dy * t;
+                if (wallAlongEdge(mx, my, ex, ey, walls, grid * DOORWAY_WALL_NEAR)) {
+                    run = 0;
+                    continue;
+                }
+                run += edge.length / steps;
+                if (run > adrift) {
+                    adrift = run;
+                    adriftAt = { x: Math.round(mx), y: Math.round(my) };
+                }
+            }
+        }
+        if (adrift > grid * DOORWAY_MAX_RUN * 2) {
+            add("warning", region.name, "Border runs away from the walls",
+                `${(adrift / grid).toFixed(1)} squares of border in one stretch have no wall `
+                + "alongside them. A border drawn away from the wall it describes is the second "
+                + "way a whole side of a room turns into a doorway — the wall is never found, so "
+                + "nothing closes it.", adriftAt);
+        }
+
+        // 3. an opening longer than a wide archway — measured along the CHAIN,
+        //    because a staircase border can run past the cap in short steps
+        //    without any single edge exceeding it.
+        for (const run of openRuns(edges)) {
+            if (run.length <= grid * DOORWAY_MAX_RUN + 1) continue;
+            add("warning", region.name, "Opening longer than an archway",
+                `One stretch reads as open for about ${(run.length / grid).toFixed(1)} squares. `
+                + `Anything past ${DOORWAY_MAX_RUN} is a map fault rather than a way out — the glow `
+                + "is trimmed to the middle of it, and this row is why.", run.at);
+        }
+        if (edges.some(e => e.capped)) {
+            add("info", region.name, "An opening was trimmed",
+                "At least one stretch was longer than the cap and had its middle kept. "
+                + "The room still shows a way out; the row above says why it is a modest one.",
+                pointOf(region));
+        }
+
+        /*
+         * 4. CORNERS OFF THE LATTICE — and the lattice is HALF a square.
+         *
+         * Foundry's region tools snap to half-grid, so a room drawn correctly
+         * has most of its corners on a half-square line and almost none on a
+         * whole one. Measured against whole squares this check fired on every
+         * room on the scene, which is a check that has learnt to cry wolf.
+         */
+        const tolerance = Math.max(1, lattice * 0.1);
+        let off = 0;
+        let worst = 0;
+        for (const poly of polys) {
+            const pts = poly.points ?? [];
+            for (let i = 0; i < pts.length; i += 2) {
+                const dx = gridOffset(pts[i], lattice, latticeOrigin);
+                const dy = gridOffset(pts[i + 1], lattice, latticeOrigin);
+                const d = Math.max(dx, dy);
+                if (d > tolerance) {
+                    off++;
+                    worst = Math.max(worst, d);
+                }
+            }
+        }
+        if (off) {
+            add("info", region.name, "Corners off the map's own lattice",
+                `${off} corner(s) sit up to ${Math.round(worst)}px off the half-square lattice `
+                + "the rest of this scene is drawn to. Draw with snapping on: a corner a "
+                + "fraction of a square out is invisible by eye and is enough to make two "
+                + "rooms overlap or miss.", pointOf(region));
+        }
+    }
+
+    const order = { error: 0, warning: 1, info: 2 };
+    findings.sort((a, b) => order[a.level] - order[b.level]);
+
+    const counts = findings.reduce((acc, f) => ({ ...acc, [f.level]: (acc[f.level] ?? 0) + 1 }), {});
+    console.log(`${MODULE_ID} | region check on "${scene.name}" — ${named.length} named room(s), `
+        + `${walls.length} wall(s): ${counts.error ?? 0} error(s), ${counts.warning ?? 0} warning(s), `
+        + `${counts.info ?? 0} note(s).`);
+    if (findings.length) console.table(findings);
+    else console.log(`${MODULE_ID} | region check: nothing to report — the rooms on this scene are clean.`);
+    return findings;
+}
+
+/** A point to steer somebody at: the middle of the region's own box. */
+function pointOf(region) {
+    const b = regionBounds(region);
+    return b ? { x: Math.round(b.x + b.w / 2), y: Math.round(b.y + b.h / 2) } : null;
+}
+
+/**
+ * The offset every corner on this scene shares, to the nearest pixel.
+ *
+ * A one-pixel histogram of `coordinate mod lattice` over every corner of every
+ * named room, both axes together. The tallest bucket is where the map's own
+ * lattice sits; corners that miss it are the ones drawn without snapping.
+ * Falls back to zero when there is nothing to measure, which reads as "assume
+ * the lattice starts at the origin" and is the old behaviour.
+ */
+function commonestOffset(named, lattice) {
+    if (!(lattice > 0)) return 0;
+    const buckets = new Map();
+    for (const { polys } of named) {
+        for (const poly of polys) {
+            const pts = poly.points ?? [];
+            for (const v of pts) {
+                const key = Math.round((((v % lattice) + lattice) % lattice));
+                buckets.set(key, (buckets.get(key) ?? 0) + 1);
+            }
+        }
+    }
+    let best = 0;
+    let most = -1;
+    for (const [offset, count] of buckets) {
+        if (count > most) {
+            most = count;
+            best = offset;
+        }
+    }
+    return best;
+}
+
+/** How far this coordinate sits from the nearest grid line. */
+function gridOffset(v, grid, origin) {
+    const off = (((v - origin) % grid) + grid) % grid;
+    return Math.min(off, grid - off);
+}
+
+/**
+ * How much floor two rooms share.
+ *
+ * Clipped exactly where Foundry's polygon clipper is available, and sampled on
+ * a quarter-square lattice where it is not. The fallback is deliberately coarse
+ * and deliberately present: this check is the one that finds the worst fault on
+ * the list, and it must not be the check that quietly does not run.
+ */
+function overlapArea(a, b, grid) {
+    let area = 0;
+    let clipped = true;
+    for (const pa of a) {
+        for (const pb of b) {
+            if (typeof pa.intersectPolygon !== "function") { clipped = false; break; }
+            try {
+                const hit = pa.intersectPolygon(pb);
+                area += polygonArea(hit?.points ?? []);
+            } catch {
+                clipped = false;
+                break;
+            }
+        }
+        if (!clipped) break;
+    }
+    if (clipped) return area;
+
+    const step = grid / 4;
+    let cells = 0;
+    for (const pa of a) {
+        const pts = pa.points ?? [];
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (let i = 0; i < pts.length; i += 2) {
+            minX = Math.min(minX, pts[i]); maxX = Math.max(maxX, pts[i]);
+            minY = Math.min(minY, pts[i + 1]); maxY = Math.max(maxY, pts[i + 1]);
+        }
+        if (!Number.isFinite(minX)) continue;
+        for (let x = minX + step / 2; x < maxX; x += step) {
+            for (let y = minY + step / 2; y < maxY; y += step) {
+                if (pa.contains(x, y) && inPolygons(b, x, y)) cells++;
+            }
+        }
+    }
+    return cells * step * step;
+}
+
+/**
+ * Every open stretch, chained across consecutive edges the way the glow chains
+ * them — so a staircase border that opens step after step is measured as the
+ * one long opening it looks like, not as a dozen short ones.
+ */
+function openRuns(edges) {
+    const rings = new Map();
+    for (const edge of edges) {
+        const key = edge.ring ?? 0;
+        if (!rings.has(key)) rings.set(key, []);
+        rings.get(key).push(edge);
+    }
+
+    const runs = [];
+    for (const ring of rings.values()) {
+        let length = 0;
+        let at = null;
+        let openAtEnd = false;
+
+        const close = () => {
+            if (length > 0) runs.push({ length, at });
+            length = 0;
+            at = null;
+        };
+
+        for (let i = 0; i < ring.length; i++) {
+            const edge = ring[i];
+            const spans = (edge.open ?? []).slice().sort((p, q) => p[0] - q[0]);
+            if (!spans.length) {
+                close();
+                openAtEnd = false;
+                continue;
+            }
+            for (let k = 0; k < spans.length; k++) {
+                const [a, b] = spans[k];
+                const startsAtEdge = a <= 1e-6;
+                if (!(startsAtEdge && openAtEnd)) close();
+                if (!at) {
+                    at = {
+                        x: Math.round(edge.ax + edge.dx * a),
+                        y: Math.round(edge.ay + edge.dy * a)
+                    };
+                }
+                length += (b - a) * edge.length;
+                openAtEnd = b >= 1 - 1e-6 && k === spans.length - 1;
+            }
+        }
+        close();
+    }
+    return runs;
 }
 
 /**
@@ -3213,8 +3560,25 @@ function flashOutline(fx, region, rect) {
     const gapPad = grid * 0.05 + inkWidth / 2;
 
     const outline = new PIXI.Graphics();
+    /*
+     * SQUARE CAPS ONLY AT THE ENDS OF A CHAIN, AND A MITER THAT CANNOT SPIKE.
+     *
+     * `traceOutlineGapped` walks contiguous stretches as single paths now, so
+     * the caps that used to close every segment's corners have no corners left
+     * to close — and on a grid staircase, where a step is about as long as the
+     * line is wide, those caps were what turned the border into a thick blocky
+     * ribbon. Measured on a purpose-built staircase fixture: the corners came
+     * out filled solid, and the steps stopped reading as steps.
+     *
+     * Miter, not bevel. A bevel is safe but cuts every corner at 45°, which on
+     * a square grid throws away the one thing this outline is meant to look
+     * like. A miter keeps the corner square; the limit of 2 is what stops a
+     * sharp V growing the spike that a limit of 8 allowed — past that ratio
+     * PIXI falls back to a bevel by itself, which is exactly the right
+     * behaviour for the rare acute corner.
+     */
     const stroke = (width, color) => outline.lineStyle({
-        width, color, alpha: 1, cap: "square", join: "miter", miterLimit: 8
+        width, color, alpha: 1, cap: "square", join: "miter", miterLimit: 2
     });
 
     const trace = () => {
@@ -3393,6 +3757,59 @@ const DOORWAY_PROBE_IN = 0.18;
  */
 const DOORWAY_PROBE_OUT = 0.95;
 /**
+ * How far INSIDE our own border to stand when asking "am I already in another
+ * room" — in grid squares.
+ *
+ * Asking at the border point itself does not work, and the reason is the whole
+ * subtlety of this test. Two rooms that merely TOUCH share that point: it lies
+ * on both polygons' boundary, and a ray-crossing containment test answers
+ * boundary points arbitrarily. Asked there, every legitimate shared doorway
+ * would come back "overlapping" and the fix would delete the feature it is
+ * meant to repair.
+ *
+ * A quarter of a square inside our own room is outside a neighbour we merely
+ * touch, and inside one we genuinely overlap. Overlaps shallower than this are
+ * not caught here — they are sub-square misalignments, and the wall test below
+ * is what answers those.
+ */
+const DOORWAY_OVERLAP_INSET = 0.25;
+/**
+ * How close a wall has to pass to a border sample to close it, in grid squares.
+ *
+ * Measured to the wall SEGMENT, not to its midpoint. A corridor wall drawn as
+ * one ten-square segment has its midpoint five squares from most of the border
+ * it runs alongside; asked about midpoints, every sample but the middle one
+ * would report no wall nearby and the whole corridor would glow.
+ */
+const DOORWAY_WALL_NEAR = 0.6;
+/**
+ * How nearly parallel a wall must be to the border to count as closing it,
+ * in degrees.
+ *
+ * A wall crossing the border at a right angle is a door jamb or the end of a
+ * partition — it is beside the opening, not across it, and closing the doorway
+ * because of one is how a real door stops being marked.
+ */
+const DOORWAY_WALL_ANGLE = 20;
+/**
+ * The longest stretch of border that may read as one opening, in grid squares.
+ *
+ * A door is one square, double doors two, an archway three. Anything longer is
+ * a map fault rather than a way out — and this is the backstop that catches the
+ * next variant of that fault, including ones not yet seen. When a run is longer
+ * the middle of it is kept and the validator says so, which is deliberately not
+ * the same as discarding it: a room with a genuinely wide opening still shows
+ * the player a way out, just a modest one, while the report explains why.
+ *
+ * Applied per border EDGE. One straight corridor wall is a single edge, which
+ * is exactly the shape every symptom on record takes. A staircase border is
+ * many short edges and can in principle chain past the cap without any one edge
+ * exceeding it — `checkRegions` reports that case rather than hiding it.
+ */
+const DOORWAY_MAX_RUN = 3;
+/** cos of DOORWAY_WALL_ANGLE, worked out once. */
+const DOORWAY_WALL_COS = Math.cos(DOORWAY_WALL_ANGLE * Math.PI / 180);
+/**
  * How far past the border the glow begins, as a fraction of a grid square.
  *
  * It used to start ON the line, which put its brightest part exactly where the
@@ -3447,6 +3864,72 @@ function doorwayFadeTexture() {
     ctx.fillStyle = ramp;
     ctx.fillRect(0, 0, width, el.height);
     return PIXI.Texture.from(el);
+}
+
+/** Distance from a point to a line SEGMENT, not to the infinite line. */
+function distanceToSegment(px, py, x1, y1, x2, y2) {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const len2 = dx * dx + dy * dy;
+    if (!len2) return Math.hypot(px - x1, py - y1);
+    let t = ((px - x1) * dx + (py - y1) * dy) / len2;
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    return Math.hypot(px - (x1 + dx * t), py - (y1 + dy * t));
+}
+
+/**
+ * Does a wall run alongside this stretch of border, close enough and straight
+ * enough to be the wall this border describes?
+ *
+ * THIS IS THE QUESTION THE OLD TEST NEVER ASKED. It used to ask whether a ray
+ * of a fixed length hit anything, which makes the answer depend on how far from
+ * the wall the GM happened to draw the region — a border set back more than the
+ * ray is long reports no wall and glows along its entire length, on a map where
+ * the player can plainly see one.
+ *
+ * Only walls that actually stop movement count. A wall with no movement
+ * restriction is scenery, and an OPEN door is a way out — closing an opening
+ * because a door exists in it is precisely backwards.
+ */
+function wallAlongEdge(mx, my, ex, ey, walls, near) {
+    const NONE = CONST?.WALL_MOVEMENT_TYPES?.NONE ?? 0;
+    const OPEN = CONST?.WALL_DOOR_STATES?.OPEN ?? 1;
+
+    for (const wall of walls) {
+        const c = wall.c;
+        if (!c || c.length < 4) continue;
+        if (wall.move === NONE) continue;
+        if (wall.door && wall.ds === OPEN) continue;
+
+        const wx = c[2] - c[0];
+        const wy = c[3] - c[1];
+        const len2 = wx * wx + wy * wy;
+        if (!len2) continue;
+
+        /*
+         * MEASURED ACROSS THE WALL, AND ONLY WHERE THE WALL ACTUALLY RUNS.
+         *
+         * Distance to the segment — which counts its endpoints — eats the
+         * doorway from both sides: a sample standing IN a two-square opening is
+         * within the radius of the wall that stops at its edge, so it reads as
+         * closed, and the opening comes out shorter than it is by the radius at
+         * each end. Measured on a two-square fixture door: it rendered one
+         * square wide.
+         *
+         * So the sample has to lie alongside the wall's own span before its
+         * distance is worth taking. Past the end of a wall there is no wall to
+         * be near, however close its last point happens to be.
+         */
+        const t = ((mx - c[0]) * wx + (my - c[1]) * wy) / len2;
+        if (t < 0 || t > 1) continue;
+        if (Math.hypot(mx - (c[0] + wx * t), my - (c[1] + wy * t)) > near) continue;
+
+        // Parallel either way round — a wall does not care which end you call
+        // its start, so the sign of the dot product carries no information.
+        const wl = Math.sqrt(len2);
+        if (Math.abs((wx / wl) * ex + (wy / wl) * ey) >= DOORWAY_WALL_COS) return true;
+    }
+    return false;
 }
 
 /** Is this point inside that region? Polygons are passed in already built. */
@@ -3531,6 +4014,10 @@ function doorwayEdges(region) {
         const reach = grid * DOORWAY_PROBE_OUT;
         const shortest = grid * 0.35;
 
+        const inset = grid * DOORWAY_OVERLAP_INSET;
+        const near = grid * DOORWAY_WALL_NEAR;
+        const maxRun = grid * DOORWAY_MAX_RUN;
+
         const own = regionShapes(region, { x: 0, y: 0 }).map(f => new PIXI.Polygon(f));
         if (!own.length) return [];
 
@@ -3540,8 +4027,13 @@ function doorwayEdges(region) {
             others.push(regionShapes(other, { x: 0, y: 0 }).map(f => new PIXI.Polygon(f)));
         }
 
+        // Read once. A scene with several hundred walls is asked about at every
+        // sample of every edge, and `scene.walls` is a collection, not an array.
+        const walls = Array.from(scene.walls ?? []);
+
         const edges = [];
-        for (const poly of own) {
+        for (let ring = 0; ring < own.length; ring++) {
+            const poly = own[ring];
             const flat = poly.points;
             const corners = flat.length / 2;
 
@@ -3564,6 +4056,7 @@ function doorwayEdges(region) {
                 }
 
                 const open = [];
+                let capped = false;
                 if (others.length && length >= shortest) {
                     const samples = Math.max(1, Math.round(length / step));
                     let from = null;
@@ -3595,22 +4088,66 @@ function doorwayEdges(region) {
                              * opposite answers, purely because of how close the
                              * next room happened to be.
                              */
-                            const beyond = neighbourBeyond(mx, my, nx, ny, others, reach);
-                            isOpen = Boolean(beyond) && nothingInTheWay(
-                                { x: mx - nx * back, y: my - ny * back },
-                                { x: mx + nx * reach, y: my + ny * reach }
-                            );
+                            /*
+                             * A SAMPLE THAT IS ALREADY IN ANOTHER ROOM IS NOT A
+                             * BORDER. Where two regions overlap, this room's
+                             * edge runs somewhere inside its neighbour's floor —
+                             * a square or more from any wall — so a neighbour is
+                             * found instantly and no ray ever reaches a wall.
+                             * The whole shared border then reads as one enormous
+                             * doorway, which is symptom one on every screenshot.
+                             *
+                             * Asked a quarter square INSIDE our own room, not on
+                             * the line: rooms that merely touch share the line
+                             * itself, and containment on a boundary point is
+                             * arbitrary. See DOORWAY_OVERLAP_INSET.
+                             */
+                            const inX = mx - nx * inset;
+                            const inY = my - ny * inset;
+                            const overlapping = others.some(p => inPolygons(p, inX, inY));
+
+                            const beyond = overlapping
+                                ? null
+                                : neighbourBeyond(mx, my, nx, ny, others, reach);
+
+                            isOpen = Boolean(beyond)
+                                // Is there a wall running along this stretch?
+                                // Asked of the walls themselves, so the answer
+                                // no longer depends on how far from the wall the
+                                // region was drawn.
+                                && !wallAlongEdge(mx, my, dx / length, dy / length, walls, near)
+                                // And is it passable in the way Foundry counts
+                                // passable — which is what reads door state.
+                                && nothingInTheWay(
+                                    { x: mx - nx * back, y: my - ny * back },
+                                    { x: mx + nx * reach, y: my + ny * reach }
+                                );
                         }
 
                         if (isOpen && from === null) from = t;
                         if (!isOpen && from !== null) {
-                            if ((t - from) * length >= shortest) open.push([from, t]);
+                            if ((t - from) * length >= shortest) {
+                                // An opening longer than a wide archway is a map
+                                // fault, not a way out. Keep the middle of it —
+                                // the room still shows a way out, and
+                                // `checkRegions` explains why it is a modest one.
+                                let a = from;
+                                let b = t;
+                                if ((b - a) * length > maxRun) {
+                                    const half = maxRun / length / 2;
+                                    const centre = (a + b) / 2;
+                                    a = centre - half;
+                                    b = centre + half;
+                                    capped = true;
+                                }
+                                open.push([a, b]);
+                            }
                             from = null;
                         }
                     }
                 }
 
-                edges.push({ ax, ay, dx, dy, length, nx, ny, open });
+                edges.push({ ax, ay, dx, dy, length, nx, ny, ring, open, capped });
             }
         }
 
@@ -4177,32 +4714,96 @@ function addDoorwayGlow(group, region, edges, rect) {
  */
 function traceOutlineGapped(graphics, edges, rect, pad = null) {
     const grid = canvas?.grid?.size ?? 100;
-    // Square caps stick out half a line-width past every segment end — that is
-    // what makes the corners whole — so the doorway gaps have to be widened by
-    // the same amount, or the fattened line pokes into the opening it was told
-    // to leave clear. Handed in when one path is walked twice at two widths:
-    // both passes then cut back to the wider one's margin and stay aligned.
+    // The gaps are widened by half a line width, because a square cap sticks
+    // out that far past the end of a chain — without it the fattened line pokes
+    // into the opening it was told to leave clear. Handed in when one path is
+    // walked twice at two widths, so both passes cut back to the wider one's
+    // margin and stay aligned.
     pad ??= grid * 0.05 + (graphics.line?.width ?? 0) / 2;
 
-    const segment = (edge, from, to) => {
-        if (to - from < 1e-4) return;
-        graphics.moveTo(edge.ax + edge.dx * from - rect.x, edge.ay + edge.dy * from - rect.y);
-        graphics.lineTo(edge.ax + edge.dx * to - rect.x, edge.ay + edge.dy * to - rect.y);
-    };
+    const at = (edge, t) => ({
+        x: edge.ax + edge.dx * t - rect.x,
+        y: edge.ay + edge.dy * t - rect.y
+    });
 
+    /*
+     * DRAWN AS CHAINS, NOT AS LOOSE SEGMENTS — and that is the whole of the
+     * fix for the thick, lumpy staircase borders.
+     *
+     * Every edge used to be its own stroke with a square cap on each end, which
+     * is what closed the corners: two butt-capped strokes meeting at a vertex
+     * each stop half a line-width short and leave a notch. The cost only shows
+     * on a grid staircase, where the steps are about as long as the line is
+     * wide — there the caps of neighbouring segments overlap along their whole
+     * length, and the border comes out as a wide angular ribbon rather than a
+     * line. A sharp V made it worse: a miter limit of 8 lets the spike run out
+     * to eight half-widths.
+     *
+     * Consecutive visible stretches are joined into one path here instead. PIXI
+     * then caps only the two ends of a chain and JOINS everything between, so
+     * corners are corners at any step size and nothing is drawn twice. A ring
+     * with no openings at all closes on itself, so even its seam is a join.
+     */
+    const rings = new Map();
     for (const edge of edges) {
-        // A hair wider than the opening, so the line never grazes the glow.
-        const margin = edge.length ? pad / edge.length : 0;
-        const gaps = edge.open
-            .map(([a, b]) => [Math.max(0, a - margin), Math.min(1, b + margin)])
-            .sort((p, q) => p[0] - q[0]);
+        const key = edge.ring ?? 0;
+        if (!rings.has(key)) rings.set(key, []);
+        rings.get(key).push(edge);
+    }
 
-        let cursor = 0;
-        for (const [a, b] of gaps) {
-            if (a > cursor) segment(edge, cursor, a);
-            cursor = Math.max(cursor, b);
+    for (const ring of rings.values()) {
+        const pieces = [];
+        for (let index = 0; index < ring.length; index++) {
+            const edge = ring[index];
+            const margin = edge.length ? pad / edge.length : 0;
+            const gaps = (edge.open ?? [])
+                .map(([a, b]) => [Math.max(0, a - margin), Math.min(1, b + margin)])
+                .sort((p, q) => p[0] - q[0]);
+
+            let cursor = 0;
+            for (const [a, b] of gaps) {
+                if (a > cursor) pieces.push({ edge, index, from: cursor, to: a });
+                cursor = Math.max(cursor, b);
+            }
+            if (cursor < 1) pieces.push({ edge, index, from: cursor, to: 1 });
         }
-        if (cursor < 1) segment(edge, cursor, 1);
+        if (!pieces.length) continue;
+
+        const chains = [];
+        let chain = null;
+        let prev = null;
+        for (const piece of pieces) {
+            const joined = prev
+                && piece.index === prev.index + 1
+                && prev.to >= 1 - 1e-6
+                && piece.from <= 1e-6;
+            if (!joined) {
+                chain = [at(piece.edge, piece.from)];
+                chains.push(chain);
+            }
+            chain.push(at(piece.edge, piece.to));
+            prev = piece;
+        }
+
+        // The ring's own seam: if the first stretch starts at the first edge's
+        // start and the last ends at the last edge's end, those two are
+        // neighbours on the map even though they sit at opposite ends of the
+        // list.
+        const first = pieces[0];
+        const last = pieces[pieces.length - 1];
+        const wraps = first.index === 0 && first.from <= 1e-6
+            && last.index === ring.length - 1 && last.to >= 1 - 1e-6;
+        if (wraps && chains.length === 1) chains[0].push(chains[0][0]);
+        else if (wraps && chains.length > 1) {
+            const tail = chains.pop();
+            chains[0] = tail.concat(chains[0].slice(1));
+        }
+
+        for (const points of chains) {
+            if (points.length < 2) continue;
+            graphics.moveTo(points[0].x, points[0].y);
+            for (let i = 1; i < points.length; i++) graphics.lineTo(points[i].x, points[i].y);
+        }
     }
 }
 
