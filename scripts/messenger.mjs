@@ -205,6 +205,20 @@ function onCreateChatMessage(message) {
     const authorId = message.author?.id ?? message.user?.id;
     if (authorId === game.user.id) return; // do not ping yourself
 
+    /*
+     * A REQUEST FOR A GM GETS ITS OWN SOUND, AND ONLY ONE.
+     *
+     * Every GM sees every thread, so without this a ruling request and a
+     * player's chatter arrive identically — and the request is the one that is
+     * waiting on somebody. The more specific sound REPLACES the general one
+     * rather than joining it: two sounds for one message is how a table learns
+     * to stop hearing either.
+     */
+    if (game.user.isGM && message.getFlag(MODULE_ID, MESSENGER_FLAGS.gmAsk)) {
+        playSfx("gmAsk");
+        return;
+    }
+
     // Was a hard-coded chime. It is a mapped event now, and NOT a mapped event
     // by default: this module ships no audio and assigns none, so a world that
     // has not been through the Sound panel hears nothing here. That is the

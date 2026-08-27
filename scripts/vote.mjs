@@ -228,6 +228,7 @@ export async function openVote({ picks = null } = {}) {
     sendBallots(voters);
 
     await announce({
+        flags: { [MODULE_ID]: { sfx: { key: "voteOpen", gm: true } } },
         content: `<div class="drpg-evidence-card">
             <div class="drpg-objection-banner">${game.i18n.localize("DRPG.Vote.banner")}</div>
             <p>${game.i18n.format("DRPG.Vote.opened", { n: voters.length })}</p>
@@ -431,6 +432,7 @@ export async function closeVote() {
     const tied = accused.length > wanted;
 
     await announce({
+        flags: { [MODULE_ID]: { sfx: { key: "verdict", gm: true } } },
         content: `<div class="drpg-evidence-card">
             <div class="drpg-objection-banner">${game.i18n.localize("DRPG.Vote.resultBanner")}</div>
             <table class="drpg-vault-table"><tbody>${rows.map(r => `<tr>

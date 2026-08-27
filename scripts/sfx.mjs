@@ -58,10 +58,10 @@
  *    rather than hanging, and refuses before it asks.
  */
 
-import { MODULE_ID, SFX_EVENTS, SFX_CATEGORIES, SFX_SLIDERS, SFX_VOLUME_KEYS,
+import { MODULE_ID, FLAGS, SFX_EVENTS, SFX_CATEGORIES, SFX_SLIDERS, SFX_VOLUME_KEYS,
     GAME_WINDOWS } from "./config.mjs";
 import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
-import { log, warn, error, clamp } from "./utils.mjs";
+import { log, warn, error, clamp, ownerOf } from "./utils.mjs";
 
 
 /**
@@ -417,6 +417,106 @@ function onDocumentClick(event) {
     playSfx(app.matches(".sheet.actor") ? "sheetButton" : "windowButton");
 }
 
+/* ========================================================================== *
+ *  Events nobody's client "did"
+ * ========================================================================== *
+ *
+ * Most of this module's sounds belong to an act: somebody pressed, moved,
+ * rolled, sent. Those play where the act happened and need nothing from here.
+ *
+ * A few belong to a CHANGE OF STATE that everybody is inside and nobody
+ * performed on their own screen — the trial floor opening, an Objection taking
+ * it, a turn coming round in an incident, a dead student becoming a Monocub.
+ * The GM's client is the only one that runs the function; every other client
+ * learns about it because the world setting changed underneath them.
+ *
+ * A chat message would be the other route and it is the wrong one here: none of
+ * these posts a card that reaches exactly the right people, and inventing one
+ * per sound would put four new cards in a log that is already the paper trail
+ * for everything else. Watching the state is watching the same fact from the
+ * same distance on every client at once.
+ *
+ * EDGES, NOT LEVELS. Each of these fires on a TRANSITION — floor closed to
+ * open, mode becoming an objection, the turn becoming mine — because a setting
+ * is rewritten for reasons that have nothing to do with the thing being
+ * watched. Levels would replay the sound every time the GM extended the clock.
+ */
+
+/** What the last look at the world said, so only changes speak. */
+const worldWas = { floorOpen: false, floorMode: null, myTurn: false };
+
+async function onWorldSettingChanged(setting) {
+    const prefix = `${MODULE_ID}.`;
+    if (!setting?.key?.startsWith(prefix)) return;
+    const key = setting.key.slice(prefix.length);
+
+    try {
+        if (key === SETTINGS.trialQueue) await onFloorChanged();
+        else if (key === SETTINGS.murderState) await onIncidentChanged();
+    } catch (err) {
+        // A sound that cannot work out whether it should play does not play.
+        error("Could not read the world state for a sound", err);
+    }
+}
+
+/**
+ * The Nonstop Debate opening, and an Objection taking the floor.
+ *
+ * "Debate" is `FLOOR_MODES.discussion` — the floor open to everybody — which is
+ * what the HUD has always called it and what `openDebate()` produces. So the
+ * debate's sound is the floor going from absent to present, not the mode
+ * becoming `discussion`: returning to discussion after a rebuttal is the same
+ * debate carrying on, and it would otherwise announce itself twice a minute.
+ */
+async function onFloorChanged() {
+    const { trialFloor, FLOOR_MODES } = await import("./trial-floor.mjs");
+    const floor = trialFloor();
+
+    const open = Boolean(floor);
+    const mode = floor?.mode ?? null;
+
+    if (open && !worldWas.floorOpen) playSfx("debateOpen");
+    if (mode === FLOOR_MODES.objection && worldWas.floorMode !== FLOOR_MODES.objection) {
+        playSfx("objection");
+    }
+
+    worldWas.floorOpen = open;
+    worldWas.floorMode = mode;
+}
+
+/**
+ * Your turn, and only YOURS.
+ *
+ * `isOwner` is useless for this: a GM owns every actor in the world, so asking
+ * it would give a GM "your turn" on every player's turn. The question is whose
+ * character it is, which is what `ownerOf` answers — the same helper the
+ * whispers use to decide who a card belongs to.
+ */
+async function onIncidentChanged() {
+    const { murderState, isTheirTurn } = await import("./murder.mjs");
+    const state = murderState();
+
+    const mine = Boolean(state) && game.actors.some(actor =>
+        actor.type === "character"
+        && ownerOf(actor)?.id === game.user.id
+        && isTheirTurn(actor));
+
+    if (mine && !worldWas.myTurn) playSfx("yourTurn");
+    worldWas.myTurn = mine;
+}
+
+/**
+ * A dead student joining the Monocubs, or leaving them.
+ *
+ * Heard by their player and by the GMs — this one IS the GM's business, since
+ * a Monocub is a GM-side promotion and the panel that made it is theirs.
+ */
+function onActorFlagged(actor, changes) {
+    const changed = foundry.utils.getProperty(changes, `flags.${MODULE_ID}.${FLAGS.monocub}`);
+    if (changed === undefined) return;
+    if (game.user.isGM || ownerOf(actor)?.id === game.user.id) playSfx("monocub");
+}
+
 /**
  * Register the one hook this engine needs.
  *
@@ -431,6 +531,16 @@ export function registerSfx() {
     // One listener on the document, so it outlives every redraw every window
     // does on its own — the same reason the panel explainers use one.
     document.addEventListener("click", onDocumentClick, true);
+
+    // The handful of events that are a change in the world rather than an act
+    // on this screen — see the block above.
+    Hooks.on("updateSetting", onWorldSettingChanged);
+    Hooks.on("updateActor", onActorFlagged);
+
+    // What the world looked like before anybody changed anything, so the first
+    // change is measured against the truth and not against zero: a client that
+    // joins mid-trial must not be told the debate just opened.
+    Promise.all([onFloorChanged(), onIncidentChanged()]).catch(() => {});
 
     // Not used to gate anything — the drop rule above does that. This exists so
     // `diagnoseSfx()` can answer "has this browser been clicked yet", which is
