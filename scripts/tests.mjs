@@ -289,8 +289,16 @@ const REGRESSIONS = [
         const bad = [];
         for (const [file, raw] of await otherSources()) {
             const text = stripComments(raw);
-            for (const m of text.matchAll(/\bsfx:\s*"([\w.]+)"/g)) {
-                if (!SFX_EVENTS[m[1]]) bad.push(`${file}:${lineAt(text, m.index)} → "${m[1]}"`);
+            // TWO SHAPES, AND THE FIRST VERSION OF THIS TEST ONLY SAW ONE.
+            // The flag is written either bare (`sfx: "chatSend"`) or with an
+            // audience (`sfx: { key: "eclipseEnd", gm: true }`), and the split
+            // is almost even — 13 of the first, 12 of the second. Reading only
+            // the bare form left every GM-audience sound unchecked, which is
+            // the half where a silent miss costs most: the death, the body,
+            // the safeword. Found in E17 by measuring an Eclipse ending.
+            for (const m of text.matchAll(/\bsfx:\s*(?:"([\w.]+)"|\{\s*key:\s*"([\w.]+)")/g)) {
+                const key = m[1] ?? m[2];
+                if (!SFX_EVENTS[key]) bad.push(`${file}:${lineAt(text, m.index)} → "${key}"`);
             }
             for (const m of text.matchAll(/\bplaySfx\(\s*"([\w.]+)"/g)) {
                 if (!SFX_EVENTS[m[1]]) bad.push(`${file}:${lineAt(text, m.index)} → playSfx("${m[1]}")`);
@@ -1217,6 +1225,57 @@ const INVARIANTS = [
         }
         ok(!guilty.length,
             `these fall back on a localize() that never returns falsy: ${guilty.join(" | ")}`);
+    }],
+
+    ["advantage never adds up to more than three dice", async () => {
+        /*
+         * FROM E17'S OWN CLOSING LIST, and it had no test.
+         *
+         * Advantage stacks: a Call, the room, and a standing penalty for having
+         * lost all Sanity all land on the same roll and are summed. Daggerheart
+         * rolls `kh`, and a formula asking to keep the highest of six is not a
+         * roll any more — it is a guarantee wearing dice.
+         *
+         * Read rather than driven: `advantageSources` is private to the roll
+         * dialog, and exporting a function so a test can reach it would be the
+         * test changing the module's shape to suit itself. What must never
+         * silently go missing is the clamp, and the clamp is one line.
+         */
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/roll-dialog.mjs`).then(r => r.text());
+        const cap = src.match(/const ADVANTAGE_CAP\s*=\s*(\d+)/);
+        ok(cap, "roll-dialog.mjs no longer declares ADVANTAGE_CAP");
+        equal(Number(cap[1]), 3, "the advantage cap is not three dice");
+        ok(/count:\s*Math\.min\(ADVANTAGE_CAP,/.test(src),
+            "the die count is no longer clamped to ADVANTAGE_CAP");
+        ok(/capped:\s*size\s*>\s*ADVANTAGE_CAP/.test(src),
+            "nothing tells the player their advantage was capped");
+    }],
+
+    ["every stash a character owns agrees with the room it is in", async () => {
+        /*
+         * FROM E17'S CLOSING LIST, where it is written as "`vaultRoomsFor()` and
+         * `openStashHere()` agree about the same room". NEITHER FUNCTION EXISTS
+         * ANY MORE — they are `stashRoomsFor` and `openStashesHere` now, and the
+         * bullet has been naming ghosts since E0. The question it was asking is
+         * still the right one, so it is asked of the functions that are here.
+         *
+         * Two roads to "whose stash is in this room", and they are built from
+         * opposite ends: `stashRoomsFor` walks the regions asking each one who
+         * owns a stash on it; `myStashHere` asks one room about one character.
+         * A disagreement is a stash a player can see and not open, or open and
+         * not see.
+         */
+        const { stashRoomsFor, myStashHere, stashesIn } = await import("./vault.mjs");
+        const wrong = [];
+        for (const actor of studentActors()) {
+            for (const { room } of stashRoomsFor(actor)) {
+                if (!myStashHere(actor, room)) wrong.push(`${actor.name} owns a stash in ${room} that the room denies`);
+                if (!stashesIn(room).some(e => e.actorId === actor.id)) {
+                    wrong.push(`${actor.name}'s stash in ${room} is not in that room's list`);
+                }
+            }
+        }
+        ok(!wrong.length, wrong.join("; "));
     }],
 
     ["no module rule decides whether a sheet tab is shown", async () => {
@@ -2666,6 +2725,48 @@ const SCENARIOS = [
             if (granted) await granted.delete().catch(() => {});
             await game.settings.set(MODULE_ID, SETTINGS.trapPlants, beforePlants);
             await game.settings.set(MODULE_ID, SETTINGS.trapLedger, beforeLedger);
+            await settle();
+        }
+    }],
+
+    ["everything that can be held ready can also be broken", async () => {
+        /*
+         * FROM E17'S CLOSING LIST: "every EQUIPPABLE category has a breaking
+         * path on Despair". The guide's rule is that a tool used on a Despair
+         * roll breaks, and the module's answer is that nothing is ever deleted —
+         * the same object stays in the bag marked Broken, so the player can see
+         * what it cost them.
+         *
+         * A category that can be equipped and cannot be broken is a category
+         * that never pays: a free permanent advantage nobody would notice was
+         * free, because the only sign is a thing that never happens.
+         *
+         * Driven per category rather than read, because "can be broken" is three
+         * facts at once — the flag lands, the item survives, and the equipment
+         * machinery stops offering it.
+         */
+        const INV = await import("./inventory.mjs");
+        const actor = studentActors()[0];
+        ok(actor, "need a student");
+
+        const made = [];
+        try {
+            for (const category of EQUIPPABLE) {
+                const item = await INV.grantItem(actor, {
+                    name: `SUITE ${category}`, category, tier: 1
+                });
+                ok(item, `could not make an item of category ${category}`);
+                made.push(item);
+
+                equal(INV.isBroken(item), false, `a fresh ${category} is already broken`);
+                const broke = await INV.breakItem(item);
+                ok(broke, `${category} refused to break`);
+                ok(item.isOwner ? actor.items.get(item.id) : true,
+                    `breaking a ${category} deleted it instead of marking it`);
+                equal(INV.isBroken(item), true, `a broken ${category} does not say so`);
+            }
+        } finally {
+            for (const item of made) await item.delete().catch(() => {});
             await settle();
         }
     }],

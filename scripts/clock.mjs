@@ -53,14 +53,31 @@ export async function setPhase(key) {
     return setClock({ phase: key });
 }
 
-/** "Chapter 2 · Day 3 · Session 3 · Afternoon" */
+/**
+ * "Chapter 2 · Day 3 · Session 3 · Afternoon", and it says when the lights are out.
+ *
+ * THE ECLIPSE HAS TO BE IN HERE, and E17 is where that stopped being a nicety.
+ * Measured: start an Eclipse, then move the clock from the editor — which is a
+ * thing a GM does to correct a mistake — and the world lands on `timeOfDay:
+ * "morning"` with `eclipse` still true. `eclipseLabel()` then reads "Noon
+ * Eclipse", an Eclipse named for a time of day that has already gone, and this
+ * line, which is the one the GM actually reads, said plain "Morning".
+ *
+ * That state silently refuses every murder for the rest of the session, and the
+ * clock editor has no Eclipse field to turn it off with. One extra word here is
+ * worth more than a guard anywhere else: it reaches the HUD, the panel and every
+ * card that prints the clock, so whatever route left the flag on, the GM sees it.
+ */
 export function clockSummary(clock = getClock()) {
-    return game.i18n.format("DRPG.Clock.summary", {
+    const summary = game.i18n.format("DRPG.Clock.summary", {
         chapter: clock.chapter,
         day: clock.day ?? 1,
         session: clock.session,
         time: timeOfDayLabel(clock.timeOfDay)
     });
+    return clock.eclipse
+        ? game.i18n.format("DRPG.Clock.summaryEclipse", { summary })
+        : summary;
 }
 
 /** Write clock fields. GM only. */

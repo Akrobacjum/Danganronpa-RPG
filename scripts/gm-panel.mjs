@@ -1040,6 +1040,22 @@ export async function openClockDialog() {
 
     if (!result || result === "cancel") return;
 
+    /*
+     * MOVING THE CLOCK DOES NOT END AN ECLIPSE, and until E17 nothing said so.
+     *
+     * Measured: an Eclipse running, the GM sets the time here to correct
+     * something, and the world lands on Morning with `eclipse` still true. The
+     * Eclipse owns token placement and refuses every murder while it is on, and
+     * this window has no field to turn it off with — it is ended from the panel.
+     *
+     * A REFUSAL WOULD BE WRONG. A GM correcting a botched clock in the middle of
+     * an Eclipse is doing something legitimate, and taking the tool away to
+     * protect them from a state they may well want is the kind of help nobody
+     * asked for. So: the write goes through, and they are told. The summary line
+     * now carries the Eclipse too, so this is a nudge rather than the only sign.
+     */
+    const wasEclipse = getClock().eclipse;
+
     await setClock({
         campaignName: result.campaignName,
         chapter: result.chapter,
@@ -1048,6 +1064,10 @@ export async function openClockDialog() {
         session: result.session,
         timeOfDay: result.timeOfDay
     });
+
+    if (wasEclipse && result.timeOfDay !== undefined) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Clock.eclipseStillOn"));
+    }
 
     // Editing the clock is bookkeeping. Only refill when explicitly asked,
     // otherwise a typo correction would hand everyone fresh actions.

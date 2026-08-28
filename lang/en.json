@@ -1943,6 +1943,8 @@
     },
     "Clock": {
       "summary": "Chapter {chapter} · Day {day} · Session {session} · {time}",
+      "summaryEclipse": "{summary} · ECLIPSE",
+      "eclipseStillOn": "The clock moved, but the Eclipse is still running. End it from the GM panel when you are ready — until then tokens place freely and murders are refused.",
       "campaignName": "Campaign name",
       "chapter": "Chapter",
       "day": "Day",
