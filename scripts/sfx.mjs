@@ -229,7 +229,7 @@ function rateFor(key) {
  * Everything that does NOT vary still goes through `AudioHelper.play` exactly as
  * before. This is a second path for eleven events, not a replacement for forty.
  */
-const owned = new Map();
+const decoded = new Set();
 
 /**
  * The last rate actually applied to each file, for `diagnoseSfx`.
@@ -246,6 +246,31 @@ const lastRates = new Map();
 /**
  * Play a varied sound and bend it.
  *
+ * ONE `Sound` PER PLAYBACK, AND THAT IS THE WHOLE OF THE SECOND FIX.
+ *
+ * This used to keep one Sound per file and re-play it. Measured on 14.365,
+ * `Sound#play()` opens with
+ *
+ *     if ( ![LOADED, PAUSED, STOPPED].includes(this._state) ) return this;
+ *
+ * — so a sound that is still PLAYING refuses to play again, silently, and
+ * returns as though it had. A file is PLAYING for its whole duration including
+ * whatever silence the recording ends with, so half a second of trailing room
+ * tone made half a second of deafness. Dawid found it at the table and read it
+ * exactly right: "prawdopodobnie przez długość klipów".
+ *
+ * It bit precisely the eleven events that carry `vary: true` — window open and
+ * close, every button press, chat, a room entered, a crossing refused, an action
+ * spent — which are the sounds a player hears most and the ones two of which
+ * genuinely happen at once. Everything else already overlapped: Foundry's own
+ * `AudioHelper.play` builds a new Sound for every call.
+ *
+ * The decode is NOT repeated. Foundry caches decoded buffers per path in
+ * `game.audio.buffers`, so a second `load()` of the same file is a cache read —
+ * measured at 0 ms against 0 ms for the first, on a warm client. `decoded`
+ * below is now a record of which paths this file has proved decodable, which is
+ * what `diagnoseSfx` was really reporting all along.
+ *
  * The bend is applied AFTER `play()` because the node does not exist before it —
  * Foundry builds the graph when the sound starts. Setting an AudioParam takes
  * effect on the audio thread immediately, so the fraction of a millisecond that
@@ -253,18 +278,16 @@ const lastRates = new Map();
  * there would be nothing to hear even if the whole sound played unbent.
  */
 async function playOwned(src, volume, rate) {
-    let sound = owned.get(src);
-    if (!sound) {
-        sound = new foundry.audio.Sound(src, {
-            context: game.audio.interface,
-            forceBuffer: true
-        });
-        // `load()` on a locked context never settles — see rule 4 at the top of
-        // this file. The caller only reaches here unlocked, and the try/catch
-        // below is what keeps a bad path from taking the press down with it.
-        await sound.load();
-        owned.set(src, sound);
-    }
+    const sound = new foundry.audio.Sound(src, {
+        context: game.audio.interface,
+        forceBuffer: true
+    });
+
+    // `load()` on a locked context never settles — see rule 4 at the top of
+    // this file. The caller only reaches here unlocked, and the try/catch in
+    // `fire` is what keeps a bad path from taking the press down with it.
+    await sound.load();
+    decoded.add(src);
 
     await sound.play({ volume });
     if (sound.isBuffer && sound.sourceNode?.playbackRate) {
@@ -299,9 +322,9 @@ export async function setSoundFor(key, src) {
     // told us they changed something, and the once-per-path rule must not
     // outlive the mapping it was about.
     reportedMissing.clear();
-    // And a decoded copy of a file the GM has just unmapped is memory held for
-    // nothing. Cheap to rebuild — one decode on the next press.
-    owned.clear();
+    // What this file has proved decodable is a claim about paths the GM has
+    // just changed, so it stops being true here rather than aging quietly.
+    decoded.clear();
     return map;
 }
 
@@ -843,7 +866,7 @@ export function diagnoseSfx() {
             on: Boolean(getSetting(SETTINGS.sfxVary)),
             spread: SFX_VARIATION.rate,
             events: Object.entries(SFX_EVENTS).filter(([, e]) => e.vary).map(([k]) => k),
-            decoded: [...owned.keys()],
+            decoded: [...decoded],
             lastRates: Object.fromEntries(lastRates)
         },
         byCategory,

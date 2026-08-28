@@ -1484,6 +1484,36 @@ const SCENARIOS = [
         ok(!murder.freeResolutionFor("victim", state), "the free action survived being spent");
     }],
 
+    ["ending an Eclipse the way the game does carries its sound", async () => {
+        /*
+         * Dawid, at the table, 28.08: the Eclipse's ending sound never plays.
+         * It was attached to `endEclipse({ advance: false })` — a branch nothing
+         * in the game takes, because an Eclipse ends BY advancing the clock.
+         *
+         * So this drives the DEFAULT path and reads the card that came out.
+         * `playSfx` is local and this suite has no audio files, so what is
+         * checked is the flag that carries the sound to the people the message
+         * reached — which is the module's whole mechanism for a sound with an
+         * audience, and the thing that was missing.
+         */
+        const eclipse = await import("./eclipse.mjs");
+        const before = new Set(game.messages.map(m => m.id));
+
+        await eclipse.startEclipse();
+        await settle();
+        await eclipse.endEclipse();
+        await settle();
+
+        const fresh = game.messages.filter(m => !before.has(m.id));
+        const carried = fresh.map(m => {
+            const flag = m.getFlag(MODULE_ID, "sfx");
+            return typeof flag === "string" ? flag : flag?.key ?? null;
+        }).filter(Boolean);
+
+        ok(carried.includes("eclipseEnd"),
+            `no card carried the Eclipse's ending sound — got [${carried.join(", ")}]`);
+    }],
+
     ["an Eclipse takes every voice off the rooms", async () => {
         // The Eclipse is the placement window. A voice channel that still
         // followed the rooms while the lights were out would be the one thing

@@ -114,6 +114,19 @@ export async function advanceTimeOfDay({
     resetActions = false,
     resetSearchTokens = true,
     announce = true,
+    /**
+     * A sound to hang on the card this posts, in the `{ key, gm }` shape
+     * sfx.mjs reads off a chat message.
+     *
+     * It exists for the Eclipse. An Eclipse ends BY advancing the clock, so the
+     * card the table actually sees at that moment is the new time of day —
+     * there is no second card to carry the sound, and adding one would say the
+     * same thing twice. Riding this one also means the sound inherits the
+     * card's audience, which matters: while a murder runs the clock moves in
+     * private (see `announceTimeOfDay`), and a public chime announcing it would
+     * undo exactly what that rule protects.
+     */
+    sfx = null,
     // Extra fields to fold into the SAME write. `endEclipse` uses it to clear
     // the Eclipse flag as the clock moves, rather than in a write of its own —
     // see the note on the flicker below.
@@ -144,7 +157,7 @@ export async function advanceTimeOfDay({
         day: rolledOver ? (clock.day ?? 1) + 1 : (clock.day ?? 1)
     });
 
-    await applyTimeOfDayChange(next, { resetActions, resetSearchTokens, announce, rolledOver });
+    await applyTimeOfDayChange(next, { resetActions, resetSearchTokens, announce, rolledOver, sfx });
     return next;
 }
 
@@ -209,7 +222,8 @@ async function applyTimeOfDayChange(clock, {
     resetActions = false,
     resetSearchTokens = true,
     announce = true,
-    rolledOver = false
+    rolledOver = false,
+    sfx = null
 } = {}) {
     const summary = { clock, rolledOver, actions: [], searchTokensReset: false };
 
@@ -235,7 +249,7 @@ async function applyTimeOfDayChange(clock, {
 
     log(`Clock -> ${clockSummary(clock)}`);
 
-    if (announce) await announceTimeOfDay(clock, summary);
+    if (announce) await announceTimeOfDay(clock, summary, { sfx });
 
     // Everyone, not just whoever clicked.
     //
@@ -258,7 +272,7 @@ async function applyTimeOfDayChange(clock, {
  * Tell the table. The time of day is public knowledge — unlike almost
  * everything else in this game.
  */
-async function announceTimeOfDay(clock, summary) {
+async function announceTimeOfDay(clock, summary, { sfx = null } = {}) {
     const wounded = summary.actions.filter(r => r.wounded);
 
     const notes = [];
@@ -284,6 +298,11 @@ async function announceTimeOfDay(clock, summary) {
      * incident ends. Everything else the change did — refills, restocks —
      * happened either way; only who is TOLD changes.
      */
+    // Whatever the caller hung on this change — today only the Eclipse's
+    // ending. Built once so both branches below carry it, because the sound
+    // belongs to the event and not to how many people were told about it.
+    const flags = sfx ? { flags: { [MODULE_ID]: { sfx } } } : {};
+
     const { murderState, participantIds } = await import("./murder.mjs");
     const state = murderState();
     if (state) {
@@ -291,9 +310,11 @@ async function announceTimeOfDay(clock, summary) {
         const owners = [...participantIds(state)]
             .map(id => ownerOf(game.actors.get(id))?.id)
             .filter(Boolean);
-        await whisperToGms(content, { whisper: Array.from(new Set([...gmIds(), ...owners])) });
+        await whisperToGms(content, {
+            whisper: Array.from(new Set([...gmIds(), ...owners])), ...flags
+        });
     } else {
-        await announce({ content });
+        await announce({ content, ...flags });
     }
 
     // Who is down an action is the GM's business, not the table's.

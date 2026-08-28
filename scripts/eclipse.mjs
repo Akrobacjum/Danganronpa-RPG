@@ -175,11 +175,30 @@ export async function endEclipse({ advance = true } = {}) {
         // Cleared first, the clock spent a frame reading as the time of day
         // that had just finished — the flicker between the Eclipse and the
         // time it leads into.
-        await advanceTimeOfDay({ resetActions: true, also: { eclipse: false } });
+        /*
+         * THE SOUND RIDES THIS CARD, AND THAT IS THE BUG THIS FIXES.
+         *
+         * `eclipseEnd` used to be attached to the `else` below — the branch for
+         * `advance: false`, which nothing in the game takes. An Eclipse ends by
+         * advancing the clock; that is what `advance` defaults to and what the
+         * GM panel calls. So the sound was mapped, catalogued, shown in the
+         * Sound panel with a Test button that worked, and never once played in
+         * a real session. Found at the table by Dawid, 28.08, and it could only
+         * be found there: nothing static can tell a live branch from a dead one.
+         *
+         * There is no card of its own on this path because there should not be:
+         * `advanceTimeOfDay` already announces the time of day the Eclipse was
+         * leading into, and a second card would say the same thing twice.
+         */
+        await advanceTimeOfDay({
+            resetActions: true,
+            also: { eclipse: false },
+            sfx: { key: "eclipseEnd", gm: true }
+        });
     } else {
         await setClock({ eclipse: false });
         await announce({
-        flags: { [MODULE_ID]: { sfx: { key: "eclipseEnd", gm: true } } },
+            flags: { [MODULE_ID]: { sfx: { key: "eclipseEnd", gm: true } } },
             content: `<p><strong>${timeOfDayLabel()}</strong> — ${game.i18n.localize("DRPG.Eclipse.ended")}</p>`
         });
     }
