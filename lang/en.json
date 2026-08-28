@@ -591,6 +591,7 @@
       "stashSent": "You go over the room looking for anything that does not belong."
     },
     "Items": {
+      "iconsPinned": "{items} item(s) and {rows} table row(s) now wear their category's icon.",
       "manage": "Give / take items",
       "rowButton": "Items",
       "title": "Items — {actor}",

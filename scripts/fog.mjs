@@ -1774,7 +1774,36 @@ export function whatIsHere(x = null, y = null) {
     }
 
     if (!report.found.length) report.found.push("nothing this module drew");
-    console.log(`${MODULE_ID} | whatIsHere`, report);
+
+    /*
+     * PRINTED FLAT AS WELL AS FOLDED. A console prints an object collapsed, and
+     * the answer this exists to give is then one click away from the person who
+     * needs it — which has now cost two round trips on the same question. The
+     * lines below are the whole finding; the object is still returned for
+     * anything that wants to read it.
+     */
+    const lines = [
+        `${MODULE_ID} | whatIsHere (${report.at.x}, ${report.at.y}) grid ${grid}`,
+        `  drew it: ${report.found.join(", ")}`,
+        `  room being outlined: ${report.room ?? "none"}`
+    ];
+    if (report.outline) {
+        lines.push(`  outline: nearest chain ${report.outline.nearestChain}px away, `
+            + `stroked ${report.outline.strokeWidth}px, that chain is `
+            + `${report.outline.chainLength}px long over ${report.outline.chainPoints} points`
+            + `${report.outline.covers ? " — THE POINT IS ON IT" : ""}`);
+    }
+    if (report.glow) {
+        lines.push(`  glow: ${report.glow.inSprite
+            ? `alpha ${report.glow.alpha}` : "outside the glow sprite"}`);
+    }
+    if (report.border) {
+        lines.push(`  nearest border: ${report.border.room}, ${report.border.distance}px `
+            + `(${report.border.inSquares} squares)`);
+    }
+    if (report.wall) lines.push(`  nearest wall: ${report.wall.distance}px, at ${report.wall.angle}°`);
+    console.log(lines.join("\n"));
+
     return report;
 }
 

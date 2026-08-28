@@ -11,7 +11,7 @@
 
 import { MODULE_ID, ITEM_CATEGORIES, LIMIT_GROUPS, TIER_EFFECTS, USABLE_KINDS, USABLE_KIND_EFFECTS, itemIcon }
     from "./config.mjs";
-import { whisperToOwner, log, warn } from "./utils.mjs";
+import { whisperToOwner, log, warn, error } from "./utils.mjs";
 
 /** Flag keys stored on every item this module creates. */
 export const ITEM_FLAGS = {
@@ -210,6 +210,144 @@ export function isStashed(item) {
  */
 export const CAP_OVERRIDE = "drpgIgnoreCarryLimit";
 
+
+/**
+ * Icons the module used to hand out, so a world made before v1.1.60 can be
+ * brought up to date without overwriting anything a GM chose themselves.
+ *
+ * Two of these never existed in Foundry v14 at all — they were the module's
+ * defaults for a while and every item made in that window is still carrying a
+ * broken path. They are the clearest case of "replaceable": a picture that was
+ * never a picture.
+ */
+const SUPERSEDED = new Set([
+    "icons/consumables/food/berries-ration-round-red.webp",
+    "icons/weapons/axes/axe-broad-brown.webp",
+    "icons/tools/hand/broom-straw-brown.webp",
+    "icons/sundries/documents/document-sealed-red-yellow.webp",
+    "icons/consumables/fruit/vegetable-fruit-apple-red.webp",
+    "icons/tools/hand/broom-blue.webp",
+    "icons/svg/item-bag.svg",
+    "icons/svg/mystery-man.svg"
+]);
+
+/** Is this picture one the module put there, or no picture at all? */
+function replaceableIcon(img) {
+    if (!img) return true;
+    if (SUPERSEDED.has(img)) return true;
+    // Our own, including a category whose drawing has since been redrawn or
+    // whose key has moved: re-running must be able to correct itself.
+    return img.includes(`/${MODULE_ID}/icons/item-`);
+}
+
+/**
+ * PUT THE PLACEHOLDER ICONS ON A WORLD THAT ALREADY EXISTS.
+ *
+ *     game.drpg.pinItemIcons()              // see what would change
+ *     game.drpg.pinItemIcons({ apply: true })
+ *     game.drpg.pinItemIcons({ apply: true, all: true })
+ *
+ * The icons ship inside the module, so nothing is uploaded anywhere — update
+ * the module and the files are on the server. What this fixes is everything
+ * made BEFORE that: items already in somebody's bag and rows already written
+ * into the item tables, which kept whatever picture they were created with.
+ *
+ * IT LOOKS FIRST AND REFUSES TO GUESS. Only a picture the module itself put
+ * there — or none at all — is replaced; a Truth Bullet wearing the photograph
+ * of the trace it came from, or an item a GM picked art for, is left alone.
+ * `all: true` drops that rule for a GM who wants every module item reset to its
+ * category's placeholder, and says so in what it reports.
+ *
+ * @param {object}  [options]
+ * @param {boolean} [options.apply]  Write. Without it, nothing is changed.
+ * @param {boolean} [options.all]    Replace chosen pictures too.
+ * @returns {Promise<object>} what changed, or what would.
+ */
+export async function pinItemIcons({ apply = false, all = false } = {}) {
+    if (!game.user.isGM) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
+        return null;
+    }
+
+    const wanted = item => itemIcon(item.getFlag(MODULE_ID, ITEM_FLAGS.category));
+    const plan = { items: [], results: [], skipped: 0 };
+
+    for (const actor of game.actors) {
+        for (const item of actor.items) {
+            const category = item.getFlag(MODULE_ID, ITEM_FLAGS.category);
+            if (!category || !ITEM_CATEGORIES[category]) continue;
+            const target = wanted(item);
+            if (item.img === target) continue;
+            if (!all && !replaceableIcon(item.img)) { plan.skipped++; continue; }
+            plan.items.push({ actor: actor.name, item: item.name, category, from: item.img, to: target });
+        }
+    }
+
+    for (const table of game.tables) {
+        const category = table.getFlag(MODULE_ID, "category");
+        if (!category || !ITEM_CATEGORIES[category]) continue;
+        const target = itemIcon(category);
+        for (const result of table.results) {
+            if (result.img === target) continue;
+            if (!all && !replaceableIcon(result.img)) { plan.skipped++; continue; }
+            plan.results.push({ table: table.name, row: result.name ?? result.text, to: target, id: result.id });
+        }
+    }
+
+    const summary = {
+        wouldChangeItems: plan.items.length,
+        wouldChangeTableRows: plan.results.length,
+        leftAlone: plan.skipped,
+        applied: false
+    };
+
+    if (!apply) {
+        log(`pinItemIcons (looking only): ${summary.wouldChangeItems} item(s), `
+            + `${summary.wouldChangeTableRows} table row(s), ${summary.leftAlone} left alone. `
+            + "Run game.drpg.pinItemIcons({ apply: true }) to write.");
+        console.log(`${MODULE_ID} | pinItemIcons`, { ...summary, items: plan.items, results: plan.results });
+        return { ...summary, items: plan.items, results: plan.results };
+    }
+
+    let items = 0;
+    for (const actor of game.actors) {
+        const updates = plan.items
+            .filter(row => row.actor === actor.name)
+            .map(row => {
+                const item = actor.items.find(i => i.name === row.item && i.img === row.from);
+                return item ? { _id: item.id, img: row.to } : null;
+            })
+            .filter(Boolean);
+        if (!updates.length) continue;
+        try {
+            await actor.updateEmbeddedDocuments("Item", updates);
+            items += updates.length;
+        } catch (err) {
+            error(`Could not put the icons on ${actor.name}'s items`, err);
+        }
+    }
+
+    let rows = 0;
+    for (const table of game.tables) {
+        const mine = plan.results.filter(row => row.table === table.name);
+        if (!mine.length) continue;
+        try {
+            await table.updateEmbeddedDocuments("TableResult",
+                mine.map(row => ({ _id: row.id, img: row.to })));
+            rows += mine.length;
+        } catch (err) {
+            error(`Could not put the icons on "${table.name}"`, err);
+        }
+    }
+
+    summary.applied = true;
+    summary.items = items;
+    summary.tableRows = rows;
+    log(`pinItemIcons: ${items} item(s) and ${rows} table row(s) now wear their category's icon`
+        + `${plan.skipped ? `; ${plan.skipped} left alone (they carry a chosen picture)` : ""}.`);
+    ui.notifications.info(game.i18n.format("DRPG.Items.iconsPinned", { items, rows }));
+    return summary;
+}
 
 /**
  * How many of this category the character is CARRYING.

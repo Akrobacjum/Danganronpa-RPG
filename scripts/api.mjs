@@ -146,8 +146,7 @@ import {
 } from "./mastermind.mjs";
 import {
     grantItem, canCarry, countInCategory, itemsInCategory, carriedInCategory,
-    inventorySummary, isStashed, locationOf, isBroken, breakItem
-} from "./inventory.mjs";
+    inventorySummary, isStashed, locationOf, isBroken, breakItem, pinItemIcons } from "./inventory.mjs";
 import {
     vaultRoomFor, vaultOwnerOf, vaultContents, allVaults, isConcealed,
     roomTable, roomFavours, favoursCategory, roomHinders, hindersCategory, setVaultRoom,
@@ -932,6 +931,15 @@ export const DrpgApi = {
      *  diagnoses of the same white strip were reasoned from screenshots and
      *  both were wrong. */
     whatIsHere,
+
+    /** Put the module's own item icons onto a world that already exists: items
+     *  in bags and rows already written into the item tables kept whatever
+     *  picture they were made with. Looks first — `{ apply: true }` writes, and
+     *  only over a picture the module put there or none at all, so a Truth
+     *  Bullet wearing its trace's photograph is left alone. `{ all: true }`
+     *  drops that rule. The icons ship inside the module, so nothing is
+     *  uploaded: update the module, then run this once. */
+    pinItemIcons,
 
     /** Put Daggerheart's own critical back, without a reload — for telling
      *  "the module changed this number" apart from "the system always did
