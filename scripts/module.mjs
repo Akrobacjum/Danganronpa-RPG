@@ -44,6 +44,7 @@ import { registerIsoShield } from "./iso-shield.mjs";
 import { registerRemnantRings } from "./remnant-ring.mjs";
 import { registerRemnantIcons } from "./remnant-icons.mjs";
 import { registerRemnantLedger } from "./remnants.mjs";
+import { registerSecrets } from "./secret.mjs";
 import { registerDaySummary } from "./day-summary.mjs";
 import { registerRollDialog } from "./roll-dialog.mjs";
 import { registerForcedRolls } from "./forced-roll.mjs";
@@ -227,6 +228,10 @@ Hooks.once("ready", () => {
     // anything this browser is missing, and a GM who joins mid-session must not
     // spend the first minute unable to read their own crime scene.
     safely("the Remnant ledger", registerRemnantLedger);
+    // Before anything that can whisper. The socket listener and the render hook
+    // are what turn a stub back into a sentence, and a card that arrives before
+    // they exist would show a dash until the next redraw.
+    safely("private cards", registerSecrets);
     safely("the API", registerApi);
     // Before the other socket listeners: this is the one that carries world-state
     // changes to the players. Without it `broadcast()` emits into a socket nobody

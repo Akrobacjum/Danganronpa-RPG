@@ -17,6 +17,7 @@ import {
 } from "./config.mjs";
 import { announce, whisperToGms, whisperToOwner, ownerOf, isPrimaryGm, dialogContent, debug, warn, error, cardHead } from "./utils.mjs";
 
+import { contentOf } from "./secret.mjs";
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 const ACTION_PROGRESS = "project.progress";
 const ACTION_SHARE = "project.share";
@@ -1825,7 +1826,7 @@ export async function settleCall(message, text) {
     if (!message || !game.user.isGM) return null;
 
     const wrap = document.createElement("div");
-    wrap.innerHTML = message.content ?? "";
+    wrap.innerHTML = contentOf(message);
 
     wrap.querySelectorAll(".drpg-call-actions, .drpg-call-awaiting").forEach(el => el.remove());
     // Cards posted before the marker class existed carry the same sentence with

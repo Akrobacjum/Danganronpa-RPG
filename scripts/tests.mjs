@@ -770,6 +770,34 @@ const REGRESSIONS = [
         ok(!unknown.length, `these listeners test for triggers that do not exist: ${unknown.join(", ")}`);
     }],
 
+    ["R15 · nothing reads a card's words off the document", async () => {
+        /*
+         * THE HALF OF THE PRIVACY FIX A REVIEWER WOULD NOT THINK TO CHECK.
+         *
+         * Private narration no longer travels in the chat document: the message
+         * carries a stub, and the sentence lives in a client-scoped store on
+         * each recipient's own browser (secret.mjs). So `message.content` is now
+         * a DASH for every private card, and any code still reading it renders
+         * a dash — in the messenger, in a popup, in the GM's call thread.
+         *
+         * That failure is silent and it is COSMETIC-LOOKING, which is worse: a
+         * blank card reads as a rendering hiccup, not as a module reading the
+         * wrong field, and it would be lived with for a long time.
+         *
+         * `contentOf(message)` is the one reader. This keeps it the one reader.
+         */
+        const guilty = [];
+        for (const [file, raw] of await otherSources()) {
+            if (file === "secret.mjs") continue;      // the store itself
+            const text = stripComments(raw);
+            for (const m of text.matchAll(/(message|msg|card|last|entry)\.content/g)) {
+                guilty.push(`${file}:${lineAt(text, m.index)} — ${m[0]}`);
+            }
+        }
+        ok(!guilty.length,
+            `these show a dash instead of a private card: ${guilty.join(", ")} (use contentOf)`);
+    }],
+
     ["R14 · every setting listener waits on the hook its setting actually fires", async () => {
         /*
          * FOUNDRY HAS TWO HOOKS HERE AND THEY DO NOT OVERLAP, and this module
@@ -1276,6 +1304,83 @@ const INVARIANTS = [
             }
         }
         ok(!wrong.length, wrong.join("; "));
+    }],
+
+    ["no two rooms on the scene stand on the same floor", async () => {
+        /*
+         * FROM E17'S CLOSING LIST, and it was the last one missing because it
+         * would have failed: the QA map had FIVE overlapping pairs and 24 grid
+         * squares belonging to two rooms at once. Dawid's call, 28.08 — write it
+         * and fix the map, rather than leave the validator as a thing somebody
+         * has to remember to run.
+         *
+         * WHY IT MATTERS EVEN THOUGH NOTHING VISIBLY BREAKS. Measured on the
+         * broken map: the module answers with ONE room on a shared square, the
+         * same one every time and the same on every client, because `roomOfToken`
+         * sorts the names and takes the first. So there is no flicker, no
+         * disagreement between two players, nothing to notice — and a character
+         * standing in what looks like the Round Table is in the Dinner Hall for
+         * every purpose the rules care about: which search tokens they spend,
+         * which room their traces land in, who counts as alone with them.
+         * Alphabetical order decides a murder alibi.
+         *
+         * And the second failure the same geometry causes is worse: where two
+         * borders cross with no wall between them, `checkRegions` reports the
+         * whole shared border reads as one doorway — a room you can walk out of
+         * anywhere along one side.
+         *
+         * TWO QUESTIONS, because delegating entirely to `checkRegions()` would
+         * make this test only as good as that function: the module's own
+         * validator must find no errors, AND no grid square may answer to two
+         * rooms. The second is asked only inside overlapping bounding boxes, so
+         * it costs nothing on a map that is already right.
+         */
+        const { allRooms } = await import("./movement.mjs");
+        const scene = canvas?.scene;
+        ok(scene, "no scene to check");
+
+        const report = await game.drpg.checkRegions();
+        const errors = (report ?? []).filter(row => row.level === "error");
+        ok(!errors.length, `the map has ${errors.length} region error(s): ${
+            errors.map(e => `${e.room} ${e.problem}`).join("; ")}`);
+
+        const rooms = allRooms();
+        const named = [...scene.regions].filter(r => rooms.includes(r.name));
+        const box = region => {
+            const xs = [], ys = [];
+            for (const shape of region.shapes) {
+                const pts = shape.type === "polygon"
+                    ? shape.points
+                    : [shape.x, shape.y, shape.x + shape.width, shape.y + shape.height];
+                for (let i = 0; i < pts.length; i += 2) { xs.push(pts[i]); ys.push(pts[i + 1]); }
+            }
+            return { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
+        };
+        const at = (region, x, y) => {
+            try { return region.object?.testPoint?.({ x, y, elevation: 0 }) ?? false; }
+            catch { return false; }
+        };
+
+        const g = scene.grid.size;
+        const boxes = named.map(r => [r, box(r)]);
+        const shared = [];
+        for (let i = 0; i < boxes.length && shared.length < 6; i++) {
+            for (let j = i + 1; j < boxes.length && shared.length < 6; j++) {
+                const [a, ba] = boxes[i], [b, bb] = boxes[j];
+                const x0 = Math.max(ba.minX, bb.minX), x1 = Math.min(ba.maxX, bb.maxX);
+                const y0 = Math.max(ba.minY, bb.minY), y1 = Math.min(ba.maxY, bb.maxY);
+                if (x1 <= x0 || y1 <= y0) continue;          // boxes miss: nothing to ask
+                for (let x = x0 + g / 2; x < x1 && shared.length < 6; x += g) {
+                    for (let y = y0 + g / 2; y < y1 && shared.length < 6; y += g) {
+                        if (at(a, x, y) && at(b, x, y)) {
+                            shared.push(`${a.name} / ${b.name} at ${Math.round(x)},${Math.round(y)}`);
+                        }
+                    }
+                }
+            }
+        }
+        ok(!shared.length,
+            `these squares belong to two rooms, and alphabetical order decides which: ${shared.join("; ")}`);
     }],
 
     ["no module rule decides whether a sheet tab is shown", async () => {
@@ -2767,6 +2872,54 @@ const SCENARIOS = [
             }
         } finally {
             for (const item of made) await item.delete().catch(() => {});
+            await settle();
+        }
+    }],
+
+    ["a private card's words are not in the world at all", async () => {
+        /*
+         * Dawid, 28.08: make the architectural change.
+         *
+         * WHAT WAS MEASURED FIRST. A player's browser, freshly reloaded, held
+         * 717 chat messages — exactly the GM's count — including every card it
+         * was not a recipient of, content and all: "You lift SUITE loot out of
+         * Player A's pocket. Nobody saw you do it." A whisper is a courtesy.
+         * Foundry sends the message to everyone and hides it in the interface.
+         *
+         * So this asks the only question that matters, of the document that
+         * every client is given: is the sentence in there? It must not be, and
+         * the recipient must still be able to read it.
+         */
+        const SECRET = "SUITE the poison was in the second cup";
+        const { whisperToOwner } = await import("./utils.mjs");
+        const { secretHtml, diagnoseSecrets } = await import("./secret.mjs");
+        const actor = studentActors()[0];
+        ok(actor, "need a student");
+
+        let card = null;
+        try {
+            card = await whisperToOwner(actor, `<p>${SECRET}</p>`);
+            ok(card, "no card was posted");
+            await settle();
+
+            // What every client is handed.
+            ok(!card.content.includes(SECRET),
+                "the sentence is in the chat document, which every client receives");
+
+            // What this client — a recipient, since GMs always are — can read.
+            const mine = secretHtml(card);
+            ok(mine?.includes(SECRET),
+                "the recipient cannot read their own private card");
+
+            // And the reader every render goes through agrees.
+            const { contentOf } = await import("./secret.mjs");
+            ok(contentOf(card).includes(SECRET), "contentOf does not return the words");
+
+            // Nothing anywhere else in the log is leaking either.
+            equal(diagnoseSecrets().leaking.length, 0,
+                "a private card is carrying its own words in the document");
+        } finally {
+            if (card) await card.delete().catch(() => {});
             await settle();
         }
     }],

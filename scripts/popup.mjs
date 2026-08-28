@@ -35,6 +35,7 @@ import { MESSENGER_FLAGS } from "./messenger.mjs";
 import { MESSAGE_FLAG } from "./utils.mjs";
 import { play, BEAT, ARRIVE, SNAP } from "./motion.mjs";
 
+import { contentOf } from "./secret.mjs";
 const CONTAINER_ID = "drpg-popups";
 const AUTO_DISMISS_MS = 12000;
 
@@ -341,7 +342,7 @@ function onCreateChatMessage(message) {
     // only by calling `showPopup` directly, which meant the card appeared on the
     // acting client alone. Carried on the message instead, so every recipient
     // gets the same card with the same title.
-    showPopup(message.content, {
+    showPopup(contentOf(message), {
         kind,
         title: message.getFlag(MODULE_ID, "popupTitle") ?? null,
         // Carried on the message rather than worked out here, for the same

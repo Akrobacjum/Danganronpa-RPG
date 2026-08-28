@@ -148,6 +148,15 @@ export const SETTINGS = {
      * socket, the same as the Truth Bullet ledger.
      */
     remnantSecrets: "remnantSecrets",
+    /**
+     * The words of every private card this browser is a recipient of.
+     *
+     * CLIENT-SCOPED, and that is the entire point — see secret.mjs. A whisper
+     * is delivered to every connected client and merely hidden in the
+     * interface; this is the one store in Foundry that stays where it was
+     * written.
+     */
+    secretCards: "secretCards",
     /*
      * WHICH ITEM IS THE TRAP, AND WHAT IS WAITING IN WHICH ROOM.
      *
@@ -595,6 +604,13 @@ export function registerSettings() {
     });
 
     game.settings.register(MODULE_ID, SETTINGS.remnantSecrets, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+
+    game.settings.register(MODULE_ID, SETTINGS.secretCards, {
         scope: "client",
         config: false,
         type: Object,

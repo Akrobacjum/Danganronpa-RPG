@@ -32,6 +32,7 @@ import { noteFor, noteStatus, noteTemplate, saveNote } from "./pre-session-note.
 import { markOutcome, rollOutcomeOf } from "./private-rolls.mjs";
 import { playSfx } from "./sfx.mjs";
 
+import { contentOf } from "./secret.mjs";
 const LAUNCHER_ID = "drpg-messenger-launcher";
 
 export function registerMessengerUi() {
@@ -398,7 +399,7 @@ Hooks.on("drpgMessengerMessage", (playerUserId, message) => {
      * sitting at that screen. Ordinary chatter keeps the badge. */
     if (game.user.isGM) {
         if (!message.getFlag(MODULE_ID, MESSENGER_FLAGS.gmAsk)) return;
-        showPopup(cardPreview(message.content), {
+        showPopup(cardPreview(contentOf(message)), {
             title: game.i18n.localize("DRPG.Messenger.gmActionTitle"),
             onClick: () => openMessenger(playerUserId)
         });
@@ -412,7 +413,7 @@ Hooks.on("drpgMessengerMessage", (playerUserId, message) => {
     const authorId = message.author?.id ?? message.user?.id;
     if (authorId === game.user.id) return;
 
-    showPopup(cardPreview(message.content), {
+    showPopup(cardPreview(contentOf(message)), {
         title: game.i18n.localize("DRPG.Messenger.playerWindowTitle"),
         onClick: () => openMessenger(playerUserId)
     });
@@ -474,7 +475,7 @@ function buildBubble(message) {
     // Both callers of createThreadMessage() already hand over safe HTML —
     // sendMessage() escapes free text before this ever runs, postToThread()
     // is fed the GM-bridge's own escaped ruling cards.
-    body.innerHTML = message.content;
+    body.innerHTML = contentOf(message);
     wireCallActions(body, message);
     bubble.append(body);
 
@@ -955,7 +956,7 @@ function rosterRow(user) {
     li.className = "drpg-messenger-roster-row";
 
     const last = lastMessage(user.id);
-    const preview = last ? stripHtml(last.content) : game.i18n.localize("DRPG.Messenger.rosterNoMessages");
+    const preview = last ? stripHtml(contentOf(last)) : game.i18n.localize("DRPG.Messenger.rosterNoMessages");
     const unread = unreadCount(user.id);
 
     const name = document.createElement("div");

@@ -266,7 +266,7 @@ export async function announce(data = {}) {
  */
 export async function whisperToOwnerOnly(actor, content, extra = {}) {
     const owner = ownerOf(actor);
-    return ChatMessage.create(stamped({
+    return privately(stamped({
         content,
         speaker: actor ? ChatMessage.getSpeaker({ actor }) : undefined,
         whisper: [owner?.id ?? game.user.id],
@@ -279,7 +279,7 @@ export async function whisperToOwner(actor, content, extra = {}) {
     const owner = ownerOf(actor);
     const ids = gmIds();
     if (owner) ids.push(owner.id);
-    return ChatMessage.create(stamped({
+    return privately(stamped({
         content,
         speaker: actor ? ChatMessage.getSpeaker({ actor }) : undefined,
         whisper: Array.from(new Set(ids)),
@@ -289,11 +289,36 @@ export async function whisperToOwner(actor, content, extra = {}) {
 
 /** Whisper to GMs only. */
 export async function whisperToGms(content, extra = {}) {
-    return ChatMessage.create(stamped({
+    return privately(stamped({
         content,
         whisper: gmIds(),
         ...extra
     }));
+}
+
+/**
+ * THE ONE PLACE THIS MODULE'S PRIVATE NARRATION IS POSTED.
+ *
+ * A whisper is a courtesy, not a secret: Foundry delivers every chat message to
+ * every connected client and hides the ones you are not addressed on. Measured
+ * on a player's browser after a fresh reload — 717 messages, the same count as
+ * the GM's, including "You lift X out of Player A's pocket. Nobody saw you do
+ * it." So the sentence travels by addressed socket and lives in a client-scoped
+ * store; the card itself stays exactly where it was. See secret.mjs.
+ *
+ * Imported lazily because utils.mjs is imported by everything, secret.mjs
+ * imports settings.mjs, and a cycle here would be paid on every module load.
+ *
+ * A private card with no recipients falls back to an ordinary create rather
+ * than being dropped: eighty call sites reach these three functions and one of
+ * them, some day, will be a table with no GM connected and no owner for the
+ * actor. Losing the card entirely would be a worse answer than posting it the
+ * way it was posted before this file existed.
+ */
+async function privately(payload) {
+    if (!payload.whisper?.length) return ChatMessage.create(payload);
+    const { postSecret } = await import("./secret.mjs");
+    return postSecret(payload);
 }
 
 /**

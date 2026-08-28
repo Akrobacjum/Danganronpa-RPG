@@ -36,6 +36,7 @@ import { showPopup } from "./popup.mjs";
 import { announce, dialogContent, isPrimaryGm, log, error, tableDialog } from "./utils.mjs";
 import { alreadyOpen } from "./live.mjs";
 
+import { contentOf } from "./secret.mjs";
 const DialogV2 = foundry.applications.api.DialogV2;
 
 /** Flags that make a chat message a presentation. */
@@ -348,7 +349,7 @@ export function registerTrial() {
 
         const objection = Boolean(message.getFlag(MODULE_ID, TRIAL_FLAGS.objection));
 
-        showPopup(message.content, {
+        showPopup(contentOf(message), {
             title: game.i18n.localize(objection ? "DRPG.Trial.objection" : "DRPG.Trial.evidence"),
             kind: objection ? "objection" : "evidence",
             // Evidence stays up until somebody closes it. A trial argues with a

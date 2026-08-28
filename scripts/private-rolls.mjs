@@ -24,6 +24,7 @@ import { roomOfActor, occupantsOf } from "./movement.mjs";
 import { gmIds, ownerOf, error, debug, MESSAGE_FLAG } from "./utils.mjs";
 import { play, ENTER, ARRIVE } from "./motion.mjs";
 
+import { contentOf } from "./secret.mjs";
 export function registerPrivateRolls() {
     Hooks.on("preCreateChatMessage", onPreCreateChatMessage);
     // `renderChatMessageHTML` and nothing else.
@@ -310,7 +311,7 @@ export function markOutcome(element, outcome) {
  */
 export function rollOutcomeOf(message) {
     if (!message?.rolls?.length) return null;
-    const flavour = `${message.flavor ?? ""} ${message.content ?? ""}`;
+    const flavour = `${message.flavor ?? ""} ${contentOf(message)}`;
     if (/\bcritical\b/i.test(flavour)) return "critical";
     if (/\bfear\b|despair/i.test(flavour)) return "fear";
     if (/\bhope\b/i.test(flavour)) return "hope";
