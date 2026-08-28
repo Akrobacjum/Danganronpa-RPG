@@ -813,6 +813,46 @@ const REGRESSIONS = [
             `these put private narration in the world database: ${guilty.join(", ")} (use announce)`);
     }],
 
+    ["R18 · using an item mid-incident costs a turn like everything else", async () => {
+        /*
+         * IT SHIPPED THE OTHER WAY (E9, G-21). Every act inside an incident pays
+         * a turn, a roll and a threshold. Using an item was reachable straight
+         * from the inventory row, so a victim drank a first aid kit mid-murder
+         * for nothing while the killer spent their turn swinging.
+         *
+         * The same button, because it is the same intention — what changes is
+         * what happens after it. So the rule is not "the button is hidden", it
+         * is "the handler asks whether an incident is running first", and that
+         * is what this reads.
+         *
+         * Every call to `useItem` outside use-items.mjs itself has to sit behind
+         * `inCrisis`. There is exactly one such caller today and it is the one
+         * that had the bug.
+         */
+        const guilty = [];
+        for (const [file, raw] of await otherSources()) {
+            if (file === "use-items.mjs") continue;
+            const text = stripComments(raw);
+            for (const m of text.matchAll(/useItem\(/g)) {
+                // Is an incident check standing over this call?
+                const before = text.slice(Math.max(0, m.index - 700), m.index);
+                if (!/inCrisis\s*\(/.test(before)) {
+                    guilty.push(`${file}:${lineAt(text, m.index)}`);
+                }
+            }
+        }
+        ok(!guilty.length,
+            `these use an item without asking whether a murder is happening: ${guilty.join(", ")}`);
+
+        // And the check itself still means what the caller assumes.
+        const sheet = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/sheet.mjs`).then(r => r.text()));
+        const body = sheet.slice(sheet.indexOf("function inCrisis"), sheet.indexOf("function inCrisis") + 400);
+        ok(/stage\s*!==\s*"incident"/.test(body),
+            "inCrisis no longer asks whether the incident has actually started");
+        ok(/"victim"/.test(body) && /"killer"/.test(body),
+            "inCrisis no longer restricts itself to the two people in the fight");
+    }],
+
     ["R15 · nothing reads a card's words off the document", async () => {
         /*
          * THE HALF OF THE PRIVACY FIX A REVIEWER WOULD NOT THINK TO CHECK.
@@ -3046,6 +3086,57 @@ const SCENARIOS = [
                 "a private card is carrying its own words in the document");
         } finally {
             if (card) await card.delete().catch(() => {});
+            await settle();
+        }
+    }],
+
+    ["a stash with something in it cannot be taken away", async () => {
+        /*
+         * E11's own criterion, and it only held in the dialog.
+         *
+         * Measured in E17 by calling the exported function the way a macro
+         * would: the stash was removed, `stashItemsIn` still returned 1, and
+         * nothing was said. The item stays flagged as stashed, so it is hidden
+         * from its owner's sheet, in a room with no stash to take it out of.
+         * A lost item, silently, and the only sign is a player asking where
+         * their screwdriver went three sessions later.
+         */
+        const V = await import("./vault.mjs");
+        const INV = await import("./inventory.mjs");
+        const { roomOfActor } = await import("./movement.mjs");
+
+        const actor = studentActors()[0];
+        ok(actor, "need a student");
+        const room = roomOfActor(actor);
+        ok(room, `${actor?.name} is not standing in a room`);
+
+        const had = Boolean(V.stashIn(room, actor.id));
+        let item = null;
+        try {
+            if (!had) await V.setStash(room, actor.id, { present: true });
+            await settle();
+
+            item = await INV.grantItem(actor, { name: "SUITE stowed", category: "usable", tier: 1 });
+            ok(await V.stow(actor, item), "could not put the thing in the stash");
+            await settle();
+            equal(V.stashItemsIn(actor, room).length, 1, "the thing did not go in");
+
+            const refused = await V.setStash(room, actor.id, { present: false });
+            await settle();
+            equal(refused, null, "a stash holding something was removed");
+            ok(V.stashIn(room, actor.id), "the stash is gone and the thing is still in it");
+
+            // And an EMPTY one still goes, because that is the whole point of
+            // the control.
+            await V.retrieve(actor, item);
+            await settle();
+            equal(V.stashItemsIn(actor, room).length, 0, "could not take the thing back out");
+            ok(await V.setStash(room, actor.id, { present: false }) !== null,
+                "an empty stash refused to be removed");
+        } finally {
+            if (item) await item.delete().catch(() => {});
+            if (had) await V.setStash(room, actor.id, { present: true }).catch(() => {});
+            else await V.setStash(room, actor.id, { present: false }).catch(() => {});
             await settle();
         }
     }],

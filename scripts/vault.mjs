@@ -435,6 +435,33 @@ export async function setStash(room, actorId, { present = undefined, concealed =
 
     if (present === false) {
         if (at < 0) return list;
+
+        /*
+         * A STASH WITH SOMETHING IN IT IS NOT REMOVED (E11, measured in E17).
+         *
+         * The Room Setup dialog has always refused this and named the count, so
+         * at the table it was covered. `setStash` itself did not, and it is on
+         * `game.drpg` — so a macro, a console line or a feature written next
+         * month could take the stash away and leave the items behind: still
+         * flagged as stashed, so hidden from their owner's sheet, in a room with
+         * nowhere to take them out of. A lost item, silently.
+         *
+         * Measured before this: stash removed, `stashItemsIn` still returning 1,
+         * and not a single notification.
+         *
+         * The dialog keeps its own pre-check, because refusing one cell in a
+         * batch and carrying on is better than failing the Apply — this is the
+         * floor under it, not a replacement for it.
+         */
+        const owner = game.actors.get(actorId);
+        const held = owner ? stashItemsIn(owner, room).length : 0;
+        if (held) {
+            ui.notifications.warn(game.i18n.format("DRPG.Vault.stashNotEmpty", {
+                name: owner?.name ?? "?", room, n: held
+            }));
+            return null;
+        }
+
         list.splice(at, 1);
     } else if (at < 0) {
         // Anything but an explicit `present: false` creates it when missing:
