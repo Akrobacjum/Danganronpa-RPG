@@ -33,7 +33,8 @@ import { MODULE_ID, moduleVersion, STARTING, CRISIS_ACTIONS, ACTIONS, TRAITS,
 } from "./config.mjs";
 import { rolesOf } from "./inventory.mjs";
 import { vaultContents, stashRoomOfItem, stashIn, allVaults } from "./vault.mjs";
-import { SETTINGS } from "./settings.mjs";
+import { SETTINGS, DEFAULT_SAFEWORD, getSetting } from "./settings.mjs";
+import { safeword } from "./safeword.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { detectPageTinting, stylesheetVersion } from "./diagnostics.mjs";
@@ -404,6 +405,61 @@ const INVARIANTS = [
         // decisions and the guide gives both.
         equal(KEY_REMNANTS.unfoundBar, 4, "the bar for unfound Key Remnants is not four");
         equal(KEY_REMNANTS.unfoundDespair, 3, "an unfound Key Remnant is not worth 3 Despair");
+    }],
+
+    ["every setting that promises a redraw gets one", async () => {
+        /*
+         * `onChange: () => onWorldChange(SETTINGS.x)` says "when this changes,
+         * refresh whatever shows it". `onWorldChange` keeps that promise by
+         * looking the key up in `SETTING_KINDS` — and a key missing from that
+         * table is answered with SILENCE. Nothing throws, nothing warns, and
+         * the screen keeps showing the old value until somebody reopens the
+         * window.
+         *
+         * That is exactly what happened to the safeword: registered with the
+         * promise at E0, given its table entry at E15, four builds later. The
+         * motive had the same gap. Both were found by reading, not by playing,
+         * which is why this is a test and not a note.
+         *
+         * The two halves live in two files and nothing links them, so this
+         * fetches both. Same move as the glyph test, for the same reason.
+         */
+        const read = async name => {
+            try {
+                const res = await fetch(`/modules/${MODULE_ID}/scripts/${name}?t=${Date.now()}`);
+                return res.ok ? await res.text() : "";
+            } catch {
+                return "";
+            }
+        };
+
+        const [settings, sync] = await Promise.all([read("settings.mjs"), read("sync.mjs")]);
+        ok(settings.length > 1000 && sync.length > 500,
+            "could not read settings.mjs and sync.mjs to check the refresh wiring");
+
+        const promised = new Set(
+            [...settings.matchAll(/onWorldChange\(SETTINGS\.(\w+)\)/g)].map(m => m[1]));
+        ok(promised.size, "no setting seems to promise a refresh — did onWorldChange move?");
+
+        // Only the table, not the whole file: `SYNC.x` appears throughout.
+        const table = sync.split("const SETTING_KINDS")[1]?.split("};")[0] ?? "";
+        ok(table, "SETTING_KINDS is not where this test looks for it");
+        const wired = new Set([...table.matchAll(/^\s*(\w+):\s*SYNC\./gm)].map(m => m[1]));
+
+        const silent = [...promised].filter(key => !wired.has(key));
+        ok(!silent.length,
+            `these settings announce a change that reaches no screen: ${silent.join(", ")}`);
+    }],
+
+    ["the safeword is the table's, and never blank", () => {
+        // E15. Two failure modes, both worse than a wrong word: a button with
+        // no caption at all, and a button captioned with a raw i18n key.
+        const word = safeword();
+        ok(typeof word === "string" && word.trim(),
+            "the safeword button would render with no word on it");
+        ok(!/^DRPG\./.test(word), `the safeword is an unresolved key: ${word}`);
+        equal(word, String(getSetting(SETTINGS.safeword) ?? "").trim() || DEFAULT_SAFEWORD,
+            "the safeword shown is not the one this world stores");
     }],
 
     ["the three time Calls stay out of the armed-Call slot", () => {

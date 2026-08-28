@@ -2296,7 +2296,8 @@
       "gmNote": "{who} used it, in {room}. Nobody else has been told who — the table only knows the scene stopped.",
       "roomUnknown": "no room recorded",
       "failed": "The safeword could not be sent. Say it out loud and tag a GM.",
-      "gmTitle": "Safeword — GM only"
+      "gmTitle": "Safeword — GM only",
+      "kept": "This world already had a safeword, so it has been kept: “{word}”. Change it in Season setup."
     },
     "Note": {
       "tab": "Note",
@@ -2442,7 +2443,9 @@
       "checkClean": "Nothing to report — the rooms on this scene are clean.",
       "step.roomCount": "Enough rooms for the cast",
       "hint.roomCount": "About one and a half rooms per player, corridors and dormitories aside. Fewer works, but two private conversations cannot happen at once.",
-      "roomCountLine": "{rooms} room(s) for {players} player(s). The guide suggests around {want}."
+      "roomCountLine": "{rooms} room(s) for {players} player(s). The guide suggests around {want}.",
+      "safeword": "Safeword",
+      "safewordNote": "The word that stops the scene, printed on every character sheet. Pick something your table will not mistake for anything else. Leave it blank to use the default."
     },
     "Explain": {
       "state": {

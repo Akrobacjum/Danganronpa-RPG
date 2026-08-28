@@ -637,20 +637,29 @@ export function registerSettings() {
     // come up. Keyed by killer id — one killer, one attempt per Eclipse.
     // Deliberately carries no victim: who that is depends on where everybody
     // ends up standing, which is the whole point. See `judgePendingMurders`.
+    //
+    // NO `onChange`, DELIBERATELY. Nothing on any screen shows this: it is read
+    // once, inside `judgePendingMurders`, on the GM's client, at the moment the
+    // lights come up. It used to announce a refresh that `applyFor` then
+    // dropped for want of a `SETTING_KINDS` entry — harmless at runtime and a
+    // lie in the source, which is the shape of defect the "every setting that
+    // promises a redraw gets one" invariant exists to remove.
     game.settings.register(MODULE_ID, SETTINGS.pendingMurders, {
         scope: "world",
         config: false,
         type: Object,
-        default: {},
-        onChange: () => onWorldChange(SETTINGS.pendingMurders)
+        default: {}
     });
 
+    // Same as `pendingMurders` above, and for the same reason: the register of
+    // this chapter's killers is read by `recordBlackened` and by the verdict
+    // window, which asks for it fresh when it opens. No surface holds it, so
+    // there is nothing to redraw and no refresh to promise.
     game.settings.register(MODULE_ID, SETTINGS.blackened, {
         scope: "world",
         config: false,
         type: Array,
-        default: [],
-        onChange: () => onWorldChange(SETTINGS.blackened)
+        default: []
     });
 
     game.settings.register(MODULE_ID, SETTINGS.trialQueue, {

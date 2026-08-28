@@ -304,6 +304,64 @@ const CLAUSES = [
         }
     },
     {
+        key: "keepOldSafeword",
+        since: "1.1.39",
+        /*
+         * TRAP 109 — A WORLD IN PLAY KEEPS THE WORD IT ALREADY USES.
+         *
+         * Before E15 the safeword was `DRPG.Safeword.word` in the language
+         * file: one word for every install, and in this project's own worlds
+         * that word is MISIUBOMBO. E15 makes it a setting whose default is
+         * plain "Safe Word" — so without this clause, an update would silently
+         * change the safeword of a campaign in progress.
+         *
+         * That is the worst single setting in the module to change under a
+         * table. The whole value of the control is that it can be reached
+         * without thinking, and a word that quietly became something else in
+         * the last patch is a word somebody hesitates over — the exact second
+         * it exists to remove.
+         *
+         * ONLY WHEN NOBODY HAS CHOSEN. The setting is compared against the
+         * module's default: a GM who has already typed their own word in
+         * Season setup keeps it, and a world whose value is still the default
+         * has never been asked. Those two are the only states there are, since
+         * the setting was registered empty of meaning at E0.
+         *
+         * The old key stays in the language file for exactly this clause to
+         * read. It is not used to render anything any more.
+         */
+        run: async () => {
+            const current = String(getSetting(SETTINGS.safeword) ?? "").trim();
+            const { DEFAULT_SAFEWORD } = await import("./settings.mjs");
+            if (current && current !== DEFAULT_SAFEWORD) return null;
+
+            const legacy = String(game.i18n.localize("DRPG.Safeword.word") ?? "").trim();
+            if (!legacy || legacy === DEFAULT_SAFEWORD) return null;
+
+            await setSetting(SETTINGS.safeword, legacy);
+
+            // Read back rather than believed: this decides what a safety
+            // control says, and a write that resolved is not a write that
+            // landed.
+            if (String(getSetting(SETTINGS.safeword) ?? "").trim() !== legacy) {
+                error("Could not keep this world's existing safeword");
+                return null;
+            }
+
+            // The sheets have already been drawn by the time a migration runs
+            // — it is started at `ready` and not awaited — so they are asked to
+            // redraw rather than left showing the default until somebody
+            // reopens their character.
+            await import("./clock.mjs").then(m => m.refreshSheets()).catch(() => {});
+
+            await whisperToGms(`<p>${game.i18n.format("DRPG.Safeword.kept", {
+                word: foundry.utils.escapeHTML(legacy)
+            })}</p>`);
+
+            return { safeword: legacy };
+        }
+    },
+    {
         key: "motiveTimer",
         since: "1.1.37",
         /*

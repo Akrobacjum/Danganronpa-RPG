@@ -93,6 +93,12 @@ const SETTING_KINDS = {
     // redraws both, and a summons IS a restriction on where the next time of
     // day starts.
     pendingGather: SYNC.restrictions,
+    // The safeword is printed on every character sheet, so changing it has to
+    // redraw them all — and without an entry here `onWorldChange` would call
+    // `applyFor("safeword")`, find no kind, and return silently. That is trap
+    // 110, and it is the same shape as the motive's: a setting that syncs
+    // itself and a screen that never hears about it.
+    safeword: SYNC.rules,
     discoveredRooms: SYNC.fog
 };
 

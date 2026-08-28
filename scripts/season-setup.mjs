@@ -21,7 +21,8 @@
 import {
     MODULE_ID, FLAGS, STARTING, ITEM_CATEGORIES, CHAPTERS_PER_SEASON, ROOMS_PER_PLAYER
 } from "./config.mjs";
-import { SETTINGS } from "./settings.mjs";
+import { SETTINGS, DEFAULT_SAFEWORD, setSetting } from "./settings.mjs";
+import { safeword } from "./safeword.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { monokumaFor } from "./assignments.mjs";
@@ -338,6 +339,18 @@ export async function openSeasonSetup() {
                 <input type="number" name="chapter" min="1" max="${CHAPTERS_PER_SEASON}"
                        value="${Number(clock.chapter) || 1}" /></label>
 
+            <!--
+              E15: the safeword, next to the campaign's name and not buried in a
+              settings menu. It is a decision a table makes once, at the same
+              moment it decides what the campaign is called — and a safety tool
+              filed under configuration is a safety tool nobody has read.
+            -->
+            <label>${esc(game.i18n.localize("DRPG.Season.safeword"))}
+                <input type="text" name="safeword"
+                       value="${esc(safeword())}"
+                       placeholder="${esc(DEFAULT_SAFEWORD)}" /></label>
+            <p class="notes">${esc(game.i18n.localize("DRPG.Season.safewordNote"))}</p>
+
             <ul class="drpg-setup-list">${rows}</ul>
             <p class="notes">${esc(game.i18n.localize("DRPG.Season.note"))}</p>
         </form>`),
@@ -346,7 +359,14 @@ export async function openSeasonSetup() {
                 action: "save", label: game.i18n.localize("DRPG.Assign.save"), default: true,
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
-                    return { campaignName: f.campaignName.value.trim(), chapter: Number(f.chapter.value) || 1 };
+                    return {
+                        campaignName: f.campaignName.value.trim(),
+                        chapter: Number(f.chapter.value) || 1,
+                        // Blank means "put the default back", which is what
+                        // `safeword()` reads an empty setting as. Written blank
+                        // rather than filled in here so the two agree.
+                        safeword: f.safeword.value.trim()
+                    };
                 }
             },
             // The other end of this same list. "What is missing" and "fix it"
@@ -421,6 +441,15 @@ export async function openSeasonSetup() {
     }
 
     await setClock({ campaignName: result.campaignName, chapter: result.chapter });
+
+    // Only when it moved. Every write to this setting redraws every open sheet
+    // (see its `onChange`), and pressing Save on this window is something a GM
+    // does repeatedly while working through the checklist.
+    if (result.safeword !== safeword()) {
+        await setSetting(SETTINGS.safeword, result.safeword);
+        log(`Safeword set to "${safeword()}".`);
+    }
+
     log(`Season setup saved: "${result.campaignName}", chapter ${result.chapter}.`);
     return result;
 }

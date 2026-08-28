@@ -26,6 +26,7 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
+import { SETTINGS, DEFAULT_SAFEWORD, getSetting } from "./settings.mjs";
 import { announce, gmIds, isPrimaryGm, log, error } from "./utils.mjs";
 import { showPopup } from "./popup.mjs";
 
@@ -33,6 +34,24 @@ const { DialogV2 } = foundry.applications.api;
 
 /** Marks the announcement, so the pause and the card key off one message. */
 export const SAFEWORD_FLAG = "safeword";
+
+/**
+ * The word this table stops the scene with.
+ *
+ * One reader, here rather than at the two call sites, because "what is the
+ * safeword" is a question about the safeword and not about the character sheet
+ * — and because the fallback belongs with it. An empty setting is a table that
+ * cleared the field, not a table with no safeword: they get the module's
+ * default back rather than a button with no caption.
+ */
+export function safeword() {
+    try {
+        const stored = String(getSetting(SETTINGS.safeword) ?? "").trim();
+        return stored || DEFAULT_SAFEWORD;
+    } catch {
+        return DEFAULT_SAFEWORD;
+    }
+}
 
 /** Socket action carrying the caller's name to the GMs, and nobody else. */
 const SAFEWORD_ACTION = "safewordDetail";

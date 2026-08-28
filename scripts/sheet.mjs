@@ -52,6 +52,7 @@ import { SearchTokens } from "./search-tokens.mjs";
 // `sabotageTargetsIn` used to be imported here for the tile that no longer
 // exists; the question is asked in action-rolls.mjs now, where the menu is.
 import { rules } from "./rules.mjs";
+import { safeword } from "./safeword.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
 import { debug, error, plural } from "./utils.mjs";
 
@@ -1616,8 +1617,22 @@ function injectSafeword(app, element) {
     button.className = "drpg-safeword-button";
     button.dataset.tooltip = game.i18n.localize("DRPG.Safeword.tooltip");
     button.setAttribute("aria-label", game.i18n.localize("DRPG.Safeword.tooltip"));
+    /*
+     * THE WORD IS THE TABLE'S, NOT THE MODULE'S (E15).
+     *
+     * It used to be `DRPG.Safeword.word` — a string in the language file, and
+     * therefore one word for everybody who installs this. That is wrong for the
+     * one control in the module whose whole job is to be reached without
+     * thinking: a table that has never met this group's in-joke reads an
+     * unfamiliar word and hesitates, and the hesitation is precisely what the
+     * button exists to remove.
+     *
+     * Read at render rather than cached, and the setting's `onChange` redraws
+     * every open sheet — otherwise the button would keep offering the old word
+     * to everyone who has not reopened their character since it changed.
+     */
     button.innerHTML = `<i class="fa-solid fa-hand" inert></i>
-        <span>${game.i18n.localize("DRPG.Safeword.word")}</span>`;
+        <span>${foundry.utils.escapeHTML(safeword())}</span>`;
 
     button.addEventListener("click", async event => {
         event.preventDefault();

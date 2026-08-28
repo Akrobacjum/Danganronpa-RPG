@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json — the suite fails if it does not. */
-    --drpg-css-version: "1.1.38";
+    --drpg-css-version: "1.1.39";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -11477,6 +11477,25 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
    module frame remains, around two numbers. */
 #players .players-list,
 #players #players-inactive {
+    display: none !important;
+}
+
+/* …and the control that used to open them.
+   --------------------------------------------------------------------------
+   `<button data-action="expand">` is core's own toggle for the player list.
+   Checked on a running client (27.08): clicking it still adds `expanded` to
+   `#players` and that is the entire effect — both lists inside measure 0px
+   high before and after, because the rule above hides them in both states. So
+   it is a caret that promises to unfold something that is not there, which is
+   worse than no caret: a control that does nothing teaches the reader that
+   controls in this corner do nothing.
+
+   HIDDEN, NOT REMOVED IN JS. `#players` is redrawn every time a player joins
+   or leaves, so cutting the node out would have to be repeated after every
+   render; CSS holds without being watched. `!important` for the reason every
+   other rule in this file carries it — the module's sheet sits in a cascade
+   layer and core's does not. */
+#players [data-action="expand"] {
     display: none !important;
 }
 
