@@ -1587,7 +1587,7 @@ export function doorwayReport() {
             neighbour: found?.name ?? "—",
             insideOf: overlapping?.name ?? "—",
             wallAlong: wallAlongEdge(mx, my, edge.dx / edge.length, edge.dy / edge.length,
-                Array.from(scene.walls ?? []), grid * DOORWAY_WALL_NEAR),
+                Array.from(scene.walls ?? []), grid * DOORWAY_WALL_NEAR, edge.trend),
             clear: target
                 ? nothingInTheWay({ x: mx - edge.nx * back, y: my - edge.ny * back },
                                   { x: mx + edge.nx * reach, y: my + edge.ny * reach })
@@ -1756,7 +1756,7 @@ export function checkRegions() {
                 const t = (k + 0.5) / steps;
                 const mx = edge.ax + edge.dx * t;
                 const my = edge.ay + edge.dy * t;
-                if (wallAlongEdge(mx, my, ex, ey, walls, grid * DOORWAY_WALL_NEAR)) {
+                if (wallAlongEdge(mx, my, ex, ey, walls, grid * DOORWAY_WALL_NEAR, edge.trend)) {
                     run = 0;
                     continue;
                 }
@@ -3953,9 +3953,56 @@ function distanceToSegment(px, py, x1, y1, x2, y2) {
  * restriction is scenery, and an OPEN door is a way out — closing an opening
  * because a door exists in it is precisely backwards.
  */
-function wallAlongEdge(mx, my, ex, ey, walls, near) {
+/**
+ * Which way the border RUNS here, taken over a square either side.
+ *
+ * THE ISOMETRIC CASE, AND IT IS THIS MODULE'S ONLY CASE. The art draws a wall
+ * as a diagonal; a region is drawn on the square grid, so the border that
+ * describes that wall comes out as a staircase. Every step of a staircase is
+ * axis-aligned and the wall it stands for is at 45 degrees — which is more
+ * than twice the tolerance `wallAlongEdge` allows, so the wall lying exactly
+ * along the border closed nothing, and the whole side of the room read as one
+ * doorway.
+ *
+ * Measured on a purpose-built fixture before this existed: a staircase against
+ * a 45-degree wall came back FULLY OPEN at every step size from half a square
+ * to three — the distance never mattered, only the angle — and the same
+ * staircase walled step by step came back closed. Nine of the eighteen rooms
+ * on this project's own scene were being reported adrift for the same reason.
+ *
+ * The trend is the chord between the point a square back and the point a
+ * square on, which is the diagonal the steps are drawn to. It is offered as a
+ * SECOND chance rather than a replacement: a straight border still answers for
+ * itself, so nothing changes on a map drawn square.
+ */
+function borderTrend(flat, corners, i, span) {
+    if (corners < 3) return null;
+    const at = k => {
+        const m = ((k % corners) + corners) % corners;
+        return { x: flat[m * 2], y: flat[m * 2 + 1] };
+    };
+
+    const walk = (from, direction) => {
+        let point = at(from);
+        let gone = 0;
+        for (let k = 0; k < corners && gone < span; k++) {
+            const next = at(from + direction * (k + 1));
+            gone += Math.hypot(next.x - point.x, next.y - point.y);
+            point = next;
+        }
+        return point;
+    };
+
+    const back = walk(i, -1);
+    const forward = walk(i + 1, 1);
+    const dx = forward.x - back.x, dy = forward.y - back.y;
+    const length = Math.hypot(dx, dy);
+    return length < 1e-6 ? null : { x: dx / length, y: dy / length };
+}
+
+function wallAlongEdge(mx, my, ex, ey, walls, near, trend = null) {
     try {
-        return wallAlongEdgeUnguarded(mx, my, ex, ey, walls, near);
+        return wallAlongEdgeUnguarded(mx, my, ex, ey, walls, near, trend);
     } catch (err) {
         // FAILS CLOSED, the same way `nothingInTheWay` does and for the same
         // reason: a doorway that is really a wall is a lie the player walks
@@ -3966,7 +4013,7 @@ function wallAlongEdge(mx, my, ex, ey, walls, near) {
     }
 }
 
-function wallAlongEdgeUnguarded(mx, my, ex, ey, walls, near) {
+function wallAlongEdgeUnguarded(mx, my, ex, ey, walls, near, trend = null) {
     const NONE = CONST?.WALL_MOVEMENT_TYPES?.NONE ?? 0;
     const OPEN = CONST?.WALL_DOOR_STATES?.OPEN ?? 1;
 
@@ -4001,8 +4048,14 @@ function wallAlongEdgeUnguarded(mx, my, ex, ey, walls, near) {
 
         // Parallel either way round — a wall does not care which end you call
         // its start, so the sign of the dot product carries no information.
+        //
+        // ASKED OF THE STEP AND OF THE RUN. On a staircase the step is
+        // axis-aligned and the wall is the diagonal it approximates; see
+        // `borderTrend` for what that cost.
         const wl = Math.sqrt(len2);
-        if (Math.abs((wx / wl) * ex + (wy / wl) * ey) >= DOORWAY_WALL_COS) return true;
+        const ux = wx / wl, uy = wy / wl;
+        if (Math.abs(ux * ex + uy * ey) >= DOORWAY_WALL_COS) return true;
+        if (trend && Math.abs(ux * trend.x + uy * trend.y) >= DOORWAY_WALL_COS) return true;
     }
     return false;
 }
@@ -4129,6 +4182,10 @@ function doorwayEdges(region) {
                     ny = -ny;
                 }
 
+                // Worked out once per edge, not once per sample: it is a fact
+                // about the border, and every sample on this edge shares it.
+                const trend = borderTrend(flat, corners, i, grid);
+
                 const open = [];
                 if (others.length && length >= shortest) {
                     const samples = Math.max(1, Math.round(length / step));
@@ -4188,7 +4245,7 @@ function doorwayEdges(region) {
                                 // Asked of the walls themselves, so the answer
                                 // no longer depends on how far from the wall the
                                 // region was drawn.
-                                && !wallAlongEdge(mx, my, dx / length, dy / length, walls, near)
+                                && !wallAlongEdge(mx, my, dx / length, dy / length, walls, near, trend)
                                 // And is it passable in the way Foundry counts
                                 // passable — which is what reads door state.
                                 && nothingInTheWay(
@@ -4209,7 +4266,7 @@ function doorwayEdges(region) {
                     }
                 }
 
-                edges.push({ ax, ay, dx, dy, length, nx, ny, ring, open });
+                edges.push({ ax, ay, dx, dy, length, nx, ny, ring, open, trend });
             }
         }
 

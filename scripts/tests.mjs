@@ -3239,6 +3239,85 @@ const SCENARIOS = [
         }
     }],
 
+    ["a diagonal wall closes the staircase drawn along it", async () => {
+        /*
+         * THE ISOMETRIC CASE, WHICH IS THE ONLY CASE THIS MODULE HAS.
+         *
+         * The art draws a wall as a diagonal. A region is drawn on the square
+         * grid, so the border describing that wall comes out as a staircase of
+         * axis-aligned steps. `wallAlongEdge` asked whether the wall ran within
+         * twenty degrees of the border, compared the wall against ONE STEP, and
+         * 45 degrees is not within twenty of nothing \— so the wall lying
+         * exactly along the border closed nothing at all.
+         *
+         * Measured before the repair, on this fixture: fully open at every step
+         * size from half a square to three. The distance never mattered; only
+         * the angle did. What a table sees is a cut strip of doorway glow
+         * sitting in the middle of a wall, far from any way through (Dawid,
+         * 28.08, with screenshots).
+         *
+         * THREE SIZES, because the first diagnosis was that the staircase had
+         * to be deep enough to push the border out of range \— and it was
+         * wrong. A fixture that only tried one size would have agreed with it.
+         */
+        const scene = canvas?.scene;
+        ok(scene, "no active scene");
+        const g = scene.grid.size;
+        const x0 = 200, y0 = 200, n = 8;
+
+        for (const T of [1, 2, 3]) {
+            const s = T * g, L = n * s;
+            const points = [x0, y0];
+            let x = x0, y = y0;
+            for (let i = 0; i < n; i++) { x += s; points.push(x, y); y += s; points.push(x, y); }
+            points.push(x0, y0 + L);
+
+            let region = null, walls = [];
+            try {
+                region = (await scene.createEmbeddedDocuments("Region", [{
+                    name: "Suite staircase fixture",
+                    shapes: [{ type: "polygon", points }]
+                }]))[0];
+                ok(region, `could not place the ${T}-square fixture`);
+                walls = (await scene.createEmbeddedDocuments("Wall", [
+                    { c: [x0, y0, x0 + L, y0 + L] },        // the diagonal itself
+                    { c: [x0 + L, y0 + L, x0, y0 + L] },
+                    { c: [x0, y0 + L, x0, y0] }
+                ])).map(w => w.id);
+
+                const { checkRegions } = await import("./fog.mjs");
+                const adrift = checkRegions().find(r =>
+                    r.room === "Suite staircase fixture" && /walls/.test(r.problem));
+                ok(!adrift, `a ${T}-square staircase does not see the wall drawn along it`
+                    + `${adrift ? ` \— ${String(adrift.detail).match(/^[\d.]+/)?.[0]} squares read as open` : ""}`);
+            } finally {
+                if (walls.length) await scene.deleteEmbeddedDocuments("Wall", walls);
+                if (region) await scene.deleteEmbeddedDocuments("Region", [region.id]);
+            }
+        }
+
+        /*
+         * AND THE TEST STILL HAS TEETH. A border with no wall on it has to keep
+         * reading as open, or the repair above is just a way of never finding a
+         * doorway again \— which would take every glow off every map and
+         * pass this test twice as fast.
+         */
+        let bare = null;
+        try {
+            const L = n * g;
+            bare = (await scene.createEmbeddedDocuments("Region", [{
+                name: "Suite open fixture",
+                shapes: [{ type: "polygon", points: [x0, y0, x0 + L, y0, x0 + L, y0 + L, x0, y0 + L] }]
+            }]))[0];
+            const { checkRegions } = await import("./fog.mjs");
+            const adrift = checkRegions().find(r =>
+                r.room === "Suite open fixture" && /walls/.test(r.problem));
+            ok(adrift, "a room with no walls at all reads as walled");
+        } finally {
+            if (bare) await scene.deleteEmbeddedDocuments("Region", [bare.id]);
+        }
+    }],
+
     ["a motive counts down a time of day at a time, and a rewind gives it back", async () => {
         const { setMotive, motive, tickMotive, untickMotive } = await import("./rules.mjs");
 
