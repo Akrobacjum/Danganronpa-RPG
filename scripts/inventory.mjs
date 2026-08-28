@@ -289,6 +289,8 @@ const SUPERSEDED = new Set([
     "icons/sundries/documents/document-sealed-red-yellow.webp",
     "icons/consumables/fruit/vegetable-fruit-apple-red.webp",
     "icons/tools/hand/broom-blue.webp",
+    // The padlock every bedroom key wore until v1.1.69.
+    "icons/svg/padlock.svg",
     "icons/svg/item-bag.svg",
     "icons/svg/mystery-man.svg"
 ]);

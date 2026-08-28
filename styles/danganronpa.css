@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json — the suite fails if it does not. */
-    --drpg-css-version: "1.1.68";
+    --drpg-css-version: "1.1.69";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -9522,6 +9522,28 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
 
 #drpg-player-status .drpg-free-move i + i {
     margin-left: 2px;
+}
+
+/* And a pixel down, because the ink sits high in a box that is already right.
+   --------------------------------------------------------------------------
+   MEASURED BEFORE IT WAS MOVED, since "it looks too high" is exactly the
+   complaint that gets answered with a guess. On a player's client every mark in
+   this strip reports the same box: the action pips, the Hope pips and this
+   footprint are all 12px tall with their centre 22px down a 28px field. The
+   boxes agree perfectly, so moving the box would be fixing the wrong thing.
+
+   What differs is the INK inside it. The pips are drawn by this stylesheet and
+   fill their box; `fa-shoe-prints` is a Font Awesome glyph that sits high in
+   its own em square, and beside a row of centred discs that reads as a
+   footprint floating (Dawid, 28.08).
+
+   One pixel of twelve, deliberately the smallest move that can be seen. The
+   honest fix is our own glyph, which is centred by construction — and that
+   waits on a pixel footprint with an OUTLINED form, because solid against
+   outline is what says whether the free Move has been spent. */
+#drpg-player-status .drpg-free-move i {
+    position: relative;
+    top: 1px;
 }
 
 /* ==========================================================================

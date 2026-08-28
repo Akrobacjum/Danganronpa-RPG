@@ -197,7 +197,10 @@ export async function grantBedroomKey(actor, room, { silent = false, scene } = {
             room: foundry.utils.escapeHTML(room),
             owner: foundry.utils.escapeHTML(owner?.name ?? "—")
         })}</p>`,
-        img: "icons/svg/padlock.svg",
+        // NO PICTURE NAMED HERE. `grantItem` falls back to the category's own
+        // icon, and the category has had one since v1.1.60 — this line was
+        // Foundry's padlock, hard-coded, which is why keys were the one thing
+        // in the game still wearing core art (Dawid, 28.08).
         extraFlags: { [KEY_FLAG]: room }
     });
 
