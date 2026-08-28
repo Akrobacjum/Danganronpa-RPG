@@ -853,6 +853,73 @@ const REGRESSIONS = [
             "inCrisis no longer restricts itself to the two people in the fight");
     }],
 
+    ["R19 · the windows a GM works from stay true while they are open", async () => {
+        /*
+         * E22 SHIPPED THE MECHANISM AND ONE CALLER, and it took E17 to notice.
+         *
+         * Measured: `keepLive` was called from exactly one file. The case
+         * dashboard and the trial console, opened and left open while an Eclipse
+         * started and ended underneath them, came back BYTE-IDENTICAL — 2804 and
+         * 353 characters, not one of them different. A GM reading either was
+         * reading a photograph of the moment they pressed the tile.
+         *
+         * These four are the ones E17 names, and they are named because they are
+         * the windows a GM works FROM rather than answers and closes: the panel
+         * while an Eclipse runs, the dashboard while an incident opens, the trial
+         * console while the floor moves, Who is alive while somebody dies.
+         *
+         * Written as a list on purpose. "Which windows must be live" is a
+         * judgement about how they are used, and a test whose subject is a
+         * judgement should say so out loud rather than guess from a function
+         * name — the same reasoning as `STANDING` above it.
+         */
+        const MUST_BE_LIVE = {
+            openGmPanel: "gm-panel",
+            openWhoIsAliveDialog: "gm-panel",
+            openInvestigationDashboard: "investigation",
+            manageClassTrial: "trial-floor-ui"
+        };
+
+        const dead = [];
+        for (const [opener, file] of Object.entries(MUST_BE_LIVE)) {
+            const text = stripComments(
+                await fetch(`/modules/${MODULE_ID}/scripts/${file}.mjs`).then(r => r.text()));
+            const from = text.indexOf(`function ${opener}(`);
+            if (from < 0) { dead.push(`${opener} is not in ${file}.mjs any more`); continue; }
+
+            // Up to the next top-level function, which is where its body ends.
+            const rest = text.slice(from + 10);
+            const next = rest.search(/^(?:export )?(?:async )?function /m);
+            const body = next < 0 ? rest : rest.slice(0, next);
+            /*
+             * ONE HOP, because the GM panel does it through `keepPanelFresh` —
+             * two regions on different clocks, which is worth its own function.
+             * A window that reaches the helper through a named local is as live
+             * as one that calls it inline; a window that reaches it through
+             * three would be hiding.
+             */
+            const helpers = [...text.matchAll(/function (\w+)\([^)]*\)\s*\{/g)]
+                .filter(m => {
+                    const rest = text.slice(m.index + m[0].length);
+                    const stop = rest.search(/^(?:export )?(?:async )?function /m);
+                    return (stop < 0 ? rest : rest.slice(0, stop)).includes("keepLive(");
+                })
+                .map(m => m[1]);
+
+            const reaches = body.includes("keepLive(")
+                || helpers.some(name => body.includes(`${name}(`));
+            if (!reaches) dead.push(`${opener} goes stale while it is open`);
+        }
+        ok(!dead.length, dead.join("; "));
+
+        // And the helper still carries the three things a rebuild would eat.
+        const live = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/live.mjs`).then(r => r.text()));
+        for (const carried of ["scrolls", "opens", "dirty", "tab"]) {
+            ok(live.includes(carried),
+                `keepLive no longer carries "${carried}" across a rebuild`);
+        }
+    }],
+
     ["R15 · nothing reads a card's words off the document", async () => {
         /*
          * THE HALF OF THE PRIVACY FIX A REVIEWER WOULD NOT THINK TO CHECK.

@@ -37,7 +37,7 @@ import { isDeceased } from "./chapter.mjs";
 import {
     dialogContent, plural, tableDialog, wirePortraitPickers, whisperToGms, log
 } from "./utils.mjs";
-import { alreadyOpen } from "./live.mjs";
+import { alreadyOpen, keepLive } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -592,218 +592,237 @@ export async function openInvestigationDashboard() {
     // Mastermind screen keeps only the role and the lair.
     const { finalRemnants, finalTruthPlacedThisChapter } = await import("./mastermind.mjs");
 
-    const students = evidenceByStudent();
-    const traces = allTraces();
-    const finders = findersByAnyRemnant();
-    const plan = keyPlan();
-    const status = keyPlanStatus();
-    const rooms = allRooms();
-    // The opening roll's own limit on how many Key Remnants this chapter gets
-    // — `null` before a murder has happened, meaning "no limit yet, plan
-    // freely". See `def.keyRemnants` in config.mjs and `murderState()`.
-    const limit = murderState()?.keyRemnants ?? null;
+    /*
+     * THE WHOLE DASHBOARD, REBUILDABLE (E22, measured in E17).
+     *
+     * This window is open while an incident starts, while players find
+     * Truth Bullets, while traces are placed and cleaned. It used to read
+     * all of that once and then sit there — measured, byte-identical across
+     * an Eclipse starting and ending underneath it.
+     *
+     * Everything below is a function of the world, so `keepLive` can call it
+     * again in place. It is a form, and that is the interesting part: the
+     * helper refuses to redraw while the GM has focus inside the region, and
+     * carries their scroll, their folded sections, WHICH TAB IS SHOWING and
+     * every half-typed field across the rebuild. Without those a live
+     * dashboard would be worse than a stale one.
+     */
+    const buildCase = () => {
+        const students = evidenceByStudent();
+        const traces = allTraces();
+        const finders = findersByAnyRemnant();
+        const plan = keyPlan();
+        const status = keyPlanStatus();
+        const rooms = allRooms();
+        // The opening roll's own limit on how many Key Remnants this chapter gets
+        // — `null` before a murder has happened, meaning "no limit yet, plan
+        // freely". See `def.keyRemnants` in config.mjs and `murderState()`.
+        const limit = murderState()?.keyRemnants ?? null;
 
-    const roomOptions = rooms.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join("");
-    const visOptions = REMNANT_VISIBILITY.map(v =>
-        `<option value="${v}"${v === "evident" ? " selected" : ""}>${
-            esc(REMNANT_VISIBILITY_LABELS[v] ?? v)}</option>`).join("");
+        const roomOptions = rooms.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join("");
+        const visOptions = REMNANT_VISIBILITY.map(v =>
+            `<option value="${v}"${v === "evident" ? " selected" : ""}>${
+                esc(REMNANT_VISIBILITY_LABELS[v] ?? v)}</option>`).join("");
 
-    /* ---- Who has what, shown regardless of tab ------------------------- */
-    const studentRows = students.map(s => {
-        const breakdown = Object.entries(s.types)
-            .map(([type, n]) => `${esc(TRUTH_BULLET_TYPES[type]?.label ?? type)} ×${n}`)
-            .join(", ");
-        return `<tr>
-            <td>${esc(s.actor.name)}</td>
-            <td>${s.total}</td>
-            <td>${s.keys}</td>
-            <td>${s.unidentified}</td>
-            <td class="notes">${breakdown || "—"}</td>
-        </tr>`;
-    }).join("");
+        /* ---- Who has what, shown regardless of tab ------------------------- */
+        const studentRows = students.map(s => {
+            const breakdown = Object.entries(s.types)
+                .map(([type, n]) => `${esc(TRUTH_BULLET_TYPES[type]?.label ?? type)} ×${n}`)
+                .join(", ");
+            return `<tr>
+                <td>${esc(s.actor.name)}</td>
+                <td>${s.total}</td>
+                <td>${s.keys}</td>
+                <td>${s.unidentified}</td>
+                <td class="notes">${breakdown || "—"}</td>
+            </tr>`;
+        }).join("");
 
-    /* ---- Traces ---------------------------------------------------------- */
-    const traceRows = traces.map(({ token, data, scene }) => {
-        const key = rowKey(scene.id, token.id);
-        // The difficulty and room tags are appended live by `remnantPublic()`
-        // and never stored — editing either back into the saved list would
-        // freeze a value that is meant to track the ledger automatically
-        // (`retuneRemnant` moves visibility; a GM can correct the room).
-        const manualTags = withoutDerivedTags(data);
-        const who = Array.from(finders.get(token.id) ?? []);
-        const found = who.length
-            ? esc(who.join(", "))
-            : `<em>${game.i18n.localize("DRPG.Investigation.notFound")}</em>`;
+        /* ---- Traces ---------------------------------------------------------- */
+        const traceRows = traces.map(({ token, data, scene }) => {
+            const key = rowKey(scene.id, token.id);
+            // The difficulty and room tags are appended live by `remnantPublic()`
+            // and never stored — editing either back into the saved list would
+            // freeze a value that is meant to track the ledger automatically
+            // (`retuneRemnant` moves visibility; a GM can correct the room).
+            const manualTags = withoutDerivedTags(data);
+            const who = Array.from(finders.get(token.id) ?? []);
+            const found = who.length
+                ? esc(who.join(", "))
+                : `<em>${game.i18n.localize("DRPG.Investigation.notFound")}</em>`;
 
-        return `<tr>
-            <td>
-                <img src="${esc(data.public?.img || ICON)}" alt="" class="drpg-project-portrait"
-                     data-drpg-portrait="${key}" />
-                <input type="hidden" name="img.${key}" value="${esc(data.public?.img || ICON)}" />
-                <input type="text" name="name.${key}" value="${esc(data.public?.name || "")}" />
-                <div class="notes drpg-trace-context">${esc(traceContextLine(data))}</div>
-            </td>
-            <td><textarea name="text.${key}" rows="2">${esc(data.public?.playerText || "")}</textarea></td>
-            <td><input type="text" name="tags.${key}" value="${esc(manualTags.join(", "))}"
-                placeholder="${game.i18n.localize("DRPG.Investigation.traceTagsPlaceholder")}" /></td>
-            <td style="text-align:center"><input type="checkbox" name="faint.${key}" ${data.faint ? "checked" : ""} /></td>
-            <td style="text-align:center"><input type="checkbox" name="crime.${key}" ${data.tiedToCrime ? "checked" : ""} /></td>
-            <td style="text-align:center"><input type="checkbox" name="reinf.${key}" ${data.reinforced ? "checked" : ""} /></td>
-            <td>${found}</td>
-        </tr>`;
-    }).join("");
+            return `<tr>
+                <td>
+                    <img src="${esc(data.public?.img || ICON)}" alt="" class="drpg-project-portrait"
+                         data-drpg-portrait="${key}" />
+                    <input type="hidden" name="img.${key}" value="${esc(data.public?.img || ICON)}" />
+                    <input type="text" name="name.${key}" value="${esc(data.public?.name || "")}" />
+                    <div class="notes drpg-trace-context">${esc(traceContextLine(data))}</div>
+                </td>
+                <td><textarea name="text.${key}" rows="2">${esc(data.public?.playerText || "")}</textarea></td>
+                <td><input type="text" name="tags.${key}" value="${esc(manualTags.join(", "))}"
+                    placeholder="${game.i18n.localize("DRPG.Investigation.traceTagsPlaceholder")}" /></td>
+                <td style="text-align:center"><input type="checkbox" name="faint.${key}" ${data.faint ? "checked" : ""} /></td>
+                <td style="text-align:center"><input type="checkbox" name="crime.${key}" ${data.tiedToCrime ? "checked" : ""} /></td>
+                <td style="text-align:center"><input type="checkbox" name="reinf.${key}" ${data.reinforced ? "checked" : ""} /></td>
+                <td>${found}</td>
+            </tr>`;
+        }).join("");
 
-    /* ---- Key Remnants ------------------------------------------------------ */
-    const placed = placedKeyRemnants();
-    // The same six facts the trace rows carry, in the same order — see
-    // `traceContextLine`. A GM picking which placed trace an entry means was
-    // choosing between "Evident · Kitchen · note" lines that said nothing about
-    // who had left them or when, which is exactly what tells two clues apart.
-    const tokenOptions = placed.map(r => {
-        const context = traceContextLine(r.data);
-        const label = `${r.data.visibilityLabel}${context ? ` · ${context}` : ""}`
-            + `${r.data.note ? ` · ${r.data.note}` : ""}`
-            + `${game.scenes.size > 1 ? ` · ${r.scene.name}` : ""}`;
-        return { id: r.token.id, sceneId: r.scene.id, label };
-    });
+        /* ---- Key Remnants ------------------------------------------------------ */
+        const placed = placedKeyRemnants();
+        // The same six facts the trace rows carry, in the same order — see
+        // `traceContextLine`. A GM picking which placed trace an entry means was
+        // choosing between "Evident · Kitchen · note" lines that said nothing about
+        // who had left them or when, which is exactly what tells two clues apart.
+        const tokenOptions = placed.map(r => {
+            const context = traceContextLine(r.data);
+            const label = `${r.data.visibilityLabel}${context ? ` · ${context}` : ""}`
+                + `${r.data.note ? ` · ${r.data.note}` : ""}`
+                + `${game.scenes.size > 1 ? ` · ${r.scene.name}` : ""}`;
+            return { id: r.token.id, sceneId: r.scene.id, label };
+        });
 
-    const keyRows = plan.entries.map((entry, i) => {
-        const st = status.entries[i];
-        const overLimit = limit !== null && i >= limit;
-        const picker = tokenOptions.map(o =>
-            `<option value="${o.id}|${o.sceneId}"${o.id === entry.tokenId ? " selected" : ""}>${
-                esc(o.label)}</option>`).join("");
-        const live = entry.tokenId && tokenOptions.some(o => o.id === entry.tokenId);
-        // Read off the placed trace itself rather than off the plan: the plan
-        // stores a scale and a sentence, and everything a GM wants to compare
-        // between two clues — who left them, where, when — belongs to the trace.
-        const context = traceContextLine(
-            placed.find(r => r.token.id === entry.tokenId)?.data ?? null);
-        const state = !entry.tokenId
-            ? `<em>${game.i18n.localize("DRPG.Investigation.notPlaced")}</em>`
-            : !st.placed
-                ? `<strong>${game.i18n.localize("DRPG.Investigation.tokenGone")}</strong>`
-                : st.found
-                    ? esc(st.finders.join(", "))
-                    : `<em>${game.i18n.localize("DRPG.Investigation.notFound")}</em>`;
+        const keyRows = plan.entries.map((entry, i) => {
+            const st = status.entries[i];
+            const overLimit = limit !== null && i >= limit;
+            const picker = tokenOptions.map(o =>
+                `<option value="${o.id}|${o.sceneId}"${o.id === entry.tokenId ? " selected" : ""}>${
+                    esc(o.label)}</option>`).join("");
+            const live = entry.tokenId && tokenOptions.some(o => o.id === entry.tokenId);
+            // Read off the placed trace itself rather than off the plan: the plan
+            // stores a scale and a sentence, and everything a GM wants to compare
+            // between two clues — who left them, where, when — belongs to the trace.
+            const context = traceContextLine(
+                placed.find(r => r.token.id === entry.tokenId)?.data ?? null);
+            const state = !entry.tokenId
+                ? `<em>${game.i18n.localize("DRPG.Investigation.notPlaced")}</em>`
+                : !st.placed
+                    ? `<strong>${game.i18n.localize("DRPG.Investigation.tokenGone")}</strong>`
+                    : st.found
+                        ? esc(st.finders.join(", "))
+                        : `<em>${game.i18n.localize("DRPG.Investigation.notFound")}</em>`;
 
-        return `<tr${overLimit ? ' style="opacity:.6"' : ""}>
-            <td><strong>${esc(SCALE_LABELS[entry.scale] ?? entry.scale)}</strong></td>
-            <td><input type="text" name="note:${i}" value="${esc(entry.note ?? "")}"
-                placeholder="${game.i18n.localize("DRPG.Investigation.notePlaceholder")}" />
-                ${context ? `<div class="notes drpg-trace-context">${esc(context)}</div>` : ""}</td>
-            <td>
-                <select name="token:${i}">
-                    <option value=""${live ? "" : " selected"}>${
-                        game.i18n.localize("DRPG.Investigation.notPlaced")}</option>
-                    ${picker}
-                </select>
-            </td>
-            <td>
-                <select name="room:${i}" class="${overLimit ? "drpg-key-limited" : ""}"${overLimit ? " disabled" : ""}>
-                    <option value="">${game.i18n.localize("DRPG.Investigation.pickRoom")}</option>
-                    ${roomOptions}
-                </select>
-                <select name="vis:${i}" class="${overLimit ? "drpg-key-limited" : ""}"${overLimit ? " disabled" : ""}>${visOptions}</select>
-            </td>
-            <td>${state}</td>
-        </tr>`;
-    }).join("");
+            return `<tr${overLimit ? ' style="opacity:.6"' : ""}>
+                <td><strong>${esc(SCALE_LABELS[entry.scale] ?? entry.scale)}</strong></td>
+                <td><input type="text" name="note:${i}" value="${esc(entry.note ?? "")}"
+                    placeholder="${game.i18n.localize("DRPG.Investigation.notePlaceholder")}" />
+                    ${context ? `<div class="notes drpg-trace-context">${esc(context)}</div>` : ""}</td>
+                <td>
+                    <select name="token:${i}">
+                        <option value=""${live ? "" : " selected"}>${
+                            game.i18n.localize("DRPG.Investigation.notPlaced")}</option>
+                        ${picker}
+                    </select>
+                </td>
+                <td>
+                    <select name="room:${i}" class="${overLimit ? "drpg-key-limited" : ""}"${overLimit ? " disabled" : ""}>
+                        <option value="">${game.i18n.localize("DRPG.Investigation.pickRoom")}</option>
+                        ${roomOptions}
+                    </select>
+                    <select name="vis:${i}" class="${overLimit ? "drpg-key-limited" : ""}"${overLimit ? " disabled" : ""}>${visOptions}</select>
+                </td>
+                <td>${state}</td>
+            </tr>`;
+        }).join("");
 
-    // The guide's floor is three Key Remnants; the plan's own warning threshold
-    // is one above it, so a GM is told the trial is getting thin BEFORE it is
-    // actually unsolvable rather than at the moment it already is.
-    const thin = status.found < KEY_REMNANTS.minimum + 1;
+        // The guide's floor is three Key Remnants; the plan's own warning threshold
+        // is one above it, so a GM is told the trial is getting thin BEFORE it is
+        // actually unsolvable rather than at the moment it already is.
+        const thin = status.found < KEY_REMNANTS.minimum + 1;
 
-    const content = dialogContent(`<form>
-        <h4>${game.i18n.localize("DRPG.Investigation.whoHasWhat")}</h4>
-        <table class="drpg-vault-table"><thead><tr>
-            <th>${game.i18n.localize("DRPG.Investigation.student")}</th>
-            <th>${game.i18n.localize("DRPG.Investigation.bullets")}</th>
-            <th>${game.i18n.localize("DRPG.Investigation.keysHeld")}</th>
-            <th>${game.i18n.localize("DRPG.Investigation.unidentified")}</th>
-            <th>${game.i18n.localize("DRPG.Investigation.breakdown")}</th>
-        </tr></thead><tbody>${studentRows}</tbody></table>
-
-        <nav class="drpg-dashboard-tabs">
-            <button type="button" class="drpg-dashboard-tab active" data-drpg-tab="traces">${
-                game.i18n.localize("DRPG.Investigation.tabTraces")}</button>
-            <button type="button" class="drpg-dashboard-tab" data-drpg-tab="key">${
-                game.i18n.localize("DRPG.Investigation.tabKeyRemnants")}</button>
-            <button type="button" class="drpg-dashboard-tab" data-drpg-tab="final">${
-                game.i18n.localize("DRPG.Mastermind.finalRemnantsTitle")}</button>
-        </nav>
-
-        <div data-drpg-panel="traces">
-            ${traces.length ? `<table class="drpg-vault-table"><thead><tr>
-                <th>${game.i18n.localize("DRPG.Investigation.traceName")}</th>
-                <th>${game.i18n.localize("DRPG.Investigation.traceText")}</th>
-                <th>${game.i18n.localize("DRPG.Investigation.traceTags")}</th>
-                <th>${game.i18n.localize("DRPG.Remnant.faintColumn")}</th>
-                <th>${game.i18n.localize("DRPG.Remnant.crimeColumn")}</th>
-                <th>${game.i18n.localize("DRPG.Remnant.reinforcedColumn")}</th>
-                <th>${game.i18n.localize("DRPG.Investigation.foundBy")}</th>
-            </tr></thead><tbody>${traceRows}</tbody></table>`
-                : `<p class="notes">${game.i18n.localize("DRPG.Investigation.noTraces")}</p>`}
-        </div>
-
-        <div data-drpg-panel="key" style="display:none">
-            <p>${game.i18n.format("DRPG.Investigation.plannerIntro", {
-                chapter: plan.chapter,
-                min: KEY_REMNANTS.suspectRange[0], max: KEY_REMNANTS.suspectRange[1]
-            })}</p>
-            <p>${game.i18n.format("DRPG.Investigation.keySummary", {
-                found: status.found, placed: status.placed, total: status.entries.length
-            })}</p>
-            ${thin ? `<p class="drpg-warning">${game.i18n.format("DRPG.Investigation.tooThin", {
-                found: status.found, min: KEY_REMNANTS.minimum
-            })}</p>` : ""}
-            ${limit !== null ? `<p class="notes">${game.i18n.format("DRPG.Investigation.keyLimitLine", {
-                used: Math.min(plan.entries.length, limit), limit, min: KEY_REMNANTS.minimum
-            })}</p>
-            <label><input type="checkbox" name="keyOverride" /> ${
-                game.i18n.localize("DRPG.Investigation.keyLimitOverride")}</label>` : ""}
+        return `<div class="drpg-case-live"><form>
+            <h4>${game.i18n.localize("DRPG.Investigation.whoHasWhat")}</h4>
             <table class="drpg-vault-table"><thead><tr>
-                <th>${game.i18n.localize("DRPG.Investigation.difficulty")}</th>
-                <th>${game.i18n.localize("DRPG.Investigation.clue")}</th>
-                <th>${game.i18n.localize("DRPG.Investigation.onMap")}</th>
-                <th>${game.i18n.localize("DRPG.Investigation.createHere")}</th>
-                <th>${game.i18n.localize("DRPG.Investigation.foundBy")}</th>
-            </tr></thead><tbody>${keyRows}</tbody></table>
-            <p class="notes">${game.i18n.localize("DRPG.Investigation.createNote")}</p>
-        </div>
+                <th>${game.i18n.localize("DRPG.Investigation.student")}</th>
+                <th>${game.i18n.localize("DRPG.Investigation.bullets")}</th>
+                <th>${game.i18n.localize("DRPG.Investigation.keysHeld")}</th>
+                <th>${game.i18n.localize("DRPG.Investigation.unidentified")}</th>
+                <th>${game.i18n.localize("DRPG.Investigation.breakdown")}</th>
+            </tr></thead><tbody>${studentRows}</tbody></table>
 
-        <div data-drpg-panel="final" style="display:none">
-            <p class="notes">${game.i18n.localize("DRPG.Mastermind.finalRemnantsNote")}</p>
-            ${(() => {
-                const placedFinals = finalRemnants();
-                return placedFinals.length
-                    ? `<ul class="drpg-final-list">${placedFinals.map(f => `<li>
-                        <strong>${esc(f.data.public?.name
-                            || game.i18n.localize("DRPG.Remnant.finalSubject"))}</strong>
-                        <span class="notes">${esc(traceContextLine(f.data))}</span>
-                        ${f.data.note ? `<span class="notes">${esc(f.data.note)}</span>` : ""}
-                    </li>`).join("")}</ul>`
-                    : `<p class="notes">${game.i18n.localize("DRPG.Mastermind.noFinals")}</p>`;
-            })()}
-            <p class="notes${finalTruthPlacedThisChapter() ? "" : " drpg-warning"}">${game.i18n.localize(
-                finalTruthPlacedThisChapter() ? "DRPG.Mastermind.finalTruthPlaced"
-                    : "DRPG.Mastermind.finalTruthReminder")}</p>
-            <label>${game.i18n.localize("DRPG.Investigation.pickRoom")}
-                <select name="finalRoom">
-                    <option value="">—</option>
-                    ${roomOptions}
-                </select></label>
-            <label>${game.i18n.localize("DRPG.Investigation.difficulty")}
-                <select name="finalVis">${visOptions}</select></label>
-            <label>${game.i18n.localize("DRPG.Investigation.clue")}
-                <input type="text" name="finalNote"
-                    placeholder="${game.i18n.localize(
-                        "DRPG.Investigation.finalNotePlaceholder")}" /></label>
-            <p class="notes">${game.i18n.localize("DRPG.Mastermind.finalAddNote")}</p>
-        </div>
+            <nav class="drpg-dashboard-tabs">
+                <button type="button" class="drpg-dashboard-tab active" data-drpg-tab="traces">${
+                    game.i18n.localize("DRPG.Investigation.tabTraces")}</button>
+                <button type="button" class="drpg-dashboard-tab" data-drpg-tab="key">${
+                    game.i18n.localize("DRPG.Investigation.tabKeyRemnants")}</button>
+                <button type="button" class="drpg-dashboard-tab" data-drpg-tab="final">${
+                    game.i18n.localize("DRPG.Mastermind.finalRemnantsTitle")}</button>
+            </nav>
 
-    </form>`);
+            <div data-drpg-panel="traces">
+                ${traces.length ? `<table class="drpg-vault-table"><thead><tr>
+                    <th>${game.i18n.localize("DRPG.Investigation.traceName")}</th>
+                    <th>${game.i18n.localize("DRPG.Investigation.traceText")}</th>
+                    <th>${game.i18n.localize("DRPG.Investigation.traceTags")}</th>
+                    <th>${game.i18n.localize("DRPG.Remnant.faintColumn")}</th>
+                    <th>${game.i18n.localize("DRPG.Remnant.crimeColumn")}</th>
+                    <th>${game.i18n.localize("DRPG.Remnant.reinforcedColumn")}</th>
+                    <th>${game.i18n.localize("DRPG.Investigation.foundBy")}</th>
+                </tr></thead><tbody>${traceRows}</tbody></table>`
+                    : `<p class="notes">${game.i18n.localize("DRPG.Investigation.noTraces")}</p>`}
+            </div>
+
+            <div data-drpg-panel="key" style="display:none">
+                <p>${game.i18n.format("DRPG.Investigation.plannerIntro", {
+                    chapter: plan.chapter,
+                    min: KEY_REMNANTS.suspectRange[0], max: KEY_REMNANTS.suspectRange[1]
+                })}</p>
+                <p>${game.i18n.format("DRPG.Investigation.keySummary", {
+                    found: status.found, placed: status.placed, total: status.entries.length
+                })}</p>
+                ${thin ? `<p class="drpg-warning">${game.i18n.format("DRPG.Investigation.tooThin", {
+                    found: status.found, min: KEY_REMNANTS.minimum
+                })}</p>` : ""}
+                ${limit !== null ? `<p class="notes">${game.i18n.format("DRPG.Investigation.keyLimitLine", {
+                    used: Math.min(plan.entries.length, limit), limit, min: KEY_REMNANTS.minimum
+                })}</p>
+                <label><input type="checkbox" name="keyOverride" /> ${
+                    game.i18n.localize("DRPG.Investigation.keyLimitOverride")}</label>` : ""}
+                <table class="drpg-vault-table"><thead><tr>
+                    <th>${game.i18n.localize("DRPG.Investigation.difficulty")}</th>
+                    <th>${game.i18n.localize("DRPG.Investigation.clue")}</th>
+                    <th>${game.i18n.localize("DRPG.Investigation.onMap")}</th>
+                    <th>${game.i18n.localize("DRPG.Investigation.createHere")}</th>
+                    <th>${game.i18n.localize("DRPG.Investigation.foundBy")}</th>
+                </tr></thead><tbody>${keyRows}</tbody></table>
+                <p class="notes">${game.i18n.localize("DRPG.Investigation.createNote")}</p>
+            </div>
+
+            <div data-drpg-panel="final" style="display:none">
+                <p class="notes">${game.i18n.localize("DRPG.Mastermind.finalRemnantsNote")}</p>
+                ${(() => {
+                    const placedFinals = finalRemnants();
+                    return placedFinals.length
+                        ? `<ul class="drpg-final-list">${placedFinals.map(f => `<li>
+                            <strong>${esc(f.data.public?.name
+                                || game.i18n.localize("DRPG.Remnant.finalSubject"))}</strong>
+                            <span class="notes">${esc(traceContextLine(f.data))}</span>
+                            ${f.data.note ? `<span class="notes">${esc(f.data.note)}</span>` : ""}
+                        </li>`).join("")}</ul>`
+                        : `<p class="notes">${game.i18n.localize("DRPG.Mastermind.noFinals")}</p>`;
+                })()}
+                <p class="notes${finalTruthPlacedThisChapter() ? "" : " drpg-warning"}">${game.i18n.localize(
+                    finalTruthPlacedThisChapter() ? "DRPG.Mastermind.finalTruthPlaced"
+                        : "DRPG.Mastermind.finalTruthReminder")}</p>
+                <label>${game.i18n.localize("DRPG.Investigation.pickRoom")}
+                    <select name="finalRoom">
+                        <option value="">—</option>
+                        ${roomOptions}
+                    </select></label>
+                <label>${game.i18n.localize("DRPG.Investigation.difficulty")}
+                    <select name="finalVis">${visOptions}</select></label>
+                <label>${game.i18n.localize("DRPG.Investigation.clue")}
+                    <input type="text" name="finalNote"
+                        placeholder="${game.i18n.localize(
+                            "DRPG.Investigation.finalNotePlaceholder")}" /></label>
+                <p class="notes">${game.i18n.localize("DRPG.Mastermind.finalAddNote")}</p>
+            </div>
+
+        </form></div>`;
+    };
+
+    const content = dialogContent(buildCase());
 
     const action = await tableDialog({
         window: { title: game.i18n.localize("DRPG.Investigation.dashboardTitle") },
@@ -863,6 +882,12 @@ export async function openInvestigationDashboard() {
             { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
         ],
         render: (event, dialog) => {
+            /*
+             * WIRED IN A FUNCTION, because `keepLive` replaces this region's DOM
+             * and every listener goes with the nodes. A live dashboard whose
+             * tabs stopped switching would be a worse window than a stale one.
+             */
+            const wireAll = () => {
             const root = dialog.element;
             wirePortraitPickers(root, { defaultImg: ICON });
 
@@ -883,6 +908,21 @@ export async function openInvestigationDashboard() {
             const limited = root.querySelectorAll(".drpg-key-limited");
             override?.addEventListener("change", () => {
                 for (const el of limited) el.disabled = !override.checked;
+            });
+            };
+
+            wireAll();
+            /*
+             * `watch: { actors: true }` as well as the settings, because a Truth
+             * Bullet arriving in somebody's bag is an item on an actor, and the
+             * "who has what" table at the top of this window is the half a GM
+             * looks at while an investigation is running.
+             */
+            keepLive(dialog, {
+                region: ".drpg-case-live",
+                build: buildCase,
+                watch: { actors: true },
+                after: wireAll
             });
         },
         rejectClose: false

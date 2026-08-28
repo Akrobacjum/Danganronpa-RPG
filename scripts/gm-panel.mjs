@@ -553,7 +553,18 @@ async function openWhoIsAliveDialog() {
     const { monokumas, poolLabel, getDespair } = await import("./despair.mjs");
     const { resourceValue, resourceMax } = await import("./character.mjs");
 
-    const students = game.actors.filter(a => a.type === "character" && !isMonokuma(a));
+    /*
+     * READ FRESH, because somebody dies while this window is open (E22, E17).
+     *
+     * The table used to be built once from the cast as it stood, and a death,
+     * a revival or a Monocub accepting the invitation reached it only if the GM
+     * closed and reopened. `keepLive` rebuilds it in place instead — and the
+     * roster has to be a function for the same reason the rows do, because a
+     * character created mid-session would otherwise have a row nobody reads on
+     * Apply.
+     */
+    const roster = () => game.actors.filter(a => a.type === "character" && !isMonokuma(a));
+    const students = roster();
     if (!students.length) {
         ui.notifications.info(game.i18n.localize("DRPG.Panel.noCharacters"));
         return;
@@ -578,7 +589,7 @@ async function openWhoIsAliveDialog() {
      * The alternative — keeping the columns and hiding the dashes — leaves the
      * headings, which are the expensive part.
      */
-    const anyCub = students.some(a => stateOf(a) === "monocub");
+    const anyCub = () => roster().some(a => stateOf(a) === "monocub");
 
     /*
      * ITEMS FROM THE ROW (F).
@@ -594,7 +605,7 @@ async function openWhoIsAliveDialog() {
      * that reaches fewer people than the long way round is a second rule to
      * remember.
      */
-    const rows = students.map(a => {
+    const buildRows = () => roster().map(a => {
         const state = stateOf(a);
         const cub = state === "monocub";
 
@@ -631,6 +642,28 @@ async function openWhoIsAliveDialog() {
         </tr>`;
     }).join("");
 
+    /*
+     * THE TABLE, REBUILDABLE. Everything above is a function of the world now,
+     * so this can be called again in place while the window stays open.
+     */
+    const buildAlive = () => {
+        const cubs = anyCub();
+        return `<div class="drpg-alive-live">
+            <p class="notes">${game.i18n.localize("DRPG.Panel.whoIsAliveNote")}</p>
+            <table class="drpg-vault-table"><thead><tr>
+                <th>${game.i18n.localize("DRPG.Panel.character")}</th>
+                <th>${game.i18n.localize("DRPG.Panel.stateColumn")}</th>
+                ${cubs ? `
+                <th>${game.i18n.localize("DRPG.Monocub.hope")}</th>
+                <th>${game.i18n.localize("DRPG.Monocub.giveHopeColumn")}</th>
+                <th>${game.i18n.localize("DRPG.Monocub.silenced")}</th>` : ""}
+                <th>${game.i18n.localize("DRPG.Panel.doColumn")}</th>
+            </tr></thead><tbody>${buildRows()}</tbody></table>
+            ${cubs ? `<p class="notes">${
+                game.i18n.localize("DRPG.Monocub.silencedNote")}</p>` : ""}
+        </div>`;
+    };
+
     // The per-row buttons act at once rather than waiting for Apply: each one
     // runs a real procedure — a death that empties an inventory, a donation
     // that spends a Despair pool — and a GM who then cancels the form should
@@ -656,24 +689,11 @@ async function openWhoIsAliveDialog() {
     const chosen = await tableDialog({
         window: { title: game.i18n.localize("DRPG.Panel.whoIsAlive") },
         classes: ["drpg-panel", "drpg-projects", "drpg-window-alive"],
-        content: dialogContent(`<form>
-            <p class="notes">${game.i18n.localize("DRPG.Panel.whoIsAliveNote")}</p>
-            <table class="drpg-vault-table"><thead><tr>
-                <th>${game.i18n.localize("DRPG.Panel.character")}</th>
-                <th>${game.i18n.localize("DRPG.Panel.stateColumn")}</th>
-                ${anyCub ? `
-                <th>${game.i18n.localize("DRPG.Monocub.hope")}</th>
-                <th>${game.i18n.localize("DRPG.Monocub.giveHopeColumn")}</th>
-                <th>${game.i18n.localize("DRPG.Monocub.silenced")}</th>` : ""}
-                <th>${game.i18n.localize("DRPG.Panel.doColumn")}</th>
-            </tr></thead><tbody>${rows}</tbody></table>
-            ${anyCub ? `<p class="notes">${
-                game.i18n.localize("DRPG.Monocub.silencedNote")}</p>` : ""}
-        </form>`),
+        content: dialogContent(`<form>${buildAlive()}</form>`),
         buttons: [
             {
                 action: "save", label: game.i18n.localize("DRPG.Panel.apply"), default: true,
-                callback: (e, b, d) => Object.fromEntries(students.map(a => [a.id, {
+                callback: (e, b, d) => Object.fromEntries(roster().map(a => [a.id, {
                     state: d.element.querySelector(`[name="state.${a.id}"]`)?.value ?? null,
                     silenced: Boolean(d.element.querySelector(`[name="silenced:${a.id}"]`)?.checked)
                 }]))
@@ -681,6 +701,13 @@ async function openWhoIsAliveDialog() {
             { action: "cancel", label: game.i18n.localize("DRPG.Panel.close") }
         ],
         render: (event, dialog) => {
+            /*
+             * WIRED IN A FUNCTION, because `keepLive` replaces the table's DOM
+             * and every listener on it goes with the nodes. A live region whose
+             * buttons stopped working would be worse than a stale one: the GM
+             * reads a table that is true and presses a Kill that does nothing.
+             */
+            const wireAll = () => {
             // The full death procedure, on the one character the row is about.
             // `openDeathDialog` owns the warning about the inventory and the
             // "keep their things" choice; repeating either here would be a
@@ -710,6 +737,22 @@ async function openWhoIsAliveDialog() {
                     await openWhoIsAliveDialog();
                 });
             }
+            };
+
+            wireAll();
+            /*
+             * A DEATH IS AN ACTOR FLAG, so `watch: { actors: true }` is what
+             * carries it here — the same listener the GM panel's own standing
+             * line uses. E17's criterion for this window is exactly that: kill
+             * somebody while it is open and watch the row change without
+             * touching it.
+             */
+            keepLive(dialog, {
+                region: ".drpg-alive-live",
+                build: buildAlive,
+                watch: { actors: true },
+                after: wireAll
+            });
         },
         rejectClose: false
     });

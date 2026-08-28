@@ -304,11 +304,27 @@ function capture(element) {
         }
     }
 
-    return { scrolls, opens, dirty };
+    /*
+     * WHICH TAB IS SHOWING, and it belongs here for the same reason a folded
+     * section does: it is a thing the person did to the window and the markup
+     * does not carry it. A rebuild that drops the GM back onto the first tab
+     * while they are reading the fourth is the cure being worse than the stale
+     * window — rule 2, in the shape tabs take.
+     *
+     * TWO SHAPES, because the module grew two. `panelTabs` in utils.mjs marks
+     * `active` on both the button and the section; the case dashboard has its
+     * own older pair that marks the button and toggles `display` on the panel.
+     * Both are keyed by the same string, so one captured key puts either back.
+     */
+    const tab = element.querySelector("[data-drpg-gmt-tab].active")?.dataset?.drpgGmtTab
+        ?? element.querySelector("[data-drpg-tab].active")?.dataset?.drpgTab
+        ?? null;
+
+    return { scrolls, opens, dirty, tab };
 }
 
 /** Put back what `capture` took. Every step is optional and independent. */
-function restore(element, { scrolls, opens, dirty }) {
+function restore(element, { scrolls, opens, dirty, tab }) {
     const self = scrolls.get("self");
     if (self) [element.scrollTop, element.scrollLeft] = self;
 
@@ -330,6 +346,33 @@ function restore(element, { scrolls, opens, dirty }) {
             if (!was) continue;
             if ("checked" in was) node.checked = was.checked;
             else node.value = was.value;
+        }
+    }
+    if (tab) {
+        // Only if that tab still exists: a rebuild is allowed to remove one,
+        // and forcing a pane that is gone would leave the window blank.
+        const button = element.querySelector(`[data-drpg-gmt-tab="${tab}"]`);
+        const pane = element.querySelector(`[data-drpg-gmt-section="${tab}"]`);
+        if (button && pane) {
+            for (const other of element.querySelectorAll("[data-drpg-gmt-tab]")) {
+                other.classList.toggle("active", other === button);
+            }
+            for (const other of element.querySelectorAll("[data-drpg-gmt-section]")) {
+                other.classList.toggle("active", other === pane);
+            }
+        }
+
+        // The dashboard's own pair: the button carries `active`, the panel is
+        // shown or hidden outright.
+        const older = element.querySelector(`[data-drpg-tab="${tab}"]`);
+        const olderPane = element.querySelector(`[data-drpg-panel="${tab}"]`);
+        if (older && olderPane) {
+            for (const other of element.querySelectorAll("[data-drpg-tab]")) {
+                other.classList.toggle("active", other === older);
+            }
+            for (const other of element.querySelectorAll("[data-drpg-panel]")) {
+                other.style.display = other === olderPane ? "" : "none";
+            }
         }
     }
 }

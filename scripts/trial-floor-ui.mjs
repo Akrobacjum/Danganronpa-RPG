@@ -13,7 +13,7 @@ import {
 } from "./trial-floor.mjs";
 import { dialogContent, plural, error } from "./utils.mjs";
 import { getClock, setClock } from "./clock.mjs";
-import { alreadyOpen } from "./live.mjs";
+import { alreadyOpen, keepLive } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -288,56 +288,116 @@ export async function manageClassTrial() {
         return null;
     }
 
-    const floor = trialFloor();
-    const running = getClock().phase === "classTrial";
-    const restrictive = Boolean(floor) && floor.mode !== FLOOR_MODES.discussion;
-    // The Final Trial toggle moved here from the Mastermind screen (Dawid,
-    // 26.08): announcing it is a trial-table act, and this is the trial table.
     const { inFinalTrial } = await import("./mastermind.mjs");
-    const finalNow = inFinalTrial();
-
     const { pendingVoters, trialProgress } = await import("./vote.mjs");
-    const progress = trialProgress();
+    const esc = value => foundry.utils.escapeHTML(String(value ?? ""));
 
-    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
-    const left = floor ? secondsLeft(floor) : 0;
-    const holder = floorHolder(floor);
-    const target = floorTarget(floor);
+    /*
+     * READ FRESH EVERY TIME, because this window is open while the floor moves
+     * under it (E22, measured in E17).
+     *
+     * The console used to compute all of this once and then sit there. A player
+     * objecting, a minute running out, the last vote arriving — none of it
+     * reached the screen, and the GM was reading a photograph of the moment they
+     * opened it. Measured before this: the whole window byte-identical across an
+     * Eclipse starting and ending underneath it.
+     */
+    const read = () => {
+        const floor = trialFloor();
+        const running = getClock().phase === "classTrial";
+        const progress = trialProgress();
+        return {
+            floor, running, progress,
+            restrictive: Boolean(floor) && floor.mode !== FLOOR_MODES.discussion,
+            finalNow: inFinalTrial(),
+            pending: pendingVoters(),
+            // THE LAST THREE STEPS OUTLIVE THE TRIAL, and they have to: ending
+            // the trial puts the campaign back into Daily Life, and a GM who
+            // does that before delivering the verdict must not find that the
+            // buttons for it have gone with the phase.
+            afterwards: running || progress.voteClosed || progress.verdictApplied
+        };
+    };
 
-    const debateLine = !floor
-        ? `<p class="notes">${game.i18n.localize(running
-            ? "DRPG.Floor.inDiscussion" : "DRPG.Floor.noDebate")}</p>`
-        : floor.mode === FLOOR_MODES.discussion
-            ? `<p>${game.i18n.format("DRPG.Floor.holdingDiscussion", { seconds: left })}</p>`
-            : floor.mode === FLOOR_MODES.objection
-                ? `<p>${game.i18n.format("DRPG.Floor.holdingObjection", {
-                    who: esc(holder?.name ?? "—"), target: esc(target?.name ?? "—"), seconds: left
+    const buildConsole = () => {
+        const { floor, running, restrictive, finalNow, progress, pending, afterwards } = read();
+        const left = floor ? secondsLeft(floor) : 0;
+        const holder = floorHolder(floor);
+        const target = floorTarget(floor);
+
+        const debateLine = !floor
+            ? `<p class="notes">${game.i18n.localize(running
+                ? "DRPG.Floor.inDiscussion" : "DRPG.Floor.noDebate")}</p>`
+            : floor.mode === FLOOR_MODES.discussion
+                ? `<p>${game.i18n.format("DRPG.Floor.holdingDiscussion", { seconds: left })}</p>`
+                : floor.mode === FLOOR_MODES.objection
+                    ? `<p>${game.i18n.format("DRPG.Floor.holdingObjection", {
+                        who: esc(holder?.name ?? "\u2014"), target: esc(target?.name ?? "\u2014"), seconds: left
+                    })}</p>`
+                    : `<p>${game.i18n.format("DRPG.Floor.holdingRebuttal", {
+                        who: esc(holder?.name ?? "\u2014"), target: esc(target?.name ?? "\u2014"), seconds: left
+                    })}</p>`;
+
+        // Who has not voted yet, if a vote is open at all. Names only: who has
+        // voted is not how they voted, and only the second is the secret the
+        // guide keeps. Same read as the vote window's own.
+        const voteLine = pending === null
+            ? `<p class="notes">${game.i18n.localize(progress.voteClosed
+                ? "DRPG.Vote.counted" : "DRPG.Vote.notRunning")}</p>`
+            : pending.length
+                ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vote.stillOut", {
+                    n: pending.length, who: esc(pending.map(v => v.name).join(", "))
                 })}</p>`
-                : `<p>${game.i18n.format("DRPG.Floor.holdingRebuttal", {
-                    who: esc(holder?.name ?? "—"), target: esc(target?.name ?? "—"), seconds: left
-                })}</p>`;
+                : `<p class="notes">${game.i18n.localize("DRPG.Vote.allIn")}</p>`;
 
-    // Who has not voted yet, if a vote is open at all. Names only: who has
-    // voted is not how they voted, and only the second is the secret the guide
-    // keeps. Same read as the vote window's own — see `openVoteDialog`.
-    const pending = pendingVoters();
-    const voteLine = pending === null
-        ? `<p class="notes">${game.i18n.localize(progress.voteClosed
-            ? "DRPG.Vote.counted" : "DRPG.Vote.notRunning")}</p>`
-        : pending.length
-            ? `<p class="drpg-warning">${game.i18n.format("DRPG.Vote.stillOut", {
-                n: pending.length, who: esc(pending.map(v => v.name).join(", "))
-            })}</p>`
-            : `<p class="notes">${game.i18n.localize("DRPG.Vote.allIn")}</p>`;
+        // What the two gated steps are waiting for, said out loud. A disabled
+        // button with no explanation is a bug report.
+        const gateLine = !progress.voteClosed
+            ? `<p class="notes">${game.i18n.localize("DRPG.Floor.gateVote")}</p>`
+            : !progress.verdictApplied
+                ? `<p class="notes">${game.i18n.localize("DRPG.Floor.gateVerdict")}</p>`
+                : `<p class="notes">${game.i18n.localize("DRPG.Floor.gateDone")}</p>`;
 
-    // THE LAST THREE STEPS OUTLIVE THE TRIAL, and they have to: ending the
-    // trial puts the campaign back into Daily Life, and a GM who does that
-    // before delivering the verdict must not find that the buttons for it have
-    // gone with the phase. So the vote, the verdict and the end of the chapter
-    // are offered whenever this chapter's trial is running OR has already
-    // produced something. A new chapter resets the record, and this collapses
-    // back to a single Start button.
-    const afterwards = running || progress.voteClosed || progress.verdictApplied;
+        return `<div class="drpg-trial-console">
+            <h4>${game.i18n.localize("DRPG.Floor.sectionTrial")}</h4>
+            <p>${game.i18n.localize(running
+                ? "DRPG.Floor.manageRunning" : "DRPG.Floor.manageNotRunning")}</p>
+            ${finalNow ? `<p class="drpg-warning">${
+                game.i18n.localize("DRPG.Mastermind.finalRunningNote")}</p>` : ""}
+
+            <h4>${game.i18n.localize("DRPG.Floor.sectionDebate")}</h4>
+            ${debateLine}
+            ${floor ? `<p class="notes">${game.i18n.localize(restrictive
+                ? "DRPG.Floor.modeNote" : "DRPG.Floor.objectionNote")}</p>` : ""}
+
+            <h4>${game.i18n.localize("DRPG.Floor.sectionVote")}</h4>
+            ${voteLine}
+            ${afterwards ? gateLine : ""}
+        </div>`;
+    };
+
+    /*
+     * WHAT THE BUTTONS ARE, IN ONE STRING.
+     *
+     * `keepLive` rebuilds a region of the CONTENT; it cannot add a button to a
+     * DialogV2 footer that was built once. And a window whose text is true while
+     * its buttons are stale is exactly the half-live shape trap 171 is about —
+     * the GM panel's murder tile, all over again.
+     *
+     * So when the SET of available buttons would change, the window opens again
+     * instead. That is not a special case bolted on: every action in this
+     * console already ends with `return manageClassTrial()`, because the GM
+     * should land on the screen they pressed the button from. This makes a
+     * change arriving from somebody else behave the same as one they made.
+     */
+    const signature = () => {
+        const { floor, running, restrictive, finalNow, progress, afterwards } = read();
+        return [running, Boolean(floor), restrictive, finalNow, afterwards,
+            progress.voteClosed, progress.verdictApplied].join("|");
+    };
+
+    const view = read();
+    const { floor, running, restrictive, finalNow, progress, afterwards } = view;
 
     // WHICH BUTTON ENTER PRESSES, worked out once.
     //
@@ -355,33 +415,13 @@ export async function manageClassTrial() {
                             : "chapterEnd";
     const isDefault = action => defaultAction === action;
 
-    // What the two gated steps are waiting for, said out loud. A disabled
-    // button with no explanation is a bug report.
-    const gateLine = !progress.voteClosed
-        ? `<p class="notes">${game.i18n.localize("DRPG.Floor.gateVote")}</p>`
-        : !progress.verdictApplied
-            ? `<p class="notes">${game.i18n.localize("DRPG.Floor.gateVerdict")}</p>`
-            : `<p class="notes">${game.i18n.localize("DRPG.Floor.gateDone")}</p>`;
+    const openedWith = signature();
+    let reopening = false;
 
     const action = await DialogV2.wait({
         classes: ["drpg-panel", "drpg-window-trial"],
         window: { title: game.i18n.localize("DRPG.Floor.manageTrial") },
-        content: dialogContent(`<div class="drpg-trial-console">
-            <h4>${game.i18n.localize("DRPG.Floor.sectionTrial")}</h4>
-            <p>${game.i18n.localize(running
-                ? "DRPG.Floor.manageRunning" : "DRPG.Floor.manageNotRunning")}</p>
-            ${finalNow ? `<p class="drpg-warning">${
-                game.i18n.localize("DRPG.Mastermind.finalRunningNote")}</p>` : ""}
-
-            <h4>${game.i18n.localize("DRPG.Floor.sectionDebate")}</h4>
-            ${debateLine}
-            ${floor ? `<p class="notes">${game.i18n.localize(restrictive
-                ? "DRPG.Floor.modeNote" : "DRPG.Floor.objectionNote")}</p>` : ""}
-
-            <h4>${game.i18n.localize("DRPG.Floor.sectionVote")}</h4>
-            ${voteLine}
-            ${afterwards ? gateLine : ""}
-        </div>`),
+        content: dialogContent(buildConsole()),
         buttons: [
             ...(running
                 ? [
@@ -424,6 +464,28 @@ export async function manageClassTrial() {
                 ? "DRPG.Mastermind.endFinalTrial" : "DRPG.Mastermind.startFinalTrial") },
             { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
         ],
+        render: (event, dialog) => keepLive(dialog, {
+            region: ".drpg-trial-console",
+            build: buildConsole,
+            after: () => {
+                if (reopening || signature() === openedWith) return;
+                reopening = true;
+                /*
+                 * AWAITED, and the first run of this closed the window and left
+                 * nothing behind. `close()` is asynchronous and `alreadyOpen`
+                 * refuses a second copy — so reopening in the same tick asked
+                 * for a window while the old one was still there, was correctly
+                 * refused, and the GM was left looking at the scene.
+                 *
+                 * Closing resolves the `DialogV2.wait` above with null, which
+                 * the handler below already returns for — so the reopen belongs
+                 * here rather than smuggled into the action chain.
+                 */
+                dialog.close()
+                    .then(() => manageClassTrial())
+                    .catch(err => error("Could not reopen the trial console", err));
+            }
+        }),
         rejectClose: false
     });
 
