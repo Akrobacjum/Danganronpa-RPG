@@ -39,7 +39,8 @@ import { murderState, sideOf, betrayalTarget } from "./murder.mjs";
 import { isMonocub, isSilenced, isSilenced as cubSilenced } from "./monocub.mjs";
 import { isSilenced as callSilenced, isChained, pendingGather } from "./call-effects.mjs";
 import { isDeceased } from "./chapter.mjs";
-import { isStashed, ITEM_FLAGS, isBroken } from "./inventory.mjs";
+import { isStashed, ITEM_FLAGS, isBroken, durabilityOf, wearOf,
+    durabilityLeft } from "./inventory.mjs";
 // `equippedFor` went with the clean-up panel's "what you have readied" note —
 // the Tamper menu says it now, where the roll it applies to is chosen.
 import { isUsable, isEquippable, isEquipped, equippedIn, usableKindOf }
@@ -225,6 +226,57 @@ function dropTypeHeading(root) {
  * character sheet carries, from the same function, because a player who opens a
  * piece of evidence must not be shown a second, differently-worded account of it.
  */
+/**
+ * How many bad rolls are left in a thing, drawn where it is carried.
+ *
+ * DURABILITY WAS INVISIBLE (Dawid, 29.08). It was recorded on the item, spent
+ * by `wearItem`, whispered once at the moment it was spent — and then nowhere.
+ * A player holding a tier 3 tool that had taken two Despairs had no way to know
+ * they were one bad roll from losing it, which turns a rule about pressing your
+ * luck into a rule about being surprised.
+ *
+ * Pips rather than "1/3", because that is how this module counts everything a
+ * player can spend: actions, Hope, Health. Filled is what is left, hollow is
+ * what has been taken — the same direction of travel as the action tray, so a
+ * row that is going dark reads as going dark.
+ *
+ * Nothing is drawn for a broken item: its row already says BROKEN in crimson,
+ * and three hollow pips beside that word only says it again, more quietly.
+ *
+ * @param {Item} item
+ * @returns {string} HTML, or "" when there is nothing worth saying.
+ */
+function wearMarkup(item) {
+    if (!item || isBroken(item)) return "";
+
+    /*
+     * ONLY WHAT CAN ACTUALLY BE WORN DOWN.
+     *
+     * `durabilityOf` answers 1 for anything with no tier recorded, so every
+     * object in the pack could draw a pip — and a bedroom key with one hollow
+     * socket beside it says "one bad roll and this is gone", which is not true
+     * of a key and never will be. Despair wear is spent by `breakOnDespair` on
+     * the tool that was READIED for the roll, and only a Crime Tool, a Cleaning
+     * Tool or a Tool can be readied at all. Everything else in the pack is spent
+     * by being used, or by being taken.
+     */
+    if (!isEquippable(item)) return "";
+
+    const total = durabilityOf(item);
+    if (!(total > 0)) return "";
+
+    const left = durabilityLeft(item);
+    const tip = game.i18n.format("DRPG.Items.durabilityTooltip", { left, total });
+
+    let pips = "";
+    for (let i = 0; i < total; i++) {
+        pips += `<span class="drpg-wear-pip${i < left ? " filled" : ""}"></span>`;
+    }
+    return `<span class="drpg-item-wear${wearOf(item) ? " is-worn" : ""}" data-tooltip="${
+        foundry.utils.escapeHTML(tip)}" aria-label="${
+        foundry.utils.escapeHTML(tip)}">${pips}</span>`;
+}
+
 function labelItemKind(root, item) {
     if (!item || root.querySelector(".drpg-item-kind")) return;
 
@@ -255,6 +307,13 @@ function labelItemKind(root, item) {
         tag.dataset.tooltip = game.i18n.localize("DRPG.Items.brokenTooltip");
         tag.textContent = game.i18n.localize("DRPG.Items.broken");
         line.append(tag);
+    }
+
+    // The window opened from the row shows what the row shows. A Truth Bullet
+    // is not a tool and never takes wear, so it is the one thing here without.
+    if (!isBullet) {
+        const wear = wearMarkup(item);
+        if (wear) line.insertAdjacentHTML("beforeend", wear);
     }
 
     if (isBullet) {
@@ -2153,6 +2212,7 @@ function groupInventory(app, element) {
                                             foundry.utils.escapeHTML(tag.hint)
                                         }">${foundry.utils.escapeHTML(tag.label)}</span>`).join("")
                                     }</span>` : ""}
+                                    ${wearMarkup(item)}
                                     ${tier !== undefined && tier !== null
                                         ? `<span class="drpg-item-tier">T${tier}</span>` : ""}`;
                     addUseButton(li, item, app);
@@ -2300,6 +2360,7 @@ function buildOneStashSection(box, actor, app, room) {
                                 foundry.utils.escapeHTML(game.i18n.localize("DRPG.Items.brokenTooltip"))
                             }">${foundry.utils.escapeHTML(
                                 game.i18n.localize("DRPG.Items.broken"))}</span>` : ""}
+                            ${wearMarkup(item)}
                             ${tier !== undefined && tier !== null
                                 ? `<span class="drpg-item-tier">T${tier}</span>` : ""}`;
             addStashButton(li, item, app, { stowing: false });

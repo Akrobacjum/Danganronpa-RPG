@@ -835,14 +835,38 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
     /*
      * WHICH WEAPON THIS SWING IS ABOUT, decided before the dice.
      *
-     * Only an action that swings something can break it, which is what
-     * `weaponAdvantage` marks. Captured here rather than after the roll for the
-     * two reasons in `breakOnDespair`: the incident moves items around, and an
-     * unarmed attack that succeeds HANDS the killer an improvised weapon —
-     * looking it up afterwards would break a tool the same roll had just
-     * created.
+     * Captured here rather than after the roll for the two reasons in
+     * `breakOnDespair`: the incident moves items around, and an unarmed attack
+     * that succeeds HANDS the killer an improvised weapon — looking it up
+     * afterwards would break a tool the same roll had just created.
+     *
+     * TWO MARKERS, NOT ONE, AND THE MISSING ONE WAS THE ATTACK ITSELF (Dawid,
+     * 29.08: "Attack with a weapon does not always work properly").
+     *
+     * `weaponAdvantage` reads "holding something helps here" — Self-defence and
+     * Role reversal — and it was standing in for "this action swings a thing".
+     * Attack with a weapon does not carry it, and correctly so: the guide gives
+     * that action a DISADVANTAGE for being unarmed rather than a bonus for being
+     * armed, so it declares `unarmedDisadvantage` and `weaponDamage` instead.
+     *
+     * The action whose entire subject is the weapon was therefore the one action
+     * that captured no weapon, and three separate rules read `swung`:
+     *
+     *   - the knife never took its Despair wear, so the murder weapon was the
+     *     one tool in the game that could not break in the murder;
+     *   - `FLAGS.swungWeapon` stayed empty, so Stage 6's `destroysTools` ruined
+     *     whatever happened to be readied at closing time — the gloves — and
+     *     the knife walked away, which is the exact bug that flag was added for;
+     *   - and the Search trace that handed the killer the weapon was never tied
+     *     to the murder, which is half of what "tied to murder" is for.
+     *
+     * `weaponDamage` is the honest second marker: it is on Attack with a weapon
+     * and nothing else, and it means the damage of this roll is read off the
+     * object in the hand. If a roll's damage comes from the tool, the tool was
+     * swung.
      */
-    const swung = def.weaponAdvantage ? equippedWeapon(actor) : null;
+    const swings = Boolean(def.weaponAdvantage || def.weaponDamage);
+    const swung = swings ? equippedWeapon(actor) : null;
 
     /*
      * WRITTEN DOWN, BECAUSE ONE HAND MADE STAGE 6 FORGETFUL (E9).

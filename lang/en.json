@@ -652,6 +652,7 @@
       "wouldRestoreNothing": "It restores nothing — you are already full on everything it gives.",
       "broken": "Broken",
       "brokenTooltip": "Used up. It still takes up its slot — throw it away or put it in your stash.",
+      "durabilityTooltip": "Durability — {left} of {total} left. Every Despair on a roll that uses it costs one.",
       "restores": "Restores {what}.",
       "isA": "This is a {role} — the table it came from.",
       "alsoServes": "Also works as a {role}.",

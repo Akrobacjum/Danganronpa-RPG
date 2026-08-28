@@ -597,7 +597,18 @@ const REGRESSIONS = [
                 const owner = starts.filter(s => s.index < call.index).pop();
                 if (!owner) continue;
                 const body = text.slice(owner.index, call.index);
-                if (/if\s*\(\s*!\s*game\.user\??\.isGM\s*\)\s*(?:return|\{[^}]{0,120}return)/.test(body)) {
+                /*
+                 * 400, AND IT WAS 120 (Dawid, 29.08: the Truth Bullet sound).
+                 *
+                 * `createTruthBullet` refuses a non-GM in the ordinary way — a
+                 * `warn`, a notification, `return null` — and then played the
+                 * find with `playSfx`. This rule was written for exactly that
+                 * and did not see it: at 120 characters the window closed
+                 * before the `return`, because a guard that explains itself to
+                 * the user is three lines long, not one. A real guard is the
+                 * common case, so the window has to fit one.
+                 */
+                if (/if\s*\(\s*!\s*game\.user\??\.isGM\s*\)\s*(?:return|\{[^}]{0,400}return)/.test(body)) {
                     guilty.push(`${file}:${lineAt(text, call.index)} in ${owner[1] ?? owner[2]}`);
                 }
             }
@@ -1424,6 +1435,54 @@ const REGRESSIONS = [
             }
         }
         ok(!wrong.length, wrong.join("; "));
+    }],
+
+    ["R24 \u00b7 an action that swings a weapon knows which weapon it swung", async () => {
+        /*
+         * ATTACK WITH A WEAPON DID NOT (Dawid, 29.08: "the action does not
+         * always work properly").
+         *
+         * `takeCrisisAction` captures the readied Crime Tool BEFORE the dice,
+         * and three rules read what it captured: the Despair wear that can break
+         * the thing mid-fight, the `swungWeapon` flag that tells Stage 6 which
+         * tool to ruin, and the tie that turns the trace which handed the weapon
+         * over into evidence of the murder.
+         *
+         * The capture was gated on `weaponAdvantage` — "holding something helps
+         * here" — which Self-defence and Role reversal declare and Attack with a
+         * weapon does not, because the guide gives that action a disadvantage
+         * for being UNARMED instead. So the one action whose whole subject is
+         * the weapon captured nothing, and all three rules read null.
+         *
+         * Read from the source, because the capture happens on the roll and the
+         * suite resolves crisis actions from a stated total. What is checked is
+         * that every marker the catalogue uses to mean "a weapon is involved in
+         * this roll" is named in the condition that captures one — so a third
+         * marker cannot arrive and be quietly left out the same way.
+         */
+        const sources = new Map(await otherSources());
+        const murder = stripComments(sources.get("murder.mjs") ?? "");
+        ok(murder.length > 1000, "murder.mjs did not load");
+
+        const capture = murder.match(/const\s+swung\s*=([^;]*);/);
+        ok(capture, "murder.mjs no longer captures a swung weapon at all");
+
+        // Everything the condition can see: the line itself, and whatever it
+        // reads from — `const swings = ...` above it.
+        const condition = `${capture[1]} ${
+            murder.match(/const\s+swings\s*=([^;]*);/)?.[1] ?? ""}`;
+
+        const markers = new Set();
+        for (const def of Object.values(CRISIS_ACTIONS)) {
+            for (const key of ["weaponAdvantage", "weaponDamage"]) {
+                if (def?.[key]) markers.add(key);
+            }
+        }
+        ok(markers.size >= 2, `only ${markers.size} weapon marker(s) in the catalogue`);
+
+        const missed = [...markers].filter(key => !condition.includes(key));
+        ok(!missed.length,
+            `an action marked ${missed.join(", ")} swings a weapon the roll never captured`);
     }]
 ];
 

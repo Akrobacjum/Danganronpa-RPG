@@ -36,7 +36,7 @@ import { SETTINGS } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import { grantItem, itemsInCategory } from "./inventory.mjs";
 import { gmIds, whisperToOwner, whisperToGms, isPrimaryGm, log, warn, error, plural } from "./utils.mjs";
-import { playSfx } from "./sfx.mjs";
+import { playSfxFor } from "./sfx.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 
@@ -468,9 +468,18 @@ export async function createTruthBullet(actor, {
 
     await setSecret(item.uuid, { realType, gmNote, remnantId, sceneId, sourceAction, tiedToCrime });
 
-    // After the secret is filed, so the sound cannot arrive before the thing
-    // it is about is completely written.
-    playSfx("truthBullet");
+    /*
+     * AFTER THE SECRET IS FILED, so the sound cannot arrive before the thing it
+     * is about is completely written — and AIMED, which it was not.
+     *
+     * This function only ever runs on a GM's browser: it says so forty lines up,
+     * and it has to, because the answer key lives there. So a plain `playSfx`
+     * played the find on the one screen that had not found anything, and the
+     * student who did hear nothing at all. The catalogue has said "heard by
+     * whoever found it" since E14; this was the one event that never was
+     * (Dawid, 29.08).
+     */
+    playSfxFor(actor, "truthBullet");
 
     log(`${actor.name} gained Truth Bullet "${name}" (really ${realType}, ${visibility}).`);
     return item;

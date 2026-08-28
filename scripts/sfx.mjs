@@ -87,6 +87,9 @@ export const SFX_FLAG = "sfx";
  */
 const COOLDOWN_MS = 80;
 
+/** Our one socket verb: "play this, on your browser, because it is yours". */
+const SFX_ACTION = "playSfxFor";
+
 /**
  * How long a yielding sound waits to find out whether it lost.
  *
@@ -481,6 +484,68 @@ export function playSfx(key, { force = false } = {}) {
     return Boolean(fire(key, force));
 }
 
+/**
+ * A sound for one character's player, wherever that player happens to be.
+ *
+ * WHY THIS EXISTS (Dawid, 29.08: "the Truth Bullet sound does not fire when the
+ * GM fills in its name and description"). `playSfx` plays on the browser that
+ * calls it, and this module has a whole class of events whose audience is a
+ * PLAYER but whose code necessarily runs on the GM's client: a Truth Bullet is
+ * the clearest of them, because the answer key only exists on a GM's browser,
+ * so `createTruthBullet` refuses to run anywhere else. The sound was landing on
+ * the one screen in the world that had not found anything.
+ *
+ * The usual carrier is the chat flag, and it stays the usual carrier: when
+ * there is a card, put the sound on the card. This is for the cases where the
+ * event is real and the card is not — a bullet minted off a looted body says
+ * nothing to anyone, and a sound that only exists when somebody remembered to
+ * write a paragraph is a sound that will go missing again.
+ *
+ * Addressed, never broadcast. `AudioHelper.play(..., true)` and a socket to
+ * everyone are the two ways to make the whole table hear a private find; the
+ * recipient list here is one player, and the handler checks it again on arrival.
+ *
+ * @param {Actor} actor  Whose player should hear it.
+ * @param {string} key
+ */
+export function playSfxFor(actor, key) {
+    const owner = ownerOf(actor);
+
+    // Ours to play: the GM running a character of their own, or a player who
+    // somehow reached this code path on their own browser.
+    if (!owner || owner.id === game.user.id) {
+        playSfx(key);
+        return;
+    }
+
+    if (!owner.active) return;
+
+    try {
+        game.socket.emit(`module.${MODULE_ID}`,
+            { action: SFX_ACTION, key, userId: owner.id },
+            { recipients: [owner.id] });
+    } catch (err) {
+        warn("Could not send a sound to the player it was for", err);
+    }
+}
+
+/**
+ * @param {object} data
+ * @param {string} senderId  Foundry's own second argument — who really sent
+ *   this, which the sender cannot forge.
+ *
+ * Only a GM may make another browser make a noise. Without the check any player
+ * could emit this at any other player, at any time, as often as they liked —
+ * and the one thing a horror game's sound design cannot survive is a stranger
+ * with the button.
+ */
+function onSfxSocket(data, senderId) {
+    if (data?.action !== SFX_ACTION) return;
+    if (!game.users.get(senderId)?.isGM) return;
+    if (data.userId && data.userId !== game.user.id) return;
+    playSfx(data.key);
+}
+
 /** Cancel anything that was waiting to find out whether this key would fire. */
 function cancelHoldersOf(winner) {
     for (const [key, timer] of holding) {
@@ -785,6 +850,9 @@ function onActorFlagged(actor, changes) {
  */
 export function registerSfx() {
     Hooks.on("createChatMessage", onCreateChatMessage);
+
+    // The addressed half of the same job — see `playSfxFor`.
+    game.socket.on(`module.${MODULE_ID}`, onSfxSocket);
 
     // One listener on the document, so it outlives every redraw every window
     // does on its own — the same reason the panel explainers use one.
