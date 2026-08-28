@@ -1744,6 +1744,63 @@ const SCENARIOS = [
             `no card carried the Eclipse's ending sound — got [${carried.join(", ")}]`);
     }],
 
+    ["a Monokuma leaves no track in the fog, and a student still does", async () => {
+        /*
+         * Dawid, 28.08: Monokuma tokens were uncovering rooms. They are the GM
+         * wearing a token and they go everywhere, and the GM's own veil is the
+         * UNION of every row in the discovery ledger — so a GM moving their own
+         * token was uncovering the building for themselves, one corridor at a
+         * time, and the fog stopped meaning "where the cast has been".
+         *
+         * DRIVEN THROUGH THE SEED rather than by dragging a token, and that is
+         * deliberate: `seedDiscovery` records "the room you are standing in",
+         * which is the same question `recordDiscovery` asks after a step and
+         * carries the same skip. Moving a token in a test means fighting the
+         * movement rules for the privilege of asking a question the seed
+         * answers directly.
+         *
+         * BOTH HALVES. A fix that stops the ledger recording anything at all
+         * would pass the first assertion and take the fog with it.
+         */
+        const fog = await import("./fog.mjs");
+        const { roomOfActor } = await import("./movement.mjs");
+        const { isMonokuma } = await import("./monokuma.mjs");
+
+        const scene = canvas?.scene;
+        ok(scene, "no scene to test the fog on");
+
+        const standing = game.actors.filter(a =>
+            a.type === "character" && roomOfActor(a));
+        const monokuma = standing.find(a => isMonokuma(a));
+        const student = standing.find(a => !isMonokuma(a));
+        ok(monokuma && student,
+            "need a Monokuma and a student standing in rooms on this scene");
+
+        const before = foundry.utils.deepClone(getSetting(SETTINGS.discoveredRooms) ?? {});
+        try {
+            // Both rows emptied, so the seed has something to record and this
+            // measures what it CHOOSES rather than what was already there.
+            const wiped = { ...(before[scene.id] ?? {}) };
+            wiped[monokuma.id] = [];
+            wiped[student.id] = [];
+            await game.settings.set(MODULE_ID, SETTINGS.discoveredRooms,
+                { ...before, [scene.id]: wiped });
+            await settle();
+
+            await fog.seedDiscovery(scene);
+            await settle();
+
+            const now = (getSetting(SETTINGS.discoveredRooms) ?? {})[scene.id] ?? {};
+            equal((now[monokuma.id] ?? []).length, 0,
+                `${monokuma.name} is a Monokuma and put ${JSON.stringify(now[monokuma.id])} in the ledger`);
+            ok((now[student.id] ?? []).includes(roomOfActor(student)),
+                `${student.name} is standing in ${roomOfActor(student)} and the ledger did not record it`);
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.discoveredRooms, before);
+            await settle();
+        }
+    }],
+
     ["a rebuttal keeps the objection playing and can be cut into", async () => {
         /*
          * Two rulings from Dawid, 28.08, and they are one rule read from both

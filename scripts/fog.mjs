@@ -37,6 +37,7 @@ import { MODULE_ID, FLAGS } from "./config.mjs";
 import { SETTINGS, iAmTheMastermind } from "./settings.mjs";
 import { roomOfToken } from "./movement.mjs";
 import { isMastermind } from "./mastermind.mjs";
+import { isMonokuma } from "./monokuma.mjs";
 import { isPrimaryGm, debug, log, warn, error, plural } from "./utils.mjs";
 import { ENTER, BEAT } from "./motion.mjs";
 import { playSfx } from "./sfx.mjs";
@@ -666,6 +667,24 @@ async function recordDiscovery(scene, actor, room) {
        this only ever runs on the primary GM's. */
     if (isMastermind(actor)) return false;
 
+    /* AND NEITHER DOES A MONOKUMA (Dawid, 28.08).
+       -----------------------------------------------------------------------
+       A Monokuma is the GM at the table wearing a token. They go everywhere,
+       because going everywhere is the job — and every room they crossed was
+       being written into the ledger as DISCOVERED, which is the union the GM's
+       own veil is built from. So a GM moving their own token across the map
+       was uncovering the building for themselves one corridor at a time, and
+       the fog stopped meaning "where the cast has been".
+
+       The same argument as the Mastermind's above, and it lands harder: a
+       Mastermind at least walks somewhere for a reason of their own. A
+       Monokuma's token is furniture that follows the scene.
+
+       They lose nothing by the skip. `myDiscoveredRooms` already counts every
+       room as known for a GM, so their map is unchanged; what changes is that
+       it stops being changed BY them. */
+    if (isMonokuma(actor)) return false;
+
     const all = allDiscovered();
     const forScene = all[scene.id] ?? {};
     const forActor = forScene[actor.id] ?? [];
@@ -728,9 +747,14 @@ export async function seedDiscovery(scene = canvas?.scene) {
     for (const tokenDoc of scene.tokens ?? []) {
         const actor = tokenDoc.actor;
         if (!actor || actor.type !== "character") continue;
-        // Same skip as `recordDiscovery`, for the same reason: the seed is
-        // just discovery for people who were already standing somewhere.
+        // Same skips as `recordDiscovery`, for the same reasons: the seed is
+        // just discovery for somebody who was already standing there, so a
+        // token that must not record a walk must not record a stand either.
+        // Without the second of these, a Monokuma parked in a room since
+        // before the session would be seeded into the ledger on the next
+        // `canvasReady` and the skip above would never get to matter.
         if (isMastermind(actor)) continue;
+        if (isMonokuma(actor)) continue;
 
         const room = roomOfToken(tokenDoc);
         if (!room) continue;

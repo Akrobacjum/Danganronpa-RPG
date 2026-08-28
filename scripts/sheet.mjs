@@ -772,7 +772,9 @@ function fitActionTiles(element) {
     const grids = [...root.querySelectorAll(".drpg-action-grid")];
     if (!grids.length) return;
 
-    for (const grid of grids) fitTileText(grid);
+    // ONE SIZE FOR EVERY GRID, and that is the point of doing it here rather
+    // than inside the loop. See `fitTileText`.
+    fitTileText(grids);
 
     for (const grid of grids) delete grid.dataset.drpgTight;
     for (const grid of grids) {
@@ -785,72 +787,95 @@ function fitActionTiles(element) {
  * --------------------------------------------------------------------------
  * The grid is five across and the tiles are square, which is the shape Dawid
  * chose and the shape a row of tiles should be. At the pixel face that leaves a
- * tile about 100px of inner width, and "Determination" wants 143 — so something
- * has to give. For half a day it was the column count: four columns, and the
- * sheet widened to 920 to pay for them. Dawid, 28.08: keep the old size and
+ * tile about a hundred pixels of inner width, and the longest label in the game
+ * wants more — so the type gives way. It was the column count for half a day
+ * (four columns, a sheet widened to 920) and Dawid, 28.08: keep the old size,
  * shrink the names and the costs instead.
  *
  * He is right, and the reason is worth keeping. The column count is a SHAPE —
  * a panel that silently has four tiles where the one below it has five reads as
- * two different interfaces. Type a point smaller on the panel holding the
- * longest word reads as nothing at all. When something has to give, it should
- * be the thing nobody can name afterwards.
+ * two different interfaces. Type a point smaller reads as nothing at all. When
+ * something has to give, it should be the thing nobody can name afterwards.
  *
- * So: measure, and shrink only what must, only as far as it must.
+ * ONE SIZE FOR THE WHOLE MODULE, not one per panel. This measured each grid
+ * separately at first, which is worse in the way that is easy to miss: the
+ * Actions panel kept 11px while the Hope Calls under it sat at 8, so the same
+ * sheet carried two sizes of the same thing and the difference looked like a
+ * mistake rather than a fit. Dawid, 28.08: make the actions and the Despair
+ * Calls agree with the Hope Calls.
  *
- *   - PER GRID, not per tile. Five tiles at five sizes because each measured
- *     its own label would look like a fault; the one thing a row of tiles has
- *     to look like is a row.
- *   - the widest WORD, not the widest label. "Dynamic action" has a space and
- *     is happy to wrap at it; only a word with nowhere to break forces the type
- *     down. Sizing off whole labels would shrink a whole panel to spare one
- *     label a line break it never minded.
- *   - with a FLOOR. Below about seven pixels the pixel face stops being
- *     readable, and an unreadable whole word is worse than a hyphenated one —
- *     so `softWrap`'s soft hyphen goes back to being the last resort it was
- *     written to be, rather than the first thing that happens.
+ * So the constraint is the longest word ANY tile in the module can carry —
+ * `LONGEST_TILE_WORD`, taken from the definitions themselves — and every grid
+ * on the sheet gets the answer. That also makes the size stable: it does not
+ * change when a panel happens to be on a hidden tab, and a Monokuma's sheet
+ * and a student's come out the same.
+ *
+ * Measured off the widest WORD, not the widest label: "Dynamic action" has a
+ * space and is happy to wrap at it, so only a word with nowhere to break is
+ * allowed to push the type down. And with a FLOOR — below about seven pixels
+ * the pixel face stops being readable, and an unreadable whole word is worse
+ * than a hyphenated one, so `softWrap` goes back to being the last resort it
+ * was written to be.
  */
 const TILE_TEXT_FLOOR = 0.68;
 
-function fitTileText(grid) {
-    const names = [...grid.querySelectorAll(".drpg-action-name")];
-    if (!names.length) return;
+/**
+ * The longest unbreakable word any tile in this module can be asked to draw.
+ *
+ * From the definitions rather than a constant, so renaming a Call moves this
+ * with it — which is exactly what happened on 28.08, when "Determination"
+ * became "Resolve" and stopped being the word every other tile was paying for.
+ */
+const LONGEST_TILE_WORD = (() => {
+    const labels = [
+        ...Object.values(ACTIONS ?? {}),
+        ...Object.values(HOPE_CALLS ?? {}),
+        ...Object.values(DESPAIR_CALLS ?? {}),
+        MONOCUB?.meddle
+    ].map(def => def?.label).filter(Boolean);
 
-    // Measure at full size, whatever the grid is wearing now. Without this the
-    // second pass measures the shrunk type, concludes it fits, and the tiles
-    // creep smaller on every resize.
-    grid.style.removeProperty("--drpg-tile-text");
-
-    let widest = 0;
-    for (const name of names) {
-        const marked = name.textContent;
-        // `SHY` by name, not the character: a literal soft hyphen in source is
-        // an invisible glyph, which is the whole reason that constant exists.
-        // It comes out for the measurement because `min-content` would
-        // otherwise report the widest FRAGMENT — the number this is trying to
-        // get away from.
-        const bare = marked.split(SHY).join("");
-        if (bare !== marked) name.textContent = bare;
-
-        const was = name.style.width;
-        name.style.width = "min-content";
-        widest = Math.max(widest, name.getBoundingClientRect().width);
-        name.style.width = was;
-
-        if (bare !== marked) name.textContent = marked;
+    let longest = "";
+    for (const label of labels) {
+        for (const word of String(label).split(/\s+/)) {
+            if (word.length > longest.length) longest = word;
+        }
     }
-    if (!widest) return;
+    return longest;
+})();
 
+function fitTileText(grids) {
+    const live = grids.filter(g => g.querySelector(".drpg-action-button")?.clientWidth);
+    if (!live.length) return;
+
+    // Measured at full size, whatever the grids are wearing now. Without this
+    // the second pass measures the shrunk type, concludes it fits, and the
+    // tiles creep smaller on every resize.
+    for (const grid of grids) grid.style.removeProperty("--drpg-tile-text");
+
+    const grid = live[0];
     const tile = grid.querySelector(".drpg-action-button");
-    if (!tile) return;
+    const sample = grid.querySelector(".drpg-action-name");
+    if (!tile || !sample) return;
+
+    // The longest word rendered in the real face at the real size, inside the
+    // real tile — a probe rather than arithmetic, because the pixel font's
+    // advance width is not something to hard-code.
+    const probe = sample.cloneNode(false);
+    probe.textContent = LONGEST_TILE_WORD;
+    probe.style.cssText = "position:absolute;visibility:hidden;width:min-content;white-space:normal";
+    tile.appendChild(probe);
+    const needed = probe.getBoundingClientRect().width;
+    probe.remove();
+    if (!needed) return;
+
     const style = getComputedStyle(tile);
     const room = tile.getBoundingClientRect().width
         - (parseFloat(style.paddingLeft) || 0) - (parseFloat(style.paddingRight) || 0)
         - (parseFloat(style.borderLeftWidth) || 0) - (parseFloat(style.borderRightWidth) || 0);
-    if (room <= 0 || widest <= room) return;
+    if (room <= 0 || needed <= room) return;
 
-    grid.style.setProperty("--drpg-tile-text",
-        Math.max(TILE_TEXT_FLOOR, room / widest).toFixed(3));
+    const scale = Math.max(TILE_TEXT_FLOOR, room / needed).toFixed(3);
+    for (const one of grids) one.style.setProperty("--drpg-tile-text", scale);
 }
 
 /**

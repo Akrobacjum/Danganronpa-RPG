@@ -304,6 +304,75 @@ const CLAUSES = [
         }
     },
     {
+        key: "forgetMonokumaWalks",
+        since: "1.1.43",
+        /*
+         * A MONOKUMA'S FOOTPRINTS COME OUT OF THE DISCOVERY LEDGER.
+         *
+         * Until 1.1.43 a Monokuma's token recorded every room it crossed, the
+         * same as a student's — and the GM's own veil is the UNION of every
+         * row in that ledger. So a GM moving their own token around the map was
+         * uncovering the building for themselves, and the fog stopped meaning
+         * "where the cast has been" some time before anybody noticed.
+         *
+         * `recordDiscovery` and `seedDiscovery` refuse them now. That fixes the
+         * future and leaves the past sitting in the setting: every room every
+         * Monokuma has already walked through stays marked as discovered, in a
+         * world that has been played in for weeks. Which is exactly the case
+         * this is for — the fix is worth nothing to a table already halfway
+         * through a season unless the rows come out too.
+         *
+         * ONLY MONOKUMA ROWS, and only whole ones. A room a student found is
+         * theirs and is not touched; a row keyed to an actor that no longer
+         * exists is left alone as well, because "this id is not a Monokuma any
+         * more" and "this id was never an actor" are different sentences and
+         * only the first is ours to act on.
+         */
+        run: async () => {
+            const { isMonokuma } = await import("./monokuma.mjs");
+            const all = getSetting(SETTINGS.discoveredRooms) ?? {};
+
+            const next = {};
+            const cleared = [];
+            for (const [sceneId, forScene] of Object.entries(all)) {
+                const kept = {};
+                for (const [actorId, rooms] of Object.entries(forScene ?? {})) {
+                    const actor = game.actors.get(actorId);
+                    if (actor && isMonokuma(actor) && rooms?.length) {
+                        cleared.push(`${actor.name}: ${rooms.length}`);
+                        continue;
+                    }
+                    kept[actorId] = rooms;
+                }
+                next[sceneId] = kept;
+            }
+            if (!cleared.length) return null;
+
+            await setSetting(SETTINGS.discoveredRooms, next);
+
+            // Read back, then repaint: the veil on screen was computed from the
+            // old union and will go on showing it until something asks.
+            const after = getSetting(SETTINGS.discoveredRooms) ?? {};
+            const stillThere = Object.values(after).some(forScene =>
+                Object.entries(forScene ?? {}).some(([id, rooms]) => {
+                    const actor = game.actors.get(id);
+                    return actor && isMonokuma(actor) && rooms?.length;
+                }));
+            if (stillThere) {
+                error("Could not clear the Monokuma rows from the discovery ledger");
+                return null;
+            }
+
+            await import("./fog.mjs").then(m => {
+                m.reconcileMirror?.();
+                return m.repaintFog?.();
+            }).catch(() => {});
+
+            return { cleared };
+        }
+    },
+
+    {
         key: "keepOldSafeword",
         since: "1.1.39",
         /*

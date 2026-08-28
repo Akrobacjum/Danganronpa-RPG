@@ -1462,7 +1462,17 @@ export const HOPE_CALLS = {
         effect: "Take a Short Rest right now — no action, no marked room, and it does not use up this time of day's."
     },
     determination: {
-        label: "Determination", icon: "fa-hand-fist", cost: 3, target: "none", grants: "trait",
+        /*
+         * "Resolve", not "Determination" (Dawid, 28.08). Thirteen characters of
+         * pixel font is 143px against a hundred-pixel tile, and it was the one
+         * label in the game forcing every other tile's type down to fit it. The
+         * shorter word says the same thing and costs the whole grid nothing.
+         *
+         * THE KEY STAYS `determination`. It is an identity, not a name: every
+         * armed Call, sound mapping and flag in a live world is written against
+         * it, and none of them is text anybody reads.
+         */
+        label: "Resolve", icon: "fa-hand-fist", cost: 3, target: "none", grants: "trait",
         effect: "For one roll, choose which statistic to add yourself."
     },
     freeCrit: {
