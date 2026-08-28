@@ -772,7 +772,7 @@ function fitActionTiles(element) {
     const grids = [...root.querySelectorAll(".drpg-action-grid")];
     if (!grids.length) return;
 
-    for (const grid of grids) sizeColumns(grid);
+    for (const grid of grids) fitTileText(grid);
 
     for (const grid of grids) delete grid.dataset.drpgTight;
     for (const grid of grids) {
@@ -781,57 +781,54 @@ function fitActionTiles(element) {
 }
 
 /*
- * HOW WIDE A TILE HAS TO BE FOR ITS NAME TO SURVIVE.
+ * HOW SMALL THE TYPE HAS TO GET FOR THE NAMES TO SURVIVE.
  * --------------------------------------------------------------------------
- * The grid used to be five columns, always, and the tiles shrank to make that
- * true. At the pixel face "Determination" wants 195px and a fifth of the grid
- * is about 108 — so `softWrap`'s soft hyphen fired and the tile read
- * "Determ-ination". Dawid, 28.08: the names should not have to be cut in half.
+ * The grid is five across and the tiles are square, which is the shape Dawid
+ * chose and the shape a row of tiles should be. At the pixel face that leaves a
+ * tile about 100px of inner width, and "Determination" wants 143 — so something
+ * has to give. For half a day it was the column count: four columns, and the
+ * sheet widened to 920 to pay for them. Dawid, 28.08: keep the old size and
+ * shrink the names and the costs instead.
  *
- * They cannot be un-cut by choosing a better break point or a smaller font.
- * MEASURED on this build: the pixel face runs at 15px per glyph at its 11px
- * size, so thirteen characters is 195px and no readable size brings that under
- * a fifth of a 625px grid. The only thing that fits the word is a wider tile,
- * and a wider tile means fewer of them.
+ * He is right, and the reason is worth keeping. The column count is a SHAPE —
+ * a panel that silently has four tiles where the one below it has five reads as
+ * two different interfaces. Type a point smaller on the panel holding the
+ * longest word reads as nothing at all. When something has to give, it should
+ * be the thing nobody can name afterwards.
  *
- * So the widest name in the grid is measured and the column floor is set from
- * it. `min()` in the CSS keeps a very narrow sheet from ending up with one
- * column per row; the ceiling here keeps a very long translation from turning
- * the grid into a list.
+ * So: measure, and shrink only what must, only as far as it must.
  *
- * The measurement is cheap and it has to be done here rather than in CSS:
- * `min-content` on the label is exactly this number, but a grid cannot size its
- * columns from the content of a cell it has not laid out yet.
+ *   - PER GRID, not per tile. Five tiles at five sizes because each measured
+ *     its own label would look like a fault; the one thing a row of tiles has
+ *     to look like is a row.
+ *   - the widest WORD, not the widest label. "Dynamic action" has a space and
+ *     is happy to wrap at it; only a word with nowhere to break forces the type
+ *     down. Sizing off whole labels would shrink a whole panel to spare one
+ *     label a line break it never minded.
+ *   - with a FLOOR. Below about seven pixels the pixel face stops being
+ *     readable, and an unreadable whole word is worse than a hyphenated one —
+ *     so `softWrap`'s soft hyphen goes back to being the last resort it was
+ *     written to be, rather than the first thing that happens.
  */
-const TILE_MIN_FLOOR = 96;    // px — below this a tile stops being a tile
-const TILE_MIN_CEILING = 208; // px — above this the grid becomes a list
+const TILE_TEXT_FLOOR = 0.68;
 
-function sizeColumns(grid) {
+function fitTileText(grid) {
     const names = [...grid.querySelectorAll(".drpg-action-name")];
     if (!names.length) return;
 
-    /*
-     * THE WIDEST WORD, NOT THE WIDEST LABEL.
-     *
-     * "Dynamic action" measures 154px and needs none of it: it has a space, and
-     * a label wrapping at its space is what wrapping is for. Only a word with
-     * nowhere to break forces a wider tile. Sizing the grid off whole labels
-     * would buy two columns to spare "Direct Murder" a line break it is happy
-     * to take, and cost every other tile the room.
-     *
-     * `min-content` is exactly this measurement — the widest unbreakable run —
-     * and the browser will give it to us for the price of one layout, which the
-     * fitter is about to force anyway. It reads the soft hyphens `softWrap` put
-     * in, though, and those are break opportunities: a label carrying them
-     * measures as its widest FRAGMENT, which is the number we are trying to get
-     * away from. So the marks come out for the measurement and go back after.
-     */
+    // Measure at full size, whatever the grid is wearing now. Without this the
+    // second pass measures the shrunk type, concludes it fits, and the tiles
+    // creep smaller on every resize.
+    grid.style.removeProperty("--drpg-tile-text");
+
     let widest = 0;
     for (const name of names) {
         const marked = name.textContent;
-        // `SHY` by name, not the character: a literal soft hyphen in a regex
-        // is an invisible glyph in the source, which is the whole reason that
-        // constant exists.
+        // `SHY` by name, not the character: a literal soft hyphen in source is
+        // an invisible glyph, which is the whole reason that constant exists.
+        // It comes out for the measurement because `min-content` would
+        // otherwise report the widest FRAGMENT — the number this is trying to
+        // get away from.
         const bare = marked.split(SHY).join("");
         if (bare !== marked) name.textContent = bare;
 
@@ -844,16 +841,16 @@ function sizeColumns(grid) {
     }
     if (!widest) return;
 
-    // The label is not the whole tile: the border and padding are outside it.
     const tile = grid.querySelector(".drpg-action-button");
-    const style = tile && getComputedStyle(tile);
-    const chrome = style
-        ? (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0)
-            + (parseFloat(style.borderLeftWidth) || 0) + (parseFloat(style.borderRightWidth) || 0)
-        : 8;
+    if (!tile) return;
+    const style = getComputedStyle(tile);
+    const room = tile.getBoundingClientRect().width
+        - (parseFloat(style.paddingLeft) || 0) - (parseFloat(style.paddingRight) || 0)
+        - (parseFloat(style.borderLeftWidth) || 0) - (parseFloat(style.borderRightWidth) || 0);
+    if (room <= 0 || widest <= room) return;
 
-    const want = Math.min(TILE_MIN_CEILING, Math.max(TILE_MIN_FLOOR, Math.ceil(widest + chrome)));
-    grid.style.setProperty("--drpg-tile-min", `${want}px`);
+    grid.style.setProperty("--drpg-tile-text",
+        Math.max(TILE_TEXT_FLOOR, room / widest).toFixed(3));
 }
 
 /**
@@ -3801,60 +3798,35 @@ export function findDuplicateUltimates() {
 
 
 /**
- * Give the sheet room for the Hope Calls, and for the names on the tiles.
+ * Give the sheet room for the Hope Calls.
  *
  * Daggerheart opens a character sheet at 850x830, which fitted when the Calls
  * were a closed drawer and does not now: the panel sits under ten action tiles
  * and a clean-up block, and a menu a cornered player has to scroll to find is
  * a menu they do not use.
  *
- * WIDTH JOINED HEIGHT ON 28.08, and it is the same argument. The tile grid now
- * takes its column count from the widest label (`sizeColumns`), so the sheet's
- * width decides how many columns there are and therefore whether the names fit
- * whole. At Daggerheart's 850 the pixel face gets four columns of 145px against
- * a 195px word; the extra 70 buys the 152 that fits it. Dawid's proportions,
- * 28.08: roughly square, a little taller than wide.
+ * HEIGHT ONLY, AND WIDTH WAS TRIED. For half a day this also grew the sheet to
+ * 920 wide, to buy the tile grid a fourth column wide enough for
+ * "Determination". Dawid, 28.08: keep the old size and shrink the type instead.
+ * The width is Daggerheart's again and `fitTileText` does the fitting.
  *
- * Grown ONCE per sheet, and only upwards, in both directions. A GM who drags
- * the window smaller afterwards keeps their size — the alternative, re-asserting
- * on every render, would undo a deliberate resize several times a turn.
+ * Grown ONCE per sheet, and only upwards. A GM who drags the window smaller
+ * afterwards keeps their size — the alternative, re-asserting on every render,
+ * would undo a deliberate resize several times a turn.
  */
 const grown = new WeakSet();
 const SHEET_MIN_HEIGHT = 980;
-const SHEET_MIN_WIDTH = 920;
 
 function growForCalls(app) {
     try {
         if (!app || grown.has(app)) return;
         grown.add(app);
-
-        const position = {};
         const height = app.position?.height;
-        const width = app.position?.width;
-
-        // Never past the window: a sheet larger than the screen is worse than a
-        // sheet that scrolls. Measured against the viewport in both directions,
-        // because a laptop that has the height for this often has less width.
-        if (typeof height === "number" && height < SHEET_MIN_HEIGHT) {
-            position.height = Math.min(SHEET_MIN_HEIGHT, Math.max(0, window.innerHeight - 40));
-        }
-        if (typeof width === "number" && width < SHEET_MIN_WIDTH) {
-            position.width = Math.min(SHEET_MIN_WIDTH, Math.max(0, window.innerWidth - 40));
-        }
-        if (!Object.keys(position).length) return;
-
-        app.setPosition(position);
-        // The grid measures its columns against a width that has just changed,
-        // and `setPosition` does not lay out synchronously — so the fit is
-        // re-run on the far side of it. Without this the first paint of a
-        // freshly opened sheet keeps the column count it worked out at 850.
-        requestAnimationFrame(() => {
-            try {
-                fitActionTiles(app.element);
-            } catch {
-                // The observer in `watchTileFit` will get there anyway.
-            }
-        });
+        if (typeof height !== "number" || height >= SHEET_MIN_HEIGHT) return;
+        // Never past the window: a sheet taller than the screen is worse than a
+        // sheet that scrolls.
+        const room = Math.max(0, window.innerHeight - 40);
+        app.setPosition({ height: Math.min(SHEET_MIN_HEIGHT, room) });
     } catch {
         // Cosmetic. A sheet that opens at its old size still works.
     }

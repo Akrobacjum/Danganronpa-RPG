@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json — the suite fails if it does not. */
-    --drpg-css-version: "1.1.41";
+    --drpg-css-version: "1.1.42";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -1192,33 +1192,23 @@ body:not(.drpg-gm) .character-header-sheet .hope-section .hope-value {
     text-shadow: 0 1px 2px rgba(var(--drpg-shadow-rgb), 0.75);
 }
 
-/* AS MANY PER ROW AS THE NAMES ALLOW — measured, not decided here.
-   ---------------------------------------------------------------------------
-   This used to read "always five per row, never fewer, whatever the sheet
-   width", and the tiles shrank to make it true. At the pixel face that put
-   "Determination" into a 108px box needing 195, so the label broke mid-word
-   (Dawid, 28.08). There is no font size that fixes it at five columns: a fifth
-   of this grid is ~125px even on a wide sheet, and thirteen pixel glyphs do not
-   go into 125px at any size a person can read.
+/* Always five per row — never fewer, whatever the sheet width. The media
+   queries that used to drop to 3 columns were what made the tiles wide and
+   rectangular; the tiles shrink instead.
 
-   So the column count comes from the widest label instead. `fitActionTiles` in
-   sheet.mjs measures it once per render and writes `--drpg-tile-min`; this rule
-   fits as many columns as that allows. On a default sheet with the pixel face
-   that is four. The fallback below is what applies before the first measurement
-   and on any sheet the fitter never reaches.
+   FIVE, AND THE TYPE GIVES WAY INSTEAD. For half a day this measured the widest
+   label and dropped to four columns to fit it, with the sheet widened to 920 to
+   pay for it. Dawid, 28.08: keep the old size, shrink the names and the costs.
+   He is right, and the reason is that the column count is a SHAPE and the font
+   size is a DETAIL — a grid that silently has four tiles on one panel and five
+   on the next reads as two different interfaces, while type that is a point
+   smaller on the panel with the longest word reads as nothing at all.
 
-   NOTE THE `!important` AND WHY IT STAYS. It is not fighting the pixel-font
-   rule that used to sit at the bottom of this file — that rule was DEAD, an
-   auto-fill it could never win against, so the tiles have been five-a-row in
-   the pixel face for as long as both rules have existed. It is fighting
-   Daggerheart's own grid declarations on the same element. The variable is what
-   makes the rule adjustable now, which is the right place for the flexibility:
-   one value, set from a measurement, rather than a second rule hoping to
-   outrank the first. */
+   So the fitting moved into `fitTileText` in sheet.mjs, which shrinks only the
+   grids that need it and only as far as they need. */
 .drpg-action-grid {
     display: grid;
-    grid-template-columns:
-        repeat(auto-fit, minmax(min(var(--drpg-tile-min, 6.75rem), 100%), 1fr)) !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
     /* Rows sized by content, and the grid never stretched to fill a short
        parent — otherwise a flex column with limited height squashes the rows
        and `aspect-ratio` loses, producing wide, flat tiles. */
@@ -1243,14 +1233,7 @@ body:not(.drpg-gm) .character-header-sheet .hope-section .hope-value {
     width: 100%;
     min-width: 0;
     min-height: 0 !important;
-    /* SQUARE UNTIL SQUARE COSTS TOO MUCH.
-       Fewer columns means wider tiles, and `aspect-ratio` turns a wider tile
-       into a TALLER one — four columns of 152px would be four rows of 152px,
-       and two panels of that do not fit on any sheet. So the square is capped:
-       a tile grows square while it is small and stops at this height, which is
-       roughly where a two-line name and its cost stop needing more room. The
-       result at four columns is 152x116, which still reads as a tile. */
-    max-height: 7.25rem;
+    max-height: none;
     align-self: start;
     box-sizing: border-box;
     padding: 3px 1px;
@@ -1281,9 +1264,16 @@ body:not(.drpg-gm) .character-header-sheet .hope-section .hope-value {
     box-shadow: 0 0 6px var(--drpg-eye-glow);
 }
 
+/* `--drpg-tile-text` IS THE KNOB THE FITTER TURNS.
+   Written on the GRID by `fitTileText` (sheet.mjs) and inherited by every tile
+   in it, so a panel shrinks as a whole: five tiles at four sizes because each
+   measured its own label would look like a mistake, and the one thing a row of
+   tiles has to look like is a row. Absent, it is 1 and nothing changes — which
+   is what applies before the first measurement and on any sheet the fitter
+   never reaches. */
 .drpg-action-button .drpg-action-name {
     color: var(--drpg-bone);
-    font-size: var(--drpg-text-sm);
+    font-size: calc(var(--drpg-text-sm) * var(--drpg-tile-text, 1));
     /* `break-word`, not `anywhere`: a word breaks only when it has to, and the
        soft hyphens `softWrap()` puts in the long ones decide where. `anywhere`
        broke every label at whatever character the edge landed on — "Observ /
@@ -1292,7 +1282,11 @@ body:not(.drpg-gm) .character-header-sheet .hope-section .hope-value {
 }
 
 .drpg-action-button .drpg-action-cost {
-    font-size: var(--drpg-text-xs);
+    /* The cost shrinks WITH the name, not independently. It is the smaller of
+       the two lines already, and letting them drift apart would make the tile
+       that shrank look like a different kind of tile rather than the same one
+       set a little smaller. */
+    font-size: calc(var(--drpg-text-xs) * var(--drpg-tile-text, 1));
     opacity: 0.6;
     white-space: nowrap;
 }
@@ -1844,7 +1838,7 @@ section[data-application-part="inventory"] .items-section:not(.drpg-inventory-gr
    "Search" — so the label alone is scaled down and allowed to break mid-word.
    Everything else about the tile is the action template untouched. */
 .drpg-call-button .drpg-action-name {
-    font-size: var(--drpg-text-xs) !important;
+    font-size: calc(var(--drpg-text-xs) * var(--drpg-tile-text, 1)) !important;
     line-height: 1.05;
     letter-spacing: 0;
     overflow-wrap: break-word;
@@ -1856,7 +1850,7 @@ section[data-application-part="inventory"] .items-section:not(.drpg-inventory-gr
 }
 
 body.drpg-pixel-font .drpg-call-button .drpg-action-name {
-    font-size: var(--drpg-text-xs) !important;
+    font-size: calc(var(--drpg-text-xs) * var(--drpg-tile-text, 1)) !important;
 }
 
 body.drpg-pixel-font .drpg-call-button .drpg-action-cost {
@@ -2233,14 +2227,22 @@ body.drpg-pixel-font .tab-navigation nav.sheet-tabs a span {
     letter-spacing: 0;
 }
 
-body.drpg-pixel-font .drpg-action-panel h3,
-body.drpg-pixel-font .drpg-action-button .drpg-action-name {
+body.drpg-pixel-font .drpg-action-panel h3 {
     font-size: var(--font-size-10, 0.62rem);
     letter-spacing: 0;
 }
 
+/* The pixel face is where this matters — it is the wide one, and it is the one
+   the table plays with. Both rules carry the same multiplier as their
+   non-pixel counterparts above, because the fitter measures whatever face is
+   actually rendering and must be able to act on it. */
+body.drpg-pixel-font .drpg-action-button .drpg-action-name {
+    font-size: calc(var(--font-size-10, 0.62rem) * var(--drpg-tile-text, 1));
+    letter-spacing: 0;
+}
+
 body.drpg-pixel-font .drpg-action-button .drpg-action-cost {
-    font-size: var(--font-size-9, 0.56rem);
+    font-size: calc(var(--font-size-9, 0.56rem) * var(--drpg-tile-text, 1));
 }
 
 /* A wide face needs room to breathe rather than clipping mid-word. */
@@ -5060,7 +5062,7 @@ body.drpg-pixel-font .drpg-camera-dock .camera-view .name {
 
 /* Confusion is the only tile whose cost names two resources. */
 body.drpg-pixel-font .drpg-action-button .drpg-action-cost {
-    font-size: var(--drpg-text-xs);
+    font-size: calc(var(--drpg-text-xs) * var(--drpg-tile-text, 1));
     line-height: 1.5;
 }
 
@@ -6670,16 +6672,32 @@ body.drpg-pixel-font .application.sheet.actor prose-mirror * {
 
 /* --- the floor ----------------------------------------------------------- */
 /* Everything the module draws small, restated at or above 11px. These were
-   8px and 9px, which the previous face survived and this one does not. */
+   8px and 9px, which the previous face survived and this one does not.
+
+   AND THIS IS THE RULE THAT ACTUALLY WINS, which is why the multiplier has to
+   be here too. Three other places in this file set the size of a tile's name;
+   all three are outranked by the `!important` below, so a `calc()` written in
+   any of them is arithmetic nobody ever reads. That is the same shape as the
+   dead pixel-font grid rule found earlier today — a declaration that looks
+   like the answer and has never once applied.
+
+   `--drpg-tile-text` is written on the GRID by `fitTileText` (sheet.mjs) and
+   defaults to 1, so the floor is unchanged everywhere except a panel whose
+   longest word does not fit its tile. Dawid, 28.08: shrink the names and the
+   costs rather than widen the sheet. The type on such a panel does go under
+   11px, deliberately, and only there. */
 
 .drpg-action-button .drpg-action-name,
 .drpg-call-button .drpg-action-name {
-    font-size: var(--drpg-text-xs) !important;
+    font-size: calc(var(--drpg-text-xs) * var(--drpg-tile-text, 1)) !important;
     line-height: 1.25;
 }
 
 .drpg-action-button .drpg-action-cost,
-.drpg-call-button .drpg-action-cost,
+.drpg-call-button .drpg-action-cost {
+    font-size: calc(var(--drpg-text-xs) * var(--drpg-tile-text, 1)) !important;
+}
+
 #drpg-player-status .drpg-status-label,
 #drpg-despair .drpg-despair-name,
 .drpg-tb-badge,
@@ -9264,19 +9282,15 @@ details.drpg-calls-panel[open] > .drpg-action-grid {
    That minimum was 4.75rem — 76px — and it is a character too narrow for the
    pixel face: "Observe" measures 77px and "Sabotage" 88px, so at the floor the
    commonest labels broke mid-word. 5.75rem fitted most of them and not the
-   longest: "Determination" wants 143px and "Contribution" 132, so those two
-   kept breaking (Dawid, 28.08) while the rule said the floor had been raised
-   to fix exactly that.
+   longest: "Determination" wants 143px at the pixel face and "Contribution"
+   132, so those two kept breaking (Dawid, 28.08) while the rule above said the
+   floor had been raised to fix exactly that.
 
-   THE FLOOR IS MEASURED NOW, and 5.75rem is only what applies before the first
-   measurement. `sizeColumns` in sheet.mjs reads the widest WORD in the grid —
-   word, not label, because "Dynamic action" is allowed to wrap at its space and
-   only an unbroken word forces a wider tile — and writes `--drpg-tile-min`.
-   With four columns of 153px against a 143px word every name survives whole.
-
-   The one-fifth term stays and still does its job: it is the CEILING, and on a
-   sheet wide enough for the measured floor to be under a fifth of the row it
-   takes over and holds the count at five.
+   WIDTH IS NOT WHAT FIXES THOSE TWO, and a detour through this rule proved it:
+   no sheet width a person would use gives five columns a 143px tile. The type
+   gives way instead — see `fitTileText` in sheet.mjs — so this rule is back to
+   what it was, holding the count at five and the tiles the same size across
+   every panel on the sheet.
 
    `auto-fill`, NOT `auto-fit`.
    ---------------------------------------------------------------------------
@@ -9294,8 +9308,7 @@ details.drpg-calls-panel[open] > .drpg-action-grid {
 .application.sheet.actor .drpg-action-grid,
 body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     grid-template-columns:
-        repeat(auto-fill, minmax(
-            max(var(--drpg-tile-min, 5.75rem), calc((100% - 16px) / 5)), 1fr)) !important;
+        repeat(auto-fill, minmax(max(5.75rem, calc((100% - 16px) / 5)), 1fr)) !important;
 }
 
 /* If anything still cannot fit, it scrolls — it does not vanish. */
@@ -10682,7 +10695,22 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
 
 /* An emptied pane. It reads as locked rather than as broken, which is the whole
    job of the mark in it. */
-.drpg-redacted-pane {
+/* `.active`, AND LEAVING IT OFF SHOWED FIVE SHEETS AT ONCE.
+   --------------------------------------------------------------------------
+   This centred the placeholder in the pane, and it said `display: flex` on
+   EVERY redacted pane — including the four the tab system means to be hiding.
+   Foundry hides an inactive tab with `display: none` on `.tab`; a module rule
+   in a later layer saying `display: flex` on the same element outranks it, so
+   all five panes were visible and a redacted sheet came out as five stacked
+   question marks with five copies of the same sentence under them.
+
+   Dawid found it, 28.08. Measured before the fix: five panes, `display: flex`
+   on all five, four of them without `.active`.
+
+   Nothing leaked — the panes are emptied first and that is the security half
+   — but this is the shape to watch for. A rule written to style what is INSIDE
+   a box quietly took over whether the box is shown at all. */
+.drpg-redacted-pane.active {
     display: flex;
     align-items: center;
     justify-content: center;

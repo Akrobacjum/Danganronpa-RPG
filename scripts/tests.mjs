@@ -429,6 +429,55 @@ const INVARIANTS = [
         equal(KEY_REMNANTS.unfoundDespair, 3, "an unfound Key Remnant is not worth 3 Despair");
     }],
 
+    ["no module rule decides whether a sheet tab is shown", async () => {
+        /*
+         * `.drpg-redacted-pane { display: flex }` centred a placeholder inside
+         * a pane and, by saying `display` at all, took over whether the pane was
+         * SHOWN. Foundry hides an inactive tab with `display: none` on `.tab`;
+         * a module rule in a later layer beats that, so a redacted sheet came
+         * out with all five panes visible — five question marks, five copies of
+         * the same sentence. Dawid found it at the table on 28.08.
+         *
+         * The class of defect is what this guards: a rule written to style what
+         * is INSIDE a tab must not be able to decide whether the tab is on
+         * screen. So any module selector that targets a tab pane and sets
+         * `display` has to qualify itself with `.active` — otherwise it is
+         * making that decision for every pane at once.
+         *
+         * Read from the file rather than the DOM. This only shows on a
+         * player's client looking at somebody else's sheet, which is not where
+         * this suite runs; the stylesheet is the same everywhere.
+         */
+        const raw = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text());
+        // COMMENTS OUT FIRST, and the first run of this test is why. The note
+        // above the fixed rule QUOTES the broken one — "`.drpg-redacted-pane
+        // { display: flex }` was written to…" — and a scanner reading prose as
+        // CSS found the quotation and reported the very rule it exists to
+        // explain. A source-reading test has to read source.
+        const css = raw.replace(/\/\*[\s\S]*?\*\//g, "");
+
+        const PANE = /(^|[\s>+~])(\.drpg-redacted-pane|section\.tab|\.tab)(\[[^\]]*\])?$/;
+        const guilty = [];
+
+        for (const match of css.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+            const [, selectors, body] = match;
+            if (!/(^|[\s;])display\s*:/.test(body)) continue;
+
+            for (const selector of selectors.split(",")) {
+                const one = selector.trim().replace(/\s+/g, " ");
+                // THE LAST COMPOUND IS THE SUBJECT. A rule hiding a control
+                // INSIDE a pane is fine and there are several; what must not
+                // exist is a rule whose `display` lands on the pane itself.
+                if (!PANE.test(one)) continue;
+                if (/\.active|:not\(/.test(one)) continue;
+                guilty.push(one.slice(0, 70));
+            }
+        }
+
+        ok(!guilty.length,
+            `these rules decide whether a tab pane is shown: ${guilty.join(" | ")}`);
+    }],
+
     ["every standing window is single-instance or says why not", async () => {
         /*
          * Dawid, 28.08: opening the Sound window twice should not give you two
