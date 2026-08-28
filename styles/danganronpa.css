@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json — the suite fails if it does not. */
-    --drpg-css-version: "1.1.70";
+    --drpg-css-version: "1.1.71";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -699,6 +699,35 @@ body.drpg-pixel-font .character-sidebar-sheet .resources-section .slot-label .la
     line-height: 1.25;
 }
 
+/* At the top of the left rail, at the size it has always been.
+   --------------------------------------------------------------------------
+   The rules above describe a plaque as wide as its longest line, centred by
+   `margin: auto`. In a column only the centring has to go: an `auto` margin in
+   a flex column centres the box inside a width it already fills, and that space
+   reads as the clock drifting away from the corner it was moved to.
+
+   ITS SIZE IS NOT NEGOTIABLE (Dawid, 29.08: "you shrank it unnecessarily").
+   A first pass capped it to the column width and cut its padding, and the clock
+   came out small and hyphenated — a layout nobody had complained about, saved
+   at the price of the one box on screen the whole table reads. So
+   `width: max-content` and the 46-character ceiling stand, and the COLUMN gives
+   way instead: it is sized by its children, so it becomes as wide as the clock.
+
+   `align-items: start` is the other half of that. Without it the icon rail
+   under the clock stretches to the new width and the tool buttons drift into
+   the middle of a column four times too wide for them. */
+#ui-left-column-1 {
+    align-items: start;
+}
+
+#ui-left-column-1 > #drpg-hud {
+    /* Above the GM launcher and the tool icons, which move down. `-1` rather
+       than numbering the column: nothing else in it has an order, so one
+       negative number is the whole rule. */
+    order: -1;
+    margin: 0 0 4px;
+}
+
 #drpg-hud > *,
 #drpg-hud .drpg-hud-time {
     pointer-events: auto;
@@ -793,6 +822,25 @@ body.drpg-pixel-font .character-sidebar-sheet .resources-section .slot-label .la
    which widget rendered last. One row, never wrapped: the row is a single
    flex line and the box grows to fit it.
    ========================================================================== */
+
+/* The two boxes are the same size on both screens (Dawid, 29.08).
+   --------------------------------------------------------------------------
+   `is-ghost` is a stepper a player does not get: hidden, disabled, and still
+   occupying its square so the panel is the width it is on a GM's screen. See
+   `buildRow` in despair.mjs for why the space and not the button.
+
+   The reading is the other half. A GM reads "12/12" and a player reads "?/12",
+   which is one character narrower — small, and it moves everything to its right
+   by that much on one client and not the other. A fixed measure in `ch` settles
+   it without hard-coding a pixel width that a font change would falsify. */
+.drpg-despair-button.is-ghost {
+    visibility: hidden;
+}
+
+.drpg-despair-count {
+    min-width: 5ch;
+    text-align: center;
+}
 
 #drpg-despair {
     order: 10;
@@ -1546,6 +1594,59 @@ section[data-application-part="biography"] .experiences .value {
 
 .drpg-inventory-list .drpg-item-name {
     flex: 1 1 auto;
+}
+
+/* What is left in a tool, in the row that carries it.
+   --------------------------------------------------------------------------
+   The same sprite the action tray and the Hope track use, at the size the tier
+   badge is set in, so the tail of the row stays one line of small bookkeeping
+   rather than three competing ones. `--drpg-dim` for what has been spent is the
+   palette's own word for it; the filled pip takes the row's colour so an
+   untouched item reads as ordinary and a worn one reads as wearing down.
+
+   The wrapper does NOT push right with `margin-left: auto`. `.drpg-item-broken`
+   already does that, and two of them in one flex row split the free space
+   between them instead of stacking — the lesson from the BROKEN/READY pair
+   twenty lines down, learned once. */
+.drpg-item-wear {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    flex: 0 0 auto;
+    color: currentColor;
+    opacity: 0.75;
+}
+
+.drpg-item-wear.is-worn {
+    opacity: 1;
+}
+
+.drpg-wear-pip {
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    background-color: currentColor;
+    color: var(--drpg-dim);
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
+    image-rendering: pixelated;
+    -webkit-mask-image: var(--drpg-pix-dot-empty);
+    mask-image: var(--drpg-pix-dot-empty);
+}
+
+.drpg-wear-pip.filled {
+    color: var(--drpg-eye);
+    -webkit-mask-image: var(--drpg-pix-dot);
+    mask-image: var(--drpg-pix-dot);
+}
+
+/* On the sheet the line is centred text, not a flex row of controls, so the
+   pips need their own small gap from the label they follow. */
+.drpg-item-kind .drpg-item-wear {
+    margin-left: 6px;
+    vertical-align: middle;
 }
 
 .drpg-inventory-list .drpg-item-tier {
@@ -6193,6 +6294,35 @@ body.drpg-pixel-font .drpg-safeword-button {
    application and re-appends itself into this column on every render, so a
    scripted move has to be re-asserted on three hooks and can still lose a race;
    `order` cannot be undone by a redraw. */
+/* THE SIDEBAR IS GONE ON A PLAYER'S SCREEN (Dawid, 29.08).
+   --------------------------------------------------------------------------
+   "Hide the square tiles on the right — I don't think a player needs them any
+   more." The tiles are Foundry's sidebar, collapsed: a 48px rail of tab icons
+   for Chat, Combat, Actors, Items, Journals, Cards, Compendia and Settings.
+
+   A player in this game reaches all of it somewhere else. Their sheet is the
+   character, the messenger in the corner is the conversation, the module's own
+   cards are raised into the middle of the screen by popup.mjs rather than being
+   read out of a log, and the panels a player may open have launchers of their
+   own. What the rail added was eight doors, most of which open on something
+   they are not allowed to change.
+
+   The whole `#sidebar` and not just `#sidebar-tabs`: hiding the icons alone
+   leaves the 48px column they sat in, and the rail beside it stays indented
+   from an edge that has nothing on it. Measured with it gone: the module's own
+   column moves out to the screen edge and the map keeps the rest.
+
+   NOT HIDDEN FROM A GM. Everything in there is theirs.
+
+   ONE CONSEQUENCE, WRITTEN DOWN RATHER THAN DISCOVERED: this is also how a
+   player opened Foundry's chat log. Anything said in it that the module did not
+   post — a GM typing out of character — no longer has a window on their screen.
+   If that turns out to matter, the smallest change is to let `#sidebar-tabs`
+   keep its chat tile instead of hiding the lot. */
+body.drpg-player #sidebar {
+    display: none;
+}
+
 #ui-right-column-1 > #drpg-player-status { order: 0; }
 #ui-right-column-1 > #countdowns { order: 1; }
 #ui-right-column-1 > .dh-effects-display,
@@ -6539,6 +6669,49 @@ html body {
     background: rgba(var(--drpg-eye-rgb), 0.16) !important;
     border-color: var(--drpg-eye) !important;
     color: var(--drpg-eye-light) !important;
+}
+
+/* THE RIGHT RAIL IS RED TOO (Dawid, 29.08).
+   --------------------------------------------------------------------------
+   The left rail has been the GM's red since 26.08 and the right one stayed
+   Bone, on the reasoning that the right rail belongs to everybody. It no longer
+   does: a player has no sidebar at all now, so every tile on that edge is the
+   GM's, and two rails in two colours on one screen was the only thing still
+   saying otherwise.
+
+   Same three states, same alphas and the same `!important`s as the left rail —
+   this is that red block with a different selector, written out rather than
+   shared: the two rails have already parted company once, and a shared rule
+   would have to be split again the next time one of them does. */
+#sidebar-tabs button.ui-control,
+#sidebar .tabs button.ui-control {
+    border-color: rgba(var(--drpg-eye-rgb), 0.45) !important;
+    color: var(--drpg-eye) !important;
+}
+
+#sidebar-tabs button.ui-control:hover,
+#sidebar .tabs button.ui-control:hover {
+    background: rgba(var(--drpg-eye-rgb), 0.1) !important;
+    border-color: var(--drpg-eye) !important;
+    color: var(--drpg-eye-light) !important;
+}
+
+#sidebar-tabs button.ui-control.active,
+#sidebar-tabs button.ui-control[aria-pressed="true"],
+#sidebar .tabs button.ui-control.active,
+#sidebar .tabs button.ui-control[aria-pressed="true"] {
+    background: rgba(var(--drpg-eye-rgb), 0.16) !important;
+    border-color: var(--drpg-eye) !important;
+    color: var(--drpg-eye-light) !important;
+}
+
+/* The Scenes tile goes, for the GM as well (Dawid, 29.08).
+   The scene list is on the left rail, under the clock, with the names written
+   out; this tile is a second door to the same room, one icon wide and with no
+   names on it. A player has no tiles at all, so this is the GM's copy. */
+#sidebar-tabs button.ui-control[data-tab="scenes"],
+#sidebar .tabs button.ui-control[data-tab="scenes"] {
+    display: none !important;
 }
 
 /* The rails themselves lose Foundry's translucent slab. */

@@ -351,6 +351,17 @@ function applyBodyClasses() {
     document.body.classList.toggle("drpg-pixel-font", getSetting(SETTINGS.pixelFont));
     // CSS uses this to make Hope and traits display-only for players.
     document.body.classList.toggle("drpg-gm", game.user.isGM);
+    /*
+     * THE SAME FACT, STATED POSITIVELY, and it is not redundant.
+     *
+     * A rule written as `body:not(.drpg-gm)` is true of every client for the
+     * two seconds before this function runs — including a GM's. Anything it
+     * hides therefore flashes off and back on while their world loads, and the
+     * first thing to want this was `#sidebar`, which is not a small thing to
+     * blink. `body.drpg-player` is false until it is known to be true, so a
+     * player's interface settles into place instead of a GM's jumping.
+     */
+    document.body.classList.toggle("drpg-player", !game.user.isGM);
 }
 
 /**

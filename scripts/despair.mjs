@@ -503,23 +503,46 @@ function buildRow(user, showName) {
     count.textContent = isGM ? `${held}/${max}` : `?/${max}`;
     row.append(count);
 
-    if (isGM) {
-        row.append(
-            stepper("fa-minus", () => adjustDespair(user.id, -1), held <= 0),
-            stepper("fa-plus", () => adjustDespair(user.id, +1), held >= max)
-        );
-        if (isOwnPool) row.classList.add("own");
-    }
+    /*
+     * THE STEPPERS ARE BUILT FOR EVERYONE, AND ONLY A GM CAN SEE THEM.
+     *
+     * Dawid, 29.08: the Despair panel and the action strip must be the same
+     * size on a GM's screen and on a player's. They were not, and this is the
+     * whole of the difference — the panel is `width: max-content`, so two
+     * buttons that exist on one client and not on the other make the box two
+     * buttons narrower there, and the status strip opposite it takes its height
+     * from this panel (`matchStripToDespair`), so the second box inherited the
+     * first one's disagreement.
+     *
+     * `visibility: hidden` and not `display: none`: the point is to keep the
+     * space. They are also `disabled` and out of the tab order, and no handler
+     * is attached on a player's client — a hidden button that still works would
+     * be a considerably worse bug than a panel of the wrong width.
+     */
+    const ghost = !isGM;
+    row.append(
+        stepper("fa-minus", () => adjustDespair(user.id, -1), held <= 0, ghost),
+        stepper("fa-plus", () => adjustDespair(user.id, +1), held >= max, ghost)
+    );
+    if (isGM && isOwnPool) row.classList.add("own");
 
     return row;
 }
 
-function stepper(icon, handler, disabled) {
+function stepper(icon, handler, disabled, ghost = false) {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "drpg-despair-button";
-    button.disabled = disabled;
+    button.className = `drpg-despair-button${ghost ? " is-ghost" : ""}`;
+    button.disabled = disabled || ghost;
     button.innerHTML = `<i class="fa-solid ${icon}" inert></i>`;
+
+    // A shape, not a control. See `buildRow`.
+    if (ghost) {
+        button.tabIndex = -1;
+        button.setAttribute("aria-hidden", "true");
+        return button;
+    }
+
     button.addEventListener("click", async event => {
         event.preventDefault();
         event.stopPropagation();

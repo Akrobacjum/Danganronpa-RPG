@@ -204,7 +204,29 @@ function clockForDisplay(clock) {
 /** Build or rebuild the HUD in place. Safe to call as often as you like. */
 export function renderHud() {
     try {
-        const host = document.querySelector("#ui-top") ?? document.querySelector("#ui-middle") ?? document.body;
+        /*
+         * THE TOP-LEFT CORNER (Dawid, 29.08), which is a different column.
+         *
+         * The clock used to hang under the Despair panel in `#ui-top`, centred
+         * over the map. It now sits at the very top of the left rail —
+         * `#ui-left-column-1`, above the GM launcher, which moves down together
+         * with the tool icons under it. One `order: -1` in the stylesheet does
+         * it; see the order rule there for why this is CSS and not a script
+         * that re-parents on every redraw.
+         *
+         * The column is 72px of icons and the clock is four times that, so it
+         * WIDENS the column. That is the shape asked for and not a side effect:
+         * the clock keeps the size it has always had (Dawid, 29.08 — "you
+         * shrank it unnecessarily"), and the icons under it stay their own size
+         * because the column is told not to stretch its children.
+         *
+         * `#ui-top` stays as the fallback. A Foundry that renames the column
+         * should leave the clock somewhere sensible rather than nowhere.
+         */
+        const host = document.querySelector("#ui-left-column-1")
+            ?? document.querySelector("#ui-top")
+            ?? document.querySelector("#ui-middle")
+            ?? document.body;
         if (!host) return;
 
         // THE CLOCK IS KEPT, NOT REBUILT.
@@ -346,17 +368,76 @@ function alignRightColumn(hud) {
         const column = document.querySelector("#ui-right-column-1");
         if (!column) return;
 
-        const anchors = ["#drpg-despair", "#drpg-hud"]
-            .map(sel => document.querySelector(sel))
-            .filter(el => el && el.getBoundingClientRect().height > 0);
-        const top = anchors.length
-            ? Math.round(Math.min(...anchors.map(el => el.getBoundingClientRect().top)))
-            : Math.round(hud?.getBoundingClientRect().top ?? 0);
+        /*
+         * THE CLOCK IS NO LONGER AN ANCHOR, because it is now IN the column.
+         *
+         * This reads where the top of the interface is and gives the rail the
+         * same line to start on. Once the clock moved into the rail, measuring
+         * it here meant setting the column's margin from a box whose position
+         * that same margin decides — the loop settles wherever the first frame
+         * happened to leave it, and it does not settle in the same place twice.
+         *
+         * So only the Despair panel is asked, which is the box on the other
+         * side of the screen the rail is supposed to line up with. Nothing to
+         * measure means nothing to move: the column keeps whatever margin it
+         * already had rather than being pushed to zero.
+         */
+        const despair = document.querySelector("#drpg-despair");
+        const top = despair && despair.getBoundingClientRect().height > 0
+            ? Math.round(despair.getBoundingClientRect().top)
+            : 0;
 
         if (top > 0) column.style.marginTop = `${top}px`;
         matchStripToDespair();
+        clearSceneList(hud);
     } catch {
         // Being a few pixels out is not worth throwing into the HUD render.
+    }
+}
+
+/**
+ * The scene list starts under the clock rather than behind it.
+ *
+ * The clock is four times wider than the 72px icon column it now sits at the
+ * top of, and Foundry gives that column a fixed width — so the clock overflows
+ * to the right, straight across the top of the scene list in the column beside
+ * it. Measured: the clock reaches x=320 and the viewed-scene button starts at
+ * x=104, on the same line.
+ *
+ * The alternative was to let the icon column grow to the clock's width, which
+ * would push the scene list, the map and everything after it 230px to the
+ * right — a much larger change to pay for a box that is only wide at the top.
+ * So the scene list moves DOWN instead, which is the same thing that happened
+ * to the GM launcher and the tool icons under it.
+ *
+ * Not circular, which is the thing to check before measuring anything into a
+ * margin: this reads the clock, which is in a different column, and writes a
+ * margin that cannot move it. The natural top is recovered by subtracting
+ * whatever margin this function set last time, so calling it on every render
+ * settles on the same number instead of walking down the screen.
+ */
+function clearSceneList(hud) {
+    try {
+        const column = document.querySelector("#ui-left-column-2");
+        if (!column || !hud) return;
+
+        const box = hud.getBoundingClientRect();
+        if (!(box.height > 0)) return;
+
+        const own = parseFloat(column.style.marginTop) || 0;
+        const natural = column.getBoundingClientRect().top - own;
+
+        // Only when the clock actually reaches across this column. A narrower
+        // clock — a short campaign name, a small screen — needs nothing.
+        if (box.right <= column.getBoundingClientRect().left) {
+            if (own) column.style.marginTop = "";
+            return;
+        }
+
+        const need = Math.max(0, Math.round(box.bottom + 6 - natural));
+        column.style.marginTop = `${need}px`;
+    } catch {
+        // A scene list a few pixels out is not worth throwing into the render.
     }
 }
 

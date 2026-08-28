@@ -28,11 +28,82 @@ import { isPrimaryGm, log } from "./utils.mjs";
  * dice fall back to plain defaults — exactly the "dice appear, skin doesn't"
  * symptom. This reports whether that is what is happening.
  */
+/**
+ * WHO WAS ALLOWED TO WATCH THE LAST FEW ROLLS.
+ *
+ * Dawid, 29.08: "as a player I hear another player's dice sound, in the same
+ * room". Dice So Nice animates — and therefore sounds — for exactly the people a
+ * roll's chat message is addressed to, so "why did I hear that" is always the
+ * same question as "who is on the whisper list", and this prints it.
+ *
+ * It is a report rather than a fix because the module widens that list in three
+ * places ON PURPOSE, and only the person at the table knows which one they were
+ * in:
+ *
+ *   - a Monocub's dice are shown to everyone standing in the room with them;
+ *   - during an incident, the killer, the victim and a third participant watch
+ *     each other's dice — the maths of a fight is public to the people in it;
+ *   - a roll that is already a whisper when it is created keeps the aim it
+ *     came with.
+ *
+ * A fourth cause is not a rule at all and is the one this exists to catch: two
+ * players who are both OWNER on the same character. `ownerOf` answers with the
+ * first active one, so the dice can legitimately be addressed to somebody else's
+ * player without anybody having configured anything on purpose. The permissions
+ * column below says so outright when it happens.
+ */
+function rollAudienceLines() {
+    const lines = ["", "Who could see the last rolls:"];
+
+    let forced = null;
+    try {
+        forced = game.settings.get(MODULE_ID, SETTINGS.forcePrivateRolls);
+    } catch {
+        forced = null;
+    }
+    lines.push(`  Forced private rolls: ${forced === null ? "unreadable" : forced ? "on" : "OFF — every roll is public, which is the whole answer"}`);
+
+    const rolls = game.messages.contents.filter(m => (m.rolls?.length ?? 0) > 0).slice(-6);
+    if (!rolls.length) {
+        lines.push("  No rolls in the log yet.");
+        return lines;
+    }
+
+    for (const message of rolls) {
+        const subject = game.actors.get(message.speaker?.actor ?? "");
+        const author = message.author?.name ?? "?";
+        const whisper = message.whisper ?? [];
+        const names = whisper.length
+            ? whisper.map(id => game.users.get(id)?.name ?? id).join(", ")
+            : "EVERYONE (not a whisper)";
+        const mine = !whisper.length || whisper.includes(game.user.id);
+
+        lines.push(`  "${subject?.name ?? "no actor"}" rolled by ${author} → ${names}`
+            + `${mine ? "   ← you hear this one" : ""}`);
+
+        // The accident, named on the spot. Every player who owns the character
+        // is a candidate for `ownerOf`, and only the first active one is used.
+        if (subject) {
+            const owners = game.users.filter(u => !u.isGM && subject.testUserPermission(u, "OWNER"));
+            if (owners.length > 1) {
+                lines.push(`      ${owners.length} players own this character `
+                    + `(${owners.map(u => u.name).join(", ")}) — its dice go to whichever is listed first`);
+            }
+        }
+    }
+
+    return lines;
+}
+
 export function diagnoseDice() {
     const lines = [];
     const dsn = game.modules.get("dice-so-nice");
 
     lines.push(`Dice So Nice installed: ${dsn ? "yes" : "no"}${dsn ? `, active: ${dsn.active}` : ""}`);
+
+    // Before the skins, because it is the question that gets asked at the table.
+    for (const line of rollAudienceLines()) lines.push(line);
+
     if (!dsn?.active) {
         lines.push("→ Nothing else matters until Dice So Nice is enabled.");
         return report("Dice diagnostics", lines);
