@@ -3980,6 +3980,61 @@ const SCENARIOS = [
         }
     }],
 
+    ["a private card's notice carries its words, not the placeholder", async () => {
+        /*
+         * Dawid, 28.08: "Hope Call notices come up empty."
+         *
+         * THE STUB LANDS FIRST AND ALWAYS WILL. A private card keeps its words
+         * off the world database (E17): the document carries a placeholder and
+         * the text is addressed by socket. `postSecret` has to create the
+         * message before it can send, because the id it keys the words with
+         * does not exist until then — so on any client the document arrives,
+         * `createChatMessage` fires, and the words are still in flight.
+         *
+         * The chat log survived that because it redraws the card in place when
+         * they land. THE NOTICE IS DRAWN ONCE, so it drew the placeholder: an
+         * empty card, on every private notice in the game, since v1.1.47.
+         *
+         * MEASURED THROUGH THE REAL PATH — `whisperToOwner`, a real card, the
+         * notice's own DOM — because the two halves only meet on screen: the
+         * words are in a client-side store, the emptiness was in the popup, and
+         * every layer in between was working.
+         */
+        const { whisperToOwner } = await import("./utils.mjs");
+        const secret = await import("./secret.mjs");
+        const actor = game.actors.filter(a => a.type === "character")[0];
+        ok(actor, "no character to whisper to");
+
+        const before = document.querySelectorAll(".drpg-popup").length;
+        const words = `Suite notice ${Date.now() % 100000}`;
+        let message = null;
+        try {
+            message = await whisperToOwner(actor, `<h3>Suite probe</h3><p>${words}</p>`, {
+                flags: { [MODULE_ID]: { popupTone: "hope", popupForce: true } }
+            });
+            ok(message, "the card was not posted");
+            await wait(900);
+
+            const cards = [...document.querySelectorAll(".drpg-popup")];
+            ok(cards.length > before, "no notice appeared at all");
+            const text = cards[cards.length - 1].innerText.replace(/\s+/g, " ");
+            ok(text.includes(words),
+                `the notice does not carry the card's words — it reads "${text.trim()}"`);
+
+            // And the other half of the same rule: the DOCUMENT still says
+            // nothing, or the privacy this is built on is gone.
+            ok(String(message.content).includes("data-drpg-secret"),
+                "a private card's words were written into the world after all");
+            equal(secret.contentOf(message), `<h3>Suite probe</h3><p>${words}</p>`,
+                "the words did not reach the client-side store");
+        } finally {
+            for (const card of [...document.querySelectorAll(".drpg-popup")].slice(before)) {
+                card.dispatchEvent(new CustomEvent("drpg-dismiss"));
+            }
+            if (message) await message.delete();
+        }
+    }],
+
     ["every objection takes a different track from the objection playlist", async () => {
         /*
          * Dawid, 28.08, and he called it a must-have: an Objection must not only

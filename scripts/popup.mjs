@@ -35,7 +35,7 @@ import { MESSENGER_FLAGS } from "./messenger.mjs";
 import { MESSAGE_FLAG } from "./utils.mjs";
 import { play, BEAT, ARRIVE, SNAP } from "./motion.mjs";
 
-import { contentOf } from "./secret.mjs";
+import { contentOf, wordsOf } from "./secret.mjs";
 const CONTAINER_ID = "drpg-popups";
 const AUTO_DISMISS_MS = 12000;
 
@@ -283,7 +283,7 @@ export function registerPopups() {
  * module message goes through, not by sniffing the content: half of these are a
  * bare heading and a paragraph with nothing to recognise them by.
  */
-function onCreateChatMessage(message) {
+async function onCreateChatMessage(message) {
     if (!message.getFlag(MODULE_ID, MESSAGE_FLAG)) return;
 
     // Surfaces that already present themselves, and must not be shown twice.
@@ -342,7 +342,18 @@ function onCreateChatMessage(message) {
     // only by calling `showPopup` directly, which meant the card appeared on the
     // acting client alone. Carried on the message instead, so every recipient
     // gets the same card with the same title.
-    showPopup(contentOf(message), {
+    /*
+     * THE WORDS, NOT THE STUB. A private card carries its text by socket and
+     * the document holds a placeholder, so a notice drawn the moment the
+     * document arrives was drawing the placeholder — an empty card. The chat
+     * log never showed it because it redraws itself when the words land; the
+     * notice is drawn once.
+     *
+     * `wordsOf` resolves at once for everything that is not a private card,
+     * which is nearly everything, so the ordinary notice is not delayed by a
+     * tick it does not need.
+     */
+    showPopup(await wordsOf(message), {
         kind,
         title: message.getFlag(MODULE_ID, "popupTitle") ?? null,
         // Carried on the message rather than worked out here, for the same

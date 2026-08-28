@@ -128,11 +128,64 @@ export function secretHtml(message) {
  * a reader that does not is a reader that shows the stub — and the stub is a
  * dash. See the R15 criterion, which exists to keep that true.
  */
+/**
+ * Anyone waiting for a card's words to arrive, by message id.
+ *
+ * THE STUB LANDS FIRST AND IT ALWAYS WILL. `postSecret` has to create the
+ * message before it can address the socket, because the id it keys the words
+ * with does not exist until then — so on a recipient's client the document
+ * arrives, `createChatMessage` fires, and the words are still in flight. The
+ * chat log survives that: `refresh()` redraws the card in place when they
+ * land. A POPUP DOES NOT — it is drawn once and never asked again, which is
+ * why every private notice has been coming up blank (Dawid, 28.08).
+ */
+const waiting = new Map();
+
+/**
+ * Resolve when this message's words are here, or when waiting stops being
+ * worth it.
+ *
+ * A CEILING RATHER THAN A PROMISE THAT MIGHT NEVER SETTLE: if the socket never
+ * arrives — the poster went offline mid-send, the card was not secret at all —
+ * the caller gets whatever the document says instead of a notice that never
+ * appears. A blank card is a bug; a missing one is a bug nobody can even
+ * report.
+ *
+ * @param {ChatMessage} message
+ * @param {number} [ms]  How long to wait before giving up.
+ * @returns {Promise<string>} the words, or the document's own content.
+ */
+export function wordsOf(message, ms = 4000) {
+    const known = secretHtml(message);
+    if (known !== undefined && known !== null) return Promise.resolve(known);
+    if (!message?.id || !isStub(message.content)) {
+        return Promise.resolve(message?.content ?? "");
+    }
+
+    return new Promise(resolve => {
+        const done = html => {
+            clearTimeout(timer);
+            waiting.delete(message.id);
+            resolve(html ?? message.content ?? "");
+        };
+        const timer = setTimeout(() => {
+            debug(`Secret cards: the words for ${message.id} never arrived; `
+                + "drawing what the card itself says.");
+            done(null);
+        }, ms);
+        waiting.set(message.id, done);
+    });
+}
+
 export function contentOf(message) {
     return secretHtml(message) ?? message?.content ?? "";
 }
 
 async function remember(id, html, at) {
+    // Anything holding a notice open for these words gets them now.
+    const pending = waiting.get(id);
+    if (pending) pending(html);
+
     const store = { ...read(), [id]: { html, at: at ?? Date.now() } };
 
     const ids = Object.keys(store);
