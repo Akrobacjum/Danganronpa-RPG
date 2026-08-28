@@ -187,7 +187,7 @@ const lineAt = (text, index) => text.slice(0, index).split("\n").length;
  * R22 asks which names this module calls, and half the module's output is
  * HTML built in template literals. Without this, `"<button onclick="` and
  * every other parenthesis inside a sentence reads as a call to something that
- * does not exist \— and a tier-0 test that cries wolf is a tier-0 test people
+ * does not exist — and a tier-0 test that cries wolf is a tier-0 test people
  * learn to skip. Lengths are preserved so `lineAt` still points at the code.
  */
 function stripStrings(text) {
@@ -236,7 +236,7 @@ function stripStrings(text) {
 
 /**
  * Every name a file BINDS: imported, declared, destructured, taken as a
- * parameter. Generous on purpose \— R22 reports what is in none of these, so
+ * parameter. Generous on purpose — R22 reports what is in none of these, so
  * a name this misses is a false accusation, and a name it over-collects is
  * only a miss.
  */
@@ -248,7 +248,7 @@ function boundNames(text) {
     for (const m of text.matchAll(/import\s+([\s\S]*?)\s+from\b/g)) add(m[1]);
     // THE PARAMETER LIST IS WALKED, not matched. `function createProject({ name,
     // rooms = allRooms() })` has parentheses inside its own parameters, and a
-    // `[^()]*` pattern simply fails on it \— which took the FUNCTION'S NAME down
+    // `[^()]*` pattern simply fails on it — which took the FUNCTION'S NAME down
     // with it and had the first run of R22 accuse twenty-three real, exported,
     // perfectly reachable functions of not existing.
     for (const m of text.matchAll(/\bfunction\s*\*?\s*([A-Za-z_$][\w$]*)?\s*\(/g)) {
@@ -328,19 +328,27 @@ function functionsOnly(text) {
     }
     // A name that is ALSO a value somewhere in this file is out of scope: the
     // boolean is reading that value, not the function. Five of the six the
-    // first run of this reported were exactly that \— a parameter named
+    // first run of this reported were exactly that — a parameter named
     // `grants`, a `let done = false`, a `const label`.
+    // EVERY PARAMETER NAME IN THE FILE, GATHERED ONCE. The first version asked
+    // this question per candidate, and each asking walked the whole file: about
+    // a hundred names across eighty-nine sources, some of them a quarter of a
+    // megabyte. The suite went from twelve seconds to minutes and looked hung.
+    // One pass, then set membership.
+    const params = new Set();
+    for (const m of text.matchAll(/\(([^()]{0,300})\)\s*(?:=>|\{)/g)) {
+        for (const w of m[1].match(/[A-Za-z_$][\w$]*/g) ?? []) params.add(w);
+    }
+
     for (const name of [...fns]) {
+        if (params.has(name)) { fns.delete(name); continue; }
         // THE SPACE GOES INSIDE THE LOOKAHEAD. With `\\s*` in front of it the
         // engine is free to match zero spaces, hand the lookahead " () =>", watch
         // it fail on the leading space and conclude the declaration is a value.
-        // Every arrow in the module read as one, so R21 saw nothing at all \—
+        // Every arrow in the module read as one, so R21 saw nothing at all —
         // including the fault written into its own fixture.
-        const asValue = new RegExp(`\\b(?:const|let|var)\\s+${name}\\s*=(?!\\s*(?:async\\s*)?(?:\\([^()]{0,120}\\)|[A-Za-z_$][\\w$]*)\\s*=>)`, "g");
-        if (asValue.test(text)) { fns.delete(name); continue; }
-        for (const m of text.matchAll(/\(([^()]{0,300})\)\s*(?:=>|\{)/g)) {
-            if (new RegExp(`(?:^|[{,\\s])${name}(?:[,}\\s=]|$)`).test(m[1])) { fns.delete(name); break; }
-        }
+        const asValue = new RegExp(`\\b(?:const|let|var)\\s+${name}\\s*=(?!\\s*(?:async\\s*)?(?:\\([^()]{0,120}\\)|[A-Za-z_$][\\w$]*)\\s*=>)`);
+        if (asValue.test(text)) fns.delete(name);
     }
     return fns;
 }
@@ -1295,8 +1303,8 @@ const REGRESSIONS = [
          *
          * The GM panel's roster became a function when the "who is alive" table
          * learned to rebuild itself while open (E22). The heading was updated to
-         * call it; one line in the row builder was not, and `!anyCub` \— a
-         * function reference \— is `false` forever. So for four releases every
+         * call it; one line in the row builder was not, and `!anyCub` — a
+         * function reference — is `false` forever. So for four releases every
          * row carried the three Monocub cells whether or not a Monocub existed,
          * under a heading that correctly showed three columns. Three headings
          * over six cells, in the window a GM works from most.
@@ -1304,11 +1312,11 @@ const REGRESSIONS = [
          * Nothing catches this: it parses, it runs, it throws nothing, and the
          * branch it silently picks is the one that LOOKS busier rather than the
          * one that looks broken. It is also a mistake this module is now shaped
-         * to keep making \— every window that learns to stay live turns a
+         * to keep making — every window that learns to stay live turns a
          * handful of locals into functions on the way.
          *
          * OUT OF SCOPE, deliberately: a name that is also a value somewhere in
-         * the same file. The first run reported six and five were that \— a
+         * the same file. The first run reported six and five were that — a
          * parameter called `grants`, a `let done = false`, a `const label`. A
          * test with five false accusations in six is one nobody reads.
          */
@@ -1325,7 +1333,7 @@ const REGRESSIONS = [
             const text = stripStrings(stripComments(raw));
             for (const name of functionsOnly(text)) {
                 for (const at of truthyReads(text, name)) {
-                    wrong.push(`${file}:${lineAt(text, at)} \— \`${name}\` is a function here, `
+                    wrong.push(`${file}:${lineAt(text, at)} — \`${name}\` is a function here, `
                         + "so this test is always true (call it)");
                 }
             }
@@ -1344,7 +1352,7 @@ const REGRESSIONS = [
          * files as unplayable while the table was hearing them.
          *
          * The same shape then turned up in `action-rolls.mjs`, where a `catch`
-         * called `debug(\u2026)` that the file never imported \— an error handler
+         * called `debug(\u2026)` that the file never imported — an error handler
          * that throws a second error is the worst possible place for this.
          *
          * CALL POSITION ONLY. A bare identifier can be a property, a label, a
@@ -1370,7 +1378,7 @@ const REGRESSIONS = [
                 if (said.has(who) || bound.has(who) || AMBIENT.has(who)) continue;
                 if (JS_KEYWORDS.has(who) || /^[A-Z]/.test(who)) continue;
                 said.add(who);
-                wrong.push(`${file}:${lineAt(text, m.index)} \— ${who}() is declared nowhere `
+                wrong.push(`${file}:${lineAt(text, m.index)} — ${who}() is declared nowhere `
                     + "in this file and imported into it by nothing");
             }
         }
@@ -1380,7 +1388,7 @@ const REGRESSIONS = [
     ["R23 \u00b7 a document hook that checks for a GM checks for THE GM", async () => {
         /*
          * A DOCUMENT HOOK FIRES ON EVERY CLIENT, so "am I a GM" is never the
-         * right question in one \— with two Gamemasters at this table it is
+         * right question in one — with two Gamemasters at this table it is
          * answered yes twice.
          *
          * The bidirectional Truth Bullet sync (v1.1.55) asked it that way. One
@@ -1389,7 +1397,7 @@ const REGRESSIONS = [
          * the ledger to the other. One rename, two cascades, and the second one
          * arrives while the first is still writing.
          *
-         * `isPrimaryGm` is how the rest of the module answers it \— the trap
+         * `isPrimaryGm` is how the rest of the module answers it — the trap
          * relay, the search tokens, the migrations, `prepareScenes`. It picks
          * ONE connected GM, and both ends compute it from the same user list so
          * they cannot disagree.
@@ -1411,7 +1419,7 @@ const REGRESSIONS = [
                 }
                 const body = text.slice(from, j);
                 if (!/user\.isGM/.test(body) || /isPrimaryGm/.test(body)) continue;
-                wrong.push(`${file}:${lineAt(text, m.index)} \— ${m[1]} fires on every client, `
+                wrong.push(`${file}:${lineAt(text, m.index)} — ${m[1]} fires on every client, `
                     + "so every GM runs this (use isPrimaryGm)");
             }
         }
@@ -3143,7 +3151,7 @@ const SCENARIOS = [
          * Dawid, 28.08: "the synchronisation is to be full, continuous,
          * regardless of when and where the edit happens."
          *
-         * The downward half is old \— the trace's record has always been pushed
+         * The downward half is old — the trace's record has always been pushed
          * onto every bullet copied from it. The upward half is v1.1.55, and it
          * is the one with a moving part: `updateItem` fires on EVERY client, so
          * the handler is fenced to one GM, and a fence in the wrong place turns
@@ -3172,7 +3180,7 @@ const SCENARIOS = [
         try {
             token = await remnants.placeRemnant({
                 type: "prep", visibility: "evident", x: anchor.x, y: anchor.y, scene,
-                note: "test fixture \— trace/bullet sync"
+                note: "test fixture — trace/bullet sync"
             });
             ok(token, "could not place the fixture trace");
 
