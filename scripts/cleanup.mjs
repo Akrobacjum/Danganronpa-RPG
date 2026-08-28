@@ -70,7 +70,7 @@ import { copiedRemnants } from "./truth-bullets.mjs";
 import { ITEM_FLAGS, isBroken, isStashed } from "./inventory.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
-import { whisperToGms, whisperToOwner, dialogContent, log, error, cardHead } from "./utils.mjs";
+import { announce, whisperToGms, whisperToOwner, dialogContent, log, error, cardHead } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -765,7 +765,7 @@ async function concealFromWitnesses(actor) {
         const recipients = Array.from(new Set([...witnesses, ...gmIds()]));
 
         if (recipients.length) {
-            await ChatMessage.create({
+            await announce({
                 content: line,
                 whisper: recipients,
                 flags: { [MODULE_ID]: { drpgMessage: true } }

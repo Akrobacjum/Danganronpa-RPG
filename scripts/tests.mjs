@@ -770,6 +770,49 @@ const REGRESSIONS = [
         ok(!unknown.length, `these listeners test for triggers that do not exist: ${unknown.join(", ")}`);
     }],
 
+    ["R16 · no private card is posted around the private channel", async () => {
+        /*
+         * THE OTHER HALF OF R15, AND THE ONE THAT ROTS FIRST.
+         *
+         * `postSecret` is only the private door if everything goes through it.
+         * A `ChatMessage.create` with a `whisper` list posted straight from a
+         * feature file puts its sentence in the world database, where every
+         * connected client gets it — which is the whole defect this update
+         * moved eighty call sites to close. Measured before the sweep: the
+         * project-completion card did exactly that, and its narration was on
+         * every player's machine.
+         *
+         * Two doors are allowed: `announce` and the three whisper helpers, all
+         * in utils.mjs, all of which route on the presence of a recipient list.
+         *
+         * `private-rolls.mjs` is exempt and it is worth saying why rather than
+         * leaving a hole: it does not create anything. It catches a roll card
+         * Daggerheart is already making and turns it private in `preCreate`,
+         * where there is no id yet to key a secret on. The dice themselves live
+         * in `message.rolls` and are rendered by Foundry, so the number would
+         * travel whatever we did with the content. Left alone on purpose.
+         */
+        const guilty = [];
+        for (const [file, raw] of await otherSources()) {
+            if (file === "utils.mjs" || file === "secret.mjs") continue;
+            const text = stripComments(raw);
+            for (const m of text.matchAll(/ChatMessage\.create\(/g)) {
+                // The call's own argument list, up to the balanced close.
+                let depth = 0, end = m.index;
+                for (let i = m.index + "ChatMessage.create(".length - 1; i < text.length; i++) {
+                    if (text[i] === "(") depth++;
+                    else if (text[i] === ")") { depth--; if (!depth) { end = i; break; } }
+                }
+                const call = text.slice(m.index, end);
+                if (/whisper\s*:/.test(call)) {
+                    guilty.push(`${file}:${lineAt(text, m.index)}`);
+                }
+            }
+        }
+        ok(!guilty.length,
+            `these put private narration in the world database: ${guilty.join(", ")} (use announce)`);
+    }],
+
     ["R15 · nothing reads a card's words off the document", async () => {
         /*
          * THE HALF OF THE PRIVACY FIX A REVIEWER WOULD NOT THINK TO CHECK.
@@ -1282,10 +1325,11 @@ const INVARIANTS = [
     ["every stash a character owns agrees with the room it is in", async () => {
         /*
          * FROM E17'S CLOSING LIST, where it is written as "`vaultRoomsFor()` and
-         * `openStashHere()` agree about the same room". NEITHER FUNCTION EXISTS
-         * ANY MORE — they are `stashRoomsFor` and `openStashesHere` now, and the
-         * bullet has been naming ghosts since E0. The question it was asking is
-         * still the right one, so it is asked of the functions that are here.
+         * `openStashHere()` agree about the same room". `openStashHere` is still
+         * here; `vaultRoomsFor` is not — the room lookups are `stashRoomsFor`
+         * and `vaultRoomFor` now, and the bullet has been naming a ghost since
+         * E0. The question it was asking is still the right one, so it is asked
+         * of the functions that are here.
          *
          * Two roads to "whose stash is in this room", and they are built from
          * opposite ends: `stashRoomsFor` walks the regions asking each one who
@@ -1293,13 +1337,45 @@ const INVARIANTS = [
          * A disagreement is a stash a player can see and not open, or open and
          * not see.
          */
-        const { stashRoomsFor, myStashHere, stashesIn } = await import("./vault.mjs");
+        /*
+         * TWO WRONG VERSIONS BEFORE THIS ONE, both caught by running it, and
+         * both worth leaving written down because they are the two ways a test
+         * lies.
+         *
+         * The first passed `myStashHere(actor, room)` two arguments and did not
+         * await it. It takes one and it is async, so the test compared a Promise
+         * — always truthy — and agreed with everything.
+         *
+         * The second awaited it and failed honestly on a true statement:
+         * `myStashHere` does not mean "where is this character's stash", it
+         * means "the stash of mine I am STANDING IN". Player A owns Dinner Hall
+         * and Closet and was in Main Hall, so `null` was the right answer.
+         *
+         * What the closing list was actually asking is whether the two roads to
+         * "whose stash is in this room" agree, and they are built from opposite
+         * ends: `stashRoomsFor` walks the regions asking each who owns one;
+         * `stashIn` asks one room about one character; `stashesIn` is the room's
+         * own list. All local, all synchronous, and a disagreement between them
+         * is a stash a player can see and not open, or open and not see.
+         */
+        const { stashRoomsFor, stashIn, stashesIn } = await import("./vault.mjs");
         const wrong = [];
         for (const actor of studentActors()) {
-            for (const { room } of stashRoomsFor(actor)) {
-                if (!myStashHere(actor, room)) wrong.push(`${actor.name} owns a stash in ${room} that the room denies`);
-                if (!stashesIn(room).some(e => e.actorId === actor.id)) {
+            const owned = stashRoomsFor(actor).map(entry => entry.room);
+            for (const room of owned) {
+                if (!stashIn(room, actor.id)) {
+                    wrong.push(`${actor.name} owns a stash in ${room} that the room denies`);
+                }
+                if (!stashesIn(room).some(entry => entry.actorId === actor.id)) {
                     wrong.push(`${actor.name}'s stash in ${room} is not in that room's list`);
+                }
+            }
+            // And the other direction: a room that names them, which their own
+            // list left out.
+            for (const room of (await import("./movement.mjs")).allRooms()) {
+                if (owned.includes(room)) continue;
+                if (stashesIn(room).some(entry => entry.actorId === actor.id)) {
+                    wrong.push(`${room} says ${actor.name} has a stash there and their own list does not`);
                 }
             }
         }

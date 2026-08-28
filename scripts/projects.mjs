@@ -598,7 +598,7 @@ async function announceProjectDone(name, target, moverUserId, meta) {
      * mover are merged through a Set and the messenger is not involved at all.
      */
     const ids = Array.from(new Set([...gmIds(), moverUserId].filter(Boolean)));
-    await ChatMessage.create({ content: body, whisper: ids, flags });
+    await announce({ content: body, whisper: ids, flags });
     log(`Project "${name}" is finished; no founder recorded, told whoever filled it.`);
     return { told: moverUserId };
 }

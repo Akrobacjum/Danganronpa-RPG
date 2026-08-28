@@ -249,7 +249,13 @@ function stamped(data = {}) {
  * out loud — a time of day, a Despair Call, an OBJECTION — goes through here.
  */
 export async function announce(data = {}) {
-    return ChatMessage.create(stamped(data));
+    // A CARD WITH A `whisper` LIST IS A PRIVATE CARD, wherever it was posted
+    // from. `announce` is the module's general-purpose poster and about a third
+    // of its callers hand it recipients — the death of a character told to the
+    // people in the room, a GM's ruling, an incident cancelled because a fourth
+    // person walked in. Routing on the presence of the list rather than on the
+    // call site means a new caller cannot forget.
+    return privately(stamped(data));
 }
 
 /**
