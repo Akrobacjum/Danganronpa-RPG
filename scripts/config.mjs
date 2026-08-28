@@ -2893,7 +2893,26 @@ export const SFX_CATEGORIES = {
  * Tuned by ear in E17, alongside `YIELD_MS`. Both are numbers no amount of
  * reasoning settles — which is the lesson of the paragraph this one replaced.
  */
-export const SFX_VARIATION = { rate: 0.08, gain: 0.18 };
+/**
+ * How far a repeated sound is allowed to wander.
+ *
+ * `rate` is the FULL reach of the pitch-and-speed bend and `floor` is how close
+ * to unbent a play is allowed to land — see `rateFor` in sfx.mjs, which is
+ * where the second number does its work.
+ *
+ * TUNED BY EAR, WHICH IS THE ONLY WAY. Dawid, 28.08, on 0.08: "you can hear it,
+ * but it is not enough — it sounds a bit like there are two versions of the
+ * sound, they differ so little." The number went to 0.14 and the shape of the
+ * draw changed with it, because a wider spread alone would not have answered
+ * that sentence: half of a uniform draw lands in the middle and is inaudible.
+ *
+ * 0.14 is about 227 cents at the edge, a little under two semitones. That is a
+ * lot for anything with a pitch and nothing at all for a click — which is what
+ * the eleven events that bend actually are. A GM who maps a tonal sting to one
+ * of them will hear it wander against the music; the answer then is to leave
+ * that event out of the bending list, not to flatten the eleven.
+ */
+export const SFX_VARIATION = { rate: 0.14, floor: 0.5, gain: 0.18 };
 
 export const SFX_SLIDERS = {
     sound: { label: "Sound", hint: "The sound effects — windows, chat, doors, the trial floor. Not the music." },

@@ -203,8 +203,26 @@ export function pickSound(key) {
 function rateFor(key) {
     if (!varies(key)) return null;
 
+    /*
+     * NO DEAD CENTRE, and this is the half that answers what the table heard.
+     *
+     * A uniform draw across ±spread puts half of every play within half a
+     * spread of unbent — which is to say inaudible. What reaches the ear is
+     * only the tail, so a run of plays sounds like a couple of distinct takes
+     * with a lot of repeats between them. Dawid, 28.08, hearing 0.08: "it
+     * sounds a bit like there are two versions of the sound, they differ so
+     * little." Widening alone would have made the two versions further apart
+     * and left the repeats.
+     *
+     * So the sign is drawn first and the SIZE is drawn from the outer half:
+     * every play is at least `floor` of the way out, and never past `rate`.
+     * The worst case is unchanged — that is what the edge is for — and the
+     * common case stops being silence.
+     */
     const spread = SFX_VARIATION.rate;
-    return 1 + ((Math.random() * 2) - 1) * spread;
+    const floor = SFX_VARIATION.floor ?? 0;
+    const size = spread * (floor + Math.random() * (1 - floor));
+    return 1 + (Math.random() < 0.5 ? -size : size);
 }
 
 /**
