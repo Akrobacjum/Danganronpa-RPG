@@ -1066,6 +1066,8 @@
       "actionBlocked": "They have shut this one down for now.",
       "actionHindered": "They have made this harder — you roll at disadvantage.",
       "noStressLeft": "Resolution actions cost Sanity, and you have none.",
+      "nothingLeftToSpend": "There is nothing left to spend. Sanity and Health are both gone.",
+      "spentHealth": "No Sanity left \u2014 costs {n} Health instead.",
       "yourTurn": "Incident — your turn",
       "theirTurn": "Incident — waiting for them",
       "advantageNext": "Advantage on the next attempt.",
@@ -1133,7 +1135,7 @@
         "one": "Leaves a trace behind, and the killer cannot wipe it.",
         "other": "Leaves {n} traces behind, and the killer cannot wipe them."
       },
-      "keyRemnantsStale": "The roles reversed, so the case changed: the five Key Remnants were planned around a killer who is now the victim. Plan a new set before the Investigation.",
+      "keyRemnantsStale": "The roles reversed, so the case changed: the {n} Key Remnants were planned around a killer who is now the victim. Write {n} new ones before the Investigation — the count came off the opening roll and has not changed.",
       "nightNoteDirect": "It is night: the killer's opening roll has advantage.",
       "nightNoteIndirect": "It is night: the victim's opening roll has disadvantage.",
       "betrayalNote": "{third} walked in on this and is still standing. They may turn on {killer} now — the one killing in the game that needs no declaration in advance.",

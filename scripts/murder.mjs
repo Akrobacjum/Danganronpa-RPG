@@ -32,7 +32,7 @@
 
 import {
     MODULE_ID, FLAGS, MURDER_OPENING, INCIDENT, CRISIS_ACTIONS, KEY_REMNANTS,
-    RESOLUTION_STRESS_COST, TRAITS, callEffect
+    RESOLUTION_STRESS_COST, RESOLUTION_HEALTH_COST, TRAITS, callEffect
 } from "./config.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { SETTINGS } from "./settings.mjs";
@@ -751,15 +751,25 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
         ui.notifications.warn(game.i18n.localize("DRPG.Murder.actionBlocked"));
         return null;
     }
-    // A resolution action costs Sanity rather than an action, and needs some.
-    //
-    // The third party's three decisions are exempt: the guide hands them an
-    // "automatyczny, darmowy wybór", and charging Sanity to somebody who has
-    // only just walked through the door — and may be choosing to walk straight
-    // back out — is not what "darmowy" means.
-    if (def.kind === "resolution" && !def.noRoll
-        && resourceValue(actor, "stress") >= resourceMax(actor, "stress")) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Murder.noStressLeft"));
+    /*
+     * A resolution action costs Sanity rather than an action — and Health when
+     * there is no Sanity left (Z3).
+     *
+     * The third party's three decisions are exempt: the guide hands them an
+     * "automatyczny, darmowy wybór", and charging anything to somebody who has
+     * only just walked through the door — and may be choosing to walk straight
+     * back out — is not what "darmowy" means.
+     *
+     * THE REFUSAL IS NOW ABOUT HAVING NOTHING AT ALL, not about the stress
+     * track being full. Refusing at full stress closed the only two ways out of
+     * an incident precisely when a victim needed them, and with the drain
+     * stopped by a critical Self-defence there was then nothing left that could
+     * end the fight — see `RESOLUTION_HEALTH_COST`. A victim with both tracks
+     * full is a different case and cannot reach here: `checkVictimSpent` ends
+     * the incident on that condition. This guard is the belt to that braces.
+     */
+    if (def.kind === "resolution" && !def.noRoll && isSpent(actor)) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Murder.nothingLeftToSpend"));
         return null;
     }
 
@@ -1379,7 +1389,14 @@ function openReceipt(actorId, key, state) {
         // `spendStress` all clamp, so the amount asked for and the amount that
         // landed are routinely different numbers — and only the second one can
         // be put back.
+        //
+        // THE ACTOR'S HEALTH IS HERE BECAUSE OF Z3. A resolution action taken
+        // with no Sanity left is paid for in Health, so the actor now has two
+        // tracks a Reroll has to be able to put back — and a receipt that
+        // remembers one of them would refund the Sanity nobody spent and keep
+        // the blood that was.
         actorStress: actor ? resourceValue(actor, "stress") : null,
+        actorHp: actor ? resourceValue(actor, "hitPoints") : null,
         victimId: state.victimId ?? null,
         victimHp: victim ? resourceValue(victim, "hitPoints") : null,
         victimStress: victim ? resourceValue(victim, "stress") : null,
@@ -1468,7 +1485,9 @@ async function undoLastCrisis({ actorId, key }) {
         }
     }
 
-    await restoreResource(game.actors.get(actorId), "stress", receipt.actorStress);
+    const actor = game.actors.get(actorId);
+    await restoreResource(actor, "stress", receipt.actorStress);
+    await restoreResource(actor, "hitPoints", receipt.actorHp);
     const victim = receipt.victimId ? game.actors.get(receipt.victimId) : null;
     await restoreResource(victim, "hitPoints", receipt.victimHp);
     await restoreResource(victim, "stress", receipt.victimStress);
@@ -1863,24 +1882,43 @@ async function swapRoles(state, band, done) {
         // person who was the victim THEN. They are the killer now, and the
         // restriction is not a property of the chair they are sitting in.
         deniedToVictim: [],
-        // The case is not the case any more.
-        //
-        // Guide, p. 26: "Jeśli mordercą jest inna osoba niż ta, która rozpoczęła
-        // incydent, DM przygotowuje nową pulę Key Remnants." The five clues were
-        // planned around a killer who is now the victim, so every one of them
-        // narrows the suspect pool towards the wrong person. Cleared rather than
-        // recomputed: which clues exist is the GM's authored work, not a number
-        // this engine may invent — `keyPlanner` is where they are rebuilt.
-        keyRemnants: null,
+        /*
+         * The case is not the case any more — but HOW BIG it is, is (Z4).
+         *
+         * Guide, p. 26: "Jeśli mordercą jest inna osoba niż ta, która rozpoczęła
+         * incydent, DM przygotowuje nową pulę Key Remnants." The clues were
+         * planned around a killer who is now the victim, so every one of them
+         * narrows the suspect pool towards the wrong person, and every one has
+         * to be written again. That is what `keyRemnantsStale` says and it does
+         * not change.
+         *
+         * WHAT CHANGED IS THAT THE COUNT SURVIVES. This used to write
+         * `keyRemnants: null` along with it, and the number is not part of the
+         * authored work: it came off the opening roll — five on Hope, four on
+         * Despair, three on a critical — and it is a statement about how cleanly
+         * the incident began, which a reversal does not undo. Nulling it took
+         * the slots off the Investigation Dashboard, took the "still owed" line
+         * out of the tracker, and left G-32 counting missing clues against a
+         * plan of no size at all. The GM was then asked to write "some" clues.
+         *
+         * So the key is simply absent from this patch: `writeState` merges, so
+         * what it does not name it does not touch. The dashboard is a live
+         * region (R19), so the slots redraw against the same number without the
+         * GM closing the window.
+         */
         keyRemnantsStale: true
     });
 
     done.push(game.i18n.localize("DRPG.Murder.rolesSwapped"));
 
     // Said out loud to the GMs, because it is a job rather than a state change:
-    // somebody has to sit down and write five new clues before the Investigation.
+    // somebody has to sit down and write the clues again before the
+    // Investigation. The sentence carries the NUMBER now — it used to say
+    // "five" whatever the opening roll had decided, and after Z4 the count is
+    // the one thing about the old plan that survives, so it is also the one
+    // thing the GM does not have to decide again.
     await whisperToGms(`<p class="drpg-warning">${
-        game.i18n.localize("DRPG.Murder.keyRemnantsStale")}</p>`);
+        game.i18n.format("DRPG.Murder.keyRemnantsStale", { n: state.keyRemnants })}</p>`);
 }
 
 async function finishIncident(state, key, band, done) {
@@ -1993,11 +2031,38 @@ async function clearAdvantage(side) {
 async function spendStress(actor, done) {
     const marks = resourceValue(actor, "stress");
     const max = resourceMax(actor, "stress");
-    if (marks >= max) return;
+
+    if (marks < max) {
+        await automatedUpdate(actor, {
+            "system.resources.stress.value": Math.min(max, marks + RESOLUTION_STRESS_COST)
+        });
+        done.push(game.i18n.format("DRPG.Murder.spentStress", { n: RESOLUTION_STRESS_COST }));
+        return;
+    }
+
+    /*
+     * NO SANITY LEFT, SO IT IS PAID IN BLOOD (Z3).
+     *
+     * This branch used to be `return` — the action went through and cost
+     * nothing, which was the quiet half of the same deadlock the guard in
+     * `takeCrisisAction` describes: a victim on an empty stress track got their
+     * way out free, and the incident lost the one currency that was still
+     * moving it towards an ending.
+     *
+     * `automatedUpdate` is what carries it, so the Wounded marker arrives the
+     * way it always does — `states.mjs` watches `updateActor` and does not care
+     * who wrote the change. And a full Health track does not kill: the incident
+     * ends because both tracks are now full, which is `isSpent`, and the caller
+     * asks `checkVictimSpent` two lines later.
+     */
+    const hp = resourceValue(actor, "hitPoints");
+    const hpMax = resourceMax(actor, "hitPoints");
+    if (hp >= hpMax) return;
+
     await automatedUpdate(actor, {
-        "system.resources.stress.value": Math.min(max, marks + RESOLUTION_STRESS_COST)
+        "system.resources.hitPoints.value": Math.min(hpMax, hp + RESOLUTION_HEALTH_COST)
     });
-    done.push(game.i18n.format("DRPG.Murder.spentStress", { n: RESOLUTION_STRESS_COST }));
+    done.push(game.i18n.format("DRPG.Murder.spentHealth", { n: RESOLUTION_HEALTH_COST }));
 }
 
 /**

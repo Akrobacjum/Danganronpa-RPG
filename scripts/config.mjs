@@ -2660,8 +2660,32 @@ export const TRIAL = {
     }
 };
 
-/** Resolution actions cost Sanity rather than actions, and need Sanity > 0. */
+/** Resolution actions cost Sanity rather than actions. */
 export const RESOLUTION_STRESS_COST = 1;
+
+/**
+ * What a way out costs when there is no Sanity left to pay with (Z3).
+ *
+ * DESPERATION, AND IT EXISTS TO BREAK A DEADLOCK THE SEASON RUN FOUND. A
+ * resolution action used to be refused outright once the stress track was full,
+ * which reads as a rule until you put it beside the other two: a critical
+ * Self-defence STOPS the per-turn drain, and the incident only ends by itself
+ * when BOTH tracks are full. Stop the drain on a victim whose Sanity has gone
+ * and the incident cannot end at all — they cannot escape, cannot turn the
+ * knife around, and nothing is filling the Health track that would end it. The
+ * simulation walked into this and sat there.
+ *
+ * So the way out stays open and changes currency. Health is the right one: it
+ * is the other track the incident already spends, and filling it is exactly the
+ * condition that ends the fight — so a victim clawing for the door either
+ * reaches it or runs out, and both are endings.
+ *
+ * IT DOES NOT KILL. Filling the Health track has never killed anybody in this
+ * module; `killCharacter` is called by name and by a person. What a full track
+ * does is Wounded and, with Sanity already gone, `isSpent` — the incident ends
+ * and Stage 6 opens.
+ */
+export const RESOLUTION_HEALTH_COST = 1;
 
 /* ==========================================================================
  * STAGE 6 — CLEANING UP

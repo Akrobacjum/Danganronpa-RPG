@@ -926,7 +926,20 @@ export async function resealSecretProjects() {
             .map(([userId]) => userId);
 
         const wanted = ownershipMap(viewers);
-        if (foundry.utils.objectsEqual?.(current, wanted)) continue;
+        /*
+         * `equals`, not `objectsEqual` — the second is deprecated in 14 and goes
+         * in 16, and it warned on every pass of this loop because this function
+         * runs on load and on every `createUser`. Optional call on both names so
+         * a Foundry that has one and not the other still gets an answer, and a
+         * Foundry with neither falls through to writing the ownership it already
+         * has: a redundant write, never a missed re-seal. That direction is the
+         * whole point of this function — a secret project visible to a player is
+         * the failure it exists to prevent.
+         */
+        const same = foundry.utils.equals?.(current, wanted)
+            ?? foundry.utils.objectsEqual?.(current, wanted)
+            ?? false;
+        if (same) continue;
 
         await writeCountdown(project.id, { ownership: wanted }, { replace: ["ownership"] });
         fixed += 1;
