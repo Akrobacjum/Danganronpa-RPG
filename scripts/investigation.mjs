@@ -34,7 +34,9 @@ import {
 import { bulletsOf, secretOf, truthBulletData } from "./truth-bullets.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { isDeceased } from "./chapter.mjs";
-import { dialogContent, plural, tableDialog, wirePortraitPickers } from "./utils.mjs";
+import {
+    dialogContent, plural, tableDialog, wirePortraitPickers, whisperToGms, log
+} from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -129,6 +131,64 @@ export function keyPlanStatus() {
         found: entries.filter(e => e.found).length,
         missing: entries.filter(e => !e.found).length
     };
+}
+
+/**
+ * G-32: what the investigation failed to turn up, paid for in Despair.
+ *
+ * Guide: every Key Remnant below four that nobody found is worth 3 Despair to
+ * Monokuma. `found` is the bar rather than `placed` — a clue nobody found did
+ * its job exactly as badly as one that was never put out, and the guide is
+ * counting what reached the trial.
+ *
+ * WHEN, AND ONLY ONCE (trap 117). "Fewer than four were found" is not true of
+ * anything until the investigation is over, so this is charged as the Class
+ * Trial opens. It is stamped with the chapter in the same record the trial's
+ * own progress lives in, because `startClassTrial` is a button and a button
+ * gets pressed twice — a GM correcting a misclick would otherwise pay Monokuma
+ * a second time.
+ *
+ * PER MONOKUMA, NOT SPLIT (trap 116). The reasoning is on `KEY_REMNANTS` in
+ * config.mjs, and so is the consequence: four Monokumas and a completely failed
+ * investigation is +12 each.
+ *
+ * Whispered, not announced. The size of the shortfall is a statement about how
+ * much the table missed, and telling them at the top of the trial would hand
+ * them a number they were supposed to earn by arguing.
+ *
+ * @returns {Promise<object|null>} what was paid, or null when nothing was.
+ */
+export async function chargeForUnfoundKeys() {
+    if (!game.user.isGM) return null;
+
+    const { trialProgress, setTrialProgress } = await import("./vote.mjs");
+    if (trialProgress().keysCharged) return null;
+
+    const status = keyPlanStatus();
+    const short = Math.max(0, KEY_REMNANTS.unfoundBar - status.found);
+
+    // Stamped even at zero. "Nothing was owed" and "this has not been asked
+    // yet" have to stay different states, or a second press would re-ask a
+    // question whose answer has since changed — a Key Remnant found during the
+    // trial itself would suddenly owe Despair backwards.
+    await setTrialProgress({ keysCharged: true });
+    if (!short) return null;
+
+    const amount = short * KEY_REMNANTS.unfoundDespair;
+    const { adjustDespair, monokumas } = await import("./despair.mjs");
+    const paid = [];
+    for (const user of monokumas()) {
+        await adjustDespair(user.id, amount);
+        paid.push(user.name);
+    }
+
+    if (paid.length) {
+        await whisperToGms(`<p>${game.i18n.format("DRPG.Investigation.unfoundKeys", {
+            n: short, despair: amount, who: foundry.utils.escapeHTML(paid.join(", "))
+        })}</p>`);
+    }
+    log(`G-32: ${short} Key Remnant(s) unfound — ${amount} Despair to each of ${paid.length} pool(s).`);
+    return { short, amount, pools: paid };
 }
 
 /**

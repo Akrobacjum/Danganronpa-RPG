@@ -70,7 +70,9 @@ import { copiedRemnants } from "./truth-bullets.mjs";
 import { ITEM_FLAGS, isBroken, isStashed } from "./inventory.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
-import { whisperToGms, whisperToOwner, log, error, cardHead } from "./utils.mjs";
+import { whisperToGms, whisperToOwner, dialogContent, log, error, cardHead } from "./utils.mjs";
+
+const DialogV2 = foundry.applications.api.DialogV2;
 
 /* ==========================================================================
  * WHO MAY CLEAN, AND WHAT
@@ -348,6 +350,13 @@ export async function attemptCleanup(actor, tokenId, { viaAction = false } = {})
     // early. The reference was taken before the dice; see `breakOnDespair`.
     await breakOnDespair(actor, tool, roll);
 
+    // G-20. Only on a critical, and only if the table's rules still allow it —
+    // read from config rather than assumed, so turning the permission off is one
+    // field rather than a code change.
+    const transform = roll.isCritical && CLEANUP.outcome.critical?.mayTransform
+        ? await askTransform(actor)
+        : null;
+
     const { requestCleanup } = await import("./gm-bridge.mjs");
     await requestCleanup({
         actorId: actor.id,
@@ -355,10 +364,74 @@ export async function attemptCleanup(actor, tokenId, { viaAction = false } = {})
         total: roll.total,
         isCritical: Boolean(roll.isCritical),
         withHope: Boolean(roll.withHope),
+        transform,
         viaAction
     });
 
     return { roll };
+}
+
+/**
+ * G-20: on a critical, erase it — or leave something arguing for another story.
+ *
+ * ASKED HERE, NOT GM-SIDE, and for the reason a critical Strike's target is:
+ * this is the killer's decision about the story they are telling, and the GM's
+ * client has no way to guess it. The dice are still on screen when it opens.
+ *
+ * ERASE IS THE FIRST BUTTON, so it is what Enter presses (see the DialogV2
+ * footer finding in E3) and what a player who does not want a second decision
+ * gets by pressing on. It is also usually the stronger play — nothing at all
+ * beats a decoy — so the default is not merely the safe answer, it is the
+ * ordinary one.
+ *
+ * The lists come from `CLEANUP.transform`, which is where the bound on "what
+ * could this plausibly be" is written down and argued.
+ *
+ * @returns {Promise<object|null>} `{ type, visibility }`, or null for "erase it".
+ */
+async function askTransform(actor) {
+    const { REMNANT_TYPES, REMNANT_VISIBILITY_LABELS } = await import("./config.mjs");
+    const rules = CLEANUP.transform ?? {};
+    const types = rules.types ?? [];
+    const bands = rules.visibilities ?? [];
+    if (!types.length || !bands.length) return null;
+
+    const options = (list, labels) => list
+        .map(key => `<option value="${key}">${
+            foundry.utils.escapeHTML(labels[key]?.label ?? labels[key] ?? key)}</option>`)
+        .join("");
+
+    const picked = await DialogV2.wait({
+        window: { title: game.i18n.localize("DRPG.Cleanup.transformTitle") },
+        classes: ["drpg-panel", "drpg-narrow"],
+        content: dialogContent(`<form>
+            <p>${game.i18n.localize("DRPG.Cleanup.transformIntro")}</p>
+            <label>${game.i18n.localize("DRPG.Cleanup.transformType")}
+                <select name="type">${options(types, REMNANT_TYPES)}</select></label>
+            <label>${game.i18n.localize("DRPG.Cleanup.transformVisibility")}
+                <select name="visibility">${options(bands, REMNANT_VISIBILITY_LABELS)}</select></label>
+            <p class="notes">${game.i18n.localize("DRPG.Cleanup.transformNote")}</p>
+        </form>`),
+        buttons: [
+            {
+                action: "erase", label: game.i18n.localize("DRPG.Cleanup.transformErase"), default: true,
+                callback: () => null
+            },
+            {
+                action: "change", label: game.i18n.localize("DRPG.Cleanup.transformChange"),
+                callback: (e, b, d) => ({
+                    type: d.element.querySelector("[name=type]").value,
+                    visibility: d.element.querySelector("[name=visibility]").value
+                })
+            }
+        ],
+        rejectClose: false
+    });
+
+    // "erase" comes back as null, and so does closing the window — which is the
+    // same answer and should be: backing out of a bonus question must not cost
+    // the critical that earned it.
+    return picked && picked !== "erase" ? picked : null;
 }
 
 /* ==========================================================================
@@ -377,6 +450,10 @@ export async function attemptCleanup(actor, tokenId, { viaAction = false } = {})
  */
 export async function resolveCleanup({
     actorId, tokenId, total, isCritical = false, withHope = false, undo = false,
+    // G-20: `{ type, visibility }` when a critical chose to rewrite the trace
+    // rather than erase it. Validated here against `CLEANUP.transform`, never
+    // trusted — it arrives over the same socket as everything else.
+    transform = null,
     viaAction = false
 } = {}) {
     if (!game.user.isGM) return null;
@@ -469,7 +546,11 @@ export async function resolveCleanup({
         tokenId,
         stressBefore: resourceValue(actor, "stress"),
         erased: null,
-        leftBehind: null
+        leftBehind: null,
+        // G-20: what the trace was before it was relabelled. A Reroll putting
+        // back a DELETED trace re-creates it; putting back a transformed one
+        // only has to say what it used to be.
+        transformed: null
     };
 
     // Sanity is Stage 6's price, not the act's. See the `viaAction` note at the
@@ -478,7 +559,51 @@ export async function resolveCleanup({
 
     const done = [];
 
-    if (outcome.removes) {
+    /*
+     * G-20: THE CRITICAL'S SECOND OPTION.
+     *
+     * Checked before the removal rather than instead of it, and every clause
+     * here is load-bearing:
+     *
+     *   the outcome must allow it   — `mayTransform`, so the permission lives
+     *                                 in the rules table with everything else
+     *   it must be a critical       — a Hope success erases and nothing more
+     *   the lists must accept it    — trap 115. A packet naming `key` or
+     *                                 `final` would turn a piece of evidence
+     *                                 the GM placed to make the case solvable
+     *                                 into whatever the killer fancied.
+     *
+     * Reinforced traces never get here: they are refused above, before the
+     * Sanity is spent, and a critical does not lift that.
+     */
+    const rules = CLEANUP.transform ?? {};
+    const rewrite = isCritical && outcome.mayTransform && transform
+        && rules.types?.includes(transform.type)
+        && rules.visibilities?.includes(transform.visibility)
+        ? transform
+        : null;
+
+    if (rewrite) {
+        try {
+            const { retuneRemnant } = await import("./remnants.mjs");
+            receipt.transformed = {
+                id: token.id,
+                sceneId: token.parent?.id ?? null,
+                from: { type: data.type, visibility: data.visibility }
+            };
+            await retuneRemnant(token.parent?.id ?? null, token.id, {
+                type: rewrite.type, visibility: rewrite.visibility
+            });
+            const { REMNANT_TYPES, REMNANT_VISIBILITY_LABELS } = await import("./config.mjs");
+            done.push(game.i18n.format("DRPG.Cleanup.transformed", {
+                from: `${data.visibilityLabel} ${data.typeLabel}`,
+                to: `${REMNANT_VISIBILITY_LABELS[rewrite.visibility] ?? rewrite.visibility} ${
+                    REMNANT_TYPES[rewrite.type]?.label ?? rewrite.type}`
+            }));
+        } catch (err) {
+            error("Could not rewrite the Remnant a critical clean-up transformed", err);
+        }
+    } else if (outcome.removes) {
         try {
             receipt.erased = recreationDataFor(token);
             // Through `removeRemnant` rather than `token.delete()`: it owns the
@@ -544,8 +669,9 @@ export async function resolveCleanup({
     await report(actor, data, { band, success, total, dc, done, viaAction });
     lastAttempt.set(actorId, receipt);
 
-    log(`Cleanup: ${actor.name} rolled ${total} against DC ${dc} on a ${data.visibility} ${data.type} — ${band}.`);
-    return { removed: Boolean(outcome.removes), band, done };
+    log(`Cleanup: ${actor.name} rolled ${total} against DC ${dc} on a ${data.visibility} ${data.type} — ${band}${
+        rewrite ? `, rewritten as ${rewrite.visibility} ${rewrite.type}` : ""}.`);
+    return { removed: Boolean(outcome.removes && !rewrite), transformed: Boolean(rewrite), band, done };
 }
 
 /* ==========================================================================
@@ -1081,6 +1207,20 @@ async function undoLastCleanup(actor, tokenId) {
             await placeRemnant(receipt.erased);
         } catch (err) {
             error("Could not put back the Remnant a rerolled clean-up erased", err);
+        }
+    }
+
+    // G-20's other half. A rewritten trace was never deleted, so putting it
+    // back is a second retune rather than a re-creation — and it has to happen,
+    // or a Reroll would leave the relabelling standing on top of a roll that no
+    // longer produced it.
+    if (receipt.transformed?.from) {
+        try {
+            const { retuneRemnant } = await import("./remnants.mjs");
+            await retuneRemnant(receipt.transformed.sceneId, receipt.transformed.id,
+                receipt.transformed.from);
+        } catch (err) {
+            error("Could not put back the Remnant a rerolled clean-up rewrote", err);
         }
     }
 

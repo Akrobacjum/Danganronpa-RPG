@@ -18,7 +18,9 @@
  * what there is to do, in the order a season is actually built.
  */
 
-import { MODULE_ID, FLAGS, STARTING, ITEM_CATEGORIES, CHAPTERS_PER_SEASON } from "./config.mjs";
+import {
+    MODULE_ID, FLAGS, STARTING, ITEM_CATEGORIES, CHAPTERS_PER_SEASON, ROOMS_PER_PLAYER
+} from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { studentActors } from "./monokuma.mjs";
@@ -155,6 +157,39 @@ function steps() {
             done: Object.keys(game.settings.get(MODULE_ID, SETTINGS.sfxMap) ?? {}).length > 0,
             missing: () => [],
             open: async () => (await import("./music.mjs")).openSoundDialog()
+        },
+        {
+            /*
+             * G-36: HOW MANY ROOMS, AS ADVICE.
+             *
+             * Guide: about one and a half rooms per player, corridors and
+             * dormitories aside. It is the difference between a map where two
+             * people can be alone at the same time and one where every private
+             * conversation is a queue — and it is the cheapest thing in this
+             * whole checklist to get right, because it costs nothing before the
+             * scene is drawn and cannot be fixed cheaply afterwards.
+             *
+             * `optional: true`, which is trap 118 and the reason this row reads
+             * "–" rather than "✗" when it is not met: a map smaller than the
+             * guide's ratio is cramped, not broken, and a checklist that shouts
+             * about a working scene is a checklist a GM stops reading. It has
+             * no `open` and no `fix` for the same reason — there is no button
+             * that can draw six more rooms.
+             */
+            key: "roomCount",
+            optional: true,
+            inline: true,
+            done: (workingScene()?.regions?.size ?? 0)
+                >= Math.ceil(roster.length * ROOMS_PER_PLAYER),
+            missing: () => [],
+            extra: () => {
+                const rooms = workingScene()?.regions?.size ?? 0;
+                const want = Math.ceil(roster.length * ROOMS_PER_PLAYER);
+                return `<div class="notes">${foundry.utils.escapeHTML(
+                    game.i18n.format("DRPG.Season.roomCountLine", {
+                        rooms, players: roster.length, want
+                    }))}</div>`;
+            }
         },
         {
             key: "rooms",

@@ -269,6 +269,20 @@ export const PHASES = {
 /** Chapters in a canonical season. The modular variant runs a single chapter. */
 export const CHAPTERS_PER_SEASON = 6;
 
+/**
+ * G-36. Roughly this many rooms per player, corridors and dormitories aside.
+ *
+ * Advice, not a rule, and the checklist row that reads it says so — the number
+ * is here because it is the guide's and because a magic 1.5 in season-setup.mjs
+ * would be a rule nobody could find.
+ *
+ * What it is really measuring is whether two conversations can happen at once.
+ * Below it, every private word is a queue for the same empty room, and a
+ * killing game where nobody can get anybody alone is a killing game with no
+ * murders in it.
+ */
+export const ROOMS_PER_PLAYER = 1.5;
+
 /* ==========================================================================
  * ROOMS
  * ========================================================================== */
@@ -686,26 +700,74 @@ export function observeDc(visibility, type) {
 export const OBSERVE_FAIL_STRESS = 2;
 
 /**
+ * What a critical pays, and it is this game's number rather than Daggerheart's.
+ *
+ * G-16. Daggerheart hands a critical +1 Hope and clears 1 Stress; the guide
+ * says +2 Hope and says nothing about Stress. This module had never overridden
+ * either, so it was running Daggerheart's rule by omission.
+ *
+ * FOLLOWING THE GUIDE EXACTLY, both halves. Keeping the cleared Stress as well
+ * would give a critical more than either document describes. The trade is close
+ * to neutral in size — one Sanity mark against one Hope — and it moves the
+ * reward onto the currency a player can decide what to do with, so a critical
+ * gets more USEFUL rather than weaker. It also stops a critical being worth
+ * more to a wounded character than to a healthy one, which is a strange thing
+ * for a critical to be.
+ *
+ * Applied by wrapping Daggerheart's own resource step — see critical.mjs. It is
+ * here because it is a rule, and rules live in this file.
+ */
+export const CRITICAL = {
+    hope: 2,
+    clearsStress: false
+};
+
+/**
  * Analyze action DCs. Turns a Neutral Truth Bullet into an identified category.
  * A failed analysis locks that Truth Bullet for that player until the chapter
  * ends.
  *
- * THE SAME NUMBERS AS OBSERVE, by the Player Handbook (p. 15): "Thresholds for
- * analyzing a Truth Bullet are the same as Observation, except for mind stat" —
- * the statistic changes to Head, the difficulty does not. This used to be a
- * bespoke table that ran markedly harder than Observe (Prep/obvious was 12
- * against Observe's 9), which made identifying a trace harder than finding one.
+ * ITS OWN TABLE, FROM THE FULL GUIDE (G-08, E16). This used to be DERIVED from
+ * `OBSERVE_DC`, on the Player Handbook's line (p. 15) that the thresholds are
+ * the same and only the statistic changes. Two of Dawid's documents disagree,
+ * and the Full Guide is the one with an actual table: it prints Analyze in the
+ * Investigation section rather than beside "Myśl", which is why the derivation
+ * survived as long as it did — the table it contradicts was three sections
+ * away.
  *
- * Derived from OBSERVE_DC rather than copied, so the two cannot drift apart: the
- * handbook's rule is that they are one table, and this is that rule in code.
+ * The guide's numbers, and they are not a uniform shift:
  *
- * `key: null` is the single deliberate difference, and it is not a gap: Key
- * Truth Bullets arrive already identified (see KEY_REMNANTS / REMNANT_TYPES.key)
- * and never reach this lookup. No `autopsy` column for the same reason.
+ *   Daily Life   8 / 12 / 18 / 21   the same as Observe
+ *   Faint        8 / 12 / 15 / 18   EASIER than finding it (Observe: 12/15/18/21)
+ *   Prep        12 / 15 / 18 / 21   HARDER than finding it (Observe:  9/12/15/18)
+ *   Key          no roll
+ *
+ * That shape is the rule, not a rounding: a faint trace is hard to spot and
+ * obvious once in your hand, and a prepared one is easy to pick up and hard to
+ * read. Deriving one table from the other flattened both.
+ *
+ * `incident` and `resolution` are priced like `prep`, which is the same
+ * decision — with the same reasoning — that `OBSERVE_DC` already made and
+ * states above: the guide leaves both columns blank in BOTH tables, and
+ * crime-scene evidence that identifies itself for free is stranger here than
+ * there. The "Bez rzutu." printed in the Incident column is the merged cell
+ * belonging to Autopsy, exactly as in the observation table.
+ *
+ * `key: null` is not a gap: Key Truth Bullets arrive already identified (see
+ * KEY_REMNANTS / REMNANT_TYPES.key) and never reach this lookup. No `autopsy`
+ * column for the same reason.
+ *
+ * NOT DERIVED, AND THAT IS THE POINT NOW. The old comment said the two tables
+ * must not be allowed to drift apart; after G-08 the difference between them IS
+ * the rule, so anybody tempted to "fix" this back into a derivation would be
+ * deleting it.
  */
-export const ANALYZE_DC = Object.fromEntries(
-    Object.entries(OBSERVE_DC).map(([visibility, row]) => [visibility, { ...row, key: null }])
-);
+export const ANALYZE_DC = {
+    obvious: { dailyLife: 8,  key: null, faint: 8,  prep: 12, incident: 12, resolution: 12 },
+    evident: { dailyLife: 12, key: null, faint: 12, prep: 15, incident: 15, resolution: 15 },
+    subtle:  { dailyLife: 18, key: null, faint: 15, prep: 18, incident: 18, resolution: 18 },
+    hidden:  { dailyLife: 21, key: null, faint: 18, prep: 21, incident: 21, resolution: 21 }
+};
 
 /**
  * The Analyze difficulty for one Truth Bullet.
@@ -745,7 +807,25 @@ export const KEY_REMNANTS = {
         desperate: "Desperate"
     },
     /** Together they must narrow the suspect pool to this range. */
-    suspectRange: [3, 8]
+    suspectRange: [3, 8],
+
+    /**
+     * G-32. Guide: every Key Remnant below four that the investigation failed
+     * to turn up is worth Despair to Monokuma.
+     *
+     * `found` is the bar, not `placed`: a clue nobody found did its job as
+     * badly as one that was never put out.
+     *
+     * PER MONOKUMA, NOT SPLIT BETWEEN THEM (trap 116). The guide writes "obaj
+     * Monokuma" with two GMs in mind, which reads either way at four. It is
+     * compensation for having run an investigation the table could not finish —
+     * and each Monokuma ran it — rather than a pot to divide, which at four GMs
+     * would leave each of them with less than the guide gives one of two.
+     * The consequence is worth saying out loud: a completely failed
+     * investigation is +12 Despair to every Monokuma at the table.
+     */
+    unfoundBar: 4,
+    unfoundDespair: 3
 };
 
 /* ==========================================================================
@@ -1914,7 +1994,11 @@ export const CRISIS_ACTIONS = {
         hint: "Leave a trace at the scene meant to help the others.",
         remnant: { hope: "evident", despair: "subtle", critical: "obvious" },
         criticalReinforced: true,
-        failure: "No Remnant, but advantage on the next attempt.",
+        // G-17: a critical does not end the turn. Same field and same mechanism
+        // as `useItem` above — the guide gives the direct victim a second action
+        // and the indirect one their action back, which at a table is one thing.
+        criticalKeepsTurn: true,
+        failure: "No Remnant, but advantage on the next attempt. Only on a Hope failure.",
         failureGrantsAdvantage: true,
         /**
          * Dying to a trap is a different problem from dying to a person.
@@ -1942,7 +2026,9 @@ export const CRISIS_ACTIONS = {
         hint: "Take something off the killer and turn it into a trace tied to their identity.",
         remnant: { hope: "evident", despair: "subtle", critical: "obvious" },
         criticalReinforced: true,
-        failure: "No Remnant, but advantage on the next attempt.",
+        // G-17, as on Leave a clue.
+        criticalKeepsTurn: true,
+        failure: "No Remnant, but advantage on the next attempt. Only on a Hope failure.",
         failureGrantsAdvantage: true,
         /**
          * Same split as Leave a clue, and the guide's critical here is worded
@@ -1985,6 +2071,22 @@ export const CRISIS_ACTIONS = {
         blocksSelf: true,
         /** A critical stops the per-turn drain entirely. */
         criticalStopsDrain: true,
+        /*
+         * G-18, AND ITS TWO HALVES ARE BOTH LOAD-BEARING.
+         *
+         * `criticalFreeResolution` opens one of the resolution actions this
+         * critical just unlocked and lets it be TAKEN rather than rolled — an
+         * automatic success, not an extra attempt. That is what separates it
+         * from G-17, which buys another go at the dice.
+         *
+         * `criticalKeepsTurn` is what makes it reachable at all. The critical's
+         * own text has always said "this turn", and Self-defence used to pass
+         * the turn the moment it resolved — so a free action valid for this turn
+         * would have expired before the player could press anything. The grant
+         * lapses at the end of the round either way, so it cannot be banked.
+         */
+        criticalFreeResolution: true,
+        criticalKeepsTurn: true,
         remnant: { hope: "evident", despair: "evident", critical: "evident" },
         criticalReinforced: true,
         hope: "You keep your feet. Survive and Role reversal are open to you now.",
@@ -2368,7 +2470,7 @@ export const CLEANUP = {
      *                 it had gone wrong.
      */
     outcome: {
-        critical: { removes: true, leaves: null, refundStress: 1 },
+        critical: { removes: true, leaves: null, refundStress: 1, mayTransform: true },
         hope: { removes: true, leaves: null },
         despair: { removes: true, leaves: { visibility: "evident", faint: true } },
         failureHope: { removes: false, leaves: null },
@@ -2377,6 +2479,35 @@ export const CLEANUP = {
 
     /** Traces the clean-up leaves are Resolution Remnants, per REMNANT_TYPES. */
     remnantType: "resolution",
+
+    /**
+     * G-20: what a critical may turn a trace INTO, instead of erasing it.
+     *
+     * A NEW PERMISSION, NOT A NEW NUMBER. The killer relabels a trace that is
+     * already on the map: what kind of thing it is, and how easy it is to see.
+     * Erasing is still on the table and is still usually stronger — nothing at
+     * all beats a decoy. What this buys is the option to leave something that
+     * argues for the wrong story rather than a room that has been scrubbed
+     * suspiciously clean.
+     *
+     * THE CHOICE IS BOUNDED, which is the whole of trap 115. Without a list
+     * here, a critical would turn any piece of evidence into any other — and
+     * the four types left out are left out for one reason each:
+     *
+     *   key       the GM placed it for the case to be solvable at all
+     *   final     the same, for the Mastermind
+     *   autopsy   issued from the GM panel, never found in a room
+     *   neutral   a state a Truth Bullet is in, not a kind of trace
+     *
+     * WHO IT POINTS AT IS NOT ON THIS LIST. `pointsAt` is the Misleading trail's
+     * business — its own Stage 6 action, with its own roll and its own price —
+     * and folding it in here would make a critical clean-up strictly better than
+     * an action somebody has to spend Sanity on.
+     */
+    transform: {
+        types: ["faint", "prep", "incident", "resolution"],
+        visibilities: ["obvious", "evident", "subtle", "hidden"]
+    },
 
     /**
      * Both tools are destroyed when Stage 6 closes, not per attempt.
@@ -2984,6 +3115,7 @@ export const DRPG = {
     TIME_OF_DAY_LABELS,
     PHASES,
     CHAPTERS_PER_SEASON,
+    ROOMS_PER_PLAYER,
     ECLIPSE_MOVES,
     ECLIPSE_FREE_PLACEMENT,
     ROOMS,
@@ -3002,6 +3134,7 @@ export const DRPG = {
     OBSERVE_DC,
     OBSERVE_TYPE_ALIAS,
     OBSERVE_FAIL_STRESS,
+    CRITICAL,
     ANALYZE_DC,
     analyzeDc,
     observeDc,

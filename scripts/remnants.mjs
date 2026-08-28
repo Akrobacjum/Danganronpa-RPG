@@ -1152,19 +1152,26 @@ export async function confirmClearFaint() {
  * GM-only, so a player's reroll routes through the bridge exactly as placing one
  * does.
  *
+ * G-20 added `type`: a critical clean-up may relabel a trace rather than erase
+ * it. Same write, same guard, one more field — the alternative was a second
+ * function that also edited a placed Remnant, and two of those would have
+ * drifted the first time one of them learned something.
+ *
  * @param {string} sceneId
  * @param {string} tokenId
  * @param {object} patch
  * @param {string} [patch.visibility]  New visibility band.
+ * @param {string} [patch.type]        New Remnant type (G-20).
  * @param {boolean} [patch.remove]     Delete it outright.
  * @returns {Promise<boolean|object|null>}
  */
-export async function retuneRemnant(sceneId, tokenId, { visibility = null, remove = false } = {}) {
+export async function retuneRemnant(sceneId, tokenId,
+    { visibility = null, type = null, remove = false } = {}) {
     if (!tokenId) return null;
 
     if (!game.user.isGM) {
         const { requestRemnantEdit } = await import("./gm-bridge.mjs");
-        return requestRemnantEdit(sceneId, tokenId, { visibility, remove });
+        return requestRemnantEdit(sceneId, tokenId, { visibility, type, remove });
     }
 
     const scene = (sceneId ? game.scenes.get(sceneId) : null) ?? canvas?.scene;
@@ -1180,7 +1187,7 @@ export async function retuneRemnant(sceneId, tokenId, { visibility = null, remov
         return true;
     }
 
-    if (!visibility) return null;
+    if (!visibility && !type) return null;
 
     // The band is carried in the flag and echoed in the token's name, which is
     // what the GM actually reads on the map — so both have to move together.
@@ -1197,7 +1204,18 @@ export async function retuneRemnant(sceneId, tokenId, { visibility = null, remov
     // The band is a ledger field now, so the name and the meaning are written
     // in two places rather than one — the name is what the GM reads on the map,
     // the ledger is what Observe scores against.
-    await setRemnantSecret(token, { visibility });
+    /*
+     * The ledger, not the token. What a trace IS lives in the GM-side record —
+     * the token carries a generic name on purpose (see `placeRemnant`), because
+     * a token's name travels to every client. So this is the one write that
+     * matters, and it is also why the rename above is a no-op on anything
+     * placed since that change: the name never starts with a visibility label
+     * any more.
+     */
+    const secret = {};
+    if (visibility) secret.visibility = visibility;
+    if (type) secret.type = type;
+    await setRemnantSecret(token, secret);
     return true;
 }
 

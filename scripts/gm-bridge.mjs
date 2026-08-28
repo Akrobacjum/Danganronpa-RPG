@@ -634,7 +634,9 @@ async function onSocket(payload, senderId) {
             return refuse(ACTION_CRISIS, "sender does not own that character");
         }
 
-        const { resolveCrisisAction } = await import("./murder.mjs");
+        const { resolveCrisisAction, freeResolutionFor, sideOf } = await import("./murder.mjs");
+        const actor = game.actors.get(payload.actorId);
+
         await resolveCrisisAction({
             actorId: payload.actorId,
             key: payload.key,
@@ -652,7 +654,22 @@ async function onSocket(payload, senderId) {
             // ever becomes a receipt line, but a receipt naming somebody else's
             // item would give a Reroll the run of another sheet.
             usedItemId: game.actors.get(payload.actorId)?.items?.has(payload.usedItemId)
-                ? payload.usedItemId : null
+                ? payload.usedItemId : null,
+            /*
+             * G-18, AND THIS IS THE ONE FIELD ON THIS SOCKET THAT COULD BUY
+             * SOMETHING FOR NOTHING.
+             *
+             * A packet claiming `free` is claiming an automatic success on
+             * Survive or Role reversal — the two actions that end an incident.
+             * So it is not believed. The grant is looked up in the incident
+             * state on THIS side, for the side this actor is actually on, and a
+             * claim with nothing behind it is dropped to false: the action then
+             * scores against its real threshold with a total of zero, which is
+             * a failure. That is the right answer to a forged packet — refusing
+             * outright would let a lost socket message turn a legitimate free
+             * take into silence instead of a result.
+             */
+            free: Boolean(payload.free) && Boolean(freeResolutionFor(sideOf(actor)))
         });
         return;
     }
@@ -729,6 +746,11 @@ async function onSocket(payload, senderId) {
             total: Number(payload.total) || 0,
             isCritical: Boolean(payload.isCritical),
             withHope: Boolean(payload.withHope),
+            // G-20. Passed through as sent and bounded on arrival —
+            // `resolveCleanup` checks both halves against `CLEANUP.transform`
+            // before it touches anything, which is the same check a GM-side
+            // call gets.
+            transform: payload.transform ?? null,
             undo: Boolean(payload.undo),
             // A claim that WAIVES Stage 6's guards and ADDS one of its own: the
             // trace has to belong to the sender. Forging it costs them the
@@ -863,9 +885,30 @@ async function onSocket(payload, senderId) {
             return refuse(ACTION_REMNANT_EDIT, "sender did not leave that Remnant");
         }
 
+        /*
+         * NARROWED, NOT FORWARDED.
+         *
+         * This used to hand the player's patch straight to `retuneRemnant`, and
+         * that was survivable while the only field was a visibility band. G-20
+         * gave the function a `type`, and type is a different kind of power: a
+         * killer relabelling their own Incident trace as Faint would have the
+         * chapter-end sweep clear the crime scene for them, and one relabelled
+         * as Key would put a fake anchor into the investigation.
+         *
+         * So the two fields are read out by name and checked against the same
+         * lists the rules use, and everything else in the packet is dropped.
+         * `remove` stays as it was — it is the Reroll's own half and
+         * `retuneRemnant` already refuses to delete a reinforced trace.
+         */
+        const { REMNANT_VISIBILITY_LABELS, CLEANUP } = await import("./config.mjs");
+        const asked = payload.patch ?? {};
+        const narrowed = { remove: Boolean(asked.remove) };
+        if (REMNANT_VISIBILITY_LABELS[asked.visibility]) narrowed.visibility = asked.visibility;
+        if (CLEANUP.transform?.types?.includes(asked.type)) narrowed.type = asked.type;
+
         const { retuneRemnant } = await import("./remnants.mjs");
-        await retuneRemnant(payload.sceneId, payload.tokenId, payload.patch ?? {});
-        debug("Retuned a Remnant on behalf of a player.", payload.patch);
+        await retuneRemnant(payload.sceneId, payload.tokenId, narrowed);
+        debug("Retuned a Remnant on behalf of a player.", narrowed);
         return;
     }
 
@@ -1399,6 +1442,10 @@ export function requestGiveItem({ fromId, toId, itemId }) {
 /** Hand a thrown crisis action to the GM to be scored and applied. */
 export function requestCrisisResult({
     actorId, key, total, isCritical, withHope, undo = false,
+    // G-18: this one was taken rather than rolled — a critical Self-defence's
+    // free resolution action. Re-checked GM-side against the incident state,
+    // like everything else that arrives over this socket.
+    free = false,
     // What the player's own client used up, if the action was "use an item".
     // Carried rather than decided here: the GM records it so a Reroll can put
     // it back, but the spending happened where the dialogs belong.
@@ -1411,7 +1458,7 @@ export function requestCrisisResult({
     if (game.user.isGM) {
         return import("./murder.mjs")
             .then(m => m.resolveCrisisAction({
-                actorId, key, total, isCritical, withHope, undo, choice, usedItemId
+                actorId, key, total, isCritical, withHope, undo, choice, usedItemId, free
             }));
     }
     if (!hasGm()) return null;
@@ -1420,7 +1467,7 @@ export function requestCrisisResult({
         action: ACTION_CRISIS,
         userId: game.user.id,
         requestId: expectAck("Incident"),
-        actorId, key, total, isCritical, withHope, undo, choice, usedItemId
+        actorId, key, total, isCritical, withHope, undo, choice, usedItemId, free
     });
     return { pending: true };
 }
@@ -1428,6 +1475,9 @@ export function requestCrisisResult({
 /** Hand a thrown Stage 6 clean-up to the GM to be scored against the trace. */
 export function requestCleanup({
     actorId, tokenId, total, isCritical, withHope, undo = false,
+    // G-20: what a critical chose to turn the trace into, if anything. Shaped
+    // and bounded on the far side — see `resolveCleanup`.
+    transform = null,
     // Stage 6 has three actions. `key` names which; absent means the original
     // one, so every existing caller keeps working unchanged.
     key = "eraseTrace", targetId = null,
@@ -1439,7 +1489,9 @@ export function requestCleanup({
     if (game.user.isGM) {
         return import("./cleanup.mjs").then(m => other
             ? m.resolveStageSix({ actorId, key, targetId, total, isCritical, withHope, viaAction })
-            : m.resolveCleanup({ actorId, tokenId, total, isCritical, withHope, undo, viaAction }));
+            : m.resolveCleanup({
+                actorId, tokenId, total, isCritical, withHope, undo, transform, viaAction
+            }));
     }
     if (!hasGm()) return null;
 
@@ -1447,7 +1499,7 @@ export function requestCleanup({
         action: ACTION_CLEANUP,
         userId: game.user.id,
         requestId: expectAck("Clean-up"),
-        actorId, tokenId, total, isCritical, withHope, undo, key, targetId, viaAction
+        actorId, tokenId, total, isCritical, withHope, undo, key, targetId, transform, viaAction
     });
     return { pending: true };
 }

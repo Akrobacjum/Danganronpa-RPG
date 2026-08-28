@@ -59,6 +59,7 @@ import { registerPopups } from "./popup.mjs";
 import { registerStacking } from "./stacking.mjs";
 import { registerNoCollapse } from "./no-collapse.mjs";
 import { registerNoScrollingText } from "./no-scrolling-text.mjs";
+import { registerCriticalRule } from "./critical.mjs";
 import { registerExplainers } from "./explain.mjs";
 import { registerMotion } from "./motion.mjs";
 import { registerSafeword } from "./safeword.mjs";
@@ -194,6 +195,14 @@ Hooks.once("init", () => {
 Hooks.once("setup", () => {
     if (!requirementsMet()) return;
     safely("the Actions resource", registerActionResource);
+    /*
+     * What a critical pays (G-16). At `setup` rather than `init`, because it
+     * patches `game.system.api.dice.DualityRoll` and the system builds that
+     * during its OWN init — a module init hook can land before it does. Every
+     * init hook has run by now and nobody has rolled anything yet, so this is
+     * both late enough to find the class and early enough to matter.
+     */
+    safely("the critical rule", registerCriticalRule);
 });
 
 Hooks.once("ready", () => {

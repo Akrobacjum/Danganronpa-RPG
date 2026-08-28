@@ -92,7 +92,9 @@ export async function setTrialProgress(patch = {}) {
 /** A trial is starting: nothing has happened in it yet. */
 export async function resetTrialProgress({ seconds = TRIAL.speakSeconds } = {}) {
     if (!game.user.isGM) return null;
-    return setTrialProgress({ seconds, voteClosed: false, verdictApplied: false });
+    // `tied` goes with them: a trial re-opened in the same chapter must not
+    // inherit the previous vote's tie and quietly default its verdict to wrong.
+    return setTrialProgress({ seconds, voteClosed: false, verdictApplied: false, tied: false });
 }
 
 /* ==========================================================================
@@ -431,6 +433,12 @@ export async function closeVote() {
     // name. One Blackened and two people level on votes is the old tie exactly.
     const tied = accused.length > wanted;
 
+    // G-31: the verdict window needs to know, and by the time it opens the
+    // tally has scrolled away. Recorded here, where the tie is actually
+    // established, rather than folded into the `voteClosed` write above — that
+    // one happens before anything has been counted.
+    await setTrialProgress({ tied });
+
     await announce({
         flags: { [MODULE_ID]: { sfx: { key: "verdict", gm: true } } },
         content: `<div class="drpg-evidence-card">
@@ -489,6 +497,9 @@ export async function openVerdictDialog() {
 
     const known = blackenedActors();
     const students = studentActors();
+    // Recorded by `closeVote`, because by the time this window opens the tally
+    // has scrolled away and the GM is being asked to remember it.
+    const tiedVote = Boolean(trialProgress().tied);
     const options = students
         .map(a => `<option value="${a.id}">${foundry.utils.escapeHTML(a.name)}${
             isDeceased(a) ? ` — ${game.i18n.localize("DRPG.Chapter.deadShort")}` : ""
@@ -515,18 +526,48 @@ export async function openVerdictDialog() {
                 <select name="blackened">${options}</select></label>`}
             <p class="notes">${game.i18n.localize(known.length
                 ? "DRPG.Vote.verdictNoteKnown" : "DRPG.Vote.verdictNote")}</p>
+            ${tiedVote ? `<p class="drpg-warning">${
+                game.i18n.localize("DRPG.Vote.tiedVerdictNote")}</p>` : ""}
         </form>`),
-        buttons: [
-            {
-                action: "correct", label: game.i18n.localize("DRPG.Vote.gotItRight"), default: true,
-                callback: (e, b, d) => read(d, true, known)
-            },
-            {
-                action: "wrong", label: game.i18n.localize("DRPG.Vote.gotItWrong"),
-                callback: (e, b, d) => read(d, false, known)
-            },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
+        buttons: tiedVote
+            /*
+             * G-31: A TIE COUNTS AS GETTING IT WRONG (guide p. 31), so after a
+             * tied vote that is the button under the GM's hand.
+             *
+             * REORDERED, NOT JUST RE-DEFAULTED. `default: true` styles a button
+             * and moves focus, but Enter in a DialogV2 presses the FIRST submit
+             * button in DOM order whatever carries the flag — the finding
+             * behind the per-tab footers in E3. Leaving "Got it right" first
+             * and merely flagging the other one would mean the keyboard and the
+             * highlight disagreed about the most consequential button in the
+             * game.
+             *
+             * Still a button rather than a reading off the tally: the tie is a
+             * fact the module knows, but whether the table got it right is the
+             * one thing only a human at that table can answer.
+             */
+            ? [
+                {
+                    action: "wrong", label: game.i18n.localize("DRPG.Vote.gotItWrong"), default: true,
+                    callback: (e, b, d) => read(d, false, known)
+                },
+                {
+                    action: "correct", label: game.i18n.localize("DRPG.Vote.gotItRight"),
+                    callback: (e, b, d) => read(d, true, known)
+                },
+                { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
+            ]
+            : [
+                {
+                    action: "correct", label: game.i18n.localize("DRPG.Vote.gotItRight"), default: true,
+                    callback: (e, b, d) => read(d, true, known)
+                },
+                {
+                    action: "wrong", label: game.i18n.localize("DRPG.Vote.gotItWrong"),
+                    callback: (e, b, d) => read(d, false, known)
+                },
+                { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
+            ],
         rejectClose: false
     });
 

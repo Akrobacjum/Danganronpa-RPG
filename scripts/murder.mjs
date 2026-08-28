@@ -147,6 +147,30 @@ export function isTheirTurn(actor) {
 }
 
 /** Crisis actions this actor may take right now, with their hindered flags. */
+/**
+ * Is this side sitting on a critical Self-defence's free action right now?
+ *
+ * G-18. One question, asked from three places — the panel that draws the tiles,
+ * the guard that lets one be pressed, and the resolver that scores it — so it
+ * is written once. Splitting it was how "the tile says free and the click asks
+ * for dice" would happen.
+ *
+ * THE ROUND STAMP IS THE EXPIRY. `state.turn` only advances when play comes
+ * back to the victim (see `passTurn`), so "the same turn number" is exactly the
+ * guide's "this turn" and needs no clean-up pass of its own — the grant lapses
+ * by arithmetic, like an expired motive.
+ */
+export function freeResolutionFor(side, state = murderState()) {
+    const grant = state?.freeResolution;
+    if (!grant || grant.side !== side) return null;
+    return grant.turn === state.turn ? grant : null;
+}
+
+/** Whether THIS action is the one that free take can be spent on. */
+function isFreeTake(def, side, state) {
+    return Boolean(def?.kind === "resolution" && !def.noRoll && freeResolutionFor(side, state));
+}
+
 export function availableCrisisActions(actor) {
     const state = murderState();
     const side = sideOf(actor);
@@ -180,6 +204,11 @@ export function availableCrisisActions(actor) {
             return {
                 key,
                 def,
+                // G-18: no dice on this one, and the tile should say so before
+                // it is pressed rather than after. Still false while the action
+                // is locked — a free take is worth nothing on a door that has
+                // not been opened yet.
+                free: !locked && isFreeTake(def, side, state),
                 // The number to beat, computed here rather than read off `def`
                 // by the sheet: a Finishing Blow's threshold is not a constant,
                 // it falls as the victim runs out of Health. `null` for the three
@@ -747,6 +776,31 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
     // could actually be taken; before the dice, so cancelling costs nothing.
     if (!await confirmCrisisAction(actor, key, def, state, side)) return null;
 
+    /*
+     * G-18: THIS ONE IS TAKEN, NOT ROLLED.
+     *
+     * A critical Self-defence buys one of the resolution actions it unlocked as
+     * an automatic success. Note where this sits — after every guard above, so
+     * a free take goes through the same filter as a paid one (trap 113): it
+     * still has to be your turn, the action still has to be unlocked and
+     * unspent and unblocked, Pin and Keep your distance still apply, and the
+     * Sanity a resolution action costs is still checked and still charged.
+     * The critical buys certainty about the dice; it does not buy an exemption
+     * from the incident.
+     */
+    if (isFreeTake(def, side, state)) {
+        const { requestCrisisResult } = await import("./gm-bridge.mjs");
+        return requestCrisisResult({
+            actorId: actor.id, key, total: 0, isCritical: false,
+            // Trap 114: an action with no roll still has to name a band, because
+            // every outcome in this table is written per band. Hope, because
+            // this IS the reward for a critical — scoring it as a Despair
+            // success would have the prize leave a worse trace than an ordinary
+            // attempt.
+            withHope: true, free: true, itemId
+        });
+    }
+
     // Three of the third party's four options have no threshold, no stat and no
     // outcome table in the guide, because there is nothing to fail at — you pick
     // a side or you leave. They skip the dice entirely and are applied as taken.
@@ -1054,7 +1108,11 @@ async function grantImprovisedWeapon(actor, def, band, done) {
  *   once: the reroll costs Hope, not a turn.
  */
 export async function resolveCrisisAction({
-    actorId, key, total, isCritical, withHope, undo = false, choice = null, usedItemId = null
+    actorId, key, total, isCritical, withHope, undo = false, choice = null, usedItemId = null,
+    // G-18. Not derived here from the state, because by the time this runs the
+    // grant may have been consumed by the undo half of a Reroll — the client
+    // that pressed the tile is the one that knew.
+    free = false
 } = {}) {
     if (!game.user.isGM) return null;
 
@@ -1089,13 +1147,28 @@ export async function resolveCrisisAction({
     // table at all — so they always take the success branch. Left out, they
     // scored `total >= undefined`, which is false, and every one of the third
     // party's three decisions would have quietly resolved as a failure.
-    const success = def.noRoll || isCritical || total >= threshold;
+    // A free take is a success by definition (G-18), on the same footing as the
+    // third party's `noRoll` decisions: there is no number to beat because the
+    // critical already beat it.
+    const success = def.noRoll || free || isCritical || total >= threshold;
     const band = isCritical ? "critical" : (withHope ? "hope" : "despair");
     const done = [];
 
     // What it would take to put all of this back. Captured before anything is
     // applied, because half of it is "the value this resource had a moment ago".
     const receipt = openReceipt(actorId, key, state);
+
+    /*
+     * SPENT BEFORE IT IS APPLIED, not after.
+     *
+     * A resolution action can end the incident outright — Survive does, and a
+     * critical Role reversal effectively does — and clearing the grant after
+     * that would be writing into a state that has moved on. Cleared for the
+     * side that held it rather than blanked, so a second grant (there is no
+     * such thing today, and this file has been surprised before) is not eaten
+     * by somebody else's turn.
+     */
+    if (free && freeResolutionFor(side, state)) await writeState({ freeResolution: null });
 
     // The advantage a missed attempt earned is spent whatever happens next.
     await clearAdvantage(side);
@@ -1140,7 +1213,21 @@ export async function resolveCrisisAction({
         await applyThirdPartyChoice(actor, def, done);
         if (def.endsIncident) await finishIncident(state, key, band, done);
     } else {
-        if (def.failureGrantsAdvantage) {
+        /*
+         * G-22: ONLY A HOPE FAILURE EARNS THE NEXT TRY.
+         *
+         * The guide gives the advantage to a miss "z Hope"; this granted it on
+         * any failure, so a victim who rolled badly AND with Despair was paid
+         * for it exactly as well as one who was simply unlucky. Those are the
+         * two halves the duality is for.
+         *
+         * `band` is safe to test here and only here (trap 112): a critical is
+         * always a success, so this branch sees `hope` and `despair` and
+         * nothing else. Three entries in config.mjs carry a `critical` key in
+         * their FAILURE tables, left as documentation of the guide's own
+         * layout; none of them is reachable, and this line is not one of them.
+         */
+        if (def.failureGrantsAdvantage && band === "hope") {
             await grantAdvantage(side);
             done.push(game.i18n.localize("DRPG.Murder.advantageNext"));
         }
@@ -1604,6 +1691,20 @@ async function applyUnlocks(state, def, key, band, done) {
     if (def.criticalStopsDrain && band === "critical") {
         patch.drainStopped = true;
         done.push(game.i18n.localize("DRPG.Murder.drainStopped"));
+    }
+
+    /*
+     * G-18: the critical also hands over one of the doors it just opened,
+     * already open. Stamped with the round rather than counted down, so it
+     * expires on its own when play comes back around.
+     *
+     * Written in the same patch as the unlocks deliberately: the two are one
+     * outcome, and a second write would let a client redraw between them and
+     * show a free take on an action that is still locked.
+     */
+    if (def.criticalFreeResolution && band === "critical") {
+        patch.freeResolution = { side: def.side, turn: state.turn };
+        done.push(game.i18n.localize("DRPG.Murder.freeResolution"));
     }
 
     await writeState(patch);

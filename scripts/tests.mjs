@@ -29,7 +29,7 @@
 
 import { MODULE_ID, moduleVersion, STARTING, CRISIS_ACTIONS, ACTIONS, TRAITS,
     ITEM_CATEGORIES, LIMIT_GROUPS, EQUIPPABLE, SFX_EVENTS, SFX_CATEGORIES,
-    HOPE_CALLS, DESPAIR_CALLS
+    HOPE_CALLS, DESPAIR_CALLS, OBSERVE_DC, ANALYZE_DC, CLEANUP, CRITICAL, KEY_REMNANTS
 } from "./config.mjs";
 import { rolesOf } from "./inventory.mjs";
 import { vaultContents, stashRoomOfItem, stashIn, allVaults } from "./vault.mjs";
@@ -316,6 +316,94 @@ const INVARIANTS = [
             .filter(key => !drawn.has(key));
         ok(!missing.length,
             `these Calls fall back to Font Awesome at the wrong size: ${missing.join(", ")}`);
+    }],
+
+    ["Analyze has its own numbers, and they are the guide's", () => {
+        /*
+         * G-08. This table was DERIVED from `OBSERVE_DC` for most of the
+         * module's life, on a line in the Player Handbook; the Full Guide
+         * prints its own and the two disagree. A derivation is one line to
+         * write and would be an easy thing to "tidy" back in, so the shape that
+         * makes it a different table is stated here.
+         *
+         * Two rows carry the whole of it: a faint trace is HARDER to spot than
+         * to read, and a prepared one is EASIER. Flattening them was what the
+         * old derivation did.
+         */
+        equal(ANALYZE_DC.hidden.faint, 18, "Analyze/faint/hidden is not the guide's 18");
+        equal(ANALYZE_DC.obvious.prep, 12, "Analyze/prep/obvious is not the guide's 12");
+        ok(ANALYZE_DC.hidden.faint < OBSERVE_DC.hidden.faint,
+            "a faint trace is no longer easier to read than to find");
+        ok(ANALYZE_DC.obvious.prep > OBSERVE_DC.obvious.prep,
+            "a prepared trace is no longer harder to read than to find");
+
+        for (const [band, row] of Object.entries(ANALYZE_DC)) {
+            equal(row.key, null, `Analyze/${band} asks for a roll on a Key Truth Bullet`);
+            // Incident and Resolution are priced like Prep — the same decision
+            // the observation table already made, for the same reason.
+            equal(row.incident, row.prep, `Analyze/${band}: incident is not priced like prep`);
+            equal(row.resolution, row.prep, `Analyze/${band}: resolution is not priced like prep`);
+        }
+    }],
+
+    ["a critical pays the guide's price, and something is enforcing it", () => {
+        // G-16. Daggerheart's own rule is +1 Hope and one Stress cleared; the
+        // guide's is +2 Hope and nothing about Stress. The numbers are half the
+        // test — the other half is that the wrapper is actually on, because a
+        // config entry nobody applies is exactly the class of defect this
+        // stage's regression tier exists for.
+        equal(CRITICAL.hope, 2, "a critical is not paying the guide's 2 Hope");
+        equal(CRITICAL.clearsStress, false, "a critical is still clearing Sanity as well");
+
+        const DualityRoll = game.system?.api?.dice?.DualityRoll;
+        ok(DualityRoll, "Daggerheart's DualityRoll is not where this module looks for it");
+        ok(DualityRoll.addDualityResourceUpdates?.[Symbol.for("drpgCriticalRule")],
+            "the critical rule is not installed — criticals are paying Daggerheart's numbers");
+    }],
+
+    ["the three criticals that buy another act say so, and can be spent", () => {
+        // G-17 and G-18, and they are NOT the same thing: one buys another go
+        // at the dice, the other buys certainty about one roll.
+        for (const key of ["leaveClue", "secureTrace", "useItem"]) {
+            ok(CRISIS_ACTIONS[key]?.criticalKeepsTurn,
+                `${key}'s critical ends the turn — G-17's second action is unreachable`);
+        }
+
+        for (const [key, def] of Object.entries(CRISIS_ACTIONS)) {
+            if (!def.criticalFreeResolution) continue;
+            // The grant is only worth something if the same critical opened a
+            // door to spend it on, and only reachable if the turn is still
+            // this player's when they go to spend it.
+            const opened = def.unlocks?.critical ?? [];
+            ok(opened.length, `${key} hands over a free resolution action and unlocks none`);
+            ok(opened.every(id => CRISIS_ACTIONS[id]?.kind === "resolution"),
+                `${key} unlocks something that is not a resolution action`);
+            ok(def.criticalKeepsTurn,
+                `${key} grants a free action "this turn" and then ends the turn`);
+        }
+    }],
+
+    ["a critical clean-up cannot rewrite the case out from under the GM", () => {
+        // G-20, trap 115. The permission is bounded, and these four are the
+        // bound: two the GM placed for the case to be solvable, one that is
+        // issued rather than found, and one that is not a kind of trace at all.
+        ok(CLEANUP.outcome.critical?.mayTransform, "a critical clean-up can no longer rewrite a trace");
+        const types = CLEANUP.transform?.types ?? [];
+        ok(types.length, "the transform has no list of types, so nothing bounds it");
+        for (const forbidden of ["key", "final", "autopsy", "neutral"]) {
+            ok(!types.includes(forbidden),
+                `a critical clean-up can turn a trace into "${forbidden}"`);
+        }
+        // And it stays out of the Misleading trail's business.
+        ok(!("pointsAt" in (CLEANUP.transform ?? {})),
+            "the transform can re-point a trace — that is the Misleading trail's action to sell");
+    }],
+
+    ["an investigation nobody finished has a price", () => {
+        // G-32. Both numbers, because the bar and the rate are separate
+        // decisions and the guide gives both.
+        equal(KEY_REMNANTS.unfoundBar, 4, "the bar for unfound Key Remnants is not four");
+        equal(KEY_REMNANTS.unfoundDespair, 3, "an unfound Key Remnant is not worth 3 Despair");
     }],
 
     ["the three time Calls stay out of the armed-Call slot", () => {
@@ -1265,6 +1353,79 @@ const SCENARIOS = [
         // Cancelling twice is a no-op rather than an error: the tile is drawn
         // from the same state, so a stale sheet can send the second one.
         ok(!await cancelGather(), "cancelling nothing reported that it cancelled something");
+    }],
+
+    ["a missed clue earns a second try only on Hope", async () => {
+        /*
+         * G-22. The advantage used to land on ANY failure, so a victim who
+         * rolled badly and with Despair was paid for it exactly as well as one
+         * who was merely unlucky — which is the one distinction the duality
+         * die exists to make.
+         */
+        const [killer, victim] = cast();
+        const drpg = game.drpg;
+        const murder = await import("./murder.mjs");
+
+        await drpg.openMurder({ killerId: killer.id, victimId: victim.id });
+        await settle();
+        await drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await settle();
+
+        // A Despair miss: nothing earned.
+        await drpg.resolveCrisisAction({
+            actorId: victim.id, key: "leaveClue", total: 2, isCritical: false, withHope: false
+        });
+        await settle();
+        ok(!murder.murderState()?.advantageNext?.victim,
+            "a Despair failure still earns the advantage G-22 takes away");
+
+        // Back to the victim, and a Hope miss: earned.
+        await drpg.passTurn();
+        await settle();
+        await drpg.resolveCrisisAction({
+            actorId: victim.id, key: "leaveClue", total: 2, isCritical: false, withHope: true
+        });
+        await settle();
+        ok(murder.murderState()?.advantageNext?.victim,
+            "a Hope failure no longer earns the second try");
+    }],
+
+    ["a critical Self-defence hands over one action, already open", async () => {
+        /*
+         * G-18, end to end: the grant appears, the turn is still the victim's
+         * so it can be spent, spending it needs no dice, and it is gone
+         * afterwards. The last one is the point — a grant that survived its
+         * turn would be a permanent free Survive.
+         */
+        const [killer, victim] = cast();
+        const drpg = game.drpg;
+        const murder = await import("./murder.mjs");
+
+        await drpg.openMurder({ killerId: killer.id, victimId: victim.id });
+        await settle();
+        await drpg.resolveKillerOpening({ total: 24, isCritical: false, withHope: true });
+        await settle();
+
+        await drpg.resolveCrisisAction({
+            actorId: victim.id, key: "selfDefence", total: 30, isCritical: true, withHope: true
+        });
+        await settle();
+
+        let state = murder.murderState();
+        ok(state?.unlocked?.includes("survive"), "the critical did not open Survive");
+        ok(murder.freeResolutionFor("victim"), "the critical handed over no free action");
+        equal(state.turnSide, "victim", "the turn passed, so the free action expired unused");
+
+        // Taken, not rolled: total zero, no critical, and it still ends the
+        // incident — which is what "without rolling" has to mean.
+        await drpg.resolveCrisisAction({
+            actorId: victim.id, key: "survive", total: 0, isCritical: false, withHope: true, free: true
+        });
+        await settle();
+
+        state = murder.murderState();
+        ok(!state || state.stage !== "incident", "a free Survive did not end the incident");
+        ok(!murder.freeResolutionFor("victim", state), "the free action survived being spent");
     }],
 
     ["an Eclipse takes every voice off the rooms", async () => {

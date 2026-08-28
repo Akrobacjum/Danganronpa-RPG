@@ -878,7 +878,8 @@
       "verdictNoteKnown": "Getting it right executes the Blackened above — you do not have to name anybody. Getting it wrong executes whoever the table accused, and every killer walks away with a Reinforced Level Up. A tie counts as wrong.",
       "accusedMany": "Named by the table: {names}.",
       "verdictIntroKnown": "Only you know whether they got it right. The module remembers who killed — all you have to say is whether the table found them.",
-      "counted": "The vote has been counted."
+      "counted": "The vote has been counted.",
+      "tiedVerdictNote": "The vote was tied. A tie is not an answer, so unless something else settled it at the table, this counts as getting it wrong."
     },
     "Music": {
       "title": "Music",
@@ -994,7 +995,15 @@
       "moveWhere": "Take it to",
       "moveConfirm": "Carry it there",
       "bodyNowhere": "There is nowhere to take it — no room connects to this one.",
-      "toolsBroken": "{items} is ruined. It is still in your inventory, and it is still evidence."
+      "toolsBroken": "{items} is ruined. It is still in your inventory, and it is still evidence.",
+      "transformTitle": "A clean job",
+      "transformIntro": "You have time to do more than wipe it. Erase the trace, or leave it looking like something else entirely.",
+      "transformType": "Make it look like",
+      "transformVisibility": "And this hard to spot",
+      "transformNote": "Nobody sees you decide. Whoever finds it afterwards finds what you left, not what was there.",
+      "transformErase": "Erase it",
+      "transformChange": "Leave something else",
+      "transformed": "{from} is now {to}. It is still there, and it says something different."
     },
     "Murder": {
       "openTitle": "Murder",
@@ -1152,7 +1161,8 @@
       "ranOutKeepGoing": "Keep going",
       "crowdedTitle": "Too many people",
       "crowded": "{name} walked in on top of {third}. Four people in one room is not a murder anybody can carry out — the incident is cancelled.",
-      "crowdedNote": "Nobody dies. What the fight already did stands: the wounds, the Sanity, and anything it left on the floor."
+      "crowdedNote": "Nobody dies. What the fight already did stands: the wounds, the Sanity, and anything it left on the floor.",
+      "freeResolution": "You stopped them cold. Take Survive or Role reversal this turn — no roll, it simply works."
     },
     "Investigation": {
       "plannerIntro": "Five clues for chapter {chapter}. Together they should narrow the suspects to {min}–{max} people.",
@@ -1198,7 +1208,8 @@
       "createHereIntro": "They named a point of interest and you have decided there is something there. This puts it on the map, and can hang it on one of the five clues you planned.",
       "whichSlot": "Which planned clue is this?",
       "noSlot": "Not one of the five",
-      "createdHere": "Key Remnant placed in {room}."
+      "createdHere": "Key Remnant placed in {room}.",
+      "unfoundKeys": "{n} Key Remnant(s) short of four were never found. {despair} Despair to each pool: {who}."
     },
     "Vault": {
       "section": "Stash — {room}",
@@ -2428,7 +2439,10 @@
       "resetDone": "The season has been reset. The cast and the maps are untouched.",
       "roomGuide": "How to draw rooms so the fog and the doorway glow are right. Walls first, then regions drawn to them. One named Region per room — an unnamed one is not a room and never counts as a neighbour. Neighbours touch along a shared edge and do not overlap. Draw with snapping on: region corners land on half-squares. Keep a room's border on the line of the wall it describes, within about half a square. A doorway is simply a gap in the walls, of any width — the wall may be one diagonal line while the region steps along the grid, and a room open along a whole side is allowed. No strip regions across open floor: if a room has two zones it is two rooms or one room. There is room for error in both directions, and it is the engine's own: an overlap shallower than a quarter of a square is ignored, and two rooms may stand nearly a square apart and still find each other. This looks for what lies past that — rooms that overlap, borders drawn away from their walls, corners off the lattice the rest of the scene uses. It reports; it never edits your map.",
       "checkRooms": "Check the rooms on this scene",
-      "checkClean": "Nothing to report — the rooms on this scene are clean."
+      "checkClean": "Nothing to report — the rooms on this scene are clean.",
+      "step.roomCount": "Enough rooms for the cast",
+      "hint.roomCount": "About one and a half rooms per player, corridors and dormitories aside. Fewer works, but two private conversations cannot happen at once.",
+      "roomCountLine": "{rooms} room(s) for {players} player(s). The guide suggests around {want}."
     },
     "Explain": {
       "state": {
