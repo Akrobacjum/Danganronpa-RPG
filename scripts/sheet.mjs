@@ -268,11 +268,23 @@ function wearMarkup(item) {
     const left = durabilityLeft(item);
     const tip = game.i18n.format("DRPG.Items.durabilityTooltip", { left, total });
 
+    /*
+     * THE TRACK ONLY EVER GOES DOWN, and the socket stays behind (Dawid,
+     * 29.08). Every pip is drawn for the whole life of the thing; wear takes
+     * the SOLID ink out of the rightmost one and leaves the empty frame where
+     * it was. So a tier 3 tool that has taken two Despairs reads as one dot and
+     * two rings, and the rings say what it used to have — which is the whole
+     * point of showing this at all.
+     *
+     * This is the action tray's own idiom, by name: `.drpg-action-pip` draws
+     * every action a character has and hollows out the ones they spent. Same
+     * sprite pair, same direction of travel.
+     */
     let pips = "";
     for (let i = 0; i < total; i++) {
         pips += `<span class="drpg-wear-pip${i < left ? " filled" : ""}"></span>`;
     }
-    return `<span class="drpg-item-wear${wearOf(item) ? " is-worn" : ""}" data-tooltip="${
+    return `<span class="drpg-item-wear" data-tooltip="${
         foundry.utils.escapeHTML(tip)}" aria-label="${
         foundry.utils.escapeHTML(tip)}">${pips}</span>`;
 }

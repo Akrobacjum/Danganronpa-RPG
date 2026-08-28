@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json — the suite fails if it does not. */
-    --drpg-css-version: "1.1.71";
+    --drpg-css-version: "1.1.72";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -1613,20 +1613,27 @@ section[data-application-part="biography"] .experiences .value {
     align-items: center;
     gap: 2px;
     flex: 0 0 auto;
-    color: currentColor;
-    opacity: 0.75;
 }
 
-.drpg-item-wear.is-worn {
-    opacity: 1;
-}
+/* THE SPENT ONE IS A FRAME, NOT A GAP (Dawid, 29.08: "leave the frame, like
+   with the actions").
 
+   The first version recoloured instead: a remaining point in Eye, a spent one
+   in `--drpg-dim`. On a dark row at three-quarter opacity that came out close
+   enough to nothing that the track read as pips being ADDED as the thing wore
+   — the opposite of what it says.
+
+   `.drpg-action-pip` had already solved this and the answer is not a colour: it
+   is one ink at two strengths, with the sprite doing the talking. Full circle
+   at full weight for what is left, empty circle at 0.45 for what has gone, both
+   in the row's own colour. Nothing moves and nothing disappears; the ring is
+   the socket the point used to sit in. */
 .drpg-wear-pip {
     display: inline-block;
     width: 0.5rem;
     height: 0.5rem;
     background-color: currentColor;
-    color: var(--drpg-dim);
+    opacity: 0.45;
     -webkit-mask-repeat: no-repeat;
     mask-repeat: no-repeat;
     -webkit-mask-size: 100% 100%;
@@ -1637,7 +1644,7 @@ section[data-application-part="biography"] .experiences .value {
 }
 
 .drpg-wear-pip.filled {
-    color: var(--drpg-eye);
+    opacity: 1;
     -webkit-mask-image: var(--drpg-pix-dot);
     mask-image: var(--drpg-pix-dot);
 }
