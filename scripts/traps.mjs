@@ -514,6 +514,9 @@ export function trapForItemId(drpgItemId) {
  * THE FIVE LISTENERS
  * ========================================================================== */
 
+const SOCKET_EVENT = `module.${MODULE_ID}`;
+const TRAP_EVENT = "trap.event";
+
 export function registerTraps() {
     // The map is rebuilt from the setting, so one listener covers every way a
     // trap can appear, change or go away.
@@ -524,11 +527,82 @@ export function registerTraps() {
     // actor — so the map has to be dropped when one changes.
     Hooks.on("updateActor", () => forgetArmedTraps());
 
-    Hooks.on("drpgRoomCrossed", onCrossed);
-    Hooks.on("drpgActionResolved", onActionResolved);
-    Hooks.on("drpgRested", onRested);
-    Hooks.on("drpgStashHunted", onStashHunted);
+    /*
+     * THE RELAY, AND WITHOUT IT EIGHT OF THE NINE TRIGGERS NEVER FIRED IN PLAY.
+     *
+     * Measured in E17, on two accounts: a player walked from Main Hall into
+     * Dinner Hall and `drpgRoomCrossed` fired ON THE PLAYER'S CLIENT ONLY. The
+     * GM's browser never saw it. Every handler below opens with `isPrimaryGm()`,
+     * so on the player's client it returns immediately and on the GM's client it
+     * is never called — the trap stays armed and nothing happens, which looks
+     * exactly like a trap nobody walked into.
+     *
+     * Four of the five hooks are raised by the client that DID the thing: a
+     * crossing is charged on the mover's client, an action resolves on the
+     * roller's, a rest and a stash hunt likewise. Only `createChatMessage`
+     * reaches everybody, which is why the item trigger was the one that worked.
+     *
+     * So the acting client says "this happened" and the GM decides what it
+     * means. The packet carries ids and a room name and nothing else: the GM
+     * re-derives the trap, the modifiers and the audience on their own side,
+     * because a claim from a client is a claim about an EVENT, never about a
+     * consequence. A forged packet costs a false alert on the GM's screen, and
+     * the GM was always the one who fires.
+     */
+    const relay = (kind, payload) => {
+        if (isPrimaryGm()) return false;
+        try {
+            game.socket.emit(SOCKET_EVENT, { action: TRAP_EVENT, kind, ...payload });
+        } catch (err) {
+            error("Could not tell the GM about something a trap might be watching for", err);
+        }
+        return true;
+    };
+
+    Hooks.on("drpgRoomCrossed", event => {
+        if (relay("crossing", { actorId: event?.actor?.id, to: event?.to })) return;
+        onCrossed(event);
+    });
+    Hooks.on("drpgActionResolved", event => {
+        if (relay("action", {
+            actorId: event?.actor?.id, actionKey: event?.actionKey,
+            hit: Boolean(event?.outcome?.success ?? event?.outcome?.hit),
+            projectId: event?.projectId ?? event?.outcome?.projectId ?? null
+        })) return;
+        onActionResolved(event);
+    });
+    Hooks.on("drpgRested", event => {
+        if (relay("rest", { actorId: event?.actor?.id, room: event?.room ?? null })) return;
+        onRested(event);
+    });
+    Hooks.on("drpgStashHunted", event => {
+        if (relay("stash", { actorId: event?.actor?.id, room: event?.room ?? null })) return;
+        onStashHunted(event);
+    });
+
+    // Raised on every client already, so it needs no relay — and it is the only
+    // one of the five that was ever working.
     Hooks.on("createChatMessage", onChatMessage);
+
+    game.socket.on(SOCKET_EVENT, async payload => {
+        if (payload?.action !== TRAP_EVENT) return;
+        if (!isPrimaryGm()) return;
+        const actor = payload.actorId ? game.actors.get(payload.actorId) : null;
+        if (!actor) return;
+        try {
+            switch (payload.kind) {
+                case "crossing": await onCrossed({ actor, to: payload.to }); break;
+                case "action": await onActionResolved({
+                    actor, actionKey: payload.actionKey,
+                    outcome: { success: payload.hit }, projectId: payload.projectId
+                }); break;
+                case "rest": await onRested({ actor, room: payload.room }); break;
+                case "stash": await onStashHunted({ actor, room: payload.room }); break;
+            }
+        } catch (err) {
+            error("A trap could not react to something a player did", err);
+        }
+    });
 }
 
 /** Triggers 1 and 2. One crossing, two questions. */

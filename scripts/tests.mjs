@@ -841,6 +841,56 @@ const REGRESSIONS = [
             `these show a dash instead of a private card: ${guilty.join(", ")} (use contentOf)`);
     }],
 
+    ["R17 · a trap can be sprung by somebody who is not the GM", async () => {
+        /*
+         * EIGHT OF THE NINE TRIGGERS NEVER FIRED IN PLAY, and E21 shipped that
+         * way with its own scenarios green.
+         *
+         * Measured in E17 on two accounts: a player walked from Main Hall into
+         * Dinner Hall and `drpgRoomCrossed` fired ON THE PLAYER'S CLIENT ONLY.
+         * The GM's browser never saw the hook. Every handler in traps.mjs opens
+         * with `isPrimaryGm()`, so it returned at once where it was called and
+         * was never called where it would have run.
+         *
+         * WHY THE SUITE MISSED IT, which is the part worth keeping: E21's
+         * scenarios raise the hooks with `Hooks.callAll` on the GM's own client,
+         * where the gate passes. The tests were right about everything after the
+         * gate and blind to the only question that mattered — who raises it.
+         * A test that stands in for the player has to be suspicious of running
+         * on the GM's machine.
+         *
+         * Four of the five hooks are raised by the client that DID the thing.
+         * Only `createChatMessage` reaches everybody, which is exactly why the
+         * item trigger was the one that worked. So every other one needs a relay,
+         * and this is what says so.
+         */
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/traps.mjs`).then(r => r.text());
+        const clean = stripComments(src);
+
+        const subscribed = [...clean.matchAll(/Hooks\.on\("(drpg\w+)"/g)].map(m => m[1]);
+        ok(subscribed.length >= 4, `traps.mjs subscribes to only ${subscribed.length} module hooks`);
+
+        // Each module hook's registration, up to the next one.
+        const marks = [...clean.matchAll(/Hooks\.on\("(drpg\w+|createChatMessage)"/g)];
+        const unrelayed = [];
+        for (let i = 0; i < marks.length; i++) {
+            const name = marks[i][1];
+            if (name === "createChatMessage") continue;   // reaches every client already
+            const to = i + 1 < marks.length ? marks[i + 1].index : clean.length;
+            if (!clean.slice(marks[i].index, to).includes("relay(")) unrelayed.push(name);
+        }
+        ok(!unrelayed.length,
+            `these only ever fire on the acting client, which is never the GM's: ${unrelayed.join(", ")}`);
+
+        // And the GM side answers to every kind the relay can send.
+        const sent = new Set([...clean.matchAll(/relay\("(\w+)"/g)].map(m => m[1]));
+        const handled = new Set([...clean.matchAll(/case "(\w+)":/g)].map(m => m[1]));
+        const deaf = [...sent].filter(kind => !handled.has(kind));
+        ok(!deaf.length, `the GM side ignores these relayed events: ${deaf.join(", ")}`);
+        const orphan = [...handled].filter(kind => !sent.has(kind));
+        ok(!orphan.length, `the GM side answers to events nothing sends: ${orphan.join(", ")}`);
+    }],
+
     ["R14 · every setting listener waits on the hook its setting actually fires", async () => {
         /*
          * FOUNDRY HAS TWO HOOKS HERE AND THEY DO NOT OVERLAP, and this module
