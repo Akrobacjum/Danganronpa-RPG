@@ -3015,15 +3015,13 @@ export const SFX_EVENTS = {
     windowOpen: {
         label: "Window opens",
         hint: "Any window this module draws, and a character sheet. Heard by whoever opened it.",
-        category: "ui"
-    ,
+        category: "ui",
         vary: true
     },
     windowClose: {
         label: "Window closes",
         hint: "The same windows on the way out. Heard by whoever closed it.",
-        category: "ui"
-    ,
+        category: "ui",
         vary: true
     },
     windowButton: {
@@ -3043,8 +3041,7 @@ export const SFX_EVENTS = {
     chatOpen: {
         label: "Chat opens",
         hint: "The messenger in the corner of the screen. Heard by whoever opened it.",
-        category: "ui"
-    ,
+        category: "ui",
         vary: true
     },
 
@@ -3052,15 +3049,13 @@ export const SFX_EVENTS = {
     chatSend: {
         label: "Message sent",
         hint: "Heard by the sender, on the browser that sent it.",
-        category: "chat"
-    ,
+        category: "chat",
         vary: true
     },
     chatReceive: {
         label: "Message arrives",
         hint: "Heard by everyone the thread belongs to — its player and every GM — and never by the sender.",
-        category: "chat"
-    ,
+        category: "chat",
         vary: true
     },
     gmAsk: {
@@ -3103,22 +3098,19 @@ export const SFX_EVENTS = {
     roomEntered: {
         label: "Room entered",
         hint: "A room already on the map. Heard by whoever crossed the border.",
-        category: "world"
-    ,
+        category: "world",
         vary: true
     },
     refused: {
         label: "Crossing refused",
         hint: "A wall, a locked door or a sealed room turns somebody back. Heard by whoever tried — the one mistake a player makes regularly.",
-        category: "world"
-    ,
+        category: "world",
         vary: true
     },
     actionSpent: {
         label: "Action spent",
         hint: "Heard by the player who spent it.",
-        category: "world"
-    ,
+        category: "world",
         vary: true
     },
     projectDone: {
@@ -3134,8 +3126,7 @@ export const SFX_EVENTS = {
     searchNothing: {
         label: "A search finds nothing",
         hint: "Heard by the searcher. The only common failure in the game that is otherwise completely silent.",
-        category: "world"
-    ,
+        category: "world",
         vary: true
     },
     observeFail: {

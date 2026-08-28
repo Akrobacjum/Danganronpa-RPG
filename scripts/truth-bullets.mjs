@@ -751,7 +751,15 @@ const FROM_REMNANT = "drpgFromRemnant";
 function watchBulletEdits() {
     Hooks.on("updateItem", async (item, changes, options) => {
         try {
-            if (!game.user.isGM) return;
+            /*
+             * THE PRIMARY GM, not "a GM" — and with two Gamemasters at this
+             * table that is not pedantry. `updateItem` fires on every client,
+             * so `isGM` alone had both of them writing the same patch to the
+             * trace, each one pushing it back down onto every copy and each
+             * one syncing the ledger to the other. One rename became two
+             * cascades. Same rule the trap relay and the search tokens use.
+             */
+            if (!isPrimaryGm()) return;
             if (options?.[FROM_REMNANT]) return;              // the trace talking
             if (!isTruthBullet(item)) return;
 

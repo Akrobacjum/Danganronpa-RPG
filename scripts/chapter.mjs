@@ -23,7 +23,7 @@
  * truth-bullets.mjs), and only a GM may write to another player's sheet.
  */
 
-import { MODULE_ID, FLAGS, ITEM_CATEGORIES, REMNANT_TYPES } from "./config.mjs";
+import { MODULE_ID, FLAGS, REMNANT_TYPES } from "./config.mjs";
 import { getClock, setPhase } from "./clock.mjs";
 import { TRUTH_BULLET_FLAGS, bulletsOf, secretOf, dropSecret } from "./truth-bullets.mjs";
 import { remnantsOn, remnantData, REMNANT_FLAGS } from "./remnants.mjs";

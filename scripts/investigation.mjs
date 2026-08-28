@@ -903,27 +903,27 @@ export async function openInvestigationDashboard() {
              * tabs stopped switching would be a worse window than a stale one.
              */
             const wireAll = () => {
-            const root = dialog.element;
-            wirePortraitPickers(root, { defaultImg: ICON });
+                const root = dialog.element;
+                wirePortraitPickers(root, { defaultImg: ICON });
 
-            const tabs = root.querySelectorAll("[data-drpg-tab]");
-            const panels = root.querySelectorAll("[data-drpg-panel]");
-            for (const tab of tabs) {
-                tab.addEventListener("click", () => {
-                    for (const t of tabs) t.classList.toggle("active", t === tab);
-                    for (const p of panels) {
-                        p.style.display = p.dataset.drpgPanel === tab.dataset.drpgTab ? "" : "none";
-                    }
+                const tabs = root.querySelectorAll("[data-drpg-tab]");
+                const panels = root.querySelectorAll("[data-drpg-panel]");
+                for (const tab of tabs) {
+                    tab.addEventListener("click", () => {
+                        for (const t of tabs) t.classList.toggle("active", t === tab);
+                        for (const p of panels) {
+                            p.style.display = p.dataset.drpgPanel === tab.dataset.drpgTab ? "" : "none";
+                        }
+                    });
+                }
+
+                // Rows past the opening roll's limit start disabled; the checkbox
+                // is the GM's explicit "yes, I mean it" rather than a silent cap.
+                const override = root.querySelector('[name="keyOverride"]');
+                const limited = root.querySelectorAll(".drpg-key-limited");
+                override?.addEventListener("change", () => {
+                    for (const el of limited) el.disabled = !override.checked;
                 });
-            }
-
-            // Rows past the opening roll's limit start disabled; the checkbox
-            // is the GM's explicit "yes, I mean it" rather than a silent cap.
-            const override = root.querySelector('[name="keyOverride"]');
-            const limited = root.querySelectorAll(".drpg-key-limited");
-            override?.addEventListener("change", () => {
-                for (const el of limited) el.disabled = !override.checked;
-            });
             };
 
             wireAll();

@@ -60,6 +60,8 @@ import {
     diagnoseWindows, traceClicks, fileSizes,
 } from "./diagnostics.mjs";
 import { runTests } from "./tests.mjs";
+import { diagnoseLive } from "./live.mjs";
+import { unregisterCriticalRule } from "./critical.mjs";
 import {
     openStateExplainer, openDespairExplainer, openStatusExplainer, openProjectsExplainer
 } from "./explain.mjs";
@@ -916,6 +918,17 @@ export const DrpgApi = {
      *  window. It also reports which version of the stylesheet this page has,
      *  which is the answer whenever a fix works locally and not on a host. */
     diagnoseWindows,
+
+    /** Which standing windows are keeping themselves true right now, how long
+     *  each has been open, how many times each has rebuilt itself and whether a
+     *  rebuild is being held back by a field somebody is typing in. Written for
+     *  the diagnostics window and reachable from nowhere until this line. */
+    diagnoseLive,
+
+    /** Put Daggerheart's own critical back, without a reload — for telling
+     *  "the module changed this number" apart from "the system always did
+     *  that". Diagnosis, not play: the next reload registers it again. */
+    unregisterCriticalRule,
 
     /** Why did that click not do anything? Run it, then click the control that
      *  misbehaves a few times. Twenty seconds later it posts what it saw:

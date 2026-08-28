@@ -23,7 +23,6 @@ const ACTION_PROGRESS = "project.progress";
 const ACTION_SHARE = "project.share";
 const ACTION_REMNANT = "remnant.place";
 const ACTION_REMNANT_EDIT = "remnant.edit";
-const ACTION_CREATE = "project.create";
 const ACTION_SABOTAGE = "project.sabotage";
 const ACTION_SABOTAGE_RESULT = "project.sabotageResult";
 const ACTION_UNSABOTAGE = "project.unsabotage";
@@ -1075,19 +1074,17 @@ async function onSocket(payload, senderId) {
         return;
     }
 
-    if (payload?.action === ACTION_CREATE) {
-        if (!senderOf(senderId)) return refuse(ACTION_CREATE, "unknown sender");
-        const { createProject } = await import("./projects.mjs");
-        const made = await createProject(payload.data);
-        if (made) {
-            // Tell the GMs what appeared, so nothing is created behind their back.
-            await whisperToGms(`<h3>${game.i18n.localize("DRPG.Project.startNew")}</h3>
-                <p><strong>${foundry.utils.escapeHTML(payload.data.by ?? "?")}</strong> — ${foundry.utils.escapeHTML(made.name)}
-                (${made.target} progress${payload.data.room ? `, ${foundry.utils.escapeHTML(payload.data.room)}` : ""})${
-                payload.data.indirectMurder ? ` · <em>${game.i18n.localize("DRPG.Project.indirect")}</em>` : ""}</p>
-                <p><em>${game.i18n.localize("DRPG.Project.gmCanAdjust")}</em></p>`);
-        }
-    }
+    /*
+     * `project.create` USED TO LIVE HERE, and it is gone rather than mended.
+     *
+     * Nothing sent it: a project is created by the GM, from the panel or from
+     * an Approve button on a proposal card, and a player's proposal reaches
+     * them as a card rather than as a write. So the branch was a GM-side
+     * handler with no caller — and it still accepted a `project.create`
+     * payload from any connected client, checked only that the sender was
+     * somebody, and created the project. Including one flagged
+     * `indirectMurder`. A door nobody used and anybody could open.
+     */
 }
 
 /**
@@ -1207,16 +1204,6 @@ export function requestSendBack(sceneId, tokenId, position) {
 export function requestEclipseMove(actorId) {
     if (!hasGm()) return null;
     game.socket.emit(SOCKET_EVENT, { action: ACTION_ECLIPSE_MOVE, userId: game.user.id, requestId: expectAck("Eclipse"), actorId });
-    return { pending: true };
-}
-
-/** Creating a countdown writes a world setting, so the GM does it for us. */
-export function requestProjectCreate(data) {
-    if (game.user.isGM) {
-        return import("./projects.mjs").then(m => m.createProject(data));
-    }
-    if (!hasGm()) return null;
-    game.socket.emit(SOCKET_EVENT, { action: ACTION_CREATE, userId: game.user.id, requestId: expectAck("Project"), data });
     return { pending: true };
 }
 

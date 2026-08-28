@@ -1622,7 +1622,10 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
         const favours = roomFavours(room);
         const hinders = roomHinders(room);
         const region = regions.get(room);
-        const esc = foundry.utils.escapeHTML(room);
+        // NOT `esc`: every other file in this module uses that name for the
+        // escaping FUNCTION, so a local string by the same name here means the
+        // next `esc(x)` written inside this block is a TypeError.
+        const escRoom = foundry.utils.escapeHTML(room);
 
         const people = students.map(a =>
             `<option value="${a.id}"${a.id === owner ? " selected" : ""}>${
@@ -1635,16 +1638,16 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
         // hook below keeps one category from being ticked in both.
         const categoryBoxes = (prefix, ticked) => categories.map(([key, cat]) =>
             `<label class="drpg-inline-check"><input type="checkbox"
-                name="${prefix}:${esc}:${key}" ${ticked.includes(key) ? "checked" : ""} />${
+                name="${prefix}:${escRoom}:${key}" ${ticked.includes(key) ? "checked" : ""} />${
                 foundry.utils.escapeHTML(cat.label)}</label>`).join(" ");
 
         const check = (name, on, title = "") => `<td style="text-align:center"${
-            title ? ` title="${title}"` : ""}><input type="checkbox" name="${name}:${esc}"
+            title ? ` title="${title}"` : ""}><input type="checkbox" name="${name}:${escRoom}"
                 ${on ? "checked" : ""} /></td>`;
 
         return {
-            name: `<td><strong>${esc}</strong></td>`,
-            owner: `<td><select name="owner:${esc}"><option value="">—</option>${people}</select></td>`,
+            name: `<td><strong>${escRoom}</strong></td>`,
+            owner: `<td><select name="owner:${escRoom}"><option value="">—</option>${people}</select></td>`,
             concealed: check("concealed", isConcealed(room)),
             short: check("short", region?.getFlag(MODULE_ID, REST_FLAGS.short)),
             long: check("long", region?.getFlag(MODULE_ID, REST_FLAGS.long)),
@@ -1653,18 +1656,18 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
                 game.i18n.localize("DRPG.Vault.lockedAtStartHint")),
             nosearch: check("nosearch", region?.getFlag(MODULE_ID, SEARCH_FLAGS.sealed)),
             tokens: `<td class="drpg-token-cell" style="text-align:center">
-                <span data-drpg-tokens="${esc}">${SearchTokens.left(room, scene)}</span> / ${maxTokens}
-                <button type="button" class="drpg-mini-button" data-drpg-token="${esc}"
+                <span data-drpg-tokens="${escRoom}">${SearchTokens.left(room, scene)}</span> / ${maxTokens}
+                <button type="button" class="drpg-mini-button" data-drpg-token="${escRoom}"
                     data-drpg-token-by="-1" title="${
                         game.i18n.localize("DRPG.SearchTokens.spendOne")}">−</button>
-                <button type="button" class="drpg-mini-button" data-drpg-token="${esc}"
+                <button type="button" class="drpg-mini-button" data-drpg-token="${escRoom}"
                     data-drpg-token-by="1" title="${
                         game.i18n.localize("DRPG.SearchTokens.giveOne")}">+</button>
-                <button type="button" class="drpg-mini-button" data-drpg-token="${esc}"
+                <button type="button" class="drpg-mini-button" data-drpg-token="${escRoom}"
                     data-drpg-token-by="max" title="${
                         game.i18n.localize("DRPG.SearchTokens.refillRoom")}">↺</button>
             </td>`,
-            table: `<td><select name="table:${esc}">
+            table: `<td><select name="table:${escRoom}">
                 <option value="">${game.i18n.localize("DRPG.Vault.globalPool")}</option>
                 ${tableOptions}</select></td>`,
             favours: `<td>${categoryBoxes("fav", favours)}</td>`,
@@ -1673,7 +1676,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
             // the wrapping-cell rule the rest of this table lives under — see
             // the `:has(input[type="text"], textarea)` exception in the
             // stylesheet — so the prose wraps instead of stretching the window.
-            description: `<td><textarea name="desc:${esc}" rows="2"
+            description: `<td><textarea name="desc:${escRoom}" rows="2"
                 placeholder="${game.i18n.localize("DRPG.Vault.descriptionPlaceholder")}"
                 >${foundry.utils.escapeHTML(roomDescription(room))}</textarea></td>`
         };

@@ -14,7 +14,6 @@
  */
 
 import { MODULE_ID, FLAGS, REST, STARTING } from "./config.mjs";
-import { SETTINGS } from "./settings.mjs";
 import { actionsLeft, spendAction, canPayFor } from "./actions.mjs";
 import { roomOfActor } from "./movement.mjs";
 import { getClock } from "./clock.mjs";

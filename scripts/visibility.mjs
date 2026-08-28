@@ -18,7 +18,7 @@
  * `applyToRemnantToken` below is that second rule, running on the same hook.
  */
 
-import { MODULE_ID, FLAGS } from "./config.mjs";
+import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { roomOfToken } from "./movement.mjs";
 import { REMNANT_FLAGS, keyOf as remnantKeyOf } from "./remnants.mjs";
@@ -28,7 +28,7 @@ import { TRUTH_BULLET_FLAGS, bulletsOf } from "./truth-bullets.mjs";
 // mastermind.mjs does not reach back into this file at load time — its one
 // call to `applyAll` is a dynamic import — so there is no cycle.
 import { myLairRoom } from "./mastermind.mjs";
-import { debug, error } from "./utils.mjs";
+import { debug } from "./utils.mjs";
 
 export function registerVisibility() {
     // `refreshToken` is the one that matters: Foundry recomputes `visible` from

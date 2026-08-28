@@ -50,7 +50,7 @@ import { SETTINGS } from "./settings.mjs";
 import { isDeceased } from "./chapter.mjs";
 import { isStashed } from "./inventory.mjs";
 import { isTruthBullet } from "./truth-bullets.mjs";
-import { whisperToGms, warn, debug, error } from "./utils.mjs";
+import { whisperToGms, debug, error } from "./utils.mjs";
 
 const NONE = 0;     // CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE
 const OBSERVER = 2; // …OBSERVER — enough to render the sheet, never to edit it.

@@ -39,7 +39,7 @@ import { SETTINGS } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
-import { carriedInCategory, carriedFor, ITEM_FLAGS, isBroken } from "./inventory.mjs";
+import { carriedFor, ITEM_FLAGS, isBroken } from "./inventory.mjs";
 import { equippedFor, breakOnDespair } from "./use-items.mjs";
 import { dropRemnant, traceFeedback } from "./remnants.mjs";
 import {

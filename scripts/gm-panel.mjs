@@ -609,7 +609,15 @@ async function openWhoIsAliveDialog() {
         const state = stateOf(a);
         const cub = state === "monocub";
 
-        const cubCells = !anyCub ? "" : `
+        /*
+         * CALLED, not read. `anyCub` became a function when this table learned
+         * to rebuild itself (E22) and this line was left reading the reference
+         * — which is a function object, which is always truthy, so the cub
+         * cells were built on EVERY row whether or not a Monocub existed. The
+         * heading above calls it properly, so for four releases a table with no
+         * Monocub in it had three columns of heading over six columns of row.
+         */
+        const cubCells = !anyCub() ? "" : `
             <td>${cub ? `${resourceValue(a, "hope")} / ${resourceMax(a, "hope")}` : "—"}</td>
             <td>${cub && donors ? `
                 <select name="donor:${a.id}">${donors}</select>

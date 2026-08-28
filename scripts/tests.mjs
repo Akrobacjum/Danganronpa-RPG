@@ -33,7 +33,7 @@
  * backgrounded tab for reasons that have nothing to do with the module.
  */
 
-import { MODULE_ID, moduleVersion, STARTING, CRISIS_ACTIONS, ACTIONS, TRAITS,
+import { MODULE_ID, moduleVersion, CRISIS_ACTIONS, ACTIONS, TRAITS,
     ITEM_CATEGORIES, LIMIT_GROUPS, EQUIPPABLE, SFX_EVENTS, SFX_CATEGORIES,
     HOPE_CALLS, DESPAIR_CALLS, OBSERVE_DC, ANALYZE_DC, CLEANUP, CRITICAL, KEY_REMNANTS
 } from "./config.mjs";
@@ -159,7 +159,13 @@ function stripComments(text) {
     // down. A failure message nobody can follow is worse than no message.
     return text
         .replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, " "))
-        .replace(/^([ \t]*)\/\/.*$/gm, "$1");
+        .replace(/^([ \t]*)\/\/.*$/gm, "$1")
+        // AND THE ONE THAT SITS AFTER CODE. R22 read `// safely() may retry`
+        // as a call to a function nobody declared, and `// strip accents (ą…)`
+        // as another. The character in front has to be neither `:` nor a word
+        // character, which is what keeps `https://` and every other protocol
+        // out of it.
+        .replace(/([^:\w])\/\/[^\n]*$/gm, "$1");
 }
 
 /** Every stylesheet in module.json, concatenated, comments removed. */
@@ -174,6 +180,183 @@ async function moduleStyles() {
 
 /** Line number of an index, for a failure message somebody has to act on. */
 const lineAt = (text, index) => text.slice(0, index).split("\n").length;
+
+/**
+ * Source with its STRING CONTENTS blanked, `${...}` expressions kept.
+ *
+ * R22 asks which names this module calls, and half the module's output is
+ * HTML built in template literals. Without this, `"<button onclick="` and
+ * every other parenthesis inside a sentence reads as a call to something that
+ * does not exist \— and a tier-0 test that cries wolf is a tier-0 test people
+ * learn to skip. Lengths are preserved so `lineAt` still points at the code.
+ */
+function stripStrings(text) {
+    let out = "";
+    let i = 0;
+    while (i < text.length) {
+        const c = text[i];
+        if (c === '"' || c === "'") {
+            let j = i + 1;
+            while (j < text.length && text[j] !== c && text[j] !== "\n") {
+                j += text[j] === "\\" ? 2 : 1;
+            }
+            out += " ".repeat(Math.min(j, text.length) - i + 1);
+            i = j + 1;
+            continue;
+        }
+        if (c === "`") {
+            let j = i + 1;
+            out += " ";
+            while (j < text.length) {
+                if (text[j] === "\\") { out += "  "; j += 2; continue; }
+                if (text[j] === "`") { out += " "; j++; break; }
+                if (text[j] === "$" && text[j + 1] === "{") {
+                    let k = j + 2;
+                    let depth = 1;
+                    while (k < text.length && depth) {
+                        if (text[k] === "{") depth++;
+                        else if (text[k] === "}") depth--;
+                        k++;
+                    }
+                    out += "  " + stripStrings(text.slice(j + 2, k - 1)) + " ";
+                    j = k;
+                    continue;
+                }
+                out += text[j] === "\n" ? "\n" : " ";
+                j++;
+            }
+            i = j;
+            continue;
+        }
+        out += c;
+        i++;
+    }
+    return out;
+}
+
+/**
+ * Every name a file BINDS: imported, declared, destructured, taken as a
+ * parameter. Generous on purpose \— R22 reports what is in none of these, so
+ * a name this misses is a false accusation, and a name it over-collects is
+ * only a miss.
+ */
+function boundNames(text) {
+    const names = new Set();
+    const add = s => {
+        for (const w of s.match(/[A-Za-z_$][\w$]*/g) ?? []) if (w !== "as") names.add(w);
+    };
+    for (const m of text.matchAll(/import\s+([\s\S]*?)\s+from\b/g)) add(m[1]);
+    // THE PARAMETER LIST IS WALKED, not matched. `function createProject({ name,
+    // rooms = allRooms() })` has parentheses inside its own parameters, and a
+    // `[^()]*` pattern simply fails on it \— which took the FUNCTION'S NAME down
+    // with it and had the first run of R22 accuse twenty-three real, exported,
+    // perfectly reachable functions of not existing.
+    for (const m of text.matchAll(/\bfunction\s*\*?\s*([A-Za-z_$][\w$]*)?\s*\(/g)) {
+        if (m[1]) names.add(m[1]);
+        let depth = 0;
+        let j = m.index + m[0].length - 1;
+        const from = j;
+        for (; j < text.length; j++) {
+            if (text[j] === "(") depth++;
+            else if (text[j] === ")" && --depth === 0) break;
+        }
+        add(text.slice(from + 1, j));
+    }
+    for (const m of text.matchAll(/\bclass\s+([A-Za-z_$][\w$]*)/g)) names.add(m[1]);
+    for (const m of text.matchAll(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)) names.add(m[1]);
+    for (const m of text.matchAll(/\bcatch\s*\(\s*([A-Za-z_$][\w$]*)/g)) names.add(m[1]);
+    for (const m of text.matchAll(/\b(?:const|let|var)\s*([{[][^=;]{0,400}?[}\]])\s*=/g)) add(m[1]);
+    for (const m of text.matchAll(/\bfor\s*\(\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)) names.add(m[1]);
+    for (const m of text.matchAll(/^\s*(?:async\s+|static\s+|\*\s*)*([A-Za-z_$][\w$]*)\s*\([^()]{0,200}\)\s*\{/gm)) {
+        names.add(m[1]);
+    }
+    // arrow parameters: walk back from every => to its parameter list
+    for (const m of text.matchAll(/=>/g)) {
+        let i = m.index - 1;
+        while (i >= 0 && /\s/.test(text[i])) i--;
+        if (i < 0) continue;
+        if (text[i] === ")") {
+            let depth = 0;
+            let j = i;
+            for (; j >= 0; j--) {
+                if (text[j] === ")") depth++;
+                else if (text[j] === "(" && --depth === 0) break;
+            }
+            add(text.slice(j, i));
+        } else {
+            let j = i;
+            while (j >= 0 && /[\w$]/.test(text[j])) j--;
+            names.add(text.slice(j + 1, i + 1));
+        }
+    }
+    return names;
+}
+
+/** Names that are simply there, on any page, in any Foundry world. */
+const AMBIENT = new Set(`
+game ui canvas CONFIG CONST Hooks foundry console Handlebars PIXI jQuery
+Object Array String Number Boolean Symbol Math JSON Promise Set Map WeakMap WeakSet
+Date RegExp Error TypeError RangeError Proxy Reflect Intl BigInt Infinity NaN
+parseInt parseFloat isNaN isFinite encodeURIComponent decodeURIComponent encodeURI decodeURI
+setTimeout clearTimeout setInterval clearInterval requestAnimationFrame cancelAnimationFrame
+queueMicrotask structuredClone fetch atob btoa alert confirm prompt open getComputedStyle
+document window navigator location history localStorage sessionStorage performance crypto
+URL URLSearchParams Blob File FileReader FormData Headers Request Response AbortController
+Image Audio AudioContext Event CustomEvent EventTarget MutationObserver ResizeObserver
+Element HTMLElement Node NodeList DOMParser Range CSS
+Uint8Array Float32Array ArrayBuffer DataView TextDecoder TextEncoder
+fromUuid fromUuidSync renderTemplate loadTemplates getDocumentClass srcExists
+`.trim().split(/\s+/));
+
+// `#` is in there because `this.#spendAsGm(` is a method, not a bare name.
+const CALLED = /(?:(?<=\.\.\.)|(?<![.\w$?#]))([A-Za-z_$][\w$]*)\s*\(/g;
+
+const JS_KEYWORDS = new Set(`
+if else for while switch catch return typeof instanceof new delete void function class
+const let var do try finally throw await async yield of in case default super this
+import export extends get set static break continue debugger with
+`.trim().split(/\s+/));
+
+/** Names a file declares as a function and never as anything else. */
+function functionsOnly(text) {
+    const fns = new Set();
+    for (const m of text.matchAll(/\b(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:\([^()]{0,120}\)|[A-Za-z_$][\w$]*)\s*=>/g)) {
+        fns.add(m[1]);
+    }
+    for (const m of text.matchAll(/^\s*(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/gm)) {
+        fns.add(m[1]);
+    }
+    // A name that is ALSO a value somewhere in this file is out of scope: the
+    // boolean is reading that value, not the function. Five of the six the
+    // first run of this reported were exactly that \— a parameter named
+    // `grants`, a `let done = false`, a `const label`.
+    for (const name of [...fns]) {
+        // THE SPACE GOES INSIDE THE LOOKAHEAD. With `\\s*` in front of it the
+        // engine is free to match zero spaces, hand the lookahead " () =>", watch
+        // it fail on the leading space and conclude the declaration is a value.
+        // Every arrow in the module read as one, so R21 saw nothing at all \—
+        // including the fault written into its own fixture.
+        const asValue = new RegExp(`\\b(?:const|let|var)\\s+${name}\\s*=(?!\\s*(?:async\\s*)?(?:\\([^()]{0,120}\\)|[A-Za-z_$][\\w$]*)\\s*=>)`, "g");
+        if (asValue.test(text)) { fns.delete(name); continue; }
+        for (const m of text.matchAll(/\(([^()]{0,300})\)\s*(?:=>|\{)/g)) {
+            if (new RegExp(`(?:^|[{,\\s])${name}(?:[,}\\s=]|$)`).test(m[1])) { fns.delete(name); break; }
+        }
+    }
+    return fns;
+}
+
+/** Every place a bare name is asked to be true or false. */
+function truthyReads(text, name) {
+    const out = [];
+    const pats = [
+        new RegExp(`!\\s*${name}\\s*(?![\\w$(.])`, "g"),
+        new RegExp(`(?<![.\\w$])${name}\\s*\\?(?!\\.)`, "g"),
+        new RegExp(`\\bif\\s*\\(\\s*${name}\\s*\\)`, "g"),
+        new RegExp(`&&\\s*${name}\\s*(?:\\?|\\)|&&|\\|\\|)`, "g")
+    ];
+    for (const p of pats) for (const m of text.matchAll(p)) out.push(m.index);
+    return out;
+}
 
 const REGRESSIONS = [
     ["R1 · every translation key the module names out loud resolves", async () => {
@@ -697,6 +880,31 @@ const REGRESSIONS = [
          * measure nothing and report success.
          */
         const MIN_WIDTH = 1366;
+
+        /*
+         * THE SCREEN IT IS ON, and a source check for the screen it is not.
+         *
+         * This used to compare the measured width against 1366 flat, which made
+         * the answer a fact about the browser pane the suite happened to be run
+         * in rather than about the module. Every width cap here is written
+         * `min(…, 96vw)`, so on a 1600px pane those windows are 1536 and the
+         * test failed three of them; on a 1280px pane the same code passes. A
+         * test that reports a defect when the window is dragged wider is a test
+         * that gets switched off.
+         *
+         * What is actually ours is in two halves, and neither moves with the
+         * pane: nothing may be wider than the screen it is drawn on, and no rule
+         * in our stylesheets may PIN a window to a fixed width above the
+         * minimum. A `vw` cap satisfies the second by construction, which is why
+         * this reads the source for pixels rather than measuring again.
+         */
+        const pinned = [];
+        for (const m of (await moduleStyles()).matchAll(
+            /(?:^|[;{])\s*(?:max-)?width:\s*(\d{4,})px/g)) {
+            if (Number(m[1]) > MIN_WIDTH) pinned.push(`${m[1]}px`);
+        }
+        ok(!pinned.length, `a window is pinned wider than ${MIN_WIDTH}px: ${pinned.join(", ")}`);
+
         const openers = [];
         for (const [file, raw] of await otherSources()) {
             for (const m of stripComments(raw).matchAll(
@@ -729,7 +937,10 @@ const REGRESSIONS = [
                 const el = app.element;
                 if (el?.isConnected) {
                     measured++;
-                    if (el.offsetWidth > MIN_WIDTH) wide.push(`${name} is ${el.offsetWidth}px wide`);
+                    if (el.offsetWidth > window.innerWidth) {
+                        wide.push(`${name} is ${el.offsetWidth}px wide on a `
+                            + `${window.innerWidth}px screen`);
+                    }
                     /*
                      * AND NOTHING INSIDE IT MAY PUSH SIDEWAYS EITHER — but the
                      * question is only meaningful of a box that can scroll.
@@ -758,7 +969,7 @@ const REGRESSIONS = [
         }
         log(`R12: ${measured} windows measured, ${refused.length} declined (${refused.join(", ") || "none"})`);
         ok(measured >= 10, `only ${measured} windows actually opened — this measured nothing`);
-        ok(!wide.length, `these do not fit ${MIN_WIDTH}px: ${wide.join("; ")}`);
+        ok(!wide.length, `these do not fit the screen: ${wide.join("; ")}`);
     }],
 
     ["R13 · every trigger a trap can name has something listening for it", async () => {
@@ -1077,6 +1288,134 @@ const REGRESSIONS = [
             }
         }
         ok(!wrong.length, `these listeners can never run: ${wrong.join("; ")}`);
+    }],
+    ["R21 \u00b7 no control is decided by a function nobody called", async () => {
+        /*
+         * A FUNCTION OBJECT IS ALWAYS TRUE, and it never says so.
+         *
+         * The GM panel's roster became a function when the "who is alive" table
+         * learned to rebuild itself while open (E22). The heading was updated to
+         * call it; one line in the row builder was not, and `!anyCub` \— a
+         * function reference \— is `false` forever. So for four releases every
+         * row carried the three Monocub cells whether or not a Monocub existed,
+         * under a heading that correctly showed three columns. Three headings
+         * over six cells, in the window a GM works from most.
+         *
+         * Nothing catches this: it parses, it runs, it throws nothing, and the
+         * branch it silently picks is the one that LOOKS busier rather than the
+         * one that looks broken. It is also a mistake this module is now shaped
+         * to keep making \— every window that learns to stay live turns a
+         * handful of locals into functions on the way.
+         *
+         * OUT OF SCOPE, deliberately: a name that is also a value somewhere in
+         * the same file. The first run reported six and five were that \— a
+         * parameter called `grants`, a `let done = false`, a `const label`. A
+         * test with five false accusations in six is one nobody reads.
+         */
+        const proof = [];
+        {
+            const fixture = "const ready = () => true;\nif (!ready) return;\n";
+            const fns = functionsOnly(fixture);
+            for (const name of fns) if (truthyReads(fixture, name).length) proof.push(name);
+            ok(proof.length === 1, "this test cannot see its own example fault");
+        }
+
+        const wrong = [];
+        for (const [file, raw] of await otherSources()) {
+            const text = stripStrings(stripComments(raw));
+            for (const name of functionsOnly(text)) {
+                for (const at of truthyReads(text, name)) {
+                    wrong.push(`${file}:${lineAt(text, at)} \— \`${name}\` is a function here, `
+                        + "so this test is always true (call it)");
+                }
+            }
+        }
+        ok(!wrong.length, wrong.join("; "));
+    }],
+
+    ["R22 \u00b7 every name this module calls is a name it has", async () => {
+        /*
+         * `bend is not defined`, and it lied about the files for four months.
+         *
+         * The call outlived the function: a playback rate moved onto its own
+         * `Sound` and `bend(sound, rate)` stayed behind in the branch every
+         * non-varying event takes. The throw landed in a `.then` AFTER the
+         * sound had started, so the `.catch` below reported perfectly good
+         * files as unplayable while the table was hearing them.
+         *
+         * The same shape then turned up in `action-rolls.mjs`, where a `catch`
+         * called `debug(\u2026)` that the file never imported \— an error handler
+         * that throws a second error is the worst possible place for this.
+         *
+         * CALL POSITION ONLY. A bare identifier can be a property, a label, a
+         * type in a comment; `name(` is unambiguous, and it is where both of
+         * these lived.
+         */
+        {
+            const fixture = "import { log } from './x.mjs';\nfunction go() { log(1); bend(2); }\n";
+            const bound = boundNames(fixture);
+            const missed = [...fixture.matchAll(CALLED)].map(m => m[1])
+                .filter(n => !bound.has(n) && !AMBIENT.has(n) && !JS_KEYWORDS.has(n));
+            ok(missed.length === 1 && missed[0] === "bend",
+                `this test cannot see its own example fault (saw ${missed.join(",") || "nothing"})`);
+        }
+
+        const wrong = [];
+        for (const [file, raw] of await otherSources()) {
+            const text = stripStrings(stripComments(raw));
+            const bound = boundNames(text);
+            const said = new Set();
+            for (const m of text.matchAll(CALLED)) {
+                const who = m[1];
+                if (said.has(who) || bound.has(who) || AMBIENT.has(who)) continue;
+                if (JS_KEYWORDS.has(who) || /^[A-Z]/.test(who)) continue;
+                said.add(who);
+                wrong.push(`${file}:${lineAt(text, m.index)} \— ${who}() is declared nowhere `
+                    + "in this file and imported into it by nothing");
+            }
+        }
+        ok(!wrong.length, wrong.join("; "));
+    }],
+
+    ["R23 \u00b7 a document hook that checks for a GM checks for THE GM", async () => {
+        /*
+         * A DOCUMENT HOOK FIRES ON EVERY CLIENT, so "am I a GM" is never the
+         * right question in one \— with two Gamemasters at this table it is
+         * answered yes twice.
+         *
+         * The bidirectional Truth Bullet sync (v1.1.55) asked it that way. One
+         * GM renaming a bullet had BOTH GM clients write the patch to the
+         * trace, each then pushing it back down onto every copy, each syncing
+         * the ledger to the other. One rename, two cascades, and the second one
+         * arrives while the first is still writing.
+         *
+         * `isPrimaryGm` is how the rest of the module answers it \— the trap
+         * relay, the search tokens, the migrations, `prepareScenes`. It picks
+         * ONE connected GM, and both ends compute it from the same user list so
+         * they cannot disagree.
+         *
+         * A handler that needs no GM at all is not asked: what this catches is
+         * one that decided GM-ness matters and then chose the weaker of the two
+         * rules.
+         */
+        const wrong = [];
+        for (const [file, raw] of await otherSources()) {
+            const text = stripComments(raw);
+            for (const m of text.matchAll(/Hooks\.on\(\s*"((?:create|update|delete)[A-Z]\w*)"/g)) {
+                let depth = 0;
+                let j = text.indexOf("(", m.index);
+                const from = j;
+                for (; j < text.length; j++) {
+                    if (text[j] === "(") depth++;
+                    else if (text[j] === ")" && --depth === 0) break;
+                }
+                const body = text.slice(from, j);
+                if (!/user\.isGM/.test(body) || /isPrimaryGm/.test(body)) continue;
+                wrong.push(`${file}:${lineAt(text, m.index)} \— ${m[1]} fires on every client, `
+                    + "so every GM runs this (use isPrimaryGm)");
+            }
+        }
+        ok(!wrong.length, wrong.join("; "));
     }]
 ];
 
@@ -2799,6 +3138,99 @@ const SCENARIOS = [
         }
     }],
 
+    ["a trace and its bullets are one record, edited from either end", async () => {
+        /*
+         * Dawid, 28.08: "the synchronisation is to be full, continuous,
+         * regardless of when and where the edit happens."
+         *
+         * The downward half is old \— the trace's record has always been pushed
+         * onto every bullet copied from it. The upward half is v1.1.55, and it
+         * is the one with a moving part: `updateItem` fires on EVERY client, so
+         * the handler is fenced to one GM, and a fence in the wrong place turns
+         * the whole feature off without a word. Nothing failed when it was
+         * written; nothing would fail if it stopped working either.
+         *
+         * TWO HOLDERS ON PURPOSE. One bullet cannot tell "the edit reached the
+         * trace" apart from "the edit stayed where it was typed". The second
+         * copy is the only witness that the words travelled.
+         */
+        const remnants = await import("./remnants.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { roomOfToken } = await import("./movement.mjs");
+
+        const scene = canvas?.scene;
+        ok(scene, "no active scene");
+        const anchor = scene?.tokens?.find(t => roomOfToken(t));
+        ok(anchor, "no token on the active scene stands in any room");
+
+        const cast = game.actors.filter(a => a.type === "character").slice(0, 2);
+        ok(cast.length >= 2, "need two characters to watch one edit reach the other");
+        const [one, two] = cast;
+
+        let token = null;
+        const made = [];
+        try {
+            token = await remnants.placeRemnant({
+                type: "prep", visibility: "evident", x: anchor.x, y: anchor.y, scene,
+                note: "test fixture \— trace/bullet sync"
+            });
+            ok(token, "could not place the fixture trace");
+
+            for (const actor of [one, two]) {
+                const item = await bullets.createTruthBullet(actor, {
+                    name: "Suite fixture bullet",
+                    realType: "neutral",
+                    visibility: "obvious",
+                    remnantId: token.id,
+                    sceneId: scene.id
+                });
+                ok(item, `no bullet was created for ${actor.name}`);
+                made.push(item);
+            }
+            await settle();
+
+            // ---- DOWN: the trace speaks, both copies listen -----------------
+            const said = `Fixture trace ${Date.now() % 100000}`;
+            await remnants.setRemnantPublic(token, { name: said, playerText: "A chipped rim." });
+            await settle();
+            for (const item of made) {
+                const live = item.actor.items.get(item.id);
+                equal(live?.name, said,
+                    `${item.actor.name}'s copy did not take the trace's name`);
+            }
+
+            // ---- UP: one copy is corrected, and the record moves ------------
+            const corrected = `Corrected ${Date.now() % 100000}`;
+            await made[0].actor.items.get(made[0].id).update({ name: corrected });
+            await settle();
+
+            equal(remnants.remnantPublic(token)?.name, corrected,
+                "an edit on a bullet never reached the trace it came from");
+
+            // ---- AND BACK DOWN, to the copy nobody touched ------------------
+            equal(two.items.get(made[1].id)?.name, corrected,
+                "the trace took the correction and the other holder never saw it");
+
+            // ---- The words, not only the title -----------------------------
+            await made[0].actor.items.get(made[0].id)
+                .update({ "system.description": "<p>Rust in the hinge.</p>" });
+            await settle();
+            equal(remnants.remnantPublic(token)?.playerText, "Rust in the hinge.",
+                "a description typed on the item sheet did not reach the trace");
+        } finally {
+            for (const item of made) {
+                const live = item.actor?.items?.get(item.id);
+                if (live) await live.delete();
+            }
+            if (token) {
+                await remnants.dropRemnantSecret(token);
+                if (scene.tokens.has(token.id)) {
+                    await scene.deleteEmbeddedDocuments("Token", [token.id]);
+                }
+            }
+        }
+    }],
+
     ["a motive counts down a time of day at a time, and a rewind gives it back", async () => {
         const { setMotive, motive, tickMotive, untickMotive } = await import("./rules.mjs");
 
@@ -3416,8 +3848,20 @@ const SCENARIOS = [
         ok(cast.length >= 3, "need three characters to test a third party cutting in");
         const [a, b, c] = cast;
         const before = foundry.utils.deepClone(getClock());
+        /*
+         * AND THE WORLD HAS TO BE RUNNING. `currentState()` answers "paused"
+         * over everything else while the game is paused — correctly: a table
+         * on hold should not have trial music under it. A Foundry world boots
+         * paused, so on a fresh server this scenario measured the pause and
+         * reported that an objection never reached its own state.
+         *
+         * The same shape as R12 measuring the browser pane: a test whose answer
+         * depends on the state it was handed rather than on the code.
+         */
+        const wasPaused = game.paused;
 
         try {
+            if (wasPaused) await game.togglePause(false);
             await setClock({ phase: "classTrial" });
             // `startFloor` is what CREATES a floor; `returnToDiscussion` only
             // moves an existing one back. Without it every call below refuses
@@ -3457,6 +3901,7 @@ const SCENARIOS = [
             await floor.endFloor();
             await setClock({ phase: before.phase });
             await settle();
+            if (wasPaused) await game.togglePause(true);
         }
     }],
 

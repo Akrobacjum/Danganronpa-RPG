@@ -1442,55 +1442,6 @@ export async function openMoveBodyDialog(actor) {
     return attemptStageSix(actor, "moveBody", picked);
 }
 
-/**
- * Who the false trail points at.
- *
- * `misleadingTrail` needs a name and had no way to ask for one: the action was
- * complete — threshold, three outcome bands, the Remnant it plants, the Faint
- * one it plants on a failure — and reachable only from the console, because
- * the killer's panel offered a single button and this was not it.
- *
- * Who can be framed is `framingCandidates` — the same list the Tamper tile
- * uses, because two windows offering the same lie must not disagree about who
- * it can be told about.
- */
-export async function openMisleadingTrailDialog(actor) {
-    if (!isCleaner(actor)) return refuseCleanup(actor);
-
-    const candidates = await framingCandidates(actor);
-
-    if (!candidates.length) {
-        ui.notifications.info(game.i18n.localize("DRPG.Cleanup.trailNobody"));
-        return null;
-    }
-
-    const DialogV2 = foundry.applications.api.DialogV2;
-    const { dialogContent } = await import("./utils.mjs");
-
-    const picked = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Cleanup.trailTitle") },
-        classes: ["drpg-panel"],
-        content: dialogContent(`<form>
-            <p>${game.i18n.format("DRPG.Cleanup.trailIntro", { n: RESOLUTION_STRESS_COST })}</p>
-            <label>${game.i18n.localize("DRPG.Cleanup.trailWho")}
-                <select name="who">${candidates.map(a =>
-                    `<option value="${a.id}">${foundry.utils.escapeHTML(a.name)}</option>`
-                ).join("")}</select></label>
-        </form>`),
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Cleanup.trailConfirm"), default: true,
-                callback: (e, b, d) => d.element.querySelector("[name=who]").value
-            },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
-        rejectClose: false
-    });
-
-    if (!picked || picked === "cancel") return null;
-    return attemptStageSix(actor, "misleadingTrail", picked);
-}
-
 /* ==========================================================================
  * CLOSING THE STAGE
  * ========================================================================== */
