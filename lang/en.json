@@ -1451,7 +1451,7 @@
       "critPrompt": "Critical — the category is identified for them, and they have earned a substantial hint.",
       "describeConfirm": "Hand it over",
       "rerollLost": "A Reroll arrived for an Observe with no record here. Score the new number against the same trace by hand, and take back the Truth Bullet if it no longer fits.",
-      "alreadyDescribed": "This trace has been described before. The words below are what the last observer was told — change them only if the critical reveals something new.",
+      "alreadyDescribed": "This trace already has a name, and every observer is told the same one — two names for one object is a contradiction the trial has to spend itself resolving. A critical buys a bigger hint, not a new name: add it below.",
       "generalHint": "Take whatever is easiest to spot in this room. Settled by the dice.",
       "nonObviousHint": "Go for the hardest thing here instead. Settled by the dice.",
       "followTracesHint": "Retrace your own steps and find what you left behind. Settled by the dice.",

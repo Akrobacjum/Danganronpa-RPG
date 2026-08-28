@@ -509,11 +509,28 @@ async function describeFind(actor, entry, isCritical, fallbackName, stored = nul
             ${isCritical
                 ? `<p><strong>${game.i18n.localize("DRPG.Observe.critPrompt")}</strong></p>`
                 : ""}
-            <label>${game.i18n.localize("DRPG.TruthBullet.name")}
-                <input type="text" name="name" autofocus
-                       value="${foundry.utils.escapeHTML(fallbackName)}" /></label>
+            ${/*
+                * THE NAME IS NOT ASKED TWICE (Dawid, 28.08: "finding a remnant
+                * by a second player prompts the DM to name it again, though
+                * there is no need").
+                *
+                * A described trace only reaches this dialog on a CRITICAL, and a
+                * critical buys a big hint from the GM — not a new name. Two
+                * names for one object is the false contradiction this whole
+                * mechanism was built to prevent, and offering an editable box is
+                * an invitation to create one by pressing through it. So the name
+                * is shown, so the GM knows what they are adding to, and it is
+                * read-only. The hint goes in the box below.
+                */ ""}
+            ${stored
+                ? `<label>${game.i18n.localize("DRPG.TruthBullet.name")}
+                    <input type="text" name="name" readonly
+                           value="${foundry.utils.escapeHTML(stored.name ?? fallbackName)}" /></label>`
+                : `<label>${game.i18n.localize("DRPG.TruthBullet.name")}
+                    <input type="text" name="name" autofocus
+                           value="${foundry.utils.escapeHTML(fallbackName)}" /></label>`}
             <label>${game.i18n.localize("DRPG.TruthBullet.playerText")}
-                <textarea name="playerText" rows="3"
+                <textarea name="playerText" rows="3"${stored ? " autofocus" : ""}
                     placeholder="${game.i18n.localize("DRPG.TruthBullet.playerTextPlaceholder")}"
                     >${foundry.utils.escapeHTML(stored?.playerText ?? "")}</textarea></label>
         </form>`),

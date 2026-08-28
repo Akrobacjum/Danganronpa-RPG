@@ -250,12 +250,43 @@ export async function openObjection(objectorId, targetId) {
     // courtesy.
     if (floor.mode === FLOOR_MODES.objection) return null;
 
-    return writeFloor({
+    const opened = await writeFloor({
         mode: FLOOR_MODES.objection,
         holderId: objectorId,
         targetId,
         startedAt: Date.now()
     });
+
+    /*
+     * AN OBJECTION RESTARTS THE OBJECTION MUSIC, ALWAYS (Dawid, 28.08).
+     *
+     * A rebuttal already plays the objection state — it is the answering half
+     * of the same exchange, and changing the music under it would cut the
+     * argument in two. So cutting INTO a rebuttal was, to the state machine, no
+     * change at all: same state, nothing to do, and the loudest moment in a
+     * trial arrived in silence.
+     *
+     * `refreshMusic` drops what is playing and re-applies the state rather than
+     * comparing it, so the playlist advances — measured, three objections in a
+     * row take two, one, two. The interruption sounds like an interruption
+     * because a new track starts, which is the whole of what the table hears.
+     *
+     * Unconditional rather than "only from a rebuttal": objection-to-objection
+     * is refused above, and debate-to-objection changed state anyway, so the
+     * only case this alters is the one that was wrong.
+     */
+    if (opened) {
+        try {
+            const { refreshMusic } = await import("./music.mjs");
+            refreshMusic();
+        } catch (err) {
+            // A floor that opened without its music is far better than one that
+            // did not open.
+            error("Could not restart the objection music", err);
+        }
+    }
+
+    return opened;
 }
 
 /** Move to the rebuttal: the same pair, two minutes, both of them talking. */

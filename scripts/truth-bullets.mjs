@@ -547,6 +547,10 @@ export async function propagateRemnantPublic(remnantTokenId, pub) {
         for (const item of bulletsOf(actor)) {
             if (secretOf(item.uuid).remnantId !== remnantTokenId) continue;
             try {
+                // `FROM_REMNANT` on the OPTIONS, not the data: it is a fact about
+                // where this write came from, not about the bullet. `watchBulletEdits`
+                // below reads it to know this is the trace talking and not a GM,
+                // which is the whole of the loop guard.
                 await item.update({
                     name: pub.name || item.name,
                     img: pub.img || item.img,
@@ -554,7 +558,7 @@ export async function propagateRemnantPublic(remnantTokenId, pub) {
                         ? `<p>${foundry.utils.escapeHTML(pub.playerText)}</p>` : "",
                     [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.playerText}`]: pub.playerText ?? "",
                     [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tags}`]: pub.tags ?? []
-                });
+                }, { [FROM_REMNANT]: true });
                 touched++;
             } catch (err) {
                 error(`Could not propagate the Remnant's public record onto "${item.name}"`, err);
@@ -709,7 +713,89 @@ export async function migrateTruthBullets() {
  * WIRING
  * ========================================================================== */
 
+/**
+ * The option that says "this write came from the trace".
+ *
+ * See `watchBulletEdits`. One word, on the options rather than in the data,
+ * because it is a fact about the write and not about the bullet — and because
+ * anything stored on the document would have to be cleaned off again.
+ */
+const FROM_REMNANT = "drpgFromRemnant";
+
+/**
+ * A bullet edited anywhere writes back to the trace it came from.
+ *
+ * Dawid, 28.08: "the synchronisation is to be full, continuous, regardless of
+ * when and where the edit happens, between remnant and truth bullet."
+ *
+ * HALF OF THIS ALREADY EXISTED and that is exactly why it was worth saying out
+ * loud. `propagateRemnantPublic` has always pushed the trace's record onto every
+ * bullet copied from it — measured, two holders, both followed. What had no
+ * road at all was the other direction: a GM correcting a bullet on its own item
+ * sheet, or in the item manager, changed that one copy and nothing else. The
+ * player next to them went on holding the old words for the same object, which
+ * in a trial is not a cosmetic difference — it is a false contradiction the
+ * table has to spend the trial resolving.
+ *
+ * So the trace stays the single record and the bullet is a view of it, edited
+ * from either end. A GM's correction goes UP to the trace, and the trace sends
+ * it back DOWN to every copy including the one just edited — which is what
+ * makes two GMs editing two different copies converge instead of fighting.
+ *
+ * THE LOOP IS BROKEN AT THE TOP, not by comparing values: `propagateRemnantPublic`
+ * stamps its own writes with `FROM_REMNANT` and this ignores those. Comparing
+ * would have worked for the name and failed for the description, which is stored
+ * twice — once as a flag and once wrapped in `<p>` — and would have looped
+ * forever on the wrapping.
+ */
+function watchBulletEdits() {
+    Hooks.on("updateItem", async (item, changes, options) => {
+        try {
+            if (!game.user.isGM) return;
+            if (options?.[FROM_REMNANT]) return;              // the trace talking
+            if (!isTruthBullet(item)) return;
+
+            const ref = item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.remnantRef);
+            if (!ref) return;                                  // not copied from a trace
+            const [sceneId, tokenId] = String(ref).split(".");
+            if (!sceneId || !tokenId) return;
+
+            // Only the three things the trace owns. A GM ticking `identified`
+            // or burning an analysis is not describing the object.
+            const patch = {};
+            if (changes.name !== undefined) patch.name = item.name;
+            const flags = changes.flags?.[MODULE_ID] ?? {};
+            if (flags[TRUTH_BULLET_FLAGS.playerText] !== undefined) {
+                patch.playerText = item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.playerText) ?? "";
+            }
+            if (flags[TRUTH_BULLET_FLAGS.tags] !== undefined) {
+                patch.tags = item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.tags) ?? [];
+            }
+            /*
+             * The description is edited on the item sheet as HTML, and the flag
+             * is the same sentence in plain text. A GM typing into the sheet
+             * changes only the first, so it is read back and stripped — without
+             * this, editing a bullet the ordinary way would write the name to the
+             * trace and silently drop the words.
+             */
+            if (changes.system?.description !== undefined && patch.playerText === undefined) {
+                const wrap = document.createElement("div");
+                wrap.innerHTML = String(item.system?.description ?? "");
+                patch.playerText = wrap.textContent.replace(/\s+/g, " ").trim();
+            }
+            if (!Object.keys(patch).length) return;
+
+            const { setRemnantPublicById } = await import("./remnants.mjs");
+            await setRemnantPublicById(sceneId, tokenId, patch);
+        } catch (err) {
+            error("Could not carry a Truth Bullet's edit back to its trace", err);
+        }
+    });
+}
+
 export function registerTruthBullets() {
+    watchBulletEdits();
+
     /*
      * Every one of these is GM-to-GM, checked at BOTH ends.
      *
