@@ -186,7 +186,7 @@ export function musicMap() {
     return getSetting(SETTINGS.musicMap) ?? {};
 }
 
-function playlistFor(stateKey) {
+export function playlistFor(stateKey) {
     const id = musicMap()[stateKey];
     return id ? game.playlists.get(id) ?? null : null;
 }
@@ -467,7 +467,23 @@ function crossfade(next, { randomTrack = false } = {}) {
             }
         }
 
-        if (next.playing) return;
+        /*
+         * ALREADY PLAYING IS NOT A REASON TO DO NOTHING WHEN A TRACK IS ASKED
+         * FOR (Dawid, 28.08: "must have").
+         *
+         * For an ambient playlist it is exactly the right reason: the afternoon
+         * carries on. For a cue it is the bug — an Objection cutting into a
+         * rebuttal, or a second Objection, lands on the state that is ALREADY
+         * playing, so this returned and the sting never changed. The note under
+         * `playRandomTrack` said that function is "what makes a second
+         * Objection sound like a second Objection"; this line is what stopped
+         * it being called in precisely that case.
+         *
+         * `playRandomTrack` already refuses to repeat the last pick, and
+         * `rewindTo` stops whatever else in the playlist is running, so asking
+         * again while it plays is a clean cut to a different track.
+         */
+        if (next.playing && !randomTrack) return;
         try {
             if (randomTrack) await playRandomTrack(next);
             else await next.playAll();

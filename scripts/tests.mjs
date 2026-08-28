@@ -3980,6 +3980,88 @@ const SCENARIOS = [
         }
     }],
 
+    ["every objection takes a different track from the objection playlist", async () => {
+        /*
+         * Dawid, 28.08, and he called it a must-have: an Objection must not only
+         * put the objection playlist on, it must land on a DIFFERENT track.
+         *
+         * `playRandomTrack` was written for exactly this and says so in its own
+         * note — "what makes a second Objection sound like a second Objection".
+         * One line above the call stopped it happening: `crossfade` returned
+         * early when the playlist it was asked for was already playing. An
+         * Objection cutting into a rebuttal, and a second Objection in the same
+         * exchange, both land on the state that is ALREADY playing — so the two
+         * cases the feature exists for were the two it could never reach.
+         *
+         * MEASURED ON THE DOCUMENTS, not on the audio: the sandbox's audio
+         * context is locked, so "what is playing" is read off the playlist's own
+         * `playing` flags, which is what Foundry itself reads.
+         */
+        const music = await import("./music.mjs");
+        const floor = await import("./trial-floor.mjs");
+
+        /*
+         * ITS OWN PLAYLIST, because the question is about the module and not
+         * about whichever tracks this world happens to own. A world with one
+         * track in its objection playlist cannot answer "did it take a
+         * different one", and a scenario that quietly passes on such a world is
+         * worse than no scenario.
+         */
+        const { SETTINGS, getSetting, setSetting } = await import("./settings.mjs");
+        const mapBefore = foundry.utils.deepClone(getSetting(SETTINGS.musicMap) ?? {});
+
+        const playlist = await Playlist.create({
+            name: "Suite objection fixture",
+            sounds: [
+                { name: "Sting one", path: "sounds/lock.wav" },
+                { name: "Sting two", path: "sounds/notify.wav" }
+            ]
+        });
+        ok(playlist, "could not create the fixture playlist");
+        ok(Array.from(playlist.sounds ?? []).length >= 2,
+            "the fixture playlist did not take both tracks");
+        await setSetting(SETTINGS.musicMap, { ...mapBefore, "trial.objection": playlist.id });
+
+        const cast = game.actors.filter(a => a.type === "character").slice(0, 3);
+        ok(cast.length >= 3, "need three characters");
+        const [a, b, c] = cast;
+        const before = foundry.utils.deepClone(getClock());
+        const wasPaused = game.paused;
+
+        const nowPlaying = () => Array.from(playlist.sounds ?? [])
+            .filter(s => s.playing).map(s => s.id).sort().join(",");
+
+        try {
+            if (wasPaused) await game.togglePause(false);
+            await setClock({ phase: "classTrial" });
+            await floor.startFloor();
+            await settle();
+
+            await floor.openObjection(a.id, b.id);
+            await settle();
+            const first = nowPlaying();
+            ok(first, "an objection started no track at all");
+
+            // Straight into another one, without leaving the state: this is the
+            // case the early return used to swallow.
+            await floor.openObjection(c.id, a.id);
+            await settle();
+            const second = nowPlaying();
+            ok(second, "a second objection left the playlist silent");
+            ok(second !== first,
+                `both objections played the same track (${first}) — a second `
+                + "objection has to sound like a second objection");
+        } finally {
+            await floor.endFloor();
+            await setClock({ phase: before.phase });
+            try { await playlist?.stopAll(); } catch { /* nothing was playing */ }
+            await setSetting(SETTINGS.musicMap, mapBefore);
+            if (playlist) await playlist.delete();
+            await settle();
+            if (wasPaused) await game.togglePause(true);
+        }
+    }],
+
     ["a rebuttal keeps the objection playing and can be cut into", async () => {
         /*
          * Two rulings from Dawid, 28.08, and they are one rule read from both

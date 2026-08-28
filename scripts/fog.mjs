@@ -1532,6 +1532,27 @@ export function diagnoseFog() {
         lastReason: lastFogReason
     };
 
+    /*
+     * PRINTED FLAT AS WELL AS FOLDED, and this is the third time it has cost a
+     * round trip: a console shows an object collapsed, so `lastGlow.each` — the
+     * one array that says WHICH opening looks wrong — arrives as
+     * `Array(5) [ {…}, {…} ]` and the answer is still a click away from
+     * whoever needed it. The lines below carry the numbers themselves.
+     */
+    const lines = [`${MODULE_ID} | fog diagnosis — ${report.scene}, grid ${canvas?.grid?.size}`];
+    if (report.lastGlow) {
+        const g = report.lastGlow;
+        lines.push(`  glow: ${g.openings} opening(s), core ${g.core}px, `
+            + `full depth ${g.span}px, reach ${g.reachFromAveragedLine}px, amplitude ${g.amplitude}px`);
+        for (const [i, one] of (g.each ?? []).entries()) {
+            lines.push(`    #${i + 1}  ${one.length}px long (${one.inSquares} squares), `
+                + `glow ${one.span}px deep, starts at ${one.at.x},${one.at.y}`
+                + `${one.span < g.span ? "  <- shortened to fit its own doorway" : ""}`);
+        }
+    }
+    lines.push(`  rooms I am in: ${(report.currentRooms ?? []).join(", ") || "none"}`);
+    console.log(lines.join("\n"));
+
     console.log(`${MODULE_ID} | fog diagnosis`, report);
     return report;
 }
