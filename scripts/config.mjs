@@ -1693,6 +1693,148 @@ export const PROJECT_SCALE = {
 };
 
 /* ==========================================================================
+ * WHAT A TRAP WATCHES FOR
+ * --------------------------------------------------------------------------
+ * Dawid, 28.08: "nie jest mozliwe, by GM monitorowal jeden pokoj przez dwie
+ * sesje z rzedu i to, co mowia/robia gracze."
+ *
+ * He is right, and until now the module asked him to. A finished indirect
+ * murder sent one card with the killer's typed condition and a Fire button, and
+ * then it was the GM's memory against two sessions of play.
+ *
+ * THE MODULE WATCHES, THE GM FIRES. NEVER THE OTHER WAY ROUND.
+ *
+ * An engine that opens a murder by itself takes from the GM the one thing a
+ * computer is no good at — "not now, we are mid-trial", "she would have noticed
+ * that", "wrong person" — and at the same time leaves them the one thing a
+ * person is no good at: watching thirty rooms for four hours. So `fireTrap`
+ * stays exactly as it is. The only thing that changes is WHEN the card arrives.
+ *
+ * `watch` is the whole contract: a trigger with one is read off an event, and a
+ * trigger without one is the GM saying "I will watch this myself" — which is
+ * today's behaviour, on the list, so choosing it is visible next to the eight
+ * that are watched rather than being the silent default.
+ *
+ * `needs: "project"` marks the two that point at another project rather than a
+ * room. Everything else is answered by where somebody is standing.
+ * ========================================================================== */
+
+export const TRAP_TRIGGERS = {
+    /*
+     * FIRST ON THE LIST BECAUSE IT IS THE ONE THE GM CANNOT SEE.
+     *
+     * Somebody being alone is not a thing that happens on screen — it is a
+     * property of a room at a moment, and by the time a GM notices it the
+     * moment has usually passed. Every other trigger here is a substitute for
+     * attention; this one is a substitute for omniscience.
+     */
+    alone: {
+        label: "Somebody is alone in the room",
+        hint: "Fires when a character crosses in and finds nobody else there.",
+        icon: "fa-user",
+        watch: "crossing"
+    },
+    enters: {
+        label: "Somebody enters the room",
+        hint: "Fires on any crossing into the room, alone or not.",
+        icon: "fa-door-open",
+        watch: "crossing"
+    },
+    search: {
+        label: "Somebody searches the room",
+        hint: "A successful Search here. The thing in the drawer.",
+        icon: "fa-magnifying-glass",
+        watch: "action",
+        actionKey: "search"
+    },
+    rest: {
+        label: "Somebody rests here",
+        hint: "A Rest taken in this room. The mined bedroom.",
+        icon: "fa-bed",
+        watch: "rest"
+    },
+    /*
+     * THE ONE THAT TRAVELS, and the only one tied to a thing rather than a
+     * place. See traps.mjs for the ledger, and `takePlant` for how the thing
+     * gets into somebody's hands in the first place.
+     */
+    item: {
+        label: "Somebody uses the planted item",
+        hint: "You leave something behind; whoever finds it and uses it is the one it kills.",
+        icon: "fa-flask-vial",
+        watch: "item",
+        needs: "plant"
+    },
+    project: {
+        label: "Somebody works on a named project",
+        hint: "Pushing that project forward is what does it — the scaffold, the crane.",
+        icon: "fa-hammer",
+        watch: "action",
+        actionKey: "project",
+        needs: "project"
+    },
+    sabotage: {
+        label: "Somebody sabotages a named project",
+        hint: "The mirror of the one above: breaking it is what does it.",
+        icon: "fa-screwdriver-wrench",
+        watch: "action",
+        actionKey: "sabotage",
+        needs: "project"
+    },
+    /*
+     * THE ONLY ONE THAT CATCHES AN INTENTION RATHER THAN A MOVEMENT — you have
+     * to go rummaging through other people's hiding places to set it off.
+     *
+     * EVERY ATTEMPT, INCLUDING A FAILED ONE (Dawid, 28.08). The trap answers
+     * somebody who is looking, not somebody who succeeded, so it does not
+     * settle up with the dice.
+     */
+    stash: {
+        label: "Somebody hunts for a hidden stash here",
+        hint: "Any attempt, hit or miss. It answers the looking, not the finding.",
+        icon: "fa-box-archive",
+        watch: "stash"
+    },
+    /*
+     * TODAY'S BEHAVIOUR, WRITTEN DOWN. No `watch`, so nothing listens and the
+     * card arrives the moment the project is finished, exactly as it always
+     * has. It is on the list so that a GM who wants it has chosen it.
+     */
+    manual: {
+        label: "My own condition, and I will watch for it",
+        hint: "The card comes when the project is finished, as it does today.",
+        icon: "fa-eye",
+        watch: null
+    }
+};
+
+/**
+ * The two things that narrow a trigger, and neither is a trigger of its own.
+ *
+ * `notBuilder` DEFAULTS TO ON, and it earns the default: without it the most
+ * likely thing to set off a trap is its own maker walking out of the room they
+ * built it in. That is not an exotic edge case, it is the first thing that
+ * happens.
+ */
+export const TRAP_MODIFIERS = {
+    afterDark: {
+        label: "Only after dark",
+        hint: "Evening, night, or any time an Eclipse is running.",
+        icon: "fa-moon",
+        default: false
+    },
+    notBuilder: {
+        label: "Not the one who built it",
+        hint: "The killer walking out of their own room does not set it off.",
+        icon: "fa-user-slash",
+        default: true
+    }
+};
+
+/** Times of day that count as "after dark", plus any Eclipse. */
+export const AFTER_DARK = ["evening", "night"];
+
+/* ==========================================================================
  * CHARACTER STATES
  * ========================================================================== */
 
@@ -3176,6 +3318,8 @@ export const DRPG = {
     DESPAIR_CALLS,
     MOTIVE,
     PROJECT_SCALE,
+    TRAP_TRIGGERS,
+    TRAP_MODIFIERS,
     STATES,
     LEVEL_UP_OPTIONS,
     LEVEL_UP,

@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json — the suite fails if it does not. */
-    --drpg-css-version: "1.1.43";
+    --drpg-css-version: "1.1.44";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -10908,6 +10908,25 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     text-transform: none;
     letter-spacing: 0.02em;
     opacity: 0.55;
+}
+
+/* ---- a field that belongs to one answer -------------------------------- */
+
+/* THE PROJECT PICKER ONLY EXISTS FOR TWO OF THE NINE TRIGGERS.
+   `Somebody works on a named project` and its sabotage twin point at another
+   project; the other seven point at a room, and a "which project" select
+   hanging under them is a question with no answer. Hidden in CSS off the
+   select's own value rather than toggled in JS, so it is right from the first
+   paint and cannot drift out of step with the field it belongs to — the same
+   trick the variant menu's `data-drpg-when` rows use. */
+form:has(select[name="trigger"]) [data-drpg-when-trigger] {
+    display: none;
+}
+
+/* Shown only when the trigger actually is one of the two. */
+form:has(select[name="trigger"] option[value="project"]:checked) [data-drpg-when-trigger~="project"],
+form:has(select[name="trigger"] option[value="sabotage"]:checked) [data-drpg-when-trigger~="sabotage"] {
+    display: flex;
 }
 
 /* ---- the variant menu -------------------------------------------------- */

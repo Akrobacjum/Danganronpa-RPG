@@ -1715,7 +1715,26 @@ export async function callGm(actor, {
      * client and every action behind it is GM-gated again on arrival, so a
      * player who forges a click into their own DOM achieves nothing.
      */
-    actions = []
+    actions = [],
+    /**
+     * NEVER SHOW THIS TO THE PLAYER WHOSE ACTOR IT NAMES.
+     *
+     * Everything else `callGm` sends is a card the player ASKED for: they made
+     * a request, they are waiting on a ruling, and the conversation belongs in
+     * their thread where they can read it.
+     *
+     * E21's trap alerts are the opposite. The module tells the GM what it just
+     * saw, and the actor it names is the KILLER — so the ordinary path posts
+     * into the killer's own messenger thread a card saying their trap has been
+     * tripped and, worse, WHO tripped it. Measured on the first run of this:
+     * "Player B, in Big IT Room" delivered straight to Player A, before the GM
+     * had decided anything at all.
+     *
+     * That is trap 156 of this stage, which warned that the alert would travel
+     * the same road as every ruling card and that the road was the risk. It
+     * cost one line to open and one line to close.
+     */
+    gmOnly = false
 } = {}) {
     const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
     const parts = [];
@@ -1764,7 +1783,7 @@ export async function callGm(actor, {
 
     const content = parts.join("");
 
-    const owner = ownerOf(actor);
+    const owner = gmOnly ? null : ownerOf(actor);
     if (!owner) {
         try {
             await whisperToGms(content);

@@ -1152,12 +1152,63 @@ async function performSearch(actor, def, options) {
         return { success: true, roll, tier, fromVault: true };
     }
 
-    const drawn = await drawItem(category, tier, { goal: goalKey, room });
+    /*
+     * SOMEBODY LEFT SOMETHING HERE — E21, traps 165 and 166.
+     *
+     * Dawid, 28.08: if a player plants an item as an indirect murder project,
+     * the FIRST search in that room always pulls out the planted item, whatever
+     * the player was looking for.
+     *
+     * Without it the fifth trigger does not exist. The trap rides an object and
+     * the object is lying in a room where it might not be found for three
+     * sessions or ever, because a Search draws from the room's pool and the
+     * chance of hitting that one thing gets worse the better stocked the room
+     * is. The killer would be paying a project's full price for a lottery
+     * ticket — which is not tension, it is a raffle.
+     *
+     * INSTEAD OF THE DRAW, NEVER ADDED TO IT (trap 165). Dropping the plant
+     * into the room's table would make it likely rather than certain.
+     *
+     * AND DOWN THE `substitute` PATH, which the module has had since v1.1.33
+     * for "the room had none of what you asked for and gave you this instead"
+     * (trap 166). Same sentence, same token, same everything. A planted-item
+     * card that differed by so much as a comma would teach the table the
+     * difference inside three sessions, and then the best defence against an
+     * indirect murder would be reading your own chat more carefully than the
+     * fiction.
+     *
+     * The GM decided this, not us — a player's client is never told a room has
+     * something waiting in it. For a player the answer came back on the spend
+     * that was already being made; for a GM searching their own map it is asked
+     * here, because their `spend` never went near a socket.
+     */
+    let plant = SearchTokens.takeFreshPlant();
+    if (!plant && game.user.isGM) {
+        try {
+            const { takePlant } = await import("./traps.mjs");
+            plant = await takePlant(room);
+        } catch (err) {
+            debug("Could not check this room for a planted item", err);
+        }
+    }
+
+    const drawn = plant
+        ? {
+            name: plant.name,
+            img: plant.img ?? null,
+            description: plant.description ?? "",
+            roles: plant.roles ?? [],
+            // The one thing that makes the card read like an ordinary
+            // unexpected find rather than an announcement.
+            substitute: true,
+            identity: plant.drpgItemId
+        }
+        : await drawItem(category, tier, { goal: goalKey, room });
 
     // The item actually goes into the inventory, subject to the carry limits.
     let granted = null;
     if (drawn?.name) {
-        const { grantItem } = await import("./inventory.mjs");
+        const { grantItem, ITEM_FLAGS } = await import("./inventory.mjs");
         // The icon and the sentence the GM wrote on the table entry travel with
         // it — see `drawItem`. Both are `null` for a built-in pool, which is
         // exactly what `grantItem` already treats as "use the category icon and
@@ -1166,7 +1217,13 @@ async function performSearch(actor, def, options) {
             name: drawn.name, category, tier, goal: goalKey,
             img: drawn.img ?? null, description: drawn.description ?? "",
             // What else it can do, from the table entry it came out of.
-            roles: drawn.roles ?? []
+            roles: drawn.roles ?? [],
+            // A planted item arrives with its identity already minted by the
+            // GM, and it has to keep it: the GM's ledger was written against
+            // that name the moment the thing was planted, and an item that is
+            // renamed on the way into somebody's bag is an item the trap will
+            // never recognise again.
+            ...(drawn.identity ? { extraFlags: { [ITEM_FLAGS.identity]: drawn.identity } } : {})
         });
     }
 
@@ -1928,7 +1985,12 @@ async function workOnProject(actor, def, options, chosen = null) {
     };
 
     await report(actor, def, roll, outcome);
-    Hooks.callAll("drpgActionResolved", { actor, actionKey: "project", roll, outcome });
+    // `projectId` because `outcome` carries only the project's NAME, and a trap
+    // that watches "somebody works on THAT project" needs the identity — two
+    // projects are allowed to share a name and one of them is the trap.
+    Hooks.callAll("drpgActionResolved", {
+        actor, actionKey: "project", roll, outcome, projectId: project.id
+    });
     return outcome;
 }
 
@@ -2331,7 +2393,12 @@ async function performSabotage(actor, def, options) {
     });
 
     await report(actor, def, roll, outcome);
-    Hooks.callAll("drpgActionResolved", { actor, actionKey: "sabotage", roll, outcome });
+    // See the note on the project hook above. The sabotage path already had the
+    // id to hand — it writes it into `noteRollContext` so a Reroll can undo the
+    // right one — it simply was not saying it out loud.
+    Hooks.callAll("drpgActionResolved", {
+        actor, actionKey: "sabotage", roll, outcome, projectId: project.id
+    });
     return outcome;
 }
 
@@ -3366,6 +3433,19 @@ async function locateStash(actor, def, roll, request = "") {
     // The number travels; the verdict is made where the answer key is. Same
     // division as Observe, and the same reason: this client must not be the one
     // that decides whether it found something.
+    /*
+     * ANNOUNCED BEFORE THE ANSWER, and that is the rule rather than an
+     * accident of ordering. Dawid, 28.08: a trap watching for a stash hunt
+     * fires on EVERY attempt, including one that finds nothing. It answers
+     * somebody who is rummaging through other people's hiding places; whether
+     * they were any good at it is a different question.
+     *
+     * Putting it here rather than inside `resolveStashSearch` also keeps it
+     * out of the branch where the roll is judged, so it cannot drift into
+     * settling up with the dice later.
+     */
+    Hooks.callAll("drpgStashHunted", { actor, room, total: roll.total });
+
     const { requestStashSearch } = await import("./gm-bridge.mjs");
     await requestStashSearch({
         actorId: actor.id,

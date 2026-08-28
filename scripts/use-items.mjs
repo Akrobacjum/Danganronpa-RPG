@@ -276,6 +276,31 @@ export function usableKindOf(item) {
  *
  * @returns {Promise<object|null>} what was restored, or null if it did not happen.
  */
+/**
+ * What the GM needs on a "somebody used this" card to recognise a trap.
+ *
+ * THE FLAG IS ON THE CARD, NOT ON THE ITEM, and that is the whole shape of
+ * E21's fifth trigger. The card is already going to the GMs; this reads the
+ * identity off the item as it is spent and puts it where a GM-side listener can
+ * see it. A player can read this flag on their own card, and it tells them
+ * nothing they could not already read off the item — every item in the game
+ * carries an identity, and only the GM's own ledger knows which are poisoned.
+ *
+ * The name travels with it purely so the alert can say what was used; the
+ * decision is made on the id.
+ */
+function usedStamp(actor, item) {
+    const id = item?.getFlag(MODULE_ID, ITEM_FLAGS.identity);
+    if (!id) return {};
+    return {
+        flags: {
+            [MODULE_ID]: {
+                usedItem: { id, name: item?.name ?? "", actorId: actor?.id ?? null }
+            }
+        }
+    };
+}
+
 export async function useItem(actor, item) {
     if (!actor || !isUsable(item)) return null;
 
@@ -346,6 +371,9 @@ export async function useItem(actor, item) {
         if (!go) return null;
     }
 
+    // Read BEFORE `consume`, which may clear the flags along with the item.
+    const stamp = usedStamp(actor, item);
+
     const restored = await restore(actor, amounts);
     await consume(item);
 
@@ -354,7 +382,7 @@ export async function useItem(actor, item) {
         <p><strong>${game.i18n.format("DRPG.Items.used", {
             item: foundry.utils.escapeHTML(item.name)
         })}</strong></p>
-        <p>${summary || game.i18n.localize("DRPG.Items.usedNothing")}</p>`);
+        <p>${summary || game.i18n.localize("DRPG.Items.usedNothing")}</p>`, stamp);
 
     log(`${actor.name} used "${item.name}" (Tier ${tier}): ${summary || "no effect"}.`);
     return restored;
@@ -661,13 +689,15 @@ export async function discardBroken(actor, item) {
 export async function grantItemEffect(actor, item, amounts = {}, { consumeItem = true } = {}) {
     if (!game.user.isGM || !actor) return null;
 
+    const stamp = usedStamp(actor, item);
+
     const restored = await restore(actor, amounts);
     if (item && consumeItem) await consume(item);
 
     const summary = describe(restored);
     await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Items.used", {
         item: foundry.utils.escapeHTML(item?.name ?? "?")
-    })} — ${summary || game.i18n.localize("DRPG.Items.usedNothing")}</p>`);
+    })} — ${summary || game.i18n.localize("DRPG.Items.usedNothing")}</p>`, stamp);
 
     return restored;
 }

@@ -148,6 +148,22 @@ export const SETTINGS = {
      * socket, the same as the Truth Bullet ledger.
      */
     remnantSecrets: "remnantSecrets",
+    /*
+     * WHICH ITEM IS THE TRAP, AND WHAT IS WAITING IN WHICH ROOM.
+     *
+     * CLIENT-SCOPED, on the GM's browser, for the same reason `remnantSecrets`
+     * is: a world setting reaches every client and a player can read every one
+     * of them from their own console. An item on a character sheet is readable
+     * by its owner, so a flag saying "this is the trap" would be a poisoned
+     * first aid kit with POISONED written on it — see the header of traps.mjs.
+     *
+     * `trapLedger` maps the opaque `drpgItemId` every module item carries to
+     * the project that poisoned it. The identity is on everything in everybody's
+     * bag, which makes it a name rather than a mark; which names are poisoned is
+     * only ever here.
+     */
+    trapLedger: "trapLedger",
+    trapPlants: "trapPlants",
     /**
      * The GM's plan for this murder's five Key Remnants.
      *
@@ -579,6 +595,22 @@ export function registerSettings() {
     });
 
     game.settings.register(MODULE_ID, SETTINGS.remnantSecrets, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+
+    // Both GM-side, both client-scoped, both for the reason written beside
+    // their keys above.
+    game.settings.register(MODULE_ID, SETTINGS.trapLedger, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {}
+    });
+
+    game.settings.register(MODULE_ID, SETTINGS.trapPlants, {
         scope: "client",
         config: false,
         type: Object,

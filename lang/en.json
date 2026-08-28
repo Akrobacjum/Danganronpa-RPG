@@ -2538,6 +2538,48 @@
         "evidence": "Evidence",
         "objection": "Objection"
       }
+    },
+    "Trap": {
+      "watchFor": "What sets it off",
+      "watchNote": "The module watches for this and tells you when it sees it. You still decide whether it happened.",
+      "whichProject": "Which project",
+      "afterDark": "Only after dark",
+      "notBuilder": "Not the one who built it",
+      "trigger": {
+        "alone": "Somebody is alone in the room",
+        "enters": "Somebody enters the room",
+        "search": "Somebody searches the room",
+        "rest": "Somebody rests here",
+        "item": "Somebody uses the planted item",
+        "project": "Somebody works on a named project",
+        "sabotage": "Somebody sabotages a named project",
+        "stash": "Somebody hunts for a hidden stash here",
+        "manual": "My own condition, and I will watch for it"
+      },
+      "why": {
+        "alone": "They crossed in and there was nobody else there.",
+        "enters": "They crossed into the room.",
+        "search": "They searched the room and found something.",
+        "rest": "They took a Rest here.",
+        "stash": "They went looking for somebody's hidden stash here — whether they found one or not.",
+        "project": "They pushed the project the trap was watching.",
+        "sabotage": "They sabotaged the project the trap was watching.",
+        "item": "They used {item}."
+      },
+      "armedTitle": "The trap is watching",
+      "armedBody": "It is finished and armed. The module is watching for: {trigger} — {room}. You will get a card when it sees it.",
+      "alertTitle": "{name} — something set it off",
+      "alertReading": "{who}, in {room}, {when}.",
+      "rearm": "Not this one — keep watching",
+      "rearmed": "The trap is watching again.",
+      "plantTitle": "Leave something behind",
+      "plantPrompt": "Which item is the trap, and which room is it waiting in? The first successful Search there will turn it up, and it kills whoever uses it.",
+      "plantItem": "What it is",
+      "plantRoom": "Where it waits",
+      "planted": "{item} is waiting in {room}.",
+      "plantNeeded": "This trap rides an object, so it needs one planted before it can watch for anything.",
+      "plantAction": "Plant the item",
+      "plantSettled": "{name} planted the item."
     }
   }
 }

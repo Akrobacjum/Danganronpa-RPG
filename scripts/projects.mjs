@@ -13,7 +13,7 @@
 
 import { MODULE_ID, PROJECT_SCALE } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { announce, log, whisperToOwner, gmIds } from "./utils.mjs";
+import { announce, log, error, whisperToOwner, gmIds } from "./utils.mjs";
 
 const DH = "daggerheart";
 const COUNTDOWNS = "Countdowns";
@@ -345,6 +345,14 @@ export async function createProject({
     // indirect murder, and both are what the guide asks for in place of a named
     // victim: "you do not name the victim - you name a condition".
     killerId = null, condition = "",
+    /*
+     * WHAT THE MODULE WILL WATCH FOR, in the `{ kind, targetId, afterDark,
+     * notBuilder }` shape traps.mjs reads. Only meaningful on an indirect
+     * murder, like `killerId` and `condition` beside it — and like them, it is
+     * stored rather than inferred so that a trap with no trigger is a trap the
+     * GM chose to watch themselves rather than one the module forgot about.
+     */
+    trigger = null,
     // WHO PROPOSED IT, as an actor id.
     //
     // The proposal card has carried this since the bridge was written — the
@@ -407,7 +415,11 @@ export async function createProject({
         room, indirectMurder, secret: hidden, trait, countsUp: true,
         by: by ?? null,
         killerId: indirectMurder ? killerId : null,
-        condition: indirectMurder ? condition : ""
+        condition: indirectMurder ? condition : "",
+        // Not armed here — armed when the bar fills. A trap that watched from
+        // the moment it was proposed would be a trap you can set off while its
+        // owner is still building it.
+        trigger: indirectMurder && trigger?.kind ? { ...trigger, armed: false, firedAt: null } : null
     });
 
     log(`Created project "${name}" (${target} progress)${room ? ` in ${room}` : ""}${trait ? `, ${trait}` : ""}.`);
@@ -610,11 +622,75 @@ async function announceTrapReady(countdownId, name) {
     }
 
     const { callGm } = await import("./gm-bridge.mjs");
+    const { TRAP_TRIGGERS } = await import("./config.mjs");
+    const kind = meta.trigger?.kind ?? "manual";
+    const def = TRAP_TRIGGERS[kind];
+    const esc = foundry.utils.escapeHTML;
+
+    /*
+     * A WATCHED TRAP GOES QUIET INSTEAD OF ASKING (E21).
+     *
+     * This used to be the whole mechanism: the bar fills, the GM gets a card
+     * with the killer's typed condition and a Fire button, and from then on it
+     * is their memory against two sessions of play. Dawid, 28.08: a GM cannot
+     * monitor one room across two sessions, nor what the players say and do in
+     * it.
+     *
+     * So a trap that named something the module can watch for is ARMED here and
+     * says nothing else until it sees it — see traps.mjs. The card that arrives
+     * now is a receipt, not a question: it has no Fire button, because there is
+     * nothing yet to fire at.
+     *
+     * `manual` keeps the old card exactly, and that is the point of it being on
+     * the list: "I will watch this myself" is a choice a GM can now see they
+     * made, rather than the only thing the module could do.
+     */
+    if (def?.watch) {
+        const { armTrap } = await import("./traps.mjs");
+        const armedOk = await armTrap(countdownId, { condition: meta.condition ?? "" });
+        if (armedOk) {
+            await callGm(killer, {
+                title: game.i18n.localize("DRPG.Trap.armedTitle"),
+                body: `<p>${game.i18n.format("DRPG.Trap.armedBody", {
+                    // NOT `localize(...) || def.label`. `localize` returns the
+                    // KEY on a miss, which is truthy, so the fallback is
+                    // unreachable and a missing string prints as
+                    // "DRPG.Trap.trigger.alone" on the GM's card.
+                    trigger: esc((() => {
+                        const hit = game.i18n.localize(`DRPG.Trap.trigger.${kind}`);
+                        return hit && hit !== `DRPG.Trap.trigger.${kind}` ? hit : def.label;
+                    })()),
+                    room: esc(meta.room ?? "—")
+                })}</p>${meta.condition
+                    ? `<p><strong>${game.i18n.localize("DRPG.Project.trapCondition")}</strong> ${
+                        esc(meta.condition)}</p>`
+                    : ""}`,
+                request: name,
+                /*
+                 * THE ONE TRIGGER THAT NEEDS SOMETHING TO EXIST FIRST. Seven of
+                 * the eight watch a place; this one watches an OBJECT, and
+                 * until the GM says what the object is and which room it is
+                 * lying in there is nothing to watch. So the receipt carries
+                 * the button rather than a sentence asking them to remember.
+                 */
+                actions: def.needs === "plant" ? [{
+                    action: "plantTrapItem",
+                    label: game.i18n.localize("DRPG.Trap.plantAction"),
+                    data: { project: countdownId }
+                }] : []
+            });
+            log(`Trap "${name}" is watching for "${kind}" (${killer.name}).`);
+            return { armed: kind };
+        }
+        // Arming failed — fall through to the old card rather than leaving a
+        // finished murder project that told nobody anything.
+        error(`Could not arm trap "${name}"; falling back to the manual card`);
+    }
+
     await callGm(killer, {
         title: game.i18n.localize("DRPG.Project.trapReadyTitle"),
         body: meta.condition
-            ? `<strong>${game.i18n.localize("DRPG.Project.trapCondition")}</strong> ${
-                foundry.utils.escapeHTML(meta.condition)}`
+            ? `<strong>${game.i18n.localize("DRPG.Project.trapCondition")}</strong> ${esc(meta.condition)}`
             : `<em>${game.i18n.localize("DRPG.Project.trapNoCondition")}</em>`,
         request: name,
         actions: [{
@@ -711,6 +787,10 @@ export async function updateProject(countdownId, patch = {}) {
     if (patch.room !== undefined) meta.room = patch.room || null;
     if (patch.trait !== undefined) meta.trait = patch.trait || null;
     if (patch.indirectMurder !== undefined) meta.indirectMurder = Boolean(patch.indirectMurder);
+    // The whole trigger travels as one object — see traps.mjs. Written through
+    // `updateProject` as well as `setProjectMeta` so the manager window can
+    // change what a trap watches for without going round the back.
+    if (patch.trigger !== undefined) meta.trigger = patch.trigger;
     if (patch.condition !== undefined) meta.condition = String(patch.condition ?? "");
     if (patch.killerId !== undefined) meta.killerId = patch.killerId || null;
     if (Object.keys(meta).length) await setProjectMeta(countdownId, meta);

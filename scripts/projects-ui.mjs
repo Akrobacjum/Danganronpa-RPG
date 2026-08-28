@@ -6,10 +6,10 @@
  * the room it belongs to, and who is allowed to know it exists.
  */
 
-import { MODULE_ID, PROJECT_SCALE, TRAITS } from "./config.mjs";
+import { MODULE_ID, PROJECT_SCALE, TRAITS, TRAP_TRIGGERS, TRAP_MODIFIERS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import {
-    allProjects, setProjectMeta, roomOf, isIndirectMurder, isSecret,
+    allProjects, setProjectMeta, metaFor, roomOf, isIndirectMurder, isSecret,
     makeSecret, shareWith, unshareWith, revealProject, viewersOf,
     createProject, deleteProject, setProjectImage, updateProject
 } from "./projects.mjs";
@@ -467,6 +467,38 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
             `<option value="${k}"${k === currentTrait ? " selected" : ""}>${t.label}</option>`)
     ].join("");
 
+    /*
+     * THE NINE TRIGGERS, AND R13 IN BOTH DIRECTIONS.
+     *
+     * Built from `TRAP_TRIGGERS` rather than typed out, so a trigger the module
+     * watches for cannot be missing from this list and a row in this list
+     * cannot name something nothing listens to. A trigger with no listener is a
+     * choice a GM makes that then silently never happens — which looks exactly
+     * like a trap nobody walked into.
+     *
+     * `manual` is on the list on purpose. It is today's behaviour, and putting
+     * it beside the eight the module watches is what makes "I will keep an eye
+     * on this myself" a decision rather than the only thing available.
+     */
+    // Off the META, not off `start`: `allProjects()` returns the countdown plus
+    // the handful of fields the tray needs, and the trigger is not one of them.
+    // Reading it from the wrong place would silently reset every trap's trigger
+    // to "manual" the first time a GM opened its project to change the name.
+    const startTrigger = (editing ? metaFor(project.id)?.trigger : start?.trigger) ?? null;
+    const currentTrigger = startTrigger?.kind ?? "manual";
+    const triggerOptions = Object.entries(TRAP_TRIGGERS).map(([key, def]) =>
+        `<option value="${key}"${key === currentTrigger ? " selected" : ""}>${
+            foundry.utils.escapeHTML(game.i18n.localize(`DRPG.Trap.trigger.${key}`) || def.label)
+        }</option>`).join("");
+
+    // The two triggers that point at another project rather than a room. A
+    // trap cannot watch itself, so it is not on its own list.
+    const triggerTarget = startTrigger?.targetId ?? "";
+    const targetOptions = allProjects()
+        .filter(p => !editing || p.id !== project.id)
+        .map(p => `<option value="${p.id}"${p.id === triggerTarget ? " selected" : ""}>${
+            foundry.utils.escapeHTML(p.name)}</option>`).join("");
+
     const content = dialogContent(`<form>
             <div class="drpg-project-image-row">
                 <img src="${foundry.utils.escapeHTML(img)}" alt="" class="drpg-project-portrait"
@@ -488,6 +520,21 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
                 <input type="checkbox" name="murder"${
                     start?.indirectMurder ? " checked" : ""} /> ${
                     game.i18n.localize("DRPG.Project.indirect")}</label>
+            <label>${game.i18n.localize("DRPG.Trap.watchFor")}
+                <select name="trigger">${triggerOptions}</select>
+                <small class="notes">${game.i18n.localize("DRPG.Trap.watchNote")}</small></label>
+            <label data-drpg-when-trigger="project sabotage">${
+                game.i18n.localize("DRPG.Trap.whichProject")}
+                <select name="triggerTarget"><option value="">—</option>${targetOptions}</select></label>
+            <label class="drpg-checkbox">
+                <input type="checkbox" name="afterDark"${
+                    startTrigger?.afterDark ? " checked" : ""} /> ${
+                    game.i18n.localize("DRPG.Trap.afterDark")}</label>
+            <label class="drpg-checkbox">
+                <input type="checkbox" name="notBuilder"${
+                    (startTrigger?.notBuilder ?? TRAP_MODIFIERS.notBuilder.default)
+                        ? " checked" : ""} /> ${
+                    game.i18n.localize("DRPG.Trap.notBuilder")}</label>
             <label>${game.i18n.localize("DRPG.Project.condition")}
                 <input type="text" name="condition"
                        value="${foundry.utils.escapeHTML(start?.condition ?? "")}"
@@ -519,6 +566,12 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
                     trait: f.trait.value || null,
                     murder: f.murder.checked,
                     condition: f.condition.value.trim(),
+                    trigger: {
+                        kind: f.trigger.value || "manual",
+                        targetId: f.triggerTarget?.value || null,
+                        afterDark: f.afterDark.checked,
+                        notBuilder: f.notBuilder.checked
+                    },
                     secret: f.secret.checked,
                     viewer: f.viewer?.value || null,
                     img: f.img.value || null
@@ -573,7 +626,16 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
             room: result.room,
             trait: result.trait,
             indirectMurder: result.murder,
-            condition: result.condition
+            condition: result.condition,
+            // ARMED STATE SURVIVES AN EDIT. A GM who opens a watching trap to
+            // fix a typo in its name must not thereby take it off watch — and
+            // must not re-arm one that has already spoken either, which is the
+            // same rule read from the other end (trap 153).
+            trigger: result.murder
+                ? { ...result.trigger, armed: Boolean(startTrigger?.armed),
+                    firedAt: startTrigger?.firedAt ?? null,
+                    condition: result.condition }
+                : null
         });
         await applySecrecy(project.id, result.secret || result.murder);
         ui.notifications.info(game.i18n.localize("DRPG.Project.saved"));
@@ -591,6 +653,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         trait: result.trait,
         indirectMurder: result.murder,
         condition: result.condition,
+        trigger: result.trigger,
         secret: result.secret || result.murder,
         img: result.img,
         viewers: result.viewer ? [result.viewer] : [],

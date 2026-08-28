@@ -12,7 +12,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { isPrimaryGm, activeGmIds, whisperToGms, debug } from "./utils.mjs";
+import { isPrimaryGm, activeGmIds, whisperToGms, debug, error } from "./utils.mjs";
 
 /**
  * Region flags this file owns.
@@ -74,6 +74,25 @@ export class SearchTokens {
      * setting changes; see sync.mjs's `SYNC.searchTokens` handler.
      */
     static #freshCounts = new Map();
+
+    /**
+     * A planted item the GM handed back with the last spend — E21, trigger 5.
+     *
+     * A ONE-SHOT, and deliberately not a return value. `spend` answers a
+     * boolean and every call site in the module reads it that way; widening it
+     * would mean touching all of them to serve one caller. So the answer is
+     * parked here for the Search that asked, and `takeFreshPlant` empties it —
+     * which also means a plant that somehow arrives with no one to collect it
+     * is dropped rather than handed to the next search in another room.
+     */
+    static #freshPlant = null;
+
+    /** Collect the plant from the last spend, once. */
+    static takeFreshPlant() {
+        const plant = this.#freshPlant;
+        this.#freshPlant = null;
+        return plant;
+    }
 
     /**
      * How long a "the GM just told me" count is trusted.
@@ -141,7 +160,11 @@ export class SearchTokens {
     static async spend(roomName, sceneId = this.currentSceneId) {
         if (!roomName) return false;
         if (!game.user.isGM) {
-            const { ok, left } = await requestSpend(roomName, sceneId);
+            const { ok, left, plant } = await requestSpend(roomName, sceneId);
+            // Handed to the caller through a one-shot rather than a return
+            // value: `spend` answers a boolean and forty call sites read it
+            // that way. See `takeFreshPlant`.
+            if (plant) this.#freshPlant = plant;
             // Bank the true count the GM just computed, so the chat card this
             // spend is about to produce reads it correctly instead of racing
             // the setting's own propagation back to this client.
@@ -290,10 +313,40 @@ async function onSocketMessage(payload, senderId) {
         // result to somebody else.
         const sceneId = payload.sceneId ?? null;
         const ok = await SearchTokens.spend(payload.roomName, sceneId);
+
+        /*
+         * AND WHETHER SOMEBODY LEFT SOMETHING HERE — E21, trap 165.
+         *
+         * The plant rides the round trip this search was already making. That
+         * is the whole reason it can be a GM-side decision at no cost: every
+         * player Search already asks a GM for a token, so asking "and is there
+         * anything waiting here" costs nothing that was not already being paid,
+         * and no new socket road is opened for the most-used action in the game.
+         *
+         * Only on a spend that SUCCEEDED. A refused search is not a search, and
+         * a plant handed out for one would be a free item from a sealed or
+         * exhausted room.
+         *
+         * The plant comes out of the store as it is handed over — see
+         * `takePlant`. It is one object somebody left, not something the room
+         * has become.
+         */
+        let plant = null;
+        if (ok) {
+            try {
+                const { takePlant } = await import("./traps.mjs");
+                plant = await takePlant(payload.roomName, sceneId);
+            } catch (err) {
+                // A search that cannot check for a plant is an ordinary search.
+                error("Could not check a room for a planted item", err);
+            }
+        }
+
         game.socket.emit(SOCKET_EVENT, {
             action: ACTION_RESULT,
             requestId: payload.requestId,
             ok,
+            plant,
             left: SearchTokens.left(payload.roomName, sceneId)
         }, { recipients: [senderId] });
         return;
@@ -312,7 +365,7 @@ async function onSocketMessage(payload, senderId) {
         const resolve = pending.get(payload.requestId);
         if (!resolve) return;
         pending.delete(payload.requestId);
-        resolve({ ok: payload.ok, left: payload.left });
+        resolve({ ok: payload.ok, left: payload.left, plant: payload.plant ?? null });
     }
 }
 
@@ -324,7 +377,7 @@ async function onSocketMessage(payload, senderId) {
 function requestSpend(roomName, sceneId = SearchTokens.currentSceneId, timeoutMs = 5000) {
     if (!game.users.some(u => u.isGM && u.active)) {
         ui.notifications.warn(game.i18n.localize("DRPG.SearchTokens.noGm"));
-        return Promise.resolve({ ok: false, left: null });
+        return Promise.resolve({ ok: false, left: null, plant: null });
     }
 
     const requestId = foundry.utils.randomID();
@@ -342,7 +395,7 @@ function requestSpend(roomName, sceneId = SearchTokens.currentSceneId, timeoutMs
             if (!pending.has(requestId)) return;
             pending.delete(requestId);
             ui.notifications.warn(game.i18n.localize("DRPG.SearchTokens.timeout"));
-            resolve({ ok: false, left: null });
+            resolve({ ok: false, left: null, plant: null });
         }, timeoutMs);
     });
 }

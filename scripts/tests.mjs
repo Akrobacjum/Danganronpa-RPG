@@ -429,6 +429,111 @@ const INVARIANTS = [
         equal(KEY_REMNANTS.unfoundDespair, 3, "an unfound Key Remnant is not worth 3 Despair");
     }],
 
+    ["every trigger a trap can name has something listening for it", async () => {
+        /*
+         * R13, BOTH DIRECTIONS, and the second one is the reason this exists.
+         *
+         * A trigger with no listener is the worst shape a feature of this kind
+         * can take: the GM picks it out of a list, the trap arms, and then
+         * nothing ever happens — which looks exactly like a trap nobody walked
+         * into. It does not throw, it does not warn, and at the table it is
+         * indistinguishable from working.
+         *
+         * So: every `TRAP_TRIGGERS` entry that declares a `watch` must have a
+         * listener in traps.mjs that handles that watch, and every kind the
+         * listeners handle must be a trigger somebody can actually choose.
+         */
+        const { TRAP_TRIGGERS } = await import("./config.mjs");
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/traps.mjs`).then(r => r.text());
+
+        // Which events the file actually subscribes to.
+        const hooks = new Set([...src.matchAll(/Hooks\.on\("(drpg\w+|createChatMessage)"/g)]
+            .map(m => m[1]));
+        const WATCH_HOOK = {
+            crossing: "drpgRoomCrossed",
+            action: "drpgActionResolved",
+            rest: "drpgRested",
+            stash: "drpgStashHunted",
+            item: "createChatMessage"
+        };
+
+        const unwatched = [];
+        for (const [key, def] of Object.entries(TRAP_TRIGGERS)) {
+            if (!def.watch) continue;                 // `manual` is a choice, not a gap
+            const hook = WATCH_HOOK[def.watch];
+            if (!hook) { unwatched.push(`${key} (watch "${def.watch}" is not a known kind)`); continue; }
+            if (!hooks.has(hook)) unwatched.push(`${key} (nothing listens to ${hook})`);
+        }
+        /*
+         * AND NOT "the listener must mention the trigger by name".
+         *
+         * The first version of this also demanded the literal `"item"` and
+         * `"sabotage"` somewhere in traps.mjs, and both failed — correctly,
+         * because neither is routed by a literal. `item` is matched on
+         * `def.watch` and `sabotage` on `def.actionKey`, both read off the same
+         * table this test reads. That is the better implementation: a listener
+         * that matches on the catalogue cannot fall out of step with it, while
+         * one that matches on a string can.
+         *
+         * So the test was asking for a coding style rather than a property, and
+         * would have pushed the code toward the shape it was meant to protect
+         * against. The property is above — a declared `watch` has a hook — and
+         * the routing itself is covered by the scenarios, which drive real
+         * events and read what came out.
+         */
+        ok(!unwatched.length, `these triggers arm and then never fire: ${unwatched.join(", ")}`);
+
+        // The other direction: a listener that tests for a kind nobody can pick.
+        const named = [...src.matchAll(/kind !== "(\w+)"|kind === "(\w+)"/g)]
+            .map(m => m[1] ?? m[2]);
+        const unknown = named.filter(k => !TRAP_TRIGGERS[k]);
+        ok(!unknown.length, `these listeners test for triggers that do not exist: ${unknown.join(", ")}`);
+    }],
+
+    ["a trap alert is never addressed to a player", async () => {
+        /*
+         * TRAP 156, and the first build of this stage broke it exactly as the
+         * plan predicted it would.
+         *
+         * `callGm` files a card in the messenger thread of the actor it names.
+         * That is right for every other caller — a player asked for a ruling and
+         * is waiting on it. A trap alert names the KILLER, so the ordinary path
+         * posted into the killer's own thread a card saying their trap had been
+         * tripped AND who tripped it, before the GM had ruled on anything.
+         * Measured: "Player B, in Big IT Room", delivered to Player A.
+         *
+         * Read from the source rather than driven, because the failure is about
+         * an ARGUMENT rather than an outcome — a scenario would have to arrange a
+         * player client to catch it, and the thing that must never be forgotten
+         * is one word at one call site.
+         */
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/traps.mjs`).then(r => r.text());
+        const call = src.slice(src.indexOf("callGm(trap.killer"), src.indexOf("callGm(trap.killer") + 400);
+        ok(call.length > 20, "traps.mjs no longer calls callGm the way this test expects");
+        ok(/gmOnly:\s*true/.test(call),
+            "the trap alert does not pass gmOnly — it will be posted into the killer's own thread");
+    }],
+
+    ["no localise-or-fallback that can never reach its fallback", async () => {
+        /*
+         * `game.i18n.localize(key)` RETURNS THE KEY when it misses, and the key
+         * is truthy — so `localize(k) || fallback` never reaches the fallback and
+         * a missing string is printed at the table as "DRPG.Trap.trigger.alone".
+         * Measured on E21's first alert card.
+         *
+         * Cheap to write down and it covers the whole module, not this stage.
+         */
+        const guilty = [];
+        for (const file of ["traps", "projects", "gm-panel", "sheet", "murder"]) {
+            const src = await fetch(`/modules/${MODULE_ID}/scripts/${file}.mjs`).then(r => r.text());
+            for (const m of src.matchAll(/game\.i18n\.localize\([^)]*\)\s*\|\|/g)) {
+                guilty.push(`${file}.mjs :: ${m[0].slice(0, 60)}`);
+            }
+        }
+        ok(!guilty.length,
+            `these fall back on a localize() that never returns falsy: ${guilty.join(" | ")}`);
+    }],
+
     ["no module rule decides whether a sheet tab is shown", async () => {
         /*
          * `.drpg-redacted-pane { display: flex }` centred a placeholder inside
@@ -1742,6 +1847,142 @@ const SCENARIOS = [
 
         ok(carried.includes("eclipseEnd"),
             `no card carried the Eclipse's ending sound — got [${carried.join(", ")}]`);
+    }],
+
+    ["a trap watches, fires once, and never at its own builder", async () => {
+        /*
+         * The whole of E21 in one pass, driven through the events the game
+         * actually raises rather than through the watcher's internals.
+         *
+         * Four things, and each of them is a trap from the plan:
+         *   - a trap that is not finished yet does not watch
+         *   - its own builder does not set it off (the modifier, default on)
+         *   - somebody else does
+         *   - and then it goes QUIET (trap 153), because a Main Hall watching
+         *     for "somebody enters" would otherwise fire twenty cards a session
+         *     and the GM would learn to skim exactly the one that mattered.
+         */
+        const P = await import("./projects.mjs");
+        const T = await import("./traps.mjs");
+        const { allRooms, othersInNamedRoom } = await import("./movement.mjs");
+
+        const cast = game.actors.filter(a => a.type === "character");
+        const killer = cast[0];
+        const other = cast.find(a => a.id !== killer.id);
+        ok(killer && other, "need two characters");
+
+        // A room with nobody in it, so "alone" is a fact rather than a guess.
+        const room = allRooms().find(r => othersInNamedRoom(r).length === 0) ?? allRooms()[0];
+        ok(room, "need a room on this scene");
+
+        const before = foundry.utils.deepClone(getSetting(SETTINGS.projectMeta) ?? {});
+        let made = null;
+        try {
+            made = await P.createProject({
+                name: "SUITE trap", target: 1, room,
+                indirectMurder: true, killerId: killer.id, condition: "suite",
+                trigger: { kind: "alone", afterDark: false, notBuilder: true }
+            });
+            ok(made?.id, "could not create the trap project");
+            await settle();
+
+            // 1. unfinished, so nothing is watching
+            equal(T.diagnoseTraps().armed, 0, "a trap started watching before it was built");
+
+            await P.addProgress(made.id, 1, { by: killer.id });
+            await settle();
+            equal(T.diagnoseTraps().armed, 1, "a finished trap did not start watching");
+
+            // 2. its own builder
+            let count = game.messages.size;
+            Hooks.callAll("drpgRoomCrossed", { actor: killer, from: null, to: room });
+            await settle();
+            equal(game.messages.size, count, "the trap fired on the person who built it");
+
+            // 3. somebody else, alone
+            count = game.messages.size;
+            Hooks.callAll("drpgRoomCrossed", { actor: other, from: null, to: room });
+            await settle();
+            ok(game.messages.size > count, "the trap did not fire on somebody else walking in alone");
+            equal(T.diagnoseTraps().armed, 0, "the trap did not disarm itself after speaking");
+
+            // 4. and it stays quiet
+            count = game.messages.size;
+            Hooks.callAll("drpgRoomCrossed", { actor: other, from: null, to: room });
+            await settle();
+            equal(game.messages.size, count, "the trap spoke twice for one event");
+        } finally {
+            if (made?.id) await P.deleteProject(made.id).catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.projectMeta, before);
+            T.forgetArmedTraps();
+            await settle();
+        }
+    }],
+
+    ["a planted item is handed over once, and keeps the name the GM gave it", async () => {
+        /*
+         * Traps 165 and the identity problem, which are the two halves of the
+         * fifth trigger.
+         *
+         * 165: the plant is returned INSTEAD of a draw and comes out of the room
+         * as it is handed over. Dropped into the room's table it would be likely
+         * rather than certain, and the killer would have paid a project's full
+         * price for a lottery ticket.
+         *
+         * THE IDENTITY: an item moved between characters is deleted and created
+         * again with a new document id, which is precisely the journey this trap
+         * is about. So the ledger is keyed on a flag that travels — and the item
+         * the search hands over has to keep the one the GM minted, or the trap
+         * will never recognise its own poison.
+         */
+        const T = await import("./traps.mjs");
+        const INV = await import("./inventory.mjs");
+        const { allRooms } = await import("./movement.mjs");
+
+        const room = allRooms()[0];
+        const actor = game.actors.find(a => a.type === "character");
+        ok(room && actor, "need a room and a character");
+
+        const beforePlants = foundry.utils.deepClone(getSetting(SETTINGS.trapPlants) ?? {});
+        const beforeLedger = foundry.utils.deepClone(getSetting(SETTINGS.trapLedger) ?? {});
+        let granted = null;
+
+        try {
+            const identity = await T.plantItem("SUITE-project", room, {
+                name: "SUITE planted kit", category: "healing", tier: 1
+            });
+            ok(identity, "nothing was planted");
+
+            const first = await T.takePlant(room);
+            equal(first?.drpgItemId, identity, "the first search did not get the planted item");
+
+            const second = await T.takePlant(room);
+            equal(second, null, "the room handed the same planted item out twice");
+
+            // Into a bag, the way the Search path does it.
+            granted = await INV.grantItem(actor, {
+                name: first.name, category: first.category, tier: first.tier,
+                extraFlags: { [INV.ITEM_FLAGS.identity]: first.drpgItemId }
+            });
+            equal(granted?.getFlag(MODULE_ID, INV.ITEM_FLAGS.identity), identity,
+                "the planted item was renamed on its way into somebody's bag");
+            equal(T.trapForItemId(identity), "SUITE-project",
+                "the GM's ledger cannot find the trap this item belongs to");
+
+            // And every OTHER item gets one too, which is what makes the flag a
+            // name rather than a mark.
+            const plain = await INV.grantItem(actor, { name: "SUITE plain thing", category: "healing", tier: 1 });
+            ok(plain?.getFlag(MODULE_ID, INV.ITEM_FLAGS.identity),
+                "an ordinary item has no identity, so the trap's one stands out");
+            equal(T.trapForItemId(plain.getFlag(MODULE_ID, INV.ITEM_FLAGS.identity)), null,
+                "an ordinary item is in the trap ledger");
+            await plain.delete().catch(() => {});
+        } finally {
+            if (granted) await granted.delete().catch(() => {});
+            await game.settings.set(MODULE_ID, SETTINGS.trapPlants, beforePlants);
+            await game.settings.set(MODULE_ID, SETTINGS.trapLedger, beforeLedger);
+            await settle();
+        }
     }],
 
     ["a Monokuma leaves no track in the fog, and a student still does", async () => {

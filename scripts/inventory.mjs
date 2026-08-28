@@ -18,6 +18,27 @@ export const ITEM_FLAGS = {
     category: "category",
     tier: "tier",
     /**
+     * A NAME, NOT A MARK — and the difference is the whole of E21's fifth
+     * trigger.
+     *
+     * An indirect murder can ride an OBJECT: you leave something behind and
+     * whoever finds it and uses it is the one it kills. The module has to be
+     * able to recognise that object later, and it cannot do it by document id,
+     * because an item moved between characters — Palm to Plant, a theft, a
+     * hand-over — is DELETED and re-created with a new one. That is precisely
+     * the journey the trap is about, so an id-keyed record breaks at the only
+     * moment it is needed.
+     *
+     * So every item this module creates gets a random identity that travels
+     * with it (see `preservedFlags`). A player reading their own console sees
+     * `drpgItemId: "a7f3…"` on everything in their bag and learns nothing from
+     * it: it is on the water bottle as well as the poison. Which of those
+     * identities is poisoned lives only in the GM's own `trapLedger` — see the
+     * header of traps.mjs for why a flag saying "this is the trap" would be a
+     * poisoned first aid kit with POISONED written on it.
+     */
+    identity: "drpgItemId",
+    /**
      * WHICH stash this item is lying in, by room name.
      *
      * Meaningless unless `location` is `vault`. Absent means the owner's
@@ -109,7 +130,23 @@ export function preservedFlags(item) {
     const roles = rolesOf(item);
     if (roles.length) flags[ITEM_FLAGS.roles] = roles;
 
+    /*
+     * AND THE IDENTITY, which is the reason `preservedFlags` matters at all to
+     * E21. Everything else here survives a hand-over because it would be absurd
+     * for it not to — a broken thing stays broken, a crowbar stays a weapon.
+     * This one survives because the trap is ABOUT the hand-over: an object that
+     * changes identity when it changes hands cannot be the object somebody left
+     * for somebody else to pick up.
+     */
+    const identity = item?.getFlag(MODULE_ID, ITEM_FLAGS.identity);
+    if (identity) flags[ITEM_FLAGS.identity] = identity;
+
     return flags;
+}
+
+/** A fresh identity for an item this module is about to create. */
+export function newItemIdentity() {
+    return foundry.utils.randomID(16);
 }
 
 /** Has this been used up? A broken item still occupies its slot. */
@@ -381,6 +418,12 @@ export async function grantItem(actor, {
                     // flag mean the same thing, and the missing one is what
                     // every item written before E8 already has.
                     ...(roles?.length ? { [ITEM_FLAGS.roles]: [...roles] } : {}),
+                    // EVERY item, not only the interesting ones — see the note
+                    // on `ITEM_FLAGS.identity`. Before `extraFlags` so a caller
+                    // that already has an identity for this thing (a planted
+                    // trap item, a hand-over carrying `preservedFlags`) keeps
+                    // theirs rather than being given a second one.
+                    [ITEM_FLAGS.identity]: newItemIdentity(),
                     ...extraFlags
                 }
             }

@@ -806,6 +806,18 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
         action: game.i18n.localize("DRPG.Move.title"), room: to
     })}<p>${where}<br>${price}</p>${described}`);
     debug(`${actor.name}: ${from ?? "—"} -> ${to ?? "—"} (${cost})`);
+
+    /*
+     * A CROSSING THAT ACTUALLY HAPPENED, announced once and only from here.
+     *
+     * Deliberately at the very end: every refusal above returns before this
+     * line, so a listener can trust that somebody really is standing in `to`.
+     * The trap watcher (traps.mjs) is the only listener today and it is the
+     * reason the hook exists — two of its nine triggers are the same crossing
+     * asked two different questions, which is exactly the kind of thing a hook
+     * is for and a second copy of this function is not.
+     */
+    Hooks.callAll("drpgRoomCrossed", { actor, from, to, tokenDoc, cost });
     return true;
 }
 
@@ -993,9 +1005,25 @@ function countsAsPresent(token) {
 export function othersInRoom(actor) {
     const room = roomOfActor(actor);
     if (!room) return [];
+    return othersInNamedRoom(room, actor);
+}
 
+/**
+ * Everybody else in a NAMED room, rather than in whichever room somebody is
+ * standing in.
+ *
+ * Split out for E21's "somebody is alone in the room" trigger, and the split is
+ * the point rather than a convenience. That trigger is answered from a crossing
+ * event which already says which room was entered; asking `othersInRoom(actor)`
+ * would go back to the canvas for a second opinion on where the actor is, and
+ * during a crossing those two can disagree — the token document has moved and
+ * the placeable it is drawn from may not have caught up. The event is the more
+ * reliable witness, so the caller passes what it knows.
+ */
+export function othersInNamedRoom(room, actor = null) {
+    if (!room) return [];
     return (canvas?.tokens?.placeables ?? [])
-        .filter(t => t.actor?.id !== actor.id)
+        .filter(t => !actor || t.actor?.id !== actor.id)
         .filter(countsAsPresent)
         .filter(t => roomOfToken(t.document) === room)
         .map(t => t.actor);

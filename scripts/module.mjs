@@ -65,6 +65,7 @@ import { registerMotion } from "./motion.mjs";
 import { registerSafeword } from "./safeword.mjs";
 import { registerDiceSync } from "./dice-sync.mjs";
 import { registerSync } from "./sync.mjs";
+import { registerTraps } from "./traps.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
 import { registerApi } from "./api.mjs";
 import { requirementsMet, announceMissingRequirements } from "./requirements.mjs";
@@ -233,6 +234,10 @@ Hooks.once("ready", () => {
     // restriction advance on the GM's screen alone.
     safely("world-state sync", registerSync);
     safely("the search-token socket", registerSearchTokenSocket);
+    // Five listeners for the eight watched triggers — see traps.mjs. Registered
+    // after the sync socket because two of them react to world-state events
+    // that arrive over it, and the listener has to exist before the event does.
+    safely("the trap watchers", registerTraps);
     safely("the GM bridge", registerGmBridge);
     // After the API, because the migration it kicks off reads the clock, and
     // after the other socket listeners for the same reason they are ordered:

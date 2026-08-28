@@ -592,6 +592,27 @@ async function runCallAction(action, data) {
         return settled(ruled ? "DRPG.Bridge.settledApproved" : "DRPG.Bridge.settledDeclined");
     }
 
+    if (action === "plantTrapItem") {
+        const { openPlantDialog } = await import("./traps.mjs");
+        const planted = await openPlantDialog(data.project);
+        return planted ? settled("DRPG.Trap.plantSettled") : null;
+    }
+
+    if (action === "rearmTrap") {
+        /*
+         * "NOT THIS ONE." The other half of trap 153.
+         *
+         * A trap disarms itself the moment it speaks, so a Main Hall watching
+         * for "somebody enters" cannot fire twenty cards a session. That is
+         * right, and it leaves the GM needing a way to say the reading was
+         * wrong and the trap should keep watching — which must not be a console
+         * call, because the GM is mid-scene when they need it.
+         */
+        const { rearmTrap } = await import("./traps.mjs");
+        const ok = await rearmTrap(data.project);
+        return ok ? settled("DRPG.Trap.rearmed") : null;
+    }
+
     if (action === "fireTrap") {
         // The trap names a condition, not a victim — so this opens the murder
         // screen with the killer already filled in and "indirect" already
