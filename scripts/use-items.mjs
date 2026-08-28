@@ -31,7 +31,8 @@
 import { MODULE_ID, USABLE_EFFECTS, USABLE_KINDS, EQUIPPABLE, STARTING, BROKEN_ITEMS }
     from "./config.mjs";
 import { usableKindFor } from "./tables.mjs";
-import { ITEM_FLAGS, isStashed, isBroken, breakItem, servesAs } from "./inventory.mjs";
+import { ITEM_FLAGS, isStashed, isBroken, breakItem, wearItem, durabilityOf, servesAs }
+    from "./inventory.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
 import { dialogContent, whisperToOwner, resolveThreshold, log, error } from "./utils.mjs";
@@ -154,12 +155,38 @@ export async function breakOnDespair(actor, tool, roll) {
     if (!roll.withFear || roll.isCritical) return null;
     if (isBroken(tool)) return null;
 
+    let outcome = null;
     try {
-        if (!await breakItem(tool)) return null;
+        /*
+         * WEAR, NOT DEATH (Dawid, 28.08). A Despair costs the tool one point of
+         * its durability; only the point that fills it breaks the thing. A tier
+         * 0 or 1 item has one point, so for half the table nothing has changed
+         * and the first bad roll still ends it.
+         *
+         * `wearItem` breaks it ITSELF on the filling point rather than telling
+         * us to, which is what keeps the break on the roll that caused it: the
+         * hand is emptied here, not by something sweeping up after the incident.
+         */
+        outcome = await wearItem(tool);
+        if (!outcome) return null;
     } catch (err) {
-        // A tool that failed to break is a great deal better than an action
+        // A tool that failed to wear is a great deal better than an action
         // that failed to resolve.
-        error("Could not break the tool the roll ruined", err);
+        error("Could not wear the tool the roll ruined", err);
+        return null;
+    }
+
+    if (!outcome.broke) {
+        try {
+            await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Items.woreOnDespair", {
+                item: foundry.utils.escapeHTML(tool.name),
+                left: outcome.left, total: durabilityOf(tool)
+            })}</p>`, { flags: { [MODULE_ID]: { sfx: "toolBroke" } } });
+        } catch {
+            // The wear is recorded; the sentence about it is a courtesy.
+        }
+        // Not the name of something that broke, because nothing did. The
+        // callers print this, and "Hammer" in a break line would be a lie.
         return null;
     }
 

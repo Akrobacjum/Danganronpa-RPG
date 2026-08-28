@@ -655,6 +655,7 @@
       "restores": "Restores {what}.",
       "isA": "This is a {role} — the table it came from.",
       "alsoServes": "Also works as a {role}.",
+      "woreOnDespair": "\u201c{item}\u201d took the worst of that \u2014 {left} of {total} left before it breaks.",
       "brokeOnDespair": "“{item}” did not survive that. It stays in your pack, useless — Despair breaks a tool whether or not the work succeeded.",
       "brokenUseless": "{item} is broken.",
       "discardTooltip": "Throw it away. Leaves a trace.",

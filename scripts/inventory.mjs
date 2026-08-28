@@ -9,7 +9,7 @@
  * loot (they persist until used in a crime and removed).
  */
 
-import { MODULE_ID, ITEM_CATEGORIES, LIMIT_GROUPS, TIER_EFFECTS, USABLE_KINDS, USABLE_KIND_EFFECTS, itemIcon }
+import { MODULE_ID, ITEM_CATEGORIES, ITEM_DURABILITY, LIMIT_GROUPS, TIER_EFFECTS, USABLE_KINDS, USABLE_KIND_EFFECTS, itemIcon }
     from "./config.mjs";
 import { whisperToOwner, log, warn, error } from "./utils.mjs";
 
@@ -17,6 +17,12 @@ import { whisperToOwner, log, warn, error } from "./utils.mjs";
 export const ITEM_FLAGS = {
     category: "category",
     tier: "tier",
+    /**
+     * How much of this thing's durability has been spent — a number, counting
+     * up to `durabilityOf`. Absent means none, which is what every item made
+     * before durability existed correctly reports.
+     */
+    wear: "wear",
     /**
      * A NAME, NOT A MARK — and the difference is the whole of E21's fifth
      * trigger.
@@ -147,6 +153,62 @@ export function preservedFlags(item) {
 /** A fresh identity for an item this module is about to create. */
 export function newItemIdentity() {
     return foundry.utils.randomID(16);
+}
+
+/**
+ * How many bad rolls this thing has left in it, and how many it has taken.
+ *
+ * The tier decides the total (`ITEM_DURABILITY`); anything with no tier
+ * recorded answers 1, so a hand-made item and a world made before durability
+ * existed behave exactly as everything did before it: one Despair and it is
+ * done.
+ */
+export function durabilityOf(item) {
+    const tier = Number(item?.getFlag(MODULE_ID, ITEM_FLAGS.tier));
+    return ITEM_DURABILITY[tier] ?? 1;
+}
+
+/** How much wear this thing carries. Never more than it can take. */
+export function wearOf(item) {
+    const worn = Number(item?.getFlag(MODULE_ID, ITEM_FLAGS.wear)) || 0;
+    return Math.min(Math.max(0, worn), durabilityOf(item));
+}
+
+/** Bad rolls this thing can still absorb before it goes. */
+export function durabilityLeft(item) {
+    return isBroken(item) ? 0 : Math.max(0, durabilityOf(item) - wearOf(item));
+}
+
+/**
+ * One bad roll's worth of wear, and the break when there is no more to give.
+ *
+ * THE BREAK HAPPENS HERE, on the roll that fills it, rather than being noticed
+ * later by something sweeping up (Dawid, 28.08). `breakItem` already takes the
+ * thing out of the hand it is in, so a tool that goes on the last point of its
+ * durability is out of play from that moment — not from the end of the
+ * incident, which is when the old rule got round to it.
+ *
+ * @returns {Promise<{worn: number, left: number, broke: boolean}|null>}
+ */
+export async function wearItem(item) {
+    if (!item || isBroken(item)) return null;
+
+    const total = durabilityOf(item);
+    const worn = Math.min(total, wearOf(item) + 1);
+
+    if (worn >= total) {
+        const broke = await breakItem(item);
+        return { worn: total, left: 0, broke };
+    }
+
+    try {
+        await item.setFlag(MODULE_ID, ITEM_FLAGS.wear, worn);
+    } catch (err) {
+        warn("Could not record the wear on an item", err);
+        return null;
+    }
+    log(`"${item.name}" is worn ${worn}/${total}.`);
+    return { worn, left: total - worn, broke: false };
 }
 
 /** Has this been used up? A broken item still occupies its slot. */

@@ -4082,6 +4082,87 @@ const SCENARIOS = [
         }
     }],
 
+    ["a tool takes its tier in bad rolls before it breaks", async () => {
+        /*
+         * Dawid, 28.08: a Despair no longer ends the tool outright. It spends
+         * one point of durability, and only the point that fills it breaks the
+         * thing. Tier 0 and 1 have one point, tier 2 two, tier 3 three.
+         *
+         * AND THE BREAK IS ON THAT ROLL, not on a later sweep: `breakItem`
+         * empties the hand, so a tool that goes on its last point is out of
+         * play from that moment. The old rule got round to it "after the
+         * incident", which is a different moment and the wrong one.
+         *
+         * Driven through `wearItem` rather than through a real roll, because
+         * what is being asked is the arithmetic and the hand — the roll's own
+         * despair path has its own scenario, and one that needed a Despair to
+         * come up would be a scenario that passes when the dice feel like it.
+         */
+        const INV = await import("./inventory.mjs");
+        const { readiedItems } = await import("./use-items.mjs");
+        const actor = game.actors.filter(a => a.type === "character")[0];
+        ok(actor, "no character to hand a tool to");
+
+        const made = [];
+        try {
+            for (const [tier, expected] of [[0, 1], [1, 1], [2, 2], [3, 3]]) {
+                const item = await INV.grantItem(actor, {
+                    name: `Suite durability tier ${tier}`,
+                    category: "tool",
+                    tier
+                });
+                ok(item, `could not make a tier ${tier} tool`);
+                made.push(item);
+
+                equal(INV.durabilityOf(item), expected,
+                    `a tier ${tier} tool should take ${expected} bad roll(s)`);
+                equal(INV.durabilityLeft(item), expected, "a fresh tool is already worn");
+
+                await item.setFlag(MODULE_ID, "equipped", true);
+                ok(readiedItems(actor).some(i => i.id === item.id),
+                    "the fixture tool is not in hand to begin with");
+
+                // Every point but the last: worn, still whole, still in hand.
+                for (let i = 1; i < expected; i++) {
+                    const step = await INV.wearItem(item);
+                    ok(step && !step.broke,
+                        `a tier ${tier} tool broke on bad roll ${i} of ${expected}`);
+                    equal(INV.durabilityLeft(item), expected - i, "the wear did not add up");
+                    ok(!INV.isBroken(item), "worn is not broken");
+                    ok(readiedItems(actor).some(i2 => i2.id === item.id),
+                        "a worn tool was taken out of the hand early");
+                }
+
+                // The last one.
+                const last = await INV.wearItem(item);
+                ok(last?.broke, `a tier ${tier} tool survived its ${expected}th bad roll`);
+                ok(INV.isBroken(item), "the filling point did not break it");
+                equal(INV.durabilityLeft(item), 0, "a broken tool still has durability left");
+
+                // AND THE HAND IS EMPTY NOW, not after the incident.
+                ok(!readiedItems(actor).some(i2 => i2.id === item.id),
+                    "a broken tool is still being held ready");
+                ok(!item.getFlag(MODULE_ID, "equipped"),
+                    "a broken tool is still flagged as equipped");
+
+                // Breaking what is broken changes nothing and says so.
+                equal(await INV.wearItem(item), null, "a broken tool took more wear");
+
+                // OUT OF THE BAG BEFORE THE NEXT ONE. Tools share a carry
+                // limit, and four of them at once is a test of that limit
+                // rather than of durability — the fourth was refused, which
+                // read as "could not make a tier 3 tool".
+                await actor.items.get(item.id)?.delete();
+                made.pop();
+            }
+        } finally {
+            for (const item of made) {
+                const live = actor.items.get(item.id);
+                if (live) await live.delete();
+            }
+        }
+    }],
+
     ["a private card's notice carries its words, not the placeholder", async () => {
         /*
          * Dawid, 28.08: "Hope Call notices come up empty."
@@ -4290,6 +4371,23 @@ const SCENARIOS = [
 
             // 2. THE THIRD PARTY, who is in neither half of this exchange.
             ok(!floor.maySpeak(c.id), "the third party should not be holding the floor");
+            /*
+             * AND WHO THEY MAY AIM AT (Dawid, 28.08, correcting the reading of
+             * his own ruling). Cutting in is open to anybody; the TARGET is the
+             * pair and nobody else, because an objection re-points the floor —
+             * aiming a bystander at another bystander would take a rebuttal two
+             * people earned and hand it to two who have not spoken.
+             */
+            const outsider = game.actors.filter(x => x.type === "character"
+                && ![a.id, b.id, c.id].includes(x.id))[0];
+            if (outsider) {
+                const wrongAim = await floor.openObjection(c.id, outsider.id);
+                ok(!wrongAim, "a bystander was allowed to aim a rebuttal objection "
+                    + "at somebody who is not in it");
+                equal(floor.trialFloor()?.mode, "rebuttal",
+                    "the refused objection moved the floor anyway");
+            }
+
             const cut = await floor.openObjection(c.id, a.id);
             await settle();
             ok(cut, "a third party was refused an objection during a rebuttal");

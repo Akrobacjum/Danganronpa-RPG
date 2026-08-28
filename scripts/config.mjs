@@ -330,6 +330,24 @@ export const ROOMS = {
 export const ITEM_TIERS = [0, 1, 2, 3];
 
 /**
+ * HOW MUCH A THING TAKES BEFORE IT GIVES (Dawid, 28.08).
+ *
+ * A roll with Despair used to end the tool outright. It ends a tier-0 sack of
+ * nothing outright still — but a good tool now survives its first bad moment,
+ * and the number of bad moments is what the tier buys, alongside everything
+ * else the tier buys.
+ *
+ * TIER 0 AND TIER 1 ARE BOTH ONE, and that is Dawid's number rather than a
+ * rounding: tier 1 is the first thing worth carrying, not the first thing that
+ * lasts. What tier 2 buys is a second chance; tier 3 buys a third.
+ *
+ * Read through `durabilityOf`, which answers 1 for anything with no tier
+ * recorded — a hand-made item, a world made before this existed — so an
+ * unknown thing behaves exactly as everything did before.
+ */
+export const ITEM_DURABILITY = { 0: 1, 1: 1, 2: 2, 3: 3 };
+
+/**
  * TWO FLAG NAMES THAT TWO FILES BOTH NEED.
  *
  * The owner of a bedroom is written on its Region by vault.mjs; the key to that

@@ -113,7 +113,7 @@ export async function presentDialog(actor, item) {
 
     const data = truthBulletData(item);
 
-    const { trialFloor, FLOOR_MODES, maySpeak } = await import("./trial-floor.mjs");
+    const { trialFloor, FLOOR_MODES } = await import("./trial-floor.mjs");
     const { livingStudents } = await import("./chapter.mjs");
 
     const floor = trialFloor();
@@ -135,33 +135,32 @@ export async function presentDialog(actor, item) {
         .sort((a, b) => a.name.localeCompare(b.name));
 
     /*
-     * DURING A REBUTTAL, WHO YOU MAY AIM AT DEPENDS ON WHETHER YOU ARE IN IT.
+     * DURING A REBUTTAL YOU MAY AIM AT THE TWO IN IT, AND AT NOBODY ELSE.
      *
-     * For the two on the floor there is exactly one person to aim at: the one
-     * already opposite them. Offering the rest of the table would let the pair
-     * drag a bystander into an exchange they are not in, and the floor would
-     * re-point at somebody who has not said a word.
+     * Two rules about two different people, and they were once read as one:
      *
-     * FOR ANYBODY ELSE IT IS THE WHOLE TABLE, and this half arrived with
-     * Dawid's ruling of 28.08 that a third party may cut into a rebuttal. It is
-     * the trap that ruling sets: lifting the guard in `openObjection` without
-     * touching this line would have let a bystander object and then handed them
-     * a picker holding one name — whichever of the pair `find` happened to
-     * reach first — so the interruption would have worked and been aimed at the
-     * wrong person, silently. A permission granted in one place and half-
-     * refused in another is worse than the refusal.
+     *   who may speak      anybody (Dawid, 28.08). The moment somebody
+     *                      listening sees the hole is the moment interrupting
+     *                      is worth anything, and making them wait until the
+     *                      argument is over is a rule against that moment.
+     *   who may be aimed   the pair, and only the pair (Dawid, 28.08, the
+     *                      correction). An objection RE-POINTS the floor, so
+     *                      aiming a bystander at another bystander would take a
+     *                      rebuttal two people earned and hand it to two who
+     *                      have not said a word. That is not an interruption,
+     *                      it is a change of subject.
      *
-     * `maySpeak` is the same question `openObjection` used to ask, asked here
-     * for the thing it is still right for: not "may you interrupt" any more,
-     * but "is this exchange yours".
+     * So it is the same list for everybody: the two on the floor, minus
+     * yourself. For one of the pair that leaves exactly their opponent, which
+     * is what it always was; for a bystander it leaves two, which is the whole
+     * of the correction.
      */
     const inRebuttal = floor?.mode === FLOOR_MODES.rebuttal;
-    const onTheFloor = inRebuttal && maySpeak(actor.id, floor);
-    const opponentId = onTheFloor
-        ? [floor.holderId, floor.targetId].find(id => id && id !== actor.id) ?? null
-        : null;
-    const choices = opponentId
-        ? targets.filter(a => a.id === opponentId)
+    const onFloorIds = inRebuttal
+        ? [floor.holderId, floor.targetId].filter(id => id && id !== actor.id)
+        : [];
+    const choices = inRebuttal
+        ? targets.filter(a => onFloorIds.includes(a.id))
         : targets;
 
     const targetField = choices.length

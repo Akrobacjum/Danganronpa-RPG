@@ -250,6 +250,28 @@ export async function openObjection(objectorId, targetId) {
     // courtesy.
     if (floor.mode === FLOOR_MODES.objection) return null;
 
+    /*
+     * AND DURING A REBUTTAL, ONLY THE TWO IN IT MAY BE AIMED AT (Dawid, 28.08,
+     * correcting the reading of the ruling above).
+     *
+     * The two rules are about different people and it is worth saying which is
+     * which, because they were read as one and the wrong half was lifted. WHO
+     * MAY SPEAK is anybody: the moment somebody listening sees the hole is the
+     * moment interrupting is worth anything. WHO MAY BE SPOKEN AT is the pair,
+     * because an objection RE-POINTS the floor — aiming a bystander at another
+     * bystander would take a rebuttal two people earned and hand it to two who
+     * have not said a word, which is not an interruption but a change of
+     * subject.
+     *
+     * So a third party cutting in joins THIS argument rather than starting
+     * their own. The picker in trial.mjs offers exactly these two; this is the
+     * rule that holds when something reaches here by another road.
+     */
+    if (floor.mode === FLOOR_MODES.rebuttal
+        && ![floor.holderId, floor.targetId].includes(targetId)) {
+        return null;
+    }
+
     const opened = await writeFloor({
         mode: FLOOR_MODES.objection,
         holderId: objectorId,
@@ -377,12 +399,27 @@ export async function advanceFloorNow() {
     if (!floor) return null;
 
     if (floor.mode === FLOOR_MODES.objection) return openRebuttal();
-    if (floor.mode === FLOOR_MODES.rebuttal) return returnToDiscussion();
+    /*
+     * A REBUTTAL ENDS THE FLOOR (Dawid, 28.08), rather than dropping back into
+     * an open debate.
+     *
+     * The two are easy to confuse because of what they are called here:
+     * `FLOOR_MODES.discussion` is the OPEN DEBATE — a floor, with a budget and
+     * a clock the GM is watching. The trial's own discussion is no floor at
+     * all, which is what the console calls "in open discussion".
+     *
+     * So the old behaviour handed the trial back a running debate clock that
+     * nobody had asked to open: the objection was over, the answer was given,
+     * and the table was still being timed. Ending it puts them back where the
+     * exchange began.
+     */
+    if (floor.mode === FLOOR_MODES.rebuttal) return endFloor();
     return null;
 }
 
 /**
- * Objection runs out into rebuttal; rebuttal runs out into discussion.
+ * Objection runs out into rebuttal; rebuttal runs out into the trial's own
+ * discussion — which is NO FLOOR, not the open debate that shares its name.
  *
  * EVERY client counts the clock — that is the point of deriving it from
  * `startedAt` — but exactly ONE client may write the transition, or two GMs
@@ -402,7 +439,9 @@ async function advanceIfDue() {
 
     try {
         if (floor.mode === FLOOR_MODES.objection) await openRebuttal();
-        else if (floor.mode === FLOOR_MODES.rebuttal) await returnToDiscussion();
+        // Same rule when the clock runs it out as when the GM brings it
+        // forward — see `advanceFloorNow`.
+        else if (floor.mode === FLOOR_MODES.rebuttal) await endFloor();
     } catch (err) {
         error("Could not advance the trial floor to its next mode", err);
     }
