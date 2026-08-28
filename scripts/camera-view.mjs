@@ -41,6 +41,69 @@ import { error } from "./utils.mjs";
 
 export function registerCameraView() {
     Hooks.on("renderCameraViews", onRenderCameraViews);
+
+    /*
+     * HOW HIGH THE FLOOR IS, published for the CSS.
+     *
+     * `#players` rises over the camera dock on its own because it is
+     * `position: static` — it sits in Foundry's own bottom-left column, and a
+     * dock appearing above it makes the column taller. Our two round buttons
+     * are `position: fixed` against the viewport edge, so they knew nothing
+     * about it and the camera bar simply covered them (Dawid, 28.08, with a
+     * screenshot of exactly that: latency box up, buttons still down).
+     *
+     * The dock is core markup this module does not own — the note over the
+     * CAMERA DOCK section in the stylesheet says why it is tinted and not
+     * restructured. So nothing here moves the dock: the height is MEASURED and
+     * handed to the stylesheet as `--drpg-av-lift`, and the buttons add it to
+     * their own offset. Same shape as `--drpg-despair-height` in hud.mjs.
+     *
+     * Remeasured on the three events that can change it, and only those: the
+     * dock rendering (somebody joins, leaves, turns a camera on), the window
+     * resizing, and the dock being hidden — which `renderCameraViews` also
+     * reports, as a render with nothing visible in it.
+     */
+    Hooks.on("renderCameraViews", () => measureCameraDock());
+    Hooks.on("collapseCameraViews", () => measureCameraDock());
+    Hooks.on("ready", () => measureCameraDock());
+    window.addEventListener("resize", () => measureCameraDock());
+}
+
+/**
+ * The height the camera dock takes off the bottom of the screen, or zero.
+ *
+ * ZERO WHEN IT IS NOT THERE, and "not there" has four spellings: no dock in the
+ * document at all (A/V off), a dock with no height (nobody connected), one that
+ * is hidden, and one that has been collapsed to its bar. All four have to read
+ * as zero or the buttons float in the middle of the screen for no reason.
+ *
+ * Measured from the BOTTOM of the viewport rather than taken as the element's
+ * height: a dock that does not reach the bottom edge is not standing on the
+ * things this is trying to lift, and a dock taller than the space below them
+ * would lift them further than it needs to.
+ */
+function measureCameraDock() {
+    try {
+        const dock = document.querySelector("#camera-views, .camera-views");
+        let lift = 0;
+
+        if (dock && dock.isConnected) {
+            const box = dock.getBoundingClientRect();
+            const visible = box.height > 0 && box.width > 0
+                && getComputedStyle(dock).visibility !== "hidden";
+            // Only what sits below the buttons' own corner counts, and only if
+            // it reaches down to the edge they are pinned to.
+            if (visible && box.bottom >= window.innerHeight - 4) {
+                lift = Math.max(0, Math.round(box.height));
+            }
+        }
+
+        document.body.style.setProperty("--drpg-av-lift", `${lift}px`);
+    } catch (err) {
+        // A measurement that fails must not take the corner with it: the
+        // buttons keep whatever offset they had.
+        error("Could not measure the camera dock", err);
+    }
 }
 
 function onRenderCameraViews(app, element) {

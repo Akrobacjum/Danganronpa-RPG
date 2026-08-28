@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json — the suite fails if it does not. */
-    --drpg-css-version: "1.1.67";
+    --drpg-css-version: "1.1.68";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -3424,11 +3424,6 @@ body.drpg-pixel-font [contenteditable] {
     margin: 0.8rem 0;
     opacity: 0.6;
     font-style: italic;
-}
-
-.drpg-rules-edit {
-    width: 100%;
-    margin-top: 0.8rem;
 }
 
 /* The manager's row numbers, so a GM can refer to "rule 3" out loud. */
@@ -11206,7 +11201,7 @@ form:has(select[name="trigger"] option[value="sabotage"]:checked) [data-drpg-whe
     /* Centred over the larger circle, and clear of it by 8px. Both derived, so
        the stack survives the next change to either size. */
     right: calc(var(--drpg-edge) + (var(--drpg-launcher) - var(--drpg-launcher-small)) / 2);
-    bottom: calc(var(--drpg-edge) + var(--drpg-launcher) + 8px);
+    bottom: calc(var(--drpg-edge) + var(--drpg-launcher) + 8px + var(--drpg-av-lift, 0px));
     z-index: 70;
     width: var(--drpg-launcher-small);
     height: var(--drpg-launcher-small);

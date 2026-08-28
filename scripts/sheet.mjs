@@ -2791,19 +2791,19 @@ function buildRulesPanel(app) {
         panel.append(list);
     }
 
-    if (game.user.isGM) {
-        const edit = document.createElement("button");
-        edit.type = "button";
-        edit.className = "drpg-action-button drpg-rules-edit";
-        edit.innerHTML = `<i class="fa-solid fa-pen-to-square" inert></i>
-            <span class="drpg-action-name">${game.i18n.localize("DRPG.Rules.manageTitle")}</span>`;
-        edit.addEventListener("click", async () => {
-            const { openRulesManager } = await import("./rules.mjs");
-            await openRulesManager();
-            app.render(false);
-        });
-        panel.append(edit);
-    }
+    /*
+     * NO EDIT BUTTON HERE (Dawid, 28.08).
+     *
+     * A character sheet is where the handbook is READ. It was edited from here
+     * too, for a GM, and the button was invisible until the first rule existed
+     * — so it arrived unannounced in the middle of a session, most often right
+     * after a New Rule was announced, on a sheet somebody had open for another
+     * reason entirely.
+     *
+     * The rules manager has a door already: the Rules tile in the GM panel,
+     * where the rest of the GM's tools are. Two doors to one window is the
+     * thing that made this one a surprise.
+     */
 
     return panel;
 }

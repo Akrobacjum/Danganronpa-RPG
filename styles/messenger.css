@@ -13,7 +13,13 @@
 #drpg-messenger-launcher {
     position: fixed;
     right: 16px;
-    bottom: 16px;
+    /*
+     * `--drpg-av-lift` IS THE CAMERA DOCK, measured by camera-view.mjs and zero
+     * when there is not one. `#players` rises over the dock on its own because
+     * it lives in Foundry's bottom column; this button is pinned to the
+     * viewport, so the dock simply covered it until it was told (Dawid, 28.08).
+     */
+    bottom: calc(16px + var(--drpg-av-lift, 0px));
     z-index: 70;
     width: 44px;
     height: 44px;
@@ -61,7 +67,8 @@
 #drpg-messenger-roster {
     position: fixed;
     right: 16px;
-    bottom: 68px;
+    /* With the button it sits on. */
+    bottom: calc(68px + var(--drpg-av-lift, 0px));
     z-index: 71;
     width: 260px;
     max-height: 60vh;
@@ -311,7 +318,7 @@ body.drpg-pixel-font #drpg-messenger-roster h4 {
 
 #drpg-messenger-launcher {
     right: var(--drpg-edge);
-    bottom: var(--drpg-edge);
+    bottom: calc(var(--drpg-edge) + var(--drpg-av-lift, 0px));
     width: 52px;
     height: 52px;
     font-size: 1.15rem;
