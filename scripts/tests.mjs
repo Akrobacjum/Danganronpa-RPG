@@ -3294,6 +3294,50 @@ const SCENARIOS = [
         }
     }],
 
+    ["a sound that plays is never reported as unplayable", async () => {
+        /*
+         * Dawid, 28.08, from a live session: five warnings saying the file
+         * "could not be played and will not be reported again this session" —
+         * and four of those five sounds had just been heard at the table.
+         *
+         * The cause was a call to a function that does not exist. `bend(sound,
+         * rate)` went with the rework that moved variation onto its own `Sound`
+         * (a rate can only be set on a buffer node) and the call site stayed, in
+         * the branch taken by every event that does NOT vary. The throw lands
+         * inside a `.then`, after `AudioHelper.play` has already started the
+         * sound, so the `.catch` reported the file while the table heard it. It
+         * had been doing that since E14.
+         *
+         * A test that only asks "did it play" would have passed the whole time.
+         * The question that catches it is the second one: did anything complain.
+         */
+        const { playSfx, diagnoseSfx } = await import("./sfx.mjs");
+        const before = foundry.utils.deepClone(getSetting(SETTINGS.sfxMap) ?? {});
+
+        // A file this install certainly has, and an event that does NOT vary —
+        // which is the branch that was broken.
+        const FILE = "modules/dice-so-nice/sounds/dicehit.mp3";
+        equal(SFX_EVENTS.verdict?.vary ?? false, false,
+            "this scenario needs an event that does not vary");
+
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.sfxMap, { ...before, verdict: FILE });
+            await settle();
+
+            const complainedBefore = (diagnoseSfx().unplayable ?? []).includes(FILE);
+            ok(!complainedBefore, "this file was already written off before the test started");
+
+            playSfx("verdict");
+            await wait(900);
+
+            ok(!(diagnoseSfx().unplayable ?? []).includes(FILE),
+                "the module reported a file as unplayable and played it anyway");
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.sfxMap, before);
+            await settle();
+        }
+    }],
+
     ["a Monokuma leaves no track in the fog, and a student still does", async () => {
         /*
          * Dawid, 28.08: Monokuma tokens were uncovering rooms. They are the GM

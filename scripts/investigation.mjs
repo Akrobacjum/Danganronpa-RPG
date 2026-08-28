@@ -832,6 +832,21 @@ export async function openInvestigationDashboard() {
             {
                 action: "save", label: game.i18n.localize("DRPG.Assign.save"), default: true,
                 callback: (e, b, d) => {
+                    /*
+                     * READ FRESH HERE TOO, and the first version of the live
+                     * rebuild did not — it left `traces` and `plan` behind in
+                     * `buildCase` and this callback went on naming them. Save
+                     * threw `ReferenceError: traces is not defined` INSIDE
+                     * DialogV2's submit, which does not close a window it could
+                     * not submit, so the dashboard sat there refusing every
+                     * button including its own X. Dawid found it in a minute.
+                     *
+                     * Re-reading is not merely the repair: the region may have
+                     * been rebuilt since the window opened, so the rows on
+                     * screen are the ones to walk, not the ones it opened with.
+                     */
+                    const traces = allTraces();
+                    const plan = keyPlan();
                     const form = d.element.querySelector("form");
                     const q = name => form.querySelector(`[name="${CSS.escape(name)}"]`);
                     return {
@@ -966,7 +981,10 @@ export async function openInvestigationDashboard() {
         }
     }
 
-    await applyDashboardSave(action, { traces, plan });
+    // Read fresh, for the same reason the callback above does: the window has
+    // been standing open and rebuilding itself, so what to write against is the
+    // world now, not the world when it opened.
+    await applyDashboardSave(action, { traces: allTraces(), plan: keyPlan() });
     return openInvestigationDashboard();
 }
 

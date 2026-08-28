@@ -561,8 +561,23 @@ function fire(key, force) {
                 src, volume: varied, channel: "interface", autoplay: true,
             }, false))
             .then(sound => {
+                /*
+                 * NOTHING TO BEND HERE, and there has not been since E14.
+                 *
+                 * This branch is only reached when `rate` is null — the event
+                 * does not vary — or the browser has not been clicked yet. It
+                 * called `bend(sound, rate)`, and there is no `bend` in this
+                 * file: the function went when the variation moved onto its own
+                 * `Sound` (a rate can only be set on a buffer node), and the
+                 * call site stayed.
+                 *
+                 * WHY IT LOOKED LIKE A FILE PROBLEM. The throw lands inside a
+                 * `.then`, AFTER `AudioHelper.play` has already started the
+                 * sound, so the `.catch` below reported the file as unplayable
+                 * while the table was hearing it. Dawid, 28.08: five warnings,
+                 * and four of the five sounds played.
+                 */
                 if (sound?.failed) reportUnplayable(key, src, null);
-                else bend(sound, rate);
                 return sound ?? null;
             })
             .catch(err => {
@@ -910,6 +925,10 @@ export function diagnoseSfx() {
         // and neither of them is about this module.
         browserClicked: unlocked || !(game.audio?.locked ?? false),
         droppedBeforeFirstClick: droppedWhileLocked,
+        // Files this session has given up on. Exposed because the module was
+        // reporting files as unplayable WHILE PLAYING THEM for four months and
+        // nothing could ask.
+        unplayable: [...reportedMissing],
         volumes: {
             sound: sfxVolume("sound"),
             music: sfxVolume("music")
