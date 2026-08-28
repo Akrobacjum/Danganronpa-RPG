@@ -734,8 +734,22 @@ export function observeDc(visibility, type) {
     return OBSERVE_DC[visibility]?.[column] ?? null;
 }
 
-/** Failing an Observe roll costs the player Sanity. */
-export const OBSERVE_FAIL_STRESS = 2;
+/**
+ * Failing an Observe roll costs the player Sanity.
+ *
+ * ONE, NOT TWO (Z1, from the E18 season run). Observe is the action a player
+ * reaches for most often and the only common one whose failure is paid for in a
+ * resource — and at 2 the arithmetic said "look twice and you are a third of
+ * the way to a breakdown". The simulation measured what that does over a
+ * chapter: the price is not paid in Sanity, it is paid in people declining to
+ * look, which is the one behaviour this game cannot afford to discourage.
+ *
+ * The briefing, the miss card and the GM's ruling line all print this constant.
+ * Two sentences elsewhere spelled the number out and moved with it — the sound
+ * catalogue's hint and `DRPG.Action.observeGm` — because a rule R1 cannot see
+ * inside of a sentence.
+ */
+export const OBSERVE_FAIL_STRESS = 1;
 
 /**
  * What a critical pays, and it is this game's number rather than Daggerheart's.
@@ -1434,11 +1448,24 @@ export const HOPE_CALLS = {
      * functions that charge for a crossing and an action.
      *
      * They are also the first three Hope Calls in this module that are NOT in
-     * the guide. Costs 3 / 4 / 5 put them in the top half of the menu, above
-     * Reroll's 3 and below the Free Critical's 6.
+     * the guide.
+     *
+     * PRICES, THIRD PASS (Z9, from the season run; Dawid, 29.08). Sprint 2,
+     * Relief 3, Burst 4 — and the ladder is what it was always trying to be:
+     * a crossing costs less than a rest, and a rest costs less than ANY action.
+     * The first pass had them at 3 / 5 / 4 and got the general case cheapest;
+     * the second (28.08) fixed Relief; this one fixes the floor.
      */
     sprint: {
-        label: "Sprint", icon: "fa-person-running", cost: 3, target: "none",
+        /*
+         * TWO, NOT THREE (Z9). At 3 it stood level with Relief, which buys a
+         * whole Short Rest — so the cheap specific case cost exactly as much as
+         * the broad one, and the season run says what a player does with that:
+         * nothing. Sprint was bought least of the three by a wide margin, and
+         * not because a free Move is worthless. Because it was priced as though
+         * it were a rest.
+         */
+        label: "Sprint", icon: "fa-person-running", cost: 2, target: "none",
         // One crossing. Sprint is the cheap specific case of Burst's expensive
         // general one — a Move you would otherwise pay an action for — and a
         // Call that says "a free Move" ought to hand over exactly one.
@@ -1447,15 +1474,19 @@ export const HOPE_CALLS = {
     },
     burst: {
         /*
-         * FIVE (Dawid, 28.08), and the shape of the menu after the same day's
-         * repricing of Relief is worth reading out loud: Sprint 3 buys a
-         * crossing, Relief 3 buys a Short Rest, Burst 5 buys ANY action.
+         * FOUR (Z9, Dawid 29.08), and the shape of the menu is the same shape
+         * it was at five — read it out loud: Sprint 2 buys a crossing, Relief 3
+         * buys a Short Rest, Burst 4 buys ANY action. The general case still
+         * costs more than either specific one, which is the right way round and
+         * was not true before 28.08.
          *
-         * The general case costs more than either specific one, which is the
-         * right way round and was not true before — Relief at 5 was the most
-         * expensive of the three while buying the narrowest thing.
+         * What changed is the ceiling, not the ordering. Six is the Free
+         * Critical and it is meant to be the thing you save for; at five, Burst
+         * sat one point under it and competed with it for the same saved Hope —
+         * so the action-buying Call, which is supposed to be the everyday one,
+         * was being weighed against the rarest reward in the game.
          */
-        label: "Burst", icon: "fa-bolt", cost: 5, target: "none",
+        label: "Burst", icon: "fa-bolt", cost: 4, target: "none",
         /*
          * ONE ACTION, NOT ONE POINT — the decision, and it has teeth.
          *
@@ -1541,7 +1572,19 @@ export const DESPAIR_CALLS = {
         effect: "Seal a room for one time of day."
     },
     thisWillHurt: {
-        label: "Pain", icon: "fa-heart-crack", cost: 2, target: "player", damage: { hitPoints: 2 },
+        /*
+         * THREE, NOT TWO (Z9) — the only rise in this pass, and the reason is
+         * that it was the cheapest damage on the board while doing the most.
+         * Two Health for two Despair, against Paranoia's two Sanity for the
+         * same, in a game where Health is four and Sanity is six.
+         *
+         * The season run makes the case sharper than the ratio does: roughly
+         * two thirds of a Monokuma's income spills over the cap of twelve, so a
+         * two-point Call is not really priced at two — it is priced at nothing,
+         * most of the time. The Calls that hurt are the ones that have to be
+         * worth the wait.
+         */
+        label: "Pain", icon: "fa-heart-crack", cost: 3, target: "player", damage: { hitPoints: 2 },
         effect: "A player loses {hp} Health."
     },
     paranoia: {
@@ -1616,8 +1659,20 @@ export const DESPAIR_CALLS = {
         effect: "A player project loses all progress."
     },
     contraband: {
-        // Guide table: 5 despair. Was priced at 6 here.
-        label: "Contraband", icon: "fa-trash-can", cost: 5, target: "item",
+        /*
+         * FOUR (Z9, Dawid 29.08). The guide's table says 6 and this module has
+         * been at 5 since G-01 was decided — so this is the second deliberate
+         * step away from that row, and it is worth saying why rather than
+         * leaving a number that looks like drift.
+         *
+         * Destroying one item is a narrow act with a wide reputation: it reads
+         * expensive because it is irreversible, and it was priced for the
+         * reading. What it actually removes is one object out of three carried
+         * slots, replaceable by one Search — while Silence at 4 takes a
+         * player's voice for a scene. At five it was the Call that Monokumas
+         * described and did not buy.
+         */
+        label: "Contraband", icon: "fa-trash-can", cost: 4, target: "item",
         effect: "Destroy any one item."
     },
     publicAnnouncement: {
@@ -3177,7 +3232,7 @@ export const SFX_EVENTS = {
     },
     observeFail: {
         label: "Observe fails",
-        hint: "Heard by the observer. It costs 2 Sanity and looks exactly like a success until the card is read.",
+        hint: "Heard by the observer. It costs Sanity and looks exactly like a success until the card is read.",
         category: "world"
     },
     sabotageFailed: {

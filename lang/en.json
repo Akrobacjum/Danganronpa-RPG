@@ -476,7 +476,7 @@
         "other": "{room}: {n} search tokens left this time of day."
       },
       "actionReturned": "Critical — the action is returned.",
-      "observeGm": "Total {total}. Score it against the Observe table for whatever they are looking at. A failure costs them 2 Sanity.",
+      "observeGm": "Total {total}. Score it against the Observe table for whatever they are looking at. A failure costs them 1 Sanity.",
       "searchGoalHint": "What turns up depends on the room and the roll.",
       "goalHealing": "Something to patch me up",
       "goalHealingHint": "Food and medicine. Restores Health.",
