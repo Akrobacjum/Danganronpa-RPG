@@ -4732,10 +4732,49 @@ function addDoorwayGlow(group, region, edges, rect) {
     const core = out + amplitude * DOORWAY_AVERAGE_BIAS;
     const span = depth;
 
+    /*
+     * A DOORWAY'S GLOW IS NEVER DEEPER THAN THE DOORWAY IS WIDE.
+     *
+     * `depth` is 1.3 squares, and it is the right depth for a way through that
+     * a person walks along. An opening only has to be 0.35 of a square to be
+     * kept at all (`shortest` in `doorwayEdges`) — so a short one was painted
+     * as a patch WIDER THAN IT IS LONG, standing proud of the wall and cut
+     * square at both ends by the end cuts. Dawid photographed one three times
+     * on 28.08 and confirmed which of the two things it was on the fourth: the
+     * glow. On his map the numbers make it unmissable — `reach` 137px against a
+     * grid of 85, so a half-square opening was drawn a square and a half deep.
+     *
+     * Reading it as light rather than as a band is what settles the shape: a
+     * narrow gap throws a small pool, a wide one throws a long one. So the
+     * depth of the falloff is what the opening's own length can afford after
+     * the flat core is paid for, and a long opening — every real doorway on a
+     * sane map — is not touched, because `min` keeps the full depth the moment
+     * the opening is longer than one.
+     */
+    const lengthOf = chain => {
+        let run = 0;
+        for (let i = 1; i < chain.length; i++) {
+            run += Math.hypot(chain[i].x - chain[i - 1].x, chain[i].y - chain[i - 1].y);
+        }
+        return run;
+    };
+    // A floor, so a genuinely narrow way through still says it is there rather
+    // than vanishing into the outline that stops on either side of it.
+    const spanFloor = grid * 0.25;
+    const spanFor = chain => Math.max(spanFloor, Math.min(span, lengthOf(chain) - core));
+
     const reach = core + span + 2;
     lastGlow = {
         openings: openings.length,
         points: openings.reduce((n, c) => n + c.length, 0),
+        // Per opening, because the aggregate cannot say which one looks wrong:
+        // how long it is, and how deep its glow was allowed to be.
+        each: openings.map(chain => ({
+            length: Math.round(lengthOf(chain)),
+            inSquares: Math.round(lengthOf(chain) / grid * 100) / 100,
+            span: Math.round(spanFor(chain)),
+            at: { x: Math.round(chain[0].x), y: Math.round(chain[0].y) }
+        })),
         amplitude: Math.round(amplitude * 10) / 10,
         core: Math.round(core * 10) / 10,
         span: Math.round(span * 10) / 10,
@@ -4762,6 +4801,7 @@ function addDoorwayGlow(group, region, edges, rect) {
      */
     const stub = reach + 4;
     const runs = openings.map(chain => {
+        const ownSpan = spanFor(chain);
         const tail = chain[chain.length - 1];
         const closed = Math.hypot(chain[0].x - tail.x, chain[0].y - tail.y) < 0.5;
         const inner = trimPolyline(chain, depth);
@@ -4789,7 +4829,7 @@ function addDoorwayGlow(group, region, edges, rect) {
             if (h.head) line.unshift(past);
             else line.push(past);
         }
-        return { heads, line };
+        return { heads, line, ownSpan };
     });
 
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -4817,10 +4857,17 @@ function addDoorwayGlow(group, region, edges, rect) {
         blit.alpha = DOORWAY_ALPHA / DOORWAY_STEPS;
 
         for (let k = 1; k <= DOORWAY_STEPS; k++) {
-            const half = core + span * doorwayFalloffAt((k - 0.5) / DOORWAY_STEPS);
+            const falloff = doorwayFalloffAt((k - 0.5) / DOORWAY_STEPS);
             strokes.clear();
-            strokes.lineStyle({ width: half * 2, color: 0xffffff, alpha: 1, cap: "butt", join: "round" });
-            for (const { line } of runs) {
+            // PER RUN, because each opening now has its own depth. The levels
+            // still stack into one field, so a wide doorway and a narrow one
+            // beside it are the same drawing at two sizes rather than two
+            // drawings.
+            for (const { line, ownSpan } of runs) {
+                strokes.lineStyle({
+                    width: (core + ownSpan * falloff) * 2,
+                    color: 0xffffff, alpha: 1, cap: "butt", join: "round"
+                });
                 strokes.moveTo(line[0].x - box.x, line[0].y - box.y);
                 for (let i = 1; i < line.length; i++) {
                     strokes.lineTo(line[i].x - box.x, line[i].y - box.y);
