@@ -3643,8 +3643,11 @@ function flashOutline(fx, region, rect) {
         width, color, alpha: 1, cap: "square", join: "miter", miterLimit: 2
     });
 
+    // MEASURED OFF THE WIDER PASS, like `gapPad`, and for the same reason:
+    // if the ink dropped a stretch the bone kept, the bone line would stand
+    // there with no keyline under it.
     const trace = () => {
-        if (edges.length) traceOutlineGapped(outline, edges, rect, gapPad);
+        if (edges.length) traceOutlineGapped(outline, edges, rect, gapPad, inkWidth);
         else traceRegionPathsAt(outline, region, rect);
     };
 
@@ -4831,7 +4834,7 @@ function addDoorwayGlow(group, region, edges, rect) {
  * A white line straight across an opening says the opposite of what the glow
  * beside it is saying. Where the wall stops, the outline stops.
  */
-function traceOutlineGapped(graphics, edges, rect, pad = null) {
+function traceOutlineGapped(graphics, edges, rect, pad = null, minRun = null) {
     const grid = canvas?.grid?.size ?? 100;
     // The gaps are widened by half a line width, because a square cap sticks
     // out that far past the end of a chain — without it the fattened line pokes
@@ -4839,6 +4842,24 @@ function traceOutlineGapped(graphics, edges, rect, pad = null) {
     // walked twice at two widths, so both passes cut back to the wider one's
     // margin and stay aligned.
     pad ??= grid * 0.05 + (graphics.line?.width ?? 0) / 2;
+    /*
+     * A WALL TOO SHORT TO DRAW AS A LINE IS NOT DRAWN AS A BLOB.
+     *
+     * An OPENING shorter than a third of a square is discarded — `shortest` in
+     * `doorwayEdges`. A walled stretch had no such rule, and the two are not
+     * symmetric in what they cost. A stray sample reading "wall" in the middle
+     * of a long doorway leaves a visible stretch a few pixels long, and this
+     * outline is stroked with SQUARE caps: each end runs half a line-width past
+     * the stretch, so anything shorter than one width comes out as a solid
+     * wedge rather than a line — standing on its own in the middle of an
+     * opening, with the ink keyline around it, far from any other outline.
+     *
+     * That is what Dawid photographed on 28.08. The map behind it is exactly
+     * the shape that makes stray samples likely: `lastGlow` on his scene reads
+     * FIVE openings on one border, so that border is cut by four walled
+     * stretches, and the grid there is 85px against an ink line 13px wide.
+     */
+    minRun ??= (graphics.line?.width ?? 0) || grid * 0.1;
 
     const at = (edge, t) => ({
         x: edge.ax + edge.dx * t - rect.x,
@@ -4920,6 +4941,13 @@ function traceOutlineGapped(graphics, edges, rect, pad = null) {
 
         for (const points of chains) {
             if (points.length < 2) continue;
+            // Length along the chain, not end to end: a staircase doubles back
+            // and its span would read shorter than the line it draws.
+            let run = 0;
+            for (let i = 1; i < points.length; i++) {
+                run += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
+            }
+            if (run < minRun) continue;
             graphics.moveTo(points[0].x, points[0].y);
             for (let i = 1; i < points.length; i++) graphics.lineTo(points[i].x, points[i].y);
         }

@@ -3239,6 +3239,72 @@ const SCENARIOS = [
         }
     }],
 
+    ["no piece of a room's outline is shorter than the line it is drawn with", async () => {
+        /*
+         * THE CUT WHITE WEDGE, STANDING ON ITS OWN IN THE MIDDLE OF A DOORWAY.
+         *
+         * An OPENING shorter than a third of a square is discarded \— `shortest`
+         * in `doorwayEdges`. A walled stretch had no such rule, and the two are
+         * not symmetric in what they cost. One stray sample reading "wall" in
+         * the middle of a long opening leaves a visible stretch a few pixels
+         * long, and this outline is stroked with SQUARE caps: each end runs half
+         * a line-width past the stretch, so anything shorter than one width
+         * comes out as a solid wedge rather than a line \— alone in the middle
+         * of an opening, ink keyline and all, far from any other outline.
+         *
+         * Reproduced on a fixture: a plain room whose whole top border is a
+         * doorway, with ONE eight-pixel wall in the middle of it. The wall
+         * splits the border into two openings, and the sliver of "wall" between
+         * them is a two-point chain \— which the tracer stroked
+         * unconditionally.
+         *
+         * What is asserted here is the property rather than the fixture: every
+         * chain this room actually draws is at least as long as the ink line
+         * drawing it. It reads the geometry PIXI was handed, so it is the drawn
+         * thing being measured and not the intention.
+         */
+        const fog = await import("./fog.mjs");
+        const before = fog.diagnoseFog({ toChat: false });
+        ok(before.currentRooms?.length,
+            "nobody is standing in a named room, so no outline is being drawn to measure");
+
+        const find = (node, name) => {
+            if (node.name === name) return node;
+            for (const child of node.children ?? []) {
+                const found = find(child, name);
+                if (found) return found;
+            }
+            return null;
+        };
+        const group = find(canvas.stage, "drpgRoomOutline");
+        ok(group, "the room outline group is not on the canvas");
+
+        const graphics = group.children.find(c => !c.texture && c.geometry);
+        ok(graphics, "the outline has no geometry to read");
+
+        const grid = canvas.grid.size;
+        const inkWidth = Math.max(7, Math.round(grid * 0.11)) + Math.max(4, Math.round(grid * 0.05));
+
+        const stubs = [];
+        let chains = 0;
+        for (const piece of graphics.geometry?.graphicsData ?? []) {
+            const points = piece.shape?.points;
+            if (!points || points.length < 4) continue;
+            chains++;
+            // Along the chain, not end to end: a staircase doubles back, and its
+            // span would read shorter than the line it draws.
+            let run = 0;
+            for (let i = 2; i < points.length; i += 2) {
+                run += Math.hypot(points[i] - points[i - 2], points[i + 1] - points[i - 1]);
+            }
+            const width = piece.lineStyle?.width ?? inkWidth;
+            if (run < width) stubs.push(`${Math.round(run)}px of outline drawn with a ${width}px line`);
+        }
+
+        ok(chains > 0, "the outline drew nothing at all");
+        ok(!stubs.length, `${before.currentRooms[0]}: ${stubs.join("; ")}`);
+    }],
+
     ["a diagonal wall closes the staircase drawn along it", async () => {
         /*
          * THE ISOMETRIC CASE, WHICH IS THE ONLY CASE THIS MODULE HAS.
