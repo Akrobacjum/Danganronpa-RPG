@@ -1262,9 +1262,23 @@ async function performSearch(actor, def, options) {
             type: "prep",
             visibility,
             faint: true,
-            // Crime and cleaning gear is exactly what the guide protects from
-            // the chapter-end sweep; `leaves` is only true for those two.
-            tiedToCrime: true,
+            /*
+             * NOT TIED BY CATEGORY ANY MORE (Dawid, 28.08).
+             *
+             * This used to say `true` because the thing found was crime or
+             * cleaning gear — a fact about the category, not about the chapter.
+             * A penknife nobody picked up again sat at the top of the case
+             * dashboard's murder-first sort beside the knife out of the body.
+             *
+             * What ties this trace is the object being USED, which nobody can
+             * know yet. So the trace remembers WHICH object it handed over and
+             * `tieTraceForItem` comes back for it the moment that object is
+             * swung. Left `null` rather than `false`: the incident rule in
+             * `placeRemnant` still gets to say yes if this Search is happening
+             * in the middle of one.
+             */
+            tiedToCrime: null,
+            itemIdentity: granted?.getFlag?.(MODULE_ID, "drpgItemId") ?? null,
             action: "search",
             subject: drawn?.name ?? "",
             note: game.i18n.format("DRPG.Remnant.searchNote", {
@@ -1946,6 +1960,12 @@ async function workOnProject(actor, def, options, chosen = null) {
                 type: "prep",
                 visibility: traceRemnant,
                 faint: true,
+                // THE EFFECT OF A PROJECT TIED TO THE MURDER is part of it
+                // (Dawid, 28.08). An indirect murder IS the murder, built in
+                // instalments, so the traces of building it are the traces of
+                // committing it. `null` for every other project, which leaves
+                // the incident rule free to answer.
+                tiedToCrime: project.indirectMurder ? true : null,
                 action: "project",
                 subject: project.name,
                 note: game.i18n.format("DRPG.Remnant.projectNote", {
@@ -2315,6 +2335,8 @@ async function performSabotage(actor, def, options) {
     const { dropRemnant, traceFeedback } = await import("./remnants.mjs");
     const placed = await dropRemnant(actor, {
         type: "prep",
+        // Sabotaging a murder project is working on the murder too.
+        tiedToCrime: project?.indirectMurder ? true : null,
         visibility,
         faint: true,
         action: "sabotage",

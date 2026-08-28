@@ -183,7 +183,18 @@ export function traceFeedback(roll, placed) {
  */
 export async function dropRemnant(actor, {
     type = "prep", visibility = "evident", faint = false, reinforced = false,
-    note = "", action = "manual", subject = "", pointsAt = null, tiedToCrime = false
+    note = "", action = "manual", subject = "", pointsAt = null,
+    /*
+     * NULL, NOT FALSE, and the difference is the whole of the incident rule.
+     *
+     * `false` is a caller saying "this has nothing to do with the murder";
+     * `null` is a caller not raising the question. Defaulting to `false` made
+     * every one of these an answer, so `placeRemnant` could never tell the two
+     * apart and the trace left in the middle of an incident said, on its own
+     * authority, that it was unrelated to it.
+     */
+    tiedToCrime = null,
+    itemIdentity = null
 } = {}) {
     const token = tokenFor(actor);
     if (!token) {
@@ -214,6 +225,7 @@ export async function dropRemnant(actor, {
         // socket to the GM, and a live document does not survive that.
         sceneId: token.document.parent?.id,
         type, visibility, faint, reinforced, note, action, subject, pointsAt, tiedToCrime,
+        itemIdentity,
         sourceActor: actor.id,
         sourceName: actor.name,
         room: roomOfActor(actor),
@@ -233,12 +245,54 @@ export async function placeRemnant(data = {}) {
         return requestRemnant(data);
     }
 
+    /*
+     * WHAT MAKES A TRACE PART OF THE MURDER (Dawid, 28.08).
+     *
+     * It used to be decided by what the trace was ABOUT: a Search that turned
+     * up something in the crime-tool or cleaning-tool category tied itself to
+     * the crime on the spot. That is a fact about the object's category and
+     * not about the chapter — a penknife nobody ever picked up again was
+     * filed beside the knife out of the body, and the murder-first sort in the
+     * dashboard put both at the top.
+     *
+     * Four things make a trace part of it, and all four are events:
+     *
+     *   1. it delivered the object used in the murder   — marked later, by
+     *      `tieTraceForItem`, because at the moment of finding it nobody knows;
+     *   2. it is the result of a project tied to the murder — the caller says
+     *      so, because only the caller knows which project;
+     *   3. it was left DURING THE INCIDENT — decided here, since the incident
+     *      is a fact about the world rather than about the caller;
+     *   4. it was left cleaning up after one — the caller says so, and the
+     *      clean-up already did.
+     *
+     * Only 3 belongs in this function, and it belongs here rather than in the
+     * six call sites so that a trace left by anything at all during an incident
+     * is caught — including whatever gets added next.
+     *
+     * An explicit `false` still wins: the GM planting a red herring mid-incident
+     * is making a decision, and this is a default rather than an override.
+     */
+    if (data.tiedToCrime === undefined || data.tiedToCrime === null) {
+        try {
+            const { murderState } = await import("./murder.mjs");
+            if (murderState()) data = { ...data, tiedToCrime: true };
+        } catch {
+            // No incident module, no incident. The trace stays as it came.
+        }
+    }
+
     const {
         x, y, scene = null, sceneId = null, type = "prep", visibility = "evident",
         faint = false, reinforced = false, note = "", action = "manual",
         subject = "", pointsAt = null, tiedToCrime = false,
         sourceActor = null, sourceName = "",
-        room = null, chapter = null, day = null, timeOfDay = null
+        room = null, chapter = null, day = null, timeOfDay = null,
+        // The opaque identity of the object this trace handed over, when it
+        // handed one over. GM-side only, like everything else in the ledger:
+        // it is how `tieTraceForItem` finds this trace again if that object
+        // turns out to be the murder weapon.
+        itemIdentity = null
     } = data;
 
     const target = scene ?? (sceneId ? game.scenes.get(sceneId) : null) ?? canvas?.scene;
@@ -310,6 +364,10 @@ export async function placeRemnant(data = {}) {
                 reinforced: reinforced || Boolean(REMNANT_TYPES[type]?.reinforced),
                 note, action, subject, pointsAt,
                 tiedToCrime: Boolean(tiedToCrime),
+                // Which object this trace handed over, if it handed one over.
+                // Read by `tieTraceForItem` when that object turns out to have
+                // been the murder weapon.
+                itemIdentity,
                 sourceActor, sourceName, room, chapter, day, timeOfDay,
                 // Kept for the GM's own screens, which used to read it off the
                 // token's name — see `label` above.
@@ -969,6 +1027,7 @@ export function remnantData(tokenDoc) {
         pointsAt: entry.pointsAt,
         sourceActor: entry.sourceActor,
         sourceName: entry.sourceName,
+        itemIdentity: entry.itemIdentity ?? null,
         room: entry.room,
         chapter: entry.chapter,
         day: entry.day,
@@ -1085,6 +1144,48 @@ export async function reportRemnants(scene = null) {
  * ========================================================================== */
 
 /** Set the sweep-related flags on one Remnant token. GM only. */
+/**
+ * The trace that handed over this object is part of the murder now.
+ *
+ * CASE ONE OF FOUR, and the only one nobody can answer when it happens: a
+ * Search turns up a hammer, and whether that hammer is evidence depends on
+ * something that has not occurred yet. Deciding it at the time — which the
+ * module used to do, by asking whether the hammer was filed under crime gear —
+ * ties the wrong traces and misses the right ones. A cereal bar used to smother
+ * somebody is evidence; a penknife nobody touched again is not.
+ *
+ * So the link is kept and the question is asked later, at the moment the object
+ * is swung. `drpgItemId` is what makes that possible: it survives the object
+ * changing hands, which is exactly the journey a murder weapon takes.
+ *
+ * Every trace that handed the object over is tied, not just the first — an
+ * object can be found, lost and found again, and each of those is a place the
+ * investigation can pick the thread up.
+ *
+ * @param {string} identity  The object's `drpgItemId`.
+ * @returns {Promise<number>} how many traces were tied.
+ */
+export async function tieTraceForItem(identity) {
+    if (!game.user.isGM || !identity) return 0;
+
+    let tied = 0;
+    for (const scene of game.scenes) {
+        for (const token of remnantsOn(scene)) {
+            const data = remnantData(token);
+            if (!data || data.itemIdentity !== identity || data.tiedToCrime) continue;
+            await setRemnantSecret(token, { tiedToCrime: true });
+            tied++;
+        }
+    }
+    if (tied) {
+        log(`The murder weapon was found at ${tied} trace(s); those are evidence now.`);
+        import("./truth-bullets.mjs")
+            .then(m => m.propagateCrimeTie?.(null, true))
+            .catch(() => { /* the bullets follow on their own schedule */ });
+    }
+    return tied;
+}
+
 export async function setRemnantFlags(tokenDoc, { faint = null, tiedToCrime = null, reinforced = null } = {}) {
     if (!game.user.isGM || !tokenDoc) return null;
 

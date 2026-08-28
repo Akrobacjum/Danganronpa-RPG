@@ -4082,6 +4082,80 @@ const SCENARIOS = [
         }
     }],
 
+    ["a trace is tied to the murder by what happened, not by what it is", async () => {
+        /*
+         * Dawid, 28.08: a trace is part of the murder when it DELIVERED the
+         * object used in it, when it is the effect of a project tied to it,
+         * when it was left during the incident, or when it was left cleaning up
+         * afterwards.
+         *
+         * What it used to be was the CATEGORY of the thing found: a Search that
+         * turned up anything filed as crime or cleaning gear tied itself on the
+         * spot. A penknife nobody picked up again therefore sat at the top of
+         * the dashboard's murder-first sort, beside the knife out of the body.
+         *
+         * Two of the four are checked here. The other two are already held: the
+         * clean-up says so itself at three call sites, and the project rule is
+         * one line beside the trace it places.
+         */
+        const remnants = await import("./remnants.mjs");
+        const { roomOfToken } = await import("./movement.mjs");
+        const scene = canvas?.scene;
+        ok(scene, "no active scene");
+        const anchor = Array.from(scene.tokens).find(t => roomOfToken(t));
+        ok(anchor, "no token standing in a room to place a fixture beside");
+
+        const placed = [];
+        const place = async data => {
+            const token = await remnants.placeRemnant({
+                type: "prep", visibility: "evident", scene,
+                x: anchor.x, y: anchor.y, note: "test fixture — what ties a trace",
+                ...data
+            });
+            ok(token, "could not place a fixture trace");
+            placed.push(token);
+            return token;
+        };
+
+        try {
+            /* ---- 1. THE OBJECT, once it turns out to be the weapon --------- */
+            const identity = `suite-${Date.now().toString(36)}`;
+            const handedOver = await place({ action: "search", itemIdentity: identity });
+            ok(!remnants.remnantData(handedOver)?.tiedToCrime,
+                "a Search tied itself to the murder before anything was used");
+
+            const tied = await remnants.tieTraceForItem(identity);
+            equal(tied, 1, "the weapon did not find the trace that handed it over");
+            ok(remnants.remnantData(handedOver)?.tiedToCrime,
+                "the trace that handed over the weapon is still not evidence");
+
+            // And it does not tie anything else: another trace, another object.
+            const unrelated = await place({ action: "search", itemIdentity: `${identity}-other` });
+            equal(await remnants.tieTraceForItem(identity), 0,
+                "tying the same object twice tied something a second time");
+            ok(!remnants.remnantData(unrelated)?.tiedToCrime,
+                "a trace holding a different object was tied to the murder");
+
+            /* ---- 2. AND ANYTHING LEFT DURING AN INCIDENT ------------------- */
+            const murder = await import("./murder.mjs");
+            const running = Boolean(murder.murderState());
+            const duringIncident = await place({ action: "dynamic" });
+            equal(Boolean(remnants.remnantData(duringIncident)?.tiedToCrime), running,
+                running
+                    ? "an incident is running and the trace left during it is not tied"
+                    : "no incident is running and the trace tied itself anyway");
+
+            // The GM's explicit "no" still wins over the incident rule.
+            const redHerring = await place({ action: "manual", tiedToCrime: false });
+            ok(!remnants.remnantData(redHerring)?.tiedToCrime,
+                "a trace the GM said is unrelated was tied anyway");
+        } finally {
+            for (const token of placed) await remnants.dropRemnantSecret(token);
+            const ids = placed.map(t => t.id).filter(id => scene.tokens.has(id));
+            if (ids.length) await scene.deleteEmbeddedDocuments("Token", ids);
+        }
+    }],
+
     ["a tool takes its tier in bad rolls before it breaks", async () => {
         /*
          * Dawid, 28.08: a Despair no longer ends the tool outright. It spends

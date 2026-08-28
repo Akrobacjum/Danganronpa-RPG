@@ -44,7 +44,7 @@ import { equippedFor, breakOnDespair } from "./use-items.mjs";
 import { dropRemnant, traceFeedback } from "./remnants.mjs";
 import {
     announce, dialogContent, tableDialog, whisperToGms, whisperToOwner, ownerOf, gmIds,
-    isPrimaryGm, log, warn, error, plural} from "./utils.mjs";
+    isPrimaryGm, log, warn, error, plural, debug } from "./utils.mjs";
 
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -863,6 +863,28 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
         } catch {
             // A weapon nobody wrote down is destroyed by the old rule instead
             // of not at all. Never let bookkeeping stop a swing.
+        }
+
+        /*
+         * AND THE TRACE THAT HANDED IT OVER IS EVIDENCE NOW (Dawid, 28.08).
+         *
+         * The Search that turned this thing up could not know it would be used
+         * for this — nobody could — so it recorded which object it gave out and
+         * left the question open. This is the moment that answers it.
+         *
+         * Through the GM, because the ledger holding the answer key is the GM's
+         * and a player's client has neither the record nor the right to write
+         * it. Fire and forget: a trace that fails to be re-labelled must not
+         * stop a murder that is already happening, and the GM can tick the box
+         * by hand in the case dashboard.
+         */
+        const identity = swung.getFlag(MODULE_ID, "drpgItemId");
+        if (identity) {
+            import("./remnants.mjs")
+                .then(m => (game.user.isGM
+                    ? m.tieTraceForItem(identity)
+                    : import("./gm-bridge.mjs").then(b => b.requestTieTrace?.(identity))))
+                .catch(err => debug("Could not tie the weapon's own trace to the murder", err));
         }
     }
 

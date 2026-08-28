@@ -22,6 +22,9 @@ const SOCKET_EVENT = `module.${MODULE_ID}`;
 const ACTION_PROGRESS = "project.progress";
 const ACTION_SHARE = "project.share";
 const ACTION_REMNANT = "remnant.place";
+/* The weapon was swung on the player's client; the ledger that records
+   which trace handed it over is the GM's. See `tieTraceForItem`. */
+const ACTION_TIE_TRACE = "remnant.tieForItem";
 const ACTION_REMNANT_EDIT = "remnant.edit";
 const ACTION_SABOTAGE = "project.sabotage";
 const ACTION_SABOTAGE_RESULT = "project.sabotageResult";
@@ -870,6 +873,13 @@ async function onSocket(payload, senderId) {
         return;
     }
 
+    if (payload?.action === ACTION_TIE_TRACE) {
+        if (!senderOf(senderId)) return refuse(ACTION_TIE_TRACE, "unknown sender");
+        const { tieTraceForItem } = await import("./remnants.mjs");
+        await tieTraceForItem(payload.identity);
+        return;
+    }
+
     if (payload?.action === ACTION_REMNANT_EDIT) {
         const sender = senderOf(senderId);
         if (!sender) return refuse(ACTION_REMNANT_EDIT, "unknown sender");
@@ -1204,6 +1214,25 @@ export function requestSendBack(sceneId, tokenId, position) {
 export function requestEclipseMove(actorId) {
     if (!hasGm()) return null;
     game.socket.emit(SOCKET_EVENT, { action: ACTION_ECLIPSE_MOVE, userId: game.user.id, requestId: expectAck("Eclipse"), actorId });
+    return { pending: true };
+}
+
+/**
+ * The trace that handed over this object is evidence now.
+ *
+ * Asked by the killer's own client at the moment they swing, answered on the
+ * GM's, because the answer key is theirs. Nothing comes back: a trace that
+ * cannot be re-labelled must not stop a murder that is already happening, and
+ * the GM can tick the box by hand in the case dashboard.
+ */
+export function requestTieTrace(identity) {
+    if (!identity) return null;
+    if (game.user.isGM) {
+        return import("./remnants.mjs").then(m => m.tieTraceForItem(identity));
+    }
+    if (!hasGm()) return null;
+    game.socket.emit(SOCKET_EVENT,
+        { action: ACTION_TIE_TRACE, userId: game.user.id, identity });
     return { pending: true };
 }
 
