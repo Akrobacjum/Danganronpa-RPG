@@ -307,6 +307,41 @@ const REGRESSIONS = [
         ok(!bad.length, `these ask for a sound that is not in the catalogue: ${bad.join(", ")}`);
     }],
 
+    ["R20 · every sound in the catalogue is a sound something plays", async () => {
+        /*
+         * R3'S MIRROR, AND IT FOUND ONE THE DAY IT WAS WRITTEN.
+         *
+         * R3 asks whether every sound the code plays exists. This asks the other
+         * question, which is the one a GM feels: `newRule` had been in the
+         * catalogue since v1.1.8, with a label and a hint and a row in the Sound
+         * panel, and nothing anywhere posted it. A GM could pick a file, press
+         * Test, hear it, map it — and then never hear it again, because the only
+         * card that announces a new rule carried no flag.
+         *
+         * That is the worst kind of silence in this module: the panel promises,
+         * the file is right, the GM concludes the sound system is broken.
+         *
+         * Named in ANY string outside config.mjs is the test, deliberately loose:
+         * `playSfx(x ? "sheetButton" : "windowButton")` and
+         * `SFX_FOR_STATE[state.id]` are both real and neither is a literal
+         * argument. Being mentioned is weak evidence of being played; never
+         * being mentioned at all is strong evidence of the opposite, and that is
+         * the direction this test is for.
+         */
+        const unplayable = [];
+        for (const [file, raw] of await otherSources()) {
+            if (file === "config.mjs") continue;
+            const text = stripComments(raw);
+            for (const m of text.matchAll(/"([\w.]+)"/g)) {
+                if (SFX_EVENTS[m[1]]) unplayable.push(m[1]);
+            }
+        }
+        const named = new Set(unplayable);
+        const silent = Object.keys(SFX_EVENTS).filter(key => !named.has(key));
+        ok(!silent.length,
+            `these are in the Sound panel and nothing ever plays them: ${silent.join(", ")}`);
+    }],
+
     ["R4 · every setting the module reaches for is a setting it registered", async () => {
         /*
          * A SETTING THAT WAS NEVER REGISTERED ANSWERS WITH ITS DEFAULT AND DOES

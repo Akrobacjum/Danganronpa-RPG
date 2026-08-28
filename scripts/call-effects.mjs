@@ -343,6 +343,14 @@ export async function applyCall(actor, key, kind, choice = {}) {
             if (recorded) done.push(game.i18n.localize("DRPG.Rules.recorded"));
 
             await announce({
+                // The catalogue has had a `newRule` sound since v1.1.8 and this
+                // card — the only thing that announces one — carried no flag, so
+                // it was a sound a GM could map a file to and never hear. Found
+                // in E17 by asking the question R3 does not: not "does every
+                // sound played exist", but "is every sound that exists played".
+                // Public, no whisper list, so the whole table hears it — which
+                // is what the catalogue entry says it is for.
+                flags: { [MODULE_ID]: { sfx: "newRule" } },
                 content: `<div class="drpg-new-rule">
                     <h3>${game.i18n.localize("DRPG.Calls.newRuleTitle")}</h3>
                     <p>${foundry.utils.escapeHTML(choice.text)}</p>
