@@ -499,10 +499,67 @@ export async function drawItem(category, tier, { goal = null, room = null } = {}
         }
     }
 
+    /*
+     * THE ROOM ANSWERS WITH WHAT IT HAS, BEFORE THE WORLD ANSWERS AT ALL.
+     *
+     * The chain above asks the room for the category, then the world for the
+     * category, then the built-in pool. That is right for a room the GM never
+     * configured — but for one they DID, it produces the wrong kind of wrong:
+     * ask an armoury for something to patch you up and, if the GM built
+     * "Armoury — Crime Tools" and no flat "Armoury", the lookup walks straight
+     * past the room and hands over a bandage. In an armoury.
+     *
+     * So before the global pool: every table this room owns, whatever it is
+     * called, picked at random. A player who asks a room for something it does
+     * not stock gets what it does stock — which is both funnier and truer than
+     * either "nothing" or "a bandage from nowhere".
+     *
+     * `substitute` travels with it so the card can say so. It is not a failure:
+     * the roll was made and beaten, an action and a search token are spent, and
+     * something real came out. It is simply not what was asked for.
+     */
+    if (roomBase) {
+        const owned = (game.tables?.contents ?? []).filter(t =>
+            t.name === roomBase || t.name.startsWith(`${roomBase} — `));
+        // Shuffled rather than "the first one": the room's tables are named by
+        // category and taking the first would silently favour whichever
+        // category sorts earliest.
+        for (const table of owned.sort(() => Math.random() - 0.5)) {
+            try {
+                const draw = await table.draw({ displayChat: false });
+                const result = draw?.results?.[0];
+                const drawn = result?.name ?? result?.text ?? result?.description;
+                if (!drawn) continue;
+                return {
+                    name: drawn,
+                    fromTable: true,
+                    substitute: true,
+                    roles: rolesOfResult(result),
+                    img: result?.img ?? result?.icon ?? null,
+                    description: result?.description && result.description !== drawn
+                        ? result.description : null
+                };
+            } catch {
+                // Same as above: a broken table is not a broken action.
+            }
+        }
+    }
+
     const picked = randomItem(category, tier, goal);
-    return picked
-        ? { name: picked, fromTable: false, roles: rolesForPoolItem(picked) }
-        : null;
+    if (picked) return { name: picked, fromTable: false, roles: rolesForPoolItem(picked) };
+
+    // Nothing in the asked-for category anywhere, which is a world with a gap
+    // in it rather than a room with a character. Any other category, at random,
+    // rather than sending somebody away empty-handed from a roll they beat.
+    for (const other of Object.keys(ITEM_CATEGORIES).sort(() => Math.random() - 0.5)) {
+        if (other === category || other === "truthBullet") continue;
+        const spare = randomItem(other, tier, null);
+        if (spare) {
+            return { name: spare, fromTable: false, substitute: true,
+                     roles: rolesForPoolItem(spare) };
+        }
+    }
+    return null;
 }
 
 /** The RollTable a room draws from, if the GM pointed it at one. */

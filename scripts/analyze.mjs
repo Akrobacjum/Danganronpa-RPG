@@ -22,7 +22,6 @@
 import { MODULE_ID, analyzeDc, TRUTH_BULLET_TYPES } from "./config.mjs";
 import { TRUTH_BULLET_FLAGS, secretOf, isTruthBullet } from "./truth-bullets.mjs";
 import { whisperToOwner, whisperToGms, log, warn, error, article } from "./utils.mjs";
-import { playSfx } from "./sfx.mjs";
 
 /**
  * Score a thrown Analyze against the bullet's real category.
@@ -108,21 +107,20 @@ async function lockOut(item, actor, chapter, total) {
         error("Could not lock the Truth Bullet after a failed Analyze", err);
     }
 
+    // ON THE CARD, NOT THROUGH `playSfx` — and the same correction applies to
+    // `identify` below. See the note there: this function only ever runs on a
+    // GM's browser.
     await whisperToOwner(actor, `
         <p><strong>${game.i18n.localize("DRPG.Analyze.failedTitle")}</strong></p>
         <p>${game.i18n.format("DRPG.Analyze.failed", {
             name: foundry.utils.escapeHTML(item.name)
-        })}</p>`);
+        })}</p>`, { flags: { [MODULE_ID]: { sfx: "analyzeMiss" } } });
 
     log(`Analyze: ${actor.name} rolled ${total} on "${item.name}" and locked it for chapter ${chapter}.`);
 }
 
 /** Success converts the bullet: what it really is becomes what the player sees. */
 async function identify(item, actor, realType, isCritical, dc, total) {
-    // The moment the bullet stops being a guess. Local: whoever ran the
-    // Analyze is the client this function is running on.
-    playSfx("analyzeHit");
-
     // The moment of analysis is when two more facts go public — which action
     // left the source trace (the Remnant token's icon on this player's map)
     // and whether it belongs to the murder (the pack's sort). Both were
@@ -144,6 +142,24 @@ async function identify(item, actor, realType, isCritical, dc, total) {
     const label = TRUTH_BULLET_TYPES[realType]?.label ?? realType;
     const hint = TRUTH_BULLET_TYPES[realType]?.hint ?? "";
 
+    /*
+     * THE SOUND RIDES THE CARD, AND IT USED NOT TO — a bug this file carried
+     * from E5 until a play-through of the new sounds walked into it.
+     *
+     * `playSfx` at the top of this function claimed to be "local: whoever ran
+     * the Analyze is the client this is running on", and that was simply false.
+     * `resolveAnalyze` opens with `if (!game.user.isGM) return null`, so
+     * `identify` and `lockOut` have only ever executed on a GM's browser: the
+     * catalogue promised "heard by the student who ran it" and the GM heard it
+     * instead, alone. Nobody would report that — the GM hears a plausible noise
+     * at a plausible moment, and the player hears nothing they were told to
+     * expect.
+     *
+     * The card is the fix because the card already has the audience the sound
+     * wanted. `onCreateChatMessage` plays it for the people the whisper names
+     * and leaves GMs out unless the flag says otherwise, which is exactly
+     * "heard by the student who ran it".
+     */
     await whisperToOwner(actor, `
         <h3>${game.i18n.localize("DRPG.Analyze.identifiedTitle")}</h3>
         <p>${game.i18n.format("DRPG.Analyze.identified", {
@@ -151,7 +167,8 @@ async function identify(item, actor, realType, isCritical, dc, total) {
             name: foundry.utils.escapeHTML(item.name),
             type: foundry.utils.escapeHTML(label)
         })}</p>
-        ${hint ? `<p><em>${foundry.utils.escapeHTML(hint)}</em></p>` : ""}`);
+        ${hint ? `<p><em>${foundry.utils.escapeHTML(hint)}</em></p>` : ""}`,
+        { flags: { [MODULE_ID]: { sfx: "analyzeHit" } } });
 
     // The critical's second half is a human's to give, so the GMs are told to
     // give it rather than the module inventing one. Through the messenger, not

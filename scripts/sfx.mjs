@@ -59,7 +59,7 @@
  */
 
 import { MODULE_ID, FLAGS, SFX_EVENTS, SFX_CATEGORIES, SFX_SLIDERS, SFX_VOLUME_KEYS,
-    GAME_WINDOWS } from "./config.mjs";
+    SFX_VARIATION, GAME_WINDOWS } from "./config.mjs";
 import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
 import { log, warn, error, clamp, ownerOf } from "./utils.mjs";
 
@@ -145,6 +145,136 @@ export function soundFor(key) {
 }
 
 /**
+ * The separator between several files mapped to one event.
+ *
+ * A pipe, because it is the one character that cannot appear in a Windows
+ * filename and is not legal unencoded in a URL path — so it can never be part
+ * of a path a GM actually typed. A comma or a semicolon can be, and a
+ * separator that occasionally eats half a filename is worse than none.
+ */
+const SOUND_SEPARATOR = "|";
+
+/** Every file mapped to this event, in the order the GM listed them. */
+export function soundsFor(key) {
+    return (soundFor(key) ?? "")
+        .split(SOUND_SEPARATOR)
+        .map(path => path.trim())
+        .filter(Boolean);
+}
+
+/** What each key played last, so the next pick can avoid it. Key -> path. */
+const lastPicked = new Map();
+
+/**
+ * ONE file for this play — the round robin, and the stronger half of the two
+ * answers to "the same sound forty times a session".
+ *
+ * Bending the rate makes one file stop being identical; a second file makes it
+ * stop being the same sound. This is the real fix and it composes with the
+ * other: a GM with one file gets the bend, a GM with three gets both.
+ *
+ * NEVER TWICE RUNNING, when there is a choice. Plain random draws the same
+ * file back-to-back one time in N, which is exactly the case the whole feature
+ * exists to remove and the one a player notices. With two files this alternates
+ * strictly, which is fine — two alternating clicks is what a real pair of
+ * footsteps does.
+ */
+export function pickSound(key) {
+    const options = soundsFor(key);
+    if (options.length <= 1) return options[0] ?? null;
+
+    const previous = lastPicked.get(key);
+    const fresh = options.filter(path => path !== previous);
+    const pool = fresh.length ? fresh : options;
+    const chosen = pool[Math.floor(Math.random() * pool.length)];
+    lastPicked.set(key, chosen);
+    return chosen;
+}
+
+/**
+ * How much to bend this play, as a playback rate around 1.
+ *
+ * `null` for anything that must not bend, so the caller has one test rather
+ * than three. THE SAFEWORD IS EXCLUDED HERE, IN CODE, and not by leaving `vary`
+ * off its catalogue entry: it is the one sound in this game that has to be
+ * unmistakable, and a signal that sounds slightly different each time is one the
+ * table learns to second-guess. That must not be one edit away from being true.
+ */
+function rateFor(key) {
+    if (key === "safeword") return null;
+    if (!SFX_EVENTS[key]?.vary) return null;
+    if (!getSetting(SETTINGS.sfxVary)) return null;
+
+    const spread = SFX_VARIATION.rate;
+    return 1 + ((Math.random() * 2) - 1) * spread;
+}
+
+/**
+ * Sounds this file owns, decoded once. Path -> Sound.
+ *
+ * WHY WE OWN THEM AT ALL, since `AudioHelper.play` is otherwise perfectly good:
+ * a rate can only be bent on an `AudioBufferSourceNode`, and Foundry decides
+ * per file whether to decode into a buffer or stream from an `<audio>` element
+ * — where the rate lives on the element and PRESERVES PITCH, which is a speed
+ * change with no pitch change and sounds like a glitch rather than variation.
+ *
+ * `AudioHelper.play` takes a `forceBuffer` option and PASSES IT ON, and that is
+ * still not enough: measured, it produced a buffered sound the first time a file
+ * was played in a session and a streamed one every time after. Whatever decides
+ * that is not something to build a feature on, so the varied path constructs its
+ * own Sound with `forceBuffer` and keeps it. Ten short interface files is a
+ * trivial amount of memory, and decoding once is cheaper per press than setting
+ * up a stream every time.
+ *
+ * Everything that does NOT vary still goes through `AudioHelper.play` exactly as
+ * before. This is a second path for eleven events, not a replacement for forty.
+ */
+const owned = new Map();
+
+/**
+ * The last rate actually applied to each file, for `diagnoseSfx`.
+ *
+ * Kept because this feature is otherwise INVISIBLE when it fails. A bend that
+ * silently does nothing sounds exactly like a bend working on files too short
+ * to notice — which is precisely the trap the first attempt fell into, where
+ * `forceBuffer` was passed to `AudioHelper.play`, accepted, and quietly
+ * ignored on every play after the first. A number somebody can read is the
+ * difference between "it works" and "I assume it works".
+ */
+const lastRates = new Map();
+
+/**
+ * Play a varied sound and bend it.
+ *
+ * The bend is applied AFTER `play()` because the node does not exist before it —
+ * Foundry builds the graph when the sound starts. Setting an AudioParam takes
+ * effect on the audio thread immediately, so the fraction of a millisecond that
+ * has already gone out at the original rate is inaudible; at three per cent
+ * there would be nothing to hear even if the whole sound played unbent.
+ */
+async function playOwned(src, volume, rate) {
+    let sound = owned.get(src);
+    if (!sound) {
+        sound = new foundry.audio.Sound(src, {
+            context: game.audio.interface,
+            forceBuffer: true
+        });
+        // `load()` on a locked context never settles — see rule 4 at the top of
+        // this file. The caller only reaches here unlocked, and the try/catch
+        // below is what keeps a bad path from taking the press down with it.
+        await sound.load();
+        owned.set(src, sound);
+    }
+
+    await sound.play({ volume });
+    if (sound.isBuffer && sound.sourceNode?.playbackRate) {
+        sound.sourceNode.playbackRate.value = rate;
+        lastRates.set(src, Math.round(rate * 10000) / 10000);
+    }
+    return sound;
+}
+
+/**
  * Map a file to an event, or clear it with `null`. GM only.
  *
  * Writes the whole object back because a Foundry object setting has no
@@ -169,6 +299,9 @@ export async function setSoundFor(key, src) {
     // told us they changed something, and the once-per-path rule must not
     // outlive the mapping it was about.
     reportedMissing.clear();
+    // And a decoded copy of a file the GM has just unmapped is memory held for
+    // nothing. Cheap to rebuild — one decode on the next press.
+    owned.clear();
     return map;
 }
 
@@ -292,7 +425,7 @@ function fire(key, force) {
 
     // RULE 1. No file is not a fault. Checked before everything else so that an
     // unconfigured world costs one object read per event and nothing more.
-    const src = soundFor(key);
+    const src = pickSound(key);
     if (!src) return false;
 
     // RULE 4. Queuing this would fire it at whatever unrelated moment the
@@ -315,11 +448,37 @@ function fire(key, force) {
     // the second argument is what keeps this local: the alternative pushes the
     // sound to every other client over a socket, which is precisely the thing
     // the audience column of the catalogue exists to avoid.
-    try {
-        return Promise.resolve(foundry.audio.AudioHelper.play(
-            { src, volume, channel: "interface", autoplay: true }, false))
+    const rate = rateFor(key);
+
+    /*
+     * THE VARIED PATH, and it is deliberately narrow.
+     *
+     * Only when this event bends AND the browser has been clicked: `load()`
+     * waits on `game.audio.unlock` and would never settle otherwise, which is
+     * the one way a decoration could hang the thing it decorates. A locked
+     * browser falls through to the ordinary path, which drops the sound and
+     * counts it — the behaviour rule 4 already describes.
+     */
+    if (rate !== null && !game.audio?.locked) {
+        return playOwned(src, volume, rate)
             .then(sound => {
                 if (sound?.failed) reportUnplayable(key, src, null);
+                return sound ?? null;
+            })
+            .catch(err => {
+                reportUnplayable(key, src, err);
+                return null;
+            });
+    }
+
+    try {
+        return Promise.resolve(foundry.audio.AudioHelper.play(
+            {
+                src, volume, channel: "interface", autoplay: true,
+            }, false))
+            .then(sound => {
+                if (sound?.failed) reportUnplayable(key, src, null);
+                else bend(sound, rate);
                 return sound ?? null;
             })
             .catch(err => {
@@ -678,6 +837,15 @@ export function diagnoseSfx() {
             playlist: core("globalPlaylistVolume")
         },
         assigned: `${assigned.length} of ${keys.length}`,
+        // Whether the busiest sounds are being bent and by how much they last
+        // were; `decoded` is what this file holds in memory in order to do it.
+        variation: {
+            on: Boolean(getSetting(SETTINGS.sfxVary)),
+            spread: SFX_VARIATION.rate,
+            events: Object.entries(SFX_EVENTS).filter(([, e]) => e.vary).map(([k]) => k),
+            decoded: [...owned.keys()],
+            lastRates: Object.fromEntries(lastRates)
+        },
         byCategory,
         // Mapped somewhere in the setting but not a key this build knows: what
         // a renamed event leaves behind, and invisible in the panel because the
@@ -767,10 +935,29 @@ export function soundSlidersHtml() {
             <span class="notes">${foundry.utils.escapeHTML(slider.hint)}</span>
         </label>`).join("");
 
+    /*
+     * The variation switch rides with the sliders and is GM-only.
+     *
+     * Here rather than on the mapping table because it is one control for the
+     * whole panel and the table is one row per event — and a switch buried at
+     * the top of forty rows is a switch nobody finds. Hidden from players
+     * entirely: this is a world setting they could not write anyway, and a dead
+     * control is worse than no control.
+     */
+    const variation = game.user.isGM
+        ? `<label class="drpg-sound-switch">
+            <input type="checkbox" name="sfxVary"${
+                getSetting(SETTINGS.sfxVary) ? " checked" : ""} />
+            <span>${game.i18n.localize("DRPG.Sound.varyLabel")}</span>
+            <span class="notes">${game.i18n.localize("DRPG.Sound.varyHint")}</span>
+        </label>`
+        : "";
+
     return `<fieldset class="drpg-sound-volumes">
         <legend>${game.i18n.localize("DRPG.Sound.volumes")}</legend>
         ${rows}
         <p class="notes">${game.i18n.localize("DRPG.Sound.volumeNote")}</p>
+        ${variation}
     </fieldset>`;
 }
 
@@ -783,12 +970,27 @@ export function soundEffectsHtml() {
         const rows = keys.filter(key => SFX_EVENTS[key].category === category).map(key => {
             const event = SFX_EVENTS[key];
             const src = soundFor(key) ?? "";
+            const many = soundsFor(key).length;
+            // Two badges, and both answer a question the row could not before:
+            // how many files this event draws from, and whether it bends.
+            const badges = [
+                many > 1
+                    ? `<span class="drpg-sfx-badge">${game.i18n.format(
+                        "DRPG.Sound.fileCount", { n: many })}</span>`
+                    : "",
+                event.vary
+                    ? `<span class="drpg-sfx-badge" title="${esc(game.i18n.localize(
+                        "DRPG.Sound.variesHint"))}">${esc(game.i18n.localize(
+                        "DRPG.Sound.varies"))}</span>`
+                    : ""
+            ].join("");
             return `<tr data-drpg-sfx="${key}">
                 <td>
-                    <strong>${esc(event.label)}</strong><br>
+                    <strong>${esc(event.label)}</strong>${badges}<br>
                     <small class="notes">${esc(event.hint)}</small>
                 </td>
                 <td><input type="text" name="sfx:${key}" value="${esc(src)}"
+                        title="${esc(game.i18n.localize("DRPG.Sound.severalHint"))}"
                         placeholder="${esc(game.i18n.localize("DRPG.Sound.notAssigned"))}" /></td>
                 <td><div class="drpg-sfx-actions">
                     <button type="button" class="drpg-mini-button" data-drpg-sfx-pick>${
@@ -855,6 +1057,13 @@ export function wireSoundPanel(root) {
         });
     }
 
+    /* ---- the variation switch ---------------------------------------- */
+    const varyBox = root.querySelector('input[name="sfxVary"]');
+    varyBox?.addEventListener("change", () => {
+        setSetting(SETTINGS.sfxVary, varyBox.checked)
+            .catch(err => error("Could not set sound variation", err));
+    });
+
     /* ---- the mapping table ------------------------------------------ */
     const counter = root.querySelector("[data-drpg-sfx-count]");
     const recount = () => { if (counter) counter.textContent = countLine(); };
@@ -870,10 +1079,24 @@ export function wireSoundPanel(root) {
         };
 
         row.querySelector("[data-drpg-sfx-pick]")?.addEventListener("click", () => {
+            /*
+             * ADDS when the row already has something, replaces when it is empty.
+             *
+             * One event can draw from several files now, and the way a GM builds
+             * that list is by pressing Choose more than once — so a picker that
+             * overwrote would make the second file destroy the first and there
+             * would be no way to build a list at all except by typing pipes by
+             * hand. "Clear" is the button that empties a row, and it is right
+             * there next to this one.
+             */
+            const existing = soundsFor(key);
             new foundry.applications.apps.FilePicker.implementation({
                 type: "audio",
-                current: input?.value || "",
-                callback: path => write(path)
+                current: existing[existing.length - 1] ?? "",
+                callback: path => {
+                    if (existing.includes(path)) return;   // adding it twice weights the draw
+                    write([...existing, path].join(" | "));
+                }
             }).render(true);
         });
 

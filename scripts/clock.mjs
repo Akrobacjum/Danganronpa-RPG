@@ -156,6 +156,17 @@ export async function advanceTimeOfDay({
 export async function rewindTimeOfDay() {
     if (!game.user.isGM) return null;
 
+    /*
+     * THE ASSEMBLY GOES FIRST, BEFORE THE CLOCK MOVES.
+     *
+     * A called assembly fires when the time of day is no longer the one it was
+     * called in — and a rewind changes the time of day, so it would read as
+     * ripe. Worse, the clock write's own `onChange` reaches every client before
+     * the next line of this function runs, so clearing it afterwards would be a
+     * race the teleport wins about as often as not.
+     */
+    await import("./call-effects.mjs").then(m => m.cancelGather()).catch(() => {});
+
     const clock = getClock();
     const index = TIMES_OF_DAY.indexOf(clock.timeOfDay);
     const prevIndex = (index - 1 + TIMES_OF_DAY.length) % TIMES_OF_DAY.length;
@@ -172,6 +183,10 @@ export async function rewindTimeOfDay() {
     // stayed chained into a time of day that had already been undone, with
     // nothing left to clear them.
     await import("./call-effects.mjs").then(m => m.clearSeals()).catch(() => {});
+
+    // The motive's deadline is a Despair Call's timer and gets the same
+    // treatment: a misclick must not cost the cast a time of day off it.
+    await import("./rules.mjs").then(m => m.untickMotive()).catch(() => {});
 
     return next;
 }
@@ -203,6 +218,20 @@ async function applyTimeOfDayChange(clock, {
 
     // "Behind Closed Doors" seals a room for one time of day.
     await import("./call-effects.mjs").then(m => m.clearSeals()).catch(() => {});
+
+    /*
+     * ONE TIME OF DAY OFF MONOKUMA'S DEADLINE.
+     *
+     * Here rather than in the sync case below, and that is the whole reason
+     * this is two lines in two files: a decrement has to happen EXACTLY once,
+     * and this function runs on exactly one client — the GM who moved the
+     * clock. The sync case runs on all of them.
+     *
+     * Eclipses are skipped for free: `endEclipse()` finishes with a single
+     * `advanceTimeOfDay()`, so an Eclipse is a window before a time of day
+     * rather than a tick of its own, and a counter hung here never sees it.
+     */
+    await import("./rules.mjs").then(m => m.tickMotive()).catch(() => {});
 
     log(`Clock -> ${clockSummary(clock)}`);
 

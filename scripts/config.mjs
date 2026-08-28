@@ -127,6 +127,22 @@ export const FLAGS = {
     /** Character: has this character already taken their free Move this time of day? */
     freeMoveUsed: "freeMoveUsed",
     /**
+     * Character: crossings and actions BOUGHT with Hope and not yet used.
+     *
+     * COUNTERS, NOT BOOLEANS, and not `pendingCall`. Sprint and Burst are the
+     * first two Hope Calls that buy something lasting rather than something the
+     * next roll consumes, and `pendingCall` holds exactly ONE armed Call — a
+     * Sprint parked there would have quietly eaten a Support armed beside it.
+     * These are a state of the time of day, not a modifier on a roll.
+     *
+     * Counters rather than flags so buying twice means having two. Both are
+     * cleared by `resetActionsFor`, which is what makes "until the end of this
+     * time of day" true without anything having to measure time: the same
+     * reset that refills the action budget empties these.
+     */
+    freeMoveGrants: "freeMoveGrants",
+    freeActionGrants: "freeActionGrants",
+    /**
      * Character: when each kind of rest was last taken.
      * Shape: { short: "<day>:<timeOfDay>", long: <session number> }.
      *
@@ -738,25 +754,26 @@ export const KEY_REMNANTS = {
  * Actions are implemented as character abilities, not as GM calls. Each entry
  * declares which traits may roll it and what it costs.
  * ========================================================================== */
-
 /**
- * `kind` on each entry below is read by the sheet, which draws exactly the
- * `universal` ones as the action grid — everything else (crisis actions, the
- * Monocub's Meddle) has a panel of its own.
+ * `kind` on each entry below, and the ORDER they are written in.
+ *
+ * The sheet draws every `universal` entry as the action grid, in exactly this
+ * order — so the table is the layout, and moving a tile means moving a block
+ * of text here rather than editing a list somewhere else that could disagree
+ * with it. Ten of them, two rows of five.
+ *
+ * The other two kinds are entries that are NOT tiles and must not be deleted:
+ *
+ *   panel    drawn by a panel of its own. `move` is the Monocub's, whose
+ *            grid is exactly Move and Meddle.
+ *   variant  reached through another action's menu. `sabotage` is the third
+ *            branch of Projects, and `reroll.mjs` still dispatches on
+ *            `case "sabotage"` while `briefingBlock` reads its description —
+ *            an entry with no tile, not an entry that is gone.
+ *
+ * Crisis actions and the Monocub's Meddle have tables of their own.
  */
 export const ACTIONS = {
-    move: {
-        kind: "universal",
-        label: "Move",
-        icon: "fa-shoe-prints",
-        traits: [],
-        cost: 0,
-        hint: "Crossing into another room costs your free Move, then an action each.",
-        description: "Moving inside your own room is free. Crossing into a connected room spends "
-            + "this time of day's free Move.",
-        instruction: "Drag your token. Crossing into another room is what counts — the cost "
-            + "is applied when you arrive."
-    },
     search: {
         kind: "universal",
         label: "Search",
@@ -778,6 +795,10 @@ export const ACTIONS = {
         ],
         critical: { tierBonus: 1, remnant: "obvious" },
         failure: "Nothing found.",
+        // `onlyFor` is a list of ROLES, not of goals — see the note on `leaves`
+        // in `performSearch`. What decides is what came out of the table: a
+        // tool that also serves as a weapon leaves a trace, and a tool that is
+        // only a tool does not, whichever of the six the player asked for.
         leavesRemnant: { type: "prep", faint: true, onlyFor: ["crimeTool", "cleaningTool"] }
     },
     observe: {
@@ -840,27 +861,20 @@ export const ACTIONS = {
             { min: 18, result: "A direct hint — e.g. “Search the pool room.”" }
         ],
         hintCritical: { result: "They ask you one question — e.g. “Did the victim really die in this room?”" },
-        hintFailure: "No help."
-    },
-    listen: {
-        kind: "universal",
-        label: "Listen",
-        icon: "fa-ear-listen",
-        traits: ["shadow"],
-        cost: 1,
-        hint: "Work out who is in a neighbouring room. No GM needed.",
-        description: "You listen at the wall of a neighbouring room. A modest result gives you a "
-            + "headcount, a strong one gives you names.",
-        thresholds: [
-            { min: 14, result: "Pick one room; learn whether anyone is there." },
-            { min: 18, result: "Pick one room; see the tokens of everyone in it." }
-        ],
-        critical: { result: "See every player token in all adjacent rooms." },
-        failure: "You learn nothing."
+        hintFailure: "No help.",
+        /**
+         * The third thing behind this tile: finding a hiding place.
+         *
+         * A flat number rather than a table, because there is nothing for a
+         * table to say. Beating it does not open anything by itself — the
+         * result goes to the GM and they decide what it bought. See
+         * `locateStash` in action-rolls.mjs for why nothing is modelled.
+         */
+        stashThreshold: 16
     },
     project: {
         kind: "universal",
-        label: "Work on Project",
+        label: "Projects",
         icon: "fa-hammer",
         traits: ["hand", "body", "leg", "head"],
         cost: 1,
@@ -898,8 +912,161 @@ export const ACTIONS = {
         critical: { progress: 2, refundAction: true },
         failure: "No progress."
     },
-    sabotage: {
+    /**
+     * The catch-all, and the only row here that is a placeholder rather than a
+     * definition.
+     *
+     * Its label, hint and description are localised strings, which cannot be
+     * written in this file: `game.i18n` does not exist when config.mjs is
+     * evaluated. `dynamicDef()` in action-rolls.mjs builds the real thing at
+     * render time and the grid asks for it when it reaches this row.
+     *
+     * What the row is FOR is its position. The dynamic tile used to be appended
+     * after the loop over this table, which is why it sat last however the
+     * table said — and a position nobody can choose is not a layout. It sits
+     * where Dawid put it (28.08): closing the first row, next to Projects.
+     */
+    dynamic: {
         kind: "universal",
+        deferred: true
+    },
+    /**
+     * One tile, two rests. The choice of short or long is made in the dialog,
+     * where the costs and room requirements can be shown side by side — and
+     * keeping them together is half of what holds the grid at two rows of five.
+     */
+    rest: {
+        kind: "universal",
+        label: "Rest",
+        icon: "fa-bed",
+        traits: [],
+        cost: 1,
+        // "Bedroom only" was wrong, not just long: a Long Rest asks for a room
+        // the GM flagged for it in Room Setup, which may be anybody's room or
+        // nobody's. The dialog prices Short against Long and names the rooms
+        // that allow each — see `DRPG.Rest.allowedIn` — so both the costs and
+        // the room live where they are checked.
+        hint: "Recover Health, Sanity or Hope. A Long Rest costs more and buys more.",
+        description: "Sleep restores Health, a Meal clears Sanity, a Breath gives Hope — in full on a "
+            + "Long Rest, by half on a Short."
+    },
+    listen: {
+        kind: "universal",
+        label: "Listen",
+        icon: "fa-ear-listen",
+        traits: ["shadow"],
+        cost: 1,
+        hint: "Work out who is in a neighbouring room. No GM needed.",
+        description: "You listen at the wall of a neighbouring room. A modest result gives you a "
+            + "headcount, a strong one gives you names.",
+        thresholds: [
+            { min: 14, result: "Pick one room; learn whether anyone is there." },
+            { min: 18, result: "Pick one room; see the tokens of everyone in it." }
+        ],
+        critical: { result: "See every player token in all adjacent rooms." },
+        failure: "You learn nothing."
+    },
+    /**
+     * A hand in somebody else's pocket, going either way.
+     *
+     * TWO INDEPENDENT AXES, and that is the whole design: Shadow decides
+     * whether you were seen, Hand decides whether it worked. Four outcomes, and
+     * the two interesting ones are the mismatches — caught with nothing to show
+     * for it, or robbed by somebody you never noticed.
+     *
+     * TWO DIRECTIONS THROUGH ONE TILE (Dawid, 28.08). Taking and leaving are
+     * the same act of sleight, priced the same and rolled the same; splitting
+     * them into two tiles would put the rarer one on the grid forever for the
+     * sake of a difference that is one word wide. Which way it goes is the
+     * first question the window asks.
+     *
+     * Not the stash, in either direction. Stealing from one has its own route
+     * with its own conditions (`rifleStashDialog`, and the Search branch for
+     * concealed ones); a Palm that reached into a stash would walk past all of
+     * them, and planting into one would be the same hole in reverse.
+     */
+    palm: {
+        kind: "universal",
+        label: "Palm",
+        icon: "fa-hand-sparkles",
+        traits: ["hand"],
+        cost: 1,
+        hint: "Take something out of somebody's pocket, or leave something in it.",
+        description: "You get a hand into somebody's pocket. One roll decides whether they "
+            + "notice, another whether it works.",
+        /**
+         * ONE NUMBER FOR BOTH, and the asymmetry that might have argued for two
+         * is already paid for elsewhere: a Steal takes what it finds and only a
+         * critical lets you choose, while a Plant is always the thing you chose
+         * — because your own pockets are not a secret from you. That is the
+         * whole difference, and it is a difference in what you know rather than
+         * in how hard the hand is.
+         */
+        threshold: 14,
+        /** Whether they noticed. Its own axis, rolled separately. */
+        unseen: { trait: "shadow", threshold: 15, label: "Keep your hands out of sight" },
+        failure: "Your hand comes away empty."
+    },
+    /**
+     * Cleaning up, and lying with the evidence, as an ordinary action.
+     *
+     * Both halves already existed and were reachable only from Stage 6 — see
+     * `CLEANUP.actions` — which made the guide's "akcje rozwiązania w Etapie 2"
+     * unreachable, and made planting a false trail a privilege of the one
+     * person who least needs to be believed.
+     *
+     * TWO ROUTES, TWO PRICES, ONE IMPLEMENTATION. This tile costs an action and
+     * no Sanity; the crisis window in Stage 6 still costs what it costs. Both
+     * end in `attemptCleanup` / `attemptStageSix` with a flag saying which door
+     * they came through — see `viaAction` in cleanup.mjs.
+     */
+    tamper: {
+        kind: "universal",
+        label: "Tamper",
+        icon: "fa-broom",
+        traits: ["shadow"],
+        cost: 1,
+        hint: "Wipe out a trace you left, or plant one pointing at somebody else.",
+        // No thresholds here on purpose: the erase branch reads its number off
+        // how visible the trace is (`CLEANUP.dc`) and the frame-up reads a flat
+        // 18 off `CLEANUP.actions.misleadingTrail`. One number written here as
+        // well would be a second copy of a rule this table does not own.
+        description: "You go over a trace you left until it is gone, or you leave one that "
+            + "points at somebody else. Being watched while you do it is its own problem."
+    },
+    directMurder: {
+        kind: "universal",
+        label: "Direct Murder",
+        icon: "fa-skull",
+        traits: [],
+        cost: 1,
+        callsGm: true,
+        hint: "Open a direct murder. Agreed with the GM beforehand.",
+        description: "A face-to-face killing, agreed with the GM beforehand and consented to by "
+            + "the victim's player. You have to be alone with them."
+    },
+
+    /* ----------------------------------------------------------------------
+     * NOT ON THE GRID
+     * --------------------------------------------------------------------
+     * Everything below this line is a real action that no tile in the action
+     * panel draws. Deleting either entry breaks something that still reads it.
+     * -------------------------------------------------------------------- */
+
+    move: {
+        kind: "panel",
+        label: "Move",
+        icon: "fa-shoe-prints",
+        traits: [],
+        cost: 0,
+        hint: "Crossing into another room costs your free Move, then an action each.",
+        description: "Moving inside your own room is free. Crossing into a connected room spends "
+            + "this time of day's free Move.",
+        instruction: "Drag your token. Crossing into another room is what counts — the cost "
+            + "is applied when you arrive."
+    },
+    sabotage: {
+        kind: "variant",
         label: "Sabotage",
         icon: "fa-screwdriver-wrench",
         traits: ["hand", "body", "leg", "head"],
@@ -920,37 +1087,6 @@ export const ACTIONS = {
         failure: "Nothing happens.",
         failureRemnant: "hidden",
         leavesRemnant: { type: "prep", faint: true }
-    },
-    /**
-     * One tile, two rests. Kept together so the action grid stays two rows of
-     * five; the choice of short or long is made in the dialog, where the costs
-     * and room requirements can be shown side by side.
-     */
-    rest: {
-        kind: "universal",
-        label: "Rest",
-        icon: "fa-bed",
-        traits: [],
-        cost: 1,
-        // "Bedroom only" was wrong, not just long: a Long Rest asks for a room
-        // the GM flagged for it in Room Setup, which may be anybody's room or
-        // nobody's. The dialog prices Short against Long and names the rooms
-        // that allow each — see `DRPG.Rest.allowedIn` — so both the costs and
-        // the room live where they are checked.
-        hint: "Recover Health, Sanity or Hope. A Long Rest costs more and buys more.",
-        description: "Sleep restores Health, a Meal clears Sanity, a Breath gives Hope — in full on a "
-            + "Long Rest, by half on a Short."
-    },
-    directMurder: {
-        kind: "universal",
-        label: "Direct Murder",
-        icon: "fa-skull",
-        traits: [],
-        cost: 1,
-        callsGm: true,
-        hint: "Open a direct murder. Agreed with the GM beforehand.",
-        description: "A face-to-face killing, agreed with the GM beforehand and consented to by "
-            + "the victim's player. You have to be alone with them."
     }
 };
 
@@ -1168,6 +1304,83 @@ export const HOPE_CALLS = {
         reroll: true, label: "Reroll", icon: "fa-rotate-left", cost: 3, target: "none",
         effect: "Reroll the action. It reverts the previous outcome."
     },
+    /*
+     * THE THREE THAT BUY TIME RATHER THAN DICE.
+     *
+     * Every Call above this line changes what happens when you roll. These three
+     * change what you can afford to do at all, and that difference is why not one
+     * of them carries `grants`: that field parks the Call in `FLAGS.pendingCall`,
+     * which holds ONE armed Call, so a Sprint sitting there would have deleted a
+     * Support armed a moment earlier. They bank into counters of their own —
+     * `freeMoveGrants` and `freeActionGrants` — and are spent by the two
+     * functions that charge for a crossing and an action.
+     *
+     * They are also the first three Hope Calls in this module that are NOT in
+     * the guide. Costs 3 / 4 / 5 put them in the top half of the menu, above
+     * Reroll's 3 and below the Free Critical's 6.
+     */
+    sprint: {
+        label: "Sprint", icon: "fa-person-running", cost: 3, target: "none",
+        // One crossing. Sprint is the cheap specific case of Burst's expensive
+        // general one — a Move you would otherwise pay an action for — and a
+        // Call that says "a free Move" ought to hand over exactly one.
+        freeMoves: 1,
+        effect: "One more room crossing this time of day, without paying an action for it."
+    },
+    burst: {
+        /*
+         * FIVE (Dawid, 28.08), and the shape of the menu after the same day's
+         * repricing of Relief is worth reading out loud: Sprint 3 buys a
+         * crossing, Relief 3 buys a Short Rest, Burst 5 buys ANY action.
+         *
+         * The general case costs more than either specific one, which is the
+         * right way round and was not true before — Relief at 5 was the most
+         * expensive of the three while buying the narrowest thing.
+         */
+        label: "Burst", icon: "fa-bolt", cost: 5, target: "none",
+        /*
+         * ONE ACTION, NOT ONE POINT — the decision, and it has teeth.
+         *
+         * A Long Rest costs two actions, and "your next action is free" is a
+         * sentence about the action, not about half of it. So a grant covers a
+         * whole `spendAction` call whatever it is charging for. The other half
+         * of that rule is trap 97: covering ONE call means the second call in
+         * the same turn pays normally, or a Long Rest plus anything at all goes
+         * on a single Burst.
+         */
+        freeActions: 1,
+        effect: "Your next action costs nothing — the whole action, however many it would have cost."
+    },
+    relief: {
+        /*
+         * THREE, NOT FIVE (Dawid, 28.08): "nie ma powodu, by było droższe niż
+         * Burst." It was priced above Burst on the reasoning that a rest buys
+         * more than an action, which is true and is not the question — the
+         * question is what a player will actually reach for, and a Call nobody
+         * buys is a Call that is not in the game.
+         *
+         * It lands in the same price band as Sprint, Reroll and Determination,
+         * and `byPrice()` is stable, so the panel keeps them in this table's
+         * order within the band.
+         */
+        label: "Relief", icon: "fa-mug-hot", cost: 3, target: "none",
+        /*
+         * A Short Rest that ignores everything a Short Rest normally asks for.
+         *
+         * Both waivers are deliberate (decision 4). The once-per-time-of-day
+         * limit and the marked room are what make a Short Rest a decision about
+         * where you are and what you have already done — and a Call for five
+         * Hope that could only be spent when you did not need it would be a Call
+         * nobody buys. The moment you want this is exactly the moment both gates
+         * are shut.
+         *
+         * The benefits themselves are `applyRest`'s, unchanged, so "as though
+         * they had taken a rest" is literally what happens rather than a second
+         * table that agrees with the first until somebody edits one.
+         */
+        freeRest: "short",
+        effect: "Take a Short Rest right now — no action, no marked room, and it does not use up this time of day's."
+    },
     determination: {
         label: "Determination", icon: "fa-hand-fist", cost: 3, target: "none", grants: "trait",
         effect: "For one roll, choose which statistic to add yourself."
@@ -1234,13 +1447,37 @@ export const DESPAIR_CALLS = {
         grantsHope: 1,
         effect: "Turn {cost} Despair into {hope} Hope for a Monocub, so they can use Confusion."
     },
-    gameIntegrity: {
-        label: "Game Integrity", icon: "fa-arrow-trend-down", cost: 3, target: "project", progress: -2,
+    /*
+     * THE THREE PROJECT CALLS, AND THE SWAP OF 28.08.
+     *
+     * Game Integrity and Game Protection exchanged EVERYTHING except their
+     * keys: the price, the effect and the sentence. Integrity is now the
+     * expensive one that empties a project; Protection is the cheap one that
+     * knocks two off it.
+     *
+     * The whole entry moved rather than the label, because a key still bolted
+     * to the other one's effect is a trap laid for whoever opens this file
+     * next - `gameProtection` reading `wipesProgress` would have been true and
+     * unreadable at the same time. Nothing outside this table names either
+     * effect, so `callEffect()` rebuilds both sentences from the fields and
+     * the sheet, the receipt and the tooltip follow without being touched.
+     *
+     * Priced together, which is the point of them sitting together: 3 to slow
+     * a project down, 9 to end it. Nine is three quarters of a full pool, and
+     * that is the intended shape - a Monokuma who erases a project has spent
+     * their time of day on it.
+     */
+    gameProtection: {
+        label: "Game Protection", icon: "fa-arrow-trend-down", cost: 3, target: "project", progress: -2,
         effect: "Remove {progress} progress from a project."
     },
     favoriteProject: {
         label: "Favorite Project", icon: "fa-arrow-trend-up", cost: 3, target: "project", progress: 2,
         effect: "Add {progress} progress to a project."
+    },
+    gameIntegrity: {
+        label: "Game Integrity", icon: "fa-eraser", cost: 9, target: "project", wipesProgress: true,
+        effect: "A player project loses all progress."
     },
     contraband: {
         // Guide table: 5 despair. Was priced at 6 here.
@@ -1248,19 +1485,73 @@ export const DESPAIR_CALLS = {
         effect: "Destroy any one item."
     },
     publicAnnouncement: {
-        // Guide table ("Parish Announcements"): 6 despair. Was priced at 9 here,
-        // which put it out of reach of a pool that has spent anything at all.
-        label: "Public Announcement", icon: "fa-bullhorn", cost: 6, target: "room", gathersEveryone: true,
-        effect: "Monokuma moves every player into a single room."
+        /*
+         * Guide table ("Parish Announcements"): 6 despair. Was priced at 9
+         * here, which put it out of reach of a pool that has spent anything.
+         *
+         * IT IS NOW A SUMMONS, NOT A TELEPORT (E14). The announcement goes out
+         * the moment it is bought and everybody is told which room and when;
+         * the move itself happens at the start of the NEXT time of day. That
+         * turns the Call from a thing done TO the cast into a thing the cast
+         * has a time of day to react to - to arrive early, to arrive late, to
+         * be somewhere they should not be while everyone else is walking to
+         * the Main Hall. The room is public knowledge precisely so that the
+         * planning is possible.
+         *
+         * `defers: true` is read by `applyCall`, which writes the standing
+         * order instead of moving anybody, and by the sheet, which turns the
+         * tile into its own cancel button while one is pending.
+         */
+        label: "Public Announcement", icon: "fa-bullhorn", cost: 6, target: "room",
+        gathersEveryone: true, defers: true,
+        effect: "Call everyone to one room at the start of the next time of day."
+    },
+    motive: {
+        /*
+         * MONOKUMA'S MOTIVE, AND THE ONLY WAY TO ONE.
+         *
+         * Guide, p. 16: a motive is a roleplay reason to kill, announced
+         * publicly, lasting at most to the end of the chapter. It used to be
+         * free - a GM typed it into `setMotive` and it appeared. Free was
+         * wrong. A motive is the single loudest move in the game and the one
+         * most likely to end somebody, and Monokuma's moves cost Despair.
+         *
+         * NINE, deliberately: three quarters of a full pool. A Monokuma who
+         * announces a motive has spent their time of day on it and will do
+         * almost nothing else, and two of them cannot both announce one
+         * without having saved up first. That is the price of the loudest
+         * move in the game, and it is the whole reason it is a Call.
+         *
+         * Three fields rather than one, because a motive that is only a
+         * sentence is a motive nobody can hold Monokuma to: the demand, how
+         * many times of day it runs, and what happens when it runs out. The
+         * countdown lives on the HUD where the cast can watch it.
+         */
+        label: "Motive", icon: "fa-envelope", cost: 9, target: "none", setsMotive: true,
+        effect: "Announce a motive: a demand, a deadline in times of day, and the price of ignoring it."
     },
     newRule: {
         label: "New Rule", icon: "fa-gavel", cost: 12, target: "none", announces: true,
         effect: "Introduce one new killing game rule of your choice."
-    },
-    gameProtection: {
-        label: "Game Protection", icon: "fa-eraser", cost: 12, target: "project", wipesProgress: true,
-        effect: "A player project loses all progress."
     }
+};
+
+/**
+ * The motive's timer.
+ *
+ * Counted in TIMES OF DAY, and Eclipses do not count - which costs nothing to
+ * arrange: `endEclipse()` finishes with a single `advanceTimeOfDay()`, so an
+ * Eclipse is a window BEFORE a time of day rather than a tick of its own, and
+ * a counter hung on the time-of-day change skips it by construction.
+ *
+ * Five times of day make one in-fiction day, so the default of three is "by
+ * this evening" and the ceiling of ten is two days - long enough for a motive
+ * that spans a session boundary, short enough that it cannot be forgotten.
+ */
+export const MOTIVE = {
+    minTimesOfDay: 1,
+    maxTimesOfDay: 10,
+    defaultTimesOfDay: 3
 };
 
 /**
@@ -2280,6 +2571,30 @@ export const SFX_CATEGORIES = {
     incident: { label: "Incident",  hint: "A death, the investigation, the trial floor and the states that lead there." }
 };
 
+
+/**
+ * How far a varied sound may bend, as a fraction of its normal rate.
+ *
+ * ONE KNOB, NOT THREE. "Pitch and speed" sound like two controls and are one:
+ * a Web Audio buffer source has `playbackRate` and `detune`, and `detune` is
+ * only that same rate written in cents. Both RESAMPLE — faster is higher AND
+ * shorter, like a tape run fast. Changing pitch without changing length needs a
+ * phase vocoder, which is an absurd amount of machinery for a click on a
+ * button, so this module bends the rate and says so.
+ *
+ * THREE PER CENT, NOT FIVE. Five was the number the idea arrived with, and it
+ * is the top of the range rather than the middle: ±5% is about ±85 cents, most
+ * of a semitone. On a dry click that reads as "a different click", which is the
+ * whole point. On anything with a recognisable pitch it reads as OUT OF TUNE —
+ * and worse against a playlist, because then it is out of tune with the music.
+ * Since the files are the GM's and this module cannot know which of the two it
+ * has been handed, the default sits where the bad case is inaudible.
+ *
+ * Tuned by ear in E17, alongside `YIELD_MS`. Both are numbers no amount of
+ * reasoning settles.
+ */
+export const SFX_VARIATION = { rate: 0.03 };
+
 export const SFX_SLIDERS = {
     sound: { label: "Sound", hint: "The sound effects — windows, chat, doors, the trial floor. Not the music." },
     music: { label: "Music", hint: "The playlists. Foundry's own playlist volume, not a second one beside it.", proxiesFoundryMusic: true }
@@ -2293,10 +2608,24 @@ export const SFX_VOLUME_KEYS = Object.entries(SFX_SLIDERS)
 /**
  * Every sound this module can play, and nothing beyond that.
  *
- * Thirty-five events: the seventeen Dawid listed, plus the eighteen the plan
- * proposed on top of them. Every one of the additions is a moment that ALREADY
- * has its own place in the code — its own card, its own animation, its own
- * status effect — so wiring it is a line, not a feature.
+ * Forty-two events: the seventeen Dawid listed, the eighteen the plan proposed
+ * on top of them, the safeword — which arrived later and never updated this
+ * count, which is why it read "thirty-five" over thirty-six rows for two
+ * updates — five that a play-through found missing, and one that waited for
+ * the stage that gives it a voice (`projectDone`, E10). Every one of the
+ * additions is a moment that ALREADY has its own place in the code — its own
+ * card, its own animation, its own status effect — so wiring it is a line, not
+ * a feature.
+ *
+ * THE LAST FIVE WERE FOUND BY PLAYING, NOT BY PLANNING, and they have one thing
+ * in common worth writing down before anybody adds a sixth: every one of them
+ * is a FAILURE or an act done TO somebody. The successes in this game were
+ * always going to get sounds because somebody was watching for them. What the
+ * plan missed is that a consequence nobody is looking at is exactly the
+ * consequence that needs announcing — a locked Truth Bullet, a broken tool, a
+ * trace left by an attempt that achieved nothing. The rule for a sixth is the
+ * same rule that keeps Rest and Listen silent below: not "did something
+ * happen", but "would the player otherwise find out too late, or not at all".
  *
  * A ROW IN THE PANEL IS A PROMISE. Map a file here and you will hear it. An
  * entry with no call site behind it is a GM choosing a file, hearing silence,
@@ -2325,6 +2654,23 @@ export const SFX_VOLUME_KEYS = Object.entries(SFX_SLIDERS)
  *                 because they do the same thing.
  *   ignoresVolume optional. Plays at full whatever the Sound slider says. The
  *                 safeword has it and nothing else ever should.
+ *   vary          optional. Bend the rate a little on every play, so the same
+ *                 file stops being the same event. OPT-IN, and the opting is
+ *                 not a matter of taste: repetition fatigue is a function of
+ *                 HOW OFTEN a thing is heard, so the ten events below that fire
+ *                 constantly carry it and the thirty that fire once or twice a
+ *                 session do not. A verdict never wears out, and it is exactly
+ *                 the moment you want THE sound rather than a version of it.
+ *
+ *                 Default off also because the module ships no audio: we cannot
+ *                 know whether a GM mapped a dry click or a musical chord to a
+ *                 given key, and "play what they gave you" is the honest
+ *                 default for the second case.
+ *
+ *                 The safeword is excluded in CODE rather than by leaving this
+ *                 field off — see `fire`. A safety signal that sounds slightly
+ *                 different each time is one the table learns to second-guess,
+ *                 and that must not be one edit away from being true.
  *
  * WHERE THE FILING DIFFERS FROM THE PLAN'S OWN TABLE. That table put death,
  * the Truth Bullets, Analyze and the Monocubs under World, leaving Incident
@@ -2351,28 +2697,36 @@ export const SFX_EVENTS = {
         label: "Window opens",
         hint: "Any window this module draws, and a character sheet. Heard by whoever opened it.",
         category: "ui"
+    ,
+        vary: true
     },
     windowClose: {
         label: "Window closes",
         hint: "The same windows on the way out. Heard by whoever closed it.",
         category: "ui"
+    ,
+        vary: true
     },
     windowButton: {
         label: "Button in a window",
         hint: "A button pressed anywhere except a character sheet. Stays quiet when the press opens or closes a window — you hear the window instead.",
         category: "ui",
-        yieldsTo: ["windowOpen", "windowClose"]
+        yieldsTo: ["windowOpen", "windowClose"],
+        vary: true
     },
     sheetButton: {
         label: "Button on a character sheet",
         hint: "The sheet's own controls — actions, equipment, the pips. Separate from the other buttons because a sheet is a window too, and one key could not tell them apart.",
         category: "ui",
-        yieldsTo: ["windowOpen", "windowClose"]
+        yieldsTo: ["windowOpen", "windowClose"],
+        vary: true
     },
     chatOpen: {
         label: "Chat opens",
         hint: "The messenger in the corner of the screen. Heard by whoever opened it.",
         category: "ui"
+    ,
+        vary: true
     },
 
     /* ---- Chat ----------------------------------------------------------- */
@@ -2380,11 +2734,15 @@ export const SFX_EVENTS = {
         label: "Message sent",
         hint: "Heard by the sender, on the browser that sent it.",
         category: "chat"
+    ,
+        vary: true
     },
     chatReceive: {
         label: "Message arrives",
         hint: "Heard by everyone the thread belongs to — its player and every GM — and never by the sender.",
         category: "chat"
+    ,
+        vary: true
     },
     gmAsk: {
         label: "A player calls for a GM",
@@ -2406,6 +2764,16 @@ export const SFX_EVENTS = {
         hint: "A Monokuma adds one to the handbook. Heard by the whole table.",
         category: "chat"
     },
+    motive: {
+        label: "A motive",
+        hint: "A Monokuma announces one, and again when its deadline arrives. Heard by the whole table — a motive nobody heard is not a motive.",
+        category: "chat"
+    },
+    publicAnnouncement: {
+        label: "An assembly is called",
+        hint: "Everyone is summoned to one room for the next time of day, the order is called off, or the assembly is held. Heard by the whole table.",
+        category: "chat"
+    },
 
     /* ---- World ---------------------------------------------------------- */
     roomDiscovered: {
@@ -2417,15 +2785,26 @@ export const SFX_EVENTS = {
         label: "Room entered",
         hint: "A room already on the map. Heard by whoever crossed the border.",
         category: "world"
+    ,
+        vary: true
     },
     refused: {
         label: "Crossing refused",
         hint: "A wall, a locked door or a sealed room turns somebody back. Heard by whoever tried — the one mistake a player makes regularly.",
         category: "world"
+    ,
+        vary: true
     },
     actionSpent: {
         label: "Action spent",
         hint: "Heard by the player who spent it.",
+        category: "world"
+    ,
+        vary: true
+    },
+    projectDone: {
+        label: "A project is finished",
+        hint: "The bar filled. Heard by whoever proposed it and by the GMs — never publicly, because a project can be secret. A repair and an armed trap are not this: both have a louder announcement of their own.",
         category: "world"
     },
     critical: {
@@ -2437,10 +2816,22 @@ export const SFX_EVENTS = {
         label: "A search finds nothing",
         hint: "Heard by the searcher. The only common failure in the game that is otherwise completely silent.",
         category: "world"
+    ,
+        vary: true
     },
     observeFail: {
         label: "Observe fails",
         hint: "Heard by the observer. It costs 2 Sanity and looks exactly like a success until the card is read.",
+        category: "world"
+    },
+    sabotageFailed: {
+        label: "Sabotage fails",
+        hint: "Heard by the saboteur. A failed sabotage still leaves its trace, so this is not \"nothing happened\" — it is evidence bought for no gain. Stays quiet when the room saw you do it; you hear that instead.",
+        category: "world"
+    },
+    sabotageSeen: {
+        label: "Sabotage witnessed",
+        hint: "Despair with somebody else in the room. Heard by the whole table, because the whole table is told.",
         category: "world"
     },
     toolBroke: {
@@ -2475,6 +2866,11 @@ export const SFX_EVENTS = {
         hint: "Heard by the whole table. The moment the chapter changes genre.",
         category: "incident"
     },
+    cleanupFailed: {
+        label: "Cleaning up fails",
+        hint: "Heard by the killer. The Sanity is spent either way, and a failure with Despair adds an Obvious trace to the one they were trying to remove.",
+        category: "incident"
+    },
     breakdown: {
         label: "Breakdown",
         hint: "Sanity reached zero. Heard by that student's player and by the GMs.",
@@ -2490,6 +2886,11 @@ export const SFX_EVENTS = {
         hint: "A dead student joins the Monocubs, or stops being one. Heard by their player and by the GMs.",
         category: "incident"
     },
+    meddle: {
+        label: "A Monocub interferes",
+        hint: "Heard by the Monocub and by whoever they landed it on — never by anyone else, and it says nothing about WHICH Monocub. The only thing in this game that changes your next roll without you having done anything, which is why the target needs telling: they are not watching the screen.",
+        category: "incident"
+    },
     yourTurn: {
         label: "Your turn in an incident",
         hint: "Heard by whoever is up. An incident is turn-based and the only other signal is a redrawn HUD.",
@@ -2503,6 +2904,11 @@ export const SFX_EVENTS = {
     analyzeHit: {
         label: "Evidence identified",
         hint: "A successful Analyze. Heard by the student who ran it.",
+        category: "incident"
+    },
+    analyzeMiss: {
+        label: "Analysis fails",
+        hint: "Heard by the student who ran it. The bullet is locked until the next chapter — the longest-lasting consequence any failed roll in this game has, and it arrived as a whisper with nothing to mark it.",
         category: "incident"
     },
     debateOpen: {
@@ -2540,7 +2946,13 @@ export const SFX_EVENTS = {
  *   gaining Hope or Despair    the pips already flash, and at two or three
  *                              points a roll a sound becomes a rattle
  *   progress on a project      the same act as spending an action, which
- *                              already has one — two sounds back to back
+ *                              already has one — two sounds back to back.
+ *                              FINISHING one is not this, and E10 gave it
+ *                              `projectDone`: the difference is that progress
+ *                              happens on the turn you are already watching,
+ *                              and the bar filling can happen on somebody
+ *                              else's — the person who proposed the thing may
+ *                              not have touched it for two days.
  */
 
 /*
@@ -2602,6 +3014,7 @@ export const DRPG = {
     REST,
     HOPE_CALLS,
     DESPAIR_CALLS,
+    MOTIVE,
     PROJECT_SCALE,
     STATES,
     LEVEL_UP_OPTIONS,

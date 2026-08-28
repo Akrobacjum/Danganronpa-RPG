@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json — the suite fails if it does not. */
-    --drpg-css-version: "1.1.25";
+    --drpg-css-version: "1.1.37";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -2961,6 +2961,52 @@ body.drpg-pixel-font [contenteditable] {
     overflow-wrap: anywhere !important;
 }
 
+/* ---- the Stashes matrix (E11) -------------------------------------------
+   One button per cell rather than two checkboxes: a cell carries two facts
+   and the pair of boxes would be 192 targets at eight students and twelve
+   rooms, half of them meaningless ("hidden" on a room with no stash). The
+   button cycles the three states that actually exist. */
+.drpg-stash-cell {
+    text-align: center;
+    width: 7ch;
+}
+
+/* The bedroom owner's column, so a GM can see which stash appeared by itself
+   when they assigned the room rather than by their own hand. */
+.drpg-stash-cell.drpg-stash-bedroom {
+    background: rgba(var(--drpg-bone-rgb), 0.05);
+}
+
+.drpg-stash-toggle {
+    width: 100%;
+    min-width: 0;
+    padding: 2px 0;
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    color: var(--drpg-bone);
+    line-height: 1;
+    cursor: pointer;
+}
+
+.drpg-stash-toggle:hover {
+    border-color: rgba(var(--drpg-bone-rgb), 0.35);
+    background: rgba(var(--drpg-bone-rgb), 0.08);
+}
+
+/* The padlock rides the box rather than replacing it: "hidden" is a state of
+   a stash that is there, not a different kind of thing. */
+.drpg-stash-lock {
+    font-size: 0.7em;
+    margin-left: 2px;
+    vertical-align: super;
+    opacity: 0.85;
+}
+
+.drpg-stash-none {
+    opacity: 0.35;
+}
+
 .drpg-room-check-table td:first-child { width: 2.5ch; }
 .drpg-room-check-table td:nth-child(2) { width: 16ch; }
 
@@ -4139,15 +4185,35 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     font-size: 0.82em;
 }
 
-/* Only meaningful next to "Something specific", so it stays out of the way
-   until that option is picked. */
+/* A labelled field under a choice list.
+   --------------------------------------------------------------------------
+   TWO KINDS, and they used to be one. Some of these belong to the window (the
+   project picker under "work on / propose"); some belong to ONE row of the
+   list and should not be on screen until that row is picked (Search's "what
+   specifically", Tamper's two).
+
+   This was written for the second kind and keyed on the literal word
+   `specific`, which made the first kind invisible: the project select carries
+   this class, no radio in that window has the value `specific`, so nothing
+   ever turned it back on and "which project" was never on screen at all.
+
+   So the default is VISIBLE, and a field that wants to appear only for one row
+   says so with `data-drpg-when="<that row's value>"`. */
 .drpg-specific-note {
-    display: none;
+    display: flex;
     flex-direction: column;
     gap: 0.25rem;
 }
 
-.drpg-choice-list:has(input[value="specific"]:checked) ~ .drpg-specific-note {
+.drpg-specific-note[data-drpg-when] {
+    display: none;
+}
+
+.drpg-choice-list:has(input[value="specific"]:checked) ~ [data-drpg-when="specific"],
+.drpg-choice-list:has(input[value="cover"]:checked) ~ [data-drpg-when="cover"],
+.drpg-choice-list:has(input[value="frame"]:checked) ~ [data-drpg-when="frame"],
+.drpg-choice-list:has(input[value="plant"]:checked) ~ [data-drpg-when="plant"],
+.drpg-choice-list:has(input[value="body"]:checked) ~ [data-drpg-when="body"] {
     display: flex;
 }
 
@@ -7360,6 +7426,101 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     mask-image: var(--drpg-g-cleanup);
 }
 
+
+/* ==========================================================================
+   THE FIVE THAT WERE STILL WEARING FONT AWESOME
+   --------------------------------------------------------------------------
+   MEASURED, not noticed: the three Hope Calls E13 added came out with
+   `mask-image: none` and a 35x32 icon box, in a row of twenty-one drawn 24x24
+   glyphs. Nothing errors when a glyph is missing — the tile simply keeps the
+   Font Awesome fallback, at Font Awesome's size, and looks like it belongs to a
+   different program.
+
+   And a worse one in the same family. The E12 block below keys four glyphs off
+   Font Awesome CLASS NAMES, on the reasoning that "none of these four is shared
+   with a Call or an action". E12 then gave the Steal tile `fa-hand-sparkles` —
+   the Monocub's Confusion glyph — so the theft action has been drawn as
+   Confusion ever since. It renders a perfectly good picture of the wrong thing,
+   which is why nobody caught it.
+
+   So Palm is keyed off `data-drpg-action`, like every other tile in the grid,
+   and Tamper is keyed the same way rather than borrowing the broom through
+   `i.fa-broom`. The class-name shortcut stays for the four menu rows that have
+   no tile of their own and therefore no key to be found by.
+
+   Sprint is a double chevron and not a running figure: three attempts at a
+   person running all read as a smudge, which is the same lesson the contact
+   sheet recorded about the fist. Relief is a mug without steam, because three
+   curling one-pixel strokes do not survive this grid.
+
+   BURST TOOK THE BOLT OFF FREE CRITICAL (Dawid, 28.08). Both were bolts, two
+   tiles apart, and only one of them is about energy — Free Critical is not
+   "more power", it is "the dice are already decided". So the older and better
+   bolt moved to Burst, and Free Critical became a die: a hexagon with the facet
+   lines CUT OUT of it rather than drawn on it, because a one-pixel stroke on a
+   background disappears at this size and the same stroke removed from a
+   sixteen-pixel mass does not.
+   ========================================================================== */
+
+:root {
+    --drpg-g-sprint:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 5h1v1H2zM12 5h1v1H12zM2 6h2v1H2zM12 6h2v1H12zM2 7h3v1H2zM12 7h3v1H12zM2 8h4v1H2zM12 8h4v1H12zM2 9h5v1H2zM12 9h5v1H12zM2 10h6v1H2zM12 10h6v1H12zM2 11h7v1H2zM12 11h7v1H12zM2 12h7v1H2zM12 12h7v1H12zM2 13h6v1H2zM12 13h6v1H12zM2 14h5v1H2zM12 14h5v1H12zM2 15h4v1H2zM12 15h4v1H12zM2 16h3v1H2zM12 16h3v1H12zM2 17h2v1H2zM12 17h2v1H12zM2 18h1v1H2zM12 18h1v1H12z'/%3E%3C/svg%3E");
+    --drpg-g-burst:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M13 1h5v1H13zM11 2h6v1H11zM10 3h6v1H10zM9 4h6v1H9zM8 5h6v1H8zM7 6h7v1H7zM6 7h10v1H6zM5 8h10v1H5zM10 9h7v1H10zM9 10h6v1H9zM8 11h6v1H8zM7 12h6v1H7zM6 13h6v1H6zM5 14h6v1H5zM4 15h6v1H4zM4 16h4v1H4zM5 17h2v1H5z'/%3E%3C/svg%3E");
+    --drpg-g-relief:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 5h13v1H3zM3 6h13v1H3zM4 7h11v1H4zM4 8h11v1H4zM4 9h11v1H4zM16 9h3v1H16zM4 10h11v1H4zM17 10h2v1H17zM4 11h11v1H4zM17 11h2v1H17zM4 12h11v1H4zM16 12h3v1H16zM4 13h11v1H4zM4 14h11v1H4zM4 15h11v1H4zM4 16h11v1H4zM5 17h9v1H5zM5 18h9v1H5z'/%3E%3C/svg%3E");
+    --drpg-g-palm:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 3h2v1H8zM11 3h2v1H11zM14 3h2v1H14zM8 4h2v1H8zM11 4h2v1H11zM14 4h2v1H14zM8 5h2v1H8zM11 5h2v1H11zM14 5h2v1H14zM8 6h9v1H8zM6 7h11v1H6zM5 8h12v1H5zM5 9h13v1H5zM5 10h13v1H5zM5 11h13v1H5zM6 12h12v1H6zM6 13h12v1H6zM7 14h10v1H7zM8 15h8v1H8zM9 16h6v1H9z'/%3E%3C/svg%3E");
+}
+
+.drpg-call-button[data-drpg-call="sprint"] .drpg-action-icon,
+.drpg-call-button[data-drpg-call="burst"] .drpg-action-icon,
+.drpg-call-button[data-drpg-call="relief"] .drpg-action-icon {
+    width: 24px;
+    height: 24px;
+    font-size: 0 !important;
+    background-color: currentColor;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
+    image-rendering: pixelated;
+}
+
+.drpg-call-button[data-drpg-call="sprint"] .drpg-action-icon::before,
+.drpg-call-button[data-drpg-call="burst"] .drpg-action-icon::before,
+.drpg-call-button[data-drpg-call="relief"] .drpg-action-icon::before {
+    content: none !important;
+}
+
+.drpg-call-button[data-drpg-call="sprint"] .drpg-action-icon {
+    -webkit-mask-image: var(--drpg-g-sprint);
+    mask-image: var(--drpg-g-sprint);
+}
+
+.drpg-call-button[data-drpg-call="burst"] .drpg-action-icon {
+    -webkit-mask-image: var(--drpg-g-burst);
+    mask-image: var(--drpg-g-burst);
+}
+
+.drpg-call-button[data-drpg-call="relief"] .drpg-action-icon {
+    -webkit-mask-image: var(--drpg-g-relief);
+    mask-image: var(--drpg-g-relief);
+}
+
+/* The two tiles E12 added, keyed the way the other ten are. `palm` outranks the
+   `i.fa-hand-sparkles` rule below it by specificity, which is what takes
+   Confusion's glyph back off the theft tile. */
+.drpg-action-button[data-drpg-action="palm"] .drpg-action-icon {
+    -webkit-mask-image: var(--drpg-g-palm);
+    mask-image: var(--drpg-g-palm);
+}
+
+.drpg-action-button[data-drpg-action="tamper"] .drpg-action-icon {
+    -webkit-mask-image: var(--drpg-g-cleanup);
+    mask-image: var(--drpg-g-cleanup);
+}
+
 /* ==========================================================================
    THE RESOURCE BARS, DRAWN RATHER THAN DELEGATED
    --------------------------------------------------------------------------
@@ -7536,7 +7697,7 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     --drpg-g-determination:
         url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 3h2v1H11zM10 4h4v1H10zM10 5h4v1H10zM9 6h6v1H9zM8 7h8v1H8zM8 8h8v1H8zM7 9h10v1H7zM6 10h12v1H6zM6 11h12v1H6zM5 12h14v1H5zM5 13h14v1H5zM5 14h14v1H5zM6 15h12v1H6zM7 16h10v1H7zM9 17h6v1H9z'/%3E%3C/svg%3E");
     --drpg-g-free-crit:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M13 1h5v1H13zM11 2h6v1H11zM10 3h6v1H10zM9 4h6v1H9zM8 5h6v1H8zM7 6h7v1H7zM6 7h10v1H6zM5 8h10v1H5zM10 9h7v1H10zM9 10h6v1H9zM8 11h6v1H8zM7 12h6v1H7zM6 13h6v1H6zM5 14h6v1H5zM4 15h6v1H4zM4 16h4v1H4zM5 17h2v1H5z'/%3E%3C/svg%3E");
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 3h4v1H10zM8 4h8v1H8zM6 5h12v1H6zM5 6h6v1H5zM13 6h6v1H13zM4 7h7v1H4zM13 7h7v1H13zM4 8h7v1H4zM13 8h7v1H13zM4 9h7v1H4zM13 9h7v1H13zM4 10h7v1H4zM13 10h7v1H13zM4 11h7v1H4zM13 11h7v1H13zM4 12h6v1H4zM11 12h2v1H11zM14 12h6v1H14zM4 13h5v1H4zM10 13h4v1H10zM15 13h5v1H15zM4 14h4v1H4zM9 14h6v1H9zM16 14h4v1H16zM4 15h3v1H4zM8 15h8v1H8zM17 15h3v1H17zM5 16h14v1H5zM6 17h12v1H6zM8 18h8v1H8zM10 19h4v1H10z'/%3E%3C/svg%3E");
 }
 
 /* The Call tiles take the same mask treatment as the action tiles. The reset
@@ -7695,8 +7856,13 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
         url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M5 3h13v1H5zM3 4h13v1H3zM19 4h2v1H19zM2 5h12v1H2zM17 5h5v1H17zM2 6h10v1H2zM15 6h7v1H15zM2 7h8v1H2zM13 7h9v1H13zM2 8h6v1H2zM11 8h11v1H11zM3 9h3v1H3zM9 9h12v1H9zM7 10h12v1H7zM7 11h4v1H7zM7 12h3v1H7zM7 13h2v1H7z'/%3E%3C/svg%3E");
     --drpg-g-fuel-the-cub:
         url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 3h4v1H6zM13 3h4v1H13zM5 4h6v1H5zM12 4h6v1H12zM4 5h14v1H4zM4 6h14v1H4zM5 7h12v1H5zM6 8h10v1H6zM7 9h8v1H7zM8 10h6v1H8zM9 11h4v1H9zM3 14h18v1H3zM2 15h20v1H2zM3 16h18v1H3zM5 17h14v1H5z'/%3E%3C/svg%3E");
+    /* The eraser. It followed the WIPE when Integrity and Protection
+       swapped effects on 28.08 — the variables are named after the keys,
+       not the drawings, so a tile whose meaning moves takes its picture
+       with it. A falling arrow on the Call that empties a project would
+       have understated it by a factor of the whole bar. */
     --drpg-g-game-integrity:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 2h6v1H9zM9 3h6v1H9zM9 4h6v1H9zM9 5h6v1H9zM9 6h6v1H9zM9 7h6v1H9zM9 8h6v1H9zM9 9h6v1H9zM9 10h6v1H9zM9 11h6v1H9zM4 12h16v1H4zM5 13h14v1H5zM6 14h12v1H6zM7 15h10v1H7zM8 16h8v1H8zM9 17h6v1H9zM10 18h4v1H10zM11 19h2v1H11z'/%3E%3C/svg%3E");
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M12 4h8v1H12zM11 5h8v1H11zM10 6h8v1H10zM9 7h8v1H9zM8 8h8v1H8zM7 9h8v1H7zM6 10h8v1H6zM5 11h8v1H5zM4 12h8v1H4zM3 13h8v1H3zM2 17h7v1H2zM15 17h7v1H15zM2 18h7v1H2zM15 18h7v1H15z'/%3E%3C/svg%3E");
     --drpg-g-favorite-project:
         url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 4h2v1H11zM10 5h4v1H10zM9 6h6v1H9zM8 7h8v1H8zM7 8h10v1H7zM6 9h12v1H6zM5 10h14v1H5zM4 11h16v1H4zM9 12h6v1H9zM9 13h6v1H9zM9 14h6v1H9zM9 15h6v1H9zM9 16h6v1H9zM9 17h6v1H9zM9 18h6v1H9zM9 19h6v1H9z'/%3E%3C/svg%3E");
     --drpg-g-contraband:
@@ -7705,8 +7871,17 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
         url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 8h4v1H2zM2 9h4v1H2zM2 10h4v1H2zM2 11h4v1H2zM6 7h3v1H6zM6 8h3v1H6zM6 9h3v1H6zM6 10h3v1H6zM6 11h3v1H6zM6 12h3v1H6zM9 6h3v1H9zM9 7h3v1H9zM9 8h3v1H9zM9 9h3v1H9zM9 10h3v1H9zM9 11h3v1H9zM9 12h3v1H9zM9 13h3v1H9zM12 4h3v1H12zM12 5h3v1H12zM12 6h3v1H12zM12 7h3v1H12zM12 8h3v1H12zM12 9h3v1H12zM12 10h3v1H12zM12 11h3v1H12zM12 12h3v1H12zM12 13h3v1H12zM12 14h3v1H12zM12 15h3v1H12zM18 7h2v1H18zM19 9h2v1H19zM19 11h2v1H19zM18 13h2v1H18z'/%3E%3C/svg%3E");
     --drpg-g-new-rule:
         url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 3h10v1H3zM3 4h10v1H3zM3 5h10v1H3zM3 6h10v1H3zM8 7h4v1H8zM9 8h4v1H9zM10 9h4v1H10zM11 10h4v1H11zM12 11h4v1H12zM13 12h4v1H13zM14 13h4v1H14zM4 16h16v1H4zM3 17h18v1H3zM3 18h18v1H3z'/%3E%3C/svg%3E");
+    /* …and the falling arrow followed the −2. */
     --drpg-g-game-protection:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M12 4h8v1H12zM11 5h8v1H11zM10 6h8v1H10zM9 7h8v1H9zM8 8h8v1H8zM7 9h8v1H7zM6 10h8v1H6zM5 11h8v1H5zM4 12h8v1H4zM3 13h8v1H3zM2 17h7v1H2zM15 17h7v1H15zM2 18h7v1H2zM15 18h7v1H15z'/%3E%3C/svg%3E");
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 2h6v1H9zM9 3h6v1H9zM9 4h6v1H9zM9 5h6v1H9zM9 6h6v1H9zM9 7h6v1H9zM9 8h6v1H9zM9 9h6v1H9zM9 10h6v1H9zM9 11h6v1H9zM4 12h16v1H4zM5 13h14v1H5zM6 14h12v1H6zM7 15h10v1H7zM8 16h8v1H8zM9 17h6v1H9zM10 18h4v1H10zM11 19h2v1H11z'/%3E%3C/svg%3E");
+    /* The motive: a sealed envelope, its flap a V-shaped GAP rather than
+       a stroke — the rule this whole set follows, and the reason Silence
+       reads at all. Distinct from every other tile in the Despair grid at
+       24px, which a clock face or an hourglass would not have been: the
+       HUD row carries the countdown, the tile only has to say "Monokuma
+       has handed something out". */
+    --drpg-g-motive:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 7h1v1H3zM5 7h14v1H5zM20 7h1v1H20zM3 8h2v1H3zM6 8h12v1H6zM19 8h2v1H19zM3 9h3v1H3zM7 9h10v1H7zM18 9h3v1H18zM3 10h4v1H3zM8 10h8v1H8zM17 10h4v1H17zM3 11h5v1H3zM9 11h6v1H9zM16 11h5v1H16zM3 12h6v1H3zM10 12h4v1H10zM15 12h6v1H15zM3 13h7v1H3zM11 13h2v1H11zM14 13h7v1H14zM3 14h8v1H3zM13 14h8v1H13zM3 15h18v1H3zM3 16h18v1H3zM3 17h18v1H3zM3 18h18v1H3z'/%3E%3C/svg%3E");
 }
 
 .drpg-call-button[data-drpg-call="obstacle"] .drpg-action-icon {
@@ -7959,6 +8134,110 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
 
 .drpg-call-button[data-drpg-call="gameProtection"] .drpg-action-icon::before {
     content: none !important;
+}
+
+.drpg-call-button[data-drpg-call="motive"] .drpg-action-icon {
+    width: 24px;
+    height: 24px;
+    font-size: 0 !important;
+    background-color: currentColor;
+    -webkit-mask-image: var(--drpg-g-motive);
+    mask-image: var(--drpg-g-motive);
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
+    image-rendering: pixelated;
+}
+
+.drpg-call-button[data-drpg-call="motive"] .drpg-action-icon::before {
+    content: none !important;
+}
+
+/* ==========================================================================
+   E14 — A CALL THAT IS STANDING, AND THE TWO ROWS THAT SAY SO
+   --------------------------------------------------------------------------
+   Public Announcement is a summons now: bought in one time of day, held at the
+   start of the next, and cancellable from the same tile in between. While it
+   is standing the tile is BONE, not red.
+
+   That is a deliberate refusal. Red in this module already means "this Call
+   hands the turn to a GM" (GM_ROUTE_CLASS) and gold belongs to Hope; a third
+   meaning on red is exactly the mistake the note on outline colour warns
+   about. Bone plus a slow pulse reads as "loaded, not yet fired", which is
+   what a called assembly is.
+   ========================================================================== */
+.drpg-call-button.drpg-call-pending {
+    color: var(--drpg-bone) !important;
+    border-color: rgba(var(--drpg-bone-rgb), 0.75) !important;
+    background: rgba(var(--drpg-bone-rgb), 0.10) !important;
+    /* Never dimmed for affordability: cancelling costs nothing, and the pool is
+       at its emptiest precisely when somebody wants to. Written here as well as
+       in `callButton` so a future class ordering cannot bring the grey back. */
+    opacity: 1 !important;
+    cursor: pointer !important;
+    position: relative;
+}
+
+/* The dot. Positioned rather than added to the markup, so the tile keeps the
+   same three children as every other tile in the grid and the layout is
+   untouched when the state clears. */
+.drpg-call-button.drpg-call-pending::after {
+    content: "";
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--drpg-bone);
+    animation: drpg-pending-pulse 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .drpg-call-button.drpg-call-pending::after { animation: none; }
+}
+
+/* --- the two HUD rows ----------------------------------------------------
+   Both sit under the elapsed line and both are absent unless there is
+   something to say, which is what keeps the right column where it was on an
+   ordinary time of day (trap 108). Same size and letterspacing as the elapsed
+   row above them, so the block reads as one stack rather than as three
+   different widgets. */
+.drpg-hud-motive,
+.drpg-hud-assembly {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    align-items: baseline;
+    font-size: var(--font-size-11, 0.7rem);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-top: 2px;
+}
+
+.drpg-hud-motive-label,
+.drpg-hud-assembly-label {
+    opacity: 0.55;
+}
+
+.drpg-hud-motive-left,
+.drpg-hud-assembly-room {
+    color: var(--drpg-bone);
+    opacity: 0.95;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Due is the one moment the countdown was for, so it is the one moment the row
+   is allowed to shout. Blood, because a motive coming due is Monokuma's. */
+.drpg-hud-motive.due .drpg-hud-motive-left {
+    color: var(--drpg-blood);
+    opacity: 1;
+    animation: drpg-pending-pulse 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .drpg-hud-motive.due .drpg-hud-motive-left { animation: none; }
 }
 
 /* ==========================================================================
@@ -10871,6 +11150,39 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
    player sees, so they are laid out to stand on their own rather than as a
    header strip for the tabs beneath them.
    ========================================================================== */
+/* ---- variation and round robin -----------------------------------------
+   A badge on the event's name saying what the row does that a bare path
+   cannot say: how many files it draws from, and whether it bends. */
+.drpg-sfx-badge {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 0 5px;
+    border: 1px solid rgba(var(--drpg-bone-rgb), 0.28);
+    border-radius: 2px;
+    font-size: 0.68em;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    opacity: 0.75;
+    vertical-align: middle;
+}
+
+/* One switch for the whole panel, sitting with the sliders rather than in the
+   forty-row table — a control buried at the top of forty rows is not found. */
+.drpg-sound-switch {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 2px 8px;
+    align-items: center;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(var(--drpg-bone-rgb), 0.12);
+}
+
+.drpg-sound-switch .notes {
+    grid-column: 2;
+    margin: 0;
+}
+
 .drpg-sound-volumes {
     margin-bottom: 12px;
 }

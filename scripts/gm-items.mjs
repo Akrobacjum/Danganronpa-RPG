@@ -120,10 +120,12 @@ export async function openItemManager(actor = null) {
  * anybody at the table refers to it.
  */
 async function giveKeyDialog(actor) {
-    const { allVaults, grantBedroomKey, keysHeldBy } = await import("./vault.mjs");
+    // Bedrooms, not stashes — a stash in somebody else's room must never
+    // produce a key to it. See `allBedrooms` and trap 79.
+    const { allBedrooms, grantBedroomKey, keysHeldBy } = await import("./vault.mjs");
 
     const held = keysHeldBy(actor);
-    const rooms = allVaults()
+    const rooms = allBedrooms()
         .filter(v => v.owner && v.owner.id !== actor.id && !held.has(v.room));
 
     if (!rooms.length) {

@@ -16,7 +16,7 @@
  * wanted here.
  */
 
-import { MODULE_ID } from "./config.mjs";
+import { MODULE_ID, MOTIVE } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import { announce, dialogContent, log, error, plural, tableDialog } from "./utils.mjs";
@@ -55,15 +55,23 @@ export function rules() {
  * what makes it lapse without anybody having to remember to clear it.
  * ========================================================================== */
 
-/** The motive in force this chapter, or null. */
+/**
+ * The motive in force this chapter, or null.
+ *
+ * `due` is derived rather than stored twice: the record holds one number, and
+ * every reader — the HUD row, the card, the tick — asks the same question of
+ * it in the same place.
+ */
 export function motive() {
     try {
         const stored = game.settings.get(MODULE_ID, SETTINGS.motive) ?? {};
         if (!stored.text) return null;
         // Expired by arithmetic rather than by a cleanup pass: a motive from an
-        // earlier chapter simply stops being the current one.
+        // earlier chapter simply stops being the current one. The guide's outer
+        // bound ("maksymalnie do końca rozdziału") survives the countdown being
+        // added inside it — a motive can run out early, never late.
         if (stored.chapter !== getClock().chapter) return null;
-        return stored;
+        return { ...stored, due: (stored.remaining ?? 0) <= 0 };
     } catch {
         return null;
     }
@@ -74,11 +82,27 @@ export function motive() {
  *
  * Announced out loud, always. The guide's "musi być ogłaszany publicznie" is
  * the whole mechanism — a motive works by everybody knowing it is on the table.
+ *
+ * THREE FIELDS, NOT ONE (E14). A motive is a demand, a deadline and a price
+ * for missing it. Written as a single sentence it was none of those things
+ * mechanically: nothing counted down, nothing came due, and whether it was
+ * still in force was a memory test the table failed two sessions later.
+ *
+ * NOT A GM ENTRANCE ANY MORE. This is reached from the nine-Despair Call and
+ * from `game.drpg.setMotive` for repair; the free route the rules manager used
+ * to offer is gone, because a motive that costs nothing is a move Monokuma can
+ * make every time of day forever.
+ *
+ * @param {object|string|null} input  `{ text, timesOfDay, consequence }`, or a
+ *   bare string for the demand alone (the API's old shape), or null to
+ *   withdraw.
  */
-export async function setMotive(text) {
+export async function setMotive(input) {
     if (!game.user.isGM) return null;
 
-    const trimmed = String(text ?? "").trim();
+    const given = typeof input === "string" || input == null ? { text: input } : input;
+    const trimmed = String(given.text ?? "").trim();
+
     if (!trimmed) {
         await game.settings.set(MODULE_ID, SETTINGS.motive, {});
         await announce({
@@ -89,20 +113,108 @@ export async function setMotive(text) {
         return null;
     }
 
-    const record = { text: trimmed, chapter: getClock().chapter, at: Date.now() };
+    // Clamped rather than trusted: this arrives from a number input, and a
+    // motive with a deadline of zero would be due before it was announced.
+    const asked = Math.trunc(Number(given.timesOfDay)) || MOTIVE.defaultTimesOfDay;
+    const timesOfDay = Math.min(MOTIVE.maxTimesOfDay, Math.max(MOTIVE.minTimesOfDay, asked));
+
+    const record = {
+        text: trimmed,
+        consequence: String(given.consequence ?? "").trim(),
+        timesOfDay,
+        remaining: timesOfDay,
+        chapter: getClock().chapter,
+        at: Date.now()
+    };
     await game.settings.set(MODULE_ID, SETTINGS.motive, record);
 
+    const esc = t => foundry.utils.escapeHTML(String(t ?? ""));
+    const consequence = record.consequence
+        ? `<p class="drpg-warning">${game.i18n.format("DRPG.Motive.orElse", {
+            what: esc(record.consequence)
+        })}</p>`
+        : "";
+
     await announce({
-        flags: { [MODULE_ID]: { sfx: { key: "newRule", gm: true } } },
+        flags: { [MODULE_ID]: { sfx: { key: "motive", gm: true } } },
         content: `<div class="drpg-evidence-card">
             <div class="drpg-objection-banner">${game.i18n.localize("DRPG.Motive.banner")}</div>
-            <p>${foundry.utils.escapeHTML(trimmed)}</p>
-            <p class="notes">${game.i18n.localize("DRPG.Motive.untilChapterEnd")}</p>
+            <p>${esc(trimmed)}</p>
+            ${consequence}
+            <p class="notes">${plural("DRPG.Motive.deadline", { n: timesOfDay })}</p>
         </div>`
     });
 
-    log(`Motive announced for chapter ${record.chapter}: ${trimmed}`);
+    log(`Motive announced for chapter ${record.chapter} (${timesOfDay} times of day): ${trimmed}`);
     return record;
+}
+
+/**
+ * One time of day has passed. Returns the record, or null if there was none.
+ *
+ * ZERO IS A STATE, NOT AN END. The counter floors at zero and the motive stays
+ * on the board, marked due, until Monokuma withdraws it or the chapter turns.
+ * The alternative — expiring at zero — hides the motive at the exact moment it
+ * matters, which is the moment somebody has to decide whether the threat was
+ * real.
+ *
+ * Announced ONCE when it comes due, guarded by a stored flag rather than by
+ * "was it above zero a moment ago": the tick can be re-entered by a rewind and
+ * a re-advance, and a deadline announced twice reads as a second deadline.
+ */
+export async function tickMotive() {
+    if (!game.user.isGM) return null;
+
+    const stored = motive();
+    if (!stored) return null;
+
+    const remaining = Math.max(0, (stored.remaining ?? 0) - 1);
+    const due = remaining === 0;
+    const announceDue = due && !stored.dueAnnounced;
+
+    await game.settings.set(MODULE_ID, SETTINGS.motive, {
+        ...stored, remaining, dueAnnounced: stored.dueAnnounced || due
+    });
+
+    if (announceDue) {
+        const esc = t => foundry.utils.escapeHTML(String(t ?? ""));
+        await announce({
+            flags: { [MODULE_ID]: { sfx: { key: "motive", gm: true } } },
+            content: `<div class="drpg-evidence-card">
+                <div class="drpg-objection-banner">${game.i18n.localize("DRPG.Motive.dueBanner")}</div>
+                <p>${esc(stored.text)}</p>
+                ${stored.consequence
+                    ? `<p class="drpg-warning">${esc(stored.consequence)}</p>`
+                    : ""}
+            </div>`
+        });
+        log("The motive has come due.");
+    }
+
+    return { ...stored, remaining, due };
+}
+
+/**
+ * Give the time of day back. A rewind is a correction for a misclick, and a
+ * misclick must not cost the cast a time of day off Monokuma's deadline.
+ *
+ * Capped at what was bought, so repeated rewinds cannot inflate a three-time-
+ * of-day motive into a longer one. `dueAnnounced` is cleared on the way back
+ * up, because the deadline that was announced has been un-happened.
+ */
+export async function untickMotive() {
+    if (!game.user.isGM) return null;
+
+    const stored = motive();
+    if (!stored) return null;
+
+    const cap = stored.timesOfDay ?? MOTIVE.defaultTimesOfDay;
+    const remaining = Math.min(cap, (stored.remaining ?? 0) + 1);
+    if (remaining === stored.remaining) return stored;
+
+    const next = { ...stored, remaining, dueAnnounced: remaining === 0 && stored.dueAnnounced };
+    await game.settings.set(MODULE_ID, SETTINGS.motive, next);
+    return next;
 }
 
 /* ==========================================================================

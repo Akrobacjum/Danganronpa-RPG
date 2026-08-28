@@ -575,6 +575,10 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
     const created = await createProject({
         name: result.name,
         target: result.target,
+        // Whose idea it was, straight off the proposal card. `start` is the
+        // preset when the GM opened this from an Approve button, and null when
+        // they opened it from the panel — where there is no proposer to name.
+        by: start?.by ?? null,
         room: result.room,
         trait: result.trait,
         indirectMurder: result.murder,

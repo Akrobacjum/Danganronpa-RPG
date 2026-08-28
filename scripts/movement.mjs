@@ -17,7 +17,7 @@
 import { MODULE_ID, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, TIMES_OF_DAY, FLAGS,
     ROOM_OWNER_FLAG, BEDROOM_KEY_FLAG } from "./config.mjs";
 import { SETTINGS, iAmTheMastermind } from "./settings.mjs";
-import { hasFreeMove, takeMove, actionsLeft } from "./actions.mjs";
+import { hasFreeMove, takeMove, actionsLeft, canPayFor, freeMovesLeft } from "./actions.mjs";
 // Statically imported, not lazily: the crossing veto runs inside a synchronous
 // `preUpdateToken` hook, where there is no opportunity to await an import.
 // call-effects.mjs only reaches back into this file lazily, so there is no cycle.
@@ -27,7 +27,7 @@ import { isSealed, isChained } from "./call-effects.mjs";
 // from mastermind.mjs, and that one edge was what closed every static import
 // cycle in the module; see the note above the function.
 // `neighbouringRooms` and `boundsOf` are defined further down this file.
-import { whisperToOwner, isPrimaryGm, debug, error, cardHead } from "./utils.mjs";
+import { whisperToOwner, isPrimaryGm, debug, error, cardHead, plural } from "./utils.mjs";
 import { playSfx } from "./sfx.mjs";
 
 /**
@@ -235,8 +235,23 @@ function canCross(actor, from, to) {
     const notConnected = crossingRefused(from, to);
     if (notConnected) return notConnected;
 
+    /*
+     * THE THIRD PLACE THAT ASKS "CAN YOU AFFORD THIS", and the only one that
+     * can stop a crossing before anything else in the module sees it — this
+     * runs in `preUpdateToken` and simply refuses the update.
+     *
+     * MEASURED, on the player's own client, which is the only place it fires:
+     * with a Sprint banked and no actions, the token snapped straight back and
+     * the warning read "No free Move and no actions left." Three Hope for a
+     * crossing that never happened, and neither `chargeForCrossing` nor
+     * `takeMove` — both of which know about Sprints — was ever reached.
+     *
+     * A GM's move never comes through here at all (see the `isGM` exemption
+     * above), which is exactly why this had to be tested from the other seat.
+     */
     if (hasFreeMove(actor)) return true;
-    if (actionsLeft(actor) >= 1) return true;
+    if (freeMovesLeft(actor) >= 1) return true;
+    if (canPayFor(actor, 1)) return true;
     return game.i18n.localize("DRPG.Move.noBudget");
 }
 
@@ -727,9 +742,17 @@ function crossingsAlong(before, path, after) {
 async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = null) {
     const free = hasFreeMove(actor);
 
-    // Out of budget: the crossing does not happen. Put the token back where it
-    // was rather than leaving it in a room it could not afford to enter.
-    if (!free && actionsLeft(actor) < 1) {
+    /*
+     * Out of budget: the crossing does not happen. Put the token back where it
+     * was rather than leaving it in a room it could not afford to enter.
+     *
+     * A SPRINT COUNTS AS BUDGET (E13). Without this line the guard sends the
+     * token back before `takeMove` is ever reached, so three Hope would buy a
+     * crossing that this function refuses a moment later — the same trap as the
+     * greyed-out grid, one layer down. `canPayFor` covers the Burst half, since
+     * a crossing that costs an action is an action like any other.
+     */
+    if (!free && freeMovesLeft(actor) < 1 && !canPayFor(actor, 1)) {
         ui.notifications.warn(game.i18n.localize("DRPG.Move.noBudget"));
         // Tagged as an error popup (red border) rather than the default
         // info one — this is a refusal, the concrete case the red variant
@@ -749,9 +772,14 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
         ? game.i18n.format("DRPG.Move.entered", { room: foundry.utils.escapeHTML(to) })
         : game.i18n.localize("DRPG.Move.leftRooms");
 
+    // Three prices now, and the third has to be named: a Sprint is not the
+    // day's free Move and it is not an action, and a card calling it either
+    // would be telling the player their budget is somewhere it is not.
     const price = cost === "free"
         ? game.i18n.localize("DRPG.Move.wasFree")
-        : game.i18n.format("DRPG.Move.costAction", { left: actionsLeft(actor) });
+        : cost === "sprint"
+            ? plural("DRPG.Move.wasSprint", { n: freeMovesLeft(actor) })
+            : game.i18n.format("DRPG.Move.costAction", { left: actionsLeft(actor) });
 
     if (tokenDoc) lastPosition.set(tokenDoc.id, { x: tokenDoc.x, y: tokenDoc.y });
 

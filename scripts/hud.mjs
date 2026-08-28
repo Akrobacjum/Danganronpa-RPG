@@ -17,7 +17,7 @@
 import { MODULE_ID, TIMES_OF_DAY, ECLIPSE_FREE_PLACEMENT } from "./config.mjs";
 import { getClock, setClock, campaignName, phaseLabel, timeOfDayLabel, rewindTimeOfDay } from "./clock.mjs";
 import { play, TURN, ARRIVE, LEAVE } from "./motion.mjs";
-import { isPrimaryGm, error } from "./utils.mjs";
+import { isPrimaryGm, error, plural } from "./utils.mjs";
 // Static, and checked before adding: this file avoids static imports because it
 // sits on the render path the clock itself calls back into, so a cycle here
 // would be a load-order problem rather than a lint complaint. None of these
@@ -29,6 +29,8 @@ import { SearchTokens } from "./search-tokens.mjs";
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
 // Static, and safe: nothing imports hud.mjs, so no path leads back here.
 import { murderState, participantIds } from "./murder.mjs";
+import { motive } from "./rules.mjs";
+import { pendingGather } from "./call-effects.mjs";
 // The fifth, added when the trial's own bar was folded into this widget. Walked
 // like the four above and clean: trial-floor.mjs reaches config, settings and
 // utils and nothing else — it stopped importing trial.mjs when the evidence
@@ -286,6 +288,22 @@ export function renderHud() {
             buildTimeRow(clock, isGM),
             buildElapsed()
         );
+
+        /* MONOKUMA'S TWO STANDING THREATS, WHEN THERE ARE ANY.
+         *
+         * Both are public by design and both were previously a chat card that
+         * scrolled away — which for the motive meant that "how long have we
+         * got" was a memory test, and for a deferred assembly would have meant
+         * the cast being teleported by an order nobody could still see.
+         *
+         * Appended conditionally and returning null when idle, so the column
+         * below keeps its height on an ordinary time of day. `alignRightColumn`
+         * measures what is actually here, after this. */
+        const motiveRow = buildMotive();
+        if (motiveRow) hud.append(motiveRow);
+
+        const assembly = buildAssembly();
+        if (assembly) hud.append(assembly);
 
         const incident = buildIncident();
         if (incident) hud.append(incident);
@@ -1196,6 +1214,68 @@ function buildSearchPips(room, { idle = false } = {}) {
         row.append(pip);
     }
     return row;
+}
+
+/**
+ * The motive, and how many times of day are left on it.
+ *
+ * The demand is the row; the consequence is the tooltip. Two sentences in the
+ * corner of the screen is a paragraph, and a paragraph in a HUD is something
+ * people stop reading — but the consequence is the half a player actually
+ * needs when they decide whether to take the threat seriously, so it has to be
+ * one hover away rather than in a chat log two hundred messages back.
+ *
+ * At zero the row does not disappear. It says the deadline has arrived, which
+ * is the only moment the countdown was ever for.
+ */
+function buildMotive() {
+    const record = motive();
+    if (!record) return null;
+
+    const el = document.createElement("div");
+    el.className = "drpg-hud-motive";
+    if (record.due) el.classList.add("due");
+
+    const left = record.due
+        ? game.i18n.localize("DRPG.Motive.dueShort")
+        : plural("DRPG.Motive.left", { n: record.remaining ?? 0 });
+
+    el.innerHTML = `<span class="drpg-hud-motive-label">${
+        game.i18n.localize("DRPG.Motive.title")}</span><span class="drpg-hud-motive-left">${
+        foundry.utils.escapeHTML(left)}</span>`;
+
+    const parts = [foundry.utils.escapeHTML(record.text)];
+    if (record.consequence) {
+        parts.push(`<em>${game.i18n.format("DRPG.Motive.orElse", {
+            what: foundry.utils.escapeHTML(record.consequence)
+        })}</em>`);
+    }
+    el.dataset.tooltip = parts.join("<br>");
+
+    return el;
+}
+
+/**
+ * The assembly Monokuma has called and not yet held.
+ *
+ * Deferring Public Announcement created a fact the cast has to plan around,
+ * and a fact you plan around cannot live only in scrollback. It names the room
+ * and says when — and it is gone the moment the assembly happens.
+ */
+function buildAssembly() {
+    const order = pendingGather();
+    if (!order) return null;
+
+    const el = document.createElement("div");
+    el.className = "drpg-hud-assembly";
+    el.innerHTML = `<span class="drpg-hud-assembly-label">${
+        game.i18n.localize("DRPG.Calls.gatherShort")}</span><span class="drpg-hud-assembly-room">${
+        foundry.utils.escapeHTML(order.room)}</span>`;
+    el.dataset.tooltip = game.i18n.format("DRPG.Calls.gatherBody", {
+        room: foundry.utils.escapeHTML(order.room)
+    });
+
+    return el;
 }
 
 const MARK_FIRST_ACTION = 15 * 60 * 1000;

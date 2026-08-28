@@ -58,6 +58,16 @@ export const SETTINGS = {
      */
     sfxMap: "sfxMap",
     /**
+     * Bend varied sounds a little on each play, or play them exactly as mapped.
+     *
+     * World-scoped and GM-owned, like the mapping it modifies and unlike the
+     * volumes: this is a property of the sound design rather than of one
+     * person's speakers. One switch rather than a slider, because the size of
+     * the bend is `SFX_VARIATION` and tuned once — what a table needs is a way
+     * to say "our files do not like this", in one place, in one click.
+     */
+    sfxVary: "sfxVary",
+    /**
      * How loud this module is on THIS browser: `{ sound }`, 0–1.
      *
      * Client-scoped, because volume is the one thing about sound that is
@@ -157,8 +167,25 @@ export const SETTINGS = {
      * końca rozdziału." Public by design, exactly like the rules — a motive
      * nobody heard is not a motive — and chapter-stamped so it lapses on its
      * own when the chapter counter moves, the same trick `silencedChapter` uses.
+     *
+     * Shape since E14: `{ text, consequence, timesOfDay, remaining, chapter,
+     * at, dueAnnounced }`. The countdown sits INSIDE the chapter stamp rather
+     * than replacing it — the guide's outer bound still holds, and the timer
+     * is how a motive ends early. See rules.mjs.
      */
     motive: "motive",
+    /**
+     * The assembly Monokuma has called but not yet held, or `{}`.
+     *
+     * Shape: `{ room, by, chapter, session, timeOfDay, at }` — the time of day
+     * it was BOUGHT in, which is how the clock knows the order is ripe.
+     *
+     * World-scoped and public on purpose, and this one is not a leak but the
+     * mechanic: Public Announcement is now a summons the cast has a whole time
+     * of day to react to, and reacting requires knowing. Everybody is told in
+     * chat when it is called, and the HUD carries the room until it happens.
+     */
+    pendingGather: "pendingGather",
     /**
      * The murder currently in progress, or `{}`.
      *
@@ -474,6 +501,16 @@ export function registerSettings() {
         default: {}
     });
 
+    // Whether the events marked `vary` bend on each play. Default on: the ten
+    // that carry the flag are the ones heard dozens of times a session, and an
+    // identical click on the fortieth press is the thing this exists to stop.
+    game.settings.register(MODULE_ID, SETTINGS.sfxVary, {
+        scope: "world",
+        config: false,
+        type: Boolean,
+        default: true
+    });
+
     // Per-browser volumes. Client-scoped, so no `onChange` broadcast: the only
     // screen that has to react is the one whose slider moved.
     game.settings.register(MODULE_ID, SETTINGS.sfxVolumes, {
@@ -573,6 +610,16 @@ export function registerSettings() {
         type: Object,
         default: {},
         onChange: () => onWorldChange(SETTINGS.motive)
+    });
+
+    // The assembly called and not yet held. Public for the same reason the
+    // motive is: the cast is meant to plan around it.
+    game.settings.register(MODULE_ID, SETTINGS.pendingGather, {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => onWorldChange(SETTINGS.pendingGather)
     });
 
     game.settings.register(MODULE_ID, SETTINGS.murderState, {

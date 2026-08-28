@@ -15,7 +15,7 @@
 
 import { MODULE_ID, FLAGS, REST, STARTING } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { actionsLeft, spendAction } from "./actions.mjs";
+import { actionsLeft, spendAction, canPayFor } from "./actions.mjs";
 import { roomOfActor } from "./movement.mjs";
 import { getClock } from "./clock.mjs";
 import { resourceMax, resourceValue } from "./character.mjs";
@@ -137,14 +137,26 @@ function currentClock() {
  *
  * @param {Actor} actor
  * @param {"short"|"long"} kind
+ * @param {object} [options]  All four are the Relief Hope Call and nothing else
+ *   (E13). Each one SKIPS a gate rather than passing it: `takeRest` refuses with
+ *   its own warning at three separate points, and a Call that "passed" them
+ *   would show the player "you have already rested this time of day" and then
+ *   hand their five Hope back — trap 99.
+ * @param {boolean} [options.free]         costs no action
+ * @param {boolean} [options.ignoreRoom]   no marked room required
+ * @param {boolean} [options.ignoreLimit]  neither checks nor spends the once-per
+ *   window allowance, so the ordinary Short Rest is still there afterwards
+ * @param {boolean} [options.quiet]        no card of its own; the caller prints one
  */
-export async function takeRest(actor, kind = "short") {
+export async function takeRest(actor, kind = "short", {
+    free = false, ignoreRoom = false, ignoreLimit = false, quiet = false
+} = {}) {
     try {
         const rules = REST[kind];
         if (!actor || !rules) return null;
 
         const clock = currentClock();
-        if (restSpent(actor, kind, clock)) {
+        if (!ignoreLimit && restSpent(actor, kind, clock)) {
             ui.notifications.warn(game.i18n.format(
                 kind === "long" ? "DRPG.Rest.alreadyThisSession" : "DRPG.Rest.alreadyThisTimeOfDay",
                 { kind: kindLabel(kind) }
@@ -153,7 +165,7 @@ export async function takeRest(actor, kind = "short") {
         }
 
         const room = roomOfActor(actor);
-        if (!roomAllows(room, kind)) {
+        if (!ignoreRoom && !roomAllows(room, kind)) {
             const allowed = restRooms(kind);
             ui.notifications.warn(allowed.length
                 ? game.i18n.format("DRPG.Rest.wrongRoom", {
@@ -165,8 +177,8 @@ export async function takeRest(actor, kind = "short") {
             return null;
         }
 
-        const cost = rules.actionCost;
-        if (actionsLeft(actor) < cost) {
+        const cost = free ? 0 : rules.actionCost;
+        if (cost > 0 && !canPayFor(actor, cost)) {
             ui.notifications.warn(plural("DRPG.Actions.notEnough", {
                 actor: actor.name, left: actionsLeft(actor), needed: cost
             }, "left"));
@@ -176,21 +188,25 @@ export async function takeRest(actor, kind = "short") {
         const picks = await choosePicks(kind, rules.picks);
         if (!picks) return null;
 
-        if (!await spendAction(actor, cost)) return null;
+        if (cost > 0 && !await spendAction(actor, cost)) return null;
 
         // The benefits first, the "used up" stamp second. The other order meant
         // a failed write left the rest spent and nothing restored — and a long
         // rest is once per session, so that is a session's worth of recovery
         // gone to a database hiccup.
         const applied = await applyRest(actor, kind, picks);
-        await markRestTaken(actor, kind, clock);
+        // Relief does not use the allowance up, which is half of what it buys:
+        // the Short Rest this character had before it is still there.
+        if (!ignoreLimit) await markRestTaken(actor, kind, clock);
 
-        await whisperToOwner(actor, `${cardHead({ action: kindLabel(kind), room })}
-            <ul>${applied.map(a => `<li>${foundry.utils.escapeHTML(a)}</li>`).join("")}</ul>`);
+        if (!quiet) {
+            await whisperToOwner(actor, `${cardHead({ action: kindLabel(kind), room })}
+                <ul>${applied.map(a => `<li>${foundry.utils.escapeHTML(a)}</li>`).join("")}</ul>`);
+        }
 
         log(`${actor.name} took a ${kind} rest in ${room}: ${picks.join(", ")}`);
         Hooks.callAll("drpgRested", { actor, kind, picks, room });
-        return { kind, picks, room };
+        return { kind, picks, room, applied };
     } catch (err) {
         error("Rest failed", err);
         return null;
@@ -199,9 +215,27 @@ export async function takeRest(actor, kind = "short") {
 
 /** Ask which benefits to take. A long rest takes two, a short one takes one. */
 async function choosePicks(kind, count) {
+    /*
+     * THE COUNT IS ENFORCED IN THE WINDOW, NOT AFTER IT.
+     *
+     * A Short Rest takes one of the three and a Long Rest takes two, and the
+     * window used to let you tick all three and find out on the way past: the
+     * check below fired, warned, and closed the dialog, sending the player back
+     * to the start of an action they had already paid for.
+     *
+     * ONE PICK IS A RADIO GROUP. Not a checkbox that un-ticks its neighbour —
+     * a radio, because that is what a browser already knows how to be, and
+     * because a player who has used a radio button before knows what it will do
+     * before they touch it. Two picks stay checkboxes and are capped live, with
+     * the confirm button shut until exactly two are on.
+     *
+     * The check after the button STAYS. It is the authority; this is the
+     * interface agreeing with it in advance.
+     */
+    const single = count === 1;
     const options = Object.entries(REST.options)
         .map(([key, opt]) => `<label class="drpg-rest-option">
-                <input type="checkbox" name="pick" value="${key}" />
+                <input type="${single ? "radio" : "checkbox"}" name="pick" value="${key}" />
                 <span><strong>${opt.label}</strong> — ${kind === "long" ? opt.long : opt.short}</span>
             </label>`).join("");
 
@@ -212,6 +246,24 @@ async function choosePicks(kind, count) {
             <p>${game.i18n.format("DRPG.Rest.choose", { n: count })}</p>
             ${options}
         </form>`,
+        render: (event, dialog) => {
+            const root = dialog?.element;
+            if (!root) return;
+            const boxes = Array.from(root.querySelectorAll("[name=pick]"));
+            const confirm = root.querySelector('button[data-action="ok"]');
+            const sync = () => {
+                const on = boxes.filter(b => b.checked);
+                // Cap, so the third tick cannot happen at all — a box that
+                // refuses the click is clearer than one that accepts it and is
+                // told off later. Radios cap themselves.
+                if (!single) {
+                    for (const b of boxes) b.disabled = !b.checked && on.length >= count;
+                }
+                if (confirm) confirm.disabled = on.length !== count;
+            };
+            for (const b of boxes) b.addEventListener("change", sync);
+            sync();
+        },
         buttons: [
             {
                 action: "ok",
@@ -226,6 +278,10 @@ async function choosePicks(kind, count) {
 
     if (!picks || picks === "cancel") return null;
 
+    // The authority, and it should now be unreachable from the window above.
+    // Kept because "should be unreachable" is not a guarantee: a template
+    // change, a UI module rewrapping the dialog, or a render that never fired
+    // would all quietly take the cap away and leave nothing behind it.
     if (picks.length !== count) {
         ui.notifications.warn(game.i18n.format("DRPG.Rest.pickExactly", { n: count }));
         return null;

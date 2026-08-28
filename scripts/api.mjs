@@ -150,7 +150,9 @@ import {
     vaultRoomFor, vaultOwnerOf, vaultContents, allVaults, isConcealed,
     roomTable, roomFavours, favoursCategory, roomHinders, hindersCategory, setVaultRoom,
     stow, retrieve, stealFromVault, openRoomSetupDialog, openVaultInspector,
-    openStashHere, rifleStashDialog,
+    openStashHere, openStashesHere, rifleStashDialog,
+    stashesIn, stashIn, stashRoomsFor, stashItemsIn, primaryStashRoom, setStash,
+    allBedrooms, myStashHere,
     keysHeldBy, mayEnterBedroom, grantBedroomKey, reconcileBedroomKeys
 } from "./vault.mjs";
 import {
@@ -492,6 +494,18 @@ export const DrpgApi = {
     /** An UNCONCEALED stash in the room you are standing in is just a drawer:
      *  free to go through, no roll. A concealed one still needs a Search. */
     openStashHere,
+    /* E11 — a stash became an object in a room rather than the room itself.
+       Everything above stays as a thin wrapper over these, so a macro written
+       against the old names goes on working; see the note on VAULT_FLAGS. */
+    openStashesHere,
+    stashesIn,
+    stashIn,
+    stashRoomsFor,
+    stashItemsIn,
+    primaryStashRoom,
+    setStash,
+    allBedrooms,
+    myStashHere,
     rifleStash: rifleStashDialog,
 
     /* ---- using what you carry ---------------------------------------------
@@ -954,8 +968,15 @@ export const DrpgApi = {
     removeRule,
     rulesManager: openRulesManager,
 
-    /** Monokuma's motive: public by definition, and it lapses on its own when
-     *  the chapter counter moves. `setMotive(null)` withdraws it. */
+    /** Monokuma's motive: public by definition, on a countdown in times of
+     *  day, and it lapses on its own when the chapter counter moves.
+     *
+     *      setMotive({ text, timesOfDay, consequence })
+     *      setMotive(null)     // withdraw it
+     *
+     *  The way to one IN PLAY is the nine-Despair Call, not this — a motive
+     *  that costs nothing is a move Monokuma can make every time of day
+     *  forever. This is the repair route. */
     motive,
     setMotive,
 

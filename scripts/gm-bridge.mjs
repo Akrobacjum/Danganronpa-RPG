@@ -41,6 +41,9 @@ const ACTION_ANALYZE_RESOLVE = "analyze.resolve";
 const ACTION_SHARE_BULLET = "handover.bullet";
 const ACTION_GIVE_ITEM = "handover.item";
 const ACTION_VAULT_STEAL = "vault.steal";
+const ACTION_STEAL = "action.steal";
+const ACTION_FIND_STASH = "vault.findStash";
+const ACTION_PLANT = "action.plant";
 const ACTION_CRISIS = "murder.crisis";
 /** GM -> player: "Stage 4 is yours to throw." */
 const ACTION_OPENING_ASK = "murder.openingAsk";
@@ -440,7 +443,9 @@ async function onSocket(payload, senderId) {
         }
 
         const { cleanableTracesForPlayer } = await import("./cleanup.mjs");
-        const result = cleanableTracesForPlayer(payload.actorId);
+        const result = cleanableTracesForPlayer(payload.actorId, {
+            mine: Boolean(payload.mine)
+        });
 
         game.socket.emit(SOCKET_EVENT, {
             action: ACTION_CLEANUP_TRACES_RESULT,
@@ -507,6 +512,71 @@ async function onSocket(payload, senderId) {
         return;
     }
 
+    // And into them. Same guards as the theft, mirrored — the sender has to own
+    // the character whose pocket the item is leaving.
+    if (payload?.action === ACTION_PLANT) {
+        const sender = senderOf(senderId);
+        if (!sender) return refuse(ACTION_PLANT, "unknown sender");
+        if (!ownsActor(sender, payload.plannerId)) {
+            return refuse(ACTION_PLANT, "sender does not own the character planting");
+        }
+
+        const { plantOnPerson } = await import("./vault.mjs");
+        await plantOnPerson({
+            plannerId: payload.plannerId,
+            victimId: payload.victimId,
+            itemId: payload.itemId ?? null,
+            total: Number(payload.total) || 0,
+            isCritical: Boolean(payload.isCritical),
+            unseenTotal: Number(payload.unseenTotal) || 0,
+            unseenCritical: Boolean(payload.unseenCritical)
+        });
+        return;
+    }
+
+    // Looking for a hiding place. The finder owns their own sheet and could
+    // write the flag themselves — which is exactly why they do not: that write
+    // is the whole distance between beating a 16 and reading other people's
+    // stashes, so it happens where the threshold is checked.
+    if (payload?.action === ACTION_FIND_STASH) {
+        const sender = senderOf(senderId);
+        if (!sender) return refuse(ACTION_FIND_STASH, "unknown sender");
+        if (!ownsActor(sender, payload.actorId)) {
+            return refuse(ACTION_FIND_STASH, "sender does not own that character");
+        }
+
+        const { resolveStashSearch } = await import("./vault.mjs");
+        await resolveStashSearch({
+            actorId: payload.actorId,
+            total: Number(payload.total) || 0,
+            isCritical: Boolean(payload.isCritical)
+        });
+        return;
+    }
+
+    // And out of their pockets. Same reasoning as the stash below, plus one
+    // more: the thief's client is the one that would benefit from getting the
+    // arithmetic wrong, so it does none of it.
+    if (payload?.action === ACTION_STEAL) {
+        const sender = senderOf(senderId);
+        if (!sender) return refuse(ACTION_STEAL, "unknown sender");
+        if (!ownsActor(sender, payload.thiefId)) {
+            return refuse(ACTION_STEAL, "sender does not own the character stealing");
+        }
+
+        const { stealFromPerson } = await import("./vault.mjs");
+        await stealFromPerson({
+            thiefId: payload.thiefId,
+            victimId: payload.victimId,
+            itemId: payload.itemId ?? null,
+            total: Number(payload.total) || 0,
+            isCritical: Boolean(payload.isCritical),
+            unseenTotal: Number(payload.unseenTotal) || 0,
+            unseenCritical: Boolean(payload.unseenCritical)
+        });
+        return;
+    }
+
     // Taking something out of somebody else's stash writes to two sheets, one of
     // which the thief has no business writing to.
     if (payload?.action === ACTION_VAULT_STEAL) {
@@ -521,7 +591,15 @@ async function onSocket(payload, senderId) {
             thiefId: payload.thiefId, ownerId: payload.ownerId, itemId: payload.itemId,
             // Set only by the Search action, which pays for the concealment it is
             // beating. See the note in `stealFromVault`.
-            viaSearch: Boolean(payload.viaSearch)
+            viaSearch: Boolean(payload.viaSearch),
+            // Trusted from the sender, and it is worth saying why when nothing
+            // else in this handler is. A client that lied would only ever lie
+            // one way — claiming a steady hand — and the cost of believing it is
+            // that the victim is not told. That is exactly the state this branch
+            // shipped in for four updates, so a forged `false` buys a cheat
+            // nothing it did not already have, while re-rolling the dice here to
+            // check would be a second roll for one action.
+            clumsy: Boolean(payload.clumsy)
         });
         return;
     }
@@ -639,7 +717,8 @@ async function onSocket(payload, senderId) {
                 targetId: payload.targetId ?? null,
                 total: Number(payload.total) || 0,
                 isCritical: Boolean(payload.isCritical),
-                withHope: Boolean(payload.withHope)
+                withHope: Boolean(payload.withHope),
+                viaAction: Boolean(payload.viaAction)
             });
             return;
         }
@@ -650,7 +729,12 @@ async function onSocket(payload, senderId) {
             total: Number(payload.total) || 0,
             isCritical: Boolean(payload.isCritical),
             withHope: Boolean(payload.withHope),
-            undo: Boolean(payload.undo)
+            undo: Boolean(payload.undo),
+            // A claim that WAIVES Stage 6's guards and ADDS one of its own: the
+            // trace has to belong to the sender. Forging it costs them the
+            // right to touch anybody else's trace, which is the only thing the
+            // waived guards were protecting.
+            viaAction: Boolean(payload.viaAction)
         });
         return;
     }
@@ -699,7 +783,9 @@ async function onSocket(payload, senderId) {
         }
 
         const { addProgress } = await import("./projects.mjs");
-        const result = await addProgress(payload.countdownId, amount);
+        // Who asked, so a finished project can fall back to them when nobody
+        // recorded who proposed it.
+        const result = await addProgress(payload.countdownId, amount, { by: payload.userId });
         debug(`Applied ${payload.amount} progress to ${payload.countdownId} on behalf of a player.`, result);
 
         // Report back to whoever asked.
@@ -1200,9 +1286,9 @@ export function requestObserveTarget({ actorId, declaration, request = "" }, tim
  *   Never DC, never `tiedToCrime` — see `cleanableTracesForPlayer` in
  *   cleanup.mjs, which is the only thing that ever builds this array.
  */
-export function requestCleanableTraces(actorId, timeoutMs = 180000) {
+export function requestCleanableTraces(actorId, { mine = false } = {}, timeoutMs = 180000) {
     if (game.user.isGM) {
-        return import("./cleanup.mjs").then(m => m.cleanableTracesForPlayer(actorId));
+        return import("./cleanup.mjs").then(m => m.cleanableTracesForPlayer(actorId, { mine }));
     }
     if (!hasGm()) return Promise.resolve([]);
 
@@ -1212,7 +1298,11 @@ export function requestCleanableTraces(actorId, timeoutMs = 180000) {
             action: ACTION_CLEANUP_TRACES,
             requestId,
             userId: game.user.id,
-            actorId
+            // `mine` narrows the answer to traces this character left. It only
+            // ever REMOVES rows, so a forged `false` buys the sender the Stage 6
+            // list — which is refused a few lines later anyway, because the
+            // erase itself re-checks ownership. See `resolveCleanup`.
+            actorId, mine
         });
 
         setTimeout(() => {
@@ -1340,13 +1430,16 @@ export function requestCleanup({
     actorId, tokenId, total, isCritical, withHope, undo = false,
     // Stage 6 has three actions. `key` names which; absent means the original
     // one, so every existing caller keeps working unchanged.
-    key = "eraseTrace", targetId = null
+    key = "eraseTrace", targetId = null,
+    // Which door this came through: the Tamper tile, or Stage 6's own panel.
+    // It decides what is charged and which guard runs — see cleanup.mjs.
+    viaAction = false
 }) {
     const other = key && key !== "eraseTrace";
     if (game.user.isGM) {
         return import("./cleanup.mjs").then(m => other
-            ? m.resolveStageSix({ actorId, key, targetId, total, isCritical, withHope })
-            : m.resolveCleanup({ actorId, tokenId, total, isCritical, withHope, undo }));
+            ? m.resolveStageSix({ actorId, key, targetId, total, isCritical, withHope, viaAction })
+            : m.resolveCleanup({ actorId, tokenId, total, isCritical, withHope, undo, viaAction }));
     }
     if (!hasGm()) return null;
 
@@ -1354,7 +1447,7 @@ export function requestCleanup({
         action: ACTION_CLEANUP,
         userId: game.user.id,
         requestId: expectAck("Clean-up"),
-        actorId, tokenId, total, isCritical, withHope, undo, key, targetId
+        actorId, tokenId, total, isCritical, withHope, undo, key, targetId, viaAction
     });
     return { pending: true };
 }
@@ -1419,10 +1512,10 @@ export function requestMeddleResolve({ actorId, targetId, help, total, isCritica
  * `viaSearch` marks the route that has already paid for a concealed stash with
  * an action, a search token and a penalised roll — see `stealFromVault`.
  */
-export function requestVaultSteal({ thiefId, ownerId, itemId, viaSearch = false }) {
+export function requestVaultSteal({ thiefId, ownerId, itemId, viaSearch = false, clumsy = false }) {
     if (game.user.isGM) {
         return import("./vault.mjs")
-            .then(m => m.stealFromVault({ thiefId, ownerId, itemId, viaSearch }));
+            .then(m => m.stealFromVault({ thiefId, ownerId, itemId, viaSearch, clumsy }));
     }
     if (!hasGm()) return null;
 
@@ -1430,7 +1523,86 @@ export function requestVaultSteal({ thiefId, ownerId, itemId, viaSearch = false 
         action: ACTION_VAULT_STEAL,
         userId: game.user.id,
         requestId: expectAck("Stash"),
-        thiefId, ownerId, itemId, viaSearch
+        thiefId, ownerId, itemId, viaSearch, clumsy
+    });
+    return { pending: true };
+}
+
+/**
+ * Go through somebody's pockets. GM-only on both ends, like its sibling above.
+ *
+ * The two totals travel and the verdicts are made on the other side — see
+ * `stealFromPerson`. `itemId` is a request rather than an instruction: it is
+ * honoured only on a critical, and only if it is really in the victim's pockets.
+ */
+export function requestSteal({
+    thiefId, victimId, itemId = null,
+    total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false
+}) {
+    if (game.user.isGM) {
+        return import("./vault.mjs").then(m => m.stealFromPerson({
+            thiefId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical
+        }));
+    }
+    if (!hasGm()) return null;
+
+    game.socket.emit(SOCKET_EVENT, {
+        action: ACTION_STEAL,
+        userId: game.user.id,
+        requestId: expectAck("Steal"),
+        thiefId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical
+    });
+    return { pending: true };
+}
+
+/**
+ * Leave something in somebody's pocket. The mirror of `requestSteal`, and the
+ * same division of labour: the two totals travel, both verdicts are made on the
+ * other side against `ACTIONS.palm`.
+ *
+ * `itemId` is not a request here but a statement — it came out of the planter's
+ * own pockets and there is nothing secret about it. The GM side still checks it
+ * is really there, for the same reason it checks everything else.
+ */
+export function requestPlant({
+    plannerId, victimId, itemId,
+    total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false
+}) {
+    if (game.user.isGM) {
+        return import("./vault.mjs").then(m => m.plantOnPerson({
+            plannerId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical
+        }));
+    }
+    if (!hasGm()) return null;
+
+    game.socket.emit(SOCKET_EVENT, {
+        action: ACTION_PLANT,
+        userId: game.user.id,
+        requestId: expectAck("Plant"),
+        plannerId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical
+    });
+    return { pending: true };
+}
+
+/**
+ * Hand a Locate-a-hidden-stash roll to the GM to be scored.
+ *
+ * Fire-and-forget, like Observe: the answer is the whisper the finder gets, and
+ * the write it may cause is a flag on their own sheet. The number travels; the
+ * threshold, the room and which stash it opens are all decided on the far side
+ * — see `resolveStashSearch`.
+ */
+export function requestStashSearch({ actorId, total = 0, isCritical = false }) {
+    if (game.user.isGM) {
+        return import("./vault.mjs").then(m => m.resolveStashSearch({ actorId, total, isCritical }));
+    }
+    if (!hasGm()) return null;
+
+    game.socket.emit(SOCKET_EVENT, {
+        action: ACTION_FIND_STASH,
+        userId: game.user.id,
+        requestId: expectAck("Stash"),
+        actorId, total, isCritical
     });
     return { pending: true };
 }

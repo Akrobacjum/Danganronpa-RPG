@@ -24,13 +24,12 @@
  * the difficulty.
  */
 
-import { OBSERVE_FAIL_STRESS, TIMES_OF_DAY } from "./config.mjs";
+import { MODULE_ID, OBSERVE_FAIL_STRESS, TIMES_OF_DAY } from "./config.mjs";
 import { rankForObserve } from "./remnants.mjs";
 import { createTruthBullet, copiedRemnants, dropSecret } from "./truth-bullets.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { dialogContent, whisperToOwner, whisperToGms, log, warn, error } from "./utils.mjs";
-import { playSfx } from "./sfx.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -111,13 +110,26 @@ export async function chooseObserveTarget({ actorId, declaration, request = "" }
         // answer: the player keeps their action and nothing is rolled.
         if (!chosen) return { ok: false, reason: "refused" };
     } else if (followingTraces) {
-        // `preferSource` above already put the observer's own traces first,
-        // sorted the normal way within that group — so the first one IS the
-        // easiest of their own. When they have none here, this reads exactly
-        // as "general": no message saying so, because "you left nothing here"
-        // is information the action never paid for.
+        /*
+         * `preferSource` above already put the observer's own traces first,
+         * sorted the normal way within that group — so the first one IS the
+         * easiest of their own.
+         *
+         * WHEN THEY HAVE NONE HERE, A RANDOM ONE (Dawid, 28.08). This used to
+         * fall back to `mostRelevant(candidates)[0]`, which is precisely what
+         * "sweep the room" hands over — so declaring "follow my traces" in a
+         * room you have never been in was a free upgrade: the same best clue,
+         * plus the knowledge that you left nothing there.
+         *
+         * A random pick keeps the action from coming away empty — the roll was
+         * made and beaten — without letting the wrong declaration buy the right
+         * answer. Still no message saying which happened: "you left nothing
+         * here" is information this action never paid for.
+         */
         const mine = candidates.filter(c => c.data.sourceActor === actorId);
-        chosen = mine.length ? mine[0] : mostRelevant(candidates)[0];
+        chosen = mine.length
+            ? mine[0]
+            : candidates[Math.floor(Math.random() * candidates.length)];
     } else {
         // The preference picks the SHELF; the declaration picks off it.
         //
@@ -346,13 +358,18 @@ async function applyFailure(actor, total, entry) {
         }
     }
 
-    // It costs 2 Sanity and looks exactly like a success until the card is
-    // read. Local, on the observer's client — the card is theirs.
-    playSfx("observeFail");
-
+    /*
+     * It costs 2 Sanity and looks exactly like a success until the card is read.
+     *
+     * ON THE CARD. This said "local, on the observer's client" and was wrong the
+     * same way `identify` in analyze.mjs was: `resolveObserve` is GM-only, so
+     * every failed Observe since E5 has beeped at the GM and left the observer —
+     * the one person the catalogue names — in silence.
+     */
     await whisperToOwner(actor, `
         <p><strong>${game.i18n.localize("DRPG.Observe.failedTitle")}</strong></p>
-        <p>${game.i18n.format("DRPG.Observe.failed", { stress: OBSERVE_FAIL_STRESS })}</p>`);
+        <p>${game.i18n.format("DRPG.Observe.failed", { stress: OBSERVE_FAIL_STRESS })}</p>`,
+        { flags: { [MODULE_ID]: { sfx: "observeFail" } } });
 
     log(`Observe: ${actor.name} rolled ${total} against DC ${entry.dc} and found nothing.`);
 }

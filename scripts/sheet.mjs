@@ -16,7 +16,8 @@ import {
     ECLIPSE_MOVES,
     EQUIPPABLE,
     BEDROOM_KEY_FLAG, callEffect, HOPE_CALLS, DESPAIR_CALLS } from "./config.mjs";
-import { actionsLeft, actionsMax, actionBudget, hasFreeMove, setActions } from "./actions.mjs";
+import { actionsLeft, actionsMax, actionBudget, hasFreeMove, setActions,
+    canPayFor, freeActionsLeft, freeMovesLeft } from "./actions.mjs";
 import { resourceMax, initCharacter } from "./character.mjs";
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
 import { getDespair } from "./despair.mjs";
@@ -27,22 +28,29 @@ import {
 } from "./truth-bullets.mjs";
 import { getClock } from "./clock.mjs";
 import { inClassTrial } from "./trial.mjs";
-import { vaultRoomFor, vaultContents, openStashHere } from "./vault.mjs";
-import { availableCrisisActions, isTheirTurn, murderState, sideOf, betrayalTarget } from "./murder.mjs";
+import { stashRoomsFor, stashItemsIn, openStashesHere } from "./vault.mjs";
+// `availableCrisisActions` and `isTheirTurn` went to the Direct Murder tile's
+// menu with the crisis grid — see `openCrisisMenu` in action-rolls.mjs.
+import { murderState, sideOf, betrayalTarget } from "./murder.mjs";
 // Two different silences, so both are renamed at the door rather than one of
 // them shadowing the other: a Monocub silenced for the chapter may not speak,
 // a player silenced by a Despair Call may not spend Hope.
 import { isMonocub, isSilenced, isSilenced as cubSilenced } from "./monocub.mjs";
-import { isSilenced as callSilenced, isChained } from "./call-effects.mjs";
+import { isSilenced as callSilenced, isChained, pendingGather } from "./call-effects.mjs";
 import { isDeceased } from "./chapter.mjs";
 import { isStashed, ITEM_FLAGS, isBroken } from "./inventory.mjs";
-import { isUsable, isEquippable, isEquipped, equippedIn, equippedFor, usableKindOf }
+// `equippedFor` went with the clean-up panel's "what you have readied" note —
+// the Tamper menu says it now, where the roll it applies to is chosen.
+import { isUsable, isEquippable, isEquipped, equippedIn, usableKindOf }
     from "./use-items.mjs";
 import { countInGroup, categoriesInGroup, rolesOf } from "./inventory.mjs";
-import { isCleaner, bodyIsHere } from "./cleanup.mjs";
-import { roomOfActor, neighbouringRooms } from "./movement.mjs";
+// `bodyIsHere` moved with the three Stage 6 actions — the Tamper menu asks it
+// now (action-rolls.mjs), because that is where the body tile lives.
+import { isCleaner } from "./cleanup.mjs";
+import { roomOfActor, neighbouringRooms, othersInRoom } from "./movement.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
-import { sabotageTargetsIn } from "./projects.mjs";
+// `sabotageTargetsIn` used to be imported here for the tile that no longer
+// exists; the question is asked in action-rolls.mjs now, where the menu is.
 import { rules } from "./rules.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
 import { debug, error, plural } from "./utils.mjs";
@@ -1495,6 +1503,41 @@ function paintResourceBars(app, element) {
  * same order — so they inherit the system's styling instead of needing a
  * parallel set of rules that would drift from it.
  */
+/**
+ * A row about something that has stopped existing (trap 91).
+ *
+ * A SILENT STEAL LEAVES ONE. `stealFromPerson` deletes the item with
+ * `render: false` so the victim's open sheet does not redraw for it — the thing
+ * has really gone, and what is suppressed is the refresh. Until something else
+ * redraws the sheet the row is still on screen, and every control on it is
+ * pointing at a document that is not there: readying it, using it, handing it
+ * over, opening its sheet. An exception in the victim's console is a worse
+ * notification than the notification it was avoiding.
+ *
+ * Registered in the CAPTURE phase on the row itself, so it runs before the
+ * row's own listener AND before any button inside it — one guard covering
+ * seven controls, rather than seven guards that could drift apart.
+ *
+ * And it is not only about theft. A GM taking something away by hand, a Reroll
+ * unwinding a Search, an item spent on another client: every one of them can
+ * leave a row behind for a moment. This is what that moment does.
+ */
+function guardRow(li, item, app) {
+    li.addEventListener("click", event => {
+        if (item?.actor?.items?.get(item.id)) return;
+
+        event.stopPropagation();
+        event.preventDefault();
+        li.remove();
+        ui.notifications.info(game.i18n.format("DRPG.Items.rowGone", {
+            item: item?.name ?? "?"
+        }));
+        // Which is how they find out. The rule was always "not until they look
+        // again" — this IS looking again.
+        app?.render(false);
+    }, true);
+}
+
 function injectEquippedTools(app, element) {
     const actor = app.document;
     if (isMonokuma(actor)) return;
@@ -1528,6 +1571,7 @@ function injectEquippedTools(app, element) {
                 foundry.utils.escapeHTML(ITEM_CATEGORIES[category]?.label ?? category)
             }${tier !== undefined && tier !== null ? ` — T${tier}` : ""}</div></div>`;
 
+        guardRow(li, item, app);
         li.addEventListener("click", event => {
             if (event.target.closest("[data-drpg-row-action]")) return;
             item.sheet?.render(true);
@@ -1764,9 +1808,32 @@ function itemTags(item, inGearRow) {
 
     const home = item.getFlag(MODULE_ID, "category");
     const label = role => ITEM_CATEGORIES[role]?.label ?? role;
+
+    /*
+     * THE HOME IS NEVER DRAWN TWICE, AND IT CAN ARRIVE TWICE.
+     *
+     * "Add an item" offers every equippable role as a tick box INCLUDING the
+     * item's own category, and that is deliberate — see the note above
+     * `roleChecks` in tables.mjs. The reasoning there is about MECHANICS and it
+     * still holds: `servesAs` checks the home first, so ticking "Tool" on a
+     * tool changes nothing about what the thing can do, and a list that
+     * reshuffles as the category dropdown moves is worse to use than one
+     * redundant box.
+     *
+     * What that note could not know is that these tags would later become
+     * VISIBLE. Once a badge is drawn per role, a redundant tick stops being
+     * harmless: the row grows a duplicate "Tool · Tool", and an item Dawid
+     * capped at two tags shows three. So the display de-duplicates rather than
+     * the form growing a rule — the form's reasoning is still right, and this
+     * is the half that changed.
+     *
+     * The seeded pool has never carried one (measured: 24 tables, 0 hits), so
+     * nothing in the box is wrong today. This is for the GM who adds their own.
+     */
+    const extra = Array.from(new Set(rolesOf(item))).filter(role => role !== home);
     return [
         named(home, label(home), game.i18n.format("DRPG.Items.isA", { role: label(home) })),
-        ...rolesOf(item).map(role =>
+        ...extra.map(role =>
             named(role, label(role), game.i18n.format("DRPG.Items.alsoServes", { role: label(role) })))
     ];
 }
@@ -1910,11 +1977,16 @@ function groupInventory(app, element) {
                     // into your room is not the same as giving your room away,
                     // and the guide's whole social engine runs on the first.
                     addHandoverButton(li, item, app, { copying: isBedroomKey(item) });
-                    if (vaultRoomFor(actor)) addStashButton(li, item, app, { stowing: true });
+                    // Any stash anywhere, exactly as before — `stow` is what
+                    // decides whether you are standing at one. Location-gating
+                    // the button would be a different rule, not a translation.
+                    if (stashRoomsFor(actor).length) addStashButton(li, item, app, { stowing: true });
                 }
 
                 // The row's buttons live inside the row, and the row itself opens
                 // the item sheet — so each button has to be able to say "not me".
+                // `guardRow` sits in front of all of them; see its own note.
+                guardRow(li, item, app);
                 li.addEventListener("click", event => {
                     if (event.target.closest("[data-drpg-row-action]")) return;
                     item.sheet?.render(true);
@@ -1944,19 +2016,30 @@ function buildOpenStashSection(box, actor, app) {
     if (!app.isEditable || isMonokuma(actor)) return;
     if (isDeceased(actor) && !isMonocub(actor)) return;
 
-    const here = openStashHere(actor);
-    if (!here?.items.length) return;
+    /*
+     * ONE HEADING PER STASH, ONE BUTTON FOR THE ROOM.
+     *
+     * A room can hold several now, and drawing only the first would hide the
+     * fact that there is a second — which is exactly the information this
+     * panel exists to give. The button stays single because `rifleStashDialog`
+     * lists all of them in one grouped picker: two buttons doing the same thing
+     * would be two roads to one dialog.
+     */
+    const stashes = openStashesHere(actor).filter(entry => entry.items.length);
+    if (!stashes.length) return;
 
     const section = document.createElement("div");
     section.className = "drpg-inventory-group drpg-open-stash-group";
     section.dataset.category = "openStash";
 
-    const head = document.createElement("h4");
-    head.innerHTML = `<span>${game.i18n.format("DRPG.Vault.openStashSection", {
-        who: foundry.utils.escapeHTML(here.owner.name),
-        room: foundry.utils.escapeHTML(here.room)
-    })}</span><span class="drpg-group-count">${here.items.length}</span>`;
-    section.append(head);
+    for (const entry of stashes) {
+        const head = document.createElement("h4");
+        head.innerHTML = `<span>${game.i18n.format("DRPG.Vault.openStashSection", {
+            who: foundry.utils.escapeHTML(entry.owner.name),
+            room: foundry.utils.escapeHTML(entry.room)
+        })}</span><span class="drpg-group-count">${entry.items.length}</span>`;
+        section.append(head);
+    }
 
     const note = document.createElement("p");
     note.className = "notes";
@@ -1986,10 +2069,17 @@ function buildOpenStashSection(box, actor, app) {
  * is where they have to be standing to reach it.
  */
 function buildStashSection(box, actor, app) {
-    const room = vaultRoomFor(actor);
-    if (!room) return;
+    // One section per stash you own, in room order. A character with two of
+    // them has two drawers in two places, and merging them into one list would
+    // hide the only thing that matters about a stash: where you have to be
+    // standing to reach it.
+    for (const entry of stashRoomsFor(actor)) {
+        buildOneStashSection(box, actor, app, entry.room);
+    }
+}
 
-    const items = vaultContents(actor);
+function buildOneStashSection(box, actor, app, room) {
+    const items = stashItemsIn(actor, room);
 
     const section = document.createElement("div");
     section.className = "drpg-inventory-group drpg-stash-group";
@@ -2028,6 +2118,7 @@ function buildStashSection(box, actor, app) {
                             ${tier !== undefined && tier !== null
                                 ? `<span class="drpg-item-tier">T${tier}</span>` : ""}`;
             addStashButton(li, item, app, { stowing: false });
+            guardRow(li, item, app);
             li.addEventListener("click", event => {
                 if (event.target.closest("[data-drpg-row-action]")) return;
                 item.sheet?.render(true);
@@ -2600,24 +2691,25 @@ function injectActionPanel(app, element) {
         return;
     }
 
-    // In a fight.
-    //
-    // `performAction` already refuses every ordinary action to the two people
-    // in an incident — the guide's turn structure assumes they are doing
-    // nothing else — but the grid offering them stayed on the sheet regardless.
-    // Measured mid-incident: a victim looking at their own sheet saw the five
-    // crisis actions and, underneath, ten ordinary tiles, every one of which
-    // would refuse them. Ten wrong answers under the five right ones.
-    //
-    // Hope Calls stay, and deliberately: they are bought with Hope rather than
-    // actions, they go through a different path entirely, and they are what a
-    // cornered player reaches for. See the note in `performAction`.
-    if (murderState()?.stage === "incident" && sideOf(actor)) {
-        injectCrisisPanel(tab, actor);
-        injectCallsPanel(tab, actor, false);
-        attachActionDelegate(app, element);
-        return;
-    }
+    /*
+     * IN A FIGHT, THE GRID STAYS UP AND GOES DARK (Dawid, 28.08).
+     *
+     * This used to replace the whole grid with a crisis panel, because ten
+     * tiles that all refuse you is ten wrong answers. The fix was right about
+     * the problem and wrong about the shape: the answer is not a different grid
+     * in the same place, it is the SAME grid saying what is happening. Every
+     * tile greys out with "you are in an incident" on it, and the one that
+     * still works is Direct Murder — which is where the incident's own actions
+     * now live, on the tile whose whole subject is killing somebody.
+     *
+     * Nothing about who may do what changed. `availableCrisisActions` still
+     * decides what is offered and `performAction`'s own guard still refuses the
+     * rest; see `actionButton`, which draws the lock, and `openCrisisMenu`.
+     *
+     * Hope Calls stay live, as before: they are bought with Hope rather than
+     * actions, they go through a different path entirely, and they are what a
+     * cornered player reaches for.
+     */
 
     const panel = document.createElement("div");
     panel.className = "drpg-action-panel";
@@ -2633,14 +2725,12 @@ function injectActionPanel(app, element) {
     const grid = document.createElement("div");
     grid.className = "drpg-action-grid";
 
-    for (const [key, def] of Object.entries(ACTIONS)) {
-        if (def.kind !== "universal") continue;
-        grid.append(actionButton(actor, key, def));
-    }
-
     // Dynamic actions are the guide's catch-all: describe it, the GM sets a
-    // threshold, and the reward scale is deliberately gentler.
-    grid.append(actionButton(actor, "dynamic", {
+    // threshold, and the reward scale is deliberately gentler. Built here
+    // because its three strings are localised and ACTIONS is evaluated before
+    // `game.i18n` exists — the table carries a placeholder row (`deferred`)
+    // holding its PLACE in the order, and this is what fills it.
+    const dynamic = {
         label: game.i18n.localize("DRPG.Action.dynamicLabel"),
         hint: game.i18n.localize("DRPG.Action.dynamicHint"),
         icon: "fa-wand-magic-sparkles",
@@ -2649,7 +2739,15 @@ function injectActionPanel(app, element) {
         // this one is defined inline rather than in ACTIONS, so it has to say so
         // for itself.
         callsGm: true
-    }));
+    };
+
+    // ONE LOOP, AND THE TABLE IS THE LAYOUT. The dynamic tile used to be
+    // appended after this, which is why it sat last whatever config.mjs said —
+    // and "last" is a position somebody has to be able to choose.
+    for (const [key, def] of Object.entries(ACTIONS)) {
+        if (def.kind !== "universal") continue;
+        grid.append(actionButton(actor, key, def.deferred ? dynamic : def));
+    }
 
     panel.append(grid);
     tab.prepend(panel);
@@ -2755,6 +2853,17 @@ function budgetLine(actor) {
 
     if (hasFreeMove(actor)) parts.push(game.i18n.localize("DRPG.Actions.freeMoveLeft"));
 
+    // What Hope has already bought, next to what the day gave you.
+    //
+    // On the budget line rather than on the tiles, for the same reason the
+    // action count is: the question a player is asking here is "what can I get
+    // done", and a banked Burst is part of that answer everywhere at once
+    // rather than on any one tile.
+    const burst = freeActionsLeft(actor);
+    if (burst) parts.push(plural("DRPG.Actions.burstBanked", { n: burst }));
+    const sprint = freeMovesLeft(actor);
+    if (sprint) parts.push(plural("DRPG.Actions.sprintBanked", { n: sprint }));
+
     if (isEclipse()) {
         const left = eclipseMovesLeft(actor);
         // `null` is a Morning or Night Eclipse: free placement, so there is no
@@ -2766,17 +2875,17 @@ function budgetLine(actor) {
     }
 
     line.textContent = parts.join(" · ");
-    if (!left) line.classList.add("drpg-budget-empty");
+    // "Empty" means nothing left to spend, and a banked Burst is something.
+    if (!left && !burst) line.classList.add("drpg-budget-empty");
     return line;
 }
 
 /**
- * The crisis actions, while an incident is running.
+ * Stage 6's panel, and nothing else in it any more.
  *
- * Only for the two people in it (and anyone who walked in), and only their own
- * side's actions. Whose turn it is decides whether the buttons do anything —
- * they stay visible either way, because "it is not your turn" is information
- * the other player needs as much as the buttons themselves.
+ * THE CRISIS GRID MOVED TO THE DIRECT MURDER TILE (Dawid, 28.08) — see
+ * `openCrisisMenu` in action-rolls.mjs. What is left here is the decision about
+ * WHERE the Stage 6 panel sits, which is still worth making.
  */
 function injectCrisisPanel(tab, actor) {
     // Stage 6 is not a turn and has no crisis actions, so it gets its own panel.
@@ -2788,114 +2897,42 @@ function injectCrisisPanel(tab, actor) {
     // the chapter, on the one sheet whose owner most needs to look like an
     // ordinary student searching rooms and taking rests.
     //
-    //   body not found yet   above the actions. Cleaning up is the only thing
-    //                        that matters in those minutes.
-    //   Investigation begun  below the actions, above the Hope Calls. Still
-    //                        reachable, no longer the headline.
+    //   body not found yet   above the actions.
+    //   Investigation begun  below the actions, above the Hope Calls.
     //
     // Before any murder the question does not arise: `isCleaner` is false and
-    // this panel is not built at all.
-    if (isCleaner(actor)) {
-        // The clock is read straight off the setting rather than through
-        // clock.mjs: this file is on the render path that clock.mjs itself calls
-        // back into (`refreshSheets`), and one field is not worth closing that
-        // loop. Same reasoning as movement.mjs's own clock reads.
-        const phase = game.settings.get(MODULE_ID, "clock")?.phase ?? "dailyLife";
-        injectCleanupPanel(tab, actor, { onTop: phase === "dailyLife" });
-        return;
-    }
+    // nothing here is built at all.
+    if (!isCleaner(actor)) return;
 
-    const options = availableCrisisActions(actor);
-    if (!options.length) return;
-
-    const yours = isTheirTurn(actor);
-
-    const panel = document.createElement("div");
-    panel.className = `drpg-action-panel drpg-crisis-panel${yours ? " active" : ""}`;
-
-    const title = document.createElement("h3");
-    title.className = "drpg-keep";
-    title.textContent = game.i18n.localize(
-        yours ? "DRPG.Murder.yourTurn" : "DRPG.Murder.theirTurn");
-    panel.append(title);
-
-    const grid = document.createElement("div");
-    grid.className = "drpg-action-grid";
-
-    for (const { key, def, threshold, hindered, blocked, locked, spent, lockedBy, hidden }
-        of options) {
-        // Reached from the thing it is about, not from a tile of its own — see
-        // `hidden` in CRISIS_ACTIONS. A tile saying "use an item" that then asked
-        // WHICH would be two decisions where the inventory row already offers
-        // one.
-        if (hidden) continue;
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = `drpg-action-button${blocked ? " drpg-locked" : ""}${
-            hindered ? " drpg-hindered" : ""}`;
-        button.disabled = !yours || blocked;
-        // Say WHICH kind of shut this is. "Blocked" covers three different
-        // situations now — a Pin, a gate Self-defence has not opened yet, and
-        // an attempt already spent — and a player staring at a grey button
-        // needs to know which of the three they are looking at.
-        button.dataset.tooltip = locked
-            ? game.i18n.format("DRPG.Murder.actionLocked", { name: lockedBy ?? "?" })
-            : spent
-                ? game.i18n.localize("DRPG.Murder.actionSpent")
-                : blocked
-                    ? game.i18n.localize("DRPG.Murder.actionBlocked")
-                    : hindered
-                        ? game.i18n.localize("DRPG.Murder.actionHindered")
-                        : def.hint ?? def.label;
-        // Which crisis action this is, for the stylesheet. The pixel glyphs are
-        // keyed off this rather than off `def.icon`, so the drawn set stays
-        // attached to the action even if the Font Awesome fallback is changed
-        // — and two entries already share `fa-hand-fist` with a Hope Call.
-        button.dataset.drpgCrisis = key;
-        // The same three lines every other tile in the module has: icon, name,
-        // and what it takes.
-        //
-        // This one used to emit a bare `<span>` — no `drpg-action-name` — which
-        // meant it missed the type scale that class carries and rendered at 14px
-        // where every other tile renders at 11. Measured on a 107px tile,
-        // "Finishing blow" ran 21px past its own edge and "Keep your distance"
-        // 7px. The soft hyphens come with the class for the same reason they do
-        // everywhere else: Electron ships no hyphenation dictionary.
-        //
-        // The third line is the number to beat, which the guide prints in the
-        // crisis table anyway — and a player choosing between Strike at 15 and
-        // Pin at 12 is making the decision the table is for. The three
-        // third-party decisions have no dice, and say so.
-        const ask = threshold === null || threshold === undefined
-            ? game.i18n.localize("DRPG.Murder.noRollNeeded")
-            : game.i18n.format("DRPG.Murder.thresholdShort", { n: threshold });
-
-        button.innerHTML = `
-            <i class="fa-solid ${def.icon ?? "fa-burst"} drpg-action-icon" inert></i>
-            <span class="drpg-action-name">${softWrap(foundry.utils.escapeHTML(def.label))}</span>
-            <span class="drpg-action-cost">${foundry.utils.escapeHTML(ask)}</span>`;
-
-        button.addEventListener("click", async () => {
-            const { takeCrisisAction } = await import("./murder.mjs");
-            await takeCrisisAction(actor, key);
-        });
-
-        grid.append(button);
-    }
-
-    panel.append(grid);
-    tab.prepend(panel);
+    // The clock is read straight off the setting rather than through clock.mjs:
+    // this file is on the render path that clock.mjs itself calls back into
+    // (`refreshSheets`), and one field is not worth closing that loop.
+    const phase = game.settings.get(MODULE_ID, "clock")?.phase ?? "dailyLife";
+    injectBetrayalPanel(tab, actor, { onTop: phase === "dailyLife" });
 }
 
 /**
- * Stage 6, on the killer's own sheet.
+ * What is left of the Stage 6 panel: the betrayal, and nothing else.
  *
- * One button, because there is one thing to do: pick a trace and scrub at it,
- * for a Sanity a go. The count is what they can SEE — the guide opens their eyes
- * to their own traces at this stage — and says nothing about how hard any of it
- * will be to remove.
+ * THE THREE CLEAN-UP ACTIONS MOVED TO THE TAMPER TILE (Dawid, 28.08). They were
+ * always the same three things — erase a trace, plant a false one, carry the
+ * body — and having them in a panel of their own meant a killer in Stage 6 read
+ * a grid of ten tiles and then a second grid underneath with the actions that
+ * actually mattered. Tamper is where they live now, and the tile knows which
+ * stage it is in: in Stage 6 it charges Sanity and an action and shows the
+ * whole room's traces, outside it charges an action and shows only what the
+ * character has found.
+ *
+ * The betrayal stayed because it was never clean-up. It opens a SECOND MURDER,
+ * and it is here for two reasons that have nothing to do with tidying a scene:
+ * the guide gives the decision to the newcomer who threw in with the killer,
+ * and it is on offer for exactly as long as Stage 6 lasts. Filing that under
+ * "Tamper" would be a worse home than the one it had.
  */
-function injectCleanupPanel(tab, actor, { onTop = true } = {}) {
+function injectBetrayalPanel(tab, actor, { onTop = true } = {}) {
+    const partner = betrayalTarget(actor);
+    if (!partner) return;
+
     const panel = document.createElement("div");
     // `active` is the loud treatment. It belongs to the urgent window only —
     // once the body is found this is a tool, not an alarm.
@@ -2903,58 +2940,29 @@ function injectCleanupPanel(tab, actor, { onTop = true } = {}) {
 
     const title = document.createElement("h3");
     title.className = "drpg-keep";
-    title.textContent = game.i18n.localize("DRPG.Cleanup.title");
+    title.textContent = game.i18n.localize("DRPG.Murder.betrayTileLabel");
     panel.append(title);
 
     const grid = document.createElement("div");
     grid.className = "drpg-action-grid";
-
-    // THREE Stage 6 actions, not one.
-    //
-    // The guide gives a killer three things to do with the scene, and the
-    // module implemented all three — thresholds, outcome bands, the Remnants
-    // each one leaves, the Cleaning Tool bonus on the body. Only erasing a
-    // trace had a button. `misleadingTrail` and `moveBody` were reachable from
-    // `game.drpg.attemptStageSix` and from nowhere else, which is to say: from
-    // nowhere a player could get to.
-    const tiles = [
-        { icon: "fa-broom", label: "DRPG.Cleanup.action", tip: "DRPG.Cleanup.hint",
-          run: m => m.openCleanupDialog(actor) },
-        { icon: "fa-signs-post", label: "DRPG.Cleanup.trailAction", tip: "DRPG.Cleanup.trailHint",
-          run: m => m.openMisleadingTrailDialog(actor) },
-        { icon: "fa-person-falling", label: "DRPG.Cleanup.moveAction", tip: "DRPG.Cleanup.moveHint",
-          // Carrying a body you are not standing next to is not a thing, so the
-          // tile says so before it is pressed rather than after.
-          off: !bodyIsHere(actor), offTip: "DRPG.Cleanup.bodyNotHere",
-          // Through the dialog, not straight to the roll: where the body goes is
-          // the killer's decision and it has to be made before the dice.
-          run: m => m.openMoveBodyDialog(actor) }
-    ];
-
-    // The fourth tile only exists for one person, and only for a few minutes.
-    //
     // Stage 9.5 gave the betrayal to the GM's post-incident checklist, which
     // made it something a GM had to remember to offer — and it is not their
     // decision. The guide gives it to the newcomer who threw in with the
     // killer: the body is on the floor and the only witness is standing next to
-    // them. So it belongs on their sheet, in the panel they are already looking
-    // at, for exactly as long as Stage 6 lasts.
+    // them.
     //
     // Red, because it opens a second murder. NOT GM-routed any more: the guide
     // gives this decision to the newcomer, and the confirmation that used to sit
     // in front of it turned their choice into a request — one the GM could
     // answer four times if the tile had been clicked four times.
-    const partner = betrayalTarget(actor);
-    if (partner) {
-        tiles.push({
-            icon: "fa-user-slash", gmRoute: true,
-            label: "DRPG.Murder.betrayTileLabel", tip: "DRPG.Murder.betrayTileHint",
-            run: async () => {
-                const { requestBetrayal } = await import("./gm-bridge.mjs");
-                return requestBetrayal({ actorId: actor.id });
-            }
-        });
-    }
+    const tiles = [{
+        icon: "fa-user-slash", gmRoute: true,
+        label: "DRPG.Murder.betrayTileLabel", tip: "DRPG.Murder.betrayTileHint",
+        run: async () => {
+            const { requestBetrayal } = await import("./gm-bridge.mjs");
+            return requestBetrayal({ actorId: actor.id });
+        }
+    }];
 
     for (const tile of tiles) {
         const button = document.createElement("button");
@@ -2967,7 +2975,7 @@ function injectCleanupPanel(tab, actor, { onTop = true } = {}) {
         // the Sanity is what makes a long clean-up hurt, the action is what
         // makes it finite. The stripe names the Sanity because that is the part
         // this stage adds on top of the ordinary economy.
-        button.dataset.drpgCostKind = "stress";
+        button.dataset.drpgCostKind = "gm";
         button.dataset.tooltip = game.i18n.localize(tile.tip);
         button.innerHTML = `<i class="fa-solid ${tile.icon}" inert></i>
             <span class="drpg-action-name">${
@@ -2993,15 +3001,6 @@ function injectCleanupPanel(tab, actor, { onTop = true } = {}) {
     }
 
     panel.append(grid);
-
-    const note = document.createElement("p");
-    note.className = "notes drpg-keep";
-    // What the cleaning roll will actually use, which is a role and not a row.
-    const tool = equippedFor(actor, "cleaningTool");
-    note.textContent = tool
-        ? game.i18n.format("DRPG.Cleanup.readied", { item: tool.name })
-        : game.i18n.localize("DRPG.Cleanup.noneReadied");
-    panel.append(note);
 
     if (onTop) {
         tab.prepend(panel);
@@ -3089,29 +3088,71 @@ function injectCallsPanel(tab, actor, monokuma) {
 function callButton(call, monokuma, locked = false) {
     const button = document.createElement("button");
     button.type = "button";
+
+    /*
+     * ONE TILE, TWO JOBS — AND THAT IS DELIBERATE (E14).
+     *
+     * While an assembly is pending, Public Announcement becomes the button
+     * that calls it off. Not a control in the GM panel: the person who wants
+     * to cancel is the person looking at the tile they bought it with, and
+     * making them find another window to undo a thing they did here is how a
+     * pending order gets left standing by accident.
+     *
+     * The whole state is computed once, here, because both the price and the
+     * grey depend on it — see trap 103 immediately below.
+     */
+    const pending = call.defers ? pendingGather() : null;
     // Two reasons a Call is grey, and they are not the same reason.
     //
     // "You cannot afford it" is fixed by holding Hope; "the Eclipse is running"
     // is fixed by waiting, and applies to every Call at once regardless of the
     // pool. Sharing one look meant a player with six Hope saw seven identical
     // grey tiles next to a full pool and had nothing to read but the tooltip.
+    /*
+     * TRAP 103. A cancel costs nothing, so "you cannot afford it" cannot be
+     * allowed to grey it out — and the pool is at its emptiest exactly when
+     * somebody wants to cancel, because they have just spent six on the thing
+     * they are cancelling. Affordability drops out of the class entirely while
+     * the tile is in its pending state.
+     *
+     * BONE, NOT RED. Red already means one thing in this module — the Call
+     * hands the turn to a GM (`GM_ROUTE_CLASS`) — and gold is Hope's. A third
+     * meaning on red is the mistake the stylesheet's note about outline colour
+     * warns against. Bone plus the pulsing dot reads as "this is standing and
+     * about to go off", which is what it is.
+     */
     button.className = `drpg-action-button drpg-call-button${
-        locked ? " drpg-locked-eclipse" : call.affordable ? "" : " unaffordable"}`;
+        pending ? " drpg-call-pending"
+            : locked ? " drpg-locked-eclipse"
+            : call.affordable ? "" : " unaffordable"}`;
     button.dataset.drpgCall = call.key;
     button.dataset.drpgCallKind = monokuma ? "despair" : "hope";
 
-    const costLabel = game.i18n.format(
-        monokuma ? "DRPG.Calls.costsDespairShort" : "DRPG.Calls.costsHopeShort",
-        { cost: call.cost }
-    );
-    const note = locked
+    const costLabel = pending
+        ? game.i18n.localize("DRPG.Calls.freeShort")
+        : game.i18n.format(
+            monokuma ? "DRPG.Calls.costsDespairShort" : "DRPG.Calls.costsHopeShort",
+            { cost: call.cost }
+        );
+    const note = pending
+        ? `<br><em>${game.i18n.localize("DRPG.Calls.gatherNoRefund")}</em>`
+        : locked
         ? `<br><em>${game.i18n.localize("DRPG.Eclipse.callsLocked")}</em>`
         : call.affordable ? "" : `<br><em>${game.i18n.localize("DRPG.Calls.cannotAfford")}</em>`;
-    button.dataset.tooltip = `${foundry.utils.escapeHTML(callEffect(call))}<br><em>${costLabel}</em>${note}`;
+    const summary = pending
+        ? game.i18n.format("DRPG.Calls.gatherBody", {
+            room: foundry.utils.escapeHTML(pending.room)
+        })
+        : foundry.utils.escapeHTML(callEffect(call));
+    button.dataset.tooltip = `${summary}<br><em>${costLabel}</em>${note}`;
+
+    const label = pending
+        ? game.i18n.localize("DRPG.Calls.gatherCancel")
+        : call.label;
 
     button.innerHTML = `
         <i class="fa-solid ${call.icon ?? "fa-circle"} drpg-action-icon" inert></i>
-        <span class="drpg-action-name">${softWrap(foundry.utils.escapeHTML(call.label))}</span>
+        <span class="drpg-action-name">${softWrap(foundry.utils.escapeHTML(label))}</span>
         <span class="drpg-action-cost">${costLabel}</span>`;
 
     return button;
@@ -3173,6 +3214,33 @@ async function runCall(actor, key, kind) {
     const despair = kind === "despair";
     const call = despair ? DESPAIR_CALLS[key] : HOPE_CALLS[key];
     if (!call) return;
+
+    /*
+     * TRAP 102, AND IT HAS TO BE THE FIRST THING IN THIS FUNCTION.
+     *
+     * Everything below — the affordability check, the target picker, the
+     * confirmation, `spendDespairCallFor` — assumes a purchase. Calling off an
+     * assembly is not one: it costs nothing and there is nothing left to point
+     * at. Reached one line later, through `spendDespairCallFor`, it would have
+     * taken a second six Despair for the privilege of undoing the first.
+     */
+    const standing = call.defers ? pendingGather() : null;
+    if (standing) {
+        const { cancelGather } = await import("./call-effects.mjs");
+        const ok = await foundry.applications.api.DialogV2.confirm({
+            window: { title: call.label },
+            classes: ["drpg-panel", "drpg-despair-dialog"],
+            content: `<p>${game.i18n.format("DRPG.Calls.gatherCancelAsk", {
+                room: foundry.utils.escapeHTML(standing.room)
+            })}</p><p class="notes">${game.i18n.localize("DRPG.Calls.gatherNoRefund")}</p>`,
+            rejectClose: false,
+            modal: true
+        });
+        if (!ok) return;
+        await cancelGather();
+        actor.sheet?.render(false);
+        return;
+    }
 
     const held = despair ? monokumaPool(actor) : hopeHeld(actor);
     if (held < call.cost) {
@@ -3238,7 +3306,7 @@ function roomBlockFor(actor, key) {
     try {
         // Only the five actions whose subject lives in the room can be blocked
         // by the room. Move, Rest and the rest are about the actor.
-        const roomBound = ["search", "observe", "listen", "project", "sabotage"];
+        const roomBound = ["search", "observe", "listen", "project", "palm", "tamper"];
         if (!roomBound.includes(key)) return null;
 
         // `roomOfActor` answers with the room's NAME, not a region document —
@@ -3247,24 +3315,12 @@ function roomBlockFor(actor, key) {
         // every room" no matter where the token is standing.
         const here = roomOfActor(actor);
 
-        // SABOTAGE ASKS FIRST, because it is the one that does not always need
-        // a room. The SAME question `performSabotage` asks, including who is
-        // asking: a Monokuma reaches every room on the map, so measuring their
-        // reach by the room their token happens to be in would put the tile out
-        // for the one character the room rule never applied to.
-        //
-        // For everybody else the room rule is now absolute — see
-        // `sabotageTargetsIn` — so standing nowhere and having nothing to break
-        // are the same answer, and the second one is the more useful sentence.
-        if (key === "sabotage") {
-            // `isMonokuma(actor)` alone, not `game.user.isGM ||` — the same
-            // correction `performSabotage` carries, and the two must agree or a
-            // live tile opens a window with nothing in it.
-            const anyRoom = isMonokuma(actor);
-            return sabotageTargetsIn(here, { anyRoom }).length === 0
-                ? game.i18n.localize("DRPG.Project.nothingToSabotage")
-                : null;
-        }
+        // SABOTAGE USED TO BE ANSWERED HERE, and is not any more: it has no
+        // tile to dim. It is the third row of the Projects menu now, where
+        // "nothing here to break" is a struck-through option with the reason
+        // written beside it — which is the same information said better, and
+        // said in the window where the alternative is one row away. The check
+        // itself moved verbatim into `performProject`.
 
         if (!here) return game.i18n.localize("DRPG.Action.noRoomNote");
 
@@ -3281,6 +3337,20 @@ function roomBlockFor(actor, key) {
 
         if (key === "listen" && neighbouringRooms(here).length === 0)
             return game.i18n.localize("DRPG.Listen.noNeighbours");
+
+        // Palm needs a pocket, and a pocket needs somebody standing in it —
+        // true of both directions. The same question `performPalm` asks;
+        // `othersInRoom` reads the canvas, so this is the tile telling the
+        // truth about the room the player is looking at rather than guessing.
+        if (key === "palm" && othersInRoom(actor).length === 0)
+            return game.i18n.localize("DRPG.Steal.nobodyHere");
+
+        // NOT Tamper. Its two branches fail for opposite reasons — nothing of
+        // yours to erase, nobody left to frame — and only the first can be
+        // answered from this client at all: which traces are yours is a
+        // question for the GM's ledger (see `requestOwnTraces`). Asking it on
+        // every sheet render, for a tile that has a second branch which always
+        // works, would be a socket round trip to dim nothing.
 
         // NOT the project tile. An empty room is a reason there is nothing to
         // work ON, and the tile has two branches: working on a project and
@@ -3308,7 +3378,9 @@ function actionButton(actor, key, def) {
     // and still opens its briefing, because knowing what an action would do is
     // half of deciding whether to save an action for it.
     const cost = costOf(actor, key, def);
-    const affordable = cost === 0 || actionsLeft(actor) >= cost;
+    // The stripe still says "1 action" — that IS what it costs — but a banked
+    // Burst is what will pay it, so the tile must not be dimmed. See `canPayFor`.
+    const affordable = canPayFor(actor, cost);
     const eclipse = isEclipse();
 
     // Nothing here to do it to — a separate state from "cannot pay for it",
@@ -3316,17 +3388,11 @@ function actionButton(actor, key, def) {
     // time of day, the other by walking into another room.
     const blocked = roomBlockFor(actor, key);
 
-    // SABOTAGE WITH NOTHING TO SABOTAGE IS NOT ADVICE, IT IS A CLOSED DOOR.
-    //
-    // Every other entry in `roomBlockFor` dims its tile and leaves it
-    // clickable, because the tile still does something worth doing: Search with
-    // no tokens left still shows its briefing, and the Project tile has a second
-    // half — proposing one — that works in an empty room. Sabotage has no second
-    // half. With no target in the room there is no version of the action that
-    // does anything, so it goes out entirely, exactly as Direct Murder does
-    // outside an Eclipse. Same class, same look, same reason: a tile that looks
-    // pressable and then refuses is worse than one that says no in advance.
-    const nothingToBreak = key === "sabotage" && Boolean(blocked);
+    // `nothingToBreak` lived here: the sabotage tile went out entirely when its
+    // room held nothing to break, because unlike every other dimmed tile it had
+    // no second half to offer. It has a second half now — it is one row of the
+    // Projects menu, next to "work on" and "propose" — so the tile it used to
+    // switch off does not exist and neither does the rule.
 
     // WHICH TILES ARE OUT, AND WHY EACH ONE IS.
     //
@@ -3339,12 +3405,24 @@ function actionButton(actor, key, def) {
     // that looks pressable and then refuses is worse than one that says no in
     // advance. Greyed outside an Eclipse, live inside one — the exact inverse
     // of every other tile on the sheet.
-    const locked = nothingToBreak || (key === "directMurder"
-        ? !eclipse
-        : (key !== "move" && eclipse));
+    /*
+     * IN AN INCIDENT, EVERYTHING BUT DIRECT MURDER IS SHUT.
+     *
+     * The guide's turn structure assumes the two people in a fight are doing
+     * nothing else, and `performAction` has always refused them — but a tile
+     * that looks pressable and then refuses is worse than one that says no in
+     * advance, which is the rule this file has applied to the Eclipse since it
+     * was written. Direct Murder is the exception because it is no longer only
+     * Direct Murder: during an incident it opens that incident's own actions.
+     */
+    const inIncident = Boolean(murderState()?.stage === "incident" && sideOf(actor));
+
+    const locked = key === "directMurder"
+        ? (!eclipse && !inIncident)
+        : (inIncident || (key !== "move" && eclipse));
 
     button.className = `drpg-action-button${(affordable && !locked) ? "" : " unaffordable"}${
-        blocked && !nothingToBreak ? " drpg-no-subject" : ""}`;
+        blocked ? " drpg-no-subject" : ""}`;
 
     // NOT `data-action`: ApplicationV2 claims that attribute for its own action
     // dispatch and swallows the click looking for a handler it does not have.
@@ -3368,18 +3446,15 @@ function actionButton(actor, key, def) {
     // being able to pay comes next; and "nothing here" is the one worth adding
     // even when something else already applies, because it is the only reason
     // that will still be true after the Eclipse ends.
-    const note = nothingToBreak
-        ? `<br><em>${foundry.utils.escapeHTML(blocked)}</em>`
-        : locked
-        ? `<br><em>${game.i18n.localize(key === "directMurder"
-            ? "DRPG.Eclipse.murderOnlyInEclipse" : "DRPG.Eclipse.actionsLocked")}</em>`
+    const note = locked
+        ? `<br><em>${game.i18n.localize(inIncident
+            ? "DRPG.Murder.actionsLocked"
+            : key === "directMurder"
+                ? "DRPG.Eclipse.murderOnlyInEclipse" : "DRPG.Eclipse.actionsLocked")}</em>`
         : affordable
             ? ""
             : `<br><em>${plural("DRPG.Action.cannotAfford", { left: actionsLeft(actor), needed: cost }, "left")}</em>`;
-    // Already said above when the tile is out entirely; saying it twice on one
-    // tooltip reads as two different problems.
-    const why = (blocked && !nothingToBreak)
-        ? `<br><em>${foundry.utils.escapeHTML(blocked)}</em>` : "";
+    const why = blocked ? `<br><em>${foundry.utils.escapeHTML(blocked)}</em>` : "";
     button.dataset.tooltip =
         `${foundry.utils.escapeHTML(def.hint ?? "")}<br><em>${costLabel}</em>${note}${why}`;
 

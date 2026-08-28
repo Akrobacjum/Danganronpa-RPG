@@ -83,8 +83,16 @@ const SETTING_KINDS = {
     trialProgress: SYNC.trial,
     // Every sheet carries the rules list, so a new rule has to redraw them all.
     killingGameRules: SYNC.rules,
-    // The motive sits beside them and is read the same way.
+    // The motive sits beside them and is read the same way. Its countdown is
+    // a HUD row, which is why `SYNC.rules` redraws the HUD as well as the
+    // sheets — see the case below.
     motive: SYNC.rules,
+    // A called assembly changes two things at once: the HUD row every player
+    // reads, and the Public Announcement tile on a Monokuma's sheet, which is
+    // its own cancel button while one is pending. `restrictions` already
+    // redraws both, and a summons IS a restriction on where the next time of
+    // day starts.
+    pendingGather: SYNC.restrictions,
     discoveredRooms: SYNC.fog
 };
 
@@ -184,6 +192,17 @@ function refresh(kind, data = {}) {
 
     switch (kind) {
         case SYNC.clock:
+            /*
+             * A CALLED ASSEMBLY IS HELD HERE, AND BY ONE CLIENT ONLY.
+             *
+             * `runPendingGather` refuses on anybody but the primary GM and on
+             * an order that is not ripe yet, then clears the order BEFORE it
+             * moves anybody — so the second arrival of this event (the socket
+             * and the setting's `onChange` both describe it) finds nothing to
+             * do. First, because a teleport that lands after the HUD redraw
+             * shows the cast a room they are no longer standing in.
+             */
+            run("assembly", () => import("./call-effects.mjs").then(m => m.runPendingGather()));
             run("hud", () => import("./hud.mjs").then(m => m.renderHud()));
             run("sheets", () => import("./clock.mjs").then(m => m.refreshSheets()));
             run("eclipse", () => import("./eclipse.mjs").then(m => m.refreshEclipse()));
@@ -268,6 +287,11 @@ function refresh(kind, data = {}) {
 
         case SYNC.rules:
             run("sheets", () => import("./clock.mjs").then(m => m.refreshSheets()));
+            // The motive travels this road and its countdown is a HUD row, so
+            // this kind stopped being sheets-only at E14. Rules and motives
+            // change a handful of times per chapter, so the extra redraw costs
+            // nothing worth counting.
+            run("hud", () => import("./hud.mjs").then(m => m.renderHud()));
             break;
 
         case SYNC.fog:

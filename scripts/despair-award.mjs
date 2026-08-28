@@ -33,6 +33,26 @@ async function onChatMessage(message) {
             return;
         }
 
+        /*
+         * A REACTION ROLL PAYS NOTHING, AND THIS IS WHERE THAT IS TRUE.
+         *
+         * Every bare statistic click on a character sheet is forced to a
+         * reaction (see `forceReaction` in roll-dialog.mjs), because it is not
+         * an action: nothing was declared, nothing was spent. Without this line
+         * that made no difference at all — this hook fires on any duality
+         * message, so clicking a statistic fed a Monokuma's pool on a Fear
+         * result and paid the critical's second Hope on a crit, over and over,
+         * for free.
+         *
+         * Read off the ROLL rather than the dialog, because the dialog is an
+         * interface and this is a rule. `options.actionType` is what Daggerheart
+         * serialises into the message and it survives a reload.
+         */
+        if (message.rolls?.[0]?.options?.actionType === "reaction") {
+            debug("Reaction roll: no Hope, no Despair.");
+            return;
+        }
+
         const actor = resolveActor(message);
         if (!actor || actor.type !== "character") {
             debug("Roll had no character behind it; nothing awarded.", message?.speaker);

@@ -13,7 +13,7 @@
 
 import { MODULE_ID, PROJECT_SCALE } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { announce, log } from "./utils.mjs";
+import { announce, log, whisperToOwner, gmIds } from "./utils.mjs";
 
 const DH = "daggerheart";
 const COUNTDOWNS = "Countdowns";
@@ -238,13 +238,19 @@ export function sabotageTargetsIn(room, { anyRoom = false, user = game.user } = 
  *   when the project does not exist. `changed: false` means the write was a
  *   no-op — the caller must not report success.
  */
-export async function addProgress(countdownId, amount) {
+export async function addProgress(countdownId, amount, { by = null } = {}) {
     if (!amount) return null;
 
     if (!game.user.isGM) {
         const { requestProjectProgress } = await import("./gm-bridge.mjs");
         return requestProjectProgress(countdownId, amount);
     }
+
+    // Whose hands moved the bar, as a USER id — the fallback audience when a
+    // project has no recorded founder. Defaults to this client because every
+    // other caller of this function is already the GM doing it directly; the
+    // socket handler passes the asker's id instead.
+    const mover = by ?? game.user.id;
 
     const data = game.settings.get(DH, COUNTDOWNS);
     const countdowns = foundry.utils.duplicate(data?.countdowns ?? {});
@@ -284,10 +290,33 @@ export async function addProgress(countdownId, amount) {
     await game.settings.set(DH, COUNTDOWNS, { ...data, countdowns });
     log(`Project "${project.name}": ${before} -> ${after} of ${start}`);
 
+    /*
+     * CROSSED, IN THIS CALL. `before < start && after >= start` is not a
+     * roundabout way of writing `after >= start`, and must not be simplified
+     * into one: a Reroll takes progress back and puts it on again, and a bar
+     * that was already full would otherwise announce itself a second time.
+     */
+    const finished = before < start && after >= start;
+
+    /*
+     * READ THE METADATA BEFORE ANYTHING CAN DELETE IT.
+     *
+     * `checkRepairCompletion` does not merely thaw the project it was repairing
+     * — it DELETES the repair countdown, and `deleteProject` takes the metadata
+     * with it. So a guard that asks "was this a repair?" after that call is
+     * asking about a record that no longer exists, and every repair answers
+     * "no". Measured: the exclusion did nothing until this line moved up.
+     *
+     * Snapshotted rather than re-read for the same reason `announceProjectDone`
+     * is handed the object: `meta.by` would vanish on exactly the same call.
+     */
+    const metaBefore = metaFor(countdownId);
+
     // Finishing a repair thaws whatever it was repairing.
     await checkRepairCompletion(countdownId);
     // Finishing a trap arms it, and somebody has to be told.
-    if (before < start && after >= start) await announceTrapReady(countdownId, project.name);
+    if (finished) await announceTrapReady(countdownId, project.name);
+    if (finished) await announceProjectDone(project.name, start, mover, metaBefore);
 
     return { id: countdownId, name: project.name, from: before, to: after, target: start, changed: true };
 }
@@ -315,7 +344,16 @@ export async function createProject({
     // Whose trap this is, and what sets it off. Both only mean anything on an
     // indirect murder, and both are what the guide asks for in place of a named
     // victim: "you do not name the victim - you name a condition".
-    killerId = null, condition = ""
+    killerId = null, condition = "",
+    // WHO PROPOSED IT, as an actor id.
+    //
+    // The proposal card has carried this since the bridge was written — the
+    // "Approve" button's `data.by` — and the approval screen threw it away, so
+    // no project has ever known whose idea it was. That is the gap E10 exists
+    // to close: without it, a finished project can only be reported to whoever
+    // happened to add the last point, which is often not the person who has
+    // been pushing it for two days.
+    by = null
 } = {}) {
     if (!game.user.isGM) return null;
     if (!name) return null;
@@ -367,6 +405,7 @@ export async function createProject({
     // stays explicit in the data, not just in this file's assumptions.
     await setProjectMeta(id, {
         room, indirectMurder, secret: hidden, trait, countsUp: true,
+        by: by ?? null,
         killerId: indirectMurder ? killerId : null,
         condition: indirectMurder ? condition : ""
     });
@@ -494,12 +533,77 @@ export async function undoSabotage(targetId = null, repairId = null) {
  * one thing the GM has to have in front of them when they decide the trap has
  * gone off.
  */
+/**
+ * An ordinary project filled its bar, and until E10 that happened in silence.
+ *
+ * WHAT THIS IS NOT, and both exclusions are the point rather than laziness:
+ *
+ *   a repair    `checkRepairCompletion` already announces it publicly and then
+ *               DELETES the countdown. A second card about a project that no
+ *               longer exists is noise, and it would arrive after the thing it
+ *               names is gone.
+ *   a trap      `announceTrapReady` runs on the same crossing and is strictly
+ *               better — it carries the button that fires the thing. Two cards
+ *               for one moment, one of which is worse, is not a notification.
+ *
+ * WHISPERED, NEVER ANNOUNCED. A project can be secret — that is most of what
+ * projects are for in this game — and `announce` would tell the table that
+ * somebody just finished building something. The audience is the person whose
+ * idea it was, plus the GMs, and `whisperToOwner` is exactly that pair.
+ *
+ * WHO GETS IT, in order: the actor who proposed it, else whoever pushed it over
+ * the line. The founder comes first deliberately — a project is usually worked
+ * on by several people, and "your idea is finished" belongs to the person who
+ * has been carrying it, not to whoever happened to spend the last action.
+ */
+async function announceProjectDone(name, target, moverUserId, meta) {
+    // `meta` is the snapshot taken before `checkRepairCompletion` — see the
+    // note at the call site. Reading it fresh here would answer about a repair
+    // that has already been deleted.
+    if (meta.repairs) return null;
+    if (meta.indirectMurder) return null;
+
+    const founder = game.actors.get(meta.by ?? "");
+    const body = `<h3>${game.i18n.localize("DRPG.Project.doneTitle")}</h3>
+        <p>${game.i18n.format("DRPG.Project.doneBody", {
+            name: foundry.utils.escapeHTML(name), target
+        })}</p>`;
+    const flags = { [MODULE_ID]: { sfx: "projectDone" } };
+
+    if (founder) {
+        await whisperToOwner(founder, body, { flags });
+        log(`Project "${name}" is finished; told ${founder.name} and the GMs.`);
+        return { told: founder.id };
+    }
+
+    /*
+     * No founder recorded — an older project, or one the GM invented outright.
+     * The person who filled the bar is the next best answer, and they are a
+     * USER here rather than an actor, so the whisper is addressed by hand.
+     *
+     * A GM who finished it themselves would be told twice by a naive list, and
+     * `postToThread` refuses a GM outright (trap 73) — so the GM ids and the
+     * mover are merged through a Set and the messenger is not involved at all.
+     */
+    const ids = Array.from(new Set([...gmIds(), moverUserId].filter(Boolean)));
+    await ChatMessage.create({ content: body, whisper: ids, flags });
+    log(`Project "${name}" is finished; no founder recorded, told whoever filled it.`);
+    return { told: moverUserId };
+}
+
 async function announceTrapReady(countdownId, name) {
     if (!isIndirectMurder(countdownId)) return null;
 
     const meta = metaFor(countdownId);
+    /*
+     * `meta.by` IS AN ACTOR ID, and this line used to compare it to a NAME —
+     * `a.name === meta.by` — against a field that nothing in the module ever
+     * wrote. So the fallback could not match even in principle: a trap whose
+     * `killerId` was missing armed itself, logged a line, and told nobody.
+     * E10 is what began writing `by`, which is what makes this reachable.
+     */
     const killer = game.actors.get(meta.killerId ?? "")
-        ?? game.actors.find(a => a.type === "character" && a.name === meta.by);
+        ?? game.actors.get(meta.by ?? "");
     if (!killer) {
         log(`Trap "${name}" is ready, but its owner could not be identified.`);
         return null;

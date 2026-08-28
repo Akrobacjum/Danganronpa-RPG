@@ -12,11 +12,13 @@
  * them Calls rather than free checkboxes — see roll-dialog.mjs.
  */
 
-import { MODULE_ID, FLAGS, HOPE_CALLS, DESPAIR_CALLS, STARTING } from "./config.mjs";
+import { MODULE_ID, FLAGS, HOPE_CALLS, DESPAIR_CALLS, MOTIVE, STARTING } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
-import { announce, whisperToOwner, dialogContent, log, error, plural, cardHead } from "./utils.mjs";
+import {
+    announce, whisperToOwner, dialogContent, log, error, plural, cardHead, isPrimaryGm
+} from "./utils.mjs";
 
 /** Let the victim of a Call know what has been done to them. */
 async function tell(actor, key) {
@@ -283,6 +285,45 @@ export async function applyCall(actor, key, kind, choice = {}) {
             }
         }
 
+        /*
+         * --- crossings, actions and a rest bought with Hope (E13) ---
+         *
+         * None of the three touches `pendingCall`, and every one of them pushes
+         * a receipt line: `applyCall` reports `failed` when nothing was pushed,
+         * and a Call that failed hands the Hope back. A branch that did its work
+         * silently would be a Call that worked and then refunded itself (trap
+         * 100).
+         */
+        if (call.freeMoves) {
+            const { grantFreeMoves, freeMovesLeft } = await import("./actions.mjs");
+            if (!await grantFreeMoves(actor, call.freeMoves)) {
+                throw new Error(`could not bank ${call.freeMoves} crossing(s)`);
+            }
+            done.push(plural("DRPG.Calls.sprinted", { n: freeMovesLeft(actor) }));
+        }
+
+        if (call.freeActions) {
+            const { grantFreeActions, freeActionsLeft } = await import("./actions.mjs");
+            if (!await grantFreeActions(actor, call.freeActions)) {
+                throw new Error(`could not bank ${call.freeActions} action(s)`);
+            }
+            done.push(plural("DRPG.Calls.burst", { n: freeActionsLeft(actor) }));
+        }
+
+        if (call.freeRest) {
+            const { takeRest } = await import("./rest.mjs");
+            // Every gate a Short Rest normally has, waived — decision 4, and
+            // the reasoning is on `relief` in config.mjs. `quiet` because the
+            // Call is already printing a card and this is one purchase.
+            const rested = await takeRest(actor, call.freeRest, {
+                free: true, ignoreRoom: true, ignoreLimit: true, quiet: true
+            });
+            // Backing out of the "what do you want back" picker is a real
+            // cancel: nothing was restored, so the five Hope come back.
+            if (!rested) throw new Error("the rest was not taken");
+            done.push(...(rested.applied ?? []));
+        }
+
         // --- reroll the last action ---
         if (call.reroll) {
             const { rerollLastAction } = await import("./reroll.mjs");
@@ -334,10 +375,38 @@ export async function applyCall(actor, key, kind, choice = {}) {
             await tell(choice.target, "DRPG.Calls.chainedNotice");
         }
 
-        // --- gather everyone ---
+        /* --- a motive: a demand, a deadline and a price for missing it ---
+         *
+         * The whole record comes from the picker, so this branch does nothing
+         * but hand it over and report. `setMotive` announces publicly — the
+         * guide requires it — which means the receipt below is the SECOND
+         * thing the table sees, not the first.
+         */
+        if (call.setsMotive && choice.motive) {
+            const { setMotive } = await import("./rules.mjs");
+            const record = await setMotive(choice.motive);
+            if (!record) throw new Error("the motive was not announced");
+            done.push(plural("DRPG.Calls.motiveSet", { n: record.timesOfDay }));
+        }
+
+        /* --- gather everyone, now or at the start of the next time of day ---
+         *
+         * `defers` is the E14 change and it is the whole Call: nobody moves
+         * now, everybody is told where and when, and the crossing they make to
+         * get there is their own. The immediate branch is kept because
+         * `chapter.mjs` still gathers the cast for a body discovery and a
+         * trial, and those are not announcements — they are the game moving
+         * the cast because the fiction just did.
+         */
         if (call.gathersEveryone && choice.room) {
-            const moved = await gatherEveryone(choice.room);
-            done.push(plural("DRPG.Calls.gathered", { room: choice.room, n: moved }));
+            if (call.defers) {
+                const order = await scheduleGather(choice.room, actor?.name);
+                if (!order) throw new Error(`could not call an assembly in ${choice.room}`);
+                done.push(game.i18n.format("DRPG.Calls.gatherCalled", { room: choice.room }));
+            } else {
+                const moved = await gatherEveryone(choice.room);
+                done.push(plural("DRPG.Calls.gathered", { room: choice.room, n: moved }));
+            }
         }
 
         // --- destroy an item ---
@@ -448,6 +517,172 @@ async function announceRestrictions() {
     broadcast(SYNC.restrictions, {});
 }
 
+/* ==========================================================================
+ * A CALLED ASSEMBLY
+ * --------------------------------------------------------------------------
+ * Public Announcement used to be a teleport: six Despair and the cast was
+ * standing in the Main Hall, mid-sentence. It is a summons now. The order goes
+ * out publicly the moment it is bought, and the move happens at the start of
+ * the next time of day.
+ *
+ * That gives the cast a whole time of day to do something about it, which is
+ * the point: to be early, to be late, to be somewhere they should not be while
+ * everybody else is walking to the hall. It also gives Monokuma something to
+ * change his mind about — the same tile cancels it, and the Despair is gone
+ * either way, because the announcement has already moved everybody's plans.
+ * ========================================================================== */
+
+/** The assembly called and not yet held, or null. */
+export function pendingGather() {
+    try {
+        const stored = game.settings.get(MODULE_ID, SETTINGS.pendingGather) ?? {};
+        return stored.room ? stored : null;
+    } catch {
+        return null;
+    }
+}
+
+async function writeGather(record) {
+    if (!game.user.isGM) return null;
+    try {
+        await game.settings.set(MODULE_ID, SETTINGS.pendingGather, record ?? {});
+        return record ?? null;
+    } catch (err) {
+        error("Could not write the pending assembly", err);
+        return null;
+    }
+}
+
+/**
+ * Call one. Public, loudly, with the room named.
+ *
+ * The room is checked against the scene HERE rather than at the moment it
+ * fires: an order for a room that does not exist would sit on the board for a
+ * whole time of day and then fail silently in front of nobody.
+ */
+export async function scheduleGather(room, by = null) {
+    if (!game.user.isGM) return null;
+
+    if (!canvas?.scene?.regions?.find(r => r.name === room)) {
+        ui.notifications.warn(game.i18n.format("DRPG.Calls.noSuchRoom", { room }));
+        return null;
+    }
+
+    const { getClock } = await import("./clock.mjs");
+    const clock = getClock();
+    const record = {
+        room,
+        by: String(by ?? ""),
+        chapter: clock.chapter,
+        session: clock.session,
+        // The time of day it was BOUGHT in. Ripeness is "the clock has moved
+        // since", which is why the value is stored rather than a boolean: an
+        // Eclipse does not move it, so an order called before an Eclipse still
+        // waits for the time of day on the far side of it.
+        timeOfDay: clock.timeOfDay,
+        at: Date.now()
+    };
+
+    if (!await writeGather(record)) return null;
+
+    await announce({
+        flags: { [MODULE_ID]: {
+            sfx: { key: "publicAnnouncement", gm: true },
+            popupKind: "objection",
+            popupTitle: game.i18n.localize("DRPG.Calls.gatherTitle")
+        } },
+        content: `<div class="drpg-evidence-card">
+            <div class="drpg-objection-banner">${game.i18n.localize("DRPG.Calls.gatherBanner")}</div>
+            <p>${game.i18n.format("DRPG.Calls.gatherBody", {
+                room: foundry.utils.escapeHTML(room)
+            })}</p>
+            <p class="notes">${game.i18n.localize("DRPG.Calls.gatherNote")}</p>
+        </div>`
+    });
+
+    log(`Assembly called in ${room} for the next time of day.`);
+    return record;
+}
+
+/**
+ * Call it off. No refund, deliberately: the announcement has already been
+ * heard, and half the cast has already changed where they were going.
+ */
+export async function cancelGather() {
+    if (!game.user.isGM) return null;
+
+    const order = pendingGather();
+    if (!order) return null;
+
+    await writeGather(null);
+
+    await announce({
+        flags: { [MODULE_ID]: {
+            sfx: { key: "publicAnnouncement", gm: true },
+            popupKind: "info",
+            popupTitle: game.i18n.localize("DRPG.Calls.gatherTitle")
+        } },
+        content: `<div class="drpg-evidence-card">
+            <p>${game.i18n.format("DRPG.Calls.gatherCancelled", {
+                room: foundry.utils.escapeHTML(order.room)
+            })}</p>
+        </div>`
+    });
+
+    log(`Assembly in ${order.room} called off.`);
+    return order;
+}
+
+/**
+ * Hold it, if it is ripe. Called from the clock's own sync, on every client.
+ *
+ * ONE CLIENT DOES THE MOVING, AND IT IS THE PRIMARY GM (trap 106). Not whoever
+ * advanced the clock: a second GM stepping the time of day would otherwise
+ * either double the teleport or, on a client without the scene loaded, do
+ * nothing at all and lose the order.
+ *
+ * The record is cleared BEFORE the teleport rather than after. This function is
+ * reached twice on a healthy connection — once from the module's socket and
+ * once from the setting's own `onChange` — and the two are merged by a 120ms
+ * window that a slow client can miss. Clearing first makes the second pass find
+ * nothing, which is the behaviour that matters; the cost is that a teleport
+ * which throws leaves no order behind to retry, and a GM who wants it can call
+ * one again for free with `game.drpg.gatherEveryone`.
+ */
+export async function runPendingGather() {
+    if (!game.user.isGM || !isPrimaryGm()) return null;
+
+    const order = pendingGather();
+    if (!order) return null;
+
+    const { getClock } = await import("./clock.mjs");
+    const clock = getClock();
+
+    // Still the time of day it was called in: not yet.
+    if (clock.timeOfDay === order.timeOfDay && clock.session === order.session) return null;
+    // An Eclipse is the window BEFORE a time of day. Gathering the cast into it
+    // would hand them the assembly and then a free window to walk out of it.
+    if (clock.eclipse === true) return null;
+
+    await writeGather(null);
+
+    const moved = await gatherEveryone(order.room);
+    await announce({
+        flags: { [MODULE_ID]: {
+            sfx: { key: "publicAnnouncement", gm: true },
+            popupKind: "objection",
+            popupTitle: game.i18n.localize("DRPG.Calls.gatherTitle")
+        } },
+        content: `<div class="drpg-evidence-card">
+            <div class="drpg-objection-banner">${game.i18n.localize("DRPG.Calls.gatherBanner")}</div>
+            <p>${plural("DRPG.Calls.gathered", { room: foundry.utils.escapeHTML(order.room), n: moved })}</p>
+        </div>`
+    });
+
+    log(`Assembly held in ${order.room}: ${moved} moved.`);
+    return { room: order.room, moved };
+}
+
 /**
  * Teleport every student into one room.
  *
@@ -544,6 +779,8 @@ export async function pickTarget(actor, call, kind) {
         // The one Call whose content is the point: a new rule has to be written
         // before it can be announced.
         if (call.announces) return await pickText(call);
+        // …and the one that needs three answers rather than a target.
+        if (call.setsMotive) return await pickMotive(call);
 
         switch (call.target) {
             case "player": return await pickPlayer(actor, call, kind);
@@ -624,6 +861,71 @@ async function pickText(call) {
 
     if (!text || text === "cancel") return null;
     return { text };
+}
+
+/**
+ * The three questions a motive is made of: what Monokuma wants, how long the
+ * cast has, and what happens when the time runs out.
+ *
+ * BOTH SENTENCES ARE REQUIRED, AND THE WINDOW SAYS SO BEFORE THE BUTTON (the
+ * E13 lesson, learned on the rest picker). Nine Despair is three quarters of a
+ * pool; a motive bought without a stated consequence is a threat the table
+ * cannot be held to, and finding that out after paying is the version of this
+ * that costs somebody their time of day.
+ */
+async function pickMotive(call) {
+    const record = await DialogV2.wait({
+        window: { title: call.label },
+        classes: ["drpg-panel", "drpg-despair-dialog"],
+        content: dialogContent(`${pendingHeader}<form>
+            <label>${game.i18n.localize("DRPG.Motive.demandLabel")}
+                <textarea name="text" rows="3"
+                    placeholder="${game.i18n.localize("DRPG.Motive.demandPlaceholder")}"></textarea></label>
+            <label>${game.i18n.localize("DRPG.Motive.deadlineLabel")}
+                <input type="number" name="timesOfDay"
+                    value="${MOTIVE.defaultTimesOfDay}"
+                    min="${MOTIVE.minTimesOfDay}" max="${MOTIVE.maxTimesOfDay}" step="1" /></label>
+            <p class="notes">${game.i18n.localize("DRPG.Motive.deadlineNote")}</p>
+            <label>${game.i18n.localize("DRPG.Motive.consequenceLabel")}
+                <textarea name="consequence" rows="2"
+                    placeholder="${game.i18n.localize("DRPG.Motive.consequencePlaceholder")}"></textarea></label>
+            <p class="notes">${game.i18n.localize("DRPG.Motive.publicNote")}</p>
+        </form>`),
+        render: (event, dialog) => {
+            const root = dialog?.element;
+            if (!root) return;
+            const fields = ["text", "consequence"]
+                .map(name => root.querySelector(`[name=${name}]`))
+                .filter(Boolean);
+            const confirm = root.querySelector('button[data-action="ok"]');
+            const sync = () => {
+                if (confirm) confirm.disabled = fields.some(f => !f.value.trim());
+            };
+            for (const f of fields) f.addEventListener("input", sync);
+            sync();
+        },
+        buttons: [
+            {
+                action: "ok", label: game.i18n.localize("DRPG.Action.proceed"), default: true,
+                callback: (e, b, d) => {
+                    const f = d.element.querySelector("form");
+                    return {
+                        text: f.querySelector("[name=text]").value.trim(),
+                        consequence: f.querySelector("[name=consequence]").value.trim(),
+                        timesOfDay: Number(f.querySelector("[name=timesOfDay]").value)
+                    };
+                }
+            },
+            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
+        ],
+        rejectClose: false
+    });
+
+    // The backstop behind the disabled button, for the same reason the rest
+    // picker keeps one: a template change or a render that never fired would
+    // take the guard away and leave nothing behind it.
+    if (!record || record === "cancel" || !record.text) return null;
+    return { motive: record };
 }
 
 async function pickPlayer(actor, call, kind) {

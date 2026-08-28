@@ -614,7 +614,12 @@ async function runCallAction(action, data) {
                 room: data.room || null,
                 trait: data.trait || null,
                 indirectMurder: Boolean(data.murder),
-                condition: data.condition ?? ""
+                condition: data.condition ?? "",
+                // The proposer, carried since the card was built and dropped
+                // here until E10 — which is why no project has ever known whose
+                // idea it was. `declineProject` below has always read the same
+                // field, so the card was never the missing half.
+                by: data.by ?? null
             }
         });
         return made ? settled("DRPG.Bridge.settledApproved") : null;

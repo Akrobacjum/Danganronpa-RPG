@@ -337,14 +337,29 @@ export async function resolveMeddle({ actorId, targetId, help, total, isCritical
         }
     }
 
+    /*
+     * THE SOUND RIDES THE CARDS, and that is what makes it correct here.
+     *
+     * This function is on the GM's client — `playSfx` would ring the GM's
+     * speakers and nobody else's. The flag plays wherever the message lands,
+     * and `onCreateChatMessage` keeps GMs out of a whisper that did not ask for
+     * them, so these two carry the sound to exactly two people: the Monocub who
+     * spent the action, and the student it happened to.
+     *
+     * IT CANNOT LEAK WHO. A sound has no sender, and both whispers play the
+     * same one — the target learns that something reached them, which is what
+     * their card already says, and nothing more.
+     */
+    const meddleSfx = { flags: { [MODULE_ID]: { sfx: "meddle" } } };
+
     await whisperToOwner(actor, `<p><strong>${game.i18n.format("DRPG.Monocub.meddledOn", {
         name: foundry.utils.escapeHTML(target.name)
-    })}</strong></p><p>${foundry.utils.escapeHTML(text)}</p>`);
+    })}</strong></p><p>${foundry.utils.escapeHTML(text)}</p>`, meddleSfx);
 
     // The target is told SOMETHING happened without being told who — the guide
     // has Monocubs act "z boku" (from the sidelines); knowing which dead
     // classmate is pulling the strings is not part of that.
-    await whisperToOwner(target, `<p>${foundry.utils.escapeHTML(text)}</p>`);
+    await whisperToOwner(target, `<p>${foundry.utils.escapeHTML(text)}</p>`, meddleSfx);
 
     log(`${actor.name} used Meddle on ${target.name}: ${text}`);
     return { success: true, text };

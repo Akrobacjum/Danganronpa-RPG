@@ -28,8 +28,11 @@
  */
 
 import { MODULE_ID, moduleVersion, STARTING, CRISIS_ACTIONS, ACTIONS, TRAITS,
-    ITEM_CATEGORIES, LIMIT_GROUPS, EQUIPPABLE } from "./config.mjs";
+    ITEM_CATEGORIES, LIMIT_GROUPS, EQUIPPABLE, SFX_EVENTS, SFX_CATEGORIES,
+    HOPE_CALLS, DESPAIR_CALLS
+} from "./config.mjs";
 import { rolesOf } from "./inventory.mjs";
+import { vaultContents, stashRoomOfItem, stashIn, allVaults } from "./vault.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { studentActors } from "./monokuma.mjs";
@@ -66,8 +69,123 @@ const settle = () => wait(400);
 const INVARIANTS = [
     ["every action definition has a label and a cost", () => {
         for (const [key, def] of Object.entries(ACTIONS)) {
+            // A `deferred` row is a PLACE in the grid, not a definition: its
+            // three strings are localised and config.mjs is evaluated before
+            // `game.i18n` exists. The sheet fills it at render time — the row
+            // below is what checks that it still does.
+            if (def.deferred) continue;
             ok(def.label, `${key} has no label`);
             ok(typeof def.cost === "number", `${key} has no numeric cost`);
+        }
+    }],
+
+    ["the action grid is two rows of five, and nothing fell off it", () => {
+        /*
+         * THE TABLE IS THE LAYOUT (E12), so the table is what this asks.
+         *
+         * The sheet draws every `universal` entry in the order they appear in
+         * ACTIONS. Eleven is a row of five and a row of five with one hanging
+         * underneath, which is the layout this order was rewritten to avoid;
+         * nine leaves a hole. Both are invisible in a diff of config.mjs and
+         * obvious on a sheet, which is exactly the kind of thing a test is for.
+         *
+         * And the two entries that stopped being tiles must still be ENTRIES.
+         * `reroll.mjs` dispatches on `case "sabotage"`, `briefingBlock` reads
+         * its description, and `injectMonocubPanel` draws `ACTIONS.move` — so
+         * deleting either one breaks something a long way from here, silently.
+         */
+        const kinds = Object.entries(ACTIONS).map(([key, def]) => [key, def.kind]);
+        const universal = kinds.filter(([, kind]) => kind === "universal");
+        ok(universal.length === 10,
+            `the grid has ${universal.length} tiles, not ten: ${
+                universal.map(([k]) => k).join(", ")}`);
+
+        for (const key of ["move", "sabotage"]) {
+            ok(ACTIONS[key], `${key} has been deleted; something still reads it`);
+        }
+        ok(ACTIONS.move.kind === "panel", "move is back on the grid");
+        ok(ACTIONS.sabotage.kind === "variant", "sabotage is back on the grid");
+
+        // A kind nothing draws is a tile that vanished without anybody meaning
+        // it to. Every entry has to be one of the three the sheet knows.
+        for (const [key, kind] of kinds) {
+            ok(["universal", "panel", "variant"].includes(kind),
+                `${key} has unknown kind "${kind}" — nothing will draw it`);
+        }
+    }],
+
+    ["Palm cannot reach the two things it must not", () => {
+        /*
+         * The pool is "everything carried except Truth Bullets", built twice on
+         * purpose — once to fill the picker on the thief's client and once as
+         * the authority in `stealFromPerson`. Two copies of one rule is the
+         * right shape here (an authority that imports its answer from the thing
+         * it is checking is not one), and it is also exactly the shape that
+         * drifts, so this pins the half of it that is a rule rather than code:
+         * the category must exist to be excluded.
+         */
+        ok(ITEM_CATEGORIES.truthBullet,
+            "truthBullet is not a category any more — Palm's exclusion excludes nothing");
+        ok(typeof ACTIONS.palm.threshold === "number",
+            "Palm has no threshold to beat");
+        ok(typeof ACTIONS.palm.unseen?.threshold === "number",
+            "Palm has no second axis — being seen would never be decided");
+        ok(ACTIONS.palm.unseen.trait !== ACTIONS.palm.traits[0],
+            "Palm's two rolls are the same statistic, which makes them one roll");
+    }],
+
+    ["every sound names a category and a real key to yield to", () => {
+        /*
+         * The Sound panel draws its table by walking SFX_EVENTS and filing each
+         * row under its category, so an event naming a category that is not in
+         * SFX_CATEGORIES is a row that never appears — a sound a GM cannot map
+         * and therefore cannot hear, failing completely silently.
+         *
+         * `yieldsTo` fails even more quietly: `cancelHoldersOf` matches winners
+         * by string, so a typo there does not error, it just means the sound
+         * waits its 120ms and then plays anyway, on top of the thing it was
+         * supposed to defer to. Nobody would ever debug that back to a spelling.
+         */
+        for (const [key, def] of Object.entries(SFX_EVENTS)) {
+            ok(def.label, `${key} has no label`);
+            ok(def.hint, `${key} has no hint — the panel shows it as bare`);
+            ok(SFX_CATEGORIES[def.category],
+                `${key} is filed under unknown category "${def.category}"`);
+            for (const winner of def.yieldsTo ?? []) {
+                ok(SFX_EVENTS[winner], `${key} yields to unknown sound "${winner}"`);
+            }
+        }
+    }],
+
+    ["no stashed thing points at a stash that is not there", () => {
+        /*
+         * THE ORPHAN. Before E11 an item in a stash could not be lost: there was
+         * one stash per person and "in the stash" named it completely. Now the
+         * item carries a room, and a room whose stash has been taken away leaves
+         * that item on NO list — not carried, not in any drawer, invisible on the
+         * sheet and findable only by a GM reading flags.
+         *
+         * Room Setup refuses to remove a stash with anything in it, which is the
+         * guard. This is the check that the guard held: it reads the world rather
+         * than the code, so it also catches a stash removed by a macro, by a
+         * region deleted off the map, or by a hand-edited flag.
+         */
+        for (const actor of game.actors.filter(a => a.type === "character")) {
+            for (const item of vaultContents(actor)) {
+                const room = stashRoomOfItem(item, actor);
+                ok(room, `"${item.name}" on ${actor.name} is stashed nowhere`);
+                ok(stashIn(room, actor.id),
+                    `"${item.name}" on ${actor.name} names the stash in "${room}", which does not exist`);
+            }
+        }
+    }],
+
+    ["every stash belongs to somebody who exists", () => {
+        // An actor deleted mid-season leaves their stash entries behind, and a
+        // list of ghosts is what makes the Stashes tab draw a column for nobody
+        // and `openStashesHere` offer a drawer that cannot be opened.
+        for (const entry of allVaults()) {
+            ok(entry.owner, `a stash in "${entry.room}" belongs to no actor that exists`);
         }
     }],
 
@@ -86,6 +204,131 @@ const INVARIANTS = [
                 ok(def.traits?.length, `${key} rolls but names no trait`);
                 ok(typeof def.threshold === "number", `${key} rolls but has no threshold`);
             }
+        }
+    }],
+
+    ["every Call has a price and something to do for it", () => {
+        /*
+         * `applyCall` reports `failed` when its receipt is empty, and a failed
+         * Call hands the price back — which is right, and which means a Call
+         * whose effect field nobody wrote a branch for is a Call that takes the
+         * Hope, refunds it and tells the player it "did not work". Silent in the
+         * log, invisible in review, and exactly what trap 100 describes.
+         *
+         * So this asks the table the same question `applyCall` asks: is there
+         * ANY field here that some branch acts on? The list is the branches, in
+         * their order — adding an effect to config.mjs without adding its branch
+         * fails here rather than at somebody's table.
+         */
+        const ACTED_ON = ["grants", "grantsHope", "damage", "progress", "wipesProgress",
+                          "reroll", "announces", "sealsRoom", "silences", "chains",
+                          "gathersEveryone", "freeMoves", "freeActions", "freeRest",
+                          "setsMotive"];
+        const check = (source, label) => {
+            for (const [key, call] of Object.entries(source)) {
+                ok(typeof call.cost === "number", `${label} ${key} has no numeric cost`);
+                ok(call.effect, `${label} ${key} has no effect line for the panel`);
+                const acts = ACTED_ON.some(field => call[field])
+                    // The two that do their work through the picker rather than
+                    // through a field of their own.
+                    || call.target === "item";
+                ok(acts, `${label} ${key} has no effect any branch of applyCall acts on`);
+            }
+        };
+        check(HOPE_CALLS, "Hope Call");
+        check(DESPAIR_CALLS, "Despair Call");
+    }],
+
+    ["the two project Calls did not keep each other's effects", () => {
+        /*
+         * They exchanged whole entries on 28.08 — price, effect and sentence —
+         * and a swap done by halves is the worst possible outcome: a key still
+         * bolted to the other one's effect is wrong in a way that reads as
+         * right. So this states the shape of each in the terms the panel uses.
+         *
+         * The relative price is checked rather than the absolute one, because
+         * that is the part that carries meaning: emptying a project has to cost
+         * more than knocking two off it, whatever the numbers become at E18.
+         */
+        const wipe = DESPAIR_CALLS.gameIntegrity;
+        const dent = DESPAIR_CALLS.gameProtection;
+
+        ok(wipe?.wipesProgress, "Game Integrity no longer empties a project");
+        ok(!wipe?.progress, "Game Integrity carries a progress number as well as the wipe");
+        equal(dent?.progress, -2, "Game Protection is not −2 progress");
+        ok(!dent?.wipesProgress, "Game Protection still empties the project");
+        ok(wipe.cost > dent.cost,
+            `emptying a project (${wipe.cost}) does not cost more than denting it (${dent.cost})`);
+    }],
+
+    ["a deferred Call is one the sheet can cancel", () => {
+        // `defers` is read in two places that never see each other: `applyCall`
+        // writes a standing order instead of acting, and `callButton` turns the
+        // tile into its own cancel button. A Call that defers without something
+        // to defer would be a tile that cancels an order nothing ever wrote.
+        for (const [key, call] of Object.entries(DESPAIR_CALLS)) {
+            if (!call.defers) continue;
+            ok(call.gathersEveryone,
+                `${key} defers but has no deferred effect for the clock to run`);
+            ok(call.target === "room", `${key} defers but points at "${call.target}"`);
+        }
+        ok(DESPAIR_CALLS.publicAnnouncement?.defers,
+            "Public Announcement is teleporting on purchase again");
+    }],
+
+    ["every Call tile has a drawn glyph", async () => {
+        /*
+         * A KEY WITH NO GLYPH FAILS SILENTLY, AND THAT IS THE WHOLE POINT.
+         *
+         * The mask rules are keyed per Call, deliberately, so a Call without
+         * one keeps its Font Awesome icon rather than rendering blank — which
+         * means the failure mode is a 35x32 icon sitting in a row of 24px pixel
+         * art. Nothing throws, nothing warns, and the only reason either of the
+         * two that happened was ever caught was Dawid looking at the panel.
+         *
+         * READ OUT OF THE FILE, NOT OUT OF THE CSSOM. The first version of this
+         * walked `document.styleSheets` and found nothing at all: Foundry pulls
+         * the module's stylesheet in with `@import url(…) layer(modules)`, so
+         * what is in that list is a CSSImportRule whose `.styleSheet` holds the
+         * rules. The test reported "the stylesheet is not on this page" while
+         * the page was plainly wearing it.
+         *
+         * Fetching is also the stricter question, and the same one the version
+         * test asks: what will SHIP, rather than what this browser parsed.
+         */
+        let css = "";
+        try {
+            const res = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css?t=${Date.now()}`);
+            if (res.ok) css = await res.text();
+        } catch {
+            // Reported by the length check below rather than swallowed.
+        }
+        ok(css.length > 1000, "could not read danganronpa.css to check the glyphs");
+
+        const drawn = new Set();
+        // One rule per key, and it has to carry a mask: a selector alone would
+        // pass on a block that only cancels the ::before.
+        for (const block of css.matchAll(/\.drpg-call-button\[data-drpg-call="([^"]+)"\][^{]*\{([^}]*)\}/g)) {
+            if (/mask-image/.test(block[2])) drawn.add(block[1]);
+        }
+
+        const missing = [...Object.keys(HOPE_CALLS), ...Object.keys(DESPAIR_CALLS)]
+            .filter(key => !drawn.has(key));
+        ok(!missing.length,
+            `these Calls fall back to Font Awesome at the wrong size: ${missing.join(", ")}`);
+    }],
+
+    ["the three time Calls stay out of the armed-Call slot", () => {
+        // Sprint, Burst and Relief buy a state of the time of day, not a
+        // modifier on the next roll. `FLAGS.pendingCall` holds exactly ONE
+        // armed Call, so any of the three carrying `grants` would silently
+        // delete a Support armed a moment earlier — the architectural note E13
+        // opens with, stated as a test because it is one edit away from being
+        // untrue.
+        for (const key of ["sprint", "burst", "relief"]) {
+            const call = HOPE_CALLS[key];
+            ok(call, `${key} is gone from the Hope Calls`);
+            ok(!call.grants, `${key} would park itself in pendingCall and evict what is there`);
         }
     }],
 
@@ -375,10 +618,33 @@ const INVARIANTS = [
             + "answers to that name — run game.drpg.migrate1_2_0({ force: true })");
     }],
 
-    ["the stylesheet ships with the version it says it does", () => {
+    ["the stylesheet ships with the version it says it does", async () => {
         const css = stylesheetVersion();
         ok(css, "the stylesheet is not on this page at all — run game.drpg.diagnoseStyles()");
-        equal(css, moduleVersion(),
+
+        /*
+         * AGAINST THE MANIFEST FILE, NOT AGAINST `game.modules`.
+         *
+         * `moduleVersion()` reads the manifest Foundry parsed at startup, and
+         * this server caches that: measured, module.json on disk said 1.1.33
+         * while `game.modules.get(...).version` still said 1.1.30 — and the
+         * stylesheet ALSO said 1.1.30, so this test passed while the CSS was
+         * three versions stale. A test that agrees with the thing it is
+         * checking is not a test.
+         *
+         * Fetching the file gets what will actually ship. Falls back to the
+         * cached value when the fetch fails, because a test that cannot read
+         * the disk should report what it can rather than fail on the network.
+         */
+        let shipped = moduleVersion();
+        try {
+            const res = await fetch(`/modules/${MODULE_ID}/module.json?t=${Date.now()}`);
+            if (res.ok) shipped = (await res.json())?.version ?? shipped;
+        } catch {
+            // Keep the cached reading; the equality below still means something.
+        }
+
+        equal(css, shipped,
             "--drpg-css-version in danganronpa.css does not match module.json");
     }]
 ];
@@ -403,7 +669,16 @@ const LITERAL_KEYS = [
     "DRPG.Project.proposeButton", "DRPG.Project.createButton",
     "DRPG.Season.title", "DRPG.Season.resetTitle", "DRPG.Season.resetWord",
     "DRPG.Season.step.resources", "DRPG.Season.hint.resources",
-    "DRPG.Diagnostics.pageTinted"
+    "DRPG.Diagnostics.pageTinted",
+    // E12. Every one of these is said on a client that did not decide it — a
+    // GM-side refusal, a victim's whisper, a row that outlived its item — so a
+    // missing key here renders as a raw string in front of a player.
+    "DRPG.Tamper.notYours", "DRPG.Tamper.nothingOfYours", "DRPG.Tamper.onlyReinforced",
+    "DRPG.Steal.caughtTaking", "DRPG.Steal.caughtTrying", "DRPG.Steal.nobodyHere",
+    "DRPG.Steal.cardSeen", "DRPG.Steal.cardUnseen", "DRPG.Steal.cardHandsFull",
+    "DRPG.Items.rowGone",
+    "DRPG.Reroll.stealStands", "DRPG.Reroll.trailStands",
+    "DRPG.Analyze.findStash", "DRPG.Analyze.stashSent"
 ];
 
 /* ==========================================================================
@@ -421,6 +696,11 @@ async function snapshot(cast) {
     return {
         clock: foundry.utils.deepClone(getClock()),
         murder: foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {}),
+        // E14. Both are world settings a scenario below writes, and both are
+        // visible to the whole table — a suite that leaves a motive standing
+        // has announced one at somebody's game.
+        motive: foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.motive) ?? {}),
+        gather: foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.pendingGather) ?? {}),
         // HOPE AS WELL AS THE TWO REVERSE RESOURCES.
         //
         // It was missing, and the suite therefore paid its fixture actor one
@@ -438,6 +718,16 @@ async function snapshot(cast) {
             hp: a.system?.resources?.hitPoints?.value ?? 0,
             stress: a.system?.resources?.stress?.value ?? 0,
             hope: a.system?.resources?.hope?.value ?? 0,
+            // THE ACTION BUDGET AND WHAT HOPE HAS BOUGHT (E13).
+            //
+            // Same defect class as the Hope that used to leak: a scenario that
+            // spends an action or banks a Burst and does not put it back leaves
+            // the fixture richer or poorer than the GM last saw it, and the
+            // next run measures against a world the suite itself moved.
+            actions: a.system?.resources?.actions?.value ?? 0,
+            burst: a.getFlag(MODULE_ID, "freeActionGrants") ?? 0,
+            sprint: a.getFlag(MODULE_ID, "freeMoveGrants") ?? 0,
+            freeMove: a.getFlag(MODULE_ID, "freeMoveUsed") ?? false,
             deceased: a.getFlag(MODULE_ID, "deceased") ?? null
         })),
         // WHICH TOKENS AND MESSAGES EXISTED, not how many.
@@ -468,6 +758,8 @@ async function snapshot(cast) {
 async function restore(snap) {
     const { reviveCharacter } = await import("./chapter.mjs");
     await game.settings.set(MODULE_ID, SETTINGS.murderState, snap.murder);
+    await game.settings.set(MODULE_ID, SETTINGS.motive, snap.motive);
+    await game.settings.set(MODULE_ID, SETTINGS.pendingGather, snap.gather);
     const { clearBlackened } = await import("./murder.mjs");
     await clearBlackened();
 
@@ -478,7 +770,14 @@ async function restore(snap) {
         await actor.update({
             "system.resources.hitPoints.value": row.hp,
             "system.resources.stress.value": row.stress,
-            "system.resources.hope.value": row.hope
+            "system.resources.hope.value": row.hope,
+            "system.resources.actions.value": row.actions,
+            // Written as values rather than deleted: `-=key` does nothing in
+            // this Foundry without a forced replacement, so a "restore" that
+            // unsets can leave the world dirty and quietly poison the next run.
+            [`flags.${MODULE_ID}.freeActionGrants`]: row.burst,
+            [`flags.${MODULE_ID}.freeMoveGrants`]: row.sprint,
+            [`flags.${MODULE_ID}.freeMoveUsed`]: row.freeMove
         });
     }
     // Anything that appeared while the scenario ran, removed.
@@ -709,6 +1008,105 @@ const SCENARIOS = [
         }
     }],
 
+    ["the roll window opens, locked, and a bare statistic is a reaction", async () => {
+        /*
+         * THE ONE PLACE THE WINDOW ITSELF IS TESTED.
+         *
+         * Every other scenario skips it (see `suiteRolling`), so this is what
+         * stops "the window opens" from quietly stopping being true — which is
+         * exactly how it stopped being true the first time: `maybeRollItself`
+         * pressed the button and nothing anywhere noticed for four updates.
+         *
+         * Rolled OUTSIDE the suite's skip so the real path runs, and closed
+         * rather than submitted: this asks what the window IS, not what the
+         * dice say.
+         */
+        const [who] = cast();
+        game.drpg.suiteRolling = false;
+        let app = null;
+        try {
+            who.rollTrait("instinct", {
+                event: { shiftKey: false, altKey: false, ctrlKey: false },
+                dialog: { configure: true }
+            });
+            await wait(1500);
+
+            app = [...foundry.applications.instances.values()]
+                .find(w => w.element?.classList?.contains("roll-selection"));
+            ok(app, "the roll window did not open for a bare statistic click");
+
+            const root = app.element;
+            const chip = root.querySelector('[data-action="toggleReaction"]');
+            ok(chip, "the reaction control is gone from the roll window");
+            ok(chip.classList.contains("selected"),
+                "a bare statistic roll is not marked as a reaction");
+            equal(app.config.actionType, "reaction",
+                "the roll is not configured as a reaction");
+
+            // And the player cannot take it off.
+            chip.click();
+            await wait(300);
+            equal(app.config.actionType, "reaction",
+                "the reaction lock came off when the chip was clicked");
+
+            // The controls the lock owns are still shut.
+            const trait = root.querySelector("select[name=trait]");
+            ok(!trait || trait.disabled, "the trait picker is unlocked in a student's roll window");
+        } finally {
+            try { await app?.close(); } catch { /* already gone */ }
+            game.drpg.suiteRolling = true;
+        }
+    }],
+
+    ["a Burst pays for a whole action, exactly once, and comes back if refunded", async () => {
+        const [who] = cast();
+        const actions = await import("./actions.mjs");
+        const { grantFreeActions, freeActionsLeft, spendAction, refundAction } = actions;
+
+        // Start from a known place: no actions at all, one Burst banked. That
+        // is the state trap 96 is about — a player who cannot pay for anything
+        // and has just spent four Hope so that they can.
+        await who.update({ "system.resources.actions.value": 0 });
+        await who.setFlag(MODULE_ID, "freeActionGrants", 0);
+        await grantFreeActions(who, 1);
+        await settle();
+
+        equal(freeActionsLeft(who), 1, "the Burst was not banked");
+        ok(actions.canPayFor(who, 1), "a banked Burst does not count as being able to pay");
+        ok(actions.canPayFor(who, 2), "a Burst has to cover a two-action Long Rest");
+
+        // The whole call, whatever it charged for.
+        const paid = await spendAction(who, 2);
+        await settle();
+        ok(paid, "a Long Rest could not be paid for with a Burst");
+        equal(who.system.resources.actions.value, 0, "the Burst let the action budget be touched");
+        equal(freeActionsLeft(who), 0, "the Burst was not consumed");
+
+        // And exactly one call: the second spend in the same turn pays normally,
+        // which with no actions left means it cannot happen at all (trap 97).
+        const again = await spendAction(who, 1);
+        await settle();
+        ok(!again, "one Burst paid for two separate spends");
+
+        // A refund gives back what was taken, not an action out of thin air
+        // (trap 98). The bookkeeping is per-spend, so this rebuilds the state.
+        await grantFreeActions(who, 1);
+        await spendAction(who, 1);
+        await settle();
+        await refundAction(who, 1);
+        await settle();
+        equal(freeActionsLeft(who), 1, "the refund did not give the Burst back");
+        equal(who.system.resources.actions.value, 0,
+            "the refund turned a Burst into an action out of nowhere");
+
+        // And the time of day takes both counters with it.
+        await actions.grantFreeMoves(who, 2);
+        await actions.resetActionsFor(who);
+        await settle();
+        equal(freeActionsLeft(who), 0, "a Burst survived the reset");
+        equal(actions.freeMovesLeft(who), 0, "a Sprint survived the reset");
+    }],
+
     ["the accomplice is offered the betrayal, and only them", async () => {
         const [killer, victim, third] = cast();
         const drpg = game.drpg;
@@ -805,6 +1203,70 @@ const SCENARIOS = [
         }
     }],
 
+    ["a motive counts down a time of day at a time, and a rewind gives it back", async () => {
+        const { setMotive, motive, tickMotive, untickMotive } = await import("./rules.mjs");
+
+        const record = await setMotive({
+            text: "Suite fixture. Nobody has to do anything.",
+            consequence: "Nothing.",
+            timesOfDay: 3
+        });
+        ok(record, "the motive was not written");
+        equal(motive()?.remaining, 3, "a fresh motive does not start at its full deadline");
+        ok(!motive()?.due, "a fresh three-time-of-day motive reads as already due");
+
+        await tickMotive();
+        equal(motive()?.remaining, 2, "one time of day did not come off the deadline");
+
+        // The rewind's half, checked directly rather than through the clock:
+        // this is the arithmetic trap 104 is about, and it is worth failing
+        // here rather than inside a clock move that does five other things.
+        await untickMotive();
+        equal(motive()?.remaining, 3, "a rewind did not give the time of day back");
+        await untickMotive();
+        equal(motive()?.remaining, 3, "a second rewind inflated the motive past what was bought");
+
+        // Down to zero, and STAYING there — the countdown must not delete the
+        // motive at the one moment it means something.
+        await tickMotive();
+        await tickMotive();
+        await tickMotive();
+        equal(motive()?.remaining, 0, "the deadline did not reach zero");
+        ok(motive(), "the motive vanished at zero instead of coming due");
+        ok(motive()?.due, "a motive at zero does not read as due");
+
+        await tickMotive();
+        equal(motive()?.remaining, 0, "the deadline went negative");
+
+        await setMotive(null);
+        ok(!motive(), "the motive could not be withdrawn");
+    }],
+
+    ["an assembly waits for the next time of day, and cancelling it is free", async () => {
+        const { scheduleGather, pendingGather, cancelGather, runPendingGather } =
+            await import("./call-effects.mjs");
+
+        const room = canvas?.scene?.regions?.find(r => r.name)?.name;
+        ok(room, "this scene has no named region to call an assembly in");
+
+        const order = await scheduleGather(room, "Suite");
+        ok(order, "the assembly was not written");
+        equal(pendingGather()?.room, room, "the standing order names the wrong room");
+
+        // NOT YET. The order was called in this time of day, and the whole
+        // point of the change is that nobody moves until the clock does.
+        const held = await runPendingGather();
+        ok(!held, "the assembly was held in the time of day it was called in");
+        ok(pendingGather(), "an unripe assembly was cleared anyway");
+
+        await cancelGather();
+        ok(!pendingGather(), "the assembly could not be called off");
+
+        // Cancelling twice is a no-op rather than an error: the tile is drawn
+        // from the same state, so a stale sheet can send the second one.
+        ok(!await cancelGather(), "cancelling nothing reported that it cancelled something");
+    }],
+
     ["an Eclipse takes every voice off the rooms", async () => {
         // The Eclipse is the placement window. A voice channel that still
         // followed the rooms while the lights were out would be the one thing
@@ -897,9 +1359,14 @@ export async function runTests({ tier = 2 } = {}) {
         return { passed: 0, failed: 0, text: why, refused: true };
     }
     inFlight = true;
+    // Every roll the scenarios make skips the configuration window — see
+    // `suiteRolling` in action-rolls.mjs for why, and the scenario named "the
+    // roll window opens, locked" for what still covers it.
+    if (game.drpg) game.drpg.suiteRolling = true;
     try {
         return await runSuite(tier);
     } finally {
+        if (game.drpg) game.drpg.suiteRolling = false;
         inFlight = false;
     }
 }

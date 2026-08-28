@@ -248,6 +248,37 @@ export async function openMurder({ killerId, victimId, indirect = false } = {}) 
         return null;
     }
 
+    /*
+     * ONE FIGHT AT A TIME.
+     *
+     * There was no check at all: this function wrote `active: true` over
+     * whatever state was there, so a second call during a running incident did
+     * not open a second incident — it REPLACED the first. Same state object,
+     * new ids, the turn counter back to zero, and the original victim silently
+     * no longer in a fight they were in the middle of.
+     *
+     * EVERY STAGE BUT `resolution`, and the first attempt at this said
+     * `incident` only — which measured as no guard at all in the ordinary case:
+     * a murder opens at stage `openingRoll` and stays there until the first
+     * roll lands, so a second one declared in that window replaced the first
+     * exactly as before.
+     *
+     * The BETRAYAL is the one legitimate second murder and it opens during
+     * `resolution` — the newcomer turning on the killer they just helped, with
+     * the body still on the floor. That is the guide's own exception, it has a
+     * button of its own (Dawid, 28.08: the button stays, because it is the UX
+     * saying this is allowed), and it is the reason this reads a stage rather
+     * than the `active` flag: `active` is true for both, and only one of them
+     * is a fight already in progress.
+     */
+    const running = murderState();
+    if (running?.active && running.stage !== "resolution") {
+        ui.notifications.warn(game.i18n.localize("DRPG.Murder.oneAtATime"));
+        warn(`Refused to open a murder: ${game.actors.get(running.killerId)?.name ?? "somebody"} `
+            + `is already in an incident with ${game.actors.get(running.victimId)?.name ?? "somebody"}.`);
+        return null;
+    }
+
     const killer = game.actors.get(killerId);
     const victim = game.actors.get(victimId);
     if (!killer || !victim) return null;

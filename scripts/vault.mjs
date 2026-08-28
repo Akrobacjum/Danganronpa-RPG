@@ -20,7 +20,7 @@
  * change at all.
  */
 
-import { MODULE_ID, ITEM_CATEGORIES, BEDROOM_KEY_FLAG } from "./config.mjs";
+import { MODULE_ID, ITEM_CATEGORIES, BEDROOM_KEY_FLAG, ACTIONS } from "./config.mjs";
 import { ITEM_FLAGS, LOCATIONS, isStashed, canCarry } from "./inventory.mjs";
 // The one room lookup. movement.mjs does not reach back into this file.
 import { roomOfActor, ROOM_FLAGS } from "./movement.mjs";
@@ -32,8 +32,8 @@ import { SEARCH_FLAGS } from "./search-tokens.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 // Static is safe: tables.mjs only reaches back into this file lazily.
 import { isTierPool } from "./tables.mjs";
-import { dialogContent, tableDialog, whisperToOwner, announce, log, error, plural, workingScene,
-    pinFooterAcrossScroll } from "./utils.mjs";
+import { dialogContent, tableDialog, whisperToOwner, whisperToGms, announce, log, error, plural,
+    workingScene, pinFooterAcrossScroll } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -46,7 +46,45 @@ const DialogV2 = foundry.applications.api.DialogV2;
  * same screen, from the same region documents, as the rest of it.
  */
 export const VAULT_FLAGS = {
+    /**
+     * WHOSE BEDROOM THIS IS, and nothing else any more.
+     *
+     * Until E11 this one flag did four jobs at once: whose room it is, where
+     * their stash is, whose door is shut and who gets the key. Three of those
+     * are the same fact and one of them is not — a stash is a piece of
+     * furniture, and there is no reason the only place you may own one is the
+     * room with your name on the door.
+     *
+     * So this keeps the bedroom half — the locked door in `mayEnterBedroom` and
+     * the key `grantBedroomKey` issues — and hands the stash half to `stashes`
+     * below. Deliberately NOT widened: a stash in somebody else's room must not
+     * generate a key, or "let me hide this at your place" would buy free entry
+     * to their bedroom for ever after.
+     */
     owner: "drpgVaultOwner",
+    /**
+     * EVERY STASH IN THIS ROOM: `[{ actorId, concealed }]`.
+     *
+     * The bedroom owner's own stash is an ordinary member of this list — there
+     * is no such thing as an "extra" stash, which is what makes the model worth
+     * having. A room can hold several, none, or one belonging to somebody who
+     * cannot even open the door without borrowing a key.
+     *
+     * ABSENT IS NOT EMPTY. A region that has never been touched since E11 falls
+     * back to "the bedroom owner has an open stash here", reconstructed at read
+     * time from `owner` and `concealed` — see `stashesIn`. That is the whole
+     * migration: no pass to run, no world to convert, and a GM who never opens
+     * the new tab sees a module that behaves exactly as it did.
+     */
+    stashes: "drpgStashes",
+    /**
+     * LEGACY, and read only through `stashesIn`'s fallback.
+     *
+     * Whether the bedroom owner's stash was hidden, back when a room had one
+     * stash and the room was the stash. `setStash` writes `stashes` instead, so
+     * this stops changing the moment a GM edits anything on the new tab — and
+     * goes on being the honest answer for every region they never touch.
+     */
     concealed: "drpgVaultConcealed",
     /** Name of a RollTable this room draws from, instead of the global pool. */
     table: "drpgItemTable",
@@ -65,7 +103,21 @@ export const VAULT_FLAGS = {
      * box that renders markup is a description box somebody can put a script
      * tag in. Escaped at every point of display.
      */
-    description: "drpgRoomDescription"
+    description: "drpgRoomDescription",
+    /**
+     * ON A CHARACTER, not on a region — the only entry here that is.
+     *
+     * Which hiding places this person has FOUND, as `scene::room::ownerId`
+     * strings. Written by a GM's client when a Locate roll beats its number
+     * (`resolveStashSearch`), read by `openStashesHere` and by the theft
+     * authority in `stealFromVault`.
+     *
+     * It lives on the finder because the alternative lives on the room, and the
+     * room is the screen its owner opens to check their own things. Neither is
+     * hidden from a console — this module has no secrets from a determined
+     * player — but only one of them is somewhere the victim looks by accident.
+     */
+    found: "drpgStashesFound"
 };
 
 /* ==========================================================================
@@ -255,9 +307,145 @@ function regionsByName(scene = workingScene()) {
     return map;
 }
 
-/** The actor id whose stash lives in this room, or `null`. */
+/** The actor id whose BEDROOM this is, or `null`. Doors and keys, not stashes. */
 export function vaultOwnerOf(room, scene = workingScene()) {
     return regionsByName(scene).get(room)?.getFlag(MODULE_ID, VAULT_FLAGS.owner) ?? null;
+}
+
+/* ==========================================================================
+ * STASHES
+ * --------------------------------------------------------------------------
+ * A stash is an object that lives in a room, not the room itself. Everything
+ * below reads that list; `setStash` is the only thing that writes it.
+ * ========================================================================== */
+
+/**
+ * Every stash in one room, as `[{ actorId, concealed }]`.
+ *
+ * MIGRATION HAPPENS HERE, BY READING, and that is the point of doing it this
+ * way. A region with no `stashes` flag is not a room with no stashes — it is a
+ * room nobody has edited since E11 — so the old pair of flags is translated on
+ * the spot into the one entry they used to mean. Nothing is written, which
+ * matters more than it looks: this runs on players' clients too, where a write
+ * would be refused, and a migration that only completes when a GM logs in is a
+ * migration that makes the same world behave differently for different people.
+ *
+ * The array is rebuilt rather than handed back, so no caller can edit the
+ * region's stored flag by mutating what it was given.
+ */
+export function stashesIn(room, scene = workingScene()) {
+    return stashesOn(regionsByName(scene).get(room));
+}
+
+/**
+ * The same answer, from a region already in hand.
+ *
+ * `regionsByName` rebuilds its Map on every call — cheap once, and quadratic
+ * from anything that wants to look at every room. Splitting the body out is
+ * what lets the walkers below build that Map once instead of once per room.
+ */
+function stashesOn(region) {
+    if (!region) return [];
+
+    const stored = region.getFlag(MODULE_ID, VAULT_FLAGS.stashes);
+    if (Array.isArray(stored)) {
+        return stored
+            .filter(entry => entry?.actorId)
+            .map(entry => ({ actorId: entry.actorId, concealed: Boolean(entry.concealed) }));
+    }
+
+    const owner = region.getFlag(MODULE_ID, VAULT_FLAGS.owner);
+    if (!owner) return [];
+    return [{
+        actorId: owner,
+        concealed: Boolean(region.getFlag(MODULE_ID, VAULT_FLAGS.concealed))
+    }];
+}
+
+/** One person's stash in one room, or `null`. */
+export function stashIn(room, actorId, scene = workingScene()) {
+    return stashesIn(room, scene).find(entry => entry.actorId === actorId) ?? null;
+}
+
+/** Every room on the scene where this character has a stash. */
+export function stashRoomsFor(actor, scene = workingScene()) {
+    if (!actor) return [];
+    const out = [];
+    for (const [name, region] of regionsByName(scene)) {
+        const mine = stashesOn(region).find(entry => entry.actorId === actor.id);
+        if (mine) out.push({ room: name, concealed: mine.concealed });
+    }
+    return out;
+}
+
+/**
+ * The stash an unaddressed item belongs to — overflow, and anything stashed
+ * before E11.
+ *
+ * THEIR BEDROOM WINS when they have a stash in it, even if they built another
+ * one first. Any other rule makes "where did my overflow go" depend on the
+ * order a GM happened to tick boxes in, and the bedroom is the one room a
+ * player can always get back into.
+ */
+export function primaryStashRoom(actor, scene = workingScene()) {
+    if (!actor) return null;
+
+    // ONE WALK ANSWERS BOTH HALVES. The obvious spelling — `stashRoomsFor` and
+    // then `vaultRoomOwnedBy` — builds the region map twice inside a function
+    // that `stashItemsIn` used to call once per stashed item: measured at
+    // 0.218 ms per call with twelve things in a stash and eighteen regions,
+    // which is the same order as the whole visibility pass this module
+    // deliberately keeps. Not a fire, but a quadratic with a free fix.
+    let first = null;
+    let bedroom = null;
+    for (const [name, region] of regionsByName(scene)) {
+        if (!stashesOn(region).some(entry => entry.actorId === actor.id)) continue;
+        if (first === null) first = name;
+        if (region.getFlag(MODULE_ID, VAULT_FLAGS.owner) === actor.id) bedroom = name;
+    }
+    return bedroom ?? first;
+}
+
+/** The room this character's bedroom IS, owner flag only. */
+export function vaultRoomOwnedBy(actor, scene = workingScene()) {
+    if (!actor) return null;
+    for (const [name, region] of regionsByName(scene)) {
+        if (region.getFlag(MODULE_ID, VAULT_FLAGS.owner) === actor.id) return name;
+    }
+    return null;
+}
+
+/**
+ * GM: add, remove or re-hide one person's stash in one room.
+ *
+ * Writes the whole list because a region flag has no per-element update — and
+ * writing it at all is what materialises `stashesIn`'s reconstruction for that
+ * region, which is exactly when it should happen: the moment somebody edits
+ * this room, the old two-flag shape stops being the source of truth for it.
+ */
+export async function setStash(room, actorId, { present = undefined, concealed = undefined } = {}) {
+    if (!game.user.isGM || !room || !actorId) return null;
+
+    const region = regionsByName().get(room);
+    if (!region) return null;
+
+    const list = stashesIn(room);
+    const at = list.findIndex(entry => entry.actorId === actorId);
+
+    if (present === false) {
+        if (at < 0) return list;
+        list.splice(at, 1);
+    } else if (at < 0) {
+        // Anything but an explicit `present: false` creates it when missing:
+        // a GM cycling a cell to "hidden" on an empty square means "give them
+        // one, hidden", not "hide the stash that is not there".
+        list.push({ actorId, concealed: Boolean(concealed) });
+    } else if (concealed !== undefined) {
+        list[at] = { actorId, concealed: Boolean(concealed) };
+    }
+
+    await region.update({ [`flags.${MODULE_ID}.${VAULT_FLAGS.stashes}`]: list });
+    return list;
 }
 
 /** Has a "build a stash" project made this room's contents hard to find? */
@@ -278,30 +466,87 @@ export function startLocked(region) {
     return Boolean(stored);
 }
 
+/**
+ * Is the BEDROOM OWNER's stash in this room hidden?
+ *
+ * Kept because `game.drpg` exports it and a GM's macro may be calling it — see
+ * the compatibility note at the bottom of this file. It now answers through
+ * `stashesIn`, so it means the same thing it always did on an untouched world
+ * and the right thing on an edited one. Anything asking about a specific
+ * person's stash should call `stashIn(room, actorId).concealed` instead: this
+ * cannot answer for the stash somebody built in a room that is not theirs.
+ */
 export function isConcealed(room, scene = workingScene()) {
-    return Boolean(regionsByName(scene).get(room)?.getFlag(MODULE_ID, VAULT_FLAGS.concealed));
+    const ownerId = vaultOwnerOf(room, scene);
+    if (!ownerId) return false;
+    return Boolean(stashIn(room, ownerId, scene)?.concealed);
 }
 
-/** The room this character stashes things in, or `null`. */
+/**
+ * The room this character stashes things in by default.
+ *
+ * A compatibility name: before E11 there was only ever one, so "their stash
+ * room" and "their bedroom" were the same sentence. It answers `primaryStashRoom`
+ * now — the bedroom when they have a stash in it, the first one otherwise —
+ * which is the closest true thing to what every existing caller meant.
+ */
 export function vaultRoomFor(actor, scene = workingScene()) {
-    if (!actor) return null;
-    for (const [name, region] of regionsByName(scene)) {
-        if (region.getFlag(MODULE_ID, VAULT_FLAGS.owner) === actor.id) return name;
-    }
-    return null;
+    return primaryStashRoom(actor, scene);
 }
 
-/** Every room on the scene that belongs to somebody. */
-export function allVaults(scene = workingScene()) {
+/** Which stash an item is lying in. Unmarked means the owner's primary. */
+export function stashRoomOfItem(item, owner, scene = workingScene()) {
+    return item?.getFlag?.(MODULE_ID, ITEM_FLAGS.stashRoom)
+        ?? primaryStashRoom(owner, scene);
+}
+
+/** What this character has stashed in ONE room. */
+export function stashItemsIn(actor, room, scene = workingScene()) {
+    if (!actor || !room) return [];
+    // The primary is a fact about the CHARACTER, not about each item, so it is
+    // worked out once. Calling `stashRoomOfItem` per item asked the same
+    // question of the same region map once per thing in the drawer.
+    const primary = primaryStashRoom(actor, scene);
+    return vaultContents(actor).filter(i =>
+        (i.getFlag(MODULE_ID, ITEM_FLAGS.stashRoom) ?? primary) === room);
+}
+
+/**
+ * Every BEDROOM on the scene, as {room, owner}.
+ *
+ * Split out of `allVaults` at E11, and the split is a rule rather than tidying:
+ * keys are a bedroom fact and stashes are not. `allVaults` now lists stashes,
+ * so a key dialog reading it would happily offer a key to a room where somebody
+ * merely built a hiding place — and "let me stash this at your place" would buy
+ * permanent entry to their bedroom. That is precisely the leak the two flags
+ * were separated to prevent.
+ */
+export function allBedrooms(scene = workingScene()) {
     const out = [];
     for (const [name, region] of regionsByName(scene)) {
-        const owner = region.getFlag(MODULE_ID, VAULT_FLAGS.owner);
-        if (!owner) continue;
-        out.push({
-            room: name,
-            owner: game.actors.get(owner) ?? null,
-            concealed: Boolean(region.getFlag(MODULE_ID, VAULT_FLAGS.concealed))
-        });
+        const ownerId = region.getFlag(MODULE_ID, VAULT_FLAGS.owner);
+        if (!ownerId) continue;
+        out.push({ room: name, owner: game.actors.get(ownerId) ?? null });
+    }
+    return out;
+}
+
+/** Every stash on the scene, wherever it is and whoever it belongs to. */
+export function allVaults(scene = workingScene()) {
+    const out = [];
+    for (const [name] of regionsByName(scene)) {
+        for (const entry of stashesIn(name, scene)) {
+            out.push({
+                room: name,
+                owner: game.actors.get(entry.actorId) ?? null,
+                concealed: entry.concealed,
+                // Whether this is the room with their name on the door. The
+                // Stashes tab shades that column, and it is the difference
+                // between "their drawer" and "something they built at
+                // somebody else's place".
+                bedroom: vaultOwnerOf(name, scene) === entry.actorId
+            });
+        }
     }
     return out;
 }
@@ -348,12 +593,25 @@ export function vaultContents(actor) {
         i.getFlag(MODULE_ID, ITEM_FLAGS.category) && isStashed(i));
 }
 
-/** Am I standing in my own stash room? */
-export async function atOwnVault(actor) {
-    const room = vaultRoomFor(actor);
-    if (!room) return false;
+/**
+ * The stash of my own I am standing in, or `null`.
+ *
+ * Was "am I in my one stash room" and is now "which of mine is this", because
+ * the answer stopped being unique. Returns the room NAME so `stow` can stamp it
+ * onto the item — a boolean would have made the caller ask the same question
+ * again and get a different answer for anybody with two stashes.
+ */
+export async function myStashHere(actor) {
+    if (!actor) return null;
     const { roomOfActor } = await import("./movement.mjs");
-    return roomOfActor(actor) === room;
+    const room = roomOfActor(actor);
+    if (!room) return null;
+    return stashIn(room, actor.id) ? room : null;
+}
+
+/** Compatibility: `game.drpg.atOwnVault` predates several stashes. */
+export async function atOwnVault(actor) {
+    return Boolean(await myStashHere(actor));
 }
 
 /**
@@ -372,19 +630,26 @@ export async function stow(actor, item) {
     }
     if (isStashed(item)) return false;
 
-    if (!await atOwnVault(actor)) {
+    // WHICH stash, not whether. A character may have one here, one in their
+    // bedroom and none at all, and the thing goes in the one they are standing
+    // over — stamped onto the item so nothing has to work it out again.
+    const room = await myStashHere(actor);
+    if (!room) {
         ui.notifications.warn(game.i18n.localize("DRPG.Vault.notHere"));
         return false;
     }
 
     try {
-        await item.setFlag(MODULE_ID, ITEM_FLAGS.location, LOCATIONS.vault);
+        await item.update({
+            [`flags.${MODULE_ID}.${ITEM_FLAGS.location}`]: LOCATIONS.vault,
+            [`flags.${MODULE_ID}.${ITEM_FLAGS.stashRoom}`]: room
+        });
     } catch (err) {
         error("Could not stash the item", err);
         return false;
     }
 
-    log(`${actor.name} stashed "${item.name}".`);
+    log(`${actor.name} stashed "${item.name}" in ${room}.`);
     return true;
 }
 
@@ -392,7 +657,11 @@ export async function stow(actor, item) {
 export async function retrieve(actor, item) {
     if (!actor || !item || !isStashed(item)) return false;
 
-    if (!await atOwnVault(actor)) {
+    // In the room this particular thing is in — not merely in one of yours.
+    // Two stashes and a shared "am I at a stash" test would let a player pull
+    // something out of a drawer on the other side of the building.
+    const here = await myStashHere(actor);
+    if (!here || stashRoomOfItem(item, actor) !== here) {
         ui.notifications.warn(game.i18n.localize("DRPG.Vault.notHere"));
         return false;
     }
@@ -408,7 +677,12 @@ export async function retrieve(actor, item) {
     }
 
     try {
-        await item.setFlag(MODULE_ID, ITEM_FLAGS.location, LOCATIONS.carried);
+        // The stash it was in goes with it: a carried item has no stash, and a
+        // stale room name would decide where it lands if it is ever put back.
+        await item.update({
+            [`flags.${MODULE_ID}.${ITEM_FLAGS.location}`]: LOCATIONS.carried,
+            [`flags.${MODULE_ID}.${ITEM_FLAGS.stashRoom}`]: null
+        });
     } catch (err) {
         error("Could not take the item out of the stash", err);
         return false;
@@ -433,27 +707,47 @@ export async function retrieve(actor, item) {
  *
  * @returns {{owner: Actor, room: string, items: Item[]}|null}
  */
-export function openStashHere(actor) {
-    if (!actor) return null;
+export function openStashesHere(actor) {
+    if (!actor) return [];
 
     // `roomOfActor` is the module's one answer to "which room is this actor in"
     // — it already handles unlinked tokens, an empty region set and the
     // geometric fallback. A local re-implementation here was a third copy of
     // that logic, and a copy of a geometric test is a copy that drifts.
     const room = roomOfActor(actor);
-    if (!room) return null;
+    if (!room) return [];
 
-    const ownerId = vaultOwnerOf(room);
-    if (!ownerId || ownerId === actor.id) return null;   // yours is not a theft
-    // Hidden: needs a Search — unless you are the Mastermind, to whom a
-    // hiding place is furniture they watched being built (Dawid, 26.08). The
-    // GM-side authority in `stealFromVault` makes the same exception.
-    if (isConcealed(room) && !iAmTheMastermind()) return null;
+    const mastermind = iAmTheMastermind();
+    const out = [];
+    for (const entry of stashesIn(room)) {
+        if (entry.actorId === actor.id) continue;         // yours is not a theft
+        // Hidden: needs a Search — unless you are the Mastermind, to whom a
+        // hiding place is furniture they watched being built (Dawid, 26.08).
+        // The GM-side authority in `stealFromVault` makes the same exception.
+        //
+        // Or unless you FOUND it: `Analyze -> Locate a hidden stash` opens one
+        // hiding place to one person, and after that it is simply a stash they
+        // know about. See `resolveStashSearch`.
+        if (entry.concealed && !mastermind
+            && !hasFoundStash(actor, room, entry.actorId)) continue;
 
-    const owner = game.actors.get(ownerId);
-    if (!owner) return null;
+        const owner = game.actors.get(entry.actorId);
+        if (!owner) continue;
+        out.push({ owner, room, items: stashItemsIn(owner, room) });
+    }
+    return out;
+}
 
-    return { owner, room, items: vaultContents(owner) };
+/**
+ * Compatibility: one stash, the way `game.drpg` has exported it since E1.
+ *
+ * Answers the first reachable one. Kept rather than deleted because a GM's
+ * macro may call it, and a caller that only ever handled one stash is better
+ * served by being handed one than by being handed an array it will index into
+ * as if it were an object.
+ */
+export function openStashHere(actor) {
+    return openStashesHere(actor)[0] ?? null;
 }
 
 /**
@@ -464,33 +758,53 @@ export function openStashHere(actor) {
  * on that side. This is the picker, not the authority.
  */
 export async function rifleStashDialog(actor) {
-    const here = openStashHere(actor);
-    if (!here) {
+    const stashes = openStashesHere(actor);
+    if (!stashes.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Vault.noOpenStashHere"));
         return false;
     }
-    if (!here.items.length) {
+
+    const stocked = stashes.filter(entry => entry.items.length);
+    if (!stocked.length) {
         ui.notifications.info(game.i18n.format("DRPG.Vault.stashEmpty", {
-            who: here.owner.name
+            who: stashes.map(entry => entry.owner.name).join(", ")
         }));
         return false;
     }
 
-    const options = here.items.map(i => {
+    const room = stocked[0].room;
+    const esc = foundry.utils.escapeHTML;
+    const describe = i => {
         const tier = i.getFlag(MODULE_ID, ITEM_FLAGS.tier);
         const cat = ITEM_CATEGORIES[i.getFlag(MODULE_ID, ITEM_FLAGS.category)]?.label ?? "";
-        return `<option value="${i.id}">${foundry.utils.escapeHTML(
-            `${i.name}${cat ? ` — ${cat}` : ""}${tier !== null && tier !== undefined ? ` (T${tier})` : ""}`
-        )}</option>`;
-    }).join("");
+        return esc(`${i.name}${cat ? ` — ${cat}` : ""}${
+            tier !== null && tier !== undefined ? ` (T${tier})` : ""}`);
+    };
+
+    /*
+     * ONE LIST, GROUPED BY WHOSE IT IS.
+     *
+     * A room can hold several stashes now, and asking "whose drawer?" and then
+     * "which thing?" would be two questions where the answer to the first is
+     * visible in the second. So they are one `<select>` with an `<optgroup>`
+     * per owner — and the owner id rides in the value, because the GM side has
+     * to be told which sheet to take from and the item id alone cannot say.
+     *
+     * A single stash keeps its old shape exactly: one group, and a heading the
+     * player can ignore.
+     */
+    const options = stocked.map(entry =>
+        `<optgroup label="${esc(entry.owner.name)}">${entry.items.map(i =>
+            `<option value="${entry.owner.id}:${i.id}">${describe(i)}</option>`
+        ).join("")}</optgroup>`).join("");
 
     const picked = await DialogV2.wait({
-        window: { title: game.i18n.format("DRPG.Vault.rifleTitle", { room: here.room }) },
+        window: { title: game.i18n.format("DRPG.Vault.rifleTitle", { room }) },
         classes: ["drpg-panel"],
         content: dialogContent(`<form>
             <p>${game.i18n.format("DRPG.Vault.rifleIntro", {
-                who: foundry.utils.escapeHTML(here.owner.name),
-                room: foundry.utils.escapeHTML(here.room)
+                who: esc(stocked.map(entry => entry.owner.name).join(", ")),
+                room: esc(room)
             })}</p>
             <label>${game.i18n.localize("DRPG.Items.whichItem")}
                 <select name="item">${options}</select></label>
@@ -508,8 +822,11 @@ export async function rifleStashDialog(actor) {
 
     if (!picked || picked === "cancel") return false;
 
+    const [ownerId, itemId] = String(picked).split(":");
+    if (!ownerId || !itemId) return false;
+
     const { requestVaultSteal } = await import("./gm-bridge.mjs");
-    await requestVaultSteal({ thiefId: actor.id, ownerId: here.owner.id, itemId: picked });
+    await requestVaultSteal({ thiefId: actor.id, ownerId, itemId });
     return true;
 }
 
@@ -519,8 +836,15 @@ export async function rifleStashDialog(actor) {
  *
  * The item moves rather than being copied — this is theft, and the owner
  * noticing that something is missing is the entire point.
+ *
+ * AND UNTIL NOW THE OWNER WAS NEVER TOLD. The sentence above has been in this
+ * file since it was written, the thief's own card said "They will notice it is
+ * gone", and no code anywhere put that in front of the victim: the only whisper
+ * went to the thief. `clumsy` is what closes it — see below.
  */
-export async function stealFromVault({ thiefId, ownerId, itemId, viaSearch = false } = {}) {
+export async function stealFromVault({
+    thiefId, ownerId, itemId, viaSearch = false, clumsy = false
+} = {}) {
     if (!game.user.isGM) return null;
 
     const thief = game.actors.get(thiefId);
@@ -559,8 +883,24 @@ export async function stealFromVault({ thiefId, ownerId, itemId, viaSearch = fal
     };
 
     if (!where?.room) return refuse("they are not standing in any room");
-    if (vaultOwnerOf(where.room, where.scene) !== owner.id) {
-        return refuse(`"${where.room}" is not ${owner.name}'s stash`);
+
+    /*
+     * "IS THERE A STASH OF THEIRS HERE", not "is this their bedroom".
+     *
+     * These were the same question until E11 and are not any more: a stash
+     * built in somebody else's room has no `drpgVaultOwner` pointing at its
+     * owner, so the old test refused every theft from one as a forged packet —
+     * the honest player would have been the only person it stopped.
+     */
+    const entry = stashIn(where.room, owner.id, where.scene);
+    if (!entry) {
+        return refuse(`"${where.room}" holds no stash of ${owner.name}'s`);
+    }
+
+    // And the thing has to be in THAT stash, not merely in one of theirs
+    // somewhere on the map — the same distinction `retrieve` makes.
+    if (stashRoomOfItem(item, owner, where.scene) !== where.room) {
+        return refuse(`"${item.name}" is not in the stash in "${where.room}"`);
     }
 
     /*
@@ -585,12 +925,17 @@ export async function stealFromVault({ thiefId, ownerId, itemId, viaSearch = fal
      * Search of the same room would have bought — the room and owner checks
      * above still bind — so it is worth no more than the action it skips.
      */
-    if (!viaSearch && isConcealed(where.room, where.scene)) {
+    if (!viaSearch && entry.concealed) {
         // The Mastermind's exception, verified on THIS side the way every
         // other claim in this function is: `isMastermind` reads the GM's own
         // synced copy of the pick, never anything the packet says.
+        //
+        // And the found-it exception, verified the same way: the flag is
+        // written by a GM's client in `resolveStashSearch` and read here, so
+        // "has to be found first" is exactly what it says.
         const { isMastermind } = await import("./mastermind.mjs");
-        if (!isMastermind(thief)) {
+        if (!isMastermind(thief)
+            && !hasFoundStash(thief, where.room, owner.id, where.scene)) {
             return refuse("that stash is concealed and has to be found first");
         }
     }
@@ -622,8 +967,486 @@ export async function stealFromVault({ thiefId, ownerId, itemId, viaSearch = fal
         who: foundry.utils.escapeHTML(owner.name)
     })}</p>`);
 
-    log(`${thief.name} took "${item.name}" from ${owner.name}'s stash.`);
+    /*
+     * THE VICTIM, WHEN THE THIEF FUMBLED IT.
+     *
+     * Not every theft: a stash you already knew about and opened deliberately
+     * stays silent, which is what makes finding one worth the action. Only a
+     * Search that came up with Despair — the module's standing shorthand for
+     * "you did it, badly" — leaves the drawer disturbed enough to notice.
+     *
+     * NO NAME, EVER, and not even a category. What arrives is "somebody has
+     * been in here", because that is what an emptied hiding place tells you;
+     * working out who is what Observe, Analyze and the trial are for.
+     *
+     * AND THE THIEF IS NOT TOLD THEY WERE SLOPPY. That is this module's rule
+     * for every trace it drops, not a special case invented here: Hope and a
+     * critical tell you what you left behind, a plain Despair never does. Which
+     * is also why `DRPG.Vault.stole` no longer ends "They will notice it is
+     * gone" — it said so unconditionally, and it was false in both directions.
+     */
+    if (clumsy) {
+        try {
+            await whisperToOwner(owner, `<p>${game.i18n.localize("DRPG.Vault.noticed")}</p>`, {
+                flags: { [MODULE_ID]: { sfx: "stolen" } }
+            });
+        } catch (err) {
+            // The item has already moved. A victim who was not told is the
+            // state this shipped in; a theft that half-happened is not.
+            error("Could not tell the owner their stash had been disturbed", err);
+        }
+    }
+
+    log(`${thief.name} took "${item.name}" from ${owner.name}'s stash`
+        + `${clumsy ? " and was clumsy enough to leave it showing" : ""}.`);
     return copy;
+}
+
+
+/* ==========================================================================
+ * STEALING FROM A PERSON
+ * --------------------------------------------------------------------------
+ * The stash's sibling, and it lives here for one reason: this file is already
+ * the module's authority on taking something that is not yours. `stealFromVault`
+ * above owns the rules about hiding places; this owns the rules about pockets.
+ * Both move an item between two sheets, both preserve what a transfer must not
+ * mend, and both are GM-only for the same reason.
+ * ========================================================================== */
+
+/**
+ * Take something out of somebody's pockets. GM side.
+ *
+ * TWO NUMBERS ARRIVE, TWO VERDICTS ARE MADE HERE. The thief's client throws the
+ * dice and names a victim; whether 14 was beaten, whether 15 was beaten, what
+ * the pool actually contains and whether the victim is told are all decided on
+ * this side against `ACTIONS.steal` — the same division of labour as Observe,
+ * and for the same reason: the rule must live in one place, and it must not be
+ * the place that benefits from the answer.
+ *
+ * @param {object} options
+ * @param {string} options.thiefId
+ * @param {string} options.victimId
+ * @param {string|null} [options.itemId]   Honoured only on a critical.
+ * @param {number} options.total           The Hand roll.
+ * @param {boolean} [options.isCritical]
+ * @param {number} options.unseenTotal     The Shadow roll.
+ * @param {boolean} [options.unseenCritical]
+ */
+export async function stealFromPerson({
+    thiefId, victimId, itemId = null,
+    total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false
+} = {}) {
+    if (!game.user.isGM) return null;
+
+    const thief = game.actors.get(thiefId);
+    const victim = game.actors.get(victimId);
+    if (!thief || !victim || thief.id === victim.id) return null;
+
+    const refuse = why => {
+        error(`Refused a theft by ${thief.name}: ${why}.`);
+        return null;
+    };
+
+    // The dead neither rob nor are robbed. Looting a body is a different action
+    // with different rules — see `requestBodyLoot` — and routing it through here
+    // would let a corpse be picked over from the far side of a Shadow roll.
+    const { isDeceased } = await import("./chapter.mjs");
+    if (isDeceased(thief)) return refuse("they are dead");
+    if (isDeceased(victim)) return refuse(`${victim.name} is dead; that is looting, not theft`);
+
+    /*
+     * AND YOU HAVE TO BE STANDING NEXT TO THEM.
+     *
+     * `locateActor`, not `roomOfActor`: this runs on a GM's client, which is
+     * usually looking at a different scene from the theft, and the canvas-bound
+     * lookup would report both of them as standing nowhere.
+     */
+    const { locateActor } = await import("./movement.mjs");
+    const here = locateActor(thief);
+    const there = locateActor(victim);
+    if (!here?.room) return refuse("they are not standing in any room");
+    if (here.room !== there?.room) {
+        return refuse(`${victim.name} is not in "${here.room}"`);
+    }
+
+    const def = ACTIONS.palm;
+    const success = Boolean(isCritical) || Number(total) >= def.threshold;
+    const seen = !(Boolean(unseenCritical) || Number(unseenTotal) >= def.unseen.threshold);
+
+    /*
+     * THE POOL IS REBUILT HERE, NOT TRUSTED (trap 92).
+     *
+     * What travels is an item id, and an id is a request. A packet naming a
+     * Truth Bullet or something sitting in a stash has to be refused on this
+     * side, because the only thing that stopped it on the other side was a
+     * `<select>` built by the person who benefits from it being wrong.
+     *
+     * And the CHOICE is a critical's privilege. An ordinary success takes
+     * whatever comes out — the id is ignored, not honoured quietly, because a
+     * client that sends one on a non-critical is either out of date or trying
+     * it on, and both deserve the same answer.
+     */
+    const { carriedInCategory, preservedFlags, grantItem } = await import("./inventory.mjs");
+    const pool = Object.keys(ITEM_CATEGORIES)
+        .filter(c => c !== "truthBullet")
+        .flatMap(c => carriedInCategory(victim, c));
+
+    let item = null;
+    if (success && pool.length) {
+        const wanted = isCritical ? pool.find(i => i.id === itemId) : null;
+        item = wanted ?? pool[Math.floor(Math.random() * pool.length)];
+    }
+
+    // Nothing in their pockets is not a failure — the hand went in, and whether
+    // it was noticed is still a live question. The two whispers below say so.
+    const empty = success && !pool.length;
+
+    let copy = null;
+    let handsFull = false;
+    if (item) {
+        copy = await grantItem(thief, {
+            name: item.name,
+            category: item.getFlag(MODULE_ID, ITEM_FLAGS.category),
+            tier: item.getFlag(MODULE_ID, ITEM_FLAGS.tier) ?? null,
+            description: item.system?.description ?? "",
+            img: item.img,
+            // A stolen broken thing stays broken, and a stolen crowbar is still
+            // a weapon. Same reasoning as the stash theft directly above.
+            extraFlags: preservedFlags(item)
+        });
+
+        if (copy) {
+            try {
+                /*
+                 * THE QUIET HALF, AND IT IS ONE OPTION ON ONE CALL.
+                 *
+                 * `render: false` travels with the deletion over Foundry's own
+                 * socket, so the victim's open sheet does not redraw for THIS
+                 * change. The item has really gone — they cannot use it, give
+                 * it away or find it again — and what is suppressed is the
+                 * redraw, not the fact.
+                 *
+                 * A sheet redraws for a great many other reasons (a resource
+                 * moving, Despair, an incident starting), so the row can come
+                 * off the screen a moment later. That is the promise being made
+                 * and it is the honest one: not "they will never see", but
+                 * "they will not see because of this" — trap 90. Clicking the
+                 * stale row is handled where the rows are drawn (trap 91).
+                 *
+                 * When they ARE told, there is nothing to hide and the render
+                 * goes ahead: a suppressed refresh next to a whisper naming the
+                 * thief is just a way of losing one of the two messages.
+                 */
+                await item.delete({ render: seen });
+            } catch (err) {
+                error("Could not take the stolen item off its owner", err);
+            }
+        } else {
+            // The carry limit refused it. The item stays where it is — the
+            // alternative is deleting somebody's property to make room for a
+            // copy that was never created.
+            handsFull = true;
+        }
+    }
+
+    const esc = foundry.utils.escapeHTML;
+    const took = Boolean(copy);
+
+    // The thief always learns what happened to them, including whether they
+    // were noticed — that is what the Shadow roll was for.
+    await whisperToOwner(thief, `<p>${game.i18n.format(
+        took ? "DRPG.Steal.cardTook"
+            : handsFull ? "DRPG.Steal.cardHandsFull"
+            : empty ? "DRPG.Steal.cardEmpty"
+            : "DRPG.Steal.cardMissed",
+        { item: esc(item?.name ?? ""), who: esc(victim.name) }
+    )}</p><p><small>${game.i18n.localize(seen
+        ? "DRPG.Steal.cardSeen" : "DRPG.Steal.cardUnseen")}</small></p>`);
+
+    /*
+     * THE VICTIM, AND ONLY WHEN THEY NOTICED.
+     *
+     * Named, unlike the stash's "somebody has been in here", and that asymmetry
+     * is the point of the two rolls. An emptied hiding place is discovered
+     * later, by its owner, with nothing to go on; a hand in your pocket is
+     * something you catch somebody doing. So this says who — and, when they
+     * actually got something, what.
+     *
+     * Both failures are worth telling. Being caught trying is one of the better
+     * scenes this action produces, and a Shadow roll that answers "did they
+     * notice you" has to be allowed to answer it about an attempt.
+     */
+    if (seen) {
+        try {
+            await whisperToOwner(victim, `<p>${game.i18n.format(
+                took ? "DRPG.Steal.caughtTaking" : "DRPG.Steal.caughtTrying",
+                { who: esc(thief.name), item: esc(item?.name ?? "") }
+            )}</p>`, { flags: { [MODULE_ID]: { sfx: "stolen" } } });
+        } catch (err) {
+            error("Could not tell the victim of a theft", err);
+        }
+    }
+
+    log(`${thief.name} ${took ? "took" : "failed to take"} `
+        + `${took ? `"${item.name}" ` : ""}from ${victim.name}`
+        + `${seen ? " and was seen" : " unseen"}.`);
+
+    return { took, seen, item: item?.name ?? null, handsFull, empty };
+}
+
+
+
+/**
+ * Leave something in somebody's pocket. GM side, and the mirror of the theft
+ * directly above — same two axes, same two numbers, the item travelling the
+ * other way.
+ *
+ * WHY IT DESERVES ITS OWN FUNCTION rather than a `direction` flag on the one
+ * above: every guard reads differently. The pool is the PLANTER'S, the carry
+ * limit that can refuse is the VICTIM'S, and "their hands are full" means the
+ * item stays where it started rather than vanishing. A shared body with four
+ * conditionals in it would be the same code twice with the harder half hidden.
+ *
+ * @param {object} options
+ * @param {string} options.plannerId
+ * @param {string} options.victimId
+ * @param {string} options.itemId       Chosen before the roll, out of their own
+ *   pockets — no critical branch, because there is nothing left to choose.
+ * @param {number} options.total        The Hand roll.
+ * @param {number} options.unseenTotal  The Shadow roll.
+ */
+export async function plantOnPerson({
+    plannerId, victimId, itemId = null,
+    total = 0, isCritical = false, unseenTotal = 0, unseenCritical = false
+} = {}) {
+    if (!game.user.isGM) return null;
+
+    const planter = game.actors.get(plannerId);
+    const victim = game.actors.get(victimId);
+    const item = planter?.items?.get(itemId ?? "");
+    if (!planter || !victim || planter.id === victim.id || !item) return null;
+
+    const refuse = why => {
+        error(`Refused a plant by ${planter.name}: ${why}.`);
+        return null;
+    };
+
+    const { isDeceased } = await import("./chapter.mjs");
+    if (isDeceased(planter)) return refuse("they are dead");
+    // Planting evidence on a corpse is a real thing somebody will want to do,
+    // and it is not this action: a body is not carrying anything any more, and
+    // the crime scene has its own rules. Refused here rather than silently
+    // allowed, so the reason exists in one place.
+    if (isDeceased(victim)) return refuse(`${victim.name} is dead`);
+
+    const { locateActor } = await import("./movement.mjs");
+    const here = locateActor(planter);
+    const there = locateActor(victim);
+    if (!here?.room) return refuse("they are not standing in any room");
+    if (here.room !== there?.room) return refuse(`${victim.name} is not in "${here.room}"`);
+
+    /*
+     * THE POOL IS REBUILT HERE, exactly as it is for a theft (trap 92) — and
+     * the same two exclusions, for the same reasons read backwards. A Truth
+     * Bullet cannot be planted because it is knowledge rather than an object,
+     * and something in a stash cannot be planted because it is not in a hand.
+     */
+    const { carriedInCategory, preservedFlags, grantItem } = await import("./inventory.mjs");
+    const pool = Object.keys(ITEM_CATEGORIES)
+        .filter(c => c !== "truthBullet")
+        .flatMap(c => carriedInCategory(planter, c));
+    if (!pool.some(i => i.id === item.id)) {
+        return refuse(`"${item.name}" is not something they are carrying`);
+    }
+
+    const def = ACTIONS.palm;
+    const success = Boolean(isCritical) || Number(total) >= def.threshold;
+    const seen = !(Boolean(unseenCritical) || Number(unseenTotal) >= def.unseen.threshold);
+
+    let landed = null;
+    let handsFull = false;
+    if (success) {
+        landed = await grantItem(victim, {
+            name: item.name,
+            category: item.getFlag(MODULE_ID, ITEM_FLAGS.category),
+            tier: item.getFlag(MODULE_ID, ITEM_FLAGS.tier) ?? null,
+            description: item.system?.description ?? "",
+            img: item.img,
+            // A planted broken thing stays broken — which is most of the point.
+            // The best use of this action is getting a ruined murder weapon out
+            // of your own pocket and into somebody else's, and it would be
+            // worth nothing if the transfer mended it.
+            extraFlags: preservedFlags(item),
+            // The quiet half, and the mirror of the silent Steal: the victim's
+            // sheet does not redraw FOR THIS. See `grantItem`.
+            quiet: !seen
+        });
+
+        if (landed) {
+            try {
+                await item.delete();
+            } catch (err) {
+                error("Could not take the planted item off the person planting it", err);
+            }
+        } else {
+            // Their pockets are full. The item stays where it was — the
+            // alternative is deleting somebody's property into a copy that was
+            // never created.
+            handsFull = true;
+        }
+    }
+
+    const esc = foundry.utils.escapeHTML;
+    const done = Boolean(landed);
+
+    await whisperToOwner(planter, `<p>${game.i18n.format(
+        done ? "DRPG.Steal.cardPlanted"
+            : handsFull ? "DRPG.Steal.cardTheirHandsFull"
+            : "DRPG.Steal.cardPlantMissed",
+        { item: esc(item.name), who: esc(victim.name) }
+    )}</p><p><small>${game.i18n.localize(seen
+        ? "DRPG.Steal.cardSeen" : "DRPG.Steal.cardUnseen")}</small></p>`);
+
+    /*
+     * AND THE VICTIM, ONLY WHEN THEY NOTICED — with the item named.
+     *
+     * The asymmetry with a theft is worth stating: a stolen thing is missed
+     * later, so the silent case has a natural discovery. A planted thing has
+     * none — nobody audits their own pockets for things that should not be
+     * there — which is exactly what makes the unnoticed plant worth an action,
+     * and exactly why the noticed one has to be unambiguous.
+     */
+    if (seen) {
+        try {
+            await whisperToOwner(victim, `<p>${game.i18n.format(
+                done ? "DRPG.Steal.caughtPlanting" : "DRPG.Steal.caughtTryingPlant",
+                { who: esc(planter.name), item: esc(item.name) }
+            )}</p>`, { flags: { [MODULE_ID]: { sfx: "stolen" } } });
+        } catch (err) {
+            error("Could not tell the victim of a plant", err);
+        }
+    }
+
+    log(`${planter.name} ${done ? "planted" : "failed to plant"} `
+        + `"${item.name}" on ${victim.name}${seen ? " and was seen" : " unseen"}.`);
+
+    return { done, seen, item: item.name, handsFull };
+}
+
+/* ==========================================================================
+ * FINDING A HIDING PLACE
+ * --------------------------------------------------------------------------
+ * `Analyze -> Locate a hidden stash` (E12, automated 28.08). A concealed stash
+ * is invisible to everybody but its owner and the Mastermind; beating 16 on a
+ * Head roll opens ONE of them to ONE person, permanently.
+ *
+ * WHERE THE RECORD LIVES, and why on the finder rather than on the room.
+ * Either is world data and therefore readable from any console — this module
+ * has no secrets from a determined player, and never claims to. What differs is
+ * where somebody looks by accident: a flag on the region is on the screen the
+ * owner opens to check their own room, while a flag on the finder's sheet is
+ * somewhere the owner has no reason to be. Same leak on paper, a different one
+ * in practice.
+ *
+ * WRITTEN BY A GM'S CLIENT, though the finder owns their own actor and could
+ * write it themselves. The write is the only thing standing between "rolled a
+ * 16" and "reads other people's hiding places", so it goes the same way every
+ * other verdict in this module goes — see `resolveStashSearch`.
+ * ========================================================================== */
+
+/** One key per stash, so two stashes in one room stay separate. */
+function foundKey(room, ownerId, scene = workingScene()) {
+    return `${scene?.id ?? "?"}::${room}::${ownerId}`;
+}
+
+/** Has this character already found that hiding place? */
+export function hasFoundStash(actor, room, ownerId, scene = workingScene()) {
+    const found = actor?.getFlag?.(MODULE_ID, VAULT_FLAGS.found);
+    return Array.isArray(found) && found.includes(foundKey(room, ownerId, scene));
+}
+
+/** Everything this character has found, for the GM screen and the tests. */
+export function stashesFoundBy(actor) {
+    const found = actor?.getFlag?.(MODULE_ID, VAULT_FLAGS.found);
+    return Array.isArray(found) ? [...found] : [];
+}
+
+/**
+ * Score a search for a hiding place, and open one if it worked. GM side.
+ *
+ * The threshold is `ACTIONS.analyze.stashThreshold`, read here rather than sent,
+ * for the same reason every other number in this module is: the rule lives in
+ * one place and it is not the client that benefits from the answer.
+ *
+ * WHAT A SUCCESS IS WORTH, precisely: one stash, the first concealed one in the
+ * room with something in it, and if none of them holds anything then the first
+ * concealed one at all. Not "every stash here" — a room can hold several, and
+ * one roll opening all of them would make the second one free.
+ *
+ * A miss and an empty room are told apart for the FINDER and not for anybody
+ * else: "you found nothing" is what an action buys, and it is the same sentence
+ * whether the room was empty or the dice were bad. Saying which would answer the
+ * question the next attempt is for.
+ */
+export async function resolveStashSearch({ actorId, total = 0, isCritical = false } = {}) {
+    if (!game.user.isGM) return null;
+
+    const actor = game.actors.get(actorId);
+    if (!actor) return null;
+
+    const { locateActor } = await import("./movement.mjs");
+    const where = locateActor(actor);
+    if (!where?.room) return { found: false, reason: "noRoom" };
+
+    const beat = Boolean(isCritical) || Number(total) >= (ACTIONS.analyze?.stashThreshold ?? 16);
+    if (!beat) {
+        await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Analyze.stashNothing")}</p>`);
+        return { found: false, reason: "missed" };
+    }
+
+    // Yours is not a discovery, and one already found is not a second one.
+    const here = stashesIn(where.room, where.scene)
+        .filter(e => e.concealed && e.actorId !== actor.id)
+        .filter(e => !hasFoundStash(actor, where.room, e.actorId, where.scene));
+
+    let target = null;
+    for (const entry of here) {
+        const owner = game.actors.get(entry.actorId);
+        if (!owner) continue;
+        if (!target) target = { entry, owner };
+        if (stashItemsIn(owner, where.room, where.scene).length) { target = { entry, owner }; break; }
+    }
+
+    if (!target) {
+        await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Analyze.stashNothing")}</p>`);
+        return { found: false, reason: "none" };
+    }
+
+    const found = stashesFoundBy(actor);
+    found.push(foundKey(where.room, target.owner.id, where.scene));
+    await actor.setFlag(MODULE_ID, VAULT_FLAGS.found, found);
+
+    const esc = foundry.utils.escapeHTML;
+    await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Analyze.stashFound", {
+        who: esc(target.owner.name), room: esc(where.room)
+    })}</p>`);
+
+    /*
+     * THE OWNER IS NOT TOLD, and that is the rule this action was written with
+     * — "bez powiadamiania właściciela". Being found out is something they
+     * discover when something goes missing, which is `stealFromVault`'s job and
+     * has its own Despair test.
+     *
+     * The GMs are told, because a hiding place opening is a fact about the
+     * chapter and the one person who has to be able to narrate it is not on
+     * either side of it.
+     */
+    await whisperToGms(`<p>${game.i18n.format("DRPG.Analyze.stashFoundGm", {
+        finder: esc(actor.name), who: esc(target.owner.name), room: esc(where.room), total
+    })}</p>`);
+
+    log(`${actor.name} found ${target.owner.name}'s hidden stash in ${where.room} (rolled ${total}).`);
+    return { found: true, owner: target.owner.name, room: where.room };
 }
 
 /* ==========================================================================
@@ -708,6 +1531,52 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
         return `<tr><td><strong>${escRoom}</strong></td>${boxes}</tr>`;
     }).join("");
 
+    /*
+     * THE STASH MATRIX. Same shape as the Fog one above — rooms down, students
+     * across — because four tables that look alike read as one window.
+     *
+     * ONE BUTTON PER CELL, NOT TWO CHECKBOXES. A stash cell carries two facts
+     * ("is there one" and "is it hidden") and the obvious encoding is a pair of
+     * boxes. At eight students and twelve rooms that is 192 targets to hit, half
+     * of which are meaningless — "hidden" on a room with no stash — so the cell
+     * cycles through the three states that actually exist instead.
+     *
+     * The state lives in a hidden input rather than on the button, because Apply
+     * reads this form by input NAME and knows nothing about how the cell was
+     * drawn — the same contract the fog matrix keeps.
+     */
+    const stashState = (room, actorId) => {
+        const entry = stashIn(room, actorId, scene);
+        if (!entry) return "";
+        return entry.concealed ? "hidden" : "open";
+    };
+    const stashGlyph = state => state === "open"
+        ? '<i class="fa-solid fa-box-open"></i>'
+        : state === "hidden"
+            ? '<i class="fa-solid fa-box"></i><i class="fa-solid fa-lock drpg-stash-lock"></i>'
+            : '<span class="drpg-stash-none">&mdash;</span>';
+    const stashHeads = students
+        .map(a => `<th>${foundry.utils.escapeHTML(a.name)}</th>`)
+        .join("");
+    const stashRows = rooms.map(room => {
+        const escRoom = foundry.utils.escapeHTML(room);
+        const bedroomOwner = vaultOwnerOf(room, scene);
+        const cells = students.map(actor => {
+            const state = stashState(room, actor.id);
+            // The bedroom owner's column is shaded so a GM can see at a glance
+            // which stash appeared by itself when they assigned the room.
+            const own = bedroomOwner === actor.id ? " drpg-stash-bedroom" : "";
+            return `<td class="drpg-stash-cell${own}">
+                <input type="hidden" name="stash:${escRoom}:${actor.id}" value="${state}" />
+                <button type="button" class="drpg-stash-toggle"
+                    data-drpg-stash="${escRoom}:${actor.id}"
+                    title="${foundry.utils.escapeHTML(
+                        game.i18n.localize("DRPG.Vault.stashCycle"))}">${stashGlyph(state)}</button>
+            </td>`;
+        }).join("");
+        return `<tr><td><strong>${escRoom}</strong></td>${cells}</tr>`;
+    }).join("");
+
     /* One pass gathers every fact about a room; the tabs then deal the same
      * cells into four thematic tables. The input NAMES are the contract with
      * the Apply callback below, identical whichever table a cell sits in —
@@ -786,6 +1655,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
         ["doors", "DRPG.Vault.tabDoors"],
         ["search", "DRPG.Vault.tabSearching"],
         ["rest", "DRPG.Vault.tabRest"],
+        ["stashes", "DRPG.Vault.tabStashes"],
         ["description", "DRPG.Vault.tabDescription"],
         ["fog", "DRPG.Vault.tabFog"]
     ];
@@ -842,6 +1712,15 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
                     ["short", "long"])}
             `)}
 
+            ${panel("stashes", `
+                <p>${game.i18n.localize("DRPG.Vault.stashesIntro")}</p>
+                <table class="drpg-vault-table"><thead><tr>
+                    <th>${game.i18n.localize("DRPG.Vault.room")}</th>
+                    ${stashHeads}
+                </tr></thead><tbody>${stashRows}</tbody></table>
+                <p class="notes">${game.i18n.localize("DRPG.Vault.stashesNote")}</p>
+            `)}
+
             ${panel("description", `
                 <p>${game.i18n.localize("DRPG.Vault.descriptionIntro")}</p>
                 ${tableFor([th("DRPG.Vault.descriptionColumn")], ["description"])}
@@ -892,7 +1771,22 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
                         fogMatrix[actor.id] = rooms.filter(room =>
                             pick(`fog:${room}:${actor.id}`)?.checked);
                     }
-                    return { rooms: roomRows, fog: fogMatrix };
+                    // Room -> the stashes the GM left in it. Empty cells are
+                    // simply absent, which is what "no stash" means.
+                    const stashMatrix = {};
+                    for (const room of rooms) {
+                        stashMatrix[room] = students
+                            .map(actor => ({
+                                actorId: actor.id,
+                                state: pick(`stash:${room}:${actor.id}`)?.value ?? ""
+                            }))
+                            .filter(entry => entry.state)
+                            .map(entry => ({
+                                actorId: entry.actorId,
+                                concealed: entry.state === "hidden"
+                            }));
+                    }
+                    return { rooms: roomRows, fog: fogMatrix, stashes: stashMatrix };
                 }
             },
             { action: "discoverAll", label: game.i18n.localize("DRPG.Vault.discoverAll") },
@@ -921,6 +1815,29 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
                     // this window scrolls sideways changes with the tab, and a
                     // bar pinned for the Fog tab is wrong for Bedrooms (C-F5-8).
                     requestAnimationFrame(() => pinFooterAcrossScroll(dialog));
+                });
+            }
+
+            /*
+             * Cycle a stash cell: none -> open -> hidden -> none.
+             *
+             * The hidden input is the truth and the glyph follows it, never the
+             * other way round — Apply reads the input, and a cell whose picture
+             * and value could disagree is a cell that lies to whoever saves it.
+             */
+            const GLYPHS = {
+                "": '<span class="drpg-stash-none">&mdash;</span>',
+                open: '<i class="fa-solid fa-box-open"></i>',
+                hidden: '<i class="fa-solid fa-box"></i><i class="fa-solid fa-lock drpg-stash-lock"></i>'
+            };
+            const NEXT = { "": "open", open: "hidden", hidden: "" };
+            for (const button of root.querySelectorAll("[data-drpg-stash]")) {
+                button.addEventListener("click", ev => {
+                    ev.preventDefault();
+                    const input = button.parentElement?.querySelector("input[type=hidden]");
+                    if (!input) return;
+                    input.value = NEXT[input.value] ?? "open";
+                    button.innerHTML = GLYPHS[input.value];
                 });
             }
 
@@ -993,6 +1910,10 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
     }
 
     let changed = 0;
+    // Rooms whose BEDROOM OWNER moved in this Apply. Collected rather than acted
+    // on inline because the seeding below has to run after the stash matrix has
+    // been written, or it would seed into a list it is about to overwrite.
+    const ownerMoved = [];
     for (const row of rowResults) {
         const region = regionsByName().get(row.room);
         if (!region) continue;
@@ -1026,6 +1947,9 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
             && wasLockedAtStart === row.lockedAtStart
             && wasSealed === row.noSearch
             && before.description === row.description;
+        if (before.owner !== (row.owner || null) && row.owner) {
+            ownerMoved.push({ room: row.room, owner: row.owner });
+        }
         if (same) continue;
 
         await setVaultRoom(row.room, {
@@ -1071,6 +1995,64 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
             }
         }
 
+        changed++;
+    }
+
+    /*
+     * THE STASH MATRIX, and the two rules that make it safe.
+     *
+     * TRAP 77 — A STASH WITH THINGS IN IT IS NOT REMOVED. Taking one away would
+     * leave every item in it pointing at a stash that no longer exists, which is
+     * an item on no list at all: not carried, not in any drawer, gone from the
+     * sheet and findable only by a GM reading flags. So the removal is refused,
+     * with the count, and the GM is told whose things and how many. The cell
+     * snaps back on the next open because the form is redrawn from the flags.
+     */
+    if (result.stashes && typeof result.stashes === "object") {
+        for (const [room, wanted] of Object.entries(result.stashes)) {
+            const current = stashesIn(room, scene);
+            const keep = new Map(wanted.map(entry => [entry.actorId, entry]));
+
+            for (const entry of current) {
+                if (keep.has(entry.actorId)) continue;
+                const owner = game.actors.get(entry.actorId);
+                const held = owner ? stashItemsIn(owner, room, scene).length : 0;
+                if (held) {
+                    ui.notifications.warn(game.i18n.format("DRPG.Vault.stashNotEmpty", {
+                        name: owner?.name ?? "?", room, n: held
+                    }));
+                    keep.set(entry.actorId, entry);      // refused: leave it alone
+                    continue;
+                }
+                await setStash(room, entry.actorId, { present: false });
+                changed++;
+            }
+
+            for (const entry of keep.values()) {
+                const was = current.find(e => e.actorId === entry.actorId);
+                if (was && was.concealed === entry.concealed) continue;
+                await setStash(room, entry.actorId, { concealed: entry.concealed });
+                changed++;
+            }
+        }
+    }
+
+    /*
+     * TRAP 76 — SEEDING RUNS ON AN OWNER CHANGE, NEVER ON EVERY APPLY.
+     *
+     * Giving somebody a bedroom gives them a stash in it, which is what makes
+     * the split invisible to a GM who never opens the new tab. But if it ran
+     * every time the form was saved, then removing a stash on the Stashes tab
+     * and pressing Apply would put it straight back — a button that unclicks
+     * itself, and the GM would have no way to tell it apart from a bug.
+     *
+     * `?? false` rather than a plain create: `setStash` leaves an existing entry
+     * alone when told nothing about concealment, so a GM who already hid the
+     * owner's stash keeps it hidden.
+     */
+    for (const { room, owner } of ownerMoved) {
+        if (stashIn(room, owner, scene)) continue;
+        await setStash(room, owner, { concealed: false });
         changed++;
     }
 

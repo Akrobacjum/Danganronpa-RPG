@@ -304,6 +304,61 @@ const CLAUSES = [
         }
     },
     {
+        key: "motiveTimer",
+        since: "1.1.37",
+        /*
+         * TRAP 101 — A MOTIVE ANNOUNCED AT THE TABLE CANNOT VANISH MID-SESSION.
+         *
+         * The old record was `{ text, chapter, at }`. The new one carries a
+         * deadline in times of day, a consequence, and the flag that stops the
+         * deadline being announced twice. A world upgraded mid-chapter holds
+         * the old shape, and every reader of the new one would find
+         * `remaining` undefined — which `motive()` reads as zero, which is
+         * "due". The motive would still be on screen, and it would be on
+         * screen having already expired.
+         *
+         * REWRITTEN, NOT DELETED. The alternative was to drop the record on
+         * the grounds that it has no timer, and that is exactly the wrong
+         * trade: the motive was announced out loud, players have been playing
+         * against it, and no data shape justifies taking it off their screens.
+         *
+         * The timer starts at the default and the consequence is left empty,
+         * because the module does not know either — it was never asked. The
+         * GM can withdraw and re-announce with the real numbers, and the
+         * whisper below tells them so.
+         */
+        run: async () => {
+            const stored = getSetting(SETTINGS.motive) ?? {};
+            if (!stored.text) return null;
+            if (Number.isFinite(stored.remaining) && Number.isFinite(stored.timesOfDay)) return null;
+
+            const { MOTIVE } = await import("./config.mjs");
+            const next = {
+                ...stored,
+                consequence: String(stored.consequence ?? ""),
+                timesOfDay: MOTIVE.defaultTimesOfDay,
+                remaining: MOTIVE.defaultTimesOfDay,
+                dueAnnounced: false
+            };
+            await setSetting(SETTINGS.motive, next);
+
+            // Read back, not believed: this clause CHANGES a shape other code
+            // now depends on, and a write that resolved is not a write that
+            // landed.
+            const check = getSetting(SETTINGS.motive) ?? {};
+            if (!Number.isFinite(check.remaining)) {
+                error("The motive record could not be given a timer");
+                return null;
+            }
+
+            await whisperToGms(`<p>${game.i18n.format("DRPG.Motive.migrated", {
+                n: MOTIVE.defaultTimesOfDay
+            })}</p>`);
+
+            return { motive: stored.text, timesOfDay: MOTIVE.defaultTimesOfDay };
+        }
+    },
+    {
         key: "openStudentSheets",
         since: "1.1.21",
         /*

@@ -359,6 +359,14 @@
       "freeMoveSpent": "Free Move used. The next crossing costs an action.",
       "allSpent": "No actions left. They come back when the next Eclipse begins.",
       "leftOf": "{left} of {max} actions",
+      "burstBanked": {
+        "one": "{n} action bought with Hope",
+        "other": "{n} actions bought with Hope"
+      },
+      "sprintBanked": {
+        "one": "{n} crossing bought with Hope",
+        "other": "{n} crossings bought with Hope"
+      },
       "freeMoveLeft": "free Move unused",
       "eclipseMovesLeft": {
         "one": "{n} Eclipse crossing",
@@ -476,6 +484,9 @@
       "goalStressHint": "Small comforts. Clears Sanity.",
       "goalCrimeHint": "A potential murder tool. Leaves a Prep Remnant.",
       "goalCleaningHint": "A cleaning tool. Leaves a Prep Remnant.",
+      "substitute": "Not what you were looking for — it is what this room had.",
+      "goalTool": "Something to work with",
+      "goalToolHint": "A tool. Gives advantage on project work — and leaves no trace unless what turns up is also a weapon.",
       "goalSpecific": "Something specific",
       "goalSpecificHint": "Describe it. The GM rules on what was really there.",
       "goalSpecificPrompt": "What are you looking for?",
@@ -571,7 +582,13 @@
         "one": "Work out what one of your {n} unidentified Truth Bullets really is.",
         "other": "Work out what one of your {n} unidentified Truth Bullets really is."
       },
-      "askHintHint": "No evidence in hand — ask the GM to point you somewhere instead."
+      "askHintHint": "No evidence in hand — ask the GM to point you somewhere instead.",
+      "findStash": "Locate a hidden stash",
+      "findStashHint": "Work out whether somebody has hidden something in this room. {n}+ opens one hiding place to you.",
+      "stashNothing": "You go over the room and find nothing anybody has tried to hide.",
+      "stashFound": "There is a hiding place here, and it is {who}'s. You can get into it now — the panel on your Inventory tab lists what is in it.",
+      "stashFoundGm": "{finder} rolled {total} and found {who}'s hidden stash in {room}. {who} has not been told.",
+      "stashSent": "You go over the room looking for anything that does not belong."
     },
     "Items": {
       "manage": "Give / take items",
@@ -619,6 +636,7 @@
       "unequipTooltip": "Put this away.",
       "readyTooltip": "Held ready.",
       "noneReadied": "Nothing is held ready — only what is in your hand counts in an incident or a clean-up.",
+      "rowGone": "{item} is not there any more.",
       "restoreN": "Restores {n}.",
       "restore": {
         "hitPoints": "Health",
@@ -786,6 +804,12 @@
       "event": "Event",
       "file": "File",
       "notAssigned": "not assigned yet",
+      "severalHint": "One file, or several separated by | — the game picks one each time and never the same one twice running.",
+      "fileCount": "{n} files",
+      "varies": "varies",
+      "variesHint": "This one is heard constantly, so each play bends its speed very slightly. Ceremonial sounds do not, and the safeword never does.",
+      "varyLabel": "Vary the sounds you hear often",
+      "varyHint": "Bends the speed of the busiest effects by a few per cent on each play, so the fortieth button press is not identical to the first. Leaves everything else — and the safeword — exactly as you mapped it.",
       "choose": "Choose",
       "test": "Test",
       "clear": "Clear"
@@ -956,7 +980,7 @@
       },
       "stressBack": "You get {n} Sanity back.",
       "trailPlanted": "Planted a Prep Remnant ({visibility}) pointing at {name}.",
-      "trailNote": "Planted to implicate {name}. {visibility}.",
+      "trailNote": "Planted by {by} to implicate {name}. {visibility}.",
       "trailFailed": "Nothing usable was left behind.",
       "bodyMoved": "The body has been moved to {room}.",
       "bodyStayed": "The body does not budge.",
@@ -1086,7 +1110,10 @@
       "improvised": "Snatched a weapon out of the struggle: {item} (Tier {tier}).",
       "improvisedNote": "Grabbed mid-incident. A crime tool like any other.",
       "cannotLeave": "You are in an incident. The only way out is a crisis action.",
-      "actionsLocked": "You are in an incident. Use your crisis actions; Hope Calls still work.",
+      "oneAtATime": "There is already an incident running. It has to finish before another can start.",
+      "crisisPrompt": "What are you doing about it?",
+      "nothingToDo": "There is nothing left for you to do this round.",
+      "actionsLocked": "You are in an incident. Everything you can do is behind Direct Murder; Hope Calls still work.",
       "thirdJoined": "{name} throws in with the killer and stays in the incident.",
       "thirdLeft": "{name} turns away and leaves. They take no part in this.",
       "openingYours": "This roll is yours, and it is the only one. It cannot be skipped.",
@@ -1181,7 +1208,13 @@
       "noBullets": "Truth Bullets are what you know, not things in a drawer.",
       "overflowed": "Your hands were full, so {item} went into your stash. Your {category} limit is unchanged.",
       "foundInStash": "Hidden in this room, you find {item}.",
-      "stole": "You take {item} out of {who}'s hiding place. They will notice it is gone.",
+      "stole": "You take {item} out of {who}'s hiding place.",
+      "noticed": "Something has been moved in your hiding place, and something is missing from it. You have no idea whose hands they were.",
+      "tabStashes": "Stashes",
+      "stashesIntro": "Who has a stash in which room, and whether it is hidden. Click a cell to cycle it: nothing, an open stash, a hidden one. A bedroom gives its owner an open stash automatically when you assign it — the shaded column — and you can take that away here.",
+      "stashesNote": "An open stash is a drawer: anyone standing in the room can go through it for free. A hidden one has to be found first, with a Search at a penalty. A stash in somebody else's room does NOT come with a key to it.",
+      "stashCycle": "Click to cycle: none / open / hidden",
+      "stashNotEmpty": "{name} has {n} thing(s) in the stash in {room} — take them out before removing it.",
       "manageTitle": "Room setup",
       "manageIntro": "Everything a room is, one kind of fact per tab. Apply saves every tab at once, whichever one is showing.",
       "manageNote": "A favoured category gives advantage to anyone searching here for it — medicine in the medic's office. A bad one gives disadvantage — bandages in the boiler room — and a category can never be both. A room with no table of its own falls through to the global pool, so half-finished setup is fine.",
@@ -1565,6 +1598,14 @@
       "spend": "Spend {cost}",
       "aimedAt": "Aimed at",
       "notEnoughHope": "{call} costs {cost} Hope and you hold {held}.",
+      "sprinted": {
+        "one": "{n} extra crossing this time of day, free of charge.",
+        "other": "{n} extra crossings this time of day, free of charge."
+      },
+      "burst": {
+        "one": "Your next action is free — {n} banked.",
+        "other": "Your next actions are free — {n} banked."
+      },
       "hopeSpent": "Spent {cost} Hope · {left} left.",
       "noPool": "This Monokuma has no Despair pool. Check the Despair bar.",
       "whichPlayer": "Which character?",
@@ -1618,7 +1659,22 @@
       "hopeGranted": "{name} gains {n} Hope.",
       "cannotAfford": "You do not hold enough for this one.",
       "silencedBadge": "Silenced",
-      "chainedBadge": "Chained"
+      "chainedBadge": "Chained",
+      "motiveSet": {
+        "one": "The motive is announced. One time of day on the clock.",
+        "other": "The motive is announced. {n} times of day on the clock."
+      },
+      "freeShort": "Free",
+      "gatherTitle": "Public Announcement",
+      "gatherBanner": "AN ANNOUNCEMENT FROM MONOKUMA",
+      "gatherBody": "Everyone to {room}, at the start of the next time of day.",
+      "gatherNote": "You have until then. Where you are when it starts is up to you.",
+      "gatherShort": "Assembly",
+      "gatherCalled": "Everyone is called to {room} for the next time of day.",
+      "gatherCancel": "Call it off",
+      "gatherCancelAsk": "Call off the assembly in {room}?",
+      "gatherCancelled": "The assembly in {room} is called off.",
+      "gatherNoRefund": "No Despair comes back — the announcement has already been heard."
     },
     "Monokuma": {
       "toggle": "Mark as Monokuma",
@@ -1666,6 +1722,10 @@
       "freeSpent": "Free Move used — the next room costs an action. You have {left}.",
       "entered": "Entered {room}.",
       "leftRooms": "Left the room.",
+      "wasSprint": {
+        "one": "Paid by a Sprint. {n} left.",
+        "other": "Paid by a Sprint. {n} left."
+      },
       "wasFree": "That was your free Move for this time of day.",
       "costAction": "That cost an action — {left} left.",
       "noBudget": "No free Move and no actions left. Move your token back.",
@@ -1688,6 +1748,8 @@
       "traitFixed": "This project demands {trait}.",
       "repairName": "Repair: {name}",
       "repaired": "repaired. {name} can be worked on again.",
+      "doneTitle": "Finished",
+      "doneBody": "<strong>{name}</strong> is complete — all {target} progress is in. Ask the GM what it does for you now.",
       "frozenNow": "{name} is broken and frozen until {repair} is finished.",
       "alreadyFrozen": "{name} is already broken and waiting on a repair.",
       "sabotageNotApplied": "The roll succeeded, but no GM confirmed the damage in time. Tell your GM: {name} may not actually be broken.",
@@ -1762,6 +1824,10 @@
         "other": "Push one of the {n} projects running in this room."
       },
       "startNewHint": "Describe something new. Nothing exists until the GM approves it.",
+      "sabotageHint": {
+        "one": "Break the {n} project in this room so it needs repairing. Always leaves a trace.",
+        "other": "Break one of the {n} projects in this room so it needs repairing. Always leaves a trace."
+      },
       "completeTag": "Complete",
       "alreadyComplete": "{name} is finished. There is no work left in it.",
       "allComplete": "Every project in {room} is already finished."
@@ -1775,6 +1841,7 @@
       "experienceLocked": "Using an experience is the Experience Hope Call — ask the GM to spend it.",
       "bonusLocked": "Situational bonuses are the GM's call.",
       "modeLocked": "Roll privacy is enforced by the module.",
+      "reactionLocked": "A statistic rolled on its own is a reaction: it costs nothing and earns nothing. Hope and Despair come from actions.",
       "unlockedByCall": "Unlocked by a Call you paid for.",
       "freeCritArmed": "Free Critical is armed. Both dice are forced to 12: 24, and a guaranteed critical.",
       "forcedByCall": "Set by a Call you paid for. It cannot be turned off.",
@@ -2029,6 +2096,60 @@
       "understood": "Understood",
       "playerNotice": "Danganronpa RPG is not running: it needs {modules}. Ask your GM to enable it."
     },
+    "Tamper": {
+      "prompt": "What are you doing to the evidence?",
+      "cover": "Cover your tracks",
+      "coverHint": {
+        "one": "Wipe out the {n} trace you left in this room. The easier it is to see, the harder it is to erase.",
+        "other": "Wipe out one of the {n} traces you left in this room. The easier one is to see, the harder it is to erase."
+      },
+      "nothingOfYours": "You have left nothing in this room.",
+      "onlyReinforced": "Everything you left here is too deeply set to remove.",
+      "frame": "Misleading trail",
+      "frameHint": "Leave something that points at somebody else. 18+, and it plants a trace either way.",
+      "whichTrace": "Which trace",
+      "coverAction": "Cover your tracks",
+      "trailAction": "Misleading trail",
+      "notYours": "That trace is not yours to erase.",
+      "actionSpent": "1 action spent.",
+      "watched": {
+        "one": "{n} other person is in this room. You will have to cover what you are doing first, and being caught at it costs Sanity.",
+        "other": "{n} other people are in this room. You will have to cover what you are doing first, and being caught at it costs Sanity."
+      }
+    },
+    "Steal": {
+      "nobodyHere": "There is nobody in this room to reach.",
+      "whichWay": "Which way is your hand going?",
+      "takeLabel": "Take something",
+      "takeHint": "Go through their pockets. What comes out is whatever comes out — a critical lets you choose.",
+      "plantLabel": "Leave something",
+      "plantHint": {
+        "one": "Put one of the {n} things you are carrying into their pocket.",
+        "other": "Put one of the {n} things you are carrying into their pocket."
+      },
+      "nothingToPlant": "You are carrying nothing you could leave on somebody.",
+      "whatToPlant": "What to leave",
+      "whoPrompt": "Whose pockets?",
+      "plantSent": "You brush past {name}. Whether it landed — and whether they felt it — settles in a moment.",
+      "cardPlanted": "You leave {item} in {who}'s pocket.",
+      "cardPlantMissed": "You cannot get {item} into {who}'s pocket without them feeling it.",
+      "cardTheirHandsFull": "{who} has no room for {item}. It stays with you.",
+      "caughtPlanting": "{who} put {item} into your pocket, and you saw them do it.",
+      "caughtTryingPlant": "You catch {who} trying to slip something into your pocket. Nothing of theirs is on you.",
+      "unseenRoll": "Keep your hands out of sight",
+      "emptyPockets": "{name} is carrying nothing you could take.",
+      "chooseTitle": "Take your pick",
+      "chooseIntro": "It went perfectly. Choose what you take from {name}.",
+      "sent": "You make your move on {name}. What you came away with — and whether they felt it — settles in a moment.",
+      "cardTook": "You lift {item} out of {who}'s pocket.",
+      "cardMissed": "Your hand comes away from {who} empty.",
+      "cardEmpty": "{who} has nothing on them worth taking.",
+      "cardHandsFull": "You had {item} in your hand and nowhere to put it. It stays with {who}.",
+      "cardSeen": "They noticed.",
+      "cardUnseen": "Nobody saw you do it.",
+      "caughtTaking": "{who} took {item} from you, and you saw them do it.",
+      "caughtTrying": "You catch {who} going through your pockets. They come away with nothing."
+    },
     "Reroll": {
       "title": "Reroll",
       "nothingToReroll": "You have not rolled anything, so there is nothing to take back.",
@@ -2045,6 +2166,8 @@
       "observeReplayed": "The same trace goes back to the GM with the new roll. They will say what you find this time.",
       "analyzeReplayed": "The same Truth Bullet is analysed again with the new roll. Any lock the first attempt left is lifted first.",
       "crisisReplayed": "The crisis action is taken back and made again with the new roll — the damage, the trace and any hindrance go with it. The turn is not spent twice.",
+      "trailStands": "The dice are rewritten, but what you planted is already lying in the room — a reroll cannot pick it back up. Ask the GM if it should come out.",
+      "stealStands": "The dice are rewritten, but the moment is not. Your hand has already been in their pocket, and putting something back is something they would watch you do.",
       "cleanupReplayed": "The clean-up is taken back and attempted again. The trace comes back, anything the botched wipe left is removed, and the Sanity is refunded first.",
       "itemTakenBack": "{item} is taken back out of your inventory.",
       "itemStuck": "{item} could not be removed automatically — ask the GM to take it.",
@@ -2130,7 +2253,25 @@
       "title": "Motive",
       "banner": "MONOKUMA'S MOTIVE",
       "withdrawn": "The motive is withdrawn. Nothing hanging over you — for now.",
-      "untilChapterEnd": "In force until the end of this chapter."
+      "deadline": {
+        "one": "One time of day to do something about it.",
+        "other": "{n} times of day to do something about it."
+      },
+      "left": {
+        "one": "1 time of day left",
+        "other": "{n} times of day left"
+      },
+      "orElse": "If nobody does: {what}",
+      "dueBanner": "THE MOTIVE HAS COME DUE",
+      "dueShort": "due now",
+      "demandLabel": "What does Monokuma want?",
+      "demandPlaceholder": "e.g. Somebody dies before the lights come back on, or everybody's secret goes on the noticeboard.",
+      "deadlineLabel": "How many times of day?",
+      "deadlineNote": "Counted in times of day. Five make one day, and an Eclipse is not one of them.",
+      "consequenceLabel": "And if nobody does?",
+      "consequencePlaceholder": "e.g. Every secret is read out at breakfast.",
+      "publicNote": "All three are announced to everyone, word for word. A motive nobody heard is not a motive.",
+      "migrated": "This world's motive was announced before motives had a deadline. It has been given {n} times of day so it keeps working. Withdraw and announce it again if that is not what you meant."
     },
     "Safeword": {
       "word": "MISIUBOMBO",

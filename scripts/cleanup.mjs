@@ -24,6 +24,36 @@
  * WHAT IS NOT AUTOMATED. Whether the killer is standing in the right room, and
  * whether Stage 6 has gone on long enough — both the GM's, as everywhere else in
  * murder.mjs. This owns the numbers and the tokens.
+ *
+ * TWO DOORS INTO THE SAME ROOM — `viaAction`, added in E12.
+ * ---------------------------------------------------------------------------
+ * Everything here was reachable only from the Stage 6 panel, which made the
+ * guide's own "akcje rozwiązania w Etapie 2" unreachable and made planting a
+ * false trail a privilege of the killer. The Tamper tile is the second door,
+ * and it is the SAME code: same rolls, same thresholds, same traces, same
+ * verdicts. What differs is exactly two things, and `viaAction` is what carries
+ * the difference:
+ *
+ *   WHO MAY.   Stage 6 asks `isCleaner` — this is your crime scene. The action
+ *              asks nothing of the sort, but it does ask something Stage 6 does
+ *              not: the trace you are erasing has to be YOURS. A killer in
+ *              their own Stage 6 may wipe anything in the room, including
+ *              somebody else's; a student with a broom may only undo
+ *              themselves.
+ *   WHAT IT    Stage 6 costs Sanity and an action. The action costs an action.
+ *   COSTS.     The Sanity is the price of doing this while a body is cooling,
+ *              not the price of the act.
+ *
+ * The concealment roll happens on BOTH routes, and it is the one thing that can
+ * still cost Sanity outside Stage 6. That is not the tile's price being
+ * understated — it is the cost of being watched, which is the entire risk of
+ * the action, and removing it would make tampering in a crowded corridor safer
+ * than tampering over a corpse while doing exactly the same thing.
+ *
+ * `viaAction` is a claim from a client, like every other flag that crosses the
+ * bridge. It buys the sender nothing: it waives a check that would only ever
+ * have refused them, and adds one — the ownership test above — that is verified
+ * on this side against the ledger the sender cannot read.
  */
 
 import { MODULE_ID, FLAGS, CLEANUP, RESOLUTION_STRESS_COST } from "./config.mjs";
@@ -34,6 +64,9 @@ import {
 import { roomOfToken } from "./movement.mjs";
 import { equippedFor, breakOnDespair } from "./use-items.mjs";
 import { isMonokuma } from "./monokuma.mjs";
+// What this character has copied into their inventory as a Truth Bullet, which
+// is this module's only record of "they know this trace is there".
+import { copiedRemnants } from "./truth-bullets.mjs";
 import { ITEM_FLAGS, isBroken, isStashed } from "./inventory.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
@@ -140,11 +173,48 @@ export function cleanableRemnants(actor, where = null) {
  * label is built from `visibilityLabel`/`typeLabel`, which the guide already
  * gives the killer at Stage 6 — see the note on `openCleanupDialog`.
  */
-export function cleanableTracesForPlayer(actorId) {
+export function cleanableTracesForPlayer(actorId, { mine = false } = {}) {
     const actor = game.actors.get(actorId);
     if (!actor) return [];
 
-    return cleanableRemnants(actor).map(t => ({
+    /*
+     * `mine` IS THE TAMPER ACTION, AND IT CANNOT BE ASKED ANYWHERE ELSE.
+     *
+     * Which traces are yours is `sourceActor` in the Remnant ledger, which is a
+     * client-scoped setting on GM browsers — see remnants.mjs. A player's own
+     * client physically cannot answer "what did I leave in this room", however
+     * reasonable a question that is about their own character, which is why
+     * this list is built here and travels back over the bridge.
+     *
+     * TWO FILTERS, NOT ONE — AND THE SECOND IS THE POINT (Dawid, 28.08).
+     *
+     * `sourceActor` alone said "you left it". `copiedRemnants` says "and you
+     * know it is there". Without the second, Tamper was a trace detector: open
+     * the menu, read the list, and learn exactly what you left in this room and
+     * how visible it is — for free, before spending anything, and including
+     * traces the character has no idea exist. A player could sweep the map
+     * opening Tamper in every room.
+     *
+     * Stage 6 is the deliberate exception and takes the other branch: the guide
+     * opens the killer's eyes to their own scene there, and that is a privilege
+     * of the stage rather than of the character.
+     *
+     * So the loop the game actually wants becomes the loop the game requires:
+     * Observe -> "follow my traces" copies one into your inventory as a Truth
+     * Bullet, and the Bullet is the record of knowing. Erasing a trace you
+     * never found is not a thing you can do, because finding it is the action
+     * that costs something.
+     *
+     * Note what a player still does not get either way: a LIST, not tokens.
+     * Being able to erase your own trace is not being able to see it on the map.
+     */
+    const known = copiedRemnants(actor);
+    const wanted = mine
+        ? cleanableRemnants(actor).filter(t =>
+              t.data.sourceActor === actor.id && known.has(t.token.id))
+        : cleanableRemnants(actor);
+
+    return wanted.map(t => ({
         id: t.token.id,
         label: [
             `${t.data.visibilityLabel} ${t.data.typeLabel}`,
@@ -230,13 +300,18 @@ function findRemnantToken(tokenId) {
  * note at the top of the file. What goes over the socket is which token was
  * aimed at and what the dice said.
  */
-export async function attemptCleanup(actor, tokenId) {
+export async function attemptCleanup(actor, tokenId, { viaAction = false } = {}) {
     if (!actor || !tokenId) return null;
 
-    if (!isCleaner(actor)) return refuseCleanup(actor);
-    if (resourceValue(actor, "stress") >= resourceMax(actor, "stress")) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Murder.noStressLeft"));
-        return null;
+    // Stage 6's two entry conditions, and both are about Stage 6. The Tamper
+    // tile is not this scene and does not pay in Sanity, so it asks neither —
+    // see the `viaAction` note at the top of this file.
+    if (!viaAction) {
+        if (!isCleaner(actor)) return refuseCleanup(actor);
+        if (resourceValue(actor, "stress") >= resourceMax(actor, "stress")) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Murder.noStressLeft"));
+            return null;
+        }
     }
     if (!await spendResolutionAction(actor)) return null;
 
@@ -255,8 +330,14 @@ export async function attemptCleanup(actor, tokenId) {
     let roll;
     try {
         roll = await rollTrait(actor, CLEANUP.traits[0], {
-            actionKey: "cleanup", context: { cleanup: tokenId },
-            title: game.i18n.localize("DRPG.Cleanup.action")
+            // `cleanupKey` and `cleanupVia` ride along so a Reroll can tell the
+            // three Stage 6 actions apart. Without them the bookmark said only
+            // "cleanup" and a rerolled misleading trail was replayed as an
+            // erase against a token id that was really an action name.
+            actionKey: "cleanup",
+            context: { cleanup: tokenId, cleanupKey: "eraseTrace", cleanupVia: viaAction },
+            title: game.i18n.localize(viaAction
+                ? "DRPG.Tamper.coverAction" : "DRPG.Cleanup.action")
         });
     } finally {
         calls.clearSituational();
@@ -273,7 +354,8 @@ export async function attemptCleanup(actor, tokenId) {
         tokenId,
         total: roll.total,
         isCritical: Boolean(roll.isCritical),
-        withHope: Boolean(roll.withHope)
+        withHope: Boolean(roll.withHope),
+        viaAction
     });
 
     return { roll };
@@ -294,13 +376,14 @@ export async function attemptCleanup(actor, tokenId) {
  * @param {boolean} [options.withHope]
  */
 export async function resolveCleanup({
-    actorId, tokenId, total, isCritical = false, withHope = false, undo = false
+    actorId, tokenId, total, isCritical = false, withHope = false, undo = false,
+    viaAction = false
 } = {}) {
     if (!game.user.isGM) return null;
 
     const actor = game.actors.get(actorId);
     if (!actor) return null;
-    if (!isCleaner(actor)) return null;
+    if (!viaAction && !isCleaner(actor)) return null;
 
     // A Reroll: put the scene back the way it was before scoring the new number,
     // or the second attempt would be measured against a room the first one had
@@ -325,6 +408,36 @@ export async function resolveCleanup({
         await spendStress(actor);
         await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Cleanup.vanished")}</p>`);
         return { removed: false, gone: true };
+    }
+
+    /*
+     * THE ACTION MAY ONLY UNDO ITSELF.
+     *
+     * Verified here rather than trusted from the picker, for the same reason
+     * everything else in this file is: the list went out over a socket and what
+     * comes back is a token id. A packet naming somebody else's trace would
+     * otherwise erase it, which would turn a one-action tile into a way of
+     * scrubbing the crime scene of a murder you had nothing to do with.
+     *
+     * Stage 6 is deliberately exempt. A killer cleaning their own scene may
+     * wipe whatever is in the room — including the traces of whoever else was
+     * standing there — and that is the stage working as written.
+     */
+    if (viaAction && data.sourceActor !== actor.id) {
+        error(`Refused a Tamper by ${actor.name}: that trace is not theirs.`);
+        await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Tamper.notYours")}</p>`);
+        return { removed: false, notYours: true };
+    }
+
+    // AND ONLY ONE THEY HAVE FOUND. The same rule the picker was built from,
+    // re-asked here because the picker travelled over a socket and what came
+    // back is a token id. A packet naming a trace they left and never found
+    // would otherwise erase it blind — which is the whole leak, arriving by the
+    // other road.
+    if (viaAction && !copiedRemnants(actor).has(token.id)) {
+        error(`Refused a Tamper by ${actor.name}: they have not found that trace.`);
+        await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Tamper.notFound")}</p>`);
+        return { removed: false, notFound: true };
     }
 
     // Reinforced traces refuse to be removed at all — remnants.mjs has said so
@@ -359,7 +472,9 @@ export async function resolveCleanup({
         leftBehind: null
     };
 
-    await spendStress(actor);
+    // Sanity is Stage 6's price, not the act's. See the `viaAction` note at the
+    // top of the file.
+    if (!viaAction) await spendStress(actor);
 
     const done = [];
 
@@ -420,12 +535,13 @@ export async function resolveCleanup({
     // outcome in Stage 6 that gives the Sanity back. Applied after `spendStress`
     // rather than instead of it, so the receipt's `stressBefore` still describes
     // the state a Reroll has to restore.
-    if (outcome.refundStress) {
+    // Nothing to hand back on the route that never took it.
+    if (outcome.refundStress && !viaAction) {
         await restoreStress(actor, outcome.refundStress);
         done.push(game.i18n.format("DRPG.Cleanup.stressBack", { n: outcome.refundStress }));
     }
 
-    await report(actor, data, { band, success, total, dc, done });
+    await report(actor, data, { band, success, total, dc, done, viaAction });
     lastAttempt.set(actorId, receipt);
 
     log(`Cleanup: ${actor.name} rolled ${total} against DC ${dc} on a ${data.visibility} ${data.type} — ${band}.`);
@@ -561,7 +677,7 @@ async function spendResolutionAction(actor) {
 }
 
 /** Common guard for the two below. @returns {object|null} the action def. */
-function stageSixDef(actor, key) {
+function stageSixDef(actor, key, { viaAction = false } = {}) {
     const def = CLEANUP.actions?.[key];
     if (!def) {
         // The one refusal with nothing to say to a player: a key that is not in
@@ -570,15 +686,39 @@ function stageSixDef(actor, key) {
         error(`No Stage 6 action named "${key}".`);
         return null;
     }
-    if (!isCleaner(actor)) {
-        refuseCleanup(actor);
-        return null;
-    }
-    if (resourceValue(actor, "stress") >= resourceMax(actor, "stress")) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Murder.noStressLeft"));
-        return null;
+    // Both of these are Stage 6's conditions — whose scene this is, and whether
+    // there is Sanity left to spend on it. The Tamper tile asks neither: see the
+    // `viaAction` note at the top of this file.
+    if (!viaAction) {
+        if (!isCleaner(actor)) {
+            refuseCleanup(actor);
+            return null;
+        }
+        if (resourceValue(actor, "stress") >= resourceMax(actor, "stress")) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Murder.noStressLeft"));
+            return null;
+        }
     }
     return def;
+}
+
+/**
+ * Who a false trail can point at.
+ *
+ * Shared by Stage 6's picker and the Tamper tile, because they must not be able
+ * to disagree about it. Two exclusions and both matter: yourself, because a
+ * trail pointing at you is not a frame-up, and a Monokuma, because they are not
+ * in the suspect pool the trial draws from.
+ *
+ * The murder victim is excluded only when there IS one. Framing the person
+ * lying dead in the room is a confession with extra steps — but outside an
+ * incident `murderState()` has no victim and the filter simply does not bite.
+ */
+export async function framingCandidates(actor) {
+    const { livingStudents } = await import("./chapter.mjs");
+    const victimId = murderState()?.victimId;
+    return livingStudents()
+        .filter(a => a.id !== actor?.id && a.id !== victimId && !isMonokuma(a));
 }
 
 /**
@@ -588,8 +728,8 @@ function stageSixDef(actor, key) {
  * @param {"misleadingTrail"|"moveBody"} key
  * @param {string|null} targetId  The framed player, for a misleading trail.
  */
-export async function attemptStageSix(actor, key, targetId = null) {
-    const def = stageSixDef(actor, key);
+export async function attemptStageSix(actor, key, targetId = null, { viaAction = false } = {}) {
+    const def = stageSixDef(actor, key, { viaAction });
     if (!def) return null;
 
     // You cannot carry a body you are not standing next to.
@@ -629,9 +769,17 @@ export async function attemptStageSix(actor, key, targetId = null) {
     let roll;
     try {
         roll = await rollTrait(actor, (def.traits ?? CLEANUP.traits)[0], {
-            actionKey: "cleanup", context: { cleanup: key, cleanupTarget: targetId },
+            // `cleanupKey` names WHICH of the three this was. `cleanup` keeps
+            // holding the same value it always did so nothing that reads the
+            // old bookmark shape breaks — see `settleCleanup` in reroll.mjs.
+            actionKey: "cleanup",
+            context: {
+                cleanup: key, cleanupKey: key,
+                cleanupTarget: targetId, cleanupVia: viaAction
+            },
             title: game.i18n.localize(key === "moveBody"
-                ? "DRPG.Cleanup.moveAction" : "DRPG.Cleanup.trailAction")
+                ? "DRPG.Cleanup.moveAction"
+                : viaAction ? "DRPG.Tamper.trailAction" : "DRPG.Cleanup.trailAction")
         });
     } finally {
         calls.clearSituational();
@@ -650,19 +798,35 @@ export async function attemptStageSix(actor, key, targetId = null) {
         targetId,
         total: roll.total,
         isCritical: Boolean(roll.isCritical),
-        withHope: Boolean(roll.withHope)
+        withHope: Boolean(roll.withHope),
+        viaAction
     });
     return { roll };
 }
 
 /** Score a misleading trail or a body move. GM side. */
 export async function resolveStageSix({
-    actorId, key, targetId = null, total = 0, isCritical = false, withHope = false
+    actorId, key, targetId = null, total = 0, isCritical = false, withHope = false,
+    viaAction = false
 } = {}) {
     if (!game.user.isGM) return null;
     const actor = game.actors.get(actorId);
     const def = CLEANUP.actions?.[key];
-    if (!actor || !def || !isCleaner(actor)) return null;
+    if (!actor || !def) return null;
+    if (!viaAction && !isCleaner(actor)) return null;
+
+    /*
+     * ONE OF THE THREE IS STAGE 6 ONLY, AND IT IS THE OBVIOUS ONE.
+     *
+     * Erasing a trace and planting one are things anybody can do on an ordinary
+     * afternoon. Carrying a body is not: there has to be a body, `applyMoveBody`
+     * reads it off `murderState()`, and a Tamper packet naming "moveBody" would
+     * otherwise reach a function that assumes an incident it is not in.
+     */
+    if (viaAction && key === "moveBody") {
+        error(`Refused a Tamper by ${actor.name}: a body is not an ordinary action.`);
+        return null;
+    }
 
     // The tool lowers the number it has to beat, "+(1*tier narzędzia)".
     const relief = def.toolBonusPerTier ? cleaningTier(actor) * def.toolBonusPerTier : 0;
@@ -670,13 +834,13 @@ export async function resolveStageSix({
     const success = isCritical || total >= threshold;
     const band = isCritical ? "critical" : (withHope ? "hope" : "despair");
 
-    await spendStress(actor);
+    if (!viaAction) await spendStress(actor);
     const done = [];
 
     if (key === "misleadingTrail") await applyMisleadingTrail(actor, def, targetId, success, band, done);
     else if (key === "moveBody") await applyMoveBody(actor, def, success, band, done, targetId);
 
-    const refund = success ? def.refundStress?.[band] : null;
+    const refund = (success && !viaAction) ? def.refundStress?.[band] : null;
     if (refund) {
         await restoreStress(actor, refund);
         done.push(game.i18n.format("DRPG.Cleanup.stressBack", { n: refund }));
@@ -720,8 +884,15 @@ async function applyMisleadingTrail(actor, def, targetId, success, band, done) {
         action: "resolution",
         pointsAt: framed?.id ?? null,
         subject: framed?.name ?? "",
+        // TRAP 88 — WHO PLANTED IT, IN THE COLUMN A GM ACTUALLY READS.
+        //
+        // Now that an innocent player can plant these, the dashboard is the
+        // only place the table's one deliberate lie can be seen for what it is.
+        // The ledger already stores `sourceActor`/`sourceName`, but the note is
+        // the line the Remnant list prints under the action — so it says both
+        // ends of the lie: who left it, and who it accuses.
         note: game.i18n.format("DRPG.Cleanup.trailNote", {
-            name: framed?.name ?? "?", visibility
+            name: framed?.name ?? "?", visibility, by: actor.name
         })
     });
 
@@ -963,14 +1134,28 @@ async function restoreStress(actor, amount = 1) {
  * threshold it was measured against, because that number is the answer key and
  * the killer must not learn how visible their own traces are by subtraction.
  */
-async function report(actor, data, { band, success, total, dc, done }) {
+async function report(actor, data, { band, success, total, dc, done, viaAction = false }) {
     const summary = done.map(line => `<li>${line}</li>`).join("");
 
+    /*
+     * The killer's card, and on a miss it carries a sound.
+     *
+     * `resolveCleanup` is GM-side, so this goes on the message rather than
+     * through `playSfx` — same reason as the broken tool. Failure only: a
+     * successful wipe removes a trace the killer selected and is already
+     * watching, while a miss spends the Sanity, leaves what they were scrubbing
+     * at, and on Despair adds an Obvious one they did NOT choose and are not
+     * told about.
+     */
     await whisperToOwner(actor, `
         <h3>${game.i18n.localize("DRPG.Cleanup.title")}</h3>
         <p><strong>${game.i18n.localize(`DRPG.Cleanup.band.${band}`)}</strong></p>
         ${summary ? `<ul>${summary}</ul>` : ""}
-        <p><small>${game.i18n.format("DRPG.Cleanup.stressSpent", { n: RESOLUTION_STRESS_COST })}</small></p>`);
+        ${viaAction
+            ? `<p><small>${game.i18n.localize("DRPG.Tamper.actionSpent")}</small></p>`
+            : `<p><small>${game.i18n.format("DRPG.Cleanup.stressSpent", {
+                n: RESOLUTION_STRESS_COST })}</small></p>`}`,
+        success ? {} : { flags: { [MODULE_ID]: { sfx: "cleanupFailed" } } });
 
     await whisperToGms(`
         <h3>${game.i18n.localize("DRPG.Cleanup.title")}</h3>
@@ -1125,16 +1310,14 @@ export async function openMoveBodyDialog(actor) {
  * one it plants on a failure — and reachable only from the console, because
  * the killer's panel offered a single button and this was not it.
  *
- * The victim is not on the list. Framing the person lying dead in the room is
- * not a suspect pool of one, it is a confession with extra steps.
+ * Who can be framed is `framingCandidates` — the same list the Tamper tile
+ * uses, because two windows offering the same lie must not disagree about who
+ * it can be told about.
  */
 export async function openMisleadingTrailDialog(actor) {
     if (!isCleaner(actor)) return refuseCleanup(actor);
 
-    const { livingStudents } = await import("./chapter.mjs");
-    const victimId = murderState()?.victimId;
-    const candidates = livingStudents()
-        .filter(a => a.id !== actor.id && a.id !== victimId && !isMonokuma(a));
+    const candidates = await framingCandidates(actor);
 
     if (!candidates.length) {
         ui.notifications.info(game.i18n.localize("DRPG.Cleanup.trailNobody"));

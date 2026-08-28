@@ -290,6 +290,12 @@ async function replayAction(actor, bookmark, after, done) {
             case "analyze": return await settleAnalyze(actor, bookmark, after, done);
             case "crisis": return await settleCrisis(actor, bookmark, after, done);
             case "cleanup": return await settleCleanup(actor, bookmark, after, done);
+            // NO `case "tamper"`. The Tamper tile is a second door into
+            // cleanup.mjs and its rolls are bookmarked `cleanup` like every
+            // other one that goes through there — `cleanupKey` inside the
+            // bookmark is what says which of the three it was, and that is
+            // read one line down rather than out here.
+            case "steal": return await settleSteal(actor, bookmark, after, done);
             default:
                 // A trait rolled straight from the sheet, or an action from
                 // before this bookmark existed. The dice are the whole result.
@@ -621,6 +627,29 @@ async function settleCleanup(actor, bookmark, after, done) {
         return {};
     }
 
+    /*
+     * ONLY THE WIPE CAN BE REPLAYED, AND THIS USED TO TRY ANYWAY.
+     *
+     * Stage 6 has three actions and `bookmark.cleanup` holds a token id for one
+     * of them and an ACTION NAME for the other two. Sent down this path a
+     * rerolled misleading trail arrived at `resolveCleanup` as a token id
+     * reading "misleadingTrail", which found no such token and reported the
+     * trace as having vanished — a reroll that quietly did nothing and said
+     * something false about why.
+     *
+     * `cleanupKey` (E12) is what tells them apart. The other two are not
+     * replayed because they cannot be: a planted trail is a token already
+     * sitting in a room and `resolveStageSix` has no undo, and inventing one
+     * that deletes a Remnant on the strength of a bookmark is a worse failure
+     * than saying so. The dice have still been rewritten, which is what the
+     * three Hope bought.
+     */
+    const key = bookmark.cleanupKey ?? "eraseTrace";
+    if (key !== "eraseTrace") {
+        done.push(game.i18n.localize("DRPG.Reroll.trailStands"));
+        return {};
+    }
+
     const { requestCleanup } = await import("./gm-bridge.mjs");
     await requestCleanup({
         actorId: actor.id,
@@ -628,11 +657,38 @@ async function settleCleanup(actor, bookmark, after, done) {
         total: after.total,
         isCritical: after.isCritical,
         withHope: after.withHope,
+        // The Tamper route pays in actions and the Stage 6 route pays in
+        // Sanity; a replay that forgot which would refund the wrong currency.
+        viaAction: Boolean(bookmark.cleanupVia),
         undo: true
     });
 
     done.push(game.i18n.localize("DRPG.Reroll.cleanupReplayed"));
     return { cleanup: bookmark.cleanup };
+}
+
+/**
+ * A theft cannot be taken back, and this says so instead of pretending.
+ *
+ * Without a branch here Steal fell through to the default, which pushes "this
+ * roll left no lasting effect" — and a theft is the one action in the game
+ * where that sentence is most obviously false: an item moved between two
+ * sheets and, half the time, somebody was told about it (trap 94).
+ *
+ * Undoing it is not a technical problem, it is a fiction one. Giving the item
+ * back means the victim WATCHES it come back, which is a bigger tell than the
+ * theft was; and a victim who was already told they were robbed cannot be
+ * untold. So the dice are rewritten — that is what the three Hope bought, and
+ * on a failed theft it is genuinely worth having — and the table is told
+ * plainly that the world did not move with them.
+ */
+async function settleSteal(actor, bookmark, after, done) {
+    // ONE LINE FOR BOTH OUTCOMES, because this client does not reliably know
+    // which one it was: the theft is settled on a GM's client and can be
+    // refused there. A sentence that is true whether or not anything moved is
+    // worth more than two that are each right half the time.
+    done.push(game.i18n.localize("DRPG.Reroll.stealStands"));
+    return {};
 }
 
 /**

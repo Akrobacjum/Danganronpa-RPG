@@ -164,9 +164,14 @@ export async function breakOnDespair(actor, tool, roll) {
     }
 
     try {
+        // On the card rather than through `playSfx`, because this function has
+        // no idea whose client it is on: it is called from the action rolls
+        // (the player's), from Stage 6 (the player's) and from the incident
+        // resolver (the GM's). The flag follows the card to the owner in all
+        // three, which is the one audience that is right in all three.
         await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Items.brokeOnDespair", {
             item: foundry.utils.escapeHTML(tool.name)
-        })}</p>`);
+        })}</p>`, { flags: { [MODULE_ID]: { sfx: "toolBroke" } } });
     } catch {
         // The item is broken either way; the card is the courtesy.
     }

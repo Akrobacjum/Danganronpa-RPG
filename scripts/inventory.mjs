@@ -18,6 +18,21 @@ export const ITEM_FLAGS = {
     category: "category",
     tier: "tier",
     /**
+     * WHICH stash this item is lying in, by room name.
+     *
+     * Meaningless unless `location` is `vault`. Absent means the owner's
+     * PRIMARY stash — which is what every item stashed before E11 has, and why
+     * this needs no migration pass of its own: one stash per person was the
+     * only thing that could be true, so "unmarked" and "the only one" were the
+     * same answer and still are.
+     *
+     * A NAME rather than a region id, to match how every other room reference
+     * in this module works (`roomOfActor`, the key flag, the fog mirror). The
+     * cost is that renaming a region orphans them, which is the same cost the
+     * bedroom keys already pay and is documented at `KEY_FLAG`.
+     */
+    stashRoom: "stashRoom",
+    /**
      * What else this item can do, beyond the category it lives in.
      *
      * An array of category keys — `["crimeTool"]` on a screwdriver filed under
@@ -272,9 +287,15 @@ export function carriedFor(actor, role) {
  */
 export async function grantItem(actor, {
     name, category, tier, goal = null, description = "", override = false, img = null,
-    roles = null, extraFlags = {}, location = LOCATIONS.carried
+    roles = null, extraFlags = {}, location = LOCATIONS.carried, quiet = false
 }) {
     if (!actor || !name) return null;
+
+    // Set only when a full inventory pushes this into a stash — see below.
+    // `null` for everything else, including an item granted straight into a
+    // stash by a caller, which means the owner's primary and says so by
+    // leaving the flag off.
+    let overflowRoom = null;
 
     // Search hands its goal straight through ("healing", "stress" — but also
     // "crimeTool", which is not a usable kind). A usable granted with no goal
@@ -307,8 +328,13 @@ export async function grantItem(actor, {
             // The guide does not have you drop what you found because your hands
             // are full — it goes in your stash. Refusing outright is only right
             // when there is no stash to put it in.
-            const { vaultRoomFor } = await import("./vault.mjs");
-            if (vaultRoomFor(actor)) {
+            // WHICH stash the overflow lands in, not merely whether one
+            // exists: an unaddressed item would otherwise be read as living in
+            // whichever stash `primaryStashRoom` happens to answer later, and
+            // that answer can change when a GM adds or removes one.
+            const { primaryStashRoom } = await import("./vault.mjs");
+            overflowRoom = primaryStashRoom(actor);
+            if (overflowRoom) {
                 location = LOCATIONS.vault;
                 await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Vault.overflowed", {
                     item: foundry.utils.escapeHTML(name),
@@ -349,6 +375,7 @@ export async function grantItem(actor, {
                     [ITEM_FLAGS.category]: category,
                     [ITEM_FLAGS.tier]: tier,
                     [ITEM_FLAGS.location]: location,
+                    ...(overflowRoom ? { [ITEM_FLAGS.stashRoom]: overflowRoom } : {}),
                     ...(kind ? { [ITEM_FLAGS.kind]: kind } : {}),
                     // Only when there are any: an empty array and a missing
                     // flag mean the same thing, and the missing one is what
@@ -357,7 +384,21 @@ export async function grantItem(actor, {
                     ...extraFlags
                 }
             }
-        }], { [CAP_OVERRIDE]: override });
+        }], {
+            [CAP_OVERRIDE]: override,
+            /*
+             * `quiet` SUPPRESSES THE RECEIVER'S RE-RENDER, and it exists for
+             * exactly one caller: a Plant nobody noticed (`plantOnPerson`).
+             * Foundry carries this option over its own socket, so the sheet on
+             * the victim's screen does not redraw FOR THIS CHANGE — the item is
+             * really there, and what is suppressed is the refresh.
+             *
+             * The mirror of the silent Steal's `item.delete({ render: false })`,
+             * and the same promise: not "they will never see", but "they will
+             * not see because of this".
+             */
+            ...(quiet ? { render: false } : {})
+        });
 
         log(`${actor.name} gained ${name} (${category}${hasTier ? `, Tier ${tier}` : ""}).`);
         return item ?? null;
