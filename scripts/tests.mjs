@@ -3243,6 +3243,57 @@ const SCENARIOS = [
         }
     }],
 
+    ["topping up Hope lights the Calls it just paid for", async () => {
+        /*
+         * Dawid, 28.08: "I noticed it by filling in a player's Hope on the
+         * sheet — the newly available Calls are still greyed out."
+         *
+         * WHY IT COULD NOT FIX ITSELF. A resource-only update deliberately SKIPS
+         * the sheet render, because Daggerheart puts `transition: all` on the
+         * sidebar and every redraw animated the whole left column. In its place
+         * `repaintInPlace` draws by hand what the render would have drawn — and
+         * the comment over `REPAINTABLE` says adding a resource there is a
+         * promise that it does. `hope` was in the set and the function drew the
+         * bar and the pips and stopped, so the one thing Hope actually decides
+         * was the one thing left stale. Nothing was ever going to correct it.
+         *
+         * Driven through the real sheet, because that is the only place the two
+         * halves meet: the value is in the actor, the greying is in the DOM, and
+         * the bug lived precisely in the gap.
+         */
+        const actor = studentActors()[0];
+        ok(actor, "need a student");
+        const before = foundry.utils.getProperty(actor, "system.resources.hope.value") ?? 0;
+        const max = foundry.utils.getProperty(actor, "system.resources.hope.max") ?? 6;
+
+        try {
+            await actor.update({ "system.resources.hope.value": 0 });
+            await actor.sheet.render(true);
+            await wait(900);
+
+            const greyed = () => [...(actor.sheet.element
+                ?.querySelectorAll(".drpg-hope-panel .drpg-action-grid > *") ?? [])]
+                .filter(button => button.classList.contains("unaffordable")).length;
+            const total = () => (actor.sheet.element
+                ?.querySelectorAll(".drpg-hope-panel .drpg-action-grid > *") ?? []).length;
+
+            ok(total() > 0, "the Hope drawer drew no Calls at all");
+            const broke = greyed();
+            ok(broke > 0, "nothing was greyed out at zero Hope, so this proves nothing");
+
+            // The GM tops them up. NOBODY TOUCHES THE SHEET.
+            await actor.update({ "system.resources.hope.value": max });
+            await wait(900);
+
+            ok(greyed() < broke,
+                `Hope went 0 -> ${max} and ${greyed()} of ${total()} Calls are still greyed out`);
+        } finally {
+            await actor.update({ "system.resources.hope.value": before });
+            try { await actor.sheet.close(); } catch { /* it may not have opened */ }
+            await settle();
+        }
+    }],
+
     ["a Monokuma leaves no track in the fog, and a student still does", async () => {
         /*
          * Dawid, 28.08: Monokuma tokens were uncovering rooms. They are the GM

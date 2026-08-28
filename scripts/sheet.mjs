@@ -527,10 +527,51 @@ function repaintInPlace(actor, element) {
         glyph.classList.toggle("fa-regular", n > hope);
     }
 
+    // AND THE CALLS, WHICH ARE WHAT THE NUMBER DECIDES (Dawid, 28.08).
+    //
+    // The comment on REPAINTABLE says adding a resource here is a promise that
+    // this function draws it. `hope` was in the set and this function drew the
+    // bar and the pips and stopped — so topping a player up moved the number
+    // and left every newly affordable Call greyed out. The render that would
+    // have fixed it is the one deliberately skipped to stop the sidebar
+    // flickering, which means nothing was ever going to fix it.
+    //
+    // Same shape as the GM panel's murder tile: half a surface live, half of it
+    // a photograph, and no way to tell them apart from the outside.
+    refreshCallsPanels(actor, element);
+
     // AFTER the glyphs, because the mark is counted off them. A repaint stands
     // in for a render and owes what the render owed — including saying that
     // something moved. See `markHopeChange`.
     markHopeChange(actor, element);
+}
+
+/**
+ * Redraw the Hope and Despair drawers from what the character now holds.
+ *
+ * Built from the same two functions the injection uses — `affordableHopeCalls`
+ * / `despairCallsFor` and `callButton` — so there is one answer to "is this
+ * Call available" and one tile that says so, rather than a second copy here
+ * that drifts.
+ */
+function refreshCallsPanels(actor, element) {
+    for (const panel of element.querySelectorAll(".drpg-calls-panel")) {
+        const monokuma = panel.classList.contains("drpg-despair-panel");
+        const held = monokuma ? monokumaPool(actor) : hopeHeld(actor);
+        const max = monokuma ? STARTING.despairMax : hopeMax(actor);
+        const locked = isEclipse();
+
+        panel.classList.toggle("drpg-silenced", callSilenced(actor));
+
+        const pool = panel.querySelector(".drpg-calls-pool");
+        if (pool) pool.textContent = `${held} / ${max}`;
+
+        const grid = panel.querySelector(".drpg-action-grid");
+        if (!grid) continue;
+        grid.replaceChildren(
+            ...(monokuma ? despairCallsFor(held) : affordableHopeCalls(actor))
+                .map(call => callButton(call, monokuma, locked)));
+    }
 }
 
 /** After the write: what the skipped render would have drawn. */
@@ -3730,14 +3771,22 @@ function actionButton(actor, key, def) {
     // random colours. The difference is real — the grey ones hand the turn to
     // the GM — but it was only ever in the tooltip, and a colour whose key is
     // hidden is decoration.
+    /*
+     * ITS OWN LINE, UNDER THE COST (Dawid, 28.08).
+     *
+     * It used to sit inside the cost span, so the tile read "1 action GM" on
+     * one line and the badge looked like part of the price rather than a fact
+     * about who resolves it. Below the cost it reads as what it is: the cost,
+     * and then who the tile hands the turn to.
+     */
     const gmMark = callsGm
-        ? ` <span class="drpg-action-gm">${game.i18n.localize("DRPG.Action.waitsForGm")}</span>`
+        ? `<span class="drpg-action-gm">${game.i18n.localize("DRPG.Action.waitsForGm")}</span>`
         : "";
 
     button.innerHTML = `
         <i class="fa-solid ${def.icon ?? "fa-circle"} drpg-action-icon" inert></i>
         <span class="drpg-action-name">${softWrap(foundry.utils.escapeHTML(def.label))}</span>
-        <span class="drpg-action-cost">${costLabel}${gmMark}</span>`;
+        <span class="drpg-action-cost">${costLabel}</span>${gmMark}`;
 
     return button;
 }
