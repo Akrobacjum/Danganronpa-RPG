@@ -12,6 +12,7 @@ import { getClock, setClock, setTimeOfDay, clockSummary, timeOfDayLabel, phaseLa
 import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
 import { dialogContent, error, plural, tableDialog } from "./utils.mjs";
+import { keepLive, alreadyOpen } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -238,21 +239,33 @@ const EXTRA_ACTIONS = {
     eclipse: { key: "eclipse", run: () => toggleEclipse() }
 };
 
-/** Open the panel. */
-export async function openGmPanel() {
-    if (!game.user.isGM) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
-        return;
-    }
-
+/**
+ * The tiles, and whether each of them can be pressed right now.
+ *
+ * SEPARATE FROM `openGmPanel` BECAUSE IT HAS TO BE CALLED AGAIN. This was
+ * inline in the opener, which meant `item.disabled?.()` was asked exactly once
+ * — when the window opened — and every answer it gave was frozen there for as
+ * long as the GM left the panel up. Dawid, 28.08: start an Eclipse from the HUD
+ * and the murder tile stays lit, because nothing ever asked `isEclipse()` a
+ * second time. Reproduced before it was fixed: with the panel open across a
+ * whole Eclipse the tile's `disabled` stayed `false` and the button was the
+ * same DOM node throughout, while the standing block above it correctly moved
+ * from Night to Morning. Half a window updating is worse than none of it: the
+ * fresh line is a promise that the rest is fresh too.
+ *
+ * `data-drpg-key` on each section is for `live.mjs`, which uses it to put the
+ * GM's folded sections back after a rebuild. Without it the fold state is keyed
+ * positionally, which is fine until a section is added or removed.
+ */
+function buildSections() {
     // The clock decides what opens. See the note on PANEL_SECTIONS.
     const phase = getClock().phase;
-    const sections = PANEL_SECTIONS.map(section => {
+    return `<div class="drpg-gmp-sections">${PANEL_SECTIONS.map(section => {
         const inSeason = section.always || section.phases?.includes(phase);
         const open = inSeason && !section.collapsed;
         return `
         <details class="drpg-gmp-section${section.dim ? " dim" : ""}${
-            inSeason ? " in-season" : ""}"${open ? " open" : ""}>
+            inSeason ? " in-season" : ""}" data-drpg-key="${section.key}"${open ? " open" : ""}>
             <summary>${game.i18n.localize(`DRPG.Panel.section.${section.key}`)}</summary>
             <div class="drpg-gmp-grid">${section.items.map(item => {
                 const blocked = Boolean(item.disabled?.());
@@ -265,7 +278,24 @@ export async function openGmPanel() {
                 </button>`;
             }).join("")}</div>
         </details>`;
-    }).join("");
+    }).join("")}</div>`;
+}
+
+/** Open the panel. */
+export async function openGmPanel() {
+    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // window each read the world when they opened and neither knows about the
+    // other, so the older one goes on looking authoritative while showing
+    // something that stopped being true. Raised rather than refused: pressing
+    // twice usually means the window is behind something.
+    if (alreadyOpen("drpg-window-panel")) return null;
+
+    if (!game.user.isGM) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
+        return;
+    }
+
+    const sections = buildSections();
 
     // Which version is running, on the screen a GM opens most.
     //
@@ -290,7 +320,7 @@ export async function openGmPanel() {
 
     await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Panel.title") },
-        classes: ["drpg-panel", "drpg-gm-panel-window"],
+        classes: ["drpg-panel", "drpg-gm-panel-window", "drpg-window-panel"],
         content: body,
         buttons: [{ action: "close", label: game.i18n.localize("DRPG.Panel.close"), default: true }],
         // Each tile closes the panel, does its thing, and the panel comes BACK.
@@ -330,72 +360,43 @@ export async function openGmPanel() {
                     error("Could not reopen the GM panel", err));
             });
 
-            keepStandingFresh(dialog);
+            keepPanelFresh(dialog);
         },
         rejectClose: false
     });
 }
 
 /**
- * Keep "what happens now" true for as long as the panel is open.
+ * Keep the whole panel true for as long as it is open — not just its first line.
  *
- * The line and the table under it were worked out once, while the panel was
- * being built, and then sat there — so a GM watching the panel while the table
- * played saw the same suggestion after an incident opened, after the Eclipse
- * started, and after the last student spent their last action. The only way to
- * get a current answer was to close the panel and open it again (Dawid, 26.08),
- * which is a strange thing to have to do to a screen whose whole job is to say
- * what the state of the world is.
+ * THE HALF THAT WAS MISSING. This used to redraw only the standing block, and
+ * said so: "the tiles below it are a fixed list and redrawing them would take
+ * the GM's open sections and scroll position with it". The list is fixed; what
+ * each tile ALLOWS is not, and that was the part nobody was refreshing. So the
+ * tiles are redrawn too, and the objection is answered rather than avoided —
+ * `keepLive` carries the folded sections and the scroll across a rebuild, and
+ * refuses to redraw at all while the GM has focus inside the region.
  *
- * Every input to that answer is either a flag on an actor (actions left, the
+ * Two regions rather than one, deliberately. They change on different clocks:
+ * the suggestion line moves whenever anybody spends anything, the tiles only
+ * when the world opens or closes a door. Rebuilding the tiles on every actor
+ * update would be forty buttons redrawn each time a player marks a Stress.
+ *
+ * Every input to both answers is either a flag on an actor (actions left, the
  * free Move, dead or a Monocub) or one of this module's world settings (the
- * clock, the incident, the Eclipse, the trial's floor and progress), so two
- * hooks cover all of it. Debounced because a single action spent writes both.
- *
- * Only the standing block is rebuilt. The tiles below it are a fixed list and
- * redrawing them would take the GM's open sections and scroll position with it.
+ * clock, the incident, the Eclipse, the trial's floor and progress), which is
+ * exactly what `keepLive` listens to.
  */
-function keepStandingFresh(dialog) {
-    const refresh = foundry.utils.debounce(() => {
-        const block = dialog.element?.querySelector(".drpg-gmp-standing");
-        // Closed, or replaced by a newer panel: stop listening rather than
-        // redrawing something nobody is looking at.
-        if (!block?.isConnected) return stop();
-        try {
-            const fresh = document.createElement("div");
-            fresh.innerHTML = buildPanelContent();
-            const next = fresh.firstElementChild;
-            if (next) block.replaceWith(next);
-        } catch (err) {
-            error("Could not refresh the GM panel's standing", err);
-            stop();
-        }
-    }, 120);
+function keepPanelFresh(dialog) {
+    keepLive(dialog, {
+        region: ".drpg-gmp-standing",
+        build: () => buildPanelContent(),
+        watch: { actors: true }
+    });
 
-    const hooks = [
-        ["updateActor", () => refresh()],
-        ["createActor", () => refresh()],
-        ["deleteActor", () => refresh()],
-        ["updateSetting", setting => {
-            if (setting?.key?.startsWith(`${MODULE_ID}.`)) refresh();
-        }],
-        // The Eclipse and the time of day arrive over the socket on a GM client
-        // that did not write them, where no setting update fires locally.
-        ["drpgEclipseChanged", () => refresh()],
-        ["drpgTimeOfDayChanged", () => refresh()]
-    ].map(([event, fn]) => [event, Hooks.on(event, fn)]);
-
-    function stop() {
-        for (const [event, id] of hooks) Hooks.off(event, id);
-    }
-
-    // The ordinary way out. `stop` is idempotent — Hooks.off on an id that is
-    // already gone is a no-op — so the guard inside `refresh` staying as a
-    // backstop costs nothing.
-    const closeId = Hooks.on("closeDialogV2", app => {
-        if (app !== dialog) return;
-        Hooks.off("closeDialogV2", closeId);
-        stop();
+    keepLive(dialog, {
+        region: ".drpg-gmp-sections",
+        build: () => buildSections()
     });
 }
 
@@ -441,6 +442,13 @@ function keepStandingFresh(dialog) {
  * occurrence explains the cause, the four hundredth only proves it continued.
  */
 async function openFailureLog() {
+    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // window each read the world when they opened and neither knows about the
+    // other, so the older one goes on looking authoritative while showing
+    // something that stopped being true. Raised rather than refused: pressing
+    // twice usually means the window is behind something.
+    if (alreadyOpen("drpg-window-failures")) return null;
+
     const { sessionFailures, clearSessionFailures } = await import("./utils.mjs");
     const rows = sessionFailures();
     const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
@@ -459,7 +467,7 @@ async function openFailureLog() {
         : `<p>${esc(game.i18n.localize("DRPG.Failures.none"))}</p>`;
 
     const action = await DialogV2.wait({
-        classes: ["drpg-panel", "drpg-wide"],
+        classes: ["drpg-panel", "drpg-wide", "drpg-window-failures"],
         window: { title: game.i18n.localize("DRPG.Failures.title") },
         content: dialogContent(`<div>
             <p class="notes">${esc(game.i18n.localize("DRPG.Failures.intro"))}</p>
@@ -531,6 +539,13 @@ async function openFailureLog() {
  * across is the death dialog's own character picker: this table is the picker.
  */
 async function openWhoIsAliveDialog() {
+    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // window each read the world when they opened and neither knows about the
+    // other, so the older one goes on looking authoritative while showing
+    // something that stopped being true. Raised rather than refused: pressing
+    // twice usually means the window is behind something.
+    if (alreadyOpen("drpg-window-alive")) return null;
+
     const { isDeceased, reviveCharacter, killCharacter, openDeathDialog } =
         await import("./chapter.mjs");
     const { isMonocub, setMonocub, isSilenced, setSilenced } = await import("./monocub.mjs");
@@ -640,7 +655,7 @@ async function openWhoIsAliveDialog() {
 
     const chosen = await tableDialog({
         window: { title: game.i18n.localize("DRPG.Panel.whoIsAlive") },
-        classes: ["drpg-panel", "drpg-projects"],
+        classes: ["drpg-panel", "drpg-projects", "drpg-window-alive"],
         content: dialogContent(`<form>
             <p class="notes">${game.i18n.localize("DRPG.Panel.whoIsAliveNote")}</p>
             <table class="drpg-vault-table"><thead><tr>
@@ -943,6 +958,13 @@ function buildPanelContent() {
  * HUD itself, which every player is looking at for the rest of the session.
  */
 export async function openClockDialog() {
+    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // window each read the world when they opened and neither knows about the
+    // other, so the older one goes on looking authoritative while showing
+    // something that stopped being true. Raised rather than refused: pressing
+    // twice usually means the window is behind something.
+    if (alreadyOpen("drpg-window-clock")) return null;
+
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return;
@@ -964,7 +986,7 @@ export async function openClockDialog() {
 
     const result = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Panel.jump") },
-        classes: ["drpg-panel"],
+        classes: ["drpg-panel", "drpg-window-clock"],
         content: `<form>
                     <label>${game.i18n.localize("DRPG.Clock.campaignName")}
                         <input type="text" name="campaignName"

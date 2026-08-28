@@ -23,9 +23,17 @@ import {
 import { isMonokuma, setMonokuma, poolFor, setPools } from "./monokuma.mjs";
 import { students, assignments, monokumaFor, setAssignments, autoAssign, NO_MONOKUMA } from "./assignments.mjs";
 import { dialogContent, error, tableDialog, panelTabs, wirePanelTabs } from "./utils.mjs";
+import { alreadyOpen } from "./live.mjs";
 
 /** Open the combined panel. GM only. */
 export async function openGmTeamDialog() {
+    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // window each read the world when they opened and neither knows about the
+    // other, so the older one goes on looking authoritative while showing
+    // something that stopped being true. Raised rather than refused: pressing
+    // twice usually means the window is behind something.
+    if (alreadyOpen("drpg-window-gmteam")) return null;
+
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
@@ -95,7 +103,7 @@ export async function openGmTeamDialog() {
         // implicit assignment, the dimming of an excluded row, the empty-state
         // line and the table's own spacing. All of them keyed off a class no
         // dialog carried, so this screen has been rendering unstyled.
-        classes: ["drpg-panel", "drpg-projects", "drpg-monokuma-panel", "drpg-assign"],
+        classes: ["drpg-panel", "drpg-projects", "drpg-monokuma-panel", "drpg-assign", "drpg-window-gmteam"],
         content: buildContent(actors, gms, roster, candidates, removable),
         buttons,
         render: (event, dialog) => {

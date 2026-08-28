@@ -45,6 +45,7 @@ import { SETTINGS, getSetting } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import { trialFloor, FLOOR_MODES } from "./trial-floor.mjs";
 import { isPrimaryGm, debug, log, warn, error, plural } from "./utils.mjs";
+import { alreadyOpen } from "./live.mjs";
 
 /**
  * How deep we are inside THIS file changing playback.
@@ -114,11 +115,21 @@ export const MUSIC_STATES = [
      * an Objection played whatever the debate had been playing. Both are the
      * trial's loudest moments arriving with no change in the room.
      *
-     * REBUTTAL HAS NO STATE OF ITS OWN, on purpose. Dawid's rule is "on a
-     * rebuttal the debate plays again", and that is one condition rather than a
-     * table of transitions: the rebuttal is the same argument continuing, with
-     * the pair narrowed. Giving it a fourth playlist would ask a GM to choose
-     * music for a distinction the table does not hear.
+     * REBUTTAL HAS NO STATE OF ITS OWN, and it belongs to the OBJECTION rather
+     * than to the debate. It used to fall in with the debate, on the reading
+     * that "on a rebuttal the debate plays again". Dawid, 28.08: it should not
+     * change the playlist at all — the objection's music simply keeps going.
+     *
+     * Which is the truer reading of the same idea. An objection and the rebuttal
+     * it buys are ONE exchange, three minutes long, and the only new thing about
+     * the second half is that the person who was accused now answers. Cutting to
+     * a different track at the sixty-second mark scores that as a scene ENDING.
+     * Leaving the music where it is scores it as the same scene continuing,
+     * which is what it is — and it means the trial's loudest cue plays for its
+     * whole length instead of a third of it.
+     *
+     * Still no fourth playlist. A mode does not need music of its own to be
+     * handled; it needs to be in the right entry.
      *
      * `trial.discussion` is the trial WITHOUT an open floor — the phase set,
      * everybody in the room, nobody holding anything. It is last of the three
@@ -131,15 +142,15 @@ export const MUSIC_STATES = [
         randomTrack: true,
         // Sixty seconds, all of them audible. See `schedule`.
         immediate: true,
-        test: () => trialFloor()?.mode === FLOOR_MODES.objection
+        test: () => {
+            const mode = trialFloor()?.mode;
+            return mode === FLOOR_MODES.objection || mode === FLOOR_MODES.rebuttal;
+        }
     },
     {
         key: "trial.debate", labelKey: "DRPG.Music.state.trialDebate",
         randomTrack: true,
-        test: () => {
-            const mode = trialFloor()?.mode;
-            return mode === FLOOR_MODES.discussion || mode === FLOOR_MODES.rebuttal;
-        }
+        test: () => trialFloor()?.mode === FLOOR_MODES.discussion
     },
     {
         key: "trial.discussion", labelKey: "DRPG.Music.state.trialDiscussion",
@@ -1112,6 +1123,13 @@ export async function resetMusic() {
 
 /** Map each state to one of the world's playlists. */
 export async function openSoundDialog() {
+    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // window each read the world when they opened and neither knows about the
+    // other, so the older one goes on looking authoritative while showing
+    // something that stopped being true. Raised rather than refused: pressing
+    // twice usually means the window is behind something.
+    if (alreadyOpen("drpg-window-sound")) return null;
+
     const { dialogContent, tableDialog, panelTabs, wirePanelTabs } = await import("./utils.mjs");
     const { soundSlidersHtml, soundEffectsHtml, wireSoundPanel } = await import("./sfx.mjs");
 
@@ -1131,7 +1149,7 @@ export async function openSoundDialog() {
     if (!game.user.isGM) {
         await tableDialog({
             window: { title: game.i18n.localize("DRPG.Sound.title") },
-            classes: ["drpg-panel", "drpg-projects", "drpg-sound", "drpg-sound-player"],
+            classes: ["drpg-panel", "drpg-projects", "drpg-sound", "drpg-sound-player", "drpg-window-sound"],
             // NARROW, AND SAID HERE RATHER THAN LEFT TO THE FIT.
             // `tableDialog` marks every window it makes as a table window,
             // which is what exempts it from the module's one-width rule so a
@@ -1235,7 +1253,7 @@ export async function openSoundDialog() {
 
     const result = await tableDialog({
         window: { title: game.i18n.localize("DRPG.Sound.title") },
-        classes: ["drpg-panel", "drpg-projects", "drpg-wide", "drpg-sound"],
+        classes: ["drpg-panel", "drpg-projects", "drpg-wide", "drpg-sound", "drpg-window-sound"],
         // The tabs measure to one size rather than the window jumping between
         // a two-line Play pane and a thirty-five-row table — trap 29. It works
         // on `panelTabs` markup as of E3; before that it silently measured

@@ -37,6 +37,7 @@ import { isDeceased } from "./chapter.mjs";
 import {
     dialogContent, plural, tableDialog, wirePortraitPickers, whisperToGms, log
 } from "./utils.mjs";
+import { alreadyOpen } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -569,6 +570,13 @@ function withoutDerivedTags(data) {
 }
 
 export async function openInvestigationDashboard() {
+    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // window each read the world when they opened and neither knows about the
+    // other, so the older one goes on looking authoritative while showing
+    // something that stopped being true. Raised rather than refused: pressing
+    // twice usually means the window is behind something.
+    if (alreadyOpen("drpg-window-case")) return null;
+
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
@@ -799,7 +807,7 @@ export async function openInvestigationDashboard() {
 
     const action = await tableDialog({
         window: { title: game.i18n.localize("DRPG.Investigation.dashboardTitle") },
-        classes: ["drpg-panel", "drpg-projects"],
+        classes: ["drpg-panel", "drpg-projects", "drpg-window-case"],
         content,
         buttons: [
             {

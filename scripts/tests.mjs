@@ -67,6 +67,28 @@ const settle = () => wait(400);
  * TIER 1 — INVARIANTS
  * ========================================================================== */
 
+/**
+ * The windows a person leaves open while the world moves under them.
+ *
+ * NOT every window this module has. A confirmation, a briefing, a pick-one
+ * prompt — those are a question with an answer, and they are gone before
+ * anything can go stale in them. The list is the ones that STAND: a GM opens
+ * them, works, and looks back.
+ *
+ * It is written down rather than derived because "would somebody leave this
+ * open" is a judgement, and a test whose subject is a judgement should say so
+ * out loud instead of guessing from the shape of a function name.
+ */
+const STANDING = [
+    "openSoundDialog", "openInvestigationDashboard", "manageClassTrial",
+    "openProjectManager", "openRoomSetupDialog", "openVaultInspector",
+    "openItemTables", "openSeasonSetup", "openMastermindDialog",
+    "openRulesManager", "openMonocubDialog", "openGmTeamDialog",
+    "openItemManager", "openGmPanel", "openWhoIsAliveDialog",
+    "openFailureLog", "openClockDialog", "openIncidentTracker",
+    "openEavesdropDialog", "openObjectionLog"
+];
+
 const INVARIANTS = [
     ["every action definition has a label and a cost", () => {
         for (const [key, def] of Object.entries(ACTIONS)) {
@@ -405,6 +427,165 @@ const INVARIANTS = [
         // decisions and the guide gives both.
         equal(KEY_REMNANTS.unfoundBar, 4, "the bar for unfound Key Remnants is not four");
         equal(KEY_REMNANTS.unfoundDespair, 3, "an unfound Key Remnant is not worth 3 Despair");
+    }],
+
+    ["every standing window is single-instance or says why not", async () => {
+        /*
+         * Dawid, 28.08: opening the Sound window twice should not give you two
+         * Sound windows. It did — every window in the module did, because
+         * `DialogV2.wait` builds a fresh application on every call and nothing
+         * asked whether one was already up.
+         *
+         * The fix is a guard per opener, which means a LIST, which means the
+         * list can go stale the first time somebody adds a window. So this
+         * reads the sources: every standing window must either call
+         * `alreadyOpen` or appear in the exemption below with a reason. A new
+         * window that does neither fails here rather than shipping as the
+         * fourth copy of a Sound panel.
+         */
+        const EXEMPT = new Map([
+            // The one window whose design is to reopen itself — after every
+            // crisis action, which is what makes it usable during an incident.
+            // A guard that fired while the previous copy was still closing
+            // would leave an incident with no tracker at all.
+            ["openIncidentTracker", "reopens itself after every action"]
+        ]);
+
+        const files = [
+            "music", "investigation", "trial-floor-ui", "projects-ui", "vault",
+            "tables", "season-setup", "mastermind", "rules", "monocub",
+            "gm-team-dialog", "gm-items", "gm-panel", "murder", "voice", "trial"
+        ];
+
+        const missing = [];
+        for (const file of files) {
+            const text = await fetch(`/modules/${MODULE_ID}/scripts/${file}.mjs`).then(r => r.text());
+            // Every exported opener in the file, and what its body looks like
+            // up to the next one. Crude on purpose: a regex that can only ever
+            // report a window as unguarded is a regex that fails loudly.
+            const openers = [...text.matchAll(/^export (?:async )?function (open[A-Z]\w*|manage[A-Z]\w*)\s*\(/gm)];
+            for (let i = 0; i < openers.length; i++) {
+                const name = openers[i][1];
+                if (EXEMPT.has(name)) continue;
+                if (!STANDING.includes(name)) continue;
+                const from = openers[i].index;
+                const to = i + 1 < openers.length ? openers[i + 1].index : text.length;
+                if (!text.slice(from, to).includes("alreadyOpen(")) {
+                    missing.push(`${file}.mjs :: ${name}`);
+                }
+            }
+        }
+
+        ok(!missing.length,
+            `these windows can be opened twice over: ${missing.join(", ")}`);
+    }],
+
+    ["the live-refresh helper carries what a rebuild would throw away", async () => {
+        /*
+         * `keepLive` replaces a region's DOM. Everything a person put there and
+         * the markup does not carry — where they scrolled, which sections they
+         * folded, what they typed but have not saved — has to survive that, or
+         * the cure is worse than the stale window it fixes.
+         *
+         * Driven rather than read: a real region, a real rebuild, and the three
+         * things checked afterwards. The GM panel proved this end to end at the
+         * table (its folded sections survived an Eclipse), but the panel is one
+         * caller and this is the promise every caller is given.
+         */
+        const { keepLive } = await import("./live.mjs");
+
+        const host = document.createElement("div");
+        host.style.cssText = "position:fixed;left:-3000px;top:0;width:200px;height:80px";
+        const build = () => `<div class="drpg-t-region">
+            <details data-drpg-key="a"><summary>a</summary><p>a</p></details>
+            <input name="typed" value="from the world">
+            <div class="drpg-t-scroller" data-drpg-key="s"
+                 style="height:30px;overflow:auto"><div style="height:400px"></div></div>
+        </div>`;
+        host.innerHTML = build();
+        document.body.appendChild(host);
+
+        // A window is anything with `.element`; nothing here needs a real one.
+        const app = { element: host, options: { window: { title: "test" } } };
+        const stop = keepLive(app, { region: ".drpg-t-region", build, delay: 0 });
+
+        try {
+            host.querySelector("details").open = true;
+            host.querySelector("input[name=typed]").value = "half a sentence";
+            host.querySelector(".drpg-t-scroller").scrollTop = 120;
+
+            // The event every live window listens to.
+            Hooks.callAll("drpgTimeOfDayChanged", {}, {});
+            await wait(140);
+
+            const region = host.querySelector(".drpg-t-region");
+            ok(region.querySelector("details")?.open === true,
+                "a rebuild closed a section the GM had opened");
+            ok(region.querySelector("input[name=typed]")?.value === "half a sentence",
+                "a rebuild ate what the GM was typing");
+            ok(region.querySelector(".drpg-t-scroller")?.scrollTop === 120,
+                "a rebuild threw away the scroll position");
+        } finally {
+            stop();
+            host.remove();
+        }
+    }],
+
+    ["a live region refuses to redraw under the cursor", async () => {
+        /*
+         * The other half of the same promise, and the one that cannot be
+         * checked by looking at the result: a field being rebuilt while
+         * somebody types in it loses the caret even when the value survives.
+         * So the rebuild is not supposed to HAPPEN while focus is inside the
+         * region — it waits.
+         */
+        const { keepLive } = await import("./live.mjs");
+
+        let built = 0;
+        const build = () => {
+            built++;
+            return `<div class="drpg-t-focus"><input name="f" value="v"></div>`;
+        };
+        const host = document.createElement("div");
+        host.style.cssText = "position:fixed;left:0;top:0;width:120px;opacity:0";
+        host.innerHTML = build();
+        document.body.appendChild(host);
+
+        const app = { element: host, options: { window: { title: "test" } } };
+        const stop = keepLive(app, { region: ".drpg-t-focus", build, delay: 0 });
+
+        try {
+            const field = host.querySelector("input[name=f]");
+            field.focus();
+            ok(document.activeElement === field, "could not put focus in the field");
+
+            const before = built;
+            Hooks.callAll("drpgTimeOfDayChanged", {}, {});
+            await wait(140);
+            ok(built === before, "a live region redrew a field somebody was typing in");
+
+            /*
+             * `blur()` and then the event ITSELF, dispatched by hand.
+             *
+             * A real blur fires `focusout` — in a window that has focus. This
+             * suite runs in whichever tab the GM left it in, and a background
+             * tab does not reliably deliver focus events at all: measured, the
+             * first half of this test passed (nothing redrew) and the second
+             * half timed out waiting for an event the browser never sent.
+             *
+             * That is the harness, not the module, and the fix is to stop
+             * asking the harness. What is under test is what `keepLive` does
+             * WHEN focus leaves; the browser's decision about when to say so is
+             * somebody else's contract.
+             */
+            field.blur();
+            host.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+            await wait(160);
+            ok(built > before, "a deferred refresh never arrived after focus left");
+        } finally {
+            stop();
+            host.remove();
+        }
     }],
 
     ["every setting that promises a redraw gets one", async () => {
@@ -1512,6 +1693,71 @@ const SCENARIOS = [
 
         ok(carried.includes("eclipseEnd"),
             `no card carried the Eclipse's ending sound — got [${carried.join(", ")}]`);
+    }],
+
+    ["a rebuttal keeps the objection playing and can be cut into", async () => {
+        /*
+         * Two rulings from Dawid, 28.08, and they are one rule read from both
+         * ends: an objection and the rebuttal it buys are ONE exchange.
+         *
+         *   - the music does not change at the sixty-second mark
+         *   - somebody who is not in it may still object
+         *
+         * The second used to be refused in THREE places: the floor itself, the
+         * courtesy check that tells a player why, and the target picker, which
+         * narrowed to "your opponent" for everybody. Lifting one without the
+         * others is the failure that would have looked like it worked — an
+         * objection that lands and is aimed at the wrong half of the pair.
+         */
+        const floor = await import("./trial-floor.mjs");
+        const { currentState } = await import("./music.mjs");
+
+        const cast = game.actors.filter(a => a.type === "character").slice(0, 3);
+        ok(cast.length >= 3, "need three characters to test a third party cutting in");
+        const [a, b, c] = cast;
+        const before = foundry.utils.deepClone(getClock());
+
+        try {
+            await setClock({ phase: "classTrial" });
+            // `startFloor` is what CREATES a floor; `returnToDiscussion` only
+            // moves an existing one back. Without it every call below refuses
+            // on `if (!floor) return null` and the trial never leaves
+            // `trial.discussion`, which is the state for a trial with no floor
+            // open at all — measured, and it is why this test failed first time.
+            await floor.startFloor();
+            await settle();
+
+            await floor.openObjection(a.id, b.id);
+            await settle();
+            equal(currentState(), "trial.objection",
+                "an objection did not reach its own music state");
+
+            await floor.openRebuttal();
+            await settle();
+            equal(floor.trialFloor()?.mode, "rebuttal", "the floor did not move to a rebuttal");
+
+            // 1. THE MUSIC. The objection's playlist simply keeps going.
+            equal(currentState(), "trial.objection",
+                "a rebuttal changed the playlist instead of letting the objection play on");
+
+            // 2. THE THIRD PARTY, who is in neither half of this exchange.
+            ok(!floor.maySpeak(c.id), "the third party should not be holding the floor");
+            const cut = await floor.openObjection(c.id, a.id);
+            await settle();
+            ok(cut, "a third party was refused an objection during a rebuttal");
+            equal(floor.trialFloor()?.holderId, c.id,
+                "the floor did not re-point at whoever cut in");
+            equal(floor.trialFloor()?.targetId, a.id,
+                "the interrupter's objection landed on somebody they did not aim at");
+
+            // 3. AND AN OBJECTION IS STILL ONE MINUTE ALONE.
+            const second = await floor.openObjection(b.id, c.id);
+            ok(!second, "an objection was allowed to interrupt another objection");
+        } finally {
+            await floor.endFloor();
+            await setClock({ phase: before.phase });
+            await settle();
+        }
     }],
 
     ["an Eclipse takes every voice off the rooms", async () => {

@@ -15,6 +15,7 @@ import {
 } from "./projects.mjs";
 import { allRooms } from "./movement.mjs";
 import { dialogContent, error, tableDialog, wirePortraitPickers } from "./utils.mjs";
+import { alreadyOpen } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -254,6 +255,13 @@ function addCollapseControl(root) {
  * needed two trips.
  */
 export async function openProjectManager() {
+    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // window each read the world when they opened and neither knows about the
+    // other, so the older one goes on looking authoritative while showing
+    // something that stopped being true. Raised rather than refused: pressing
+    // twice usually means the window is behind something.
+    if (alreadyOpen("drpg-window-projects")) return null;
+
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return;
@@ -322,7 +330,7 @@ export async function openProjectManager() {
 
     const result = await tableDialog({
         window: { title: game.i18n.localize("DRPG.Project.manageTitle") },
-        classes: ["drpg-panel", "drpg-projects"],
+        classes: ["drpg-panel", "drpg-projects", "drpg-window-projects"],
         content,
         buttons: [
             {

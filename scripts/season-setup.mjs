@@ -32,6 +32,7 @@ import { mastermindActor } from "./mastermind.mjs";
 import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG } from "./utils.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
 import { NOTE_FLAG } from "./pre-session-note.mjs";
+import { alreadyOpen } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -285,6 +286,13 @@ function openFirstSheet(names) {
  * ========================================================================== */
 
 export async function openSeasonSetup() {
+    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // window each read the world when they opened and neither knows about the
+    // other, so the older one goes on looking authoritative while showing
+    // something that stopped being true. Raised rather than refused: pressing
+    // twice usually means the window is behind something.
+    if (alreadyOpen("drpg-window-season")) return null;
+
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
@@ -324,7 +332,7 @@ export async function openSeasonSetup() {
     const outstanding = list.filter(s => !s.done && !s.optional).length;
 
     const result = await DialogV2.wait({
-        classes: ["drpg-panel", "drpg-wide"],
+        classes: ["drpg-panel", "drpg-wide", "drpg-window-season"],
         window: { title: game.i18n.localize("DRPG.Season.title") },
         content: dialogContent(`<form>
             <p>${esc(game.i18n.format(outstanding

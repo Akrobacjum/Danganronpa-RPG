@@ -20,6 +20,7 @@ import { MODULE_ID, MOTIVE } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import { announce, dialogContent, log, error, plural, tableDialog } from "./utils.mjs";
+import { alreadyOpen } from "./live.mjs";
 
 /* ==========================================================================
  * READING
@@ -288,6 +289,13 @@ export async function removeRule(id) {
  * answer one modal at a time.
  */
 export async function openRulesManager() {
+    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // window each read the world when they opened and neither knows about the
+    // other, so the older one goes on looking authoritative while showing
+    // something that stopped being true. Raised rather than refused: pressing
+    // twice usually means the window is behind something.
+    if (alreadyOpen("drpg-window-rules")) return null;
+
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
@@ -312,7 +320,7 @@ export async function openRulesManager() {
 
     const result = await tableDialog({
         window: { title: game.i18n.localize("DRPG.Rules.manageTitle") },
-        classes: ["drpg-panel", "drpg-projects"],
+        classes: ["drpg-panel", "drpg-projects", "drpg-window-rules"],
         content: dialogContent(`<form>
             <p>${game.i18n.localize("DRPG.Rules.manageIntro")}</p>
             ${current.length ? `<table class="drpg-vault-table"><thead><tr>

@@ -33,6 +33,7 @@ import { isDeceased, killCharacter } from "./chapter.mjs";
 import { remnantsOn, remnantData } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { announce, dialogContent, whisperToGms, gmIds, ownerOf, log, warn, error } from "./utils.mjs";
+import { alreadyOpen } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 const SOCKET_EVENT = `module.${MODULE_ID}`;
@@ -384,6 +385,13 @@ export async function toggleFinalTrialFlag() {
 }
 
 export async function openMastermindDialog() {
+    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // window each read the world when they opened and neither knows about the
+    // other, so the older one goes on looking authoritative while showing
+    // something that stopped being true. Raised rather than refused: pressing
+    // twice usually means the window is behind something.
+    if (alreadyOpen("drpg-window-mastermind")) return null;
+
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
@@ -415,7 +423,7 @@ export async function openMastermindDialog() {
 
     const result = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Mastermind.dialogTitle") },
-        classes: ["drpg-panel"],
+        classes: ["drpg-panel", "drpg-window-mastermind"],
         content: dialogContent(`<form>
             <p class="drpg-warning">${game.i18n.localize("DRPG.Mastermind.privacyWarning")}</p>
             <label>${game.i18n.localize("DRPG.Mastermind.whoIs")}

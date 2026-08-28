@@ -45,6 +45,7 @@ import { allRooms } from "./movement.mjs";
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
 import { VOICE, ROOM_PREFIX, applyLocally, forgetDesiredRoom } from "./voice-client.mjs";
 import { isPrimaryGm, primaryGmId, debug, warn, error, plural } from "./utils.mjs";
+import { alreadyOpen } from "./live.mjs";
 
 const AV_MODULE = "avclient-livekit";
 const SOCKET_EVENT = `module.${MODULE_ID}`;
@@ -1218,6 +1219,13 @@ export async function resetAllVoice() {
  * ========================================================================== */
 
 export async function openEavesdropDialog() {
+    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // window each read the world when they opened and neither knows about the
+    // other, so the older one goes on looking authoritative while showing
+    // something that stopped being true. Raised rather than refused: pressing
+    // twice usually means the window is behind something.
+    if (alreadyOpen("drpg-window-eavesdrop")) return null;
+
     if (!game.user.isGM) return;
     if (!avclientActive()) {
         ui.notifications.warn(game.i18n.localize("DRPG.Voice.notActive"));
@@ -1238,7 +1246,7 @@ export async function openEavesdropDialog() {
     const DialogV2 = foundry.applications.api.DialogV2;
     const choice = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Voice.eavesdropTitle") },
-        classes: ["drpg-panel"],
+        classes: ["drpg-panel", "drpg-window-eavesdrop"],
         content: `<form>
             <p>${game.i18n.localize("DRPG.Voice.eavesdropPrompt")}</p>
             <p class="notes">${game.i18n.format("DRPG.Voice.onScene", {

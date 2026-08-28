@@ -17,6 +17,7 @@ import { MODULE_ID, ITEM_CATEGORIES, EQUIPPABLE, ITEM_TIERS, TIER_EFFECTS, USABL
     from "./config.mjs";
 import { dialogContent, wirePortraitPickers, panelTabs, wirePanelTabs, whisperToGms, log, error, plural }
     from "./utils.mjs";
+import { alreadyOpen } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -964,6 +965,13 @@ async function promptForTableName(currentName) {
  *   answered.
  */
 export async function openItemTables({ preset = null } = {}) {
+    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // window each read the world when they opened and neither knows about the
+    // other, so the older one goes on looking authoritative while showing
+    // something that stopped being true. Raised rather than refused: pressing
+    // twice usually means the window is behind something.
+    if (alreadyOpen("drpg-window-tables")) return null;
+
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
@@ -1049,7 +1057,7 @@ export async function openItemTables({ preset = null } = {}) {
     // override that exists for exactly this case.
     const action = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Tables.editorTitle") },
-        classes: ["drpg-panel", "drpg-projects", "drpg-wide"],
+        classes: ["drpg-panel", "drpg-projects", "drpg-wide", "drpg-window-tables"],
         position: { height: "auto" },
         // Four tabs (Dawid, 26.08): editing what a table holds, the three
         // creation jobs behind it. The footer buttons act across tabs — each

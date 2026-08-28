@@ -201,12 +201,41 @@ export function pickSound(key) {
  * table learns to second-guess. That must not be one edit away from being true.
  */
 function rateFor(key) {
-    if (key === "safeword") return null;
-    if (!SFX_EVENTS[key]?.vary) return null;
-    if (!getSetting(SETTINGS.sfxVary)) return null;
+    if (!varies(key)) return null;
 
     const spread = SFX_VARIATION.rate;
     return 1 + ((Math.random() * 2) - 1) * spread;
+}
+
+/**
+ * The three questions that decide whether a sound bends, asked once.
+ *
+ * Split out of `rateFor` when gain joined rate: two callers asking the same
+ * three things in two places is two places for the safeword's exclusion to be
+ * forgotten in.
+ */
+function varies(key) {
+    if (key === "safeword") return false;
+    if (!SFX_EVENTS[key]?.vary) return false;
+    return Boolean(getSetting(SETTINGS.sfxVary));
+}
+
+/**
+ * How loud this play is, as a fraction of the volume the sliders decided.
+ *
+ * DOWNWARDS ONLY. `1 - random * spread` rather than a swing either side of 1:
+ * the number this multiplies is the GM's own setting, and a variation allowed
+ * to exceed it would make the loudest sound in the game louder than the volume
+ * control says is possible. Quieter-sometimes reads as life; louder-sometimes
+ * reads as a bug in the volume slider.
+ *
+ * This is the half that carries on a very short file. A rate bend needs enough
+ * sound for the ear to measure a pitch against, and an 80ms interface click
+ * does not have it; loudness lands instantly.
+ */
+function gainFor(key) {
+    if (!varies(key)) return 1;
+    return 1 - (Math.random() * SFX_VARIATION.gain);
 }
 
 /**
@@ -242,6 +271,16 @@ const decoded = new Set();
  * difference between "it works" and "I assume it works".
  */
 const lastRates = new Map();
+
+/**
+ * And the last volume each file was actually played at.
+ *
+ * Beside the rates rather than folded into them: this is what makes "is the
+ * variation working" answerable from the console instead of by ear, and the
+ * two numbers move independently — the gain half lands on every varied play,
+ * the rate half only on the buffer path.
+ */
+const lastGains = new Map();
 
 /**
  * Play a varied sound and bend it.
@@ -472,6 +511,10 @@ function fire(key, force) {
     // sound to every other client over a socket, which is precisely the thing
     // the audience column of the catalogue exists to avoid.
     const rate = rateFor(key);
+    // Both paths get it, and it multiplies the volume the sliders already
+    // settled rather than replacing it — see `gainFor`.
+    const varied = volume * gainFor(key);
+    if (varied !== volume) lastGains.set(src, Math.round(varied * 10000) / 10000);
 
     /*
      * THE VARIED PATH, and it is deliberately narrow.
@@ -483,7 +526,7 @@ function fire(key, force) {
      * counts it — the behaviour rule 4 already describes.
      */
     if (rate !== null && !game.audio?.locked) {
-        return playOwned(src, volume, rate)
+        return playOwned(src, varied, rate)
             .then(sound => {
                 if (sound?.failed) reportUnplayable(key, src, null);
                 return sound ?? null;
@@ -497,7 +540,7 @@ function fire(key, force) {
     try {
         return Promise.resolve(foundry.audio.AudioHelper.play(
             {
-                src, volume, channel: "interface", autoplay: true,
+                src, volume: varied, channel: "interface", autoplay: true,
             }, false))
             .then(sound => {
                 if (sound?.failed) reportUnplayable(key, src, null);
@@ -865,9 +908,11 @@ export function diagnoseSfx() {
         variation: {
             on: Boolean(getSetting(SETTINGS.sfxVary)),
             spread: SFX_VARIATION.rate,
+            gainSpread: SFX_VARIATION.gain,
             events: Object.entries(SFX_EVENTS).filter(([, e]) => e.vary).map(([k]) => k),
             decoded: [...decoded],
-            lastRates: Object.fromEntries(lastRates)
+            lastRates: Object.fromEntries(lastRates),
+            lastGains: Object.fromEntries(lastGains)
         },
         byCategory,
         // Mapped somewhere in the setting but not a key this build knows: what

@@ -2713,18 +2713,35 @@ export const SFX_CATEGORIES = {
  * phase vocoder, which is an absurd amount of machinery for a click on a
  * button, so this module bends the rate and says so.
  *
- * THREE PER CENT, NOT FIVE. Five was the number the idea arrived with, and it
- * is the top of the range rather than the middle: ±5% is about ±85 cents, most
- * of a semitone. On a dry click that reads as "a different click", which is the
- * whole point. On anything with a recognisable pitch it reads as OUT OF TUNE —
- * and worse against a playlist, because then it is out of tune with the music.
- * Since the files are the GM's and this module cannot know which of the two it
- * has been handed, the default sits where the bad case is inaudible.
+ * EIGHT PER CENT, AND THREE WAS WRONG. The note that stood here argued down
+ * from five to three because ±5% is "most of a semitone" and would read as out
+ * of tune against a playlist. The reasoning was sound and the conclusion was
+ * not, because it optimised for the sound the module does NOT have: these
+ * eleven events are dry interface clicks — a window, a button, a door, a
+ * refusal — with no pitch to be out of tune WITH. Tuning the default so that
+ * the worst imaginable file is safe made every real file identical, which is
+ * the thing variation exists to prevent. Dawid, 28.08: it is either too weak or
+ * not working at all.
+ *
+ * ±8% is about ±133 cents, a little over a semitone: unmistakably a different
+ * click, and still nowhere near a wrong note. A GM who maps a tuned sound to a
+ * window and dislikes it has the switch in the Sound panel.
+ *
+ * GAIN, TOO, AND IT IS HALF OF WHY THIS WAS INAUDIBLE. Rate alone is a weak
+ * signal on a sound that lasts 80ms: there is not enough of it for the ear to
+ * measure a pitch against. Loudness needs no duration at all. The two together
+ * are what make a repeated sound stop sounding pasted, which is what every
+ * game that does this actually does.
+ *
+ * Applied as a FRACTION OF the volume the sliders arrived at, never on top of
+ * it — and only downwards, so no varied sound is ever louder than the GM's
+ * setting says it may be. A variation that can exceed its own ceiling is a
+ * volume control with a leak.
  *
  * Tuned by ear in E17, alongside `YIELD_MS`. Both are numbers no amount of
- * reasoning settles.
+ * reasoning settles — which is the lesson of the paragraph this one replaced.
  */
-export const SFX_VARIATION = { rate: 0.03 };
+export const SFX_VARIATION = { rate: 0.08, gain: 0.18 };
 
 export const SFX_SLIDERS = {
     sound: { label: "Sound", hint: "The sound effects — windows, chat, doors, the trial floor. Not the music." },

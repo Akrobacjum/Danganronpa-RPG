@@ -24,6 +24,7 @@ import { ITEM_POOLS, USABLE_GOALS, moduleTables } from "./tables.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { whisperToOwner, dialogContent, panelTabs, wirePanelTabs, log, error, plural, cardHead }
     from "./utils.mjs";
+import { alreadyOpen } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -37,6 +38,13 @@ const DialogV2 = foundry.applications.api.DialogV2;
  * @param {Actor} [actor]  Skip the character picker when the caller knows who.
  */
 export async function openItemManager(actor = null) {
+    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // window each read the world when they opened and neither knows about the
+    // other, so the older one goes on looking authoritative while showing
+    // something that stopped being true. Raised rather than refused: pressing
+    // twice usually means the window is behind something.
+    if (alreadyOpen("drpg-window-items")) return null;
+
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
@@ -47,7 +55,7 @@ export async function openItemManager(actor = null) {
 
     const choice = await DialogV2.wait({
         window: { title: game.i18n.format("DRPG.Items.title", { actor: target.name }) },
-        classes: ["drpg-panel"],
+        classes: ["drpg-panel", "drpg-window-items"],
         content: `<div>
             <p><strong>${foundry.utils.escapeHTML(target.name)}</strong></p>
             <p class="notes">${foundry.utils.escapeHTML(inventorySummary(target))}</p>

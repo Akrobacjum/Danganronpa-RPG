@@ -13,6 +13,7 @@ import {
 } from "./trial-floor.mjs";
 import { dialogContent, plural, error } from "./utils.mjs";
 import { getClock, setClock } from "./clock.mjs";
+import { alreadyOpen } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -275,6 +276,13 @@ export async function endClassTrial() {
  * they go looking for a second window to check.
  */
 export async function manageClassTrial() {
+    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // window each read the world when they opened and neither knows about the
+    // other, so the older one goes on looking authoritative while showing
+    // something that stopped being true. Raised rather than refused: pressing
+    // twice usually means the window is behind something.
+    if (alreadyOpen("drpg-window-trial")) return null;
+
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
@@ -356,7 +364,7 @@ export async function manageClassTrial() {
             : `<p class="notes">${game.i18n.localize("DRPG.Floor.gateDone")}</p>`;
 
     const action = await DialogV2.wait({
-        classes: ["drpg-panel"],
+        classes: ["drpg-panel", "drpg-window-trial"],
         window: { title: game.i18n.localize("DRPG.Floor.manageTrial") },
         content: dialogContent(`<div class="drpg-trial-console">
             <h4>${game.i18n.localize("DRPG.Floor.sectionTrial")}</h4>

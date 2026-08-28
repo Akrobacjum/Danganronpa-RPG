@@ -220,22 +220,35 @@ export async function openObjection(objectorId, targetId) {
     // WHICH MODES AN OBJECTION MAY INTERRUPT.
     //
     //   debate      always. This is what the debate is for.
-    //   rebuttal    only from the two people already on it. A rebuttal is an
-    //               exchange between a pair, and evidence produced inside it
-    //               escalates that exchange rather than starting a new one —
-    //               the floor re-points at whoever landed the objection, and
-    //               their opponent gets the two minutes to answer. A third
-    //               party cutting in would be taking a floor they are not on.
-    //   objection   never. Somebody has one minute alone; a second objection
-    //               would reset the clock onto a new pair and the rebuttal the
-    //               first one bought would never happen at all.
+    //   rebuttal    ALWAYS, from anybody. Changed 28.08 on Dawid's ruling.
+    //
+    //               This used to be "only from the two already on it", on the
+    //               reasoning that a third party would be taking a floor they
+    //               are not on. That is true of the floor and wrong about the
+    //               table: the two minutes of a rebuttal are exactly when
+    //               somebody listening sees the hole in what is being said,
+    //               and a rule that makes them wait until the argument is over
+    //               is a rule against the only moment interrupting is worth
+    //               anything. The pair is not a private room — it is a pair the
+    //               rest of the trial is watching.
+    //
+    //               Nothing is lost by allowing it, because an objection
+    //               RE-POINTS the floor rather than ending it: the interrupter
+    //               takes the minute and whoever they aimed at gets the
+    //               answering two. That is the same exchange the first
+    //               objection bought, now with the person who earned it.
+    //   objection   never, and this is the one that stays. Somebody has ONE
+    //               minute alone; a second objection inside it would reset the
+    //               clock onto a new pair and the rebuttal the first one
+    //               bought would never happen at all. Cutting in costs nothing
+    //               during a rebuttal precisely because the rebuttal is what
+    //               it becomes.
     //
     // Checked again on the caller's side before the card is posted (see
     // `presentDialog`), so a player is told why rather than watching their
     // objection land as an ordinary card. This is the rule; that is the
     // courtesy.
     if (floor.mode === FLOOR_MODES.objection) return null;
-    if (floor.mode === FLOOR_MODES.rebuttal && !maySpeak(objectorId, floor)) return null;
 
     return writeFloor({
         mode: FLOOR_MODES.objection,

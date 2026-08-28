@@ -46,6 +46,7 @@ import {
     announce, dialogContent, tableDialog, whisperToGms, whisperToOwner, ownerOf, gmIds,
     isPrimaryGm, log, warn, error, plural} from "./utils.mjs";
 
+
 const DialogV2 = foundry.applications.api.DialogV2;
 
 /* ==========================================================================
@@ -3094,6 +3095,20 @@ export async function resolveOpening({ actorId, side, total, isCritical, withHop
 
 /** The live tracker: whose turn, what is left, and the controls. */
 export async function openIncidentTracker() {
+    /*
+     * NO `alreadyOpen` GUARD HERE, and it is the one window that must not have
+     * one. Every other window in the module is opened by somebody pressing a
+     * thing; this one REOPENS ITSELF after every crisis action, which is the
+     * whole reason it is usable during an incident. A duplicate was never the
+     * complaint about it, and a guard that fires while the previous copy is
+     * still closing would refuse the reopen and leave the incident with no
+     * tracker at all — turning a nuisance somebody else has into a broken
+     * scene here.
+     *
+     * It still carries `drpg-window-incident`, so the diagnostics can count it
+     * and a future caller can ask.
+     */
+
     if (!game.user.isGM) return null;
     const state = murderState();
     if (!state) {
@@ -3113,7 +3128,7 @@ export async function openIncidentTracker() {
         // `cleanupSection()` below puts a table in this window once Stage 6 has
         // traces to list — `tableDialog` is what sizes the window to it.
         window: { title: game.i18n.localize("DRPG.Murder.trackerTitle") },
-        classes: ["drpg-panel"],
+        classes: ["drpg-panel", "drpg-window-incident"],
         content: dialogContent(`<div>
             <p>${state.selfInflicted
                 // One name, and an arrow pointing at itself would be the only

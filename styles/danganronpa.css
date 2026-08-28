@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json — the suite fails if it does not. */
-    --drpg-css-version: "1.1.40";
+    --drpg-css-version: "1.1.41";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -1192,12 +1192,33 @@ body:not(.drpg-gm) .character-header-sheet .hope-section .hope-value {
     text-shadow: 0 1px 2px rgba(var(--drpg-shadow-rgb), 0.75);
 }
 
-/* Always five per row — never fewer, whatever the sheet width. The media
-   queries that used to drop to 3 columns were what made the tiles wide and
-   rectangular; the tiles shrink instead. */
+/* AS MANY PER ROW AS THE NAMES ALLOW — measured, not decided here.
+   ---------------------------------------------------------------------------
+   This used to read "always five per row, never fewer, whatever the sheet
+   width", and the tiles shrank to make it true. At the pixel face that put
+   "Determination" into a 108px box needing 195, so the label broke mid-word
+   (Dawid, 28.08). There is no font size that fixes it at five columns: a fifth
+   of this grid is ~125px even on a wide sheet, and thirteen pixel glyphs do not
+   go into 125px at any size a person can read.
+
+   So the column count comes from the widest label instead. `fitActionTiles` in
+   sheet.mjs measures it once per render and writes `--drpg-tile-min`; this rule
+   fits as many columns as that allows. On a default sheet with the pixel face
+   that is four. The fallback below is what applies before the first measurement
+   and on any sheet the fitter never reaches.
+
+   NOTE THE `!important` AND WHY IT STAYS. It is not fighting the pixel-font
+   rule that used to sit at the bottom of this file — that rule was DEAD, an
+   auto-fill it could never win against, so the tiles have been five-a-row in
+   the pixel face for as long as both rules have existed. It is fighting
+   Daggerheart's own grid declarations on the same element. The variable is what
+   makes the rule adjustable now, which is the right place for the flexibility:
+   one value, set from a measurement, rather than a second rule hoping to
+   outrank the first. */
 .drpg-action-grid {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    grid-template-columns:
+        repeat(auto-fit, minmax(min(var(--drpg-tile-min, 6.75rem), 100%), 1fr)) !important;
     /* Rows sized by content, and the grid never stretched to fill a short
        parent — otherwise a flex column with limited height squashes the rows
        and `aspect-ratio` loses, producing wide, flat tiles. */
@@ -1222,7 +1243,14 @@ body:not(.drpg-gm) .character-header-sheet .hope-section .hope-value {
     width: 100%;
     min-width: 0;
     min-height: 0 !important;
-    max-height: none;
+    /* SQUARE UNTIL SQUARE COSTS TOO MUCH.
+       Fewer columns means wider tiles, and `aspect-ratio` turns a wider tile
+       into a TALLER one — four columns of 152px would be four rows of 152px,
+       and two panels of that do not fit on any sheet. So the square is capped:
+       a tile grows square while it is small and stops at this height, which is
+       roughly where a two-line name and its cost stop needing more room. The
+       result at four columns is 152x116, which still reads as a tile. */
+    max-height: 7.25rem;
     align-self: start;
     box-sizing: border-box;
     padding: 3px 1px;
@@ -2224,9 +2252,13 @@ body.drpg-pixel-font .character-header-sheet .trait-name {
     overflow: visible;
 }
 
-body.drpg-pixel-font .drpg-action-grid {
-    grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
-}
+/* WITHDRAWN, 28.08. This said `repeat(auto-fill, minmax(9.5rem, 1fr))` and had
+   never once applied: the base rule above carries `!important`, which outranks
+   specificity, so the pixel face has been getting five columns this whole time
+   while a rule two thousand lines away said it was getting four. The column
+   count is one decision now, taken above from a measurement, and the pixel face
+   gets its wider tiles because its labels measure wider — which is the reason
+   this rule wanted them, said in a way that cannot silently stop being true. */
 
 /* Never let the pixel face reach anything the user has to read at length. */
 body.drpg-pixel-font .editor-content,
@@ -9231,9 +9263,20 @@ details.drpg-calls-panel[open] > .drpg-action-grid {
 
    That minimum was 4.75rem — 76px — and it is a character too narrow for the
    pixel face: "Observe" measures 77px and "Sabotage" 88px, so at the floor the
-   commonest labels broke mid-word. 5.75rem fits every action name and all but
-   three Hope Calls on one line, and the grid drops a column a little sooner,
-   which is the better trade.
+   commonest labels broke mid-word. 5.75rem fitted most of them and not the
+   longest: "Determination" wants 143px and "Contribution" 132, so those two
+   kept breaking (Dawid, 28.08) while the rule said the floor had been raised
+   to fix exactly that.
+
+   THE FLOOR IS MEASURED NOW, and 5.75rem is only what applies before the first
+   measurement. `sizeColumns` in sheet.mjs reads the widest WORD in the grid —
+   word, not label, because "Dynamic action" is allowed to wrap at its space and
+   only an unbroken word forces a wider tile — and writes `--drpg-tile-min`.
+   With four columns of 153px against a 143px word every name survives whole.
+
+   The one-fifth term stays and still does its job: it is the CEILING, and on a
+   sheet wide enough for the measured floor to be under a fifth of the row it
+   takes over and holds the count at five.
 
    `auto-fill`, NOT `auto-fit`.
    ---------------------------------------------------------------------------
@@ -9251,7 +9294,8 @@ details.drpg-calls-panel[open] > .drpg-action-grid {
 .application.sheet.actor .drpg-action-grid,
 body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     grid-template-columns:
-        repeat(auto-fill, minmax(max(5.75rem, calc((100% - 16px) / 5)), 1fr)) !important;
+        repeat(auto-fill, minmax(
+            max(var(--drpg-tile-min, 5.75rem), calc((100% - 16px) / 5)), 1fr)) !important;
 }
 
 /* If anything still cannot fit, it scrolls — it does not vanish. */

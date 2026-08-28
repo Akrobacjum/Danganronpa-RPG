@@ -34,6 +34,7 @@ import { getClock } from "./clock.mjs";
 import { truthBulletData, isTruthBullet } from "./truth-bullets.mjs";
 import { showPopup } from "./popup.mjs";
 import { announce, dialogContent, isPrimaryGm, log, error, tableDialog } from "./utils.mjs";
+import { alreadyOpen } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -125,22 +126,40 @@ export async function presentDialog(actor, item) {
     // quietly turned it down. `openObjection` checks this again on the GM's
     // side — this is the courtesy, that is the rule.
     const blocked = asObjection
-        ? objectionBlockedReason(actor, floor, FLOOR_MODES, maySpeak)
+        ? objectionBlockedReason(actor, floor, FLOOR_MODES)
         : null;
 
     const targets = livingStudents()
         .filter(a => a.id !== actor.id)
         .sort((a, b) => a.name.localeCompare(b.name));
 
-    // DURING A REBUTTAL THERE IS ONLY ONE PERSON TO AIM AT: the one already
-    // opposite you. Offering the rest of the table would let the pair drag a
-    // bystander into an exchange they are not in, and the floor would re-point
-    // at somebody who has not said a word.
+    /*
+     * DURING A REBUTTAL, WHO YOU MAY AIM AT DEPENDS ON WHETHER YOU ARE IN IT.
+     *
+     * For the two on the floor there is exactly one person to aim at: the one
+     * already opposite them. Offering the rest of the table would let the pair
+     * drag a bystander into an exchange they are not in, and the floor would
+     * re-point at somebody who has not said a word.
+     *
+     * FOR ANYBODY ELSE IT IS THE WHOLE TABLE, and this half arrived with
+     * Dawid's ruling of 28.08 that a third party may cut into a rebuttal. It is
+     * the trap that ruling sets: lifting the guard in `openObjection` without
+     * touching this line would have let a bystander object and then handed them
+     * a picker holding one name — whichever of the pair `find` happened to
+     * reach first — so the interruption would have worked and been aimed at the
+     * wrong person, silently. A permission granted in one place and half-
+     * refused in another is worse than the refusal.
+     *
+     * `maySpeak` is the same question `openObjection` used to ask, asked here
+     * for the thing it is still right for: not "may you interrupt" any more,
+     * but "is this exchange yours".
+     */
     const inRebuttal = floor?.mode === FLOOR_MODES.rebuttal;
-    const opponentId = inRebuttal
+    const onTheFloor = inRebuttal && maySpeak(actor.id, floor);
+    const opponentId = onTheFloor
         ? [floor.holderId, floor.targetId].find(id => id && id !== actor.id) ?? null
         : null;
-    const choices = inRebuttal
+    const choices = opponentId
         ? targets.filter(a => a.id === opponentId)
         : targets;
 
@@ -209,24 +228,21 @@ export async function presentDialog(actor, item) {
 /**
  * Why this player may not object right now, or `null` when they may.
  *
- * Two cases, and only two — a rebuttal is no longer one of them. Evidence
- * produced inside a rebuttal is the escalation the mode exists for, so what is
- * refused there is not the objection, it is the wrong person making it.
+ * ONE CASE NOW. A rebuttal stopped being one of them on 28.08 — see the rule
+ * in `openObjection`, which this mirrors and must go on mirroring: that
+ * function is the RULE (the floor refuses) and this one is the COURTESY (the
+ * player is told why). A courtesy that refuses what the rule allows is worse
+ * than no courtesy at all, because then the only thing standing between a
+ * player and a legal move is a window telling them no.
  *
  *   during an objection   somebody has one minute alone. A second objection
  *                         would reset the clock onto a new pair, and the
  *                         rebuttal the first one bought would never happen.
- *   during a rebuttal     only from the two on the floor. `maySpeak` already
- *                         owns that question for the whole stage, so it is
- *                         asked rather than re-answered here.
  */
-function objectionBlockedReason(actor, floor, FLOOR_MODES, maySpeak) {
+function objectionBlockedReason(actor, floor, FLOOR_MODES) {
     if (!floor) return game.i18n.localize("DRPG.Trial.objectionNoFloor");
     if (floor.mode === FLOOR_MODES.objection) {
         return game.i18n.localize("DRPG.Trial.objectionDuringObjection");
-    }
-    if (floor.mode === FLOOR_MODES.rebuttal && !maySpeak(actor.id, floor)) {
-        return game.i18n.localize("DRPG.Trial.objectionNotYourRebuttal");
     }
     return null;
 }
@@ -399,6 +415,13 @@ export function presentedThisChapter({ objectionsOnly = false, chapter = null } 
 
 /** The GM panel's read-out of who interrupted whom, and with what. */
 export async function openObjectionLog() {
+    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // window each read the world when they opened and neither knows about the
+    // other, so the older one goes on looking authoritative while showing
+    // something that stopped being true. Raised rather than refused: pressing
+    // twice usually means the window is behind something.
+    if (alreadyOpen("drpg-window-objections")) return null;
+
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
@@ -423,7 +446,7 @@ export async function openObjectionLog() {
 
     return tableDialog({
         window: { title: game.i18n.localize("DRPG.Trial.logTitle") },
-        classes: ["drpg-panel"],
+        classes: ["drpg-panel", "drpg-window-objections"],
         content: dialogContent(`<div>
             <p>${game.i18n.format("DRPG.Trial.logSummary", {
                 total: entries.length, objections

@@ -16,6 +16,7 @@ import {
     ECLIPSE_MOVES,
     EQUIPPABLE,
     BEDROOM_KEY_FLAG, callEffect, HOPE_CALLS, DESPAIR_CALLS } from "./config.mjs";
+import { SETTINGS } from "./settings.mjs";
 import { actionsLeft, actionsMax, actionBudget, hasFreeMove, setActions,
     canPayFor, freeActionsLeft, freeMovesLeft } from "./actions.mjs";
 import { resourceMax, initCharacter } from "./character.mjs";
@@ -66,6 +67,23 @@ export function registerSheetTweaks() {
     // which of them does what — the order is not the one it looks like.
     Hooks.on("preUpdateActor", markResourceOnlyUpdate);
     Hooks.on("updateActor", repaintAfterResourceUpdate);
+
+    /*
+     * WHEN A CACHED TAMPER ANSWER STOPS BEING TRUE.
+     *
+     * The cache key already covers the two ordinary ways it goes stale — the
+     * character walked out, or the clock turned. What it cannot see is the
+     * ledger itself changing under a character who has not moved: a trace
+     * erased, one planted, a chapter's sweep. All three are writes to
+     * `remnantSecrets`, which reaches every client as a setting update.
+     *
+     * Narrow on purpose. Forgetting on every module setting would mean a socket
+     * question per open sheet after every action in the game, which is the cost
+     * the note above `roomBlockFor` was right to refuse.
+     */
+    Hooks.on("updateSetting", setting => {
+        if (setting?.key === `${MODULE_ID}.${SETTINGS.remnantSecrets}`) forgetTamper();
+    });
 
     // Every item sheet, whatever Daggerheart calls the class. `renderItemSheetV2`
     // is Foundry's own rung of that ladder, so it catches LootSheet, FeatureSheet
@@ -754,10 +772,88 @@ function fitActionTiles(element) {
     const grids = [...root.querySelectorAll(".drpg-action-grid")];
     if (!grids.length) return;
 
+    for (const grid of grids) sizeColumns(grid);
+
     for (const grid of grids) delete grid.dataset.drpgTight;
     for (const grid of grids) {
         if (tileOverflows(grid)) grid.dataset.drpgTight = "";
     }
+}
+
+/*
+ * HOW WIDE A TILE HAS TO BE FOR ITS NAME TO SURVIVE.
+ * --------------------------------------------------------------------------
+ * The grid used to be five columns, always, and the tiles shrank to make that
+ * true. At the pixel face "Determination" wants 195px and a fifth of the grid
+ * is about 108 — so `softWrap`'s soft hyphen fired and the tile read
+ * "Determ-ination". Dawid, 28.08: the names should not have to be cut in half.
+ *
+ * They cannot be un-cut by choosing a better break point or a smaller font.
+ * MEASURED on this build: the pixel face runs at 15px per glyph at its 11px
+ * size, so thirteen characters is 195px and no readable size brings that under
+ * a fifth of a 625px grid. The only thing that fits the word is a wider tile,
+ * and a wider tile means fewer of them.
+ *
+ * So the widest name in the grid is measured and the column floor is set from
+ * it. `min()` in the CSS keeps a very narrow sheet from ending up with one
+ * column per row; the ceiling here keeps a very long translation from turning
+ * the grid into a list.
+ *
+ * The measurement is cheap and it has to be done here rather than in CSS:
+ * `min-content` on the label is exactly this number, but a grid cannot size its
+ * columns from the content of a cell it has not laid out yet.
+ */
+const TILE_MIN_FLOOR = 96;    // px — below this a tile stops being a tile
+const TILE_MIN_CEILING = 208; // px — above this the grid becomes a list
+
+function sizeColumns(grid) {
+    const names = [...grid.querySelectorAll(".drpg-action-name")];
+    if (!names.length) return;
+
+    /*
+     * THE WIDEST WORD, NOT THE WIDEST LABEL.
+     *
+     * "Dynamic action" measures 154px and needs none of it: it has a space, and
+     * a label wrapping at its space is what wrapping is for. Only a word with
+     * nowhere to break forces a wider tile. Sizing the grid off whole labels
+     * would buy two columns to spare "Direct Murder" a line break it is happy
+     * to take, and cost every other tile the room.
+     *
+     * `min-content` is exactly this measurement — the widest unbreakable run —
+     * and the browser will give it to us for the price of one layout, which the
+     * fitter is about to force anyway. It reads the soft hyphens `softWrap` put
+     * in, though, and those are break opportunities: a label carrying them
+     * measures as its widest FRAGMENT, which is the number we are trying to get
+     * away from. So the marks come out for the measurement and go back after.
+     */
+    let widest = 0;
+    for (const name of names) {
+        const marked = name.textContent;
+        // `SHY` by name, not the character: a literal soft hyphen in a regex
+        // is an invisible glyph in the source, which is the whole reason that
+        // constant exists.
+        const bare = marked.split(SHY).join("");
+        if (bare !== marked) name.textContent = bare;
+
+        const was = name.style.width;
+        name.style.width = "min-content";
+        widest = Math.max(widest, name.getBoundingClientRect().width);
+        name.style.width = was;
+
+        if (bare !== marked) name.textContent = marked;
+    }
+    if (!widest) return;
+
+    // The label is not the whole tile: the border and padding are outside it.
+    const tile = grid.querySelector(".drpg-action-button");
+    const style = tile && getComputedStyle(tile);
+    const chrome = style
+        ? (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0)
+            + (parseFloat(style.borderLeftWidth) || 0) + (parseFloat(style.borderRightWidth) || 0)
+        : 8;
+
+    const want = Math.min(TILE_MIN_CEILING, Math.max(TILE_MIN_FLOOR, Math.ceil(widest + chrome)));
+    grid.style.setProperty("--drpg-tile-min", `${want}px`);
 }
 
 /**
@@ -3360,12 +3456,23 @@ function roomBlockFor(actor, key) {
         if (key === "palm" && othersInRoom(actor).length === 0)
             return game.i18n.localize("DRPG.Steal.nobodyHere");
 
-        // NOT Tamper. Its two branches fail for opposite reasons — nothing of
-        // yours to erase, nobody left to frame — and only the first can be
-        // answered from this client at all: which traces are yours is a
-        // question for the GM's ledger (see `requestOwnTraces`). Asking it on
-        // every sheet render, for a tile that has a second branch which always
-        // works, would be a socket round trip to dim nothing.
+        // TAMPER IS ANSWERED, AND IT USED TO SAY IT COULD NOT BE.
+        //
+        // The note that stood here said Tamper has "a second branch which
+        // always works", so asking the GM's ledger would be "a socket round
+        // trip to dim nothing". The second branch does not always work:
+        // `framingCandidates` is empty in a cast down to its last two, and
+        // both branches being shut is exactly the case a player needs told.
+        //
+        // Dawid, 28.08: the tile greys out only after you click it. That is
+        // true and it is this line — the strike-through was appearing inside
+        // the variant window, on two struck rows, one click too late.
+        //
+        // So the answer is cached rather than skipped. See `tamperBlock`: the
+        // free half is computed here every render, the half that needs the
+        // ledger is asked once per room per time of day and repainted onto the
+        // tile when it lands.
+        if (key === "tamper") return tamperBlock(actor);
 
         // NOT the project tile. An empty room is a reason there is nothing to
         // work ON, and the tile has two branches: working on a project and
@@ -3381,6 +3488,116 @@ function roomBlockFor(actor, key) {
         // means the existing guard downstream does its job.
         debug("Could not decide whether an action is blocked here", err);
         return null;
+    }
+}
+
+/* ==========================================================================
+ * WHETHER TAMPER HAS ANYTHING TO WORK ON
+ * --------------------------------------------------------------------------
+ * Two branches, two costs to find out.
+ *
+ *   frame  — is there anybody left to point at? `framingCandidates` reads the
+ *            living cast on this client. Free, so it is asked every render.
+ *   cover  — is there a trace of yours here that is not reinforced? Only the
+ *            GM's ledger knows, and on a player's client that is a socket
+ *            round trip. Asked once per room per time of day, cached, and
+ *            painted onto the tile when the answer arrives.
+ *
+ * The tile is struck through only when EVERY branch is shut. A tile dimmed
+ * because one of two routes is closed would be lying in the more expensive
+ * direction: it would hide the route that still works.
+ *
+ * THE CACHE KEY IS THE STATE THE ANSWER DEPENDS ON, not a duration. Traces
+ * belong to rooms, so the room is in it; they are laid and swept as the clock
+ * turns, so the time of day is in it. Anything else that could change the
+ * answer mid-scene — a trace erased, one planted — arrives as a settings
+ * update, which `forgetTamper` below hangs on.
+ * ========================================================================== */
+
+const tamperAnswers = new Map();   // actorId -> { key, blocked }
+const tamperAsking = new Set();    // actorId — one question in flight at a time
+
+function tamperKey(actor) {
+    const clock = getClock();
+    return `${roomOfActor(actor) ?? "-"}|${clock.timeOfDay}|${clock.day}|${clock.session}`;
+}
+
+/** Drop every cached answer. Anything that could have changed a trace. */
+export function forgetTamper() {
+    tamperAnswers.clear();
+}
+
+function tamperBlock(actor) {
+    // Nowhere to do it is answered by the caller's own `here` check, which runs
+    // before this. Reaching here means the character is standing in a room.
+    const key = tamperKey(actor);
+    const seen = tamperAnswers.get(actor.id);
+    if (seen?.key === key) return seen.blocked;
+
+    // No answer for this room yet. Go and get one — and say nothing in the
+    // meantime, because a tile dimmed on a guess is worse than one that is a
+    // beat late. See the note above `roomBlockFor` on why this is advice.
+    askTamper(actor, key);
+    return null;
+}
+
+async function askTamper(actor, key) {
+    if (tamperAsking.has(actor.id)) return;
+    tamperAsking.add(actor.id);
+    try {
+        const cleanup = await import("./cleanup.mjs");
+        const { requestCleanableTraces } = await import("./gm-bridge.mjs");
+
+        // The same two questions `performTamper` asks, in the same shapes —
+        // including `mine`, which is what separates an ordinary character
+        // tidying after themselves from a killer standing on their own scene.
+        const stageSix = cleanup.isCleaner(actor);
+        const [mine, candidates] = await Promise.all([
+            requestCleanableTraces(actor.id, { mine: !stageSix }),
+            cleanup.framingCandidates(actor)
+        ]);
+
+        const erasable = mine.filter(t => !t.reinforced);
+        // A killer standing over their own body has a third route, and it is
+        // the one they are most likely to want.
+        const body = stageSix && cleanup.bodyIsHere(actor);
+
+        const blocked = (erasable.length || candidates.length || body)
+            ? null
+            : game.i18n.localize(mine.length
+                ? "DRPG.Tamper.onlyReinforced" : "DRPG.Tamper.nothingOfYours");
+
+        // The world may have moved while the socket was out. Storing an answer
+        // under the key it was ASKED for means a stale one is simply never
+        // matched again, rather than being believed for the wrong room.
+        tamperAnswers.set(actor.id, { key, blocked });
+        paintTamper(actor, blocked);
+    } catch (err) {
+        // No answer is the same as "no reason to dim it", which is where the
+        // tile already is. The guard inside `performTamper` is untouched.
+        debug("Could not work out whether Tamper has anything to work on", err);
+    } finally {
+        tamperAsking.delete(actor.id);
+    }
+}
+
+/**
+ * Paint the answer onto the tile without re-rendering the sheet.
+ *
+ * A full render here would be a sheet redrawing itself a moment after opening,
+ * every time, for one class on one button — and it would fight `growForCalls`
+ * and the tile fitter for the frame it happens to land in.
+ */
+function paintTamper(actor, blocked) {
+    for (const app of sheetsFor(actor)) {
+        for (const tile of app.element.querySelectorAll('[data-drpg-action="tamper"]')) {
+            tile.classList.toggle("drpg-no-subject", Boolean(blocked));
+            const tip = tile.dataset.tooltip ?? "";
+            const bare = tip.replace(/<br><em>[^<]*<\/em>$/, "");
+            tile.dataset.tooltip = blocked
+                ? `${bare}<br><em>${foundry.utils.escapeHTML(blocked)}</em>`
+                : bare;
+        }
     }
 }
 
@@ -3584,30 +3801,60 @@ export function findDuplicateUltimates() {
 
 
 /**
- * Give the sheet room for the Hope Calls now that they never fold away.
+ * Give the sheet room for the Hope Calls, and for the names on the tiles.
  *
  * Daggerheart opens a character sheet at 850x830, which fitted when the Calls
  * were a closed drawer and does not now: the panel sits under ten action tiles
  * and a clean-up block, and a menu a cornered player has to scroll to find is
  * a menu they do not use.
  *
- * Grown ONCE per sheet, and only upwards. A GM who drags the window smaller
- * afterwards keeps their size — the alternative, re-asserting on every render,
- * would undo a deliberate resize several times a turn.
+ * WIDTH JOINED HEIGHT ON 28.08, and it is the same argument. The tile grid now
+ * takes its column count from the widest label (`sizeColumns`), so the sheet's
+ * width decides how many columns there are and therefore whether the names fit
+ * whole. At Daggerheart's 850 the pixel face gets four columns of 145px against
+ * a 195px word; the extra 70 buys the 152 that fits it. Dawid's proportions,
+ * 28.08: roughly square, a little taller than wide.
+ *
+ * Grown ONCE per sheet, and only upwards, in both directions. A GM who drags
+ * the window smaller afterwards keeps their size — the alternative, re-asserting
+ * on every render, would undo a deliberate resize several times a turn.
  */
 const grown = new WeakSet();
 const SHEET_MIN_HEIGHT = 980;
+const SHEET_MIN_WIDTH = 920;
 
 function growForCalls(app) {
     try {
         if (!app || grown.has(app)) return;
         grown.add(app);
+
+        const position = {};
         const height = app.position?.height;
-        if (typeof height !== "number" || height >= SHEET_MIN_HEIGHT) return;
-        // Never past the window: a sheet taller than the screen is worse than a
-        // sheet that scrolls.
-        const room = Math.max(0, window.innerHeight - 40);
-        app.setPosition({ height: Math.min(SHEET_MIN_HEIGHT, room) });
+        const width = app.position?.width;
+
+        // Never past the window: a sheet larger than the screen is worse than a
+        // sheet that scrolls. Measured against the viewport in both directions,
+        // because a laptop that has the height for this often has less width.
+        if (typeof height === "number" && height < SHEET_MIN_HEIGHT) {
+            position.height = Math.min(SHEET_MIN_HEIGHT, Math.max(0, window.innerHeight - 40));
+        }
+        if (typeof width === "number" && width < SHEET_MIN_WIDTH) {
+            position.width = Math.min(SHEET_MIN_WIDTH, Math.max(0, window.innerWidth - 40));
+        }
+        if (!Object.keys(position).length) return;
+
+        app.setPosition(position);
+        // The grid measures its columns against a width that has just changed,
+        // and `setPosition` does not lay out synchronously — so the fit is
+        // re-run on the far side of it. Without this the first paint of a
+        // freshly opened sheet keeps the column count it worked out at 850.
+        requestAnimationFrame(() => {
+            try {
+                fitActionTiles(app.element);
+            } catch {
+                // The observer in `watchTileFit` will get there anyway.
+            }
+        });
     } catch {
         // Cosmetic. A sheet that opens at its old size still works.
     }

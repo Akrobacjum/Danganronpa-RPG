@@ -34,6 +34,7 @@ import { SearchTokens } from "./search-tokens.mjs";
 import { isTierPool } from "./tables.mjs";
 import { dialogContent, tableDialog, whisperToOwner, whisperToGms, announce, log, error, plural,
     workingScene, pinFooterAcrossScroll } from "./utils.mjs";
+import { alreadyOpen } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -1467,6 +1468,13 @@ export async function resolveStashSearch({ actorId, total = 0, isCritical = fals
  * owns the two rest flags and their readers; this only edits them.
  */
 export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
+    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // window each read the world when they opened and neither knows about the
+    // other, so the older one goes on looking authoritative while showing
+    // something that stopped being true. Raised rather than refused: pressing
+    // twice usually means the window is behind something.
+    if (alreadyOpen("drpg-window-rooms")) return null;
+
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
@@ -1673,7 +1681,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
         // window-content and sane select sizing. Without it this dialog asked
         // for 860px, lost to the 26rem `.drpg-panel` cap, and clipped its own
         // right-hand columns with no way to scroll to them.
-        classes: ["drpg-panel", "drpg-projects", "drpg-room-setup"],
+        classes: ["drpg-panel", "drpg-projects", "drpg-room-setup", "drpg-window-rooms"],
         // One size for all five tabs, taken from the biggest of them — see
         // `fitWindowToTabs`. Without it the window is fitted to whichever tab
         // is showing and jumps between 708px and 1504px as the GM switches.
@@ -2069,6 +2077,13 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
 
 /** GM: look inside anybody's stash, and pull things out of it. */
 export async function openVaultInspector() {
+    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // window each read the world when they opened and neither knows about the
+    // other, so the older one goes on looking authoritative while showing
+    // something that stopped being true. Raised rather than refused: pressing
+    // twice usually means the window is behind something.
+    if (alreadyOpen("drpg-window-stashes")) return null;
+
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
@@ -2098,7 +2113,7 @@ export async function openVaultInspector() {
 
     return DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Vault.inspectTitle") },
-        classes: ["drpg-panel"],
+        classes: ["drpg-panel", "drpg-window-stashes"],
         content: dialogContent(`<div>${sections}
             <p class="notes">${game.i18n.localize("DRPG.Vault.inspectNote")}</p></div>`),
         buttons: [{ action: "close", label: game.i18n.localize("DRPG.Panel.close"), default: true }],

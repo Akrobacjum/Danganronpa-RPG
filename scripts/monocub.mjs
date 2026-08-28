@@ -37,6 +37,7 @@ import { automatedUpdate } from "./resource-guard.mjs";
 import { actionsLeft, spendAction, refundAction } from "./actions.mjs";
 import { getClock } from "./clock.mjs";
 import { resolveThreshold, dialogContent, whisperToOwner, log, warn, plural, tableDialog } from "./utils.mjs";
+import { alreadyOpen } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -378,6 +379,13 @@ async function wasteAction(actor) {
 
 /** Opt students in or out, hand out Despair-as-Hope, and mark the crime silence. */
 export async function openMonocubDialog() {
+    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // window each read the world when they opened and neither knows about the
+    // other, so the older one goes on looking authoritative while showing
+    // something that stopped being true. Raised rather than refused: pressing
+    // twice usually means the window is behind something.
+    if (alreadyOpen("drpg-window-monocubs")) return null;
+
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
@@ -417,7 +425,7 @@ export async function openMonocubDialog() {
 
     const result = await tableDialog({
         window: { title: game.i18n.localize("DRPG.Monocub.manageTitle") },
-        classes: ["drpg-panel"],
+        classes: ["drpg-panel", "drpg-window-monocubs"],
         content: dialogContent(`<div>
             <p class="notes">${game.i18n.localize("DRPG.Monocub.dialogIntro")}</p>
             <table class="drpg-vault-table"><thead><tr>
