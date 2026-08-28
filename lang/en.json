@@ -2122,6 +2122,7 @@
       "coverAction": "Cover your tracks",
       "trailAction": "Misleading trail",
       "notYours": "That trace is not yours to erase.",
+      "notFound": "You have not found that trace.",
       "actionSpent": "1 action spent.",
       "watched": {
         "one": "{n} other person is in this room. You will have to cover what you are doing first, and being caught at it costs Sanity.",

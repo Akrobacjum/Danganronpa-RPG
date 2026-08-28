@@ -75,14 +75,25 @@ export function registerSheetTweaks() {
      * character walked out, or the clock turned. What it cannot see is the
      * ledger itself changing under a character who has not moved: a trace
      * erased, one planted, a chapter's sweep. All three are writes to
-     * `remnantSecrets`, which reaches every client as a setting update.
+     * `remnantSecrets`.
+     *
+     * `clientSettingChanged`, NOT `updateSetting`, AND THIS LISTENER DID
+     * NOTHING AT ALL UNTIL E17. `updateSetting` is a DOCUMENT hook, and
+     * `remnantSecrets` is client-scoped: Foundry writes it straight to
+     * localStorage without ever creating a Setting document, so the hook never
+     * fires. Measured — a world setting fired it twice for two writes, this one
+     * fired zero times for two. dice-sync.mjs found the same trap a fortnight
+     * ago and the knowledge did not travel, which is why there is now a tier-0
+     * criterion (R14) standing over every listener of this shape.
+     *
+     * The argument is the full "namespace.key" id, not a document.
      *
      * Narrow on purpose. Forgetting on every module setting would mean a socket
      * question per open sheet after every action in the game, which is the cost
      * the note above `roomBlockFor` was right to refuse.
      */
-    Hooks.on("updateSetting", setting => {
-        if (setting?.key === `${MODULE_ID}.${SETTINGS.remnantSecrets}`) forgetTamper();
+    Hooks.on("clientSettingChanged", key => {
+        if (key === `${MODULE_ID}.${SETTINGS.remnantSecrets}`) forgetTamper();
     });
 
     // Every item sheet, whatever Daggerheart calls the class. `renderItemSheetV2`

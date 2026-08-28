@@ -539,10 +539,40 @@ export function keyOf(tokenDoc) {
     return scene && tokenDoc?.id ? `${scene}.${tokenDoc.id}` : null;
 }
 
+/**
+ * The parsed ledger, held between writes.
+ *
+ * MEASURED, E17: `game.settings.get` on this setting costs 0.858 ms in the QA
+ * world — 685 entries, 174 KB. Client-scoped settings live in `localStorage` as
+ * a string, so every read re-parses the whole thing and then pays Foundry's own
+ * validation on top of that; a world setting, which Foundry keeps as a live
+ * object, answers the same question in 0.0025 ms.
+ *
+ * It is read once PER TOKEN. `cleanableRemnants` in the Dinner Hall — 33 traces
+ * — took 27.4 ms of nothing but re-parsing, on the main thread, while
+ * `remnantsInRoom` found those same 33 tokens in 0.011 ms. Exactly E11's square,
+ * and worse in one respect: the ledger only ever gets longer, so this is a
+ * season that gets slower every time somebody leaves a trace.
+ *
+ * Safe to hold because every write goes through `writeRemnantLedger`, which
+ * drops it — including the merges arriving from another GM's socket. The three
+ * call sites that mutate the object in place all write immediately afterwards,
+ * and a mutation that reaches the cache before the write is the value we want
+ * to be reading anyway.
+ */
+let ledgerCache = null;
+
+/** The ledger is stale — parse it again on the next read. */
+export function forgetRemnantLedger() {
+    ledgerCache = null;
+}
+
 function readRemnantLedger() {
     if (!game.user.isGM) return {};
+    if (ledgerCache) return ledgerCache;
     try {
-        return game.settings.get(MODULE_ID, SETTINGS.remnantSecrets) ?? {};
+        ledgerCache = game.settings.get(MODULE_ID, SETTINGS.remnantSecrets) ?? {};
+        return ledgerCache;
     } catch (err) {
         warn("Could not read the Remnant ledger", err);
         return {};
@@ -553,8 +583,12 @@ async function writeRemnantLedger(ledger) {
     if (!game.user.isGM) return;
     try {
         await game.settings.set(MODULE_ID, SETTINGS.remnantSecrets, ledger);
+        // Held rather than dropped: this IS the newest ledger, and dropping it
+        // would make the next read pay the 0.9 ms again for an answer we have.
+        ledgerCache = ledger;
     } catch (err) {
         error("Could not write the Remnant ledger", err);
+        ledgerCache = null;
     }
 }
 
@@ -855,6 +889,23 @@ async function mergeRemnantEntries(incoming = {}) {
  * for one write, so the request is unconditional and cheap.
  */
 export function registerRemnantLedger() {
+    /*
+     * The cache is dropped by `writeRemnantLedger` on every write this module
+     * makes. This covers the writes it does NOT make: the regression suite
+     * putting the world back, and a GM editing the store by hand from the
+     * console. Belt and braces on purpose — a stale ledger would show a trace
+     * that is no longer there, which is the one kind of wrong answer this file
+     * must never give.
+     *
+     * `clientSettingChanged` and not `updateSetting`: this setting is
+     * client-scoped, so it never becomes a Setting document and the document
+     * hook never fires. Measured in E17, on the first version of this very
+     * line. The argument is the full "namespace.key" id.
+     */
+    Hooks.on("clientSettingChanged", key => {
+        if (key === `${MODULE_ID}.${SETTINGS.remnantSecrets}`) forgetRemnantLedger();
+    });
+
     game.socket.on(SOCKET_EVENT, async payload => {
         if (!game.user.isGM || !payload) return;
         try {

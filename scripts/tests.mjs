@@ -2,7 +2,8 @@
  * Danganronpa RPG — the regression suite.
  * ---------------------------------------------------------------------------
  *     game.drpg.runTests()            everything
- *     game.drpg.runTests({ tier: 1 }) invariants only, world untouched
+ *     game.drpg.runTests({ tier: 1 }) regressions + invariants, world untouched
+ *     game.drpg.runTests({ tier: 0 }) the module-wide regression pass alone
  *
  * WHAT IS IN HERE AND WHY. Not "coverage" — the things that have actually been
  * broken. Every tier-2 scenario below is a bug somebody hit at the table or a
@@ -13,8 +14,13 @@
  * passed on every one of those, because each was a function doing exactly what
  * it said while the rules underneath it were wrong.
  *
- * TWO TIERS, and the split is about consequences, not speed.
+ * THREE TIERS, and the split is about consequences, not speed.
  *
+ *   Tier 0 reads THIS MODULE'S OWN SOURCE, fetched from the server that is
+ *          already serving it. It is the answer to a class of defect the other
+ *          two tiers cannot see: not wrong logic, but code that says one thing
+ *          and does another somewhere nothing throws. See the block above
+ *          REGRESSIONS for the six that got out before it existed.
  *   Tier 1 reads. It cannot change the world, so it is safe to run at any point
  *          in a session, including during play.
  *   Tier 2 writes. It opens incidents, kills people and resets seasons — so it
@@ -62,6 +68,746 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 
 /** Let a world write land on this client before reading it back. */
 const settle = () => wait(400);
+
+/* ==========================================================================
+ * TIER 0 — MODULE-WIDE REGRESSION
+ * ========================================================================== */
+
+/**
+ * WHY A THIRD TIER, AND WHY IT READS SOURCE INSTEAD OF CALLING FUNCTIONS.
+ *
+ * Look at which defects in this update surfaced LAST. Not one of them was bad
+ * logic. Every one was a DIVERGENCE — code saying one thing and doing another,
+ * in a place where nothing throws:
+ *
+ *   - three sounds played on the wrong client for four releases, because the
+ *     resolver is GM-only and the comment above it said the code was "local";
+ *   - `forceBuffer` was accepted and ignored;
+ *   - a "which project?" picker that has never once been on screen;
+ *   - Reroll replaying one action as another;
+ *   - a trap alert delivered to the killer, naming the victim;
+ *   - `localize(k) || fallback`, which can never reach its fallback.
+ *
+ * None of those throws. None appears in a scenario that does not happen to walk
+ * that exact path. All of them are plainly visible in the text of the module.
+ *
+ * Foundry serves this module's own files under `/modules/danganronpa-rpg/`, so
+ * the suite can fetch and read them. Eighty-odd fetches inside a hand-run test
+ * is a price nobody ever sees.
+ *
+ * THE SELECTION RULE, and it is the only one: every criterion below points at a
+ * defect this project actually shipped, or came within one commit of shipping.
+ * A regression test nobody can name a bug for is a test that gets deleted the
+ * first time it is inconvenient — so each one carries its bug in the comment.
+ *
+ * Tier 0 does not write to the world. R12 opens windows and closes them again;
+ * R10 calls hot functions and throws the answers away.
+ */
+
+/** Fetched once per run: eighty-eight files, and every criterion wants them. */
+let sourceCache = null;
+
+/**
+ * Every script this module ships, by file name.
+ *
+ * CRAWLED FROM `module.mjs`, NOT LISTED. A list is the thing that rots: the
+ * file added next month is exactly the one nobody remembers to add here, and it
+ * would be silently exempt from all thirteen criteria while the suite kept
+ * reporting green. The crawl cannot have that hole — a file nothing imports is
+ * a file Foundry never loads either. Measured: 88 on disk, 88 reached.
+ */
+async function moduleSources() {
+    if (sourceCache) return sourceCache;
+    const out = new Map();
+    const queue = ["module.mjs"];
+    while (queue.length) {
+        const file = queue.pop();
+        if (out.has(file)) continue;
+        let text = null;
+        try {
+            const res = await fetch(`/modules/${MODULE_ID}/scripts/${file}`);
+            if (res.ok) text = await res.text();
+        } catch { /* a file that will not load is the module's problem, not this test's */ }
+        if (text === null) continue;
+        out.set(file, text);
+        for (const m of text.matchAll(/(?:from|import\()\s*"\.\/([\w-]+\.mjs)"/g)) queue.push(m[1]);
+    }
+    sourceCache = out;
+    return out;
+}
+
+/** The same, minus this file — which quotes every pattern it hunts for. */
+async function otherSources() {
+    const all = await moduleSources();
+    return [...all].filter(([file]) => file !== "tests.mjs");
+}
+
+/**
+ * Source with its comments taken out.
+ *
+ * LEARNED IN E22, AT THE COST OF A FALSE PASS AND A FALSE FAIL. A test that
+ * read its own module found the broken CSS *quoted in the comment above the
+ * fix* and reported the fix as missing. Anything that greps this module for
+ * evidence has to look at the code, because the comments here are long and full
+ * of the exact strings the code is not supposed to contain any more.
+ */
+function stripComments(text) {
+    // NEWLINES SURVIVE, and the first run is why. Collapsing a block comment to
+    // one space shortens the file by every line it spanned, so every `file:line`
+    // this tier reported pointed at innocent code — `movement.mjs:629`, which is
+    // a variable declaration, for a call that lives two hundred lines further
+    // down. A failure message nobody can follow is worse than no message.
+    return text
+        .replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, " "))
+        .replace(/^([ \t]*)\/\/.*$/gm, "$1");
+}
+
+/** Every stylesheet in module.json, concatenated, comments removed. */
+async function moduleStyles() {
+    const manifest = await fetch(`/modules/${MODULE_ID}/module.json`).then(r => r.json());
+    const parts = [];
+    for (const href of manifest.styles ?? []) {
+        parts.push(await fetch(`/modules/${MODULE_ID}/${href}`).then(r => r.text()));
+    }
+    return parts.join("\n").replace(/\/\*[\s\S]*?\*\//g, " ");
+}
+
+/** Line number of an index, for a failure message somebody has to act on. */
+const lineAt = (text, index) => text.slice(0, index).split("\n").length;
+
+const REGRESSIONS = [
+    ["R1 · every translation key the module names out loud resolves", async () => {
+        /*
+         * A RAW KEY ON A PLAYER'S SCREEN IS THE ONLY DEFECT IN THIS MODULE THAT
+         * THE TABLE SEES BEFORE THE GM DOES. Everything else fails towards the
+         * GM's console; this one prints `DRPG.Tamper.notFound` in the middle of
+         * somebody's turn.
+         *
+         * The invariant that used to cover this kept a hand-written list of
+         * thirty keys out of two thousand and admitted in its own comment that
+         * it "erred on the reassuring side". This reads all of them.
+         *
+         * DYNAMIC KEYS ARE OUT OF SCOPE ON PURPOSE, not by oversight: a key
+         * assembled from a table (`DRPG.Trap.trigger.${kind}`) cannot be
+         * resolved without knowing the table, and the tables have their own
+         * both-directions invariants. What this owns is the literal — which is
+         * where the misses have actually been.
+         */
+        const missing = new Map();
+        let checked = 0;
+        for (const [file, raw] of await otherSources()) {
+            const text = stripComments(raw);
+            for (const m of text.matchAll(/"(DRPG\.[A-Za-z0-9_.]+)"/g)) {
+                const key = m[1];
+                // A key built by hand — `"DRPG.Clock." + slot` — is a PREFIX,
+                // and asking whether a prefix resolves is the wrong question.
+                if (key.endsWith(".")) continue;
+                if (/^\s*[+`]/.test(text.slice(m.index + m[0].length, m.index + m[0].length + 3))) continue;
+                checked++;
+                if (game.i18n.has(key)) continue;
+                // A COUNTED SENTENCE IS A FAMILY, NOT A KEY. `plural()` asks for
+                // `key.one` / `key.other` and never for `key` itself, so 68 of
+                // these were reported missing on the first run and every one of
+                // them was on screen and correct. `.other` is the form that must
+                // exist: `plural` falls back to it by design when the language
+                // has no `.one`.
+                if (game.i18n.has(`${key}.other`)) continue;
+                if (!missing.has(key)) missing.set(key, `${file}:${lineAt(text, m.index)}`);
+            }
+        }
+        ok(checked > 1000, `only ${checked} keys were read — the crawl is not reaching the module`);
+        ok(!missing.size, `these keys print themselves at the table: ${
+            [...missing].map(([k, w]) => `${k} (${w})`).join(", ")}`);
+    }],
+
+    ["R2 · no styling rule in the sheet has lost its emitter", async () => {
+        /*
+         * DEAD CSS IS INVISIBLE BY CONSTRUCTION. `.drpg-tamper-cover` was
+         * written in E12 and replaced by an attribute a day later; the rule
+         * stayed, and nothing about the module's behaviour would ever have said
+         * so. Multiply that by an update this size and the sheet becomes a place
+         * where you cannot tell which half of a selector is load-bearing.
+         *
+         * ONE DIRECTION, NOT TWO, AND THE MEASUREMENT IS WHY. The other
+         * direction — "every class named in a script has a rule" — was built,
+         * run, and dropped: 478 class names in the scripts, 133 of them with no
+         * rule. Narrowed to the 173 that appear inside a `class="…"` attribute
+         * it still reported 8, and all eight are structural: grid children that
+         * take their placement from the parent (`drpg-tables-left`), wrappers
+         * (`drpg-requirements`), live-region markers. A test that fails on those
+         * is a test demanding the markup be made LESS readable — the same trap
+         * as the E21 trigger test that demanded a worse implementation. So the
+         * direction that measured zero and has real teeth is the one that runs.
+         */
+        const css = await moduleStyles();
+        const inSheet = new Set([...css.matchAll(/\.(drpg-[a-z0-9-]+)/g)].map(m => m[1]));
+        ok(inSheet.size > 200, `only ${inSheet.size} rules were read — the stylesheets did not load`);
+
+        const named = new Set();
+        const families = new Set();
+        for (const [, raw] of await otherSources()) {
+            for (const m of stripComments(raw).matchAll(/drpg-[a-z0-9-]*/g)) {
+                named.add(m[0]);
+                // `drpg-outcome-${tone}` NAMES A FAMILY, not a class, and the
+                // whole family is emitted by that one line. The trailing dash is
+                // what marks it — and `drpg-` on its own is excluded, because
+                // `drpg-${anything}` would otherwise vouch for every rule in the
+                // sheet and this test would pass by saying nothing.
+                if (/^drpg-[a-z0-9]+[a-z0-9-]*-$/.test(m[0])) families.add(m[0]);
+            }
+        }
+        /*
+         * A CLASS THAT ONLY EVER APPEARS IN A NEGATION IS A SWITCH, NOT A STYLE.
+         * `:not(.drpg-compact)` is an opt-out written for a window that wants
+         * the plain treatment; nothing wears it today and the rules it guards
+         * work exactly as intended because of that. Asking for an emitter would
+         * be asking somebody to add a class in order to keep a test quiet.
+         */
+        const switches = new Set();
+        for (const m of css.matchAll(/:not\(([^)]*)\)/g)) {
+            for (const c of m[1].matchAll(/\.(drpg-[a-z0-9-]+)/g)) switches.add(c[1]);
+        }
+        const styled = new Set([...css.replace(/:not\([^)]*\)/g, " ")
+            .matchAll(/\.(drpg-[a-z0-9-]+)/g)].map(m => m[1]));
+
+        const orphans = [...inSheet].filter(c =>
+            styled.has(c) && !switches.has(c)
+            && !named.has(c) && ![...families].some(f => c.startsWith(f)));
+        ok(!orphans.length, `these rules are styling nothing: ${orphans.join(", ")}`);
+    }],
+
+    ["R3 · every sound a card asks for is a sound that exists", async () => {
+        /*
+         * `onCreateChatMessage` reads `flags.danganronpa-rpg.sfx` and plays it.
+         * A typo there is silence — no error, no warning, and the failure looks
+         * exactly like a GM who has not mapped a file to that event yet.
+         *
+         * Same failure mode as `yieldsTo`, which already has an invariant. That
+         * one guards the table; this one guards the fourteen call sites, which
+         * is where a rename actually goes wrong.
+         */
+        const bad = [];
+        for (const [file, raw] of await otherSources()) {
+            const text = stripComments(raw);
+            for (const m of text.matchAll(/\bsfx:\s*"([\w.]+)"/g)) {
+                if (!SFX_EVENTS[m[1]]) bad.push(`${file}:${lineAt(text, m.index)} → "${m[1]}"`);
+            }
+            for (const m of text.matchAll(/\bplaySfx\(\s*"([\w.]+)"/g)) {
+                if (!SFX_EVENTS[m[1]]) bad.push(`${file}:${lineAt(text, m.index)} → playSfx("${m[1]}")`);
+            }
+        }
+        ok(!bad.length, `these ask for a sound that is not in the catalogue: ${bad.join(", ")}`);
+    }],
+
+    ["R4 · every setting the module reaches for is a setting it registered", async () => {
+        /*
+         * A SETTING THAT WAS NEVER REGISTERED ANSWERS WITH ITS DEFAULT AND DOES
+         * NOT BLINK. Not an exception, not a warning — the wrong answer,
+         * forever, in a module where half the rules of the game live in world
+         * settings.
+         *
+         * Three directions, because each one is a different accident: a name
+         * typed into a reader that the map does not have; a name in the map that
+         * `registerSettings` forgot; and a registration nobody reads any more,
+         * which is a world setting shipped to every client for nothing.
+         */
+        const used = new Set();
+        for (const [, raw] of await otherSources()) {
+            for (const m of stripComments(raw).matchAll(/\bSETTINGS\.(\w+)\b/g)) used.add(m[1]);
+        }
+        ok(used.size > 30, `only ${used.size} settings were seen — the crawl is not reaching the module`);
+
+        const declared = new Set(Object.keys(SETTINGS));
+        const undeclared = [...used].filter(k => !declared.has(k));
+        ok(!undeclared.length, `these names are not in SETTINGS: ${undeclared.join(", ")}`);
+
+        const unregistered = [...declared].filter(k => !game.settings.settings.has(`${MODULE_ID}.${SETTINGS[k]}`));
+        ok(!unregistered.length, `these are declared and never registered, so they answer with a default: ${
+            unregistered.join(", ")}`);
+
+        const unread = [...declared].filter(k => !used.has(k));
+        ok(!unread.length, `these are registered and never read: ${unread.join(", ")}`);
+
+        // And every one of them says out loud which side of the wire it lives
+        // on. Foundry defaults `scope` to "world", so a store that was meant to
+        // be private and simply forgot to say so is sent to every client — the
+        // exact shape of the mistake R9 exists to catch downstream.
+        const noScope = [...declared].filter(k =>
+            !game.settings.settings.get(`${MODULE_ID}.${SETTINGS[k]}`)?.scope);
+        ok(!noScope.length, `these do not declare a scope: ${noScope.join(", ")}`);
+    }],
+
+    ["R5 · no sound is played inside a function only the GM runs", async () => {
+        /*
+         * THIS IS THE BUG. `analyzeHit`, `observeFail` and `analyzeMiss` played
+         * to the GM and to nobody else for four releases, because each resolver
+         * opens with `if (!game.user.isGM) return` and the comment above the
+         * `playSfx` call said the code was "local". The player rolled, the
+         * player's own client stayed silent, and the only person who heard the
+         * result was the one who already knew it.
+         *
+         * A sound that belongs to a resolver has to travel as a flag on the chat
+         * card, where every client that renders the card plays it.
+         *
+         * Read from the source because there is nothing to drive: the function
+         * runs, the sound plays, and it plays on the wrong machine. No assertion
+         * a single client can make will see that.
+         */
+        const guilty = [];
+        for (const [file, raw] of await otherSources()) {
+            if (file === "sfx.mjs") continue;   // the player itself, GM-agnostic
+            const text = stripComments(raw);
+            const starts = [...text.matchAll(
+                /^(?:export\s+)?(?:async\s+)?function\s+(\w+)|^(?:export\s+)?const\s+(\w+)\s*=/gm)];
+            for (const call of text.matchAll(/\bplaySfx\(/g)) {
+                const owner = starts.filter(s => s.index < call.index).pop();
+                if (!owner) continue;
+                const body = text.slice(owner.index, call.index);
+                if (/if\s*\(\s*!\s*game\.user\??\.isGM\s*\)\s*(?:return|\{[^}]{0,120}return)/.test(body)) {
+                    guilty.push(`${file}:${lineAt(text, call.index)} in ${owner[1] ?? owner[2]}`);
+                }
+            }
+        }
+        ok(!guilty.length, `these play to the GM and to nobody else: ${guilty.join(", ")}`);
+    }],
+
+    ["R6 · no bridge request can be made by the one person it is addressed to", async () => {
+        /*
+         * TWO WAYS TO LOSE AN ACTION, and the bridge has to be closed against
+         * both.
+         *
+         * A GM calling `requestSabotage` emits a socket packet that Foundry does
+         * NOT deliver back to its sender: the request is gone, no error, no
+         * refusal, and the action the player paid for simply did not happen.
+         *
+         * A table with no GM connected is the other end of it. `hasGm()` has to
+         * refuse immediately, because the alternative is a player watching a
+         * spinner for three minutes and then losing the action anyway.
+         *
+         * THE FIRST HALF IS NOT WHERE IT LOOKS. Nine of these have no GM branch
+         * of their own and all nine are correct: the branch lives in the domain
+         * function that calls them — `sabotageProject` does the work itself when
+         * it is the GM and only reaches for the bridge otherwise. So the question
+         * is not "does the bridge have a branch" but "can a GM get here at all",
+         * which is the call site's business, and that is what this reads.
+         */
+        const sources = new Map(await otherSources());
+        const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
+        ok(bridge.length > 1000, "gm-bridge.mjs did not load");
+
+        const requests = [...bridge.matchAll(/^export\s+(?:async\s+)?function\s+(request\w+)\s*\(/gm)];
+        ok(requests.length > 20, `only ${requests.length} bridge requests found`);
+
+        const noRefusal = [], reachable = [];
+        for (let i = 0; i < requests.length; i++) {
+            const name = requests[i][1];
+            const to = i + 1 < requests.length ? requests[i + 1].index : bridge.length;
+            const body = bridge.slice(requests[i].index, to);
+            if (!body.includes("hasGm(")) noRefusal.push(name);
+
+            // Does the bridge answer for the GM itself? Then any call site is
+            // safe and there is nothing more to ask.
+            if (/game\.user\.isGM/.test(body)) continue;
+
+            for (const [file, raw] of sources) {
+                if (file === "gm-bridge.mjs") continue;
+                const text = stripComments(raw);
+                for (const call of text.matchAll(new RegExp(`\\b${name}\\s*\\(`, "g"))) {
+                    /*
+                     * A GM CHECK HAS TO STAND OVER THE CALL, and it has two
+                     * shapes, not one. `if (!game.user.isGM) { …request… }` is
+                     * the common one; `if (game.user.isGM) { do it here } else
+                     * { …request… }` is the other, and demanding the `!` read
+                     * the second as unguarded on the first run — which is the
+                     * test asking for a worse implementation of a correct
+                     * function.
+                     *
+                     * Close, too: three hundred characters, not six hundred. A
+                     * guard far enough away to be out of sight is a guard the
+                     * next person to edit this will not know is load-bearing.
+                     */
+                    const before = text.slice(Math.max(0, call.index - 300), call.index);
+                    if (!/game\.user\??\.isGM/.test(before)) {
+                        reachable.push(`${file}:${lineAt(text, call.index)} → ${name}`);
+                    }
+                }
+            }
+        }
+        ok(!noRefusal.length,
+            `these hang instead of refusing when no GM is connected: ${noRefusal.join(", ")}`);
+        ok(!reachable.length,
+            `a GM reaching these talks to itself down a socket and the action is lost: ${
+                reachable.join(", ")}`);
+    }],
+
+    ["R7 · Reroll reads no field of the bookmark that nothing ever writes", async () => {
+        /*
+         * REROLL UNDOES AN ACTION AND PLAYS IT AGAIN, and everything it needs to
+         * do that comes off one flag written by whoever made the roll. A field
+         * it reads that nobody writes is a Reroll that quietly does nothing —
+         * and in E12 it did worse than nothing: it explained itself, wrongly,
+         * because `bookmark.cleanup` held a token id for one action and a NAME
+         * for two others.
+         *
+         * The type disagreement is not machine-checkable from source. The
+         * absence is, and it is the same accident one rename away.
+         */
+        const sources = new Map(await otherSources());
+        const reroll = stripComments(sources.get("reroll.mjs") ?? "");
+        ok(reroll.length > 1000, "reroll.mjs did not load");
+
+        const reads = new Set([...reroll.matchAll(/\bbookmark\??\.(\w+)/g)].map(m => m[1]));
+        ok(reads.size > 10, `only ${reads.size} bookmark fields were read`);
+
+        const elsewhere = [...sources].filter(([f]) => f !== "reroll.mjs")
+            .map(([, raw]) => stripComments(raw)).join("\n");
+        // Written as a key (`remnantId: doc.id`) or as shorthand inside a
+        // context object (`{ room, category, goal }`) — both are writes.
+        const orphans = [...reads].filter(f =>
+            !new RegExp(`[{,]\\s*${f}\\s*[,}:]`).test(elsewhere));
+        ok(!orphans.length,
+            `Reroll reads these and no action writes them: ${orphans.join(", ")}`);
+    }],
+
+    ["R8 · every action on the sheet has a branch, and every branch has a briefing", async () => {
+        /*
+         * A TILE THAT OPENS AN EMPTY WINDOW. `performAction` dispatches on the
+         * action key, the sheet draws whatever is in `ACTIONS`, and the two are
+         * kept in step by nothing at all.
+         *
+         * E12 made this concrete rather than theoretical: `kind: "variant"` and
+         * `kind: "panel"` mean an entry with no tile of its own is now a NORMAL
+         * state, so "has a branch" and "has a tile" came apart on purpose and
+         * have to be watched separately.
+         *
+         * The briefing half is driven, not read: `briefingBlock` composes three
+         * localised strings per action, and the one that is missing is the one
+         * nobody has opened since it was renamed.
+         */
+        const sources = new Map(await otherSources());
+        const rolls = stripComments(sources.get("action-rolls.mjs") ?? "");
+        const from = rolls.indexOf("export async function performAction");
+        ok(from > 0, "performAction is not where this test expects it");
+        const body = rolls.slice(from, rolls.indexOf("\n}\n", from));
+
+        const cases = new Set([...body.matchAll(/case\s+"(\w+)"/g)].map(m => m[1]));
+        const noBranch = Object.keys(ACTIONS).filter(k => !cases.has(k));
+        ok(!noBranch.length, `these are drawn and then dispatch nowhere: ${noBranch.join(", ")}`);
+
+        const noEntry = [...cases].filter(k => !ACTIONS[k]);
+        ok(!noEntry.length, `performAction answers to actions that do not exist: ${noEntry.join(", ")}`);
+
+        const { briefingBlock } = await import("./action-rolls.mjs");
+        const actor = studentActors()[0];
+        ok(actor, "need a student to render a briefing for");
+        const silent = [];
+        for (const [key, def] of Object.entries(ACTIONS)) {
+            let html = "";
+            try { html = briefingBlock(actor, key, def) ?? ""; } catch (err) { html = `threw: ${err.message}`; }
+            if (!html || html.length < 20 || html.includes("DRPG.")) silent.push(`${key} (${html.slice(0, 60)})`);
+        }
+        ok(!silent.length, `these briefings are empty or print a raw key: ${silent.join(", ")}`);
+    }],
+
+    ["R9 · nothing the investigation depends on is in a world setting", async () => {
+        /*
+         * FOUNDRY SENDS THE WHOLE WORLD TO EVERY CLIENT. A world-scoped setting
+         * is readable from any player's console, in full, whatever the interface
+         * chooses to show — so the entire murder mystery rests on one rule: what
+         * a Remnant really is, who left it, what it points at and how hard it is
+         * to read never leaves the GM's own browser.
+         *
+         * There is an invariant for Remnant TOKENS already. This is the same
+         * question asked of every store the module registers, which is where the
+         * next one will be added.
+         *
+         * KNOWN AND DELIBERATE: `projectMeta` is world-scoped and carries
+         * `killerId` and the trap's `condition`, so an indirect murder's owner
+         * is legible from a player's console today. That is Dawid's call, not a
+         * slip — `secret` was specified as hiding the UI — and it is written
+         * down here so the next reader does not think it got past this test.
+         */
+        const FORBIDDEN = ["sourceActor", "realType", "pointsAt", "dc", "tiedToCrime"];
+        const found = [];
+        for (const [full, def] of game.settings.settings) {
+            if (!full.startsWith(`${MODULE_ID}.`)) continue;
+            if (def.scope !== "world") continue;
+            let value = null;
+            try { value = game.settings.get(MODULE_ID, full.slice(MODULE_ID.length + 1)); } catch { continue; }
+            const seen = new Set();
+            const walk = (node, path) => {
+                if (!node || typeof node !== "object" || seen.has(node)) return;
+                seen.add(node);
+                for (const [k, v] of Object.entries(node)) {
+                    if (FORBIDDEN.includes(k)) found.push(`${full} :: ${path}${k}`);
+                    walk(v, `${path}${k}.`);
+                }
+            };
+            walk(value, "");
+        }
+        ok(!found.length, `these are on every player's machine right now: ${found.join(", ")}`);
+    }],
+
+    ["R10 · the hot lookups stay under their ceiling", async () => {
+        /*
+         * FOUND BY MEASUREMENT, NEVER BY FAILURE — which is the whole argument
+         * for having this at all. E11's stash lookup ran 0.218 ms with twelve
+         * items in a room because `regionsByName` rebuilt its map twice per
+         * item. Nothing broke. Nothing warned. It was quadratic and it shipped,
+         * and the only reason it was found is that somebody thought to time it.
+         *
+         * These are the lookups the module makes on every movement, every action
+         * and every render. The ceiling is deliberately loose: this exists to
+         * catch an order of magnitude, not to police a tenth of a millisecond on
+         * somebody else's laptop.
+         *
+         * AND THE TRAP CHECK, added with E21: a room crossing now asks whether
+         * anything is armed, several hundred times a session. It is measured
+         * with nothing armed, which is both the common case and the one where a
+         * regression would hide.
+         */
+        const M = await import("./movement.mjs");
+        const V = await import("./vault.mjs");
+        const R = await import("./remnants.mjs");
+        const C = await import("./cleanup.mjs");
+
+        const actor = studentActors()[0];
+        ok(actor, "need a student");
+        const room = M.allRooms()[0] ?? null;
+
+        const time = (fn, runs = 200) => {
+            fn();                                  // warm: the first call pays for the map
+            const t0 = performance.now();
+            for (let i = 0; i < runs; i++) fn();
+            return (performance.now() - t0) / runs;
+        };
+
+        const measured = {
+            roomOfActor: time(() => M.roomOfActor(actor)),
+            othersInRoom: time(() => M.othersInRoom(actor)),
+            stashItemsIn: time(() => V.stashItemsIn(actor, room)),
+            remnantsInRoom: time(() => R.remnantsInRoom(room)),
+            cleanableRemnants: time(() => C.cleanableRemnants(actor)),
+            crossingWithTraps: time(() => Hooks.callAll("drpgRoomCrossed",
+                { actor, from: null, to: room, tokenDoc: null, cost: 0 }), 60)
+        };
+        const CEILING = 2.0;   // ms per call, on a machine also running Foundry
+        const over = Object.entries(measured)
+            .filter(([, ms]) => ms > CEILING)
+            .map(([name, ms]) => `${name} ${ms.toFixed(3)} ms`);
+        log(`R10 hot paths: ${Object.entries(measured)
+            .map(([n, ms]) => `${n} ${ms.toFixed(3)}ms`).join(", ")}`);
+        ok(!over.length, `over the ${CEILING} ms ceiling: ${over.join(", ")}`);
+    }],
+
+    ["R11 · no bridge request can wait forever", async () => {
+        /*
+         * THE PAIR TO R6, AND THE HALF A GM'S OWN CLIENT CANNOT MEASURE.
+         *
+         * A request that waits on a ruling has to be able to give up. B-F5-1 was
+         * a player who lost an action because nobody answered; it was fixed once
+         * and has had no test since.
+         *
+         * WHAT THIS CANNOT DO, said plainly: it cannot watch a table with no GM,
+         * because it runs on the GM's machine and `hasGm()` is true by
+         * construction. Faking that would mean reaching into `game.users` mid
+         * run, which is a lie told to every other listener in the world at the
+         * same time. So the machine checks the shape — every waiting request has
+         * a bounded timeout that RESOLVES rather than rejects — and the live half
+         * stays on the human list: disconnect the GM, act as a player, and watch
+         * the refusal come back at once.
+         */
+        const sources = new Map(await otherSources());
+        const bridge = stripComments(sources.get("gm-bridge.mjs") ?? "");
+        const requests = [...bridge.matchAll(/^export\s+(?:async\s+)?function\s+(request\w+)\s*\(/gm)];
+        ok(requests.length > 20, "gm-bridge.mjs did not load");
+
+        const unbounded = [];
+        for (let i = 0; i < requests.length; i++) {
+            const name = requests[i][1];
+            const to = i + 1 < requests.length ? requests[i + 1].index : bridge.length;
+            const body = bridge.slice(requests[i].index, to);
+            // A request that never makes a Promise cannot hang: it emits and
+            // returns `{ pending: true }` in the same tick.
+            if (!/new Promise/.test(body)) continue;
+            if (!/setTimeout\([\s\S]{0,400}?resolve\(/.test(body)) unbounded.push(name);
+        }
+        ok(!unbounded.length,
+            `these wait on a ruling with no way to give up: ${unbounded.join(", ")}`);
+    }],
+
+    ["R12 · every standing window fits the screen Foundry calls a minimum", async () => {
+        /*
+         * TRAP 145 WAS EXACTLY THIS QUESTION and the answer had to be SEEN, not
+         * reasoned about: a sixth entry in the Search menu, and whether it fit
+         * was not something anybody could derive from the markup.
+         *
+         * Foundry's stated minimum is 1366×768. These are the windows this
+         * module draws itself, so they are the only ones whose width is our
+         * fault — and a horizontal scrollbar in a GM tool is merely annoying for
+         * a year and then loses somebody a ruling mid-trial, because the column
+         * they needed was off the right-hand edge.
+         *
+         * Opened for real and closed again. A window that refuses to open — no
+         * incident, no trial in progress — is recorded rather than failed, but
+         * the number that DID open is asserted, so this can never quietly
+         * measure nothing and report success.
+         */
+        const MIN_WIDTH = 1366;
+        const openers = [];
+        for (const [file, raw] of await otherSources()) {
+            for (const m of stripComments(raw).matchAll(
+                /^export (?:async )?function (open[A-Z]\w*|manage[A-Z]\w*)\s*\(/gm)) {
+                if (STANDING.includes(m[1])) openers.push([file, m[1]]);
+            }
+        }
+        ok(openers.length >= 15, `only ${openers.length} standing windows were found`);
+
+        const wide = [], refused = [];
+        let measured = 0;
+        for (const [file, name] of openers) {
+            const before = new Set(foundry.applications.instances.keys());
+            try {
+                const mod = await import(`./${file}`);
+                // NOT AWAITED, and this cost a run to learn: half of these
+                // openers are `DialogV2.wait`, whose promise settles when the
+                // person closes the window. Awaiting one stops the suite dead
+                // with a Sound panel on screen and no way forward — measured,
+                // the first time this ran. The window is what we are after, so
+                // the window is what we wait for.
+                Promise.resolve(mod[name]()).catch(() => {});
+            } catch { refused.push(name); continue; }
+            await wait(260);
+
+            const fresh = [...foundry.applications.instances.entries()]
+                .filter(([id]) => !before.has(id)).map(([, app]) => app);
+            if (!fresh.length) { refused.push(name); continue; }
+            for (const app of fresh) {
+                const el = app.element;
+                if (el?.isConnected) {
+                    measured++;
+                    if (el.offsetWidth > MIN_WIDTH) wide.push(`${name} is ${el.offsetWidth}px wide`);
+                    /*
+                     * AND NOTHING INSIDE IT MAY PUSH SIDEWAYS EITHER — but the
+                     * question is only meaningful of a box that can scroll.
+                     *
+                     * The first version asked it of every `form`, and reported
+                     * seven windows that are perfectly fine: a form is not a
+                     * scroll container, so a child sticking 16px past its
+                     * padding box produces no scrollbar and nothing visible at
+                     * all. One of the eight was real — the Monocub dialog, 1344
+                     * of content in a 1273 scrollport — and it would have been
+                     * lost in the noise of the other seven, which is precisely
+                     * how a test that cries wolf gets switched off.
+                     */
+                    for (const box of el.querySelectorAll("*")) {
+                        const overflowX = getComputedStyle(box).overflowX;
+                        if (overflowX !== "auto" && overflowX !== "scroll") continue;
+                        if (box.scrollWidth > box.clientWidth + 2) {
+                            wide.push(`${name} scrolls sideways (${box.scrollWidth} in ${box.clientWidth})`);
+                            break;
+                        }
+                    }
+                }
+                try { await app.close(); } catch { /* nothing useful to do about it here */ }
+            }
+            await wait(60);
+        }
+        log(`R12: ${measured} windows measured, ${refused.length} declined (${refused.join(", ") || "none"})`);
+        ok(measured >= 10, `only ${measured} windows actually opened — this measured nothing`);
+        ok(!wide.length, `these do not fit ${MIN_WIDTH}px: ${wide.join("; ")}`);
+    }],
+
+    ["R13 · every trigger a trap can name has something listening for it", async () => {
+        /*
+         * BOTH DIRECTIONS, and the second one is the reason this exists.
+         *
+         * A trigger with no listener is the worst shape a feature of this kind
+         * can take: the GM picks it out of a list, the trap arms, and then
+         * nothing ever happens — which looks exactly like a trap nobody walked
+         * into. It does not throw, it does not warn, and at the table it is
+         * indistinguishable from working.
+         *
+         * So: every `TRAP_TRIGGERS` entry that declares a `watch` must have a
+         * listener in traps.mjs that handles that watch, and every kind the
+         * listeners handle must be a trigger somebody can actually choose.
+         */
+        const { TRAP_TRIGGERS } = await import("./config.mjs");
+        const src = await fetch(`/modules/${MODULE_ID}/scripts/traps.mjs`).then(r => r.text());
+
+        // Which events the file actually subscribes to.
+        const hooks = new Set([...src.matchAll(/Hooks\.on\("(drpg\w+|createChatMessage)"/g)]
+            .map(m => m[1]));
+        const WATCH_HOOK = {
+            crossing: "drpgRoomCrossed",
+            action: "drpgActionResolved",
+            rest: "drpgRested",
+            stash: "drpgStashHunted",
+            item: "createChatMessage"
+        };
+
+        const unwatched = [];
+        for (const [key, def] of Object.entries(TRAP_TRIGGERS)) {
+            if (!def.watch) continue;                 // `manual` is a choice, not a gap
+            const hook = WATCH_HOOK[def.watch];
+            if (!hook) { unwatched.push(`${key} (watch "${def.watch}" is not a known kind)`); continue; }
+            if (!hooks.has(hook)) unwatched.push(`${key} (nothing listens to ${hook})`);
+        }
+        ok(!unwatched.length, `these triggers arm and then never fire: ${unwatched.join(", ")}`);
+
+        // The other direction: a listener that tests for a kind nobody can pick.
+        const named = [...src.matchAll(/kind !== "(\w+)"|kind === "(\w+)"/g)]
+            .map(m => m[1] ?? m[2]);
+        const unknown = named.filter(k => !TRAP_TRIGGERS[k]);
+        ok(!unknown.length, `these listeners test for triggers that do not exist: ${unknown.join(", ")}`);
+    }],
+
+    ["R14 · every setting listener waits on the hook its setting actually fires", async () => {
+        /*
+         * FOUNDRY HAS TWO HOOKS HERE AND THEY DO NOT OVERLAP, and this module
+         * has now got it wrong twice.
+         *
+         *   `updateSetting`        — a DOCUMENT hook. World settings only.
+         *   `clientSettingChanged` — client settings, and its argument is the
+         *                            full "namespace.key" id, not a document.
+         *
+         * A client-scoped setting is written straight to localStorage and never
+         * becomes a Setting document, so `updateSetting` does not fire for it —
+         * ever, on any client, including the one that made the write. Measured:
+         * two writes to a world setting fired it twice; two writes to a client
+         * setting fired it zero times.
+         *
+         * WHAT THAT COST. `sheet.mjs` dropped its Tamper cache on
+         * `remnantSecrets` — client-scoped — so from E12 until here the sheet
+         * kept answering "what did I leave in this room" from a cache that a
+         * trace being erased, planted or swept could not touch. It looked
+         * exactly like a working listener. dice-sync.mjs had found the same trap
+         * a fortnight earlier and written it down in a comment, which is the
+         * clearest possible argument for putting it in the suite instead.
+         *
+         * Only listeners that NAME a setting are asked. A listener filtering on
+         * the module prefix is a redraw-on-anything, and it is right about every
+         * world setting it sees.
+         */
+        const wrong = [];
+        for (const [file, raw] of await otherSources()) {
+            const text = stripComments(raw);
+            for (const m of text.matchAll(
+                /Hooks\.on\("(updateSetting|clientSettingChanged)"[\s\S]{0,400}?SETTINGS\.(\w+)/g)) {
+                const [, hook, name] = m;
+                const full = `${MODULE_ID}.${SETTINGS[name]}`;
+                const scope = game.settings.settings.get(full)?.scope;
+                if (!scope) continue;                    // R4 owns that failure
+                const wants = scope === "world" ? "updateSetting" : "clientSettingChanged";
+                if (hook !== wants) {
+                    wrong.push(`${file}:${lineAt(text, m.index)} — ${name} is ${scope}-scoped, `
+                        + `so ${hook} never fires for it (use ${wants})`);
+                }
+            }
+        }
+        ok(!wrong.length, `these listeners can never run: ${wrong.join("; ")}`);
+    }]
+];
 
 /* ==========================================================================
  * TIER 1 — INVARIANTS
@@ -427,67 +1173,6 @@ const INVARIANTS = [
         // decisions and the guide gives both.
         equal(KEY_REMNANTS.unfoundBar, 4, "the bar for unfound Key Remnants is not four");
         equal(KEY_REMNANTS.unfoundDespair, 3, "an unfound Key Remnant is not worth 3 Despair");
-    }],
-
-    ["every trigger a trap can name has something listening for it", async () => {
-        /*
-         * R13, BOTH DIRECTIONS, and the second one is the reason this exists.
-         *
-         * A trigger with no listener is the worst shape a feature of this kind
-         * can take: the GM picks it out of a list, the trap arms, and then
-         * nothing ever happens — which looks exactly like a trap nobody walked
-         * into. It does not throw, it does not warn, and at the table it is
-         * indistinguishable from working.
-         *
-         * So: every `TRAP_TRIGGERS` entry that declares a `watch` must have a
-         * listener in traps.mjs that handles that watch, and every kind the
-         * listeners handle must be a trigger somebody can actually choose.
-         */
-        const { TRAP_TRIGGERS } = await import("./config.mjs");
-        const src = await fetch(`/modules/${MODULE_ID}/scripts/traps.mjs`).then(r => r.text());
-
-        // Which events the file actually subscribes to.
-        const hooks = new Set([...src.matchAll(/Hooks\.on\("(drpg\w+|createChatMessage)"/g)]
-            .map(m => m[1]));
-        const WATCH_HOOK = {
-            crossing: "drpgRoomCrossed",
-            action: "drpgActionResolved",
-            rest: "drpgRested",
-            stash: "drpgStashHunted",
-            item: "createChatMessage"
-        };
-
-        const unwatched = [];
-        for (const [key, def] of Object.entries(TRAP_TRIGGERS)) {
-            if (!def.watch) continue;                 // `manual` is a choice, not a gap
-            const hook = WATCH_HOOK[def.watch];
-            if (!hook) { unwatched.push(`${key} (watch "${def.watch}" is not a known kind)`); continue; }
-            if (!hooks.has(hook)) unwatched.push(`${key} (nothing listens to ${hook})`);
-        }
-        /*
-         * AND NOT "the listener must mention the trigger by name".
-         *
-         * The first version of this also demanded the literal `"item"` and
-         * `"sabotage"` somewhere in traps.mjs, and both failed — correctly,
-         * because neither is routed by a literal. `item` is matched on
-         * `def.watch` and `sabotage` on `def.actionKey`, both read off the same
-         * table this test reads. That is the better implementation: a listener
-         * that matches on the catalogue cannot fall out of step with it, while
-         * one that matches on a string can.
-         *
-         * So the test was asking for a coding style rather than a property, and
-         * would have pushed the code toward the shape it was meant to protect
-         * against. The property is above — a declared `watch` has a hook — and
-         * the routing itself is covered by the scenarios, which drive real
-         * events and read what came out.
-         */
-        ok(!unwatched.length, `these triggers arm and then never fire: ${unwatched.join(", ")}`);
-
-        // The other direction: a listener that tests for a kind nobody can pick.
-        const named = [...src.matchAll(/kind !== "(\w+)"|kind === "(\w+)"/g)]
-            .map(m => m[1] ?? m[2]);
-        const unknown = named.filter(k => !TRAP_TRIGGERS[k]);
-        ok(!unknown.length, `these listeners test for triggers that do not exist: ${unknown.join(", ")}`);
     }],
 
     ["a trap alert is never addressed to a player", async () => {
@@ -2184,7 +2869,8 @@ let inFlight = false;
 
 /**
  * @param {object} [options]
- * @param {1|2} [options.tier]  1 reads only; 2 also runs the scenarios.
+ * @param {0|1|2} [options.tier]  0 reads the module's own source; 1 adds the
+ *                                invariants; 2 also runs the scenarios.
  */
 export async function runTests({ tier = 2 } = {}) {
     if (!game.user.isGM) {
@@ -2226,9 +2912,21 @@ async function runSuite(tier) {
         }
     };
 
-    lines.push("TIER 1 — invariants (the world is not touched)");
-    for (const [name, fn] of INVARIANTS) {
+    // Tier 0 runs at every level, including `{ tier: 1 }` — the round-by-round
+    // pass E17 makes on the way in and on the way out. It is the cheapest thing
+    // in the suite to be wrong about and the most expensive to skip: a divergence
+    // it would have caught costs four releases, not one run.
+    lines.push("TIER 0 — module-wide regression (source is read, not called)");
+    for (const [name, fn] of REGRESSIONS) {
         try { await fn(); record(name, null); } catch (err) { record(name, err); }
+    }
+
+    if (tier >= 1) {
+        lines.push("");
+        lines.push("TIER 1 — invariants (the world is not touched)");
+        for (const [name, fn] of INVARIANTS) {
+            try { await fn(); record(name, null); } catch (err) { record(name, err); }
+        }
     }
 
     if (tier >= 2) {

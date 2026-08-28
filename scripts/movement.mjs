@@ -842,10 +842,23 @@ async function sendBack(tokenDoc, previous, room) {
                 { x: previous.x, y: previous.y },
                 { animate: false, [REVERT]: true }
             );
-        } catch {
-            // A player may not own the token; ask the GM to do it.
-            const { requestSendBack } = await import("./gm-bridge.mjs");
-            requestSendBack(tokenDoc.parent?.id, tokenDoc.id, previous);
+        } catch (err) {
+            /*
+             * A player may not own the token; ask the GM to do it.
+             *
+             * THE GM IS ASKED TO SAY SO INSTEAD (E17, R6). Foundry does not
+             * deliver a socket packet back to the client that sent it, so a GM
+             * whose own `update` threw was emitting into nothing: the token
+             * stayed where it should not be, and neither the GM nor anybody
+             * else was told. Rare — a GM owns every token — but the failure is
+             * silent, which is the reason it is worth a branch. A player's
+             * client still takes the road it always took.
+             */
+            if (game.user.isGM) error("Could not send a token back where it came from", err);
+            else {
+                const { requestSendBack } = await import("./gm-bridge.mjs");
+                requestSendBack(tokenDoc.parent?.id, tokenDoc.id, previous);
+            }
         }
         lastRoom.set(tokenDoc.id, room);
         lastPosition.set(tokenDoc.id, previous);
