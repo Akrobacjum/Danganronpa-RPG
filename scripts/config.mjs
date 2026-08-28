@@ -409,6 +409,26 @@ export const ITEM_CATEGORIES = {
 };
 
 /**
+ * OUR OWN DRAWINGS NOW, one per category, shipped in `icons/`.
+ *
+ * These were four of Foundry's painted icons: an oil-painted apple beside a
+ * pixel-art sheet, and Tool and Room Key with no entry at all — which is a
+ * blank frame, not a fallback. The old note here was about two paths that did
+ * not exist in the core set, which is the other way the same thing goes wrong:
+ * a default nobody can verify is a default nobody notices breaking.
+ *
+ * A path built from the key is what keeps the two lists honest — a category
+ * added to ITEM_CATEGORIES and given a picture in `tools/item-icons.mjs` needs
+ * nothing here, and one given no picture is a missing FILE, which shows up as
+ * a 404 the first time it is drawn rather than as silence.
+ *
+ * Placeholders on purpose (Dawid, 28.08): one drawing per category, not per
+ * item. Edit the picture in `tools/item-icons.mjs` and re-run it.
+ */
+export const itemIcon = category =>
+    `modules/${MODULE_ID}/icons/item-${ITEM_CATEGORIES[category] ? category : "usable"}.svg`;
+
+/**
  * What each tier means per category. Used by the Search roll tables and by the
  * GM tooling that improvises items.
  */

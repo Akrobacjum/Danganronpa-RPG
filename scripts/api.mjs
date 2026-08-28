@@ -131,7 +131,7 @@ import {
 } from "./sfx.mjs";
 import { repaintFog, diagnoseFog, applySceneVisionMode, seedDiscovery, prepareScenes,
     restoreSceneVisionMode, diagnoseScenes, whyBlack, fogAnimations, fogPeek, doorwayReport,
-    checkRegions } from "./fog.mjs";
+    checkRegions, whatIsHere } from "./fog.mjs";
 import {
     isMonocub, monocubActors, eligibleForMonocub, setMonocub, setSilenced, isSilenced,
     meddleTargets, performMeddle, resolveMeddle, meddleDialog,
@@ -924,6 +924,14 @@ export const DrpgApi = {
      *  rebuild is being held back by a field somebody is typing in. Written for
      *  the diagnostics window and reachable from nowhere until this line. */
     diagnoseLive,
+
+    /** Point at a pixel on the map and be told what drew it: the room
+     *  outline (and how long that piece of it is), the doorway glow (and its
+     *  alpha there), the nearest region border and the nearest wall. Hover
+     *  and run it bare, or pass scene coordinates. Written because two
+     *  diagnoses of the same white strip were reasoned from screenshots and
+     *  both were wrong. */
+    whatIsHere,
 
     /** Put Daggerheart's own critical back, without a reload — for telling
      *  "the module changed this number" apart from "the system always did

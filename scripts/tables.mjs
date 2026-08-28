@@ -12,7 +12,7 @@
  * then edit freely — once they exist, these definitions are only a fallback.
  */
 
-import { MODULE_ID, ITEM_CATEGORIES, EQUIPPABLE, ITEM_TIERS, TIER_EFFECTS, USABLE_KINDS,
+import { MODULE_ID, ITEM_CATEGORIES, EQUIPPABLE, ITEM_TIERS, TIER_EFFECTS, USABLE_KINDS, itemIcon,
     USABLE_KIND_EFFECTS }
     from "./config.mjs";
 import { dialogContent, wirePortraitPickers, panelTabs, wirePanelTabs, whisperToGms, log, error, plural }
@@ -684,7 +684,11 @@ export async function installTables({ overwrite = false, prompt = true } = {}) {
                 replacement: true,
                 displayRoll: false,
                 flags: { [MODULE_ID]: { category, tier: Number(tier), goal } },
+                // THE ROW CARRIES THE PICTURE, so the table reads as the
+                // module's own and `drawItem` (which takes `result.img`) hands
+                // the drawn item an icon without asking the category twice.
                 results: names.map((text, index) => ({
+                    img: itemIcon(category),
                     // Since v13 a TableResult carries `name` and `description`;
                     // `text` is only kept here for a world still on the old shape.
                     type: CONST.TABLE_RESULT_TYPES?.TEXT ?? "text",
@@ -873,7 +877,9 @@ async function addResult(table, { name, description = "", img = null, roles = nu
             text: name,
             name,
             description: description || name,
-            img: img || undefined,
+            // A GM's own entry gets the category's placeholder unless they
+            // picked something, for the same reason the installed rows do.
+            img: img || itemIcon(table.getFlag(MODULE_ID, "category")),
             weight: 1,
             // An entry the GM typed gets whatever roles they ticked; one they
             // did not think about falls back to the built-in map, so adding

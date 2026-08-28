@@ -9,7 +9,7 @@
  * loot (they persist until used in a crime and removed).
  */
 
-import { MODULE_ID, ITEM_CATEGORIES, LIMIT_GROUPS, TIER_EFFECTS, USABLE_KINDS, USABLE_KIND_EFFECTS }
+import { MODULE_ID, ITEM_CATEGORIES, LIMIT_GROUPS, TIER_EFFECTS, USABLE_KINDS, USABLE_KIND_EFFECTS, itemIcon }
     from "./config.mjs";
 import { whisperToOwner, log, warn } from "./utils.mjs";
 
@@ -210,19 +210,6 @@ export function isStashed(item) {
  */
 export const CAP_OVERRIDE = "drpgIgnoreCarryLimit";
 
-/**
- * Every path here must exist in the core icon set, or the item is created with a
- * broken image and a 404 in the console. Two of these did not: `vegetable-fruit-
- * apple-red.webp` and `broom-blue.webp` are not shipped by Foundry v14, so every
- * Usable Item and every Cleaning Tool the module ever made showed a blank frame.
- * Both replaced with paths verified against the installed icon set.
- */
-const ICONS = {
-    usable: "icons/consumables/food/berries-ration-round-red.webp",
-    crimeTool: "icons/weapons/axes/axe-broad-brown.webp",
-    cleaningTool: "icons/tools/hand/broom-straw-brown.webp",
-    truthBullet: "icons/sundries/documents/document-sealed-red-yellow.webp"
-};
 
 /**
  * How many of this category the character is CARRYING.
@@ -402,7 +389,7 @@ export async function grantItem(actor, {
         const [item] = await actor.createEmbeddedDocuments("Item", [{
             name,
             type,
-            img: img ?? ICONS[category] ?? ICONS.usable,
+            img: img ?? itemIcon(category),
             system: {
                 description: description || fallbackDescription,
                 quantity: 1

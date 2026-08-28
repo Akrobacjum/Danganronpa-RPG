@@ -1627,6 +1627,158 @@ export function doorwayReport() {
 }
 
 /**
+ * WHAT DREW THIS PIXEL?
+ *
+ *     game.drpg.whatIsHere()          // wherever the cursor is
+ *     game.drpg.whatIsHere(x, y)      // a scene coordinate
+ *
+ * Written after two wrong diagnoses of the same white strip on Dawid's map
+ * (28.08). Both were reasoned from screenshots: first the doorway glow's flat
+ * core, then a stub of room outline. Both were wrong, and both COULD have been
+ * settled in a second by asking the canvas instead of asking me.
+ *
+ * The fog layer draws exactly three things over a floor, and they are told
+ * apart by what they are made of rather than by how they look:
+ *
+ *   · the OUTLINE  — a stroked path, ink under bone, hard-edged
+ *   · the GLOW     — a tinted sprite, soft, alpha well under 1
+ *   · the RASTER   — the fog itself
+ *
+ * So it reads the drawn geometry for the outline (distance to every chain and
+ * the width it was stroked with) and the actual texture pixel for the glow, and
+ * reports both with the border and the walls nearby. Nothing is inferred: every
+ * number below came off the thing that is on screen.
+ *
+ * @param {number} [x] Scene x. Defaults to the cursor.
+ * @param {number} [y] Scene y.
+ */
+export function whatIsHere(x = null, y = null) {
+    const at = (x === null || y === null) ? canvas?.mousePosition : { x, y };
+    if (!at) {
+        console.log(`${MODULE_ID} | whatIsHere: no point to look at.`);
+        return null;
+    }
+
+    const grid = canvas?.grid?.size ?? 100;
+    const report = { at: { x: Math.round(at.x), y: Math.round(at.y) }, grid, found: [] };
+
+    const find = (node, name) => {
+        if (!node) return null;
+        if (node.name === name) return node;
+        for (const child of node.children ?? []) {
+            const hit = find(child, name);
+            if (hit) return hit;
+        }
+        return null;
+    };
+
+    /* ---- the outline: stroked chains, measured in scene units ------------- */
+    const group = find(canvas?.stage, "drpgRoomOutline");
+    report.room = roomOutline?.room ?? null;
+    const graphics = group?.children?.find(c => !c.texture && c.geometry);
+    if (graphics) {
+        let nearest = null;
+        for (const piece of graphics.geometry?.graphicsData ?? []) {
+            const points = piece.shape?.points;
+            if (!points || points.length < 4) continue;
+            const width = piece.lineStyle?.width ?? 0;
+            let run = 0;
+            let best = Infinity;
+            for (let i = 2; i < points.length; i += 2) {
+                const ax = points[i - 2] + group.x, ay = points[i - 1] + group.y;
+                const bx = points[i] + group.x, by = points[i + 1] + group.y;
+                const dx = bx - ax, dy = by - ay;
+                run += Math.hypot(dx, dy);
+                const l2 = dx * dx + dy * dy || 1;
+                let t = ((at.x - ax) * dx + (at.y - ay) * dy) / l2;
+                t = t < 0 ? 0 : t > 1 ? 1 : t;
+                best = Math.min(best, Math.hypot(at.x - (ax + dx * t), at.y - (ay + dy * t)));
+            }
+            if (!nearest || best < nearest.distance) {
+                nearest = { distance: best, width, chainLength: run, points: points.length / 2 };
+            }
+        }
+        if (nearest) {
+            report.outline = {
+                nearestChain: Math.round(nearest.distance * 10) / 10,
+                strokeWidth: nearest.width,
+                chainLength: Math.round(nearest.chainLength),
+                chainPoints: nearest.points,
+                // Half a stroke either side is what the line covers.
+                covers: nearest.distance <= nearest.width / 2
+            };
+            if (report.outline.covers) report.found.push("room outline (a stroked line)");
+        }
+    }
+
+    /* ---- the glow: one texture pixel, read ------------------------------- */
+    const sprite = group?.children?.find(c => c.texture);
+    if (sprite) {
+        const px = Math.round(at.x - sprite.x);
+        const py = Math.round(at.y - sprite.y);
+        const inside = px >= 0 && py >= 0 && px < sprite.texture.width && py < sprite.texture.height;
+        report.glow = { inSprite: inside };
+        if (inside) {
+            try {
+                const pixels = canvas.app.renderer.extract.pixels(sprite.texture);
+                const i = (py * sprite.texture.width + px) * 4;
+                report.glow.alpha = Math.round(pixels[i + 3] / 2.55) / 100;
+                if (report.glow.alpha > 0.02) report.found.push(`doorway glow (alpha ${report.glow.alpha})`);
+            } catch (err) {
+                report.glow.alpha = `unreadable: ${err.message}`;
+            }
+        }
+    }
+
+    /* ---- the map underneath, so the answer can be acted on ---------------- */
+    const scene = canvas?.scene;
+    if (scene) {
+        let nearestBorder = null;
+        for (const region of scene.regions ?? []) {
+            if (!region.name) continue;
+            for (const flat of regionShapes(region, { x: 0, y: 0 })) {
+                for (let i = 0; i < flat.length; i += 2) {
+                    const j = (i + 2) % flat.length;
+                    const ax = flat[i], ay = flat[i + 1], bx = flat[j], by = flat[j + 1];
+                    const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy || 1;
+                    let t = ((at.x - ax) * dx + (at.y - ay) * dy) / l2;
+                    t = t < 0 ? 0 : t > 1 ? 1 : t;
+                    const d = Math.hypot(at.x - (ax + dx * t), at.y - (ay + dy * t));
+                    if (!nearestBorder || d < nearestBorder.distance) {
+                        nearestBorder = { room: region.name, distance: d };
+                    }
+                }
+            }
+        }
+        if (nearestBorder) {
+            report.border = { room: nearestBorder.room,
+                distance: Math.round(nearestBorder.distance * 10) / 10,
+                inSquares: Math.round(nearestBorder.distance / grid * 100) / 100 };
+        }
+
+        let nearestWall = null;
+        for (const wall of scene.walls ?? []) {
+            const c = wall.c;
+            if (!c || c.length < 4) continue;
+            const dx = c[2] - c[0], dy = c[3] - c[1], l2 = dx * dx + dy * dy || 1;
+            let t = ((at.x - c[0]) * dx + (at.y - c[1]) * dy) / l2;
+            t = t < 0 ? 0 : t > 1 ? 1 : t;
+            const d = Math.hypot(at.x - (c[0] + dx * t), at.y - (c[1] + dy * t));
+            if (!nearestWall || d < nearestWall.distance) {
+                nearestWall = { distance: d, angle: Math.round(Math.atan2(dy, dx) * 180 / Math.PI) };
+            }
+        }
+        if (nearestWall) {
+            report.wall = { distance: Math.round(nearestWall.distance * 10) / 10, angle: nearestWall.angle };
+        }
+    }
+
+    if (!report.found.length) report.found.push("nothing this module drew");
+    console.log(`${MODULE_ID} | whatIsHere`, report);
+    return report;
+}
+
+/**
  * Check every room on this scene against the rules the fog layer depends on.
  *
  *     game.drpg.checkRegions()
