@@ -107,7 +107,7 @@ export function pendingCall(actor) {
 /**
  * Arm a Call so the next roll can use what it bought.
  *
- * Support and For the Game arm someone *else*, and a player has no write access
+ * Support and Approval arm someone *else*, and a player has no write access
  * to another player's actor — the flag write throws "lacks permission". Those go
  * through the GM, who does have it. The Monokuma side never needs the detour:
  * a GM can write to anyone.
@@ -134,7 +134,7 @@ export async function armCall(actor, { key, kind, grants, amount = null, from = 
 
     // Tell the beneficiary, when they are not the buyer.
     //
-    // A GM owns every actor, so a Monokuma arming Obstacle or For the Game took
+    // A GM owns every actor, so a Monokuma arming Obstacle or Approval took
     // this branch and set the flag in silence — the player then met a roll
     // window with disadvantage already switched on and locked, and no reason
     // given. The socket path told them; the path that actually matters did not.
@@ -191,7 +191,7 @@ export async function applyCall(actor, key, kind, choice = {}) {
     try {
         // --- effects that arm the next roll ---
         if (call.grants) {
-            // Support and For the Game arm someone else; the rest arm the caller.
+            // Support and Approval arm someone else; the rest arm the caller.
             const beneficiary = choice.target ?? actor;
             const armed = await armCall(beneficiary, { key, kind, grants: call.grants, from: actor.id });
 

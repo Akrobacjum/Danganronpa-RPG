@@ -1495,7 +1495,7 @@ export const DESPAIR_CALLS = {
         effect: "Disadvantage on a player's roll."
     },
     forTheGame: {
-        label: "For the Game", icon: "fa-gift", cost: 1, target: "player", grants: "advantage",
+        label: "Approval", icon: "fa-gift", cost: 1, target: "player", grants: "advantage",
         effect: "Advantage on a player's roll."
     },
     behindClosedDoors: {
@@ -1503,7 +1503,7 @@ export const DESPAIR_CALLS = {
         effect: "Seal a room for one time of day."
     },
     thisWillHurt: {
-        label: "This Will Hurt", icon: "fa-heart-crack", cost: 2, target: "player", damage: { hitPoints: 2 },
+        label: "Pain", icon: "fa-heart-crack", cost: 2, target: "player", damage: { hitPoints: 2 },
         effect: "A player loses {hp} Health."
     },
     paranoia: {
@@ -1540,10 +1540,18 @@ export const DESPAIR_CALLS = {
     /*
      * THE THREE PROJECT CALLS, AND THE SWAP OF 28.08.
      *
-     * Game Integrity and Game Protection exchanged EVERYTHING except their
-     * keys: the price, the effect and the sentence. Integrity is now the
-     * expensive one that empties a project; Protection is the cheap one that
-     * knocks two off it.
+     * Game Integrity and the Call now called "Under Control" exchanged
+     * EVERYTHING except their keys: the price, the effect and the sentence.
+     * Integrity is now the expensive one that empties a project; Under Control
+     * is the cheap one that knocks two off it.
+     *
+     * THE KEYS ARE NOT THE NAMES, and here that is load-bearing rather than
+     * untidy. `gameProtection`, `favoriteProject`, `thisWillHurt` and
+     * `forTheGame` are stored data: an armed Call sits on an actor flag under
+     * its key, every button carries it in `data-drpg-call`, and the cards this
+     * world has already posted were written against it. Dawid renamed the four
+     * on 28.08 — Under Control, Patronage, Pain, Approval — and the labels are
+     * the whole of that change.
      *
      * The whole entry moved rather than the label, because a key still bolted
      * to the other one's effect is a trap laid for whoever opens this file
@@ -1558,11 +1566,11 @@ export const DESPAIR_CALLS = {
      * their time of day on it.
      */
     gameProtection: {
-        label: "Game Protection", icon: "fa-arrow-trend-down", cost: 3, target: "project", progress: -2,
+        label: "Under Control", icon: "fa-arrow-trend-down", cost: 3, target: "project", progress: -2,
         effect: "Remove {progress} progress from a project."
     },
     favoriteProject: {
-        label: "Favorite Project", icon: "fa-arrow-trend-up", cost: 3, target: "project", progress: 2,
+        label: "Patronage", icon: "fa-arrow-trend-up", cost: 3, target: "project", progress: 2,
         effect: "Add {progress} progress to a project."
     },
     gameIntegrity: {

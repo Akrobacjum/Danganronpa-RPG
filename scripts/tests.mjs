@@ -1642,8 +1642,8 @@ const INVARIANTS = [
 
         ok(wipe?.wipesProgress, "Game Integrity no longer empties a project");
         ok(!wipe?.progress, "Game Integrity carries a progress number as well as the wipe");
-        equal(dent?.progress, -2, "Game Protection is not −2 progress");
-        ok(!dent?.wipesProgress, "Game Protection still empties the project");
+        equal(dent?.progress, -2, "Under Control is not −2 progress");
+        ok(!dent?.wipesProgress, "Under Control still empties the project");
         ok(wipe.cost > dent.cost,
             `emptying a project (${wipe.cost}) does not cost more than denting it (${dent.cost})`);
     }],
