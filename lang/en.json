@@ -1163,6 +1163,15 @@
       "freeResolution": "You stopped them cold. Take Survive or Role reversal this turn — no roll, it simply works."
     },
     "Investigation": {
+      "filterOrder": "Order",
+      "orderRoom": "By room",
+      "orderNewest": "Newest first",
+      "filterPlayer": "Left by",
+      "filterRoom": "Room",
+      "filterAll": "Everyone",
+      "filterAnywhere": "Anywhere",
+      "filterCount": "Showing {shown} of {total}.",
+      "noneMatch": "No trace matches this filter.",
       "plannerIntro": "Five clues for chapter {chapter}. Together they should narrow the suspects to {min}–{max} people.",
       "notePlaceholder": "What this clue tells them",
       "difficulty": "Difficulty",

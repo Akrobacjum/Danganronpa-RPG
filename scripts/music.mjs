@@ -1419,9 +1419,9 @@ function trackOptions(playlist) {
  * `playingState` is cleared first so this re-asserts rather than deciding it has
  * nothing to do: whatever is playing was chosen under the old configuration.
  */
-export function refreshMusic() {
+export function refreshMusic({ now = false } = {}) {
     playingState = null;
-    schedule();
+    schedule({ now });
 }
 
 /** Console tool: what the module thinks is going on. */

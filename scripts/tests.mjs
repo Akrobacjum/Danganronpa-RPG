@@ -3146,6 +3146,108 @@ const SCENARIOS = [
         }
     }],
 
+    ["the case dashboard reads its traces three ways, and keeps the reading", async () => {
+        /*
+         * Dawid, 28.08: chronologically, newest first; by player; by room.
+         *
+         * THE READING IS HELD OUTSIDE THE DOM, and that is the whole of why it
+         * works in a window that rebuilds itself. `keepLive` redraws the region
+         * from `buildCase`, and a build that read the filter off the select
+         * would render the list BEFORE `restore` put the select back — one
+         * frame of the wrong list every time anything in the world moved. So
+         * this asserts both halves: the list narrows, AND the choice is still
+         * standing after the redraw that the choice itself triggered.
+         */
+        const remnants = await import("./remnants.mjs");
+        const { roomOfToken } = await import("./movement.mjs");
+        const scene = canvas?.scene;
+        ok(scene, "no active scene");
+
+        const anchors = Array.from(scene.tokens).filter(t => roomOfToken(t));
+        const rooms = [...new Set(anchors.map(t => roomOfToken(t)))];
+        ok(rooms.length >= 2, "need two rooms with a token standing in them");
+        const cast = game.actors.filter(a => a.type === "character").slice(0, 2);
+        ok(cast.length >= 2, "need two characters to tell 'left by' apart");
+
+        const spread = [
+            { room: rooms[0], who: cast[0], day: 1, timeOfDay: "morning" },
+            { room: rooms[1], who: cast[1], day: 3, timeOfDay: "night" },
+            { room: rooms[0], who: cast[1], day: 2, timeOfDay: "noon" }
+        ];
+
+        const placed = [];
+        let dialog = null;
+        try {
+            for (const one of spread) {
+                const anchor = anchors.find(t => roomOfToken(t) === one.room);
+                const token = await remnants.placeRemnant({
+                    type: "prep", visibility: "evident", scene, x: anchor.x, y: anchor.y,
+                    sourceActor: one.who.id, sourceName: one.who.name, room: one.room,
+                    chapter: 1, day: one.day, timeOfDay: one.timeOfDay,
+                    note: "test fixture — dashboard filters"
+                });
+                ok(token, "could not place a fixture trace");
+                placed.push(token);
+            }
+            await settle();
+
+            const investigation = await import("./investigation.mjs");
+            const before = new Set(foundry.applications.instances.keys());
+            // Not awaited: it settles when the GM closes it. See R12.
+            Promise.resolve(investigation.openInvestigationDashboard()).catch(() => {});
+            await wait(900);
+            for (const [id, app] of foundry.applications.instances.entries()) {
+                if (!before.has(id)) dialog = app;
+            }
+            ok(dialog?.element, "the dashboard did not open");
+
+            const bar = () => dialog.element.querySelector(".drpg-trace-filters");
+            ok(bar(), "the dashboard has no filter bar");
+            const rows = () => dialog.element
+                .querySelectorAll('[data-drpg-panel="traces"] tbody tr').length;
+            const control = which => bar().querySelector(`[data-drpg-filter="${which}"]`);
+            const choose = async (which, value) => {
+                const element = control(which);
+                element.value = value;
+                element.dispatchEvent(new Event("change", { bubbles: true }));
+                await wait(400);
+            };
+
+            const all = rows();
+            ok(all >= 3, `the dashboard lists ${all} trace(s); the fixture placed three`);
+
+            // The options come off the traces themselves, not off the cast.
+            const people = [...control("player").options].map(o => o.value).filter(Boolean);
+            ok(people.includes(cast[1].id), "the player filter does not offer a trace's own author");
+
+            await choose("player", cast[1].id);
+            const mine = rows();
+            ok(mine < all, `filtering by player showed ${mine} of ${all} — nothing was filtered`);
+            equal(control("player").value, cast[1].id,
+                "the chosen player did not survive the redraw it triggered");
+
+            await choose("player", "");
+            await choose("room", rooms[0]);
+            const here = rows();
+            ok(here < all, `filtering by room showed ${here} of ${all} — nothing was filtered`);
+            equal(control("room").value, rooms[0],
+                "the chosen room did not survive the redraw it triggered");
+
+            await choose("room", "");
+            await choose("order", "newest");
+            equal(rows(), all, "ordering dropped rows; it is an order, not a filter");
+            const first = dialog.element
+                .querySelector('[data-drpg-panel="traces"] tbody tr')?.textContent ?? "";
+            ok(/D\s*3/.test(first),
+                `newest first put "${first.replace(/\s+/g, " ").trim().slice(0, 60)}" at the top`);
+        } finally {
+            if (dialog) await dialog.close();
+            for (const token of placed) await remnants.dropRemnantSecret(token);
+            const ids = placed.map(t => t.id).filter(id => scene.tokens.has(id));
+            if (ids.length) await scene.deleteEmbeddedDocuments("Token", ids);
+        }
+    }],
+
     ["a trace and its bullets are one record, edited from either end", async () => {
         /*
          * Dawid, 28.08: "the synchronisation is to be full, continuous,
@@ -4097,10 +4199,22 @@ const SCENARIOS = [
             const first = nowPlaying();
             ok(first, "an objection started no track at all");
 
-            // Straight into another one, without leaving the state: this is the
-            // case the early return used to swallow.
-            await floor.openObjection(c.id, a.id);
+            /*
+             * THROUGH THE REBUTTAL, because a second objection DURING an
+             * objection is refused on purpose — an objection is one minute
+             * alone, and the scenario below this one is what holds that rule.
+             * Cutting into a rebuttal is the legal second objection, it is the
+             * case Dawid reported, and it is the one that never left the
+             * `trial.objection` state: exactly what the early return swallowed.
+             */
+            await floor.openRebuttal();
             await settle();
+            equal(nowPlaying(), first,
+                "a rebuttal changed the track; it is the same exchange and must not");
+
+            const cut = await floor.openObjection(c.id, a.id);
+            await settle();
+            ok(cut, "a third party was refused an objection during a rebuttal");
             const second = nowPlaying();
             ok(second, "a second objection left the playlist silent");
             ok(second !== first,

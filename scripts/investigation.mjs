@@ -23,8 +23,7 @@
 
 import {
     MODULE_ID, KEY_REMNANTS, TRUTH_BULLET_TYPES,
-    REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS
-} from "./config.mjs";
+    REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, TIMES_OF_DAY } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import {
@@ -607,6 +606,48 @@ export async function openInvestigationDashboard() {
      * every half-typed field across the rebuild. Without those a live
      * dashboard would be worse than a stale one.
      */
+    /*
+     * HOW THE TRACE LIST IS BEING READ (Dawid, 28.08).
+     *
+     * Held here rather than in the DOM, and that is the whole of why it works
+     * with a live window: `keepLive` rebuilds the region from `buildCase`, and
+     * a rebuild that read the filter off the select would render the list
+     * BEFORE `restore` put the select back — one frame of the wrong list every
+     * time anything in the world moved. Read from here, the markup and the
+     * rows are decided by the same value in the same pass.
+     */
+    const reading = { order: "room", player: "", room: "" };
+    /** The live region's handle, so a filter can ask it to redraw. */
+    let live = null;
+
+    /** The list as the reader asked for it: filtered, then ordered. */
+    const readAs = list => {
+        const kept = list.filter(({ data }) =>
+            (!reading.player || data.sourceActor === reading.player)
+            && (!reading.room || (data.room ?? "") === reading.room));
+
+        if (reading.order !== "newest") return kept;
+
+        // NEWEST FIRST, and "newest" is the fiction's clock rather than the
+        // file's: chapter, then day, then time of day, because that is the
+        // order the table lived them in. The ledger's own timestamp settles
+        // two traces from the same time of day — which, during an incident,
+        // is most of them.
+        const when = data => [
+            Number(data.chapter) || 0,
+            Number(data.day) || 0,
+            Math.max(0, TIMES_OF_DAY.indexOf(data.timeOfDay)),
+            Number(data.updated) || 0
+        ];
+        return [...kept].sort((a, b) => {
+            const left = when(a.data), right = when(b.data);
+            for (let i = 0; i < left.length; i++) {
+                if (left[i] !== right[i]) return right[i] - left[i];
+            }
+            return 0;
+        });
+    };
+
     const buildCase = () => {
         const students = evidenceByStudent();
         const traces = allTraces();
@@ -639,7 +680,8 @@ export async function openInvestigationDashboard() {
         }).join("");
 
         /* ---- Traces ---------------------------------------------------------- */
-        const traceRows = traces.map(({ token, data, scene }) => {
+        const shown = readAs(traces);
+        const traceRows = shown.map(({ token, data, scene }) => {
             const key = rowKey(scene.id, token.id);
             // The difficulty and room tags are appended live by `remnantPublic()`
             // and never stored — editing either back into the saved list would
@@ -751,7 +793,48 @@ export async function openInvestigationDashboard() {
             </nav>
 
             <div data-drpg-panel="traces">
-                ${traces.length ? `<table class="drpg-vault-table"><thead><tr>
+                ${(() => {
+                    // Built from the traces THEMSELVES, not from the cast and
+                    // the map: a filter offering a room with nothing in it, or
+                    // a student who has left nothing, is a filter that answers
+                    // "none" and teaches the GM to stop trying it.
+                    const people = new Map();
+                    const rooms = new Set();
+                    for (const { data } of traces) {
+                        if (data.sourceActor) {
+                            people.set(data.sourceActor,
+                                data.sourceName || game.actors.get(data.sourceActor)?.name
+                                || data.sourceActor);
+                        }
+                        if (data.room) rooms.add(data.room);
+                    }
+                    const option = (value, label, chosen) =>
+                        `<option value="${esc(value)}"${value === chosen ? " selected" : ""}>${
+                            esc(label)}</option>`;
+                    return `<div class="drpg-trace-filters">
+                        <label>${game.i18n.localize("DRPG.Investigation.filterOrder")}
+                            <select name="traceOrder" data-drpg-filter="order">
+                                ${option("room", game.i18n.localize("DRPG.Investigation.orderRoom"), reading.order)}
+                                ${option("newest", game.i18n.localize("DRPG.Investigation.orderNewest"), reading.order)}
+                            </select></label>
+                        <label>${game.i18n.localize("DRPG.Investigation.filterPlayer")}
+                            <select name="tracePlayer" data-drpg-filter="player">
+                                ${option("", game.i18n.localize("DRPG.Investigation.filterAll"), reading.player)}
+                                ${[...people].sort((a, b) => a[1].localeCompare(b[1]))
+                                    .map(([id, name]) => option(id, name, reading.player)).join("")}
+                            </select></label>
+                        <label>${game.i18n.localize("DRPG.Investigation.filterRoom")}
+                            <select name="traceRoom" data-drpg-filter="room">
+                                ${option("", game.i18n.localize("DRPG.Investigation.filterAnywhere"), reading.room)}
+                                ${[...rooms].sort((a, b) => a.localeCompare(b))
+                                    .map(name => option(name, name, reading.room)).join("")}
+                            </select></label>
+                        <span class="notes">${game.i18n.format("DRPG.Investigation.filterCount", {
+                            shown: shown.length, total: traces.length
+                        })}</span>
+                    </div>`;
+                })()}
+                ${shown.length ? `<table class="drpg-vault-table"><thead><tr>
                     <th>${game.i18n.localize("DRPG.Investigation.traceName")}</th>
                     <th>${game.i18n.localize("DRPG.Investigation.traceText")}</th>
                     <th>${game.i18n.localize("DRPG.Investigation.traceTags")}</th>
@@ -760,7 +843,8 @@ export async function openInvestigationDashboard() {
                     <th>${game.i18n.localize("DRPG.Remnant.reinforcedColumn")}</th>
                     <th>${game.i18n.localize("DRPG.Investigation.foundBy")}</th>
                 </tr></thead><tbody>${traceRows}</tbody></table>`
-                    : `<p class="notes">${game.i18n.localize("DRPG.Investigation.noTraces")}</p>`}
+                    : `<p class="notes">${game.i18n.localize(traces.length
+                        ? "DRPG.Investigation.noneMatch" : "DRPG.Investigation.noTraces")}</p>`}
             </div>
 
             <div data-drpg-panel="key" style="display:none">
@@ -927,17 +1011,37 @@ export async function openInvestigationDashboard() {
             };
 
             wireAll();
+
+            /*
+             * A FILTER IS A REBUILD, not a second way of drawing the table.
+             *
+             * The handler writes the reader's choice down and asks the live
+             * region to redraw itself — the same path a trace being found takes,
+             * so the scroll, the folded sections, the half-typed fields and the
+             * tab that is showing all survive a filter change exactly as they
+             * survive anything else. Wiring it inside `wireAll` is what keeps it
+             * working after that redraw replaces these very selects.
+             */
+            const wireFilters = () => {
+                for (const control of dialog.element.querySelectorAll("[data-drpg-filter]")) {
+                    control.addEventListener("change", () => {
+                        reading[control.dataset.drpgFilter] = control.value;
+                        live?.refresh?.();
+                    });
+                }
+            };
+            wireFilters();
             /*
              * `watch: { actors: true }` as well as the settings, because a Truth
              * Bullet arriving in somebody's bag is an item on an actor, and the
              * "who has what" table at the top of this window is the half a GM
              * looks at while an investigation is running.
              */
-            keepLive(dialog, {
+            live = keepLive(dialog, {
                 region: ".drpg-case-live",
                 build: buildCase,
                 watch: { actors: true },
-                after: wireAll
+                after: () => { wireAll(); wireFilters(); }
             });
         },
         rejectClose: false

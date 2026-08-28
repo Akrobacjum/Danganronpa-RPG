@@ -278,7 +278,21 @@ export async function openObjection(objectorId, targetId) {
     if (opened) {
         try {
             const { refreshMusic } = await import("./music.mjs");
-            refreshMusic();
+            /*
+             * NOW, NOT AFTER THE SETTLE WINDOW.
+             *
+             * `schedule()` waits 400ms and collapses everything asked for in
+             * that window into one apply — which is right for a clock turning
+             * and wrong for a cue. Two objections inside the window became ONE
+             * track change, so the second one landed in silence. Found by the
+             * scenario, which failed on a run where the two calls happened to
+             * fall closer together than on the run before it: the behaviour was
+             * always a race, and only the timing changed.
+             *
+             * `runApply` chains applies in order, so asking immediately twice
+             * is two applies in sequence rather than two crossfades interleaved.
+             */
+            refreshMusic({ now: true });
         } catch (err) {
             // A floor that opened without its music is far better than one that
             // did not open.

@@ -212,6 +212,18 @@ export function keepLive(app, { region, build, watch = {}, delay = 120, after = 
         living.delete(record);
     }
 
+    /*
+     * REDRAW ON DEMAND, as well as when the world moves.
+     *
+     * A filter is a change to what the window should show that no document
+     * hook will ever report — nothing in the world changed, the reader did.
+     * Hanging it on the same rebuild is what keeps one path: the same capture
+     * of scroll, folded sections, half-typed fields and which tab is showing.
+     *
+     * Attached to `stop` rather than returned beside it so every existing
+     * caller — all of which use the return value as a function — is untouched.
+     */
+    stop.refresh = () => rebuild(true);
     return stop;
 }
 

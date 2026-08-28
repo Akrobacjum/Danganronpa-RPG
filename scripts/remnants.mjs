@@ -973,6 +973,11 @@ export function remnantData(tokenDoc) {
         chapter: entry.chapter,
         day: entry.day,
         timeOfDay: entry.timeOfDay,
+        // WHEN THE LEDGER LAST WROTE IT. The chapter, day and time of day are
+        // the fiction's clock and are what a GM reads; this is the tiebreak
+        // between two traces left in the same time of day, which is most of
+        // them during an incident.
+        updated: entry.updated ?? null,
         hidden: tokenDoc.hidden,
         // What a player is shown, or would be once they find it — see
         // `remnantPublic`. Included here so a GM screen reading `remnantData`
