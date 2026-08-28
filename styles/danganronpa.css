@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json — the suite fails if it does not. */
-    --drpg-css-version: "1.1.69";
+    --drpg-css-version: "1.1.70";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -9541,6 +9541,53 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
    honest fix is our own glyph, which is centred by construction — and that
    waits on a pixel footprint with an OUTLINED form, because solid against
    outline is what says whether the free Move has been spent. */
+/* The strip cannot drag the column it lives in.
+   --------------------------------------------------------------------------
+   MEASURED, and it is the module's own doing: this panel is `width: 300px`
+   with `max-width: none`, and it shares `#ui-right-column-1` with the Projects
+   tray. One piece of content that will not break — a long room name, a long
+   label — blew it out to 1131px and pulled the whole right column 831px
+   ACROSS THE SCREEN. The tray keeps its own rigid width and so appears to
+   slide left, at moments that look random because this strip redraws on every
+   action, every Hope change and every crossing (Dawid, 28.08: "Projects keeps
+   moving left at random moments").
+
+   `min-width: 0` is the half that actually does the work: a flex item defaults
+   to `min-width: auto`, which refuses to shrink below its content, and that
+   refusal is what the column was obeying. The cap is the other half, and long
+   words wrap rather than reaching for room that is not there.
+
+   Same shape as the table fix in R12: `width` without `max-width` is a request,
+   not a limit. */
+#drpg-player-status {
+    /* A DEFINITE NUMBER, because `100%` had nothing to resolve against: the
+       column is sized BY its children, so a percentage cap asks the parent a
+       question whose answer is this element. Measured, in this order —
+       `max-width: 100%` still let the column travel 831px, `min-width: 0` on
+       the column changed nothing, `overflow: hidden` changed nothing, and a
+       definite cap held it at once.
+
+       300px is Foundry's own right column. If a layout module makes that column
+       wider this panel simply stops short of it, which is a cosmetic loss
+       against a panel that can drag the interface across the screen. */
+    max-width: 300px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    /* AND THE ONE THAT ACTUALLY HOLDS. The cap above resolves against a parent
+       that is itself sized by its children, so it had nothing to measure
+       against — verified: the column still travelled 831px. What the column
+       was obeying is its OWN `min-width: auto`, which is the min-content of
+       everything inside it, and `overflow: hidden` is what takes this panel
+       out of that sum: a clipped box contributes nothing to it.
+
+       Clipping is safe here because everything this panel draws is inside it —
+       the pips, their spent-flare, the labels. The alternative was
+       `min-width: 0` on `#ui-right-column-1`, which is Foundry's own column
+       and shared with whatever else a table has installed; fixing our own
+       element is the smaller blast radius. */
+    overflow: hidden;
+}
+
 #drpg-player-status .drpg-free-move i {
     position: relative;
     top: 1px;

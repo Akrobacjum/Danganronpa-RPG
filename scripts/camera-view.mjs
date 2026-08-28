@@ -91,10 +91,34 @@ function measureCameraDock() {
             const box = dock.getBoundingClientRect();
             const visible = box.height > 0 && box.width > 0
                 && getComputedStyle(dock).visibility !== "hidden";
-            // Only what sits below the buttons' own corner counts, and only if
-            // it reaches down to the edge they are pinned to.
-            if (visible && box.bottom >= window.innerHeight - 4) {
-                lift = Math.max(0, Math.round(box.height));
+            /*
+             * UNDER THE BUTTONS, not merely touching the same edge.
+             *
+             * The first version of this asked one question — does the dock
+             * reach the bottom of the screen — and a dock docked on the LEFT
+             * answers yes: it is a tall column, and it touches the bottom the
+             * whole way down. So the buttons were lifted by the height of that
+             * column, which is most of the viewport, and left the screen
+             * entirely. Dawid found it the same evening: "the AV client on the
+             * left hides the chat and speaker icons".
+             *
+             * The dock has to be standing under the CORNER the buttons live in.
+             * Their horizontal position does not depend on the lift — they are
+             * pinned to the right edge — so it can be read without circling
+             * back on the value being computed.
+             */
+            const corner = document.getElementById("drpg-messenger-launcher");
+            const cornerX = corner
+                ? corner.getBoundingClientRect().left + corner.offsetWidth / 2
+                : window.innerWidth - 40;
+            const underneath = box.left <= cornerX && box.right >= cornerX;
+
+            if (visible && underneath && box.bottom >= window.innerHeight - 4) {
+                // And never more than the room there is: a dock that fills the
+                // screen would otherwise push them off the top of it, which is
+                // the same failure in a different spelling.
+                lift = Math.min(Math.round(box.height),
+                    Math.round(window.innerHeight / 2));
             }
         }
 
