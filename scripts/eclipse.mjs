@@ -100,16 +100,35 @@ export function isEclipse() {
  * Begin the Eclipse. Everything goes dark and everyone gets two crossings.
  * The clock does not move — that happens when the Eclipse ends.
  *
- * The action economy does NOT come back here. Per the guide, the Eclipse is a
- * placement window that sits *before* the next time of day — "only once
- * confirmed does the time of day begin" — so a player has nothing to spend
- * actions or Calls on yet, only two room crossings. Refilling here used to
- * hand out a full budget the instant the Eclipse opened, with nothing
- * stopping it being spent on ordinary actions or Hope/Despair Calls while
- * the placement window was still running — see `performAction` and
- * `spendHopeCall`/`spendDespairCallFor`, which now refuse everything but Move
- * while `isEclipse()` is true. The refill itself happens in `endEclipse()`,
- * exactly when the next time of day actually starts.
+ * THE ACTION ECONOMY COMES BACK HERE (Z2, E18b wave 5), and this function used
+ * to argue at length that it must not. The argument was right about the danger
+ * and wrong about the cure.
+ *
+ * The danger: the Eclipse is a placement window sitting BEFORE the next time of
+ * day — "only once confirmed does the time of day begin" — so a full budget
+ * handed out at the top of it could be spent on ordinary actions and on
+ * Hope/Despair Calls while everybody was still walking. That is a real bug and
+ * it really happened. It is now fixed WHERE IT BELONGS: `performAction` and
+ * `spendHopeCall`/`spendDespairCallFor` refuse everything but Move while
+ * `isEclipse()` is true. Refilling late was a second lock on a door that
+ * already had one.
+ *
+ * What refilling late cost was the one action the Eclipse is FOR. A Direct
+ * Murder is declared in the dark and nowhere else, it costs an action, and
+ * until now that action came out of the budget of the day that had just
+ * ENDED — so a killer who had spent their afternoon could not act on the one
+ * opportunity the guide gives them, and a killer who had idled all day paid
+ * with a currency they no longer had any other use for. Neither is a decision.
+ *
+ * Now the budget arrives with the dark: the declaration comes off the new
+ * allowance, and the killer walks into the time of day one action lighter than
+ * everybody else. That is the trade, and it is legible at the moment it is
+ * made.
+ *
+ * ONE REFILL, AND THIS IS THE ONLY ONE. `endEclipse` no longer asks
+ * `advanceTimeOfDay` for one, `advanceTimeOfDay` still defaults to off, and the
+ * GM's clock editor still only refills when the box is ticked. An invariant
+ * holds that shape — see "the action budget comes back when the Eclipse opens".
  */
 export async function startEclipse() {
     if (!game.user.isGM) return null;
@@ -121,17 +140,51 @@ export async function startEclipse() {
     await game.settings.set(MODULE_ID, SETTINGS.eclipseMoves, {});
     await setClock({ eclipse: true });
 
+    /*
+     * THE REFILL (Z2). After the flag, before the card.
+     *
+     * After the flag because `resetActionsFor` also zeroes the Sprint and Burst
+     * grants, and "until the end of this time of day" ends when the lights go
+     * out — the Eclipse is the boundary, not a part of the day it follows. The
+     * grants therefore die on exactly the boundary they always died on; only
+     * the line of code that kills them moved.
+     *
+     * Before the card so the card can say how many, which matters more than it
+     * sounds: the announcement is the only thing the table reads at this
+     * moment, and the one event that hands everybody their actions back was
+     * about to become the only event that never mentioned it.
+     *
+     * Imported here rather than at the top: clock.mjs already imports
+     * actions.mjs, and eclipse.mjs already imports clock.mjs.
+     */
+    const { resetAllActions } = await import("./actions.mjs");
+    let refilled = [];
+    try {
+        refilled = await resetAllActions();
+    } catch (err) {
+        // Reported rather than swallowed, and the Eclipse still opens: a table
+        // left in the dark with no way forward is worse than a table that has
+        // to refill by hand.
+        error("Could not refill the action budget as the Eclipse opened", err);
+    }
+
     // Read before the clock moves, which it will not until this Eclipse ends —
     // so these describe the time of day being opened, not the one just closed.
     const free = isFreePlacement();
     const allowance = eclipseAllowance();
+
+    const refillNote = refilled.length
+        ? `<p><em>${plural("DRPG.Clock.actionsRefilled",
+                           { count: refilled.length }, "count")}</em></p>`
+        : "";
 
     await announce({
         flags: { [MODULE_ID]: { sfx: { key: "eclipseStart", gm: true } } },
         content: `<h3>${eclipseLabel()}</h3>
                   <p>${free
                       ? game.i18n.localize("DRPG.Eclipse.announceFree")
-                      : game.i18n.format("DRPG.Eclipse.announce", { n: allowance })}</p>`
+                      : game.i18n.format("DRPG.Eclipse.announce", { n: allowance })}</p>
+                  ${refillNote}`
     });
 
     for (const actor of placingActors()) {
@@ -166,10 +219,14 @@ export async function endEclipse({ advance = true } = {}) {
     // into the half-finished state this function exists to skip past.
     if (advance) {
         const { advanceTimeOfDay } = await import("./clock.mjs");
-        // This is where the action economy actually comes back — see the
-        // comment on `startEclipse`. `resetActions` is off by default in
-        // `advanceTimeOfDay` precisely so the Eclipse is the one thing that
-        // turns it on.
+        // NO REFILL HERE ANY MORE (Z2). The budget arrived when this Eclipse
+        // opened; asking for a second one on the way out would hand the table
+        // two in a row and wipe the cost of a Direct Murder declared in the
+        // dark — the exact thing this change exists to make payable.
+        //
+        // `resetActions` stays off by default in `advanceTimeOfDay`, so the
+        // omission below is the whole of it. The GM's clock editor still asks
+        // for one explicitly when a botched advance needs repairing.
         //
         // `eclipse: false` travels WITH the advance rather than ahead of it.
         // Cleared first, the clock spent a frame reading as the time of day
@@ -191,7 +248,6 @@ export async function endEclipse({ advance = true } = {}) {
          * leading into, and a second card would say the same thing twice.
          */
         await advanceTimeOfDay({
-            resetActions: true,
             also: { eclipse: false },
             sfx: { key: "eclipseEnd", gm: true }
         });
@@ -206,9 +262,13 @@ export async function endEclipse({ advance = true } = {}) {
     await broadcastEclipse(false);
 
     // LAST, and after the clock has moved. Everything a murder opened here needs
-    // — the new time of day, a refilled action budget, unlocked Hope Calls — is
-    // put in place by the lines above, and an incident opened before them lands
-    // in the placement window this function exists to close.
+    // — the new time of day, unlocked Hope Calls — is put in place by the lines
+    // above, and an incident opened before them lands in the placement window
+    // this function exists to close.
+    //
+    // The action budget is NOT among those things any more, and does not need
+    // to be: the declaration paid for itself when it was made, out of the
+    // budget this Eclipse opened with (Z2). Judging spends nothing.
     try {
         await judgePendingMurders();
     } catch (err) {

@@ -1483,6 +1483,51 @@ const REGRESSIONS = [
         const missed = [...markers].filter(key => !condition.includes(key));
         ok(!missed.length,
             `an action marked ${missed.join(", ")} swings a weapon the roll never captured`);
+    }],
+
+    ["R25 · the action budget comes back when the Eclipse opens, and only there", async () => {
+        /*
+         * Z2 (E18b, wave 5). The refill used to sit in `endEclipse`, which is
+         * the moment the NEXT time of day begins — so a Direct Murder, declared
+         * in the dark and costing an action, was paid for out of the budget of
+         * the day that had just finished. Moving it to the opening means the
+         * declaration comes off the new allowance and the killer walks into the
+         * time of day one action lighter.
+         *
+         * TWO HALVES, AND THE SECOND IS THE DANGEROUS ONE. Adding the refill to
+         * `startEclipse` without taking it out of `endEclipse` hands the table
+         * two budgets for one boundary, refunds the murder for free, and looks
+         * on screen exactly like the change working. That is the failure this
+         * test is for; the first half would have been noticed at the table
+         * within a minute, and the second would not have been noticed at all.
+         *
+         * Read from the source, because both halves are single flags on calls
+         * that need the world's clock moved to observe — and because a refill
+         * running twice leaves no trace afterwards except a full bar, which is
+         * also what a refill running once leaves.
+         */
+        const sources = new Map(await otherSources());
+        const eclipse = stripComments(sources.get("eclipse.mjs") ?? "");
+        ok(eclipse.length > 1000, "eclipse.mjs did not load");
+
+        const startAt = eclipse.indexOf("export async function startEclipse");
+        const endAt = eclipse.indexOf("export async function endEclipse");
+        ok(startAt >= 0 && endAt > startAt, "eclipse.mjs no longer opens and closes an Eclipse");
+
+        const opening = eclipse.slice(startAt, endAt);
+        ok(/resetAllActions\s*\(/.test(opening),
+            "the Eclipse no longer refills the action budget as it opens");
+
+        // Anywhere in the file, not just in `endEclipse`: the point is that no
+        // path through an Eclipse asks the clock for a second one.
+        ok(!/resetActions\s*:\s*true/.test(eclipse),
+            "something in the Eclipse still asks the clock for a refill as well");
+
+        // The other half of Z2: the declaration has to cost something, or it
+        // comes off no budget at all and the move above bought nothing.
+        equal(ACTIONS.directMurder?.cost, 1,
+            "a Direct Murder no longer spends an action, so it takes nothing from the "
+            + "budget the Eclipse just handed out");
     }]
 ];
 

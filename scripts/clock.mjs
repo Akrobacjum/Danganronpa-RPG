@@ -9,8 +9,9 @@
  *
  * It does NOT refill the action economy. Actions and the free Move come back
  * when the Eclipse — the placement window that sits between two times of day —
- * begins; see eclipse.mjs. Doing it here as well handed the table two budgets
- * whenever an Eclipse was used, and one at the wrong moment whenever it was not.
+ * BEGINS; see `startEclipse` in eclipse.mjs, which is where that finally became
+ * true rather than merely written down (Z2). Doing it here as well would hand
+ * the table two budgets for one boundary.
  *
  * Chapters are not advanced automatically — how many sessions a chapter runs is
  * the GM's call, and the guide explicitly allows stretching one when no murder
@@ -128,8 +129,10 @@ export async function setClock(patch = {}) {
  *
  * @param {object} [options]
  * @param {boolean} [options.resetActions]      Refill everyone's actions. Off by
- *   default — that is the Eclipse's job, not the clock's. The GM panel's "also
- *   refill" checkbox passes it explicitly when a correction needs it.
+ *   default — that is the START of the Eclipse's job, not the clock's, and
+ *   nothing in the ordinary flow turns it on any more. The GM panel's "also
+ *   refill" checkbox passes it explicitly when a correction needs it, which is
+ *   the one remaining caller and deliberately a manual one.
  * @param {boolean} [options.resetSearchTokens] Restock every room.
  * @param {boolean} [options.announce]          Post the new time of day to chat.
  */
