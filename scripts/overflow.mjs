@@ -76,6 +76,7 @@ export async function setOverflowRules({ threshold, effects } = {}) {
 
     const { min, max } = OVERFLOW.range;
     const current = overflowRules();
+    const before = current;
     const next = { threshold: current.threshold, effects: {} };
 
     const wanted = Number(threshold);
@@ -92,6 +93,34 @@ export async function setOverflowRules({ threshold, effects } = {}) {
     }
 
     await game.settings.set(MODULE_ID, SETTINGS.overflowRules, next);
+
+    /*
+     * AN EDIT IS ANNOUNCED, NOT JUST SAVED (Dawid, 28.08: "upewnijmy sie, ze
+     * wysylaja powiadomienie").
+     *
+     * X is public — it is half of the "?/X" every player is reading — so
+     * changing it changes something the whole table can see, and letting it
+     * change silently would leave everyone looking at a number whose meaning
+     * moved. Announced only when it actually differs: opening the editor and
+     * pressing Save without touching anything is not news.
+     */
+    const changed = before.threshold !== next.threshold
+        || Object.keys(next.effects).some(key =>
+            before.effects[key].on !== next.effects[key].on
+            || before.effects[key].by !== next.effects[key].by);
+
+    if (changed) {
+        try {
+            await announce({
+                content: `<h3>${game.i18n.localize("DRPG.Overflow.title")}</h3>
+                    <p>${game.i18n.format("DRPG.Overflow.rulesChanged",
+                        { n: next.threshold })}</p>`
+            });
+        } catch (err) {
+            error("The overflow rules were saved but the announcement failed", err);
+        }
+    }
+
     log(`Despair Overflow rules saved: X = ${next.threshold}.`);
     return next;
 }

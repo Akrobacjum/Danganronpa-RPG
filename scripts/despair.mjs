@@ -436,13 +436,47 @@ export function renderDespairBar() {
         heading.textContent = game.i18n.localize("DRPG.Despair.widgetTitle");
         wrapper.append(heading);
 
+        for (const user of gms) wrapper.append(buildRow(user, gms.length > 1));
+
+        // UNDER THE POOLS (Dawid, 29.08). It reads as the consequence of the
+        // rows above it rather than as a heading for them, which is what it is:
+        // the pools are what the Monokumas hold, and this is what would not fit.
         const caption = buildOverflowCaption();
         if (caption) wrapper.append(caption);
 
-        for (const user of gms) wrapper.append(buildRow(user, gms.length > 1));
-
         wrapper.addEventListener("pointerdown", event => event.stopPropagation());
         host.append(wrapper);
+
+        /*
+         * PUBLISH THIS PANEL'S HEIGHT, AND NOTHING ELSE.
+         *
+         * `matchStripToDespair` writes it to `--drpg-despair-height`, which the
+         * player's status strip matches. That has to happen here because the
+         * overflow caption is a row this panel grew, and until now the widget
+         * could be rebuilt without anything being told — which did not matter
+         * while its height only changed when a Monokuma was added.
+         *
+         * THE RIGHT-HAND RAIL IS DELIBERATELY NOT RE-ALIGNED FROM HERE, and the
+         * first version of this was wrong to do it. `alignRightColumn` hangs the
+         * rail off this panel's TOP, which does not move when the panel grows
+         * downward — so there was nothing to recompute. What it does do on the
+         * way is `clearSceneList`, which measures the clock and rewrites a
+         * column margin; calling that on every redraw of the Despair widget
+         * churns the page layout continuously, because this widget redraws on
+         * every pool change.
+         *
+         * MEASURED, BY BISECT. v1.1.79 runs the suite 106/106; with this call in
+         * place it was 105/1 twice, and the casualty was "no piece of a room's
+         * outline is shorter than the line it is drawn with" — a canvas test
+         * catching the outline mid-rebuild, a hundred lines away from anything
+         * this feature is about. A layout write is not free just because it is
+         * idempotent.
+         *
+         * Imported late rather than at the top: hud.mjs reaches into this file
+         * to redraw the bar, and a static import back would close that circle
+         * for one measurement.
+         */
+        import("./hud.mjs").then(m => m.matchStripToDespair()).catch(() => {});
     } catch (err) {
         error("Could not render the Despair tracker", err);
     }
@@ -461,15 +495,20 @@ export function renderDespairBar() {
  * not because the number could be protected — and nothing about the
  * investigation lives in it either way. The popup says so in as many words.
  *
- * Returns null when the counter is empty and nothing is armed: a row that
- * always reads "0/20" is a row the eye learns to skip, and this one has to be
- * noticed on the day it matters.
+ * ALWAYS DRAWN, and the first version of this was wrong to hide itself while
+ * the counter sat at zero. Two reasons it is permanent now. Dawid asked for a
+ * standing caption on the pool window — X is public precisely so the table can
+ * see what it is playing against before anything happens. And a row that comes
+ * and goes changes this panel's height mid-session, which moves the status
+ * strip and the right-hand rail with it: the "equal heights and margins across
+ * the canvas" this feature was supposed to preserve, broken by the feature.
+ *
+ * The `is-active` state is what has to catch an eye that was not looking, and
+ * it can do that without the row appearing out of nowhere to do it.
  */
 function buildOverflowCaption() {
     try {
         const { count, threshold, active } = overflowStatus();
-        if (!count && !active) return null;
-
         const isGM = game.user.isGM;
         const line = document.createElement("div");
         line.className = `drpg-overflow-caption${active ? " is-active" : ""}`;

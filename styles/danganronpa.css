@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json — the suite fails if it does not. */
-    --drpg-css-version: "1.1.79";
+    --drpg-css-version: "1.1.80";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -11427,19 +11427,43 @@ form:has(select[name="trigger"] option[value="sabotage"]:checked) [data-drpg-whe
     font-size: 11px;
     letter-spacing: 0.04em;
     text-align: center;
-    padding: 1px 6px 3px;
-    color: var(--drpg-dim, #9a9a9a);
-    white-space: nowrap;
-}
+    /* Under the pools (29.08), so the space goes above it rather than below,
+       and a hairline separates it from the last row without boxing it in. The
+       rule is the widget's own border colour rather than a generic divider, so
+       it reads as part of this box and not as a seam between two. */
+    margin-top: 3px;
+    padding: 3px 6px 1px;
+    border-top: 1px solid rgba(var(--drpg-blood-deep-rgb), 0.45);
 
-.drpg-overflow-caption.masked {
-    opacity: 0.75;
+    /*
+       DESPAIR'S COLOUR (Dawid, 29.08), and the same argument the title above it
+       already won on 28.08: a label in the colour of the thing it labels is
+       read without being read. Grey said "interface chrome" about the one
+       number here that can only ever mean Despair.
+
+       ONE INK, TWO OPACITIES — the idiom the action and wear pips already use.
+       `--drpg-blood` is the widget's ink; the resting caption is the quiet
+       weight of it, so it sits under the title without competing with it, and
+       arming it is the same colour at full strength rather than a second red.
+       It was `--drpg-red` before, which is a different hue entirely (#e5484d
+       against #ff3d8b) and put two reds in one small box.
+    */
+    color: var(--drpg-blood);
+    opacity: 0.7;
+    white-space: nowrap;
 }
 
 /* Armed. The one state that has to catch an eye that was not looking. */
 .drpg-overflow-caption.is-active {
-    color: var(--drpg-red, #e04a4a);
+    opacity: 1;
 }
+
+/*
+   NO EXTRA DIMMING FOR THE PLAYER'S COPY. It carries "?" instead of the count,
+   which is the whole of the difference; fading it as well would compound with
+   the resting opacity and make the half a player IS meant to read — the
+   threshold — the hardest thing on the panel.
+*/
 
 .drpg-overflow-badge {
     font-size: 10px;

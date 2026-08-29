@@ -1739,6 +1739,7 @@
       "currentActive": "Right now: {count} of {max}, and this time of day is already darkened.",
       "save": "Save",
       "saved": "Despair overflow: threshold {n}.",
+      "rulesChanged": "The overflow has been retuned. It now fires at {n}.",
       "explainTitle": "What is despair overflow",
       "explainBody": "A Monokuma's pool holds twelve. Despair earned past that used to vanish; now it collects in a counter shared by every Monokuma. When the counter reaches its threshold, the next time of day is darker — fewer crossings in the Eclipse, fewer search tokens, one action less each — and the counter pays the threshold and keeps the rest. A Monokuma can also pour Despair in deliberately, with the Feed the Overflow Call. A class trial verdict empties it.",
       "explainVeil": "Players see “?” rather than the number. That is a courtesy and not a secret: the counter is a world setting, so a determined player can read it from their own console — the same as a stash flag. Nothing about the investigation lives in it."
