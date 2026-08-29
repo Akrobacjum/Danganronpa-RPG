@@ -645,6 +645,23 @@ export async function applyVerdict({
         if (TRIAL.wrong.newRule) done.push(game.i18n.localize("DRPG.Vote.newRule"));
     }
 
+    /*
+     * THE OVERFLOW EMPTIES WITH THE VERDICT (Z10), on BOTH verdicts and not
+     * only the one that refills the pools.
+     *
+     * The counter measures pressure built up over a chapter, and a verdict ends
+     * the chapter however it goes. Clearing it only when the class guessed
+     * wrong would mean a class that guessed RIGHT carries the previous
+     * chapter's weather into the next one — punished for winning, by a rule
+     * whose whole subject is how much Despair went spare.
+     */
+    try {
+        const { resetOverflow } = await import("./overflow.mjs");
+        await resetOverflow();
+    } catch (err) {
+        warn("Could not clear the Despair overflow at the verdict", err);
+    }
+
     await whisperToGms(`
         <h3>${game.i18n.localize("DRPG.Vote.verdictTitle")}</h3>
         <p>${game.i18n.localize(correct ? "DRPG.Vote.correctSummary" : "DRPG.Vote.wrongSummary")}</p>

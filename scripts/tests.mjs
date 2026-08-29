@@ -33,6 +33,7 @@
  * backgrounded tab for reasons that have nothing to do with the module.
  */
 
+import { OVERFLOW } from "./config.mjs";
 import { MODULE_ID, moduleVersion, CRISIS_ACTIONS, ACTIONS, TRAITS,
     ITEM_CATEGORIES, LIMIT_GROUPS, EQUIPPABLE, SFX_EVENTS, SFX_CATEGORIES,
     HOPE_CALLS, DESPAIR_CALLS, OBSERVE_DC, ANALYZE_DC, CLEANUP, CRITICAL, KEY_REMNANTS
@@ -1711,7 +1712,7 @@ const INVARIANTS = [
          * their order — adding an effect to config.mjs without adding its branch
          * fails here rather than at somebody's table.
          */
-        const ACTED_ON = ["grants", "grantsHope", "damage", "progress",
+        const ACTED_ON = ["grants", "grantsHope", "damage", "progress", "feedsOverflow",
                           "reroll", "announces", "sealsRoom", "silences", "chains",
                           "gathersEveryone", "freeMoves", "freeActions", "freeRest",
                           "setsMotive"];
@@ -1760,6 +1761,65 @@ const INVARIANTS = [
         equal(boost?.progress, 2, "Patronage is not +2 progress");
         equal(dent?.cost, boost?.cost,
             `the project Calls are no longer a pair: ${dent?.cost} against ${boost?.cost}`);
+    }],
+
+    ["the overflow fires once per boundary and never below its floors", async () => {
+        /*
+         * Z10. Three ways this can be wrong, and only the first would be
+         * noticed by looking at a screen.
+         *
+         * ONE: the boundary is asked twice — `startEclipse`, so a darkening can
+         * shorten the crossings of the Eclipse that triggered it, and
+         * `applyTimeOfDayChange`, so a table that never opens an Eclipse still
+         * gets one. Both run for a table that uses Eclipses, so the second has
+         * to find the first's stamp and do nothing. A second payment is a
+         * counter draining at twice the rate the design was tuned for.
+         *
+         * TWO: each check must come BEFORE the pass it modifies. The action
+         * budget is WRITTEN by `resetAllActions` and the search tokens by
+         * `SearchTokens.reset` — a darkening checked after either is announced
+         * now and felt next time, which from a chair looks exactly like the
+         * feature working.
+         *
+         * THREE: every reduction stops at a floor. Zero actions is not a harder
+         * game, it is a player with nothing to do until the clock moves, and a
+         * room with no search tokens cannot be investigated at all.
+         */
+        const sources = new Map(await otherSources());
+        const eclipse = stripComments(sources.get("eclipse.mjs") ?? "");
+        const clock = stripComments(sources.get("clock.mjs") ?? "");
+        ok(eclipse.length > 1000 && clock.length > 1000, "the clock sources did not load");
+
+        const opening = eclipse.slice(eclipse.indexOf("export async function startEclipse"),
+                                      eclipse.indexOf("export async function endEclipse"));
+        ok(/checkOverflow\s*\(/.test(opening),
+            "an Eclipse no longer checks the overflow as it opens");
+        ok(/checkOverflow\s*\(/.test(clock),
+            "a time of day without an Eclipse no longer checks the overflow");
+
+        const before = (text, first, second, complaint) => {
+            const a = text.indexOf(first);
+            const b = text.indexOf(second);
+            ok(a >= 0 && b >= 0 && a < b, complaint);
+        };
+        before(opening, "checkOverflow", "resetAllActions",
+            "the Eclipse refills the action budget before it knows the hour is darkened");
+        before(clock, "checkOverflow", "SearchTokens.reset",
+            "the clock restocks the rooms before it knows the hour is darkened");
+
+        const overflow = stripComments(sources.get("overflow.mjs") ?? "");
+        ok(overflow.length > 1000, "overflow.mjs did not load");
+        ok(/same\(now\.active,\s*target\)/.test(overflow),
+            "checkOverflow no longer recognises a boundary it has already armed — "
+            + "an Eclipse would pay the threshold twice");
+
+        for (const [key, rule] of Object.entries(OVERFLOW.effects)) {
+            ok(Number.isFinite(rule.floor) && rule.floor >= 1,
+                `the overflow can take ${key} down to ${rule.floor}`);
+            ok(rule.by >= 0, `${key} is reduced by ${rule.by}`);
+        }
+        ok(OVERFLOW.threshold >= OVERFLOW.range.min && OVERFLOW.threshold <= OVERFLOW.range.max,
+            `X = ${OVERFLOW.threshold} is outside the range the editor accepts`);
     }],
 
     ["a deferred Call is one the sheet can cancel", () => {

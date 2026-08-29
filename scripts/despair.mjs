@@ -16,7 +16,8 @@ import { MODULE_ID, STARTING, DESPAIR_CALLS, callEffect } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { resourceValue } from "./character.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
-import { announce, whisperToOwner, log, error, isPrimaryGm } from "./utils.mjs";
+import { announce, whisperToOwner, log, warn, error, isPrimaryGm } from "./utils.mjs";
+import { overflowStatus } from "./overflow.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
 
 const WIDGET_ID = "drpg-despair";
@@ -229,9 +230,34 @@ export async function setDespair(userId, value) {
     return next;
 }
 
-/** Add to (or subtract from) a pool. */
+/**
+ * Add to (or subtract from) a pool.
+ *
+ * WHAT WILL NOT FIT SPILLS (Z10). `setDespair` clamps at the cap and always
+ * has; the difference is that the clamped remainder now goes somewhere. Caught
+ * here rather than inside `setDespair` because the two signatures mean
+ * different things: this one is INCOME, and an absolute `setDespair(id, 20)` is
+ * a GM correcting a number by hand, which should not darken the world.
+ */
 export async function adjustDespair(userId, delta) {
-    return setDespair(userId, getDespair(userId) + delta);
+    const before = getDespair(userId);
+    const wanted = before + delta;
+    const applied = await setDespair(userId, wanted);
+
+    const max = despairMax();
+    if (delta > 0 && wanted > max) {
+        try {
+            const { addOverflow } = await import("./overflow.mjs");
+            await addOverflow(wanted - max, { reason: "pool spill" });
+        } catch (err) {
+            // The pool write already landed. A failure to record the spill is
+            // worth a line in the log and nothing more — refusing the income
+            // over it would be the larger bug.
+            warn("Could not send spilled Despair to the overflow", err);
+        }
+    }
+
+    return applied;
 }
 
 /**
@@ -410,12 +436,67 @@ export function renderDespairBar() {
         heading.textContent = game.i18n.localize("DRPG.Despair.widgetTitle");
         wrapper.append(heading);
 
+        const caption = buildOverflowCaption();
+        if (caption) wrapper.append(caption);
+
         for (const user of gms) wrapper.append(buildRow(user, gms.length > 1));
 
         wrapper.addEventListener("pointerdown", event => event.stopPropagation());
         host.append(wrapper);
     } catch (err) {
         error("Could not render the Despair tracker", err);
+    }
+}
+
+/**
+ * "Despair overflow · 7/20", above the pools that feed it.
+ *
+ * THE VEIL IS ONE CHARACTER WIDE AND HONEST ABOUT ITSELF. A player sees "?"
+ * where the count would be; the threshold is public, because knowing the world
+ * can get worse at twenty is part of playing in it, and not knowing how close
+ * it is happens to be the whole tension. That asymmetry is a courtesy rather
+ * than a secret: the counter is a WORLD setting, so a determined player can
+ * read it from their own console exactly as they could read a stash flag. It
+ * is drawn this way because a table plays better without the number on screen,
+ * not because the number could be protected — and nothing about the
+ * investigation lives in it either way. The popup says so in as many words.
+ *
+ * Returns null when the counter is empty and nothing is armed: a row that
+ * always reads "0/20" is a row the eye learns to skip, and this one has to be
+ * noticed on the day it matters.
+ */
+function buildOverflowCaption() {
+    try {
+        const { count, threshold, active } = overflowStatus();
+        if (!count && !active) return null;
+
+        const isGM = game.user.isGM;
+        const line = document.createElement("div");
+        line.className = `drpg-overflow-caption${active ? " is-active" : ""}`;
+        line.classList.toggle("masked", !isGM);
+
+        const shown = isGM ? String(count) : game.i18n.localize("DRPG.Overflow.hiddenValue");
+        line.textContent = `${game.i18n.localize("DRPG.Overflow.caption")} · ${shown}/${threshold}`;
+        // Two GM sentences, not one: while a darkening is running, "fires at
+        // the next boundary" is the wrong half of the truth and the tooltip was
+        // saying it over a caption that already read "Darkened".
+        line.title = isGM
+            ? game.i18n.format(active ? "DRPG.Overflow.gmHintActive" : "DRPG.Overflow.gmHint",
+                               { count, max: threshold })
+            : game.i18n.format("DRPG.Overflow.playerHint", { max: threshold });
+
+        if (active) {
+            const badge = document.createElement("span");
+            badge.className = "drpg-overflow-badge";
+            badge.textContent = game.i18n.localize("DRPG.Overflow.activeNow");
+            line.append(" ", badge);
+        }
+
+        return line;
+    } catch (err) {
+        // The bar is more important than the caption on it.
+        error("Could not draw the Despair overflow caption", err);
+        return null;
     }
 }
 

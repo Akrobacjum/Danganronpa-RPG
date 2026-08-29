@@ -14,6 +14,7 @@ import { MODULE_ID, FLAGS, ACTIONS_RESOURCE, STARTING } from "./config.mjs";
 import { isWounded } from "./character.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
 import { debug, plural } from "./utils.mjs";
+import { overflowActionPenalty, overflowFloor } from "./overflow.mjs";
 import { playSfx } from "./sfx.mjs";
 
 /**
@@ -22,8 +23,19 @@ import { playSfx } from "./sfx.mjs";
  */
 export function actionBudget(actor) {
     const wounded = isWounded(actor);
-    const total = Math.max(0, STARTING.actions - (wounded ? 1 : 0));
-    return { total, wounded };
+
+    /*
+     * A DARKENED TIME OF DAY COSTS AN ACTION (Z10), and it stacks with Wounded
+     * on purpose — a hurt student in a darkened hour is exactly the situation
+     * the rule is for. The floor is what stops the two of them reaching zero
+     * together: a budget of nothing is not a harder game, it is a player with
+     * nothing to do until the clock moves.
+     */
+    const dark = overflowActionPenalty();
+    const floor = dark ? overflowFloor("actions") : 0;
+    const total = Math.max(floor, STARTING.actions - (wounded ? 1 : 0) - dark);
+
+    return { total, wounded, darkened: dark > 0 };
 }
 
 /** Actions still available right now. */

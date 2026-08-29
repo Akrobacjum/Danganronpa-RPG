@@ -44,7 +44,18 @@ export const SYNC = {
     /** A killing game rule was introduced, reworded or revoked. */
     rules: "rules",
     /** A room was discovered, or the GM edited the fog table by hand. */
-    fog: "fog"
+    fog: "fog",
+    /**
+     * The Despair Overflow counter moved, fired, or had its rules edited.
+     *
+     * ITS OWN KIND RATHER THAN `despair`, because it touches three surfaces and
+     * that one touches two. The caption lives in the Despair widget, the search
+     * tokens and the clock row live in the HUD, and the action budget is
+     * printed on every sheet — a darkening that redrew only the bar would leave
+     * two of its three effects invisible until something else happened to
+     * redraw them.
+     */
+    overflow: "overflow"
 };
 
 /**
@@ -99,7 +110,12 @@ const SETTING_KINDS = {
     // 110, and it is the same shape as the motive's: a setting that syncs
     // itself and a screen that never hears about it.
     safeword: SYNC.rules,
-    discoveredRooms: SYNC.fog
+    discoveredRooms: SYNC.fog,
+    // Both halves of Z10, and both really do need the redraw: the counter
+    // because its caption is on screen, the rules because editing X changes
+    // the "?/X" every client is reading.
+    overflow: SYNC.overflow,
+    overflowRules: SYNC.overflow
 };
 
 export function registerSync() {
@@ -260,6 +276,15 @@ function refresh(kind, data = {}) {
 
         case SYNC.despair:
             run("bar", () => import("./despair.mjs").then(m => m.renderDespairBar?.()));
+            run("sheets", () => import("./clock.mjs").then(m => m.refreshSheets()));
+            break;
+
+        case SYNC.overflow:
+            // All three, in the order a reader's eye travels: the caption that
+            // says how close it is, the HUD row that says what the world costs
+            // now, and the sheets that carry the shrunken action budget.
+            run("bar", () => import("./despair.mjs").then(m => m.renderDespairBar?.()));
+            run("hud", () => import("./hud.mjs").then(m => m.renderHud()));
             run("sheets", () => import("./clock.mjs").then(m => m.refreshSheets()));
             break;
 

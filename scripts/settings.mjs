@@ -30,6 +30,25 @@ export const SETTINGS = {
     roomVisibility: "roomVisibility",
     lockRollDialog: "lockRollDialog",
     eclipseMoves: "eclipseMoves",
+    /**
+     * The live Despair Overflow: `{ count, active }` (Z10).
+     *
+     * `count` is spilled Despair waiting to be spent; `active` is the stamp of
+     * the ONE time of day a darkening covers, or null. Both in one setting
+     * because they change together and a reader that saw one without the other
+     * would draw a HUD that contradicts itself.
+     */
+    overflow: "overflow",
+    /**
+     * The GM's dial for it: `{ threshold, effects }`, shaped like
+     * `OVERFLOW` in config.mjs, which supplies every default.
+     *
+     * SEPARATE FROM THE COUNTER ABOVE, because they are edited by different
+     * things at different times: the counter moves several times a session
+     * without anybody touching it, and this moves once a season when a GM
+     * decides how hard their table wants it.
+     */
+    overflowRules: "overflowRules",
     sealedRooms: "sealedRooms",
     /** Per-player Despair Call restrictions, cleared with the clock. */
     restrictions: "restrictions",
@@ -708,6 +727,28 @@ export function registerSettings() {
         config: false,
         type: Array,
         default: []
+    });
+
+    /*
+     * Z10. Registered in the SAME build as the code that reads them — trap 7:
+     * a key read by a build that never registered it costs the world its data,
+     * and splitting a setting from its first reader buys nothing but the risk
+     * that its shape goes stale before anybody uses it.
+     */
+    game.settings.register(MODULE_ID, SETTINGS.overflow, {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: { count: 0, active: null },
+        onChange: () => onWorldChange(SETTINGS.overflow)
+    });
+
+    game.settings.register(MODULE_ID, SETTINGS.overflowRules, {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => onWorldChange(SETTINGS.overflowRules)
     });
 
     game.settings.register(MODULE_ID, SETTINGS.trialQueue, {

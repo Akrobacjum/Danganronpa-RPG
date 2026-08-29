@@ -13,6 +13,7 @@
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { isPrimaryGm, activeGmIds, whisperToGms, debug, error } from "./utils.mjs";
+import { overflowTokenPenalty, overflowFloor } from "./overflow.mjs";
 
 /**
  * Region flags this file owns.
@@ -29,9 +30,20 @@ export const SEARCH_FLAGS = {
 
 export class SearchTokens {
 
-    /** Maximum tokens a room gets per time of day. */
+    /**
+     * Maximum tokens a room gets per time of day.
+     *
+     * A darkening takes one off every room (Z10), floored so that no room ever
+     * becomes unsearchable — a room with nothing in it cannot be investigated
+     * at all, which is a different game rather than a harder one. Applied here
+     * because this getter is already the single answer: the restock reads it,
+     * the room-setup table reads it, and the "searched out" test reads it.
+     */
     static get max() {
-        return game.settings.get(MODULE_ID, SETTINGS.searchTokensPerRoom);
+        const base = game.settings.get(MODULE_ID, SETTINGS.searchTokensPerRoom);
+        const dark = overflowTokenPenalty();
+        if (!dark) return base;
+        return Math.max(overflowFloor("searchTokens"), base - dark);
     }
 
     /**

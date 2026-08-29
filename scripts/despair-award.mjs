@@ -84,7 +84,16 @@ async function onChatMessage(message) {
 
         const before = getDespair(monokuma.id);
         if (before >= despairMax()) {
-            debug(`${monokuma.name} is already at maximum Despair; the roll granted nothing.`);
+            /*
+             * IT USED TO GRANT NOTHING, AND THAT WAS TWO THIRDS OF THE INCOME
+             * (Z10). The season run measured 628 of 950 points dying on this
+             * line. They now feed the Despair Overflow instead: the cap still
+             * stops a Monokuma banking a chapter's worth of Calls, but the
+             * Despair itself stops evaporating.
+             */
+            const { addOverflow } = await import("./overflow.mjs");
+            await addOverflow(1, { reason: `roll spill from ${monokuma.name}` });
+            debug(`${monokuma.name} is at maximum Despair; the roll fed the overflow.`);
             return;
         }
 

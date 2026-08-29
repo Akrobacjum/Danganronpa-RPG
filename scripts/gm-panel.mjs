@@ -186,6 +186,8 @@ const PANEL_SECTIONS = [
             // Beside the checks it answers: the season checklist carries the
             // pre-session diagnostics as a button now, because "what is missing"
             // and "fix it" are the same list read from the two ends.
+            { key: "overflow", icon: "fa-water", labelKey: "DRPG.Overflow.setupTitle",
+              run: () => import("./overflow.mjs").then(m => m.openOverflowSetup()) },
             { key: "seasonSetup", icon: "fa-wand-magic-sparkles", labelKey: "DRPG.Season.title",
               run: () => import("./season-setup.mjs").then(m => m.openSeasonSetup()) },
             // Moved out of the trial-only section it used to sit in. The

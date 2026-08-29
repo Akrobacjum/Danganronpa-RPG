@@ -26,6 +26,15 @@ import {
 } from "./clock.mjs";
 import { renderHud } from "./hud.mjs";
 import {
+    overflowCount,
+    overflowThreshold,
+    overflowActive,
+    overflowStatus,
+    addOverflow,
+    resetOverflow,
+    openOverflowSetup
+} from "./overflow.mjs";
+import {
     monokumas,
     getDespair,
     setDespair,
@@ -337,6 +346,20 @@ export const DrpgApi = {
     /** Pay for one of the guide's Despair Calls and announce it. */
     spendDespairCall,
     renderDespairBar,
+
+    /* ---- despair overflow (Z10) ---------------------------------------- *
+     * The counter fed by Despair that would not fit in a full pool.
+     * `addOverflow` is here for a GM repairing a session by hand; the rest are
+     * readers. There is deliberately no "fire it now": a darkening belongs to
+     * a time-of-day boundary, and one conjured in the middle of an hour would
+     * be a penalty nobody could have seen coming. */
+    overflowCount,
+    overflowThreshold,
+    overflowActive,
+    overflowStatus,
+    addOverflow,
+    resetOverflow,
+    openOverflowSetup,
 
     /** A pool's display label — custom if set, the account name otherwise —
      *  and the controls to rename a pool or grant/revoke one for an

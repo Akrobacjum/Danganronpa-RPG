@@ -253,6 +253,27 @@ async function applyTimeOfDayChange(clock, {
 } = {}) {
     const summary = { clock, rolledOver, actions: [], searchTokensReset: false };
 
+    /*
+     * THE OVERFLOW BOUNDARY (Z10), before the restock it can shrink.
+     *
+     * Runs on every time-of-day change, Eclipse or no Eclipse. When an Eclipse
+     * was used it has already fired at the Eclipse's opening and this call
+     * finds the same stamp armed and does nothing — one payment, one card. When
+     * no Eclipse was used, this is the only boundary there is.
+     *
+     * Ahead of the restock for the same reason `startEclipse` puts it ahead of
+     * the refill: `SearchTokens.reset` fills every room to `max`, and `max` is
+     * what a darkening reduces. Checked afterwards, the rooms would be stocked
+     * at the old number and the reduction would not be felt until the following
+     * time of day.
+     */
+    try {
+        const { checkOverflow } = await import("./overflow.mjs");
+        await checkOverflow();
+    } catch (err) {
+        warn("Could not check the Despair overflow on the time-of-day boundary", err);
+    }
+
     if (resetActions) summary.actions = await resetAllActions();
     if (resetSearchTokens) summary.searchTokensReset = await SearchTokens.reset({ notify: false });
 

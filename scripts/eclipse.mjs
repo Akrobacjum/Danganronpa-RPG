@@ -21,6 +21,7 @@ import { SETTINGS } from "./settings.mjs";
 import { getClock, setClock, timeOfDayLabel } from "./clock.mjs";
 import { roomOfActor, neighbouringRooms } from "./movement.mjs";
 import { announce, whisperToOwner, whisperToOwnerOnly, whisperToGms, dialogContent, log, error, plural, cardHead } from "./utils.mjs";
+import { overflowCrossings } from "./overflow.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -64,7 +65,11 @@ export function isFreePlacement(clock = getClock()) {
  * `null` means unlimited — pick any room on the map.
  */
 export function eclipseAllowance(clock = getClock()) {
-    return isFreePlacement(clock) ? null : ECLIPSE_MOVES;
+    const base = isFreePlacement(clock) ? null : ECLIPSE_MOVES;
+    // Z10. Asked here rather than at each of the four call sites, because this
+    // is already the one place the number is decided — `movesLeft`, the sheet's
+    // budget line, the Move tile and the Eclipse card all read it from here.
+    return overflowCrossings(base);
 }
 
 /** Per-character crossings used, keyed by actor id. Cleared when it ends. */
@@ -141,6 +146,21 @@ export async function startEclipse() {
     await setClock({ eclipse: true });
 
     /*
+     * THE OVERFLOW CHECK, AND IT HAS TO COME BEFORE THE REFILL (Z10).
+     *
+     * A darkening takes an action off everybody's budget, and the budget is
+     * WRITTEN by the refill two blocks down — `resetActionsFor` stores the
+     * total as both value and max. Checked afterwards, the darkening would
+     * arrive one time of day late every single time: announced now, felt next
+     * time. The order of these two calls is the whole of that.
+     *
+     * After the flag, because the crossings this Eclipse hands out are read
+     * from a clock that has to already say `eclipse: true`.
+     */
+    const { checkOverflow } = await import("./overflow.mjs");
+    await checkOverflow({ opening: true });
+
+    /*
      * THE REFILL (Z2). After the flag, before the card.
      *
      * After the flag because `resetActionsFor` also zeroes the Sprint and Burst
@@ -183,15 +203,19 @@ export async function startEclipse() {
         content: `<h3>${eclipseLabel()}</h3>
                   <p>${free
                       ? game.i18n.localize("DRPG.Eclipse.announceFree")
-                      : game.i18n.format("DRPG.Eclipse.announce", { n: allowance })}</p>
+                      : plural("DRPG.Eclipse.announce", { n: allowance }, "n")}</p>
                   ${refillNote}`
     });
 
     for (const actor of placingActors()) {
         const room = foundry.utils.escapeHTML(roomOfActor(actor) ?? "—");
+        // PLURALISED BECAUSE ONE IS NOW REACHABLE. A darkened Eclipse hands out
+        // a single crossing (Z10), and until then no allowance was ever 1, so
+        // "up to 1 connected rooms" had never been printed. Found on the live
+        // round the moment the overflow first fired.
         await whisperToOwner(actor, `<p>${free
             ? game.i18n.format("DRPG.Eclipse.yourMovesFree", { room })
-            : game.i18n.format("DRPG.Eclipse.yourMoves", { n: allowance, room })
+            : plural("DRPG.Eclipse.yourMoves", { n: allowance, room }, "n")
         }</p>`);
     }
 

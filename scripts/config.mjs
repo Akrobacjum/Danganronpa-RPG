@@ -1557,6 +1557,75 @@ export const HOPE_CALLS = {
 };
 
 /* ==========================================================================
+ * DESPAIR OVERFLOW  (Z10)
+ * --------------------------------------------------------------------------
+ * WHAT PROBLEM THIS IS. A Monokuma's pool caps at twelve, and the season run
+ * measured what that costs: 950 points of Despair earned, 628 of them
+ * evaporating on a full pool. TWO THIRDS OF THE INCOME NEVER EXISTED. The cap
+ * is doing its job as a limiter of power and should stay, but a currency that
+ * silently deletes most of itself is a currency the table stops watching.
+ *
+ * So the spill stops vanishing. Every point that does not fit feeds a shared
+ * world counter, and when that counter reaches X the world itself gets worse
+ * for one time of day. Not a bank saved for the finale — that shape was
+ * proposed, and rightly shot down for moving the problem to the last session
+ * instead of solving it. This converts spill into pressure AT ONCE, and does
+ * it again and again.
+ *
+ * WHAT IT BUYS AT THE TABLE is a decision a Monokuma did not have: spend on
+ * Calls, or sit on a full pool and push the world towards the dark. At X = 20
+ * both are real strategies and neither dominates — which is the whole test a
+ * new decision has to pass.
+ *
+ * X = 20, AND HERE IS THE ARITHMETIC. The season spilled ~4.2 points per time
+ * of day at normal spending and ~6.3 with pools parked full. Twenty therefore
+ * fires roughly once a day (five times of day) in ordinary play, and about
+ * every third time of day for a Monokuma deliberately farming it. Rare enough
+ * to be an event; often enough that the bill for rolling with Despair is
+ * visible. Other tables scale it: X ≈ 12 + players / 2 — sixteen players gives
+ * twenty, eight gives sixteen, four gives fourteen. The GM's editor takes any
+ * value in `range`.
+ *
+ * THE COUNTER IS EMPTIED BY A VERDICT, alongside the pools the guide already
+ * refills there. A chapter opens on clean air.
+ * ========================================================================== */
+
+export const OVERFLOW = {
+    /** Points of spill that buy one darkened time of day. */
+    threshold: 20,
+
+    /** What the GM's field will accept. Outside this it is a typo, not a taste. */
+    range: { min: 6, max: 60 },
+
+    /**
+     * The three conditions, each switchable and each with its own size.
+     *
+     * FLOORS ARE NOT DECORATION. A darkened time of day still has to be
+     * playable: an action budget of zero is not a harder game, it is a player
+     * with nothing to do for twenty minutes, and a room with no search tokens
+     * is a room that cannot be investigated at all. Every subtraction here
+     * bottoms out at one.
+     */
+    effects: {
+        /**
+         * Eclipse crossings. Two become one — and a free-placement Eclipse,
+         * which normally lets you start anywhere on the map, is pulled back to
+         * the ordinary two. `null` has no "minus one", so the darkening gives
+         * it a number instead of a subtraction.
+         */
+        crossings: { on: true, by: 1, floor: 1, freeBecomes: 2 },
+        /** Search tokens per room: three become two. */
+        searchTokens: { on: true, by: 1, floor: 1 },
+        /**
+         * Actions: two become one. Stacks with Wounded, deliberately — a hurt
+         * student in a darkened hour is exactly the situation this is for — and
+         * the floor is what stops the two of them reaching zero together.
+         */
+        actions: { on: true, by: 1, floor: 1 }
+    }
+};
+
+/* ==========================================================================
  * DESPAIR CALLS  (GM spends Despair; pool caps at 12 per Monokuma)
  * ========================================================================== */
 
@@ -1668,6 +1737,29 @@ export const DESPAIR_CALLS = {
     favoriteProject: {
         label: "Patronage", icon: "fa-arrow-trend-up", cost: 3, target: "project", progress: 2,
         effect: "Add {progress} progress to a project."
+    },
+    /*
+     * FEED THE OVERFLOW (Z14, Dawid 29.08) — what replaced the project wipe.
+     *
+     * The wipe ended a player's thread and left nothing on the table. This
+     * spends the same currency on the same instinct — make things worse —
+     * without taking anybody's game away: one Despair goes into the counter
+     * that darkens the world for everyone, the Monokuma included.
+     *
+     * PRICED AT ONE BECAUSE IT IS AN EXCHANGE RATE, exactly like Fuel a
+     * Monocub above it: one point of Despair becomes one point of overflow.
+     * Anything else would be arithmetic the table has to do in its head to
+     * know what it is buying.
+     *
+     * It is the SECOND source feeding that counter — the first is spill over
+     * the cap of twelve, which costs nothing and happens by itself. This one
+     * is deliberate, and it is the only way a Monokuma with a pool that is not
+     * full can push the world towards the dark.
+     */
+    feedOverflow: {
+        label: "Feed the Overflow", icon: "fa-water", cost: 1, target: "none",
+        feedsOverflow: 1,
+        effect: "Pour {overflow} Despair into the overflow that darkens the world."
     },
     contraband: {
         /*
@@ -1784,7 +1876,12 @@ export function callEffect(call) {
         // Written as a negative on the entry, because that is what it does to
         // the project; read as a magnitude here, because "Remove -2 progress"
         // is not a sentence.
-        progress: call.progress === undefined ? undefined : Math.abs(call.progress)
+        progress: call.progress === undefined ? undefined : Math.abs(call.progress),
+        // Z14. Found on the live round reading "Pour {overflow} Despair" on the
+        // tile: this table is the ONLY place a Call's sentence gets its
+        // numbers, so a field added to an entry without a line here ships a
+        // placeholder to the panel and to the chat card both.
+        overflow: call.feedsOverflow
     };
 
     return text.replace(/\{(\w+)\}/g, (whole, key) =>
@@ -3355,6 +3452,12 @@ export const SFX_EVENTS = {
     eclipseEnd: {
         label: "The Eclipse ends",
         hint: "Heard by the whole table.",
+        category: "world"
+    },
+    despairOverflow: {
+        label: "Despair overflows",
+        hint: "Heard by the whole table, when the spilled Despair reaches its threshold and "
+            + "the world gets worse for one time of day.",
         category: "world"
     },
 

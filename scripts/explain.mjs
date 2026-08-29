@@ -195,8 +195,25 @@ export async function openDespairExplainer() {
             lines.push(esc(t("DRPG.Explain.despair.masked")));
         }
 
+        /*
+         * "What is despair overflow" (Z10). Its own section rather than another
+         * line in the one above, because it answers a different question: the
+         * pools are what a Monokuma HAS, and this is what happens to what they
+         * cannot hold. A player who clicked the pips to ask about the bar reads
+         * the caption sitting directly above it on the way.
+         */
+        const overflowLines = [esc(t("DRPG.Overflow.explainBody")),
+                               esc(t("DRPG.Overflow.explainVeil"))];
+        if (game.user.isGM) {
+            const { overflowStatus } = await import("./overflow.mjs");
+            const { count, threshold } = overflowStatus();
+            overflowLines.push(esc(t("DRPG.Overflow.gmHint")
+                .replace("{count}", count).replace("{max}", threshold)));
+        }
+
         return explainer(t("DRPG.Explain.despair.window"),
-            section(t("DRPG.Explain.despair.title"), lines));
+            section(t("DRPG.Explain.despair.title"), lines)
+            + section(t("DRPG.Overflow.explainTitle"), overflowLines));
     } catch (err) {
         error("Could not explain the Despair pool", err);
         return null;

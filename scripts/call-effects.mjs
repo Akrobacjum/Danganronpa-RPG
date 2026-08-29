@@ -232,6 +232,30 @@ export async function applyCall(actor, key, kind, choice = {}) {
             })}</p>`);
         }
 
+        /*
+         * --- Despair poured into the overflow (Z14) ---
+         *
+         * No target of its own: the thing it acts on is the world. That is why
+         * the Call is `target: "none"` and why this branch sits above the ones
+         * that need somebody to point at.
+         *
+         * The pool has already been charged by `spendDespairCall`, exactly as
+         * with `grantsHope` above — this only moves the point to its
+         * destination. It pushes a receipt line for the same reason every
+         * branch here does: `applyCall` calls a Call with an empty receipt
+         * FAILED and hands the price back, so a branch that worked silently
+         * would be a Call that worked and then refunded itself (trap 100).
+         */
+        if (call.feedsOverflow) {
+            const { addOverflow, overflowCount, overflowThreshold } =
+                await import("./overflow.mjs");
+            const after = await addOverflow(call.feedsOverflow, { reason: "Feed the Overflow" });
+            if (after === null) throw new Error("the overflow refused the Despair");
+            done.push(game.i18n.format("DRPG.Calls.overflowFed", {
+                n: call.feedsOverflow, count: overflowCount(), max: overflowThreshold()
+            }));
+        }
+
         // --- damage and stress ---
         if (call.damage && choice.target) {
             const update = {};

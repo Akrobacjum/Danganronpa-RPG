@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json — the suite fails if it does not. */
-    --drpg-css-version: "1.1.78";
+    --drpg-css-version: "1.1.79";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -8109,6 +8109,13 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
         url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 3h4v1H6zM13 3h4v1H13zM5 4h6v1H5zM12 4h6v1H12zM4 5h14v1H4zM4 6h14v1H4zM5 7h12v1H5zM6 8h10v1H6zM7 9h8v1H7zM8 10h6v1H8zM9 11h4v1H9zM3 14h18v1H3zM2 15h20v1H2zM3 16h18v1H3zM5 17h14v1H5z'/%3E%3C/svg%3E");
     --drpg-g-favorite-project:
         url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 4h2v1H11zM10 5h4v1H10zM9 6h6v1H9zM8 7h8v1H8zM7 8h10v1H7zM6 9h12v1H6zM5 10h14v1H5zM4 11h16v1H4zM9 12h6v1H9zM9 13h6v1H9zM9 14h6v1H9zM9 15h6v1H9zM9 16h6v1H9zM9 17h6v1H9zM9 18h6v1H9zM9 19h6v1H9z'/%3E%3C/svg%3E");
+    /* Feed the Overflow: water, because that is what the Call is named after
+       and what the counter does. Three waves, the middle one in counter-phase,
+       running edge to edge — at 24px a stack of identical lines reads as
+       stripes, and the phase shift is the whole difference between stripes and
+       current. */
+    --drpg-g-feed-overflow:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M0 4h3v1H0zM9 4h6v1H9zM21 4h3v1H21zM0 5h4v1H0zM8 5h8v1H8zM20 5h4v1H20zM3 6h6v1H3zM15 6h6v1H15zM4 7h4v1H4zM16 7h4v1H16zM3 10h6v1H3zM15 10h6v1H15zM2 11h8v1H2zM14 11h8v1H14zM0 12h3v1H0zM9 12h6v1H9zM21 12h3v1H21zM0 13h2v1H0zM10 13h4v1H10zM22 13h2v1H22zM0 16h3v1H0zM9 16h6v1H9zM21 16h3v1H21zM0 17h4v1H0zM8 17h8v1H8zM20 17h4v1H20zM3 18h6v1H3zM15 18h6v1H15zM4 19h4v1H4zM16 19h4v1H16z'/%3E%3C/svg%3E");
     --drpg-g-contraband:
         url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 2h6v1H9zM3 3h18v1H3zM3 4h18v1H3zM4 5h16v1H4zM4 6h3v1H4zM9 6h2v1H9zM13 6h2v1H13zM17 6h3v1H17zM4 7h3v1H4zM9 7h2v1H9zM13 7h2v1H13zM17 7h3v1H17zM4 8h3v1H4zM9 8h2v1H9zM13 8h2v1H13zM17 8h3v1H17zM4 9h3v1H4zM9 9h2v1H9zM13 9h2v1H13zM17 9h3v1H17zM4 10h3v1H4zM9 10h2v1H9zM13 10h2v1H13zM17 10h3v1H17zM4 11h3v1H4zM9 11h2v1H9zM13 11h2v1H13zM17 11h3v1H17zM4 12h3v1H4zM9 12h2v1H9zM13 12h2v1H13zM17 12h3v1H17zM4 13h3v1H4zM9 13h2v1H9zM13 13h2v1H13zM17 13h3v1H17zM4 14h3v1H4zM9 14h2v1H9zM13 14h2v1H13zM17 14h3v1H17zM4 15h3v1H4zM9 15h2v1H9zM13 15h2v1H13zM17 15h3v1H17zM5 16h14v1H5zM6 17h12v1H6z'/%3E%3C/svg%3E");
     --drpg-g-public-announcement:
@@ -8272,6 +8279,24 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
 }
 
 .drpg-call-button[data-drpg-call="fuelTheCub"] .drpg-action-icon::before {
+    content: none !important;
+}
+
+.drpg-call-button[data-drpg-call="feedOverflow"] .drpg-action-icon {
+    width: 24px;
+    height: 24px;
+    font-size: 0 !important;
+    background-color: currentColor;
+    -webkit-mask-image: var(--drpg-g-feed-overflow);
+    mask-image: var(--drpg-g-feed-overflow);
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
+    image-rendering: pixelated;
+}
+
+.drpg-call-button[data-drpg-call="feedOverflow"] .drpg-action-icon::before {
     content: none !important;
 }
 
@@ -11389,6 +11414,40 @@ form:has(select[name="trigger"] option[value="sabotage"]:checked) [data-drpg-whe
    possible: this strip sits next to the clock HUD and `alignRightColumn()`
    measures the taller of the two, so every pixel here moves the player's status
    strip and the projects tray down with it. */
+/*
+ * THE OVERFLOW CAPTION (Z10). One line under the widget's title and above the
+ * pools, in the same pixel type as the rest of the HUD.
+ *
+ * `masked` is the player's copy, carrying a "?" instead of the count. It is
+ * dimmer rather than hidden: a player has to know the counter exists and what
+ * it fires at, and only the current reading is withheld.
+ */
+.drpg-overflow-caption {
+    font-family: var(--drpg-font, inherit);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-align: center;
+    padding: 1px 6px 3px;
+    color: var(--drpg-dim, #9a9a9a);
+    white-space: nowrap;
+}
+
+.drpg-overflow-caption.masked {
+    opacity: 0.75;
+}
+
+/* Armed. The one state that has to catch an eye that was not looking. */
+.drpg-overflow-caption.is-active {
+    color: var(--drpg-red, #e04a4a);
+}
+
+.drpg-overflow-badge {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.9;
+}
+
 .drpg-despair-title {
     grid-column: 1 / -1;
     margin: 0 0 2px;
