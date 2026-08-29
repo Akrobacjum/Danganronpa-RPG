@@ -246,19 +246,23 @@ function applyToRemnantToken(token) {
 /**
  * An incident trace from an incident I am in (D11).
  *
- * READ OFF THE TOKEN, NOT THE LEDGER. The ledger is GM-side by design —
- * `remnantData` answers null on a player's client and that is what keeps the
- * answers off it — so the one fact this needs travels on the token document
- * itself. It is the trace's TYPE and nothing else: not what it means, not who
- * left it, not how visible it is. "There is an incident trace here" is already
- * what the marker on the map says to anyone allowed to see the marker.
+ * READ OFF THE TOKEN, NOT THE LEDGER — and the first version asked the token
+ * for the wrong thing. It read `REMNANT_FLAGS.type`, which is a LEDGER field: a
+ * token document carries `isRemnant` and nothing else, because what a trace
+ * MEANS is the answer key and a token reaches every browser. So the test was
+ * `undefined !== "incident"` on every client, always false, and D11's whole
+ * client half silently did nothing — found on the E23 live round, where the
+ * killer could not see the scene the rule exists to show them.
+ *
+ * `fromIncident` is the minimal public marker added for exactly this. It says
+ * no more than the un-hidden token already says by existing.
  *
  * The entitlement is the live incident's participant list, which a player's
  * client legitimately holds: they are in it.
  */
 function myIncidentTrace(tokenDoc) {
     try {
-        if (tokenDoc.getFlag(MODULE_ID, REMNANT_FLAGS.type) !== "incident") return false;
+        if (!tokenDoc.getFlag(MODULE_ID, REMNANT_FLAGS.fromIncident)) return false;
 
         const state = game.settings.get(MODULE_ID, "murderState");
         if (!state?.active) return false;

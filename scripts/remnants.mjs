@@ -57,7 +57,27 @@ export const REMNANT_FLAGS = {
     day: "day",
     timeOfDay: "timeOfDay",
     /** Points the finger at this character — used by "Misleading trail". */
-    pointsAt: "pointsAt"
+    pointsAt: "pointsAt",
+    /**
+     * THE ONE THING ABOUT A TRACE THAT TRAVELS TO EVERY CLIENT (D11).
+     *
+     * Every other field in this table lives in the GM-side ledger, because a
+     * token document reaches every browser and what a trace MEANS is the answer
+     * key. This is the exception, and it is deliberately the smallest possible
+     * one: a boolean saying "this marker was made during an incident".
+     *
+     * It is needed because `applyToRemnantToken` runs on a player's client and
+     * has to decide whether THIS viewer is one of the people who watched this
+     * trace being made. The participant list it checks against is the live
+     * murder state, which a player legitimately holds; the missing half was
+     * which tokens are the crime scene's.
+     *
+     * WHAT IT LEAKS is what the un-hidden token already leaks by existing: a
+     * marker is here. Not the band, not the type beyond "incident", not who
+     * left it, not what it says. Preparation traces never carry it and stay
+     * hidden outright.
+     */
+    fromIncident: "fromIncident"
 };
 
 /**
@@ -374,11 +394,25 @@ export async function placeRemnant(data = {}) {
             hidden: type !== "incident",
             disposition: CONST.TOKEN_DISPOSITIONS.NEUTRAL,
             lockRotation: true,
-            // THE MARKER AND NOTHING ELSE. Everything that was here is the
-            // answer key and now lives in the GM-side ledger — see the block at
-            // the top of this file. A player's client still receives this token;
-            // what it no longer receives is what the token means.
-            flags: { [MODULE_ID]: { [REMNANT_FLAGS.isRemnant]: true } }
+            /*
+             * THE MARKER AND ALMOST NOTHING ELSE. Everything that was here is
+             * the answer key and now lives in the GM-side ledger — see the
+             * block at the top of this file. A player's client still receives
+             * this token; what it no longer receives is what the token means.
+             *
+             * `fromIncident` is the one exception (D11) and it is the smallest
+             * one available: a boolean saying this marker was made during an
+             * incident, so a participant's own client can decide whether to
+             * draw it. The visibility pass runs on that client and cannot ask
+             * the ledger, because the ledger is the answer key. It leaks what
+             * the un-hidden token already leaks by existing — a marker is here.
+             */
+            flags: {
+                [MODULE_ID]: {
+                    [REMNANT_FLAGS.isRemnant]: true,
+                    ...(type === "incident" ? { [REMNANT_FLAGS.fromIncident]: true } : {})
+                }
+            }
         }]);
 
         // The answer key, off the token and onto the GM's own shelf.
