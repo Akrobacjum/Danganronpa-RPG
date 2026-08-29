@@ -14,7 +14,7 @@
  * name, so a system rename cannot quietly disable this.
  */
 
-import { MODULE_ID } from "./config.mjs";
+import { MODULE_ID, TRAITS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 // Statically imported: the lock runs inside a synchronous render hook and has no
 // opportunity to await. Neither module reaches back here, so no cycle.
@@ -238,18 +238,33 @@ function actorOf(app) {
  * the roll it was for — the failure being a player who gets the choice on the
  * next roll too, which is the whole thing this is meant not to do.
  *
- * Consumed on read for the same reason: one permission, one roll.
+ * CLAIMED BY ONE DIALOG, THEN HELD FOR ITS LIFETIME. The first version
+ * consumed the permission on read, which was right about "one permission, one
+ * roll" and wrong about how often it is read: `lockControls` runs on EVERY
+ * render, and this dialog submits on change, so the second render found
+ * nothing and locked the select again. Measured on the E23 round — the picker
+ * appeared disabled with the "chosen before this window opened" tooltip.
+ *
+ * So the value is claimed once, by the first dialog to ask, and remembered
+ * against that dialog. A later, unrelated roll finds it already taken and is
+ * locked as normal.
  */
 let nextTraitChoice = null;
+const claimed = new WeakMap();
 
 /** Let the next roll dialog offer these statistics. See the note above. */
 export function allowTraitsForNextRoll(traits) {
     nextTraitChoice = Array.isArray(traits) && traits.length ? [...traits] : null;
 }
 
-function takeTraitChoice() {
+function traitChoiceFor(app) {
+    if (!app) return null;
+    if (claimed.has(app)) return claimed.get(app);
+    if (!nextTraitChoice) return null;
+
     const taken = nextTraitChoice;
     nextTraitChoice = null;
+    claimed.set(app, taken);
     return taken;
 }
 
@@ -317,13 +332,31 @@ function lockControls(root, app) {
      * picker is never handed the narrower version of it.
      */
     const trait = root.querySelector('select[name="trait"]');
-    const allowed = takeTraitChoice();
+    const allowed = traitChoiceFor(app);
 
     if (trait && armed === "trait") {
         unlock(trait, "DRPG.RollDialog.unlockedByCall");
     } else if (trait && allowed?.length) {
+        /*
+         * THE SELECT SPEAKS DAGGERHEART, NOT DRPG (found on the E23 round).
+         *
+         * This is the system's own control, so its option values are
+         * `instinct`, `finesse` and the rest. The catalogue hands us `eye` and
+         * `hand`, which are this module's names for two of them. Comparing the
+         * two vocabularies directly matched nothing, so the filter would have
+         * removed EVERY option and left an empty menu — the lock winning the
+         * race is the only reason that never reached a screen.
+         *
+         * `TRAITS[key].dh` is the mapping and the one place it lives.
+         */
+        const speak = new Set(allowed
+            .map(key => TRAITS[key]?.dh)
+            .filter(Boolean));
+
         for (const option of [...trait.options]) {
-            if (!allowed.includes(option.value)) option.remove();
+            // The empty placeholder goes with the rest: a menu of two real
+            // choices does not need a "pick one" row above them.
+            if (!speak.has(option.value)) option.remove();
         }
         unlock(trait, "DRPG.RollDialog.pickYourApproach");
     } else if (trait) {
