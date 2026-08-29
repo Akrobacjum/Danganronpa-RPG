@@ -2711,6 +2711,25 @@ export const CLEANUP = {
     dc: { hidden: 9, subtle: 12, evident: 15, obvious: 18 },
 
     /**
+     * THE SCENE IS STILL WARM (Z5): −3 while nobody has found the body.
+     *
+     * The season run measured Stage 6 erasing about ONE trace in six chapters.
+     * The killer was right to skip it: an action and a point of Sanity, a 31%
+     * chance on an Obvious trace, and a Despair failure that used to hand the
+     * investigation a brand new Obvious trace of its own. Cleaning up left more
+     * than it took, so nobody cleaned up, so a whole stage of the guide was
+     * decoration.
+     *
+     * The discount is time, and time is the one currency this stage always had
+     * and never spent. Before the body is found the killer is alone in a room
+     * with a mess; afterwards the corridor is full of people who watched them
+     * arrive. Reading it off the clock's own phase means nothing new is stored:
+     * `discoverBody` moves the phase to `investigation`, and that IS the moment
+     * the room stops being theirs.
+     */
+    freshScene: { bonus: 3, until: ["investigation", "classTrial"] },
+
+    /**
      * Covering your tracks is a Shadow job.
      *
      * The FIRST entry is what is actually rolled — the same convention
@@ -2748,16 +2767,23 @@ export const CLEANUP = {
      *                 that hands the Sanity back, and it was not doing it.
      *   failure       the guide splits it. A Hope failure simply does not work
      *                 ("Morderca nie usuwa Remnant." and nothing more); only a
-     *                 Despair failure adds "Powstaje Jawny Resolution Remnant".
-     *                 One entry for both punished a clean roll that missed as if
-     *                 it had gone wrong.
+     *                 Despair failure is punished.
+     *
+     * WHAT A DESPAIR FAILURE DOES NOW (Z5). It used to add a fresh Obvious
+     * Resolution Remnant beside the one you failed to erase — two traces where
+     * there was one, which is the double punishment that made the whole stage
+     * not worth attempting. It now RAISES the trace you were scrubbing at by one
+     * band of visibility: subtle → evident → obvious. The risk is intact and it
+     * is the same risk in fiction — you have made the mess more obvious, not
+     * made a second mess — but the investigation does not gain a whole new
+     * object out of your bad night.
      */
     outcome: {
         critical: { removes: true, leaves: null, refundStress: 1, mayTransform: true },
         hope: { removes: true, leaves: null },
         despair: { removes: true, leaves: { visibility: "evident", faint: true } },
         failureHope: { removes: false, leaves: null },
-        failureDespair: { removes: false, leaves: { visibility: "obvious", faint: false } }
+        failureDespair: { removes: false, leaves: null, raisesVisibility: 1 }
     },
 
     /** Traces the clean-up leaves are Resolution Remnants, per REMNANT_TYPES. */
@@ -2787,6 +2813,37 @@ export const CLEANUP = {
      * and folding it in here would make a critical clean-up strictly better than
      * an action somebody has to spend Sanity on.
      */
+    /**
+     * TRANSFORM AS AN ACTION OF ITS OWN (Z5), not only a critical's reward.
+     *
+     * The season run's verdict on Stage 6 was that erasing is a bad bet and
+     * everybody correctly declined it. Lying is the other half of the same
+     * stage and it was locked behind a critical — so the killer's only
+     * available move was the one that does not pay.
+     *
+     * −3 ON THE THRESHOLD, and it is the rule in one number: LYING IS EASIER
+     * THAN ERASING. Wiping a trace out means leaving no trace of the wiping;
+     * relabelling one means leaving a trace that argues for a different story,
+     * which is a smaller physical job and a larger social one. The Cleaning
+     * Tool still helps, and still by its tier.
+     *
+     * WHAT A SUCCESS BUYS is one of the two halves: the trace becomes a
+     * different KIND of thing, or it becomes one band quieter. A critical buys
+     * both and hands the Sanity back — and where the player asked for the quiet
+     * half, the critical's extra IS the refund, because there is no third thing
+     * to give. Deliberate asymmetry, written down rather than smoothed over:
+     * the type is the interesting choice and the quiet is the consolation.
+     *
+     * The bounds are `transform.types` below, unchanged and for the same
+     * reason — trap 115.
+     */
+    transformAction: {
+        dcRelief: 3,
+        refundStress: { critical: 1 },
+        /** The visibility change, in bands, that the quiet half is worth. */
+        quieter: 1
+    },
+
     transform: {
         types: ["faint", "prep", "incident", "resolution"],
         visibilities: ["obvious", "evident", "subtle", "hidden"]

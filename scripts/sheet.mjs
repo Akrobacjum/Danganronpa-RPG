@@ -19,7 +19,7 @@ import {
 import { SETTINGS } from "./settings.mjs";
 import { actionsLeft, actionsMax, actionBudget, hasFreeMove, setActions,
     canPayFor, freeActionsLeft, freeMovesLeft } from "./actions.mjs";
-import { resourceMax, initCharacter } from "./character.mjs";
+import { resourceMax, resourceValue, initCharacter } from "./character.mjs";
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
 import { getDespair } from "./despair.mjs";
 import { hopeHeld, hopeMax, affordableHopeCalls, despairCallsFor } from "./calls.mjs";
@@ -3677,6 +3677,20 @@ export function forgetTamper() {
 function tamperBlock(actor) {
     // Nowhere to do it is answered by the caller's own `here` check, which runs
     // before this. Reaching here means the character is standing in a room.
+
+    /*
+     * NOTHING TO PAY WITH IS THE FIRST ANSWER, and it is free (Dawid, 29.08).
+     *
+     * Every Tamper action costs a point of Sanity now, so a character on an
+     * empty track cannot take any of them — and that is knowable on this client
+     * without asking the GM anything. Asked before the ledger, because a tile
+     * that waits on a socket round trip to say "you have nothing left" makes the
+     * player press it to find out.
+     */
+    if (resourceValue(actor, "stress") >= resourceMax(actor, "stress")) {
+        return game.i18n.localize("DRPG.Cleanup.noStressForThis");
+    }
+
     const key = tamperKey(actor);
     const seen = tamperAnswers.get(actor.id);
     if (seen?.key === key) return seen.blocked;

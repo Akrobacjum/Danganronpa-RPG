@@ -31,7 +31,9 @@
  * guide's own "akcje rozwiązania w Etapie 2" unreachable and made planting a
  * false trail a privilege of the killer. The Tamper tile is the second door,
  * and it is the SAME code: same rolls, same thresholds, same traces, same
- * verdicts. What differs is exactly two things, and `viaAction` is what carries
+ * verdicts. What differed used to be two things; since 29.08 it is one — the
+ * PRICE is the same on both roads, one point of Sanity, and only the entry
+ * conditions still differ. `viaAction` is what carries
  * the difference:
  *
  *   WHO MAY.   Stage 6 asks `isCleaner` — this is your crime scene. The action
@@ -56,7 +58,9 @@
  * on this side against the ledger the sender cannot read.
  */
 
-import { MODULE_ID, FLAGS, CLEANUP, RESOLUTION_STRESS_COST } from "./config.mjs";
+import { MODULE_ID, FLAGS, CLEANUP, RESOLUTION_STRESS_COST, REMNANT_VISIBILITY }
+    from "./config.mjs";
+import { getClock } from "./clock.mjs";
 import { murderState, killerIds } from "./murder.mjs";
 import {
     REMNANT_FLAGS, remnantsInRoom, remnantData, removeRemnant, dropRemnant
@@ -261,8 +265,33 @@ function locate(actor) {
 export function cleanupDc(visibility, actor) {
     const base = CLEANUP.dc[visibility];
     if (base === undefined) return null;
-    if (!CLEANUP.toolTierReducesDc) return base;
-    return Math.max(0, base - cleaningTier(actor));
+    const tool = CLEANUP.toolTierReducesDc ? cleaningTier(actor) : 0;
+    return Math.max(0, base - tool - freshSceneBonus());
+}
+
+/**
+ * −3 while the body is still lying where it fell (Z5).
+ *
+ * Read off the clock rather than stored, because the clock already carries this
+ * fact and one fact with two homes is one fact that will disagree with itself:
+ * `discoverBody` sets the phase to `investigation`, and that IS the moment the
+ * corridor fills with people.
+ *
+ * Exported so the briefing can say WHY the number in front of the player is
+ * lower than the one in the handbook. A discount nobody is told about is not a
+ * discount, it is a bug they will report.
+ */
+export function freshSceneBonus() {
+    const rule = CLEANUP.freshScene;
+    if (!rule?.bonus) return 0;
+    try {
+        const phase = getClock().phase;
+        return rule.until?.includes(phase) ? 0 : rule.bonus;
+    } catch {
+        // No clock is not a fresh scene. Failing towards the harder number is
+        // the safe direction: it never hands out a discount nobody earned.
+        return 0;
+    }
 }
 
 /** The tier of the readied Cleaning Tool, or 0 for bare hands. */
@@ -302,18 +331,43 @@ function findRemnantToken(tokenId) {
  * note at the top of the file. What goes over the socket is which token was
  * aimed at and what the dice said.
  */
-export async function attemptCleanup(actor, tokenId, { viaAction = false } = {}) {
+export async function attemptCleanup(actor, tokenId, {
+    viaAction = false,
+    /*
+     * "erase" or "transform" (Z5). One function for both because everything
+     * around the roll is the same job: the same trace, the same ownership and
+     * found-it tests, the same Sanity, the same receipt, the same card. What
+     * differs is three lines — the threshold gets a discount, the verdict
+     * relabels instead of deleting, and the title says which was attempted.
+     *
+     * A second `attemptTransform` would have been a copy of ninety lines with
+     * three changed, and the two would have parted company at the first guard
+     * somebody remembered to add to only one of them.
+     */
+    mode = "erase",
+    /** What the player is trying to turn it into. See `askTransformChange`. */
+    change = null
+} = {}) {
     if (!actor || !tokenId) return null;
 
-    // Stage 6's two entry conditions, and both are about Stage 6. The Tamper
-    // tile is not this scene and does not pay in Sanity, so it asks neither —
-    // see the `viaAction` note at the top of this file.
-    if (!viaAction) {
-        if (!isCleaner(actor)) return refuseCleanup(actor);
-        if (resourceValue(actor, "stress") >= resourceMax(actor, "stress")) {
-            ui.notifications.warn(game.i18n.localize("DRPG.Murder.noStressLeft"));
-            return null;
-        }
+    // Whose scene this is, is Stage 6's question and only Stage 6 asks it.
+    if (!viaAction && !isCleaner(actor)) return refuseCleanup(actor);
+
+    /*
+     * HAVING SOMETHING TO PAY WITH IS BOTH ROADS' QUESTION (Dawid, 29.08).
+     *
+     * Tamper used to cost an action and nothing else, which made it the CHEAPER
+     * way to clean your own scene — so the stage rule was subsidising going
+     * round it. One price on both roads settles that, and it settles it in the
+     * direction the season run wanted: sprinkling costs something, everywhere.
+     *
+     * Refused before the dice rather than after, because an action that takes a
+     * cost it cannot take either forgives it silently or kills somebody, and
+     * both answers are worse than saying no.
+     */
+    if (resourceValue(actor, "stress") >= resourceMax(actor, "stress")) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.noStressForThis"));
+        return null;
     }
     if (!await spendResolutionAction(actor)) return null;
 
@@ -337,9 +391,19 @@ export async function attemptCleanup(actor, tokenId, { viaAction = false } = {})
             // "cleanup" and a rerolled misleading trail was replayed as an
             // erase against a token id that was really an action name.
             actionKey: "cleanup",
-            context: { cleanup: tokenId, cleanupKey: "eraseTrace", cleanupVia: viaAction },
-            title: game.i18n.localize(viaAction
-                ? "DRPG.Tamper.coverAction" : "DRPG.Cleanup.action")
+            context: {
+                cleanup: tokenId,
+                cleanupKey: mode === "transform" ? "transformTrace" : "eraseTrace",
+                // What was declared before the dice, so a Reroll can declare it
+                // again. Without it a replayed transform would arrive with
+                // nothing to apply and quietly do nothing — the exact failure
+                // `cleanupKey` was added to stop, one road further along.
+                cleanupChange: change,
+                cleanupVia: viaAction
+            },
+            title: game.i18n.localize(mode === "transform"
+                ? "DRPG.Cleanup.transformAction"
+                : viaAction ? "DRPG.Tamper.coverAction" : "DRPG.Cleanup.action")
         });
     } finally {
         calls.clearSituational();
@@ -353,7 +417,11 @@ export async function attemptCleanup(actor, tokenId, { viaAction = false } = {})
     // G-20. Only on a critical, and only if the table's rules still allow it —
     // read from config rather than assumed, so turning the permission off is one
     // field rather than a code change.
-    const transform = roll.isCritical && CLEANUP.outcome.critical?.mayTransform
+    // Only on the erase road. On the transform road the player already said
+     // what they were trying to do, before the dice — asking again after a
+     // critical would be asking them to choose twice for one action.
+    const transform = mode !== "transform" && roll.isCritical
+        && CLEANUP.outcome.critical?.mayTransform
         ? await askTransform(actor)
         : null;
 
@@ -365,6 +433,8 @@ export async function attemptCleanup(actor, tokenId, { viaAction = false } = {})
         isCritical: Boolean(roll.isCritical),
         withHope: Boolean(roll.withHope),
         transform,
+        key: mode === "transform" ? "transformTrace" : "eraseTrace",
+        change,
         viaAction
     });
 
@@ -434,6 +504,58 @@ async function askTransform(actor) {
     return picked && picked !== "erase" ? picked : null;
 }
 
+/**
+ * What are you trying to make this look like? Asked BEFORE the dice (Z5).
+ *
+ * The erase road's `askTransform` is a reward, so it comes after a critical.
+ * This one is the action's content: you declare the lie, then find out whether
+ * you told it well. Cancelling here costs nothing, which is why it is asked
+ * before the action is charged.
+ *
+ * ONE SELECT, FIVE OPTIONS, ONE DECISION. Four of them are the types G-20
+ * allows and the fifth is "leave what it is, just make it harder to notice" —
+ * because sometimes the honest lie is that there is nothing here worth reading.
+ *
+ * @returns {Promise<{type: string|null}|null>} null when they backed out.
+ */
+export async function askTransformChange(actor) {
+    const { REMNANT_TYPES } = await import("./config.mjs");
+    const types = CLEANUP.transform?.types ?? [];
+    if (!types.length) return null;
+
+    const options = types
+        .map(key => `<option value="${key}">${
+            foundry.utils.escapeHTML(REMNANT_TYPES[key]?.label ?? key)}</option>`)
+        .join("");
+
+    const picked = await DialogV2.wait({
+        window: { title: game.i18n.localize("DRPG.Cleanup.transformAction") },
+        classes: ["drpg-panel", "drpg-narrow"],
+        content: dialogContent(`<form>
+            <p>${game.i18n.localize("DRPG.Cleanup.transformActionIntro")}</p>
+            <label>${game.i18n.localize("DRPG.Cleanup.transformType")}
+                <select name="type">
+                    ${options}
+                    <option value="">${
+                        game.i18n.localize("DRPG.Cleanup.transformQuieter")}</option>
+                </select></label>
+            <p class="notes">${game.i18n.localize("DRPG.Cleanup.transformActionNote")}</p>
+        </form>`),
+        buttons: [
+            {
+                action: "go", label: game.i18n.localize("DRPG.Cleanup.transformGo"), default: true,
+                callback: (e, b, d) => ({
+                    type: d.element.querySelector("[name=type]").value || null
+                })
+            },
+            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
+        ],
+        rejectClose: false
+    });
+
+    return picked && picked !== "cancel" ? picked : null;
+}
+
 /* ==========================================================================
  * THE VERDICT — GM side
  * ========================================================================== */
@@ -454,6 +576,10 @@ export async function resolveCleanup({
     // rather than erase it. Validated here against `CLEANUP.transform`, never
     // trusted — it arrives over the same socket as everything else.
     transform = null,
+    // Z5: "erase" or "transform", and what the player declared before the dice.
+    // Bounded here like everything else that crossed a socket.
+    mode = "erase",
+    change = null,
     viaAction = false
 } = {}) {
     if (!game.user.isGM) return null;
@@ -527,7 +653,19 @@ export async function resolveCleanup({
         return { removed: false, reinforced: true };
     }
 
-    const dc = cleanupDc(data.visibility, actor);
+    /*
+     * LYING IS EASIER THAN ERASING (Z5) — the transform road takes its relief
+     * off the same threshold, after the tool and after the fresh-scene window.
+     * Clamped at zero by `cleanupDc`; taken here rather than inside it because
+     * a discount that depends on WHICH action was attempted is not a property
+     * of the trace.
+     */
+    const transforming = mode === "transform";
+    const relief = transforming ? (CLEANUP.transformAction?.dcRelief ?? 0) : 0;
+    const dc = (() => {
+        const base = cleanupDc(data.visibility, actor);
+        return base === null ? null : Math.max(0, base - relief);
+    })();
     const success = isCritical || (dc !== null && total >= dc);
     const band = isCritical ? "critical" : (success ? (withHope ? "hope" : "despair") : "failure");
     // `band` stays four-valued for the report — `DRPG.Cleanup.band.*` is written
@@ -553,9 +691,9 @@ export async function resolveCleanup({
         transformed: null
     };
 
-    // Sanity is Stage 6's price, not the act's. See the `viaAction` note at the
-    // top of the file.
-    if (!viaAction) await spendStress(actor);
+    // One point, both roads (Dawid, 29.08). It used to be Stage 6's price alone,
+    // which made the tile the cheaper way to do the same thing.
+    await spendStress(actor);
 
     const done = [];
 
@@ -576,6 +714,76 @@ export async function resolveCleanup({
      * Reinforced traces never get here: they are refused above, before the
      * Sanity is spent, and a critical does not lift that.
      */
+    /*
+     * THE TRANSFORM ROAD'S OWN VERDICT (Z5).
+     *
+     * Placed before the erase branch and returning through the same report, so
+     * the two roads cannot drift apart on anything except what they do to the
+     * trace.
+     *
+     * A success applies what the player declared: a new type, or one band of
+     * quiet. A critical applies BOTH — and where the player asked for the quiet
+     * half there is no second thing to give, so the critical's extra is the
+     * Sanity back. That asymmetry is deliberate and is argued in config.mjs.
+     *
+     * A failure falls through to `raisesVisibility` below, which is the same
+     * punishment the erase road takes, for the same reason: you disturbed it.
+     */
+    if (transforming && success) {
+        const bounds = CLEANUP.transform ?? {};
+        const wantsType = change?.type && bounds.types?.includes(change.type);
+        const quieter = !wantsType || isCritical;
+
+        const ladder = REMNANT_VISIBILITY;                  // obvious → hidden
+        const at = ladder.indexOf(data.visibility);
+        const step = CLEANUP.transformAction?.quieter ?? 1;
+        const softer = quieter && at >= 0 && at < ladder.length - 1
+            ? ladder[Math.min(ladder.length - 1, at + step)]
+            : null;
+
+        const patch = {};
+        if (wantsType) patch.type = change.type;
+        if (softer) patch.visibility = softer;
+
+        if (Object.keys(patch).length) {
+            try {
+                const { retuneRemnant } = await import("./remnants.mjs");
+                receipt.transformed = {
+                    id: token.id,
+                    sceneId: token.parent?.id ?? null,
+                    from: { type: data.type, visibility: data.visibility }
+                };
+                await retuneRemnant(token.parent?.id ?? null, token.id, patch);
+                const { REMNANT_TYPES, REMNANT_VISIBILITY_LABELS } = await import("./config.mjs");
+                done.push(game.i18n.format("DRPG.Cleanup.transformed", {
+                    from: `${data.visibilityLabel} ${data.typeLabel}`,
+                    to: `${REMNANT_VISIBILITY_LABELS[patch.visibility ?? data.visibility]
+                        ?? data.visibilityLabel} ${
+                        REMNANT_TYPES[patch.type ?? data.type]?.label ?? data.typeLabel}`
+                }));
+            } catch (err) {
+                error("Could not rewrite the Remnant a transform reshaped", err);
+            }
+        } else {
+            // Asked for quiet on something already as quiet as it goes, and
+            // rolled well enough to get it. Said out loud rather than reported
+            // as a success with nothing after it.
+            done.push(game.i18n.localize("DRPG.Cleanup.alreadyQuietest"));
+        }
+
+        const back = CLEANUP.transformAction?.refundStress?.[band];
+        if (back) {
+            await restoreStress(actor, back);
+            done.push(game.i18n.format("DRPG.Cleanup.stressBack", { n: back }));
+        }
+
+        await report(actor, data, { band, success, total, dc, done, viaAction });
+        lastAttempt.set(actorId, receipt);
+        log(`Transform: ${actor.name} rolled ${total} against DC ${dc} on a ${
+            data.visibility} ${data.type} — ${band}.`);
+        return { removed: false, transformed: true, band, success };
+    }
+
     const rules = CLEANUP.transform ?? {};
     const rewrite = isCritical && outcome.mayTransform && transform
         && rules.types?.includes(transform.type)
@@ -603,7 +811,7 @@ export async function resolveCleanup({
         } catch (err) {
             error("Could not rewrite the Remnant a critical clean-up transformed", err);
         }
-    } else if (outcome.removes) {
+    } else if (outcome.removes && !transforming) {
         try {
             receipt.erased = recreationDataFor(token);
             // Through `removeRemnant` rather than `token.delete()`: it owns the
@@ -618,6 +826,42 @@ export async function resolveCleanup({
         }
     } else {
         done.push(game.i18n.localize("DRPG.Cleanup.stillThere"));
+    }
+
+    /*
+     * A DESPAIR FAILURE MAKES THE MESS LOUDER (Z5), instead of making a second
+     * one. See `CLEANUP.outcome.failureDespair` for why.
+     *
+     * The trace is still there — `removes` is false on this band — so this is
+     * the same object, one band further up the ladder. At `obvious` there is
+     * nowhere left to go and the attempt simply failed, which is honest: you
+     * cannot make a thing more visible than the loudest the game has.
+     */
+    if (outcome.raisesVisibility && !rewrite) {
+        const ladder = REMNANT_VISIBILITY;                  // obvious → hidden
+        const at = ladder.indexOf(data.visibility);
+        const louder = at > 0 ? ladder[Math.max(0, at - outcome.raisesVisibility)] : null;
+
+        if (louder && louder !== data.visibility) {
+            try {
+                const { retuneRemnant } = await import("./remnants.mjs");
+                receipt.transformed = {
+                    id: token.id,
+                    sceneId: token.parent?.id ?? null,
+                    from: { type: data.type, visibility: data.visibility }
+                };
+                await retuneRemnant(token.parent?.id ?? null, token.id, { visibility: louder });
+                const { REMNANT_VISIBILITY_LABELS } = await import("./config.mjs");
+                done.push(game.i18n.format("DRPG.Cleanup.louder", {
+                    what: `${data.visibilityLabel} ${data.typeLabel}`,
+                    to: REMNANT_VISIBILITY_LABELS[louder] ?? louder
+                }));
+            } catch (err) {
+                error("Could not make the trace a failed clean-up disturbed more visible", err);
+            }
+        } else {
+            done.push(game.i18n.localize("DRPG.Cleanup.alreadyLoudest"));
+        }
     }
 
     if (outcome.leaves) {
@@ -660,8 +904,8 @@ export async function resolveCleanup({
     // outcome in Stage 6 that gives the Sanity back. Applied after `spendStress`
     // rather than instead of it, so the receipt's `stressBefore` still describes
     // the state a Reroll has to restore.
-    // Nothing to hand back on the route that never took it.
-    if (outcome.refundStress && !viaAction) {
+    // Handed back on both roads now, because both roads paid.
+    if (outcome.refundStress) {
         await restoreStress(actor, outcome.refundStress);
         done.push(game.i18n.format("DRPG.Cleanup.stressBack", { n: outcome.refundStress }));
     }
@@ -812,18 +1056,15 @@ function stageSixDef(actor, key, { viaAction = false } = {}) {
         error(`No Stage 6 action named "${key}".`);
         return null;
     }
-    // Both of these are Stage 6's conditions — whose scene this is, and whether
-    // there is Sanity left to spend on it. The Tamper tile asks neither: see the
-    // `viaAction` note at the top of this file.
-    if (!viaAction) {
-        if (!isCleaner(actor)) {
-            refuseCleanup(actor);
-            return null;
-        }
-        if (resourceValue(actor, "stress") >= resourceMax(actor, "stress")) {
-            ui.notifications.warn(game.i18n.localize("DRPG.Murder.noStressLeft"));
-            return null;
-        }
+    // Whose scene this is, is Stage 6's question. Having a point of Sanity to
+    // spend is everybody's — see `attemptCleanup` for why that changed.
+    if (!viaAction && !isCleaner(actor)) {
+        refuseCleanup(actor);
+        return null;
+    }
+    if (resourceValue(actor, "stress") >= resourceMax(actor, "stress")) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.noStressForThis"));
+        return null;
     }
     return def;
 }
@@ -960,13 +1201,14 @@ export async function resolveStageSix({
     const success = isCritical || total >= threshold;
     const band = isCritical ? "critical" : (withHope ? "hope" : "despair");
 
-    if (!viaAction) await spendStress(actor);
+    // One point, both roads — see `attemptCleanup`.
+    await spendStress(actor);
     const done = [];
 
     if (key === "misleadingTrail") await applyMisleadingTrail(actor, def, targetId, success, band, done);
     else if (key === "moveBody") await applyMoveBody(actor, def, success, band, done, targetId);
 
-    const refund = (success && !viaAction) ? def.refundStress?.[band] : null;
+    const refund = success ? def.refundStress?.[band] : null;
     if (refund) {
         await restoreStress(actor, refund);
         done.push(game.i18n.format("DRPG.Cleanup.stressBack", { n: refund }));

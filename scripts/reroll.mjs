@@ -645,7 +645,11 @@ async function settleCleanup(actor, bookmark, after, done) {
      * three Hope bought.
      */
     const key = bookmark.cleanupKey ?? "eraseTrace";
-    if (key !== "eraseTrace") {
+    // Both of the actions that AIM AT A TRACE can be replayed, because both
+    // have an undo: an erased trace is re-created from its recorded shape, and
+    // a reshaped one is retuned back to what it was. The two that roll against
+    // a flat threshold still cannot — see above.
+    if (key !== "eraseTrace" && key !== "transformTrace") {
         done.push(game.i18n.localize("DRPG.Reroll.trailStands"));
         return {};
     }
@@ -657,6 +661,10 @@ async function settleCleanup(actor, bookmark, after, done) {
         total: after.total,
         isCritical: after.isCritical,
         withHope: after.withHope,
+        // The same declaration the first roll carried. A replay that dropped it
+        // would reshape nothing and report a success.
+        key,
+        change: bookmark.cleanupChange ?? null,
         // The Tamper route pays in actions and the Stage 6 route pays in
         // Sanity; a replay that forgot which would refund the wrong currency.
         viaAction: Boolean(bookmark.cleanupVia),

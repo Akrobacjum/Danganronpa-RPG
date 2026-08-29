@@ -2505,6 +2505,18 @@ async function performTamper(actor, def, options) {
                 why: game.i18n.localize(mine.length
                     ? "DRPG.Tamper.onlyReinforced" : "DRPG.Tamper.nothingOfYours")
             },
+            // Z5: the same list of traces as "cover", because it is the same
+            // question — which of your traces are you standing over — and a
+            // different answer to it. Struck through for the same reason too:
+            // there is nothing to relabel if there is nothing here of yours.
+            {
+                value: "reshape", icon: "fa-pen-nib",
+                label: game.i18n.localize("DRPG.Cleanup.transformAction"),
+                hint: game.i18n.localize("DRPG.Cleanup.transformActionHint"),
+                disabled: !erasable.length,
+                why: game.i18n.localize(mine.length
+                    ? "DRPG.Tamper.onlyReinforced" : "DRPG.Tamper.nothingOfYours")
+            },
             {
                 value: "frame", icon: "fa-signs-post",
                 label: game.i18n.localize("DRPG.Tamper.frame"),
@@ -2543,6 +2555,11 @@ async function performTamper(actor, def, options) {
                 <span>${game.i18n.localize("DRPG.Tamper.whichTrace")}</span>
                 <select name="trace">${erasable.map(t =>
                     `<option value="${esc(t.id)}">${esc(t.label)}</option>`).join("")}</select>
+            </label>
+            <label class="drpg-specific-note" data-drpg-when="reshape">
+                <span>${game.i18n.localize("DRPG.Tamper.whichTrace")}</span>
+                <select name="reshapeTrace">${erasable.map(t =>
+                    `<option value="${esc(t.id)}">${esc(t.label)}</option>`).join("")}</select>
             </label>` : ""}${candidates.length ? `<label class="drpg-specific-note" data-drpg-when="frame">
                 <span>${game.i18n.localize("DRPG.Cleanup.trailWho")}</span>
                 <select name="who">${candidates.map(a =>
@@ -2568,6 +2585,19 @@ async function performTamper(actor, def, options) {
         // The action is charged inside — `spendResolutionAction` is one action
         // on both routes, and charging here as well would take two.
         return cleanup.attemptCleanup(actor, traceId, { viaAction });
+    }
+
+    if (picked.value === "reshape") {
+        const traceId = picked.form?.querySelector("[name=reshapeTrace]")?.value
+            ?? erasable[0]?.id;
+        if (!traceId) return null;
+        // Declared before the dice and before anything is charged, so backing
+        // out of the question costs nothing at all.
+        const change = await cleanup.askTransformChange(actor);
+        if (!change) return null;
+        return cleanup.attemptCleanup(actor, traceId, {
+            viaAction, mode: "transform", change
+        });
     }
 
     const whoId = picked.form?.querySelector("[name=who]")?.value ?? candidates[0]?.id;

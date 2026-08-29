@@ -730,7 +730,7 @@ async function onSocket(payload, senderId) {
         // The two added Stage 6 actions score differently — a flat threshold
         // rather than one read off a trace's visibility — so they have their own
         // resolver. Same guard, same sender check; only the maths differs.
-        if (payload.key && payload.key !== "eraseTrace") {
+        if (payload.key && payload.key !== "eraseTrace" && payload.key !== "transformTrace") {
             await cleanup.resolveStageSix({
                 actorId: payload.actorId,
                 key: payload.key,
@@ -754,6 +754,9 @@ async function onSocket(payload, senderId) {
             // before it touches anything, which is the same check a GM-side
             // call gets.
             transform: payload.transform ?? null,
+            // Z5, and the same contract: sent as given, bounded on arrival.
+            mode: payload.key === "transformTrace" ? "transform" : "erase",
+            change: payload.change ?? null,
             undo: Boolean(payload.undo),
             // A claim that WAIVES Stage 6's guards and ADDS one of its own: the
             // trace has to belong to the sender. Forging it costs them the
@@ -1495,19 +1498,30 @@ export function requestCleanup({
     // G-20: what a critical chose to turn the trace into, if anything. Shaped
     // and bounded on the far side — see `resolveCleanup`.
     transform = null,
-    // Stage 6 has three actions. `key` names which; absent means the original
-    // one, so every existing caller keeps working unchanged.
+    // Z5: what the transform action was declared as, before the dice. Same
+    // treatment — sent as given, bounded on arrival.
+    change = null,
+    // Stage 6 has four actions now. `key` names which; absent means the
+    // original one, so every existing caller keeps working unchanged.
     key = "eraseTrace", targetId = null,
     // Which door this came through: the Tamper tile, or Stage 6's own panel.
     // It decides what is charged and which guard runs — see cleanup.mjs.
     viaAction = false
 }) {
-    const other = key && key !== "eraseTrace";
+    // The two that aim at a TRACE go to `resolveCleanup`; the two that roll
+    // against a flat threshold go to `resolveStageSix`. Naming the first pair
+    // rather than excluding the second means a fifth action added later lands
+    // in the branch that reads its own threshold, which is the safe default.
+    const aimed = key === "eraseTrace" || key === "transformTrace";
+    const mode = key === "transformTrace" ? "transform" : "erase";
     if (game.user.isGM) {
-        return import("./cleanup.mjs").then(m => other
-            ? m.resolveStageSix({ actorId, key, targetId, total, isCritical, withHope, viaAction })
-            : m.resolveCleanup({
-                actorId, tokenId, total, isCritical, withHope, undo, transform, viaAction
+        return import("./cleanup.mjs").then(m => aimed
+            ? m.resolveCleanup({
+                actorId, tokenId, total, isCritical, withHope, undo, transform,
+                mode, change, viaAction
+            })
+            : m.resolveStageSix({
+                actorId, key, targetId, total, isCritical, withHope, viaAction
             }));
     }
     if (!hasGm()) return null;
@@ -1516,7 +1530,8 @@ export function requestCleanup({
         action: ACTION_CLEANUP,
         userId: game.user.id,
         requestId: expectAck("Clean-up"),
-        actorId, tokenId, total, isCritical, withHope, undo, key, targetId, transform, viaAction
+        actorId, tokenId, total, isCritical, withHope, undo, key, targetId, transform,
+        change, viaAction
     });
     return { pending: true };
 }
