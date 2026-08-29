@@ -658,8 +658,13 @@ export const TRUTH_BULLET_TYPES = {
     },
     faint: {
         label: "Faint Truth Bullet",
-        hint: "Doubtful connection to the case. Survives the sweep at the start of the next "
-            + "session, and can be analysed again."
+        // Z7: nothing is deleted because a chapter ended, so this no longer
+        // says "survives the sweep at the start of the next session" — there is
+        // no such moment. What Faint still means is the same two things it
+        // always meant: the connection is doubtful, and it is exempt when a GM
+        // does clear the table's evidence by hand.
+        hint: "Doubtful connection to the case. Kept when the GM clears the table's evidence, "
+            + "and can be analysed again."
     },
     prep: {
         label: "Prep Truth Bullet",
@@ -1324,9 +1329,10 @@ export const BROKEN_ITEMS = {
     /** A Prep Remnant: this is somebody tidying up around a crime, not the crime. */
     remnantType: "prep",
     /**
-     * NOT faint. A faint trace is swept at chapter end unless it is tied to the
-     * murder, and the whole point of this object is that it is tied to the
-     * murder — the trace of it being got rid of has to survive to the trial.
+     * NOT faint. Faint is what a GM's manual clear takes (Z7 stopped it
+     * happening on a schedule), and the whole point of this object is that it
+     * is tied to the murder — the trace of it being got rid of has to survive
+     * to the trial, whoever is tidying up.
      */
     faint: false,
     thresholds: [
@@ -2733,8 +2739,8 @@ export const CLEANUP = {
      *
      * A Despair success is the guide's whole shape for this stage: you got rid
      * of it, and cleaning is itself something a person does in a room. The trace
-     * that replaces it is Faint, so the chapter-end sweep can take it — unlike
-     * the failure's, which is not faint and is not going anywhere.
+     * that replaces it is Faint, so a GM clearing Faint traces can take it —
+     * unlike the failure's, which is not faint and is not going anywhere.
      *
      * Three readings corrected against the guide's own table:
      *   despair       leaves a "Wyraźny" (evident) trace, not a subtle one.

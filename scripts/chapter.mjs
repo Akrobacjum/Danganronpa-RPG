@@ -641,11 +641,23 @@ export async function revealAllBulletTypes() {
 }
 
 /**
- * The next session begins: clear the evidence out, Faint excepted.
+ * Clear the evidence out, Faint and Final excepted.
  *
  * Guide, p. 29. Faint bullets are what survive, and Stage 3's lock is written
  * per chapter, so a Faint bullet carried across becomes analysable again all by
  * itself — nothing here has to unlock anything.
+ *
+ * NOTHING CALLS THIS ON A SCHEDULE ANY MORE (Z7). It used to be a tick in the
+ * end-of-chapter window, and the season run measured what that tick was worth:
+ * thirty to sixty bullets a chapter deleted, while the FOG the investigation was
+ * actually drowning in — the four hundred Prep traces left by ordinary searches
+ * — survived every time, because a death ties every trace of its chapter to the
+ * crime and tied traces are exempt. The sweep took the evidence and left the
+ * noise. Precisely backwards.
+ *
+ * So it stops happening because a date passed, and stays available because a GM
+ * asks: the button is in the Investigation Dashboard, next to the one that
+ * clears Faint Remnants, and both say how many before they do anything.
  */
 export async function sweepTruthBullets() {
     if (!game.user.isGM) return { removed: 0, kept: 0 };
@@ -701,11 +713,6 @@ export async function openChapterEndDialog() {
     }
 
     const bullets = allBullets();
-    // Matches `sweepTruthBullets`'s own logic exactly, so the preview never
-    // promises a number the sweep does not deliver.
-    const kept = bullets.filter(({ item }) =>
-        item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.faint)
-        || secretOf(item.uuid).realType === "final").length;
     // The SAME test the reveal itself applies, or the preview promises work the
     // action will not do.
     //
@@ -724,14 +731,6 @@ export async function openChapterEndDialog() {
     const { finalTruthPlacedThisChapter } = await import("./mastermind.mjs");
     const finalTruthPlaced = finalTruthPlacedThisChapter();
 
-    let faintRemnants = 0;
-    for (const scene of game.scenes) {
-        faintRemnants += remnantsOn(scene).filter(t => {
-            const d = remnantData(t);
-            return d?.faint && !d.reinforced && !d.tiedToCrime;
-        }).length;
-    }
-
     const result = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Chapter.endTitle") },
         classes: ["drpg-panel"],
@@ -740,14 +739,6 @@ export async function openChapterEndDialog() {
             <label class="drpg-checkbox">
                 <input type="checkbox" name="reveal" checked />
                 ${game.i18n.format("DRPG.Chapter.optReveal", { n: hidden })}</label>
-            <label class="drpg-checkbox">
-                <input type="checkbox" name="remnants" />
-                ${game.i18n.format("DRPG.Chapter.optRemnants", { n: faintRemnants })}</label>
-            <label class="drpg-checkbox">
-                <input type="checkbox" name="sweep" />
-                ${game.i18n.format("DRPG.Chapter.optSweep", {
-                    n: bullets.length - kept, kept
-                })}</label>
             ${typeless ? `<p class="notes drpg-warning">${
                 plural("DRPG.Chapter.typeless", { n: typeless })}</p>` : ""}
             <hr />
@@ -772,8 +763,6 @@ export async function openChapterEndDialog() {
                     const f = d.element.querySelector("form");
                     return {
                         reveal: f.reveal.checked,
-                        remnants: f.remnants.checked,
-                        sweep: f.sweep.checked,
                         nextChapter: f.nextChapter.checked,
                         nextSession: f.nextSession.checked
                     };
@@ -789,14 +778,6 @@ export async function openChapterEndDialog() {
     const done = [];
     if (result.reveal) {
         done.push(plural("DRPG.Chapter.doneReveal", { n: await revealAllBulletTypes() }));
-    }
-    if (result.remnants) {
-        const { clearFaintRemnants } = await import("./remnants.mjs");
-        done.push(plural("DRPG.Chapter.doneRemnants", { n: await clearFaintRemnants() }));
-    }
-    if (result.sweep) {
-        const swept = await sweepTruthBullets();
-        done.push(plural("DRPG.Chapter.doneSweep", swept));
     }
 
     // The register of who killed belongs to the chapter that is ending. Cleared

@@ -107,7 +107,13 @@ export async function setClock(patch = {}) {
     // automatic sweep: the deletion is permanent, and a session counter nudged
     // by accident must not take a chapter's worth of Truth Bullets with it.
     if (next.session > before.session) {
-        ui.notifications.info(game.i18n.localize("DRPG.Chapter.sweepReminder"));
+        /*
+         * NO SWEEP TO REMEMBER (Z7). This told the GM at the start of every
+         * session to go and delete the table's Truth Bullets. The sweep is not
+         * part of the calendar any more, so the reminder was a note about a job
+         * nobody has — the exact shape of "the sentence says, the code does
+         * not", pointed the other way.
+         */
     }
 
     return next;

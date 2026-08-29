@@ -32,7 +32,7 @@ import {
 } from "./remnants.mjs";
 import { bulletsOf, secretOf, truthBulletData } from "./truth-bullets.mjs";
 import { studentActors } from "./monokuma.mjs";
-import { isDeceased } from "./chapter.mjs";
+import { isDeceased, sweepTruthBullets } from "./chapter.mjs";
 import {
     dialogContent, plural, tableDialog, wirePortraitPickers, whisperToGms, log
 } from "./utils.mjs";
@@ -568,6 +568,55 @@ function withoutDerivedTags(data) {
     return (data.public?.tags ?? []).filter(t => !derived.has(t));
 }
 
+/**
+ * The Truth Bullet sweep, asked for by a person (Z7).
+ *
+ * The twin of `confirmClearFaint` in remnants.mjs, and deliberately the same
+ * shape: count first, say the number, take the answer, report what happened.
+ * Two permanent clean-ups sitting next to each other in one row must not behave
+ * differently — a GM who has pressed one has learnt how the other works.
+ *
+ * The count applies `sweepTruthBullets`'s own rule rather than an approximation
+ * of it, so the confirm cannot promise a number the sweep will not deliver. The
+ * window this replaces had exactly that bug once, in its other checkbox, and it
+ * took a measured run to notice.
+ */
+export async function confirmSweepBullets() {
+    if (!game.user.isGM) return 0;
+
+    let doomed = 0;
+    let kept = 0;
+    for (const actor of game.actors) {
+        if (actor.type !== "character") continue;
+        for (const item of bulletsOf(actor)) {
+            const survives = truthBulletData(item)?.faint
+                || secretOf(item.uuid).realType === "final";
+            if (survives) kept += 1;
+            else doomed += 1;
+        }
+    }
+
+    if (!doomed) {
+        ui.notifications.info(game.i18n.localize("DRPG.Panel.sweepNone"));
+        return 0;
+    }
+
+    const sure = await DialogV2.confirm({
+        window: { title: game.i18n.localize("DRPG.Panel.sweepBullets") },
+        classes: ["drpg-panel"],
+        content: dialogContent(`<div>
+            <p>${plural("DRPG.Panel.sweepConfirm", { n: doomed })}</p>
+            <p class="notes">${game.i18n.format("DRPG.Panel.sweepConfirmNote", { kept })}</p>
+        </div>`),
+        rejectClose: false
+    });
+    if (!sure) return 0;
+
+    const { removed } = await sweepTruthBullets();
+    ui.notifications.info(plural("DRPG.Panel.sweptBullets", { n: removed }));
+    return removed;
+}
+
 export async function openInvestigationDashboard() {
     // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
@@ -971,6 +1020,11 @@ export async function openInvestigationDashboard() {
                 }
             },
             { action: "clearFaint", label: game.i18n.localize("DRPG.Panel.clearFaint") },
+            // The Truth Bullet sweep lands here for the same reason as the rest
+            // of this row (Z7): it stopped being a step in the end-of-chapter
+            // window, and a clean-up with no button is a clean-up only somebody
+            // who reads `api.mjs` can run.
+            { action: "sweepBullets", label: game.i18n.localize("DRPG.Panel.sweepBullets") },
             // All three used to be tiles in the GM panel, or windows of their
             // own. They belong here: a GM issues the autopsy, reads the
             // evidence log or reports a body while looking at the case, not
@@ -1051,6 +1105,10 @@ export async function openInvestigationDashboard() {
 
     if (action === "clearFaint") {
         await confirmClearFaint();
+        return openInvestigationDashboard();
+    }
+    if (action === "sweepBullets") {
+        await confirmSweepBullets();
         return openInvestigationDashboard();
     }
     // Each comes back here afterwards, so the dashboard is where the GM lands

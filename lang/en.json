@@ -1343,29 +1343,18 @@
       },
       "promoteTitle": "Which traces belong to this murder?",
       "promoteIntro": "These Prep traces were left while somebody gathered tools. Most mean nothing. Tick the ones that belong to this killing.",
-      "promoteNote": "Ticked traces stop being doubtful: they survive the chapter-end sweep and count as evidence tied to the crime. Leave the rest and they go with everything else.",
+      "promoteNote": "Ticked traces stop being doubtful: they count as evidence tied to the crime, and a Faint clear will not take them. Leave the rest and they stay Faint.",
       "promoteConfirm": "These belong to it",
       "promoteSkip": "None of them",
       "endTitle": "End of chapter / new session",
       "endIntro": "Chapter {chapter} is wrapping up. Tick what should happen.",
       "optReveal": "Reveal what every Truth Bullet really is ({n} still unidentified)",
-      "optRemnants": "Clear Faint Remnants from the map ({n} would go)",
-      "optSweep": "Sweep Truth Bullets for the new session ({n} removed, {kept} Faint kept)",
-      "endNote": "Reveal at the end of the chapter; sweep at the start of the next session. Usually two different evenings, which is why they are two ticks. The sweep and the Remnant clear are both permanent.",
+      "endNote": "Revealing the types is permanent. Nothing else here deletes anything — clearing Faint Remnants and sweeping Truth Bullets are the GM's own tools now, both in the Investigation Dashboard, and neither happens because a chapter ended.",
       "endConfirm": "Do it",
       "doneReveal": {
         "one": "Revealed {n} Truth Bullet type.",
         "other": "Revealed {n} Truth Bullet types."
       },
-      "doneRemnants": {
-        "one": "Cleared {n} Faint Remnant.",
-        "other": "Cleared {n} Faint Remnants."
-      },
-      "doneSweep": {
-        "one": "Truth Bullets swept away: {removed}. Faint ones carried over: {kept}.",
-        "other": "Truth Bullets swept away: {removed}. Faint ones carried over: {kept}."
-      },
-      "sweepReminder": "New session — remember the Truth Bullet sweep. Nothing has been deleted yet.",
       "optNextChapter": "Move to chapter {to} (from {from})",
       "optNextSession": "Count this as session {to} (from {from})",
       "moved": "The clock now reads chapter {chapter}, session {session}.",
@@ -1483,7 +1472,7 @@
       "shownReal": "The real type — no analysis needed",
       "visibility": "How hard the original was to spot",
       "visibilityTooltip": "How visible the original Remnant was. This sets the difficulty of analysing it.",
-      "faintField": "Faint — survives the sweep at the start of the next session",
+      "faintField": "Faint — doubtful, and the first thing a GM's clear takes",
       "tiedField": "Tied to the murder — floats to the top of the pack once identified",
       "faint": "Faint",
       "faintTooltip": "Doubtful connection to the case. Survives into the next session and can be analysed again.",
@@ -2004,6 +1993,17 @@
       "installTables": "Create item tables",
       "gmTeam": "GM Team",
       "clearFaint": "Clear Faint Remnants",
+      "sweepBullets": "Sweep Truth Bullets",
+      "sweepNone": "Nothing to sweep — every Truth Bullet in play is Faint or Final.",
+      "sweepConfirm": {
+        "one": "Delete {n} Truth Bullet from the students' inventories?",
+        "other": "Delete {n} Truth Bullets from the students' inventories?"
+      },
+      "sweepConfirmNote": "Permanent. {kept} stay: the Faint ones, doubtful by definition, and the Final Truth, which points at the Mastermind across the whole season.",
+      "sweptBullets": {
+        "one": "{n} Truth Bullet swept.",
+        "other": "{n} Truth Bullets swept."
+      },
       "faintCleared": {
         "one": "{n} Faint Remnant cleared.",
         "other": "{n} Faint Remnants cleared."
