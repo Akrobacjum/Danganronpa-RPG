@@ -61,9 +61,86 @@ export function murderState() {
 
 async function writeState(patch) {
     if (!game.user.isGM) return null;
-    const next = { ...(game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {}), ...patch };
+    const before = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
+    const next = { ...before, ...patch };
     await game.settings.set(MODULE_ID, SETTINGS.murderState, next);
+
+    /*
+     * THE BETRAYAL'S WINDOW OPENS HERE, AND ONLY HERE (D18).
+     *
+     * Six different branches move an incident to its resolution stage — a
+     * finishing blow, running out, a self-inflicted death, an escape, and two
+     * more — and every one of them is a moment the accomplice may now turn on
+     * the killer. Arming from each would be six copies of one rule, which is
+     * the shape this file has already been bitten by twice.
+     *
+     * `writeState` is the single writer, so it is the single place that can see
+     * the transition. Guarded on the CHANGE rather than the state, so the many
+     * later writes that happen during a resolution do not re-arm a window the
+     * betrayal has already spent.
+     */
+    if (before.stage !== "resolution" && next.stage === "resolution") {
+        try {
+            await armBetrayalWindow(next);
+        } catch (err) {
+            error("Could not open the betrayal window", err);
+        }
+    }
     return next;
+}
+
+/**
+ * Give the accomplice the rest of the day to turn on the killer.
+ *
+ * The candidate test is unchanged — `betrayalCandidate` still decides WHO, and
+ * it is asked once, here, at the moment the incident settles. What changed is
+ * how long the answer lasts. It used to be read live off the incident, so the
+ * offer died with the incident: the accomplice had it while the killer scrubbed
+ * the floor and lost it the instant the GM closed Stage 6, which is roughly the
+ * moment a player would actually think of it.
+ *
+ * Stamped with the clock rather than a timestamp. "Until the end of the day" is
+ * a fact about this game's calendar, not about wall time, and a table that
+ * spends two hours on one evening should get two hours of it.
+ */
+async function armBetrayalWindow(state) {
+    if (!game.user.isGM) return null;
+    const killer = game.actors.get(state?.killerId ?? "");
+    const third = betrayalCandidate(state, killer);
+    if (!killer || !third) return null;
+
+    const clock = getClock();
+    await third.setFlag(MODULE_ID, FLAGS.betrayalWindow, {
+        killerId: killer.id,
+        chapter: clock?.chapter ?? 1,
+        day: clock?.day ?? 1
+    });
+    log(`Betrayal window open for ${third.name} against ${killer.name} `
+        + `(chapter ${clock?.chapter}, day ${clock?.day}).`);
+    return third;
+}
+
+/**
+ * Shut every betrayal window the calendar has moved past. GM-side.
+ *
+ * The read below already refuses a stale window, so this is tidying rather than
+ * enforcement — but a flag nobody clears is a flag that comes back. A GM who
+ * rewinds a day to fix a mistake would otherwise hand somebody a betrayal from
+ * a murder two chapters ago, and the sheet would light the tile for it.
+ */
+async function sweepBetrayalWindows() {
+    if (!game.user.isGM) return;
+    const clock = getClock();
+    for (const actor of game.actors) {
+        const open = actor.getFlag(MODULE_ID, FLAGS.betrayalWindow);
+        if (!open) continue;
+        if (open.chapter === clock?.chapter && open.day === clock?.day) continue;
+        try {
+            await actor.unsetFlag(MODULE_ID, FLAGS.betrayalWindow);
+        } catch {
+            // A window that outlives its day is refused on read anyway.
+        }
+    }
 }
 
 /** Which side is this actor on, if any: "killer" | "victim" | "third" | null. */
@@ -2163,6 +2240,13 @@ export async function passTurn() {
  * ========================================================================== */
 
 export function registerMurder() {
+    // The betrayal's day-long window (D18). Swept rather than counted down —
+    // see `sweepBetrayalWindows`.
+    Hooks.on("drpgTimeOfDayChanged", () => {
+        sweepBetrayalWindows().catch(err =>
+            error("Could not shut the betrayal windows the day moved past", err));
+    });
+
     Hooks.on("updateToken", (tokenDoc, changes) => {
         if (changes.x === undefined && changes.y === undefined) return;
         // One client decides, or several GMs would each write the same
@@ -2606,19 +2690,58 @@ async function afterIncident(state) {
  * @returns {Actor|null} the partner they could turn on
  */
 export function betrayalTarget(actor) {
-    const state = murderState();
-    if (!state || state.stage !== "resolution" || !actor) return null;
-    if (state.thirdId !== actor.id) return null;
-    if (!state.thirdSide) return null;              // they never picked a side
-    const killer = game.actors.get(state.killerId ?? "");
+    if (!actor) return null;
+
+    /*
+     * READ OFF THE WINDOW, NOT THE INCIDENT (D18, Dawid 29.08).
+     *
+     * This used to require `murderState().stage === "resolution"`, which tied
+     * the offer to an incident that is wiped the moment a GM closes it. The
+     * accomplice had the whole of Stage 6 to think of it and nothing after —
+     * and Stage 6 is the stretch where they are watching somebody else clean.
+     *
+     * `armBetrayalWindow` asked every question this used to ask, once, when the
+     * incident settled. What is left here is the two facts that can still
+     * change afterwards: whether the day has moved on, and whether the person
+     * they would be turning on is still alive to turn on.
+     *
+     * It returns the person they would be turning ON, not the candidate. The
+     * GM's question ("who could turn on the killer") is answered by
+     * `betrayalCandidate` and returns the newcomer; returning that here once
+     * made the tile offer the accomplice a chance to murder themselves.
+     */
+    const open = actor.getFlag(MODULE_ID, FLAGS.betrayalWindow);
+    if (!open?.killerId) return null;
+
+    const clock = getClock();
+    if (open.chapter !== clock?.chapter || open.day !== clock?.day) return null;
+
+    const killer = game.actors.get(open.killerId);
     if (!killer || killer.id === actor.id) return null;
     if (killer.getFlag(MODULE_ID, FLAGS.deceased)) return null;
-    // `betrayalCandidate` answers the GM's question — "who could turn on the
-    // killer" — and returns the newcomer. This function answers the player's,
-    // which is the other end of the same sentence, so it returns the person
-    // they would be turning ON. Returning the candidate here made the tile
-    // offer the accomplice a chance to murder themselves.
-    return betrayalCandidate(state, killer) ? killer : null;
+    if (actor.getFlag(MODULE_ID, FLAGS.deceased)) return null;
+
+    /*
+     * NOT IN THE MIDDLE OF SOMEBODY ELSE'S FIGHT.
+     *
+     * Found by the suite the moment the window started outliving its incident:
+     * a betrayal armed by the evening's first murder was still on offer while
+     * the second one was being fought, so the tile lit for a move `openBetrayal`
+     * would then refuse — "an incident is still being fought".
+     *
+     * A tile that lights for something that cannot be done is worse than one
+     * that stays dark, so the two answers are made to agree here rather than at
+     * the far end. The offer is not lost, only postponed: the window is a day
+     * long and the fight is not.
+     *
+     * Deliberately NOT a return to reading the incident for the offer itself —
+     * that is the flag's job and the whole of D18. This asks a different
+     * question: is now a moment when anything can be opened at all.
+     */
+    const running = murderState();
+    if (running?.active && running.stage !== "resolution") return null;
+
+    return killer;
 }
 
 /**
@@ -2636,6 +2759,24 @@ export async function betrayAsPlayer(actorId) {
         warn(`Refused a betrayal: ${actorId} is not in a position to turn on anyone.`);
         return null;
     }
+
+    /*
+     * SPENT BEFORE IT IS USED, and that ordering is the whole anti-spam guard
+     * now (D18).
+     *
+     * The old one asked whether the incident was still in its resolution stage,
+     * which worked because opening the betrayal's own incident moved it — so
+     * the second of two clicks in flight found a changed world. The window
+     * outlives the incident, so that no longer holds, and this replaces it with
+     * something stronger: the offer is single-use, and unsetting it is the
+     * first thing that happens. Two clicks race to a flag only one of them can
+     * find.
+     *
+     * Unset even if the opening below fails. An offer that survives its own
+     * failed attempt is an offer that can be attempted again, which is the
+     * spam this is here to stop.
+     */
+    await actor.unsetFlag(MODULE_ID, FLAGS.betrayalWindow);
     return openBetrayal(actor, target);
 }
 
@@ -2686,8 +2827,19 @@ async function openBetrayal(third, killer) {
     // both arrive here before either has written anything. `murderState()` is
     // the only thing both of them see, and the incident this opens is exactly
     // what makes the second call refuse.
-    if (murderState()?.stage !== "resolution") {
-        warn(`Refused a betrayal: the incident is no longer in its resolution stage.`);
+    /*
+     * NOT ON TOP OF A RUNNING FIGHT.
+     *
+     * The stage test that used to stand here was really two rules wearing one
+     * hat: "do not open twice" (now the window's own single use, spent by the
+     * caller) and "do not open a second incident while one is being fought".
+     * Only the second belongs here, and it is the one that survives the window
+     * outliving the incident — a betrayal on a quiet evening has no incident to
+     * be in the resolution stage OF.
+     */
+    const running = murderState();
+    if (running?.active && running.stage !== "resolution") {
+        warn(`Refused a betrayal: an incident is still being fought.`);
         return null;
     }
 

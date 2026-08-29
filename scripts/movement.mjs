@@ -285,12 +285,25 @@ function crossingRefused(from, to) {
  * await an import. The shape is `murderState()`'s own — `active`, and the three
  * participant ids.
  *
- * The third party is deliberately NOT included. The guide gives them "Odwrócony
- * wzrok" as one of their options — "strona trzecia opuszcza pomieszczenie i nie
- * interweniuje" — and says what stops them is the price of the move, not a
- * wall: "koszt ruchu z dużym prawdopodobieństwem mu to uniemożliwi". Locking
- * them in removed a choice the rules explicitly offer. The two people actually
- * fighting are the ones with no way out except a crisis action.
+ * THE THIRD PARTY IS INCLUDED NOW (D19, Dawid 29.08): "uczestnicy morderstwa
+ * nie moga opuscic pokoju do konca incydentu chyba, ze uzyja akcji ktora na to
+ * pozwala". They were exempt, on the reading that the guide's "Odwrócony wzrok"
+ * — "strona trzecia opuszcza pomieszczenie i nie interweniuje" — is stopped by
+ * the price of the move rather than by a wall: "koszt ruchu z dużym
+ * prawdopodobieństwem mu to uniemożliwi".
+ *
+ * What that missed is that Averted eyes IS the action Dawid's rule points at,
+ * and leaving the door open meant nobody ever had to take it. A third party
+ * could walk in on a murder, see everything, and drag their token back out for
+ * the price of an ordinary move — keeping the free look and skipping the action
+ * whose entire content is "you leave and you take no part in this".
+ *
+ * So the lock is now the same for all three, and the way out is the same for
+ * all three: a crisis action. `avertedEyes` carries `leavesIncident`, which
+ * nulls `thirdId` — and the moment it does, this function stops holding them.
+ *
+ * A GM's own move is above this check entirely (`preUpdateToken` returns early
+ * for a GM), so a crisis action that relocates somebody GM-side is unaffected.
  *
  * Only while the incident itself is running. Stage 4 is still the killer
  * deciding, and Stage 6 is the clean-up — the guide has the killer moving around
@@ -303,7 +316,7 @@ function lockedInIncident(actor) {
         const state = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
         if (!state.active || state.stage !== "incident") return false;
 
-        const involved = [state.killerId, state.victimId]
+        const involved = [state.killerId, state.victimId, state.thirdId]
             .filter(Boolean)
             .includes(actor.id);
         if (!involved) return false;

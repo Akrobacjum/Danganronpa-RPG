@@ -36,7 +36,8 @@
 import { OVERFLOW } from "./config.mjs";
 import { MODULE_ID, moduleVersion, CRISIS_ACTIONS, ACTIONS, TRAITS,
     ITEM_CATEGORIES, LIMIT_GROUPS, EQUIPPABLE, SFX_EVENTS, SFX_CATEGORIES,
-    HOPE_CALLS, DESPAIR_CALLS, OBSERVE_DC, ANALYZE_DC, CLEANUP, CRITICAL, KEY_REMNANTS
+    HOPE_CALLS, DESPAIR_CALLS, OBSERVE_DC, ANALYZE_DC, CLEANUP, CRITICAL, KEY_REMNANTS,
+    FLAGS
 } from "./config.mjs";
 import { rolesOf } from "./inventory.mjs";
 import { vaultContents, stashRoomOfItem, stashIn, allVaults } from "./vault.mjs";
@@ -2053,6 +2054,85 @@ const INVARIANTS = [
             "a Stage 6 road still builds its own room list, so the two can disagree");
     }],
 
+    ["the betrayal outlives the incident it came out of", async () => {
+        /*
+         * D18, Dawid 29.08: "niech bedzie dostepna do konca dnia po
+         * morderstwie". The offer used to be read live off the incident, which
+         * is wiped the moment a GM closes it — so the accomplice had it while
+         * somebody else scrubbed the floor and lost it at exactly the point
+         * they would have thought of it.
+         */
+        const src = stripComments(
+            await fetch(`/modules/${MODULE_ID}/scripts/murder.mjs`).then(r => r.text()));
+
+        const at = src.indexOf("export function betrayalTarget");
+        ok(at > 0, "betrayalTarget is gone");
+        const body = src.slice(at, at + 2600);
+        ok(/FLAGS\.betrayalWindow/.test(body),
+            "betrayalTarget does not read the window, so nothing outlives the incident");
+        /*
+         * ORDER, NOT ABSENCE. The first version of this asserted that
+         * `betrayalTarget` never mentions the incident at all, and then the
+         * incident came back for a good reason: a betrayal cannot be opened in
+         * the middle of somebody else's fight, so the tile must not light for
+         * it. The blunt test could not tell that refusal apart from the
+         * regression it was written to catch.
+         *
+         * What actually matters is which one SOURCES the offer. The window is
+         * read first; the incident is consulted afterwards, and only to refuse.
+         */
+        const flagAt = body.indexOf("FLAGS.betrayalWindow");
+        const stateAt = body.indexOf("murderState()");
+        ok(flagAt > 0, "the offer no longer comes from the window");
+        ok(stateAt > flagAt,
+            "the incident is asked before the window, so the offer is sourced from it again");
+        ok(!/thirdId/.test(body),
+            "the offer still needs the incident to be naming a third party");
+        ok(/getClock\(\)/.test(body),
+            "nothing checks the day, so the window never shuts");
+        ok(/running\?\.active/.test(body),
+            "the tile lights in the middle of a fight, for a betrayal that would be refused");
+
+        // Armed from the one state writer, so the six roads into a resolution
+        // cannot each grow their own copy of the rule.
+        const ws = src.indexOf("async function writeState");
+        ok(ws > 0, "writeState is gone");
+        const writer = src.slice(ws, ws + 1200);
+        ok(/armBetrayalWindow/.test(writer),
+            "the window is armed somewhere other than the single state writer");
+        ok(/before\.stage !== "resolution"/.test(writer),
+            "the window is armed off the state rather than the transition, so it re-arms");
+
+        // Single use, spent before the attempt rather than after it.
+        const bp = src.indexOf("export async function betrayAsPlayer");
+        ok(bp > 0, "betrayAsPlayer is gone");
+        ok(/unsetFlag\(MODULE_ID, FLAGS\.betrayalWindow\)/.test(src.slice(bp, bp + 1400)),
+            "the offer is not spent when it is taken, so it can be taken twice");
+    }],
+
+    ["nobody walks out of an incident they are standing in", async () => {
+        /*
+         * D19, Dawid 29.08. The killer and the victim were held; the third
+         * party was not, on the reading that the guide stops them with the
+         * price of the move. That left the free look: walk in, see everything,
+         * drag the token back out, and never spend Averted eyes — the action
+         * whose whole content is leaving and taking no part in it.
+         */
+        const src = stripComments(
+            await fetch(`/modules/${MODULE_ID}/scripts/movement.mjs`).then(r => r.text()));
+
+        const at = src.indexOf("function lockedInIncident");
+        ok(at > 0, "lockedInIncident is gone, so an incident is draggable out of");
+        const body = src.slice(at, at + 600);
+        for (const who of ["killerId", "victimId", "thirdId"]) {
+            ok(new RegExp(`state\\.${who}`).test(body),
+                `${who} can walk out of an incident`);
+        }
+        // And the lock is still only the fight, so Stage 6 can move around.
+        ok(/stage !== "incident"/.test(body),
+            "the lock reaches beyond the fight, which would freeze the clean-up");
+    }],
+
     ["an accomplice is not a witness to the crime they committed", async () => {
         /*
          * D13, Dawid 29.08. The Shadow roll asks "can they see what you are
@@ -2627,12 +2707,36 @@ const INVARIANTS = [
         // readable from a player's console — measured before the fix: forty
         // traces with who left each one, whether it belonged to the murder, and
         // the GM's own sentence about it.
+        /*
+         * TWO FIELDS ARE ALLOWED, AND THE SECOND IS AN ARGUED EXCEPTION (D11).
+         *
+         * `fromIncident` is a boolean saying "this marker was made during an
+         * incident", and it is on the token because `applyToRemnantToken` runs
+         * on a PLAYER's client and has to decide whether that viewer is one of
+         * the people who watched the trace being made. The ledger cannot answer
+         * that — `remnantData` is null off a GM — and the participant list the
+         * check needs is the live murder state, which a player's client already
+         * holds.
+         *
+         * What it costs: a player reading their own console can tell a crime
+         * scene's traces from preparation traces. What it does NOT carry is the
+         * band, the type beyond that boolean, who left it, or a word of what it
+         * says — all of which is what this test was written to keep off a token.
+         *
+         * A socket addressed to the participants would carry the same fact
+         * without putting it in the world, and is the better shape if this ever
+         * needs to say more than one bit. It says one bit.
+         *
+         * Everything ELSE still fails, which is the point of listing the
+         * exception rather than loosening the sweep.
+         */
+        const allowed = new Set(["isRemnant", "fromIncident"]);
         const leaks = [];
         for (const scene of game.scenes) {
             for (const token of scene.tokens) {
                 if (!token.getFlag(MODULE_ID, "isRemnant")) continue;
                 const keys = Object.keys(token.flags?.[MODULE_ID] ?? {})
-                    .filter(k => k !== "isRemnant");
+                    .filter(k => !allowed.has(k));
                 if (keys.length) leaks.push(`${token.name}: ${keys.join(", ")}`);
             }
         }
@@ -3033,8 +3137,29 @@ async function restore(snap) {
 
 /** Three students to play with, or the scenarios cannot run. */
 function cast() {
-    const roster = studentActors();
-    if (roster.length < 3) throw new Failure(`need three students, found ${roster.length}`);
+    /*
+     * LIVING students, and the filter is not tidiness.
+     *
+     * `studentActors()` returns everybody who is not a Monokuma, the dead
+     * included — the dead have to stay in that list, because the rules that
+     * count bodies, rooms and Blackened all read it. So on any world where
+     * somebody has already been killed, `cast()` was handing these scenarios a
+     * CORPSE and calling it a killer, a victim or a conspirator.
+     *
+     * It passed for a long time because almost nothing in the incident asks
+     * whether a participant is alive; `openMurder` is given ids and opens. The
+     * betrayal window (D18) does ask — a dead accomplice cannot turn on
+     * anybody — and the failure came out looking like a bug in the feature
+     * rather than a fixture standing a body up at the table.
+     *
+     * Measured on the QA world: the roster is Player A, Player B, Player
+     * Template (Copy) [dead], QA Witness, so the third seat in every murder
+     * scenario was the dead one.
+     */
+    const roster = studentActors().filter(a => !a.getFlag(MODULE_ID, FLAGS.deceased));
+    if (roster.length < 3) {
+        throw new Failure(`need three living students, found ${roster.length}`);
+    }
     return roster.slice(0, 3);
 }
 
@@ -3459,6 +3584,22 @@ const SCENARIOS = [
         const cast = game.actors.filter(a => a.type === "character").slice(0, 2);
         ok(cast.length >= 2, "need two characters to tell 'left by' apart");
 
+        /*
+         * A CHAPTER OF ITS OWN, ABOVE ANYTHING THE WORLD HOLDS.
+         *
+         * The fixture used to stamp `chapter: 1` and days 1–3 and then assert
+         * that "newest first" put its own D3 on top — which is only true on a
+         * world with no traces later than day 3. The suite's own murder
+         * scenarios leave incident traces stamped from the live clock, so on a
+         * world sitting on day 11 the sort was correct and the assertion was
+         * wrong. Measured: "QA Witness · Main Hall · Ch 1 · D 11" at the top,
+         * which is genuinely the newest thing there.
+         *
+         * `when()` in investigation.mjs orders by chapter first, so one chapter
+         * above the clock puts all three fixtures ahead of every trace the world
+         * already had, and the D3 assertion below means what it says again.
+         */
+        const future = (getClock()?.chapter ?? 1) + 1;
         const spread = [
             { room: rooms[0], who: cast[0], day: 1, timeOfDay: "morning" },
             { room: rooms[1], who: cast[1], day: 3, timeOfDay: "night" },
@@ -3473,7 +3614,7 @@ const SCENARIOS = [
                 const token = await remnants.placeRemnant({
                     type: "prep", visibility: "evident", scene, x: anchor.x, y: anchor.y,
                     sourceActor: one.who.id, sourceName: one.who.name, room: one.room,
-                    chapter: 1, day: one.day, timeOfDay: one.timeOfDay,
+                    chapter: future, day: one.day, timeOfDay: one.timeOfDay,
                     note: "test fixture — dashboard filters"
                 });
                 ok(token, "could not place a fixture trace");
