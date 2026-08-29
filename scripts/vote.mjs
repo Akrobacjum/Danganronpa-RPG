@@ -429,15 +429,44 @@ export async function closeVote() {
     const cut = rows[wanted - 1]?.n ?? 0;
     const accused = rows.filter(r => r.n >= cut && r.n > 0);
     const top = rows[0];
-    // A tie at the line: more names clear the bar than there are Blackened to
-    // name. One Blackened and two people level on votes is the old tie exactly.
-    const tied = accused.length > wanted;
+
+    /*
+     * A CONVICTION NEEDS MORE THAN HALF THE ROOM (D6).
+     *
+     * The class used to convict on a plurality: whoever led the count was the
+     * answer, however thin the lead. Measured over a season that made the trial
+     * almost unloseable — nine wrong votes scattered across seven names still
+     * left the real killer on top with four, and four out of sixteen decided a
+     * life. The class was winning by being the largest minority.
+     *
+     * So a name has to carry the ROOM. Short of that, the accusation fails and
+     * the class fails with it — which is the honest reading of a hung jury in a
+     * game where an unanswered murder is a win for the killer.
+     *
+     * OUT OF BALLOTS ISSUED, NOT RETURNED, and for the same reason the card
+     * below already counts that way: silence is not agreement. A room of
+     * sixteen where five people vote and four of them agree has not decided
+     * anything, and a denominator of five would call that a landslide.
+     */
+    const majority = Math.floor(issued / 2) + 1;
+    const noMajority = !top || top.n < majority;
+
+    /*
+     * A tie at the line: more names clear the bar than there are Blackened to
+     * name. One Blackened and two people level on votes is the old tie exactly.
+     *
+     * FOLDED IN WITH THE MISSING MAJORITY, which is G-31 widened rather than a
+     * second concept (D6). Both are the same event — the room did not settle on
+     * an answer — and both end the same way, so everything downstream that
+     * already knows what to do with a tie needs no second branch to learn.
+     */
+    const tied = accused.length > wanted || noMajority;
 
     // G-31: the verdict window needs to know, and by the time it opens the
     // tally has scrolled away. Recorded here, where the tie is actually
     // established, rather than folded into the `voteClosed` write above — that
     // one happens before anything has been counted.
-    await setTrialProgress({ tied });
+    await setTrialProgress({ tied, majority, noMajority });
 
     await announce({
         flags: { [MODULE_ID]: { sfx: { key: "verdict", gm: true } } },
@@ -447,6 +476,8 @@ export async function closeVote() {
                 <td>${foundry.utils.escapeHTML(r.name)}</td>
                 <td style="text-align:right">${r.n}</td>
             </tr>`).join("")}</tbody></table>
+            <p><em>${game.i18n.format("DRPG.Vote.majorityLine",
+                { n: majority, issued })}</em></p>
             <p>${tied
                 ? game.i18n.localize("DRPG.Vote.tied")
                 : wanted > 1

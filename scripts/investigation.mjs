@@ -665,7 +665,18 @@ export async function openInvestigationDashboard() {
      * time anything in the world moved. Read from here, the markup and the
      * rows are decided by the same value in the same pass.
      */
-    const reading = { order: "room", player: "", room: "" };
+    /*
+     * A FOURTH AXIS: WHICH CHAPTER (D4).
+     *
+     * The fog is cumulative and the season is six chapters long, so by the
+     * third one this table is mostly other people's old Tuesdays. A GM
+     * preparing a trial wants the traces of THIS murder, and until now the only
+     * way to get them was to read the context line on every row.
+     *
+     * Empty means every chapter, like the other two — the filter bar's own
+     * idiom, so nothing has to learn a new one.
+     */
+    const reading = { order: "room", player: "", room: "", chapter: "" };
     /** The live region's handle, so a filter can ask it to redraw. */
     let live = null;
 
@@ -673,7 +684,10 @@ export async function openInvestigationDashboard() {
     const readAs = list => {
         const kept = list.filter(({ data }) =>
             (!reading.player || data.sourceActor === reading.player)
-            && (!reading.room || (data.room ?? "") === reading.room));
+            && (!reading.room || (data.room ?? "") === reading.room)
+            // Stamped on the trace when it was left, so this is the chapter it
+            // BELONGS to rather than the chapter the GM happens to be in.
+            && (!reading.chapter || String(data.chapter ?? "") === reading.chapter));
 
         if (reading.order !== "newest") return kept;
 
@@ -849,6 +863,7 @@ export async function openInvestigationDashboard() {
                     // "none" and teaches the GM to stop trying it.
                     const people = new Map();
                     const rooms = new Set();
+                    const chapters = new Set();
                     for (const { data } of traces) {
                         if (data.sourceActor) {
                             people.set(data.sourceActor,
@@ -856,6 +871,9 @@ export async function openInvestigationDashboard() {
                                 || data.sourceActor);
                         }
                         if (data.room) rooms.add(data.room);
+                        if (data.chapter !== undefined && data.chapter !== null) {
+                            chapters.add(String(data.chapter));
+                        }
                     }
                     const option = (value, label, chosen) =>
                         `<option value="${esc(value)}"${value === chosen ? " selected" : ""}>${
@@ -878,11 +896,21 @@ export async function openInvestigationDashboard() {
                                 ${[...rooms].sort((a, b) => a.localeCompare(b))
                                     .map(name => option(name, name, reading.room)).join("")}
                             </select></label>
+                        <label>${game.i18n.localize("DRPG.Investigation.filterChapter")}
+                            <select name="traceChapter" data-drpg-filter="chapter">
+                                ${option("", game.i18n.localize("DRPG.Investigation.filterEveryChapter"), reading.chapter)}
+                                ${[...chapters].sort((a, b) => Number(a) - Number(b))
+                                    .map(n => option(String(n),
+                                        game.i18n.format("DRPG.Investigation.chapterN", { n }),
+                                        reading.chapter)).join("")}
+                            </select></label>
                         <span class="notes">${game.i18n.format("DRPG.Investigation.filterCount", {
                             shown: shown.length, total: traces.length
                         })}</span>
                     </div>`;
                 })()}
+                <p class="notes drpg-clue-rule">${
+                    game.i18n.localize("DRPG.Investigation.neverOnePerson")}</p>
                 ${shown.length ? `<table class="drpg-vault-table"><thead><tr>
                     <th>${game.i18n.localize("DRPG.Investigation.traceName")}</th>
                     <th>${game.i18n.localize("DRPG.Investigation.traceText")}</th>

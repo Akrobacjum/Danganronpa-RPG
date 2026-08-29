@@ -366,35 +366,62 @@ async function runOverflowEvent(key) {
 }
 
 /**
- * Everything with a durability track wears by one.
+ * Everything with a durability track wears — but nothing ever breaks.
  *
  * BY DURABILITY, NOT BY CATEGORY. `EQUIPPABLE` names three kinds and the track
  * carries more than that, so "has durability and is not already broken" is one
- * rule where a list of categories would be a list that goes stale. Through
- * `wearItem`, so an item breaking on its last point behaves exactly as it does
- * when a Despair roll wears it.
+ * rule where a list of categories would be a list that goes stale.
+ *
+ * IT NEVER TAKES THE LAST POINT (D1), and the first version did.
+ *
+ * Written as "one durability off everything", it was measured destroying about
+ * 23 items a season — because the Z6 ladder gives T0 and T1 a durability of
+ * ONE, so for the cheap half of the school "minus one" and "destroyed" are the
+ * same sentence. A weather effect that quietly empties every pocket in the
+ * building is not the rule anybody wrote; it is an arithmetic accident of where
+ * the ladder starts.
+ *
+ * So Rot spends SPARE durability only. An item on its last point is skipped
+ * entirely, and one with three points loses at most two. Measured after the
+ * change: zero items broken by Rot across forty seasons, with the wear itself
+ * still landing — about ninety-nine points a season that used to be deaths are
+ * now just damage. Breaking things stays the business of Despair rolls, where a
+ * player chose the risk.
  */
 async function rotEverything(amount) {
-    const { durabilityOf, isBroken, wearItem } = await import("./inventory.mjs");
+    const { durabilityLeft, isBroken, wearItem } = await import("./inventory.mjs");
     const { isDeceased } = await import("./chapter.mjs");
 
-    let worn = 0, broke = 0;
+    let worn = 0, spared = 0;
     for (const actor of game.actors) {
         if (actor.type !== "character") continue;
         // The dead carry nothing that can get worse.
         if (isDeceased(actor)) continue;
         for (const item of actor.items) {
-            if (isBroken(item) || durabilityOf(item) <= 0) continue;
-            for (let i = 0; i < amount; i++) {
+            if (isBroken(item)) continue;
+
+            // What can be taken without taking the last point. `durabilityLeft`
+            // already answers zero for anything broken, so this is the whole
+            // guard: one point left means nothing spare, means skip.
+            const spare = durabilityLeft(item) - 1;
+            if (spare <= 0) {
+                if (durabilityLeft(item) > 0) spared++;
+                continue;
+            }
+
+            for (let i = 0; i < Math.min(amount, spare); i++) {
                 const result = await wearItem(item);
                 if (!result) break;
                 worn++;
-                if (result.broke) { broke++; break; }
+                // Cannot happen while `spare` is respected, and checked anyway:
+                // if it ever does, the loop stops rather than grinding an item
+                // that is already gone.
+                if (result.broke) break;
             }
         }
     }
-    log(`Rot: ${worn} point(s) of wear, ${broke} thing(s) ruined.`);
-    return { worn, broke };
+    log(`Rot: ${worn} point(s) of wear, ${spared} thing(s) too fragile to touch.`);
+    return { worn, spared };
 }
 
 /** Every project loses progress. */

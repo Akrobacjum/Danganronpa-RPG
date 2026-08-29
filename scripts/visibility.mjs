@@ -234,7 +234,50 @@ function applyToRemnantToken(token) {
 
     const key = remnantKeyOf(token.document);
     if (!key || myRemnantRefs().has(key)) return;
+
+    // D11: the crime scene belongs to the people who were standing in it. An
+    // incident's traces are created un-hidden (see `placeRemnant`) precisely so
+    // this line can decide, because Foundry's own flag cannot say "these two".
+    if (myIncidentTrace(token.document)) return;
+
     hide(token);
+}
+
+/**
+ * An incident trace from an incident I am in (D11).
+ *
+ * READ OFF THE TOKEN, NOT THE LEDGER. The ledger is GM-side by design —
+ * `remnantData` answers null on a player's client and that is what keeps the
+ * answers off it — so the one fact this needs travels on the token document
+ * itself. It is the trace's TYPE and nothing else: not what it means, not who
+ * left it, not how visible it is. "There is an incident trace here" is already
+ * what the marker on the map says to anyone allowed to see the marker.
+ *
+ * The entitlement is the live incident's participant list, which a player's
+ * client legitimately holds: they are in it.
+ */
+function myIncidentTrace(tokenDoc) {
+    try {
+        if (tokenDoc.getFlag(MODULE_ID, REMNANT_FLAGS.type) !== "incident") return false;
+
+        const state = game.settings.get(MODULE_ID, "murderState");
+        if (!state?.active) return false;
+
+        /*
+         * MIRRORS `killerIds` + the victim, and the shape matters: the state
+         * stores `killerId` and a single `thirdId` with a `thirdSide`, not a
+         * list. An accomplice who threw in with the killers is `thirdSide ===
+         * "killer"` and was in the room; a third party who merely walked in is
+         * a witness and is not who D11 is about.
+         */
+        const ids = new Set([state.victimId, state.killerId].filter(Boolean));
+        if (state.thirdId && state.thirdSide === "killer") ids.add(state.thirdId);
+
+        return game.actors.filter(a => a.isOwner).some(a => ids.has(a.id));
+    } catch {
+        // A trace nobody can classify is a trace nobody special gets to see.
+        return false;
+    }
 }
 
 function hide(token) {

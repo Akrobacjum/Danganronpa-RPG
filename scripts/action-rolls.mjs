@@ -2444,7 +2444,19 @@ async function performSabotage(actor, def, options) {
  * question only a GM's client can answer (trap 85).
  */
 async function performTamper(actor, def, options) {
-    const cost = options.free ? 0 : def.cost;
+    /*
+     * FREE FOR THE KILLER, ON THEIR OWN NIGHT (D3).
+     *
+     * The action is not actually spent here — `spendResolutionAction` inside
+     * `attemptCleanup` does that, on both roads — so all this line does is
+     * decide whether to REFUSE for want of one. Left as it was, a killer with
+     * an empty budget would be turned away at the tile from an action that was
+     * about to cost them nothing: the rule would exist and never be reachable
+     * by the people it is for.
+     */
+    const { isCleaner } = await import("./cleanup.mjs");
+    const freeForKiller = isCleaner(actor);
+    const cost = (options.free || freeForKiller) ? 0 : def.cost;
     if (!canAfford(actor, cost)) return null;
 
     const room = roomOfActor(actor);
@@ -2801,8 +2813,20 @@ async function performPalm(actor, def, options) {
     });
     if (!hand) return abort(actor, cost);
 
-    const seen = !(shadow.isCritical || shadow.total >= unseen.threshold);
-    const success = hand.isCritical || hand.total >= def.threshold;
+    /*
+     * A PLANT IS AN EASIER HAND THAN A STEAL (D10a), on both axes.
+     *
+     * Read here rather than branched earlier because both rolls have already
+     * happened by this line and neither cares which they were for — what
+     * changes is only the number they are measured against. `def.plant` is
+     * absent for anything but Palm, so the `??` is what keeps every other
+     * caller of this shape on its own single threshold.
+     */
+    const bar = planting ? (def.plant?.threshold ?? def.threshold) : def.threshold;
+    const unseenBar = planting ? (def.plant?.unseen ?? unseen.threshold) : unseen.threshold;
+
+    const seen = !(shadow.isCritical || shadow.total >= unseenBar);
+    const success = hand.isCritical || hand.total >= bar;
 
     /*
      * A PLANT IS ALREADY DECIDED BY THE TIME THE DICE LAND.

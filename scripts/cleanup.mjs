@@ -214,10 +214,31 @@ export function cleanableTracesForPlayer(actorId, { mine = false } = {}) {
      * Note what a player still does not get either way: a LIST, not tokens.
      * Being able to erase your own trace is not being able to see it on the map.
      */
+    /*
+     * THE SECOND FILTER BRANCHES BY TYPE NOW (D11).
+     *
+     * "You left it AND you found it" was written against a player sweeping the
+     * map with the Tamper menu to learn what they had left lying around. That
+     * is still the right rule for PREPARATION traces — the project you built,
+     * the weapon you took out of a Search — because nobody watched you make
+     * those and finding them really is an action.
+     *
+     * It was the wrong rule for the crime scene. You were standing there. The
+     * traces of the incident were made in front of you, which is why their
+     * tokens are now visible to you (see `placeRemnant` and
+     * `applyToRemnantToken`), and requiring an Observe to "find" what you
+     * watched happen was asking a character to discover their own memory.
+     *
+     * So an incident trace of your own needs no `known`; everything else still
+     * does. Stage 6 keeps its own branch below and is unchanged: the guide
+     * opens the killer's eyes to the WHOLE room there, other people's traces
+     * included, and that is a privilege of the stage rather than of memory.
+     */
     const known = copiedRemnants(actor);
     const wanted = mine
         ? cleanableRemnants(actor).filter(t =>
-              t.data.sourceActor === actor.id && known.has(t.token.id))
+              t.data.sourceActor === actor.id
+              && (t.data.type === "incident" || known.has(t.token.id)))
         : cleanableRemnants(actor);
 
     return wanted.map(t => ({
@@ -726,10 +747,12 @@ export async function resolveCleanup({
      * half there is no second thing to give, so the critical's extra is the
      * Sanity back. That asymmetry is deliberate and is argued in config.mjs.
      *
-     * A failure falls through to `raisesVisibility` below, which is the same
-     * punishment the erase road takes, for the same reason: you disturbed it.
+     * A failure falls through to the Tamper Remnant below, which is the same
+     * consequence the erase road takes, for the same reason: you disturbed it
+     * and left signs of the disturbing (D8).
      */
     if (transforming && success) {
+        const byTheKiller = isCleaner(actor);
         const bounds = CLEANUP.transform ?? {};
         const wantsType = change?.type && bounds.types?.includes(change.type);
         const quieter = !wantsType || isCritical;
@@ -744,6 +767,25 @@ export async function resolveCleanup({
         const patch = {};
         if (wantsType) patch.type = change.type;
         if (softer) patch.visibility = softer;
+
+        /*
+         * A TRACE THE KILLER RESHAPED IS THE KILLER'S (D2).
+         *
+         * Reshaping is the one road that changes what a trace IS, so it is also
+         * the one road that could launder a tie away: turn an Incident Remnant
+         * into a Prep Remnant and, if the tie travelled with the type, the
+         * murder would quietly stop owning it.
+         *
+         * `retuneRemnant` writes visibility and type and nothing else, so an
+         * already-tied trace survives the rewrite by construction — that is
+         * trap 163's shape and the reason this note names it. What is added here
+         * is the other direction: a killer reshaping a trace that was NOT tied
+         * ties it, because they have now handled it as part of their crime.
+         *
+         * Only for the killer. An innocent reshaping something in the Tamper
+         * action leaves it exactly as untied as they found it.
+         */
+        if (byTheKiller && !data.tiedToCrime) patch.tiedToCrime = true;
 
         if (Object.keys(patch).length) {
             try {
@@ -829,51 +871,40 @@ export async function resolveCleanup({
     }
 
     /*
-     * A DESPAIR FAILURE MAKES THE MESS LOUDER (Z5), instead of making a second
-     * one. See `CLEANUP.outcome.failureDespair` for why.
+     * THE VISIBILITY BUMP IS GONE, AND SO IS ITS BRANCH (D8).
      *
-     * The trace is still there — `removes` is false on this band — so this is
-     * the same object, one band further up the ladder. At `obvious` there is
-     * nowhere left to go and the attempt simply failed, which is honest: you
-     * cannot make a thing more visible than the loudest the game has.
+     * Z5 answered a failure by making the disturbed trace one band louder. D8
+     * replaces that with leaving a Tamper Remnant — see `CLEANUP.outcome` for
+     * the argument — and no outcome carries `raisesVisibility` any more.
+     *
+     * The code went with the field rather than being left standing for nothing.
+     * An unreachable handler is how a deleted rule comes back by accident, and
+     * this module has already paid that lesson once, on `wipesProgress`.
      */
-    if (outcome.raisesVisibility && !rewrite) {
-        const ladder = REMNANT_VISIBILITY;                  // obvious → hidden
-        const at = ladder.indexOf(data.visibility);
-        const louder = at > 0 ? ladder[Math.max(0, at - outcome.raisesVisibility)] : null;
-
-        if (louder && louder !== data.visibility) {
-            try {
-                const { retuneRemnant } = await import("./remnants.mjs");
-                receipt.transformed = {
-                    id: token.id,
-                    sceneId: token.parent?.id ?? null,
-                    from: { type: data.type, visibility: data.visibility }
-                };
-                await retuneRemnant(token.parent?.id ?? null, token.id, { visibility: louder });
-                const { REMNANT_VISIBILITY_LABELS } = await import("./config.mjs");
-                done.push(game.i18n.format("DRPG.Cleanup.louder", {
-                    what: `${data.visibilityLabel} ${data.typeLabel}`,
-                    to: REMNANT_VISIBILITY_LABELS[louder] ?? louder
-                }));
-            } catch (err) {
-                error("Could not make the trace a failed clean-up disturbed more visible", err);
-            }
-        } else {
-            done.push(game.i18n.localize("DRPG.Cleanup.alreadyLoudest"));
-        }
-    }
-
     if (outcome.leaves) {
         const { traceFeedback } = await import("./remnants.mjs");
+        /*
+         * THE KILLER'S MESS STICKS; EVERYBODY ELSE'S FADES (D2 + D8).
+         *
+         * This used to tie every trace unconditionally, which was right while
+         * only the killer could reach this code. Tamper opened it to the whole
+         * cast, and an unconditional tie would have made every innocent's bad
+         * Wednesday permanent evidence in a murder that had not happened yet.
+         *
+         * `isCleaner` is the killer in Stage 6. Their tidying is tied, so the
+         * chapter-end sweep spares it and the trial gets to see it. Anybody
+         * else's stays faint and untied, so it fades with the chapter — and
+         * while it exists, it is an honest, organic focus for a wrong suspicion:
+         * somebody really did tidy something here, and it really was not the
+         * killer. That is the misdirection this game wants and nobody has to
+         * author it.
+         */
+        const byTheKiller = isCleaner(actor);
         const placed = await dropRemnant(actor, {
             type: CLEANUP.remnantType,
             visibility: outcome.leaves.visibility,
             faint: outcome.leaves.faint,
-            // Tied to the crime, so the chapter-end sweep leaves it alone unless
-            // it is faint — the guide's own exception, already honoured by
-            // `clearFaintRemnants`.
-            tiedToCrime: true,
+            tiedToCrime: byTheKiller,
             // "resolution", not "cleanup": `DRPG.Remnant.action.resolution` is
             // already defined as "Cleanup" — the vocabulary was written for this
             // stage before there was anything to fill it.
@@ -884,16 +915,23 @@ export async function resolveCleanup({
         });
         if (placed) {
             receipt.leftBehind = refOf(placed);
-            // `outcome.leaves` only exists on the despair bands (see
-            // CLEANUP.outcome in config.mjs) — this is a trace the killer did
-            // NOT select and does not already know about, unlike the one
-            // `Cleanup.removed`/`Cleanup.reinforced` name above, which the
-            // killer already saw on the picker before rolling. Gated the same
-            // way every other action's fresh trace is: Hope or a critical
-            // tells them, a plain Despair never does — and `outcome.leaves`
-            // is despair-only, so this never actually fires today. Written
-            // through the shared gate anyway, so a future rebalance of
-            // CLEANUP.outcome cannot reopen the leak by accident.
+            /*
+             * THIS GATE NOW ACTUALLY FIRES, and the note under it used to say
+             * the opposite.
+             *
+             * `outcome.leaves` was despair-only, so the old comment could
+             * correctly record that the branch never ran and was written
+             * "through the shared gate anyway" against a future rebalance.
+             * D8 is that rebalance: both failure bands leave a trace now, and a
+             * failure with HOPE reaches this line.
+             *
+             * The rule it enforces is unchanged and is the reason it was
+             * written defensively: a fresh trace the actor did not select and
+             * does not know about is told to them on Hope or a critical, and
+             * never on a plain Despair. So a botched tidy-up with Hope says
+             * "you left something"; the same botch with Despair leaves the same
+             * thing and says nothing, and they find out at the trial.
+             */
             if (traceFeedback({ isCritical, withHope }, placed)) {
                 done.push(game.i18n.localize("DRPG.Cleanup.leftTrace"));
             }
@@ -1026,22 +1064,41 @@ async function concealFromWitnesses(actor) {
 }
 
 /**
- * A resolution action costs one of the day's two, on top of the Sanity.
+ * A resolution action costs an action — unless it is the killer's own night.
  *
- * Stage 6 used to run on Sanity alone, which meant it ran on nothing the table
- * could see: a killer with Sanity to spare could scrub every trace in the room
- * one after another, in a stage that is supposed to be a handful of frantic
- * choices. Charging an action caps it at two per time of day — the same budget
- * everything else in the game is bought with — and makes "what do I do with the
- * time I have" the question it was always meant to be.
+ * THE ORIGINAL RULE, AND IT WAS RIGHT FOR THE PROBLEM IT SOLVED. Stage 6 ran on
+ * Sanity alone, which meant it ran on nothing the table could see: a killer
+ * with Sanity to spare scrubbed every trace in the room one after another.
+ * Charging an action capped it at two per time of day and made "what do I do
+ * with the time I have" a real question.
  *
- * Both costs, deliberately (Dawid's call, 2026-08-17). The Sanity is what makes
- * a long clean-up hurt; the action is what makes it finite.
+ * IT CAPPED THE WRONG THING (D3, measured in E18c). Two actions is the budget
+ * for an ordinary afternoon, and the hours after a murder are not one. A killer
+ * who had just fought somebody had, in practice, one action left — so the whole
+ * of Stage 6 came down to picking a single trace and walking away from the
+ * rest, and the measured season cleaned about 2.9 traces from start to finish.
+ *
+ * So the killer's own clean-up is free of the action economy from the victim's
+ * death to the end of that time of day, and pays in Sanity only — one per
+ * attempt, with a full bar refusing up front. "The night of the murder belongs
+ * to the killer; they pay for it with their mind, not with their clock."
+ *
+ * MEASURED, AND THE SECOND NUMBER IS WHY THIS IS SAFE: cleaning went 2.9 → 5.25
+ * a season (+81%), and the evidence chain the trial runs on did not move
+ * (5.61 → 5.63), with 59 of 60 trials still solved. The killer gets to finish
+ * the job; the case survives, because what Stage 6 can reach was never the part
+ * that convicts — Key, Final and reinforced traces are untouchable by
+ * construction.
+ *
+ * `isCleaner` is exactly that window and nothing wider: an active incident, at
+ * stage `resolution`, and this actor one of its killers. Outside it — the
+ * Tamper tile on an ordinary Tuesday — the action is charged as it always was.
  *
  * @returns {Promise<boolean>} false when there is nothing left to spend, in
  *   which case `spendAction` has already said so and nothing has been touched.
  */
 async function spendResolutionAction(actor) {
+    if (isCleaner(actor)) return true;
     const { spendAction } = await import("./actions.mjs");
     return spendAction(actor, 1);
 }

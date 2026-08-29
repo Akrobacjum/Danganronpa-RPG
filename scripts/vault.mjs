@@ -20,7 +20,7 @@
  * change at all.
  */
 
-import { MODULE_ID, ITEM_CATEGORIES, BEDROOM_KEY_FLAG, ACTIONS } from "./config.mjs";
+import { MODULE_ID, ITEM_CATEGORIES, BEDROOM_KEY_FLAG, ACTIONS, VAULT_LIMIT } from "./config.mjs";
 import { ITEM_FLAGS, LOCATIONS, isStashed, canCarry } from "./inventory.mjs";
 // The one room lookup. movement.mjs does not reach back into this file.
 import { roomOfActor, ROOM_FLAGS } from "./movement.mjs";
@@ -667,6 +667,26 @@ export async function stow(actor, item) {
     const room = await myStashHere(actor);
     if (!room) {
         ui.notifications.warn(game.i18n.localize("DRPG.Vault.notHere"));
+        return false;
+    }
+
+    /*
+     * A STASH HOLDS THREE (D10b).
+     *
+     * It held everything, which made the carry limits above it decorative: a
+     * character with a full stash in their bedroom was carrying two things and
+     * OWNING nine, and the question the limits exist to ask — what do you have
+     * on you tonight — had a free answer waiting at home.
+     *
+     * Counted PER ROOM rather than per character, because that is what a stash
+     * is: two hiding places are two hiding places, and somebody who has earned
+     * a second one has earned what it holds.
+     */
+    const here = vaultContents(actor)
+        .filter(i => i.getFlag(MODULE_ID, ITEM_FLAGS.stashRoom) === room);
+    if (here.length >= VAULT_LIMIT) {
+        ui.notifications.warn(game.i18n.format("DRPG.Vault.full",
+            { room, limit: VAULT_LIMIT }));
         return false;
     }
 

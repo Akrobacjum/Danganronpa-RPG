@@ -368,7 +368,13 @@ export const ITEM_CATEGORIES = {
     usable: {
         label: "Usable",
         plural: "Usables",
-        limit: 3,
+        /*
+         * TWO (D10c), the same argument as the gear group and measured on the
+         * same run: three of these is a first-aid cabinet in a pocket, and a
+         * character who can answer every bad night out of their own coat is a
+         * character for whom the bad night was not a problem.
+         */
+        limit: 2,
         hint: "Healing items restore Health, sanity-relief items clear Sanity. Tier 3 lets you pick."
     },
     // "Murder Weapon" rather than "Crime Tool" — Dawid's wording, 2026-08-17.
@@ -575,11 +581,30 @@ export const EQUIPPABLE = ["crimeTool", "cleaningTool", "tool"];
  * Tools could serve as a weapon without spending the weapon slot. With one
  * counter every item costs one slot whatever its home and whatever it can do.
  */
+/**
+ * How much one stash holds (D10b).
+ *
+ * Here rather than in vault.mjs because it is the same kind of fact as the
+ * carry limits directly below — how much of the school one person can have
+ * under their control — and the two numbers are read together whenever anybody
+ * asks whether that balance is right.
+ */
+export const VAULT_LIMIT = 3;
+
 export const LIMIT_GROUPS = {
+    /*
+     * TWO SLOTS, NOT THREE (D10c).
+     *
+     * Three meant nobody ever chose. A character could carry a weapon, a
+     * cleaning kit and a tool at once, so "what am I holding tonight" was never
+     * a question with a cost — and the whole point of a shared group is that
+     * arming yourself and being able to tidy up afterwards should compete.
+     * At two they do.
+     */
     gear: {
         label: "Gear",
-        limit: 3,
-        hint: "Murder Weapons, Cleaning Tools and Tools share three slots."
+        limit: 2,
+        hint: "Murder Weapons, Cleaning Tools and Tools share two slots."
     }
 };
 
@@ -622,9 +647,21 @@ export const REMNANT_TYPES = {
         label: "Incident Remnant",
         hint: "Left during the confrontation or the victim's death."
     },
+    /*
+     * "TAMPER REMNANT", AND THE KEY STAYS `resolution` (D8) — the lesson Z14
+     * paid for: a key is stored data (token flags, the ledger, every card this
+     * world has already posted) and a label is free.
+     *
+     * The rename is not cosmetic. This type is about to become the thing a
+     * failed Tamper LEAVES rather than a footnote about the killer's mistakes:
+     * an unnaturally clean table, which reads as evidence of tidying to anyone
+     * who finds it. Naming it after the action that produces it is what makes
+     * that legible at the trial.
+     */
     resolution: {
-        label: "Resolution Remnant",
-        hint: "Left by the killer's mistakes while cleaning up the scene."
+        label: "Tamper Remnant",
+        hint: "Left behind by tampering — the too-clean patch, the thing moved back "
+            + "slightly wrong. Cleaning up always leaves its own kind of trace."
     },
     autopsy: {
         label: "Autopsy Remnant",
@@ -675,7 +712,7 @@ export const TRUTH_BULLET_TYPES = {
         hint: "Created during the murder itself."
     },
     resolution: {
-        label: "Resolution Truth Bullet",
+        label: "Tamper Truth Bullet",
         hint: "Left by the killer's mistakes while cleaning up the crime scene."
     },
     autopsy: {
@@ -1131,17 +1168,26 @@ export const ACTIONS = {
         hint: "Take something out of somebody's pocket, or leave something in it.",
         description: "You get a hand into somebody's pocket. One roll decides whether they "
             + "notice, another whether it works.",
-        /**
-         * ONE NUMBER FOR BOTH, and the asymmetry that might have argued for two
-         * is already paid for elsewhere: a Steal takes what it finds and only a
-         * critical lets you choose, while a Plant is always the thing you chose
-         * — because your own pockets are not a secret from you. That is the
-         * whole difference, and it is a difference in what you know rather than
-         * in how hard the hand is.
+        /*
+         * TWO NUMBERS NOW, AND THE OLD COMMENT'S ARGUMENT WAS WRONG (D10a).
+         *
+         * It said the asymmetry between taking and leaving is "a difference in
+         * what you know rather than in how hard the hand is". Measured over a
+         * season, that is backwards. Getting your fingers around a specific
+         * object in somebody else's pocket and drawing it out is the hard half;
+         * letting go of something you are already holding is the easy one. One
+         * number priced them as the same job and the planting half went unused.
+         *
+         * So a Plant rolls against `plant` below and a Steal keeps 14/15. The
+         * gap is deliberately in BOTH axes: the hand is easier because the hand
+         * is doing less, and staying unseen is easier because a hand going in
+         * empty and coming out empty is a shorter thing to watch.
          */
         threshold: 14,
         /** Whether they noticed. Its own axis, rolled separately. */
         unseen: { trait: "shadow", threshold: 15, label: "Keep your hands out of sight" },
+        /** Leaving something is easier than taking it — both axes (D10a). */
+        plant: { threshold: 11, unseen: 13 },
         failure: "Your hand comes away empty."
     },
     /**
@@ -1429,7 +1475,16 @@ export const HOPE_CALLS = {
         effect: "Add your experience level to a roll that experience genuinely applies to."
     },
     ultimate: {
-        label: "Ultimate", icon: "fa-star", cost: 2, target: "none", grants: "advantage",
+        /*
+         * ONE, NOT TWO (D10e). Measured: 5.6 uses a season became 29.
+         *
+         * At two it was a thing you saved for, which is exactly wrong for what
+         * it represents — your talent is not a special occasion, it is the
+         * reason you are in this school. One turns it into a daily reflex, and
+         * the measurement is the argument: a fivefold rise means the Call was
+         * not weak, it was priced out of the moments it is for.
+         */
+        label: "Ultimate", icon: "fa-star", cost: 1, target: "none", grants: "advantage",
         effect: "Advantage on a roll your Ultimate genuinely applies to."
     },
     contribution: {
@@ -1518,7 +1573,17 @@ export const HOPE_CALLS = {
          * and `byPrice()` is stable, so the panel keeps them in this table's
          * order within the band.
          */
-        label: "Relief", icon: "fa-mug-hot", cost: 3, target: "none",
+        /*
+         * FOUR (D10d), and this one goes UP after going down.
+         *
+         * Three was the right answer to "nobody buys it" and turned into the
+         * wrong answer to "what is a Rest for": at three, Relief was simply a
+         * better Rest, so the measured Long Rest almost stopped happening. At
+         * four the two stop competing — Long Rest recovered by half in the
+         * same run — and Relief goes back to being what it was meant to be:
+         * the thing you buy when you cannot afford the hours.
+         */
+        label: "Relief", icon: "fa-mug-hot", cost: 4, target: "none",
         /*
          * A Short Rest that ignores everything a Short Rest normally asks for.
          *
@@ -1886,7 +1951,14 @@ export const DESPAIR_CALLS = {
         effect: "Announce a motive: a demand, a deadline in times of day, and the price of ignoring it."
     },
     newRule: {
-        label: "New Rule", icon: "fa-gavel", cost: 12, target: "none", announces: true,
+        /*
+         * NINE (D10f). At twelve it was bought zero times in a measured season:
+         * a full pool, spent on one thing, in a game where the pool is also
+         * every cheap harassment a Monokuma wants to do all week. Nine puts it
+         * at about three and a half purchases a season, and the Motive — the
+         * other nine-point Call it now ties — did not suffer for the company.
+         */
+        label: "New Rule", icon: "fa-gavel", cost: 9, target: "none", announces: true,
         effect: "Introduce one new killing game rule of your choice."
     }
 };
@@ -2941,15 +3013,40 @@ export const CLEANUP = {
      * made a second mess — but the investigation does not gain a whole new
      * object out of your bad night.
      */
+    /*
+     * TIDYING LEAVES ITS OWN TRACE (D8), AND THAT REPLACES Z5's LOUDER BAND.
+     *
+     * Z5 answered a failure by making the trace you were working on one band
+     * more visible. It was the right instinct — you disturbed it — and the
+     * wrong object: a Subtle Prep Remnant that becomes Evident is still a Prep
+     * Remnant, so the investigation learns "he was here", which it already knew.
+     *
+     * What a botched clean-up actually produces is a DIFFERENT thing: the
+     * unnaturally clean patch, the object moved back very slightly wrong. That
+     * is its own kind of evidence and it says something new — somebody tidied
+     * here — which is exactly the fact a trial can work with.
+     *
+     * So both failures now leave a Tamper Remnant, and `raisesVisibility` is
+     * gone. A clean success and a critical still leave nothing: doing it
+     * perfectly is what "perfectly" means.
+     *
+     * THE HOPE/DESPAIR GRADIENT IS KEPT in what gets left, not in whether
+     * anything does — a failure with Hope leaves something Subtle, a failure
+     * with Despair something Evident.
+     */
     outcome: {
         critical: { removes: true, leaves: null, refundStress: 1, mayTransform: true },
         hope: { removes: true, leaves: null },
         despair: { removes: true, leaves: { visibility: "evident", faint: true } },
-        failureHope: { removes: false, leaves: null },
-        failureDespair: { removes: false, leaves: null, raisesVisibility: 1 }
+        failureHope: { removes: false, leaves: { visibility: "subtle", faint: true } },
+        failureDespair: { removes: false, leaves: { visibility: "evident", faint: true } }
     },
 
-    /** Traces the clean-up leaves are Resolution Remnants, per REMNANT_TYPES. */
+    /**
+     * Traces the clean-up leaves are Tamper Remnants — key `resolution`, per
+     * REMNANT_TYPES, where the label was renamed and the key deliberately was
+     * not (D8; the lesson Z14 paid for).
+     */
     remnantType: "resolution",
 
     /**
@@ -3075,8 +3172,22 @@ export const CLEANUP = {
          * that probably nobody finds. A Despair failure plants nothing at all.
          */
         misleadingTrail: {
+            /*
+             * FIFTEEN, NOT EIGHTEEN (D7, measured in E18c).
+             *
+             * The season run found a trial goes wrong about 3% of the time, and
+             * every one of the four misses it did produce had a planted trail
+             * under it: a wrong verdict needs a FOCUS, and eighteen priced the
+             * only thing that makes one out of reach. At fifteen the measured
+             * rate of misfocused trials is about a third.
+             *
+             * It reads as a discount and is really a schedule change: with D3
+             * paying for the killer's cleaning in Sanity rather than actions,
+             * one night now holds both the lie and the tidying. Eighteen was
+             * the price of a thing nobody had an evening for.
+             */
             label: "Misleading trail", icon: "fa-signs-post",
-            threshold: 18,
+            threshold: 15,
             targets: "player",
             hint: "Plant a Prep Remnant pointing at somebody else.",
             remnant: { hope: "evident", despair: "subtle", critical: "obvious" },

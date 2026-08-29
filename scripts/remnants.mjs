@@ -345,9 +345,33 @@ export async function placeRemnant(data = {}) {
             // as "people in a room", not "a pile of clues".
             alpha: 0.5,
             sort: -10,
-            // Always hidden. A Remnant is never revealed to players: Observing
-            // one copies it into a Truth Bullet, and that is what they see.
-            hidden: true,
+            /*
+             * HIDDEN, EXCEPT AN INCIDENT'S OWN TRACES (D11).
+             *
+             * A Remnant is normally never revealed to players: Observing one
+             * copies it into a Truth Bullet, and that is what they see.
+             *
+             * The exception is the crime scene itself. The people who were in
+             * the room — the victim and the killer — watched these traces being
+             * made, and Stage 6 used to hand the killer that knowledge as a
+             * privilege of the STAGE rather than of having been there. Which
+             * left two absurdities: a victim could not see the clue they
+             * themselves left with their last action, and a killer had to wait
+             * for a stage to be told what they had just done.
+             *
+             * So an incident trace is created un-hidden and the filtering moves
+             * to the client, exactly as it already works for a revealed trace:
+             * `applyToRemnantToken` in visibility.mjs shows it to the incident's
+             * participants and hides it from everybody else. Foundry's own flag
+             * cannot express "visible to these two", which is why it is not
+             * asked to.
+             *
+             * PREPARATION TRACES ARE UNCHANGED and stay hidden: the project you
+             * built, the weapon you took out of a Search. Those were not made
+             * in front of anybody, so the "you left it AND you found it" rule
+             * still governs them.
+             */
+            hidden: type !== "incident",
             disposition: CONST.TOKEN_DISPOSITIONS.NEUTRAL,
             lockRotation: true,
             // THE MARKER AND NOTHING ELSE. Everything that was here is the
@@ -1323,7 +1347,7 @@ export async function confirmClearFaint() {
  * @returns {Promise<boolean|object|null>}
  */
 export async function retuneRemnant(sceneId, tokenId,
-    { visibility = null, type = null, remove = false } = {}) {
+    { visibility = null, type = null, remove = false, tiedToCrime = null } = {}) {
     if (!tokenId) return null;
 
     if (!game.user.isGM) {
@@ -1344,7 +1368,7 @@ export async function retuneRemnant(sceneId, tokenId,
         return true;
     }
 
-    if (!visibility && !type) return null;
+    if (!visibility && !type && tiedToCrime === null) return null;
 
     // The band is carried in the flag and echoed in the token's name, which is
     // what the GM actually reads on the map — so both have to move together.
@@ -1372,6 +1396,22 @@ export async function retuneRemnant(sceneId, tokenId,
     const secret = {};
     if (visibility) secret.visibility = visibility;
     if (type) secret.type = type;
+    /*
+     * THE TIE (D2), AND IT IS DELIBERATELY NOT ON THE BRIDGE'S ALLOW-LIST.
+     *
+     * A killer who reshapes a trace ties it to their crime — `resolveCleanup`
+     * decides that, GM-side, and passes it here. Which is why the narrowing in
+     * `gm-bridge.mjs` reads `visibility` and `type` by name and drops the rest:
+     * a player able to send this field could untie their own Incident Remnant
+     * and have the chapter-end sweep clear the scene for them. That is trap 163
+     * in its original form, and the answer is that this door only opens from
+     * inside.
+     *
+     * `=== null` rather than falsy: the caller must be able to say "leave it
+     * alone", and today nothing says "untie" — but a field that cannot express
+     * false is a field somebody will work around later.
+     */
+    if (tiedToCrime !== null) secret.tiedToCrime = Boolean(tiedToCrime);
     await setRemnantSecret(token, secret);
     return true;
 }

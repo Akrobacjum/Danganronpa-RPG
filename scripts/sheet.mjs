@@ -3814,8 +3814,33 @@ function actionButton(actor, key, def) {
         ? (!eclipse && !inIncident)
         : (inIncident || (key !== "move" && eclipse));
 
+    /*
+     * AND THE OTHER HALF: WHICH TILE IS THE MOVE (D12, Dawid 29.08).
+     *
+     * Dimming nine tiles says what you cannot do. It does not say what you can,
+     * and in both of these moments the player is looking at a sheet that has
+     * just changed under them and needs an answer, not an elimination.
+     *
+     * TWO MOMENTS, AND THE SECOND IS THE ONE THAT EARNS THIS.
+     *
+     *   In an incident: everything is shut except Direct Murder, which is no
+     *   longer Direct Murder — it opens the incident's own actions. Lighting it
+     *   turns "why is everything grey" into "press this".
+     *
+     *   After the kill: nothing is shut. The killer has their whole budget and
+     *   no reason to suspect that one tile now behaves differently — Tamper is
+     *   free of the action economy for the rest of this time of day (D3). A
+     *   rule nobody is told about is a rule that does not exist at the table,
+     *   and this is the only place it can be said at the moment it applies.
+     *
+     * `isCleaner` is the same window D3 charges by, read from the same module,
+     * so the light and the discount cannot disagree.
+     */
+    const cleaningNow = key === "tamper" && isCleaner(actor);
+    const theMove = (key === "directMurder" && inIncident) || cleaningNow;
+
     button.className = `drpg-action-button${(affordable && !locked) ? "" : " unaffordable"}${
-        blocked ? " drpg-no-subject" : ""}`;
+        blocked ? " drpg-no-subject" : ""}${theMove ? " drpg-action-hot" : ""}`;
 
     // NOT `data-action`: ApplicationV2 claims that attribute for its own action
     // dispatch and swallows the click looking for a handler it does not have.
@@ -3848,8 +3873,13 @@ function actionButton(actor, key, def) {
             ? ""
             : `<br><em>${plural("DRPG.Action.cannotAfford", { left: actionsLeft(actor), needed: cost }, "left")}</em>`;
     const why = blocked ? `<br><em>${foundry.utils.escapeHTML(blocked)}</em>` : "";
+    // The light says "press this"; this says why it is free, because a discount
+    // nobody can read is a discount nobody counts on (D3 + D12). Last, because
+    // it is the only line here that is good news.
+    const bonus = cleaningNow
+        ? `<br><em>${game.i18n.localize("DRPG.Cleanup.freeTonight")}</em>` : "";
     button.dataset.tooltip =
-        `${foundry.utils.escapeHTML(def.hint ?? "")}<br><em>${costLabel}</em>${note}${why}`;
+        `${foundry.utils.escapeHTML(def.hint ?? "")}<br><em>${costLabel}</em>${note}${why}${bonus}`;
 
     // Say what the stripe means, or the stripe means nothing.
     //
