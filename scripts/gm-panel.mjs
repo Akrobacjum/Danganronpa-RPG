@@ -171,7 +171,7 @@ const PANEL_SECTIONS = [
         key: "between",
         collapsed: true,
         items: [
-            { key: "gmTeam", icon: "fa-users-gear", labelKey: "DRPG.Panel.gmTeam",
+            { key: "gmTeam", icon: "fa-users-gear", labelKey: "DRPG.Panel.despairFlow",
               run: () => import("./gm-team-dialog.mjs").then(m => m.openGmTeamDialog()) },
             // Room Setup carries the locks and the search-token counters now, so
             // the two quick toggles that used to live in the panel are columns
@@ -186,8 +186,6 @@ const PANEL_SECTIONS = [
             // Beside the checks it answers: the season checklist carries the
             // pre-session diagnostics as a button now, because "what is missing"
             // and "fix it" are the same list read from the two ends.
-            { key: "overflow", icon: "fa-water", labelKey: "DRPG.Overflow.setupTitle",
-              run: () => import("./overflow.mjs").then(m => m.openOverflowSetup()) },
             { key: "seasonSetup", icon: "fa-wand-magic-sparkles", labelKey: "DRPG.Season.title",
               run: () => import("./season-setup.mjs").then(m => m.openSeasonSetup()) },
             // Moved out of the trial-only section it used to sit in. The

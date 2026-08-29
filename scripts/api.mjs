@@ -32,7 +32,8 @@ import {
     overflowStatus,
     addOverflow,
     resetOverflow,
-    openOverflowSetup
+    overflowEffect,
+    overflowPool
 } from "./overflow.mjs";
 import {
     monokumas,
@@ -359,7 +360,8 @@ export const DrpgApi = {
     overflowStatus,
     addOverflow,
     resetOverflow,
-    openOverflowSetup,
+    overflowEffect,
+    overflowPool,
 
     /** A pool's display label — custom if set, the account name otherwise —
      *  and the controls to rename a pool or grant/revoke one for an

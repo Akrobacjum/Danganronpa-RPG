@@ -23,6 +23,7 @@ import {
 import { isMonokuma, setMonokuma, poolFor, setPools } from "./monokuma.mjs";
 import { students, assignments, monokumaFor, setAssignments, autoAssign, NO_MONOKUMA } from "./assignments.mjs";
 import { dialogContent, error, tableDialog, panelTabs, wirePanelTabs } from "./utils.mjs";
+import { overflowStatus, setOverflowRules, overflowSection, readOverflowForm } from "./overflow.mjs";
 import { alreadyOpen } from "./live.mjs";
 
 /** Open the combined panel. GM only. */
@@ -69,7 +70,8 @@ export async function openGmTeamDialog() {
             callback: (event, button, dialog) => ({
                 pools: readPoolNameForm(dialog, gms),
                 monokumas: readMonokumaForm(dialog, actors),
-                assignments: roster.length ? readAssignmentForm(dialog, roster) : null
+                assignments: roster.length ? readAssignmentForm(dialog, roster) : null,
+                overflow: readOverflowForm(dialog.element)
             })
         }
     ];
@@ -97,7 +99,7 @@ export async function openGmTeamDialog() {
     buttons.push({ action: "cancel", label: game.i18n.localize("DRPG.Panel.close") });
 
     const result = await tableDialog({
-        window: { title: game.i18n.localize("DRPG.Panel.gmTeam") },
+        window: { title: game.i18n.localize("DRPG.Panel.despairFlow") },
         // `drpg-assign` was missing, and with it five stylesheet rules written
         // for exactly this window: the counts box, the asterisk marking an
         // implicit assignment, the dimming of an excluded row, the empty-state
@@ -153,6 +155,10 @@ export async function openGmTeamDialog() {
         await setPools(pools);
 
         if (result.assignments) await setAssignments(result.assignments);
+
+        // Saved through the same button as the rest — every pane stays in the
+        // DOM, which is the whole reason `panelTabs` works this way.
+        if (result.overflow) await setOverflowRules(result.overflow);
 
         ui.notifications.info(game.i18n.localize("DRPG.Monokuma.saved"));
         return true;
@@ -255,10 +261,22 @@ function buildContent(actors, gms, roster, candidates, removable) {
     // item tables wear the same bar; the trick it depends on is documented
     // there — every pane stays in the DOM, so the single Save that reads all
     // three forms at once keeps working.
+    /*
+     * FOUR TABS NOW, AND THE FOURTH IS WHY THIS WINDOW IS CALLED DESPAIR FLOW
+     * (Dawid, 29.08). Pools, the Monokumas who spend them, the students they
+     * are assigned to — and what happens to the Despair that will not fit in
+     * any of them. It is one subject with four faces rather than a team roster
+     * with a rule bolted on, which is what the old name had stopped describing.
+     *
+     * The overflow's markup comes from overflow.mjs, where the rules it edits
+     * live. It used to be a window of its own with a tile on the GM panel; both
+     * are gone, because two doors into one form is one door too many.
+     */
     const body = panelTabs([
         { key: "pools", label: game.i18n.localize("DRPG.Despair.poolsTitle"), html: poolSection },
         { key: "monokumas", label: game.i18n.localize("DRPG.Monokuma.panelTitle"), html: monokumaSection },
-        ...(roster.length ? [{ key: "students", label: game.i18n.localize("DRPG.Assign.title"), html: assignSection }] : [])
+        ...(roster.length ? [{ key: "students", label: game.i18n.localize("DRPG.Assign.title"), html: assignSection }] : []),
+        { key: "overflow", label: game.i18n.localize("DRPG.Overflow.title"), html: overflowSection() }
     ]);
 
     // Built as an element, not a string: DialogV2 runs a string `content`

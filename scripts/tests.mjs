@@ -1813,11 +1813,41 @@ const INVARIANTS = [
             "checkOverflow no longer recognises a boundary it has already armed — "
             + "an Eclipse would pay the threshold twice");
 
+        /*
+         * THE CATALOGUE'S OWN SHAPE. Eight debuffs, one drawn per firing, and
+         * two kinds of entry that must not be confused for one another — see
+         * `OVERFLOW` in config.mjs. A `state` written as an `event` would run
+         * once and be forgotten; an `event` written as a `state` would apply on
+         * every read, which for Rot means eating the school's equipment inside
+         * one time of day.
+         */
         for (const [key, rule] of Object.entries(OVERFLOW.effects)) {
-            ok(Number.isFinite(rule.floor) && rule.floor >= 1,
-                `the overflow can take ${key} down to ${rule.floor}`);
-            ok(rule.by >= 0, `${key} is reduced by ${rule.by}`);
+            ok(rule.kind === "state" || rule.kind === "event",
+                `${key} is neither a state nor an event, so nothing knows when to run it`);
+
+            // Only the ones that subtract a number need a floor, and every one
+            // of those needs one: a subtraction with no floor reaches zero, and
+            // zero actions or zero search tokens is a different game rather
+            // than a harder one.
+            if (rule.kind === "state" && rule.by !== undefined) {
+                ok(Number.isFinite(rule.floor) && rule.floor >= 1,
+                    `${key} subtracts ${rule.by} with no floor under it`);
+            }
+            if (rule.by !== undefined) {
+                ok(Number.isFinite(rule.by) && rule.by >= 0,
+                    `${key} is sized ${rule.by}`);
+            }
         }
+
+        // Every entry needs a name and a sentence, or the card that announces a
+        // draw has nothing to say about what was drawn.
+        for (const key of Object.keys(OVERFLOW.effects)) {
+            const name = game.i18n.localize(`DRPG.Overflow.name.${key}`);
+            const what = game.i18n.localize(`DRPG.Overflow.what.${key}`);
+            ok(name && !name.startsWith("DRPG."), `${key} has no name for the card`);
+            ok(what && !what.startsWith("DRPG."), `${key} has no sentence for the card`);
+        }
+
         ok(OVERFLOW.threshold >= OVERFLOW.range.min && OVERFLOW.threshold <= OVERFLOW.range.max,
             `X = ${OVERFLOW.threshold} is outside the range the editor accepts`);
     }],

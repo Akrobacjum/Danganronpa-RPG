@@ -43,7 +43,7 @@ export class SearchTokens {
         const base = game.settings.get(MODULE_ID, SETTINGS.searchTokensPerRoom);
         const dark = overflowTokenPenalty();
         if (!dark) return base;
-        return Math.max(overflowFloor("searchTokens"), base - dark);
+        return Math.max(overflowFloor("shift"), base - dark);
     }
 
     /**

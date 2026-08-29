@@ -14,7 +14,7 @@ import { MODULE_ID, FLAGS, ACTIONS_RESOURCE, STARTING } from "./config.mjs";
 import { isWounded } from "./character.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
 import { debug, plural } from "./utils.mjs";
-import { overflowActionPenalty, overflowFloor } from "./overflow.mjs";
+import { overflowActionPenalty, overflowFloor, overflowBlocksFreeMove } from "./overflow.mjs";
 import { playSfx } from "./sfx.mjs";
 
 /**
@@ -32,7 +32,7 @@ export function actionBudget(actor) {
      * nothing to do until the clock moves.
      */
     const dark = overflowActionPenalty();
-    const floor = dark ? overflowFloor("actions") : 0;
+    const floor = dark ? overflowFloor("panic") : 0;
     const total = Math.max(floor, STARTING.actions - (wounded ? 1 : 0) - dark);
 
     return { total, wounded, darkened: dark > 0 };
@@ -222,6 +222,12 @@ export async function setActions(actor, value) {
 
 /** Has this character still got their free Move this time of day? */
 export function hasFreeMove(actor) {
+    // FOG TAKES IT AWAY (Z10). Asked here rather than at the call sites because
+    // this is already the single answer: `takeMove` reads it to decide what a
+    // crossing costs, and the sheet reads it to draw the Move tile's price. The
+    // action-priced crossings are untouched — Fog makes moving cost something,
+    // it does not stop it.
+    if (overflowBlocksFreeMove()) return false;
     return !actor?.getFlag(MODULE_ID, FLAGS.freeMoveUsed);
 }
 

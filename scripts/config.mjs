@@ -1598,30 +1598,91 @@ export const OVERFLOW = {
     range: { min: 6, max: 60 },
 
     /**
-     * The three conditions, each switchable and each with its own size.
+     * THE EIGHT, AND ONLY ONE OF THEM HAPPENS (Dawid, 29.08).
      *
-     * FLOORS ARE NOT DECORATION. A darkened time of day still has to be
-     * playable: an action budget of zero is not a harder game, it is a player
-     * with nothing to do for twenty minutes, and a room with no search tokens
-     * is a room that cannot be investigated at all. Every subtraction here
-     * bottoms out at one.
+     * The first version applied every condition that was switched on, all at
+     * once. This draws ONE at random from the pool the GM has ticked, which is
+     * a different feeling for the same price: a darkening stops being a known
+     * quantity to plan around and becomes a thing the table finds out. The
+     * checkboxes therefore no longer mean "this effect is on" — they mean
+     * "this effect is in the hat".
+     *
+     * AN EMPTY POOL DISABLES THE MECHANIC. Untick all eight and the overflow
+     * never fires and never pays: the counter goes on climbing and nothing
+     * happens. That is a legitimate table setting — the counter as pure
+     * atmosphere — so the editor says so out loud rather than leaving a GM to
+     * wonder why nothing ever lands.
+     *
+     * TWO KINDS, AND THE DIFFERENCE IS LOAD-BEARING.
+     *
+     *   `state` lasts the time of day and is READ by the one place that already
+     *   decides its number. It stores nothing; it answers a question.
+     *
+     *   `event` happens once, at the moment of firing, and has nothing to
+     *   answer afterwards. Writing Rot as a state would be a catastrophe: "one
+     *   less durability" applied on every read would eat the whole school's
+     *   equipment inside an hour.
+     *
+     * `by` is the size, and it is the same column the editor already draws.
+     * `floor` is where a subtraction stops: a time of day nobody can act in is
+     * not a harder game, it is a player with nothing to do until the clock
+     * moves.
      */
     effects: {
+        /* ---- states: read by the one place that decides the number ------- */
+
+        /** Eclipse crossings. Free placement is pulled back to the ordinary two. */
+        darkness: {
+            kind: "state", on: true, by: 1, floor: 1, freeBecomes: 2,
+            reader: "eclipseAllowance"
+        },
+        /** Search tokens per room. */
+        shift: { kind: "state", on: true, by: 1, floor: 1, reader: "SearchTokens.max" },
         /**
-         * Eclipse crossings. Two become one — and a free-placement Eclipse,
-         * which normally lets you start anywhere on the map, is pulled back to
-         * the ordinary two. `null` has no "minus one", so the darkening gives
-         * it a number instead of a subtraction.
+         * Actions per character. Stacks with Wounded deliberately — a hurt
+         * student in a darkened hour is the situation the rule is for — and the
+         * floor is what stops the two reaching zero together.
          */
-        crossings: { on: true, by: 1, floor: 1, freeBecomes: 2 },
-        /** Search tokens per room: three become two. */
-        searchTokens: { on: true, by: 1, floor: 1 },
+        panic: { kind: "state", on: true, by: 1, floor: 1, reader: "actionBudget" },
         /**
-         * Actions: two become one. Stacks with Wounded, deliberately — a hurt
-         * student in a darkened hour is exactly the situation this is for — and
-         * the floor is what stops the two of them reaching zero together.
+         * No Hope is earned while it runs.
+         *
+         * NO SINGLE SOURCE TO ASK, which is why this one is a hook. Hope
+         * arrives from eight places in this module AND from Daggerheart's own
+         * roll pipeline with a plain `actor.update()` — resource-guard.mjs says
+         * so, and is why it deliberately does not guard `hope.value`. So the
+         * rule lives on `preUpdateActor`, cancelling the INCREASE. Spending
+         * Hope is untouched: this stops the tap, not the drain.
          */
-        actions: { on: true, by: 1, floor: 1 }
+        despair: { kind: "state", on: true, reader: "preUpdateActor" },
+        /**
+         * No Hope Calls. Distinct from the Silence Despair Call, which silences
+         * ONE player who was chosen; this one is weather and falls on everybody.
+         */
+        silence: { kind: "state", on: true, reader: "spendHopeCall" },
+        /** No free Move. The action-priced crossings still work. */
+        fog: { kind: "state", on: true, reader: "hasFreeMove" },
+
+        /* ---- events: done once, at the moment of firing ------------------ */
+
+        /**
+         * Every durable thing in the school wears by one.
+         *
+         * DEFINED BY DURABILITY, NOT BY CATEGORY. "All tools" as `EQUIPPABLE`
+         * would be three kinds, and the durability track carries more than
+         * that; "everything with a durability track that is not already broken"
+         * is one rule instead of a list that goes stale at the next category.
+         * It goes through `wearItem`, so breaking on the last point behaves
+         * exactly as it does everywhere else.
+         */
+        rot: { kind: "event", on: true, by: 1 },
+        /**
+         * Every project loses progress.
+         *
+         * Its own size, separate from the threshold: how much a quake costs is
+         * a different question from how much spill buys one.
+         */
+        earthquake: { kind: "event", on: true, by: 1 }
     }
 };
 

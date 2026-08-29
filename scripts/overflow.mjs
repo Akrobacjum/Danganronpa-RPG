@@ -88,6 +88,9 @@ export async function setOverflowRules({ threshold, effects } = {}) {
         next.effects[key] = {
             ...base,
             on: edit.on === undefined ? current.effects[key].on : Boolean(edit.on),
+            // Some of the eight have no size at all — Despair, Silence and Fog
+            // are on or off — so an edit that carries no number leaves `by`
+            // exactly as the catalogue had it rather than writing NaN.
             by: Number.isFinite(by) && by >= 0 ? Math.round(by) : current.effects[key].by
         };
     }
@@ -232,21 +235,47 @@ function same(a, b) {
         && a.timeOfDay === b.timeOfDay);
 }
 
-/** Is the world darkened right now? */
-export function overflowActive() {
+/**
+ * Which debuff is running right now, or null.
+ *
+ * THE STAMP CARRIES THE KEY, not just "dark / not dark". One of eight happens,
+ * so every reader has to ask which one — and the caption and the card have to
+ * be able to name it.
+ */
+export function overflowEffect() {
     try {
         const { active } = state();
-        if (!active) return false;
+        if (!active?.effect) return null;
         const clock = getClock();
-        if (same(active, stampOf(clock))) return true;
+        if (same(active, stampOf(clock))) return active.effect;
         // The Eclipse half: the clock has not moved yet, so compare against the
         // time of day this Eclipse is about to open.
-        return Boolean(clock.eclipse && same(active, upcoming(clock)));
+        if (clock.eclipse && same(active, upcoming(clock))) return active.effect;
+        return null;
     } catch {
         // Asked on every action, every search and every crossing — a throw here
         // would break the game rather than the feature.
-        return false;
+        return null;
     }
+}
+
+/** Is this particular debuff the one that was drawn? */
+export function overflowIs(key) {
+    return overflowEffect() === key;
+}
+
+/** Is anything running at all? For the caption's own state. */
+export function overflowActive() {
+    return overflowEffect() !== null;
+}
+
+/**
+ * The pool the GM has ticked. Empty means the mechanic is off — see the note
+ * in config.mjs; the counter still climbs, nothing is ever drawn from it.
+ */
+export function overflowPool() {
+    const { effects } = overflowRules();
+    return Object.keys(OVERFLOW.effects).filter(key => effects[key]?.on);
 }
 
 /**
@@ -276,46 +305,122 @@ export async function checkOverflow({ opening = false } = {}) {
         const threshold = overflowThreshold();
         if (now.count < threshold) return null;
 
+        /*
+         * NOTHING IN THE HAT, NOTHING HAPPENS — AND NOTHING IS PAID.
+         *
+         * A GM who has unticked all eight has turned the mechanic off; charging
+         * the threshold for a debuff that cannot be drawn would quietly empty a
+         * counter they are watching climb, which is the opposite of off.
+         */
+        const pool = overflowPool();
+        if (!pool.length) {
+            log("Despair overflow reached its threshold with an empty pool: nothing drawn, "
+                + "nothing paid.");
+            return null;
+        }
+
+        // One of them, evenly. A weighted draw was tempting and is a second
+        // dial nobody asked for; eight equal chances is a rule a table can hold
+        // in its head.
+        const drawn = pool[Math.floor(Math.random() * pool.length)];
+
         // PAYS X, KEEPS THE REST. A counter that zeroed itself would punish a
         // Monokuma for the timing of a boundary they do not control.
         const left = now.count - threshold;
-        await game.settings.set(MODULE_ID, SETTINGS.overflow, { count: left, active: target });
-        await announceOverflow(left, threshold);
-        log(`Despair overflow fired: paid ${threshold}, ${left} left.`);
-        return target;
+        await game.settings.set(MODULE_ID, SETTINGS.overflow,
+            { count: left, active: { ...target, effect: drawn } });
+
+        // The two that are events happen HERE and never again. Before the card,
+        // so a GM reading "every project lost a point" can look at the projects
+        // and see it has already happened.
+        await runOverflowEvent(drawn);
+
+        await announceOverflow(drawn, left, threshold);
+        log(`Despair overflow fired: ${drawn}, paid ${threshold}, ${left} left.`);
+        return { ...target, effect: drawn };
     } catch (err) {
         error("Could not check the Despair overflow", err);
         return null;
     }
 }
 
+/**
+ * The two that are events rather than conditions.
+ *
+ * Both run exactly once, here, and have nothing to answer afterwards. Both are
+ * wrapped: a school with one un-wearable item must still get the rest of the
+ * effect, and a failure in either has to leave the counter already paid rather
+ * than fire again on the next boundary.
+ */
+async function runOverflowEvent(key) {
+    const rule = overflowRules().effects[key];
+    if (rule?.kind !== "event") return null;
+
+    try {
+        if (key === "rot") return await rotEverything(rule.by ?? 1);
+        if (key === "earthquake") return await shakeProjects(rule.by ?? 1);
+    } catch (err) {
+        error(`The overflow drew ${key} and could not carry it out`, err);
+    }
+    return null;
+}
+
+/**
+ * Everything with a durability track wears by one.
+ *
+ * BY DURABILITY, NOT BY CATEGORY. `EQUIPPABLE` names three kinds and the track
+ * carries more than that, so "has durability and is not already broken" is one
+ * rule where a list of categories would be a list that goes stale. Through
+ * `wearItem`, so an item breaking on its last point behaves exactly as it does
+ * when a Despair roll wears it.
+ */
+async function rotEverything(amount) {
+    const { durabilityOf, isBroken, wearItem } = await import("./inventory.mjs");
+    const { isDeceased } = await import("./chapter.mjs");
+
+    let worn = 0, broke = 0;
+    for (const actor of game.actors) {
+        if (actor.type !== "character") continue;
+        // The dead carry nothing that can get worse.
+        if (isDeceased(actor)) continue;
+        for (const item of actor.items) {
+            if (isBroken(item) || durabilityOf(item) <= 0) continue;
+            for (let i = 0; i < amount; i++) {
+                const result = await wearItem(item);
+                if (!result) break;
+                worn++;
+                if (result.broke) { broke++; break; }
+            }
+        }
+    }
+    log(`Rot: ${worn} point(s) of wear, ${broke} thing(s) ruined.`);
+    return { worn, broke };
+}
+
+/** Every project loses progress. */
+async function shakeProjects(amount) {
+    const { allProjects, addProgress } = await import("./projects.mjs");
+    let moved = 0;
+    for (const project of allProjects()) {
+        if (!project.current) continue;          // nothing to take
+        const took = Math.min(amount, project.current);
+        if (await addProgress(project.id, -took)) moved++;
+    }
+    log(`Earthquake: ${moved} project(s) set back.`);
+    return { moved };
+}
+
 /** The card the whole table gets. Public by design — this is weather, not a secret. */
-async function announceOverflow(left, paid) {
-    const { effects } = overflowRules();
-    const lines = [];
-
-    if (effects.crossings.on) {
-        lines.push(game.i18n.format("DRPG.Overflow.effectCrossings", { n: effects.crossings.by }));
-    }
-    if (effects.searchTokens.on) {
-        lines.push(game.i18n.format("DRPG.Overflow.effectTokens", { n: effects.searchTokens.by }));
-    }
-    if (effects.actions.on) {
-        lines.push(game.i18n.format("DRPG.Overflow.effectActions", { n: effects.actions.by }));
-    }
-
-    // Every condition switched off is a legitimate table setting — somebody who
-    // wants the counter as pure atmosphere — so it says so rather than posting
-    // a card with an empty list under a promise of consequences.
-    const body = lines.length
-        ? `<ul>${lines.map(l => `<li>${l}</li>`).join("")}</ul>`
-        : `<p><em>${game.i18n.localize("DRPG.Overflow.nothingOn")}</em></p>`;
+async function announceOverflow(drawn, left, paid) {
+    const rule = overflowRules().effects[drawn];
+    const name = game.i18n.localize(`DRPG.Overflow.name.${drawn}`);
+    const what = game.i18n.format(`DRPG.Overflow.what.${drawn}`, { n: rule?.by ?? 1 });
 
     await announce({
         flags: { [MODULE_ID]: { sfx: { key: "despairOverflow", gm: true } } },
         content: `<h3>${game.i18n.localize("DRPG.Overflow.cardTitle")}</h3>
             <p>${game.i18n.format("DRPG.Overflow.cardBody", { n: paid })}</p>
-            ${body}
+            <p><strong>${foundry.utils.escapeHTML(name)}</strong> — ${what}</p>
             <p class="notes">${game.i18n.format("DRPG.Overflow.cardLeft", { n: left })}</p>`
     });
 }
@@ -329,20 +434,41 @@ async function announceOverflow(left, paid) {
  * cannot be investigated at all.
  * ========================================================================== */
 
+/**
+ * How much this debuff takes, if it is the one that was drawn.
+ *
+ * Reads the size from the rules rather than the stamp: a GM who retunes the
+ * numbers mid-darkening should see the new ones, and the stamp's job is to say
+ * WHICH and WHEN, not how much.
+ */
 function penalty(key) {
-    if (!overflowActive()) return 0;
-    const rule = overflowRules().effects[key];
-    return rule?.on ? Math.max(0, rule.by) : 0;
+    if (!overflowIs(key)) return 0;
+    return Math.max(0, overflowRules().effects[key]?.by ?? 0);
 }
 
-/** Actions to subtract from a character's budget this time of day. */
+/** Actions to subtract from a character's budget this time of day (Panic). */
 export function overflowActionPenalty() {
-    return penalty("actions");
+    return penalty("panic");
 }
 
-/** Search tokens to subtract from every room's maximum. */
+/** Search tokens to subtract from every room's maximum (Shift). */
 export function overflowTokenPenalty() {
-    return penalty("searchTokens");
+    return penalty("shift");
+}
+
+/** No Hope is earned while Despair runs. */
+export function overflowBlocksHope() {
+    return overflowIs("despair");
+}
+
+/** No Hope Calls while Silence runs. */
+export function overflowBlocksCalls() {
+    return overflowIs("silence");
+}
+
+/** No free Move while Fog runs. */
+export function overflowBlocksFreeMove() {
+    return overflowIs("fog");
 }
 
 /** The lowest a number this overflow reduced is allowed to go. */
@@ -358,9 +484,8 @@ export function overflowFloor(key) {
  * @returns {number|null}
  */
 export function overflowCrossings(allowance) {
-    if (!overflowActive()) return allowance;
-    const rule = overflowRules().effects.crossings;
-    if (!rule?.on) return allowance;
+    if (!overflowIs("darkness")) return allowance;
+    const rule = overflowRules().effects.darkness;
 
     // Free placement has no "minus one" to take, so the darkening hands it a
     // number instead of a subtraction: the run of the whole map becomes the
@@ -371,114 +496,161 @@ export function overflowCrossings(allowance) {
 }
 
 /* ==========================================================================
- * THE GM'S EDITOR
+ * THE GM'S EDITOR — a pane in Despair Flow, not a window of its own
+ * --------------------------------------------------------------------------
+ * It was a DialogV2 with a tile on the GM panel. It is now the fourth tab of
+ * the window that already holds the pools, the Monokumas who spend them and
+ * the students they are assigned to (Dawid, 29.08) — one subject with four
+ * faces. Two doors into one form is one door too many, so the tile and the
+ * standalone window both went.
+ *
+ * The markup lives here rather than in gm-team-dialog.mjs because the rules it
+ * edits live here: a checkbox whose meaning is decided in another file is a
+ * checkbox somebody will eventually mis-wire.
  * ========================================================================== */
 
-/**
- * Three switches, three sizes and X.
- *
- * ONE OF THESE, NOT FOUR (see `alreadyOpen` in live.mjs): two copies each read
- * the rules when they opened, and the older one would go on looking
- * authoritative while showing something that stopped being true.
- *
- * The current reading is printed rather than editable. A GM who wants to move
- * the counter by hand has `game.drpg.addOverflow()`, and a spin box beside the
- * threshold would invite exactly the edit that makes the number stop meaning
- * "Despair this world could not hold".
- */
-export async function openOverflowSetup() {
-    if (!game.user.isGM) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
-        return null;
-    }
-
-    const { alreadyOpen } = await import("./live.mjs");
-    if (alreadyOpen("drpg-window-overflow")) return null;
-
-    const { dialogContent } = await import("./utils.mjs");
-    const DialogV2 = foundry.applications.api.DialogV2;
-
+/** The pane's HTML, for `panelTabs`. */
+export function overflowSection() {
     const status = overflowStatus();
     const { min, max } = OVERFLOW.range;
-    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
+    const esc = str => foundry.utils.escapeHTML(String(str ?? ""));
 
-    const row = (key, labelKey) => {
+    const row = key => {
         const rule = status.rules.effects[key];
-        return `<li class="drpg-overflow-rule">
-            <label class="drpg-overflow-on">
-                <input type="checkbox" name="${key}-on"${rule.on ? " checked" : ""}>
-                <span>${esc(game.i18n.localize(labelKey))}</span>
-            </label>
+        const name = esc(game.i18n.localize(`DRPG.Overflow.name.${key}`));
+        const what = esc(game.i18n.format(`DRPG.Overflow.what.${key}`, { n: rule.by ?? 1 }));
+        // Only some of the eight have a size. Despair, Silence and Fog are on
+        // or off, and a spin box beside them would be a control that does
+        // nothing — which is worse than no control at all.
+        const size = rule.by === undefined ? "" : `
             <label class="drpg-overflow-by">
                 <span>${esc(game.i18n.localize("DRPG.Overflow.amount"))}</span>
-                <input type="number" name="${key}-by" value="${rule.by}" min="0" max="5">
+                <input type="number" name="ovf-${key}-by" value="${rule.by}" min="0" max="5">
+            </label>`;
+
+        return `<li class="drpg-overflow-rule${status.effect === key ? " is-drawn" : ""}">
+            <label class="drpg-overflow-on">
+                <input type="checkbox" name="ovf-${key}-on"${rule.on ? " checked" : ""}>
+                <strong>${name}</strong>
             </label>
+            ${size}
+            <div class="notes">${what}</div>
         </li>`;
     };
 
-    const picked = await DialogV2.wait({
-        id: "drpg-window-overflow",
-        window: { title: game.i18n.localize("DRPG.Overflow.setupTitle") },
-        classes: ["drpg-panel", "drpg-overflow-setup"],
-        content: dialogContent(`<form>
-            <p>${esc(game.i18n.localize("DRPG.Overflow.setupIntro"))}</p>
-            <p class="notes">${esc(game.i18n.format(
-                status.active ? "DRPG.Overflow.currentActive" : "DRPG.Overflow.current",
-                { count: status.count, max: status.threshold }))}</p>
+    const states = Object.entries(OVERFLOW.effects)
+        .filter(([, rule]) => rule.kind === "state").map(([key]) => key);
+    const events = Object.entries(OVERFLOW.effects)
+        .filter(([, rule]) => rule.kind === "event").map(([key]) => key);
 
-            <label class="drpg-overflow-threshold">
-                <span>${esc(game.i18n.localize("DRPG.Overflow.threshold"))}</span>
-                <input type="number" name="threshold" value="${status.threshold}"
-                       min="${min}" max="${max}">
-            </label>
-            <p class="notes">${esc(game.i18n.format("DRPG.Overflow.thresholdHint",
-                { min, max }))}</p>
+    const nowLine = status.active
+        ? game.i18n.format("DRPG.Overflow.currentDrawn",
+            { count: status.count, max: status.threshold, what: status.effectName })
+        : game.i18n.format("DRPG.Overflow.current", { count: status.count, max: status.threshold });
 
-            <h4>${esc(game.i18n.localize("DRPG.Overflow.conditions"))}</h4>
-            <ul class="drpg-overflow-rules">
-                ${row("crossings", "DRPG.Overflow.condCrossings")}
-                ${row("searchTokens", "DRPG.Overflow.condTokens")}
-                ${row("actions", "DRPG.Overflow.condActions")}
-            </ul>
-            <p class="notes">${esc(game.i18n.localize("DRPG.Overflow.floorNote"))}</p>
-        </form>`),
-        buttons: [
-            {
-                action: "save", label: game.i18n.localize("DRPG.Overflow.save"), default: true,
-                callback: (event, button, dialog) => {
-                    const form = dialog.element;
-                    const read = key => ({
-                        on: form.querySelector(`[name="${key}-on"]`)?.checked,
-                        by: Number(form.querySelector(`[name="${key}-by"]`)?.value)
-                    });
-                    return {
-                        threshold: Number(form.querySelector("[name=threshold]")?.value),
-                        effects: {
-                            crossings: read("crossings"),
-                            searchTokens: read("searchTokens"),
-                            actions: read("actions")
-                        }
-                    };
-                }
-            },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
-        rejectClose: false
-    });
+    // An empty pool is a real setting and not an error, so it is stated where
+    // the GM is looking rather than discovered when nothing ever fires.
+    const empty = status.pool.length ? "" :
+        `<p class="notes drpg-overflow-empty">${
+            esc(game.i18n.localize("DRPG.Overflow.emptyPool"))}</p>`;
 
-    if (!picked || picked === "cancel") return null;
+    return `<p>${esc(game.i18n.localize("DRPG.Overflow.setupIntro"))}</p>
+        <p class="notes">${esc(nowLine)}</p>
 
-    const saved = await setOverflowRules(picked);
-    ui.notifications.info(game.i18n.format("DRPG.Overflow.saved", { n: saved.threshold }));
-    return saved;
+        <label class="drpg-overflow-threshold">
+            <span>${esc(game.i18n.localize("DRPG.Overflow.threshold"))}</span>
+            <input type="number" name="ovf-threshold" value="${status.threshold}"
+                   min="${min}" max="${max}">
+        </label>
+        <p class="notes">${esc(game.i18n.format("DRPG.Overflow.thresholdHint", { min, max }))}</p>
+
+        <h4>${esc(game.i18n.localize("DRPG.Overflow.pool"))}</h4>
+        <p class="notes">${esc(game.i18n.localize("DRPG.Overflow.poolHint"))}</p>
+        ${empty}
+        <ul class="drpg-overflow-rules">${states.map(row).join("")}</ul>
+        <h4>${esc(game.i18n.localize("DRPG.Overflow.oneOff"))}</h4>
+        <p class="notes">${esc(game.i18n.localize("DRPG.Overflow.oneOffHint"))}</p>
+        <ul class="drpg-overflow-rules">${events.map(row).join("")}</ul>
+        <p class="notes">${esc(game.i18n.localize("DRPG.Overflow.floorNote"))}</p>`;
+}
+
+/**
+ * Read the pane back. Takes the dialog's root element.
+ *
+ * Every field is prefixed `ovf-` because this form shares a window with three
+ * others, and a `name="threshold"` in a dialog that also holds a pool table is
+ * a collision waiting for whoever adds the next field.
+ */
+export function readOverflowForm(root) {
+    if (!root) return null;
+    const effects = {};
+    for (const key of Object.keys(OVERFLOW.effects)) {
+        const on = root.querySelector(`[name="ovf-${key}-on"]`);
+        const by = root.querySelector(`[name="ovf-${key}-by"]`);
+        // A pane that never rendered returns nothing rather than a form full of
+        // undefined, which `setOverflowRules` would read as "untick everything".
+        if (!on) return null;
+        effects[key] = { on: on.checked, ...(by ? { by: Number(by.value) } : {}) };
+    }
+    return {
+        threshold: Number(root.querySelector('[name="ovf-threshold"]')?.value),
+        effects
+    };
 }
 
 /** Everything a caption, a tooltip or the editor's preview needs, in one read. */
 export function overflowStatus() {
+    const drawn = overflowEffect();
     return {
         count: state().count,
         threshold: overflowThreshold(),
-        active: overflowActive(),
+        active: drawn !== null,
+        effect: drawn,
+        effectName: drawn ? game.i18n.localize(`DRPG.Overflow.name.${drawn}`) : null,
+        pool: overflowPool(),
         rules: overflowRules()
     };
+}
+
+/* ==========================================================================
+ * THE ONE DEBUFF WITH NO SINGLE SOURCE TO ASK
+ * ========================================================================== */
+
+/**
+ * Despair: no Hope is earned while it runs.
+ *
+ * A HOOK, BECAUSE THERE IS NOWHERE ELSE TO PUT IT. Hope arrives from eight
+ * places in this module and from Daggerheart's own roll pipeline with a plain
+ * `actor.update()` carrying none of our flags — resource-guard.mjs says exactly
+ * this, and is why it deliberately does not guard `hope.value`. Any reader we
+ * added would be one of nine, and the ninth would be the one that mattered.
+ *
+ * ONLY THE INCREASE. Spending Hope, and a GM correcting a number downward, both
+ * go through untouched: this stops the tap, not the drain. And only while the
+ * draw is Despair — every other hour this hook costs one comparison.
+ */
+function onPreUpdateActor(actor, changes) {
+    try {
+        if (!overflowBlocksHope()) return true;
+        if (actor?.type !== "character") return true;
+
+        const next = foundry.utils.getProperty(changes, "system.resources.hope.value");
+        if (next === undefined) return true;
+
+        const held = Number(actor.system?.resources?.hope?.value ?? 0);
+        if (!(Number(next) > held)) return true;
+
+        // Deleted rather than the whole update refused: a roll that grants Hope
+        // usually writes other things in the same breath, and cancelling all of
+        // it would take those too.
+        delete changes.system.resources.hope.value;
+        return true;
+    } catch {
+        // A throw here would block every actor update in the world.
+        return true;
+    }
+}
+
+export function registerOverflow() {
+    Hooks.on("preUpdateActor", onPreUpdateActor);
 }

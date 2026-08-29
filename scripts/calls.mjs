@@ -53,6 +53,19 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
             return null;
         }
 
+        /*
+         * SILENCE, THE WEATHER (Z10) — not to be confused with the Silence
+         * Despair Call above it in the same file, which a Monokuma BUYS and
+         * aims at one player. This one was drawn by the overflow and falls on
+         * everybody, which is why it is checked here rather than in the
+         * per-player restrictions: there is nobody to look up.
+         */
+        const { overflowBlocksCalls } = await import("./overflow.mjs");
+        if (overflowBlocksCalls()) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Overflow.silenced"));
+            return null;
+        }
+
         // The dead spend nothing. The sheet stops offering them the Calls panel
         // at all, so this covers the two routes that skip the sheet: a window
         // left open across the moment of death, and the `game.drpg` API.

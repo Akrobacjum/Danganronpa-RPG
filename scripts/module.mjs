@@ -25,6 +25,7 @@ import { registerGmPanel } from "./gm-panel.mjs";
 import { registerHud } from "./hud.mjs";
 import { registerPlayerStatus } from "./player-status.mjs";
 import { registerDespair } from "./despair.mjs";
+import { registerOverflow } from "./overflow.mjs";
 import { registerDespairAwards } from "./despair-award.mjs";
 import { registerMovement } from "./movement.mjs";
 import { registerProjectsUi } from "./projects-ui.mjs";
@@ -127,6 +128,7 @@ Hooks.once("init", () => {
     safely("the player status strip", registerPlayerStatus);
     safely("Despair pools", registerDespair);
     safely("Despair awards", registerDespairAwards);
+    safely("Despair overflow", registerOverflow);
     safely("movement", registerMovement);
     safely("the projects tray", registerProjectsUi);
     safely("inventory limits", registerInventoryLimits);
