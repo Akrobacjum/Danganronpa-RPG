@@ -475,21 +475,25 @@ export async function attemptCleanup(actor, tokenId, {
  * beats a decoy — so the default is not merely the safe answer, it is the
  * ordinary one.
  *
- * The lists come from `CLEANUP.transform`, which is where the bound on "what
- * could this plausibly be" is written down and argued.
+ * THE SAME RESHAPE AS THE TAMPER ROAD, ASKED LATER (Dawid, 29.08). It used to
+ * offer a type menu, and it stopped for the reason argued in
+ * `CLEANUP.transformAction`: the lie a killer tells is a sentence. What this
+ * road keeps that the other does not is the BAND — a critical earned the right
+ * to say how loudly the fake reads, which is a real choice and the reward for
+ * rolling that well.
  *
- * @returns {Promise<object|null>} `{ type, visibility }`, or null for "erase it".
+ * @returns {Promise<object|null>} `{ name, text, visibility }`, or null for "erase it".
  */
 async function askTransform(actor) {
-    const { REMNANT_TYPES, REMNANT_VISIBILITY_LABELS } = await import("./config.mjs");
+    const { REMNANT_VISIBILITY_LABELS } = await import("./config.mjs");
     const rules = CLEANUP.transform ?? {};
-    const types = rules.types ?? [];
     const bands = rules.visibilities ?? [];
-    if (!types.length || !bands.length) return null;
+    const limits = CLEANUP.transformAction?.limits ?? {};
+    if (!bands.length) return null;
 
-    const options = (list, labels) => list
+    const options = bands
         .map(key => `<option value="${key}">${
-            foundry.utils.escapeHTML(labels[key]?.label ?? labels[key] ?? key)}</option>`)
+            foundry.utils.escapeHTML(REMNANT_VISIBILITY_LABELS[key] ?? key)}</option>`)
         .join("");
 
     const picked = await DialogV2.wait({
@@ -497,10 +501,14 @@ async function askTransform(actor) {
         classes: ["drpg-panel", "drpg-narrow"],
         content: dialogContent(`<form>
             <p>${game.i18n.localize("DRPG.Cleanup.transformIntro")}</p>
-            <label>${game.i18n.localize("DRPG.Cleanup.transformType")}
-                <select name="type">${options(types, REMNANT_TYPES)}</select></label>
+            <label>${game.i18n.localize("DRPG.Cleanup.reshapeName")}
+                <input type="text" name="name" maxlength="${limits.name ?? 60}"
+                    placeholder="${game.i18n.localize("DRPG.Cleanup.reshapeNamePlaceholder")}" /></label>
+            <label>${game.i18n.localize("DRPG.Cleanup.reshapeText")}
+                <textarea name="text" rows="3" maxlength="${limits.text ?? 400}"
+                    placeholder="${game.i18n.localize("DRPG.Cleanup.reshapeTextPlaceholder")}"></textarea></label>
             <label>${game.i18n.localize("DRPG.Cleanup.transformVisibility")}
-                <select name="visibility">${options(bands, REMNANT_VISIBILITY_LABELS)}</select></label>
+                <select name="visibility">${options}</select></label>
             <p class="notes">${game.i18n.localize("DRPG.Cleanup.transformNote")}</p>
         </form>`),
         buttons: [
@@ -511,7 +519,8 @@ async function askTransform(actor) {
             {
                 action: "change", label: game.i18n.localize("DRPG.Cleanup.transformChange"),
                 callback: (e, b, d) => ({
-                    type: d.element.querySelector("[name=type]").value,
+                    name: d.element.querySelector("[name=name]").value,
+                    text: d.element.querySelector("[name=text]").value,
                     visibility: d.element.querySelector("[name=visibility]").value
                 })
             }
@@ -522,7 +531,113 @@ async function askTransform(actor) {
     // "erase" comes back as null, and so does closing the window — which is the
     // same answer and should be: backing out of a bonus question must not cost
     // the critical that earned it.
-    return picked && picked !== "erase" ? picked : null;
+    if (!picked || picked === "erase") return null;
+
+    // An unfillable bonus is not an erase — they pressed "leave something else"
+    // — so say why nothing happened rather than quietly wiping the trace.
+    const name = plainText(picked.name, limits.name ?? 60);
+    const text = plainText(picked.text, limits.text ?? 400);
+    if (!name || !text) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.reshapeNeedsBoth"));
+        return null;
+    }
+    return { name, text, visibility: picked.visibility };
+}
+
+/**
+ * A player's sentence, made safe to store and print.
+ *
+ * THIS IS THE ONLY FREE TEXT A PLAYER WRITES INTO THE WORLD in this module, so
+ * it is the only place that needs this, and it is worth being exact about what
+ * each step is for rather than reaching for a general-purpose "sanitise".
+ *
+ *   tags stripped   — the value ends up in a token's `name` and in a chat card.
+ *                     Foundry escapes most of those paths and this module escapes
+ *                     the rest, but a string that has crossed a socket from a
+ *                     client should not be relying on every future reader
+ *                     remembering to escape it. Removed at the boundary, once.
+ *   runs collapsed  — a name made of four hundred newlines is a name that breaks
+ *                     the layout of whatever prints it.
+ *   length capped   — `CLEANUP.transformAction.limits`. A socket packet is not
+ *                     bounded by the `maxlength` on the input that was supposed
+ *                     to produce it.
+ *
+ * Empty in, empty out, and callers read empty as "they did not fill this in".
+ */
+function plainText(value, max) {
+    return String(value ?? "")
+        .replace(/<[^>]*>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, Math.max(0, max));
+}
+
+/**
+ * Write the killer's story onto a trace. GM-side, and the ONLY writer.
+ *
+ * Both reshape roads end here — the Tamper action's own (declared before the
+ * dice) and the erase road's critical bonus (offered after them) — because the
+ * two differ only in when the question is asked. Everything after the answer is
+ * the same job, and the file has already been bitten once by two branches that
+ * were supposed to stay in step and did not.
+ *
+ * TWO WRITES, AND THEY ARE DIFFERENT KINDS OF FACT. `retuneRemnant` moves what
+ * the trace IS — type and band — which is engine state the GM reads.
+ * `setRemnantPublic` moves what it SAYS, which is the answer a finder gets. The
+ * ledger's own `label` is untouched by both, so the GM keeps a true reading of
+ * a trace the killer has lied about: that asymmetry is the whole point of the
+ * remnant architecture and this is the feature that exercises it hardest.
+ *
+ * The undo snapshot carries both, or a Reroll would put the type back and leave
+ * the killer's sentence standing on a roll that no longer produced it.
+ */
+async function reshapeTrace(token, data, {
+    name = "", text = "", softer = null, tie = false, receipt = null, done = []
+} = {}) {
+    const { retuneRemnant, setRemnantPublic, remnantData } = await import("./remnants.mjs");
+    const { REMNANT_VISIBILITY_LABELS, REMNANT_TYPES } = await import("./config.mjs");
+
+    const patch = { type: CLEANUP.transformAction?.becomes ?? "resolution" };
+    if (softer) patch.visibility = softer;
+
+    /*
+     * A TRACE THE KILLER RESHAPED IS THE KILLER'S (D2).
+     *
+     * Reshaping is the one road that changes what a trace is, so it is also the
+     * one road that could launder a tie away. `retuneRemnant` writes the fields
+     * it is given and nothing else, so an already-tied trace survives by
+     * construction — trap 163's shape. What is added is the other direction: a
+     * killer who reshapes an untied trace ties it, because they have now handled
+     * it as part of their crime. An innocent doing the same in Tamper leaves it
+     * exactly as untied as they found it.
+     */
+    if (tie && !data.tiedToCrime) patch.tiedToCrime = true;
+
+    if (receipt) {
+        receipt.transformed = {
+            id: token.id,
+            sceneId: token.parent?.id ?? null,
+            from: { type: data.type, visibility: data.visibility },
+            publicFrom: remnantData(token)?.public ?? null
+        };
+    }
+
+    await retuneRemnant(token.parent?.id ?? null, token.id, patch);
+
+    // Only the halves they actually filled in. Passing an empty string would
+    // overwrite a description the GM had already written for a finder.
+    const story = {};
+    if (name) story.name = name;
+    if (text) story.playerText = text;
+    if (Object.keys(story).length) await setRemnantPublic(token, story);
+
+    done.push(game.i18n.format("DRPG.Cleanup.reshaped", {
+        from: `${data.visibilityLabel} ${data.typeLabel}`,
+        band: REMNANT_VISIBILITY_LABELS[patch.visibility ?? data.visibility]
+            ?? data.visibilityLabel,
+        kind: REMNANT_TYPES[patch.type]?.label ?? patch.type,
+        name: name || game.i18n.localize("DRPG.Cleanup.reshapeUnnamed")
+    }));
 }
 
 /**
@@ -533,40 +648,42 @@ async function askTransform(actor) {
  * you told it well. Cancelling here costs nothing, which is why it is asked
  * before the action is charged.
  *
- * ONE SELECT, FIVE OPTIONS, ONE DECISION. Four of them are the types G-20
- * allows and the fifth is "leave what it is, just make it harder to notice" —
- * because sometimes the honest lie is that there is nothing here worth reading.
+ * TWO FIELDS, AND THEY ARE THE LIE ITSELF (Dawid, 29.08). The killer writes
+ * what the next person through the door will read: a name for the thing, and a
+ * sentence about it. There is no type menu any more — see the argument in
+ * `CLEANUP.transformAction` — and there is no "just make it quieter" option,
+ * because that was the other half of a choice the menu created.
  *
- * @returns {Promise<{type: string|null}|null>} null when they backed out.
+ * BOTH ARE REQUIRED, and an empty form cancels rather than submitting. A
+ * reshape with nothing written in it is not a quiet reshape, it is a player who
+ * pressed the wrong button: the action would charge Sanity and a turn to leave
+ * the trace saying exactly what it said before. Cancelling here costs nothing,
+ * which is the reason this is asked before the action is charged at all.
+ *
+ * @returns {Promise<{name: string, text: string}|null>} null when they backed out.
  */
 export async function askTransformChange(actor) {
-    const { REMNANT_TYPES } = await import("./config.mjs");
-    const types = CLEANUP.transform?.types ?? [];
-    if (!types.length) return null;
-
-    const options = types
-        .map(key => `<option value="${key}">${
-            foundry.utils.escapeHTML(REMNANT_TYPES[key]?.label ?? key)}</option>`)
-        .join("");
+    const limits = CLEANUP.transformAction?.limits ?? {};
 
     const picked = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Cleanup.transformAction") },
         classes: ["drpg-panel", "drpg-narrow"],
         content: dialogContent(`<form>
             <p>${game.i18n.localize("DRPG.Cleanup.transformActionIntro")}</p>
-            <label>${game.i18n.localize("DRPG.Cleanup.transformType")}
-                <select name="type">
-                    ${options}
-                    <option value="">${
-                        game.i18n.localize("DRPG.Cleanup.transformQuieter")}</option>
-                </select></label>
+            <label>${game.i18n.localize("DRPG.Cleanup.reshapeName")}
+                <input type="text" name="name" maxlength="${limits.name ?? 60}"
+                    placeholder="${game.i18n.localize("DRPG.Cleanup.reshapeNamePlaceholder")}" /></label>
+            <label>${game.i18n.localize("DRPG.Cleanup.reshapeText")}
+                <textarea name="text" rows="3" maxlength="${limits.text ?? 400}"
+                    placeholder="${game.i18n.localize("DRPG.Cleanup.reshapeTextPlaceholder")}"></textarea></label>
             <p class="notes">${game.i18n.localize("DRPG.Cleanup.transformActionNote")}</p>
         </form>`),
         buttons: [
             {
                 action: "go", label: game.i18n.localize("DRPG.Cleanup.transformGo"), default: true,
                 callback: (e, b, d) => ({
-                    type: d.element.querySelector("[name=type]").value || null
+                    name: d.element.querySelector("[name=name]").value,
+                    text: d.element.querySelector("[name=text]").value
                 })
             },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
@@ -574,7 +691,15 @@ export async function askTransformChange(actor) {
         rejectClose: false
     });
 
-    return picked && picked !== "cancel" ? picked : null;
+    if (!picked || picked === "cancel") return null;
+
+    const name = plainText(picked.name, limits.name ?? 60);
+    const text = plainText(picked.text, limits.text ?? 400);
+    if (!name || !text) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.reshapeNeedsBoth"));
+        return null;
+    }
+    return { name, text };
 }
 
 /* ==========================================================================
@@ -770,64 +895,40 @@ export async function resolveCleanup({
      */
     if (transforming && success) {
         const byTheKiller = isCleaner(actor);
-        const bounds = CLEANUP.transform ?? {};
-        const wantsType = change?.type && bounds.types?.includes(change.type);
-        const quieter = !wantsType || isCritical;
-
-        const ladder = REMNANT_VISIBILITY;                  // obvious → hidden
-        const at = ladder.indexOf(data.visibility);
-        const step = CLEANUP.transformAction?.quieter ?? 1;
-        const softer = quieter && at >= 0 && at < ladder.length - 1
-            ? ladder[Math.min(ladder.length - 1, at + step)]
-            : null;
-
-        const patch = {};
-        if (wantsType) patch.type = change.type;
-        if (softer) patch.visibility = softer;
+        const limits = CLEANUP.transformAction?.limits ?? {};
 
         /*
-         * A TRACE THE KILLER RESHAPED IS THE KILLER'S (D2).
+         * BOUNDED ON ARRIVAL, like every other field in this packet.
          *
-         * Reshaping is the one road that changes what a trace IS, so it is also
-         * the one road that could launder a tie away: turn an Incident Remnant
-         * into a Prep Remnant and, if the tie travelled with the type, the
-         * murder would quietly stop owning it.
-         *
-         * `retuneRemnant` writes visibility and type and nothing else, so an
-         * already-tied trace survives the rewrite by construction — that is
-         * trap 163's shape and the reason this note names it. What is added here
-         * is the other direction: a killer reshaping a trace that was NOT tied
-         * ties it, because they have now handled it as part of their crime.
-         *
-         * Only for the killer. An innocent reshaping something in the Tamper
-         * action leaves it exactly as untied as they found it.
+         * `change` crossed a socket, so the `maxlength` on the inputs that were
+         * supposed to produce it is decoration. The ceiling that counts is here.
          */
-        if (byTheKiller && !data.tiedToCrime) patch.tiedToCrime = true;
+        const name = plainText(change?.name, limits.name ?? 60);
+        const text = plainText(change?.text, limits.text ?? 400);
 
-        if (Object.keys(patch).length) {
+        // A packet with nothing written in it cannot be honoured: there is no
+        // longer a second thing a reshape could mean. The roll is still spent,
+        // which is the same answer any action gets when its declaration is
+        // unusable, and it is reported rather than silently succeeding.
+        if (!name && !text) {
+            done.push(game.i18n.localize("DRPG.Cleanup.reshapeNothingSaid"));
+        } else {
+            // The critical's second half: one band quieter. A plain success
+            // buys the story alone — see `CLEANUP.transformAction`.
+            const ladder = REMNANT_VISIBILITY;              // obvious → hidden
+            const at = ladder.indexOf(data.visibility);
+            const step = CLEANUP.transformAction?.quieter ?? 1;
+            const softer = isCritical && at >= 0 && at < ladder.length - 1
+                ? ladder[Math.min(ladder.length - 1, at + step)]
+                : null;
+
             try {
-                const { retuneRemnant } = await import("./remnants.mjs");
-                receipt.transformed = {
-                    id: token.id,
-                    sceneId: token.parent?.id ?? null,
-                    from: { type: data.type, visibility: data.visibility }
-                };
-                await retuneRemnant(token.parent?.id ?? null, token.id, patch);
-                const { REMNANT_TYPES, REMNANT_VISIBILITY_LABELS } = await import("./config.mjs");
-                done.push(game.i18n.format("DRPG.Cleanup.transformed", {
-                    from: `${data.visibilityLabel} ${data.typeLabel}`,
-                    to: `${REMNANT_VISIBILITY_LABELS[patch.visibility ?? data.visibility]
-                        ?? data.visibilityLabel} ${
-                        REMNANT_TYPES[patch.type ?? data.type]?.label ?? data.typeLabel}`
-                }));
+                await reshapeTrace(token, data, {
+                    name, text, softer, tie: byTheKiller, receipt, done
+                });
             } catch (err) {
                 error("Could not rewrite the Remnant a transform reshaped", err);
             }
-        } else {
-            // Asked for quiet on something already as quiet as it goes, and
-            // rolled well enough to get it. Said out loud rather than reported
-            // as a success with nothing after it.
-            done.push(game.i18n.localize("DRPG.Cleanup.alreadyQuietest"));
         }
 
         const back = CLEANUP.transformAction?.refundStress?.[band];
@@ -843,30 +944,34 @@ export async function resolveCleanup({
         return { removed: false, transformed: true, band, success };
     }
 
+    /*
+     * BOUNDED ON ARRIVAL (trap 115), and the bound moved with the feature.
+     *
+     * The type half is gone — a reshape always produces a Tamper Remnant now,
+     * decided here rather than asked for — so the only thing left to validate
+     * from the packet is the band, and it is still checked against the table
+     * rather than trusted. The words are capped by `plainText` inside
+     * `reshapeTrace`'s callers, and a packet with none is not a reshape.
+     */
     const rules = CLEANUP.transform ?? {};
+    const rewriteName = plainText(transform?.name, CLEANUP.transformAction?.limits?.name ?? 60);
+    const rewriteText = plainText(transform?.text, CLEANUP.transformAction?.limits?.text ?? 400);
     const rewrite = isCritical && outcome.mayTransform && transform
-        && rules.types?.includes(transform.type)
+        && (rewriteName || rewriteText)
         && rules.visibilities?.includes(transform.visibility)
         ? transform
         : null;
 
     if (rewrite) {
         try {
-            const { retuneRemnant } = await import("./remnants.mjs");
-            receipt.transformed = {
-                id: token.id,
-                sceneId: token.parent?.id ?? null,
-                from: { type: data.type, visibility: data.visibility }
-            };
-            await retuneRemnant(token.parent?.id ?? null, token.id, {
-                type: rewrite.type, visibility: rewrite.visibility
+            await reshapeTrace(token, data, {
+                name: rewriteName,
+                text: rewriteText,
+                softer: rewrite.visibility,
+                tie: isCleaner(actor),
+                receipt,
+                done
             });
-            const { REMNANT_TYPES, REMNANT_VISIBILITY_LABELS } = await import("./config.mjs");
-            done.push(game.i18n.format("DRPG.Cleanup.transformed", {
-                from: `${data.visibilityLabel} ${data.typeLabel}`,
-                to: `${REMNANT_VISIBILITY_LABELS[rewrite.visibility] ?? rewrite.visibility} ${
-                    REMNANT_TYPES[rewrite.type]?.label ?? rewrite.type}`
-            }));
         } catch (err) {
             error("Could not rewrite the Remnant a critical clean-up transformed", err);
         }
@@ -969,7 +1074,7 @@ export async function resolveCleanup({
     lastAttempt.set(actorId, receipt);
 
     log(`Cleanup: ${actor.name} rolled ${total} against DC ${dc} on a ${data.visibility} ${data.type} — ${band}${
-        rewrite ? `, rewritten as ${rewrite.visibility} ${rewrite.type}` : ""}.`);
+        rewrite ? `, reshaped into "${rewriteName}" at ${rewrite.visibility}` : ""}.`);
     return { removed: Boolean(outcome.removes && !rewrite), transformed: Boolean(rewrite), band, done };
 }
 
@@ -1007,12 +1112,41 @@ export async function resolveCleanup({
  * @returns {Promise<boolean>} false only when the roll was abandoned, which is
  *   the one case the caller should read as "they backed out".
  */
+/**
+ * Who in this room could tell on you (D13, Dawid 29.08).
+ *
+ * AN ACCOMPLICE IS NOT A WITNESS, and the roll this feeds exists entirely to
+ * ask "can they see what you are doing". Two killers who committed the incident
+ * together already know: there is nothing to hide from the person who held the
+ * other end of it, and rolling Shadow against them made the second killer's
+ * presence a PENALTY on the clean-up rather than the help it obviously is.
+ *
+ * Measured against the same list `cleanupBlocker` uses to decide who may clean
+ * at all — `killerIds` — so the two answers cannot disagree: everybody the
+ * stage lets into the crime scene is somebody the crime scene does not hide
+ * from.
+ *
+ * ONLY FOR THE KILLERS. An innocent using Tamper is not in the conspiracy, so
+ * nobody is exempt from their roll — least of all a killer standing over them,
+ * who is exactly the person an innocent has reason to hide from. The
+ * `isCleaner` test is what makes this a rule about accomplices rather than a
+ * rule about anyone who happens to be indexed in the incident.
+ *
+ * The dead are already gone from `othersInRoom` (`countsAsPresent` drops them),
+ * so the victim never had to be handled here.
+ */
+function witnessesTo(actor, present) {
+    if (!isCleaner(actor)) return present;
+    const partners = new Set(killerIds(murderState()));
+    return present.filter(other => !partners.has(other?.id));
+}
+
 async function concealFromWitnesses(actor) {
     const def = CLEANUP.conceal;
     if (!def) return true;
 
     const { othersInRoom } = await import("./movement.mjs");
-    if (!othersInRoom(actor).length) return true;
+    if (!witnessesTo(actor, othersInRoom(actor)).length) return true;
 
     const { rollTrait } = await import("./action-rolls.mjs");
     const roll = await rollTrait(actor, def.trait,
@@ -1347,7 +1481,7 @@ async function applyMisleadingTrail(actor, def, targetId, success, band, done) {
  * Carry the body out of the room it died in.
  *
  * The destination comes from the killer, picked before the roll and carried
- * here as `chosenRoom`. It is checked against `neighbouringRooms` on this side
+ * here as `chosenRoom`. It is checked against `bodyDestinations` on this side
  * rather than trusted: the packet is a claim, and a body must not be moved
  * somewhere a living character could not walk to.
  *
@@ -1385,8 +1519,7 @@ async function applyMoveBody(actor, def, success, band, done, chosenRoom = null)
      * where. `def.rooms` stays in the table as the reach — the picker offers the
      * rooms connected to this one — and the random walk is gone.
      */
-    const { neighbouringRooms } = await import("./movement.mjs");
-    const reachable = neighbouringRooms(here.room).filter(r => r !== here.room);
+    const reachable = await bodyDestinations(here.room);
     let room = reachable.includes(chosenRoom) ? chosenRoom : reachable[0];
 
     if (!room) {
@@ -1530,11 +1663,30 @@ async function undoLastCleanup(actor, tokenId) {
     // back is a second retune rather than a re-creation — and it has to happen,
     // or a Reroll would leave the relabelling standing on top of a roll that no
     // longer produced it.
+    //
+    // BOTH HALVES, since a reshape now writes two different kinds of fact: what
+    // the trace is, and what it says. Restoring only the type would put a Tamper
+    // Remnant back to being an Incident Remnant while leaving the killer's
+    // invented name on it — a state no roll has ever produced.
     if (receipt.transformed?.from) {
         try {
-            const { retuneRemnant } = await import("./remnants.mjs");
+            const { retuneRemnant, setRemnantPublic } = await import("./remnants.mjs");
             await retuneRemnant(receipt.transformed.sceneId, receipt.transformed.id,
                 receipt.transformed.from);
+
+            // `publicFrom` is null when nothing had ever been written for a
+            // finder, and that is a real state rather than a missing one: the
+            // empty payload is what `defaultPublic` rebuilds from.
+            const back = receipt.transformed.publicFrom;
+            const scene = receipt.transformed.sceneId
+                ? game.scenes.get(receipt.transformed.sceneId) : canvas?.scene;
+            const tokenDoc = scene?.tokens?.get(receipt.transformed.id);
+            if (tokenDoc) {
+                await setRemnantPublic(tokenDoc, {
+                    name: back?.name ?? game.i18n.localize("DRPG.Remnant.tokenName"),
+                    playerText: back?.playerText ?? ""
+                });
+            }
         } catch (err) {
             error("Could not put back the Remnant a rerolled clean-up rewrote", err);
         }
@@ -1704,12 +1856,51 @@ export async function openCleanupDialog(actor) {
 }
 
 /**
+ * Every room a body can be dragged into from here.
+ *
+ * ONE LIST, BOTH SIDES. The picker offers these and the resolver honours these,
+ * from this one function, because the alternative is two copies of a rule that
+ * have to be remembered together — and D11 shipped with exactly that shape and
+ * exactly one of the two copies updated. A destination the picker cannot show
+ * is a destination the resolver will not use, by construction.
+ *
+ * ADJACENCY (Dawid, 29.08). `neighbouringRooms` is the same reach a living
+ * character walks by, so dragging a corpse cannot cross a building. Where a map
+ * measures badly — bounding boxes overlap where rooms do not — the GM's
+ * `drpgNeighbours` flag on the region is the override, and it is the same
+ * override ordinary movement reads.
+ *
+ * BEDROOMS ARE NEVER A DESTINATION (Dawid, 29.08, new rule). A bedroom belongs
+ * to one student, it locks, and the only people who can open it are its owner
+ * and whoever holds the key — so a body left in one is not hidden, it is
+ * ADDRESSED: it names a suspect the map chose rather than the killer. Framing
+ * somebody is a move this game already sells, by name, for a price ("Misleading
+ * trail"), and letting Move the body do it for free undercuts the action that
+ * is supposed to cost something.
+ *
+ * `vaultOwnerOf` is the same flag the doors and keys read, so a room stops
+ * being a legal destination the moment a GM assigns it, with nothing to keep in
+ * step.
+ *
+ * Every neighbour being a bedroom returns an empty list, which the callers
+ * already read as "there is nowhere to take it" — the honest answer.
+ */
+async function bodyDestinations(room) {
+    if (!room) return [];
+    const { neighbouringRooms } = await import("./movement.mjs");
+    const { vaultOwnerOf } = await import("./vault.mjs");
+    return neighbouringRooms(room)
+        .filter(r => r !== room)
+        .filter(r => !vaultOwnerOf(r));
+}
+
+/**
  * Where the body is going.
  *
  * Asked before the roll, because it is a decision and not a result: the killer
  * is choosing which room to leave a corpse in, and that choice is most of what
- * Stage 6 is about. The list is the rooms connected to the one the body is
- * lying in — the same adjacency a living character walks by.
+ * Stage 6 is about. The list is `bodyDestinations`: the rooms connected to the
+ * one the body is lying in, minus anybody's bedroom.
  */
 export async function openMoveBodyDialog(actor) {
     if (!isCleaner(actor)) return refuseCleanup(actor);
@@ -1719,8 +1910,7 @@ export async function openMoveBodyDialog(actor) {
     }
 
     const here = locate(actor);
-    const { neighbouringRooms } = await import("./movement.mjs");
-    const rooms = neighbouringRooms(here?.room ?? "").filter(r => r !== here?.room);
+    const rooms = await bodyDestinations(here?.room ?? "");
 
     if (!rooms.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.bodyNowhere"));

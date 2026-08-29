@@ -1990,6 +1990,92 @@ const INVARIANTS = [
             "the transform can re-point a trace — that is the Misleading trail's action to sell");
     }],
 
+    ["a reshaped trace always admits it was handled", async () => {
+        /*
+         * D15, Dawid 29.08. The killer writes a name and a description; the
+         * KIND is not theirs to choose and is always a Tamper Remnant.
+         *
+         * Worth an invariant rather than a comment because the old rule was the
+         * exact opposite — a menu of four types, one of which was "Faint",
+         * which the chapter sweep clears. A reshape that could pick its own type
+         * could clear its own crime scene, and that is the hole this closes.
+         */
+        const { REMNANT_TYPES } = await import("./config.mjs");
+        const becomes = CLEANUP.transformAction?.becomes;
+        equal(becomes, "resolution", "a reshaped trace no longer becomes a Tamper Remnant");
+        ok(REMNANT_TYPES[becomes], `a reshape turns traces into "${becomes}", which is not a type`);
+
+        const src = stripComments(
+            await fetch(`/modules/${MODULE_ID}/scripts/cleanup.mjs`).then(r => r.text()));
+
+        // One writer, so the two roads cannot part company.
+        const at = src.indexOf("async function reshapeTrace");
+        ok(at > 0, "reshapeTrace is gone, so the two reshape roads write separately again");
+        const body = src.slice(at, at + 1400);
+        ok(/type:\s*CLEANUP\.transformAction\?\.becomes/.test(body),
+            "reshapeTrace no longer forces the type — something else decides it");
+        ok(/setRemnantPublic/.test(body),
+            "a reshape no longer writes the killer's name and description anywhere");
+
+        // And nothing reads a type off the packet any more.
+        ok(!/\bchange\.type\b/.test(src) && !/\btransform\.type\b/.test(src),
+            "a reshape still takes a remnant type from a client packet");
+
+        // The words are bounded on arrival, not by the input's maxlength.
+        ok(/function plainText/.test(src),
+            "the killer's own text reaches the world unbounded");
+        ok((src.match(/plainText\(/g) ?? []).length >= 5,
+            "some road writes a player's text without passing it through plainText");
+    }],
+
+    ["a body cannot be dragged across the building, or into a bedroom", async () => {
+        /*
+         * D14, Dawid 29.08. Two rules, one list — and the list matters as much
+         * as the rules do. D11 shipped as two copies of one guard with one of
+         * them updated, so the picker and the resolver share a function here
+         * rather than sharing a promise to stay in step.
+         */
+        const src = stripComments(
+            await fetch(`/modules/${MODULE_ID}/scripts/cleanup.mjs`).then(r => r.text()));
+
+        const at = src.indexOf("async function bodyDestinations");
+        ok(at > 0, "bodyDestinations is gone; the destination rules live in two places again");
+        const body = src.slice(at, at + 500);
+        ok(/neighbouringRooms/.test(body),
+            "a body can be dragged to a room that does not connect to this one");
+        ok(/vaultOwnerOf/.test(body),
+            "a body can be dragged into somebody's bedroom");
+
+        // Definition plus both callers.
+        ok((src.match(/bodyDestinations\(/g) ?? []).length >= 3,
+            "one of the two Move the body roads no longer asks bodyDestinations");
+        ok(!/neighbouringRooms\(here/.test(src),
+            "a Stage 6 road still builds its own room list, so the two can disagree");
+    }],
+
+    ["an accomplice is not a witness to the crime they committed", async () => {
+        /*
+         * D13, Dawid 29.08. The Shadow roll asks "can they see what you are
+         * doing"; a second killer already knows. Rolling against them made the
+         * accomplice's presence a penalty on the clean-up.
+         */
+        const src = stripComments(
+            await fetch(`/modules/${MODULE_ID}/scripts/cleanup.mjs`).then(r => r.text()));
+
+        const at = src.indexOf("function witnessesTo");
+        ok(at > 0, "witnessesTo is gone, so accomplices count as witnesses again");
+        const body = src.slice(at, at + 400);
+        ok(/isCleaner\(actor\)/.test(body),
+            "the exemption is not limited to the killers, so an innocent gets it too");
+        ok(/killerIds/.test(body),
+            "the exemption reads its own list instead of the one the stage admits people by");
+
+        const conceal = src.indexOf("async function concealFromWitnesses");
+        ok(conceal > 0, "concealFromWitnesses is gone");
+        ok(/witnessesTo\(/.test(src.slice(conceal, conceal + 500)),
+            "the Shadow roll still counts everybody in the room, accomplices included");
+    }],
+
     ["an investigation nobody finished has a price", () => {
         // G-32. Both numbers, because the bar and the rate are separate
         // decisions and the guide gives both.

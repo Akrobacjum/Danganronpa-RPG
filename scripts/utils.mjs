@@ -531,6 +531,34 @@ export function tableDialog(options) {
  * A window whose tabs each hold their own table wants `fitWindowToTabs` below
  * instead — one size for all of them, rather than this one re-run per switch.
  */
+/*
+ * WHICH WINDOWS HAVE ALREADY BEEN SIZED ONCE (D17, Dawid 29.08).
+ *
+ * "Zakładka projects przesuwa się w lewo w losowych momentach", and the random
+ * moment is any re-render. Measured on the QA world: a window at the right of
+ * the screen, sent `setPosition({ width })` with no `left`, came back 104px
+ * further left — 1187px wide at left 159, then 1301px wide at left 55.
+ *
+ * That is Foundry doing its job. ApplicationV2 keeps a window on screen, so
+ * growing its width shrinks the largest `left` it will accept and the window is
+ * pulled in from the right edge. Nothing is broken in the framework and nothing
+ * was broken in the measurement either — the mistake was asking at all. A fit
+ * exists to size a window to its table WHEN IT OPENS. Re-running it on every
+ * render means a window somebody has read, dragged and settled gets re-measured
+ * behind their back, and the only visible consequence is that it walks.
+ *
+ * So the first fit is unchanged — a freshly centred window should widen to its
+ * content, and moving while it does that is invisible and correct — and every
+ * later fit is capped at the width that fits from where the window already is.
+ * The table scrolls sideways instead, which is what `pinFooterAcrossScroll`
+ * below already exists to survive.
+ *
+ * A WeakSet rather than a flag on the dialog: nothing here should keep a closed
+ * window alive, and a property on somebody else's object is a name collision
+ * waiting for the next Foundry release.
+ */
+const fitted = new WeakSet();
+
 export function fitWindowToTable(dialog) {
     const root = dialog?.element;
     if (!root) return;
@@ -558,7 +586,9 @@ export function fitWindowToTable(dialog) {
             }
             if (!widest) return;                       // no table: leave it alone
 
-            const width = windowWidthFor(root, content, widest);
+            const settled = fitted.has(dialog);
+            fitted.add(dialog);
+            const width = windowWidthFor(root, content, widest, settled);
 
             // Nothing to do when we are already there — `setPosition` triggers
             // a re-render, and re-rendering on every open for no change is how
@@ -582,8 +612,19 @@ export function fitWindowToTable(dialog) {
     }));
 }
 
-/** The window width that shows a table of `widest` pixels without clipping. */
-function windowWidthFor(root, content, widest) {
+/**
+ * The window width that shows a table of `widest` pixels without clipping.
+ *
+ * `settled` is "this window has been fitted before, so somebody may have put it
+ * somewhere". See the note on `fitted` above: it caps the answer at the width
+ * that fits from the window's current left edge, because a wider request is one
+ * Foundry can only honour by moving the window.
+ *
+ * The cap can never shrink a window below what it already is. Foundry keeps the
+ * right edge on screen, so `left` is never more than `viewport - width` — which
+ * makes the space to the right of `left` at least the current width, always.
+ */
+function windowWidthFor(root, content, widest, settled = false) {
     const styles = getComputedStyle(content);
     const padding = (parseFloat(styles.paddingLeft) || 0)
         + (parseFloat(styles.paddingRight) || 0)
@@ -599,7 +640,12 @@ function windowWidthFor(root, content, widest) {
     // Two pixels of slack so a table measured at exactly its container's width
     // does not round into a scrollbar it does not need.
     const wanted = Math.ceil(widest + padding + frame) + 2;
-    return Math.min(wanted, Math.round((window.innerWidth || 1200) * 0.94));
+    const viewport = window.innerWidth || 1200;
+    const ceiling = Math.round(viewport * 0.94);
+    if (!settled) return Math.min(wanted, ceiling);
+
+    const here = Math.max(0, Math.round(root.getBoundingClientRect().left));
+    return Math.min(wanted, ceiling, Math.max(0, viewport - here));
 }
 
 /**
@@ -672,7 +718,9 @@ export function fitWindowToTabs(dialog) {
 
             if (!widest) return;
 
-            const width = windowWidthFor(root, content, widest);
+            const settled = fitted.has(dialog);
+            fitted.add(dialog);
+            const width = windowWidthFor(root, content, widest, settled);
             const capped = parseFloat(getComputedStyle(content).maxHeight);
             const chrome = Math.max(0, root.getBoundingClientRect().height - content.clientHeight);
             const height = Math.round(

@@ -3107,21 +3107,54 @@ export const CLEANUP = {
      * which is a smaller physical job and a larger social one. The Cleaning
      * Tool still helps, and still by its tier.
      *
-     * WHAT A SUCCESS BUYS is one of the two halves: the trace becomes a
-     * different KIND of thing, or it becomes one band quieter. A critical buys
-     * both and hands the Sanity back — and where the player asked for the quiet
-     * half, the critical's extra IS the refund, because there is no third thing
-     * to give. Deliberate asymmetry, written down rather than smoothed over:
-     * the type is the interesting choice and the quiet is the consolation.
+     * WHAT A SUCCESS BUYS IS THE KILLER'S OWN WORDS (Dawid, 29.08).
      *
-     * The bounds are `transform.types` below, unchanged and for the same
-     * reason — trap 115.
+     * This used to buy a TYPE: the killer picked from a menu of four and the
+     * trace was relabelled Prep, or Faint, or Incident. Dawid's correction is
+     * that reshaping is not retyping — "nie chodzi mi o przemiane taga
+     * remnanta, tylko o zmiane nazwy i opisu przez killera" — and it is the
+     * better rule for a reason worth writing down: a menu of four tags is the
+     * ENGINE's vocabulary, and the lie a killer tells is a sentence, not a
+     * category. Nobody kneeling over a scrubbed patch of floor thinks "I shall
+     * make this a Preparation Remnant". They think of what they want the next
+     * person through the door to read, and then they write it.
+     *
+     * So the killer supplies a name and a description, and both are what a
+     * finder gets — through the public payload, which is the channel that
+     * exists for exactly this and is already the one a GM types into when they
+     * describe a trace to somebody who found it.
+     *
+     * AND THE RESULT IS ALWAYS A TAMPER REMNANT (`becomes`). Emphatically so,
+     * in Dawid's message, and it closes the hole the old menu opened: a killer
+     * could relabel their Incident trace as Faint and have the chapter sweep
+     * clear their own crime scene. Now every reshape says the same true thing
+     * about itself — somebody handled this — while lying about everything
+     * else. The trace argues for a different story and admits it was touched,
+     * which is what tampering actually looks like.
+     *
+     * A CRITICAL still buys the second half, and now there is no ambiguity
+     * about which half that is: one band quieter, plus the Sanity back. The old
+     * "pick type OR quiet" asymmetry is gone with the menu that caused it.
+     *
+     * `transform.types` below is no longer a player-facing menu. It stays as
+     * the bound on `retuneRemnant` over the bridge — trap 115, still live.
      */
     transformAction: {
         dcRelief: 3,
         refundStress: { critical: 1 },
-        /** The visibility change, in bands, that the quiet half is worth. */
-        quieter: 1
+        /** The visibility change, in bands, the critical's second half is worth. */
+        quieter: 1,
+        /**
+         * What a reshaped trace always becomes, whatever it was. The rule lives
+         * in the table so turning it off is a field rather than a code change.
+         */
+        becomes: "resolution",
+        /**
+         * Ceilings on the killer's own words, applied GM-side in `plainText`.
+         * A name has to fit a token label on a map; a description has to fit a
+         * card somebody reads in one breath.
+         */
+        limits: { name: 60, text: 400 }
     },
 
     transform: {

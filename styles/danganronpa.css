@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json — the suite fails if it does not. */
-    --drpg-css-version: "1.1.86";
+    --drpg-css-version: "1.1.87";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -3579,84 +3579,23 @@ body.drpg-pixel-font [contenteditable] {
     opacity: 0.6;
 }
 
-/* An incident takes over the sheet while it runs. */
-.drpg-crisis-panel {
-    border: 1px solid rgba(var(--drpg-crimson-rgb), 0.6);
-    border-radius: 4px;
-    padding: 6px;
-    margin-bottom: 6px;
-}
+/* THE CRISIS PANEL'S STYLING WENT WITH THE PANEL (R2, 29.08).
+   --------------------------------------------------------------------------
+   `.drpg-crisis-panel` was the strip above the action grid: first the fourteen
+   crisis tiles, then — after they became a menu — the single "Turn on your
+   partner" tile that was the last thing left in it. Dawid moved the betrayal
+   inside Direct Murder, `injectCrisisPanel` and `injectBetrayalPanel` came out
+   of sheet.mjs with it, and twelve rules were left dressing an element nothing
+   draws.
 
-.drpg-crisis-panel.active {
-    border-color: var(--drpg-crimson);
-    box-shadow: 0 0 8px rgba(var(--drpg-crimson-rgb), 0.35);
-}
+   R2 is the test that noticed, which is what it is for: a styling rule with no
+   emitter is not harmless, it is a description of a layout that no longer
+   exists, and the next person to read it will believe it.
 
-/* A hindered crisis tile was styled here and never drawn (E17, R2). The class
-   dates from a design where crisis actions were tiles in this panel; they are a
-   MENU now, and `hindered` says so in words — action-rolls.mjs appends
-   `DRPG.Murder.actionHindered` to the option's own label. The only thing left in
-   `.drpg-crisis-panel` is the betrayal tile, which cannot be hindered. */
-
-/*
- * Crisis tiles read RED.
- *
- * They used to read bone, like every other tile on the sheet, which made the
- * most dangerous grid in the game look exactly like Search and Rest. Killing
- * somebody, being killed, walking in on it and cleaning up after it are the four
- * things this module treats as different in kind from spending an afternoon —
- * and red already means that here: the cost stripe uses `--drpg-eye` for
- * GM-routed tiles and nothing else does.
- *
- * The BORDER and the ICON carry it; the label stays bone. Eye is 3.68:1 on Ink
- * — enough for a rule and a glyph, not enough for a word somebody has to read
- * under time pressure, and the label is the part being read. Same split the
- * dialog buttons use (see `.drpg-gm-route`).
- *
- * The disabled state keeps the red and drops the opacity, rather than going
- * grey: "not your turn" greys every tile in the grid, and a grid that turns grey
- * stops looking like an incident at all.
- */
-.drpg-crisis-panel .drpg-action-button {
-    /* `!important` because the legibility block above sets the neutral border
-       with one too — see the note on `.drpg-action-button` there. */
-    border-color: var(--drpg-eye) !important;
-}
-
-.drpg-crisis-panel .drpg-action-button,
-.drpg-crisis-panel .drpg-action-button span {
-    color: var(--drpg-bone);
-}
-
-.drpg-crisis-panel .drpg-action-button i,
-.drpg-crisis-panel .drpg-action-button .drpg-action-icon {
-    color: var(--drpg-eye-light);
-}
-
-.drpg-crisis-panel .drpg-action-button:disabled {
-    border-color: rgba(var(--drpg-eye-rgb), 0.45) !important;
-}
-
-.drpg-crisis-panel .drpg-action-button:disabled,
-.drpg-crisis-panel .drpg-action-button:disabled span {
-    color: rgba(var(--drpg-bone-rgb), 0.55);
-}
-
-.drpg-crisis-panel .drpg-action-button:disabled i,
-.drpg-crisis-panel .drpg-action-button:disabled .drpg-action-icon {
-    color: rgba(var(--drpg-eye-rgb), 0.5);
-}
-
-.drpg-crisis-panel .drpg-action-button:hover:not(:disabled) {
-    border-color: var(--drpg-eye-light) !important;
-    background-color: rgba(var(--drpg-eye-rgb), 0.12) !important;
-    box-shadow: 0 0 8px var(--drpg-eye-glow);
-}
-
-.drpg-crisis-panel .drpg-action-button:hover:not(:disabled),
-.drpg-crisis-panel .drpg-action-button:hover:not(:disabled) span {
-    color: var(--drpg-bone);
-}
+   `data-drpg-crisis` further down this file is in the same position — the
+   fourteen pixel icons are dormant, not deleted, because they are drawn art
+   rather than layout and bringing the tiles back would want them. R2 does not
+   flag them: it reads classes.  */
 
 /* Monocub — same panel look as a living student's action grid, quieter accent
    since there are only ever two tiles in it. */
