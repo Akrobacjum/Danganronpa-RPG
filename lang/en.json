@@ -1638,7 +1638,6 @@
       "noItems": "Nobody carries anything that can be destroyed.",
       "armed": "{name} may now use {what} on their next roll.",
       "damaged": "{name} takes {what}.",
-      "wiped": "{name} loses all progress.",
       "sealed": "{room} is sealed for this time of day.",
       "gathered": {
         "one": "{n} character moved to {room}.",

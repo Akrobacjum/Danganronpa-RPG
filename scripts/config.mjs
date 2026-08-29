@@ -1599,10 +1599,9 @@ export const DESPAIR_CALLS = {
     },
     chained: {
         // Not in the guide's table — added at the table's request. Priced
-        // between Paranoia (2) and Game Integrity (3): losing a time of day's
-        // movement is worse than losing 2 Sanity and cheaper than gutting a
-        // project, because a room you are already in may be where you wanted
-        // to be anyway.
+        // above Paranoia (2), because losing a time of day's movement is worse
+        // than losing 2 Sanity; level with Game Integrity at 3, because a room
+        // you are already in may be where you wanted to be anyway.
         label: "Chained", icon: "fa-link", cost: 3, target: "player", chains: true,
         effect: "One player cannot leave their room until the end of the time of day."
     },
@@ -1625,44 +1624,50 @@ export const DESPAIR_CALLS = {
         effect: "Turn {cost} Despair into {hope} Hope for a Monocub, so they can use Confusion."
     },
     /*
-     * THE THREE PROJECT CALLS, AND THE SWAP OF 28.08.
+     * THE TWO PROJECT CALLS, AND WHAT HAPPENED TO THE THIRD (Dawid, 29.08).
      *
-     * Game Integrity and the Call now called "Under Control" exchanged
-     * EVERYTHING except their keys: the price, the effect and the sentence.
-     * Integrity is now the expensive one that empties a project; Under Control
-     * is the cheap one that knocks two off it.
+     * There were three. `gameIntegrity` — nine Despair to empty a project
+     * outright — IS GONE, deliberately and not as the casualty of somebody's
+     * tidy-up, and its NAME moved down one entry: the Call that knocks two off
+     * a project is now called Game Integrity. "Under Control" is no longer a
+     * name in this module.
      *
-     * THE KEYS ARE NOT THE NAMES, and here that is load-bearing rather than
-     * untidy. `gameProtection`, `favoriteProject`, `thisWillHurt` and
-     * `forTheGame` are stored data: an armed Call sits on an actor flag under
-     * its key, every button carries it in `data-drpg-call`, and the cards this
-     * world has already posted were written against it. Dawid renamed the four
-     * on 28.08 — Under Control, Patronage, Pain, Approval — and the labels are
-     * the whole of that change.
+     * READ THAT TWICE BEFORE YOU TRUST A KEY HERE. The key `gameIntegrity` no
+     * longer exists, and the label "Game Integrity" now sits on
+     * `gameProtection` — which is precisely the arrangement that misleads
+     * anybody who greps for one and finds the other. It is this way because
+     * KEYS ARE STORED DATA: an armed Call sits on an actor flag under its key,
+     * every button carries it in `data-drpg-call`, and the cards this world has
+     * already posted were written against it. Renaming a key breaks all three;
+     * renaming a label is free. That was the reasoning behind the 28.08 swap
+     * and this is the same reasoning one step further along.
      *
-     * The whole entry moved rather than the label, because a key still bolted
-     * to the other one's effect is a trap laid for whoever opens this file
-     * next - `gameProtection` reading `wipesProgress` would have been true and
-     * unreadable at the same time. Nothing outside this table names either
-     * effect, so `callEffect()` rebuilds both sentences from the fields and
-     * the sheet, the receipt and the tooltip follow without being touched.
+     * WHY THE WIPE WENT. Nine Despair is three quarters of a full pool, so it
+     * was priced as a Monokuma's entire time of day — and what it bought was
+     * the deletion of somebody else's. A Call that ENDS a thread rather than
+     * bending it is the one shape this economy has no answer to: the player
+     * cannot respond to it, the GM cannot un-spend it, and what is left on the
+     * table afterwards is an empty bar and nothing to play. Bending stays.
      *
-     * Priced together, which is the point of them sitting together: 3 to slow
-     * a project down, 9 to end it. Nine is three quarters of a full pool, and
-     * that is the intended shape - a Monokuma who erases a project has spent
-     * their time of day on it.
+     * WHAT REPLACES IT is a Call that pours Despair into the overflow instead
+     * of into a player — Feed the Overflow, landing with the counter it feeds
+     * (Z10, wave 6). It is deliberately NOT written here yet: a row in this
+     * table is a promise the panel makes, and a tile pouring into a counter
+     * that does not exist is a promise nothing can keep.
+     *
+     * The two that remain are priced as a pair, which is the point of them
+     * sitting together: 3 to slow a project down, 3 to speed one up. Nothing
+     * outside this table names either effect — `callEffect()` rebuilds both
+     * sentences from the fields, and the sheet, the receipt and the tooltip
+     * follow without being touched.
      */
     gameProtection: {
-        label: "Under Control", icon: "fa-arrow-trend-down", cost: 3, target: "project", progress: -2,
+        label: "Game Integrity", icon: "fa-arrow-trend-down", cost: 3, target: "project", progress: -2,
         effect: "Remove {progress} progress from a project."
     },
     favoriteProject: {
         label: "Patronage", icon: "fa-arrow-trend-up", cost: 3, target: "project", progress: 2,
         effect: "Add {progress} progress to a project."
-    },
-    gameIntegrity: {
-        label: "Game Integrity", icon: "fa-eraser", cost: 9, target: "project", wipesProgress: true,
-        effect: "A player project loses all progress."
     },
     contraband: {
         /*

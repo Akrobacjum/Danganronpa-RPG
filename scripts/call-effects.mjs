@@ -254,16 +254,17 @@ export async function applyCall(actor, key, kind, choice = {}) {
         // returns: a player's write is forwarded to the GM and comes back as a
         // bare acknowledgement, so reading the name off it produced a receipt
         // saying "progress on ?" — which reads exactly like nothing happened.
-        if ((call.progress || call.wipesProgress) && choice.project) {
+        // `wipesProgress` went with the Call that carried it (29.08) — see the
+        // note above the project Calls in config.mjs. The branch went too rather
+        // than being left standing for nothing: an unreachable handler is how a
+        // deleted rule comes back by accident.
+        if (call.progress && choice.project) {
             const { addProgress, allProjects } = await import("./projects.mjs");
             const project = allProjects().find(p => p.id === choice.project);
 
             if (!project) {
                 ui.notifications.warn(game.i18n.localize("DRPG.Project.gone"));
                 throw new Error(`project ${choice.project} no longer exists`);
-            } else if (call.wipesProgress) {
-                if (project.current) await addProgress(choice.project, -project.current);
-                done.push(game.i18n.format("DRPG.Calls.wiped", { name: project.name }));
             } else {
                 const applied = await addProgress(choice.project, call.progress);
                 if (!applied) throw new Error(`addProgress refused ${choice.project}`);

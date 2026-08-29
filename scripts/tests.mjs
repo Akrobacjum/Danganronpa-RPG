@@ -1666,7 +1666,7 @@ const INVARIANTS = [
          * their order — adding an effect to config.mjs without adding its branch
          * fails here rather than at somebody's table.
          */
-        const ACTED_ON = ["grants", "grantsHope", "damage", "progress", "wipesProgress",
+        const ACTED_ON = ["grants", "grantsHope", "damage", "progress",
                           "reroll", "announces", "sealsRoom", "silences", "chains",
                           "gathersEveryone", "freeMoves", "freeActions", "freeRest",
                           "setsMotive"];
@@ -1685,26 +1685,36 @@ const INVARIANTS = [
         check(DESPAIR_CALLS, "Despair Call");
     }],
 
-    ["the two project Calls did not keep each other's effects", () => {
+    ["the project Calls bend a project and no longer end one", () => {
         /*
-         * They exchanged whole entries on 28.08 — price, effect and sentence —
-         * and a swap done by halves is the worst possible outcome: a key still
-         * bolted to the other one's effect is wrong in a way that reads as
-         * right. So this states the shape of each in the terms the panel uses.
+         * THERE WERE THREE AND NOW THERE ARE TWO (Dawid, 29.08). `gameIntegrity`
+         * — nine Despair to empty a project outright — was deleted, and its NAME
+         * moved onto the Call that knocks two off. Two things about that can
+         * break quietly, so both are stated here.
          *
-         * The relative price is checked rather than the absolute one, because
-         * that is the part that carries meaning: emptying a project has to cost
-         * more than knocking two off it, whatever the numbers become at E18.
+         * FIRST: nothing carries the wipe any more. `applyCall`'s branch for it
+         * went with the entry, so a Call declaring `wipesProgress` today would
+         * take the Despair, do nothing, and report itself failed — trap 100 in
+         * its purest form, and the exact reason `wipesProgress` also came out of
+         * the ACTED_ON list above.
+         *
+         * SECOND: the pair stayed a pair. Same price, opposite sign. The whole
+         * point of these two sitting together is that slowing a project down and
+         * speeding one up cost the same, whatever the number becomes.
          */
-        const wipe = DESPAIR_CALLS.gameIntegrity;
-        const dent = DESPAIR_CALLS.gameProtection;
+        const wiping = Object.entries(DESPAIR_CALLS).filter(([, c]) => c.wipesProgress);
+        ok(!wiping.length,
+            `${wiping.map(([k]) => k).join(", ")} empties a project and no branch applies it`);
+        ok(!DESPAIR_CALLS.gameIntegrity,
+            "the deleted Call is back under its old key — the NAME moved, the entry went");
 
-        ok(wipe?.wipesProgress, "Game Integrity no longer empties a project");
-        ok(!wipe?.progress, "Game Integrity carries a progress number as well as the wipe");
-        equal(dent?.progress, -2, "Under Control is not −2 progress");
-        ok(!dent?.wipesProgress, "Under Control still empties the project");
-        ok(wipe.cost > dent.cost,
-            `emptying a project (${wipe.cost}) does not cost more than denting it (${dent.cost})`);
+        const dent = DESPAIR_CALLS.gameProtection;
+        const boost = DESPAIR_CALLS.favoriteProject;
+        equal(dent?.label, "Game Integrity", "Game Integrity is not the name on the −2 Call");
+        equal(dent?.progress, -2, "Game Integrity is not −2 progress");
+        equal(boost?.progress, 2, "Patronage is not +2 progress");
+        equal(dent?.cost, boost?.cost,
+            `the project Calls are no longer a pair: ${dent?.cost} against ${boost?.cost}`);
     }],
 
     ["a deferred Call is one the sheet can cancel", () => {
