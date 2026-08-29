@@ -3010,10 +3010,6 @@ function injectActionPanel(app, element) {
     panel.append(grid);
     tab.prepend(panel);
 
-    // An incident replaces the ordinary economy for the two people in it, so
-    // their crisis actions sit ABOVE the normal grid while one is running.
-    injectCrisisPanel(tab, actor);
-
     // Hope Calls sit underneath the actions, in the colour of the Hope die.
     injectCallsPanel(tab, actor, false);
     attachActionDelegate(app, element);
@@ -3138,159 +3134,19 @@ function budgetLine(actor) {
     return line;
 }
 
-/**
- * Stage 6's panel, and nothing else in it any more.
- *
- * THE CRISIS GRID MOVED TO THE DIRECT MURDER TILE (Dawid, 28.08) — see
- * `openCrisisMenu` in action-rolls.mjs. What is left here is the decision about
- * WHERE the Stage 6 panel sits, which is still worth making.
- */
-function injectCrisisPanel(tab, actor) {
-    // Stage 6 is not a turn and has no crisis actions, so it gets its own panel.
-    //
-    // WHERE it sits is decided by whether the body has been found yet, because
-    // Stage 6 does not end when the cleaning does. `discoverBody` switches the
-    // phase to Investigation but never closes the murder, so `isCleaner` stays
-    // true — and the panel stayed pinned above the action grid for the rest of
-    // the chapter, on the one sheet whose owner most needs to look like an
-    // ordinary student searching rooms and taking rests.
-    //
-    //   body not found yet   above the actions.
-    //   Investigation begun  below the actions, above the Hope Calls.
-    //
-    // Before any murder the question does not arise: `isCleaner` is false and
-    // nothing here is built at all.
-    if (!isCleaner(actor)) return;
-
-    // The clock is read straight off the setting rather than through clock.mjs:
-    // this file is on the render path that clock.mjs itself calls back into
-    // (`refreshSheets`), and one field is not worth closing that loop.
-    const phase = game.settings.get(MODULE_ID, "clock")?.phase ?? "dailyLife";
-    injectBetrayalPanel(tab, actor, { onTop: phase === "dailyLife" });
-}
-
-/**
- * What is left of the Stage 6 panel: the betrayal, and nothing else.
- *
- * THE THREE CLEAN-UP ACTIONS MOVED TO THE TAMPER TILE (Dawid, 28.08). They were
- * always the same three things — erase a trace, plant a false one, carry the
- * body — and having them in a panel of their own meant a killer in Stage 6 read
- * a grid of ten tiles and then a second grid underneath with the actions that
- * actually mattered. Tamper is where they live now, and the tile knows which
- * stage it is in: in Stage 6 it charges Sanity and an action and shows the
- * whole room's traces, outside it charges an action and shows only what the
- * character has found.
- *
- * The betrayal stayed because it was never clean-up. It opens a SECOND MURDER,
- * and it is here for two reasons that have nothing to do with tidying a scene:
- * the guide gives the decision to the newcomer who threw in with the killer,
- * and it is on offer for exactly as long as Stage 6 lasts. Filing that under
- * "Tamper" would be a worse home than the one it had.
- */
-function injectBetrayalPanel(tab, actor, { onTop = true } = {}) {
-    const partner = betrayalTarget(actor);
-    if (!partner) return;
-
-    const panel = document.createElement("div");
-    // `active` is the loud treatment. It belongs to the urgent window only —
-    // once the body is found this is a tool, not an alarm.
-    panel.className = `drpg-action-panel drpg-crisis-panel${onTop ? " active" : ""}`;
-
-    const title = document.createElement("h3");
-    title.className = "drpg-keep";
-    title.textContent = game.i18n.localize("DRPG.Murder.betrayTileLabel");
-    panel.append(title);
-
-    const grid = document.createElement("div");
-    grid.className = "drpg-action-grid";
-    // Stage 9.5 gave the betrayal to the GM's post-incident checklist, which
-    // made it something a GM had to remember to offer — and it is not their
-    // decision. The guide gives it to the newcomer who threw in with the
-    // killer: the body is on the floor and the only witness is standing next to
-    // them.
-    //
-    // Red, because it opens a second murder. NOT GM-routed any more: the guide
-    // gives this decision to the newcomer, and the confirmation that used to sit
-    // in front of it turned their choice into a request — one the GM could
-    // answer four times if the tile had been clicked four times.
-    const tiles = [{
-        icon: "fa-user-slash", gmRoute: true,
-        label: "DRPG.Murder.betrayTileLabel", tip: "DRPG.Murder.betrayTileHint",
-        run: async () => {
-            const { requestBetrayal } = await import("./gm-bridge.mjs");
-            return requestBetrayal({ actorId: actor.id });
-        }
-    }];
-
-    for (const tile of tiles) {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = `drpg-action-button${tile.off ? " drpg-locked" : ""}${
-            tile.gmRoute ? " drpg-gm-route" : ""}`;
-        button.disabled = Boolean(tile.off);
-        if (tile.off) tile.tip = tile.offTip;
-        // Stage 6 is paid for in Sanity AND in one of the day's two actions —
-        // the Sanity is what makes a long clean-up hurt, the action is what
-        // makes it finite. The stripe names the Sanity because that is the part
-        // this stage adds on top of the ordinary economy.
-        button.dataset.drpgCostKind = "gm";
-        button.dataset.tooltip = game.i18n.localize(tile.tip);
-        button.innerHTML = `<i class="fa-solid ${tile.icon}" inert></i>
-            <span class="drpg-action-name">${
-                softWrap(foundry.utils.escapeHTML(game.i18n.localize(tile.label)))}</span>`;
-        // ONE PRESS PER PRESS.
-        //
-        // Every tile here opens a dialog or sends a request, and both take long
-        // enough for a second click to land. The betrayal was the one that hurt:
-        // each click emitted its own socket message, and each message opened its
-        // own incident with an opening roll nobody can skip. Disabled for the
-        // duration of the handler, re-enabled in `finally` so a refusal or a
-        // cancelled dialog does not leave a dead button behind.
-        button.addEventListener("click", async () => {
-            if (button.disabled) return;
-            button.disabled = true;
-            try {
-                await tile.run(await import("./cleanup.mjs"));
-            } finally {
-                if (!tile.off) button.disabled = false;
-            }
-        });
-        grid.append(button);
-    }
-
-    panel.append(grid);
-
-    if (onTop) {
-        tab.prepend(panel);
-        return;
-    }
-
-    // Directly after the ordinary action grid, which `injectActionPanel` has
-    // already prepended — and therefore before the Hope Calls, which are
-    // appended after this function returns.
-    const actions = tab.querySelector(".drpg-action-panel:not(.drpg-crisis-panel)");
-    if (actions) actions.after(panel);
-    else tab.prepend(panel);
-}
-
-/* ==========================================================================
- * HOPE CALLS  /  DESPAIR CALLS
- * --------------------------------------------------------------------------
- * The same grid as the actions, in the colour of the die that pays for it:
- * gold for Hope, purple for Despair. Calls you cannot afford stay visible but
- * dimmed — half the point of the menu is seeing what you are saving towards.
- * ========================================================================== */
-
 /*
- * NOTHING FOLDS ANY MORE.
+ * THE STAGE 6 PANEL IS GONE ENTIRELY (Dawid, 29.08).
  *
- * Hope Calls were a `<details>` a player had to open, with the open/closed
- * state kept per client because the panel is rebuilt on every render. The
- * drawer is gone: a Call is what a cornered player reaches for, and a menu you
- * have to remember to open is a menu you forget under pressure. The sheet is
- * taller instead — see `--drpg-sheet-height` in the stylesheet.
+ * It had already lost its three clean-up actions to the Tamper tile on 28.08,
+ * which left one tile in a panel of its own: "Turn on your partner". That has
+ * now moved inside Direct Murder, where it belongs — turning on your partner
+ * IS a direct murder, and the only one the guide lets you commit without
+ * declaring it in an Eclipse first. See `performBetrayal` in action-rolls.mjs.
+ *
+ * So a killer in Stage 6 reads ONE grid of ten tiles, which is what the grid
+ * was always for. Nothing here decides placement any more because there is
+ * nothing left to place.
  */
-
 function injectCallsPanel(tab, actor, monokuma) {
     const held = monokuma ? monokumaPool(actor) : hopeHeld(actor);
     const max = monokuma ? STARTING.despairMax : hopeMax(actor);
@@ -3810,8 +3666,16 @@ function actionButton(actor, key, def) {
      */
     const inIncident = Boolean(murderState()?.stage === "incident" && sideOf(actor));
 
+    /*
+     * DIRECT MURDER HAS A THIRD OPEN WINDOW NOW (Dawid, 29.08): Stage 6 with a
+     * partner still standing, where it means "turn on them". Without this the
+     * tile stayed greyed out for exactly the person the guide gives that
+     * decision to — the rule would have existed with no way to reach it.
+     */
+    const canBetray = key === "directMurder" && Boolean(betrayalTarget(actor));
+
     const locked = key === "directMurder"
-        ? (!eclipse && !inIncident)
+        ? (!eclipse && !inIncident && !canBetray)
         : (inIncident || (key !== "move" && eclipse));
 
     /*
@@ -3837,7 +3701,10 @@ function actionButton(actor, key, def) {
      * so the light and the discount cannot disagree.
      */
     const cleaningNow = key === "tamper" && isCleaner(actor);
-    const theMove = (key === "directMurder" && inIncident) || cleaningNow;
+    // Lit in all three of its open windows: the fight, and the betrayal, and
+    // the killer's own clean-up on the tile next to it. A door nobody can see
+    // is the same as a locked one (D12).
+    const theMove = (key === "directMurder" && (inIncident || canBetray)) || cleaningNow;
 
     button.className = `drpg-action-button${(affordable && !locked) ? "" : " unaffordable"}${
         blocked ? " drpg-no-subject" : ""}${theMove ? " drpg-action-hot" : ""}`;

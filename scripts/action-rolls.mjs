@@ -119,6 +119,29 @@ export async function performAction(actor, actionKey, options = {}) {
             ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.actionsLocked"));
             return null;
         }
+        /*
+         * TURNING ON YOUR PARTNER IS A DIRECT MURDER (Dawid, 29.08).
+         *
+         * It used to be a tile in a panel of its own above the action grid —
+         * the last thing left of the old Stage 6 panel. That panel is gone now,
+         * and this is where the betrayal belongs: it IS a direct murder, and
+         * the only one in the game the guide lets you commit without declaring
+         * it in an Eclipse first.
+         *
+         * So the tile answers three different questions depending on when it is
+         * pressed, and each one is the only thing it could sensibly mean at
+         * that moment: in a fight it opens the fight's own actions, in an
+         * Eclipse it declares a killing for later, and here — Stage 6, with a
+         * partner still standing — it kills the partner.
+         *
+         * BEFORE the Eclipse refusal, because this is the exception to it.
+         */
+        if (actionKey === "directMurder") {
+            const { betrayalTarget } = await import("./murder.mjs");
+            const partner = betrayalTarget(actor);
+            if (partner) return performBetrayal(actor, partner);
+        }
+
         if (actionKey === "directMurder" && !isEclipse()) {
             ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.murderOnlyInEclipse"));
             return null;
@@ -3792,6 +3815,39 @@ async function performRest(actor) {
 
     if (!picked) return null;
     return takeRest(actor, picked.value);
+}
+
+/**
+ * Kill the person you just helped.
+ *
+ * A CONFIRMATION, AND THE OLD PANEL'S REASONS FOR NOT HAVING ONE DO NOT SURVIVE
+ * THE MOVE. The tile used to say "Turn on your partner" in its own panel, so
+ * what a click meant was written on the thing being clicked and a dialog in
+ * front of it would have turned the newcomer's own decision into a request.
+ *
+ * Inside Direct Murder the label says "Direct Murder", and the same click means
+ * three different things depending on the hour. Naming the partner before
+ * anything happens is the whole of what the old tile's text was doing, and it
+ * costs one press.
+ *
+ * The decision still belongs to the player — the GM is not asked. What goes to
+ * the GM is the WRITE, like every other world change in this module.
+ */
+async function performBetrayal(actor, partner) {
+    const esc = foundry.utils.escapeHTML;
+    const confirmed = await DialogV2.confirm({
+        classes: ["drpg-panel"],
+        window: { title: game.i18n.localize("DRPG.Murder.betrayalTitle") },
+        content: `<p>${game.i18n.format("DRPG.Murder.betrayalIntro", {
+                third: esc(actor.name), killer: esc(partner.name)
+            })}</p>
+            <p class="notes">${game.i18n.localize("DRPG.Murder.betrayalRule")}</p>`,
+        rejectClose: false
+    });
+    if (!confirmed) return null;
+
+    const { requestBetrayal } = await import("./gm-bridge.mjs");
+    return requestBetrayal({ actorId: actor.id });
 }
 
 /** Direct Murder: never automatic, always a conversation. */
