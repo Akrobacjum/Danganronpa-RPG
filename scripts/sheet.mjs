@@ -3940,6 +3940,23 @@ function callsGmFor(actor, def) {
  * free regardless of whether the ordinary free Move has been spent.
  */
 function costOf(actor, key, def) {
+    /*
+     * THE KILLER'S OWN NIGHT IS FREE (D3), AND THE TILE HAS TO SAY SO.
+     *
+     * Found on the E23 live round: the glow and the tooltip both announced the
+     * discount while the cost stripe underneath still read "1 action". A label
+     * that contradicts the rule is the defect this module calls "the sentence
+     * says one thing and the code does another" — and here the code was right
+     * and the sentence was wrong, which is the harder half to notice.
+     *
+     * Answered HERE because this function is the one place a tile's price is
+     * decided: the label, the free/action stripe and the affordability test all
+     * read it, so one edit puts all three in step. `performTamper` keeps its own
+     * check for the same rule — that one governs whether the action is refused
+     * for want of a budget, which is a different question in a different file.
+     */
+    if (key === "tamper" && isCleaner(actor)) return 0;
+
     if (key !== "move") return def.cost ?? 1;
     if (isEclipse()) return 0;
     return hasFreeMove(actor) ? 0 : 1;

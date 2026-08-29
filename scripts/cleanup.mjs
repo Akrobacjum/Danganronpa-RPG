@@ -653,12 +653,29 @@ export async function resolveCleanup({
         return { removed: false, notYours: true };
     }
 
-    // AND ONLY ONE THEY HAVE FOUND. The same rule the picker was built from,
-    // re-asked here because the picker travelled over a socket and what came
-    // back is a token id. A packet naming a trace they left and never found
-    // would otherwise erase it blind — which is the whole leak, arriving by the
-    // other road.
-    if (viaAction && !copiedRemnants(actor).has(token.id)) {
+    /*
+     * AND ONLY ONE THEY HAVE FOUND. The same rule the picker was built from,
+     * re-asked here because the picker travelled over a socket and what came
+     * back is a token id. A packet naming a trace they left and never found
+     * would otherwise erase it blind — which is the whole leak, arriving by the
+     * other road.
+     *
+     * INCIDENT TRACES ARE EXEMPT, EXACTLY AS THEY ARE IN THE PICKER (D11).
+     *
+     * Found on the E23 live round, and it is the failure mode this pair of
+     * mirrored guards exists to prevent — running in the wrong direction.
+     * `cleanableTracesForPlayer` was taught that you do not have to "find" what
+     * you watched being made in front of you; this guard was not. So the menu
+     * offered the killer their own crime scene and the resolution answered
+     * "you have not found that trace", which is the list and the rule
+     * disagreeing about the same trace in the same click.
+     *
+     * The two conditions have to be edited together. That is what it costs to
+     * state a rule twice, and stating it twice is still right: one of them is
+     * a menu and the other is a socket boundary.
+     */
+    const watchedItHappen = data.type === "incident" && data.sourceActor === actor.id;
+    if (viaAction && !watchedItHappen && !copiedRemnants(actor).has(token.id)) {
         error(`Refused a Tamper by ${actor.name}: they have not found that trace.`);
         await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Tamper.notFound")}</p>`);
         return { removed: false, notFound: true };
