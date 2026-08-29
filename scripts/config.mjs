@@ -1471,6 +1471,9 @@ export const HOPE_CALLS = {
         effect: "Give another player advantage on one roll. You have to be in the same room."
     },
     experience: {
+        // Waits for the GM — see the note on Ultimate above. This is the Call
+        // the "genuinely applies" gate was written for in the first place.
+        needsGm: true,
         label: "Experience", icon: "fa-graduation-cap", cost: 1, target: "none", grants: "experience",
         effect: "Add your experience level to a roll that experience genuinely applies to."
     },
@@ -1484,6 +1487,23 @@ export const HOPE_CALLS = {
          * the measurement is the argument: a fivefold rise means the Call was
          * not weak, it was priced out of the moments it is for.
          */
+        /*
+         * IT WAITS FOR THE GM (Dawid, 29.08), like Experience below.
+         *
+         * These two are the only Hope Calls whose effect is a CLAIM about the
+         * fiction rather than a number. "My Ultimate applies here" and "this
+         * experience applies here" are exactly the sentences the handbook makes
+         * the GM adjudicate — the "genuinely applies" gate — and until now the
+         * module took the player's word for it and handed over the advantage.
+         *
+         * Every other Call is safe to self-serve because what it does is not
+         * arguable: Support grants advantage, Pain takes two Health. Nobody
+         * needs a ruling on whether Hope became a reroll.
+         *
+         * So `needsGm` makes the player write what they intend and sends it for
+         * approval; the Hope is charged when the GM says yes, and not before.
+         */
+        needsGm: true,
         label: "Ultimate", icon: "fa-star", cost: 1, target: "none", grants: "advantage",
         effect: "Advantage on a roll your Ultimate genuinely applies to."
     },

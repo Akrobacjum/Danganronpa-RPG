@@ -959,6 +959,14 @@ async function performSearch(actor, def, options) {
     const calls = await import("./call-effects.mjs");
     if (situational) calls.armSituational(situational);
 
+    /*
+     * THE ROLL WINDOW GETS THE CHOICE (Dawid, 29.08): a careful look or a quick
+     * rummage. Only these two — everything else stays locked, and Determination
+     * still buys the full picker for anybody who paid for it.
+     */
+    const { allowTraitsForNextRoll } = await import("./roll-dialog.mjs");
+    allowTraitsForNextRoll(ACTIONS.search.traits);
+
     let roll;
     try {
         roll = await rollTrait(actor, trait, {
@@ -1535,7 +1543,12 @@ async function chooseSearchCategory(actor, def = ACTIONS.search) {
         intro: briefingBlock(actor, "search", ACTIONS.search),
         prompt: game.i18n.localize("DRPG.Action.searchGoalHint"),
         confirm: game.i18n.localize("DRPG.Action.roll"),
-        traits: def.traits,
+        // NO STATISTIC HERE ANY MORE (Dawid, 29.08). This window asks what you
+        // are looking for; how you look for it is asked in the roll window,
+        // where the choice is Eye or Hand and where it can still be seen next
+        // to the dice. Two windows asking two halves of one decision put the
+        // second half three clicks before it mattered.
+        traits: null,
         options: options.map(o => ({
             value: o.value,
             icon: o.icon,
@@ -1560,7 +1573,13 @@ async function chooseSearchCategory(actor, def = ACTIONS.search) {
         return null;
     }
 
-    return { goal: picked.value, category: option?.category, request, trait: picked.trait };
+    // Eye by default: a search is a LOOK unless the player says otherwise, and
+    // they say otherwise in the roll window. `def.traits[0]` rather than the
+    // literal, so the catalogue stays the one place that decides.
+    return {
+        goal: picked.value, category: option?.category, request,
+        trait: picked.trait ?? def.traits?.[0] ?? "eye"
+    };
 }
 
 /* ==========================================================================

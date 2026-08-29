@@ -1623,6 +1623,20 @@
       "costsDespairShort": "{cost} Despair",
       "spend": "Spend {cost}",
       "aimedAt": "Aimed at",
+      "tellGm": "Tell the GM what you are about to do with it",
+      "tellGmPlaceholder": {
+        "experience": "Which experience, and how it applies to what you are attempting.",
+        "ultimate": "How your talent applies to what you are attempting."
+      },
+      "waitsForGm": "The GM has to agree before this is spent. Your Hope is not touched until they do.",
+      "needNote": "Write what you are going to do with it first — the GM is being asked to rule on that, not on the Call.",
+      "approveTitle": "{call} — does it apply?",
+      "approveHint": "The question is the handbook's: does it GENUINELY apply here? Refusing costs the player nothing.",
+      "approveYes": "It applies",
+      "approveNo": "Not this time",
+      "refused": "{call}: the GM said not this time. Nothing was spent.",
+      "noAnswer": "{call}: no answer from the GM. Nothing was spent.",
+      "noRuling": "Nobody answered. Nothing was spent — ask again when a GM is free.",
       "notEnoughHope": "{call} costs {cost} Hope and you hold {held}.",
       "sprinted": {
         "one": "{n} extra crossing this time of day, free of charge.",
@@ -1920,6 +1934,7 @@
       "locked": "Not yours to choose. Advantage and experiences are Hope Calls — ask the GM.",
       "diceFixed": "Fixed at d12 by the rules.",
       "traitFixed": "Chosen before this window opened.",
+      "pickYourApproach": "A careful look or a quick rummage — your choice.",
       "advantageLocked": "Advantage and disadvantage come from Calls, not from here.",
       "pickOneExperience": "Pick the one experience this roll relates to. Clicking another moves the choice.",
       "experienceLocked": "Using an experience is the Experience Hope Call — ask the GM to spend it.",

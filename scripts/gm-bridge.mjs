@@ -35,6 +35,9 @@ const ACTION_ARM = "call.arm";
 const ACTION_DESPAIR = "despair.adjust";
 const ACTION_DIFFICULTY = "dynamic.difficulty";
 const ACTION_DIFFICULTY_RESULT = "dynamic.difficultyResult";
+/** player -> GM: "may I spend this Call, and here is what for". */
+const ACTION_HOPE_CALL = "call.approve";
+const ACTION_HOPE_CALL_RESULT = "call.approveResult";
 const ACTION_OBSERVE_TARGET = "observe.target";
 const ACTION_OBSERVE_TARGET_RESULT = "observe.targetResult";
 const ACTION_OBSERVE_RESOLVE = "observe.resolve";
@@ -143,6 +146,7 @@ export function registerGmBridge() {
     game.socket.on(SOCKET_EVENT, onSabotageResult);
     // And again: the chosen Observe target travels back to the observer.
     game.socket.on(SOCKET_EVENT, onObserveTargetResult);
+    game.socket.on(SOCKET_EVENT, onHopeCallResult);
     // And again: a killer's own cleanable-trace list travels back to them.
     game.socket.on(SOCKET_EVENT, onCleanupTracesResult);
     // The one request that travels the other way — GM to player — so it cannot
@@ -289,6 +293,14 @@ function onRulingResult(payload, senderId) {
     settleRuling(payload.requestId, payload.ruling ?? null);
 }
 
+/** The GM has answered a Call that needed their say-so. */
+function onHopeCallResult(payload, senderId) {
+    if (payload?.action !== ACTION_HOPE_CALL_RESULT) return;
+    if (!replyForMe(payload, senderId)) return;
+
+    settleRuling(payload.requestId, payload.verdict ?? null);
+}
+
 /** The GM has settled which Remnant this Observe is aimed at. */
 function onObserveTargetResult(payload, senderId) {
     if (payload?.action !== ACTION_OBSERVE_TARGET_RESULT) return;
@@ -371,6 +383,7 @@ async function onSocket(payload, senderId) {
     // so letting them fall through would have the primary GM acknowledge its own
     // answer as though it were a fresh request.
     if (payload.action === ACTION_ACK || payload.action === ACTION_DIFFICULTY_RESULT
+        || payload.action === ACTION_HOPE_CALL_RESULT
         || payload.action === ACTION_SABOTAGE_RESULT
         || payload.action === ACTION_OBSERVE_TARGET_RESULT
         || payload.action === ACTION_CLEANUP_TRACES_RESULT
@@ -785,6 +798,18 @@ async function onSocket(payload, senderId) {
             total: Number(payload.total) || 0,
             isCritical: Boolean(payload.isCritical)
         });
+        return;
+    }
+
+    if (payload?.action === ACTION_HOPE_CALL) {
+        const { askHopeCallApproval } = await import("./calls.mjs");
+        const verdict = await askHopeCallApproval(payload);
+        game.socket.emit(SOCKET_EVENT, {
+            action: ACTION_HOPE_CALL_RESULT,
+            requestId: payload.requestId,
+            userId: asker,
+            verdict
+        }, { recipients: [asker] });
         return;
     }
 
@@ -1277,6 +1302,39 @@ function hasGm() {
  *
  * @returns {Promise<{tier: number, trait: string}|null>} null if refused or unanswered.
  */
+/**
+ * "May I spend this, and here is what for." Waits for a human (Dawid, 29.08).
+ *
+ * The same shape as `requestDynamicDifficulty` below, and for the same reason:
+ * a question only a person can answer, so the timeout is generous and a silence
+ * is a refusal rather than an error. Nothing is charged on this side — see
+ * `spendHopeCall`, which pays only against a yes.
+ *
+ * @returns {Promise<boolean|null>} true to allow, false to refuse, null if
+ *   nobody answered.
+ */
+export function requestHopeCallApproval(
+    { actorId, actorName, key, callLabel, effect, cost, note }, timeoutMs = 300000) {
+    if (!hasGm()) return Promise.resolve(null);
+
+    const requestId = foundry.utils.randomID();
+    return new Promise(resolve => {
+        awaitRuling(requestId, resolve, {
+            action: ACTION_HOPE_CALL,
+            requestId,
+            userId: game.user.id,
+            actorId, actorName, key, callLabel, effect, cost, note
+        });
+
+        setTimeout(() => {
+            if (!pendingRulings.has(requestId)) return;
+            pendingRulings.delete(requestId);
+            ui.notifications.warn(game.i18n.localize("DRPG.Calls.noRuling"));
+            resolve(null);
+        }, timeoutMs);
+    });
+}
+
 export function requestDynamicDifficulty({ description, actorName, room }, timeoutMs = 180000) {
     if (!hasGm()) return Promise.resolve(null);
 

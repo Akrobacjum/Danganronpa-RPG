@@ -221,6 +221,38 @@ function actorOf(app) {
     return game.user?.character ?? null;
 }
 
+/*
+ * WHICH STATISTICS THE NEXT ROLL MAY OFFER.
+ *
+ * Normally the trait is decided before this window opens and the select is
+ * dead, because letting a student pick their own statistic is letting them pick
+ * their own difficulty. Search is the exception (Dawid, 29.08): looking for
+ * something is either a careful look or a quick rummage, and which one you are
+ * doing is a real choice that belongs in the moment of rolling rather than in a
+ * menu two windows earlier.
+ *
+ * A MODULE-LEVEL HANDOFF, NOT A FLAG, and deliberately: this is a permission
+ * for ONE window that is about to open on this very client, microseconds from
+ * now, in the same call stack. An actor flag would be an asynchronous write
+ * racing the dialog it is meant to configure, and a persisted one would outlive
+ * the roll it was for — the failure being a player who gets the choice on the
+ * next roll too, which is the whole thing this is meant not to do.
+ *
+ * Consumed on read for the same reason: one permission, one roll.
+ */
+let nextTraitChoice = null;
+
+/** Let the next roll dialog offer these statistics. See the note above. */
+export function allowTraitsForNextRoll(traits) {
+    nextTraitChoice = Array.isArray(traits) && traits.length ? [...traits] : null;
+}
+
+function takeTraitChoice() {
+    const taken = nextTraitChoice;
+    nextTraitChoice = null;
+    return taken;
+}
+
 function locking() {
     try {
         return game.settings.get(MODULE_ID, SETTINGS.lockRollDialog);
@@ -270,10 +302,33 @@ function lockControls(root, app) {
         disable(select, "DRPG.RollDialog.diceFixed");
     }
 
-    // Trait: chosen before this window opened, unless Determination is armed.
+    /*
+     * Trait: chosen before this window opened — with two exceptions.
+     *
+     *   Determination (`armed === "trait"`) buys the whole picker. That is what
+     *   the Call is FOR, so nothing is narrowed.
+     *
+     *   An action may open the door part-way: Search offers Eye or Hand and
+     *   nothing else. The options outside the list are removed rather than
+     *   disabled, because a select full of greyed rows reads as a broken menu,
+     *   while a short menu reads as a short menu.
+     *
+     * Order matters. The Call is checked first, so a player who paid for the
+     * picker is never handed the narrower version of it.
+     */
     const trait = root.querySelector('select[name="trait"]');
-    if (trait && armed !== "trait") disable(trait, "DRPG.RollDialog.traitFixed");
-    else if (trait) unlock(trait, "DRPG.RollDialog.unlockedByCall");
+    const allowed = takeTraitChoice();
+
+    if (trait && armed === "trait") {
+        unlock(trait, "DRPG.RollDialog.unlockedByCall");
+    } else if (trait && allowed?.length) {
+        for (const option of [...trait.options]) {
+            if (!allowed.includes(option.value)) option.remove();
+        }
+        unlock(trait, "DRPG.RollDialog.pickYourApproach");
+    } else if (trait) {
+        disable(trait, "DRPG.RollDialog.traitFixed");
+    }
 
     // Advantage and disadvantage.
     //

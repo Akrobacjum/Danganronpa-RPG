@@ -94,6 +94,70 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
             return null;
         }
 
+        /*
+         * TWO CALLS WAIT FOR A RULING BEFORE ANYTHING IS PAID (Dawid, 29.08).
+         *
+         * Experience and Ultimate are the only Hope Calls whose effect is a
+         * claim about the fiction — "this applies here" — which is the sentence
+         * the handbook gives the GM to judge. See `needsGm` in config.mjs.
+         *
+         * CHARGED ON THE YES, NOT ON THE ASK. The alternative was to take the
+         * Hope up front and refund a refusal, which is what the Despair Calls do
+         * (trap 3) — but those pay for something that then happens, and this
+         * pays for permission. A refund loop around a human who might take five
+         * minutes to answer is a window in which the refund can be lost, and a
+         * player watching their Hope leave for a request that was refused has
+         * been charged for asking.
+         *
+         * SO THE PRICE IS RE-CHECKED AFTER THE YES. Between the ask and the
+         * answer the player may have spent that Hope on something else, and the
+         * check above is now stale.
+         *
+         * A GM asking on their own sheet skips the round trip: sending yourself
+         * a socket message and waiting for your own dialog works, and is a
+         * needlessly long way round to open the dialog directly.
+         */
+        if (call.needsGm) {
+            const ask = {
+                actorId: actor.id, actorName: actor.name, key,
+                callLabel: call.label, effect: callEffect(call), cost: call.cost, note
+            };
+
+            /*
+             * AN `if`, NOT A TERNARY, AND R6 IS RIGHT TO INSIST.
+             *
+             * The invariant wants the `game.user.isGM` test within three hundred
+             * characters of the bridge call, on the grounds that a guard far
+             * enough away to be out of sight is a guard the next editor will not
+             * know is load-bearing. A ternary whose first branch carries a
+             * six-field object literal pushed them apart — the guard was there
+             * and it did not read as one.
+             */
+            let approved;
+            if (game.user.isGM) {
+                approved = await askHopeCallApproval(ask);
+            } else {
+                const { requestHopeCallApproval } = await import("./gm-bridge.mjs");
+                approved = await requestHopeCallApproval(ask);
+            }
+
+            if (!approved) {
+                ui.notifications.info(game.i18n.format(
+                    approved === null ? "DRPG.Calls.noAnswer" : "DRPG.Calls.refused",
+                    { call: call.label }));
+                log(`${call.label} was not allowed for ${actor.name}.`);
+                return null;
+            }
+
+            const now = hopeHeld(actor);
+            if (now < call.cost) {
+                ui.notifications.warn(game.i18n.format("DRPG.Calls.notEnoughHope", {
+                    call: call.label, cost: call.cost, held: now
+                }));
+                return null;
+            }
+        }
+
         await automatedUpdate(actor, { "system.resources.hope.value": held - call.cost });
 
         // Do the thing, not just charge for it.
@@ -258,6 +322,15 @@ export async function confirmCall(call, { kind = "hope", held = 0, choice = {} }
                     cost: call.cost, held
                 })
             }</p>
+            ${call.needsGm ? `
+                <label class="drpg-call-note">
+                    <span>${game.i18n.localize("DRPG.Calls.tellGm")}</span>
+                    <textarea name="callNote" rows="3" placeholder="${
+                        foundry.utils.escapeHTML(game.i18n.localize(
+                            `DRPG.Calls.tellGmPlaceholder.${call.grants === "experience"
+                                ? "experience" : "ultimate"}`))}"></textarea>
+                </label>
+                <p class="notes">${game.i18n.localize("DRPG.Calls.waitsForGm")}</p>` : ""}
         </div>`,
         buttons: [
             {
@@ -268,14 +341,70 @@ export async function confirmCall(call, { kind = "hope", held = 0, choice = {} }
                 // The price was already shown in red; leaving the button live
                 // meant the only way to learn you could not pay was to press it.
                 disabled: !affordable,
-                callback: () => ""
+                /*
+                 * THE NOTE IS THE REQUEST (Dawid, 29.08).
+                 *
+                 * For a Call that waits for a ruling, an empty box is not a
+                 * request — it is a player asking the GM to guess what they
+                 * meant. Returning `null` here cancels rather than sends, which
+                 * is the same answer pressing Cancel gives, because a request
+                 * nobody can rule on and no request are the same thing.
+                 */
+                callback: (event, button, dialog) => {
+                    if (!call.needsGm) return "";
+                    const written = dialog.element
+                        .querySelector("[name=callNote]")?.value.trim() ?? "";
+                    if (!written) {
+                        ui.notifications.warn(game.i18n.localize("DRPG.Calls.needNote"));
+                        return null;
+                    }
+                    return written;
+                }
             },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel"), default: !affordable }
         ],
         rejectClose: false
     });
 
-    return (result === "cancel" || result === null || result === undefined) ? null : "";
+    // `null` from the callback above means "they left the box empty", which is
+    // a cancel. Anything else is the note, and for every other Call it is "".
+    return (result === "cancel" || result === null || result === undefined) ? null : result;
+}
+
+/**
+ * The GM's ruling on a Call that needs one. Runs on a GM's client only.
+ *
+ * WHAT THE GM IS BEING ASKED is not "is this allowed" in the abstract — it is
+ * the handbook's own gate: does the experience, or the talent, GENUINELY apply
+ * to what this player is about to do. So the player's sentence is the body of
+ * the window and the rest is context.
+ *
+ * @returns {Promise<boolean>} true to allow. A closed window is a refusal,
+ *   because an unanswered request must not become a yes by default.
+ */
+export async function askHopeCallApproval(payload = {}) {
+    if (!game.user.isGM) return false;
+
+    const esc = str => foundry.utils.escapeHTML(String(str ?? ""));
+    const result = await DialogV2.wait({
+        window: { title: game.i18n.format("DRPG.Calls.approveTitle", {
+            call: payload.callLabel ?? "" }) },
+        classes: ["drpg-panel", "drpg-hope-dialog"],
+        content: `<div>
+            <p><strong>${esc(payload.actorName)}</strong> — ${esc(payload.callLabel)}
+                (${esc(payload.cost)} Hope)</p>
+            <p class="notes">${esc(payload.effect)}</p>
+            <blockquote>${esc(payload.note)}</blockquote>
+            <p class="notes">${game.i18n.localize("DRPG.Calls.approveHint")}</p>
+        </div>`,
+        buttons: [
+            { action: "yes", label: game.i18n.localize("DRPG.Calls.approveYes"), default: true },
+            { action: "no", label: game.i18n.localize("DRPG.Calls.approveNo") }
+        ],
+        rejectClose: false
+    });
+
+    return result === "yes";
 }
 
 /** Human-readable summary of whatever the Call was pointed at. */
