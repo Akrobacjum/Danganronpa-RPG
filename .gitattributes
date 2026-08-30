@@ -4,3 +4,7 @@
 docs/ export-ignore
 .gitattributes export-ignore
 .gitignore export-ignore
+
+# audit/ is the v1.1.88 review: the headless harness and its report. Useful in
+# the repository, pointless inside a module people install.
+audit/ export-ignore

@@ -189,3 +189,25 @@ końca:
 
 Po punktach 1–4 to jest moduł, który spokojnie pokażesz obcemu i na którym
 zaczniesz pierwsze sesje bez ryzyka wywrotki.
+
+---
+
+## Status after this review (v1.2.0)
+
+- **REL-001 (latest/main behind)** - addressed by this release: main now carries
+  the released code, and 1.2.0 is published as a stable release rather than a
+  prerelease, so `releases/latest` resolves to it.
+- **LIVE-003 (critical paid +3 Hope)** - fixed. The duality funnel in
+  critical.mjs is the only payer for a fresh critical; the chat-message top-up in
+  despair-award is gone. Regression R26 in the suite states the rule, including
+  the reroll path that still tops up by hand. Re-measured: +2.
+- **LIVE-002 (missing Season i18n keys)** - **withdrawn, it was a false positive
+  of the harness.** Both keys exist in lang/en.json as literal dotted keys inside
+  a nested block ("step.resources"), and Foundry expands those when it merges a
+  language file, so they resolve in a real world. The harness looked them up
+  without expanding first. Fixed in the harness; the module needed no change.
+- **LIVE-001 (killerId readable from a player's console)** - still open, and
+  deliberately left for a decision rather than patched in a release that was
+  about the economy and the copy. It needs the identity moved out of the
+  world-scoped `murderState` and onto the GM-to-client channel that already
+  carries the module's other secrets.
