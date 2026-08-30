@@ -1,0 +1,74 @@
+# Publish a release from the current state of the branch this is dispatched on.
+#
+# Why a workflow at all: the module is built with `git archive`, so the package
+# is a pure function of the tree - anything with a checkout can build the same
+# zip byte for byte. Running it here means a release is one button, the tag is
+# created server-side at the exact commit that built the package, and nothing
+# depends on whichever machine happened to cut it.
+#
+# The optional cleanup removes the v1.1.1 - v1.1.88 prereleases, which were
+# working builds between 1.1.0 and 1.2.0 and kept `releases/latest` pointing at
+# 1.1.0 the whole time. Their tags go with them; the history stays in git.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release, e.g. v1.2.0"
+        required: true
+        default: "v1.2.0"
+      cleanup_prereleases:
+        description: "Also delete the v1.1.1 - v1.1.88 prereleases and their tags"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the manifest matches the tag
+        run: |
+          manifest="$(python3 -c "import json; print(json.load(open('module.json'))['version'])")"
+          wanted="${{ inputs.tag }}"
+          if [ "v$manifest" != "$wanted" ]; then
+            echo "module.json says $manifest but the tag asked for is $wanted" >&2
+            exit 1
+          fi
+
+      - name: Build the package
+        run: git archive --format=zip -o module.zip HEAD
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ inputs.tag }}" module.zip module.json \
+            -R "${{ github.repository }}" \
+            --target "${{ github.sha }}" \
+            --title "${{ inputs.tag }}" \
+            --notes-file ".github/release-notes/${{ inputs.tag }}.md" \
+            --latest
+
+      - name: Delete the prereleases
+        if: ${{ inputs.cleanup_prereleases }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for i in $(seq 1 88); do
+            if gh release delete "v1.1.$i" -R "${{ github.repository }}" --cleanup-tag --yes 2>/dev/null; then
+              echo "deleted v1.1.$i"
+            else
+              echo "skipped v1.1.$i (not there)"
+            fi
+          done
+
+      - name: Show what latest resolves to
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release view -R "${{ github.repository }}" --json tagName,isLatest,isPrerelease
