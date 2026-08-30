@@ -1,0 +1,93 @@
+{
+  "scenario": "scenarios/11-killer-secrecy.mjs",
+  "passed": 3,
+  "total": 5,
+  "ms": 2908,
+  "results": [
+    {
+      "name": "SECRECY p1 during incident: killerId hidden",
+      "ok": false,
+      "details": "killerId=ACTORCHIE0000000"
+    },
+    {
+      "name": "SECRECY p1 during incident: accomplice hidden",
+      "ok": true,
+      "details": "thirdId=null"
+    },
+    {
+      "name": "SECRECY p1 during class trial: killerId hidden",
+      "ok": false,
+      "details": "{\"killerId\":\"ACTORCHIE0000000\",\"thirdId\":null,\"active\":true,\"stage\":\"resolution\"}"
+    },
+    {
+      "name": "SECRECY p1 during class trial: accomplice hidden",
+      "ok": true,
+      "details": "{\"killerId\":\"ACTORCHIE0000000\",\"thirdId\":null,\"active\":true,\"stage\":\"resolution\"}"
+    },
+    {
+      "name": "SECRECY p1: no killer/blackened flag readable on actors",
+      "ok": true,
+      "details": "[]"
+    }
+  ],
+  "permissionDenials": [],
+  "socketTraffic": [
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 29
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 135
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 135
+    }
+  ],
+  "bootInfo": {
+    "p2": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 55
+    },
+    "gm": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 55
+    },
+    "p1": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 55
+    }
+  }
+}

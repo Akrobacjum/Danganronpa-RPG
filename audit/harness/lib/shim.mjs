@@ -21,7 +21,8 @@ export const MODULE_ID = "danganronpa-rpg";
 /* ============================== Hooks ==================================== */
 
 export class HooksImpl {
-    constructor(log) { this._hooks = new Map(); this._log = log; this.events = []; }
+    constructor(log) { this._hooks = new Map(); this._log = log; this.fired = []; }
+    get events() { return Object.fromEntries([...this._hooks.entries()].map(([k, v]) => [k, v.map(e => ({ fn: e.fn, once: e.once }))])); }
     on(name, fn, opts = {}) {
         if (!this._hooks.has(name)) this._hooks.set(name, []);
         this._hooks.get(name).push({ fn, once: !!opts.once });
@@ -34,7 +35,7 @@ export class HooksImpl {
         if (i >= 0) list.splice(i, 1);
     }
     call(name, ...args) {
-        this.events.push(name);
+        this.fired.push(name);
         for (const entry of [...(this._hooks.get(name) ?? [])]) {
             if (entry.once) this.off(name, entry.fn);
             let out;
@@ -45,7 +46,7 @@ export class HooksImpl {
         return true;
     }
     callAll(name, ...args) {
-        this.events.push(name);
+        this.fired.push(name);
         for (const entry of [...(this._hooks.get(name) ?? [])]) {
             if (entry.once) this.off(name, entry.fn);
             try { entry.fn(...args); }
@@ -59,6 +60,8 @@ export class HooksImpl {
 /* ============================ Collections ================================ */
 
 export class Collection extends Map {
+    /** Foundry's Collection iterates VALUES, not [key, value] pairs. */
+    [Symbol.iterator]() { return this.values(); }
     get contents() { return [...this.values()]; }
     getName(name) { return this.contents.find(d => d.name === name); }
     find(fn) { return this.contents.find(fn); }
@@ -140,6 +143,12 @@ export function buildDocumentClasses(ctx) {
             return have >= want;
         }
         canUserModify(user) { return user?.isGM || this.testUserPermission(user, "OWNER"); }
+        getUserLevel(user) {
+            if (!user) return null;
+            if (user.isGM) return 3;
+            const own = (this.parent ?? this).ownership ?? { default: 0 };
+            return own[user.id] ?? own.default ?? 0;
+        }
 
         getFlag(scope, key) { return U.getProperty(this._source.flags, `${scope}.${key}`); }
         async setFlag(scope, key, value) { return this.update({ [`flags.${scope}.${key}`]: value }); }
@@ -149,6 +158,10 @@ export function buildDocumentClasses(ctx) {
             return this.update({ [`flags.${parts.join(".")}.-=${tail}`]: null });
         }
 
+        updateSource(changes = {}) {
+            U.mergeObject(this._source, changes, { performDeletions: true });
+            return changes;
+        }
         toObject() { return U.deepClone(this._source); }
         toJSON() { return this.toObject(); }
         clone(changes = {}) {
@@ -161,10 +174,22 @@ export function buildDocumentClasses(ctx) {
         static async create(data, context = {}) {
             const arr = Array.isArray(data) ? data : [data];
             const parent = context.parent ?? null;
-            const created = parent
-                ? await parent.createEmbeddedDocuments(this.documentName, arr, context)
-                : await ctx.bus.op({ action: "create", coll: this.documentName, data: arr.map(d => sanitize(d)), options: opts(context) });
-            const docs = parent ? created : created.map(id => ctx.gameRef().collections.get(this.documentName)?.get(id)).filter(Boolean);
+            if (parent) {
+                const created = await parent.createEmbeddedDocuments(this.documentName, arr, context);
+                return Array.isArray(data) ? created : created[0];
+            }
+            const hooks = ctx.hooks();
+            const kept = [];
+            for (const d of arr) {
+                // pre-hooks fire on the initiator with a mutable document; a
+                // hook's updateSource() must reach the server (real semantics).
+                const doc = new this(sanitize(d));
+                const pre = hooks.call(`preCreate${this.documentName}`, doc, doc.toObject(), opts(context), ctx.userId());
+                if (pre !== false) kept.push(doc.toObject());
+            }
+            if (!kept.length) return Array.isArray(data) ? [] : undefined;
+            const ids = await ctx.bus.op({ action: "create", coll: this.documentName, data: kept, options: opts(context) });
+            const docs = ids.map(id => ctx.gameRef().collections.get(this.documentName)?.get(id)).filter(Boolean);
             return Array.isArray(data) ? docs : docs[0];
         }
         static async createDocuments(data = [], context = {}) {
@@ -258,7 +283,6 @@ export function buildDocumentClasses(ctx) {
         static get documentName() { return "Actor"; }
         get items() { return this._collections.items; }
         get effects() { return this._collections.effects; }
-        get statuses() { return new Set((this._source.statuses ?? [])); }
         get prototypeToken() { return this._source.prototypeToken ?? { name: this.name, texture: { src: this.img } }; }
         get token() { return null; }
         get isToken() { return false; }
@@ -273,12 +297,25 @@ export function buildDocumentClasses(ctx) {
             return out;
         }
         getRollData() { return U.deepClone(this.system); }
-        async toggleStatusEffect(statusId, { active } = {}) {
-            const cur = new Set(this._source.statuses ?? []);
-            const want = active ?? !cur.has(statusId);
-            if (want) cur.add(statusId); else cur.delete(statusId);
-            await this.update({ statuses: [...cur] });
-            return want;
+        async toggleStatusEffect(statusId, { active, overlay = false } = {}) {
+            // v12+ semantics: a status is an ActiveEffect carrying `statuses`.
+            const existing = this.effects.contents.find(e => e.statuses.has(statusId));
+            const want = active ?? !existing;
+            if (want && !existing) {
+                const def = (globalThis.CONFIG?.statusEffects ?? []).find(s => s.id === statusId);
+                const [eff] = await this.createEmbeddedDocuments("ActiveEffect", [{
+                    name: def?.name ?? statusId, img: def?.img, statuses: [statusId],
+                    flags: overlay ? { core: { overlay: true } } : {}
+                }]);
+                return eff;
+            }
+            if (!want && existing) { await this.deleteEmbeddedDocuments("ActiveEffect", [existing.id]); return false; }
+            return existing ?? false;
+        }
+        get statuses() {
+            const out = new Set(this._source.statuses ?? []);
+            for (const e of this.effects.contents) for (const s of e.statuses) out.add(s);
+            return out;
         }
         get appliedEffects() { return this.effects?.contents ?? []; }
         get sheet() {
@@ -325,6 +362,14 @@ export function buildDocumentClasses(ctx) {
         get center() {
             const gs = 100;
             return { x: this.x + (this.width * gs) / 2, y: this.y + (this.height * gs) / 2 };
+        }
+        /** Foundry v12+: the Regions this token is inside (kept live by the server; here: measured). */
+        get regions() {
+            const out = new Set();
+            for (const r of this.parent?.regions?.contents ?? []) {
+                if (r.pointInside(this.center)) out.add(r);
+            }
+            return out;
         }
         getFlag(scope, key) { return U.getProperty(this._source.flags, `${scope}.${key}`); }
     }
@@ -566,7 +611,6 @@ export class RollImpl {
     }
     toJSON() { return { class: "Roll", formula: this.formula, total: this.total, evaluated: this._evaluated }; }
     static fromJSON(json) { const d = typeof json === "string" ? JSON.parse(json) : json; const r = new RollImpl(d.formula); r.total = d.total; r._evaluated = true; return r; }
-    get result() { return String(this.total); }
 }
 
 /* ============================ PIXI stub ================================== */

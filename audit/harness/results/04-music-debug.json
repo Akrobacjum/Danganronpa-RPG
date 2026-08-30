@@ -1,0 +1,73 @@
+{
+  "scenario": "scenarios/04-music-debug.mjs",
+  "passed": 1,
+  "total": 1,
+  "ms": 843,
+  "results": [
+    {
+      "name": "music debug",
+      "ok": true,
+      "details": "{\"started\":true,\"opened\":true,\"status\":{\"enabled\":true,\"state\":\"trial.objection\",\"playlist\":\"Probe objection fixture\",\"playing\":[],\"situational\":null,\"interrupted\":false,\"cue\":null,\"held\":[]},\"soundsPlaying\":[{\"n\":\"S1\",\"p\":false},{\"n\":\"S2\",\"p\":true}],\"playlistPlaying\":false}"
+    }
+  ],
+  "permissionDenials": [],
+  "socketTraffic": [
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 29
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 135
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 135
+    }
+  ],
+  "bootInfo": {
+    "p1": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 55
+    },
+    "p2": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 55
+    },
+    "gm": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 55
+    }
+  }
+}

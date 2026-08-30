@@ -1,0 +1,163 @@
+{
+  "scenario": "scenarios/10-murder.mjs",
+  "passed": 16,
+  "total": 17,
+  "ms": 4873,
+  "results": [
+    {
+      "name": "gm: murder opens",
+      "ok": true,
+      "details": "{\"active\":true,\"stage\":\"openingRoll\",\"indirect\":false,\"selfInflicted\":false,\"killerId\":\"ACTORCHIE0000000\",\"victimId\":\"ACTORDAICHI00000\",\"thirdId\":null,\"turn\":0,\"turnSide\":\"victim\",\"killerTurnId\":\"ACTORCHIE0000000\",\"keyRemnants\":5,\"deniedToVictim\":[],\"hindered\":{\"victim\":{},\"killer\":{}},\"blocked\":{\"v"
+    },
+    {
+      "name": "p2: killer identity NOT readable from murderState world setting",
+      "ok": false,
+      "details": "{\"active\":true,\"stage\":\"openingRoll\",\"indirect\":false,\"selfInflicted\":false,\"killerId\":\"ACTORCHIE0000000\",\"victimId\":\"ACTORDAICHI00000\",\"thirdId\":null,\"turn\":0,\"turnSide\":\"victim\",\"killerTurnId\":\"ACTORCHIE0000000\",\"keyRemnants\":5,\"deniedToVictim\":[],\"hindered\":{\"victim\":{},\"killer\":{}},\"blocked\":{\"victim\":{},\"killer\":{}},\"unlocked\":[],\"drainStopped\":false,\"advantageNext\":{\"victim\":false,\"killer\":f"
+    },
+    {
+      "name": "gm: killer opening resolves",
+      "ok": true,
+      "details": "{\"r\":true,\"state\":\"incident\",\"tracker\":{}}"
+    },
+    {
+      "name": "gm: finishing blow kills",
+      "ok": true,
+      "details": "{\"stage\":\"resolution\",\"dead\":true}"
+    },
+    {
+      "name": "p1: death replicated to player client",
+      "ok": true,
+      "details": "true"
+    },
+    {
+      "name": "gm: resolution stage",
+      "ok": true,
+      "details": "{\"r\":\"no-beginResolution\",\"stage\":\"resolution\"}"
+    },
+    {
+      "name": "p1: body discovery flow responds",
+      "ok": true,
+      "details": "{\"ok\":true,\"r\":\"object\",\"state\":\"resolution\",\"notif\":[]}"
+    },
+    {
+      "name": "gm: remnant token placed",
+      "ok": true,
+      "details": "{\"r\":\"object\",\"toks\":[{\"id\":\"9cIM4jdN4T0cLVm8\",\"name\":\"Trace\"}]}"
+    },
+    {
+      "name": "gm: remnant token name gives nothing away",
+      "ok": true,
+      "details": "Trace"
+    },
+    {
+      "name": "p2: remnant truth NOT in token flags",
+      "ok": true,
+      "details": "{\"danganronpa-rpg\":{\"isRemnant\":true}}"
+    },
+    {
+      "name": "gm: vote opens",
+      "ok": true,
+      "details": "number"
+    },
+    {
+      "name": "p1: ballot cast path exists",
+      "ok": true,
+      "details": "no-vote-fn"
+    },
+    {
+      "name": "gm: vote closes and tallies",
+      "ok": true,
+      "details": "null"
+    },
+    {
+      "name": "gm: murder ends clean",
+      "ok": true,
+      "details": "null"
+    },
+    {
+      "name": "gm: no uncaught errors",
+      "ok": true,
+      "details": "[]"
+    },
+    {
+      "name": "p1: no uncaught errors",
+      "ok": true,
+      "details": "[]"
+    },
+    {
+      "name": "p2: no uncaught errors",
+      "ok": true,
+      "details": "[]"
+    }
+  ],
+  "permissionDenials": [],
+  "socketTraffic": [
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 29
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 135
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 135
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 405
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 405
+    }
+  ],
+  "bootInfo": {
+    "p2": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 55
+    },
+    "gm": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 55
+    },
+    "p1": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 55
+    }
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "scenario": "scenarios/20-crit-hope.mjs",
+  "passed": 2,
+  "total": 3,
+  "ms": 817,
+  "results": [
+    {
+      "name": "critical is a critical (hope==fear)",
+      "ok": true,
+      "details": "{\"before\":0,\"after\":3,\"delta\":3,\"isCritical\":true}"
+    },
+    {
+      "name": "critical pays exactly +2 Hope (guide), not +3",
+      "ok": false,
+      "details": "delta=3 (before=0 after=3)"
+    },
+    {
+      "name": "plain Hope roll pays +1",
+      "ok": true,
+      "details": "delta=1"
+    }
+  ],
+  "permissionDenials": [],
+  "socketTraffic": [
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 29
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 135
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 135
+    }
+  ],
+  "bootInfo": {
+    "p1": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 55
+    },
+    "p2": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 55
+    },
+    "gm": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 55
+    }
+  }
+}

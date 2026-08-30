@@ -1,0 +1,154 @@
+{
+  "scenario": "scenarios/00-boot.mjs",
+  "passed": 15,
+  "total": 16,
+  "ms": 307,
+  "results": [
+    {
+      "name": "p1: boot completed",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "name": "p1: game.drpg api registered",
+      "ok": true,
+      "details": "keys=400"
+    },
+    {
+      "name": "p1: module settings registered (>30)",
+      "ok": true,
+      "details": "got 55"
+    },
+    {
+      "name": "gm: boot completed",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "name": "gm: game.drpg api registered",
+      "ok": true,
+      "details": "keys=400"
+    },
+    {
+      "name": "gm: module settings registered (>30)",
+      "ok": true,
+      "details": "got 55"
+    },
+    {
+      "name": "p2: boot completed",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "name": "p2: game.drpg api registered",
+      "ok": true,
+      "details": "keys=400"
+    },
+    {
+      "name": "p2: module settings registered (>30)",
+      "ok": true,
+      "details": "got 55"
+    },
+    {
+      "name": "gm: module settings visible",
+      "ok": true,
+      "details": "danganronpa-rpg.forcePrivateRolls"
+    },
+    {
+      "name": "gm: clock readable via api",
+      "ok": true,
+      "details": "{\"eclipse\":false,\"campaignName\":\"\",\"season\":1,\"chapter\":1,\"session\":1,\"day\":1,\"phase\":\"dailyLife\",\"timeOfDay\":\"morning\",\"timeOfDayStartedAt\":null,\"pausedAt\":null,\"finalTrial\":false}"
+    },
+    {
+      "name": "gm: boot notifications recorded",
+      "ok": true,
+      "details": "[\"warn: This module's stylesheet did not load on this page, so the interface is unstyled. Reload; if it persists, run game.drpg.diagnoseStyles().\",\"error: Danganronpa RPG: the data migration stopped short — seedItemRoles. Nothing was marked as migrated; the console has the details.\"]"
+    },
+    {
+      "name": "p1: boot notifications recorded",
+      "ok": true,
+      "details": "[\"warn: This module's stylesheet did not load on this page, so the interface is unstyled. Reload; if it persists, run game.drpg.diagnoseStyles().\"]"
+    },
+    {
+      "name": "p2: boot notifications recorded",
+      "ok": true,
+      "details": "[\"warn: This module's stylesheet did not load on this page, so the interface is unstyled. Reload; if it persists, run game.drpg.diagnoseStyles().\"]"
+    },
+    {
+      "name": "gm: no missing i18n keys during boot",
+      "ok": false,
+      "details": "[\"LIVEKITAVCLIENT.joiningAVBreakout\",\"LIVEKITAVCLIENT.leavingAVBreakout\",\"LIVEKITAVCLIENT.onDisconnected\"]"
+    },
+    {
+      "name": "p1: world-setting write denied by server",
+      "ok": true,
+      "details": "denied: User lacks permission to update world Setting"
+    }
+  ],
+  "permissionDenials": [
+    {
+      "who": "p1",
+      "op": "setting danganronpa-rpg.forcePrivateRolls",
+      "error": "User lacks permission to update world Setting"
+    }
+  ],
+  "socketTraffic": [
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 29
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 135
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 135
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    }
+  ],
+  "bootInfo": {
+    "p1": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 55
+    },
+    "gm": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 55
+    },
+    "p2": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 55
+    }
+  }
+}

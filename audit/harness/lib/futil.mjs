@@ -180,6 +180,36 @@ export class Color extends Number {
 
 export function timeSince() { return "just now"; }
 
+/** Embedded-collection array fields per document type (Foundry schema subset). */
+export const EMBEDDED_ARRAYS = {
+    Actor: ["items", "effects"], Item: ["effects"], Scene: ["tokens", "regions", "walls"],
+    RollTable: ["results"], Playlist: ["sounds"], Region: ["behaviors"]
+};
+
+/**
+ * Foundry update semantics for a parent document: an array under an embedded
+ * key is a DIFFERENTIAL update — entries merge into the existing element with
+ * the same _id — never a wholesale replacement. Everything else merges.
+ */
+export function applyDocChanges(collName, raw, changes) {
+    const expanded = expandObject(deepClone(changes));
+    for (const key of EMBEDDED_ARRAYS[collName] ?? []) {
+        if (!Array.isArray(expanded[key])) continue;
+        const patches = expanded[key];
+        delete expanded[key];
+        raw[key] = raw[key] ?? [];
+        for (const p of patches) {
+            const target = p?._id && raw[key].find(x => x._id === p._id);
+            if (target) {
+                const { _id, ...rest } = p;
+                mergeObject(target, rest, { performDeletions: true });
+            }
+            // no matching _id: real Foundry rejects; the harness drops it
+        }
+    }
+    mergeObject(raw, expanded, { performDeletions: true });
+}
+
 export function fromUuidParts(uuid) {
     // "Actor.abc", "Actor.abc.Item.def", "Scene.s.Token.t", "Compendium...." (unsupported)
     return String(uuid ?? "").split(".");

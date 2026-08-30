@@ -1,0 +1,113 @@
+{
+  "scenario": "scenarios/12-social.mjs",
+  "passed": 9,
+  "total": 9,
+  "ms": 626,
+  "results": [
+    {
+      "name": "forcePrivateRolls default state",
+      "ok": true,
+      "details": "= true"
+    },
+    {
+      "name": "p1 made a roll",
+      "ok": true,
+      "details": "{\"mine\":1}"
+    },
+    {
+      "name": "PRIVACY: p2 cannot see Aiko's roll message",
+      "ok": true,
+      "details": "{\"total\":0,\"leak\":0}"
+    },
+    {
+      "name": "INVENTORY: Gear limit of 2 is enforced (3rd blocked or stashed)",
+      "ok": true,
+      "details": "{\"a\":true,\"b\":true,\"cWasBlocked\":true,\"carried\":2,\"notif\":[\"info:Room-based visibility switched on for 1 scenes.\",\"warn:You already carry the most Gear you can (2).\"]}"
+    },
+    {
+      "name": "MOVEMENT: player's room resolved + search tokens present",
+      "ok": true,
+      "details": "{\"room\":\"Dorm A\",\"tokens\":\"err:Class constructor SearchTokens cannot be invoked without 'new'\",\"allRooms\":[\"Cafeteria\",\"Dorm A\",\"Dorm B\",\"Gym\",\"Hall\",\"Storage\"]}"
+    },
+    {
+      "name": "ANONYMITY: self-audit runs",
+      "ok": true,
+      "details": "{\"exposed\":[{\"actor\":{\"_id\":\"ACTORAIKO0000000\",\"name\":\"Aiko Hoshino\",\"type\":\"character\",\"img\":\"icons/svg/mystery-man.svg\",\"ownership\":{\"default\":2,\"USERP10000000000\":3},\"system\":{\"resources\":{\"hope\":{\"value\":3,\"max\":6},\"stress\":{\"value\":0,\"max\":6},\"hitPoints\":{\"value\":0,\"max\":6},\"actions\":{\"value\":3"
+    },
+    {
+      "name": "gm: no uncaught errors (L3)",
+      "ok": true,
+      "details": "[]"
+    },
+    {
+      "name": "p1: no uncaught errors (L3)",
+      "ok": true,
+      "details": "[]"
+    },
+    {
+      "name": "p2: no uncaught errors (L3)",
+      "ok": true,
+      "details": "[]"
+    }
+  ],
+  "permissionDenials": [],
+  "socketTraffic": [
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 29
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 135
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 135
+    }
+  ],
+  "bootInfo": {
+    "p1": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 55
+    },
+    "gm": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 55
+    },
+    "p2": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 55
+    }
+  }
+}

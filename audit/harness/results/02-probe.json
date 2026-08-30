@@ -1,0 +1,88 @@
+{
+  "scenario": "scenarios/02-probe.mjs",
+  "passed": 4,
+  "total": 4,
+  "ms": 6,
+  "results": [
+    {
+      "name": "probe: rooms",
+      "ok": true,
+      "details": "{\"allRooms\":[\"Cafeteria\",\"Dorm A\"],\"toks\":[{\"name\":\"Aiko\",\"room\":\"Dorm A\"},{\"name\":\"Botan\",\"room\":\"Cafeteria\"},{\"name\":\"Chie\",\"room\":\"Dorm A\"},{\"name\":\"Daichi\",\"room\":\"Cafeteria\"}]}"
+    },
+    {
+      "name": "probe: grantItem tool",
+      "ok": true,
+      "details": "{\"ok\":true,\"item\":{\"id\":\"dNn14TlCAmhKQHFI\",\"name\":\"PROBE tool\",\"flags\":{\"danganronpa-rpg\":{\"category\":\"tool\",\"tier\":1,\"location\":\"carried\",\"drpgItemId\":\"gaORza88SqfoZUiE\"}}},\"notif\":[{\"level\":\"info\",\"msg\":\"Room-based visibility switched on for 1 scenes.\",\"opts\":{},\"at\":1788102105904}]}"
+    },
+    {
+      "name": "probe: music",
+      "ok": true,
+      "details": "{\"states\":[\"0\",\"1\",\"2\",\"3\",\"4\",\"5\",\"6\",\"7\",\"8\",\"9\",\"10\"],\"map\":{},\"playlists\":[]}"
+    },
+    {
+      "name": "probe: secret dispatchEvent context",
+      "ok": true,
+      "details": "\"/**\\n * Danganronpa RPG — private narration that is actually private.\\n * ---------------------------------------------------------------------------\\n *\\n * WHAT THIS FIXES, AND IT WAS MEASURED, NOT SUS\""
+    }
+  ],
+  "permissionDenials": [],
+  "socketTraffic": [
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 29
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 135
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 135
+    }
+  ],
+  "bootInfo": {
+    "p1": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 55
+    },
+    "p2": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 55
+    },
+    "gm": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 55
+    }
+  }
+}
