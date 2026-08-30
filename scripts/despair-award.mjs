@@ -70,11 +70,27 @@ async function onChatMessage(message) {
             return;
         }
 
-        // A crit is worth 2 Hope in this game; Daggerheart pays 1. This is
-        // independent of the "rolls grant Despair" setting below — that setting
-        // is about the DM's currency, not the player's, and turning off Despair
-        // must not silently take back half of every critical's Hope.
-        if (outcome.isCritical) await topUpCritHope(actor);
+        /*
+         * NO CRIT HOPE IS PAID HERE, AND THAT IS THE FIX FOR A DOUBLE PAYMENT.
+         *
+         * This used to add the second point of a critical's Hope, back when
+         * Daggerheart's pipeline paid one and the guide asked for two. It is
+         * not the payer any more: `critical.mjs` wraps
+         * `DualityRoll#addDualityResourceUpdates` and makes the pipeline itself
+         * pay the guide's full `CRITICAL.hope`, at the funnel, before the card
+         * is ever posted.
+         *
+         * Both were live at once, so every fresh critical paid 2 + 1 = 3 Hope.
+         * Measured end to end: Hope 0 -> 3 on one critical action, against a
+         * guide that says 2. Hope buys Calls, so that is a real drift in the
+         * economy rather than a rounding error.
+         *
+         * The reroll path is the exception and it still needs a top-up, which
+         * is why `adjustCritHopeTopUp` below stays exported: a reroll goes
+         * through `DualityRoll#reroll` -> `updateResourcesForDualityReroll`,
+         * which this module does not wrap, so the system pays its own 1 there
+         * and reroll.mjs adds the second. See `settleCritHope` in reroll.mjs.
+         */
 
         if (!outcome.withFear) return;
         if (!game.settings.get(MODULE_ID, SETTINGS.despairFromRolls)) return;
@@ -102,18 +118,6 @@ async function onChatMessage(message) {
     } catch (err) {
         error("Could not award Despair from a roll", err);
     }
-}
-
-/**
- * Pay the second point of Hope a critical is worth.
- *
- * Guide: "A crit gives the player +2 hope." Daggerheart's own duality pipeline
- * pushes `{ key: 'hope', value: 1 }` on a critical (plus a Sanity clear), so one
- * point is already in place by the time this runs and only the difference is
- * owed.
- */
-async function topUpCritHope(actor) {
-    return adjustCritHopeTopUp(actor, 1);
 }
 
 /**

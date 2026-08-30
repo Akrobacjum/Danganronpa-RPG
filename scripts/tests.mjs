@@ -1530,6 +1530,66 @@ const REGRESSIONS = [
         equal(ACTIONS.directMurder?.cost, 1,
             "a Direct Murder no longer spends an action, so it takes nothing from the "
             + "budget the Eclipse just handed out");
+    }],
+
+    ["R26 · a critical's Hope is paid once, by one payer", async () => {
+        /*
+         * A CRITICAL PAID THREE HOPE FOR A GUIDE THAT SAYS TWO, because two
+         * mechanisms were implementing the same rule at once.
+         *
+         * The older one is despair-award: Daggerheart's pipeline paid 1, and
+         * the chat-message hook topped it up to the guide's 2. The newer one is
+         * critical.mjs, which wraps `addDualityResourceUpdates` so the funnel
+         * itself pays `CRITICAL.hope` outright. Both were live, so a fresh
+         * critical was paid 2 by the funnel and 1 more by the hook. Measured end
+         * to end: Hope 0 -> 3 on one critical action.
+         *
+         * Read from the source rather than driven, for the reason the whole of
+         * tier 0 exists: the symptom is a number that is quietly one too high,
+         * and a scenario that rolls a critical needs dice and a browser that is
+         * compositing frames. What can be stated exactly is which files are
+         * allowed to pay.
+         *
+         * THE REROLL PATH IS THE EXCEPTION AND IT MUST SURVIVE. A reroll settles
+         * its resources in Daggerheart's `updateResourcesForDualityReroll`,
+         * which this module does not wrap, so the system pays its own single
+         * point there and reroll.mjs owes the second. Deleting that call would
+         * fix nothing and quietly underpay every rerolled critical.
+         */
+        const sources = new Map(await otherSources());
+        const award = stripComments(sources.get("despair-award.mjs") ?? "");
+        const critical = stripComments(sources.get("critical.mjs") ?? "");
+        const reroll = stripComments(sources.get("reroll.mjs") ?? "");
+        ok(award.length > 500 && critical.length > 500 && reroll.length > 500,
+            "one of despair-award.mjs, critical.mjs or reroll.mjs did not load");
+
+        // The funnel is the payer, and it pays the guide's number.
+        ok(/addDualityResourceUpdates/.test(critical),
+            "critical.mjs no longer wraps the duality resource step, so nothing pays "
+            + "the guide's Hope at the funnel");
+        ok(/CRITICAL\.hope/.test(critical),
+            "critical.mjs no longer pays CRITICAL.hope, so the number lives in two places again");
+        equal(CRITICAL.hope, 2, "the guide's critical is 2 Hope");
+
+        /*
+         * Nothing may top a fresh critical up on top of that. Scoped to the
+         * chat hook's own body rather than the file: the module still exports
+         * `adjustCritHopeTopUp` from here, because the reroll path below calls
+         * it. What must not come back is this hook spending it.
+         */
+        const hookAt = award.indexOf("async function onChatMessage");
+        ok(hookAt >= 0, "despair-award no longer has a chat-message hook to check");
+        const after = award.slice(hookAt + 10);
+        const nextFn = after.search(/^(?:export )?(?:async )?function /m);
+        const hookBody = nextFn < 0 ? after : after.slice(0, nextFn);
+        ok(!/CritHope/.test(hookBody),
+            "the chat-message hook is paying a critical's Hope again; the funnel in "
+            + "critical.mjs already pays it in full, and both together hand out three");
+
+        // The one path that still owes a point keeps owing it.
+        ok(/adjustCritHopeTopUp/.test(reroll),
+            "reroll.mjs no longer settles the second Hope for a crit reached by rerolling, "
+            + "which the funnel never sees");
     }]
 ];
 

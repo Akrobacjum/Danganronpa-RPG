@@ -238,12 +238,20 @@ async function settleDespair(actor, before, after, done) {
 }
 
 /**
- * The guide's "+2 Hope on a crit" is this module's own top-up on top of what
- * Daggerheart's own pipeline pays — see despair-award.mjs. That pipeline also
- * covers a crit reached *by* rerolling (Daggerheart's `updateResourcesForDualityReroll`
- * credits +1 Hope the same way a fresh crit does), but a reroll never fires
- * `createChatMessage`, so our top-up would otherwise never run for a reroll —
- * and would keep sitting there if the reroll rolled the crit away.
+ * The second point of Hope a critical is worth, on the one path that still
+ * needs it paid by hand.
+ *
+ * A FRESH critical is paid in full by the pipeline: `critical.mjs` wraps
+ * `DualityRoll#addDualityResourceUpdates` so the funnel itself hands over the
+ * guide's `CRITICAL.hope`. Nothing tops that up afterwards, and despair-award
+ * says at its own call site why it no longer does.
+ *
+ * A reroll does not go through that funnel. `DualityRoll#reroll` settles its
+ * resources in `updateResourcesForDualityReroll`, which this module does not
+ * wrap, so the system pays its own single point for a crit arrived at by
+ * rerolling and the second one is owed here. The same call with -1 hands it
+ * back when a reroll throws a critical away, which is why this is a signed
+ * delta rather than a payment.
  */
 async function settleCritHope(actor, before, after, done) {
     if (before.isCritical === after.isCritical) return;

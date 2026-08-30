@@ -183,7 +183,7 @@ export async function chargeForUnfoundKeys() {
     }
 
     if (paid.length) {
-        await whisperToGms(`<p>${game.i18n.format("DRPG.Investigation.unfoundKeys", {
+        await whisperToGms(`<p>${plural("DRPG.Investigation.unfoundKeys", {
             n: short, despair: amount, who: foundry.utils.escapeHTML(paid.join(", "))
         })}</p>`);
     }

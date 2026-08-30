@@ -459,7 +459,7 @@ export async function setStash(room, actorId, { present = undefined, concealed =
         const owner = game.actors.get(actorId);
         const held = owner ? stashItemsIn(owner, room).length : 0;
         if (held) {
-            ui.notifications.warn(game.i18n.format("DRPG.Vault.stashNotEmpty", {
+            ui.notifications.warn(plural("DRPG.Vault.stashNotEmpty", {
                 name: owner?.name ?? "?", room, n: held
             }));
             return null;
@@ -2079,7 +2079,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
                 const owner = game.actors.get(entry.actorId);
                 const held = owner ? stashItemsIn(owner, room, scene).length : 0;
                 if (held) {
-                    ui.notifications.warn(game.i18n.format("DRPG.Vault.stashNotEmpty", {
+                    ui.notifications.warn(plural("DRPG.Vault.stashNotEmpty", {
                         name: owner?.name ?? "?", room, n: held
                     }));
                     keep.set(entry.actorId, entry);      // refused: leave it alone

@@ -2169,7 +2169,7 @@ function groupInventory(app, element) {
         const head = document.createElement("h4");
         head.innerHTML = `<span>${game.i18n.localize(group.labelKey)}</span>
                           <span class="drpg-group-count${limit && counted >= limit ? " full" : ""}"${
-                              group_ ? ` data-tooltip="${game.i18n.localize("DRPG.Sheet.sharedSlots")}"` : ""
+                              group_ ? ` data-tooltip="${game.i18n.format("DRPG.Sheet.sharedSlots", { n: limit })}"` : ""
                           }>${counted}${limit ? ` / ${limit}` : ""}</span>`;
         section.append(head);
 
