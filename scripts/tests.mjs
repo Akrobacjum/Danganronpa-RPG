@@ -1877,6 +1877,50 @@ const INVARIANTS = [
             "resetOverflow no longer clears both the counter and the armed stamp");
     }],
 
+    ["the overflow caption is redrawn by every road that can end a darkening", async () => {
+        /*
+         * Dawid, 31.08: "Darkened - this time of day" stayed on screen after
+         * the effect was over.
+         *
+         * The mechanic was fine. `overflowEffect()` compares the armed stamp
+         * with the clock and had already stopped answering; every reader that
+         * asks at the moment it acts got the right answer. What was stale was
+         * the CAPTION, because the Despair widget is redrawn by `SYNC.overflow`
+         * and by nothing else — and the two things that end a darkening without
+         * touching the counter are the clock moving past the stamp and the
+         * Eclipse flag flipping.
+         *
+         * Read from source. Driving it needs a boundary on a live world, and
+         * what regresses here is one line in a switch: it is deleted by anyone
+         * tidying "the pools did not change, why redraw the pools".
+         */
+        const sources = new Map(await otherSources());
+        const sync = stripComments(sources.get("sync.mjs") ?? "");
+        ok(sync.length > 1000, "sync.mjs did not load");
+
+        const caseOf = (name, next) => {
+            const from = sync.indexOf(`case SYNC.${name}:`);
+            const to = sync.indexOf(`case SYNC.${next}:`);
+            ok(from >= 0 && to > from, `the ${name} case is gone from the sync switch`);
+            return sync.slice(from, to);
+        };
+
+        // The stamp stands still and the clock walks out from under it.
+        ok(/renderDespairBar/.test(caseOf("clock", "eclipse")),
+            "a time of day ending no longer redraws the Despair caption — "
+            + "\"Darkened\" outlives the darkening, which is how this was reported");
+
+        // And the branch that reads `clock.eclipse` rather than the time of day.
+        ok(/renderDespairBar/.test(caseOf("eclipse", "visibility")),
+            "an Eclipse starting or ending no longer redraws the Despair caption, "
+            + "and overflowEffect() answers differently on both sides of it");
+
+        // The road that was always there, so a tidy-up cannot move the redraw
+        // out of the other two by putting it all here.
+        ok(/renderDespairBar/.test(caseOf("overflow", "searchTokens")),
+            "the counter changing no longer redraws its own caption");
+    }],
+
     ["the overflow fires once per boundary and never below its floors", async () => {
         /*
          * Z10. Three ways this can be wrong, and only the first would be

@@ -225,6 +225,30 @@ function refresh(kind, data = {}) {
              * shows the cast a room they are no longer standing in.
              */
             run("assembly", () => import("./call-effects.mjs").then(m => m.runPendingGather()));
+            /*
+             * THE CLOCK IS WHAT ENDS A DARKENING (Dawid, 31.08).
+             *
+             * "Darkened - this time of day" stayed on the caption after the
+             * time of day it named had passed. Nothing was wrong with the
+             * mechanic: `overflowEffect()` compares the armed stamp against the
+             * clock, so it had already stopped answering — every reader that
+             * asks at the moment it acts was correct. It was the one reader
+             * that does NOT ask again, the pixels, and the pixels are the only
+             * place the table looks.
+             *
+             * Measured before the fix: stamp on `evening`, clock moved to
+             * `night`, `overflowStatus().active` false and the badge still in
+             * the DOM. A manual `renderDespairBar()` cleared it.
+             *
+             * The caption reads the CLOCK as much as it reads the counter, so
+             * it belongs on both roads. `SYNC.overflow` already redraws it when
+             * the counter or the stamp moves; this is the other half — the
+             * stamp standing still while the clock walks out from under it. It
+             * covers the arrival too: a stamp armed mid-hour for the hour ahead
+             * lights up when that hour begins, and until now that also waited
+             * for something unrelated to redraw the widget.
+             */
+            run("bar", () => import("./despair.mjs").then(m => m.renderDespairBar?.()));
             run("hud", () => import("./hud.mjs").then(m => m.renderHud()));
             run("sheets", () => import("./clock.mjs").then(m => m.refreshSheets()));
             run("eclipse", () => import("./eclipse.mjs").then(m => m.refreshEclipse()));
@@ -244,6 +268,12 @@ function refresh(kind, data = {}) {
 
         case SYNC.eclipse:
             run("eclipse", () => import("./eclipse.mjs").then(m => m.refreshEclipse()));
+            // The same caption, and the same reason. `overflowEffect()` has an
+            // Eclipse branch: while one runs the clock has not moved yet, so a
+            // stamp armed for the time of day the Eclipse opens counts as
+            // running already. That answer flips when the Eclipse starts and
+            // when it ends, and neither of those is a counter change.
+            run("bar", () => import("./despair.mjs").then(m => m.renderDespairBar?.()));
             run("hud", () => import("./hud.mjs").then(m => m.renderHud()));
             run("visibility", () => import("./visibility.mjs").then(m => m.applyAll()));
             // Every other sync kind re-renders open character sheets; this one
