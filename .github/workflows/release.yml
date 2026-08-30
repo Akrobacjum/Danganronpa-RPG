@@ -71,4 +71,8 @@ jobs:
       - name: Show what latest resolves to
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release view -R "${{ github.repository }}" --json tagName,isLatest,isPrerelease
+        # No --json: the runner's gh does not know every field name, and a
+        # verification step that can fail on a field name fails the whole run
+        # AFTER the release is already out - which is exactly what happened on
+        # run 1. Plain view cannot.
+        run: gh release view -R "${{ github.repository }}" | head -5
