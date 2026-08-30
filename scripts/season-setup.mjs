@@ -830,6 +830,21 @@ async function wipeSeason({ alsoChat = false } = {}) {
         await zeroAllDespair();
     });
 
+    /* THE SPILL GOES WITH THE POOLS IT SPILLED OUT OF (Dawid, 30.08).
+       -----------------------------------------------------------------------
+       The reset emptied every Despair pool and left the overflow counter
+       standing, so a new season opened carrying the last one's pressure — and
+       carrying its armed stamp too, which is worse: a darkening dated to a time
+       of day the new clock will reach again. Reported from a real reset.
+
+       Through `resetOverflow` rather than a settings write in the table below,
+       for the same reason the pools go through `zeroAllDespair`: one definition
+       of empty, and it already clears both halves of the record. */
+    await step("the Despair overflow", async () => {
+        const { resetOverflow } = await import("./overflow.mjs");
+        await resetOverflow({ reason: "the season reset" });
+    });
+
     await step("locked doors", async () => {
         const { ROOM_FLAGS } = await import("./movement.mjs");
         const { startLocked } = await import("./vault.mjs");

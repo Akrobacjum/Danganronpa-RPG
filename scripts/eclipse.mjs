@@ -158,7 +158,7 @@ export async function startEclipse() {
      * from a clock that has to already say `eclipse: true`.
      */
     const { checkOverflow } = await import("./overflow.mjs");
-    await checkOverflow({ opening: true });
+    await checkOverflow({ ahead: true });
 
     /*
      * THE REFILL (Z2). After the flag, before the card.

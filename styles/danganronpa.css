@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json — the suite fails if it does not. */
-    --drpg-css-version: "1.2.0";
+    --drpg-css-version: "1.2.1";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -1701,15 +1701,24 @@ section[data-application-part="biography"] .experiences .value {
 }
 
 /* Usables say which resource they refill — the one thing worth knowing about
-   one at a glance. Health borrows the module's blood; Sanity the eye. */
+   one at a glance.
+
+   HEALTH IS THE RED ONE, SANITY THE PINK ONE (Dawid, 30.08). It was the other
+   way round, and the names are why: `--drpg-blood` is the module's PINK
+   (#ff3d8b) and `--drpg-eye` its red (#e0182f), so "Health borrows blood" read
+   as obviously right in the source and came out pink on the screen. Blood is
+   the Despair widget's ink, not a wound.
+
+   Nothing else moves: this is the same two values swapped between the same two
+   rules. */
 .drpg-inventory-list .drpg-tb-badge.drpg-role-healing {
-    background: rgba(var(--drpg-blood-rgb), 0.2);
-    border-color: var(--drpg-blood);
+    background: rgba(var(--drpg-eye-rgb), 0.2);
+    border-color: var(--drpg-eye);
 }
 
 .drpg-inventory-list .drpg-tb-badge.drpg-role-stress {
-    background: rgba(var(--drpg-eye-rgb), 0.2);
-    border-color: var(--drpg-eye);
+    background: rgba(var(--drpg-blood-rgb), 0.2);
+    border-color: var(--drpg-blood);
 }
 
 .drpg-inventory-list .drpg-inventory-empty {

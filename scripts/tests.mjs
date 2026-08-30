@@ -1824,6 +1824,59 @@ const INVARIANTS = [
             `the project Calls are no longer a pair: ${dent?.cost} against ${boost?.cost}`);
     }],
 
+    ["the overflow is examined when it fills, and cleared when the season is", async () => {
+        /*
+         * Two reports from Dawid, 30.08, and they share a root: the threshold
+         * was only ever examined at a time-of-day boundary.
+         *
+         * ONE. A counter arriving at X mid-hour sat there while play carried on
+         * — and could be eaten outright, because a boundary already armed by an
+         * Eclipse finds its own stamp and does nothing. Measured before the fix:
+         * 20/20, zero cards, no effect; and a boundary crossed with the stamp
+         * pre-armed left the counter at 20 and posted nothing.
+         *
+         * TWO. `wipeSeason` emptied every Despair pool and left the spill from
+         * them standing, so a new season opened carrying the old one's pressure
+         * AND its armed stamp — dated to a time of day the new clock reaches
+         * again on day one.
+         *
+         * Read from source rather than driven: firing it needs a boundary and a
+         * full counter, and the scenario tier already owns that. What cannot
+         * regress silently is the WIRING, and that is what this asks about.
+         */
+        const sources = new Map(await otherSources());
+        const overflow = stripComments(sources.get("overflow.mjs") ?? "");
+        const season = stripComments(sources.get("season-setup.mjs") ?? "");
+        ok(overflow.length > 1000 && season.length > 1000, "the overflow sources did not load");
+
+        // ONE: the counter's own writer asks.
+        const add = overflow.slice(overflow.indexOf("export async function addOverflow"),
+                                   overflow.indexOf("let arming"));
+        ok(add.length > 100, "addOverflow is gone");
+        ok(/armAhead\s*\(/.test(add),
+            "the counter no longer asks whether it is full when it changes — "
+            + "20/20 would sit there until a boundary, which is how this was reported");
+
+        // And it arms the hour that has NOT started. Three of the eight debuffs
+        // are consumed at a boundary that has already run for the hour in
+        // progress, so firing into it would announce and change nothing.
+        ok(/checkOverflow\(\{ ahead: true \}\)/.test(overflow),
+            "the counter arms the hour already in progress, where Shift, Panic "
+            + "and Darkness have nothing left to reduce");
+
+        // TWO: the season reset clears it, through the one definition of empty.
+        const wipe = season.slice(season.indexOf("async function wipeSeason"));
+        ok(wipe.length > 500, "wipeSeason is gone");
+        ok(/resetOverflow\(/.test(wipe),
+            "a season reset empties the Despair pools and leaves their overflow standing");
+
+        // Both halves, or a new season inherits an armed darkening.
+        const reset = overflow.slice(overflow.indexOf("export async function resetOverflow"),
+                                     overflow.indexOf("export async function resetOverflow") + 600);
+        ok(/count:\s*0/.test(reset) && /active:\s*null/.test(reset),
+            "resetOverflow no longer clears both the counter and the armed stamp");
+    }],
+
     ["the overflow fires once per boundary and never below its floors", async () => {
         /*
          * Z10. Three ways this can be wrong, and only the first would be

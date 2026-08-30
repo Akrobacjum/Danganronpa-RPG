@@ -169,17 +169,70 @@ export async function addOverflow(amount, { reason = "spill" } = {}) {
     const after = before.count + n;
     await game.settings.set(MODULE_ID, SETTINGS.overflow, { ...before, count: after });
     log(`Despair overflow +${n} (${reason}) -> ${after}/${overflowThreshold()}.`);
+
+    /*
+     * THE THRESHOLD IS EXAMINED WHEN THE COUNTER MOVES (Dawid, 30.08).
+     *
+     * Until now the only moment anything asked "is it full?" was a time-of-day
+     * boundary. So a GM could watch the caption arrive at 20/20 and have the
+     * game carry on around it, which reads as broken and was reported as
+     * broken. Worse, it could be eaten: a boundary already armed by an Eclipse
+     * finds its own stamp and does nothing, so a counter refilled during that
+     * Eclipse paid nothing and waited a further time of day. Both measured in
+     * the sandbox on 30.08 before this line existed.
+     *
+     * ARMED FOR THE TIME OF DAY THAT HAS NOT STARTED, not for the one running.
+     * That is not caution, it is the only correct target: three of the eight
+     * debuffs are CONSUMED at a boundary — `shift` by `SearchTokens.reset`,
+     * `panic` by `resetAllActions`, `darkness` by the Eclipse's own crossing
+     * allowance — and all three have already run for the hour in progress. Fired
+     * into the current slot they would announce themselves and change nothing,
+     * which is the exact class of failure this file's own ordering note exists
+     * to prevent.
+     *
+     * So the card comes now and the bite comes at the boundary, whole. The
+     * boundary check then finds the stamp already armed and does not pay twice.
+     */
+    await armAhead();
     return after;
+}
+
+/*
+ * RE-ENTRANCY, SHUT BY CONSTRUCTION.
+ *
+ * `checkOverflow` can write actors (Rot) and projects (Earthquake), and this is
+ * now reachable from `adjustDespair`. Nothing in either path grants Despair
+ * today, so nothing loops today — and "today" is the word that makes a guard
+ * worth three lines rather than a comment.
+ */
+let arming = false;
+
+async function armAhead() {
+    if (arming) return null;
+    arming = true;
+    try {
+        return await checkOverflow({ ahead: true });
+    } catch (err) {
+        error("Could not arm the Despair overflow as the counter filled", err);
+        return null;
+    } finally {
+        arming = false;
+    }
 }
 
 /**
  * Empty it. The guide refills every pool when a verdict lands, and this rides
  * the same moment: a chapter opens on clean air.
+ *
+ * TWO CALLERS AND THE LOG HAS TO SAY WHICH. The verdict clears it between
+ * chapters; the season reset clears it between seasons. A line that always
+ * blamed the verdict was wrong half the time in the one place a GM looks when
+ * asking why a counter they were watching went to zero.
  */
-export async function resetOverflow() {
+export async function resetOverflow({ reason = "the verdict" } = {}) {
     if (!game.user.isGM) return null;
     await game.settings.set(MODULE_ID, SETTINGS.overflow, { count: 0, active: null });
-    log("Despair overflow cleared by the verdict.");
+    log(`Despair overflow cleared by ${reason}.`);
     return true;
 }
 
@@ -282,17 +335,21 @@ export function overflowPool() {
  * A time-of-day boundary just happened. Fire if the counter has reached X.
  *
  * @param {object} [options]
- * @param {boolean} [options.opening]  True when called from `startEclipse`,
- *   where the clock has not moved yet and the target is the time of day the
- *   Eclipse leads into.
+ * @param {boolean} [options.ahead]  Target the time of day that has NOT begun
+ *   rather than the one running. Two callers want it and they want it for the
+ *   same reason: `startEclipse`, because the clock does not move until the
+ *   Eclipse ends, and `addOverflow`, because the hour in progress has already
+ *   had its actions dealt and its rooms stocked. It was called `opening` while
+ *   the Eclipse was the only caller, which described the caller instead of the
+ *   behaviour.
  * @returns {Promise<object|null>} the stamp armed, or null if nothing fired.
  */
-export async function checkOverflow({ opening = false } = {}) {
+export async function checkOverflow({ ahead = false } = {}) {
     if (!game.user.isGM) return null;
 
     try {
         const clock = getClock();
-        const target = opening ? upcoming(clock) : stampOf(clock);
+        const target = ahead ? upcoming(clock) : stampOf(clock);
         if (!target) return null;
 
         const now = state();
