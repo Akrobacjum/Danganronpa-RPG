@@ -482,6 +482,85 @@ export function dialogContent(markup) {
  * `options.window` and `options.position` still win over these defaults, and
  * a caller's own `render` runs untouched before the measurement.
  */
+/* ==========================================================================
+ * TEXT FIELDS
+ * ========================================================================== */
+
+/** Anything somebody types prose into. */
+const TEXT_FIELD = 'input[type="text"], input[type="search"], input:not([type]), textarea';
+
+/**
+ * Nothing typed into a module window is lost to the window closing.
+ *
+ * TWO FAILURES, ONE ROOT (Dawid, 31.08). A field that saves itself does it on
+ * `change` or `focusout`, and both of those need the browser to move focus
+ * first. A footer button does not wait for that: the window is torn down inside
+ * the click, and the edit dies with the DOM it was sitting in. Measured in Item
+ * tables: typed "ZZ lost on close?", pressed Close, the table still held the
+ * old text.
+ *
+ * `pointerdown` in the CAPTURE phase runs before the focus change and before
+ * the click, so blurring here is simply making the commit that was always going
+ * to happen happen while there is still a window to happen in. It costs nothing
+ * on a window that collects its fields on Apply instead.
+ *
+ * THE SECOND HALF IS ENTER, and it is narrower on purpose. A field carrying
+ * `data-drpg-field` saves itself, and those rows sit inside the dialog's own
+ * form - so Enter submitted whatever the footer lists first ("Add an item", in
+ * the window this was reported from) and threw the text away. There, Enter
+ * means the field. Everywhere else Enter is left exactly as it was: the browser
+ * already fires `change` before the submit, and stealing Enter from a one-field
+ * prompt would break the thing it is trying to protect.
+ */
+export function guardTextFields(root) {
+    if (!root || root.dataset.drpgTextGuard) return false;
+    root.dataset.drpgTextGuard = "1";
+
+    root.addEventListener("pointerdown", ev => {
+        // `document.activeElement`, not `:focus`. Measured on 14.365: in a
+        // window that does not hold the operating system's focus - a second
+        // monitor, a background tab, anything clicked away from mid-sentence -
+        // activeElement is still the field and `:focus` matches nothing at all.
+        // Those are exactly the moments somebody leaves text unsaved.
+        const focused = document.activeElement;
+        if (!focused || !root.contains(focused)) return;
+        if (focused === ev.target || focused.contains?.(ev.target)) return;
+        if (!focused.matches?.(TEXT_FIELD)) return;
+        focused.blur();
+    }, true);
+
+    root.addEventListener("keydown", ev => {
+        if (ev.key !== "Enter") return;
+        const field = ev.target?.closest?.("[data-drpg-field]");
+        if (!field || field.tagName === "TEXTAREA") return;
+        ev.preventDefault();
+        field.blur();
+    });
+
+    return true;
+}
+
+/**
+ * Put the guard on every window this module opens.
+ *
+ * Scoped by class rather than by a list of windows: a window added next year
+ * gets this for free, and Daggerheart's own dialogs are left alone. Verified on
+ * 14.365 that `renderDialogV2` fires for our windows and hands over the element.
+ */
+export function registerTextGuard() {
+    Hooks.on("renderDialogV2", (app, element) => {
+        try {
+            const root = element instanceof HTMLElement ? element : element?.[0];
+            if (root?.querySelector('[class*="drpg-"]') || /\bdrpg-/.test(root?.className ?? "")) {
+                guardTextFields(root);
+            }
+        } catch (err) {
+            error("Could not guard a window's text fields", err);
+        }
+    });
+    log("Text fields in module windows commit before their window closes.");
+}
+
 export function tableDialog(options) {
     const DialogV2 = foundry.applications.api.DialogV2;
     const callerRender = options.render;

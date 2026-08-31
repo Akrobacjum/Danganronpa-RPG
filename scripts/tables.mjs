@@ -909,9 +909,21 @@ async function editResult(table, resultId, field, value) {
     const result = table?.results?.get(resultId);
     if (!result) return false;
 
+    /*
+     * AN EMPTIED DESCRIPTION STAYS EMPTIED (Dawid, 31.08).
+     *
+     * This used to fall back to the entry's own name, so clearing the box put
+     * the name back into it and the GM could not delete a description at all.
+     * Measured: "A soft, sad little roll." -> cleared -> "Toilet paper".
+     *
+     * The rule it was reaching for is real, but it belongs at the other end:
+     * `drawItem` and `giveItemDialog` both already refuse to print a
+     * description that is only the name again. Enforcing it on the WRITE turned
+     * a display rule into a field that will not take an edit.
+     */
     const patch = field === "name"
         ? { name: value, text: value }
-        : { description: value || (result.name ?? result.text ?? "") };
+        : { description: value };
 
     try {
         await result.update(patch);
@@ -1393,6 +1405,12 @@ export async function openItemTables({ preset = null } = {}) {
                 }
             });
 
+            /*
+             * WHAT WRITES A ROW. Enter, and a window closing under a focused
+             * field, are both handled for every module window at once by
+             * `guardTextFields` in utils.mjs - this window is where they were
+             * found and measured, and the note there says so.
+             */
             bodyEl?.addEventListener("focusout", async ev => {
                 const field = ev.target.closest("[data-drpg-field]");
                 if (!field) return;

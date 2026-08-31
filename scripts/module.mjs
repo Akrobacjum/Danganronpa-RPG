@@ -72,7 +72,7 @@ import { SETTINGS, getSetting } from "./settings.mjs";
 import { registerApi } from "./api.mjs";
 import { requirementsMet, announceMissingRequirements } from "./requirements.mjs";
 import { warnAboutPageTinting, verifyStylesheet } from "./diagnostics.mjs";
-import { log, error, injectSelectPickerSkin } from "./utils.mjs";
+import { log, error, injectSelectPickerSkin, registerTextGuard } from "./utils.mjs";
 
 /** Minimum Daggerheart version this layer was written against. */
 const REQUIRED_SYSTEM = "daggerheart";
@@ -118,6 +118,8 @@ Hooks.once("init", () => {
 
     // A paint-path workaround, not decoration — see the note on the function.
     safely("the select picker skin", injectSelectPickerSkin);
+    // Every window, not a list of them - see `guardTextFields`.
+    safely("the text field guard", registerTextGuard);
     safely("private rolls", registerPrivateRolls);
     safely("sheet tweaks", registerSheetTweaks);
     safely("anonymity", registerAnonymity);

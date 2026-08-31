@@ -1877,6 +1877,65 @@ const INVARIANTS = [
             "resetOverflow no longer clears both the counter and the armed stamp");
     }],
 
+    ["a table row keeps every edit, and an emptied description stays empty", async () => {
+        /*
+         * Dawid, 31.08: "opisy nie zapisuja sie poprawnie". Three defects, all
+         * measured in the Item tables window before the fix.
+         *
+         * ONE. `editResult` fell back to the entry's own name when the value
+         * was empty, so clearing the box put the name back into it and a
+         * description could not be deleted at all. Measured: "A soft, sad
+         * little roll." -> cleared -> "Toilet paper".
+         *
+         * TWO. The commit hung on `focusout` alone, and a footer button tears
+         * the window down before the browser moves focus. Measured: typed
+         * "ZZ lost on close?", pressed Close, the table still held the old
+         * text. The repair blurs the focused field on `pointerdown`, in the
+         * capture phase, which is before both the focus change and the click.
+         *
+         * THREE. These rows sit inside the dialog's own form and the first
+         * type=submit button in DOM order is "Add an item", so Enter threw the
+         * text away and opened an unrelated flow. That is the DialogV2 trap
+         * this repository has already been bitten by once.
+         *
+         * Read from source: driving it needs a rendered dialog and a real
+         * TableResult, and what regresses is three lines of wiring.
+         */
+        const sources = new Map(await otherSources());
+        const tables = stripComments(sources.get("tables.mjs") ?? "");
+        ok(tables.length > 1000, "tables.mjs did not load");
+
+        const edit = tables.slice(tables.indexOf("async function editResult"),
+                                  tables.indexOf("async function dropResult"));
+        ok(edit.length > 100, "editResult is gone");
+        ok(/description:\s*value\s*\}/.test(edit),
+            "an emptied description is being written as something other than empty - "
+            + "the name fallback is back, and the field will not take a deletion");
+        ok(!/description:\s*value\s*\|\|/.test(edit),
+            "editResult fell back to the name again on an empty description");
+
+        // The other two are guarded for EVERY module window at once, so they
+        // are read from the guard rather than from this one caller.
+        const utils = stripComments(sources.get("utils.mjs") ?? "");
+        const guard = utils.slice(utils.indexOf("export function guardTextFields"),
+                                  utils.indexOf("export function registerTextGuard"));
+        ok(guard.length > 100, "guardTextFields is gone from utils.mjs");
+
+        // A window torn down under a focused field still writes it.
+        ok(/addEventListener\("pointerdown"[\s\S]{0,320}?blur\(\)[\s\S]{0,60}?\},\s*true\)/.test(guard),
+            "the capture-phase pointerdown flush is gone, so closing a window with the "
+            + "cursor still in a field discards that edit again");
+
+        // Enter commits a self-saving field instead of submitting the window.
+        ok(/addEventListener\("keydown"[\s\S]{0,320}?data-drpg-field[\s\S]{0,200}?preventDefault/.test(guard),
+            "Enter in a self-saving field submits the dialog again, and the first submit "
+            + "button is whatever that window's footer happens to list first");
+
+        // And it is actually installed on windows, not merely written.
+        ok(/renderDialogV2/.test(utils),
+            "nothing installs the text guard, so no window has it");
+    }],
+
     ["a tool in hand lowers the bar as well as adding a die", async () => {
         /*
          * Dawid, 31.08: the Tool was the one equippable category whose tier

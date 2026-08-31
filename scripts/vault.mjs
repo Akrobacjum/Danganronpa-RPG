@@ -1699,7 +1699,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
             // the wrapping-cell rule the rest of this table lives under — see
             // the `:has(input[type="text"], textarea)` exception in the
             // stylesheet — so the prose wraps instead of stretching the window.
-            description: `<td><textarea name="desc:${escRoom}" rows="2"
+            description: `<td><textarea name="desc:${escRoom}" rows="5"
                 placeholder="${game.i18n.localize("DRPG.Vault.descriptionPlaceholder")}"
                 >${foundry.utils.escapeHTML(roomDescription(room))}</textarea></td>`
         };

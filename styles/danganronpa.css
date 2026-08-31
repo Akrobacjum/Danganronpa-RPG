@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json — the suite fails if it does not. */
-    --drpg-css-version: "1.2.3";
+    --drpg-css-version: "1.2.4";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -3225,6 +3225,15 @@ body.drpg-pixel-font [contenteditable] {
     top: -16px;
     z-index: 2;
     background: var(--drpg-ink);
+}
+
+/* Room descriptions are prose and the column is wide enough for prose
+   (Dawid, 31.08). Two rows made a good description look like a mistake. */
+.drpg-vault-table textarea {
+    width: 100%;
+    min-height: 5.5rem;
+    resize: vertical;
+    line-height: 1.45;
 }
 
 .drpg-vault-table select {
@@ -10756,11 +10765,22 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     overflow-y: auto;
 }
 
+/* WHY THIS ROW WRAPS (Dawid, 31.08).
+
+   Measured before: a 402 px row, of which the role checkboxes took 210. The
+   two text fields split what was left and came out at 59 px each, which is not
+   a box anybody can write a sentence in.
+
+   So the fields get real minimums and the roles are what gives way: they are
+   four checkboxes with labels beside them and they read perfectly well on
+   their own line. `align-items: flex-start` because once a row can be two
+   lines tall, centring the icon against the whole stack looks like a mistake. */
 .drpg-table-items li {
     display: flex;
-    align-items: center;
+    flex-wrap: wrap;
+    align-items: flex-start;
     gap: 6px;
-    padding: 2px 0;
+    padding: 4px 0;
     border-bottom: 1px solid rgba(var(--drpg-bone-rgb), 0.12);
 }
 
@@ -10771,12 +10791,30 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     object-fit: contain;
 }
 
+/* !important, like the block further down that paints these same inputs: our
+   sheet is inside a cascade layer, and a layered rule loses to an unlayered one
+   whatever its specificity. Measured without it - computed flex-basis came back
+   as 40% from outside, and both fields sat at the same width. */
 .drpg-table-item-name {
-    flex: 1 1 auto;
-    min-width: 0;
+    flex: 1 1 8rem !important;
+    min-width: 7rem !important;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+/* Twice the growth of the name, because it holds a sentence and the name holds
+   two words. */
+.drpg-table-item-note {
+    flex: 2 1 12rem !important;
+    min-width: 9rem !important;
+}
+
+/* Last in the row and first to wrap. `flex-basis: 100%` on a wrapped line
+   keeps the four boxes together instead of leaving one behind. */
+.drpg-table-items .drpg-table-item-roles {
+    flex: 0 1 auto;
+    margin-left: auto;
 }
 
 .drpg-tables-new {
