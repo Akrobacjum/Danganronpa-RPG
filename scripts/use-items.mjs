@@ -28,7 +28,8 @@
  * hiding things; drinking what you already found is not one of the ten.
  */
 
-import { MODULE_ID, USABLE_EFFECTS, USABLE_KINDS, EQUIPPABLE, STARTING, BROKEN_ITEMS }
+import { MODULE_ID, USABLE_EFFECTS, USABLE_KINDS, EQUIPPABLE, STARTING, BROKEN_ITEMS,
+    ITEM_CATEGORIES, LIMIT_GROUPS }
     from "./config.mjs";
 import { usableKindFor } from "./tables.mjs";
 import { ITEM_FLAGS, isStashed, isBroken, breakItem, wearItem, durabilityOf, servesAs }
@@ -103,6 +104,38 @@ export function equippedIn(actor, category) {
  */
 export function tierOf(item) {
     return Number(item?.getFlag(MODULE_ID, ITEM_FLAGS.tier) ?? 0);
+}
+
+/**
+ * Everything in a limit group that is NOT in a hand.
+ *
+ * The question the shape rule asks. Counted off the same two facts every other
+ * reader uses - the item's home category and its readied flag - so a world
+ * halfway through any migration answers the same way this does.
+ */
+export function stowedInGroup(actor, group) {
+    return (actor?.items ?? []).filter(i => {
+        const category = i.getFlag(MODULE_ID, ITEM_FLAGS.category);
+        if (ITEM_CATEGORIES[category]?.limitGroup !== group) return false;
+        if (isStashed(i)) return false;
+        return !i.getFlag(MODULE_ID, EQUIPPED_FLAG);
+    });
+}
+
+/**
+ * May this item be put away, or is it the only thing keeping the shape legal?
+ *
+ * @returns {{ok: boolean, stowed: number, max: number|null}}
+ */
+export function mayStow(actor, item) {
+    const category = item?.getFlag(MODULE_ID, ITEM_FLAGS.category);
+    const group = ITEM_CATEGORIES[category]?.limitGroup ?? null;
+    const max = group ? LIMIT_GROUPS[group]?.maxStowed ?? null : null;
+    if (max === null) return { ok: true, stowed: 0, max: null };
+
+    // The item itself is in the hand right now, so it is not in the count yet.
+    const stowed = stowedInGroup(actor, group).filter(i => i.id !== item.id).length;
+    return { ok: stowed < max, stowed, max };
 }
 
 export function equippedFor(actor, role) {
@@ -250,6 +283,19 @@ export async function toggleEquipped(actor, item) {
     }
 
     const wasEquipped = isEquipped(item);
+
+    // ONE IN A HAND, ONE STOWED, NEVER TWO STOWED. Putting this one away is the
+    // only move that can break the shape: readying already clears the others.
+    if (wasEquipped) {
+        const shape = mayStow(actor, item);
+        if (!shape.ok) {
+            ui.notifications.warn(game.i18n.format("DRPG.Items.stowShape", {
+                item: item.name,
+                group: LIMIT_GROUPS.gear.label
+            }));
+            return false;
+        }
+    }
 
     try {
         if (!wasEquipped) {

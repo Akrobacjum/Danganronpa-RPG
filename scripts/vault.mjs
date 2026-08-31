@@ -20,7 +20,8 @@
  * change at all.
  */
 
-import { MODULE_ID, ITEM_CATEGORIES, BEDROOM_KEY_FLAG, ACTIONS, VAULT_LIMIT } from "./config.mjs";
+import { MODULE_ID, ITEM_CATEGORIES, BEDROOM_KEY_FLAG, ACTIONS, VAULT_LIMIT, ROOMS_PER_PLAYER }
+    from "./config.mjs";
 import { ITEM_FLAGS, LOCATIONS, isStashed, canCarry } from "./inventory.mjs";
 // The one room lookup. movement.mjs does not reach back into this file.
 import { roomOfActor, ROOM_FLAGS } from "./movement.mjs";
@@ -1545,6 +1546,8 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
         await import("./fog.mjs");
     const scene = workingScene();
     const students = studentActors();
+    const { isDeceased } = await import("./chapter.mjs");
+    const living = students.filter(a => !isDeceased(a)).length;
     // Room pools only. The tier pools (`tableName()`'s family) answer dice
     // rolls and are never a room's stock — see `isTierPool` in tables.mjs.
     const tables = Array.from(game.tables ?? [])
@@ -1751,6 +1754,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
 
             ${panel("doors", `
                 <p>${game.i18n.localize("DRPG.Vault.doorsIntro")}</p>
+                <p class="notes" data-drpg-ratio></p>
                 ${tableFor([th("DRPG.Vault.lockedColumn"), th("DRPG.Vault.lockedAtStartColumn")],
                     ["locked", "startlocked"])}
             `)}
@@ -1855,6 +1859,46 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
         ],
         render: (event, dialog) => {
+            /*
+             * HOW BIG THIS BUILDING IS FOR THE PEOPLE STILL IN IT (Dawid, 31.08).
+             *
+             * G-36 asks for one and a half SHARED rooms per player, and that rule
+             * lives at season setup where nobody reads it again. Students die and
+             * rooms do not: after the third trial eight people rattle around a
+             * building built for sixteen, nobody meets anybody, and there are no
+             * witnesses to anything.
+             *
+             * Deliberately not a mechanic - the GM closes wings by hand, which is
+             * what the locks below are for. This is the number they need while
+             * doing it, and it follows the boxes as they are ticked rather than
+             * reporting the state the window opened in.
+             *
+             * Bedrooms are left out of the count because G-36 counts shared
+             * rooms: a bedroom belongs to one person whether or not anybody else
+             * can get into it.
+             */
+            const ratio = dialog.element.querySelector("[data-drpg-ratio]");
+            if (ratio) {
+                const shared = rooms.filter(room => !vaultOwnerOf(room, scene));
+                const paintRatio = () => {
+                    const form = dialog.element.querySelector("form");
+                    const open = shared.filter(room =>
+                        !form?.querySelector(`[name="${CSS.escape(`locked:${room}`)}"]`)?.checked);
+                    const want = Math.round(living * ROOMS_PER_PLAYER);
+                    ratio.textContent = game.i18n.format("DRPG.Vault.roomRatio", {
+                        open: open.length,
+                        living,
+                        per: living ? (open.length / living).toFixed(1) : "?",
+                        target: ROOMS_PER_PLAYER,
+                        want
+                    });
+                    ratio.classList.toggle("drpg-warning", living > 0 && open.length > want);
+                };
+                dialog.element.addEventListener("change", ev => {
+                    if (String(ev.target?.name ?? "").startsWith("locked:")) paintRatio();
+                });
+                paintRatio();
+            }
             const root = dialog.element;
 
             const tabs = root.querySelectorAll("[data-drpg-tab]");

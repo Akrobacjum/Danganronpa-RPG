@@ -649,7 +649,21 @@ export const LIMIT_GROUPS = {
     gear: {
         label: "Gear",
         limit: 2,
-        hint: "Murder Weapons, Cleaning Tools and Tools share two slots."
+        /*
+         * TWO SLOTS, AND A SHAPE (E24, wdrozone 31.08).
+         *
+         * The limit counts a total, so two tools in a bag and nothing in a hand
+         * was legal - and since 1.2.3 a readied tool gives advantage AND takes
+         * its tier off the project and sabotage thresholds. Carrying the set and
+         * choosing afterwards is not the decision this is meant to be.
+         *
+         * Half the rule was already here and unnamed: `toggleReady` puts
+         * everything else down, so at most one thing is ever in a hand. This is
+         * the other half.
+         */
+        maxStowed: 1,
+        hint: "Murder Weapons, Cleaning Tools and Tools share two slots, and only one of "
+            + "them may be stowed - carrying two means one is in your hand."
     }
 };
 
@@ -946,7 +960,15 @@ export const KEY_REMNANTS = {
         desperate: "Desperate"
     },
     /** Together they must narrow the suspect pool to this range. */
-    suspectRange: [3, 8],
+    /*
+     * TWO TO FOUR, NOT THREE TO EIGHT (E24, wdrozone 31.08).
+     *
+     * Reguly, ktora przyjelismy, brzmi: kluczowe poszlaki plus reszta zwezaja
+     * krag do dwoch osob w najlepszym razie, optymalnie do czterech. Osiem
+     * znaczylo, ze komplet dowodow potrafi nie zawezic niczego przy pelnym
+     * stole - a wtedy rozprawa jest losowaniem, nie dochodzeniem.
+     */
+    suspectRange: [2, 4],
 
     /**
      * G-32. Guide: every Key Remnant below four that the investigation failed
@@ -1223,16 +1245,27 @@ export const ACTIONS = {
          * letting go of something you are already holding is the easy one. One
          * number priced them as the same job and the planting half went unused.
          *
-         * So a Plant rolls against `plant` below and a Steal keeps 14/15. The
-         * gap is deliberately in BOTH axes: the hand is easier because the hand
-         * is doing less, and staying unseen is easier because a hand going in
-         * empty and coming out empty is a shorter thing to watch.
+         * So a Plant rolls against `plant` below and a Steal against
+         * `threshold`. The gap is deliberately in BOTH axes: the hand is easier
+         * because the hand is doing less, and staying unseen is easier because
+         * a hand going in empty and coming out empty is a shorter thing to
+         * watch.
+         *
+         * BOTH HANDS CAME DOWN (E24, wdrozone 31.08). Search hands over
+         * anything at 8 and something useful at 12, so a steal at 14 was harder
+         * than turning out an empty room - and a pocket has already been picked
+         * over by the person carrying it. 10 puts it under Search, and the
+         * plant follows it down so D10a survives the move.
+         *
+         * The unseen axis does not move. Whether anybody watched you is a
+         * different question from whether your fingers found it, and it was
+         * balanced well.
          */
-        threshold: 14,
+        threshold: 10,
         /** Whether they noticed. Its own axis, rolled separately. */
         unseen: { trait: "shadow", threshold: 15, label: "Keep your hands out of sight" },
         /** Leaving something is easier than taking it — both axes (D10a). */
-        plant: { threshold: 11, unseen: 13 },
+        plant: { threshold: 8, unseen: 13 },
         failure: "Your hand comes away empty."
     },
     /**
@@ -1681,8 +1714,11 @@ export const HOPE_CALLS = {
         effect: "For one roll, choose which statistic to add yourself."
     },
     freeCrit: {
+        // NIE KRYTYK, TYLKO ZALADOWANA KOSC (Dawid, 31.08) - patrz forced-roll.mjs.
+        // `grants` zostaje "critical", bo to jest klucz, po ktorym okno rzutu i
+        // potok akcji rozpoznaja TEN Call; zmienia sie to, co on robi z koscmi.
         label: "Free Critical", icon: "fa-burst", cost: 6, target: "none", grants: "critical",
-        effect: "On the next roll you get an automatic critical with the maximum result."
+        effect: "On the next roll one die is set to 12 and the other is thrown. A very high total, and a critical only if that other die comes up 12 too."
     }
 };
 
@@ -2012,7 +2048,10 @@ export const DESPAIR_CALLS = {
          * many times of day it runs, and what happens when it runs out. The
          * countdown lives on the HUD where the cast can watch it.
          */
-        label: "Motive", icon: "fa-envelope", cost: 9, target: "none", setsMotive: true,
+        // SZESC, NIE DZIEWIEC (E24, wdrozone 31.08). Za 9 - trzy czwarte pelnej
+        // puli - motyw wychodzil raz na dwa rozdzialy. Za 6 stoi obok Publicznego
+        // ogloszenia i da sie go powtorzyc, a to jest glowne narzedzie tempa.
+        label: "Motive", icon: "fa-envelope", cost: 6, target: "none", setsMotive: true,
         effect: "Announce a motive: a demand, a deadline in times of day, and the price of ignoring it."
     },
     newRule: {

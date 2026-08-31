@@ -3061,6 +3061,7 @@ export async function openMurderDialog({ killerId = null, indirect = false } = {
                 <input type="checkbox" name="indirect"${
                     indirect || armed.has(killerId) ? " checked" : ""} />
                 ${game.i18n.localize("DRPG.Murder.indirect")}</label>
+            <p class="notes">${game.i18n.localize("DRPG.Murder.indirectCost")}</p>
             <p class="notes drpg-warning" data-drpg-self hidden>${
                 game.i18n.localize("DRPG.Murder.openSelfNote")}</p>
         </form>`),

@@ -486,8 +486,8 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
     // they will say. See forced-roll.mjs for why a real roll matters.
     const free = armed?.grants === "critical";
     if (free) {
-        const { armMaximum } = await import("./forced-roll.mjs");
-        armMaximum();
+        const { armOneMaximum } = await import("./forced-roll.mjs");
+        armOneMaximum();
     }
 
     // Always open the configuration window.

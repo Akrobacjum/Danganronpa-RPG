@@ -624,6 +624,65 @@ function read(dialog, correct, known) {
     };
 }
 
+/**
+ * The rule a surviving Blackened introduces, taken down and announced anonymously.
+ *
+ * Shaped after the `newRule` Despair Call in call-effects.mjs, and different
+ * from it in exactly one way that matters: nothing in the card says who asked
+ * for it. The GM types what the killer told them; the table reads a rule.
+ *
+ * @returns {Promise<boolean>} whether a rule was actually recorded.
+ */
+async function askBlackenedRule() {
+    const DialogV2 = foundry.applications.api.DialogV2;
+    let text = "";
+
+    try {
+        const answer = await DialogV2.wait({
+            window: { title: game.i18n.localize("DRPG.Vote.blackenedRuleTitle") },
+            classes: ["drpg-panel"],
+            content: dialogContent(`<form>
+                <p>${game.i18n.localize("DRPG.Vote.blackenedRuleIntro")}</p>
+                <textarea name="rule" rows="3"
+                    placeholder="${game.i18n.localize("DRPG.Calls.newRulePlaceholder")}"></textarea>
+                <p class="notes">${game.i18n.localize("DRPG.Vote.blackenedRuleNote")}</p>
+            </form>`),
+            buttons: [
+                { action: "ok", label: game.i18n.localize("DRPG.Rules.addNew"), default: true,
+                  callback: (e, b, d) => d.element.querySelector("form")?.elements?.rule?.value ?? "" },
+                { action: "skip", label: game.i18n.localize("DRPG.Advance.cancel") }
+            ],
+            rejectClose: false
+        });
+        text = typeof answer === "string" ? answer.trim() : "";
+    } catch (err) {
+        error("Could not ask for the Blackened's rule", err);
+        return false;
+    }
+
+    if (!text) return false;
+
+    try {
+        const { addRule } = await import("./rules.mjs");
+        const recorded = await addRule(text);
+        if (!recorded) return false;
+    } catch (err) {
+        error("Could not record the Blackened's rule", err);
+        return false;
+    }
+
+    // Public, unattributed, and carrying the same sound the Call's own card
+    // carries - because to the table this IS one of Monokuma's rules.
+    await announce({
+        flags: { [MODULE_ID]: { sfx: "newRule" } },
+        content: `<div class="drpg-new-rule">
+            <h3>${game.i18n.localize("DRPG.Calls.newRuleTitle")}</h3>
+            <p>${foundry.utils.escapeHTML(text)}</p>
+        </div>`
+    });
+    return true;
+}
+
 /** Execute somebody, and hand out what the guide says the table has earned. */
 export async function applyVerdict({
     correct, executedIds, blackenedIds: named, executedId, blackenedId
@@ -673,7 +732,19 @@ export async function applyVerdict({
                 who: monokumas().map(poolLabel).join(", ")
             }));
         }
-        if (TRIAL.wrong.newRule) done.push(game.i18n.localize("DRPG.Vote.newRule"));
+        // THE ONE LINE OF THE VERDICT TABLE THAT HAD NO PATH.
+        //
+        // This used to push a sentence into the GM's whisper and stop, so the
+        // rule the Blackened had just earned existed only if somebody
+        // remembered it. It is written down now, announced to the table, and
+        // announced WITHOUT A NAME: to everyone else it is simply another of
+        // Monokuma's rules, which is the whole point of surviving a wrong vote.
+        if (TRIAL.wrong.newRule && survivingKillers.length) {
+            const wrote = await askBlackenedRule();
+            done.push(game.i18n.localize(wrote
+                ? "DRPG.Vote.newRuleWritten"
+                : "DRPG.Vote.newRule"));
+        }
     }
 
     /*
