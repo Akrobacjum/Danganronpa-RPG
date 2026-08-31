@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json — the suite fails if it does not. */
-    --drpg-css-version: "1.2.8";
+    --drpg-css-version: "1.2.9";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -6327,6 +6327,58 @@ body.drpg-player #sidebar {
 
 #ui-right-column-1 > #drpg-player-status { order: 0; }
 #ui-right-column-1 > #countdowns { order: 1; }
+
+/* ==========================================================================
+   THE TRAY THAT WALKED OFF ITS COLUMN (Dawid, 31.08)
+   --------------------------------------------------------------------------
+   Reported: type a Health value on a character sheet and the Projects tray
+   slides 62 px to the left and stays there. On the GM's screen, and it does
+   not come back.
+
+   MEASURED ON THE REPORTER'S CLIENT, because it does not happen here. Walking
+   up the tree, everything above the tray is untouched at the moment it moves:
+
+       #countdowns          l 2146 -> 2084   w 300 (unchanged)
+       #ui-right-column-1   l 2146            w 300 (unchanged)
+       #ui-right            l 2146            w 364 (unchanged)
+       #interface, body     0 / 2510          (unchanged)
+       viewport             2510              (unchanged)
+
+   So nothing pushes it. The tray offsets ITSELF: `right` computes from 0px to
+   62px, and `left` mirrors it to -62px the way an over-constrained relative
+   box does. The element keeps its 300 px and its slot; only the paint moves.
+
+   WHAT IT IS NOT, all of it checked on the running client rather than reasoned
+   about, because every one of these was a plausible answer:
+
+     · not a rule of ours - nothing in this file sets `right` on the tray, and
+       a scan of every readable stylesheet found no rule matching #countdowns
+       that declares `right` at all, before or after
+     · not a class - `daggerheart dh-style countdowns`, identical either side
+     · not an inline style - the style attribute is absent throughout
+     · not a transform, and not our motion layer: `play()` in motion.mjs refuses
+       `fill: "forwards"` by design and animates transforms, and the element
+       reports no animations at all
+     · not The Forge - the one stylesheet CORS hid from the scan, disabled by
+       hand, and the tray still moved
+     · not a constructed stylesheet - `document.adoptedStyleSheets` is empty of
+       anything matching
+     · not the sidebar, the camera dock, a scrollbar or a viewport change - all
+       measured, all constant
+
+   So the cause is still unnamed, and this rule does not pretend otherwise. It
+   pins the tray where its own column already puts it, which is where it sat
+   before the write and where it belongs after. `!important` because this sheet
+   lives in a cascade layer and loses to unlayered declarations whatever its
+   specificity - the same reason the item table rules carry it.
+
+   If the tray ever needs to be offset on purpose, this is the rule to delete,
+   and the measurements above are the ones to take again.
+   ========================================================================== */
+#ui-right-column-1 > #countdowns {
+    right: 0 !important;
+    left: 0 !important;
+}
 #ui-right-column-1 > .dh-effects-display,
 #ui-right-column-1 > [class*="effects-display"] { order: 2; }
 #ui-right-column-1 > #chat-notifications { order: 3; }
