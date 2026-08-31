@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json — the suite fails if it does not. */
-    --drpg-css-version: "1.2.7";
+    --drpg-css-version: "1.2.8";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -10844,11 +10844,26 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
 /* ---- roles, on the add form and on every existing entry ---------------- */
 
 .drpg-tables-roles,
+.drpg-role-picker,
 .drpg-table-item-roles {
     display: flex;
     flex-wrap: wrap;
     gap: 3px 10px;
     align-items: baseline;
+}
+
+/* The same row of boxes as the item tables, in the window that gives an item
+   out - one rule for both, so the two places a GM can make an item cannot
+   drift apart. The label sits with them rather than above, because at two or
+   three words it reads as part of the row. */
+.drpg-role-picker {
+    margin: 2px 0 0;
+}
+
+.drpg-role-picker .drpg-role-label {
+    color: var(--drpg-dim);
+    font-size: 0.85em;
+    margin-right: 2px;
 }
 
 .drpg-check {

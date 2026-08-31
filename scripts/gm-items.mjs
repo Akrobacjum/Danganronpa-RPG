@@ -14,13 +14,14 @@
 
 import {
     MODULE_ID, ITEM_CATEGORIES, LIMIT_GROUPS, ITEM_TIERS, TIER_EFFECTS, USABLE_KINDS,
-    USABLE_KIND_EFFECTS,
+    USABLE_KIND_EFFECTS, EQUIPPABLE,
     TRUTH_BULLET_TYPES, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS
 } from "./config.mjs";
 import { grantItem, itemsInCategory, countInCategory, countInGroup, inventorySummary }
     from "./inventory.mjs";
 import { createTruthBullet, issueAutopsy, BULLET_CATEGORY } from "./truth-bullets.mjs";
-import { ITEM_POOLS, USABLE_GOALS, moduleTables } from "./tables.mjs";
+import { ITEM_POOLS, USABLE_GOALS, moduleTables, rolesOfResult, MULTI_ROLE_TIER }
+    from "./tables.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { whisperToOwner, dialogContent, panelTabs, wirePanelTabs, log, error, plural, cardHead }
     from "./utils.mjs";
@@ -311,7 +312,13 @@ export async function giveItemDialog(actor) {
             }</datalist>
             <label>${game.i18n.localize("DRPG.Items.description")}
                 <textarea name="description" rows="2"
-                    placeholder="${game.i18n.localize("DRPG.Items.descriptionPlaceholder")}"></textarea></label>` }
+                    placeholder="${game.i18n.localize("DRPG.Items.descriptionPlaceholder")}"></textarea></label>
+            <span class="drpg-role-picker" data-drpg-roles>
+                <span class="drpg-role-label">${game.i18n.localize("DRPG.Items.alsoServesAs")}</span>
+                ${EQUIPPABLE.map(key => `<label class="drpg-check"><input type="checkbox"
+                    data-drpg-role="${key}" />${esc(ITEM_CATEGORIES[key]?.label ?? key)}</label>`).join("")}
+            </span>
+            <p class="notes" data-drpg-roles-note></p>` }
         ])}
             <label class="drpg-checkbox">
                 <input type="checkbox" name="tell" checked />
@@ -341,6 +348,45 @@ export async function giveItemDialog(actor) {
             };
             existing.addEventListener("change", sync);
             sync();
+
+            /*
+             * A SECOND ROLE, ON THE SAME TERMS AS THE TABLES (Dawid, 31.08).
+             *
+             * Two rules, both borrowed rather than reinvented so the two places
+             * a GM can make an item cannot disagree: a role is offered only
+             * from `MULTI_ROLE_TIER` up, because a two-tag item is
+             * unconditionally better than a one-tag one and has no business at
+             * the bottom of the range; and an item is never offered its own
+             * home, which would be a box that cannot be unticked.
+             *
+             * Repainted on every change to either select, because both of them
+             * decide what is on offer.
+             */
+            const rolePicker = form.querySelector("[data-drpg-roles]");
+            const roleNote = form.querySelector("[data-drpg-roles-note]");
+            const paintRoles = () => {
+                if (!rolePicker) return;
+                const [home] = String(form.elements.category?.value ?? "").split(":");
+                const tier = Number(form.elements.tier?.value);
+                const allowed = Number.isFinite(tier) && tier >= MULTI_ROLE_TIER;
+
+                for (const box of rolePicker.querySelectorAll("[data-drpg-role]")) {
+                    const isHome = box.dataset.drpgRole === home;
+                    const off = isHome || !allowed;
+                    box.disabled = off;
+                    if (off) box.checked = false;
+                    box.closest("label")?.classList.toggle("drpg-locked", off);
+                    box.closest("label")?.toggleAttribute("hidden", isHome);
+                }
+                if (roleNote) {
+                    roleNote.textContent = allowed
+                        ? ""
+                        : game.i18n.format("DRPG.Tables.rolesTierOnly", { tier: MULTI_ROLE_TIER });
+                }
+            };
+            form.elements.category?.addEventListener("change", paintRoles);
+            form.elements.tier?.addEventListener("change", paintRoles);
+            paintRoles();
         },
         buttons: [
             {
@@ -367,6 +413,8 @@ export async function giveItemDialog(actor) {
                         tier: Number(f.elements.tier.value),
                         name: f.elements.name.value.trim(),
                         description: f.elements.description.value.trim(),
+                        roles: [...f.querySelectorAll("[data-drpg-role]:checked")]
+                            .map(b => b.dataset.drpgRole),
                         tell: f.elements.tell.checked
                     };
                 }
@@ -396,6 +444,10 @@ export async function giveItemDialog(actor) {
             // The same rule drawItem applies: a description that is only the
             // name again adds nothing over the tier line the item will get.
             description: entry.description && entry.description !== name ? entry.description : "",
+            // The same roles a Search would have handed over. Without this the
+            // hammer given by hand and the hammer found in a room were two
+            // different objects.
+            roles: rolesOfResult(entry),
             img: entry.img ?? null
         };
     } else {
@@ -411,6 +463,7 @@ export async function giveItemDialog(actor) {
         category: give.category,
         tier: give.tier,
         goal: give.kind,
+        roles: give.roles?.length ? give.roles : null,
         img: give.img,
         description: give.description
             ? `<p>${esc(give.description)}</p>`

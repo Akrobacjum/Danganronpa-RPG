@@ -609,6 +609,7 @@
       "namePlaceholder": "Type anything, or pick a suggestion",
       "description": "Description (optional)",
       "descriptionPlaceholder": "What it is, or what it tells them.",
+      "alsoServesAs": "Also serves as",
       "needsName": "The item needs a name.",
       "tabGiveExisting": "Give existing",
       "tabCreateNew": "Create new",

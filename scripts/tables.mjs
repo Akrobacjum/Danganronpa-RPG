@@ -411,7 +411,7 @@ export const PROJECT_ITEMS = {
  * NAME, which is fragile, and it is deliberately the last resort rather than
  * the mechanism.
  */
-function rolesOfResult(result) {
+export function rolesOfResult(result) {
     const flagged = result?.getFlag?.(MODULE_ID, "roles");
     if (Array.isArray(flagged)) return [...flagged];
     return rolesForPoolItem(result?.name ?? result?.text ?? "");
