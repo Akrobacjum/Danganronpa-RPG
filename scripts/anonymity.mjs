@@ -1,20 +1,20 @@
 /**
- * Danganronpa RPG — what one student may see of another.
+ * Danganronpa RPG - what one student may see of another.
  * ---------------------------------------------------------------------------
  * THE GUIDE SAYS SHEETS ARE PRIVATE, AND THIS FILE USED TO ENFORCE THAT:
- * "Character sheets are anonymous during play — other players have no access to
+ * "Character sheets are anonymous during play - other players have no access to
  * someone else's sheet." Ownership was pinned at NONE and any sheet that reached
  * a non-owner was closed on sight.
  *
- * Since E9 it is a REDACTION rather than a refusal (Dawid, 27.08 — recorded as
+ * Since E9 it is a REDACTION rather than a refusal (Dawid, 27.08 - recorded as
  * G-44). Some of what a sheet holds is not secret in the fiction at all: you can
  * see that somebody is hurt, and you can see what they are holding. Making the
  * interface hide those was making players ask for information the room already
  * gives them.
  *
  * SO THE SHEET KEEPS ITS SHAPE (Dawid, 27.08, second pass). The first attempt
- * used Daggerheart's own `limited` part, which is safe — the other parts are
- * never built at all — and wrong to look at: no tabs, no traits, no anything,
+ * used Daggerheart's own `limited` part, which is safe - the other parts are
+ * never built at all - and wrong to look at: no tabs, no traits, no anything,
  * just a card. A sheet that has been emptied tells you nothing about the person;
  * a sheet that has been CENSORED tells you there is a person there. So the whole
  * sheet renders, and this file takes things out of it:
@@ -23,7 +23,7 @@
  *                  hands, and how many Experiences they have
  *     "?"          every trait value, every Action pip, every Hope pip (in the
  *                  Hope gold, because a redacted Hope is still Hope)
- *     "???" / "+?" each Experience — that they have one, and that it is worth
+ *     "???" / "+?" each Experience - that they have one, and that it is worth
  *                  something, without saying what or how much
  *     greyed       every tab, unclickable, and its contents removed from the
  *                  page rather than merely hidden
@@ -53,7 +53,7 @@ import { isTruthBullet } from "./truth-bullets.mjs";
 import { whisperToGms, debug, error } from "./utils.mjs";
 
 const NONE = 0;     // CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE
-const OBSERVER = 2; // …OBSERVER — enough to render the sheet, never to edit it.
+const OBSERVER = 2; // …OBSERVER - enough to render the sheet, never to edit it.
 
 export function registerAnonymity() {
     Hooks.on("preCreateActor", onPreCreateActor);
@@ -67,7 +67,7 @@ export function registerAnonymity() {
 /**
  * Somebody else's sheet: everything is there, and almost nothing is readable.
  *
- * Fails CLOSED — see the header. If any step throws, the sheet is shut rather
+ * Fails CLOSED - see the header. If any step throws, the sheet is shut rather
  * than left half-redacted.
  */
 function onRenderSheet(app, element) {
@@ -80,7 +80,7 @@ function onRenderSheet(app, element) {
 
         // Nobody may open the settings sheet, their own included (Dawid,
         // 27.08). It is Daggerheart's configuration for the character, and it
-        // is the GM's business — a player who opens it is looking at knobs no
+        // is the GM's business - a player who opens it is looking at knobs no
         // rule in this game lets them turn.
         if (!game.user.isGM) lockSettings(root);
 
@@ -93,7 +93,7 @@ function onRenderSheet(app, element) {
         buildBodyLoot(root, actor);
         root.classList.add("drpg-redacted-sheet");
     } catch (err) {
-        error("Could not redact a character sheet — closing it instead", err);
+        error("Could not redact a character sheet - closing it instead", err);
         try {
             if (root) root.style.display = "none";
             app?.close?.({ force: true, animate: false })?.catch?.(() => {});
@@ -109,7 +109,7 @@ function onRenderSheet(app, element) {
  * AN ALLOW-LIST, NOT A HUNT. Stripping the controls one at a time is how you
  * ship a leak: the sheet was rolling somebody else's traits from `div.trait`
  * (Dawid found it), and beside it sat `toggleHope` on the Hope pips,
- * `toggleResourceManagement`, `useItem` on the portrait and `editImage` — every
+ * `toggleResourceManagement`, `useItem` on the portrait and `editImage` - every
  * one a thing a viewer could do to a character that is not theirs. A system
  * update adds another next month and a blacklist would not know.
  *
@@ -119,7 +119,7 @@ function onRenderSheet(app, element) {
  * character.
  *
  * `data-action` is REMOVED as well as the click swallowed, because
- * ApplicationV2 dispatches on the attribute — a listener alone is one missed
+ * ApplicationV2 dispatches on the attribute - a listener alone is one missed
  * event from a roll nobody meant to make. Marked `drpg-disarmed` rather than
  * `drpg-locked`: the greyed look belongs to the tabs and the settings button,
  * which are meant to be seen as shut; greying every element on the sheet would
@@ -140,7 +140,7 @@ function disarmSheet(root) {
  * Greyed rather than removed (Dawid, 27.08): a sheet with no tabs says nothing
  * about the person, while a sheet whose tabs are shut says there is something
  * behind them. `data-action` is stripped as well as the click being swallowed,
- * because ApplicationV2 dispatches on that attribute — leaving it and relying on
+ * because ApplicationV2 dispatches on that attribute - leaving it and relying on
  * the listener alone would mean one missed event is one opened tab.
  *
  * EMPTIED, NOT HIDDEN. A pane left in the page with `display: none` is a
@@ -150,7 +150,7 @@ function disarmSheet(root) {
 function redactTabs(root) {
     // BY `data-tab`, NOT BY `data-action`. `disarmSheet` runs first and has
     // already taken the action off every one of them, so selecting on the
-    // action found nothing and the tabs came out disarmed but not greyed —
+    // action found nothing and the tabs came out disarmed but not greyed -
     // which is the worst of both, because an ungreyed tab invites the click it
     // will not honour. Shipped that way in 1.1.22 and caught by looking.
     for (const tab of root.querySelectorAll("a[data-tab]")) {
@@ -171,11 +171,11 @@ function redactTabs(root) {
  * A body's pockets are the one thing on a redacted sheet you may look through.
  *
  * THE THIRD STATE (trap 138). Your own sheet, somebody else's, and somebody
- * else's corpse are three things, not two — and the corpse differs in two ways
+ * else's corpse are three things, not two - and the corpse differs in two ways
  * at once: its belongings are visible AND takeable, while its Truth Bullets do
  * not exist at all, having died with it.
  *
- * So the Inventory tab is given back — just that one — and filled with a list
+ * So the Inventory tab is given back - just that one - and filled with a list
  * this file builds rather than the sheet's own. Not because the sheet's list
  * would be wrong, but because it holds the Truth Bullet rows, the stash, the
  * use buttons and the handover buttons, none of which belong to somebody
@@ -236,7 +236,7 @@ function buildBodyLoot(root, actor) {
 /**
  * Whose character is doing the taking.
  *
- * The one the viewer plays, which is nearly always exactly one — and if it is
+ * The one the viewer plays, which is nearly always exactly one - and if it is
  * somehow none, the button says so rather than sending a request the GM will
  * refuse.
  */
@@ -255,7 +255,7 @@ async function takeFromBody(body, item) {
 /**
  * The character this viewer is playing.
  *
- * By OWNERSHIP first, then by `game.user.character` — the order hud.mjs settled
+ * By OWNERSHIP first, then by `game.user.character` - the order hud.mjs settled
  * on and for the reason written out there: nothing in this game asks anybody to
  * set the actor in Foundry's user configuration, so a table that assigns
  * characters the module's own way leaves it null for every player.
@@ -291,8 +291,8 @@ function lockedPlaceholder() {
  *
  * WHAT SURVIVES IS THE POINT. Health and Sanity keep their figures and the
  * Equipped panel keeps its item, because those are the things the fiction shows
- * anyone in the room. Everything with a number attached to it — traits, Actions,
- * Hope — becomes a question mark, and an Experience keeps its ROW while losing
+ * anyone in the room. Everything with a number attached to it - traits, Actions,
+ * Hope - becomes a question mark, and an Experience keeps its ROW while losing
  * both its name and its size: you can see that they have two of them and that
  * both are worth something, which is exactly what watching somebody work would
  * tell you.
@@ -366,7 +366,7 @@ function enforcing() {
  * New characters open at OBSERVER.
  *
  * Which is the level that renders the sheet in full and still refuses every
- * edit — `isEditable` is false below OWNER, so every field arrives disabled
+ * edit - `isEditable` is false below OWNER, so every field arrives disabled
  * without this file touching one. NONE would leave a window nobody can open and
  * a redaction with nothing to redact.
  */
@@ -383,7 +383,7 @@ function onPreCreateActor(actor, data) {
  *
  * OBSERVER is the ceiling because it is exactly enough: the sheet opens, the
  * redaction below runs, and nothing can be changed. OWNER by default would give
- * every player the run of somebody else's character — and it would skip the
+ * every player the run of somebody else's character - and it would skip the
  * redaction entirely, since that only runs for a viewer who is not the owner.
  *
  * Lowering is not blocked. A GM sealing one character shut is making a ruling,
@@ -399,7 +399,7 @@ function onPreUpdateActor(actor, changes) {
     if (!Object.keys(changes.ownership).length) delete changes.ownership;
 
     ui.notifications.warn(game.i18n.format("DRPG.Anonymity.blocked", { actor: actor.name }));
-    debug(`Blocked a default-ownership raise on "${actor.name}" — OBSERVER is the ceiling.`);
+    debug(`Blocked a default-ownership raise on "${actor.name}" - OBSERVER is the ceiling.`);
 }
 
 /* ==========================================================================
@@ -468,19 +468,19 @@ export async function auditAnonymity({ toChat = true } = {}) {
 
     if (exposed.length) {
         sections.push(section("DRPG.Anonymity.audit.exposed", exposed.map(i =>
-            `${escape(i.actor.name)} — default is <strong>${levelName(i.defaultLevel)}</strong>`
+            `${escape(i.actor.name)} - default is <strong>${levelName(i.defaultLevel)}</strong>`
         )));
     }
 
     if (assistants.length) {
         sections.push(section("DRPG.Anonymity.audit.assistants", assistants.map(i =>
-            `${escape(i.actor.name)} — ${i.assistantOwners.map(e => escape(e.user.name)).join(", ")}`
+            `${escape(i.actor.name)} - ${i.assistantOwners.map(e => escape(e.user.name)).join(", ")}`
         )));
     }
 
     if (shared.length) {
         sections.push(section("DRPG.Anonymity.audit.shared", shared.map(i =>
-            `${escape(i.actor.name)} — ${i.playerOwners.map(e => escape(e.user.name)).join(", ")}`
+            `${escape(i.actor.name)} - ${i.playerOwners.map(e => escape(e.user.name)).join(", ")}`
         )));
     }
 
@@ -490,7 +490,7 @@ export async function auditAnonymity({ toChat = true } = {}) {
             const others = i.entries.length
                 ? i.entries.map(e => `${escape(e.user.name)}: ${levelName(e.level)}${e.isFullGm ? " (GM)" : e.isAssistant ? " (Assistant GM)" : ""}`).join(", ")
                 : game.i18n.localize("DRPG.Anonymity.audit.nobody");
-            return `${escape(i.actor.name)} — ${others}`;
+            return `${escape(i.actor.name)} - ${others}`;
         })));
     }
 

@@ -15,7 +15,7 @@ different typeface part-way through a word.
 Press Start 2P by CodeMan38, released under the **SIL Open Font License 1.1**,
 which permits redistribution alongside this module.
 
-## Swapping the font — read this first
+## Swapping the font - read this first
 
 Replace `pixel.woff2` (and optionally `pixel-ext.woff2`) with any `.woff2`. No
 code changes needed; the `@font-face` rules point at these filenames.
@@ -26,7 +26,7 @@ in `styles/danganronpa.css` is tuned for Press Start 2P specifically:
 
 | Font | Character | Sizing |
 |---|---|---|
-| **Press Start 2P** | Very wide, tall x-height | Needs sizes pulled **down** and `letter-spacing: 0` — what the CSS does now |
+| **Press Start 2P** | Very wide, tall x-height | Needs sizes pulled **down** and `letter-spacing: 0` - what the CSS does now |
 | **VT323** | Condensed, small x-height | Needs sizes pushed **up**, roughly 1.4x |
 | **Silkscreen** | Middle ground | Close to current values |
 

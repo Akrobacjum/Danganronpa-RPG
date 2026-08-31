@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — Observe, resolved on the GM's client.
+ * Danganronpa RPG - Observe, resolved on the GM's client.
  * ---------------------------------------------------------------------------
  * Guide, p. 30: the player declares what they are looking for, and what they
  * find follows from that declaration.
@@ -14,7 +14,7 @@
  * WHY THIS RUNS ON THE GM'S CLIENT. Everything the roll is judged against is
  * something the observer must not know: which Remnants are in the room, what
  * kind each one is, and therefore what the difficulty is. Remnant tokens are
- * hidden, but Foundry still ships every scene's tokens — flags and all — to
+ * hidden, but Foundry still ships every scene's tokens - flags and all - to
  * every client, so a player's browser physically holds the answers. Resolving
  * there would mean asking the person being tested to score their own test.
  *
@@ -45,7 +45,7 @@ export const DECLARATIONS = {
  * Targets chosen but not yet rolled against.
  *
  * Kept after the roll rather than consumed by it, because a Reroll has to be
- * judged against the same Remnant — the dice are taken back, not the search.
+ * judged against the same Remnant - the dice are taken back, not the search.
  * Entries are swept on age so a session's worth of abandoned declarations
  * cannot pile up.
  */
@@ -60,7 +60,7 @@ function sweepPending() {
 }
 
 /* ==========================================================================
- * PHASE 1 — WHAT ARE THEY LOOKING AT
+ * PHASE 1 - WHAT ARE THEY LOOKING AT
  * ========================================================================== */
 
 /**
@@ -72,8 +72,8 @@ function sweepPending() {
  * the payload carries the actor, the declaration and the player's sentence, and
  * no total. The number arrives separately in `resolveObserve`, after the pick.
  *
- * (The player's own client now rolls before it asks them what they were after —
- * see `observeSpecific` in action-rolls.mjs — so "before any dice are thrown" is
+ * (The player's own client now rolls before it asks them what they were after -
+ * see `observeSpecific` in action-rolls.mjs - so "before any dice are thrown" is
  * no longer true and was never what kept this honest.)
  *
  * @returns {Promise<{ok: boolean, key?: string, reason?: string}>}
@@ -86,14 +86,14 @@ export async function chooseObserveTarget({ actorId, declaration, request = "" }
     if (!actor) return { ok: false, reason: "noActor" };
 
     // Located without the canvas on purpose. This runs on the GM's client, which
-    // is very often looking at a different scene than the player acting — and
+    // is very often looking at a different scene than the player acting - and
     // the canvas-bound lookup would report the character as standing nowhere,
     // quietly turning every Observe into the Daily Life fallback.
     const { locateActor } = await import("./movement.mjs");
     const where = locateActor(actor);
     if (!where?.room) return { ok: false, reason: "noRoom" };
 
-    // A Remnant already copied is not a second find — the guide's Truth Bullet
+    // A Remnant already copied is not a second find - the guide's Truth Bullet
     // is the player's copy of a trace, and one trace yields one copy per person.
     const already = copiedRemnants(actor);
     const followingTraces = declaration === DECLARATIONS.followTraces;
@@ -112,17 +112,17 @@ export async function chooseObserveTarget({ actorId, declaration, request = "" }
     } else if (followingTraces) {
         /*
          * `preferSource` above already put the observer's own traces first,
-         * sorted the normal way within that group — so the first one IS the
+         * sorted the normal way within that group - so the first one IS the
          * easiest of their own.
          *
          * WHEN THEY HAVE NONE HERE, A RANDOM ONE (Dawid, 28.08). This used to
          * fall back to `mostRelevant(candidates)[0]`, which is precisely what
-         * "sweep the room" hands over — so declaring "follow my traces" in a
+         * "sweep the room" hands over - so declaring "follow my traces" in a
          * room you have never been in was a free upgrade: the same best clue,
          * plus the knowledge that you left nothing there.
          *
-         * A random pick keeps the action from coming away empty — the roll was
-         * made and beaten — without letting the wrong declaration buy the right
+         * A random pick keeps the action from coming away empty - the roll was
+         * made and beaten - without letting the wrong declaration buy the right
          * answer. Still no message saying which happened: "you left nothing
          * here" is information this action never paid for.
          */
@@ -135,7 +135,7 @@ export async function chooseObserveTarget({ actorId, declaration, request = "" }
         //
         // Both of these were reading off the full list, which sorts crime-tied
         // Remnants first and then by difficulty. "The easiest" therefore did
-        // land on the right one — but "the hardest" walked to the far end of the
+        // land on the right one - but "the hardest" walked to the far end of the
         // list, which is the hardest Remnant that has nothing to do with the
         // murder. The guide is the other way round: "DM zawsze w pierwszej
         // kolejności pokazuje Remnants związane z zabójstwem", and a preference
@@ -166,7 +166,7 @@ export async function chooseObserveTarget({ actorId, declaration, request = "" }
  *
  * Remnants are stamped with the chapter, day and time of day they were dropped.
  * Packed largest-unit-first so ordinary `-` comparison sorts them, and a missing
- * stamp counts as the oldest thing in the room rather than the newest — an
+ * stamp counts as the oldest thing in the room rather than the newest - an
  * unstamped Remnant is one from before this bookkeeping existed, and it should
  * not outrank a trace from the body currently on the floor.
  */
@@ -189,7 +189,7 @@ function recencyOf(data) {
  *
  * Tier 1 is what `tiedToCrime` alone could never give: it is a flag, not a date,
  * so by the third chapter every Remnant in the building carries it and the
- * preference stops meaning anything. Measured on the test world — 34 Remnants,
+ * preference stops meaning anything. Measured on the test world - 34 Remnants,
  * all of them tied, spanning five different days.
  *
  * The input is already sorted by difficulty and that order is preserved here, so
@@ -244,7 +244,7 @@ async function askWhichRemnant(actor, room, request, candidates) {
 }
 
 /* ==========================================================================
- * PHASE 2 — WHAT THE DICE DID
+ * PHASE 2 - WHAT THE DICE DID
  * ========================================================================== */
 
 /**
@@ -264,8 +264,8 @@ export async function resolveObserve({ key, total, isCritical = false, undo = fa
     if (!entry) {
         // The declaration is gone from this browser's memory.
         //
-        // `pending` is deliberately not persisted — it holds the answer key's
-        // half of an Observe — so it does not survive the GM reloading, a
+        // `pending` is deliberately not persisted - it holds the answer key's
+        // half of an Observe - so it does not survive the GM reloading, a
         // different GM becoming primary, or the hour-long sweep. That is
         // acceptable for a fresh Observe, which simply gets declared again.
         //
@@ -363,8 +363,8 @@ async function applyFailure(actor, total, entry) {
      *
      * ON THE CARD. This said "local, on the observer's client" and was wrong the
      * same way `identify` in analyze.mjs was: `resolveObserve` is GM-only, so
-     * every failed Observe since E5 has beeped at the GM and left the observer —
-     * the one person the catalogue names — in silence.
+     * every failed Observe since E5 has beeped at the GM and left the observer -
+     * the one person the catalogue names - in silence.
      */
     await whisperToOwner(actor, `
         <p><strong>${game.i18n.localize("DRPG.Observe.failedTitle")}</strong></p>
@@ -389,25 +389,25 @@ async function createFind(actor, entry, isCritical) {
         || game.i18n.format("DRPG.Observe.defaultName", { room: entry.room });
 
     /*
-     * ONE TRACE, ONE DESCRIPTION — now `public` on the Remnant itself, not a
+     * ONE TRACE, ONE DESCRIPTION - now `public` on the Remnant itself, not a
      * field private to this file.
      *
      * The GM used to be asked to describe the find on EVERY observation, and the
      * answer went onto that one player's Truth Bullet and nowhere else. Two
      * people looking at the same smear on the same wall therefore got two
      * different names for it, written minutes apart by a GM with no reminder of
-     * what they had said the first time — and in a game whose entire endgame is
+     * what they had said the first time - and in a game whose entire endgame is
      * players comparing notes in a trial, two names for one object is not a
      * cosmetic problem. It is a false contradiction the table has to spend the
      * trial resolving.
      *
-     * So the description IS the Remnant's `public.name`/`public.playerText` —
-     * see remnants.mjs — written back the first time it is given, and every
+     * So the description IS the Remnant's `public.name`/`public.playerText` -
+     * see remnants.mjs - written back the first time it is given, and every
      * later observer (and the Investigation Dashboard, and the token itself
      * once revealed) reads the same words without the GM being asked again.
      *
      * A CRITICAL still asks. The guide gives it "a big hint from the GM" on top
-     * of the category (p. 30), so there is genuinely something new to say — and
+     * of the category (p. 30), so there is genuinely something new to say - and
      * the box opens prefilled with what the trace is already called, so pressing
      * straight through keeps the name identical.
      */
@@ -444,7 +444,7 @@ async function createFind(actor, entry, isCritical) {
     const item = await createTruthBullet(actor, {
         name: pub?.name || written?.name || fallbackName,
         realType: data.type,
-        // A critical identifies the category outright — guide, p. 30: "Truth
+        // A critical identifies the category outright - guide, p. 30: "Truth
         // Bullet ze zidentyfikowaną kategorią i duża podpowiedź od DMa."
         shownType: isCritical ? data.type : "neutral",
         visibility: data.visibility,
@@ -458,7 +458,7 @@ async function createFind(actor, entry, isCritical) {
         // Passed explicitly: this is the GM's client, which may be looking at a
         // different scene entirely, so the canvas-bound default would stamp null.
         room: entry.room,
-        // Into the bullet's secret; public on the item only once identified —
+        // Into the bullet's secret; public on the item only once identified -
         // immediately for this critical find, at Analyze for everyone else.
         sourceAction: data.action ?? null,
         tiedToCrime: Boolean(data.tiedToCrime)
@@ -466,7 +466,7 @@ async function createFind(actor, entry, isCritical) {
 
     if (!item) return null;
 
-    // The object is real now, not just a note in the GM's ledger — the first
+    // The object is real now, not just a note in the GM's ledger - the first
     // person to copy it reveals the token it came from. See
     // `revealRemnantToFinder` in remnants.mjs for why this is `hidden: false`
     // rather than forcing `visible`, and visibility.mjs for how it then stays
@@ -488,7 +488,7 @@ async function createFind(actor, entry, isCritical) {
     return item;
 }
 
-/** The GM's sentence, prefilled. Never blocks the result — see `createFind`. */
+/** The GM's sentence, prefilled. Never blocks the result - see `createFind`. */
 async function describeFind(actor, entry, isCritical, fallbackName, stored = null) {
     const data = entry.data;
 
@@ -501,7 +501,7 @@ async function describeFind(actor, entry, isCritical, fallbackName, stored = nul
                 room: foundry.utils.escapeHTML(entry.room)
             })}</p>
             <p class="notes">${foundry.utils.escapeHTML(
-                `${data.visibilityLabel} ${data.typeLabel}${data.note ? ` — ${data.note}` : ""}`
+                `${data.visibilityLabel} ${data.typeLabel}${data.note ? ` - ${data.note}` : ""}`
             )}</p>
             ${stored
                 ? `<p class="notes">${game.i18n.localize("DRPG.Observe.alreadyDescribed")}</p>`
@@ -515,7 +515,7 @@ async function describeFind(actor, entry, isCritical, fallbackName, stored = nul
                 * there is no need").
                 *
                 * A described trace only reaches this dialog on a CRITICAL, and a
-                * critical buys a big hint from the GM — not a new name. Two
+                * critical buys a big hint from the GM - not a new name. Two
                 * names for one object is the false contradiction this whole
                 * mechanism was built to prevent, and offering an editable box is
                 * an invitation to create one by pressing through it. So the name
@@ -545,7 +545,7 @@ async function describeFind(actor, entry, isCritical, fallbackName, stored = nul
         ],
         rejectClose: false
     // Closing the dialog resolves to null, which `createFind` reads as "use the
-    // prefilled name and no description" — the find still lands either way.
+    // prefilled name and no description" - the find still lands either way.
     }).catch(() => null);
 }
 

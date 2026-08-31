@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — the panels explain themselves.
+ * Danganronpa RPG - the panels explain themselves.
  * ---------------------------------------------------------------------------
  * Four widgets sit on screen for the whole session and none of them said what
  * they were. The clock says "Investigation" without saying what an
@@ -9,15 +9,15 @@
  * somebody asks at the table in session one and again in session four, and the
  * answer has always been the GM's voice.
  *
- * So each panel opens a window that says it (Dawid, 26.08). Click the panel —
- * player or GM, same gesture, same window — and it tells you what you are
+ * So each panel opens a window that says it (Dawid, 26.08). Click the panel -
+ * player or GM, same gesture, same window - and it tells you what you are
  * looking at, plus where things actually stand right now.
  *
  * WHAT THESE WINDOWS MUST NOT DO IS LEAK. The Despair rows are masked for
  * players by the widget itself, and a window that explained them by printing
  * the numbers would undo that in one click; the room block prints a Project's
  * existence but never its name, exactly as the HUD does. So each section asks
- * the same question the widget asks — "may this user see this?" — rather than
+ * the same question the widget asks - "may this user see this?" - rather than
  * assuming that a window somebody opened deliberately is a window they are
  * entitled to more from.
  */
@@ -66,13 +66,13 @@ function subjectActor() {
 }
 
 /* ==========================================================================
- * WHERE THINGS STAND — the clock
+ * WHERE THINGS STAND - the clock
  * ========================================================================== */
 
 /**
  * What the phase means, in the phase's own words.
  *
- * An Eclipse is not a phase in the rules — it is a state the clock wears — but
+ * An Eclipse is not a phase in the rules - it is a state the clock wears - but
  * it is the loudest thing on screen while it runs and the one a player is most
  * likely to be confused by, so it answers here first.
  */
@@ -88,7 +88,7 @@ function phaseExplanation(clock) {
     return [hint, long].filter(Boolean).map(esc).join("<br>");
 }
 
-/** "Evening — the 4th of 5", and the whole day listed with this one marked. */
+/** "Evening - the 4th of 5", and the whole day listed with this one marked. */
 function timeOfDayBlock(clock) {
     const now = clock?.timeOfDay;
     const index = TIMES_OF_DAY.indexOf(now);
@@ -121,7 +121,7 @@ async function roomBlock() {
 
     const lines = [`<strong>${esc(room)}</strong>`];
 
-    // The GM's own words about the place, when they have written any — see the
+    // The GM's own words about the place, when they have written any - see the
     // Description tab in Room Setup. Escaped: it is typed prose, and it is
     // shown to everybody.
     const { roomDescription } = await import("./vault.mjs");
@@ -135,7 +135,7 @@ async function roomBlock() {
         left: SearchTokens.left(room, workingScene()), max: SearchTokens.max
     })));
 
-    // Whether there is something to work on here — never WHAT. The HUD makes
+    // Whether there is something to work on here - never WHAT. The HUD makes
     // the same call for the same reason: this window is open while people
     // share a screen, and a project's name is between its owner and the GM.
     const { projectsAvailableIn } = await import("./projects.mjs");
@@ -234,7 +234,7 @@ export async function openStatusExplainer() {
         /*
          * A MONOKUMA HAS NONE OF THE THREE THINGS THIS SECTION COUNTS.
          *
-         * "Right now" answered with actions, the free Move and Hope — three
+         * "Right now" answered with actions, the free Move and Hope - three
          * sentences about something a GM's character does not have, on the one
          * screen that exists to explain what the strip in the corner means.
          *
@@ -293,9 +293,9 @@ export async function openProjectsExplainer() {
         const mine = visibleProjects(game.user);
 
         // `current` counts UP toward `start`, whichever way the underlying
-        // countdown is stored — `allProjects()` has already normalised that,
+        // countdown is stored - `allProjects()` has already normalised that,
         // and reading the raw countdown here would undo it for half of them.
-        const rows = mine.map(p => esc(`${p.name ?? "—"} — ${p.current ?? 0}/${p.start ?? 0}`));
+        const rows = mine.map(p => esc(`${p.name ?? "-"} - ${p.current ?? 0}/${p.start ?? 0}`));
 
         const body = [
             section(t("DRPG.Explain.projects.title"), [
@@ -322,7 +322,7 @@ export async function openProjectsExplainer() {
  * Which panel a click landed in, and what it should open.
  *
  * By id rather than by listener-per-widget, because three of these four are
- * rebuilt from scratch whenever their contents change — a listener bound at
+ * rebuilt from scratch whenever their contents change - a listener bound at
  * render time would go with the element it was bound to, every render, for the
  * rest of the session. One delegated listener on the document outlives all of
  * them.
@@ -337,7 +337,7 @@ const PANELS = [
 /**
  * A click on a CONTROL is not a click on the panel.
  *
- * All four of these carry working controls for one role or another — the GM's
+ * All four of these carry working controls for one role or another - the GM's
  * time-of-day arrows, the Despair pips they set by clicking, the Projects
  * tray's own buttons and its collapse toggle. Opening a window on top of
  * somebody's button press would make every one of those controls feel broken,
@@ -347,7 +347,7 @@ const PANELS = [
  * A TAG LIST MISSES THE CONTROLS THIS MODULE ACTUALLY BUILDS.
  *
  * The Despair pips and the sheet's action pips are `<span role="button"
- * tabindex="0">`, which none of the selectors above matches — so clicking a pip
+ * tabindex="0">`, which none of the selectors above matches - so clicking a pip
  * set the value AND opened the explainer on top of the panel the person was
  * still using. Roles and focusability are what make a thing a control here, not
  * its tag name. `tabindex="-1"` is excluded because it means the opposite:

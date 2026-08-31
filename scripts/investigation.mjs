@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — the GM's side of an Investigation.
+ * Danganronpa RPG - the GM's side of an Investigation.
  * ---------------------------------------------------------------------------
  * Guide, p. 28: "DM szykuje 5 poszlak przed morderstwem: Banalną, Standardową,
  * Standardową, Skomplikowaną, Desperacką. Ich ostateczna ilość jest zależna od
@@ -10,7 +10,7 @@
  * during an Investigation:
  *
  *   the planner    what are my five clues, and have I actually put them on the
- *                  map — or am I one session in with three of them still in my
+ *                  map - or am I one session in with three of them still in my
  *                  head?
  *   the dashboard  who has found what, how much of the case is reachable, and
  *                  is this trial about to fail because nobody found the
@@ -18,7 +18,7 @@
  *
  * The dashboard is the one place in this module that reads the answer key in
  * bulk, which is why it is GM-only in the strongest sense: it runs nowhere else
- * (see D6 — the ledger only exists on a GM's browser).
+ * (see D6 - the ledger only exists on a GM's browser).
  */
 
 import {
@@ -55,7 +55,7 @@ export function keyPlan() {
     const chapter = getClock().chapter;
 
     // A plan belongs to one murder. When the chapter has moved on, the previous
-    // chapter's clues are not this chapter's blanks — start clean rather than
+    // chapter's clues are not this chapter's blanks - start clean rather than
     // present stale text as though it were the current case.
     if (stored.chapter !== chapter) {
         return {
@@ -93,7 +93,7 @@ function placedKeyRemnants() {
  *
  * Read off the ledger rather than off what the players can see: a Key bullet
  * arrives identified, but a GM who issued one by hand as "unidentified" would
- * otherwise vanish from this count — and this count is what decides whether the
+ * otherwise vanish from this count - and this count is what decides whether the
  * trial is solvable.
  */
 function findersByRemnant() {
@@ -137,7 +137,7 @@ export function keyPlanStatus() {
  * G-32: what the investigation failed to turn up, paid for in Despair.
  *
  * Guide: every Key Remnant below four that nobody found is worth 3 Despair to
- * Monokuma. `found` is the bar rather than `placed` — a clue nobody found did
+ * Monokuma. `found` is the bar rather than `placed` - a clue nobody found did
  * its job exactly as badly as one that was never put out, and the guide is
  * counting what reached the trial.
  *
@@ -145,7 +145,7 @@ export function keyPlanStatus() {
  * anything until the investigation is over, so this is charged as the Class
  * Trial opens. It is stamped with the chapter in the same record the trial's
  * own progress lives in, because `startClassTrial` is a button and a button
- * gets pressed twice — a GM correcting a misclick would otherwise pay Monokuma
+ * gets pressed twice - a GM correcting a misclick would otherwise pay Monokuma
  * a second time.
  *
  * PER MONOKUMA, NOT SPLIT (trap 116). The reasoning is on `KEY_REMNANTS` in
@@ -169,7 +169,7 @@ export async function chargeForUnfoundKeys() {
 
     // Stamped even at zero. "Nothing was owed" and "this has not been asked
     // yet" have to stay different states, or a second press would re-ask a
-    // question whose answer has since changed — a Key Remnant found during the
+    // question whose answer has since changed - a Key Remnant found during the
     // trial itself would suddenly owe Despair backwards.
     await setTrialProgress({ keysCharged: true });
     if (!short) return null;
@@ -187,13 +187,13 @@ export async function chargeForUnfoundKeys() {
             n: short, despair: amount, who: foundry.utils.escapeHTML(paid.join(", "))
         })}</p>`);
     }
-    log(`G-32: ${short} Key Remnant(s) unfound — ${amount} Despair to each of ${paid.length} pool(s).`);
+    log(`G-32: ${short} Key Remnant(s) unfound - ${amount} Despair to each of ${paid.length} pool(s).`);
     return { short, amount, pools: paid };
 }
 
 /**
  * Apply the Key Remnant planner's five rows, exactly as `openKeyPlanner()`
- * used to on its own Save — now called from the Investigation Dashboard's
+ * used to on its own Save - now called from the Investigation Dashboard's
  * single Save instead of a dialog of its own. See the "Key Remnants" tab in
  * `openInvestigationDashboard`.
  */
@@ -201,7 +201,7 @@ async function saveKeyPlan(plan, rows) {
     // A row with a room chosen and no existing token means "make this one".
     //
     // The planner used to be able to do exactly one thing: point an entry at a
-    // Key Remnant somebody had already placed by hand. That is backwards — the
+    // Key Remnant somebody had already placed by hand. That is backwards - the
     // plan IS the five clues, written before the murder, and the whole reason a
     // GM opens this screen is to turn them into traces on the map. Marking an
     // existing Prep Remnant as Key also silently rewrote evidence that had
@@ -230,7 +230,7 @@ async function saveKeyPlan(plan, rows) {
     return { entries, created };
 }
 
-/** The stored shape — the room/visibility pickers are input, not plan data. */
+/** The stored shape - the room/visibility pickers are input, not plan data. */
 function stripDraft(row) {
     return {
         scale: row.scale, note: row.note,
@@ -242,7 +242,7 @@ function stripDraft(row) {
  * A random point actually inside the region.
  *
  * Not the centre. Five clues stacked on five room centres reads as five pins on
- * a diagram rather than as things lying about a building — and if two of them
+ * a diagram rather than as things lying about a building - and if two of them
  * land in the same room they sit exactly on top of each other, which is the one
  * arrangement a GM cannot click apart.
  *
@@ -280,7 +280,7 @@ export function randomPointIn(region, scene) {
 
     // The same hit test `roomAt` uses in movement.mjs, and the same two traps.
     // `RegionDocument#testPoint` wants an ElevatedPoint and rejects a point with
-    // no elevation outright, and `false` is not nullish — so the old `?? true`
+    // no elevation outright, and `false` is not nullish - so the old `?? true`
     // was never reached and all 24 candidates below were discarded every time.
     // The result was that this function always returned `centre`, which is the
     // one arrangement it exists to avoid: two clues in one room landing exactly
@@ -292,7 +292,7 @@ export function randomPointIn(region, scene) {
     const bottom = region.elevation?.bottom;
     const elevation = Number.isFinite(bottom) ? bottom : 0;
     const canTest = typeof region.testPoint === "function";
-    const test = point => !canTest   // cannot ask — the bounding box is the best we have
+    const test = point => !canTest   // cannot ask - the bounding box is the best we have
         || region.testPoint({ ...point, elevation });
 
     for (let attempt = 0; attempt < 24; attempt++) {
@@ -310,7 +310,7 @@ export function randomPointIn(region, scene) {
  * Put one planned clue on the map.
  *
  * Dropped at a random spot in the named region rather than on a character,
- * because a Key Remnant is the GM's own construction — nobody left it, so
+ * because a Key Remnant is the GM's own construction - nobody left it, so
  * `dropRemnant`'s "where is this actor standing" has no answer to give.
  * `REMNANT_TYPES.key` already carries `reinforced: true`, so `placeRemnant`
  * marks it unremovable without being told.
@@ -350,7 +350,7 @@ async function createKeyRemnant(row) {
 }
 
 /**
- * "Create a Key Remnant here" — the button on an Observe ruling card.
+ * "Create a Key Remnant here" - the button on an Observe ruling card.
  *
  * The guide's Observe has a branch nothing in the module could answer: a player
  * examines a point of interest they have named, the roll goes to the GM, and
@@ -360,7 +360,7 @@ async function createKeyRemnant(row) {
  *
  * So the card carries the room and the player's own words across, and this asks
  * only what the card cannot know: how hard it is to spot, and which of the
- * five planned clues it is — if it is one of them at all.
+ * five planned clues it is - if it is one of them at all.
  *
  * ATTACHING IT TO THE PLAN IS THE POINT of offering the choice. A Key Remnant
  * created outside the plan is a real clue that the "have I placed my five"
@@ -369,7 +369,7 @@ async function createKeyRemnant(row) {
  *
  * @param {object} [options]
  * @param {string} [options.room]  Prefilled room name.
- * @param {string} [options.note]  Prefilled clue text — the player's request.
+ * @param {string} [options.note]  Prefilled clue text - the player's request.
  */
 export async function openKeyRemnantHere({ room = null, note = "" } = {}) {
     if (!game.user.isGM) {
@@ -462,7 +462,7 @@ export async function openKeyRemnantHere({ room = null, note = "" } = {}) {
  * THE DASHBOARD
  * ========================================================================== */
 
-/** Stable form-field id for a trace — unique across every scene. */
+/** Stable form-field id for a trace - unique across every scene. */
 function rowKey(sceneId, tokenId) {
     return `${sceneId}__${tokenId}`;
 }
@@ -483,7 +483,7 @@ function allTraces() {
 }
 
 /**
- * Who has copied which trace — every type, not only Key. Same read as
+ * Who has copied which trace - every type, not only Key. Same read as
  * `findersByRemnant`, minus its `realType === "key"` filter.
  */
 function findersByAnyRemnant() {
@@ -523,12 +523,12 @@ function evidenceByStudent() {
 }
 
 /**
- * The Investigation at a glance — and, now, the one place a GM edits any of
+ * The Investigation at a glance - and, now, the one place a GM edits any of
  * it. One window, three tabs sharing a single Save, because the questions
  * they answer ("what are my clues", "have I placed them", "who has found
  * what") are one GM's one sitting, not three separate trips through the panel.
  *
- *   Traces        every Remnant on every scene — the old per-scene Remnant
+ *   Traces        every Remnant on every scene - the old per-scene Remnant
  *                 Manager, widened to the whole world, plus the `public`
  *                 record a player will eventually see (see remnants.mjs's
  *                 "ONE RECORD, THREE VIEWS").
@@ -537,7 +537,7 @@ function evidenceByStudent() {
  *
  * THE ENDGAME IS NOT HERE. This window used to carry a third tab holding the
  * Mastermind's identity and the Final Truth Remnant, which meant two screens
- * could write the same two records — and two screens that write one record are
+ * could write the same two records - and two screens that write one record are
  * two chances to write it differently. Both live on the Mastermind window now,
  * which is the one place the endgame is edited; traces typed `final` still
  * appear in the Traces table here like every other trace, because reading them
@@ -546,11 +546,11 @@ function evidenceByStudent() {
  * Information only beyond that: an earlier version also handed each Monokuma
  * Despair for every Key Remnant nobody reached, which turned the GM's own
  * planning miss into a resource the GM side got to spend. A clue the players
- * never found is already its own consequence — the trial gets harder — and
+ * never found is already its own consequence - the trial gets harder - and
  * the "this is getting thin" warning is what a GM actually needs from here.
  */
 /**
- * A trace's tags with the DERIVED ones taken back out — the list a GM should
+ * A trace's tags with the DERIVED ones taken back out - the list a GM should
  * actually be editing.
  *
  * `remnantPublic()` appends the room and the difficulty on every read, so
@@ -574,7 +574,7 @@ function withoutDerivedTags(data) {
  * The twin of `confirmClearFaint` in remnants.mjs, and deliberately the same
  * shape: count first, say the number, take the answer, report what happened.
  * Two permanent clean-ups sitting next to each other in one row must not behave
- * differently — a GM who has pressed one has learnt how the other works.
+ * differently - a GM who has pressed one has learnt how the other works.
  *
  * The count applies `sweepTruthBullets`'s own rule rather than an approximation
  * of it, so the confirm cannot promise a number the sweep will not deliver. The
@@ -618,7 +618,7 @@ export async function confirmSweepBullets() {
 }
 
 export async function openInvestigationDashboard() {
-    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
@@ -634,7 +634,7 @@ export async function openInvestigationDashboard() {
     const { allRooms } = await import("./movement.mjs");
     const { murderState } = await import("./murder.mjs");
     // The Final Key Remnant planner lived on the Mastermind screen, where it
-    // shared a window with the one secret the module guards hardest — a GM
+    // shared a window with the one secret the module guards hardest - a GM
     // planting the endgame clue had the Mastermind's name on screen every
     // time. It is a tab of the case dashboard now (Dawid, 26.08); the
     // Mastermind screen keeps only the role and the lair.
@@ -645,7 +645,7 @@ export async function openInvestigationDashboard() {
      *
      * This window is open while an incident starts, while players find
      * Truth Bullets, while traces are placed and cleaned. It used to read
-     * all of that once and then sit there — measured, byte-identical across
+     * all of that once and then sit there - measured, byte-identical across
      * an Eclipse starting and ending underneath it.
      *
      * Everything below is a function of the world, so `keepLive` can call it
@@ -661,7 +661,7 @@ export async function openInvestigationDashboard() {
      * Held here rather than in the DOM, and that is the whole of why it works
      * with a live window: `keepLive` rebuilds the region from `buildCase`, and
      * a rebuild that read the filter off the select would render the list
-     * BEFORE `restore` put the select back — one frame of the wrong list every
+     * BEFORE `restore` put the select back - one frame of the wrong list every
      * time anything in the world moved. Read from here, the markup and the
      * rows are decided by the same value in the same pass.
      */
@@ -673,7 +673,7 @@ export async function openInvestigationDashboard() {
      * preparing a trial wants the traces of THIS murder, and until now the only
      * way to get them was to read the context line on every row.
      *
-     * Empty means every chapter, like the other two — the filter bar's own
+     * Empty means every chapter, like the other two - the filter bar's own
      * idiom, so nothing has to learn a new one.
      */
     const reading = { order: "room", player: "", room: "", chapter: "" };
@@ -694,7 +694,7 @@ export async function openInvestigationDashboard() {
         // NEWEST FIRST, and "newest" is the fiction's clock rather than the
         // file's: chapter, then day, then time of day, because that is the
         // order the table lived them in. The ledger's own timestamp settles
-        // two traces from the same time of day — which, during an incident,
+        // two traces from the same time of day - which, during an incident,
         // is most of them.
         const when = data => [
             Number(data.chapter) || 0,
@@ -719,7 +719,7 @@ export async function openInvestigationDashboard() {
         const status = keyPlanStatus();
         const rooms = allRooms();
         // The opening roll's own limit on how many Key Remnants this chapter gets
-        // — `null` before a murder has happened, meaning "no limit yet, plan
+        // - `null` before a murder has happened, meaning "no limit yet, plan
         // freely". See `def.keyRemnants` in config.mjs and `murderState()`.
         const limit = murderState()?.keyRemnants ?? null;
 
@@ -738,7 +738,7 @@ export async function openInvestigationDashboard() {
                 <td>${s.total}</td>
                 <td>${s.keys}</td>
                 <td>${s.unidentified}</td>
-                <td class="notes">${breakdown || "—"}</td>
+                <td class="notes">${breakdown || "-"}</td>
             </tr>`;
         }).join("");
 
@@ -747,7 +747,7 @@ export async function openInvestigationDashboard() {
         const traceRows = shown.map(({ token, data, scene }) => {
             const key = rowKey(scene.id, token.id);
             // The difficulty and room tags are appended live by `remnantPublic()`
-            // and never stored — editing either back into the saved list would
+            // and never stored - editing either back into the saved list would
             // freeze a value that is meant to track the ledger automatically
             // (`retuneRemnant` moves visibility; a GM can correct the room).
             const manualTags = withoutDerivedTags(data);
@@ -776,7 +776,7 @@ export async function openInvestigationDashboard() {
 
         /* ---- Key Remnants ------------------------------------------------------ */
         const placed = placedKeyRemnants();
-        // The same six facts the trace rows carry, in the same order — see
+        // The same six facts the trace rows carry, in the same order - see
         // `traceContextLine`. A GM picking which placed trace an entry means was
         // choosing between "Evident · Kitchen · note" lines that said nothing about
         // who had left them or when, which is exactly what tells two clues apart.
@@ -797,7 +797,7 @@ export async function openInvestigationDashboard() {
             const live = entry.tokenId && tokenOptions.some(o => o.id === entry.tokenId);
             // Read off the placed trace itself rather than off the plan: the plan
             // stores a scale and a sentence, and everything a GM wants to compare
-            // between two clues — who left them, where, when — belongs to the trace.
+            // between two clues - who left them, where, when - belongs to the trace.
             const context = traceContextLine(
                 placed.find(r => r.token.id === entry.tokenId)?.data ?? null);
             const state = !entry.tokenId
@@ -968,7 +968,7 @@ export async function openInvestigationDashboard() {
                         : "DRPG.Mastermind.finalTruthReminder")}</p>
                 <label>${game.i18n.localize("DRPG.Investigation.pickRoom")}
                     <select name="finalRoom">
-                        <option value="">—</option>
+                        <option value="">-</option>
                         ${roomOptions}
                     </select></label>
                 <label>${game.i18n.localize("DRPG.Investigation.difficulty")}
@@ -995,7 +995,7 @@ export async function openInvestigationDashboard() {
                 callback: (e, b, d) => {
                     /*
                      * READ FRESH HERE TOO, and the first version of the live
-                     * rebuild did not — it left `traces` and `plan` behind in
+                     * rebuild did not - it left `traces` and `plan` behind in
                      * `buildCase` and this callback went on naming them. Save
                      * threw `ReferenceError: traces is not defined` INSIDE
                      * DialogV2's submit, which does not close a window it could
@@ -1012,7 +1012,7 @@ export async function openInvestigationDashboard() {
                     const q = name => form.querySelector(`[name="${CSS.escape(name)}"]`);
                     return {
                         // The Final Key Remnant fields ride the same Save the
-                        // whole dashboard uses — same reasoning their old home
+                        // whole dashboard uses - same reasoning their old home
                         // gave for riding Apply: planting the endgame clue must
                         // not need a second button to remember.
                         finalRoom: q("finalRoom")?.value ?? "",
@@ -1098,7 +1098,7 @@ export async function openInvestigationDashboard() {
              * A FILTER IS A REBUILD, not a second way of drawing the table.
              *
              * The handler writes the reader's choice down and asks the live
-             * region to redraw itself — the same path a trace being found takes,
+             * region to redraw itself - the same path a trace being found takes,
              * so the scroll, the folded sections, the half-typed fields and the
              * tab that is showing all survive a filter change exactly as they
              * survive anything else. Wiring it inside `wireAll` is what keeps it
@@ -1140,7 +1140,7 @@ export async function openInvestigationDashboard() {
         return openInvestigationDashboard();
     }
     // Each comes back here afterwards, so the dashboard is where the GM lands
-    // rather than on the map — the same pattern the GM panel uses for its tiles.
+    // rather than on the map - the same pattern the GM panel uses for its tiles.
     if (action === "autopsy") {
         const { issueAutopsyDialog } = await import("./gm-items.mjs");
         await issueAutopsyDialog();

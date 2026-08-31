@@ -32,7 +32,7 @@ export async function run({ gm, p1, p2, check, settle }) {
     await gm.eval(`await game.drpg.setClock({ phase: "classTrial" }); await game.drpg.startFloor(); return true;`, { timeout: 60000 });
     await settle(400);
 
-    // Phase 2: class trial in progress — the killer is THE mystery being solved.
+    // Phase 2: class trial in progress - the killer is THE mystery being solved.
     const p1trial = await p1.eval(`
         const s = game.settings.get("${MOD}", "murderState") ?? {};
         return { killerId: s.killerId ?? null, thirdId: s.thirdId ?? null, active: s.active, stage: s.stage };

@@ -1,8 +1,8 @@
 /**
- * Danganronpa RPG — the receiving half of per-region voice.
+ * Danganronpa RPG - the receiving half of per-region voice.
  * ---------------------------------------------------------------------------
  * `voice.mjs` decides which room each person belongs in. This is what actually
- * moves a voice client there, and it runs on EVERY client — the players', the
+ * moves a voice client there, and it runs on EVERY client - the players', the
  * GMs', all of them.
  *
  * WHY THIS FILE EXISTS AT ALL. The previous design pointed a player's client at
@@ -21,7 +21,7 @@
  *      their target CHANGED. One dropped message meant one player stuck in the
  *      main room until they happened to walk somewhere else.
  *   3. avclient-livekit's `breakout()` clears `breakoutRoom` back to undefined
- *      when the reconnect it starts rejects — quietly returning the player to
+ *      when the reconnect it starts rejects - quietly returning the player to
  *      the main room while the GM still believed they were in the Kitchen.
  *
  * So the module carries the message itself, and this side owns the apply:
@@ -53,12 +53,12 @@ export const VOICE = {
     assign: "voice.assign",
     /** user -> GM: "I applied it" / "I could not". */
     applied: "voice.applied",
-    /** user -> GM: "where do I belong?" — sent on join and on A/V startup. */
+    /** user -> GM: "where do I belong?" - sent on join and on A/V startup. */
     whoAmI: "voice.whoAmI",
     /**
      * GM -> primary GM: "I picked a room by hand; leave my voice where it is"
      * (or "I have stopped, steer me again"). Only a GM sends this, and only the
-     * client running the assignment loop acts on it — see `manualUsers` in
+     * client running the assignment loop acts on it - see `manualUsers` in
      * voice.mjs.
      */
     manual: "voice.manual"
@@ -73,7 +73,7 @@ let desired;
 /** The assignment we have not yet been able to apply, if any. */
 let parkedRequestId = null;
 
-/** Applies run one at a time — see the note about the Eclipse above. */
+/** Applies run one at a time - see the note about the Eclipse above. */
 let chain = Promise.resolve();
 
 /**
@@ -81,24 +81,24 @@ let chain = Promise.resolve();
  *
  * `AVMaster#connect()` calls `client.initialize()` on every connect, and
  * avclient-livekit fires `liveKitClientInitialized` at the end of that. So every
- * room switch re-fires the hook below — the one whose whole job is to react to
- * A/V coming up — and without this it would queue a second, pointless apply and
+ * room switch re-fires the hook below - the one whose whole job is to react to
+ * A/V coming up - and without this it would queue a second, pointless apply and
  * a second confirmation for a room we are already in the middle of joining.
  */
 let applying = false;
 
 export function registerVoiceClient() {
-    // A/V comes up (or comes back up) — this is the moment a parked room can
+    // A/V comes up (or comes back up) - this is the moment a parked room can
     // finally be applied, and the moment a fresh client should ask where it
     // belongs. Deliberately `on`, not `once`: re-initialising A/V from the
     // settings menu goes through here again and must not be the one case that
     // silently stops working.
     //
     // It can also fire BEFORE `ready`, while the socket listener below is not up
-    // yet — asking then would be asking into a reply nobody could receive. The
+    // yet - asking then would be asking into a reply nobody could receive. The
     // `ready` handler does the asking in that case.
     Hooks.on("liveKitClientInitialized", () => {
-        if (applying) return;               // our own reconnect — see `applying`
+        if (applying) return;               // our own reconnect - see `applying`
         debug("Voice: A/V client initialised.");
         if (!game.ready) return;
         if (desired !== undefined) enqueue(() => applyAndReport(desired, parkedRequestId));
@@ -106,7 +106,7 @@ export function registerVoiceClient() {
     });
 
     // A GM arriving after this client did. `askWhereIBelong` is addressed to the
-    // GMs, so asking while none is connected asks nobody — and the player who
+    // GMs, so asking while none is connected asks nobody - and the player who
     // logs in first is exactly the one who does that. This is the second half of
     // the pull: whoever turns up last starts the conversation.
     //
@@ -134,7 +134,7 @@ export function registerVoiceClient() {
  *
  * The GM's heartbeat cannot see this. It skips anyone whose room it has a
  * confirmation for, and a confirmation stays true right up until something
- * outside Foundry breaks it — a LiveKit server restarted under the table, a
+ * outside Foundry breaks it - a LiveKit server restarted under the table, a
  * network drop, a token that expired. avclient-livekit's `onDisconnected` does
  * not clear `breakoutRoom` and does not reconnect, so from the GM's side
  * everything still looks settled while the player hears nobody.
@@ -154,7 +154,7 @@ function startSelfCheck() {
         if (!avclientActive() || !clientReady()) return;
         if (landedCorrectly(desired)) return;
 
-        debug(`Voice: drifted out of "${desired ?? "the main room"}" — re-applying.`);
+        debug(`Voice: drifted out of "${desired ?? "the main room"}" - re-applying.`);
         enqueue(() => applyAndReport(desired, null));
     }, SELF_CHECK_MS);
 }
@@ -166,7 +166,7 @@ function startSelfCheck() {
 /**
  * Both of these go to the GMs and nowhere else.
  *
- * Not tidiness — a room name identifies a Scene Region, so a broadcast
+ * Not tidiness - a room name identifies a Scene Region, so a broadcast
  * "I am now in drpg-<scene>-kitchen" would tell every player's console exactly
  * which room every other player is standing in. That is the one thing
  * visibility.mjs exists to hide.
@@ -178,7 +178,7 @@ function toGms(payload) {
 }
 
 /**
- * "Where do I belong?" — the pull that replaces the GM's guesswork.
+ * "Where do I belong?" - the pull that replaces the GM's guesswork.
  *
  * Costs one socket message per join, and it is the only thing in this subsystem
  * that does not depend on the GM having noticed something. A client that has
@@ -220,7 +220,7 @@ function onVoiceSocket(payload, senderId) {
     if (payload.target && payload.target !== game.user.id) return;
 
     // The PRIMARY GM, not any GM. Only one client is supposed to be running this
-    // automation — voice.mjs says so at length about why — and accepting from
+    // automation - voice.mjs says so at length about why - and accepting from
     // every GM would quietly undo that the moment a second one is at the table
     // with a stale module state. Both sides compute the same answer from the
     // same user list; see `primaryGmId`.
@@ -253,7 +253,7 @@ function liveKitClient() {
  *
  * `AVMaster` builds `this.client` from `CONFIG.WebRTC.clientClass` in its
  * constructor, and `LiveKitAVClient`'s own constructor creates `_liveKitClient`
- * — so if the A/V client exists and has no `_liveKitClient`, some other class is
+ * - so if the A/V client exists and has no `_liveKitClient`, some other class is
  * in charge and no amount of waiting will change that.
  *
  * The distinction matters: "not LiveKit" has to settle as unavailable, while
@@ -291,7 +291,7 @@ export const ROOM_PREFIX = "drpg-";
  * Did this client end up where it was asked to?
  *
  * `LiveKitAVClient#connect()` sets `this.room` to the breakout room when one is
- * set and to the world's configured room otherwise — so it, and not
+ * set and to the world's configured room otherwise - so it, and not
  * `breakoutRoom`, is the honest answer. `breakoutRoom` is the property we write
  * ourselves one line earlier: reading it back proves that the assignment
  * statement executed and nothing else, which is exactly what the first version
@@ -299,8 +299,8 @@ export const ROOM_PREFIX = "drpg-";
  *
  * "The main room" is deliberately expressed as "not one of ours" rather than as
  * an equality against `liveKitConnectionSettings.room`. That setting is `{}` on
- * a world whose GM has not configured A/V yet — the room name is generated on
- * the first connect — so comparing against it would call a perfectly good
+ * a world whose GM has not configured A/V yet - the room name is generated on
+ * the first connect - so comparing against it would call a perfectly good
  * return-to-main a failure at exactly the moment a table is setting up.
  */
 function landedCorrectly(target) {
@@ -321,7 +321,7 @@ function currentRoomLabel() {
  * Sets the same `breakoutRoom` property avclient-livekit's own `breakout()`
  * sets and then calls the public `game.webrtc.connect()`, which reads it when
  * it works out the room name (see `LiveKitAVClient#connect`). Switching rooms
- * IS a disconnect and a reconnect — that is not a failure, and `voice.mjs`
+ * IS a disconnect and a reconnect - that is not a failure, and `voice.mjs`
  * silences the warning avclient-livekit raises about it.
  *
  * THREE THINGS `AVMaster#connect()` DOES THAT THIS HAS TO ACCOUNT FOR, all read
@@ -332,8 +332,8 @@ function currentRoomLabel() {
  *     rejected token). Ignoring the return value is how every client at a table
  *     with misconfigured A/V used to report success.
  *   · it DE-DUPLICATES: `if (this.#connecting) return this.#connecting`. A
- *     connect already in flight — started by the A/V config app, by a settings
- *     change, or by avclient-livekit itself — means our call resolves with
+ *     connect already in flight - started by the A/V config app, by a settings
+ *     change, or by avclient-livekit itself - means our call resolves with
  *     somebody else's result and our room never gets applied. Only comparing
  *     the room actually connected to catches that.
  *   · it calls `client.initialize()` on EVERY connect, which re-fires
@@ -347,7 +347,7 @@ export async function applyBreakout(room) {
 
     // A/V is switched off for the whole world. `AVMaster#connect()` returns
     // false in that state without ever reaching LiveKit, which this file would
-    // otherwise read as a failed room switch — and a failure is retried, so a
+    // otherwise read as a failed room switch - and a failure is retried, so a
     // world with regional voice on and A/V off would have every client refusing
     // the same assignment once a minute, forever, with nothing saying why.
     // "Unavailable" settles instead: nothing more to do until somebody turns A/V
@@ -355,14 +355,14 @@ export async function applyBreakout(room) {
     if (game.webrtc?.mode === foundry.av.AVSettings.AV_MODES.DISABLED) return "unavailable";
 
     // Some other A/V client class is in charge of this world. Nothing here can
-    // ever apply, so say so once rather than deferring forever — see
+    // ever apply, so say so once rather than deferring forever - see
     // `usingLiveKit`.
     if (usingLiveKit() === false) return "unavailable";
 
     const target = room ?? null;
 
     if (!clientReady()) {
-        // Not a failure — the client is still coming up. Remember it; the
+        // Not a failure - the client is still coming up. Remember it; the
         // `liveKitClientInitialized` listener above will finish the job.
         desired = target;
         debug(`Voice: A/V not ready, parking "${target ?? "the main room"}".`);
@@ -380,8 +380,8 @@ export async function applyBreakout(room) {
         connected = await game.webrtc.connect();
     } catch (err) {
         // `breakout()` in avclient-livekit clears `breakoutRoom` on a failed
-        // connect. `desired` is deliberately left alone, so the GM's next pass —
-        // or its heartbeat — puts this client back where it belongs instead of
+        // connect. `desired` is deliberately left alone, so the GM's next pass -
+        // or its heartbeat - puts this client back where it belongs instead of
         // treating the main room as the answer.
         error(`Could not move this client's voice to "${target ?? "the main room"}"`, err);
         return "failed";

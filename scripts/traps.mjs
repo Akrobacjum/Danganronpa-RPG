@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — the module watches, the GM fires.
+ * Danganronpa RPG - the module watches, the GM fires.
  * ---------------------------------------------------------------------------
  * Dawid, 28.08: "nie jest możliwe, by GM monitorował jeden pokój przez dwie
  * sesje z rzędu i to, co mówią/robią gracze."
@@ -11,8 +11,8 @@
  *
  * THE LINE THIS WHOLE FILE IS BUILT ON. The module watches; the GM fires. Never
  * the other way round. An engine that opens the murder by itself takes from the
- * GM the one thing a computer is no good at — "not now, we are mid-trial", "she
- * would have noticed that", "wrong person" — and at the same time leaves them
+ * GM the one thing a computer is no good at - "not now, we are mid-trial", "she
+ * would have noticed that", "wrong person" - and at the same time leaves them
  * the one thing a person is no good at: watching thirty rooms for four hours.
  * `fireTrap` is untouched. The only thing that changes is WHEN the card comes.
  *
@@ -31,8 +31,8 @@
  *
  * A room crossing and an action resolution happen several hundred times in a
  * session, so what each listener does FIRST matters more than what it does
- * afterwards. Every one of them starts with a lookup in `armed()` — a Map built
- * once and rebuilt only when the projects change — and returns on a miss before
+ * afterwards. Every one of them starts with a lookup in `armed()` - a Map built
+ * once and rebuilt only when the projects change - and returns on a miss before
  * touching an actor, a token or a setting. Walking every project on every step
  * is the shape that produced the quadratic in E11, found by measuring rather
  * than by anything going wrong.
@@ -41,7 +41,7 @@
  * WHAT LIVES WHERE, AND WHY THE ITEM TRIGGER IS DIFFERENT.
  *
  * Seven triggers are answered from `projectMeta`, where the trap's condition
- * already lives. The eighth — the planted item — must not be, and the reason is
+ * already lives. The eighth - the planted item - must not be, and the reason is
  * the whole design decision of this stage: an item on a character sheet is
  * fully readable from its owner's console, so a flag saying "this is the trap"
  * would be a poisoned first aid kit with POISONED written on it.
@@ -58,12 +58,12 @@ import { MODULE_ID, TRAP_TRIGGERS, TRAP_MODIFIERS, AFTER_DARK,
 import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
 import { isPrimaryGm, debug, log, error } from "./utils.mjs";
 // Statically, because `trapProjects` has to answer synchronously. The
-// dependency only goes this way at load time — projects.mjs reaches back
+// dependency only goes this way at load time - projects.mjs reaches back
 // into this file through dynamic imports, which is not a cycle.
 import { allProjects } from "./projects.mjs";
 
 /* ==========================================================================
- * THE ARMED MAP — trap 157
+ * THE ARMED MAP - trap 157
  * ========================================================================== */
 
 /**
@@ -75,7 +75,7 @@ import { allProjects } from "./projects.mjs";
  * without any of them having to remember to say so.
  *
  * `null` means "no map built yet", which is different from "a map with nothing
- * in it" — the second is a real answer and costs nothing to give again.
+ * in it" - the second is a real answer and costs nothing to give again.
  */
 let index = null;
 
@@ -121,7 +121,7 @@ export function forgetArmedTraps() {
  *
  * TRAP 154 LIVES HERE, and it is two rules rather than one. A frozen project is
  * a sabotaged project and a sabotaged trap must stop hunting, or breaking the
- * scaffold means nothing. And a dead killer's trap must stop too — a murder
+ * scaffold means nothing. And a dead killer's trap must stop too - a murder
  * opened in a dead person's name is not a murder, it is a bug with a corpse in
  * it.
  */
@@ -133,12 +133,12 @@ function trapProjects() {
      * THE NAME COMES OFF THE COUNTDOWN, because the meta does not carry one.
      *
      * Measured on the first run of this: the alert card came out titled
-     * "— something set it off". `projectMeta` holds the room, the secrecy and
+     * "- something set it off". `projectMeta` holds the room, the secrecy and
      * the killer; the NAME lives on the countdown document, which is the one
      * place it can be renamed. Copying it into the meta would have made a
      * second copy that goes stale the first time somebody edits the project.
      *
-     * Built once per map rebuild rather than per event — this whole function
+     * Built once per map rebuild rather than per event - this whole function
      * runs only when `projectMeta` changes, not on every crossing.
      */
     const names = new Map(allProjects().map(p => [p.id, p.name]));
@@ -147,8 +147,8 @@ function trapProjects() {
         if (!entry?.indirectMurder) continue;
         const trigger = entry.trigger;
         if (!trigger?.kind || !trigger.armed) continue;
-        if (trigger.firedAt) continue;             // trap 153 — one alert, then quiet
-        if (entry.frozenBy) continue;              // trap 154 — sabotaged, so blind
+        if (trigger.firedAt) continue;             // trap 153 - one alert, then quiet
+        if (entry.frozenBy) continue;              // trap 154 - sabotaged, so blind
         if (!TRAP_TRIGGERS[trigger.kind]?.watch) continue;
 
         const killer = game.actors.get(entry.killerId ?? entry.by ?? "");
@@ -182,7 +182,7 @@ function isDead(actor) {
  * Does this trap care about who, and about when?
  *
  * Both are asked here rather than at five call sites, so a third modifier is
- * one line in one place — and so that "not the one who built it" cannot be
+ * one line in one place - and so that "not the one who built it" cannot be
  * remembered in four listeners and forgotten in the fifth.
  */
 function passesModifiers(trap, actor) {
@@ -208,7 +208,7 @@ function afterDark() {
 }
 
 /* ==========================================================================
- * THE ALERT — traps 153, 155, 156
+ * THE ALERT - traps 153, 155, 156
  * ========================================================================== */
 
 /**
@@ -216,18 +216,18 @@ function afterDark() {
  *
  * TRAP 155. Not "condition met". The card names the rule that matched, the
  * person it matched on, the room and the time of day, because the GM's job here
- * is to DISAGREE with the reading when the reading is wrong — and an alert
+ * is to DISAGREE with the reading when the reading is wrong - and an alert
  * without its reasoning is a machine with a button on it.
  *
  * TRAP 156. Nothing reaches the victim. This goes down `callGm`, the same road
- * every ruling card already takes, so there is no new route for a leak — there
+ * every ruling card already takes, so there is no new route for a leak - there
  * is, however, a new opportunity to build one by accident, which is why the
  * victim's name appears in exactly one place and that place is GM-only.
  *
  * TRAP 153. The trap disarms itself on the way out. A trap in the Main Hall
  * watching for "somebody enters" would otherwise fire twenty cards a session,
  * and a GM who has learned to skim those cards will skim the one that mattered.
- * Re-arming is a deliberate act — see `rearmTrap`.
+ * Re-arming is a deliberate act - see `rearmTrap`.
  */
 async function alert(trap, actor, why) {
     if (!isPrimaryGm()) return null;
@@ -261,7 +261,7 @@ async function alert(trap, actor, why) {
     const { callGm } = await import("./gm-bridge.mjs");
     await callGm(trap.killer, {
         // TRAP 156. Without this the card goes into the KILLER's messenger
-        // thread — it names their actor, so that is where `callGm` files it —
+        // thread - it names their actor, so that is where `callGm` files it -
         // and hands them both the fact that their trap went off and the name of
         // the person who set it off, before the GM has ruled on any of it.
         gmOnly: true,
@@ -295,7 +295,7 @@ async function stampFired(projectId) {
         const trigger = { ...(metaFor(projectId).trigger ?? {}), firedAt: Date.now() };
         await setProjectMeta(projectId, { trigger });
         if (!metaFor(projectId).trigger?.firedAt) {
-            error(`Could not disarm trap "${projectId}" — no alert sent`);
+            error(`Could not disarm trap "${projectId}" - no alert sent`);
             return false;
         }
         forgetArmedTraps();
@@ -331,7 +331,7 @@ export async function armTrap(projectId, { condition = "" } = {}) {
 }
 
 /**
- * A localised string, or the fallback — never the key itself.
+ * A localised string, or the fallback - never the key itself.
  *
  * `game.i18n.localize` returns the KEY when it misses, which is truthy, so
  * `localize(k) || fallback` never reaches the fallback and the card prints
@@ -351,7 +351,7 @@ function roomOf(actor) {
 }
 
 /* ==========================================================================
- * THE LEDGER AND THE PLANT — the item trigger
+ * THE LEDGER AND THE PLANT - the item trigger
  * ========================================================================== */
 
 /** `drpgItemId` -> project id. GM browsers only; see the header. */
@@ -369,7 +369,7 @@ const plantKey = (room, sceneId) => `${sceneId ?? game.scenes?.current?.id ?? "-
 /**
  * Leave something in a room for the first person who searches it.
  *
- * The identity is minted HERE, by the GM, and travels with the plant — so when
+ * The identity is minted HERE, by the GM, and travels with the plant - so when
  * a player's Search is handed the item there is no second round trip to learn
  * what it was called. The ledger entry is written at the same moment for the
  * same reason: the only client that ever knows this item is the trap is the one
@@ -389,7 +389,7 @@ export async function plantItem(projectId, room, { sceneId = null, ...item } = {
 }
 
 /**
- * Is something waiting here? Take it if so — traps 165 and 166.
+ * Is something waiting here? Take it if so - traps 165 and 166.
  *
  * TRAP 165. Returned INSTEAD of the draw, never added to the room's table. A
  * plant dropped into the pool is not certain, it is likely, and in a
@@ -426,7 +426,7 @@ export async function takePlant(room, sceneId = null) {
  * Ask the GM what the trap is and where it is waiting.
  *
  * ON THE GM'S CLIENT, and that is not a convenience. The killer knows what they
- * made, but the answer has to be written into a setting only GM browsers hold —
+ * made, but the answer has to be written into a setting only GM browsers hold -
  * so either the GM types it, or a player types it and it travels over a socket
  * that would then exist for exactly one purpose and carry exactly the secret
  * this whole design is built to keep off the wire. The GM types it.
@@ -434,7 +434,7 @@ export async function takePlant(room, sceneId = null) {
  * The item does not exist yet, and must not: an Item document on the killer's
  * sheet is readable by the killer, and one lying in a room is a token anybody
  * can see. It is a description until the moment somebody searches the room and
- * finds it — see `takePlant` and the Search path.
+ * finds it - see `takePlant` and the Search path.
  */
 export async function openPlantDialog(projectId) {
     if (!game.user.isGM) return null;
@@ -524,7 +524,7 @@ export function registerTraps() {
         if (setting?.key === `${MODULE_ID}.${SETTINGS.projectMeta}`) forgetArmedTraps();
     });
     // A killer who dies stops hunting, and `trapProjects` reads that off the
-    // actor — so the map has to be dropped when one changes.
+    // actor - so the map has to be dropped when one changes.
     Hooks.on("updateActor", () => forgetArmedTraps());
 
     /*
@@ -534,7 +534,7 @@ export function registerTraps() {
      * Dinner Hall and `drpgRoomCrossed` fired ON THE PLAYER'S CLIENT ONLY. The
      * GM's browser never saw it. Every handler below opens with `isPrimaryGm()`,
      * so on the player's client it returns immediately and on the GM's client it
-     * is never called — the trap stays armed and nothing happens, which looks
+     * is never called - the trap stays armed and nothing happens, which looks
      * exactly like a trap nobody walked into.
      *
      * Four of the five hooks are raised by the client that DID the thing: a
@@ -580,7 +580,7 @@ export function registerTraps() {
         onStashHunted(event);
     });
 
-    // Raised on every client already, so it needs no relay — and it is the only
+    // Raised on every client already, so it needs no relay - and it is the only
     // one of the five that was ever working.
     Hooks.on("createChatMessage", onChatMessage);
 
@@ -653,7 +653,7 @@ async function isAlone(actor, room) {
     }
 }
 
-/** Triggers 3, 6 and 7 — the same hook, three questions. */
+/** Triggers 3, 6 and 7 - the same hook, three questions. */
 async function onActionResolved({ actor, actionKey, outcome, projectId } = {}) {
     try {
         if (!isPrimaryGm() || !actionKey) return;
@@ -724,7 +724,7 @@ async function onStashHunted({ actor, room } = {}) {
  * uważasz, że będzie lepiej i spójniej z resztą modułu").
  *
  * The use card is going to the GM anyway. This reads the identity off it and
- * asks the GM's own ledger — the same shape `despair-award.mjs` uses, and the
+ * asks the GM's own ledger - the same shape `despair-award.mjs` uses, and the
  * same shape the Remnant secrets use: the truth is in a setting on the GM's
  * browser and the object out in the world carries nothing.
  *

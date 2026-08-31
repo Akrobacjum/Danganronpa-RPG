@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — shared helpers.
+ * Danganronpa RPG - shared helpers.
  */
 
 import { MODULE_ID } from "./config.mjs";
@@ -15,7 +15,7 @@ export function debug(...args) {
     try {
         on = game.settings.get(MODULE_ID, SETTINGS.debug);
     } catch {
-        // Settings not registered yet — stay quiet.
+        // Settings not registered yet - stay quiet.
     }
     if (on) console.debug(`${MODULE_ID} |`, ...args);
 }
@@ -23,21 +23,21 @@ export function debug(...args) {
 /* ==========================================================================
  * THIS SESSION'S FAILURES
  * --------------------------------------------------------------------------
- * `error()` wrote to `console.error` and nowhere else — 181 call sites, all of
+ * `error()` wrote to `console.error` and nowhere else - 181 call sites, all of
  * them invisible to anybody without DevTools open. Nobody has DevTools open
  * during a session. That is exactly how `moveProjectsTray is not defined`
  * survived a whole stage: it logged faithfully, every render, into a console
  * nobody was reading, while the feature it belonged to simply did not work.
  *
- * IN MEMORY, ON PURPOSE. "Only this session" is not a filter to write — it is
+ * IN MEMORY, ON PURPOSE. "Only this session" is not a filter to write - it is
  * what an array in a module scope already is. Reload the page and the log is
  * empty, which is the correct answer: a failure from before the reload is not
  * something the GM can act on now, and a log that accumulates across weeks is a
  * log nobody opens.
  *
  * Capped, because a failure inside a render loop produces thousands. The cap
- * keeps the FIRST ones — the first occurrence is the one that explains the
- * cause; the ten thousandth only proves it kept happening — and counts repeats
+ * keeps the FIRST ones - the first occurrence is the one that explains the
+ * cause; the ten thousandth only proves it kept happening - and counts repeats
  * instead of listing them.
  * ========================================================================== */
 
@@ -105,7 +105,7 @@ export function activeGmIds() {
  *
  * Full Gamemasters are preferred over Assistant GMs. `User#isGM` is true for
  * assistants too, so picking the lowest id across everyone with `isGM` can hand
- * the job to an assistant — and if that assistant is offline, or their id sorts
+ * the job to an assistant - and if that assistant is offline, or their id sorts
  * first while the real GM is the one running the game, the automation silently
  * never fires. Assistants are only used when no full GM is connected.
  */
@@ -140,7 +140,7 @@ export function primaryGmId() {
  *
  * Five strings in this module glued the article to a word substituted in
  * afterwards, and the words they substitute are a closed set that happens to
- * contain `evident`, `obvious`, `incident` and `autopsy` — so the sentence came
+ * contain `evident`, `obvious`, `incident` and `autopsy` - so the sentence came
  * out wrong roughly half the time it was printed.
  *
  * The letter rule rather than the sound rule ("an hour", "a unicorn") because
@@ -154,7 +154,7 @@ export function article(word) {
 /**
  * "1 item destroyed", not "1 item(s) destroyed".
  *
- * Foundry has no pluralisation of its own — `game.i18n.format` substitutes and
+ * Foundry has no pluralisation of its own - `game.i18n.format` substitutes and
  * nothing else, which is why thirty-eight strings in this module were carrying
  * a bracketed `(s)` and printing it at the table. So each of those keys is a
  * pair, `.one` and `.other`, and this picks between them.
@@ -175,7 +175,7 @@ export function plural(key, data = {}, countOn = "n") {
         form = new Intl.PluralRules(game.i18n?.lang || "en").select(n);
     } catch {
         // An unknown language tag is the only way this throws, and the answer is
-        // not to give up on the sentence — English's own rule is one/other, and
+        // not to give up on the sentence - English's own rule is one/other, and
         // it is right for the language the strings are actually written in.
         // Silent on purpose: a bad tag would otherwise log once per counted
         // string, which is several times per render.
@@ -188,14 +188,14 @@ export function plural(key, data = {}, countOn = "n") {
 /**
  * The scene the GM is actually working on.
  *
- * `game.scenes.active` is a world flag — whichever scene was last marked
+ * `game.scenes.active` is a world flag - whichever scene was last marked
  * "active" for player navigation, which a GM building next chapter's map
  * leaves pointed at the CURRENT one while they work on the NEXT. Season setup
  * used to read `game.scenes.active` for its "rooms" step and told the GM their
  * freshly-drawn regions did not exist, because the scene showing on their own
  * canvas was not the one the flag named.
  *
- * `canvas?.scene` — what is actually rendered — is what a GM configuring rooms
+ * `canvas?.scene` - what is actually rendered - is what a GM configuring rooms
  * means by "this scene", so it wins whenever there is one. The world flag is
  * only the fallback for code running with no canvas at all.
  */
@@ -214,7 +214,7 @@ export function ownerOf(actor) {
  * Marks a chat message as this module's own.
  *
  * The popup layer needs to know which messages are ours so it can raise them in
- * the middle of the screen as well as dropping them in the log — and "ours" is
+ * the middle of the screen as well as dropping them in the log - and "ours" is
  * not something that can be sniffed from the content. Half of these messages
  * are a bare `<h3>` and a paragraph with no distinguishing markup at all.
  *
@@ -233,7 +233,7 @@ function stamped(data = {}) {
 
     // Daggerheart 2.6.5's own `DhpChatMessage.migrateData` reads
     // `source.rolls.length` without checking that it is there, and a message
-    // created without dice has no `rolls` in its source at all — the schema
+    // created without dice has no `rolls` in its source at all - the schema
     // fills that in later. Every announcement and whisper this module posts
     // threw two migration errors into the console because of it. Handing it an
     // empty array costs nothing and is what the field would have become.
@@ -246,12 +246,12 @@ function stamped(data = {}) {
  *
  * A thin wrapper over `ChatMessage.create` that exists purely so public
  * announcements carry the same marker the whispers do. Anything the module says
- * out loud — a time of day, a Despair Call, an OBJECTION — goes through here.
+ * out loud - a time of day, a Despair Call, an OBJECTION - goes through here.
  */
 export async function announce(data = {}) {
     // A CARD WITH A `whisper` LIST IS A PRIVATE CARD, wherever it was posted
     // from. `announce` is the module's general-purpose poster and about a third
-    // of its callers hand it recipients — the death of a character told to the
+    // of its callers hand it recipients - the death of a character told to the
     // people in the room, a GM's ruling, an incident cancelled because a fourth
     // person walked in. Routing on the presence of the list rather than on the
     // call site means a new caller cannot forget.
@@ -259,12 +259,12 @@ export async function announce(data = {}) {
 }
 
 /**
- * Whisper to an actor's owner alone — no GM copy.
+ * Whisper to an actor's owner alone - no GM copy.
  *
  * For the notes that exist to tell the PLAYER what just happened, at moments
  * when the whole point is that the GM's screen stays quiet: an Eclipse
  * crossing card names the room somebody walked into, and during an Eclipse
- * nobody is told who went where — the GM reads the placement table when they
+ * nobody is told who went where - the GM reads the placement table when they
  * want the answer, they do not get it pushed at them move by move.
  *
  * With no player owner the card goes to the acting user instead: somebody
@@ -307,7 +307,7 @@ export async function whisperToGms(content, extra = {}) {
  *
  * A whisper is a courtesy, not a secret: Foundry delivers every chat message to
  * every connected client and hides the ones you are not addressed on. Measured
- * on a player's browser after a fresh reload — 717 messages, the same count as
+ * on a player's browser after a fresh reload - 717 messages, the same count as
  * the GM's, including "You lift X out of Player A's pocket. Nobody saw you do
  * it." So the sentence travels by addressed socket and lives in a client-scoped
  * store; the card itself stays exactly where it was. See secret.mjs.
@@ -330,14 +330,14 @@ async function privately(payload) {
 /**
  * The header every card in this module skims by.
  *
- *     Search — Dinner Hall — 14 — Tier 2
+ *     Search - Dinner Hall - 14 - Tier 2
  *     action   where          roll  what came of it
  *
  * WHY THIS IS A FUNCTION NOW. The four-slot grammar was written for the action
  * result cards and lived inside `report()` in action-rolls.mjs, which meant
  * exactly ONE of the module's 134 chat cards had it. The other hundred and
- * thirty-three opened with a hand-built `<p><strong>Label</strong> — value</p>`
- * — the same grammar, narrower, and with none of the weighting that makes the
+ * thirty-three opened with a hand-built `<p><strong>Label</strong> - value</p>`
+ * - the same grammar, narrower, and with none of the weighting that makes the
  * first one skimmable: the action loud, the room dim, the total tabular, the
  * outcome in the colour of what happened. A log you have to read card by card
  * is the thing the header was built to fix, and it only fixed a twelfth of it.
@@ -346,7 +346,7 @@ async function privately(payload) {
  * room does not claim one, and a header with no slots at all returns an empty
  * string rather than an empty rule across the card.
  *
- * Everything is escaped here. Call sites pass raw strings — several of the ones
+ * Everything is escaped here. Call sites pass raw strings - several of the ones
  * this replaced escaped some of their values and not others.
  *
  * @param {object}  slots
@@ -354,7 +354,7 @@ async function privately(payload) {
  * @param {?string} slots.room    where, when the card knows and the body below
  *                                does not already say so in a sentence.
  * @param {?(number|string)} slots.total  a roll total, to compare against a DC.
- * @param {?string} slots.result  the short answer — a tier, "Critical", a price.
+ * @param {?string} slots.result  the short answer - a tier, "Critical", a price.
  * @param {?string} slots.resultKind  what KIND of answer, when the caller knows:
  *   `"evidence"` for something found, `"critical"` for a critical. The slot was
  *   documented as taking "the colour of what happened" and then painted one
@@ -377,7 +377,7 @@ export function cardHead({ action = null, room = null, total = null, result = nu
 
     if (!slots.length) return "";
     return `<p class="drpg-card-head"${trait ? ` data-trait="${esc(trait)}"` : ""}>${
-        slots.join('<span class="drpg-card-sep">—</span>')}</p>`;
+        slots.join('<span class="drpg-card-sep">-</span>')}</p>`;
 }
 
 /**
@@ -404,7 +404,7 @@ export function clamp(value, min, max) {
  * Write a document flag as a REPLACEMENT rather than a merge.
  *
  * `setFlag` is `update({flags: {scope: {key: value}}})`, and `update` is
- * recursive — so writing `{actionKey: "listen"}` over a stored
+ * recursive - so writing `{actionKey: "listen"}` over a stored
  * `{actionKey: "search", itemId: "abc", gmRuled: true}` leaves `itemId` and
  * `gmRuled` sitting there. Anything that treats a flag as "the current state of
  * one thing" rather than "a bag of accumulated properties" needs the other
@@ -413,14 +413,14 @@ export function clamp(value, min, max) {
  * The roll bookmark needed it most, and its own comment claimed it already had
  * it. It did not: once any GM-ruled action had run, `gmRuled: true` was welded
  * onto the flag for good, and `replayAction` checks that field BEFORE it
- * switches on the action — so every later Reroll, of any action, was diverted
+ * switches on the action - so every later Reroll, of any action, was diverted
  * into "ask the GM again" and silently replayed nothing. The player paid 3 Hope
  * for it. Stale `itemId`, `projectId` and `remnantId` were attributed the same
  * way, to actions that never produced them.
  *
  * Foundry v14 expresses replacement with a ForcedReplacement operator, which
  * does it in one write. The unset/set pair is the fallback for a build without
- * it — correct, just two round trips.
+ * it - correct, just two round trips.
  */
 export async function replaceFlag(doc, key, value) {
     if (!doc) return null;
@@ -438,8 +438,8 @@ export async function replaceFlag(doc, key, value) {
  *
  * `DialogV2` runs a string `content` through `cleanHTML`, whose attribute
  * allow-list does not include `placeholder` on a `<textarea>`. Every prompt in
- * this module that explained itself through a placeholder — describe your
- * Dynamic action, write the new rule, name the project — was rendering an empty
+ * this module that explained itself through a placeholder - describe your
+ * Dynamic action, write the new rule, name the project - was rendering an empty
  * box with no hint at all, on every client, silently.
  *
  * An `HTMLElement` is trusted instead of cleaned, so building the same markup
@@ -456,7 +456,7 @@ export function dialogContent(markup) {
 }
 
 /**
- * `DialogV2.wait`, for a window built around a table — sized to fit its own
+ * `DialogV2.wait`, for a window built around a table - sized to fit its own
  * table, automatically, with no resize handle.
  *
  * WHY NOT CSS, AND WHY NOT A DRAG HANDLE. Two earlier attempts at this failed
@@ -464,7 +464,7 @@ export function dialogContent(markup) {
  *
  *   · `width: max-content !important` on the window. `!important` outranks an
  *     inline style, and both the resize handle AND ApplicationV2's own layout
- *     write inline widths — so the rule fought whatever the application had
+ *     write inline widths - so the rule fought whatever the application had
  *     just decided, and an intrinsic width on a frame that already has a pixel
  *     width left the overflowing columns invisible AND unreachable.
  *   · a manual resize handle as the escape hatch. That is a workaround asking
@@ -476,7 +476,7 @@ export function dialogContent(markup) {
  * belongs), this reads it back and sets the window to exactly that, clamped to
  * the viewport. A table narrower than the default opens narrow; a wide one
  * opens wide; nothing has to be dragged, and the one case that still cannot
- * fit — a table wider than the screen — scrolls inside `.window-content`,
+ * fit - a table wider than the screen - scrolls inside `.window-content`,
  * which is what its `overflow: auto` is for.
  *
  * `options.window` and `options.position` still win over these defaults, and
@@ -571,7 +571,7 @@ export function tableDialog(options) {
     return DialogV2.wait({
         ...rest,
         // `drpg-table-window` is not decoration: it is what keeps the default
-        // width rule in danganronpa.css — which carries `!important` — from
+        // width rule in danganronpa.css - which carries `!important` - from
         // matching this window and overriding the measured width. See the note
         // on that rule. Appended to whatever the caller asked for, so nobody
         // has to remember it at the call site.
@@ -580,7 +580,7 @@ export function tableDialog(options) {
         // ever be used to correct a size this function should have got right.
         window: { resizable: false, ...rest.window },
         // `height: auto` lets the window take its content's height, which the
-        // 80vh cap on `.window-content` then bounds — so a long table scrolls
+        // 80vh cap on `.window-content` then bounds - so a long table scrolls
         // rather than growing off the bottom of the screen.
         position: { height: "auto", ...rest.position },
         render: (event, dialog) => {
@@ -600,7 +600,7 @@ export function tableDialog(options) {
  *
  * Deferred one animation frame: at `render` time the content is in the DOM but
  * has not necessarily been laid out, and `scrollWidth` before layout reports
- * the pre-layout width — which is how a measured-fit window ends up the wrong
+ * the pre-layout width - which is how a measured-fit window ends up the wrong
  * size in exactly the cases that need it most (the widest tables).
  *
  * `scrollWidth` rather than `getBoundingClientRect().width`: the table is the
@@ -608,7 +608,7 @@ export function tableDialog(options) {
  * width, i.e. the number we already have. `scrollWidth` is the full one.
  *
  * A window whose tabs each hold their own table wants `fitWindowToTabs` below
- * instead — one size for all of them, rather than this one re-run per switch.
+ * instead - one size for all of them, rather than this one re-run per switch.
  */
 /*
  * WHICH WINDOWS HAVE ALREADY BEEN SIZED ONCE (D17, Dawid 29.08).
@@ -616,18 +616,18 @@ export function tableDialog(options) {
  * "Zakładka projects przesuwa się w lewo w losowych momentach", and the random
  * moment is any re-render. Measured on the QA world: a window at the right of
  * the screen, sent `setPosition({ width })` with no `left`, came back 104px
- * further left — 1187px wide at left 159, then 1301px wide at left 55.
+ * further left - 1187px wide at left 159, then 1301px wide at left 55.
  *
  * That is Foundry doing its job. ApplicationV2 keeps a window on screen, so
  * growing its width shrinks the largest `left` it will accept and the window is
  * pulled in from the right edge. Nothing is broken in the framework and nothing
- * was broken in the measurement either — the mistake was asking at all. A fit
+ * was broken in the measurement either - the mistake was asking at all. A fit
  * exists to size a window to its table WHEN IT OPENS. Re-running it on every
  * render means a window somebody has read, dragged and settled gets re-measured
  * behind their back, and the only visible consequence is that it walks.
  *
- * So the first fit is unchanged — a freshly centred window should widen to its
- * content, and moving while it does that is invisible and correct — and every
+ * So the first fit is unchanged - a freshly centred window should widen to its
+ * content, and moving while it does that is invisible and correct - and every
  * later fit is capped at the width that fits from where the window already is.
  * The table scrolls sideways instead, which is what `pinFooterAcrossScroll`
  * below already exists to survive.
@@ -669,7 +669,7 @@ export function fitWindowToTable(dialog) {
             fitted.add(dialog);
             const width = windowWidthFor(root, content, widest, settled);
 
-            // Nothing to do when we are already there — `setPosition` triggers
+            // Nothing to do when we are already there - `setPosition` triggers
             // a re-render, and re-rendering on every open for no change is how
             // a window ends up flickering.
             if (Math.abs(root.getBoundingClientRect().width - width) < 2) {
@@ -700,7 +700,7 @@ export function fitWindowToTable(dialog) {
  * Foundry can only honour by moving the window.
  *
  * The cap can never shrink a window below what it already is. Foundry keeps the
- * right edge on screen, so `left` is never more than `viewport - width` — which
+ * right edge on screen, so `left` is never more than `viewport - width` - which
  * makes the space to the right of `left` at least the current width, always.
  */
 function windowWidthFor(root, content, widest, settled = false) {
@@ -733,12 +733,12 @@ function windowWidthFor(root, content, widest, settled = false) {
  * Room Setup holds five tables behind five tabs and they are nothing like each
  * other: Bedrooms is two columns, Fog is one column per room. Fitting the
  * window on every switch made it right for whichever tab was showing and made
- * the window itself jump — measured at 708px on Bedrooms and 1504 on Fog, on
+ * the window itself jump - measured at 708px on Bedrooms and 1504 on Fog, on
  * the same screen, in one sitting. A GM comparing two tabs was watching the
  * window resize under them, and Dawid asked for the big one and no jumping
  * (26.08).
  *
- * So every tab is measured once, on open, and the window takes the largest —
+ * So every tab is measured once, on open, and the window takes the largest -
  * which is Fog, by construction, since it grows a column per room.
  *
  * A hidden panel measures zero, so each is shown in turn for the measurement
@@ -747,7 +747,7 @@ function windowWidthFor(root, content, widest, settled = false) {
  * during it.
  *
  * The height cap is READ from the content's own computed `max-height` rather
- * than written here again — the 80vh lives in the stylesheet, and a copy of it
+ * than written here again - the 80vh lives in the stylesheet, and a copy of it
  * in this file is a second place for it to be wrong.
  */
 export function fitWindowToTabs(dialog) {
@@ -764,7 +764,7 @@ export function fitWindowToTabs(dialog) {
             // every other tabbed window uses `panelTabs`, whose sections are
             // switched by a class. Measuring only the first meant `fitTabs:
             // true` silently fell through to `fitWindowToTable` on the second
-            // — one tab measured instead of all of them, which is the exact
+            // - one tab measured instead of all of them, which is the exact
             // failure the option exists to prevent.
             const panels = [...content.querySelectorAll(
                 "[data-drpg-panel], [data-drpg-gmt-section]")];
@@ -779,7 +779,7 @@ export function fitWindowToTabs(dialog) {
                     for (const panel of panels) {
                         // `block`, not `""`. An empty string hands the element
                         // back to the stylesheet, and `.drpg-gmt-section` is
-                        // `display: none` there unless it carries `.active` —
+                        // `display: none` there unless it carries `.active` -
                         // so the panel being measured would measure as hidden.
                         panel.style.display = panel === shown ? "block" : "none";
                     }
@@ -825,7 +825,7 @@ export function fitWindowToTabs(dialog) {
  * C-F5-8. `position: sticky; left: 0` is on the footer already and does nothing
  * on its own, for two reasons that have to be fixed together:
  *
- *   Sticky travels inside its CONTAINING BLOCK, and the footer's is the form —
+ *   Sticky travels inside its CONTAINING BLOCK, and the footer's is the form -
  *   which takes the container's width while the table inside it runs far wider.
  *   Past the form's own width there is no block left to stick to.
  *
@@ -837,7 +837,7 @@ export function fitWindowToTabs(dialog) {
  * stylesheet cannot ask: whether this window actually scrolls sideways. Writing
  * `min-width: max-content` on every table form instead forced the Investigation
  * dashboard's table out of the 1470px it was comfortably compressed to, to its
- * full 1560 — inventing 90px of scroll in a window that had none, and pushing
+ * full 1560 - inventing 90px of scroll in a window that had none, and pushing
  * that window's own buttons out of reach. Measured, and the reason this reads
  * the box rather than trusting a percentage: `max-width: 100%` on the footer
  * resolves against the widened form, not against the window anyone is looking
@@ -856,7 +856,7 @@ export function pinFooterAcrossScroll(dialog) {
         const footer = root.querySelector("footer.form-footer");
         if (!content || !form || !footer) return;
 
-        // The scrollport, measured — this is the number the bar has to fit in.
+        // The scrollport, measured - this is the number the bar has to fit in.
         const port = content.clientWidth;
         const scrolls = content.scrollWidth > port + 1;
 
@@ -881,14 +881,14 @@ export function pinFooterAcrossScroll(dialog) {
 }
 
 /**
- * A `<style>` element carrying the select picker's row states — a workaround,
+ * A `<style>` element carrying the select picker's row states - a workaround,
  * not a stylistic choice, and worth the paragraph:
  *
  * The module's stylesheet reaches the page through Foundry's
  * `@import … layer(modules)`, and Chromium 146–148 PAINTS a `base-select`
  * picker's checked row from everything EXCEPT that kind of sheet: computed
  * style reports the module's colour, the pixels show the browser's own pale
- * highlight. Measured on 2026-08-26 with three probes — the same rule
+ * highlight. Measured on 2026-08-26 with three probes - the same rule
  * injected as a `<style>` element paints correctly on a fresh open, with or
  * without `!important`, layered or not; from the imported sheet it never
  * does. So the row-state declarations live twice: canonically in
@@ -925,17 +925,17 @@ export function injectSelectPickerSkin() {
  *
  * `content` is handed to `DialogV2.wait` as a detached `<div>`, but DialogV2's
  * own `_initializeApplicationOptions` immediately reads `content.innerHTML`
- * and throws the element itself away — the dialog is rebuilt from that string,
+ * and throws the element itself away - the dialog is rebuilt from that string,
  * so a click listener attached to the original element is attached to a node
  * that never joins the page. This is documented in Foundry's own dialog.mjs:
  * "the element will get stringified, so any listeners ... will not carry
  * forward to the dialog; you must still use the `render` option." Attaching
  * from `render`, against `dialog.element`, is what actually keeps the click
- * live — attaching beforehand is exactly why the button did nothing.
+ * live - attaching beforehand is exactly why the button did nothing.
  *
  * Expects `<img data-drpg-portrait="{id}">` (or a bare `data-drpg-portrait`
  * for a single-image form) beside `<input type="hidden" name="img.{id}">`
- * (or `name="img"`) — the same markup `projects-ui.mjs` and
+ * (or `name="img"`) - the same markup `projects-ui.mjs` and
  * `investigation.mjs` both build their portrait cells from.
  */
 export function wirePortraitPickers(root, { defaultImg = null } = {}) {
@@ -962,11 +962,11 @@ export function wirePortraitPickers(root, { defaultImg = null } = {}) {
 
 /**
  * A tabbed body for a GM-panel window: one bar, one pane per section, the
- * GM Team look everywhere it is used (Dawid, 26.08 — "if a GM panel window
+ * GM Team look everywhere it is used (Dawid, 26.08 - "if a GM panel window
  * has tabs, they look like GM Team's").
  *
  * Markup only; wire it from the dialog's `render` with `wirePanelTabs`, for
- * the same reason `wirePortraitPickers` documents above — DialogV2 stringifies
+ * the same reason `wirePortraitPickers` documents above - DialogV2 stringifies
  * the content, so listeners must be attached to the mounted DOM.
  *
  * Every pane STAYS in the DOM whichever tab is showing: a hidden input still
@@ -999,20 +999,20 @@ export function panelTabs(sections) {
  * A DialogV2 has one footer for the whole window, so a four-tab window shows
  * all four tabs' buttons on all four tabs. In Item Tables that produced a
  * default button reading "Add an item" while the pane it reads from was not on
- * screen — the GM pressed the obvious button and the window answered about a
+ * screen - the GM pressed the obvious button and the window answered about a
  * form they could not see. It is not that footer's bug: it is a gap here, and
  * the same gap was waiting for every tabbed window added afterwards.
  *
  * HIDDEN IS NOT ENOUGH, AND THAT IS THE WHOLE TRAP. Measured against
  * DialogV2 on 14.365: footer buttons are `type="submit"` inside the dialog's
- * form, and `_onKeyDown` intercepts Escape only — so Enter goes through the
+ * form, and `_onKeyDown` intercepts Escape only - so Enter goes through the
  * browser's implicit submission, which picks the FIRST SUBMIT BUTTON IN TREE
  * ORDER and does not care whether it is visible. `autofocus` (which is all
  * `default: true` sets) does not decide it either. A hidden button therefore
  * still answers the Enter key. It has to be DISABLED as well, because the spec
  * skips a disabled default button and nothing else in the chain does.
  *
- * Assumes the footer's buttons are not disabled for reasons of their own —
+ * Assumes the footer's buttons are not disabled for reasons of their own -
  * true everywhere this is used, and `_onSubmit` restores its own temporary
  * disabling from a snapshot, so a submit mid-switch cannot strand one.
  *

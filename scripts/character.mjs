@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — character helpers.
+ * Danganronpa RPG - character helpers.
  * ---------------------------------------------------------------------------
  * Daggerheart derives a character's max Health from their class. We have no
  * classes, so the starting resources from the guide have to be written onto
@@ -20,8 +20,8 @@ import { log } from "./utils.mjs";
  * @param {object} [options]
  * @param {boolean} [options.resetValues]  Also refill Health/Sanity and reset Hope.
  * @param {string|null} [options.startingItem]  Name of the Tier 2 item this
- *   student begins with. The guide gives everybody one — "rozpoczyna grę z
- *   jednym przedmiotem Tier 2 związanym z jego Ultimate" — and in the same
+ *   student begins with. The guide gives everybody one - "rozpoczyna grę z
+ *   jednym przedmiotem Tier 2 związanym z jego Ultimate" - and in the same
  *   breath says it is "do uzgodnienia z każdym graczem z osobna". So it is a
  *   parameter rather than a table: the module cannot invent an object that is
  *   meaningfully tied to "Ultimate Baseballista", and should not pretend to.
@@ -49,7 +49,7 @@ export async function initCharacter(actor, {
     }
 
     // Through the automation channel, not a bare update. Health and Sanity became
-    // GM-only in 1.0.1, and this writes both — so a plain `update()` from a
+    // GM-only in 1.0.1, and this writes both - so a plain `update()` from a
     // player pressing the set-up wand on their own sheet would be stripped by
     // the guard and the character would come out with the maxima set and the
     // values untouched. Setting a character up IS automation; it just happens to
@@ -61,7 +61,7 @@ export async function initCharacter(actor, {
     //
     // `override: true` on purpose: this is the GM writing down something the two
     // of them settled before the season, not a Search result, so the carry cap
-    // must not silently drop it. It is granted once — re-running `initCharacter`
+    // must not silently drop it. It is granted once - re-running `initCharacter`
     // without a name leaves whatever they already have alone.
     if (startingItem) {
         const { grantItem } = await import("./inventory.mjs");
@@ -71,7 +71,7 @@ export async function initCharacter(actor, {
             tier: STARTING.startingItemTier,
             override: true,
             description: game.i18n.format("DRPG.Character.startingItemNote", {
-                ultimate: actor.getFlag(MODULE_ID, FLAGS.ultimate) || "—"
+                ultimate: actor.getFlag(MODULE_ID, FLAGS.ultimate) || "-"
             })
         });
         log(`${actor.name} starts with "${startingItem}" (Tier ${STARTING.startingItemTier}).`);
@@ -94,11 +94,11 @@ export async function initCharacter(actor, {
  * Write down the spread a character begins with.
  *
  * Traits and experiences are the one part of a character this module never
- * writes on its own — they are settled in conversation with the GM, and
+ * writes on its own - they are settled in conversation with the GM, and
  * `validateTraitSpread` only ever reports on them. Advancement is the
  * exception: it adds `+delta` to both and bumps `FLAGS.advances`.
  *
- * That leaves a season reset with nothing to restore and two bad choices —
+ * That leaves a season reset with nothing to restore and two bad choices -
  * zero the counter and leave the bonuses, so the sheet says "no advances" over
  * advanced numbers, or re-deal `TRAIT_ARRAY` and scramble a spread the player
  * chose. This is the third choice, and it is the same one Room Setup makes for
@@ -122,12 +122,12 @@ async function stampStartingSheet(actor) {
  * Put a character back to the sheet they started the season on.
  *
  * Restores the recorded trait spread and the values of the experiences that
- * existed then, and clears the advance counter — those three move together, and
+ * existed then, and clears the advance counter - those three move together, and
  * clearing one without the others is what leaves a sheet arguing with itself.
  *
  * Experiences ADDED by an advance keep their names and whatever value they
  * hold. An experience is a sentence about who somebody is, which puts it on the
- * far side of the line this reset draws — the same side as the portrait and the
+ * far side of the line this reset draws - the same side as the portrait and the
  * Ultimate. Their values are not restored because there is nothing to restore
  * them to; they did not exist on day one.
  *
@@ -153,7 +153,7 @@ export async function restoreStartingSheet(actor) {
 
     if (Object.keys(update).length) {
         // `system.traits` is guarded against hand-editing, so a plain update
-        // would have the trait writes stripped and the rest go through — the
+        // would have the trait writes stripped and the rest go through - the
         // same half-application `applyAdvancement` guards against.
         const { automatedUpdate } = await import("./resource-guard.mjs");
         await automatedUpdate(actor, update);
@@ -193,7 +193,7 @@ export function isWounded(actor) {
 /**
  * Whether the trait spread matches the guide's array (+2, +1, +1, 0, 0, -1).
  * Character creation is a conversation with the GM, not a wizard, so this only
- * reports — it never blocks.
+ * reports - it never blocks.
  */
 export function validateTraitSpread(actor) {
     const values = Object.values(TRAITS)

@@ -1,8 +1,8 @@
 /**
- * DRPG voice spike — LiveKit breakout probe (temporary, GM only)
+ * DRPG voice spike - LiveKit breakout probe (temporary, GM only)
  * ---------------------------------------------------------------------------
  * HISTORICAL. Question 1 below was answered "yes", and the module was built on
- * that answer — then rebuilt, because "the client CAN be moved this way" turned
+ * that answer - then rebuilt, because "the client CAN be moved this way" turned
  * out not to mean "the client WILL be": avclient-livekit only listens on that
  * socket between its own `ready` and the next refresh, and drops anything that
  * arrives earlier. scripts/voice.mjs no longer uses the registry or that socket;
@@ -16,8 +16,8 @@
  * built for real.
  *
  *   1. Can a client be forced into an arbitrary named room from OUTSIDE the
- *      module — by writing its breakoutRoomRegistry setting and emitting its
- *      own socket event — the same way scripts/voice.mjs would need to?
+ *      module - by writing its breakoutRoomRegistry setting and emitting its
+ *      own socket event - the same way scripts/voice.mjs would need to?
  *   2. How long does the reconnect take (rough timing only; watch the second
  *      client with your own eyes and ears for the real answer)?
  *   3. Does this world actually have LiveKit credentials configured, or just
@@ -27,7 +27,7 @@
  *   1. Enable "LiveKit AVClient" and configure a real server under
  *      Configure Game Settings > Audio/Video (Forge / Tavern / Custom).
  *   2. Log in as GM in one browser, and as a second REAL test account in a
- *      second browser (or a private window) — a second tab as the same user
+ *      second browser (or a private window) - a second tab as the same user
  *      will not prove anything, you need two distinct connections.
  *   3. Run this macro as the GM. Pick the test account, type a room name,
  *      click Assign.
@@ -38,7 +38,7 @@
  *      back, and again with a different room name to get a feel for how
  *      disruptive switching is.
  *
- * Delete this macro once scripts/voice.mjs (Etap C) ships — it exists only
+ * Delete this macro once scripts/voice.mjs (Etap C) ships - it exists only
  * to answer the question above once, on your real Forge setup.
  */
 
@@ -52,12 +52,12 @@ if (!game.user.isGM) {
 
 const mod = game.modules.get(AV_MODULE);
 if (!mod?.active) {
-    ui.notifications.error(`"${AV_MODULE}" is not installed or not enabled — turn it on first.`);
+    ui.notifications.error(`"${AV_MODULE}" is not installed or not enabled - turn it on first.`);
     return;
 }
 
 /* ==========================================================================
- * QUESTION 3 — what is actually configured, without printing secrets
+ * QUESTION 3 - what is actually configured, without printing secrets
  * ========================================================================== */
 
 console.group("DRPG voice spike");
@@ -72,26 +72,26 @@ try {
 
 try {
     // This is the module's own connection settings object, as seen in its
-    // source (LiveKitAVClient.ts). Key names may differ across versions —
+    // source (LiveKitAVClient.ts). Key names may differ across versions -
     // that is exactly what we are checking, so failure here is itself an
     // answer, not a bug in this script.
     const conn = game.settings.get(AV_MODULE, "liveKitConnectionSettings");
     const safe = conn ? { ...conn } : null;
     if (safe) {
         for (const key of ["apiKey", "secretKey", "tavernPatreonToken"]) {
-            if (key in safe) safe[key] = safe[key] ? "(set — value hidden)" : "(empty)";
+            if (key in safe) safe[key] = safe[key] ? "(set - value hidden)" : "(empty)";
         }
     }
     console.log(`${AV_MODULE}.liveKitConnectionSettings (secrets masked):`, safe);
 } catch (err) {
-    console.warn(`Could not read ${AV_MODULE}.liveKitConnectionSettings — the setting key may have changed:`, err);
+    console.warn(`Could not read ${AV_MODULE}.liveKitConnectionSettings - the setting key may have changed:`, err);
 }
 
 console.groupEnd();
 ui.notifications.info("Connection details logged to the console (F12). Secrets are masked there too.");
 
 /* ==========================================================================
- * QUESTIONS 1 & 2 — force a target user into a named room, time it
+ * QUESTIONS 1 & 2 - force a target user into a named room, time it
  * ========================================================================== */
 
 const others = game.users.filter(u => u.id !== game.user.id);
@@ -105,9 +105,9 @@ const userOptions = others
     .join("");
 
 const result = await DialogV2.wait({
-    window: { title: "Voice spike — assign a breakout room" },
+    window: { title: "Voice spike - assign a breakout room" },
     content: `<form>
-        <p>Pick the test account and a room name, then watch <em>their</em> client —
+        <p>Pick the test account and a room name, then watch <em>their</em> client -
         this only reports whether the assignment was sent, not whether it worked.</p>
         <label>Target user
             <select name="userId">${userOptions}</select>
@@ -154,10 +154,10 @@ try {
     console.timeEnd("DRPG voice spike: registry write + socket emit");
 
     ui.notifications.info(result.room
-        ? `Sent. Watch ${targetName}'s client — do they land in "${result.room}"? Time the reconnect yourself.`
-        : `Sent. Watch ${targetName}'s client — do they return to the main room?`);
+        ? `Sent. Watch ${targetName}'s client - do they land in "${result.room}"? Time the reconnect yourself.`
+        : `Sent. Watch ${targetName}'s client - do they return to the main room?`);
 } catch (err) {
     console.error("DRPG voice spike: could not write/emit the breakout assignment.", err);
-    ui.notifications.error(`Could not reach ${AV_MODULE}'s breakout settings — see console (F12). `
+    ui.notifications.error(`Could not reach ${AV_MODULE}'s breakout settings - see console (F12). `
         + "This itself answers question 1: the registry/socket approach needs rework.");
 }

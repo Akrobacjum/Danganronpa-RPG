@@ -1,11 +1,11 @@
 /**
- * Danganronpa RPG — the regression suite.
+ * Danganronpa RPG - the regression suite.
  * ---------------------------------------------------------------------------
  *     game.drpg.runTests()            everything
  *     game.drpg.runTests({ tier: 1 }) regressions + invariants, world untouched
  *     game.drpg.runTests({ tier: 0 }) the module-wide regression pass alone
  *
- * WHAT IS IN HERE AND WHY. Not "coverage" — the things that have actually been
+ * WHAT IS IN HERE AND WHY. Not "coverage" - the things that have actually been
  * broken. Every tier-2 scenario below is a bug somebody hit at the table or a
  * measurement that caught the module lying: the killers' side acting twice per
  * round, a Finishing Blow that announced a death and left the victim standing,
@@ -23,7 +23,7 @@
  *          REGRESSIONS for the six that got out before it existed.
  *   Tier 1 reads. It cannot change the world, so it is safe to run at any point
  *          in a session, including during play.
- *   Tier 2 writes. It opens incidents, kills people and resets seasons — so it
+ *   Tier 2 writes. It opens incidents, kills people and resets seasons - so it
  *          builds its own fixtures, records what it displaced, and puts
  *          everything back. Never run it in a world somebody is playing in.
  *
@@ -62,7 +62,7 @@ function ok(condition, message) {
 
 function equal(actual, expected, message) {
     if (actual !== expected) {
-        throw new Failure(`${message} — expected ${JSON.stringify(expected)}, measured ${JSON.stringify(actual)}`);
+        throw new Failure(`${message} - expected ${JSON.stringify(expected)}, measured ${JSON.stringify(actual)}`);
     }
 }
 
@@ -72,14 +72,14 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 const settle = () => wait(400);
 
 /* ==========================================================================
- * TIER 0 — MODULE-WIDE REGRESSION
+ * TIER 0 - MODULE-WIDE REGRESSION
  * ========================================================================== */
 
 /**
  * WHY A THIRD TIER, AND WHY IT READS SOURCE INSTEAD OF CALLING FUNCTIONS.
  *
  * Look at which defects in this update surfaced LAST. Not one of them was bad
- * logic. Every one was a DIVERGENCE — code saying one thing and doing another,
+ * logic. Every one was a DIVERGENCE - code saying one thing and doing another,
  * in a place where nothing throws:
  *
  *   - three sounds played on the wrong client for four releases, because the
@@ -100,7 +100,7 @@ const settle = () => wait(400);
  * THE SELECTION RULE, and it is the only one: every criterion below points at a
  * defect this project actually shipped, or came within one commit of shipping.
  * A regression test nobody can name a bug for is a test that gets deleted the
- * first time it is inconvenient — so each one carries its bug in the comment.
+ * first time it is inconvenient - so each one carries its bug in the comment.
  *
  * Tier 0 does not write to the world. R12 opens windows and closes them again;
  * R10 calls hot functions and throws the answers away.
@@ -115,7 +115,7 @@ let sourceCache = null;
  * CRAWLED FROM `module.mjs`, NOT LISTED. A list is the thing that rots: the
  * file added next month is exactly the one nobody remembers to add here, and it
  * would be silently exempt from all thirteen criteria while the suite kept
- * reporting green. The crawl cannot have that hole — a file nothing imports is
+ * reporting green. The crawl cannot have that hole - a file nothing imports is
  * a file Foundry never loads either. Measured: 88 on disk, 88 reached.
  */
 async function moduleSources() {
@@ -138,7 +138,7 @@ async function moduleSources() {
     return out;
 }
 
-/** The same, minus this file — which quotes every pattern it hunts for. */
+/** The same, minus this file - which quotes every pattern it hunts for. */
 async function otherSources() {
     const all = await moduleSources();
     return [...all].filter(([file]) => file !== "tests.mjs");
@@ -156,7 +156,7 @@ async function otherSources() {
 function stripComments(text) {
     // NEWLINES SURVIVE, and the first run is why. Collapsing a block comment to
     // one space shortens the file by every line it spanned, so every `file:line`
-    // this tier reported pointed at innocent code — `movement.mjs:629`, which is
+    // this tier reported pointed at innocent code - `movement.mjs:629`, which is
     // a variable declaration, for a call that lives two hundred lines further
     // down. A failure message nobody can follow is worse than no message.
     return text
@@ -189,7 +189,7 @@ const lineAt = (text, index) => text.slice(0, index).split("\n").length;
  * R22 asks which names this module calls, and half the module's output is
  * HTML built in template literals. Without this, `"<button onclick="` and
  * every other parenthesis inside a sentence reads as a call to something that
- * does not exist — and a tier-0 test that cries wolf is a tier-0 test people
+ * does not exist - and a tier-0 test that cries wolf is a tier-0 test people
  * learn to skip. Lengths are preserved so `lineAt` still points at the code.
  */
 function stripStrings(text) {
@@ -238,7 +238,7 @@ function stripStrings(text) {
 
 /**
  * Every name a file BINDS: imported, declared, destructured, taken as a
- * parameter. Generous on purpose — R22 reports what is in none of these, so
+ * parameter. Generous on purpose - R22 reports what is in none of these, so
  * a name this misses is a false accusation, and a name it over-collects is
  * only a miss.
  */
@@ -250,7 +250,7 @@ function boundNames(text) {
     for (const m of text.matchAll(/import\s+([\s\S]*?)\s+from\b/g)) add(m[1]);
     // THE PARAMETER LIST IS WALKED, not matched. `function createProject({ name,
     // rooms = allRooms() })` has parentheses inside its own parameters, and a
-    // `[^()]*` pattern simply fails on it — which took the FUNCTION'S NAME down
+    // `[^()]*` pattern simply fails on it - which took the FUNCTION'S NAME down
     // with it and had the first run of R22 accuse twenty-three real, exported,
     // perfectly reachable functions of not existing.
     for (const m of text.matchAll(/\bfunction\s*\*?\s*([A-Za-z_$][\w$]*)?\s*\(/g)) {
@@ -330,7 +330,7 @@ function functionsOnly(text) {
     }
     // A name that is ALSO a value somewhere in this file is out of scope: the
     // boolean is reading that value, not the function. Five of the six the
-    // first run of this reported were exactly that — a parameter named
+    // first run of this reported were exactly that - a parameter named
     // `grants`, a `let done = false`, a `const label`.
     // EVERY PARAMETER NAME IN THE FILE, GATHERED ONCE. The first version asked
     // this question per candidate, and each asking walked the whole file: about
@@ -347,7 +347,7 @@ function functionsOnly(text) {
         // THE SPACE GOES INSIDE THE LOOKAHEAD. With `\\s*` in front of it the
         // engine is free to match zero spaces, hand the lookahead " () =>", watch
         // it fail on the leading space and conclude the declaration is a value.
-        // Every arrow in the module read as one, so R21 saw nothing at all —
+        // Every arrow in the module read as one, so R21 saw nothing at all -
         // including the fault written into its own fixture.
         const asValue = new RegExp(`\\b(?:const|let|var)\\s+${name}\\s*=(?!\\s*(?:async\\s*)?(?:\\([^()]{0,120}\\)|[A-Za-z_$][\\w$]*)\\s*=>)`);
         if (asValue.test(text)) fns.delete(name);
@@ -383,7 +383,7 @@ const REGRESSIONS = [
          * DYNAMIC KEYS ARE OUT OF SCOPE ON PURPOSE, not by oversight: a key
          * assembled from a table (`DRPG.Trap.trigger.${kind}`) cannot be
          * resolved without knowing the table, and the tables have their own
-         * both-directions invariants. What this owns is the literal — which is
+         * both-directions invariants. What this owns is the literal - which is
          * where the misses have actually been.
          */
         const missing = new Map();
@@ -392,7 +392,7 @@ const REGRESSIONS = [
             const text = stripComments(raw);
             for (const m of text.matchAll(/"(DRPG\.[A-Za-z0-9_.]+)"/g)) {
                 const key = m[1];
-                // A key built by hand — `"DRPG.Clock." + slot` — is a PREFIX,
+                // A key built by hand - `"DRPG.Clock." + slot` - is a PREFIX,
                 // and asking whether a prefix resolves is the wrong question.
                 if (key.endsWith(".")) continue;
                 if (/^\s*[+`]/.test(text.slice(m.index + m[0].length, m.index + m[0].length + 3))) continue;
@@ -408,7 +408,7 @@ const REGRESSIONS = [
                 if (!missing.has(key)) missing.set(key, `${file}:${lineAt(text, m.index)}`);
             }
         }
-        ok(checked > 1000, `only ${checked} keys were read — the crawl is not reaching the module`);
+        ok(checked > 1000, `only ${checked} keys were read - the crawl is not reaching the module`);
         ok(!missing.size, `these keys print themselves at the table: ${
             [...missing].map(([k, w]) => `${k} (${w})`).join(", ")}`);
     }],
@@ -422,19 +422,19 @@ const REGRESSIONS = [
          * where you cannot tell which half of a selector is load-bearing.
          *
          * ONE DIRECTION, NOT TWO, AND THE MEASUREMENT IS WHY. The other
-         * direction — "every class named in a script has a rule" — was built,
+         * direction - "every class named in a script has a rule" - was built,
          * run, and dropped: 478 class names in the scripts, 133 of them with no
          * rule. Narrowed to the 173 that appear inside a `class="…"` attribute
          * it still reported 8, and all eight are structural: grid children that
          * take their placement from the parent (`drpg-tables-left`), wrappers
          * (`drpg-requirements`), live-region markers. A test that fails on those
-         * is a test demanding the markup be made LESS readable — the same trap
+         * is a test demanding the markup be made LESS readable - the same trap
          * as the E21 trigger test that demanded a worse implementation. So the
          * direction that measured zero and has real teeth is the one that runs.
          */
         const css = await moduleStyles();
         const inSheet = new Set([...css.matchAll(/\.(drpg-[a-z0-9-]+)/g)].map(m => m[1]));
-        ok(inSheet.size > 200, `only ${inSheet.size} rules were read — the stylesheets did not load`);
+        ok(inSheet.size > 200, `only ${inSheet.size} rules were read - the stylesheets did not load`);
 
         const named = new Set();
         const families = new Set();
@@ -443,7 +443,7 @@ const REGRESSIONS = [
                 named.add(m[0]);
                 // `drpg-outcome-${tone}` NAMES A FAMILY, not a class, and the
                 // whole family is emitted by that one line. The trailing dash is
-                // what marks it — and `drpg-` on its own is excluded, because
+                // what marks it - and `drpg-` on its own is excluded, because
                 // `drpg-${anything}` would otherwise vouch for every rule in the
                 // sheet and this test would pass by saying nothing.
                 if (/^drpg-[a-z0-9]+[a-z0-9-]*-$/.test(m[0])) families.add(m[0]);
@@ -472,7 +472,7 @@ const REGRESSIONS = [
     ["R3 · every sound a card asks for is a sound that exists", async () => {
         /*
          * `onCreateChatMessage` reads `flags.danganronpa-rpg.sfx` and plays it.
-         * A typo there is silence — no error, no warning, and the failure looks
+         * A typo there is silence - no error, no warning, and the failure looks
          * exactly like a GM who has not mapped a file to that event yet.
          *
          * Same failure mode as `yieldsTo`, which already has an invariant. That
@@ -485,7 +485,7 @@ const REGRESSIONS = [
             // TWO SHAPES, AND THE FIRST VERSION OF THIS TEST ONLY SAW ONE.
             // The flag is written either bare (`sfx: "chatSend"`) or with an
             // audience (`sfx: { key: "eclipseEnd", gm: true }`), and the split
-            // is almost even — 13 of the first, 12 of the second. Reading only
+            // is almost even - 13 of the first, 12 of the second. Reading only
             // the bare form left every GM-audience sound unchecked, which is
             // the half where a silent miss costs most: the death, the body,
             // the safeword. Found in E17 by measuring an Eclipse ending.
@@ -508,7 +508,7 @@ const REGRESSIONS = [
          * question, which is the one a GM feels: `newRule` had been in the
          * catalogue since v1.1.8, with a label and a hint and a row in the Sound
          * panel, and nothing anywhere posted it. A GM could pick a file, press
-         * Test, hear it, map it — and then never hear it again, because the only
+         * Test, hear it, map it - and then never hear it again, because the only
          * card that announces a new rule carried no flag.
          *
          * That is the worst kind of silence in this module: the panel promises,
@@ -538,7 +538,7 @@ const REGRESSIONS = [
     ["R4 · every setting the module reaches for is a setting it registered", async () => {
         /*
          * A SETTING THAT WAS NEVER REGISTERED ANSWERS WITH ITS DEFAULT AND DOES
-         * NOT BLINK. Not an exception, not a warning — the wrong answer,
+         * NOT BLINK. Not an exception, not a warning - the wrong answer,
          * forever, in a module where half the rules of the game live in world
          * settings.
          *
@@ -551,7 +551,7 @@ const REGRESSIONS = [
         for (const [, raw] of await otherSources()) {
             for (const m of stripComments(raw).matchAll(/\bSETTINGS\.(\w+)\b/g)) used.add(m[1]);
         }
-        ok(used.size > 30, `only ${used.size} settings were seen — the crawl is not reaching the module`);
+        ok(used.size > 30, `only ${used.size} settings were seen - the crawl is not reaching the module`);
 
         const declared = new Set(Object.keys(SETTINGS));
         const undeclared = [...used].filter(k => !declared.has(k));
@@ -566,7 +566,7 @@ const REGRESSIONS = [
 
         // And every one of them says out loud which side of the wire it lives
         // on. Foundry defaults `scope` to "world", so a store that was meant to
-        // be private and simply forgot to say so is sent to every client — the
+        // be private and simply forgot to say so is sent to every client - the
         // exact shape of the mistake R9 exists to catch downstream.
         const noScope = [...declared].filter(k =>
             !game.settings.settings.get(`${MODULE_ID}.${SETTINGS[k]}`)?.scope);
@@ -602,8 +602,8 @@ const REGRESSIONS = [
                 /*
                  * 400, AND IT WAS 120 (Dawid, 29.08: the Truth Bullet sound).
                  *
-                 * `createTruthBullet` refuses a non-GM in the ordinary way — a
-                 * `warn`, a notification, `return null` — and then played the
+                 * `createTruthBullet` refuses a non-GM in the ordinary way - a
+                 * `warn`, a notification, `return null` - and then played the
                  * find with `playSfx`. This rule was written for exactly that
                  * and did not see it: at 120 characters the window closed
                  * before the `return`, because a guard that explains itself to
@@ -633,7 +633,7 @@ const REGRESSIONS = [
          *
          * THE FIRST HALF IS NOT WHERE IT LOOKS. Nine of these have no GM branch
          * of their own and all nine are correct: the branch lives in the domain
-         * function that calls them — `sabotageProject` does the work itself when
+         * function that calls them - `sabotageProject` does the work itself when
          * it is the GM and only reaches for the bridge otherwise. So the question
          * is not "does the bridge have a branch" but "can a GM get here at all",
          * which is the call site's business, and that is what this reads.
@@ -665,7 +665,7 @@ const REGRESSIONS = [
                      * shapes, not one. `if (!game.user.isGM) { …request… }` is
                      * the common one; `if (game.user.isGM) { do it here } else
                      * { …request… }` is the other, and demanding the `!` read
-                     * the second as unguarded on the first run — which is the
+                     * the second as unguarded on the first run - which is the
                      * test asking for a worse implementation of a correct
                      * function.
                      *
@@ -691,7 +691,7 @@ const REGRESSIONS = [
         /*
          * REROLL UNDOES AN ACTION AND PLAYS IT AGAIN, and everything it needs to
          * do that comes off one flag written by whoever made the roll. A field
-         * it reads that nobody writes is a Reroll that quietly does nothing —
+         * it reads that nobody writes is a Reroll that quietly does nothing -
          * and in E12 it did worse than nothing: it explained itself, wrongly,
          * because `bookmark.cleanup` held a token id for one action and a NAME
          * for two others.
@@ -709,7 +709,7 @@ const REGRESSIONS = [
         const elsewhere = [...sources].filter(([f]) => f !== "reroll.mjs")
             .map(([, raw]) => stripComments(raw)).join("\n");
         // Written as a key (`remnantId: doc.id`) or as shorthand inside a
-        // context object (`{ room, category, goal }`) — both are writes.
+        // context object (`{ room, category, goal }`) - both are writes.
         const orphans = [...reads].filter(f =>
             !new RegExp(`[{,]\\s*${f}\\s*[,}:]`).test(elsewhere));
         ok(!orphans.length,
@@ -760,7 +760,7 @@ const REGRESSIONS = [
         /*
          * FOUNDRY SENDS THE WHOLE WORLD TO EVERY CLIENT. A world-scoped setting
          * is readable from any player's console, in full, whatever the interface
-         * chooses to show — so the entire murder mystery rests on one rule: what
+         * chooses to show - so the entire murder mystery rests on one rule: what
          * a Remnant really is, who left it, what it points at and how hard it is
          * to read never leaves the GM's own browser.
          *
@@ -771,7 +771,7 @@ const REGRESSIONS = [
          * KNOWN AND DELIBERATE: `projectMeta` is world-scoped and carries
          * `killerId` and the trap's `condition`, so an indirect murder's owner
          * is legible from a player's console today. That is Dawid's call, not a
-         * slip — `secret` was specified as hiding the UI — and it is written
+         * slip - `secret` was specified as hiding the UI - and it is written
          * down here so the next reader does not think it got past this test.
          */
         const FORBIDDEN = ["sourceActor", "realType", "pointsAt", "dc", "tiedToCrime"];
@@ -797,7 +797,7 @@ const REGRESSIONS = [
 
     ["R10 · the hot lookups stay under their ceiling", async () => {
         /*
-         * FOUND BY MEASUREMENT, NEVER BY FAILURE — which is the whole argument
+         * FOUND BY MEASUREMENT, NEVER BY FAILURE - which is the whole argument
          * for having this at all. E11's stash lookup ran 0.218 ms with twelve
          * items in a room because `regionsByName` rebuilt its map twice per
          * item. Nothing broke. Nothing warned. It was quadratic and it shipped,
@@ -859,8 +859,8 @@ const REGRESSIONS = [
          * because it runs on the GM's machine and `hasGm()` is true by
          * construction. Faking that would mean reaching into `game.users` mid
          * run, which is a lie told to every other listener in the world at the
-         * same time. So the machine checks the shape — every waiting request has
-         * a bounded timeout that RESOLVES rather than rejects — and the live half
+         * same time. So the machine checks the shape - every waiting request has
+         * a bounded timeout that RESOLVES rather than rejects - and the live half
          * stays on the human list: disconnect the GM, act as a player, and watch
          * the refusal come back at once.
          */
@@ -891,12 +891,12 @@ const REGRESSIONS = [
          *
          * Foundry's stated minimum is 1366×768. These are the windows this
          * module draws itself, so they are the only ones whose width is our
-         * fault — and a horizontal scrollbar in a GM tool is merely annoying for
+         * fault - and a horizontal scrollbar in a GM tool is merely annoying for
          * a year and then loses somebody a ruling mid-trial, because the column
          * they needed was off the right-hand edge.
          *
-         * Opened for real and closed again. A window that refuses to open — no
-         * incident, no trial in progress — is recorded rather than failed, but
+         * Opened for real and closed again. A window that refuses to open - no
+         * incident, no trial in progress - is recorded rather than failed, but
          * the number that DID open is asserted, so this can never quietly
          * measure nothing and report success.
          */
@@ -944,7 +944,7 @@ const REGRESSIONS = [
                 // NOT AWAITED, and this cost a run to learn: half of these
                 // openers are `DialogV2.wait`, whose promise settles when the
                 // person closes the window. Awaiting one stops the suite dead
-                // with a Sound panel on screen and no way forward — measured,
+                // with a Sound panel on screen and no way forward - measured,
                 // the first time this ran. The window is what we are after, so
                 // the window is what we wait for.
                 Promise.resolve(mod[name]()).catch(() => {});
@@ -963,15 +963,15 @@ const REGRESSIONS = [
                             + `${window.innerWidth}px screen`);
                     }
                     /*
-                     * AND NOTHING INSIDE IT MAY PUSH SIDEWAYS EITHER — but the
+                     * AND NOTHING INSIDE IT MAY PUSH SIDEWAYS EITHER - but the
                      * question is only meaningful of a box that can scroll.
                      *
                      * The first version asked it of every `form`, and reported
                      * seven windows that are perfectly fine: a form is not a
                      * scroll container, so a child sticking 16px past its
                      * padding box produces no scrollbar and nothing visible at
-                     * all. One of the eight was real — the Monocub dialog, 1344
-                     * of content in a 1273 scrollport — and it would have been
+                     * all. One of the eight was real - the Monocub dialog, 1344
+                     * of content in a 1273 scrollport - and it would have been
                      * lost in the noise of the other seven, which is precisely
                      * how a test that cries wolf gets switched off.
                      */
@@ -989,7 +989,7 @@ const REGRESSIONS = [
             await wait(60);
         }
         log(`R12: ${measured} windows measured, ${refused.length} declined (${refused.join(", ") || "none"})`);
-        ok(measured >= 10, `only ${measured} windows actually opened — this measured nothing`);
+        ok(measured >= 10, `only ${measured} windows actually opened - this measured nothing`);
         ok(!wide.length, `these do not fit the screen: ${wide.join("; ")}`);
     }],
 
@@ -999,7 +999,7 @@ const REGRESSIONS = [
          *
          * A trigger with no listener is the worst shape a feature of this kind
          * can take: the GM picks it out of a list, the trap arms, and then
-         * nothing ever happens — which looks exactly like a trap nobody walked
+         * nothing ever happens - which looks exactly like a trap nobody walked
          * into. It does not throw, it does not warn, and at the table it is
          * indistinguishable from working.
          *
@@ -1044,7 +1044,7 @@ const REGRESSIONS = [
          * `postSecret` is only the private door if everything goes through it.
          * A `ChatMessage.create` with a `whisper` list posted straight from a
          * feature file puts its sentence in the world database, where every
-         * connected client gets it — which is the whole defect this update
+         * connected client gets it - which is the whole defect this update
          * moved eighty call sites to close. Measured before the sweep: the
          * project-completion card did exactly that, and its narration was on
          * every player's machine.
@@ -1087,7 +1087,7 @@ const REGRESSIONS = [
          * from the inventory row, so a victim drank a first aid kit mid-murder
          * for nothing while the killer spent their turn swinging.
          *
-         * The same button, because it is the same intention — what changes is
+         * The same button, because it is the same intention - what changes is
          * what happens after it. So the rule is not "the button is hidden", it
          * is "the handler asks whether an incident is running first", and that
          * is what this reads.
@@ -1126,7 +1126,7 @@ const REGRESSIONS = [
          *
          * Measured: `keepLive` was called from exactly one file. The case
          * dashboard and the trial console, opened and left open while an Eclipse
-         * started and ended underneath them, came back BYTE-IDENTICAL — 2804 and
+         * started and ended underneath them, came back BYTE-IDENTICAL - 2804 and
          * 353 characters, not one of them different. A GM reading either was
          * reading a photograph of the moment they pressed the tile.
          *
@@ -1138,7 +1138,7 @@ const REGRESSIONS = [
          * Written as a list on purpose. "Which windows must be live" is a
          * judgement about how they are used, and a test whose subject is a
          * judgement should say so out loud rather than guess from a function
-         * name — the same reasoning as `STANDING` above it.
+         * name - the same reasoning as `STANDING` above it.
          */
         const MUST_BE_LIVE = {
             openGmPanel: "gm-panel",
@@ -1159,7 +1159,7 @@ const REGRESSIONS = [
             const next = rest.search(/^(?:export )?(?:async )?function /m);
             const body = next < 0 ? rest : rest.slice(0, next);
             /*
-             * ONE HOP, because the GM panel does it through `keepPanelFresh` —
+             * ONE HOP, because the GM panel does it through `keepPanelFresh` -
              * two regions on different clocks, which is worth its own function.
              * A window that reaches the helper through a named local is as live
              * as one that calls it inline; a window that reaches it through
@@ -1195,7 +1195,7 @@ const REGRESSIONS = [
          * carries a stub, and the sentence lives in a client-scoped store on
          * each recipient's own browser (secret.mjs). So `message.content` is now
          * a DASH for every private card, and any code still reading it renders
-         * a dash — in the messenger, in a popup, in the GM's call thread.
+         * a dash - in the messenger, in a popup, in the GM's call thread.
          *
          * That failure is silent and it is COSMETIC-LOOKING, which is worse: a
          * blank card reads as a rendering hiccup, not as a module reading the
@@ -1208,7 +1208,7 @@ const REGRESSIONS = [
             if (file === "secret.mjs") continue;      // the store itself
             const text = stripComments(raw);
             for (const m of text.matchAll(/(message|msg|card|last|entry)\.content/g)) {
-                guilty.push(`${file}:${lineAt(text, m.index)} — ${m[0]}`);
+                guilty.push(`${file}:${lineAt(text, m.index)} - ${m[0]}`);
             }
         }
         ok(!guilty.length,
@@ -1229,7 +1229,7 @@ const REGRESSIONS = [
          * WHY THE SUITE MISSED IT, which is the part worth keeping: E21's
          * scenarios raise the hooks with `Hooks.callAll` on the GM's own client,
          * where the gate passes. The tests were right about everything after the
-         * gate and blind to the only question that mattered — who raises it.
+         * gate and blind to the only question that mattered - who raises it.
          * A test that stands in for the player has to be suspicious of running
          * on the GM's machine.
          *
@@ -1270,18 +1270,18 @@ const REGRESSIONS = [
          * FOUNDRY HAS TWO HOOKS HERE AND THEY DO NOT OVERLAP, and this module
          * has now got it wrong twice.
          *
-         *   `updateSetting`        — a DOCUMENT hook. World settings only.
-         *   `clientSettingChanged` — client settings, and its argument is the
+         *   `updateSetting`        - a DOCUMENT hook. World settings only.
+         *   `clientSettingChanged` - client settings, and its argument is the
          *                            full "namespace.key" id, not a document.
          *
          * A client-scoped setting is written straight to localStorage and never
-         * becomes a Setting document, so `updateSetting` does not fire for it —
+         * becomes a Setting document, so `updateSetting` does not fire for it -
          * ever, on any client, including the one that made the write. Measured:
          * two writes to a world setting fired it twice; two writes to a client
          * setting fired it zero times.
          *
          * WHAT THAT COST. `sheet.mjs` dropped its Tamper cache on
-         * `remnantSecrets` — client-scoped — so from E12 until here the sheet
+         * `remnantSecrets` - client-scoped - so from E12 until here the sheet
          * kept answering "what did I leave in this room" from a cache that a
          * trace being erased, planted or swept could not touch. It looked
          * exactly like a working listener. dice-sync.mjs had found the same trap
@@ -1303,7 +1303,7 @@ const REGRESSIONS = [
                 if (!scope) continue;                    // R4 owns that failure
                 const wants = scope === "world" ? "updateSetting" : "clientSettingChanged";
                 if (hook !== wants) {
-                    wrong.push(`${file}:${lineAt(text, m.index)} — ${name} is ${scope}-scoped, `
+                    wrong.push(`${file}:${lineAt(text, m.index)} - ${name} is ${scope}-scoped, `
                         + `so ${hook} never fires for it (use ${wants})`);
                 }
             }
@@ -1316,8 +1316,8 @@ const REGRESSIONS = [
          *
          * The GM panel's roster became a function when the "who is alive" table
          * learned to rebuild itself while open (E22). The heading was updated to
-         * call it; one line in the row builder was not, and `!anyCub` — a
-         * function reference — is `false` forever. So for four releases every
+         * call it; one line in the row builder was not, and `!anyCub` - a
+         * function reference - is `false` forever. So for four releases every
          * row carried the three Monocub cells whether or not a Monocub existed,
          * under a heading that correctly showed three columns. Three headings
          * over six cells, in the window a GM works from most.
@@ -1325,11 +1325,11 @@ const REGRESSIONS = [
          * Nothing catches this: it parses, it runs, it throws nothing, and the
          * branch it silently picks is the one that LOOKS busier rather than the
          * one that looks broken. It is also a mistake this module is now shaped
-         * to keep making — every window that learns to stay live turns a
+         * to keep making - every window that learns to stay live turns a
          * handful of locals into functions on the way.
          *
          * OUT OF SCOPE, deliberately: a name that is also a value somewhere in
-         * the same file. The first run reported six and five were that — a
+         * the same file. The first run reported six and five were that - a
          * parameter called `grants`, a `let done = false`, a `const label`. A
          * test with five false accusations in six is one nobody reads.
          */
@@ -1346,7 +1346,7 @@ const REGRESSIONS = [
             const text = stripStrings(stripComments(raw));
             for (const name of functionsOnly(text)) {
                 for (const at of truthyReads(text, name)) {
-                    wrong.push(`${file}:${lineAt(text, at)} — \`${name}\` is a function here, `
+                    wrong.push(`${file}:${lineAt(text, at)} - \`${name}\` is a function here, `
                         + "so this test is always true (call it)");
                 }
             }
@@ -1365,7 +1365,7 @@ const REGRESSIONS = [
          * files as unplayable while the table was hearing them.
          *
          * The same shape then turned up in `action-rolls.mjs`, where a `catch`
-         * called `debug(\u2026)` that the file never imported — an error handler
+         * called `debug(\u2026)` that the file never imported - an error handler
          * that throws a second error is the worst possible place for this.
          *
          * CALL POSITION ONLY. A bare identifier can be a property, a label, a
@@ -1391,7 +1391,7 @@ const REGRESSIONS = [
                 if (said.has(who) || bound.has(who) || AMBIENT.has(who)) continue;
                 if (JS_KEYWORDS.has(who) || /^[A-Z]/.test(who)) continue;
                 said.add(who);
-                wrong.push(`${file}:${lineAt(text, m.index)} — ${who}() is declared nowhere `
+                wrong.push(`${file}:${lineAt(text, m.index)} - ${who}() is declared nowhere `
                     + "in this file and imported into it by nothing");
             }
         }
@@ -1401,7 +1401,7 @@ const REGRESSIONS = [
     ["R23 \u00b7 a document hook that checks for a GM checks for THE GM", async () => {
         /*
          * A DOCUMENT HOOK FIRES ON EVERY CLIENT, so "am I a GM" is never the
-         * right question in one — with two Gamemasters at this table it is
+         * right question in one - with two Gamemasters at this table it is
          * answered yes twice.
          *
          * The bidirectional Truth Bullet sync (v1.1.55) asked it that way. One
@@ -1410,7 +1410,7 @@ const REGRESSIONS = [
          * the ledger to the other. One rename, two cascades, and the second one
          * arrives while the first is still writing.
          *
-         * `isPrimaryGm` is how the rest of the module answers it — the trap
+         * `isPrimaryGm` is how the rest of the module answers it - the trap
          * relay, the search tokens, the migrations, `prepareScenes`. It picks
          * ONE connected GM, and both ends compute it from the same user list so
          * they cannot disagree.
@@ -1432,7 +1432,7 @@ const REGRESSIONS = [
                 }
                 const body = text.slice(from, j);
                 if (!/user\.isGM/.test(body) || /isPrimaryGm/.test(body)) continue;
-                wrong.push(`${file}:${lineAt(text, m.index)} — ${m[1]} fires on every client, `
+                wrong.push(`${file}:${lineAt(text, m.index)} - ${m[1]} fires on every client, `
                     + "so every GM runs this (use isPrimaryGm)");
             }
         }
@@ -1450,8 +1450,8 @@ const REGRESSIONS = [
          * tool to ruin, and the tie that turns the trace which handed the weapon
          * over into evidence of the murder.
          *
-         * The capture was gated on `weaponAdvantage` — "holding something helps
-         * here" — which Self-defence and Role reversal declare and Attack with a
+         * The capture was gated on `weaponAdvantage` - "holding something helps
+         * here" - which Self-defence and Role reversal declare and Attack with a
          * weapon does not, because the guide gives that action a disadvantage
          * for being UNARMED instead. So the one action whose whole subject is
          * the weapon captured nothing, and all three rules read null.
@@ -1459,7 +1459,7 @@ const REGRESSIONS = [
          * Read from the source, because the capture happens on the roll and the
          * suite resolves crisis actions from a stated total. What is checked is
          * that every marker the catalogue uses to mean "a weapon is involved in
-         * this roll" is named in the condition that captures one — so a third
+         * this roll" is named in the condition that captures one - so a third
          * marker cannot arrive and be quietly left out the same way.
          */
         const sources = new Map(await otherSources());
@@ -1470,7 +1470,7 @@ const REGRESSIONS = [
         ok(capture, "murder.mjs no longer captures a swung weapon at all");
 
         // Everything the condition can see: the line itself, and whatever it
-        // reads from — `const swings = ...` above it.
+        // reads from - `const swings = ...` above it.
         const condition = `${capture[1]} ${
             murder.match(/const\s+swings\s*=([^;]*);/)?.[1] ?? ""}`;
 
@@ -1490,7 +1490,7 @@ const REGRESSIONS = [
     ["R25 · the action budget comes back when the Eclipse opens, and only there", async () => {
         /*
          * Z2 (E18b, wave 5). The refill used to sit in `endEclipse`, which is
-         * the moment the NEXT time of day begins — so a Direct Murder, declared
+         * the moment the NEXT time of day begins - so a Direct Murder, declared
          * in the dark and costing an action, was paid for out of the budget of
          * the day that had just finished. Moving it to the opening means the
          * declaration comes off the new allowance and the killer walks into the
@@ -1504,7 +1504,7 @@ const REGRESSIONS = [
          * within a minute, and the second would not have been noticed at all.
          *
          * Read from the source, because both halves are single flags on calls
-         * that need the world's clock moved to observe — and because a refill
+         * that need the world's clock moved to observe - and because a refill
          * running twice leaves no trace afterwards except a full bar, which is
          * also what a refill running once leaves.
          */
@@ -1594,14 +1594,14 @@ const REGRESSIONS = [
 ];
 
 /* ==========================================================================
- * TIER 1 — INVARIANTS
+ * TIER 1 - INVARIANTS
  * ========================================================================== */
 
 /**
  * The windows a person leaves open while the world moves under them.
  *
  * NOT every window this module has. A confirmation, a briefing, a pick-one
- * prompt — those are a question with an answer, and they are gone before
+ * prompt - those are a question with an answer, and they are gone before
  * anything can go stale in them. The list is the ones that STAND: a GM opens
  * them, works, and looks back.
  *
@@ -1624,7 +1624,7 @@ const INVARIANTS = [
         for (const [key, def] of Object.entries(ACTIONS)) {
             // A `deferred` row is a PLACE in the grid, not a definition: its
             // three strings are localised and config.mjs is evaluated before
-            // `game.i18n` exists. The sheet fills it at render time — the row
+            // `game.i18n` exists. The sheet fills it at render time - the row
             // below is what checks that it still does.
             if (def.deferred) continue;
             ok(def.label, `${key} has no label`);
@@ -1644,7 +1644,7 @@ const INVARIANTS = [
          *
          * And the two entries that stopped being tiles must still be ENTRIES.
          * `reroll.mjs` dispatches on `case "sabotage"`, `briefingBlock` reads
-         * its description, and `injectMonocubPanel` draws `ACTIONS.move` — so
+         * its description, and `injectMonocubPanel` draws `ACTIONS.move` - so
          * deleting either one breaks something a long way from here, silently.
          */
         const kinds = Object.entries(ACTIONS).map(([key, def]) => [key, def.kind]);
@@ -1663,14 +1663,14 @@ const INVARIANTS = [
         // it to. Every entry has to be one of the three the sheet knows.
         for (const [key, kind] of kinds) {
             ok(["universal", "panel", "variant"].includes(kind),
-                `${key} has unknown kind "${kind}" — nothing will draw it`);
+                `${key} has unknown kind "${kind}" - nothing will draw it`);
         }
     }],
 
     ["Palm cannot reach the two things it must not", () => {
         /*
          * The pool is "everything carried except Truth Bullets", built twice on
-         * purpose — once to fill the picker on the thief's client and once as
+         * purpose - once to fill the picker on the thief's client and once as
          * the authority in `stealFromPerson`. Two copies of one rule is the
          * right shape here (an authority that imports its answer from the thing
          * it is checking is not one), and it is also exactly the shape that
@@ -1678,11 +1678,11 @@ const INVARIANTS = [
          * the category must exist to be excluded.
          */
         ok(ITEM_CATEGORIES.truthBullet,
-            "truthBullet is not a category any more — Palm's exclusion excludes nothing");
+            "truthBullet is not a category any more - Palm's exclusion excludes nothing");
         ok(typeof ACTIONS.palm.threshold === "number",
             "Palm has no threshold to beat");
         ok(typeof ACTIONS.palm.unseen?.threshold === "number",
-            "Palm has no second axis — being seen would never be decided");
+            "Palm has no second axis - being seen would never be decided");
         ok(ACTIONS.palm.unseen.trait !== ACTIONS.palm.traits[0],
             "Palm's two rolls are the same statistic, which makes them one roll");
     }],
@@ -1691,7 +1691,7 @@ const INVARIANTS = [
         /*
          * The Sound panel draws its table by walking SFX_EVENTS and filing each
          * row under its category, so an event naming a category that is not in
-         * SFX_CATEGORIES is a row that never appears — a sound a GM cannot map
+         * SFX_CATEGORIES is a row that never appears - a sound a GM cannot map
          * and therefore cannot hear, failing completely silently.
          *
          * `yieldsTo` fails even more quietly: `cancelHoldersOf` matches winners
@@ -1701,7 +1701,7 @@ const INVARIANTS = [
          */
         for (const [key, def] of Object.entries(SFX_EVENTS)) {
             ok(def.label, `${key} has no label`);
-            ok(def.hint, `${key} has no hint — the panel shows it as bare`);
+            ok(def.hint, `${key} has no hint - the panel shows it as bare`);
             ok(SFX_CATEGORIES[def.category],
                 `${key} is filed under unknown category "${def.category}"`);
             for (const winner of def.yieldsTo ?? []) {
@@ -1715,7 +1715,7 @@ const INVARIANTS = [
          * THE ORPHAN. Before E11 an item in a stash could not be lost: there was
          * one stash per person and "in the stash" named it completely. Now the
          * item carries a room, and a room whose stash has been taken away leaves
-         * that item on NO list — not carried, not in any drawer, invisible on the
+         * that item on NO list - not carried, not in any drawer, invisible on the
          * sheet and findable only by a GM reading flags.
          *
          * Room Setup refuses to remove a stash with anything in it, which is the
@@ -1746,7 +1746,7 @@ const INVARIANTS = [
         // `both` since E9, and it is a real side rather than a wildcard: the
         // grid filter, `takeCrisisAction`'s guard and the resolver each had to
         // learn it, and the resolver now reads the side off the PERSON rather
-        // than off the entry. This test is what said so — it failed the moment
+        // than off the entry. This test is what said so - it failed the moment
         // "use an item" arrived, which is exactly its job.
         const sides = new Set(["killer", "victim", "third", "both"]);
         for (const [key, def] of Object.entries(CRISIS_ACTIONS)) {
@@ -1763,14 +1763,14 @@ const INVARIANTS = [
     ["every Call has a price and something to do for it", () => {
         /*
          * `applyCall` reports `failed` when its receipt is empty, and a failed
-         * Call hands the price back — which is right, and which means a Call
+         * Call hands the price back - which is right, and which means a Call
          * whose effect field nobody wrote a branch for is a Call that takes the
          * Hope, refunds it and tells the player it "did not work". Silent in the
          * log, invisible in review, and exactly what trap 100 describes.
          *
          * So this asks the table the same question `applyCall` asks: is there
          * ANY field here that some branch acts on? The list is the branches, in
-         * their order — adding an effect to config.mjs without adding its branch
+         * their order - adding an effect to config.mjs without adding its branch
          * fails here rather than at somebody's table.
          */
         const ACTED_ON = ["grants", "grantsHope", "damage", "progress", "feedsOverflow",
@@ -1795,13 +1795,13 @@ const INVARIANTS = [
     ["the project Calls bend a project and no longer end one", () => {
         /*
          * THERE WERE THREE AND NOW THERE ARE TWO (Dawid, 29.08). `gameIntegrity`
-         * — nine Despair to empty a project outright — was deleted, and its NAME
+         * - nine Despair to empty a project outright - was deleted, and its NAME
          * moved onto the Call that knocks two off. Two things about that can
          * break quietly, so both are stated here.
          *
          * FIRST: nothing carries the wipe any more. `applyCall`'s branch for it
          * went with the entry, so a Call declaring `wipesProgress` today would
-         * take the Despair, do nothing, and report itself failed — trap 100 in
+         * take the Despair, do nothing, and report itself failed - trap 100 in
          * its purest form, and the exact reason `wipesProgress` also came out of
          * the ACTED_ON list above.
          *
@@ -1813,7 +1813,7 @@ const INVARIANTS = [
         ok(!wiping.length,
             `${wiping.map(([k]) => k).join(", ")} empties a project and no branch applies it`);
         ok(!DESPAIR_CALLS.gameIntegrity,
-            "the deleted Call is back under its old key — the NAME moved, the entry went");
+            "the deleted Call is back under its old key - the NAME moved, the entry went");
 
         const dent = DESPAIR_CALLS.gameProtection;
         const boost = DESPAIR_CALLS.favoriteProject;
@@ -1830,14 +1830,14 @@ const INVARIANTS = [
          * was only ever examined at a time-of-day boundary.
          *
          * ONE. A counter arriving at X mid-hour sat there while play carried on
-         * — and could be eaten outright, because a boundary already armed by an
+         * - and could be eaten outright, because a boundary already armed by an
          * Eclipse finds its own stamp and does nothing. Measured before the fix:
          * 20/20, zero cards, no effect; and a boundary crossed with the stamp
          * pre-armed left the counter at 20 and posted nothing.
          *
          * TWO. `wipeSeason` emptied every Despair pool and left the spill from
          * them standing, so a new season opened carrying the old one's pressure
-         * AND its armed stamp — dated to a time of day the new clock reaches
+         * AND its armed stamp - dated to a time of day the new clock reaches
          * again on day one.
          *
          * Read from source rather than driven: firing it needs a boundary and a
@@ -1854,7 +1854,7 @@ const INVARIANTS = [
                                    overflow.indexOf("let arming"));
         ok(add.length > 100, "addOverflow is gone");
         ok(/armAhead\s*\(/.test(add),
-            "the counter no longer asks whether it is full when it changes — "
+            "the counter no longer asks whether it is full when it changes - "
             + "20/20 would sit there until a boundary, which is how this was reported");
 
         // And it arms the hour that has NOT started. Three of the eight debuffs
@@ -2033,7 +2033,7 @@ const INVARIANTS = [
          * with the clock and had already stopped answering; every reader that
          * asks at the moment it acts got the right answer. What was stale was
          * the CAPTION, because the Despair widget is redrawn by `SYNC.overflow`
-         * and by nothing else — and the two things that end a darkening without
+         * and by nothing else - and the two things that end a darkening without
          * touching the counter are the clock moving past the stamp and the
          * Eclipse flag flipping.
          *
@@ -2054,7 +2054,7 @@ const INVARIANTS = [
 
         // The stamp stands still and the clock walks out from under it.
         ok(/renderDespairBar/.test(caseOf("clock", "eclipse")),
-            "a time of day ending no longer redraws the Despair caption — "
+            "a time of day ending no longer redraws the Despair caption - "
             + "\"Darkened\" outlives the darkening, which is how this was reported");
 
         // And the branch that reads `clock.eclipse` rather than the time of day.
@@ -2073,7 +2073,7 @@ const INVARIANTS = [
          * Z10. Three ways this can be wrong, and only the first would be
          * noticed by looking at a screen.
          *
-         * ONE: the boundary is asked twice — `startEclipse`, so a darkening can
+         * ONE: the boundary is asked twice - `startEclipse`, so a darkening can
          * shorten the crossings of the Eclipse that triggered it, and
          * `applyTimeOfDayChange`, so a table that never opens an Eclipse still
          * gets one. Both run for a table that uses Eclipses, so the second has
@@ -2082,7 +2082,7 @@ const INVARIANTS = [
          *
          * TWO: each check must come BEFORE the pass it modifies. The action
          * budget is WRITTEN by `resetAllActions` and the search tokens by
-         * `SearchTokens.reset` — a darkening checked after either is announced
+         * `SearchTokens.reset` - a darkening checked after either is announced
          * now and felt next time, which from a chair looks exactly like the
          * feature working.
          *
@@ -2115,12 +2115,12 @@ const INVARIANTS = [
         const overflow = stripComments(sources.get("overflow.mjs") ?? "");
         ok(overflow.length > 1000, "overflow.mjs did not load");
         ok(/same\(now\.active,\s*target\)/.test(overflow),
-            "checkOverflow no longer recognises a boundary it has already armed — "
+            "checkOverflow no longer recognises a boundary it has already armed - "
             + "an Eclipse would pay the threshold twice");
 
         /*
          * THE CATALOGUE'S OWN SHAPE. Eight debuffs, one drawn per firing, and
-         * two kinds of entry that must not be confused for one another — see
+         * two kinds of entry that must not be confused for one another - see
          * `OVERFLOW` in config.mjs. A `state` written as an `event` would run
          * once and be forgotten; an `event` written as a `state` would apply on
          * every read, which for Rot means eating the school's equipment inside
@@ -2177,7 +2177,7 @@ const INVARIANTS = [
          * A KEY WITH NO GLYPH FAILS SILENTLY, AND THAT IS THE WHOLE POINT.
          *
          * The mask rules are keyed per Call, deliberately, so a Call without
-         * one keeps its Font Awesome icon rather than rendering blank — which
+         * one keeps its Font Awesome icon rather than rendering blank - which
          * means the failure mode is a 35x32 icon sitting in a row of 24px pixel
          * art. Nothing throws, nothing warns, and the only reason either of the
          * two that happened was ever caught was Dawid looking at the panel.
@@ -2235,7 +2235,7 @@ const INVARIANTS = [
 
         for (const [band, row] of Object.entries(ANALYZE_DC)) {
             equal(row.key, null, `Analyze/${band} asks for a roll on a Key Truth Bullet`);
-            // Incident and Resolution are priced like Prep — the same decision
+            // Incident and Resolution are priced like Prep - the same decision
             // the observation table already made, for the same reason.
             equal(row.incident, row.prep, `Analyze/${band}: incident is not priced like prep`);
             equal(row.resolution, row.prep, `Analyze/${band}: resolution is not priced like prep`);
@@ -2245,7 +2245,7 @@ const INVARIANTS = [
     ["a critical pays the guide's price, and something is enforcing it", () => {
         // G-16. Daggerheart's own rule is +1 Hope and one Stress cleared; the
         // guide's is +2 Hope and nothing about Stress. The numbers are half the
-        // test — the other half is that the wrapper is actually on, because a
+        // test - the other half is that the wrapper is actually on, because a
         // config entry nobody applies is exactly the class of defect this
         // stage's regression tier exists for.
         equal(CRITICAL.hope, 2, "a critical is not paying the guide's 2 Hope");
@@ -2254,7 +2254,7 @@ const INVARIANTS = [
         const DualityRoll = game.system?.api?.dice?.DualityRoll;
         ok(DualityRoll, "Daggerheart's DualityRoll is not where this module looks for it");
         ok(DualityRoll.addDualityResourceUpdates?.[Symbol.for("drpgCriticalRule")],
-            "the critical rule is not installed — criticals are paying Daggerheart's numbers");
+            "the critical rule is not installed - criticals are paying Daggerheart's numbers");
     }],
 
     ["the three criticals that buy another act say so, and can be spent", () => {
@@ -2262,7 +2262,7 @@ const INVARIANTS = [
         // at the dice, the other buys certainty about one roll.
         for (const key of ["leaveClue", "secureTrace", "useItem"]) {
             ok(CRISIS_ACTIONS[key]?.criticalKeepsTurn,
-                `${key}'s critical ends the turn — G-17's second action is unreachable`);
+                `${key}'s critical ends the turn - G-17's second action is unreachable`);
         }
 
         for (const [key, def] of Object.entries(CRISIS_ACTIONS)) {
@@ -2292,7 +2292,7 @@ const INVARIANTS = [
         }
         // And it stays out of the Misleading trail's business.
         ok(!("pointsAt" in (CLEANUP.transform ?? {})),
-            "the transform can re-point a trace — that is the Misleading trail's action to sell");
+            "the transform can re-point a trace - that is the Misleading trail's action to sell");
     }],
 
     ["a reshaped trace always admits it was handled", async () => {
@@ -2301,7 +2301,7 @@ const INVARIANTS = [
          * KIND is not theirs to choose and is always a Tamper Remnant.
          *
          * Worth an invariant rather than a comment because the old rule was the
-         * exact opposite — a menu of four types, one of which was "Faint",
+         * exact opposite - a menu of four types, one of which was "Faint",
          * which the chapter sweep clears. A reshape that could pick its own type
          * could clear its own crime scene, and that is the hole this closes.
          */
@@ -2318,7 +2318,7 @@ const INVARIANTS = [
         ok(at > 0, "reshapeTrace is gone, so the two reshape roads write separately again");
         const body = src.slice(at, at + 1400);
         ok(/type:\s*CLEANUP\.transformAction\?\.becomes/.test(body),
-            "reshapeTrace no longer forces the type — something else decides it");
+            "reshapeTrace no longer forces the type - something else decides it");
         ok(/setRemnantPublic/.test(body),
             "a reshape no longer writes the killer's name and description anywhere");
 
@@ -2335,7 +2335,7 @@ const INVARIANTS = [
 
     ["a body cannot be dragged across the building, or into a bedroom", async () => {
         /*
-         * D14, Dawid 29.08. Two rules, one list — and the list matters as much
+         * D14, Dawid 29.08. Two rules, one list - and the list matters as much
          * as the rules do. D11 shipped as two copies of one guard with one of
          * them updated, so the picker and the resolver share a function here
          * rather than sharing a promise to stay in step.
@@ -2362,7 +2362,7 @@ const INVARIANTS = [
         /*
          * D18, Dawid 29.08: "niech bedzie dostepna do konca dnia po
          * morderstwie". The offer used to be read live off the incident, which
-         * is wiped the moment a GM closes it — so the accomplice had it while
+         * is wiped the moment a GM closes it - so the accomplice had it while
          * somebody else scrubbed the floor and lost it at exactly the point
          * they would have thought of it.
          */
@@ -2419,7 +2419,7 @@ const INVARIANTS = [
          * D19, Dawid 29.08. The killer and the victim were held; the third
          * party was not, on the reading that the guide stops them with the
          * price of the move. That left the free look: walk in, see everything,
-         * drag the token back out, and never spend Averted eyes — the action
+         * drag the token back out, and never spend Averted eyes - the action
          * whose whole content is leaving and taking no part in it.
          */
         const src = stripComments(
@@ -2473,14 +2473,14 @@ const INVARIANTS = [
          * plan predicted it would.
          *
          * `callGm` files a card in the messenger thread of the actor it names.
-         * That is right for every other caller — a player asked for a ruling and
+         * That is right for every other caller - a player asked for a ruling and
          * is waiting on it. A trap alert names the KILLER, so the ordinary path
          * posted into the killer's own thread a card saying their trap had been
          * tripped AND who tripped it, before the GM had ruled on anything.
          * Measured: "Player B, in Big IT Room", delivered to Player A.
          *
          * Read from the source rather than driven, because the failure is about
-         * an ARGUMENT rather than an outcome — a scenario would have to arrange a
+         * an ARGUMENT rather than an outcome - a scenario would have to arrange a
          * player client to catch it, and the thing that must never be forgotten
          * is one word at one call site.
          */
@@ -2488,13 +2488,13 @@ const INVARIANTS = [
         const call = src.slice(src.indexOf("callGm(trap.killer"), src.indexOf("callGm(trap.killer") + 400);
         ok(call.length > 20, "traps.mjs no longer calls callGm the way this test expects");
         ok(/gmOnly:\s*true/.test(call),
-            "the trap alert does not pass gmOnly — it will be posted into the killer's own thread");
+            "the trap alert does not pass gmOnly - it will be posted into the killer's own thread");
     }],
 
     ["no localise-or-fallback that can never reach its fallback", async () => {
         /*
          * `game.i18n.localize(key)` RETURNS THE KEY when it misses, and the key
-         * is truthy — so `localize(k) || fallback` never reaches the fallback and
+         * is truthy - so `localize(k) || fallback` never reaches the fallback and
          * a missing string is printed at the table as "DRPG.Trap.trigger.alone".
          * Measured on E21's first alert card.
          *
@@ -2518,7 +2518,7 @@ const INVARIANTS = [
          * Advantage stacks: a Call, the room, and a standing penalty for having
          * lost all Sanity all land on the same roll and are summed. Daggerheart
          * rolls `kh`, and a formula asking to keep the highest of six is not a
-         * roll any more — it is a guarantee wearing dice.
+         * roll any more - it is a guarantee wearing dice.
          *
          * Read rather than driven: `advantageSources` is private to the roll
          * dialog, and exporting a function so a test can reach it would be the
@@ -2539,7 +2539,7 @@ const INVARIANTS = [
         /*
          * FROM E17'S CLOSING LIST, where it is written as "`vaultRoomsFor()` and
          * `openStashHere()` agree about the same room". `openStashHere` is still
-         * here; `vaultRoomsFor` is not — the room lookups are `stashRoomsFor`
+         * here; `vaultRoomsFor` is not - the room lookups are `stashRoomsFor`
          * and `vaultRoomFor` now, and the bullet has been naming a ghost since
          * E0. The question it was asking is still the right one, so it is asked
          * of the functions that are here.
@@ -2557,7 +2557,7 @@ const INVARIANTS = [
          *
          * The first passed `myStashHere(actor, room)` two arguments and did not
          * await it. It takes one and it is async, so the test compared a Promise
-         * — always truthy — and agreed with everything.
+         * - always truthy - and agreed with everything.
          *
          * The second awaited it and failed honestly on a true statement:
          * `myStashHere` does not mean "where is this character's stash", it
@@ -2599,7 +2599,7 @@ const INVARIANTS = [
         /*
          * FROM E17'S CLOSING LIST, and it was the last one missing because it
          * would have failed: the QA map had FIVE overlapping pairs and 24 grid
-         * squares belonging to two rooms at once. Dawid's call, 28.08 — write it
+         * squares belonging to two rooms at once. Dawid's call, 28.08 - write it
          * and fix the map, rather than leave the validator as a thing somebody
          * has to remember to run.
          *
@@ -2607,7 +2607,7 @@ const INVARIANTS = [
          * broken map: the module answers with ONE room on a shared square, the
          * same one every time and the same on every client, because `roomOfToken`
          * sorts the names and takes the first. So there is no flicker, no
-         * disagreement between two players, nothing to notice — and a character
+         * disagreement between two players, nothing to notice - and a character
          * standing in what looks like the Round Table is in the Dinner Hall for
          * every purpose the rules care about: which search tokens they spend,
          * which room their traces land in, who counts as alone with them.
@@ -2615,7 +2615,7 @@ const INVARIANTS = [
          *
          * And the second failure the same geometry causes is worse: where two
          * borders cross with no wall between them, `checkRegions` reports the
-         * whole shared border reads as one doorway — a room you can walk out of
+         * whole shared border reads as one doorway - a room you can walk out of
          * anywhere along one side.
          *
          * TWO QUESTIONS, because delegating entirely to `checkRegions()` would
@@ -2678,13 +2678,13 @@ const INVARIANTS = [
          * a pane and, by saying `display` at all, took over whether the pane was
          * SHOWN. Foundry hides an inactive tab with `display: none` on `.tab`;
          * a module rule in a later layer beats that, so a redacted sheet came
-         * out with all five panes visible — five question marks, five copies of
+         * out with all five panes visible - five question marks, five copies of
          * the same sentence. Dawid found it at the table on 28.08.
          *
          * The class of defect is what this guards: a rule written to style what
          * is INSIDE a tab must not be able to decide whether the tab is on
          * screen. So any module selector that targets a tab pane and sets
-         * `display` has to qualify itself with `.active` — otherwise it is
+         * `display` has to qualify itself with `.active` - otherwise it is
          * making that decision for every pane at once.
          *
          * Read from the file rather than the DOM. This only shows on a
@@ -2693,8 +2693,8 @@ const INVARIANTS = [
          */
         const raw = await fetch(`/modules/${MODULE_ID}/styles/danganronpa.css`).then(r => r.text());
         // COMMENTS OUT FIRST, and the first run of this test is why. The note
-        // above the fixed rule QUOTES the broken one — "`.drpg-redacted-pane
-        // { display: flex }` was written to…" — and a scanner reading prose as
+        // above the fixed rule QUOTES the broken one - "`.drpg-redacted-pane
+        // { display: flex }` was written to…" - and a scanner reading prose as
         // CSS found the quotation and reported the very rule it exists to
         // explain. A source-reading test has to read source.
         const css = raw.replace(/\/\*[\s\S]*?\*\//g, "");
@@ -2724,7 +2724,7 @@ const INVARIANTS = [
     ["every standing window is single-instance or says why not", async () => {
         /*
          * Dawid, 28.08: opening the Sound window twice should not give you two
-         * Sound windows. It did — every window in the module did, because
+         * Sound windows. It did - every window in the module did, because
          * `DialogV2.wait` builds a fresh application on every call and nothing
          * asked whether one was already up.
          *
@@ -2736,7 +2736,7 @@ const INVARIANTS = [
          * fourth copy of a Sound panel.
          */
         const EXEMPT = new Map([
-            // The one window whose design is to reopen itself — after every
+            // The one window whose design is to reopen itself - after every
             // crisis action, which is what makes it usable during an incident.
             // A guard that fired while the previous copy was still closing
             // would leave an incident with no tracker at all.
@@ -2775,8 +2775,8 @@ const INVARIANTS = [
     ["the live-refresh helper carries what a rebuild would throw away", async () => {
         /*
          * `keepLive` replaces a region's DOM. Everything a person put there and
-         * the markup does not carry — where they scrolled, which sections they
-         * folded, what they typed but have not saved — has to survive that, or
+         * the markup does not carry - where they scrolled, which sections they
+         * folded, what they typed but have not saved - has to survive that, or
          * the cure is worse than the stale window it fixes.
          *
          * Driven rather than read: a real region, a real rebuild, and the three
@@ -2829,7 +2829,7 @@ const INVARIANTS = [
          * checked by looking at the result: a field being rebuilt while
          * somebody types in it loses the caret even when the value survives.
          * So the rebuild is not supposed to HAPPEN while focus is inside the
-         * region — it waits.
+         * region - it waits.
          */
         const { keepLive } = await import("./live.mjs");
 
@@ -2859,7 +2859,7 @@ const INVARIANTS = [
             /*
              * `blur()` and then the event ITSELF, dispatched by hand.
              *
-             * A real blur fires `focusout` — in a window that has focus. This
+             * A real blur fires `focusout` - in a window that has focus. This
              * suite runs in whichever tab the GM left it in, and a background
              * tab does not reliably deliver focus events at all: measured, the
              * first half of this test passed (nothing redrew) and the second
@@ -2884,7 +2884,7 @@ const INVARIANTS = [
         /*
          * `onChange: () => onWorldChange(SETTINGS.x)` says "when this changes,
          * refresh whatever shows it". `onWorldChange` keeps that promise by
-         * looking the key up in `SETTING_KINDS` — and a key missing from that
+         * looking the key up in `SETTING_KINDS` - and a key missing from that
          * table is answered with SILENCE. Nothing throws, nothing warns, and
          * the screen keeps showing the old value until somebody reopens the
          * window.
@@ -2912,7 +2912,7 @@ const INVARIANTS = [
 
         const promised = new Set(
             [...settings.matchAll(/onWorldChange\(SETTINGS\.(\w+)\)/g)].map(m => m[1]));
-        ok(promised.size, "no setting seems to promise a refresh — did onWorldChange move?");
+        ok(promised.size, "no setting seems to promise a refresh - did onWorldChange move?");
 
         // Only the table, not the whole file: `SYNC.x` appears throughout.
         const table = sync.split("const SETTING_KINDS")[1]?.split("};")[0] ?? "";
@@ -2939,7 +2939,7 @@ const INVARIANTS = [
         // Sprint, Burst and Relief buy a state of the time of day, not a
         // modifier on the next roll. `FLAGS.pendingCall` holds exactly ONE
         // armed Call, so any of the three carrying `grants` would silently
-        // delete a Support armed a moment earlier — the architectural note E13
+        // delete a Support armed a moment earlier - the architectural note E13
         // opens with, stated as a test because it is one edit away from being
         // untrue.
         for (const key of ["sprint", "burst", "relief"]) {
@@ -2979,7 +2979,7 @@ const INVARIANTS = [
     }],
 
     ["every string the code asks for exists in the language file", () => {
-        // Only the keys spelled out as literals — a key built from a variable
+        // Only the keys spelled out as literals - a key built from a variable
         // cannot be checked from here, and pretending otherwise would make this
         // test lie in the reassuring direction.
         const missing = [];
@@ -2998,17 +2998,17 @@ const INVARIANTS = [
     }],
 
     ["nothing is repainting the page", () => {
-        // Not a module bug when it fails — but every colour measurement in this
+        // Not a module bug when it fails - but every colour measurement in this
         // suite and every visual judgement at the table is worthless while it is
         // true, so it is worth saying out loud. See `detectPageTinting`.
         const tint = detectPageTinting();
-        ok(!tint, `${tint?.name} is restyling the page — ${tint?.evidence}`);
+        ok(!tint, `${tint?.name} is restyling the page - ${tint?.evidence}`);
     }],
 
     ["no Remnant token carries the answer key", () => {
         // The leak this suite exists to keep shut. A Remnant token travels to
         // every client, hidden or not, so anything on it beyond the marker is
-        // readable from a player's console — measured before the fix: forty
+        // readable from a player's console - measured before the fix: forty
         // traces with who left each one, whether it belonged to the murder, and
         // the GM's own sentence about it.
         /*
@@ -3018,14 +3018,14 @@ const INVARIANTS = [
          * incident", and it is on the token because `applyToRemnantToken` runs
          * on a PLAYER's client and has to decide whether that viewer is one of
          * the people who watched the trace being made. The ledger cannot answer
-         * that — `remnantData` is null off a GM — and the participant list the
+         * that - `remnantData` is null off a GM - and the participant list the
          * check needs is the live murder state, which a player's client already
          * holds.
          *
          * What it costs: a player reading their own console can tell a crime
          * scene's traces from preparation traces. What it does NOT carry is the
          * band, the type beyond that boolean, who left it, or a word of what it
-         * says — all of which is what this test was written to keep off a token.
+         * says - all of which is what this test was written to keep off a token.
          *
          * A socket addressed to the participants would carry the same fact
          * without putting it in the world, and is the better shape if this ever
@@ -3044,12 +3044,12 @@ const INVARIANTS = [
                 if (keys.length) leaks.push(`${token.name}: ${keys.join(", ")}`);
             }
         }
-        ok(!leaks.length, `${leaks.length} token(s) still carry it — ${leaks[0]}`);
+        ok(!leaks.length, `${leaks.length} token(s) still carry it - ${leaks[0]}`);
     }],
 
     ["a Remnant token's name gives nothing away", () => {
         // The name used to BE the answer: "Obvious Faint Prep Remnant · Player B
-        // · Search: Cleaning agent". Names travel with the token — and so does
+        // · Search: Cleaning agent". Names travel with the token - and so does
         // the DELTA, which is where the legacy placement path kept the same
         // label as the unlinked actor's name (`token.delta.name`), readable
         // from a player's console while `token.name` said a perfectly safe
@@ -3067,13 +3067,13 @@ const INVARIANTS = [
                 }
             }
         }
-        ok(!talkative.length, `${talkative.length} named for what they are — "${talkative[0]}"`);
+        ok(!talkative.length, `${talkative.length} named for what they are - "${talkative[0]}"`);
     }],
 
     ["one account is only ever sent to one voice room", async () => {
         // A voice client is in a single breakout at a time. The loop used to
         // walk the ACTOR list and assign per actor, so an account owning two
-        // characters in two rooms was sent to both on every pass — a full
+        // characters in two rooms was sent to both on every pass - a full
         // disconnect and reconnect twice a minute, forever, which at the table
         // is a dropout every sixty seconds for one unlucky player.
         const { rows, byUser } = await voiceTargets();
@@ -3095,7 +3095,7 @@ const INVARIANTS = [
 
     ["two rooms never share one voice channel", () => {
         // Room names are slugged, and a slug throws away everything that is not
-        // a letter or a digit — so "Kitchen" and "Kitchen " were two rooms
+        // a letter or a digit - so "Kitchen" and "Kitchen " were two rooms
         // everywhere else in this module and ONE room to LiveKit. Everybody in
         // them heard each other, silently, in the subsystem whose whole purpose
         // is that they should not.
@@ -3115,7 +3115,7 @@ const INVARIANTS = [
                 if (!region.name) continue;
                 const room = liveKitRoomFor(s.id, region.name);
                 const clash = used.get(room);
-                // Two regions with the SAME name are one room on purpose — a
+                // Two regions with the SAME name are one room on purpose - a
                 // corridor drawn in two pieces. Two different names are not.
                 ok(clash === undefined || clash === region.name,
                     `"${s.name}": "${region.name}" and "${clash}" share a voice room`);
@@ -3134,7 +3134,7 @@ const INVARIANTS = [
     // The module has ONE version, in module.json, and one hand-written copy of
     // it: the stamp in the stylesheet, which cannot read a manifest. This is
     // the only thing keeping the two in step, and it exists because they did
-    // not stay in step on their own — the panel shipped a release reading
+    // not stay in step on their own - the panel shipped a release reading
     // "v1.0.53 (manifest 1.1.0)" off a second stamp nobody remembered to bump.
     // Fail here, at the moment before a release, rather than in front of a
     // table afterwards.
@@ -3181,7 +3181,7 @@ const INVARIANTS = [
                 }
             }
         }
-        ok(!wrong.length, `these items carry a role no category answers to — ${wrong.join(", ")}`);
+        ok(!wrong.length, `these items carry a role no category answers to - ${wrong.join(", ")}`);
     }],
 
     /*
@@ -3192,25 +3192,25 @@ const INVARIANTS = [
      * throws and nothing looks wrong: every roll simply gets one bonus die, and
      * a Hope Call spent in a favouring room is worth what the room was worth
      * alone. That is the same class of silent failure as the music, and it is
-     * caught the same way — by asking whether the thing we are standing on is
+     * caught the same way - by asking whether the thing we are standing on is
      * still there.
      */
     ["Daggerheart still supports more than one advantage die", () => {
         const DualityRoll = game.system?.api?.dice?.DualityRoll;
         ok(DualityRoll, "Daggerheart's DualityRoll is not where this module looks for it");
         ok(Object.getOwnPropertyDescriptor(DualityRoll.prototype, "advantageNumber")?.set,
-            "DualityRoll has no advantageNumber setter any more — stacked advantage would "
+            "DualityRoll has no advantageNumber setter any more - stacked advantage would "
             + "collapse to a single die without a word from anybody");
         ok(typeof DualityRoll.prototype.applyAdvantage === "function",
-            "DualityRoll.applyAdvantage is gone — it is what turns a count into `kh`");
+            "DualityRoll.applyAdvantage is gone - it is what turns a count into `kh`");
     }],
 
     /*
      * THE MUSIC'S FAILURES ARE ALL SILENT (E6).
      *
      * Every other subsystem announces a mistake: a card that does not post, a
-     * button that refuses. The music's mistakes are all the same shape — the
-     * right thing not happening — and a table hears a state with no music as a
+     * button that refuses. The music's mistakes are all the same shape - the
+     * right thing not happening - and a table hears a state with no music as a
      * GM who has not got round to mapping it yet. So they are checked here
      * rather than at the table.
      */
@@ -3218,13 +3218,13 @@ const INVARIANTS = [
         for (const state of MUSIC_STATES) {
             const label = state.label ?? game.i18n.localize(state.labelKey);
             ok(label && label !== state.labelKey,
-                `the music state "${state.key}" has no label — "${state.labelKey}" `
+                `the music state "${state.key}" has no label - "${state.labelKey}" `
                 + "is missing from lang/en.json, and the GM's mapping table would "
                 + "show the key instead of a name");
         }
     }],
 
-    // Order IS the rule in this list — the first state that applies wins — so
+    // Order IS the rule in this list - the first state that applies wins - so
     // an order that puts a wider state above a narrower one does not fail, it
     // makes the narrower one unreachable for good. All three trial states are
     // true during an Objection; only the order decides which is heard.
@@ -3238,10 +3238,10 @@ const INVARIANTS = [
             "the trial is missing one of its three music states");
         ok(objection < debate,
             "trial.objection is below trial.debate, so an Objection would never "
-            + "take the music — the debate matches first");
+            + "take the music - the debate matches first");
         ok(debate < discussion,
             "trial.debate is below trial.discussion, so an open floor would never "
-            + "take the music — the phase matches first");
+            + "take the music - the phase matches first");
         ok(discussion < at("search"),
             "the trial's states are below the Investigation's");
     }],
@@ -3256,19 +3256,19 @@ const INVARIANTS = [
         const orphans = Object.keys(musicMap()).filter(key => !known.has(key));
         ok(!orphans.length,
             `this world maps ${orphans.join(", ")} to a playlist, and no music state `
-            + "answers to that name — run game.drpg.migrate1_2_0({ force: true })");
+            + "answers to that name - run game.drpg.migrate1_2_0({ force: true })");
     }],
 
     ["the stylesheet ships with the version it says it does", async () => {
         const css = stylesheetVersion();
-        ok(css, "the stylesheet is not on this page at all — run game.drpg.diagnoseStyles()");
+        ok(css, "the stylesheet is not on this page at all - run game.drpg.diagnoseStyles()");
 
         /*
          * AGAINST THE MANIFEST FILE, NOT AGAINST `game.modules`.
          *
          * `moduleVersion()` reads the manifest Foundry parsed at startup, and
          * this server caches that: measured, module.json on disk said 1.1.33
-         * while `game.modules.get(...).version` still said 1.1.30 — and the
+         * while `game.modules.get(...).version` still said 1.1.30 - and the
          * stylesheet ALSO said 1.1.30, so this test passed while the CSS was
          * three versions stale. A test that agrees with the thing it is
          * checking is not a test.
@@ -3311,8 +3311,8 @@ const LITERAL_KEYS = [
     "DRPG.Season.title", "DRPG.Season.resetTitle", "DRPG.Season.resetWord",
     "DRPG.Season.step.resources", "DRPG.Season.hint.resources",
     "DRPG.Diagnostics.pageTinted",
-    // E12. Every one of these is said on a client that did not decide it — a
-    // GM-side refusal, a victim's whisper, a row that outlived its item — so a
+    // E12. Every one of these is said on a client that did not decide it - a
+    // GM-side refusal, a victim's whisper, a row that outlived its item - so a
     // missing key here renders as a raw string in front of a player.
     "DRPG.Tamper.notYours", "DRPG.Tamper.nothingOfYours", "DRPG.Tamper.onlyReinforced",
     "DRPG.Steal.caughtTaking", "DRPG.Steal.caughtTrying", "DRPG.Steal.nobodyHere",
@@ -3323,7 +3323,7 @@ const LITERAL_KEYS = [
 ];
 
 /* ==========================================================================
- * TIER 2 — SCENARIOS
+ * TIER 2 - SCENARIOS
  * ========================================================================== */
 
 /**
@@ -3338,7 +3338,7 @@ async function snapshot(cast) {
         clock: foundry.utils.deepClone(getClock()),
         murder: foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {}),
         // E14. Both are world settings a scenario below writes, and both are
-        // visible to the whole table — a suite that leaves a motive standing
+        // visible to the whole table - a suite that leaves a motive standing
         // has announced one at somebody's game.
         motive: foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.motive) ?? {}),
         gather: foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.pendingGather) ?? {}),
@@ -3347,7 +3347,7 @@ async function snapshot(cast) {
         // It was missing, and the suite therefore paid its fixture actor one
         // Hope per run and never took it back. Measured: three students set to
         // 3, one clean 22/22 pass, and the roller came out at 4 while the other
-        // two were untouched — so three runs in an afternoon leave a character
+        // two were untouched - so three runs in an afternoon leave a character
         // three Hope richer than the GM last saw them. Hope buys Calls; that is
         // a real resource quietly appearing out of a test.
         //
@@ -3373,8 +3373,8 @@ async function snapshot(cast) {
         })),
         // WHICH TOKENS AND MESSAGES EXISTED, not how many.
         //
-        // An incident drops Remnants of its own — the opening roll leaves one,
-        // every crisis action can leave another — and they are world objects
+        // An incident drops Remnants of its own - the opening roll leaves one,
+        // every crisis action can leave another - and they are world objects
         // that outlive the test and change what the NEXT measurement sees. The
         // first version of this suite passed all six scenarios and left three
         // Remnants behind, which is the failure this file's own header warns
@@ -3382,7 +3382,7 @@ async function snapshot(cast) {
         // exactly what appeared and never touches anything that was already
         // there.
         // `game.scenes` is a Foundry Collection, which has `map` and `filter`
-        // but NOT `flatMap` — the first version used it, threw inside the
+        // but NOT `flatMap` - the first version used it, threw inside the
         // snapshot, and the runner reported one failure and skipped every
         // scenario. A suite that silently runs nothing reads almost the same as
         // a suite that passes, which is why the runner names the step.
@@ -3445,15 +3445,15 @@ function cast() {
      * LIVING students, and the filter is not tidiness.
      *
      * `studentActors()` returns everybody who is not a Monokuma, the dead
-     * included — the dead have to stay in that list, because the rules that
+     * included - the dead have to stay in that list, because the rules that
      * count bodies, rooms and Blackened all read it. So on any world where
      * somebody has already been killed, `cast()` was handing these scenarios a
      * CORPSE and calling it a killer, a victim or a conspirator.
      *
      * It passed for a long time because almost nothing in the incident asks
      * whether a participant is alive; `openMurder` is given ids and opens. The
-     * betrayal window (D18) does ask — a dead accomplice cannot turn on
-     * anybody — and the failure came out looking like a bug in the feature
+     * betrayal window (D18) does ask - a dead accomplice cannot turn on
+     * anybody - and the failure came out looking like a bug in the feature
      * rather than a fixture standing a body up at the table.
      *
      * Measured on the QA world: the roster is Player A, Player B, Player
@@ -3510,7 +3510,7 @@ const SCENARIOS = [
         equal(murder.murderState().turnSide, "victim", "the accomplice joining does not steal the victim's turn");
         const startTurn = murder.murderState().turn;
 
-        // The victim's turn always passes to the FIRST killer — not to
+        // The victim's turn always passes to the FIRST killer - not to
         // whichever of them the rotation happened to leave off on last round.
         await drpg.passTurn();
         await settle();
@@ -3523,7 +3523,7 @@ const SCENARIOS = [
 
         // The bug this guards: the old rule alternated `turnSide` on every
         // pass, so a second killer's turn was really victim, killer(A),
-        // victim, killer(B) — the victim got a breather neither killer earned,
+        // victim, killer(B) - the victim got a breather neither killer earned,
         // and the round advanced twice for one lap of the killers. The second
         // killer's turn must follow the first DIRECTLY, with the round number
         // unmoved.
@@ -3532,7 +3532,7 @@ const SCENARIOS = [
         state = murder.murderState();
         equal(state.turnSide, "killer", "the second killer's turn follows the first directly, not the victim's");
         equal(state.killerTurnId, third.id, "turn hands to the second killer");
-        equal(state.turn, startTurn, "the round has not advanced — the killers' side is not done yet");
+        equal(state.turn, startTurn, "the round has not advanced - the killers' side is not done yet");
         who = [killer, third].filter(a => murder.isTheirTurn(a));
         equal(who.length, 1, "exactly one killer may act on this turn");
         equal(who[0].id, third.id, "the second killer's turn belongs to the second killer");
@@ -3577,12 +3577,12 @@ const SCENARIOS = [
 
     ["openMurder refuses during an Eclipse, but not once one has actually ended", async () => {
         // `judgePendingMurders` (eclipse.mjs) is the one legitimate call to
-        // `openMurder` that happens WHILE an Eclipse is closing — a Direct
+        // `openMurder` that happens WHILE an Eclipse is closing - a Direct
         // Murder declared in the dark is parked, not opened, and only judged
         // from inside `endEclipse`, after the clock has already cleared the
         // Eclipse flag. This pins both halves of that: the new guard actually
         // refuses while the flag is set, and the flag really is gone by the
-        // time `endEclipse` would call `openMurder` for a parked declaration —
+        // time `endEclipse` would call `openMurder` for a parked declaration -
         // so the guard added for this bug fix cannot silently swallow the one
         // call it is supposed to let through.
         const [killer, victim] = cast();
@@ -3632,8 +3632,8 @@ const SCENARIOS = [
 
     ["a killer's own client can see what there is to clean up, and nothing more", async () => {
         // `cleanableRemnants` already answered this correctly for a GM, which is
-        // exactly why the bug — `remnantData()` returning null for anybody else
-        // — never showed up running this suite as the world's GM. What this
+        // exactly why the bug - `remnantData()` returning null for anybody else
+        // - never showed up running this suite as the world's GM. What this
         // scenario actually pins down is the shape `cleanableTracesForPlayer`
         // hands back over the bridge: it is what a player's client receives
         // instead, and it must never carry the answer key.
@@ -3654,7 +3654,7 @@ const SCENARIOS = [
         await settle();
 
         const dropped = await remnants.dropRemnant(killer, {
-            type: "prep", visibility: "evident", note: "test fixture — cleanup bridge"
+            type: "prep", visibility: "evident", note: "test fixture - cleanup bridge"
         });
         ok(dropped, "could not place a trace to clean up");
         await settle();
@@ -3675,7 +3675,7 @@ const SCENARIOS = [
          * THE ONE PLACE THE WINDOW ITSELF IS TESTED.
          *
          * Every other scenario skips it (see `suiteRolling`), so this is what
-         * stops "the window opens" from quietly stopping being true — which is
+         * stops "the window opens" from quietly stopping being true - which is
          * exactly how it stopped being true the first time: `maybeRollItself`
          * pressed the button and nothing anywhere noticed for four updates.
          *
@@ -3726,7 +3726,7 @@ const SCENARIOS = [
         const { grantFreeActions, freeActionsLeft, spendAction, refundAction } = actions;
 
         // Start from a known place: no actions at all, one Burst banked. That
-        // is the state trap 96 is about — a player who cannot pay for anything
+        // is the state trap 96 is about - a player who cannot pay for anything
         // and has just spent four Hope so that they can.
         await who.update({ "system.resources.actions.value": 0 });
         await who.setFlag(MODULE_ID, "freeActionGrants", 0);
@@ -3802,7 +3802,7 @@ const SCENARIOS = [
 
         // Build the shelf instead of demanding the world already owns one. The
         // old form of this test asked the active scene for a room holding three
-        // Remnants and failed on any world that had none — a clean world most
+        // Remnants and failed on any world that had none - a clean world most
         // of all.
         //
         // Four traces at one point share a room by construction: the same hit
@@ -3810,7 +3810,7 @@ const SCENARIOS = [
         // already standing in a room, which spares this test owning any region
         // geometry of its own.
         const anchor = scene?.tokens?.find(t => roomOfToken(t));
-        ok(anchor, "no token on the active scene stands in any room — nowhere to build the fixture");
+        ok(anchor, "no token on the active scene stands in any room - nowhere to build the fixture");
 
         const spread = [
             { type: "key", visibility: "obvious", tiedToCrime: true },   // DC 6, tied
@@ -3824,7 +3824,7 @@ const SCENARIOS = [
             for (const data of spread) {
                 const token = await remnants.placeRemnant({
                     ...data, x: anchor.x, y: anchor.y, scene,
-                    note: "test fixture — Observe ranking"
+                    note: "test fixture - Observe ranking"
                 });
                 ok(token, "could not place a fixture Remnant");
                 placed.push(token);
@@ -3872,7 +3872,7 @@ const SCENARIOS = [
          * THE READING IS HELD OUTSIDE THE DOM, and that is the whole of why it
          * works in a window that rebuilds itself. `keepLive` redraws the region
          * from `buildCase`, and a build that read the filter off the select
-         * would render the list BEFORE `restore` put the select back — one
+         * would render the list BEFORE `restore` put the select back - one
          * frame of the wrong list every time anything in the world moved. So
          * this asserts both halves: the list narrows, AND the choice is still
          * standing after the redraw that the choice itself triggered.
@@ -3892,7 +3892,7 @@ const SCENARIOS = [
          * A CHAPTER OF ITS OWN, ABOVE ANYTHING THE WORLD HOLDS.
          *
          * The fixture used to stamp `chapter: 1` and days 1–3 and then assert
-         * that "newest first" put its own D3 on top — which is only true on a
+         * that "newest first" put its own D3 on top - which is only true on a
          * world with no traces later than day 3. The suite's own murder
          * scenarios leave incident traces stamped from the live clock, so on a
          * world sitting on day 11 the sort was correct and the assertion was
@@ -3919,7 +3919,7 @@ const SCENARIOS = [
                     type: "prep", visibility: "evident", scene, x: anchor.x, y: anchor.y,
                     sourceActor: one.who.id, sourceName: one.who.name, room: one.room,
                     chapter: future, day: one.day, timeOfDay: one.timeOfDay,
-                    note: "test fixture — dashboard filters"
+                    note: "test fixture - dashboard filters"
                 });
                 ok(token, "could not place a fixture trace");
                 placed.push(token);
@@ -3957,14 +3957,14 @@ const SCENARIOS = [
 
             await choose("player", cast[1].id);
             const mine = rows();
-            ok(mine < all, `filtering by player showed ${mine} of ${all} — nothing was filtered`);
+            ok(mine < all, `filtering by player showed ${mine} of ${all} - nothing was filtered`);
             equal(control("player").value, cast[1].id,
                 "the chosen player did not survive the redraw it triggered");
 
             await choose("player", "");
             await choose("room", rooms[0]);
             const here = rows();
-            ok(here < all, `filtering by room showed ${here} of ${all} — nothing was filtered`);
+            ok(here < all, `filtering by room showed ${here} of ${all} - nothing was filtered`);
             equal(control("room").value, rooms[0],
                 "the chosen room did not survive the redraw it triggered");
 
@@ -3988,7 +3988,7 @@ const SCENARIOS = [
          * Dawid, 28.08: "the synchronisation is to be full, continuous,
          * regardless of when and where the edit happens."
          *
-         * The downward half is old — the trace's record has always been pushed
+         * The downward half is old - the trace's record has always been pushed
          * onto every bullet copied from it. The upward half is v1.1.55, and it
          * is the one with a moving part: `updateItem` fires on EVERY client, so
          * the handler is fenced to one GM, and a fence in the wrong place turns
@@ -4017,7 +4017,7 @@ const SCENARIOS = [
         try {
             token = await remnants.placeRemnant({
                 type: "prep", visibility: "evident", x: anchor.x, y: anchor.y, scene,
-                note: "test fixture — trace/bullet sync"
+                note: "test fixture - trace/bullet sync"
             });
             ok(token, "could not place the fixture trace");
 
@@ -4080,19 +4080,19 @@ const SCENARIOS = [
         /*
          * THE CUT WHITE WEDGE, STANDING ON ITS OWN IN THE MIDDLE OF A DOORWAY.
          *
-         * An OPENING shorter than a third of a square is discarded \— `shortest`
+         * An OPENING shorter than a third of a square is discarded \- `shortest`
          * in `doorwayEdges`. A walled stretch had no such rule, and the two are
          * not symmetric in what they cost. One stray sample reading "wall" in
          * the middle of a long opening leaves a visible stretch a few pixels
          * long, and this outline is stroked with SQUARE caps: each end runs half
          * a line-width past the stretch, so anything shorter than one width
-         * comes out as a solid wedge rather than a line \— alone in the middle
+         * comes out as a solid wedge rather than a line \- alone in the middle
          * of an opening, ink keyline and all, far from any other outline.
          *
          * Reproduced on a fixture: a plain room whose whole top border is a
          * doorway, with ONE eight-pixel wall in the middle of it. The wall
          * splits the border into two openings, and the sliver of "wall" between
-         * them is a two-point chain \— which the tracer stroked
+         * them is a two-point chain \- which the tracer stroked
          * unconditionally.
          *
          * What is asserted here is the property rather than the fixture: every
@@ -4150,7 +4150,7 @@ const SCENARIOS = [
          * grid, so the border describing that wall comes out as a staircase of
          * axis-aligned steps. `wallAlongEdge` asked whether the wall ran within
          * twenty degrees of the border, compared the wall against ONE STEP, and
-         * 45 degrees is not within twenty of nothing \— so the wall lying
+         * 45 degrees is not within twenty of nothing \- so the wall lying
          * exactly along the border closed nothing at all.
          *
          * Measured before the repair, on this fixture: fully open at every step
@@ -4160,7 +4160,7 @@ const SCENARIOS = [
          * 28.08, with screenshots).
          *
          * THREE SIZES, because the first diagnosis was that the staircase had
-         * to be deep enough to push the border out of range \— and it was
+         * to be deep enough to push the border out of range \- and it was
          * wrong. A fixture that only tried one size would have agreed with it.
          */
         const scene = canvas?.scene;
@@ -4192,7 +4192,7 @@ const SCENARIOS = [
                 const adrift = checkRegions().find(r =>
                     r.room === "Suite staircase fixture" && /walls/.test(r.problem));
                 ok(!adrift, `a ${T}-square staircase does not see the wall drawn along it`
-                    + `${adrift ? ` \— ${String(adrift.detail).match(/^[\d.]+/)?.[0]} squares read as open` : ""}`);
+                    + `${adrift ? ` \- ${String(adrift.detail).match(/^[\d.]+/)?.[0]} squares read as open` : ""}`);
             } finally {
                 if (walls.length) await scene.deleteEmbeddedDocuments("Wall", walls);
                 if (region) await scene.deleteEmbeddedDocuments("Region", [region.id]);
@@ -4202,7 +4202,7 @@ const SCENARIOS = [
         /*
          * AND THE TEST STILL HAS TEETH. A border with no wall on it has to keep
          * reading as open, or the repair above is just a way of never finding a
-         * doorway again \— which would take every glow off every map and
+         * doorway again \- which would take every glow off every map and
          * pass this test twice as fast.
          */
         let bare = null;
@@ -4244,7 +4244,7 @@ const SCENARIOS = [
         await untickMotive();
         equal(motive()?.remaining, 3, "a second rewind inflated the motive past what was bought");
 
-        // Down to zero, and STAYING there — the countdown must not delete the
+        // Down to zero, and STAYING there - the countdown must not delete the
         // motive at the one moment it means something.
         await tickMotive();
         await tickMotive();
@@ -4289,7 +4289,7 @@ const SCENARIOS = [
         /*
          * G-22. The advantage used to land on ANY failure, so a victim who
          * rolled badly and with Despair was paid for it exactly as well as one
-         * who was merely unlucky — which is the one distinction the duality
+         * who was merely unlucky - which is the one distinction the duality
          * die exists to make.
          */
         const [killer, victim] = cast();
@@ -4324,7 +4324,7 @@ const SCENARIOS = [
         /*
          * G-18, end to end: the grant appears, the turn is still the victim's
          * so it can be spent, spending it needs no dice, and it is gone
-         * afterwards. The last one is the point — a grant that survived its
+         * afterwards. The last one is the point - a grant that survived its
          * turn would be a permanent free Survive.
          */
         const [killer, victim] = cast();
@@ -4347,7 +4347,7 @@ const SCENARIOS = [
         equal(state.turnSide, "victim", "the turn passed, so the free action expired unused");
 
         // Taken, not rolled: total zero, no critical, and it still ends the
-        // incident — which is what "without rolling" has to mean.
+        // incident - which is what "without rolling" has to mean.
         await drpg.resolveCrisisAction({
             actorId: victim.id, key: "survive", total: 0, isCritical: false, withHope: true, free: true
         });
@@ -4361,13 +4361,13 @@ const SCENARIOS = [
     ["ending an Eclipse the way the game does carries its sound", async () => {
         /*
          * Dawid, at the table, 28.08: the Eclipse's ending sound never plays.
-         * It was attached to `endEclipse({ advance: false })` — a branch nothing
+         * It was attached to `endEclipse({ advance: false })` - a branch nothing
          * in the game takes, because an Eclipse ends BY advancing the clock.
          *
          * So this drives the DEFAULT path and reads the card that came out.
          * `playSfx` is local and this suite has no audio files, so what is
          * checked is the flag that carries the sound to the people the message
-         * reached — which is the module's whole mechanism for a sound with an
+         * reached - which is the module's whole mechanism for a sound with an
          * audience, and the thing that was missing.
          */
         const eclipse = await import("./eclipse.mjs");
@@ -4385,7 +4385,7 @@ const SCENARIOS = [
         }).filter(Boolean);
 
         ok(carried.includes("eclipseEnd"),
-            `no card carried the Eclipse's ending sound — got [${carried.join(", ")}]`);
+            `no card carried the Eclipse's ending sound - got [${carried.join(", ")}]`);
     }],
 
     ["a trap watches, fires once, and never at its own builder", async () => {
@@ -4470,7 +4470,7 @@ const SCENARIOS = [
          *
          * THE IDENTITY: an item moved between characters is deleted and created
          * again with a new document id, which is precisely the journey this trap
-         * is about. So the ledger is keyed on a flag that travels — and the item
+         * is about. So the ledger is keyed on a flag that travels - and the item
          * the search hands over has to keep the one the GM minted, or the trap
          * will never recognise its own poison.
          */
@@ -4528,7 +4528,7 @@ const SCENARIOS = [
         /*
          * FROM E17'S CLOSING LIST: "every EQUIPPABLE category has a breaking
          * path on Despair". The guide's rule is that a tool used on a Despair
-         * roll breaks, and the module's answer is that nothing is ever deleted —
+         * roll breaks, and the module's answer is that nothing is ever deleted -
          * the same object stays in the bag marked Broken, so the player can see
          * what it cost them.
          *
@@ -4537,7 +4537,7 @@ const SCENARIOS = [
          * free, because the only sign is a thing that never happens.
          *
          * Driven per category rather than read, because "can be broken" is three
-         * facts at once — the flag lands, the item survives, and the equipment
+         * facts at once - the flag lands, the item survives, and the equipment
          * machinery stops offering it.
          */
         const INV = await import("./inventory.mjs");
@@ -4571,7 +4571,7 @@ const SCENARIOS = [
          * Dawid, 28.08: make the architectural change.
          *
          * WHAT WAS MEASURED FIRST. A player's browser, freshly reloaded, held
-         * 717 chat messages — exactly the GM's count — including every card it
+         * 717 chat messages - exactly the GM's count - including every card it
          * was not a recipient of, content and all: "You lift SUITE loot out of
          * Player A's pocket. Nobody saw you do it." A whisper is a courtesy.
          * Foundry sends the message to everyone and hides it in the interface.
@@ -4596,7 +4596,7 @@ const SCENARIOS = [
             ok(!card.content.includes(SECRET),
                 "the sentence is in the chat document, which every client receives");
 
-            // What this client — a recipient, since GMs always are — can read.
+            // What this client - a recipient, since GMs always are - can read.
             const mine = secretHtml(card);
             ok(mine?.includes(SECRET),
                 "the recipient cannot read their own private card");
@@ -4668,12 +4668,12 @@ const SCENARIOS = [
     ["topping up Hope lights the Calls it just paid for", async () => {
         /*
          * Dawid, 28.08: "I noticed it by filling in a player's Hope on the
-         * sheet — the newly available Calls are still greyed out."
+         * sheet - the newly available Calls are still greyed out."
          *
          * WHY IT COULD NOT FIX ITSELF. A resource-only update deliberately SKIPS
          * the sheet render, because Daggerheart puts `transition: all` on the
          * sidebar and every redraw animated the whole left column. In its place
-         * `repaintInPlace` draws by hand what the render would have drawn — and
+         * `repaintInPlace` draws by hand what the render would have drawn - and
          * the comment over `REPAINTABLE` says adding a resource there is a
          * promise that it does. `hope` was in the set and the function drew the
          * bar and the pips and stopped, so the one thing Hope actually decides
@@ -4719,7 +4719,7 @@ const SCENARIOS = [
     ["a sound that plays is never reported as unplayable", async () => {
         /*
          * Dawid, 28.08, from a live session: five warnings saying the file
-         * "could not be played and will not be reported again this session" —
+         * "could not be played and will not be reported again this session" -
          * and four of those five sounds had just been heard at the table.
          *
          * The cause was a call to a function that does not exist. `bend(sound,
@@ -4736,7 +4736,7 @@ const SCENARIOS = [
         const { playSfx, diagnoseSfx } = await import("./sfx.mjs");
         const before = foundry.utils.deepClone(getSetting(SETTINGS.sfxMap) ?? {});
 
-        // A file this install certainly has, and an event that does NOT vary —
+        // A file this install certainly has, and an event that does NOT vary -
         // which is the branch that was broken.
         const FILE = "modules/dice-so-nice/sounds/dicehit.mp3";
         equal(SFX_EVENTS.verdict?.vary ?? false, false,
@@ -4764,7 +4764,7 @@ const SCENARIOS = [
         /*
          * Dawid, 28.08: Monokuma tokens were uncovering rooms. They are the GM
          * wearing a token and they go everywhere, and the GM's own veil is the
-         * UNION of every row in the discovery ledger — so a GM moving their own
+         * UNION of every row in the discovery ledger - so a GM moving their own
          * token was uncovering the building for themselves, one corridor at a
          * time, and the fog stopped meaning "where the cast has been".
          *
@@ -4844,7 +4844,7 @@ const SCENARIOS = [
         const place = async data => {
             const token = await remnants.placeRemnant({
                 type: "prep", visibility: "evident", scene,
-                x: anchor.x, y: anchor.y, note: "test fixture — what ties a trace",
+                x: anchor.x, y: anchor.y, note: "test fixture - what ties a trace",
                 ...data
             });
             ok(token, "could not place a fixture trace");
@@ -4903,7 +4903,7 @@ const SCENARIOS = [
          * incident", which is a different moment and the wrong one.
          *
          * Driven through `wearItem` rather than through a real roll, because
-         * what is being asked is the arithmetic and the hand — the roll's own
+         * what is being asked is the arithmetic and the hand - the roll's own
          * despair path has its own scenario, and one that needed a Despair to
          * come up would be a scenario that passes when the dice feel like it.
          */
@@ -4959,7 +4959,7 @@ const SCENARIOS = [
 
                 // OUT OF THE BAG BEFORE THE NEXT ONE. Tools share a carry
                 // limit, and four of them at once is a test of that limit
-                // rather than of durability — the fourth was refused, which
+                // rather than of durability - the fourth was refused, which
                 // read as "could not make a tier 3 tool".
                 await actor.items.get(item.id)?.delete();
                 made.pop();
@@ -4980,15 +4980,15 @@ const SCENARIOS = [
          * off the world database (E17): the document carries a placeholder and
          * the text is addressed by socket. `postSecret` has to create the
          * message before it can send, because the id it keys the words with
-         * does not exist until then — so on any client the document arrives,
+         * does not exist until then - so on any client the document arrives,
          * `createChatMessage` fires, and the words are still in flight.
          *
          * The chat log survived that because it redraws the card in place when
          * they land. THE NOTICE IS DRAWN ONCE, so it drew the placeholder: an
          * empty card, on every private notice in the game, since v1.1.47.
          *
-         * MEASURED THROUGH THE REAL PATH — `whisperToOwner`, a real card, the
-         * notice's own DOM — because the two halves only meet on screen: the
+         * MEASURED THROUGH THE REAL PATH - `whisperToOwner`, a real card, the
+         * notice's own DOM - because the two halves only meet on screen: the
          * words are in a client-side store, the emptiness was in the popup, and
          * every layer in between was working.
          */
@@ -5011,7 +5011,7 @@ const SCENARIOS = [
             ok(cards.length > before, "no notice appeared at all");
             const text = cards[cards.length - 1].innerText.replace(/\s+/g, " ");
             ok(text.includes(words),
-                `the notice does not carry the card's words — it reads "${text.trim()}"`);
+                `the notice does not carry the card's words - it reads "${text.trim()}"`);
 
             // And the other half of the same rule: the DOCUMENT still says
             // nothing, or the privacy this is built on is gone.
@@ -5033,11 +5033,11 @@ const SCENARIOS = [
          * put the objection playlist on, it must land on a DIFFERENT track.
          *
          * `playRandomTrack` was written for exactly this and says so in its own
-         * note — "what makes a second Objection sound like a second Objection".
+         * note - "what makes a second Objection sound like a second Objection".
          * One line above the call stopped it happening: `crossfade` returned
          * early when the playlist it was asked for was already playing. An
          * Objection cutting into a rebuttal, and a second Objection in the same
-         * exchange, both land on the state that is ALREADY playing — so the two
+         * exchange, both land on the state that is ALREADY playing - so the two
          * cases the feature exists for were the two it could never reach.
          *
          * MEASURED ON THE DOCUMENTS, not on the audio: the sandbox's audio
@@ -5091,7 +5091,7 @@ const SCENARIOS = [
 
             /*
              * THROUGH THE REBUTTAL, because a second objection DURING an
-             * objection is refused on purpose — an objection is one minute
+             * objection is refused on purpose - an objection is one minute
              * alone, and the scenario below this one is what holds that rule.
              * Cutting into a rebuttal is the legal second objection, it is the
              * case Dawid reported, and it is the one that never left the
@@ -5108,7 +5108,7 @@ const SCENARIOS = [
             const second = nowPlaying();
             ok(second, "a second objection left the playlist silent");
             ok(second !== first,
-                `both objections played the same track (${first}) — a second `
+                `both objections played the same track (${first}) - a second `
                 + "objection has to sound like a second objection");
         } finally {
             await floor.endFloor();
@@ -5132,7 +5132,7 @@ const SCENARIOS = [
          * The second used to be refused in THREE places: the floor itself, the
          * courtesy check that tells a player why, and the target picker, which
          * narrowed to "your opponent" for everybody. Lifting one without the
-         * others is the failure that would have looked like it worked — an
+         * others is the failure that would have looked like it worked - an
          * objection that lands and is aimed at the wrong half of the pair.
          */
         const floor = await import("./trial-floor.mjs");
@@ -5144,7 +5144,7 @@ const SCENARIOS = [
         const before = foundry.utils.deepClone(getClock());
         /*
          * AND THE WORLD HAS TO BE RUNNING. `currentState()` answers "paused"
-         * over everything else while the game is paused — correctly: a table
+         * over everything else while the game is paused - correctly: a table
          * on hold should not have trial music under it. A Foundry world boots
          * paused, so on a fresh server this scenario measured the pause and
          * reported that an objection never reached its own state.
@@ -5161,7 +5161,7 @@ const SCENARIOS = [
             // moves an existing one back. Without it every call below refuses
             // on `if (!floor) return null` and the trial never leaves
             // `trial.discussion`, which is the state for a trial with no floor
-            // open at all — measured, and it is why this test failed first time.
+            // open at all - measured, and it is why this test failed first time.
             await floor.startFloor();
             await settle();
 
@@ -5183,7 +5183,7 @@ const SCENARIOS = [
             /*
              * AND WHO THEY MAY AIM AT (Dawid, 28.08, correcting the reading of
              * his own ruling). Cutting in is open to anybody; the TARGET is the
-             * pair and nobody else, because an objection re-points the floor —
+             * pair and nobody else, because an objection re-points the floor -
              * aiming a bystander at another bystander would take a rebuttal two
              * people earned and hand it to two who have not spoken.
              */
@@ -5219,7 +5219,7 @@ const SCENARIOS = [
     ["an Eclipse takes every voice off the rooms", async () => {
         // The Eclipse is the placement window. A voice channel that still
         // followed the rooms while the lights were out would be the one thing
-        // in the building that could see in the dark — you would hear who came
+        // in the building that could see in the dark - you would hear who came
         // in with you, and hear the room empty when somebody left.
         const before = await voiceTargets();
         ok(!before.eclipse, "an Eclipse was already running before the test began");
@@ -5237,7 +5237,7 @@ const SCENARIOS = [
             equal(row.room, null, `${game.users.get(userId)?.name} is still placed in a room`);
             ok(row.target, `${game.users.get(userId)?.name} was left on an open channel`);
             // A scene id in the name would leak which map, and a slug would leak
-            // which region — the two things the darkness is hiding.
+            // which region - the two things the darkness is hiding.
             ok(!row.scene, `${game.users.get(userId)?.name}'s assignment still names a scene`);
             rooms.add(row.target);
         }
@@ -5271,10 +5271,10 @@ const SCENARIOS = [
  * TWO RUNS AT ONCE CORRUPT THE WORLD, and quietly. Measured: a probe that
  * appeared to time out was still running when a second `runTests()` was
  * started, and the pair reported 16/22 with six murder scenarios failing on
- * "stage after opening — expected openingRoll, measured undefined". Not one of
+ * "stage after opening - expected openingRoll, measured undefined". Not one of
  * those failures was real. The Eclipse scenario sets `clock.eclipse` true for
  * the length of its own check, and `openMurder` refuses outright during an
- * Eclipse — so every murder scenario in the other run was declined by a gate
+ * Eclipse - so every murder scenario in the other run was declined by a gate
  * working exactly as designed.
  *
  * The damage outlives the run. `snapshot()` records the clock as the baseline
@@ -5286,7 +5286,7 @@ const SCENARIOS = [
  *
  * So a second run is refused rather than queued. Queueing would be the wrong
  * answer for a suite whose whole contract is "the world is put back exactly as
- * it was found" — a caller who did not know the first run was in flight does
+ * it was found" - a caller who did not know the first run was in flight does
  * not want the second one to happen later either; they want to be told.
  */
 let inFlight = false;
@@ -5309,7 +5309,7 @@ export async function runTests({ tier = 2 } = {}) {
         return { passed: 0, failed: 0, text: why, refused: true };
     }
     inFlight = true;
-    // Every roll the scenarios make skips the configuration window — see
+    // Every roll the scenarios make skips the configuration window - see
     // `suiteRolling` in action-rolls.mjs for why, and the scenario named "the
     // roll window opens, locked" for what still covers it.
     if (game.drpg) game.drpg.suiteRolling = true;
@@ -5336,18 +5336,18 @@ async function runSuite(tier) {
         }
     };
 
-    // Tier 0 runs at every level, including `{ tier: 1 }` — the round-by-round
+    // Tier 0 runs at every level, including `{ tier: 1 }` - the round-by-round
     // pass E17 makes on the way in and on the way out. It is the cheapest thing
     // in the suite to be wrong about and the most expensive to skip: a divergence
     // it would have caught costs four releases, not one run.
-    lines.push("TIER 0 — module-wide regression (source is read, not called)");
+    lines.push("TIER 0 - module-wide regression (source is read, not called)");
     for (const [name, fn] of REGRESSIONS) {
         try { await fn(); record(name, null); } catch (err) { record(name, err); }
     }
 
     if (tier >= 1) {
         lines.push("");
-        lines.push("TIER 1 — invariants (the world is not touched)");
+        lines.push("TIER 1 - invariants (the world is not touched)");
         for (const [name, fn] of INVARIANTS) {
             try { await fn(); record(name, null); } catch (err) { record(name, err); }
         }
@@ -5355,7 +5355,7 @@ async function runSuite(tier) {
 
     if (tier >= 2) {
         lines.push("");
-        lines.push("TIER 2 — scenarios (fixtures built and put back)");
+        lines.push("TIER 2 - scenarios (fixtures built and put back)");
         let snap = null;
         try {
             snap = await snapshot(studentActors());
@@ -5387,7 +5387,7 @@ async function runSuite(tier) {
     }
 
     const summary = `${passed} passed, ${failed} failed`;
-    const text = [`Danganronpa RPG — regression suite`, summary, "", ...lines].join("\n");
+    const text = [`Danganronpa RPG - regression suite`, summary, "", ...lines].join("\n");
     console.log(text);
     if (failed) ui.notifications.warn(summary);
     else ui.notifications.info(summary);

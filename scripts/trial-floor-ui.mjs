@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — the GM's controls for a Class Trial in session.
+ * Danganronpa RPG - the GM's controls for a Class Trial in session.
  *
  * Kept apart from `trial-floor.mjs` on purpose: that file is the shared clock
  * every client runs, and it has to stay cheap to import. This is the GM's
@@ -26,7 +26,7 @@ const DialogV2 = foundry.applications.api.DialogV2;
  * Class Trial phase; and the vote, the verdict and the end of the chapter were
  * three buttons pressable in any order, including the destructive one first.
  *
- *   Start the Class Trial   the phase moves. Nothing else — the trial opens in
+ *   Start the Class Trial   the phase moves. Nothing else - the trial opens in
  *                           discussion, which is people talking, not a debate.
  *   Open Debate             the floor opens. From here evidence takes it.
  *   Close Debate            back to discussion, trial still running.
@@ -44,8 +44,8 @@ const DialogV2 = foundry.applications.api.DialogV2;
  * Start a Class Trial.
  *
  * IT DOES NOT OPEN THE DEBATE, and that is the change this window exists to
- * make. A trial begins with people talking about what they found — the guide's
- * discussion — and a Nonstop Debate is a thing the GM starts inside it, with
+ * make. A trial begins with people talking about what they found - the guide's
+ * discussion - and a Nonstop Debate is a thing the GM starts inside it, with
  * its own clock and its own rules about who may speak. Opening one
  * automatically meant every trial began in the restrictive mode and the GM had
  * no way back to the loose one except by ending the trial.
@@ -92,7 +92,7 @@ export async function startClassTrial() {
     if (!result || result === "cancel") return null;
 
     // ONE WRITE, TWO FACTS. The phase and the elapsed clock's stamp go together
-    // — see `resetElapsed` — so the HUD redraws once. Two writes would redraw
+    // - see `resetElapsed` - so the HUD redraws once. Two writes would redraw
     // it twice a few milliseconds apart, and the second redraw would land in
     // the middle of the turn-over animation the first one started.
     await setClock({ phase: "classTrial", timeOfDayStartedAt: Date.now() });
@@ -129,8 +129,8 @@ export async function startClassTrial() {
  * changes meaning under them, so they are told.
  *
  * The length is asked for HERE, every time. A trial holds several debates and
- * they are not the same length — the first one opens wide and the one after a
- * confession is two minutes of tidying up — so the number belongs to the debate
+ * they are not the same length - the first one opens wide and the one after a
+ * confession is two minutes of tidying up - so the number belongs to the debate
  * rather than to the trial. The last one used is offered as the default,
  * because a table settles into a rhythm and re-typing it every time is a tax on
  * the rhythm rather than a decision.
@@ -209,14 +209,14 @@ export async function closeDebate() {
  * End the Class Trial, and mean it.
  *
  * THIS IS THE HALF THAT WAS MISSING. It closed the floor and opened the vote,
- * and never touched the campaign phase — so the trial "ended" while every
+ * and never touched the campaign phase - so the trial "ended" while every
  * screen in the game went on saying Class Trial, the action economy stayed
  * shut, and Daily Life had to be restored by hand from Edit Campaign. Ending a
  * trial is the campaign going back to ordinary play, and that is what this
  * does.
  *
  * It no longer opens the vote either. The vote is a step of the trial with its
- * own button above this one — running it on the way out put it after the thing
+ * own button above this one - running it on the way out put it after the thing
  * it is supposed to come before.
  *
  * The elapsed clock restarts, exactly as it does when the trial begins. A Class
@@ -276,7 +276,7 @@ export async function endClassTrial() {
  * they go looking for a second window to check.
  */
 export async function manageClassTrial() {
-    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
@@ -297,7 +297,7 @@ export async function manageClassTrial() {
      * under it (E22, measured in E17).
      *
      * The console used to compute all of this once and then sit there. A player
-     * objecting, a minute running out, the last vote arriving — none of it
+     * objecting, a minute running out, the last vote arriving - none of it
      * reached the screen, and the GM was reading a photograph of the moment they
      * opened it. Measured before this: the whole window byte-identical across an
      * Eclipse starting and ending underneath it.
@@ -332,10 +332,10 @@ export async function manageClassTrial() {
                 ? `<p>${game.i18n.format("DRPG.Floor.holdingDiscussion", { seconds: left })}</p>`
                 : floor.mode === FLOOR_MODES.objection
                     ? `<p>${game.i18n.format("DRPG.Floor.holdingObjection", {
-                        who: esc(holder?.name ?? "\u2014"), target: esc(target?.name ?? "\u2014"), seconds: left
+                        who: esc(holder?.name ?? "-"), target: esc(target?.name ?? "-"), seconds: left
                     })}</p>`
                     : `<p>${game.i18n.format("DRPG.Floor.holdingRebuttal", {
-                        who: esc(holder?.name ?? "\u2014"), target: esc(target?.name ?? "\u2014"), seconds: left
+                        who: esc(holder?.name ?? "-"), target: esc(target?.name ?? "-"), seconds: left
                     })}</p>`;
 
         // Who has not voted yet, if a vote is open at all. Names only: who has
@@ -381,7 +381,7 @@ export async function manageClassTrial() {
      *
      * `keepLive` rebuilds a region of the CONTENT; it cannot add a button to a
      * DialogV2 footer that was built once. And a window whose text is true while
-     * its buttons are stale is exactly the half-live shape trap 171 is about —
+     * its buttons are stale is exactly the half-live shape trap 171 is about -
      * the GM panel's murder tile, all over again.
      *
      * So when the SET of available buttons would change, the window opens again
@@ -402,7 +402,7 @@ export async function manageClassTrial() {
     // WHICH BUTTON ENTER PRESSES, worked out once.
     //
     // Nine buttons can be on this window at the tensest moment of a session,
-    // and each branch used to declare its own `default: <some condition>` —
+    // and each branch used to declare its own `default: <some condition>` -
     // which is how a window ends up with two defaults in one state and none in
     // another. Named here instead: exactly one action is the next step, and it
     // is by construction one that is present and not disabled.
@@ -431,7 +431,7 @@ export async function manageClassTrial() {
                         ? { action: "closeDebate", label: game.i18n.localize("DRPG.Floor.closeDebate") }
                         : { action: "openDebate", default: isDefault("openDebate"),
                             label: game.i18n.localize("DRPG.Floor.openDebate") },
-                    // A debate in free discussion has nothing to cut short — it
+                    // A debate in free discussion has nothing to cut short - it
                     // deliberately does not expire (see `advanceIfDue`), so
                     // "end now" would have nothing to end.
                     ...(restrictive
@@ -473,12 +473,12 @@ export async function manageClassTrial() {
                 /*
                  * AWAITED, and the first run of this closed the window and left
                  * nothing behind. `close()` is asynchronous and `alreadyOpen`
-                 * refuses a second copy — so reopening in the same tick asked
+                 * refuses a second copy - so reopening in the same tick asked
                  * for a window while the old one was still there, was correctly
                  * refused, and the GM was left looking at the scene.
                  *
                  * Closing resolves the `DialogV2.wait` above with null, which
-                 * the handler below already returns for — so the reopen belongs
+                 * the handler below already returns for - so the reopen belongs
                  * here rather than smuggled into the action chain.
                  */
                 dialog.close()
@@ -490,7 +490,7 @@ export async function manageClassTrial() {
     });
 
     // Everything comes back here, so the GM lands on the screen they pressed
-    // the button from rather than on the scene — the same pattern the GM panel
+    // the button from rather than on the scene - the same pattern the GM panel
     // uses for its tiles.
     if (!action || action === "close") return null;
 
@@ -557,7 +557,7 @@ export async function openVoteDialog() {
     //
     // Counting the vote is irreversible and the counts only appear once it is
     // closed, so "has everybody voted?" used to be a question this screen could
-    // not answer — a player who dismissed their ballot by accident was simply
+    // not answer - a player who dismissed their ballot by accident was simply
     // never counted and nobody could tell. Names only: who has voted is not how
     // they voted, and only the second is the secret the guide keeps.
     const pending = pendingVoters();

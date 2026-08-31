@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — the GM hands things out, and takes them away.
+ * Danganronpa RPG - the GM hands things out, and takes them away.
  * ---------------------------------------------------------------------------
  * Search puts items into an inventory on its own, but plenty of things arrive
  * by other routes: a project that produced a tool, a reward, a Truth Bullet the
@@ -8,7 +8,7 @@
  *
  * Truth Bullets matter most here. They are the one category nothing in the module
  * creates automatically, so until the investigation loop exists this dialog is
- * how evidence reaches a player's sheet — and it writes the same category flag
+ * how evidence reaches a player's sheet - and it writes the same category flag
  * the sheet groups on, which is exactly what the old hand-rolled macro did not.
  */
 
@@ -40,7 +40,7 @@ const DialogV2 = foundry.applications.api.DialogV2;
  * @param {Actor} [actor]  Skip the character picker when the caller knows who.
  */
 export async function openItemManager(actor = null) {
-    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
@@ -83,14 +83,14 @@ export async function openItemManager(actor = null) {
         buttons: [
             { action: "give", label: game.i18n.localize("DRPG.Items.give"), default: true },
             { action: "bullet", label: game.i18n.localize("DRPG.TruthBullet.give") },
-            // A key is not something to type a name for — it names a room, and
+            // A key is not something to type a name for - it names a room, and
             // the rooms are already on the map. See the note on keys in
             // vault.mjs; this is the GM's way to hand somebody a copy of
             // another player's key without either player being involved.
             { action: "key", label: game.i18n.localize("DRPG.Vault.giveKey") },
             { action: "take", label: game.i18n.localize("DRPG.Items.take") },
             // A stashed item is an ordinary item on its owner's sheet, which is
-            // exactly what this window edits — so the inspector is a button on
+            // exactly what this window edits - so the inspector is a button on
             // it rather than a tile of its own in the GM panel.
             { action: "stashes", label: game.i18n.localize("DRPG.Vault.inspectTitle") },
             { action: "cancel", label: game.i18n.localize("DRPG.Panel.close") }
@@ -107,7 +107,7 @@ export async function openItemManager(actor = null) {
      * CANCELLING A STEP COMES BACK HERE (D-F5-2).
      *
      * Every branch used to read `made ? openItemManager(target) : null`, so
-     * succeeding returned to the hub and CANCELLING closed the whole thing —
+     * succeeding returned to the hub and CANCELLING closed the whole thing -
      * and with it the character this window is about. A GM who opened Give,
      * thought better of it and pressed Cancel was put back in the GM panel
      * having to pick the student again, which is the one thing the hub exists
@@ -115,7 +115,7 @@ export async function openItemManager(actor = null) {
      *
      * Two different depths for the same gesture, and the wrong one was the
      * cheaper to reach. Now every step returns to the hub whatever the answer,
-     * and the hub's own Close is the single way out — one exit, at the level
+     * and the hub's own Close is the single way out - one exit, at the level
      * the GM opened.
      */
     if (choice === "give") {
@@ -285,15 +285,15 @@ export async function giveItemDialog(actor) {
                 ? (group ? countInGroup(who, group) : countInCategory(who, key))
                 : null;
             const limit = group ? LIMIT_GROUPS[group]?.limit : cat.limit;
-            const cap = held === null ? "" : (limit ? ` — ${held}/${limit}` : ` — ${held}`);
-            // A usable is a healing or a stress-relief item — that decides what
+            const cap = held === null ? "" : (limit ? ` - ${held}/${limit}` : ` - ${held}`);
+            // A usable is a healing or a stress-relief item - that decides what
             // it does when drunk, so the GM says which here rather than the
             // player being asked later. Both halves share the one carry count:
             // the inventory does not split the category, only the effect does.
             if (key === "usable") {
                 return Object.entries(USABLE_KINDS).map(([kind, def]) =>
                     `<option value="${key}:${kind}">${foundry.utils.escapeHTML(
-                        `${cat.label} — ${def.label}`)}${cap}</option>`);
+                        `${cat.label} - ${def.label}`)}${cap}</option>`);
             }
             return [`<option value="${key}">${foundry.utils.escapeHTML(cat.label)}${cap}</option>`];
         }).join("");
@@ -320,7 +320,7 @@ export async function giveItemDialog(actor) {
         ...Object.values(USABLE_GOALS).flatMap(({ pool }) => Object.values(pool).flat())
     ])).sort();
 
-    // THE CATALOGUE — the item tables read the other way round: not "what can
+    // THE CATALOGUE - the item tables read the other way round: not "what can
     // a Search produce" but "what is there to hand over". Giving from here is
     // what keeps a hand-out consistent with the world: the entry's own icon
     // and description come along, and a usable's kind is whatever its table
@@ -517,8 +517,8 @@ export async function giveItemDialog(actor) {
     }
     actor = chosen;
 
-    // Both tabs funnel into one shape, so everything below — the grant, the
-    // receipt, the log line — cannot diverge between them.
+    // Both tabs funnel into one shape, so everything below - the grant, the
+    // receipt, the log line - cannot diverge between them.
     let give;
     if (result.mode === "existing") {
         const entry = game.tables.get(result.tableId)?.results?.get(result.resultId);
@@ -577,11 +577,11 @@ export async function giveItemDialog(actor) {
         const effect = USABLE_KIND_EFFECTS[give.kind]?.[give.tier]
             ?? TIER_EFFECTS[give.category]?.[give.tier] ?? "";
         const label = USABLE_KINDS[give.kind]
-            ? `${ITEM_CATEGORIES[give.category]?.label} — ${USABLE_KINDS[give.kind].label}`
+            ? `${ITEM_CATEGORIES[give.category]?.label} - ${USABLE_KINDS[give.kind].label}`
             : ITEM_CATEGORIES[give.category]?.label ?? give.category;
         await whisperToOwner(actor, `
             <h3>${game.i18n.localize("DRPG.Items.received")}</h3>
-            <p><strong>${esc(give.name)}</strong> — ${esc(label)
+            <p><strong>${esc(give.name)}</strong> - ${esc(label)
             }, ${game.i18n.format("DRPG.Items.tierN", { n: give.tier })}</p>
             ${give.description ? `<p>${esc(give.description)}</p>` : ""}
             ${effect ? `<p><em>${esc(effect)}</em></p>` : ""}`);
@@ -594,8 +594,8 @@ export async function giveItemDialog(actor) {
  * TRUTH BULLETS
  * --------------------------------------------------------------------------
  * A separate dialog rather than a branch of the one above. What a bullet needs
- * — what it really is, what the player is told it is, how visible the original
- * was — has no overlap with tier and carry limits, and the two forms would have
+ * - what it really is, what the player is told it is, how visible the original
+ * was - has no overlap with tier and carry limits, and the two forms would have
  * had to hide each other's fields.
  * ========================================================================== */
 
@@ -897,7 +897,7 @@ async function giveTruthBulletDialog(actor) {
 /**
  * The Autopsy bullet, handed to everyone at once.
  *
- * Decision D2: issued by hand, never rolled for — which is why the `autopsy`
+ * Decision D2: issued by hand, never rolled for - which is why the `autopsy`
  * column is absent from both OBSERVE_DC and ANALYZE_DC.
  *
  * Everyone still alive gets one. The dead are listed but start unticked rather
@@ -922,7 +922,7 @@ export async function issueAutopsyDialog() {
         return `<label class="drpg-checkbox">
             <input type="checkbox" name="target" value="${a.id}"${dead ? "" : " checked"} />
             ${foundry.utils.escapeHTML(a.name)}${
-                dead ? ` — <em>${game.i18n.localize("DRPG.Chapter.deadShort")}</em>` : ""
+                dead ? ` - <em>${game.i18n.localize("DRPG.Chapter.deadShort")}</em>` : ""
             }</label>`;
     }).join("");
 

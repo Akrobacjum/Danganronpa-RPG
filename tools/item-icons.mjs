@@ -1,14 +1,14 @@
 /**
- * Danganronpa RPG — placeholder pixel icons for the item categories.
+ * Danganronpa RPG - placeholder pixel icons for the item categories.
  * ---------------------------------------------------------------------------
  * Every item this module creates used to wear one of Foundry's own painted
- * icons — an oil-painted apple next to a pixel-art sheet, and two categories
+ * icons - an oil-painted apple next to a pixel-art sheet, and two categories
  * (Tool, Room Key) with no icon at all, which is a blank frame. These are six
  * hand-drawn placeholders in the register the rest of the module is drawn in.
  *
  * PLACEHOLDERS, said out loud (Dawid, 28.08). One drawing per CATEGORY, not
  * per item: a Hammer and a Crowbar are both "Tool" here. Replacing any of them
- * later means editing the picture below and re-running this — the art is ASCII,
+ * later means editing the picture below and re-running this - the art is ASCII,
  * so an icon is edited as a picture rather than as a path string, the same rule
  * `tools/chrome-icons.mjs` follows.
  *
@@ -100,7 +100,7 @@ const ICONS = {
         ]
     },
 
-    // A wrench. Work, not harm — the difference the category is about.
+    // A wrench. Work, not harm - the difference the category is about.
     tool: {
         accent: "#c9a227",
         art: [

@@ -1,8 +1,8 @@
 /**
- * Danganronpa RPG — the pre-session note.
+ * Danganronpa RPG - the pre-session note.
  * ---------------------------------------------------------------------------
  * Player Handbook, ch. 8: "The five most important lines in the whole system."
- * Seven questions a player answers before every session — whether they intend
+ * Seven questions a player answers before every session - whether they intend
  * to kill, whether they are open to dying, whether they consent to torture or
  * romance, what their triggers are, how they mean to play, and what large
  * project they are aiming at. The GMs read them before every session and steer
@@ -11,7 +11,7 @@
  * Chapter 13 then makes the first four load-bearing: "The first four questions
  * in the pre-session note are your boundaries, not a declaration of courage."
  *
- * None of it existed in the module. It lived on Discord — which is to say, in
+ * None of it existed in the module. It lived on Discord - which is to say, in
  * another window, on another screen, at the moment a GM is deciding whether to
  * approve a murder.
  *
@@ -24,7 +24,7 @@
  *
  * What this does NOT do is hide the note from other players. Foundry ships every
  * User document to every client, so a player who opens a console can read
- * somebody else's answers — the same world-data exposure the rest of this module
+ * somebody else's answers - the same world-data exposure the rest of this module
  * documents. The UI never shows one player another's note, and nothing here
  * announces or whispers it. But if a table has answers too sensitive to sit in
  * world data at all, those belong in a direct message to a GM, not here.
@@ -69,7 +69,7 @@ export function hasNote(userId) {
 /**
  * Save a note.
  *
- * Allowed for the note's owner and for any GM — the handbook has the GMs going
+ * Allowed for the note's owner and for any GM - the handbook has the GMs going
  * through these WITH the player, and a GM who has just been told something out
  * loud should be able to write it down.
  */

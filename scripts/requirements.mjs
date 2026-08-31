@@ -1,10 +1,10 @@
 /**
- * Danganronpa RPG — the modules this one cannot do without.
+ * Danganronpa RPG - the modules this one cannot do without.
  * ---------------------------------------------------------------------------
  * Four modules are not optional here: the dice everyone watches, the isometric
  * projection the maps are drawn in, the library those patches go through, and
  * the voice layer the rooms are wired to. A world missing any of them is not a
- * slightly reduced version of this game — it is a game whose maps are laid out
+ * slightly reduced version of this game - it is a game whose maps are laid out
  * wrong, whose rolls happen invisibly and whose rooms are silent.
  *
  * So the layer refuses to start, and says which ones and what to do about it.
@@ -14,8 +14,8 @@
  * needs (Dawid, 26.08).
  *
  * THE LIST LIVES IN THE MANIFEST, not here. `relationships.requires` in
- * module.json is where Foundry itself reads it — it is what makes the module
- * browser offer to install them and what the Forge shows beside the entry — so
+ * module.json is where Foundry itself reads it - it is what makes the module
+ * browser offer to install them and what the Forge shows beside the entry - so
  * a second copy in this file would be a second thing to keep in step, and the
  * one people edit would be the wrong one. This reads the manifest back.
  */
@@ -34,8 +34,8 @@ function required() {
 /**
  * The ones that are not there, or are there and switched off.
  *
- * The two are told apart because the fix is different — one is a download and
- * one is a checkbox — and a message that says "missing" about a module sitting
+ * The two are told apart because the fix is different - one is a download and
+ * one is a checkbox - and a message that says "missing" about a module sitting
  * disabled in the list sends the reader looking in the wrong place.
  *
  * @returns {Array<{id: string, title: string, state: "absent"|"disabled", reason: string}>}
@@ -70,7 +70,7 @@ export function requirementsMet() {
  *
  * The GM gets a window, because the GM is the only person who can fix it and a
  * notification is dismissible by accident. Everyone else gets a notification
- * that does not time out — they cannot act on it, but a player whose sheet has
+ * that does not time out - they cannot act on it, but a player whose sheet has
  * no actions on it is owed the reason.
  */
 export async function announceMissingRequirements() {
@@ -78,7 +78,7 @@ export async function announceMissingRequirements() {
     if (!missing.length) return;
 
     const names = missing.map(m => m.title).join(", ");
-    error(`Not starting: required modules unavailable — ${
+    error(`Not starting: required modules unavailable - ${
         missing.map(m => `${m.id} (${m.state})`).join(", ")}.`);
 
     if (!game.user.isGM) {

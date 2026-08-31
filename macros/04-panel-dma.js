@@ -1,5 +1,5 @@
 /**
- * MAKRO: Panel DMa — skrot
+ * MAKRO: Panel DMa - skrot
  * ---------------------------------------------------------------------------
  * To makro NIE ma juz wlasnej logiki. Wszystko, co kiedys robilo recznie,
  * mieszka teraz w module i jest dostepne z panelu DMa (ikona zegara na pasku
@@ -8,7 +8,7 @@
  * Co sie zmienilo i dlaczego:
  *
  *   "zbiorka"   -> `game.drpg.bodyDiscoveryDialog()`. Stara wersja przesuwala
- *                  zetony wpisujac x/y, co Foundry traktuje jako RUCH — sciana
+ *                  zetony wpisujac x/y, co Foundry traktuje jako RUCH - sciana
  *                  miedzy graczem a miejscem zbiorki blokowala teleport. Teraz
  *                  idzie przez `region.teleportTokens`, plus ogloszenie,
  *                  przelaczenie fazy na Investigation i pytanie o to, ktore

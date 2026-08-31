@@ -1,15 +1,15 @@
 /**
- * Danganronpa RPG — the Eclipse.
+ * Danganronpa RPG - the Eclipse.
  * ---------------------------------------------------------------------------
  * Guide: "Before each time of day the player may move their token by 2
  * connected rooms. Before the time of day begins every player places their
- * character token on the map — they do not see the others' tokens. Only once
+ * character token on the map - they do not see the others' tokens. Only once
  * confirmed does the time of day begin."
  *
  * That placement window is the Eclipse. During it:
  *   · nobody sees anybody else's token, in any room
  *   · each player gets exactly 2 room crossings, free of the action economy
- *   · crossings still respect doors and gaps — you move through connected
+ *   · crossings still respect doors and gaps - you move through connected
  *     rooms, not across the map
  *
  * An Eclipse is not part of a day. Time of day, session and day counters do not
@@ -36,7 +36,7 @@ export { ECLIPSE_MOVES };
  * clock does not move until the Eclipse ends, so the time of day a running
  * Eclipse is leading into is always the NEXT one.
  *
- * That naming is not cosmetic — it is what decides the allowance. Two of the
+ * That naming is not cosmetic - it is what decides the allowance. Two of the
  * five let you start anywhere on the map (see ECLIPSE_FREE_PLACEMENT); the
  * other three are the handbook's two connected rooms.
  * ========================================================================== */
@@ -48,7 +48,7 @@ export function incomingTimeOfDay(clock = getClock()) {
     return TIMES_OF_DAY[(index + 1) % TIMES_OF_DAY.length];
 }
 
-/** "Morning Eclipse", "Night Eclipse" — what this placement window is called. */
+/** "Morning Eclipse", "Night Eclipse" - what this placement window is called. */
 export function eclipseLabel(clock = getClock()) {
     return game.i18n.format("DRPG.Eclipse.named", {
         time: timeOfDayLabel(incomingTimeOfDay(clock))
@@ -62,12 +62,12 @@ export function isFreePlacement(clock = getClock()) {
 
 /**
  * Crossings allowed by the Eclipse currently running.
- * `null` means unlimited — pick any room on the map.
+ * `null` means unlimited - pick any room on the map.
  */
 export function eclipseAllowance(clock = getClock()) {
     const base = isFreePlacement(clock) ? null : ECLIPSE_MOVES;
     // Z10. Asked here rather than at each of the four call sites, because this
-    // is already the one place the number is decided — `movesLeft`, the sheet's
+    // is already the one place the number is decided - `movesLeft`, the sheet's
     // budget line, the Move tile and the Eclipse card all read it from here.
     return overflowCrossings(base);
 }
@@ -82,7 +82,7 @@ export function movesUsed(actor) {
 }
 
 /**
- * Crossings this character has left. `null` means unlimited — a Morning or
+ * Crossings this character has left. `null` means unlimited - a Morning or
  * Night Eclipse places freely, so there is no number to count down.
  */
 export function movesLeft(actor) {
@@ -103,14 +103,14 @@ export function isEclipse() {
 
 /**
  * Begin the Eclipse. Everything goes dark and everyone gets two crossings.
- * The clock does not move — that happens when the Eclipse ends.
+ * The clock does not move - that happens when the Eclipse ends.
  *
  * THE ACTION ECONOMY COMES BACK HERE (Z2, E18b wave 5), and this function used
  * to argue at length that it must not. The argument was right about the danger
  * and wrong about the cure.
  *
  * The danger: the Eclipse is a placement window sitting BEFORE the next time of
- * day — "only once confirmed does the time of day begin" — so a full budget
+ * day - "only once confirmed does the time of day begin" - so a full budget
  * handed out at the top of it could be spent on ordinary actions and on
  * Hope/Despair Calls while everybody was still walking. That is a real bug and
  * it really happened. It is now fixed WHERE IT BELONGS: `performAction` and
@@ -121,7 +121,7 @@ export function isEclipse() {
  * What refilling late cost was the one action the Eclipse is FOR. A Direct
  * Murder is declared in the dark and nowhere else, it costs an action, and
  * until now that action came out of the budget of the day that had just
- * ENDED — so a killer who had spent their afternoon could not act on the one
+ * ENDED - so a killer who had spent their afternoon could not act on the one
  * opportunity the guide gives them, and a killer who had idled all day paid
  * with a currency they no longer had any other use for. Neither is a decision.
  *
@@ -133,7 +133,7 @@ export function isEclipse() {
  * ONE REFILL, AND THIS IS THE ONLY ONE. `endEclipse` no longer asks
  * `advanceTimeOfDay` for one, `advanceTimeOfDay` still defaults to off, and the
  * GM's clock editor still only refills when the box is ticked. An invariant
- * holds that shape — see "the action budget comes back when the Eclipse opens".
+ * holds that shape - see "the action budget comes back when the Eclipse opens".
  */
 export async function startEclipse() {
     if (!game.user.isGM) return null;
@@ -149,7 +149,7 @@ export async function startEclipse() {
      * THE OVERFLOW CHECK, AND IT HAS TO COME BEFORE THE REFILL (Z10).
      *
      * A darkening takes an action off everybody's budget, and the budget is
-     * WRITTEN by the refill two blocks down — `resetActionsFor` stores the
+     * WRITTEN by the refill two blocks down - `resetActionsFor` stores the
      * total as both value and max. Checked afterwards, the darkening would
      * arrive one time of day late every single time: announced now, felt next
      * time. The order of these two calls is the whole of that.
@@ -165,7 +165,7 @@ export async function startEclipse() {
      *
      * After the flag because `resetActionsFor` also zeroes the Sprint and Burst
      * grants, and "until the end of this time of day" ends when the lights go
-     * out — the Eclipse is the boundary, not a part of the day it follows. The
+     * out - the Eclipse is the boundary, not a part of the day it follows. The
      * grants therefore die on exactly the boundary they always died on; only
      * the line of code that kills them moved.
      *
@@ -188,7 +188,7 @@ export async function startEclipse() {
         error("Could not refill the action budget as the Eclipse opened", err);
     }
 
-    // Read before the clock moves, which it will not until this Eclipse ends —
+    // Read before the clock moves, which it will not until this Eclipse ends -
     // so these describe the time of day being opened, not the one just closed.
     const free = isFreePlacement();
     const allowance = eclipseAllowance();
@@ -208,7 +208,7 @@ export async function startEclipse() {
     });
 
     for (const actor of placingActors()) {
-        const room = foundry.utils.escapeHTML(roomOfActor(actor) ?? "—");
+        const room = foundry.utils.escapeHTML(roomOfActor(actor) ?? "-");
         // PLURALISED BECAUSE ONE IS NOW REACHABLE. A darkened Eclipse hands out
         // a single crossing (Z10), and until then no allowance was ever 1, so
         // "up to 1 connected rooms" had never been printed. Found on the live
@@ -228,7 +228,7 @@ export async function startEclipse() {
  * End the Eclipse and start the time of day it was leading into.
  *
  * @param {object} [options]
- * @param {boolean} [options.advance]  Also advance the clock. Default true —
+ * @param {boolean} [options.advance]  Also advance the clock. Default true -
  *   the Eclipse sits *between* times of day, so ending one begins the next.
  */
 export async function endEclipse({ advance = true } = {}) {
@@ -246,7 +246,7 @@ export async function endEclipse({ advance = true } = {}) {
         // NO REFILL HERE ANY MORE (Z2). The budget arrived when this Eclipse
         // opened; asking for a second one on the way out would hand the table
         // two in a row and wipe the cost of a Direct Murder declared in the
-        // dark — the exact thing this change exists to make payable.
+        // dark - the exact thing this change exists to make payable.
         //
         // `resetActions` stays off by default in `advanceTimeOfDay`, so the
         // omission below is the whole of it. The GM's clock editor still asks
@@ -254,12 +254,12 @@ export async function endEclipse({ advance = true } = {}) {
         //
         // `eclipse: false` travels WITH the advance rather than ahead of it.
         // Cleared first, the clock spent a frame reading as the time of day
-        // that had just finished — the flicker between the Eclipse and the
+        // that had just finished - the flicker between the Eclipse and the
         // time it leads into.
         /*
          * THE SOUND RIDES THIS CARD, AND THAT IS THE BUG THIS FIXES.
          *
-         * `eclipseEnd` used to be attached to the `else` below — the branch for
+         * `eclipseEnd` used to be attached to the `else` below - the branch for
          * `advance: false`, which nothing in the game takes. An Eclipse ends by
          * advancing the clock; that is what `advance` defaults to and what the
          * GM panel calls. So the sound was mapped, catalogued, shown in the
@@ -279,14 +279,14 @@ export async function endEclipse({ advance = true } = {}) {
         await setClock({ eclipse: false });
         await announce({
             flags: { [MODULE_ID]: { sfx: { key: "eclipseEnd", gm: true } } },
-            content: `<p><strong>${timeOfDayLabel()}</strong> — ${game.i18n.localize("DRPG.Eclipse.ended")}</p>`
+            content: `<p><strong>${timeOfDayLabel()}</strong> - ${game.i18n.localize("DRPG.Eclipse.ended")}</p>`
         });
     }
 
     await broadcastEclipse(false);
 
     // LAST, and after the clock has moved. Everything a murder opened here needs
-    // — the new time of day, unlocked Hope Calls — is put in place by the lines
+    // - the new time of day, unlocked Hope Calls - is put in place by the lines
     // above, and an incident opened before them lands in the placement window
     // this function exists to close.
     //
@@ -311,7 +311,7 @@ export async function endEclipse({ advance = true } = {}) {
  * the third-party watch would take the first person walking through the room as
  * a witness. See the long note in `performDirectMurder`.
  *
- * So the declaration waits, and is judged against where everyone ENDS UP — the
+ * So the declaration waits, and is judged against where everyone ENDS UP - the
  * placement is the answer, not a snapshot of a room half way through it.
  * ========================================================================== */
 
@@ -337,7 +337,7 @@ export async function writeParkedMurder({ killerId, room = null, note = "" } = {
     // `approved: null` is undecided, and it is written explicitly: a
     // declaration parked before this gate existed carries no field at all, and
     // `undefined` reading as "not yet allowed" is exactly the right answer for
-    // it — the GM is asked at the lights instead.
+    // it - the GM is asked at the lights instead.
     all[killerId] = { room, note, at: Date.now(), approved: null };
     await game.settings.set(MODULE_ID, SETTINGS.pendingMurders, all);
     log(`Direct murder declared in the dark by ${game.actors.get(killerId)?.name ?? killerId}.`);
@@ -350,7 +350,7 @@ export async function writeParkedMurder({ killerId, room = null, note = "" } = {
  * Put the declaration to the GM, now, while the Eclipse is still running.
  *
  * Into the killer's own messenger thread, like every other ruling this module
- * asks for — which means the killer sees the card too, and should: it is their
+ * asks for - which means the killer sees the card too, and should: it is their
  * declaration and their sentence quoted in it. The buttons are stripped for
  * anybody who is not a GM before they are ever rendered.
  *
@@ -394,7 +394,7 @@ async function askGmToAllow(killerId, parked) {
  * The GM's ruling on a parked declaration, from the card's two buttons.
  *
  * Refusing DELETES the record rather than marking it refused. A refusal is not
- * a thing the judging step needs to reason about — there is nothing to judge —
+ * a thing the judging step needs to reason about - there is nothing to judge -
  * and leaving it in the setting only creates a second way for a dead
  * declaration to be reconsidered at the lights.
  *
@@ -440,19 +440,19 @@ export async function clearParkedMurders() {
 /**
  * The lights come up: judge every declaration made in the dark.
  *
- * The condition is the guide's and is read now, off the final placement — one
+ * The condition is the guide's and is read now, off the final placement - one
  * other character in the killer's room, and that person is the victim. Anything
  * else is a failed attempt: nobody there to kill, or somebody there to see it.
  *
  * Only the FIRST successful declaration opens an incident. Two killings at once
- * is not something this engine models — `murderState` is a single incident —
+ * is not something this engine models - `murderState` is a single incident -
  * and the honest thing is to say so to the second killer rather than to drop
  * their attempt silently.
  *
  * AND NOTHING OPENS WITHOUT THE GM. The room condition is the guide's and the
  * module can read it; whether this killing happens at this table tonight is not
  * a thing a rule can answer. Most declarations are already ruled on from the
- * card posted when they were parked — see `askGmToAllow` — and this is the
+ * card posted when they were parked - see `askGmToAllow` - and this is the
  * backstop for the ones that are not, asked at the one moment the question is
  * fully formed: the killer, the victim, the room, and the killer's own sentence
  * about what they are doing.
@@ -502,7 +502,7 @@ async function judgePendingMurders() {
             await say(reason, "drpg-warning");
             await whisperToGms(`<p>${game.i18n.format("DRPG.Action.murderCancelled", {
                 killer: foundry.utils.escapeHTML(killer.name),
-                room: foundry.utils.escapeHTML(room ?? "—"),
+                room: foundry.utils.escapeHTML(room ?? "-"),
                 reason: foundry.utils.escapeHTML(reason)
             })}</p>`);
             continue;
@@ -523,7 +523,7 @@ async function judgePendingMurders() {
             <p>${game.i18n.format("DRPG.Action.murderOpens", {
                 killer: foundry.utils.escapeHTML(killer.name),
                 victim: foundry.utils.escapeHTML(victim.name),
-                room: foundry.utils.escapeHTML(room ?? "—")
+                room: foundry.utils.escapeHTML(room ?? "-")
             })}</p>
             ${parked.note ? `<p class="notes">${foundry.utils.escapeHTML(parked.note)}</p>` : ""}`);
 
@@ -539,8 +539,8 @@ async function judgePendingMurders() {
  * already happened by the time this runs, and the alternative to blocking is a
  * spent action failing because a card scrolled off the bottom of a thread.
  *
- * Closing the window is a refusal. There is no third answer here — the
- * incident either opens now or it does not — and a dialog dismissed with the
+ * Closing the window is a refusal. There is no third answer here - the
+ * incident either opens now or it does not - and a dialog dismissed with the
  * escape key must not open one.
  */
 async function askAtTheLights(killer, victim, room, parked) {
@@ -551,7 +551,7 @@ async function askAtTheLights(killer, victim, room, parked) {
             window: { title: game.i18n.localize("DRPG.Action.murderOpensTitle") },
             content: dialogContent(`<div>
                 <p>${game.i18n.format("DRPG.Action.murderAsk", {
-                    killer: esc(killer.name), victim: esc(victim.name), room: esc(room ?? "—")
+                    killer: esc(killer.name), victim: esc(victim.name), room: esc(room ?? "-")
                 })}</p>
                 ${parked.note ? `<blockquote>${esc(parked.note)}</blockquote>` : ""}
                 <p class="notes">${game.i18n.localize("DRPG.Action.murderAskNote")}</p>
@@ -592,12 +592,12 @@ export function placementStatus() {
  *              "you have 2 crossings" states a limit that does not apply.
  *   the dead   cannot move at all. They were being counted in the GM's
  *              "who has finished placing" table, which meant the table could
- *              never read as finished — the GM was waiting on tokens that were
+ *              never read as finished - the GM was waiting on tokens that were
  *              never going to move.
  *
  * A Monocub stays: they are dead, but they are back on the board and they do
  * cross rooms. Flags are read directly rather than through chapter.mjs and
- * monocub.mjs, matching how actions.mjs and voice.mjs ask the same question —
+ * monocub.mjs, matching how actions.mjs and voice.mjs ask the same question -
  * this file is imported by movement.mjs's hot path and does not need the
  * dependency.
  */
@@ -618,7 +618,7 @@ function placingActors() {
  * Judge a crossing made while the Eclipse is running.
  *
  * Returns true when the move is allowed. Crossings are limited to two, and to
- * rooms actually connected to the one you are leaving — the guide's "2
+ * rooms actually connected to the one you are leaving - the guide's "2
  * connected rooms", not two arbitrary hops.
  */
 export async function judgeEclipseCrossing(actor, from, to) {
@@ -626,7 +626,7 @@ export async function judgeEclipseCrossing(actor, from, to) {
 
     // A Morning or Night Eclipse is "pick any room to begin in": no budget and
     // no adjacency. Both checks below are skipped rather than given a very large
-    // number, because the rule is not "many crossings" — it is that you are
+    // number, because the rule is not "many crossings" - it is that you are
     // placing a token, not walking a route.
     const free = isFreePlacement();
 
@@ -654,16 +654,16 @@ export async function judgeEclipseCrossing(actor, from, to) {
     //
     // A player's crossing is written by the GM over the socket, so the world
     // setting on this client is still the pre-crossing value when the next line
-    // runs — every whisper said "2 left" after the first move, and the card's own
+    // runs - every whisper said "2 left" after the first move, and the card's own
     // read-out (`budgetLine`, `costLabelFor`) was one behind for as long as the
     // round trip took. The GM's own path writes locally and is exact either way.
     // Still recorded on a free-placement Eclipse: the GM's placement table reads
     // this to see who has actually put a token down, which is the whole point of
     // the table and is just as useful when nobody has a budget.
     const used = await recordMove(actor);
-    const room = foundry.utils.escapeHTML(to ?? "—");
+    const room = foundry.utils.escapeHTML(to ?? "-");
 
-    // Owner ONLY — no GM copy, on purpose. This card names the room the
+    // Owner ONLY - no GM copy, on purpose. This card names the room the
     // character just walked into, and an Eclipse is everybody crossing the
     // map in the dark: a copy of every crossing landing on the GM's screen
     // was a running commentary on exactly the thing the phase hides. The GM
@@ -685,7 +685,7 @@ export async function judgeEclipseCrossing(actor, from, to) {
  * Count a crossing. World setting, so players route through the GM.
  *
  * @returns {Promise<number>} crossings used AFTER this one. A player's client
- *   predicts it — the write is somebody else's and has not landed yet — which is
+ *   predicts it - the write is somebody else's and has not landed yet - which is
  *   the honest answer to "how many have I used": the request has been sent, and
  *   the setting will agree in a moment. A GM's client returns what it just wrote.
  */

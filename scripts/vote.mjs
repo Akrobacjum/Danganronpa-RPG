@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — the vote, and what it costs.
+ * Danganronpa RPG - the vote, and what it costs.
  * ---------------------------------------------------------------------------
  * Guide, pp. 31–32: "Gracze anonimowo głosują na to, kogo uznać za mordercę.
  * Remis jest uznany za porażkę graczy. Wyniki są jawne, ale głosy - nie.
@@ -11,7 +11,7 @@
  * setting, a flag or a whisper is a ballot anybody can read from the console.
  *
  * So a vote never enters world data at all. It travels on the module socket
- * addressed to the GMs — the server delivers those only to the named users —
+ * addressed to the GMs - the server delivers those only to the named users -
  * and is tallied in a plain Map on the collecting GM's client. When the count
  * is published, only the count is published. Nothing is stored afterwards,
  * which also means nothing can be dug up afterwards.
@@ -49,9 +49,9 @@ let ballots = null;
 /* ==========================================================================
  * HOW FAR THROUGH THE TRIAL THE TABLE HAS GOT
  * --------------------------------------------------------------------------
- * Three of the trial's steps only make sense in order — you cannot deliver a
+ * Three of the trial's steps only make sense in order - you cannot deliver a
  * verdict on a vote nobody has counted, and the chapter does not end before the
- * verdict is applied — and until now nothing anywhere knew which of them had
+ * verdict is applied - and until now nothing anywhere knew which of them had
  * happened. The GM's console offered all three at once, and the destructive one
  * (a verdict executes people and hands out level-ups) was as pressable on an
  * empty trial as on a finished one.
@@ -102,7 +102,7 @@ export async function resetTrialProgress({ seconds = TRIAL.speakSeconds } = {}) 
  * ========================================================================== */
 
 export function registerVote() {
-    // `senderId` is Foundry's own second argument — who actually emitted this.
+    // `senderId` is Foundry's own second argument - who actually emitted this.
     // Everything in here is decided from it and never from the payload, because
     // the payload is a claim any player's console can make, and this is the one
     // socket in the module where a forged claim decides who gets executed.
@@ -132,7 +132,7 @@ function onBallotOpened(payload, senderId) {
  * Keyed by the SENDER's user id, not by the actor id the payload names. That one
  * line is the whole secret ballot: the tally used to be keyed by whatever actor
  * id the packet claimed, so a single player could emit one ballot per student
- * and decide the entire Class Trial from their own console — replacing everyone
+ * and decide the entire Class Trial from their own console - replacing everyone
  * else's vote, since a repeat arrival overwrites rather than adds.
  *
  * The choice is checked against the candidate list this side computes for that
@@ -149,7 +149,7 @@ function onBallotCast(payload, senderId) {
     const actor = studentActors().find(a => a.testUserPermission(sender, "OWNER"));
     if (!actor) return refuseBallot(senderId, "owns no student");
 
-    // A ballot is a LIST of names now — one for an ordinary night, two when the
+    // A ballot is a LIST of names now - one for an ordinary night, two when the
     // night produced two Blackened. Normalised here so a client on older code,
     // or a hand-built packet, still lands somewhere sane.
     const picked = Array.isArray(payload?.choice) ? payload.choice : [payload?.choice];
@@ -158,7 +158,7 @@ function onBallotCast(payload, senderId) {
     if (!clean.length) return refuseBallot(senderId, `nothing on "${picked.join(", ")}" is on their ballot`);
 
     // One ballot per voter. A second arrival replaces the first rather than
-    // adding to the tally — a resend must never double a vote.
+    // adding to the tally - a resend must never double a vote.
     ballots.set(senderId, clean);
     log(`Ballot received with ${clean.length} name(s) (${ballots.size} so far).`);
 }
@@ -172,7 +172,7 @@ function candidatesFor(voterActorId) {
     const out = studentActors()
         // "Można głosować na siebie" (guide p. 32). The voter used to be filtered
         // out of their own ballot, which quietly forbade the one accusation a
-        // cornered Blackened is most likely to make — and is exactly the bluff
+        // cornered Blackened is most likely to make - and is exactly the bluff
         // the rule exists to allow.
         .filter(a => TRIAL.allowVotingForSelf || a.id !== voterActorId)
         .filter(a => TRIAL.allowVotingForDead || !isDeceased(a))
@@ -196,8 +196,8 @@ function candidatesFor(voterActorId) {
  * @param {object} [options]
  * @param {number} [options.picks]  How many names each ballot must carry.
  *   Guide, p. 32: "Jeśli jest dwóch blackened jednej nocy, należy wskazać obu."
- *   A night can produce two Blackened — a role reversal, or a third party who
- *   took the second kill — and then a ballot naming one of them is not an
+ *   A night can produce two Blackened - a role reversal, or a third party who
+ *   took the second kill - and then a ballot naming one of them is not an
  *   answer. The GM says how many the night produced; everything downstream
  *   counts names rather than ballots, so the tally needs no special case.
  */
@@ -212,7 +212,7 @@ export async function openVote({ picks = null } = {}) {
     //
     // `openVote()` was called from exactly one place, with no arguments, so
     // `picks` defaulted to 1 every single time and the two-Blackened ballot
-    // below — which was written, tested and complete — could not be reached
+    // below - which was written, tested and complete - could not be reached
     // from the interface at all. Now the incidents themselves decide: two
     // murders in a chapter, two names on the ballot.
     const recorded = blackenedIds().length;
@@ -270,7 +270,7 @@ function eligibleVoters() {
  * Who is still outstanding, by name.
  *
  * A vote is closed on a human's judgement of "everyone has voted", and until
- * this existed that judgement had nothing to go on — the counts only appear
+ * this existed that judgement had nothing to go on - the counts only appear
  * after closing, and closing is irreversible. A player who dismissed the dialog
  * by accident was simply not counted, and nobody could tell.
  *
@@ -313,7 +313,7 @@ async function castBallot(candidates, voterActorId, picks = 1) {
 
     const options = candidates.map(c =>
         `<option value="${c.id}">${foundry.utils.escapeHTML(c.name)}${
-            c.dead ? ` — ${game.i18n.localize("DRPG.Chapter.deadShort")}` : ""
+            c.dead ? ` - ${game.i18n.localize("DRPG.Chapter.deadShort")}` : ""
         }</option>`).join("");
 
     // One select per name the night demands. Two Blackened means two answers,
@@ -344,8 +344,8 @@ async function castBallot(candidates, voterActorId, picks = 1) {
         rejectClose: false
     });
 
-    // Dismissed rather than answered. Silence used to be the end of it — the
-    // ballot was gone and there was no way to ask for another — so a misclick
+    // Dismissed rather than answered. Silence used to be the end of it - the
+    // ballot was gone and there was no way to ask for another - so a misclick
     // disenfranchised somebody in the one vote the whole game turns on. Now it
     // says so, and the GM's own screen lists who is still outstanding.
     if (!choice || choice === "ok" || !choice.length) {
@@ -354,7 +354,7 @@ async function castBallot(candidates, voterActorId, picks = 1) {
     }
 
     try {
-        // Addressed to the GMs and nobody else — the server delivers it only to
+        // Addressed to the GMs and nobody else - the server delivers it only to
         // them, so no other player's client ever sees this packet.
         //
         // No voter id in the payload: the GM keys the tally by who actually sent
@@ -394,7 +394,7 @@ export async function closeVote() {
 
     // Out of how many ballots WENT OUT, not how many came back.
     //
-    // The denominator used to be `ballots.size` — the votes cast — so one vote
+    // The denominator used to be `ballots.size` - the votes cast - so one vote
     // out of three issued printed as "1 of 1 votes", which reads as a unanimous
     // table rather than as two people who never answered. Whether the accusation
     // carries the room is the whole question the card is trying to settle.
@@ -435,12 +435,12 @@ export async function closeVote() {
      *
      * The class used to convict on a plurality: whoever led the count was the
      * answer, however thin the lead. Measured over a season that made the trial
-     * almost unloseable — nine wrong votes scattered across seven names still
+     * almost unloseable - nine wrong votes scattered across seven names still
      * left the real killer on top with four, and four out of sixteen decided a
      * life. The class was winning by being the largest minority.
      *
      * So a name has to carry the ROOM. Short of that, the accusation fails and
-     * the class fails with it — which is the honest reading of a hung jury in a
+     * the class fails with it - which is the honest reading of a hung jury in a
      * game where an unanswered murder is a win for the killer.
      *
      * OUT OF BALLOTS ISSUED, NOT RETURNED, and for the same reason the card
@@ -456,15 +456,15 @@ export async function closeVote() {
      * name. One Blackened and two people level on votes is the old tie exactly.
      *
      * FOLDED IN WITH THE MISSING MAJORITY, which is G-31 widened rather than a
-     * second concept (D6). Both are the same event — the room did not settle on
-     * an answer — and both end the same way, so everything downstream that
+     * second concept (D6). Both are the same event - the room did not settle on
+     * an answer - and both end the same way, so everything downstream that
      * already knows what to do with a tie needs no second branch to learn.
      */
     const tied = accused.length > wanted || noMajority;
 
     // G-31: the verdict window needs to know, and by the time it opens the
     // tally has scrolled away. Recorded here, where the tie is actually
-    // established, rather than folded into the `voteClosed` write above — that
+    // established, rather than folded into the `voteClosed` write above - that
     // one happens before anything has been counted.
     await setTrialProgress({ tied, majority, noMajority });
 
@@ -508,8 +508,8 @@ export async function closeVote() {
 /**
  * Apply what the verdict costs.
  *
- * The module knows who killed now — every incident that left a body wrote its
- * killer into the chapter's register — so this no longer asks a GM to name the
+ * The module knows who killed now - every incident that left a body wrote its
+ * killer into the chapter's register - so this no longer asks a GM to name the
  * Blackened from memory an hour after the fact. It asks the one thing only a
  * human can answer: did the table get it right.
  *
@@ -533,7 +533,7 @@ export async function openVerdictDialog() {
     const tiedVote = Boolean(trialProgress().tied);
     const options = students
         .map(a => `<option value="${a.id}">${foundry.utils.escapeHTML(a.name)}${
-            isDeceased(a) ? ` — ${game.i18n.localize("DRPG.Chapter.deadShort")}` : ""
+            isDeceased(a) ? ` - ${game.i18n.localize("DRPG.Chapter.deadShort")}` : ""
         }</option>`).join("");
 
     // What the register says, stated rather than asked. Two names here is an
@@ -567,7 +567,7 @@ export async function openVerdictDialog() {
              *
              * REORDERED, NOT JUST RE-DEFAULTED. `default: true` styles a button
              * and moves focus, but Enter in a DialogV2 presses the FIRST submit
-             * button in DOM order whatever carries the flag — the finding
+             * button in DOM order whatever carries the flag - the finding
              * behind the per-tab footers in E3. Leaving "Got it right" first
              * and merely flagging the other one would mean the keyboard and the
              * highlight disagreed about the most consequential button in the
@@ -609,7 +609,7 @@ export async function openVerdictDialog() {
 /**
  * Turn the form into a verdict.
  *
- * With a register, a correct verdict executes THE BLACKENED — all of them, and
+ * With a register, a correct verdict executes THE BLACKENED - all of them, and
  * the dropdown is ignored, because a table that named them right is not also
  * executing somebody else. A wrong one executes whoever the dropdown says and
  * leaves every killer standing.
@@ -689,8 +689,8 @@ export async function applyVerdict({
 } = {}) {
     if (!game.user.isGM) return null;
 
-    // Both shapes accepted: the dialog sends lists, and anything older — a
-    // macro, the console — sends the single ids this used to take.
+    // Both shapes accepted: the dialog sends lists, and anything older - a
+    // macro, the console - sends the single ids this used to take.
     const executed = (executedIds ?? [executedId]).filter(Boolean)
         .map(id => game.actors.get(id)).filter(Boolean);
     const blackened = (named ?? [blackenedId]).filter(Boolean)
@@ -706,7 +706,7 @@ export async function applyVerdict({
     }
 
     if (correct) {
-        // Everyone still alive advances — unchanged, and deliberately: a right
+        // Everyone still alive advances - unchanged, and deliberately: a right
         // answer levels the table up. The Blackened have just been executed, so
         // they are not in this list, which is what keeps that honest even when
         // there were two of them.
@@ -754,7 +754,7 @@ export async function applyVerdict({
      * The counter measures pressure built up over a chapter, and a verdict ends
      * the chapter however it goes. Clearing it only when the class guessed
      * wrong would mean a class that guessed RIGHT carries the previous
-     * chapter's weather into the next one — punished for winning, by a rule
+     * chapter's weather into the next one - punished for winning, by a rule
      * whose whole subject is how much Despair went spare.
      */
     try {

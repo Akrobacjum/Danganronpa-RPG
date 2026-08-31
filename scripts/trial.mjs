@@ -1,8 +1,8 @@
 /**
- * Danganronpa RPG — putting evidence in front of the table.
+ * Danganronpa RPG - putting evidence in front of the table.
  * ---------------------------------------------------------------------------
  * Guide, p. 31: during a Class Trial each player gets three uninterrupted
- * minutes, and the only way to cut somebody off is an Objection — "pod
+ * minutes, and the only way to cut somebody off is an Objection - "pod
  * warunkiem, że pokażą Truth Bullet na czacie w Foundry VTT". Showing the
  * evidence is what earns the interruption.
  *
@@ -11,7 +11,7 @@
  *   the record   a public ChatMessage carrying the card and its flags. It is
  *                the trial's paper trail, it is what the GM's Objection log
  *                reads back, and it survives an export.
- *   the display  every client turns that message into a popup as it arrives —
+ *   the display  every client turns that message into a popup as it arrives -
  *                the chat sidebar is not where anybody is looking during a
  *                trial, and evidence nobody notices may as well not exist.
  *
@@ -24,7 +24,7 @@
  *
  * Present is Class-Trial-only on purpose. It reaches every player at once, and
  * outside the trial the cast is scattered across rooms that are supposed to be
- * separate — the same-room Share button in handover.mjs is the tool for those
+ * separate - the same-room Share button in handover.mjs is the tool for those
  * phases. During the trial everybody is in one place, so a public card is
  * simply what talking looks like.
  */
@@ -48,7 +48,7 @@ export const TRIAL_FLAGS = {
     /** Who presented it, for the GM's log. */
     presenter: "presenter",
     /**
-     * Who an objection was aimed at — the actor id, because this one is read
+     * Who an objection was aimed at - the actor id, because this one is read
      * back by code (`openObjection`) rather than only printed. `presenter`
      * above is a NAME because it is only ever displayed, and a name survives
      * an actor being deleted after the trial.
@@ -86,13 +86,13 @@ export function inClassTrial() {
  * doing, and the trial already knows it:
  *
  *   discussion   no debate is open. Nothing to interrupt, so it is a Present.
- *   debate       the floor is open. Evidence takes it — an Objection.
+ *   debate       the floor is open. Evidence takes it - an Objection.
  *   rebuttal     an Objection too, and the escalation the mode is for: the
  *                pair are arguing, and evidence produced inside that argument
  *                re-points the floor at whoever produced it. Only the two on
  *                the floor may; a third party is not in this exchange.
  *   objection    somebody has one minute alone. The button is the Objection it
- *                would be, and it is refused with the reason on the window —
+ *                would be, and it is refused with the reason on the window -
  *                see `objectionBlockedReason`.
  *
  * The target picker only appears when the button is an Objection, because it is
@@ -125,7 +125,7 @@ export async function presentDialog(actor, item) {
     // Refused before the card is ever posted, so the player is told why rather
     // than watching an objection land as an ordinary card because the floor
     // quietly turned it down. `openObjection` checks this again on the GM's
-    // side — this is the courtesy, that is the rule.
+    // side - this is the courtesy, that is the rule.
     const blocked = asObjection
         ? objectionBlockedReason(actor, floor, FLOOR_MODES)
         : null;
@@ -163,11 +163,19 @@ export async function presentDialog(actor, item) {
         ? targets.filter(a => onFloorIds.includes(a.id))
         : targets;
 
+    // A shortened list needs a reason next to it. Everywhere else this select
+    // holds the whole table; in a rebuttal it holds two names, and without a
+    // line saying why, a player cannot tell the rule from a bug. It says both
+    // halves at once, because they are the two that get read as one: anybody
+    // may cut in, at those two and nobody else.
     const targetField = choices.length
         ? `<label>${game.i18n.localize("DRPG.Trial.objectionTarget")}
             <select name="target">${choices.map(a =>
                 `<option value="${a.id}">${foundry.utils.escapeHTML(a.name)}</option>`
-            ).join("")}</select></label>`
+            ).join("")}</select></label>
+            ${inRebuttal
+                ? `<p class="notes">${game.i18n.localize(
+                    "DRPG.Trial.objectionRebuttalTargets")}</p>` : ""}`
         : `<p class="notes">${game.i18n.localize("DRPG.Trial.objectionNobody")}</p>`;
 
     const readTarget = d => d.element.querySelector("[name=target]")?.value ?? "";
@@ -228,7 +236,7 @@ export async function presentDialog(actor, item) {
 /**
  * Why this player may not object right now, or `null` when they may.
  *
- * ONE CASE NOW. A rebuttal stopped being one of them on 28.08 — see the rule
+ * ONE CASE NOW. A rebuttal stopped being one of them on 28.08 - see the rule
  * in `openObjection`, which this mirrors and must go on mirroring: that
  * function is the RULE (the floor refuses) and this one is the COURTESY (the
  * player is told why). A courtesy that refuses what the rule allows is worse
@@ -248,7 +256,7 @@ function objectionBlockedReason(actor, floor, FLOOR_MODES) {
 }
 
 /**
- * Post the card. Built and sent by the presenter's own client — everything on
+ * Post the card. Built and sent by the presenter's own client - everything on
  * it is already public, and during a trial the delay of a round trip through
  * the GM is exactly the wrong cost to pay for an interruption.
  */
@@ -289,7 +297,7 @@ export async function presentBullet(actor, item, {
     return true;
 }
 
-/** The card itself. Public knowledge only — see the note at the top. */
+/** The card itself. Public knowledge only - see the note at the top. */
 function buildCard(actor, data, { objection, comment, target = null }) {
     const hint = TRUTH_BULLET_TYPES[data.shownType]?.hint ?? "";
 
@@ -330,7 +338,7 @@ function buildCard(actor, data, { objection, comment, target = null }) {
 }
 
 /* ==========================================================================
- * DISPLAY — the same message, on everybody's screen
+ * DISPLAY - the same message, on everybody's screen
  * ========================================================================== */
 
 export function registerTrial() {
@@ -340,7 +348,7 @@ export function registerTrial() {
     //
     // The order matters more than the error handling, though. This used to await
     // the floor seizure BEFORE showing the card, which put the evidence popup on
-    // the primary GM's screen one server round-trip late — and not at all if the
+    // the primary GM's screen one server round-trip late - and not at all if the
     // seizure failed. The person running the trial was the one who missed the
     // card the trial is about. Display first; it cannot fail and cannot wait.
     Hooks.on("createChatMessage", message => {
@@ -365,7 +373,7 @@ export function registerTrial() {
 
         const objectorId = message.speaker?.actor;
         const targetId = message.getFlag(MODULE_ID, TRIAL_FLAGS.target);
-        // An objection card with no target cannot open the exchange — there is
+        // An objection card with no target cannot open the exchange - there is
         // nobody for the rebuttal to be with. That should be impossible from
         // the dialog, which requires one, so this is the guard for a card
         // posted through the API or left over from before this stage: the
@@ -404,7 +412,7 @@ export function presentedThisChapter({ objectionsOnly = false, chapter = null } 
             presenter: m.getFlag(MODULE_ID, TRIAL_FLAGS.presenter) ?? "?",
             objection: Boolean(m.getFlag(MODULE_ID, TRIAL_FLAGS.objection)),
             // Null on every card posted before this stage, and on any ordinary
-            // presentation — the log prints a dash for both rather than
+            // presentation - the log prints a dash for both rather than
             // pretending an old objection had a target it never recorded.
             target: m.getFlag(MODULE_ID, TRIAL_FLAGS.targetName) ?? null,
             chapter: m.getFlag(MODULE_ID, TRIAL_FLAGS.chapter) ?? null,
@@ -415,7 +423,7 @@ export function presentedThisChapter({ objectionsOnly = false, chapter = null } 
 
 /** The GM panel's read-out of who interrupted whom, and with what. */
 export async function openObjectionLog() {
-    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
@@ -438,7 +446,7 @@ export async function openObjectionLog() {
             ? `<strong>${game.i18n.localize("DRPG.Trial.objectionShort")}</strong>`
             : game.i18n.localize("DRPG.Trial.presentShort")}</td>
         <td>${foundry.utils.escapeHTML(e.presenter)}</td>
-        <td>${e.target ? foundry.utils.escapeHTML(e.target) : "—"}</td>
+        <td>${e.target ? foundry.utils.escapeHTML(e.target) : "-"}</td>
         <td>${new Date(e.timestamp).toLocaleTimeString()}</td>
     </tr>`).join("");
 

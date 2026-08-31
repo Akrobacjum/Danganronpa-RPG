@@ -1,19 +1,19 @@
 /**
- * Danganronpa RPG — the GM team panel.
+ * Danganronpa RPG - the GM team panel.
  * ---------------------------------------------------------------------------
  * Two questions that used to be two separate dialogs with two separate
  * shortcuts on screen (a gear on the Despair widget):
  *
  *   1. Which actors are Monokumas, and whose Despair pool each one draws on.
  *      `poolUserFor` guessed this from ownership before this existed, and
- *      every GM is an owner of every actor — with two Gamemasters the guess
+ *      every GM is an owner of every actor - with two Gamemasters the guess
  *      collapsed to "whoever is looking at the sheet", so two Monokumas
  *      showed and spent the same pool.
  *
- *   2. Which Monokuma looks after which student — a division set once per
+ *   2. Which Monokuma looks after which student - a division set once per
  *      season, not something that earns a permanent button on the HUD.
  *
- * Merged into one screen, reachable only from the GM panel's "more" menu —
+ * Merged into one screen, reachable only from the GM panel's "more" menu -
  * setup you do once per season, not mid-session upkeep.
  */
 
@@ -28,7 +28,7 @@ import { alreadyOpen } from "./live.mjs";
 
 /** Open the combined panel. GM only. */
 export async function openGmTeamDialog() {
-    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
@@ -55,7 +55,7 @@ export async function openGmTeamDialog() {
     }
 
     // Fixed at open time. Flipping a Monokuma flag in the top table does not
-    // live-update the roster below it — reopen once after saving if a change
+    // live-update the roster below it - reopen once after saving if a change
     // there should also change who is available to divide up as a student.
     const roster = students();
     const candidates = poolCandidates();
@@ -156,7 +156,7 @@ export async function openGmTeamDialog() {
 
         if (result.assignments) await setAssignments(result.assignments);
 
-        // Saved through the same button as the rest — every pane stays in the
+        // Saved through the same button as the rest - every pane stays in the
         // DOM, which is the whole reason `panelTabs` works this way.
         if (result.overflow) await setOverflowRules(result.overflow);
 
@@ -259,12 +259,12 @@ function buildContent(actors, gms, roster, candidates, removable) {
     // the old <h3> headings as the tab labels (Dawid, 26.08). The mechanism
     // lives in utils.mjs (`panelTabs`/`wirePanelTabs`) because Music and the
     // item tables wear the same bar; the trick it depends on is documented
-    // there — every pane stays in the DOM, so the single Save that reads all
+    // there - every pane stays in the DOM, so the single Save that reads all
     // three forms at once keeps working.
     /*
      * FOUR TABS NOW, AND THE FOURTH IS WHY THIS WINDOW IS CALLED DESPAIR FLOW
      * (Dawid, 29.08). Pools, the Monokumas who spend them, the students they
-     * are assigned to — and what happens to the Despair that will not fit in
+     * are assigned to - and what happens to the Despair that will not fit in
      * any of them. It is one subject with four faces rather than a team roster
      * with a rule bolted on, which is what the old name had stopped describing.
      *
@@ -280,7 +280,7 @@ function buildContent(actors, gms, roster, candidates, removable) {
     ]);
 
     // Built as an element, not a string: DialogV2 runs a string `content`
-    // through `cleanHTML`, whose allow-list drops `placeholder` — so the pool
+    // through `cleanHTML`, whose allow-list drops `placeholder` - so the pool
     // name fields lost the hint telling the GM what the default is. Same reason
     // every other form in this module goes through `dialogContent()`.
     return dialogContent(`<form>${body}</form>`);
@@ -314,7 +314,7 @@ function buildAssignRows(roster, gms) {
 
 /**
  * The pool picker only means anything for a Monokuma, and two Monokumas
- * sharing one pool is the exact mistake this panel exists to catch — so it is
+ * sharing one pool is the exact mistake this panel exists to catch - so it is
  * called out live rather than discovered three sessions later.
  */
 function wireMonokumaLive(dialog) {

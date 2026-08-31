@@ -1,9 +1,9 @@
 /**
- * Danganronpa RPG — the stash.
+ * Danganronpa RPG - the stash.
  * ---------------------------------------------------------------------------
  * A character carries three usable items, one crime tool and two cleaning
  * tools, and not one thing more. The stash is where the rest of what they own
- * lives: their own bedroom, uncapped, and — this being a killing game —
+ * lives: their own bedroom, uncapped, and - this being a killing game -
  * searchable by anybody who walks in while they are elsewhere.
  *
  * Two flags carry the whole thing:
@@ -13,7 +13,7 @@
  *   on the ITEM    `location`           carried, or stashed
  *
  * The item flag is the important design choice. A stashed item is still an
- * ordinary item on its owner's sheet, not a document living somewhere else —
+ * ordinary item on its owner's sheet, not a document living somewhere else -
  * so everything that sweeps a character's belongings reaches it without having
  * to know stashes exist. Decision D1's "przedmioty noszone i w skrytce znikają"
  * was already true the moment this flag landed; `killCharacter` needed no
@@ -26,7 +26,7 @@ import { ITEM_FLAGS, LOCATIONS, isStashed, canCarry } from "./inventory.mjs";
 // The one room lookup. movement.mjs does not reach back into this file.
 import { roomOfActor, ROOM_FLAGS } from "./movement.mjs";
 // Static because the reader is synchronous. From settings.mjs, which is a leaf
-// — this is one client-scoped boolean, and the note above the function there
+// - this is one client-scoped boolean, and the note above the function there
 // explains why it stopped living in mastermind.mjs.
 import { iAmTheMastermind } from "./settings.mjs";
 import { SEARCH_FLAGS } from "./search-tokens.mjs";
@@ -42,7 +42,7 @@ const DialogV2 = foundry.applications.api.DialogV2;
 /**
  * Region flags. Prefixed like the other room flags a GM might read by hand.
  *
- * `table` and `favours` are not about stashes at all — they are what makes a
+ * `table` and `favours` are not about stashes at all - they are what makes a
  * room a *place* rather than a name: what turns up when you search it, and what
  * it is a good place to search FOR. They live here because they are set on the
  * same screen, from the same region documents, as the rest of it.
@@ -53,12 +53,12 @@ export const VAULT_FLAGS = {
      *
      * Until E11 this one flag did four jobs at once: whose room it is, where
      * their stash is, whose door is shut and who gets the key. Three of those
-     * are the same fact and one of them is not — a stash is a piece of
+     * are the same fact and one of them is not - a stash is a piece of
      * furniture, and there is no reason the only place you may own one is the
      * room with your name on the door.
      *
-     * So this keeps the bedroom half — the locked door in `mayEnterBedroom` and
-     * the key `grantBedroomKey` issues — and hands the stash half to `stashes`
+     * So this keeps the bedroom half - the locked door in `mayEnterBedroom` and
+     * the key `grantBedroomKey` issues - and hands the stash half to `stashes`
      * below. Deliberately NOT widened: a stash in somebody else's room must not
      * generate a key, or "let me hide this at your place" would buy free entry
      * to their bedroom for ever after.
@@ -67,14 +67,14 @@ export const VAULT_FLAGS = {
     /**
      * EVERY STASH IN THIS ROOM: `[{ actorId, concealed }]`.
      *
-     * The bedroom owner's own stash is an ordinary member of this list — there
+     * The bedroom owner's own stash is an ordinary member of this list - there
      * is no such thing as an "extra" stash, which is what makes the model worth
      * having. A room can hold several, none, or one belonging to somebody who
      * cannot even open the door without borrowing a key.
      *
      * ABSENT IS NOT EMPTY. A region that has never been touched since E11 falls
      * back to "the bedroom owner has an open stash here", reconstructed at read
-     * time from `owner` and `concealed` — see `stashesIn`. That is the whole
+     * time from `owner` and `concealed` - see `stashesIn`. That is the whole
      * migration: no pass to run, no world to convert, and a GM who never opens
      * the new tab sees a module that behaves exactly as it did.
      */
@@ -84,7 +84,7 @@ export const VAULT_FLAGS = {
      *
      * Whether the bedroom owner's stash was hidden, back when a room had one
      * stash and the room was the stash. `setStash` writes `stashes` instead, so
-     * this stops changing the moment a GM edits anything on the new tab — and
+     * this stops changing the moment a GM edits anything on the new tab - and
      * goes on being the honest answer for every region they never touch.
      */
     concealed: "drpgVaultConcealed",
@@ -92,14 +92,14 @@ export const VAULT_FLAGS = {
     table: "drpgItemTable",
     /** Item categories this room is a sensible place to look for. */
     favours: "drpgFavours",
-    /** Item categories this room is a POOR place to look for — the mirror of
+    /** Item categories this room is a POOR place to look for - the mirror of
         `favours`: disadvantage instead of advantage on a Search aimed at one.
         A category is never on both lists; Room Setup keeps them exclusive. */
     hinders: "drpgHinders",
     /**
      * What this room looks like, in the GM's own words.
      *
-     * Written in Room Setup, read by anyone standing in it — see the state
+     * Written in Room Setup, read by anyone standing in it - see the state
      * window in `explain.mjs`. Plain text rather than HTML: it is typed into a
      * textarea by a GM mid-session, it is shown to players, and a description
      * box that renders markup is a description box somebody can put a script
@@ -107,7 +107,7 @@ export const VAULT_FLAGS = {
      */
     description: "drpgRoomDescription",
     /**
-     * ON A CHARACTER, not on a region — the only entry here that is.
+     * ON A CHARACTER, not on a region - the only entry here that is.
      *
      * Which hiding places this person has FOUND, as `scene::room::ownerId`
      * strings. Written by a GM's client when a Locate roll beats its number
@@ -116,8 +116,8 @@ export const VAULT_FLAGS = {
      *
      * It lives on the finder because the alternative lives on the room, and the
      * room is the screen its owner opens to check their own things. Neither is
-     * hidden from a console — this module has no secrets from a determined
-     * player — but only one of them is somewhere the victim looks by accident.
+     * hidden from a console - this module has no secrets from a determined
+     * player - but only one of them is somewhere the victim looks by accident.
      */
     found: "drpgStashesFound"
 };
@@ -127,7 +127,7 @@ export const VAULT_FLAGS = {
  * --------------------------------------------------------------------------
  * The guide gives every student a room of their own, and a room of your own is
  * only worth having if the door means something. So a bedroom is shut to
- * everybody except the person it belongs to — and the way in for anybody else
+ * everybody except the person it belongs to - and the way in for anybody else
  * is a KEY, which is an ordinary item on a character sheet.
  *
  * An item rather than a permission list, deliberately. A key can be copied and
@@ -142,7 +142,7 @@ export const VAULT_FLAGS = {
 
 /** The flag that makes an item a key, holding the room it opens. Declared in
     config.mjs, because movement.mjs reads the same flag and cannot import this
-    file — see the note there. */
+    file - see the note there. */
 export const KEY_FLAG = BEDROOM_KEY_FLAG;
 
 /** Is this item a key, and to what? */
@@ -164,7 +164,7 @@ export function keysHeldBy(actor) {
  * May this character open this room's door?
  *
  * A room nobody owns is not a bedroom and is not locked by this rule. The owner
- * never needs a key to their own room — losing your own key would otherwise
+ * never needs a key to their own room - losing your own key would otherwise
  * lock you out of the one place the guide says is yours.
  */
 export function mayEnterBedroom(actor, room, scene = workingScene()) {
@@ -187,7 +187,7 @@ export async function grantBedroomKey(actor, room, { silent = false, scene } = {
     const { grantItem } = await import("./inventory.mjs");
     // Named on the key, so it reads as "Kaede's room" rather than "Room 3".
     // The scene is passed in by the sweep, which walks rooms on scenes nobody
-    // is currently looking at — the default lookup would find no owner there
+    // is currently looking at - the default lookup would find no owner there
     // and write a dash into the description of a perfectly good key.
     const owner = game.actors.get(vaultOwnerOf(room, scene ?? workingScene()) ?? "");
     const item = await grantItem(actor, {
@@ -196,10 +196,10 @@ export async function grantBedroomKey(actor, room, { silent = false, scene } = {
         tier: null,
         description: `<p>${game.i18n.format("DRPG.Vault.keyDescription", {
             room: foundry.utils.escapeHTML(room),
-            owner: foundry.utils.escapeHTML(owner?.name ?? "—")
+            owner: foundry.utils.escapeHTML(owner?.name ?? "-")
         })}</p>`,
         // NO PICTURE NAMED HERE. `grantItem` falls back to the category's own
-        // icon, and the category has had one since v1.1.60 — this line was
+        // icon, and the category has had one since v1.1.60 - this line was
         // Foundry's padlock, hard-coded, which is why keys were the one thing
         // in the game still wearing core art (Dawid, 28.08).
         extraFlags: { [KEY_FLAG]: room }
@@ -216,7 +216,7 @@ export async function grantBedroomKey(actor, room, { silent = false, scene } = {
  * Make the world true: every bedroom's owner holds the key to it.
  *
  * WHY A SWEEP AND NOT AN EVENT. The first version issued the key from the one
- * place a room changes hands — the owner column in Room Setup — and that is
+ * place a room changes hands - the owner column in Room Setup - and that is
  * exactly the room that had none. The save loop skips a row whose flags did not
  * change, so every bedroom assigned BEFORE keys existed was, by definition, a
  * row nothing had changed about; the key was never issued for any of them, and
@@ -260,7 +260,7 @@ export function roomTable(room, scene = workingScene()) {
 /**
  * What the GM wrote about this room, or "" if they wrote nothing.
  *
- * Read by every client, not just the GM's — a room description is one of the
+ * Read by every client, not just the GM's - a room description is one of the
  * few pieces of the GM's own prose this game means for the table to see.
  */
 export function roomDescription(room, scene = workingScene()) {
@@ -293,7 +293,7 @@ export function roomHinders(room, scene = workingScene()) {
  *
  * The other half of `favoursCategory`: bandages in the boiler room. Marked per
  * room by the GM on the same screen as the favours, and worth a real
- * disadvantage rather than mere absence of the bonus — a room can be actively
+ * disadvantage rather than mere absence of the bonus - a room can be actively
  * the wrong place to dig for a thing, not just not the best one.
  */
 export function hindersCategory(room, category) {
@@ -328,8 +328,8 @@ export function vaultOwnerOf(room, scene = workingScene()) {
  * Every stash in one room, as `[{ actorId, concealed }]`.
  *
  * MIGRATION HAPPENS HERE, BY READING, and that is the point of doing it this
- * way. A region with no `stashes` flag is not a room with no stashes — it is a
- * room nobody has edited since E11 — so the old pair of flags is translated on
+ * way. A region with no `stashes` flag is not a room with no stashes - it is a
+ * room nobody has edited since E11 - so the old pair of flags is translated on
  * the spot into the one entry they used to mean. Nothing is written, which
  * matters more than it looks: this runs on players' clients too, where a write
  * would be refused, and a migration that only completes when a GM logs in is a
@@ -345,7 +345,7 @@ export function stashesIn(room, scene = workingScene()) {
 /**
  * The same answer, from a region already in hand.
  *
- * `regionsByName` rebuilds its Map on every call — cheap once, and quadratic
+ * `regionsByName` rebuilds its Map on every call - cheap once, and quadratic
  * from anything that wants to look at every room. Splitting the body out is
  * what lets the walkers below build that Map once instead of once per room.
  */
@@ -384,7 +384,7 @@ export function stashRoomsFor(actor, scene = workingScene()) {
 }
 
 /**
- * The stash an unaddressed item belongs to — overflow, and anything stashed
+ * The stash an unaddressed item belongs to - overflow, and anything stashed
  * before E11.
  *
  * THEIR BEDROOM WINS when they have a stash in it, even if they built another
@@ -395,8 +395,8 @@ export function stashRoomsFor(actor, scene = workingScene()) {
 export function primaryStashRoom(actor, scene = workingScene()) {
     if (!actor) return null;
 
-    // ONE WALK ANSWERS BOTH HALVES. The obvious spelling — `stashRoomsFor` and
-    // then `vaultRoomOwnedBy` — builds the region map twice inside a function
+    // ONE WALK ANSWERS BOTH HALVES. The obvious spelling - `stashRoomsFor` and
+    // then `vaultRoomOwnedBy` - builds the region map twice inside a function
     // that `stashItemsIn` used to call once per stashed item: measured at
     // 0.218 ms per call with twelve things in a stash and eighteen regions,
     // which is the same order as the whole visibility pass this module
@@ -423,7 +423,7 @@ export function vaultRoomOwnedBy(actor, scene = workingScene()) {
 /**
  * GM: add, remove or re-hide one person's stash in one room.
  *
- * Writes the whole list because a region flag has no per-element update — and
+ * Writes the whole list because a region flag has no per-element update - and
  * writing it at all is what materialises `stashesIn`'s reconstruction for that
  * region, which is exactly when it should happen: the moment somebody edits
  * this room, the old two-flag shape stops being the source of truth for it.
@@ -445,7 +445,7 @@ export async function setStash(room, actorId, { present = undefined, concealed =
          *
          * The Room Setup dialog has always refused this and named the count, so
          * at the table it was covered. `setStash` itself did not, and it is on
-         * `game.drpg` — so a macro, a console line or a feature written next
+         * `game.drpg` - so a macro, a console line or a feature written next
          * month could take the stash away and leave the items behind: still
          * flagged as stashed, so hidden from their owner's sheet, in a room with
          * nowhere to take them out of. A lost item, silently.
@@ -454,7 +454,7 @@ export async function setStash(room, actorId, { present = undefined, concealed =
          * and not a single notification.
          *
          * The dialog keeps its own pre-check, because refusing one cell in a
-         * batch and carrying on is better than failing the Apply — this is the
+         * batch and carrying on is better than failing the Apply - this is the
          * floor under it, not a replacement for it.
          */
         const owner = game.actors.get(actorId);
@@ -501,7 +501,7 @@ export function startLocked(region) {
 /**
  * Is the BEDROOM OWNER's stash in this room hidden?
  *
- * Kept because `game.drpg` exports it and a GM's macro may be calling it — see
+ * Kept because `game.drpg` exports it and a GM's macro may be calling it - see
  * the compatibility note at the bottom of this file. It now answers through
  * `stashesIn`, so it means the same thing it always did on an untouched world
  * and the right thing on an edited one. Anything asking about a specific
@@ -519,7 +519,7 @@ export function isConcealed(room, scene = workingScene()) {
  *
  * A compatibility name: before E11 there was only ever one, so "their stash
  * room" and "their bedroom" were the same sentence. It answers `primaryStashRoom`
- * now — the bedroom when they have a stash in it, the first one otherwise —
+ * now - the bedroom when they have a stash in it, the first one otherwise -
  * which is the closest true thing to what every existing caller meant.
  */
 export function vaultRoomFor(actor, scene = workingScene()) {
@@ -549,7 +549,7 @@ export function stashItemsIn(actor, room, scene = workingScene()) {
  * Split out of `allVaults` at E11, and the split is a rule rather than tidying:
  * keys are a bedroom fact and stashes are not. `allVaults` now lists stashes,
  * so a key dialog reading it would happily offer a key to a room where somebody
- * merely built a hiding place — and "let me stash this at your place" would buy
+ * merely built a hiding place - and "let me stash this at your place" would buy
  * permanent entry to their bedroom. That is precisely the leak the two flags
  * were separated to prevent.
  */
@@ -630,7 +630,7 @@ export function vaultContents(actor) {
  *
  * Was "am I in my one stash room" and is now "which of mine is this", because
  * the answer stopped being unique. Returns the room NAME so `stow` can stamp it
- * onto the item — a boolean would have made the caller ask the same question
+ * onto the item - a boolean would have made the caller ask the same question
  * again and get a different answer for anybody with two stashes.
  */
 export async function myStashHere(actor) {
@@ -647,7 +647,7 @@ export async function atOwnVault(actor) {
 }
 
 /**
- * Put something away. No action, no roll — but you have to be there.
+ * Put something away. No action, no roll - but you have to be there.
  *
  * Truth Bullets are refused outright: they are not objects in a drawer, they
  * are what the character knows, and hiding one would only mean hiding it from
@@ -664,7 +664,7 @@ export async function stow(actor, item) {
 
     // WHICH stash, not whether. A character may have one here, one in their
     // bedroom and none at all, and the thing goes in the one they are standing
-    // over — stamped onto the item so nothing has to work it out again.
+    // over - stamped onto the item so nothing has to work it out again.
     const room = await myStashHere(actor);
     if (!room) {
         ui.notifications.warn(game.i18n.localize("DRPG.Vault.notHere"));
@@ -676,8 +676,8 @@ export async function stow(actor, item) {
      *
      * It held everything, which made the carry limits above it decorative: a
      * character with a full stash in their bedroom was carrying two things and
-     * OWNING nine, and the question the limits exist to ask — what do you have
-     * on you tonight — had a free answer waiting at home.
+     * OWNING nine, and the question the limits exist to ask - what do you have
+     * on you tonight - had a free answer waiting at home.
      *
      * Counted PER ROOM rather than per character, because that is what a stash
      * is: two hiding places are two hiding places, and somebody who has earned
@@ -709,7 +709,7 @@ export async function stow(actor, item) {
 export async function retrieve(actor, item) {
     if (!actor || !item || !isStashed(item)) return false;
 
-    // In the room this particular thing is in — not merely in one of yours.
+    // In the room this particular thing is in - not merely in one of yours.
     // Two stashes and a shared "am I at a stash" test would let a player pull
     // something out of a drawer on the other side of the building.
     const here = await myStashHere(actor);
@@ -752,7 +752,7 @@ export async function retrieve(actor, item) {
  * Whose stash is in the room this character is standing in, if it is open.
  *
  * "Open" means not concealed. A concealed stash is one its owner has built a
- * hiding place for — a project — and finding that is what the Search action's
+ * hiding place for - a project - and finding that is what the Search action's
  * own stash branch is for, at a penalty, with a roll. An unconcealed stash is
  * just a drawer in a bedroom: anyone who walks in can go through it, which is
  * exactly the pressure a killing game wants on leaving your things lying about.
@@ -763,7 +763,7 @@ export function openStashesHere(actor) {
     if (!actor) return [];
 
     // `roomOfActor` is the module's one answer to "which room is this actor in"
-    // — it already handles unlinked tokens, an empty region set and the
+    // - it already handles unlinked tokens, an empty region set and the
     // geometric fallback. A local re-implementation here was a third copy of
     // that logic, and a copy of a geometric test is a copy that drifts.
     const room = roomOfActor(actor);
@@ -773,7 +773,7 @@ export function openStashesHere(actor) {
     const out = [];
     for (const entry of stashesIn(room)) {
         if (entry.actorId === actor.id) continue;         // yours is not a theft
-        // Hidden: needs a Search — unless you are the Mastermind, to whom a
+        // Hidden: needs a Search - unless you are the Mastermind, to whom a
         // hiding place is furniture they watched being built (Dawid, 26.08).
         // The GM-side authority in `stealFromVault` makes the same exception.
         //
@@ -805,7 +805,7 @@ export function openStashHere(actor) {
 /**
  * Go through an open stash and take one thing. No action, no roll.
  *
- * The write itself is GM-only — it touches two sheets — so it goes over the
+ * The write itself is GM-only - it touches two sheets - so it goes over the
  * same bridge the Search branch uses, and `stealFromVault` re-checks everything
  * on that side. This is the picker, not the authority.
  */
@@ -829,7 +829,7 @@ export async function rifleStashDialog(actor) {
     const describe = i => {
         const tier = i.getFlag(MODULE_ID, ITEM_FLAGS.tier);
         const cat = ITEM_CATEGORIES[i.getFlag(MODULE_ID, ITEM_FLAGS.category)]?.label ?? "";
-        return esc(`${i.name}${cat ? ` — ${cat}` : ""}${
+        return esc(`${i.name}${cat ? ` - ${cat}` : ""}${
             tier !== null && tier !== undefined ? ` (T${tier})` : ""}`);
     };
 
@@ -839,7 +839,7 @@ export async function rifleStashDialog(actor) {
      * A room can hold several stashes now, and asking "whose drawer?" and then
      * "which thing?" would be two questions where the answer to the first is
      * visible in the second. So they are one `<select>` with an `<optgroup>`
-     * per owner — and the owner id rides in the value, because the GM side has
+     * per owner - and the owner id rides in the value, because the GM side has
      * to be told which sheet to take from and the item id alone cannot say.
      *
      * A single stash keeps its old shape exactly: one group, and a heading the
@@ -886,13 +886,13 @@ export async function rifleStashDialog(actor) {
  * Take one thing out of a stash that is not yours. GM-side: it writes to the
  * owner's sheet and to the thief's.
  *
- * The item moves rather than being copied — this is theft, and the owner
+ * The item moves rather than being copied - this is theft, and the owner
  * noticing that something is missing is the entire point.
  *
  * AND UNTIL NOW THE OWNER WAS NEVER TOLD. The sentence above has been in this
  * file since it was written, the thief's own card said "They will notice it is
  * gone", and no code anywhere put that in front of the victim: the only whisper
- * went to the thief. `clumsy` is what closes it — see below.
+ * went to the thief. `clumsy` is what closes it - see below.
  */
 export async function stealFromVault({
     thiefId, ownerId, itemId, viaSearch = false, clumsy = false
@@ -905,7 +905,7 @@ export async function stealFromVault({
     if (!thief || !owner || !item || !isStashed(item)) return null;
 
     // The dead rob nobody. A socket payload is a claim, and this side is the
-    // one that decides — the same reasoning `handover.mjs` applies to a gift.
+    // one that decides - the same reasoning `handover.mjs` applies to a gift.
     const { isDeceased } = await import("./chapter.mjs");
     if (isDeceased(thief)) {
         error(`Refused a stash theft: ${thief.name} is dead.`);
@@ -916,7 +916,7 @@ export async function stealFromVault({
      * And you have to be standing in it.
      *
      * `rifleStashDialog` says in its own comment that "stealFromVault re-checks
-     * everything on that side" — and this side checked that the item was stashed
+     * everything on that side" - and this side checked that the item was stashed
      * and nothing else. Every condition that makes a stash a stash lived only in
      * the picker on the thief's own client, so a payload naming an owner and an
      * item id took anything from anyone: from across the map, from a stash the
@@ -941,7 +941,7 @@ export async function stealFromVault({
      *
      * These were the same question until E11 and are not any more: a stash
      * built in somebody else's room has no `drpgVaultOwner` pointing at its
-     * owner, so the old test refused every theft from one as a forged packet —
+     * owner, so the old test refused every theft from one as a forged packet -
      * the honest player would have been the only person it stopped.
      */
     const entry = stashIn(where.room, owner.id, where.scene);
@@ -950,7 +950,7 @@ export async function stealFromVault({
     }
 
     // And the thing has to be in THAT stash, not merely in one of theirs
-    // somewhere on the map — the same distinction `retrieve` makes.
+    // somewhere on the map - the same distinction `retrieve` makes.
     if (stashRoomOfItem(item, owner, where.scene) !== where.room) {
         return refuse(`"${item.name}" is not in the stash in "${where.room}"`);
     }
@@ -961,21 +961,21 @@ export async function stealFromVault({
      * Two things call this. `rifleStashDialog` is the drawer-in-a-bedroom case:
      * no action, no roll, and therefore no business opening a hiding place its
      * owner built a project for. The Search action is the other, and it is the
-     * one the concealment penalty exists FOR — `performSearch` subtracts a
+     * one the concealment penalty exists FOR - `performSearch` subtracts a
      * situational -1 precisely because the stash is hidden, spends a search
      * token and an action, and only then asks for a specific item.
      *
      * Refusing both left the paid route unable to produce anything at all: a
      * player could roll against a stiffer difficulty, succeed, be told what they
-     * found, and receive nothing — while an unconcealed stash handed its
+     * found, and receive nothing - while an unconcealed stash handed its
      * contents over for free. The guard was inverting the value of the project
      * that concealed it.
      *
      * `viaSearch` is a claim the sender makes, like the `total` on an Observe
      * and for the same reason: this side can verify who you are and where you
      * are standing, never what you spent. Forging it buys exactly what an honest
-     * Search of the same room would have bought — the room and owner checks
-     * above still bind — so it is worth no more than the action it skips.
+     * Search of the same room would have bought - the room and owner checks
+     * above still bind - so it is worth no more than the action it skips.
      */
     if (!viaSearch && entry.concealed) {
         // The Mastermind's exception, verified on THIS side the way every
@@ -1001,7 +1001,7 @@ export async function stealFromVault({
         tier: item.getFlag(MODULE_ID, ITEM_FLAGS.tier) ?? null,
         description: item.system?.description ?? "",
         img: item.img,
-        // Stealing a ruined thing out of somebody's drawer does not mend it —
+        // Stealing a ruined thing out of somebody's drawer does not mend it -
         // and hiding one there and having it lifted was the obvious way to
         // launder a broken murder weapon back into a working one.
         extraFlags: preservedFlags(item)
@@ -1024,8 +1024,8 @@ export async function stealFromVault({
      *
      * Not every theft: a stash you already knew about and opened deliberately
      * stays silent, which is what makes finding one worth the action. Only a
-     * Search that came up with Despair — the module's standing shorthand for
-     * "you did it, badly" — leaves the drawer disturbed enough to notice.
+     * Search that came up with Despair - the module's standing shorthand for
+     * "you did it, badly" - leaves the drawer disturbed enough to notice.
      *
      * NO NAME, EVER, and not even a category. What arrives is "somebody has
      * been in here", because that is what an emptied hiding place tells you;
@@ -1035,7 +1035,7 @@ export async function stealFromVault({
      * for every trace it drops, not a special case invented here: Hope and a
      * critical tell you what you left behind, a plain Despair never does. Which
      * is also why `DRPG.Vault.stole` no longer ends "They will notice it is
-     * gone" — it said so unconditionally, and it was false in both directions.
+     * gone" - it said so unconditionally, and it was false in both directions.
      */
     if (clumsy) {
         try {
@@ -1071,7 +1071,7 @@ export async function stealFromVault({
  * TWO NUMBERS ARRIVE, TWO VERDICTS ARE MADE HERE. The thief's client throws the
  * dice and names a victim; whether 14 was beaten, whether 15 was beaten, what
  * the pool actually contains and whether the victim is told are all decided on
- * this side against `ACTIONS.steal` — the same division of labour as Observe,
+ * this side against `ACTIONS.steal` - the same division of labour as Observe,
  * and for the same reason: the rule must live in one place, and it must not be
  * the place that benefits from the answer.
  *
@@ -1100,7 +1100,7 @@ export async function stealFromPerson({
     };
 
     // The dead neither rob nor are robbed. Looting a body is a different action
-    // with different rules — see `requestBodyLoot` — and routing it through here
+    // with different rules - see `requestBodyLoot` - and routing it through here
     // would let a corpse be picked over from the far side of a Shadow roll.
     const { isDeceased } = await import("./chapter.mjs");
     if (isDeceased(thief)) return refuse("they are dead");
@@ -1134,7 +1134,7 @@ export async function stealFromPerson({
      * `<select>` built by the person who benefits from it being wrong.
      *
      * And the CHOICE is a critical's privilege. An ordinary success takes
-     * whatever comes out — the id is ignored, not honoured quietly, because a
+     * whatever comes out - the id is ignored, not honoured quietly, because a
      * client that sends one on a non-critical is either out of date or trying
      * it on, and both deserve the same answer.
      */
@@ -1149,7 +1149,7 @@ export async function stealFromPerson({
         item = wanted ?? pool[Math.floor(Math.random() * pool.length)];
     }
 
-    // Nothing in their pockets is not a failure — the hand went in, and whether
+    // Nothing in their pockets is not a failure - the hand went in, and whether
     // it was noticed is still a live question. The two whispers below say so.
     const empty = success && !pool.length;
 
@@ -1174,15 +1174,15 @@ export async function stealFromPerson({
                  *
                  * `render: false` travels with the deletion over Foundry's own
                  * socket, so the victim's open sheet does not redraw for THIS
-                 * change. The item has really gone — they cannot use it, give
-                 * it away or find it again — and what is suppressed is the
+                 * change. The item has really gone - they cannot use it, give
+                 * it away or find it again - and what is suppressed is the
                  * redraw, not the fact.
                  *
                  * A sheet redraws for a great many other reasons (a resource
                  * moving, Despair, an incident starting), so the row can come
                  * off the screen a moment later. That is the promise being made
                  * and it is the honest one: not "they will never see", but
-                 * "they will not see because of this" — trap 90. Clicking the
+                 * "they will not see because of this" - trap 90. Clicking the
                  * stale row is handled where the rows are drawn (trap 91).
                  *
                  * When they ARE told, there is nothing to hide and the render
@@ -1194,7 +1194,7 @@ export async function stealFromPerson({
                 error("Could not take the stolen item off its owner", err);
             }
         } else {
-            // The carry limit refused it. The item stays where it is — the
+            // The carry limit refused it. The item stays where it is - the
             // alternative is deleting somebody's property to make room for a
             // copy that was never created.
             handsFull = true;
@@ -1205,7 +1205,7 @@ export async function stealFromPerson({
     const took = Boolean(copy);
 
     // The thief always learns what happened to them, including whether they
-    // were noticed — that is what the Shadow roll was for.
+    // were noticed - that is what the Shadow roll was for.
     await whisperToOwner(thief, `<p>${game.i18n.format(
         took ? "DRPG.Steal.cardTook"
             : handsFull ? "DRPG.Steal.cardHandsFull"
@@ -1221,7 +1221,7 @@ export async function stealFromPerson({
      * Named, unlike the stash's "somebody has been in here", and that asymmetry
      * is the point of the two rolls. An emptied hiding place is discovered
      * later, by its owner, with nothing to go on; a hand in your pocket is
-     * something you catch somebody doing. So this says who — and, when they
+     * something you catch somebody doing. So this says who - and, when they
      * actually got something, what.
      *
      * Both failures are worth telling. Being caught trying is one of the better
@@ -1250,7 +1250,7 @@ export async function stealFromPerson({
 
 /**
  * Leave something in somebody's pocket. GM side, and the mirror of the theft
- * directly above — same two axes, same two numbers, the item travelling the
+ * directly above - same two axes, same two numbers, the item travelling the
  * other way.
  *
  * WHY IT DESERVES ITS OWN FUNCTION rather than a `direction` flag on the one
@@ -1263,7 +1263,7 @@ export async function stealFromPerson({
  * @param {string} options.plannerId
  * @param {string} options.victimId
  * @param {string} options.itemId       Chosen before the roll, out of their own
- *   pockets — no critical branch, because there is nothing left to choose.
+ *   pockets - no critical branch, because there is nothing left to choose.
  * @param {number} options.total        The Hand roll.
  * @param {number} options.unseenTotal  The Shadow roll.
  */
@@ -1298,7 +1298,7 @@ export async function plantOnPerson({
     if (here.room !== there?.room) return refuse(`${victim.name} is not in "${here.room}"`);
 
     /*
-     * THE POOL IS REBUILT HERE, exactly as it is for a theft (trap 92) — and
+     * THE POOL IS REBUILT HERE, exactly as it is for a theft (trap 92) - and
      * the same two exclusions, for the same reasons read backwards. A Truth
      * Bullet cannot be planted because it is knowledge rather than an object,
      * and something in a stash cannot be planted because it is not in a hand.
@@ -1324,7 +1324,7 @@ export async function plantOnPerson({
             tier: item.getFlag(MODULE_ID, ITEM_FLAGS.tier) ?? null,
             description: item.system?.description ?? "",
             img: item.img,
-            // A planted broken thing stays broken — which is most of the point.
+            // A planted broken thing stays broken - which is most of the point.
             // The best use of this action is getting a ruined murder weapon out
             // of your own pocket and into somebody else's, and it would be
             // worth nothing if the transfer mended it.
@@ -1341,7 +1341,7 @@ export async function plantOnPerson({
                 error("Could not take the planted item off the person planting it", err);
             }
         } else {
-            // Their pockets are full. The item stays where it was — the
+            // Their pockets are full. The item stays where it was - the
             // alternative is deleting somebody's property into a copy that was
             // never created.
             handsFull = true;
@@ -1360,12 +1360,12 @@ export async function plantOnPerson({
         ? "DRPG.Steal.cardSeen" : "DRPG.Steal.cardUnseen")}</small></p>`);
 
     /*
-     * AND THE VICTIM, ONLY WHEN THEY NOTICED — with the item named.
+     * AND THE VICTIM, ONLY WHEN THEY NOTICED - with the item named.
      *
      * The asymmetry with a theft is worth stating: a stolen thing is missed
      * later, so the silent case has a natural discovery. A planted thing has
-     * none — nobody audits their own pockets for things that should not be
-     * there — which is exactly what makes the unnoticed plant worth an action,
+     * none - nobody audits their own pockets for things that should not be
+     * there - which is exactly what makes the unnoticed plant worth an action,
      * and exactly why the noticed one has to be unambiguous.
      */
     if (seen) {
@@ -1393,7 +1393,7 @@ export async function plantOnPerson({
  * Head roll opens ONE of them to ONE person, permanently.
  *
  * WHERE THE RECORD LIVES, and why on the finder rather than on the room.
- * Either is world data and therefore readable from any console — this module
+ * Either is world data and therefore readable from any console - this module
  * has no secrets from a determined player, and never claims to. What differs is
  * where somebody looks by accident: a flag on the region is on the screen the
  * owner opens to check their own room, while a flag on the finder's sheet is
@@ -1403,7 +1403,7 @@ export async function plantOnPerson({
  * WRITTEN BY A GM'S CLIENT, though the finder owns their own actor and could
  * write it themselves. The write is the only thing standing between "rolled a
  * 16" and "reads other people's hiding places", so it goes the same way every
- * other verdict in this module goes — see `resolveStashSearch`.
+ * other verdict in this module goes - see `resolveStashSearch`.
  * ========================================================================== */
 
 /** One key per stash, so two stashes in one room stay separate. */
@@ -1432,7 +1432,7 @@ export function stashesFoundBy(actor) {
  *
  * WHAT A SUCCESS IS WORTH, precisely: one stash, the first concealed one in the
  * room with something in it, and if none of them holds anything then the first
- * concealed one at all. Not "every stash here" — a room can hold several, and
+ * concealed one at all. Not "every stash here" - a room can hold several, and
  * one roll opening all of them would make the second one free.
  *
  * A miss and an empty room are told apart for the FINDER and not for anybody
@@ -1485,7 +1485,7 @@ export async function resolveStashSearch({ actorId, total = 0, isCritical = fals
 
     /*
      * THE OWNER IS NOT TOLD, and that is the rule this action was written with
-     * — "bez powiadamiania właściciela". Being found out is something they
+     * - "bez powiadamiania właściciela". Being found out is something they
      * discover when something goes missing, which is `stealFromVault`'s job and
      * has its own Despair test.
      *
@@ -1509,7 +1509,7 @@ export async function resolveStashSearch({ actorId, total = 0, isCritical = fals
  * One screen for everything a room IS.
  *
  * Whose bedroom it is, whether the stash in it is hidden, what searching it
- * draws from, what it is a good place to search for — and, since they are the
+ * draws from, what it is a good place to search for - and, since they are the
  * same kind of question asked of the same regions on the same evening, which
  * rests it allows. Those two used to be separate dialogs on separate GM-panel
  * entries, which meant setting up a map was a lap of the panel per room rather
@@ -1519,7 +1519,7 @@ export async function resolveStashSearch({ actorId, total = 0, isCritical = fals
  * owns the two rest flags and their readers; this only edits them.
  */
 export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
-    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
@@ -1549,7 +1549,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
     const { isDeceased } = await import("./chapter.mjs");
     const living = students.filter(a => !isDeceased(a)).length;
     // Room pools only. The tier pools (`tableName()`'s family) answer dice
-    // rolls and are never a room's stock — see `isTierPool` in tables.mjs.
+    // rolls and are never a room's stock - see `isTierPool` in tables.mjs.
     const tables = Array.from(game.tables ?? [])
         .map(t => t.name)
         .filter(n => !isTierPool(n))
@@ -1563,7 +1563,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
     const maxTokens = SearchTokens.max;
 
     /*
-     * ROOMS DOWN, PEOPLE ACROSS — the same way round as every other tab here.
+     * ROOMS DOWN, PEOPLE ACROSS - the same way round as every other tab here.
      *
      * It used to be the other way, and it was the only table in the window that
      * was: rooms across the top, students down the side. With eighteen rooms the
@@ -1572,7 +1572,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
      *
      * The shape decides it. A cast is four to eight; a map is six to thirty-six.
      * The long axis belongs to the side that scrolls, and the short one to the
-     * side that has to stay on screen — so rooms are rows and people are columns
+     * side that has to stay on screen - so rooms are rows and people are columns
      * whose names lie down and read at a glance.
      *
      * THE INPUT NAMES DO NOT CHANGE. `fog:${room}:${actorId}` carries both
@@ -1593,18 +1593,18 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
     }).join("");
 
     /*
-     * THE STASH MATRIX. Same shape as the Fog one above — rooms down, students
-     * across — because four tables that look alike read as one window.
+     * THE STASH MATRIX. Same shape as the Fog one above - rooms down, students
+     * across - because four tables that look alike read as one window.
      *
      * ONE BUTTON PER CELL, NOT TWO CHECKBOXES. A stash cell carries two facts
      * ("is there one" and "is it hidden") and the obvious encoding is a pair of
      * boxes. At eight students and twelve rooms that is 192 targets to hit, half
-     * of which are meaningless — "hidden" on a room with no stash — so the cell
+     * of which are meaningless - "hidden" on a room with no stash - so the cell
      * cycles through the three states that actually exist instead.
      *
      * The state lives in a hidden input rather than on the button, because Apply
      * reads this form by input NAME and knows nothing about how the cell was
-     * drawn — the same contract the fog matrix keeps.
+     * drawn - the same contract the fog matrix keeps.
      */
     const stashState = (room, actorId) => {
         const entry = stashIn(room, actorId, scene);
@@ -1640,7 +1640,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
 
     /* One pass gathers every fact about a room; the tabs then deal the same
      * cells into four thematic tables. The input NAMES are the contract with
-     * the Apply callback below, identical whichever table a cell sits in —
+     * the Apply callback below, identical whichever table a cell sits in -
      * Apply reads the whole form and never asks which tab was showing. */
     const cells = rooms.map(room => {
         const owner = vaultOwnerOf(room) ?? "";
@@ -1673,7 +1673,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
 
         return {
             name: `<td><strong>${escRoom}</strong></td>`,
-            owner: `<td><select name="owner:${escRoom}"><option value="">—</option>${people}</select></td>`,
+            owner: `<td><select name="owner:${escRoom}"><option value="">-</option>${people}</select></td>`,
             concealed: check("concealed", isConcealed(room)),
             short: check("short", region?.getFlag(MODULE_ID, REST_FLAGS.short)),
             long: check("long", region?.getFlag(MODULE_ID, REST_FLAGS.long)),
@@ -1699,9 +1699,9 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
             favours: `<td>${categoryBoxes("fav", favours)}</td>`,
             hinders: `<td>${categoryBoxes("hin", hinders)}</td>`,
             // A textarea, not an input: these are sentences. The cell escapes
-            // the wrapping-cell rule the rest of this table lives under — see
+            // the wrapping-cell rule the rest of this table lives under - see
             // the `:has(input[type="text"], textarea)` exception in the
-            // stylesheet — so the prose wraps instead of stretching the window.
+            // stylesheet - so the prose wraps instead of stretching the window.
             description: `<td><textarea name="desc:${escRoom}" rows="5"
                 placeholder="${game.i18n.localize("DRPG.Vault.descriptionPlaceholder")}"
                 >${foundry.utils.escapeHTML(roomDescription(room))}</textarea></td>`
@@ -1733,12 +1733,12 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
     const result = await tableDialog({
         window: { title: game.i18n.localize("DRPG.Vault.manageTitle") },
         // `drpg-projects` as well as `drpg-panel`: that is the class the
-        // stylesheet hangs the table treatment on — full width, a scrolling
+        // stylesheet hangs the table treatment on - full width, a scrolling
         // window-content and sane select sizing. Without it this dialog asked
         // for 860px, lost to the 26rem `.drpg-panel` cap, and clipped its own
         // right-hand columns with no way to scroll to them.
         classes: ["drpg-panel", "drpg-projects", "drpg-room-setup", "drpg-window-rooms"],
-        // One size for all five tabs, taken from the biggest of them — see
+        // One size for all five tabs, taken from the biggest of them - see
         // `fitWindowToTabs`. Without it the window is fitted to whichever tab
         // is showing and jumps between 708px and 1504px as the GM switches.
         fitTabs: true,
@@ -1927,7 +1927,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
              * Cycle a stash cell: none -> open -> hidden -> none.
              *
              * The hidden input is the truth and the glyph follows it, never the
-             * other way round — Apply reads the input, and a cell whose picture
+             * other way round - Apply reads the input, and a cell whose picture
              * and value could disagree is a cell that lies to whoever saves it.
              */
             const GLYPHS = {
@@ -1947,7 +1947,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
             }
 
             // A room cannot favour and hinder the same category. Ticking one
-            // side clears the other quietly — refusing at Apply instead would
+            // side clears the other quietly - refusing at Apply instead would
             // send the GM hunting through checkboxes for the contradiction.
             // The room name may itself contain ":", so the category is read
             // from the LAST segment and the room is everything between.
@@ -1988,7 +1988,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
 
     if (result === "discoverAll" || result === "hideAll") {
         await setDiscovery(scene, { rooms, value: result === "discoverAll" });
-        // Back onto the tab those two buttons act on — reopening at the first
+        // Back onto the tab those two buttons act on - reopening at the first
         // tab made the GM walk back to Fog to see what they just did.
         return openRoomSetupDialog({ tab: "fog" });
     }
@@ -2071,7 +2071,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
         await setRestRoom(row.room, { short: row.shortRest, long: row.longRest });
 
         // No announcement either way. A room nobody can search says so on the
-        // action tile the moment anybody stands in it and looks — which is a
+        // action tile the moment anybody stands in it and looks - which is a
         // better place to learn it than a chat line scrolling past hours
         // earlier, and it does not tell the whole cast which room the GM has
         // just decided is interesting enough to close.
@@ -2088,7 +2088,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
             await region.setFlag(MODULE_ID, ROOM_FLAGS.locked, row.locked);
             // Only unlocking is announced. A GM locking a door mid-session is
             // often the point the players finding out is meant to come from
-            // walking into it and reading "Drzwi są zamknięte." themselves —
+            // walking into it and reading "Drzwi są zamknięte." themselves -
             // the same reasoning `toggleFinalTrialFlag` in mastermind.mjs
             // applies to starting versus ending. Unlocking has no such
             // in-fiction moment of its own, so it says so out loud.
@@ -2106,7 +2106,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
     /*
      * THE STASH MATRIX, and the two rules that make it safe.
      *
-     * TRAP 77 — A STASH WITH THINGS IN IT IS NOT REMOVED. Taking one away would
+     * TRAP 77 - A STASH WITH THINGS IN IT IS NOT REMOVED. Taking one away would
      * leave every item in it pointing at a stash that no longer exists, which is
      * an item on no list at all: not carried, not in any drawer, gone from the
      * sheet and findable only by a GM reading flags. So the removal is refused,
@@ -2143,12 +2143,12 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
     }
 
     /*
-     * TRAP 76 — SEEDING RUNS ON AN OWNER CHANGE, NEVER ON EVERY APPLY.
+     * TRAP 76 - SEEDING RUNS ON AN OWNER CHANGE, NEVER ON EVERY APPLY.
      *
      * Giving somebody a bedroom gives them a stash in it, which is what makes
      * the split invisible to a GM who never opens the new tab. But if it ran
      * every time the form was saved, then removing a stash on the Stashes tab
-     * and pressing Apply would put it straight back — a button that unclicks
+     * and pressing Apply would put it straight back - a button that unclicks
      * itself, and the GM would have no way to tell it apart from a bug.
      *
      * `?? false` rather than a plain create: `setStash` leaves an existing entry
@@ -2163,7 +2163,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
 
     // AFTER the loop, and outside it: keys are issued by sweeping every owned
     // room, not by noticing an owner change. See `reconcileBedroomKeys` for why
-    // — in short, a row the GM did not touch is skipped above, and rooms
+    // - in short, a row the GM did not touch is skipped above, and rooms
     // assigned before keys existed are all of those. Not silent: a key arriving
     // on your sheet is news, and the sweep only writes when one was missing.
     await reconcileBedroomKeys({ silent: false });
@@ -2174,7 +2174,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
 
 /** GM: look inside anybody's stash, and pull things out of it. */
 export async function openVaultInspector() {
-    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
@@ -2195,13 +2195,13 @@ export async function openVaultInspector() {
     const sections = vaults.map(v => {
         const items = vaultContents(v.owner);
         const list = items.length
-            ? items.map(i => `<li>${foundry.utils.escapeHTML(i.name)} — ${
+            ? items.map(i => `<li>${foundry.utils.escapeHTML(i.name)} - ${
                 foundry.utils.escapeHTML(
                     ITEM_CATEGORIES[i.getFlag(MODULE_ID, ITEM_FLAGS.category)]?.label ?? "?")
             }</li>`).join("")
             : `<li class="notes">${game.i18n.localize("DRPG.Sheet.groupEmpty")}</li>`;
         return `<div class="drpg-vault-section">
-            <h4>${foundry.utils.escapeHTML(v.owner.name)} — ${foundry.utils.escapeHTML(v.room)}${
+            <h4>${foundry.utils.escapeHTML(v.owner.name)} - ${foundry.utils.escapeHTML(v.room)}${
                 v.concealed ? ` · <em>${game.i18n.localize("DRPG.Vault.concealedShort")}</em>` : ""
             }</h4>
             <ul>${list}</ul>

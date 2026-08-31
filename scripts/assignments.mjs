@@ -1,8 +1,8 @@
 /**
- * Danganronpa RPG — dividing the students between Monokumas.
+ * Danganronpa RPG - dividing the students between Monokumas.
  * ---------------------------------------------------------------------------
  * Guide: "There are at least two GMs. They divide the players they take under
- * their 'care' strictly between them — e.g. two GMs each take 8 players."
+ * their 'care' strictly between them - e.g. two GMs each take 8 players."
  *
  * That division is not just bookkeeping: a roll that lands with Despair feeds
  * the pool of *that student's* Monokuma, so who owns whom decides where the
@@ -23,7 +23,7 @@ import { log, warn } from "./utils.mjs";
  *
  * Distinct from simply being absent from the map: absent means "never divided
  * up yet", which still falls back to a Monokuma so no Despair is lost. This
- * value is a deliberate choice — useful for the Mastermind, for a retired or
+ * value is a deliberate choice - useful for the Mastermind, for a retired or
  * NPC-run character, or for a template actor that should never move a pool.
  */
 export const NO_MONOKUMA = "none";
@@ -50,7 +50,7 @@ export function students() {
 /**
  * Which Monokuma looks after this character.
  *
- * Returns null when the student is explicitly set to NO_MONOKUMA — their rolls
+ * Returns null when the student is explicitly set to NO_MONOKUMA - their rolls
  * then feed nobody. Otherwise falls back to the first Monokuma so Despair from
  * an undivided roster is never silently lost.
  */
@@ -93,7 +93,7 @@ export async function assign(actorId, gmUserId) {
     return map;
 }
 
-/** Write a whole map at once — used by the assignment dialog. */
+/** Write a whole map at once - used by the assignment dialog. */
 export async function setAssignments(map) {
     if (!game.user.isGM) return null;
     await game.settings.set(MODULE_ID, SETTINGS.gmAssignments, { ...map });
@@ -104,7 +104,7 @@ export async function setAssignments(map) {
  * Split the students evenly between Monokumas, in name order. With two GMs and
  * eight students that is four each; a remainder goes to the earlier GM.
  *
- * Students explicitly set to NO_MONOKUMA keep that choice — an even split
+ * Students explicitly set to NO_MONOKUMA keep that choice - an even split
  * should not quietly drag the Mastermind back into a pool.
  */
 export async function autoAssign() {
@@ -137,7 +137,7 @@ export async function autoAssign() {
 /**
  * Characters with no explicit assignment. They still resolve to a Monokuma via
  * the fallback, but the GM should know they were never divided up. Students
- * deliberately excluded are not "unassigned" — that was a decision.
+ * deliberately excluded are not "unassigned" - that was a decision.
  */
 export function unassigned() {
     const map = assignments();

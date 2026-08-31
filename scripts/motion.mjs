@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — the motion layer, on the JavaScript side.
+ * Danganronpa RPG - the motion layer, on the JavaScript side.
  * ---------------------------------------------------------------------------
  * `styles/motion.css` holds the three times and the two curves. This file is
  * how everything that is not a stylesheet reaches them: the fog on the canvas,
@@ -71,7 +71,7 @@ export const SNAP = () => motionMs("--drpg-t-snap");
 export const ENTER = () => motionMs("--drpg-t-enter");
 export const BEAT = () => motionMs("--drpg-t-beat");
 
-/** The clock turning over — two beats, and slower on purpose. See motion.css. */
+/** The clock turning over - two beats, and slower on purpose. See motion.css. */
 export const TURN = () => motionMs("--drpg-t-turn");
 
 /** The two curves, by what they do rather than by what CSS calls them. */
@@ -81,7 +81,7 @@ export const LEAVE = () => motionEase("--drpg-ease-leave");
 /**
  * Has the reader asked for stillness?
  *
- * Mostly unnecessary — zeroed tokens already stop everything — but a few
+ * Mostly unnecessary - zeroed tokens already stop everything - but a few
  * moments are worth skipping outright rather than playing at zero length, and
  * one or two want a different shape entirely rather than none.
  */
@@ -102,17 +102,17 @@ export function reducedMotion() {
  *
  * THE `transform` TRAP, WHICH IS WHY THERE IS NO `fill: "forwards"`. A transform
  * on an element makes it the containing block for every `position: fixed`
- * descendant. Leave a window sitting on `scale(1)` — visually identical to no
- * transform at all — and Foundry's tooltips, colour pickers and context menus
+ * descendant. Leave a window sitting on `scale(1)` - visually identical to no
+ * transform at all - and Foundry's tooltips, colour pickers and context menus
  * inside it quietly start positioning themselves against the window instead of
  * against the screen. The Web Animations API sidesteps it completely: with no
  * fill, the element holds no transform once the animation is done. Not a
- * cleanup step that could be forgotten — there is nothing to clean up.
+ * cleanup step that could be forgotten - there is nothing to clean up.
  *
  * `fill` is the one timing option a caller may set, and only ever as
  * `"backwards"`: an animation that waits its turn has to hold its opening frame
  * during the wait, or the thing it is about to move sits in plain view first.
- * `"forwards"` is not offered, for the reason above — there must be nothing
+ * `"forwards"` is not offered, for the reason above - there must be nothing
  * left on the element afterwards.
  *
  * @param {Element} element
@@ -142,7 +142,7 @@ export function play(element, keyframes, duration, easing = ARRIVE(), timing = {
  * WHAT JUST WENT OUT
  * --------------------------------------------------------------------------
  * Every pool in this module is drawn as a row of pips rebuilt from scratch, so
- * "which ones were just spent" is not a question the DOM can answer — the old
+ * "which ones were just spent" is not a question the DOM can answer - the old
  * pips are gone before the new ones exist. It has to be remembered, and it has
  * to be remembered PER SURFACE: the sheet's header and the tray in the corner
  * both draw the same actions, and one memory shared between them would mean
@@ -155,8 +155,8 @@ const pools = new Map();
 /**
  * How long a spend stays answerable: exactly as long as the flare lasts.
  *
- * A burst of redraws from ONE change lands within a few frames of each other —
- * an actor update, the setting it wrote, the chat card it produced — and each
+ * A burst of redraws from ONE change lands within a few frames of each other -
+ * an actor update, the setting it wrote, the chat card it produced - and each
  * one throws away the element the last one was flashing. Inside this window the
  * same spend is reported again so the mark goes back on the new element.
  *
@@ -166,7 +166,7 @@ const pools = new Map();
  * ones. Past the beat the animation is already over and there is nothing to
  * resume, which is why the window ends exactly there.
  *
- * Reduced motion sets the beat to 0, which closes the window as well — there is
+ * Reduced motion sets the beat to 0, which closes the window as well - there is
  * no animation to protect.
  */
 function redrawGrace() {
@@ -178,8 +178,8 @@ function redrawGrace() {
  *
  * Reading it is also recording it: the caller is by definition about to draw
  * the new value, so that is what the next call compares against. A surface with
- * no memory of a subject — its first draw, a sheet just opened, a client that
- * joined mid-session — gets `null`, which is correct: nothing was spent, the
+ * no memory of a subject - its first draw, a sheet just opened, a client that
+ * joined mid-session - gets `null`, which is correct: nothing was spent, the
  * number was simply learned.
  *
  * @param {string} scope   Which surface is asking, e.g. "sheet:actions".
@@ -200,7 +200,7 @@ export function spentSince(scope, key, held) {
         return null;
     }
 
-    // Down is a spend; up is a GAIN (F5.5, 2026-08-25) — same window, same
+    // Down is a spend; up is a GAIN (F5.5, 2026-08-25) - same window, same
     // replay rules, a different mark. `kind` is what `markSpent` reads to pick
     // the class, so none of the nine call sites changed for gains to exist.
     if (held !== last.held) {
@@ -233,7 +233,7 @@ export function spentSince(scope, key, held) {
  *
  * @param {HTMLElement} element
  * @param {{kind?: "spent"|"gained", from: number, to: number, age?: number}|null} change
- *   From `spentSince`. A gain wears `drpg-gained` instead of `drpg-spent` —
+ *   From `spentSince`. A gain wears `drpg-gained` instead of `drpg-spent` -
  *   the arrival flare added in F5.5; everything else is identical.
  * @param {number} [index]  Which pip this is, 1-based. Pools of one pass 1.
  */
@@ -260,7 +260,7 @@ export function markSpent(element, change, index = 1) {
  * ========================================================================== */
 
 /**
- * Which windows this module is entitled to move — see `GAME_WINDOWS`.
+ * Which windows this module is entitled to move - see `GAME_WINDOWS`.
  *
  * The selector itself moved to config.mjs in E4, when the sound layer needed
  * the same list. Two files importing it from each other is a cycle, and this
@@ -275,8 +275,8 @@ function animateWindowIn(app, _element, _context, options) {
 
     // ONLY THE FIRST RENDER, and asked rather than remembered.
     //
-    // A window re-renders constantly — every Despair change, every clock tick,
-    // every item added — and the entrance belongs to the window APPEARING, not
+    // A window re-renders constantly - every Despair change, every clock tick,
+    // every item added - and the entrance belongs to the window APPEARING, not
     // to its contents changing. This used to be a flag written onto the
     // element, which is a second copy of a fact Foundry already tracks and gets
     // wrong in one direction: a sheet closed and reopened may come back on the
@@ -285,7 +285,7 @@ function animateWindowIn(app, _element, _context, options) {
     if (!options?.isFirstRender) return;
 
     // BEFORE THE ANIMATION, NOT INSIDE IT. A table that has asked for reduced
-    // motion still wants to hear the window open — the sound is the event, the
+    // motion still wants to hear the window open - the sound is the event, the
     // growth is only how it is drawn. `play()` below is the part that stands
     // down for that preference; this is not.
     playSfx("windowOpen");
@@ -306,7 +306,7 @@ function animateWindowIn(app, _element, _context, options) {
 /**
  * Mark a window that is CLOSING, as opposed to one that is minimising.
  *
- * Foundry uses one class, `.minimizing`, for both — it adds the class, sets a
+ * Foundry uses one class, `.minimizing`, for both - it adds the class, sets a
  * max-height, and waits for a transition to end before tearing the window down.
  * A stylesheet cannot tell the two apart, and getting it wrong means a window
  * minimised to its title bar fades out and never comes back.
@@ -321,7 +321,7 @@ function animateWindowIn(app, _element, _context, options) {
  *
  * WHY THE MARK AND NOT THE ANIMATION. The transition itself still has to be
  * CSS, and it still has to be hung on `.minimizing` rather than started here.
- * `close()` awaits `_preClose` first — for however long a subclass takes — and
+ * `close()` awaits `_preClose` first - for however long a subclass takes - and
  * only then adds `.minimizing` and starts waiting for a `transitionend`. An
  * animation started here would already have finished during a slow `_preClose`,
  * Foundry would wait out its full one-second fallback, and the window would sit
@@ -359,7 +359,7 @@ export function registerMotion() {
     // The entrance. Note what is NOT here: nothing is awaited, no class is
     // added, and the element is never made `inert` or `pointer-events: none`
     // for the duration. The window is live in the first frame and the growth
-    // runs underneath a window that already works — which is the whole of the
+    // runs underneath a window that already works - which is the whole of the
     // old objection to window transitions, answered rather than argued with.
     Hooks.on("renderApplicationV2", animateWindowIn);
     markClosingWindows();

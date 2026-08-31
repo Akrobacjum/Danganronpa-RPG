@@ -1,17 +1,17 @@
 /**
- * Danganronpa RPG — Breakdown and Wounded.
+ * Danganronpa RPG - Breakdown and Wounded.
  * ---------------------------------------------------------------------------
  * Guide, "Stany gracza": "Gracz przy utracie całego stresu dostaje disadvantage
  * na każdy rzut. Przy utracie całego hp w trakcie Daily Life gracz otrzymuje
  * -1 akcję na porę dnia."
  *
- * Two states, at exactly the two moments Daggerheart also marks — and it marks
+ * Two states, at exactly the two moments Daggerheart also marks - and it marks
  * them with the wrong things:
  *
  *   full Sanity  the system applies **Vulnerable**, which in Daggerheart means
  *                "attacks against you have advantage". This game's rule points
  *                the other way: YOUR rolls take the disadvantage.
- *   full Health      the system offers a **Death Move** — blaze of glory, risk it
+ *   full Health      the system offers a **Death Move** - blaze of glory, risk it
  *                all. A killing game does not grant a heroic exit; the guide
  *                says you lose an action and keep going, and dying is something
  *                a murderer does to you on purpose.
@@ -28,7 +28,7 @@
  *   Breakdown  `stateAdvantage()` below, folded into the roll dialog's own
  *              advantage sum alongside Calls and situational modifiers.
  *   Wounded    `actionBudget()` in actions.mjs, which already subtracted the
- *              action — the guide's rule was in force before it had an icon.
+ *              action - the guide's rule was in force before it had an icon.
  */
 
 import { STATES } from "./config.mjs";
@@ -48,7 +48,7 @@ const AUTOMATION = "Automation";
  * Put our two conditions in `CONFIG.statusEffects`.
  *
  * Runs at `setup`, after the system's own `setup` hook has rebuilt that array
- * from its condition table — appending during `init` would be overwritten.
+ * from its condition table - appending during `init` would be overwritten.
  */
 export function registerStates() {
     Hooks.on("setup", () => {
@@ -103,7 +103,7 @@ function touchesTracks(changes) {
  * and the write. Removing the effect afterwards would leave it visible for a
  * frame and would fight the system every time Health moved.
  *
- * Idempotent, and it says what it did — silently rewriting somebody else's
+ * Idempotent, and it says what it did - silently rewriting somebody else's
  * settings is the kind of thing a GM should be able to find in the log.
  */
 async function suppressSystemAutomation() {
@@ -141,7 +141,7 @@ async function suppressSystemAutomation() {
  * Clear anything the system applied before this module took over.
  *
  * A world that has been played on already has Vulnerable and Death Move effects
- * sitting on sheets, and switching the automation off does not retract them —
+ * sitting on sheets, and switching the automation off does not retract them -
  * it only stops new ones. Without this the two systems' markers would sit side
  * by side for the rest of the season.
  */
@@ -174,7 +174,7 @@ function shouldHave(actor, state) {
  * Bring one character's two conditions into line with their tracks.
  *
  * A Monokuma is skipped outright: they have no action economy to lose and no
- * Hope to spend, and `setMonokuma` zeroes both tracks on purpose — which would
+ * Hope to spend, and `setMonokuma` zeroes both tracks on purpose - which would
  * otherwise light up both states permanently on every GM's own sheet.
  */
 /**
@@ -184,7 +184,7 @@ function shouldHave(actor, state) {
  * writes both within a turn. Two passes overlapping is a real prospect, and
  * `toggleStatusEffect` is not atomic: both would read `actor.statuses` before
  * either had finished creating the effect, both would decide it was missing,
- * and the actor would end up with two Breakdown effects — which then need
+ * and the actor would end up with two Breakdown effects - which then need
  * removing twice before the icon goes away.
  */
 const running = new Map();
@@ -233,7 +233,7 @@ async function syncOnce(actor) {
         }
     }
 
-    if (applied.length) debug(`${actor.name} — ${applied.join(", ")}`);
+    if (applied.length) debug(`${actor.name} - ${applied.join(", ")}`);
     return applied;
 }
 
@@ -256,6 +256,6 @@ export async function syncAll() {
  * `character.mjs` has answered both since before this file existed, and
  * actions.mjs, sheet.mjs and roll-dialog.mjs all read it from there. A second
  * pair of exports saying the same thing is how two copies of one rule start
- * disagreeing — so this file owns the marker and `character.mjs` owns the
+ * disagreeing - so this file owns the marker and `character.mjs` owns the
  * question. `shouldHave()` above is the one place they touch.
  */

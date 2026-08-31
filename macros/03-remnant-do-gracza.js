@@ -2,13 +2,13 @@
  * MAKRO: Truth Bullet do gracza
  * ---------------------------------------------------------------------------
  * Kopiuje wybrany Remnant z mapy do ekwipunku jednego lub kilku graczy jako
- * Truth Bullet. Sam Remnant zostaje na miejscu — tak jak chce przewodnik.
+ * Truth Bullet. Sam Remnant zostaje na miejscu - tak jak chce przewodnik.
  *
- * WAZNE — co sie zmienilo wzgledem poprzedniej wersji tego makra:
+ * WAZNE - co sie zmienilo wzgledem poprzedniej wersji tego makra:
  * makro wpisywalo indeks widocznosci w pole `tier`, bo kula nie miala wtedy
  * wlasnego miejsca na widocznosc. Przez to "Wyrazny" Remnant robil sie kula
  * "Tier 1". Od Etapu 1 kula ma wlasne flagi, wiec makro wola
- * `game.drpg.createTruthBullet` — jedyna sciezke tworzenia w module. Typ
+ * `game.drpg.createTruthBullet` - jedyna sciezke tworzenia w module. Typ
  * Remnanta, jego widocznosc, notatka DMa oraz id zrodla przenosza sie same.
  *
  * Prawdziwy typ kuli NIE trafia na przedmiot gracza. Siedzi w magazynie DMa,
@@ -62,7 +62,7 @@ const wynik = await DialogV2.wait({
         }</select>
       </div>
       <div class="form-group">
-        <label>Nazwa kuli — to widzi gracz</label>
+        <label>Nazwa kuli - to widzi gracz</label>
         <input type="text" name="name" placeholder="np. Slad blota przy oknie" autofocus>
       </div>
       <div class="form-group">
@@ -117,7 +117,7 @@ for (const id of wynik.targets) {
         name: nazwa,
         // Prawda o kuli. Nie ląduje na przedmiocie gracza.
         realType: zrodlo.data.type,
-        // Widocznosc ma teraz wlasna flage — to ona ustala prog Analizy.
+        // Widocznosc ma teraz wlasna flage - to ona ustala prog Analizy.
         visibility: zrodlo.data.visibility,
         faint: !!zrodlo.data.faint,
         playerText: wynik.description,
@@ -125,8 +125,8 @@ for (const id of wynik.targets) {
         remnantId: zrodlo.token.id,
         sceneId: canvas.scene?.id ?? null,
         // Pokoj Remnanta, nie pokoj gracza. Bez tego `createTruthBullet`
-        // podstawia `roomOfActor(actor)` — czyli miejsce, w ktorym akurat stoi
-        // odbiorca — i kula dostawala stempel z zupelnie innego pomieszczenia.
+        // podstawia `roomOfActor(actor)` - czyli miejsce, w ktorym akurat stoi
+        // odbiorca - i kula dostawala stempel z zupelnie innego pomieszczenia.
         room: zrodlo.data.room ?? null
     });
     if (!item) continue;
@@ -139,4 +139,4 @@ for (const id of wynik.targets) {
       <p><small>Znajdziesz go w ekwipunku, w grupie Truth Bullets.</small></p>`);
 }
 
-ui.notifications.info(`Wydano Truth Bullet "${nazwa}" — ${wydano} gracz(y).`);
+ui.notifications.info(`Wydano Truth Bullet "${nazwa}" - ${wydano} gracz(y).`);

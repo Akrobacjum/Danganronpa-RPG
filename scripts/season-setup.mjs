@@ -1,15 +1,15 @@
 /**
- * Danganronpa RPG — setting a season up, and taking one down.
+ * Danganronpa RPG - setting a season up, and taking one down.
  * ---------------------------------------------------------------------------
  * The pre-season checks answer "what is missing". This answers "fix it", and it
  * is the same list read from the other end: every row here is a row there, in
- * the same order, using the same words. Two views, one truth — a check that
+ * the same order, using the same words. Two views, one truth - a check that
  * turns green is a row here that has nothing left to do.
  *
  * NOT A STEP-BY-STEP WIZARD. A next/back flow has one property this must not
  * have: a step you have passed is off screen, and a step skipped is invisible.
  * The complaint that produced this stage was three things missing from a world
- * somebody was already playing in — the failure mode is not "the GM could not
+ * somebody was already playing in - the failure mode is not "the GM could not
  * find the button", it is "nobody was ever told the button mattered". So every
  * row stays on screen with its state showing, and an outstanding one is
  * outstanding in front of you until it is done.
@@ -48,7 +48,7 @@ function gmRolesSharingCursor() {
         const allowed = game.settings.get("core", "permissions")?.SHOW_CURSOR ?? [];
         return GM_ROLES.filter(r => allowed.includes(r));
     } catch {
-        // Unreadable permissions are not a finding — say nothing rather than
+        // Unreadable permissions are not a finding - say nothing rather than
         // put a repair button under a question this cannot answer.
         return [];
     }
@@ -70,7 +70,7 @@ function roleName(role) {
  * One row per thing a season needs, each able to say whether it is done.
  *
  * `missing` returns the names it is waiting on, so a row can say "3: Aoi, Leon,
- * Sakura" rather than "not ready" — the GM's next action is on that list, and a
+ * Sakura" rather than "not ready" - the GM's next action is on that list, and a
  * count with no names is a second lookup.
  */
 function steps() {
@@ -151,7 +151,7 @@ function steps() {
              * Which makes this row necessary rather than decorative: without it
              * the only way to find out that the game can make sounds at all is
              * to open a panel nobody has told you about. Optional, and it means
-             * it — a table that wants to play silent has decided something,
+             * it - a table that wants to play silent has decided something,
              * not forgotten it, so this gets the dash rather than the cross.
              */
             key: "sound",
@@ -167,7 +167,7 @@ function steps() {
              * Guide: about one and a half rooms per player, corridors and
              * dormitories aside. It is the difference between a map where two
              * people can be alone at the same time and one where every private
-             * conversation is a queue — and it is the cheapest thing in this
+             * conversation is a queue - and it is the cheapest thing in this
              * whole checklist to get right, because it costs nothing before the
              * scene is drawn and cannot be fixed cheaply afterwards.
              *
@@ -175,7 +175,7 @@ function steps() {
              * "–" rather than "✗" when it is not met: a map smaller than the
              * guide's ratio is cramped, not broken, and a checklist that shouts
              * about a working scene is a checklist a GM stops reading. It has
-             * no `open` and no `fix` for the same reason — there is no button
+             * no `open` and no `fix` for the same reason - there is no button
              * that can draw six more rooms.
              */
             key: "roomCount",
@@ -203,7 +203,7 @@ function steps() {
              *
              * Room setup is opened between sessions to say who has a bedroom and
              * who has seen which room. Drawing the regions themselves is a job
-             * done once, when a scene is built — which is this window, next to
+             * done once, when a scene is built - which is this window, next to
              * the row that says whether the scene has any rooms at all.
              *
              * The check goes with the instructions for the same reason: reading
@@ -223,7 +223,7 @@ function steps() {
              * THE GM'S CURSOR HAS A NAME ON IT.
              *
              * Foundry broadcasts every user's pointer to everyone who can see
-             * the scene, labelled. In an ordinary game that is a feature — it is
+             * the scene, labelled. In an ordinary game that is a feature - it is
              * how a GM points at the door they mean. In a killing game it is a
              * live feed of what the GM is looking at: the room where the body
              * is, the token they are about to move, the region they are checking
@@ -240,7 +240,7 @@ function steps() {
              * screens away in core's own permission matrix.
              *
              * Players keep theirs. `SHOW_CURSOR` is a per-role list and only the
-             * two GM roles come off it — a player pointing at the map is the
+             * two GM roles come off it - a player pointing at the map is the
              * table talking, which is the thing this is protecting.
              */
             key: "cursor",
@@ -262,8 +262,8 @@ function steps() {
             key: "mastermind",
             // The one row that is allowed to stay unticked for ever.
             //
-            // A season without a Mastermind is a legal season — the guide's
-            // endgame is one way to end a killing game, not the only one — so
+            // A season without a Mastermind is a legal season - the guide's
+            // endgame is one way to end a killing game, not the only one - so
             // this reports its state without the red cross that means "you have
             // forgotten something". Everything else on this list is a promise
             // the module has made to a rule; this is an offer.
@@ -286,7 +286,7 @@ function openFirstSheet(names) {
  * ========================================================================== */
 
 export async function openSeasonSetup() {
-    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
@@ -313,7 +313,7 @@ export async function openSeasonSetup() {
                 esc(game.i18n.localize(step.fix ? "DRPG.Season.doIt" : "DRPG.Season.openIt"))}</button>`;
 
         // An optional row that is not done is not a failure, so it gets neither
-        // the cross nor the "outstanding" styling — a dash and its own note.
+        // the cross nor the "outstanding" styling - a dash and its own note.
         const mark = step.done ? "✓" : step.optional ? "–" : "✗";
 
         return `<li class="drpg-setup-step${step.done ? " done" : ""}${
@@ -350,7 +350,7 @@ export async function openSeasonSetup() {
             <!--
               E15: the safeword, next to the campaign's name and not buried in a
               settings menu. It is a decision a table makes once, at the same
-              moment it decides what the campaign is called — and a safety tool
+              moment it decides what the campaign is called - and a safety tool
               filed under configuration is a safety tool nobody has read.
             -->
             <label>${esc(game.i18n.localize("DRPG.Season.safeword"))}
@@ -379,11 +379,11 @@ export async function openSeasonSetup() {
             },
             // The other end of this same list. "What is missing" and "fix it"
             // are one errand, and the checks used to be a GM-panel tile of
-            // their own next to this one — one door fewer, same two answers.
+            // their own next to this one - one door fewer, same two answers.
             { action: "checks", label: game.i18n.localize("DRPG.Panel.seasonChecks") },
             { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
         ],
-        // Wire the per-row buttons against the mounted DOM — a listener attached
+        // Wire the per-row buttons against the mounted DOM - a listener attached
         // to the detached content element never reaches the page. Same reason
         // projects-ui.mjs wires its portrait pickers from `render`.
         render: (event, dialog) => {
@@ -466,7 +466,7 @@ export async function openSeasonSetup() {
  * Both pre-session checks, answered in one window.
  *
  * "Is everybody set up" and "can anybody read a sheet they should not" are one
- * question asked at one moment — before a session — so they are one tile and
+ * question asked at one moment - before a session - so they are one tile and
  * now one answer. Neither report goes to chat from here: they are handed back
  * as text and put on screen, because a question asked with a button should be
  * answered where the button was.
@@ -503,13 +503,13 @@ async function runPreSessionChecks() {
  * TAKING A SEASON DOWN
  * --------------------------------------------------------------------------
  * Without this the only way to start again is a new world, which throws away
- * the cast, the map and the room setup along with the season — an hour of work
+ * the cast, the map and the room setup along with the season - an hour of work
  * to undo a chapter.
  *
  * The line it draws is between the CAST and the CHAPTER. Actors, scenes, room
  * regions and who watches whom are the table's; the clock, the projects, the
  * traces, the evidence, the deaths and every trace of an incident belong to the
- * season that just ended. That split is why this is safe to offer at all — the
+ * season that just ended. That split is why this is safe to offer at all - the
  * expensive half is never touched.
  * ========================================================================== */
 
@@ -535,7 +535,7 @@ function moduleMessages() {
 /**
  * The free-text note on a character sheet, wherever this system keeps it.
  *
- * NOT the biography. Pronouns, age, faith and connections are who somebody is —
+ * NOT the biography. Pronouns, age, faith and connections are who somebody is -
  * the same side of the line as the name, the portrait and the Ultimate, all of
  * which this reset leaves alone. A note is what got written down during the
  * season that just ended.
@@ -600,7 +600,7 @@ function resetTally() {
  * Typed confirmation, not a clicked one. Every other destructive control in this
  * module asks with a Yes button, and that is right for deleting one project or
  * one Remnant. This deletes a chapter's worth of everything at once and cannot
- * be undone by any route the module offers, so it asks for the word — the point
+ * be undone by any route the module offers, so it asks for the word - the point
  * of typing is the half-second it buys to read the list above it.
  */
 export async function resetSeason() {
@@ -688,7 +688,7 @@ async function deleteMessages(ids) {
  * The wipe itself.
  *
  * Each step is guarded on its own. A world where one of these settings was never
- * registered — an older save, a module half-installed — must still get the rest
+ * registered - an older save, a module half-installed - must still get the rest
  * of the reset rather than stopping at the first throw and leaving the season
  * half-cleared, which is a worse state than either end.
  */
@@ -710,7 +710,7 @@ async function wipeSeason({ alsoChat = false } = {}) {
         }
         // The tokens are the half everyone can see. The register of what each
         // one really was is the half that matters, and it does not go with them
-        // — deleting a token has never pruned it.
+        // - deleting a token has never pruned it.
         const { clearRemnantLedger } = await import("./remnants.mjs");
         await clearRemnantLedger();
     });
@@ -806,7 +806,7 @@ async function wipeSeason({ alsoChat = false } = {}) {
         }
     });
 
-    /* THE ACTION BUDGET, REFILLED — AFTER the sheet is back.
+    /* THE ACTION BUDGET, REFILLED - AFTER the sheet is back.
        -----------------------------------------------------------------------
        A character who had spent their actions started the new season on 0 / 2
        at Chapter 1 · Day 1 · Morning, because the reset moves the clock by
@@ -818,7 +818,7 @@ async function wipeSeason({ alsoChat = false } = {}) {
        advancement step above on purpose: `resetActionsFor` sizes the budget
        from the character's own state, and that state is only correct once the
        starting sheet has been restored. Search tokens need no step of their
-       own — the settings pass below clears their store, and an empty store
+       own - the settings pass below clears their store, and an empty store
        reads as a full room. */
     await step("the action budget", async () => {
         const { resetAllActions } = await import("./actions.mjs");
@@ -833,7 +833,7 @@ async function wipeSeason({ alsoChat = false } = {}) {
     /* THE SPILL GOES WITH THE POOLS IT SPILLED OUT OF (Dawid, 30.08).
        -----------------------------------------------------------------------
        The reset emptied every Despair pool and left the overflow counter
-       standing, so a new season opened carrying the last one's pressure — and
+       standing, so a new season opened carrying the last one's pressure - and
        carrying its armed stamp too, which is worse: a darkening dated to a time
        of day the new clock will reach again. Reported from a real reset.
 
@@ -860,7 +860,7 @@ async function wipeSeason({ alsoChat = false } = {}) {
     });
 
     // World settings that hold nothing but this season's bookkeeping. The clock
-    // is deliberately NOT among them — it is reset to the season's opening
+    // is deliberately NOT among them - it is reset to the season's opening
     // reading below, campaign name kept, because the name belongs to the table.
     for (const [label, key, value] of [
         ["the trial floor", SETTINGS.trialQueue, {}],

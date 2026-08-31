@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — the campaign clock.
+ * Danganronpa RPG - the campaign clock.
  * ---------------------------------------------------------------------------
  * Season → Chapter → Session → Time of day.
  *
@@ -8,12 +8,12 @@
  * tokens.
  *
  * It does NOT refill the action economy. Actions and the free Move come back
- * when the Eclipse — the placement window that sits between two times of day —
+ * when the Eclipse - the placement window that sits between two times of day -
  * BEGINS; see `startEclipse` in eclipse.mjs, which is where that finally became
  * true rather than merely written down (Z2). Doing it here as well would hand
  * the table two budgets for one boundary.
  *
- * Chapters are not advanced automatically — how many sessions a chapter runs is
+ * Chapters are not advanced automatically - how many sessions a chapter runs is
  * the GM's call, and the guide explicitly allows stretching one when no murder
  * has happened yet.
  */
@@ -58,8 +58,8 @@ export async function setPhase(key) {
  * "Chapter 2 · Day 3 · Session 3 · Afternoon", and it says when the lights are out.
  *
  * THE ECLIPSE HAS TO BE IN HERE, and E17 is where that stopped being a nicety.
- * Measured: start an Eclipse, then move the clock from the editor — which is a
- * thing a GM does to correct a mistake — and the world lands on `timeOfDay:
+ * Measured: start an Eclipse, then move the clock from the editor - which is a
+ * thing a GM does to correct a mistake - and the world lands on `timeOfDay:
  * "morning"` with `eclipse` still true. `eclipseLabel()` then reads "Noon
  * Eclipse", an Eclipse named for a time of day that has already gone, and this
  * line, which is the one the GM actually reads, said plain "Morning".
@@ -94,7 +94,7 @@ export async function setClock(patch = {}) {
     // Written here rather than in `advanceTimeOfDay` because the GM also moves
     // the clock by hand from the panel and by rewinding, and a timer that only
     // reset on one of those three routes would quietly lie on the other two.
-    // `patch` wins if a caller sets the stamp itself — that is how a correction
+    // `patch` wins if a caller sets the stamp itself - that is how a correction
     // can move the clock without pretending the pause never happened.
     if (patch.timeOfDay !== undefined && patch.timeOfDay !== before.timeOfDay
         && patch.timeOfDayStartedAt === undefined) {
@@ -112,7 +112,7 @@ export async function setClock(patch = {}) {
          * NO SWEEP TO REMEMBER (Z7). This told the GM at the start of every
          * session to go and delete the table's Truth Bullets. The sweep is not
          * part of the calendar any more, so the reminder was a note about a job
-         * nobody has — the exact shape of "the sentence says, the code does
+         * nobody has - the exact shape of "the sentence says, the code does
          * not", pointed the other way.
          */
     }
@@ -129,7 +129,7 @@ export async function setClock(patch = {}) {
  *
  * @param {object} [options]
  * @param {boolean} [options.resetActions]      Refill everyone's actions. Off by
- *   default — that is the START of the Eclipse's job, not the clock's, and
+ *   default - that is the START of the Eclipse's job, not the clock's, and
  *   nothing in the ordinary flow turns it on any more. The GM panel's "also
  *   refill" checkbox passes it explicitly when a correction needs it, which is
  *   the one remaining caller and deliberately a manual one.
@@ -145,7 +145,7 @@ export async function advanceTimeOfDay({
      * sfx.mjs reads off a chat message.
      *
      * It exists for the Eclipse. An Eclipse ends BY advancing the clock, so the
-     * card the table actually sees at that moment is the new time of day —
+     * card the table actually sees at that moment is the new time of day -
      * there is no second card to carry the sound, and adding one would say the
      * same thing twice. Riding this one also means the sound inherits the
      * card's audience, which matters: while a murder runs the clock moves in
@@ -154,7 +154,7 @@ export async function advanceTimeOfDay({
      */
     sfx = null,
     // Extra fields to fold into the SAME write. `endEclipse` uses it to clear
-    // the Eclipse flag as the clock moves, rather than in a write of its own —
+    // the Eclipse flag as the clock moves, rather than in a write of its own -
     // see the note on the flicker below.
     also = {}
 } = {}) {
@@ -189,7 +189,7 @@ export async function advanceTimeOfDay({
 
 /**
  * Step the time of day backwards. This is a correction for a misclick, not a
- * game move, so it deliberately refills nothing — rewinding must never hand
+ * game move, so it deliberately refills nothing - rewinding must never hand
  * the table a second set of actions.
  */
 export async function rewindTimeOfDay() {
@@ -199,7 +199,7 @@ export async function rewindTimeOfDay() {
      * THE ASSEMBLY GOES FIRST, BEFORE THE CLOCK MOVES.
      *
      * A called assembly fires when the time of day is no longer the one it was
-     * called in — and a rewind changes the time of day, so it would read as
+     * called in - and a rewind changes the time of day, so it would read as
      * ripe. Worse, the clock write's own `onChange` reaches every client before
      * the next line of this function runs, so clearing it afterwards would be a
      * race the teleport wins about as often as not.
@@ -258,7 +258,7 @@ async function applyTimeOfDayChange(clock, {
      *
      * Runs on every time-of-day change, Eclipse or no Eclipse. When an Eclipse
      * was used it has already fired at the Eclipse's opening and this call
-     * finds the same stamp armed and does nothing — one payment, one card. When
+     * finds the same stamp armed and does nothing - one payment, one card. When
      * no Eclipse was used, this is the only boundary there is.
      *
      * Ahead of the restock for the same reason `startEclipse` puts it ahead of
@@ -285,7 +285,7 @@ async function applyTimeOfDayChange(clock, {
      *
      * Here rather than in the sync case below, and that is the whole reason
      * this is two lines in two files: a decrement has to happen EXACTLY once,
-     * and this function runs on exactly one client — the GM who moved the
+     * and this function runs on exactly one client - the GM who moved the
      * clock. The sync case runs on all of them.
      *
      * Eclipses are skipped for free: `endEclipse()` finishes with a single
@@ -302,7 +302,7 @@ async function applyTimeOfDayChange(clock, {
     //
     // This used to be a bare `Hooks.callAll`, which runs on the calling client
     // and nowhere else. The world setting itself synchronises, so a player's
-    // stored clock was correct — but nothing on their screen redrew, and the
+    // stored clock was correct - but nothing on their screen redrew, and the
     // Eclipse and visibility passes that hang off this hook never ran for them.
     // On one machine the settings `onChange` hid it; on a hosted server the
     // time of day advanced for the GM alone.
@@ -316,7 +316,7 @@ async function applyTimeOfDayChange(clock, {
 }
 
 /**
- * Tell the table. The time of day is public knowledge — unlike almost
+ * Tell the table. The time of day is public knowledge - unlike almost
  * everything else in this game.
  */
 async function announceTimeOfDay(clock, summary, { sfx = null } = {}) {
@@ -338,14 +338,14 @@ async function announceTimeOfDay(clock, summary, { sfx = null } = {}) {
      *
      * An incident is a secret between its participants and the GM, and a
      * public "Morning" card mid-incident tells every outsider that the GM is
-     * doing SOMETHING at this hour — which is most of the secret. So the
+     * doing SOMETHING at this hour - which is most of the secret. So the
      * announcement narrows to the people already inside it: the GMs and the
      * participants' owners. The HUD's copy of the time freezes for everyone
      * else (see `clockForDisplay` in hud.mjs) and catches up the moment the
-     * incident ends. Everything else the change did — refills, restocks —
+     * incident ends. Everything else the change did - refills, restocks -
      * happened either way; only who is TOLD changes.
      */
-    // Whatever the caller hung on this change — today only the Eclipse's
+    // Whatever the caller hung on this change - today only the Eclipse's
     // ending. Built once so both branches below carry it, because the sound
     // belongs to the event and not to how many people were told about it.
     const flags = sfx ? { flags: { [MODULE_ID]: { sfx } } } : {};

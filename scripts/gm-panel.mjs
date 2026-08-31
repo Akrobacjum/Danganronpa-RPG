@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — GM panel.
+ * Danganronpa RPG - GM panel.
  * ---------------------------------------------------------------------------
  * The handful of things a GM does every time of day, behind one button in the
  * token toolbar: move the clock, refill actions, restock search tokens, check
@@ -17,13 +17,13 @@ import { keepLive, alreadyOpen } from "./live.mjs";
 const DialogV2 = foundry.applications.api.DialogV2;
 
 /**
- * The panel's launcher — a standalone red button above the scene controls.
+ * The panel's launcher - a standalone red button above the scene controls.
  *
  * It used to be one more tool in the token toolbar, which made the single
  * most-used GM control in the module a 26th grey icon in a column of grey
  * icons (Dawid, 26.08: out of there, bigger, named, red). It sits at the TOP
  * of the left column now, above the controls: the corner a GM's eye already
- * visits for tools, but outside the toolbar's grammar — solid crimson where
+ * visits for tools, but outside the toolbar's grammar - solid crimson where
  * everything below it is translucent, with a label where everything below it
  * is an icon. Red is the module's "this goes through the GM" colour, and this
  * button is the purest case of it on the screen.
@@ -43,8 +43,8 @@ function injectLauncher() {
         /* The GM-only styling is keyed on classes THIS function puts on the
          * elements themselves, not on `body.drpg-gm`: on a long-lived client
          * an ancestor-class selector was measured matching the element and
-         * still not applying — present in the sheet, `matches()` true,
-         * computed style ignoring it — while a same-element class works
+         * still not applying - present in the sheet, `matches()` true,
+         * computed style ignoring it - while a same-element class works
          * everywhere. The scene navigation is hidden by default in the
          * stylesheet and only a GM's client ever runs this line to show it,
          * so a player needs no selector gymnastics at all. */
@@ -59,7 +59,7 @@ function injectLauncher() {
         btn.id = "drpg-gm-launcher";
         btn.type = "button";
         btn.dataset.tooltip = game.i18n.localize("DRPG.Panel.title");
-        // `fa-eye` is the fallback if the pixel mask ever fails to load — the
+        // `fa-eye` is the fallback if the pixel mask ever fails to load - the
         // sprite itself is keyed to `#drpg-gm-launcher i` and ignores the class.
         btn.innerHTML = `<i class="fa-solid fa-eye" inert></i>
             <span>${game.i18n.localize("DRPG.Panel.launcher")}</span>`;
@@ -73,8 +73,8 @@ function injectLauncher() {
 /**
  * Everything the panel can do, grouped by WHEN a GM reaches for it.
  *
- * This used to be two flat rows of dialog buttons — one on the panel and one
- * behind "More…" — and by the time the murder engine landed the second row was
+ * This used to be two flat rows of dialog buttons - one on the panel and one
+ * behind "More…" - and by the time the murder engine landed the second row was
  * sixteen buttons long, in the order they happened to be written. Ordering by
  * moment instead means the answer to "where is that thing" is "when do I use
  * it", which is a question a GM can actually answer mid-session.
@@ -86,13 +86,13 @@ function injectLauncher() {
  * WHAT OPENS, AND WHEN.
  * --------------------------------------------------------------------------
  * The panel is thirty tiles long and a GM uses about five of them in any given
- * minute. Which five is not a mystery — it is written on the clock. So each
+ * minute. Which five is not a mystery - it is written on the clock. So each
  * section declares the phases it belongs to, and the panel opens with those
  * expanded and everything else folded away.
  *
  * `always` marks the sections that are never out of season: the clock itself,
  * and the toolbox. `collapsed` is the default for a section that is neither.
- * Nothing is hidden — every tile is one click from where it was — but the
+ * Nothing is hidden - every tile is one click from where it was - but the
  * screen a GM lands on is the one for the scene they are actually running.
  */
 const PANEL_SECTIONS = [
@@ -114,7 +114,7 @@ const PANEL_SECTIONS = [
               run: () => import("./gm-items.mjs").then(m => m.openItemManager()) },
             // Moved UP from Season setup, where it sat because it was only a
             // state-to-playlist mapping table. It now also puts a track on and
-            // takes it off again — something a GM reaches for in the middle of
+            // takes it off again - something a GM reaches for in the middle of
             // a scene, which is what this section is.
             // "Sound" rather than "Music" since E3: the window grew a third
             // tab of sound-effect files and the two volume sliders, so naming
@@ -123,15 +123,15 @@ const PANEL_SECTIONS = [
               run: () => import("./music.mjs").then(m => m.openSoundDialog()) },
             // Three windows in one: "A character dies", the Monocub manager and
             // the alive/dead/Monocub repair table. All three were about the same
-            // question — who in this cast is still breathing, and as what.
+            // question - who in this cast is still breathing, and as what.
             { key: "whoIsAlive", icon: "fa-heart-pulse", labelKey: "DRPG.Panel.whoIsAlive",
               run: () => openWhoIsAliveDialog() }
             // GONE FROM HERE:
-            //   Eclipse — the HUD's own chevron has done both halves of it for
+            //   Eclipse - the HUD's own chevron has done both halves of it for
             //     several versions; a second door to it was a second thing to
             //     keep in step. `nextStep` still offers it when one is running,
             //     see EXTRA_ACTIONS.
-            //   Listen in on a voice room — reachable from the console
+            //   Listen in on a voice room - reachable from the console
             //     (`game.drpg.voiceEavesdropDialog()`) and from nowhere a GM
             //     goes twice a session.
         ]
@@ -139,7 +139,7 @@ const PANEL_SECTIONS = [
     {
         key: "case",
         // Also open during a Class Trial, because the trial console lives here
-        // now — and during Daily Life, because that is when a GM decides to
+        // now - and during Daily Life, because that is when a GM decides to
         // hold one.
         phases: ["dailyLife", "investigation", "classTrial"],
         items: [
@@ -149,7 +149,7 @@ const PANEL_SECTIONS = [
             // click: `openMurder` refuses the call either way (see the notes
             // there), but a GM should see WHY before pressing, not after.
             // `judgePendingMurders` still opens a parked Direct Murder once the
-            // Eclipse it was declared in has ended — that path never goes
+            // Eclipse it was declared in has ended - that path never goes
             // through this tile.
             { key: "murder", icon: "fa-skull", labelKey: "DRPG.Murder.openTitle",
               disabled: () => isEclipse(), disabledReason: "DRPG.Eclipse.panelLocked",
@@ -179,7 +179,7 @@ const PANEL_SECTIONS = [
             { key: "roomSetup", icon: "fa-door-closed", labelKey: "DRPG.Vault.manageTitle",
               run: () => import("./vault.mjs").then(m => m.openRoomSetupDialog()) },
             // The editor, not the installer. Installing is still in there, as a
-            // button — it is a thing you do once, and everything after that
+            // button - it is a thing you do once, and everything after that
             // first minute is editing.
             { key: "tables", icon: "fa-table-list", labelKey: "DRPG.Tables.editorTitle",
               run: () => import("./tables.mjs").then(m => m.openItemTables()) },
@@ -218,7 +218,7 @@ const PANEL_SECTIONS = [
             // "Refill everyone's actions" went too, and for a different reason:
             // it was a button that undid the clock. Actions come back when the
             // time of day advances, which is the one event the whole economy is
-            // built on — a tile that hands them out without moving the clock is
+            // built on - a tile that hands them out without moving the clock is
             // a way to lose track of which time of day the table is actually
             // in. `game.drpg.resetAllActions()` is still there for a GM who
             // genuinely needs to repair a botched advance.
@@ -229,7 +229,7 @@ const PANEL_SECTIONS = [
 /**
  * Things `nextStep()` can suggest that are not tiles.
  *
- * The suggestion line is not a list of tools, it is one instruction — so it is
+ * The suggestion line is not a list of tools, it is one instruction - so it is
  * allowed to point at something the tile grid deliberately does not carry. The
  * Eclipse is the whole of it: the HUD owns that button, but "the Eclipse is
  * open, close it once everyone has placed" is still the right next step to be
@@ -244,7 +244,7 @@ const EXTRA_ACTIONS = {
  *
  * SEPARATE FROM `openGmPanel` BECAUSE IT HAS TO BE CALLED AGAIN. This was
  * inline in the opener, which meant `item.disabled?.()` was asked exactly once
- * — when the window opened — and every answer it gave was frozen there for as
+ * - when the window opened - and every answer it gave was frozen there for as
  * long as the GM left the panel up. Dawid, 28.08: start an Eclipse from the HUD
  * and the murder tile stays lit, because nothing ever asked `isEclipse()` a
  * second time. Reproduced before it was fixed: with the panel open across a
@@ -283,7 +283,7 @@ function buildSections() {
 
 /** Open the panel. */
 export async function openGmPanel() {
-    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
@@ -299,7 +299,7 @@ export async function openGmPanel() {
 
     // Which version is running, on the screen a GM opens most.
     //
-    // One number, read off the manifest, so it cannot go stale — see the note
+    // One number, read off the manifest, so it cannot go stale - see the note
     // on `moduleVersion` in config.mjs for the second stamp that used to sit
     // beside it and why it is gone. It is on the panel rather than in the
     // console because the question it answers ("is the fix I was sent actually
@@ -328,8 +328,8 @@ export async function openGmPanel() {
         // Closing first has always mattered: most of these open a dialog of
         // their own, and stacking one on top of the panel it came from is how a
         // GM loses track of which window they are answering. What was missing
-        // was the other half. A GM's work is rarely one tile — place a Remnant,
-        // check the dashboard, advance the clock — and each of those meant
+        // was the other half. A GM's work is rarely one tile - place a Remnant,
+        // check the dashboard, advance the clock - and each of those meant
         // finding the panel again from the scene controls. The incident tracker
         // has always reopened itself after every action; this is the same idea,
         // applied to the screen that is opened more often than any other.
@@ -367,13 +367,13 @@ export async function openGmPanel() {
 }
 
 /**
- * Keep the whole panel true for as long as it is open — not just its first line.
+ * Keep the whole panel true for as long as it is open - not just its first line.
  *
  * THE HALF THAT WAS MISSING. This used to redraw only the standing block, and
  * said so: "the tiles below it are a fixed list and redrawing them would take
  * the GM's open sections and scroll position with it". The list is fixed; what
  * each tile ALLOWS is not, and that was the part nobody was refreshing. So the
- * tiles are redrawn too, and the objection is answered rather than avoided —
+ * tiles are redrawn too, and the objection is answered rather than avoided -
  * `keepLive` carries the folded sections and the scroll across a rebuild, and
  * refuses to redraw at all while the GM has focus inside the region.
  *
@@ -405,7 +405,7 @@ function keepPanelFresh(dialog) {
  * When closing, shows who has actually finished placing.
  */
 /**
- * Announce (or end) the Final Trial. World-scoped and public on purpose — the
+ * Announce (or end) the Final Trial. World-scoped and public on purpose - the
  * table already knows the endgame trial is happening the moment it starts;
  * only the Mastermind's identity stays hidden, and that lives elsewhere.
  */
@@ -420,7 +420,7 @@ function keepPanelFresh(dialog) {
  * console commands mid-session.
  *
  * Deliberately does NOT re-run the death procedure. `killCharacter` destroys an
- * inventory and cannot be undone, and this is the repair tool — it moves the two
+ * inventory and cannot be undone, and this is the repair tool - it moves the two
  * flags and nothing else. Killing somebody properly is still `A character dies`,
  * one section up, where the warning about the inventory lives.
  */
@@ -429,11 +429,11 @@ function keepPanelFresh(dialog) {
  * Everything this client has failed at since the page loaded.
  *
  * The module reports 181 different failures through `error()`, and until now
- * every one of them went to `console.error` and stopped there — which is to say
+ * every one of them went to `console.error` and stopped there - which is to say
  * to nobody, because nobody runs a session with DevTools open. A feature could
  * be completely dead and the only symptom was that it did not happen.
  *
- * THIS SESSION ONLY, and that is not a filter — the log is an array in memory,
+ * THIS SESSION ONLY, and that is not a filter - the log is an array in memory,
  * so a reload empties it. A failure from before the reload is not something the
  * GM can act on now, and a log that accumulates across weeks is a log nobody
  * opens.
@@ -442,7 +442,7 @@ function keepPanelFresh(dialog) {
  * occurrence explains the cause, the four hundredth only proves it continued.
  */
 async function openFailureLog() {
-    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
@@ -483,15 +483,15 @@ async function openFailureLog() {
         rejectClose: false
     });
 
-    // Plain text, with the WHOLE stack — the window truncates each trace to
+    // Plain text, with the WHOLE stack - the window truncates each trace to
     // four lines because a wall of frames is noise to read past, but the copy
     // exists to be pasted at whoever will debug it, and they want the rest.
     // The header line carries the versions, because a pasted log always
     // arrives without them and they are always the first question back.
     if (action === "copy") {
         const text = [
-            `Danganronpa RPG ${game.modules.get(MODULE_ID)?.version ?? "?"} — `
-                + `Foundry ${game.version} — ${game.user.name} — ${new Date().toISOString()}`,
+            `Danganronpa RPG ${game.modules.get(MODULE_ID)?.version ?? "?"} - `
+                + `Foundry ${game.version} - ${game.user.name} - ${new Date().toISOString()}`,
             ...rows.map(r => [
                 `[${when(r.at)}] (${r.level}${r.count > 1 ? ` ×${r.count}` : ""}) ${r.message}`,
                 ...(r.stack ? [r.stack.split("\n").map(l => `    ${l}`).join("\n")] : [])
@@ -503,7 +503,7 @@ async function openFailureLog() {
         } catch (err) {
             error("Could not copy the debug log", err);
         }
-        // Back to the log — the button copied, it did not mean "and close".
+        // Back to the log - the button copied, it did not mean "and close".
         return openFailureLog();
     }
 
@@ -514,7 +514,7 @@ async function openFailureLog() {
 }
 
 /**
- * WHO IS ALIVE — three windows, one table.
+ * WHO IS ALIVE - three windows, one table.
  * ---------------------------------------------------------------------------
  * "A character dies", the Monocub manager and the alive/dead/Monocub repair
  * table were three tiles in two sections answering one question about one
@@ -522,7 +522,7 @@ async function openFailureLog() {
  * only the living, the Monocub dialog only the dead, and the repair table
  * could move the flags but refused to run either procedure properly.
  *
- * THE DROPDOWN IS STILL THE REPAIR TOOL, exactly as it was — it moves the two
+ * THE DROPDOWN IS STILL THE REPAIR TOOL, exactly as it was - it moves the two
  * flags and nothing else, which is what you want after a mis-click. The two
  * row buttons are the real procedures:
  *
@@ -535,11 +535,11 @@ async function openFailureLog() {
  * silence a cub is put under after a crime they watched.
  *
  * Built from a list of everything the three windows did, checked off after the
- * merge — see the stage's verification. The one thing deliberately NOT carried
+ * merge - see the stage's verification. The one thing deliberately NOT carried
  * across is the death dialog's own character picker: this table is the picker.
  */
 async function openWhoIsAliveDialog() {
-    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
@@ -558,7 +558,7 @@ async function openWhoIsAliveDialog() {
      *
      * The table used to be built once from the cast as it stood, and a death,
      * a revival or a Monocub accepting the invitation reached it only if the GM
-     * closed and reopened. `keepLive` rebuilds it in place instead — and the
+     * closed and reopened. `keepLive` rebuilds it in place instead - and the
      * roster has to be a function for the same reason the rows do, because a
      * character created mid-session would otherwise have a row nobody reads on
      * Apply.
@@ -579,14 +579,14 @@ async function openWhoIsAliveDialog() {
      * THE THREE MONOCUB COLUMNS ONLY EXIST WHEN A MONOCUB DOES (D-F4).
      *
      * Hope, the donation controls and Silenced are meaningless for a living
-     * student and for an ordinary corpse — they were rendered as "—", three
+     * student and for an ordinary corpse - they were rendered as "-", three
      * columns wide, for every row. In a cast where nobody has opted in yet
      * that is a table two thirds made of dashes, and the widest heading on it
      * ("Turn a Monokuma's Despair into Hope") was paying for a column that had
      * nothing in it.
      *
      * So they appear the moment somebody accepts the invitation and not before.
-     * The alternative — keeping the columns and hiding the dashes — leaves the
+     * The alternative - keeping the columns and hiding the dashes - leaves the
      * headings, which are the expensive part.
      */
     const anyCub = () => roster().some(a => stateOf(a) === "monocub");
@@ -594,14 +594,14 @@ async function openWhoIsAliveDialog() {
     /*
      * ITEMS FROM THE ROW (F).
      *
-     * The item manager's own route opens with "which character?" — a select and
-     * a Do it — and this table is nothing but a column of that answer. Reaching
+     * The item manager's own route opens with "which character?" - a select and
+     * a Do it - and this table is nothing but a column of that answer. Reaching
      * a student's inventory from the GM panel meant the Items tile, the picker,
      * and then the hub; reaching it from the row the GM is already reading takes
      * the row.
      *
      * On EVERY row, not only the living ones, because that is what
-     * `pickCharacter` offers — `studentActors()`, the dead included. A shortcut
+     * `pickCharacter` offers - `studentActors()`, the dead included. A shortcut
      * that reaches fewer people than the long way round is a second rule to
      * remember.
      */
@@ -612,22 +612,22 @@ async function openWhoIsAliveDialog() {
         /*
          * CALLED, not read. `anyCub` became a function when this table learned
          * to rebuild itself (E22) and this line was left reading the reference
-         * — which is a function object, which is always truthy, so the cub
+         * - which is a function object, which is always truthy, so the cub
          * cells were built on EVERY row whether or not a Monocub existed. The
          * heading above calls it properly, so for four releases a table with no
          * Monocub in it had three columns of heading over six columns of row.
          */
         const cubCells = !anyCub() ? "" : `
-            <td>${cub ? `${resourceValue(a, "hope")} / ${resourceMax(a, "hope")}` : "—"}</td>
+            <td>${cub ? `${resourceValue(a, "hope")} / ${resourceMax(a, "hope")}` : "-"}</td>
             <td>${cub && donors ? `
                 <select name="donor:${a.id}">${donors}</select>
                 <input type="number" name="amount:${a.id}" min="1" value="1" style="width:3.5em" />
                 <button type="button" class="drpg-mini-button" data-drpg-give="${a.id}">
-                    ${game.i18n.localize("DRPG.Monocub.give")}</button>` : "—"}</td>
+                    ${game.i18n.localize("DRPG.Monocub.give")}</button>` : "-"}</td>
             <td style="text-align:center">${cub
                 ? `<input type="checkbox" name="silenced:${a.id}" ${
                     isSilenced(a) ? "checked" : ""} />`
-                : "—"}</td>`;
+                : "-"}</td>`;
 
         return `<tr data-actor="${a.id}">
             <td>${esc(a.name)}</td>
@@ -673,8 +673,8 @@ async function openWhoIsAliveDialog() {
     };
 
     // The per-row buttons act at once rather than waiting for Apply: each one
-    // runs a real procedure — a death that empties an inventory, a donation
-    // that spends a Despair pool — and a GM who then cancels the form should
+    // runs a real procedure - a death that empties an inventory, a donation
+    // that spends a Despair pool - and a GM who then cancels the form should
     // not find those undone with it. The window closes and reopens so the table
     // is rebuilt around what actually happened.
     const wireRow = (dialog, attribute, run) => {
@@ -724,7 +724,7 @@ async function openWhoIsAliveDialog() {
             wireRow(dialog, "data-drpg-cub", actor => setMonocub(actor, true));
             // Straight into the hub with the character already decided. Through
             // `wireRow` like the others, so the table closes, the manager runs
-            // for as long as the GM wants it, and the table comes back after —
+            // for as long as the GM wants it, and the table comes back after -
             // the manager's own Close is the one exit, exactly as D-F5-2 left it.
             wireRow(dialog, "data-drpg-items", actor =>
                 import("./gm-items.mjs").then(m => m.openItemManager(actor)));
@@ -750,7 +750,7 @@ async function openWhoIsAliveDialog() {
             wireAll();
             /*
              * A DEATH IS AN ACTOR FLAG, so `watch: { actors: true }` is what
-             * carries it here — the same listener the GM panel's own standing
+             * carries it here - the same listener the GM panel's own standing
              * line uses. E17's criterion for this window is exactly that: kill
              * somebody while it is open and watch the row change without
              * touching it.
@@ -773,7 +773,7 @@ async function openWhoIsAliveDialog() {
         if (!want?.state) continue;
 
         // Order matters: a Monocub is a dead student with a second flag, so the
-        // flags are set from the outside in — deceased first, then Monocub.
+        // flags are set from the outside in - deceased first, then Monocub.
         //
         // Dying through the DROPDOWN keeps the inventory. This half of the
         // window is the repair tool: nobody expects a select to empty a bag,
@@ -794,7 +794,7 @@ async function openWhoIsAliveDialog() {
         }
 
         // Silence only means anything for a cub, and only after the state above
-        // has settled — a student promoted to Monocub in this same pass can be
+        // has settled - a student promoted to Monocub in this same pass can be
         // silenced in it too.
         if (isMonocub(actor) && want.silenced !== isSilenced(actor)) {
             await setSilenced(actor, want.silenced);
@@ -816,10 +816,10 @@ async function toggleEclipse() {
     const rows = placementStatus().map(s => `
         <tr${s.moved === 0 ? ' style="opacity:.55"' : ""}>
             <td>${foundry.utils.escapeHTML(s.actor.name)}</td>
-            <td>${foundry.utils.escapeHTML(s.room ?? "—")}</td>
+            <td>${foundry.utils.escapeHTML(s.room ?? "-")}</td>
             <td style="text-align:center">${
                 // A free-placement Eclipse has no budget, so the column reports
-                // whether they have placed at all — which is the question the GM
+                // whether they have placed at all - which is the question the GM
                 // is actually holding this dialog open to answer.
                 s.allowance === null ? s.moved : `${s.moved} / ${s.allowance}`
             }</td>
@@ -852,7 +852,7 @@ async function toggleEclipse() {
  * ---------------------------------------------------------------------------
  * The panel is a list of tools, and a list of tools is the answer to "what can
  * I do", which is not the question a GM has mid-session. The question is "what
- * happens now" — and the module already knows, because every input to that
+ * happens now" - and the module already knows, because every input to that
  * answer is a flag it wrote itself: the phase, the queue, whether an incident
  * is running, how many students still have actions.
  *
@@ -897,7 +897,7 @@ function nextStep(clock) {
         if (!floor) {
             return { text: game.i18n.localize("DRPG.Panel.nextNoFloor"), action: "trial" };
         }
-        // The floor no longer has a single "speaker" to name — in a discussion
+        // The floor no longer has a single "speaker" to name - in a discussion
         // everybody may talk, and in the two restrictive modes the interesting
         // fact is the mode itself, not one name. So the line reports the mode,
         // and adds who holds it only when somebody actually does.
@@ -929,8 +929,8 @@ function buildPanelContent() {
     // The living cast, and only them.
     //
     // This listed every `character` actor, which meant the GM's own Monokumas
-    // sat in the middle of it reading "0 / 0" — they have no action economy by
-    // design — and so did every corpse. The one question this table answers is
+    // sat in the middle of it reading "0 / 0" - they have no action economy by
+    // design - and so did every corpse. The one question this table answers is
     // "who still has actions left", and neither of those can have any. A
     // Monocub stays: they spend a real budget on Move and Meddle.
     const roster = game.actors.filter(a => {
@@ -944,8 +944,8 @@ function buildPanelContent() {
         .map(a => {
             const left = actionsLeft(a);
             const max = actionsMax(a);
-            // The sheet says this with a PAIR — solid when the free Move is
-            // there, outline when it has been used — exactly as the action pips
+            // The sheet says this with a PAIR - solid when the free Move is
+            // there, outline when it has been used - exactly as the action pips
             // do with `fa-circle`. This column used to answer with a footprint
             // or an em dash, which is a second language for the same fact. An
             // empty outline says "used" in the one the rest of the interface
@@ -1005,11 +1005,11 @@ function buildPanelContent() {
 
 /**
  * Edit everything the HUD shows: campaign name, chapter, phase, session and
- * time of day. Reachable only from the GM panel — deliberately not on the
+ * time of day. Reachable only from the GM panel - deliberately not on the
  * HUD itself, which every player is looking at for the rest of the session.
  */
 export async function openClockDialog() {
-    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
@@ -1097,7 +1097,7 @@ export async function openClockDialog() {
      * Measured: an Eclipse running, the GM sets the time here to correct
      * something, and the world lands on Morning with `eclipse` still true. The
      * Eclipse owns token placement and refuses every murder while it is on, and
-     * this window has no field to turn it off with — it is ended from the panel.
+     * this window has no field to turn it off with - it is ended from the panel.
      *
      * A REFUSAL WOULD BE WRONG. A GM correcting a botched clock in the middle of
      * an Eclipse is doing something legitimate, and taking the tool away to

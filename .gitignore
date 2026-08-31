@@ -1,4 +1,4 @@
-# Release/build artifact — regenerated from source, not checked in.
+# Release/build artifact - regenerated from source, not checked in.
 module.zip
 
 # OS/editor noise
@@ -9,5 +9,5 @@ Thumbs.db
 PLAN.html
 AUDYT-*.html
 
-# Font surgery backups (F5.5) — never ship, never commit.
+# Font surgery backups (F5.5) - never ship, never commit.
 fonts/*.orig

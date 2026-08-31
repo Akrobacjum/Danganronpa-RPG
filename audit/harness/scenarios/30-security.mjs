@@ -20,7 +20,7 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials }) {
     `);
     check("SECURITY: player cannot write another player's actor", String(writeOther).startsWith("denied"), String(writeOther));
 
-    // 3. player writes an NPC actor (Chie) — not owned (server refuses)
+    // 3. player writes an NPC actor (Chie) - not owned (server refuses)
     const writeNpc = await p1.eval(`
         try { await game.actors.get("${ids.chie}").update({ "system.resources.hope.value": 99 }); return "WRITE SUCCEEDED"; }
         catch (err) { return "denied: " + err.message; }
@@ -29,7 +29,7 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials }) {
 
     // 4. player forges a gm-bridge socket asking to act as an actor they don't own
     const forge = await p1.eval(`
-        // Try to make the GM score an Observe as Botan (p2's actor) — gm-bridge must refuse (ownsActor on senderId)
+        // Try to make the GM score an Observe as Botan (p2's actor) - gm-bridge must refuse (ownsActor on senderId)
         const SOCKET = "module.${MOD}";
         game.socket.emit(SOCKET, { action: "observeTarget", actorId: "${ids.botan}", requestId: "forge1", userId: game.user.id, declaration: {}, request: {} });
         return "emitted";

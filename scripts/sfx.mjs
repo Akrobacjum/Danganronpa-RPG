@@ -1,9 +1,9 @@
 /**
- * Danganronpa RPG — the sound engine.
+ * Danganronpa RPG - the sound engine.
  * ---------------------------------------------------------------------------
  * Until this file the module played exactly one sound: a notification chime
- * hard-coded in the messenger. Everything else the game does — a door, a body,
- * an Objection — happened in silence.
+ * hard-coded in the messenger. Everything else the game does - a door, a body,
+ * an Objection - happened in silence.
  *
  * What lives here is the mixer and the plumbing. WHERE the sounds are triggered
  * from lives with the things that trigger them (E4 for the interface, E5 for
@@ -15,11 +15,11 @@
  * FOUR RULES THIS FILE EXISTS TO KEEP
  *
  * 1. AN UNMAPPED EVENT IS SILENT, NOT BROKEN. The module ships no audio and is
- *    not going to — the files are the GM's, the same bargain the playlists
+ *    not going to - the files are the GM's, the same bargain the playlists
  *    already make. Nothing is logged for an event with no file: on a fresh
  *    world that is every event, and a console with forty warnings in it is a
  *    console nobody reads. A file that IS mapped and cannot be played is the
- *    opposite case and is reported — once per path, not once per play.
+ *    opposite case and is reported - once per path, not once per play.
  *
  *    A MISSING FILE DOES NOT THROW. Measured on 14.365: `Sound#load()` on a
  *    path that 404s RESOLVES, and says so by leaving `failed` true and the
@@ -31,8 +31,8 @@
  * 2. SOUND IS LOCAL. `playSfx` never touches a socket. What a client plays is
  *    decided by what happened on that client, which is why the audience of
  *    every event is written down in the catalogue. When a specific set of
- *    people has to hear something that did NOT happen on their browser — a
- *    death, a Despair Call — it travels as a flag on the chat message that
+ *    people has to hear something that did NOT happen on their browser - a
+ *    death, a Despair Call - it travels as a flag on the chat message that
  *    already reaches exactly those people. One mechanism, already tested, and
  *    the audience cannot drift away from the message it belongs to.
  *
@@ -44,7 +44,7 @@
  *
  * 4. A BLOCKED AUTOPLAY IS NOT AN ERROR. A browser plays nothing until it has
  *    been clicked, which means every sound before the first click is refused.
- *    Foundry does not refuse it — it QUEUES it — so a session that started with
+ *    Foundry does not refuse it - it QUEUES it - so a session that started with
  *    six silent minutes would fire six sounds at once the moment the player
  *    touched anything. So a locked browser drops the sound instead, silently,
  *    and `diagnoseSfx()` counts what was dropped. That count is the whole
@@ -52,7 +52,7 @@
  *
  *    IT IS WORSE THAN A QUEUE, WHICH IS WHY DROPPING IS NOT MERELY TIDY.
  *    Measured on 14.365: `Sound#load()` opens with `await game.audio.unlock`.
- *    In a browser that has not been clicked it therefore NEVER SETTLES — not
+ *    In a browser that has not been clicked it therefore NEVER SETTLES - not
  *    for a missing file, not for a real one. Anything that waits on a sound
  *    without a way out waits for the rest of the session; `testSfx` says so
  *    rather than hanging, and refuses before it asks.
@@ -95,7 +95,7 @@ const SFX_ACTION = "playSfxFor";
  *
  * Pressing a button that opens a window is one gesture and two events, and what
  * you want to hear is the window. The winner cannot un-play the loser, so the
- * loser waits instead — briefly — and cancels itself if the winner turns up.
+ * loser waits instead - briefly - and cancels itself if the winner turns up.
  *
  * THIS IS THE ONE NUMBER IN THIS FILE THAT HAS TO BE TUNED BY EAR, and E17 is
  * where that happens. Too short and the button sound escapes before the window
@@ -139,7 +139,7 @@ let unlocked = false;
  *
  * World-scoped, because what a door sounds like is one fact about the table. A
  * player mapping their own files would be playing a different game from
- * everybody else — the door they heard would not be the door anyone else heard.
+ * everybody else - the door they heard would not be the door anyone else heard.
  */
 export function soundFor(key) {
     const map = getSetting(SETTINGS.sfxMap) ?? {};
@@ -151,7 +151,7 @@ export function soundFor(key) {
  * The separator between several files mapped to one event.
  *
  * A pipe, because it is the one character that cannot appear in a Windows
- * filename and is not legal unencoded in a URL path — so it can never be part
+ * filename and is not legal unencoded in a URL path - so it can never be part
  * of a path a GM actually typed. A comma or a semicolon can be, and a
  * separator that occasionally eats half a filename is worse than none.
  */
@@ -169,7 +169,7 @@ export function soundsFor(key) {
 const lastPicked = new Map();
 
 /**
- * ONE file for this play — the round robin, and the stronger half of the two
+ * ONE file for this play - the round robin, and the stronger half of the two
  * answers to "the same sound forty times a session".
  *
  * Bending the rate makes one file stop being identical; a second file makes it
@@ -179,7 +179,7 @@ const lastPicked = new Map();
  * NEVER TWICE RUNNING, when there is a choice. Plain random draws the same
  * file back-to-back one time in N, which is exactly the case the whole feature
  * exists to remove and the one a player notices. With two files this alternates
- * strictly, which is fine — two alternating clicks is what a real pair of
+ * strictly, which is fine - two alternating clicks is what a real pair of
  * footsteps does.
  */
 export function pickSound(key) {
@@ -210,7 +210,7 @@ function rateFor(key) {
      * NO DEAD CENTRE, and this is the half that answers what the table heard.
      *
      * A uniform draw across ±spread puts half of every play within half a
-     * spread of unbent — which is to say inaudible. What reaches the ear is
+     * spread of unbent - which is to say inaudible. What reaches the ear is
      * only the tail, so a run of plays sounds like a couple of distinct takes
      * with a lot of repeats between them. Dawid, 28.08, hearing 0.08: "it
      * sounds a bit like there are two versions of the sound, they differ so
@@ -219,7 +219,7 @@ function rateFor(key) {
      *
      * So the sign is drawn first and the SIZE is drawn from the outer half:
      * every play is at least `floor` of the way out, and never past `rate`.
-     * The worst case is unchanged — that is what the edge is for — and the
+     * The worst case is unchanged - that is what the edge is for - and the
      * common case stops being silence.
      */
     const spread = SFX_VARIATION.rate;
@@ -265,7 +265,7 @@ function gainFor(key) {
  * WHY WE OWN THEM AT ALL, since `AudioHelper.play` is otherwise perfectly good:
  * a rate can only be bent on an `AudioBufferSourceNode`, and Foundry decides
  * per file whether to decode into a buffer or stream from an `<audio>` element
- * — where the rate lives on the element and PRESERVES PITCH, which is a speed
+ * - where the rate lives on the element and PRESERVES PITCH, which is a speed
  * change with no pitch change and sounds like a glitch rather than variation.
  *
  * `AudioHelper.play` takes a `forceBuffer` option and PASSES IT ON, and that is
@@ -286,7 +286,7 @@ const decoded = new Set();
  *
  * Kept because this feature is otherwise INVISIBLE when it fails. A bend that
  * silently does nothing sounds exactly like a bend working on files too short
- * to notice — which is precisely the trap the first attempt fell into, where
+ * to notice - which is precisely the trap the first attempt fell into, where
  * `forceBuffer` was passed to `AudioHelper.play`, accepted, and quietly
  * ignored on every play after the first. A number somebody can read is the
  * difference between "it works" and "I assume it works".
@@ -298,7 +298,7 @@ const lastRates = new Map();
  *
  * Beside the rates rather than folded into them: this is what makes "is the
  * variation working" answerable from the console instead of by ear, and the
- * two numbers move independently — the gain half lands on every varied play,
+ * two numbers move independently - the gain half lands on every varied play,
  * the rate half only on the buffer path.
  */
 const lastGains = new Map();
@@ -313,25 +313,25 @@ const lastGains = new Map();
  *
  *     if ( ![LOADED, PAUSED, STOPPED].includes(this._state) ) return this;
  *
- * — so a sound that is still PLAYING refuses to play again, silently, and
+ * - so a sound that is still PLAYING refuses to play again, silently, and
  * returns as though it had. A file is PLAYING for its whole duration including
  * whatever silence the recording ends with, so half a second of trailing room
  * tone made half a second of deafness. Dawid found it at the table and read it
  * exactly right: "prawdopodobnie przez długość klipów".
  *
- * It bit precisely the eleven events that carry `vary: true` — window open and
+ * It bit precisely the eleven events that carry `vary: true` - window open and
  * close, every button press, chat, a room entered, a crossing refused, an action
- * spent — which are the sounds a player hears most and the ones two of which
+ * spent - which are the sounds a player hears most and the ones two of which
  * genuinely happen at once. Everything else already overlapped: Foundry's own
  * `AudioHelper.play` builds a new Sound for every call.
  *
  * The decode is NOT repeated. Foundry caches decoded buffers per path in
- * `game.audio.buffers`, so a second `load()` of the same file is a cache read —
+ * `game.audio.buffers`, so a second `load()` of the same file is a cache read -
  * measured at 0 ms against 0 ms for the first, on a warm client. `decoded`
  * below is now a record of which paths this file has proved decodable, which is
  * what `diagnoseSfx` was really reporting all along.
  *
- * The bend is applied AFTER `play()` because the node does not exist before it —
+ * The bend is applied AFTER `play()` because the node does not exist before it -
  * Foundry builds the graph when the sound starts. Setting an AudioParam takes
  * effect on the audio thread immediately, so the fraction of a millisecond that
  * has already gone out at the original rate is inaudible; at three per cent
@@ -343,7 +343,7 @@ async function playOwned(src, volume, rate) {
         forceBuffer: true
     });
 
-    // `load()` on a locked context never settles — see rule 4 at the top of
+    // `load()` on a locked context never settles - see rule 4 at the top of
     // this file. The caller only reaches here unlocked, and the try/catch in
     // `fire` is what keeps a bad path from taking the press down with it.
     await sound.load();
@@ -378,7 +378,7 @@ export async function setSoundFor(key, src) {
     else delete map[key];
 
     await setSetting(SETTINGS.sfxMap, map);
-    // A path that failed before may be a path that works now — the GM has just
+    // A path that failed before may be a path that works now - the GM has just
     // told us they changed something, and the once-per-path rule must not
     // outlive the mapping it was about.
     reportedMissing.clear();
@@ -451,7 +451,7 @@ export async function setSfxVolume(slider, value) {
  * @param {string}  key                 a key of `SFX_EVENTS`
  * @param {object}  [options]
  * @param {boolean} [options.force]     ignore the cooldown, the yield and the
- *                                      autoplay lock. For `testSfx` alone — a
+ *                                      autoplay lock. For `testSfx` alone - a
  *                                      test button is pressed BY a gesture, so
  *                                      the lock cannot apply to it.
  * @returns {boolean}  whether a sound was sent to the audio layer. `false`
@@ -497,7 +497,7 @@ export function playSfx(key, { force = false } = {}) {
  *
  * The usual carrier is the chat flag, and it stays the usual carrier: when
  * there is a card, put the sound on the card. This is for the cases where the
- * event is real and the card is not — a bullet minted off a looted body says
+ * event is real and the card is not - a bullet minted off a looted body says
  * nothing to anyone, and a sound that only exists when somebody remembered to
  * write a paragraph is a sound that will go missing again.
  *
@@ -531,11 +531,11 @@ export function playSfxFor(actor, key) {
 
 /**
  * @param {object} data
- * @param {string} senderId  Foundry's own second argument — who really sent
+ * @param {string} senderId  Foundry's own second argument - who really sent
  *   this, which the sender cannot forge.
  *
  * Only a GM may make another browser make a noise. Without the check any player
- * could emit this at any other player, at any time, as often as they liked —
+ * could emit this at any other player, at any time, as often as they liked -
  * and the one thing a horror game's sound design cannot survive is a stranger
  * with the button.
  */
@@ -559,7 +559,7 @@ function cancelHoldersOf(winner) {
  * The bottom of the funnel: every sound this module plays goes through here.
  *
  * @returns {false|Promise<Sound|null>}  `false` when nothing was sent, and
- *          otherwise the pending sound — which `testSfx` waits on to find out
+ *          otherwise the pending sound - which `testSfx` waits on to find out
  *          whether the file actually loaded. `playSfx` only reads its truthiness.
  */
 function fire(key, force) {
@@ -588,14 +588,14 @@ function fire(key, force) {
     lastPlayed.set(key, now);
 
     // `channel: "interface"` puts these under Foundry's own interface volume,
-    // which is where a player already goes to turn the game down — without it
+    // which is where a player already goes to turn the game down - without it
     // the only way to quieten the module would be to switch it off. `false` as
     // the second argument is what keeps this local: the alternative pushes the
     // sound to every other client over a socket, which is precisely the thing
     // the audience column of the catalogue exists to avoid.
     const rate = rateFor(key);
     // Both paths get it, and it multiplies the volume the sliders already
-    // settled rather than replacing it — see `gainFor`.
+    // settled rather than replacing it - see `gainFor`.
     const varied = volume * gainFor(key);
     if (varied !== volume) lastGains.set(src, Math.round(varied * 10000) / 10000);
 
@@ -606,7 +606,7 @@ function fire(key, force) {
      * waits on `game.audio.unlock` and would never settle otherwise, which is
      * the one way a decoration could hang the thing it decorates. A locked
      * browser falls through to the ordinary path, which drops the sound and
-     * counts it — the behaviour rule 4 already describes.
+     * counts it - the behaviour rule 4 already describes.
      */
     if (rate !== null && !game.audio?.locked) {
         return playOwned(src, varied, rate)
@@ -629,8 +629,8 @@ function fire(key, force) {
                 /*
                  * NOTHING TO BEND HERE, and there has not been since E14.
                  *
-                 * This branch is only reached when `rate` is null — the event
-                 * does not vary — or the browser has not been clicked yet. It
+                 * This branch is only reached when `rate` is null - the event
+                 * does not vary - or the browser has not been clicked yet. It
                  * called `bend(sound, rate)`, and there is no `bend` in this
                  * file: the function went when the variation moved onto its own
                  * `Sound` (a rate can only be set on a buffer node), and the
@@ -656,7 +656,7 @@ function fire(key, force) {
 }
 
 /**
- * A mapped file that will not play — said once per path, and never again.
+ * A mapped file that will not play - said once per path, and never again.
  *
  * This is the case worth hearing about: somebody chose a file, the panel shows
  * it, and it has since been renamed or deleted. Repeating it on every play
@@ -665,7 +665,7 @@ function fire(key, force) {
 function reportUnplayable(key, src, err) {
     if (reportedMissing.has(src)) return;
     reportedMissing.add(src);
-    // `err` is null for the common case — a path that 404s does not throw, it
+    // `err` is null for the common case - a path that 404s does not throw, it
     // comes back as a sound that failed to load.
     warn(`The file mapped to "${key}" could not be played and will not be `
         + `reported again this session: ${src}`, err ?? "(the file could not be loaded)");
@@ -680,7 +680,7 @@ function reportUnplayable(key, src, err) {
  *
  * THE AUDIENCE RULE IS THE POPUP'S, ON PURPOSE. `whisperToOwner` addresses the
  * owner PLUS every GM, so a GM sitting on the default rule would hear every
- * sound of every player's turn — the same problem the notification diet was
+ * sound of every player's turn - the same problem the notification diet was
  * written to solve, and the reason popup.mjs stopped raising a card for every
  * whisper a GM was copied into. A record reaches a GM through the chat log; a
  * sound is not a record, it is an interruption.
@@ -709,8 +709,8 @@ function onCreateChatMessage(message) {
 /**
  * Every button in every window this game is played in, from one listener.
  *
- * ONE HANDLER, TWO KEYS. A character sheet IS a window — it matches the motion
- * layer's list and its opening plays the window sound — so without an explicit
+ * ONE HANDLER, TWO KEYS. A character sheet IS a window - it matches the motion
+ * layer's list and its opening plays the window sound - so without an explicit
  * test its buttons would be window buttons too, and the busiest surface in the
  * game would sound like a dialog. The distinction is made where it can be made
  * honestly: what the button is INSIDE.
@@ -748,7 +748,7 @@ function onDocumentClick(event) {
  * rolled, sent. Those play where the act happened and need nothing from here.
  *
  * A few belong to a CHANGE OF STATE that everybody is inside and nobody
- * performed on their own screen — the trial floor opening, an Objection taking
+ * performed on their own screen - the trial floor opening, an Objection taking
  * it, a turn coming round in an incident, a dead student becoming a Monocub.
  * The GM's client is the only one that runs the function; every other client
  * learns about it because the world setting changed underneath them.
@@ -759,8 +759,8 @@ function onDocumentClick(event) {
  * for everything else. Watching the state is watching the same fact from the
  * same distance on every client at once.
  *
- * EDGES, NOT LEVELS. Each of these fires on a TRANSITION — floor closed to
- * open, mode becoming an objection, the turn becoming mine — because a setting
+ * EDGES, NOT LEVELS. Each of these fires on a TRANSITION - floor closed to
+ * open, mode becoming an objection, the turn becoming mine - because a setting
  * is rewritten for reasons that have nothing to do with the thing being
  * watched. Levels would replay the sound every time the GM extended the clock.
  */
@@ -785,7 +785,7 @@ async function onWorldSettingChanged(setting) {
 /**
  * The Nonstop Debate opening, and an Objection taking the floor.
  *
- * "Debate" is `FLOOR_MODES.discussion` — the floor open to everybody — which is
+ * "Debate" is `FLOOR_MODES.discussion` - the floor open to everybody - which is
  * what the HUD has always called it and what `openDebate()` produces. So the
  * debate's sound is the floor going from absent to present, not the mode
  * becoming `discussion`: returning to discussion after a rebuttal is the same
@@ -812,7 +812,7 @@ async function onFloorChanged() {
  *
  * `isOwner` is useless for this: a GM owns every actor in the world, so asking
  * it would give a GM "your turn" on every player's turn. The question is whose
- * character it is, which is what `ownerOf` answers — the same helper the
+ * character it is, which is what `ownerOf` answers - the same helper the
  * whispers use to decide who a card belongs to.
  */
 async function onIncidentChanged() {
@@ -831,7 +831,7 @@ async function onIncidentChanged() {
 /**
  * A dead student joining the Monocubs, or leaving them.
  *
- * Heard by their player and by the GMs — this one IS the GM's business, since
+ * Heard by their player and by the GMs - this one IS the GM's business, since
  * a Monocub is a GM-side promotion and the panel that made it is theirs.
  */
 function onActorFlagged(actor, changes) {
@@ -845,21 +845,21 @@ function onActorFlagged(actor, changes) {
  *
  * Nothing else is registered anywhere: `playSfx` is a plain function, so the
  * call sites added in E4 and E5 do not depend on this having run. That is
- * deliberate — a sound layer that can fail to register and take a subsystem
+ * deliberate - a sound layer that can fail to register and take a subsystem
  * down with it would be a poor trade for a chime.
  */
 export function registerSfx() {
     Hooks.on("createChatMessage", onCreateChatMessage);
 
-    // The addressed half of the same job — see `playSfxFor`.
+    // The addressed half of the same job - see `playSfxFor`.
     game.socket.on(`module.${MODULE_ID}`, onSfxSocket);
 
     // One listener on the document, so it outlives every redraw every window
-    // does on its own — the same reason the panel explainers use one.
+    // does on its own - the same reason the panel explainers use one.
     document.addEventListener("click", onDocumentClick, true);
 
     // The handful of events that are a change in the world rather than an act
-    // on this screen — see the block above.
+    // on this screen - see the block above.
     Hooks.on("updateSetting", onWorldSettingChanged);
     Hooks.on("updateActor", onActorFlagged);
 
@@ -868,7 +868,7 @@ export function registerSfx() {
     // joins mid-trial must not be told the debate just opened.
     Promise.all([onFloorChanged(), onIncidentChanged()]).catch(() => {});
 
-    // Not used to gate anything — the drop rule above does that. This exists so
+    // Not used to gate anything - the drop rule above does that. This exists so
     // `diagnoseSfx()` can answer "has this browser been clicked yet", which is
     // the first question when somebody reports hearing nothing.
     game.audio?.awaitFirstGesture?.()
@@ -899,7 +899,7 @@ export function registerSfx() {
  * silence" has five possible causes and only one of them is a broken file.
  *
  * Asynchronous because the last of those five cannot be answered any other way
- * — whether the file loads is known a moment after it was asked for, not when.
+ * - whether the file loads is known a moment after it was asked for, not when.
  */
 export async function testSfx(key) {
     const event = SFX_EVENTS[key];
@@ -1002,7 +1002,7 @@ export function diagnoseSfx() {
             music: sfxVolume("music")
         },
         // Ours multiplies with Foundry's, so a slider at 1 over a channel at 0
-        // is still silence — and the person moving our slider cannot see that.
+        // is still silence - and the person moving our slider cannot see that.
         foundry: {
             interface: core("globalInterfaceVolume"),
             playlist: core("globalPlaylistVolume")
@@ -1039,14 +1039,14 @@ const LAUNCHER_ID = "drpg-sound-launcher";
  *
  * THE PLAYER NEEDS A DOOR, AND THIS IS THE ONLY ONE THEY HAVE. The GM reaches
  * the Sound panel from the tile in their own panel; a player has no panel, and
- * the two volumes are THEIR settings — the one part of that window that is not
+ * the two volumes are THEIR settings - the one part of that window that is not
  * the GM's business. Left without a way in, the sliders would exist for nobody.
  *
  * Deliberately not a menu in Foundry's own settings, which was the cheap
  * option: volume is something you reach for while a sound is playing, and a
  * control three menus deep is a control nobody moves twice.
  *
- * Smaller and bone against the chat button's eye-violet — see the stylesheet
+ * Smaller and bone against the chat button's eye-violet - see the stylesheet
  * for why those two differences and not others.
  */
 export function renderSoundLauncher() {
@@ -1062,7 +1062,7 @@ export function renderSoundLauncher() {
         button.dataset.tooltip = tip;
         button.setAttribute("aria-label", tip);
         // `inert` so the mask element cannot become the click target and eat
-        // the press — the same guard the messenger launcher's glyph carries.
+        // the press - the same guard the messenger launcher's glyph carries.
         button.innerHTML = `<i inert></i>`;
 
         button.addEventListener("click", async event => {
@@ -1097,7 +1097,7 @@ export function refreshSoundLauncher() {
         sfxVolume("sound") <= 0 && sfxVolume("music") <= 0);
 }
 
-/** The two sliders. The whole of the window for a player — see `openSoundDialog`. */
+/** The two sliders. The whole of the window for a player - see `openSoundDialog`. */
 export function soundSlidersHtml() {
     const rows = Object.entries(SFX_SLIDERS).map(([key, slider]) => `
         <label class="drpg-sound-slider" data-drpg-slider="${key}">
@@ -1112,7 +1112,7 @@ export function soundSlidersHtml() {
      * The variation switch rides with the sliders and is GM-only.
      *
      * Here rather than on the mapping table because it is one control for the
-     * whole panel and the table is one row per event — and a switch buried at
+     * whole panel and the table is one row per event - and a switch buried at
      * the top of forty rows is a switch nobody finds. Hidden from players
      * entirely: this is a world setting they could not write anyway, and a dead
      * control is worse than no control.
@@ -1192,7 +1192,7 @@ export function soundEffectsHtml() {
         </tr></thead><tbody>${body}</tbody></table>`;
 }
 
-/** "12 of 35 events have a file." — the empty state, said as a number. */
+/** "12 of 35 events have a file." - the empty state, said as a number. */
 function countLine() {
     const keys = Object.keys(SFX_EVENTS);
     return game.i18n.format("DRPG.Sound.assigned", {
@@ -1205,7 +1205,7 @@ function countLine() {
  * Wire the panel from the dialog's `render`, never before it.
  *
  * DialogV2 stringifies its content, so listeners attached to markup do not
- * survive the trip — the same reason `wirePortraitPickers` documents, and the
+ * survive the trip - the same reason `wirePortraitPickers` documents, and the
  * reason the FilePicker here has to be opened from a live element.
  *
  * EVERYTHING HERE SAVES AS IT IS TOUCHED, and there is no Apply for it. The
@@ -1256,7 +1256,7 @@ export function wireSoundPanel(root) {
              * ADDS when the row already has something, replaces when it is empty.
              *
              * One event can draw from several files now, and the way a GM builds
-             * that list is by pressing Choose more than once — so a picker that
+             * that list is by pressing Choose more than once - so a picker that
              * overwrote would make the second file destroy the first and there
              * would be no way to build a list at all except by typing pipes by
              * hand. "Clear" is the button that empties a row, and it is right
@@ -1273,7 +1273,7 @@ export function wireSoundPanel(root) {
             }).render(true);
         });
 
-        // Typed by hand rather than picked — a path pasted from somewhere else
+        // Typed by hand rather than picked - a path pasted from somewhere else
         // has to save too, or the box lies about what is mapped.
         input?.addEventListener("change", () => write(input.value));
 

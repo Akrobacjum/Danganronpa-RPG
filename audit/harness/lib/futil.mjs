@@ -1,5 +1,5 @@
 /**
- * Foundry-semantics utility subset. These MUST mimic real foundry.utils —
+ * Foundry-semantics utility subset. These MUST mimic real foundry.utils -
  * the module's state handling depends on merge/expand/diff behaviour.
  */
 
@@ -188,8 +188,8 @@ export const EMBEDDED_ARRAYS = {
 
 /**
  * Foundry update semantics for a parent document: an array under an embedded
- * key is a DIFFERENTIAL update — entries merge into the existing element with
- * the same _id — never a wholesale replacement. Everything else merges.
+ * key is a DIFFERENTIAL update - entries merge into the existing element with
+ * the same _id - never a wholesale replacement. Everything else merges.
  */
 export function applyDocChanges(collName, raw, changes) {
     const expanded = expandObject(deepClone(changes));

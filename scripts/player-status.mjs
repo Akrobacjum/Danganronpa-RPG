@@ -1,11 +1,11 @@
 /**
- * Danganronpa RPG — the player's own three numbers, on screen.
+ * Danganronpa RPG - the player's own three numbers, on screen.
  * ---------------------------------------------------------------------------
  * The HUD carries world state: campaign, chapter, day, phase, time of day. All
  * of it changes roughly once every forty minutes.
  *
- * The three things a player checks constantly — how many actions are left,
- * whether the free Move is still there, how much Hope they hold — lived only on
+ * The three things a player checks constantly - how many actions are left,
+ * whether the free Move is still there, how much Hope they hold - lived only on
  * the character sheet. So the sheet had to be open, on top, and on the right tab
  * to answer "can I still do this?", which is a question that comes up before
  * every single declaration.
@@ -15,7 +15,7 @@
  *
  * Deliberately not on the HUD itself: the HUD is what everyone shares and reads
  * the same way, and this is personal. A GM has no character, so they get the
- * table's view instead — how many players still have actions left, which is the
+ * table's view instead - how many players still have actions left, which is the
  * same question from the other side.
  */
 
@@ -47,7 +47,7 @@ export function registerPlayerStatus() {
     });
 
     // The system's effects widget only ever has something to say in this game
-    // when a character is Wounded or in Breakdown — see `syncEffectsWidget`.
+    // when a character is Wounded or in Breakdown - see `syncEffectsWidget`.
     Hooks.on("createActiveEffect", effect => {
         if (relevant(effect?.parent)) syncEffectsWidget();
     });
@@ -59,7 +59,7 @@ export function registerPlayerStatus() {
         if (setting?.key?.startsWith(`${MODULE_ID}.`)) renderPlayerStatus();
     });
     // A character being assigned, reassigned or cleared changes whose numbers
-    // these are — and until now nothing redrew for it, so a player who was
+    // these are - and until now nothing redrew for it, so a player who was
     // given their character after joining had an empty rail until the next
     // scene change.
     Hooks.on("updateUser", user => {
@@ -74,7 +74,7 @@ export function registerPlayerStatus() {
  * ---------------------------------------------------------------------------
  * Daggerheart draws an effects panel in the right rail, under the player strip,
  * and it draws the frame whether or not anything is in it. In most games that
- * is a reasonable default — a character usually has a few effects. In this one
+ * is a reasonable default - a character usually has a few effects. In this one
  * `states.mjs` removes the system's own statuses and puts exactly two back:
  * Breakdown (Sanity full) and Wounded (Health at zero). So "no active effects" and
  * "unhurt and composed" are the same sentence here, and the widget spends the
@@ -82,7 +82,7 @@ export function registerPlayerStatus() {
  *
  * A class on `<body>` rather than a style on the widget: the rail rebuilds its
  * children whenever the system feels like it, and an inline style goes with
- * them — the same reasoning `matchStripToDespair` gives for publishing the
+ * them - the same reasoning `matchStripToDespair` gives for publishing the
  * Despair height as a custom property instead of setting a height.
  *
  * Safe if the system already removes its own empty widget: hiding something
@@ -91,7 +91,7 @@ export function registerPlayerStatus() {
 export function syncEffectsWidget() {
     try {
         const actor = ownCharacter();
-        // No character to speak for — leave the widget alone rather than
+        // No character to speak for - leave the widget alone rather than
         // hiding a panel that might belong to somebody else's view.
         const empty = Boolean(actor) && (actor.effects?.size ?? 0) === 0;
         document.body.classList.toggle("drpg-no-effects", empty);
@@ -123,7 +123,7 @@ function hasStatusToShow() {
  * into the "assigned character" field, and the panel then showed nothing at all
  * for someone who plainly has a character.
  *
- * The fallback only fires on an unambiguous case — one owned, living-or-dead
+ * The fallback only fires on an unambiguous case - one owned, living-or-dead
  * student. A GM owns every actor in the world, so the filter never resolves to
  * one for them and they fall through to null, which is the intended answer:
  * a GM with no character of their own has no budget to show.
@@ -148,7 +148,7 @@ function ownCharacter() {
  * module setting. Between those it simply stayed gone.
  *
  * So it watches. The observer fires only when the node is actually missing and
- * we still have a character, which makes the re-render idempotent — and
+ * we still have a character, which makes the re-render idempotent - and
  * `renderPlayerStatus` removes the old node first, so its own churn cannot
  * feed itself.
  */
@@ -197,7 +197,7 @@ export function renderPlayerStatus() {
         //
         // The role check that used to sit here refused anyone `game.user.isGM`
         // was true for, and in Foundry that is BOTH a Gamemaster and an
-        // Assistant — so an assistant running a student of their own saw no
+        // Assistant - so an assistant running a student of their own saw no
         // panel and had no way to get one. An account with a character gets
         // that character's budget whatever else it may do to the world.
         //
@@ -205,7 +205,7 @@ export function renderPlayerStatus() {
         // existed until v0.14.2 and was taken out for a good reason: it wore
         // the player's own labels, "Actions" and "Move", so the counts read as
         // the GM's personal budget, and a GM has none. The answer to that is
-        // labels that say whose numbers these are — not an empty corner.
+        // labels that say whose numbers these are - not an empty corner.
         const el = ownCharacter() ? buildPlayerView() : buildTableView();
         if (!el) return;
 
@@ -215,7 +215,7 @@ export function renderPlayerStatus() {
         // Always first. The old code inserted before the Projects tray when it
         // could find it and prepended when it could not, so the panel's place
         // in the column depended on whether Daggerheart had finished building
-        // the tray yet — first on a cold load, third on a redraw. The CSS
+        // the tray yet - first on a cold load, third on a redraw. The CSS
         // orders this column explicitly anyway (`order: 0`), so first is both
         // the honest DOM position and the one that already matches.
         host.prepend(el);
@@ -223,7 +223,7 @@ export function renderPlayerStatus() {
         // The strip is as tall as the Despair panel opposite it, and how tall
         // that is depends on how many Monokumas the campaign has. Re-measured
         // here as well as in the HUD render, because this widget redraws far
-        // more often than the clock does — every action spent — and the two
+        // more often than the clock does - every action spent - and the two
         // boxes must never be seen at different heights.
         matchStripToDespair();
     } catch (err) {
@@ -242,7 +242,7 @@ function box() {
  *
  * A number and a row of pips are not interchangeable here. The sheet has always
  * shown actions as pixel dots and Hope as pixel diamonds, and a player reads
- * those shapes without counting — "two dots left" lands before "2/2" does. A
+ * those shapes without counting - "two dots left" lands before "2/2" does. A
  * strip that said 2/2 in text was a second, competing way of saying the thing
  * the sheet already says well, which is exactly how two readings of the same
  * number end up disagreeing in someone's head mid-turn.
@@ -252,7 +252,7 @@ function box() {
  */
 /**
  * @param {{from: number, to: number}|null} [options.spent]  Which pips went out
- *   since this tray last drew this pool — see `spentSince`. The tray keeps its
+ *   since this tray last drew this pool - see `spentSince`. The tray keeps its
  *   own memory separate from the sheet's, so both surfaces flash the same
  *   spend rather than racing each other for it.
  */
@@ -296,8 +296,8 @@ function marks(className, label, node, tooltipKey, spent) {
 /**
  * One row, and never the whole panel.
  *
- * Every row reads something derived — an Eclipse state, a Hope pool, a free
- * Move flag — and any of them can throw on a half-migrated actor. They used to
+ * Every row reads something derived - an Eclipse state, a Hope pool, a free
+ * Move flag - and any of them can throw on a half-migrated actor. They used to
  * throw straight through `buildPlayerView` into the caller's try/catch, which
  * meant one bad number removed all three. A row that cannot be built is now
  * simply missing, and the two that work still appear.
@@ -313,13 +313,13 @@ function safeRow(build) {
 
 function buildPlayerView() {
     const actor = ownCharacter();
-    // No character of our own — or a Monokuma, which has no action economy at
+    // No character of our own - or a Monokuma, which has no action economy at
     // all. Nothing here applies, so show nothing rather than a row of zeroes.
     if (!actor || isMonokuma(actor)) return null;
 
     const el = box();
 
-    // An Eclipse suspends the action economy almost entirely — see the guard in
+    // An Eclipse suspends the action economy almost entirely - see the guard in
     // action-rolls.mjs.
     //
     // "Almost" is new, and this row had to change with it: Direct Murder is now
@@ -345,7 +345,7 @@ function buildPlayerView() {
         }),
 
         // The sheet marks the free Move with a footprint rather than a pip,
-        // because there is only ever one of it — so this does too.
+        // because there is only ever one of it - so this does too.
         safeRow(() => {
             const foot = document.createElement("span");
             if (eclipse) {
@@ -388,7 +388,7 @@ function buildPlayerView() {
 
         // Hope is shown to the living and to Monocubs, and to nobody else.
         //
-        // A Monocub is dead, but Confusion — the one action they have left —
+        // A Monocub is dead, but Confusion - the one action they have left -
         // costs an action AND a point of Hope, and that Hope only exists
         // because a GM converted Despair into it. So it is the number they most
         // need on screen: a Monocub with actions left and no Hope cannot do the
@@ -445,7 +445,7 @@ function trackedStudents() {
 /**
  * The table's numbers, for an account with no character of its own.
  *
- * The same question a player asks — "is there anything left to spend?" — from
+ * The same question a player asks - "is there anything left to spend?" - from
  * the other side of the screen. Deliberately WITHOUT names: the roster panel
  * top left already spells out who is who, one row per student, and two widgets
  * competing to list the same people in two corners is how this one came to be
@@ -465,7 +465,7 @@ function buildTableView() {
     el.append(...[
         safeRow(() => {
             // During an Eclipse nobody may act at all, so the count is not
-            // stale — it is meaningless. The row says the same thing the
+            // stale - it is meaningless. The row says the same thing the
             // player's own strip says at that moment: this is suspended.
             if (eclipse) return null;
             const left = students.filter(a => actionsLeft(a) > 0).length;
@@ -476,12 +476,12 @@ function buildTableView() {
         // No free-Move row outside an Eclipse.
         //
         // It counted students who still held their free Move, but read as the
-        // GM's own — "Free moves 3 / 3" on the GM's panel says the GM has three,
+        // GM's own - "Free moves 3 / 3" on the GM's panel says the GM has three,
         // and a GM moves wherever they like. It is also not a thing anybody
         // waits for: nobody holds up a time of day over an unspent free Move.
         //
-        // During an Eclipse the same count IS the thing a GM waits for — who has
-        // still to place — so it stays, under a label that says that and nothing
+        // During an Eclipse the same count IS the thing a GM waits for - who has
+        // still to place - so it stays, under a label that says that and nothing
         // about a budget.
         safeRow(() => {
             if (!eclipse) return null;

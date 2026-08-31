@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — players only see who is in the room with them.
+ * Danganronpa RPG - players only see who is in the room with them.
  * ---------------------------------------------------------------------------
  * Guide: "Players see other players only in the same room."
  *
@@ -12,7 +12,7 @@
  *
  * A revealed Remnant token gets the same treatment, on a different rule: once
  * somebody's first Observe reveals it (see `revealRemnantToFinder` in
- * remnants.mjs), Foundry's `hidden` flag is off for the whole table — but the
+ * remnants.mjs), Foundry's `hidden` flag is off for the whole table - but the
  * guide's Truth Bullet is a PERSONAL copy, not a public unveiling, so anyone
  * who has not found this exact trace themselves still needs it invisible.
  * `applyToRemnantToken` below is that second rule, running on the same hook.
@@ -25,15 +25,15 @@ import { REMNANT_FLAGS, keyOf as remnantKeyOf } from "./remnants.mjs";
 import { TRUTH_BULLET_FLAGS, bulletsOf } from "./truth-bullets.mjs";
 // Static, like movement.mjs's own import of the same file: `applyToToken`
 // runs on every token of every refresh, so its readers cannot be dynamic.
-// mastermind.mjs does not reach back into this file at load time — its one
-// call to `applyAll` is a dynamic import — so there is no cycle.
+// mastermind.mjs does not reach back into this file at load time - its one
+// call to `applyAll` is a dynamic import - so there is no cycle.
 import { myLairRoom } from "./mastermind.mjs";
 import { debug } from "./utils.mjs";
 
 export function registerVisibility() {
     // `refreshToken` is the one that matters: Foundry recomputes `visible` from
     // its own vision logic on every refresh, so setting it from `sightRefresh`
-    // alone was immediately overwritten — which is why standing at a gap in a
+    // alone was immediately overwritten - which is why standing at a gap in a
     // wall still showed the room beyond.
     Hooks.on("refreshToken", token => {
         // One of ours moved: where WE are may have changed, so the memo of our
@@ -57,7 +57,7 @@ export function registerVisibility() {
     Hooks.on("drpgTimeOfDayChanged", () => applyAll());
     Hooks.on("drpgEclipseChanged", () => applyAll());
 
-    // A new Truth Bullet is the other half of `myRemnantRefs()` going stale —
+    // A new Truth Bullet is the other half of `myRemnantRefs()` going stale -
     // it can land on this user's actor from a socket reply with no token on
     // this scene moving at all, so nothing above would otherwise catch it.
     Hooks.on("createItem", item => { if (isMyTruthBullet(item)) applyAll(); });
@@ -69,8 +69,8 @@ export function registerVisibility() {
    It wrapped `Token#_getVisionSourceData` to intersect a token's sight
    polygon with its room's polygon, so that a doorless gap would not let you
    see into the next room. It was the module's only reach into a private
-   Foundry API, it was never confirmed to work on a live world, and — the
-   part that actually settled it — the whole problem it was solving stopped
+   Foundry API, it was never confirmed to work on a live world, and - the
+   part that actually settled it - the whole problem it was solving stopped
    existing once `fog.mjs` started switching Foundry's per-token vision OFF.
 
    With `tokenVision: false` on the scene there are no sight polygons at all
@@ -89,7 +89,7 @@ export function registerVisibility() {
  * The whole mechanism rests on an assumption stated at the top of this file:
  * that by the time `refreshToken` runs, Foundry has already computed its own
  * `visible` and ours is the last word. That assumption is not written down
- * anywhere in Foundry's API — it is an observed ordering — and an ordering is
+ * anywhere in Foundry's API - it is an observed ordering - and an ordering is
  * exactly the kind of thing a Foundry or system update moves. When it moves,
  * nothing here throws and nothing logs: the engine simply recomputes
  * `visible` after us and every token on the map is on screen again. That is
@@ -98,7 +98,7 @@ export function registerVisibility() {
  *
  * So the rule is asserted twice: once in the hook, where it has always been,
  * and once on the next animation frame, by which point every recomputation
- * belonging to this frame — ours, the engine's, the system's — has run. If the
+ * belonging to this frame - ours, the engine's, the system's - has run. If the
  * ordering is fine, the second pass finds everything already correct and costs
  * one walk of the placeables. If the ordering has moved, the second pass is
  * what holds the line, at the price of a token being briefly visible for a
@@ -109,7 +109,7 @@ export function registerVisibility() {
  * canvas in it. `applyToToken` only writes to display objects, so re-running
  * it changes nothing that can re-enter this.
  *
- * One frame is scheduled at a time no matter how many tokens refresh in it —
+ * One frame is scheduled at a time no matter how many tokens refresh in it -
  * a drag fires this hook for every frame of the drag, and one pass per frame
  * is the whole budget.
  */
@@ -154,14 +154,14 @@ function applyToToken(token) {
            -------------------------------------------------------------------
            This branch used to live below the `enforcing()` gate, so a table
            with room visibility switched off got an Eclipse in which everybody
-           could watch everybody cross the map — confirmed live, and reported
+           could watch everybody cross the map - confirmed live, and reported
            as B-F2-3. Dawid settled the design question on 2026-08-26: an
            Eclipse always hides players' tokens from other players, and the GM
            always sees them all.
 
            So the darkness is answered here, before the setting is consulted:
            `roomVisibility` governs the ROOM rule below, which is about where
-           you are standing. An Eclipse is not about rooms — it is the lights
+           you are standing. An Eclipse is not about rooms - it is the lights
            going out, and there is no configuration under which the lights are
            out for one player and on for another. Your own token still shows,
            for the same reason it does below: you have to be able to move it. */
@@ -176,8 +176,8 @@ function applyToToken(token) {
 
         // YOUR OWN TOKEN IS ALWAYS VISIBLE TO YOU, unconditionally.
         //
-        // This used to `return` — leaving the token to whatever Foundry had
-        // decided — which is fine only while Foundry's own vision agrees. It
+        // This used to `return` - leaving the token to whatever Foundry had
+        // decided - which is fine only while Foundry's own vision agrees. It
         // does not always: with the scene switched to room-based visibility,
         // an owned token standing in an unexplored corner of a stale
         // exploration mask was hidden by Foundry itself, and the player was
@@ -192,13 +192,13 @@ function applyToToken(token) {
         /* THE MASTERMIND'S ROOM IS A WATCHTOWER (Dawid, 26.08).
            -------------------------------------------------------------------
            A Mastermind whose own token stands in their lair sees the whole
-           cast, the way the GM's branch above does — they built the cameras.
+           cast, the way the GM's branch above does - they built the cameras.
            Standing anywhere else they are exactly as blind as anyone, which
            is why this reads their CURRENT rooms rather than remembering
            anything: walk out, and the next refresh takes it away.
 
-           Deliberately below the Eclipse branch — the lights going out spare
-           nobody — and deliberately only in this function: Remnant tokens go
+           Deliberately below the Eclipse branch - the lights going out spare
+           nobody - and deliberately only in this function: Remnant tokens go
            through `applyToRemnantToken`, so the watchtower never shows a
            trace they have not personally observed. */
         const lair = myLairRoom();
@@ -220,7 +220,7 @@ function applyToToken(token) {
 
 /**
  * A revealed Remnant is visible to the table by Foundry's own `hidden` flag,
- * but stays a secret from everyone except the finder — see the header note.
+ * but stays a secret from everyone except the finder - see the header note.
  * Unlike the room rule above, this does not depend on the `roomVisibility`
  * setting: it is not about rooms, it is about who has actually copied this
  * specific trace, and it holds regardless of whether the GM has room
@@ -246,12 +246,12 @@ function applyToRemnantToken(token) {
 /**
  * An incident trace from an incident I am in (D11).
  *
- * READ OFF THE TOKEN, NOT THE LEDGER — and the first version asked the token
+ * READ OFF THE TOKEN, NOT THE LEDGER - and the first version asked the token
  * for the wrong thing. It read `REMNANT_FLAGS.type`, which is a LEDGER field: a
  * token document carries `isRemnant` and nothing else, because what a trace
  * MEANS is the answer key and a token reaches every browser. So the test was
  * `undefined !== "incident"` on every client, always false, and D11's whole
- * client half silently did nothing — found on the E23 live round, where the
+ * client half silently did nothing - found on the E23 live round, where the
  * killer could not see the scene the rule exists to show them.
  *
  * `fromIncident` is the minimal public marker added for exactly this. It says
@@ -300,7 +300,7 @@ function hide(token) {
  *
  * Only the token itself and its mesh are forced. The nameplate, bars and
  * border are left to Foundry, because those have their own display settings a
- * GM may legitimately have turned off per token — forcing them back on would
+ * GM may legitimately have turned off per token - forcing them back on would
  * be this module overruling a deliberate choice, which is not what "you can
  * see yourself" means.
  *
@@ -315,20 +315,20 @@ function show(token) {
 
 /**
  * The line and distance label Foundry draws while a token is being dragged is
- * not one of the display objects above — it belongs to the ruler Foundry
- * attaches to the token being moved, not to the token's own mesh — so hiding
+ * not one of the display objects above - it belongs to the ruler Foundry
+ * attaches to the token being moved, not to the token's own mesh - so hiding
  * everything above still left a killer's path lit up across a room nobody
  * could see them stand in: the token itself never appeared during an Eclipse,
  * but the line leading to where it stopped gave the room away anyway.
  *
  * SPIKE NEEDED, NOT YET CONFIRMED LIVE: the property this trail lives on is
- * not public API and is not the same name across Foundry builds — `ruler` in
+ * not public API and is not the same name across Foundry builds - `ruler` in
  * some v13+ builds, `dragRuler` in others, possibly namespaced differently
  * again in v14. Every plausible name is tried and hidden defensively so this
  * fails safe (nothing to hide, nothing happens) rather than throwing; before
  * relying on this, open a v14 world with an Eclipse running, drag a token as
  * one player while watching as another, and confirm in the console which of
- * these actually holds the trail — then delete the branches that do not.
+ * these actually holds the trail - then delete the branches that do not.
  */
 function hideMovementTrail(token) {
     for (const key of ["ruler", "dragRuler", "_ruler", "movementRuler"]) {
@@ -379,7 +379,7 @@ export function applyAll() {
  * Memoised, because the cost was quadratic and the canvas felt it. `applyAll`
  * walks every token on the scene and each one asked this question again, and
  * each answer walked every token on the scene a second time doing geometric
- * region tests — so a sixteen-student map with Remnants on it ran hundreds of
+ * region tests - so a sixteen-student map with Remnants on it ran hundreds of
  * `roomOfToken` calls per refresh, and `refreshToken` fires on every frame of a
  * drag. The answer cannot change between two tokens of the same pass.
  *
@@ -387,13 +387,13 @@ export function applyAll() {
  */
 let myRoomsCache = null;
 /**
- * Which Remnants this user has already copied, as `remnantRef` keys — see
+ * Which Remnants this user has already copied, as `remnantRef` keys - see
  * `applyToRemnantToken`. Memoised for the same reason `myRoomsCache` is:
  * every revealed Remnant on the scene would otherwise re-scan every character
  * this user owns and every Truth Bullet on each of them, per token, per
  * `refreshToken`. Bullet ownership does not actually change on every token
  * move, but invalidating it on the same triggers as the room cache is cheap
- * and never wrong — only occasionally recomputed one hook earlier than it had
+ * and never wrong - only occasionally recomputed one hook earlier than it had
  * to be.
  */
 let myRemnantRefsCache = null;
@@ -438,15 +438,15 @@ function myRemnantRefs() {
  *
  * A Map rather than the Set this used to be, so that remnant-ring.mjs can read
  * the ITEM out of the same pass instead of running the identical double loop
- * again. Nothing here needed the item — `applyToRemnantToken` only asks whether
- * a key is present, which a Map answers the same way — and remnant-ring had its
+ * again. Nothing here needed the item - `applyToRemnantToken` only asks whether
+ * a key is present, which a Map answers the same way - and remnant-ring had its
  * own copy of this loop, uncached, for the ring colour and the Remnant card.
  * Two lifetimes for one question is the part worth removing; the speed is a
  * side effect and a small one (measured at 0.0026 ms per scan on a client with
  * one owned character).
  *
  * ONLY THE MAPPING IS CACHED, never anything read off the item. `shownType`
- * changes the moment Analyze identifies a bullet, and that is an item UPDATE —
+ * changes the moment Analyze identifies a bullet, and that is an item UPDATE -
  * which this cache deliberately does not listen for, because callers hold the
  * live document and `getFlag` on it is always current. What invalidates the
  * cache is a bullet appearing or disappearing (`createItem`/`deleteItem` in
@@ -459,15 +459,15 @@ export function myBulletForRemnant(key) {
 /**
  * Why is somebody visible who should not be?
  *
- * The two ways this mechanism fails look identical from the table — everybody
- * sees everybody — and they need opposite repairs, so this asks the map both
+ * The two ways this mechanism fails look identical from the table - everybody
+ * sees everybody - and they need opposite repairs, so this asks the map both
  * questions at once and prints the answers side by side:
  *
  *   room === null everywhere   the hit test is rejecting the whole scene, and
  *                              the repair belongs in `regionsAt` (movement.mjs)
  *   rooms correct, visible     Foundry recomputed visibility after this module
  *   for someone elsewhere      did, and the repair belongs in the hook order
- *                              above — see `reassertNextFrame`
+ *                              above - see `reassertNextFrame`
  *
  * Run it on a PLAYER's client with at least two characters standing in two
  * different rooms; on a GM's client every token is visible by design and the
@@ -484,7 +484,7 @@ export function diagnoseVisibility() {
     })();
 
     lines.push(`Room visibility setting: ${setting}`);
-    lines.push(`This client is a GM: ${game.user.isGM ? "yes — every token is visible by design" : "no"}`);
+    lines.push(`This client is a GM: ${game.user.isGM ? "yes - every token is visible by design" : "no"}`);
     lines.push(`Scene: ${canvas?.scene?.name ?? "none"} · regions: ${canvas?.scene?.regions?.size ?? 0}`);
     lines.push(`My rooms: ${Array.from(myRooms()).join(", ") || "none"}`);
     lines.push("");
@@ -495,7 +495,7 @@ export function diagnoseVisibility() {
         lines.push([
             token.name.padEnd(16),
             `regions ${String(token.document.regions?.size ?? 0).padStart(2)}`,
-            `room ${(room ?? "—").padEnd(14)}`,
+            `room ${(room ?? "-").padEnd(14)}`,
             token.isOwner ? "mine " : "     ",
             token.visible ? "VISIBLE" : "hidden"
         ].join("  "));

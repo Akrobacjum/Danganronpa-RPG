@@ -1,13 +1,13 @@
 /**
- * Danganronpa RPG — what that time of day actually amounted to.
+ * Danganronpa RPG - what that time of day actually amounted to.
  * ---------------------------------------------------------------------------
  * A time of day is five players acting in parallel across a dozen rooms, and by
  * the time the Eclipse arrives nobody can reconstruct their own half of it: the
  * cards that announced each result auto-dismissed twelve seconds after they
  * appeared, and the chat log holds them interleaved with everybody else's.
  *
- * So the Eclipse — which is otherwise dead air, a placement phase with nothing
- * to read — opens a summary instead. What you did, what you found, what you
+ * So the Eclipse - which is otherwise dead air, a placement phase with nothing
+ * to read - opens a summary instead. What you did, what you found, what you
  * left behind.
  *
  * It invents nothing. Every line comes from a `summary` flag that `report()`
@@ -37,7 +37,7 @@ export function registerDaySummary() {
  * Everything this client is entitled to see from the time of day just ended.
  *
  * `game.messages` is already filtered by Foundry to what this user may read, so
- * a player cannot learn what anybody else did by opening their own summary —
+ * a player cannot learn what anybody else did by opening their own summary -
  * the whispers that carried those results never reached them in the first
  * place.
  */
@@ -57,7 +57,7 @@ export async function showDaySummary() {
     const started = clock?.timeOfDayStartedAt ?? 0;
     const entries = entriesSince(started);
 
-    // Nothing happened — a time of day spent entirely in conversation is a
+    // Nothing happened - a time of day spent entirely in conversation is a
     // legitimate one, and a window saying "you did nothing" is a scolding.
     if (!entries.length) return;
 
@@ -72,14 +72,14 @@ export async function showDaySummary() {
             `<span class="drpg-sum-action">${esc(e.action)}</span>`,
             e.room ? `<span class="drpg-sum-room">${esc(e.room)}</span>` : null,
             e.total != null ? `<span class="drpg-sum-total">${esc(e.total)}</span>` : null
-        ].filter(Boolean).join('<span class="drpg-sum-sep">—</span>');
+        ].filter(Boolean).join('<span class="drpg-sum-sep">-</span>');
 
         const tail = [];
         if (e.item) {
             tail.push(`<span class="drpg-sum-found">${
                 game.i18n.format("DRPG.Summary.found", { tier: e.tier ?? "?", item: esc(e.item) })}</span>`);
         }
-        // Never the visibility band a trace was left at — see `traceFeedback`
+        // Never the visibility band a trace was left at - see `traceFeedback`
         // in remnants.mjs. `e.leftTrace` is already the gated answer to
         // "does this player get told anything at all", so there is nothing
         // left to redact here beyond the word itself.

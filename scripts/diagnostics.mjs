@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — diagnostics.
+ * Danganronpa RPG - diagnostics.
  * ---------------------------------------------------------------------------
  * Answers "why isn't this working" without guesswork. Run from the console:
  *
@@ -25,14 +25,14 @@ import { isPrimaryGm, log } from "./utils.mjs";
  * and that helper looks the chosen skin up with
  *   `game.dice3d.DiceFactory.systems.get(type.system)`.
  * If the configured dice system is not installed, the lookup fails and the
- * dice fall back to plain defaults — exactly the "dice appear, skin doesn't"
+ * dice fall back to plain defaults - exactly the "dice appear, skin doesn't"
  * symptom. This reports whether that is what is happening.
  */
 /**
  * WHO WAS ALLOWED TO WATCH THE LAST FEW ROLLS.
  *
  * Dawid, 29.08: "as a player I hear another player's dice sound, in the same
- * room". Dice So Nice animates — and therefore sounds — for exactly the people a
+ * room". Dice So Nice animates - and therefore sounds - for exactly the people a
  * roll's chat message is addressed to, so "why did I hear that" is always the
  * same question as "who is on the whisper list", and this prints it.
  *
@@ -42,7 +42,7 @@ import { isPrimaryGm, log } from "./utils.mjs";
  *
  *   - a Monocub's dice are shown to everyone standing in the room with them;
  *   - during an incident, the killer, the victim and a third participant watch
- *     each other's dice — the maths of a fight is public to the people in it;
+ *     each other's dice - the maths of a fight is public to the people in it;
  *   - a roll that is already a whisper when it is created keeps the aim it
  *     came with.
  *
@@ -61,7 +61,7 @@ function rollAudienceLines() {
     } catch {
         forced = null;
     }
-    lines.push(`  Forced private rolls: ${forced === null ? "unreadable" : forced ? "on" : "OFF — every roll is public, which is the whole answer"}`);
+    lines.push(`  Forced private rolls: ${forced === null ? "unreadable" : forced ? "on" : "OFF - every roll is public, which is the whole answer"}`);
 
     const rolls = game.messages.contents.filter(m => (m.rolls?.length ?? 0) > 0).slice(-6);
     if (!rolls.length) {
@@ -87,7 +87,7 @@ function rollAudienceLines() {
             const owners = game.users.filter(u => !u.isGM && subject.testUserPermission(u, "OWNER"));
             if (owners.length > 1) {
                 lines.push(`      ${owners.length} players own this character `
-                    + `(${owners.map(u => u.name).join(", ")}) — its dice go to whichever is listed first`);
+                    + `(${owners.map(u => u.name).join(", ")}) - its dice go to whichever is listed first`);
             }
         }
     }
@@ -111,7 +111,7 @@ export function diagnoseDice() {
 
     const factory = game.dice3d?.DiceFactory;
     if (!factory) {
-        lines.push("game.dice3d.DiceFactory is unavailable — Dice So Nice has not finished loading.");
+        lines.push("game.dice3d.DiceFactory is unavailable - Dice So Nice has not finished loading.");
         return report("Dice diagnostics", lines);
     }
 
@@ -135,7 +135,7 @@ export function diagnoseDice() {
         const chosen = dsnConfig[key]?.system;
         const exists = chosen ? factory.systems?.has?.(chosen) : false;
         lines.push(
-            `${key === "fear" ? "despair" : key} skin: "${chosen ?? "(unset)"}" — ` +
+            `${key === "fear" ? "despair" : key} skin: "${chosen ?? "(unset)"}" - ` +
             (exists ? "installed ✓" : "NOT INSTALLED ✗  ← this is why the skin does not apply")
         );
     }
@@ -203,7 +203,7 @@ const LOAD_BEARING_TOKENS = [
 
 /* Foundry does not give module CSS its own `<link>`. It writes one inline sheet
    containing `@import url(...) layer(modules)` per package, so our file is a
-   nested stylesheet — invisible to a scan of `document.styleSheets` hrefs, which
+   nested stylesheet - invisible to a scan of `document.styleSheets` hrefs, which
    is what the previous version of this function did. It reported "the module CSS
    is not attached to this page at all" on a perfectly healthy client. */
 function findOurSheets(sheet, depth, found) {
@@ -213,7 +213,7 @@ function findOurSheets(sheet, depth, found) {
         rules = sheet.cssRules;
     } catch {
         // Cross-origin sheets refuse `cssRules`. On a CDN host that is normal
-        // and not itself a fault — record it rather than treating it as one.
+        // and not itself a fault - record it rather than treating it as one.
         if ((sheet.href ?? "").includes(MODULE_ID)) {
             found.push({ href: sheet.href, rules: null, layer: null, opaque: true });
         }
@@ -255,7 +255,7 @@ function findOurSheets(sheet, depth, found) {
  * Worse, it works from its own cached reading of the file: the values it was
  * substituting came from `--drpg-purple`, a token this module stopped having
  * when the palette moved to Monokuma. When that variable does not resolve, its
- * fallback paints — which is why Despair skulls came out bone-white and the Call
+ * fallback paints - which is why Despair skulls came out bone-white and the Call
  * icons lavender, two colours that appear nowhere in this project.
  *
  * Foundry already ships a dark theme and this module is drawn for it, so an
@@ -301,14 +301,14 @@ export function detectPageTinting() {
  *
  * A warning rather than a fix. The page could tell Dark Reader to leave it alone
  * with a `<meta name="darkreader-lock">`, but silently switching off somebody's
- * extension is not this module's call to make — plenty of people run it for
+ * extension is not this module's call to make - plenty of people run it for
  * reasons that have nothing to do with taste.
  */
 export function warnAboutPageTinting() {
     try {
         const tint = detectPageTinting();
         if (!tint) return;
-        log(`${tint.name} is repainting this page — ${tint.evidence}`);
+        log(`${tint.name} is repainting this page - ${tint.evidence}`);
         ui.notifications.warn(
             game.i18n.format("DRPG.Diagnostics.pageTinted", { name: tint.name }),
             { permanent: true }
@@ -323,7 +323,7 @@ export function warnAboutPageTinting() {
  *
  * For the case where a colour is plainly wrong and the token behind it is plainly
  * right: the declaration exists, resolves, and still loses. Only another rule can
- * do that, and the browser will not tell you which — `getMatchedCSSRules` was
+ * do that, and the browser will not tell you which - `getMatchedCSSRules` was
  * removed years ago. So walk every stylesheet, test every selector against the
  * element, and report the ones that declare the property, with the file and the
  * cascade layer they came from. The last one that applies is the winner.
@@ -380,7 +380,7 @@ function whoPaints(element, property, pseudo = "") {
             }
 
             // Order matters. Under nested CSS every CSSStyleRule carries a
-            // `cssRules` list of its own — usually empty — so testing for that
+            // `cssRules` list of its own - usually empty - so testing for that
             // first treats every ordinary rule as a group and skips it. That is
             // exactly what the first version of this did: it reported zero rules
             // painting an element that four rules were painting.
@@ -400,7 +400,7 @@ function paintLines(label, element, property, pseudo = "") {
     const lines = [];
     if (!element) return lines;
     const hits = whoPaints(element, property, pseudo);
-    lines.push(`   ${label} — rules declaring ${property}${pseudo ? ` on ::${pseudo}` : ""}: ${hits.length}`);
+    lines.push(`   ${label} - rules declaring ${property}${pseudo ? ` on ::${pseudo}` : ""}: ${hits.length}`);
     if (!hits.length) {
         lines.push("      none. The colour is inherited from an ancestor, not declared here.");
     }
@@ -413,8 +413,8 @@ function paintLines(label, element, property, pseudo = "") {
 }
 
 /* Does the loaded face actually carry this character, or is the browser quietly
-   substituting? Rasterise it twice — once through the pixel stack, once through
-   a plain fallback — and compare the ink. Identical means we are looking at the
+   substituting? Rasterise it twice - once through the pixel stack, once through
+   a plain fallback - and compare the ink. Identical means we are looking at the
    fallback, and a character present in neither is the empty box on screen. */
 function rastersDiffer(char, family) {
     try {
@@ -469,7 +469,7 @@ export function diagnoseStyles() {
     // module's entire stylesheet is in one.
     const tint = detectPageTinting();
     if (tint) {
-        lines.push(`!! ${tint.name.toUpperCase()} IS REPAINTING THIS PAGE — ${tint.evidence}`);
+        lines.push(`!! ${tint.name.toUpperCase()} IS REPAINTING THIS PAGE - ${tint.evidence}`);
         lines.push("   Its rules sit in no cascade layer, and unlayered rules beat layered ones");
         lines.push("   whatever their specificity. Every colour below may be its choice, not ours.");
         lines.push("   Turn it off for this site before trusting anything else in this report.");
@@ -486,7 +486,7 @@ export function diagnoseStyles() {
     const found = [];
     for (const sheet of Array.from(document.styleSheets ?? [])) findOurSheets(sheet, 0, found);
 
-    // Expected count read off the manifest, not hardcoded — a literal "2" here
+    // Expected count read off the manifest, not hardcoded - a literal "2" here
     // went stale the day motion.css shipped and had the diagnostic reporting a
     // healthy page as suspect.
     const declared = Array.from(game.modules.get(MODULE_ID)?.styles ?? []).length;
@@ -494,7 +494,7 @@ export function diagnoseStyles() {
     for (const sheet of found) {
         lines.push(`   ${sheet.href}`);
         lines.push(`      layer: ${sheet.layer ?? "(none)"}, rules parsed: ${
-            sheet.opaque ? "unreadable — served cross-origin, which is normal on a CDN"
+            sheet.opaque ? "unreadable - served cross-origin, which is normal on a CDN"
             : sheet.rules === 0 ? "0  ← ARRIVED BUT EMPTY"
             : sheet.rules}`);
     }
@@ -515,7 +515,7 @@ export function diagnoseStyles() {
     }
     if (missing.length === LOAD_BEARING_TOKENS.length) {
         lines.push("   ← ALL of them are empty. The :root block is not on this page, so every var() colour");
-        lines.push("     in the module falls back to inherited text colour — that is the white-icon symptom.");
+        lines.push("     in the module falls back to inherited text colour - that is the white-icon symptom.");
     } else if (missing.length) {
         lines.push(`   ← ${missing.length} unresolved: ${missing.join(", ")}`);
     }
@@ -525,7 +525,7 @@ export function diagnoseStyles() {
     const pixelOn = document.body.classList.contains("drpg-pixel-font");
     lines.push(`Pixel font setting: ${pixelOn ? "on" : "off (body.drpg-pixel-font absent)"}`);
     const faces = Array.from(document.fonts ?? []).filter(f => f.family.includes("DRPG"));
-    lines.push(`@font-face entries for "DRPG Pixel": ${faces.length} (expected 2 — latin and latin-ext)`);
+    lines.push(`@font-face entries for "DRPG Pixel": ${faces.length} (expected 2 - latin and latin-ext)`);
     for (const face of faces) {
         lines.push(`   status: ${face.status}${face.status === "error" ? "  ← THE FILE FAILED TO LOAD" : ""}, range: ${face.unicodeRange.slice(0, 34)}`);
     }
@@ -548,19 +548,19 @@ export function diagnoseStyles() {
         const bar = document.querySelector("#drpg-despair");
         const before = getComputedStyle(pip, "::before");
         const masked = bar.classList.contains("masked");
-        // Both states are masks — a skull for the GM, a question mark for a
-        // player — so the useful question is which one landed, and whether it
+        // Both states are masks - a skull for the GM, a question mark for a
+        // player - so the useful question is which one landed, and whether it
         // landed at all. No mask plus a background is a solid square on screen.
         const mask = before.maskImage || before.webkitMaskImage || "none";
         const wanted = root.getPropertyValue(masked ? "--drpg-pix-query" : "--drpg-pix-skull").trim();
-        lines.push(`Despair bar: ${bar.classList.length ? bar.className : "(no classes)"}${masked ? "  — this client sees question marks" : "  — this client sees skulls"}`);
+        lines.push(`Despair bar: ${bar.classList.length ? bar.className : "(no classes)"}${masked ? "  - this client sees question marks" : "  - this client sees skulls"}`);
         lines.push(`   pip colour: ${getComputedStyle(pip).color}`);
         lines.push(`   ::before content: ${before.content}, background: ${before.backgroundColor}`);
         lines.push(`   ::before mask: ${mask.slice(0, 46)}`);
         if (mask === "none") {
             lines.push("   ← NO MASK. With a background colour set, that draws a filled square, not a glyph.");
         } else if (wanted && mask.replace(/\s+/g, "") !== wanted.replace(/\s+/g, "")) {
-            lines.push(`   ← the wrong mask for this state — expected the ${masked ? "question mark" : "skull"}.`);
+            lines.push(`   ← the wrong mask for this state - expected the ${masked ? "question mark" : "skull"}.`);
         }
         lines.push(...paintLines("pip", pip, "color"));
     }
@@ -598,7 +598,7 @@ export function diagnoseStyles() {
     const origins = [...new Set(resources.map(r => { try { return new URL(r.name).origin; } catch { return "?"; } }))];
     lines.push(`Module files fetched: ${resources.length}, served from: ${origins.join(", ") || "(none)"}`);
     for (const r of resources.filter(r => /\.css$|\.woff2$/.test(r.name))) {
-        // A 304 revalidation reports decoded 0 bytes and is perfectly healthy —
+        // A 304 revalidation reports decoded 0 bytes and is perfectly healthy -
         // the body came from cache. Only the status code separates that from a
         // 404, so prefer it and stay quiet when the browser does not expose it.
         const status = r.responseStatus;
@@ -607,10 +607,10 @@ export function diagnoseStyles() {
             : status ? `  (HTTP ${status})`
             : r.decodedBodySize === 0 && r.transferSize === 0 ? "  ← nothing transferred and nothing decoded"
             : "";
-        lines.push(`   ${r.name.split("/").slice(-2).join("/")} — transferred ${r.transferSize}B, decoded ${r.decodedBodySize}B${verdict}`);
+        lines.push(`   ${r.name.split("/").slice(-2).join("/")} - transferred ${r.transferSize}B, decoded ${r.decodedBodySize}B${verdict}`);
     }
     if (!resources.some(r => /\.woff2$/.test(r.name))) {
-        lines.push("   no .woff2 was requested at all — either the font setting is off, or no text on screen");
+        lines.push("   no .woff2 was requested at all - either the font setting is off, or no text on screen");
         lines.push("   is using the pixel face yet. Open the Despair bar or a character sheet and run this again.");
     }
 
@@ -623,14 +623,14 @@ export function diagnoseStyles() {
  * Runs at load and says nothing when the answer is yes, which is almost
  * always. The two answers worth hearing:
  *
- *   the token is EMPTY      the stylesheet is not on this page at all — it did
+ *   the token is EMPTY      the stylesheet is not on this page at all - it did
  *                           not arrive, or it arrived and failed to parse
  *   the token DISAGREES     the page has an older copy of the file. A browser
  *                           or a CDN is holding it; the module cannot fix that
  *                           from inside the page, and a hard reload can
  *
  * Deliberately NOT self-healing. Re-attaching the file with a cache-busting
- * query would put the new copy OUTSIDE `layer(modules)` — Foundry imports
+ * query would put the new copy OUTSIDE `layer(modules)` - Foundry imports
  * module CSS into that layer, and unlayered rules beat layered ones whatever
  * their specificity. The fix would land the whole stylesheet in a different
  * part of the cascade than it was written for, which is a worse bug than the
@@ -654,7 +654,7 @@ export function verifyStylesheet() {
     }
 
     // A stamp that disagrees means this page is holding an older stylesheet
-    // than the version it is running — a browser or CDN cache, which a hard
+    // than the version it is running - a browser or CDN cache, which a hard
     // reload clears.
     //
     // Console and the diagnostic reports only, deliberately: no notification.
@@ -663,7 +663,7 @@ export function verifyStylesheet() {
     // release that bumped one and not the other. That is a mistake worth
     // catching, but not at the price of a permanent banner in front of every
     // player at the table for something none of them can act on. The suite
-    // holds the release side of it — see "the stylesheet ships with the version
+    // holds the release side of it - see "the stylesheet ships with the version
     // it says it does" in tests.mjs, which fails before a release rather than
     // after one.
     console.warn(`${MODULE_ID} | Stylesheet stamped v${css}, module running v${version}. `
@@ -675,7 +675,7 @@ export function verifyStylesheet() {
 /**
  * Why is a Foundry config window cut off at the right edge?
  *
- * Open the window that is wrong — Token Config, Scene Config — and then:
+ * Open the window that is wrong - Token Config, Scene Config - and then:
  *
  *     game.drpg.diagnoseWindows()
  *
@@ -683,7 +683,7 @@ export function verifyStylesheet() {
  * `scrollWidth vs clientWidth`: that is the definition of "cut off", and it
  * separates a window whose contents overflow from a window that is simply
  * narrow. The rest names the four things that can push a form past its own
- * frame — a fixed-width face on labels laid out in pixels, a UI scale, a
+ * frame - a fixed-width face on labels laid out in pixels, a UI scale, a
  * `.form-group` that cannot wrap, and a `.window-content` that cannot scroll.
  */
 export function diagnoseWindows() {
@@ -771,7 +771,7 @@ export function diagnoseWindows() {
  *                           one under the cursor looks like
  *   it is REPLACED          the element is torn out of the page between press
  *                           and release, so the browser has nothing to fire a
- *                           click on — a re-render mid-gesture
+ *                           click on - a re-render mid-gesture
  *   it is CANCELLED         the click happens and something calls
  *                           preventDefault or stops it propagating
  *
@@ -780,7 +780,7 @@ export function diagnoseWindows() {
  *     game.drpg.traceClicks()
  *
  * It watches for twenty seconds and then posts what it saw. Nothing is
- * intercepted — every listener is passive and in the capture phase, so this
+ * intercepted - every listener is passive and in the capture phase, so this
  * cannot itself be the reason a click goes missing.
  */
 export function traceClicks({ seconds = 20 } = {}) {
@@ -817,7 +817,7 @@ export function traceClicks({ seconds = 20 } = {}) {
             push(`DOWN   on ${name(event.target)}`);
             if (covering && covering !== event.target && !event.target.contains(covering)) {
                 push(`       ← the point actually belongs to ${name(covering)} `
-                    + `(z-index ${getComputedStyle(covering).zIndex}) — SOMETHING IS ON TOP`);
+                    + `(z-index ${getComputedStyle(covering).zIndex}) - SOMETHING IS ON TOP`);
             }
             const target = event.target;
             requestAnimationFrame(() => {
@@ -858,7 +858,7 @@ export function traceClicks({ seconds = 20 } = {}) {
         // A control repeating itself hundreds of times in twenty seconds is
         // not the user pressing anything. Every event it fires on a form that
         // submits on change costs a re-render, and a window that re-renders
-        // under the pointer cannot be clicked reliably — so this line is
+        // under the pointer cannot be clicked reliably - so this line is
         // usually the whole answer.
         const storm = lines
             .filter(l => l.n >= 20 && l.text.startsWith("CHANGE"))
@@ -939,7 +939,7 @@ export async function fileSizes() {
  *
  * Two things can go quietly wrong. The rows are injected into Daggerheart's own
  * inventory DOM, so a system update that renames the inventory section leaves
- * the badges rendering nowhere — visible here as bullets that exist but have no
+ * the badges rendering nowhere - visible here as bullets that exist but have no
  * rows on an open sheet. And because the answer key lives in a GM-side ledger
  * keyed by item uuid, the two halves can drift: a bullet with no entry, or an
  * entry whose bullet is gone.
@@ -950,7 +950,7 @@ export function diagnoseTruthBullets() {
     const lines = [];
 
     if (!game.user.isGM) {
-        lines.push("Not a GM — the answer key is not on this client, so only the visible half can be checked.");
+        lines.push("Not a GM - the answer key is not on this client, so only the visible half can be checked.");
     }
 
     const bullets = [];
@@ -980,16 +980,16 @@ export function diagnoseTruthBullets() {
         lines.push(`   bullets with no entry: ${missing.length}${
             missing.length ? "  ← they will read as Neutral to every GM" : ""
         }`);
-        for (const m of missing.slice(0, 10)) lines.push(`      ${m.actor.name} — ${m.item.name}`);
+        for (const m of missing.slice(0, 10)) lines.push(`      ${m.actor.name} - ${m.item.name}`);
         lines.push(`   entries whose bullet is gone: ${orphans.length}${
             orphans.length ? "  ← harmless, but dropSecret() was missed somewhere" : ""
         }`);
-        lines.push("Back the ledger up with game.drpg.exportLedger() — it lives in browser storage, not the world.");
+        lines.push("Back the ledger up with game.drpg.exportLedger() - it lives in browser storage, not the world.");
     }
 
     // "Neutral" describes a BULLET the player has not identified yet, not a kind
     // of trace anyone leaves. A Neutral Remnant on the map is almost always a GM
-    // who meant to pick a real category — Observe prices it as Prep so it still
+    // who meant to pick a real category - Observe prices it as Prep so it still
     // works, but the GM should know it is guessing on their behalf.
     const neutral = [];
     for (const scene of game.scenes) {
@@ -1020,7 +1020,7 @@ export function diagnoseTruthBullets() {
 /**
  * Why per-region voice is not moving anybody.
  *
- * Every failure this subsystem can have is silent by design — an assignment
+ * Every failure this subsystem can have is silent by design - an assignment
  * nobody can apply settles quietly, a client that is not using LiveKit reports
  * "unavailable", a world with A/V off never reaches the server. That is right
  * for the log and useless for a GM staring at a table that is all in one room.
@@ -1057,7 +1057,7 @@ export function diagnoseVoice() {
     lines.push(`Room this client is in: ${client.room ?? "(none)"}`);
     lines.push(`Breakout this client was told: ${liveKit.breakoutRoom ?? "(main room)"}`);
 
-    // Region names are what room assignments are built from — a scene with none
+    // Region names are what room assignments are built from - a scene with none
     // is a scene where everybody shares the main room, and that looks identical
     // to the subsystem being broken.
     const regions = Array.from(canvas?.scene?.regions ?? []).map(r => r.name).filter(Boolean);
@@ -1083,7 +1083,7 @@ export function diagnoseVoice() {
  *
  * The one check worth running before a session zero. Daggerheart derives max Health
  * and Sanity from a class; this game has none, so `initCharacter` is the only
- * thing that ever writes them — and a character it has not touched reads
+ * thing that ever writes them - and a character it has not touched reads
  * `max: 0` on both tracks, which is indistinguishable from a character who has
  * been beaten unconscious. The sheet grows a button while that is true (see
  * `injectInitButton` in sheet.mjs); this answers the same question for the
@@ -1103,7 +1103,7 @@ export function diagnoseCharacters({ toChat = true } = {}) {
         const stress = actor.system?.resources?.stress?.max ?? 0;
         const ok = hp === STARTING.hp && stress === STARTING.stress;
         if (!ok) pending.push(actor);
-        lines.push(`   ${ok ? "✓" : "✗"} ${actor.name} — Health max ${hp}, Sanity max ${stress}${
+        lines.push(`   ${ok ? "✓" : "✗"} ${actor.name} - Health max ${hp}, Sanity max ${stress}${
             ok ? "" : "  ← not set up"}`);
     }
 
@@ -1121,7 +1121,7 @@ export function diagnoseCharacters({ toChat = true } = {}) {
 
     /*
      * The four things that are agreed before a season and then never thought
-     * about again — which is exactly why they are worth a list.
+     * about again - which is exactly why they are worth a list.
      *
      * Resources are only half of "is this character ready". A student with the
      * right Health and Sanity can still be sitting there with no Ultimate, no
@@ -1155,7 +1155,7 @@ export function diagnoseCharacters({ toChat = true } = {}) {
             lines.push(`✓ ${label}`);
             return;
         }
-        lines.push(`✗ ${label} — ${names.length}: ${names.join(", ")}`);
+        lines.push(`✗ ${label} - ${names.length}: ${names.join(", ")}`);
         if (fix) lines.push(`   ${fix}`);
     };
 
@@ -1164,7 +1164,7 @@ export function diagnoseCharacters({ toChat = true } = {}) {
     roll(`Everybody has ${STARTING.experiences} experiences`, missingExperiences,
         "Two at +2 each, agreed at character creation.");
     roll("Everybody carries their opening item", missingItem,
-        `One Tier ${STARTING.startingItemTier} item tied to their Ultimate — hand it out from Give / take items.`);
+        `One Tier ${STARTING.startingItemTier} item tied to their Ultimate - hand it out from Give / take items.`);
     roll("Everybody is assigned to a Despair pool", unwatched,
         "Without one, Despair from their rolls has nowhere to go. Fix it in GM Team.");
 
@@ -1174,7 +1174,7 @@ export function diagnoseCharacters({ toChat = true } = {}) {
 /**
  * @param {object} [options]
  * @param {boolean} [options.toChat] Whisper it as well as returning it.
- *   `false` is for callers that put the result on screen themselves — the
+ *   `false` is for callers that put the result on screen themselves - the
  *   Pre-session checks tile shows both reports in one window, and a whispered
  *   copy of each underneath it is the same answer twice.
  */

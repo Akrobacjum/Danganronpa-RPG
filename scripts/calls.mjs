@@ -1,16 +1,16 @@
 /**
- * Danganronpa RPG — Hope Calls and Despair Calls.
+ * Danganronpa RPG - Hope Calls and Despair Calls.
  * ---------------------------------------------------------------------------
  * The guide's two spending menus. Players buy advantages with Hope; Monokumas
  * buy interference with Despair.
  *
- * Most of these effects are narrative — "give another player advantage on one
+ * Most of these effects are narrative - "give another player advantage on one
  * roll", "add progress to a project in your room". The module does the part a
  * computer should do: check the cost is affordable, deduct it, and announce it
  * so nobody has to track it on paper. What the effect *means* stays at the
  * table, which is where the guide wants it.
  *
- * Hope Calls are whispered — spending Hope is your business. Despair Calls are
+ * Hope Calls are whispered - spending Hope is your business. Despair Calls are
  * public: when Monokuma acts, the room should know.
  */
 
@@ -44,7 +44,7 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
         const call = HOPE_CALLS[key];
         if (!call || !actor) return null;
 
-        // The Eclipse is placement-only — see the guard in action-rolls.mjs's
+        // The Eclipse is placement-only - see the guard in action-rolls.mjs's
         // `performAction` for the full reasoning. A Call is not a room
         // crossing, so it waits for the same next time of day everything else
         // does.
@@ -54,7 +54,7 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
         }
 
         /*
-         * SILENCE, THE WEATHER (Z10) — not to be confused with the Silence
+         * SILENCE, THE WEATHER (Z10) - not to be confused with the Silence
          * Despair Call above it in the same file, which a Monokuma BUYS and
          * aims at one player. This one was drawn by the overflow and falls on
          * everybody, which is why it is checked here rather than in the
@@ -98,12 +98,12 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
          * TWO CALLS WAIT FOR A RULING BEFORE ANYTHING IS PAID (Dawid, 29.08).
          *
          * Experience and Ultimate are the only Hope Calls whose effect is a
-         * claim about the fiction — "this applies here" — which is the sentence
+         * claim about the fiction - "this applies here" - which is the sentence
          * the handbook gives the GM to judge. See `needsGm` in config.mjs.
          *
          * CHARGED ON THE YES, NOT ON THE ASK. The alternative was to take the
          * Hope up front and refund a refusal, which is what the Despair Calls do
-         * (trap 3) — but those pay for something that then happens, and this
+         * (trap 3) - but those pay for something that then happens, and this
          * pays for permission. A refund loop around a human who might take five
          * minutes to answer is a window in which the refund can be lost, and a
          * player watching their Hope leave for a request that was refused has
@@ -130,7 +130,7 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
              * characters of the bridge call, on the grounds that a guard far
              * enough away to be out of sight is a guard the next editor will not
              * know is load-bearing. A ternary whose first branch carries a
-             * six-field object literal pushed them apart — the guard was there
+             * six-field object literal pushed them apart - the guard was there
              * and it did not read as one.
              */
             let approved;
@@ -181,7 +181,7 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
         }
 
         const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
-        // A Hope Call is spent Hope. There is no reading to do — the card wears
+        // A Hope Call is spent Hope. There is no reading to do - the card wears
         // gold because of what it is, the same gold a Hope roll wears.
         await whisperToOwner(actor, `
             <h3>${esc(call.label)}</h3>
@@ -208,7 +208,7 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
 /**
  * Spend a Despair Call from a Monokuma actor's pool.
  *
- * Which pool is decided by who owns the actor — see monokuma.mjs — so two GMs
+ * Which pool is decided by who owns the actor - see monokuma.mjs - so two GMs
  * running two Monokumas each spend their own 12.
  */
 export async function spendDespairCallFor(actor, key, { note = "", choice = {} } = {}) {
@@ -216,7 +216,7 @@ export async function spendDespairCallFor(actor, key, { note = "", choice = {} }
         const call = DESPAIR_CALLS[key];
         if (!call) return null;
 
-        // Same placement-only rule as a Hope Call — see the note above.
+        // Same placement-only rule as a Hope Call - see the note above.
         if (isEclipse()) {
             ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.actionsLocked"));
             return null;
@@ -267,7 +267,7 @@ export async function spendDespairCallFor(actor, key, { note = "", choice = {} }
          * THE TABLE IS ALWAYS TOLD (Dawid, 28.08).
          *
          * This used to post only when the Monokuma had typed a note or the
-         * call had produced a list — so a Despair Call spent without either
+         * call had produced a list - so a Despair Call spent without either
          * happened in complete silence, with no card and, once sounds existed,
          * nothing to carry one. A Despair Call is the loudest thing a Monokuma
          * can do; the table finding out is the point of it.
@@ -300,7 +300,7 @@ export async function spendDespairCallFor(actor, key, { note = "", choice = {} }
  * @returns {Promise<string|null>} the note, or null if cancelled.
  */
 /**
- * Confirm a Call. Just the effect, the price, and what it will be applied to —
+ * Confirm a Call. Just the effect, the price, and what it will be applied to -
  * no free-text box. The Call does the thing; explaining it is what the table is
  * for.
  *
@@ -345,7 +345,7 @@ export async function confirmCall(call, { kind = "hope", held = 0, choice = {} }
                  * THE NOTE IS THE REQUEST (Dawid, 29.08).
                  *
                  * For a Call that waits for a ruling, an empty box is not a
-                 * request — it is a player asking the GM to guess what they
+                 * request - it is a player asking the GM to guess what they
                  * meant. Returning `null` here cancels rather than sends, which
                  * is the same answer pressing Cancel gives, because a request
                  * nobody can rule on and no request are the same thing.
@@ -374,7 +374,7 @@ export async function confirmCall(call, { kind = "hope", held = 0, choice = {} }
 /**
  * The GM's ruling on a Call that needs one. Runs on a GM's client only.
  *
- * WHAT THE GM IS BEING ASKED is not "is this allowed" in the abstract — it is
+ * WHAT THE GM IS BEING ASKED is not "is this allowed" in the abstract - it is
  * the handbook's own gate: does the experience, or the talent, GENUINELY apply
  * to what this player is about to do. So the player's sentence is the body of
  * the window and the rest is context.
@@ -391,7 +391,7 @@ export async function askHopeCallApproval(payload = {}) {
             call: payload.callLabel ?? "" }) },
         classes: ["drpg-panel", "drpg-hope-dialog"],
         content: `<div>
-            <p><strong>${esc(payload.actorName)}</strong> — ${esc(payload.callLabel)}
+            <p><strong>${esc(payload.actorName)}</strong> - ${esc(payload.callLabel)}
                 (${esc(payload.cost)} Hope)</p>
             <p class="notes">${esc(payload.effect)}</p>
             <blockquote>${esc(payload.note)}</blockquote>
@@ -443,13 +443,13 @@ export function despairCallsFor(poolValue = 0) {
  * Cheapest first.
  *
  * SORTED ON THE WAY OUT, not rearranged in config.mjs. That table is the rules
- * written down, and its order is thematic — the Calls that do similar things
+ * written down, and its order is thematic - the Calls that do similar things
  * sit together, which is how you read a rulebook. A panel is read the other
  * way: you look at what you can afford. `fuelTheCub` costs 1 and was listed
  * after `silence`, which costs 4, so the Despair panel opened with the two
  * most expensive Calls and buried the cheap one at the bottom.
  *
- * Ties keep the table's own order — `sort` is stable — so the thematic
+ * Ties keep the table's own order - `sort` is stable - so the thematic
  * grouping survives inside each price band.
  */
 function byPrice(calls) {

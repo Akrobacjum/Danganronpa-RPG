@@ -1,17 +1,17 @@
 /**
- * Danganronpa RPG — who may speak, in which of the trial's three modes.
+ * Danganronpa RPG - who may speak, in which of the trial's three modes.
  * ---------------------------------------------------------------------------
  * THIS FILE USED TO BE A QUEUE, AND IS NOT ONE ANY MORE.
  *
  * The guide's original shape was a rota: "Gracze wypowiadają się w kolejności
  * wskazówek zegara zaczynając od ochotnika. Każdy ma maks trzy minuty
  * nieprzerwanego monologu." That is what the old `{ order, current }` state
- * modelled — an alphabetical rotation and a pointer into it.
+ * modelled - an alphabetical rotation and a pointer into it.
  *
  * A trial at the table does not behave like that. People talk over each other,
  * follow one another's thoughts, and go quiet when somebody produces
- * something. The rota's job was really to answer one question — who is allowed
- * to be talking right now — and it answered it in the one situation where the
+ * something. The rota's job was really to answer one question - who is allowed
+ * to be talking right now - and it answered it in the one situation where the
  * answer is obvious (everybody is arguing) while having nothing to say about
  * the situation where it matters (somebody has just cut in with evidence).
  *
@@ -20,7 +20,7 @@
  *
  *   discussion  everybody, freely. The clock is the GM's budget for the whole
  *               discussion, and running past it turns the bar red rather than
- *               ending anything — a human decides when an argument is over.
+ *               ending anything - a human decides when an argument is over.
  *   objection   the objector alone, for one minute. This is the only moment in
  *               the game where somebody TAKES the floor from everybody else,
  *               and it is bought by putting a Truth Bullet on the table.
@@ -39,7 +39,7 @@
  * stored counter drifts per client and has to be written every second, while a
  * timestamp is written once and every client can work out the rest for itself.
  * The one thing that must NOT be worked out independently is the mode
- * TRANSITION — see `advanceIfDue`.
+ * TRANSITION - see `advanceIfDue`.
  */
 
 import { MODULE_ID, TRIAL } from "./config.mjs";
@@ -88,7 +88,7 @@ export function trialFloor() {
 
 /**
  * The old name, kept because `music.mjs`, `gm-panel.mjs` and `api.mjs` all ask
- * the same yes/no question through it — "is a trial running" — and that answer
+ * the same yes/no question through it - "is a trial running" - and that answer
  * has not changed. Only the shape behind it has.
  */
 export const trialQueue = trialFloor;
@@ -113,7 +113,7 @@ export function secondsLeft(floor = trialFloor()) {
     return Math.round(modeSeconds(floor) - spent);
 }
 
-/** Whoever took the floor — the objector, in both restrictive modes. */
+/** Whoever took the floor - the objector, in both restrictive modes. */
 export function floorHolder(floor = trialFloor()) {
     return floor?.holderId ? (game.actors.get(floor.holderId) ?? null) : null;
 }
@@ -150,7 +150,7 @@ export function maySpeak(actorId, floor = trialFloor()) {
 /**
  * Open the floor as a free discussion.
  *
- * No volunteer, no rotation, no order to preview — the whole table may speak
+ * No volunteer, no rotation, no order to preview - the whole table may speak
  * from the first second. All the GM chooses is how long they expect it to run,
  * and even that is a budget rather than a limit.
  */
@@ -162,7 +162,7 @@ export async function startFloor({ seconds = TRIAL.speakSeconds } = {}) {
     // set it; the GM panel's separate "open the floor" route did not, so
     // opening a trial that way left the campaign window still reading Daily
     // Life or Investigation while a trial was demonstrably running. That
-    // second route is gone — there is one trial window now — but the rule
+    // second route is gone - there is one trial window now - but the rule
     // stays where it is: an open floor IS the trial being in session, and the
     // two cannot sensibly disagree whoever opens it.
     //
@@ -203,7 +203,7 @@ export async function startFloor({ seconds = TRIAL.speakSeconds } = {}) {
  *
  * REFUSED DURING SOMEBODY ELSE'S OBJECTION OR REBUTTAL. Without that, a second
  * objection would reset the clock onto a new pair and the first rebuttal would
- * never happen — the minute would keep being bought out from under whoever was
+ * never happen - the minute would keep being bought out from under whoever was
  * about to answer. Refusing it is also checked on the caller's side before the
  * card is ever posted (see `trial.mjs`), so a player is told why rather than
  * watching their objection silently fail to take the floor.
@@ -229,7 +229,7 @@ export async function openObjection(objectorId, targetId) {
     //               somebody listening sees the hole in what is being said,
     //               and a rule that makes them wait until the argument is over
     //               is a rule against the only moment interrupting is worth
-    //               anything. The pair is not a private room — it is a pair the
+    //               anything. The pair is not a private room - it is a pair the
     //               rest of the trial is watching.
     //
     //               Nothing is lost by allowing it, because an objection
@@ -258,7 +258,7 @@ export async function openObjection(objectorId, targetId) {
      * which, because they were read as one and the wrong half was lifted. WHO
      * MAY SPEAK is anybody: the moment somebody listening sees the hole is the
      * moment interrupting is worth anything. WHO MAY BE SPOKEN AT is the pair,
-     * because an objection RE-POINTS the floor — aiming a bystander at another
+     * because an objection RE-POINTS the floor - aiming a bystander at another
      * bystander would take a rebuttal two people earned and hand it to two who
      * have not said a word, which is not an interruption but a change of
      * subject.
@@ -282,14 +282,14 @@ export async function openObjection(objectorId, targetId) {
     /*
      * AN OBJECTION RESTARTS THE OBJECTION MUSIC, ALWAYS (Dawid, 28.08).
      *
-     * A rebuttal already plays the objection state — it is the answering half
+     * A rebuttal already plays the objection state - it is the answering half
      * of the same exchange, and changing the music under it would cut the
      * argument in two. So cutting INTO a rebuttal was, to the state machine, no
      * change at all: same state, nothing to do, and the loudest moment in a
      * trial arrived in silence.
      *
      * `refreshMusic` drops what is playing and re-applies the state rather than
-     * comparing it, so the playlist advances — measured, three objections in a
+     * comparing it, so the playlist advances - measured, three objections in a
      * row take two, one, two. The interruption sounds like an interruption
      * because a new track starts, which is the whole of what the table hears.
      *
@@ -304,7 +304,7 @@ export async function openObjection(objectorId, targetId) {
              * NOW, NOT AFTER THE SETTLE WINDOW.
              *
              * `schedule()` waits 400ms and collapses everything asked for in
-             * that window into one apply — which is right for a clock turning
+             * that window into one apply - which is right for a clock turning
              * and wrong for a cue. Two objections inside the window became ONE
              * track change, so the second one landed in silence. Found by the
              * scenario, which failed on a run where the two calls happened to
@@ -369,7 +369,7 @@ export async function extendFloor(extraSeconds = 30) {
  * This used to be reachable only by ending the whole trial, which is why the
  * two were confused with each other: a GM who wanted the room to stop arguing
  * for a moment had to end the Class Trial to get it. The trial's phase is not
- * touched here — see `endClassTrial` in trial-floor-ui.mjs for the other one.
+ * touched here - see `endClassTrial` in trial-floor-ui.mjs for the other one.
  */
 export async function endFloor() {
     if (!game.user.isGM) return null;
@@ -386,7 +386,7 @@ export async function endFloor() {
  *
  * Stage 4's manual override: a minute of objection the GM wants over after
  * twenty seconds, a two-minute rebuttal that ran out of argument. It is
- * deliberately NOT "close the floor" — the trial carries on, the mode simply
+ * deliberately NOT "close the floor" - the trial carries on, the mode simply
  * moves to whatever came next anyway, so the GM is skipping a timer rather
  * than ending a scene.
  *
@@ -404,7 +404,7 @@ export async function advanceFloorNow() {
      * an open debate.
      *
      * The two are easy to confuse because of what they are called here:
-     * `FLOOR_MODES.discussion` is the OPEN DEBATE — a floor, with a budget and
+     * `FLOOR_MODES.discussion` is the OPEN DEBATE - a floor, with a budget and
      * a clock the GM is watching. The trial's own discussion is no floor at
      * all, which is what the console calls "in open discussion".
      *
@@ -419,10 +419,10 @@ export async function advanceFloorNow() {
 
 /**
  * Objection runs out into rebuttal; rebuttal runs out into the trial's own
- * discussion — which is NO FLOOR, not the open debate that shares its name.
+ * discussion - which is NO FLOOR, not the open debate that shares its name.
  *
- * EVERY client counts the clock — that is the point of deriving it from
- * `startedAt` — but exactly ONE client may write the transition, or two GMs
+ * EVERY client counts the clock - that is the point of deriving it from
+ * `startedAt` - but exactly ONE client may write the transition, or two GMs
  * would both notice the same expiry in the same second and write it twice,
  * restarting the next mode's timer on the second write. `isPrimaryGm()` is the
  * same guard `trial.mjs` already uses to keep two GMs from racing on the
@@ -440,7 +440,7 @@ async function advanceIfDue() {
     try {
         if (floor.mode === FLOOR_MODES.objection) await openRebuttal();
         // Same rule when the clock runs it out as when the GM brings it
-        // forward — see `advanceFloorNow`.
+        // forward - see `advanceFloorNow`.
         else if (floor.mode === FLOOR_MODES.rebuttal) await endFloor();
     } catch (err) {
         error("Could not advance the trial floor to its next mode", err);
@@ -450,7 +450,7 @@ async function advanceIfDue() {
 /* ==========================================================================
  * THE CLOCK THAT MOVES THE MODES ALONG
  * --------------------------------------------------------------------------
- * THERE USED TO BE A BAR HERE, and it is now three rows of the campaign HUD —
+ * THERE USED TO BE A BAR HERE, and it is now three rows of the campaign HUD -
  * see `buildTimeRow`, `paintElapsed` and `buildRoom` in hud.mjs. It appeared in
  * the place the table reads the time of day, at the one moment in a session
  * nobody has attention to spare for furniture moving, and it said three things
@@ -459,7 +459,7 @@ async function advanceIfDue() {
  * What CANNOT move to the HUD is this: the one-second heartbeat that notices a
  * mode has run out and writes the transition. It has to keep running whether or
  * not anybody is looking at a clock, and only the primary GM's tick does any
- * work (see `advanceIfDue`) — every other client is counting the same seconds
+ * work (see `advanceIfDue`) - every other client is counting the same seconds
  * off the same timestamp and needs nobody's permission to do it.
  *
  * `renderTrialFloor` keeps its name because sync.mjs and module.mjs call it and
@@ -488,7 +488,7 @@ export function renderTrialFloor() {
 
         ticker = setInterval(() => {
             // The floor closing is what stops this, and it can close on another
-            // client — so the tick checks rather than trusting that somebody
+            // client - so the tick checks rather than trusting that somebody
             // remembered to call this function again.
             if (!trialFloor()) {
                 clearInterval(ticker);

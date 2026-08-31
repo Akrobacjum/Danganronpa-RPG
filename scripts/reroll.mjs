@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — the Reroll Hope Call.
+ * Danganronpa RPG - the Reroll Hope Call.
  * ---------------------------------------------------------------------------
  * Three Hope buys back the dice you have already thrown. Unlike every other
  * Hope Call this one looks backwards, so it is not armed and waited on: it acts
@@ -12,14 +12,14 @@
  *                 roll with new numbers rather than two contradictory rolls
  *   Hope / Sanity Daggerheart's own `DualityRoll#reroll` reverses these, since
  *                 it already knows what the previous duality granted
- *   Despair       ours, not the system's — a Despair result that becomes a Hope
+ *   Despair       ours, not the system's - a Despair result that becomes a Hope
  *                 result has to hand the point back to the Monokuma that got it
  *   the action    whatever the roll actually did is undone and redone against
  *                 the new number: project progress, the item a Search drew, the
  *                 Remnant it left, the freeze and repair a Sabotage caused
  *
  * Which action to replay comes off the bookmark `rollTrait` writes. Until that
- * bookmark carried an `actionKey`, only Work on Project ever recorded one — so
+ * bookmark carried an `actionKey`, only Work on Project ever recorded one - so
  * Reroll genuinely did nothing but re-roll the dice for every other action,
  * which is exactly how "it only works on projects" happened.
  *
@@ -36,14 +36,14 @@ import { resolveThreshold, replaceFlag, log, error, plural } from "./utils.mjs";
  *
  * `Roll#reroll()` is `clone()` then `evaluate()`, and `clone()` is
  * `new this.constructor(this._formula, this.data, this.options)`. For a
- * `DualityRoll` that constructor calls `constructFormula()` immediately — which
+ * `DualityRoll` that constructor calls `constructFormula()` immediately - which
  * throws the passed formula away and rebuilds the terms from
  * `this.advantageNumber`. On a brand-new instance that field has not been
  * initialised yet (a class field runs after `super()` returns), so it reads as
  * `undefined` and the advantage die is built with `number: 1`.
  *
  * Which was invisible until E7, because one die rebuilt as one die. Now a roll
- * made with three advantage dice came back from a Reroll with one — measured on
+ * made with three advantage dice came back from a Reroll with one - measured on
  * the sandbox: `1d12 + 1d12 + 2d6kh` went in and `1d12 + 1d12 + 1d6` came out.
  * That is exactly the silent loss Reroll exists not to inflict: a player spends
  * three Hope to throw the dice again and is quietly handed a weaker roll than
@@ -52,7 +52,7 @@ import { resolveThreshold, replaceFlag, log, error, plural } from "./utils.mjs";
  * So the clone is made here, told how many dice it is meant to have, and asked
  * to build its formula again. `constructFormula` re-reads the same options the
  * clone already carries, so the experiences, the extra formula and the flat
- * modifiers come back with it — this adds the one thing the round trip drops
+ * modifiers come back with it - this adds the one thing the round trip drops
  * and changes nothing else.
  *
  * The one-die case still goes through `reroll()` untouched. It is the system's
@@ -73,7 +73,7 @@ async function rerollKeepingDice(original) {
  * How many bonus dice this roll was thrown with.
  *
  * Read off the die itself rather than from `advantageNumber`, which is the
- * field the round trip loses — the TERM survives serialisation with its count
+ * field the round trip loses - the TERM survives serialisation with its count
  * intact, so the dice are their own record of how many there were.
  */
 function advantageDice(roll) {
@@ -126,16 +126,16 @@ export async function rerollLastAction(actor) {
 
     // Undo and replay the action itself. Every branch returns the bookmark
     // fields it changed, so the flag is written once, at the end, from the state
-    // the replay actually left behind. Writing it from the pre-reroll bookmark —
-    // which is what used to happen — put the OLD progress figure back on the
+    // the replay actually left behind. Writing it from the pre-reroll bookmark -
+    // which is what used to happen - put the OLD progress figure back on the
     // flag straight after the replay had corrected it, so a second Reroll
     // subtracted a number the project no longer held.
     const patch = await replayAction(actor, bookmark, after, done);
 
     try {
         // Replacement, matching `rememberRoll`: the spread below is the whole
-        // of the new bookmark, so a `patch` that nulls a field it consumed —
-        // an item it removed, a Remnant it retuned — actually clears it.
+        // of the new bookmark, so a `patch` that nulls a field it consumed -
+        // an item it removed, a Remnant it retuned - actually clears it.
         await replaceFlag(actor, FLAGS.lastAction, {
             ...(bookmark ?? {}),
             ...patch,
@@ -172,7 +172,7 @@ function findMessage(actor, bookmark) {
     }
 
     // Bounded scan. Reroll undoes "your last action", not "the last roll you
-    // ever made" — without a cutoff the fallback happily reached back into a
+    // ever made" - without a cutoff the fallback happily reached back into a
     // previous session and rewrote a roll nobody remembered making.
     const cutoff = Date.now() - REROLL_WINDOW_MINUTES * 60_000;
 
@@ -300,7 +300,7 @@ async function replayAction(actor, bookmark, after, done) {
             case "cleanup": return await settleCleanup(actor, bookmark, after, done);
             // NO `case "tamper"`. The Tamper tile is a second door into
             // cleanup.mjs and its rolls are bookmarked `cleanup` like every
-            // other one that goes through there — `cleanupKey` inside the
+            // other one that goes through there - `cleanupKey` inside the
             // bookmark is what says which of the three it was, and that is
             // read one line down rather than out here.
             case "steal": return await settleSteal(actor, bookmark, after, done);
@@ -338,8 +338,8 @@ async function settleProgress(actor, bookmark, after, done) {
     const def = ACTIONS.project;
     const hit = after.isCritical ? def.critical : resolveThreshold(after.total, def.thresholds);
 
-    // The bonus an indirect murder earned — for working alone, or for
-    // concealing intent on a Despair roll — is not recomputable from the
+    // The bonus an indirect murder earned - for working alone, or for
+    // concealing intent on a Despair roll - is not recomputable from the
     // dice, so it is carried on the bookmark and re-applied on top of the
     // new threshold result. Scoring the new roll on thresholds alone while
     // subtracting a stored total that included the bonus quietly destroyed
@@ -356,7 +356,7 @@ async function settleProgress(actor, bookmark, after, done) {
     }));
 
     // A critical on a project hands the action back. If the reroll gains or
-    // loses the critical, that action has to move with it — otherwise a player
+    // loses the critical, that action has to move with it - otherwise a player
     // could reroll a crit away and keep the free action it paid for.
     const refunded = await settleActionRefund(actor, bookmark, Boolean(hit?.refundAction), done);
 
@@ -416,7 +416,7 @@ async function settleSearch(actor, bookmark, after, done) {
     }
 
     // 3. The trace. Only murder and cleaning gear leaves one, per the guide, and
-    //    only a Search that actually found something — but a Search that failed
+    //    only a Search that actually found something - but a Search that failed
     //    and is now a success has to leave the trace it never earned first time.
     const leaves = Boolean(bookmark.category) && bookmark.category !== "usable";
     const visibility = found
@@ -448,7 +448,7 @@ async function settleSearch(actor, bookmark, after, done) {
  * Take back a Sabotage and run it again.
  *
  * The freeze and the repair project the first roll created are removed, then the
- * new score decides whether — and how badly — the target breaks this time. The
+ * new score decides whether - and how badly - the target breaks this time. The
  * concealment penalty the pre-roll earned still applies: it was not part of this
  * roll and is not undone by rerolling it.
  */
@@ -487,7 +487,7 @@ async function settleSabotage(actor, bookmark, after, done) {
         done.push(game.i18n.localize("DRPG.Reroll.sabotageNowFails"));
     }
 
-    // 3. Sabotage always leaves a trace, success or not — only how loud changes.
+    // 3. Sabotage always leaves a trace, success or not - only how loud changes.
     const visibility = success ? hit.remnant : def.failureRemnant;
     const name = allProjects().find(p => p.id === bookmark.targetProjectId)?.name ?? "?";
 
@@ -545,19 +545,19 @@ async function settleDynamic(actor, bookmark, after, done) {
 }
 
 /**
- * Listen leaves nothing behind, so there is nothing to undo — the new number
+ * Listen leaves nothing behind, so there is nothing to undo - the new number
  * simply buys a different amount of information about the same room.
  */
 /**
  * Take back an Observe and score it again.
  *
  * The target does not move. The character was looking at one particular trace
- * and the Hope is buying back the dice, not the search — so the new number is
+ * and the Hope is buying back the dice, not the search - so the new number is
  * measured against the same Remnant and the same difficulty.
  *
  * All of that lives on the GM's client, which is also where the first result
  * was recorded, so the replay is one message: "same target, new number, undo
- * what the last one did". This side deliberately cannot compute the outcome —
+ * what the last one did". This side deliberately cannot compute the outcome -
  * see observe.mjs for why.
  */
 async function settleObserve(actor, bookmark, after, done) {
@@ -590,7 +590,7 @@ async function settleObserve(actor, bookmark, after, done) {
  * Everything is done on the GM's client, because everything a crisis action
  * touches is: the other participant's sheet, the map, the shared incident
  * state. This side sends which action, the new number, and "take the old one
- * back first" — see `undoLastCrisis` in murder.mjs for what that involves.
+ * back first" - see `undoLastCrisis` in murder.mjs for what that involves.
  *
  * The turn is NOT spent twice. Rewinding restores whose turn it was, and the
  * replay passes it again, so the action costs one turn in total however many
@@ -623,7 +623,7 @@ async function settleCrisis(actor, bookmark, after, done) {
  * Take back a Stage 6 clean-up and run it again.
  *
  * The trace it erased comes back, the trace a botched wipe left is removed, and
- * the Sanity is refunded before the new number is scored — so a reroll costs the
+ * the Sanity is refunded before the new number is scored - so a reroll costs the
  * Hope and one attempt's Sanity, not two attempts' worth.
  *
  * `bookmark.cleanup` is the Remnant token id, written by `attemptCleanup`
@@ -642,7 +642,7 @@ async function settleCleanup(actor, bookmark, after, done) {
      * of them and an ACTION NAME for the other two. Sent down this path a
      * rerolled misleading trail arrived at `resolveCleanup` as a token id
      * reading "misleadingTrail", which found no such token and reported the
-     * trace as having vanished — a reroll that quietly did nothing and said
+     * trace as having vanished - a reroll that quietly did nothing and said
      * something false about why.
      *
      * `cleanupKey` (E12) is what tells them apart. The other two are not
@@ -656,7 +656,7 @@ async function settleCleanup(actor, bookmark, after, done) {
     // Both of the actions that AIM AT A TRACE can be replayed, because both
     // have an undo: an erased trace is re-created from its recorded shape, and
     // a reshaped one is retuned back to what it was. The two that roll against
-    // a flat threshold still cannot — see above.
+    // a flat threshold still cannot - see above.
     if (key !== "eraseTrace" && key !== "transformTrace") {
         done.push(game.i18n.localize("DRPG.Reroll.trailStands"));
         return {};
@@ -687,15 +687,15 @@ async function settleCleanup(actor, bookmark, after, done) {
  * A theft cannot be taken back, and this says so instead of pretending.
  *
  * Without a branch here Steal fell through to the default, which pushes "this
- * roll left no lasting effect" — and a theft is the one action in the game
+ * roll left no lasting effect" - and a theft is the one action in the game
  * where that sentence is most obviously false: an item moved between two
  * sheets and, half the time, somebody was told about it (trap 94).
  *
  * Undoing it is not a technical problem, it is a fiction one. Giving the item
  * back means the victim WATCHES it come back, which is a bigger tell than the
  * theft was; and a victim who was already told they were robbed cannot be
- * untold. So the dice are rewritten — that is what the three Hope bought, and
- * on a failed theft it is genuinely worth having — and the table is told
+ * untold. So the dice are rewritten - that is what the three Hope bought, and
+ * on a failed theft it is genuinely worth having - and the table is told
  * plainly that the world did not move with them.
  */
 async function settleSteal(actor, bookmark, after, done) {
@@ -712,7 +712,7 @@ async function settleSteal(actor, bookmark, after, done) {
  *
  * Only the evidence branch reaches this: asking the GM for a hint is a ruling,
  * so it carries `gmRuled` and is re-asked instead. The GM's client winds the
- * bullet back to unidentified and unlocked before applying the new number —
+ * bullet back to unidentified and unlocked before applying the new number -
  * which also means a Reroll can lift a lock the first roll had just stamped on.
  */
 async function settleAnalyze(actor, bookmark, after, done) {
@@ -749,7 +749,7 @@ async function settleListen(actor, bookmark, after, done) {
     if (after.isCritical) {
         for (const room of neighbouringRooms(bookmark.room)) {
             const who = occupantsOf(room, actor).map(a => a.name);
-            done.push(`${room} — ${who.length ? who.join(", ") : game.i18n.localize("DRPG.Listen.empty")}`);
+            done.push(`${room} - ${who.length ? who.join(", ") : game.i18n.localize("DRPG.Listen.empty")}`);
         }
     } else if (hit && hit.min >= namedFrom) {
         const who = occupantsOf(target, actor).map(a => a.name);
@@ -793,7 +793,7 @@ async function settleGmRuling(actor, bookmark, after, done) {
         })}</p>`,
         // Only "reply". A re-asked ruling has already been paid for once and
         // the reroll spent its own price, so there is nothing here to hand back
-        // — the GM either answers again or the first answer simply stands.
+        // - the GM either answers again or the first answer simply stands.
         actions: [{
             action: "reply",
             label: game.i18n.localize("DRPG.Bridge.reply"),
@@ -828,7 +828,7 @@ async function settleGmRuling(actor, bookmark, after, done) {
  * @param {string|null} visibility  New band, or null when there should be none.
  * @param {object|null} [drop]      What to create if there is no trace yet.
  * @param {{isCritical?: boolean, withHope?: boolean}|null} [gate]  The reroll's
- *   new duality result — see `traceFeedback` in remnants.mjs. Never the exact
+ *   new duality result - see `traceFeedback` in remnants.mjs. Never the exact
  *   band, same as every other action that can leave one.
  * @returns {Promise<object>} bookmark fields describing where the trace now is.
  */

@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — locking down the roll dialog.
+ * Danganronpa RPG - locking down the roll dialog.
  * ---------------------------------------------------------------------------
  * Daggerheart's roll window lets the roller swap dice, pick a trait, toggle
  * advantage and spend Hope on experiences. In this game none of that is the
@@ -8,7 +8,7 @@
  *   dice          fixed at d12/d12 by the guide
  *   trait         chosen before the dialog, by the action or by the GM
  *   advantage     granted by a Hope Call or a Despair Call, never self-served
- *   experiences   a Hope Call — so it must not silently charge Hope here
+ *   experiences   a Hope Call - so it must not silently charge Hope here
  *
  * The dialog is found by its `roll-selection` CSS class rather than by class
  * name, so a system rename cannot quietly disable this.
@@ -22,7 +22,7 @@ import { pendingCall, situationalAdvantage } from "./call-effects.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { isBrokenDown } from "./character.mjs";
 import { debug } from "./utils.mjs";
-// One string, and nothing in action-rolls.mjs reaches back here — the roll
+// One string, and nothing in action-rolls.mjs reaches back here - the roll
 // dialog is opened BY the system, not by that file.
 import { DRPG_ACTION_ROLL } from "./action-rolls.mjs";
 
@@ -33,7 +33,7 @@ export function registerRollDialog() {
 
 /**
  * A Call buys one roll. Consuming the flag when the dialog is submitted covers
- * traits rolled straight from the sheet as well as actions — otherwise advantage
+ * traits rolled straight from the sheet as well as actions - otherwise advantage
  * bought for one roll silently stayed switched on for every roll afterwards.
  *
  * `config` is set to `false` by the dialog when it closes unsubmitted, so
@@ -72,7 +72,7 @@ function onRenderApplication(app, element) {
     if (!root?.classList?.contains?.("roll-selection")) return;
 
     try {
-        // The submit button's die. The system draws `fa-dice` — a d6 pair from
+        // The submit button's die. The system draws `fa-dice` - a d6 pair from
         // a game with no d6 in it. This one rolls two d12s and the module says
         // so; a class swap in the render hook because the glyph lives in the
         // system's template, not in anything CSS can reword.
@@ -84,7 +84,7 @@ function onRenderApplication(app, element) {
         const actor = actorOf(app);
 
         // A Free Critical opens a roll window whose outcome is already
-        // decided, and the window should say so before the dice do. Red — the
+        // decided, and the window should say so before the dice do. Red - the
         // sanctioned exception to "red means the GM" (Dawid, 26.08): this is
         // the rarest, most expensive thing a player can buy, and the six Hope
         // deserve a window that does not look like every other roll.
@@ -95,7 +95,7 @@ function onRenderApplication(app, element) {
         if (!isStudentRoll(actor)) return;
 
         // BEFORE the general lock, because it changes what the roll IS rather
-        // than what the player may touch — and because it applies whether or
+        // than what the player may touch - and because it applies whether or
         // not the lock is on. "Let the players drive their own roll window"
         // cannot also mean "let them mint Hope by clicking a statistic".
         forceReaction(root, app);
@@ -109,7 +109,7 @@ function onRenderApplication(app, element) {
         // the rules.
         //
         // "Let the players drive their own roll window" is what this setting
-        // says. It cannot also mean "Breakdown stops existing" — the guide's
+        // says. It cannot also mean "Breakdown stops existing" - the guide's
         // "przy utracie całego stresu dostaje disadvantage na każdy rzut" is a
         // penalty, and a penalty nobody applies to themselves is a penalty that
         // is not in the game. So the state modifier is imposed either way; only
@@ -129,8 +129,8 @@ function onRenderApplication(app, element) {
  * Daggerheart's reaction roll is a duality roll that pays nothing, and that is
  * exactly the right shape for the other reason somebody rolls in this game: a
  * GM says "roll Body" and the player clicks the statistic on their sheet. It
- * is not an action — nothing was declared, nothing was spent, no room was
- * involved — so it must not feed the economy either.
+ * is not an action - nothing was declared, nothing was spent, no room was
+ * involved - so it must not feed the economy either.
  *
  * MEASURED, AND IT WAS FEEDING IT. `onChatMessage` in despair-award.mjs fires
  * on any duality message: every bare statistic click was pushing a point into a
@@ -152,7 +152,7 @@ function forceReaction(root, app) {
 
     const actor = actorOf(app);
     if (!isStudentRoll(actor)) return;
-    // An action declared it. Leave the chip alone — a player may legitimately
+    // An action declared it. Leave the chip alone - a player may legitimately
     // want a reaction roll for an action in some corner the guide has not
     // reached, and this is not the place to decide they cannot.
     if (app?.config?.[DRPG_ACTION_ROLL]) return;
@@ -163,7 +163,7 @@ function forceReaction(root, app) {
     app.reactionOverride = true;
     app.config.actionType = "reaction";
 
-    // And painted here for the same reason — the template will draw it selected
+    // And painted here for the same reason - the template will draw it selected
     // on the next render, and there may not be one.
     chip.classList.add("selected", "drpg-locked");
     chip.querySelector("i")?.classList?.replace("fa-regular", "fa-solid");
@@ -175,13 +175,13 @@ function forceReaction(root, app) {
  * Should this particular roll be locked down?
  *
  * The lock exists to stop a *student* from picking their own advantage, trait
- * or experience outside a Call — it has nothing to do with who is logged in.
+ * or experience outside a Call - it has nothing to do with who is logged in.
  * Gating it on `game.user.isGM` instead meant every roll a GM triggered went
  * unlocked, including a student's own Sabotage or Work on Project: a GM can
  * open any student's sheet and click its action grid exactly as the player
  * can (and `game.drpg.performAction(actor, ...)` exists for exactly this),
  * and that roll was walking straight past every restriction
- * this file exists to enforce. Monokuma is exempt on purpose — they run on
+ * this file exists to enforce. Monokuma is exempt on purpose - they run on
  * Despair, not the Call economy, and have no action grid to lock in the
  * first place.
  */
@@ -193,7 +193,7 @@ function isStudentRoll(actor) {
  * The actor this dialog is rolling for.
  *
  * `config.source.actor` is the documented route, but it is not always populated
- * — a trait rolled straight from the sheet can leave it empty, and then nothing
+ * - a trait rolled straight from the sheet can leave it empty, and then nothing
  * downstream could tell which character's Calls to honour. Every other handle
  * the config offers is tried before giving up.
  */
@@ -235,14 +235,14 @@ function actorOf(app) {
  * for ONE window that is about to open on this very client, microseconds from
  * now, in the same call stack. An actor flag would be an asynchronous write
  * racing the dialog it is meant to configure, and a persisted one would outlive
- * the roll it was for — the failure being a player who gets the choice on the
+ * the roll it was for - the failure being a player who gets the choice on the
  * next roll too, which is the whole thing this is meant not to do.
  *
  * CLAIMED BY ONE DIALOG, THEN HELD FOR ITS LIFETIME. The first version
  * consumed the permission on read, which was right about "one permission, one
  * roll" and wrong about how often it is read: `lockControls` runs on EVERY
  * render, and this dialog submits on change, so the second render found
- * nothing and locked the select again. Measured on the E23 round — the picker
+ * nothing and locked the select again. Measured on the E23 round - the picker
  * appeared disabled with the "chosen before this window opened" tooltip.
  *
  * So the value is claimed once, by the first dialog to ask, and remembered
@@ -278,7 +278,7 @@ function locking() {
 
 /**
  * Selecting an experience adds a Hope cost to the roll. In this game spending
- * Hope on an experience is the "Experience" Hope Call, paid deliberately — not
+ * Hope on an experience is the "Experience" Hope Call, paid deliberately - not
  * a silent charge for ticking a box. The cost is removed on every render, which
  * is also every time the config changes, because the dialog submits on change.
  */
@@ -294,7 +294,7 @@ function stripExperienceCosts(app) {
 }
 
 /**
- * Disable everything a player should not be choosing — unless a Call has paid
+ * Disable everything a player should not be choosing - unless a Call has paid
  * for it. A Hope Call is the permission slip: Ultimate buys advantage,
  * Experience buys the experience chips, Determination buys the trait picker.
  */
@@ -302,7 +302,7 @@ function lockControls(root, app) {
     const actor = actorOf(app);
     const armed = actor ? pendingGrants(actor) : null;
 
-    // Dice size: fixed by the rules, always — the advantage die INCLUDED.
+    // Dice size: fixed by the rules, always - the advantage die INCLUDED.
     // This used to skip the advantage selects while advantage was armed, on
     // the reasoning that the Call had bought the player the controls. It had
     // bought them the DIE: the guide's advantage is one d6, and the unlocked
@@ -310,7 +310,7 @@ function lockControls(root, app) {
     // 26.08: locked).
     // Both selector shapes on purpose: the hope/fear dice are named
     // `roll.dice.*`, while the advantage pair (count and faces) sits in the
-    // modifier fieldset's `.nest-inputs` — one net would miss the other.
+    // modifier fieldset's `.nest-inputs` - one net would miss the other.
     for (const select of root.querySelectorAll(
         'select[name^="roll.dice."], .modifier-container .nest-inputs select'
     )) {
@@ -318,7 +318,7 @@ function lockControls(root, app) {
     }
 
     /*
-     * Trait: chosen before this window opened — with two exceptions.
+     * Trait: chosen before this window opened - with two exceptions.
      *
      *   Determination (`armed === "trait"`) buys the whole picker. That is what
      *   the Call is FOR, so nothing is narrowed.
@@ -344,7 +344,7 @@ function lockControls(root, app) {
          * `instinct`, `finesse` and the rest. The catalogue hands us `eye` and
          * `hand`, which are this module's names for two of them. Comparing the
          * two vocabularies directly matched nothing, so the filter would have
-         * removed EVERY option and left an empty menu — the lock winning the
+         * removed EVERY option and left an empty menu - the lock winning the
          * race is the only reason that never reached a screen.
          *
          * `TRAITS[key].dh` is the mapping and the one place it lives.
@@ -369,7 +369,7 @@ function lockControls(root, app) {
     // buttons are locked. Otherwise a player could simply decline the
     // disadvantage a Monokuma just paid two Despair for.
     //
-    // Two sources feed in — a Call somebody paid Hope or Despair for, and the
+    // Two sources feed in - a Call somebody paid Hope or Despair for, and the
     // situation itself (searching a fitting room, digging through a hidden
     // stash). They are added and clamped, so they cancel rather than one
     // silently outranking the other: a Monokuma's Obstacle against a player
@@ -388,7 +388,7 @@ function lockControls(root, app) {
         //
         // ONE SOURCE GETS ITS OWN SENTENCE; two or more get the list. This used
         // to fall back to "set by where you are and what you are looking for"
-        // for everything that was not a Call — which told a character in
+        // for everything that was not a Call - which told a character in
         // Breakdown that the disadvantage they carry everywhere came from the
         // room they happen to be standing in. Measured on the live window with
         // Sanity full: the chip was correctly selected and locked, and correctly
@@ -400,7 +400,7 @@ function lockControls(root, app) {
         // being held to. The list is used the moment there is more than one.
         //
         // The window opens on every roll again (28.08), so this is no longer
-        // the only sentence explaining why a modifier is there — but it is
+        // the only sentence explaining why a modifier is there - but it is
         // still the only one that says WHICH source put it there.
         const reason = explainAdvantage(sign, count, capped, sources);
 
@@ -427,12 +427,12 @@ function lockControls(root, app) {
     }
 
     // Experiences: always visible, greyed out, and selectable only while the
-    // Experience Call is armed — at which point they are selected and frozen.
+    // Experience Call is armed - at which point they are selected and frozen.
     const chips = root.querySelectorAll('[data-action="selectExperience"]');
     if (armed === "experience") {
         // The Call buys ONE experience, and which one is the player's choice:
         // "the subject of the roll must be connected to the experience". The
-        // chips are therefore unlocked, not force-selected — selecting every
+        // chips are therefore unlocked, not force-selected - selecting every
         // experience the character owns was adding all of them to the total, so
         // a 1-Hope Call was worth +4 on a starting character with two.
         for (const chip of chips) unlock(chip, "DRPG.RollDialog.pickOneExperience");
@@ -442,13 +442,13 @@ function lockControls(root, app) {
     }
 
     // Selecting an experience normally adds a Hope cost. The Call has already
-    // been paid for, so the cost block is meaningless here — remove it.
+    // been paid for, so the cost block is meaningless here - remove it.
     hideCostSection(root);
 
     if (armed === "critical") announceFreeCritical(root);
 
     // Free-text bonus. Ordinarily a back door around everything above, so it
-    // stays disabled — except for `grants: "bonus"`, the one Call that IS a
+    // stays disabled - except for `grants: "bonus"`, the one Call that IS a
     // flat modifier (Monocub's Meddle at its lower tier). Imposed the same way
     // advantage is: pre-filled and read-only, not offered for the player to
     // edit or clear.
@@ -456,9 +456,9 @@ function lockControls(root, app) {
     if (extra) {
         const amount = armed === "bonus" ? pendingAmount(actor) : null;
         if (amount) {
-            // Unlike advantage, a flat bonus only ever comes from a Call —
+            // Unlike advantage, a flat bonus only ever comes from a Call -
             // `situationalAdvantage()` deals in advantage/disadvantage, not
-            // in numbers — so the tooltip does not need the two-way check above.
+            // in numbers - so the tooltip does not need the two-way check above.
             extra.value = amount > 0 ? `+${amount}` : `${amount}`;
             unlock(extra, "DRPG.RollDialog.forcedByCall");
             extra.readOnly = true;
@@ -476,21 +476,21 @@ function lockControls(root, app) {
  * A WINDOW WITH NOTHING IN IT USED TO PRESS ITS OWN BUTTON, AND NO LONGER DOES.
  *
  * `maybeRollItself` lived here. With the lock on and no Call armed the dialog
- * offers a student nothing — the dice are fixed by the guide, the trait was
+ * offers a student nothing - the dice are fixed by the guide, the trait was
  * chosen before the window opened, advantage is not self-served, the
  * experiences are greyed out, the bonus field is disabled and the roll mode is
- * the module's — so what was left looked like a modal whose only live element
+ * the module's - so what was left looked like a modal whose only live element
  * meant "yes".
  *
  * That reasoning was about the CONTROLS, and the controls were never the whole
  * of what the window is. It is the beat between deciding and finding out. It is
  * where the two faces and the modifier are read before the total lands. It is
  * where a player sees the red border of a Free Critical, or a disadvantage chip
- * they did not expect. And it is the last place to stop — the briefing's Cancel
+ * they did not expect. And it is the last place to stop - the briefing's Cancel
  * is one screen and one decision earlier, which is not the same thing as being
  * able to change your mind with the dice in your hand.
  *
- * Removed on Dawid's call, 28.08: "to regresja. Nie chcemy tego — przywróćmy
+ * Removed on Dawid's call, 28.08: "to regresja. Nie chcemy tego - przywróćmy
  * ekran rzutu." Everything `lockControls` does stays exactly as it was; what
  * goes is only the automatic press.
  */
@@ -499,8 +499,8 @@ function lockControls(root, app) {
  * What the armed Call on this actor permits, if anything.
  *
  * Read through `pendingCall` rather than off the flag directly, so a roll that
- * has deliberately shielded itself from the armed Call — a sabotage's
- * concealment roll, an indirect murder hiding its traces — opens the same locked
+ * has deliberately shielded itself from the armed Call - a sabotage's
+ * concealment roll, an indirect murder hiding its traces - opens the same locked
  * window as any other supporting roll. Reading the flag here while the roll
  * pipeline was ignoring it handed the advantage to the wrong dice.
  */
@@ -512,7 +512,7 @@ function pendingGrants(actor) {
     }
 }
 
-/** The magnitude behind a `grants: "bonus"` Call — see armCall's `amount`. */
+/** The magnitude behind a `grants: "bonus"` Call - see armCall's `amount`. */
 function pendingAmount(actor) {
     try {
         return pendingCall(actor)?.amount ?? null;
@@ -550,20 +550,20 @@ function stateGrant(actor) {
  * --------------------------------------------------------------------------
  * CANCELLING ALREADY WORKED. The three sources were summed and then clamped to
  * [-1, 1], so a player's advantage and a Monokuma's Obstacle met and produced a
- * normal roll — which is right, and is the half of this the module got correct
+ * normal roll - which is right, and is the half of this the module got correct
  * from the start.
  *
  * WHAT THE CLAMP ALSO DID was flatten two advantages into one. Every source
  * beyond the first was silently free: a Hope Call spent in a room that favours
  * exactly what you are looking for bought nothing the room had not already
- * given. And the arithmetic being thrown away was real — `performSearch` sums a
+ * given. And the arithmetic being thrown away was real - `performSearch` sums a
  * favouring room, a hindering room and a concealed stash; a crisis roll sums a
  * weapon in hand, a second try after a miss and the guide's compensation for
  * dying alone to a trap. All of it computed, then rounded to a sign.
  *
  * So the sum stands and only its SIZE is capped. Disadvantage subtracts from
  * the same total, which means a Monokuma's Obstacle takes away one die rather
- * than the whole bonus — the cancelling behaviour, kept, now with a scale
+ * than the whole bonus - the cancelling behaviour, kept, now with a scale
  * underneath it.
  *
  * THREE IS THE CEILING. Above it the difference stops being measurable: `kh` on
@@ -596,7 +596,7 @@ function advantageSources(actor, armed) {
     if (fromRoom) sources.push({ key: "situation", value: fromRoom });
 
     // The guide's "Gracz przy utracie całego stresu dostaje disadvantage na
-    // każdy rzut" — a standing penalty that was declared in config and never
+    // każdy rzut" - a standing penalty that was declared in config and never
     // reached a die until it was wired here.
     const fromState = stateGrant(actor);
     if (fromState) sources.push({ key: "state", value: fromState });
@@ -630,8 +630,8 @@ function explainAdvantage(sign, count, capped, sources) {
             source.value > 0 ? "+" : "\u2212"}${Math.abs(source.value)}`)
         .join(", ");
 
-    // THREE SHAPES, NOT TWO. Several sources can still come to one die — a Call
-    // against a doubly hostile room is exactly that — and the counting sentence
+    // THREE SHAPES, NOT TWO. Several sources can still come to one die - a Call
+    // against a doubly hostile room is exactly that - and the counting sentence
     // then has to say "1 dice", which is the sort of thing a player reads as the
     // module not knowing what it is doing. So that case gets its own wording,
     // which is about the sources rather than about the number.
@@ -653,7 +653,7 @@ function explainAdvantage(sign, count, capped, sources) {
  * Trap 55: this window opens for a student ONLY when something is forced, so
  * the chip is the entire report. A chip that looks identical at one die and at
  * three tells a player they have advantage while saying nothing about the
- * advantage they are actually getting — and the tooltip is a hover away on a
+ * advantage they are actually getting - and the tooltip is a hover away on a
  * modal they are about to dismiss with the one live button on it.
  *
  * Appended rather than written into the label: the label is the system's, and
@@ -679,8 +679,8 @@ function disable(el, tooltipKey) {
 /**
  * @param {string} tooltip  A lang KEY, or text already built.
  *   `game.i18n.localize` returns its argument unchanged when there is no such
- *   key, so the stacked explanation — which is assembled from three strings and
- *   a list — passes through untouched. One parameter rather than two, because a
+ *   key, so the stacked explanation - which is assembled from three strings and
+ *   a list - passes through untouched. One parameter rather than two, because a
  *   second one would have to be threaded through every one of the nine call
  *   sites that only ever pass a key.
  */
@@ -696,7 +696,7 @@ function lockChip(chip, tooltip) {
  *
  * The buttons are cosmetic; the roll reads `config.roll.advantage` and
  * `config.experiences`. Both are written directly, so the modifier is real even
- * though the player never clicked anything — and cannot be clicked away, since
+ * though the player never clicked anything - and cannot be clicked away, since
  * the buttons are locked immediately afterwards.
  *
  * Each dialog is forced once. Writing the config triggers a re-render, which
@@ -711,11 +711,11 @@ const forced = new WeakMap();
  * The count is Daggerheart's own: `DualityRoll` carries `advantageNumber`, and
  * its `applyAdvantage()` builds `new advDieClass({faces, number})` and attaches
  * `kh` as soon as the number is above one. So two advantage dice are 2d6 keep
- * the highest — not 2d6 added — and it renders in the formula and in Dice So
+ * the highest - not 2d6 added - and it renders in the formula and in Dice So
  * Nice with nothing further from us.
  *
  * THE GUARD REMEMBERS THE PAIR, NOT THE FACT (trap 53). It used to be a
- * WeakSet, which answers "has this dialog been forced" — and that was enough
+ * WeakSet, which answers "has this dialog been forced" - and that was enough
  * while there was only ever one thing to force. It is not enough now: a dialog
  * whose advantage is already 1 would satisfy the old early-out and never get
  * its second die, so a Hope Call in a favouring room would quietly be worth the
@@ -728,7 +728,7 @@ function forceAdvantage(app, advantage, count = 1) {
         const want = `${advantage}:${count}`;
         if (forced.get(app) === want) return;
 
-        // Already exactly right — from a previous pass, or because the player
+        // Already exactly right - from a previous pass, or because the player
         // is a Monokuma whose window we do not lock. Recorded so the next
         // render short-circuits above rather than re-deriving this.
         if (app.config.roll.advantage === advantage
@@ -763,7 +763,7 @@ function forceAdvantage(app, advantage, count = 1) {
  *
  * Daggerheart's own chip handler appends to `config.experiences`, so nothing
  * stops someone ticking all of them. The Call paid for one, so anything beyond
- * the most recent pick is dropped — which reads as "clicking a second one moves
+ * the most recent pick is dropped - which reads as "clicking a second one moves
  * the choice" rather than as a refusal.
  *
  * No re-entrancy guard is needed: the length test below is what stops the render
@@ -785,7 +785,7 @@ function capExperiences(app) {
  * Remove the Hope-cost block.
  *
  * Experiences normally charge Hope when ticked. Here the Experience Hope Call
- * has already been paid, so the block would be charging twice — and offering a
+ * has already been paid, so the block would be charging twice - and offering a
  * checkbox that must not be unticked. `stripExperienceCosts` empties it from the
  * config; this clears the markup the current render already produced.
  */

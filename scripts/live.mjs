@@ -1,10 +1,10 @@
 /**
- * Danganronpa RPG — windows that stay true while they are open.
+ * Danganronpa RPG - windows that stay true while they are open.
  * ---------------------------------------------------------------------------
  * WHAT THIS IS FOR.
  *
  * Every window in this module reads world state and prints it. Almost all of
- * them read it ONCE, when they open, and then sit there — so a GM who opens the
+ * them read it ONCE, when they open, and then sit there - so a GM who opens the
  * panel, starts an Eclipse from the HUD and looks back at the panel is reading
  * the world as it was before they touched it. Dawid, 28.08: the murder tile
  * stays clickable through an Eclipse and only corrects itself when the window
@@ -25,14 +25,14 @@
  * A window is not only what it prints. It is also where the GM has scrolled to,
  * which sections they folded open, which field they are typing in, and what
  * they have typed into it but not yet saved. All four of those live in the DOM
- * and nowhere else, so a naive rebuild throws them away — and a rebuild that
+ * and nowhere else, so a naive rebuild throws them away - and a rebuild that
  * eats a half-typed rule while the GM is looking at the keyboard is a worse bug
  * than the stale window it was meant to fix.
  *
  * Hence the two rules below, and they are the whole design:
  *
  *   1. NEVER REDRAW UNDER THE CURSOR. If focus is inside the region, the
- *      rebuild waits until focus leaves. Not "preserve the caret" — wait. A
+ *      rebuild waits until focus leaves. Not "preserve the caret" - wait. A
  *      caret restored to character 14 of a field whose text changed underneath
  *      it is a subtler kind of wrong.
  *
@@ -42,7 +42,7 @@
  *      rebuild (`name`, `data-drpg-key`, `id`, or failing those the element's
  *      position in the region).
  *
- * The safest regions are the ones that have no fields at all — a status block,
+ * The safest regions are the ones that have no fields at all - a status block,
  * a row of tiles, a table of read-outs. Where a window is mostly a form, point
  * this at the read-out part and leave the form alone: a narrow live region is
  * worth more than a wide one that has to keep apologising.
@@ -59,8 +59,8 @@ import { debug, error } from "./utils.mjs";
  * setting alone does not: a change that arrived over the sync socket on a
  * client that did not write it, where no local setting update fires.
  *
- * Actor hooks are opt-in (`watch.actors`) because they are noisy — a Daggerheart
- * roll writes an actor several times — and most windows print nothing off one.
+ * Actor hooks are opt-in (`watch.actors`) because they are noisy - a Daggerheart
+ * roll writes an actor several times - and most windows print nothing off one.
  */
 const WORLD_HOOKS = ["drpgTimeOfDayChanged", "drpgEclipseChanged"];
 const ACTOR_HOOKS = ["updateActor", "createActor", "deleteActor"];
@@ -78,13 +78,13 @@ const living = new Set();
  * @param {string}   options.region  CSS selector for the element to replace. It
  *                                   is looked up inside the window each time, so
  *                                   a region that replaced itself last round is
- *                                   still found — which means `build` must
+ *                                   still found - which means `build` must
  *                                   return an element carrying the same class.
  * @param {Function} options.build   Returns the replacement: markup, or a node.
  * @param {object}  [options.watch]  `{ actors, tokens, items, settings, hooks }`.
  * @param {number}  [options.delay]  Debounce, ms.
  * @param {Function}[options.after]  Run after a successful rebuild, with the new
- *                                   element — for anything the region needs that
+ *                                   element - for anything the region needs that
  *                                   markup alone cannot carry.
  * @returns {Function} Stop listening. Idempotent; also called automatically
  *                     when the window closes or the region goes away.
@@ -97,7 +97,7 @@ export function keepLive(app, { region, build, watch = {}, delay = 120, after = 
 
     let stopped = false;
     /* Set when a refresh was wanted but the GM was typing inside the region.
-     * The pending redraw is not queued as a timer — it is answered by the
+     * The pending redraw is not queued as a timer - it is answered by the
      * `focusout` listener below, because "when they stop typing" is an event
      * and not a duration. */
     let pending = false;
@@ -107,7 +107,7 @@ export function keepLive(app, { region, build, watch = {}, delay = 120, after = 
 
     /**
      * @param {boolean} [force] Skip the focus check because the caller already
-     *   knows focus has left — see `onFocusOut`, which is told where focus went
+     *   knows focus has left - see `onFocusOut`, which is told where focus went
      *   and therefore knows better than `document.activeElement` does at that
      *   instant.
      */
@@ -123,7 +123,7 @@ export function keepLive(app, { region, build, watch = {}, delay = 120, after = 
         if (!force && isEditing(element)) {
             pending = true;
             record.deferred++;
-            debug(`live: ${region} deferred — focus is inside it`);
+            debug(`live: ${region} deferred - focus is inside it`);
             return;
         }
 
@@ -165,12 +165,12 @@ export function keepLive(app, { region, build, watch = {}, delay = 120, after = 
     })]);
 
     /* RULE 1's other half. Without this a deferred refresh waits for the next
-     * world change, which may never come — so the GM finishes typing and the
+     * world change, which may never come - so the GM finishes typing and the
      * window stays stale with no event left to wake it.
      *
      * `relatedTarget` IS THE ANSWER, AND ASKING FOR A FRAME WAS NOT.
      *
-     * The question here is "did focus leave the region, or move within it" —
+     * The question here is "did focus leave the region, or move within it" -
      * tabbing from one field to the next must not count as leaving. This used
      * to wait a frame and then read `document.activeElement`, because at
      * `focusout` time the new element does not have focus yet. It worked and it
@@ -216,12 +216,12 @@ export function keepLive(app, { region, build, watch = {}, delay = 120, after = 
      * REDRAW ON DEMAND, as well as when the world moves.
      *
      * A filter is a change to what the window should show that no document
-     * hook will ever report — nothing in the world changed, the reader did.
+     * hook will ever report - nothing in the world changed, the reader did.
      * Hanging it on the same rebuild is what keeps one path: the same capture
      * of scroll, folded sections, half-typed fields and which tab is showing.
      *
      * Attached to `stop` rather than returned beside it so every existing
-     * caller — all of which use the return value as a function — is untouched.
+     * caller - all of which use the return value as a function - is untouched.
      */
     stop.refresh = () => rebuild(true);
     return stop;
@@ -231,7 +231,7 @@ export function keepLive(app, { region, build, watch = {}, delay = 120, after = 
  * Is the person looking at this window in the middle of using it?
  *
  * Focus inside a text field, a select being chosen from, or something
- * contenteditable — all three are reasons to leave the DOM alone. A focused
+ * contenteditable - all three are reasons to leave the DOM alone. A focused
  * BUTTON is not: a button keeps focus after it is pressed, and a window whose
  * buttons freeze it the moment anybody clicks one is the stale window again
  * with extra steps.
@@ -259,7 +259,7 @@ function toElement(built) {
  * in this module, then the explicit opt-in, then `id`. The positional fallback
  * is last and is honest about what it is: it matches by shape, so it holds
  * while the region's structure is stable and gives up when it is not, which is
- * the right way round — a scroll position restored into the wrong box is worse
+ * the right way round - a scroll position restored into the wrong box is worse
  * than one that was not restored.
  */
 function keyFor(element, root) {
@@ -321,7 +321,7 @@ function capture(element) {
      * section does: it is a thing the person did to the window and the markup
      * does not carry it. A rebuild that drops the GM back onto the first tab
      * while they are reading the fourth is the cure being worse than the stale
-     * window — rule 2, in the shape tabs take.
+     * window - rule 2, in the shape tabs take.
      *
      * TWO SHAPES, because the module grew two. `panelTabs` in utils.mjs marks
      * `active` on both the button and the section; the case dashboard has its
@@ -399,7 +399,7 @@ function restore(element, { scrolls, opens, dirty, tab }) {
  *
  * Two copies of a window is not a cosmetic problem here. Both read the world
  * when they open and neither knows about the other, so the older one goes on
- * showing what was true a minute ago — and it looks exactly as authoritative as
+ * showing what was true a minute ago - and it looks exactly as authoritative as
  * the new one. Worse for the windows that WRITE: two Sound panels both holding
  * a copy of the map, and whichever is saved second wins, silently undoing
  * whatever was done in the first. Now that windows stay live (see `keepLive`)

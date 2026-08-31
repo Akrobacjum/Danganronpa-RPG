@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — actions as abilities.
+ * Danganronpa RPG - actions as abilities.
  * ---------------------------------------------------------------------------
  * The guide's promise: "the player does not call the GM when performing
  * repeatable actions."
@@ -7,7 +7,7 @@
  * Every action opens with a briefing of what it does, then either resolves
  * itself (Search, Work on Project, Sabotage, Dynamic) or whispers a ruling
  * request to the GM (Think, Listen, Analyze, Observe, Direct Murder, starting
- * a project) — because those are the ones the guide wants a human to judge.
+ * a project) - because those are the ones the guide wants a human to judge.
  *
  * Movement is not here: crossing a room boundary charges itself, in
  * movement.mjs.
@@ -81,8 +81,8 @@ function suiteRolling() {
  * The distinction matters at the moment of choosing, not afterwards: pressing
  * one of these means waiting for a human, and the two branches that do it were
  * sitting in a row of buttons that looked exactly like the automatic ones.
- * Red is already the module's colour for "this goes to the GM" — the cost
- * stripe on the action tiles uses it for the same thing — so the styling is in
+ * Red is already the module's colour for "this goes to the GM" - the cost
+ * stripe on the action tiles uses it for the same thing - so the styling is in
  * `danganronpa.css` next to that rule.
  *
  * DialogV2 writes this straight onto the element with `setAttribute("class")`,
@@ -109,31 +109,31 @@ export async function performAction(actor, actionKey, options = {}) {
         }
 
         /*
-         * IN A FIGHT, DIRECT MURDER MEANS SOMETHING ELSE — and that has to be
+         * IN A FIGHT, DIRECT MURDER MEANS SOMETHING ELSE - and that has to be
          * decided before the Eclipse guards below, both of which would refuse
          * it: an incident is not an Eclipse, and this is not the start of a
          * murder but an act inside one.
          *
          * Measured when it was checked further down instead: the tile was the
          * only live one on the sheet and pressing it warned "Direct Murder only
-         * works during an Eclipse" and did nothing at all — a fight with no way
+         * works during an Eclipse" and did nothing at all - a fight with no way
          * to act in it.
          */
         const { sideOf: sideInFight, murderState: fightState } = await import("./murder.mjs");
         const inFight = fightState()?.stage === "incident" && sideInFight(actor);
         if (inFight && actionKey === "directMurder") return openCrisisMenu(actor);
 
-        // The Eclipse is a placement window, not a time of day — the guide has
+        // The Eclipse is a placement window, not a time of day - the guide has
         // the next time of day begin only once everyone has placed. Nothing
         // beyond the two free crossings (handled in movement.mjs, not here) is
         // available yet: not an action, not a Call. `actionKey === "move"`
         // still passes through, since Move does nothing here besides show its
-        // own briefing — the crossing itself is judged by `judgeEclipseCrossing`.
+        // own briefing - the crossing itself is judged by `judgeEclipseCrossing`.
         //
         // Direct Murder is the exception in BOTH directions: the lights are out
         // and everybody is crossing the map, which is the one moment the guide
         // gives for being alone with somebody. So it is the only ordinary action
-        // that works during an Eclipse — and it works at no other time.
+        // that works during an Eclipse - and it works at no other time.
         if (actionKey !== "move" && actionKey !== "directMurder" && isEclipse()) {
             ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.actionsLocked"));
             return null;
@@ -141,7 +141,7 @@ export async function performAction(actor, actionKey, options = {}) {
         /*
          * TURNING ON YOUR PARTNER IS A DIRECT MURDER (Dawid, 29.08).
          *
-         * It used to be a tile in a panel of its own above the action grid —
+         * It used to be a tile in a panel of its own above the action grid -
          * the last thing left of the old Stage 6 panel. That panel is gone now,
          * and this is where the betrayal belongs: it IS a direct murder, and
          * the only one in the game the guide lets you commit without declaring
@@ -150,8 +150,8 @@ export async function performAction(actor, actionKey, options = {}) {
          * So the tile answers three different questions depending on when it is
          * pressed, and each one is the only thing it could sensibly mean at
          * that moment: in a fight it opens the fight's own actions, in an
-         * Eclipse it declares a killing for later, and here — Stage 6, with a
-         * partner still standing — it kills the partner.
+         * Eclipse it declares a killing for later, and here - Stage 6, with a
+         * partner still standing - it kills the partner.
          *
          * BEFORE the Eclipse refusal, because this is the exception to it.
          */
@@ -170,15 +170,15 @@ export async function performAction(actor, actionKey, options = {}) {
          * You are in a fight. The ordinary economy is suspended.
          *
          * Stage 5 replaces the day's actions with crisis actions for the people
-         * in it — the guide's whole turn structure assumes the two of them are
-         * doing nothing else — and nothing enforced that. A victim could Search
+         * in it - the guide's whole turn structure assumes the two of them are
+         * doing nothing else - and nothing enforced that. A victim could Search
          * the room they were being murdered in, or Rest, or start a project,
          * between two rounds of being stabbed.
          *
          * Hope Calls deliberately still work: those are bought with Hope rather
          * than actions, they are what a cornered player reaches for, and
          * `spendHopeCall` is a different path that never comes through here.
-         * Crisis actions likewise — `takeCrisisAction` is its own entry point.
+         * Crisis actions likewise - `takeCrisisAction` is its own entry point.
          */
         // And the other nine are refused, unchanged: the guide's turn structure
         // assumes the two people in an incident are doing nothing else. Direct
@@ -193,7 +193,7 @@ export async function performAction(actor, actionKey, options = {}) {
         // a sheet left open across the moment of death still has live buttons,
         // and `game.drpg.performAction` reaches here without a sheet at all.
         //
-        // A Monocub is deceased too and is deliberately let through — their own
+        // A Monocub is deceased too and is deliberately let through - their own
         // panel offers exactly Move and Meddle, and Move is dispatched from
         // here like any other action.
         const { isMonocub } = await import("./monocub.mjs");
@@ -250,7 +250,7 @@ export async function performAction(actor, actionKey, options = {}) {
  *
  * Almost every action used to cost two module windows before the dice: a
  * briefing that said what the action does, and then the window that actually
- * asked something — which goal, which room, which Truth Bullet. Three windows
+ * asked something - which goal, which room, which Truth Bullet. Three windows
  * with the roll dialog, for one declaration.
  *
  * So the briefing stopped being a window. It is now a header inside the window
@@ -295,7 +295,7 @@ function briefingFacts(actor, actionKey, def) {
     } else if (actionKey === "rest") {
         // No cost line at all. Rest is the one action whose price depends on a
         // choice made further down the same window, and the two rows below it
-        // already price Short and Long separately against what you have — a
+        // already price Short and Long separately against what you have - a
         // summary above them would be the same sentence twice.
     } else if (cost > 0) {
         facts.push(game.i18n.format("DRPG.Action.willCost", { n: cost, left: actionsLeft(actor) }));
@@ -312,7 +312,7 @@ function briefingFacts(actor, actionKey, def) {
         : game.i18n.localize("DRPG.Action.noRoomNote"));
 
     // How many searches this room has left, from the counter itself. The
-    // description used to promise "three searches per time of day" — three is
+    // description used to promise "three searches per time of day" - three is
     // the DEFAULT of a world setting a GM may set anywhere from 0 to 10, so
     // for any table that touched it the sentence was simply false. This says
     // what is true of the room the character is standing in, now.
@@ -328,13 +328,13 @@ function briefingFacts(actor, actionKey, def) {
      *
      * Tamper's tile says "1 action" and that is the whole price in an empty
      * room. With anybody else in it the guide's concealment roll fires first,
-     * and a Despair failure there is two Sanity — a third of the bar, for an
+     * and a Despair failure there is two Sanity - a third of the bar, for an
      * action advertised as costing none of it.
      *
      * MEASURED, which is why this line exists: Player A tampered in a room with
      * three other people in it and came out of a 1-action tile two Sanity
-     * lighter. The rule is right — being seen cleaning up is the entire risk of
-     * cleaning up — but walking into the next room first is a real alternative,
+     * lighter. The rule is right - being seen cleaning up is the entire risk of
+     * cleaning up - but walking into the next room first is a real alternative,
      * and a player can only choose it if they know it is one.
      *
      * Counted from the canvas, like the roll itself, so it is the same answer
@@ -355,7 +355,7 @@ function briefingFacts(actor, actionKey, def) {
     // Same question the tile's stripe asks, and it has to be asked the same
     // way: `callsGm` can be a predicate on the character now. A briefing that
     // says "this waits for the GM" over a tile that does not is worse than
-    // saying nothing — see `callsGmFor` in sheet.mjs.
+    // saying nothing - see `callsGmFor` in sheet.mjs.
     const callsGm = typeof def.callsGm === "function"
         ? (() => { try { return Boolean(def.callsGm(actor)); } catch { return false; } })()
         : Boolean(def.callsGm);
@@ -366,7 +366,7 @@ function briefingFacts(actor, actionKey, def) {
 
 /**
  * What this action does, before committing to it. Move only ever shows the
- * briefing — there is nothing to confirm, you just drag your token.
+ * briefing - there is nothing to confirm, you just drag your token.
  */
 async function briefing(actor, actionKey, def) {
     const buttons = actionKey === "move"
@@ -390,14 +390,14 @@ async function briefing(actor, actionKey, def) {
 /**
  * The one action that still gets a briefing window of its own.
  *
- * Move asks nothing — you drag a token — so there is no window to fold into.
+ * Move asks nothing - you drag a token - so there is no window to fold into.
  * Everything else opens one regardless, and a separate briefing in front of it
  * meant two windows to answer one question.
  *
  * This used to be the inverse: a list of the nine actions that DO fold, which
  * had to be edited every time an action gained a dialog and silently gave a
  * second window to any key not on it. Stated the other way round, an action
- * nobody remembered to list gets the folded behaviour by default — including
+ * nobody remembered to list gets the folded behaviour by default - including
  * anything falling through to `performGeneric`, which asks for a statistic and
  * so has a window to carry the briefing.
  */
@@ -421,7 +421,7 @@ function dynamicDef() {
  * Roll through the system so dice, skins and chat cards behave normally.
  *
  * Daggerheart's roll pipeline only *prepares* the resource changes a duality
- * roll causes — +1 Hope, -1 Sanity on a critical, +1 Fear — and leaves them in
+ * roll causes - +1 Hope, -1 Sanity on a critical, +1 Fear - and leaves them in
  * `result.resourceUpdates` for the caller to commit. The sheet's own trait
  * button calls `updateResources()`; ours has to as well, or actions roll dice
  * and quietly hand out nothing.
@@ -431,7 +431,7 @@ function dynamicDef() {
  * @param {string} drpgTrait
  * @param {object} [options]
  * @param {boolean} [options.remember]  Is this *the* roll of the action?
- *   Several actions throw more than one — sabotage rolls to conceal itself
+ *   Several actions throw more than one - sabotage rolls to conceal itself
  *   first, an indirect-murder project rolls to conceal intent and again to hide
  *   its traces. Only one of them is the action's result, and only that one is
  *   what Reroll should take back. Without this the bookmark ended up pointing at
@@ -439,23 +439,23 @@ function dynamicDef() {
  *   a roll at random.
  * @param {string} [options.actionKey]  WHICH action this roll belongs to.
  *   Reroll dispatches on it to undo and replay the right thing. Only Work on
- *   Project ever recorded one, and only afterwards through `noteRollContext` —
+ *   Project ever recorded one, and only afterwards through `noteRollContext` -
  *   which is exactly why Reroll looked like it worked on projects and nothing
  *   else. Every other action left the bookmark with no action to replay, so the
  *   Call re-rolled the dice in the chat card and changed nothing in the world.
  * @param {object} [options.context]  Everything about the action that is already
- *   known BEFORE the dice land — which room, which category, what was being
+ *   known BEFORE the dice land - which room, which category, what was being
  *   looked for. Recorded here rather than in the `noteRollContext` at the end of
  *   the action, because every one of those calls sits after a chain of early
  *   returns. A Search whose room ran out of tokens between the picker and the
  *   spend left a bookmark saying "search" and nothing else, and Reroll then had
- *   an action name it could not act on — which reads exactly like Reroll not
+ *   an action name it could not act on - which reads exactly like Reroll not
  *   working on Search at all.
  *
  * Exported because the murder engine rolls through it too: a crisis action and
  * an opening roll are ordinary trait rolls that must commit resources, honour
  * an armed Call and record a Reroll bookmark exactly like a Search does.
- * `murder.mjs` already imported it — but it was module-private, so the import
+ * `murder.mjs` already imported it - but it was module-private, so the import
  * resolved to `undefined` and every crisis action died on
  * "rollTrait is not a function" before a single die was thrown.
  */
@@ -463,7 +463,7 @@ export async function rollTrait(actor, drpgTrait,
     { remember = true, actionKey = null, context = null, title = null } = {}) {
     const calls = await import("./call-effects.mjs");
 
-    // `remember: false` marks a supporting roll — concealing an intent, hiding
+    // `remember: false` marks a supporting roll - concealing an intent, hiding
     // traces. Those must not eat the Call the player bought for the action's own
     // roll, so the Call is hidden from this roll and from its dialog entirely.
     const supporting = !remember;
@@ -482,7 +482,7 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
     const { pendingCall, consumeCall } = await import("./call-effects.mjs");
     const armed = pendingCall(actor);
 
-    // A Free Critical still throws the dice — it just decides in advance what
+    // A Free Critical still throws the dice - it just decides in advance what
     // they will say. See forced-roll.mjs for why a real roll matters.
     const free = armed?.grants === "critical";
     if (free) {
@@ -494,19 +494,19 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
     //
     // Daggerheart derives `dialog.configure` from `config.event`, reading
     // modifier keys off it. Called from our own code there is no event, so the
-    // window was being skipped — actions rolled straight to chat with no chance
+    // window was being skipped - actions rolled straight to chat with no chance
     // to use a Call. Both are supplied explicitly.
     let result;
     try {
         // The system's own card for this roll is claimed as it is created and
         // never rendered: this module reports the same roll in its own card,
         // with the same two faces and the same total. See `supersedingRoll` in
-        // private-rolls.mjs — and note the claim covers only THIS call, so a
+        // private-rolls.mjs - and note the claim covers only THIS call, so a
         // trait rolled straight off the sheet keeps Daggerheart's card.
         result = await supersedingRoll(() => actor.rollTrait(dhTrait, {
             event: { shiftKey: false, altKey: false, ctrlKey: false },
             /*
-             * ALWAYS OPEN THE WINDOW — except for the regression suite, which
+             * ALWAYS OPEN THE WINDOW - except for the regression suite, which
              * has nobody to press the button.
              *
              * Daggerheart derives `dialog.configure` from `config.event`,
@@ -518,7 +518,7 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
              * `suiteRolling` is the one exception and it is not a shortcut: the
              * scenarios test what the engine does with a NUMBER, and a modal
              * per roll turns a forty-second run into minutes and times the
-             * scenarios out — measured, three failures, none of them about the
+             * scenarios out - measured, three failures, none of them about the
              * thing under test. Whether the window opens at all is its own
              * question with its own scenario. See `autoRollForSuite`.
              */
@@ -530,7 +530,7 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
              * `actor.rollTrait` is the same door for two very different things:
              * an action from the grid, and a player clicking a statistic on
              * their own sheet because a GM asked them to roll Body. Only the
-             * first is part of the economy — it costs an action, it was
+             * first is part of the economy - it costs an action, it was
              * declared, and its Hope and Despair are earned. The second is
              * forced to a reaction roll and pays nothing, which it cannot be
              * unless something distinguishes them, and the roll's own config is
@@ -540,8 +540,8 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
             [DRPG_ACTION_ROLL]: true,
             // Say what the roll is FOR.
             //
-            // Left alone, Daggerheart titles the window from the trait — "Body
-            // Roll: Player A" — which is true and useless: the opening roll of
+            // Left alone, Daggerheart titles the window from the trait - "Body
+            // Roll: Player A" - which is true and useless: the opening roll of
             // a murder and a shove in a corridor are the same two words. Worse
             // for the murder project, where three windows open one after the
             // other, all called "Shadow Roll", and the player answers the same
@@ -586,18 +586,18 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
 
 /**
  * Record what was just rolled, so the Reroll Hope Call has something to take
- * back. Only the newest roll is kept — the guide's Reroll undoes an action, not
+ * back. Only the newest roll is kept - the guide's Reroll undoes an action, not
  * a history.
  *
  * The bookmark is written fresh here rather than merged, so leftovers from the
- * previous action — a project id, a Remnant token, an item — can never be
+ * previous action - a project id, a Remnant token, an item - can never be
  * attributed to this one. Each action then attaches its own context with
  * `noteRollContext` once it knows what it did.
  *
  * "Fresh" has to be spelled out, via `replaceFlag`. This used `setFlag`, which
  * merges, so the sentence above was an intention rather than a description: the
  * flag accumulated every field every action had ever written. The one that hurt
- * was `gmRuled` — `replayAction` tests it before it looks at the action key, so
+ * was `gmRuled` - `replayAction` tests it before it looks at the action key, so
  * a single Observe earlier in the session sent every subsequent Reroll down the
  * "ask the GM again" path instead of replaying the Search or the project that
  * was actually rerolled.
@@ -624,7 +624,7 @@ async function rememberRoll(actor, outcome, result, actionKey = null, context = 
 /**
  * Where a Remnant this action dropped ended up, in a form the bookmark can
  * carry. A player's Remnant is placed by the GM over the socket, so there is no
- * document to point at — Reroll says so rather than pretending it can retune it.
+ * document to point at - Reroll says so rather than pretending it can retune it.
  */
 function remnantRef(placed) {
     const doc = placed?.document ?? placed;
@@ -635,7 +635,7 @@ function remnantRef(placed) {
 /**
  * Attach the action's own context to the bookmark, once it is known.
  *
- * Replacement rather than merge, like `rememberRoll` — the spread of `current`
+ * Replacement rather than merge, like `rememberRoll` - the spread of `current`
  * is what carries the rest forward, so a caller passing `{itemId: null}` here
  * genuinely clears the field instead of being ignored by a recursive update.
  */
@@ -653,10 +653,10 @@ async function noteRollContext(actor, data) {
  * Read Hope / Despair / critical off a finished roll.
  *
  * What `rollTrait` hands back is the roll *config*, not the Roll object, and the
- * config does not carry `withHope`/`withFear` — it records the same fact as
+ * config does not carry `withHope`/`withFear` - it records the same fact as
  * `result.duality`: 1 for Hope, -1 for Despair, 0 for a tie, which is a
  * critical. Reading the getters instead silently produced `false` for both, so
- * "with Despair" consequences — the sabotage reveal, the indirect-murder bonus —
+ * "with Despair" consequences - the sabotage reveal, the indirect-murder bonus -
  * could never fire. The dice are compared as a fallback for any other shape.
  */
 export function dualityOf(roll) {
@@ -681,14 +681,14 @@ export function dualityOf(roll) {
 }
 
 /**
- * The two dice, the modifier and the total — drawn in the module's own card.
+ * The two dice, the modifier and the total - drawn in the module's own card.
  *
  * The card said "14" and stopped there. Which way the roll went was carried by
  * the popup's title colour alone, and the two faces that decided it were only
  * ever on Daggerheart's own chat card: a second card, in a second visual
  * language, that a player had to look away to read. This draws the same
  * sentence the system rolled, in this module's language, next to the result it
- * produced — one card, one paper trail, in chat and in the popup alike.
+ * produced - one card, one paper trail, in chat and in the popup alike.
  *
  * NOT a clone of the system's card, deliberately. That was the other option and
  * it loses three ways: its CSS is outside our layer, it carries interactive
@@ -697,7 +697,7 @@ export function dualityOf(roll) {
  *
  * WHERE THE NUMBERS COME FROM, and why three ways of asking. A live roll
  * answers `roll.hope` / `roll.fear`; the same roll read back off a chat message
- * does not — those are gone by the time `Roll.fromData` has rebuilt it, which
+ * does not - those are gone by the time `Roll.fromData` has rebuilt it, which
  * is measured, not assumed. The terms survive, so `HopeDie` / `FearDie` by
  * class name is the fallback, and the last resort is the dice in formula order.
  *
@@ -728,18 +728,18 @@ function dualityBar(outcome) {
     /* WHICH STATISTIC, AND WHAT THE REST WAS.
      *
      * The card named the dice and lumped everything else into one unlabelled
-     * number — so it never said WHAT was rolled (the one fact Dawid flagged as
+     * number - so it never said WHAT was rolled (the one fact Dawid flagged as
      * missing from the result), and an advantage die hid inside the same
      * figure as the trait. The roll carries its own RollData, so the trait's
      * value is read back off `roll.data.traits` and split out: the statistic
-     * as a chip that names itself, and whatever remains — advantage,
-     * disadvantage, an experience — as a second chip only when it is not
+     * as a chip that names itself, and whatever remains - advantage,
+     * disadvantage, an experience - as a second chip only when it is not
      * nothing. A roll whose data cannot answer keeps the old single figure.
      */
     const trait = TRAITS[outcome?.trait];
     // On a LIVE result the RollData hangs off the result itself and `.roll` is
     // a summary object without it; a roll rebuilt from a chat message carries
-    // `.data` directly. Measured both ways — ask both.
+    // `.data` directly. Measured both ways - ask both.
     const rollData = roll.data ?? outcome?.raw?.data;
     const statValue = Number(rollData?.traits?.[trait?.dh]?.value);
     const hasStat = Boolean(trait) && Number.isFinite(statValue);
@@ -748,7 +748,7 @@ function dualityBar(outcome) {
 
     /* THE RESULT FIRST, ITS WORKING UNDER IT.
      *
-     * This was one line — `1 + 10 + 1 = 12  with Despair` — which is the same
+     * This was one line - `1 + 10 + 1 = 12  with Despair` - which is the same
      * facts and a worse card: the total, the thing the whole roll is for, was
      * the fourth item on a row of seven and the same size as the operators
      * around it. Daggerheart's own card gets this right and it is why it reads
@@ -763,7 +763,7 @@ function dualityBar(outcome) {
 
     // The statistic is shown even at +0: its job is to NAME what was rolled,
     // and the name is information at any value. The remainder and the
-    // unattributed fallback keep the zero rule — "+ 0" asks the reader to
+    // unattributed fallback keep the zero rule - "+ 0" asks the reader to
     // check that the nothing really is nothing.
     if (hasStat) {
         formula.push(`<span class="drpg-duality-op">+</span>`);
@@ -789,8 +789,8 @@ function dualityBar(outcome) {
  * How long the card will wait for 3D dice before giving up on them.
  *
  * The animation is a courtesy. The card is not: a roll whose animation never
- * reports itself finished — a client that lost focus mid-throw is the ordinary
- * way — must not be able to swallow the result of an action somebody paid for.
+ * reports itself finished - a client that lost focus mid-throw is the ordinary
+ * way - must not be able to swallow the result of an action somebody paid for.
  */
 const DICE_SETTLE_MS = 6000;
 
@@ -800,7 +800,7 @@ const DICE_SETTLE_MS = 6000;
  * The card prints the two faces now, so posting it while the dice are still
  * tumbling hands the reader the answer to the animation they are watching.
  * Resolves immediately when Dice So Nice is not installed, when this roll had
- * no chat message to animate, and — via the race — when the animation takes
+ * no chat message to animate, and - via the race - when the animation takes
  * longer than anyone should be made to wait for it.
  */
 async function diceSettled(messageId) {
@@ -838,7 +838,7 @@ async function commitResources(result) {
  * repeat fifteen lines inside an existing one. As one function it costs a line,
  * so an action that already asks something can ask this too.
  *
- * Returns "" when there is nothing to choose — one allowed trait, or none —
+ * Returns "" when there is nothing to choose - one allowed trait, or none -
  * and the caller falls back to it without a field. See `readTraitField`.
  */
 function traitFieldHtml(actor, traits, { note = "" } = {}) {
@@ -870,7 +870,7 @@ function readTraitField(element, traits) {
  *
  * `intro` is the briefing. An action that folds its briefing in (see
  * FOLDS_BRIEFING_IN) has a window of its own to carry it; one that does not
- * used to get a briefing window, then this one, then the roll dialog — three
+ * used to get a briefing window, then this one, then the roll dialog - three
  * windows to answer "Body or Leg?". Passing the briefing here makes it two.
  */
 async function chooseTrait(actor, def, { intro = "" } = {}) {
@@ -898,7 +898,7 @@ async function chooseTrait(actor, def, { intro = "" } = {}) {
 /**
  * Give the action back and stop.
  *
- * Used by the actions that must pay before rolling — an indirect murder or a
+ * Used by the actions that must pay before rolling - an indirect murder or a
  * watched sabotage throws a concealment roll first, and every roll commits its
  * Hope, Sanity and Despair. Charging afterwards let a player collect those and
  * then cancel; charging first means an honest cancel has to be refunded.
@@ -933,7 +933,7 @@ async function performSearch(actor, def, options) {
     }
 
     // BEFORE the picker, not after it. A sealed room is not a question about
-    // what you are looking for — there is nothing in there to look for — so
+    // what you are looking for - there is nothing in there to look for - so
     // asking is a form the answer to which was always going to be no.
     if (SearchTokens.sealed(room)) {
         ui.notifications.warn(game.i18n.localize("DRPG.SearchTokens.sealed"));
@@ -954,9 +954,9 @@ async function performSearch(actor, def, options) {
 
     // What the room is worth to this particular search.
     //
-    //   +1  it is a sensible place to look for this — the medic's office for
+    //   +1  it is a sensible place to look for this - the medic's office for
     //       bandages. Set per room by the GM when the map is built.
-    //   -1  it is a POOR place to look for this — bandages in the boiler
+    //   -1  it is a POOR place to look for this - bandages in the boiler
     //       room. The favour's mirror, set on the same Room Setup screen.
     //   -1  it is somebody else's stash and they have hidden it. Only bites
     //       when there is actually something in there to find.
@@ -966,7 +966,7 @@ async function performSearch(actor, def, options) {
     /*
      * WHICH STASH A SEARCH FINDS, when the room holds more than one.
      *
-     * Open ones first, then hidden — and within that, the first with anything
+     * Open ones first, then hidden - and within that, the first with anything
      * in it. Two reasons for that order rather than, say, the richest or a
      * random pick: a search that turns up the unhidden drawer before the
      * hiding place is what anybody would expect of a room, and it keeps the
@@ -1003,7 +1003,7 @@ async function performSearch(actor, def, options) {
 
     /*
      * THE ROLL WINDOW GETS THE CHOICE (Dawid, 29.08): a careful look or a quick
-     * rummage. Only these two — everything else stays locked, and Determination
+     * rummage. Only these two - everything else stays locked, and Determination
      * still buys the full picker for anybody who paid for it.
      */
     const { allowTraitsForNextRoll } = await import("./roll-dialog.mjs");
@@ -1026,12 +1026,12 @@ async function performSearch(actor, def, options) {
 
     // The token is claimed only once the dice are actually on the table.
     // Spending it up front meant backing out of the trait picker or the roll
-    // window burned one of the room's three searches for nothing — twice and
+    // window burned one of the room's three searches for nothing - twice and
     // the room was closed for the rest of the time of day.
     const claimed = await SearchTokens.spend(room);
 
     // Charged whatever the token says. The check above the picker reads this
-    // client's copy of the counter, which can be a moment behind the GM's — so
+    // client's copy of the counter, which can be a moment behind the GM's - so
     // two players searching the same room with one token left both get through
     // it and both roll. Bailing out here without charging meant the loser kept
     // their action AND banked whatever the duality granted them: a Hope
@@ -1047,8 +1047,8 @@ async function performSearch(actor, def, options) {
         //
         // `spend()` answers false for two completely different things: the room
         // really is empty, and nobody was there to say. A player's spend is a
-        // socket round trip to the GMs, so no GM connected — or one that did not
-        // answer inside five seconds, which a hosted server makes ordinary — came
+        // socket round trip to the GMs, so no GM connected - or one that did not
+        // answer inside five seconds, which a hosted server makes ordinary - came
         // back as a flat false and was reported as "somebody got here first, 0
         // tokens left" on a room that still had all three. The action went with
         // it.
@@ -1058,8 +1058,8 @@ async function performSearch(actor, def, options) {
         // so this reads the world setting.
         //
         // Only the genuinely-empty branch keeps charging. That is the branch the
-        // charge was introduced for — "a room they knew was empty" is the Hope
-        // generator, and it still costs — while an unanswered request is the
+        // charge was introduced for - "a room they knew was empty" is the Hope
+        // generator, and it still costs - while an unanswered request is the
         // module failing the player, not the player gaming it.
         const reallyEmpty = SearchTokens.left(room) <= 0;
         if (!reallyEmpty && cost > 0) await refundAction(actor, cost);
@@ -1079,8 +1079,8 @@ async function performSearch(actor, def, options) {
     const tier = roll.isCritical ? Math.min(3, baseTier + (def.critical?.tierBonus ?? 1)) : baseTier;
 
     // "Something specific" is the one goal no table can answer. The roll still
-    // happens — and the tier it reaches is exactly the information the GM needs
-    // to decide what was really there — so the result goes to them with the
+    // happens - and the tier it reaches is exactly the information the GM needs
+    // to decide what was really there - so the result goes to them with the
     // player's own description attached.
     if (goalKey === "specific") {
         await callGm(actor, {
@@ -1095,7 +1095,7 @@ async function performSearch(actor, def, options) {
             // "I am looking for X": it exists and I will make it, it exists
             // already and here it is, or there is none. Each opens the window
             // that does the thing with everything the card already knows filled
-            // in — see `runCallAction`.
+            // in - see `runCallAction`.
             //
             // Lowercase data keys only: `dataset` lowercases everything, so a
             // `tierWanted` would come back as `tierwanted` and read undefined.
@@ -1121,7 +1121,7 @@ async function performSearch(actor, def, options) {
             ]
         });
 
-        // Ruled by a human, so Reroll can only re-ask — see reroll.mjs.
+        // Ruled by a human, so Reroll can only re-ask - see reroll.mjs.
         await noteRollContext(actor, {
             actionKey: "search", goal: "specific", gmRuled: true,
             label: def.label, room, request
@@ -1148,7 +1148,7 @@ async function performSearch(actor, def, options) {
          *
          * The two other ways a Search ends nothing are deliberately NOT here. A
          * critical is not a failure, and a "something specific" request has gone
-         * to a GM rather than come up empty — that one is waiting, not lost.
+         * to a GM rather than come up empty - that one is waiting, not lost.
          */
         playSfx("searchNothing");
 
@@ -1161,21 +1161,21 @@ async function performSearch(actor, def, options) {
     // The guide's stash is a place things are hidden IN a room, so a successful
     // search finds what is hidden there first and only falls through to the
     // room's own contents once the stash is empty. Nothing is drawn for a stash
-    // — the loot is whatever its owner actually put in it, which is what makes
+    // - the loot is whatever its owner actually put in it, which is what makes
     // rifling through one worth the action.
     if (stashLoot.length) {
         const { requestVaultSteal } = await import("./gm-bridge.mjs");
 
         // The declaration still counts. Somebody rummaging for a weapon who
         // finds the hiding place should come out with the weapon if there is
-        // one in there — and with whatever else is in there if not, because
+        // one in there - and with whatever else is in there if not, because
         // finding the stash at all is the win.
         const wanted = stashLoot.filter(i =>
             i.getFlag(MODULE_ID, "category") === category);
         const pool = wanted.length ? wanted : stashLoot;
         const taken = pool[Math.floor(Math.random() * pool.length)];
 
-        // `viaSearch`: this is the route that PAYS for a concealed stash — an
+        // `viaSearch`: this is the route that PAYS for a concealed stash - an
         // action, a search token, and the -1 applied above. Without it the GM
         // side refuses every concealed stash outright, which made beating the
         // concealment worth nothing at all. See `stealFromVault`.
@@ -1203,7 +1203,7 @@ async function performSearch(actor, def, options) {
     }
 
     /*
-     * SOMEBODY LEFT SOMETHING HERE — E21, traps 165 and 166.
+     * SOMEBODY LEFT SOMETHING HERE - E21, traps 165 and 166.
      *
      * Dawid, 28.08: if a player plants an item as an indirect murder project,
      * the FIRST search in that room always pulls out the planted item, whatever
@@ -1214,7 +1214,7 @@ async function performSearch(actor, def, options) {
      * sessions or ever, because a Search draws from the room's pool and the
      * chance of hitting that one thing gets worse the better stocked the room
      * is. The killer would be paying a project's full price for a lottery
-     * ticket — which is not tension, it is a raffle.
+     * ticket - which is not tension, it is a raffle.
      *
      * INSTEAD OF THE DRAW, NEVER ADDED TO IT (trap 165). Dropping the plant
      * into the room's table would make it likely rather than certain.
@@ -1227,7 +1227,7 @@ async function performSearch(actor, def, options) {
      * indirect murder would be reading your own chat more carefully than the
      * fiction.
      *
-     * The GM decided this, not us — a player's client is never told a room has
+     * The GM decided this, not us - a player's client is never told a room has
      * something waiting in it. For a player the answer came back on the spend
      * that was already being made; for a GM searching their own map it is asked
      * here, because their `spend` never went near a socket.
@@ -1260,7 +1260,7 @@ async function performSearch(actor, def, options) {
     if (drawn?.name) {
         const { grantItem, ITEM_FLAGS } = await import("./inventory.mjs");
         // The icon and the sentence the GM wrote on the table entry travel with
-        // it — see `drawItem`. Both are `null` for a built-in pool, which is
+        // it - see `drawItem`. Both are `null` for a built-in pool, which is
         // exactly what `grantItem` already treats as "use the category icon and
         // the tier line".
         granted = await grantItem(actor, {
@@ -1285,7 +1285,7 @@ async function performSearch(actor, def, options) {
      * crime tool and a cleaning tool. Adding "something to work with" broke it
      * in both directions at once, and neither was acceptable: counting `tool`
      * as incriminating buries the investigation under a trace for every hunt
-     * for a screwdriver, while exempting it opens a door — from tier 2 half the
+     * for a screwdriver, while exempting it opens a door - from tier 2 half the
      * tools ARE weapons, so a killer asking for "something to work with" would
      * walk out with a crowbar and no trace.
      *
@@ -1316,7 +1316,7 @@ async function performSearch(actor, def, options) {
              * NOT TIED BY CATEGORY ANY MORE (Dawid, 28.08).
              *
              * This used to say `true` because the thing found was crime or
-             * cleaning gear — a fact about the category, not about the chapter.
+             * cleaning gear - a fact about the category, not about the chapter.
              * A penknife nobody picked up again sat at the top of the case
              * dashboard's murder-first sort beside the knife out of the body.
              *
@@ -1348,7 +1348,7 @@ async function performSearch(actor, def, options) {
         item: drawn?.name ?? null,
         carried: Boolean(granted),
         // The room had nothing of what was asked for and answered with what it
-        // does hold — see `drawItem`. Said out loud, because a player who asked
+        // does hold - see `drawItem`. Said out loud, because a player who asked
         // for a bandage and got a crowbar should not have to work out whether
         // the module is broken.
         substitute: Boolean(drawn?.substitute),
@@ -1375,7 +1375,7 @@ async function performSearch(actor, def, options) {
  * What are you looking for?
  *
  * Five buttons in a row overflowed the screen, so this is a radio list in a
- * narrow panel — the same width as every other dialog the module opens.
+ * narrow panel - the same width as every other dialog the module opens.
  *
  * The guide splits usable items by what they restore, and the player declares
  * which they want before rolling. "Something specific" is the escape hatch: the
@@ -1387,8 +1387,8 @@ async function performSearch(actor, def, options) {
 /* ==========================================================================
  * ONE MENU, FIVE PLACES
  * --------------------------------------------------------------------------
- * Five actions ask the same shape of question — which flavour of this do you
- * want — and until now each answered it in a different idiom: Search had a
+ * Five actions ask the same shape of question - which flavour of this do you
+ * want - and until now each answered it in a different idiom: Search had a
  * radio list with icons and hints, Observe and Project had rows of footer
  * buttons, Analyze had a select, Rest had a bulleted list with the buttons
  * underneath. Same decision, four layouts, and only one of them could say why
@@ -1399,7 +1399,7 @@ async function performSearch(actor, def, options) {
  *
  *   UNAVAILABLE OPTIONS STAY ON THE LIST, struck through, with the reason
  *   where the hint goes. Seeing what you cannot do is half of what a menu is
- *   for — the same rule the Calls panel already follows.
+ *   for - the same rule the Calls panel already follows.
  *
  *   OPTIONS THAT SUMMON A HUMAN ARE RED, with `drpg-gm-route`, the same class
  *   the buttons carry today. Red already means "this waits for somebody"
@@ -1408,10 +1408,10 @@ async function performSearch(actor, def, options) {
  * @param {object}   config
  * @param {Actor}    config.actor
  * @param {string}   config.title      Window title.
- * @param {string}   [config.intro]    HTML above the list — usually a briefing.
+ * @param {string}   [config.intro]    HTML above the list - usually a briefing.
  * @param {string}   [config.prompt]   One line asking the question.
  * @param {Array}    config.options    `{ value, label, hint, icon, gmRoute,
- *                                        disabled, why }` — `label`/`hint`/`why`
+ *                                        disabled, why }` - `label`/`hint`/`why`
  *                                        are literal text, already localised.
  * @param {string[]} [config.traits]   Show a trait picker for these.
  * @param {string}   [config.extra]    Extra HTML inside the form, under the list.
@@ -1424,7 +1424,7 @@ async function performSearch(actor, def, options) {
  * Every action that can end in a GM ruling used to ask for the player's own
  * words AFTER the dice: choose the action, choose the trait, roll, and only
  * then a second window asking what you were actually trying to do. Search was
- * the exception — its box sits in the first window, next to the goal — and
+ * the exception - its box sits in the first window, next to the goal - and
  * Search is the one that reads right.
  *
  * The order matters for more than clicks. Typing "I check whether the lock has
@@ -1442,7 +1442,7 @@ async function performSearch(actor, def, options) {
  * briefing, the trait (when there is a choice) and the box for what you are
  * actually trying to do.
  *
- * ALWAYS OPENS, even when the action has a single trait and nothing to pick —
+ * ALWAYS OPENS, even when the action has a single trait and nothing to pick -
  * `chooseTrait` short-circuits in that case, and short-circuiting past this
  * window would take the sentence with it.
  */
@@ -1563,7 +1563,7 @@ async function chooseSearchCategory(actor, def = ACTIONS.search) {
         // `tool` was introduced with its own tables and its advantage on
         // project work, and the only routes to one were finding it by accident
         // in a room's own table or being handed it by the GM. A category with
-        // no entrance is a category nothing can reach on purpose — and Projects
+        // no entrance is a category nothing can reach on purpose - and Projects
         // are the slowest thing in this game to push without help.
         //
         // The rest of the pipeline needs nothing: `drawItem`, `grantItem`, the
@@ -1575,7 +1575,7 @@ async function chooseSearchCategory(actor, def = ACTIONS.search) {
           label: "DRPG.Action.goalSpecific", hint: "DRPG.Action.goalSpecificHint" }
     ];
 
-    // The list this menu was lifted from — see `chooseVariant`. The textarea
+    // The list this menu was lifted from - see `chooseVariant`. The textarea
     // rides along as `extra`, because "what specifically" belongs to exactly
     // one of the five rows and a second window for it would be the friction
     // this whole pattern removes.
@@ -1636,7 +1636,7 @@ async function performProject(actor, def, options) {
 
     // ONE WINDOW: which kind of work, WHICH project, and which statistic.
     //
-    // It used to be two — pick "Work on", then pick the project on a screen of
+    // It used to be two - pick "Work on", then pick the project on a screen of
     // its own. Sabotage has never done that; it asks for its target and its
     // statistic together, and there was never a reason for the two to differ.
     // The second window carried one <select> and a button.
@@ -1646,7 +1646,7 @@ async function performProject(actor, def, options) {
     // and a window of its own is the friction this pattern exists to remove.
     //
     // "Work on" is struck through rather than missing when there is nothing
-    // here to push — the reason is the useful half of the answer, and a player
+    // here to push - the reason is the useful half of the answer, and a player
     // who cannot see the option cannot tell whether they are in the wrong room
     // or the module has forgotten the project exists.
     const traitOptions = openTraits(here, def);
@@ -1656,7 +1656,7 @@ async function performProject(actor, def, options) {
      *
      * Sabotage stopped being a tile of its own in E12 and became the other
      * thing you can do to a project in the room you are standing in. That is
-     * what it always was — it uses the project's own trait, it is refused
+     * what it always was - it uses the project's own trait, it is refused
      * outside the room, and it sat on the grid next to a tile that opened a
      * list of the very same objects.
      *
@@ -1666,7 +1666,7 @@ async function performProject(actor, def, options) {
      * closed door with the alternative on a different tile.
      *
      * Both halves of the old check, verbatim. `isMonokuma(actor)` alone and not
-     * `game.user.isGM ||` — a GM opening a student's sheet is still a student
+     * `game.user.isGM ||` - a GM opening a student's sheet is still a student
      * standing in one room.
      */
     const { isMonokuma } = await import("./monokuma.mjs");
@@ -1712,7 +1712,7 @@ async function performProject(actor, def, options) {
 
     if (!picked) return null;
     if (picked.value === "start") return startProject(actor);
-    // Straight through to the action it always was — its own dialog, its own
+    // Straight through to the action it always was - its own dialog, its own
     // concealment roll, its own trace. Nothing about `performSabotage` changed;
     // only the door into it did.
     if (picked.value === "sabotage") {
@@ -1733,7 +1733,7 @@ async function performProject(actor, def, options) {
  * Start a project without waiting for the GM.
  *
  * The guide has projects agreed with the GM beforehand, so the dialog says so
- * plainly rather than pretending otherwise — but it then creates the project,
+ * plainly rather than pretending otherwise - but it then creates the project,
  * because making the player wait mid-turn for a rubber stamp they already have
  * is exactly the friction the guide asks us to remove. The GM is told what was
  * created and can adjust or delete it.
@@ -1744,7 +1744,7 @@ async function startProject(actor) {
     const rooms = allRooms();
 
     const scaleOptions = Object.entries(PROJECT_SCALE)
-        .map(([key, s]) => `<option value="${s.progress}"${key === "everyday" ? " selected" : ""}>${s.label} — ${s.progress} progress</option>`)
+        .map(([key, s]) => `<option value="${s.progress}"${key === "everyday" ? " selected" : ""}>${s.label} - ${s.progress} progress</option>`)
         .join("");
     const roomOptions = [
         `<option value="">${game.i18n.localize("DRPG.Project.anyRoom")}</option>`,
@@ -1781,7 +1781,7 @@ async function startProject(actor) {
                 label: game.i18n.localize("DRPG.Project.proposeButton"),
                 // Red, like the variant that opened this window and like every
                 // other control that ends in somebody else deciding. Proposing
-                // a project does not start one — it sends the GM a card and
+                // a project does not start one - it sends the GM a card and
                 // waits, and the button that does that should say so.
                 class: GM_ROUTE_CLASS,
                 default: true,
@@ -1888,7 +1888,7 @@ async function workOnProject(actor, def, options, chosen = null) {
         // Say that there is nothing here, and nothing else.
         //
         // This used to list every project running anywhere on the map, by name
-        // and by room, to any player who walked into an empty room — indirect
+        // and by room, to any player who walked into an empty room - indirect
         // murders included. "Prepare the poison (Chemistry Lab)" handed to the
         // whole table by a mis-click is not a hint, it is the answer to the
         // chapter. Where other people's projects are is theirs to reveal.
@@ -1897,15 +1897,15 @@ async function workOnProject(actor, def, options, chosen = null) {
         // "there is nothing here" is a lie the player can see out of the window,
         // and it is the sentence that used to send them looking for the bug.
         ui.notifications.warn(listed.length
-            ? game.i18n.format("DRPG.Project.allComplete", { room: room ?? "—" })
-            : game.i18n.format("DRPG.Project.noneHere", { room: room ?? "—" }));
+            ? game.i18n.format("DRPG.Project.allComplete", { room: room ?? "-" })
+            : game.i18n.format("DRPG.Project.noneHere", { room: room ?? "-" }));
         return null;
     }
 
     // Normally both of these were answered in the window that got us here.
     // The fallback is not dead code: this function is the one entry point that
-    // knows how to run a project roll, and a caller that has not asked yet —
-    // or has asked about a project that has since been finished or frozen —
+    // knows how to run a project roll, and a caller that has not asked yet -
+    // or has asked about a project that has since been finished or frozen -
     // still needs somewhere to ask.
     const stillThere = chosen?.project && here.some(pr => pr.id === chosen.project.id);
     const picked = stillThere
@@ -1923,7 +1923,7 @@ async function workOnProject(actor, def, options, chosen = null) {
     // Pay before any dice are thrown.
     //
     // An indirect murder rolls to conceal intent *before* the project roll, and
-    // every roll commits its resources — Hope, Sanity, and a Despair point to a
+    // every roll commits its resources - Hope, Sanity, and a Despair point to a
     // Monokuma. With the charge sitting after the main roll, backing out of that
     // roll left the conceal roll's winnings in place at no cost, which is a Hope
     // generator anyone could run all day.
@@ -1937,7 +1937,7 @@ async function workOnProject(actor, def, options, chosen = null) {
                 { remember: false, title: game.i18n.localize("DRPG.Roll.concealIntent") });
             if (!conceal) return abort(actor, cost);
             const ok = conceal.isCritical || conceal.total >= INDIRECT_MURDER.concealIntent.threshold;
-            lines.push(`<p><strong>${INDIRECT_MURDER.concealIntent.label}</strong> — ${conceal.total}: ${
+            lines.push(`<p><strong>${INDIRECT_MURDER.concealIntent.label}</strong> - ${conceal.total}: ${
                 ok ? (conceal.withFear
                         ? INDIRECT_MURDER.concealIntent.successWithDespair
                         : INDIRECT_MURDER.concealIntent.success)
@@ -1956,7 +1956,7 @@ async function workOnProject(actor, def, options, chosen = null) {
      * `armSituational` rather than a flat bonus, so after E7 it adds to the
      * room's favour and to a Hope Call rather than replacing either: a tool, in
      * a room that suits the work, with an Ultimate behind it is genuinely three
-     * dice. The concealment roll above cannot pick this up — it goes through
+     * dice. The concealment roll above cannot pick this up - it goes through
      * `remember: false`, which shields it (trap 61), and that was already true
      * before this line existed.
      */
@@ -2006,7 +2006,7 @@ async function workOnProject(actor, def, options, chosen = null) {
     //
     // The bonus is recorded apart from the threshold progress on purpose. Reroll
     // rescores the new dice against the thresholds alone, so storing only the
-    // combined figure made it subtract a bonus it could never recompute — an
+    // combined figure made it subtract a bonus it could never recompute - an
     // indirect murder quietly lost its alone/Despair progress on every reroll.
     await noteRollContext(actor, {
         actionKey: "project", projectId: project.id, progress, bonus: earnedBonus,
@@ -2050,12 +2050,12 @@ async function workOnProject(actor, def, options, chosen = null) {
             });
             traceLeftTrace = traceFeedback(trace, placed);
 
-            // Just the score — never the band this rolled into (see
+            // Just the score - never the band this rolled into (see
             // `traceFeedback`). Whether anything is said about the trace
             // itself is `report()`'s generic `outcome.leftTrace` line below,
             // the same one every other action uses, so this does not print
             // its own second copy of that sentence.
-            lines.push(`<p><strong>${INDIRECT_MURDER.hideTraces.label}</strong> — ${trace.total}</p>`);
+            lines.push(`<p><strong>${INDIRECT_MURDER.hideTraces.label}</strong> - ${trace.total}</p>`);
         }
     }
 
@@ -2078,7 +2078,7 @@ async function workOnProject(actor, def, options, chosen = null) {
 
     await report(actor, def, roll, outcome);
     // `projectId` because `outcome` carries only the project's NAME, and a trap
-    // that watches "somebody works on THAT project" needs the identity — two
+    // that watches "somebody works on THAT project" needs the identity - two
     // projects are allowed to share a name and one of them is the trap.
     Hooks.callAll("drpgActionResolved", {
         actor, actionKey: "project", roll, outcome, projectId: project.id
@@ -2087,13 +2087,13 @@ async function workOnProject(actor, def, options, chosen = null) {
 }
 
 /**
- * Pick a project from an explicit list, and — only when at least one
- * candidate leaves the required trait open — the trait to use for it, in the
+ * Pick a project from an explicit list, and - only when at least one
+ * candidate leaves the required trait open - the trait to use for it, in the
  * SAME window instead of a second one immediately after.
  *
  * Used to be two sequential dialogs every time: which project, then (when
  * the project had no fixed trait) which trait. The trait field costs nothing
- * to show up front — it is simply ignored once the chosen project turns out
+ * to show up front - it is simply ignored once the chosen project turns out
  * to have one fixed, exactly as the old second dialog would never have
  * appeared in that case either.
  *
@@ -2104,7 +2104,7 @@ async function workOnProject(actor, def, options, chosen = null) {
  * One project as an <option>: its name, how far along it is, and where.
  *
  * `disableComplete` is only ever set by Work on Project. A finished project is
- * shown — struck through and unpickable — rather than dropped from the list,
+ * shown - struck through and unpickable - rather than dropped from the list,
  * because dropping it looks like the project was cleared away and sends the
  * player to ask a GM what happened to it. Sabotage does not pass the flag: a
  * finished project is a perfectly good thing to break.
@@ -2117,7 +2117,7 @@ async function workOnProject(actor, def, options, chosen = null) {
 function projectOptionsHtml(list, { disableComplete = false } = {}) {
     let defaulted = false;
     return list.map(p => {
-        const target = p.start ? ` — ${p.current}/${p.start}${scaleFor(p.start) ? `, ${scaleFor(p.start)}` : ""}` : "";
+        const target = p.start ? ` - ${p.current}/${p.start}${scaleFor(p.start) ? `, ${scaleFor(p.start)}` : ""}` : "";
         const where = p.room ? ` · ${p.room}` : "";
         const done = disableComplete && p.complete;
 
@@ -2132,7 +2132,7 @@ function projectOptionsHtml(list, { disableComplete = false } = {}) {
         // The word as well as the line through it. The strike is the glance and
         // the word is the answer, and only one of the two survives a picker
         // drawn by a browser that will not style an <option>.
-        const suffix = done ? ` — ${game.i18n.localize("DRPG.Project.completeTag")}` : "";
+        const suffix = done ? ` - ${game.i18n.localize("DRPG.Project.completeTag")}` : "";
         return `<option value="${p.id}"${mark}>${
             foundry.utils.escapeHTML(p.name)}${target}${where}${suffix}</option>`;
     }).join("");
@@ -2143,7 +2143,7 @@ function projectOptionsHtml(list, { disableComplete = false } = {}) {
  *
  * A project may fix the statistic its work demands, and most do. The field is
  * only worth showing when the action offers a choice AND at least one project
- * in the list leaves that choice open — otherwise it is a control that changes
+ * in the list leaves that choice open - otherwise it is a control that changes
  * nothing, which is worse than no control.
  */
 function openTraits(list, def) {
@@ -2208,7 +2208,7 @@ async function chooseProjectAndTrait(list, promptKey, actor, def, { disableCompl
     const project = list.find(p => p.id === result.id) ?? null;
     if (!project) return null;
 
-    // The row was disabled, so this should be unreachable — and it is the kind
+    // The row was disabled, so this should be unreachable - and it is the kind
     // of unreachable that a keyboard, a screen reader or a browser that draws
     // its own picker can reach anyway. Refusing here costs one comparison and
     // is the difference between "the option was greyed" and "the option cannot
@@ -2241,8 +2241,8 @@ async function performSabotage(actor, def, options) {
     //
     // This used to read `game.user.isGM || isMonokuma(actor)`, and the first
     // half is the bug: it asks who is holding the mouse rather than who is in
-    // the fiction. A GM opening a student's sheet — to test it, to play an
-    // absent player's character, to walk somebody through their turn — got the
+    // the fiction. A GM opening a student's sheet - to test it, to play an
+    // absent player's character, to walk somebody through their turn - got the
     // whole map as targets, because the ACCOUNT was privileged even though the
     // CHARACTER was a student standing in one room. That is the "sabotage
     // reaches projects in other rooms" report, and no player ever saw it,
@@ -2257,12 +2257,12 @@ async function performSabotage(actor, def, options) {
 
     // Say what is being held back and why.
     //
-    // Two rules quietly remove projects from this list — a project already
+    // Two rules quietly remove projects from this list - a project already
     // frozen by an earlier sabotage, and a repair project, which there is no
     // sense in breaking. Both are correct and both were invisible, so a Monokuma
     // saw some projects and not others with nothing to explain the difference.
     // The SAME reach `sabotageTargetsIn` uses, or this list names projects in
-    // other rooms — which is both a leak and a lie, since they were never
+    // other rooms - which is both a leak and a lie, since they were never
     // candidates and are not being "held back" from anything.
     const { visibleProjects, isFrozen, repairs } = await import("./projects.mjs");
     const withheld = visibleProjects()
@@ -2286,7 +2286,7 @@ async function performSabotage(actor, def, options) {
 
     // Breaking a thing takes the same kind of work as building it, so sabotage
     // uses the project's own trait. The player does not get to pick an easier
-    // one than the people who built it had to use — the trait field in this
+    // one than the people who built it had to use - the trait field in this
     // same dialog only ever matters for a target that left it open, same as
     // Work on Project. See chooseProjectAndTrait().
     const picked = await chooseProjectAndTrait(targets, "DRPG.Project.whichSabotage", actor, def);
@@ -2294,7 +2294,7 @@ async function performSabotage(actor, def, options) {
     const { project, trait } = picked;
 
     // Someone is watching. Cover what you are doing before you do it, exactly
-    // as an indirect murder covers its intent — and learn the answer while
+    // as an indirect murder covers its intent - and learn the answer while
     // there is still time to walk away.
     const witnesses = othersInRoom(actor);
     const lines = [];
@@ -2313,7 +2313,7 @@ async function performSabotage(actor, def, options) {
         const hidden = conceal.isCritical || conceal.total >= SABOTAGE_CONCEAL.threshold;
         if (hidden && conceal.withFear) penalty = SABOTAGE_CONCEAL.despairPenalty;
 
-        lines.push(`<p><strong>${SABOTAGE_CONCEAL.label}</strong> — ${conceal.total}: ${
+        lines.push(`<p><strong>${SABOTAGE_CONCEAL.label}</strong> - ${conceal.total}: ${
             hidden
                 ? (conceal.withFear ? SABOTAGE_CONCEAL.successWithDespair : SABOTAGE_CONCEAL.success)
                 : SABOTAGE_CONCEAL.failure
@@ -2324,7 +2324,7 @@ async function performSabotage(actor, def, options) {
             await announce({
                 content: `<p><em>${game.i18n.format("DRPG.Action.sabotageWatched", {
                     actor: foundry.utils.escapeHTML(actor.name),
-                    room: foundry.utils.escapeHTML(room ?? "—"),
+                    room: foundry.utils.escapeHTML(room ?? "-"),
                     project: foundry.utils.escapeHTML(project.name)
                 })}</em></p>`
             });
@@ -2349,7 +2349,7 @@ async function performSabotage(actor, def, options) {
     }
 
     // Sabotage is project work with the sign flipped, so the tool counts here
-    // too — the guide's own "including sabotage". `performSabotage` did not look
+    // too - the guide's own "including sabotage". `performSabotage` did not look
     // at the inventory at all before this (trap 60), so it is armed here rather
     // than assumed to arrive from the project path.
     const { equippedFor, breakOnDespair, tierOf } = await import("./use-items.mjs");
@@ -2387,7 +2387,7 @@ async function performSabotage(actor, def, options) {
     const success = Boolean(hit);
 
     // A successful sabotage freezes the project and spawns its repair. The
-    // better the roll, the harder the repair — the guide scales it from
+    // better the roll, the harder the repair - the guide scales it from
     // "simple" to "hidden-difficulty".
     //
     // `sabotageProject` now waits for the GM's client to confirm the freeze and
@@ -2413,7 +2413,7 @@ async function performSabotage(actor, def, options) {
         repair = await sabotageProject(project.id, difficulty);
     }
     // The dice succeeded but nobody was there (or ready in time) to actually
-    // write the freeze — say so rather than claiming a state that never
+    // write the freeze - say so rather than claiming a state that never
     // landed. `success` stays true below: the attempt itself still happened,
     // still leaves a trace, and can still reveal the actor on a Despair.
     const applied = Boolean(repair?.repair);
@@ -2453,7 +2453,7 @@ async function performSabotage(actor, def, options) {
             ? def.failure
             : applyFailed
                 ? game.i18n.format("DRPG.Project.sabotageNotApplied", { name: project.name })
-                : `${hit.result} — ${game.i18n.format("DRPG.Project.frozenNow", {
+                : `${hit.result} - ${game.i18n.format("DRPG.Project.frozenNow", {
                       name: project.name, repair: repair.repair.name
                   })}`
     };
@@ -2461,7 +2461,7 @@ async function performSabotage(actor, def, options) {
     /*
      * ONE SOUND FOR ONE SABOTAGE, and which one depends on who found out.
      *
-     * These two can both be true — you can fail AND be seen failing — and
+     * These two can both be true - you can fail AND be seen failing - and
      * played together they would be two sounds for one act. Resolved by
      * precedence rather than by `yieldsTo`: the reveal is a public card that
      * arrives whenever the GM's client gets to it, so there is no reliable
@@ -2477,15 +2477,15 @@ async function performSabotage(actor, def, options) {
         await announce({
             content: `<p><em>${game.i18n.format("DRPG.Action.sabotageSeen", {
                 actor: foundry.utils.escapeHTML(actor.name),
-                room: foundry.utils.escapeHTML(room ?? "—")
+                room: foundry.utils.escapeHTML(room ?? "-")
             })}</em></p>`,
-            // Public — no whisper list — so the whole table hears it, which is
+            // Public - no whisper list - so the whole table hears it, which is
             // the whole table that just read it.
             flags: { [MODULE_ID]: { sfx: "sabotageSeen" } }
         });
     } else if (!outcome.success) {
         // Local: this branch runs on the saboteur's own client. A sabotage that
-        // missed still dropped its Remnant a few lines above — the sound is
+        // missed still dropped its Remnant a few lines above - the sound is
         // for the trace, not for the miss.
         playSfx("sabotageFailed");
     }
@@ -2505,8 +2505,8 @@ async function performSabotage(actor, def, options) {
 
     await report(actor, def, roll, outcome);
     // See the note on the project hook above. The sabotage path already had the
-    // id to hand — it writes it into `noteRollContext` so a Reroll can undo the
-    // right one — it simply was not saying it out loud.
+    // id to hand - it writes it into `noteRollContext` so a Reroll can undo the
+    // right one - it simply was not saying it out loud.
     Hooks.callAll("drpgActionResolved", {
         actor, actionKey: "sabotage", roll, outcome, projectId: project.id
     });
@@ -2522,7 +2522,7 @@ async function performSabotage(actor, def, options) {
  *
  * NOTHING HERE IS NEW MACHINERY. Both branches end in cleanup.mjs, in the very
  * functions Stage 6 calls, with `viaAction: true` saying which door they came
- * through — see the note at the top of that file. This is the menu, the two
+ * through - see the note at the top of that file. This is the menu, the two
  * lists the menu needs, and nothing else. A second implementation of "erase a
  * trace" would be a second set of thresholds to keep in step with the first.
  *
@@ -2536,8 +2536,8 @@ async function performTamper(actor, def, options) {
     /*
      * FREE FOR THE KILLER, ON THEIR OWN NIGHT (D3).
      *
-     * The action is not actually spent here — `spendResolutionAction` inside
-     * `attemptCleanup` does that, on both roads — so all this line does is
+     * The action is not actually spent here - `spendResolutionAction` inside
+     * `attemptCleanup` does that, on both roads - so all this line does is
      * decide whether to REFUSE for want of one. Left as it was, a killer with
      * an empty budget would be turned away at the tile from an action that was
      * about to cost them nothing: the rule would exist and never be reachable
@@ -2607,7 +2607,7 @@ async function performTamper(actor, def, options) {
                     ? "DRPG.Tamper.onlyReinforced" : "DRPG.Tamper.nothingOfYours")
             },
             // Z5: the same list of traces as "cover", because it is the same
-            // question — which of your traces are you standing over — and a
+            // question - which of your traces are you standing over - and a
             // different answer to it. Struck through for the same reason too:
             // there is nothing to relabel if there is nothing here of yours.
             {
@@ -2639,7 +2639,7 @@ async function performTamper(actor, def, options) {
         ],
         // What is readied, said where the roll that uses it is chosen. The
         // clean-up panel carried this line; the panel is gone and the sentence
-        // is not — a Cleaning Tool lowers the number and grants advantage, and
+        // is not - a Cleaning Tool lowers the number and grants advantage, and
         // a player deciding whether to scrub should know whether they are doing
         // it bare-handed.
         traitNote: (() => {
@@ -2649,7 +2649,7 @@ async function performTamper(actor, def, options) {
                 : game.i18n.localize("DRPG.Cleanup.noneReadied");
         })(),
         // The selects are always in the form and the CSS shows the one that
-        // belongs to the checked row — the same trick Search's "what
+        // belongs to the checked row - the same trick Search's "what
         // specifically" box uses. Reading the wrong one is impossible because
         // the branch below reads by name, not by position.
         extra: `${erasable.length ? `<label class="drpg-specific-note" data-drpg-when="cover">
@@ -2670,20 +2670,20 @@ async function performTamper(actor, def, options) {
 
     if (!picked) return null;
 
-    // `viaAction` is the flag that says which economy this is — see the note on
+    // `viaAction` is the flag that says which economy this is - see the note on
     // `stageSix` above and the header of cleanup.mjs.
     const viaAction = !stageSix;
 
     if (picked.value === "body") {
         // Where the body goes is a decision, not a result, so it is asked
-        // before the dice — by the dialog that has always owned that question.
+        // before the dice - by the dialog that has always owned that question.
         return cleanup.openMoveBodyDialog(actor);
     }
 
     if (picked.value === "cover") {
         const traceId = picked.form?.querySelector("[name=trace]")?.value ?? erasable[0]?.id;
         if (!traceId) return null;
-        // The action is charged inside — `spendResolutionAction` is one action
+        // The action is charged inside - `spendResolutionAction` is one action
         // on both routes, and charging here as well would take two.
         return cleanup.attemptCleanup(actor, traceId, { viaAction });
     }
@@ -2715,9 +2715,9 @@ async function performTamper(actor, def, options) {
  * actions, and the sheet already has a place for actions.
  *
  * NOTHING ABOUT WHO MAY DO WHAT IS DECIDED HERE. `availableCrisisActions` still
- * answers what this character is offered — it is the function that knows their
+ * answers what this character is offered - it is the function that knows their
  * side, what a Pin has blocked, what Self-defence has not unlocked yet and what
- * they have already spent — and `takeCrisisAction` still decides what happens.
+ * they have already spent - and `takeCrisisAction` still decides what happens.
  * This draws the same list with the same four reasons a row can be shut, in the
  * same order of precedence the tiles used.
  *
@@ -2739,7 +2739,7 @@ async function openCrisisMenu(actor) {
      *
      * The old panel greyed every tile and put "waiting for them" in its
      * heading, which a menu cannot do: `chooseVariant` refuses to open when
-     * every row is disabled, and off-turn every row is. Measured — the tile did
+     * every row is disabled, and off-turn every row is. Measured - the tile did
      * nothing at all and warned "no variants", which is true and useless.
      *
      * So the answer comes as the sentence the heading used to carry. What is
@@ -2763,13 +2763,13 @@ async function openCrisisMenu(actor) {
             icon: def.icon ?? "fa-burst",
             label: def.label,
             // The number to beat, which the guide prints in its own crisis
-            // table — a player choosing between Strike at 15 and Pin at 12 is
+            // table - a player choosing between Strike at 15 and Pin at 12 is
             // making the decision that table is for. The three third-party
             // decisions have no dice and say so.
             hint: `${threshold === null || threshold === undefined
                 ? game.i18n.localize("DRPG.Murder.noRollNeeded")
                 : game.i18n.format("DRPG.Murder.thresholdShort", { n: threshold })}${
-                def.hint ? ` — ${def.hint}` : ""}${
+                def.hint ? ` - ${def.hint}` : ""}${
                 hindered ? ` · ${game.i18n.localize("DRPG.Murder.actionHindered")}` : ""}`,
             disabled: blocked,
             // Say WHICH kind of shut this is, in the same precedence the tiles
@@ -2796,20 +2796,20 @@ async function openCrisisMenu(actor) {
  *
  * TWO ROLLS, TWO QUESTIONS, AND THEY DO NOT INTERFERE. Shadow answers "did they
  * notice", Hand answers "did you get it", and the four combinations are four
- * different scenes — including the two mismatches, which are the good ones:
+ * different scenes - including the two mismatches, which are the good ones:
  * caught with your hand in a pocket and nothing to show for it, or robbed by
  * somebody you never saw.
  *
  * The Shadow roll goes first and is thrown with `remember: false`, which shields
  * it from an armed Hope Call (trap 89) and keeps the Reroll bookmark pointing at
  * the roll that decided the theft. It also means the player learns whether they
- * were seen BEFORE the theft resolves — which is exactly the wrong way round
+ * were seen BEFORE the theft resolves - which is exactly the wrong way round
  * dramatically, so they are not told: the line goes on the card afterwards, with
  * everything else.
  *
  * WHAT IS DECIDED HERE AND WHAT IS NOT. This client throws dice and names a
- * victim. Every verdict — was 14 beaten, was 15 beaten, is that item really
- * stealable, does the victim get told — is made in `stealFromPerson` on a GM's
+ * victim. Every verdict - was 14 beaten, was 15 beaten, is that item really
+ * stealable, does the victim get told - is made in `stealFromPerson` on a GM's
  * client, against the same table in config.mjs. Same division as Observe.
  */
 async function performPalm(actor, def, options) {
@@ -2823,7 +2823,7 @@ async function performPalm(actor, def, options) {
     }
 
     // Anybody standing here who is not you. `othersInRoom` already excludes
-    // tokens that do not count as present — see `countsAsPresent`.
+    // tokens that do not count as present - see `countsAsPresent`.
     const targets = othersInRoom(actor).filter(a => a?.type === "character");
     if (!targets.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Steal.nobodyHere"));
@@ -2831,14 +2831,14 @@ async function performPalm(actor, def, options) {
     }
 
     /*
-     * WHICH WAY, WHO, AND — FOR A PLANT ONLY — WHAT, all in one window.
+     * WHICH WAY, WHO, AND - FOR A PLANT ONLY - WHAT, all in one window.
      *
      * The asymmetry in that list is the whole difference between the two
      * directions, and it is a difference in what the player is allowed to know.
      * A Steal must not show the victim's pockets: that list is the prize, and
      * this window opens whether or not the theft is going to work, so a picker
      * here would hand it over on a miss (trap 93). A Plant shows YOURS, because
-     * they are yours — and choosing what to leave behind is the decision the
+     * they are yours - and choosing what to leave behind is the decision the
      * action is for.
      */
     const mine = await palmablePool(actor);
@@ -2906,7 +2906,7 @@ async function performPalm(actor, def, options) {
      * A PLANT IS AN EASIER HAND THAN A STEAL (D10a), on both axes.
      *
      * Read here rather than branched earlier because both rolls have already
-     * happened by this line and neither cares which they were for — what
+     * happened by this line and neither cares which they were for - what
      * changes is only the number they are measured against. `def.plant` is
      * absent for anything but Palm, so the `??` is what keeps every other
      * caller of this shape on its own single threshold.
@@ -2923,7 +2923,7 @@ async function performPalm(actor, def, options) {
      * No picker, no critical branch and nothing to reveal: the item was chosen
      * in the first window, out of the player's own pockets, and a critical buys
      * nothing extra because there is nothing extra to buy. Said out loud rather
-     * than left as an absence — the reader's next question after the Steal
+     * than left as an absence - the reader's next question after the Steal
      * branch below is "and what does a critical do here", and the answer is
      * "nothing, on purpose".
      */
@@ -2959,7 +2959,7 @@ async function performPalm(actor, def, options) {
      * THE CRITICAL IS THE ONLY WAY TO CHOOSE, AND THE PICKER COMES AFTER.
      *
      * Built here, on this client, and only once the dice have already said the
-     * theft worked — never before. Opening a list of somebody's pockets is
+     * theft worked - never before. Opening a list of somebody's pockets is
      * itself the information the action is about, so a picker that appeared
      * before the roll would hand it over even on a miss (trap 93). The GM side
      * re-derives the same pool and refuses anything that is not in it, so the
@@ -2974,7 +2974,7 @@ async function performPalm(actor, def, options) {
             }));
         } else {
             chosenId = await chooseStolenItem(victim, pool);
-            // Backing out of the picker is not backing out of the theft — the
+            // Backing out of the picker is not backing out of the theft - the
             // dice are thrown, the action is spent and the hand is already in
             // the pocket. It falls back to whatever comes out, which is what an
             // ordinary success would have got.
@@ -2993,7 +2993,7 @@ async function performPalm(actor, def, options) {
     });
 
     // What Reroll would have to unpick, and the honest answer is that it cannot
-    // — see `case "steal"` in reroll.mjs. Recorded anyway so the branch there
+    // - see `case "steal"` in reroll.mjs. Recorded anyway so the branch there
     // has the facts it needs to say so precisely.
     await noteRollContext(actor, {
         actionKey: "palm", room, victimId: victim.id,
@@ -3005,8 +3005,8 @@ async function performPalm(actor, def, options) {
      * SIDE.
      *
      * `seen` and `success` are computed above and deliberately not printed
-     * here. This client can do the arithmetic — the thresholds are in the
-     * table it just read — but it cannot know whether the theft actually
+     * here. This client can do the arithmetic - the thresholds are in the
+     * table it just read - but it cannot know whether the theft actually
      * happened: `stealFromPerson` can still refuse it for standing in the
      * wrong room, for a pool with nothing in it, or for hands too full to hold
      * what came out. A card reading "you got it" beside a whisper saying
@@ -3032,7 +3032,7 @@ async function performPalm(actor, def, options) {
 /**
  * Everything on a character that a Steal could come away with.
  *
- * Their POCKETS, which is `carriedInCategory` — `itemsInCategory` minus what is
+ * Their POCKETS, which is `carriedInCategory` - `itemsInCategory` minus what is
  * stashed. Two exclusions, and both are rules rather than tidiness:
  *
  *   the stash        has its own route with its own conditions (stand in the
@@ -3043,7 +3043,7 @@ async function performPalm(actor, def, options) {
  *
  * Broken things stay IN. A ruined crime tool that can be lifted out of a pocket
  * is evidence that starts to circulate, which is the best thing this action
- * produces — and `preservedFlags` already stops the transfer from mending it.
+ * produces - and `preservedFlags` already stops the transfer from mending it.
  *
  * Duplicated in `stealFromPerson` on the GM side rather than shared, and that is
  * deliberate: this builds a menu, that one is the authority, and an authority
@@ -3059,7 +3059,7 @@ async function stealablePool(victim) {
 /**
  * What this character could leave in somebody else's pocket.
  *
- * The same pool as a Steal, asked of the planter instead of the victim — their
+ * The same pool as a Steal, asked of the planter instead of the victim - their
  * own carried things, no Truth Bullets and nothing in a stash. `isBroken` is
  * deliberately not filtered: a ruined crime tool is the single best thing this
  * action exists to get rid of.
@@ -3068,13 +3068,13 @@ async function palmablePool(actor) {
     return stealablePool(actor);
 }
 
-/** `Name — Category`, for a select. */
+/** `Name - Category`, for a select. */
 function describeItem(item) {
     const cat = ITEM_CATEGORIES[item.getFlag(MODULE_ID, "category")]?.label ?? "";
-    return `${item.name}${cat ? ` — ${cat}` : ""}`;
+    return `${item.name}${cat ? ` - ${cat}` : ""}`;
 }
 
-/** Which of them. Only ever opened on a critical — see `performPalm`. */
+/** Which of them. Only ever opened on a critical - see `performPalm`. */
 async function chooseStolenItem(victim, pool) {
     const esc = foundry.utils.escapeHTML;
     const describe = i => esc(describeItem(i));
@@ -3129,13 +3129,13 @@ async function performGmAction(actor, actionKey, def, options) {
         roll,
         room: roomOfActor(actor),
         body,
-        // Nothing mechanical to apply — Think and Listen end in a sentence — so
+        // Nothing mechanical to apply - Think and Listen end in a sentence - so
         // the card carries the two answers that ARE the ruling: say it, or say
         // there is nothing and hand the action back.
         actions: gmRulingActions(actor, cost)
     });
 
-    // Ruled by a human. Reroll cannot undo a ruling, so it re-asks — see
+    // Ruled by a human. Reroll cannot undo a ruling, so it re-asks - see
     // `settleGmRuling` in reroll.mjs.
     await noteRollContext(actor, {
         actionKey, gmRuled: true, request, label: def.label, room: roomOfActor(actor)
@@ -3172,9 +3172,9 @@ function gmRulingActions(actor, cost = 0) {
 function buildGmBody(actionKey, def, roll) {
     if (def.thresholds?.length) {
         const rows = def.thresholds.map(t =>
-            `<li>${t.min}+ — ${foundry.utils.escapeHTML(t.result ?? "")}</li>`).join("");
+            `<li>${t.min}+ - ${foundry.utils.escapeHTML(t.result ?? "")}</li>`).join("");
         const crit = def.critical?.result
-            ? `<li><em>${game.i18n.localize("DRPG.Action.critical")} — ${foundry.utils.escapeHTML(def.critical.result)}</em></li>`
+            ? `<li><em>${game.i18n.localize("DRPG.Action.critical")} - ${foundry.utils.escapeHTML(def.critical.result)}</em></li>`
             : "";
         return `<ul class="drpg-gm-reference">${rows}${crit}</ul>`;
     }
@@ -3189,7 +3189,7 @@ function buildGmBody(actionKey, def, roll) {
 }
 
 /**
- * Observe — the Investigation's engine.
+ * Observe - the Investigation's engine.
  *
  * Guide, p. 30: the player declares HOW they are looking, and that decides what
  * they can find. The three declarations map onto the easiest Remnant in the
@@ -3197,13 +3197,13 @@ function buildGmBody(actionKey, def, roll) {
  *
  * The scoring does not happen here. Which Remnants are in the room, what they
  * are and therefore how hard they are to spot are all things the observer must
- * not know — and Foundry ships every scene's tokens to every client, so this
+ * not know - and Foundry ships every scene's tokens to every client, so this
  * client physically holds those answers. Asking it to judge the roll would be
  * asking the player to mark their own paper. So this side declares, asks the GM
  * to fix a target, throws the dice, and sends the number. See observe.mjs.
  *
  * When the room holds nothing left to find, the action falls back to the older
- * behaviour: a roll and a GM ruling. That is the guide's "Daily Life" column —
+ * behaviour: a roll and a GM ruling. That is the guide's "Daily Life" column -
  * Observe can also simply turn something interesting up.
  */
 async function performObserve(actor, def, options) {
@@ -3214,14 +3214,14 @@ async function performObserve(actor, def, options) {
     if (!asked) return null;
     const { declaration, request } = asked;
 
-    // Looking at something that is not a trace at all — a room, a person, a
+    // Looking at something that is not a trace at all - a room, a person, a
     // machine, the weather. The guide's "Daily Life" column: Observe can simply
     // turn something interesting up, and only a human can say what. No Remnant
     // is involved, so there is nothing to rank and nothing to score.
     if (declaration === "anything") return observeAnything(actor, def, cost, request);
 
     // "Specific" is the only declaration whose target depends on a sentence from
-    // the player — and that sentence now arrives with the declaration rather
+    // the player - and that sentence now arrives with the declaration rather
     // than after the roll, so this branch simply carries it through.
     if (declaration === "specific") return observeSpecific(actor, def, cost, request);
 
@@ -3230,7 +3230,7 @@ async function performObserve(actor, def, options) {
 
 /**
  * General and Non-obvious: the target is decided by the table, not by anything
- * the player says, so it can be — and is — fixed before the dice are thrown.
+ * the player says, so it can be - and is - fixed before the dice are thrown.
  */
 async function observeRanked(actor, def, cost, options, declaration) {
     const { requestObserveTarget } = await import("./gm-bridge.mjs");
@@ -3256,8 +3256,8 @@ async function observeRanked(actor, def, cost, options, declaration) {
 /**
  * Specific: roll, then say what you were after.
  *
- * The order used to be the other way round — type the request, let the GM fix a
- * target, then roll — and the reason given was that a GM who already knew the
+ * The order used to be the other way round - type the request, let the GM fix a
+ * target, then roll - and the reason given was that a GM who already knew the
  * total could pick a target to suit the number. That reason still holds, and it
  * is still honoured: what moves is the QUESTION, not the number. The request
  * travels in `requestObserveTarget`, which carries no total; the roll is only
@@ -3271,10 +3271,10 @@ async function observeRanked(actor, def, cost, options, declaration) {
  * A roll cannot be taken back, so every path from here spends the action and
  * produces an answer. A cancelled request drops to the General reading rather
  * than throwing the throw away, and a GM who has nothing to point at gets a
- * ruling built on the dice already on the table — never a second roll.
+ * ruling built on the dice already on the table - never a second roll.
  */
 async function observeSpecific(actor, def, cost, request = "") {
-    // The sentence was typed in the declaration window, before the dice — see
+    // The sentence was typed in the declaration window, before the dice - see
     // "THE SENTENCE COMES FIRST". Leaving it empty is still allowed and still
     // means the same thing: with nothing named, this is an ordinary sweep of
     // the room and it is scored as one.
@@ -3287,7 +3287,7 @@ async function observeSpecific(actor, def, cost, request = "") {
     const { requestObserveTarget } = await import("./gm-bridge.mjs");
     const target = await requestObserveTarget({ actorId: actor.id, declaration, request });
 
-    // Nobody answered — no GM is listening. `requestObserveTarget` has already
+    // Nobody answered - no GM is listening. `requestObserveTarget` has already
     // said so, and the action stays in the player's pocket: there is nobody to
     // rule on it either, so charging for it would be charging for silence.
     if (!target) return null;
@@ -3326,7 +3326,7 @@ async function settleObserveRoll(actor, def, roll, observeKey, declaration) {
     //
     // "The GM is judging what you found" only where a GM actually is. A sweep
     // of the room is scored on the GM's client without a human touching it, and
-    // the verdict lands about a second later — so the note told the player to
+    // the verdict lands about a second later - so the note told the player to
     // wait for something that had already happened, on the one branch where it
     // was never true. Naming a target and asking the GM outright do go to a
     // person, and there the wait is real.
@@ -3343,7 +3343,7 @@ async function settleObserveRoll(actor, def, roll, observeKey, declaration) {
  *
  * Rolls first and asks afterwards, like the specific branch: what the player is
  * looking at is a sentence for the GM to rule on, and there is no reason to
- * write it before knowing the number. Marked `gmRuled`, which is what it is — a
+ * write it before knowing the number. Marked `gmRuled`, which is what it is - a
  * Reroll re-asks rather than pretending to recompute a table that does not
  * exist for this branch.
  */
@@ -3372,7 +3372,7 @@ async function ruleObserve(actor, def, roll, request, title = null, cost = 0) {
         request,
         room,
         // This is the branch where a GM decides there IS something at the point
-        // of interest the player named — so the first button places it, as a
+        // of interest the player named - so the first button places it, as a
         // Key Remnant in the room they are standing in, and offers to hang it
         // on a planned clue that has no trace yet.
         actions: [
@@ -3406,7 +3406,7 @@ async function ruleObserve(actor, def, roll, request, title = null, cost = 0) {
  *
  * No text box here any more. Two of the four buttons never used what was typed
  * in it, and the two that did were asking for a description of a search that had
- * not happened yet — see `observeSpecific`.
+ * not happened yet - see `observeSpecific`.
  *
  * @returns {Promise<"general"|"specific"|"nonObvious"|"followTraces"|"anything"|null>}
  */
@@ -3415,9 +3415,9 @@ async function askDeclaration(actor, def) {
     //
     // The first three are settled by the table: sweeping the room takes the
     // easiest trace in it, looking past the obvious takes the hardest, and
-    // following your own traces takes the easiest one YOU left — all three
+    // following your own traces takes the easiest one YOU left - all three
     // decided by a number, none of them asking the player anything first. The
-    // last two summon a human — the GM picks which Remnant a named request
+    // last two summon a human - the GM picks which Remnant a named request
     // lands on, and "examine a point of interest" is a ruling outright.
     const picked = await chooseVariant({
         actor,
@@ -3427,7 +3427,7 @@ async function askDeclaration(actor, def) {
         confirm: game.i18n.localize("DRPG.Action.roll"),
         // The two red rows below are the ones that end with a person reading
         // this; the other three never see it. One box for both, in the window
-        // where the choice is made — see "THE SENTENCE COMES FIRST".
+        // where the choice is made - see "THE SENTENCE COMES FIRST".
         extra: requestFieldHtml({
             prompt: game.i18n.localize("DRPG.Observe.requestPrompt"),
             placeholder: game.i18n.localize("DRPG.Observe.requestPlaceholder")
@@ -3459,7 +3459,7 @@ async function askDeclaration(actor, def) {
 /**
  * Analyze: one action, two uses, and they no longer end the same way.
  *
- * Analysing evidence is a table lookup — Head against ANALYZE_DC — so it is
+ * Analysing evidence is a table lookup - Head against ANALYZE_DC - so it is
  * scored rather than ruled, on the GM's client because half the lookup is the
  * secret the roll is buying. Asking for a hint has no table and never will: it
  * stays a human ruling, and stays marked as one so a Reroll re-asks instead of
@@ -3471,7 +3471,7 @@ async function performAnalyze(actor, def, options) {
 
     // Only bullets there is still something to learn about. An identified one is
     // finished, and one this character already burned an attempt on this chapter
-    // is closed to them until the next — guide, p. 30.
+    // is closed to them until the next - guide, p. 30.
     const { analysableBullets } = await import("./truth-bullets.mjs");
     const bullets = analysableBullets(actor);
 
@@ -3506,7 +3506,7 @@ async function performAnalyze(actor, def, options) {
 
 /**
  * Analysing evidence. The roll goes to the GM's client to be scored, because
- * the difficulty depends on what the bullet really is — which is precisely what
+ * the difficulty depends on what the bullet really is - which is precisely what
  * the roll is trying to find out. See analyze.mjs.
  */
 async function analyseBullet(actor, def, roll, subject) {
@@ -3541,15 +3541,15 @@ async function analyseBullet(actor, def, roll, subject) {
 /** The other half of the action: no evidence, just a nudge from the GM. */
 async function askForHint(actor, def, roll, request = "") {
     const rows = def.hintThresholds.map(t =>
-        `<li>${t.min}+ — ${foundry.utils.escapeHTML(t.result)}</li>`).join("");
+        `<li>${t.min}+ - ${foundry.utils.escapeHTML(t.result)}</li>`).join("");
     const body = `<ul class="drpg-gm-reference">${rows}
-            <li><em>${game.i18n.localize("DRPG.Action.critical")} — ${
+            <li><em>${game.i18n.localize("DRPG.Action.critical")} - ${
                 foundry.utils.escapeHTML(def.hintCritical.result)}</em></li></ul>`;
 
     const title = game.i18n.localize("DRPG.Analyze.askHint");
 
     // The question was typed in the variant window, with the two branches in
-    // front of the player — see "THE SENTENCE COMES FIRST".
+    // front of the player - see "THE SENTENCE COMES FIRST".
     await callGm(actor, {
         title,
         request,
@@ -3558,7 +3558,7 @@ async function askForHint(actor, def, roll, request = "") {
         body,
         // The hint IS the answer, so it goes back down the thread the question
         // came up. The action has already been spent by the time this runs, so
-        // the refusal hands it back — see `decline` in `runCallAction`.
+        // the refusal hands it back - see `decline` in `runCallAction`.
         actions: gmRulingActions(actor, def.cost ?? 1)
     });
 
@@ -3581,13 +3581,13 @@ async function askForHint(actor, def, roll, request = "") {
  *
  * That is not laziness, it is the cheaper of two correct answers. A
  * world-scoped "who has found what" register is readable from the console by
- * the person it is being kept from — Foundry ships the whole world to every
- * client — and the airtight version means asking a GM every time a sheet opens.
+ * the person it is being kept from - Foundry ships the whole world to every
+ * client - and the airtight version means asking a GM every time a sheet opens.
  * Since a human is answering anyway, there is nothing left to hide.
  *
  * THE OPTION IS NEVER GREYED OUT, and that is deliberate too. Dimming it in a
  * room with no stash in it would answer the question the action is asking, for
- * free, without a roll — so it is always offered and the answer always comes
+ * free, without a roll - so it is always offered and the answer always comes
  * from the GM. In practice: they lift the padlock in the Stashes tab for that
  * one player, or simply tell them what is in it.
  */
@@ -3618,8 +3618,8 @@ async function locateStash(actor, def, roll, request = "") {
         isCritical: Boolean(roll.isCritical)
     });
 
-    // NOT `gmRuled`. A Reroll can genuinely replay this — the outcome follows
-    // from a threshold, not from a person — and the replay is idempotent
+    // NOT `gmRuled`. A Reroll can genuinely replay this - the outcome follows
+    // from a threshold, not from a person - and the replay is idempotent
     // because `resolveStashSearch` skips a stash this character has already
     // found. Rerolling a success and succeeding again opens nothing new.
     await noteRollContext(actor, {
@@ -3639,7 +3639,7 @@ async function locateStash(actor, def, roll, request = "") {
  * Which bullet, a hint, or somebody's hiding place.
  *
  * The bullet picker used to be its own dialog, shown only after choosing
- * "Analyze a bullet" — two windows every time there was a bullet to analyze.
+ * "Analyze a bullet" - two windows every time there was a bullet to analyze.
  * It is folded into one instead: the select is simply ignored when "Ask for a
  * hint" is the button actually pressed.
  *
@@ -3668,7 +3668,7 @@ async function askWhatToAnalyze(actor, def, bullets) {
                 hint: game.i18n.localize("DRPG.Analyze.askHintHint")
             },
             {
-                // Never disabled — see `locateStash`. An option that greys out
+                // Never disabled - see `locateStash`. An option that greys out
                 // in rooms with no stash is a stash detector you do not have to
                 // roll for.
                 //
@@ -3699,7 +3699,7 @@ async function askWhatToAnalyze(actor, def, bullets) {
     // Both of the rows that end in a person are their own answer. Only the
     // first has a `<select>` underneath it, so anything else falling through to
     // the line below reads an element that is not there and comes back `null`,
-    // which `performAnalyze` treats as "cancelled" — measured: picking "Locate
+    // which `performAnalyze` treats as "cancelled" - measured: picking "Locate
     // a hidden stash" spent nothing, rolled nothing and closed in silence.
     if (picked.value === "hint" || picked.value === "stash") {
         return { choice: picked.value, request };
@@ -3708,7 +3708,7 @@ async function askWhatToAnalyze(actor, def, bullets) {
 }
 
 /**
- * Listen — fully automatic, no GM.
+ * Listen - fully automatic, no GM.
  *
  * The guide's three outcomes map onto three amounts of information:
  *   pass      you learn how many people are in the chosen room, not who
@@ -3740,7 +3740,7 @@ async function performListen(actor, def, options) {
         window: { title: def.label },
         classes: ["drpg-panel"],
         content: `${briefingBlock(actor, "listen", def)}<form>
-            <p>${game.i18n.format("DRPG.Listen.prompt", { room: foundry.utils.escapeHTML(here ?? "—") })}</p>
+            <p>${game.i18n.format("DRPG.Listen.prompt", { room: foundry.utils.escapeHTML(here ?? "-") })}</p>
             <label>${game.i18n.localize("DRPG.Listen.which")}
                 <select name="room">${options_}</select></label>
         </form>`,
@@ -3764,7 +3764,7 @@ async function performListen(actor, def, options) {
     if (cost > 0) await spendAction(actor, cost);
 
     // Listen produces information and nothing else, so Reroll has nothing to
-    // undo — it simply asks the walls again with the new number.
+    // undo - it simply asks the walls again with the new number.
     await noteRollContext(actor, { actionKey: "listen", room: here, target });
 
     const hit = resolveThreshold(roll.total, def.thresholds);
@@ -3781,7 +3781,7 @@ async function performListen(actor, def, options) {
         // Everything, everywhere.
         const sweep = neighbours.map(room => {
             const who = occupantsOf(room, actor).map(a => a.name);
-            return `<li><strong>${foundry.utils.escapeHTML(room)}</strong> — ${
+            return `<li><strong>${foundry.utils.escapeHTML(room)}</strong> - ${
                 who.length ? who.map(n => foundry.utils.escapeHTML(n)).join(", ") : game.i18n.localize("DRPG.Listen.empty")
             }</li>`;
         }).join("");
@@ -3823,7 +3823,7 @@ async function performRest(actor) {
     const room = roomOfActor(actor);
 
     // One row per rest, each carrying its own price and its own reason for
-    // being unavailable — spent already, or not allowed in this room. Both
+    // being unavailable - spent already, or not allowed in this room. Both
     // reasons used to be printed above a pair of buttons that stayed live
     // regardless, so the player could pick the one the list had just told them
     // they could not have.
@@ -3877,7 +3877,7 @@ async function performRest(actor) {
  * anything happens is the whole of what the old tile's text was doing, and it
  * costs one press.
  *
- * The decision still belongs to the player — the GM is not asked. What goes to
+ * The decision still belongs to the player - the GM is not asked. What goes to
  * the GM is the WRITE, like every other world change in this module.
  */
 async function performBetrayal(actor, partner) {
@@ -3903,7 +3903,7 @@ async function performDirectMurder(actor, def, options) {
     if (!canAfford(actor, cost)) return null;
 
     // No preview of the room. The guide's whole point is that you do not know
-    // who else is standing in the dark with you — showing "you are alone with
+    // who else is standing in the dark with you - showing "you are alone with
     // X" or listing everyone present here would hand the killer the verdict
     // before they have even declared. `judgePendingMurders` (eclipse.mjs) reads
     // the room once, for real, after the Eclipse ends and the map has settled;
@@ -3925,7 +3925,7 @@ async function performDirectMurder(actor, def, options) {
      * THE ATTEMPT IS PARKED, NOT JUDGED.
      *
      * This used to read the room a second time, decide there and then, and hand
-     * the GM a button that opened the incident immediately — in the middle of
+     * the GM a button that opened the incident immediately - in the middle of
      * the Eclipse. Three things were wrong with that, and they are one thing:
      * an Eclipse is a placement window, and nobody has finished placing.
      *
@@ -3940,7 +3940,7 @@ async function performDirectMurder(actor, def, options) {
      *
      * So the declaration is stored and the answer waits for the lights. What
      * counts is where everyone ENDS UP: see `judgePendingMurders` in eclipse.mjs,
-     * which runs as the Eclipse closes and opens the incident then — into a time
+     * which runs as the Eclipse closes and opens the incident then - into a time
      * of day that has actually begun, with Calls available and the map settled.
      *
      * The action is spent here either way, which is the guide's rule and does
@@ -3970,7 +3970,7 @@ async function performDirectMurder(actor, def, options) {
  *
  * `promptAndCallGm` does both in one step, and a parked declaration needs the
  * halves separated: the GM hears about this when the Eclipse ends, not now.
- * Cancelling the box is not cancelling the attempt — the action is already
+ * Cancelling the box is not cancelling the attempt - the action is already
  * spent by the time this opens, and a dismissed dialog must never be a way to
  * get it back.
  */
@@ -4002,7 +4002,7 @@ async function performGeneric(actor, actionKey, def, options) {
     const cost = options.free ? 0 : (def.cost ?? 1);
     if (!canAfford(actor, cost)) return null;
 
-    // The briefing rides in the statistic picker rather than in front of it —
+    // The briefing rides in the statistic picker rather than in front of it -
     // this branch has no other window of its own, and two in a row for one
     // choice is exactly what NEEDS_OWN_BRIEFING exists to stop.
     const trait = await chooseTrait(actor, def, {
@@ -4020,7 +4020,7 @@ async function performGeneric(actor, actionKey, def, options) {
         text: hit?.result ?? def.failure ?? game.i18n.localize("DRPG.Action.nothing")
         // No `leftTrace`: this generic fallback never actually calls
         // `dropRemnant`, so `hit?.remnant` used to report a trace that was
-        // never placed — a lie `traceFeedback`'s contract (nothing to
+        // never placed - a lie `traceFeedback`'s contract (nothing to
         // report if nothing was placed) does not allow.
     };
 
@@ -4044,7 +4044,7 @@ async function performDynamic(actor, options) {
         placeholder: game.i18n.localize("DRPG.Action.dynamicPlaceholder"),
         room: roomOfActor(actor),
         // Only "reply" here, and no refusal: nothing has been spent yet at this
-        // point — the difficulty window that follows is where this action is
+        // point - the difficulty window that follows is where this action is
         // accepted or not, and it already refunds nothing because it has
         // charged nothing.
         actions: [{
@@ -4090,7 +4090,7 @@ async function performDynamic(actor, options) {
     // Actually leave the trace.
     //
     // The guide gives Dynamic actions their own Remnant column, and the outcome
-    // below has always reported one — but nothing ever created it. The action
+    // below has always reported one - but nothing ever created it. The action
     // told the player and the GM that a trace had been left and the map stayed
     // empty, which is the one kind of lie an investigation cannot recover from.
     let leftTrace = false;
@@ -4140,7 +4140,7 @@ async function performDynamic(actor, options) {
  * the band and the trait it is rolled against.
  *
  * Exported because gm-bridge calls it when the request arrives over the socket.
- * Returning null is a real answer — it means "no, you cannot do that" — and the
+ * Returning null is a real answer - it means "no, you cannot do that" - and the
  * player's action is refused without costing them anything.
  *
  * @returns {Promise<{tier: number, trait: string}|null>}
@@ -4155,7 +4155,7 @@ export async function askDynamicDifficulty({ description, actorName, room } = {}
         content: `<form>
                     <p>${game.i18n.format("DRPG.Action.dynamicFrom", {
                         actor: foundry.utils.escapeHTML(actorName ?? "?"),
-                        room: foundry.utils.escapeHTML(room ?? "—")
+                        room: foundry.utils.escapeHTML(room ?? "-")
                     })}</p>
                     <blockquote>${foundry.utils.escapeHTML(description ?? "")}</blockquote>
                     <label>${game.i18n.localize("DRPG.Action.difficulty")}
@@ -4189,16 +4189,16 @@ export async function askDynamicDifficulty({ description, actorName, room } = {}
  * The header for a card that reports a roll and nothing more about it.
  *
  * Five call sites in this file had these exact three slots written out
- * longhand, and they had drifted: four used `Label — total · <em>Critical</em>`
+ * longhand, and they had drifted: four used `Label - total · <em>Critical</em>`
  * and Listen used `Label · Shadow · total`, with the trait name typed in as an
  * English literal rather than read off the roll. Same card, three shapes.
  *
  * `report()` does not go through here because it has a room and an outcome to
  * put in the other two slots.
  *
- * The duality bar comes with it. These cards replace Daggerheart's — the
+ * The duality bar comes with it. These cards replace Daggerheart's - the
  * system's copy of the roll is claimed and never rendered, see
- * `supersedingRoll` — so a card that showed only a total would have taken the
+ * `supersedingRoll` - so a card that showed only a total would have taken the
  * two faces off the table rather than moved them.
  */
 /**
@@ -4218,7 +4218,7 @@ function rollTone(roll) {
 }
 
 /**
- * The flags every roll card carries — its header, and its outcome as a colour.
+ * The flags every roll card carries - its header, and its outcome as a colour.
  *
  * Five cards in this file went out with neither, so they arrived in flat
  * neutral ink and with no title on their popup while `report()`'s carried both.
@@ -4253,8 +4253,8 @@ async function report(actor, def, roll, outcome) {
      *
      * Every action card opened differently: some led with the label, some with
      * the trait, the room was never there at all, and what actually happened
-     * was somewhere in the paragraphs below. Reading the log after the fact —
-     * which is the whole reason the log exists — meant reading each card whole.
+     * was somewhere in the paragraphs below. Reading the log after the fact -
+     * which is the whole reason the log exists - meant reading each card whole.
      *
      * The grammar itself now lives in `cardHead()` (utils.mjs), because it was
      * written here and stayed here: this was the only card in the module that
@@ -4284,7 +4284,7 @@ async function report(actor, def, roll, outcome) {
 
     // Directly under the header, because it is the header's own number shown
     // its working. Empty for anything that reached here without a duality roll
-    // behind it — an unanswered Search, a GM's ruling — and an empty string
+    // behind it - an unanswered Search, a GM's ruling - and an empty string
     // joins into nothing.
     lines.push(dualityBar(roll));
 
@@ -4314,7 +4314,7 @@ async function report(actor, def, roll, outcome) {
         })}</small></p>`);
     }
 
-    // Never the exact visibility band — see `traceFeedback` in remnants.mjs.
+    // Never the exact visibility band - see `traceFeedback` in remnants.mjs.
     // A plain Despair leaves `outcome.leftTrace` false and prints nothing at
     // all, which is itself the point: it must read the same as leaving no
     // trace whatsoever, or its absence would say as much as its presence.
@@ -4329,7 +4329,7 @@ async function report(actor, def, roll, outcome) {
     }
 
     // Reporting only reports. The refund itself is applied by whoever resolved
-    // the action — a render function with a side effect hands out a second
+    // the action - a render function with a side effect hands out a second
     // action every time anything re-renders the same outcome.
     if (outcome.refundAction) {
         lines.push(`<p><em>${game.i18n.localize("DRPG.Action.actionReturned")}</em></p>`);
@@ -4347,7 +4347,7 @@ async function report(actor, def, roll, outcome) {
     // Two problems with that. The player was not among the whisper's recipients,
     // so they were left with a twelve-second card and no record at all: what the
     // Search turned up, how loud a trace they left, how many searches the room
-    // has left — gone the moment it faded. And the popup was raised from the
+    // has left - gone the moment it faded. And the popup was raised from the
     // ACTING client, so a card only ever appeared where the code happened to be
     // running.
     //
@@ -4359,7 +4359,7 @@ async function report(actor, def, roll, outcome) {
     // The time-of-day summary is assembled by reading these back, and reading
     // them back is only reliable if they were written down: parsing the
     // rendered HTML would tie the summary to the exact wording of the card and
-    // break the first time either is reworded. Nothing new is recorded here —
+    // break the first time either is reworded. Nothing new is recorded here -
     // every field is one the card already shows.
     await whisperToOwner(actor, html, {
         flags: {

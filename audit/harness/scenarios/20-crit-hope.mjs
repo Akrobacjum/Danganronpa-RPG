@@ -16,7 +16,7 @@ export async function run({ gm, check, settle }) {
     check("critical is a critical (hope==fear)", out.isCritical === true, JSON.stringify(out));
     check("critical pays exactly +2 Hope (guide), not +3", out.delta === 2, `delta=${out.delta} (before=${out.before} after=${out.after})`);
 
-    // control: a plain Hope (non-crit) roll should pay +1 (Daggerheart) — the module doesn't top up non-crits
+    // control: a plain Hope (non-crit) roll should pay +1 (Daggerheart) - the module doesn't top up non-crits
     const ctrl = await gm.eval(`
         const actor = game.actors.getName("Chie Mori");
         await actor.update({ "system.resources.hope.value": 0, "system.resources.hope.max": 12 });

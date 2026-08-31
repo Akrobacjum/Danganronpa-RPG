@@ -1,18 +1,18 @@
 /**
- * Danganronpa RPG — the killing game's rules.
+ * Danganronpa RPG - the killing game's rules.
  * ---------------------------------------------------------------------------
  * Monokuma's standing rules: the ones announced at the start, and every one
  * bought since with the 12-Despair "New Rule" Call.
  *
  * Until now that Call posted its rule to chat and the module forgot it. A rule
- * that scrolls out of the log is a rule nobody can be held to — and being held
+ * that scrolls out of the log is a rule nobody can be held to - and being held
  * to them is the entire point of a killing game. So they live in world state
  * and get a permanent home on every character sheet, in the slot Daggerheart
  * uses for Effects (a tab for magical conditions this game does not have).
  *
  * WORLD-SCOPED, AND THAT IS CORRECT. Unlike the Truth Bullet ledger or the
  * Mastermind, these are the opposite of secret: a rule exists so that everybody
- * knows it. See D6 — world data reaches every client, which is exactly what is
+ * knows it. See D6 - world data reaches every client, which is exactly what is
  * wanted here.
  */
 
@@ -52,7 +52,7 @@ export function rules() {
  *
  * A motive is NOT a rule, which is why it does not live in the list above: a
  * rule is permanent and a motive expires. Both halves of that sentence are
- * modelled — announcing it is what `setMotive` does, and the chapter stamp is
+ * modelled - announcing it is what `setMotive` does, and the chapter stamp is
  * what makes it lapse without anybody having to remember to clear it.
  * ========================================================================== */
 
@@ -60,7 +60,7 @@ export function rules() {
  * The motive in force this chapter, or null.
  *
  * `due` is derived rather than stored twice: the record holds one number, and
- * every reader — the HUD row, the card, the tick — asks the same question of
+ * every reader - the HUD row, the card, the tick - asks the same question of
  * it in the same place.
  */
 export function motive() {
@@ -70,7 +70,7 @@ export function motive() {
         // Expired by arithmetic rather than by a cleanup pass: a motive from an
         // earlier chapter simply stops being the current one. The guide's outer
         // bound ("maksymalnie do końca rozdziału") survives the countdown being
-        // added inside it — a motive can run out early, never late.
+        // added inside it - a motive can run out early, never late.
         if (stored.chapter !== getClock().chapter) return null;
         return { ...stored, due: (stored.remaining ?? 0) <= 0 };
     } catch {
@@ -82,7 +82,7 @@ export function motive() {
  * Announce a motive, or withdraw the current one with `null`.
  *
  * Announced out loud, always. The guide's "musi być ogłaszany publicznie" is
- * the whole mechanism — a motive works by everybody knowing it is on the table.
+ * the whole mechanism - a motive works by everybody knowing it is on the table.
  *
  * THREE FIELDS, NOT ONE (E14). A motive is a demand, a deadline and a price
  * for missing it. Written as a single sentence it was none of those things
@@ -155,7 +155,7 @@ export async function setMotive(input) {
  *
  * ZERO IS A STATE, NOT AN END. The counter floors at zero and the motive stays
  * on the board, marked due, until Monokuma withdraws it or the chapter turns.
- * The alternative — expiring at zero — hides the motive at the exact moment it
+ * The alternative - expiring at zero - hides the motive at the exact moment it
  * matters, which is the moment somebody has to decide whether the threat was
  * real.
  *
@@ -219,7 +219,7 @@ export async function untickMotive() {
 }
 
 /* ==========================================================================
- * WRITING — GM only, like every other world setting in the module
+ * WRITING - GM only, like every other world setting in the module
  * ========================================================================== */
 
 async function write(next) {
@@ -236,7 +236,7 @@ async function write(next) {
 /**
  * Introduce a rule.
  *
- * Called by hand from the manager, and by the New Rule Despair Call — which is
+ * Called by hand from the manager, and by the New Rule Despair Call - which is
  * the reason this is a function and not a dialog: the Call has already taken
  * twelve Despair and asked for the wording by the time it gets here.
  *
@@ -284,12 +284,12 @@ export async function removeRule(id) {
  * Edit the whole list on one screen.
  *
  * A textarea per rule rather than a per-rule edit dialog: the GM's question
- * here is almost always "what do these say together" — whether a new rule
- * contradicts one from two chapters ago — and that is not a question you can
+ * here is almost always "what do these say together" - whether a new rule
+ * contradicts one from two chapters ago - and that is not a question you can
  * answer one modal at a time.
  */
 export async function openRulesManager() {
-    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing

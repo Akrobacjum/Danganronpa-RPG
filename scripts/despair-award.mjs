@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — Despair earned from rolls.
+ * Danganronpa RPG - Despair earned from rolls.
  * ---------------------------------------------------------------------------
  * Guide: "A higher Hope die gives the player +1 Hope, a higher Despair die
  * gives one GM +1 Despair."
@@ -7,7 +7,7 @@
  * Which GM is not arbitrary: it is the Monokuma who looks after that student
  * (see assignments.mjs). Daggerheart only knows one shared Fear pool, so the
  * award is read off the finished roll rather than hooked into the system's own
- * Fear plumbing — that keeps working whatever the system does internally.
+ * Fear plumbing - that keeps working whatever the system does internally.
  *
  * Only one client may write, or two GMs would both credit the same roll.
  */
@@ -39,7 +39,7 @@ async function onChatMessage(message) {
          * Every bare statistic click on a character sheet is forced to a
          * reaction (see `forceReaction` in roll-dialog.mjs), because it is not
          * an action: nothing was declared, nothing was spent. Without this line
-         * that made no difference at all — this hook fires on any duality
+         * that made no difference at all - this hook fires on any duality
          * message, so clicking a statistic fed a Monokuma's pool on a Fear
          * result and paid the critical's second Hope on a crit, over and over,
          * for free.
@@ -59,8 +59,8 @@ async function onChatMessage(message) {
             return;
         }
 
-        // Monokumas roll too — a trait check to walk somewhere, a forced roll a
-        // player triggered against them — but they are not students. Hope and
+        // Monokumas roll too - a trait check to walk somewhere, a forced roll a
+        // player triggered against them - but they are not students. Hope and
         // Despair pools are guide resources for the two sides of the table, not
         // for the actor playing the antagonist; a Monokuma's crit was quietly
         // refilling the Hope `setMonokuma` had zeroed out, and a Monokuma's
@@ -126,7 +126,7 @@ async function onChatMessage(message) {
  * Exported so Reroll can use the same logic: rerolling rewrites the existing
  * chat message with `message.update()` rather than creating a new one, so it
  * never runs through `onChatMessage` below and the top-up would otherwise never
- * apply to a roll that becomes a crit on its second try — nor get reversed when
+ * apply to a roll that becomes a crit on its second try - nor get reversed when
  * a crit stops being one.
  *
  * Clamped to [0, max] so neither direction overflows or goes negative.
@@ -156,7 +156,7 @@ export async function adjustCritHopeTopUp(actor, delta) {
  * The dice are checked FIRST, on purpose. Daggerheart exposes `withHope` and
  * `withFear` as getters that bail out to `undefined` when the roll is not
  * evaluated or is a guaranteed critical, and `message.system.roll` is itself a
- * getter that resolves by `instanceof DualityRoll` — which can come back null
+ * getter that resolves by `instanceof DualityRoll` - which can come back null
  * depending on how the roll reached chat. Comparing the two d12s is the one
  * signal that is always present once the dice have landed.
  *

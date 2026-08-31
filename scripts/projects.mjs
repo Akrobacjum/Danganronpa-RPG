@@ -1,10 +1,10 @@
 /**
- * Danganronpa RPG — projects.
+ * Danganronpa RPG - projects.
  * ---------------------------------------------------------------------------
  * Projects are Daggerheart Countdowns: a name, a progress bar and a target.
  * What the system does not model is the guide's requirement that a project
- * belongs to a room — "Projects may require specific rooms depending on their
- * kind, intent and required tools" — so that link is kept here, keyed by
+ * belongs to a room - "Projects may require specific rooms depending on their
+ * kind, intent and required tools" - so that link is kept here, keyed by
  * countdown id.
  *
  * A project can also be flagged as an indirect murder, which changes what
@@ -54,7 +54,7 @@ export async function setProjectMeta(countdownId, data) {
  * Which way "progress" moves a countdown's bar.
  *
  * Daggerheart countdowns count *down*: they are created full and tick towards
- * zero. The guide's projects fill *up* — "add 1 progress" — so the ones this
+ * zero. The guide's projects fill *up* - "add 1 progress" - so the ones this
  * module creates are stored the other way round and marked as such.
  *
  * This mattered more than it looks. Adding progress to a countdown that was
@@ -73,7 +73,7 @@ export function countsUp(countdownId) {
     // nothing about existing bars changes.
     if (meta.countsUp !== undefined) return Boolean(meta.countsUp);
 
-    // No metadata at all means this countdown is not ours — the GM built it in
+    // No metadata at all means this countdown is not ours - the GM built it in
     // Daggerheart's own Countdowns window. Treating those as filling upwards was
     // a guess about somebody else's document, and it inverted their bar: a
     // countdown created full and ticking towards zero was reported as 0/8 and
@@ -130,7 +130,7 @@ export function allProjects() {
  * May this user know that this project exists at all?
  *
  * GMs see everything. A project that is not secret is public. A secret one is
- * visible only to the people it was shared with — the killer, and whoever they
+ * visible only to the people it was shared with - the killer, and whoever they
  * brought in.
  *
  * Every list a player is ever shown has to go through this. `allProjects()`
@@ -153,7 +153,7 @@ export function visibleProjects(user = game.user) {
  * Is this project already full?
  *
  * A project at its target is DONE. Nothing else in the game can be advanced past
- * its own ceiling, and `addProgress` has refused to move one for some time — but
+ * its own ceiling, and `addProgress` has refused to move one for some time - but
  * it refused at the end, after the player had spent an action, chosen a
  * statistic and thrown dice for progress that could not land anywhere. The
  * picker knows the answer before any of that happens.
@@ -167,7 +167,7 @@ export function isComplete(project) {
 }
 
 /**
- * Every project this character can SEE from where they are standing — finished
+ * Every project this character can SEE from where they are standing - finished
  * ones included.
  *
  * The picker's list, and the reason it is not `projectsAvailableIn`: a finished
@@ -184,7 +184,7 @@ export function projectsListedIn(room, user = game.user) {
 /**
  * Projects a character can actually work on right now: those tied to the room
  * they are standing in, plus any project with no room set. Frozen projects are
- * excluded — they need their repair finishing first, and finished ones because
+ * excluded - they need their repair finishing first, and finished ones because
  * there is nothing left to add.
  *
  * This is the "is there anything to do here" question, and three screens ask it:
@@ -198,8 +198,8 @@ export function projectsAvailableIn(room, user = game.user) {
 /**
  * Projects in this room that can be sabotaged.
  *
- * A Monokuma is not standing in the players' geography — they walk the map
- * freely and interfere wherever they like — so for a GM the room filter is
+ * A Monokuma is not standing in the players' geography - they walk the map
+ * freely and interfere wherever they like - so for a GM the room filter is
  * dropped entirely. It was silently hiding most of the board: a Monokuma whose
  * token happened to be outside every region could only ever see projects with
  * no room set, which is why some projects could be sabotaged and others could
@@ -211,15 +211,15 @@ export function sabotageTargetsIn(room, { anyRoom = false, user = game.user } = 
         //
         // This used to read `anyRoom || !p.room || (room && p.room === room)`,
         // and the middle clause is the one that was wrong. It is right for Work
-        // on Project — a project with no room set is abstract work you can do
-        // anywhere — but sabotage is not abstract. It is prying at a lock,
+        // on Project - a project with no room set is abstract work you can do
+        // anywhere - but sabotage is not abstract. It is prying at a lock,
         // pulling wires out, putting sugar in a tank: a physical act on a
         // physical object, in a room. With the clause in, every roomless project
         // on the board was reachable from anywhere on the map, so a player could
         // break something on the other side of the school without leaving their
         // chair.
         //
-        // A Monokuma still reaches everywhere (`anyRoom`) — they are not
+        // A Monokuma still reaches everywhere (`anyRoom`) - they are not
         // standing in the players' geography at all.
         .filter(p => anyRoom || (room && p.room === room))
         .filter(p => !isFrozen(p.id))
@@ -228,15 +228,15 @@ export function sabotageTargetsIn(room, { anyRoom = false, user = game.user } = 
 
 /**
  * Add progress to a project. Countdowns live in a world setting, so only a GM
- * can write — a player's progress is applied through the GM bridge.
+ * can write - a player's progress is applied through the GM bridge.
  *
  * `amount` is always in the guide's terms: positive advances the project. How
- * that lands in the stored countdown depends on which way it counts — see
+ * that lands in the stored countdown depends on which way it counts - see
  * `countsUp`.
  *
  * @returns {Promise<object|null>} `{ name, from, to, target, changed }`, or null
  *   when the project does not exist. `changed: false` means the write was a
- *   no-op — the caller must not report success.
+ *   no-op - the caller must not report success.
  */
 export async function addProgress(countdownId, amount, { by = null } = {}) {
     if (!amount) return null;
@@ -246,7 +246,7 @@ export async function addProgress(countdownId, amount, { by = null } = {}) {
         return requestProjectProgress(countdownId, amount);
     }
 
-    // Whose hands moved the bar, as a USER id — the fallback audience when a
+    // Whose hands moved the bar, as a USER id - the fallback audience when a
     // project has no recorded founder. Defaults to this client because every
     // other caller of this function is already the GM doing it directly; the
     // socket handler passes the asker's id instead.
@@ -302,7 +302,7 @@ export async function addProgress(countdownId, amount, { by = null } = {}) {
      * READ THE METADATA BEFORE ANYTHING CAN DELETE IT.
      *
      * `checkRepairCompletion` does not merely thaw the project it was repairing
-     * — it DELETES the repair countdown, and `deleteProject` takes the metadata
+     * - it DELETES the repair countdown, and `deleteProject` takes the metadata
      * with it. So a guard that asks "was this a repair?" after that call is
      * asking about a record that no longer exists, and every repair answers
      * "no". Measured: the exclusion did nothing until this line moved up.
@@ -331,7 +331,7 @@ export async function addProgress(countdownId, amount, { by = null } = {}) {
  *
  * @param {object} data
  * @param {string} data.name
- * @param {number} data.target        Progress needed — 3/4/6/8 per the scale.
+ * @param {number} data.target        Progress needed - 3/4/6/8 per the scale.
  * @param {string} [data.room]        Room the project belongs to.
  * @param {boolean} [data.indirectMurder]
  * @param {boolean} [data.secret]
@@ -348,15 +348,15 @@ export async function createProject({
     /*
      * WHAT THE MODULE WILL WATCH FOR, in the `{ kind, targetId, afterDark,
      * notBuilder }` shape traps.mjs reads. Only meaningful on an indirect
-     * murder, like `killerId` and `condition` beside it — and like them, it is
+     * murder, like `killerId` and `condition` beside it - and like them, it is
      * stored rather than inferred so that a trap with no trigger is a trap the
      * GM chose to watch themselves rather than one the module forgot about.
      */
     trigger = null,
     // WHO PROPOSED IT, as an actor id.
     //
-    // The proposal card has carried this since the bridge was written — the
-    // "Approve" button's `data.by` — and the approval screen threw it away, so
+    // The proposal card has carried this since the bridge was written - the
+    // "Approve" button's `data.by` - and the approval screen threw it away, so
     // no project has ever known whose idea it was. That is the gap E10 exists
     // to close: without it, a finished project can only be reported to whoever
     // happened to add the last point, which is often not the person who has
@@ -376,7 +376,7 @@ export async function createProject({
     // They used to be worked out separately: the ownership from `secret` alone,
     // the flag from `secret || indirectMurder`. So an indirect murder created
     // without an explicit `secret: true` came out marked secret in our data and
-    // left at `default: OBSERVER` in Foundry's — the module hid it from every
+    // left at `default: OBSERVER` in Foundry's - the module hid it from every
     // list it draws, and Daggerheart's own Projects tray showed it to the whole
     // table. Measured: a murder project sitting in a player's tray while its
     // own owner could not see it anywhere.
@@ -407,7 +407,7 @@ export async function createProject({
     };
 
     await game.settings.set(DH, COUNTDOWNS, { ...data, countdowns });
-    // `trait` is set by the GM at creation — the guide lets a project demand a
+    // `trait` is set by the GM at creation - the guide lets a project demand a
     // specific kind of work, so the player does not get to pick the easy stat.
     // `countsUp` is stamped rather than left to the default so the direction
     // stays explicit in the data, not just in this file's assumptions.
@@ -416,7 +416,7 @@ export async function createProject({
         by: by ?? null,
         killerId: indirectMurder ? killerId : null,
         condition: indirectMurder ? condition : "",
-        // Not armed here — armed when the bar fills. A trap that watched from
+        // Not armed here - armed when the bar fills. A trap that watched from
         // the moment it was proposed would be a trap you can set off while its
         // owner is still building it.
         trigger: indirectMurder && trigger?.kind ? { ...trigger, armed: false, firedAt: null } : null
@@ -430,7 +430,7 @@ export async function createProject({
  * SABOTAGE AND REPAIR
  * --------------------------------------------------------------------------
  * Guide: sabotage "creates damage requiring a repair project". So a sabotaged
- * project freezes — its progress is preserved but cannot be advanced — and a
+ * project freezes - its progress is preserved but cannot be advanced - and a
  * Repair project appears alongside it. Finishing the repair thaws the original.
  *
  * A frozen project cannot be sabotaged again: there is nothing left to break
@@ -452,7 +452,7 @@ export function repairs(countdownId) {
  * Freeze a project and create its repair.
  *
  * @param {string} targetId   The sabotaged project.
- * @param {number} difficulty Progress the repair needs — harder sabotage, harder fix.
+ * @param {number} difficulty Progress the repair needs - harder sabotage, harder fix.
  * @returns {Promise<{repair: object, target: string}|null>}
  */
 export async function sabotageProject(targetId, difficulty = 3) {
@@ -472,7 +472,7 @@ export async function sabotageProject(targetId, difficulty = 3) {
     // Repairing something takes the same kind of work as building it, so the
     // repair inherits the original's required trait. Without this the repair had
     // no trait of its own and Work on Project fell through to asking the player
-    // to pick one — letting them choose an easier stat than the people whose
+    // to pick one - letting them choose an easier stat than the people whose
     // project they are fixing had to use.
     const repair = await createProject({
         name: game.i18n.format("DRPG.Project.repairName", { name: target.name }),
@@ -531,14 +531,14 @@ export async function undoSabotage(targetId = null, repairId = null) {
  * A trap has finished building. Say so, and offer to fire it.
  *
  * A repair that completes thaws what it was repairing; a MURDER project that
- * completed did nothing at all — the bar filled, the trap was armed, and the
+ * completed did nothing at all - the bar filled, the trap was armed, and the
  * only thing that changed was a number on a widget somebody might be looking
  * at. The GM had to notice.
  *
  * Posted into the killer's own thread rather than whispered to the GMs alone,
  * because that is where the rest of this player's murder already lives and
  * because "your trap is ready" is news they are entitled to. The buttons on it
- * are GM-only and are stripped from a player's copy — see `wireCallActions`.
+ * are GM-only and are stripped from a player's copy - see `wireCallActions`.
  *
  * The condition travels with it. The guide's whole definition of an indirect
  * murder is "you do not name the victim, you name a condition", and it is the
@@ -555,21 +555,21 @@ export async function undoSabotage(targetId = null, repairId = null) {
  *               longer exists is noise, and it would arrive after the thing it
  *               names is gone.
  *   a trap      `announceTrapReady` runs on the same crossing and is strictly
- *               better — it carries the button that fires the thing. Two cards
+ *               better - it carries the button that fires the thing. Two cards
  *               for one moment, one of which is worse, is not a notification.
  *
- * WHISPERED, NEVER ANNOUNCED. A project can be secret — that is most of what
- * projects are for in this game — and `announce` would tell the table that
+ * WHISPERED, NEVER ANNOUNCED. A project can be secret - that is most of what
+ * projects are for in this game - and `announce` would tell the table that
  * somebody just finished building something. The audience is the person whose
  * idea it was, plus the GMs, and `whisperToOwner` is exactly that pair.
  *
  * WHO GETS IT, in order: the actor who proposed it, else whoever pushed it over
- * the line. The founder comes first deliberately — a project is usually worked
+ * the line. The founder comes first deliberately - a project is usually worked
  * on by several people, and "your idea is finished" belongs to the person who
  * has been carrying it, not to whoever happened to spend the last action.
  */
 async function announceProjectDone(name, target, moverUserId, meta) {
-    // `meta` is the snapshot taken before `checkRepairCompletion` — see the
+    // `meta` is the snapshot taken before `checkRepairCompletion` - see the
     // note at the call site. Reading it fresh here would answer about a repair
     // that has already been deleted.
     if (meta.repairs) return null;
@@ -589,12 +589,12 @@ async function announceProjectDone(name, target, moverUserId, meta) {
     }
 
     /*
-     * No founder recorded — an older project, or one the GM invented outright.
+     * No founder recorded - an older project, or one the GM invented outright.
      * The person who filled the bar is the next best answer, and they are a
      * USER here rather than an actor, so the whisper is addressed by hand.
      *
      * A GM who finished it themselves would be told twice by a naive list, and
-     * `postToThread` refuses a GM outright (trap 73) — so the GM ids and the
+     * `postToThread` refuses a GM outright (trap 73) - so the GM ids and the
      * mover are merged through a Set and the messenger is not involved at all.
      */
     const ids = Array.from(new Set([...gmIds(), moverUserId].filter(Boolean)));
@@ -608,8 +608,8 @@ async function announceTrapReady(countdownId, name) {
 
     const meta = metaFor(countdownId);
     /*
-     * `meta.by` IS AN ACTOR ID, and this line used to compare it to a NAME —
-     * `a.name === meta.by` — against a field that nothing in the module ever
+     * `meta.by` IS AN ACTOR ID, and this line used to compare it to a NAME -
+     * `a.name === meta.by` - against a field that nothing in the module ever
      * wrote. So the fallback could not match even in principle: a trap whose
      * `killerId` was missing armed itself, logged a line, and told nobody.
      * E10 is what began writing `by`, which is what makes this reachable.
@@ -637,7 +637,7 @@ async function announceTrapReady(countdownId, name) {
      * it.
      *
      * So a trap that named something the module can watch for is ARMED here and
-     * says nothing else until it sees it — see traps.mjs. The card that arrives
+     * says nothing else until it sees it - see traps.mjs. The card that arrives
      * now is a receipt, not a question: it has no Fire button, because there is
      * nothing yet to fire at.
      *
@@ -660,7 +660,7 @@ async function announceTrapReady(countdownId, name) {
                         const hit = game.i18n.localize(`DRPG.Trap.trigger.${kind}`);
                         return hit && hit !== `DRPG.Trap.trigger.${kind}` ? hit : def.label;
                     })()),
-                    room: esc(meta.room ?? "—")
+                    room: esc(meta.room ?? "-")
                 })}</p>${meta.condition
                     ? `<p><strong>${game.i18n.localize("DRPG.Project.trapCondition")}</strong> ${
                         esc(meta.condition)}</p>`
@@ -682,7 +682,7 @@ async function announceTrapReady(countdownId, name) {
             log(`Trap "${name}" is watching for "${kind}" (${killer.name}).`);
             return { armed: kind };
         }
-        // Arming failed — fall through to the old card rather than leaving a
+        // Arming failed - fall through to the old card rather than leaving a
         // finished murder project that told nobody anything.
         error(`Could not arm trap "${name}"; falling back to the manual card`);
     }
@@ -712,14 +712,14 @@ async function checkRepairCompletion(countdownId) {
     if (!repair || repair.current < repair.start) return null;
 
     // Unfreeze first. If the delete below were to fail, the worst outcome is a
-    // stray finished bar — not a project left permanently unworkable.
+    // stray finished bar - not a project left permanently unworkable.
     await setProjectMeta(targetId, { frozenBy: null });
 
     const target = allProjects().find(p => p.id === targetId);
     const repairName = repair.name;
 
     await announce({
-        content: `<p><strong>${foundry.utils.escapeHTML(repairName)}</strong> — ${
+        content: `<p><strong>${foundry.utils.escapeHTML(repairName)}</strong> - ${
             game.i18n.format("DRPG.Project.repaired", { name: foundry.utils.escapeHTML(target?.name ?? "?") })
         }</p>`
     });
@@ -743,7 +743,7 @@ export async function setProjectImage(countdownId, img) {
  *
  * The manager could only ever change the three things it had columns for, so
  * a typo in a name or a scale picked wrong meant deleting the project and
- * rebuilding it — which throws the progress away with it. This keeps the
+ * rebuilding it - which throws the progress away with it. This keeps the
  * countdown and its id, so everything pointing at it (a repair, a Key Remnant
  * plan, a Reroll bookmark) still points at it afterwards.
  *
@@ -773,7 +773,7 @@ export async function updateProject(countdownId, patch = {}) {
             start: target,
             // Ours count up, so `current` is progress earned and is clamped to
             // the new ceiling. Daggerheart's count down, where `current` is what
-            // is LEFT — that cannot exceed the start either.
+            // is LEFT - that cannot exceed the start either.
             current: up ? Math.min(current, target) : Math.min(current, target)
         };
     }
@@ -787,7 +787,7 @@ export async function updateProject(countdownId, patch = {}) {
     if (patch.room !== undefined) meta.room = patch.room || null;
     if (patch.trait !== undefined) meta.trait = patch.trait || null;
     if (patch.indirectMurder !== undefined) meta.indirectMurder = Boolean(patch.indirectMurder);
-    // The whole trigger travels as one object — see traps.mjs. Written through
+    // The whole trigger travels as one object - see traps.mjs. Written through
     // `updateProject` as well as `setProjectMeta` so the manager window can
     // change what a trap watches for without going round the back.
     if (patch.trigger !== undefined) meta.trigger = patch.trigger;
@@ -836,7 +836,7 @@ export async function clearAllProjects() {
     const gone = Object.keys(data?.countdowns ?? {}).length;
 
     // Spread the rest of Daggerheart's own setting back, exactly as
-    // `deleteProject` does — `countdowns` is one key inside it, not all of it.
+    // `deleteProject` does - `countdowns` is one key inside it, not all of it.
     await game.settings.set(DH, COUNTDOWNS, { ...data, countdowns: {} });
     await game.settings.set(MODULE_ID, SETTINGS.projectMeta, {});
 
@@ -857,7 +857,7 @@ export function scaleFor(target) {
  * progress bar named "Prepare the poison" sitting in everyone's sidebar would
  * give the whole plot away before it started.
  *
- * Secrecy is enforced through the countdown's own `ownership` map — default
+ * Secrecy is enforced through the countdown's own `ownership` map - default
  * NONE, with explicit access for the killer and anyone they (or the GM) later
  * choose to let in. GMs always see everything regardless.
  * ========================================================================== */
@@ -870,14 +870,14 @@ const OBSERVER = 2;    // CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER
  *
  * A `default: 0` entry does nothing. Daggerheart's `DhCountdown#getUserLevel`
  * looks up `ownership[user.id]`, and when that is missing it falls back to the
- * Countdowns setting's world-level `defaultOwnership` — which ships as OBSERVER.
+ * Countdowns setting's world-level `defaultOwnership` - which ships as OBSERVER.
  * The per-countdown `default` key is never consulted at all.
  *
  * So every "secret" project was visible to the whole table, indirect murders
  * included. Secrecy has to be spelled out per user: an explicit NONE for every
  * player who is not a viewer.
  */
-/** The non-GM users who own this actor — whose eyes "the killer" means. */
+/** The non-GM users who own this actor - whose eyes "the killer" means. */
 function ownerIdsOf(actorId) {
     const actor = game.actors.get(actorId ?? "");
     if (!actor) return [];
@@ -927,13 +927,13 @@ export async function resealSecretProjects() {
 
         const wanted = ownershipMap(viewers);
         /*
-         * `equals`, not `objectsEqual` — the second is deprecated in 14 and goes
+         * `equals`, not `objectsEqual` - the second is deprecated in 14 and goes
          * in 16, and it warned on every pass of this loop because this function
          * runs on load and on every `createUser`. Optional call on both names so
          * a Foundry that has one and not the other still gets an answer, and a
          * Foundry with neither falls through to writing the ownership it already
          * has: a redundant write, never a missed re-seal. That direction is the
-         * whole point of this function — a secret project visible to a player is
+         * whole point of this function - a secret project visible to a player is
          * the failure it exists to prevent.
          */
         const same = foundry.utils.equals?.(current, wanted)
@@ -953,7 +953,7 @@ export async function resealSecretProjects() {
  * Make a project secret, visible only to the given users.
  *
  * @param {string} countdownId
- * @param {string[]} viewerIds  Users allowed to see it — normally just the killer.
+ * @param {string[]} viewerIds  Users allowed to see it - normally just the killer.
  */
 export async function makeSecret(countdownId, viewerIds = []) {
     if (!game.user.isGM) return null;
@@ -997,11 +997,11 @@ export async function unshareWith(countdownId, userId) {
 }
 
 /**
- * Drop secrecy entirely — the plan is out.
+ * Drop secrecy entirely - the plan is out.
  *
  * The ownership map is *replaced*, not merged. `writeCountdown` uses
  * `mergeObject`, so writing `{ default: OBSERVER }` left every explicit
- * `{ playerId: NONE }` from `ownershipMap` exactly where it was — and since
+ * `{ playerId: NONE }` from `ownershipMap` exactly where it was - and since
  * Daggerheart reads `ownership[user.id]` and ignores `default`, revealing a
  * project changed nothing for the players it had been hidden from.
  */

@@ -1,15 +1,15 @@
 /**
- * Danganronpa RPG — players do not edit their own numbers.
+ * Danganronpa RPG - players do not edit their own numbers.
  * ---------------------------------------------------------------------------
  * In a killing game the sheet is not a scratchpad. Actions, Hope and traits
- * change because something happened — a roll landed, an action was spent, an
- * advancement was earned — not because a player clicked a pip.
+ * change because something happened - a roll landed, an action was spent, an
+ * advancement was earned - not because a player clicked a pip.
  *
  * So those fields become read-only for players and writable only by the GM or
  * by this module's own automation.
  *
  * Health AND STRESS ARE IN THAT LIST AS OF 1.0.1. They used to be the exception, on
- * the grounds that players mark their own damage — but nothing in this game
+ * the grounds that players mark their own damage - but nothing in this game
  * asks them to. Damage arrives from a crisis action, a Despair Call, a failed
  * Observe, a Rest; all of it through `automatedUpdate`, all of it already
  * marked. What the editable pips actually bought was the ability to heal
@@ -32,7 +32,7 @@ export const SYSTEM_WRITE = "drpgAutomated";
  *
  * `hope.value` is deliberately NOT here. Daggerheart's own roll pipeline awards
  * Hope with a plain `actor.update()` carrying none of our flags, so guarding it
- * blocked every Hope a player earned from rolling — the resource simply never
+ * blocked every Hope a player earned from rolling - the resource simply never
  * moved. Hope is protected in the interface instead: the pips are display-only
  * for players (see danganronpa.css), which stops hand-editing without standing
  * in the way of the rules.
@@ -56,10 +56,10 @@ export function registerResourceGuard() {
  *
  * What a thing is CALLED is what everybody else at the table will hear it
  * called, and on a Truth Bullet the name and the description together ARE the
- * evidence — "Bent pipe" and "Bent pipe, wiped clean" are two different claims
+ * evidence - "Bent pipe" and "Bent pipe, wiped clean" are two different claims
  * about one object, and so is the paragraph under either name. A player editing
  * their own copy of any of the three rewrites the record the Class Trial runs
- * on, from a text field, with nobody told. This used to guard only `name` —
+ * on, from a text field, with nobody told. This used to guard only `name` -
  * the description and the picture went through untouched, which is the same
  * hole with a different field name.
  *
@@ -74,7 +74,7 @@ function onPreUpdateItem(item, changes, options) {
         if (options?.[SYSTEM_WRITE]) return;
         // Only an item somebody is carrying. A world item in a compendium or in
         // the sidebar is not part of anybody's inventory and not this guard's
-        // business — and a player cannot edit those anyway.
+        // business - and a player cannot edit those anyway.
         if (item.parent?.documentName !== "Actor") return;
 
         let enforcing = true;
@@ -84,7 +84,7 @@ function onPreUpdateItem(item, changes, options) {
         if (!enforcing) return;
 
         // Flattened and matched by prefix, the same way `onPreUpdateActor` reads
-        // `GUARDED` below — `system.description` may arrive as a bare string or
+        // `GUARDED` below - `system.description` may arrive as a bare string or
         // as `{ value, chat, ... }` depending on the field type, and a plain
         // `"system.description" in changes` check misses the second shape
         // entirely, which is exactly how the picture and the description got

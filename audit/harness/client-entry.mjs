@@ -1,5 +1,5 @@
 /**
- * One Foundry "client" — a forked child process. env: DRPG_USER, DRPG_REPO.
+ * One Foundry "client" - a forked child process. env: DRPG_USER, DRPG_REPO.
  * Talks to cluster.mjs over IPC. Boots jsdom + shim, imports the module,
  * walks init → i18nInit → setup → ready → canvasReady, then serves eval()s.
  */

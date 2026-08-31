@@ -1,12 +1,12 @@
 /**
- * Danganronpa RPG — the Despair Overflow.
+ * Danganronpa RPG - the Despair Overflow.
  * ---------------------------------------------------------------------------
  * A Monokuma's pool caps at twelve. The season run measured what that costs:
  * 950 points of Despair earned and 628 of them evaporating on a full pool.
  * Two thirds of the income never existed.
  *
- * The cap stays — it is the limiter that keeps a Monokuma from banking a
- * chapter's worth of Calls — but the spill stops vanishing. Every point that
+ * The cap stays - it is the limiter that keeps a Monokuma from banking a
+ * chapter's worth of Calls - but the spill stops vanishing. Every point that
  * does not fit feeds a shared world counter, and when that counter reaches X
  * the world itself gets worse for one time of day: fewer crossings in the dark,
  * fewer search tokens in every room, one action less each.
@@ -18,7 +18,7 @@
  * single place its number is decided and a second place would be a second
  * truth.
  *
- * THE DESIGN IS IN config.mjs, under `OVERFLOW` — the arithmetic behind X = 20,
+ * THE DESIGN IS IN config.mjs, under `OVERFLOW` - the arithmetic behind X = 20,
  * why the floors exist, and why this is pressure now rather than a bank saved
  * for the finale.
  */
@@ -33,8 +33,8 @@ import { announce, log, error } from "./utils.mjs";
  * `getClock` in clock.mjs is this line plus a re-export, and calling it from
  * here would close a static import cycle: `actionBudget` and `SearchTokens.max`
  * are synchronous, so they must import this file at the top level, and
- * clock.mjs already imports actions.mjs. The cycle would have worked — every
- * binding in it is called at runtime rather than while the modules evaluate —
+ * clock.mjs already imports actions.mjs. The cycle would have worked - every
+ * binding in it is called at runtime rather than while the modules evaluate -
  * but a cycle that works by luck is one somebody breaks later by hoisting a
  * single line. settings.mjs imports config.mjs and nothing else, which leaves
  * this file a leaf.
@@ -44,7 +44,7 @@ function getClock() {
 }
 
 /* ==========================================================================
- * THE RULES — config, then the GM's edits on top
+ * THE RULES - config, then the GM's edits on top
  * ========================================================================== */
 
 /**
@@ -88,8 +88,8 @@ export async function setOverflowRules({ threshold, effects } = {}) {
         next.effects[key] = {
             ...base,
             on: edit.on === undefined ? current.effects[key].on : Boolean(edit.on),
-            // Some of the eight have no size at all — Despair, Silence and Fog
-            // are on or off — so an edit that carries no number leaves `by`
+            // Some of the eight have no size at all - Despair, Silence and Fog
+            // are on or off - so an edit that carries no number leaves `by`
             // exactly as the catalogue had it rather than writing NaN.
             by: Number.isFinite(by) && by >= 0 ? Math.round(by) : current.effects[key].by
         };
@@ -101,7 +101,7 @@ export async function setOverflowRules({ threshold, effects } = {}) {
      * AN EDIT IS ANNOUNCED, NOT JUST SAVED (Dawid, 28.08: "upewnijmy sie, ze
      * wysylaja powiadomienie").
      *
-     * X is public — it is half of the "?/X" every player is reading — so
+     * X is public - it is half of the "?/X" every player is reading - so
      * changing it changes something the whole table can see, and letting it
      * change silently would leave everyone looking at a number whose meaning
      * moved. Announced only when it actually differs: opening the editor and
@@ -155,7 +155,7 @@ export function overflowThreshold() {
  * Feed the counter. GM only.
  *
  * TWO CALLERS, AND THEY MEAN DIFFERENT THINGS. `adjustDespair` sends whatever
- * would not fit in a full pool — income the Monokuma never chose to lose. The
+ * would not fit in a full pool - income the Monokuma never chose to lose. The
  * Feed the Overflow Call sends a point they chose to spend. The counter does
  * not distinguish them, and should not: what darkens the world is the quantity
  * of Despair loose in it, not the mood in which it got there.
@@ -183,9 +183,9 @@ export async function addOverflow(amount, { reason = "spill" } = {}) {
      *
      * ARMED FOR THE TIME OF DAY THAT HAS NOT STARTED, not for the one running.
      * That is not caution, it is the only correct target: three of the eight
-     * debuffs are CONSUMED at a boundary — `shift` by `SearchTokens.reset`,
+     * debuffs are CONSUMED at a boundary - `shift` by `SearchTokens.reset`,
      * `panic` by `resetAllActions`, `darkness` by the Eclipse's own crossing
-     * allowance — and all three have already run for the hour in progress. Fired
+     * allowance - and all three have already run for the hour in progress. Fired
      * into the current slot they would announce themselves and change nothing,
      * which is the exact class of failure this file's own ordering note exists
      * to prevent.
@@ -202,7 +202,7 @@ export async function addOverflow(amount, { reason = "spill" } = {}) {
  *
  * `checkOverflow` can write actors (Rot) and projects (Earthquake), and this is
  * now reachable from `adjustDespair`. Nothing in either path grants Despair
- * today, so nothing loops today — and "today" is the word that makes a guard
+ * today, so nothing loops today - and "today" is the word that makes a guard
  * worth three lines rather than a comment.
  */
 let arming = false;
@@ -241,12 +241,12 @@ export async function resetOverflow({ reason = "the verdict" } = {}) {
  * --------------------------------------------------------------------------
  * A darkening covers "this Eclipse and the time of day it opens". That is one
  * span with two names, and the trap is that the clock does not move until the
- * Eclipse ends — so the Eclipse half and the daylight half read as different
+ * Eclipse ends - so the Eclipse half and the daylight half read as different
  * clocks even though they are the same event.
  *
  * So a darkening is STAMPED with the time of day it is for, and is active while
  * either of two things is true: the clock has reached that stamp, or an Eclipse
- * is running and that stamp is the one it will open. Nothing has to clear it —
+ * is running and that stamp is the one it will open. Nothing has to clear it -
  * the stamp simply stops matching. Which also means a rewound clock un-darkens
  * itself, and that is right: the time of day was undone.
  *
@@ -254,7 +254,7 @@ export async function resetOverflow({ reason = "the verdict" } = {}) {
  * darkening can shorten the crossings of the very Eclipse that triggered it;
  * `applyTimeOfDayChange` asks, so a table that never opens an Eclipse still
  * gets one. When an Eclipse was used, the second call finds the stamp already
- * armed for that exact time of day and does nothing — no second payment, and
+ * armed for that exact time of day and does nothing - no second payment, and
  * no second card.
  * ========================================================================== */
 
@@ -292,7 +292,7 @@ function same(a, b) {
  * Which debuff is running right now, or null.
  *
  * THE STAMP CARRIES THE KEY, not just "dark / not dark". One of eight happens,
- * so every reader has to ask which one — and the caption and the card have to
+ * so every reader has to ask which one - and the caption and the card have to
  * be able to name it.
  */
 export function overflowEffect() {
@@ -306,7 +306,7 @@ export function overflowEffect() {
         if (clock.eclipse && same(active, upcoming(clock))) return active.effect;
         return null;
     } catch {
-        // Asked on every action, every search and every crossing — a throw here
+        // Asked on every action, every search and every crossing - a throw here
         // would break the game rather than the feature.
         return null;
     }
@@ -323,7 +323,7 @@ export function overflowActive() {
 }
 
 /**
- * The pool the GM has ticked. Empty means the mechanic is off — see the note
+ * The pool the GM has ticked. Empty means the mechanic is off - see the note
  * in config.mjs; the counter still climbs, nothing is ever drawn from it.
  */
 export function overflowPool() {
@@ -355,7 +355,7 @@ export async function checkOverflow({ ahead = false } = {}) {
         const now = state();
 
         // Already armed for exactly this time of day: the Eclipse got there
-        // first. Not a failure and not worth a log line — it is the normal path
+        // first. Not a failure and not worth a log line - it is the normal path
         // whenever a table uses Eclipses at all.
         if (same(now.active, target)) return null;
 
@@ -363,7 +363,7 @@ export async function checkOverflow({ ahead = false } = {}) {
         if (now.count < threshold) return null;
 
         /*
-         * NOTHING IN THE HAT, NOTHING HAPPENS — AND NOTHING IS PAID.
+         * NOTHING IN THE HAT, NOTHING HAPPENS - AND NOTHING IS PAID.
          *
          * A GM who has unticked all eight has turned the mechanic off; charging
          * the threshold for a debuff that cannot be drawn would quietly empty a
@@ -423,7 +423,7 @@ async function runOverflowEvent(key) {
 }
 
 /**
- * Everything with a durability track wears — but nothing ever breaks.
+ * Everything with a durability track wears - but nothing ever breaks.
  *
  * BY DURABILITY, NOT BY CATEGORY. `EQUIPPABLE` names three kinds and the track
  * carries more than that, so "has durability and is not already broken" is one
@@ -432,7 +432,7 @@ async function runOverflowEvent(key) {
  * IT NEVER TAKES THE LAST POINT (D1), and the first version did.
  *
  * Written as "one durability off everything", it was measured destroying about
- * 23 items a season — because the Z6 ladder gives T0 and T1 a durability of
+ * 23 items a season - because the Z6 ladder gives T0 and T1 a durability of
  * ONE, so for the cheap half of the school "minus one" and "destroyed" are the
  * same sentence. A weather effect that quietly empties every pocket in the
  * building is not the rule anybody wrote; it is an arithmetic accident of where
@@ -441,7 +441,7 @@ async function runOverflowEvent(key) {
  * So Rot spends SPARE durability only. An item on its last point is skipped
  * entirely, and one with three points loses at most two. Measured after the
  * change: zero items broken by Rot across forty seasons, with the wear itself
- * still landing — about ninety-nine points a season that used to be deaths are
+ * still landing - about ninety-nine points a season that used to be deaths are
  * now just damage. Breaking things stays the business of Despair rolls, where a
  * player chose the risk.
  */
@@ -494,7 +494,7 @@ async function shakeProjects(amount) {
     return { moved };
 }
 
-/** The card the whole table gets. Public by design — this is weather, not a secret. */
+/** The card the whole table gets. Public by design - this is weather, not a secret. */
 async function announceOverflow(drawn, left, paid) {
     const rule = overflowRules().effects[drawn];
     const name = game.i18n.localize(`DRPG.Overflow.name.${drawn}`);
@@ -504,7 +504,7 @@ async function announceOverflow(drawn, left, paid) {
         flags: { [MODULE_ID]: { sfx: { key: "despairOverflow", gm: true } } },
         content: `<h3>${game.i18n.localize("DRPG.Overflow.cardTitle")}</h3>
             <p>${game.i18n.format("DRPG.Overflow.cardBody", { n: paid })}</p>
-            <p><strong>${foundry.utils.escapeHTML(name)}</strong> — ${what}</p>
+            <p><strong>${foundry.utils.escapeHTML(name)}</strong> - ${what}</p>
             <p class="notes">${game.i18n.format("DRPG.Overflow.cardLeft", { n: left })}</p>`
     });
 }
@@ -574,17 +574,17 @@ export function overflowCrossings(allowance) {
     // Free placement has no "minus one" to take, so the darkening hands it a
     // number instead of a subtraction: the run of the whole map becomes the
     // ordinary two rooms. A real loss, without being a smaller number than the
-    // penalised ordinary allowance — which would read as nonsense.
+    // penalised ordinary allowance - which would read as nonsense.
     if (allowance === null) return rule.freeBecomes ?? 2;
     return Math.max(rule.floor ?? 1, allowance - rule.by);
 }
 
 /* ==========================================================================
- * THE GM'S EDITOR — a pane in Despair Flow, not a window of its own
+ * THE GM'S EDITOR - a pane in Despair Flow, not a window of its own
  * --------------------------------------------------------------------------
  * It was a DialogV2 with a tile on the GM panel. It is now the fourth tab of
  * the window that already holds the pools, the Monokumas who spend them and
- * the students they are assigned to (Dawid, 29.08) — one subject with four
+ * the students they are assigned to (Dawid, 29.08) - one subject with four
  * faces. Two doors into one form is one door too many, so the tile and the
  * standalone window both went.
  *
@@ -605,7 +605,7 @@ export function overflowSection() {
         const what = esc(game.i18n.format(`DRPG.Overflow.what.${key}`, { n: rule.by ?? 1 }));
         // Only some of the eight have a size. Despair, Silence and Fog are on
         // or off, and a spin box beside them would be a control that does
-        // nothing — which is worse than no control at all.
+        // nothing - which is worse than no control at all.
         const size = rule.by === undefined ? "" : `
             <label class="drpg-overflow-by">
                 <span>${esc(game.i18n.localize("DRPG.Overflow.amount"))}</span>
@@ -705,13 +705,13 @@ export function overflowStatus() {
  *
  * A HOOK, BECAUSE THERE IS NOWHERE ELSE TO PUT IT. Hope arrives from eight
  * places in this module and from Daggerheart's own roll pipeline with a plain
- * `actor.update()` carrying none of our flags — resource-guard.mjs says exactly
+ * `actor.update()` carrying none of our flags - resource-guard.mjs says exactly
  * this, and is why it deliberately does not guard `hope.value`. Any reader we
  * added would be one of nine, and the ninth would be the one that mattered.
  *
  * ONLY THE INCREASE. Spending Hope, and a GM correcting a number downward, both
  * go through untouched: this stops the tap, not the drain. And only while the
- * draw is Despair — every other hour this hook costs one comparison.
+ * draw is Despair - every other hour this hook costs one comparison.
  */
 function onPreUpdateActor(actor, changes) {
     try {

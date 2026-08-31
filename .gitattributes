@@ -1,5 +1,5 @@
 # Keep repository-only files out of module.zip (built with `git archive`).
-# docs/ holds README media — screenshots and GIFs — which players never need
+# docs/ holds README media - screenshots and GIFs - which players never need
 # at runtime and which would triple the size of the package.
 docs/ export-ignore
 .gitattributes export-ignore

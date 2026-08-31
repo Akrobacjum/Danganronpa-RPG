@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — telling Monokumas apart from students.
+ * Danganronpa RPG - telling Monokumas apart from students.
  * ---------------------------------------------------------------------------
  * The guide has the GMs walking the map as two Monokumas: "in their free time
  * they move around the map as two distinguishable, equivalent Monokuma. In this
@@ -12,8 +12,8 @@
  * Daggerheart keys off `type === "character"`.
  *
  * What the flag changes:
- *   · no action economy — the pips and free Move are greyed out
- *   · no Hope — they spend Despair instead
+ *   · no action economy - the pips and free Move are greyed out
+ *   · no Hope - they spend Despair instead
  *   · the action grid is replaced by Despair Calls
  *   · movement is unrestricted: no room costs, no walls, no Eclipse limit
  *   · room visibility never hides them from themselves
@@ -37,7 +37,7 @@ export function monokumaActors() {
     return game.actors.filter(a => a.type === "character" && isMonokuma(a));
 }
 
-/** Every student — a character that is not a Monokuma. */
+/** Every student - a character that is not a Monokuma. */
 export function studentActors() {
     return game.actors.filter(a => a.type === "character" && !isMonokuma(a));
 }
@@ -76,7 +76,7 @@ export async function setMonokuma(actor, value = true) {
 /* ==========================================================================
  * WHOSE POOL
  * --------------------------------------------------------------------------
- * Stated, not guessed. The map is world state — `{ [actorId]: userId }` — so
+ * Stated, not guessed. The map is world state - `{ [actorId]: userId }` - so
  * every client agrees on which Monokuma spends whose Despair, and the Despair
  * Calls panel on each sheet shows that Monokuma's pool rather than the pool of
  * whoever happens to be looking at it.
@@ -101,7 +101,7 @@ export function poolFor(actor) {
     return pools()[actor?.id] ?? null;
 }
 
-/** Write the whole map at once — used by the Monokuma panel. GM only. */
+/** Write the whole map at once - used by the Monokuma panel. GM only. */
 export async function setPools(map) {
     if (!game.user.isGM) return null;
     await game.settings.set(MODULE_ID, SETTINGS.monokumaPools, { ...map });
@@ -139,7 +139,7 @@ export function poolUserFor(actor) {
     const gms = holders.length ? holders : game.users.filter(u => u.role === CONST.USER_ROLES.GAMEMASTER);
     if (!gms.length) return game.user.isGM ? game.user : null;
 
-    // One Gamemaster, one pool — nothing to disambiguate.
+    // One Gamemaster, one pool - nothing to disambiguate.
     if (gms.length === 1) return gms[0];
 
     // More than one and nothing configured: an explicit OWNER entry on the actor
@@ -160,7 +160,7 @@ export function poolUserFor(actor) {
 /**
  * Every Monokuma actor that has no pool configured. For the GM's attention.
  *
- * Measured against the same roster `poolUserFor` accepts — "is a GM" was a
+ * Measured against the same roster `poolUserFor` accepts - "is a GM" was a
  * looser test than the one that actually decides whose Despair is spent, so an
  * actor could read as configured here and still be ignored there.
  */

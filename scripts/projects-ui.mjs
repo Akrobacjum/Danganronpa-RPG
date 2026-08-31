@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — project UI.
+ * Danganronpa RPG - project UI.
  * ---------------------------------------------------------------------------
  * Countdowns are projects in this game, so the sidebar list gets a heading that
  * says so, and each project gains the two things Daggerheart has no concept of:
@@ -28,8 +28,8 @@ export function registerProjectsUi() {
  * Redraw the project tray on this client.
  *
  * Daggerheart redraws the tray from its own settings `onChange`, which covers
- * progress. What it does not cover is our metadata — a project's room, its
- * secrecy, whether it is frozen — because that lives in a separate world
+ * progress. What it does not cover is our metadata - a project's room, its
+ * secrecy, whether it is frozen - because that lives in a separate world
  * setting the system knows nothing about. A change to either has to reach every
  * client, so sync.mjs calls this.
  */
@@ -38,7 +38,7 @@ export function refreshProjects() {
         // The global `ui`, not `foundry.ui`.
         //
         // `foundry.ui` is a one-time spread of the ui module's exports taken at
-        // load time — a dead snapshot, not the live registry. Daggerheart
+        // load time - a dead snapshot, not the live registry. Daggerheart
         // installs its tray on the global `ui`, so `foundry.ui.countdowns` was
         // always undefined and the optional chaining swallowed it: this function
         // has never refreshed anything on any client.
@@ -50,25 +50,25 @@ export function refreshProjects() {
 
 /**
  * The tray is renamed "Projects" through i18n overrides on the system's own
- * keys, not by injecting a heading — an injected one sat outside the tray's
+ * keys, not by injecting a heading - an injected one sat outside the tray's
  * own layout and vanished on hover when the tray re-rendered.
  *
  * Three things happen here, all re-applied on every render since the tray
  * rebuilds its header each time:
  *   - our own gear is added, opening the manager below
- *   - Daggerheart's own wrench ("Edit Countdowns") is removed — it opens the
+ *   - Daggerheart's own wrench ("Edit Countdowns") is removed - it opens the
  *     system's native bulk editor, which knows nothing about a project's
  *     room, secrecy or indirect-murder flag and would silently desync our
  *     metadata from whatever it changed. Every edit has to go through the
  *     manager, which is the only thing that keeps both in step.
- *   - the "Short"/"Long" type filter is removed — those toggle Daggerheart's
+ *   - the "Short"/"Long" type filter is removed - those toggle Daggerheart's
  *     own "encounter"/"narrative" countdown categories, and `createProject`
  *     (projects.mjs) always makes "narrative" ones. There is only ever one
  *     category in this tray, so a filter for it is a control with nothing to
- *     do — and reads as a mysterious pair of buttons that just narrow what
+ *     do - and reads as a mysterious pair of buttons that just narrow what
  *     you can see for no visible reason.
  *   - "Toggle Icon Only" is removed, and anyone already in that view is taken
- *     out of it — see `leaveIconOnly`. It strips the name and the progress off
+ *     out of it - see `leaveIconOnly`. It strips the name and the progress off
  *     every row, and a project is its name: what is left is four identical
  *     hourglasses in a tray whose entire job is telling them apart. The caret
  *     below is the control for wanting the space back.
@@ -85,7 +85,7 @@ function onRenderCountdowns(app, element) {
 
         localiseRawKeys(root);
 
-        // Folding the tray away is everybody's, not the GM's — a player with
+        // Folding the tray away is everybody's, not the GM's - a player with
         // four projects on a 1080p screen wants the map back, and the tray sits
         // directly under their own status strip.
         addCollapseControl(root);
@@ -121,7 +121,7 @@ function onRenderCountdowns(app, element) {
 /**
  * Nobody is left standing in a room whose door has just been removed.
  *
- * "Toggle Icon Only" swaps every project for a bare icon — a row of little
+ * "Toggle Icon Only" swaps every project for a bare icon - a row of little
  * hourglasses with no name and no progress, which in this module is a tray of
  * things you cannot tell apart. It is gone (above), and that is the whole of
  * the change EXCEPT for one thing: the system remembers the choice in a user
@@ -135,7 +135,7 @@ function onRenderCountdowns(app, element) {
  *
  * The re-render is not optional and was measured being needed: the names are
  * left out by the TEMPLATE, `{{#unless iconOnly}}`, so this pass is already
- * looking at markup that has none — dropping the class and writing the flag
+ * looking at markup that has none - dropping the class and writing the flag
  * left a player staring at a tray of bare numbers until something else
  * happened to redraw it. Rendering from inside a render hook is safe here
  * because the flag is textIcon by the time the new pass reads it, so the
@@ -158,13 +158,13 @@ function leaveIconOnly(app, root) {
  * Translate labels the system left as raw keys.
  *
  * The tray's own view-mode control announces itself as
- * "DAGGERHEART.UI.Countdowns.toggleIconMode" — the key exists and resolves to
+ * "DAGGERHEART.UI.Countdowns.toggleIconMode" - the key exists and resolves to
  * "Toggle Icon Only", the system simply does not localise it when it builds
  * the header. A screen reader reads the key aloud, and it surfaces as a
  * tooltip. Reported as B-F5-2.
  *
  * Repaired here because this module already relabels this window on every
- * render, and the tray rebuilds its header from scratch each time — the same
+ * render, and the tray rebuilds its header from scratch each time - the same
  * reason the gear and the collapse caret are re-added rather than wired once.
  * A value is only touched when it looks like a key AND the key is one the
  * active language actually has, so this can never invent a label of its own.
@@ -184,7 +184,7 @@ function localiseRawKeys(root) {
  * FOLDING THE TRAY AWAY
  * --------------------------------------------------------------------------
  * The tray has no collapse of its own. Daggerheart's one header control was
- * `toggleViewMode`, which swapped the rows for a row of icons — a different
+ * `toggleViewMode`, which swapped the rows for a row of icons - a different
  * thing, which left the tray exactly as tall, and which is no longer there.
  *
  * So: a caret that hides the body and leaves the title bar, remembered per
@@ -240,7 +240,7 @@ function addCollapseControl(root) {
 
     // First in the header, before the title: a disclosure control belongs on the
     // side you read from, and the gear on the far side is a different kind of
-    // thing — one changes what you are looking at, the other opens a window.
+    // thing - one changes what you are looking at, the other opens a window.
     host.prepend(button);
 }
 
@@ -255,7 +255,7 @@ function addCollapseControl(root) {
  * needed two trips.
  */
 export async function openProjectManager() {
-    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
@@ -343,7 +343,7 @@ export async function openProjectManager() {
             { action: "share", label: game.i18n.localize("DRPG.Project.shareButton") },
             { action: "cancel", label: game.i18n.localize("DRPG.Panel.close") }
         ],
-        // A FilePicker needs a live click against the dialog's actual DOM —
+        // A FilePicker needs a live click against the dialog's actual DOM -
         // see wirePortraitPickers() for why this cannot be wired any earlier.
         // The per-row edit buttons need the same treatment, and they close the
         // manager first so the two windows never stack.
@@ -384,7 +384,7 @@ export async function openProjectManager() {
         if (entry.img && entry.img !== before?.img) await setProjectImage(entry.id, entry.img);
 
         // A project that has only just been marked as an indirect murder is
-        // sealed with it — that is the default the guide wants, and the box in
+        // sealed with it - that is the default the guide wants, and the box in
         // this row was rendered before the GM ticked "indirect".
         const newlyMurder = entry.murder && !isIndirectMurder(entry.id);
         await setProjectMeta(entry.id, { room: entry.room || null, indirectMurder: entry.murder });
@@ -392,7 +392,7 @@ export async function openProjectManager() {
         // After that first moment the checkbox is simply the answer.
         //
         // This used to read `entry.secretTouched`, a field `readManager` has
-        // never returned — so it was permanently `undefined`, "is it secret"
+        // never returned - so it was permanently `undefined`, "is it secret"
         // came out as `secret || murder`, and an indirect murder flipped between
         // sealed and revealed on every other save.
         const shouldBeSecret = entry.secret || newlyMurder;
@@ -409,7 +409,7 @@ export async function openProjectManager() {
 }
 
 /**
- * Create a project, or edit one — the same form either way.
+ * Create a project, or edit one - the same form either way.
  *
  * Deliberately one function rather than two that drift apart. The GM asks the
  * same seven questions about a project whether it exists yet or not, and the
@@ -421,7 +421,7 @@ export async function openProjectManager() {
  * @param {object} [options]
  * @param {object} [options.project]  Editing this one, from `allProjects()`.
  * @param {object} [options.preset]   Prefill the fields for a project that does
- *   not exist yet — a player's proposal, arriving from the approval card. NOT
+ *   not exist yet - a player's proposal, arriving from the approval card. NOT
  *   the same as `project`: nothing has been created, so this still takes the
  *   create path and the GM can change every answer before it does.
  */
@@ -438,10 +438,10 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         .map(([key, s]) => {
             const selected = editing ? s.progress === currentTarget : key === "everyday";
             return `<option value="${s.progress}"${selected ? " selected" : ""}>${
-                s.label} — ${s.progress} progress</option>`;
+                s.label} - ${s.progress} progress</option>`;
         }).join("");
 
-    // An edited project may sit on a target no scale names — a repair inherits
+    // An edited project may sit on a target no scale names - a repair inherits
     // whatever the sabotage rolled. Offer it rather than silently re-scaling it.
     const offScale = editing && !Object.values(PROJECT_SCALE).some(s => s.progress === currentTarget)
         ? `<option value="${currentTarget}" selected>${
@@ -473,7 +473,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
      * Built from `TRAP_TRIGGERS` rather than typed out, so a trigger the module
      * watches for cannot be missing from this list and a row in this list
      * cannot name something nothing listens to. A trigger with no listener is a
-     * choice a GM makes that then silently never happens — which looks exactly
+     * choice a GM makes that then silently never happens - which looks exactly
      * like a trap nobody walked into.
      *
      * `manual` is on the list on purpose. It is today's behaviour, and putting
@@ -525,7 +525,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
                 <small class="notes">${game.i18n.localize("DRPG.Trap.watchNote")}</small></label>
             <label data-drpg-when-trigger="project sabotage">${
                 game.i18n.localize("DRPG.Trap.whichProject")}
-                <select name="triggerTarget"><option value="">—</option>${targetOptions}</select></label>
+                <select name="triggerTarget"><option value="">-</option>${targetOptions}</select></label>
             <label class="drpg-checkbox">
                 <input type="checkbox" name="afterDark"${
                     startTrigger?.afterDark ? " checked" : ""} /> ${
@@ -545,7 +545,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
                     editing && isSecret(project.id) ? " checked" : ""} /> ${
                     game.i18n.localize("DRPG.Project.secret")}</label>
             ${(!editing && players.length) ? `<label>${game.i18n.localize("DRPG.Project.visibleTo")}
-                <select name="viewer"><option value="">—</option>${playerOptions}</select></label>` : ""}
+                <select name="viewer"><option value="">-</option>${playerOptions}</select></label>` : ""}
             ${editing ? `<p class="notes">${game.i18n.format("DRPG.Project.editProgressNote", {
                 current: project.current, target: project.start
             })}</p>` : ""}
@@ -589,7 +589,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         classes: ["drpg-panel"],
         content,
         buttons,
-        // See wirePortraitPickers() — DialogV2 discards `content` and rebuilds
+        // See wirePortraitPickers() - DialogV2 discards `content` and rebuilds
         // it from a string, so the picker has to be wired against the dialog's
         // real element once it exists, not against the div built above.
         render: (event, dialog) => wirePortraitPickers(dialog.element, { defaultImg }),
@@ -628,7 +628,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
             indirectMurder: result.murder,
             condition: result.condition,
             // ARMED STATE SURVIVES AN EDIT. A GM who opens a watching trap to
-            // fix a typo in its name must not thereby take it off watch — and
+            // fix a typo in its name must not thereby take it off watch - and
             // must not re-arm one that has already spoken either, which is the
             // same rule read from the other end (trap 153).
             trigger: result.murder
@@ -647,7 +647,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         target: result.target,
         // Whose idea it was, straight off the proposal card. `start` is the
         // preset when the GM opened this from an Approve button, and null when
-        // they opened it from the panel — where there is no proposer to name.
+        // they opened it from the panel - where there is no proposer to name.
         by: start?.by ?? null,
         room: result.room,
         trait: result.trait,
@@ -659,7 +659,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         viewers: result.viewer ? [result.viewer] : [],
         // Whose trap it is: the player it was made visible to, when the GM
         // named one. `startProject` fills this in properly for the player's own
-        // route — see action-rolls.mjs.
+        // route - see action-rolls.mjs.
         killerId: result.viewer
             ? game.actors.find(a => a.type === "character"
                 && a.testUserPermission(game.users.get(result.viewer), "OWNER"))?.id ?? null
@@ -676,7 +676,7 @@ async function applySecrecy(id, wanted) {
     else if (!wanted && isSecret(id)) await revealProject(id);
 }
 
-/** Kept as its own name — the manager and the empty state both call it. */
+/** Kept as its own name - the manager and the empty state both call it. */
 async function openCreateDialog(rooms = allRooms()) {
     return openProjectDialog({ rooms });
 }
@@ -698,7 +698,7 @@ function readManager(dialog, projects) {
  * ========================================================================== */
 
 /**
- * Let a player in on a secret project — a co-conspirator, or the GM handing
+ * Let a player in on a secret project - a co-conspirator, or the GM handing
  * knowledge to someone who earned it.
  */
 export async function openShareDialog(preselectId = null) {

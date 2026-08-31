@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — character sheet surgery.
+ * Danganronpa RPG - character sheet surgery.
  * ---------------------------------------------------------------------------
  * The guide's sheet has no class, subclass, ancestry or community. What sits
  * under the character's name is their Ultimate: "the thing this character does
@@ -31,7 +31,7 @@ import { getClock } from "./clock.mjs";
 import { inClassTrial } from "./trial.mjs";
 import { stashRoomsFor, stashItemsIn, openStashesHere } from "./vault.mjs";
 // `availableCrisisActions` and `isTheirTurn` went to the Direct Murder tile's
-// menu with the crisis grid — see `openCrisisMenu` in action-rolls.mjs.
+// menu with the crisis grid - see `openCrisisMenu` in action-rolls.mjs.
 import { murderState, sideOf, betrayalTarget } from "./murder.mjs";
 // Two different silences, so both are renamed at the door rather than one of
 // them shadowing the other: a Monocub silenced for the chapter may not speak,
@@ -41,12 +41,12 @@ import { isSilenced as callSilenced, isChained, pendingGather } from "./call-eff
 import { isDeceased } from "./chapter.mjs";
 import { isStashed, ITEM_FLAGS, isBroken, durabilityOf, wearOf,
     durabilityLeft } from "./inventory.mjs";
-// `equippedFor` went with the clean-up panel's "what you have readied" note —
+// `equippedFor` went with the clean-up panel's "what you have readied" note -
 // the Tamper menu says it now, where the roll it applies to is chosen.
 import { isUsable, isEquippable, isEquipped, equippedIn, usableKindOf }
     from "./use-items.mjs";
 import { countInGroup, categoriesInGroup, rolesOf } from "./inventory.mjs";
-// `bodyIsHere` moved with the three Stage 6 actions — the Tamper menu asks it
+// `bodyIsHere` moved with the three Stage 6 actions - the Tamper menu asks it
 // now (action-rolls.mjs), because that is where the body tile lives.
 import { isCleaner } from "./cleanup.mjs";
 import { roomOfActor, neighbouringRooms, othersInRoom } from "./movement.mjs";
@@ -65,14 +65,14 @@ export function registerSheetTweaks() {
 
     // The flicker. See the block comment above `onlyResourceKeys` for what
     // these two do and, more importantly, for the measurement that decides
-    // which of them does what — the order is not the one it looks like.
+    // which of them does what - the order is not the one it looks like.
     Hooks.on("preUpdateActor", markResourceOnlyUpdate);
     Hooks.on("updateActor", repaintAfterResourceUpdate);
 
     /*
      * WHEN A CACHED TAMPER ANSWER STOPS BEING TRUE.
      *
-     * The cache key already covers the two ordinary ways it goes stale — the
+     * The cache key already covers the two ordinary ways it goes stale - the
      * character walked out, or the clock turned. What it cannot see is the
      * ledger itself changing under a character who has not moved: a trace
      * erased, one planted, a chapter's sweep. All three are writes to
@@ -82,7 +82,7 @@ export function registerSheetTweaks() {
      * NOTHING AT ALL UNTIL E17. `updateSetting` is a DOCUMENT hook, and
      * `remnantSecrets` is client-scoped: Foundry writes it straight to
      * localStorage without ever creating a Setting document, so the hook never
-     * fires. Measured — a world setting fired it twice for two writes, this one
+     * fires. Measured - a world setting fired it twice for two writes, this one
      * fired zero times for two. dice-sync.mjs found the same trap a fortnight
      * ago and the knowledge did not travel, which is why there is now a tier-0
      * criterion (R14) standing over every listener of this shape.
@@ -99,7 +99,7 @@ export function registerSheetTweaks() {
 
     // Every item sheet, whatever Daggerheart calls the class. `renderItemSheetV2`
     // is Foundry's own rung of that ladder, so it catches LootSheet, FeatureSheet
-    // and anything the system adds later — one hook instead of a list that goes
+    // and anything the system adds later - one hook instead of a list that goes
     // stale. See `trimItemSheet`.
     Hooks.on("renderItemSheetV2", (app, element) => {
         try {
@@ -117,8 +117,8 @@ export function registerSheetTweaks() {
  * sheet, untouched: four tabs, of which three are for a game this one is not
  * playing. Settings edits quantity, weight and the system's own item mechanics;
  * Actions attaches Daggerheart activities; Effects manages Active Effects. None
- * of the three has a meaning in Danganronpa RPG — an item here is a thing you
- * are carrying, and a Truth Bullet is a thing you know — and all three offer a
+ * of the three has a meaning in Danganronpa RPG - an item here is a thing you
+ * are carrying, and a Truth Bullet is a thing you know - and all three offer a
  * player controls that silently desync this module's own metadata when used.
  *
  * What is left is what an item IS: its picture, its name, and what it says.
@@ -139,8 +139,8 @@ function trimItemSheet(app, element) {
     }
 
     // Whatever survived, one of them has to be showing. Cutting the active tab
-    // — which happens the moment somebody leaves a sheet open on Settings and
-    // it re-renders — otherwise leaves a sheet with a header and a blank body.
+    // - which happens the moment somebody leaves a sheet open on Settings and
+    // it re-renders - otherwise leaves a sheet with a header and a blank body.
     const tabs = [...root.querySelectorAll("section.tab")];
     if (tabs.length && !tabs.some(t => t.classList.contains("active"))) {
         tabs[0].classList.add("active");
@@ -168,7 +168,7 @@ function trimItemSheet(app, element) {
  *
  * The pencil beside the description goes for a different reason. What an item
  * SAYS is authored in the item tables, where it is written once and drawn from
- * by every Search — an item card that offers to edit its own copy is offering
+ * by every Search - an item card that offers to edit its own copy is offering
  * to make this one differ from the row it came from, silently, with nothing to
  * say which is right afterwards.
  *
@@ -187,7 +187,7 @@ function dropItemEditors(root) {
 /**
  * Daggerheart's type heading, removed.
  *
- * It printed the system's own item type — "Loot" — directly under the name, at
+ * It printed the system's own item type - "Loot" - directly under the name, at
  * 16px, which is a bigger and louder statement than the name it sat beneath. It
  * also says nothing: every ordinary item in this game is a `loot`, and the line
  * that actually distinguishes them is the one `labelItemKind` puts above.
@@ -203,7 +203,7 @@ function dropTypeHeading(root) {
  * down until it fits, the way `fitActionTiles` does for the action grid. It was
  * written, and it does not work on this element: the name field ignores a
  * font-size set from script entirely. Measured, and worth writing down so nobody
- * spends the afternoon on it again — with `style.setProperty("font-size",
+ * spends the afternoon on it again - with `style.setProperty("font-size",
  * "12px", "important")` on the live, attached input, `getComputedStyle` still
  * reported 20px and `scrollWidth` did not move a pixel across sizes 20 down to
  * 12. The stylesheet CAN size it (that is what took Daggerheart's 30px down to
@@ -218,7 +218,7 @@ function dropTypeHeading(root) {
  * Say what kind of thing this is, under its name.
  *
  * The window showed a name, a picture and a description, and nothing at all
- * about which of the four kinds it was — so a Murder Weapon and a Usable looked
+ * about which of the four kinds it was - so a Murder Weapon and a Usable looked
  * identical once opened, and the only place the difference appeared was the
  * group header back on the inventory tab.
  *
@@ -230,14 +230,14 @@ function dropTypeHeading(root) {
  * How many bad rolls are left in a thing, drawn where it is carried.
  *
  * DURABILITY WAS INVISIBLE (Dawid, 29.08). It was recorded on the item, spent
- * by `wearItem`, whispered once at the moment it was spent — and then nowhere.
+ * by `wearItem`, whispered once at the moment it was spent - and then nowhere.
  * A player holding a tier 3 tool that had taken two Despairs had no way to know
  * they were one bad roll from losing it, which turns a rule about pressing your
  * luck into a rule about being surprised.
  *
  * Pips rather than "1/3", because that is how this module counts everything a
  * player can spend: actions, Hope, Health. Filled is what is left, hollow is
- * what has been taken — the same direction of travel as the action tray, so a
+ * what has been taken - the same direction of travel as the action tray, so a
  * row that is going dark reads as going dark.
  *
  * Nothing is drawn for a broken item: its row already says BROKEN in crimson,
@@ -253,7 +253,7 @@ function wearMarkup(item) {
      * ONLY WHAT CAN ACTUALLY BE WORN DOWN.
      *
      * `durabilityOf` answers 1 for anything with no tier recorded, so every
-     * object in the pack could draw a pip — and a bedroom key with one hollow
+     * object in the pack could draw a pip - and a bedroom key with one hollow
      * socket beside it says "one bad roll and this is gone", which is not true
      * of a key and never will be. Despair wear is spent by `breakOnDespair` on
      * the tool that was READIED for the roll, and only a Crime Tool, a Cleaning
@@ -273,7 +273,7 @@ function wearMarkup(item) {
      * 29.08). Every pip is drawn for the whole life of the thing; wear takes
      * the SOLID ink out of the rightmost one and leaves the empty frame where
      * it was. So a tier 3 tool that has taken two Despairs reads as one dot and
-     * two rings, and the rings say what it used to have — which is the whole
+     * two rings, and the rings say what it used to have - which is the whole
      * point of showing this at all.
      *
      * This is the action tray's own idiom, by name: `.drpg-action-pip` draws
@@ -345,14 +345,14 @@ function labelItemKind(root, item) {
  * The name is the GM's to write.
  *
  * An item's name is what everybody else at the table will hear it called, and
- * on a Truth Bullet it is half the evidence — "Bent pipe" and "Bent pipe, wiped
+ * on a Truth Bullet it is half the evidence - "Bent pipe" and "Bent pipe, wiped
  * clean" are different claims about the same object. A player renaming their own
  * copy rewrites the record for the trial.
  *
  * Made read-only rather than hidden: seeing the field and finding it locked says
  * "this is not yours to set", where a missing field says "this item has no name"
  * and reads as a bug. The write itself is refused in resource-guard.mjs, which
- * is what actually holds — this is the half a player can see.
+ * is what actually holds - this is the half a player can see.
  */
 function lockItemName(root) {
     if (game.user.isGM) return;
@@ -364,7 +364,7 @@ function lockItemName(root) {
 }
 
 /**
- * The description is the GM's to write too, same reasoning as the name — see
+ * The description is the GM's to write too, same reasoning as the name - see
  * resource-guard.mjs, which is what actually refuses the write. This is the
  * half a player can see: an editor left active would keep taking edits that
  * the server was silently discarding, which reads as a broken module rather
@@ -378,8 +378,8 @@ function lockItemName(root) {
  * removed control cannot be clicked by anybody reading their own sheet.
  *
  * SEARCHED FROM THE ROOT, LIKE `lockItemName`, AND NOT INSIDE `.item-description`.
- * That wrapper still exists in Daggerheart 2.6.5 — so this returned nothing and
- * failed silently rather than loudly — but the editor moved out of it into
+ * That wrapper still exists in Daggerheart 2.6.5 - so this returned nothing and
+ * failed silently rather than loudly - but the editor moved out of it into
  * `.description-section`. Measured on a player's client: the name field came
  * back read-only and locked, the editor came back untouched, and the writes it
  * accepted were discarded server-side by resource-guard.mjs. A live editor
@@ -409,14 +409,14 @@ function lockItemDescription(root) {
  * THE FLICKER
  * --------------------------------------------------------------------------
  * Every write to `system.resources.*` made the WHOLE SHEET redraw. Not an
- * animation problem — a full re-render, which also replays every injection this
+ * animation problem - a full re-render, which also replays every injection this
  * file makes: the action panel, the tabs, `tidyBiography`, `paintResourceBars`.
  * One cause, two symptoms: the equipped tab blinking on a roll (a roll spends
  * Hope, and Hope is a resource) and the whole window blinking on a Health or
  * Sanity change.
  *
  * The repair is to stop rendering for those updates and repaint the bar in
- * place instead — `paintResourceBars` already exists and already knows how to
+ * place instead - `paintResourceBars` already exists and already knows how to
  * resume a half-finished animation.
  *
  * WHERE THE PLAN HAD IT BACKWARDS, AND THE MEASUREMENT THAT SHOWED IT.
@@ -431,22 +431,22 @@ function lockItemDescription(root) {
  * fires early enough, and `updateActor` does the repainting afterwards.
  *
  * A NO-OP UPDATE IS THE TRAP THIS OPENS. Setting a resource to the value it
- * already holds fires `preUpdateActor` and then NOTHING — no render, no
- * `updateActor` — so a mark laid down for it would still be armed when
+ * already holds fires `preUpdateActor` and then NOTHING - no render, no
+ * `updateActor` - so a mark laid down for it would still be armed when
  * something legitimate rendered next, and would eat that instead. Measured, not
  * imagined: `orderNoop` was exactly `["preUpdateActor"]`. Hence the value
  * comparison below; the mark is only laid for an update that will really change
  * something and therefore really render.
  *
- * THE CONDITION IS STRICT ON PURPOSE. Anything else in the same package — a
- * flag, an item, an effect — and the render happens. A skipped render that was
+ * THE CONDITION IS STRICT ON PURPOSE. Anything else in the same package - a
+ * flag, an item, an effect - and the render happens. A skipped render that was
  * needed is a sheet showing something untrue, which is worse than a blink.
  *
  * "RESOURCES" IS NARROWER THAN IT SOUNDS, AND THAT MATTERS.
  *
  * `system.resources` holds five things here: hitPoints, stress, hope, actions
  * and armor. Only the first three are drawn by something that can be repainted
- * without a render — the two bars in the sidebar and the Hope diamonds in the
+ * without a render - the two bars in the sidebar and the Hope diamonds in the
  * header. Actions are drawn by this file's own action panel and again by the
  * player's status strip; armor by the system's template. Skipping a render for
  * one of those would leave a number on screen that is no longer true, which is
@@ -456,7 +456,7 @@ function lockItemDescription(root) {
  * A SKIPPED RENDER LEAVES THE OLD NUMBERS IN THE DOM. Obvious in hindsight and
  * not obvious while writing it: `paintResourceBars` reads the `<progress>` and
  * the number input, both of which the render would have rewritten. Repainting
- * from them repaints the OLD value — measured, the bar sat at 0 while the actor
+ * from them repaints the OLD value - measured, the bar sat at 0 while the actor
  * held 1. So the inputs are fed from the actor first, and only then painted.
  * ========================================================================== */
 
@@ -466,7 +466,7 @@ const skipNextRender = new WeakSet();
 const RESOURCE_PREFIX = "system.resources.";
 
 /**
- * The resources this file can redraw in place — see the note above.
+ * The resources this file can redraw in place - see the note above.
  *
  * Adding one here is a promise that `repaintInPlace` below draws it.
  */
@@ -477,7 +477,7 @@ const REPAINTABLE = new Set(["hitPoints", "stress", "hope"]);
  *
  * `_id` and `_stats` are not part of the answer. MEASURED: the package handed
  * to `preUpdateActor` is exactly what the caller wrote, but by `updateActor`
- * the server has added `_stats.modifiedTime` — so a predicate that only
+ * the server has added `_stats.modifiedTime` - so a predicate that only
  * forgives `_id` says "no" on the second hook and the repaint never runs. That
  * failure is silent and looks exactly like the flicker fix working, except the
  * numbers stop moving.
@@ -495,7 +495,7 @@ function onlyResourceKeys(changes) {
 }
 
 /**
- * Will this update actually change a value — that is, will it render at all?
+ * Will this update actually change a value - that is, will it render at all?
  *
  * ONLY ANSWERABLE BEFORE THE WRITE. Asked from `updateActor` it is always
  * false, because by then the actor already holds the new values, and a repaint
@@ -562,7 +562,7 @@ function markResourceOnlyUpdate(actor, changes) {
  * Everything the skipped render would have redrawn, drawn here instead.
  *
  * Two surfaces, because that is how many the three repaintable resources have:
- * the sidebar bars (whose own controls have to be fed from the actor first —
+ * the sidebar bars (whose own controls have to be fed from the actor first -
  * see the note above) and the Hope diamonds in the header, which the module
  * paints from `:has(> i.fa-solid)`, so the class on the inner glyph IS the
  * state and toggling it is the whole repaint.
@@ -602,7 +602,7 @@ function repaintInPlace(actor, element) {
     //
     // The comment on REPAINTABLE says adding a resource here is a promise that
     // this function draws it. `hope` was in the set and this function drew the
-    // bar and the pips and stopped — so topping a player up moved the number
+    // bar and the pips and stopped - so topping a player up moved the number
     // and left every newly affordable Call greyed out. The render that would
     // have fixed it is the one deliberately skipped to stop the sidebar
     // flickering, which means nothing was ever going to fix it.
@@ -612,7 +612,7 @@ function repaintInPlace(actor, element) {
     refreshCallsPanels(actor, element);
 
     // AFTER the glyphs, because the mark is counted off them. A repaint stands
-    // in for a render and owes what the render owed — including saying that
+    // in for a render and owes what the render owed - including saying that
     // something moved. See `markHopeChange`.
     markHopeChange(actor, element);
 }
@@ -620,8 +620,8 @@ function repaintInPlace(actor, element) {
 /**
  * Redraw the Hope and Despair drawers from what the character now holds.
  *
- * Built from the same two functions the injection uses — `affordableHopeCalls`
- * / `despairCallsFor` and `callButton` — so there is one answer to "is this
+ * Built from the same two functions the injection uses - `affordableHopeCalls`
+ * / `despairCallsFor` and `callButton` - so there is one answer to "is this
  * Call available" and one tile that says so, rather than a second copy here
  * that drifts.
  */
@@ -648,7 +648,7 @@ function refreshCallsPanels(actor, element) {
 /** After the write: what the skipped render would have drawn. */
 function repaintAfterResourceUpdate(actor, changes) {
     // Shape only. The value test belongs to the hook before this one, and a
-    // no-op never reaches here anyway — Foundry does not fire `updateActor`
+    // no-op never reaches here anyway - Foundry does not fire `updateActor`
     // for an update that changed nothing.
     if (!onlyResourceKeys(changes)) return;
 
@@ -665,7 +665,7 @@ function repaintAfterResourceUpdate(actor, changes) {
 /**
  * @param {object} options  The render's own options. `isFirstRender` is the one
  *   that matters here: it is set by ApplicationV2 itself from the app's state,
- *   and closing a sheet drops that state — so reopening one counts as a first
+ *   and closing a sheet drops that state - so reopening one counts as a first
  *   render again. That is exactly the line the spend flashes need. Without it,
  *   opening a sheet would replay every action spent while it was shut, as
  *   though they had just happened.
@@ -676,7 +676,7 @@ function repaintAfterResourceUpdate(actor, changes) {
  * See the SETTLING block in danganronpa.css for the measurement behind this.
  * Short version: Daggerheart puts `transition: all 0.3s` on the sidebar's
  * resource inputs, and everything this file does to a freshly rendered sheet
- * changes their layout — so every redraw animated the whole left column for
+ * changes their layout - so every redraw animated the whole left column for
  * 300ms. The work is the same; it just stops being a journey.
  *
  * The class comes off on the next frame rather than immediately, and the
@@ -740,7 +740,7 @@ function onRenderCharacterSheet(app, element, context, options) {
  * stylesheet for several versions, matched three different ways because the
  * system keeps moving them: `.add-feature`, then `[data-action="createItem"]`,
  * then `legend a[data-action="addNewItem"]`. Each time the markup moved, the
- * button came back — silently, because a rule that matches nothing looks
+ * button came back - silently, because a rule that matches nothing looks
  * exactly like a rule that is working.
  *
  * Reported back on screen on 2026-08-23, so the approach changes rather than
@@ -752,7 +752,7 @@ function onRenderCharacterSheet(app, element, context, options) {
  * system's create verbs, or one that carries `data-type="feature"`. Matched on
  * a substring so a rename to `addNewItemV2` does not restart this cycle.
  *
- * FEATURES for everybody, INVENTORY for players only — the same split the
+ * FEATURES for everybody, INVENTORY for players only - the same split the
  * stylesheet already makes. Features in this game come from the module's own
  * grid, so a hand-made one is noise even for the GM; a GM handing out an item
  * by hand is an ordinary ruling.
@@ -778,7 +778,7 @@ function removeSystemCreators(app, element) {
             const creates = CREATE_ACTIONS.some(verb => action.includes(verb));
             if (!creates && type !== "feature") continue;
             // A creator that is the only child of its legend takes the empty
-            // legend with it — otherwise the fieldset keeps a blank caption bar
+            // legend with it - otherwise the fieldset keeps a blank caption bar
             // where the button used to be.
             const legend = el.closest("legend");
             if (legend && legend.querySelectorAll("a, button").length === 1) legend.remove();
@@ -793,12 +793,12 @@ function removeSystemCreators(app, element) {
  * A tile is square by design and its label is floored at 11px, and between
  * those two there is a band of sheet widths where the text simply does not fit.
  * Measured rather than guessed: at a tile width of 84px "Direct Murder" needs
- * 108px of content — an icon, a two-line name and a two-line cost — and the
+ * 108px of content - an icon, a two-line name and a two-line cost - and the
  * square gives it 84. `overflow: hidden` then cut the cost line off entirely.
  *
- * The obvious test is the wrong one. Nothing overflows HORIZONTALLY — the
+ * The obvious test is the wrong one. Nothing overflows HORIZONTALLY - the
  * labels wrap, `scrollWidth` equals `clientWidth` on every button at every
- * width — so a `scrollWidth > clientWidth` check reports a clean sheet while
+ * width - so a `scrollWidth > clientWidth` check reports a clean sheet while
  * the bottom line of six tiles is missing. The overflow is vertical, and it is
  * the aspect ratio that causes it.
  *
@@ -808,7 +808,7 @@ function removeSystemCreators(app, element) {
  *
  * So the square gives way instead, and only where it has to. Each grid is
  * measured; one whose tiles cannot hold their content is marked, and the mark
- * turns off `aspect-ratio` and equalises the rows. Per GRID, not per tile —
+ * turns off `aspect-ratio` and equalises the rows. Per GRID, not per tile -
  * one rectangle among nine squares reads as a rendering fault, while a grid of
  * slightly tall tiles reads as a grid.
  * ========================================================================== */
@@ -818,13 +818,13 @@ function removeSystemCreators(app, element) {
  *
  * "Determination" is 143px of pixel font against an 80px tile. It has no space
  * to wrap at, so the only choices are to break it mid-word or to rename a Hope
- * Call the handbook already named — and the handbook wins.
+ * Call the handbook already named - and the handbook wins.
  *
  * `hyphens: auto` is the textbook answer and does not work here: measured on
  * this build with `lang="en"` set on the root, "Determination" stays on one
  * 143px line and is clipped. Foundry's Electron ships no hyphenation
  * dictionary, so the property is inert. `overflow-wrap: anywhere` does break
- * it, but silently — "Observ / e", "Sabota / ge" — which is what the tiles were
+ * it, but silently - "Observ / e", "Sabota / ge" - which is what the tiles were
  * doing and what looks broken.
  *
  * A soft hyphen is neither: it is a break point the layout engine takes only
@@ -835,8 +835,8 @@ function removeSystemCreators(app, element) {
  * fifth character, so the break never leaves an orphaned letter or two.
  */
 const SHY = "­";
-const LONG_WORD = 9;      // characters — below this, every label fits a tile
-// Six, not five: it puts the break where the word reads best — "Experi-ence"
+const LONG_WORD = 9;      // characters - below this, every label fits a tile
+// Six, not five: it puts the break where the word reads best - "Experi-ence"
 // and "Contri-bution" rather than "Exper-ience" and "Contr-ibution".
 const BREAK_EVERY = 6;
 
@@ -884,7 +884,7 @@ function tileOverflows(grid) {
  *
  * Both passes run in the same task. Reading `clientHeight` forces the layout
  * synchronously, so the cleared state is measured for real, and nothing is
- * painted in between — the grid does not flicker on its way to the answer.
+ * painted in between - the grid does not flicker on its way to the answer.
  * Clearing first is what makes this idempotent: a sheet dragged wider is
  * measured as a square again and drops the mark when it no longer needs it.
  */
@@ -911,11 +911,11 @@ function fitActionTiles(element) {
  * The grid is five across and the tiles are square, which is the shape Dawid
  * chose and the shape a row of tiles should be. At the pixel face that leaves a
  * tile about a hundred pixels of inner width, and the longest label in the game
- * wants more — so the type gives way. It was the column count for half a day
+ * wants more - so the type gives way. It was the column count for half a day
  * (four columns, a sheet widened to 920) and Dawid, 28.08: keep the old size,
  * shrink the names and the costs instead.
  *
- * He is right, and the reason is worth keeping. The column count is a SHAPE —
+ * He is right, and the reason is worth keeping. The column count is a SHAPE -
  * a panel that silently has four tiles where the one below it has five reads as
  * two different interfaces. Type a point smaller reads as nothing at all. When
  * something has to give, it should be the thing nobody can name afterwards.
@@ -927,15 +927,15 @@ function fitActionTiles(element) {
  * mistake rather than a fit. Dawid, 28.08: make the actions and the Despair
  * Calls agree with the Hope Calls.
  *
- * So the constraint is the longest word ANY tile in the module can carry —
- * `LONGEST_TILE_WORD`, taken from the definitions themselves — and every grid
+ * So the constraint is the longest word ANY tile in the module can carry -
+ * `LONGEST_TILE_WORD`, taken from the definitions themselves - and every grid
  * on the sheet gets the answer. That also makes the size stable: it does not
  * change when a panel happens to be on a hidden tab, and a Monokuma's sheet
  * and a student's come out the same.
  *
  * Measured off the widest WORD, not the widest label: "Dynamic action" has a
  * space and is happy to wrap at it, so only a word with nowhere to break is
- * allowed to push the type down. And with a FLOOR — below about seven pixels
+ * allowed to push the type down. And with a FLOOR - below about seven pixels
  * the pixel face stops being readable, and an unreadable whole word is worse
  * than a hyphenated one, so `softWrap` goes back to being the last resort it
  * was written to be.
@@ -946,7 +946,7 @@ const TILE_TEXT_FLOOR = 0.68;
  * The longest unbreakable word any tile in this module can be asked to draw.
  *
  * From the definitions rather than a constant, so renaming a Call moves this
- * with it — which is exactly what happened on 28.08, when "Determination"
+ * with it - which is exactly what happened on 28.08, when "Determination"
  * became "Resolve" and stopped being the word every other tile was paying for.
  */
 const LONGEST_TILE_WORD = (() => {
@@ -981,7 +981,7 @@ function fitTileText(grids) {
     if (!tile || !sample) return;
 
     // The longest word rendered in the real face at the real size, inside the
-    // real tile — a probe rather than arithmetic, because the pixel font's
+    // real tile - a probe rather than arithmetic, because the pixel font's
     // advance width is not something to hard-code.
     const probe = sample.cloneNode(false);
     probe.textContent = LONGEST_TILE_WORD;
@@ -1004,7 +1004,7 @@ function fitTileText(grids) {
 /**
  * Re-fit when the sheet is resized.
  *
- * The width a tile ends up with is not a function of the sheet width alone —
+ * The width a tile ends up with is not a function of the sheet width alone -
  * the grid drops columns as it narrows, so tiles get SMALLER and then abruptly
  * larger again. There is no width to hard-code; the only honest answer is to
  * measure whenever the box changes.
@@ -1037,8 +1037,8 @@ function watchTileFit(element) {
  * --------------------------------------------------------------------------
  * The purple rectangle around each trait value used to be pure CSS, hung off
  * Daggerheart's `.trait-value-area`. That worked on one install and not on
- * another with the identical stylesheet, which means the selector — not the
- * rule — is what varies: a system build, a UI module or a sheet replacement
+ * another with the identical stylesheet, which means the selector - not the
+ * rule - is what varies: a system build, a UI module or a sheet replacement
  * that renders the trait block under different class names leaves the CSS with
  * nothing to match and no way to say so.
  *
@@ -1083,7 +1083,7 @@ function frameTraits(element) {
 /**
  * Flash the Hope that was just spent.
  *
- * Hope is Daggerheart's own track and this module only restyles it — the pixel
+ * Hope is Daggerheart's own track and this module only restyles it - the pixel
  * diamonds in the stylesheet are masks over the system's markup, not a widget
  * of ours. So the flash is a class added to the system's slots after it has
  * drawn them, which is also why there is nothing to clean up: the sheet rebuilds
@@ -1091,8 +1091,8 @@ function frameTraits(element) {
  *
  * The count comes from the DOM rather than from `hopeHeld`, because the DOM is
  * what is being animated. A slot is filled when the system has put a solid
- * glyph in it — the same test the stylesheet's `:has()` makes to choose the
- * filled sprite — so the two cannot disagree about which diamonds are lit.
+ * glyph in it - the same test the stylesheet's `:has()` makes to choose the
+ * filled sprite - so the two cannot disagree about which diamonds are lit.
  */
 function flashHope(app, element, fresh = false) {
     markHopeChange(app.document, element, fresh);
@@ -1107,7 +1107,7 @@ function flashHope(app, element, fresh = false) {
  * but a repaintable resource, and `repaintInPlace` draws what the render would
  * have drawn. It drew the diamonds correctly and never announced the change:
  * Hope moved, the pip count followed, and nothing flashed. The comment there
- * called toggling the glyph "the whole repaint", which was the mistake — the
+ * called toggling the glyph "the whole repaint", which was the mistake - the
  * mark is part of what a render does, and a repaint that stands in for a render
  * owes everything the render owed.
  *
@@ -1129,8 +1129,8 @@ function markHopeChange(actor, element, fresh = false) {
      *
      * `markSpent` adds a class and never takes it off, which was always true
      * and never mattered: a render builds new elements, so the mark went with
-     * the old ones. Since E4 a Hope change SKIPS the render — `repaintInPlace`
-     * stands in for it — and these same six diamonds live on across every
+     * the old ones. Since E4 a Hope change SKIPS the render - `repaintInPlace`
+     * stands in for it - and these same six diamonds live on across every
      * change. Two things then went wrong at once, and together they are
      * exactly "it does not fire and it shows the wrong thing":
      *
@@ -1167,7 +1167,7 @@ function injectActionBar(app, element, fresh = false) {
     const { wounded } = actionBudget(actor);
 
     // What went out since this sheet last drew itself. Recorded even when it is
-    // not shown — a first draw still has to know where the count started, or
+    // not shown - a first draw still has to know where the count started, or
     // the NEXT draw would flash the whole difference.
     const spentActions = spentSince("sheet:actions", actor.id, left);
     const spentMove = spentSince("sheet:move", actor.id, hasFreeMove(actor) ? 1 : 0);
@@ -1188,7 +1188,7 @@ function injectActionBar(app, element, fresh = false) {
     actions.append(label);
 
     // Always draw the full base budget. A wounded character keeps both circles,
-    // but the one they have lost shows as a locked red slot — clearer than
+    // but the one they have lost shows as a locked red slot - clearer than
     // silently rendering "1 / 1", which reads like an action already spent.
     const budget = Math.max(max, 1);
     for (let i = 1; i <= Math.max(STARTING.actions, budget); i++) {
@@ -1236,7 +1236,7 @@ function injectActionBar(app, element, fresh = false) {
     move.dataset.tooltip = game.i18n.localize(
         freeMove ? "DRPG.Actions.freeMoveAvailable" : "DRPG.Actions.freeMoveSpent"
     );
-    // Solid while it is there, OUTLINED once it is gone — the same pair the
+    // Solid while it is there, OUTLINED once it is gone - the same pair the
     // action pips use (`fa-solid fa-circle` / `fa-regular fa-circle`), so a
     // spent Move and a spent action say the same thing in the same way. Foundry
     // ships Font Awesome Pro, which carries every icon in both weights.
@@ -1271,8 +1271,8 @@ function injectActionBar(app, element, fresh = false) {
     // The badge shipped in 17.5 read `pendingCall` and nothing else, so it
     // showed the half of this that is about dice and silently dropped the half
     // that is about the rest of the turn. Silenced and chained do not arrive
-    // through `pendingCall` at all — they live in the world's `restrictions`
-    // setting — and a Monocub silenced for the chapter is a flag on the actor.
+    // through `pendingCall` at all - they live in the world's `restrictions`
+    // setting - and a Monocub silenced for the chapter is a flag on the actor.
     // A player under all three saw an empty corner.
     //
     // Same pink treatment as a Despair Call: these are all things done TO them.
@@ -1288,7 +1288,7 @@ function injectActionBar(app, element, fresh = false) {
     const pending = actor.getFlag(MODULE_ID, FLAGS.pendingCall);
     for (const entry of (Array.isArray(pending) ? pending : [pending]).filter(p => p?.grants)) {
         const despair = entry.kind === "despair";
-        // The badge wears the CALL'S NAME — "Determination", "Obstacle" — not
+        // The badge wears the CALL'S NAME - "Determination", "Obstacle" - not
         // the grant phrase behind it. The phrases were written for sentences
         // ("waiting on your next roll: …") and did not fit the sheet, which is
         // exactly where Dawid met "a statistic of their choice" overflowing
@@ -1339,8 +1339,8 @@ function standingEffects(actor) {
         out.push({ icon: "fa-link", label: "DRPG.Calls.chainedBadge",
                    tooltip: "DRPG.Calls.chainedNotice" });
     }
-    // The Monocub's is a different silence — it is about speaking at the table,
-    // not about spending Hope — so it says so rather than sharing a label.
+    // The Monocub's is a different silence - it is about speaking at the table,
+    // not about spending Hope - so it says so rather than sharing a label.
     if (cubSilenced(actor)) {
         out.push({ icon: "fa-user-slash", label: "DRPG.Monocub.silencedBadge",
                    tooltip: "DRPG.Monocub.silencedTooltip" });
@@ -1352,7 +1352,7 @@ function standingEffects(actor) {
  * STARTING RESOURCES
  * --------------------------------------------------------------------------
  * Daggerheart derives max Health and Sanity from a class, and this game has no
- * classes — so `initCharacter` is the only thing that ever writes them. Until
+ * classes - so `initCharacter` is the only thing that ever writes them. Until
  * it runs, a fresh student reads `max: 0` on both tracks, which means
  * `remaining() <= 0` on both: Wounded AND Breakdown, one action instead of two,
  * and disadvantage forced onto every roll. Every one of those is correct
@@ -1373,7 +1373,7 @@ function needsInit(actor) {
 function injectInitButton(app, element) {
     if (!game.user.isGM) return;
     const actor = app.document;
-    // A Monokuma has no tracks worth setting — `setMonokuma` deliberately zeroes
+    // A Monokuma has no tracks worth setting - `setMonokuma` deliberately zeroes
     // what a student uses, so this would light up permanently on the GM's own sheet.
     if (isMonokuma(actor)) return;
     if (!needsInit(actor)) return;
@@ -1450,7 +1450,7 @@ function injectAdvanceButton(app, element) {
  * GIVE / TAKE ITEMS
  * --------------------------------------------------------------------------
  * Right where the GM is already looking when they decide somebody should have
- * something — or should stop having it.
+ * something - or should stop having it.
  * ========================================================================== */
 
 function injectItemButton(app, element) {
@@ -1521,7 +1521,7 @@ function buildUltimateRow(ultimate, editable) {
 
     const value = document.createElement("span");
     value.className = "drpg-ultimate-value";
-    // textContent, never innerHTML — this string is player-supplied.
+    // textContent, never innerHTML - this string is player-supplied.
     value.textContent = ultimate;
     value.dataset.drpgUltimate = "";
     value.dataset.placeholder = game.i18n.localize("DRPG.Sheet.ultimatePlaceholder");
@@ -1554,7 +1554,7 @@ async function commitUltimate(actor, field) {
 /* ==========================================================================
  * SIDEBAR
  * --------------------------------------------------------------------------
- * "Equipment" becomes "Equipped" — in this game the word equipment means the
+ * "Equipment" becomes "Equipped" - in this game the word equipment means the
  * whole inventory, and the sidebar block only lists what is in hand. Loadout is
  * removed outright: it holds domain cards, which do not exist here.
  * ========================================================================== */
@@ -1563,7 +1563,7 @@ function tidySidebar(element) {
     const sidebar = element.querySelector(".character-sidebar-sheet");
     if (!sidebar) return;
 
-    // Structural selectors first — the template's own `.equipment-section` and
+    // Structural selectors first - the template's own `.equipment-section` and
     // `.loadout-section` wrappers, not the English caption text they happen to
     // render today. Matching by text meant a language pack translating
     // "Equipment"/"Loadout" would silently stop this from finding either block;
@@ -1588,7 +1588,7 @@ function tidySidebar(element) {
  * Health and Sanity are `<progress>` elements, and the module styles them with
  * `appearance: none` to get rid of the platform look. That switch also removes
  * the element's native shadow DOM, which is where `::-webkit-progress-value`
- * lives — so the fill cannot be coloured from CSS at all. The rules for it were
+ * lives - so the fill cannot be coloured from CSS at all. The rules for it were
  * being written and silently discarded, which is why both bars kept whatever
  * the system had painted.
  *
@@ -1597,18 +1597,18 @@ function tidySidebar(element) {
  * attributes, and there is no `attr()` in a background position. So the ratio
  * is written here as a custom property and the stylesheet does the rest.
  *
- * Both are reverse resources in this game — `value` counts what has been
- * MARKED, not what is left — so a bar at 100% is a student out of road.
+ * Both are reverse resources in this game - `value` counts what has been
+ * MARKED, not what is left - so a bar at 100% is a student out of road.
  */
 /**
  * Health and Sanity as one flat bar apiece, filled by proportion.
  *
- * These were pips for a while — countable points, one per mark — and Dawid
+ * These were pips for a while - countable points, one per mark - and Dawid
  * asked for the bar back (26.08): a plain rectangle that fills the fraction of
  * itself the numerals beside it already state. Flat and square, drawn by this
  * module rather than by Daggerheart's `<progress>`, because `appearance: none`
  * on a progress element removes the shadow DOM its fill lives in and the fill
- * then cannot be coloured from CSS at all — which is the bug the pips were
+ * then cannot be coloured from CSS at all - which is the bug the pips were
  * originally routed around. Two spans obey a stylesheet; a progress element
  * argues with one.
  *
@@ -1616,7 +1616,7 @@ function tidySidebar(element) {
  * left, so a bar at 100% is a student out of road.
  *
  * WHICH ROW IS WHICH, WITHOUT COUNTING ROWS. The stylesheet reaches these two
- * through `:nth-child(1)` and `:nth-child(2)` — the risk the audit flagged —
+ * through `:nth-child(1)` and `:nth-child(2)` - the risk the audit flagged -
  * but script does not have to: each row carries an input whose `name` is
  * `system.resources.<key>.value`, which says what it is no matter what order
  * the system renders them in or what a future version puts between them.
@@ -1626,7 +1626,7 @@ function tidySidebar(element) {
  * flashes, in the same colours, on the same beat, resuming mid-animation on a
  * redraw exactly as a pip did (`markSpent` carries the age). `spentSince`
  * counts what is HELD, which for a reverse resource is the capacity still
- * unmarked — so its `from`/`to` are mirrored back into marked units here.
+ * unmarked - so its `from`/`to` are mirrored back into marked units here.
  *
  * The system's own controls are untouched. The number input, its `/`, the max
  * and the +/- it wires up all stay exactly where they were; only the bar is
@@ -1663,12 +1663,12 @@ function paintResourceBars(app, element) {
         const change = actorId ? spentSince(`resource:${key}`, actorId, held) : null;
 
         /*
-         * THE BAR IS UPDATED, NOT REBUILT — AND THAT IS THE REST OF THE FLICKER.
+         * THE BAR IS UPDATED, NOT REBUILT - AND THAT IS THE REST OF THE FLICKER.
          *
          * Skipping the sheet's re-render (see THE FLICKER above) removed most
          * of the blink and left a shorter one, which is what Dawid reported.
          * A MutationObserver over one Health change found the whole of what was
-         * left: `div.drpg-resource-bar` removed and re-added, twice — once per
+         * left: `div.drpg-resource-bar` removed and re-added, twice - once per
          * bar. A brand-new element has no previous width to travel from, so its
          * transition has nothing to animate and the fill snaps into place.
          *
@@ -1706,7 +1706,7 @@ function paintResourceBars(app, element) {
         //
         // `spentSince` counts HELD sockets and reports the range of them that
         // moved; the bar is drawn in MARKED units, and the two run in opposite
-        // directions — held socket `h` is marked slot `max - h + 1`. So the
+        // directions - held socket `h` is marked slot `max - h + 1`. So the
         // range flips end for end: held [from..to] is marked
         // [max - to + 1 .. max - from + 1], which is the band that just changed
         // colour whichever way it went.
@@ -1735,21 +1735,21 @@ function paintResourceBars(app, element) {
  *
  * That list is Daggerheart's `equippedItems`, which means its own weapons and
  * armour. This module's tools are `loot` with a category flag, so nothing put
- * them there — and "Equipped" showing everything except the two things the
+ * them there - and "Equipped" showing everything except the two things the
  * module calls equipped is worse than not renaming the heading at all. It also
  * made the one mechanic that now depends on readying something (see
  * `equippedWeapon` in murder.mjs) invisible in the place a player looks to
  * check it.
  *
- * Rows are built to match `daggerheart.inventory-item-compact` — same classes,
- * same order — so they inherit the system's styling instead of needing a
+ * Rows are built to match `daggerheart.inventory-item-compact` - same classes,
+ * same order - so they inherit the system's styling instead of needing a
  * parallel set of rules that would drift from it.
  */
 /**
  * A row about something that has stopped existing (trap 91).
  *
  * A SILENT STEAL LEAVES ONE. `stealFromPerson` deletes the item with
- * `render: false` so the victim's open sheet does not redraw for it — the thing
+ * `render: false` so the victim's open sheet does not redraw for it - the thing
  * has really gone, and what is suppressed is the refresh. Until something else
  * redraws the sheet the row is still on screen, and every control on it is
  * pointing at a document that is not there: readying it, using it, handing it
@@ -1757,7 +1757,7 @@ function paintResourceBars(app, element) {
  * notification than the notification it was avoiding.
  *
  * Registered in the CAPTURE phase on the row itself, so it runs before the
- * row's own listener AND before any button inside it — one guard covering
+ * row's own listener AND before any button inside it - one guard covering
  * seven controls, rather than seven guards that could drift apart.
  *
  * And it is not only about theft. A GM taking something away by hand, a Reroll
@@ -1775,7 +1775,7 @@ function guardRow(li, item, app) {
             item: item?.name ?? "?"
         }));
         // Which is how they find out. The rule was always "not until they look
-        // again" — this IS looking again.
+        // again" - this IS looking again.
         app?.render(false);
     }, true);
 }
@@ -1811,7 +1811,7 @@ function injectEquippedTools(app, element) {
             <span class="item-name">${foundry.utils.escapeHTML(item.name)}</span>
             <div class="item-labels"><div class="label">${
                 foundry.utils.escapeHTML(ITEM_CATEGORIES[category]?.label ?? category)
-            }${tier !== undefined && tier !== null ? ` — T${tier}` : ""}</div></div>`;
+            }${tier !== undefined && tier !== null ? ` - T${tier}` : ""}</div></div>`;
 
         guardRow(li, item, app);
         li.addEventListener("click", event => {
@@ -1822,7 +1822,7 @@ function injectEquippedTools(app, element) {
         list.append(li);
     }
 
-    // Daggerheart's own rows in this list are hidden by CSS — "Equipped" here
+    // Daggerheart's own rows in this list are hidden by CSS - "Equipped" here
     // means the two things this game lets you ready, not the system's weapons
     // and armour. That leaves an empty box when nothing is readied, so say so,
     // and say why it matters rather than just that it is empty.
@@ -1841,7 +1841,7 @@ function injectEquippedTools(app, element) {
  * the sheet is the window a player already has open and already looks at, and
  * the moment this is needed is not the moment to go hunting for a control.
  *
- * Present for everyone — a Monokuma's player is at the same table, and a
+ * Present for everyone - a Monokuma's player is at the same table, and a
  * character who died an hour ago does not stop being someone's evening.
  * Anchored to the window content, so it does not depend on Daggerheart's
  * internal layout holding still.
@@ -1861,7 +1861,7 @@ function injectSafeword(app, element) {
     /*
      * THE WORD IS THE TABLE'S, NOT THE MODULE'S (E15).
      *
-     * It used to be `DRPG.Safeword.word` — a string in the language file, and
+     * It used to be `DRPG.Safeword.word` - a string in the language file, and
      * therefore one word for everybody who installs this. That is wrong for the
      * one control in the module whose whole job is to be reached without
      * thinking: a table that has never met this group's in-joke reads an
@@ -1869,7 +1869,7 @@ function injectSafeword(app, element) {
      * button exists to remove.
      *
      * Read at render rather than cached, and the setting's `onChange` redraws
-     * every open sheet — otherwise the button would keep offering the old word
+     * every open sheet - otherwise the button would keep offering the old word
      * to everyone who has not reopened their character since it changed.
      */
     button.innerHTML = `<i class="fa-solid fa-hand" inert></i>
@@ -1900,8 +1900,8 @@ function findHeadingByText(root, text) {
  * Structural first: pronouns/age/faith are `system.biography.characteristics.*`
  * fields and connections is `system.biography.connections`, so every one of
  * them can be found by its `name` attribute regardless of what language the
- * caption next to it is rendered in. That match climbs to `.input` — the actual
- * wrapper the characteristics fields sit in — rather than the `fieldset`/
+ * caption next to it is rendered in. That match climbs to `.input` - the actual
+ * wrapper the characteristics fields sit in - rather than the `fieldset`/
  * `.form-group` this used to look for and never found there, which is exactly
  * how "hiding the input alone left the word floating on its own" happened: the
  * caption's wrapper was never being hidden at all, only whatever `.closest()`
@@ -1940,14 +1940,14 @@ function tidyBiography(app, element) {
      *
      * The field arrives as a `<prose-mirror>` with its own edit toggle: an
      * editor to open, a toolbar to read, and a save step to remember, for a
-     * paragraph. It becomes a textarea that writes itself on `focusout` —
+     * paragraph. It becomes a textarea that writes itself on `focusout` -
      * exactly how the item tables edit their rows and how the pre-session note
      * already works, so this is the module's one way of editing text rather
      * than a third one.
      *
      * The toggle goes with it because it lives INSIDE the element being
      * replaced. Nothing is left to restyle, which is a better outcome than the
-     * plan's — that asked for the button to be re-dressed in the module's own
+     * plan's - that asked for the button to be re-dressed in the module's own
      * skin, and a button nobody needs is better removed than repainted.
      */
     const actor = app?.document ?? null;
@@ -2006,7 +2006,7 @@ function tidyBiography(app, element) {
  * --------------------------------------------------------------------------
  * The guide's inventory is three capped categories, not one flat list. Items
  * carry their category as a flag, so they are sorted into labelled groups with
- * the carry limit shown — a player should be able to see "Weapons 1/1" without
+ * the carry limit shown - a player should be able to see "Weapons 1/1" without
  * counting.
  * ========================================================================== */
 
@@ -2014,7 +2014,7 @@ function tidyBiography(app, element) {
  * ONE ROW FOR EVERYTHING YOU HOLD (E9, Dawid 27.08).
  *
  * E8 gave the three gear categories one shared budget of three, which left the
- * sheet drawing the same "2 / 3" three times under three headings — three
+ * sheet drawing the same "2 / 3" three times under three headings - three
  * statements of one fact, and a player reading "1 / 3" over a full inventory in
  * three places has been told three contradictory things by one window.
  *
@@ -2039,7 +2039,7 @@ const INVENTORY_GROUPS = [
  *
  * ONE PLACE, because three kinds of row want tags for three different reasons
  * and each of them would otherwise grow its own version. Gear names its home
- * first — the category is the tag tied to the table the thing came out of — and
+ * first - the category is the tag tied to the table the thing came out of - and
  * then its extra roles. A Usable names the resource it refills, which is the
  * only thing anybody wants to know about one at a glance. Truth Bullets and
  * keys get nothing here: bullets carry their own richer badges (see
@@ -2069,7 +2069,7 @@ function itemTags(item, inGearRow) {
      * THE HOME IS NEVER DRAWN TWICE, AND IT CAN ARRIVE TWICE.
      *
      * "Add an item" offers every equippable role as a tick box INCLUDING the
-     * item's own category, and that is deliberate — see the note above
+     * item's own category, and that is deliberate - see the note above
      * `roleChecks` in tables.mjs. The reasoning there is about MECHANICS and it
      * still holds: `servesAs` checks the home first, so ticking "Tool" on a
      * tool changes nothing about what the thing can do, and a list that
@@ -2080,7 +2080,7 @@ function itemTags(item, inGearRow) {
      * VISIBLE. Once a badge is drawn per role, a redundant tick stops being
      * harmless: the row grows a duplicate "Tool · Tool", and an item Dawid
      * capped at two tags shows three. So the display de-duplicates rather than
-     * the form growing a rule — the form's reasoning is still right, and this
+     * the form growing a rule - the form's reasoning is still right, and this
      * is the half that changed.
      *
      * The seeded pool has never carried one (measured: 24 tables, 0 hits), so
@@ -2094,7 +2094,7 @@ function itemTags(item, inGearRow) {
     ];
 }
 
-/** A key to somebody's bedroom — see vault.mjs. */
+/** A key to somebody's bedroom - see vault.mjs. */
 function isBedroomKey(item) {
     return Boolean(item?.getFlag?.(MODULE_ID, BEDROOM_KEY_FLAG));
 }
@@ -2123,7 +2123,7 @@ function groupInventory(app, element) {
         /*
          * SORTED BY HOME, so one row still reads like three.
          *
-         * Weapons, then cleaning gear, then tools — the order they had as
+         * Weapons, then cleaning gear, then tools - the order they had as
          * headings, kept as an order within the list. Without it a knife, a rag
          * and a second knife arrive in creation order and the row is a pile.
          * Stable within a home, so nothing else anybody cares about moves.
@@ -2139,7 +2139,7 @@ function groupInventory(app, element) {
          * THE COUNTER IS THE BUDGET, NOT THE ROW (E8, trap 69).
          *
          * Murder Weapons, Cleaning Tools and Tools share three slots between
-         * them, so each of those three rows shows the SAME "2 / 3" — the number
+         * them, so each of those three rows shows the SAME "2 / 3" - the number
          * of things in your hands and how many you may hold. Showing the row's
          * own count against the shared cap would put "1 / 3" over a full
          * inventory in three places at once, which is three lies rather than
@@ -2149,7 +2149,7 @@ function groupInventory(app, element) {
         const limit = group_ ? LIMIT_GROUPS[group_]?.limit : cat?.limit;
         const counted = group_ ? countInGroup(actor, group_) : items.length;
 
-        // Evidence of the murder floats to the top of the pack — but only
+        // Evidence of the murder floats to the top of the pack - but only
         // evidence whose holder has EARNED that fact: `tiedToCrime` sits on
         // the item exclusively once the bullet is identified (analyze.mjs),
         // so an unanalysed bullet cannot leak its relevance through its place
@@ -2207,7 +2207,7 @@ function groupInventory(app, element) {
                     const tags = itemTags(item, Boolean(inGroup));
                     if (ready) li.classList.add("drpg-item-equipped");
                     // The row is still the row. A used-up thing is the same
-                    // object in the same slot — what changes is that it says so,
+                    // object in the same slot - what changes is that it says so,
                     // and that the two buttons which would use it are refused.
                     if (broken) li.classList.add("drpg-item-broken-row");
                     li.innerHTML = `<img src="${item.img}" alt="" />
@@ -2234,14 +2234,14 @@ function groupInventory(app, element) {
                     // into your room is not the same as giving your room away,
                     // and the guide's whole social engine runs on the first.
                     addHandoverButton(li, item, app, { copying: isBedroomKey(item) });
-                    // Any stash anywhere, exactly as before — `stow` is what
+                    // Any stash anywhere, exactly as before - `stow` is what
                     // decides whether you are standing at one. Location-gating
                     // the button would be a different rule, not a translation.
                     if (stashRoomsFor(actor).length) addStashButton(li, item, app, { stowing: true });
                 }
 
                 // The row's buttons live inside the row, and the row itself opens
-                // the item sheet — so each button has to be able to say "not me".
+                // the item sheet - so each button has to be able to say "not me".
                 // `guardRow` sits in front of all of them; see its own note.
                 guardRow(li, item, app);
                 li.addEventListener("click", event => {
@@ -2264,7 +2264,7 @@ function groupInventory(app, element) {
 /**
  * "There is somebody else's stash in this room, and it is not hidden."
  *
- * Only drawn when all of that is true, so it is not a permanent control — it
+ * Only drawn when all of that is true, so it is not a permanent control - it
  * appears because of where the character is standing, which is the point. A
  * concealed stash does not show up here at all: finding one of those is what
  * the Search action's own stash branch is for.
@@ -2277,7 +2277,7 @@ function buildOpenStashSection(box, actor, app) {
      * ONE HEADING PER STASH, ONE BUTTON FOR THE ROOM.
      *
      * A room can hold several now, and drawing only the first would hide the
-     * fact that there is a second — which is exactly the information this
+     * fact that there is a second - which is exactly the information this
      * panel exists to give. The button stays single because `rifleStashDialog`
      * lists all of them in one grouped picker: two buttons doing the same thing
      * would be two roads to one dialog.
@@ -2319,10 +2319,10 @@ function buildOpenStashSection(box, actor, app) {
 }
 
 /**
- * "Stash — <room>", under the carried groups.
+ * "Stash - <room>", under the carried groups.
  *
  * Only drawn when this character actually has a bedroom assigned. Uncapped, so
- * there is no count to show — what matters is which room it is in, because that
+ * there is no count to show - what matters is which room it is in, because that
  * is where they have to be standing to reach it.
  */
 function buildStashSection(box, actor, app) {
@@ -2362,7 +2362,7 @@ function buildOneStashSection(box, actor, app, room) {
             li.dataset.itemUuid = item.uuid;
             const tier = item.getFlag(MODULE_ID, "tier");
             // Putting a ruined thing in a drawer is one of the two ways out of
-            // carrying it, so the drawer has to admit what is in it — otherwise
+            // carrying it, so the drawer has to admit what is in it - otherwise
             // the stash is where broken tools go to become anonymous again.
             const broken = isBroken(item);
             if (broken) li.classList.add("drpg-item-broken-row");
@@ -2392,7 +2392,7 @@ function buildOneStashSection(box, actor, app, room) {
 /**
  * Drink it, eat it, apply it.
  *
- * Only on Usable Items, and only for somebody who can act — a corpse's first
+ * Only on Usable Items, and only for somebody who can act - a corpse's first
  * aid kit is not a first aid kit. Free: the guide charges actions for finding
  * and making things, not for opening what you already carry.
  */
@@ -2402,7 +2402,7 @@ function addUseButton(li, item, app) {
     if (isDeceased(app.document) && !isMonocub(app.document)) return;
 
     // SHOWN, AND DEAD. An opened kit keeps its button so the row does not
-    // quietly change shape when it is spent — the player looks at the same
+    // quietly change shape when it is spent - the player looks at the same
     // three controls and one of them has stopped working, which is the fact.
     // Hiding it would read as the item having changed into something else.
     const broken = isBroken(item);
@@ -2449,7 +2449,7 @@ function addUseButton(li, item, app) {
 /**
  * Is this character inside a running incident, on a side that acts?
  *
- * Not "is there an incident" — a third party who has walked in has their own
+ * Not "is there an incident" - a third party who has walked in has their own
  * four decisions and using a pocketful of bandages is not among them, and
  * anybody outside it entirely is just a student having a drink.
  */
@@ -2468,7 +2468,7 @@ function inCrisis(actor) {
  * Hold this one ready.
  *
  * The incident engine asks "which weapon" and, without this, could only answer
- * "the highest tier you happen to own" — which is wrong the moment a killer is
+ * "the highest tier you happen to own" - which is wrong the moment a killer is
  * carrying a Tier 3 axe they mean to frame somebody with and a Tier 1 pipe they
  * mean to swing.
  */
@@ -2505,7 +2505,7 @@ function addEquipButton(li, item, app) {
  * Throw the ruined thing away, and leave the trace of having done it.
  *
  * Only ever on a broken item, because it is not a general "delete from
- * inventory" — the guide has no such move, and one would let a killer make the
+ * inventory" - the guide has no such move, and one would let a killer make the
  * murder weapon cease to exist for free. This is the priced version: a Shadow
  * roll decides how obvious the trace is, and the trace stays on the map for the
  * investigation to find. See `discardBroken` in use-items.mjs.
@@ -2544,7 +2544,7 @@ function addDiscardButton(li, item, app) {
 }
 
 /**
- * Put away, or take back out. Free, and only from the room itself — the check
+ * Put away, or take back out. Free, and only from the room itself - the check
  * that matters lives in vault.mjs, this just offers the button.
  */
 function addStashButton(li, item, app, { stowing }) {
@@ -2573,20 +2573,20 @@ function addStashButton(li, item, app, { stowing }) {
 /**
  * One Truth Bullet, as a row.
  *
- * A bullet has no tier — the old `T2` pill was a visibility index the previous
+ * A bullet has no tier - the old `T2` pill was a visibility index the previous
  * macro smuggled through the tier field. What matters instead is what the player
  * currently believes it is, how hard the original was to spot (the number Analyze
  * will be rolled against), and which chapter it belongs to.
  *
  * The GM reading the same sheet gets one extra badge: the truth. It is drawn
- * from `truthBulletData`, which returns it only to a GM — a player's client
+ * from `truthBulletData`, which returns it only to a GM - a player's client
  * never had it to begin with.
  */
 /**
  * The badges a Truth Bullet wears, as one string.
  *
  * Extracted so the inventory row and the item window are not two descriptions of
- * one object that drift apart — they are the same call. A player comparing the
+ * one object that drift apart - they are the same call. A player comparing the
  * row on their sheet with the window they just opened from it must not find two
  * different accounts of the same piece of evidence; in a game whose endgame is
  * people comparing notes, that is a contradiction the table has to spend the
@@ -2622,7 +2622,7 @@ export function bulletBadges(data) {
             game.i18n.localize("DRPG.TruthBullet.lockedTooltip")));
     }
     // GM only, and only worth showing while it still differs from what the
-    // player sees — once a bullet is identified the two badges say the same thing.
+    // player sees - once a bullet is identified the two badges say the same thing.
     if (game.user.isGM && data.realType && data.realType !== data.shownType) {
         badges.push(badge(game.i18n.format("DRPG.TruthBullet.really", { type: data.realLabel }),
             "real", data.gmNote || game.i18n.localize("DRPG.TruthBullet.reallyTooltip")));
@@ -2644,13 +2644,13 @@ function buildBulletRow(li, item, app) {
 
     if (!app.isEditable || isMonokuma(app.document)) return;
 
-    // Evidence is worth passing on whatever state it is in — an unidentified
+    // Evidence is worth passing on whatever state it is in - an unidentified
     // copy is exactly what you hand to somebody whose analysis has not been
     // burned yet. So this button is offered regardless of the lock.
     addHandoverButton(li, item, app, { copying: true });
     addPresentButton(li, item, app);
 
-    // Nothing to analyse once the type is confirmed — a Key or Autopsy bullet
+    // Nothing to analyse once the type is confirmed - a Key or Autopsy bullet
     // arrives identified, an analysed one is resolved, and one this character
     // already failed on this chapter is closed to them until the next.
     if (!isAnalysable(item, data.chapterNow)) return;
@@ -2675,11 +2675,11 @@ function buildBulletRow(li, item, app) {
  * "Put this in front of everyone."
  *
  * Only during a Class Trial. It reaches the whole table at once, and outside
- * the trial the cast is spread across rooms that are meant to stay separate —
+ * the trial the cast is spread across rooms that are meant to stay separate -
  * the same-room Share button covers those phases instead.
  *
  * ONE BUTTON, TWO ACTS, and which one it is depends on whether a debate is
- * open — see `presentDialog`. The window behind it decides for real; this
+ * open - see `presentDialog`. The window behind it decides for real; this
  * matches it so the player is not told one thing on the row and another in the
  * window. Read straight off the setting rather than through trial-floor.mjs:
  * this file is on the render path and the shape is one boolean.
@@ -2721,7 +2721,7 @@ function addPresentButton(li, item, app) {
  * copied and an item changes hands.
  *
  * Shown to the GM as well. They have Give / take items, which is the stronger
- * tool, but this one obeys the fiction's rules — same room, carry limits — and
+ * tool, but this one obeys the fiction's rules - same room, carry limits - and
  * a GM running a character or testing the table needs the same door the players
  * use, not a different one.
  */
@@ -2744,7 +2744,7 @@ function addHandoverButton(li, item, app, { copying }) {
         // `copying` above chooses the icon and the wording; it does not choose
         // the route. `shareBulletDialog` refuses anything that is not a Truth
         // Bullet on its first line, so sending a bedroom key down it made the
-        // share button on a key do nothing at all — no dialog, no error, no
+        // share button on a key do nothing at all - no dialog, no error, no
         // console line. A key goes the ordinary way and is turned into a copy
         // by `giveItem` on the GM side, which is the only place that can see
         // both sheets anyway.
@@ -2760,7 +2760,7 @@ function addHandoverButton(li, item, app, { copying }) {
  * --------------------------------------------------------------------------
  * Daggerheart's Effects tab lists magical conditions applied by spells and
  * armour. This game has two conditions, both automatic (see states.mjs), and
- * no spells — so the tab was an empty box on every sheet in the world.
+ * no spells - so the tab was an empty box on every sheet in the world.
  *
  * What every sheet should carry instead is the thing every character is
  * actually bound by: Monokuma's standing rules. They were being announced once
@@ -2768,8 +2768,8 @@ function addHandoverButton(li, item, app, { copying }) {
  * one.
  *
  * The tab is TAKEN OVER rather than removed and rebuilt. ApplicationV2 owns
- * the tab machinery — which part is active, what a click does, how the nav is
- * rendered — and adding or deleting a part from outside is how you end up with
+ * the tab machinery - which part is active, what a click does, how the nav is
+ * rendered - and adding or deleting a part from outside is how you end up with
  * a sheet that cannot switch tabs. Relabelling the nav entry and replacing the
  * section's contents leaves all of that untouched.
  * ========================================================================== */
@@ -2788,7 +2788,7 @@ function replaceEffectsTab(app, element) {
 /**
  * The nav entry keeps its slot and loses its name.
  *
- * Matched by `[data-tab="effects"]` inside the tab bar specifically — the same
+ * Matched by `[data-tab="effects"]` inside the tab bar specifically - the same
  * attribute is on the content section, and grabbing that one instead is how
  * the action panel once ended up rendered inside a navigation link.
  */
@@ -2848,7 +2848,7 @@ function buildRulesPanel(app) {
 
             const text = document.createElement("div");
             text.className = "drpg-rule-text";
-            // textContent, never innerHTML — a rule is free text a GM typed.
+            // textContent, never innerHTML - a rule is free text a GM typed.
             text.textContent = rule.text;
             li.append(text);
 
@@ -2869,7 +2869,7 @@ function buildRulesPanel(app) {
      *
      * A character sheet is where the handbook is READ. It was edited from here
      * too, for a GM, and the button was invisible until the first rule existed
-     * — so it arrived unannounced in the middle of a session, most often right
+     * - so it arrived unannounced in the middle of a session, most often right
      * after a New Rule was announced, on a sheet somebody had open for another
      * reason entirely.
      *
@@ -2885,7 +2885,7 @@ function buildRulesPanel(app) {
  * ACTION PANEL
  * --------------------------------------------------------------------------
  * The guide's actions, as buttons at the top of the Features tab. Clicking one
- * rolls the right trait, resolves the threshold and reports back privately —
+ * rolls the right trait, resolves the threshold and reports back privately -
  * no GM required for the repeatable ones.
  * ========================================================================== */
 
@@ -2895,7 +2895,7 @@ function injectActionPanel(app, element) {
     // Must be the CONTENT section, never the navigation link.
     //
     // `[data-tab="features"]` also matches the <a> in the tab bar, which comes
-    // first in the DOM — so a looser selector put the whole panel inside a
+    // first in the DOM - so a looser selector put the whole panel inside a
     // navigation link. That made it collapse to the link's width and, worse,
     // silently swallowed every click: ApplicationV2 treats clicks inside
     // `[data-tab]` as "switch to this tab" and never reached our handler.
@@ -2918,7 +2918,7 @@ function injectActionPanel(app, element) {
     }
 
     // A Monocub keeps the normal action budget but only two things to spend it
-    // on. Its own panel entirely, not a filtered version of the student grid —
+    // on. Its own panel entirely, not a filtered version of the student grid -
     // Meddle targets another actor and has no place in the generic delegate.
     if (isMonocub(actor)) {
         injectMonocubPanel(tab, actor);
@@ -2930,8 +2930,8 @@ function injectActionPanel(app, element) {
     // somebody IS; this one is about somebody who has stopped.
     //
     // Nothing used to catch this case, so a student who had been executed or
-    // murdered kept the whole living grid — Search, Rest, Work on Project, even
-    // Direct Murder — plus their Hope Calls, and `resetActionsFor` refilled the
+    // murdered kept the whole living grid - Search, Rest, Work on Project, even
+    // Direct Murder - plus their Hope Calls, and `resetActionsFor` refilled the
     // budget every time of day because it only ever skipped Monokumas. Becoming
     // a Monocub is a separate GM step that may come a whole trial later, or
     // never, and that gap is exactly where a corpse could keep taking turns.
@@ -2957,7 +2957,7 @@ function injectActionPanel(app, element) {
      * the problem and wrong about the shape: the answer is not a different grid
      * in the same place, it is the SAME grid saying what is happening. Every
      * tile greys out with "you are in an incident" on it, and the one that
-     * still works is Direct Murder — which is where the incident's own actions
+     * still works is Direct Murder - which is where the incident's own actions
      * now live, on the tile whose whole subject is killing somebody.
      *
      * Nothing about who may do what changed. `availableCrisisActions` still
@@ -2974,7 +2974,7 @@ function injectActionPanel(app, element) {
 
     const title = document.createElement("h3");
     // `drpg-keep` exempts it from the rule that hides Daggerheart's own section
-    // headings from players — see styles/danganronpa.css.
+    // headings from players - see styles/danganronpa.css.
     title.className = "drpg-keep";
     title.textContent = game.i18n.localize("DRPG.Action.panelTitle");
     panel.append(title);
@@ -2986,21 +2986,21 @@ function injectActionPanel(app, element) {
     // Dynamic actions are the guide's catch-all: describe it, the GM sets a
     // threshold, and the reward scale is deliberately gentler. Built here
     // because its three strings are localised and ACTIONS is evaluated before
-    // `game.i18n` exists — the table carries a placeholder row (`deferred`)
+    // `game.i18n` exists - the table carries a placeholder row (`deferred`)
     // holding its PLACE in the order, and this is what fills it.
     const dynamic = {
         label: game.i18n.localize("DRPG.Action.dynamicLabel"),
         hint: game.i18n.localize("DRPG.Action.dynamicHint"),
         icon: "fa-wand-magic-sparkles",
         cost: 1,
-        // Describing something and waiting for a threshold IS the GM branch —
+        // Describing something and waiting for a threshold IS the GM branch -
         // this one is defined inline rather than in ACTIONS, so it has to say so
         // for itself.
         callsGm: true
     };
 
     // ONE LOOP, AND THE TABLE IS THE LAYOUT. The dynamic tile used to be
-    // appended after this, which is why it sat last whatever config.mjs said —
+    // appended after this, which is why it sat last whatever config.mjs said -
     // and "last" is a position somebody has to be able to choose.
     for (const [key, def] of Object.entries(ACTIONS)) {
         if (def.kind !== "universal") continue;
@@ -3017,7 +3017,7 @@ function injectActionPanel(app, element) {
 
 /**
  * Move and Meddle. Move reuses the normal action button and the generic
- * delegate — its click just shows the same briefing every player gets, since
+ * delegate - its click just shows the same briefing every player gets, since
  * the guide's Move is applied when a token crosses a room, not when a button
  * is pressed. Meddle is bespoke: it needs a target and a Help/Hinder choice
  * before there is anything to roll.
@@ -3033,7 +3033,7 @@ function injectMonocubPanel(tab, actor) {
 
     // No Hope read-out here. The Hope pips are already on the sheet header,
     // right next to this panel, and the Meddle tile's own price line says what
-    // it costs — a third copy of the same number, plus a sentence about who is
+    // it costs - a third copy of the same number, plus a sentence about who is
     // allowed to top it up, was telling the player something they can see and
     // something they cannot act on.
 
@@ -3092,7 +3092,7 @@ function meddleButton(actor) {
  * the corner is a lot of arithmetic for a decision the numbers could just state.
  *
  * The free Move is called out separately because it is the one piece of the
- * budget that is not interchangeable — it buys a room crossing and nothing else,
+ * budget that is not interchangeable - it buys a room crossing and nothing else,
  * and a player who does not know they still have it will pay an action for a
  * door they could have walked through.
  */
@@ -3121,7 +3121,7 @@ function budgetLine(actor) {
     if (isEclipse()) {
         const left = eclipseMovesLeft(actor);
         // `null` is a Morning or Night Eclipse: free placement, so there is no
-        // count to report — saying "null crossings" or "0 crossings" would both
+        // count to report - saying "null crossings" or "0 crossings" would both
         // be worse than saying what the rule actually is.
         parts.push(left === null
             ? game.i18n.localize("DRPG.Actions.eclipseFreePlacement")
@@ -3139,7 +3139,7 @@ function budgetLine(actor) {
  *
  * It had already lost its three clean-up actions to the Tamper tile on 28.08,
  * which left one tile in a panel of its own: "Turn on your partner". That has
- * now moved inside Direct Murder, where it belongs — turning on your partner
+ * now moved inside Direct Murder, where it belongs - turning on your partner
  * IS a direct murder, and the only one the guide lets you commit without
  * declaring it in an Eclipse first. See `performBetrayal` in action-rolls.mjs.
  *
@@ -3156,9 +3156,9 @@ function injectCallsPanel(tab, actor, monokuma) {
     // clock moves, and until now it closed it INVISIBLY: `calls.mjs` refuses a
     // silenced player's Call with a notification, and every button on the panel
     // went on looking exactly as available as it had a moment earlier. The
-    // stylesheet has had the greyed-out state written for it the whole time —
+    // stylesheet has had the greyed-out state written for it the whole time -
     // `.drpg-calls-panel.drpg-silenced`, dimmed with a `not-allowed` cursor on
-    // the buttons — and nothing ever put the class on. Found by sweeping for
+    // the buttons - and nothing ever put the class on. Found by sweeping for
     // CSS classes the code never names.
     //
     // Refusal stays where it is. The dimming says "not now"; pressing anyway is
@@ -3168,8 +3168,8 @@ function injectCallsPanel(tab, actor, monokuma) {
 
     // The pool is on the bar for a Monokuma and nowhere else: Despair is the
     // only thing their sheet is about, and the number is not repeated anywhere
-    // they can see. A student already reads their Hope twice over — the pips in
-    // the sheet header and the player strip in the corner — so a third copy on
+    // they can see. A student already reads their Hope twice over - the pips in
+    // the sheet header and the player strip in the corner - so a third copy on
     // the drawer was noise on the one line that has to stay scannable.
     const title = document.createElement("h3");
     title.className = "drpg-keep";
@@ -3183,7 +3183,7 @@ function injectCallsPanel(tab, actor, monokuma) {
     const grid = document.createElement("div");
     grid.className = "drpg-action-grid";
 
-    // A Call is not a room crossing either — see spendHopeCall/spendDespairCallFor
+    // A Call is not a room crossing either - see spendHopeCall/spendDespairCallFor
     // in calls.mjs, which refuse it outright while the Eclipse is running.
     const locked = isEclipse();
 
@@ -3204,7 +3204,7 @@ function callButton(call, monokuma, locked = false) {
     button.type = "button";
 
     /*
-     * ONE TILE, TWO JOBS — AND THAT IS DELIBERATE (E14).
+     * ONE TILE, TWO JOBS - AND THAT IS DELIBERATE (E14).
      *
      * While an assembly is pending, Public Announcement becomes the button
      * that calls it off. Not a control in the GM panel: the person who wants
@@ -3213,7 +3213,7 @@ function callButton(call, monokuma, locked = false) {
      * pending order gets left standing by accident.
      *
      * The whole state is computed once, here, because both the price and the
-     * grey depend on it — see trap 103 immediately below.
+     * grey depend on it - see trap 103 immediately below.
      */
     const pending = call.defers ? pendingGather() : null;
     // Two reasons a Call is grey, and they are not the same reason.
@@ -3224,13 +3224,13 @@ function callButton(call, monokuma, locked = false) {
     // grey tiles next to a full pool and had nothing to read but the tooltip.
     /*
      * TRAP 103. A cancel costs nothing, so "you cannot afford it" cannot be
-     * allowed to grey it out — and the pool is at its emptiest exactly when
+     * allowed to grey it out - and the pool is at its emptiest exactly when
      * somebody wants to cancel, because they have just spent six on the thing
      * they are cancelling. Affordability drops out of the class entirely while
      * the tile is in its pending state.
      *
-     * BONE, NOT RED. Red already means one thing in this module — the Call
-     * hands the turn to a GM (`GM_ROUTE_CLASS`) — and gold is Hope's. A third
+     * BONE, NOT RED. Red already means one thing in this module - the Call
+     * hands the turn to a GM (`GM_ROUTE_CLASS`) - and gold is Hope's. A third
      * meaning on red is the mistake the stylesheet's note about outline colour
      * warns against. Bone plus the pulsing dot reads as "this is standing and
      * about to go off", which is what it is.
@@ -3332,8 +3332,8 @@ async function runCall(actor, key, kind) {
     /*
      * TRAP 102, AND IT HAS TO BE THE FIRST THING IN THIS FUNCTION.
      *
-     * Everything below — the affordability check, the target picker, the
-     * confirmation, `spendDespairCallFor` — assumes a purchase. Calling off an
+     * Everything below - the affordability check, the target picker, the
+     * confirmation, `spendDespairCallFor` - assumes a purchase. Calling off an
      * assembly is not one: it costs nothing and there is nothing left to point
      * at. Reached one line later, through `spendDespairCallFor`, it would have
      * taken a second six Despair for the privilege of undoing the first.
@@ -3367,7 +3367,7 @@ async function runCall(actor, key, kind) {
 
     // Silence closes the whole Hope menu. Checked here rather than inside
     // `spendHopeCall`, which only reached it after the target picker and the
-    // confirmation — three dialogs to be told the menu was shut all along.
+    // confirmation - three dialogs to be told the menu was shut all along.
     if (!despair) {
         const { isSilenced } = await import("./call-effects.mjs");
         if (isSilenced(actor)) {
@@ -3399,11 +3399,11 @@ async function runCall(actor, key, kind) {
 }
 
 /**
- * Why this action would fail here, if it would — before anybody spends a click.
+ * Why this action would fail here, if it would - before anybody spends a click.
  *
  * Every one of these checks already existed; they just ran on the far side of
  * the button. A player picked Search, watched the briefing open, read the
- * options, rolled, and only then learned the room had been picked clean — and
+ * options, rolled, and only then learned the room had been picked clean - and
  * in the unanswered case the module had to hand the action back afterwards.
  * The knowledge was there the whole time. This asks the same questions while
  * the tile is being drawn.
@@ -3412,7 +3412,7 @@ async function runCall(actor, key, kind) {
  *
  * Deliberately NOT a hard block: the tile stays clickable and still opens its
  * briefing, because "what would this have done" is worth reading even when the
- * answer is "nothing here". The dimming is advice, not a gate — and the real
+ * answer is "nothing here". The dimming is advice, not a gate - and the real
  * guards downstream stay exactly where they are, since a room's state can
  * change between a sheet render and a click.
  */
@@ -3423,7 +3423,7 @@ function roomBlockFor(actor, key) {
         const roomBound = ["search", "observe", "listen", "project", "palm", "tamper"];
         if (!roomBound.includes(key)) return null;
 
-        // `roomOfActor` answers with the room's NAME, not a region document —
+        // `roomOfActor` answers with the room's NAME, not a region document -
         // every other caller in the module treats it as a string, and reading
         // `.name` off it silently yields undefined, which reads as "outside
         // every room" no matter where the token is standing.
@@ -3432,7 +3432,7 @@ function roomBlockFor(actor, key) {
         // SABOTAGE USED TO BE ANSWERED HERE, and is not any more: it has no
         // tile to dim. It is the third row of the Projects menu now, where
         // "nothing here to break" is a struck-through option with the reason
-        // written beside it — which is the same information said better, and
+        // written beside it - which is the same information said better, and
         // said in the window where the alternative is one row away. The check
         // itself moved verbatim into `performProject`.
 
@@ -3444,7 +3444,7 @@ function roomBlockFor(actor, key) {
         if (key === "search" && SearchTokens.sealed(here))
             return game.i18n.localize("DRPG.SearchTokens.sealed");
 
-        // `exhausted`, not `pickedClean` — the latter says "the action is
+        // `exhausted`, not `pickedClean` - the latter says "the action is
         // spent", which is true after a roll and a lie before one.
         if (key === "search" && SearchTokens.left(here) <= 0)
             return game.i18n.localize("DRPG.SearchTokens.exhausted");
@@ -3452,7 +3452,7 @@ function roomBlockFor(actor, key) {
         if (key === "listen" && neighbouringRooms(here).length === 0)
             return game.i18n.localize("DRPG.Listen.noNeighbours");
 
-        // Palm needs a pocket, and a pocket needs somebody standing in it —
+        // Palm needs a pocket, and a pocket needs somebody standing in it -
         // true of both directions. The same question `performPalm` asks;
         // `othersInRoom` reads the canvas, so this is the tile telling the
         // truth about the room the player is looking at rather than guessing.
@@ -3468,7 +3468,7 @@ function roomBlockFor(actor, key) {
         // both branches being shut is exactly the case a player needs told.
         //
         // Dawid, 28.08: the tile greys out only after you click it. That is
-        // true and it is this line — the strike-through was appearing inside
+        // true and it is this line - the strike-through was appearing inside
         // the variant window, on two struck rows, one click too late.
         //
         // So the answer is cached rather than skipped. See `tamperBlock`: the
@@ -3481,7 +3481,7 @@ function roomBlockFor(actor, key) {
         // work ON, and the tile has two branches: working on a project and
         // proposing one. Proposing works anywhere, so striking the tile through
         // in a room with no projects hid the only route to creating the first
-        // one — and the first one is always proposed from a room with none.
+        // one - and the first one is always proposed from a room with none.
         // `performProject` still refuses the "work on it" half by itself.
 
         return null;
@@ -3499,9 +3499,9 @@ function roomBlockFor(actor, key) {
  * --------------------------------------------------------------------------
  * Two branches, two costs to find out.
  *
- *   frame  — is there anybody left to point at? `framingCandidates` reads the
+ *   frame  - is there anybody left to point at? `framingCandidates` reads the
  *            living cast on this client. Free, so it is asked every render.
- *   cover  — is there a trace of yours here that is not reinforced? Only the
+ *   cover  - is there a trace of yours here that is not reinforced? Only the
  *            GM's ledger knows, and on a player's client that is a socket
  *            round trip. Asked once per room per time of day, cached, and
  *            painted onto the tile when the answer arrives.
@@ -3513,12 +3513,12 @@ function roomBlockFor(actor, key) {
  * THE CACHE KEY IS THE STATE THE ANSWER DEPENDS ON, not a duration. Traces
  * belong to rooms, so the room is in it; they are laid and swept as the clock
  * turns, so the time of day is in it. Anything else that could change the
- * answer mid-scene — a trace erased, one planted — arrives as a settings
+ * answer mid-scene - a trace erased, one planted - arrives as a settings
  * update, which `forgetTamper` below hangs on.
  * ========================================================================== */
 
 const tamperAnswers = new Map();   // actorId -> { key, blocked }
-const tamperAsking = new Set();    // actorId — one question in flight at a time
+const tamperAsking = new Set();    // actorId - one question in flight at a time
 
 function tamperKey(actor) {
     const clock = getClock();
@@ -3538,7 +3538,7 @@ function tamperBlock(actor) {
      * NOTHING TO PAY WITH IS THE FIRST ANSWER, and it is free (Dawid, 29.08).
      *
      * Every Tamper action costs a point of Sanity now, so a character on an
-     * empty track cannot take any of them — and that is knowable on this client
+     * empty track cannot take any of them - and that is knowable on this client
      * without asking the GM anything. Asked before the ledger, because a tile
      * that waits on a socket round trip to say "you have nothing left" makes the
      * player press it to find out.
@@ -3551,7 +3551,7 @@ function tamperBlock(actor) {
     const seen = tamperAnswers.get(actor.id);
     if (seen?.key === key) return seen.blocked;
 
-    // No answer for this room yet. Go and get one — and say nothing in the
+    // No answer for this room yet. Go and get one - and say nothing in the
     // meantime, because a tile dimmed on a guess is worse than one that is a
     // beat late. See the note above `roomBlockFor` on why this is advice.
     askTamper(actor, key);
@@ -3565,7 +3565,7 @@ async function askTamper(actor, key) {
         const cleanup = await import("./cleanup.mjs");
         const { requestCleanableTraces } = await import("./gm-bridge.mjs");
 
-        // The same two questions `performTamper` asks, in the same shapes —
+        // The same two questions `performTamper` asks, in the same shapes -
         // including `mine`, which is what separates an ordinary character
         // tidying after themselves from a killer standing on their own scene.
         const stageSix = cleanup.isCleaner(actor);
@@ -3602,7 +3602,7 @@ async function askTamper(actor, key) {
  * Paint the answer onto the tile without re-rendering the sheet.
  *
  * A full render here would be a sheet redrawing itself a moment after opening,
- * every time, for one class on one button — and it would fight `growForCalls`
+ * every time, for one class on one button - and it would fight `growForCalls`
  * and the tile fitter for the frame it happens to land in.
  */
 function paintTamper(actor, blocked) {
@@ -3623,42 +3623,42 @@ function actionButton(actor, key, def) {
     button.type = "button";
 
     // An action the budget cannot pay for is dimmed exactly the way an
-    // unaffordable Hope Call is — same class, same look. The tile stays visible
+    // unaffordable Hope Call is - same class, same look. The tile stays visible
     // and still opens its briefing, because knowing what an action would do is
     // half of deciding whether to save an action for it.
     const cost = costOf(actor, key, def);
-    // The stripe still says "1 action" — that IS what it costs — but a banked
+    // The stripe still says "1 action" - that IS what it costs - but a banked
     // Burst is what will pay it, so the tile must not be dimmed. See `canPayFor`.
     const affordable = canPayFor(actor, cost);
     const eclipse = isEclipse();
 
-    // Nothing here to do it to — a separate state from "cannot pay for it",
+    // Nothing here to do it to - a separate state from "cannot pay for it",
     // because the answer is different: one is fixed by waiting for the next
     // time of day, the other by walking into another room.
     const blocked = roomBlockFor(actor, key);
 
     // `nothingToBreak` lived here: the sabotage tile went out entirely when its
     // room held nothing to break, because unlike every other dimmed tile it had
-    // no second half to offer. It has a second half now — it is one row of the
-    // Projects menu, next to "work on" and "propose" — so the tile it used to
+    // no second half to offer. It has a second half now - it is one row of the
+    // Projects menu, next to "work on" and "propose" - so the tile it used to
     // switch off does not exist and neither does the rule.
 
     // WHICH TILES ARE OUT, AND WHY EACH ONE IS.
     //
-    // The Eclipse is placement-only — see the guard in action-rolls.mjs's
+    // The Eclipse is placement-only - see the guard in action-rolls.mjs's
     // `performAction`. Move is exempt there and stays exempt here, since it is
     // the one thing the Eclipse actually is for.
     //
     // Direct Murder is exempt the other way round, and this tile is the reason
     // the rule needs stating twice: the guard refuses the action, but a tile
     // that looks pressable and then refuses is worse than one that says no in
-    // advance. Greyed outside an Eclipse, live inside one — the exact inverse
+    // advance. Greyed outside an Eclipse, live inside one - the exact inverse
     // of every other tile on the sheet.
     /*
      * IN AN INCIDENT, EVERYTHING BUT DIRECT MURDER IS SHUT.
      *
      * The guide's turn structure assumes the two people in a fight are doing
-     * nothing else, and `performAction` has always refused them — but a tile
+     * nothing else, and `performAction` has always refused them - but a tile
      * that looks pressable and then refuses is worse than one that says no in
      * advance, which is the rule this file has applied to the Eclipse since it
      * was written. Direct Murder is the exception because it is no longer only
@@ -3670,7 +3670,7 @@ function actionButton(actor, key, def) {
      * DIRECT MURDER HAS A THIRD OPEN WINDOW NOW (Dawid, 29.08): Stage 6 with a
      * partner still standing, where it means "turn on them". Without this the
      * tile stayed greyed out for exactly the person the guide gives that
-     * decision to — the rule would have existed with no way to reach it.
+     * decision to - the rule would have existed with no way to reach it.
      */
     const canBetray = key === "directMurder" && Boolean(betrayalTarget(actor));
 
@@ -3688,11 +3688,11 @@ function actionButton(actor, key, def) {
      * TWO MOMENTS, AND THE SECOND IS THE ONE THAT EARNS THIS.
      *
      *   In an incident: everything is shut except Direct Murder, which is no
-     *   longer Direct Murder — it opens the incident's own actions. Lighting it
+     *   longer Direct Murder - it opens the incident's own actions. Lighting it
      *   turns "why is everything grey" into "press this".
      *
      *   After the kill: nothing is shut. The killer has their whole budget and
-     *   no reason to suspect that one tile now behaves differently — Tamper is
+     *   no reason to suspect that one tile now behaves differently - Tamper is
      *   free of the action economy for the rest of this time of day (D3). A
      *   rule nobody is told about is a rule that does not exist at the table,
      *   and this is the only place it can be said at the moment it applies.
@@ -3718,7 +3718,7 @@ function actionButton(actor, key, def) {
     // Three kinds, and a player picks differently for each: one is free and can
     // always be taken, one spends a slice of a budget of two, and one hands the
     // turn to the GM and comes back at their pace. The cost line underneath
-    // already says which — but it says it in words, at 11px, on ten tiles at
+    // already says which - but it says it in words, at 11px, on ten tiles at
     // once, which is a paragraph to read before every decision.
     //
     // Derived from the definition rather than listed here, so an action whose
@@ -3752,8 +3752,8 @@ function actionButton(actor, key, def) {
     //
     // Four tiles read "1 action" and carry a grey stripe; five read "1 action"
     // and carry a red one. From the outside that is the same label with two
-    // random colours. The difference is real — the grey ones hand the turn to
-    // the GM — but it was only ever in the tooltip, and a colour whose key is
+    // random colours. The difference is real - the grey ones hand the turn to
+    // the GM - but it was only ever in the tooltip, and a colour whose key is
     // hidden is decoration.
     /*
      * ITS OWN LINE, UNDER THE COST (Dawid, 28.08).
@@ -3776,17 +3776,17 @@ function actionButton(actor, key, def) {
 }
 
 /**
- * Does this action hand the turn to the GM — for THIS character, right now?
+ * Does this action hand the turn to the GM - for THIS character, right now?
  *
  * `callsGm` used to be a constant, and for four of the five actions carrying it
  * that is still the truth: a Direct Murder always waits for a ruling. For the
  * other two it was a half-truth that showed on the tile as a promise the action
- * often did not keep — Analyze with three unidentified bullets in the bag is a
+ * often did not keep - Analyze with three unidentified bullets in the bag is a
  * roll, and Work on Project in a room with a project in it is a roll.
  *
  * So the flag may also be a predicate, and both forms are read here, in the one
  * place both consumers can share: the cost stripe and the "waits for the GM"
- * mark on the tile. Anything that throws counts as false — see the note on the
+ * mark on the tile. Anything that throws counts as false - see the note on the
  * predicates in config.mjs.
  */
 function callsGmFor(actor, def) {
@@ -3802,8 +3802,8 @@ function callsGmFor(actor, def) {
 /**
  * What this action would cost right now.
  *
- * During an Eclipse the action economy is suspended entirely — crossings come
- * out of the two the placement window grants, not out of actions — so Move is
+ * During an Eclipse the action economy is suspended entirely - crossings come
+ * out of the two the placement window grants, not out of actions - so Move is
  * free regardless of whether the ordinary free Move has been spent.
  */
 function costOf(actor, key, def) {
@@ -3813,13 +3813,13 @@ function costOf(actor, key, def) {
      * Found on the E23 live round: the glow and the tooltip both announced the
      * discount while the cost stripe underneath still read "1 action". A label
      * that contradicts the rule is the defect this module calls "the sentence
-     * says one thing and the code does another" — and here the code was right
+     * says one thing and the code does another" - and here the code was right
      * and the sentence was wrong, which is the harder half to notice.
      *
      * Answered HERE because this function is the one place a tile's price is
      * decided: the label, the free/action stripe and the affordability test all
      * read it, so one edit puts all three in step. `performTamper` keeps its own
-     * check for the same rule — that one governs whether the action is refused
+     * check for the same rule - that one governs whether the action is refused
      * for want of a budget, which is a different question in a different file.
      */
     if (key === "tamper" && isCleaner(actor)) return 0;
@@ -3832,7 +3832,7 @@ function costOf(actor, key, def) {
 /**
  * Move shows its live state; everything else shows a flat price.
  *
- * In an Eclipse "Free" is true but useless — the number that decides whether
+ * In an Eclipse "Free" is true but useless - the number that decides whether
  * you can still get where you are going is how many of the two crossings are
  * left, and it was only visible in a whisper after each one.
  */
@@ -3897,7 +3897,7 @@ export function findDuplicateUltimates() {
  * The width is Daggerheart's again and `fitTileText` does the fitting.
  *
  * Grown ONCE per sheet, and only upwards. A GM who drags the window smaller
- * afterwards keeps their size — the alternative, re-asserting on every render,
+ * afterwards keeps their size - the alternative, re-asserting on every render,
  * would undo a deliberate resize several times a turn.
  */
 const grown = new WeakSet();

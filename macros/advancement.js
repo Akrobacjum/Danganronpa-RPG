@@ -3,8 +3,8 @@
  * ---------------------------------------------------------------------------
  * Runs the guide's advancement for a character.
  *
- *   Standard    — for everyone who voted for the correct Blackened. Pick 1.
- *   Reinforced  — for a Blackened who survived a wrong vote. Pick 3.
+ *   Standard    - for everyone who voted for the correct Blackened. Pick 1.
+ *   Reinforced  - for a Blackened who survived a wrong vote. Pick 3.
  *
  * Select a token first and it uses that character; otherwise it asks which one.
  * The result is whispered to the player and the GMs, never to the table.
@@ -27,7 +27,7 @@ async function run() {
     if (!actor) return;
 
     const kind = await DialogV2.wait({
-        window: { title: `Advancement — ${actor.name}` },
+        window: { title: `Advancement - ${actor.name}` },
         content: `<p>Which advancement did <strong>${foundry.utils.escapeHTML(actor.name)}</strong> earn?</p>`,
         buttons: [
             { action: "standard", label: "Standard (pick 1)", default: true },

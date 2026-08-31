@@ -1,15 +1,15 @@
 /**
- * Danganronpa RPG — making Calls actually happen.
+ * Danganronpa RPG - making Calls actually happen.
  * ---------------------------------------------------------------------------
  * A Call that only deducts a resource and prints a sentence is a receipt, not a
  * rule. These apply the effect:
  *
- *   · effects that land now      — damage, stress, project progress, sealed rooms
- *   · effects that arm the dice  — advantage, experiences, a free critical
+ *   · effects that land now      - damage, stress, project progress, sealed rooms
+ *   · effects that arm the dice  - advantage, experiences, a free critical
  *
  * The second kind is stored as a *pending call* on the character. The roll
  * dialog keeps those controls disabled until one is armed, which is what makes
- * them Calls rather than free checkboxes — see roll-dialog.mjs.
+ * them Calls rather than free checkboxes - see roll-dialog.mjs.
  */
 
 import { MODULE_ID, FLAGS, HOPE_CALLS, DESPAIR_CALLS, MOTIVE, STARTING } from "./config.mjs";
@@ -41,7 +41,7 @@ const DialogV2 = foundry.applications.api.DialogV2;
  * Sabotage rolls to conceal itself before it rolls to sabotage; an indirect
  * murder rolls to conceal intent and again to hide its traces. Every one of
  * those went through the same pipeline as the real roll, so a Call bought for
- * the sabotage was applied to — and consumed by — the concealment roll instead.
+ * the sabotage was applied to - and consumed by - the concealment roll instead.
  * The player paid for advantage on the thing that mattered and got it on the
  * thing that did not.
  *
@@ -92,7 +92,7 @@ export function clearSituational() { situational = 0; }
  * The shield is why trap 57 needs nothing done to it: a concealment roll sees
  * zero here and `null` from `pendingCall`, so BOTH bought sources vanish
  * together, whatever their size. The character's own Breakdown is deliberately
- * not shielded and never was — see `stateGrant` in roll-dialog.mjs.
+ * not shielded and never was - see `stateGrant` in roll-dialog.mjs.
  */
 export function situationalAdvantage() {
     return shielded ? 0 : situational;
@@ -108,14 +108,14 @@ export function pendingCall(actor) {
  * Arm a Call so the next roll can use what it bought.
  *
  * Support and Approval arm someone *else*, and a player has no write access
- * to another player's actor — the flag write throws "lacks permission". Those go
+ * to another player's actor - the flag write throws "lacks permission". Those go
  * through the GM, who does have it. The Monokuma side never needs the detour:
  * a GM can write to anyone.
  */
 export async function armCall(actor, { key, kind, grants, amount = null, from = null }) {
     if (!actor || !grants) return null;
 
-    // `amount` only means something for `grants: "bonus"` — Monocub's Meddle is
+    // `amount` only means something for `grants: "bonus"` - Monocub's Meddle is
     // the one caller that needs it, for the +1/-1 tier of its table. Every
     // other grant ignores it; carried through unconditionally so this stays a
     // small, boring change rather than a bonus-specific code path.
@@ -135,7 +135,7 @@ export async function armCall(actor, { key, kind, grants, amount = null, from = 
     // Tell the beneficiary, when they are not the buyer.
     //
     // A GM owns every actor, so a Monokuma arming Obstacle or Approval took
-    // this branch and set the flag in silence — the player then met a roll
+    // this branch and set the flag in silence - the player then met a roll
     // window with disadvantage already switched on and locked, and no reason
     // given. The socket path told them; the path that actually matters did not.
     if (from && from !== actor.id) {
@@ -177,7 +177,7 @@ export function grants(actor, what) {
  * @param {"hope"|"despair"} kind
  * @param {object} choice  { target, project, room, item } from the picker.
  * @returns {Promise<{lines: string[], failed: boolean}>} what happened, and
- *   whether the Call delivered nothing — in which case the caller must hand the
+ *   whether the Call delivered nothing - in which case the caller must hand the
  *   price back. A Call that has been paid for and did nothing is a theft: the
  *   Reroll costs 3 Hope, and "there was nothing to reroll" used to keep all
  *   three of them.
@@ -195,7 +195,7 @@ export async function applyCall(actor, key, kind, choice = {}) {
             const beneficiary = choice.target ?? actor;
             const armed = await armCall(beneficiary, { key, kind, grants: call.grants, from: actor.id });
 
-            // `armCall` returns null when the flag could not be written — no GM
+            // `armCall` returns null when the flag could not be written - no GM
             // online to forward it, or the write itself failed. Announcing it
             // anyway is how six Hope bought a Free Critical that was never armed
             // and never refunded, because the receipt line made the Call look
@@ -212,7 +212,7 @@ export async function applyCall(actor, key, kind, choice = {}) {
         //
         // The pool has ALREADY been charged by `spendDespairCall`, so this only
         // credits the Hope. Routing it through `convertDespairToHope` would take
-        // the Despair a second time — the exchange rate is the Call's own cost.
+        // the Despair a second time - the exchange rate is the Call's own cost.
         if (call.grantsHope && choice.target) {
             const max = resourceMax(choice.target, "hope") || STARTING.hopeMax;
             const held = resourceValue(choice.target, "hope");
@@ -240,7 +240,7 @@ export async function applyCall(actor, key, kind, choice = {}) {
          * that need somebody to point at.
          *
          * The pool has already been charged by `spendDespairCall`, exactly as
-         * with `grantsHope` above — this only moves the point to its
+         * with `grantsHope` above - this only moves the point to its
          * destination. It pushes a receipt line for the same reason every
          * branch here does: `applyCall` calls a Call with an empty receipt
          * FAILED and hands the price back, so a branch that worked silently
@@ -277,8 +277,8 @@ export async function applyCall(actor, key, kind, choice = {}) {
         // Named from the local project list rather than from what `addProgress`
         // returns: a player's write is forwarded to the GM and comes back as a
         // bare acknowledgement, so reading the name off it produced a receipt
-        // saying "progress on ?" — which reads exactly like nothing happened.
-        // `wipesProgress` went with the Call that carried it (29.08) — see the
+        // saying "progress on ?" - which reads exactly like nothing happened.
+        // `wipesProgress` went with the Call that carried it (29.08) - see the
         // note above the project Calls in config.mjs. The branch went too rather
         // than being left standing for nothing: an unreachable handler is how a
         // deleted rule comes back by accident.
@@ -294,7 +294,7 @@ export async function applyCall(actor, key, kind, choice = {}) {
                 if (!applied) throw new Error(`addProgress refused ${choice.project}`);
 
                 // A GM's write says outright whether the bar moved. A player's
-                // is forwarded, so the answer comes back as a whisper instead —
+                // is forwarded, so the answer comes back as a whisper instead -
                 // never claim a number this side of the socket.
                 if (applied.changed === false) {
                     done.push(game.i18n.format("DRPG.Calls.progressRefused", { name: project.name }));
@@ -337,7 +337,7 @@ export async function applyCall(actor, key, kind, choice = {}) {
 
         if (call.freeRest) {
             const { takeRest } = await import("./rest.mjs");
-            // Every gate a Short Rest normally has, waived — decision 4, and
+            // Every gate a Short Rest normally has, waived - decision 4, and
             // the reasoning is on `relief` in config.mjs. `quiet` because the
             // Call is already printing a card and this is one purchase.
             const rested = await takeRest(actor, call.freeRest, {
@@ -369,11 +369,11 @@ export async function applyCall(actor, key, kind, choice = {}) {
 
             await announce({
                 // The catalogue has had a `newRule` sound since v1.1.8 and this
-                // card — the only thing that announces one — carried no flag, so
+                // card - the only thing that announces one - carried no flag, so
                 // it was a sound a GM could map a file to and never hear. Found
                 // in E17 by asking the question R3 does not: not "does every
                 // sound played exist", but "is every sound that exists played".
-                // Public, no whisper list, so the whole table hears it — which
+                // Public, no whisper list, so the whole table hears it - which
                 // is what the catalogue entry says it is for.
                 flags: { [MODULE_ID]: { sfx: "newRule" } },
                 content: `<div class="drpg-new-rule">
@@ -403,7 +403,7 @@ export async function applyCall(actor, key, kind, choice = {}) {
             const here = roomOfActor(choice.target);
             await restrict(choice.target, { chained: true, room: here });
             done.push(game.i18n.format("DRPG.Calls.chained", {
-                name: choice.target.name, room: here ?? "—"
+                name: choice.target.name, room: here ?? "-"
             }));
             await tell(choice.target, "DRPG.Calls.chainedNotice");
         }
@@ -411,8 +411,8 @@ export async function applyCall(actor, key, kind, choice = {}) {
         /* --- a motive: a demand, a deadline and a price for missing it ---
          *
          * The whole record comes from the picker, so this branch does nothing
-         * but hand it over and report. `setMotive` announces publicly — the
-         * guide requires it — which means the receipt below is the SECOND
+         * but hand it over and report. `setMotive` announces publicly - the
+         * guide requires it - which means the receipt below is the SECOND
          * thing the table sees, not the first.
          */
         if (call.setsMotive && choice.motive) {
@@ -428,7 +428,7 @@ export async function applyCall(actor, key, kind, choice = {}) {
          * now, everybody is told where and when, and the crossing they make to
          * get there is their own. The immediate branch is kept because
          * `chapter.mjs` still gathers the cast for a body discovery and a
-         * trial, and those are not announcements — they are the game moving
+         * trial, and those are not announcements - they are the game moving
          * the cast because the fiction just did.
          */
         if (call.gathersEveryone && choice.room) {
@@ -472,7 +472,7 @@ export async function applyCall(actor, key, kind, choice = {}) {
  * a chained player who may not leave the room they are standing in.
  *
  * All three are stored as world state and *enforced* rather than merely
- * recorded. The seal used to be recorded only — the room was announced as
+ * recorded. The seal used to be recorded only - the room was announced as
  * sealed and players walked straight in.
  * ========================================================================== */
 
@@ -522,7 +522,7 @@ async function restrict(actor, patch) {
     return true;
 }
 
-/** Called when the time of day advances — every restriction lasts one. */
+/** Called when the time of day advances - every restriction lasts one. */
 export async function clearSeals() {
     if (!game.user.isGM) return null;
     await game.settings.set(MODULE_ID, SETTINGS.sealedRooms, []);
@@ -561,7 +561,7 @@ async function announceRestrictions() {
  * That gives the cast a whole time of day to do something about it, which is
  * the point: to be early, to be late, to be somewhere they should not be while
  * everybody else is walking to the hall. It also gives Monokuma something to
- * change his mind about — the same tile cancels it, and the Despair is gone
+ * change his mind about - the same tile cancels it, and the Despair is gone
  * either way, because the announcement has already moved everybody's plans.
  * ========================================================================== */
 
@@ -675,8 +675,8 @@ export async function cancelGather() {
  * nothing at all and lose the order.
  *
  * The record is cleared BEFORE the teleport rather than after. This function is
- * reached twice on a healthy connection — once from the module's socket and
- * once from the setting's own `onChange` — and the two are merged by a 120ms
+ * reached twice on a healthy connection - once from the module's socket and
+ * once from the setting's own `onChange` - and the two are merged by a 120ms
  * window that a slow client can miss. Clearing first makes the second pass find
  * nothing, which is the behaviour that matters; the cost is that a teleport
  * which throws leaves no order behind to retry, and a GM who wants it can call
@@ -720,7 +720,7 @@ export async function runPendingGather() {
  * Teleport every student into one room.
  *
  * Moving a token by writing x/y is a *move*: Foundry measures the path, and a
- * wall between here and there stops it dead — which is why Public Announcement
+ * wall between here and there stops it dead - which is why Public Announcement
  * kept reporting "blocked by a wall" while everyone stayed put. Regions know how
  * to receive tokens instead: `teleportTokens` places them at a random point
  * inside the region with no path to block, which is exactly what Monokuma's
@@ -755,8 +755,8 @@ export async function gatherEveryone(room) {
 }
 
 /**
- * If the region cannot place the tokens — an unusual shape, or a version that
- * does not offer `teleportTokens` — write the positions directly, spread around
+ * If the region cannot place the tokens - an unusual shape, or a version that
+ * does not offer `teleportTokens` - write the positions directly, spread around
  * the region's centre and flagged so the movement rules leave them alone.
  */
 async function fallbackGather(region, tokens, REVERT) {
@@ -793,7 +793,7 @@ async function fallbackGather(region, tokens, REVERT) {
  * empty object when the Call needs nothing.
  */
 export async function pickTarget(actor, call, kind) {
-    // WHAT AM I BUYING? — asked before the first decision, not after it.
+    // WHAT AM I BUYING? - asked before the first decision, not after it.
     //
     // A Call with no target (Reroll) goes straight to `confirmCall`, which
     // opens with the name, the sentence and the price. A Call WITH a target
@@ -829,7 +829,7 @@ export async function pickTarget(actor, call, kind) {
 }
 
 /**
- * The name, the effect and the price — the same three lines `confirmCall`
+ * The name, the effect and the price - the same three lines `confirmCall`
  * shows, rendered above whichever picker this Call needs.
  */
 let pendingHeader = "";
@@ -863,7 +863,7 @@ async function pickMonocub() {
     const id = await choose("DRPG.Monocub.who",
         cubs.map(a => ({
             value: a.id,
-            label: `${a.name} — ${game.i18n.format("DRPG.Monocub.hopeShort", {
+            label: `${a.name} - ${game.i18n.format("DRPG.Monocub.hopeShort", {
                 held: a.system?.resources?.hope?.value ?? 0
             })}`
         })));
@@ -976,14 +976,14 @@ async function pickPlayer(actor, call, kind) {
      * THE DEAD ARE NOT A TARGET (D-F4).
      *
      * The wide pool filtered on type, on Monokuma and on "not me", and never
-     * asked whether the person was still alive — so every Obstacle offered the
+     * asked whether the person was still alive - so every Obstacle offered the
      * cast plus everybody the cast had already buried. Neither Call means
      * anything on a corpse: there is no roll of theirs to help and none to
      * hinder.
      *
      * Filtered here rather than at each Call, because it is a fact about who
      * can be targeted at all, not about what a particular Call does. A dead
-     * student who opted in as a Monocub is still reachable — through
+     * student who opted in as a Monocub is still reachable - through
      * `pickMonocub`, which is the Call written for them.
      */
     const pool = reachable.filter(a => !isDeceased(a));
@@ -1010,7 +1010,7 @@ async function pickProject(actor) {
     // Either way the list is filtered to what this user is allowed to know
     // exists. The fallback used to be `allProjects()`, so a player standing in a
     // room with no project was shown a dropdown of every secret plan at the
-    // table — the same leak as Work on Project, one dialog further along.
+    // table - the same leak as Work on Project, one dialog further along.
     const room = roomOfActor(actor);
     const here = projectsAvailableIn(room);
     const pool = here.length ? here : visibleProjects();
@@ -1021,7 +1021,7 @@ async function pickProject(actor) {
     }
 
     const id = await choose("DRPG.Calls.whichProject",
-        pool.map(p => ({ value: p.id, label: `${p.name} — ${p.current}/${p.start}` })));
+        pool.map(p => ({ value: p.id, label: `${p.name} - ${p.current}/${p.start}` })));
     if (!id) return null;
     return { project: id };
 }
@@ -1043,7 +1043,7 @@ async function pickItem() {
         if (actor.type !== "character") continue;
         for (const item of actor.items) {
             if (!item.getFlag(MODULE_ID, "category")) continue;
-            entries.push({ value: item.uuid, label: `${actor.name} — ${item.name}` });
+            entries.push({ value: item.uuid, label: `${actor.name} - ${item.name}` });
         }
     }
     if (!entries.length) {

@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — module entry point.
+ * Danganronpa RPG - module entry point.
  * ---------------------------------------------------------------------------
  * A thin layer on top of the Daggerheart system (Foundryborne) that turns it
  * into the Danganronpa RPG System described in the full guide.
@@ -9,7 +9,7 @@
  *   settings.mjs       world settings
  *   private-rolls.mjs  players never see each other's dice
  *   search-tokens.mjs  three search tokens per room, per time of day
- *   api.mjs            game.drpg — the surface macros are allowed to call
+ *   api.mjs            game.drpg - the surface macros are allowed to call
  */
 
 import { MODULE_ID } from "./config.mjs";
@@ -82,8 +82,8 @@ const REQUIRED_SYSTEM_VERSION = "2.6.0";
  * Register one subsystem without letting it take the others down.
  *
  * These used to run as a bare sequence, which made the list an accidental
- * dependency chain: anything that threw — a renamed hook, a system version that
- * builds a config table differently — silently prevented every registration
+ * dependency chain: anything that threw - a renamed hook, a system version that
+ * builds a config table differently - silently prevented every registration
  * *after* it. The failure never looked like what it was, because the symptom
  * was whichever features happened to sit lower in the list.
  */
@@ -96,7 +96,7 @@ function safely(label, fn) {
 }
 
 Hooks.once("init", () => {
-    // FOUR MODULES ARE NOT OPTIONAL — see requirements.mjs, and the
+    // FOUR MODULES ARE NOT OPTIONAL - see requirements.mjs, and the
     // `relationships.requires` block in module.json that this reads.
     //
     // Nothing registers when one of them is missing or switched off. Half of
@@ -116,7 +116,7 @@ Hooks.once("init", () => {
     // cannot run there is nothing worth continuing to.
     registerSettings();
 
-    // A paint-path workaround, not decoration — see the note on the function.
+    // A paint-path workaround, not decoration - see the note on the function.
     safely("the select picker skin", injectSelectPickerSkin);
     // Every window, not a list of them - see `guardTextFields`.
     safely("the text field guard", registerTextGuard);
@@ -149,7 +149,7 @@ Hooks.once("init", () => {
     safely("the Eclipse", registerEclipse);
     safely("Monokumas", registerMonokuma);
     // Before the messenger, whose arrival chime is now a mapped event. Only a
-    // hook goes up here — `playSfx` is a plain function and works whether or
+    // hook goes up here - `playSfx` is a plain function and works whether or
     // not this ran, which is the point: a chime must never be able to take a
     // subsystem down with it.
     safely("the sound engine", registerSfx);
@@ -158,14 +158,14 @@ Hooks.once("init", () => {
     safely("regional voice", registerVoice);
     // The receiving half, on every client. Separate from the deciding half
     // above because a player has to be able to apply a room and to ask which
-    // one they belong in — see voice-client.mjs.
+    // one they belong in - see voice-client.mjs.
     safely("the voice client", registerVoiceClient);
     // Playlists are world documents, so one client driving them is heard by
-    // everyone — no socket, unlike voice. See music.mjs.
+    // everyone - no socket, unlike voice. See music.mjs.
     safely("the music", registerMusic);
     safely("the camera dock", registerCameraView);
-    // Before anything that can open a window. The motion layer only listens —
-    // it adds no state and holds no reference — but a window that renders
+    // Before anything that can open a window. The motion layer only listens -
+    // it adds no state and holds no reference - but a window that renders
     // before the hook exists simply appears, and the first window of a session
     // is the one worth getting right.
     safely("the motion layer", registerMotion);
@@ -176,20 +176,20 @@ Hooks.once("init", () => {
     safely("window stacking", registerStacking);
     safely("the double-click collapse block", registerNoCollapse);
     // Patches a canvas prototype, so it has to be in place before the first
-    // canvas is drawn — and it holds no per-canvas state, so `init` is early
+    // canvas is drawn - and it holds no per-canvas state, so `init` is early
     // enough and every later scene inherits it.
     safely("the token caption block", registerNoScrollingText);
     // One delegated listener on the document, so it outlives every redraw the
-    // four panels do on their own — see explain.mjs.
+    // four panels do on their own - see explain.mjs.
     safely("the panel explanations", registerExplainers);
-    // After popups, because the safeword raises one. This is the safety tool —
+    // After popups, because the safeword raises one. This is the safety tool -
     // it registers early and depends on nothing that can fail.
     safely("the safeword", registerSafeword);
     // After popups: a presented Truth Bullet becomes one, so the container has
     // to exist by the time the first card lands.
     safely("the Class Trial", registerTrial);
     safely("the trial floor", registerTrialFloor);
-    // Watches for somebody walking into an incident — the guide's "automatyczny,
+    // Watches for somebody walking into an incident - the guide's "automatyczny,
     // darmowy wybór" for a third party, which until now waited on a GM noticing.
     safely("the murder watch", registerMurder);
 
@@ -204,7 +204,7 @@ Hooks.once("setup", () => {
     /*
      * What a critical pays (G-16). At `setup` rather than `init`, because it
      * patches `game.system.api.dice.DualityRoll` and the system builds that
-     * during its OWN init — a module init hook can land before it does. Every
+     * during its OWN init - a module init hook can land before it does. Every
      * init hook has run by now and nobody has rolled anything yet, so this is
      * both late enough to find the class and early enough to matter.
      */
@@ -222,7 +222,7 @@ Hooks.once("ready", () => {
 
     // First, and before anything below reads a saved shape: bring this world's
     // data up to the shape this build expects. Primary GM only, silent when
-    // there is nothing to do, and deliberately NOT awaited — a slow pass must
+    // there is nothing to do, and deliberately NOT awaited - a slow pass must
     // not hold the interface shut. The consequence is written down where the
     // clauses live: a clause that repairs something one of the passes below has
     // already read is responsible for asking that pass to run again.
@@ -243,7 +243,7 @@ Hooks.once("ready", () => {
     // restriction advance on the GM's screen alone.
     safely("world-state sync", registerSync);
     safely("the search-token socket", registerSearchTokenSocket);
-    // Five listeners for the eight watched triggers — see traps.mjs. Registered
+    // Five listeners for the eight watched triggers - see traps.mjs. Registered
     // after the sync socket because two of them react to world-state events
     // that arrive over it, and the listener has to exist before the event does.
     safely("the trap watchers", registerTraps);
@@ -274,7 +274,7 @@ Hooks.once("ready", () => {
 });
 
 /**
- * Bring installed item tables up to today's wording — see `refreshTableCopy`.
+ * Bring installed item tables up to today's wording - see `refreshTableCopy`.
  *
  * A world already in play keeps the names and blurbs it was built with, so a
  * relabelled resource goes on showing the old word in the tables sidebar long
@@ -306,7 +306,7 @@ function reconcileRemnantActorOnLoad() {
 }
 
 /**
- * Every bedroom's owner holds the key to it — checked on load, not on change.
+ * Every bedroom's owner holds the key to it - checked on load, not on change.
  *
  * The same reasoning as `sealProjects` right below: this is a statement about
  * how the world should look, and the world can arrive at load in a state that
@@ -330,7 +330,7 @@ function issueMissingKeys() {
  * Two reasons this cannot be a one-off at creation. Projects made before the
  * ownership rules were understood carry a `default: 0` that Daggerheart ignores,
  * so they are still on show. And the ownership map only ever lists the users who
- * existed when it was written — a player added to the world later has no entry,
+ * existed when it was written - a player added to the world later has no entry,
  * Daggerheart falls back to the world default of OBSERVER, and they can read
  * somebody's murder plan. Running this on load and whenever a user appears keeps
  * that window shut.
@@ -359,7 +359,7 @@ function applyBodyClasses() {
      * THE SAME FACT, STATED POSITIVELY, and it is not redundant.
      *
      * A rule written as `body:not(.drpg-gm)` is true of every client for the
-     * two seconds before this function runs — including a GM's. Anything it
+     * two seconds before this function runs - including a GM's. Anything it
      * hides therefore flashes off and back on while their world loads, and the
      * first thing to want this was `#sidebar`, which is not a small thing to
      * blink. `body.drpg-player` is false until it is known to be true, so a

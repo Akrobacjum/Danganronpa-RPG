@@ -1,6 +1,6 @@
 /** Replicate the two stubborn suite scenarios standalone, step by step. */
 export async function run({ gm, check, settle }) {
-    // A) equipment loop — exactly like the suite
+    // A) equipment loop - exactly like the suite
     const equip = await gm.eval(`
         const INV = await import("file:///home/user/Danganronpa-RPG/scripts/inventory.mjs");
         const { EQUIPPABLE } = await import("file:///home/user/Danganronpa-RPG/scripts/config.mjs");
@@ -19,7 +19,7 @@ export async function run({ gm, check, settle }) {
     `, { timeout: 60000 });
     check("standalone: equipment loop all categories", equip.failedAt === null, JSON.stringify(equip).slice(0, 700));
 
-    // B) objection music — exactly like the suite
+    // B) objection music - exactly like the suite
     const obj = await gm.eval(`
         const floor = await import("file:///home/user/Danganronpa-RPG/scripts/trial-floor.mjs");
         const { SETTINGS, getSetting, setSetting } = await import("file:///home/user/Danganronpa-RPG/scripts/settings.mjs");

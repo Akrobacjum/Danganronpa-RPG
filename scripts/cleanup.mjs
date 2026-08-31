@@ -1,9 +1,9 @@
 /**
- * Danganronpa RPG — Stage 6, the killer cleaning up.
+ * Danganronpa RPG - Stage 6, the killer cleaning up.
  * ---------------------------------------------------------------------------
  * Guide: once the incident is over the killer can finally see the Remnants they
  * left, and spend Sanity trying to make them go away. "Przedmioty sprzątające
- * ułatwiają rozwiązanie morderstwa" — this is the stage the Cleaning Tool exists
+ * ułatwiają rozwiązanie morderstwa" - this is the stage the Cleaning Tool exists
  * for.
  *
  * Until now the module wrote `stage: "resolution"` and stopped. Everything the
@@ -16,27 +16,27 @@
  *
  * WHY THE SCORING RUNS ON THE GM'S CLIENT. Same reason as Observe (see
  * observe.mjs): the threshold comes from how visible the trace is, which is a
- * flag on a hidden token — and Foundry ships every token to every client, so the
+ * flag on a hidden token - and Foundry ships every token to every client, so the
  * killer's own browser physically holds the answer. Their client picks a target
  * and throws the dice; the number travels here, and the verdict, the deletion
  * and the new trace are all produced on this side.
  *
  * WHAT IS NOT AUTOMATED. Whether the killer is standing in the right room, and
- * whether Stage 6 has gone on long enough — both the GM's, as everywhere else in
+ * whether Stage 6 has gone on long enough - both the GM's, as everywhere else in
  * murder.mjs. This owns the numbers and the tokens.
  *
- * TWO DOORS INTO THE SAME ROOM — `viaAction`, added in E12.
+ * TWO DOORS INTO THE SAME ROOM - `viaAction`, added in E12.
  * ---------------------------------------------------------------------------
  * Everything here was reachable only from the Stage 6 panel, which made the
  * guide's own "akcje rozwiązania w Etapie 2" unreachable and made planting a
  * false trail a privilege of the killer. The Tamper tile is the second door,
  * and it is the SAME code: same rolls, same thresholds, same traces, same
- * verdicts. What differed used to be two things; since 29.08 it is one — the
+ * verdicts. What differed used to be two things; since 29.08 it is one - the
  * PRICE is the same on both roads, one point of Sanity, and only the entry
  * conditions still differ. `viaAction` is what carries
  * the difference:
  *
- *   WHO MAY.   Stage 6 asks `isCleaner` — this is your crime scene. The action
+ *   WHO MAY.   Stage 6 asks `isCleaner` - this is your crime scene. The action
  *              asks nothing of the sort, but it does ask something Stage 6 does
  *              not: the trace you are erasing has to be YOURS. A killer in
  *              their own Stage 6 may wipe anything in the room, including
@@ -48,13 +48,13 @@
  *
  * The concealment roll happens on BOTH routes, and it is the one thing that can
  * still cost Sanity outside Stage 6. That is not the tile's price being
- * understated — it is the cost of being watched, which is the entire risk of
+ * understated - it is the cost of being watched, which is the entire risk of
  * the action, and removing it would make tampering in a crowded corridor safer
  * than tampering over a corpse while doing exactly the same thing.
  *
  * `viaAction` is a claim from a client, like every other flag that crosses the
  * bridge. It buys the sender nothing: it waives a check that would only ever
- * have refused them, and adds one — the ownership test above — that is verified
+ * have refused them, and adds one - the ownership test above - that is verified
  * on this side against the ledger the sender cannot read.
  */
 
@@ -85,14 +85,14 @@ const DialogV2 = foundry.applications.api.DialogV2;
 /**
  * WHY this actor cannot clean, or null if they can.
  *
- * Four different situations used to collapse into one refusal — "You are not
- * the one cleaning up this scene" — and only one of them was that. A killer
+ * Four different situations used to collapse into one refusal - "You are not
+ * the one cleaning up this scene" - and only one of them was that. A killer
  * standing over a body they had just killed with the GM's death tool was told
  * the scene was not theirs, which sent the GM looking for the wrong problem
  * entirely: the truth was that the incident had never reached Stage 6.
  *
  * Role reversal can have swapped the two sides mid-incident, so the killer is
- * read from the state rather than remembered from who opened the murder — the
+ * read from the state rather than remembered from who opened the murder - the
  * person who ends up cleaning is whoever the state calls the killer when the
  * fight stopped.
  *
@@ -104,7 +104,7 @@ export function cleanupBlocker(actor) {
     if (state.stage !== "resolution") return "notYet";
     // Both of them, when there are two. An accomplice who joined the killers
     // during the incident stood in the room while it happened and leaves traces
-    // of their own — refusing them the clean-up screen meant half a crime scene
+    // of their own - refusing them the clean-up screen meant half a crime scene
     // could never be touched, and the accomplice was told "this is not your
     // scene to clean" about a murder they had just taken part in.
     if (!killerIds(state).includes(actor?.id)) return "notYours";
@@ -169,15 +169,15 @@ export function cleanableRemnants(actor, where = null) {
 /**
  * What a killer's own client may know about a trace: which one it is, a label
  * built from what Stage 6 already lets them see, and whether it can be acted
- * on at all. GM-side only — this is the function `requestCleanableTraces` (in
+ * on at all. GM-side only - this is the function `requestCleanableTraces` (in
  * gm-bridge.mjs) actually calls, on behalf of a killer's client that cannot
  * run `cleanableRemnants` itself and get anything back from it.
  *
- * The DC (`cleanupDc`) and `tiedToCrime` never leave this function — that is
+ * The DC (`cleanupDc`) and `tiedToCrime` never leave this function - that is
  * the answer key `openCleanupDialog` used to have no business rendering
  * client-side and now has no way to, because it never receives them. Only the
  * label is built from `visibilityLabel`/`typeLabel`, which the guide already
- * gives the killer at Stage 6 — see the note on `openCleanupDialog`.
+ * gives the killer at Stage 6 - see the note on `openCleanupDialog`.
  */
 export function cleanableTracesForPlayer(actorId, { mine = false } = {}) {
     const actor = game.actors.get(actorId);
@@ -187,17 +187,17 @@ export function cleanableTracesForPlayer(actorId, { mine = false } = {}) {
      * `mine` IS THE TAMPER ACTION, AND IT CANNOT BE ASKED ANYWHERE ELSE.
      *
      * Which traces are yours is `sourceActor` in the Remnant ledger, which is a
-     * client-scoped setting on GM browsers — see remnants.mjs. A player's own
+     * client-scoped setting on GM browsers - see remnants.mjs. A player's own
      * client physically cannot answer "what did I leave in this room", however
      * reasonable a question that is about their own character, which is why
      * this list is built here and travels back over the bridge.
      *
-     * TWO FILTERS, NOT ONE — AND THE SECOND IS THE POINT (Dawid, 28.08).
+     * TWO FILTERS, NOT ONE - AND THE SECOND IS THE POINT (Dawid, 28.08).
      *
      * `sourceActor` alone said "you left it". `copiedRemnants` says "and you
      * know it is there". Without the second, Tamper was a trace detector: open
      * the menu, read the list, and learn exactly what you left in this room and
-     * how visible it is — for free, before spending anything, and including
+     * how visible it is - for free, before spending anything, and including
      * traces the character has no idea exist. A player could sweep the map
      * opening Tamper in every room.
      *
@@ -219,8 +219,8 @@ export function cleanableTracesForPlayer(actorId, { mine = false } = {}) {
      *
      * "You left it AND you found it" was written against a player sweeping the
      * map with the Tamper menu to learn what they had left lying around. That
-     * is still the right rule for PREPARATION traces — the project you built,
-     * the weapon you took out of a Search — because nobody watched you make
+     * is still the right rule for PREPARATION traces - the project you built,
+     * the weapon you took out of a Search - because nobody watched you make
      * those and finding them really is an action.
      *
      * It was the wrong rule for the crime scene. You were standing there. The
@@ -271,7 +271,7 @@ export function cleanableTracesForPlayer(actorId, { mine = false } = {}) {
 /**
  * Where this character is standing: scene, token AND room.
  *
- * The room is the whole point — `cleanableRemnants` filters on it — and the
+ * The room is the whole point - `cleanableRemnants` filters on it - and the
  * first version of this returned only the scene and the token, so every caller
  * bailed on `if (!spot?.room)` and Stage 6 listed nothing for anybody, ever.
  *
@@ -375,7 +375,7 @@ function findRemnantToken(tokenId) {
 }
 
 /* ==========================================================================
- * THE ROLL — player side
+ * THE ROLL - player side
  * ========================================================================== */
 
 /**
@@ -386,7 +386,7 @@ function findRemnantToken(tokenId) {
  * keep scrubbing. Refused before the dice when there is no Sanity to spend, so
  * nobody rolls for something they cannot pay for.
  *
- * The threshold is not computed here and never travels to this client — see the
+ * The threshold is not computed here and never travels to this client - see the
  * note at the top of the file. What goes over the socket is which token was
  * aimed at and what the dice said.
  */
@@ -396,7 +396,7 @@ export async function attemptCleanup(actor, tokenId, {
      * "erase" or "transform" (Z5). One function for both because everything
      * around the roll is the same job: the same trace, the same ownership and
      * found-it tests, the same Sanity, the same receipt, the same card. What
-     * differs is three lines — the threshold gets a discount, the verdict
+     * differs is three lines - the threshold gets a discount, the verdict
      * relabels instead of deleting, and the title says which was attempted.
      *
      * A second `attemptTransform` would have been a copy of ninety lines with
@@ -416,7 +416,7 @@ export async function attemptCleanup(actor, tokenId, {
      * HAVING SOMETHING TO PAY WITH IS BOTH ROADS' QUESTION (Dawid, 29.08).
      *
      * Tamper used to cost an action and nothing else, which made it the CHEAPER
-     * way to clean your own scene — so the stage rule was subsidising going
+     * way to clean your own scene - so the stage rule was subsidising going
      * round it. One price on both roads settles that, and it settles it in the
      * direction the season run wanted: sprinkling costs something, everywhere.
      *
@@ -430,14 +430,14 @@ export async function attemptCleanup(actor, tokenId, {
     }
     if (!await spendResolutionAction(actor)) return null;
 
-    // Somebody is watching. Cover it before you do it — and learn the answer
+    // Somebody is watching. Cover it before you do it - and learn the answer
     // while there is still a choice about how to behave afterwards.
     if (!await concealFromWitnesses(actor)) return null;
 
     const { rollTrait } = await import("./action-rolls.mjs");
     const calls = await import("./call-effects.mjs");
 
-    // The tool in hand is worth advantage on top of the threshold it lowers —
+    // The tool in hand is worth advantage on top of the threshold it lowers -
     // the guide's "ułatwiają" applied to both halves of "easier".
     const tool = cleaningTool(actor);
     if (CLEANUP.toolAdvantage && tool) calls.armSituational(1);
@@ -455,7 +455,7 @@ export async function attemptCleanup(actor, tokenId, {
                 cleanupKey: mode === "transform" ? "transformTrace" : "eraseTrace",
                 // What was declared before the dice, so a Reroll can declare it
                 // again. Without it a replayed transform would arrive with
-                // nothing to apply and quietly do nothing — the exact failure
+                // nothing to apply and quietly do nothing - the exact failure
                 // `cleanupKey` was added to stop, one road further along.
                 cleanupChange: change,
                 cleanupVia: viaAction
@@ -469,15 +469,15 @@ export async function attemptCleanup(actor, tokenId, {
     }
     if (!roll) return null;
 
-    // One crime scene, one set of gloves — and Despair is what wears them out
+    // One crime scene, one set of gloves - and Despair is what wears them out
     // early. The reference was taken before the dice; see `breakOnDespair`.
     await breakOnDespair(actor, tool, roll);
 
-    // G-20. Only on a critical, and only if the table's rules still allow it —
+    // G-20. Only on a critical, and only if the table's rules still allow it -
     // read from config rather than assumed, so turning the permission off is one
     // field rather than a code change.
     // Only on the erase road. On the transform road the player already said
-     // what they were trying to do, before the dice — asking again after a
+     // what they were trying to do, before the dice - asking again after a
      // critical would be asking them to choose twice for one action.
     const transform = mode !== "transform" && roll.isCritical
         && CLEANUP.outcome.critical?.mayTransform
@@ -501,7 +501,7 @@ export async function attemptCleanup(actor, tokenId, {
 }
 
 /**
- * G-20: on a critical, erase it — or leave something arguing for another story.
+ * G-20: on a critical, erase it - or leave something arguing for another story.
  *
  * ASKED HERE, NOT GM-SIDE, and for the reason a critical Strike's target is:
  * this is the killer's decision about the story they are telling, and the GM's
@@ -509,14 +509,14 @@ export async function attemptCleanup(actor, tokenId, {
  *
  * ERASE IS THE FIRST BUTTON, so it is what Enter presses (see the DialogV2
  * footer finding in E3) and what a player who does not want a second decision
- * gets by pressing on. It is also usually the stronger play — nothing at all
- * beats a decoy — so the default is not merely the safe answer, it is the
+ * gets by pressing on. It is also usually the stronger play - nothing at all
+ * beats a decoy - so the default is not merely the safe answer, it is the
  * ordinary one.
  *
  * THE SAME RESHAPE AS THE TAMPER ROAD, ASKED LATER (Dawid, 29.08). It used to
  * offer a type menu, and it stopped for the reason argued in
  * `CLEANUP.transformAction`: the lie a killer tells is a sentence. What this
- * road keeps that the other does not is the BAND — a critical earned the right
+ * road keeps that the other does not is the BAND - a critical earned the right
  * to say how loudly the fake reads, which is a real choice and the reward for
  * rolling that well.
  *
@@ -566,13 +566,13 @@ async function askTransform(actor) {
         rejectClose: false
     });
 
-    // "erase" comes back as null, and so does closing the window — which is the
+    // "erase" comes back as null, and so does closing the window - which is the
     // same answer and should be: backing out of a bonus question must not cost
     // the critical that earned it.
     if (!picked || picked === "erase") return null;
 
-    // An unfillable bonus is not an erase — they pressed "leave something else"
-    // — so say why nothing happened rather than quietly wiping the trace.
+    // An unfillable bonus is not an erase - they pressed "leave something else"
+    // - so say why nothing happened rather than quietly wiping the trace.
     const name = plainText(picked.name, limits.name ?? 60);
     const text = plainText(picked.text, limits.text ?? 400);
     if (!name || !text) {
@@ -589,14 +589,14 @@ async function askTransform(actor) {
  * it is the only place that needs this, and it is worth being exact about what
  * each step is for rather than reaching for a general-purpose "sanitise".
  *
- *   tags stripped   — the value ends up in a token's `name` and in a chat card.
+ *   tags stripped   - the value ends up in a token's `name` and in a chat card.
  *                     Foundry escapes most of those paths and this module escapes
  *                     the rest, but a string that has crossed a socket from a
  *                     client should not be relying on every future reader
  *                     remembering to escape it. Removed at the boundary, once.
- *   runs collapsed  — a name made of four hundred newlines is a name that breaks
+ *   runs collapsed  - a name made of four hundred newlines is a name that breaks
  *                     the layout of whatever prints it.
- *   length capped   — `CLEANUP.transformAction.limits`. A socket packet is not
+ *   length capped   - `CLEANUP.transformAction.limits`. A socket packet is not
  *                     bounded by the `maxlength` on the input that was supposed
  *                     to produce it.
  *
@@ -613,14 +613,14 @@ function plainText(value, max) {
 /**
  * Write the killer's story onto a trace. GM-side, and the ONLY writer.
  *
- * Both reshape roads end here — the Tamper action's own (declared before the
- * dice) and the erase road's critical bonus (offered after them) — because the
+ * Both reshape roads end here - the Tamper action's own (declared before the
+ * dice) and the erase road's critical bonus (offered after them) - because the
  * two differ only in when the question is asked. Everything after the answer is
  * the same job, and the file has already been bitten once by two branches that
  * were supposed to stay in step and did not.
  *
  * TWO WRITES, AND THEY ARE DIFFERENT KINDS OF FACT. `retuneRemnant` moves what
- * the trace IS — type and band — which is engine state the GM reads.
+ * the trace IS - type and band - which is engine state the GM reads.
  * `setRemnantPublic` moves what it SAYS, which is the answer a finder gets. The
  * ledger's own `label` is untouched by both, so the GM keeps a true reading of
  * a trace the killer has lied about: that asymmetry is the whole point of the
@@ -644,7 +644,7 @@ async function reshapeTrace(token, data, {
      * Reshaping is the one road that changes what a trace is, so it is also the
      * one road that could launder a tie away. `retuneRemnant` writes the fields
      * it is given and nothing else, so an already-tied trace survives by
-     * construction — trap 163's shape. What is added is the other direction: a
+     * construction - trap 163's shape. What is added is the other direction: a
      * killer who reshapes an untied trace ties it, because they have now handled
      * it as part of their crime. An innocent doing the same in Tamper leaves it
      * exactly as untied as they found it.
@@ -688,8 +688,8 @@ async function reshapeTrace(token, data, {
  *
  * TWO FIELDS, AND THEY ARE THE LIE ITSELF (Dawid, 29.08). The killer writes
  * what the next person through the door will read: a name for the thing, and a
- * sentence about it. There is no type menu any more — see the argument in
- * `CLEANUP.transformAction` — and there is no "just make it quieter" option,
+ * sentence about it. There is no type menu any more - see the argument in
+ * `CLEANUP.transformAction` - and there is no "just make it quieter" option,
  * because that was the other half of a choice the menu created.
  *
  * BOTH ARE REQUIRED, and an empty form cancels rather than submitting. A
@@ -741,7 +741,7 @@ export async function askTransformChange(actor) {
 }
 
 /* ==========================================================================
- * THE VERDICT — GM side
+ * THE VERDICT - GM side
  * ========================================================================== */
 
 /**
@@ -758,7 +758,7 @@ export async function resolveCleanup({
     actorId, tokenId, total, isCritical = false, withHope = false, undo = false,
     // G-20: `{ type, visibility }` when a critical chose to rewrite the trace
     // rather than erase it. Validated here against `CLEANUP.transform`, never
-    // trusted — it arrives over the same socket as everything else.
+    // trusted - it arrives over the same socket as everything else.
     transform = null,
     // Z5: "erase" or "transform", and what the player declared before the dice.
     // Bounded here like everything else that crossed a socket.
@@ -774,7 +774,7 @@ export async function resolveCleanup({
 
     // A Reroll: put the scene back the way it was before scoring the new number,
     // or the second attempt would be measured against a room the first one had
-    // already changed — and the Sanity would be charged twice for one attempt.
+    // already changed - and the Sanity would be charged twice for one attempt.
     //
     // A rewind that could not happen aborts the replay rather than scoring on
     // top of the first attempt. `undoLastCleanup` has already told the GMs what
@@ -784,12 +784,12 @@ export async function resolveCleanup({
     // Searched across every scene rather than only the one the killer is
     // standing on. The two are the same in the normal case, and are NOT the same
     // if the killer's token was moved between picking a trace and the dice
-    // landing — where scoping to their current scene would report the trace as
+    // landing - where scoping to their current scene would report the trace as
     // vanished and charge them for it.
     const token = findRemnantToken(tokenId);
     const data = token ? remnantData(token) : null;
     if (!data) {
-        // The trace is gone — another attempt got it, or the GM removed it by
+        // The trace is gone - another attempt got it, or the GM removed it by
         // hand between the player picking and the dice landing. The Sanity is
         // still spent: they scrubbed at something.
         await spendStress(actor);
@@ -807,8 +807,8 @@ export async function resolveCleanup({
      * scrubbing the crime scene of a murder you had nothing to do with.
      *
      * Stage 6 is deliberately exempt. A killer cleaning their own scene may
-     * wipe whatever is in the room — including the traces of whoever else was
-     * standing there — and that is the stage working as written.
+     * wipe whatever is in the room - including the traces of whoever else was
+     * standing there - and that is the stage working as written.
      */
     if (viaAction && data.sourceActor !== actor.id) {
         error(`Refused a Tamper by ${actor.name}: that trace is not theirs.`);
@@ -820,13 +820,13 @@ export async function resolveCleanup({
      * AND ONLY ONE THEY HAVE FOUND. The same rule the picker was built from,
      * re-asked here because the picker travelled over a socket and what came
      * back is a token id. A packet naming a trace they left and never found
-     * would otherwise erase it blind — which is the whole leak, arriving by the
+     * would otherwise erase it blind - which is the whole leak, arriving by the
      * other road.
      *
      * INCIDENT TRACES ARE EXEMPT, EXACTLY AS THEY ARE IN THE PICKER (D11).
      *
      * Found on the E23 live round, and it is the failure mode this pair of
-     * mirrored guards exists to prevent — running in the wrong direction.
+     * mirrored guards exists to prevent - running in the wrong direction.
      * `cleanableTracesForPlayer` was taught that you do not have to "find" what
      * you watched being made in front of you; this guard was not. So the menu
      * offered the killer their own crime scene and the resolution answered
@@ -844,7 +844,7 @@ export async function resolveCleanup({
         return { removed: false, notFound: true };
     }
 
-    // Reinforced traces refuse to be removed at all — remnants.mjs has said so
+    // Reinforced traces refuse to be removed at all - remnants.mjs has said so
     // since the flag was introduced. Checked here as well as there so the Sanity
     // is not taken for an attempt that was never possible.
     if (data.reinforced) {
@@ -855,7 +855,7 @@ export async function resolveCleanup({
     }
 
     /*
-     * LYING IS EASIER THAN ERASING (Z5) — the transform road takes its relief
+     * LYING IS EASIER THAN ERASING (Z5) - the transform road takes its relief
      * off the same threshold, after the tool and after the fresh-scene window.
      * Clamped at zero by `cleanupDc`; taken here rather than inside it because
      * a discount that depends on WHICH action was attempted is not a property
@@ -869,8 +869,8 @@ export async function resolveCleanup({
     })();
     const success = isCritical || (dc !== null && total >= dc);
     const band = isCritical ? "critical" : (success ? (withHope ? "hope" : "despair") : "failure");
-    // `band` stays four-valued for the report — `DRPG.Cleanup.band.*` is written
-    // for it — but the OUTCOME distinguishes the two kinds of failure, because
+    // `band` stays four-valued for the report - `DRPG.Cleanup.band.*` is written
+    // for it - but the OUTCOME distinguishes the two kinds of failure, because
     // the guide does: a Hope failure just does not work, while a Despair failure
     // is the one that "Powstaje Jawny Resolution Remnant".
     const outcome = success
@@ -904,10 +904,10 @@ export async function resolveCleanup({
      * Checked before the removal rather than instead of it, and every clause
      * here is load-bearing:
      *
-     *   the outcome must allow it   — `mayTransform`, so the permission lives
+     *   the outcome must allow it   - `mayTransform`, so the permission lives
      *                                 in the rules table with everything else
-     *   it must be a critical       — a Hope success erases and nothing more
-     *   the lists must accept it    — trap 115. A packet naming `key` or
+     *   it must be a critical       - a Hope success erases and nothing more
+     *   the lists must accept it    - trap 115. A packet naming `key` or
      *                                 `final` would turn a piece of evidence
      *                                 the GM placed to make the case solvable
      *                                 into whatever the killer fancied.
@@ -923,7 +923,7 @@ export async function resolveCleanup({
      * trace.
      *
      * A success applies what the player declared: a new type, or one band of
-     * quiet. A critical applies BOTH — and where the player asked for the quiet
+     * quiet. A critical applies BOTH - and where the player asked for the quiet
      * half there is no second thing to give, so the critical's extra is the
      * Sanity back. That asymmetry is deliberate and is argued in config.mjs.
      *
@@ -952,7 +952,7 @@ export async function resolveCleanup({
             done.push(game.i18n.localize("DRPG.Cleanup.reshapeNothingSaid"));
         } else {
             // The critical's second half: one band quieter. A plain success
-            // buys the story alone — see `CLEANUP.transformAction`.
+            // buys the story alone - see `CLEANUP.transformAction`.
             const ladder = REMNANT_VISIBILITY;              // obvious → hidden
             const at = ladder.indexOf(data.visibility);
             const step = CLEANUP.transformAction?.quieter ?? 1;
@@ -978,15 +978,15 @@ export async function resolveCleanup({
         await report(actor, data, { band, success, total, dc, done, viaAction });
         lastAttempt.set(actorId, receipt);
         log(`Transform: ${actor.name} rolled ${total} against DC ${dc} on a ${
-            data.visibility} ${data.type} — ${band}.`);
+            data.visibility} ${data.type} - ${band}.`);
         return { removed: false, transformed: true, band, success };
     }
 
     /*
      * BOUNDED ON ARRIVAL (trap 115), and the bound moved with the feature.
      *
-     * The type half is gone — a reshape always produces a Tamper Remnant now,
-     * decided here rather than asked for — so the only thing left to validate
+     * The type half is gone - a reshape always produces a Tamper Remnant now,
+     * decided here rather than asked for - so the only thing left to validate
      * from the packet is the band, and it is still checked against the table
      * rather than trusted. The words are capped by `plainText` inside
      * `reshapeTrace`'s callers, and a packet with none is not a reshape.
@@ -1034,8 +1034,8 @@ export async function resolveCleanup({
      * THE VISIBILITY BUMP IS GONE, AND SO IS ITS BRANCH (D8).
      *
      * Z5 answered a failure by making the disturbed trace one band louder. D8
-     * replaces that with leaving a Tamper Remnant — see `CLEANUP.outcome` for
-     * the argument — and no outcome carries `raisesVisibility` any more.
+     * replaces that with leaving a Tamper Remnant - see `CLEANUP.outcome` for
+     * the argument - and no outcome carries `raisesVisibility` any more.
      *
      * The code went with the field rather than being left standing for nothing.
      * An unreachable handler is how a deleted rule comes back by accident, and
@@ -1053,7 +1053,7 @@ export async function resolveCleanup({
          *
          * `isCleaner` is the killer in Stage 6. Their tidying is tied, so the
          * chapter-end sweep spares it and the trial gets to see it. Anybody
-         * else's stays faint and untied, so it fades with the chapter — and
+         * else's stays faint and untied, so it fades with the chapter - and
          * while it exists, it is an honest, organic focus for a wrong suspicion:
          * somebody really did tidy something here, and it really was not the
          * killer. That is the misdirection this game wants and nobody has to
@@ -1066,7 +1066,7 @@ export async function resolveCleanup({
             faint: outcome.leaves.faint,
             tiedToCrime: byTheKiller,
             // "resolution", not "cleanup": `DRPG.Remnant.action.resolution` is
-            // already defined as "Cleanup" — the vocabulary was written for this
+            // already defined as "Cleanup" - the vocabulary was written for this
             // stage before there was anything to fill it.
             action: "resolution",
             note: game.i18n.format("DRPG.Cleanup.remnantNote", {
@@ -1098,7 +1098,7 @@ export async function resolveCleanup({
         }
     }
 
-    // "Morderca odzyskuje 1 stres" — the critical's own line, and the only
+    // "Morderca odzyskuje 1 stres" - the critical's own line, and the only
     // outcome in Stage 6 that gives the Sanity back. Applied after `spendStress`
     // rather than instead of it, so the receipt's `stressBefore` still describes
     // the state a Reroll has to restore.
@@ -1111,7 +1111,7 @@ export async function resolveCleanup({
     await report(actor, data, { band, success, total, dc, done, viaAction });
     lastAttempt.set(actorId, receipt);
 
-    log(`Cleanup: ${actor.name} rolled ${total} against DC ${dc} on a ${data.visibility} ${data.type} — ${band}${
+    log(`Cleanup: ${actor.name} rolled ${total} against DC ${dc} on a ${data.visibility} ${data.type} - ${band}${
         rewrite ? `, reshaped into "${rewriteName}" at ${rewrite.visibility}` : ""}.`);
     return { removed: Boolean(outcome.removes && !rewrite), transformed: Boolean(rewrite), band, done };
 }
@@ -1123,8 +1123,8 @@ export async function resolveCleanup({
  * unrelated: one manufactures evidence against somebody else, the other moves
  * the largest piece of evidence in the room.
  *
- * They share the erase-trace shape — 1 Sanity, killer in the room, rolled on
- * this client and scored on the GM's — but not its difficulty: both have a flat
+ * They share the erase-trace shape - 1 Sanity, killer in the room, rolled on
+ * this client and scored on the GM's - but not its difficulty: both have a flat
  * threshold from the guide rather than one read off how visible a trace is.
  * ========================================================================== */
 
@@ -1134,13 +1134,13 @@ export async function resolveCleanup({
  * Guide, p. 27: "Jeśli min. jeden inny gracz zadeklaruje obecność w
  * pomieszczeniu, w którym zabójca realizuje akcje rozwiązania, zabójca na
  * początku akcji musi rzucić kośćmi za ukrycie swoich intencji." Thresh 16,
- * Shadow — the same shape as the sabotage and indirect-murder concealment rolls,
+ * Shadow - the same shape as the sabotage and indirect-murder concealment rolls,
  * and priced the way neither of those is: entirely in Sanity.
  *
  * It never blocks the action. Failing means the room watched you scrub a murder
  * scene, which is a social catastrophe rather than a mechanical one, and the
- * guide gives it no "you may not continue" clause. What it costs is Sanity —
- * the currency Stage 6 runs on — so a botched cover story really does shorten
+ * guide gives it no "you may not continue" clause. What it costs is Sanity -
+ * the currency Stage 6 runs on - so a botched cover story really does shorten
  * how long the killer can keep cleaning.
  *
  * Rolled with `remember: false`: a supporting roll must not eat a Call armed for
@@ -1160,12 +1160,12 @@ export async function resolveCleanup({
  * presence a PENALTY on the clean-up rather than the help it obviously is.
  *
  * Measured against the same list `cleanupBlocker` uses to decide who may clean
- * at all — `killerIds` — so the two answers cannot disagree: everybody the
+ * at all - `killerIds` - so the two answers cannot disagree: everybody the
  * stage lets into the crime scene is somebody the crime scene does not hide
  * from.
  *
  * ONLY FOR THE KILLERS. An innocent using Tamper is not in the conspiracy, so
- * nobody is exempt from their roll — least of all a killer standing over them,
+ * nobody is exempt from their roll - least of all a killer standing over them,
  * who is exactly the person an innocent has reason to hide from. The
  * `isCleaner` test is what makes this a rule about accomplices rather than a
  * rule about anyone who happens to be indexed in the incident.
@@ -1214,21 +1214,21 @@ async function concealFromWitnesses(actor) {
     /*
      * A failure is public TO THE ROOM, and to nowhere else.
      *
-     * This used to `announce()`, which is a message to the whole table — so a
+     * This used to `announce()`, which is a message to the whole table - so a
      * botched cover story in the Closet told sixteen students, most of them on
      * the other side of the building, that somebody had been caught cleaning.
      * That is the investigation handed over for free, by the one roll whose
      * entire subject is who can see you.
      *
      * Who can see you is `othersInRoom`, which this function has already asked
-     * — it is the reason the roll happened at all. So the message goes to those
+     * - it is the reason the roll happened at all. So the message goes to those
      * people's owners, plus the GMs, and the killer's own copy is the whisper
      * above.
      */
     if (!hidden) {
         const line = `<p><em>${game.i18n.format("DRPG.Cleanup.seenCleaning", {
             actor: foundry.utils.escapeHTML(actor.name),
-            room: foundry.utils.escapeHTML(locate(actor)?.room ?? "—")
+            room: foundry.utils.escapeHTML(locate(actor)?.room ?? "-")
         })}</em></p>`;
 
         const { ownerOf, gmIds, whisperToGms } = await import("./utils.mjs");
@@ -1242,7 +1242,7 @@ async function concealFromWitnesses(actor) {
                 flags: { [MODULE_ID]: { drpgMessage: true } }
             });
         } else {
-            // Nobody in the room has an owner online — an NPC, a player away
+            // Nobody in the room has an owner online - an NPC, a player away
             // from the table. The GMs still hear it, because the fiction still
             // happened and somebody has to be able to narrate it.
             await whisperToGms(line);
@@ -1253,7 +1253,7 @@ async function concealFromWitnesses(actor) {
 }
 
 /**
- * A resolution action costs an action — unless it is the killer's own night.
+ * A resolution action costs an action - unless it is the killer's own night.
  *
  * THE ORIGINAL RULE, AND IT WAS RIGHT FOR THE PROBLEM IT SOLVED. Stage 6 ran on
  * Sanity alone, which meant it ran on nothing the table could see: a killer
@@ -1263,12 +1263,12 @@ async function concealFromWitnesses(actor) {
  *
  * IT CAPPED THE WRONG THING (D3, measured in E18c). Two actions is the budget
  * for an ordinary afternoon, and the hours after a murder are not one. A killer
- * who had just fought somebody had, in practice, one action left — so the whole
+ * who had just fought somebody had, in practice, one action left - so the whole
  * of Stage 6 came down to picking a single trace and walking away from the
  * rest, and the measured season cleaned about 2.9 traces from start to finish.
  *
  * So the killer's own clean-up is free of the action economy from the victim's
- * death to the end of that time of day, and pays in Sanity only — one per
+ * death to the end of that time of day, and pays in Sanity only - one per
  * attempt, with a full bar refusing up front. "The night of the murder belongs
  * to the killer; they pay for it with their mind, not with their clock."
  *
@@ -1276,12 +1276,12 @@ async function concealFromWitnesses(actor) {
  * a season (+81%), and the evidence chain the trial runs on did not move
  * (5.61 → 5.63), with 59 of 60 trials still solved. The killer gets to finish
  * the job; the case survives, because what Stage 6 can reach was never the part
- * that convicts — Key, Final and reinforced traces are untouchable by
+ * that convicts - Key, Final and reinforced traces are untouchable by
  * construction.
  *
  * `isCleaner` is exactly that window and nothing wider: an active incident, at
- * stage `resolution`, and this actor one of its killers. Outside it — the
- * Tamper tile on an ordinary Tuesday — the action is charged as it always was.
+ * stage `resolution`, and this actor one of its killers. Outside it - the
+ * Tamper tile on an ordinary Tuesday - the action is charged as it always was.
  *
  * @returns {Promise<boolean>} false when there is nothing left to spend, in
  *   which case `spendAction` has already said so and nothing has been touched.
@@ -1303,7 +1303,7 @@ function stageSixDef(actor, key, { viaAction = false } = {}) {
         return null;
     }
     // Whose scene this is, is Stage 6's question. Having a point of Sanity to
-    // spend is everybody's — see `attemptCleanup` for why that changed.
+    // spend is everybody's - see `attemptCleanup` for why that changed.
     if (!viaAction && !isCleaner(actor)) {
         refuseCleanup(actor);
         return null;
@@ -1324,7 +1324,7 @@ function stageSixDef(actor, key, { viaAction = false } = {}) {
  * in the suspect pool the trial draws from.
  *
  * The murder victim is excluded only when there IS one. Framing the person
- * lying dead in the room is a confession with extra steps — but outside an
+ * lying dead in the room is a confession with extra steps - but outside an
  * incident `murderState()` has no victim and the filter simply does not bite.
  */
 export async function framingCandidates(actor) {
@@ -1349,7 +1349,7 @@ export async function attemptStageSix(actor, key, targetId = null, { viaAction =
     //
     // `applyMoveBody` walks outwards from the KILLER's room, so a killer in a
     // different room from the body teleported it out of a room they had never
-    // been in — measured, Round Table to Closet from the Dinner Hall. In a real
+    // been in - measured, Round Table to Closet from the Dinner Hall. In a real
     // incident the two are together and this never fires; it fires for the
     // states that get there some other way, which is now a supported route.
     if (key === "moveBody" && !bodyIsHere(actor)) {
@@ -1359,12 +1359,12 @@ export async function attemptStageSix(actor, key, targetId = null, { viaAction =
 
     if (!await spendResolutionAction(actor)) return null;
 
-    // The guide's concealment roll covers "akcje rozwiązania" as a whole —
+    // The guide's concealment roll covers "akcje rozwiązania" as a whole -
     // planting a false trail or dragging a body past a witness is if anything
     // harder to explain away than wiping a smear.
     //
     // Moving the body is out. You are not concealing an intent while you carry
-    // a corpse across the hall — there is nothing left to be coy about, and the
+    // a corpse across the hall - there is nothing left to be coy about, and the
     // action already announces itself by leaving an Evident trace every single
     // time. Two rolls to move one body, where the first could stop the second
     // from happening at all, was a stack the stage does not need.
@@ -1374,7 +1374,7 @@ export async function attemptStageSix(actor, key, targetId = null, { viaAction =
     const calls = await import("./call-effects.mjs");
 
     // Moving a body is the one Stage 6 action a Cleaning Tool helps with by
-    // lowering the number rather than by granting advantage — see
+    // lowering the number rather than by granting advantage - see
     // `toolBonusPerTier`, applied on the GM side where the threshold lives.
     const tool = cleaningTool(actor);
     if (CLEANUP.toolAdvantage && tool && key !== "moveBody") calls.armSituational(1);
@@ -1384,7 +1384,7 @@ export async function attemptStageSix(actor, key, targetId = null, { viaAction =
         roll = await rollTrait(actor, (def.traits ?? CLEANUP.traits)[0], {
             // `cleanupKey` names WHICH of the three this was. `cleanup` keeps
             // holding the same value it always did so nothing that reads the
-            // old bookmark shape breaks — see `settleCleanup` in reroll.mjs.
+            // old bookmark shape breaks - see `settleCleanup` in reroll.mjs.
             actionKey: "cleanup",
             context: {
                 cleanup: key, cleanupKey: key,
@@ -1447,7 +1447,7 @@ export async function resolveStageSix({
     const success = isCritical || total >= threshold;
     const band = isCritical ? "critical" : (withHope ? "hope" : "despair");
 
-    // One point, both roads — see `attemptCleanup`.
+    // One point, both roads - see `attemptCleanup`.
     await spendStress(actor);
     const done = [];
 
@@ -1461,25 +1461,25 @@ export async function resolveStageSix({
     }
 
     // Three shapes for one idea lived here: this card led with an `<h3>`, the
-    // one above with `<strong>Label</strong> —`, and the GM's copy below with a
-    // third. All three are the same sentence — what was done, what it rolled,
-    // what came of it — so all three are the header now.
+    // one above with `<strong>Label</strong> -`, and the GM's copy below with a
+    // third. All three are the same sentence - what was done, what it rolled,
+    // what came of it - so all three are the header now.
     await whisperToOwner(actor, `${cardHead({
         action: def.label, total, result: `${success ? "≥" : "<"} ${threshold}`
     })}${done.length ? `<ul>${done.map(d => `<li>${d}</li>`).join("")}</ul>` : ""}`);
     await whisperToGms(`${cardHead({ action: def.label, total, result: band })}<p>${
         foundry.utils.escapeHTML(actor.name)} vs ${threshold}</p>`);
 
-    log(`Stage 6 ${key}: ${actor.name} rolled ${total} vs ${threshold} — ${band}.`);
+    log(`Stage 6 ${key}: ${actor.name} rolled ${total} vs ${threshold} - ${band}.`);
     return { success, band, done };
 }
 
 /**
  * Plant something that points at somebody else.
  *
- * A failure still plants it, which is the guide's own reading — "Nieudane:
+ * A failure still plants it, which is the guide's own reading - "Nieudane:
  * Morderca zostawia Faint Ukryty Prep Remnant wskazujący na wybranego gracza"
- * — so a botched frame-up is a bad frame-up rather than nothing. Only a Despair
+ * - so a botched frame-up is a bad frame-up rather than nothing. Only a Despair
  * failure leaves the room clean.
  */
 async function applyMisleadingTrail(actor, def, targetId, success, band, done) {
@@ -1498,12 +1498,12 @@ async function applyMisleadingTrail(actor, def, targetId, success, band, done) {
         action: "resolution",
         pointsAt: framed?.id ?? null,
         subject: framed?.name ?? "",
-        // TRAP 88 — WHO PLANTED IT, IN THE COLUMN A GM ACTUALLY READS.
+        // TRAP 88 - WHO PLANTED IT, IN THE COLUMN A GM ACTUALLY READS.
         //
         // Now that an innocent player can plant these, the dashboard is the
         // only place the table's one deliberate lie can be seen for what it is.
         // The ledger already stores `sourceActor`/`sourceName`, but the note is
-        // the line the Remnant list prints under the action — so it says both
+        // the line the Remnant list prints under the action - so it says both
         // ends of the lie: who left it, and who it accuses.
         note: game.i18n.format("DRPG.Cleanup.trailNote", {
             name: framed?.name ?? "?", visibility, by: actor.name
@@ -1547,15 +1547,15 @@ async function applyMoveBody(actor, def, success, band, done, chosenRoom = null)
      * This used to take `def.rooms[band]` steps outward and pick a RANDOM room
      * at each one. Two things were wrong with that, and the second is the one
      * that matters: the killer could not aim. Dragging a body is the most
-     * deliberate thing anybody does in this game — you move it because of what
-     * is in the other room, or who is not — and the engine was rolling a die to
+     * deliberate thing anybody does in this game - you move it because of what
+     * is in the other room, or who is not - and the engine was rolling a die to
      * decide which door you went through. On a map with four exits it was three
      * chances in four of putting the body somewhere you would not have chosen.
      *
      * So the destination is chosen up front, before the roll, and travels as
      * `targetId`. The roll still decides WHETHER it moves; it no longer decides
-     * where. `def.rooms` stays in the table as the reach — the picker offers the
-     * rooms connected to this one — and the random walk is gone.
+     * where. `def.rooms` stays in the table as the reach - the picker offers the
+     * rooms connected to this one - and the random walk is gone.
      */
     const reachable = await bodyDestinations(here.room);
     let room = reachable.includes(chosenRoom) ? chosenRoom : reachable[0];
@@ -1595,12 +1595,12 @@ async function applyMoveBody(actor, def, success, band, done, chosenRoom = null)
 }
 
 /* ==========================================================================
- * TAKING A CLEAN-UP BACK — the Reroll's other half
+ * TAKING A CLEAN-UP BACK - the Reroll's other half
  * --------------------------------------------------------------------------
  * Kept on this client rather than in a world setting, unlike the incident's own
  * receipt in murder.mjs. What it holds is the answer key: the full creation data
  * of a Remnant, including how visible it is and what it really is. Writing that
- * into the murder state would publish it to every player's console — see
+ * into the murder state would publish it to every player's console - see
  * truth-bullets.mjs for the same reasoning about the ledger. The cost is that a
  * GM who reloads mid-Stage-6 cannot replay a clean-up, which is the same trade
  * observe.mjs already makes, and it says so when it happens.
@@ -1621,7 +1621,7 @@ function refOf(placed) {
  * `placeRemnant` takes exactly this shape, so recreating is handing the flags
  * back rather than reconstructing them from a summary.
  *
- * The token ID is the one thing that cannot come back — Foundry mints a new one.
+ * The token ID is the one thing that cannot come back - Foundry mints a new one.
  * Two things key off it, and neither is hurt here: a Truth Bullet's `remnantId`
  * (a back-reference for the GM, not something the trial reads), and the
  * already-copied check that stops one character copying one trace twice. The
@@ -1698,14 +1698,14 @@ async function undoLastCleanup(actor, tokenId) {
     }
 
     // G-20's other half. A rewritten trace was never deleted, so putting it
-    // back is a second retune rather than a re-creation — and it has to happen,
+    // back is a second retune rather than a re-creation - and it has to happen,
     // or a Reroll would leave the relabelling standing on top of a roll that no
     // longer produced it.
     //
     // BOTH HALVES, since a reshape now writes two different kinds of fact: what
     // the trace is, and what it says. Restoring only the type would put a Tamper
     // Remnant back to being an Incident Remnant while leaving the killer's
-    // invented name on it — a state no roll has ever produced.
+    // invented name on it - a state no roll has ever produced.
     if (receipt.transformed?.from) {
         try {
             const { retuneRemnant, setRemnantPublic } = await import("./remnants.mjs");
@@ -1759,7 +1759,7 @@ async function spendStress(actor) {
 
 /**
  * Hand Sanity back. Sanity is a reverse resource, so "restoring" it is
- * subtracting marks — the same direction `use-items.mjs` moves it.
+ * subtracting marks - the same direction `use-items.mjs` moves it.
  */
 async function restoreStress(actor, amount = 1) {
     const marks = resourceValue(actor, "stress");
@@ -1787,7 +1787,7 @@ async function report(actor, data, { band, success, total, dc, done, viaAction =
      * The killer's card, and on a miss it carries a sound.
      *
      * `resolveCleanup` is GM-side, so this goes on the message rather than
-     * through `playSfx` — same reason as the broken tool. Failure only: a
+     * through `playSfx` - same reason as the broken tool. Failure only: a
      * successful wipe removes a trace the killer selected and is already
      * watching, while a miss spends the Sanity, leaves what they were scrubbing
      * at, and on Despair adds an Obvious one they did NOT choose and are not
@@ -1809,7 +1809,7 @@ async function report(actor, data, { band, success, total, dc, done, viaAction =
             actor: foundry.utils.escapeHTML(actor.name),
             what: foundry.utils.escapeHTML(`${data.visibilityLabel} ${data.typeLabel}`),
             total,
-            dc: dc ?? "—",
+            dc: dc ?? "-",
             verdict: game.i18n.localize(success ? "DRPG.Cleanup.hit" : "DRPG.Cleanup.miss")
         })}</p>
         ${summary ? `<ul>${summary}</ul>` : ""}`);
@@ -1822,8 +1822,8 @@ async function report(actor, data, { band, success, total, dc, done, viaAction =
 /**
  * Pick something to wipe.
  *
- * What the killer is shown is what their character can now see — Stage 6 is the
- * point at which the guide lets them look at their own traces — but NOT how hard
+ * What the killer is shown is what their character can now see - Stage 6 is the
+ * point at which the guide lets them look at their own traces - but NOT how hard
  * any of it is to erase. The threshold comes from a Remnant's visibility, and
  * showing it would hand them a reading of how much evidence they left, which is
  * the trial's whole question. Reinforced traces are the exception and are named
@@ -1831,13 +1831,13 @@ async function report(actor, data, { band, success, total, dc, done, viaAction =
  * to make.
  *
  * `cleanableRemnants(actor)` cannot be called here directly and expect
- * anything back — `remnantData()`, underneath it, answers `null` for every
+ * anything back - `remnantData()`, underneath it, answers `null` for every
  * client that is not a GM, which is the correct answer to "what does this
  * client know about the ledger" and the wrong list to hand a killer. The GM
  * client that actually holds the ledger has to compute this, which is exactly
  * what `requestCleanableTraces` asks for: a GM runs it locally, a player asks
  * over the bridge and gets back only what `cleanableTracesForPlayer` (in this
- * same file) is willing to say — no DC, no `tiedToCrime`.
+ * same file) is willing to say - no DC, no `tiedToCrime`.
  */
 export async function openCleanupDialog(actor) {
     if (!isCleaner(actor)) return refuseCleanup(actor);
@@ -1851,7 +1851,7 @@ export async function openCleanupDialog(actor) {
 
     // Every trace here refuses to be removed. The picker would open with every
     // option disabled, no value to submit, and a confirm button that did nothing
-    // — a dead end that looks like a bug. Say what is actually true instead.
+    // - a dead end that looks like a bug. Say what is actually true instead.
     if (traces.every(t => t.reinforced)) {
         ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.allReinforced"));
         return null;
@@ -1898,19 +1898,19 @@ export async function openCleanupDialog(actor) {
  *
  * ONE LIST, BOTH SIDES. The picker offers these and the resolver honours these,
  * from this one function, because the alternative is two copies of a rule that
- * have to be remembered together — and D11 shipped with exactly that shape and
+ * have to be remembered together - and D11 shipped with exactly that shape and
  * exactly one of the two copies updated. A destination the picker cannot show
  * is a destination the resolver will not use, by construction.
  *
  * ADJACENCY (Dawid, 29.08). `neighbouringRooms` is the same reach a living
  * character walks by, so dragging a corpse cannot cross a building. Where a map
- * measures badly — bounding boxes overlap where rooms do not — the GM's
+ * measures badly - bounding boxes overlap where rooms do not - the GM's
  * `drpgNeighbours` flag on the region is the override, and it is the same
  * override ordinary movement reads.
  *
  * BEDROOMS ARE NEVER A DESTINATION (Dawid, 29.08, new rule). A bedroom belongs
  * to one student, it locks, and the only people who can open it are its owner
- * and whoever holds the key — so a body left in one is not hidden, it is
+ * and whoever holds the key - so a body left in one is not hidden, it is
  * ADDRESSED: it names a suspect the map chose rather than the killer. Framing
  * somebody is a move this game already sells, by name, for a price ("Misleading
  * trail"), and letting Move the body do it for free undercuts the action that
@@ -1921,7 +1921,7 @@ export async function openCleanupDialog(actor) {
  * step.
  *
  * Every neighbour being a bedroom returns an empty list, which the callers
- * already read as "there is nowhere to take it" — the honest answer.
+ * already read as "there is nowhere to take it" - the honest answer.
  */
 async function bodyDestinations(room) {
     if (!room) return [];
@@ -1963,7 +1963,7 @@ export async function openMoveBodyDialog(actor) {
         classes: ["drpg-panel"],
         content: dialogContent(`<form>
             <p>${game.i18n.format("DRPG.Cleanup.moveIntro", {
-                room: foundry.utils.escapeHTML(here?.room ?? "—"),
+                room: foundry.utils.escapeHTML(here?.room ?? "-"),
                 n: RESOLUTION_STRESS_COST
             })}</p>
             <p class="notes">${game.i18n.localize("DRPG.Cleanup.moveAlwaysTrace")}</p>
@@ -1995,7 +1995,7 @@ export async function openMoveBodyDialog(actor) {
  *
  * `CLEANUP.destroysTools` has declared for some time that a crime tool used in
  * an incident is destroyed, and nothing was destroying anything. The cleaning tool
- * goes the same way and for the same reason — one crime scene, one set of
+ * goes the same way and for the same reason - one crime scene, one set of
  * gloves. Both are read as EQUIPPED items: an unopened spare in the stash is not
  * a thing that was used.
  *
@@ -2032,7 +2032,7 @@ export async function destroyCleaningTools() {
  * These used to be deleted, and deleting them is the one outcome that costs the
  * killer nothing: the murder weapon left the world by itself, tidily, the
  * instant it stopped being useful. The guide's sentence is that the tool "zostaje
- * usunięte z ekwipunku" — removed from what you can use — and the module read
+ * usunięte z ekwipunku" - removed from what you can use - and the module read
  * that as removed from existence.
  *
  * It stays now, marked Broken, in the same slot and against the same carry
@@ -2043,7 +2043,7 @@ export async function destroyCleaningTools() {
 /**
  * The thing this character used in the incident, if anything wrote it down.
  *
- * Only the weapon is remembered — the swing is a single identifiable moment,
+ * Only the weapon is remembered - the swing is a single identifiable moment,
  * while cleaning is several actions with possibly several rags, and "the one in
  * your hands when the body turned up" is the honest answer for those.
  */

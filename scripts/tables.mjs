@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — item tables.
+ * Danganronpa RPG - item tables.
  * ---------------------------------------------------------------------------
  * The guide gives one or two examples per tier and tells the GM to improvise
  * the rest. These lists are that improvisation done in advance, so a Search
@@ -9,7 +9,7 @@
  * killing game comes from what students do with ordinary objects.
  *
  * Installed into the world as RollTables by `installTables()`, which the GM can
- * then edit freely — once they exist, these definitions are only a fallback.
+ * then edit freely - once they exist, these definitions are only a fallback.
  */
 
 import { MODULE_ID, ITEM_CATEGORIES, EQUIPPABLE, ITEM_TIERS, TIER_EFFECTS, USABLE_KINDS, itemIcon,
@@ -21,18 +21,18 @@ import { alreadyOpen } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
-/** Table name pattern: "DRPG Usables — Tier 2", or "… (Healing) — Tier 2". */
+/** Table name pattern: "DRPG Usables - Tier 2", or "… (Healing) - Tier 2". */
 export function tableName(category, tier, goal = null) {
     const base = ITEM_CATEGORIES[category]?.plural ?? category;
     const suffix = USABLE_GOALS[goal] ? ` (${USABLE_GOALS[goal].label})` : "";
-    return `DRPG ${base}${suffix} — Tier ${tier}`;
+    return `DRPG ${base}${suffix} - Tier ${tier}`;
 }
 
 /**
  * WHAT THESE TABLES USED TO BE CALLED, and why it has to be written down.
  *
  * A table is found by NAME, and its name is built out of labels that are
- * ordinary display copy — the kind that gets reworded. Every time one was, the
+ * ordinary display copy - the kind that gets reworded. Every time one was, the
  * lookup started missing a table that was sitting right there: "Crime Tools"
  * became "Murder Weapons", "Usable Items" became "Usables", and (26.08)
  * "Stress Relief" became "Sanity Relief". Measured in the QA world before this
@@ -40,7 +40,7 @@ export function tableName(category, tier, goal = null) {
  * crime tool tables none either.
  *
  * It failed silently, which is the worst part. `drawItem` falls through to the
- * built-in pools when no table answers, so a Search still produced an item —
+ * built-in pools when no table answers, so a Search still produced an item -
  * just never one the GM had put in a table. Everything they curated was being
  * ignored, and `installTables` would have gone on to build a second, parallel
  * set under the new names beside the ones already there.
@@ -48,8 +48,8 @@ export function tableName(category, tier, goal = null) {
  * So every label these names have ever carried lives here, oldest last, and
  * lookups try the current name first and then the history. Nothing is renamed
  * in anybody's world: a table the GM has been editing for a season keeps the
- * name they know it by, and a fresh world gets today's. Add to this list — do
- * not edit it — whenever a label above changes.
+ * name they know it by, and a fresh world gets today's. Add to this list - do
+ * not edit it - whenever a label above changes.
  */
 const LEGACY_PLURALS = {
     usable: ["Usable Items"],
@@ -73,12 +73,12 @@ export function tableNameCandidates(category, tier, goal = null) {
 
     const names = [];
     for (const base of bases) {
-        for (const suffix of suffixes) names.push(`DRPG ${base}${suffix} — Tier ${tier}`);
+        for (const suffix of suffixes) names.push(`DRPG ${base}${suffix} - Tier ${tier}`);
     }
     return names;
 }
 
-/** The one that actually exists in this world, if any — else today's name. */
+/** The one that actually exists in this world, if any - else today's name. */
 export function existingTableName(category, tier, goal = null) {
     const names = tableNameCandidates(category, tier, goal);
     return names.find(n => game.tables?.getName?.(n)) ?? names[0];
@@ -97,19 +97,19 @@ function tableDescription(category, tier, goal = null) {
  *
  * The aliases above keep a renamed label from BREAKING anything, and that is a
  * different job from this one: a table called "DRPG Usable Items (Stress
- * Relief) — Tier 1", described as "Restores 1 HP or 1 Stress", still says
+ * Relief) - Tier 1", described as "Restores 1 HP or 1 Stress", still says
  * Stress and HP to every GM who opens the sidebar. Dawid asked for the rename
  * everywhere (26.08), and a world already in play is part of everywhere.
  *
  * WHAT IT WILL AND WILL NOT TOUCH. Only a table carrying this module's own
  * `category`/`tier` flags, sitting under a name this module is known to have
- * generated, is considered — a GM's own table that merely looks similar is not
+ * generated, is considered - a GM's own table that merely looks similar is not
  * ours to rename. The description is only rewritten when it still matches the
  * shape `installTables` writes ("<Label>, Tier N. …"), which is the signature
  * of boilerplate nobody has edited; a description somebody has written over is
  * theirs and is left exactly as it is, even though it may still say Stress.
  *
- * Idempotent, and silent when there is nothing to do — it runs at `ready` on
+ * Idempotent, and silent when there is nothing to do - it runs at `ready` on
  * every GM client, and a migration that announces itself every session is one
  * people learn to click past.
  *
@@ -120,7 +120,7 @@ export async function refreshTableCopy() {
     const redescribed = [];
     if (!game.user.isGM) return { renamed, redescribed };
 
-    // The shape installTables writes, under ANY label this module has used —
+    // The shape installTables writes, under ANY label this module has used -
     // that is what marks a description as untouched boilerplate.
     const labels = Object.values(ITEM_CATEGORIES).map(c => c.label)
         .concat(["Usable Item", "Crime Tool"]);
@@ -129,10 +129,10 @@ export async function refreshTableCopy() {
 
     // BY FLAG, NOT BY TODAY'S JOB LIST. Walking `tableJobs()` would only visit
     // the tables this version still builds, and miss every one it used to: the
-    // mixed "DRPG Usable Items — Tier N" pools stopped being generated when
+    // mixed "DRPG Usable Items - Tier N" pools stopped being generated when
     // usables split by kind, and they are exactly the tables still carrying the
     // oldest wording. What makes a table ours is its flags, so that is what is
-    // walked — retired shapes included.
+    // walked - retired shapes included.
     for (const table of Array.from(game.tables ?? [])) {
         const category = table.getFlag(MODULE_ID, "category");
         const tier = table.getFlag(MODULE_ID, "tier");
@@ -168,14 +168,14 @@ export async function refreshTableCopy() {
 /**
  * A TIER pool feeds dice draws and is never a room's pool.
  *
- * Two families of table, two jobs. Tier pools — everything `tableName()`
- * produces — answer "a Tier N roll came up, what was found". Room pools —
- * the global fallthrough plus whatever the GM creates — answer "what does
+ * Two families of table, two jobs. Tier pools - everything `tableName()`
+ * produces - answer "a Tier N roll came up, what was found". Room pools -
+ * the global fallthrough plus whatever the GM creates - answer "what does
  * THIS room stock". Room Setup's "Draws from" only offers the second family;
- * offering the first let a room be pointed at "DRPG Crime Tools — Tier 2",
+ * offering the first let a room be pointed at "DRPG Crime Tools - Tier 2",
  * which then answered every Search in that room regardless of the roll.
  */
-const TIER_POOL_PATTERN = /^DRPG .+ — Tier \d+$/;
+const TIER_POOL_PATTERN = /^DRPG .+ - Tier \d+$/;
 
 export function isTierPool(name) {
     return TIER_POOL_PATTERN.test(String(name ?? ""));
@@ -184,11 +184,11 @@ export function isTierPool(name) {
 /**
  * Usable items, split by kind.
  *
- * This split used to be cosmetic — a courtesy so a Search for "something to
+ * This split used to be cosmetic - a courtesy so a Search for "something to
  * patch me up" did not hand over chewing gum. Since 2026-08-26 it is the rules:
  * which table an item belongs to IS what the item does. A healing usable
  * restores Health, a stress-relief one clears Sanity, and nobody is asked which at
- * the moment of use — `usableKindFor` below is how the Use action reads the
+ * the moment of use - `usableKindFor` below is how the Use action reads the
  * answer back off these tables.
  *
  * Tier 3 appears in both because it is the one tier where the kinds meet: it
@@ -218,15 +218,15 @@ export const USABLE_GOALS = {
 /**
  * Which kind of usable an item of this name is, read off the tables.
  *
- * The world's Healing and Sanity Relief tables are the authority — they are
+ * The world's Healing and Sanity Relief tables are the authority - they are
  * what the GM edits, so an item moved from one to the other changes what it
  * does the next time anybody drinks it, with no flag to chase. The built-in
  * pools only answer when no world table knows the name at all (a world where
  * the tables were never installed).
  *
  * @returns {"healing"|"stress"|"both"|null} `"both"` when the name sits in
- *   tables of both kinds — genuinely ambiguous, the caller decides what that
- *   means — and `null` when nothing anywhere claims it.
+ *   tables of both kinds - genuinely ambiguous, the caller decides what that
+ *   means - and `null` when nothing anywhere claims it.
  */
 export function usableKindFor(name) {
     const wanted = String(name ?? "").trim().toLowerCase();
@@ -264,7 +264,7 @@ export function usableKindFor(name) {
  *
  * The guide's own examples are the first entry of each tier; the rest are the
  * "GM improvises the rest" that the guide asks for, done in advance and kept in
- * the same register — school property, maintenance cupboards, kitchen drawers.
+ * the same register - school property, maintenance cupboards, kitchen drawers.
  *
  * Why more than one per tier. Every tool tier used to hold exactly the guide's
  * single example, so every Tier 2 weapon found in a whole season was an axe and
@@ -285,7 +285,7 @@ export const ITEM_POOLS = {
     /*
      * TIER IS WHAT AN OBJECT CAN DO, NOT ONLY HOW WELL (E9, Dawid 27.08).
      *
-     * Tiers 0 and 1 do one job. **Every** entry at tier 2 and 3 does two — that
+     * Tiers 0 and 1 do one job. **Every** entry at tier 2 and 3 does two - that
      * is what the tier buys, alongside the number. The first pass gave a second
      * tag to about half of the high-tier entries, which read as an oversight
      * rather than a rule: a Bolt cutters that doubles as a tool sitting beside a
@@ -322,14 +322,14 @@ export const ITEM_POOLS = {
  *
  * Read once, at INSTALL time: the roles are written onto the TableResult as
  * flags, and from then on the table is the authority, not this map. That is
- * what keeps it from becoming the fragile thing it looks like — a lookup by
+ * what keeps it from becoming the fragile thing it looks like - a lookup by
  * display name would break the moment a GM renamed an entry, and here the
  * rename simply keeps whatever flag the entry already had.
  *
  * The choices are meant to be arguable rather than exhaustive. A crowbar is a
  * tool that opens skulls; duct tape cleans as readily as it fixes; a hammer has
  * been a murder weapon in every story ever told. Anything not listed does one
- * job, which is the honest default — a fire extinguisher is a weapon and not a
+ * job, which is the honest default - a fire extinguisher is a weapon and not a
  * workshop.
  */
 export const POOL_ROLES = {
@@ -369,7 +369,7 @@ export const MAX_EXTRA_ROLES = 1;
  *
  * A two-tag item is unconditionally better than a one-tag one, so it has no
  * business lying at the bottom of the table (Dawid, 27.08). Duct tape moved up
- * to tier 2 rather than losing its second tag — it is still worth finding, and
+ * to tier 2 rather than losing its second tag - it is still worth finding, and
  * two tags are meant to cost something.
  */
 export const MULTI_ROLE_TIER = 2;
@@ -385,13 +385,13 @@ export function rolesForPoolItem(name) {
  * NOT WIRED UP, AND KEPT ON PURPOSE. The comment above this used to end
  * "offered to the GM as suggestions", and nothing offers them: no screen reads
  * this, and a dead-surface sweep finds it referenced from nowhere in the
- * module. It is not dead code, though — it is guide content that never reached
+ * module. It is not dead code, though - it is guide content that never reached
  * a screen, and deleting it would delete three rules rather than tidy an
  * unused helper. Left standing, and named here so the next sweep does not
  * mistake it for litter.
  *
  * Where it would belong: the project result screen, beside the item the GM is
- * about to hand over — the same shape `gm-items.mjs` already uses to prefill
+ * about to hand over - the same shape `gm-items.mjs` already uses to prefill
  * from a table.
  */
 export const PROJECT_ITEMS = {
@@ -405,7 +405,7 @@ export const PROJECT_ITEMS = {
 /**
  * The roles written on one table entry.
  *
- * Falls back to the built-in map for an entry that predates roles entirely —
+ * Falls back to the built-in map for an entry that predates roles entirely -
  * a world whose tables were installed before E8 has no flags on them, and a
  * hammer drawn from such a table should still be a hammer. That fallback is by
  * NAME, which is fragile, and it is deliberately the last resort rather than
@@ -447,7 +447,7 @@ export function randomItem(category, tier, goal = null) {
  */
 export async function drawItem(category, tier, { goal = null, room = null } = {}) {
     // The room's own table first, when it has one. A kitchen and a boiler room
-    // should not be drawing from the same bag — the guide says outright that
+    // should not be drawing from the same bag - the guide says outright that
     // what turns up can depend on where you are.
     //
     // It falls THROUGH to the global pool rather than replacing it, and that is
@@ -457,26 +457,26 @@ export async function drawItem(category, tier, { goal = null, room = null } = {}
     // somebody forgot to set up would just look like a broken action.
     // A room's table can be split by category the same way the global ones are,
     // and for the same reason: a single "Kitchen" table asked for a crime tool
-    // would hand back an apple and then label it a weapon. So "Kitchen — Crime
+    // would hand back an apple and then label it a weapon. So "Kitchen - Crime
     // Tools" is tried before plain "Kitchen". A GM who does not want that
     // precision makes one flat table and it answers everything.
     // THE ROLL MATTERS IN ROOMS TOO (F5.5, Dawid 2026-08-25). A room table can
-    // be split by tier the same way it can be split by category: "Kuchnia —
+    // be split by tier the same way it can be split by category: "Kuchnia -
     // Tier 2" answers a Tier 2 roll in the Kuchnia before the flat "Kuchnia"
     // does. A GM who does not want that precision keeps one flat table and the
-    // lookup falls straight through — same bargain as the category split.
+    // lookup falls straight through - same bargain as the category split.
     const roomBase = room ? await tableForRoom(room) : null;
     const roomNames = roomBase
         ? [
-            `${roomBase} — Tier ${tier}`,
-            `${roomBase} — ${ITEM_CATEGORIES[category]?.plural ?? category}`,
+            `${roomBase} - Tier ${tier}`,
+            `${roomBase} - ${ITEM_CATEGORIES[category]?.plural ?? category}`,
             roomBase
         ]
         : [];
 
     const names = [
         ...roomNames,
-        // Every name these have ever been called — see LEGACY_PLURALS. A world
+        // Every name these have ever been called - see LEGACY_PLURALS. A world
         // whose tables were built before a label was reworded is still the
         // world whose tables answer.
         ...tableNameCandidates(category, tier, goal),
@@ -494,7 +494,7 @@ export async function drawItem(category, tier, { goal = null, room = null } = {}
                 return {
                     name: drawn,
                     fromTable: true,
-                    // What else the thing can do — see POOL_ROLES. Read off the
+                    // What else the thing can do - see POOL_ROLES. Read off the
                     // entry, so a GM who ticked "also a weapon" on their own
                     // screwdriver gets a weapon.
                     roles: rolesOfResult(result),
@@ -502,14 +502,14 @@ export async function drawItem(category, tier, { goal = null, room = null } = {}
                     // writes the name into `description` as well, so a
                     // description that is only the name again is dropped here
                     // rather than overwriting the tier line every found item
-                    // gets — see `grantItem`.
+                    // gets - see `grantItem`.
                     img: result?.img ?? result?.icon ?? null,
                     description: result?.description && result.description !== drawn
                         ? result.description : null
                 };
             }
         } catch {
-            // A broken table should not stop the action — fall through.
+            // A broken table should not stop the action - fall through.
         }
     }
 
@@ -518,14 +518,14 @@ export async function drawItem(category, tier, { goal = null, room = null } = {}
      *
      * The chain above asks the room for the category, then the world for the
      * category, then the built-in pool. That is right for a room the GM never
-     * configured — but for one they DID, it produces the wrong kind of wrong:
+     * configured - but for one they DID, it produces the wrong kind of wrong:
      * ask an armoury for something to patch you up and, if the GM built
-     * "Armoury — Crime Tools" and no flat "Armoury", the lookup walks straight
+     * "Armoury - Crime Tools" and no flat "Armoury", the lookup walks straight
      * past the room and hands over a bandage. In an armoury.
      *
      * So before the global pool: every table this room owns, whatever it is
      * called, picked at random. A player who asks a room for something it does
-     * not stock gets what it does stock — which is both funnier and truer than
+     * not stock gets what it does stock - which is both funnier and truer than
      * either "nothing" or "a bandage from nowhere".
      *
      * `substitute` travels with it so the card can say so. It is not a failure:
@@ -534,7 +534,7 @@ export async function drawItem(category, tier, { goal = null, room = null } = {}
      */
     if (roomBase) {
         const owned = (game.tables?.contents ?? []).filter(t =>
-            t.name === roomBase || t.name.startsWith(`${roomBase} — `));
+            t.name === roomBase || t.name.startsWith(`${roomBase} - `));
         // Shuffled rather than "the first one": the room's tables are named by
         // category and taking the first would silently favour whichever
         // category sorts earliest.
@@ -592,9 +592,9 @@ async function tableForRoom(room) {
  * curated separately.
  *
  * No generic usable table any more. Usables are split into healing and stress
- * relief BY table — that assignment is what decides what the item does when it
- * is drunk — so a mixed pool would be a pool of items whose effects nobody
- * chose. A world that already has "DRPG Usables — Tier N" keeps it: `drawItem`
+ * relief BY table - that assignment is what decides what the item does when it
+ * is drunk - so a mixed pool would be a pool of items whose effects nobody
+ * chose. A world that already has "DRPG Usables - Tier N" keeps it: `drawItem`
  * still consults it as a fallback, and `usableKindFor` never reads it.
  */
 function tableJobs() {
@@ -613,7 +613,7 @@ function tableJobs() {
  * left alone, so a GM's edits are never overwritten.
  *
  * That idempotence is also why the button looked broken. Pressed a second time
- * it did exactly what it promised — nothing — and said so in a single toast that
+ * it did exactly what it promised - nothing - and said so in a single toast that
  * is easy to miss, with no way to force a rebuild short of the console. So the
  * "everything is already here" case now asks what the GM actually wants, every
  * run leaves a receipt in chat, and a table that fails to build is reported
@@ -663,7 +663,7 @@ export async function installTables({ overwrite = false, prompt = true } = {}) {
         try {
             folder = await Folder.create({ name: "Danganronpa RPG", type: "RollTable", color: "#9d4edd" });
         } catch (err) {
-            // A folder is a convenience, not a requirement — the tables are found
+            // A folder is a convenience, not a requirement - the tables are found
             // by name. Losing it must not lose the tables with it.
             error("Could not create the Danganronpa RPG table folder", err);
             folder = null;
@@ -675,7 +675,7 @@ export async function installTables({ overwrite = false, prompt = true } = {}) {
     const failed = [];
 
     for (const { category, tier, names, goal } of jobs) {
-        // Under whatever name it is ALREADY sitting, or today's if it is new —
+        // Under whatever name it is ALREADY sitting, or today's if it is new -
         // otherwise a world whose tables predate a reworded label gets a second
         // parallel set built beside the ones the GM has been editing.
         const name = existingTableName(category, tier, goal);
@@ -751,9 +751,9 @@ export async function installTables({ overwrite = false, prompt = true } = {}) {
  * THE TABLE EDITOR
  * --------------------------------------------------------------------------
  * `installTables()` was what the GM-panel tile did, and installing is a thing
- * you do once. Everything after that first minute — adding the knife somebody
+ * you do once. Everything after that first minute - adding the knife somebody
  * invented at the table, taking out the item that turned out to be a bad idea,
- * checking what a room can actually produce — meant the Rollable Tables
+ * checking what a room can actually produce - meant the Rollable Tables
  * sidebar, with the module's naming convention held in the GM's head.
  *
  * So the installer stays an installer and this is the door: every table the
@@ -763,7 +763,7 @@ export async function installTables({ overwrite = false, prompt = true } = {}) {
  * THE CONTRACT IS THE TABLE, not an Item document. What a Search produces is a
  * TableResult, `drawItem` reads its name, and `grantItem` builds the Item from
  * the category and tier at the moment it lands on a sheet. Writing Items here
- * instead would be a second, parallel model of the same thing — so the icon and
+ * instead would be a second, parallel model of the same thing - so the icon and
  * the description go onto the TableResult (`img` and `description`), and
  * `drawItem` carries them across when the item is actually found.
  * ========================================================================== */
@@ -774,7 +774,7 @@ const DEFAULT_RESULT_IMG = "icons/svg/item-bag.svg";
  * Every table this window is willing to show.
  *
  * Two families: the module's own, which follow `tableName()`, and whatever a
- * room has been pointed at in Room Setup — those carry arbitrary names and are
+ * room has been pointed at in Room Setup - those carry arbitrary names and are
  * every bit as much a part of what a Search can produce (see `drawItem`).
  *
  * Exported for the GM's give-item window, whose "give existing" tab is this
@@ -798,9 +798,9 @@ export function moduleTables() {
     return Array.from(game.tables ?? [])
         .filter(t => t.name.startsWith("DRPG ")
             || roomTables.has(t.name)
-            || Array.from(roomTables).some(base => t.name.startsWith(`${base} — `))
+            || Array.from(roomTables).some(base => t.name.startsWith(`${base} - `))
             // A room pool the GM created here but has not pointed a room at
-            // yet — without this clause it vanished from the very window that
+            // yet - without this clause it vanished from the very window that
             // made it until Room Setup used it once.
             || t.getFlag(MODULE_ID, "roomPool"))
         .sort((a, b) => a.name.localeCompare(b.name));
@@ -818,18 +818,18 @@ function tableItemsHtml(table) {
     //
     // The list was read-only, which meant fixing a typo in an item's name was:
     // delete the entry, retype it in the form below, tick the same three tables
-    // again. Every field here is the field itself, saved when it loses focus —
+    // again. Every field here is the field itself, saved when it loses focus -
     // the same pattern the Remnant card on the map uses, and for the same
     // reason: there is nothing here worth a two-step commit.
     /*
      * THE ROLES ARE ON THE ROW, because an entry that cannot be inspected is an
      * entry nobody can trust. They were settable when an item was ADDED and
-     * invisible ever after — so a GM wanting to know whether their screwdriver
+     * invisible ever after - so a GM wanting to know whether their screwdriver
      * could be swung had to delete it and add it again to find out.
      *
      * Gated on the TABLE's tier, which is the tier every entry in it has: two
      * jobs start at tier 2 (E9), so the boxes on a Tier 0 or Tier 1 table are
-     * disabled and say why rather than being absent — a control that vanishes
+     * disabled and say why rather than being absent - a control that vanishes
      * teaches nothing about the rule that removed it.
      *
      * Only the three equippable categories, and not the one the table itself
@@ -903,7 +903,7 @@ async function addResult(table, { name, description = "", img = null, roles = nu
             // "Hammer" by hand still produces a hammer that works.
             flags: { [MODULE_ID]: { roles: roles ?? rolesForPoolItem(name) } },
             // v14 validates `range` at creation ("cannot have fewer than 2
-            // elements"), so it cannot be left for `normalize()` to invent —
+            // elements"), so it cannot be left for `normalize()` to invent -
             // the write below is provisional and normalize re-ranges the lot.
             range: [next, next]
         }]);
@@ -994,13 +994,13 @@ async function promptForTableName(currentName) {
  * @param {object} [options]
  * @param {object} [options.preset]  Prefill for the "add an item" form:
  *   `{ category, tier, room, name }`. Handed in by the ruling card a Search for
- *   "something specific" produces — the GM pressed "Create an item" while
+ *   "something specific" produces - the GM pressed "Create an item" while
  *   reading a roll that already says which category, which tier and which room,
  *   and re-picking all three here would be answering a question they have just
  *   answered.
  */
 export async function openItemTables({ preset = null } = {}) {
-    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
@@ -1017,14 +1017,14 @@ export async function openItemTables({ preset = null } = {}) {
 
     // Which tables the preset points at: the ones this category and tier would
     // actually be drawn from, plus the room's own if it has one. Ticked, not
-    // forced — the GM can add or clear any of them before pressing Add.
+    // forced - the GM can add or clear any of them before pressing Add.
     const presetTargets = new Set();
     if (preset?.category) {
         const wanted = tableNameCandidates(preset.category, preset.tier ?? 0);
         if (preset.room) {
             const base = await tableForRoom(preset.room);
             if (base) {
-                wanted.push(base, `${base} — ${ITEM_CATEGORIES[preset.category]?.plural ?? ""}`);
+                wanted.push(base, `${base} - ${ITEM_CATEGORIES[preset.category]?.plural ?? ""}`);
             }
         }
         for (const t of tables) if (wanted.includes(t.name)) presetTargets.add(t.id);
@@ -1042,7 +1042,7 @@ export async function openItemTables({ preset = null } = {}) {
      * "also a Truth Bullet" means nothing.
      *
      * The item's own category is left in the list on purpose rather than
-     * filtered out live — ticking a role an item already has by being what it
+     * filtered out live - ticking a role an item already has by being what it
      * is changes nothing (`servesAs` checks the home first), and a checkbox
      * list that reshuffles as the category dropdown moves is a worse thing to
      * use than one redundant box.
@@ -1062,8 +1062,8 @@ export async function openItemTables({ preset = null } = {}) {
 
     // ONE tier table, ANY number of room tables (F5.5, 2026-08-25).
     //
-    // An item lives in exactly one tier pool — that is what the tier is — so
-    // the tier family is a dropdown with a single choice ("—" for an item that
+    // An item lives in exactly one tier pool - that is what the tier is - so
+    // the tier family is a dropdown with a single choice ("-" for an item that
     // only ever appears in rooms). Room tables keep the checkboxes: a knife can
     // sit in the Kitchen and the Workshop at once.
     const tierTables = tables.filter(t => isTierPool(t.name));
@@ -1144,7 +1144,7 @@ export async function openItemTables({ preset = null } = {}) {
 
     // Not `tableDialog()`: there is no table in here to measure. Its two panes
     // are a list and a form, and a window sized by `fitWindowToTable` with
-    // nothing to measure keeps whatever width the dialog opened at — which is
+    // nothing to measure keeps whatever width the dialog opened at - which is
     // 400px, and half of what this layout needs. `drpg-wide` is the manual
     // override that exists for exactly this case.
     const action = await DialogV2.wait({
@@ -1152,7 +1152,7 @@ export async function openItemTables({ preset = null } = {}) {
         classes: ["drpg-panel", "drpg-projects", "drpg-wide", "drpg-window-tables"],
         position: { height: "auto" },
         // Four tabs (Dawid, 26.08): editing what a table holds, the three
-        // creation jobs behind it. The footer buttons act across tabs — each
+        // creation jobs behind it. The footer buttons act across tabs - each
         // reads its own pane's inputs, which stay in the DOM whichever tab is
         // showing (see `panelTabs` in utils.mjs).
         content: dialogContent(`<form>${panelTabs([
@@ -1287,7 +1287,7 @@ export async function openItemTables({ preset = null } = {}) {
             };
             tierSelect?.addEventListener("change", gateRoles);
             // ONE EXTRA ROLE, NOT TWO. The home is a tag as well, so a second
-            // tick would make three — see MAX_EXTRA_ROLES.
+            // tick would make three - see MAX_EXTRA_ROLES.
             for (const box of roleBoxes) {
                 box.addEventListener("change", () => {
                     if (!box.checked) return;
@@ -1302,7 +1302,7 @@ export async function openItemTables({ preset = null } = {}) {
              * ONE FOOTER, FOUR TABS, AND UNTIL NOW ALL FOUR BUTTONS ON EACH.
              *
              * The default button said "Add an item" on the Edit tab and read
-             * the new-item form from a pane that was not on screen — press the
+             * the new-item form from a pane that was not on screen - press the
              * obvious button and the window answers about a question you cannot
              * see. Editing has no footer action at all: its rows save
              * themselves, and the two things it does need are beside the
@@ -1373,8 +1373,8 @@ export async function openItemTables({ preset = null } = {}) {
                 current = table ?? null;
                 nameEl.textContent = table?.name ?? "";
                 bodyEl.innerHTML = table ? tableItemsHtml(table) : "";
-                // Nothing selected is a real state — an empty world has no
-                // tables at all — and a live button over nothing is a trap.
+                // Nothing selected is a real state - an empty world has no
+                // tables at all - and a live button over nothing is a trap.
                 if (renameButton) renameButton.disabled = !table;
                 if (deleteButton) deleteButton.disabled = !table;
             };
@@ -1393,8 +1393,8 @@ export async function openItemTables({ preset = null } = {}) {
             /*
              * RENAMING A TABLE CAN SILENTLY BREAK EVERY DRAW FROM IT.
              *
-             * This module finds its tables BY NAME — built from the display
-             * labels of a category and a tier (see `tableName`) — so a table
+             * This module finds its tables BY NAME - built from the display
+             * labels of a category and a tier (see `tableName`) - so a table
              * renamed to something the lookup does not build is a table the
              * game stops drawing from, with nothing on any screen to say so.
              * That is the whole reason this asks before it writes rather than
@@ -1464,7 +1464,7 @@ export async function openItemTables({ preset = null } = {}) {
             panes.forEach(wirePane);
 
             // Delegated, because the entry list is rebuilt whenever a table is
-            // picked or an entry is dropped — listeners bound to the old rows
+            // picked or an entry is dropped - listeners bound to the old rows
             // would go with them. The same delegation carries the editing:
             // `focusout` bubbles where `blur` does not, which is exactly why it
             // exists.
@@ -1508,7 +1508,7 @@ export async function openItemTables({ preset = null } = {}) {
              * them will not.
              *
              * ONE EXTRA ROLE. The home is a tag too, so a second tick would
-             * make three — the other boxes in the row clear themselves, which
+             * make three - the other boxes in the row clear themselves, which
              * reads as "moving the choice" rather than as a refusal.
              */
             bodyEl?.addEventListener("change", async ev => {
@@ -1649,7 +1649,7 @@ export async function openItemTables({ preset = null } = {}) {
         if (await addResult(table, {
             name: action.name, description: action.description, img: action.img,
             // An empty tick-list means "just what it is", which is different
-            // from "nobody said" — so it is passed as [] rather than null, and
+            // from "nobody said" - so it is passed as [] rather than null, and
             // the built-in fallback in `addResult` stays out of the way.
             roles: action.roles ?? []
         })) added++;

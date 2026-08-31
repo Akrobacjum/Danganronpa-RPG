@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — putting found things into the inventory.
+ * Danganronpa RPG - putting found things into the inventory.
  * ---------------------------------------------------------------------------
  * A Search that only tells you what you found is a Search that ends in
  * bookkeeping. This creates the actual item on the character, tagged with the
@@ -18,20 +18,20 @@ export const ITEM_FLAGS = {
     category: "category",
     tier: "tier",
     /**
-     * How much of this thing's durability has been spent — a number, counting
+     * How much of this thing's durability has been spent - a number, counting
      * up to `durabilityOf`. Absent means none, which is what every item made
      * before durability existed correctly reports.
      */
     wear: "wear",
     /**
-     * A NAME, NOT A MARK — and the difference is the whole of E21's fifth
+     * A NAME, NOT A MARK - and the difference is the whole of E21's fifth
      * trigger.
      *
      * An indirect murder can ride an OBJECT: you leave something behind and
      * whoever finds it and uses it is the one it kills. The module has to be
      * able to recognise that object later, and it cannot do it by document id,
-     * because an item moved between characters — Palm to Plant, a theft, a
-     * hand-over — is DELETED and re-created with a new one. That is precisely
+     * because an item moved between characters - Palm to Plant, a theft, a
+     * hand-over - is DELETED and re-created with a new one. That is precisely
      * the journey the trap is about, so an id-keyed record breaks at the only
      * moment it is needed.
      *
@@ -39,7 +39,7 @@ export const ITEM_FLAGS = {
      * with it (see `preservedFlags`). A player reading their own console sees
      * `drpgItemId: "a7f3…"` on everything in their bag and learns nothing from
      * it: it is on the water bottle as well as the poison. Which of those
-     * identities is poisoned lives only in the GM's own `trapLedger` — see the
+     * identities is poisoned lives only in the GM's own `trapLedger` - see the
      * header of traps.mjs for why a flag saying "this is the trap" would be a
      * poisoned first aid kit with POISONED written on it.
      */
@@ -48,7 +48,7 @@ export const ITEM_FLAGS = {
      * WHICH stash this item is lying in, by room name.
      *
      * Meaningless unless `location` is `vault`. Absent means the owner's
-     * PRIMARY stash — which is what every item stashed before E11 has, and why
+     * PRIMARY stash - which is what every item stashed before E11 has, and why
      * this needs no migration pass of its own: one stash per person was the
      * only thing that could be true, so "unmarked" and "the only one" were the
      * same answer and still are.
@@ -62,7 +62,7 @@ export const ITEM_FLAGS = {
     /**
      * What else this item can do, beyond the category it lives in.
      *
-     * An array of category keys — `["crimeTool"]` on a screwdriver filed under
+     * An array of category keys - `["crimeTool"]` on a screwdriver filed under
      * Tools. Set from the item table the thing was drawn from, so a found
      * screwdriver arrives knowing it can be swung and nobody has to remember;
      * the GM can change it on the item afterwards.
@@ -74,7 +74,7 @@ export const ITEM_FLAGS = {
     /**
      * Which kind of usable this is: "healing" or "stress" (USABLE_KINDS).
      *
-     * A record of where the item came from, not the authority on what it does —
+     * A record of where the item came from, not the authority on what it does -
      * the item tables outrank it (see `usableKindOf` in use-items.mjs). It is
      * what keeps a room-table find working: "Herbal tea" drawn in the infirmary
      * exists in no Healing table, and this flag is the only place its kind was
@@ -86,14 +86,14 @@ export const ITEM_FLAGS = {
      *
      * A flag rather than a second inventory, which has one consequence worth
      * stating: a stashed item is still an item on the owner's sheet, so
-     * everything that sweeps a character's belongings — the death procedure
-     * above all (decision D1) — reaches it without knowing stashes exist.
+     * everything that sweeps a character's belongings - the death procedure
+     * above all (decision D1) - reaches it without knowing stashes exist.
      */
     location: "location",
     /**
      * This one has been used up, and is still here.
      *
-     * `{ at }` — a timestamp, so the flag is truthy and says when. See
+     * `{ at }` - a timestamp, so the flag is truthy and says when. See
      * BROKEN_ITEMS in config.mjs for why the three moments that used to delete
      * an item now set this instead.
      *
@@ -111,7 +111,7 @@ export const ITEM_FLAGS = {
  * The flags a COPY of an item has to carry to still be the same object.
  *
  * An item that changes hands is not moved, it is recreated on the other person
- * and deleted from this one — see `handover.mjs` and the stash theft in
+ * and deleted from this one - see `handover.mjs` and the stash theft in
  * `vault.mjs`. That is fine for everything `grantItem` already takes (name,
  * category, tier, description, picture) and was quietly a laundry service for
  * anything else: a ruined Crime Tool handed to an accomplice, or stolen out of
@@ -131,7 +131,7 @@ export function preservedFlags(item) {
     if (kind) flags[ITEM_FLAGS.kind] = kind;
 
     // And a crowbar is still a weapon. Missing until E9, so handing over a
-    // two-tag item quietly halved it — the receiver got a tool where the giver
+    // two-tag item quietly halved it - the receiver got a tool where the giver
     // had a tool that could be swung.
     const roles = rolesOf(item);
     if (roles.length) flags[ITEM_FLAGS.roles] = roles;
@@ -139,7 +139,7 @@ export function preservedFlags(item) {
     /*
      * AND THE IDENTITY, which is the reason `preservedFlags` matters at all to
      * E21. Everything else here survives a hand-over because it would be absurd
-     * for it not to — a broken thing stays broken, a crowbar stays a weapon.
+     * for it not to - a broken thing stays broken, a crowbar stays a weapon.
      * This one survives because the trap is ABOUT the hand-over: an object that
      * changes identity when it changes hands cannot be the object somebody left
      * for somebody else to pick up.
@@ -185,7 +185,7 @@ export function durabilityLeft(item) {
  * THE BREAK HAPPENS HERE, on the roll that fills it, rather than being noticed
  * later by something sweeping up (Dawid, 28.08). `breakItem` already takes the
  * thing out of the hand it is in, so a tool that goes on the last point of its
- * durability is out of play from that moment — not from the end of the
+ * durability is out of play from that moment - not from the end of the
  * incident, which is when the old rule got round to it.
  *
  * @returns {Promise<{worn: number, left: number, broke: boolean}|null>}
@@ -220,12 +220,12 @@ export function isBroken(item) {
  * Use this thing up without taking it off the sheet.
  *
  * Replaces the `item.delete()` that used to sit at the end of a murder, a
- * clean-up and every Usable Item. Also puts the thing DOWN — a ruined tool that
+ * clean-up and every Usable Item. Also puts the thing DOWN - a ruined tool that
  * is still marked as readied would go on arming its owner in the incident
  * engine, which reads `equippedIn`.
  *
  * Idempotent: breaking what is already broken changes nothing and reports
- * success, because the caller's intent — "this is used up now" — is satisfied.
+ * success, because the caller's intent - "this is used up now" - is satisfied.
  *
  * @returns {Promise<boolean>} whether the item is now broken.
  */
@@ -277,7 +277,7 @@ export const CAP_OVERRIDE = "drpgIgnoreCarryLimit";
  * Icons the module used to hand out, so a world made before v1.1.60 can be
  * brought up to date without overwriting anything a GM chose themselves.
  *
- * Two of these never existed in Foundry v14 at all — they were the module's
+ * Two of these never existed in Foundry v14 at all - they were the module's
  * defaults for a while and every item made in that window is still carrying a
  * broken path. They are the clearest case of "replaceable": a picture that was
  * never a picture.
@@ -311,13 +311,13 @@ function replaceableIcon(img) {
  *     game.drpg.pinItemIcons({ apply: true })
  *     game.drpg.pinItemIcons({ apply: true, all: true })
  *
- * The icons ship inside the module, so nothing is uploaded anywhere — update
+ * The icons ship inside the module, so nothing is uploaded anywhere - update
  * the module and the files are on the server. What this fixes is everything
  * made BEFORE that: items already in somebody's bag and rows already written
  * into the item tables, which kept whatever picture they were created with.
  *
  * IT LOOKS FIRST AND REFUSES TO GUESS. Only a picture the module itself put
- * there — or none at all — is replaced; a Truth Bullet wearing the photograph
+ * there - or none at all - is replaced; a Truth Bullet wearing the photograph
  * of the trace it came from, or an item a GM picked art for, is left alone.
  * `all: true` drops that rule for a GM who wants every module item reset to its
  * category's placeholder, and says so in what it reports.
@@ -416,7 +416,7 @@ export async function pinItemIcons({ apply = false, all = false } = {}) {
 /**
  * How many of this category the character is CARRYING.
  *
- * The stash does not count against the limit — that is the whole point of one.
+ * The stash does not count against the limit - that is the whole point of one.
  * The guide caps what you have on you, not what you own.
  */
 export function countInCategory(actor, category) {
@@ -441,7 +441,7 @@ export function countInGroup(actor, group) {
  * Is there room for another one? Truth Bullets are deliberately uncapped.
  *
  * A category belonging to a LIMIT GROUP is counted across the whole group, so
- * "one more Murder Weapon?" is really "is there a free slot?" — three between
+ * "one more Murder Weapon?" is really "is there a free slot?" - three between
  * the weapons, the cleaning tools and the tools (G-43, Dawid 27.08). A category
  * with no group behaves exactly as it always did.
  *
@@ -470,15 +470,15 @@ export function canCarry(actor, category) {
  * A saw is a tool and a weapon. Duct tape is a cleaning tool and a tool. A
  * screwdriver is both, depending on what the moment needs.
  *
- * The category stays ONE value, because it is the key to five separate things —
+ * The category stays ONE value, because it is the key to five separate things -
  * the carry slot, the row on the sheet, the search table, what may be held
- * ready, and the mechanic — and only the last of those is what this is about.
+ * ready, and the mechanic - and only the last of those is what this is about.
  * So the category remains the item's HOME, and a second flag lists the other
  * roles it can fill.
  *
  * Every question of the form "is this a weapon" goes through `servesAs`; every
  * question of the form "which slot does this take" stays on the category. An
- * item costs one slot, in its home, whatever else it can do — which is only
+ * item costs one slot, in its home, whatever else it can do - which is only
  * fair because the slots are shared (see LIMIT_GROUPS).
  * ========================================================================== */
 
@@ -488,7 +488,7 @@ export function rolesOf(item) {
     return Array.isArray(roles) ? roles : [];
 }
 
-/** Can this item do the job of `role` — either as its home or as a role? */
+/** Can this item do the job of `role` - either as its home or as a role? */
 export function servesAs(item, role) {
     if (!item || !role) return false;
     return item.getFlag(MODULE_ID, ITEM_FLAGS.category) === role || rolesOf(item).includes(role);
@@ -502,13 +502,13 @@ export function carriedFor(actor, role) {
 /**
  * Create a found item on the character.
  *
- * Refuses when the category is full rather than silently exceeding the limit —
+ * Refuses when the category is full rather than silently exceeding the limit -
  * the guide caps crime tools at one and cleaning tools at two on purpose.
  *
  * @param {object} [options.extraFlags]  Further module flags written in the same
  *   creation. Truth Bullets carry a good deal more than a category and a tier,
- *   and patching them on afterwards would leave a moment — one database write
- *   long, but a real one — where a Truth Bullet exists with no type at all.
+ *   and patching them on afterwards would leave a moment - one database write
+ *   long, but a real one - where a Truth Bullet exists with no type at all.
  * @returns {Promise<Item|null>}
  */
 export async function grantItem(actor, {
@@ -517,15 +517,15 @@ export async function grantItem(actor, {
 }) {
     if (!actor || !name) return null;
 
-    // Set only when a full inventory pushes this into a stash — see below.
+    // Set only when a full inventory pushes this into a stash - see below.
     // `null` for everything else, including an item granted straight into a
     // stash by a caller, which means the owner's primary and says so by
     // leaving the flag off.
     let overflowRoom = null;
 
-    // Search hands its goal straight through ("healing", "stress" — but also
+    // Search hands its goal straight through ("healing", "stress" - but also
     // "crimeTool", which is not a usable kind). A usable granted with no goal
-    // — the GM's console, a season's starting item — asks the item tables for
+    // - the GM's console, a season's starting item - asks the item tables for
     // its name instead, so an Apple says "Restores 1 Health" however it arrived.
     // Only the two kinds are worth writing down, and only on a usable.
     let kind = null;
@@ -540,7 +540,7 @@ export async function grantItem(actor, {
 
     const room = canCarry(actor, category);
     if (!room.ok && location !== LOCATIONS.vault) {
-        // A GM handing something over outranks the cap — they are making a
+        // A GM handing something over outranks the cap - they are making a
         // ruling, not finding something in a cupboard. Search never passes
         // `override`, so the guide's limits still bind the players.
         if (override) {
@@ -552,7 +552,7 @@ export async function grantItem(actor, {
             }));
         } else {
             // The guide does not have you drop what you found because your hands
-            // are full — it goes in your stash. Refusing outright is only right
+            // are full - it goes in your stash. Refusing outright is only right
             // when there is no stash to put it in.
             // WHICH stash the overflow lands in, not merely whether one
             // exists: an unaddressed item would otherwise be read as living in
@@ -607,7 +607,7 @@ export async function grantItem(actor, {
                     // flag mean the same thing, and the missing one is what
                     // every item written before E8 already has.
                     ...(roles?.length ? { [ITEM_FLAGS.roles]: [...roles] } : {}),
-                    // EVERY item, not only the interesting ones — see the note
+                    // EVERY item, not only the interesting ones - see the note
                     // on `ITEM_FLAGS.identity`. Before `extraFlags` so a caller
                     // that already has an identity for this thing (a planted
                     // trap item, a hand-over carrying `preservedFlags`) keeps
@@ -622,7 +622,7 @@ export async function grantItem(actor, {
              * `quiet` SUPPRESSES THE RECEIVER'S RE-RENDER, and it exists for
              * exactly one caller: a Plant nobody noticed (`plantOnPerson`).
              * Foundry carries this option over its own socket, so the sheet on
-             * the victim's screen does not redraw FOR THIS CHANGE — the item is
+             * the victim's screen does not redraw FOR THIS CHANGE - the item is
              * really there, and what is suppressed is the refresh.
              *
              * The mirror of the silent Steal's `item.delete({ render: false })`,
@@ -641,7 +641,7 @@ export async function grantItem(actor, {
 }
 
 /**
- * Enforce the carry limits when items arrive by any other route — dragged from
+ * Enforce the carry limits when items arrive by any other route - dragged from
  * a compendium, handed over by another player, granted by the GM.
  */
 export function registerInventoryLimits() {
@@ -687,8 +687,8 @@ export function carriedInCategory(actor, category) {
 /**
  * What the carry limit for this category is really about.
  *
- * Trap 69: four screens put a limit in front of somebody — the sheet's rows,
- * this summary, the item manager and the refusal message — and with a shared
+ * Trap 69: four screens put a limit in front of somebody - the sheet's rows,
+ * this summary, the item manager and the refusal message - and with a shared
  * budget all four have to say "2/3 Gear" rather than three separate "1/1"s. A
  * player who reads "Murder Weapons 1/1" beside an empty slot has been told two
  * contradictory things by the same window.

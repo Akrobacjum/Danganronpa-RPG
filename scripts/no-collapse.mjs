@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — the window that stays the size you left it.
+ * Danganronpa RPG - the window that stays the size you left it.
  * ---------------------------------------------------------------------------
  * Foundry collapses a window to its title bar when the header is
  * double-clicked. At this table that gesture is only ever an accident
@@ -8,7 +8,7 @@
  * strip of text and the player is looking for what they did wrong. Nothing
  * in the module's own flow ever wants a minimized window.
  *
- * So the gesture is blocked — at the WINDOW level, in the capture phase,
+ * So the gesture is blocked - at the WINDOW level, in the capture phase,
  * which runs before the handler Foundry attached to the header can hear the
  * event. That reaches every window frame in the client (ApplicationV2 and
  * the odd legacy AppV1 another module might still ship) without touching
@@ -39,7 +39,7 @@ export function registerNoCollapse() {
 
         const app = appOf(header);
         if (!app) return;
-        // Restoring a minimized window is the exception — see the header note.
+        // Restoring a minimized window is the exception - see the header note.
         if (app.minimized) return;
 
         event.preventDefault();

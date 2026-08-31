@@ -1,20 +1,20 @@
 /**
- * Danganronpa RPG — the messenger.
+ * Danganronpa RPG - the messenger.
  * ---------------------------------------------------------------------------
  * One shared conversation per player: the player and every current GM read
- * and write into the same thread. There is no per-(player, GM) copy — a GM
+ * and write into the same thread. There is no per-(player, GM) copy - a GM
  * opening "chat with Alice" sees exactly what every other GM sees, because it
  * is the same conversation, not their own private copy of it. There is no
- * player-to-player channel; in-room talk is voice, not text — that lives in
+ * player-to-player channel; in-room talk is voice, not text - that lives in
  * its own subsystem, not here.
  *
- * A thread is not a document of its own — it is every ChatMessage whispered
+ * A thread is not a document of its own - it is every ChatMessage whispered
  * to `[playerUserId, ...gmIds()]` and flagged with which player it belongs
  * to. That whisper target is exactly what `whisperToOwner()` in utils.mjs
  * already sends; this file gives it persistence (read with `threadMessages`
  * instead of scrolling past it) and a window instead of the sidebar.
  *
- * `callGm()` in gm-bridge.mjs posts into these same threads — an action that
+ * `callGm()` in gm-bridge.mjs posts into these same threads - an action that
  * needs a human ruling (Observe, Analyze, Direct Murder…) shows up right next
  * to the player's own typed messages, in the same conversation.
  */
@@ -26,17 +26,17 @@ import { playSfx } from "./sfx.mjs";
 
 /** Flag keys, all stored under `flags["danganronpa-rpg"]` on a ChatMessage. */
 export const MESSENGER_FLAGS = {
-    /** Which player's thread this message belongs to — a User id. */
+    /** Which player's thread this message belongs to - a User id. */
     thread: "thread",
     /** "dm" (typed in the messenger window) | "action" (a callGm() ruling card). */
     kind: "kind",
     /** This card ASKS the GM for something and waits on the answer.
      *  Carried as its own flag rather than derived from the author, because
-     *  several asks are posted BY a GM client on a player's behalf — the
-     *  bridge writes a parked murder's card from the GM's own session — and
+     *  several asks are posted BY a GM client on a player's behalf - the
+     *  bridge writes a parked murder's card from the GM's own session - and
      *  an author check reads those as the GM talking to themselves. */
     gmAsk: "gmAsk",
-    /** This card HAS been answered — see `settleCall` in gm-bridge.mjs. The
+    /** This card HAS been answered - see `settleCall` in gm-bridge.mjs. The
      *  card's own text already says so; the flag is what lets a renderer know
      *  without reading the HTML back. */
     settled: "settled"
@@ -56,7 +56,7 @@ export function registerMessenger() {
  * WHO HAS A THREAD
  * ========================================================================== */
 
-/** Every user a thread can exist for — one per non-GM user. */
+/** Every user a thread can exist for - one per non-GM user. */
 export function threadUsers() {
     return game.users.filter(u => !u.isGM);
 }
@@ -128,7 +128,7 @@ export function totalUnread() {
  * ========================================================================== */
 
 /**
- * Send free text into a player's thread. Called from the messenger window —
+ * Send free text into a player's thread. Called from the messenger window -
  * either the player themself, or any GM, may call this. The whisper target
  * is always the full roster, so there is only ever one copy of the message.
  */
@@ -136,7 +136,7 @@ export async function sendMessage(playerUserId, text, { kind = THREAD_KIND.dm } 
     const body = String(text ?? "").trim();
     if (!body) return null;
     if (!isThreadUser(playerUserId)) {
-        warn(`Messenger: ${playerUserId} is not a player — refusing to send.`);
+        warn(`Messenger: ${playerUserId} is not a player - refusing to send.`);
         return null;
     }
 
@@ -145,7 +145,7 @@ export async function sendMessage(playerUserId, text, { kind = THREAD_KIND.dm } 
 }
 
 /**
- * Post pre-built HTML — the callGm() ruling cards — into a player's thread.
+ * Post pre-built HTML - the callGm() ruling cards - into a player's thread.
  * The caller is responsible for escaping anything it interpolated.
  */
 export async function postToThread(playerUserId, html, { kind = THREAD_KIND.action, gmAsk = false } = {}) {
@@ -187,8 +187,8 @@ async function createThreadMessage(playerUserId, content, kind, gmAsk = false) {
  * full re-render (and without losing whatever the player was mid-typing).
  * `drpgMessengerRead` lets the launcher badge and the roster popover refresh
  * the moment a window is opened, on whichever client that happened.
- * `drpgMessengerEdited` carries a message that CHANGED — a ruling card being
- * closed out, today — so an open window can redraw that one bubble instead of
+ * `drpgMessengerEdited` carries a message that CHANGED - a ruling card being
+ * closed out, today - so an open window can redraw that one bubble instead of
  * re-rendering itself and throwing away whatever is half-typed in the box.
  * ========================================================================== */
 
@@ -197,7 +197,7 @@ function onCreateChatMessage(message) {
     if (!thread) return;
 
     // Relevant to this client only if it is their own thread, or they are a
-    // GM — every GM sees every thread.
+    // GM - every GM sees every thread.
     if (!game.user.isGM && game.user.id !== thread) return;
 
     Hooks.callAll("drpgMessengerMessage", thread, message);
@@ -209,7 +209,7 @@ function onCreateChatMessage(message) {
      * A REQUEST FOR A GM GETS ITS OWN SOUND, AND ONLY ONE.
      *
      * Every GM sees every thread, so without this a ruling request and a
-     * player's chatter arrive identically — and the request is the one that is
+     * player's chatter arrive identically - and the request is the one that is
      * waiting on somebody. The more specific sound REPLACES the general one
      * rather than joining it: two sounds for one message is how a table learns
      * to stop hearing either.

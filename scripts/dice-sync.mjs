@@ -1,11 +1,11 @@
 /**
- * Danganronpa RPG — one dice style for the whole table.
+ * Danganronpa RPG - one dice style for the whole table.
  * ---------------------------------------------------------------------------
  * Dice So Nice's own `forceCharacterOwnerAppearance` setting does the
  * opposite of what the guide's presentation wants: it makes a roll display
  * using whoever ROLLED it own chosen skin, so every player still sees
  * different dice depending on which of them is rolling. There is no built-in
- * "make everyone match one specific person" — this is that, aimed at the
+ * "make everyone match one specific person" - this is that, aimed at the
  * primary GM's own appearance.
  *
  * Dice So Nice keeps a player's whole appearance configuration in a single
@@ -15,7 +15,7 @@
  * propagates on its own. The primary GM's client reads its own copy and
  * relays it over this module's socket; every other client writes it into
  * its own copy of the same setting, unprompted. A player is never asked and
- * never gets a choice — that is the point.
+ * never gets a choice - that is the point.
  */
 
 import { MODULE_ID } from "./config.mjs";
@@ -27,7 +27,7 @@ const SOCKET_EVENT = `module.${MODULE_ID}`;
 const ACTION = "diceAppearance";
 
 /**
- * Called from module.mjs's own `ready` hook — not wrapped in another
+ * Called from module.mjs's own `ready` hook - not wrapped in another
  * `Hooks.once("ready", ...)` here, because that hook has already fired by
  * the time anything running inside it gets a chance to add a new listener
  * for it. Foundry does not replay a hook for a listener that arrives late.
@@ -84,12 +84,12 @@ function pushToEveryone() {
 
 /**
  * @param {object} data
- * @param {string} senderId  Foundry's own second argument — who actually emitted
+ * @param {string} senderId  Foundry's own second argument - who actually emitted
  *   this, which the sender cannot choose.
  *
  * The sender check is not paranoia about dice. This handler writes a payload
  * straight into another module's client setting, so without it any player could
- * emit one and overwrite every other player's Dice So Nice configuration — with
+ * emit one and overwrite every other player's Dice So Nice configuration - with
  * their own skins, or with something malformed enough to stop DSN rendering at
  * all. It is also the only socket handler in this module that was missing the
  * check every other one makes.

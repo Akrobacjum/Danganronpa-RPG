@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — private narration that is actually private.
+ * Danganronpa RPG - private narration that is actually private.
  * ---------------------------------------------------------------------------
  *
  * WHAT THIS FIXES, AND IT WAS MEASURED, NOT SUSPECTED.
@@ -13,8 +13,8 @@
  *     "You lift SUITE loot out of Player A's pocket. Nobody saw you do it."
  *
  * `visible: false`, not in the DOM, and one line of console away from the
- * victim. This module's entire investigation rests on private narration — what
- * a trace really is, who took what from whom, what the GM ruled — and all of it
+ * victim. This module's entire investigation rests on private narration - what
+ * a trace really is, who took what from whom, what the GM ruled - and all of it
  * was going out the same way.
  *
  * THE SHAPE OF THE FIX. The card stays a real chat message: same place in the
@@ -25,21 +25,21 @@
  *      a secret belongs to it.
  *   2. The real HTML goes over an addressed socket to exactly the recipients.
  *   3. Each recipient keeps it in a CLIENT-scoped setting, which is the one
- *      store in Foundry that never leaves the browser it was written in — the
+ *      store in Foundry that never leaves the browser it was written in - the
  *      same reason `remnantSecrets` lives there.
  *   4. `renderChatMessageHTML` swaps the real text in for anyone who holds it.
  *
  * WHAT STILL LEAKS, said plainly rather than left for somebody to discover: a
  * non-recipient can still see THAT a private card exists, when, from which
  * speaker, and who it was addressed to. That is metadata and it cannot be
- * removed without giving up the chat log itself — the recipient list is what
+ * removed without giving up the chat log itself - the recipient list is what
  * Foundry routes on. The content is the thing that was worth moving, and the
  * content is gone.
  *
  * WHAT IT COSTS. A GM who was not connected when a secret was posted will never
  * see that sentence: there is no server-side copy to catch up from. Before this,
  * every GM saw every whisper forever. That is the trade, and it is the right way
- * round — a second GM reading yesterday's private narration is a convenience; a
+ * round - a second GM reading yesterday's private narration is a convenience; a
  * player reading it is the game.
  */
 
@@ -59,7 +59,7 @@ export const SECRET_FLAG = "secret";
  * Deliberately empty of information AND deliberately not empty of markup: a
  * message whose content is the empty string renders as a blank card, and a
  * blank card in the log looks like the module lost something. This never
- * reaches a recipient's screen — the render hook replaces it — so its only
+ * reaches a recipient's screen - the render hook replaces it - so its only
  * audience is somebody reading the database, and what it tells them is nothing.
  */
 const STUB = '<p class="notes" data-drpg-secret>&mdash;</p>';
@@ -109,7 +109,7 @@ async function write(next) {
     }
 }
 
-/** Drop the parsed copy — something else wrote the store. */
+/** Drop the parsed copy - something else wrote the store. */
 export function forgetSecrets() {
     cache = null;
 }
@@ -125,7 +125,7 @@ export function secretHtml(message) {
  * What a card SAYS on this client.
  *
  * Every reader of `message.content` in this module goes through here, because
- * a reader that does not is a reader that shows the stub — and the stub is a
+ * a reader that does not is a reader that shows the stub - and the stub is a
  * dash. See the R15 criterion, which exists to keep that true.
  */
 /**
@@ -133,10 +133,10 @@ export function secretHtml(message) {
  *
  * THE STUB LANDS FIRST AND IT ALWAYS WILL. `postSecret` has to create the
  * message before it can address the socket, because the id it keys the words
- * with does not exist until then — so on a recipient's client the document
+ * with does not exist until then - so on a recipient's client the document
  * arrives, `createChatMessage` fires, and the words are still in flight. The
  * chat log survives that: `refresh()` redraws the card in place when they
- * land. A POPUP DOES NOT — it is drawn once and never asked again, which is
+ * land. A POPUP DOES NOT - it is drawn once and never asked again, which is
  * why every private notice has been coming up blank (Dawid, 28.08).
  */
 const waiting = new Map();
@@ -146,7 +146,7 @@ const waiting = new Map();
  * worth it.
  *
  * A CEILING RATHER THAN A PROMISE THAT MIGHT NEVER SETTLE: if the socket never
- * arrives — the poster went offline mid-send, the card was not secret at all —
+ * arrives - the poster went offline mid-send, the card was not secret at all -
  * the caller gets whatever the document says instead of a notice that never
  * appears. A blank card is a bug; a missing one is a bug nobody can even
  * report.
@@ -218,7 +218,7 @@ async function forget(ids = []) {
  *
  * @param {object}   data              Everything `ChatMessage.create` takes.
  * @param {string}   data.content      The sentence that must not travel.
- * @param {string[]} data.whisper      Who may read it. Required — a secret with
+ * @param {string[]} data.whisper      Who may read it. Required - a secret with
  *                                     no audience is a bug, not a broadcast.
  * @returns {Promise<ChatMessage|null>}
  */

@@ -1,8 +1,8 @@
 /**
- * Danganronpa RPG — static configuration.
+ * Danganronpa RPG - static configuration.
  * ---------------------------------------------------------------------------
  * Single source of truth for every number, threshold and table that the
- * "Danganronpa RPG System — Full Guide" defines. Nothing in here touches
+ * "Danganronpa RPG System - Full Guide" defines. Nothing in here touches
  * Foundry; it is plain data so the rest of the module (and macros) can read
  * the rules instead of hardcoding them.
  *
@@ -14,8 +14,8 @@
  * wording: the module is brought into line with the handbook, not the other way
  * round. For the Sweet & Sound update that rule is inverted, and it is written
  * down here so nobody spends an afternoon "correcting" this file back to an
- * older document. The handbooks — the short player and GM briefings and the
- * full guides — are being written AFTER 1.2.0, out of what is written here.
+ * older document. The handbooks - the short player and GM briefings and the
+ * full guides - are being written AFTER 1.2.0, out of what is written here.
  *
  * The practical consequence: every `label`, `hint` and `effect` added in this
  * release is finished copy, not a working title to tidy up later. Tamper and
@@ -32,15 +32,15 @@ export const MODULE_ID = "danganronpa-rpg";
  *
  * There used to be a hand-written `BUILD` constant here as well, on the
  * reasoning that a hosted world's manifest records what the HOST installed
- * while the files underneath may already have been replaced — two different
+ * while the files underneath may already have been replaced - two different
  * questions, two stamps. The reasoning was sound and the practice was not: the
  * two numbers had to be kept in step by hand, they promptly stopped being, and
  * the GM panel spent a release telling people "v1.0.53 (manifest 1.1.0)" about
  * a module whose only real version was 1.1.0. A stamp nobody trusts answers
  * nothing. One number that cannot go stale beats two that need tending.
  *
- * The question the second stamp was meant to answer — "are the files on this
- * host the ones I uploaded?" — has a better tool in `fileSizes()`, which
+ * The question the second stamp was meant to answer - "are the files on this
+ * host the ones I uploaded?" - has a better tool in `fileSizes()`, which
  * answers it per file instead of guessing from a single constant.
  *
  * Called, not captured at import time: `game.modules` does not exist yet when
@@ -55,7 +55,7 @@ export const SOCKET = `module.${MODULE_ID}`;
 
 /**
  * Document flag keys, all stored under `flags["danganronpa-rpg"]`.
- * Never spell these out inline — a typo in a flag name fails silently.
+ * Never spell these out inline - a typo in a flag name fails silently.
  */
 export const FLAGS = {
     /** Character: the student's Ultimate talent, shown under their name. */
@@ -63,7 +63,7 @@ export const FLAGS = {
     /**
      * Character (a dead one): the trace left by people going through them.
      *
-     * `{ sceneId, tokenId, taken: [name] }` — ONE remnant per body however many
+     * `{ sceneId, tokenId, taken: [name] }` - ONE remnant per body however many
      * things leave it, because you cannot count hands from a turned-out pocket,
      * and because three traces would mean three clean-up actions and nobody
      * would ever loot anything. The list grows; the trace does not.
@@ -83,7 +83,7 @@ export const FLAGS = {
      * Character: this student may still turn on the killer they helped.
      *
      * `{ killerId, chapter, day }`, and it is the ONLY thing that decides
-     * whether the betrayal is on offer — the incident's own state used to,
+     * whether the betrayal is on offer - the incident's own state used to,
      * and could not, because Dawid's rule outlives it (29.08: "niech bedzie
      * dostepna do konca dnia po morderstwie"). An incident is wiped the moment
      * it closes; a day is not.
@@ -103,12 +103,12 @@ export const FLAGS = {
      * Character: this student is dead.
      *
      * A flag rather than a hidden token. The body is often exactly what the
-     * cast is standing around looking at, so it has to stay on the map — but
+     * cast is standing around looking at, so it has to stay on the map - but
      * the dead do not occupy a room for the rules' purposes: they are not
      * witnesses, they cannot be handed things, and a murder must still be
      * possible in the room where one already happened.
      *
-     * Shape: `{ chapter, day, timeOfDay }` — when, so the timeline can be
+     * Shape: `{ chapter, day, timeOfDay }` - when, so the timeline can be
      * reconstructed at the trial.
      */
     deceased: "deceased",
@@ -117,7 +117,7 @@ export const FLAGS = {
      *
      * Guide, p. 16: "Po śmierci, gdy jego class trial się zakończy, gracz może
      * dołączyć do DMów jako Monocub." Opt-in, and only ever set on a character
-     * `isDeceased` already flagged true — a Monocub is a specific way of being
+     * `isDeceased` already flagged true - a Monocub is a specific way of being
      * dead, not a third state. The player keeps the same actor: no new sheet,
      * no ownership change, just a different action panel (see `monocub.mjs`).
      */
@@ -128,7 +128,7 @@ export const FLAGS = {
      * Guide, p. 17: a Monocub who stumbles onto an incident "otrzymuje zakaz
      * wypowiadania się na temat zbrodni do końca rozdziału". Which chapter is
      * recorded rather than just a boolean, so it lapses on its own the moment
-     * the chapter counter moves — the same pattern Stage 3's Analyze lock uses.
+     * the chapter counter moves - the same pattern Stage 3's Analyze lock uses.
      */
     silencedChapter: "silencedChapter",
     /** Character: how many DRPG advances they have taken. */
@@ -139,7 +139,7 @@ export const FLAGS = {
      *
      * Stamped by `initCharacter`, read only by the season reset. An advance
      * writes `+delta` into traits and experiences and increments `advances`,
-     * and nothing anywhere records what those numbers were before — so without
+     * and nothing anywhere records what those numbers were before - so without
      * this, a reset can zero the counter or leave the bonuses, and either one
      * is a character whose sheet disagrees with itself.
      */
@@ -151,7 +151,7 @@ export const FLAGS = {
      *
      * COUNTERS, NOT BOOLEANS, and not `pendingCall`. Sprint and Burst are the
      * first two Hope Calls that buy something lasting rather than something the
-     * next roll consumes, and `pendingCall` holds exactly ONE armed Call — a
+     * next roll consumes, and `pendingCall` holds exactly ONE armed Call - a
      * Sprint parked there would have quietly eaten a Support armed beside it.
      * These are a state of the time of day, not a modifier on a roll.
      *
@@ -190,8 +190,8 @@ export const FLAGS = {
      * Character: this actor is a Monokuma, not a student.
      *
      * A flag rather than a separate actor type on purpose. A Monokuma still
-     * wants the character sheet — a portrait, a name, traits for the rare roll
-     * — and a custom type would mean reimplementing all of it and losing every
+     * wants the character sheet - a portrait, a name, traits for the rare roll
+     * - and a custom type would mean reimplementing all of it and losing every
      * Daggerheart feature that keys off `type === "character"`. The flag flips
      * only what actually differs: no actions, no Hope, Despair Calls instead of
      * the action grid, and walls do not apply.
@@ -201,7 +201,7 @@ export const FLAGS = {
 
 /**
  * Key of the custom Daggerheart resource that carries the action budget.
- * Registered into CONFIG.DH.RESOURCE.character.custom — see resources.mjs.
+ * Registered into CONFIG.DH.RESOURCE.character.custom - see resources.mjs.
  */
 export const ACTIONS_RESOURCE = "actions";
 
@@ -209,7 +209,7 @@ export const ACTIONS_RESOURCE = "actions";
  * TRAITS
  * --------------------------------------------------------------------------
  * The guide defines six stats. Daggerheart also has exactly six traits, so we
- * do not touch the data model at all — we only relabel them via i18n.
+ * do not touch the data model at all - we only relabel them via i18n.
  * `dh` is the key that actually lives in actor.system.traits.
  * ========================================================================== */
 
@@ -251,8 +251,8 @@ export const STARTING = {
     /**
      * Everybody opens with one Tier 2 item tied to their Ultimate.
      *
-     * WHAT it is stays a conversation — "do uzgodnienia z każdym graczem z
-     * osobna" — so only the tier lives here. `initCharacter` takes the name.
+     * WHAT it is stays a conversation - "do uzgodnienia z każdym graczem z
+     * osobna" - so only the tier lives here. `initCharacter` takes the name.
      */
     startingItemTier: 2
 };
@@ -277,7 +277,7 @@ export const TIME_OF_DAY_LABELS = {
 /**
  * The three modes a session runs in. A canonical chapter is five sessions:
  * three Daily Life (the third carrying the murder), one Investigation, one
- * Class Trial. The GM sets this by hand — the guide allows stretching a
+ * Class Trial. The GM sets this by hand - the guide allows stretching a
  * chapter when no murder has happened yet.
  */
 export const PHASES = {
@@ -292,7 +292,7 @@ export const CHAPTERS_PER_SEASON = 6;
 /**
  * G-36. Roughly this many rooms per player, corridors and dormitories aside.
  *
- * Advice, not a rule, and the checklist row that reads it says so — the number
+ * Advice, not a rule, and the checklist row that reads it says so - the number
  * is here because it is the guide's and because a magic 1.5 in season-setup.mjs
  * would be a rule nobody could find.
  *
@@ -313,7 +313,7 @@ export const ROOMS_PER_PLAYER = 1.5;
  * connected rooms."
  *
  * Kept here rather than in eclipse.mjs because movement.mjs enforces the same
- * cap and cannot import eclipse.mjs — eclipse.mjs already imports movement.mjs,
+ * cap and cannot import eclipse.mjs - eclipse.mjs already imports movement.mjs,
  * and closing that loop would put the constant in a temporal dead zone.
  */
 export const ECLIPSE_MOVES = 2;
@@ -324,14 +324,14 @@ export const ECLIPSE_MOVES = 2;
  * ONE of the five: the Night Eclipse. The handbook's "at night you can pick any
  * room as your starting point" (p. 12) is the whole of the exception.
  *
- * The handbook's opening line — "you pick any room to begin in" — reads like a
+ * The handbook's opening line - "you pick any room to begin in" - reads like a
  * second exception for the start of a session, and this list briefly carried
  * `morning` for that reason. It is not one: at the table the Morning Eclipse is
  * an ordinary placement window with the ordinary two crossings, and only the
  * night is free. Corrected on the author's ruling.
  *
- * Keyed by the time of day the Eclipse OPENS — a Night Eclipse runs before
- * Night — which is how they are named everywhere in the interface.
+ * Keyed by the time of day the Eclipse OPENS - a Night Eclipse runs before
+ * Night - which is how they are named everywhere in the interface.
  */
 export const ECLIPSE_FREE_PLACEMENT = ["night"];
 
@@ -353,7 +353,7 @@ export const ITEM_TIERS = [0, 1, 2, 3];
  * HOW MUCH A THING TAKES BEFORE IT GIVES (Dawid, 28.08).
  *
  * A roll with Despair used to end the tool outright. It ends a tier-0 sack of
- * nothing outright still — but a good tool now survives its first bad moment,
+ * nothing outright still - but a good tool now survives its first bad moment,
  * and the number of bad moments is what the tier buys, alongside everything
  * else the tier buys.
  *
@@ -362,7 +362,7 @@ export const ITEM_TIERS = [0, 1, 2, 3];
  * lasts. What tier 2 buys is a second chance; tier 3 buys a third.
  *
  * Read through `durabilityOf`, which answers 1 for anything with no tier
- * recorded — a hand-made item, a world made before this existed — so an
+ * recorded - a hand-made item, a world made before this existed - so an
  * unknown thing behaves exactly as everything did before.
  */
 export const ITEM_DURABILITY = { 0: 1, 1: 1, 2: 2, 3: 3 };
@@ -373,7 +373,7 @@ export const ITEM_DURABILITY = { 0: 1, 1: 1, 2: 2, 3: 3 };
  * The owner of a bedroom is written on its Region by vault.mjs; the key to that
  * bedroom is written on an Item by the same file. movement.mjs has to read both
  * to decide whether a token may cross the threshold, and it has to do it
- * synchronously, inside `preUpdateToken` — where there is no opportunity to
+ * synchronously, inside `preUpdateToken` - where there is no opportunity to
  * await an import.
  *
  * Importing vault.mjs into movement.mjs would close a cycle (vault already
@@ -397,7 +397,7 @@ export const ITEM_CATEGORIES = {
         limit: 2,
         hint: "Healing items restore Health, sanity-relief items clear Sanity. Tier 3 lets you pick."
     },
-    // "Murder Weapon" rather than "Crime Tool" — Dawid's wording, 2026-08-17.
+    // "Murder Weapon" rather than "Crime Tool" - Dawid's wording, 2026-08-17.
     // Changed here rather than in the item window alone, because this table is
     // the one source these names come from: the inventory group header, the
     // Search tables, the GM's item tooling and the item's own subtitle all read
@@ -420,7 +420,7 @@ export const ITEM_CATEGORIES = {
      *
      * Held ready, it gives advantage on project work and on sabotage. It is the
      * one category here that is not about a murder, which is exactly why it
-     * shares its slots with the two that are — see LIMIT_GROUPS. A character
+     * shares its slots with the two that are - see LIMIT_GROUPS. A character
      * carrying a full workshop is a character not carrying a knife.
      */
     tool: {
@@ -441,7 +441,7 @@ export const ITEM_CATEGORIES = {
      *
      * Uncapped, like evidence, and for the same kind of reason: a key is not
      * something you carry instead of something else. It is not searched for
-     * either — `tables.mjs` skips it, the same way it skips Truth Bullets —
+     * either - `tables.mjs` skips it, the same way it skips Truth Bullets -
      * because a key exists because a GM assigned a room, not because anybody
      * turned out a cupboard.
      */
@@ -457,12 +457,12 @@ export const ITEM_CATEGORIES = {
  * OUR OWN DRAWINGS NOW, one per category, shipped in `icons/`.
  *
  * These were four of Foundry's painted icons: an oil-painted apple beside a
- * pixel-art sheet, and Tool and Room Key with no entry at all — which is a
+ * pixel-art sheet, and Tool and Room Key with no entry at all - which is a
  * blank frame, not a fallback. The old note here was about two paths that did
  * not exist in the core set, which is the other way the same thing goes wrong:
  * a default nobody can verify is a default nobody notices breaking.
  *
- * A path built from the key is what keeps the two lists honest — a category
+ * A path built from the key is what keeps the two lists honest - a category
  * added to ITEM_CATEGORIES and given a picture in `tools/item-icons.mjs` needs
  * nothing here, and one given no picture is a missing FILE, which shows up as
  * a 404 the first time it is drawn rather than as silence.
@@ -486,7 +486,7 @@ export const TIER_EFFECTS = {
         0: "A random, seemingly useless item. Open to creative use.",
         1: "Restores 1 Health (healing) or 1 Sanity (sanity relief), by its kind.",
         2: "Restores 2 Health (healing) or 2 Sanity (sanity relief), by its kind.",
-        3: "Restores 2 Health or 2 Sanity — your choice — plus 2 Hope."
+        3: "Restores 2 Health or 2 Sanity - your choice - plus 2 Hope."
     },
     crimeTool: {
         0: "A random, seemingly useless item.",
@@ -505,14 +505,14 @@ export const TIER_EFFECTS = {
 /**
  * The two kinds of Usable Item, and which resource each one mends.
  *
- * Every usable is one or the other — a first aid kit patches the body, a music
- * player settles the nerves — and which it is comes from the item tables: the
+ * Every usable is one or the other - a first aid kit patches the body, a music
+ * player settles the nerves - and which it is comes from the item tables: the
  * Healing tables hold what restores Health, the Sanity Relief tables what clears
  * Sanity (Dawid, 2026-08-26). The player used to be asked at the moment of use;
  * now the table has already answered.
  *
  * `resource` is the Daggerheart resource key `use-items.mjs` writes to. The
- * labels feed the table names ("DRPG Usables (Healing) — Tier 2") through
+ * labels feed the table names ("DRPG Usables (Healing) - Tier 2") through
  * USABLE_GOALS in tables.mjs, so renaming one here renames what a fresh world
  * installs.
  */
@@ -541,12 +541,12 @@ export const USABLE_KIND_EFFECTS = {
     healing: {
         1: "Restores 1 Health.",
         2: "Restores 2 Health.",
-        3: "Restores 2 Health or 2 Sanity — your choice — plus 2 Hope."
+        3: "Restores 2 Health or 2 Sanity - your choice - plus 2 Hope."
     },
     stress: {
         1: "Restores 1 Sanity.",
         2: "Restores 2 Sanity.",
-        3: "Restores 2 Health or 2 Sanity — your choice — plus 2 Hope."
+        3: "Restores 2 Health or 2 Sanity - your choice - plus 2 Hope."
     }
 };
 
@@ -554,7 +554,7 @@ export const USABLE_KIND_EFFECTS = {
  * What using a Usable Item actually restores, by tier.
  *
  * Tiers 1 and 2 are `byKind`: the amount lands on whichever resource the item's
- * kind names (USABLE_KINDS above), no question asked — the choice was made when
+ * kind names (USABLE_KINDS above), no question asked - the choice was made when
  * the item came off a Healing or a Sanity Relief table. Only tier 3 still asks,
  * and it restores 2 Hope on top whichever way the player answers. Tier 0 is "a
  * random, seemingly useless object, open to creative use": there is no table
@@ -572,7 +572,7 @@ export const USABLE_EFFECTS = {
 /**
  * Categories a character can hold ready rather than merely own.
  *
- * The guide never says a weapon has to be drawn — but "Jeśli zdobyła przedmiot,
+ * The guide never says a weapon has to be drawn - but "Jeśli zdobyła przedmiot,
  * którego może użyć jako broń" and the crime tool being consumed after a murder
  * both assume a specific object is in hand, and the incident engine had no way
  * to be told WHICH. Equipping is that answer: one per category, and it is what
@@ -587,15 +587,15 @@ export const EQUIPPABLE = ["crimeTool", "cleaningTool", "tool"];
  *
  * The guide gives one Murder Weapon and two Cleaning Tools: three, in fixed
  * proportions. The total stands; the division goes. Which three you have is
- * decided by what the dice turned up and what you chose to keep — a player who
+ * decided by what the dice turned up and what you chose to keep - a player who
  * found two knives no longer has to leave one behind while a slot sits empty
  * beside it, and the new Tool category does not quietly make the number five.
  *
  * A GROUP RATHER THAN A NUMBER ON EACH CATEGORY, because the question
  * `canCarry` asks changes shape: it stops being "how many of these" and becomes
  * "how much of this budget is spent". Categories with no group keep the old
- * behaviour exactly — Usables still cap at three of their own, Truth Bullets and
- * keys are still uncapped — so nothing outside this group notices.
+ * behaviour exactly - Usables still cap at three of their own, Truth Bullets and
+ * keys are still uncapped - so nothing outside this group notices.
  *
  * It is also what makes item ROLES safe. With separate counters, moving an
  * item's home moved which counter it drew from, so a screwdriver filed under
@@ -606,8 +606,8 @@ export const EQUIPPABLE = ["crimeTool", "cleaningTool", "tool"];
  * How much one stash holds (D10b).
  *
  * Here rather than in vault.mjs because it is the same kind of fact as the
- * carry limits directly below — how much of the school one person can have
- * under their control — and the two numbers are read together whenever anybody
+ * carry limits directly below - how much of the school one person can have
+ * under their control - and the two numbers are read together whenever anybody
  * asks whether that balance is right.
  */
 export const VAULT_LIMIT = 3;
@@ -642,7 +642,7 @@ export const LIMIT_GROUPS = {
      *
      * Three meant nobody ever chose. A character could carry a weapon, a
      * cleaning kit and a tool at once, so "what am I holding tonight" was never
-     * a question with a cost — and the whole point of a shared group is that
+     * a question with a cost - and the whole point of a shared group is that
      * arming yourself and being able to tidy up afterwards should compete.
      * At two they do.
      */
@@ -707,7 +707,7 @@ export const REMNANT_TYPES = {
         hint: "Left during the confrontation or the victim's death."
     },
     /*
-     * "TAMPER REMNANT", AND THE KEY STAYS `resolution` (D8) — the lesson Z14
+     * "TAMPER REMNANT", AND THE KEY STAYS `resolution` (D8) - the lesson Z14
      * paid for: a key is stored data (token flags, the ledger, every card this
      * world has already posted) and a label is free.
      *
@@ -719,7 +719,7 @@ export const REMNANT_TYPES = {
      */
     resolution: {
         label: "Tamper Remnant",
-        hint: "Left behind by tampering — the too-clean patch, the thing moved back "
+        hint: "Left behind by tampering - the too-clean patch, the thing moved back "
             + "slightly wrong. Cleaning up always leaves its own kind of trace."
     },
     autopsy: {
@@ -730,14 +730,14 @@ export const REMNANT_TYPES = {
         label: "Final Truth Remnant",
         hint: "One per chapter. Points at the Mastermind.",
         // Placed once a chapter and meant to survive the whole season, not just
-        // this case — `placeRemnant` already reads this flag to set the token's
+        // this case - `placeRemnant` already reads this flag to set the token's
         // own `reinforced` flag, so nothing else has to know "final" is special.
         reinforced: true
     }
 };
 
 /**
- * Truth Bullet types — same keys as REMNANT_TYPES, since every Truth Bullet
+ * Truth Bullet types - same keys as REMNANT_TYPES, since every Truth Bullet
  * traces back to exactly one Remnant type. Kept as a separate table because the
  * two are worded for different readers: a Remnant's hint is the GM's note on
  * the map, a Truth Bullet's is what ends up on a player's inventory card.
@@ -746,7 +746,7 @@ export const TRUTH_BULLET_TYPES = {
     key: {
         label: "Key Truth Bullet",
         hint: "Evidence from the GMs, so the case is solvable. Identified the moment you pick it "
-            + "up — no Analyze needed."
+            + "up - no Analyze needed."
     },
     neutral: {
         label: "Neutral Truth Bullet",
@@ -755,7 +755,7 @@ export const TRUTH_BULLET_TYPES = {
     faint: {
         label: "Faint Truth Bullet",
         // Z7: nothing is deleted because a chapter ended, so this no longer
-        // says "survives the sweep at the start of the next session" — there is
+        // says "survives the sweep at the start of the next session" - there is
         // no such moment. What Faint still means is the same two things it
         // always meant: the connection is doubtful, and it is exempt when a GM
         // does clear the table's evidence by hand.
@@ -776,7 +776,7 @@ export const TRUTH_BULLET_TYPES = {
     },
     autopsy: {
         label: "Autopsy Truth Bullet",
-        hint: "The state of the body — when it was discovered, and the cause of death. Handed out "
+        hint: "The state of the body - when it was discovered, and the cause of death. Handed out "
             + "at the start of every Investigation."
     },
     final: {
@@ -786,16 +786,16 @@ export const TRUTH_BULLET_TYPES = {
 };
 
 /**
- * Observe action DCs — guide "Cel obserwacji" table.
+ * Observe action DCs - guide "Cel obserwacji" table.
  * Rows: how visible the Remnant is. Columns: what kind of Remnant it is.
  *
  * No `autopsy` column: Autopsy Truth Bullets are handed out by the GM from the
- * GM panel, never rolled for — see the panel's "Issue Autopsy Truth Bullet".
+ * GM panel, never rolled for - see the panel's "Issue Autopsy Truth Bullet".
  *
  * `incident` and `resolution` are priced the same as `prep`. The guide's own
  * table left them blank (crime-scene evidence copying itself into inventory
  * with no roll at all), which was almost certainly a transcription gap rather
- * than the intended rule — a Class Trial's evidence should not be free. Table
+ * than the intended rule - a Class Trial's evidence should not be free. Table
  * confirmed this reading explicitly: Observe rolls for both.
  */
 export const OBSERVE_DC = {
@@ -810,7 +810,7 @@ export const OBSERVE_DC = {
  *
  * The guide's tables are written for the types a Remnant is actually left AS:
  * Key, Faint, Prep, Incident, Resolution, Autopsy. "Neutral" is a state a Truth
- * BULLET is in — what the player sees before analysing it — not a kind of trace
+ * BULLET is in - what the player sees before analysing it - not a kind of trace
  * somebody leaves. `REMNANT_TYPES` mirrors the bullet list all the same, so a GM
  * can place both on the map and the lookup has to answer for them.
  *
@@ -828,7 +828,7 @@ export const OBSERVE_TYPE_ALIAS = {
 
 /**
  * The Observe difficulty for one Remnant, with the aliases applied.
- * `null` means "no roll" — Autopsy Remnants are handed over, never spotted.
+ * `null` means "no roll" - Autopsy Remnants are handed over, never spotted.
  */
 export function observeDc(visibility, type) {
     const column = OBSERVE_TYPE_ALIAS[type] ?? type;
@@ -840,14 +840,14 @@ export function observeDc(visibility, type) {
  *
  * ONE, NOT TWO (Z1, from the E18 season run). Observe is the action a player
  * reaches for most often and the only common one whose failure is paid for in a
- * resource — and at 2 the arithmetic said "look twice and you are a third of
+ * resource - and at 2 the arithmetic said "look twice and you are a third of
  * the way to a breakdown". The simulation measured what that does over a
  * chapter: the price is not paid in Sanity, it is paid in people declining to
  * look, which is the one behaviour this game cannot afford to discourage.
  *
  * The briefing, the miss card and the GM's ruling line all print this constant.
- * Two sentences elsewhere spelled the number out and moved with it — the sound
- * catalogue's hint and `DRPG.Action.observeGm` — because a rule R1 cannot see
+ * Two sentences elsewhere spelled the number out and moved with it - the sound
+ * catalogue's hint and `DRPG.Action.observeGm` - because a rule R1 cannot see
  * inside of a sentence.
  */
 export const OBSERVE_FAIL_STRESS = 1;
@@ -861,13 +861,13 @@ export const OBSERVE_FAIL_STRESS = 1;
  *
  * FOLLOWING THE GUIDE EXACTLY, both halves. Keeping the cleared Stress as well
  * would give a critical more than either document describes. The trade is close
- * to neutral in size — one Sanity mark against one Hope — and it moves the
+ * to neutral in size - one Sanity mark against one Hope - and it moves the
  * reward onto the currency a player can decide what to do with, so a critical
  * gets more USEFUL rather than weaker. It also stops a critical being worth
  * more to a wounded character than to a healthy one, which is a strange thing
  * for a critical to be.
  *
- * Applied by wrapping Daggerheart's own resource step — see critical.mjs. It is
+ * Applied by wrapping Daggerheart's own resource step - see critical.mjs. It is
  * here because it is a rule, and rules live in this file.
  */
 export const CRITICAL = {
@@ -885,7 +885,7 @@ export const CRITICAL = {
  * the same and only the statistic changes. Two of Dawid's documents disagree,
  * and the Full Guide is the one with an actual table: it prints Analyze in the
  * Investigation section rather than beside "Myśl", which is why the derivation
- * survived as long as it did — the table it contradicts was three sections
+ * survived as long as it did - the table it contradicts was three sections
  * away.
  *
  * The guide's numbers, and they are not a uniform shift:
@@ -900,7 +900,7 @@ export const CRITICAL = {
  * read. Deriving one table from the other flattened both.
  *
  * `incident` and `resolution` are priced like `prep`, which is the same
- * decision — with the same reasoning — that `OBSERVE_DC` already made and
+ * decision - with the same reasoning - that `OBSERVE_DC` already made and
  * states above: the guide leaves both columns blank in BOTH tables, and
  * crime-scene evidence that identifies itself for free is stranger here than
  * there. The "Bez rzutu." printed in the Incident column is the merged cell
@@ -925,7 +925,7 @@ export const ANALYZE_DC = {
 /**
  * The Analyze difficulty for one Truth Bullet.
  *
- * `null` means "no roll" rather than "impossible" — the guide prints "Bez rzutu"
+ * `null` means "no roll" rather than "impossible" - the guide prints "Bez rzutu"
  * for Key, and gives Autopsy and Final no column at all, because all three
  * arrive already identified. A bullet that somehow reaches Analyze in one of
  * those states is converted outright instead of being asked to beat a number
@@ -979,8 +979,8 @@ export const KEY_REMNANTS = {
      *
      * PER MONOKUMA, NOT SPLIT BETWEEN THEM (trap 116). The guide writes "obaj
      * Monokuma" with two GMs in mind, which reads either way at four. It is
-     * compensation for having run an investigation the table could not finish —
-     * and each Monokuma ran it — rather than a pot to divide, which at four GMs
+     * compensation for having run an investigation the table could not finish -
+     * and each Monokuma ran it - rather than a pot to divide, which at four GMs
      * would leave each of them with less than the guide gives one of two.
      * The consequence is worth saying out loud: a completely failed
      * investigation is +12 Despair to every Monokuma at the table.
@@ -999,7 +999,7 @@ export const KEY_REMNANTS = {
  * `kind` on each entry below, and the ORDER they are written in.
  *
  * The sheet draws every `universal` entry as the action grid, in exactly this
- * order — so the table is the layout, and moving a tile means moving a block
+ * order - so the table is the layout, and moving a tile means moving a block
  * of text here rather than editing a list somewhere else that could disagree
  * with it. Ten of them, two rows of five.
  *
@@ -1009,7 +1009,7 @@ export const KEY_REMNANTS = {
  *            grid is exactly Move and Meddle.
  *   variant  reached through another action's menu. `sabotage` is the third
  *            branch of Projects, and `reroll.mjs` still dispatches on
- *            `case "sabotage"` while `briefingBlock` reads its description —
+ *            `case "sabotage"` while `briefingBlock` reads its description -
  *            an entry with no tile, not an entry that is gone.
  *
  * Crisis actions and the Monocub's Meddle have tables of their own.
@@ -1036,7 +1036,7 @@ export const ACTIONS = {
         ],
         critical: { tierBonus: 1, remnant: "obvious" },
         failure: "Nothing found.",
-        // `onlyFor` is a list of ROLES, not of goals — see the note on `leaves`
+        // `onlyFor` is a list of ROLES, not of goals - see the note on `leaves`
         // in `performSearch`. What decides is what came out of the table: a
         // tool that also serves as a weapon leaves a trace, and a tool that is
         // only a tool does not, whichever of the six the player asked for.
@@ -1052,7 +1052,7 @@ export const ACTIONS = {
         // behind it: sweeping the room, looking past the obvious and following
         // your own traces are all settled by a number against the ledger. Only
         // "focus your gaze" and "examine point of interest" summon a human, and
-        // those are two of five — a red stripe on the tile promised a wait that
+        // those are two of five - a red stripe on the tile promised a wait that
         // three of the five branches never have.
         callsGm: false,
         hint: "Look for evidence. Copies a Remnant into your inventory as a Truth Bullet.",
@@ -1076,12 +1076,12 @@ export const ACTIONS = {
         traits: ["head"],
         cost: 1,
         /**
-         * A FUNCTION, not a flag — see `callsGmFor` in sheet.mjs.
+         * A FUNCTION, not a flag - see `callsGmFor` in sheet.mjs.
          *
          * Analyze is two actions behind one tile: identifying a bullet is a
          * roll against a number, and asking for a hint is a question for a
          * person. Which one it will be is not a property of the action, it is a
-         * property of the character at that moment — somebody holding three
+         * property of the character at that moment - somebody holding three
          * unidentified bullets is going to analyse one, and somebody holding
          * none has only the hint left.
          */
@@ -1098,16 +1098,16 @@ export const ACTIONS = {
         dcTable: "ANALYZE_DC",
         /** Used when the player asks for a hint rather than analysing evidence. */
         hintThresholds: [
-            { min: 14, result: "A subtle hint — e.g. “You are far from the target.”" },
-            { min: 18, result: "A direct hint — e.g. “Search the pool room.”" }
+            { min: 14, result: "A subtle hint - e.g. “You are far from the target.”" },
+            { min: 18, result: "A direct hint - e.g. “Search the pool room.”" }
         ],
-        hintCritical: { result: "They ask you one question — e.g. “Did the victim really die in this room?”" },
+        hintCritical: { result: "They ask you one question - e.g. “Did the victim really die in this room?”" },
         hintFailure: "No help.",
         /**
          * The third thing behind this tile: finding a hiding place.
          *
          * A flat number rather than a table, because there is nothing for a
-         * table to say. Beating it does not open anything by itself — the
+         * table to say. Beating it does not open anything by itself - the
          * result goes to the GM and they decide what it bought. See
          * `locateStash` in action-rolls.mjs for why nothing is modelled.
          */
@@ -1123,13 +1123,13 @@ export const ACTIONS = {
         // a project sends the GM a card and waits for them. `callsGm` is what
         // paints the red stripe and the GM glyph on the tile, and a tile that
         // can hand the turn over should say so before it is pressed rather than
-        // after — see the cost-stripe note in sheet.mjs.
+        // after - see the cost-stripe note in sheet.mjs.
         //
         // Which branch it will be is decided by the room, not by the action:
         // standing in a room with a project in it, this is a roll; standing
         // anywhere else, the only thing the tile can do is propose one and
         // wait. So the stripe asks the character rather than reading a
-        // constant — see `callsGmFor`.
+        // constant - see `callsGmFor`.
         callsGm: actor => {
             try {
                 return workableProjectCount(actor) === 0;
@@ -1141,7 +1141,7 @@ export const ACTIONS = {
         // The room requirement is not written here any more. `roomBlockFor()`
         // refuses the roll where it applies and says why, the tile greys out
         // before that, and the project list in the window is already the list
-        // of what is workable from where you stand — three places that state it
+        // of what is workable from where you stand - three places that state it
         // at the moment it binds, against one paragraph that stated it in
         // advance and made this the longest text in the module.
         description: "The slow game: many actions over many times of day, and the one thing that "
@@ -1164,7 +1164,7 @@ export const ACTIONS = {
      *
      * What the row is FOR is its position. The dynamic tile used to be appended
      * after the loop over this table, which is why it sat last however the
-     * table said — and a position nobody can choose is not a layout. It sits
+     * table said - and a position nobody can choose is not a layout. It sits
      * where Dawid put it (28.08): closing the first row, next to Projects.
      */
     dynamic: {
@@ -1173,7 +1173,7 @@ export const ACTIONS = {
     },
     /**
      * One tile, two rests. The choice of short or long is made in the dialog,
-     * where the costs and room requirements can be shown side by side — and
+     * where the costs and room requirements can be shown side by side - and
      * keeping them together is half of what holds the grid at two rows of five.
      */
     rest: {
@@ -1185,10 +1185,10 @@ export const ACTIONS = {
         // "Bedroom only" was wrong, not just long: a Long Rest asks for a room
         // the GM flagged for it in Room Setup, which may be anybody's room or
         // nobody's. The dialog prices Short against Long and names the rooms
-        // that allow each — see `DRPG.Rest.allowedIn` — so both the costs and
+        // that allow each - see `DRPG.Rest.allowedIn` - so both the costs and
         // the room live where they are checked.
         hint: "Recover Health, Sanity or Hope. A Long Rest costs more and buys more.",
-        description: "Sleep restores Health, a Meal clears Sanity, a Breath gives Hope — in full on a "
+        description: "Sleep restores Health, a Meal clears Sanity, a Breath gives Hope - in full on a "
             + "Long Rest, by half on a Short."
     },
     listen: {
@@ -1212,7 +1212,7 @@ export const ACTIONS = {
      *
      * TWO INDEPENDENT AXES, and that is the whole design: Shadow decides
      * whether you were seen, Hand decides whether it worked. Four outcomes, and
-     * the two interesting ones are the mismatches — caught with nothing to show
+     * the two interesting ones are the mismatches - caught with nothing to show
      * for it, or robbed by somebody you never noticed.
      *
      * TWO DIRECTIONS THROUGH ONE TILE (Dawid, 28.08). Taking and leaving are
@@ -1264,22 +1264,22 @@ export const ACTIONS = {
         threshold: 10,
         /** Whether they noticed. Its own axis, rolled separately. */
         unseen: { trait: "shadow", threshold: 15, label: "Keep your hands out of sight" },
-        /** Leaving something is easier than taking it — both axes (D10a). */
+        /** Leaving something is easier than taking it - both axes (D10a). */
         plant: { threshold: 8, unseen: 13 },
         failure: "Your hand comes away empty."
     },
     /**
      * Cleaning up, and lying with the evidence, as an ordinary action.
      *
-     * Both halves already existed and were reachable only from Stage 6 — see
-     * `CLEANUP.actions` — which made the guide's "akcje rozwiązania w Etapie 2"
+     * Both halves already existed and were reachable only from Stage 6 - see
+     * `CLEANUP.actions` - which made the guide's "akcje rozwiązania w Etapie 2"
      * unreachable, and made planting a false trail a privilege of the one
      * person who least needs to be believed.
      *
      * TWO ROUTES, TWO PRICES, ONE IMPLEMENTATION. This tile costs an action and
      * no Sanity; the crisis window in Stage 6 still costs what it costs. Both
      * end in `attemptCleanup` / `attemptStageSix` with a flag saying which door
-     * they came through — see `viaAction` in cleanup.mjs.
+     * they came through - see `viaAction` in cleanup.mjs.
      */
     tamper: {
         kind: "universal",
@@ -1323,7 +1323,7 @@ export const ACTIONS = {
         hint: "Crossing into another room costs your free Move, then an action each.",
         description: "Moving inside your own room is free. Crossing into a connected room spends "
             + "this time of day's free Move.",
-        instruction: "Drag your token. Crossing into another room is what counts — the cost "
+        instruction: "Drag your token. Crossing into another room is what counts - the cost "
             + "is applied when you arrive."
     },
     sabotage: {
@@ -1361,7 +1361,7 @@ export const ACTIONS = {
  * fails to render is not.
  *
  * Both also go through dynamic imports on purpose. config.mjs is the bottom of
- * the import graph — truth-bullets.mjs and projects.mjs both import IT — so a
+ * the import graph - truth-bullets.mjs and projects.mjs both import IT - so a
  * static import either way round would be a genuine cycle. The predicates only
  * run from a rendered sheet, by which point every module is long since loaded,
  * and the cached module registry makes the call as cheap as a property read.
@@ -1384,7 +1384,7 @@ function workableProjectCount(actor) {
 }
 
 /**
- * Indirect murder — the guide makes this a project, with two extra Shadow rolls
+ * Indirect murder - the guide makes this a project, with two extra Shadow rolls
  * layered on top of the normal project roll.
  */
 export const INDIRECT_MURDER = {
@@ -1395,7 +1395,7 @@ export const INDIRECT_MURDER = {
         threshold: 16,
         success: "The others cannot see that you are doing anything. You may lie freely.",
         successWithDespair: "The others see nothing, and the project gains +1 progress.",
-        failure: "The others get a general description of what you are doing — e.g. 'fiddling with test tubes'.",
+        failure: "The others get a general description of what you are doing - e.g. 'fiddling with test tubes'.",
         /** With nobody else in the room, the project simply gains this instead. */
         aloneBonus: 1
     },
@@ -1425,13 +1425,13 @@ export const INDIRECT_MURDER = {
  * Three moments in the guide destroy an object: a Crime Tool that has been
  * swung, a Cleaning Tool once the body turns up, and a Usable Item once it has
  * been opened. All three used to delete the item, and deleting it is the one
- * outcome that costs the killer nothing — the murder weapon left the world by
+ * outcome that costs the killer nothing - the murder weapon left the world by
  * itself, tidily, the instant it stopped being useful.
  *
  * So nothing is deleted. What was used is marked Broken: the same object, in
  * the same slot, against the same carry limit, and no longer good for anything.
  * That leaves the holder with a problem the guide is full of and the module had
- * no way to express — an incriminating object nobody can put down for free.
+ * no way to express - an incriminating object nobody can put down for free.
  *
  * There are exactly two ways out of it, and both are already in the rules:
  *
@@ -1448,14 +1448,14 @@ export const INDIRECT_MURDER = {
 export const BROKEN_ITEMS = {
     /** The word on the tag. Not a name change: the object is what it was. */
     label: "Broken",
-    /** Not being seen to have done it — the same read as every other cover-up. */
+    /** Not being seen to have done it - the same read as every other cover-up. */
     trait: "shadow",
     /** A Prep Remnant: this is somebody tidying up around a crime, not the crime. */
     remnantType: "prep",
     /**
      * NOT faint. Faint is what a GM's manual clear takes (Z7 stopped it
      * happening on a schedule), and the whole point of this object is that it
-     * is tied to the murder — the trace of it being got rid of has to survive
+     * is tied to the murder - the trace of it being got rid of has to survive
      * to the trial, whoever is tidying up.
      */
     faint: false,
@@ -1473,7 +1473,7 @@ export const BROKEN_ITEMS = {
  * The same shape as an indirect murder's conceal-intent roll, and for the same
  * reason: breaking someone's project in front of them is not something you can
  * do casually. Rolled *before* the sabotage itself, so a failure is known while
- * there is still a choice — the player may back out having spent nothing.
+ * there is still a choice - the player may back out having spent nothing.
  *
  * The guide already has Despair on the sabotage roll reveal the attempt; this
  * covers the other half, the witnesses watching you do it in the first place.
@@ -1483,17 +1483,17 @@ export const SABOTAGE_CONCEAL = {
     trait: "shadow",
     threshold: 16,
     success: "Nobody works out what you are really doing. You may lie freely about it.",
-    successWithDespair: "Nobody works out what you are doing — but you fumble, and the sabotage is harder.",
+    successWithDespair: "Nobody works out what you are doing - but you fumble, and the sabotage is harder.",
     /** Despair on a successful concealment still costs you: -1 on the sabotage. */
     despairPenalty: -1,
-    failure: "The others see roughly what you are up to — 'prying at the lock', 'pulling wires out'.",
+    failure: "The others see roughly what you are up to - 'prying at the lock', 'pulling wires out'.",
     /** Failing does not stop you. It only means everyone watched you do it. */
     aloneNote: "Nobody else is in the room, so there is nothing to hide."
 };
 
 /**
  * Dynamic actions: the player describes something, the GM picks a threshold.
- * Note the inverted Remnant scale — creativity is rewarded with louder traces
+ * Note the inverted Remnant scale - creativity is rewarded with louder traces
  * being easier, not harder.
  */
 export const DYNAMIC_THRESHOLDS = [
@@ -1512,7 +1512,7 @@ export const DYNAMIC_THRESHOLDS = [
 
 /**
  * Which rooms allow which rest is NOT here: it is map data, flagged per Scene
- * Region by the GM in Room Setup — see `roomAllows` in rest.mjs. The guide is
+ * Region by the GM in Room Setup - see `roomAllows` in rest.mjs. The guide is
  * explicit that the short-rest pool "depends entirely on the map prepared for
  * the season", and a `bedroomOnly: true` constant could only ever contradict
  * whatever the GM actually flagged.
@@ -1539,7 +1539,7 @@ export const REST = {
  *   player    another character
  *   project   a project in the room
  *
- * `grants` is the permission the call buys on the *next* roll — the roll dialog
+ * `grants` is the permission the call buys on the *next* roll - the roll dialog
  * keeps these controls disabled until a Call has paid for them, which is the
  * whole point of making them Calls rather than free checkboxes.
  */
@@ -1549,7 +1549,7 @@ export const HOPE_CALLS = {
         effect: "Give another player advantage on one roll. You have to be in the same room."
     },
     experience: {
-        // Waits for the GM — see the note on Ultimate above. This is the Call
+        // Waits for the GM - see the note on Ultimate above. This is the Call
         // the "genuinely applies" gate was written for in the first place.
         needsGm: true,
         label: "Experience", icon: "fa-graduation-cap", cost: 1, target: "none", grants: "experience",
@@ -1560,7 +1560,7 @@ export const HOPE_CALLS = {
          * ONE, NOT TWO (D10e). Measured: 5.6 uses a season became 29.
          *
          * At two it was a thing you saved for, which is exactly wrong for what
-         * it represents — your talent is not a special occasion, it is the
+         * it represents - your talent is not a special occasion, it is the
          * reason you are in this school. One turns it into a daily reflex, and
          * the measurement is the argument: a fivefold rise means the Call was
          * not weak, it was priced out of the moments it is for.
@@ -1571,7 +1571,7 @@ export const HOPE_CALLS = {
          * These two are the only Hope Calls whose effect is a CLAIM about the
          * fiction rather than a number. "My Ultimate applies here" and "this
          * experience applies here" are exactly the sentences the handbook makes
-         * the GM adjudicate — the "genuinely applies" gate — and until now the
+         * the GM adjudicate - the "genuinely applies" gate - and until now the
          * module took the player's word for it and handed over the advantage.
          *
          * Every other Call is safe to self-serve because what it does is not
@@ -1602,15 +1602,15 @@ export const HOPE_CALLS = {
      * change what you can afford to do at all, and that difference is why not one
      * of them carries `grants`: that field parks the Call in `FLAGS.pendingCall`,
      * which holds ONE armed Call, so a Sprint sitting there would have deleted a
-     * Support armed a moment earlier. They bank into counters of their own —
-     * `freeMoveGrants` and `freeActionGrants` — and are spent by the two
+     * Support armed a moment earlier. They bank into counters of their own -
+     * `freeMoveGrants` and `freeActionGrants` - and are spent by the two
      * functions that charge for a crossing and an action.
      *
      * They are also the first three Hope Calls in this module that are NOT in
      * the guide.
      *
      * PRICES, THIRD PASS (Z9, from the season run; Dawid, 29.08). Sprint 2,
-     * Relief 3, Burst 4 — and the ladder is what it was always trying to be:
+     * Relief 3, Burst 4 - and the ladder is what it was always trying to be:
      * a crossing costs less than a rest, and a rest costs less than ANY action.
      * The first pass had them at 3 / 5 / 4 and got the general case cheapest;
      * the second (28.08) fixed Relief; this one fixes the floor.
@@ -1618,7 +1618,7 @@ export const HOPE_CALLS = {
     sprint: {
         /*
          * TWO, NOT THREE (Z9). At 3 it stood level with Relief, which buys a
-         * whole Short Rest — so the cheap specific case cost exactly as much as
+         * whole Short Rest - so the cheap specific case cost exactly as much as
          * the broad one, and the season run says what a player does with that:
          * nothing. Sprint was bought least of the three by a wide margin, and
          * not because a free Move is worthless. Because it was priced as though
@@ -1626,7 +1626,7 @@ export const HOPE_CALLS = {
          */
         label: "Sprint", icon: "fa-person-running", cost: 2, target: "none",
         // One crossing. Sprint is the cheap specific case of Burst's expensive
-        // general one — a Move you would otherwise pay an action for — and a
+        // general one - a Move you would otherwise pay an action for - and a
         // Call that says "a free Move" ought to hand over exactly one.
         freeMoves: 1,
         effect: "One more room crossing this time of day, without paying an action for it."
@@ -1634,20 +1634,20 @@ export const HOPE_CALLS = {
     burst: {
         /*
          * FOUR (Z9, Dawid 29.08), and the shape of the menu is the same shape
-         * it was at five — read it out loud: Sprint 2 buys a crossing, Relief 3
+         * it was at five - read it out loud: Sprint 2 buys a crossing, Relief 3
          * buys a Short Rest, Burst 4 buys ANY action. The general case still
          * costs more than either specific one, which is the right way round and
          * was not true before 28.08.
          *
          * What changed is the ceiling, not the ordering. Six is the Free
          * Critical and it is meant to be the thing you save for; at five, Burst
-         * sat one point under it and competed with it for the same saved Hope —
+         * sat one point under it and competed with it for the same saved Hope -
          * so the action-buying Call, which is supposed to be the everyday one,
          * was being weighed against the rarest reward in the game.
          */
         label: "Burst", icon: "fa-bolt", cost: 4, target: "none",
         /*
-         * ONE ACTION, NOT ONE POINT — the decision, and it has teeth.
+         * ONE ACTION, NOT ONE POINT - the decision, and it has teeth.
          *
          * A Long Rest costs two actions, and "your next action is free" is a
          * sentence about the action, not about half of it. So a grant covers a
@@ -1657,13 +1657,13 @@ export const HOPE_CALLS = {
          * on a single Burst.
          */
         freeActions: 1,
-        effect: "Your next action costs nothing — the whole action, however many it would have cost."
+        effect: "Your next action costs nothing - the whole action, however many it would have cost."
     },
     relief: {
         /*
          * THREE, NOT FIVE (Dawid, 28.08): "nie ma powodu, by było droższe niż
          * Burst." It was priced above Burst on the reasoning that a rest buys
-         * more than an action, which is true and is not the question — the
+         * more than an action, which is true and is not the question - the
          * question is what a player will actually reach for, and a Call nobody
          * buys is a Call that is not in the game.
          *
@@ -1677,8 +1677,8 @@ export const HOPE_CALLS = {
          * Three was the right answer to "nobody buys it" and turned into the
          * wrong answer to "what is a Rest for": at three, Relief was simply a
          * better Rest, so the measured Long Rest almost stopped happening. At
-         * four the two stop competing — Long Rest recovered by half in the
-         * same run — and Relief goes back to being what it was meant to be:
+         * four the two stop competing - Long Rest recovered by half in the
+         * same run - and Relief goes back to being what it was meant to be:
          * the thing you buy when you cannot afford the hours.
          */
         label: "Relief", icon: "fa-mug-hot", cost: 4, target: "none",
@@ -1687,7 +1687,7 @@ export const HOPE_CALLS = {
          *
          * Both waivers are deliberate (decision 4). The once-per-time-of-day
          * limit and the marked room are what make a Short Rest a decision about
-         * where you are and what you have already done — and a Call for five
+         * where you are and what you have already done - and a Call for five
          * Hope that could only be spent when you did not need it would be a Call
          * nobody buys. The moment you want this is exactly the moment both gates
          * are shut.
@@ -1697,7 +1697,7 @@ export const HOPE_CALLS = {
          * table that agrees with the first until somebody edits one.
          */
         freeRest: "short",
-        effect: "Take a Short Rest right now — no action, no marked room, and it does not use up this time of day's."
+        effect: "Take a Short Rest right now - no action, no marked room, and it does not use up this time of day's."
     },
     determination: {
         /*
@@ -1733,14 +1733,14 @@ export const HOPE_CALLS = {
  *
  * So the spill stops vanishing. Every point that does not fit feeds a shared
  * world counter, and when that counter reaches X the world itself gets worse
- * for one time of day. Not a bank saved for the finale — that shape was
+ * for one time of day. Not a bank saved for the finale - that shape was
  * proposed, and rightly shot down for moving the problem to the last session
  * instead of solving it. This converts spill into pressure AT ONCE, and does
  * it again and again.
  *
  * WHAT IT BUYS AT THE TABLE is a decision a Monokuma did not have: spend on
  * Calls, or sit on a full pool and push the world towards the dark. At X = 20
- * both are real strategies and neither dominates — which is the whole test a
+ * both are real strategies and neither dominates - which is the whole test a
  * new decision has to pass.
  *
  * X = 20, AND HERE IS THE ARITHMETIC. The season spilled ~4.2 points per time
@@ -1748,7 +1748,7 @@ export const HOPE_CALLS = {
  * fires roughly once a day (five times of day) in ordinary play, and about
  * every third time of day for a Monokuma deliberately farming it. Rare enough
  * to be an event; often enough that the bill for rolling with Despair is
- * visible. Other tables scale it: X ≈ 12 + players / 2 — sixteen players gives
+ * visible. Other tables scale it: X ≈ 12 + players / 2 - sixteen players gives
  * twenty, eight gives sixteen, four gives fourteen. The GM's editor takes any
  * value in `range`.
  *
@@ -1770,13 +1770,13 @@ export const OVERFLOW = {
      * once. This draws ONE at random from the pool the GM has ticked, which is
      * a different feeling for the same price: a darkening stops being a known
      * quantity to plan around and becomes a thing the table finds out. The
-     * checkboxes therefore no longer mean "this effect is on" — they mean
+     * checkboxes therefore no longer mean "this effect is on" - they mean
      * "this effect is in the hat".
      *
      * AN EMPTY POOL DISABLES THE MECHANIC. Untick all eight and the overflow
      * never fires and never pays: the counter goes on climbing and nothing
-     * happens. That is a legitimate table setting — the counter as pure
-     * atmosphere — so the editor says so out loud rather than leaving a GM to
+     * happens. That is a legitimate table setting - the counter as pure
+     * atmosphere - so the editor says so out loud rather than leaving a GM to
      * wonder why nothing ever lands.
      *
      * TWO KINDS, AND THE DIFFERENCE IS LOAD-BEARING.
@@ -1805,8 +1805,8 @@ export const OVERFLOW = {
         /** Search tokens per room. */
         shift: { kind: "state", on: true, by: 1, floor: 1, reader: "SearchTokens.max" },
         /**
-         * Actions per character. Stacks with Wounded deliberately — a hurt
-         * student in a darkened hour is the situation the rule is for — and the
+         * Actions per character. Stacks with Wounded deliberately - a hurt
+         * student in a darkened hour is the situation the rule is for - and the
          * floor is what stops the two reaching zero together.
          */
         panic: { kind: "state", on: true, by: 1, floor: 1, reader: "actionBudget" },
@@ -1815,7 +1815,7 @@ export const OVERFLOW = {
          *
          * NO SINGLE SOURCE TO ASK, which is why this one is a hook. Hope
          * arrives from eight places in this module AND from Daggerheart's own
-         * roll pipeline with a plain `actor.update()` — resource-guard.mjs says
+         * roll pipeline with a plain `actor.update()` - resource-guard.mjs says
          * so, and is why it deliberately does not guard `hope.value`. So the
          * rule lives on `preUpdateActor`, cancelling the INCREASE. Spending
          * Hope is untouched: this stops the tap, not the drain.
@@ -1875,14 +1875,14 @@ export const DESPAIR_CALLS = {
     },
     thisWillHurt: {
         /*
-         * THREE, NOT TWO (Z9) — the only rise in this pass, and the reason is
+         * THREE, NOT TWO (Z9) - the only rise in this pass, and the reason is
          * that it was the cheapest damage on the board while doing the most.
          * Two Health for two Despair, against Paranoia's two Sanity for the
          * same, in a game where Health is four and Sanity is six.
          *
          * The season run makes the case sharper than the ratio does: roughly
          * two thirds of a Monokuma's income spills over the cap of twelve, so a
-         * two-point Call is not really priced at two — it is priced at nothing,
+         * two-point Call is not really priced at two - it is priced at nothing,
          * most of the time. The Calls that hurt are the ones that have to be
          * worth the wait.
          */
@@ -1894,7 +1894,7 @@ export const DESPAIR_CALLS = {
         effect: "A player loses {stress} Sanity."
     },
     chained: {
-        // Not in the guide's table — added at the table's request. Priced
+        // Not in the guide's table - added at the table's request. Priced
         // above Paranoia (2), because losing a time of day's movement is worse
         // than losing 2 Sanity; level with Game Integrity at 3, because a room
         // you are already in may be where you wanted to be anyway.
@@ -1911,7 +1911,7 @@ export const DESPAIR_CALLS = {
         // Guide, p. 16: a Monocub "prosi DMa" for the Hope that Meddle costs, and
         // that Hope only exists because a GM converted Despair into it. It was
         // already possible from the Monocub panel; this puts it where a Monokuma
-        // is actually standing when they decide to do it — their own sheet.
+        // is actually standing when they decide to do it - their own sheet.
         //
         // Priced at 1 because it IS the exchange rate: one Despair becomes one
         // Hope, and the Monokuma is buying a Monocub's single Meddle.
@@ -1922,15 +1922,15 @@ export const DESPAIR_CALLS = {
     /*
      * THE TWO PROJECT CALLS, AND WHAT HAPPENED TO THE THIRD (Dawid, 29.08).
      *
-     * There were three. `gameIntegrity` — nine Despair to empty a project
-     * outright — IS GONE, deliberately and not as the casualty of somebody's
+     * There were three. `gameIntegrity` - nine Despair to empty a project
+     * outright - IS GONE, deliberately and not as the casualty of somebody's
      * tidy-up, and its NAME moved down one entry: the Call that knocks two off
      * a project is now called Game Integrity. "Under Control" is no longer a
      * name in this module.
      *
      * READ THAT TWICE BEFORE YOU TRUST A KEY HERE. The key `gameIntegrity` no
      * longer exists, and the label "Game Integrity" now sits on
-     * `gameProtection` — which is precisely the arrangement that misleads
+     * `gameProtection` - which is precisely the arrangement that misleads
      * anybody who greps for one and finds the other. It is this way because
      * KEYS ARE STORED DATA: an armed Call sits on an actor flag under its key,
      * every button carries it in `data-drpg-call`, and the cards this world has
@@ -1939,21 +1939,21 @@ export const DESPAIR_CALLS = {
      * and this is the same reasoning one step further along.
      *
      * WHY THE WIPE WENT. Nine Despair is three quarters of a full pool, so it
-     * was priced as a Monokuma's entire time of day — and what it bought was
+     * was priced as a Monokuma's entire time of day - and what it bought was
      * the deletion of somebody else's. A Call that ENDS a thread rather than
      * bending it is the one shape this economy has no answer to: the player
      * cannot respond to it, the GM cannot un-spend it, and what is left on the
      * table afterwards is an empty bar and nothing to play. Bending stays.
      *
      * WHAT REPLACES IT is a Call that pours Despair into the overflow instead
-     * of into a player — Feed the Overflow, landing with the counter it feeds
+     * of into a player - Feed the Overflow, landing with the counter it feeds
      * (Z10, wave 6). It is deliberately NOT written here yet: a row in this
      * table is a promise the panel makes, and a tile pouring into a counter
      * that does not exist is a promise nothing can keep.
      *
      * The two that remain are priced as a pair, which is the point of them
      * sitting together: 3 to slow a project down, 3 to speed one up. Nothing
-     * outside this table names either effect — `callEffect()` rebuilds both
+     * outside this table names either effect - `callEffect()` rebuilds both
      * sentences from the fields, and the sheet, the receipt and the tooltip
      * follow without being touched.
      */
@@ -1966,10 +1966,10 @@ export const DESPAIR_CALLS = {
         effect: "Add {progress} progress to a project."
     },
     /*
-     * FEED THE OVERFLOW (Z14, Dawid 29.08) — what replaced the project wipe.
+     * FEED THE OVERFLOW (Z14, Dawid 29.08) - what replaced the project wipe.
      *
      * The wipe ended a player's thread and left nothing on the table. This
-     * spends the same currency on the same instinct — make things worse —
+     * spends the same currency on the same instinct - make things worse -
      * without taking anybody's game away: one Despair goes into the counter
      * that darkens the world for everyone, the Monokuma included.
      *
@@ -1978,7 +1978,7 @@ export const DESPAIR_CALLS = {
      * Anything else would be arithmetic the table has to do in its head to
      * know what it is buying.
      *
-     * It is the SECOND source feeding that counter — the first is spill over
+     * It is the SECOND source feeding that counter - the first is spill over
      * the cap of twelve, which costs nothing and happens by itself. This one
      * is deliberate, and it is the only way a Monokuma with a pool that is not
      * full can push the world towards the dark.
@@ -1991,14 +1991,14 @@ export const DESPAIR_CALLS = {
     contraband: {
         /*
          * FOUR (Z9, Dawid 29.08). The guide's table says 6 and this module has
-         * been at 5 since G-01 was decided — so this is the second deliberate
+         * been at 5 since G-01 was decided - so this is the second deliberate
          * step away from that row, and it is worth saying why rather than
          * leaving a number that looks like drift.
          *
          * Destroying one item is a narrow act with a wide reputation: it reads
          * expensive because it is irreversible, and it was priced for the
          * reading. What it actually removes is one object out of three carried
-         * slots, replaceable by one Search — while Silence at 4 takes a
+         * slots, replaceable by one Search - while Silence at 4 takes a
          * player's voice for a scene. At five it was the Call that Monokumas
          * described and did not buy.
          */
@@ -2059,8 +2059,8 @@ export const DESPAIR_CALLS = {
          * NINE (D10f). At twelve it was bought zero times in a measured season:
          * a full pool, spent on one thing, in a game where the pool is also
          * every cheap harassment a Monokuma wants to do all week. Nine puts it
-         * at about three and a half purchases a season, and the Motive — the
-         * other nine-point Call it now ties — did not suffer for the company.
+         * at about three and a half purchases a season, and the Motive - the
+         * other nine-point Call it now ties - did not suffer for the company.
          */
         label: "New Rule", icon: "fa-gavel", cost: 9, target: "none", announces: true,
         effect: "Introduce one new killing game rule of your choice."
@@ -2091,13 +2091,13 @@ export const MOTIVE = {
  * The magnitudes were written out twice: once as data the code acts on
  * (`damage.stress`, `progress`, `grantsHope`, `cost`) and once as a digit in
  * the sentence a GM reads before spending. Rebalancing one of these would have
- * moved the effect and left the sentence describing the old game — and nothing
+ * moved the effect and left the sentence describing the old game - and nothing
  * would have failed, which is the worst version of that.
  *
  * The placeholders are the entry's own field names, so a Call that gains a
  * number needs no change here: write `{cost}` in the sentence and it is filled.
  *
- * Not `game.i18n.format` — these strings live in config.mjs, which is the
+ * Not `game.i18n.format` - these strings live in config.mjs, which is the
  * single source of truth about the rules and is deliberately not in the
  * language file (see the note at the top of this file).
  */
@@ -2131,7 +2131,7 @@ export function callEffect(call) {
 
 export const PROJECT_SCALE = {
     trivial: { label: "Trivial", progress: 3 },
-    // Key stays `everyday` — it is written on existing project documents. The
+    // Key stays `everyday` - it is written on existing project documents. The
     // Player Handbook calls this tier "Standard", so that is what the label says.
     everyday: { label: "Standard", progress: 4 },
     complex: { label: "Complex", progress: 6 },
@@ -2151,13 +2151,13 @@ export const PROJECT_SCALE = {
  * THE MODULE WATCHES, THE GM FIRES. NEVER THE OTHER WAY ROUND.
  *
  * An engine that opens a murder by itself takes from the GM the one thing a
- * computer is no good at — "not now, we are mid-trial", "she would have noticed
- * that", "wrong person" — and at the same time leaves them the one thing a
+ * computer is no good at - "not now, we are mid-trial", "she would have noticed
+ * that", "wrong person" - and at the same time leaves them the one thing a
  * person is no good at: watching thirty rooms for four hours. So `fireTrap`
  * stays exactly as it is. The only thing that changes is WHEN the card arrives.
  *
  * `watch` is the whole contract: a trigger with one is read off an event, and a
- * trigger without one is the GM saying "I will watch this myself" — which is
+ * trigger without one is the GM saying "I will watch this myself" - which is
  * today's behaviour, on the list, so choosing it is visible next to the eight
  * that are watched rather than being the silent default.
  *
@@ -2169,7 +2169,7 @@ export const TRAP_TRIGGERS = {
     /*
      * FIRST ON THE LIST BECAUSE IT IS THE ONE THE GM CANNOT SEE.
      *
-     * Somebody being alone is not a thing that happens on screen — it is a
+     * Somebody being alone is not a thing that happens on screen - it is a
      * property of a room at a moment, and by the time a GM notices it the
      * moment has usually passed. Every other trigger here is a substitute for
      * attention; this one is a substitute for omniscience.
@@ -2213,7 +2213,7 @@ export const TRAP_TRIGGERS = {
     },
     project: {
         label: "Somebody works on a named project",
-        hint: "Pushing that project forward is what does it — the scaffold, the crane.",
+        hint: "Pushing that project forward is what does it - the scaffold, the crane.",
         icon: "fa-hammer",
         watch: "action",
         actionKey: "project",
@@ -2228,7 +2228,7 @@ export const TRAP_TRIGGERS = {
         needs: "project"
     },
     /*
-     * THE ONLY ONE THAT CATCHES AN INTENTION RATHER THAN A MOVEMENT — you have
+     * THE ONLY ONE THAT CATCHES AN INTENTION RATHER THAN A MOVEMENT - you have
      * to go rummaging through other people's hiding places to set it off.
      *
      * EVERY ATTEMPT, INCLUDING A FAILED ONE (Dawid, 28.08). The trap answers
@@ -2291,8 +2291,8 @@ export const AFTER_DARK = ["evening", "night"];
  * na każdy rzut. Przy utracie całego hp w trakcie Daily Life gracz otrzymuje
  * -1 akcję na porę dnia."
  *
- * Daggerheart marks the same two moments with its own conditions — Vulnerable
- * at full Sanity, and a Death Move at full Health — and neither is this game's rule:
+ * Daggerheart marks the same two moments with its own conditions - Vulnerable
+ * at full Sanity, and a Death Move at full Health - and neither is this game's rule:
  * a Death Move offers to blaze out in glory, which a killing game does not
  * grant. `states.mjs` switches both of the system's automations off and applies
  * these instead.
@@ -2345,18 +2345,18 @@ export const LEVEL_UP = {
  * --------------------------------------------------------------------------
  * A dead player joins the GM side. Guide, p. 16: "Ma do dyspozycji tyle akcji
  * co gracze... Ma tylko dwie akcje: ruch i zamieszanie." Same budget as any
- * living student (STARTING.actions, refilled by the same code — nothing
+ * living student (STARTING.actions, refilled by the same code - nothing
  * Monocub-specific needed there), restricted to two action TYPES. Room
  * visibility stays restricted too: a Monocub is not a Monokuma and does not
  * see tokens outside its own room.
  *
  * Meddle is priced twice over, on purpose: "wymienić ten 1 hope aby użyć akcji
- * zamieszanie" — it costs an action from the normal budget AND a point of
+ * zamieszanie" - it costs an action from the normal budget AND a point of
  * Hope, and that Hope only exists because a GM chose to convert Despair into
  * it. A Monocub who has not been given any cannot Meddle at all, however many
  * actions they have left.
  *
- * "Stat: —" in the guide's own table means what it says: this is the one roll
+ * "Stat: -" in the guide's own table means what it says: this is the one roll
  * in the whole system with no trait behind it, so it is built as a flat 2d12
  * in monocub.mjs rather than forced through a trait it does not have.
  */
@@ -2374,7 +2374,7 @@ export const MONOCUB = {
         hopeCost: 1,
         // The lower tier grants a flat +1/-1, the upper tier grants full
         // advantage/disadvantage. Both are armed on the target's very next
-        // roll through the same Call machinery Support/Obstacle already use —
+        // roll through the same Call machinery Support/Obstacle already use -
         // which is also how "help a crisis action" falls out for free: an
         // incident roll goes through the identical roll dialog.
         thresholds: [
@@ -2399,7 +2399,7 @@ export const MONOCUB = {
 /*
  * The guide's seven stages are not modelled as data.
  *
- * Four of them — declaration, preparation, trigger, body discovery — happen at
+ * Four of them - declaration, preparation, trigger, body discovery - happen at
  * the table, away from it, or through a GM button that has nothing to do with
  * the incident state. Only the three the engine actually drives are stored, as
  * `murderState().stage`: `openingRoll`, `incident`, `resolution`. Their labels
@@ -2407,15 +2407,15 @@ export const MONOCUB = {
  */
 
 /**
- * Stage 4 — the opening roll, guide p. 19.
+ * Stage 4 - the opening roll, guide p. 19.
  *
  * THERE IS EXACTLY ONE, and the kind of murder decides whose it is:
  *
  *   direct     the KILLER rolls. They are in the room and the question is
  *              whether they go through with it. The victim never rolls, is
  *              never asked, and on a failure is never told anything happened.
- *   indirect   the VICTIM rolls. There is nobody to confront — the trap is
- *              already set — so the only question is whether they notice it in
+ *   indirect   the VICTIM rolls. There is nobody to confront - the trap is
+ *              already set - so the only question is whether they notice it in
  *              time to back out. Being asked to roll is itself the warning.
  *
  * `MURDER_OPENING.victim` therefore describes sensing a TRAP, never sensing an
@@ -2424,18 +2424,18 @@ export const MONOCUB = {
  * An earlier version of this comment described two rolls, one per side, and the
  * i18n strings were written to match it. That was a misreading of a table the
  * PDF extracts badly; the code has only ever offered one. The strings have been
- * corrected — if anything else here still speaks of "both openings", it is
+ * corrected - if anything else here still speaks of "both openings", it is
  * wrong.
  *
  * Night swings whichever roll is actually thrown: the killer gets advantage, the
  * victim disadvantage.
  *
- * `keyRemnants` is the guide's sliding scale — the better the killer's roll, the
+ * `keyRemnants` is the guide's sliding scale - the better the killer's roll, the
  * FEWER clues the case leaves behind, floored at the minimum in KEY_REMNANTS.
  */
 export const MURDER_OPENING = {
     killer: {
-        label: "Opening roll — killer",
+        label: "Opening roll - killer",
         threshold: 8,
         traits: ["body", "hand"],
         /** Night favours the killer. */
@@ -2450,8 +2450,8 @@ export const MURDER_OPENING = {
         /**
          * The same roll, thrown by somebody who is both sides of it.
          *
-         * A student taking their own life is a Blackened like any other — it is
-         * one of the oldest shapes this story has — and the roll they throw is
+         * A student taking their own life is a Blackened like any other - it is
+         * one of the oldest shapes this story has - and the roll they throw is
          * still the killer's: the numbers, the thresholds and the sliding scale
          * of Key Remnants are all unchanged. Only the prose is, because every
          * line of the ordinary table speaks about a victim who is somebody else.
@@ -2463,7 +2463,7 @@ export const MURDER_OPENING = {
          * `indirectVictim` uses in CRISIS_ACTIONS.
          */
         selfInflicted: {
-            label: "Opening roll — by their own hand",
+            label: "Opening roll - by their own hand",
             hope: "It is done. Nothing about the room was arranged: the scene is exactly as "
                 + "plain as the act, and it will read that way.",
             despair: "It is done, and something in how it was left will read as somebody "
@@ -2482,17 +2482,17 @@ export const MURDER_OPENING = {
      * before it closes. Every outcome below is written from inside that: there is
      * no attacker in the room to identify, only a thing that is about to happen.
      *
-     * The victim throws this roll themselves, so unlike a direct murder — where a
-     * failed attempt leaves them none the wiser — being asked is already the
+     * The victim throws this roll themselves, so unlike a direct murder - where a
+     * failed attempt leaves them none the wiser - being asked is already the
      * warning. A success is a real way out, and taking it is their choice.
      */
     victim: {
-        label: "Opening roll — victim",
+        label: "Opening roll - victim",
         threshold: 20,
         traits: ["eye", "head"],
         /** Night works against the victim. */
         nightDisadvantage: true,
-        hope: "Something is wrong with this room. A free Move, and no idea why — "
+        hope: "Something is wrong with this room. A free Move, and no idea why - "
             + "spend it and you live.",
         despair: "You work out what has been set up here, and you can tell the others. "
             + "The project behind it stays active.",
@@ -2502,7 +2502,7 @@ export const MURDER_OPENING = {
          * Noticing leaves a trace of the attempt.
          *
          * The guide prints "Wyraźny Incident Remnant" under both halves of the
-         * victim's successful roll — the Hope one where "próba jest niejawna"
+         * victim's successful roll - the Hope one where "próba jest niejawna"
          * and they never learn why, and the Despair one where "ofiara wie, że
          * próbowano ją zabić". Something happened in that room either way, and
          * this is the only Remnant in the whole of Stage 4.
@@ -2515,7 +2515,7 @@ export const MURDER_OPENING = {
 };
 
 /**
- * Stage 5 — the incident, guide pp. 20–25.
+ * Stage 5 - the incident, guide pp. 20–25.
  *
  * A turn-based exchange. The victim always goes first, and every turn costs
  * them: Sanity until it runs out, then Health.
@@ -2524,7 +2524,7 @@ export const INCIDENT = {
     /** Direct murder: 1 per turn. Indirect: the victim is alone and it is 2. */
     drain: { direct: 1, indirect: 2 },
     /**
-     * The finishing blow's threshold is five times the victim's remaining Health —
+     * The finishing blow's threshold is five times the victim's remaining Health -
      * which is what makes it free at zero, with no separate flag needed:
      * `finishingBlowThreshold()` returns 0 and any roll clears it.
      */
@@ -2535,7 +2535,7 @@ export const INCIDENT = {
  * Crisis actions, by who may take them. Guide pp. 20–25.
  *
  * Every one of these is a roll with three good branches and one bad, and most
- * of them leave a Remnant either way — which is the point: an incident is the
+ * of them leave a Remnant either way - which is the point: an incident is the
  * densest source of evidence in the whole game.
  *
  * The module rolls, compares and applies what is mechanical (damage, Remnants,
@@ -2546,7 +2546,7 @@ export const INCIDENT = {
 export const CRISIS_ACTIONS = {
     /**
      * USE AN ITEM, mid-incident. Guide p. 21 ("Użycie przedmiotu"), threshold
-     * 15, Hand — and missing from this table until E9, which left the one hole
+     * 15, Hand - and missing from this table until E9, which left the one hole
      * the whole stage had: `useItem()` was reachable straight from the
      * inventory row, so a victim drank a healing kit in the middle of a murder
      * with no roll, no turn and no cost while every other act in the incident
@@ -2557,12 +2557,12 @@ export const CRISIS_ACTIONS = {
      * a killer in a Role Reversal is losing resources by then too.
      *
      * `hidden`, because it is not a tile. It is reached by pressing "use" on
-     * the thing you want to use, which is where a player already looks for it —
+     * the thing you want to use, which is where a player already looks for it -
      * a fifth tile in the crisis grid saying "use an item" and then asking
      * WHICH would be two decisions where the sheet already offers one.
      *
      * WHAT "SUCCESS" MEANS HERE IS NARROWER THAN ELSEWHERE. A success with
-     * Despair still leaves a trace — you were seen fumbling with it — but the
+     * Despair still leaves a trace - you were seen fumbling with it - but the
      * item does not go in: see `usesItem` in `resolveCrisisAction`. That is the
      * guide's own table and it is the reason this action needed a field of its
      * own rather than the generic success branch.
@@ -2578,7 +2578,7 @@ export const CRISIS_ACTIONS = {
         remnant: { hope: "evident", despair: "subtle", critical: "obvious" },
         criticalReinforced: true,
         // The guide gives the direct victim a second action and the indirect one
-        // the action back. At a table those are the same thing — you act again —
+        // the action back. At a table those are the same thing - you act again -
         // so this module has one behaviour and says so rather than building two.
         criticalKeepsTurn: true,
         failure: "It stays in your pocket.",
@@ -2593,7 +2593,7 @@ export const CRISIS_ACTIONS = {
         remnant: { hope: "evident", despair: "subtle", critical: "obvious" },
         criticalReinforced: true,
         // G-17: a critical does not end the turn. Same field and same mechanism
-        // as `useItem` above — the guide gives the direct victim a second action
+        // as `useItem` above - the guide gives the direct victim a second action
         // and the indirect one their action back, which at a table is one thing.
         criticalKeepsTurn: true,
         failure: "No Remnant, but advantage on the next attempt. Only on a Hope failure.",
@@ -2603,14 +2603,14 @@ export const CRISIS_ACTIONS = {
          *
          * The guide prints a SEPARATE table for the indirect victim (p. 20,
          * "Akcje kryzysowe pośredniej ofiary") and it differs in two ways that
-         * matter: the stat is Body rather than Shadow — you are not hiding from
-         * anyone, there is nobody there — and what a good roll buys is
+         * matter: the stat is Body rather than Shadow - you are not hiding from
+         * anyone, there is nobody there - and what a good roll buys is
          * PERMANENCE rather than visibility. Hope leaves a Reinforced trace,
          * Despair a plain one, and a critical leaves two Reinforced.
          *
          * Visibility is left as the direct table's, because the guide does not
          * restate it here and something had to be chosen; the axis it does
-         * restate — reinforced, and how many — is what this overrides.
+         * restate - reinforced, and how many - is what this overrides.
          */
         indirectVictim: {
             traits: ["hand", "leg", "body"],
@@ -2631,7 +2631,7 @@ export const CRISIS_ACTIONS = {
         /**
          * Same split as Leave a clue, and the guide's critical here is worded
          * even more explicitly: "2 nieusuwalne przez mordercę, związane z nim
-         * Incident Remnants" — two traces the killer cannot wipe in Stage 6.
+         * Incident Remnants" - two traces the killer cannot wipe in Stage 6.
          * There is no killer in the room to take something FROM, so what the
          * indirect victim secures is the trap itself.
          */
@@ -2645,7 +2645,7 @@ export const CRISIS_ACTIONS = {
      * The gate on the victim's two ways out.
      *
      * Guide, the Samoobrona row: a success "odblokowuje obie akcje kryzysowe
-     * rozwiązania ofiary" on Hope, and on Despair only "odwrócenie ról" — and
+     * rozwiązania ofiary" on Hope, and on Despair only "odwrócenie ról" - and
      * either way it "blokuje akcję kryzysową: Samoobrona", so it is one attempt.
      * A critical also stops the drain outright and hands the victim a free
      * follow-up.
@@ -2673,13 +2673,13 @@ export const CRISIS_ACTIONS = {
          * G-18, AND ITS TWO HALVES ARE BOTH LOAD-BEARING.
          *
          * `criticalFreeResolution` opens one of the resolution actions this
-         * critical just unlocked and lets it be TAKEN rather than rolled — an
+         * critical just unlocked and lets it be TAKEN rather than rolled - an
          * automatic success, not an extra attempt. That is what separates it
          * from G-17, which buys another go at the dice.
          *
          * `criticalKeepsTurn` is what makes it reachable at all. The critical's
          * own text has always said "this turn", and Self-defence used to pass
-         * the turn the moment it resolved — so a free action valid for this turn
+         * the turn the moment it resolved - so a free action valid for this turn
          * would have expired before the player could press anything. The grant
          * lapses at the end of the round either way, so it cannot be banked.
          */
@@ -2688,13 +2688,13 @@ export const CRISIS_ACTIONS = {
         remnant: { hope: "evident", despair: "evident", critical: "evident" },
         criticalReinforced: true,
         hope: "You keep your feet. Survive and Role reversal are open to you now.",
-        despair: "You keep your feet, but only barely — Role reversal is open to you now.",
+        despair: "You keep your feet, but only barely - Role reversal is open to you now.",
         critical: "You stop the bleeding. Both ways out are open, and you may take one of them "
             + "this turn without rolling.",
         failure: "Nothing happens. On a Despair failure you lose an extra 1 Health or Sanity.",
         /**
          * The line above has said this since the action was written and nothing
-         * was doing it — measured while rewriting the outcome cards. Despair
+         * was doing it - measured while rewriting the outcome cards. Despair
          * only, exactly as worded.
          */
         failureExtraDrain: { despair: 1 },
@@ -2709,7 +2709,7 @@ export const CRISIS_ACTIONS = {
     survive: {
         side: "victim", label: "Survive", icon: "fa-person-running",
         threshold: 18, traits: ["leg"], kind: "resolution",
-        // Closed until Self-defence lands — see `selfDefence.unlocks`.
+        // Closed until Self-defence lands - see `selfDefence.unlocks`.
         lockedUntil: "selfDefence",
         hint: "Withdraw from the incident and stop losing Health and Sanity. Needs Self-defence first.",
         hope: "The incident ends and the drain stops.",
@@ -2736,13 +2736,13 @@ export const CRISIS_ACTIONS = {
          * As on Self-defence, and for the same reason: the sentence above was
          * written from the guide and the code was doing none of it. A victim
          * who tries to turn the knife around and misses on Despair pays for the
-         * attempt — which is the only thing separating this from a free reroll
+         * attempt - which is the only thing separating this from a free reroll
          * every turn.
          */
         failureExtraDrain: { despair: 1 },
         // The critical's own text promises a trace and nothing was creating one:
         // `applyRemnant` reads `remnant[band]`, and this entry had no `remnant`
-        // table at all. Same shape of bug as the Dynamic action's missing trace —
+        // table at all. Same shape of bug as the Dynamic action's missing trace -
         // the outcome was announced and the map stayed empty.
         remnant: { critical: "evident" },
         criticalReinforced: true,
@@ -2797,8 +2797,8 @@ export const CRISIS_ACTIONS = {
          * Guide: "Przedmiot tieru 0 jest negocjowalny jako tier 1 lub 2 w ramach
          * kreatywności zabójcy."
          *
-         * A Tier 0 item is "a random, seemingly useless object" — a stapler, a
-         * skipping rope — and whether swinging it counts for anything is exactly
+         * A Tier 0 item is "a random, seemingly useless object" - a stapler, a
+         * skipping rope - and whether swinging it counts for anything is exactly
          * the kind of call the guide hands to a human. So a Tier 0 weapon asks
          * the GM to rate this particular use, rather than silently dealing the
          * 1 damage the formula gives for tier 0 and never mentioning it.
@@ -2810,7 +2810,7 @@ export const CRISIS_ACTIONS = {
          * Hope - Tier 2, Despair - Tier 1."
          *
          * The improvised tool is a real Crime Tool on the killer's sheet, not a
-         * line of prose — the next Attack with a weapon has to be able to find it.
+         * line of prose - the next Attack with a weapon has to be able to find it.
          */
         unarmedImprovises: { hope: 2, despair: 1, critical: 2, name: "Improvised weapon" },
         remnant: { despair: "subtle" },
@@ -2823,9 +2823,9 @@ export const CRISIS_ACTIONS = {
         // The old hint ended "without this the victim keeps taking turns at 0 Health
         // and 0 Sanity", which stopped being true when running out started
         // ending the incident on its own. What the roll buys is ending it EARLY,
-        // and the critical's free Stage 6 action — neither of which a victim who
+        // and the critical's free Stage 6 action - neither of which a victim who
         // simply bled out hands over.
-        hint: "End the incident now. Threshold is five times their remaining Health — free at 0 Health. "
+        hint: "End the incident now. Threshold is five times their remaining Health - free at 0 Health. "
             + "A victim who runs out of both Health and Sanity dies without this, but then nobody "
             + "earns what a critical here grants.",
         endsIncident: true,
@@ -2844,16 +2844,16 @@ export const CRISIS_ACTIONS = {
      * rozwiązania bezpośredniej strony trzeciej".
      *
      * FOUR of them, and only the first is a roll. The other three are decisions
-     * — the guide gives them no threshold, no stat and no outcome table,
+     * - the guide gives them no threshold, no stat and no outcome table,
      * because there is nothing to fail at: you either throw in with one side,
      * or you leave. `noRoll` marks them so `takeCrisisAction` applies them
      * outright instead of opening a roll dialog.
      *
-     * Zdrada — the fifth entry in the guide — is deliberately NOT here. It is
+     * Zdrada - the fifth entry in the guide - is deliberately NOT here. It is
      * not part of this choice: it happens later ("po zabiciu pierwszego
      * oryginalnego uczestnika"), it "wymaga Rzutu akcji morderstwo
      * bezpośrednie", and the guide calls it "jedyny wyjątek od zasady
-     * deklaracji zabójstwa" — that is the Direct Murder action starting a fresh
+     * deklaracji zabójstwa" - that is the Direct Murder action starting a fresh
      * cycle, which the module already has.
      */
     sharedEscape: {
@@ -2865,14 +2865,14 @@ export const CRISIS_ACTIONS = {
         critical: "Both of you escape with immunity for this chapter and the next, and the "
             + "victim's Health and Sanity are restored.",
         /*
-         * NOT "the newcomer becomes a second victim" — an incident has exactly
+         * NOT "the newcomer becomes a second victim" - an incident has exactly
          * one victim, start to finish. That sentence described a rule the
          * module has never had and the guide does not give: two bodies come
          * from the betrayal AFTER the incident, not from two people bleeding
          * inside it. See `afterIncident` in murder.mjs.
          */
         failure: "Only you get out. The victim stays where they are, and your one free choice "
-            + "is spent — whatever happens next, it happens without you.",
+            + "is spent - whatever happens next, it happens without you.",
         remnant: { hope: "obvious", despair: "evident" },
         // A failed escape leaves a trace too. It used to live under
         // `remnant.failure`, which nothing ever read: the failure branch looks up
@@ -2883,12 +2883,12 @@ export const CRISIS_ACTIONS = {
     },
 
     /**
-     * "Podwójne odwrócenie ról — strona trzecia i ofiara zostają mordercami,
+     * "Podwójne odwrócenie ról - strona trzecia i ofiara zostają mordercami,
      * czyniąc przeżycie oryginalnego zabójcy prawie niemożliwym."
      *
      * The victim and the newcomer swap onto the killer's side, and the killer
      * becomes the victim. `swapsRoles` is the mechanism Role reversal already
-     * uses; `alsoTakesThird` is what makes it double — the third party ends up
+     * uses; `alsoTakesThird` is what makes it double - the third party ends up
      * beside the old victim rather than watching.
      */
     doubleRoleReversal: {
@@ -2903,7 +2903,7 @@ export const CRISIS_ACTIONS = {
     },
 
     /**
-     * "Partnerzy zbrodni — strona trzecia dołącza do mordercy w zabójstwie,
+     * "Partnerzy zbrodni - strona trzecia dołącza do mordercy w zabójstwie,
      * czyniąc przeżycie oryginalnej ofiary prawie niemożliwym."
      *
      * No swap: the sides stay as they are and the newcomer joins the killer's.
@@ -2921,12 +2921,12 @@ export const CRISIS_ACTIONS = {
     },
 
     /**
-     * "Odwrócony wzrok — strona trzecia opuszcza pomieszczenie i nie
+     * "Odwrócony wzrok - strona trzecia opuszcza pomieszczenie i nie
      * interweniuje. Może pójść po innych graczy, jednak koszt ruchu z dużym
      * prawdopodobieństwem mu to uniemożliwi."
      *
      * Leaves no trace on purpose: the whole point is that they were never part
-     * of it. The movement cost the guide mentions is not modelled here — it is
+     * of it. The movement cost the guide mentions is not modelled here - it is
      * simply the ordinary economy in movement.mjs, which is exactly what the
      * guide means by "koszt ruchu".
      */
@@ -2957,7 +2957,7 @@ export const TRIAL = {
      * in, and this is the GM's default budget for it, editable every time
      * they open the floor. It stays 180 because that is the length the table
      * is used to, and because overrunning it is a red bar rather than a
-     * hard stop — see `overrun` in trial-floor.mjs.
+     * hard stop - see `overrun` in trial-floor.mjs.
      */
     speakSeconds: 180,
     /**
@@ -2978,15 +2978,15 @@ export const TRIAL = {
      * that: `closeVote` publishes the counts and says a tie is a tie, and the
      * GM then presses "Got it wrong" in the verdict dialog. A constant the code
      * consulted would be deciding a verdict the module deliberately never learns
-     * — it never finds out who the Blackened was.
+     * - it never finds out who the Blackened was.
      */
     /**
      * You may accuse a Monokuma, somebody already dead, or yourself.
      *
      * The guide is explicit on all three: "Można głosować na Monokumę oraz na
      * martwych graczy" and "Można głosować na siebie". This comment used to end
-     * "Not yourself", which was never true of the code — `vote.mjs` has never
-     * filtered the voter out of their own ballot — so the only thing it did was
+     * "Not yourself", which was never true of the code - `vote.mjs` has never
+     * filtered the voter out of their own ballot - so the only thing it did was
      * describe the rules wrongly in the one file that is meant to be the
      * authority on them.
      */
@@ -3016,24 +3016,24 @@ export const RESOLUTION_STRESS_COST = 1;
  * which reads as a rule until you put it beside the other two: a critical
  * Self-defence STOPS the per-turn drain, and the incident only ends by itself
  * when BOTH tracks are full. Stop the drain on a victim whose Sanity has gone
- * and the incident cannot end at all — they cannot escape, cannot turn the
+ * and the incident cannot end at all - they cannot escape, cannot turn the
  * knife around, and nothing is filling the Health track that would end it. The
  * simulation walked into this and sat there.
  *
  * So the way out stays open and changes currency. Health is the right one: it
  * is the other track the incident already spends, and filling it is exactly the
- * condition that ends the fight — so a victim clawing for the door either
+ * condition that ends the fight - so a victim clawing for the door either
  * reaches it or runs out, and both are endings.
  *
  * IT DOES NOT KILL. Filling the Health track has never killed anybody in this
  * module; `killCharacter` is called by name and by a person. What a full track
- * does is Wounded and, with Sanity already gone, `isSpent` — the incident ends
+ * does is Wounded and, with Sanity already gone, `isSpent` - the incident ends
  * and Stage 6 opens.
  */
 export const RESOLUTION_HEALTH_COST = 1;
 
 /* ==========================================================================
- * STAGE 6 — CLEANING UP
+ * STAGE 6 - CLEANING UP
  * --------------------------------------------------------------------------
  * Guide: "Przedmioty sprzątające ułatwiają rozwiązanie morderstwa", and Stage 6
  * is where the killer finally sees what they left and can spend Sanity trying
@@ -3071,7 +3071,7 @@ export const CLEANUP = {
     /**
      * Covering your tracks is a Shadow job.
      *
-     * The FIRST entry is what is actually rolled — the same convention
+     * The FIRST entry is what is actually rolled - the same convention
      * `takeCrisisAction` follows for `CRISIS_ACTIONS[key].traits`. The rest of
      * the list documents what else a GM could reasonably allow, and is the
      * single place to change it.
@@ -3085,7 +3085,7 @@ export const CLEANUP = {
 
     /**
      * An equipped Cleaning Tool grants advantage and takes its tier off the
-     * threshold — a purpose-built Tier 3 kit turns an Obvious trace into the
+     * threshold - a purpose-built Tier 3 kit turns an Obvious trace into the
      * same job as an Evident one. `EQUIPPED` is the operative word: the guide's
      * tools are objects in a hand, not entries on a list.
      */
@@ -3097,45 +3097,45 @@ export const CLEANUP = {
      *
      * A Despair success is the guide's whole shape for this stage: you got rid
      * of it, and cleaning is itself something a person does in a room. The trace
-     * that replaces it is Faint, so a GM clearing Faint traces can take it —
+     * that replaces it is Faint, so a GM clearing Faint traces can take it -
      * unlike the failure's, which is not faint and is not going anywhere.
      *
      * Three readings corrected against the guide's own table:
      *   despair       leaves a "Wyraźny" (evident) trace, not a subtle one.
-     *   critical      "Morderca odzyskuje 1 stres" — the only Stage 6 outcome
+     *   critical      "Morderca odzyskuje 1 stres" - the only Stage 6 outcome
      *                 that hands the Sanity back, and it was not doing it.
      *   failure       the guide splits it. A Hope failure simply does not work
      *                 ("Morderca nie usuwa Remnant." and nothing more); only a
      *                 Despair failure is punished.
      *
      * WHAT A DESPAIR FAILURE DOES NOW (Z5). It used to add a fresh Obvious
-     * Resolution Remnant beside the one you failed to erase — two traces where
+     * Resolution Remnant beside the one you failed to erase - two traces where
      * there was one, which is the double punishment that made the whole stage
      * not worth attempting. It now RAISES the trace you were scrubbing at by one
      * band of visibility: subtle → evident → obvious. The risk is intact and it
-     * is the same risk in fiction — you have made the mess more obvious, not
-     * made a second mess — but the investigation does not gain a whole new
+     * is the same risk in fiction - you have made the mess more obvious, not
+     * made a second mess - but the investigation does not gain a whole new
      * object out of your bad night.
      */
     /*
      * TIDYING LEAVES ITS OWN TRACE (D8), AND THAT REPLACES Z5's LOUDER BAND.
      *
      * Z5 answered a failure by making the trace you were working on one band
-     * more visible. It was the right instinct — you disturbed it — and the
+     * more visible. It was the right instinct - you disturbed it - and the
      * wrong object: a Subtle Prep Remnant that becomes Evident is still a Prep
      * Remnant, so the investigation learns "he was here", which it already knew.
      *
      * What a botched clean-up actually produces is a DIFFERENT thing: the
      * unnaturally clean patch, the object moved back very slightly wrong. That
-     * is its own kind of evidence and it says something new — somebody tidied
-     * here — which is exactly the fact a trial can work with.
+     * is its own kind of evidence and it says something new - somebody tidied
+     * here - which is exactly the fact a trial can work with.
      *
      * So both failures now leave a Tamper Remnant, and `raisesVisibility` is
      * gone. A clean success and a critical still leave nothing: doing it
      * perfectly is what "perfectly" means.
      *
      * THE HOPE/DESPAIR GRADIENT IS KEPT in what gets left, not in whether
-     * anything does — a failure with Hope leaves something Subtle, a failure
+     * anything does - a failure with Hope leaves something Subtle, a failure
      * with Despair something Evident.
      */
     outcome: {
@@ -3147,7 +3147,7 @@ export const CLEANUP = {
     },
 
     /**
-     * Traces the clean-up leaves are Tamper Remnants — key `resolution`, per
+     * Traces the clean-up leaves are Tamper Remnants - key `resolution`, per
      * REMNANT_TYPES, where the label was renamed and the key deliberately was
      * not (D8; the lesson Z14 paid for).
      */
@@ -3158,13 +3158,13 @@ export const CLEANUP = {
      *
      * A NEW PERMISSION, NOT A NEW NUMBER. The killer relabels a trace that is
      * already on the map: what kind of thing it is, and how easy it is to see.
-     * Erasing is still on the table and is still usually stronger — nothing at
+     * Erasing is still on the table and is still usually stronger - nothing at
      * all beats a decoy. What this buys is the option to leave something that
      * argues for the wrong story rather than a room that has been scrubbed
      * suspiciously clean.
      *
      * THE CHOICE IS BOUNDED, which is the whole of trap 115. Without a list
-     * here, a critical would turn any piece of evidence into any other — and
+     * here, a critical would turn any piece of evidence into any other - and
      * the four types left out are left out for one reason each:
      *
      *   key       the GM placed it for the case to be solvable at all
@@ -3173,7 +3173,7 @@ export const CLEANUP = {
      *   neutral   a state a Truth Bullet is in, not a kind of trace
      *
      * WHO IT POINTS AT IS NOT ON THIS LIST. `pointsAt` is the Misleading trail's
-     * business — its own Stage 6 action, with its own roll and its own price —
+     * business - its own Stage 6 action, with its own roll and its own price -
      * and folding it in here would make a critical clean-up strictly better than
      * an action somebody has to spend Sanity on.
      */
@@ -3182,7 +3182,7 @@ export const CLEANUP = {
      *
      * The season run's verdict on Stage 6 was that erasing is a bad bet and
      * everybody correctly declined it. Lying is the other half of the same
-     * stage and it was locked behind a critical — so the killer's only
+     * stage and it was locked behind a critical - so the killer's only
      * available move was the one that does not pay.
      *
      * −3 ON THE THRESHOLD, and it is the rule in one number: LYING IS EASIER
@@ -3195,8 +3195,8 @@ export const CLEANUP = {
      *
      * This used to buy a TYPE: the killer picked from a menu of four and the
      * trace was relabelled Prep, or Faint, or Incident. Dawid's correction is
-     * that reshaping is not retyping — "nie chodzi mi o przemiane taga
-     * remnanta, tylko o zmiane nazwy i opisu przez killera" — and it is the
+     * that reshaping is not retyping - "nie chodzi mi o przemiane taga
+     * remnanta, tylko o zmiane nazwy i opisu przez killera" - and it is the
      * better rule for a reason worth writing down: a menu of four tags is the
      * ENGINE's vocabulary, and the lie a killer tells is a sentence, not a
      * category. Nobody kneeling over a scrubbed patch of floor thinks "I shall
@@ -3204,7 +3204,7 @@ export const CLEANUP = {
      * person through the door to read, and then they write it.
      *
      * So the killer supplies a name and a description, and both are what a
-     * finder gets — through the public payload, which is the channel that
+     * finder gets - through the public payload, which is the channel that
      * exists for exactly this and is already the one a GM types into when they
      * describe a trace to somebody who found it.
      *
@@ -3212,7 +3212,7 @@ export const CLEANUP = {
      * in Dawid's message, and it closes the hole the old menu opened: a killer
      * could relabel their Incident trace as Faint and have the chapter sweep
      * clear their own crime scene. Now every reshape says the same true thing
-     * about itself — somebody handled this — while lying about everything
+     * about itself - somebody handled this - while lying about everything
      * else. The trace argues for a different story and admits it was touched,
      * which is what tampering actually looks like.
      *
@@ -3221,7 +3221,7 @@ export const CLEANUP = {
      * "pick type OR quiet" asymmetry is gone with the menu that caused it.
      *
      * `transform.types` below is no longer a player-facing menu. It stays as
-     * the bound on `retuneRemnant` over the bridge — trap 115, still live.
+     * the bound on `retuneRemnant` over the bridge - trap 115, still live.
      */
     transformAction: {
         dcRelief: 3,
@@ -3251,7 +3251,7 @@ export const CLEANUP = {
      *
      * The crime tool half is the guide's: a weapon that was used in an incident
      * is gone. The cleaning tool follows it for the
-     * same reason — one crime scene, one set of gloves — rather than being spent
+     * same reason - one crime scene, one set of gloves - rather than being spent
      * on each individual wipe, which would make a Tier 3 kit worth exactly one
      * roll and the carry limit of two meaningless.
      */
@@ -3262,20 +3262,20 @@ export const CLEANUP = {
      * "Narzędzie zbrodni, jeśli zostało użyte choć raz, zostaje usunięte z
      * ekwipunku mordercy" sits in Stage 6, while the cleaning tool's identical
      * sentence sits in Stage 7, under Odkrycie ciała. Destroying both at once
-     * took the gloves off the killer before the body had even been found — and
+     * took the gloves off the killer before the body had even been found - and
      * with them any chance to clean again in the time between.
      *
      * See `CLEANUP.destroysToolsOnDiscovery` for the other half.
      */
     destroysTools: ["crimeTool"],
 
-    /** Destroyed when the body is discovered — Stage 7, not Stage 6. */
+    /** Destroyed when the body is discovered - Stage 7, not Stage 6. */
     destroysToolsOnDiscovery: ["cleaningTool"],
 
     /**
      * Stage 6 has THREE actions, not one.
      *
-     * Only "Zatarcie śladów" was modelled — the fields above are its own, kept
+     * Only "Zatarcie śladów" was modelled - the fields above are its own, kept
      * at the top level because `cleanupDc`, `cleaningTier` and the Reroll
      * receipt all read them there. The other two are the guide's, verbatim from
      * pp. 26–27, and they are what makes Stage 6 a decision rather than a
@@ -3291,7 +3291,7 @@ export const CLEANUP = {
     actions: {
         eraseTrace: {
             label: "Erase a trace", icon: "fa-eraser",
-            /** DC comes from the trace itself — see `dc` above. */
+            /** DC comes from the trace itself - see `dc` above. */
             dcFromVisibility: true,
             targets: "remnant",
             hint: "Wipe out one trace you left. The harder it is to see, the easier it is to erase."
@@ -3336,12 +3336,12 @@ export const CLEANUP = {
 
         /**
          * "Morderca próbuje przenieść ciało ofiary w inne miejsce." Thresh 16,
-         * Stat Ciało — the one Stage 6 action that is not Shadow, because
+         * Stat Ciało - the one Stage 6 action that is not Shadow, because
          * carrying a body is exactly the physical problem it looks like.
          *
          * `rooms` is how far it travels: an adjacent room on Hope, a connected
          * one on Despair, and two rooms away on a critical. All three leave an
-         * Evident Resolution Remnant — you cannot drag a body quietly.
+         * Evident Resolution Remnant - you cannot drag a body quietly.
          */
         moveBody: {
             label: "Move the body", icon: "fa-person-falling",
@@ -3368,8 +3368,8 @@ export const CLEANUP = {
      * and a Despair failure costs two. Cleaning a room in front of a witness is
      * the most incriminating thing in the game.
      *
-     * Called at the top of both Stage 6 entry points — `attemptCleanup` and
-     * `attemptStageSix` — so it covers "akcje rozwiązania" as a whole rather
+     * Called at the top of both Stage 6 entry points - `attemptCleanup` and
+     * `attemptStageSix` - so it covers "akcje rozwiązania" as a whole rather
      * than the wipe alone.
      */
     conceal: {
@@ -3390,7 +3390,7 @@ export const CLEANUP = {
  *
  * ONE playlist, by name. The control used to offer every playlist in the world,
  * which made it a second copy of Foundry's own Playlists sidebar sitting inside
- * a panel about the game's state — and it meant the button that is supposed to
+ * a panel about the game's state - and it meant the button that is supposed to
  * mean "score this moment" could just as easily start the Investigation's
  * ambient loop by hand and leave the state machine arguing with the GM about
  * which of them was in charge.
@@ -3408,15 +3408,15 @@ export const SITUATIONAL_PLAYLIST = "Situational";
  * why it lives here rather than in either of them: two files importing it from
  * each other is a cycle, and this module has paid for one of those before.
  *
- * The line is drawn around the windows a session happens in — this module's own
- * prompts, the character sheet, and the item cards that are Truth Bullets —
+ * The line is drawn around the windows a session happens in - this module's own
+ * prompts, the character sheet, and the item cards that are Truth Bullets -
  * rather than around who wrote them. The sheet is the point: it is the window a
  * player opens more often than every other one put together, it belongs to
  * Daggerheart, and a layer that misses it has not covered the interface, it has
  * covered the corners of it.
  *
  * What stays outside is Foundry's own configuration furniture: Token Config,
- * Scene Config, the file picker, the settings screens. Not modesty — those
+ * Scene Config, the file picker, the settings screens. Not modesty - those
  * windows are full of `position: fixed` colour pickers and pop-outs, they are
  * the ones that were already glitching on The Forge, and none of them is a
  * moment in a session.
@@ -3431,7 +3431,7 @@ export const GAME_WINDOWS =
  * first because the panel groups by them, and a GM hunting for the door sound
  * should not have to read thirty-five rows to find it.
  *
- * These are FILING, NOT VOLUME. There are two sliders — see `SFX_SLIDERS` —
+ * These are FILING, NOT VOLUME. There are two sliders - see `SFX_SLIDERS` -
  * and they are deliberately not one per category: a per-category mixing desk is
  * a control nobody at this table asked for, and the only split a player
  * actually reaches for mid-session is "the music" against "everything else".
@@ -3446,7 +3446,7 @@ export const GAME_WINDOWS =
  * After that, ordered by how often a player hears them.
  */
 export const SFX_CATEGORIES = {
-    safety:   { label: "Safety",    hint: "The safeword. Ignores the Sound slider — see the event's own note." },
+    safety:   { label: "Safety",    hint: "The safeword. Ignores the Sound slider - see the event's own note." },
     ui:       { label: "Interface", hint: "Windows, buttons and the chat in the corner." },
     chat:     { label: "Chat",      hint: "Messages, cards, announcements and Calls." },
     world:    { label: "World",     hint: "Rooms, the clock, and the everyday business of a Daily Life." },
@@ -3459,7 +3459,7 @@ export const SFX_CATEGORIES = {
  *
  * ONE KNOB, NOT THREE. "Pitch and speed" sound like two controls and are one:
  * a Web Audio buffer source has `playbackRate` and `detune`, and `detune` is
- * only that same rate written in cents. Both RESAMPLE — faster is higher AND
+ * only that same rate written in cents. Both RESAMPLE - faster is higher AND
  * shorter, like a tape run fast. Changing pitch without changing length needs a
  * phase vocoder, which is an absurd amount of machinery for a click on a
  * button, so this module bends the rate and says so.
@@ -3468,8 +3468,8 @@ export const SFX_CATEGORIES = {
  * from five to three because ±5% is "most of a semitone" and would read as out
  * of tune against a playlist. The reasoning was sound and the conclusion was
  * not, because it optimised for the sound the module does NOT have: these
- * eleven events are dry interface clicks — a window, a button, a door, a
- * refusal — with no pitch to be out of tune WITH. Tuning the default so that
+ * eleven events are dry interface clicks - a window, a button, a door, a
+ * refusal - with no pitch to be out of tune WITH. Tuning the default so that
  * the worst imaginable file is safe made every real file identical, which is
  * the thing variation exists to prevent. Dawid, 28.08: it is either too weak or
  * not working at all.
@@ -3485,28 +3485,28 @@ export const SFX_CATEGORIES = {
  * game that does this actually does.
  *
  * Applied as a FRACTION OF the volume the sliders arrived at, never on top of
- * it — and only downwards, so no varied sound is ever louder than the GM's
+ * it - and only downwards, so no varied sound is ever louder than the GM's
  * setting says it may be. A variation that can exceed its own ceiling is a
  * volume control with a leak.
  *
  * Tuned by ear in E17, alongside `YIELD_MS`. Both are numbers no amount of
- * reasoning settles — which is the lesson of the paragraph this one replaced.
+ * reasoning settles - which is the lesson of the paragraph this one replaced.
  */
 /**
  * How far a repeated sound is allowed to wander.
  *
  * `rate` is the FULL reach of the pitch-and-speed bend and `floor` is how close
- * to unbent a play is allowed to land — see `rateFor` in sfx.mjs, which is
+ * to unbent a play is allowed to land - see `rateFor` in sfx.mjs, which is
  * where the second number does its work.
  *
  * TUNED BY EAR, WHICH IS THE ONLY WAY. Dawid, 28.08, on 0.08: "you can hear it,
- * but it is not enough — it sounds a bit like there are two versions of the
+ * but it is not enough - it sounds a bit like there are two versions of the
  * sound, they differ so little." The number went to 0.14 and the shape of the
  * draw changed with it, because a wider spread alone would not have answered
  * that sentence: half of a uniform draw lands in the middle and is inaudible.
  *
  * 0.14 is about 227 cents at the edge, a little under two semitones. That is a
- * lot for anything with a pitch and nothing at all for a click — which is what
+ * lot for anything with a pitch and nothing at all for a click - which is what
  * the eleven events that bend actually are. A GM who maps a tonal sting to one
  * of them will hear it wander against the music; the answer then is to leave
  * that event out of the bending list, not to flatten the eleven.
@@ -3514,11 +3514,11 @@ export const SFX_CATEGORIES = {
 export const SFX_VARIATION = { rate: 0.14, floor: 0.5, gain: 0.18 };
 
 export const SFX_SLIDERS = {
-    sound: { label: "Sound", hint: "The sound effects — windows, chat, doors, the trial floor. Not the music." },
+    sound: { label: "Sound", hint: "The sound effects - windows, chat, doors, the trial floor. Not the music." },
     music: { label: "Music", hint: "The playlists. Foundry's own playlist volume, not a second one beside it.", proxiesFoundryMusic: true }
 };
 
-/** The sliders this module actually stores a volume for — see above. */
+/** The sliders this module actually stores a volume for - see above. */
 export const SFX_VOLUME_KEYS = Object.entries(SFX_SLIDERS)
     .filter(([, slider]) => !slider.proxiesFoundryMusic)
     .map(([key]) => key);
@@ -3527,12 +3527,12 @@ export const SFX_VOLUME_KEYS = Object.entries(SFX_SLIDERS)
  * Every sound this module can play, and nothing beyond that.
  *
  * Forty-two events: the seventeen Dawid listed, the eighteen the plan proposed
- * on top of them, the safeword — which arrived later and never updated this
+ * on top of them, the safeword - which arrived later and never updated this
  * count, which is why it read "thirty-five" over thirty-six rows for two
- * updates — five that a play-through found missing, and one that waited for
+ * updates - five that a play-through found missing, and one that waited for
  * the stage that gives it a voice (`projectDone`, E10). Every one of the
- * additions is a moment that ALREADY has its own place in the code — its own
- * card, its own animation, its own status effect — so wiring it is a line, not
+ * additions is a moment that ALREADY has its own place in the code - its own
+ * card, its own animation, its own status effect - so wiring it is a line, not
  * a feature.
  *
  * THE LAST FIVE WERE FOUND BY PLAYING, NOT BY PLANNING, and they have one thing
@@ -3540,14 +3540,14 @@ export const SFX_VOLUME_KEYS = Object.entries(SFX_SLIDERS)
  * is a FAILURE or an act done TO somebody. The successes in this game were
  * always going to get sounds because somebody was watching for them. What the
  * plan missed is that a consequence nobody is looking at is exactly the
- * consequence that needs announcing — a locked Truth Bullet, a broken tool, a
+ * consequence that needs announcing - a locked Truth Bullet, a broken tool, a
  * trace left by an attempt that achieved nothing. The rule for a sixth is the
  * same rule that keeps Rest and Listen silent below: not "did something
  * happen", but "would the player otherwise find out too late, or not at all".
  *
  * A ROW IN THE PANEL IS A PROMISE. Map a file here and you will hear it. An
  * entry with no call site behind it is a GM choosing a file, hearing silence,
- * and having no way to tell a missing hook from a broken speaker — and the
+ * and having no way to tell a missing hook from a broken speaker - and the
  * panel's honest empty state ("not assigned yet") makes that worse rather than
  * better, because it reads as though the silence were their fault. So the
  * catalogue and the call sites ship together: the interface events are wired in
@@ -3558,12 +3558,12 @@ export const SFX_VOLUME_KEYS = Object.entries(SFX_SLIDERS)
  *   hint          one sentence saying WHEN it fires and WHO hears it. "Who"
  *                 carries more than it looks: almost all of these are local to
  *                 the client the thing happened on, and the few that are not
- *                 have to say so — "why did the GM hear that" is the question
+ *                 have to say so - "why did the GM hear that" is the question
  *                 this module's notification diet was written to answer.
  *   category      which block of the table it is filed under. FILING ONLY;
  *                 volume is `SFX_SLIDERS`, and there are two of those.
  *   yieldsTo      optional. Keys that beat this one when both fire at about the
- *                 same moment — see the precedence note in sfx.mjs. Pressing a
+ *                 same moment - see the precedence note in sfx.mjs. Pressing a
  *                 button that opens a window is one gesture and two events, and
  *                 so is pressing the one that closes it: measured on the Sound
  *                 panel, open → tab → Close produced four sounds for three
@@ -3586,14 +3586,14 @@ export const SFX_VOLUME_KEYS = Object.entries(SFX_SLIDERS)
  *                 default for the second case.
  *
  *                 The safeword is excluded in CODE rather than by leaving this
- *                 field off — see `fire`. A safety signal that sounds slightly
+ *                 field off - see `fire`. A safety signal that sounds slightly
  *                 different each time is one the table learns to second-guess,
  *                 and that must not be one edit away from being true.
  *
  * WHERE THE FILING DIFFERS FROM THE PLAN'S OWN TABLE. That table put death,
  * the Truth Bullets, Analyze and the Monocubs under World, leaving Incident
  * with a single member. The category labels are shipped copy a GM reads in the
- * panel, and "World — rooms, the clock, the everyday business of a Daily Life"
+ * panel, and "World - rooms, the clock, the everyday business of a Daily Life"
  * is not where anybody would look for a corpse. Filed by what the labels say
  * instead. It changes which block a row is drawn in and nothing else.
  *
@@ -3625,14 +3625,14 @@ export const SFX_EVENTS = {
     },
     windowButton: {
         label: "Button in a window",
-        hint: "A button pressed anywhere except a character sheet. Stays quiet when the press opens or closes a window — you hear the window instead.",
+        hint: "A button pressed anywhere except a character sheet. Stays quiet when the press opens or closes a window - you hear the window instead.",
         category: "ui",
         yieldsTo: ["windowOpen", "windowClose"],
         vary: true
     },
     sheetButton: {
         label: "Button on a character sheet",
-        hint: "The sheet's own controls — actions, equipment, the pips. Separate from the other buttons because a sheet is a window too, and one key could not tell them apart.",
+        hint: "The sheet's own controls - actions, equipment, the pips. Separate from the other buttons because a sheet is a window too, and one key could not tell them apart.",
         category: "ui",
         yieldsTo: ["windowOpen", "windowClose"],
         vary: true
@@ -3653,7 +3653,7 @@ export const SFX_EVENTS = {
     },
     chatReceive: {
         label: "Message arrives",
-        hint: "Heard by everyone the thread belongs to — its player and every GM — and never by the sender.",
+        hint: "Heard by everyone the thread belongs to - its player and every GM - and never by the sender.",
         category: "chat",
         vary: true
     },
@@ -3679,7 +3679,7 @@ export const SFX_EVENTS = {
     },
     motive: {
         label: "A motive",
-        hint: "A Monokuma announces one, and again when its deadline arrives. Heard by the whole table — a motive nobody heard is not a motive.",
+        hint: "A Monokuma announces one, and again when its deadline arrives. Heard by the whole table - a motive nobody heard is not a motive.",
         category: "chat"
     },
     publicAnnouncement: {
@@ -3702,7 +3702,7 @@ export const SFX_EVENTS = {
     },
     refused: {
         label: "Crossing refused",
-        hint: "A wall, a locked door or a sealed room turns somebody back. Heard by whoever tried — the one mistake a player makes regularly.",
+        hint: "A wall, a locked door or a sealed room turns somebody back. Heard by whoever tried - the one mistake a player makes regularly.",
         category: "world",
         vary: true
     },
@@ -3714,7 +3714,7 @@ export const SFX_EVENTS = {
     },
     projectDone: {
         label: "A project is finished",
-        hint: "The bar filled. Heard by whoever proposed it and by the GMs — never publicly, because a project can be secret. A repair and an armed trap are not this: both have a louder announcement of their own.",
+        hint: "The bar filled. Heard by whoever proposed it and by the GMs - never publicly, because a project can be secret. A repair and an armed trap are not this: both have a louder announcement of their own.",
         category: "world"
     },
     critical: {
@@ -3735,7 +3735,7 @@ export const SFX_EVENTS = {
     },
     sabotageFailed: {
         label: "Sabotage fails",
-        hint: "Heard by the saboteur. A failed sabotage still leaves its trace, so this is not \"nothing happened\" — it is evidence bought for no gain. Stays quiet when the room saw you do it; you hear that instead.",
+        hint: "Heard by the saboteur. A failed sabotage still leaves its trace, so this is not \"nothing happened\" - it is evidence bought for no gain. Stays quiet when the room saw you do it; you hear that instead.",
         category: "world"
     },
     sabotageSeen: {
@@ -3803,7 +3803,7 @@ export const SFX_EVENTS = {
     },
     meddle: {
         label: "A Monocub interferes",
-        hint: "Heard by the Monocub and by whoever they landed it on — never by anyone else, and it says nothing about WHICH Monocub. The only thing in this game that changes your next roll without you having done anything, which is why the target needs telling: they are not watching the screen.",
+        hint: "Heard by the Monocub and by whoever they landed it on - never by anyone else, and it says nothing about WHICH Monocub. The only thing in this game that changes your next roll without you having done anything, which is why the target needs telling: they are not watching the screen.",
         category: "incident"
     },
     yourTurn: {
@@ -3823,7 +3823,7 @@ export const SFX_EVENTS = {
     },
     analyzeMiss: {
         label: "Analysis fails",
-        hint: "Heard by the student who ran it. The bullet is locked until the next chapter — the longest-lasting consequence any failed roll in this game has, and it arrived as a whisper with nothing to mark it.",
+        hint: "Heard by the student who ran it. The bullet is locked until the next chapter - the longest-lasting consequence any failed roll in this game has, and it arrived as a whisper with nothing to mark it.",
         category: "incident"
     },
     debateOpen: {
@@ -3861,19 +3861,19 @@ export const SFX_EVENTS = {
  *   gaining Hope or Despair    the pips already flash, and at two or three
  *                              points a roll a sound becomes a rattle
  *   progress on a project      the same act as spending an action, which
- *                              already has one — two sounds back to back.
+ *                              already has one - two sounds back to back.
  *                              FINISHING one is not this, and E10 gave it
  *                              `projectDone`: the difference is that progress
  *                              happens on the turn you are already watching,
  *                              and the bar filling can happen on somebody
- *                              else's — the person who proposed the thing may
+ *                              else's - the person who proposed the thing may
  *                              not have touched it for two days.
  */
 
 /*
  * SAFETY IS MODELLED, BUT NOT AS A CONSTANT IN THIS FILE.
  *
- * This used to read "SAFETY is deliberately not modelled here — the table's
+ * This used to read "SAFETY is deliberately not modelled here - the table's
  * safeword is a sentence somebody types into chat and a GM answers", and it
  * stopped being true the day safeword.mjs was written: the word is a button
  * that pauses the game, tells every GM who pressed it and from where, and puts
@@ -3881,7 +3881,7 @@ export const SFX_EVENTS = {
  *
  * The word itself is not a constant here because the table gets to choose it.
  * It lives in `SETTINGS.safeword`, is edited in Season setup next to the
- * campaign name, and defaults to "Safe Word" — with worlds that predate the
+ * campaign name, and defaults to "Safe Word" - with worlds that predate the
  * setting keeping MISIUBOMBO, which is what their players have been told.
  */
 

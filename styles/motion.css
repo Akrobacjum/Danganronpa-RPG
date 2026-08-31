@@ -1,8 +1,8 @@
 /* ===========================================================================
-   Danganronpa RPG — THE MOTION LAYER
+   Danganronpa RPG - THE MOTION LAYER
    ---------------------------------------------------------------------------
    Tokens. Times, curves, distances, and nothing else. Every animation in this
-   module — in the stylesheet, on the canvas, in JavaScript — reads its timing
+   module - in the stylesheet, on the canvas, in JavaScript - reads its timing
    from here, and nothing anywhere writes a number in place.
 
    That rule is not tidiness. It is what makes the switch at the bottom of this
@@ -15,8 +15,8 @@
    this layer landed there is not one animation in the module without a trigger:
    no raster crawling behind a window, no drift under text somebody is reading,
    no parallax, nothing turning over while the table talks. An idle Foundry
-   computes nothing. The three infinite animations that remain — the trial floor
-   bar, a pending Despair Call, the pause veil — are each tied to a state that
+   computes nothing. The three infinite animations that remain - the trial floor
+   bar, a pending Despair Call, the pause veil - are each tied to a state that
    only exists while something is genuinely happening, and all three stop when
    it stops.
 
@@ -25,7 +25,7 @@
      snap    90ms   the interface answering a press. Below roughly a tenth of a
                     second a movement reads as the control responding rather
                     than as an animation playing, which is the whole point.
-     enter  180ms   something arriving that was not there — a window, a card,
+     enter  180ms   something arriving that was not there - a window, a card,
                     a field. Long enough to be seen as arriving from somewhere.
      beat   420ms   a moment the table is meant to look at: the time of day
                     turning over, a room coming out of the fog, evidence landing
@@ -67,7 +67,7 @@
 
     /* Not one of the three, and deliberately apart from them.
        The Eclipse draining the colour out of the map is the world changing
-       mood, not the interface answering anybody — it belongs to the scene and
+       mood, not the interface answering anybody - it belongs to the scene and
        runs on a scale nothing in a window ever should. It is a token all the
        same, because the rule is that no animation carries a number of its
        own. */
@@ -77,7 +77,7 @@
     --drpg-ease-leave: cubic-bezier(0.55, 0, 0.9, 0.35);
 
     /* Distances. A window arrives by growing the last four percent of the way
-       and leaves by giving up three — small enough to read as weight rather
+       and leaves by giving up three - small enough to read as weight rather
        than as a zoom, and small enough that a full-screen dialog does not
        appear to lurch. */
     --drpg-scale-in: 0.96;
@@ -98,7 +98,7 @@
    finishes in the frame it starts.
 
    Nothing disappears and nothing becomes unreachable. Everything that would
-   have arrived is simply already there — which is exactly the promise, and the
+   have arrived is simply already there - which is exactly the promise, and the
    thing to check when verifying this stage.
    =========================================================================== */
 

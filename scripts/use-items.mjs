@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — using an item, and holding one ready.
+ * Danganronpa RPG - using an item, and holding one ready.
  * ---------------------------------------------------------------------------
  * Guide: "Przedmioty zużywalne mogą odnawiać hp, stress lub hope. Przedmioty
  * narzędzia zbrodni ułatwiają incydent morderstwa. Przedmioty sprzątające
@@ -13,13 +13,13 @@
  *   USE      a Usable Item, spent on the spot. What it restores comes from
  *            USABLE_EFFECTS plus the item's KIND: every usable is a healing
  *            item (Health) or a stress-relief item (Sanity), decided by which item
- *            table it belongs to — see `usableKindOf`. Tiers 1 and 2 apply
+ *            table it belongs to - see `usableKindOf`. Tiers 1 and 2 apply
  *            that kind's resource without asking; tier 3 is the one tier that
  *            still offers the Health-or-Sanity choice, with 2 Hope on top either
  *            way; tier 0 is "open to creative use" and has no table entry, so
  *            it goes to the GM as a ruling.
  *
- *   EQUIP    a Crime Tool or a Cleaning Tool, held ready. One per category —
+ *   EQUIP    a Crime Tool or a Cleaning Tool, held ready. One per category -
  *            you have two hands and the fiction only ever cares which single
  *            object you are swinging. `murder.mjs` reads this before it falls
  *            back to "the best one you own".
@@ -62,7 +62,7 @@ export function isEquipped(item) {
  * Broken is excluded here rather than only at the point of equipping, and that
  * is the important half: this is what the incident engine asks for its weapon
  * and what Stage 6 asks for its gloves. `breakItem` already clears the readied
- * flag, so this is the belt to that braces — a tool broken by any other route
+ * flag, so this is the belt to that braces - a tool broken by any other route
  * (a GM's hand-edit, a world restored from an older save) still cannot be
  * swung.
  */
@@ -78,14 +78,14 @@ export function equippedIn(actor, category) {
  * What this character is holding ready that can do the job of `role`.
  *
  * The capability question, where `equippedIn` is the slot question. An item's
- * category is its HOME — which slot it takes, which row it sits in, which table
- * it came from — and `servesAs` is what it can actually do. A screwdriver filed
+ * category is its HOME - which slot it takes, which row it sits in, which table
+ * it came from - and `servesAs` is what it can actually do. A screwdriver filed
  * under Tools answers `equippedFor(actor, "crimeTool")` because it can be swung;
  * `equippedIn(actor, "crimeTool")` still says no, and `toggleEquipped` needs it
  * to, or readying the screwdriver would put the knife away.
  *
- * THE SPECIALIST WINS. Both can be readied at once — one per home, and the
- * homes are different — so this has to choose. It prefers the item whose home
+ * THE SPECIALIST WINS. Both can be readied at once - one per home, and the
+ * homes are different - so this has to choose. It prefers the item whose home
  * IS the role: the knife is a better weapon than the screwdriver, and the
  * screwdriver wears out before the knife does when the roll goes badly. A rule
  * that is easy to say out loud at the table beats one that depends on which
@@ -139,7 +139,7 @@ export function mayStow(actor, item) {
 }
 
 export function equippedFor(actor, role) {
-    // At most one, since E9 — but read as a list anyway. A world mid-upgrade
+    // At most one, since E9 - but read as a list anyway. A world mid-upgrade
     // can still have several readied from the per-category rule, and the
     // preference below is what decides between them until the next time
     // anybody picks something up: the item whose HOME is the role wins, so a
@@ -176,14 +176,14 @@ export function readiedItem(actor) {
  *     failure with Despair  BREAKS
  *
  * One sentence to remember: Despair breaks the tool, whether or not the action
- * worked. That is consistent with everything else Despair does in this system —
- * it exposes a sabotage, it spoils a cleanup, it costs Sanity — and it is the
+ * worked. That is consistent with everything else Despair does in this system -
+ * it exposes a sabotage, it spoils a cleanup, it costs Sanity - and it is the
  * reason the rejected alternative ("total under 12 breaks it") is not here: that
  * would break the tool exactly when it had already achieved nothing, which is
  * two punishments for one bad roll and leaves Despair meaning nothing at all.
  *
  * THE TOOL IS PASSED IN, NOT LOOKED UP (trap 62). Reading `equippedFor` after
- * the roll can return something else or nothing at all — the roll's own
+ * the roll can return something else or nothing at all - the roll's own
  * consequences move items around, and an unarmed attack that succeeds hands the
  * killer an improvised weapon. Capturing the reference before the dice means a
  * tool created by this roll cannot be broken by it (trap 63), which is the
@@ -254,13 +254,13 @@ export async function breakOnDespair(actor, tool, roll) {
  *
  * ONE THING IN YOUR HANDS, WHATEVER IT IS (Dawid, 27.08). This used to be one
  * per category, so a character could hold a knife, a rag and a screwdriver at
- * the same time — which was invisible while the sheet drew three separate rows
+ * the same time - which was invisible while the sheet drew three separate rows
  * and absurd the moment they became one. Three items marked "ready" in a list
  * of three reads as a limit that does nothing.
  *
  * It is also what makes the tags matter. With one hand, an item that fills two
  * roles lets you hold one thing and do two jobs, and that is a real decision
- * rather than a curiosity — which is why the two-tag rule and this rule arrived
+ * rather than a curiosity - which is why the two-tag rule and this rule arrived
  * together.
  *
  * Enforced by clearing whatever was, rather than by refusing: "equip" means
@@ -334,8 +334,8 @@ export function isUsable(item) {
  * The item tables are asked first and outrank the flag on the item, because the
  * tables are what the GM edits: move "Pills" from Sanity Relief to Healing and
  * every jar of pills in every inventory changes with it, including the ones
- * found last week. The flag answers when the tables cannot — an item drawn off
- * a room's own pool, or renamed on the sheet — and a name that sits in tables
+ * found last week. The flag answers when the tables cannot - an item drawn off
+ * a room's own pool, or renamed on the sheet - and a name that sits in tables
  * of BOTH kinds falls back to the flag too, since the search that found it knew
  * which of the two it was.
  */
@@ -352,7 +352,7 @@ export function usableKindOf(item) {
 /**
  * Use a Usable Item.
  *
- * Consumed when actually used — the guide's usable items are one-shot, and an
+ * Consumed when actually used - the guide's usable items are one-shot, and an
  * item that restores nothing because the character was already whole is still
  * an item that has been opened. Cancelling either dialog spends nothing. The
  * dialogs used to say "the item is used up either way", which read as though
@@ -367,7 +367,7 @@ export function usableKindOf(item) {
  * E21's fifth trigger. The card is already going to the GMs; this reads the
  * identity off the item as it is spent and puts it where a GM-side listener can
  * see it. A player can read this flag on their own card, and it tells them
- * nothing they could not already read off the item — every item in the game
+ * nothing they could not already read off the item - every item in the game
  * carries an identity, and only the GM's own ledger knows which are poisoned.
  *
  * The name travels with it purely so the alert can say what was used; the
@@ -389,7 +389,7 @@ export async function useItem(actor, item) {
     if (!actor || !isUsable(item)) return null;
 
     // An opened kit is an empty box. It is still in the bag, and it still takes
-    // up the slot — see `consume` below and BROKEN_ITEMS in config.mjs.
+    // up the slot - see `consume` below and BROKEN_ITEMS in config.mjs.
     if (isBroken(item)) {
         ui.notifications.warn(game.i18n.format("DRPG.Items.brokenUseless", {
             item: item.name
@@ -405,12 +405,12 @@ export async function useItem(actor, item) {
     const tier = tierOf(item);
     const effect = USABLE_EFFECTS[tier];
 
-    // Tier 0 is "a random, seemingly useless object, open to creative use" —
+    // Tier 0 is "a random, seemingly useless object, open to creative use" -
     // there is no table row to apply, so a human decides what it is worth.
     if (!effect || effect.creative) return useCreatively(actor, item);
 
     // What lands where. Tier 3 asks Health-or-Sanity and adds its Hope on top;
-    // tiers 1 and 2 read the item's kind and ask nothing — the only time the
+    // tiers 1 and 2 read the item's kind and ask nothing - the only time the
     // dialog still appears there is when the kind is unknown (an item in no
     // table, with no flag), because guessing which half of somebody's sheet to
     // heal is worse than asking.
@@ -440,8 +440,8 @@ export async function useItem(actor, item) {
     // Ask before destroying it.
     //
     // Whatever went through the which-resource dialog has had its confirmation.
-    // Everything else — which is now the common case, a tier 1 or 2 item whose
-    // kind the tables already decided — used to be spent by a single click on a
+    // Everything else - which is now the common case, a tier 1 or 2 item whose
+    // kind the tables already decided - used to be spent by a single click on a
     // small icon, with no way back, so it gets the confirm instead.
     //
     // Either way, an item that would restore NOTHING gets stopped: drinking a
@@ -574,7 +574,7 @@ async function confirmUse(item, preview, pointless) {
 /**
  * Apply the restore.
  *
- * Health and Sanity are reverse resources — marks count UP toward max — so healing
+ * Health and Sanity are reverse resources - marks count UP toward max - so healing
  * subtracts. Hope is a normal one and adds. Everything is clamped, and what was
  * actually restored is reported rather than what was offered: a character with
  * one mark of Health who drinks a Tier 2 kit recovers one, not two.
@@ -627,7 +627,7 @@ function describe(restored) {
  *
  * `break`, not `delete`. The empty packet is still in the bag and still counts
  * against the two you may carry, so using the last of your kit is a moment that
- * costs you something afterwards as well as at the time — see BROKEN_ITEMS.
+ * costs you something afterwards as well as at the time - see BROKEN_ITEMS.
  */
 async function consume(item) {
     const quantity = Number(item.system?.quantity ?? 1);
@@ -647,7 +647,7 @@ async function consume(item) {
  * Get rid of a broken item, somewhere, and leave the trace of having done it.
  *
  * The only route out of an inventory for something that has been used up, apart
- * from putting it in your own stash. Free — no action is charged, for the same
+ * from putting it in your own stash. Free - no action is charged, for the same
  * reason using an item is not: the guide charges actions for finding, making
  * and hiding things, and dropping a broken screwdriver in a bin is none of the
  * three. What it costs is not an action, it is a Remnant.
@@ -656,7 +656,7 @@ async function consume(item) {
  * indirect murder's hide-traces roll uses (BROKEN_ITEMS.thresholds). A critical
  * leaves a Hidden trace: got rid of it, and nobody will ever prove where.
  *
- * The item goes for real at the end of this — a thrown-away thing is not in your
+ * The item goes for real at the end of this - a thrown-away thing is not in your
  * pockets any more. What is left on the map is the trace, and that is the
  * evidence the trial will be arguing about.
  *
@@ -730,7 +730,7 @@ export async function discardBroken(actor, item) {
     // both cases.
     //
     // Deleting the item anyway would be the one outcome this whole feature
-    // exists to prevent — the murder weapon ceasing to exist, for free, with
+    // exists to prevent - the murder weapon ceasing to exist, for free, with
     // nothing left behind. So it stays in the bag and the player is told why.
     if (!placed) {
         await whisperToOwner(actor, `<p class="drpg-warning">${
@@ -747,7 +747,7 @@ export async function discardBroken(actor, item) {
     }
 
     // Whether they are told they left something is the module's one uniform
-    // rule for every action that leaves a trace — Hope and criticals show it,
+    // rule for every action that leaves a trace - Hope and criticals show it,
     // a plain Despair does not. See `traceFeedback`.
     const told = traceFeedback(roll, placed);
     await whisperToOwner(actor, `
@@ -781,7 +781,7 @@ export async function grantItemEffect(actor, item, amounts = {}, { consumeItem =
     const summary = describe(restored);
     await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Items.used", {
         item: foundry.utils.escapeHTML(item?.name ?? "?")
-    })} — ${summary || game.i18n.localize("DRPG.Items.usedNothing")}</p>`, stamp);
+    })} - ${summary || game.i18n.localize("DRPG.Items.usedNothing")}</p>`, stamp);
 
     return restored;
 }

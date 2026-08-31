@@ -1,14 +1,14 @@
 /**
- * Danganronpa RPG — calling the GM, and asking them to write.
+ * Danganronpa RPG - calling the GM, and asking them to write.
  * ---------------------------------------------------------------------------
  * Two jobs:
  *
- *   callGm()  — the guide's actions that need a human ruling (Think, Listen,
+ *   callGm()  - the guide's actions that need a human ruling (Think, Listen,
  *               Analyze, Direct Murder, starting a project). The player's roll
  *               and request are whispered to the GMs with the context they need
  *               to answer, so nobody has to shout across the table.
  *
- *   request*() — world settings can only be written by a GM client, so a
+ *   request*() - world settings can only be written by a GM client, so a
  *               player's project progress is forwarded over the socket.
  */
 
@@ -61,7 +61,7 @@ const ACTION_BETRAYAL = "murder.betrayal";
 const ACTION_PARK_MURDER = "murder.park";
 const ACTION_MEDDLE = "monocub.meddle";
 const ACTION_ACK = "bridge.ack";
-/** A GM's world has finished loading — see `registerGmBridge`. */
+/** A GM's world has finished loading - see `registerGmBridge`. */
 const ACTION_GM_READY = "bridge.gmReady";
 const ACTION_LOOT = "body.loot";
 
@@ -69,7 +69,7 @@ const ACTION_LOOT = "body.loot";
  * Player-side promises waiting on a GM ruling, keyed by request id.
  *
  * Each entry is `{ resolve, payload, resent }` rather than a bare `resolve`,
- * so a request that went unanswered can be ASKED AGAIN — see
+ * so a request that went unanswered can be ASKED AGAIN - see
  * `resendPendingRulings`, which is what makes a GM's reload survivable.
  */
 const pendingRulings = new Map();
@@ -129,7 +129,7 @@ export function registerGmBridge() {
     /* THE RESCUE SIGNAL IS "A GM IS LISTENING", NOT "A GM IS CONNECTED".
        -----------------------------------------------------------------------
        `userConnected` fires when a GM's socket comes up, which is many seconds
-       before their world has finished loading and this very function has run —
+       before their world has finished loading and this very function has run -
        measured on a live reload: the re-sent question left before the GM had a
        listener for it and vanished. So the GM announces themselves once, HERE,
        at the point where they can actually answer, and anybody still waiting
@@ -137,7 +137,7 @@ export function registerGmBridge() {
     if (game.user.isGM) game.socket.emit(SOCKET_EVENT, { action: ACTION_GM_READY });
     else game.socket.on(SOCKET_EVENT, onGmReady);
     game.socket.on(SOCKET_EVENT, onSocket);
-    // The answer travels back to the asking player, who is not a GM — so this
+    // The answer travels back to the asking player, who is not a GM - so this
     // listener has to sit outside the `isPrimaryGm` gate in `onSocket`.
     game.socket.on(SOCKET_EVENT, onRulingResult);
     // Same reason as above: the acknowledgement travels back to a player.
@@ -149,7 +149,7 @@ export function registerGmBridge() {
     game.socket.on(SOCKET_EVENT, onHopeCallResult);
     // And again: a killer's own cleanable-trace list travels back to them.
     game.socket.on(SOCKET_EVENT, onCleanupTracesResult);
-    // The one request that travels the other way — GM to player — so it cannot
+    // The one request that travels the other way - GM to player - so it cannot
     // sit behind the `isPrimaryGm` gate in `onSocket` either.
     game.socket.on(SOCKET_EVENT, onOpeningAsk);
     // And its withdrawal, which travels the same way for the same reason.
@@ -161,7 +161,7 @@ export function registerGmBridge() {
  *
  * The opening rolls used to be thrown on the GM's client, which meant the two
  * dice that decide whether a murder happens at all were rolled by somebody who
- * is not the killer and not the victim — and the roll window, the Hope it grants
+ * is not the killer and not the victim - and the roll window, the Hope it grants
  * and any Call armed for it all landed on the wrong screen. This carries the
  * request to the participant's own client; the answer comes back through
  * `ACTION_OPENING_RESULT` and is applied by a GM, because Stage 4 writes world
@@ -239,7 +239,7 @@ export function requestOpeningResult({ actorId, side, total, isCritical, withHop
  * Most of these requests are fire-and-forget: emit, return `{pending:true}`,
  * hope. `hasGm()` only proves a GM was connected at the moment of asking, so a
  * GM who dropped a second later took the request with them and the player was
- * never told — a sabotage, a project, a Remnant simply never happened.
+ * never told - a sabotage, a project, a Remnant simply never happened.
  *
  * So every request now carries an id, and the receiving GM says "got it". No
  * answer inside the window means nobody is listening, and the player finds out
@@ -266,8 +266,8 @@ function expectAck(label) {
  * Is this reply addressed to me, and did a GM actually send it?
  *
  * The four listeners below all run on a PLAYER's client, waiting for an answer.
- * They used to check only the address. A reply is an authority — "the GM ruled
- * 15", "the GM picked this Remnant", "the freeze took" — so a player able to
+ * They used to check only the address. A reply is an authority - "the GM ruled
+ * 15", "the GM picked this Remnant", "the freeze took" - so a player able to
  * forge one could hand another player any answer they liked, including resolving
  * a promise that was waiting for a real ruling.
  */
@@ -319,12 +319,12 @@ function onCleanupTracesResult(payload, senderId) {
 
 /**
  * The real freeze-and-repair result, once the GM's client has actually written
- * it — not just acknowledged the request. `sabotageProject` used to return
+ * it - not just acknowledged the request. `sabotageProject` used to return
  * `{pending: true}` to a player immediately after the socket emit and call that
  * good enough: the roll reported the target frozen and a repair project created
  * before either had actually happened. A player who then tried Work on Project
- * on the same target — which is exactly the "did the freeze take" question a
- * bug report would test first — could land inside that window and find it not
+ * on the same target - which is exactly the "did the freeze take" question a
+ * bug report would test first - could land inside that window and find it not
  * frozen yet. Waiting for this reply closes it: the action does not tell the
  * player "frozen now" until it is.
  */
@@ -347,13 +347,13 @@ function onSabotageResult(payload, senderId) {
  *
  * Who sent this, according to Foundry rather than according to the packet.
  *
- * This used to read `payload.userId` — a field the sender writes about itself.
+ * This used to read `payload.userId` - a field the sender writes about itself.
  * Every guard in this file is built on the answer (`ownsActor` below decides
  * whether a request may touch a given character), so trusting the claim meant a
  * player could put any other user's id in the field and act as them: take a
  * crisis action with somebody else's character, spend their project progress,
  * empty their stash. The real id is Foundry's own second argument to a socket
- * handler and cannot be set by the sender — see `handleCustomSocket` in the
+ * handler and cannot be set by the sender - see `handleCustomSocket` in the
  * server's `sockets.mjs`, which stamps `this.user.id` on every delivery.
  */
 function senderOf(senderId) {
@@ -376,7 +376,7 @@ function refuse(action, why) {
 async function onSocket(payload, senderId) {
     // The gate is per-action, not blanket. Keeping it up here meant every
     // handler that has to answer a *player* had to be registered as a separate
-    // listener to escape it — a trap for the next one added.
+    // listener to escape it - a trap for the next one added.
     if (!payload?.action) return;
 
     // Replies travelling back to a player. They carry a requestId and a userId,
@@ -411,7 +411,7 @@ async function onSocket(payload, senderId) {
      */
     const asker = senderId;
 
-    // Tell the asker a GM is here and has the request, before doing the work —
+    // Tell the asker a GM is here and has the request, before doing the work -
     // the point of the acknowledgement is "somebody is listening", and a slow
     // handler must not look like a dead socket.
     if (payload.requestId && asker && asker !== game.user.id) {
@@ -420,8 +420,8 @@ async function onSocket(payload, senderId) {
         }, { recipients: [asker] });
     }
 
-    // Observe is scored on this side, because everything it is scored against —
-    // which Remnants are in the room, what they are, what the difficulty is —
+    // Observe is scored on this side, because everything it is scored against -
+    // which Remnants are in the room, what they are, what the difficulty is -
     // is exactly what the observer must not know. See observe.mjs.
     if (payload?.action === ACTION_OBSERVE_TARGET) {
         const sender = senderOf(senderId);
@@ -447,8 +447,8 @@ async function onSocket(payload, senderId) {
     }
 
     // Stage 6's picker. Which traces a killer's own client may act on is
-    // computed here for the same reason Observe is: the ledger — the answer
-    // key `cleanableRemnants` reads to build the list — lives only on a GM
+    // computed here for the same reason Observe is: the ledger - the answer
+    // key `cleanableRemnants` reads to build the list - lives only on a GM
     // client, and `cleanableTracesForPlayer` (cleanup.mjs) is what strips it
     // back down to id, label and the reinforced flag before it goes out.
     if (payload?.action === ACTION_CLEANUP_TRACES) {
@@ -475,8 +475,8 @@ async function onSocket(payload, senderId) {
     if (payload?.action === ACTION_OBSERVE_RESOLVE) {
         const sender = senderOf(senderId);
         if (!sender) return refuse(ACTION_OBSERVE_RESOLVE, "unknown sender");
-        // The key alone decides which character is affected — it was minted on
-        // this client in phase 1 — but the sender still has to be the person who
+        // The key alone decides which character is affected - it was minted on
+        // this client in phase 1 - but the sender still has to be the person who
         // asked for it, or one player could resolve another's Observe.
         if (!ownsActor(sender, payload.actorId)) {
             return refuse(ACTION_OBSERVE_RESOLVE, "sender does not own that character");
@@ -514,7 +514,7 @@ async function onSocket(payload, senderId) {
 
     // Handing something to another character writes to a sheet the sender does
     // not own, so it can only happen here. The same-room condition is checked
-    // again inside handover.mjs — the payload only claims it.
+    // again inside handover.mjs - the payload only claims it.
     if (payload?.action === ACTION_SHARE_BULLET || payload?.action === ACTION_GIVE_ITEM) {
         const sender = senderOf(senderId);
         if (!sender) return refuse(payload.action, "unknown sender");
@@ -528,7 +528,7 @@ async function onSocket(payload, senderId) {
         return;
     }
 
-    // And into them. Same guards as the theft, mirrored — the sender has to own
+    // And into them. Same guards as the theft, mirrored - the sender has to own
     // the character whose pocket the item is leaving.
     if (payload?.action === ACTION_PLANT) {
         const sender = senderOf(senderId);
@@ -551,7 +551,7 @@ async function onSocket(payload, senderId) {
     }
 
     // Looking for a hiding place. The finder owns their own sheet and could
-    // write the flag themselves — which is exactly why they do not: that write
+    // write the flag themselves - which is exactly why they do not: that write
     // is the whole distance between beating a 16 and reading other people's
     // stashes, so it happens where the threshold is checked.
     if (payload?.action === ACTION_FIND_STASH) {
@@ -610,7 +610,7 @@ async function onSocket(payload, senderId) {
             viaSearch: Boolean(payload.viaSearch),
             // Trusted from the sender, and it is worth saying why when nothing
             // else in this handler is. A client that lied would only ever lie
-            // one way — claiming a steady hand — and the cost of believing it is
+            // one way - claiming a steady hand - and the cost of believing it is
             // that the victim is not told. That is exactly the state this branch
             // shipped in for four updates, so a forged `false` buys a cheat
             // nothing it did not already have, while re-rolling the dice here to
@@ -676,12 +676,12 @@ async function onSocket(payload, senderId) {
              * SOMETHING FOR NOTHING.
              *
              * A packet claiming `free` is claiming an automatic success on
-             * Survive or Role reversal — the two actions that end an incident.
+             * Survive or Role reversal - the two actions that end an incident.
              * So it is not believed. The grant is looked up in the incident
              * state on THIS side, for the side this actor is actually on, and a
              * claim with nothing behind it is dropped to false: the action then
              * scores against its real threshold with a total of zero, which is
-             * a failure. That is the right answer to a forged packet — refusing
+             * a failure. That is the right answer to a forged packet - refusing
              * outright would let a lost socket message turn a legitimate free
              * take into silence instead of a result.
              */
@@ -694,7 +694,7 @@ async function onSocket(payload, senderId) {
     // the killer has no permission for one, so it travels; the judgement happens
     // when the Eclipse ends, on this side, off the final placement.
     //
-    // Nothing about the outcome is decided here or sent back — that is the whole
+    // Nothing about the outcome is decided here or sent back - that is the whole
     // point of parking it, and a bridge that answered "recorded" with anything
     // more would be the leak this change exists to close.
     if (payload?.action === ACTION_PARK_MURDER) {
@@ -714,7 +714,7 @@ async function onSocket(payload, senderId) {
 
     // The newcomer turns on the person they just helped. Opening a murder is a
     // world write and a second death, so the request travels and the decision
-    // is re-derived from the incident on this side — `betrayAsPlayer` refuses
+    // is re-derived from the incident on this side - `betrayAsPlayer` refuses
     // anyone the state does not put in that position.
     if (payload?.action === ACTION_BETRAYAL) {
         const sender = senderOf(senderId);
@@ -729,7 +729,7 @@ async function onSocket(payload, senderId) {
 
     // Stage 6. Deleting a Remnant token, placing the new one a botched wipe
     // leaves, and reading how visible the trace was in the first place are all
-    // GM-only — the last of those most of all, since it is the threshold the
+    // GM-only - the last of those most of all, since it is the threshold the
     // roll is being measured against. See cleanup.mjs.
     if (payload?.action === ACTION_CLEANUP) {
         const sender = senderOf(senderId);
@@ -740,8 +740,8 @@ async function onSocket(payload, senderId) {
 
         const cleanup = await import("./cleanup.mjs");
 
-        // The two added Stage 6 actions score differently — a flat threshold
-        // rather than one read off a trace's visibility — so they have their own
+        // The two added Stage 6 actions score differently - a flat threshold
+        // rather than one read off a trace's visibility - so they have their own
         // resolver. Same guard, same sender check; only the maths differs.
         if (payload.key && payload.key !== "eraseTrace" && payload.key !== "transformTrace") {
             await cleanup.resolveStageSix({
@@ -762,7 +762,7 @@ async function onSocket(payload, senderId) {
             total: Number(payload.total) || 0,
             isCritical: Boolean(payload.isCritical),
             withHope: Boolean(payload.withHope),
-            // G-20. Passed through as sent and bounded on arrival —
+            // G-20. Passed through as sent and bounded on arrival -
             // `resolveCleanup` checks both halves against `CLEANUP.transform`
             // before it touches anything, which is the same check a GM-side
             // call gets.
@@ -780,7 +780,7 @@ async function onSocket(payload, senderId) {
         return;
     }
 
-    // A Meddle writes to the TARGET's sheet, not the Monocub's own — arming a
+    // A Meddle writes to the TARGET's sheet, not the Monocub's own - arming a
     // Call is exactly the write a player has no permission to make on somebody
     // else's actor.
     if (payload?.action === ACTION_MEDDLE) {
@@ -844,7 +844,7 @@ async function onSocket(payload, senderId) {
         // Report back to whoever asked.
         //
         // A player cannot see whether their request arrived, was applied, or was
-        // clamped to nothing — so a project that refused to move looked exactly
+        // clamped to nothing - so a project that refused to move looked exactly
         // like a socket that never fired. Now it says which of the three it was.
         const to = asker ? [asker] : [];
         if (!to.length) return;
@@ -860,7 +860,7 @@ async function onSocket(payload, senderId) {
                   });
 
         await announce({
-            content: `<p><strong>${game.i18n.localize("DRPG.Project.title")}</strong> — ${
+            content: `<p><strong>${game.i18n.localize("DRPG.Project.title")}</strong> - ${
                 foundry.utils.escapeHTML(line)
             }</p>`,
             whisper: to
@@ -875,7 +875,7 @@ async function onSocket(payload, senderId) {
         // You may only share what you can already see.
         //
         // This used to check that the sender was a real user and nothing else,
-        // so "share this project with me" was a single socket emit — aimed at
+        // so "share this project with me" was a single socket emit - aimed at
         // any project in the world, including somebody else's SECRET one. A
         // secret project is a murder plan; `resealSecretProjects` exists to keep
         // players out of exactly these, and this handler let a player back in
@@ -935,7 +935,7 @@ async function onSocket(payload, senderId) {
          *
          * So the two fields are read out by name and checked against the same
          * lists the rules use, and everything else in the packet is dropped.
-         * `remove` stays as it was — it is the Reroll's own half and
+         * `remove` stays as it was - it is the Reroll's own half and
          * `retuneRemnant` already refuses to delete a reinforced trace.
          */
         const { REMNANT_VISIBILITY_LABELS, CLEANUP } = await import("./config.mjs");
@@ -957,7 +957,7 @@ async function onSocket(payload, senderId) {
         // Freezing somebody's work is aimed at a project you found, not at an
         // id. Seeing it is the condition the picker is built from
         // (`sabotageTargetsIn` lists what this user can see), and it was the one
-        // thing this side never asked — so any project in the world could be
+        // thing this side never asked - so any project in the world could be
         // frozen from a console, including a secret one whose existence the
         // sender had no way to learn honestly.
         const { canSee, sabotageProject } = await import("./projects.mjs");
@@ -978,13 +978,13 @@ async function onSocket(payload, senderId) {
 
         const result = await sabotageProject(payload.targetId, difficulty);
 
-        // Tell the asker what actually happened — not just that the request
+        // Tell the asker what actually happened - not just that the request
         // arrived. Without this a player's own sabotage always reported success
         // and a repair project by name, whether or not the freeze and the
         // repair it depends on were ever written.
         //
-        // Addressed to them, too. A broadcast announced every sabotage — and the
-        // name of the repair project it created — to the whole table, which is
+        // Addressed to them, too. A broadcast announced every sabotage - and the
+        // name of the repair project it created - to the whole table, which is
         // the one thing a saboteur is buying secrecy for.
         if (payload.requestId) {
             game.socket.emit(SOCKET_EVENT, {
@@ -1033,8 +1033,8 @@ async function onSocket(payload, senderId) {
         }
 
         const { lootBody } = await import("./handover.mjs");
-        // Everything else it needs to refuse — the body being alive, the item
-        // being a Truth Bullet — `lootBody` checks itself, because the GM's own
+        // Everything else it needs to refuse - the body being alive, the item
+        // being a Truth Bullet - `lootBody` checks itself, because the GM's own
         // button goes through the same door.
         await lootBody({
             takerId: payload.takerId, bodyId: payload.bodyId, itemId: payload.itemId
@@ -1048,7 +1048,7 @@ async function onSocket(payload, senderId) {
         const sender = senderOf(senderId);
         if (!sender) return refuse(ACTION_ARM, "unknown sender");
 
-        // The BUYER has to be the sender's own character — never the
+        // The BUYER has to be the sender's own character - never the
         // beneficiary, who is somebody else's by definition for Support and For
         // the Game. Every other handler here checks ownership and this one did
         // not, so "arm me a Free Critical" was a single socket emit away, paid
@@ -1118,7 +1118,7 @@ async function onSocket(payload, senderId) {
      * Nothing sent it: a project is created by the GM, from the panel or from
      * an Approve button on a proposal card, and a player's proposal reaches
      * them as a card rather than as a write. So the branch was a GM-side
-     * handler with no caller — and it still accepted a `project.create`
+     * handler with no caller - and it still accepted a `project.create`
      * payload from any connected client, checked only that the sender was
      * somebody, and created the project. Including one flagged
      * `indirectMurder`. A door nobody used and anybody could open.
@@ -1129,7 +1129,7 @@ async function onSocket(payload, senderId) {
  * Arm a Call on somebody else's character.
  *
  * Support gives another player advantage. Flags live on the beneficiary's actor,
- * which the buyer has no write access to — hence "Player A lacks permission".
+ * which the buyer has no write access to - hence "Player A lacks permission".
  * The GM owns everything, so they set it.
  */
 /**
@@ -1192,14 +1192,14 @@ export async function requestDespairAdjust(targetUserId, delta) {
  * real outcome rather than assuming the request will land.
  *
  * `sabotageProject` used to return `{pending: true}` here and let the action
- * report success on the strength of that alone — the freeze and the repair
+ * report success on the strength of that alone - the freeze and the repair
  * project it depends on were still just an emitted socket message, applied
  * whenever the GM's client got around to it. A player who then tried to keep
  * working the same project immediately afterwards could land inside that gap
  * and find it not frozen yet, and the "repair created" text was reading a
  * repair object that did not exist yet either. This resolves once the GM's
- * client answers with what it actually wrote — the same pattern already used
- * for a Dynamic ruling — so the roll does not call itself done until it is.
+ * client answers with what it actually wrote - the same pattern already used
+ * for a Dynamic ruling - so the roll does not call itself done until it is.
  */
 export function requestSabotage(targetId, difficulty) {
     if (!hasGm()) return Promise.resolve(null);
@@ -1272,7 +1272,7 @@ export function requestRemnant(data) {
 }
 
 /**
- * Retune or remove a Remnant a player's own action left behind — a reroll has
+ * Retune or remove a Remnant a player's own action left behind - a reroll has
  * changed how well they hid it, or removed the reason for the trace entirely.
  * Editing tokens is GM-only, same as creating them.
  */
@@ -1293,7 +1293,7 @@ function hasGm() {
  *
  * The guide gives the threshold to the GM: "the player describes something, the
  * GM picks a threshold". The picker used to render on the player's own client,
- * so the person being tested chose their own difficulty — and would always
+ * so the person being tested chose their own difficulty - and would always
  * choose the easiest band. The dialog now opens on the GM's screen and the
  * answer comes back over the socket.
  *
@@ -1307,7 +1307,7 @@ function hasGm() {
  *
  * The same shape as `requestDynamicDifficulty` below, and for the same reason:
  * a question only a person can answer, so the timeout is generous and a silence
- * is a refusal rather than an error. Nothing is charged on this side — see
+ * is a refusal rather than an error. Nothing is charged on this side - see
  * `spendHopeCall`, which pays only against a yes.
  *
  * @returns {Promise<boolean|null>} true to allow, false to refuse, null if
@@ -1359,7 +1359,7 @@ export function requestDynamicDifficulty({ description, actorName, room }, timeo
 /**
  * Ask a GM which Remnant this Observe is aimed at, before the dice are thrown.
  *
- * A GM runs this locally instead of talking to themselves — the same shape as
+ * A GM runs this locally instead of talking to themselves - the same shape as
  * `requestProjectCreate`. Everyone else waits on the socket.
  *
  * The reply says only whether there is something to look at. The Remnant, its
@@ -1400,11 +1400,11 @@ export function requestObserveTarget({ actorId, declaration, request = "" }, tim
  * Ask a GM which of a killer's traces they may act on, before Stage 6's picker
  * opens.
  *
- * A GM runs this locally instead of talking to themselves — the same shape as
+ * A GM runs this locally instead of talking to themselves - the same shape as
  * `requestObserveTarget`. Everyone else waits on the socket.
  *
  * @returns {Promise<Array<{id: string, label: string, reinforced: boolean}>>}
- *   Never DC, never `tiedToCrime` — see `cleanableTracesForPlayer` in
+ *   Never DC, never `tiedToCrime` - see `cleanableTracesForPlayer` in
  *   cleanup.mjs, which is the only thing that ever builds this array.
  */
 export function requestCleanableTraces(actorId, { mine = false } = {}, timeoutMs = 180000) {
@@ -1421,7 +1421,7 @@ export function requestCleanableTraces(actorId, { mine = false } = {}, timeoutMs
             userId: game.user.id,
             // `mine` narrows the answer to traces this character left. It only
             // ever REMOVES rows, so a forged `false` buys the sender the Stage 6
-            // list — which is refused a few lines later anyway, because the
+            // list - which is refused a few lines later anyway, because the
             // erase itself re-checks ownership. See `resolveCleanup`.
             actorId, mine
         });
@@ -1439,7 +1439,7 @@ export function requestCleanableTraces(actorId, { mine = false } = {}, timeoutMs
  * Hand a thrown Observe to the GM to be scored.
  *
  * Fire-and-forget by design: the answer is the whisper the player gets when the
- * GM's client has finished — a Truth Bullet on their sheet or 2 Sanity — so
+ * GM's client has finished - a Truth Bullet on their sheet or 2 Sanity - so
  * there is nothing for a second reply to add.
  */
 export function requestObserveResolve({ actorId, key, total, isCritical, undo = false }) {
@@ -1520,7 +1520,7 @@ export function requestGiveItem({ fromId, toId, itemId }) {
 /** Hand a thrown crisis action to the GM to be scored and applied. */
 export function requestCrisisResult({
     actorId, key, total, isCritical, withHope, undo = false,
-    // G-18: this one was taken rather than rolled — a critical Self-defence's
+    // G-18: this one was taken rather than rolled - a critical Self-defence's
     // free resolution action. Re-checked GM-side against the incident state,
     // like everything else that arrives over this socket.
     free = false,
@@ -1530,7 +1530,7 @@ export function requestCrisisResult({
     usedItemId = null,
     // Which resource a critical Strike takes. Decided by the killer on their own
     // client while the dice are still up, and carried here rather than asked
-    // again on the GM's — see `askCriticalTarget`.
+    // again on the GM's - see `askCriticalTarget`.
     choice = null
 }) {
     if (game.user.isGM) {
@@ -1554,16 +1554,16 @@ export function requestCrisisResult({
 export function requestCleanup({
     actorId, tokenId, total, isCritical, withHope, undo = false,
     // G-20: what a critical chose to turn the trace into, if anything. Shaped
-    // and bounded on the far side — see `resolveCleanup`.
+    // and bounded on the far side - see `resolveCleanup`.
     transform = null,
     // Z5: what the transform action was declared as, before the dice. Same
-    // treatment — sent as given, bounded on arrival.
+    // treatment - sent as given, bounded on arrival.
     change = null,
     // Stage 6 has four actions now. `key` names which; absent means the
     // original one, so every existing caller keeps working unchanged.
     key = "eraseTrace", targetId = null,
     // Which door this came through: the Tamper tile, or Stage 6's own panel.
-    // It decides what is charged and which guard runs — see cleanup.mjs.
+    // It decides what is charged and which guard runs - see cleanup.mjs.
     viaAction = false
 }) {
     // The two that aim at a TRACE go to `resolveCleanup`; the two that roll
@@ -1597,7 +1597,7 @@ export function requestCleanup({
 /**
  * Ask a GM to open the betrayal: the newcomer kills the killer they helped.
  *
- * No dice and no numbers travel — this is a declaration, and the GM's own
+ * No dice and no numbers travel - this is a declaration, and the GM's own
  * confirmation is what turns it into a second incident.
  */
 /** Record a direct murder declared during an Eclipse. See eclipse.mjs. */
@@ -1652,7 +1652,7 @@ export function requestMeddleResolve({ actorId, targetId, help, total, isCritica
  * Pull one item out of somebody else's stash. GM-only on both ends.
  *
  * `viaSearch` marks the route that has already paid for a concealed stash with
- * an action, a search token and a penalised roll — see `stealFromVault`.
+ * an action, a search token and a penalised roll - see `stealFromVault`.
  */
 export function requestVaultSteal({ thiefId, ownerId, itemId, viaSearch = false, clumsy = false }) {
     if (game.user.isGM) {
@@ -1673,7 +1673,7 @@ export function requestVaultSteal({ thiefId, ownerId, itemId, viaSearch = false,
 /**
  * Go through somebody's pockets. GM-only on both ends, like its sibling above.
  *
- * The two totals travel and the verdicts are made on the other side — see
+ * The two totals travel and the verdicts are made on the other side - see
  * `stealFromPerson`. `itemId` is a request rather than an instruction: it is
  * honoured only on a critical, and only if it is really in the victim's pockets.
  */
@@ -1702,7 +1702,7 @@ export function requestSteal({
  * same division of labour: the two totals travel, both verdicts are made on the
  * other side against `ACTIONS.palm`.
  *
- * `itemId` is not a request here but a statement — it came out of the planter's
+ * `itemId` is not a request here but a statement - it came out of the planter's
  * own pockets and there is nothing secret about it. The GM side still checks it
  * is really there, for the same reason it checks everything else.
  */
@@ -1732,7 +1732,7 @@ export function requestPlant({
  * Fire-and-forget, like Observe: the answer is the whisper the finder gets, and
  * the write it may cause is a flag on their own sheet. The number travels; the
  * threshold, the room and which stash it opens are all decided on the far side
- * — see `resolveStashSearch`.
+ * - see `resolveStashSearch`.
  */
 export function requestStashSearch({ actorId, total = 0, isCritical = false }) {
     if (game.user.isGM) {
@@ -1756,15 +1756,15 @@ export function requestProjectProgress(countdownId, amount) {
         action: ACTION_PROGRESS, countdownId, amount,
         userId: game.user.id, requestId: expectAck("Project")
     });
-    // `changed` is unknown from here — the GM whispers back what actually
+    // `changed` is unknown from here - the GM whispers back what actually
     // happened. Claiming success would be a guess.
     return { pending: true, changed: null };
 }
 
 /**
  * Ask the GM to let another player in on a secret project. Players are allowed
- * to bring someone in on their own plan — the guide's whole social engine runs
- * on conspiracies — but the write itself has to happen GM-side.
+ * to bring someone in on their own plan - the guide's whole social engine runs
+ * on conspiracies - but the write itself has to happen GM-side.
  */
 export function requestProjectShare(countdownId, userId) {
     if (!hasGm()) return null;
@@ -1777,7 +1777,7 @@ export function requestProjectShare(countdownId, userId) {
  * ========================================================================== */
 
 /**
- * Post a ruling request into the actor owner's messenger thread — one message,
+ * Post a ruling request into the actor owner's messenger thread - one message,
  * visible to the player and every GM at once. An actor with no player owner
  * (a Monokuma, a bare NPC) has no thread to post into, so this falls back to
  * the old GM-only whisper.
@@ -1814,7 +1814,7 @@ export async function callGm(actor, {
      * their thread where they can read it.
      *
      * E21's trap alerts are the opposite. The module tells the GM what it just
-     * saw, and the actor it names is the KILLER — so the ordinary path posts
+     * saw, and the actor it names is the KILLER - so the ordinary path posts
      * into the killer's own messenger thread a card saying their trap has been
      * tripped and, worse, WHO tripped it. Measured on the first run of this:
      * "Player B, in Big IT Room" delivered straight to Player A, before the GM
@@ -1886,7 +1886,7 @@ export async function callGm(actor, {
 
     try {
         const { postToThread } = await import("./messenger.mjs");
-        // Every callGm card is, by definition, a call ON the GM — the flag is
+        // Every callGm card is, by definition, a call ON the GM - the flag is
         // what tells the messenger's notifier to interrupt them for it. See
         // MESSENGER_FLAGS.gmAsk for why this cannot be derived from the author.
         return Boolean(await postToThread(owner.id, content, { gmAsk: true }));
@@ -1901,7 +1901,7 @@ export async function callGm(actor, {
  *
  * A card kept saying "Awaiting a ruling." after the ruling had been made. The
  * GM answered in words, the answer landed two bubbles further down, and the
- * card above it still read as an open question — with its buttons still on it,
+ * card above it still read as an open question - with its buttons still on it,
  * inviting a second ruling on something already ruled (Dawid, 26.08).
  *
  * Rewritten on the MESSAGE, not hidden on the client that clicked: the card
@@ -1951,7 +1951,7 @@ export async function promptAndCallGm(actor, {
     // Optional HTML shown above the prompt. Used to fold an action's briefing
     // into this window instead of spending a separate one on it.
     intro = "",
-    // Optional HTML for the GM's CARD rather than the player's window — the
+    // Optional HTML for the GM's CARD rather than the player's window - the
     // answers a form collected, so the GM reads them without opening anything.
     // `intro` is what the player sees; this is what the GM sees.
     body = "",

@@ -3,7 +3,7 @@
  * ---------------------------------------------------------------------------
  * Stawia Remnant na mapie w miejscu zaznaczonego tokenu.
  *
- * WAZNE — co sie zmienilo wzgledem starej wersji tego makra:
+ * WAZNE - co sie zmienilo wzgledem starej wersji tego makra:
  * poprzednio makro tworzylo wpis w dzienniku plus pinezke (Note) z wlasnymi,
  * polskimi kluczami flag. Modul operuje na TOKENACH z flagami z REMNANT_FLAGS,
  * wiec te dwa swiaty nigdy sie nie spotykaly: `game.drpg.reportRemnants()`,
@@ -11,7 +11,7 @@
  * niczego, co powstalo tym makrem. Teraz makro wola `game.drpg.dropRemnant`,
  * czyli dokladnie te sama sciezke co Przeszukanie i Sabotaz.
  *
- * Gracze nie widza Remnantow — token jest zawsze ukryty. Do reki gracza trafia
+ * Gracze nie widza Remnantow - token jest zawsze ukryty. Do reki gracza trafia
  * Truth Bullet, makrem nr 3.
  *
  * Typ makra: Script.  Uruchamia: tylko DM.
@@ -35,24 +35,24 @@ if (!token?.actor) {
     return;
 }
 
-// Klucze musza byc te same, ktorych uzywa modul — inaczej etykieta i kolor
+// Klucze musza byc te same, ktorych uzywa modul - inaczej etykieta i kolor
 // tokenu nie beda sie zgadzac z reszta systemu.
 const TYPY = {
-    key: "Key — czyni sprawe rozwiazywalna, nie da sie usunac",
-    neutral: "Neutral — nieznane pochodzenie",
-    faint: "Faint — watpliwa istotnosc",
-    prep: "Prep — przygotowania do zbrodni",
-    incident: "Incident — sam moment zbrodni",
-    resolution: "Resolution — bledy przy sprzataniu",
-    autopsy: "Autopsy — stan ciala",
-    final: "Final Truth — wskazuje Mastermind"
+    key: "Key - czyni sprawe rozwiazywalna, nie da sie usunac",
+    neutral: "Neutral - nieznane pochodzenie",
+    faint: "Faint - watpliwa istotnosc",
+    prep: "Prep - przygotowania do zbrodni",
+    incident: "Incident - sam moment zbrodni",
+    resolution: "Resolution - bledy przy sprzataniu",
+    autopsy: "Autopsy - stan ciala",
+    final: "Final Truth - wskazuje Mastermind"
 };
 
 const WIDOCZNOSC = {
-    obvious: "Obvious — rzuca sie w oczy",
-    evident: "Evident — widoczny",
-    subtle: "Subtle — subtelny",
-    hidden: "Hidden — ukryty"
+    obvious: "Obvious - rzuca sie w oczy",
+    evident: "Evident - widoczny",
+    subtle: "Subtle - subtelny",
+    hidden: "Hidden - ukryty"
 };
 
 const dane = await DialogV2.wait({
@@ -77,7 +77,7 @@ const dane = await DialogV2.wait({
         }</select>
       </div>
       <div class="form-group">
-        <label>Co to jest — notatka dla DMa</label>
+        <label>Co to jest - notatka dla DMa</label>
         <textarea name="note" rows="3" placeholder="Skad sie wzielo, na kogo wskazuje."></textarea>
       </div>
       <div class="form-group">
@@ -85,13 +85,13 @@ const dane = await DialogV2.wait({
         <input type="text" name="subject" placeholder="np. Siekiera">
       </div>
       <div class="form-group">
-        <label><input type="checkbox" name="faint"> Faint — znika przy sprzataniu na koniec rozdzialu</label>
+        <label><input type="checkbox" name="faint"> Faint - znika przy sprzataniu na koniec rozdzialu</label>
       </div>
       <div class="form-group">
-        <label><input type="checkbox" name="tiedToCrime"> Powiazany ze zbrodnia lub narzedziem — przetrwa sprzatanie</label>
+        <label><input type="checkbox" name="tiedToCrime"> Powiazany ze zbrodnia lub narzedziem - przetrwa sprzatanie</label>
       </div>
       <div class="form-group">
-        <label><input type="checkbox" name="reinforced"> Reinforced — zabojca go nie usunie</label>
+        <label><input type="checkbox" name="reinforced"> Reinforced - zabojca go nie usunie</label>
       </div>
     </form>`,
     buttons: [
@@ -133,5 +133,5 @@ const created = await game.drpg.dropRemnant(token.actor, {
 if (created) {
     ui.notifications.info(`Remnant postawiony przy ${token.actor.name}. Sprawdz "Lista Remnantow" w panelu DMa.`);
 } else {
-    ui.notifications.error("Nie udalo sie postawic Remnanta — zobacz konsole.");
+    ui.notifications.error("Nie udalo sie postawic Remnanta - zobacz konsole.");
 }

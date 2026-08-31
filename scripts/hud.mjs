@@ -1,9 +1,9 @@
 /**
- * Danganronpa RPG — the campaign HUD.
+ * Danganronpa RPG - the campaign HUD.
  * ---------------------------------------------------------------------------
  * The clock is world state, not character state, so it belongs on screen once
  * rather than repeated on every sheet. This renders it into `#ui-top`, which
- * Foundry lays out inside `#ui-middle` — top centre of the screen, clear of the
+ * Foundry lays out inside `#ui-middle` - top centre of the screen, clear of the
  * scene navigation on the left.
  *
  *      Hope's Peak: Drowned Summer      <- campaign name
@@ -21,7 +21,7 @@ import { isPrimaryGm, error, plural } from "./utils.mjs";
 // Static, and checked before adding: this file avoids static imports because it
 // sits on the render path the clock itself calls back into, so a cycle here
 // would be a load-order problem rather than a lint complaint. None of these
-// four reach hud.mjs, directly or through anything they import — eighteen
+// four reach hud.mjs, directly or through anything they import - eighteen
 // modules were walked to confirm it.
 import { roomOfActor, roomOfToken } from "./movement.mjs";
 import { projectsAvailableIn } from "./projects.mjs";
@@ -33,7 +33,7 @@ import { motive } from "./rules.mjs";
 import { pendingGather } from "./call-effects.mjs";
 // The fifth, added when the trial's own bar was folded into this widget. Walked
 // like the four above and clean: trial-floor.mjs reaches config, settings and
-// utils and nothing else — it stopped importing trial.mjs when the evidence
+// utils and nothing else - it stopped importing trial.mjs when the evidence
 // counter went, which is what took popup.mjs and truth-bullets.mjs out of its
 // graph as well.
 import { trialFloor, secondsLeft, floorHolder, floorTarget, FLOOR_MODES } from "./trial-floor.mjs";
@@ -49,7 +49,7 @@ export function registerHud() {
     // Nothing here moves the Projects tray any more.
     //
     // It wanted to sit under the player's status strip, and the strip and the
-    // tray are already siblings in `#ui-right-column-1` — so the whole job is
+    // tray are already siblings in `#ui-right-column-1` - so the whole job is
     // one `order` in the stylesheet. Doing it in script meant re-parenting the
     // tray on three separate hooks and re-asserting after every one of its own
     // renders, because it appends itself back into that column each time a
@@ -77,7 +77,7 @@ export function registerHud() {
     // Only the three things it reads can change it, and each is watched at its
     // own source rather than by redrawing the HUD on a timer.
 
-    // A move — but only one that crosses a boundary, and only the token this
+    // A move - but only one that crosses a boundary, and only the token this
     // block is about. `refreshToken` fires on every frame of a drag, and the
     // GM owns every token on the scene: a hook that redrew for "anything I am
     // allowed to move" would repaint on a student being dragged and show the
@@ -101,7 +101,7 @@ export function registerHud() {
     });
 
     // The Projects tray redrawing means a project was created, advanced,
-    // finished or shared — any of which can change whether this room has one.
+    // finished or shared - any of which can change whether this room has one.
     Hooks.on("renderDhCountdowns", () => renderHud());
 }
 
@@ -117,7 +117,7 @@ let lastHudRoom = null;
 /*
  * THE ROSTER IS GONE.
  * --------------------------------------------------------------------------
- * It answered "is everybody done" with names, and it was the right answer — but
+ * It answered "is everybody done" with names, and it was the right answer - but
  * the GM panel answers the same question now, in the line above the tiles
  * ("N students still have actions to spend"), and the strip in the right column
  * carries the count. Three widgets, one fact, and this was the one taking a
@@ -132,7 +132,7 @@ let lastHudRoom = null;
  * so the timer carries on from the same number instead of having counted the
  * break. The stamp is cleared in the same write.
  *
- * GM-only, and primary-GM-only, because it writes the clock — two GMs both
+ * GM-only, and primary-GM-only, because it writes the clock - two GMs both
  * adding the pause duration would double it.
  */
 async function settleElapsedPause(paused) {
@@ -172,13 +172,13 @@ let lastPublicClock = null;
  * of time is part of the incident, and the HUD flipping to "Morning" on every
  * screen would tell each outsider that the GM is doing something at this hour.
  * So an outsider's HUD keeps showing the clock as it stood when the incident
- * began, and catches up the moment it ends — `murderState` clearing travels
+ * began, and catches up the moment it ends - `murderState` clearing travels
  * the sync bus, which re-renders the HUD on every client (SYNC.restrictions).
  *
  * The GM and the participants' owners see the truth throughout; they are the
  * people the incident is happening TO. Note the world SETTING still reaches
- * every client — nothing world-scoped can be hidden from a console (see the
- * settings notes) — this hides the answer from the SCREEN, which is where the
+ * every client - nothing world-scoped can be hidden from a console (see the
+ * settings notes) - this hides the answer from the SCREEN, which is where the
  * table actually reads it.
  */
 function clockForDisplay(clock) {
@@ -195,7 +195,7 @@ function clockForDisplay(clock) {
         }
         return lastPublicClock ?? clock;
     } catch {
-        // A HUD that cannot decide shows the truth — a wrong clock for one
+        // A HUD that cannot decide shows the truth - a wrong clock for one
         // render beats no clock at all.
         return clock;
     }
@@ -208,7 +208,7 @@ export function renderHud() {
          * THE TOP-LEFT CORNER (Dawid, 29.08), which is a different column.
          *
          * The clock used to hang under the Despair panel in `#ui-top`, centred
-         * over the map. It now sits at the very top of the left rail —
+         * over the map. It now sits at the very top of the left rail -
          * `#ui-left-column-1`, above the GM launcher, which moves down together
          * with the tool icons under it. One `order: -1` in the stylesheet does
          * it; see the order rule there for why this is CSS and not a script
@@ -216,7 +216,7 @@ export function renderHud() {
          *
          * The column is 72px of icons and the clock is four times that, so it
          * WIDENS the column. That is the shape asked for and not a side effect:
-         * the clock keeps the size it has always had (Dawid, 29.08 — "you
+         * the clock keeps the size it has always had (Dawid, 29.08 - "you
          * shrank it unnecessarily"), and the icons under it stay their own size
          * because the column is told not to stretch its children.
          *
@@ -235,8 +235,8 @@ export function renderHud() {
         // line is why the phase colour has never faded: a CSS transition needs
         // an element that was already on the page to transition FROM, and this
         // one was new every time. Two elaborate workarounds were tried before
-        // the obvious question got asked — a script cross-fade on the new
-        // element, then the colour as a registered `@property` on `<body>` —
+        // the obvious question got asked - a script cross-fade on the new
+        // element, then the colour as a registered `@property` on `<body>` -
         // and the second turned out not to work at all in Chromium, which
         // creates the transition and then never advances it.
         //
@@ -245,7 +245,7 @@ export function renderHud() {
         // the glow are an ordinary transition on an ordinary element.
         const outgoing = document.getElementById(HUD_ID);
 
-        // THE LABEL THE TABLE LAST ACTUALLY READ — which is not always the one
+        // THE LABEL THE TABLE LAST ACTUALLY READ - which is not always the one
         // sitting in the slot, and is never a variable.
         //
         // Held in a module variable it would be a second copy of something the
@@ -260,7 +260,7 @@ export function renderHud() {
         // broadcasts itself, and the broadcast redraws every HUD again a few
         // milliseconds later. Read from the slot, the second redraw compared
         // "Night Eclipse" against "Night Eclipse", found no change, and left
-        // the animation it had just destroyed unfinished — which is exactly the
+        // the animation it had just destroyed unfinished - which is exactly the
         // report that the Eclipse has no animation at all.
         //
         // Read from the ghost, the second redraw starts the same journey again
@@ -268,7 +268,7 @@ export function renderHud() {
         // one turn-over that plays to the end.
         //
         // The KEY travels with the text. Which way the labels should move is a
-        // question about the day, not about the words — "Night" following
+        // question about the day, not about the words - "Night" following
         // "Morning" is a rewind, "Morning" following "Night" is not, and no
         // amount of reading the two strings will tell them apart. So the time
         // of day each label names is written onto the element in `buildTimeRow`
@@ -291,12 +291,12 @@ export function renderHud() {
 
         // Which phase the clock is wearing. An Eclipse is a state rather than a
         // phase in the rules, but it is the loudest thing on screen while it
-        // runs, so it takes the slot — see the stylesheet's four blocks.
+        // runs, so it takes the slot - see the stylesheet's four blocks.
         const phase = clock.eclipse === true ? "eclipse" : (clock.phase ?? "dailyLife");
         hud.dataset.drpgPhase = phase;
         // …and on the body, where the player's strip and the Projects tray can
         // read it. They are the same family of boxes as this one and were the
-        // only two not wearing the phase — see "THE WHOLE RAIL WEARS IT" in the
+        // only two not wearing the phase - see "THE WHOLE RAIL WEARS IT" in the
         // stylesheet. A dataset attribute rather than a class for the same
         // reason `matchStripToDespair` publishes a custom property: it survives
         // every redraw those two widgets do on their own.
@@ -314,7 +314,7 @@ export function renderHud() {
         /* MONOKUMA'S TWO STANDING THREATS, WHEN THERE ARE ANY.
          *
          * Both are public by design and both were previously a chat card that
-         * scrolled away — which for the motive meant that "how long have we
+         * scrolled away - which for the motive meant that "how long have we
          * got" was a memory test, and for a deferred assembly would have meant
          * the cast being teleported by an order nobody could still see.
          *
@@ -350,8 +350,8 @@ export function renderHud() {
  * Where the right column starts.
  *
  * THE TWO SIDES OF THE SCREEN START ON THE SAME LINE. Whatever is highest on
- * the left — the Despair rows when a campaign has Monokumas, the clock when it
- * does not — is the line the right rail hangs from.
+ * the left - the Despair rows when a campaign has Monokumas, the clock when it
+ * does not - is the line the right rail hangs from.
  *
  * This has now been both ways round. Anchoring to the clock alone was tried on
  * 2026-08-23 and put the rail a Despair-panel's height too low, which is
@@ -361,7 +361,7 @@ export function renderHud() {
  * care which of the two is on top.
  *
  * The column carries the status strip and the Projects tray, in that order, and
- * both ride on this one offset — see the `order` rules in the stylesheet.
+ * both ride on this one offset - see the `order` rules in the stylesheet.
  */
 function alignRightColumn(hud) {
     try {
@@ -374,7 +374,7 @@ function alignRightColumn(hud) {
          * This reads where the top of the interface is and gives the rail the
          * same line to start on. Once the clock moved into the rail, measuring
          * it here meant setting the column's margin from a box whose position
-         * that same margin decides — the loop settles wherever the first frame
+         * that same margin decides - the loop settles wherever the first frame
          * happened to leave it, and it does not settle in the same place twice.
          *
          * So only the Despair panel is asked, which is the box on the other
@@ -399,14 +399,14 @@ function alignRightColumn(hud) {
  * The scene list starts under the clock rather than behind it.
  *
  * The clock is four times wider than the 72px icon column it now sits at the
- * top of, and Foundry gives that column a fixed width — so the clock overflows
+ * top of, and Foundry gives that column a fixed width - so the clock overflows
  * to the right, straight across the top of the scene list in the column beside
  * it. Measured: the clock reaches x=320 and the viewed-scene button starts at
  * x=104, on the same line.
  *
  * The alternative was to let the icon column grow to the clock's width, which
  * would push the scene list, the map and everything after it 230px to the
- * right — a much larger change to pay for a box that is only wide at the top.
+ * right - a much larger change to pay for a box that is only wide at the top.
  * So the scene list moves DOWN instead, which is the same thing that happened
  * to the GM launcher and the tool icons under it.
  *
@@ -428,7 +428,7 @@ function clearSceneList(hud) {
         const natural = column.getBoundingClientRect().top - own;
 
         // Only when the clock actually reaches across this column. A narrower
-        // clock — a short campaign name, a small screen — needs nothing.
+        // clock - a short campaign name, a small screen - needs nothing.
         if (box.right <= column.getBoundingClientRect().left) {
             if (own) column.style.marginTop = "";
             return;
@@ -446,7 +446,7 @@ function clearSceneList(hud) {
  *
  * The two boxes either side of the clock start on the same line and should end
  * on it. How tall the Despair panel is depends on how many Monokumas the
- * campaign runs — one row each — so the number cannot live in the stylesheet.
+ * campaign runs - one row each - so the number cannot live in the stylesheet.
  * It is measured here and published as a custom property on `<body>`, which
  * `#drpg-player-status` reads as its `min-height`.
  *
@@ -485,7 +485,7 @@ function incomingTimeOfDay(clock) {
  * halfway does not finish it in the opposite direction from the half the table
  * already watched.
  *
- * WHY THIS EXISTS. Several things redraw the clock twice in a row — an Eclipse
+ * WHY THIS EXISTS. Several things redraw the clock twice in a row - an Eclipse
  * writes to the clock and then broadcasts itself, and the broadcast redraws
  * every HUD again a few milliseconds later. The redraw destroys whatever was
  * moving, and the previous version of this answered that by starting the same
@@ -509,7 +509,7 @@ let widestTime = 0;
  * Stop the slot resizing under the label.
  *
  * The slot was as wide as whatever was in it, and the times of day are not the
- * same length — "NOON" and "AFTERNOON ECLIPSE" differ by most of the widget. So
+ * same length - "NOON" and "AFTERNOON ECLIPSE" differ by most of the widget. So
  * the frame the new label arrived in was also the frame the slot changed width,
  * the row re-laid out around it, and the buttons either side moved. On screen
  * that is a jolt, immediately followed by a perfectly smooth animation, which
@@ -518,7 +518,7 @@ let widestTime = 0;
  * The slot only ever grows. Once a session has shown its longest label the
  * width is settled for good, and even before that the widening happens in the
  * frame a longer label first appears rather than on every single change. A
- * clock that reserves the room it might need is not wasting it — the space was
+ * clock that reserves the room it might need is not wasting it - the space was
  * going to be used.
  */
 function fitTimeSlot(hud) {
@@ -531,7 +531,7 @@ function fitTimeSlot(hud) {
     // Growing to fit whatever has been shown so far was not enough, and the
     // Eclipse is why: its names are the longest strings this widget ever holds,
     // so the first Eclipse of a session was still the frame in which the slot
-    // widened — and that is the one moment the whole table is watching. There
+    // widened - and that is the one moment the whole table is watching. There
     // is no need to wait and find out. The times of day are a fixed list, each
     // has an Eclipse form, and both can be measured against the real font
     // before the clock has ever changed.
@@ -548,7 +548,7 @@ function fitTimeSlot(hud) {
  * How wide the slot has to be to hold any time of day, or any Eclipse.
  *
  * Measured in the slot itself, so the probe inherits the font, the size and the
- * letter-spacing that will actually be used — including the pixel face, which
+ * letter-spacing that will actually be used - including the pixel face, which
  * is a world setting and half again as wide as Signika. The Eclipse forms are
  * measured wearing `is-eclipse`, because that class sets its own tighter
  * letter-spacing and measuring without it would overstate them.
@@ -598,14 +598,14 @@ function measureEveryLabel(slot) {
  * for it being rewound.
  *
  * BACKWARDS MEANS EXACTLY ONE STEP BACK, and nothing else does. The clock has
- * one control that moves it that way — the left chevron, `rewindTimeOfDay` —
+ * one control that moves it that way - the left chevron, `rewindTimeOfDay` -
  * and it always steps once. Setting the time straight to Evening from Edit
  * Campaign is a correction rather than an undo: the day is being SET, and it
  * reads as the day moving on, so it goes forward with everything else.
  *
  * Measured round the ring, because the day is one. Night to Morning is a step
  * FORWARD even though the index falls from four to zero, and Morning to Night
- * is the rewind even though it rises — comparing the indexes directly gets both
+ * is the rewind even though it rises - comparing the indexes directly gets both
  * of those exactly wrong, and between them they are every rollover the campaign
  * will ever do.
  *
@@ -634,7 +634,7 @@ function turnDirection(fromTime, toTime) {
  *
  * Which is why REWINDING PLAYS IT MIRRORED. The GM's left chevron undoes a time
  * of day, and running the forward journey for it said the opposite of what had
- * just happened — the one control on this row whose entire job is to take a
+ * just happened - the one control on this row whose entire job is to take a
  * step back announcing itself as another step on. Backwards, the old label
  * leaves to the right and the new one arrives from the left, and the gesture
  * reads as the undo it is.
@@ -645,7 +645,7 @@ function turnDirection(fromTime, toTime) {
  * The distance is measured, not written down: it is the slot's own width, so
  * the two labels are fully clear of the window at each end of the travel
  * whatever the language or the font size. Neither animation is awaited and
- * neither leaves anything behind — the outgoing copy is removed when its own
+ * neither leaves anything behind - the outgoing copy is removed when its own
  * animation reports finished, and by a fallback if it never does.
  */
 function slideTimeOfDay(hud, was, wasTime) {
@@ -661,7 +661,7 @@ function slideTimeOfDay(hud, was, wasTime) {
     const to = incoming.textContent;
     const now = performance.now();
 
-    // RESUME, OR BEGIN — never begin twice.
+    // RESUME, OR BEGIN - never begin twice.
     //
     // If a journey to exactly this label is already running, this redraw has
     // destroyed its animations but not its meaning. `elapsed` is how far it had
@@ -688,7 +688,7 @@ function slideTimeOfDay(hud, was, wasTime) {
     // ONE AT A TIME, NOT SIDE BY SIDE.
     //
     // Run together, the two labels are both in the window for most of the
-    // journey and the eye has two times of day to choose between — which is
+    // journey and the eye has two times of day to choose between - which is
     // the whole complaint about this moment, and slowing it down only made
     // the overlap easier to read. So the slot holds one label at a time: the
     // old one leaves, and the new one does not start until it has gone. Half
@@ -703,14 +703,14 @@ function slideTimeOfDay(hud, was, wasTime) {
     ghost.className = "drpg-hud-time drpg-hud-time-ghost";
     ghost.textContent = from;
     // The ghost carries the key as well as the words, because a redraw during
-    // the journey reads the outgoing label off the GHOST — so without this the
+    // the journey reads the outgoing label off the GHOST - so without this the
     // second half of an interrupted rewind would have nothing to compare.
     if (fromTime) ghost.dataset.drpgTime = fromTime;
     slot.append(ghost);
 
     // `fill: "backwards"` is what makes the wait honest. Without it the new
     // label sits in the middle of the slot, at full opacity, for the whole of
-    // the old one's exit — a delay that delays nothing.
+    // the old one's exit - a delay that delays nothing.
     const into = play(incoming, [
         { transform: `translateX(${distance}px)`, opacity: 0 },
         { transform: "translateX(0)", opacity: 1 }
@@ -723,7 +723,7 @@ function slideTimeOfDay(hud, was, wasTime) {
 
     // Wound forward to where the interrupted journey had got to. An outgoing
     // label whose half is already over finishes in the same frame and takes
-    // itself off the screen, which is correct — it had already left.
+    // itself off the screen, which is correct - it had already left.
     if (elapsed > 0) {
         try {
             if (into) into.currentTime = elapsed;
@@ -741,7 +741,7 @@ function slideTimeOfDay(hud, was, wasTime) {
 /* The phase COLOUR is not here any more, and the reason is worth keeping.
  *
  * It was animated from this file, on the new HUD, away from colours read off
- * the old one — which worked, and was fighting two things at once: a 1400ms
+ * the old one - which worked, and was fighting two things at once: a 1400ms
  * `transition: border-color` already declared on `#drpg-hud`, and the fact that
  * the element under it is thrown away and rebuilt several times a second in
  * places. The result read as a colour that changed roughly rather than
@@ -761,7 +761,7 @@ function slideTimeOfDay(hud, was, wasTime) {
  * The clock's shell: the parts that do not change between renders.
  *
  * Built once per session. The listener in particular has to live here rather
- * than in `renderHud` — attached on every render to an element that survives,
+ * than in `renderHud` - attached on every render to an element that survives,
  * it would stack up one copy per redraw, and this widget redraws often.
  */
 function buildHudShell() {
@@ -786,19 +786,19 @@ function line(className, text) {
  * Four states, and the first is the one the floor state cannot express by
  * itself: a trial that is in session with no debate open. `trialFloor()` returns
  * null for that, which is indistinguishable from "no trial" unless the phase is
- * consulted — so the phase is what decides whether there is anything to say at
+ * consulted - so the phase is what decides whether there is anything to say at
  * all, and the floor only decides which of the four words it is.
  *
  *   discussion   the trial is running; nobody has taken the floor.
  *   debate       the floor is open to everybody. This is `FLOOR_MODES.discussion`
- *                — the mode's name inside the engine is about who may speak,
+ *                - the mode's name inside the engine is about who may speak,
  *                and the word on screen is about what is happening.
  *   objection    one person, one minute, bought with a Truth Bullet.
  *   rebuttal     two people, two minutes.
  *
  * WHO IS TALKING comes back with it, because during a trial the room block
  * below the clock stops naming the room and names them instead. Everybody is in
- * the same room during a trial — the name was the least useful line on screen at
+ * the same room during a trial - the name was the least useful line on screen at
  * exactly the moment the most useful one is "whose floor is this".
  *
  *   discussion / debate   everyone.
@@ -806,7 +806,7 @@ function line(className, text) {
  *   rebuttal              the person answering, and underneath, who they are
  *                         answering. Note the ORDER: the defender is named
  *                         first and the objector second, because the rebuttal
- *                         is the defender's two minutes — the objection above
+ *                         is the defender's two minutes - the objection above
  *                         it already had the objector's name on its own.
  *
  * @returns {{key: string, label: string, speaker: string, versus: string|null}|null}
@@ -820,9 +820,9 @@ function trialSlot() {
             : floor.mode === FLOOR_MODES.discussion ? "debate"
                 : floor.mode;
 
-        // `holder` is whoever took the floor — the objector, in both restrictive
-        // modes — and `target` is who they aimed at. See `openObjection`.
-        const unknown = "—";
+        // `holder` is whoever took the floor - the objector, in both restrictive
+        // modes - and `target` is who they aimed at. See `openObjection`.
+        const unknown = "-";
         let speaker = game.i18n.localize("DRPG.Hud.trialEveryone");
         let versus = null;
 
@@ -854,7 +854,7 @@ function buildTimeRow(clock, isGM) {
     // day and open an Eclipse, and neither is a thing that happens during a
     // trial. The mode is driven by the GM's own trial console and by players
     // spending Truth Bullets, so a control here would be a fourth way to change
-    // something that already has three — and the only one of the four that could
+    // something that already has three - and the only one of the four that could
     // do it by accident.
     const trial = trialSlot();
     if (trial) {
@@ -876,7 +876,7 @@ function buildTimeRow(clock, isGM) {
         }));
     }
 
-    // While an Eclipse runs, the clock has NOT moved yet — it still reads the
+    // While an Eclipse runs, the clock has NOT moved yet - it still reads the
     // time of day just finished, and showing that was the single most confusing
     // thing on screen: the Night Eclipse ran under a bar reading "EVENING", so
     // anyone checking which Eclipse they were in got the wrong answer, and
@@ -908,7 +908,7 @@ function buildTimeRow(clock, isGM) {
     // The slot is what makes the turn-over readable: it clips, so both labels
     // travel through a window rather than across the HUD, and the buttons
     // either side of it do not move while they pass. What used to travel WITH
-    // it — a note about the previous label, written onto the element — is gone;
+    // it - a note about the previous label, written onto the element - is gone;
     // `renderHud` reads that off the HUD it is replacing instead.
     const slot = document.createElement("div");
     slot.className = "drpg-hud-time-slot";
@@ -960,7 +960,7 @@ function buildTimeRow(clock, isGM) {
  * moment of the next Eclipse". Both are true and together they are unplayable
  * without a clock somebody can see.
  *
- * Counts UP rather than down, because a time of day has no fixed length — the
+ * Counts UP rather than down, because a time of day has no fixed length - the
  * handbook gives 30 to 60 minutes and the GM decides. A countdown would have to
  * invent a deadline. What it does instead is change colour at the two marks the
  * handbook actually names, so the advice is legible at a glance without any
@@ -977,8 +977,8 @@ function buildTimeRow(clock, isGM) {
  * --------------------------------------------------------------------------
  * An incident is turn-based, and every turn costs the victim Sanity and then
  * Health. All of that state lived in one place: the Incident tracker window. Close
- * it — or never open it, which is every player's situation, since it is a GM
- * window — and you are playing the tensest scene in the game blind.
+ * it - or never open it, which is every player's situation, since it is a GM
+ * window - and you are playing the tensest scene in the game blind.
  *
  * So the two facts that decide what you do next go on the HUD: whose turn it
  * is, and what the victim has left.
@@ -986,7 +986,7 @@ function buildTimeRow(clock, isGM) {
  * Read straight from the setting rather than through murder.mjs. The HUD is
  * imported by sync.mjs, which murder.mjs also reaches, and importing the murder
  * engine here would close that loop. The shape read is two ids and two
- * numbers — not worth a cycle.
+ * numbers - not worth a cycle.
  * ========================================================================== */
 
 /** Participants and GMs only. Nobody else learns an incident is even running. */
@@ -1001,8 +1001,8 @@ function buildIncident() {
      *
      * `game.user.character` is the actor picked in Foundry's own user
      * configuration, and nothing in this game ever asks anybody to set it. A
-     * table that assigns characters by ownership — which is every table, because
-     * that is what the module's own assignment screen writes — left every
+     * table that assigns characters by ownership - which is every table, because
+     * that is what the module's own assignment screen writes - left every
      * player with `game.user.character === null`, so `involved` was false for
      * all of them and this row was GM-only in practice. The killer and the
      * victim were playing the tensest scene in the game blind, which is the
@@ -1029,7 +1029,7 @@ function buildIncident() {
     // A GM owns every character in the world, so ownership alone would make
     // every incident read as theirs and print "your turn" at somebody running
     // both sides. The seat only counts as YOURS when it is the character you
-    // are actually playing — which for a GM means one they have deliberately
+    // are actually playing - which for a GM means one they have deliberately
     // assigned to themselves, and for a player means the one they own.
     const mine = (assigned && seats.includes(assigned))
         ? assigned
@@ -1086,7 +1086,7 @@ function buildIncident() {
 }
 
 /**
- * Health and Sanity are reverse resources in Daggerheart — `value` counts marks,
+ * Health and Sanity are reverse resources in Daggerheart - `value` counts marks,
  * not what is left. Duplicated from character.mjs rather than imported for the
  * same cycle reason as the state read above.
  */
@@ -1103,7 +1103,7 @@ function remaining(actor, key) {
  * ---------------------------------------------------------------------------
  * The stylesheet lays the raster out from the centre of `#pause`, and that is
  * only the centre of the caption while nothing else is in the box and nothing
- * else has moved it. Both assumptions have been wrong at least once — core's
+ * else has moved it. Both assumptions have been wrong at least once - core's
  * own pulse animation scales the element, a layout module can give it padding,
  * and the caption's own line-height decides where the WORD sits inside its
  * box even when the box is centred perfectly.
@@ -1112,7 +1112,7 @@ function remaining(actor, key) {
  * `background-position`. The tile is 60px with its hairline in the middle, so
  * putting a tile's top edge exactly on the caption's centre leaves the middle
  * of the word in the gap between two lines, with the nearest line 30px above
- * and its twin 30px below — symmetric by measurement, not by arithmetic about
+ * and its twin 30px below - symmetric by measurement, not by arithmetic about
  * a box nobody can see.
  */
 function centrePauseRaster() {
@@ -1140,11 +1140,11 @@ function centrePauseRaster() {
  * region boundary is), is there a project here (open the tray and read the
  * rooms), can I still search (spend the action and find out).
  *
- * Nothing here is new information and nothing here is a new query — every line
+ * Nothing here is new information and nothing here is a new query - every line
  * is an existing function called once more, in the one place the answer is
  * actually wanted.
  *
- * WHOSE ROOM. A player's own character. A GM's own Monokuma — not "no block at
+ * WHOSE ROOM. A player's own character. A GM's own Monokuma - not "no block at
  * all": a Monokuma walks the map freely, pays no movement economy and knows no
  * walls (see movement.mjs), so for the GM this row means "where I have parked
  * my token", which is exactly as useful as the player's version and answers the
@@ -1154,8 +1154,8 @@ function centrePauseRaster() {
 /**
  * The character this HUD is about, for this account.
  *
- * Same resolution player-status.mjs uses for a player — the assigned character,
- * or the single owned student when nobody assigned one — and the same one
+ * Same resolution player-status.mjs uses for a player - the assigned character,
+ * or the single owned student when nobody assigned one - and the same one
  * voice.mjs and camera-view.mjs use for a GM: the Monokuma whose Despair pool
  * is this user's.
  */
@@ -1175,14 +1175,14 @@ function hudActor() {
 }
 
 /**
- * Three rows: the room, whether it holds a project, and its search tokens —
+ * Three rows: the room, whether it holds a project, and its search tokens -
  * or, during a Class Trial, who is talking. See `buildTrialSpeaker`.
  */
 function buildRoom() {
     try {
         // Checked FIRST, and deliberately before `hudActor()`: the trial block
         // is about the trial rather than about you, so a GM with no Monokuma of
-        // their own — who gets no room block at all the rest of the time — must
+        // their own - who gets no room block at all the rest of the time - must
         // still see whose floor it is.
         const trial = trialSlot();
         if (trial) return buildTrialSpeaker(trial);
@@ -1201,7 +1201,7 @@ function buildRoom() {
         // to the question the block is asked.
         if (!room) return box;
 
-        // A GM sees every project in the room, including the secret ones —
+        // A GM sees every project in the room, including the secret ones -
         // `canSee()` opens with `if (user?.isGM) return true`. That is correct
         // and needs no branch here: one call, two roles, two right answers.
         // The NAME is never rendered, for either of them: this widget is on
@@ -1226,14 +1226,14 @@ function buildRoom() {
  *
  * WHY THE ROOM GOES. During a Class Trial everybody is in the same room, so its
  * name is the least useful line on the widget at exactly the moment the most
- * useful one — whose floor is this — has nowhere to live. The rows are reused
+ * useful one - whose floor is this - has nowhere to live. The rows are reused
  * rather than added, so the clock is the same shape and height in a trial as
  * out of one.
  *
  *   row 1   who is talking. "Everyone" in a discussion or a debate; the
  *           objector alone during an objection; the person answering, during a
  *           rebuttal.
- *   row 2   who they are answering, during a rebuttal. An em dash otherwise —
+ *   row 2   who they are answering, during a rebuttal. An em dash otherwise -
  *           the row keeps its place rather than collapsing, so the block does
  *           not change height when a rebuttal opens.
  *   row 3   the search pips, greyed. Nothing can be searched from inside a
@@ -1246,11 +1246,11 @@ function buildTrialSpeaker(trial) {
     box.append(line("drpg-hud-room-name", trial.speaker));
     // NOT `line()`'s empty branch: an em dash is content, and the `empty` class
     // it would add fades the row to a third of its opacity.
-    const versus = line("drpg-hud-room-project", trial.versus ?? "—");
+    const versus = line("drpg-hud-room-project", trial.versus ?? "-");
     versus.classList.toggle("is-versus", Boolean(trial.versus));
     box.append(versus);
 
-    // Whichever room this client's own character is standing in — which during a
+    // Whichever room this client's own character is standing in - which during a
     // trial is the courtroom for everybody. Skipped entirely when there is no
     // character to ask about, rather than drawn empty.
     try {
@@ -1302,7 +1302,7 @@ function buildSearchPips(room, { idle = false } = {}) {
  *
  * The demand is the row; the consequence is the tooltip. Two sentences in the
  * corner of the screen is a paragraph, and a paragraph in a HUD is something
- * people stop reading — but the consequence is the half a player actually
+ * people stop reading - but the consequence is the half a player actually
  * needs when they decide whether to take the threat seriously, so it has to be
  * one hover away rather than in a chat log two hundred messages back.
  *
@@ -1341,7 +1341,7 @@ function buildMotive() {
  *
  * Deferring Public Announcement created a fact the cast has to plan around,
  * and a fact you plan around cannot live only in scrollback. It names the room
- * and says when — and it is gone the moment the assembly happens.
+ * and says when - and it is gone the moment the assembly happens.
  */
 function buildAssembly() {
     const order = pendingGather();
@@ -1371,8 +1371,8 @@ function buildElapsed() {
     paintElapsed(el);
 
     clearInterval(elapsedTimer);
-    // Ten seconds for the minutes readout — it is in whole minutes, so a
-    // per-second tick would repaint sixty times for each visible change — and
+    // Ten seconds for the minutes readout - it is in whole minutes, so a
+    // per-second tick would repaint sixty times for each visible change - and
     // one second while a debate is running, where every tick is a visible
     // change and the number is the thing people are watching.
     //
@@ -1397,13 +1397,13 @@ function paintElapsed(el) {
     // A DEBATE'S CLOCK OUTRANKS THE TIME OF DAY'S.
     //
     // The minutes readout is pacing advice about spending two actions inside
-    // half an hour, and a Class Trial has no actions to spend — so during one it
+    // half an hour, and a Class Trial has no actions to spend - so during one it
     // is a number that means nothing sitting where the number that means
     // everything should be.
     //
     // Only while a floor is actually open. A trial in session with nobody
-    // holding the floor has no clock running, and inventing one — a stopwatch on
-    // the trial, a countdown to nothing — would be the module making up a rule.
+    // holding the floor has no clock running, and inventing one - a stopwatch on
+    // the trial, a countdown to nothing - would be the module making up a rule.
     // In that state the line goes back to what it has always been.
     const floor = trialFloor();
     if (floor) return paintFloorClock(el, floor);
@@ -1466,7 +1466,7 @@ function paintFloorClock(el, floor) {
 
 /**
  * @param {string} tooltipKey  An i18n key, or already-localised text when
- *   `literal` is set — the Eclipse control builds its own from the time of day
+ *   `literal` is set - the Eclipse control builds its own from the time of day
  *   it is about to open.
  */
 function control(icon, tooltipKey, handler, { literal = false } = {}) {

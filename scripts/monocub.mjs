@@ -1,20 +1,20 @@
 /**
- * Danganronpa RPG — Monocub.
+ * Danganronpa RPG - Monocub.
  * ---------------------------------------------------------------------------
  * Guide, p. 16: "Po śmierci, gdy jego class trial się zakończy, gracz może
  * dołączyć do DMów jako Monocub." A dead student's player, opted in by
  * agreement with the table, keeps the same character sheet and gets exactly
- * two things to do with it: Move, and Meddle — nudging a living player's next
+ * two things to do with it: Move, and Meddle - nudging a living player's next
  * roll from the sidelines.
  *
  * A Monocub is not a Monokuma. It stays a `character` actor with no special
  * flag on the token, keeps the normal action budget (refilled by the same
- * pass that refills everyone else — nothing to change there), and keeps the
+ * pass that refills everyone else - nothing to change there), and keeps the
  * same room-restricted vision every other student has. What changes is the
  * action panel on the sheet: Move and Meddle instead of the full grid, and
  * a Hope total that only a GM can top up, by converting their own Despair.
  *
- * MEDDLE'S ROLL. The guide marks its difficulty table "Stat: —" — the one roll
+ * MEDDLE'S ROLL. The guide marks its difficulty table "Stat: -" - the one roll
  * in the system with no trait behind it. Daggerheart's own `rollTrait` insists
  * on a real trait key, so this is not built through it: a flat 2d12, crit on
  * doubles, exactly Daggerheart's own duality math with the trait modifier
@@ -55,7 +55,7 @@ export function monocubActors() {
     return game.actors.filter(a => a.type === "character" && isMonocub(a));
 }
 
-/** Dead students who could still opt in — Monocub is a choice, not automatic. */
+/** Dead students who could still opt in - Monocub is a choice, not automatic. */
 export function eligibleForMonocub() {
     return game.actors.filter(a =>
         a.type === "character" && !isMonokuma(a) && isDeceased(a) && !isMonocub(a));
@@ -63,7 +63,7 @@ export function eligibleForMonocub() {
 
 /**
  * Opt somebody into (or out of) being a Monocub. GM only, and only ever on
- * somebody already `isDeceased` — the guide's condition, not this module's
+ * somebody already `isDeceased` - the guide's condition, not this module's
  * invention. The guide also asks that their trial have concluded first, which
  * is a judgement call for the table; the dialog says so rather than the code
  * enforcing it, the same trust the rest of the murder and trial flow already
@@ -90,8 +90,8 @@ export async function setMonocub(actor, value = true) {
 /**
  * Mark (or clear) the guide's "stumbled onto the crime" silence.
  *
- * The player is told. This is a restriction on what they may SAY at the table —
- * "otrzymuje zakaz wypowiadania się na temat zbrodni do końca rozdziału" — so a
+ * The player is told. This is a restriction on what they may SAY at the table -
+ * "otrzymuje zakaz wypowiadania się na temat zbrodni do końca rozdziału" - so a
  * silence nobody announced is a rule the person bound by it cannot follow. It
  * used to be written as a bare flag from the Monocub dialog and never mentioned
  * anywhere; the only trace was a checkbox on the GM's screen.
@@ -111,7 +111,7 @@ export async function setSilenced(actor, silenced) {
     if (was !== Boolean(silenced)) {
         await whisperToOwner(actor, `<p><strong>${
             game.i18n.localize("DRPG.Monocub.silenceTitle")
-        }</strong> — ${game.i18n.localize(silenced
+        }</strong> - ${game.i18n.localize(silenced
             ? "DRPG.Monocub.silenceOn"
             : "DRPG.Monocub.silenceOff")}</p>`);
     }
@@ -137,7 +137,7 @@ export function isSilenced(actor) {
  * Living students, minus the Monocub itself, sharing its current room.
  *
  * `othersInRoom` already excludes Monokumas and hidden tokens, which is
- * exactly right here too — a Monocub Meddles with a fellow student, not with
+ * exactly right here too - a Monocub Meddles with a fellow student, not with
  * the DMs walking the map as their own Monokumas.
  */
 export async function meddleTargets(actor) {
@@ -149,18 +149,18 @@ export async function meddleTargets(actor) {
  * Put the Meddle roll in chat, without Daggerheart's damage buttons.
  *
  * `Roll#toMessage` leaves `content` empty, so the message renders through the
- * system's own `foundryRoll.hbs` — and that template appends "Deal damage" and
+ * system's own `foundryRoll.hbs` - and that template appends "Deal damage" and
  * "Apply healing" to EVERY plain roll it draws. Meddle is neither: it nudges
  * somebody's next roll. The buttons were live, aimed at whatever token happened
  * to be targeted, and there was nothing about the action they could correctly do.
  *
- * Writing our own `content` takes that template out of the path entirely — the
+ * Writing our own `content` takes that template out of the path entirely - the
  * message renders what we give it. `rolls` is still populated, so Dice So Nice
  * animates the dice exactly as before, and `private-rolls.mjs` still sees a roll
  * to make private.
  */
 async function postMeddleRoll(actor, roll, total, isCritical, help) {
-    const label = `${MONOCUB.meddle.label} — ${
+    const label = `${MONOCUB.meddle.label} - ${
         game.i18n.localize(help ? "DRPG.Monocub.help" : "DRPG.Monocub.hinder")}`;
 
     const tooltip = await roll.getTooltip();
@@ -197,7 +197,7 @@ async function rollFlat() {
 
 /**
  * Meddle: help or hinder somebody in the room. Costs an action from the normal
- * budget and a point of Hope on top — both spent here, on the Monocub's own
+ * budget and a point of Hope on top - both spent here, on the Monocub's own
  * actor, which the acting player already owns.
  */
 export async function performMeddle(actor, targetId, help) {
@@ -287,8 +287,8 @@ export async function resolveMeddle({ actorId, targetId, help, total, isCritical
      * Everything `meddleTargets` decides, decided again here.
      *
      * That function runs on the Monocub's own client and builds the picker. This
-     * one applies the result to somebody ELSE's sheet — it wastes their action,
-     * or arms a Call on it — and it used to apply whatever arrived. A payload
+     * one applies the result to somebody ELSE's sheet - it wastes their action,
+     * or arms a Call on it - and it used to apply whatever arrived. A payload
      * naming a target was enough: from any room, at any character, by an actor
      * who was not a Monocub at all or was silenced, as often as they liked, with
      * no action spent because the cost is charged on the picker's side.
@@ -341,14 +341,14 @@ export async function resolveMeddle({ actorId, targetId, help, total, isCritical
     /*
      * THE SOUND RIDES THE CARDS, and that is what makes it correct here.
      *
-     * This function is on the GM's client — `playSfx` would ring the GM's
+     * This function is on the GM's client - `playSfx` would ring the GM's
      * speakers and nobody else's. The flag plays wherever the message lands,
      * and `onCreateChatMessage` keeps GMs out of a whisper that did not ask for
      * them, so these two carry the sound to exactly two people: the Monocub who
      * spent the action, and the student it happened to.
      *
      * IT CANNOT LEAK WHO. A sound has no sender, and both whispers play the
-     * same one — the target learns that something reached them, which is what
+     * same one - the target learns that something reached them, which is what
      * their card already says, and nothing more.
      */
     const meddleSfx = { flags: { [MODULE_ID]: { sfx: "meddle" } } };
@@ -357,7 +357,7 @@ export async function resolveMeddle({ actorId, targetId, help, total, isCritical
         name: foundry.utils.escapeHTML(target.name)
     })}</strong></p><p>${foundry.utils.escapeHTML(text)}</p>`, meddleSfx);
 
-    // The target is told SOMETHING happened without being told who — the guide
+    // The target is told SOMETHING happened without being told who - the guide
     // has Monocubs act "z boku" (from the sidelines); knowing which dead
     // classmate is pulling the strings is not part of that.
     await whisperToOwner(target, `<p>${foundry.utils.escapeHTML(text)}</p>`, meddleSfx);
@@ -366,7 +366,7 @@ export async function resolveMeddle({ actorId, targetId, help, total, isCritical
     return { success: true, text };
 }
 
-/** "Wastes an action" — unconditional, unlike `spendAction`, which can refuse. */
+/** "Wastes an action" - unconditional, unlike `spendAction`, which can refuse. */
 async function wasteAction(actor) {
     const left = actionsLeft(actor);
     if (left <= 0) return;
@@ -379,7 +379,7 @@ async function wasteAction(actor) {
 
 /** Opt students in or out, hand out Despair-as-Hope, and mark the crime silence. */
 export async function openMonocubDialog() {
-    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
@@ -412,14 +412,14 @@ export async function openMonocubDialog() {
             <td>${foundry.utils.escapeHTML(a.name)}</td>
             <td style="text-align:center">
                 <input type="checkbox" name="cub:${a.id}" ${cub ? "checked" : ""} /></td>
-            <td>${cub ? `${hope} / ${resourceMax(a, "hope")}` : "—"}</td>
+            <td>${cub ? `${hope} / ${resourceMax(a, "hope")}` : "-"}</td>
             <td>${cub ? `
                 <select name="donor:${a.id}">${donors}</select>
                 <input type="number" name="amount:${a.id}" min="1" value="1" style="width:3.5em" />
                 <button type="button" class="drpg-mini-button" data-drpg-give="${a.id}">
-                    ${game.i18n.localize("DRPG.Monocub.give")}</button>` : "—"}</td>
+                    ${game.i18n.localize("DRPG.Monocub.give")}</button>` : "-"}</td>
             <td style="text-align:center">${cub ? `
-                <input type="checkbox" name="silenced:${a.id}" ${silenced ? "checked" : ""} />` : "—"}</td>
+                <input type="checkbox" name="silenced:${a.id}" ${silenced ? "checked" : ""} />` : "-"}</td>
         </tr>`;
     }).join("");
 

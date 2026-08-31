@@ -1,9 +1,9 @@
 /**
- * Danganronpa RPG — Analyze, resolved on the GM's client.
+ * Danganronpa RPG - Analyze, resolved on the GM's client.
  * ---------------------------------------------------------------------------
  * Guide, p. 30: a Head roll turns a Neutral Truth Bullet into an identified
  * one. The difficulty is read from a table indexed by how visible the original
- * trace was and by what the bullet REALLY is — and a failed attempt locks that
+ * trace was and by what the bullet REALLY is - and a failed attempt locks that
  * bullet away from that player until the end of the chapter:
  *
  *   "Nieudany rzut na analizę blokuje temu graczowi dostęp do analizy tego
@@ -53,14 +53,14 @@ export async function resolveAnalyze({
     // decided about this bullet is wound back before the second is scored.
     //
     // No stored record is needed: an analysable bullet has exactly one prior
-    // state — shown as Neutral, not analysed, unlocked. The lock is only lifted
+    // state - shown as Neutral, not analysed, unlocked. The lock is only lifted
     // when it belongs to THIS chapter, so a genuine older lock survives.
     if (undo) {
         const patch = {
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.shownType}`]: "neutral",
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzed}`]: false,
             // The two facts `identify` published go back into the secret with
-            // the rest of the truth — an un-analysed bullet knows nothing.
+            // the rest of the truth - an un-analysed bullet knows nothing.
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.sourceAction}`]: null,
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tiedToCrime}`]: null
         };
@@ -78,7 +78,7 @@ export async function resolveAnalyze({
     const realType = secretOf(item.uuid).realType ?? "neutral";
     const dc = analyzeDc(visibility, realType);
 
-    // `null` is the guide's "Bez rzutu" — Key, Autopsy and Final identify
+    // `null` is the guide's "Bez rzutu" - Key, Autopsy and Final identify
     // themselves. Treated as an automatic conversion rather than as a missing
     // number, so a bullet the GM deliberately handed over as "unidentified"
     // still resolves instead of jamming.
@@ -94,7 +94,7 @@ export async function resolveAnalyze({
 }
 
 /**
- * A failure does not take the bullet away — it takes this player's ability to
+ * A failure does not take the bullet away - it takes this player's ability to
  * work on it. The stamp is on the item, so a copy handed to somebody else
  * (Stage 4) carries no lock: it is a different item.
  */
@@ -107,7 +107,7 @@ async function lockOut(item, actor, chapter, total) {
         error("Could not lock the Truth Bullet after a failed Analyze", err);
     }
 
-    // ON THE CARD, NOT THROUGH `playSfx` — and the same correction applies to
+    // ON THE CARD, NOT THROUGH `playSfx` - and the same correction applies to
     // `identify` below. See the note there: this function only ever runs on a
     // GM's browser.
     await whisperToOwner(actor, `
@@ -121,7 +121,7 @@ async function lockOut(item, actor, chapter, total) {
 
 /** Success converts the bullet: what it really is becomes what the player sees. */
 async function identify(item, actor, realType, isCritical, dc, total) {
-    // The moment of analysis is when two more facts go public — which action
+    // The moment of analysis is when two more facts go public - which action
     // left the source trace (the Remnant token's icon on this player's map)
     // and whether it belongs to the murder (the pack's sort). Both were
     // waiting in the bullet's secret since creation, so a trace the killer
@@ -143,7 +143,7 @@ async function identify(item, actor, realType, isCritical, dc, total) {
     const hint = TRUTH_BULLET_TYPES[realType]?.hint ?? "";
 
     /*
-     * THE SOUND RIDES THE CARD, AND IT USED NOT TO — a bug this file carried
+     * THE SOUND RIDES THE CARD, AND IT USED NOT TO - a bug this file carried
      * from E5 until a play-through of the new sounds walked into it.
      *
      * `playSfx` at the top of this function claimed to be "local: whoever ran
@@ -151,7 +151,7 @@ async function identify(item, actor, realType, isCritical, dc, total) {
      * `resolveAnalyze` opens with `if (!game.user.isGM) return null`, so
      * `identify` and `lockOut` have only ever executed on a GM's browser: the
      * catalogue promised "heard by the student who ran it" and the GM heard it
-     * instead, alone. Nobody would report that — the GM hears a plausible noise
+     * instead, alone. Nobody would report that - the GM hears a plausible noise
      * at a plausible moment, and the player hears nothing they were told to
      * expect.
      *
@@ -204,5 +204,5 @@ async function identify(item, actor, realType, isCritical, dc, total) {
         }
     }
 
-    log(`Analyze: ${actor.name} rolled ${total} vs DC ${dc ?? "—"} and identified "${item.name}" as ${realType}.`);
+    log(`Analyze: ${actor.name} rolled ${total} vs DC ${dc ?? "-"} and identified "${item.name}" as ${realType}.`);
 }

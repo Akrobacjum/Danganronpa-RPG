@@ -1,24 +1,24 @@
 /**
- * Danganronpa RPG — a Remnant wears its type as a ring.
+ * Danganronpa RPG - a Remnant wears its type as a ring.
  * ---------------------------------------------------------------------------
  * A scene late in a chapter carries a dozen Remnants, and until now they were
  * a dozen identical markers: the GM had to click each one to find out whether
  * it was a preparation trace, an autopsy note or the thing that solves the
  * case. The type was already recorded on the token and shown on every badge in
- * the player's own Truth Bullet row — it just never made it onto the map,
+ * the player's own Truth Bullet row - it just never made it onto the map,
  * which is the one place
  * everybody is looking during an investigation.
  *
  * The ring is drawn rather than tinted, because a tint would fight the artwork
  * a Remnant already uses to say what it depicts. Its shape is a SQUARE pixel
- * frame (Dawid, 26.08) — filled bars one sprite-cell thick on the token's own
- * 12-cell grid, hard edges, no antialiased stroke — so the marker speaks the
+ * frame (Dawid, 26.08) - filled bars one sprite-cell thick on the token's own
+ * 12-cell grid, hard edges, no antialiased stroke - so the marker speaks the
  * same pixel language as the glyph inside it.
  *
  * Colours are read from the stylesheet at runtime instead of being written
  * here. The palette is declared once in `danganronpa.css` and this reads the
  * same tokens the Truth Bullet badges do, so the map and the pack cannot drift
- * apart — and re-hueing the palette moves the rings with it, without touching
+ * apart - and re-hueing the palette moves the rings with it, without touching
  * this file.
  */
 
@@ -27,7 +27,7 @@ import { REMNANT_FLAGS, remnantData, setRemnantPublic, keyOf as remnantKeyOf }
     from "./remnants.mjs";
 import { TRUTH_BULLET_FLAGS, isIdentified } from "./truth-bullets.mjs";
 // The viewer's own bullets, indexed by the Remnant they came from and memoised
-// there — see `myTruthBulletFor`. visibility.mjs does not reach back into this
+// there - see `myTruthBulletFor`. visibility.mjs does not reach back into this
 // file, so the static import is safe.
 import { myBulletForRemnant } from "./visibility.mjs";
 import { debug, error } from "./utils.mjs";
@@ -60,7 +60,7 @@ export function registerRemnantRings() {
         if (changes.flags?.[MODULE_ID]) doc.object && paint(doc.object);
     });
 
-    // ONE hook only — ApplicationV2 fires a render hook for every class in the
+    // ONE hook only - ApplicationV2 fires a render hook for every class in the
     // inheritance chain, so listening to the concrete sheet as well runs this
     // twice. Same reasoning as anonymity.mjs.
     Hooks.on("renderActorSheetV2", (app, element) => {
@@ -78,7 +78,7 @@ export function registerRemnantRings() {
  * What a Remnant shows when you double-click it on the map.
  *
  * It used to show Daggerheart's adversary sheet: 660x600 of stat block, two
- * tabs, and the token's own name printed twice — for a smear on a floor. None
+ * tabs, and the token's own name printed twice - for a smear on a floor. None
  * of what a Remnant actually IS appeared anywhere on it. Measured before this:
  * type, visibility, the room, who left it and the GM's note were all absent
  * from the only window the object opens.
@@ -87,14 +87,14 @@ export function registerRemnantRings() {
  * that describes a trace; the fields are not there to lay out.
  *
  * WHAT A PLAYER SEES IS NOT WHAT A GM SEES, and it is not the same as what
- * `remnantData` returns either — that answers "what does the ledger say",
+ * `remnantData` returns either - that answers "what does the ledger say",
  * which is `null` on a player's client by construction (see D6). A player who
- * reaches a token here has necessarily copied it already — visibility.mjs
- * hides a revealed Remnant from anyone who has not — so what this renders for
+ * reaches a token here has necessarily copied it already - visibility.mjs
+ * hides a revealed Remnant from anyone who has not - so what this renders for
  * them is THEIR OWN Truth Bullet: its category once Analyze has actually
  * identified it, and the neutral placeholder before that. Two players who
  * have and have not analysed the same trace get two different cards, on
- * purpose — that is exactly what they know.
+ * purpose - that is exactly what they know.
  */
 function showRemnantCard(app, element) {
     const actor = app?.document;
@@ -117,7 +117,7 @@ function showRemnantCard(app, element) {
 }
 
 /**
- * The card's pixel emblem — the same glyph the token itself wears on the map
+ * The card's pixel emblem - the same glyph the token itself wears on the map
  * (remnant-icons.mjs), so opening a trace confirms what the map already said
  * instead of introducing a second visual language. Keyed by the trace's
  * ACTION; anything unrecognised (or unearned) wears the Despair pool's
@@ -131,7 +131,7 @@ function glyph(action) {
     return `<span class="drpg-remnant-glyph" data-drpg-act="${act}" aria-hidden="true"></span>`;
 }
 
-/** The action that left a trace, as a label — same read traceContextLine uses. */
+/** The action that left a trace, as a label - same read traceContextLine uses. */
 function actionLabelOf(action) {
     if (!action) return null;
     return ACTIONS[action]?.label ?? action;
@@ -140,7 +140,7 @@ function actionLabelOf(action) {
 /**
  * The two player-facing fields, editable from the card itself.
  *
- * Until now this card showed the GM's own note — the answer key — and nothing
+ * Until now this card showed the GM's own note - the answer key - and nothing
  * at all of `public`, the record a player actually reads off their Truth
  * Bullet. So a GM who double-clicked a trace to fix the sentence a player was
  * seeing found the one field they wanted missing, and had to go and open the
@@ -148,13 +148,13 @@ function actionLabelOf(action) {
  *
  * NOT A SECOND WRITE PATH. Both fields go through `setRemnantPublic`, which is
  * the same function the dashboard's Traces tab and `observe.mjs`'s first find
- * already call — one record, so the two screens cannot disagree and nothing has
+ * already call - one record, so the two screens cannot disagree and nothing has
  * to be synchronised between them. `setRemnantPublic` also propagates: the
  * token's own name and every Truth Bullet copied from this trace move with it.
  *
  * SAVES ON BLUR, with a brief mark rather than a Save button. The window is 380
  * wide and has no footer to put one in, and there is nothing here worth a
- * two-step commit — this is a GM correcting a sentence, not a form.
+ * two-step commit - this is a GM correcting a sentence, not a form.
  */
 function wireCardEditing(body, tokenOrActor) {
     for (const field of body.querySelectorAll("[data-drpg-public]")) {
@@ -189,7 +189,7 @@ function gmRemnantCard(tokenOrActor, esc) {
 
     // The same badge vocabulary the Truth Bullet rows on the sheet speak:
     // type in the type's colour, visibility beside it, then the three GM
-    // verdicts as chips — which used to be a whispered line of plain text at
+    // verdicts as chips - which used to be a whispered line of plain text at
     // the bottom of the card.
     const badges = [
         `<span class="drpg-tb-badge type ${esc(data.type)}">${esc(data.typeLabel)}</span>`,
@@ -200,11 +200,11 @@ function gmRemnantCard(tokenOrActor, esc) {
     ].filter(Boolean).join("");
 
     const rows = [
-        [t("DRPG.Remnant.cardWhere"), esc(data.room ?? "—")],
-        [t("DRPG.Remnant.cardWhen"), esc(when || "—")],
-        [t("DRPG.Remnant.cardWho"), esc(data.sourceName ?? "—")],
-        [t("DRPG.Remnant.cardAction"), esc(actionLabelOf(data.action) ?? "—")],
-        [t("DRPG.Remnant.cardSubject"), esc(data.subject ?? "—")]
+        [t("DRPG.Remnant.cardWhere"), esc(data.room ?? "-")],
+        [t("DRPG.Remnant.cardWhen"), esc(when || "-")],
+        [t("DRPG.Remnant.cardWho"), esc(data.sourceName ?? "-")],
+        [t("DRPG.Remnant.cardAction"), esc(actionLabelOf(data.action) ?? "-")],
+        [t("DRPG.Remnant.cardSubject"), esc(data.subject ?? "-")]
     ];
 
     const pub = data.public ?? {};
@@ -267,7 +267,7 @@ function playerRemnantCard(tokenOrActor, esc) {
     const visibility = flag(TRUTH_BULLET_FLAGS.visibility) ?? null;
 
     // The emblem the player has EARNED, exactly as on the map: the action's
-    // glyph once their copy is identified, the question mark before —
+    // glyph once their copy is identified, the question mark before -
     // `sourceAction` is null on the item until analyze.mjs publishes it, so
     // `glyph` falls back on its own.
     const emblem = glyph(known ? flag(TRUTH_BULLET_FLAGS.sourceAction) : null);
@@ -300,7 +300,7 @@ function playerRemnantCard(tokenOrActor, esc) {
  * The current user's own Truth Bullet copied from this exact token, if any.
  *
  * This used to walk every actor the viewer owns and every Truth Bullet on each
- * of them, per token, per paint — the same double loop visibility.mjs already
+ * of them, per token, per paint - the same double loop visibility.mjs already
  * ran one file away, and had already memoised there for exactly this reason
  * ("every revealed Remnant on the scene would otherwise re-scan every character
  * this user owns"). Two copies of one question with two lifetimes; now one,
@@ -310,7 +310,7 @@ function playerRemnantCard(tokenOrActor, esc) {
  * owned character and no bullets, and it ran zero times on a 41-Remnant scene
  * because a Remnant a player has not copied is not visible to them and `paint`
  * returns before asking. So the saving is small and the duplication was the
- * real cost — this is one loop deleted, not a hot path rescued.
+ * real cost - this is one loop deleted, not a hot path rescued.
  */
 function myTruthBulletFor(tokenDoc) {
     return myBulletForRemnant(remnantKeyOf(tokenDoc));
@@ -357,7 +357,7 @@ function paint(token) {
             return;
         }
 
-        // A Remnant the viewer cannot see must not be outlined into existence —
+        // A Remnant the viewer cannot see must not be outlined into existence -
         // the ring would give away a hidden trace to the whole table.
         if (!token.visible) {
             if (existing) existing.visible = false;
@@ -379,9 +379,9 @@ function paint(token) {
         const h = Math.round(token.h ?? token.document.height * (canvas.grid?.size ?? 100));
 
         // A square pixel frame: four filled bars on integer coordinates, one
-        // cell of the sprite's own 12-cell grid thick — hard edges, no
+        // cell of the sprite's own 12-cell grid thick - hard edges, no
         // antialiased stroke. A reinforced trace cannot be cleaned up, so it
-        // gets the heavier frame (two cells) — the one distinction a GM acts
+        // gets the heavier frame (two cells) - the one distinction a GM acts
         // on without opening anything.
         const cell = Math.max(1, Math.round(Math.min(w, h) / 12));
         const t = (reinforced ? 2 : 1) * cell;
@@ -401,14 +401,14 @@ function paint(token) {
  *
  * `type`/`reinforced` used to be read straight off the token's own flags,
  * which stopped meaning anything the moment the answer key moved into the
- * ledger (see the header of remnants.mjs) — every ring on the map painted the
+ * ledger (see the header of remnants.mjs) - every ring on the map painted the
  * fallback grey for everyone, GM included, because `placeRemnant` never wrote
  * those flags onto the token in the first place.
  *
  * A GM reads the real type off the ledger and gets the reinforced weight with
- * it. A player reads only what their OWN Truth Bullet currently shows —
+ * it. A player reads only what their OWN Truth Bullet currently shows -
  * `shownType`, already "neutral" until Analyze succeeds or the type is
- * self-evident — and never the reinforced weight, which is not part of
+ * self-evident - and never the reinforced weight, which is not part of
  * `public` and stays the GM's to know.
  */
 function colourInputsFor(tokenDoc) {

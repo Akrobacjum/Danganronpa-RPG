@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — public API.
+ * Danganronpa RPG - public API.
  * ---------------------------------------------------------------------------
  * Everything macros and journal buttons are allowed to call hangs off
  * `game.drpg`. Treat this as the stable surface: internal files may be
@@ -275,7 +275,7 @@ export const DrpgApi = {
     /** Every Ultimate that appears on more than one character this season. */
     findDuplicateUltimates,
 
-    /** Resource readers. Health and Sanity are reverse resources — see character.mjs. */
+    /** Resource readers. Health and Sanity are reverse resources - see character.mjs. */
     resourceMax,
     resourceValue,
     remaining,
@@ -319,7 +319,7 @@ export const DrpgApi = {
     /** Move to the next time of day: refills actions, free Moves, search tokens. */
     advanceTimeOfDay,
 
-    /** Step back one time of day. A correction — refills nothing. */
+    /** Step back one time of day. A correction - refills nothing. */
     rewindTimeOfDay,
     setTimeOfDay,
 
@@ -334,14 +334,14 @@ export const DrpgApi = {
 
     /* ---- despair ------------------------------------------------------- */
 
-    /** Full Gamemasters only — Assistant GMs do not get a Monokuma pool. */
+    /** Full Gamemasters only - Assistant GMs do not get a Monokuma pool. */
     monokumas,
     despairMax,
     getDespair,
     setDespair,
     adjustDespair,
 
-    /** Top every Monokuma up to 12 — the guide does this after a wrong vote. */
+    /** Top every Monokuma up to 12 - the guide does this after a wrong vote. */
     fillAllDespair,
 
     /** Pay for one of the guide's Despair Calls and announce it. */
@@ -363,7 +363,7 @@ export const DrpgApi = {
     overflowEffect,
     overflowPool,
 
-    /** A pool's display label — custom if set, the account name otherwise —
+    /** A pool's display label - custom if set, the account name otherwise -
      *  and the controls to rename a pool or grant/revoke one for an
      *  Assistant GM. Also on the GM team panel. */
     poolLabel,
@@ -406,7 +406,7 @@ export const DrpgApi = {
     othersInRoom,
     allRooms,
 
-    /** Rooms adjacent to this one — used by Listen. */
+    /** Rooms adjacent to this one - used by Listen. */
     neighbouringRooms,
     occupantsOf,
 
@@ -436,7 +436,7 @@ export const DrpgApi = {
     createProject,
 
     /** Rename, re-scale, re-room or re-portrait a project without losing its
-     *  progress or its id — everything pointing at it keeps pointing at it. */
+     *  progress or its id - everything pointing at it keeps pointing at it. */
     updateProject,
     deleteProject,
 
@@ -499,7 +499,7 @@ export const DrpgApi = {
 
     /* ---- the stash --------------------------------------------------------
      * A stashed item is an ordinary item on its owner's sheet with a `location`
-     * flag — which is why the death procedure empties stashes without knowing
+     * flag - which is why the death procedure empties stashes without knowing
      * they exist. Uncapped; the carry limit only measures what is in hand. */
 
     isStashed,
@@ -520,7 +520,7 @@ export const DrpgApi = {
     /** An UNCONCEALED stash in the room you are standing in is just a drawer:
      *  free to go through, no roll. A concealed one still needs a Search. */
     openStashHere,
-    /* E11 — a stash became an object in a room rather than the room itself.
+    /* E11 - a stash became an object in a room rather than the room itself.
        Everything above stays as a thin wrapper over these, so a macro written
        against the old names goes on working; see the note on VAULT_FLAGS. */
     openStashesHere,
@@ -535,10 +535,10 @@ export const DrpgApi = {
     rifleStash: rifleStashDialog,
 
     /* ---- using what you carry ---------------------------------------------
-     * Neither costs an action — the guide charges for finding and making
+     * Neither costs an action - the guide charges for finding and making
      * things, not for opening them. */
 
-    /** Spend a Usable Item. Tiers 1/2 restore what the item's kind says —
+    /** Spend a Usable Item. Tiers 1/2 restore what the item's kind says -
      *  healing items Health, stress-relief items Sanity, read off the item tables;
      *  tier 3 asks Health or Sanity and adds 2 Hope; tier 0 is "open to creative
      *  use" and goes to the GM as a ruling. */
@@ -549,7 +549,7 @@ export const DrpgApi = {
     usableKindOf,
 
     /** Throw away something that has been used up. Rolls Shadow and leaves a
-     *  Remnant priced by the result — the only route out of an inventory for a
+     *  Remnant priced by the result - the only route out of an inventory for a
      *  broken item apart from a bedroom stash. */
     discardBroken,
 
@@ -560,7 +560,7 @@ export const DrpgApi = {
      *  world where a tool went missing the old way. */
     breakItem,
 
-    /** Hold one Crime Tool or Cleaning Tool ready. One per category — this is
+    /** Hold one Crime Tool or Cleaning Tool ready. One per category - this is
      *  what the incident engine reads before falling back to "the best you own". */
     toggleEquipped,
     equippedIn,
@@ -579,7 +579,7 @@ export const DrpgApi = {
     syncAllStates,
 
     /* ---- what a room is ---------------------------------------------------
-     * Which table it draws from, and what it is a sensible — or a poor —
+     * Which table it draws from, and what it is a sensible - or a poor -
      * place to look for. */
 
     roomTable,
@@ -598,7 +598,7 @@ export const DrpgApi = {
      * the way in is an item. `issueMissingKeys` is the repair: it runs on load
      * and on every Room Setup save, and it is here so a GM who suspects a key
      * never arrived can say so out loud rather than reassigning a room to force
-     * it. It reports how many it had to make — zero means the world was already
+     * it. It reports how many it had to make - zero means the world was already
      * right. */
 
     keysHeldBy,
@@ -610,7 +610,7 @@ export const DrpgApi = {
      * A bullet is split in two: the Item the player holds carries only what
      * they may know, and what it REALLY is lives in a GM-side ledger that is
      * never sent to a player's client. `truthBulletData` merges the halves the
-     * caller is entitled to — for a player, that is one half. */
+     * caller is entitled to - for a player, that is one half. */
 
     /** The single creation path: Observe, the GM dialog and macro 03 all use it. */
     createTruthBullet,
@@ -669,7 +669,7 @@ export const DrpgApi = {
     resolveAnalyze,
 
     /* ---- passing things on ----------------------------------------------
-     * Same room, no action. A Truth Bullet is copied — the giver keeps theirs;
+     * Same room, no action. A Truth Bullet is copied - the giver keeps theirs;
      * an item is moved and the giver loses it. */
 
     shareBullet,
@@ -744,8 +744,8 @@ export const DrpgApi = {
 
     /* ---- the murder engine -------------------------------------------------
      * Two opening rolls, then a turn-based incident. The module owns the
-     * numbers — thresholds, the drain, turn order, damage, which Remnants each
-     * outcome leaves — and hands the prose to the GM. */
+     * numbers - thresholds, the drain, turn order, damage, which Remnants each
+     * outcome leaves - and hands the prose to the GM. */
 
     murderState,
     sideOf,
@@ -774,7 +774,7 @@ export const DrpgApi = {
      * trying to erase it. Reinforced traces refuse to go; a botched wipe leaves
      * a Resolution Remnant of its own; the tools used are destroyed when the
      * murder is closed. Scored on a GM's client, because the threshold is read
-     * off how visible the trace is — the answer key. */
+     * off how visible the trace is - the answer key. */
 
     /** Every trace in the killer's room, with what it would take to erase it. */
     cleanableRemnants,
@@ -799,7 +799,7 @@ export const DrpgApi = {
     /* ---- Monocub -----------------------------------------------------------
      * A dead student's player, opted in after their trial. Same actor, same
      * action budget, restricted to Move and Meddle. Meddle's flat 2d12 has no
-     * trait behind it — the guide's own "Stat: —" — and its effect reuses the
+     * trait behind it - the guide's own "Stat: -" - and its effect reuses the
      * same Call machinery Support and Obstacle already use. */
 
     isMonocub,
@@ -814,7 +814,7 @@ export const DrpgApi = {
     isSilenced,
 
     /** GM-driven: spend a Monokuma's Despair to give somebody Hope, 1:1.
-     *  Shared with the Mastermind below — the guide gives both the same trade. */
+     *  Shared with the Mastermind below - the guide gives both the same trade. */
     convertDespairToHope,
 
     meddleTargets,
@@ -827,7 +827,7 @@ export const DrpgApi = {
     /* ---- the Mastermind -----------------------------------------------------
      * The one secret this module treats as more sensitive than a Truth
      * Bullet's real type: never an actor flag, never world data. It lives in a
-     * client-scoped setting on GM browsers only — see the note on
+     * client-scoped setting on GM browsers only - see the note on
      * SETTINGS.mastermind for why a flag would have been a real leak. */
 
     /** `null` for anyone who is not a GM. Never guess otherwise. */
@@ -841,7 +841,7 @@ export const DrpgApi = {
     setMastermindLair,
     myLairRoom,
 
-    /** The guide's "co rozdział" cadence check — informational only. */
+    /** The guide's "co rozdział" cadence check - informational only. */
     finalTruthPlacedThisChapter,
 
     /** The endgame's own clues, and the one place they are placed from. */
@@ -879,7 +879,7 @@ export const DrpgApi = {
     trialSecondsLeft: secondsLeft,
     startFloor,
 
-    /** An OBJECTION calls this by itself — presenting evidence takes the floor. */
+    /** An OBJECTION calls this by itself - presenting evidence takes the floor. */
     openObjection,
     openRebuttal,
     returnToDiscussion,
@@ -903,7 +903,7 @@ export const DrpgApi = {
     /** Which kind of usable a NAME is, read off the Healing and Sanity Relief
      *  tables: "healing", "stress", "both" or null. */
     usableKindFor,
-    /** Every name a tier table could be sitting under, today's first — labels
+    /** Every name a tier table could be sitting under, today's first - labels
      *  get reworded and the old names stay valid. See LEGACY_PLURALS. */
     tableNameCandidates,
     /** Bring installed tables' names and blurbs up to today's wording. Runs
@@ -913,7 +913,7 @@ export const DrpgApi = {
     /* ---- the panels explain themselves ---------------------------------
      * What each on-screen widget is, plus where things stand right now.
      * Opened by clicking the panel; here so a macro or a journal button can
-     * hand somebody the same window. Anyone may open any of them — each one
+     * hand somebody the same window. Anyone may open any of them - each one
      * shows only what its own widget already shows that user. */
     explainState: openStateExplainer,
     explainDespair: openDespairExplainer,
@@ -930,7 +930,7 @@ export const DrpgApi = {
     diagnoseVisibility,
     diagnoseDespair,
 
-    /** Who is still missing the guide's starting resources — run before a session
+    /** Who is still missing the guide's starting resources - run before a session
      *  zero. Also a tile in the GM panel. */
     diagnoseCharacters,
 
@@ -938,7 +938,7 @@ export const DrpgApi = {
     diagnoseStyles,
 
     /** Why is a Foundry config window cut off at its right edge? Open the
-     *  window that is wrong FIRST, then run this — every line measures that
+     *  window that is wrong FIRST, then run this - every line measures that
      *  window. It also reports which version of the stylesheet this page has,
      *  which is the answer whenever a fix works locally and not on a host. */
     diagnoseWindows,
@@ -959,14 +959,14 @@ export const DrpgApi = {
 
     /** Put the module's own item icons onto a world that already exists: items
      *  in bags and rows already written into the item tables kept whatever
-     *  picture they were made with. Looks first — `{ apply: true }` writes, and
+     *  picture they were made with. Looks first - `{ apply: true }` writes, and
      *  only over a picture the module put there or none at all, so a Truth
      *  Bullet wearing its trace's photograph is left alone. `{ all: true }`
      *  drops that rule. The icons ship inside the module, so nothing is
      *  uploaded: update the module, then run this once. */
     pinItemIcons,
 
-    /** Put Daggerheart's own critical back, without a reload — for telling
+    /** Put Daggerheart's own critical back, without a reload - for telling
      *  "the module changed this number" apart from "the system always did
      *  that". Diagnosis, not play: the next reload registers it again. */
     unregisterCriticalRule,
@@ -1009,7 +1009,7 @@ export const DrpgApi = {
     monokumasWithoutPool,
 
     /** Mark actors as Monokumas, say whose Despair each spends, and divide
-     *  students between Monokumas — one combined panel, GM panel only. */
+     *  students between Monokumas - one combined panel, GM panel only. */
     gmTeamPanel: openGmTeamDialog,
 
     /* ---- the killing game's rules ------------------------------------------
@@ -1028,7 +1028,7 @@ export const DrpgApi = {
      *      setMotive({ text, timesOfDay, consequence })
      *      setMotive(null)     // withdraw it
      *
-     *  The way to one IN PLAY is the nine-Despair Call, not this — a motive
+     *  The way to one IN PLAY is the nine-Despair Call, not this - a motive
      *  that costs nothing is a move Monokuma can make every time of day
      *  forever. This is the repair route. */
     motive,
@@ -1119,7 +1119,7 @@ export const DrpgApi = {
     stopEavesdropping,
 
     /**
-     * The raw decision behind `voicePlan()` — one entry per connected account,
+     * The raw decision behind `voicePlan()` - one entry per connected account,
      * plus every character's claim on it. The loop, the answer given to a client
      * that asks, and the printed plan all come from here, so a test that asserts
      * against this is asserting against the thing that actually runs.
@@ -1135,7 +1135,7 @@ export const DrpgApi = {
     /* ---- music -------------------------------------------------------------
      * The playlist follows the state. No socket: playlists are world documents,
      * so the primary GM's playback is everyone's. An incident deliberately has
-     * no entry — see music.mjs. */
+     * no entry - see music.mjs. */
 
     /** Which state owns the music right now, by key. */
     musicState: currentState,
@@ -1143,7 +1143,7 @@ export const DrpgApi = {
     /** State, chosen playlist, what is actually playing. For "why this track?". */
     musicStatus,
 
-    /** Every state, whether it applies, and what it is mapped to — the four
+    /** Every state, whether it applies, and what it is mapped to - the four
      *  reasons a state never takes over, printed at once. */
     diagnoseMusic,
 
@@ -1154,7 +1154,7 @@ export const DrpgApi = {
      * "I can see the whole map" looks identical whether the setting is off,
      * the scene has no Regions, the layer failed to mount, or every room is
      * already discovered. `diagnoseFog()` names which one it is, in the order
-     * the checks actually run — run it on the PLAYER's client, since the fog
+     * the checks actually run - run it on the PLAYER's client, since the fog
      * deliberately never draws on a GM's. */
     diagnoseFog,
     /** Repaint now, after editing the fog table or a Region by hand. */
@@ -1168,16 +1168,16 @@ export const DrpgApi = {
     /** Which scenes with rooms are ready for players, as text. */
     diagnoseScenes,
     /** Every object the fog layer currently has on screen. Run it WHILE the
-     *  picture is wrong — `diagnoseFog` says what the fog meant to do, this
+     *  picture is wrong - `diagnoseFog` says what the fog meant to do, this
      *  says what is actually in front of the map. */
     whyBlack,
     /** Why each stretch of the current room's border counts as a doorway or
-     *  not — the overlap test, the wall test and the passability test, each
+     *  not - the overlap test, the wall test and the passability test, each
      *  reported in its own column. */
     doorwayReport,
     /** Check every room on this scene against the rules the fog depends on:
      *  overlapping rooms, borders drawn away from their walls, openings too
-     *  long to be doorways, corners off the grid. Reports, never repairs — the
+     *  long to be doorways, corners off the grid. Reports, never repairs - the
      *  map belongs to the GM. Also on a button in Room setup ▸ Fog. */
     checkRegions,
     /** Hide both fog layers for a few seconds, then put them back. Answers
@@ -1202,20 +1202,20 @@ export const DrpgApi = {
     playTrack,
     resetMusic,
     /** The playlist those two work on, found by name. Null when the world has
-     *  no playlist called "Situational" — which is the whole of "the Play
+     *  no playlist called "Situational" - which is the whole of "the Play
      *  button does nothing". */
     situationalPlaylist,
 
     /* ---- Sound ----------------------------------------------------------
      * The module ships no audio; a GM maps their own files in the Sound panel.
-     * An event with no file is silent and that is not a fault — so when
+     * An event with no file is silent and that is not a fault - so when
      * something is expected and nothing is heard, `diagnoseSfx` is the answer
      * and `testSfx` is the proof. */
 
     /** Play one event on THIS browser. Silent if no file is mapped to it. */
     playSfx,
     /** Play one event now, past the cooldown and the autoplay lock, and say
-     *  WHY if it could not — five different things make a test button silent
+     *  WHY if it could not - five different things make a test button silent
      *  and only one of them is a broken file. `await` it: the last of the five
      *  is whether the file loads, which is not known when it is asked for. */
     testSfx,
@@ -1244,7 +1244,7 @@ export const DrpgApi = {
 };
 
 /* ==========================================================================
- * "AN ACTOR OR AN ID" — normalising the surface
+ * "AN ACTOR OR AN ID" - normalising the surface
  * --------------------------------------------------------------------------
  * This object is the stable surface macros are told to use, and it was not
  * behaving like one. Some entries take an Actor document, some take an actor
@@ -1253,7 +1253,7 @@ export const DrpgApi = {
  *
  * The failure mode is what makes it worth fixing rather than documenting.
  * Passing an id where a document was wanted does not produce "expected an
- * Actor" — it produces `actor.update is not a function` from inside
+ * Actor" - it produces `actor.update is not a function` from inside
  * resource-guard.mjs, or `actor.testUserPermission is not a function` from
  * inside utils.mjs. A macro author gets a stack trace pointing at the module's
  * internals and no hint that the mistake was theirs, one frame up.
@@ -1268,7 +1268,7 @@ export const DrpgApi = {
  * module ships as plain ES modules with no build step and no minifier, so
  * parameter names survive to runtime. If that ever stops being true the parse
  * fails, `wrap` returns the function untouched, and the API goes back to
- * behaving exactly as it does today — strictly no worse.
+ * behaving exactly as it does today - strictly no worse.
  * ========================================================================== */
 
 /** An Actor from a document, an id, or a name. `null` when it is none of them. */
@@ -1321,5 +1321,5 @@ function normalise(api) {
 
 export function registerApi() {
     game.drpg = normalise(DrpgApi);
-    log(`API ready on game.drpg — system: ${game.system.id} ${game.system.version}, Foundry: ${game.version}`);
+    log(`API ready on game.drpg - system: ${game.system.id} ${game.system.version}, Foundry: ${game.version}`);
 }

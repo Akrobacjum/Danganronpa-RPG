@@ -1,12 +1,12 @@
 /**
- * Danganronpa RPG — Advancement.
+ * Danganronpa RPG - Advancement.
  * ---------------------------------------------------------------------------
  * Replaces the Daggerheart level-up entirely. The guide gives two flavours:
  *
- *   Standard    — everyone who voted for the correct Blackened picks ONE.
- *   Reinforced  — a Blackened who survived a wrong vote picks THREE.
+ *   Standard    - everyone who voted for the correct Blackened picks ONE.
+ *   Reinforced  - a Blackened who survived a wrong vote picks THREE.
  *
- * Options (repeatable — picking "+1 max Health" three times means +3):
+ * Options (repeatable - picking "+1 max Health" three times means +3):
  *   +1 max Health · +1 max Sanity · +1 to a trait · +1 to an experience ·
  *   a new experience at +2
  */
@@ -44,7 +44,7 @@ export async function openAdvancementFor(actor) {
         return null;
     }
 
-    // The module's one menu shape — see `chooseVariant` in action-rolls.mjs.
+    // The module's one menu shape - see `chooseVariant` in action-rolls.mjs.
     // Imported dynamically because this window is opened from a sheet button
     // and a GM console, neither of which is on a path that has already paid
     // for that module.
@@ -188,7 +188,7 @@ function buildDetail(option, index, actor, experiences) {
                 return `<p class="notification warning">${game.i18n.localize("DRPG.Advance.noExperiences")}</p>`;
             }
             const options = experiences
-                .map(e => `<option value="${e.id}">${foundry.utils.escapeHTML(e.name || "—")} (+${e.value ?? 0})</option>`)
+                .map(e => `<option value="${e.id}">${foundry.utils.escapeHTML(e.name || "-")} (+${e.value ?? 0})</option>`)
                 .join("");
             return `<label>${game.i18n.localize("DRPG.Advance.whichExperience")}
                         <select name="pick.${index}.experience">${options}</select>
@@ -231,8 +231,8 @@ function readForm(dialog, picks) {
  */
 export async function applyAdvancement(actor, picks, kind = "standard") {
     // Same guard as `openAdvancement`, and for the same reason. This is also on
-    // `game.drpg`, and it writes through `automatedUpdate` — which bypasses the
-    // resource guard by design — so without it a player could raise their own
+    // `game.drpg`, and it writes through `automatedUpdate` - which bypasses the
+    // resource guard by design - so without it a player could raise their own
     // max Health and traits from the console with a single call, walking straight
     // past the check the dialog in front of it makes.
     if (!game.user.isGM) {
@@ -324,7 +324,7 @@ export async function applyAdvancement(actor, picks, kind = "standard") {
     try {
         // Marked as automation: `system.traits` is guarded against hand-editing,
         // so a plain update would have the trait rise silently stripped while the
-        // Health and Sanity rises went through — a half-applied advancement.
+        // Health and Sanity rises went through - a half-applied advancement.
         const { automatedUpdate } = await import("./resource-guard.mjs");
         await automatedUpdate(actor, update);
         const taken = (actor.getFlag(MODULE_ID, FLAGS.advances) ?? 0) + 1;
@@ -349,7 +349,7 @@ async function tellPlayer(actor, kind, summary, taken) {
      * On the card that already reaches the player, and NOT marked for the GMs.
      *
      * Advancement is the survivor's reward and the GMs are on this whisper as
-     * witnesses — the same reason the popup diet leaves them out of a card they
+     * witnesses - the same reason the popup diet leaves them out of a card they
      * were merely copied into. A GM applying an advancement already knows: they
      * are the one who pressed it.
      */

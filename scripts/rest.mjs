@@ -1,10 +1,10 @@
 /**
- * Danganronpa RPG — Rest.
+ * Danganronpa RPG - Rest.
  * ---------------------------------------------------------------------------
  * Guide:
- *   Long rest  — 2 actions, pick 2 of Sleep / Meal / Breath, once per session,
+ *   Long rest  - 2 actions, pick 2 of Sleep / Meal / Breath, once per session,
  *                bedroom only.
- *   Short rest — 1 action, pick 1, once per time of day.
+ *   Short rest - 1 action, pick 1, once per time of day.
  *   "The pool of rooms allowing a short rest can be larger and depends entirely
  *    on the map prepared for the season. A long rest happens only in a bedroom."
  *
@@ -114,7 +114,7 @@ async function markRestTaken(actor, kind, clock) {
  *
  * This used to read the setting itself and, on any failure, hand back a clock it
  * had invented on the spot: day 1, session 1, morning. That is not a fallback,
- * it is a lie with consequences — a rest is stamped with the day it was taken,
+ * it is a lie with consequences - a rest is stamped with the day it was taken,
  * and a rest stamped day 1 on day six is a Long Rest the character can either
  * never take again or take twice, depending on which way the comparison falls.
  *
@@ -140,7 +140,7 @@ function currentClock() {
  *   (E13). Each one SKIPS a gate rather than passing it: `takeRest` refuses with
  *   its own warning at three separate points, and a Call that "passed" them
  *   would show the player "you have already rested this time of day" and then
- *   hand their five Hope back — trap 99.
+ *   hand their five Hope back - trap 99.
  * @param {boolean} [options.free]         costs no action
  * @param {boolean} [options.ignoreRoom]   no marked room required
  * @param {boolean} [options.ignoreLimit]  neither checks nor spends the once-per
@@ -169,7 +169,7 @@ export async function takeRest(actor, kind = "short", {
             ui.notifications.warn(allowed.length
                 ? game.i18n.format("DRPG.Rest.wrongRoom", {
                     kind: kindLabel(kind),
-                    room: room ?? "—",
+                    room: room ?? "-",
                     rooms: allowed.join(", ")
                   })
                 : game.i18n.format("DRPG.Rest.noRooms", { kind: kindLabel(kind) }));
@@ -190,7 +190,7 @@ export async function takeRest(actor, kind = "short", {
         if (cost > 0 && !await spendAction(actor, cost)) return null;
 
         // The benefits first, the "used up" stamp second. The other order meant
-        // a failed write left the rest spent and nothing restored — and a long
+        // a failed write left the rest spent and nothing restored - and a long
         // rest is once per session, so that is a session's worth of recovery
         // gone to a database hiccup.
         const applied = await applyRest(actor, kind, picks);
@@ -222,7 +222,7 @@ async function choosePicks(kind, count) {
      * check below fired, warned, and closed the dialog, sending the player back
      * to the start of an action they had already paid for.
      *
-     * ONE PICK IS A RADIO GROUP. Not a checkbox that un-ticks its neighbour —
+     * ONE PICK IS A RADIO GROUP. Not a checkbox that un-ticks its neighbour -
      * a radio, because that is what a browser already knows how to be, and
      * because a player who has used a radio button before knows what it will do
      * before they touch it. Two picks stay checkboxes and are capped live, with
@@ -235,7 +235,7 @@ async function choosePicks(kind, count) {
     const options = Object.entries(REST.options)
         .map(([key, opt]) => `<label class="drpg-rest-option">
                 <input type="${single ? "radio" : "checkbox"}" name="pick" value="${key}" />
-                <span><strong>${opt.label}</strong> — ${kind === "long" ? opt.long : opt.short}</span>
+                <span><strong>${opt.label}</strong> - ${kind === "long" ? opt.long : opt.short}</span>
             </label>`).join("");
 
     const picks = await DialogV2.wait({
@@ -252,7 +252,7 @@ async function choosePicks(kind, count) {
             const confirm = root.querySelector('button[data-action="ok"]');
             const sync = () => {
                 const on = boxes.filter(b => b.checked);
-                // Cap, so the third tick cannot happen at all — a box that
+                // Cap, so the third tick cannot happen at all - a box that
                 // refuses the click is clearer than one that accepts it and is
                 // told off later. Radios cap themselves.
                 if (!single) {
@@ -291,7 +291,7 @@ async function choosePicks(kind, count) {
 /**
  * Apply the chosen benefits.
  *
- * Health and Sanity are reverse resources — `value` counts marks upward — so
+ * Health and Sanity are reverse resources - `value` counts marks upward - so
  * recovering means subtracting. A long rest clears the track; a short rest
  * clears half, rounded up in the character's favour.
  */
@@ -327,7 +327,7 @@ async function applyRest(actor, kind, picks) {
     }
 
     // Marked as automation: none of these three paths are in `GUARDED` today,
-    // so a plain `actor.update()` happens to work — but Rest is the one place
+    // so a plain `actor.update()` happens to work - but Rest is the one place
     // in the module that wrote resources without the marker, and the day any
     // of the three joins the guarded list this call silently starts failing for
     // players while every other resource change in the module keeps working.
@@ -347,7 +347,7 @@ function kindLabel(kind) {
  * ========================================================================== */
 
 /**
- * Which rooms allow which rest — now a pair of columns in Room Setup.
+ * Which rooms allow which rest - now a pair of columns in Room Setup.
  *
  * Kept as a function because it is on `game.drpg`, but it
  * no longer opens a window of its own: setting up a map means answering seven

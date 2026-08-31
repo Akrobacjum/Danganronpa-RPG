@@ -1,15 +1,15 @@
 /**
- * Danganronpa RPG — nothing floats off a token.
+ * Danganronpa RPG - nothing floats off a token.
  * ---------------------------------------------------------------------------
  * Daggerheart throws a scrolling caption off a token for every resource that
  * moves: "Hope +1", "Sanity -2", Health, actions, the lot. In this game those
- * numbers are nobody else's business — Health and Sanity are GM-only, rolls are
+ * numbers are nobody else's business - Health and Sanity are GM-only, rolls are
  * private, and a caption that drifts up off a portrait announces to the whole
  * table something the sheet deliberately keeps quiet. Dawid asked for them
  * gone outright (26.08): "nie chcę, by te napisy się w ogóle pojawiały".
  *
- * ONE FUNNEL, PATCHED ONCE. Every scrolling caption in the client — the
- * system's and core's alike — goes through
+ * ONE FUNNEL, PATCHED ONCE. Every scrolling caption in the client - the
+ * system's and core's alike - goes through
  * `InterfaceCanvasGroup#createScrollingText`; measured on this build, the
  * system reaches it from its own `createScrollText` helper, once per placed
  * token of the actor. So the funnel is where this belongs: a hook per resource
@@ -17,7 +17,7 @@
  * "about to draw a caption" anyway.
  *
  * The prototype rather than `canvas.interface`, because that object is rebuilt
- * every time the canvas is torn down and redrawn — a patch on the instance
+ * every time the canvas is torn down and redrawn - a patch on the instance
  * would last until the first scene change and then quietly stop working, which
  * is the worst way for a suppression to fail.
  *
@@ -42,7 +42,7 @@ export function registerNoScrollingText() {
         // A Foundry that renames or moves it. Worth a line in the log rather
         // than a silent no-op: the captions would simply carry on appearing,
         // and "the feature did nothing" needs a reason attached.
-        error("Could not find the scrolling-text funnel — token captions stay on");
+        error("Could not find the scrolling-text funnel - token captions stay on");
         return;
     }
     if (proto.createScrollingText[PATCHED]) return;

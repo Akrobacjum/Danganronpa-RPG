@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — action economy.
+ * Danganronpa RPG - action economy.
  * ---------------------------------------------------------------------------
  * Guide:
  *   "Each player has 2 actions per time of day by default."
@@ -26,7 +26,7 @@ export function actionBudget(actor) {
 
     /*
      * A DARKENED TIME OF DAY COSTS AN ACTION (Z10), and it stacks with Wounded
-     * on purpose — a hurt student in a darkened hour is exactly the situation
+     * on purpose - a hurt student in a darkened hour is exactly the situation
      * the rule is for. The floor is what stops the two of them reaching zero
      * together: a budget of nothing is not a harder game, it is a player with
      * nothing to do until the clock moves.
@@ -49,10 +49,10 @@ export function actionsMax(actor) {
 }
 
 /* ==========================================================================
- * GRANTS — crossings and actions bought with Hope
+ * GRANTS - crossings and actions bought with Hope
  * --------------------------------------------------------------------------
  * Sprint and Burst (E13) buy something that lasts rather than something the
- * next roll consumes, so neither goes through `FLAGS.pendingCall` — that holds
+ * next roll consumes, so neither goes through `FLAGS.pendingCall` - that holds
  * ONE armed Call, and parking a Sprint there would silently delete a Support
  * armed a moment before. They bank into counters instead, spent by the two
  * functions below that charge for a crossing and for an action.
@@ -79,7 +79,7 @@ export function freeMovesLeft(actor) {
  * asking it that way: the guard at the top of every action, the tile's dimming,
  * the tile's tooltip and the crossing charge. A player holding a Burst and no
  * actions would have seen the entire grid greyed out with nothing to spend it
- * on — a Call for four Hope that cannot be used is a Call that took the Hope
+ * on - a Call for four Hope that cannot be used is a Call that took the Hope
  * (trap 96).
  *
  * A grant covers a whole call whatever it costs, so having one is enough on its
@@ -90,7 +90,7 @@ export function canPayFor(actor, cost = 1) {
     return freeActionsLeft(actor) > 0 || actionsLeft(actor) >= cost;
 }
 
-/** Bank some. Both Calls come through here — see `applyCall`. */
+/** Bank some. Both Calls come through here - see `applyCall`. */
 export async function grantFreeActions(actor, n = 1) {
     if (!actor || n <= 0) return false;
     await actor.setFlag(MODULE_ID, FLAGS.freeActionGrants, freeActionsLeft(actor) + n);
@@ -109,7 +109,7 @@ export async function grantFreeMoves(actor, n = 1) {
  *
  * A Burst that paid for an action the player then backed out of has to come
  * back as a Burst. Refunding it as an action instead would be a Call that turns
- * four Hope into an action out of thin air — and every action in this module
+ * four Hope into an action out of thin air - and every action in this module
  * has a path that hands the price back: a Search whose room went quiet, a
  * Meddle that helped, a crisis action rerolled.
  *
@@ -132,13 +132,13 @@ export async function spendAction(actor, amount = 1) {
      * A BURST COVERS THE WHOLE CALL, WHATEVER IT WAS CHARGING FOR.
      *
      * "Your next action is free" is a sentence about the action, not about one
-     * point of it — a Long Rest costs two and goes on a single Burst. So the
+     * point of it - a Long Rest costs two and goes on a single Burst. So the
      * grant is consumed here, before the amount is even looked at.
      *
      * And exactly ONE call: an action that charges twice (there are none today,
      * and that is not a guarantee) pays normally the second time. A grant that
      * covered every spend until the turn ended would be a Long Rest plus
-     * anything else at all for four Hope — trap 97.
+     * anything else at all for four Hope - trap 97.
      */
     if (freeActionsLeft(actor) > 0) {
         await actor.setFlag(MODULE_ID, FLAGS.freeActionGrants, freeActionsLeft(actor) - 1);
@@ -166,7 +166,7 @@ export async function spendAction(actor, amount = 1) {
     lastSpend.set(actor.id, { grant: false, amount });
 
     /*
-     * EVERY SPEND, NOT ONLY THE ACTION GRID — trap 44, decided here.
+     * EVERY SPEND, NOT ONLY THE ACTION GRID - trap 44, decided here.
      *
      * This function is also how a Rest, a Move beyond the free one and the
      * crisis actions take their price. The sound means "an action just left
@@ -177,7 +177,7 @@ export async function spendAction(actor, amount = 1) {
      *
      * Local and unguarded. It plays wherever the spend was made, which is the
      * acting player's browser almost always and a GM's when they correct
-     * somebody's budget by hand — where a click is honest feedback that the
+     * somebody's budget by hand - where a click is honest feedback that the
      * write landed.
      */
     playSfx("actionSpent");
@@ -186,7 +186,7 @@ export async function spendAction(actor, amount = 1) {
     return true;
 }
 
-/** Hand an action back — criticals on Project and Meddle both do this. */
+/** Hand an action back - criticals on Project and Meddle both do this. */
 export async function refundAction(actor, amount = 1) {
     if (!actor || amount <= 0) return false;
 
@@ -201,7 +201,7 @@ export async function refundAction(actor, amount = 1) {
 }
 
 /**
- * Set the remaining actions directly. GM only — the pips on the sheet are a
+ * Set the remaining actions directly. GM only - the pips on the sheet are a
  * correction tool for the GM, not a dial for the player. Players spend actions
  * by taking actions.
  */
@@ -225,7 +225,7 @@ export function hasFreeMove(actor) {
     // FOG TAKES IT AWAY (Z10). Asked here rather than at the call sites because
     // this is already the single answer: `takeMove` reads it to decide what a
     // crossing costs, and the sheet reads it to draw the Move tile's price. The
-    // action-priced crossings are untouched — Fog makes moving cost something,
+    // action-priced crossings are untouched - Fog makes moving cost something,
     // it does not stop it.
     if (overflowBlocksFreeMove()) return false;
     return !actor?.getFlag(MODULE_ID, FLAGS.freeMoveUsed);
@@ -241,8 +241,8 @@ export async function takeMove(actor) {
     /*
      * THE FREE ONE FIRST, THEN A SPRINT, THEN AN ACTION.
      *
-     * Mechanically the first two are interchangeable — `resetActionsFor` clears
-     * both at the same moment, so neither can be saved past the other — and the
+     * Mechanically the first two are interchangeable - `resetActionsFor` clears
+     * both at the same moment, so neither can be saved past the other - and the
      * order is chosen for legibility rather than for advantage. Burning a thing
      * somebody paid three Hope for while the free one sits unused is a report
      * waiting to be filed, whether or not it costs anything.
@@ -277,7 +277,7 @@ export function restoreFreeMove(actor) {
 export async function resetActionsFor(actor) {
     if (!actor || actor.type !== "character") return null;
 
-    // A Monokuma has no action economy — `setMonokuma` zeroes the budget on
+    // A Monokuma has no action economy - `setMonokuma` zeroes the budget on
     // purpose. Refilling everyone handed it straight back, so a sheet that is
     // supposed to read "no actions" showed a full row again after every reset.
     if (actor.getFlag(MODULE_ID, FLAGS.monokuma)) return null;
@@ -285,14 +285,14 @@ export async function resetActionsFor(actor) {
     // Neither do the dead.
     //
     // `performAction` and the sheet both already refuse a corpse, but this pass
-    // kept handing one a full budget every time of day — so the GM panel's
+    // kept handing one a full budget every time of day - so the GM panel's
     // roster read "2 / 2" next to a dead student's name, and any route that
     // skips the sheet found the actions really were there. A Monocub is the
     // deliberate exception: the guide gives them "tyle akcji co gracze", and
     // they are spent on Move and Meddle.
     //
     // Both flags are read directly rather than through `chapter.mjs` and
-    // `monocub.mjs`, because monocub.mjs already imports THIS file — going the
+    // `monocub.mjs`, because monocub.mjs already imports THIS file - going the
     // other way would close an import cycle.
     const dead = Boolean(actor.getFlag(MODULE_ID, FLAGS.deceased));
     if (dead && !actor.getFlag(MODULE_ID, FLAGS.monocub)) return null;
@@ -303,7 +303,7 @@ export async function resetActionsFor(actor) {
         [`system.resources.${ACTIONS_RESOURCE}.max`]: total,
         [`flags.${MODULE_ID}.${FLAGS.freeMoveUsed}`]: false,
         // What makes Sprint and Burst last "until the end of this time of day"
-        // without anything measuring time — see the note above `freeActionsLeft`.
+        // without anything measuring time - see the note above `freeActionsLeft`.
         // Zeroed rather than deleted: `-=key` does nothing in this Foundry
         // without a forced replacement, and a grant that survived its own
         // expiry is a Call the player gets to spend twice.
@@ -315,7 +315,7 @@ export async function resetActionsFor(actor) {
 }
 
 /**
- * Refill every character. GM only — players cannot write to other actors.
+ * Refill every character. GM only - players cannot write to other actors.
  * @returns {Promise<Array<{actor: Actor, total: number, wounded: boolean}>>}
  */
 export async function resetAllActions() {

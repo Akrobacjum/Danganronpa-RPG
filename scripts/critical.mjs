@@ -1,10 +1,10 @@
 /**
- * Danganronpa RPG — what a critical is worth (G-16).
+ * Danganronpa RPG - what a critical is worth (G-16).
  * ---------------------------------------------------------------------------
  * Daggerheart pays a critical +1 Hope and clears 1 Stress. The Full Guide says
  * +2 Hope and says nothing about Stress. This module had never overridden
  * either, so for its whole life it has been running Daggerheart's rule by
- * omission — not by decision.
+ * omission - not by decision.
  *
  * It follows the guide on both halves. Keeping the cleared Stress as well would
  * hand a critical more than either document describes; the reasoning for
@@ -12,7 +12,7 @@
  *
  * WHY A WRAPPER AND NOT A HOOK. There is no hook between the dice and the
  * resource write: Daggerheart fires `postRollDuality` inside `buildPost`, and
- * `dualityUpdate` — which is what adds the Hope and the Stress — runs
+ * `dualityUpdate` - which is what adds the Hope and the Stress - runs
  * afterwards. A listener would be handed a config whose resource updates had
  * not happened yet, so there is nothing to correct and nothing to correct it
  * on. `addDualityResourceUpdates` is the funnel itself.
@@ -26,7 +26,7 @@
  * carrying Daggerheart's reroll arithmetic, its dead/defeated check and its
  * automation setting in this file forever, and silently keeping the 2.6.5
  * version of all three after the system moves on. So the original runs, and
- * only what it did to `hope` and `stress` on a critical is rewritten — measured
+ * only what it did to `hope` and `stress` on a critical is rewritten - measured
  * against a snapshot rather than assumed, so a build where the system stops
  * touching those two leaves this doing nothing at all.
  */
@@ -45,7 +45,7 @@ export function registerCriticalRule() {
         // rather than a silent no-op: criticals would carry on paying the
         // system's numbers, and "the rule quietly did not apply" is exactly the
         // kind of drift this stage exists to remove.
-        error("Could not find Daggerheart's duality resource step — criticals keep the system's rule");
+        error("Could not find Daggerheart's duality resource step - criticals keep the system's rule");
         return;
     }
     if (DualityRoll.addDualityResourceUpdates[PATCHED]) return;
@@ -59,7 +59,7 @@ export function registerCriticalRule() {
          * The snapshot is the whole safety of this.
          *
          * `ResourceUpdateMap` is a Map keyed by resource, and `addResources`
-         * replaces the entry object rather than mutating it — so holding the
+         * replaces the entry object rather than mutating it - so holding the
          * old entries is enough to tell afterwards what THIS call changed, and
          * to put back anything that came from somewhere else. Other things add
          * resources to the same map before and after: domain-card triggers, the
@@ -76,7 +76,7 @@ export function registerCriticalRule() {
         /*
          * DID THE ORIGINAL ACTUALLY PAY ANYTHING?
          *
-         * It declines in several cases that have nothing to do with us — Hope
+         * It declines in several cases that have nothing to do with us - Hope
          * automation switched off in the world settings, a reaction roll, an
          * actor who is dead or defeated, `skips.resources`. In every one of
          * them the map is untouched, and inventing two Hope there would be this
@@ -84,7 +84,7 @@ export function registerCriticalRule() {
          */
         if (map.get("hope") === before.hope && map.get("stress") === before.stress) return result;
 
-        // Stress goes back to whatever it was before this call — which is
+        // Stress goes back to whatever it was before this call - which is
         // usually "no entry at all", and is occasionally somebody else's.
         if (!CRITICAL.clearsStress) {
             if (before.stress === undefined) map.delete("stress");

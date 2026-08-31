@@ -1,9 +1,9 @@
 /**
- * Danganronpa RPG — forced private rolls.
+ * Danganronpa RPG - forced private rolls.
  * ---------------------------------------------------------------------------
  * In a killing game nobody may read anyone else's dice. Every chat message
  * carrying a roll is rewritten into a whisper, and WHO may read it is decided by
- * the actor the roll is about — not by whoever pressed the button:
+ * the actor the roll is about - not by whoever pressed the button:
  *
  *   a student    the GMs and that student's own player
  *   a Monocub    the above, plus everyone standing in the same room
@@ -11,8 +11,8 @@
  *
  * Keying on the subject rather than the author is the correction this file most
  * needed. It used to return early for any GM-authored message, so a GM rolling
- * on behalf of a student — testing a template, covering an absent player,
- * driving Stage 4 — produced a fully public roll that the whole table read. That
+ * on behalf of a student - testing a template, covering an absent player,
+ * driving Stage 4 - produced a fully public roll that the whole table read. That
  * is the one leak reported from an actual session.
  *
  * Incident rolls widen the audience deliberately; see `incidentAudience`.
@@ -32,14 +32,14 @@ export function registerPrivateRolls() {
     // The deprecated `renderChatMessage` was registered alongside it as a
     // "fallback", which is backwards: core fires the old hook only when it finds
     // a listener for it (`if ("renderChatMessage" in Hooks.events)`), so keeping
-    // one here was not insurance — it was what made every single chat message
+    // one here was not insurance - it was what made every single chat message
     // take the deprecated path, log a compatibility warning, wrap itself in
     // jQuery and run this handler twice. Removing it also removes the module
     // from the v15 removal path.
     //
     // Nothing is lost. `renderChatMessageHTML` fires on BOTH of the branches in
-    // `ChatMessage#renderHTML` — the ordinary one and the early return for a
-    // message type that renders itself — while the deprecated hook only ever
+    // `ChatMessage#renderHTML` - the ordinary one and the early return for a
+    // message type that renders itself - while the deprecated hook only ever
     // fired on the first. The old listener was strictly the smaller net.
     Hooks.on("renderChatMessageHTML", enforceContentVisibility);
 
@@ -55,12 +55,12 @@ export function registerPrivateRolls() {
 }
 
 /**
- * Put the outcome colour on a duality roll — from script, because CSS cannot.
+ * Put the outcome colour on a duality roll - from script, because CSS cannot.
  *
  * The stylesheet has carried `border: 1px solid var(--drpg-gold) !important` for
  * Hope rolls since the palette work, and it has never once applied. Daggerheart
  * sets `border-style: none !important` on every chat message from `layer system`,
- * and for IMPORTANT declarations the cascade runs layers in reverse — the
+ * and for IMPORTANT declarations the cascade runs layers in reverse - the
  * earlier layer wins. Our `!important` sits in `layer modules`, which is later,
  * so it loses by rule rather than by specificity, and no selector this module
  * can write will change that. Measured on a real card: the dark background
@@ -68,7 +68,7 @@ export function registerPrivateRolls() {
  * `0px none`.
  *
  * An inline style is the one thing above an author `!important`, so the colour
- * goes on the element. The palette still lives in the stylesheet — the tokens
+ * goes on the element. The palette still lives in the stylesheet - the tokens
  * are read back off `:root` rather than repeated here, so changing the gold in
  * one place still changes it here.
  */
@@ -82,7 +82,7 @@ const OUTCOME_TOKEN = {
  * Every message that was already in the log when this client finished loading.
  *
  * `renderChatMessageHTML` fires for every card in the log, not only for new ones
- * — opening the tab, reloading, scrolling back far enough — so "is this new"
+ * - opening the tab, reloading, scrolling back far enough - so "is this new"
  * has to be answered somehow, and the obvious answer is wrong. Comparing
  * `message.timestamp` against `Date.now()` compares a stamp written by the
  * SERVER against a reading taken from the CLIENT's clock, and on a hosted world
@@ -108,12 +108,12 @@ function rememberExistingMessages() {
  * The outcome frame arrives on a cut.
  *
  * A roll's result is the only thing in the chat log that is an EVENT rather
- * than a record — everything else there is something you go and read, and this
+ * than a record - everything else there is something you go and read, and this
  * is something that just happened to you. It used to appear the way a log entry
  * appears, which is to say not at all: the card was simply the next thing down
  * the column.
  *
- * A diagonal wipe, left to right, over the enter time. Not a fade — a fade is
+ * A diagonal wipe, left to right, over the enter time. Not a fade - a fade is
  * the grammar of something settling into place, and the whole visual language
  * this game is built on is hard cuts. One slash, and the frame is there.
  *
@@ -124,12 +124,12 @@ function rememberExistingMessages() {
 /**
  * Wait until a chat card is actually on the page, then do something with it.
  *
- * `renderChatMessageHTML` fires while the message is still being assembled — it
+ * `renderChatMessageHTML` fires while the message is still being assembled - it
  * has not been appended to the log yet. An animation started at that moment
  * runs to completion on a detached node, perfectly, without one frame of it
  * ever being composited, which is why the cut was invisible for a release.
  *
- * A handful of frames of patience, then the element as the reader sees it — or
+ * A handful of frames of patience, then the element as the reader sees it - or
  * nothing, if it never lands, which is the correct answer for a card that was
  * thrown away before it was shown.
  */
@@ -152,7 +152,7 @@ function cutIn(html) {
 /** New means "not in the log when this client loaded", and only once. */
 function isNew(message) {
     // The chat log renders its history BEFORE `ready` fires, so until the set
-    // above has been filled, nothing can be judged — and judging it wrong here
+    // above has been filled, nothing can be judged - and judging it wrong here
     // means the whole log slashes itself in and raises a card per roll on load.
     if (!historyLoaded) return false;
     if (!message?.id || alreadySeen.has(message.id)) return false;
@@ -161,18 +161,18 @@ function isNew(message) {
 }
 
 /**
- * Which of the three outcomes this card carries — asked of the DOCUMENT.
+ * Which of the three outcomes this card carries - asked of the DOCUMENT.
  *
  * This used to read the element's classes, and it has never once worked.
  * Daggerheart puts `duality`, `hope`, `fear` and `critical` on the message
  * element inside `enrichChatMessage()`, and it calls that from its own
- * `renderHTML()` — AFTER `super.renderHTML()`, which is the call that fires the
+ * `renderHTML()` - AFTER `super.renderHTML()`, which is the call that fires the
  * hook this module listens on. Every duality card reaching `paintChatCard` is
  * still wearing nothing but `chat-message message flexcol dh-chat-message
  * dh-style`, so the test could only ever come back false.
  *
  * The consequence was quiet and had nothing to do with animation: the outcome
- * BORDER — gold for Hope, blood for Fear, crimson for a Critical — has been
+ * BORDER - gold for Hope, blood for Fear, crimson for a Critical - has been
  * falling through to the plain Bone edge on every roll since it was written.
  *
  * The same three facts live on the message, before anything is rendered at all,
@@ -207,8 +207,8 @@ function paintChatCard(message, element) {
 
         // SAY WHICH CARDS ARE OURS.
         //
-        // Everything below marks every card in the log — the frame is for the
-        // whole surface — so nothing here has ever distinguished a card this
+        // Everything below marks every card in the log - the frame is for the
+        // whole surface - so nothing here has ever distinguished a card this
         // module wrote from one the system did. The stylesheet needs to: small
         // print inside our cards is ours to weight, and inside Daggerheart's is
         // not. The flag is the same one `stamped()` puts on every message this
@@ -218,8 +218,8 @@ function paintChatCard(message, element) {
 
             /* AND WHICH WAY ITS ROLL WENT.
              *
-             * The module's own result card knew its outcome — `popupTone` has
-             * carried it to the popup's title bar since the popup existed — and
+             * The module's own result card knew its outcome - `popupTone` has
+             * carried it to the popup's title bar since the popup existed - and
              * spent it on nothing in the chat log, where the same card sat in
              * neutral ink beside Daggerheart's, which is tinted, gradient-washed
              * and lit from inside. That is most of why the system's card looked
@@ -247,7 +247,7 @@ function paintChatCard(message, element) {
         // reason: the chat log was the one surface in this interface with no
         // frame at all, next to popups and dialogs that have one, and it looked
         // like an oversight rather than a choice. An outcome colour still wins
-        // where there is one — a Hope roll says Hope before it says "a card".
+        // where there is one - a Hope roll says Hope before it says "a card".
         markFrame(html);
     } catch (err) {
         // A card without its border is still a readable card.
@@ -259,7 +259,7 @@ function paintChatCard(message, element) {
  * The module's window edge, on a chat card, inline.
  *
  * Everything the note on `markOutcome` says about why this cannot be a
- * stylesheet rule applies here unchanged — Daggerheart's `border-style: none
+ * stylesheet rule applies here unchanged - Daggerheart's `border-style: none
  * !important` from `layer system` beats any `!important` this module writes.
  * The colour is read off `:root` so the palette stays in one place.
  */
@@ -268,7 +268,7 @@ function markFrame(element) {
 
     // `var()` rather than a colour read off `:root`, which is what `markOutcome`
     // does above. An inline style may reference a custom property, and the
-    // property is inherited from `:root` like any other — so the edge stays one
+    // property is inherited from `:root` like any other - so the edge stays one
     // declaration in the stylesheet, and a client on the light theme resolves
     // `light-dark()` for itself instead of getting whatever this browser
     // happened to compute at the moment the card rendered.
@@ -280,8 +280,8 @@ function markFrame(element) {
 /**
  * Put the outcome's colour on one element, as an inline border.
  *
- * Exported because a roll now appears in two places — the chat log and the
- * messenger thread the action was declared in — and two copies of this would
+ * Exported because a roll now appears in two places - the chat log and the
+ * messenger thread the action was declared in - and two copies of this would
  * be two palettes the moment one of them was tuned. Inline rather than a class
  * for the reason the note above gives: the system writes its own `!important`
  * borders on the chat card, and an inline style is the only thing that outranks
@@ -307,7 +307,7 @@ export function markOutcome(element, outcome) {
 /**
  * Which of the three outcomes a message carries, or `null` for a roll that is
  * not a duality roll at all. Reads the message rather than the DOM, so it works
- * before anything has been rendered — which is what the messenger needs.
+ * before anything has been rendered - which is what the messenger needs.
  */
 export function rollOutcomeOf(message) {
     if (!message?.rolls?.length) return null;
@@ -326,7 +326,7 @@ export function rollOutcomeOf(message) {
  * own:
  *
  *   Foundry:      `ChatMessage#visible` returns TRUE for any whispered message
- *                 that contains a roll — deliberately. The card is meant to be
+ *                 that contains a roll - deliberately. The card is meant to be
  *                 seen ("somebody rolled") while the CONTENT is blanked, and
  *                 the blanking is a separate getter, `isContentVisible`.
  *   Daggerheart:  its chat template replaces core's and renders
@@ -336,7 +336,7 @@ export function rollOutcomeOf(message) {
  * So every private roll was whispered correctly, rendered by the system's own
  * template, and read by the whole table.
  *
- * This closes it at the last possible moment — render time — which is also the
+ * This closes it at the last possible moment - render time - which is also the
  * only place that works regardless of which template the system swaps in next.
  * The whole message is hidden rather than emptied: in a killing game "Kaede
  * rolled something" is itself information, and an empty card in the log is
@@ -348,7 +348,7 @@ function enforceContentVisibility(message, element) {
         if (!html) return;
 
         // A roll this module already reported in its own card. Hidden the same
-        // way and for a related reason — the log should carry one account of
+        // way and for a related reason - the log should carry one account of
         // what happened, not two. See `supersedingRoll`.
         if (message.getFlag?.(MODULE_ID, SUPERSEDED_FLAG)) {
             html.classList.add("drpg-hidden-message");
@@ -373,7 +373,7 @@ function enforceContentVisibility(message, element) {
         html.classList.add("drpg-hidden-message");
         html.style.setProperty("display", "none", "important");
     } catch (err) {
-        // A message we cannot judge is left alone — better a visible roll than
+        // A message we cannot judge is left alone - better a visible roll than
         // a chat log that stops rendering.
         error("Could not apply private-roll visibility", err);
     }
@@ -383,8 +383,8 @@ function enforceContentVisibility(message, element) {
  * The other participants' owners, when this roll came from inside an incident.
  *
  * The incident state is read straight off the world setting rather than through
- * `murder.mjs`. `preCreateChatMessage` is synchronous — there is no chance to
- * await a dynamic import — and this is the same reason `lockedInIncident` in
+ * `murder.mjs`. `preCreateChatMessage` is synchronous - there is no chance to
+ * await a dynamic import - and this is the same reason `lockedInIncident` in
  * movement.mjs reads it directly. The shape is `murderState()`'s own.
  *
  * The roller has to BE a participant. Working it out from the speaker first and
@@ -415,7 +415,7 @@ function incidentAudience(author, message) {
         }
         return out;
     } catch {
-        // Never let this stop a roll being whispered at all — the GM-only
+        // Never let this stop a roll being whispered at all - the GM-only
         // fallback above is the safe state.
         return [];
     }
@@ -426,8 +426,8 @@ function incidentAudience(author, message) {
  *
  * This distinction is the whole of the bug this function exists to close. The
  * old rule was "rewrite rolls authored by a player", so a GM rolling on behalf
- * of a student — which is how a template gets tested, how an absent player's
- * character acts, and how half of Stage 4 is driven — produced a PUBLIC roll
+ * of a student - which is how a template gets tested, how an absent player's
+ * character acts, and how half of Stage 4 is driven - produced a PUBLIC roll
  * that the whole table read. The dice belong to the character, so the character
  * decides who may see them.
  */
@@ -455,20 +455,20 @@ function sameRoomAudience(actor) {
  * Written into the message AS IT IS CREATED rather than set afterwards, which
  * matters: a flag added later means an update, an update means a re-render, and
  * a re-render means the system's card is on screen for a moment and then
- * vanishes. Stamped at creation it is simply never seen — and, being a real
+ * vanishes. Stamped at creation it is simply never seen - and, being a real
  * flag on a real document, it is still not seen after a reload.
  */
 const SUPERSEDED_FLAG = "supersededRoll";
 
 /**
- * Open claims — one per `supersedingRoll` call in flight. A list rather than a
+ * Open claims - one per `supersedingRoll` call in flight. A list rather than a
  * boolean because nothing here promises the roll paths never nest.
  *
  * EACH CLAIM IS SPENT ON ONE MESSAGE. A trait roll produces exactly one, and
  * without that limit a roll that never finishes leaves its claim open forever:
  * observed once, and the cost was every subsequent roll on that client being
  * swallowed silently. Foundry's own dice animation does not run on a
- * BACKGROUNDED tab — the roll then hangs after its message exists — so this is
+ * BACKGROUNDED tab - the roll then hangs after its message exists - so this is
  * the ordinary case, not an exotic one. Marking the claim spent at the moment
  * it stamps means a hang can cost the roll it belongs to and nothing after it.
  */
@@ -483,7 +483,7 @@ let rollClaims = [];
  * a second in another visual language. So the system's copy is claimed as it is
  * created and never rendered.
  *
- * Scoped to the window in which the module is deliberately rolling — a plain
+ * Scoped to the window in which the module is deliberately rolling - a plain
  * trait roll from the sheet has no module card to replace it and keeps its own,
  * which is the whole reason this is a claim and not a blanket rule.
  *
@@ -534,7 +534,7 @@ function onPreCreateChatMessage(message, data, options, userId) {
             || (data?.rolls?.length ?? 0) > 0;
         if (!hasRoll) return;
 
-        // Already a whisper — respect whatever aimed it there.
+        // Already a whisper - respect whatever aimed it there.
         if (message.whisper?.length) return;
 
         const recipients = gmIds();
@@ -551,7 +551,7 @@ function onPreCreateChatMessage(message, data, options, userId) {
          *                the people watching them would be hiding half a scene.
          *   a student    GMs and their own player, as before.
          *
-         * A roll with no actor behind it — a GM's bare /roll — is treated as the
+         * A roll with no actor behind it - a GM's bare /roll - is treated as the
          * GM's own and goes to the GMs.
          */
         const subject = subjectActor(message, author);
@@ -573,10 +573,10 @@ function onPreCreateChatMessage(message, data, options, userId) {
         // The people you are actually fighting see your dice.
         //
         // An incident is a turn-based exchange in one room, and both sides are
-        // told what the other just did — the crisis cards are whispered to every
+        // told what the other just did - the crisis cards are whispered to every
         // participant's owner. The DICE were not: they went through the ordinary
         // private-roll rewrite above, which addresses the GMs and the roller and
-        // nobody else. So the victim read "Strike — 17 ≥ 15" as prose while the
+        // nobody else. So the victim read "Strike - 17 ≥ 15" as prose while the
         // roll that produced it was hidden from them, which is the one place in
         // this module where hiding a die serves nothing: the result is already
         // public to exactly these people, and a killing game's incident is the
@@ -585,7 +585,7 @@ function onPreCreateChatMessage(message, data, options, userId) {
         // Everyone else in the world still sees nothing.
         for (const id of incidentAudience(author, message)) recipients.push(id);
 
-        // The author sees their own dice — EXCEPT when they are a GM rolling
+        // The author sees their own dice - EXCEPT when they are a GM rolling
         // Monokuma, where they are already in `gmIds()` anyway. Adding the
         // author unconditionally is what used to make a GM's roll for a student
         // readable by that GM alone rather than by the student's player; both

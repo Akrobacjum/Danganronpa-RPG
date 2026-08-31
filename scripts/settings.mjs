@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — world settings.
+ * Danganronpa RPG - world settings.
  * ---------------------------------------------------------------------------
  * Registered during `init`. Anything the GM should be able to flip lives here
  * with `config: true`; internal state is stored with `config: false` so it
@@ -56,9 +56,9 @@ export const SETTINGS = {
     pixelFont: "pixelFont",
     projectsCollapsed: "projectsCollapsed",
     debug: "debug",
-    /** Regions become LiveKit breakout rooms — off by default, needs avclient-livekit. */
+    /** Regions become LiveKit breakout rooms - off by default, needs avclient-livekit. */
     voiceEnabled: "voiceEnabled",
-    /** The playlist follows the game state — off by default, needs playlists. */
+    /** The playlist follows the game state - off by default, needs playlists. */
     musicEnabled: "musicEnabled",
     /** Which playlist each state uses: `{ stateKey: playlistId }`. */
     musicMap: "musicMap",
@@ -67,13 +67,13 @@ export const SETTINGS = {
      *
      * World-scoped, exactly like `musicMap` and for the same reason: which
      * sound means what is one fact about the table. A player who mapped their
-     * own files would be playing a different game from everybody else — the
+     * own files would be playing a different game from everybody else - the
      * door they heard open would not be the door anyone else heard.
      *
      * The module ships no audio and is not going to: the files are the GM's,
      * the same bargain the playlists already make. An event with no file is
      * SILENT, not broken, and the panel says "not assigned yet" rather than
-     * showing an error — see the empty-state note in the 1.2.0 plan.
+     * showing an error - see the empty-state note in the 1.2.0 plan.
      */
     sfxMap: "sfxMap",
     /**
@@ -82,7 +82,7 @@ export const SETTINGS = {
      * World-scoped and GM-owned, like the mapping it modifies and unlike the
      * volumes: this is a property of the sound design rather than of one
      * person's speakers. One switch rather than a slider, because the size of
-     * the bend is `SFX_VARIATION` and tuned once — what a table needs is a way
+     * the bend is `SFX_VARIATION` and tuned once - what a table needs is a way
      * to say "our files do not like this", in one place, in one click.
      */
     sfxVary: "sfxVary",
@@ -90,7 +90,7 @@ export const SETTINGS = {
      * How loud this module is on THIS browser: `{ sound }`, 0–1.
      *
      * Client-scoped, because volume is the one thing about sound that is
-     * genuinely personal — a GM on headphones and a player on laptop speakers
+     * genuinely personal - a GM on headphones and a player on laptop speakers
      * do not want the same numbers, and neither should be setting the other's.
      * It is also the only part of the Sound panel a player sees at all.
      *
@@ -99,11 +99,11 @@ export const SETTINGS = {
      *
      * ONE number, not one per category. The panel shows two sliders and the
      * second is `music`, deliberately absent from this object: it is a proxy
-     * for Foundry's `globalPlaylistVolume` — see `SFX_SLIDERS`.
+     * for Foundry's `globalPlaylistVolume` - see `SFX_SLIDERS`.
      */
     sfxVolumes: "sfxVolumes",
     /**
-     * The word that stops the scene — Player Handbook, ch. 13.
+     * The word that stops the scene - Player Handbook, ch. 13.
      *
      * A setting rather than a constant because the word belongs to the table,
      * not to the module: a group playing in another language, or one for whom
@@ -112,7 +112,7 @@ export const SETTINGS = {
      * where a table sets up the things that are true for a whole season.
      *
      * Default "Safe Word". Worlds that predate this setting keep MISIUBOMBO,
-     * which is the word their players have already been taught — see the
+     * which is the word their players have already been taught - see the
      * migration. Changing it must redraw the sheets, or the button goes on
      * showing the old word until somebody reopens their character.
      */
@@ -124,7 +124,7 @@ export const SETTINGS = {
      * version, not against a hardcoded target: when they differ the migration
      * runs, and it stamps only when every clause has been through. That is
      * deliberately looser than a "has 1.2.0 run yet" boolean would be, and the
-     * looseness is the point — during the test builds this update ships a new
+     * looseness is the point - during the test builds this update ships a new
      * clause every stage, and a world stamped once at the first build would
      * never see any of the later ones. Every clause is idempotent, so running
      * the whole set again on each bump costs a handful of reads and heals a
@@ -139,7 +139,7 @@ export const SETTINGS = {
      * What each Truth Bullet REALLY is, by item uuid. GM browsers only.
      *
      * Deliberately client-scoped. Foundry's server hands every connecting client
-     * the entire world database — `World##g()` calls `dump()` on ChatMessage,
+     * the entire world database - `World##g()` calls `dump()` on ChatMessage,
      * Setting, Actor, Item and JournalEntry with no user and no filter, and
      * compendium reads check ownership only on create/update/delete. So there is
      * no world-scoped hiding place: a world setting, a GM-only whisper and a
@@ -148,7 +148,7 @@ export const SETTINGS = {
      * A client-scoped setting never enters world data at all, and the GM-to-GM
      * sync in truth-bullets.mjs rides a socket the server addresses to named
      * recipients. Cost of the choice: it lives in browser storage, so it is
-     * synced across every GM and can be exported — see `exportLedger()`.
+     * synced across every GM and can be exported - see `exportLedger()`.
      */
     truthBulletSecrets: "truthBulletSecrets",
     /**
@@ -156,7 +156,7 @@ export const SETTINGS = {
      * spot, who left it, and the GM's note about it.
      *
      * CLIENT-SCOPED, ON GM BROWSERS, for the same reason as `truthBulletSecrets`
-     * and measured the same way. This used to live in flags on the token — and
+     * and measured the same way. This used to live in flags on the token - and
      * Foundry ships every token on a scene to every client, hidden or not, flags
      * and all. A player's console could enumerate all forty traces on the map
      * with `sourceName`, `tiedToCrime`, the visibility band and the GM's own
@@ -170,7 +170,7 @@ export const SETTINGS = {
     /**
      * The words of every private card this browser is a recipient of.
      *
-     * CLIENT-SCOPED, and that is the entire point — see secret.mjs. A whisper
+     * CLIENT-SCOPED, and that is the entire point - see secret.mjs. A whisper
      * is delivered to every connected client and merely hidden in the
      * interface; this is the one store in Foundry that stays where it was
      * written.
@@ -183,7 +183,7 @@ export const SETTINGS = {
      * is: a world setting reaches every client and a player can read every one
      * of them from their own console. An item on a character sheet is readable
      * by its owner, so a flag saying "this is the trap" would be a poisoned
-     * first aid kit with POISONED written on it — see the header of traps.mjs.
+     * first aid kit with POISONED written on it - see the header of traps.mjs.
      *
      * `trapLedger` maps the opaque `drpgItemId` every module item carries to
      * the project that poisoned it. The identity is on everything in everybody's
@@ -202,26 +202,26 @@ export const SETTINGS = {
      * case stays solvable.
      */
     keyRemnantPlan: "keyRemnantPlan",
-    /** Monokuma's standing rules — see rules.mjs. Public by design. */
+    /** Monokuma's standing rules - see rules.mjs. Public by design. */
     killingGameRules: "killingGameRules",
     /**
      * The motive Monokuma is running right now, or `{}`.
      *
      * Guide, p. 16: "Motyw musi być ogłaszany publicznie i trwać maksymalnie do
-     * końca rozdziału." Public by design, exactly like the rules — a motive
-     * nobody heard is not a motive — and chapter-stamped so it lapses on its
+     * końca rozdziału." Public by design, exactly like the rules - a motive
+     * nobody heard is not a motive - and chapter-stamped so it lapses on its
      * own when the chapter counter moves, the same trick `silencedChapter` uses.
      *
      * Shape since E14: `{ text, consequence, timesOfDay, remaining, chapter,
      * at, dueAnnounced }`. The countdown sits INSIDE the chapter stamp rather
-     * than replacing it — the guide's outer bound still holds, and the timer
+     * than replacing it - the guide's outer bound still holds, and the timer
      * is how a motive ends early. See rules.mjs.
      */
     motive: "motive",
     /**
      * The assembly Monokuma has called but not yet held, or `{}`.
      *
-     * Shape: `{ room, by, chapter, session, timeOfDay, at }` — the time of day
+     * Shape: `{ room, by, chapter, session, timeOfDay, at }` - the time of day
      * it was BOUGHT in, which is how the clock knows the order is ripe.
      *
      * World-scoped and public on purpose, and this one is not a leak but the
@@ -234,7 +234,7 @@ export const SETTINGS = {
      * The murder currently in progress, or `{}`.
      *
      * World-scoped, and that is a real exposure: a player reading the console
-     * could learn who the killer is (see D6 — nothing world-scoped is hidden).
+     * could learn who the killer is (see D6 - nothing world-scoped is hidden).
      * Accepted deliberately, because the alternative is worse. An incident is a
      * turn-based exchange between two players who both have to see whose turn
      * it is, how much the victim has left, and which of their actions are
@@ -250,21 +250,21 @@ export const SETTINGS = {
      * Who has killed in THIS chapter, in the order they did it.
      *
      * The incident state is wiped when a murder closes, so until this existed
-     * nothing in the world remembered who the Blackened was — and the verdict
+     * nothing in the world remembered who the Blackened was - and the verdict
      * screen asked a GM to type it in from memory, an hour and two scenes after
      * the engine had known it exactly. A chapter with two incidents, which the
      * betrayal rule makes ordinary, meant remembering two.
      *
      * GM-visible data by nature: it names the killer. It is world-scoped
      * because every GM screen that reads it has to agree, and world settings
-     * reach every client — so nothing here is shown to players. See the note in
+     * reach every client - so nothing here is shown to players. See the note in
      * `openVerdictDialog`.
      */
     blackened: "blackened",
     /**
      * The speaking queue during a Class Trial: who has the floor and since when.
      *
-     * World-scoped for the same reason as `murderState` — every player has to
+     * World-scoped for the same reason as `murderState` - every player has to
      * see the same countdown, and a shared clock cannot live on one browser.
      * Nothing secret is in it. **Votes are not here**: they travel by
      * recipient-addressed socket and are tallied in memory, because "wyniki są
@@ -283,7 +283,7 @@ export const SETTINGS = {
      *
      * Chapter-stamped rather than explicitly cleared. A record from an earlier
      * chapter is read as "none of this has happened", so a table that forgets
-     * to reset — or a GM who nudges the chapter by hand — gets a fresh trial
+     * to reset - or a GM who nudges the chapter by hand - gets a fresh trial
      * rather than one that believes its vote was counted last week.
      *
      * Nothing secret: it is three booleans about whether a screen has been
@@ -294,53 +294,53 @@ export const SETTINGS = {
      * Who the Mastermind is, on GM browsers only.
      *
      * The single most important secret in the game, so it gets the strictest
-     * version of the D6 treatment — not even an actor flag. An actor flag is
+     * version of the D6 treatment - not even an actor flag. An actor flag is
      * world data, and Foundry ships every actor to every client (see the note
      * on `truthBulletSecrets`); the Mastermind's own player reading their own
      * flag might be harmless, but every OTHER player reading it from the
      * console would end the game before it started. So this lives in browser
      * storage on GM clients, synced GM-to-GM over a recipient-addressed socket,
-     * exactly like the Truth Bullet ledger — a player's client never receives
+     * exactly like the Truth Bullet ledger - a player's client never receives
      * it, full stop.
      */
     mastermind: "mastermind",
     /**
      * "Is THIS browser the Mastermind's player." Client-scoped, boolean, and
      * the only thing about the Mastermind that ever reaches a player's client
-     * at all — see mastermind.mjs's `notifyDoorAccess`.
+     * at all - see mastermind.mjs's `notifyDoorAccess`.
      *
      * Exists because `canCross()` in movement.mjs runs synchronously inside a
-     * `preUpdateToken` veto, on the client dragging the token — there is no
+     * `preUpdateToken` veto, on the client dragging the token - there is no
      * chance to ask a GM mid-hook, and `isMastermind()` itself always answers
      * `false` off a GM client by construction. A GM setting the Mastermind
-     * privately tells the ONE player who already knows they hold the part —
-     * the guide has them agree to it before the season starts — and that
+     * privately tells the ONE player who already knows they hold the part -
+     * the guide has them agree to it before the season starts - and that
      * client alone writes `true` here. Every other client's copy stays `false`
      * forever; there is no broadcast, only a recipient-addressed whisper.
      *
      * Read by movement.mjs (locked doors, sealed rooms), fog.mjs (the
      * Mastermind knows the building, not who is in it), vault.mjs (a
-     * concealed stash is their own furniture) and — since 26.08 —
+     * concealed stash is their own furniture) and - since 26.08 -
      * visibility.mjs, but only through `myLairRoom()`: standing in their own
      * room shows them the cast, anywhere else they are exactly as blind as
      * every other player's client.
      */
     iAmMastermind: "iAmMastermind",
     /**
-     * The Mastermind's own room, on the ONE client that holds the part —
+     * The Mastermind's own room, on the ONE client that holds the part -
      * delivered over the same recipient-addressed whisper as `iAmMastermind`
      * and cleared with it. Every other client's copy stays empty forever.
      *
      * Read by visibility.mjs: a Mastermind whose own token stands in this
      * room sees the whole cast, the way the GM does, and loses that the
-     * moment they leave. (This is the 26.08 revision of the old contract —
+     * moment they leave. (This is the 26.08 revision of the old contract -
      * the note on `iAmMastermind` used to promise visibility.mjs would never
      * read either of these.)
      */
     myMastermindLair: "myMastermindLair",
     /**
      * While `isometric-perspective` is active, keep its fingers out of token
-     * configuration windows — see iso-shield.mjs for what exactly is parked
+     * configuration windows - see iso-shield.mjs for what exactly is parked
      * and why. World-scoped: the glitch it guards against hits whoever edits
      * tokens, and that is a table-level decision, not a per-browser one.
      */
@@ -350,8 +350,8 @@ export const SETTINGS = {
      * `{ [sceneId]: { [actorId]: [roomName, ...] } }`.
      *
      * World-scoped. This is not a secret the way the Mastermind's identity is
-     * — a discovered room is a fact about where the party has already been,
-     * not about who anybody is — so it travels the ordinary way, like
+     * - a discovered room is a fact about where the party has already been,
+     * not about who anybody is - so it travels the ordinary way, like
      * `sealedRooms`. Written only by the primary GM (see fog.mjs), the same
      * discipline `truth-bullets.mjs` uses for its own ledger writes.
      */
@@ -364,7 +364,7 @@ export const SETTINGS = {
      * own fog exploration on the scene (see `applySceneVisionMode` in
      * fog.mjs). That is not a cosmetic preference: leaving Foundry's vision on
      * alongside the region fog is what produces cone-shaped light wedges that
-     * reveal half a room through a doorway — the exact thing the guide's room
+     * reveal half a room through a doorway - the exact thing the guide's room
      * model exists to prevent.
      *
      * Off leaves the scene exactly as the GM configured it and disables the
@@ -379,7 +379,7 @@ export const SETTINGS = {
  *
  * Plain English on purpose. The module is published for tables that have never
  * met this group's in-jokes, and a safeword nobody can guess the meaning of is
- * a safeword somebody hesitates over for a second — which is exactly the second
+ * a safeword somebody hesitates over for a second - which is exactly the second
  * it exists to remove. Tables that want their own word set it in Season setup.
  */
 export const DEFAULT_SAFEWORD = "Safe Word";
@@ -388,7 +388,7 @@ export const DEFAULT_SAFEWORD = "Safe Word";
 export const DEFAULT_CLOCK = {
     /**
      * True while the placement window between two times of day is running.
-     * An Eclipse is not part of a day — the day counter does not move for it.
+     * An Eclipse is not part of a day - the day counter does not move for it.
      */
     eclipse: false,
     /** Free text shown at the top of the HUD, e.g. "Hope's Peak: Drowned Summer". */
@@ -406,19 +406,19 @@ export const DEFAULT_CLOCK = {
      * elapsed timer; `null` until the clock is moved for the first time, which
      * the HUD reads as "not started yet" rather than as "zero minutes ago".
      * Written by `setClock` on any change of `timeOfDay`, whichever route moved
-     * it — Eclipse, panel, or a rewind.
+     * it - Eclipse, panel, or a rewind.
      */
     timeOfDayStartedAt: null,
     /**
      * When the game was paused, as `Date.now()`, or `null` while it runs. The
      * elapsed timer freezes here, and `timeOfDayStartedAt` is pushed forward by
-     * the length of the break when play resumes — a pause is not time the table
+     * the length of the break when play resumes - a pause is not time the table
      * spent on this time of day.
      */
     pausedAt: null,
     /**
      * The season finale is running: the vote is for the Mastermind, not a
-     * Blackened. Purely a flavour flag for the floor/panel text — announcing
+     * Blackened. Purely a flavour flag for the floor/panel text - announcing
      * "a Final Trial is happening" gives nothing away, unlike the Mastermind's
      * identity, which never goes anywhere near this object. See mastermind.mjs.
      */
@@ -496,7 +496,7 @@ export function registerSettings() {
             // strand them in whatever room they were last assigned to.
             //
             // `force`, because switching this on says nothing about where the
-            // clients currently are — several of them will be sitting in rooms a
+            // clients currently are - several of them will be sitting in rooms a
             // previous session assigned, and an unforced pass skips exactly the
             // ones whose target happens to match what this browser last noted.
             //
@@ -565,7 +565,7 @@ export function registerSettings() {
     });
 
     // The word that stops the scene. Set in Season setup, shown on every sheet,
-    // so a change has to redraw them — otherwise the button keeps offering the
+    // so a change has to redraw them - otherwise the button keeps offering the
     // old word to everyone who has not reopened their character since.
     game.settings.register(MODULE_ID, SETTINGS.safeword, {
         scope: "world",
@@ -575,7 +575,7 @@ export function registerSettings() {
         onChange: () => onWorldChange(SETTINGS.safeword)
     });
 
-    // Migration bookkeeping. Never shown, never edited by hand — except by
+    // Migration bookkeeping. Never shown, never edited by hand - except by
     // somebody deliberately clearing it to force the whole set to run again.
     game.settings.register(MODULE_ID, SETTINGS.migratedVersion, {
         scope: "world",
@@ -584,8 +584,8 @@ export function registerSettings() {
         default: ""
     });
 
-    // Read state is personal — the player's and each GM's own idea of what
-    // they have seen — so this is client-scoped, not world-scoped like
+    // Read state is personal - the player's and each GM's own idea of what
+    // they have seen - so this is client-scoped, not world-scoped like
     // everything else below it.
     game.settings.register(MODULE_ID, SETTINGS.messengerLastRead, {
         scope: "client",
@@ -612,7 +612,7 @@ export function registerSettings() {
         default: false
     });
 
-    // The answer key to every Truth Bullet. Client-scoped on purpose — see the
+    // The answer key to every Truth Bullet. Client-scoped on purpose - see the
     // note on SETTINGS.truthBulletSecrets for why no world-scoped store hides
     // anything from a player's console.
     game.settings.register(MODULE_ID, SETTINGS.truthBulletSecrets, {
@@ -659,7 +659,7 @@ export function registerSettings() {
         default: {}
     });
 
-    // Monokuma's standing rules. World-scoped and deliberately public — a rule
+    // Monokuma's standing rules. World-scoped and deliberately public - a rule
     // exists so that everybody knows it, which is the one case where D6's
     // "world data reaches every client" is the feature rather than the leak.
     game.settings.register(MODULE_ID, SETTINGS.killingGameRules, {
@@ -701,14 +701,14 @@ export function registerSettings() {
     //
     // World-scoped like the incident itself: the declaration outlives the
     // client that made it, and the judgement runs on the GM's when the lights
-    // come up. Keyed by killer id — one killer, one attempt per Eclipse.
+    // come up. Keyed by killer id - one killer, one attempt per Eclipse.
     // Deliberately carries no victim: who that is depends on where everybody
     // ends up standing, which is the whole point. See `judgePendingMurders`.
     //
     // NO `onChange`, DELIBERATELY. Nothing on any screen shows this: it is read
     // once, inside `judgePendingMurders`, on the GM's client, at the moment the
     // lights come up. It used to announce a refresh that `applyFor` then
-    // dropped for want of a `SETTING_KINDS` entry — harmless at runtime and a
+    // dropped for want of a `SETTING_KINDS` entry - harmless at runtime and a
     // lie in the source, which is the shape of defect the "every setting that
     // promises a redraw gets one" invariant exists to remove.
     game.settings.register(MODULE_ID, SETTINGS.pendingMurders, {
@@ -730,7 +730,7 @@ export function registerSettings() {
     });
 
     /*
-     * Z10. Registered in the SAME build as the code that reads them — trap 7:
+     * Z10. Registered in the SAME build as the code that reads them - trap 7:
      * a key read by a build that never registered it costs the world its data,
      * and splitting a setting from its first reader buys nothing but the risk
      * that its shape goes stale before anybody uses it.
@@ -929,7 +929,7 @@ export function registerSettings() {
         onChange: () => onWorldChange(SETTINGS.despairPools)
     });
 
-    // Custom display label per pool — a GM's account name is not always what
+    // Custom display label per pool - a GM's account name is not always what
     // the table calls their Monokuma. Format: { "<userId>": "Monokid" }
     game.settings.register(MODULE_ID, SETTINGS.poolNames, {
         scope: "world",
@@ -975,7 +975,7 @@ export function registerSettings() {
         type: Object,
         default: DEFAULT_CLOCK,
         // The clock is the one every player watches, so this does the whole
-        // refresh — HUD, sheets, Eclipse dimming, room visibility — not just the
+        // refresh - HUD, sheets, Eclipse dimming, room visibility - not just the
         // sheets. Redrawing the sheets alone was why the time of day changed in
         // the header while the Eclipse stayed light and tokens stayed visible.
         onChange: () => onWorldChange(SETTINGS.clock)
@@ -986,7 +986,7 @@ export function registerSettings() {
  * Refresh this client because a world setting changed.
  *
  * Foundry syncs the Setting document to every client and runs the registered
- * `onChange` there, so this fires on the players' screens as well as the GM's —
+ * `onChange` there, so this fires on the players' screens as well as the GM's -
  * which is exactly what the module's socket could not be relied on to do.
  */
 function onWorldChange(key) {
@@ -1006,7 +1006,7 @@ export function setSetting(key, value) {
 /**
  * Is THIS browser the Mastermind's player, for the narrow purpose of locked
  * doors, the fog layer and a concealed stash? See `SETTINGS.iAmMastermind`'s
- * own header — this is the only thing about the Mastermind a player's client
+ * own header - this is the only thing about the Mastermind a player's client
  * ever holds, and reading one client-scoped boolean is the whole of it.
  *
  * IT LIVES HERE RATHER THAN IN mastermind.mjs, AND THAT IS THE POINT.
@@ -1027,7 +1027,7 @@ export function setSetting(key, value) {
  *
  * Nothing about this predicate needed mastermind.mjs. It reads a setting, and
  * the setting exists precisely so `canCross()` can ask synchronously inside a
- * `preUpdateToken` veto — which is the note already written above the key
+ * `preUpdateToken` veto - which is the note already written above the key
  * itself. Moving the reader next to what it reads is what removes the edge, and
  * with it both cycles; the GM-side Mastermind machinery stays where it is.
  */
@@ -1036,7 +1036,7 @@ export function iAmTheMastermind() {
     try {
         return game.settings.get(MODULE_ID, SETTINGS.iAmMastermind) === true;
     } catch {
-        // Asked before the settings are registered — during boot, or from a
+        // Asked before the settings are registered - during boot, or from a
         // client that never received the whisper. Not the Mastermind.
         return false;
     }

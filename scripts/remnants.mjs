@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — Remnants on the map.
+ * Danganronpa RPG - Remnants on the map.
  * ---------------------------------------------------------------------------
  * Guide: "Remnants as hidden tokens, so nobody loses track of them."
  *
@@ -29,7 +29,7 @@ export const REMNANT_FLAGS = {
     isRemnant: "isRemnant",
     /** key | neutral | faint | prep | incident | resolution | autopsy | final */
     type: "remnantType",
-    /** obvious | evident | subtle | hidden — how hard it is to spot. */
+    /** obvious | evident | subtle | hidden - how hard it is to spot. */
     visibility: "visibility",
     /** Cannot be removed by the killer in Stage 6. */
     reinforced: "reinforced",
@@ -46,7 +46,7 @@ export const REMNANT_FLAGS = {
     note: "note",
     /** Which action produced it: search | sabotage | project | incident | resolution | manual */
     action: "action",
-    /** What was found or done — the item drawn, the project sabotaged. */
+    /** What was found or done - the item drawn, the project sabotaged. */
     subject: "subject",
     /** Who left it. */
     sourceActor: "sourceActor",
@@ -56,7 +56,7 @@ export const REMNANT_FLAGS = {
     chapter: "chapter",
     day: "day",
     timeOfDay: "timeOfDay",
-    /** Points the finger at this character — used by "Misleading trail". */
+    /** Points the finger at this character - used by "Misleading trail". */
     pointsAt: "pointsAt",
     /**
      * THE ONE THING ABOUT A TRACE THAT TRAVELS TO EVERY CLIENT (D11).
@@ -85,7 +85,7 @@ export const REMNANT_FLAGS = {
  *
  * `getActiveTokens()` only returns tokens that are *rendered* and on the scene
  * this client is currently looking at, so it comes back empty often enough to
- * matter — a GM resolving something on another scene, a canvas mid-load. The
+ * matter - a GM resolving something on another scene, a canvas mid-load. The
  * scene's own token list is checked as well, which needs neither.
  */
 function tokenFor(actor) {
@@ -108,7 +108,7 @@ const REMNANT_ACTOR = "Remnant";
 /**
  * What a trace looks like until YOU have analysed it: the same 8x8 question
  * mark the Despair pool shows (Dawid, 26.08). The document carries this and
- * nothing else — the icon of the action that left the trace exists only as a
+ * nothing else - the icon of the action that left the trace exists only as a
  * client-side swap for the GM and for a finder whose own Truth Bullet is
  * identified. See remnant-icons.mjs; putting the real icon on the document
  * would hand every client the answer, the same leak the ledger exists to
@@ -136,14 +136,14 @@ const TINTS = {
  *
  * Four bands over `observeDc()`'s six actual values (6, 9, 12, 15, 18, 21),
  * named for how solid the lead feels rather than for what a GM would call the
- * visibility band — "Obvious" and "Evident" are already spoken for, and this
+ * visibility band - "Obvious" and "Evident" are already spoken for, and this
  * is a different axis: a Faint trace at Obvious (12) is genuinely harder to
  * spot than a Key one at Obvious (6), which is the whole reason `observeDc`
  * takes the type as well as the visibility. Naming the bands after the DC
  * range rather than reusing REMNANT_VISIBILITY_LABELS keeps the two axes from
  * being read as the same thing.
  *
- * NO EXACT NUMBER, ever — DC is derived from the trace's REAL type
+ * NO EXACT NUMBER, ever - DC is derived from the trace's REAL type
  * (`OBSERVE_TYPE_ALIAS` in config.mjs), so printing "DC 9" would let a player
  * back out whether they are looking at a Key trace or a Prep one just by
  * comparing it to a Key trace they found earlier. The four bands are wide
@@ -166,21 +166,21 @@ export function difficultyTag(visibility, type) {
 
 /**
  * Whether a player is told anything at all about a trace they (or their
- * side) just left — the one gate `report()` in action-rolls.mjs and its
+ * side) just left - the one gate `report()` in action-rolls.mjs and its
  * counterparts in cleanup.mjs, murder.mjs and reroll.mjs all share.
  *
  * Guide-approved: Hope shows it, a plain Despair does not, and a critical
- * always does — uniformly, with no exception per action. What is shown, when
+ * always does - uniformly, with no exception per action. What is shown, when
  * it is shown, is never the exact visibility band a trace was left at: that
  * word is the ledger's own DC lookup key (`observeDc`'s `OBSERVE_TYPE_ALIAS`),
  * and a player told "Obvious" or "Hidden" for their own trace could compare
- * it against later finds and back out what type each one really was — the
+ * it against later finds and back out what type each one really was - the
  * same leak `difficultyTag` exists to close on the finder's side of the same
  * question.
  *
  * @param {{isCritical?: boolean, withHope?: boolean}} roll
  * @param {*} placed  What `dropRemnant`/`placeRemnant`/`retuneRemnant`
- *   returned — nothing to report if nothing was actually placed or changed.
+ *   returned - nothing to report if nothing was actually placed or changed.
  */
 export function traceFeedback(roll, placed) {
     return Boolean(placed) && Boolean(roll?.isCritical || roll?.withHope);
@@ -220,7 +220,7 @@ export async function dropRemnant(actor, {
     if (!token) {
         // Loud, not silent. This used to warn to the console and return null, so
         // an action reported "you leave a trace behind" while no Remnant existed
-        // anywhere — the one failure the investigation can never recover from.
+        // anywhere - the one failure the investigation can never recover from.
         warn(`No token for ${actor?.name}; the Remnant was not placed.`);
         ui.notifications.error(game.i18n.format("DRPG.Remnant.noToken", {
             actor: actor?.name ?? "?"
@@ -271,24 +271,24 @@ export async function placeRemnant(data = {}) {
      * It used to be decided by what the trace was ABOUT: a Search that turned
      * up something in the crime-tool or cleaning-tool category tied itself to
      * the crime on the spot. That is a fact about the object's category and
-     * not about the chapter — a penknife nobody ever picked up again was
+     * not about the chapter - a penknife nobody ever picked up again was
      * filed beside the knife out of the body, and the murder-first sort in the
      * dashboard put both at the top.
      *
      * Four things make a trace part of it, and all four are events:
      *
-     *   1. it delivered the object used in the murder   — marked later, by
+     *   1. it delivered the object used in the murder   - marked later, by
      *      `tieTraceForItem`, because at the moment of finding it nobody knows;
-     *   2. it is the result of a project tied to the murder — the caller says
+     *   2. it is the result of a project tied to the murder - the caller says
      *      so, because only the caller knows which project;
-     *   3. it was left DURING THE INCIDENT — decided here, since the incident
+     *   3. it was left DURING THE INCIDENT - decided here, since the incident
      *      is a fact about the world rather than about the caller;
-     *   4. it was left cleaning up after one — the caller says so, and the
+     *   4. it was left cleaning up after one - the caller says so, and the
      *      clean-up already did.
      *
      * Only 3 belongs in this function, and it belongs here rather than in the
      * six call sites so that a trace left by anything at all during an incident
-     * is caught — including whatever gets added next.
+     * is caught - including whatever gets added next.
      *
      * An explicit `false` still wins: the GM planting a red herring mid-incident
      * is making a decision, and this is a default rather than an override.
@@ -321,7 +321,7 @@ export async function placeRemnant(data = {}) {
     const actor = await ensureRemnantActor();
     if (!actor) return null;
 
-    // A Remnant is the GM's own note. Players never see one — Observing it
+    // A Remnant is the GM's own note. Players never see one - Observing it
     // produces a separate Truth Bullet, which the GM fills in. So the name can
     // and should carry everything: who, what, and from which action.
     const kind = `${REMNANT_VISIBILITY_LABELS[visibility] ?? visibility} ${faint ? "Faint " : ""}${REMNANT_TYPES[type]?.label ?? "Remnant"}`;
@@ -333,8 +333,8 @@ export async function placeRemnant(data = {}) {
 
     // WHAT THE DOCUMENT IS CALLED, which is not the same thing.
     //
-    // The name used to be `label` — "Obvious Faint Prep Remnant · Player B ·
-    // Search: Cleaning agent" — and a token's name travels to every client with
+    // The name used to be `label` - "Obvious Faint Prep Remnant · Player B ·
+    // Search: Cleaning agent" - and a token's name travels to every client with
     // the token. A player listing the scene read the whole crime scene off the
     // names alone. `label` still exists and still says all of that; it goes into
     // the ledger, where the GM's screens read it from.
@@ -358,7 +358,7 @@ export async function placeRemnant(data = {}) {
             height: 1,
             // One tint for every trace. `TINTS[type]` painted the type onto
             // the document itself, which is a colour-coded legend a player can
-            // read without ever seeing the map. The GM still gets the colour —
+            // read without ever seeing the map. The GM still gets the colour -
             // `remnant-ring.mjs` paints it from the ledger, on their client.
             texture: { src: ICON, tint: TINTS.neutral },
             // Half transparent, and below characters: the map must still read
@@ -372,7 +372,7 @@ export async function placeRemnant(data = {}) {
              * copies it into a Truth Bullet, and that is what they see.
              *
              * The exception is the crime scene itself. The people who were in
-             * the room — the victim and the killer — watched these traces being
+             * the room - the victim and the killer - watched these traces being
              * made, and Stage 6 used to hand the killer that knowledge as a
              * privilege of the STAGE rather than of having been there. Which
              * left two absurdities: a victim could not see the clue they
@@ -396,7 +396,7 @@ export async function placeRemnant(data = {}) {
             lockRotation: true,
             /*
              * THE MARKER AND ALMOST NOTHING ELSE. Everything that was here is
-             * the answer key and now lives in the GM-side ledger — see the
+             * the answer key and now lives in the GM-side ledger - see the
              * block at the top of this file. A player's client still receives
              * this token; what it no longer receives is what the token means.
              *
@@ -405,7 +405,7 @@ export async function placeRemnant(data = {}) {
              * incident, so a participant's own client can decide whether to
              * draw it. The visibility pass runs on that client and cannot ask
              * the ledger, because the ledger is the answer key. It leaks what
-             * the un-hidden token already leaks by existing — a marker is here.
+             * the un-hidden token already leaks by existing - a marker is here.
              */
             flags: {
                 [MODULE_ID]: {
@@ -428,7 +428,7 @@ export async function placeRemnant(data = {}) {
                 itemIdentity,
                 sourceActor, sourceName, room, chapter, day, timeOfDay,
                 // Kept for the GM's own screens, which used to read it off the
-                // token's name — see `label` above.
+                // token's name - see `label` above.
                 label
             });
         }
@@ -450,7 +450,7 @@ function actionLabel(action) {
 }
 
 /**
- * Tell the GMs, in chat, the moment a Remnant appears — who left it, doing
+ * Tell the GMs, in chat, the moment a Remnant appears - who left it, doing
  * what, where and when.
  *
  * This replaces an attempted hover tooltip, which could never have worked:
@@ -475,9 +475,9 @@ async function announceRemnant(tokenDoc) {
     const { whisperToGms } = await import("./utils.mjs");
     await whisperToGms(`
         <h3>${esc(data.visibilityLabel)} ${esc(data.typeLabel)}${data.faint ? " (Faint)" : ""}</h3>
-        <p><strong>${game.i18n.localize("DRPG.Remnant.leftBy")}:</strong> ${esc(data.sourceName || "—")}</p>
+        <p><strong>${game.i18n.localize("DRPG.Remnant.leftBy")}:</strong> ${esc(data.sourceName || "-")}</p>
         ${data.note ? `<p>${esc(data.note)}</p>` : ""}
-        <p><small>${esc(data.room ?? "—")}${when ? ` · ${when}` : ""}${
+        <p><small>${esc(data.room ?? "-")}${when ? ` · ${when}` : ""}${
             data.reinforced ? ` · ${game.i18n.localize("DRPG.Remnant.reinforcedShort")}` : ""
         }</small></p>`);
 }
@@ -488,21 +488,21 @@ async function announceRemnant(tokenDoc) {
  * OBSERVER BY DEFAULT, AND THAT IS NOT A LEAK.
  * ---------------------------------------------------------------------------
  * It was NONE, which meant a player double-clicking a trace they had already
- * copied got nothing at all: `sheet.render()` refuses silently at that level —
- * measured on a player's client, no window, no error — so the per-player card
+ * copied got nothing at all: `sheet.render()` refuses silently at that level -
+ * measured on a player's client, no window, no error - so the per-player card
  * in remnant-ring.mjs was dead code in practice. LIMITED is not enough either;
  * the system's sheet still refuses to render. OBSERVER is the level that
  * opens, so it is the level this asks for. (B-F3-1.)
  *
  * What a player can then see is unchanged: `showRemnantCard` replaces the
  * sheet's whole body with `playerRemnantCard`, which is built from THEIR OWN
- * Truth Bullet and nothing else — the GM's note and the ledger never enter it,
+ * Truth Bullet and nothing else - the GM's note and the ledger never enter it,
  * and a player who has not copied this trace cannot reach the token at all
  * (visibility.mjs hides it). The base actor itself is an empty NPC called
  * "Remnant" with a hazard icon; there is nothing on it to read.
  *
  * The one visible consequence: at OBSERVER the actor appears in a player's
- * Actors directory, as one empty entry. Accepted — the alternative was a
+ * Actors directory, as one empty entry. Accepted - the alternative was a
  * second, module-owned window for a card the sheet already knows how to show.
  *
  * Existing worlds are corrected in place rather than left behind: this actor
@@ -560,7 +560,7 @@ async function raiseRemnantOwnership(actor) {
  * is a statement about how the world should look, and a world can arrive at
  * load in a state that predates the rule. Every world that has ever placed a
  * trace already owns this actor at NONE, and `ensureRemnantActor` above only
- * runs when the next one is placed — so without this, the fix would reach a
+ * runs when the next one is placed - so without this, the fix would reach a
  * table only once their GM planted another trace.
  *
  * Creates nothing: a world with no traces yet has no actor to correct, and the
@@ -575,7 +575,7 @@ export async function reconcileRemnantActor() {
 
 /**
  * Move every trace still wearing the old hazard triangle onto the question
- * mark — tokens, the base actor, and the `public` records that seeded `img`
+ * mark - tokens, the base actor, and the `public` records that seeded `img`
  * before the icon changed. Only the exact old default moves: an image a GM
  * chose on purpose is a choice, not a leftover.
  *
@@ -624,22 +624,22 @@ async function adoptQuestionMark(actor) {
  * WHAT A REMNANT REALLY IS
  * --------------------------------------------------------------------------
  * Everything below the `isRemnant` marker used to live in flags on the token.
- * Foundry ships every token on a scene to every client — hidden or not, flags
- * and all — so a player's console could read all forty traces on the map with
+ * Foundry ships every token on a scene to every client - hidden or not, flags
+ * and all - so a player's console could read all forty traces on the map with
  * who left each one, whether it belonged to the murder, how hard it was to spot
  * and the GM's own sentence about it. Measured on a player client: forty tokens,
  * every field readable. That is the entire investigation, for free, and the GM
  * would never know it had happened.
  *
  * So the answer key moves to browser storage on GM clients and travels between
- * GMs on a recipient-addressed socket — the same shape `truth-bullets.mjs` uses,
+ * GMs on a recipient-addressed socket - the same shape `truth-bullets.mjs` uses,
  * for the same reason, and its header carries the longer argument.
  *
  * WHAT STAYS ON THE TOKEN is `isRemnant` and nothing else. A player can still
  * see that a hidden marker exists at a position, which is a real but much
  * smaller thing to know than what it is; keeping it is what lets every GM-side
  * query find its own tokens without a ledger lookup first. The name and the tint
- * are neutral for the same reason — both used to spell the answer out.
+ * are neutral for the same reason - both used to spell the answer out.
  * ========================================================================== */
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
@@ -648,7 +648,7 @@ const RM = { secret: "rm.secret", request: "rm.ledgerRequest", full: "rm.ledgerF
 /**
  * Ledger key. Token ids are only unique inside their own scene.
  * Exported for visibility.mjs, which needs the SAME shape to match a Truth
- * Bullet's public `remnantRef` flag against a token — see `applyToRemnantToken`.
+ * Bullet's public `remnantRef` flag against a token - see `applyToRemnantToken`.
  */
 export function keyOf(tokenDoc) {
     const scene = tokenDoc?.parent?.id ?? tokenDoc?.parent ?? null;
@@ -659,26 +659,26 @@ export function keyOf(tokenDoc) {
  * The parsed ledger, held between writes.
  *
  * MEASURED, E17: `game.settings.get` on this setting costs 0.858 ms in the QA
- * world — 685 entries, 174 KB. Client-scoped settings live in `localStorage` as
+ * world - 685 entries, 174 KB. Client-scoped settings live in `localStorage` as
  * a string, so every read re-parses the whole thing and then pays Foundry's own
  * validation on top of that; a world setting, which Foundry keeps as a live
  * object, answers the same question in 0.0025 ms.
  *
- * It is read once PER TOKEN. `cleanableRemnants` in the Dinner Hall — 33 traces
- * — took 27.4 ms of nothing but re-parsing, on the main thread, while
+ * It is read once PER TOKEN. `cleanableRemnants` in the Dinner Hall - 33 traces
+ * - took 27.4 ms of nothing but re-parsing, on the main thread, while
  * `remnantsInRoom` found those same 33 tokens in 0.011 ms. Exactly E11's square,
  * and worse in one respect: the ledger only ever gets longer, so this is a
  * season that gets slower every time somebody leaves a trace.
  *
  * Safe to hold because every write goes through `writeRemnantLedger`, which
- * drops it — including the merges arriving from another GM's socket. The three
+ * drops it - including the merges arriving from another GM's socket. The three
  * call sites that mutate the object in place all write immediately afterwards,
  * and a mutation that reaches the cache before the write is the value we want
  * to be reading anyway.
  */
 let ledgerCache = null;
 
-/** The ledger is stale — parse it again on the next read. */
+/** The ledger is stale - parse it again on the next read. */
 export function forgetRemnantLedger() {
     ledgerCache = null;
 }
@@ -719,7 +719,7 @@ async function writeRemnantLedger(ledger) {
  * the single-item drop writes one.
  *
  * Called after the reset has deleted the tokens themselves. An entry whose
- * token is gone is already unreachable — `remnantData` is looked up by token —
+ * token is gone is already unreachable - `remnantData` is looked up by token -
  * so this is about not carrying a dead season's answer key forward, not about
  * a wrong answer today.
  */
@@ -743,7 +743,7 @@ export async function clearRemnantLedger() {
  * The same write, addressed by ids rather than by a document.
  *
  * Observe resolves on the GM's client, which is very often looking at a
- * different scene from the one the trace is on — so `canvas.tokens.get` is not
+ * different scene from the one the trace is on - so `canvas.tokens.get` is not
  * available and the token has to be found through the scene it belongs to. The
  * two ids are what the pending-observe entry already carries.
  */
@@ -766,7 +766,7 @@ export async function setRemnantSecret(tokenDoc, patch = {}) {
 
     await writeRemnantLedger(ledger);
     pushRemnantSecret(key, entry);
-    // The trace on the map may have just learned which action it wears — see
+    // The trace on the map may have just learned which action it wears - see
     // `repaintRemnants`. Fire-and-forget: a repaint is cosmetic and must
     // never fail a ledger write.
     import("./remnant-icons.mjs").then(m => m.repaintRemnants()).catch(() => {});
@@ -797,20 +797,20 @@ export async function dropRemnantSecret(tokenDoc) {
  *
  * `public` is the one structure a player is ever shown anything from:
  * `{ name, img, playerText, tags }`. Every one of the three views below reads
- * ONLY from it — never from `type`, `note`, `tiedToCrime`, `pointsAt` or
+ * ONLY from it - never from `type`, `note`, `tiedToCrime`, `pointsAt` or
  * `sourceActor`, which stay answer-key fields for exactly the reason D6 (see
  * the header of this file) already gives.
  * ========================================================================== */
 
 function defaultPublic(entry) {
     return {
-        // `entry.label` is NOT a fallback here, on purpose — it is the GM's own
+        // `entry.label` is NOT a fallback here, on purpose - it is the GM's own
         // reading of the token, "Obvious Faint Prep Remnant · Player B ·
         // Search: Cleaning agent", built for the ledger and readable only by a
         // GM. `entry.described`, by contrast, is exactly what a GM has already
         // typed FOR a player on an earlier find, which is safe by construction.
         // A trace nobody has described yet gets the same neutral name the
-        // token already carries — no more information than "something is
+        // token already carries - no more information than "something is
         // here", which is all a hidden token has ever said.
         name: entry?.described?.name || game.i18n.localize("DRPG.Remnant.tokenName"),
         img: ICON,
@@ -820,7 +820,7 @@ function defaultPublic(entry) {
 }
 
 /**
- * Read what a player may eventually be shown about this trace. GM-side only —
+ * Read what a player may eventually be shown about this trace. GM-side only -
  * a player's client never holds the ledger this reads from (see `remnantData`).
  *
  * TWO TAGS ARE COMPUTED HERE RATHER THAN STORED IN `tags`, for the same
@@ -831,8 +831,8 @@ function defaultPublic(entry) {
  * pointing at the wrong place. Derived on read, they cannot disagree with the
  * ledger.
  *
- * The room tag is what replaces the Casebook's grouping. Grouping was a view —
- * it existed only inside that one window — whereas a tag is a property of the
+ * The room tag is what replaces the Casebook's grouping. Grouping was a view -
+ * it existed only inside that one window - whereas a tag is a property of the
  * object, so it travels automatically onto the token, into the Truth Bullet in
  * the player's pack, onto the evidence card in the trial and into the
  * Investigation dashboard. Same information, in every view at once, which is
@@ -863,7 +863,7 @@ export function remnantPublic(tokenDoc) {
  * Change what a player may eventually be shown, and push the change out to
  * every view that reads it.
  *
- * @param {object} patch  Any of `name`, `img`, `playerText`, `tags` — merged
+ * @param {object} patch  Any of `name`, `img`, `playerText`, `tags` - merged
  *   over what is already stored, so a caller changing one field does not have
  *   to resend the other three.
  */
@@ -885,8 +885,8 @@ export async function setRemnantPublic(tokenDoc, patch = {}) {
 /**
  * Token and Truth Bullets, brought into line with `public`.
  *
- * The token only moves once it is actually revealed — see the note on
- * `revealRemnantToFinder` — because writing a player-facing name onto a
+ * The token only moves once it is actually revealed - see the note on
+ * `revealRemnantToFinder` - because writing a player-facing name onto a
  * token that is still `hidden: true` would be the answer key leaking through
  * a field nobody thought to check.
  *
@@ -919,17 +919,17 @@ async function propagatePublic(tokenDoc, pub) {
  * as a Truth Bullet, so the object it came from is real now, not merely a
  * marker on the map.
  *
- * Only the FIRST copy reveals it — a second finder walks up to a token
+ * Only the FIRST copy reveals it - a second finder walks up to a token
  * already sitting there. Nothing happens if it is already revealed, so this
  * is safe to call on every copy without checking first.
  *
- * REVEALING BY UNSETTING `hidden`, never by forcing `token.visible` — Foundry
+ * REVEALING BY UNSETTING `hidden`, never by forcing `token.visible` - Foundry
  * recomputes `visible` from its own vision logic on every refresh (see the
  * note in visibility.mjs's `hide()`), so overwriting it directly is exactly
  * as unreliable there as it would be here. `hidden: false` is the one flag
  * Foundry actually owns and keeps honest across versions. Per-player secrecy
- * from here on is a DIFFERENT question — whether each individual player who
- * has NOT yet found this trace still sees it — and that is answered in
+ * from here on is a DIFFERENT question - whether each individual player who
+ * has NOT yet found this trace still sees it - and that is answered in
  * visibility.mjs, the same way the room rule already is: by forcing
  * `visible = false` back down on `refreshToken` for anyone who does not
  * qualify, not by keeping the token `hidden` for everyone.
@@ -945,7 +945,7 @@ export async function revealRemnantToFinder(tokenDoc) {
 }
 
 /**
- * By ids rather than a document — Observe resolves on the GM's client, which
+ * By ids rather than a document - Observe resolves on the GM's client, which
  * is very often looking at a scene other than the one the trace is on, the
  * same reason `setRemnantSecretById` exists.
  */
@@ -1009,7 +1009,7 @@ export function registerRemnantLedger() {
      * The cache is dropped by `writeRemnantLedger` on every write this module
      * makes. This covers the writes it does NOT make: the regression suite
      * putting the world back, and a GM editing the store by hand from the
-     * console. Belt and braces on purpose — a stale ledger would show a trace
+     * console. Belt and braces on purpose - a stale ledger would show a trace
      * that is no longer there, which is the one kind of wrong answer this file
      * must never give.
      *
@@ -1041,7 +1041,7 @@ export function registerRemnantLedger() {
 
     // Asked immediately, NOT from a `ready` hook. This function is itself called
     // from `ready` in module.mjs, and a `Hooks.once("ready")` registered inside a
-    // ready handler never fires — the hook has already run. Same trap the
+    // ready handler never fires - the hook has already run. Same trap the
     // page-tinting warning fell into.
     if (!game.user.isGM) return;
     const recipients = gmIds().filter(id => id !== game.user.id);
@@ -1056,7 +1056,7 @@ export function registerRemnantLedger() {
 export function remnantData(tokenDoc) {
     if (!tokenDoc?.getFlag?.(MODULE_ID, REMNANT_FLAGS.isRemnant)) return null;
 
-    // `{}` for anyone who is not a GM — not an error, the honest answer to
+    // `{}` for anyone who is not a GM - not an error, the honest answer to
     // "what do you know about this". A player's client holds the token; it has
     // never held what the token means, and `null` here is what enforces that.
     if (!game.user.isGM) return null;
@@ -1096,7 +1096,7 @@ export function remnantData(tokenDoc) {
         // them during an incident.
         updated: entry.updated ?? null,
         hidden: tokenDoc.hidden,
-        // What a player is shown, or would be once they find it — see
+        // What a player is shown, or would be once they find it - see
         // `remnantPublic`. Included here so a GM screen reading `remnantData`
         // does not have to make a second pass over the ledger for it.
         public: remnantPublic(tokenDoc)
@@ -1107,19 +1107,19 @@ export function remnantData(tokenDoc) {
  * One line of context about a trace: who left it, where, when and doing what.
  *
  * Every one of these facts is already in `remnantData()`, and until now each
- * screen decided for itself which subset of them to render — the dashboard's
+ * screen decided for itself which subset of them to render - the dashboard's
  * Key Remnant row showed the scale and the note, the planner's "on the map"
  * picker showed the visibility and the room, and a GM planning the fifth clue
  * had to open the card on the map to find out who had left the other four.
  * They are the same six facts everywhere now, in the same order, formatted
  * once here.
  *
- * Empty fields are DROPPED rather than dashed. A row of "— · — · Ch 2" reads
+ * Empty fields are DROPPED rather than dashed. A row of "- · - · Ch 2" reads
  * as missing data; a shorter line reads as a trace that simply has no source,
  * which is what a GM-placed clue is.
  *
  * @param {object} data  A `remnantData()` record.
- * @returns {string}  Plain text, unescaped — the caller escapes it.
+ * @returns {string}  Plain text, unescaped - the caller escapes it.
  */
 export function traceContextLine(data) {
     if (!data) return "";
@@ -1139,7 +1139,7 @@ export function traceContextLine(data) {
  * GM-readable summary of every Remnant.
  *
  * Every scene by default, matching `clearFaintRemnants`: the two were reading
- * from different worlds — the sweep already covered every scene, so a GM
+ * from different worlds - the sweep already covered every scene, so a GM
  * checking this report first could be told "None" while Remnants the very next
  * chapter-end sweep was about to delete sat untouched on a scene the report
  * never looked at. Pass an explicit `scene` to scope it to one, same as before.
@@ -1153,8 +1153,8 @@ export async function reportRemnants(scene = null) {
         <tr>
             <td>${foundry.utils.escapeHTML(r.visibilityLabel)} ${foundry.utils.escapeHTML(r.typeLabel)}${r.faint ? ` ${game.i18n.localize("DRPG.Remnant.report.faintTag")}` : ""}${r.reinforced ? " ★" : ""}</td>
             ${multi ? `<td>${foundry.utils.escapeHTML(s.name)}</td>` : ""}
-            <td>${foundry.utils.escapeHTML(r.room ?? "—")}</td>
-            <td>${foundry.utils.escapeHTML(r.sourceName ?? "—")}<br><small>${foundry.utils.escapeHTML(r.action ?? "")}${r.subject ? `: ${foundry.utils.escapeHTML(r.subject)}` : ""}</small></td>
+            <td>${foundry.utils.escapeHTML(r.room ?? "-")}</td>
+            <td>${foundry.utils.escapeHTML(r.sourceName ?? "-")}<br><small>${foundry.utils.escapeHTML(r.action ?? "")}${r.subject ? `: ${foundry.utils.escapeHTML(r.subject)}` : ""}</small></td>
             <td>${game.i18n.format("DRPG.Remnant.report.stamp", {
                 chapter: r.chapter ?? "?", day: r.day ?? "?"
             })}<br><small>${foundry.utils.escapeHTML(r.timeOfDay ?? "")}</small></td>
@@ -1166,8 +1166,8 @@ export async function reportRemnants(scene = null) {
     const { whisperToGms } = await import("./utils.mjs");
     // The headings used to be typed into this template in English, which put
     // them outside i18n and outside every measurement made of the rest of the
-    // module's text. Four of the five columns already had a key — the Remnant
-    // card asks the same questions of the same record — so they are reused
+    // module's text. Four of the five columns already had a key - the Remnant
+    // card asks the same questions of the same record - so they are reused
     // rather than written twice.
     const t = key => game.i18n.localize(key);
     const heading = `<h3>${t("DRPG.Remnant.report.heading")}</h3>`;
@@ -1190,14 +1190,14 @@ export async function reportRemnants(scene = null) {
  * GM: EDITING WHAT A REMNANT IS
  * --------------------------------------------------------------------------
  * Three flags decide whether a trace is still on the map when the chapter ends,
- * and until now all three could only be chosen at the moment it was created —
+ * and until now all three could only be chosen at the moment it was created -
  * which is exactly the wrong moment. Whether a Remnant turns out to be tied to
  * the crime is usually only clear once the murder has happened, several times of
  * day after the Search that dropped it.
  *
  * So the GM can change their mind here:
  *   Faint          wiped at chapter end (guide: "doubtful connection to the case")
- *   Tied to crime  the guide's exception to that sweep — survives it
+ *   Tied to crime  the guide's exception to that sweep - survives it
  *   Reinforced     the killer cannot remove it at all
  * ========================================================================== */
 
@@ -1207,8 +1207,8 @@ export async function reportRemnants(scene = null) {
  *
  * CASE ONE OF FOUR, and the only one nobody can answer when it happens: a
  * Search turns up a hammer, and whether that hammer is evidence depends on
- * something that has not occurred yet. Deciding it at the time — which the
- * module used to do, by asking whether the hammer was filed under crime gear —
+ * something that has not occurred yet. Deciding it at the time - which the
+ * module used to do, by asking whether the hammer was filed under crime gear -
  * ties the wrong traces and misses the right ones. A cereal bar used to smother
  * somebody is evidence; a penknife nobody touched again is not.
  *
@@ -1216,7 +1216,7 @@ export async function reportRemnants(scene = null) {
  * is swung. `drpgItemId` is what makes that possible: it survives the object
  * changing hands, which is exactly the journey a murder weapon takes.
  *
- * Every trace that handed the object over is tied, not just the first — an
+ * Every trace that handed the object over is tied, not just the first - an
  * object can be found, lost and found again, and each of those is a place the
  * investigation can pick the thread up.
  *
@@ -1254,12 +1254,12 @@ export async function setRemnantFlags(tokenDoc, { faint = null, tiedToCrime = nu
     if (!Object.keys(patch).length) return null;
 
     // Into the ledger, not onto the token. `tiedToCrime` in particular is the
-    // single most valuable bit in the game — it is the difference between a
-    // trace from the murder and a trace from somebody's laundry — and it used to
+    // single most valuable bit in the game - it is the difference between a
+    // trace from the murder and a trace from somebody's laundry - and it used to
     // be a flag every client could read.
     await setRemnantSecret(tokenDoc, patch);
 
-    // A changed verdict follows the copies already in players' packs — the
+    // A changed verdict follows the copies already in players' packs - the
     // murder-first sort reads it off the bullets, and only identified ones
     // learn it. See `propagateCrimeTie` for the two halves of that rule.
     if (patch.tiedToCrime !== undefined) {
@@ -1276,7 +1276,7 @@ export async function setRemnantFlags(tokenDoc, { faint = null, tiedToCrime = nu
 /**
  * The victim is dead, so the chapter's traces are presumed part of the case.
  *
- * Dawid (26.08): the moment a murder's VICTIM actually dies — and only then —
+ * Dawid (26.08): the moment a murder's VICTIM actually dies - and only then -
  * every trace stamped with the current chapter gets "Tied to crime" checked,
  * so the Investigation Dashboard opens with the presumption already in place
  * and the GM unticks the laundry instead of hunting for the murder. Called
@@ -1285,8 +1285,8 @@ export async function setRemnantFlags(tokenDoc, { faint = null, tiedToCrime = nu
  * ruling changes nothing.
  *
  * Only traces that are NOT yet tied move, so nothing is re-announced for the
- * incident's own drops (already tied at placement), and running twice — two
- * bodies in a betrayal chapter — only picks up what appeared in between.
+ * incident's own drops (already tied at placement), and running twice - two
+ * bodies in a betrayal chapter - only picks up what appeared in between.
  * `setRemnantFlags` is the write, so the verdict propagates onto copied
  * bullets exactly as a hand-ticked box would.
  *
@@ -1368,7 +1368,7 @@ export async function confirmClearFaint() {
  * does.
  *
  * G-20 added `type`: a critical clean-up may relabel a trace rather than erase
- * it. Same write, same guard, one more field — the alternative was a second
+ * it. Same write, same guard, one more field - the alternative was a second
  * function that also edited a placed Remnant, and two of those would have
  * drifted the first time one of them learned something.
  *
@@ -1405,7 +1405,7 @@ export async function retuneRemnant(sceneId, tokenId,
     if (!visibility && !type && tiedToCrime === null) return null;
 
     // The band is carried in the flag and echoed in the token's name, which is
-    // what the GM actually reads on the map — so both have to move together.
+    // what the GM actually reads on the map - so both have to move together.
     const current = remnantData(token);
     const label = String(token.name ?? "");
     const oldLabel = REMNANT_VISIBILITY_LABELS[current?.visibility] ?? current?.visibility ?? "";
@@ -1417,10 +1417,10 @@ export async function retuneRemnant(sceneId, tokenId,
             : label
     });
     // The band is a ledger field now, so the name and the meaning are written
-    // in two places rather than one — the name is what the GM reads on the map,
+    // in two places rather than one - the name is what the GM reads on the map,
     // the ledger is what Observe scores against.
     /*
-     * The ledger, not the token. What a trace IS lives in the GM-side record —
+     * The ledger, not the token. What a trace IS lives in the GM-side record -
      * the token carries a generic name on purpose (see `placeRemnant`), because
      * a token's name travels to every client. So this is the one write that
      * matters, and it is also why the rename above is a no-op on anything
@@ -1433,7 +1433,7 @@ export async function retuneRemnant(sceneId, tokenId,
     /*
      * THE TIE (D2), AND IT IS DELIBERATELY NOT ON THE BRIDGE'S ALLOW-LIST.
      *
-     * A killer who reshapes a trace ties it to their crime — `resolveCleanup`
+     * A killer who reshapes a trace ties it to their crime - `resolveCleanup`
      * decides that, GM-side, and passes it here. Which is why the narrowing in
      * `gm-bridge.mjs` reads `visibility` and `type` by name and drops the rest:
      * a player able to send this field could untie their own Incident Remnant
@@ -1442,7 +1442,7 @@ export async function retuneRemnant(sceneId, tokenId,
      * inside.
      *
      * `=== null` rather than falsy: the caller must be able to say "leave it
-     * alone", and today nothing says "untie" — but a field that cannot express
+     * alone", and today nothing says "untie" - but a field that cannot express
      * false is a field somebody will work around later.
      */
     if (tiedToCrime !== null) secret.tiedToCrime = Boolean(tiedToCrime);
@@ -1456,10 +1456,10 @@ export async function retuneRemnant(sceneId, tokenId,
  * Two rules from the guide, applied in this order:
  *
  *   "DM zawsze w pierwszej kolejności pokazuje Remnants związane z zabójstwem"
- *      — anything tied to the crime outranks everything else, whichever end of
+ *      - anything tied to the crime outranks everything else, whichever end of
  *        the difficulty scale the player asked for.
  *   "Najłatwiejszy / najtrudniejszy remnant w pokoju"
- *      — within a group, order by the actual Observe DC rather than by
+ *      - within a group, order by the actual Observe DC rather than by
  *        visibility alone. A Hidden Key Remnant (15) really is easier to find
  *        than a Subtle Prep one (15 as well) is to beat by luck, and an Obvious
  *        Faint (12) is harder than an Obvious Key (6) despite being "obvious".
@@ -1470,7 +1470,7 @@ export async function retuneRemnant(sceneId, tokenId,
  *
  * @param {object} [options]
  * @param {string} [options.preferSource]  An actor id. "Follow my traces"
- *   asks for the observer's OWN traces first — see action-rolls.mjs — which
+ *   asks for the observer's OWN traces first - see action-rolls.mjs - which
  *   outranks even `tiedToCrime`: a player looking for what they themselves
  *   left behind is not asking the guide's "show me the murder first"
  *   question, and this shelf is what answers theirs instead.
@@ -1505,18 +1505,18 @@ export function rankForObserve(room, scene = workingScene(), { preferSource = nu
  *
  * Run once per GM browser, because the ledger is per-browser: the first GM to
  * run it strips the tokens, and the others pick the entries up over the socket.
- * Safe to run twice — a token whose flags are already gone is skipped rather
+ * Safe to run twice - a token whose flags are already gone is skipped rather
  * than overwritten with blanks, which is the mistake that would erase a case.
  *
  * THE DELTA IS PART OF THE TOKEN, and it was the half this migration missed.
  * A Remnant token is unlinked, so it carries an ActorDelta, and the old
- * placement path left the whole label there as the delta's actor NAME —
+ * placement path left the whole label there as the delta's actor NAME -
  * "Evident Prep Remnant · Player A · Cleanup: Player B", readable from any
  * player's console as `token.delta.name` on every legacy trace, while
  * `token.name` said a perfectly safe "Trace" over it. Measured on a live
  * world: 39 of 41. The flags-stripping pass above never touched it, and a
  * token whose flags were stripped in an earlier release lands in the
- * `already` branch — so the delta is neutralised in BOTH branches, or the
+ * `already` branch - so the delta is neutralised in BOTH branches, or the
  * worlds that migrated early would be exactly the ones that stay leaking.
  */
 export async function migrateRemnants() {
@@ -1582,16 +1582,16 @@ export async function migrateRemnants() {
 }
 
 /**
- * Take the answer key out of one token's ActorDelta name — see the note on
+ * Take the answer key out of one token's ActorDelta name - see the note on
  * `migrateRemnants`. Idempotent: a delta already showing the safe name, or
  * carrying no name override at all, costs one comparison and no write.
  *
- * Written through `token.actor` — the synthetic actor the delta backs, which
- * is the documented route for editing an unlinked token's actor data — with
+ * Written through `token.actor` - the synthetic actor the delta backs, which
+ * is the documented route for editing an unlinked token's actor data - with
  * the delta document itself as the fallback for a token whose base actor has
  * gone missing.
  *
- * @returns {Promise<number>} 1 if a name was neutralised, 0 otherwise —
+ * @returns {Promise<number>} 1 if a name was neutralised, 0 otherwise -
  *   summed by the caller into the summary line.
  */
 async function neutraliseDeltaName(token) {
@@ -1607,12 +1607,12 @@ async function neutraliseDeltaName(token) {
 
 /**
  * Backfill `public` on a ledger entry that predates it, from `described` and
- * `label` — the two fields that already carried a player-facing name and
+ * `label` - the two fields that already carried a player-facing name and
  * sentence before `public` existed. Idempotent: an entry that already has a
  * `public` is left alone, so this is safe to run over every Remnant on every
  * migration pass rather than only the ones this run happens to touch.
  *
- * @returns {Promise<number>} 1 if a record was seeded, 0 otherwise — summed
+ * @returns {Promise<number>} 1 if a record was seeded, 0 otherwise - summed
  *   by the caller into a single count for the summary line.
  */
 async function seedPublicIfMissing(tokenDoc) {
@@ -1658,7 +1658,7 @@ export async function revealRemnant(tokenDoc) {
     return tokenDoc.update({ hidden: false });
 }
 
-/** Remove one — the killer wiped it clean. */
+/** Remove one - the killer wiped it clean. */
 export async function removeRemnant(tokenDoc) {
     if (!game.user.isGM || !tokenDoc) return null;
     // The ledger row goes with it. Left behind, the ledger grows for the life of

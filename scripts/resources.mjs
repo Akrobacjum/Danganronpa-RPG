@@ -1,11 +1,11 @@
 /**
- * Danganronpa RPG — the Actions resource.
+ * Danganronpa RPG - the Actions resource.
  * ---------------------------------------------------------------------------
  * Guide: "Each player has 2 actions per time of day by default."
  *
  * Daggerheart keeps per-actor-type resources in CONFIG.DH.RESOURCE and rebuilds
  * that table as `{...homebrewResources, ...custom, ...base}` whenever homebrew
- * settings change. `custom` is the slot the system reserves for modules — a
+ * settings change. `custom` is the slot the system reserves for modules - a
  * resource registered there survives every rebuild, gets schema validation on
  * `system.resources.actions`, and can be spent by item action costs later.
  *
@@ -21,7 +21,7 @@ export const ACTIONS_DEFINITION = Object.freeze({
     id: ACTIONS_RESOURCE,
     initial: STARTING.actions,
     max: STARTING.actions,
-    // Counts down as actions are spent, like Hope — not up like damage.
+    // Counts down as actions are spent, like Hope - not up like damage.
     reverse: false,
     label: "DRPG.Actions.label",
     images: {
@@ -46,7 +46,7 @@ export function registerActionResource() {
 
     // Both tables are read optionally above but were written unconditionally,
     // so a system version that has not built one of them yet turned a missing
-    // table into a TypeError — and the whole action economy vanished with it.
+    // table into a TypeError - and the whole action economy vanished with it.
     if (!config.custom || !config.all) {
         warn("Daggerheart's resource tables are not built yet; the Actions resource was not registered.");
         return false;

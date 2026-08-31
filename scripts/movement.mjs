@@ -1,11 +1,11 @@
 /**
- * Danganronpa RPG — movement between rooms.
+ * Danganronpa RPG - movement between rooms.
  * ---------------------------------------------------------------------------
  * Guide: "The player gets one free move per time of day. Each further one
  * spends an action. A move takes the player to a room directly connected to
  * the one they are in."
  *
- * Moving *within* a room is not a move at all — repositioning next to someone
+ * Moving *within* a room is not a move at all - repositioning next to someone
  * to talk costs nothing. What costs is crossing from one room into another, so
  * the charge is applied when a token's Scene Region changes, not when it is
  * dragged. Players simply drag their token; the economy follows.
@@ -22,7 +22,7 @@ import { hasFreeMove, takeMove, actionsLeft, canPayFor, freeMovesLeft } from "./
 // `preUpdateToken` hook, where there is no opportunity to await an import.
 // call-effects.mjs only reaches back into this file lazily, so there is no cycle.
 import { isSealed, isChained } from "./call-effects.mjs";
-// `iAmTheMastermind` comes from settings.mjs — a leaf — for the same reason:
+// `iAmTheMastermind` comes from settings.mjs - a leaf - for the same reason:
 // the veto is synchronous, so it has to be a static import. It used to come
 // from mastermind.mjs, and that one edge was what closed every static import
 // cycle in the module; see the note above the function.
@@ -32,7 +32,7 @@ import { playSfx } from "./sfx.mjs";
 
 /**
  * Region flags this file owns. Named like `VAULT_FLAGS`/`REST_FLAGS` in
- * vault.mjs, which reads this one to draw Room Setup's own "Locked" column —
+ * vault.mjs, which reads this one to draw Room Setup's own "Locked" column -
  * the enforcement lives here, the flag is set from there.
  */
 export const ROOM_FLAGS = {
@@ -48,7 +48,7 @@ export const ROOM_FLAGS = {
      * lock itself is a flag on the region and travels with the scene. Keeping
      * the opening layout anywhere but here would mean copying a map into a new
      * world carried the locks but not the state they are supposed to return
-     * to — which is the kind of split that surfaces two months later.
+     * to - which is the kind of split that surfaces two months later.
      */
     lockedAtStart: "drpgLockedAtStart"
 };
@@ -64,7 +64,7 @@ export function registerMovement() {
     // "where were you" cache is per-client, so whoever was not doing the
     // dragging had a stale idea of the previous room, and the revert had to
     // race the update that triggered it. Returning false here simply stops the
-    // move — nothing to undo, nothing to get out of step.
+    // move - nothing to undo, nothing to get out of step.
     Hooks.on("preUpdateToken", onPreUpdateToken);
     Hooks.on("updateToken", onUpdateToken);
     Hooks.on("canvasReady", primeRoomCache);
@@ -93,7 +93,7 @@ function onPreUpdateToken(tokenDoc, changes, options) {
         // room to another", and every path through it returns early on a move
         // inside a single room. A corpse being nudged three squares across the
         // floor it died on is not a crossing, and it is exactly the move that
-        // ruins a crime scene — the body is evidence, and where it is lying is
+        // ruins a crime scene - the body is evidence, and where it is lying is
         // most of what it says.
         //
         // The GM is above this line on purpose. Moving the body is a legitimate
@@ -103,7 +103,7 @@ function onPreUpdateToken(tokenDoc, changes, options) {
         // A Monocub is exempt because a Monocub is not a corpse: it is a dead
         // student who joined the GM side and is walking around as one. They
         // carry `deceased` for the rules that count the living, and `monocub`
-        // for everything about being a person on the map — the same pair the
+        // for everything about being a person on the map - the same pair the
         // sheet's own action panels test.
         if (isCorpse(actor)) {
             ui.notifications.warn(game.i18n.localize("DRPG.Move.dead"));
@@ -131,7 +131,7 @@ function onPreUpdateToken(tokenDoc, changes, options) {
 }
 
 /**
- * Dead, and not a Monocub — so this token is a body rather than a person.
+ * Dead, and not a Monocub - so this token is a body rather than a person.
  *
  * Read straight off the two flags rather than through `chapter.mjs` and
  * `monocub.mjs`: this runs inside the synchronous `preUpdateToken` veto, where
@@ -153,8 +153,8 @@ function isCorpse(actor) {
  *
  * WHAT THE "CROSSING ROOMS COSTS A MOVE" SETTING DOES AND DOES NOT TURN OFF.
  * The whole of this function used to sit behind that one setting, so a GM who
- * switched it off — its hint says "turn off to handle movement by hand", which
- * plainly means the COST — also silently switched off three rules that have
+ * switched it off - its hint says "turn off to handle movement by hand", which
+ * plainly means the COST - also silently switched off three rules that have
  * nothing to do with cost and their own separate UI:
  *
  *   · a sealed room, and the Despair Call that chained somebody to one. A
@@ -165,7 +165,7 @@ function isCorpse(actor) {
  *     the GM had deliberately started.
  *
  * So the absolute rules are checked first and always. Only the economy below
- * them — the free Move, then an action — answers to that setting, along with
+ * them - the free Move, then an action - answers to that setting, along with
  * ordinary-play adjacency, which is the same "handled by hand" bargain.
  *
  * @returns {true|string} true, or the reason it is refused.
@@ -177,7 +177,7 @@ function canCross(actor, from, to) {
     // You are in a murder. You do not walk out of it.
     //
     // The incident is a turn-based exchange in one room, and the only ways out
-    // of it are the ones the guide writes as crisis actions — Survive, Escape
+    // of it are the ones the guide writes as crisis actions - Survive, Escape
     // together, a Finishing blow. Dragging the token across the map is not one
     // of them, and doing it left the engine running an incident between two
     // people standing in different rooms.
@@ -194,7 +194,7 @@ function canCross(actor, from, to) {
 
     // A Morning or Night Eclipse places freely: any room, no budget, no
     // adjacency. Derived from the clock here rather than imported from
-    // eclipse.mjs, which imports this file — the same reason the eclipse flag
+    // eclipse.mjs, which imports this file - the same reason the eclipse flag
     // above is read straight off the setting.
     const index = TIMES_OF_DAY.indexOf(clock?.timeOfDay);
     const incoming = TIMES_OF_DAY[(index < 0 ? 0 : index + 1) % TIMES_OF_DAY.length];
@@ -203,7 +203,7 @@ function canCross(actor, from, to) {
     if (eclipse) {
         // A free-placement Eclipse skips both limits but must STILL return here.
         // Falling through would drop the crossing into the movement economy
-        // below and charge it a free Move or an action — and an Eclipse crossing
+        // below and charge it a free Move or an action - and an Eclipse crossing
         // has never cost either.
         if (!freePlacement) {
             const used = game.settings.get(MODULE_ID, SETTINGS.eclipseMoves)?.[actor.id] ?? 0;
@@ -230,21 +230,21 @@ function canCross(actor, from, to) {
 
     // Guide: "A move takes the player to a room directly connected to the one
     // they are in." Only the Eclipse used to check this, so during an ordinary
-    // time of day a token could be dragged clean across the map for one Move —
+    // time of day a token could be dragged clean across the map for one Move -
     // which makes Listen, room visibility and any alibi meaningless.
     const notConnected = crossingRefused(from, to);
     if (notConnected) return notConnected;
 
     /*
      * THE THIRD PLACE THAT ASKS "CAN YOU AFFORD THIS", and the only one that
-     * can stop a crossing before anything else in the module sees it — this
+     * can stop a crossing before anything else in the module sees it - this
      * runs in `preUpdateToken` and simply refuses the update.
      *
      * MEASURED, on the player's own client, which is the only place it fires:
      * with a Sprint banked and no actions, the token snapped straight back and
      * the warning read "No free Move and no actions left." Three Hope for a
      * crossing that never happened, and neither `chargeForCrossing` nor
-     * `takeMove` — both of which know about Sprints — was ever reached.
+     * `takeMove` - both of which know about Sprints - was ever reached.
      *
      * A GM's move never comes through here at all (see the `isGM` exemption
      * above), which is exactly why this had to be tested from the other seat.
@@ -258,7 +258,7 @@ function canCross(actor, from, to) {
 /**
  * Is the destination reachable from where you stand?
  *
- * Silent when adjacency cannot be established — `neighbouringRooms` already
+ * Silent when adjacency cannot be established - `neighbouringRooms` already
  * treats a room it cannot measure the geometry of as reachable, and a map the
  * module cannot read must not become a map nobody can walk across. Leaving the
  * rooms entirely, or arriving from outside them, is likewise not a crossing
@@ -282,31 +282,31 @@ function crossingRefused(from, to) {
  *
  * Read straight off the world setting rather than through `murder.mjs`: this
  * runs inside a synchronous `preUpdateToken` veto, where there is no chance to
- * await an import. The shape is `murderState()`'s own — `active`, and the three
+ * await an import. The shape is `murderState()`'s own - `active`, and the three
  * participant ids.
  *
  * THE THIRD PARTY IS INCLUDED NOW (D19, Dawid 29.08): "uczestnicy morderstwa
  * nie moga opuscic pokoju do konca incydentu chyba, ze uzyja akcji ktora na to
  * pozwala". They were exempt, on the reading that the guide's "Odwrócony wzrok"
- * — "strona trzecia opuszcza pomieszczenie i nie interweniuje" — is stopped by
+ * - "strona trzecia opuszcza pomieszczenie i nie interweniuje" - is stopped by
  * the price of the move rather than by a wall: "koszt ruchu z dużym
  * prawdopodobieństwem mu to uniemożliwi".
  *
  * What that missed is that Averted eyes IS the action Dawid's rule points at,
  * and leaving the door open meant nobody ever had to take it. A third party
  * could walk in on a murder, see everything, and drag their token back out for
- * the price of an ordinary move — keeping the free look and skipping the action
+ * the price of an ordinary move - keeping the free look and skipping the action
  * whose entire content is "you leave and you take no part in this".
  *
  * So the lock is now the same for all three, and the way out is the same for
  * all three: a crisis action. `avertedEyes` carries `leavesIncident`, which
- * nulls `thirdId` — and the moment it does, this function stops holding them.
+ * nulls `thirdId` - and the moment it does, this function stops holding them.
  *
  * A GM's own move is above this check entirely (`preUpdateToken` returns early
  * for a GM), so a crisis action that relocates somebody GM-side is unaffected.
  *
  * Only while the incident itself is running. Stage 4 is still the killer
- * deciding, and Stage 6 is the clean-up — the guide has the killer moving around
+ * deciding, and Stage 6 is the clean-up - the guide has the killer moving around
  * the scene for that one.
  *
  * @returns {false|string} false when free to move, otherwise the reason.
@@ -329,16 +329,16 @@ function lockedInIncident(actor) {
 }
 
 /**
- * Is a Despair Call — or a GM's own lock — standing in the way?
+ * Is a Despair Call - or a GM's own lock - standing in the way?
  *
  * The sealed-room checks were previously bookkeeping: "Behind Closed Doors"
  * wrote the room name into a world setting, announced it, and nothing ever
  * read it back, so a sealed room was a sentence in chat that players walked
  * straight through. `drpgLocked` is the same category of rule from a
- * different source — a GM's own Room Setup, not a Despair Call — and gets the
+ * different source - a GM's own Room Setup, not a Despair Call - and gets the
  * same absolute treatment: no number of actions buys past a locked door.
  *
- * The Mastermind is the one exception, and only for THIS category — doors
+ * The Mastermind is the one exception, and only for THIS category - doors
  * their own side locked, and Despair Call seals, are doors they hold the key
  * to. `isChained` is untouched: that Despair Call targets a specific person,
  * not a door, and it stays absolute for everyone it is cast on.
@@ -352,7 +352,7 @@ function restrictedFrom(actor, to) {
             if (isLocked(to)) return game.i18n.localize("DRPG.Move.locked");
             if (isSealed(to)) return game.i18n.format("DRPG.Calls.sealedBlocked", { room: to });
             // Somebody's bedroom. The owner walks in; anybody else needs the
-            // key they were given — see the note on keys in vault.mjs. A GM
+            // key they were given - see the note on keys in vault.mjs. A GM
             // moving a token is not standing in the fiction and is never
             // stopped by a door.
             if (!game.user.isGM && bedroomShut(actor, to)) {
@@ -369,7 +369,7 @@ function restrictedFrom(actor, to) {
  * Has a GM locked this room shut, from Room Setup?
  *
  * Reads the flag straight off the room's own Region on the scene actually
- * being dragged on — the same `canvas?.scene` assumption every other room
+ * being dragged on - the same `canvas?.scene` assumption every other room
  * function in this file makes for the synchronous veto path (see `roomAt`,
  * `neighbouringRooms`): the crossing being judged is always happening on
  * whatever scene the dragging client has open.
@@ -385,7 +385,7 @@ function isLocked(room) {
 /**
  * Is this somebody else's bedroom, and are they carrying no key to it?
  *
- * Read straight off the two documents rather than through vault.mjs — that file
+ * Read straight off the two documents rather than through vault.mjs - that file
  * already reaches into this one, and this veto runs inside a synchronous
  * `preUpdateToken` where a dynamic import is not an option. Both flag names
  * come from config.mjs so the two readers cannot drift apart.
@@ -410,7 +410,7 @@ function roomAt(x, y, tokenDoc) {
     const scene = tokenDoc?.parent ?? canvas?.scene;
     if (!scene?.regions?.size) return null;
 
-    // Test the token's centre, not its corner — measured with THAT SCENE's grid.
+    // Test the token's centre, not its corner - measured with THAT SCENE's grid.
     //
     // `canvas.grid.size` is the grid of the scene currently on screen, and this
     // function is asked about tokens on other scenes all the time now: the voice
@@ -418,18 +418,18 @@ function roomAt(x, y, tokenDoc) {
     // a GM's client that is usually looking elsewhere, and Stage 6 lists the
     // traces in a room the GM may not have open. A 200px-grid scene measured
     // with a 100px canvas puts the "centre" of a 2×2 token half a square off,
-    // which is enough to read as the wrong room — or none at all — right at the
+    // which is enough to read as the wrong room - or none at all - right at the
     // edges where rooms actually meet.
     //
     // The hit test itself has the same cross-scene problem, twice over, and both
-    // halves of it used to fail SILENTLY — which is why this whole function
+    // halves of it used to fail SILENTLY - which is why this whole function
     // answered "no room at all" for every token on a scene nobody was looking at,
     // and every caller that depends on it (Observe, Stage 6, voice, `sameRoom`)
     // quietly saw an empty map.
     //
     //   1. `region.object` is the rendered PLACEABLE. It exists only for the
     //      scene currently on the canvas, and `Region#testPoint` on it has been
-    //      deprecated since v13 and is removed in v15 — so on the scene where it
+    //      deprecated since v13 and is removed in v15 - so on the scene where it
     //      did work, it worked by logging a deprecation warning, and in a world
     //      with `CONFIG.compatibility.mode = ERROR` it threw.
     //   2. `RegionDocument#testPoint` is the real API, but a Region is a
@@ -441,7 +441,7 @@ function roomAt(x, y, tokenDoc) {
     //
     // False is not nullish, so the old `??` chain never reached the geometric
     // fallback either: a truthful "outside" and "I cannot answer" were being
-    // treated as the same thing. The chain below distinguishes them explicitly —
+    // treated as the same thing. The chain below distinguishes them explicitly -
     // the bounding box is for a region that cannot be ASKED, not for one that
     // answered no.
     const regions = regionsAt(scene, x, y, tokenDoc);
@@ -449,12 +449,12 @@ function roomAt(x, y, tokenDoc) {
 }
 
 /**
- * Every named Region a point falls inside — the plural version of `roomAt`,
+ * Every named Region a point falls inside - the plural version of `roomAt`,
  * for the one caller that needs ALL of them rather than the alphabetically-
  * first name: a token standing where two rooms overlap is in both at once,
  * and vision restriction (see `visibility.mjs`'s `clipVisionToRoom`) has to
  * clip to their union, not silently pick one. Shares every edge case `roomAt`
- * already worked out — grid size, elevation, the `testPoint` fallback chain —
+ * already worked out - grid size, elevation, the `testPoint` fallback chain -
  * rather than risking the two drifting apart.
  */
 export function regionsAt(scene, x, y, tokenDoc) {
@@ -483,8 +483,8 @@ export function regionsAt(scene, x, y, tokenDoc) {
     // One region answering "outside" is an answer. All of them answering
     // "outside" for a point that is visibly inside a room is the failure this
     // function has already been repaired for twice, in a third shape: whatever
-    // `testPoint` is checking this build — an elevation band, a polygon that
-    // carries holes where two rooms share a wall (see the v14 canvas notes) —
+    // `testPoint` is checking this build - an elevation band, a polygon that
+    // carries holes where two rooms share a wall (see the v14 canvas notes) -
     // is rejecting the point before the geometry is ever consulted. It fails
     // SCENE-WIDE, not per token, so the symptom is not "one character is in the
     // wrong room" but "nobody is in any room", and everything downstream goes
@@ -549,7 +549,7 @@ async function onUpdateToken(tokenDoc, changes, options, userId) {
         // A GM moved it: always free, never reverted.
         //
         // Without this, a token whose owner is offline falls through to
-        // "the primary GM pays" below — so a GM tidying the map was charged for
+        // "the primary GM pays" below - so a GM tidying the map was charged for
         // it and had the token teleported back. It only showed on absent
         // players' tokens, which is why one character misbehaved and another
         // did not.
@@ -562,31 +562,31 @@ async function onUpdateToken(tokenDoc, changes, options, userId) {
         // Only position changes can cross a boundary.
         if (changes.x === undefined && changes.y === undefined && changes.elevation === undefined) return;
 
-        /* ONE CHARGE PER CROSSING — AND EVERY CROSSING ALONG THE WAY.
+        /* ONE CHARGE PER CROSSING - AND EVERY CROSSING ALONG THE WAY.
            -------------------------------------------------------------------
            Foundry v14 delivers a move as a SERIES of updates along the token's
-           path — the core says as much, deprecating `updateToken` for movement
+           path - the core says as much, deprecating `updateToken` for movement
            in favour of `moveToken` / `_onUpdateMovement` since v13. Every one of
            those intermediate updates carries new x/y, so charging on each of
            them told the player "that cost an action" two, three, four times for
            one drag. Waiting for the last update fixed that and introduced
            B-F2-1: the settlement then compared only the ENDS of the operation,
            so a route out through a neighbour and back again cost nothing at all
-           — a free look into the next room — and a two-room route cost one Move
+           - a free look into the next room - and a two-room route cost one Move
            instead of two.
 
            Both are answered by remembering the rooms the token passes through
            and settling the whole path at the end: still one settlement per
            drag, but the price is what the route actually cost. The veto in
            `onPreUpdateToken` already works per segment (it is not gated here),
-           so adjacency and locks were never fooled by a multi-waypoint route —
+           so adjacency and locks were never fooled by a multi-waypoint route -
            only the price was. */
         if (tokenDoc.movement?.pending?.waypoints?.length) {
             notePathRoom(tokenDoc.id, roomOfToken(tokenDoc));
             return;
         }
 
-        // Taken — not read — so every `return` below leaves nothing behind for
+        // Taken - not read - so every `return` below leaves nothing behind for
         // the next drag to inherit.
         const path = takePath(tokenDoc.id);
 
@@ -622,7 +622,7 @@ async function onUpdateToken(tokenDoc, changes, options, userId) {
         // nowhere: the route is what is charged for.
         const crossings = crossingsAlong(before, path, after);
 
-        // Nothing crossed — a move inside one room, or a scene with no regions
+        // Nothing crossed - a move inside one room, or a scene with no regions
         // at all: free. Remember the new spot so a later refused crossing snaps
         // back to somewhere sensible.
         if (!crossings.length) {
@@ -634,7 +634,7 @@ async function onUpdateToken(tokenDoc, changes, options, userId) {
         lastRoom.set(tokenDoc.id, after);
 
         // Exactly one client applies the cost, or two GMs would both spend the
-        // action. Prefer the player who owns the token — but only while they are
+        // action. Prefer the player who owns the token - but only while they are
         // actually connected. "Their client pays, even if their client is not
         // here" meant nobody paid: an absent player's token could be walked
         // across the whole map for free, which is why one character seemed to
@@ -671,7 +671,7 @@ async function onUpdateToken(tokenDoc, changes, options, userId) {
         }
 
         // The cost, and only the cost, is what the setting governs. Everything
-        // above — the room cache, the Eclipse — has to keep running, or turning
+        // above - the room cache, the Eclipse - has to keep running, or turning
         // the setting back on would find every token's remembered room stale and
         // charge for a crossing that happened while it was off.
         if (!game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) {
@@ -681,7 +681,7 @@ async function onUpdateToken(tokenDoc, changes, options, userId) {
 
         // One at a time, in the order they were crossed. The first one that
         // cannot be paid for stops the route and puts the token back where the
-        // drag began — the moves already paid for stay paid, because they were
+        // drag began - the moves already paid for stay paid, because they were
         // made: the refusal is about the step that could not be afforded, and
         // `sendBack` returns the token to the only position it is certain the
         // character could legally be standing in.
@@ -705,7 +705,7 @@ const pathRooms = new Map();
  *
  * NULLS ARE NOT RECORDED, deliberately. A position part-way through a drag can
  * land in a doorway or on the seam between two regions, where `roomOfToken`
- * answers null quite correctly — but that is the token being mid-step, not the
+ * answers null quite correctly - but that is the token being mid-step, not the
  * character leaving the building. Recording those would charge two crossings
  * (into nowhere, and out of it again) for one ordinary walk between neighbours.
  * Leaving the rooms for real is judged from where the token STOPS, which is the
@@ -734,7 +734,7 @@ function takePath(tokenId) {
  * The whole route is `where it started → what it passed through → where it
  * stopped`; a pair whose ends are the same room is not a crossing and drops
  * out. So a drag inside one room yields nothing, an ordinary walk to a
- * neighbour yields one, and a there-and-back route yields two — which is what
+ * neighbour yields one, and a there-and-back route yields two - which is what
  * it costs at the table.
  */
 function crossingsAlong(before, path, after) {
@@ -761,14 +761,14 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
      *
      * A SPRINT COUNTS AS BUDGET (E13). Without this line the guard sends the
      * token back before `takeMove` is ever reached, so three Hope would buy a
-     * crossing that this function refuses a moment later — the same trap as the
+     * crossing that this function refuses a moment later - the same trap as the
      * greyed-out grid, one layer down. `canPayFor` covers the Burst half, since
      * a crossing that costs an action is an action like any other.
      */
     if (!free && freeMovesLeft(actor) < 1 && !canPayFor(actor, 1)) {
         ui.notifications.warn(game.i18n.localize("DRPG.Move.noBudget"));
         // Tagged as an error popup (red border) rather than the default
-        // info one — this is a refusal, the concrete case the red variant
+        // info one - this is a refusal, the concrete case the red variant
         // exists for. See popup.mjs's catch-all createChatMessage hook.
         await whisperToOwner(actor, `${cardHead({ action: game.i18n.localize("DRPG.Move.title") })}<p>${
             game.i18n.localize("DRPG.Move.noBudgetLong")
@@ -796,7 +796,7 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
 
     if (tokenDoc) lastPosition.set(tokenDoc.id, { x: tokenDoc.x, y: tokenDoc.y });
 
-    // What the room looks like, when the GM has written it — the Description
+    // What the room looks like, when the GM has written it - the Description
     // tab in Room Setup. Walking in is the moment somebody wants to be told
     // what they are looking at (Dawid, 26.08), and it saves them opening the
     // clock to read it. Escaped: it is the GM's own typed prose, and this card
@@ -814,11 +814,11 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
 
     // The room goes in the header's own slot rather than only inside `where`'s
     // sentence: the header is the line somebody skims a whole time of day by,
-    // and "MOVE — Dinner Hall" answers the question the log is being read for.
+    // and "MOVE - Dinner Hall" answers the question the log is being read for.
     await whisperToOwner(actor, `${cardHead({
         action: game.i18n.localize("DRPG.Move.title"), room: to
     })}<p>${where}<br>${price}</p>${described}`);
-    debug(`${actor.name}: ${from ?? "—"} -> ${to ?? "—"} (${cost})`);
+    debug(`${actor.name}: ${from ?? "-"} -> ${to ?? "-"} (${cost})`);
 
     /*
      * A CROSSING THAT ACTUALLY HAPPENED, announced once and only from here.
@@ -826,7 +826,7 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
      * Deliberately at the very end: every refusal above returns before this
      * line, so a listener can trust that somebody really is standing in `to`.
      * The trap watcher (traps.mjs) is the only listener today and it is the
-     * reason the hook exists — two of its nine triggers are the same crossing
+     * reason the hook exists - two of its nine triggers are the same crossing
      * asked two different questions, which is exactly the kind of thing a hook
      * is for and a second copy of this function is not.
      */
@@ -837,7 +837,7 @@ async function chargeForCrossing(actor, from, to, tokenDoc = null, previous = nu
 /**
  * Put a token back where it came from.
  *
- * Called from inside the `updateToken` hook, so the write is deferred a tick —
+ * Called from inside the `updateToken` hook, so the write is deferred a tick -
  * updating a document while its own update hook is still running is what made
  * the earlier attempt silently do nothing. The move is also marked so our own
  * hook ignores it and does not charge for the way back.
@@ -863,7 +863,7 @@ async function sendBack(tokenDoc, previous, room) {
              * deliver a socket packet back to the client that sent it, so a GM
              * whose own `update` threw was emitting into nothing: the token
              * stayed where it should not be, and neither the GM nor anybody
-             * else was told. Rare — a GM owns every token — but the failure is
+             * else was told. Rare - a GM owns every token - but the failure is
              * silent, which is the reason it is worth a branch. A player's
              * client still takes the road it always took.
              */
@@ -894,7 +894,7 @@ export const REVERT = "drpgRevert";
  * populated: a token placed by script, one on a scene the client has not fully
  * initialised, or one whose region membership has not been recomputed yet all
  * arrive with an empty set. Falling back to a geometric test means "which room
- * am I in" answers correctly regardless — which is what Listen, Search and the
+ * am I in" answers correctly regardless - which is what Listen, Search and the
  * project rules all depend on.
  */
 export function roomOfToken(tokenDoc) {
@@ -910,7 +910,7 @@ export function roomOfToken(tokenDoc) {
         if (names.length) return names[0];
     }
 
-    // Nothing recorded — measure it.
+    // Nothing recorded - measure it.
     if (tokenDoc && Number.isFinite(tokenDoc.x) && Number.isFinite(tokenDoc.y)) {
         return roomAt(tokenDoc.x, tokenDoc.y, tokenDoc);
     }
@@ -920,9 +920,9 @@ export function roomOfToken(tokenDoc) {
 /**
  * Room a character is currently standing in.
  *
- * `getActiveTokens()` only finds tokens linked to the actor. An unlinked token —
+ * `getActiveTokens()` only finds tokens linked to the actor. An unlinked token -
  * which is what dragging an actor onto a scene produces unless the prototype
- * says otherwise — is not in that list, so Listen kept reporting that the player
+ * says otherwise - is not in that list, so Listen kept reporting that the player
  * was in no room at all. The canvas is searched as well, by actor id.
  */
 export function roomOfActor(actor) {
@@ -947,7 +947,7 @@ export function roomOfActor(actor) {
  * Where a character is, without asking the canvas.
  *
  * `roomOfActor` answers "which room" for the client that is looking at the map,
- * and both of its lookups — `getActiveTokens()` and `canvas.tokens.placeables` —
+ * and both of its lookups - `getActiveTokens()` and `canvas.tokens.placeables` -
  * only see the scene currently rendered. That is fine for a player acting on
  * their own screen, and wrong for the GM's client resolving somebody else's
  * action while looking at a different scene: the character reads as standing
@@ -955,7 +955,7 @@ export function roomOfActor(actor) {
  *
  * This walks the scene documents instead, so the answer does not depend on what
  * anybody happens to be looking at. Used by Observe, which is scored on the GM's
- * client — see observe.mjs.
+ * client - see observe.mjs.
  *
  * @returns {{tokenDoc: TokenDocument, scene: Scene, room: string|null}|null}
  */
@@ -1002,8 +1002,8 @@ export function sameRoom(a, b) {
  *
  * One predicate, because there are two callers and they must not drift apart.
  * `othersInRoom` asks it to answer "is somebody watching me"; `occupantsOf`
- * asks it to answer "who is in there" for Listen. They used to disagree —
- * `occupantsOf` filtered only hidden tokens — so a critical Listen named the
+ * asks it to answer "who is in there" for Listen. They used to disagree -
+ * `occupantsOf` filtered only hidden tokens - so a critical Listen named the
  * corpse in the next room (a free answer to "where is the body") and the
  * Monokuma who happened to be walking through it.
  *
@@ -1012,8 +1012,8 @@ export function sameRoom(a, b) {
  *   Monokuma  the GM standing on the map, not a witness who could testify.
  *             Counting one made a murder impossible to open in any room a GM
  *             was passing through.
- *   the dead  still on the map — a body is usually what everyone is looking at
- *             — but not people in the room any more. They cannot witness a
+ *   the dead  still on the map - a body is usually what everyone is looking at
+ *             - but not people in the room any more. They cannot witness a
  *             murder, cannot be handed anything, and must not make the room
  *             where they died unusable for the next one.
  *   hidden    a token the GM has hidden is not in the scene as far as the
@@ -1042,7 +1042,7 @@ export function othersInRoom(actor) {
  * the point rather than a convenience. That trigger is answered from a crossing
  * event which already says which room was entered; asking `othersInRoom(actor)`
  * would go back to the canvas for a second opinion on where the actor is, and
- * during a crossing those two can disagree — the token document has moved and
+ * during a crossing those two can disagree - the token document has moved and
  * the placeable it is drawn from may not have caught up. The event is the more
  * reliable witness, so the caller passes what it knows.
  */
@@ -1058,7 +1058,7 @@ export function othersInNamedRoom(room, actor = null) {
 /**
  * Every room region on a scene. Defaults to the one being looked at.
  *
- * The argument exists for the callers that are NOT about the current view — the
+ * The argument exists for the callers that are NOT about the current view - the
  * voice eavesdrop dialog above all, where a GM reviewing the trial room would
  * otherwise be offered the trial room's regions and end up listening to a
  * LiveKit room nobody is standing in.
@@ -1077,8 +1077,8 @@ export function allRooms(scene = null) {
  *
  * Foundry has no notion of rooms being connected, so adjacency is measured
  * geometrically: regions whose bounding boxes are within one grid square of
- * each other count as neighbours. That matches how a map is usually drawn — a
- * shared wall — without asking the GM to maintain a separate connection list.
+ * each other count as neighbours. That matches how a map is usually drawn - a
+ * shared wall - without asking the GM to maintain a separate connection list.
  *
  * The GM can override it per region with a `drpgNeighbours` flag holding a
  * comma-separated list of room names, for rooms that touch but have no door,
@@ -1100,13 +1100,13 @@ export function neighbouringRooms(room) {
     }
 
     // Tolerance for the thickness of a shared wall, and no more. A larger
-    // margin bridges rooms that merely lie near each other — at 1.5 squares it
+    // margin bridges rooms that merely lie near each other - at 1.5 squares it
     // treated a room two doors away as adjacent.
     const others = regions.filter(r => r.name !== room);
     const pad = (canvas?.grid?.size ?? 100) * 0.35;
     const mine = boundsOf(self);
 
-    // No usable geometry — an unrendered scene, an exotic shape, a region drawn
+    // No usable geometry - an unrendered scene, an exotic shape, a region drawn
     // in a way we cannot measure. Treat every other room as reachable rather
     // than telling the player there is nowhere to go: being too permissive is a
     // GM ruling away, being too strict is a dead end.
@@ -1116,15 +1116,15 @@ export function neighbouringRooms(room) {
     }
 
     // Split by whether each candidate's own geometry could be measured at all.
-    // A room we cannot measure is treated as reachable — same reasoning as
-    // above, we cannot rule it out — but a room we COULD measure and which
+    // A room we cannot measure is treated as reachable - same reasoning as
+    // above, we cannot rule it out - but a room we COULD measure and which
     // genuinely does not overlap stays excluded.
     //
     // The two used to be conflated: if not one single measured neighbour
     // overlapped, the whole room list was handed back, including every
     // properly-measured room that was correctly found not to be adjacent. On a
-    // map with even one region the module could not read the geometry of —
-    // anywhere on the scene, not necessarily near this room — every crossing
+    // map with even one region the module could not read the geometry of -
+    // anywhere on the scene, not necessarily near this room - every crossing
     // everywhere silently stopped being checked at all, since both the Eclipse
     // and ordinary movement route through this same list.
     const unmeasured = others.filter(r => !boundsOf(r));
@@ -1137,8 +1137,8 @@ export function neighbouringRooms(room) {
         return other && overlaps(mine, other, pad);
     });
 
-    // Disjoint by construction — `boundsOf(r)` cannot be both truthy and falsy
-    // for the same region — so a plain concat is enough.
+    // Disjoint by construction - `boundsOf(r)` cannot be both truthy and falsy
+    // for the same region - so a plain concat is enough.
     return [...near, ...unmeasured].map(r => r.name).sort();
 }
 
@@ -1217,7 +1217,7 @@ function overlaps(a, b, pad) {
  * Characters standing in a named room, excluding one actor.
  *
  * This is what Listen reports, so it answers to exactly the same rule as
- * `othersInRoom` — see `countsAsPresent`. Listening at a wall does not tell you
+ * `othersInRoom` - see `countsAsPresent`. Listening at a wall does not tell you
  * about a body or about Monokuma.
  */
 export function occupantsOf(room, exclude = null) {

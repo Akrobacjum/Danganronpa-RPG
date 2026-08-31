@@ -1,7 +1,7 @@
 /**
- * Danganronpa RPG — the safeword.
+ * Danganronpa RPG - the safeword.
  * ---------------------------------------------------------------------------
- * Player Handbook, ch. 13: one word — MISIUBOMBO — stops the scene. "Say it if
+ * Player Handbook, ch. 13: one word - MISIUBOMBO - stops the scene. "Say it if
  * something in the scene has crossed your line. You do not have to justify it.
  * The scene stops immediately. You tag a DM in the text channel, you sort the
  * problem out, and you resume the scene from a jointly agreed point."
@@ -9,7 +9,7 @@
  * The whole chapter rested on that sentence and the module had no trace of it.
  * Saying it out loud works at a shared table; this game is played with everyone
  * in a separate voice room, where "say it out loud" reaches whoever happens to
- * be standing in the same room as you — which, in a killing game, may be
+ * be standing in the same room as you - which, in a killing game, may be
  * precisely the person the scene needs stopping because of.
  *
  * So it is a button, and it does the three things the handbook asks for in one
@@ -40,7 +40,7 @@ export const SAFEWORD_FLAG = "safeword";
  *
  * One reader, here rather than at the two call sites, because "what is the
  * safeword" is a question about the safeword and not about the character sheet
- * — and because the fallback belongs with it. An empty setting is a table that
+ * - and because the fallback belongs with it. An empty setting is a table that
  * cleared the field, not a table with no safeword: they get the module's
  * default back rather than a button with no caption.
  */
@@ -77,11 +77,11 @@ function showGmDetail(who, room) {
 export async function callSafeword({ room = null } = {}) {
     try {
         // The announcement is public, and it is what every other client keys
-        // off — the pause and the card both hang from this one message rather
+        // off - the pause and the card both hang from this one message rather
         // than from a socket, so a client that missed a packet still stops.
         await announce({
             // `gm: true` because a GM is the person this is aimed at most of
-            // all. The event itself ignores the Sound slider — see
+            // all. The event itself ignores the Sound slider - see
             // `ignoresVolume` in the catalogue.
             flags: { [MODULE_ID]: { sfx: { key: "safeword", gm: true } } },
             content: `<h3 class="drpg-safeword-heading">${
@@ -103,7 +103,7 @@ export async function callSafeword({ room = null } = {}) {
         // The public card above says "somebody" on purpose: the handbook's
         // protection is that you never have to explain yourself, and being
         // visibly the person who stopped the scene is its own kind of
-        // explaining. A GM whisper would not have kept that promise — Foundry
+        // explaining. A GM whisper would not have kept that promise - Foundry
         // ships every ChatMessage document to every client regardless of the
         // `whisper` array, so any player could read the caller's name out of
         // their own console. A recipient-addressed socket is the one channel
@@ -170,7 +170,7 @@ export function registerSafeword() {
     Hooks.on("createChatMessage", message => {
         if (!message.getFlag(MODULE_ID, SAFEWORD_FLAG)) return;
 
-        // Every client raises the card, including the caller's — seeing it land
+        // Every client raises the card, including the caller's - seeing it land
         // is the confirmation that the table now knows.
         showPopup(`<p>${game.i18n.localize("DRPG.Safeword.announced")}</p>`, {
             title: game.i18n.localize("DRPG.Safeword.banner"),

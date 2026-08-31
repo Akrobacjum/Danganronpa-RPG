@@ -1,14 +1,14 @@
 /**
- * Danganronpa RPG — standalone SVG icons for Remnant tokens.
+ * Danganronpa RPG - standalone SVG icons for Remnant tokens.
  * ---------------------------------------------------------------------------
- * A Remnant token wears the pixel icon of the ACTION that left it — but only
+ * A Remnant token wears the pixel icon of the ACTION that left it - but only
  * for the GM, and for a player only once their own Truth Bullet from that
  * trace is identified. Until then every client renders the token's actual
  * texture: the same 8x8 question mark the Despair pool shows (Dawid, 26.08:
  * "ten sam, co w despair pool").
  *
  * The art is NOT drawn here. Every glyph already exists in danganronpa.css as
- * a CSS mask sprite — the action tiles, the row buttons, the Monokuma eye —
+ * a CSS mask sprite - the action tiles, the row buttons, the Monokuma eye -
  * and this tool re-publishes those exact data URIs as standalone files a
  * token texture can load. One drawing per glyph, wherever it appears: editing
  * the sprite in the stylesheet (or its generator) and re-running this keeps
@@ -33,10 +33,10 @@ import { dirname, join } from "node:path";
  *   selector: a generated chrome rule (for sprites that never got a var)
  */
 const SOURCES = {
-    // The pre-analysis face of every trace — the Despair pool's question mark.
+    // The pre-analysis face of every trace - the Despair pool's question mark.
     unknown: { var: "--drpg-pix-query" },
 
-    // One per `action` a Remnant can record — see REMNANT_FLAGS.action.
+    // One per `action` a Remnant can record - see REMNANT_FLAGS.action.
     search: { var: "--drpg-g-search" },
     project: { var: "--drpg-g-project" },
     sabotage: { var: "--drpg-g-sabotage" },

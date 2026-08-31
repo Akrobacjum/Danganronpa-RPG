@@ -64,7 +64,7 @@ const world = {
         ],
         Item: [], ChatMessage: [], RollTable: [], Playlist: [], Macro: [], JournalEntry: [], Folder: [],
         Scene: [{
-            _id: IDS.scene, name: "Academy — Floor 1", active: true, width: 4000, height: 3000,
+            _id: IDS.scene, name: "Academy - Floor 1", active: true, width: 4000, height: 3000,
             grid: { size: 100, distance: 5, type: 1 },
             flags: {},
             tokens: [
@@ -360,7 +360,7 @@ function handleFor(who) {
 const results = [];
 function check(name, ok, details = "") {
     results.push({ name, ok: !!ok, details: String(details).slice(0, 2000) });
-    console.log(`${ok ? "  PASS" : "! FAIL"}  ${name}${details && !ok ? " — " + String(details).slice(0, 400) : ""}`);
+    console.log(`${ok ? "  PASS" : "! FAIL"}  ${name}${details && !ok ? " - " + String(details).slice(0, 400) : ""}`);
 }
 
 const settle = (ms = 200) => new Promise(r => setTimeout(r, ms));

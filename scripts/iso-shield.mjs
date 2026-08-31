@@ -1,16 +1,16 @@
 /**
- * Danganronpa RPG — guarding token editing from Isometric Perspective.
+ * Danganronpa RPG - guarding token editing from Isometric Perspective.
  * ---------------------------------------------------------------------------
  * Dawid runs `isometric-perspective` (arlosmolten) on The Forge, and with it
  * active, editing tokens glitches to the point of being unusable. Reproduced
  * far enough to name the failure class: the module reaches into every token
- * configuration window three ways —
+ * configuration window three ways -
  *
  *   1. `renderTokenConfig` → `initTokenForm`, which reads its own tab's
  *      inputs with NO null guards (`inputIsoAnchorX.value = …` throws the
  *      moment the query misses, and its reset-button listener the same). A
- *      window variant whose markup differs — another UI module, a sheet the
- *      part failed to render into — turns every token config render into an
+ *      window variant whose markup differs - another UI module, a sheet the
+ *      part failed to render into - turns every token config render into an
  *      exception inside the render hook.
  *   2. `renderTokenConfig` → `addPrecisionTokenArtListener`, more of the
  *      same window surgery.
@@ -18,9 +18,9 @@
  *      `PARTS.isometric` gains a template, and `_preparePartContext` is
  *      wrapped on the prototype.
  *
- * The shield retires (1) and (2) by unhooking the handlers — matched by
+ * The shield retires (1) and (2) by unhooking the handlers - matched by
  * FUNCTION NAME, which the module ships unminified, so a renamed future
- * version degrades this to a safe no-op — and takes the tab out of (3) by
+ * version degrades this to a safe no-op - and takes the tab out of (3) by
  * removing the TABS entry and the PARTS template, both saved and restorable.
  * The `_preparePartContext` wrapper itself stays: with the part gone its
  * isometric branch is never asked for, and every other part is delegated to
@@ -29,7 +29,7 @@
  * reload needed.
  *
  * Scene configuration is deliberately left alone (Dawid, 26.08: option A,
- * tokens only), and so is everything the module does to the canvas — the
+ * tokens only), and so is everything the module does to the canvas - the
  * projection is its job; the token WINDOWS are ours to keep working.
  */
 
@@ -65,7 +65,7 @@ function isoActive() {
 /**
  * Every token-config class the isometric module patches: the world's default
  * token sheet (the system's own subclass when there is one) and the prototype
- * token config — the same discovery walk its `patchConfig` callers make, so
+ * token config - the same discovery walk its `patchConfig` callers make, so
  * the shield unpicks exactly what was picked.
  */
 function configClasses() {
@@ -88,20 +88,20 @@ function configClasses() {
  * (2026-08-26, sandbox, full local stack): the module MIXES INTO the Token
  * class (`isoDepthSortTokenMixin` at its init: `CONFIG.Token.objectClass =
  * mixin(objectClass)`) and its `_refreshState()` override calls
- * `setFlag("currentRegion", regions[0] ?? null)` — a DATABASE WRITE inside
+ * `setFlag("currentRegion", regions[0] ?? null)` - a DATABASE WRITE inside
  * the refresh path, on every refresh, with no change check. On a map built
  * of overlapping room Regions, `document.regions` is a Set whose first
  * member is not stable, so the flag ping-pongs between two answers forever:
  * measured 18 token updates/second, ~1100 refreshToken/s, and the open
- * token config re-rendering 26 times a second — which is why tabs and
+ * token config re-rendering 26 times a second - which is why tabs and
  * buttons died (their DOM nodes were replaced mid-click) while text inputs
  * (focus is preserved across renders) and selects (native popups) kept
  * working.
  *
  * A hook can't take a class override down, so this one is bypassed in the
- * prototype chain: the mixin's own `_refreshState` — found by owning the
+ * prototype chain: the mixin's own `_refreshState` - found by owning the
  * property AND mentioning `currentRegion`, so any other module's override
- * is left alone — is replaced with a pass-through to the class below it.
+ * is left alone - is replaced with a pass-through to the class below it.
  * That is exactly the `super._refreshState()` call their override opens
  * with; the only thing skipped is the flag write. Restored on unpark.
  */
@@ -153,7 +153,7 @@ function park() {
             + `${loopParked ? " and the currentRegion write loop" : ""} parked `
             + `while token editing is guarded.`);
     } else {
-        // The module is active but nothing matched — a future version has
+        // The module is active but nothing matched - a future version has
         // renamed things. Said out loud rather than silently guarding nothing.
         warn("Iso shield: isometric-perspective is active but nothing recognisable "
             + "was found to park. The shield is a no-op on this version.");
@@ -196,7 +196,7 @@ export function applyIsoShield() {
 
 export function registerIsoShield() {
     // At ready, AFTER the isometric module's own ready hooks have patched the
-    // classes — parking earlier would find nothing and then be patched over.
+    // classes - parking earlier would find nothing and then be patched over.
     // `once` + a timeout of 0 keeps it behind every same-tick ready handler
     // regardless of module registration order.
     Hooks.once("ready", () => setTimeout(() => {

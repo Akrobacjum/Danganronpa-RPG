@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — the Free Critical's dice.
+ * Danganronpa RPG - the Free Critical's dice.
  * ---------------------------------------------------------------------------
  * The guide gives Free Critical as "no roll" - but a roll that never happens
  * leaves nothing on the table: no dice, no chat card, no Hope, and no way for
@@ -13,8 +13,8 @@
  * nothing more; the other one is thrown, and a critical happens only when it
  * lands on 12 by itself.
  *
- * Rather than editing the roll after the fact — which would fight the system's
- * message pipeline, Dice So Nice, and the reroll feature all at once — the die
+ * Rather than editing the roll after the fact - which would fight the system's
+ * message pipeline, Dice So Nice, and the reroll feature all at once - the die
  * randomiser is swapped for a constant while the roll evaluates. Foundry maps a
  * uniform sample with `ceil((1 - u) * faces)`, so u = 0 is always the top face,
  * whatever the die.

@@ -1,8 +1,8 @@
 /**
- * Danganronpa RPG — telling every client what just happened.
+ * Danganronpa RPG - telling every client what just happened.
  * ---------------------------------------------------------------------------
  * World settings synchronise by themselves: a GM writes, and every client's copy
- * updates. What does NOT travel is the work that follows the write — redrawing
+ * updates. What does NOT travel is the work that follows the write - redrawing
  * the HUD, dimming the canvas for an Eclipse, recomputing who can see whose
  * token, re-rendering open sheets.
  *
@@ -13,7 +13,7 @@
  * server it was not fine: the clock advanced for the GM alone.
  *
  * So every world-state change is announced here, on the module's own socket, and
- * every client — the sender included — reacts identically. One code path, no
+ * every client - the sender included - reacts identically. One code path, no
  * "works on my machine".
  */
 
@@ -51,7 +51,7 @@ export const SYNC = {
      * ITS OWN KIND RATHER THAN `despair`, because it touches three surfaces and
      * that one touches two. The caption lives in the Despair widget, the search
      * tokens and the clock row live in the HUD, and the action budget is
-     * printed on every sheet — a darkening that redrew only the bar would leave
+     * printed on every sheet - a darkening that redrew only the bar would leave
      * two of its three effects invisible until something else happened to
      * redraw them.
      */
@@ -66,7 +66,7 @@ export const SYNC = {
  * be up, and the sender to still be connected. A world setting needs none of
  * that. Foundry syncs the Setting document to every client and calls the
  * registered `onChange` there, so keying the refresh off the setting itself is
- * the path that cannot be missed — see settings.mjs, which routes every one of
+ * the path that cannot be missed - see settings.mjs, which routes every one of
  * these through `applyFor()`.
  */
 const SETTING_KINDS = {
@@ -96,7 +96,7 @@ const SETTING_KINDS = {
     killingGameRules: SYNC.rules,
     // The motive sits beside them and is read the same way. Its countdown is
     // a HUD row, which is why `SYNC.rules` redraws the HUD as well as the
-    // sheets — see the case below.
+    // sheets - see the case below.
     motive: SYNC.rules,
     // A called assembly changes two things at once: the HUD row every player
     // reads, and the Public Announcement tile on a Monokuma's sheet, which is
@@ -105,7 +105,7 @@ const SETTING_KINDS = {
     // day starts.
     pendingGather: SYNC.restrictions,
     // The safeword is printed on every character sheet, so changing it has to
-    // redraw them all — and without an entry here `onWorldChange` would call
+    // redraw them all - and without an entry here `onWorldChange` would call
     // `applyFor("safeword")`, find no kind, and return silently. That is trap
     // 110, and it is the same shape as the motive's: a setting that syncs
     // itself and a screen that never hears about it.
@@ -123,7 +123,7 @@ export function registerSync() {
         if (payload?.action !== ACTION) return;
         // Only a GM announces world state. Every caller of `broadcast` is a
         // GM-side write (the clock, the Eclipse, Despair Call restrictions), so
-        // this refuses nothing legitimate — and without it any player could hand
+        // this refuses nothing legitimate - and without it any player could hand
         // every other client a fabricated clock to redraw against.
         if (!game.users.get(senderId)?.isGM) return;
         apply(payload.kind, payload.data);
@@ -158,12 +158,12 @@ export function broadcast(kind, data = {}) {
 /**
  * React to a change, wherever it came from.
  *
- * Every branch is defensive: a client that cannot do one part of the refresh —
- * no canvas yet, a sheet mid-render — must still do the rest.
+ * Every branch is defensive: a client that cannot do one part of the refresh -
+ * no canvas yet, a sheet mid-render - must still do the rest.
  *
  * The socket announcement and the setting's own `onChange` describe the same
  * event, and on a healthy connection both arrive. Doing the work twice is
- * wasteful — re-rendering every open sheet is not cheap — so events arriving
+ * wasteful - re-rendering every open sheet is not cheap - so events arriving
  * inside a short window are merged.
  *
  * Merged, NOT discarded. This used to return early and throw the second event
@@ -219,7 +219,7 @@ function refresh(kind, data = {}) {
              *
              * `runPendingGather` refuses on anybody but the primary GM and on
              * an order that is not ripe yet, then clears the order BEFORE it
-             * moves anybody — so the second arrival of this event (the socket
+             * moves anybody - so the second arrival of this event (the socket
              * and the setting's `onChange` both describe it) finds nothing to
              * do. First, because a teleport that lands after the HUD redraw
              * shows the cast a room they are no longer standing in.
@@ -231,7 +231,7 @@ function refresh(kind, data = {}) {
              * "Darkened - this time of day" stayed on the caption after the
              * time of day it named had passed. Nothing was wrong with the
              * mechanic: `overflowEffect()` compares the armed stamp against the
-             * clock, so it had already stopped answering — every reader that
+             * clock, so it had already stopped answering - every reader that
              * asks at the moment it acts was correct. It was the one reader
              * that does NOT ask again, the pixels, and the pixels are the only
              * place the table looks.
@@ -242,7 +242,7 @@ function refresh(kind, data = {}) {
              *
              * The caption reads the CLOCK as much as it reads the counter, so
              * it belongs on both roads. `SYNC.overflow` already redraws it when
-             * the counter or the stamp moves; this is the other half — the
+             * the counter or the stamp moves; this is the other half - the
              * stamp standing still while the clock walks out from under it. It
              * covers the arrival too: a stamp armed mid-hour for the hour ahead
              * lights up when that hour begins, and until now that also waited
@@ -253,7 +253,7 @@ function refresh(kind, data = {}) {
             run("sheets", () => import("./clock.mjs").then(m => m.refreshSheets()));
             run("eclipse", () => import("./eclipse.mjs").then(m => m.refreshEclipse()));
             run("visibility", () => import("./visibility.mjs").then(m => m.applyAll()));
-            // Local listeners (other modules, macros) still get their hook — but
+            // Local listeners (other modules, macros) still get their hook - but
             // now they get it on every client, which is what they always meant.
             //
             // The clock is read back from the setting when the announcement did
@@ -279,7 +279,7 @@ function refresh(kind, data = {}) {
             // Every other sync kind re-renders open character sheets; this one
             // did not. The action panel and Calls panel both read `isEclipse()`
             // at render time (see sheet.mjs), so a sheet already open when the
-            // Eclipse starts or ends was left showing the pre-Eclipse state —
+            // Eclipse starts or ends was left showing the pre-Eclipse state -
             // actions and Calls looking normally clickable when they are not,
             // or still greyed out a whole time of day after they came back.
             run("sheets", () => import("./clock.mjs").then(m => m.refreshSheets()));
@@ -292,8 +292,8 @@ function refresh(kind, data = {}) {
         case SYNC.visibility:
             run("visibility", () => import("./visibility.mjs").then(m => m.applyAll()));
             // The only setting mapped to this kind is `eclipseMoves`, and that
-            // number is printed on the sheet twice — the budget line and the
-            // Move tile's own cost label — so a crossing has to redraw them.
+            // number is printed on the sheet twice - the budget line and the
+            // Move tile's own cost label - so a crossing has to redraw them.
             // At most two writes per character per Eclipse, so this is not the
             // per-frame cost that its name suggests.
             run("sheets", () => import("./clock.mjs").then(m => m.refreshSheets()));
@@ -319,7 +319,7 @@ function refresh(kind, data = {}) {
             break;
 
         case SYNC.searchTokens:
-            // The world setting has just landed, so it is authoritative again —
+            // The world setting has just landed, so it is authoritative again -
             // drop the player-side "GM just told me" cache rather than let it
             // outlive the value it was standing in for.
             run("cache", () => import("./search-tokens.mjs").then(m => m.SearchTokens.clearFreshCounts()));
@@ -328,7 +328,7 @@ function refresh(kind, data = {}) {
 
         case SYNC.restrictions:
             run("sheets", () => import("./clock.mjs").then(m => m.refreshSheets()));
-            // The HUD carries the incident line — whose turn it is and what the
+            // The HUD carries the incident line - whose turn it is and what the
             // victim has left. That moves on every crisis action, so it has to
             // redraw here too; without this it only refreshed when the clock
             // happened to move, which during an incident it does not.
@@ -337,8 +337,8 @@ function refresh(kind, data = {}) {
 
         case SYNC.trial:
             run("floor", () => import("./trial-floor.mjs").then(m => m.renderTrialFloor()));
-            // The trial's three facts are three rows of the campaign HUD now —
-            // which mode, how long is left, and the room — so the floor moving
+            // The trial's three facts are three rows of the campaign HUD now -
+            // which mode, how long is left, and the room - so the floor moving
             // is a HUD redraw. Without this the mode label was only ever
             // refreshed when the clock happened to move, which during a trial it
             // does not, and the turn-over animation between one mode and the
@@ -359,7 +359,7 @@ function refresh(kind, data = {}) {
             // The mirror first: a ledger that SHRANK (season reset, "hide
             // all") has to take this client's session mirror with it, or the
             // repaint redraws the stale union and the reset only shows after a
-            // reload — see `reconcileMirror` in fog.mjs.
+            // reload - see `reconcileMirror` in fog.mjs.
             run("fog", () => import("./fog.mjs").then(m => {
                 m.reconcileMirror();
                 return m.repaintFog();

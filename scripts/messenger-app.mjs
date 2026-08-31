@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — messenger windows and launcher.
+ * Danganronpa RPG - messenger windows and launcher.
  * ---------------------------------------------------------------------------
  * Two pieces of UI:
  *
@@ -10,12 +10,12 @@
  *
  *   the launcher       A small persistent button, bottom-right. A player
  *                      clicks it to open their own thread. A GM clicks it to
- *                      open a roster — every player, an unread badge, a
- *                      one-line preview — and picks who to open.
+ *                      open a roster - every player, an unread badge, a
+ *                      one-line preview - and picks who to open.
  *
  * No Handlebars template: the rest of this module builds DOM by hand, so
  * ApplicationV2 is used here without the Handlebars mixin, for the same
- * reason — one way of building markup, not two.
+ * reason - one way of building markup, not two.
  */
 
 import { MODULE_ID } from "./config.mjs";
@@ -77,13 +77,13 @@ export function openMessenger(playerUserId = game.user.id) {
     /*
      * A GM ASKING FOR "THE MESSENGER" MEANS THE ROSTER (D-F4).
      *
-     * The default is the caller's own id, and a GM has no thread of their own —
+     * The default is the caller's own id, and a GM has no thread of their own -
      * threads belong to players and a GM is the other end of all of them. So
      * `game.drpg.openMessenger()` from a GM's console or a macro fell straight
      * through to "that is not a player" and opened nothing at all: the one call
      * with an obvious meaning was the one call that did nothing.
      *
-     * It means "show me my conversations", and that list already exists — it is
+     * It means "show me my conversations", and that list already exists - it is
      * what the launcher's own button opens. Only the no-argument case is
      * redirected; a GM naming a player still gets that player's thread, and a
      * player still gets their own.
@@ -146,7 +146,7 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
 
     constructor(playerUserId) {
         const options = { id: `drpg-messenger-${playerUserId}` };
-        // Only set `position` when there is a saved one — passing `undefined`
+        // Only set `position` when there is a saved one - passing `undefined`
         // through to ApplicationV2's option merge is not guaranteed to fall
         // back to DEFAULT_OPTIONS.position the way omitting the key does.
         //
@@ -242,8 +242,8 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
      * The note itself: one textarea, and nothing between the player and it.
      *
      * Not a form of seven separate fields. The handbook's own answer format is
-     * free text — "If nothing has changed, just write 'No changes' - and that
-     * counts as done" — and seven required inputs would quietly turn a checklist
+     * free text - "If nothing has changed, just write 'No changes' - and that
+     * counts as done" - and seven required inputs would quietly turn a checklist
      * you can answer in four words into a chore.
      */
     _buildNote(context) {
@@ -344,7 +344,7 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
     }
 
     /**
-     * One bubble said something different — redraw that bubble and nothing
+     * One bubble said something different - redraw that bubble and nothing
      * else. A full `render()` would work and would also wipe the half-written
      * message in the box below it.
      */
@@ -355,14 +355,14 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
         old.replaceWith(buildBubble(message));
     }
 
-    /** Called by the module-level createChatMessage hook — no re-render. */
+    /** Called by the module-level createChatMessage hook - no re-render. */
     appendMessage(message) {
         const log = this.element?.querySelector(".drpg-messenger-log");
         if (!log) return;
         log.querySelector(".drpg-messenger-empty")?.remove();
         log.append(buildBubble(message));
         this._scrollToBottom();
-        // The window is on screen — count it as read immediately rather than
+        // The window is on screen - count it as read immediately rather than
         // leaving a badge for a conversation the user is looking straight at.
         markThreadRead(this.playerUserId);
     }
@@ -388,12 +388,12 @@ Hooks.on("drpgMessengerMessage", (playerUserId, message) => {
         return;
     }
 
-    /* A GM used to keep only the roster badge for this — a passive dot in the
-     * corner — which was the right volume for a player's "hey" and the wrong
+    /* A GM used to keep only the roster badge for this - a passive dot in the
+     * corner - which was the right volume for a player's "hey" and the wrong
      * one for everything that WAITS on the GM: a parked murder's approve card,
      * a project proposal, an Analyze critical. An ask that nobody is told
      * about is an ask that hangs (Dawid, 26.08). The `gmAsk` flag is stamped
-     * where the card is made, and deliberately not derived from the author —
+     * where the card is made, and deliberately not derived from the author -
      * the bridge posts several of these FROM the GM's own session on a
      * player's behalf, so even a self-authored card can be news to the GM
      * sitting at that screen. Ordinary chatter keeps the badge. */
@@ -406,7 +406,7 @@ Hooks.on("drpgMessengerMessage", (playerUserId, message) => {
         return;
     }
 
-    // The player's own window is not open — surface the reply the same way
+    // The player's own window is not open - surface the reply the same way
     // every other message on their screen appears, with a click that jumps
     // straight to the conversation.
     if (game.user.id !== playerUserId) return;
@@ -429,7 +429,7 @@ Hooks.on("drpgMessengerEdited", (playerUserId, message) => {
 /**
  * The card as a notification: the same words, minus the buttons.
  *
- * A popup is a COPY of the message, and nothing wires a copy — so every button
+ * A popup is a COPY of the message, and nothing wires a copy - so every button
  * on one looked live and did nothing at all. The real ones are one click away:
  * a popup raised from a thread opens that thread.
  */
@@ -472,7 +472,7 @@ function buildBubble(message) {
 
     const body = document.createElement("div");
     body.className = "drpg-messenger-text";
-    // Both callers of createThreadMessage() already hand over safe HTML —
+    // Both callers of createThreadMessage() already hand over safe HTML -
     // sendMessage() escapes free text before this ever runs, postToThread()
     // is fed the GM-bridge's own escaped ruling cards.
     body.innerHTML = contentOf(message);
@@ -481,7 +481,7 @@ function buildBubble(message) {
 
     // A ROLL IN A THREAD LOOKS LIKE A ROLL.
     //
-    // The chat log has dressed duality rolls since the private-roll work —
+    // The chat log has dressed duality rolls since the private-roll work -
     // gold for Hope, blood for Fear, crimson for a critical, on the card's own
     // border. A roll that arrived in a messenger thread instead got none of
     // that: the same numbers, in the same table, inside a plain grey bubble,
@@ -510,7 +510,7 @@ function buildBubble(message) {
  *
  * A declaration card used to be a wall of text with "Awaiting a ruling" at the
  * bottom and nothing to press. Acting on it meant the GM panel, "Open a murder",
- * and picking the killer and the victim off two lists — retyping, by hand, the
+ * and picking the killer and the victim off two lists - retyping, by hand, the
  * two names printed in the paragraph above the button that was not there.
  *
  * Removed for a player rather than hidden by CSS: a button that is not in the
@@ -520,7 +520,7 @@ function wireCallActions(body, message = null) {
     const buttons = body.querySelectorAll("[data-drpg-call]");
     if (!buttons.length) return;
 
-    // Already answered. The card's own text says so — see `settleCall` — and a
+    // Already answered. The card's own text says so - see `settleCall` - and a
     // card from before that existed still gets its buttons taken off here.
     if (message?.getFlag(MODULE_ID, MESSENGER_FLAGS.settled)) {
         for (const button of buttons) button.closest(".drpg-call-actions")?.remove();
@@ -606,7 +606,7 @@ async function runCallAction(action, data) {
          * A trap disarms itself the moment it speaks, so a Main Hall watching
          * for "somebody enters" cannot fire twenty cards a session. That is
          * right, and it leaves the GM needing a way to say the reading was
-         * wrong and the trap should keep watching — which must not be a console
+         * wrong and the trap should keep watching - which must not be a console
          * call, because the GM is mid-scene when they need it.
          */
         const { rearmTrap } = await import("./traps.mjs");
@@ -615,7 +615,7 @@ async function runCallAction(action, data) {
     }
 
     if (action === "fireTrap") {
-        // The trap names a condition, not a victim — so this opens the murder
+        // The trap names a condition, not a victim - so this opens the murder
         // screen with the killer already filled in and "indirect" already
         // ticked, and asks the one thing the condition cannot answer: who
         // walked into it.
@@ -626,7 +626,7 @@ async function runCallAction(action, data) {
 
     if (action === "approveProject") {
         // Prefilled, not applied. The GM asked for a proposal so they could
-        // change it — approving straight into existence would be the old
+        // change it - approving straight into existence would be the old
         // behaviour with an extra click in front of it.
         const { openProjectDialog } = await import("./projects-ui.mjs");
         const made = await openProjectDialog({
@@ -638,7 +638,7 @@ async function runCallAction(action, data) {
                 indirectMurder: Boolean(data.murder),
                 condition: data.condition ?? "",
                 // The proposer, carried since the card was built and dropped
-                // here until E10 — which is why no project has ever known whose
+                // here until E10 - which is why no project has ever known whose
                 // idea it was. `declineProject` below has always read the same
                 // field, so the card was never the missing half.
                 by: data.by ?? null
@@ -667,12 +667,12 @@ async function runCallAction(action, data) {
     // The mechanism was already here and only Direct Murder and Propose a
     // Project used it, so a Search for something specific, an Observe at a
     // point of interest, a Listen, an Analyze hint and a Dynamic action all
-    // arrived as a card with a roll on it and nothing to press — the GM read
+    // arrived as a card with a roll on it and nothing to press - the GM read
     // the number and then went looking for the window that answers it.
 
     if (action === "reply") {
         // A ruling in words. Most of these branches have no mechanical answer
-        // at all — "what do you overhear", "what does that door tell you" — and
+        // at all - "what do you overhear", "what does that door tell you" - and
         // the module's own answer to that has always been the thread the card
         // is already sitting in.
         const actor = game.actors.get(data.by);
@@ -687,7 +687,7 @@ async function runCallAction(action, data) {
                 <textarea name="reply" rows="4"></textarea></form>`,
             buttons: [
                 {
-                    // Not `DRPG.Bridge.send` — that key reads "Send to GM",
+                    // Not `DRPG.Bridge.send` - that key reads "Send to GM",
                     // which is the right label on the PLAYER's window and the
                     // wrong one here, where the GM is answering the player.
                     action: "send", label: game.i18n.localize("DRPG.Bridge.sendRuling"), default: true,
@@ -703,7 +703,7 @@ async function runCallAction(action, data) {
         const { postToThread } = await import("./messenger.mjs");
         const owner = ownerOf(actor);
         // Named, not "The GM": rulings land as `action`-kind bubbles, which
-        // carry no author line — with two Gamemasters at the table the player
+        // carry no author line - with two Gamemasters at the table the player
         // had no way to tell whose ruling this was (Dawid, 26.08). `game.user`
         // is the GM who clicked, by construction.
         const body = `<p><strong>${foundry.utils.escapeHTML(
@@ -738,7 +738,7 @@ async function runCallAction(action, data) {
     }
 
     if (action === "createItem") {
-        // Prefilled, never applied — same rule as `approveProject`. The roll
+        // Prefilled, never applied - same rule as `approveProject`. The roll
         // already decided the tier and the player already named the category
         // and the room, so the form opens with all three answered and the GM
         // writes the one thing only they know: what was actually there.
@@ -772,7 +772,7 @@ async function runCallAction(action, data) {
 
     if (action === "declineMurder") {
         // The refusal is the GM overruling the declaration, not the rules
-        // resolving it — so the action comes back. A witness in the room is the
+        // resolving it - so the action comes back. A witness in the room is the
         // other thing, and that one keeps the attempt spent (see
         // `performDirectMurder`).
         const actor = game.actors.get(data.killer);
@@ -801,7 +801,7 @@ async function runCallAction(action, data) {
  * The remembered geometry used to carry the size too, and that quietly cancelled
  * the popup normalisation for everybody who had ever opened this window before
  * it: the default went 360 → 544, and every returning GM kept getting 360 back
- * out of their own settings. Measured — a fresh account opened at 544, an old
+ * out of their own settings. Measured - a fresh account opened at 544, an old
  * one at 360, with nothing in the code to explain the difference.
  *
  * Stored sizes are dropped on read rather than deleted from the setting, so a
@@ -841,7 +841,7 @@ function savePosition(playerUserId, position) {
  * THE LAUNCHER
  * --------------------------------------------------------------------------
  * Deliberately its own floating element rather than DOM injected into the
- * Players sidebar or the campaign HUD — both are foreign or shared territory
+ * Players sidebar or the campaign HUD - both are foreign or shared territory
  * whose structure this module does not own. A self-built button in a fixed
  * corner cannot be broken by either one changing shape.
  * ========================================================================== */
@@ -872,7 +872,7 @@ export function renderLauncher() {
             event.stopPropagation();
             // Its own key rather than the generic button one: this circle is
             // not inside any window, so the delegated listener in sfx.mjs
-            // never sees it — and the chat opening is a moment of its own.
+            // never sees it - and the chat opening is a moment of its own.
             playSfx("chatOpen");
             if (game.user.isGM) toggleRoster(button);
             else openMessenger(game.user.id);
@@ -898,11 +898,11 @@ function toggleRoster(anchor) {
 }
 
 /**
- * Take the roster off screen the way the popups leave — a beat out, then gone.
+ * Take the roster off screen the way the popups leave - a beat out, then gone.
  *
  * The class drives the transition (see the stylesheet); the timeout is the
- * guarantee, because a `transitionend` that never fires — reduced motion, a
- * backgrounded tab — must not leave a dead roster blocking the next open.
+ * guarantee, because a `transitionend` that never fires - reduced motion, a
+ * backgrounded tab - must not leave a dead roster blocking the next open.
  */
 function closeRoster(panel) {
     if (panel.classList.contains("leaving")) return;

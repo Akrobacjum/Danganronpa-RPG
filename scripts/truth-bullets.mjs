@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — Truth Bullets as real objects.
+ * Danganronpa RPG - Truth Bullets as real objects.
  * ---------------------------------------------------------------------------
  * A Remnant lives on the map; Observing it copies it into a player's inventory
  * as a Truth Bullet. Until now that copy was a plain Item with a category flag:
@@ -14,7 +14,7 @@
  * and the text written for them.
  *
  * WHAT IT REALLY IS lives nowhere near the player. Foundry hands every client
- * the whole world database on join — `World##g()` dumps ChatMessage (whispers
+ * the whole world database on join - `World##g()` dumps ChatMessage (whispers
  * included), Setting, Actor, Item and JournalEntry with no user and no filter,
  * and compendium reads are gated only on create/update/delete. A world setting,
  * a GM-only whisper and a GM-only compendium are all equally readable from a
@@ -24,7 +24,7 @@
  * never receives it.
  *
  * The cost of that choice is durability: browser storage, not the world file.
- * It is paid down three ways — every GM holds a full copy, a GM joining asks
+ * It is paid down three ways - every GM holds a full copy, a GM joining asks
  * the others for anything it is missing, and `exportLedger()` writes a backup.
  * The ledger's useful life is one chapter, which keeps the exposure small.
  */
@@ -52,7 +52,7 @@ export const TRUTH_BULLET_FLAGS = {
     isBullet: "isTruthBullet",
     /** What the player sees now. Starts at "neutral" for anything analysable. */
     shownType: "shownType",
-    /** obvious | evident | subtle | hidden — the DC input for Observe/Analyze. */
+    /** obvious | evident | subtle | hidden - the DC input for Observe/Analyze. */
     visibility: "visibility",
     /** Survives the sweep at the start of the next session. */
     faint: "faint",
@@ -66,13 +66,13 @@ export const TRUTH_BULLET_FLAGS = {
     timeOfDay: "timeOfDay",
     /** The description written for the player. */
     playerText: "playerText",
-    /** Tags from the source Remnant's `public` record — e.g. a difficulty band. */
+    /** Tags from the source Remnant's `public` record - e.g. a difficulty band. */
     tags: "tags",
     /**
-     * `${sceneId}.${tokenId}` of the Remnant this bullet was copied from —
+     * `${sceneId}.${tokenId}` of the Remnant this bullet was copied from -
      * PUBLIC, unlike `remnantId` in the secret ledger (see `secretOf`). It
      * says only "this is the same object as one of your other bullets, or as
-     * that token on the map" — never what the trace actually is — which is
+     * that token on the map" - never what the trace actually is - which is
      * exactly the fact visibility.mjs needs to decide whether a REVEALED
      * Remnant token belongs on THIS player's screen, on a client that cannot
      * read the ledger at all.
@@ -87,16 +87,16 @@ export const TRUTH_BULLET_FLAGS = {
     /**
      * TWO FACTS THAT GO PUBLIC AT THE MOMENT OF ANALYSIS, and not before
      * (Dawid, 26.08: "to o czym piszę wchodzi w życie do truth bullets które
-     * gracz przeanalizował"). Both live in the bullet's SECRET from creation —
-     * `secretOf(uuid).sourceAction` / `.tiedToCrime` — and are copied onto
+     * gracz przeanalizował"). Both live in the bullet's SECRET from creation -
+     * `secretOf(uuid).sourceAction` / `.tiedToCrime` - and are copied onto
      * the item as flags only once the bullet is identified: at creation for a
      * self-evident or critical find, in analyze.mjs's `identify` otherwise.
      * Until then the item carries `null`, which is exactly what a player's
      * console may know.
      */
-    /** Which action left the source trace — drives the Remnant token's icon. */
+    /** Which action left the source trace - drives the Remnant token's icon. */
     sourceAction: "sourceAction",
-    /** Whether the source trace belongs to the murder — drives the sort. */
+    /** Whether the source trace belongs to the murder - drives the sort. */
     tiedToCrime: "tiedToCrime"
 };
 
@@ -135,7 +135,7 @@ async function writeLedger(ledger) {
 }
 
 /**
- * What a bullet really is. `{}` for anyone who is not a GM — not an error, the
+ * What a bullet really is. `{}` for anyone who is not a GM - not an error, the
  * honest answer to "what do you know about this".
  *
  * @param {string} uuid  Item uuid. Not `item.id`: an embedded item's id is only
@@ -164,7 +164,7 @@ export async function setSecret(uuid, patch = {}) {
 
 /**
  * Forget a bullet. A tombstone rather than a plain delete, so the removal still
- * reaches a GM who was offline when it happened — otherwise their copy would
+ * reaches a GM who was offline when it happened - otherwise their copy would
  * resurrect the entry at the next full sync.
  */
 export async function dropSecret(uuid) {
@@ -280,7 +280,7 @@ export function bulletsOf(actor) {
  *
  * Two ways to be out: it is already identified, or this copy was burned on a
  * failed attempt during the chapter now running. Both are public flags, so a
- * player's client can work this out for itself — unlike the difficulty, which
+ * player's client can work this out for itself - unlike the difficulty, which
  * it cannot. See analyze.mjs.
  *
  * The chapter comparison is what gives Faint bullets their second life: a lock
@@ -292,8 +292,8 @@ export function bulletsOf(actor) {
  *
  * Two ways to know, and `analyzed` alone misses one: a critical Observe hands
  * the bullet over with its category already shown (`shownType` set, `analyzed`
- * still false). Everything that gates on "has this player earned the truth" —
- * the Remnant token's action icon, the murder-first sort — asks this, not the
+ * still false). Everything that gates on "has this player earned the truth" -
+ * the Remnant token's action icon, the murder-first sort - asks this, not the
  * bare flag.
  */
 export function isIdentified(item) {
@@ -316,8 +316,8 @@ export function isAnalysable(item, chapter = null) {
  * The chapter now running.
  *
  * Through `getClock` rather than reading the setting and defaulting to 1 here.
- * The old version's `?? 1` decided a rules question — whether an Analyze attempt
- * is still locked to the chapter it failed in — from a number this file made up,
+ * The old version's `?? 1` decided a rules question - whether an Analyze attempt
+ * is still locked to the chapter it failed in - from a number this file made up,
  * and it made it up in a different place from the two other copies of the same
  * fallback elsewhere in the module. The default belongs beside the setting.
  *
@@ -338,7 +338,7 @@ export function analysableBullets(actor) {
  * Which Remnants this character has already copied.
  *
  * GM-side by necessity: a bullet's source Remnant is part of the answer key, so
- * a player's client has no way to work this out — which is the whole reason
+ * a player's client has no way to work this out - which is the whole reason
  * Observe is resolved on the GM's client and not the observer's.
  *
  * @returns {Set<string>} Remnant token ids.
@@ -358,13 +358,13 @@ export function copiedRemnants(actor) {
  *
  * Guide, p. 28: "Key Remnants domyślnie przekształcają się w Key Truth Bullets
  * bez wymogu analizy", and an Autopsy bullet is handed over rather than found.
- * Neither ever enters the Analyze table — which is exactly why ANALYZE_DC has
+ * Neither ever enters the Analyze table - which is exactly why ANALYZE_DC has
  * `key: null` and no `autopsy` column at all.
  */
 const SELF_EVIDENT = ["key", "autopsy", "final"];
 
 /**
- * Create a Truth Bullet on a character. The single path — the GM's dialog,
+ * Create a Truth Bullet on a character. The single path - the GM's dialog,
  * macro 03 and (from Stage 2) Observe all come through here, so there is one
  * place where a bullet's shape is decided.
  *
@@ -378,12 +378,12 @@ const SELF_EVIDENT = ["key", "autopsy", "final"];
  * @param {boolean} [data.faint]
  * @param {string} [data.playerText]   Description for the player.
  * @param {string} [data.img]          Portrait. Defaults to the category icon.
- * @param {string[]} [data.tags]       Public tags — e.g. a difficulty band.
+ * @param {string[]} [data.tags]       Public tags - e.g. a difficulty band.
  * @param {string} [data.gmNote]       Note for the GM. Never leaves the ledger.
  * @param {string} [data.remnantId]    Source token id, when there is one.
  * @param {string} [data.sceneId]
  * @param {string} [data.room]         Where it was picked up. Pass this when the
- *   creating client is not the one looking at the character's scene — the room
+ *   creating client is not the one looking at the character's scene - the room
  *   lookup below is canvas-bound, and Observe runs on the GM's client.
  * @param {boolean} [data.analyzed]    Override. `null` derives it from the type,
  *   which is what a fresh find wants; a copy passes the original's state so
@@ -391,7 +391,7 @@ const SELF_EVIDENT = ["key", "autopsy", "final"];
  * @param {object} [data.stamp]        `{chapter, day, timeOfDay}` override. A
  *   copy records the discovery it documents, not the moment it was copied.
  * @param {string} [data.sourceAction] Which action left the source trace.
- *   Secret until the bullet is identified — see TRUTH_BULLET_FLAGS.
+ *   Secret until the bullet is identified - see TRUTH_BULLET_FLAGS.
  * @param {boolean} [data.tiedToCrime] Whether the source trace belongs to the
  *   murder. Same rule.
  * @returns {Promise<Item|null>}
@@ -436,7 +436,7 @@ export async function createTruthBullet(actor, {
     if (!game.user.isGM) {
         // Not a limitation to route around: the answer key only exists on a GM's
         // browser, so a bullet created here would be one whose truth nobody
-        // recorded. Observe already goes the right way — the roll travels to the
+        // recorded. Observe already goes the right way - the roll travels to the
         // GM's client and `createFind` runs there. See observe.mjs.
         warn("Only a GM can create a Truth Bullet.");
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
@@ -466,7 +466,7 @@ export async function createTruthBullet(actor, {
         // through the carry-limit hook; `override` keeps a GM's ruling final.
         override: true,
         // A bullet has no tier. It is written as null rather than left undefined
-        // so the sheet can tell "no tier" from "tier 0" — the old macro used to
+        // so the sheet can tell "no tier" from "tier 0" - the old macro used to
         // smuggle a visibility index through this field.
         tier: null,
         img,
@@ -487,7 +487,7 @@ export async function createTruthBullet(actor, {
             [TRUTH_BULLET_FLAGS.sourceAction]: identified ? sourceAction : null,
             [TRUTH_BULLET_FLAGS.tiedToCrime]: identified ? tiedToCrime : null,
             // Never inherited. A failed analysis is a fact about the person who
-            // failed, not about the evidence — guide, Stage 3.
+            // failed, not about the evidence - guide, Stage 3.
             [TRUTH_BULLET_FLAGS.lockedChapter]: null
         }
     });
@@ -498,7 +498,7 @@ export async function createTruthBullet(actor, {
 
     /*
      * AFTER THE SECRET IS FILED, so the sound cannot arrive before the thing it
-     * is about is completely written — and AIMED, which it was not.
+     * is about is completely written - and AIMED, which it was not.
      *
      * This function only ever runs on a GM's browser: it says so forty lines up,
      * and it has to, because the answer key lives there. So a plain `playSfx`
@@ -546,7 +546,7 @@ export function truthBulletData(item) {
         playerText: flag(TRUTH_BULLET_FLAGS.playerText) ?? "",
         tags: flag(TRUTH_BULLET_FLAGS.tags) ?? [],
         remnantRef: flag(TRUTH_BULLET_FLAGS.remnantRef) ?? null,
-        /* Null until the bullet is identified — see TRUTH_BULLET_FLAGS. */
+        /* Null until the bullet is identified - see TRUTH_BULLET_FLAGS. */
         sourceAction: flag(TRUTH_BULLET_FLAGS.sourceAction) ?? null,
         tiedToCrime: flag(TRUTH_BULLET_FLAGS.tiedToCrime) ?? null,
         lockedChapter: flag(TRUTH_BULLET_FLAGS.lockedChapter) ?? null,
@@ -569,11 +569,11 @@ export function truthBulletData(item) {
  * Bring every Truth Bullet copied from one trace into line with its `public`
  * record.
  *
- * Called from remnants.mjs's `setRemnantPublic` — never on its own — because
+ * Called from remnants.mjs's `setRemnantPublic` - never on its own - because
  * finding "every bullet copied from this trace" reads `secretOf(item.uuid)
  * .remnantId`, the answer key, and that only resolves on a GM's client.
  * Which fields move: name, portrait, the description and the tags a player
- * reads — never `realType`, `gmNote` or anything else the ledger's secret
+ * reads - never `realType`, `gmNote` or anything else the ledger's secret
  * half holds.
  *
  * @returns {Promise<number>} how many bullets were updated.
@@ -609,7 +609,7 @@ export async function propagateRemnantPublic(remnantTokenId, pub) {
 }
 
 /**
- * A GM changed their mind about whether a trace belongs to the murder — see
+ * A GM changed their mind about whether a trace belongs to the murder - see
  * `setRemnantFlags` in remnants.mjs, the only caller. The verdict moves into
  * every bullet copied from that trace: into the secret always, and onto the
  * item only where the holder has already earned the truth. Anything less and
@@ -642,7 +642,7 @@ export async function propagateCrimeTie(remnantTokenId, tied) {
 }
 
 /**
- * The Autopsy bullet — decision D2: issued by hand from the GM panel, never
+ * The Autopsy bullet - decision D2: issued by hand from the GM panel, never
  * rolled for. Guide, p. 29: "Zawsze dostarczana graczom w każdym rozdziale jako
  * pierwsza poszlaka."
  *
@@ -656,12 +656,12 @@ export async function issueAutopsy(actors, { name, playerText = "", gmNote = "" 
         const item = await createTruthBullet(actor, {
             name,
             realType: "autopsy",
-            // Autopsy findings are handed over openly — there is nothing to spot.
+            // Autopsy findings are handed over openly - there is nothing to spot.
             visibility: "obvious",
             playerText,
             gmNote,
             // The autopsy is BY DEFINITION about the murder, and it arrives
-            // identified — so it takes its place at the top of the pack's
+            // identified - so it takes its place at the top of the pack's
             // murder-first sort from the moment it lands.
             tiedToCrime: true
         });
@@ -669,7 +669,7 @@ export async function issueAutopsy(actors, { name, playerText = "", gmNote = "" 
         issued++;
         await whisperToOwner(actor, `
             <h3>${game.i18n.localize("DRPG.TruthBullet.received")}</h3>
-            <p><strong>${foundry.utils.escapeHTML(name)}</strong> — ${
+            <p><strong>${foundry.utils.escapeHTML(name)}</strong> - ${
                 foundry.utils.escapeHTML(TRUTH_BULLET_TYPES.autopsy.label)
             }</p>
             ${playerText ? `<p>${foundry.utils.escapeHTML(playerText)}</p>` : ""}`);
@@ -684,7 +684,7 @@ export async function issueAutopsy(actors, { name, playerText = "", gmNote = "" 
  * --------------------------------------------------------------------------
  * Bullets handed out before this file existed are plain items with a category.
  * Worse, `macros/03` wrote the visibility index into the `tier` field, because
- * a bullet had nowhere else to put it — so an "Evident" bullet reads as Tier 1.
+ * a bullet had nowhere else to put it - so an "Evident" bullet reads as Tier 1.
  * That mapping is recoverable exactly, which is why it is used rather than
  * guessed at.
  *
@@ -736,7 +736,7 @@ export async function migrateTruthBullets() {
 
     if (migrated.length) {
         const rows = migrated.map(m =>
-            `<li>${foundry.utils.escapeHTML(m.actor)} — <strong>${
+            `<li>${foundry.utils.escapeHTML(m.actor)} - <strong>${
                 foundry.utils.escapeHTML(m.name)
             }</strong> (${REMNANT_VISIBILITY_LABELS[m.visibility] ?? m.visibility})</li>`).join("");
         await whisperToGms(`
@@ -757,7 +757,7 @@ export async function migrateTruthBullets() {
  * The option that says "this write came from the trace".
  *
  * See `watchBulletEdits`. One word, on the options rather than in the data,
- * because it is a fact about the write and not about the bullet — and because
+ * because it is a fact about the write and not about the bullet - and because
  * anything stored on the document would have to be cleaned off again.
  */
 const FROM_REMNANT = "drpgFromRemnant";
@@ -770,29 +770,29 @@ const FROM_REMNANT = "drpgFromRemnant";
  *
  * HALF OF THIS ALREADY EXISTED and that is exactly why it was worth saying out
  * loud. `propagateRemnantPublic` has always pushed the trace's record onto every
- * bullet copied from it — measured, two holders, both followed. What had no
+ * bullet copied from it - measured, two holders, both followed. What had no
  * road at all was the other direction: a GM correcting a bullet on its own item
  * sheet, or in the item manager, changed that one copy and nothing else. The
  * player next to them went on holding the old words for the same object, which
- * in a trial is not a cosmetic difference — it is a false contradiction the
+ * in a trial is not a cosmetic difference - it is a false contradiction the
  * table has to spend the trial resolving.
  *
  * So the trace stays the single record and the bullet is a view of it, edited
  * from either end. A GM's correction goes UP to the trace, and the trace sends
- * it back DOWN to every copy including the one just edited — which is what
+ * it back DOWN to every copy including the one just edited - which is what
  * makes two GMs editing two different copies converge instead of fighting.
  *
  * THE LOOP IS BROKEN AT THE TOP, not by comparing values: `propagateRemnantPublic`
  * stamps its own writes with `FROM_REMNANT` and this ignores those. Comparing
  * would have worked for the name and failed for the description, which is stored
- * twice — once as a flag and once wrapped in `<p>` — and would have looped
+ * twice - once as a flag and once wrapped in `<p>` - and would have looped
  * forever on the wrapping.
  */
 function watchBulletEdits() {
     Hooks.on("updateItem", async (item, changes, options) => {
         try {
             /*
-             * THE PRIMARY GM, not "a GM" — and with two Gamemasters at this
+             * THE PRIMARY GM, not "a GM" - and with two Gamemasters at this
              * table that is not pedantry. `updateItem` fires on every client,
              * so `isGM` alone had both of them writing the same patch to the
              * trace, each one pushing it back down onto every copy and each
@@ -822,7 +822,7 @@ function watchBulletEdits() {
             /*
              * The description is edited on the item sheet as HTML, and the flag
              * is the same sentence in plain text. A GM typing into the sheet
-             * changes only the first, so it is read back and stripped — without
+             * changes only the first, so it is read back and stripped - without
              * this, editing a bullet the ordinary way would write the name to the
              * trace and silently drop the words.
              */
@@ -848,12 +848,12 @@ export function registerTruthBullets() {
      * Every one of these is GM-to-GM, checked at BOTH ends.
      *
      * The receiving end alone was not enough. "A player's client never receives
-     * them — the server filters by `recipients`" describes what this module
+     * them - the server filters by `recipients`" describes what this module
      * sends, not what a player's console can send, and this ledger is the answer
      * key to every Truth Bullet in the season:
      *
      *   · a forged `secret` or `full` rewrote what a bullet REALLY is on every
-     *     GM's client — the trial's own answer sheet, edited by a player;
+     *     GM's client - the trial's own answer sheet, edited by a player;
      *   · a forged `request` was answered to `payload.from`, an id the sender
      *     chose, so any player could ask the GMs for the entire ledger and be
      *     sent it.

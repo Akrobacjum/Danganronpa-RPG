@@ -1434,7 +1434,7 @@
       "logAgainst": "Against",
       "logWhen": "When",
       "objectionTooltip": "OBJECTION - put this on the table and take the floor.",
-      "objectionNotYourRebuttal": "This rebuttal is not yours. Only the two on the floor may object inside it."
+      "objectionRebuttalTargets": "Anybody may cut into a rebuttal, but only at the two already on the floor. An objection re-points the floor, and whoever you name gets the answering rebuttal."
     },
     "Handover": {
       "shareTooltip": "Share a copy with someone in this room",

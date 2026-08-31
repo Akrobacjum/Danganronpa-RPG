@@ -1,7 +1,7 @@
 /**
- * Danganronpa RPG — Despair pools, one per Monokuma.
+ * Danganronpa RPG - Despair pools, one per Monokuma.
  * ---------------------------------------------------------------------------
- * Guide: "There are at least two GMs. […] Each GM has their own Despair pool —
+ * Guide: "There are at least two GMs. […] Each GM has their own Despair pool -
  * a maximum of 12 per GM."
  *
  * Daggerheart only models a single shared Fear pool, so this replaces its
@@ -28,7 +28,7 @@ export function registerDespair() {
         // The store outlives its authors: worlds carry entries for accounts
         // long deleted and, in one measured case, a "[object Object]" key an
         // old caller once wrote. `deleteUser` was the only broom, so junk that
-        // arrived any other way stayed for the life of the world — a sweep at
+        // arrived any other way stayed for the life of the world - a sweep at
         // ready clears it. Primary GM only: one writer, no race between GMs.
         if (isPrimaryGm()) {
             prunePools().catch(err => error("Could not prune the Despair pools at ready", err));
@@ -38,7 +38,7 @@ export function registerDespair() {
     // Keep every client's rows in step when a pool changes.
     Hooks.on("userConnected", () => renderDespairBar());
     // A row is one full Gamemaster. Promoting a player, demoting a GM or
-    // renaming one all change the roster, and none of them fired anything —
+    // renaming one all change the roster, and none of them fired anything -
     // the widget kept showing yesterday's Monokumas until a scene reloaded.
     Hooks.on("updateUser", () => renderDespairBar());
     Hooks.on("createUser", () => renderDespairBar());
@@ -98,7 +98,7 @@ export function despairMax() {
 
 /**
  * The users who get a pool: every full Gamemaster automatically, plus any
- * Assistant GM explicitly granted one — see `extraPoolUserIds`.
+ * Assistant GM explicitly granted one - see `extraPoolUserIds`.
  *
  * `User#isGM` is true for Assistant GMs too, which is why a full Gamemaster
  * still has to be found by role: an assistant only gets a pool by being
@@ -147,7 +147,7 @@ export async function addPool(userId) {
 
 /**
  * Revoke a pool granted via `addPool`. Only ever applies to an opted-in
- * Assistant GM — a full Gamemaster's pool is the guide's rule, not a setting,
+ * Assistant GM - a full Gamemaster's pool is the guide's rule, not a setting,
  * so there is nothing here to take away from one.
  */
 export async function removePool(userId) {
@@ -169,7 +169,7 @@ export async function removePool(userId) {
 
 /* ---- naming --------------------------------------------------------------
  * A pool's display label defaults to the account's own name, but the account
- * name is not always what the table calls that Monokuma — two GMs literally
+ * name is not always what the table calls that Monokuma - two GMs literally
  * renamed their Foundry accounts "Monokuma" and "Monominie" to work around
  * not having this, which meant every part of the UI that colour-codes or
  * otherwise reads `user.name` was reading roleplay fiction as if it were
@@ -184,7 +184,7 @@ function poolNames() {
     }
 }
 
-/** The label to show for this pool — custom if set, the account name otherwise. */
+/** The label to show for this pool - custom if set, the account name otherwise. */
 export function poolLabel(user) {
     return poolNames()[user?.id]?.trim() || user?.name || "?";
 }
@@ -216,7 +216,7 @@ export async function setDespair(userId, value) {
     if (!game.user.isGM) return null;
 
     // A User object handed to this signature used to be stringified into a
-    // "[object Object]" key — a pool no bar could show and only a deleted-user
+    // "[object Object]" key - a pool no bar could show and only a deleted-user
     // prune could remove. Resolve an id, refuse anything that has none.
     const key = typeof userId === "string" ? userId : userId?.id;
     if (!key) {
@@ -251,7 +251,7 @@ export async function adjustDespair(userId, delta) {
             await addOverflow(wanted - max, { reason: "pool spill" });
         } catch (err) {
             // The pool write already landed. A failure to record the spill is
-            // worth a line in the log and nothing more — refusing the income
+            // worth a line in the log and nothing more - refusing the income
             // over it would be the larger bug.
             warn("Could not send spilled Despair to the overflow", err);
         }
@@ -285,7 +285,7 @@ export async function fillAllDespair() {
  * It differs from the mirror in one way. Filling walks the CURRENT Monokumas,
  * because a pool for somebody who is not one has nothing to fill. Zeroing walks
  * every entry in the store, because a pool left behind by somebody who has
- * since left the team is still last season's number — and the next GM handed
+ * since left the team is still last season's number - and the next GM handed
  * that role would open the bar on a stranger's Despair.
  *
  * The keys stay. They are the record of who has a pool at all, which belongs to
@@ -308,8 +308,8 @@ export async function zeroAllDespair() {
  * Turn a Monokuma's Despair into Hope for somebody else, 1:1.
  *
  * The guide gives this exact exchange to two very different people for two
- * different reasons — a Monocub "prosi DMa" to fuel Meddle, a Mastermind
- * "może prosić DMów… by odnawiać hope" to stay afloat unnoticed — but it is
+ * different reasons - a Monocub "prosi DMa" to fuel Meddle, a Mastermind
+ * "może prosić DMów… by odnawiać hope" to stay afloat unnoticed - but it is
  * the same trade both times: a GM ruling that moves real Despair out of a
  * real pool, never a self-service button. One function, so both callers stay
  * one honest despair-check away from a duplicate bug.
@@ -353,7 +353,7 @@ export async function convertDespairToHope(monokumaUserId, actor, amount) {
 
 /**
  * Spend Despair on one of the guide's Despair Calls. Refuses when the pool is
- * short, and announces the spend publicly — these are Monokuma's moves.
+ * short, and announces the spend publicly - these are Monokuma's moves.
  *
  * @param {string} userId  Which Monokuma is paying.
  * @param {string} callKey Key from DESPAIR_CALLS.
@@ -382,7 +382,7 @@ export async function spendDespairCall(userId, callKey) {
         const user = game.users?.get?.(userId) ?? game.users?.find?.(u => u.id === userId);
         await announce({
             content: `<h3>${game.i18n.localize("DRPG.Despair.callTitle")}</h3>
-                      <p><strong>${foundry.utils.escapeHTML(call.label)}</strong> — ${foundry.utils.escapeHTML(callEffect(call))}</p>
+                      <p><strong>${foundry.utils.escapeHTML(call.label)}</strong> - ${foundry.utils.escapeHTML(callEffect(call))}</p>
                       <p><em>${game.i18n.format("DRPG.Despair.spent", {
                           name: foundry.utils.escapeHTML(user?.name ?? "?"),
                           cost: call.cost,
@@ -415,7 +415,7 @@ export function renderDespairBar() {
         wrapper.id = WIDGET_ID;
         wrapper.classList.toggle("single", gms.length === 1);
         wrapper.classList.toggle("gm-editable", game.user.isGM);
-        // Players keep the bar but not the numbers — see `buildRow`.
+        // Players keep the bar but not the numbers - see `buildRow`.
         wrapper.classList.toggle("masked", !game.user.isGM);
 
         /*
@@ -453,13 +453,13 @@ export function renderDespairBar() {
          * `matchStripToDespair` writes it to `--drpg-despair-height`, which the
          * player's status strip matches. That has to happen here because the
          * overflow caption is a row this panel grew, and until now the widget
-         * could be rebuilt without anything being told — which did not matter
+         * could be rebuilt without anything being told - which did not matter
          * while its height only changed when a Monokuma was added.
          *
          * THE RIGHT-HAND RAIL IS DELIBERATELY NOT RE-ALIGNED FROM HERE, and the
          * first version of this was wrong to do it. `alignRightColumn` hangs the
          * rail off this panel's TOP, which does not move when the panel grows
-         * downward — so there was nothing to recompute. What it does do on the
+         * downward - so there was nothing to recompute. What it does do on the
          * way is `clearSceneList`, which measures the clock and rewrites a
          * column margin; calling that on every redraw of the Despair widget
          * churns the page layout continuously, because this widget redraws on
@@ -467,7 +467,7 @@ export function renderDespairBar() {
          *
          * MEASURED, BY BISECT. v1.1.79 runs the suite 106/106; with this call in
          * place it was 105/1 twice, and the casualty was "no piece of a room's
-         * outline is shorter than the line it is drawn with" — a canvas test
+         * outline is shorter than the line it is drawn with" - a canvas test
          * catching the outline mid-rebuild, a hundred lines away from anything
          * this feature is about. A layout write is not free just because it is
          * idempotent.
@@ -492,12 +492,12 @@ export function renderDespairBar() {
  * than a secret: the counter is a WORLD setting, so a determined player can
  * read it from their own console exactly as they could read a stash flag. It
  * is drawn this way because a table plays better without the number on screen,
- * not because the number could be protected — and nothing about the
+ * not because the number could be protected - and nothing about the
  * investigation lives in it either way. The popup says so in as many words.
  *
  * ALWAYS DRAWN, and the first version of this was wrong to hide itself while
  * the counter sat at zero. Two reasons it is permanent now. Dawid asked for a
- * standing caption on the pool window — X is public precisely so the table can
+ * standing caption on the pool window - X is public precisely so the table can
  * see what it is playing against before anything happens. And a row that comes
  * and goes changes this panel's height mid-session, which moves the status
  * strip and the right-hand rail with it: the "equal heights and margins across
@@ -547,7 +547,7 @@ function buildRow(user, showName) {
 
     // Only a GM has a reading to lose. A player's bar is question marks by
     // design (see the note on the pips below), so there is nothing to confirm
-    // and nothing to give away by confirming it — which is also why this is not
+    // and nothing to give away by confirming it - which is also why this is not
     // even asked on their client: `spentSince` records as it reads, and a
     // player recording a pool they cannot see would be keeping a copy of the
     // one number this bar exists to withhold.
@@ -561,7 +561,7 @@ function buildRow(user, showName) {
         const name = document.createElement("span");
         name.className = "drpg-despair-name";
         name.textContent = poolLabel(user);
-        // Deliberately NOT that user's own Foundry account colour — every
+        // Deliberately NOT that user's own Foundry account colour - every
         // Monokuma pool reads as the same purple regardless of whichever
         // colour a GM happened to pick for their account. Two rows are told
         // apart by name, not by borrowing account theming into game UI.
@@ -578,7 +578,7 @@ function buildRow(user, showName) {
 
     for (let i = 1; i <= max; i++) {
         const pip = document.createElement("span");
-        // "You will not see that table. You will see its effects." — Player
+        // "You will not see that table. You will see its effects." - Player
         // Handbook, p. 12. The bar stays (a player should know the Monokumas
         // have a currency and roughly how big it can get) but the reading does
         // not: every pip renders as a question mark and none of them is marked
@@ -619,7 +619,7 @@ function buildRow(user, showName) {
 
     const count = document.createElement("span");
     count.className = "drpg-despair-count";
-    // The cap is public — the handbook prints it — so only the reading is hidden.
+    // The cap is public - the handbook prints it - so only the reading is hidden.
     count.textContent = isGM ? `${held}/${max}` : `?/${max}`;
     row.append(count);
 
@@ -628,7 +628,7 @@ function buildRow(user, showName) {
      *
      * Dawid, 29.08: the Despair panel and the action strip must be the same
      * size on a GM's screen and on a player's. They were not, and this is the
-     * whole of the difference — the panel is `width: max-content`, so two
+     * whole of the difference - the panel is `width: max-content`, so two
      * buttons that exist on one client and not on the other make the box two
      * buttons narrower there, and the status strip opposite it takes its height
      * from this panel (`matchStripToDespair`), so the second box inherited the
@@ -636,7 +636,7 @@ function buildRow(user, showName) {
      *
      * `visibility: hidden` and not `display: none`: the point is to keep the
      * space. They are also `disabled` and out of the tab order, and no handler
-     * is attached on a player's client — a hidden button that still works would
+     * is attached on a player's client - a hidden button that still works would
      * be a considerably worse bug than a panel of the wrong width.
      */
     const ghost = !isGM;

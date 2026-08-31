@@ -1,12 +1,12 @@
 /**
- * Danganronpa RPG — per-room search tokens.
+ * Danganronpa RPG - per-room search tokens.
  * ---------------------------------------------------------------------------
  * Guide: "Every room has 3 search tokens per time of day. Once they are spent,
  * further searching is impossible."
  *
  * Counters live in a world setting keyed by `sceneId::roomName`. Only a GM
  * client may write world settings, so player-side spends are routed through a
- * socket to the primary GM. The room itself is never typed in — it comes from
+ * socket to the primary GM. The room itself is never typed in - it comes from
  * whichever Scene Region the acting token is standing in (`roomOfActor`).
  */
 
@@ -18,13 +18,13 @@ import { overflowTokenPenalty, overflowFloor } from "./overflow.mjs";
 /**
  * Region flags this file owns.
  *
- * Set from Room Setup, enforced here — the same split `ROOM_FLAGS` in
+ * Set from Room Setup, enforced here - the same split `ROOM_FLAGS` in
  * movement.mjs uses for a locked door, and for the same reason: the column in
  * the GM's table is a checkbox, and the rule it turns on belongs with the code
  * that has to answer for it.
  */
 export const SEARCH_FLAGS = {
-    /** This room cannot be searched at all. Not "not right now" — at all. */
+    /** This room cannot be searched at all. Not "not right now" - at all. */
     sealed: "drpgNoSearch"
 };
 
@@ -34,7 +34,7 @@ export class SearchTokens {
      * Maximum tokens a room gets per time of day.
      *
      * A darkening takes one off every room (Z10), floored so that no room ever
-     * becomes unsearchable — a room with nothing in it cannot be investigated
+     * becomes unsearchable - a room with nothing in it cannot be investigated
      * at all, which is a different game rather than a harder one. Applied here
      * because this getter is already the single answer: the restock reads it,
      * the room-setup table reads it, and the "searched out" test reads it.
@@ -80,7 +80,7 @@ export class SearchTokens {
      * A player's spend is a round trip: ask the GM, the GM writes the world
      * setting, the setting then has to propagate back to this client before
      * `store` reflects it. The GM's reply already carries the true post-spend
-     * count — reading `left()` immediately afterwards (which every action's
+     * count - reading `left()` immediately afterwards (which every action's
      * chat card does) was reading the stale pre-spend value out of `store`
      * instead, off by one until the setting arrived. Cleared whenever the real
      * setting changes; see sync.mjs's `SYNC.searchTokens` handler.
@@ -88,12 +88,12 @@ export class SearchTokens {
     static #freshCounts = new Map();
 
     /**
-     * A planted item the GM handed back with the last spend — E21, trigger 5.
+     * A planted item the GM handed back with the last spend - E21, trigger 5.
      *
      * A ONE-SHOT, and deliberately not a return value. `spend` answers a
      * boolean and every call site in the module reads it that way; widening it
      * would mean touching all of them to serve one caller. So the answer is
-     * parked here for the Search that asked, and `takeFreshPlant` empties it —
+     * parked here for the Search that asked, and `takeFreshPlant` empties it -
      * which also means a plant that somehow arrives with no one to collect it
      * is dropped rather than handed to the next search in another room.
      */
@@ -111,7 +111,7 @@ export class SearchTokens {
      *
      * It only exists to bridge the gap until the world setting arrives, and the
      * only thing that used to clear it was that setting's own sync. If that sync
-     * never landed — a dropped socket, a client that reconnected — the stale
+     * never landed - a dropped socket, a client that reconnected - the stale
      * count outlived the value it was standing in for and the room read wrong for
      * the rest of the session. An expiry makes the cache self-correcting.
      */
@@ -143,8 +143,8 @@ export class SearchTokens {
      * A different question from `left() <= 0`, and the difference is the whole
      * point: an exhausted room is one the cast has already been through this
      * time of day and it comes back at the next one. A sealed room is a place
-     * with nothing in it to find — a corridor, a wing nobody has opened, the
-     * Monokuma statue — and no amount of waiting changes that.
+     * with nothing in it to find - a corridor, a wing nobody has opened, the
+     * Monokuma statue - and no amount of waiting changes that.
      *
      * Read off the Region rather than out of the counter store, so it survives
      * every refill and every reset the tokens go through.
@@ -167,7 +167,7 @@ export class SearchTokens {
 
     /**
      * Spend one token. Returns true when it was spent, false when the room is
-     * exhausted. Safe to call from a player client — it forwards to the GM.
+     * exhausted. Safe to call from a player client - it forwards to the GM.
      */
     static async spend(roomName, sceneId = this.currentSceneId) {
         if (!roomName) return false;
@@ -190,9 +190,9 @@ export class SearchTokens {
 
     static async #spendAsGm(roomName, sceneId = this.currentSceneId) {
         // THE LAST WORD, and deliberately down here rather than only in front
-        // of the action. Every route to a search ends at this method — the
+        // of the action. Every route to a search ends at this method - the
         // sheet's tile, a player's socket request, `game.drpg.useToken` from a
-        // console — so a room the GM has sealed cannot be searched by any of
+        // console - so a room the GM has sealed cannot be searched by any of
         // them, including one that arrives from a client whose copy of the map
         // is a few seconds out of date.
         if (this.sealed(roomName, sceneId)) return false;
@@ -203,7 +203,7 @@ export class SearchTokens {
         if (current <= 0) return false;
 
         store[key] = current - 1;
-        // Migrate off the legacy plain-name key — but only when it IS a different
+        // Migrate off the legacy plain-name key - but only when it IS a different
         // key. With no scene to key against, `key()` falls back to the bare room
         // name, and deleting it here erased the spend that had just been written
         // one line above: the counter never moved and the room could be searched
@@ -265,7 +265,7 @@ export class SearchTokens {
 
     /**
      * GM-only chat readout. Lists every room on the current scene, so a full
-     * room is as visible as a spent one — "which rooms are still worth
+     * room is as visible as a spent one - "which rooms are still worth
      * searching" is the question actually being asked.
      */
     static async report() {
@@ -300,7 +300,7 @@ export class SearchTokens {
 }
 
 /* ==========================================================================
- * SOCKET BRIDGE — players ask, the primary GM writes
+ * SOCKET BRIDGE - players ask, the primary GM writes
  * ========================================================================== */
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
@@ -320,14 +320,14 @@ async function onSocketMessage(payload, senderId) {
     if (payload.action === ACTION_SPEND) {
         // Exactly one GM client answers, otherwise every GM would spend a token.
         if (!isPrimaryGm()) return;
-        // Answered to whoever actually asked, not to the id in the payload —
+        // Answered to whoever actually asked, not to the id in the payload -
         // otherwise one player could make the GM spend a token and report the
         // result to somebody else.
         const sceneId = payload.sceneId ?? null;
         const ok = await SearchTokens.spend(payload.roomName, sceneId);
 
         /*
-         * AND WHETHER SOMEBODY LEFT SOMETHING HERE — E21, trap 165.
+         * AND WHETHER SOMEBODY LEFT SOMETHING HERE - E21, trap 165.
          *
          * The plant rides the round trip this search was already making. That
          * is the whole reason it can be a GM-side decision at no cost: every
@@ -339,7 +339,7 @@ async function onSocketMessage(payload, senderId) {
          * a plant handed out for one would be a free item from a sealed or
          * exhausted room.
          *
-         * The plant comes out of the store as it is handed over — see
+         * The plant comes out of the store as it is handed over - see
          * `takePlant`. It is one object somebody left, not something the room
          * has become.
          */
@@ -369,7 +369,7 @@ async function onSocketMessage(payload, senderId) {
         //
         // The request used to be broadcast, so every client saw the `requestId`,
         // and this end accepted any reply carrying it. A player could answer
-        // another player's request before the GM did — granting a search in a
+        // another player's request before the GM did - granting a search in a
         // room that was already exhausted, or denying one that was not. The
         // request is now addressed to the GMs (see `requestSpend`) and the reply
         // has to come from one.

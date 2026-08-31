@@ -1,28 +1,28 @@
 /**
- * Danganronpa RPG — the Mastermind and the Final Trial.
+ * Danganronpa RPG - the Mastermind and the Final Trial.
  * ---------------------------------------------------------------------------
- * Guide, pp. 32–33: "Wśród graczy ukryty jest mastermind" — hidden AMONG the
+ * Guide, pp. 32–33: "Wśród graczy ukryty jest mastermind" - hidden AMONG the
  * players. This is the single most important secret the game has, and it gets
  * treated that way: nothing about it ever touches an actor document.
  *
- * WHY NOT A FLAG. Every other role in this module — Monokuma, Monocub, dead —
+ * WHY NOT A FLAG. Every other role in this module - Monokuma, Monocub, dead -
  * is public knowledge at the table, so a plain actor flag (world data, which
  * D6 already established Foundry ships to every client regardless of
  * ownership) costs nothing to use. The Mastermind's identity is exactly the
  * opposite: it must be unreadable from ANY client but a GM's. So it lives in a
  * client-scoped setting on GM browsers only, synced GM-to-GM over a socket the
- * server addresses to named recipients — the same treatment `truth-bullets.mjs`
+ * server addresses to named recipients - the same treatment `truth-bullets.mjs`
  * gives the answer key, just for a single actor id instead of a ledger.
  *
  * Everything else the guide asks for is either already built or genuinely
  * small:
- *   private intel        the messenger from Stage B — no new code
+ *   private intel        the messenger from Stage B - no new code
  *   Despair → Hope        `despair.mjs`'s `convertDespairToHope`, shared with
  *                         Monocub rather than reimplemented
  *   Final Truth Remnant   `type: "final"` on the existing Remnant system,
  *                         reinforced by its own config entry
  *   the Final Trial       the SAME floor, Present/OBJECTION and vote as any
- *                         other Class Trial (Stage 9) — only the verdict's
+ *                         other Class Trial (Stage 9) - only the verdict's
  *                         consequences differ, so only the verdict is new here
  */
 
@@ -45,7 +45,7 @@ const ACTION_DOOR = "mastermind.door";
 const ACTION_DOOR_REQUEST = "mastermind.doorRequest";
 
 /* ==========================================================================
- * IDENTITY — GM browsers only, never world data
+ * IDENTITY - GM browsers only, never world data
  * ========================================================================== */
 
 function readStore() {
@@ -89,13 +89,13 @@ function syncToGms(entry) {
  * Tell the ONE client that needs to know: the Mastermind's own player.
  *
  * Nothing here ever names the Mastermind. The message is a bare boolean,
- * addressed by Foundry's own `recipients` — the same mechanism `syncToGms`
- * above uses — to whichever single user id owns the actor. A player who is
+ * addressed by Foundry's own `recipients` - the same mechanism `syncToGms`
+ * above uses - to whichever single user id owns the actor. A player who is
  * not that owner receives nothing at all, not even an empty envelope.
  *
  * Both ends of a change are handled: the outgoing Mastermind's player (if
  * there was one, and if somebody actually owns that character) has their flag
- * cleared, and the incoming one's is set — in that order, so a single player
+ * cleared, and the incoming one's is set - in that order, so a single player
  * who somehow owns both never ends up cleared by the second half of their own
  * promotion.
  */
@@ -106,7 +106,7 @@ function notifyDoorAccess(previousActorId, nextActorId, room = null) {
     }
     if (nextActorId) {
         const incoming = ownerOf(game.actors.get(nextActorId));
-        // Sent on every write, not only on a change of WHO — the lair moving
+        // Sent on every write, not only on a change of WHO - the lair moving
         // is the other thing this flag carries now, and the recipient's copy
         // must follow it.
         if (incoming && !incoming.isGM) sendDoorFlag(incoming.id, true, room);
@@ -116,7 +116,7 @@ function notifyDoorAccess(previousActorId, nextActorId, room = null) {
 function sendDoorFlag(userId, value, room = null) {
     try {
         game.socket.emit(SOCKET_EVENT,
-            // `room` travels only alongside `value: true` — a "you are not the
+            // `room` travels only alongside `value: true` - a "you are not the
             // Mastermind" carries no location, so a cleared player's client
             // holds nothing worth reading.
             { action: ACTION_DOOR, from: game.user.id, value, room: value ? (room ?? null) : null },
@@ -129,15 +129,15 @@ function sendDoorFlag(userId, value, room = null) {
 /**
  * `iAmTheMastermind()` used to live here and now lives in settings.mjs, beside
  * the client-scoped setting it reads. It was the single edge every static
- * import cycle in the module passed through — movement.mjs had to reach into
- * this file for it — and the note above the function there says why moving it
+ * import cycle in the module passed through - movement.mjs had to reach into
+ * this file for it - and the note above the function there says why moving it
  * was the fix rather than a workaround.
  *
  * Still imported here, because `myLairRoom` asks the same question.
  */
 
 /**
- * The Mastermind's own room, on the client that holds the part — null for
+ * The Mastermind's own room, on the client that holds the part - null for
  * everyone else, including every GM (they read the store instead). Delivered
  * over the same private whisper as the door flag; see `sendDoorFlag`.
  *
@@ -154,13 +154,13 @@ export function myLairRoom() {
     }
 }
 
-/** The lair as the GMs know it. `null` off a non-GM client — not an error. */
+/** The lair as the GMs know it. `null` off a non-GM client - not an error. */
 export function mastermindLair() {
     if (!game.user.isGM) return null;
     return readStore().room ?? null;
 }
 
-/** The Mastermind's actor. `null` for anyone who is not a GM — not an error. */
+/** The Mastermind's actor. `null` for anyone who is not a GM - not an error. */
 export function mastermindActor() {
     if (!game.user.isGM) return null;
     const id = readStore().actorId;
@@ -173,7 +173,7 @@ export function isMastermind(actor) {
 }
 
 /**
- * Choose the Mastermind. GM only, and singular — the guide's "DMowie wybierają
+ * Choose the Mastermind. GM only, and singular - the guide's "DMowie wybierają
  * go" is one student, picked "w uzgodnieniu z samym graczem" before the season
  * starts. That agreement is a conversation this module cannot have for you;
  * the dialog only says so.
@@ -191,7 +191,7 @@ export async function setMastermindLair(room) {
     await writeStore(readStore().actorId ?? null, room ?? null);
 }
 
-/** Clear the pick — a fresh season, or a correction. The lair goes with it. */
+/** Clear the pick - a fresh season, or a correction. The lair goes with it. */
 export async function clearMastermind() {
     if (!game.user.isGM) return;
     await writeStore(null, null);
@@ -201,14 +201,14 @@ export function registerMastermind() {
     /*
      * GM-to-GM only, and that has to be checked on BOTH ends.
      *
-     * It used to be checked on one. "A player's client never receives this — the
+     * It used to be checked on one. "A player's client never receives this - the
      * server filters by `recipients`" was true and beside the point: nothing
      * stopped a player from SENDING one. Two consequences, and the second is the
      * worst hole this module has had:
      *
      *   · a forged `set` with a large `updated` rewrote every GM's copy of who
      *     the Mastermind is;
-     *   · a forged `request` was answered — the reply went to `payload.from`,
+     *   · a forged `request` was answered - the reply went to `payload.from`,
      *     an id the sender chose, so any player could ask the GMs to send them
      *     the Mastermind's identity and be given it.
      *
@@ -220,7 +220,7 @@ export function registerMastermind() {
         if (!game.user.isGM) return;
 
         // A player asking "am I the Mastermind" is the one legitimate non-GM
-        // sender on this channel — see the reload note on ACTION_DOOR_REQUEST
+        // sender on this channel - see the reload note on ACTION_DOOR_REQUEST
         // below. Every GM answers, from their own (synced) copy of the pick,
         // so a duplicate reply here is harmless: the player's client just
         // writes the same boolean twice.
@@ -265,12 +265,12 @@ export function registerMastermind() {
      * The private half: GM -> the Mastermind's own player, and nobody else.
      *
      * A SEPARATE listener rather than a branch inside the one above, because
-     * that one starts with `if (!game.user.isGM) return` — this is the one
+     * that one starts with `if (!game.user.isGM) return` - this is the one
      * message in the whole module that a PLAYER client is meant to act on.
      * Foundry's `recipients` addressing already means only the intended
      * player's browser ever receives a payload here at all; the sender check
      * below is the same discipline as the GM-to-GM handler regardless, so a
-     * forged message from a player cannot plant this flag on themselves —
+     * forged message from a player cannot plant this flag on themselves -
      * `senderId` is Foundry's own, not a claim inside the payload.
      */
     game.socket.on(SOCKET_EVENT, async (payload, senderId) => {
@@ -278,12 +278,12 @@ export function registerMastermind() {
         if (!game.users.get(senderId)?.isGM) return;
         try {
             await game.settings.set(MODULE_ID, SETTINGS.iAmMastermind, Boolean(payload.value));
-            // The lair travels with the flag and dies with it — a cleared
+            // The lair travels with the flag and dies with it - a cleared
             // player keeps no record of where the room was.
             await game.settings.set(MODULE_ID, SETTINGS.myMastermindLair,
                 payload.value ? (payload.room ?? "") : "");
             // Standing in the lair may already be true the moment the part
-            // arrives — repaint rather than waiting for the next token move.
+            // arrives - repaint rather than waiting for the next token move.
             const { applyAll } = await import("./visibility.mjs");
             applyAll();
         } catch (err) {
@@ -294,7 +294,7 @@ export function registerMastermind() {
     // A GM who just joined, or whose browser storage was cleared, asks the
     // others rather than starting the season blind.
     //
-    // EVERY GM asks, not only the primary one — the same unconditional catch-up
+    // EVERY GM asks, not only the primary one - the same unconditional catch-up
     // `truth-bullets.mjs` does for the answer key. Gating it on `isPrimaryGm()`
     // meant the one client most likely to be missing the pick, a second GM
     // joining after the season started, was the one client that never asked.
@@ -312,7 +312,7 @@ export function registerMastermind() {
     }
 
     // A player's browser storage does not survive a reload the way a GM's
-    // synced copy does — `iAmMastermind` is client-scoped precisely so it
+    // synced copy does - `iAmMastermind` is client-scoped precisely so it
     // never becomes world data, and the cost of that is that nobody re-sends
     // it unasked. Every player asks, every time; the GM's answer is a single
     // boolean about this one user and nothing else, so asking is free even
@@ -342,7 +342,7 @@ export function registerMastermind() {
 /**
  * Exported for the Class Trial console, which is where the button lives now
  * (Dawid, 26.08): announcing the Final Trial is a trial-table act, and the
- * Mastermind screen — the one window that names the season's secret — keeps
+ * Mastermind screen - the one window that names the season's secret - keeps
  * only the role and the lair.
  */
 export async function toggleFinalTrialFlag() {
@@ -364,7 +364,7 @@ export async function toggleFinalTrialFlag() {
 
     // Say it out loud, because the window promised to.
     //
-    // "Announce the Final Trial? This is public — everyone sees it start" is
+    // "Announce the Final Trial? This is public - everyone sees it start" is
     // what the GM agreed to, and then the only thing that happened was a local
     // notification on their own screen. Checked twice while testing: the flag
     // flipped, the players saw nothing at all. The one moment the season has
@@ -385,7 +385,7 @@ export async function toggleFinalTrialFlag() {
 }
 
 export async function openMastermindDialog() {
-    // ONE OF THESE, NOT FOUR — see `alreadyOpen` in live.mjs. Two copies of a
+    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
     // other, so the older one goes on looking authoritative while showing
     // something that stopped being true. Raised rather than refused: pressing
@@ -413,7 +413,7 @@ export async function openMastermindDialog() {
     const { allRooms } = await import("./movement.mjs");
 
     // The Final Key Remnant planner that used to sit here lives on the
-    // Investigation dashboard now (Dawid, 26.08) — this screen names the one
+    // Investigation dashboard now (Dawid, 26.08) - this screen names the one
     // secret the module guards hardest, and planting endgame clues gave a GM
     // reasons to have it open. What is left is the role and the lair.
     const lair = readStore().room ?? "";
@@ -435,7 +435,7 @@ export async function openMastermindDialog() {
 
             <label>${game.i18n.localize("DRPG.Mastermind.lairLabel")}
                 <select name="lair">
-                    <option value="">—</option>
+                    <option value="">-</option>
                     ${roomOptions}
                 </select></label>
             <p class="notes">${game.i18n.localize("DRPG.Mastermind.lairNote")}</p>
@@ -460,8 +460,8 @@ export async function openMastermindDialog() {
                 // "Apply with nobody selected" and "the GM shut the window"
                 // both used to arrive here as a falsy `result`, and the code
                 // below read either of them as "clear the Mastermind". So
-                // closing this window with the X — changing nothing, touching
-                // nothing — deleted the secret of the season. Measured: set the
+                // closing this window with the X - changing nothing, touching
+                // nothing - deleted the secret of the season. Measured: set the
                 // Mastermind, open, close, gone.
                 //
                 // Wrapping the answer makes the two distinguishable: a dismissal
@@ -477,7 +477,7 @@ export async function openMastermindDialog() {
             // The start/end Final Trial button that used to sit here is gone
             // (Dawid, 26.08): the Class Trial console already owns that toggle,
             // and a second copy next to the button that can wipe the season was
-            // a duplicate with worse neighbours. The verdict stays — it has no
+            // a duplicate with worse neighbours. The verdict stays - it has no
             // other home.
             { action: "finalVerdict", label: game.i18n.localize("DRPG.Mastermind.verdictTitle") },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
@@ -510,7 +510,7 @@ export async function openMastermindDialog() {
         return openMastermindDialog();
     }
 
-    // Only the Apply button reaches here, and it always brings an object — so
+    // Only the Apply button reaches here, and it always brings an object - so
     // an empty `who` is the GM choosing "Nobody" on purpose.
     const who = result.who ?? null;
 
@@ -542,7 +542,7 @@ export async function openMastermindDialog() {
 /* ==========================================================================
  * THE FINAL TRUTH REMNANT
  * --------------------------------------------------------------------------
- * Nothing new mechanically — `type: "final"` already exists in REMNANT_TYPES,
+ * Nothing new mechanically - `type: "final"` already exists in REMNANT_TYPES,
  * already carries `reinforced: true`, and `dropRemnant`/`placeRemnant` already
  * know how to place it. This is only the "did I remember this chapter" check
  * the guide's cadence ("co rozdział") asks for.
@@ -552,7 +552,7 @@ export async function openMastermindDialog() {
  * Every trace typed `final`, across every scene, newest chapter first.
  *
  * The endgame's own clues, listed where they are decided. They also appear in
- * the Investigation Dashboard's Traces table like every other trace — reading
+ * the Investigation Dashboard's Traces table like every other trace - reading
  * them there is fine, and is not the same act as adding one.
  */
 export function finalRemnants() {
@@ -569,9 +569,9 @@ export function finalRemnants() {
 /**
  * Put a Final Key Remnant on the map.
  *
- * Same shape as the Key Remnant planner's own placement — a GM construction
+ * Same shape as the Key Remnant planner's own placement - a GM construction
  * dropped at a random point in the named room, not something an actor left
- * behind — but typed `final`. `REMNANT_TYPES.final` already carries
+ * behind - but typed `final`. `REMNANT_TYPES.final` already carries
  * `reinforced: true`, so `placeRemnant` makes it un-cleanable without this
  * having to say so: the one clue a chapter's endgame turns on is not something
  * a killer gets to wipe off the floor.
@@ -628,7 +628,7 @@ export function inFinalTrial() {
     return Boolean(getClock().finalTrial);
 }
 
-/** Toggle the flag. Announces to the table — this part is not a secret. */
+/** Toggle the flag. Announces to the table - this part is not a secret. */
 export async function setFinalTrial(value) {
     if (!game.user.isGM) return null;
     return setClock({ finalTrial: Boolean(value) });
@@ -639,10 +639,10 @@ export async function setFinalTrial(value) {
  *
  * Deliberately not `vote.mjs`'s `applyVerdict`: the guide's consequences here
  * are a different shape entirely. A normal wrong guess executes an innocent
- * and pays the Monokumas; a wrong Final Trial guess does neither — it reveals
+ * and pays the Monokumas; a wrong Final Trial guess does neither - it reveals
  * that the game was never what it looked like, and nobody new dies for it.
  *
- * "Correct" branches on the Mastermind being alive to answer for it — if they
+ * "Correct" branches on the Mastermind being alive to answer for it - if they
  * already died earlier in the season, the guide's own text is the reveal
  * branch regardless of who the table names: "W wypadku gdy ten nie żyje -
  * zdemaskować, że gra w którą grają właściwie już się nie toczy."
@@ -728,12 +728,12 @@ export async function applyFinalVerdict({ correct, accusedId, alreadyDead = null
         <h3>${game.i18n.localize("DRPG.Mastermind.verdictTitle")}</h3>
         <p>${game.i18n.format("DRPG.Mastermind.verdictSummary", {
             mastermind: foundry.utils.escapeHTML(mastermind.name),
-            accused: foundry.utils.escapeHTML(accused?.name ?? "—"),
+            accused: foundry.utils.escapeHTML(accused?.name ?? "-"),
             outcome: game.i18n.localize(executed ? "DRPG.Mastermind.outcomeExecuted"
                 : dead ? "DRPG.Mastermind.outcomeAlreadyDead" : "DRPG.Mastermind.outcomeEscaped")
         })}</p>`);
 
-    // The season is over either way — a Final Trial is the guide's ending, not
+    // The season is over either way - a Final Trial is the guide's ending, not
     // a chapter like the others. Clearing the pick here rather than leaving it
     // set is what makes `mastermindActor()` honestly answer "nobody" afterwards.
     await clearMastermind();

@@ -1,5 +1,5 @@
 /**
- * Danganronpa RPG — how a chapter ends, and how a character stops.
+ * Danganronpa RPG - how a chapter ends, and how a character stops.
  * ---------------------------------------------------------------------------
  * Guide, p. 29: "Typ Truth Bullets zostaje ujawniony na finał rozdziału. Na
  * początku następnej sesji wszystkie zostają usunięte z ekwipunku gracza
@@ -14,8 +14,8 @@
  *
  * All three are GM buttons rather than clock triggers, and deliberately so. Two
  * of them delete things that cannot be brought back, and the moment a chapter
- * "ends" is a judgement about the fiction — after the verdict, after the
- * execution, when the table is ready — not a number ticking over. A sweep that
+ * "ends" is a judgement about the fiction - after the verdict, after the
+ * execution, when the table is ready - not a number ticking over. A sweep that
  * fired by itself because somebody nudged the session counter would be the
  * worst bug this module could have.
  *
@@ -59,7 +59,7 @@ export function livingStudents() {
  * Bullets included, and the answer-key entries go with the bullets so the
  * ledger does not fill up with rows nothing can ever reach again.
  *
- * Quiet on purpose. A murder is a secret until somebody finds the body — the
+ * Quiet on purpose. A murder is a secret until somebody finds the body - the
  * announcement belongs to `discoverBody`, not here. Only the GMs are told.
  *
  * The token stays where it is. A body is usually the thing the cast will be
@@ -69,7 +69,7 @@ export function livingStudents() {
  * @param {Actor} actor
  * @param {object} [options]
  * @param {boolean} [options.keepItems]  Leave the inventory alone. For a death
- *   that is not a killing-game murder — a retcon, a test — where D1's "it all
+ *   that is not a killing-game murder - a retcon, a test - where D1's "it all
  *   vanishes" would just be destructive.
  */
 export async function killCharacter(actor, { keepItems = false } = {}) {
@@ -85,7 +85,7 @@ export async function killCharacter(actor, { keepItems = false } = {}) {
     /*
      * WHAT DIES WITH THEM, AND WHAT DOES NOT (Dawid, 27.08).
      *
-     * This used to take the whole inventory — decision D1's "it all vanishes" —
+     * This used to take the whole inventory - decision D1's "it all vanishes" -
      * which made a body a thing to look at and nothing to search. The belongings
      * stay now: they are on the sheet, other students can take them, and taking
      * one is evidence (see `lootBody`).
@@ -121,7 +121,7 @@ export async function killCharacter(actor, { keepItems = false } = {}) {
 
     // Foundry's own dead marker, so the token reads as a body on any client
     // without this module having to draw anything. Wrapped: it is a convenience,
-    // not the record — `FLAGS.deceased` is what the rules read.
+    // not the record - `FLAGS.deceased` is what the rules read.
     try {
         await actor.toggleStatusEffect("dead", { active: true, overlay: true });
     } catch (err) {
@@ -129,19 +129,19 @@ export async function killCharacter(actor, { keepItems = false } = {}) {
     }
 
     /*
-     * WHO IS TOLD A STUDENT DIED (Dawid, 28.08 — widen it).
+     * WHO IS TOLD A STUDENT DIED (Dawid, 28.08 - widen it).
      *
      * The card used to reach the GMs alone. It now also reaches the owners of
      * everyone inside a running incident, which is the audience the sound is
      * for and therefore the audience the card has to have: the flag rides the
      * message, so the two cannot drift apart. Nobody learns anything they did
-     * not already know — they were in the room.
+     * not already know - they were in the room.
      *
      * Outside an incident there are no participants and this is exactly what
      * it always was, a whisper to the GMs.
      *
      * The list is built the way `announceTimeOfDay` builds it in clock.mjs,
-     * from `gmIds()` plus the participants' owners — same function, same
+     * from `gmIds()` plus the participants' owners - same function, same
      * shape, no second idea of who counts as "inside this".
      */
     const deathAudience = await (async () => {
@@ -175,7 +175,7 @@ export async function killCharacter(actor, { keepItems = false } = {}) {
 
     log(`${actor.name} is dead (chapter ${record.chapter}); ${removed} item(s) removed.`);
 
-    // The VICTIM of the running incident died — and only then (Dawid, 26.08):
+    // The VICTIM of the running incident died - and only then (Dawid, 26.08):
     // the chapter's traces are the case now, so they arrive in the
     // Investigation Dashboard with "Tied to crime" already checked. Gated on
     // `sideOf` so an execution after the trial, the mastermind's end or a
@@ -202,18 +202,18 @@ export async function killCharacter(actor, { keepItems = false } = {}) {
 }
 
 /**
- * The victim of a running incident just died — offer Stage 6.
+ * The victim of a running incident just died - offer Stage 6.
  *
  * The murder engine only reaches Stage 6 through a Finishing Blow, and a GM
  * who kills the victim any other way (this screen, a ruling, a Despair Call)
  * left the incident frozen at stage "incident" around a corpse: `isCleaner`
  * false, no clean-up screen for the killer, and the whole Stage 6 branch
- * unreachable. Measured before this existed — the stage stayed "incident" and
+ * unreachable. Measured before this existed - the stage stayed "incident" and
  * `attemptStageSix` refused with "you are not the one cleaning up this scene",
  * which was not the reason.
  *
  * Asked rather than done: the GM may be killing somebody mid-incident for a
- * reason that is not the incident ending — Monokuma's punishment, a Call, a
+ * reason that is not the incident ending - Monokuma's punishment, a Call, a
  * mistake being corrected.
  */
 async function offerStageSix(victim) {
@@ -245,8 +245,8 @@ async function offerStageSix(victim) {
 }
 
 /**
- * Undo the marking. The inventory does NOT come back — those documents are
- * gone — so this is for a mis-click, not for a resurrection.
+ * Undo the marking. The inventory does NOT come back - those documents are
+ * gone - so this is for a mis-click, not for a resurrection.
  */
 export async function reviveCharacter(actor) {
     if (!game.user.isGM || !actor) return false;
@@ -281,8 +281,8 @@ export async function openDeathDialog({ actor = null } = {}) {
     // "Who is alive" in the GM panel is a table with one row per character and
     // a Kill button on each of them, so by the time this opens the question the
     // select asks has been answered by pressing a button next to a name.
-    // Everything else about the procedure — the warning, the choice about the
-    // inventory, `killCharacter` itself — has to stay exactly the same, which
+    // Everything else about the procedure - the warning, the choice about the
+    // inventory, `killCharacter` itself - has to stay exactly the same, which
     // is why that button opens this rather than reimplementing it.
     const picker = actor
         ? `<p><strong>${foundry.utils.escapeHTML(actor.name)}</strong></p>`
@@ -328,7 +328,7 @@ export async function openDeathDialog({ actor = null } = {}) {
 /**
  * Faint Prep traces that belong to this murder stop being doubtful.
  *
- * Which ones those are is a judgement only the GM can make — a Prep Remnant is
+ * Which ones those are is a judgement only the GM can make - a Prep Remnant is
  * left by anyone gathering tools, and most of them mean nothing. So this offers
  * the list and the GM ticks. Ticking sets `tiedToCrime` as well as clearing
  * `faint`, which is what actually exempts a trace from the chapter-end sweep.
@@ -407,7 +407,7 @@ async function promoteFaintPrep() {
 export async function discoverBody({ room, victim = null } = {}) {
     if (!game.user.isGM || !room) return null;
 
-    // The Eclipse is a placement window nobody has finished crossing yet — see
+    // The Eclipse is a placement window nobody has finished crossing yet - see
     // the note on `maybeBodyFound`. The panel tile that reaches this is greyed
     // out with a tooltip while an Eclipse runs (see gm-panel.mjs); this is the
     // backstop for anyone who gets here anyway, `game.drpg` console access
@@ -421,7 +421,7 @@ export async function discoverBody({ room, victim = null } = {}) {
     const promoted = await promoteFaintPrep();
 
     // Stage 7 takes the gloves. The guide puts the cleaning tool's destruction
-    // here rather than at the end of Stage 6 — see CLEANUP.destroysToolsOnDiscovery.
+    // here rather than at the end of Stage 6 - see CLEANUP.destroysToolsOnDiscovery.
     await import("./cleanup.mjs")
         .then(m => m.destroyCleaningTools())
         .catch(err => error("Could not destroy the cleaning tools at body discovery", err));
@@ -460,22 +460,22 @@ export async function discoverBody({ room, victim = null } = {}) {
  * do with the death. That is the discovery.
  *
  * The guide's trigger is people finding the body, not a GM remembering to press
- * a button — and the button was the only thing that could fire Stage 7, so an
+ * a button - and the button was the only thing that could fire Stage 7, so an
  * investigation began when somebody noticed the screen rather than when the
  * cast noticed the body. Watched on token movement, the same way a third party
  * walking into a running incident is watched.
  *
- * The killer standing alone over their own victim has not discovered anything —
+ * The killer standing alone over their own victim has not discovered anything -
  * that is the classic frame-up, and the guide leaves it to the table. But a
  * killer or an accomplice (`blackenedIds` carries both across the end of the
  * incident, which is why this can run after the state is gone) DOES count
  * toward the two once somebody unconnected to the incident is standing there
  * too: walking back to your own crime scene alongside a witness is still being
- * found there. A Monokuma is not a witness either — see `maybeThirdParty`,
- * same rule — and nor is a hidden token or a second body.
+ * found there. A Monokuma is not a witness either - see `maybeThirdParty`,
+ * same rule - and nor is a hidden token or a second body.
  *
  * Two is the count, and at least one of the two has to be unconnected to the
- * incident — a room full of nothing but killers and accomplices is not a
+ * incident - a room full of nothing but killers and accomplices is not a
  * discovery.
  */
 let bodyCheckRunning = false;
@@ -484,7 +484,7 @@ export async function maybeBodyFound(tokenDoc) {
     if (!game.user.isGM || bodyCheckRunning) return null;
     if (getClock().phase === "investigation") return null;   // already in Stage 7
 
-    // The Eclipse is everyone crossing the map with their eyes shut — the guide
+    // The Eclipse is everyone crossing the map with their eyes shut - the guide
     // gives that window to placement, not to the cast stumbling over a body
     // while half of them have not finished moving yet. Without this, two
     // students placing through the same room mid-Eclipse would "discover" a
@@ -494,8 +494,8 @@ export async function maybeBodyFound(tokenDoc) {
 
     // Everything here compares actor IDs, never actor objects.
     //
-    // An unlinked token does not carry the world actor — Foundry hands it a
-    // synthetic copy with the token's own overrides applied — so `includes(actor)`
+    // An unlinked token does not carry the world actor - Foundry hands it a
+    // synthetic copy with the token's own overrides applied - so `includes(actor)`
     // is false for every unlinked token on the scene, however plainly the person
     // is standing there. Measured: a student in the room with the body was not
     // counted as a witness for exactly this reason.
@@ -553,7 +553,7 @@ export async function openBodyDiscoveryDialog() {
         return null;
     }
 
-    // The dead are the candidates here — the victim is normally already marked
+    // The dead are the candidates here - the victim is normally already marked
     // by the time anybody trips over them.
     const dead = studentActors().filter(isDeceased);
     const victims = dead
@@ -645,13 +645,13 @@ export async function revealAllBulletTypes() {
  *
  * Guide, p. 29. Faint bullets are what survive, and Stage 3's lock is written
  * per chapter, so a Faint bullet carried across becomes analysable again all by
- * itself — nothing here has to unlock anything.
+ * itself - nothing here has to unlock anything.
  *
  * NOTHING CALLS THIS ON A SCHEDULE ANY MORE (Z7). It used to be a tick in the
  * end-of-chapter window, and the season run measured what that tick was worth:
  * thirty to sixty bullets a chapter deleted, while the FOG the investigation was
- * actually drowning in — the four hundred Prep traces left by ordinary searches
- * — survived every time, because a death ties every trace of its chapter to the
+ * actually drowning in - the four hundred Prep traces left by ordinary searches
+ * - survived every time, because a death ties every trace of its chapter to the
  * crime and tied traces are exempt. The sweep took the evidence and left the
  * noise. Precisely backwards.
  *
@@ -674,7 +674,7 @@ export async function sweepTruthBullets() {
                 kept++;
                 continue;
             }
-            // Guide, p. 32: a Final Truth Bullet is "wyłączony ze sweepu" — it
+            // Guide, p. 32: a Final Truth Bullet is "wyłączony ze sweepu" - it
             // points at the Mastermind across the whole season, not one chapter's
             // case, so the same reveal-and-clear cadence that resets everything
             // else must leave it alone.
@@ -719,7 +719,7 @@ export async function openChapterEndDialog() {
     // It used to count every unanalysed bullet, while `revealAllBulletTypes`
     // skips any bullet with no real type in the answer key. So a table with two
     // unanalysed bullets that nobody had ever assigned a type to was offered
-    // "reveal 2" and got back "Revealed 0" — and no way to tell whether the
+    // "reveal 2" and got back "Revealed 0" - and no way to tell whether the
     // tool had worked.
     const unanalysed = bullets.filter(({ item }) =>
         !item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.analyzed));
@@ -793,7 +793,7 @@ export async function openChapterEndDialog() {
     // And the chapter actually ends.
     //
     // The window is called "End of chapter / new session" and did three
-    // clean-ups without touching either counter — measured, the clock read
+    // clean-ups without touching either counter - measured, the clock read
     // Chapter 1 · Session 5 before and after, and the GM had to go and nudge
     // both by hand in "Edit campaign…". Tidying up and moving on are one event
     // at the table, so they are one screen here.

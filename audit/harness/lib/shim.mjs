@@ -1,8 +1,8 @@
 /**
- * Foundry VTT v14 shim — faithful-where-it-matters mock for auditing the
+ * Foundry VTT v14 shim - faithful-where-it-matters mock for auditing the
  * Danganronpa RPG module headlessly, multi-client.
  *
- * REALISM RULES (do not weaken to make the module pass — failures are findings):
+ * REALISM RULES (do not weaken to make the module pass - failures are findings):
  *  - Documents replicate through the parent process (the "server").
  *  - pre* hooks fire only on the initiating client; post hooks on every client.
  *  - Whisper/blind chat messages are only delivered to their audience (like the
@@ -756,7 +756,7 @@ export function buildApplications(ctx) {
     };
 
     /**
-     * DialogV2 — headless: answers come from a programmable queue.
+     * DialogV2 - headless: answers come from a programmable queue.
      * Default behaviour: press the default button (or the first).
      * Scenarios push answers via globalThis.__dialogAnswers.push(fnOrValue).
      * Every dialog shown is recorded in globalThis.__dialogLog.
