@@ -396,6 +396,34 @@ const SELF_EVIDENT = ["key", "autopsy", "final"];
  *   murder. Same rule.
  * @returns {Promise<Item|null>}
  */
+/**
+ * A Truth Bullet you hold is a Remnant you have seen (Dawid, 31.08).
+ *
+ * Un-hiding the token was the last step of ONE route - Observe - and every
+ * other way a bullet reaches somebody left the marker `hidden` for the whole
+ * table. A player could be handed a copy of a trace, or an autopsy bullet at
+ * the start of an Investigation, and hold evidence whose source was not on
+ * their map.
+ *
+ * visibility.mjs was already ready for this: `myRemnantRefs()` shows the token
+ * to anyone holding a copy, and hides it from everyone else. It was waiting for
+ * a token that never came out of hiding.
+ *
+ * Un-hiding is global and that is correct - it does not show the trace to the
+ * table, it lets the per-client rule decide. See `revealRemnantToFinder`.
+ */
+async function revealSourceOf(sceneId, remnantId) {
+    if (!sceneId || !remnantId) return;
+    try {
+        const { revealRemnantToFinderById } = await import("./remnants.mjs");
+        await revealRemnantToFinderById(sceneId, remnantId);
+    } catch (err) {
+        // A bullet that exists and a marker that stays hidden is worse than
+        // this line failing, but it is not worth losing the bullet over.
+        warn("Could not reveal the Remnant behind a Truth Bullet", err);
+    }
+}
+
 export async function createTruthBullet(actor, {
     name, realType = "neutral", shownType = null, visibility = "evident",
     faint = false, playerText = "", img = null, tags = [], gmNote = "",
@@ -480,6 +508,9 @@ export async function createTruthBullet(actor, {
      * (Dawid, 29.08).
      */
     playSfxFor(actor, "truthBullet");
+
+    // The marker this came off is now a thing this player has seen.
+    await revealSourceOf(sceneId, remnantId);
 
     log(`${actor.name} gained Truth Bullet "${name}" (really ${realType}, ${visibility}).`);
     return item;

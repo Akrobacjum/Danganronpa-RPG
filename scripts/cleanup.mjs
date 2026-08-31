@@ -234,11 +234,28 @@ export function cleanableTracesForPlayer(actorId, { mine = false } = {}) {
      * opens the killer's eyes to the WHOLE room there, other people's traces
      * included, and that is a privilege of the stage rather than of memory.
      */
+    /*
+      * SEEING IT IS THE ENTITLEMENT, NOT HAVING LEFT IT (Dawid, 31.08).
+      *
+      * The filter used to be `sourceActor === actor.id`: your own traces and
+      * nobody else's. That made Tamper a killer's tool, and it does not need to
+      * be - an investigator who found a trace should be able to destroy it, an
+      * accomplice should be able to tidy after somebody else, and a person who
+      * turns up their own name in the evidence should be able to do something
+      * about it. All of it costs an action and leaves its own Tamper trace,
+      * which is what keeps it a decision rather than a free erase.
+      *
+      * The test is now exactly the one that decides whether the token is on
+      * your screen at all - see `applyToRemnantToken` in visibility.mjs. You
+      * hold a copy, or you were standing in the incident that made it. What was
+      * protected before is still protected: a trace nobody has found is a trace
+      * nobody can reach, so the Tamper menu is still not a trace detector.
+      */
     const known = copiedRemnants(actor);
+    const watched = incidentParticipant(actor);
     const wanted = mine
         ? cleanableRemnants(actor).filter(t =>
-              t.data.sourceActor === actor.id
-              && (t.data.type === "incident" || known.has(t.token.id)))
+              known.has(t.token.id) || (t.data.type === "incident" && watched))
         : cleanableRemnants(actor);
 
     return wanted.map(t => ({
@@ -283,6 +300,27 @@ function locate(actor) {
  * Only an EQUIPPED Cleaning Tool counts, matching the weapon rule in murder.mjs:
  * the guide's tools are objects in a hand, not entries on an inventory list.
  */
+/**
+ * Was this character standing in the incident that is running?
+ *
+ * The GM-side twin of `myIncidentTrace` in visibility.mjs, and deliberately the
+ * same set: the victim, the killer, and an accomplice who threw in with them. A
+ * third party who merely walked in is a witness, and a witness has to find a
+ * trace like everybody else.
+ */
+function incidentParticipant(actor) {
+    try {
+        const state = murderState();
+        if (!state?.active || !actor?.id) return false;
+
+        const ids = new Set([state.victimId, state.killerId].filter(Boolean));
+        if (state.thirdId && state.thirdSide === "killer") ids.add(state.thirdId);
+        return ids.has(actor.id);
+    } catch {
+        return false;
+    }
+}
+
 export function cleanupDc(visibility, actor) {
     const base = CLEANUP.dc[visibility];
     if (base === undefined) return null;
