@@ -1877,6 +1877,60 @@ const INVARIANTS = [
             "resetOverflow no longer clears both the counter and the armed stamp");
     }],
 
+    ["a tool in hand lowers the bar as well as adding a die", async () => {
+        /*
+         * Dawid, 31.08: the Tool was the one equippable category whose tier
+         * bought nothing but durability.
+         *
+         * A Murder Weapon's tier IS its damage and a Cleaning Tool's comes off
+         * the clean-up DC, but a Tool went through `armSituational(1)`, which
+         * never reads the tier - so a tier 3 toolkit and a tier 1 screwdriver
+         * were the same object on every project roll. Now the tier comes off
+         * the threshold too, in both places project work happens.
+         *
+         * Read from source. Driving it needs a live project, a readied Tool of
+         * a known tier and a roll that lands in the gap the relief opens; what
+         * regresses here is one term in two expressions, and the term is easy
+         * to lose to anyone tidying "why are we rebuilding this array".
+         */
+        const sources = new Map(await otherSources());
+        const config = stripComments(sources.get("config.mjs") ?? "");
+        const rolls = stripComments(sources.get("action-rolls.mjs") ?? "");
+        const items = stripComments(sources.get("use-items.mjs") ?? "");
+        ok(config.length > 1000 && rolls.length > 1000, "the sources did not load");
+
+        // The rule exists and says which half is which.
+        ok(/TOOL_IN_HAND\s*=\s*\{[^}]*tierReducesThreshold:\s*true/.test(config),
+            "TOOL_IN_HAND no longer promises that a Tool's tier reduces the threshold");
+        ok(/TOOL_IN_HAND\s*=\s*\{[^}]*advantage:\s*true/.test(config),
+            "TOOL_IN_HAND dropped the advantage - the tier was meant to be ON TOP of the die");
+
+        // One named reader for the flag, so neither caller spells it out.
+        ok(/export function tierOf\(/.test(items),
+            "use-items.mjs no longer exports tierOf");
+
+        const between = (from, to) => {
+            const a = rolls.indexOf(from);
+            const b = to ? rolls.indexOf(to) : rolls.length;
+            ok(a >= 0 && b > a, `${from} is gone from action-rolls.mjs`);
+            return rolls.slice(a, b);
+        };
+
+        // Project work: the bands come down, not the roll up.
+        const project = between("async function workOnProject", "async function chooseProjectAndTrait");
+        ok(/easedBy\(def\.thresholds,\s*relief\)/.test(project),
+            "project work stopped easing its thresholds with the readied Tool");
+
+        // Sabotage: the same, and its repair scale reads the 18 band a second
+        // time by hand, so that copy has to move with it.
+        const sabotage = between("async function performSabotage", "async function performTamper");
+        ok(/easedBy\(def\.thresholds,\s*relief\)/.test(sabotage),
+            "sabotage stopped easing its thresholds with the readied Tool");
+        ok(/18\s*-\s*relief/.test(sabotage),
+            "the sabotage repair scale still reads a bare 18 - a good tool would buy the "
+            + "band without buying the repair it names");
+    }],
+
     ["the overflow caption is redrawn by every road that can end a darkening", async () => {
         /*
          * Dawid, 31.08: "Darkened - this time of day" stayed on screen after

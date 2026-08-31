@@ -94,6 +94,17 @@ export function equippedIn(actor, category) {
  * it: this is what the incident asks for its weapon and what Stage 6 asks for
  * its gloves.
  */
+/**
+ * How good a thing is, as a number, or 0 when nothing says.
+ *
+ * Returns 0 rather than null on purpose: every caller feeds it to arithmetic,
+ * and a null reaching a subtraction is a NaN threshold that lets everything
+ * through. `cleaningTier` in cleanup.mjs makes the same choice.
+ */
+export function tierOf(item) {
+    return Number(item?.getFlag(MODULE_ID, ITEM_FLAGS.tier) ?? 0);
+}
+
 export function equippedFor(actor, role) {
     // At most one, since E9 — but read as a list anyway. A world mid-upgrade
     // can still have several readied from the per-category rule, and the
@@ -345,7 +356,7 @@ export async function useItem(actor, item) {
         return null;
     }
 
-    const tier = item.getFlag(MODULE_ID, ITEM_FLAGS.tier) ?? 0;
+    const tier = tierOf(item);
     const effect = USABLE_EFFECTS[tier];
 
     // Tier 0 is "a random, seemingly useless object, open to creative use" —

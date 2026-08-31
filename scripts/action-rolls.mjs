@@ -15,7 +15,7 @@
 
 import {
     MODULE_ID, FLAGS, ACTIONS, TRAITS, DYNAMIC_THRESHOLDS, INDIRECT_MURDER,
-    PROJECT_SCALE, ITEM_CATEGORIES, SABOTAGE_CONCEAL
+    PROJECT_SCALE, ITEM_CATEGORIES, SABOTAGE_CONCEAL, TOOL_IN_HAND
 } from "./config.mjs";
 import { actionsLeft, spendAction, refundAction, hasFreeMove, canPayFor } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
@@ -33,6 +33,25 @@ import { equippedFor } from "./use-items.mjs";
 import { playSfx } from "./sfx.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
+
+/**
+ * The same bands with the tool in hand taken off the top.
+ *
+ * The tier comes off the THRESHOLD rather than being added to the roll. The two
+ * are the same arithmetic and are not the same card: this way the total stays
+ * the total that was rolled, and the reason it was enough is a line in the
+ * report rather than a number nobody can account for. `cleanupDc` chooses the
+ * same way, for the same reason.
+ */
+function easedBy(thresholds, relief) {
+    if (!relief) return thresholds;
+    return thresholds.map(band => ({ ...band, min: Math.max(0, band.min - relief) }));
+}
+
+/** What a readied Tool takes off a threshold. 0 for bare hands. */
+function toolRelief(tool, tierOf) {
+    return TOOL_IN_HAND.tierReducesThreshold && tool ? tierOf(tool) : 0;
+}
 
 /**
  * The flag that says "this roll came from an action", carried on the roll
@@ -1941,10 +1960,18 @@ async function workOnProject(actor, def, options, chosen = null) {
      * `remember: false`, which shields it (trap 61), and that was already true
      * before this line existed.
      */
-    const { equippedFor, breakOnDespair } = await import("./use-items.mjs");
+    const { equippedFor, breakOnDespair, tierOf } = await import("./use-items.mjs");
     const calls = await import("./call-effects.mjs");
     const tool = equippedFor(actor, "tool");
     if (tool) calls.armSituational(1);
+
+    // ...and a better tool is a lower bar on top of that die (Dawid, 31.08).
+    const relief = toolRelief(tool, tierOf);
+    if (relief) {
+        lines.push(`<p><em>${game.i18n.format("DRPG.Project.toolRelief", {
+            item: tool.name, tier: relief
+        })}</em></p>`);
+    }
 
     let roll;
     try {
@@ -1962,7 +1989,10 @@ async function workOnProject(actor, def, options, chosen = null) {
 
     await breakOnDespair(actor, tool, roll);
 
-    const hit = roll.isCritical ? def.critical : resolveThreshold(roll.total, def.thresholds);
+    // The critical branch is left alone: it never consulted a threshold.
+    const hit = roll.isCritical
+        ? def.critical
+        : resolveThreshold(roll.total, easedBy(def.thresholds, relief));
     const thresholdProgress = hit?.progress ?? 0;
     // The bonus only rides on top of progress that was actually earned.
     const earnedBonus = thresholdProgress ? bonus : 0;
@@ -2322,10 +2352,18 @@ async function performSabotage(actor, def, options) {
     // too — the guide's own "including sabotage". `performSabotage` did not look
     // at the inventory at all before this (trap 60), so it is armed here rather
     // than assumed to arrive from the project path.
-    const { equippedFor, breakOnDespair } = await import("./use-items.mjs");
+    const { equippedFor, breakOnDespair, tierOf } = await import("./use-items.mjs");
     const calls = await import("./call-effects.mjs");
     const tool = equippedFor(actor, "tool");
     if (tool) calls.armSituational(1);
+
+    // Project work with the sign flipped eases the same way.
+    const relief = toolRelief(tool, tierOf);
+    if (relief) {
+        lines.push(`<p><em>${game.i18n.format("DRPG.Project.toolRelief", {
+            item: tool.name, tier: relief
+        })}</em></p>`);
+    }
 
     let roll;
     try {
@@ -2340,8 +2378,12 @@ async function performSabotage(actor, def, options) {
 
     await breakOnDespair(actor, tool, roll);
 
+    // `penalty` stays on the score and the relief stays on the bands: one is a
+    // modifier the roll earned, the other is a change to what it has to beat.
     const score = roll.total + penalty;
-    const hit = roll.isCritical ? def.critical : resolveThreshold(score, def.thresholds);
+    const hit = roll.isCritical
+        ? def.critical
+        : resolveThreshold(score, easedBy(def.thresholds, relief));
     const success = Boolean(hit);
 
     // A successful sabotage freezes the project and spawns its repair. The
@@ -2362,7 +2404,12 @@ async function performSabotage(actor, def, options) {
         // step harder than the guide asks for.
         const difficulty = roll.isCritical
             ? PROJECT_SCALE.desperate.progress
-            : score >= 18 ? PROJECT_SCALE.complex.progress : PROJECT_SCALE.trivial.progress;
+            // This 18 is the same band `easedBy` just lowered, read a second
+            // time by hand - so it comes down by the same amount, or a good
+            // tool would buy the band without buying the repair it names.
+            : score >= 18 - relief
+                ? PROJECT_SCALE.complex.progress
+                : PROJECT_SCALE.trivial.progress;
         repair = await sabotageProject(project.id, difficulty);
     }
     // The dice succeeded but nobody was there (or ready in time) to actually

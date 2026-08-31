@@ -427,7 +427,8 @@ export const ITEM_CATEGORIES = {
         label: "Tool",
         plural: "Tools",
         limitGroup: "gear",
-        hint: "Held ready, it gives advantage on project work — sabotage included. It can break."
+        hint: "Held ready, it gives advantage on project work - sabotage included - and "
+            + "its tier comes off the threshold. It can break."
     },
     truthBullet: {
         label: "Truth Bullet",
@@ -610,6 +611,30 @@ export const EQUIPPABLE = ["crimeTool", "cleaningTool", "tool"];
  * asks whether that balance is right.
  */
 export const VAULT_LIMIT = 3;
+
+/**
+ * WHAT A TOOL IN HAND IS WORTH (Dawid, 31.08).
+ *
+ * A die, and until now nothing else. `armSituational` does not read the tier,
+ * so a tier 3 toolkit and a tier 1 screwdriver were the same object on every
+ * project roll, and the only thing tier bought a Tool was one more Despair
+ * before it broke.
+ *
+ * Every other equippable category already scales with tier: a Murder Weapon's
+ * tier IS its damage, and a Cleaning Tool's comes off the clean-up DC and off
+ * Move the body. The Tool was the one that did not, which made the top of its
+ * table worth finding for its durability and nothing else.
+ *
+ * It gets the Cleaning Tool's rule now, in the Cleaning Tool's shape and under
+ * a matching field name, so the two read as one rule in two places: the
+ * advantage stays, AND the tier comes off the number the roll has to beat.
+ * Both halves, because the advantage is what having a tool in your hands is,
+ * and the tier is how good a tool it is.
+ */
+export const TOOL_IN_HAND = {
+    advantage: true,
+    tierReducesThreshold: true
+};
 
 export const LIMIT_GROUPS = {
     /*
@@ -3846,6 +3871,7 @@ export const DRPG = {
     USABLE_KIND_EFFECTS,
     USABLE_EFFECTS,
     EQUIPPABLE,
+    TOOL_IN_HAND,
     LIMIT_GROUPS,
     REMNANT_VISIBILITY,
     REMNANT_VISIBILITY_LABELS,

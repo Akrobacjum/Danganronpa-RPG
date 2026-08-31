@@ -1871,6 +1871,7 @@
       "none": "No projects yet. Start one first.",
       "now": "{project} is now at {current}/{target}.",
       "aloneBonus": "Nobody else is in the room, so the project gains +1 progress.",
+      "toolRelief": "{item} is Tier {tier}, so every threshold on this roll comes down by {tier}.",
       "room": "Room",
       "anyRoom": "- any room -",
       "indirect": "Indirect murder",
