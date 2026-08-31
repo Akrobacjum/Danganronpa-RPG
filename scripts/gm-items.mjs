@@ -19,12 +19,13 @@ import {
 } from "./config.mjs";
 import { grantItem, itemsInCategory, countInCategory, countInGroup, inventorySummary }
     from "./inventory.mjs";
-import { createTruthBullet, issueAutopsy, BULLET_CATEGORY } from "./truth-bullets.mjs";
+import { createTruthBullet, issueAutopsy, BULLET_CATEGORY, copiedRemnants }
+    from "./truth-bullets.mjs";
 import { ITEM_POOLS, USABLE_GOALS, moduleTables, rolesOfResult, MULTI_ROLE_TIER }
     from "./tables.mjs";
 import { studentActors } from "./monokuma.mjs";
-import { whisperToOwner, dialogContent, panelTabs, wirePanelTabs, log, error, plural, cardHead }
-    from "./utils.mjs";
+import { whisperToOwner, dialogContent, panelTabs, wirePanelTabs, workingScene,
+    log, error, plural, cardHead } from "./utils.mjs";
 import { alreadyOpen } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -51,15 +52,33 @@ export async function openItemManager(actor = null) {
         return null;
     }
 
-    const target = actor ?? await pickCharacter();
-    if (!target) return null;
+    /*
+     * NOBODY IS PICKED ON THE WAY IN (Dawid, 31.08).
+     *
+     * This used to ask which student before it opened anything, and then offer
+     * a menu whose buttons are not all about a student: the stash inspector
+     * reads every stash in the world. A GM who wanted it had to name somebody
+     * first and then watch that answer be ignored.
+     *
+     * The question moved to where it is used. Each of the four routes below
+     * asks for its own person, inside its own form, where it can still be
+     * changed after the thing has been built - which is the same correction
+     * `giveItemDialog` already got, applied to the rest of them.
+     *
+     * A character is still ACCEPTED, because opening this from a sheet knows
+     * perfectly well who it is about. It just is not demanded any more.
+     */
+    const target = actor ?? null;
 
     const choice = await DialogV2.wait({
-        window: { title: game.i18n.format("DRPG.Items.title", { actor: target.name }) },
+        window: { title: target
+            ? game.i18n.format("DRPG.Items.title", { actor: target.name })
+            : game.i18n.localize("DRPG.Items.manage") },
         classes: ["drpg-panel", "drpg-window-items"],
         content: `<div>
-            <p><strong>${foundry.utils.escapeHTML(target.name)}</strong></p>
-            <p class="notes">${foundry.utils.escapeHTML(inventorySummary(target))}</p>
+            ${target ? `<p><strong>${foundry.utils.escapeHTML(target.name)}</strong></p>
+            <p class="notes">${foundry.utils.escapeHTML(inventorySummary(target))}</p>`
+                : `<p class="notes">${game.i18n.localize("DRPG.Items.manageNote")}</p>`}
         </div>`,
         buttons: [
             { action: "give", label: game.i18n.localize("DRPG.Items.give"), default: true },
@@ -129,86 +148,106 @@ export async function openItemManager(actor = null) {
  * anybody at the table refers to it.
  */
 async function giveKeyDialog(actor) {
-    // Bedrooms, not stashes — a stash in somebody else's room must never
+    // Bedrooms, not stashes - a stash in somebody else's room must never
     // produce a key to it. See `allBedrooms` and trap 79.
     const { allBedrooms, grantBedroomKey, keysHeldBy } = await import("./vault.mjs");
 
-    const held = keysHeldBy(actor);
-    const rooms = allBedrooms()
-        .filter(v => v.owner && v.owner.id !== actor.id && !held.has(v.room));
+    const students = studentActors();
+    const initial = actor ?? students[0] ?? null;
+    if (!initial) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.noCharacters"));
+        return false;
+    }
 
-    if (!rooms.length) {
+    // Nobody sleeps anywhere yet, so there is no such thing as a bedroom key.
+    // Checked once, for everybody, because it is a fact about the map rather
+    // than about the person receiving.
+    if (!allBedrooms().some(v => v.owner)) {
         ui.notifications.info(game.i18n.localize("DRPG.Vault.noKeysToGive"));
         return false;
     }
 
-    const options = rooms.map(v =>
-        `<option value="${foundry.utils.escapeHTML(v.room)}">${
-            foundry.utils.escapeHTML(v.room)} — ${
-            foundry.utils.escapeHTML(v.owner.name)}</option>`).join("");
+    /*
+     * WHICH KEYS ARE WORTH OFFERING DEPENDS ON WHO IS TAKING ONE. Their own
+     * bedroom is not a key they need, and neither is one already on their ring.
+     * So the list is built for a person and rebuilt when the person changes -
+     * the same rule as the carry counts in `giveItemDialog`.
+     */
+    const optionsFor = who => {
+        const held = keysHeldBy(who);
+        const rooms = allBedrooms()
+            .filter(v => v.owner && v.owner.id !== who.id && !held.has(v.room));
+        if (!rooms.length) {
+            // An empty select would read as a window that failed to load. This
+            // says what is true: there is no key this person is missing.
+            return `<option value="">${foundry.utils.escapeHTML(
+                game.i18n.localize("DRPG.Vault.noKeysToGive"))}</option>`;
+        }
+        return rooms.map(v =>
+            `<option value="${foundry.utils.escapeHTML(v.room)}">${
+                foundry.utils.escapeHTML(v.room)} - ${
+                foundry.utils.escapeHTML(v.owner.name)}</option>`).join("");
+    };
 
-    const room = await DialogV2.wait({
-        window: { title: game.i18n.format("DRPG.Vault.giveKeyTo", { actor: actor.name }) },
+    const recipients = students
+        .map(a => `<option value="${a.id}"${a.id === initial.id ? " selected" : ""}>${
+            foundry.utils.escapeHTML(a.name)}</option>`).join("");
+
+    const result = await DialogV2.wait({
+        window: { title: actor
+            ? game.i18n.format("DRPG.Vault.giveKeyTo", { actor: actor.name })
+            : game.i18n.localize("DRPG.Vault.giveKey") },
         classes: ["drpg-panel"],
         content: dialogContent(`<form>
+            <label>${game.i18n.localize("DRPG.Items.recipient")}
+                <select name="recipient">${recipients}</select></label>
             <label>${game.i18n.localize("DRPG.Vault.whichKey")}
-                <select name="room">${options}</select></label>
+                <select name="room">${optionsFor(initial)}</select></label>
             <p class="notes">${game.i18n.localize("DRPG.Vault.giveKeyNote")}</p>
         </form>`),
+        render: (event, dialog) => {
+            const form = dialog.element.querySelector("form");
+            form?.elements?.recipient?.addEventListener("change", () => {
+                const who = game.actors.get(form.elements.recipient.value);
+                if (who) form.elements.room.innerHTML = optionsFor(who);
+            });
+        },
         buttons: [
             {
                 action: "ok", label: game.i18n.localize("DRPG.Items.give"), default: true,
-                callback: (e, b, d) => d.element.querySelector("[name=room]").value
+                callback: (e, b, d) => {
+                    const f = d.element.querySelector("form");
+                    return {
+                        room: f.elements.room.value,
+                        recipient: f.elements.recipient.value
+                    };
+                }
             },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
         ],
         rejectClose: false
     });
 
-    if (!room || room === "cancel") return false;
+    if (!result || result === "cancel") return false;
 
-    const made = await grantBedroomKey(actor, room);
+    const who = game.actors.get(result.recipient) ?? initial;
+    if (!result.room) {
+        ui.notifications.info(game.i18n.localize("DRPG.Vault.noKeysToGive"));
+        return false;
+    }
+
+    const made = await grantBedroomKey(who, result.room);
     if (made) {
         ui.notifications.info(game.i18n.format("DRPG.Vault.keyGivenGm",
-            { room, actor: actor.name }));
+            { room: result.room, actor: who.name }));
     }
     return Boolean(made);
 }
 
-/** Which student. Monokumas are excluded — they carry nothing. */
-async function pickCharacter() {
-    const actors = studentActors();
-    if (!actors.length) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Panel.noCharacters"));
-        return null;
-    }
-
-    // The name alone. The options used to append `inventorySummary`, which
-    // made every row a full line of counts — the same information the give
-    // dialog already shows for the chosen character, one step later, where it
-    // is actually needed (Dawid, 26.08).
-    const options = actors
-        .map(a => `<option value="${a.id}">${foundry.utils.escapeHTML(a.name)}</option>`)
-        .join("");
-
-    const id = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Items.whichCharacter") },
-        classes: ["drpg-panel"],
-        content: `<form><label>${game.i18n.localize("DRPG.Items.whichCharacter")}
-                    <select name="actor">${options}</select></label></form>`,
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Action.proceed"), default: true,
-                callback: (e, b, d) => d.element.querySelector("[name=actor]").value
-            },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
-        rejectClose: false
-    });
-
-    if (!id || id === "cancel") return null;
-    return game.actors.get(id) ?? null;
-}
+/* The character picker that used to stand in front of the hub lived here.
+ * Every window it fed asks for its own recipient now - in the form, where the
+ * answer can still be changed. See the note on `target` in `openItemManager`.
+ */
 
 /* ==========================================================================
  * GIVING
@@ -259,12 +298,15 @@ export async function giveItemDialog(actor) {
             return [`<option value="${key}">${foundry.utils.escapeHTML(cat.label)}${cap}</option>`];
         }).join("");
 
-    const categories = categoriesFor(actor);
-
     // Everyone this can be handed to. The one who came in from the hub is
-    // selected, so the old route is unchanged and the new one is possible.
-    const recipients = studentActors()
-        .map(a => `<option value="${a.id}"${a.id === actor?.id ? " selected" : ""}>${
+    // selected; opened from the hub there is nobody, and the first student
+    // stands in - so the counts below always describe whoever the select is
+    // actually showing.
+    const students = studentActors();
+    const initial = actor ?? students[0] ?? null;
+    const categories = categoriesFor(initial);
+    const recipients = students
+        .map(a => `<option value="${a.id}"${a.id === initial?.id ? " selected" : ""}>${
             foundry.utils.escapeHTML(a.name)}</option>`).join("");
 
     const tiers = ITEM_TIERS
@@ -307,7 +349,9 @@ export async function giveItemDialog(actor) {
         : `<p class="notes">${game.i18n.localize("DRPG.Items.existingEmpty")}</p>`;
 
     const result = await DialogV2.wait({
-        window: { title: game.i18n.format("DRPG.Items.giveTo", { actor: actor.name }) },
+        window: { title: actor
+            ? game.i18n.format("DRPG.Items.giveTo", { actor: actor.name })
+            : game.i18n.localize("DRPG.Items.give") },
         classes: ["drpg-panel"],
         // Two tabs, one verb (Dawid, 2026-08-26). The footer's Give reads
         // whichever pane is showing; the tell-player switch and the cap note
@@ -466,7 +510,7 @@ export async function giveItemDialog(actor) {
      * the whole route again. The field is the point; the argument is only its
      * default.
      */
-    const chosen = game.actors.get(result.recipient) ?? actor;
+    const chosen = game.actors.get(result.recipient) ?? actor ?? initial;
     if (!chosen) {
         ui.notifications.warn(game.i18n.localize("DRPG.Items.needsRecipient"));
         return false;
@@ -570,23 +614,101 @@ function visibilityOptions(selected = "evident") {
         }</option>`).join("");
 }
 
-/** Hand one Truth Bullet to one character. */
+/**
+ * Hand one Truth Bullet over - copied from a trace, or written out by hand.
+ *
+ * TWO TABS, AND THE FIRST ONE IS THE HONEST ROUTE (Dawid, 31.08).
+ *
+ * Writing the bullet out was the only way through here, and it is the one way
+ * that can disagree with the map: the GM retypes a name the Remnant already
+ * has, picks a visibility it already carries, and the result comes out
+ * unattached. No `remnantId` means the marker stays hidden from the person now
+ * holding evidence of it, and nothing ever ties the bullet to the trace it
+ * documents - not the Investigation dashboard, not the trial's evidence card.
+ *
+ * Observe has never done it that way: it reads the trace and hands over what
+ * the trace says. So does this pane, with the same fields in the same order, so
+ * a bullet given by hand and a bullet found by rolling are the same object.
+ *
+ * Writing one by hand stays, because a GM inventing evidence that is not on the
+ * map yet is a real thing to want.
+ */
 async function giveTruthBulletDialog(actor) {
-    const result = await DialogV2.wait({
-        window: { title: game.i18n.format("DRPG.TruthBullet.giveTo", { actor: actor.name }) },
-        classes: ["drpg-panel"],
-        content: dialogContent(`<form>
+    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
+
+    const students = studentActors();
+    const initial = actor ?? students[0] ?? null;
+    if (!initial) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.noCharacters"));
+        return false;
+    }
+
+    const recipients = students
+        .map(a => `<option value="${a.id}"${a.id === initial.id ? " selected" : ""}>${
+            esc(a.name)}</option>`).join("");
+
+    const { remnantsOn, remnantData, traceContextLine, setRemnantPublicById } =
+        await import("./remnants.mjs");
+
+    // The scene the GM is looking at. `remnantData` is GM-side by construction -
+    // a player's client holds these tokens but has never held what they mean -
+    // and this whole window is GM-only, so there is nothing to gate here.
+    const scene = workingScene();
+    const traces = remnantsOn(scene)
+        .map(token => ({ token, data: remnantData(token) }))
+        .filter(entry => entry.data);
+
+    const traceOptionsFor = who => {
+        const copied = copiedRemnants(who);
+        return traces.map(({ token, data }) => {
+            const name = data.public?.name || game.i18n.localize("DRPG.Remnant.tokenName");
+            const context = traceContextLine(data);
+            // Said rather than hidden. A second copy is a legitimate thing to
+            // hand out - two students may both have seen the same thing - so a
+            // missing row would read as a missing trace.
+            const held = copied.has(token.id)
+                ? ` · ${game.i18n.localize("DRPG.TruthBullet.alreadyHeld")}` : "";
+            return `<option value="${token.id}" data-name="${esc(name)}">${
+                esc(name)}${context ? ` · ${esc(context)}` : ""}${esc(held)}</option>`;
+        }).join("");
+    };
+
+    const shownSelect = name => `<select name="${name}">
+                <option value="auto" selected>${game.i18n.localize("DRPG.TruthBullet.shownAuto")}</option>
+                <option value="neutral">${game.i18n.localize("DRPG.TruthBullet.shownNeutral")}</option>
+                <option value="real">${game.i18n.localize("DRPG.TruthBullet.shownReal")}</option>
+            </select>`;
+
+    const firstName = traces.length
+        ? (traces[0].data.public?.name || game.i18n.localize("DRPG.Remnant.tokenName"))
+        : "";
+
+    const existingPane = traces.length
+        ? `<label>${game.i18n.localize("DRPG.TruthBullet.pickRemnant")}
+                <select name="remnant">${traceOptionsFor(initial)}</select></label>
             <label>${game.i18n.localize("DRPG.TruthBullet.name")}
-                <input type="text" name="name" autofocus
+                <input type="text" name="exName" value="${esc(firstName)}" /></label>
+            <label>${game.i18n.localize("DRPG.TruthBullet.shown")}
+                ${shownSelect("exShown")}</label>
+            <p class="notes">${game.i18n.localize("DRPG.TruthBullet.remnantNote")}</p>`
+        : `<p class="notes">${game.i18n.localize("DRPG.TruthBullet.remnantEmpty")}</p>`;
+
+    const result = await DialogV2.wait({
+        window: { title: actor
+            ? game.i18n.format("DRPG.TruthBullet.giveTo", { actor: actor.name })
+            : game.i18n.localize("DRPG.TruthBullet.give") },
+        classes: ["drpg-panel"],
+        content: dialogContent(`<form>${panelTabs([
+            { key: "existing", label: game.i18n.localize("DRPG.TruthBullet.tabFromRemnant"),
+              html: existingPane },
+            { key: "create", label: game.i18n.localize("DRPG.TruthBullet.tabWriteNew"), html: `
+            <label>${game.i18n.localize("DRPG.TruthBullet.name")}
+                <input type="text" name="name"
                        placeholder="${game.i18n.localize("DRPG.TruthBullet.namePlaceholder")}" /></label>
             <label>${game.i18n.localize("DRPG.TruthBullet.realType")}
                 <select name="realType">${typeOptions("neutral")}</select></label>
             <label>${game.i18n.localize("DRPG.TruthBullet.shown")}
-                <select name="shown">
-                    <option value="auto" selected>${game.i18n.localize("DRPG.TruthBullet.shownAuto")}</option>
-                    <option value="neutral">${game.i18n.localize("DRPG.TruthBullet.shownNeutral")}</option>
-                    <option value="real">${game.i18n.localize("DRPG.TruthBullet.shownReal")}</option>
-                </select></label>
+                ${shownSelect("shown")}</label>
             <label>${game.i18n.localize("DRPG.TruthBullet.visibility")}
                 <select name="visibility">${visibilityOptions("evident")}</select></label>
             <label class="drpg-checkbox">
@@ -600,27 +722,77 @@ async function giveTruthBulletDialog(actor) {
                     placeholder="${game.i18n.localize("DRPG.TruthBullet.playerTextPlaceholder")}"></textarea></label>
             <label>${game.i18n.localize("DRPG.TruthBullet.gmNote")}
                 <textarea name="gmNote" rows="2"
-                    placeholder="${game.i18n.localize("DRPG.TruthBullet.gmNotePlaceholder")}"></textarea></label>
+                    placeholder="${game.i18n.localize("DRPG.TruthBullet.gmNotePlaceholder")}"></textarea></label>` }
+        ])}
+            <label>${game.i18n.localize("DRPG.Items.recipient")}
+                <select name="recipient">${recipients}</select></label>
             <label class="drpg-checkbox">
                 <input type="checkbox" name="tell" checked />
                 ${game.i18n.localize("DRPG.Items.tellPlayer")}</label>
             <p class="notes">${game.i18n.localize("DRPG.TruthBullet.secretNote")}</p>
         </form>`),
+        render: (event, dialog) => {
+            wirePanelTabs(dialog.element);
+            const form = dialog.element.querySelector("form");
+            if (!form) return;
+
+            // The name field follows the picked trace, because the GM is
+            // renaming a thing rather than naming one: what is already on the
+            // trace is the answer until they say otherwise.
+            const picker = form.elements.remnant;
+            picker?.addEventListener("change", () => {
+                const opt = picker.selectedOptions?.[0];
+                if (opt && form.elements.exName) form.elements.exName.value = opt.dataset.name ?? "";
+            });
+
+            // Whether a trace is already copied is a fact about the recipient,
+            // so the list is rebuilt when the recipient changes - and the
+            // selection is kept across the swap.
+            form.elements.recipient?.addEventListener("change", () => {
+                if (!picker) return;
+                const who = game.actors.get(form.elements.recipient.value);
+                if (!who) return;
+                const keep = picker.value;
+                picker.innerHTML = traceOptionsFor(who);
+                if ([...picker.options].some(o => o.value === keep)) picker.value = keep;
+            });
+        },
         buttons: [
             {
                 action: "ok", label: game.i18n.localize("DRPG.TruthBullet.give"), default: true,
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
+                    const active = d.element.querySelector(".drpg-gmt-section.active")
+                        ?.dataset.drpgGmtSection ?? "create";
+                    const common = {
+                        recipient: f.elements.recipient?.value ?? null,
+                        tell: f.elements.tell.checked
+                    };
+
+                    if (active === "existing" && f.elements.remnant) {
+                        return { ...common, mode: "existing",
+                                 remnantId: f.elements.remnant.value,
+                                 name: f.elements.exName.value.trim(),
+                                 shown: f.elements.exShown.value };
+                    }
+
                     return {
-                        name: f.name.value.trim(),
-                        realType: f.realType.value,
-                        shown: f.shown.value,
-                        visibility: f.visibility.value,
-                        faint: f.faint.checked,
-                        tied: f.tied.checked,
-                        playerText: f.playerText.value.trim(),
-                        gmNote: f.gmNote.value.trim(),
-                        tell: f.tell.checked
+                        ...common,
+                        mode: "create",
+                        // `f.name` reads this same field - HTMLFormElement
+                        // carries [LegacyOverrideBuiltIns], so its named getter
+                        // beats the built-in `name`. `f.elements` does not have
+                        // that clause, which is the trap two functions down.
+                        // Neither collides here; both forms are spelled the
+                        // same way for the sake of reading them together.
+                        name: f.elements.name.value.trim(),
+                        realType: f.elements.realType.value,
+                        shown: f.elements.shown.value,
+                        visibility: f.elements.visibility.value,
+                        faint: f.elements.faint.checked,
+                        tied: f.elements.tied.checked,
+                        playerText: f.elements.playerText.value.trim(),
+                        gmNote: f.elements.gmNote.value.trim()
                     };
                 }
             },
@@ -630,28 +802,77 @@ async function giveTruthBulletDialog(actor) {
     });
 
     if (!result || result === "cancel") return false;
+
+    const who = game.actors.get(result.recipient) ?? initial;
     if (!result.name) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Items.needsName"));
+        ui.notifications.warn(game.i18n.localize("DRPG.TruthBullet.needsName"));
         return false;
     }
 
-    // "auto" means "let the rules decide" — Key, Autopsy and Final bullets
-    // arrive identified, everything else starts Neutral. See createTruthBullet.
-    const shownType = result.shown === "auto" ? null
-        : (result.shown === "real" ? result.realType : "neutral");
+    let payload = null;
 
-    const item = await createTruthBullet(actor, {
-        name: result.name,
-        realType: result.realType,
-        shownType,
-        visibility: result.visibility,
-        faint: result.faint,
-        // The GM's manual verdict (Dawid, 26.08). Into the bullet's secret at
-        // creation; public on the item only once identified, like every tie.
-        tiedToCrime: result.tied,
-        playerText: result.playerText,
-        gmNote: result.gmNote
-    });
+    if (result.mode === "existing") {
+        const entry = traces.find(t => t.token.id === result.remnantId);
+        if (!entry) {
+            ui.notifications.warn(game.i18n.localize("DRPG.TruthBullet.remnantGone"));
+            return false;
+        }
+        const { token, data } = entry;
+        const pub = data.public ?? null;
+
+        // A rename is written back to the trace, the way Observe writes back the
+        // sentence the GM types. Otherwise the second student to be handed this
+        // same trace would get the old name, and the two copies of one object
+        // would disagree in the pack that is meant to prove things.
+        if (result.name !== pub?.name) {
+            try {
+                await setRemnantPublicById(scene?.id, token.id, { name: result.name });
+            } catch (err) {
+                error("Could not record the new name on the Remnant", err);
+            }
+        }
+
+        payload = {
+            name: result.name,
+            realType: data.type,
+            shownType: result.shown === "auto" ? null
+                : (result.shown === "real" ? data.type : "neutral"),
+            visibility: data.visibility,
+            faint: Boolean(data.faint),
+            playerText: pub?.playerText ?? "",
+            img: pub?.img ?? null,
+            tags: pub?.tags ?? [],
+            gmNote: data.note ?? "",
+            remnantId: token.id,
+            sceneId: scene?.id ?? null,
+            // Passed explicitly for the reason Observe passes it: the room
+            // lookup is canvas-bound, and this may not be the scene on screen.
+            room: data.room ?? null,
+            // Both into the bullet's secret; public on the item only once it is
+            // identified, like every other tie.
+            sourceAction: data.action ?? null,
+            tiedToCrime: Boolean(data.tiedToCrime)
+        };
+    } else {
+        payload = {
+            name: result.name,
+            realType: result.realType,
+            // "auto" means "let the rules decide" - Key, Autopsy and Final
+            // bullets arrive identified, everything else starts Neutral. See
+            // createTruthBullet.
+            shownType: result.shown === "auto" ? null
+                : (result.shown === "real" ? result.realType : "neutral"),
+            visibility: result.visibility,
+            faint: result.faint,
+            // The GM's manual verdict (Dawid, 26.08). Into the bullet's secret
+            // at creation; public on the item only once identified.
+            tiedToCrime: result.tied,
+            playerText: result.playerText,
+            gmNote: result.gmNote
+        };
+    }
+
+    const item = await createTruthBullet(who, payload);
 
     if (!item) {
         ui.notifications.error(game.i18n.localize("DRPG.Items.failed"));
@@ -659,14 +880,14 @@ async function giveTruthBulletDialog(actor) {
     }
 
     ui.notifications.info(game.i18n.format("DRPG.TruthBullet.gave", {
-        item: result.name, actor: actor.name
+        item: payload.name, actor: who.name
     }));
 
     if (result.tell) {
-        await whisperToOwner(actor, `
+        await whisperToOwner(who, `
             <h3>${game.i18n.localize("DRPG.TruthBullet.received")}</h3>
-            <p><strong>${foundry.utils.escapeHTML(result.name)}</strong></p>
-            ${result.playerText ? `<p>${foundry.utils.escapeHTML(result.playerText)}</p>` : ""}
+            <p><strong>${esc(payload.name)}</strong></p>
+            ${payload.playerText ? `<p>${esc(payload.playerText)}</p>` : ""}
             <p><small>${game.i18n.localize("DRPG.TruthBullet.whereToFind")}</small></p>`);
     }
 
@@ -761,40 +982,91 @@ export async function issueAutopsyDialog() {
 
 /** Remove one item the module knows about. */
 async function takeItemDialog(actor) {
-    const owned = Object.keys(ITEM_CATEGORIES)
-        .flatMap(key => itemsInCategory(actor, key).map(item => ({ item, category: key })));
-
-    if (!owned.length) {
-        ui.notifications.warn(game.i18n.format("DRPG.Items.nothingToTake", { actor: actor.name }));
+    const students = studentActors();
+    const initial = actor ?? students[0] ?? null;
+    if (!initial) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.noCharacters"));
         return false;
     }
 
-    const options = owned.map(({ item, category }) => {
-        // A Truth Bullet carries `tier: null` on purpose, and `!== undefined`
-        // let that through — every bullet in this picker read "(Tnull)".
-        const tier = item.getFlag(MODULE_ID, "tier");
-        const label = `${ITEM_CATEGORIES[category]?.label ?? category} · ${item.name}${
-            tier !== undefined && tier !== null ? ` (T${tier})` : ""
-        }`;
-        return `<option value="${item.id}">${foundry.utils.escapeHTML(label)}</option>`;
-    }).join("");
+    /*
+     * WHOSE POCKETS, ASKED IN THE WINDOW (Dawid, 31.08).
+     *
+     * The list is everything one person is carrying, so it is built for one and
+     * rebuilt when the GM changes their mind. A picker still showing somebody
+     * else's belongings under a new name would delete the wrong item without
+     * ever looking wrong, which is the one failure worth writing code against.
+     */
+    const ownedFor = who => Object.keys(ITEM_CATEGORIES)
+        .flatMap(key => itemsInCategory(who, key).map(item => ({ item, category: key })));
+
+    const optionsFor = who => {
+        const owned = ownedFor(who);
+        if (!owned.length) {
+            return `<option value="">${foundry.utils.escapeHTML(
+                game.i18n.format("DRPG.Items.nothingToTake", { actor: who.name }))}</option>`;
+        }
+        return owned.map(({ item, category }) => {
+            // A Truth Bullet carries `tier: null` on purpose, and `!== undefined`
+            // let that through - every bullet in this picker read "(Tnull)".
+            const tier = item.getFlag(MODULE_ID, "tier");
+            const label = `${ITEM_CATEGORIES[category]?.label ?? category} · ${item.name}${
+                tier !== undefined && tier !== null ? ` (T${tier})` : ""
+            }`;
+            return `<option value="${item.id}">${foundry.utils.escapeHTML(label)}</option>`;
+        }).join("");
+    };
+
+    const recipients = students
+        .map(a => `<option value="${a.id}"${a.id === initial.id ? " selected" : ""}>${
+            foundry.utils.escapeHTML(a.name)}</option>`).join("");
 
     const result = await DialogV2.wait({
-        window: { title: game.i18n.format("DRPG.Items.takeFrom", { actor: actor.name }) },
+        window: { title: actor
+            ? game.i18n.format("DRPG.Items.takeFrom", { actor: actor.name })
+            : game.i18n.localize("DRPG.Items.take") },
         classes: ["drpg-panel"],
         content: `<form>
+            <label>${game.i18n.localize("DRPG.Items.takeFromWhom")}
+                <select name="recipient">${recipients}</select></label>
             <label>${game.i18n.localize("DRPG.Items.whichItem")}
-                <select name="item">${options}</select></label>
+                <select name="item">${optionsFor(initial)}</select></label>
             <label class="drpg-checkbox">
                 <input type="checkbox" name="tell" checked />
                 ${game.i18n.localize("DRPG.Items.tellPlayer")}</label>
         </form>`,
+        render: (event, dialog) => {
+            const form = dialog.element.querySelector("form");
+            form?.elements?.recipient?.addEventListener("change", () => {
+                const who = game.actors.get(form.elements.recipient.value);
+                // `namedItem`, not `form.elements.item` - see the note on the
+                // callback below.
+                if (who) form.elements.namedItem("item").innerHTML = optionsFor(who);
+            });
+        },
         buttons: [
             {
                 action: "ok", label: game.i18n.localize("DRPG.Items.take"), default: true,
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
-                    return { id: f.item.value, tell: f.tell.checked };
+                    /*
+                     * `namedItem("item")`, BECAUSE THE FIELD IS CALLED "item".
+                     *
+                     * Measured on 14.365: `form.elements` is an
+                     * HTMLFormControlsCollection, which carries its own
+                     * `item()`, `namedItem()` and `length` - and access by name
+                     * does NOT override them. So `f.elements.item` hands back
+                     * the collection's method and the select is unreachable
+                     * through it. The form itself behaves the other way round
+                     * (`[LegacyOverrideBuiltIns]`), which is why `f.item` used
+                     * to work here and why the difference is worth a note
+                     * rather than a rename.
+                     */
+                    return {
+                        id: f.elements.namedItem("item").value,
+                        recipient: f.elements.recipient.value,
+                        tell: f.elements.tell.checked
+                    };
                 }
             },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
@@ -804,8 +1076,12 @@ async function takeItemDialog(actor) {
 
     if (!result || result === "cancel") return false;
 
-    const item = actor.items.get(result.id);
-    if (!item) return false;
+    const who = game.actors.get(result.recipient) ?? initial;
+    const item = who.items.get(result.id);
+    if (!item) {
+        ui.notifications.warn(game.i18n.format("DRPG.Items.nothingToTake", { actor: who.name }));
+        return false;
+    }
 
     const name = item.name;
     // The answer key is keyed by item uuid, so deleting the item without this
@@ -821,11 +1097,11 @@ async function takeItemDialog(actor) {
         return false;
     }
 
-    log(`GM took "${name}" from ${actor.name}.`);
-    ui.notifications.info(game.i18n.format("DRPG.Items.took", { item: name, actor: actor.name }));
+    log(`GM took "${name}" from ${who.name}.`);
+    ui.notifications.info(game.i18n.format("DRPG.Items.took", { item: name, actor: who.name }));
 
     if (result.tell) {
-        await whisperToOwner(actor, `${cardHead({
+        await whisperToOwner(who, `${cardHead({
             action: game.i18n.localize("DRPG.Items.lostTitle")
         })}<p>${
             game.i18n.format("DRPG.Items.lost", { item: foundry.utils.escapeHTML(name) })
