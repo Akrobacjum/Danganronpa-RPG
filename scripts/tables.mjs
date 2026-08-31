@@ -846,8 +846,12 @@ function tableItemsHtml(table) {
                  data-drpg-result-img="${r.id}"
                  title="${esc(game.i18n.localize("DRPG.Tables.changeIcon"))}" />
             <input type="text" class="drpg-table-item-name" data-drpg-field="name"
+                   data-drpg-owns-table="${table.id}" data-drpg-owns-result="${r.id}"
+                   data-drpg-initial="${esc(name)}"
                    value="${esc(name)}" />
             <input type="text" class="drpg-table-item-note notes" data-drpg-field="description"
+                   data-drpg-owns-table="${table.id}" data-drpg-owns-result="${r.id}"
+                   data-drpg-initial="${esc(note)}"
                    value="${esc(note)}"
                    placeholder="${esc(game.i18n.localize("DRPG.Items.descriptionPlaceholder"))}" />
             ${roleBoxes}
@@ -1240,7 +1244,34 @@ export async function openItemTables({ preset = null } = {}) {
 
             let current = selected ?? null;
 
-            const show = table => {
+            /*
+             * WRITE WHAT IS ON SCREEN BEFORE TAKING IT OFF SCREEN.
+             *
+             * Switching tables replaces the whole list, and a field blurred by
+             * that click has already been orphaned by the time its `focusout`
+             * arrives - a detached node bubbles to nothing, so the listener on
+             * `bodyEl` never sees it and the edit is gone. Measured: typed a
+             * description, clicked another table, the entry kept its old text.
+             *
+             * The text guard catches this in a real browser by blurring on
+             * `pointerdown`, before the click. This does not depend on that
+             * order at all: the list is the only thing that knows its rows are
+             * about to stop existing, so it is the thing that writes them.
+             */
+            const flush = async () => {
+                for (const field of bodyEl.querySelectorAll("[data-drpg-field]")) {
+                    const value = field.value.trim();
+                    if (value === (field.dataset.drpgInitial ?? "")) continue;
+                    const table = game.tables.get(field.dataset.drpgOwnsTable);
+                    if (!table || !field.dataset.drpgOwnsResult) continue;
+                    await editResult(table, field.dataset.drpgOwnsResult,
+                        field.dataset.drpgField, value);
+                    field.dataset.drpgInitial = value;
+                }
+            };
+
+            const show = async table => {
+                await flush();
                 current = table ?? null;
                 nameEl.textContent = table?.name ?? "";
                 bodyEl.innerHTML = table ? tableItemsHtml(table) : "";
@@ -1415,13 +1446,45 @@ export async function openItemTables({ preset = null } = {}) {
                 const field = ev.target.closest("[data-drpg-field]");
                 if (!field) return;
 
+                /*
+                 * ONLY A FIELD SOMEBODY CHANGED IS WRITTEN (Dawid, 31.08).
+                 *
+                 * A default entry ships with `description === name`, and a
+                 * description that is only the name again renders as an EMPTY
+                 * box - so every untouched row in the window is a blank field
+                 * sitting over a stored value. Until 1.2.4 committing one of
+                 * those wrote the name back and was a harmless no-op; 1.2.4
+                 * made empty mean empty, which is right, and in the same
+                 * version the text guard started letting focus pass through
+                 * fields far more often. Between them, switching from one table
+                 * to another wiped the descriptions of rows nobody had touched.
+                 *
+                 * Measured: "Bent nail", box renders "", stored "Bent nail",
+                 * one focusout with no edit at all -> stored "".
+                 *
+                 * The rule that was missing is this one, and it is the rule the
+                 * window always meant: a commit with no difference is not a
+                 * write.
+                 */
+                if (field.value.trim() === (field.dataset.drpgInitial ?? "")) return;
+
+                // The ids live on the FIELD as well as on the row. Switching
+                // tables redraws the whole list, and a field that is blurred by
+                // that click has already been orphaned by the time this runs -
+                // `closest` would find nothing and the edit would vanish.
                 const row = field.closest("[data-drpg-result]");
-                const table = game.tables.get(row?.dataset.drpgTable);
-                if (!table) return;
+                const table = game.tables.get(field.dataset.drpgOwnsTable ?? row?.dataset.drpgTable);
+                const resultId = field.dataset.drpgOwnsResult ?? row?.dataset.drpgResult;
+                if (!table || !resultId) return;
 
                 const saved = await editResult(
-                    table, row.dataset.drpgResult, field.dataset.drpgField, field.value.trim());
+                    table, resultId, field.dataset.drpgField, field.value.trim());
                 if (saved) {
+                    // What was just written is what this field now holds, so a
+                    // second blur over it is a no-op like any other untouched
+                    // field.
+                    field.dataset.drpgInitial = field.value.trim();
+
                     // The same brief mark the Remnant card uses for "that
                     // landed", removed again so a window left open does not
                     // keep claiming it.

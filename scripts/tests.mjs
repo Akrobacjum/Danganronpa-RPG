@@ -1934,6 +1934,40 @@ const INVARIANTS = [
         // And it is actually installed on windows, not merely written.
         ok(/renderDialogV2/.test(utils),
             "nothing installs the text guard, so no window has it");
+
+        /*
+         * AND THE TWO THINGS 1.2.4 GOT WRONG (Dawid, 31.08).
+         *
+         * ONE, and it was mine: a default entry ships with `description ===
+         * name`, which renders as an EMPTY box, so every untouched row is a
+         * blank field sitting over a stored value. Once empty meant empty and
+         * the guard started letting focus through more often, switching tables
+         * wiped rows nobody had touched. Measured: "Bent nail", box "", stored
+         * "Bent nail", one focusout with no edit -> stored "".
+         *
+         * TWO: a field blurred BY the click that redraws the list has already
+         * been orphaned when its `focusout` arrives, and a detached node
+         * bubbles to nothing. Measured: typed, clicked another table, the entry
+         * kept its old text.
+         */
+        const rows = tables.slice(tables.indexOf("function tableItemsHtml"),
+                                  tables.indexOf("async function addResult"));
+        ok(/data-drpg-initial/.test(rows),
+            "table rows no longer carry the value they were rendered with, so there is "
+            + "nothing to compare against and every blur is a write again");
+        ok(/data-drpg-owns-result/.test(rows) && /data-drpg-owns-table/.test(rows),
+            "a field no longer carries its own ids, so one orphaned by a redraw cannot "
+            + "say what it belonged to");
+
+        ok(/if \(field\.value\.trim\(\) === \(field\.dataset\.drpgInitial \?\? ""\)\) return;/.test(tables),
+            "an unchanged field is written again - which is how untouched rows lost their "
+            + "descriptions to nothing more than focus passing over them");
+
+        const showFn = tables.slice(tables.indexOf("const flush = async"),
+                                    tables.indexOf("show(current);"));
+        ok(/await flush\(\)/.test(showFn) && showFn.indexOf("await flush()") < showFn.indexOf("innerHTML"),
+            "the list redraws without writing what was on screen first, so a description "
+            + "typed and then clicked away from is lost with the row it was in");
     }],
 
     ["a tool in hand lowers the bar as well as adding a die", async () => {
