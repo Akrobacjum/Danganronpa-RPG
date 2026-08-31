@@ -225,7 +225,13 @@ export async function giveItemDialog(actor) {
     // Truth Bullets have their own dialog. They share nothing with a physical
     // item but the word "give": no tier, no carry limit, and half a dozen fields
     // this form has no place for.
-    const categories = Object.entries(ITEM_CATEGORIES)
+    /*
+     * THE CARRY COUNTS BELONG TO A PERSON, so they are built for one rather
+     * than once. Changing the recipient rebuilds them - a row reading "2/2"
+     * about somebody who is no longer getting the item is worse than a row
+     * with no numbers on it at all.
+     */
+    const categoriesFor = who => Object.entries(ITEM_CATEGORIES)
         // Truth Bullets and keys both have windows of their own: one carries a
         // secret this form has no fields for, the other names a room rather
         // than being typed. Offering either here would produce an item that
@@ -236,9 +242,11 @@ export async function giveItemDialog(actor) {
             // three slots have to show the same number, or the GM reads "1/1"
             // beside a free slot and believes it. See `capacityLabel`.
             const group = cat.limitGroup ?? null;
-            const held = group ? countInGroup(actor, group) : countInCategory(actor, key);
+            const held = who
+                ? (group ? countInGroup(who, group) : countInCategory(who, key))
+                : null;
             const limit = group ? LIMIT_GROUPS[group]?.limit : cat.limit;
-            const cap = limit ? ` — ${held}/${limit}` : ` — ${held}`;
+            const cap = held === null ? "" : (limit ? ` — ${held}/${limit}` : ` — ${held}`);
             // A usable is a healing or a stress-relief item — that decides what
             // it does when drunk, so the GM says which here rather than the
             // player being asked later. Both halves share the one carry count:
@@ -250,6 +258,14 @@ export async function giveItemDialog(actor) {
             }
             return [`<option value="${key}">${foundry.utils.escapeHTML(cat.label)}${cap}</option>`];
         }).join("");
+
+    const categories = categoriesFor(actor);
+
+    // Everyone this can be handed to. The one who came in from the hub is
+    // selected, so the old route is unchanged and the new one is possible.
+    const recipients = studentActors()
+        .map(a => `<option value="${a.id}"${a.id === actor?.id ? " selected" : ""}>${
+            foundry.utils.escapeHTML(a.name)}</option>`).join("");
 
     const tiers = ITEM_TIERS
         .map(t => `<option value="${t}"${t === 2 ? " selected" : ""}>${
@@ -320,6 +336,8 @@ export async function giveItemDialog(actor) {
             </span>
             <p class="notes" data-drpg-roles-note></p>` }
         ])}
+            <label>${game.i18n.localize("DRPG.Items.recipient")}
+                <select name="recipient">${recipients}</select></label>
             <label class="drpg-checkbox">
                 <input type="checkbox" name="tell" checked />
                 ${game.i18n.localize("DRPG.Items.tellPlayer")}</label>
@@ -348,6 +366,19 @@ export async function giveItemDialog(actor) {
             };
             existing.addEventListener("change", sync);
             sync();
+
+            // Both category selects carry the counts, and both are rebuilt when
+            // the recipient changes. The picked value is kept across the swap.
+            form.elements.recipient?.addEventListener("change", () => {
+                const who = game.actors.get(form.elements.recipient.value);
+                for (const name of ["category", "exCategory"]) {
+                    const select = form.elements[name];
+                    if (!select) continue;
+                    const keep = select.value;
+                    select.innerHTML = categoriesFor(who);
+                    if ([...select.options].some(o => o.value === keep)) select.value = keep;
+                }
+            });
 
             /*
              * A SECOND ROLE, ON THE SAME TERMS AS THE TABLES (Dawid, 31.08).
@@ -400,7 +431,8 @@ export async function giveItemDialog(actor) {
                         const [tableId, resultId] = f.elements.existing.value.split(":");
                         const [category, kind = null] = f.elements.exCategory.value.split(":");
                         return { mode: "existing", tableId, resultId, category, kind,
-                                 tier: Number(f.elements.exTier.value), tell: f.elements.tell.checked };
+                                 tier: Number(f.elements.exTier.value), tell: f.elements.tell.checked,
+                                 recipient: f.elements.recipient?.value ?? null };
                     }
 
                     // "usable:healing" carries the kind after the colon; the
@@ -415,7 +447,8 @@ export async function giveItemDialog(actor) {
                         description: f.elements.description.value.trim(),
                         roles: [...f.querySelectorAll("[data-drpg-role]:checked")]
                             .map(b => b.dataset.drpgRole),
-                        tell: f.elements.tell.checked
+                        tell: f.elements.tell.checked,
+                        recipient: f.elements.recipient?.value ?? null
                     };
                 }
             },
@@ -425,6 +458,20 @@ export async function giveItemDialog(actor) {
     });
 
     if (!result || result === "cancel") return false;
+
+    /*
+     * THE WINDOW'S OWN ANSWER WINS over the one it was opened with (Dawid,
+     * 31.08). Picking the student used to happen before the window, so changing
+     * your mind after building the item meant closing everything and walking
+     * the whole route again. The field is the point; the argument is only its
+     * default.
+     */
+    const chosen = game.actors.get(result.recipient) ?? actor;
+    if (!chosen) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Items.needsRecipient"));
+        return false;
+    }
+    actor = chosen;
 
     // Both tabs funnel into one shape, so everything below — the grant, the
     // receipt, the log line — cannot diverge between them.

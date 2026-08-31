@@ -417,6 +417,19 @@ export function rolesOfResult(result) {
     return rolesForPoolItem(result?.name ?? result?.text ?? "");
 }
 
+/**
+ * The tier pool an item of this category and tier belongs in.
+ *
+ * `"usable:healing"` carries the goal after the colon, the shape the category
+ * select uses. Returns null when no such pool exists yet, which is a real state
+ * in a world where the tables were never installed.
+ */
+export function tierTableIdFor(categoryValue, tier) {
+    const [category, goal = null] = String(categoryValue ?? "").split(":");
+    if (!category || !Number.isFinite(tier)) return null;
+    return game.tables?.getName?.(existingTableName(category, tier, goal))?.id ?? null;
+}
+
 /** One random item name for a category and tier. */
 export function randomItem(category, tier, goal = null) {
     const goalPool = USABLE_GOALS[goal]?.pool;
@@ -1019,15 +1032,6 @@ export async function openItemTables({ preset = null } = {}) {
 
     const selected = tables.find(t => presetTargets.has(t.id)) ?? tables[0] ?? null;
 
-    const listHtml = tables.length
-        ? `<ul class="drpg-tables-list">${tables.map(t => `
-            <li><button type="button" class="drpg-table-pick${
-                t.id === selected?.id ? " active" : ""}" data-drpg-table="${t.id}">
-                <span>${esc(t.name)}</span>
-                <span class="notes">${t.results.size}</span>
-            </button></li>`).join("")}</ul>`
-        : `<p class="notes">${game.i18n.localize("DRPG.Tables.noneYet")}</p>`;
-
     /*
      * WHAT ELSE THIS ENTRY CAN DO (E8).
      *
@@ -1065,12 +1069,78 @@ export async function openItemTables({ preset = null } = {}) {
     const tierTables = tables.filter(t => isTierPool(t.name));
     const roomTablesList = tables.filter(t => !isTierPool(t.name));
 
-    const tierOptions = `<option value="">—</option>` + tierTables.map(t =>
-        `<option value="${t.id}"${presetTargets.has(t.id) ? " selected" : ""}>${
-            esc(t.name)}</option>`).join("");
     const roomChecks = roomTablesList.map(t => `<label class="drpg-inline-check">
         <input type="checkbox" name="target:${t.id}"${
             presetTargets.has(t.id) ? " checked" : ""} /> ${esc(t.name)}</label>`).join(" ");
+
+    /*
+     * ONE PANE, BUILT TWICE (Dawid, 31.08).
+     *
+     * Tier pools answer "what can a Search turn up for this category and tier";
+     * room pools answer "what is lying about in this room". A GM works on one
+     * or on the other and never on both at once, and a single list mixed
+     * twenty-five entries from the two families together.
+     *
+     * The two tabs are the same component with a different list and a different
+     * rule about what a new pool may be called - see `wirePane`, which is also
+     * written once and run twice.
+     */
+    const paneFor = family => (family === "tiers" ? tierTables : roomTablesList);
+
+    /*
+     * THE LIST SHOWS THE NAME, NOT THE PREFIX.
+     *
+     * Every tier pool is called "DRPG something - Tier N", and in a column this
+     * narrow those five characters cost a whole wrapped line on all twenty-five
+     * of them. Display only: rename, delete and every lookup still use the real
+     * name, because the name is how `drawItem` finds the table.
+     */
+    const shortPoolName = name => String(name ?? "").replace(/^DRPG\s+/, "");
+
+    const paneHtml = family => {
+        const mine = paneFor(family);
+        const first = mine.find(t => t.id === selected?.id) ?? mine[0] ?? null;
+        const list = mine.length
+            ? `<ul class="drpg-tables-list">${mine.map(t =>
+                `<li><button type="button" class="drpg-table-pick${
+                    t.id === first?.id ? " active" : ""}" data-drpg-table="${t.id}">
+                    <span>${esc(shortPoolName(t.name))}</span>
+                    <span class="notes">${t.results.size}</span>
+                </button></li>`).join("")}</ul>`
+            : `<p class="notes">${esc(game.i18n.localize(family === "tiers"
+                ? "DRPG.Tables.noTierPools" : "DRPG.Tables.noRoomPools"))}</p>`;
+
+        return `<div data-drpg-pane="${family}">
+            <p class="notes">${game.i18n.localize("DRPG.Tables.editorIntro")}</p>
+            <div class="drpg-tables-layout">
+                <div class="drpg-tables-left">${list}</div>
+                <div class="drpg-tables-right">
+                    <div class="drpg-table-heading">
+                        <h4 data-drpg-table-name>${esc(first?.name ?? "")}</h4>
+                        <button type="button" class="drpg-mini-button" data-drpg-rename-table>${
+                            esc(game.i18n.localize("DRPG.Tables.renameTable"))}</button>
+                        <button type="button" class="drpg-mini-button" data-drpg-delete-table>${
+                            esc(game.i18n.localize("DRPG.Tables.deleteTable"))}</button>
+                    </div>
+                    <div data-drpg-table-body>${
+                        first ? tableItemsHtml(first)
+                            : `<p class="notes">${game.i18n.localize("DRPG.Tables.noneYet")}</p>`
+                    }</div>
+                </div>
+            </div>
+            <fieldset class="drpg-tables-new">
+                <legend>${esc(game.i18n.localize(family === "tiers"
+                    ? "DRPG.Tables.newTierPool" : "DRPG.Tables.newPool"))}</legend>
+                <label>${game.i18n.localize("DRPG.Items.name")}
+                    <input type="text" name="newPool:${family}"
+                        placeholder="${esc(game.i18n.localize(family === "tiers"
+                            ? "DRPG.Tables.newTierPoolPlaceholder"
+                            : "DRPG.Tables.newPoolPlaceholder"))}" /></label>
+                <p class="notes">${game.i18n.localize(family === "tiers"
+                    ? "DRPG.Tables.newTierPoolNote" : "DRPG.Tables.newPoolNote")}</p>
+            </fieldset>
+        </div>`;
+    };
 
     // Not `tableDialog()`: there is no table in here to measure. Its two panes
     // are a list and a form, and a window sized by `fitWindowToTable` with
@@ -1086,24 +1156,10 @@ export async function openItemTables({ preset = null } = {}) {
         // reads its own pane's inputs, which stay in the DOM whichever tab is
         // showing (see `panelTabs` in utils.mjs).
         content: dialogContent(`<form>${panelTabs([
-            { key: "edit", label: game.i18n.localize("DRPG.Tables.tabEdit"), html: `
-            <p class="notes">${game.i18n.localize("DRPG.Tables.editorIntro")}</p>
-            <div class="drpg-tables-layout">
-                <div class="drpg-tables-left">${listHtml}</div>
-                <div class="drpg-tables-right">
-                    <div class="drpg-table-heading">
-                        <h4 data-drpg-table-name>${esc(selected?.name ?? "")}</h4>
-                        <button type="button" class="drpg-mini-button" data-drpg-rename-table>${
-                            esc(game.i18n.localize("DRPG.Tables.renameTable"))}</button>
-                        <button type="button" class="drpg-mini-button" data-drpg-delete-table>${
-                            esc(game.i18n.localize("DRPG.Tables.deleteTable"))}</button>
-                    </div>
-                    <div data-drpg-table-body>${
-                        selected ? tableItemsHtml(selected)
-                            : `<p class="notes">${game.i18n.localize("DRPG.Tables.noneYet")}</p>`
-                    }</div>
-                </div>
-            </div>` },
+            { key: "editTiers", label: game.i18n.localize("DRPG.Tables.tabTierPools"),
+              html: paneHtml("tiers") },
+            { key: "editRooms", label: game.i18n.localize("DRPG.Tables.tabRoomPools"),
+              html: paneHtml("rooms") },
             { key: "newItem", label: game.i18n.localize("DRPG.Tables.tabNewItem"), html: `
             <fieldset class="drpg-tables-new">
                 <legend>${game.i18n.localize("DRPG.Tables.addItem")}</legend>
@@ -1122,8 +1178,7 @@ export async function openItemTables({ preset = null } = {}) {
                     <select name="newCategory">${categories}</select></label>
                 <label>${game.i18n.localize("DRPG.Items.tier")}
                     <select name="newTier">${tiers}</select></label>
-                <label>${game.i18n.localize("DRPG.Tables.tierTarget")}
-                    <select name="tierTarget">${tierOptions}</select></label>
+                <p class="notes" data-drpg-tier-target></p>
                 <div class="drpg-tables-roles">
                     <span class="notes" data-drpg-roles-note>${
                         game.i18n.localize("DRPG.Tables.rolesNote")}</span>
@@ -1135,14 +1190,7 @@ export async function openItemTables({ preset = null } = {}) {
                 </div>
                 <p class="notes">${game.i18n.localize("DRPG.Tables.addNote")}</p>
             </fieldset>` },
-            { key: "newRoom", label: game.i18n.localize("DRPG.Tables.newPool"), html: `
-            <fieldset class="drpg-tables-new">
-                <legend>${game.i18n.localize("DRPG.Tables.newPool")}</legend>
-                <label>${game.i18n.localize("DRPG.Items.name")}
-                    <input type="text" name="newPoolName"
-                        placeholder="${esc(game.i18n.localize("DRPG.Tables.newPoolPlaceholder"))}" /></label>
-                <p class="notes">${game.i18n.localize("DRPG.Tables.newPoolNote")}</p>
-            </fieldset>` },
+
             { key: "install", label: game.i18n.localize("DRPG.Tables.tabInstall"), html: `
             <p class="notes">${game.i18n.localize("DRPG.Tables.whereNote")}</p>
             <p class="notes">${game.i18n.localize("DRPG.Tables.installTabNote")}</p>` }
@@ -1161,7 +1209,7 @@ export async function openItemTables({ preset = null } = {}) {
                         roles: EQUIPPABLE.filter(key =>
                             f.querySelector(`[name="role:${key}"]`)?.checked),
                         tables: [
-                            f.tierTarget?.value || null,
+                            tierTableIdFor(f.newCategory.value, Number(f.newTier.value)),
                             ...roomTablesList
                                 .filter(t => f.querySelector(`[name="target:${CSS.escape(t.id)}"]`)?.checked)
                                 .map(t => t.id)
@@ -1174,7 +1222,18 @@ export async function openItemTables({ preset = null } = {}) {
                 // already, and a button repeating its tab's name says nothing
                 // about what pressing it does.
                 action: "newPool", label: game.i18n.localize("DRPG.Tables.createTable"),
-                callback: (e, b, d) => ({ newPool: d.element.querySelector("[name=newPoolName]")?.value.trim() ?? "" })
+                // Each pane has its own field, and the one with something in it
+                // is the one that was meant - a GM types in the tab they are
+                // looking at. The family travels with the name because it
+                // decides what the name is allowed to be.
+                callback: (e, b, d) => {
+                    for (const family of ["tiers", "rooms"]) {
+                        const value = d.element
+                            .querySelector(`[name="newPool:${family}"]`)?.value.trim() ?? "";
+                        if (value) return { newPool: value, family };
+                    }
+                    return { newPool: "", family: "rooms" };
+                }
             },
             { action: "install", label: game.i18n.localize("DRPG.Tables.installAction") },
             { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
@@ -1193,6 +1252,29 @@ export async function openItemTables({ preset = null } = {}) {
              */
             const tierSelect = root.querySelector("[name=newTier]");
             const roleBoxes = [...root.querySelectorAll('[name^="role:"]')];
+            /*
+             * WHICH TIER POOL THIS LANDS IN, said out loud.
+             *
+             * Derived rather than picked now, and a derived thing the GM cannot
+             * see is one they cannot check - so the pane names the pool it
+             * resolved to, and says plainly when there is none rather than
+             * failing quietly on Add.
+             */
+            const tierLine = root.querySelector("[data-drpg-tier-target]");
+            const paintTierTarget = () => {
+                if (!tierLine) return;
+                const form = root.querySelector("form");
+                const id = tierTableIdFor(form?.newCategory?.value, Number(form?.newTier?.value));
+                const table = id ? game.tables.get(id) : null;
+                tierLine.textContent = table
+                    ? game.i18n.format("DRPG.Tables.tierTargetIs", { table: table.name })
+                    : game.i18n.localize("DRPG.Tables.tierTargetNone");
+                tierLine.classList.toggle("drpg-warning", !table);
+            };
+            root.querySelector("[name=newCategory]")?.addEventListener("change", paintTierTarget);
+            root.querySelector("[name=newTier]")?.addEventListener("change", paintTierTarget);
+            paintTierTarget();
+
             const gateRoles = () => {
                 const allowed = Number(tierSelect?.value) >= MULTI_ROLE_TIER;
                 for (const box of roleBoxes) {
@@ -1237,12 +1319,28 @@ export async function openItemTables({ preset = null } = {}) {
             });
             wirePortraitPickers(root, { defaultImg: DEFAULT_RESULT_IMG });
 
-            const nameEl = root.querySelector("[data-drpg-table-name]");
-            const bodyEl = root.querySelector("[data-drpg-table-body]");
-            const renameButton = root.querySelector("[data-drpg-rename-table]");
-            const deleteButton = root.querySelector("[data-drpg-delete-table]");
+            /*
+             * ONE PANE'S WIRING, RUN FOR EACH PANE.
+             *
+             * Everything below was written against a single list and found its
+             * pieces with `root.querySelector`. With two lists that would have
+             * bound the tier pane's buttons to the room pane's body, so the
+             * lookups are scoped to a pane and the whole thing runs twice.
+             *
+             * The row handlers further down stay on `root` on purpose: they
+             * find their table and result from the row's own dataset, so they
+             * were never pane-specific and duplicating them would fire each
+             * edit twice.
+             */
+            const panes = [...root.querySelectorAll("[data-drpg-pane]")];
+            const wirePane = pane => {
+            const nameEl = pane.querySelector("[data-drpg-table-name]");
+            const bodyEl = pane.querySelector("[data-drpg-table-body]");
+            const renameButton = pane.querySelector("[data-drpg-rename-table]");
+            const deleteButton = pane.querySelector("[data-drpg-delete-table]");
 
-            let current = selected ?? null;
+            const firstButton = pane.querySelector("[data-drpg-table]");
+            let current = game.tables.get(firstButton?.dataset.drpgTable) ?? null;
 
             /*
              * WRITE WHAT IS ON SCREEN BEFORE TAKING IT OFF SCREEN.
@@ -1282,10 +1380,10 @@ export async function openItemTables({ preset = null } = {}) {
             };
             show(current);
 
-            for (const button of root.querySelectorAll("[data-drpg-table]")) {
+            for (const button of pane.querySelectorAll("[data-drpg-table]")) {
                 button.addEventListener("click", ev => {
                     ev.preventDefault();
-                    for (const b of root.querySelectorAll("[data-drpg-table]")) {
+                    for (const b of pane.querySelectorAll("[data-drpg-table]")) {
                         b.classList.toggle("active", b === button);
                     }
                     show(game.tables.get(button.dataset.drpgTable));
@@ -1356,11 +1454,14 @@ export async function openItemTables({ preset = null } = {}) {
 
                 root.querySelector(`[data-drpg-table="${CSS.escape(gone.id)}"]`)
                     ?.closest("li")?.remove();
-                const next = root.querySelector("[data-drpg-table]");
+                const next = pane.querySelector("[data-drpg-table]");
                 if (next) next.click();
                 else show(null);
                 ui.notifications.info(game.i18n.format("DRPG.Tables.deleted", { name: gone.name }));
             });
+            };
+
+            panes.forEach(wirePane);
 
             // Delegated, because the entry list is rebuilt whenever a table is
             // picked or an entry is dropped — listeners bound to the old rows
@@ -1507,10 +1608,18 @@ export async function openItemTables({ preset = null } = {}) {
         const name = action.newPool;
         if (!name) {
             ui.notifications.warn(game.i18n.localize("DRPG.Tables.needsName"));
-        } else if (isTierPool(name)) {
-            // A pool NAMED like a tier table would be picked up by the draw
-            // order's tier lookup and shadow the real one. Refused at the door.
-            ui.notifications.warn(game.i18n.localize("DRPG.Tables.newPoolTierName"));
+        } else if (isTierPool(name) !== (action.family === "tiers")) {
+            /*
+             * THE NAME HAS TO MATCH THE TAB.
+             *
+             * A room pool named like a tier table would be picked up by the
+             * draw order's tier lookup and shadow the real one; a tier pool
+             * named like anything else would never be found by it. The shape of
+             * the name is what `drawItem` searches on, so it is not decoration.
+             */
+            ui.notifications.warn(game.i18n.localize(action.family === "tiers"
+                ? "DRPG.Tables.newTierPoolName"
+                : "DRPG.Tables.newPoolTierName"));
         } else if (game.tables.getName(name)) {
             ui.notifications.warn(game.i18n.format("DRPG.Tables.newPoolExists", { name }));
         } else {
