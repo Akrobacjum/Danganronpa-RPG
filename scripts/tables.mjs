@@ -806,7 +806,120 @@ export function moduleTables() {
         .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** The entries of one table, as the right-hand column renders them. */
+/**
+ * The order the room breakdown reads in, and the one an entry's home is
+ * chosen by when several pools claim it.
+ *
+ * Weapons first because that is the question a killing game asks of a room.
+ */
+const ROOM_GROUP_ORDER = [
+    "crimeTool", "cleaningTool", "tool", "usable:healing", "usable:stress"
+];
+
+/** The group key for a classification: usables split by what they mend. */
+function groupKeyOf({ category, goal }) {
+    return category === "usable" ? `usable:${goal ?? "healing"}` : category;
+}
+
+/**
+ * What a group is called on screen.
+ *
+ * `short` for the counter strip, where seven chips share one line and
+ * "Usables (Sanity Relief)" spends half of it saying the word Usables three
+ * times over. The headings inside keep the full name, because there the word
+ * is doing work.
+ */
+function groupLabel(key, { short = false } = {}) {
+    if (!key.startsWith("usable:")) {
+        return ITEM_CATEGORIES[key]?.plural ?? key;
+    }
+    const goal = key.slice("usable:".length);
+    const kind = USABLE_GOALS[goal]?.label ?? goal;
+    return short ? kind : `${ITEM_CATEGORIES.usable.plural} (${kind})`;
+}
+
+/**
+ * WHAT AN ENTRY IN A ROOM POOL IS - worked out, not stored.
+ *
+ * A room pool is one flat list. Its entries carry a name, a picture, a note and
+ * their roles, and nothing that says "this is a Tier 2 murder weapon", because
+ * category and tier are flags on the TIER tables - which is where those two
+ * facts are decided.
+ *
+ * So they are read back off the tier pools, by name, exactly the way
+ * `usableKindFor` reads what a usable does. The tables stay the authority: move
+ * a knife from Tier 1 to Tier 2 and the room that stocks it says Tier 2 the
+ * next time it is opened, with nothing to migrate.
+ *
+ * The built-in pools answer only when no world table knows the name at all,
+ * which is a world whose tables were never installed.
+ *
+ * @returns {{category: string, tier: number, goal: string|null, key: string,
+ *            others: object[]}|null} `null` when nothing claims the name.
+ */
+function classifyEntryName(name) {
+    const wanted = String(name ?? "").trim().toLowerCase();
+    if (!wanted) return null;
+    const matches = r => String(r.name ?? r.text ?? "").trim().toLowerCase() === wanted;
+
+    const found = [];
+    for (const table of game.tables ?? []) {
+        if (!isTierPool(table.name)) continue;
+        const category = table.getFlag(MODULE_ID, "category");
+        const tier = Number(table.getFlag(MODULE_ID, "tier"));
+        const goal = table.getFlag(MODULE_ID, "goal") ?? null;
+        if (!category || !Number.isFinite(tier)) continue;
+        /*
+         * A USABLE POOL WITH NO GOAL SAYS NOTHING, and that is the module's own
+         * ruling rather than a new one: a world from before the split still has
+         * "DRPG Usables - Tier N", and `usableKindFor` does not read it, because
+         * a pool that mixes what mends you with what calms you down cannot
+         * decide which an item is. Counting it here would put every usable that
+         * is still listed in it under Healing and hang a "+1" on the row saying
+         * so. Measured on "Apple", which is exactly what happened.
+         */
+        if (category === "usable" && !goal) continue;
+        if (!Array.from(table.results ?? []).some(matches)) continue;
+        found.push({ category, tier, goal, table: table.name });
+    }
+
+    if (!found.length) {
+        const hit = names => names.some(n => String(n).trim().toLowerCase() === wanted);
+        for (const [goal, { pool }] of Object.entries(USABLE_GOALS)) {
+            for (const [tier, names] of Object.entries(pool)) {
+                if (hit(names)) found.push({ category: "usable", tier: Number(tier), goal, table: null });
+            }
+        }
+        for (const [category, tiers] of Object.entries(ITEM_POOLS)) {
+            if (category === "usable") continue;
+            for (const [tier, names] of Object.entries(tiers)) {
+                if (hit(names)) found.push({ category, tier: Number(tier), goal: null, table: null });
+            }
+        }
+    }
+
+    if (!found.length) return null;
+
+    // ONE HOME, and the rest said out loud on the row. An item can honestly sit
+    // in two tier pools - an axe that is also a tool - and counting it under
+    // both would make the breakdown add up to more than the room holds, which
+    // is the one thing this list exists to get right.
+    found.sort((a, b) =>
+        (ROOM_GROUP_ORDER.indexOf(groupKeyOf(a)) - ROOM_GROUP_ORDER.indexOf(groupKeyOf(b)))
+        || (a.tier - b.tier));
+    const home = found[0];
+    return { ...home, key: groupKeyOf(home), others: found.slice(1) };
+}
+
+/**
+ * The entry list for one table.
+ *
+ * A TIER pool is one flat list, because every entry in it is the same category
+ * at the same tier - that is what the pool is. A ROOM pool is grouped by type
+ * and then by tier, with a count on every heading, because "how many weapons
+ * are in this room, and how good are they" is the question a room pool is for
+ * and a flat list of thirty names cannot answer it.
+ */
 function tableItemsHtml(table) {
     const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
     const results = Array.from(table?.results ?? []);
@@ -827,24 +940,23 @@ function tableItemsHtml(table) {
      * invisible ever after - so a GM wanting to know whether their screwdriver
      * could be swung had to delete it and add it again to find out.
      *
-     * Gated on the TABLE's tier, which is the tier every entry in it has: two
-     * jobs start at tier 2 (E9), so the boxes on a Tier 0 or Tier 1 table are
-     * disabled and say why rather than being absent - a control that vanishes
-     * teaches nothing about the rule that removed it.
+     * Gated on the entry's tier: two jobs start at tier 2 (E9), so the boxes on
+     * a Tier 0 or Tier 1 entry are disabled and say why rather than being
+     * absent - a control that vanishes teaches nothing about the rule that
+     * removed it. In a tier pool that tier is the TABLE's; in a room pool it is
+     * whatever the tier pools say about this name, and an entry no pool claims
+     * gets no boxes, because there is no rule to gate them on.
      *
-     * Only the three equippable categories, and not the one the table itself
-     * is: an entry in the Murder Weapons table is already a Murder Weapon, and
+     * Only the three equippable categories, and not the one the entry itself
+     * is: something in the Murder Weapons table is already a Murder Weapon, and
      * a box saying so would be a box that cannot be unticked.
      */
-    const tier = Number(table?.getFlag(MODULE_ID, "tier"));
-    const home = table?.getFlag(MODULE_ID, "category");
-    const rolesAllowed = Number.isFinite(tier) && tier >= MULTI_ROLE_TIER;
-    const offerable = EQUIPPABLE.filter(key => key !== home);
-
-    return `<ul class="drpg-table-items">${results.map(r => {
+    const rowHtml = (r, { home = null, tier = NaN, badge = "" } = {}) => {
         const name = r.name ?? r.text ?? "";
         const note = r.description && r.description !== name ? r.description : "";
         const roles = r.getFlag(MODULE_ID, "roles") ?? [];
+        const rolesAllowed = Number.isFinite(tier) && tier >= MULTI_ROLE_TIER;
+        const offerable = EQUIPPABLE.filter(key => key !== home);
         const roleBoxes = offerable.length && EQUIPPABLE.includes(home)
             ? `<span class="drpg-table-item-roles"${rolesAllowed ? "" : ` data-tooltip="${
                     esc(game.i18n.format("DRPG.Tables.rolesTierOnly", { tier: MULTI_ROLE_TIER }))}"`
@@ -867,6 +979,7 @@ function tableItemsHtml(table) {
                    data-drpg-initial="${esc(note)}"
                    value="${esc(note)}"
                    placeholder="${esc(game.i18n.localize("DRPG.Items.descriptionPlaceholder"))}" />
+            ${badge}
             ${roleBoxes}
             <button type="button" class="drpg-mini-button" data-drpg-place="${r.id}"
                 data-drpg-place-table="${table.id}" title="${
@@ -875,7 +988,91 @@ function tableItemsHtml(table) {
                 data-drpg-drop-table="${table.id}" title="${
                     esc(game.i18n.localize("DRPG.Tables.removeItem"))}">✕</button>
         </li>`;
-    }).join("")}</ul>`;
+    };
+
+    if (isTierPool(table.name)) {
+        const tier = Number(table.getFlag(MODULE_ID, "tier"));
+        const home = table.getFlag(MODULE_ID, "category");
+        return `<ul class="drpg-table-items">${
+            results.map(r => rowHtml(r, { home, tier })).join("")}</ul>`;
+    }
+
+    // ---- a room pool: grouped ------------------------------------------
+    const groups = new Map(ROOM_GROUP_ORDER.map(key => [key, []]));
+    const unfiled = [];
+    for (const r of results) {
+        const found = classifyEntryName(r.name ?? r.text ?? "");
+        if (found && groups.has(found.key)) groups.get(found.key).push({ r, found });
+        else unfiled.push({ r, found: null });
+    }
+
+    /*
+     * THE ZEROES ARE THE POINT. A room with no cleaning tools in it is exactly
+     * what a GM wants to see at a glance, and a chip that is only drawn when it
+     * has something to say cannot say that.
+     */
+    const chips = ROOM_GROUP_ORDER.map(key => {
+        const n = groups.get(key).length;
+        return `<span class="drpg-room-chip${n ? "" : " drpg-room-chip-empty"}" data-kind="${key}">${
+            esc(groupLabel(key, { short: true }))} <b>${n}</b></span>`;
+    }).join("");
+    const unfiledChip = unfiled.length
+        ? `<span class="drpg-room-chip drpg-room-chip-unfiled">${
+            esc(game.i18n.localize("DRPG.Tables.unfiled"))} <b>${unfiled.length}</b></span>`
+        : "";
+
+    const tiersOf = rows => {
+        const byTier = new Map();
+        for (const row of rows) {
+            const tier = row.found.tier;
+            if (!byTier.has(tier)) byTier.set(tier, []);
+            byTier.get(tier).push(row);
+        }
+        return [...byTier.entries()].sort((a, b) => a[0] - b[0]);
+    };
+
+    const body = ROOM_GROUP_ORDER.filter(key => groups.get(key).length).map(key => {
+        const rows = groups.get(key);
+        const home = key.startsWith("usable:") ? "usable" : key;
+        return `<section class="drpg-room-group" data-kind="${key}">
+            <h5>${esc(groupLabel(key))}<span class="notes">${rows.length}</span></h5>
+            ${tiersOf(rows).map(([tier, mine]) => `<div class="drpg-room-tier">
+                <h6>${esc(game.i18n.format("DRPG.Items.tierN", { n: tier }))}
+                    <span class="notes">${mine.length}</span></h6>
+                <ul class="drpg-table-items">${mine.map(({ r, found }) => rowHtml(r, {
+                    home, tier,
+                    badge: found.others.length
+                        ? `<span class="drpg-table-item-also" data-tooltip="${
+                            esc(found.others.map(o => o.table ?? groupLabel(groupKeyOf(o)))
+                                .join(", "))}">+${found.others.length}</span>`
+                        : ""
+                })).join("")}</ul>
+            </div>`).join("")}
+        </section>`;
+    }).join("");
+
+    /*
+     * WHAT "UNFILED" MEANS, and it is not "broken". A name no tier pool holds
+     * is a name the module cannot put a category or a tier on - so in a FLAT
+     * room table it can come up for any category a Search asks for, which is
+     * sometimes exactly what a GM wants and should never be a surprise.
+     */
+    const unfiledHtml = unfiled.length
+        ? `<section class="drpg-room-group drpg-room-group-unfiled" data-kind="unfiled">
+            <h5>${esc(game.i18n.localize("DRPG.Tables.unfiled"))}<span class="notes">${
+                unfiled.length}</span></h5>
+            <p class="notes">${game.i18n.localize("DRPG.Tables.unfiledNote")}</p>
+            <ul class="drpg-table-items">${
+                unfiled.map(({ r }) => rowHtml(r)).join("")}</ul>
+        </section>`
+        : "";
+
+    return `<div class="drpg-room-summary">${chips}${unfiledChip}
+            <span class="drpg-room-chip drpg-room-chip-total">${
+                esc(game.i18n.localize("DRPG.Tables.roomTotal"))} <b>${results.length}</b></span>
+        </div>
+        <p class="notes">${game.i18n.localize("DRPG.Tables.roomBreakdown")}</p>
+        <div class="drpg-room-groups">${body}${unfiledHtml}</div>`;
 }
 
 /**

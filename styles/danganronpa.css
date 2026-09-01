@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json - the suite fails if it does not. */
-    --drpg-css-version: "1.2.12";
+    --drpg-css-version: "1.2.13";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -4011,6 +4011,21 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
 
 .application.dialog.drpg-wide :is(p, blockquote, .notes) {
     max-width: 42rem;
+}
+
+/* The item tables window is wider than the rest of `drpg-wide`.
+   --------------------------------------------------------------------------
+   Measured at 704px (the `drpg-wide` width): the pool list takes the left
+   column and what is left of the row is about 430px, into which go two text
+   fields, two role checkboxes and two buttons. They wrap onto three lines, so
+   one entry is three rows tall - tolerable in a flat list of four, a wall once
+   the room view stacks type and tier headings above every group of them.
+
+   Same specificity as the `drpg-wide` rule above, so it wins on source order;
+   keep it after. 94vw is the same cap, so a small screen is unaffected. */
+.application.dialog.drpg-window-tables {
+    width: min(58rem, 94vw) !important;
+    max-width: min(58rem, 94vw) !important;
 }
 
 /* The button row wraps. Five buttons in one unbreakable line is what set the
@@ -10870,6 +10885,136 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     gap: 6px;
     padding: 4px 0;
     border-bottom: 1px solid rgba(var(--drpg-bone-rgb), 0.12);
+}
+
+/* ==========================================================================
+   A ROOM POOL, SORTED
+   --------------------------------------------------------------------------
+   A tier pool is one flat list because every entry in it is the same thing at
+   the same tier. A room pool is not: it is whatever a GM decided is lying
+   about in that room, and the question it exists to answer is "how many
+   weapons are in here, and how good are they". Thirty names in one column
+   cannot answer that, so the room list is grouped by type and then by tier,
+   with a count on every heading and a strip of counts above it.
+
+   The strip keeps its ZEROES. A room with no cleaning tools in it is exactly
+   what wants seeing at a glance, and a chip drawn only when it has something
+   to say cannot say that.
+
+   One scroll, not five: `.drpg-table-items` caps itself at 18rem, which is
+   right for a flat list and wrong for six of them stacked. The groups scroll
+   as one block and the lists inside grow to their content. */
+.drpg-room-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 6px;
+}
+
+.drpg-room-chip {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 5px;
+    padding: 2px 7px;
+    border: 1px solid var(--drpg-line);
+    border-radius: 2px;
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+    color: rgba(var(--drpg-bone-rgb), 0.85);
+}
+
+.drpg-room-chip b {
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    color: var(--drpg-bone);
+}
+
+.drpg-room-chip[data-kind="crimeTool"] { border-color: rgba(var(--drpg-eye-rgb), 0.55); }
+.drpg-room-chip[data-kind="crimeTool"] b { color: var(--drpg-eye-light); }
+.drpg-room-chip[data-kind="tool"] { border-color: rgba(var(--drpg-evidence-rgb), 0.5); }
+.drpg-room-chip[data-kind="tool"] b { color: var(--drpg-evidence); }
+
+/* Empty is a reading, not an absence: dimmed rather than dropped. */
+.drpg-room-chip-empty,
+.drpg-room-chip-empty b {
+    color: var(--drpg-dim);
+    border-color: rgba(var(--drpg-bone-rgb), 0.10);
+}
+
+.drpg-room-chip-unfiled {
+    border-style: dashed;
+}
+
+.drpg-room-chip-total {
+    margin-left: auto;
+    border-color: rgba(var(--drpg-bone-rgb), 0.35);
+}
+
+.drpg-room-groups {
+    max-height: 22rem;
+    overflow-y: auto;
+}
+
+.drpg-room-groups .drpg-table-items {
+    max-height: none;
+    overflow-y: visible;
+}
+
+.drpg-room-group + .drpg-room-group {
+    margin-top: 10px;
+}
+
+.drpg-room-group > h5 {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 0 0 2px;
+    padding-bottom: 2px;
+    border-bottom: 1px solid var(--drpg-line);
+    font-size: 0.82rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.drpg-room-group[data-kind="crimeTool"] > h5 { color: var(--drpg-eye-light); }
+.drpg-room-group[data-kind="tool"] > h5 { color: var(--drpg-evidence); }
+.drpg-room-group-unfiled > h5 { color: var(--drpg-dim); }
+
+.drpg-room-group > h5 .notes,
+.drpg-room-tier > h6 .notes {
+    font-variant-numeric: tabular-nums;
+    font-size: 0.75rem;
+}
+
+.drpg-room-tier {
+    margin-left: 6px;
+}
+
+.drpg-room-tier > h6 {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin: 4px 0 0;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: var(--drpg-dim);
+}
+
+/* "This name is in another tier pool too" - an axe that is also a tool. It is
+   counted once, under the first pool that claims it, and the badge is where the
+   rest are said out loud so the count never has to lie about them. */
+.drpg-table-item-also {
+    flex: 0 0 auto;
+    align-self: center;
+    padding: 0 4px;
+    border: 1px solid var(--drpg-line);
+    border-radius: 2px;
+    font-size: 0.66rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--drpg-dim);
+    cursor: help;
 }
 
 .drpg-table-item-icon {
