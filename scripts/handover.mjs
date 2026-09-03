@@ -107,7 +107,7 @@ export async function shareBulletDialog(actor, item) {
  * no longer have it" on a key would make a player think twice about the one
  * social move keys exist for.
  */
-export async function giveItemDialog(actor, item, { copying = false } = {}) {
+export async function handOverDialog(actor, item, { copying = false } = {}) {
     const targetId = await askRecipient(actor, item, { copying });
     if (!targetId) return false;
 

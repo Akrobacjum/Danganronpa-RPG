@@ -80,15 +80,26 @@ export async function callSafeword({ room = null } = {}) {
         // off - the pause and the card both hang from this one message rather
         // than from a socket, so a client that missed a packet still stops.
         await announce({
-            // `gm: true` because a GM is the person this is aimed at most of
-            // all. The event itself ignores the Sound slider - see
-            // `ignoresVolume` in the catalogue.
-            flags: { [MODULE_ID]: { sfx: { key: "safeword", gm: true } } },
             content: `<h3 class="drpg-safeword-heading">${
                 game.i18n.localize("DRPG.Safeword.banner")}</h3>
                 <p>${game.i18n.localize("DRPG.Safeword.announced")}</p>`,
+            /*
+             * ONE `flags` KEY, AND IT USED TO BE TWO.
+             *
+             * This object literal carried `flags` twice - the sound first, the
+             * marker and the popup rule twelve lines later - and the second
+             * silently replaced the first, which is what an object literal
+             * does with a repeated key. So the one sound in this game that
+             * deliberately ignores the volume slider (`ignoresVolume` in the
+             * catalogue) has never played: `sfx` was deleted before the
+             * message was ever created. Nothing threw, nothing logged, and
+             * the safeword announced itself in silence.
+             */
             flags: {
                 [MODULE_ID]: {
+                    // `gm: true` because a GM is the person this is aimed at
+                    // most of all.
+                    sfx: { key: "safeword", gm: true },
                     [SAFEWORD_FLAG]: true,
                     // The generic popup path would raise an ordinary card that
                     // fades after twelve seconds. This one has to stay up until

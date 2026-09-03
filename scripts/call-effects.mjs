@@ -17,8 +17,7 @@ import { SETTINGS } from "./settings.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import {
-    announce, whisperToOwner, dialogContent, log, error, plural, cardHead, isPrimaryGm
-} from "./utils.mjs";
+    announce, whisperToOwner, dialogContent, log, error, plural, cardHead, isPrimaryGm, esc} from "./utils.mjs";
 
 /** Let the victim of a Call know what has been done to them. */
 async function tell(actor, key) {
@@ -835,7 +834,6 @@ export async function pickTarget(actor, call, kind) {
 let pendingHeader = "";
 
 function callHeader(call, kind) {
-    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
     return `<div class="drpg-call-header">
         <h3>${esc(call.label)}</h3>
         <p>${esc(call.effect)}</p>

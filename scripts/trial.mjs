@@ -437,7 +437,7 @@ export async function openObjectionLog() {
 
     const entries = presentedThisChapter();
     if (!entries.length) {
-        ui.notifications.info(game.i18n.localize("DRPG.Trial.logEmpty"));
+        ui.notifications.warn(game.i18n.localize("DRPG.Trial.logEmpty"));
         return null;
     }
 

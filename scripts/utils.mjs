@@ -5,6 +5,21 @@
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 
+/**
+ * Escape a value for HTML, treating null and undefined as empty (C3).
+ *
+ * This lived as a local closure in twenty-one files, thirty-three times,
+ * always spelled the same way and occasionally with a different parameter
+ * name. One definition means one place to change if escaping ever has to do
+ * more than it does today.
+ *
+ * The `?? ""` is the whole difference from `foundry.utils.escapeHTML` on its
+ * own, and it is why those two are NOT interchangeable: bare
+ * `escapeHTML(null)` prints the word "null" into somebody's card. A dozen
+ * places alias the bare one deliberately and are left as they are.
+ */
+export const esc = value => foundry.utils.escapeHTML(String(value ?? ""));
+
 /** Console logging that stays quiet unless the client turned debug on. */
 export function log(...args) {
     console.log(`${MODULE_ID} |`, ...args);
@@ -364,7 +379,6 @@ async function privately(payload) {
  * @returns {string} the `<p>`, or "" when there is nothing to put in it.
  */
 export function cardHead({ action = null, room = null, total = null, result = null, resultKind = null, trait = null } = {}) {
-    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
     const slots = [
         action ? `<span class="drpg-card-action">${esc(action)}</span>` : null,
         room ? `<span class="drpg-card-room">${esc(room)}</span>` : null,
@@ -988,7 +1002,7 @@ export function panelTabs(sections) {
  * Make a `panelTabs` bar switch its panes, and its FOOTER follow along.
  *
  *     wirePanelTabs(root, {
- *         buttons: { edit: [], newItem: ["add"], install: ["install"] },
+ *         buttons: { edit: [], newItem: ["add"], tiers: ["newPool", "install"] },
  *         always:  ["close"]
  *     });
  *
@@ -1060,4 +1074,33 @@ export function wirePanelTabs(root, { buttons = null, always = [] } = {}) {
     const active = root.querySelector("[data-drpg-gmt-tab].active")
         ?? root.querySelector("[data-drpg-gmt-tab]");
     if (active) showButtonsFor(active.dataset.drpgGmtTab);
+}
+
+/**
+ * The other tab mechanism, wired once for the two windows that use it.
+ *
+ * Room Setup and the Investigation Dashboard switch panels by inline
+ * `display` rather than by class, and there is a reason that is not
+ * `panelTabs`: both are table windows measured by `fitWindowToTabs`, which
+ * shows each panel in turn to size the window, and inline display is what it
+ * measures. `panelTabs` is for form windows whose footer follows the tab. Two
+ * mechanisms, then - but one wiring, because each window used to carry its own
+ * copy of this loop (audit C3). `keepLive` knows both markups.
+ *
+ * @param {HTMLElement} root
+ * @param {object} [options]
+ * @param {(key: string) => void} [options.onSwitch]  After a tab is shown.
+ */
+export function wireDashboardTabs(root, { onSwitch = null } = {}) {
+    const tabs = root.querySelectorAll("[data-drpg-tab]");
+    const panels = root.querySelectorAll("[data-drpg-panel]");
+    for (const tab of tabs) {
+        tab.addEventListener("click", () => {
+            for (const t of tabs) t.classList.toggle("active", t === tab);
+            for (const p of panels) {
+                p.style.display = p.dataset.drpgPanel === tab.dataset.drpgTab ? "" : "none";
+            }
+            onSwitch?.(tab.dataset.drpgTab);
+        });
+    }
 }

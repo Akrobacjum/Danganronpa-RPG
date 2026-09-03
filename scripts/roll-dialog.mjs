@@ -823,5 +823,5 @@ function stop(event) {
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation();
-    ui.notifications.info(game.i18n.localize("DRPG.RollDialog.locked"));
+    ui.notifications.warn(game.i18n.localize("DRPG.RollDialog.locked"));
 }

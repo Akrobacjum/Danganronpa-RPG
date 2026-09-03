@@ -2739,7 +2739,7 @@ function addHandoverButton(li, item, app, { copying }) {
     button.innerHTML = `<i class="fa-solid fa-${copying ? "share-nodes" : "hand-holding"}" inert></i>`;
 
     button.addEventListener("click", async () => {
-        const { shareBulletDialog, giveItemDialog } = await import("./handover.mjs");
+        const { shareBulletDialog, handOverDialog } = await import("./handover.mjs");
         // TWO THINGS ARE COPIED, AND ONLY ONE OF THEM IS A TRUTH BULLET.
         // `copying` above chooses the icon and the wording; it does not choose
         // the route. `shareBulletDialog` refuses anything that is not a Truth
@@ -2749,7 +2749,7 @@ function addHandoverButton(li, item, app, { copying }) {
         // by `giveItem` on the GM side, which is the only place that can see
         // both sheets anyway.
         if (copying && isTruthBullet(item)) await shareBulletDialog(app.document, item);
-        else await giveItemDialog(app.document, item, { copying });
+        else await handOverDialog(app.document, item, { copying });
     });
 
     li.append(button);
@@ -3258,7 +3258,10 @@ function callButton(call, monokuma, locked = false) {
             room: foundry.utils.escapeHTML(pending.room)
         })
         : foundry.utils.escapeHTML(callEffect(call));
-    button.dataset.tooltip = `${summary}<br><em>${costLabel}</em>${note}`;
+    // Same as the action tiles: `costLabel` is on the face of this button, so
+    // the hover carries what the Call does and, when it applies, why it cannot
+    // be taken (E3).
+    button.dataset.tooltip = `${summary}${note}`;
 
     const label = pending
         ? game.i18n.localize("DRPG.Calls.gatherCancel")
@@ -3745,8 +3748,21 @@ function actionButton(actor, key, def) {
     // it is the only line here that is good news.
     const bonus = cleaningNow
         ? `<br><em>${game.i18n.localize("DRPG.Cleanup.freeTonight")}</em>` : "";
+    /*
+     * THE TOOLTIP DOES NOT REPEAT THE COST (E3).
+     *
+     * `costLabel` is printed on the face of this very tile, three lines down,
+     * and the stripe above says what kind of cost it is. Saying it a third time
+     * in the hover made the tooltip two lines where one would do - on ten tiles
+     * at once, which is how a player learns to stop reading them.
+     *
+     * What is left is the hint plus whatever is true right now and CANNOT be
+     * read off the tile: why it is locked, why it cannot be paid for, why there
+     * is nothing here to do it to, and why it is free tonight. Those appear one
+     * at a time and only when they apply, so the ordinary hover is one line.
+     */
     button.dataset.tooltip =
-        `${foundry.utils.escapeHTML(def.hint ?? "")}<br><em>${costLabel}</em>${note}${why}${bonus}`;
+        `${foundry.utils.escapeHTML(def.hint ?? "")}${note}${why}${bonus}`;
 
     // Say what the stripe means, or the stripe means nothing.
     //

@@ -21,9 +21,8 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { getClock } from "./clock.mjs";
-import { error } from "./utils.mjs";
-
-const { DialogV2 } = foundry.applications.api;
+import { error, esc} from "./utils.mjs";
+import { showPopup } from "./popup.mjs";
 
 export function registerDaySummary() {
     // The Eclipse is the seam between two times of day, and the only moment in
@@ -66,7 +65,6 @@ export async function showDaySummary() {
         : entries.filter(e => !e.actorId || game.actors.get(e.actorId)?.isOwner);
     if (!mine.length) return;
 
-    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
     const rows = mine.map(e => {
         const bits = [
             `<span class="drpg-sum-action">${esc(e.action)}</span>`,
@@ -109,11 +107,14 @@ export async function showDaySummary() {
                 actions: mine.length, found, traces })}</p>
         </div>`;
 
-    await DialogV2.prompt({
-        window: { title: game.i18n.localize("DRPG.Summary.title") },
-        content,
-        ok: { label: game.i18n.localize("DRPG.Summary.close") },
-        classes: ["drpg-summary-dialog"],
-        rejectClose: false
-    });
+    /*
+     * A CARD, NOT A MODAL (audit E4). This was a `DialogV2.prompt`, and it
+     * opened on every player at the one moment an Eclipse asks them to drag a
+     * token - a window in the way of the only thing there is to do. The popup
+     * stack is the module's surface for "read this now" (E1): it sits beside
+     * the map, takes no focus, and sticky means it waits to be closed rather
+     * than fading under somebody still reading. The per-action cards it sums
+     * up are already in the chat log, so the record needs no second message.
+     */
+    showPopup(content, { title: game.i18n.localize("DRPG.Summary.title"), sticky: true });
 }

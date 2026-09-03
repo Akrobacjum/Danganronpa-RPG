@@ -19,7 +19,7 @@ import { MODULE_ID, ACTIONS, REMNANT_TYPES, REMNANT_VISIBILITY_LABELS, TIME_OF_D
 // not reach back into this file, so there is no cycle to break.
 import { roomOfToken } from "./movement.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { gmIds, isPrimaryGm, log, warn, error, plural, workingScene } from "./utils.mjs";
+import { gmIds, isPrimaryGm, log, warn, error, plural, workingScene, esc} from "./utils.mjs";
 
 /**
  * Everything the guide says a Remnant carries, recorded on the token so an
@@ -434,7 +434,7 @@ export async function placeRemnant(data = {}) {
         }
 
         log(`Remnant placed: ${label} (by ${sourceName || "?"})`);
-        if (created) await announceRemnant(created);
+        if (created) announceRemnant(created);
         return created ?? null;
     } catch (err) {
         error("Could not place the Remnant", err);
@@ -449,37 +449,132 @@ function actionLabel(action) {
     return label === key ? action : label;
 }
 
-/**
- * Tell the GMs, in chat, the moment a Remnant appears - who left it, doing
- * what, where and when.
+/* ==========================================================================
+ * THE TRACE DIGEST
+ * --------------------------------------------------------------------------
+ * ONE WHISPER A TURN, NOT ONE A TRACE (E7; Dawid, 03.09).
  *
- * This replaces an attempted hover tooltip, which could never have worked:
- * `hoverToken` hands you the PIXI placeable, while the tooltip manager needs an
- * HTML element.
+ * Every trace used to whisper the GMs a full card the moment it appeared. That
+ * is correct for the trace a GM is waiting on and wrong for the four hundred
+ * ordinary Search traces the E24 season run counted in a single chapter: during
+ * an incident it is a card every few seconds, and a GM who scrolls past forty
+ * of them scrolls past the forty-first too.
  *
- * The culprit is deliberately kept OUT of the token's name. Remnants get
- * revealed to players during an investigation, and a token labelled
- * "…left by Kaede" would hand them the answer instead of a clue.
- */
-async function announceRemnant(tokenDoc) {
-    const data = remnantData(tokenDoc);
-    if (!data) return;
+ * So traces are collected and said once, at the turn of the time of day or the
+ * end of an Eclipse - the two moments the table already stops at.
+ *
+ * THE EXCEPTION IS THE POINT OF THE RULE. A player copying a trace as a Truth
+ * Bullet is not noise: it is a question. If the GM has never edited that trace,
+ * nobody has decided yet what it says, and the answer has to be written while
+ * the player is still looking at it - a digest arriving at the turn of the day
+ * would be too late by an hour. `revealRemnantToFinder` therefore lifts that
+ * one out of the queue and whispers it immediately, and the digest never
+ * repeats it.
+ *
+ * A trace the GM HAS edited raises nothing extra: they wrote what it says, so
+ * a player reading it back tells them nothing they do not know.
+ * ========================================================================== */
 
-    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
+/** Traces seen this turn, oldest first. Keyed so the reveal can pull one out. */
+const pendingTraces = new Map();
+
+/** The card one trace gets, whether it goes out alone or in the digest. */
+function traceCard(data, { heading = true } = {}) {
     const when = [
         data.chapter ? `Chapter ${data.chapter}` : null,
         data.day ? `Day ${data.day}` : null,
         data.timeOfDay
     ].filter(Boolean).join(" · ");
 
-    const { whisperToGms } = await import("./utils.mjs");
-    await whisperToGms(`
-        <h3>${esc(data.visibilityLabel)} ${esc(data.typeLabel)}${data.faint ? " (Faint)" : ""}</h3>
+    const title = `${esc(data.visibilityLabel)} ${esc(data.typeLabel)}${
+        data.faint ? " (Faint)" : ""}`;
+
+    return `
+        ${heading ? `<h3>${title}</h3>` : `<p><strong>${title}</strong></p>`}
         <p><strong>${game.i18n.localize("DRPG.Remnant.leftBy")}:</strong> ${esc(data.sourceName || "-")}</p>
         ${data.note ? `<p>${esc(data.note)}</p>` : ""}
         <p><small>${esc(data.room ?? "-")}${when ? ` · ${when}` : ""}${
             data.reinforced ? ` · ${game.i18n.localize("DRPG.Remnant.reinforcedShort")}` : ""
-        }</small></p>`);
+        }</small></p>`;
+}
+
+/**
+ * A Remnant appeared. Hold it for the digest.
+ *
+ * The data is read NOW rather than at flush time, because the token can be
+ * retuned, transformed or deleted between the two - and what the digest is
+ * reporting is what appeared, not what it has since become.
+ */
+function announceRemnant(tokenDoc) {
+    const data = remnantData(tokenDoc);
+    if (!data) return;
+    const key = keyOf(tokenDoc);
+    if (!key) return;
+    pendingTraces.set(key, data);
+}
+
+/**
+ * Say the traces collected since the last flush, as one whisper.
+ *
+ * Cleared BEFORE the whisper is sent: an await here is a window in which
+ * another trace can land, and a queue emptied afterwards would eat it.
+ */
+export async function flushTraceDigest() {
+    if (!game.user.isGM || !pendingTraces.size) return 0;
+
+    const batch = [...pendingTraces.values()];
+    pendingTraces.clear();
+
+    const { whisperToGms } = await import("./utils.mjs");
+    try {
+        await whisperToGms(`
+            <h3>${plural("DRPG.Remnant.digestTitle", { n: batch.length })}</h3>
+            ${batch.map(d => traceCard(d, { heading: false })).join("<hr>")}`);
+    } catch (err) {
+        error("Could not whisper the trace digest", err);
+    }
+    return batch.length;
+}
+
+/**
+ * One trace, now, on its own - the exception above.
+ *
+ * Taken out of the queue first, so the digest does not say it a second time an
+ * hour later.
+ */
+async function whisperTraceNow(tokenDoc, titleKey) {
+    const data = remnantData(tokenDoc);
+    if (!data) return;
+    const key = keyOf(tokenDoc);
+    if (key) pendingTraces.delete(key);
+
+    const { whisperToGms } = await import("./utils.mjs");
+    try {
+        await whisperToGms(`
+            <h3>${game.i18n.localize(titleKey)}</h3>
+            ${traceCard(data, { heading: false })}`);
+    } catch (err) {
+        error("Could not whisper a found trace", err);
+    }
+}
+
+/**
+ * Has a GM deliberately written on this trace?
+ *
+ * Set only from the three windows where a human GM edits one: the Investigation
+ * Dashboard's save, the trace card's inline fields, and the rename in Give /
+ * take items. NOT from `retuneRemnant` or `setRemnantPublic` themselves - the
+ * killer's clean-up and the Observe resolution both go through those, and
+ * neither is a GM deciding what a trace says.
+ */
+export async function markRemnantEdited(tokenDoc) {
+    if (!game.user.isGM || !tokenDoc) return null;
+    return setRemnantSecret(tokenDoc, { gmEdited: true });
+}
+
+export async function markRemnantEditedById(sceneId, tokenId) {
+    const tokenDoc = tokenById(sceneId, tokenId);
+    return tokenDoc ? markRemnantEdited(tokenDoc) : null;
 }
 
 /**
@@ -941,6 +1036,29 @@ export async function revealRemnantToFinder(tokenDoc) {
     await tokenDoc.update({ hidden: false });
     const pub = remnantPublic(tokenDoc);
     if (pub) await propagatePublic(tokenDoc, pub);
+
+    /*
+     * THE DIGEST'S ONE EXCEPTION (E7; Dawid, 03.09).
+     *
+     * Somebody just copied this as a Truth Bullet. If no GM has written on it,
+     * what it says has not been decided yet and the player is waiting on that
+     * answer now - so this trace jumps the queue. A trace a GM has already
+     * edited tells them nothing new and stays in the digest.
+     *
+     * Read from the ledger rather than from `pub`: a default public block is
+     * written for every trace at creation, so its presence proves nothing.
+     */
+    try {
+        const entry = readRemnantLedger()[keyOf(tokenDoc)];
+        if (!entry?.gmEdited) {
+            await whisperTraceNow(tokenDoc, "DRPG.Remnant.foundTitle");
+        }
+    } catch (err) {
+        // A digest exception that could not work itself out must never stop a
+        // reveal: the token is already visible, and that is the real work here.
+        error("Could not whisper a newly found trace", err);
+    }
+
     return tokenDoc;
 }
 
@@ -1021,6 +1139,20 @@ export function registerRemnantLedger() {
     Hooks.on("clientSettingChanged", key => {
         if (key === `${MODULE_ID}.${SETTINGS.remnantSecrets}`) forgetRemnantLedger();
     });
+
+    /*
+     * WHEN THE DIGEST GOES OUT. The turn of the time of day and the end of an
+     * Eclipse - the two moments the table already stops at, so the whisper
+     * lands in a pause rather than across somebody's turn.
+     *
+     * Every GM runs this, and every GM would therefore send one. They do not
+     * collide: `pendingTraces` is per-client and only ever holds what THAT
+     * client watched appear, so each GM flushes their own view and a GM who
+     * joined halfway through has nothing to say. `whisperToGms` reaches all of
+     * them either way.
+     */
+    Hooks.on("drpgTimeOfDayChanged", () => { flushTraceDigest(); });
+    Hooks.on("drpgEclipseChanged", running => { if (!running) flushTraceDigest(); });
 
     game.socket.on(SOCKET_EVENT, async payload => {
         if (!game.user.isGM || !payload) return;
@@ -1340,7 +1472,7 @@ export async function confirmClearFaint() {
     }
 
     if (!doomed) {
-        ui.notifications.info(game.i18n.localize("DRPG.Panel.faintNone"));
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.faintNone"));
         return 0;
     }
 
@@ -1404,28 +1536,20 @@ export async function retuneRemnant(sceneId, tokenId,
 
     if (!visibility && !type && tiedToCrime === null) return null;
 
-    // The band is carried in the flag and echoed in the token's name, which is
-    // what the GM actually reads on the map - so both have to move together.
-    const current = remnantData(token);
-    const label = String(token.name ?? "");
-    const oldLabel = REMNANT_VISIBILITY_LABELS[current?.visibility] ?? current?.visibility ?? "";
-    const newLabel = REMNANT_VISIBILITY_LABELS[visibility] ?? visibility;
-
-    await token.update({
-        name: oldLabel && label.startsWith(oldLabel)
-            ? `${newLabel}${label.slice(oldLabel.length)}`
-            : label
-    });
-    // The band is a ledger field now, so the name and the meaning are written
-    // in two places rather than one - the name is what the GM reads on the map,
-    // the ledger is what Observe scores against.
     /*
-     * The ledger, not the token. What a trace IS lives in the GM-side record -
-     * the token carries a generic name on purpose (see `placeRemnant`), because
-     * a token's name travels to every client. So this is the one write that
-     * matters, and it is also why the rename above is a no-op on anything
-     * placed since that change: the name never starts with a visibility label
-     * any more.
+     * THE LEDGER, AND NOTHING ELSE (audit A8, Dawid Q13).
+     *
+     * There used to be a token rename above this: the visibility band was once
+     * echoed in the token's name, so a retune rewrote "Obvious ..." to
+     * "Hidden ...". Both halves of that are gone. What a trace IS lives in the
+     * GM-side record, and the token carries a generic name on purpose (see
+     * `placeRemnant`) precisely because a token's name travels to every client.
+     *
+     * The rename was therefore a no-op on every trace placed since the ledger
+     * existed - the name never starts with a band any more - and worse than a
+     * no-op on one placed before it: it would have written the band back into
+     * a public name, which is exactly what `migrateRemnants` goes round
+     * neutralising. So the write below is the only write there is.
      */
     const secret = {};
     if (visibility) secret.visibility = visibility;

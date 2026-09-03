@@ -61,7 +61,7 @@
 import { MODULE_ID, FLAGS, SFX_EVENTS, SFX_CATEGORIES, SFX_SLIDERS, SFX_VOLUME_KEYS,
     SFX_VARIATION, GAME_WINDOWS } from "./config.mjs";
 import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
-import { log, warn, error, clamp, ownerOf } from "./utils.mjs";
+import { log, warn, error, clamp, ownerOf, esc} from "./utils.mjs";
 
 
 /**
@@ -785,11 +785,11 @@ async function onWorldSettingChanged(setting) {
 /**
  * The Nonstop Debate opening, and an Objection taking the floor.
  *
- * "Debate" is `FLOOR_MODES.discussion` - the floor open to everybody - which is
- * what the HUD has always called it and what `openDebate()` produces. So the
- * debate's sound is the floor going from absent to present, not the mode
- * becoming `discussion`: returning to discussion after a rebuttal is the same
- * debate carrying on, and it would otherwise announce itself twice a minute.
+ * `FLOOR_MODES.debate` is the floor open to everybody, which is what the HUD
+ * calls it and what `openDebate()` produces. So the debate's sound is the
+ * floor going from absent to present, not the mode becoming `debate`:
+ * returning to debate after a rebuttal is the same debate carrying on, and it
+ * would otherwise announce itself twice a minute.
  */
 async function onFloorChanged() {
     const { trialFloor, FLOOR_MODES } = await import("./trial-floor.mjs");
@@ -1136,7 +1136,6 @@ export function soundSlidersHtml() {
 
 /** The mapping table: one row per event, grouped by category. GM only. */
 export function soundEffectsHtml() {
-    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
     const keys = Object.keys(SFX_EVENTS);
 
     const body = Object.entries(SFX_CATEGORIES).map(([category, meta]) => {

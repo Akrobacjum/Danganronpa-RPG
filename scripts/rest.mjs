@@ -19,6 +19,9 @@ import { roomOfActor } from "./movement.mjs";
 import { getClock } from "./clock.mjs";
 import { resourceMax, resourceValue } from "./character.mjs";
 import { whisperToOwner, log, error, plural, cardHead } from "./utils.mjs";
+// One room map for the whole module (audit C3): `workingScene()`, which is what
+// a GM resolving somebody else's rest means by "this scene", not `canvas.scene`.
+import { regionsByName } from "./vault.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -31,15 +34,6 @@ export const REST_FLAGS = {
 /* ==========================================================================
  * WHERE
  * ========================================================================== */
-
-/** Region documents on the current scene, by name. */
-function regionsByName() {
-    const map = new Map();
-    for (const region of canvas?.scene?.regions ?? []) {
-        if (region.name) map.set(region.name, region);
-    }
-    return map;
-}
 
 /** Does this room allow the given kind of rest? */
 export function roomAllows(room, kind) {
@@ -340,26 +334,4 @@ async function applyRest(actor, kind, picks) {
 
 function kindLabel(kind) {
     return game.i18n.localize(kind === "long" ? "DRPG.Rest.long" : "DRPG.Rest.short");
-}
-
-/* ==========================================================================
- * GM: WHICH ROOMS ALLOW REST
- * ========================================================================== */
-
-/**
- * Which rooms allow which rest - now a pair of columns in Room Setup.
- *
- * Kept as a function because it is on `game.drpg`, but it
- * no longer opens a window of its own: setting up a map means answering seven
- * questions per room, and asking two of them on a separate screen meant a GM
- * walking the same list of regions twice. See `openRoomSetupDialog` in
- * vault.mjs, which edits these two flags through `setRestRoom` above.
- */
-export async function openRestRoomsDialog() {
-    if (!game.user.isGM) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
-        return;
-    }
-    const { openRoomSetupDialog } = await import("./vault.mjs");
-    return openRoomSetupDialog();
 }

@@ -11,7 +11,7 @@ import { MODULE_ID, moduleVersion, FLAGS, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHAS
 import { getClock, setClock, setTimeOfDay, clockSummary, timeOfDayLabel, phaseLabel, campaignName } from "./clock.mjs";
 import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
-import { dialogContent, error, plural, tableDialog } from "./utils.mjs";
+import { dialogContent, error, plural, tableDialog, esc} from "./utils.mjs";
 import { keepLive, alreadyOpen } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -100,18 +100,23 @@ const PANEL_SECTIONS = [
         key: "now",
         always: true,
         items: [
-            // The tray's own manager, first: it is the screen a GM opens most
-            // often during a Daily Life.
+            /*
+             * PLAYERS FIRST (Dawid, 03.09).
+             *
+             * It is the cast: who is alive, as what, what each of them is
+             * carrying and what is in their stash - and it is the way in to
+             * giving somebody a thing, one button on their own row. A GM
+             * deciding "Sayaka should have this" is already looking at Sayaka.
+             *
+             * "Players", not "Player status": the window stopped being a
+             * read-out the moment it grew the row buttons.
+             */
+            { key: "whoIsAlive", icon: "fa-heart-pulse", labelKey: "DRPG.Panel.whoIsAlive",
+              run: () => openWhoIsAliveDialog() },
+            // The tray's own manager: the screen a GM opens most often during a
+            // Daily Life once the cast is settled.
             { key: "projects", icon: "fa-list-check", labelKey: "DRPG.Project.manageTitle",
               run: () => import("./projects-ui.mjs").then(m => m.openProjectManager()) },
-            { key: "jump", icon: "fa-calendar-days", labelKey: "DRPG.Panel.jump",
-              run: () => openClockDialog() },
-            { key: "rules", icon: "fa-gavel", labelKey: "DRPG.Rules.manageTitle",
-              run: () => import("./rules.mjs").then(m => m.openRulesManager()) },
-            // Moved up from "People and things", which no longer exists: giving
-            // somebody a thing is a mid-scene act, not a between-sessions one.
-            { key: "items", icon: "fa-box-open", labelKey: "DRPG.Items.manage",
-              run: () => import("./gm-items.mjs").then(m => m.openItemManager()) },
             // Moved UP from Season setup, where it sat because it was only a
             // state-to-playlist mapping table. It now also puts a track on and
             // takes it off again - something a GM reaches for in the middle of
@@ -121,12 +126,15 @@ const PANEL_SECTIONS = [
             // the tile after one of its three tabs stopped being true.
             { key: "sound", icon: "fa-volume-high", labelKey: "DRPG.Sound.title",
               run: () => import("./music.mjs").then(m => m.openSoundDialog()) },
-            // Three windows in one: "A character dies", the Monocub manager and
-            // the alive/dead/Monocub repair table. All three were about the same
-            // question - who in this cast is still breathing, and as what.
-            { key: "whoIsAlive", icon: "fa-heart-pulse", labelKey: "DRPG.Panel.whoIsAlive",
-              run: () => openWhoIsAliveDialog() }
+            { key: "rules", icon: "fa-gavel", labelKey: "DRPG.Rules.manageTitle",
+              run: () => import("./rules.mjs").then(m => m.openRulesManager()) }
             // GONE FROM HERE:
+            //   Give / take items - it is the Items button in the footer of
+            //     Players, and a tile as well was a second door to the same
+            //     window (Dawid, 03.09). The hub itself is unchanged; only this
+            //     way in is gone.
+            //   Edit campaign - moved to Between sessions. Naming the campaign
+            //     and jumping the clock are setting-up, not mid-scene.
             //   Eclipse - the HUD's own chevron has done both halves of it for
             //     several versions; a second door to it was a second thing to
             //     keep in step. `nextStep` still offers it when one is running,
@@ -171,6 +179,10 @@ const PANEL_SECTIONS = [
         key: "between",
         collapsed: true,
         items: [
+            // Down from "Right now" (Dawid, 03.09): the campaign's name and the
+            // clock are things a GM sets between sessions, not mid-scene.
+            { key: "jump", icon: "fa-calendar-days", labelKey: "DRPG.Panel.jump",
+              run: () => openClockDialog() },
             { key: "gmTeam", icon: "fa-users-gear", labelKey: "DRPG.Panel.despairFlow",
               run: () => import("./gm-team-dialog.mjs").then(m => m.openGmTeamDialog()) },
             // Room Setup carries the locks and the search-token counters now, so
@@ -451,7 +463,6 @@ async function openFailureLog() {
 
     const { sessionFailures, clearSessionFailures } = await import("./utils.mjs");
     const rows = sessionFailures();
-    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
     const when = at => new Date(at).toLocaleTimeString();
 
     const body = rows.length
@@ -566,11 +577,10 @@ async function openWhoIsAliveDialog() {
     const roster = () => game.actors.filter(a => a.type === "character" && !isMonokuma(a));
     const students = roster();
     if (!students.length) {
-        ui.notifications.info(game.i18n.localize("DRPG.Panel.noCharacters"));
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.noCharacters"));
         return;
     }
 
-    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
     const stateOf = a => isMonocub(a) ? "monocub" : isDeceased(a) ? "dead" : "alive";
     const donors = monokumas().map(u =>
         `<option value="${u.id}">${esc(poolLabel(u))} (${getDespair(u.id)})</option>`).join("");
@@ -591,20 +601,6 @@ async function openWhoIsAliveDialog() {
      */
     const anyCub = () => roster().some(a => stateOf(a) === "monocub");
 
-    /*
-     * ITEMS FROM THE ROW (F).
-     *
-     * The item manager's own route opens with "which character?" - a select and
-     * a Do it - and this table is nothing but a column of that answer. Reaching
-     * a student's inventory from the GM panel meant the Items tile, the picker,
-     * and then the hub; reaching it from the row the GM is already reading takes
-     * the row.
-     *
-     * On EVERY row, not only the living ones, because that is what
-     * `pickCharacter` offers - `studentActors()`, the dead included. A shortcut
-     * that reaches fewer people than the long way round is a second rule to
-     * remember.
-     */
     const buildRows = () => roster().map(a => {
         const state = stateOf(a);
         const cub = state === "monocub";
@@ -637,8 +633,6 @@ async function openWhoIsAliveDialog() {
                         game.i18n.localize(`DRPG.Panel.state.${sKey}`)}</option>`).join("")}
             </select></td>${cubCells}
             <td>
-                <button type="button" class="drpg-mini-button" data-drpg-items="${a.id}">${
-                    game.i18n.localize("DRPG.Items.rowButton")}</button>
                 ${state === "alive"
                     ? `<button type="button" class="drpg-mini-button drpg-gm-route"
                            data-drpg-kill="${a.id}">${
@@ -677,19 +671,33 @@ async function openWhoIsAliveDialog() {
     // that spends a Despair pool - and a GM who then cancels the form should
     // not find those undone with it. The window closes and reopens so the table
     // is rebuilt around what actually happened.
-    const wireRow = (dialog, attribute, run) => {
+    /*
+     * WHICH ROW ACTIONS CLOSE THIS WINDOW, AND WHICH DO NOT (E6).
+     *
+     * An action that opens a window of its own closes this one first and brings
+     * it back after: the death dialog is a place the GM goes and comes back
+     * from, and so is the item manager behind the footer's Items button -
+     * D-F5-2 settled that one deliberately, its own Close is the one exit.
+     *
+     * An action that opens NOTHING has no reason to. `setMonocub` writes a flag;
+     * closing and reopening the whole table for it threw away the GM's scroll
+     * position to show them a row that `keepLive` was already about to redraw
+     * on `updateActor`. So `keepOpen` leaves the window alone and lets the live
+     * region do what it is for.
+     */
+    const wireRow = (dialog, attribute, run, { keepOpen = false } = {}) => {
         for (const button of dialog.element.querySelectorAll(`[${attribute}]`)) {
             button.addEventListener("click", async ev => {
                 ev.preventDefault();
                 const actor = game.actors.get(button.getAttribute(attribute));
                 if (!actor) return;
-                await dialog.close();
+                if (!keepOpen) await dialog.close();
                 try {
                     await run(actor, dialog);
                 } catch (err) {
                     error(`GM panel: "${attribute}" failed`, err);
                 }
-                await openWhoIsAliveDialog();
+                if (!keepOpen) await openWhoIsAliveDialog();
             });
         }
     };
@@ -706,6 +714,17 @@ async function openWhoIsAliveDialog() {
                     silenced: Boolean(d.element.querySelector(`[name="silenced:${a.id}"]`)?.checked)
                 }]))
             },
+            /*
+             * ITEMS FROM THE FOOTER, NOT FROM EVERY ROW (Dawid, 03.09).
+             *
+             * The Give / take hub asks which student itself - a select at the
+             * top of its own window, with that student's pockets and stash
+             * under it - so a button per row was sixteen doors to the same
+             * room, each answering a question the room asks again. One button,
+             * nobody pre-picked. No callback, so the answer is the action's
+             * own name, which is what the branch under the window reads.
+             */
+            { action: "items", label: game.i18n.localize("DRPG.Items.hubButton") },
             { action: "cancel", label: game.i18n.localize("DRPG.Panel.close") }
         ],
         render: (event, dialog) => {
@@ -721,13 +740,9 @@ async function openWhoIsAliveDialog() {
             // "keep their things" choice; repeating either here would be a
             // second copy of a rule that can only be right in one place.
             wireRow(dialog, "data-drpg-kill", actor => openDeathDialog({ actor }));
-            wireRow(dialog, "data-drpg-cub", actor => setMonocub(actor, true));
-            // Straight into the hub with the character already decided. Through
-            // `wireRow` like the others, so the table closes, the manager runs
-            // for as long as the GM wants it, and the table comes back after -
-            // the manager's own Close is the one exit, exactly as D-F5-2 left it.
-            wireRow(dialog, "data-drpg-items", actor =>
-                import("./gm-items.mjs").then(m => m.openItemManager(actor)));
+            // No window of its own, so the table stays where it is (E6).
+            wireRow(dialog, "data-drpg-cub", actor => setMonocub(actor, true),
+                { keepOpen: true });
 
             for (const button of dialog.element.querySelectorAll("[data-drpg-give]")) {
                 button.addEventListener("click", async ev => {
@@ -741,8 +756,14 @@ async function openWhoIsAliveDialog() {
 
                     const { convertDespairToHope } = await import("./despair.mjs");
                     await convertDespairToHope(donorId, actor, amount);
-                    await dialog.close();
-                    await openWhoIsAliveDialog();
+                    /*
+                     * The window stays open (E6). This changes two resources on
+                     * two actors, and `keepLive` here watches actors - so the
+                     * two rows redraw themselves with the new numbers while the
+                     * GM is still looking at the row they pressed, instead of
+                     * the whole table blinking out and coming back scrolled to
+                     * the top.
+                     */
                 });
             }
             };
@@ -765,6 +786,15 @@ async function openWhoIsAliveDialog() {
         rejectClose: false
     });
 
+    if (chosen === "items") {
+        // The same round trip the row's Kill makes (E6): this window closed
+        // when the button was pressed, the hub runs for as long as the GM
+        // wants it - its own Close is the one exit (D-F5-2) - and the table
+        // comes back after, rebuilt around whatever was handed over.
+        const { openItemManager } = await import("./gm-items.mjs");
+        await openItemManager();
+        return openWhoIsAliveDialog();
+    }
     if (!chosen || chosen === "cancel") return;
 
     let changed = 0;
@@ -785,9 +815,9 @@ async function openWhoIsAliveDialog() {
                 await reviveCharacter(actor);
             } else if (want.state === "dead") {
                 await setMonocub(actor, false);
-                if (!isDeceased(actor)) await killCharacter(actor, { keepItems: true });
+                if (!isDeceased(actor)) await killCharacter(actor, { keepBullets: true });
             } else {
-                if (!isDeceased(actor)) await killCharacter(actor, { keepItems: true });
+                if (!isDeceased(actor)) await killCharacter(actor, { keepBullets: true });
                 await setMonocub(actor, true);
             }
             changed++;

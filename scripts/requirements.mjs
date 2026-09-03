@@ -21,7 +21,7 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { error } from "./utils.mjs";
+import { error, esc} from "./utils.mjs";
 
 /** Every module the manifest marks as required, whatever their state. */
 function required() {
@@ -88,7 +88,6 @@ export async function announceMissingRequirements() {
         return;
     }
 
-    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
     const rows = missing.map(m => `
         <li>
             <strong>${esc(m.title)}</strong>

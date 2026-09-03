@@ -9,9 +9,9 @@
 import { TRIAL } from "./config.mjs";
 import {
     trialFloor, floorHolder, floorTarget, secondsLeft, startFloor, endFloor,
-    extendFloor, returnToDiscussion, advanceFloorNow, FLOOR_MODES
+    extendFloor, returnToDebate, advanceFloorNow, FLOOR_MODES
 } from "./trial-floor.mjs";
-import { dialogContent, plural, error } from "./utils.mjs";
+import { dialogContent, plural, error, esc} from "./utils.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 
@@ -290,7 +290,6 @@ export async function manageClassTrial() {
 
     const { inFinalTrial } = await import("./mastermind.mjs");
     const { pendingVoters, trialProgress } = await import("./vote.mjs");
-    const esc = value => foundry.utils.escapeHTML(String(value ?? ""));
 
     /*
      * READ FRESH EVERY TIME, because this window is open while the floor moves
@@ -308,7 +307,7 @@ export async function manageClassTrial() {
         const progress = trialProgress();
         return {
             floor, running, progress,
-            restrictive: Boolean(floor) && floor.mode !== FLOOR_MODES.discussion,
+            restrictive: Boolean(floor) && floor.mode !== FLOOR_MODES.debate,
             finalNow: inFinalTrial(),
             pending: pendingVoters(),
             // THE LAST THREE STEPS OUTLIVE THE TRIAL, and they have to: ending
@@ -328,7 +327,7 @@ export async function manageClassTrial() {
         const debateLine = !floor
             ? `<p class="notes">${game.i18n.localize(running
                 ? "DRPG.Floor.inDiscussion" : "DRPG.Floor.noDebate")}</p>`
-            : floor.mode === FLOOR_MODES.discussion
+            : floor.mode === FLOOR_MODES.debate
                 ? `<p>${game.i18n.format("DRPG.Floor.holdingDiscussion", { seconds: left })}</p>`
                 : floor.mode === FLOOR_MODES.objection
                     ? `<p>${game.i18n.format("DRPG.Floor.holdingObjection", {
@@ -437,7 +436,7 @@ export async function manageClassTrial() {
                     ...(restrictive
                         ? [{ action: "now", label: game.i18n.localize("DRPG.Floor.endNow"),
                             default: isDefault("now") },
-                           { action: "discussion", label: game.i18n.localize("DRPG.Floor.backToDebate") }]
+                           { action: "debate", label: game.i18n.localize("DRPG.Floor.backToDebate") }]
                         : []),
                     ...(floor ? [{ action: "extend", label: game.i18n.localize("DRPG.Floor.extend") }] : [])
                   ]
@@ -514,8 +513,8 @@ export async function manageClassTrial() {
         await advanceFloorNow();
         return manageClassTrial();
     }
-    if (action === "discussion") {
-        await returnToDiscussion();
+    if (action === "debate") {
+        await returnToDebate();
         return manageClassTrial();
     }
     if (action === "extend") {

@@ -23,14 +23,14 @@
  */
 
 import { MODULE_ID, TRUTH_BULLET_TYPES, ACTIONS, REMNANT_VISIBILITY_LABELS } from "./config.mjs";
-import { REMNANT_FLAGS, remnantData, setRemnantPublic, keyOf as remnantKeyOf }
+import { REMNANT_FLAGS, remnantData, setRemnantPublic, markRemnantEdited, keyOf as remnantKeyOf }
     from "./remnants.mjs";
 import { TRUTH_BULLET_FLAGS, isIdentified } from "./truth-bullets.mjs";
 // The viewer's own bullets, indexed by the Remnant they came from and memoised
 // there - see `myTruthBulletFor`. visibility.mjs does not reach back into this
 // file, so the static import is safe.
 import { myBulletForRemnant } from "./visibility.mjs";
-import { debug, error } from "./utils.mjs";
+import { debug, error, esc} from "./utils.mjs";
 
 const RING_NAME = "drpgRemnantRing";
 
@@ -102,7 +102,6 @@ function showRemnantCard(app, element) {
     const source = token ?? actor;
     if (!source?.getFlag?.(MODULE_ID, REMNANT_FLAGS.isRemnant)) return;
 
-    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
     const body = element.querySelector(".window-content") ?? element;
 
     const html = game.user.isGM
@@ -165,6 +164,8 @@ function wireCardEditing(body, tokenOrActor) {
 
             try {
                 await setRemnantPublic(tokenOrActor, { [key]: value });
+                // The GM just wrote what this trace says (E7).
+                await markRemnantEdited(tokenOrActor);
                 field.dataset.drpgWas = value;
                 // The same mark the rest of the module uses for "that landed",
                 // removed again so a card left open does not keep claiming it.

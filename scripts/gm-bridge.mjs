@@ -15,7 +15,7 @@
 import {
     MODULE_ID, TRAITS, HOPE_CALLS, DESPAIR_CALLS, STARTING, PROJECT_SCALE
 } from "./config.mjs";
-import { announce, whisperToGms, whisperToOwner, ownerOf, isPrimaryGm, dialogContent, debug, warn, error, cardHead } from "./utils.mjs";
+import { announce, whisperToGms, whisperToOwner, ownerOf, isPrimaryGm, dialogContent, debug, warn, error, cardHead, esc} from "./utils.mjs";
 
 import { contentOf } from "./secret.mjs";
 const SOCKET_EVENT = `module.${MODULE_ID}`;
@@ -1282,8 +1282,19 @@ export function requestRemnantEdit(sceneId, tokenId, patch) {
     return { pending: true };
 }
 
+/** Is a GM connected right now? The question alone, no toast (audit A16). */
+export function gmOnline() {
+    return game.users.some(u => u.isGM && u.active);
+}
+
+/**
+ * The refusal: `gmOnline()` plus the toast that says why nothing happened.
+ * Every request in this file goes through it, and a request with no GM to
+ * answer it IS a refusal, which is what a toast is for (E1). Anything that
+ * only wants to know - a tile deciding whether to dim - asks `gmOnline()`.
+ */
 function hasGm() {
-    if (game.users.some(u => u.isGM && u.active)) return true;
+    if (gmOnline()) return true;
     ui.notifications.warn(game.i18n.localize("DRPG.Bridge.noGm"));
     return false;
 }
@@ -1826,7 +1837,6 @@ export async function callGm(actor, {
      */
     gmOnly = false
 } = {}) {
-    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
     const parts = [];
 
     parts.push(`<h3>${esc(title)}</h3>`);
@@ -1836,8 +1846,8 @@ export async function callGm(actor, {
         const traitLabel = TRAITS[roll.trait]?.label ?? roll.trait ?? "";
         parts.push(`<p>${traitLabel} · <strong>${roll.total}</strong>${
             roll.isCritical ? ` · <em>${game.i18n.localize("DRPG.Action.critical")}</em>`
-            : roll.withHope ? " · Hope"
-            : roll.withFear ? " · Despair" : ""
+            : roll.withHope ? ` · ${game.i18n.localize("DRPG.Explain.status.hopeTitle")}`
+            : roll.withFear ? ` · ${game.i18n.localize("DRPG.Despair.label")}` : ""
         }</p>`);
 
         // The guide owes the player a substantial hint on a critical Observe or

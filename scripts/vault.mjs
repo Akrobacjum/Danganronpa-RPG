@@ -1,10 +1,11 @@
 /**
  * Danganronpa RPG - the stash.
  * ---------------------------------------------------------------------------
- * A character carries three usable items, one crime tool and two cleaning
- * tools, and not one thing more. The stash is where the rest of what they own
- * lives: their own bedroom, uncapped, and - this being a killing game -
- * searchable by anybody who walks in while they are elsewhere.
+ * A character carries three usable items and two pieces of gear - a weapon, a
+ * cleaning tool or a tool, in any mix, one of them in a hand - and not one
+ * thing more. The stash is where the rest of what they own lives: their own
+ * bedroom, uncapped, and - this being a killing game - searchable by anybody
+ * who walks in while they are elsewhere.
  *
  * Two flags carry the whole thing:
  *
@@ -15,14 +16,16 @@
  * The item flag is the important design choice. A stashed item is still an
  * ordinary item on its owner's sheet, not a document living somewhere else -
  * so everything that sweeps a character's belongings reaches it without having
- * to know stashes exist. Decision D1's "przedmioty noszone i w skrytce znikają"
- * was already true the moment this flag landed; `killCharacter` needed no
- * change at all.
+ * to know stashes exist. That is also why `killCharacter` has never needed a
+ * line about stashes: back when death took the whole inventory it took the
+ * stash with it, and now that it takes only the Truth Bullets it takes the
+ * stashed ones alongside the carried ones. Everything else stays where it was
+ * put, to be found on the body.
  */
 
 import { MODULE_ID, ITEM_CATEGORIES, BEDROOM_KEY_FLAG, ACTIONS, VAULT_LIMIT, ROOMS_PER_PLAYER }
     from "./config.mjs";
-import { ITEM_FLAGS, LOCATIONS, isStashed, canCarry } from "./inventory.mjs";
+import { ITEM_FLAGS, LOCATIONS, isStashed, canCarry, pickableCategories } from "./inventory.mjs";
 // The one room lookup. movement.mjs does not reach back into this file.
 import { roomOfActor, ROOM_FLAGS } from "./movement.mjs";
 // Static because the reader is synchronous. From settings.mjs, which is a leaf
@@ -34,7 +37,7 @@ import { SearchTokens } from "./search-tokens.mjs";
 // Static is safe: tables.mjs only reaches back into this file lazily.
 import { isTierPool } from "./tables.mjs";
 import { dialogContent, tableDialog, whisperToOwner, whisperToGms, announce, log, error, plural,
-    workingScene, pinFooterAcrossScroll } from "./utils.mjs";
+    workingScene, pinFooterAcrossScroll, wireDashboardTabs } from "./utils.mjs";
 import { alreadyOpen } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -119,7 +122,27 @@ export const VAULT_FLAGS = {
      * hidden from a console - this module has no secrets from a determined
      * player - but only one of them is somewhere the victim looks by accident.
      */
-    found: "drpgStashesFound"
+    found: "drpgStashesFound",
+    /**
+     * This region is not a room the cast can be alone in (Dawid, 02.09.2026).
+     *
+     * G-36 asks for about one and a half rooms per player "corridors and
+     * dormitories aside", and until now nothing could say which regions were
+     * the corridors. Both places that print the ratio counted every region they
+     * could see, so a map with six corridors read as six rooms better supplied
+     * than it is - and the number exists precisely to answer "can two private
+     * conversations happen at once", which a corridor cannot host.
+     *
+     * ABSENT MEANS IT COUNTS, so every existing world reads exactly as it did
+     * and a GM opts individual regions out. Bedrooms are excluded without this
+     * flag, by having an owner: a bedroom belongs to one person whether or not
+     * anybody else can get in.
+     *
+     * It changes NO rule. Movement, Search, rests, fog and voice all treat an
+     * excluded region as the room it is; the only thing that reads this is the
+     * advice printed on two screens.
+     */
+    notShared: "drpgNotShared"
 };
 
 /* ==========================================================================
@@ -304,7 +327,8 @@ export function hindersCategory(room, category) {
  * WHOSE ROOM IS THIS
  * ========================================================================== */
 
-function regionsByName(scene = workingScene()) {
+/** Named regions on a scene, by name. rest.mjs reads rooms through this too (C3). */
+export function regionsByName(scene = workingScene()) {
     const map = new Map();
     for (const region of scene?.regions ?? []) {
         if (region.name) map.set(region.name, region);
@@ -563,6 +587,43 @@ export function allBedrooms(scene = workingScene()) {
     return out;
 }
 
+/**
+ * The rooms that count towards the guide's rooms-per-player ratio (audit A21).
+ *
+ * G-36: about one and a half rooms per player, "corridors and dormitories
+ * aside". Three kinds of region are therefore not on this list:
+ *
+ *   unnamed      not a room at all - `regionsByName` never yields it
+ *   a bedroom    it belongs to one person, whoever else can open the door
+ *   marked       a corridor, a stairwell, a wing nobody has opened; the GM
+ *                says so with the "Counts as a room" column in Room Setup
+ *
+ * ONE LIST, BECAUSE THERE WERE TWO NUMBERS. The season checklist counted every
+ * region on the scene - bedrooms, corridors and unnamed shapes included - while
+ * Room Setup counted the unowned ones and rounded differently. The same map got
+ * two answers, and neither of them was the guide's.
+ */
+export function sharedRooms(scene = workingScene()) {
+    const out = [];
+    for (const [name, region] of regionsByName(scene)) {
+        if (region.getFlag(MODULE_ID, VAULT_FLAGS.owner)) continue;
+        if (region.getFlag(MODULE_ID, VAULT_FLAGS.notShared)) continue;
+        out.push(name);
+    }
+    return out;
+}
+
+/**
+ * How many shared rooms a cast of this size wants. The one rounding.
+ *
+ * `Math.ceil`, so "1.5 rooms per player" never reads as satisfied by fewer
+ * rooms than the guide asks for. Room Setup used to round instead, which meant
+ * an odd cast size wanted one room less there than on the checklist.
+ */
+export function roomsWantedFor(people) {
+    return Math.ceil((Number(people) || 0) * ROOMS_PER_PLAYER);
+}
+
 /** Every stash on the scene, wherever it is and whoever it belongs to. */
 export function allVaults(scene = workingScene()) {
     const out = [];
@@ -683,8 +744,12 @@ export async function stow(actor, item) {
      * is: two hiding places are two hiding places, and somebody who has earned
      * a second one has earned what it holds.
      */
-    const here = vaultContents(actor)
-        .filter(i => i.getFlag(MODULE_ID, ITEM_FLAGS.stashRoom) === room);
+    // `stashItemsIn`, not a bare flag match. An item stashed before E11 has
+    // no room stamp and belongs to the primary stash by the rule written on
+    // `ITEM_FLAGS.stashRoom` - the rule `stashItemsIn` applies and this line
+    // did not, so an old stash listed three things and still took a fourth
+    // (audit A3).
+    const here = stashItemsIn(actor, room);
     if (here.length >= VAULT_LIMIT) {
         ui.notifications.warn(game.i18n.format("DRPG.Vault.full",
             { room, limit: VAULT_LIMIT }));
@@ -818,7 +883,7 @@ export async function rifleStashDialog(actor) {
 
     const stocked = stashes.filter(entry => entry.items.length);
     if (!stocked.length) {
-        ui.notifications.info(game.i18n.format("DRPG.Vault.stashEmpty", {
+        ui.notifications.warn(game.i18n.format("DRPG.Vault.stashEmpty", {
             who: stashes.map(entry => entry.owner.name).join(", ")
         }));
         return false;
@@ -1554,9 +1619,22 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
         .map(t => t.name)
         .filter(n => !isTierPool(n))
         .sort();
-    // Truth Bullets are not searched for, so they are not a category a room can
-    // stock or favour.
-    const categories = Object.entries(ITEM_CATEGORIES).filter(([key]) => key !== "truthBullet");
+    /*
+     * WHAT A ROOM CAN BE GOOD OR BAD FOR (audit A24).
+     *
+     * Truth Bullets are not searched for, and neither are bedroom keys - a key
+     * is granted with a room on it, never drawn from a pool - so neither is a
+     * category a room can stock or favour. The key was on offer here because
+     * this list was `ITEM_CATEGORIES` minus Truth Bullets alone; ticking it
+     * bought nothing, because no Search ever asks for that category.
+     *
+     * `splitUsables: false` on purpose, and it is the one place that asks for
+     * it: a Search hands `favoursCategory` the CATEGORY it is drawing on, and
+     * both usable kinds draw on `usable`. Splitting the column would offer a
+     * distinction the lookup cannot honour.
+     */
+    const categories = pickableCategories({ splitUsables: false })
+        .map(c => [c.key, ITEM_CATEGORIES[c.key]]);
     const regions = regionsByName();
 
     const uncovered = sceneUncoveredPercent(scene);
@@ -1615,7 +1693,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
         ? '<i class="fa-solid fa-box-open"></i>'
         : state === "hidden"
             ? '<i class="fa-solid fa-box"></i><i class="fa-solid fa-lock drpg-stash-lock"></i>'
-            : '<span class="drpg-stash-none">&mdash;</span>';
+            : '<span class="drpg-stash-none">-</span>';
     const stashHeads = students
         .map(a => `<th>${foundry.utils.escapeHTML(a.name)}</th>`)
         .join("");
@@ -1681,6 +1759,10 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
             startlocked: check("startlocked", startLocked(region),
                 game.i18n.localize("DRPG.Vault.lockedAtStartHint")),
             nosearch: check("nosearch", region?.getFlag(MODULE_ID, SEARCH_FLAGS.sealed)),
+            // Advice only: it changes no rule, just which regions the ratio
+            // line above the table counts. See `sharedRooms`.
+            notshared: check("notshared", region?.getFlag(MODULE_ID, VAULT_FLAGS.notShared),
+                game.i18n.localize("DRPG.Vault.notSharedHint")),
             tokens: `<td class="drpg-token-cell" style="text-align:center">
                 <span data-drpg-tokens="${escRoom}">${SearchTokens.left(room, scene)}</span> / ${maxTokens}
                 <button type="button" class="drpg-mini-button" data-drpg-token="${escRoom}"
@@ -1755,8 +1837,10 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
             ${panel("doors", `
                 <p>${game.i18n.localize("DRPG.Vault.doorsIntro")}</p>
                 <p class="notes" data-drpg-ratio></p>
-                ${tableFor([th("DRPG.Vault.lockedColumn"), th("DRPG.Vault.lockedAtStartColumn")],
-                    ["locked", "startlocked"])}
+                ${tableFor([th("DRPG.Vault.lockedColumn"), th("DRPG.Vault.lockedAtStartColumn"),
+                    th("DRPG.Vault.notSharedColumn")],
+                    ["locked", "startlocked", "notshared"])}
+                <p class="notes">${game.i18n.localize("DRPG.Vault.notSharedNote")}</p>
             `)}
 
             ${panel("search", `
@@ -1818,6 +1902,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
                         locked: Boolean(pick(`locked:${room}`)?.checked),
                         lockedAtStart: Boolean(pick(`startlocked:${room}`)?.checked),
                         noSearch: Boolean(pick(`nosearch:${room}`)?.checked),
+                        notShared: Boolean(pick(`notshared:${room}`)?.checked),
                         description: (pick(`desc:${room}`)?.value ?? "").trim(),
                         table: pick(`table:${room}`)?.value ?? "",
                         favours: categories
@@ -1879,12 +1964,30 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
              */
             const ratio = dialog.element.querySelector("[data-drpg-ratio]");
             if (ratio) {
-                const shared = rooms.filter(room => !vaultOwnerOf(room, scene));
                 const paintRatio = () => {
                     const form = dialog.element.querySelector("form");
-                    const open = shared.filter(room =>
-                        !form?.querySelector(`[name="${CSS.escape(`locked:${room}`)}"]`)?.checked);
-                    const want = Math.round(living * ROOMS_PER_PLAYER);
+                    /*
+                     * READ OFF THE FORM, NOT OFF THE FLAGS (audit A21).
+                     *
+                     * Both exclusions are columns the GM is looking at right
+                     * now - the owner on the Bedrooms tab, "Counts as a room"
+                     * on this one - so the line has to follow the ticks rather
+                     * than the saved state, exactly as it already followed the
+                     * locks. `sharedRooms()` is the same rule read from the
+                     * flags, and is what the season checklist uses; this is
+                     * that rule applied to what is on screen.
+                     */
+                    const ticked = (prefix, room) =>
+                        Boolean(form?.querySelector(
+                            `[name="${CSS.escape(`${prefix}:${room}`)}"]`)?.checked);
+                    const ownedNow = room => Boolean(form?.querySelector(
+                        `[name="${CSS.escape(`owner:${room}`)}"]`)?.value);
+
+                    const open = rooms.filter(room =>
+                        !ownedNow(room)
+                        && !ticked("notshared", room)
+                        && !ticked("locked", room));
+                    const want = roomsWantedFor(living);
                     ratio.textContent = game.i18n.format("DRPG.Vault.roomRatio", {
                         open: open.length,
                         living,
@@ -1895,33 +1998,26 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
                     ratio.classList.toggle("drpg-warning", living > 0 && open.length > want);
                 };
                 dialog.element.addEventListener("change", ev => {
-                    if (String(ev.target?.name ?? "").startsWith("locked:")) paintRatio();
+                    const name = String(ev.target?.name ?? "");
+                    if (name.startsWith("locked:") || name.startsWith("notshared:")
+                        || name.startsWith("owner:")) paintRatio();
                 });
                 paintRatio();
             }
             const root = dialog.element;
 
-            const tabs = root.querySelectorAll("[data-drpg-tab]");
-            const panels = root.querySelectorAll("[data-drpg-panel]");
-            for (const tabButton of tabs) {
-                tabButton.addEventListener("click", () => {
-                    for (const t of tabs) t.classList.toggle("active", t === tabButton);
-                    for (const p of panels) {
-                        p.style.display = p.dataset.drpgPanel === tabButton.dataset.drpgTab ? "" : "none";
-                    }
-                    // Deliberately no REFIT here. The window was measured for
-                    // the biggest tab when it opened and keeps that size for
-                    // all of them: switching tabs is a comparison, and a
-                    // window that resizes under a comparison is the thing
-                    // being complained about.
-                    //
-                    // The footer pin is a different question and does have to
-                    // be redone: each tab holds a different table, so whether
-                    // this window scrolls sideways changes with the tab, and a
-                    // bar pinned for the Fog tab is wrong for Bedrooms (C-F5-8).
-                    requestAnimationFrame(() => pinFooterAcrossScroll(dialog));
-                });
-            }
+            // Deliberately no REFIT on a switch. The window was measured for
+            // the biggest tab when it opened and keeps that size for all of
+            // them: switching tabs is a comparison, and a window that resizes
+            // under a comparison is the thing being complained about.
+            //
+            // The footer pin is a different question and does have to be
+            // redone: each tab holds a different table, so whether this
+            // window scrolls sideways changes with the tab, and a bar pinned
+            // for the Fog tab is wrong for Bedrooms (C-F5-8).
+            wireDashboardTabs(root, {
+                onSwitch: () => requestAnimationFrame(() => pinFooterAcrossScroll(dialog))
+            });
 
             /*
              * Cycle a stash cell: none -> open -> hidden -> none.
@@ -1931,7 +2027,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
              * and value could disagree is a cell that lies to whoever saves it.
              */
             const GLYPHS = {
-                "": '<span class="drpg-stash-none">&mdash;</span>',
+                "": '<span class="drpg-stash-none">-</span>',
                 open: '<i class="fa-solid fa-box-open"></i>',
                 hidden: '<i class="fa-solid fa-box"></i><i class="fa-solid fa-lock drpg-stash-lock"></i>'
             };
@@ -2038,6 +2134,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
         const wasLocked = Boolean(region.getFlag(MODULE_ID, ROOM_FLAGS.locked));
         const wasLockedAtStart = startLocked(region);
         const wasSealed = Boolean(region.getFlag(MODULE_ID, SEARCH_FLAGS.sealed));
+        const wasNotShared = Boolean(region.getFlag(MODULE_ID, VAULT_FLAGS.notShared));
 
         const same = before.owner === (row.owner || null)
             && before.concealed === row.concealed
@@ -2051,6 +2148,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
             && wasLocked === row.locked
             && wasLockedAtStart === row.lockedAtStart
             && wasSealed === row.noSearch
+            && wasNotShared === row.notShared
             && before.description === row.description;
         if (before.owner !== (row.owner || null) && row.owner) {
             ownerMoved.push({ room: row.room, owner: row.owner });
@@ -2077,6 +2175,12 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
         // just decided is interesting enough to close.
         if (wasSealed !== row.noSearch) {
             await region.setFlag(MODULE_ID, SEARCH_FLAGS.sealed, row.noSearch);
+        }
+
+        // Nothing to announce: this moves a line of advice on two GM screens
+        // and no rule at all.
+        if (wasNotShared !== row.notShared) {
+            await region.setFlag(MODULE_ID, VAULT_FLAGS.notShared, row.notShared);
         }
 
         // Written whether or not it changed, because "unset" and "unset but

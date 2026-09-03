@@ -441,16 +441,12 @@ export async function openPlantDialog(projectId) {
 
     const { metaFor } = await import("./projects.mjs");
     const { allRooms } = await import("./movement.mjs");
-    const { ITEM_CATEGORIES } = await import("./config.mjs");
 
     const meta = metaFor(projectId);
     const esc = foundry.utils.escapeHTML;
     const rooms = allRooms();
     const roomOptions = rooms.map(r =>
         `<option value="${esc(r)}"${r === meta.room ? " selected" : ""}>${esc(r)}</option>`).join("");
-    const catOptions = Object.entries(ITEM_CATEGORIES)
-        .filter(([key]) => key !== "truthBullet")
-        .map(([key, c]) => `<option value="${key}">${esc(c.label ?? key)}</option>`).join("");
 
     const DialogV2 = foundry.applications.api.DialogV2;
     const { dialogContent } = await import("./utils.mjs");
@@ -464,8 +460,7 @@ export async function openPlantDialog(projectId) {
                 <input type="text" name="name" value="" /></label>
             <label>${game.i18n.localize("DRPG.Trap.plantRoom")}
                 <select name="room">${roomOptions}</select></label>
-            <label>${game.i18n.localize("DRPG.Items.category")}
-                <select name="category">${catOptions}</select></label>
+            <p class="notes">${game.i18n.localize("DRPG.Trap.plantUsableNote")}</p>
         </form>`),
         buttons: [
             {
@@ -475,8 +470,7 @@ export async function openPlantDialog(projectId) {
                     const f = d.element.querySelector("form");
                     return {
                         name: f.name.value.trim(),
-                        room: f.room.value,
-                        category: f.category.value
+                        room: f.room.value
                     };
                 }
             },
@@ -487,13 +481,26 @@ export async function openPlantDialog(projectId) {
 
     if (!answer || answer === "cancel" || !answer.name || !answer.room) return null;
 
-    await plantItem(projectId, answer.room, {
-        name: answer.name,
-        category: answer.category,
-        // Tier 1 so it reads as an ordinary useful thing when it is found. The
-        // point is that it looks like a find, not like a plot device.
-        tier: 1
-    });
+    /*
+     * NO CATEGORY, AND NO TIER (A23; Dawid, 03.09).
+     *
+     * There used to be a category select in this window and a `tier: 1` here.
+     * Neither was ever read. The Search path hands the plant over through
+     * `grantItem` with the SEARCHER's category and tier - which is the whole
+     * point of trap 166, because an item that arrived with its own category
+     * would be an item that did not look like the room's own draw.
+     *
+     * The consequence is a rule, and Dawid confirmed it is the rule we want:
+     * the trap can only ever spring for somebody who searched for a USABLE,
+     * because `useItem` is what fires the trigger and it only applies to
+     * usables. A Tool-hunter who turns up the plant walks off with an ordinary
+     * tool, and the killer's project is spent for nothing.
+     *
+     * So the GM is told that in the window rather than being offered a choice
+     * that changed nothing. Storing the two dead fields would only invite the
+     * next reader to believe they still decide something.
+     */
+    await plantItem(projectId, answer.room, { name: answer.name });
 
     await import("./utils.mjs").then(m => m.whisperToGms(
         `<p>${game.i18n.format("DRPG.Trap.planted", {

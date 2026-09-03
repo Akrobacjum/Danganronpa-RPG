@@ -14,14 +14,18 @@
  * a half-built map from eating everyone's actions.
  */
 
-import { MODULE_ID, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, TIMES_OF_DAY, FLAGS,
+import { MODULE_ID, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, FLAGS,
     ROOM_OWNER_FLAG, BEDROOM_KEY_FLAG } from "./config.mjs";
-import { SETTINGS, iAmTheMastermind } from "./settings.mjs";
+import { SETTINGS, iAmTheMastermind, incidentParticipants, incomingTimeOfDay }
+    from "./settings.mjs";
 import { hasFreeMove, takeMove, actionsLeft, canPayFor, freeMovesLeft } from "./actions.mjs";
 // Statically imported, not lazily: the crossing veto runs inside a synchronous
 // `preUpdateToken` hook, where there is no opportunity to await an import.
 // call-effects.mjs only reaches back into this file lazily, so there is no cycle.
 import { isSealed, isChained } from "./call-effects.mjs";
+// The darkening's own reader, and a leaf - see the note in `canCross`. Static
+// for the same reason as the two above: the crossing veto cannot await.
+import { overflowCrossings } from "./overflow.mjs";
 // `iAmTheMastermind` comes from settings.mjs - a leaf - for the same reason:
 // the veto is synchronous, so it has to be a static import. It used to come
 // from mastermind.mjs, and that one edge was what closed every static import
@@ -193,24 +197,40 @@ function canCross(actor, from, to) {
     const eclipse = clock?.eclipse === true;
 
     // A Morning or Night Eclipse places freely: any room, no budget, no
-    // adjacency. Derived from the clock here rather than imported from
+    // adjacency. `incomingTimeOfDay` comes from settings.mjs rather than
     // eclipse.mjs, which imports this file - the same reason the eclipse flag
     // above is read straight off the setting.
-    const index = TIMES_OF_DAY.indexOf(clock?.timeOfDay);
-    const incoming = TIMES_OF_DAY[(index < 0 ? 0 : index + 1) % TIMES_OF_DAY.length];
-    const freePlacement = ECLIPSE_FREE_PLACEMENT.includes(incoming);
+    const freePlacement = ECLIPSE_FREE_PLACEMENT.includes(incomingTimeOfDay(clock));
+
+    /*
+     * THE DARKENING IS PART OF THE NUMBER, and this gate used to read the bare
+     * constant (audit A2).
+     *
+     * `eclipseAllowance()` in eclipse.mjs is the one place the allowance is
+     * decided, and it has asked the overflow since Z10 - so under Darkness a
+     * two-crossing Eclipse is worth one, and a free-placement Eclipse becomes
+     * an ordinary two-room one (`freeBecomes`). This file cannot call that
+     * function: eclipse.mjs imports this one, and the veto is synchronous, so
+     * there is no await to hide the cycle behind. What it CAN do is ask the
+     * same question of the same source - `overflowCrossings` is a leaf, and
+     * actions.mjs already imports it for exactly this reason.
+     *
+     * `null` still means unlimited, so free placement is read off the ALLOWANCE
+     * rather than off the calendar. That is what makes the darkened
+     * free-placement Eclipse enforce anything at all: before this, both this
+     * gate and `judgeEclipseCrossing` skipped every check whenever the clock
+     * said Morning or Night, and `freeBecomes` was a number nothing read.
+     */
+    const allowance = overflowCrossings(freePlacement ? null : ECLIPSE_MOVES);
 
     if (eclipse) {
         // A free-placement Eclipse skips both limits but must STILL return here.
         // Falling through would drop the crossing into the movement economy
         // below and charge it a free Move or an action - and an Eclipse crossing
         // has never cost either.
-        if (!freePlacement) {
+        if (allowance !== null) {
             const used = game.settings.get(MODULE_ID, SETTINGS.eclipseMoves)?.[actor.id] ?? 0;
-            // ECLIPSE_MOVES, not a repeated literal: the cap lives in eclipse.mjs
-            // and was duplicated here, so raising it in one place left the other
-            // refusing the extra crossings.
-            if (used >= ECLIPSE_MOVES) return game.i18n.localize("DRPG.Eclipse.noMovesLeft");
+            if (used >= allowance) return game.i18n.localize("DRPG.Eclipse.noMovesLeft");
 
             if (from && to) {
                 const connected = neighbouringRooms(from);
@@ -316,10 +336,10 @@ function lockedInIncident(actor) {
         const state = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
         if (!state.active || state.stage !== "incident") return false;
 
-        const involved = [state.killerId, state.victimId, state.thirdId]
-            .filter(Boolean)
-            .includes(actor.id);
-        if (!involved) return false;
+        // The names are not in that setting any more (LIVE-001). This client
+        // holds them only if it is a GM or one of the participants - and a
+        // client that is neither has nobody here to hold still.
+        if (!incidentParticipants().includes(actor.id)) return false;
 
         return game.i18n.localize("DRPG.Murder.cannotLeave");
     } catch {
@@ -1148,7 +1168,7 @@ export function neighbouringRooms(room) {
  * Region geometry lives in different places depending on whether the scene is
  * rendered, so each is tried in turn before giving up.
  */
-function boundsOf(region) {
+export function boundsOf(region) {
     // The rendered placeable knows best.
     const b = region?.object?.bounds ?? region?.bounds;
     if (b && Number.isFinite(b.x) && Number.isFinite(b.width)) {

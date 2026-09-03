@@ -336,7 +336,8 @@ function markClosingWindows() {
     }
 
     const originalClose = proto.close;
-    proto.close = function(options = {}) {
+    // Named, so `diagnosePatches` (patches.mjs) can tell it is ours.
+    proto.close = function drpgClose(options = {}) {
         try {
             const el = this.element;
             if (el?.matches?.(MOVED)) {

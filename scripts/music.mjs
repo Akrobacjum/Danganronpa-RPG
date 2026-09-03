@@ -150,7 +150,7 @@ export const MUSIC_STATES = [
     {
         key: "trial.debate", labelKey: "DRPG.Music.state.trialDebate",
         randomTrack: true,
-        test: () => trialFloor()?.mode === FLOOR_MODES.discussion
+        test: () => trialFloor()?.mode === FLOOR_MODES.debate
     },
     {
         key: "trial.discussion", labelKey: "DRPG.Music.state.trialDiscussion",
@@ -1508,12 +1508,3 @@ export function diagnoseMusic() {
     });
     return text;
 }
-
-/**
- * The name this window had while it was only about music.
- *
- * Kept because it is on `game.drpg` and in whatever macros a table has already
- * written - a rename that breaks somebody's hotbar to save one word is not a
- * rename worth making.
- */
-export { openSoundDialog as openMusicDialog };

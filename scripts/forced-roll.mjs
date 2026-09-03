@@ -19,44 +19,42 @@
  * uniform sample with `ceil((1 - u) * faces)`, so u = 0 is always the top face,
  * whatever the die.
  *
- * The window between the two hooks contains exactly one `roll.evaluate()` and no
- * user interaction, so nothing else can slip through it.
+ * THIS ROLL'S EVALUATION AND NOTHING ELSE (audit A4). The swap used to sit on
+ * `CONFIG.Dice.randomUniform` from the configuration hook until the next chat
+ * message this client created, and the audit's worry was every other roll on
+ * the client in between - a macro, a second character, a reroll. Daggerheart
+ * 2.6.5 hands the configuration hook the unevaluated `Roll` itself (read from
+ * `build` in its source: `buildConfigure` fires the hook with `roll`, then
+ * `buildEvaluate` awaits `roll.evaluate()`), so the swap now lives on THAT
+ * instance's own `evaluate`: installed before the throw, lifted in a `finally`
+ * the moment the throw is over. A roll that is abandoned between the two takes
+ * its wrapper to the grave with it, and no other roll ever sees a loaded die.
+ * Dice evaluation is microtasks all the way down - no network, no dialog - so
+ * nothing a person clicks can land inside the window that is left.
  */
 
 import { debug, error } from "./utils.mjs";
 
 let armed = false;
-let original = null;
 
 /*
- * ILE KOSCI DOSTAJE SWOJA GORNA SCIANE.
+ * HOW MANY DICE GET THEIR TOP FACE.
  *
- * Bylo: wszystkie, wiec 12/12 - para, czyli krytyk wedlug definicji systemu.
- * Jest: jedna (Dawid, 31.08). Druga leci normalnie, wiec wynik jest bardzo
- * wysoki, ale krytykiem bywa tylko wtedy, gdy ta druga sama wyrzuci 12.
+ * It was all of them, so 12/12 - a pair, and a critical by the system's own
+ * definition. It is one (Dawid, 31.08). The other is thrown as normal, so the
+ * total is very high, but a critical only happens when that second die lands a
+ * 12 on its own.
  *
- * To nie jest ostroznosc, tylko sedno oslabienia: krytyk otwiera darmowa akcje
- * rozwiazania, a Free Critical kupowany za Nadziej nagromadzona z Experience
- * dawal ofierze wyjscie z incydentu za nic. Jedna na dwanascie zostaje - i
- * dobrze, bo to jest wtedy prawdziwy rzut, a nie zakup.
+ * That is not caution, it is the whole point of the weakening: a critical
+ * opens the free resolution action, and a Free Critical bought with Hope saved
+ * up from Experience gave the victim a way out of the incident for nothing.
+ * One in twelve remains - and rightly, because then it is a real roll rather
+ * than a purchase.
  */
 let loaded = 0;
 
 export function registerForcedRolls() {
     Hooks.on("daggerheart.postDualityRollConfiguration", onConfigured);
-    Hooks.on("daggerheart.postRollDuality", release);
-    // Belt and braces: if the roll is abandoned between the two, the next
-    // message *this user* creates must not inherit a rigged randomiser.
-    //
-    // Scoped to our own messages on purpose. `createChatMessage` fires on every
-    // client for every message, so an unscoped release meant somebody else's
-    // whisper landing in the window between configuration and evaluation quietly
-    // disarmed a Free Critical the player had just paid 6 Hope for.
-    Hooks.on("createChatMessage", message => {
-        const authorId = message?.author?.id ?? message?.user?.id;
-        if (authorId && authorId !== game.user.id) return;
-        release();
-    });
 }
 
 /** Arm the next duality roll so ONE die comes up 12 and the other is thrown. */
@@ -68,35 +66,55 @@ export function armOneMaximum() {
 export function disarmMaximum() {
     armed = false;
     loaded = 0;
-    release();
 }
 
-function onConfigured() {
-    if (!armed || original) return;
-    try {
-        original = CONFIG.Dice.randomUniform;
-        const real = original;
-        // Counted down rather than flagged: `randomUniform` is called once per
-        // die and knows nothing about which die it is serving, so "the first
-        // one" is the only handle there is. Everything after it rolls for real.
-        CONFIG.Dice.randomUniform = () => {
-            if (loaded > 0) {
-                loaded -= 1;
-                return 0;
-            }
-            return real();
-        };
-        debug("Free Critical: one die forced to its maximum face.");
-    } catch (err) {
-        error("Could not force the Free Critical die", err);
-        original = null;
+/**
+ * The hook's first argument is the Roll about to be thrown. Its `evaluate` is
+ * shadowed on the instance - an own property over the prototype's method,
+ * the same shape sheet.mjs uses for `render` - so the loaded randomiser exists
+ * for exactly as long as this one roll is being evaluated.
+ */
+function onConfigured(roll) {
+    if (!armed) return;
+    if (typeof roll?.evaluate !== "function") {
+        // A Daggerheart that stopped passing the roll. Loud rather than silent:
+        // the player paid for this, and "the die was not loaded" needs a reason.
+        error("Free Critical: the roll configuration hook carried no roll - the die is not loaded");
+        return;
     }
-}
 
-function release() {
-    if (!original) return;
-    CONFIG.Dice.randomUniform = original;
-    original = null;
-    armed = false;
-    loaded = 0;
+    const evaluate = roll.evaluate;
+    Object.defineProperty(roll, "evaluate", {
+        configurable: true,
+        writable: true,
+        value: async function (...args) {
+            // Disarmed between configuration and the throw (the Call was
+            // cancelled, say): an honest roll, and the wrapper is inert.
+            if (!armed) return evaluate.apply(this, args);
+
+            const real = CONFIG.Dice.randomUniform;
+            let left = loaded;
+            // Counted down rather than flagged: `randomUniform` is called once
+            // per die and knows nothing about which die it is serving, so "the
+            // first one" is the only handle there is. Everything after it
+            // rolls for real.
+            CONFIG.Dice.randomUniform = () => {
+                if (left > 0) {
+                    left -= 1;
+                    return 0;
+                }
+                return real();
+            };
+            debug("Free Critical: one die forced to its maximum face.");
+            try {
+                return await evaluate.apply(this, args);
+            } finally {
+                CONFIG.Dice.randomUniform = real;
+                // Spent on this roll and no other. Whatever happened inside the
+                // throw, the next duality roll on this client is an honest one.
+                armed = false;
+                loaded = 0;
+            }
+        }
+    });
 }

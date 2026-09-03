@@ -115,10 +115,35 @@ const TB = {
  * lives is one file's business and can be changed without touching callers.
  * ========================================================================== */
 
+/**
+ * The parsed ledger, held between writes.
+ *
+ * THE SAME MEASUREMENT THE REMNANT LEDGER ALREADY ACTED ON (E17, audit A10).
+ * A client-scoped setting lives in `localStorage` as a string, so every read
+ * re-parses the whole thing and pays Foundry's validation on top; the Remnant
+ * ledger measured 0.858 ms per read at 685 entries and cached it for exactly
+ * this reason. This one is read PER BULLET: the Investigation dashboard asks
+ * `secretOf` for every bullet of every student on every rebuild, and it
+ * rebuilds whenever any item on any actor changes.
+ *
+ * Safe to hold because every write goes through `writeLedger`, which replaces
+ * it - including the merges arriving from another GM's socket. The call sites
+ * that mutate the object in place write immediately afterwards, and a mutation
+ * that reaches the cache before the write is the value we want to be reading.
+ */
+let ledgerCache = null;
+
+/** The ledger is stale - parse it again on the next read. */
+export function forgetTruthBulletLedger() {
+    ledgerCache = null;
+}
+
 function readLedger() {
     if (!game.user.isGM) return {};
+    if (ledgerCache) return ledgerCache;
     try {
-        return game.settings.get(MODULE_ID, SETTINGS.truthBulletSecrets) ?? {};
+        ledgerCache = game.settings.get(MODULE_ID, SETTINGS.truthBulletSecrets) ?? {};
+        return ledgerCache;
     } catch (err) {
         warn("Could not read the Truth Bullet ledger", err);
         return {};
@@ -129,8 +154,12 @@ async function writeLedger(ledger) {
     if (!game.user.isGM) return;
     try {
         await game.settings.set(MODULE_ID, SETTINGS.truthBulletSecrets, ledger);
+        // Held rather than dropped: this IS the newest ledger, and dropping it
+        // would make the next read pay for an answer we already have.
+        ledgerCache = ledger;
     } catch (err) {
         error("Could not write the Truth Bullet ledger", err);
+        ledgerCache = null;
     }
 }
 
@@ -843,6 +872,19 @@ function watchBulletEdits() {
 
 export function registerTruthBullets() {
     watchBulletEdits();
+
+    /*
+     * The cache above is dropped by `writeLedger` on every write this module
+     * makes. This covers the writes it does NOT make: the regression suite
+     * putting the world back, and a GM editing the store by hand from the
+     * console. Same belt and braces the Remnant ledger carries, and the same
+     * hook for the same reason - this setting is client-scoped, so it never
+     * becomes a Setting document and `updateSetting` never fires for it. The
+     * argument is the full "namespace.key" id.
+     */
+    Hooks.on("clientSettingChanged", key => {
+        if (key === `${MODULE_ID}.${SETTINGS.truthBulletSecrets}`) forgetTruthBulletLedger();
+    });
 
     /*
      * Every one of these is GM-to-GM, checked at BOTH ends.

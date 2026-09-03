@@ -69,7 +69,6 @@ import {
     diagnoseDice, diagnoseDespair, diagnoseStyles, diagnoseTruthBullets, diagnoseVoice,
     diagnoseWindows, traceClicks, fileSizes,
 } from "./diagnostics.mjs";
-import { runTests } from "./tests.mjs";
 import { diagnoseLive } from "./live.mjs";
 import { unregisterCriticalRule } from "./critical.mjs";
 import {
@@ -85,7 +84,7 @@ import { roomOfActor, roomOfToken, othersInRoom, allRooms, neighbouringRooms, oc
 import { applyAll as refreshRoomVisibility, visibleCharacters, diagnoseVisibility }
     from "./visibility.mjs";
 import {
-    migrateRemnants, remnantData, reportRemnants } from "./remnants.mjs";
+    migrateRemnants, remnantData, reportRemnants, flushTraceDigest } from "./remnants.mjs";
 import { migrate1_2_0, migrationStatus } from "./migrate.mjs";
 import {
     allProjects, visibleProjects, canSee, projectsAvailableIn, projectsListedIn,
@@ -94,7 +93,7 @@ import {
 } from "./projects.mjs";
 import { openProjectManager, openShareDialog } from "./projects-ui.mjs";
 import { callGm } from "./gm-bridge.mjs";
-import { takeRest, roomAllows, restRooms, setRestRoom, openRestRoomsDialog } from "./rest.mjs";
+import { takeRest, roomAllows, restRooms, setRestRoom } from "./rest.mjs";
 import {
     dropRemnant, placeRemnant, remnantsOn, remnantsInRoom, rankForObserve,
     revealRemnant, removeRemnant, clearFaintRemnants,
@@ -102,7 +101,7 @@ import {
 } from "./remnants.mjs";
 import { chooseObserveTarget, resolveObserve, clearPendingObserves } from "./observe.mjs";
 import { resolveAnalyze } from "./analyze.mjs";
-import { shareBullet, giveItem, shareBulletDialog, giveItemDialog } from "./handover.mjs";
+import { shareBullet, giveItem, shareBulletDialog, handOverDialog } from "./handover.mjs";
 import {
     presentBullet, presentDialog, presentedThisChapter, openObjectionLog, inClassTrial
 } from "./trial.mjs";
@@ -117,7 +116,7 @@ import {
 } from "./investigation.mjs";
 import {
     trialFloor, floorHolder, floorTarget, maySpeak, secondsLeft,
-    startFloor, openObjection, openRebuttal, returnToDiscussion, advanceFloorNow,
+    startFloor, openObjection, openRebuttal, returnToDebate, advanceFloorNow,
     extendFloor, endFloor
 } from "./trial-floor.mjs";
 import { openVote, closeVote, applyVerdict, openVerdictDialog, trialProgress } from "./vote.mjs";
@@ -463,9 +462,6 @@ export const DrpgApi = {
     restRooms,
     setRestRoom,
 
-    /** Mark which rooms on this scene allow which rest. */
-    manageRestRooms: openRestRoomsDialog,
-
     /* ---- remnants & inventory ------------------------------------------ */
 
     /** Drop a Remnant where a character stands: hidden, translucent, under tokens. */
@@ -479,6 +475,10 @@ export const DrpgApi = {
     /** Everything recorded on a Remnant: type, visibility, who left it, when. */
     remnantData,
     reportRemnants,
+
+    /** Say the traces collected since the last flush now, without waiting for
+     *  the turn of the time of day. See the digest note in remnants.mjs. */
+    flushTraceDigest,
 
     /** Chapter end: clear Faint Remnants that are neither reinforced nor tied to the crime. */
     clearFaintRemnants,
@@ -675,9 +675,12 @@ export const DrpgApi = {
     shareBullet,
     giveItem,
 
-    /** The pickers the inventory buttons open. */
+    /** The pickers the inventory buttons open. Kept under the name macros
+     *  know; the function is `handOverDialog` now, because the GM's own
+     *  give window is `gmGiveItemDialog` and the two used to share a name
+     *  with different signatures (audit A19). */
     shareBulletDialog,
-    giveItemDialog,
+    giveItemDialog: handOverDialog,
 
     /* ---- Class Trial ----------------------------------------------------
      * A presentation is one object seen two ways: a public ChatMessage that is
@@ -861,9 +864,9 @@ export const DrpgApi = {
      * addressed to the GMs over the socket and counted in memory, because
      * "wyniki jawne, głosy nie" and world data is not private (D6). */
 
-    /* The floor is three modes rather than a queue: a free discussion, the
-     * minute an OBJECTION buys its objector, and the two minutes of rebuttal
-     * that follow it. `maySpeak` is the one question all of it answers. */
+    /* The floor is three modes rather than a queue: an open debate, the minute
+     * an OBJECTION buys its objector, and the two minutes of rebuttal that
+     * follow it. `maySpeak` is the one question all of it answers. */
     trialFloor,
 
     /** How far through this chapter's trial the table has got: the debate's
@@ -871,8 +874,6 @@ export const DrpgApi = {
      *  been applied. The GM console's two gates read this. */
     trialProgress,
 
-    /** Kept under its old name: callers only ever asked "is a trial running". */
-    trialQueue: trialFloor,
     trialHolder: floorHolder,
     trialTarget: floorTarget,
     trialMaySpeak: maySpeak,
@@ -882,7 +883,9 @@ export const DrpgApi = {
     /** An OBJECTION calls this by itself - presenting evidence takes the floor. */
     openObjection,
     openRebuttal,
-    returnToDiscussion,
+    returnToDebate,
+    /** Kept under its old name: it always returned to the debate. */
+    returnToDiscussion: returnToDebate,
     /** The transition the clock would have made, made now. */
     advanceFloorNow,
     extendFloor,
@@ -983,7 +986,26 @@ export const DrpgApi = {
      *  fetched past the browser cache. The answer to "I updated it and the fix
      *  is still not there" on a hosted world. */
     fileSizes,
-    runTests,
+
+    /**
+     * Every method this module overrides in Foundry or Daggerheart, and whether
+     * each target is still where the override expects it (audit A18). Fetched
+     * on demand like the suite below: it is a table, not a feature.
+     */
+    diagnosePatches: () => import("./patches.mjs").then(m => m.diagnosePatches()),
+
+    /*
+     * THE SUITE IS FETCHED WHEN IT IS ASKED FOR, NOT AT EVERY START (C2).
+     *
+     * `tests.mjs` is 5400 lines and this file was its only importer, so every
+     * client at the table - players included, none of whom can run it - parsed
+     * the whole regression suite before the world finished loading. Behind a
+     * thunk it is never fetched until somebody types the name.
+     *
+     * `runTests` is already `async`, so a caller sees no difference: it awaited
+     * a promise before and it awaits a promise now.
+     */
+    runTests: (...args) => import("./tests.mjs").then(m => m.runTests(...args)),
 
     /** Are the bullets and their answer key still in step, and do the rows render? */
     diagnoseTruthBullets,

@@ -17,15 +17,18 @@ import {
     USABLE_KIND_EFFECTS, EQUIPPABLE,
     TRUTH_BULLET_TYPES, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS
 } from "./config.mjs";
-import { grantItem, itemsInCategory, countInCategory, countInGroup, inventorySummary }
+import { grantItem, itemsInCategory, countInCategory, countInGroup, inventorySummary,
+    pickableCategories, isStashed }
     from "./inventory.mjs";
-import { createTruthBullet, issueAutopsy, BULLET_CATEGORY, copiedRemnants }
+// `BULLET_CATEGORY` went with the hand-rolled category list: excluding Truth
+// Bullets is `pickableCategories`'s job now, not this file's.
+import { createTruthBullet, issueAutopsy, copiedRemnants }
     from "./truth-bullets.mjs";
 import { ITEM_POOLS, USABLE_GOALS, moduleTables, rolesOfResult, MULTI_ROLE_TIER }
     from "./tables.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { whisperToOwner, dialogContent, panelTabs, wirePanelTabs, workingScene,
-    log, error, plural, cardHead } from "./utils.mjs";
+    log, error, plural, cardHead, esc} from "./utils.mjs";
 import { alreadyOpen } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -63,46 +66,130 @@ export async function openItemManager(actor = null) {
      * The question moved to where it is used. Each of the four routes below
      * asks for its own person, inside its own form, where it can still be
      * changed after the thing has been built - which is the same correction
-     * `giveItemDialog` already got, applied to the rest of them.
+     * `gmGiveItemDialog` already got, applied to the rest of them.
      *
      * A character is still ACCEPTED, because opening this from a sheet knows
      * perfectly well who it is about. It just is not demanded any more.
      */
-    const target = actor ?? null;
+    const students = studentActors();
+    const target = actor ?? students[0] ?? null;
+    if (!target) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.noCharacters"));
+        return null;
+    }
+
+    /*
+     * ONE WINDOW: WHO, WHAT THEY HAVE, GIVE OR TAKE (Dawid, 03.09).
+     *
+     * This was a menu of five buttons that each opened somewhere else, and the
+     * one thing a GM wants to see before pressing any of them - what the
+     * student is actually holding, and what is in their stash - was behind a
+     * sixth ("Look inside the stashes"). The holdings are on the window now,
+     * and the only choice left at this level is the verb.
+     *
+     * TWO TABS AND A FOOTER THAT FOLLOWS THEM, which is what `wirePanelTabs`
+     * is for and what Item Tables and Sound already do. Nothing underneath
+     * changed: `gmGiveItemDialog`, `giveTruthBulletDialog`, `giveKeyDialog` and
+     * `takeItemDialog` are the same windows, reached from the tab that matches
+     * what they do.
+     *
+     * A stashed item is an ordinary item on its owner's sheet, so the stash
+     * needs no separate reader - it is a flag on a row this list already walks.
+     * `openVaultInspector` stays on the console for a GM who wants every
+     * stash at once rather than one student's.
+     */
+    const holdingsFor = who => {
+        const groups = [];
+        for (const [key, cat] of Object.entries(ITEM_CATEGORIES)) {
+            const all = itemsInCategory(who, key);
+            if (!all.length) continue;
+            const rows = all.map(item => {
+                const tier = item.getFlag(MODULE_ID, "tier");
+                return `<li>${esc(item.name)}${
+                    tier !== undefined && tier !== null
+                        ? ` <span class="notes">T${tier}</span>` : ""
+                }${isStashed(item)
+                    ? ` <span class="notes">${esc(game.i18n.localize("DRPG.Items.inStash"))}</span>`
+                    : ""}</li>`;
+            }).join("");
+            groups.push(`<div class="drpg-holdings-group"><h4>${esc(cat.label)}</h4>`
+                + `<ul>${rows}</ul></div>`);
+        }
+        return `<p class="notes">${esc(inventorySummary(who))}</p>`
+            + (groups.length
+                ? `<div class="drpg-holdings">${groups.join("")}</div>`
+                : `<p class="notes">${esc(game.i18n.format("DRPG.Items.carriesNothing",
+                    { actor: who.name }))}</p>`);
+    };
+
+    const whoOptions = students
+        .map(a => `<option value="${a.id}"${a.id === target.id ? " selected" : ""}>${
+            esc(a.name)}</option>`).join("");
 
     const choice = await DialogV2.wait({
-        window: { title: target
-            ? game.i18n.format("DRPG.Items.title", { actor: target.name })
-            : game.i18n.localize("DRPG.Items.manage") },
+        window: { title: game.i18n.localize("DRPG.Items.manage") },
         classes: ["drpg-panel", "drpg-window-items"],
-        content: `<div>
-            ${target ? `<p><strong>${foundry.utils.escapeHTML(target.name)}</strong></p>
-            <p class="notes">${foundry.utils.escapeHTML(inventorySummary(target))}</p>`
-                : `<p class="notes">${game.i18n.localize("DRPG.Items.manageNote")}</p>`}
-        </div>`,
+        content: dialogContent(`<form>
+            <label>${game.i18n.localize("DRPG.Items.whichCharacterHub")}
+                <select name="who">${whoOptions}</select></label>
+            <div class="drpg-holdings-live">${holdingsFor(target)}</div>
+            ${panelTabs([
+                { key: "give", label: game.i18n.localize("DRPG.Items.tabGive"),
+                  html: `<p class="notes">${game.i18n.localize("DRPG.Items.giveNote")}</p>` },
+                { key: "take", label: game.i18n.localize("DRPG.Items.tabTake"),
+                  html: `<p class="notes">${game.i18n.localize("DRPG.Items.takeNote")}</p>` }
+            ])}
+        </form>`),
+        render: (event, dialog) => {
+            wirePanelTabs(dialog.element, {
+                buttons: {
+                    give: ["give", "bullet", "key"],
+                    take: ["take", "takeBullet", "takeKey"]
+                },
+                always: ["cancel"]
+            });
+
+            // The read-out follows the person, or a GM who changes their mind
+            // reads the last student's pockets under a new name.
+            const form = dialog.element.querySelector("form");
+            const live = dialog.element.querySelector(".drpg-holdings-live");
+            form?.elements?.who?.addEventListener("change", () => {
+                const who = game.actors.get(form.elements.who.value);
+                if (who && live) live.innerHTML = holdingsFor(who);
+            });
+        },
         buttons: [
-            { action: "give", label: game.i18n.localize("DRPG.Items.give"), default: true },
-            { action: "bullet", label: game.i18n.localize("DRPG.TruthBullet.give") },
-            // A key is not something to type a name for - it names a room, and
-            // the rooms are already on the map. See the note on keys in
-            // vault.mjs; this is the GM's way to hand somebody a copy of
-            // another player's key without either player being involved.
-            { action: "key", label: game.i18n.localize("DRPG.Vault.giveKey") },
-            { action: "take", label: game.i18n.localize("DRPG.Items.take") },
-            // A stashed item is an ordinary item on its owner's sheet, which is
-            // exactly what this window edits - so the inspector is a button on
-            // it rather than a tile of its own in the GM panel.
-            { action: "stashes", label: game.i18n.localize("DRPG.Vault.inspectTitle") },
+            // Each returns the verb AND who it is about, because the select
+            // above is the answer now - the argument this function was called
+            // with is only its default.
+            ...[["give", "DRPG.Items.give"],
+                ["bullet", "DRPG.TruthBullet.give"],
+                ["key", "DRPG.Vault.giveKey"],
+                ["take", "DRPG.Items.take"],
+                // A FILTER, NOT A SECOND DIALOG. `takeItemDialog` already lists
+                // Truth Bullets - it walks every category - so this is that
+                // window with everything else hidden. A GM removing a bullet is
+                // looking for one of three among fifteen things.
+                ["takeBullet", "DRPG.TruthBullet.takeAway"],
+                // The same filter for keys. Give has a door for them, so Take
+                // has one too (Dawid, 03.09).
+                ["takeKey", "DRPG.Vault.takeKey"]
+            ].map(([action, labelKey]) => ({
+                action,
+                label: game.i18n.localize(labelKey),
+                callback: (e, b, d) => ({
+                    go: action,
+                    who: d.element.querySelector("[name=who]")?.value ?? target.id
+                })
+            })),
             { action: "cancel", label: game.i18n.localize("DRPG.Panel.close") }
         ],
         rejectClose: false
     });
 
-    if (choice === "stashes") {
-        const { openVaultInspector } = await import("./vault.mjs");
-        await openVaultInspector();
-        return openItemManager(target);
-    }
+    if (!choice || choice === "cancel") return null;
+    const chosen = game.actors.get(choice.who) ?? target;
+
     /*
      * CANCELLING A STEP COMES BACK HERE (D-F5-2).
      *
@@ -118,25 +205,21 @@ export async function openItemManager(actor = null) {
      * and the hub's own Close is the single way out - one exit, at the level
      * the GM opened.
      */
-    if (choice === "give") {
-        await giveItemDialog(target);
-        // Straight back to the manager, so handing over three things is three
-        // clicks rather than three trips through the menu.
-        return openItemManager(target);
-    }
-    if (choice === "bullet") {
-        await giveTruthBulletDialog(target);
-        return openItemManager(target);
-    }
-    if (choice === "key") {
-        await giveKeyDialog(target);
-        return openItemManager(target);
-    }
-    if (choice === "take") {
-        await takeItemDialog(target);
-        return openItemManager(target);
-    }
-    return null;
+    const step = {
+        give: () => gmGiveItemDialog(chosen),
+        bullet: () => giveTruthBulletDialog(chosen),
+        key: () => giveKeyDialog(chosen),
+        take: () => takeItemDialog(chosen),
+        takeBullet: () => takeItemDialog(chosen, { only: "truthBullet" }),
+        takeKey: () => takeItemDialog(chosen, { only: "bedroomKey" })
+    }[choice.go];
+
+    if (!step) return null;
+    await step();
+    // Straight back to the hub, so handing over three things is three clicks
+    // rather than three trips through the menu - and the holdings underneath
+    // are rebuilt with whatever just changed.
+    return openItemManager(chosen);
 }
 
 /**
@@ -163,7 +246,7 @@ async function giveKeyDialog(actor) {
     // Checked once, for everybody, because it is a fact about the map rather
     // than about the person receiving.
     if (!allBedrooms().some(v => v.owner)) {
-        ui.notifications.info(game.i18n.localize("DRPG.Vault.noKeysToGive"));
+        ui.notifications.warn(game.i18n.localize("DRPG.Vault.noKeysToGive"));
         return false;
     }
 
@@ -171,7 +254,7 @@ async function giveKeyDialog(actor) {
      * WHICH KEYS ARE WORTH OFFERING DEPENDS ON WHO IS TAKING ONE. Their own
      * bedroom is not a key they need, and neither is one already on their ring.
      * So the list is built for a person and rebuilt when the person changes -
-     * the same rule as the carry counts in `giveItemDialog`.
+     * the same rule as the carry counts in `gmGiveItemDialog`.
      */
     const optionsFor = who => {
         const held = keysHeldBy(who);
@@ -232,7 +315,7 @@ async function giveKeyDialog(actor) {
 
     const who = game.actors.get(result.recipient) ?? initial;
     if (!result.room) {
-        ui.notifications.info(game.i18n.localize("DRPG.Vault.noKeysToGive"));
+        ui.notifications.warn(game.i18n.localize("DRPG.Vault.noKeysToGive"));
         return false;
     }
 
@@ -260,7 +343,7 @@ async function giveKeyDialog(actor) {
  * on a sheet is making a ruling, and being told "Crime Tools 1/1" is more useful
  * than being refused. Going over the cap is deliberate and flagged.
  */
-export async function giveItemDialog(actor) {
+export async function gmGiveItemDialog(actor) {
     // Truth Bullets have their own dialog. They share nothing with a physical
     // item but the word "give": no tier, no carry limit, and half a dozen fields
     // this form has no place for.
@@ -270,33 +353,34 @@ export async function giveItemDialog(actor) {
      * about somebody who is no longer getting the item is worse than a row
      * with no numbers on it at all.
      */
-    const categoriesFor = who => Object.entries(ITEM_CATEGORIES)
-        // Truth Bullets and keys both have windows of their own: one carries a
-        // secret this form has no fields for, the other names a room rather
-        // than being typed. Offering either here would produce an item that
-        // looks right and does nothing.
-        .filter(([key]) => key !== BULLET_CATEGORY && key !== "bedroomKey")
-        .flatMap(([key, cat]) => {
-            // The shared budget, where there is one: three rows drawing on
-            // three slots have to show the same number, or the GM reads "1/1"
-            // beside a free slot and believes it. See `capacityLabel`.
-            const group = cat.limitGroup ?? null;
-            const held = who
-                ? (group ? countInGroup(who, group) : countInCategory(who, key))
-                : null;
-            const limit = group ? LIMIT_GROUPS[group]?.limit : cat.limit;
-            const cap = held === null ? "" : (limit ? ` - ${held}/${limit}` : ` - ${held}`);
-            // A usable is a healing or a stress-relief item - that decides what
-            // it does when drunk, so the GM says which here rather than the
-            // player being asked later. Both halves share the one carry count:
-            // the inventory does not split the category, only the effect does.
-            if (key === "usable") {
-                return Object.entries(USABLE_KINDS).map(([kind, def]) =>
-                    `<option value="${key}:${kind}">${foundry.utils.escapeHTML(
-                        `${cat.label} - ${def.label}`)}${cap}</option>`);
-            }
-            return [`<option value="${key}">${foundry.utils.escapeHTML(cat.label)}${cap}</option>`];
-        }).join("");
+    /*
+     * The list itself comes from `pickableCategories` - the one place that
+     * decides which categories a form may offer, and which splits usables into
+     * Healing and Sanity Relief because that split IS what a usable does. This
+     * window had the split first and three others did not; sharing the list is
+     * what stops them drifting again (audit A22-A24).
+     *
+     * What stays here is the only thing that is this window's own: the carry
+     * count on each row.
+     *
+     * `foundry.utils.escapeHTML` rather than the local `esc`, which is declared
+     * further down this function - the first call to this closure happens
+     * before that line runs, so reaching for it would throw.
+     */
+    const categoriesFor = who => pickableCategories().map(choice => {
+        const cat = ITEM_CATEGORIES[choice.key];
+        // The shared budget, where there is one: rows drawing on the same
+        // slots have to show the same number, or the GM reads "1/1" beside a
+        // free slot and believes it. See `capacityLabel`.
+        const group = cat?.limitGroup ?? null;
+        const held = who
+            ? (group ? countInGroup(who, group) : countInCategory(who, choice.key))
+            : null;
+        const limit = group ? LIMIT_GROUPS[group]?.limit : cat?.limit;
+        const cap = held === null ? "" : (limit ? ` - ${held}/${limit}` : ` - ${held}`);
+        return `<option value="${choice.value}">${
+            foundry.utils.escapeHTML(choice.label)}${cap}</option>`;
+    }).join("");
 
     // Everyone this can be handed to. The one who came in from the hub is
     // selected; opened from the hub there is nobody, and the first student
@@ -326,21 +410,38 @@ export async function giveItemDialog(actor) {
     // and description come along, and a usable's kind is whatever its table
     // already says. (Dawid, 2026-08-26: create-new was the only mode, so every
     // give retyped an item the tables already knew.)
-    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
     const catalogue = moduleTables().filter(t => t.results.size);
-    const catalogueOptions = catalogue.map(table => {
+
+    /*
+     * THE TABLE FIRST, THEN WHAT IS IN IT (Dawid, 03.09).
+     *
+     * This was one select carrying every result of every table, with the table
+     * as an `<optgroup>` label. A world with the default set installed puts
+     * several hundred rows in it, so a GM who knew exactly which table they
+     * wanted still had to find one line inside a list of everything - and the
+     * category and tier beside it followed the ITEM, which is the wrong end:
+     * the table is what knows those two.
+     *
+     * Two selects, and the second is rebuilt from the first. The item options
+     * are built here rather than rendered hidden, because a `<select>` with
+     * hidden options is a control that reports values nobody can see.
+     */
+    const tableOptions = catalogue.map(table => {
         const cat = table.getFlag(MODULE_ID, "category") ?? "";
         const tier = table.getFlag(MODULE_ID, "tier");
         const goal = table.getFlag(MODULE_ID, "goal") ?? "";
-        return `<optgroup label="${esc(table.name)}">${Array.from(table.results).map(r =>
-            `<option value="${table.id}:${r.id}" data-category="${esc(cat)}" data-tier="${
-                tier ?? ""}" data-goal="${esc(goal)}">${esc(r.name ?? r.text ?? "")}</option>`
-        ).join("")}</optgroup>`;
+        return `<option value="${table.id}" data-category="${esc(cat)}" data-tier="${
+            tier ?? ""}" data-goal="${esc(goal)}">${esc(table.name)} (${table.results.size})</option>`;
     }).join("");
 
+    const itemOptionsFor = table => Array.from(table?.results ?? [])
+        .map(r => `<option value="${r.id}">${esc(r.name ?? r.text ?? "")}</option>`).join("");
+
     const existingPane = catalogue.length
-        ? `<label>${game.i18n.localize("DRPG.Items.pickExisting")}
-                <select name="existing">${catalogueOptions}</select></label>
+        ? `<label>${game.i18n.localize("DRPG.Items.pickTable")}
+                <select name="exTable">${tableOptions}</select></label>
+            <label>${game.i18n.localize("DRPG.Items.pickExisting")}
+                <select name="exItem">${itemOptionsFor(catalogue[0])}</select></label>
             <label>${game.i18n.localize("DRPG.Items.category")}
                 <select name="exCategory">${categories}</select></label>
             <label>${game.i18n.localize("DRPG.Items.tier")}
@@ -390,15 +491,27 @@ export async function giveItemDialog(actor) {
         render: (event, dialog) => {
             wirePanelTabs(dialog.element);
 
-            // The picked entry announces its table's category, tier and kind,
-            // and the two selects follow. They stay editable: a room pool's
-            // table says nothing, and there the GM's choice is the only one.
+            /*
+             * THE TABLE DRIVES THE OTHER THREE.
+             *
+             * Picking a table refills the item list and moves the category and
+             * tier to whatever that table is. All three stay editable
+             * afterwards: a room pool carries no category of its own, and there
+             * the GM's answer is the only one there is.
+             */
             const form = dialog.element.querySelector("form");
-            const existing = form?.elements?.existing;
-            if (!existing) return;
-            const sync = () => {
-                const opt = existing.selectedOptions?.[0];
+            const tableSelect = form?.elements?.exTable;
+            if (!tableSelect) return;
+
+            const syncFromTable = ({ refillItems = true } = {}) => {
+                const opt = tableSelect.selectedOptions?.[0];
                 if (!opt) return;
+
+                if (refillItems) {
+                    const table = game.tables.get(tableSelect.value);
+                    form.elements.exItem.innerHTML = itemOptionsFor(table);
+                }
+
                 const { category, tier, goal } = opt.dataset;
                 if (category) {
                     const value = category === "usable" && goal ? `${category}:${goal}` : category;
@@ -408,8 +521,11 @@ export async function giveItemDialog(actor) {
                 }
                 if (tier !== "") form.elements.exTier.value = tier;
             };
-            existing.addEventListener("change", sync);
-            sync();
+
+            tableSelect.addEventListener("change", () => syncFromTable());
+            // On open the item list is already right, so only the two
+            // read-along selects need moving.
+            syncFromTable({ refillItems: false });
 
             // Both category selects carry the counts, and both are rebuilt when
             // the recipient changes. The picked value is kept across the swap.
@@ -418,6 +534,8 @@ export async function giveItemDialog(actor) {
                 for (const name of ["category", "exCategory"]) {
                     const select = form.elements[name];
                     if (!select) continue;
+                    // The chosen value survives the swap - the options are
+                    // rebuilt for their counts, not for their identity.
                     const keep = select.value;
                     select.innerHTML = categoriesFor(who);
                     if ([...select.options].some(o => o.value === keep)) select.value = keep;
@@ -471,12 +589,17 @@ export async function giveItemDialog(actor) {
                     const active = d.element.querySelector(".drpg-gmt-section.active")
                         ?.dataset.drpgGmtSection ?? "create";
 
-                    if (active === "existing" && f.elements.existing) {
-                        const [tableId, resultId] = f.elements.existing.value.split(":");
+                    if (active === "existing" && f.elements.exTable) {
                         const [category, kind = null] = f.elements.exCategory.value.split(":");
-                        return { mode: "existing", tableId, resultId, category, kind,
-                                 tier: Number(f.elements.exTier.value), tell: f.elements.tell.checked,
-                                 recipient: f.elements.recipient?.value ?? null };
+                        return {
+                            mode: "existing",
+                            tableId: f.elements.exTable.value,
+                            resultId: f.elements.exItem.value,
+                            category, kind,
+                            tier: Number(f.elements.exTier.value),
+                            tell: f.elements.tell.checked,
+                            recipient: f.elements.recipient?.value ?? null
+                        };
                     }
 
                     // "usable:healing" carries the kind after the colon; the
@@ -634,7 +757,6 @@ function visibilityOptions(selected = "evident") {
  * map yet is a real thing to want.
  */
 async function giveTruthBulletDialog(actor) {
-    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
 
     const students = studentActors();
     const initial = actor ?? students[0] ?? null;
@@ -647,7 +769,8 @@ async function giveTruthBulletDialog(actor) {
         .map(a => `<option value="${a.id}"${a.id === initial.id ? " selected" : ""}>${
             esc(a.name)}</option>`).join("");
 
-    const { remnantsOn, remnantData, traceContextLine, setRemnantPublicById } =
+    const { remnantsOn, remnantData, traceContextLine, setRemnantPublicById,
+        markRemnantEditedById } =
         await import("./remnants.mjs");
 
     // The scene the GM is looking at. `remnantData` is GM-side by construction -
@@ -827,6 +950,8 @@ async function giveTruthBulletDialog(actor) {
         if (result.name !== pub?.name) {
             try {
                 await setRemnantPublicById(scene?.id, token.id, { name: result.name });
+                // Named by a GM, so it is decided (E7).
+                await markRemnantEditedById(scene?.id, token.id);
             } catch (err) {
                 error("Could not record the new name on the Remnant", err);
             }
@@ -981,7 +1106,30 @@ export async function issueAutopsyDialog() {
  * ========================================================================== */
 
 /** Remove one item the module knows about. */
-async function takeItemDialog(actor) {
+/**
+ * @param {Actor} [actor]        Whose pockets, as a default the window can change.
+ * @param {object} [options]
+ * @param {?string} [options.only]  One category key, or null for everything.
+ *   `"truthBullet"` is what the hub's second Take button passes: the same
+ *   window with everything else hidden, because removing a bullet means
+ *   finding one of three among fifteen things (Dawid, 03.09).
+ */
+async function takeItemDialog(actor, { only = null } = {}) {
+    // A key is a room fact, and the room's owner is asked below.
+    const { keyRoomOf, vaultOwnerOf } = await import("./vault.mjs");
+
+    /*
+     * A FILTERED WINDOW SAYS WHAT IT IS FILTERED TO. The title and the
+     * "nothing here" line both name the thing, or a GM who pressed "Take a
+     * Truth Bullet away" reads a window called "Take an item away", finds it
+     * empty and wonders where the rest of the pockets went.
+     */
+    const FILTERED = {
+        truthBullet: { title: "DRPG.TruthBullet.takeAway", empty: "DRPG.TruthBullet.noneToTake" },
+        bedroomKey: { title: "DRPG.Vault.takeKey", empty: "DRPG.Vault.noKeysToTake" }
+    };
+    const filtered = FILTERED[only] ?? null;
+
     const students = studentActors();
     const initial = actor ?? students[0] ?? null;
     if (!initial) {
@@ -998,13 +1146,21 @@ async function takeItemDialog(actor) {
      * ever looking wrong, which is the one failure worth writing code against.
      */
     const ownedFor = who => Object.keys(ITEM_CATEGORIES)
-        .flatMap(key => itemsInCategory(who, key).map(item => ({ item, category: key })));
+        .filter(key => !only || key === only)
+        .flatMap(key => itemsInCategory(who, key).map(item => ({ item, category: key })))
+        // Their own bedroom's key is not theirs to lose: the owner never needs
+        // it (`mayEnterBedroom`), and `reconcileBedroomKeys` hands it back at
+        // the next load. Offering it here would be a removal that quietly
+        // undoes itself.
+        .filter(({ item, category }) =>
+            category !== "bedroomKey" || vaultOwnerOf(keyRoomOf(item)) !== who.id);
 
     const optionsFor = who => {
         const owned = ownedFor(who);
         if (!owned.length) {
-            return `<option value="">${foundry.utils.escapeHTML(
-                game.i18n.format("DRPG.Items.nothingToTake", { actor: who.name }))}</option>`;
+            return `<option value="">${foundry.utils.escapeHTML(game.i18n.format(
+                filtered?.empty ?? "DRPG.Items.nothingToTake",
+                { actor: who.name }))}</option>`;
         }
         return owned.map(({ item, category }) => {
             // A Truth Bullet carries `tier: null` on purpose, and `!== undefined`
@@ -1022,9 +1178,13 @@ async function takeItemDialog(actor) {
             foundry.utils.escapeHTML(a.name)}</option>`).join("");
 
     const result = await DialogV2.wait({
-        window: { title: actor
-            ? game.i18n.format("DRPG.Items.takeFrom", { actor: actor.name })
-            : game.i18n.localize("DRPG.Items.take") },
+        // The title says which of the three buttons opened this - see
+        // `FILTERED` above.
+        window: { title: filtered
+            ? game.i18n.localize(filtered.title)
+            : actor
+                ? game.i18n.format("DRPG.Items.takeFrom", { actor: actor.name })
+                : game.i18n.localize("DRPG.Items.take") },
         classes: ["drpg-panel"],
         content: `<form>
             <label>${game.i18n.localize("DRPG.Items.takeFromWhom")}

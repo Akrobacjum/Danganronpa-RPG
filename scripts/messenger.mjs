@@ -104,6 +104,12 @@ export function lastReadAt(playerUserId) {
 }
 
 export async function markThreadRead(playerUserId) {
+    // Only when there is something to mark (audit D6). The window calls this
+    // on every render and every new bubble; a thread already read up to its
+    // newest message has nothing to record, and the write plus the hook it
+    // fires repainted the launcher for nothing each time.
+    const newest = Math.max(0, ...threadMessages(playerUserId).map(m => m.timestamp ?? 0));
+    if (lastReadAt(playerUserId) >= newest) return;
     const map = { ...readMap(), [playerUserId]: Date.now() };
     await game.settings.set(MODULE_ID, SETTINGS.messengerLastRead, map);
     Hooks.callAll("drpgMessengerRead", playerUserId);

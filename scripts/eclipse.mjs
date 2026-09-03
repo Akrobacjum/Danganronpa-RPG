@@ -16,11 +16,15 @@
  * advance while one is running; it sits between them.
  */
 
-import { MODULE_ID, FLAGS, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, TIMES_OF_DAY } from "./config.mjs";
-import { SETTINGS } from "./settings.mjs";
+import { MODULE_ID, FLAGS, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT } from "./config.mjs";
+import { SETTINGS, isEclipse, incomingTimeOfDay } from "./settings.mjs";
+// Both defined in settings.mjs, the leaf every side of this file's import
+// cycles can reach (audit C3); re-exported so nothing that imports them from
+// here has to know that.
+export { isEclipse, incomingTimeOfDay };
 import { getClock, setClock, timeOfDayLabel } from "./clock.mjs";
 import { roomOfActor, neighbouringRooms } from "./movement.mjs";
-import { announce, whisperToOwner, whisperToOwnerOnly, whisperToGms, dialogContent, log, error, plural, cardHead } from "./utils.mjs";
+import { announce, whisperToOwner, whisperToOwnerOnly, whisperToGms, dialogContent, log, error, plural, cardHead, esc} from "./utils.mjs";
 import { overflowCrossings } from "./overflow.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -40,13 +44,6 @@ export { ECLIPSE_MOVES };
  * five let you start anywhere on the map (see ECLIPSE_FREE_PLACEMENT); the
  * other three are the handbook's two connected rooms.
  * ========================================================================== */
-
-/** The time of day a running (or about-to-run) Eclipse leads into. */
-export function incomingTimeOfDay(clock = getClock()) {
-    const index = TIMES_OF_DAY.indexOf(clock.timeOfDay);
-    if (index < 0) return TIMES_OF_DAY[0];
-    return TIMES_OF_DAY[(index + 1) % TIMES_OF_DAY.length];
-}
 
 /** "Morning Eclipse", "Night Eclipse" - what this placement window is called. */
 export function eclipseLabel(clock = getClock()) {
@@ -91,11 +88,6 @@ export function movesLeft(actor) {
     return Math.max(0, allowance - movesUsed(actor));
 }
 
-/** Is an Eclipse running right now? */
-export function isEclipse() {
-    return getClock().eclipse === true;
-}
-
 
 /* ==========================================================================
  * STARTING AND ENDING
@@ -138,7 +130,7 @@ export function isEclipse() {
 export async function startEclipse() {
     if (!game.user.isGM) return null;
     if (isEclipse()) {
-        ui.notifications.info(game.i18n.localize("DRPG.Eclipse.already"));
+        ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.already"));
         return null;
     }
 
@@ -190,8 +182,14 @@ export async function startEclipse() {
 
     // Read before the clock moves, which it will not until this Eclipse ends -
     // so these describe the time of day being opened, not the one just closed.
-    const free = isFreePlacement();
+    //
+    // `free` comes off the ALLOWANCE rather than off the calendar, the same
+    // correction `judgeEclipseCrossing` carries and for the same reason: a
+    // darkened free-placement Eclipse is worth two crossings, and announcing
+    // "pick any room on the map" while the rules hand out two is the module
+    // telling the table something it will refuse a moment later.
     const allowance = eclipseAllowance();
+    const free = allowance === null;
 
     const refillNote = refilled.length
         ? `<p><em>${plural("DRPG.Clock.actionsRefilled",
@@ -544,7 +542,6 @@ async function judgePendingMurders() {
  * escape key must not open one.
  */
 async function askAtTheLights(killer, victim, room, parked) {
-    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
     try {
         return Boolean(await DialogV2.confirm({
             classes: ["drpg-panel"],
@@ -624,11 +621,23 @@ function placingActors() {
 export async function judgeEclipseCrossing(actor, from, to) {
     if (!isEclipse()) return true;
 
-    // A Morning or Night Eclipse is "pick any room to begin in": no budget and
-    // no adjacency. Both checks below are skipped rather than given a very large
-    // number, because the rule is not "many crossings" - it is that you are
-    // placing a token, not walking a route.
-    const free = isFreePlacement();
+    /*
+     * A Morning or Night Eclipse is "pick any room to begin in": no budget and
+     * no adjacency. Both checks below are skipped rather than given a very large
+     * number, because the rule is not "many crossings" - it is that you are
+     * placing a token, not walking a route.
+     *
+     * READ OFF THE ALLOWANCE, NOT OFF THE CALENDAR (audit A2). It used to ask
+     * `isFreePlacement()`, which answers about the time of day alone - so a
+     * darkened free-placement Eclipse skipped every check here while
+     * `eclipseAllowance()` was telling the sheet, the placement table and the
+     * announcement that two crossings were all anybody had. `freeBecomes` in
+     * OVERFLOW was a number nothing enforced. Asking the allowance is asking
+     * the same question the rest of the file already asks, and `null` still
+     * means what it always meant.
+     */
+    const allowance = eclipseAllowance();
+    const free = allowance === null;
 
     if (!free) {
         const left = movesLeft(actor);
@@ -672,9 +681,13 @@ export async function judgeEclipseCrossing(actor, from, to) {
     await whisperToOwnerOnly(actor, `${cardHead({ action: eclipseLabel(), room: to })}<p>${
         free
             ? game.i18n.format("DRPG.Eclipse.movedFree", { room })
+            // The ALLOWANCE, not the constant: under a darkening the two
+            // crossings are worth one, and this card was the one place still
+            // counting down from two - so a player was told "1 left" by the
+            // same window that had just refused them.
             : plural("DRPG.Eclipse.moved", {
                 room,
-                left: Math.max(0, ECLIPSE_MOVES - used)
+                left: Math.max(0, allowance - used)
             }, "left")
     }</p>`);
 

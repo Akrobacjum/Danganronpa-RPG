@@ -18,8 +18,11 @@
  * what there is to do, in the order a season is actually built.
  */
 
+// `ROOMS_PER_PLAYER` is not read here any more: the ratio and its rounding
+// live in `roomsWantedFor`, so both screens that print it agree by
+// construction (audit A21).
 import {
-    MODULE_ID, FLAGS, STARTING, ITEM_CATEGORIES, CHAPTERS_PER_SEASON, ROOMS_PER_PLAYER
+    MODULE_ID, FLAGS, STARTING, ITEM_CATEGORIES, CHAPTERS_PER_SEASON
 } from "./config.mjs";
 import { SETTINGS, DEFAULT_SAFEWORD, setSetting } from "./settings.mjs";
 import { safeword } from "./safeword.mjs";
@@ -27,9 +30,13 @@ import { getClock, setClock } from "./clock.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { monokumaFor } from "./assignments.mjs";
 import { listExperiences, initCharacter } from "./character.mjs";
+import { carriableCategories } from "./inventory.mjs";
+// Static, and safe to be: vault.mjs never reaches back here, and `steps()` is
+// synchronous - a `done` that had to await could not answer at all.
+import { sharedRooms, roomsWantedFor } from "./vault.mjs";
 import { monokumas } from "./despair.mjs";
 import { mastermindActor } from "./mastermind.mjs";
-import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG } from "./utils.mjs";
+import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG, esc} from "./utils.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
 import { NOTE_FLAG } from "./pre-session-note.mjs";
 import { alreadyOpen } from "./live.mjs";
@@ -73,6 +80,13 @@ function roleName(role) {
  * Sakura" rather than "not ready" - the GM's next action is on that list, and a
  * count with no names is a second lookup.
  */
+
+/** Is this student carrying anything that counts as their opening item? */
+function hasOpeningItem(actor) {
+    const carriable = carriableCategories();
+    return actor.items.some(i => carriable.includes(i.getFlag(MODULE_ID, "category")));
+}
+
 function steps() {
     const roster = studentActors();
     const clock = getClock();
@@ -132,10 +146,14 @@ function steps() {
         },
         {
             key: "items",
-            done: roster.every(a => a.items.some(i =>
-                Object.keys(ITEM_CATEGORIES).includes(i.getFlag(MODULE_ID, "category")))),
-            missing: () => roster.filter(a => !a.items.some(i =>
-                Object.keys(ITEM_CATEGORIES).includes(i.getFlag(MODULE_ID, "category")))).map(a => a.name),
+            /*
+             * A KEY IS NOT AN OPENING ITEM (audit A25). This counted every
+             * category, and assigning somebody a bedroom hands them a key - so
+             * every student with a room passed this row carrying nothing else.
+             * `carriableCategories` is the list without keys and bullets.
+             */
+            done: roster.every(hasOpeningItem),
+            missing: () => roster.filter(a => !hasOpeningItem(a)).map(a => a.name),
             open: async () => (await import("./gm-items.mjs")).openItemManager()
         },
         {
@@ -181,17 +199,23 @@ function steps() {
             key: "roomCount",
             optional: true,
             inline: true,
-            done: (workingScene()?.regions?.size ?? 0)
-                >= Math.ceil(roster.length * ROOMS_PER_PLAYER),
+            /*
+             * SHARED ROOMS, NOT EVERY REGION (audit A21). This counted
+             * `regions.size` - bedrooms, corridors and any unnamed shape
+             * somebody drew - so a map could pass the row on regions that
+             * cannot host a private conversation, which is the only thing the
+             * ratio is about. `sharedRooms` and `roomsWantedFor` are the same
+             * two answers Room Setup's own line prints, so the two screens can
+             * no longer disagree about one map.
+             */
+            done: sharedRooms().length >= roomsWantedFor(roster.length),
             missing: () => [],
-            extra: () => {
-                const rooms = workingScene()?.regions?.size ?? 0;
-                const want = Math.ceil(roster.length * ROOMS_PER_PLAYER);
-                return `<div class="notes">${foundry.utils.escapeHTML(
-                    game.i18n.format("DRPG.Season.roomCountLine", {
-                        rooms, players: roster.length, want
-                    }))}</div>`;
-            }
+            extra: () => `<div class="notes">${foundry.utils.escapeHTML(
+                game.i18n.format("DRPG.Season.roomCountLine", {
+                    rooms: sharedRooms().length,
+                    players: roster.length,
+                    want: roomsWantedFor(roster.length)
+                }))}</div>`
         },
         {
             key: "rooms",
@@ -300,7 +324,6 @@ export async function openSeasonSetup() {
 
     const clock = getClock();
     const list = steps();
-    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
 
     const rows = list.map(step => {
         const names = step.done ? [] : step.missing();
@@ -611,7 +634,6 @@ export async function resetSeason() {
 
     const tally = resetTally();
     const word = game.i18n.localize("DRPG.Season.resetWord");
-    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
 
     const typed = await DialogV2.wait({
         classes: ["drpg-panel"],

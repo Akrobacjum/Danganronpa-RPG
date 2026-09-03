@@ -245,6 +245,28 @@ export const SETTINGS = {
      * come out anyway.
      */
     murderState: "murderState",
+    /**
+     * WHO IS IN THE INCIDENT. Client-scoped, and that is the whole point.
+     *
+     * `murderState` above keeps the mechanics - the stage, whose turn it is,
+     * what is blocked, what has been spent - because both participants need
+     * those live and a socket round trip per turn would leave the table
+     * sitting in silence. What it must NOT keep is the names, and it used to:
+     * `killerId` sat in a world setting, and world data reaches every client,
+     * so any player could read the killer out of their own console before the
+     * body was found. That is LIVE-001, and this is the half that closes it.
+     *
+     * Held here by every GM (synced GM to GM, like the Truth Bullet answer key
+     * and the Mastermind) and by the participants themselves, each sent their
+     * copy over a recipient-addressed socket. A student who is not in the
+     * incident receives nothing at all, not an empty envelope.
+     *
+     * Participants get the WHOLE cast rather than only their own role, which is
+     * exactly what they could see before this change - they already read each
+     * other's rolls through `incidentAudience`. Narrowing it further is a rules
+     * question about what the victim may know and when, not a leak.
+     */
+    incidentCast: "incidentCast",
     pendingMurders: "pendingMurders",
     /**
      * Who has killed in THIS chapter, in the order they did it.
@@ -255,11 +277,20 @@ export const SETTINGS = {
      * the engine had known it exactly. A chapter with two incidents, which the
      * betrayal rule makes ordinary, meant remembering two.
      *
-     * GM-visible data by nature: it names the killer. It is world-scoped
-     * because every GM screen that reads it has to agree, and world settings
-     * reach every client - so nothing here is shown to players. See the note in
-     * `openVerdictDialog`.
+     * It names the killer, so it is client-scoped and synced GM to GM, the same
+     * road `incidentCast` and the Mastermind take.
+     *
+     * It was world-scoped, on the reasoning that every GM screen reading it has
+     * to agree - which is true and is not an argument for world data, only for
+     * synchronisation. The cost was that closing the incident moved the killer's
+     * name from one world setting to another and left it readable by the whole
+     * table for the rest of the chapter, which is the half of LIVE-001 that
+     * survived the first fix. See `openVerdictDialog`.
+     *
+     * `blackened` below it is the old world key, kept registered so a world
+     * upgrading mid-chapter can be read once and emptied. Nothing writes it.
      */
+    blackenedLedger: "blackenedLedger",
     blackened: "blackened",
     /**
      * The speaking queue during a Class Trial: who has the floor and since when.
@@ -730,6 +761,35 @@ export function registerSettings() {
     });
 
     /*
+     * THE TWO CLIENT-SCOPED HALVES OF LIVE-001.
+     *
+     * `incidentCast` carries an `onChange`, and it has to: a participant's copy
+     * arrives over a socket AFTER the world state that goes with it, so the
+     * screen that already repainted for the stage change has to repaint again
+     * once it knows whose side this player is on. Without it a killer's own
+     * sheet would show the bystander's view until something else happened to
+     * redraw it. `applyFor` is keyed by setting name and does not care that
+     * this one is client-scoped.
+     *
+     * `blackenedLedger` carries none, for the same reason `blackened` never
+     * did: no surface holds it. The verdict window asks for it when it opens.
+     */
+    game.settings.register(MODULE_ID, SETTINGS.incidentCast, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => onWorldChange(SETTINGS.murderState)
+    });
+
+    game.settings.register(MODULE_ID, SETTINGS.blackenedLedger, {
+        scope: "client",
+        config: false,
+        type: Array,
+        default: []
+    });
+
+    /*
      * Z10. Registered in the SAME build as the code that reads them - trap 7:
      * a key read by a build that never registered it costs the world its data,
      * and splitting a setting from its first reader buys nothing but the risk
@@ -991,6 +1051,67 @@ export function registerSettings() {
  */
 function onWorldChange(key) {
     import("./sync.mjs").then(m => m.applyFor(key)).catch(() => {});
+}
+
+/**
+ * Who is in the incident, as a bare list of actor ids.
+ *
+ * HERE, AND NOT IN murder.mjs, for exactly the reason `iAmTheMastermind` lives
+ * in this file: movement.mjs and private-rolls.mjs both need it, both are
+ * imported by murder.mjs's own graph, and an import the other way would be a
+ * cycle. This file is a leaf and reads the client-scoped store directly.
+ *
+ * Both callers used to read `SETTINGS.murderState` themselves and pick
+ * `killerId`, `victimId` and `thirdId` out of it. Those names left world data
+ * with LIVE-001, so the list comes from `incidentCast` now - which means a
+ * bystander's client gets an empty array, and that is the whole point: a
+ * student who is not in the incident is not stopped from walking, and their
+ * rolls are not whispered to anybody.
+ *
+ * A LIST, not the roles. Neither caller ever needed to know which of the three
+ * is the killer - one asks "is this actor one of them" and the other asks "who
+ * are the others" - so neither is given the answer.
+ */
+export function incidentParticipants() {
+    try {
+        const cast = game.settings.get(MODULE_ID, SETTINGS.incidentCast) ?? {};
+        return [cast.killerId, cast.victimId, cast.thirdId].filter(Boolean);
+    } catch {
+        return [];
+    }
+}
+
+/*
+ * THE CLOCK'S THREE LEAF READERS (audit C3).
+ *
+ * `getClock`, `isEclipse` and `incomingTimeOfDay` each had two or three
+ * private copies - in overflow.mjs, fog.mjs, visibility.mjs, hud.mjs and
+ * movement.mjs - every one with the same note beside it: clock.mjs and
+ * eclipse.mjs import the file that needs the answer, so importing them back
+ * would close a cycle. The copies were right about the cycle and wrong about
+ * the cure. This file imports config.mjs and nothing else, so it is where a
+ * reader lives when both ends of a cycle need it. clock.mjs and eclipse.mjs
+ * re-export these under the names everything already imports from them.
+ */
+
+/** The clock, every field present. */
+export function getClock() {
+    return { ...DEFAULT_CLOCK, ...(game.settings.get(MODULE_ID, SETTINGS.clock) ?? {}) };
+}
+
+/** Is an Eclipse running right now? False rather than a throw before `ready`. */
+export function isEclipse() {
+    try {
+        return game.settings.get(MODULE_ID, SETTINGS.clock)?.eclipse === true;
+    } catch {
+        return false;
+    }
+}
+
+/** The time of day a running (or about-to-run) Eclipse leads into. */
+export function incomingTimeOfDay(clock = getClock()) {
+    const index = TIMES_OF_DAY.indexOf(clock?.timeOfDay);
+    return TIMES_OF_DAY[(index < 0 ? 0 : index + 1) % TIMES_OF_DAY.length];
 }
 
 /** Convenience reader. */

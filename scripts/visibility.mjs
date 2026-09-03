@@ -19,7 +19,7 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { SETTINGS } from "./settings.mjs";
+import { SETTINGS, isEclipse } from "./settings.mjs";
 import { roomOfToken } from "./movement.mjs";
 import { REMNANT_FLAGS, keyOf as remnantKeyOf } from "./remnants.mjs";
 import { TRUTH_BULLET_FLAGS, bulletsOf } from "./truth-bullets.mjs";
@@ -321,28 +321,20 @@ function show(token) {
  * could see them stand in: the token itself never appeared during an Eclipse,
  * but the line leading to where it stopped gave the room away anyway.
  *
- * SPIKE NEEDED, NOT YET CONFIRMED LIVE: the property this trail lives on is
- * not public API and is not the same name across Foundry builds - `ruler` in
- * some v13+ builds, `dragRuler` in others, possibly namespaced differently
- * again in v14. Every plausible name is tried and hidden defensively so this
- * fails safe (nothing to hide, nothing happens) rather than throwing; before
- * relying on this, open a v14 world with an Eclipse running, drag a token as
- * one player while watching as another, and confirm in the console which of
- * these actually holds the trail - then delete the branches that do not.
+ * CONFIRMED ON 14.365 (sandbox, 03.09; audit Q9): the trail is `token.ruler`,
+ * an own property holding the token's ruler object, and it has a `visible`
+ * flag. The three other names this used to try - `dragRuler`, `_ruler`,
+ * `movementRuler` - do not exist on the token at all, so they are gone. Still
+ * guarded, because the property is not public API: a build that renames it
+ * fails safe (nothing to hide, nothing happens) rather than throwing.
+ *
+ * What the sandbox could NOT show is the trail as another player sees it
+ * during a real drag - the browser tool cannot drag the PIXI canvas. One drag
+ * at the table, watched from a second seat, is what remains.
  */
 function hideMovementTrail(token) {
-    for (const key of ["ruler", "dragRuler", "_ruler", "movementRuler"]) {
-        const trail = token[key];
-        if (trail && typeof trail === "object" && "visible" in trail) trail.visible = false;
-    }
-}
-
-function isEclipse() {
-    try {
-        return game.settings.get(MODULE_ID, SETTINGS.clock)?.eclipse === true;
-    } catch {
-        return false;
-    }
+    const trail = token.ruler;
+    if (trail && typeof trail === "object" && "visible" in trail) trail.visible = false;
 }
 
 function enforcing() {

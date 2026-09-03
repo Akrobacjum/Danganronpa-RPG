@@ -8,12 +8,13 @@
  *     game.drpg.diagnoseCharacters()  who has not been set up yet
  */
 
-import { MODULE_ID, moduleVersion, STARTING, ITEM_CATEGORIES } from "./config.mjs";
+import { MODULE_ID, moduleVersion, STARTING } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
 import { monokumas, getDespair, despairMax } from "./despair.mjs";
 import { monokumaFor, students, unassigned } from "./assignments.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { listExperiences } from "./character.mjs";
+import { carriableCategories } from "./inventory.mjs";
 import { competingModuleWarnings } from "./voice.mjs";
 import { isPrimaryGm, log } from "./utils.mjs";
 
@@ -895,26 +896,62 @@ export function traceClicks({ seconds = 20 } = {}) {
  * replaced some files and not others looks exactly like a deployment that
  * worked.
  */
+/**
+ * Every script the module actually loads, crawled from its entry point.
+ *
+ * NOT A LIST (A15). This used to name twelve files by hand, which is the one
+ * shape this tool must not have: it answers "I updated it and the fix is still
+ * not there", and the file somebody just changed was the file most likely to be
+ * missing from the twelve. `tests.mjs` crawls for the same reason and says so -
+ * "a list is the thing that rots".
+ *
+ * Dynamic imports are followed too, and the same regex `tests.mjs` uses says
+ * so: `from` OR `import(`. A file behind a lazy import is exactly the kind
+ * somebody edits and then cannot see the change in, which is the question this
+ * whole report exists to answer - leaving those four out would have put the
+ * blind spot back in a different place.
+ *
+ * The four fixed entries below are the ones no script imports and every world
+ * needs.
+ */
+async function loadedFiles() {
+    const scripts = new Set();
+    const queue = ["module.mjs"];
+    while (queue.length) {
+        const file = queue.pop();
+        if (scripts.has(file)) continue;
+        let text = null;
+        try {
+            const res = await fetch(`modules/${MODULE_ID}/scripts/${file}`);
+            if (res.ok) text = await res.text();
+        } catch {
+            // A file that will not load is what this report is for. Recorded
+            // below as a failed fetch rather than dropped here.
+        }
+        scripts.add(file);
+        if (text === null) continue;
+        for (const m of text.matchAll(/(?:from|import\()\s*"\.\/([\w-]+\.mjs)"/g)) {
+            queue.push(m[1]);
+        }
+    }
+
+    return [
+        "module.json",
+        "lang/en.json",
+        "styles/danganronpa.css",
+        "styles/motion.css",
+        ...[...scripts].sort().map(name => `scripts/${name}`)
+    ];
+}
+
 export async function fileSizes() {
     const lines = [];
-    const files = [
-        "module.json",
-        "styles/motion.css",
-        "styles/danganronpa.css",
-        "scripts/motion.mjs",
-        "scripts/config.mjs",
-        "scripts/action-rolls.mjs",
-        "scripts/sheet.mjs",
-        "scripts/gm-panel.mjs",
-        "scripts/diagnostics.mjs",
-        "scripts/stacking.mjs",
-        "scripts/hud.mjs",
-        "lang/en.json"
-    ];
+    const files = await loadedFiles();
 
     lines.push(`Danganronpa RPG v${moduleVersion()}, `
         + `stylesheet v${stylesheetVersion() || "(none)"}`);
     lines.push(`Host: ${location.origin}`);
+    lines.push(`${files.length} files, crawled from module.mjs`);
     lines.push("");
 
     for (const file of files) {
@@ -1129,6 +1166,7 @@ export function diagnoseCharacters({ toChat = true } = {}) {
      * of those is invisible until the moment it matters: the first roll that
      * wants an experience, the first Despair award with nowhere to go.
      */
+    const carriable = carriableCategories();
     const missingUltimate = [];
     const missingExperiences = [];
     const missingItem = [];
@@ -1142,8 +1180,12 @@ export function diagnoseCharacters({ toChat = true } = {}) {
             missingExperiences.push(`${actor.name} (${experiences.length}/${STARTING.experiences})`);
         }
 
+        // Keys and Truth Bullets excluded - see `carriableCategories` (audit
+        // A25). This is the same question Season setup's "items" row asks, and
+        // the two have to give the same answer or the checklist argues with
+        // the window it sends you to.
         const carried = actor.items.filter(i =>
-            Object.keys(ITEM_CATEGORIES).includes(i.getFlag(MODULE_ID, "category")));
+            carriable.includes(i.getFlag(MODULE_ID, "category")));
         if (!carried.length) missingItem.push(actor.name);
 
         if (!monokumaFor(actor)) unwatched.push(actor.name);

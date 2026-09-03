@@ -62,15 +62,18 @@ export const SECRET_FLAG = "secret";
  * reaches a recipient's screen - the render hook replaces it - so its only
  * audience is somebody reading the database, and what it tells them is nothing.
  */
-const STUB = '<p class="notes" data-drpg-secret>&mdash;</p>';
+const STUB = '<p class="notes" data-drpg-secret>-</p>';
 
 /**
  * Is this card's document still clean?
  *
  * BY MARK, NOT BY STRING EQUALITY, and the first run of the suite is why:
- * Foundry normalises the HTML it stores, so `&mdash;` comes back as an em dash
- * and a straight comparison against STUB reported the module leaking its own
- * stub. The attribute survives whatever the round trip does to the text.
+ * Foundry normalises the HTML it stores, so the stub's own text came back
+ * changed and a straight comparison against STUB reported the module leaking
+ * its own stub. The attribute survives whatever the round trip does to the
+ * text. (The text used to be an em-dash HTML entity, which is exactly the kind
+ * of round trip that put back the character the module does not want anywhere;
+ * it is a plain hyphen now.)
  */
 const isStub = content => String(content ?? "").includes("data-drpg-secret");
 

@@ -10,7 +10,7 @@
  *   the body is found   traces that were doubtful become permanent, everyone is
  *                       called to the scene, and the phase turns to Investigation
  *   the chapter ends    every Truth Bullet gives up what it really was
- *   the session starts  the evidence is cleared out, Faint excepted
+ *   the GM sweeps       the evidence is cleared out, Faint excepted
  *
  * All three are GM buttons rather than clock triggers, and deliberately so. Two
  * of them delete things that cannot be brought back, and the moment a chapter
@@ -18,6 +18,12 @@
  * execution, when the table is ready - not a number ticking over. A sweep that
  * fired by itself because somebody nudged the session counter would be the
  * worst bug this module could have.
+ *
+ * That is the one place this file departs from the page above it. The guide
+ * puts the sweep at the start of the next session; here it is a button in the
+ * Investigation Dashboard and the session counter does not touch it. The
+ * reasoning, and the season run behind it, is written out over
+ * `sweepTruthBullets` at the bottom of this file.
  *
  * Everything here runs on a GM client: the answer key lives there (see D6 and
  * truth-bullets.mjs), and only a GM may write to another player's sheet.
@@ -55,9 +61,11 @@ export function livingStudents() {
 /**
  * Kill a character.
  *
- * Decision D1, in one procedure: everything they were carrying goes, Truth
- * Bullets included, and the answer-key entries go with the bullets so the
- * ledger does not fill up with rows nothing can ever reach again.
+ * What perishes is the Truth Bullets - carried and stashed alike - and the
+ * answer-key entries go with them, so the ledger does not fill up with rows
+ * nothing can ever reach again. Everything else they owned stays on the sheet
+ * to be found on the body; decision D1 used to take that too, and no longer
+ * does (see the long note inside).
  *
  * Quiet on purpose. A murder is a secret until somebody finds the body - the
  * announcement belongs to `discoverBody`, not here. Only the GMs are told.
@@ -68,11 +76,12 @@ export function livingStudents() {
  *
  * @param {Actor} actor
  * @param {object} [options]
- * @param {boolean} [options.keepItems]  Leave the inventory alone. For a death
- *   that is not a killing-game murder - a retcon, a test - where D1's "it all
- *   vanishes" would just be destructive.
+ * @param {boolean} [options.keepBullets]  Leave the Truth Bullets alone. For a
+ *   death that is not a killing-game murder - a retcon, a test - where taking
+ *   somebody's conclusions away would just be destructive. The belongings stay
+ *   either way.
  */
-export async function killCharacter(actor, { keepItems = false } = {}) {
+export async function killCharacter(actor, { keepBullets = false } = {}) {
     if (!game.user.isGM || !actor) return null;
     if (isDeceased(actor)) {
         ui.notifications.warn(game.i18n.format("DRPG.Chapter.alreadyDead", { name: actor.name }));
@@ -96,7 +105,7 @@ export async function killCharacter(actor, { keepItems = false } = {}) {
      * that pays.
      */
     let removed = 0;
-    if (!keepItems) {
+    if (!keepBullets) {
         // The ledger entries first, while the items still exist to be read.
         for (const bullet of bulletsOf(actor)) await dropSecret(bullet.uuid);
 
@@ -167,13 +176,13 @@ export async function killCharacter(actor, { keepItems = false } = {}) {
             name: foundry.utils.escapeHTML(actor.name),
             chapter: record.chapter
         })}</p>
-        ${keepItems ? "" : `<p>${plural("DRPG.Chapter.itemsGone", { n: removed })}</p>`}
+        ${keepBullets ? "" : `<p>${plural("DRPG.Chapter.bulletsGone", { n: removed })}</p>`}
         <p><small>${game.i18n.localize("DRPG.Chapter.vaultPending")}</small></p>`, {
         whisper: deathAudience ?? gmIds(),
         flags: { [MODULE_ID]: { sfx: { key: "death", gm: true } } }
     });
 
-    log(`${actor.name} is dead (chapter ${record.chapter}); ${removed} item(s) removed.`);
+    log(`${actor.name} is dead (chapter ${record.chapter}); ${removed} Truth Bullet(s) destroyed.`);
 
     // The VICTIM of the running incident died - and only then (Dawid, 26.08):
     // the chapter's traces are the case now, so they arrive in the
@@ -297,8 +306,8 @@ export async function openDeathDialog({ actor = null } = {}) {
         content: dialogContent(`<form>
             ${picker}
             <label class="drpg-checkbox">
-                <input type="checkbox" name="keepItems" />
-                ${game.i18n.localize("DRPG.Chapter.keepItems")}</label>
+                <input type="checkbox" name="keepBullets" />
+                ${game.i18n.localize("DRPG.Chapter.keepBullets")}</label>
             <p class="notes">${game.i18n.localize("DRPG.Chapter.deathNote")}</p>
         </form>`),
         buttons: [
@@ -306,7 +315,7 @@ export async function openDeathDialog({ actor = null } = {}) {
                 action: "ok", label: game.i18n.localize("DRPG.Chapter.confirmDeath"), default: true,
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
-                    return { id: actor?.id ?? f.actor.value, keepItems: f.keepItems.checked };
+                    return { id: actor?.id ?? f.actor.value, keepBullets: f.keepBullets.checked };
                 }
             },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
@@ -318,7 +327,7 @@ export async function openDeathDialog({ actor = null } = {}) {
 
     const dying = game.actors.get(result.id);
     if (!dying) return false;
-    return Boolean(await killCharacter(dying, { keepItems: result.keepItems }));
+    return Boolean(await killCharacter(dying, { keepBullets: result.keepBullets }));
 }
 
 /* ==========================================================================

@@ -72,7 +72,7 @@ import { SETTINGS, getSetting } from "./settings.mjs";
 import { registerApi } from "./api.mjs";
 import { requirementsMet, announceMissingRequirements } from "./requirements.mjs";
 import { warnAboutPageTinting, verifyStylesheet } from "./diagnostics.mjs";
-import { log, error, injectSelectPickerSkin, registerTextGuard } from "./utils.mjs";
+import { log, error, injectSelectPickerSkin, registerTextGuard, isPrimaryGm } from "./utils.mjs";
 
 /** Minimum Daggerheart version this layer was written against. */
 const REQUIRED_SYSTEM = "daggerheart";
@@ -282,7 +282,15 @@ Hooks.once("ready", () => {
  * when there is nothing to change.
  */
 function refreshTableCopyOnLoad() {
-    if (!game.user.isGM) return;
+    // ONE CLIENT, NOT EVERY GM (audit A12). All four of these load-time passes
+    // WRITE - tables, actors, items, a world setting - and with two Monokumas
+    // at the table they were each running twice on the same documents at the
+    // same moment. Same rule and same reason as `runMigrationOnLoad`.
+    //
+    // The gate is here rather than inside the functions on purpose: all four are
+    // on `game.drpg` as repair routes, and a GM running one by hand must not be
+    // refused because another GM's client happens to sort first.
+    if (!isPrimaryGm()) return;
 
     import("./tables.mjs")
         .then(m => m.refreshTableCopy())
@@ -298,7 +306,9 @@ function refreshTableCopyOnLoad() {
  * `reconcileRemnantActor` in remnants.mjs.
  */
 function reconcileRemnantActorOnLoad() {
-    if (!game.user.isGM) return;
+    // One client - see `refreshTableCopyOnLoad`. `adoptQuestionMark` inside it
+    // already asked this for its own sweep; the ownership raise did not.
+    if (!isPrimaryGm()) return;
 
     import("./remnants.mjs")
         .then(m => m.reconcileRemnantActor())
@@ -317,7 +327,9 @@ function reconcileRemnantActorOnLoad() {
  * Silent, and writes nothing when nothing is missing.
  */
 function issueMissingKeys() {
-    if (!game.user.isGM) return;
+    // One client - see `refreshTableCopyOnLoad`. Two GMs reaching this together
+    // is two clients creating the same key on the same actor.
+    if (!isPrimaryGm()) return;
 
     import("./vault.mjs")
         .then(m => m.reconcileBedroomKeys())
@@ -338,9 +350,28 @@ function issueMissingKeys() {
 function sealProjects() {
     if (!game.user.isGM) return;
 
-    const reseal = () => import("./projects.mjs")
-        .then(m => m.resealSecretProjects())
-        .catch(err => error("Could not re-seal the secret projects", err));
+    /*
+     * ONE CLIENT DOES THE WRITING (audit A12), and the check is INSIDE the
+     * closure rather than in front of the hook.
+     *
+     * This is the worst of the four to run twice: `writeCountdown` reads the
+     * whole Countdowns setting, changes one entry and writes the whole thing
+     * back, so two GMs resealing together is a lost update - one of them
+     * overwrites the other's ownership map, on the one record whose whole
+     * purpose is hiding a murder plan.
+     *
+     * Gating the hook REGISTRATION instead would trade that for a worse hole:
+     * a GM who was not primary at load would never listen for `createUser` at
+     * all, so if the primary one later disconnects nobody re-seals when a
+     * player joins - and an unsealed project is readable by that new player.
+     * Asked per call, whichever client is primary at that moment does it.
+     */
+    const reseal = () => {
+        if (!isPrimaryGm()) return undefined;
+        return import("./projects.mjs")
+            .then(m => m.resealSecretProjects())
+            .catch(err => error("Could not re-seal the secret projects", err));
+    };
 
     reseal();
     Hooks.on("createUser", reseal);

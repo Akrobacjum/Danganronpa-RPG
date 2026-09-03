@@ -24,12 +24,11 @@
 
 import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES } from "./config.mjs";
 import { getClock, campaignName, phaseLabel, timeOfDayLabel } from "./clock.mjs";
-import { dialogContent, error, workingScene } from "./utils.mjs";
+import { dialogContent, error, workingScene, esc} from "./utils.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
-const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
 const t = (key, data) => data ? game.i18n.format(key, data) : game.i18n.localize(key);
 
 /**
@@ -207,8 +206,8 @@ export async function openDespairExplainer() {
         if (game.user.isGM) {
             const { overflowStatus } = await import("./overflow.mjs");
             const { count, threshold } = overflowStatus();
-            overflowLines.push(esc(t("DRPG.Overflow.gmHint")
-                .replace("{count}", count).replace("{max}", threshold)));
+            overflowLines.push(esc(game.i18n.format("DRPG.Overflow.gmHint",
+                { count, max: threshold })));
         }
 
         return explainer(t("DRPG.Explain.despair.window"),

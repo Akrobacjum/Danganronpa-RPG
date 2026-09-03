@@ -15,8 +15,9 @@
 import { MODULE_ID, ITEM_CATEGORIES, EQUIPPABLE, ITEM_TIERS, TIER_EFFECTS, USABLE_KINDS, itemIcon,
     USABLE_KIND_EFFECTS }
     from "./config.mjs";
-import { dialogContent, wirePortraitPickers, panelTabs, wirePanelTabs, whisperToGms, log, error, plural }
+import { dialogContent, wirePortraitPickers, panelTabs, wirePanelTabs, whisperToGms, log, error, plural, esc}
     from "./utils.mjs";
+import { pickableCategories } from "./inventory.mjs";
 import { alreadyOpen } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -242,14 +243,9 @@ export function usableKindFor(name) {
         return kinds;
     };
 
-    const worldPools = [];
-    for (const table of game.tables ?? []) {
-        const goal = table.getFlag(MODULE_ID, "goal");
-        if (!USABLE_GOALS[goal]) continue;
-        worldPools.push([goal, Array.from(table.results ?? []).map(r => r.name ?? r.text ?? "")]);
-    }
-
-    let kinds = matches(worldPools);
+    // One lookup in the shared index rather than a walk over every table and
+    // every result per call - see `tableIndex` (audit D2).
+    let kinds = new Set(tableIndex().get(wanted)?.kinds ?? []);
     if (!kinds.size) {
         kinds = matches(Object.entries(USABLE_GOALS)
             .map(([goal, { pool }]) => [goal, Object.values(pool).flat()]));
@@ -379,28 +375,18 @@ export function rolesForPoolItem(name) {
     return POOL_ROLES[name] ? [...POOL_ROLES[name]] : [];
 }
 
-/**
- * Items the guide names as project results rather than search finds.
+/*
+ * `PROJECT_ITEMS` STOOD HERE and is gone (Dawid, question Q12 of the 1.2.13
+ * audit).
  *
- * NOT WIRED UP, AND KEPT ON PURPOSE. The comment above this used to end
- * "offered to the GM as suggestions", and nothing offers them: no screen reads
- * this, and a dead-surface sweep finds it referenced from nowhere in the
- * module. It is not dead code, though - it is guide content that never reached
- * a screen, and deleting it would delete three rules rather than tidy an
- * unused helper. Left standing, and named here so the next sweep does not
- * mistake it for litter.
- *
- * Where it would belong: the project result screen, beside the item the GM is
- * about to hand over - the same shape `gm-items.mjs` already uses to prefill
- * from a table.
+ * Three items the guide names as project results rather than search finds -
+ * Sleeping draught, Lethal poison, Gift. Nothing ever read them: no screen
+ * offered them, and the note that used to sit here argued they were guide
+ * content rather than dead code and should stay. Asked directly, Dawid's answer
+ * was that they do not need wiring up, so the rule lives where the rest of the
+ * guide's unimplemented content lives - the handbook, and the audit that
+ * records the decision - rather than as an export nothing imports.
  */
-export const PROJECT_ITEMS = {
-    3: [
-        { name: "Sleeping draught", note: "Restores 3 Sanity, or puts a victim to sleep." },
-        { name: "Lethal poison", note: "A Desperate project." },
-        { name: "Gift", note: "Must be handed over immediately. Grants the maker 3 Hope." }
-    ]
-};
 
 /**
  * The roles written on one table entry.
@@ -650,7 +636,7 @@ export async function installTables({ overwrite = false, prompt = true } = {}) {
 
             if (!choice || choice === "cancel") return null;
             if (choice === "keep") {
-                ui.notifications.info(game.i18n.format("DRPG.Tables.allPresent", { n: present.length }));
+                ui.notifications.warn(game.i18n.format("DRPG.Tables.allPresent", { n: present.length }));
                 await openTablesTab();
                 return { created: [], skipped: present.map(j => existingTableName(j.category, j.tier, j.goal)), failed: [] };
             }
@@ -860,28 +846,9 @@ function groupLabel(key, { short = false } = {}) {
 function classifyEntryName(name) {
     const wanted = String(name ?? "").trim().toLowerCase();
     if (!wanted) return null;
-    const matches = r => String(r.name ?? r.text ?? "").trim().toLowerCase() === wanted;
-
-    const found = [];
-    for (const table of game.tables ?? []) {
-        if (!isTierPool(table.name)) continue;
-        const category = table.getFlag(MODULE_ID, "category");
-        const tier = Number(table.getFlag(MODULE_ID, "tier"));
-        const goal = table.getFlag(MODULE_ID, "goal") ?? null;
-        if (!category || !Number.isFinite(tier)) continue;
-        /*
-         * A USABLE POOL WITH NO GOAL SAYS NOTHING, and that is the module's own
-         * ruling rather than a new one: a world from before the split still has
-         * "DRPG Usables - Tier N", and `usableKindFor` does not read it, because
-         * a pool that mixes what mends you with what calms you down cannot
-         * decide which an item is. Counting it here would put every usable that
-         * is still listed in it under Healing and hang a "+1" on the row saying
-         * so. Measured on "Apple", which is exactly what happened.
-         */
-        if (category === "usable" && !goal) continue;
-        if (!Array.from(table.results ?? []).some(matches)) continue;
-        found.push({ category, tier, goal, table: table.name });
-    }
+    // One lookup in the shared index - see `tableIndex`, which keeps the
+    // "usable pool with no goal says nothing" rule (measured on "Apple").
+    const found = [...(tableIndex().get(wanted)?.pools ?? [])];
 
     if (!found.length) {
         const hit = names => names.some(n => String(n).trim().toLowerCase() === wanted);
@@ -911,6 +878,66 @@ function classifyEntryName(name) {
     return { ...home, key: groupKeyOf(home), others: found.slice(1) };
 }
 
+/*
+ * ONE PASS OVER THE TABLES, NOT ONE PER ROW (audit D2).
+ *
+ * `usableKindFor` and `classifyEntryName` each walked every table and every
+ * result to answer for one name, and both are asked per row - the sheet for
+ * each usable it draws, the editor for each entry of a room pool. Thirty rows
+ * over twenty-five tables was three thousand comparisons a render.
+ *
+ * The index is built on first use and dropped whenever a table or one of its
+ * results changes; the hooks are registered the first time it is asked for,
+ * so this file needs no register call of its own. Keyed by the same
+ * lower-cased, trimmed name the two readers compare on.
+ *
+ * A USABLE POOL WITH NO GOAL SAYS NOTHING, and that is the module's own
+ * ruling rather than a new one: a world from before the split still has
+ * "DRPG Usables - Tier N", and `usableKindFor` never read it, because a pool
+ * that mixes what mends you with what calms you down cannot decide which an
+ * item is. Counting it would put every usable still listed in it under
+ * Healing and hang a "+1" on the row saying so - measured on "Apple".
+ */
+let nameIndex = null;
+let indexHooked = false;
+
+function tableIndex() {
+    if (nameIndex) return nameIndex;
+    if (!indexHooked) {
+        indexHooked = true;
+        for (const hook of ["createRollTable", "updateRollTable", "deleteRollTable",
+                            "createTableResult", "updateTableResult", "deleteTableResult"]) {
+            Hooks.on(hook, () => { nameIndex = null; });
+        }
+    }
+
+    const index = new Map();
+    const add = (name, goal, pool) => {
+        const key = String(name ?? "").trim().toLowerCase();
+        if (!key) return;
+        if (!index.has(key)) index.set(key, { kinds: new Set(), pools: [] });
+        const row = index.get(key);
+        if (USABLE_GOALS[goal]) row.kinds.add(goal);
+        if (pool) row.pools.push(pool);
+    };
+
+    for (const table of game.tables ?? []) {
+        const goal = table.getFlag(MODULE_ID, "goal") ?? null;
+        const category = table.getFlag(MODULE_ID, "category");
+        const tier = Number(table.getFlag(MODULE_ID, "tier"));
+        // The row `classifyEntryName` files an entry under: a tier pool with a
+        // category and a tier, minus the goalless usable pool ruled out above.
+        const pool = isTierPool(table.name) && category && Number.isFinite(tier)
+            && !(category === "usable" && !goal)
+            ? { category, tier, goal, table: table.name }
+            : null;
+        for (const r of table.results ?? []) add(r.name ?? r.text ?? "", goal, pool);
+    }
+
+    nameIndex = index;
+    return index;
+}
+
 /**
  * The entry list for one table.
  *
@@ -921,7 +948,6 @@ function classifyEntryName(name) {
  * and a flat list of thirty names cannot answer it.
  */
 function tableItemsHtml(table) {
-    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
     const results = Array.from(table?.results ?? []);
     if (!results.length) {
         return `<p class="notes">${game.i18n.localize("DRPG.Tables.tableEmpty")}</p>`;
@@ -1134,7 +1160,7 @@ async function editResult(table, resultId, field, value) {
      * Measured: "A soft, sad little roll." -> cleared -> "Toilet paper".
      *
      * The rule it was reaching for is real, but it belongs at the other end:
-     * `drawItem` and `giveItemDialog` both already refuse to print a
+     * `drawItem` and `gmGiveItemDialog` both already refuse to print a
      * description that is only the name again. Enforcing it on the WRITE turned
      * a display rule into a field that will not take an edit.
      */
@@ -1196,7 +1222,6 @@ async function placeResultDialog(table, resultId) {
     const source = table?.results?.get(resultId);
     if (!source) return false;
 
-    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
     const name = source.name ?? source.text ?? "";
     const wanted = String(name).trim().toLowerCase();
     if (!wanted) return false;
@@ -1279,7 +1304,7 @@ async function placeResultDialog(table, resultId) {
     }
 
     if (!added && !removed) {
-        ui.notifications.info(game.i18n.format("DRPG.Tables.placeUnchanged", { name }));
+        ui.notifications.warn(game.i18n.format("DRPG.Tables.placeUnchanged", { name }));
         return false;
     }
 
@@ -1294,7 +1319,6 @@ async function placeResultDialog(table, resultId) {
  * @returns {Promise<string|null>} the trimmed name, or `null` if cancelled.
  */
 async function promptForTableName(currentName) {
-    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
     const result = await foundry.applications.api.DialogV2.prompt({
         window: { title: game.i18n.localize("DRPG.Tables.renameTable") },
         content: `
@@ -1336,7 +1360,6 @@ export async function openItemTables({ preset = null } = {}) {
         return null;
     }
 
-    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
     const tables = moduleTables();
 
     // Which tables the preset points at: the ones this category and tier would
@@ -1375,10 +1398,33 @@ export async function openItemTables({ preset = null } = {}) {
         `<label class="drpg-check"><input type="checkbox" name="role:${key}" />
             ${foundry.utils.escapeHTML(ITEM_CATEGORIES[key]?.label ?? key)}</label>`).join("");
 
-    const categories = Object.entries(ITEM_CATEGORIES)
-        .filter(([key]) => key !== "truthBullet")
-        .map(([key, cat]) => `<option value="${key}"${
-            key === preset?.category ? " selected" : ""}>${esc(cat.label)}</option>`).join("");
+    /*
+     * SPLIT BY KIND, AND NO ROOM KEYS (audit A22).
+     *
+     * This list used to be `ITEM_CATEGORIES` minus Truth Bullets, which offered
+     * a flat "Usable" and a "Room Key". Neither could make a working item here:
+     * `tierTableIdFor` resolves a bare `usable` to the retired mixed pool, so
+     * the entry either landed in a table `usableKindFor` never reads or nowhere
+     * at all - and a key with no room flag opens nothing. `pickableCategories`
+     * is the one list all four of the module's item forms now ask.
+     *
+     * A preset names a bare category (`usable`), never a kind: the only card
+     * that sends one is a Search for "something specific", which by definition
+     * asked for no category at all. Matching on the key as well as the value is
+     * what makes such a preset land on that category's first kind rather than
+     * on nothing.
+     */
+    const categoryList = pickableCategories();
+    const presetValue = preset?.category ?? null;
+    // Exactly one row carries `selected`. Matching the key as well would mark
+    // BOTH usable kinds when a preset says `usable`, and a select with two
+    // selected options quietly keeps the last one.
+    const presetChoice = categoryList.find(c => c.value === presetValue)
+        ?? categoryList.find(c => c.key === presetValue)
+        ?? null;
+    const categories = categoryList.map(c =>
+        `<option value="${esc(c.value)}"${
+            c === presetChoice ? " selected" : ""}>${esc(c.label)}</option>`).join("");
 
     const tiers = ITEM_TIERS.map(t => `<option value="${t}"${
         t === Number(preset?.tier ?? 2) ? " selected" : ""}>${
@@ -1463,6 +1509,9 @@ export async function openItemTables({ preset = null } = {}) {
                 <p class="notes">${game.i18n.localize(family === "tiers"
                     ? "DRPG.Tables.newTierPoolNote" : "DRPG.Tables.newPoolNote")}</p>
             </fieldset>
+            ${family === "tiers" ? `
+            <p class="notes">${game.i18n.localize("DRPG.Tables.whereNote")}</p>
+            <p class="notes">${game.i18n.localize("DRPG.Tables.installTabNote")}</p>` : ""}
         </div>`;
     };
 
@@ -1475,10 +1524,11 @@ export async function openItemTables({ preset = null } = {}) {
         window: { title: game.i18n.localize("DRPG.Tables.editorTitle") },
         classes: ["drpg-panel", "drpg-projects", "drpg-wide", "drpg-window-tables"],
         position: { height: "auto" },
-        // Four tabs (Dawid, 26.08): editing what a table holds, the three
-        // creation jobs behind it. The footer buttons act across tabs - each
-        // reads its own pane's inputs, which stay in the DOM whichever tab is
-        // showing (see `panelTabs` in utils.mjs).
+        // Three tabs (Dawid, 26.08; trimmed from four in E10): editing what a
+        // tier table holds, the same for room tables, and making a new item.
+        // The footer buttons act across tabs - each reads its own pane's
+        // inputs, which stay in the DOM whichever tab is showing (see
+        // `panelTabs` in utils.mjs).
         content: dialogContent(`<form>${panelTabs([
             { key: "editTiers", label: game.i18n.localize("DRPG.Tables.tabTierPools"),
               html: paneHtml("tiers") },
@@ -1513,11 +1563,7 @@ export async function openItemTables({ preset = null } = {}) {
                     ${roomChecks || `<span class="notes">${game.i18n.localize("DRPG.Tables.noRoomTables")}</span>`}
                 </div>
                 <p class="notes">${game.i18n.localize("DRPG.Tables.addNote")}</p>
-            </fieldset>` },
-
-            { key: "install", label: game.i18n.localize("DRPG.Tables.tabInstall"), html: `
-            <p class="notes">${game.i18n.localize("DRPG.Tables.whereNote")}</p>
-            <p class="notes">${game.i18n.localize("DRPG.Tables.installTabNote")}</p>` }
+            </fieldset>` }
         ])}</form>`),
         buttons: [
             {
@@ -1657,10 +1703,13 @@ export async function openItemTables({ preset = null } = {}) {
              */
             wirePanelTabs(root, {
                 buttons: {
-                    editTiers: ["newPool"],
+                    // "Install the default set" sits on the Tier pools tab
+                    // rather than on a tab of its own (E10): the whole Install
+                    // tab was two sentences and this button, and the sentences
+                    // are about the tier tables the tab already shows.
+                    editTiers: ["newPool", "install"],
                     editRooms: ["newPool"],
-                    newItem: ["add"],
-                    install: ["install"]
+                    newItem: ["add"]
                 },
                 always: ["close"]
             });

@@ -24,24 +24,8 @@
  */
 
 import { MODULE_ID, OVERFLOW, TIMES_OF_DAY } from "./config.mjs";
-import { SETTINGS, DEFAULT_CLOCK } from "./settings.mjs";
-import { announce, log, error } from "./utils.mjs";
-
-/**
- * The clock, read from its own setting.
- *
- * `getClock` in clock.mjs is this line plus a re-export, and calling it from
- * here would close a static import cycle: `actionBudget` and `SearchTokens.max`
- * are synchronous, so they must import this file at the top level, and
- * clock.mjs already imports actions.mjs. The cycle would have worked - every
- * binding in it is called at runtime rather than while the modules evaluate -
- * but a cycle that works by luck is one somebody breaks later by hoisting a
- * single line. settings.mjs imports config.mjs and nothing else, which leaves
- * this file a leaf.
- */
-function getClock() {
-    return { ...DEFAULT_CLOCK, ...(game.settings.get(MODULE_ID, SETTINGS.clock) ?? {}) };
-}
+import { SETTINGS, getClock } from "./settings.mjs";
+import { announce, log, error, esc} from "./utils.mjs";
 
 /* ==========================================================================
  * THE RULES - config, then the GM's edits on top
@@ -597,7 +581,6 @@ export function overflowCrossings(allowance) {
 export function overflowSection() {
     const status = overflowStatus();
     const { min, max } = OVERFLOW.range;
-    const esc = str => foundry.utils.escapeHTML(String(str ?? ""));
 
     const row = key => {
         const rule = status.rules.effects[key];

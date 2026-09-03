@@ -3266,6 +3266,41 @@ body.drpg-pixel-font [contenteditable] {
     white-space: normal;
 }
 
+/* ==========================================================================
+ * WHAT A STUDENT IS HOLDING - the Give / take window's read-out (Dawid, 03.09)
+ * --------------------------------------------------------------------------
+ * Columns rather than one long list, because the point is to be read at a
+ * glance before pressing Give or Take. Capped in height and scrolled: a GM who
+ * has handed out twenty things should not have the two tabs pushed off screen.
+ * ========================================================================== */
+.drpg-holdings {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+    gap: 2px 12px;
+    max-height: 14rem;
+    overflow-y: auto;
+    margin-bottom: 8px;
+}
+
+.drpg-holdings-group h4 {
+    margin: 4px 0 2px;
+    font-size: var(--drpg-text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    opacity: 0.75;
+}
+
+.drpg-holdings-group ul {
+    margin: 0;
+    padding-left: 1.1em;
+    list-style: disc;
+}
+
+.drpg-holdings-group li {
+    margin: 0;
+    line-height: 1.35;
+}
+
 .drpg-vault-section {
     margin-bottom: 8px;
 }

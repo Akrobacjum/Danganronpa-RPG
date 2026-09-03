@@ -21,10 +21,10 @@ import { actionsLeft, spendAction, refundAction, hasFreeMove, canPayFor } from "
 import { isEclipse } from "./eclipse.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { drawItem } from "./tables.mjs";
-import { roomOfActor, othersInRoom } from "./movement.mjs";
+import { roomOfActor, othersInRoom, locateActor } from "./movement.mjs";
 import { projectsAvailableIn, addProgress, isIndirectMurder, scaleFor, projectsListedIn } from "./projects.mjs";
 import { callGm, promptAndCallGm } from "./gm-bridge.mjs";
-import { announce, resolveThreshold, whisperToOwner, dialogContent, replaceFlag, log, debug, error, plural, cardHead } from "./utils.mjs";
+import { announce, resolveThreshold, whisperToOwner, dialogContent, replaceFlag, log, debug, error, plural, cardHead, esc} from "./utils.mjs";
 // Static, and safe to be: nothing private-rolls.mjs imports leads back here.
 import { supersedingRoll } from "./private-rolls.mjs";
 // One reader, for the Tamper menu's "what you have readied" line. use-items.mjs
@@ -722,7 +722,6 @@ function dualityBar(outcome) {
 
     const modifier = total - hope - fear;
     const side = outcome?.isCritical ? "critical" : outcome?.withHope ? "hope" : outcome?.withFear ? "despair" : null;
-    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
     const L = key => game.i18n.localize(`DRPG.Action.duality.${key}`);
 
     /* WHICH STATISTIC, AND WHAT THE REST WAS.
@@ -1088,9 +1087,14 @@ async function performSearch(actor, def, options) {
             request,
             roll,
             room,
-            body: hit || roll.isCritical
+            // "Create an item" leaves this card open on purpose - the other two
+            // answers stay reachable if the editor is cancelled - and the card
+            // says so, because a button that does not close its card looks
+            // broken to anyone who does not know that (audit E11).
+            body: `${hit || roll.isCritical
                 ? game.i18n.format("DRPG.Action.specificFound", { tier })
-                : game.i18n.localize("DRPG.Action.specificNothing"),
+                : game.i18n.localize("DRPG.Action.specificNothing")} <em>${
+                game.i18n.localize("DRPG.Bridge.createItemStays")}</em>`,
             // Three answers, because those are the three a GM actually gives to
             // "I am looking for X": it exists and I will make it, it exists
             // already and here it is, or there is none. Each opens the window
@@ -1502,7 +1506,6 @@ export async function chooseVariant({
         return null;
     }
 
-    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
     const first = usable[0].value;
 
     const rows = options.map(o => `
@@ -2279,7 +2282,7 @@ async function performSabotage(actor, def, options) {
     }
 
     if (withheld.length) {
-        ui.notifications.info(game.i18n.format("DRPG.Project.someSabotaged", {
+        ui.notifications.warn(game.i18n.format("DRPG.Project.someSabotaged", {
             names: withheld.map(p => p.name).join(", ")
         }));
     }
@@ -2730,7 +2733,7 @@ async function openCrisisMenu(actor) {
 
     const options = availableCrisisActions(actor).filter(o => !o.hidden);
     if (!options.length) {
-        ui.notifications.info(game.i18n.localize("DRPG.Murder.nothingToDo"));
+        ui.notifications.warn(game.i18n.localize("DRPG.Murder.nothingToDo"));
         return null;
     }
 
@@ -2969,7 +2972,7 @@ async function performPalm(actor, def, options) {
     if (success && hand.isCritical) {
         const pool = await stealablePool(victim);
         if (!pool.length) {
-            ui.notifications.info(game.i18n.format("DRPG.Steal.emptyPockets", {
+            ui.notifications.warn(game.i18n.format("DRPG.Steal.emptyPockets", {
                 name: victim.name
             }));
         } else {
@@ -3363,7 +3366,14 @@ async function observeAnything(actor, def, cost, request = "") {
 async function ruleObserve(actor, def, roll, request, title = null, cost = 0) {
     const { callGm } = await import("./gm-bridge.mjs");
     const label = title ?? def.label;
-    const room = roomOfActor(actor);
+    // Both halves from one lookup: `locateActor` answers without the canvas, so
+    // it names the scene as well as the room. The scene is what the card has to
+    // carry - a GM answering this is usually looking at a different map, and a
+    // room name alone sent the clue to whatever "Kitchen" was in front of THEM
+    // (audit A6).
+    const where = locateActor(actor);
+    const room = where?.room ?? roomOfActor(actor);
+    const sceneId = where?.scene?.id ?? null;
 
     await callGm(actor, {
         title: label,
@@ -3379,7 +3389,10 @@ async function ruleObserve(actor, def, roll, request, title = null, cost = 0) {
             {
                 action: "keyRemnantHere",
                 label: game.i18n.localize("DRPG.Bridge.keyRemnantHere"),
-                data: { by: actor.id, room: room ?? "", want: request ?? "" }
+                // Lowercase key: `dataset` lowercases everything, so `sceneId`
+                // would come back as `sceneid` and read undefined.
+                data: { by: actor.id, room: room ?? "", want: request ?? "",
+                        scene: sceneId ?? "" }
             },
             {
                 action: "reply",
@@ -4245,7 +4258,6 @@ async function report(actor, def, roll, outcome) {
     // the client that rolled, and the card it is about is on its way.
     if (roll?.isCritical) playSfx("critical");
 
-    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
     const traitLabel = TRAITS[roll?.trait]?.label ?? "";
     const lines = [];
 

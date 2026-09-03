@@ -18,14 +18,14 @@
  * So there are three MODES instead, and the interesting thing about them is
  * that only two are restrictive:
  *
- *   discussion  everybody, freely. The clock is the GM's budget for the whole
- *               discussion, and running past it turns the bar red rather than
+ *   debate      everybody, freely. The clock is the GM's budget for the whole
+ *               debate, and running past it turns the bar red rather than
  *               ending anything - a human decides when an argument is over.
  *   objection   the objector alone, for one minute. This is the only moment in
  *               the game where somebody TAKES the floor from everybody else,
  *               and it is bought by putting a Truth Bullet on the table.
  *   rebuttal    the objector AND the person they aimed at, for two minutes.
- *               Nobody else. Then it returns to discussion by itself.
+ *               Nobody else. Then it returns to open debate by itself.
  *
  * SILENCE IS ENFORCED SOCIALLY, NOT TECHNICALLY. The module does not mute
  * anybody on Discord or in LiveKit, because the talking happens outside
@@ -51,12 +51,12 @@ let ticker = null;
 
 /** The three modes, spelled out once so nothing else has to spell them. */
 export const FLOOR_MODES = {
-    discussion: "discussion",
+    debate: "debate",
     objection: "objection",
     rebuttal: "rebuttal"
 };
 
-/** How long each mode runs. `discussion` is the GM's, so it is not here. */
+/** How long each mode runs. `debate` is the GM's, so it is not here. */
 const MODE_SECONDS = {
     [FLOOR_MODES.objection]: TRIAL.objectionSeconds,
     [FLOOR_MODES.rebuttal]: TRIAL.rebuttalSeconds
@@ -68,10 +68,15 @@ const MODE_SECONDS = {
  * MIGRATION LIVES HERE, in the one function every reader goes through. A world
  * updated mid-trial has the old `{ active, order, current, seconds, startedAt }`
  * in its setting, and every field of it except `order`/`current` still means
- * what it used to. A state with no `mode` is therefore read as a discussion
+ * what it used to. A state with no `mode` is therefore read as an open debate
  * that is already running: the trial carries on, the queue quietly stops
  * existing, and nothing has to be migrated by hand at exactly the moment a
  * table is mid-argument.
+ *
+ * The same applies to the rename underneath it. `debate` was stored as
+ * "discussion" until the word was fixed, and a world saved mid-trial still
+ * holds that string, so it is read here as what it always meant. One line,
+ * and it is the only place any reader could meet the old spelling.
  */
 export function trialFloor() {
     const stored = game.settings.get(MODULE_ID, SETTINGS.trialQueue) ?? {};
@@ -79,19 +84,13 @@ export function trialFloor() {
 
     return {
         ...stored,
-        mode: stored.mode ?? FLOOR_MODES.discussion,
+        mode: stored.mode === "discussion" ? FLOOR_MODES.debate
+            : stored.mode ?? FLOOR_MODES.debate,
         holderId: stored.holderId ?? null,
         targetId: stored.targetId ?? null,
         seconds: stored.seconds ?? TRIAL.speakSeconds
     };
 }
-
-/**
- * The old name, kept because `music.mjs`, `gm-panel.mjs` and `api.mjs` all ask
- * the same yes/no question through it - "is a trial running" - and that answer
- * has not changed. Only the shape behind it has.
- */
-export const trialQueue = trialFloor;
 
 async function writeFloor(patch) {
     if (!game.user.isGM) return null;
@@ -148,7 +147,7 @@ export function maySpeak(actorId, floor = trialFloor()) {
  * ========================================================================== */
 
 /**
- * Open the floor as a free discussion.
+ * Open the floor as a free debate.
  *
  * No volunteer, no rotation, no order to preview - the whole table may speak
  * from the first second. All the GM chooses is how long they expect it to run,
@@ -179,7 +178,7 @@ export async function startFloor({ seconds = TRIAL.speakSeconds } = {}) {
 
     return writeFloor({
         active: true,
-        mode: FLOOR_MODES.discussion,
+        mode: FLOOR_MODES.debate,
         holderId: null,
         targetId: null,
         seconds,
@@ -335,13 +334,13 @@ export async function openRebuttal() {
 }
 
 /** Back to everybody talking at once. The GM's budget starts again. */
-export async function returnToDiscussion({ seconds = null } = {}) {
+export async function returnToDebate({ seconds = null } = {}) {
     if (!game.user.isGM) return null;
     const floor = trialFloor();
     if (!floor) return null;
 
     return writeFloor({
-        mode: FLOOR_MODES.discussion,
+        mode: FLOOR_MODES.debate,
         holderId: null,
         targetId: null,
         seconds: seconds ?? floor.seconds ?? TRIAL.speakSeconds,
@@ -390,7 +389,7 @@ export async function endFloor() {
  * moves to whatever came next anyway, so the GM is skipping a timer rather
  * than ending a scene.
  *
- * Free discussion has no next mode: it does not expire by design, so there is
+ * An open debate has no next mode: it does not expire by design, so there is
  * nothing here to bring forward and this says so by doing nothing.
  */
 export async function advanceFloorNow() {
@@ -403,10 +402,11 @@ export async function advanceFloorNow() {
      * A REBUTTAL ENDS THE FLOOR (Dawid, 28.08), rather than dropping back into
      * an open debate.
      *
-     * The two are easy to confuse because of what they are called here:
-     * `FLOOR_MODES.discussion` is the OPEN DEBATE - a floor, with a budget and
-     * a clock the GM is watching. The trial's own discussion is no floor at
-     * all, which is what the console calls "in open discussion".
+     * Debate and discussion are two different things, and this file used to
+     * spell both of them "discussion". A DEBATE is a floor, with a budget and
+     * a clock the GM is watching; the trial's own DISCUSSION is no floor at
+     * all, which is what the console calls "in open discussion" and what the
+     * music still keys off as `trial.discussion`.
      *
      * So the old behaviour handed the trial back a running debate clock that
      * nobody had asked to open: the objection was over, the answer was given,
@@ -419,7 +419,7 @@ export async function advanceFloorNow() {
 
 /**
  * Objection runs out into rebuttal; rebuttal runs out into the trial's own
- * discussion - which is NO FLOOR, not the open debate that shares its name.
+ * discussion - which is NO FLOOR at all, not a debate.
  *
  * EVERY client counts the clock - that is the point of deriving it from
  * `startedAt` - but exactly ONE client may write the transition, or two GMs

@@ -27,15 +27,16 @@ import {
 import { SETTINGS } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import {
-    remnantsOn, remnantData, setRemnantFlags, setRemnantPublic, confirmClearFaint, difficultyTag,
+    remnantsOn, remnantData, setRemnantFlags, setRemnantPublic, markRemnantEdited,
+    confirmClearFaint, difficultyTag,
     traceContextLine
 } from "./remnants.mjs";
 import { bulletsOf, secretOf, truthBulletData } from "./truth-bullets.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { isDeceased, sweepTruthBullets } from "./chapter.mjs";
 import {
-    dialogContent, plural, tableDialog, wirePortraitPickers, whisperToGms, log
-} from "./utils.mjs";
+    dialogContent, plural, tableDialog, wirePortraitPickers, whisperToGms, log,
+    workingScene, esc, wireDashboardTabs } from "./utils.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -314,9 +315,19 @@ export function randomPointIn(region, scene) {
  * `dropRemnant`'s "where is this actor standing" has no answer to give.
  * `REMNANT_TYPES.key` already carries `reinforced: true`, so `placeRemnant`
  * marks it unremovable without being told.
+ *
+ * @param {object} row
+ * @param {Scene|null} [scene]  The scene the clue belongs on. Defaults to the
+ *   one this GM is looking at, which is right for the dashboard's planner -
+ *   its own room list was built from that scene. It is NOT right for the
+ *   ruling card an Observe produces: that card is answered by a GM who is very
+ *   often looking at a different map from the player who rolled, and placing
+ *   the clue on the viewer's scene either warned "there is no region called X"
+ *   or, worse, dropped it on a room of the same name somewhere else entirely
+ *   (audit A6). The card carries the player's scene; `openKeyRemnantHere`
+ *   passes it through.
  */
-async function createKeyRemnant(row) {
-    const scene = canvas?.scene;
+async function createKeyRemnant(row, scene = workingScene()) {
     const region = Array.from(scene?.regions ?? []).find(r => r.name === row.createIn);
     if (!region) {
         ui.notifications.warn(game.i18n.format("DRPG.Calls.noSuchRoom", { room: row.createIn }));
@@ -371,18 +382,22 @@ async function createKeyRemnant(row) {
  * @param {string} [options.room]  Prefilled room name.
  * @param {string} [options.note]  Prefilled clue text - the player's request.
  */
-export async function openKeyRemnantHere({ room = null, note = "" } = {}) {
+export async function openKeyRemnantHere({ room = null, note = "", sceneId = null } = {}) {
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
         return null;
     }
 
-    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
     const { allRooms } = await import("./movement.mjs");
     const plan = keyPlan();
     const onMap = new Set(placedKeyRemnants().map(r => r.token.id));
 
-    const roomOptions = allRooms().map(r =>
+    // THE PLAYER'S SCENE, NOT THE VIEWER'S (audit A6). The ruling card carries
+    // it; opened from anywhere else there is nothing to carry and the scene on
+    // screen is the only answer there is.
+    const scene = (sceneId ? game.scenes.get(sceneId) : null) ?? workingScene();
+
+    const roomOptions = allRooms(scene).map(r =>
         `<option value="${esc(r)}"${r === room ? " selected" : ""}>${esc(r)}</option>`).join("");
     const visOptions = REMNANT_VISIBILITY.map(v =>
         `<option value="${v}"${v === "evident" ? " selected" : ""}>${
@@ -443,13 +458,13 @@ export async function openKeyRemnantHere({ room = null, note = "" } = {}) {
 
     const token = await createKeyRemnant({
         createIn: result.room, visibility: result.visibility, note: result.note, scale
-    });
+    }, scene);
     if (!token) return null;
 
     if (result.slot !== null) {
         const entries = plan.entries.map((entry, i) => i === result.slot
             ? { ...entry, note: result.note || entry.note,
-                tokenId: token.id, sceneId: token.parent?.id ?? canvas?.scene?.id ?? null }
+                tokenId: token.id, sceneId: token.parent?.id ?? scene?.id ?? null }
             : entry);
         await setKeyPlan({ chapter: plan.chapter, entries });
     }
@@ -597,7 +612,7 @@ export async function confirmSweepBullets() {
     }
 
     if (!doomed) {
-        ui.notifications.info(game.i18n.localize("DRPG.Panel.sweepNone"));
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.sweepNone"));
         return 0;
     }
 
@@ -630,7 +645,6 @@ export async function openInvestigationDashboard() {
         return null;
     }
 
-    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
     const { allRooms } = await import("./movement.mjs");
     const { murderState } = await import("./murder.mjs");
     // The Final Key Remnant planner lived on the Mastermind screen, where it
@@ -676,12 +690,37 @@ export async function openInvestigationDashboard() {
      * Empty means every chapter, like the other two - the filter bar's own
      * idiom, so nothing has to learn a new one.
      */
-    const reading = { order: "room", player: "", room: "", chapter: "" };
+    // `chapter: null` means "not chosen yet" and is resolved on the first read
+    // below. "" is a real value here - it means every chapter.
+    const reading = { order: "room", player: "", room: "", chapter: null };
     /** The live region's handle, so a filter can ask it to redraw. */
     let live = null;
 
     /** The list as the reader asked for it: filtered, then ordered. */
     const readAs = list => {
+        /*
+         * THE FIRST READ SHOWS THE CHAPTER NOW RUNNING (E9).
+         *
+         * It used to open on every chapter at once, which by chapter three is a
+         * few hundred rows of which a handful are about tonight. The GM then
+         * sets the filter by hand, every time, to the one answer the module
+         * already knows.
+         *
+         * Resolved HERE rather than at the declaration because it needs the
+         * list: if this chapter has left no traces yet, the current chapter is
+         * not among the select's options, and a filter pointing at an option
+         * that does not exist would show an empty table with nothing selected.
+         * So it falls back to every chapter, which is where it started.
+         *
+         * Once only. After this the field holds a string, and a GM who widens
+         * it to every chapter keeps that for as long as the window is open.
+         */
+        if (reading.chapter === null) {
+            const here = String(getClock().chapter);
+            reading.chapter = list.some(({ data }) => String(data.chapter ?? "") === here)
+                ? here : "";
+        }
+
         const kept = list.filter(({ data }) =>
             (!reading.player || data.sourceActor === reading.player)
             && (!reading.room || (data.room ?? "") === reading.room)
@@ -1072,16 +1111,7 @@ export async function openInvestigationDashboard() {
                 const root = dialog.element;
                 wirePortraitPickers(root, { defaultImg: ICON });
 
-                const tabs = root.querySelectorAll("[data-drpg-tab]");
-                const panels = root.querySelectorAll("[data-drpg-panel]");
-                for (const tab of tabs) {
-                    tab.addEventListener("click", () => {
-                        for (const t of tabs) t.classList.toggle("active", t === tab);
-                        for (const p of panels) {
-                            p.style.display = p.dataset.drpgPanel === tab.dataset.drpgTab ? "" : "none";
-                        }
-                    });
-                }
+                wireDashboardTabs(root);
 
                 // Rows past the opening roll's limit start disabled; the checkbox
                 // is the GM's explicit "yes, I mean it" rather than a silent cap.
@@ -1195,6 +1225,10 @@ async function applyDashboardSave(result, { traces, plan }) {
         if (row.tags.join("") !== currentTags.join("")) publicPatch.tags = row.tags;
         if (Object.keys(publicPatch).length) {
             await setRemnantPublic(token, publicPatch);
+            // A human GM has now decided what this trace says, so a player
+            // copying it later raises no separate whisper - it goes in the
+            // digest with the rest (E7).
+            await markRemnantEdited(token);
             tracesChanged++;
         }
 

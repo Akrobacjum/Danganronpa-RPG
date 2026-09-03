@@ -61,11 +61,11 @@
 import { MODULE_ID, FLAGS, CLEANUP, RESOLUTION_STRESS_COST, REMNANT_VISIBILITY }
     from "./config.mjs";
 import { getClock } from "./clock.mjs";
-import { murderState, killerIds } from "./murder.mjs";
+import { murderState, killerIds, refOf } from "./murder.mjs";
 import {
     REMNANT_FLAGS, remnantsInRoom, remnantData, removeRemnant, dropRemnant
 } from "./remnants.mjs";
-import { roomOfToken } from "./movement.mjs";
+import { locateActor } from "./movement.mjs";
 import { equippedFor, breakOnDespair } from "./use-items.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 // What this character has copied into their inventory as a Truth Bullet, which
@@ -124,8 +124,8 @@ export function isCleaner(actor) {
 export function bodyIsHere(actor) {
     const victim = game.actors.get(murderState()?.victimId ?? "");
     if (!victim) return false;
-    const mine = locate(actor);
-    const theirs = locate(victim);
+    const mine = locateActor(actor);
+    const theirs = locateActor(victim);
     return Boolean(mine?.room) && mine.room === theirs?.room;
 }
 
@@ -149,7 +149,7 @@ function refuseCleanup(actor) {
 export function cleanableRemnants(actor, where = null) {
     if (!actor) return [];
 
-    const spot = where ?? locate(actor);
+    const spot = where ?? locateActor(actor);
     if (!spot?.room) return [];
 
     return remnantsInRoom(spot.room, spot.scene)
@@ -266,32 +266,6 @@ export function cleanableTracesForPlayer(actorId, { mine = false } = {}) {
         ].filter(Boolean).join(" · "),
         reinforced: Boolean(t.data.reinforced)
     }));
-}
-
-/**
- * Where this character is standing: scene, token AND room.
- *
- * The room is the whole point - `cleanableRemnants` filters on it - and the
- * first version of this returned only the scene and the token, so every caller
- * bailed on `if (!spot?.room)` and Stage 6 listed nothing for anybody, ever.
- *
- * `roomOfToken` rather than `roomOfActor`: the latter only sees the scene the
- * client is currently looking at, and this runs on a GM who is very often
- * looking somewhere else entirely.
- *
- * Synchronous, so the sheet and the tracker can build a list without awaiting.
- */
-function locate(actor) {
-    const active = actor?.getActiveTokens?.()?.[0]?.document;
-    if (active?.parent) {
-        return { scene: active.parent, tokenDoc: active, room: roomOfToken(active) };
-    }
-
-    for (const scene of game.scenes) {
-        const tokenDoc = scene.tokens.find(t => t.actorId === actor?.id);
-        if (tokenDoc) return { scene, tokenDoc, room: roomOfToken(tokenDoc) };
-    }
-    return null;
 }
 
 /**
@@ -1228,7 +1202,7 @@ async function concealFromWitnesses(actor) {
     if (!hidden) {
         const line = `<p><em>${game.i18n.format("DRPG.Cleanup.seenCleaning", {
             actor: foundry.utils.escapeHTML(actor.name),
-            room: foundry.utils.escapeHTML(locate(actor)?.room ?? "-")
+            room: foundry.utils.escapeHTML(locateActor(actor)?.room ?? "-")
         })}</em></p>`;
 
         const { ownerOf, gmIds, whisperToGms } = await import("./utils.mjs");
@@ -1535,7 +1509,7 @@ async function applyMoveBody(actor, def, success, band, done, chosenRoom = null)
 
     const state = murderState();
     const victim = game.actors.get(state?.victimId ?? "");
-    const here = locate(actor);
+    const here = locateActor(actor);
     if (!victim || !here?.room) {
         done.push(game.i18n.localize("DRPG.Cleanup.noBody"));
         return;
@@ -1608,12 +1582,6 @@ async function applyMoveBody(actor, def, success, band, done, chosenRoom = null)
 
 /** actorId -> what their last clean-up attempt did. GM browsers only. */
 const lastAttempt = new Map();
-
-function refOf(placed) {
-    const doc = placed?.document ?? placed;
-    if (!doc?.id) return null;
-    return { id: doc.id, sceneId: doc.parent?.id ?? null };
-}
 
 /**
  * Enough to build this Remnant again where it stood, with everything it knew.
@@ -1845,7 +1813,7 @@ export async function openCleanupDialog(actor) {
     const { requestCleanableTraces } = await import("./gm-bridge.mjs");
     const traces = await requestCleanableTraces(actor.id);
     if (!traces.length) {
-        ui.notifications.info(game.i18n.localize("DRPG.Cleanup.nothingHere"));
+        ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.nothingHere"));
         return null;
     }
 
@@ -1947,7 +1915,7 @@ export async function openMoveBodyDialog(actor) {
         return null;
     }
 
-    const here = locate(actor);
+    const here = locateActor(actor);
     const rooms = await bodyDestinations(here?.room ?? "");
 
     if (!rooms.length) {

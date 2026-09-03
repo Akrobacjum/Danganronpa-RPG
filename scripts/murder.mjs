@@ -24,10 +24,23 @@
  * finishes, so each outcome's text goes to the GM and the table rather than
  * being invented here.
  *
- * WHY THE STATE IS WORLD-SCOPED. Unlike the Truth Bullet ledger, this is not
- * secret-by-design. Both participants need to see whose turn it is, what the
- * victim has left and which of their own actions are blocked - live, every
- * turn. See the note on SETTINGS.murderState for the trade that was made.
+ * WHERE THE STATE LIVES, AND WHY IT IS IN TWO PIECES (LIVE-001).
+ *
+ * The MECHANICS are world-scoped: the stage, whose turn it is, what is blocked,
+ * what has been spent, what the victim has left. Both participants need those
+ * live, every turn, and a socket round trip per turn would leave the table
+ * sitting in silence waiting for one.
+ *
+ * The NAMES are not. `killerId` used to sit in that same world setting, and
+ * world data reaches every client - so any student could read the killer out of
+ * their own console before the body was found. The cast now lives in
+ * `SETTINGS.incidentCast`, client-scoped: every GM holds it and syncs it GM to
+ * GM, and each participant is sent their copy over a recipient-addressed
+ * socket. Nobody else receives anything.
+ *
+ * `murderState()` still hands back ONE object with both halves merged, so every
+ * reader in this file and outside it is unchanged. What differs is what a
+ * non-participant's client finds in it: the mechanics, and no names.
  */
 
 import {
@@ -44,7 +57,7 @@ import { equippedFor, breakOnDespair } from "./use-items.mjs";
 import { dropRemnant, traceFeedback } from "./remnants.mjs";
 import {
     announce, dialogContent, tableDialog, whisperToGms, whisperToOwner, ownerOf, gmIds,
-    isPrimaryGm, log, warn, error, plural, debug } from "./utils.mjs";
+    isPrimaryGm, log, warn, error, plural, debug, esc} from "./utils.mjs";
 
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -53,17 +66,165 @@ const DialogV2 = foundry.applications.api.DialogV2;
  * STATE
  * ========================================================================== */
 
-/** The murder in progress, or `null`. */
-export function murderState() {
-    const stored = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
-    return stored.active ? stored : null;
+/**
+ * The fields that name a person. These never enter world data.
+ *
+ * `thirdSide` is here with the ids because it is only meaningful next to
+ * `thirdId`: "the third party threw in with the killers" is a sentence about
+ * somebody, and on a client that cannot see who the third party is it would be
+ * a fact about nobody. Everything else an incident holds is a number, a stage
+ * or a list of blocked action keys, and none of that names anyone.
+ */
+const CAST_FIELDS = ["killerId", "killerTurnId", "victimId", "thirdId", "thirdSide"];
+
+const SOCKET_EVENT = `module.${MODULE_ID}`;
+const CAST_SET = "incident.cast";
+const CAST_REQUEST = "incident.castRequest";
+/** GM -> one participant, and nobody else. */
+const CAST_MINE = "incident.myCast";
+/** A participant's client catching up after a reload. */
+const CAST_MINE_REQUEST = "incident.myCastRequest";
+const BLACKENED_SET = "incident.blackened";
+const BLACKENED_REQUEST = "incident.blackenedRequest";
+
+/** What this client knows about who is in the incident. `{}` for a bystander. */
+function readCast() {
+    try {
+        return game.settings.get(MODULE_ID, SETTINGS.incidentCast) ?? {};
+    } catch {
+        return {};
+    }
 }
 
+/** The murder in progress, or `null`. Mechanics from the world, names from here. */
+export function murderState() {
+    const stored = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
+    if (!stored.active) return null;
+    return { ...stored, ...readCast() };
+}
+
+/**
+ * Write the cast, sync it to the other GMs, and send each participant theirs.
+ *
+ * The participants are worked out from the cast being written rather than the
+ * one being replaced, plus anybody who WAS in it - so a student who drops out
+ * of an incident has their copy cleared rather than keeping the last names they
+ * were told.
+ */
+async function writeCast(next, previous = readCast()) {
+    if (!game.user.isGM) return next;
+
+    const entry = { ...next, updated: Date.now() };
+    await game.settings.set(MODULE_ID, SETTINGS.incidentCast, entry);
+
+    const gms = gmIds().filter(id => id !== game.user.id);
+    if (gms.length) {
+        try {
+            game.socket.emit(SOCKET_EVENT,
+                { action: CAST_SET, from: game.user.id, entry }, { recipients: gms });
+        } catch (err) {
+            error("Could not sync the incident cast to the other GMs", err);
+        }
+    }
+
+    pushCastToParticipants(entry, previous);
+    return entry;
+}
+
+/**
+ * Replace the whole state, splitting it the way `writeState` splits a patch.
+ *
+ * Two callers, and both hand over a MERGED object: the Reroll rewind, which
+ * kept a receipt taken from `murderState()`, and `endMurder`, which passes `{}`
+ * to clear everything. Anything that writes a whole state has to come through
+ * here, or the names go straight back into world data.
+ */
+async function restoreState(state = {}) {
+    if (!game.user.isGM) return null;
+
+    const cast = {};
+    const rest = {};
+    for (const [key, value] of Object.entries(state ?? {})) {
+        if (CAST_FIELDS.includes(key)) cast[key] = value;
+        else rest[key] = value;
+    }
+    // `updated` belongs to the cast entry, not to the incident - a receipt
+    // carrying an old one would make a fresh write look stale to another GM.
+    delete rest.updated;
+
+    await writeCast(cast);
+    await game.settings.set(MODULE_ID, SETTINGS.murderState, rest);
+    return { ...rest, ...cast };
+}
+
+/** Every non-GM user who owns somebody named in a cast. */
+function castOwners(cast) {
+    const out = new Set();
+    for (const field of ["killerId", "victimId", "thirdId"]) {
+        const owner = ownerOf(game.actors.get(cast?.[field] ?? ""));
+        if (owner && !owner.isGM) out.add(owner.id);
+    }
+    return out;
+}
+
+/**
+ * Each participant gets the cast; everyone who has left it gets an empty one.
+ *
+ * The full cast rather than only their own role, which is exactly what they
+ * could read before this change - participants already see each other's rolls
+ * through `incidentAudience`. Narrowing it further is a question about what the
+ * victim may know and when, which is a rule, not a leak.
+ */
+function pushCastToParticipants(cast, previous) {
+    const now = castOwners(cast);
+    const before = castOwners(previous);
+
+    for (const userId of before) {
+        if (!now.has(userId)) sendCast(userId, {});
+    }
+    for (const userId of now) sendCast(userId, cast);
+}
+
+function sendCast(userId, cast) {
+    try {
+        game.socket.emit(SOCKET_EVENT,
+            { action: CAST_MINE, from: game.user.id, cast }, { recipients: [userId] });
+    } catch (err) {
+        error("Could not deliver an incident cast to a participant", err);
+    }
+}
+
+/**
+ * One write, two stores.
+ *
+ * The cast goes FIRST. The world half's `onChange` repaints every client, and a
+ * participant repainting before their names arrive would draw the bystander's
+ * view of their own incident for a frame. The cast's own `onChange` repaints
+ * again when it lands, so the worst case is one extra redraw rather than a
+ * sheet showing the wrong thing.
+ */
 async function writeState(patch) {
     if (!game.user.isGM) return null;
-    const before = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
-    const next = { ...before, ...patch };
-    await game.settings.set(MODULE_ID, SETTINGS.murderState, next);
+
+    const publicBefore = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
+    const castBefore = readCast();
+    const before = { ...publicBefore, ...castBefore };
+
+    const publicPatch = {};
+    const castPatch = {};
+    for (const [key, value] of Object.entries(patch)) {
+        if (CAST_FIELDS.includes(key)) castPatch[key] = value;
+        else publicPatch[key] = value;
+    }
+
+    const castNext = Object.keys(castPatch).length
+        ? await writeCast({ ...castBefore, ...castPatch }, castBefore)
+        : castBefore;
+
+    const publicNext = { ...publicBefore, ...publicPatch };
+    await game.settings.set(MODULE_ID, SETTINGS.murderState, publicNext);
+
+    const next = { ...publicNext, ...castNext };
 
     /*
      * THE BETRAYAL'S WINDOW OPENS HERE, AND ONLY HERE (D18).
@@ -1448,7 +1609,8 @@ function snapshotState() {
     return foundry.utils.deepClone(rest);
 }
 
-function refOf(placed) {
+/** A token as a receipt can name it. cleanup.mjs uses the same shape (C3). */
+export function refOf(placed) {
     const doc = placed?.document ?? placed;
     if (!doc?.id) return null;
     return { id: doc.id, sceneId: doc.parent?.id ?? null };
@@ -1570,8 +1732,11 @@ async function undoLastCrisis({ actorId, key }) {
     await restoreResource(victim, "stress", receipt.victimStress);
 
     // The state wholesale, receipt included: the replay writes a fresh one.
+    // Split on the way back in, because the receipt holds the MERGED shape -
+    // it was taken from `murderState()` - and putting it back unsplit would
+    // return every name to world data (LIVE-001).
     try {
-        await game.settings.set(MODULE_ID, SETTINGS.murderState, receipt.state ?? {});
+        await restoreState(receipt.state ?? {});
     } catch (err) {
         error("Could not rewind the incident state for a Reroll", err);
         return false;
@@ -2239,7 +2404,178 @@ export async function passTurn() {
  * to be interrupted.
  * ========================================================================== */
 
+/* ==========================================================================
+ * KEEPING THE CAST IN STEP
+ * --------------------------------------------------------------------------
+ * Three conversations on one channel, and they are not the same conversation:
+ *
+ *   GM  -> GMs          the cast and the Blackened register, so every GM screen
+ *                       agrees without any of it becoming world data
+ *   GM  -> participant  one player's copy of the cast, addressed to them
+ *   any -> GMs          "I just reloaded, what am I in?"
+ *
+ * AUTHORITY COMES FROM `senderId`, Foundry's own second argument, and never
+ * from anything inside the payload - the same discipline gm-bridge.mjs applies.
+ * `from` is kept only so a GM ignores its own broadcast. Without that, a player
+ * could emit a cast naming whoever they liked and every GM would believe it.
+ *
+ * The catch-up requests are answered from the answering client's own copy and
+ * addressed back to whoever actually asked, so a player asking cannot be handed
+ * somebody else's incident.
+ * ========================================================================== */
+function registerIncidentCastSync() {
+    // GM to GM. Newest write wins, per the same rule the Remnant ledger uses.
+    game.socket.on(SOCKET_EVENT, async (payload, senderId) => {
+        if (!game.user.isGM || !payload) return;
+        if (senderId === game.user.id) return;
+        if (!game.users.get(senderId)?.isGM) {
+            // The one legitimate non-GM message on this channel: a participant
+            // asking for their own copy back after a reload. Answered from this
+            // GM's cast, and only with what that user is actually in.
+            if (payload.action === CAST_MINE_REQUEST) {
+                const cast = readCast();
+                const owns = castOwners(cast).has(senderId);
+                sendCast(senderId, owns ? cast : {});
+            }
+            return;
+        }
+
+        try {
+            if (payload.action === CAST_SET) {
+                const mine = readCast();
+                if ((mine.updated ?? 0) >= (payload.entry?.updated ?? 0)) return;
+                await game.settings.set(MODULE_ID, SETTINGS.incidentCast, payload.entry ?? {});
+            } else if (payload.action === CAST_REQUEST) {
+                const mine = readCast();
+                if (!mine.updated) return;
+                game.socket.emit(SOCKET_EVENT,
+                    { action: CAST_SET, from: game.user.id, entry: mine },
+                    { recipients: [senderId] });
+            } else if (payload.action === BLACKENED_SET) {
+                await game.settings.set(MODULE_ID, SETTINGS.blackenedLedger,
+                    Array.isArray(payload.ids) ? payload.ids : []);
+            } else if (payload.action === BLACKENED_REQUEST) {
+                const mine = blackenedIds();
+                if (!mine.length) return;
+                game.socket.emit(SOCKET_EVENT,
+                    { action: BLACKENED_SET, from: game.user.id, ids: mine },
+                    { recipients: [senderId] });
+            }
+        } catch (err) {
+            error("Could not handle an incident cast message", err);
+        }
+    });
+
+    /*
+     * The private half: GM -> one participant.
+     *
+     * A SEPARATE listener, because the one above opens with a GM check and this
+     * is the message a PLAYER client is meant to act on - the same shape
+     * mastermind.mjs uses for its door flag, and for the same reason. Foundry's
+     * `recipients` already means nobody else's browser receives it; the sender
+     * check is what stops a player planting a cast on themselves.
+     */
+    game.socket.on(SOCKET_EVENT, async (payload, senderId) => {
+        if (payload?.action !== CAST_MINE) return;
+        if (!game.users.get(senderId)?.isGM) return;
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.incidentCast, payload.cast ?? {});
+        } catch (err) {
+            error("Could not record this client's incident cast", err);
+        }
+    });
+
+    /*
+     * Catching up. A client-scoped store does not survive a cleared browser the
+     * way world data does, so everybody asks on join rather than starting blind.
+     *
+     * EVERY GM asks, not only the primary one - gating it on `isPrimaryGm()`
+     * would leave the client most likely to be missing the cast, a second GM
+     * joining mid-incident, as the one that never asked. Same reasoning, same
+     * wording, as the Mastermind and the Truth Bullet key.
+     *
+     * A player asks too, and only ever gets back what they are in: an empty
+     * object for the overwhelming majority, which costs one socket message.
+     */
+    /*
+     * AT READY, NOT AT REGISTRATION (found in the sandbox, 03.09).
+     *
+     * `registerMurder` runs from `init`, when `game.user` is still null, and
+     * this block was written on the Mastermind's model - whose register runs
+     * from `ready`. Reading `game.user.isGM` here threw, and the throw took the
+     * rest of `registerMurder` with it: no third-party watch, no body
+     * discovery, no victim check, on every client, with one console line to
+     * show for it. The socket handlers above are fine at `init`; the asking
+     * waits for the users to exist.
+     */
+    Hooks.once("ready", () => {
+        if (game.user.isGM) {
+            migrateIncidentSecrets().catch(err =>
+                error("Could not lift the incident secrets out of world data", err));
+
+            const recipients = gmIds().filter(id => id !== game.user.id);
+            if (!recipients.length) return;
+            try {
+                game.socket.emit(SOCKET_EVENT,
+                    { action: CAST_REQUEST, from: game.user.id }, { recipients });
+                game.socket.emit(SOCKET_EVENT,
+                    { action: BLACKENED_REQUEST, from: game.user.id }, { recipients });
+            } catch (err) {
+                error("Could not ask the other GMs for the incident cast", err);
+            }
+            return;
+        }
+
+        const gms = gmIds();
+        if (!gms.length) return;
+        try {
+            game.socket.emit(SOCKET_EVENT,
+                { action: CAST_MINE_REQUEST, from: game.user.id }, { recipients: gms });
+        } catch (err) {
+            error("Could not ask the GMs which incident this client is in", err);
+        }
+    });
+}
+
+/**
+ * A world that updated mid-chapter still has the names in world data.
+ *
+ * Lifted once, by ONE client, and the world copies are blanked behind them - a
+ * fix that leaves the old value readable has not fixed anything. Gated on
+ * `isPrimaryGm` because two GMs doing it would race on the same two settings.
+ *
+ * Idempotent: a world already through this has no ids left in `murderState` and
+ * an empty `blackened`, so the two guards below both fall through.
+ */
+async function migrateIncidentSecrets() {
+    if (!isPrimaryGm()) return;
+
+    const stored = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
+    const strays = CAST_FIELDS.filter(key => stored[key] != null);
+    if (strays.length) {
+        const cast = {};
+        const rest = { ...stored };
+        for (const key of CAST_FIELDS) {
+            if (stored[key] != null) cast[key] = stored[key];
+            delete rest[key];
+        }
+        await writeCast(cast);
+        await game.settings.set(MODULE_ID, SETTINGS.murderState, rest);
+        log(`Lifted ${strays.length} incident name(s) out of world data (LIVE-001).`);
+    }
+
+    const oldRegister = game.settings.get(MODULE_ID, SETTINGS.blackened) ?? [];
+    if (oldRegister.length) {
+        const merged = [...new Set([...blackenedIds(), ...oldRegister])];
+        await writeBlackened(merged);
+        await game.settings.set(MODULE_ID, SETTINGS.blackened, []);
+        log(`Lifted ${oldRegister.length} Blackened out of world data (LIVE-001).`);
+    }
+}
+
 export function registerMurder() {
+    registerIncidentCastSync();
+
     // The betrayal's day-long window (D18). Swept rather than counted down -
     // see `sweepBetrayalWindows`.
     Hooks.on("drpgTimeOfDayChanged", () => {
@@ -2373,7 +2709,6 @@ async function crowdedOut(actor) {
     if (!state || state.stage !== "incident") return null;
     if (state.indirect || !state.thirdId) return null;
 
-    const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
     const third = game.actors.get(state.thirdId);
 
     // The GMs and everybody in the room it was happening in - the same audience
@@ -2410,9 +2745,30 @@ async function crowdedOut(actor) {
  * WHO KILLED THIS CHAPTER
  * ========================================================================== */
 
-/** The killers of this chapter, in the order they killed. GM-side. */
+/**
+ * The killers of this chapter, in the order they killed. GM-side, and now
+ * literally so: this is a client-scoped ledger, synced GM to GM (LIVE-001).
+ *
+ * A player's client answers "nobody", which is the honest answer to "what do
+ * you know about this" and the same one `remnantData` gives. Nothing on a
+ * player's screen reads it.
+ */
 export function blackenedIds() {
-    return game.settings.get(MODULE_ID, SETTINGS.blackened) ?? [];
+    if (!game.user.isGM) return [];
+    return game.settings.get(MODULE_ID, SETTINGS.blackenedLedger) ?? [];
+}
+
+/** Write the register and tell the other GMs. */
+async function writeBlackened(ids) {
+    await game.settings.set(MODULE_ID, SETTINGS.blackenedLedger, ids);
+    const recipients = gmIds().filter(id => id !== game.user.id);
+    if (!recipients.length) return;
+    try {
+        game.socket.emit(SOCKET_EVENT,
+            { action: BLACKENED_SET, from: game.user.id, ids }, { recipients });
+    } catch (err) {
+        error("Could not sync the Blackened register to the other GMs", err);
+    }
 }
 
 /** Their actors, skipping any that have since been deleted. */
@@ -2452,14 +2808,14 @@ async function recordBlackened(state) {
     const current = blackenedIds();
     const additions = killerIds(state).filter(id => !current.includes(id));
     if (!additions.length) return;
-    await game.settings.set(MODULE_ID, SETTINGS.blackened, [...current, ...additions]);
+    await writeBlackened([...current, ...additions]);
     log(`Blackened recorded: ${additions.map(id => game.actors.get(id)?.name ?? id).join(", ")}.`);
 }
 
 /** A new chapter starts with nobody's blood on anybody. Called by chapter.mjs. */
 export async function clearBlackened() {
     if (!game.user.isGM) return;
-    await game.settings.set(MODULE_ID, SETTINGS.blackened, []);
+    await writeBlackened([]);
 }
 
 export async function endMurder({ reason = "closed", followUp = true } = {}) {
@@ -2527,7 +2883,9 @@ export async function endMurder({ reason = "closed", followUp = true } = {}) {
         }
     }
 
-    await game.settings.set(MODULE_ID, SETTINGS.murderState, {});
+    // Both halves, and the participants' copies with them: an incident that is
+    // over must not leave its cast sitting on anybody's client.
+    await restoreState({});
     log(`Murder closed (${reason}).`);
 
     // Take back the Stage 4 invitation, if one is still standing.
@@ -3376,7 +3734,7 @@ export async function openIncidentTracker() {
     if (!game.user.isGM) return null;
     const state = murderState();
     if (!state) {
-        ui.notifications.info(game.i18n.localize("DRPG.Murder.none"));
+        ui.notifications.warn(game.i18n.localize("DRPG.Murder.none"));
         return null;
     }
 

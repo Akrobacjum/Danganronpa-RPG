@@ -79,7 +79,7 @@ export async function initCharacter(actor, {
         // Worth saying once, from the season checklist. Said once per student
         // during a reset, it is a wall of notices about something the reset was
         // not asked to do.
-        ui.notifications.info(game.i18n.localize("DRPG.Character.startingItemMissing"));
+        ui.notifications.warn(game.i18n.localize("DRPG.Character.startingItemMissing"));
     }
 
     // What this sheet looks like now, so a season reset has something to come

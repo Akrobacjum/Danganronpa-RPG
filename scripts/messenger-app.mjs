@@ -759,14 +759,18 @@ async function runCallAction(action, data) {
         // table first.
         const actor = game.actors.get(data.by);
         if (!actor) return null;
-        const { giveItemDialog } = await import("./gm-items.mjs");
-        const given = await giveItemDialog(actor);
+        const { gmGiveItemDialog } = await import("./gm-items.mjs");
+        const given = await gmGiveItemDialog(actor);
         return given ? settled("DRPG.Bridge.settledHandled") : null;
     }
 
     if (action === "keyRemnantHere") {
         const { openKeyRemnantHere } = await import("./investigation.mjs");
-        const placed = await openKeyRemnantHere({ room: data.room || null, note: data.want || "" });
+        // `data.scene` is the scene the PLAYER was standing on, carried since
+        // audit A6 - this GM is very often looking at a different one.
+        const placed = await openKeyRemnantHere({
+            room: data.room || null, note: data.want || "", sceneId: data.scene || null
+        });
         return placed ? settled("DRPG.Bridge.settledHandled") : null;
     }
 

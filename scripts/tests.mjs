@@ -413,6 +413,59 @@ const REGRESSIONS = [
             [...missing].map(([k, w]) => `${k} (${w})`).join(", ")}`);
     }],
 
+    ["R1b · no socket handler takes a character on somebody's word", async () => {
+        /*
+         * THE ONE INVARIANT THAT DECIDES WHETHER A PLAYER CAN ACT AS ANOTHER
+         * PLAYER'S CHARACTER.
+         *
+         * `onSocket` is a chain of `if (payload.action === X)` branches, and
+         * every branch that acts on `payload.actorId` has to establish two
+         * things first: who really sent this (`senderOf(senderId)`, from
+         * Foundry's own argument, which cannot be forged), and whether that
+         * person owns the character named in the payload (`ownsActor`). The
+         * payload's own `userId` is a claim and is only ever used as an address.
+         *
+         * Twenty-eight branches carry that preamble by hand today and all of
+         * them are correct - measured, not assumed. What this test is for is
+         * the twenty-ninth: a handler added in a hurry, three hundred lines
+         * down a file nobody reads top to bottom, that takes an `actorId` and
+         * simply uses it. Nothing about the module's behaviour would say so,
+         * and the failure is a player moving somebody else's student.
+         *
+         * READ FROM SOURCE rather than exercised, because the thing being
+         * checked is the SHAPE of a guard, not its outcome: a handler that
+         * never runs in a test world is exactly the one most likely to be
+         * missing it.
+         */
+        const src = stripComments(
+            await fetch(`/modules/${MODULE_ID}/scripts/gm-bridge.mjs`).then(r => r.text()));
+
+        const from = src.indexOf("async function onSocket");
+        ok(from > 0, "onSocket is not in gm-bridge.mjs any more");
+        const after = src.slice(from + 10);
+        const next = after.search(/^(?:export )?(?:async )?function /m);
+        const body = next < 0 ? after : after.slice(0, next);
+
+        const heads = [...body.matchAll(/if \(payload\??\.action === (\w+)\)/g)];
+        ok(heads.length > 20,
+            `only ${heads.length} socket branches were found - has onSocket been restructured?`);
+
+        const unguarded = [];
+        for (const [i, head] of heads.entries()) {
+            const start = head.index;
+            const end = i + 1 < heads.length ? heads[i + 1].index : body.length;
+            const branch = body.slice(start, end);
+            if (!/payload\.actorId/.test(branch)) continue;
+            const checksSender = branch.includes("senderOf(senderId)");
+            const checksOwner = /ownsActor\(sender/.test(branch);
+            if (!checksSender || !checksOwner) unguarded.push(head[1]);
+        }
+
+        ok(!unguarded.length,
+            `these socket handlers act on payload.actorId without checking that the `
+            + `sender owns it: ${unguarded.join(", ")}`);
+    }],
+
     ["R2 · no styling rule in the sheet has lost its emitter", async () => {
         /*
          * DEAD CSS IS INVISIBLE BY CONSTRUCTION. `.drpg-tamper-cover` was
@@ -1144,7 +1197,13 @@ const REGRESSIONS = [
             openGmPanel: "gm-panel",
             openWhoIsAliveDialog: "gm-panel",
             openInvestigationDashboard: "investigation",
-            manageClassTrial: "trial-floor-ui"
+            manageClassTrial: "trial-floor-ui",
+            // Added in E6, and for the reason the list exists: both used to
+            // close and reopen themselves after every Hope donation, which took
+            // the GM's scroll position and any unapplied ticks with it. They
+            // are live now, and this is what stops that quietly coming back.
+            openMonocubDialog: "monocub",
+            openMastermindDialog: "mastermind"
         };
 
         const dead = [];
@@ -2401,7 +2460,13 @@ const INVARIANTS = [
         // cannot each grow their own copy of the rule.
         const ws = src.indexOf("async function writeState");
         ok(ws > 0, "writeState is gone");
-        const writer = src.slice(ws, ws + 1200);
+        // THE WHOLE FUNCTION, NOT A FIXED SLICE. This read 1200 characters, and
+        // when LIVE-001 (1b) split the write into a cast half and a public half
+        // the arming moved past that mark - `stripComments` keeps every
+        // comment's length, so the note above the arming counts too. The suite
+        // then reported the window "armed somewhere else" while it sat exactly
+        // where it always had. A function ends at its own closing brace.
+        const writer = src.slice(ws, src.indexOf("\n}", ws) + 2);
         ok(/armBetrayalWindow/.test(writer),
             "the window is armed somewhere other than the single state writer");
         ok(/before\.stage !== "resolution"/.test(writer),
@@ -2428,10 +2493,32 @@ const INVARIANTS = [
         const at = src.indexOf("function lockedInIncident");
         ok(at > 0, "lockedInIncident is gone, so an incident is draggable out of");
         const body = src.slice(at, at + 600);
+
+        /*
+         * THE GUARANTEE IS THE SAME; THE ROAD TO IT MOVED (LIVE-001).
+         *
+         * This used to read `state.killerId`, `state.victimId` and
+         * `state.thirdId` straight off the world setting. The names are not in
+         * world data any more, so the lock asks `incidentParticipants()` - and
+         * the thing worth testing is unchanged: all three are held, and only
+         * during the fight.
+         *
+         * Both halves are checked, because the guarantee now spans two files
+         * and a rename in either would break it silently: this file must ASK,
+         * and settings.mjs must answer with all three.
+         */
+        ok(/incidentParticipants\(\)/.test(body),
+            "the lock no longer asks who is in the incident");
+        const settingsSrc = stripComments(
+            await fetch(`/modules/${MODULE_ID}/scripts/settings.mjs`).then(r => r.text()));
+        const fnAt = settingsSrc.indexOf("function incidentParticipants");
+        ok(fnAt > 0, "incidentParticipants is gone, so nothing can be held in place");
+        const fnBody = settingsSrc.slice(fnAt, fnAt + 400);
         for (const who of ["killerId", "victimId", "thirdId"]) {
-            ok(new RegExp(`state\\.${who}`).test(body),
-                `${who} can walk out of an incident`);
+            ok(new RegExp(`cast\\.${who}`).test(fnBody),
+                `${who} is not in the participant list, so they can walk out of an incident`);
         }
+
         // And the lock is still only the fight, so Stage 6 can move around.
         ok(/stage !== "incident"/.test(body),
             "the lock reaches beyond the fight, which would freeze the clean-up");
@@ -3337,6 +3424,12 @@ async function snapshot(cast) {
     return {
         clock: foundry.utils.deepClone(getClock()),
         murder: foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {}),
+        // The other half of the incident (LIVE-001). Client-scoped, and taken
+        // with the world half or a scenario that opens a murder leaves this
+        // browser holding a cast for an incident that no longer exists - which
+        // is exactly the shape of dirt this snapshot exists to prevent.
+        cast: foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.incidentCast) ?? {}),
+        blackened: foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.blackenedLedger) ?? []),
         // E14. Both are world settings a scenario below writes, and both are
         // visible to the whole table - a suite that leaves a motive standing
         // has announced one at somebody's game.
@@ -3399,10 +3492,12 @@ async function snapshot(cast) {
 async function restore(snap) {
     const { reviveCharacter } = await import("./chapter.mjs");
     await game.settings.set(MODULE_ID, SETTINGS.murderState, snap.murder);
+    await game.settings.set(MODULE_ID, SETTINGS.incidentCast, snap.cast);
     await game.settings.set(MODULE_ID, SETTINGS.motive, snap.motive);
     await game.settings.set(MODULE_ID, SETTINGS.pendingGather, snap.gather);
-    const { clearBlackened } = await import("./murder.mjs");
-    await clearBlackened();
+    // Put the register back as it was rather than emptying it: a suite run
+    // during a chapter that already had a killing used to erase that fact.
+    await game.settings.set(MODULE_ID, SETTINGS.blackenedLedger, snap.blackened);
 
     for (const row of snap.resources) {
         const actor = game.actors.get(row.id);
@@ -4487,8 +4582,10 @@ const SCENARIOS = [
         let granted = null;
 
         try {
+            // Name only. A plant carries no category and no tier of its own -
+            // it arrives as whatever the finder searched for (A23).
             const identity = await T.plantItem("SUITE-project", room, {
-                name: "SUITE planted kit", category: "healing", tier: 1
+                name: "SUITE planted kit"
             });
             ok(identity, "nothing was planted");
 
@@ -5157,7 +5254,7 @@ const SCENARIOS = [
         try {
             if (wasPaused) await game.togglePause(false);
             await setClock({ phase: "classTrial" });
-            // `startFloor` is what CREATES a floor; `returnToDiscussion` only
+            // `startFloor` is what CREATES a floor; `returnToDebate` only
             // moves an existing one back. Without it every call below refuses
             // on `if (!floor) return null` and the trial never leaves
             // `trial.discussion`, which is the state for a trial with no floor

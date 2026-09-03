@@ -18,7 +18,7 @@ import { MODULE_ID, HOPE_CALLS, DESPAIR_CALLS, STARTING, callEffect } from "./co
 import { resourceValue, resourceMax } from "./character.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
 import { isEclipse } from "./eclipse.mjs";
-import { announce, whisperToOwner, log, error } from "./utils.mjs";
+import { announce, whisperToOwner, log, error, esc} from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -142,7 +142,7 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
             }
 
             if (!approved) {
-                ui.notifications.info(game.i18n.format(
+                ui.notifications.warn(game.i18n.format(
                     approved === null ? "DRPG.Calls.noAnswer" : "DRPG.Calls.refused",
                     { call: call.label }));
                 log(`${call.label} was not allowed for ${actor.name}.`);
@@ -180,7 +180,6 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
             return null;
         }
 
-        const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
         // A Hope Call is spent Hope. There is no reading to do - the card wears
         // gold because of what it is, the same gold a Hope roll wears.
         await whisperToOwner(actor, `
@@ -261,7 +260,6 @@ export async function spendDespairCallFor(actor, key, { note = "", choice = {} }
             return null;
         }
 
-        const esc = s => foundry.utils.escapeHTML(String(s ?? ""));
 
         /*
          * THE TABLE IS ALWAYS TOLD (Dawid, 28.08).
@@ -385,7 +383,6 @@ export async function confirmCall(call, { kind = "hope", held = 0, choice = {} }
 export async function askHopeCallApproval(payload = {}) {
     if (!game.user.isGM) return false;
 
-    const esc = str => foundry.utils.escapeHTML(String(str ?? ""));
     const result = await DialogV2.wait({
         window: { title: game.i18n.format("DRPG.Calls.approveTitle", {
             call: payload.callLabel ?? "" }) },

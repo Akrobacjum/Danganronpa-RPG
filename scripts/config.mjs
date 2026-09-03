@@ -389,12 +389,22 @@ export const ITEM_CATEGORIES = {
         label: "Usable",
         plural: "Usables",
         /*
-         * TWO (D10c), the same argument as the gear group and measured on the
-         * same run: three of these is a first-aid cabinet in a pocket, and a
+         * THREE (Dawid, 02.09.2026), which puts back what D10c took away.
+         *
+         * D10c cut this to two on the same argument as the gear group and the
+         * same measured run: three is a first-aid cabinet in a pocket, and a
          * character who can answer every bad night out of their own coat is a
-         * character for whom the bad night was not a problem.
+         * character for whom the bad night was not a problem. Dawid's ruling
+         * on the 1.2.13 audit (question Q4) is three, and the two numbers are
+         * not the same question - gear competes with itself because a hand
+         * holds one thing, and usables are spent rather than held.
+         *
+         * Written down because the code and the comments had disagreed about
+         * this for a while: the note on LIMIT_GROUPS below has said "Usables
+         * still cap at three of their own" throughout, and was wrong until
+         * this line changed.
          */
-        limit: 2,
+        limit: 3,
         hint: "Healing items restore Health, sanity-relief items clear Sanity. Tier 3 lets you pick."
     },
     // "Murder Weapon" rather than "Crime Tool" - Dawid's wording, 2026-08-17.
@@ -1609,17 +1619,22 @@ export const HOPE_CALLS = {
      * They are also the first three Hope Calls in this module that are NOT in
      * the guide.
      *
-     * PRICES, THIRD PASS (Z9, from the season run; Dawid, 29.08). Sprint 2,
-     * Relief 3, Burst 4 - and the ladder is what it was always trying to be:
-     * a crossing costs less than a rest, and a rest costs less than ANY action.
-     * The first pass had them at 3 / 5 / 4 and got the general case cheapest;
-     * the second (28.08) fixed Relief; this one fixes the floor.
+     * PRICES, AS THEY STAND: Sprint 2, Burst 4, Relief 4. The crossing is the
+     * cheap specific case and is priced below both. The other two sit level,
+     * which is deliberate: Relief was the cheaper of them until D10d, and a
+     * Relief cheaper than a Burst turned out to be a Relief cheaper than
+     * resting - see the note on `relief` itself.
+     *
+     * Four passes to get here. 3 / 5 / 4 first, which made the general case the
+     * cheapest of the three; 28.08 dropped Relief to 3; Z9 (29.08) took Sprint
+     * down to 2 to fix the floor; D10d put Relief back to 4.
      */
     sprint: {
         /*
-         * TWO, NOT THREE (Z9). At 3 it stood level with Relief, which buys a
-         * whole Short Rest - so the cheap specific case cost exactly as much as
-         * the broad one, and the season run says what a player does with that:
+         * TWO, NOT THREE (Z9). At 3 it stood level with Relief - 3 itself back
+         * then - which buys a whole Short Rest, so the cheap specific case cost
+         * exactly as much as the broad one, and the season run says what a
+         * player does with that:
          * nothing. Sprint was bought least of the three by a wide margin, and
          * not because a free Move is worthless. Because it was priced as though
          * it were a rest.
@@ -1633,11 +1648,12 @@ export const HOPE_CALLS = {
     },
     burst: {
         /*
-         * FOUR (Z9, Dawid 29.08), and the shape of the menu is the same shape
-         * it was at five - read it out loud: Sprint 2 buys a crossing, Relief 3
-         * buys a Short Rest, Burst 4 buys ANY action. The general case still
-         * costs more than either specific one, which is the right way round and
-         * was not true before 28.08.
+         * FOUR (Z9, Dawid 29.08). Read the menu out loud: Sprint 2 buys a
+         * crossing, Burst 4 buys ANY action, Relief 4 buys a Short Rest. Sprint
+         * is the cheap specific case and is priced below both, which is the
+         * right way round and was not true before 28.08. Relief sat under this
+         * Call until D10d put the two level, for reasons that are about resting
+         * rather than about this Call - see `relief`.
          *
          * What changed is the ceiling, not the ordering. Six is the Free
          * Critical and it is meant to be the thing you save for; at five, Burst
@@ -1661,25 +1677,21 @@ export const HOPE_CALLS = {
     },
     relief: {
         /*
-         * THREE, NOT FIVE (Dawid, 28.08): "nie ma powodu, by było droższe niż
-         * Burst." It was priced above Burst on the reasoning that a rest buys
-         * more than an action, which is true and is not the question - the
-         * question is what a player will actually reach for, and a Call nobody
-         * buys is a Call that is not in the game.
+         * FOUR (D10d), and it went up to get here.
          *
-         * It lands in the same price band as Sprint, Reroll and Determination,
-         * and `byPrice()` is stable, so the panel keeps them in this table's
-         * order within the band.
-         */
-        /*
-         * FOUR (D10d), and this one goes UP after going down.
+         * It started at five, above Burst, on the reasoning that a rest buys
+         * more than an action. True, and not the question: the question is what
+         * a player reaches for, and a Call nobody buys is a Call that is not in
+         * the game. So 28.08 took it to three - the right answer to "nobody
+         * buys it", and the wrong answer to "what is a Rest for". At three,
+         * Relief was simply a better Rest and the measured Long Rest almost
+         * stopped happening.
          *
-         * Three was the right answer to "nobody buys it" and turned into the
-         * wrong answer to "what is a Rest for": at three, Relief was simply a
-         * better Rest, so the measured Long Rest almost stopped happening. At
-         * four the two stop competing - Long Rest recovered by half in the
-         * same run - and Relief goes back to being what it was meant to be:
-         * the thing you buy when you cannot afford the hours.
+         * At four the two stop competing: Long Rest recovered by half in the
+         * same run, and Relief is what it was meant to be, the thing you buy
+         * when you cannot afford the hours. It shares the price band with Burst
+         * now, and `byPrice()` is stable, so the panel keeps them in this
+         * table's order inside the band.
          */
         label: "Relief", icon: "fa-mug-hot", cost: 4, target: "none",
         /*
@@ -1714,9 +1726,10 @@ export const HOPE_CALLS = {
         effect: "For one roll, choose which statistic to add yourself."
     },
     freeCrit: {
-        // NIE KRYTYK, TYLKO ZALADOWANA KOSC (Dawid, 31.08) - patrz forced-roll.mjs.
-        // `grants` zostaje "critical", bo to jest klucz, po ktorym okno rzutu i
-        // potok akcji rozpoznaja TEN Call; zmienia sie to, co on robi z koscmi.
+        // NOT A CRITICAL, A LOADED DIE (Dawid, 31.08) - see forced-roll.mjs.
+        // `grants` stays "critical", because that is the key the roll dialog and
+        // the action pipeline recognise THIS Call by; what changes is what it
+        // does to the dice.
         label: "Free Critical", icon: "fa-burst", cost: 6, target: "none", grants: "critical",
         effect: "On the next roll one die is set to 12 and the other is thrown. A very high total, and a critical only if that other die comes up 12 too."
     }
@@ -2037,20 +2050,18 @@ export const DESPAIR_CALLS = {
          * wrong. A motive is the single loudest move in the game and the one
          * most likely to end somebody, and Monokuma's moves cost Despair.
          *
-         * NINE, deliberately: three quarters of a full pool. A Monokuma who
-         * announces a motive has spent their time of day on it and will do
-         * almost nothing else, and two of them cannot both announce one
-         * without having saved up first. That is the price of the loudest
-         * move in the game, and it is the whole reason it is a Call.
+         * SIX, and it began at nine (E24, 31.08). Nine was three quarters of
+         * a full pool, and that priced the loudest move in the game out of the
+         * game: a motive came out about once every two chapters, and the
+         * Monokuma who announced one did almost nothing else that time of day.
+         * Six stands beside Public Announcement and can be repeated, which is
+         * what the module's main pacing tool has to be able to do.
          *
          * Three fields rather than one, because a motive that is only a
          * sentence is a motive nobody can hold Monokuma to: the demand, how
          * many times of day it runs, and what happens when it runs out. The
          * countdown lives on the HUD where the cast can watch it.
          */
-        // SZESC, NIE DZIEWIEC (E24, wdrozone 31.08). Za 9 - trzy czwarte pelnej
-        // puli - motyw wychodzil raz na dwa rozdzialy. Za 6 stoi obok Publicznego
-        // ogloszenia i da sie go powtorzyc, a to jest glowne narzedzie tempa.
         label: "Motive", icon: "fa-envelope", cost: 6, target: "none", setsMotive: true,
         effect: "Announce a motive: a demand, a deadline in times of day, and the price of ignoring it."
     },
@@ -2059,8 +2070,8 @@ export const DESPAIR_CALLS = {
          * NINE (D10f). At twelve it was bought zero times in a measured season:
          * a full pool, spent on one thing, in a game where the pool is also
          * every cheap harassment a Monokuma wants to do all week. Nine puts it
-         * at about three and a half purchases a season, and the Motive - the
-         * other nine-point Call it now ties - did not suffer for the company.
+         * at about three and a half purchases a season, and the Motive - at
+         * nine beside it then, six since E24 - did not suffer for the company.
          */
         label: "New Rule", icon: "fa-gavel", cost: 9, target: "none", announces: true,
         effect: "Introduce one new killing game rule of your choice."
@@ -2974,13 +2985,6 @@ export const TRIAL = {
     objectionSeconds: 60,
     rebuttalSeconds: 120,
     /**
-     * A tie is a loss for the players (guide p. 31), but nothing here reads
-     * that: `closeVote` publishes the counts and says a tie is a tie, and the
-     * GM then presses "Got it wrong" in the verdict dialog. A constant the code
-     * consulted would be deciding a verdict the module deliberately never learns
-     * - it never finds out who the Blackened was.
-     */
-    /**
      * You may accuse a Monokuma, somebody already dead, or yourself.
      *
      * The guide is explicit on all three: "Można głosować na Monokumę oraz na
@@ -3714,7 +3718,7 @@ export const SFX_EVENTS = {
     },
     projectDone: {
         label: "A project is finished",
-        hint: "The bar filled. Heard by whoever proposed it and by the GMs - never publicly, because a project can be secret. A repair and an armed trap are not this: both have a louder announcement of their own.",
+        hint: "The bar filled. Heard by whoever proposed it and by the GMs, never publicly, because a project can be secret - a repair and an armed trap have louder announcements of their own.",
         category: "world"
     },
     critical: {
@@ -3735,7 +3739,7 @@ export const SFX_EVENTS = {
     },
     sabotageFailed: {
         label: "Sabotage fails",
-        hint: "Heard by the saboteur. A failed sabotage still leaves its trace, so this is not \"nothing happened\" - it is evidence bought for no gain. Stays quiet when the room saw you do it; you hear that instead.",
+        hint: "Heard by the saboteur, and only when nobody saw - a failed sabotage still leaves its trace, so this is evidence bought for no gain rather than nothing happening.",
         category: "world"
     },
     sabotageSeen: {
@@ -3803,7 +3807,7 @@ export const SFX_EVENTS = {
     },
     meddle: {
         label: "A Monocub interferes",
-        hint: "Heard by the Monocub and by whoever they landed it on - never by anyone else, and it says nothing about WHICH Monocub. The only thing in this game that changes your next roll without you having done anything, which is why the target needs telling: they are not watching the screen.",
+        hint: "Heard by the Monocub and by whoever they landed it on, and it says nothing about WHICH Monocub. The only thing that changes your next roll without you having done anything, which is why the target needs telling.",
         category: "incident"
     },
     yourTurn: {
@@ -3823,7 +3827,7 @@ export const SFX_EVENTS = {
     },
     analyzeMiss: {
         label: "Analysis fails",
-        hint: "Heard by the student who ran it. The bullet is locked until the next chapter - the longest-lasting consequence any failed roll in this game has, and it arrived as a whisper with nothing to mark it.",
+        hint: "Heard by the student who ran it. The bullet is locked until the next chapter, the longest-lasting consequence any failed roll in this game has.",
         category: "incident"
     },
     debateOpen: {

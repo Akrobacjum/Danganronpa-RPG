@@ -317,7 +317,7 @@ export async function applyAdvancement(actor, picks, kind = "standard") {
     }
 
     if (!Object.keys(update).length) {
-        ui.notifications.info(game.i18n.localize("DRPG.Advance.nothingToApply"));
+        ui.notifications.warn(game.i18n.localize("DRPG.Advance.nothingToApply"));
         return null;
     }
 

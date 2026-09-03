@@ -33,7 +33,7 @@ import { isDeceased, killCharacter } from "./chapter.mjs";
 import { remnantsOn, remnantData } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { announce, dialogContent, whisperToGms, gmIds, ownerOf, log, warn, error } from "./utils.mjs";
-import { alreadyOpen } from "./live.mjs";
+import { alreadyOpen, keepLive } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 const SOCKET_EVENT = `module.${MODULE_ID}`;
@@ -405,10 +405,27 @@ export async function openMastermindDialog() {
             foundry.utils.escapeHTML(a.name)}</option>`).join("");
 
     const { monokumas, poolLabel, getDespair } = await import("./despair.mjs");
-    const gms = monokumas();
-    const donors = gms.map(u =>
+    /*
+     * FUNCTIONS, BECAUSE A DONATION CHANGES BOTH OF THESE (E6).
+     *
+     * The window used to close and reopen itself after every donation to show
+     * the new numbers, which threw away the room the GM had picked in the
+     * select above and put the window back at its default position. The
+     * fieldset is a live region now, so the two figures a donation moves - the
+     * Mastermind's Hope and the pool it came out of - redraw where they stand.
+     */
+    const buildDonors = () => monokumas().map(u =>
         `<option value="${u.id}">${foundry.utils.escapeHTML(poolLabel(u))} (${getDespair(u.id)})</option>`
     ).join("");
+
+    const buildHopeBox = () => `
+        <p class="notes">${game.i18n.format("DRPG.Mastermind.hopeReadout", {
+            held: mastermindActor()?.system?.resources?.hope?.value ?? 0
+        })}</p>
+        <select name="donor">${buildDonors()}</select>
+        <input type="number" name="amount" min="1" value="1" style="width:4em" />
+        <button type="button" class="drpg-mini-button" data-drpg-give>
+            ${game.i18n.localize("DRPG.Monocub.give")}</button>`;
 
     const { allRooms } = await import("./movement.mjs");
 
@@ -443,13 +460,7 @@ export async function openMastermindDialog() {
             ${current ? `
             <fieldset>
                 <legend>${game.i18n.localize("DRPG.Monocub.giveHope")}</legend>
-                <p class="notes">${game.i18n.format("DRPG.Mastermind.hopeReadout", {
-                    held: current.system?.resources?.hope?.value ?? 0
-                })}</p>
-                <select name="donor">${donors}</select>
-                <input type="number" name="amount" min="1" value="1" style="width:4em" />
-                <button type="button" class="drpg-mini-button" data-drpg-give>
-                    ${game.i18n.localize("DRPG.Monocub.give")}</button>
+                <div class="drpg-mm-live">${buildHopeBox()}</div>
             </fieldset>` : ""}
         </form>`),
         buttons: [
@@ -483,15 +494,29 @@ export async function openMastermindDialog() {
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
         ],
         render: (event, dialog) => {
-            dialog.element.querySelector("[data-drpg-give]")?.addEventListener("click", async () => {
-                const donorId = dialog.element.querySelector("[name=donor]")?.value;
-                const amount = Number(dialog.element.querySelector("[name=amount]")?.value) || 0;
-                if (donorId && amount > 0 && current) {
-                    const { convertDespairToHope } = await import("./despair.mjs");
-                    await convertDespairToHope(donorId, current, amount);
-                    await dialog.close();
-                    await openMastermindDialog();
-                }
+            // Rewired after every redraw: `keepLive` replaces the region's
+            // nodes, and the listener would go with the button it was on.
+            const wireGive = () => {
+                dialog.element.querySelector("[data-drpg-give]")
+                    ?.addEventListener("click", async () => {
+                        const donorId = dialog.element.querySelector("[name=donor]")?.value;
+                        const amount = Number(
+                            dialog.element.querySelector("[name=amount]")?.value) || 0;
+                        if (!donorId || amount <= 0 || !current) return;
+
+                        const { convertDespairToHope } = await import("./despair.mjs");
+                        await convertDespairToHope(donorId, current, amount);
+                        // No close and reopen: this writes two actors, and the
+                        // region below watches them (E6).
+                    });
+            };
+            wireGive();
+
+            keepLive(dialog, {
+                region: ".drpg-mm-live",
+                build: buildHopeBox,
+                watch: { actors: true },
+                after: wireGive
             });
         },
         rejectClose: false

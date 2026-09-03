@@ -19,7 +19,7 @@
 import { MODULE_ID, MOTIVE } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
-import { announce, dialogContent, log, error, plural, tableDialog } from "./utils.mjs";
+import { announce, dialogContent, log, error, plural, tableDialog, esc} from "./utils.mjs";
 import { alreadyOpen } from "./live.mjs";
 
 /* ==========================================================================
@@ -129,7 +129,6 @@ export async function setMotive(input) {
     };
     await game.settings.set(MODULE_ID, SETTINGS.motive, record);
 
-    const esc = t => foundry.utils.escapeHTML(String(t ?? ""));
     const consequence = record.consequence
         ? `<p class="drpg-warning">${game.i18n.format("DRPG.Motive.orElse", {
             what: esc(record.consequence)
@@ -178,7 +177,6 @@ export async function tickMotive() {
     });
 
     if (announceDue) {
-        const esc = t => foundry.utils.escapeHTML(String(t ?? ""));
         await announce({
             flags: { [MODULE_ID]: { sfx: { key: "motive", gm: true } } },
             content: `<div class="drpg-evidence-card">

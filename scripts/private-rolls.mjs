@@ -19,12 +19,17 @@
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
-import { SETTINGS } from "./settings.mjs";
+import { SETTINGS, incidentParticipants } from "./settings.mjs";
 import { roomOfActor, occupantsOf } from "./movement.mjs";
 import { gmIds, ownerOf, error, debug, MESSAGE_FLAG } from "./utils.mjs";
 import { play, ENTER, ARRIVE } from "./motion.mjs";
 
-import { contentOf } from "./secret.mjs";
+// The module's one reader of "what did these two d12s say" - see `rollOutcomeOf`.
+// Static and safe: nothing in despair-award.mjs's own import closure leads back
+// to this file. It replaced `contentOf` from secret.mjs, which this file needed
+// only to match words against a card's prose.
+import { readDuality } from "./despair-award.mjs";
+
 export function registerPrivateRolls() {
     Hooks.on("preCreateChatMessage", onPreCreateChatMessage);
     // `renderChatMessageHTML` and nothing else.
@@ -308,13 +313,32 @@ export function markOutcome(element, outcome) {
  * Which of the three outcomes a message carries, or `null` for a roll that is
  * not a duality roll at all. Reads the message rather than the DOM, so it works
  * before anything has been rendered - which is what the messenger needs.
+ *
+ * FROM THE DICE, NOT FROM THE PROSE (audit A7).
+ *
+ * This used to match `/critical|fear|despair|hope/` against the flavour and the
+ * content, which is a card's own WORDS - and this module writes those words
+ * constantly. A ruling that says "No Hope left", a GM's reply with "critical
+ * mistake" in it, an Analyze card naming the Despair pool: each one dressed
+ * itself in a colour it had not rolled, and a card that genuinely rolled
+ * nothing could come out gold. The colour is a claim about the dice, so it is
+ * read off the dice.
+ *
+ * `readDuality` is the module's existing answer to exactly this question - it
+ * compares the two d12s and only falls back to the system's own flags when it
+ * cannot find them. Nothing it imports leads back here.
  */
 export function rollOutcomeOf(message) {
     if (!message?.rolls?.length) return null;
-    const flavour = `${message.flavor ?? ""} ${contentOf(message)}`;
-    if (/\bcritical\b/i.test(flavour)) return "critical";
-    if (/\bfear\b|despair/i.test(flavour)) return "fear";
-    if (/\bhope\b/i.test(flavour)) return "hope";
+
+    const duality = readDuality(message);
+    if (!duality) return null;
+
+    // A tie is a critical and grants Hope, so it is asked first - the flag path
+    // can report `withHope` alongside it.
+    if (duality.isCritical) return "critical";
+    if (duality.withFear) return "fear";
+    if (duality.withHope) return "hope";
     return null;
 }
 
@@ -398,7 +422,10 @@ function incidentAudience(author, message) {
         const state = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
         if (!state.active || state.stage !== "incident") return [];
 
-        const ids = [state.killerId, state.victimId, state.thirdId].filter(Boolean);
+        // From the cast rather than the state: the names left world data with
+        // LIVE-001. A client that is not in this incident reads an empty list
+        // and falls out here, which is correct - its rolls are nobody's business.
+        const ids = incidentParticipants();
         if (ids.length < 2) return [];
 
         const speakerId = message.speaker?.actor ?? null;

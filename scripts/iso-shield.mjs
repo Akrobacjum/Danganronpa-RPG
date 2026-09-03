@@ -50,6 +50,11 @@ let parkedHooks = [];   // [{ hook, fn }]
 let parkedParts = [];   // [{ cls, part, tabEntry }]
 let parkedRefreshState = null;   // { proto, fn }
 
+/** Is the isometric override parked right now? Read by `diagnosePatches`. */
+export function refreshStateParked() {
+    return Boolean(parkedRefreshState);
+}
+
 function shieldWanted() {
     try {
         return game.settings.get(MODULE_ID, SETTINGS.isoTokenShield) === true;

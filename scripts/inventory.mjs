@@ -424,6 +424,67 @@ export function countInCategory(actor, category) {
         i.getFlag(MODULE_ID, ITEM_FLAGS.category) === category && !isStashed(i)).length;
 }
 
+/**
+ * The item categories a form may offer, decided in ONE place (audit A22-A24).
+ *
+ * Four windows built this list for themselves, each with its own filter over
+ * `ITEM_CATEGORIES`, and only one of them kept up with the rules. Give / take
+ * items split usables into Healing and Sanity Relief when that split became
+ * what a usable DOES; the Item Tables editor, the trap's plant dialog and Room
+ * Setup's "good place to look for" did not, so all three went on offering one
+ * flat "Usable" - which resolves to the retired mixed tier pool - and two of
+ * them offered "Room Key", an item that means nothing without a room flag the
+ * form has no field for.
+ *
+ * Returned as descriptors rather than `<option>` markup because the callers
+ * differ in what they put on a row: Give / take items appends a carry count,
+ * Room Setup renders checkboxes rather than a select.
+ *
+ * @param {object} [options]
+ * @param {boolean} [options.splitUsables]  Offer `usable:healing` and
+ *   `usable:stress` separately. True wherever the answer decides what the item
+ *   will DO; false where the caller only has a category to give (Search asks
+ *   rooms about `usable`, not about a kind).
+ * @param {boolean} [options.includeKeys]  Offer bedroom keys. Off by default:
+ *   a key names a room, and a form that cannot ask which room produces a key
+ *   to nowhere.
+ * @param {boolean} [options.includeBullets]  Offer Truth Bullets. Off by
+ *   default: they carry a secret no ordinary item form has fields for.
+ * @returns {Array<{value: string, key: string, goal: string|null, label: string}>}
+ */
+export function pickableCategories({
+    splitUsables = true, includeKeys = false, includeBullets = false
+} = {}) {
+    return Object.entries(ITEM_CATEGORIES)
+        .filter(([key]) => (includeBullets || key !== "truthBullet")
+            && (includeKeys || key !== "bedroomKey"))
+        .flatMap(([key, cat]) => {
+            if (key === "usable" && splitUsables) {
+                return Object.entries(USABLE_KINDS).map(([goal, kind]) => ({
+                    value: `${key}:${goal}`,
+                    key,
+                    goal,
+                    label: `${cat.label} - ${kind.label}`
+                }));
+            }
+            return [{ value: key, key, goal: null, label: cat.label }];
+        });
+}
+
+/**
+ * The categories that are an ordinary possession - something a student was
+ * given, found or made.
+ *
+ * What it leaves out is the point (audit A25): a Truth Bullet is knowledge and
+ * a bedroom key is a door, and neither is a thing anybody "carries" in the
+ * sense the season checklist means when it asks whether everybody has their
+ * opening item. Assigning a bedroom hands out a key, so counting keys made
+ * every student with a room pass a test they had not been through.
+ */
+export function carriableCategories() {
+    return pickableCategories({ splitUsables: false }).map(c => c.key);
+}
+
 /** Every category drawing on one shared budget. See LIMIT_GROUPS. */
 export function categoriesInGroup(group) {
     return Object.entries(ITEM_CATEGORIES)
@@ -441,13 +502,14 @@ export function countInGroup(actor, group) {
  * Is there room for another one? Truth Bullets are deliberately uncapped.
  *
  * A category belonging to a LIMIT GROUP is counted across the whole group, so
- * "one more Murder Weapon?" is really "is there a free slot?" - three between
- * the weapons, the cleaning tools and the tools (G-43, Dawid 27.08). A category
- * with no group behaves exactly as it always did.
+ * "one more Murder Weapon?" is really "is there a free slot?" - two between the
+ * weapons, the cleaning tools and the tools (G-43, Dawid 27.08; cut from three
+ * to two by D10c, and one of those two has to be in a hand - see LIMIT_GROUPS).
+ * A category with no group behaves exactly as it always did.
  *
  * The shape of the answer is unchanged on purpose: four callers put `limit` into
- * a refusal message, and they should not have to learn about groups to say "2 of
- * 3" instead of "1 of 1".
+ * a refusal message, and they should not have to learn about groups to say "1 of
+ * 2" instead of "1 of 1".
  *
  * @returns {{ok: boolean, held: number, limit: number|null, group: string|null}}
  */

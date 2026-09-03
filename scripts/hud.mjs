@@ -2,9 +2,11 @@
  * Danganronpa RPG - the campaign HUD.
  * ---------------------------------------------------------------------------
  * The clock is world state, not character state, so it belongs on screen once
- * rather than repeated on every sheet. This renders it into `#ui-top`, which
- * Foundry lays out inside `#ui-middle` - top centre of the screen, clear of the
- * scene navigation on the left.
+ * rather than repeated on every sheet. This renders it into
+ * `#ui-left-column-1`, above the GM launcher, so the clock and the buttons that
+ * move it sit together in the left column. `#ui-top` and `#ui-middle` remain as
+ * fallbacks for a Foundry that renames the column; the reasoning is written out
+ * where the host is picked, further down this file.
  *
  *      Hope's Peak: Drowned Summer      <- campaign name
  *              Chapter 2
@@ -18,6 +20,12 @@ import { MODULE_ID, TIMES_OF_DAY, ECLIPSE_FREE_PLACEMENT } from "./config.mjs";
 import { getClock, setClock, campaignName, phaseLabel, timeOfDayLabel, rewindTimeOfDay } from "./clock.mjs";
 import { play, TURN, ARRIVE, LEAVE } from "./motion.mjs";
 import { isPrimaryGm, error, plural } from "./utils.mjs";
+// Leaves, both: settings.mjs imports config.mjs and nothing else, and
+// character.mjs reaches config and utils. These two readers used to be
+// private copies here "for the cycle" (audit C3) - the cycle was real, the
+// copies were the wrong cure.
+import { incomingTimeOfDay } from "./settings.mjs";
+import { remaining } from "./character.mjs";
 // Static, and checked before adding: this file avoids static imports because it
 // sits on the render path the clock itself calls back into, so a cycle here
 // would be a load-order problem rather than a lint complaint. None of these
@@ -463,19 +471,6 @@ export function matchStripToDespair() {
 }
 
 /**
- * The time of day an Eclipse is leading into.
- *
- * A local copy of `eclipse.mjs`'s function of the same name, kept here for the
- * same reason `movement.mjs` has one: eclipse.mjs reaches back into this file to
- * redraw the HUD, and a two-line date calculation is not worth an import that
- * has to be dynamic to stay honest about the cycle.
- */
-function incomingTimeOfDay(clock) {
-    const index = TIMES_OF_DAY.indexOf(clock?.timeOfDay);
-    return TIMES_OF_DAY[(index < 0 ? 0 : index + 1) % TIMES_OF_DAY.length];
-}
-
-/**
  * The turn-over currently under way, if there is one.
  *
  * `{ from, fromTime, to, dir, startedAt }`, in `performance.now()` milliseconds.
@@ -790,9 +785,7 @@ function line(className, text) {
  * all, and the floor only decides which of the four words it is.
  *
  *   discussion   the trial is running; nobody has taken the floor.
- *   debate       the floor is open to everybody. This is `FLOOR_MODES.discussion`
- *                - the mode's name inside the engine is about who may speak,
- *                and the word on screen is about what is happening.
+ *   debate       the floor is open to everybody. `FLOOR_MODES.debate`.
  *   objection    one person, one minute, bought with a Truth Bullet.
  *   rebuttal     two people, two minutes.
  *
@@ -816,9 +809,7 @@ function trialSlot() {
         if (getClock().phase !== "classTrial") return null;
 
         const floor = trialFloor();
-        const key = !floor ? "discussion"
-            : floor.mode === FLOOR_MODES.discussion ? "debate"
-                : floor.mode;
+        const key = floor ? floor.mode : "discussion";
 
         // `holder` is whoever took the floor - the objector, in both restrictive
         // modes - and `target` is who they aimed at. See `openObjection`.
@@ -1083,19 +1074,6 @@ function buildIncident() {
     el.append(left);
 
     return el;
-}
-
-/**
- * Health and Sanity are reverse resources in Daggerheart - `value` counts marks,
- * not what is left. Duplicated from character.mjs rather than imported for the
- * same cycle reason as the state read above.
- */
-function remaining(actor, key) {
-    const res = actor?.system?.resources?.[key];
-    if (!res) return 0;
-    const max = Number(res.max ?? 0);
-    const marked = Number(res.value ?? 0);
-    return Math.max(0, max - marked);
 }
 
 /**
@@ -1459,7 +1437,7 @@ function paintFloorClock(el, floor) {
 
     el.classList.remove("past-first", "past-second", "paused", "empty");
     el.classList.add("is-trial-clock");
-    el.classList.toggle("overrun", over && floor.mode === FLOOR_MODES.discussion);
+    el.classList.toggle("overrun", over && floor.mode === FLOOR_MODES.debate);
     el.textContent = `${over ? "+" : ""}${mins}:${secs}`;
     el.dataset.tooltip = game.i18n.localize("DRPG.Hud.trialClockTooltip");
 }

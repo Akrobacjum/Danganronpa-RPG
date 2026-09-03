@@ -766,15 +766,23 @@ export async function updateProject(countdownId, patch = {}) {
 
     if (patch.target !== undefined && patch.target !== null) {
         const target = Math.max(1, Math.trunc(Number(patch.target) || 1));
-        const up = countsUp(countdownId);
         const current = raw.progress?.current ?? 0;
         countdownPatch.progress = {
             ...raw.progress,
             start: target,
-            // Ours count up, so `current` is progress earned and is clamped to
-            // the new ceiling. Daggerheart's count down, where `current` is what
-            // is LEFT - that cannot exceed the start either.
-            current: up ? Math.min(current, target) : Math.min(current, target)
+            /*
+             * ONE CLAMP FOR BOTH DIRECTIONS, AND THAT IS THE POINT (A15).
+             *
+             * This used to be a ternary on `countsUp` whose two branches were
+             * character-for-character identical - which reads as a bug and is
+             * not one. Ours count UP, so `current` is progress earned and is
+             * clamped to the new ceiling. Daggerheart's count DOWN, where
+             * `current` is what is LEFT, and that cannot exceed the start
+             * either. Two different reasons, the same arithmetic; writing the
+             * branch out only hid that they agree, and called `countsUp` for
+             * an answer nothing then used.
+             */
+            current: Math.min(current, target)
         };
     }
 

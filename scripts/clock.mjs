@@ -19,16 +19,17 @@
  */
 
 import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES } from "./config.mjs";
-import { SETTINGS, DEFAULT_CLOCK } from "./settings.mjs";
+import { SETTINGS, getClock } from "./settings.mjs";
 import { resetAllActions } from "./actions.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { announce, log, warn, plural } from "./utils.mjs";
 
-/** Current clock, always with every field present. */
-export function getClock() {
-    const stored = game.settings.get(MODULE_ID, SETTINGS.clock) ?? {};
-    return { ...DEFAULT_CLOCK, ...stored };
-}
+/**
+ * Current clock, always with every field present. Defined in settings.mjs -
+ * the leaf both ends of this file's import cycles can reach (audit C3) - and
+ * re-exported here under the name every caller already uses.
+ */
+export { getClock };
 
 /** Human-readable time of day, e.g. "Afternoon". */
 export function timeOfDayLabel(key = getClock().timeOfDay) {
@@ -103,19 +104,17 @@ export async function setClock(patch = {}) {
 
     await game.settings.set(MODULE_ID, SETTINGS.clock, next);
 
-    // The guide clears the players' evidence "na początku następnej sesji", and
-    // that is the one moment nobody is looking at a button. A reminder, never an
-    // automatic sweep: the deletion is permanent, and a session counter nudged
-    // by accident must not take a chapter's worth of Truth Bullets with it.
-    if (next.session > before.session) {
-        /*
-         * NO SWEEP TO REMEMBER (Z7). This told the GM at the start of every
-         * session to go and delete the table's Truth Bullets. The sweep is not
-         * part of the calendar any more, so the reminder was a note about a job
-         * nobody has - the exact shape of "the sentence says, the code does
-         * not", pointed the other way.
-         */
-    }
+    /*
+     * A NEW SESSION USED TO BE A REMINDER HERE, and is nothing at all now (Z7).
+     *
+     * The guide clears the players' evidence "na początku następnej sesji", so
+     * this told the GM to go and do it every time the session counter moved.
+     * The sweep stopped being part of the calendar - it is a button on the
+     * Investigation dashboard, pressed when a GM means it - so the reminder was
+     * a note about a job nobody has. What was left behind was an empty `if`
+     * holding only that explanation; the explanation is worth keeping and the
+     * branch is not (audit A15, Dawid Q17).
+     */
 
     return next;
 }

@@ -37,7 +37,7 @@ import { automatedUpdate } from "./resource-guard.mjs";
 import { actionsLeft, spendAction, refundAction } from "./actions.mjs";
 import { getClock } from "./clock.mjs";
 import { resolveThreshold, dialogContent, whisperToOwner, log, warn, plural, tableDialog } from "./utils.mjs";
-import { alreadyOpen } from "./live.mjs";
+import { alreadyOpen, keepLive } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -249,7 +249,7 @@ export async function meddleDialog(actor) {
         classes: ["drpg-panel"],
         content: dialogContent(`<form>
             <p>${game.i18n.localize("DRPG.Monocub.meddleIntro")}</p>
-            <label>${game.i18n.localize("DRPG.Monocub.who")}
+            <label>${game.i18n.localize("DRPG.Monocub.target")}
                 <select name="target">${options}</select></label>
         </form>`),
         buttons: [
@@ -391,16 +391,28 @@ export async function openMonocubDialog() {
         return null;
     }
 
-    const dead = game.actors.filter(a => a.type === "character" && !isMonokuma(a) && isDeceased(a));
+    const rosterOfDead = () =>
+        game.actors.filter(a => a.type === "character" && !isMonokuma(a) && isDeceased(a));
+    const dead = rosterOfDead();
     if (!dead.length) {
-        ui.notifications.info(game.i18n.localize("DRPG.Monocub.nobodyDead"));
+        ui.notifications.warn(game.i18n.localize("DRPG.Monocub.nobodyDead"));
         return null;
     }
 
     const { monokumas, poolLabel, getDespair } = await import("./despair.mjs");
     const gms = monokumas();
 
-    const rows = dead.map(a => {
+    /*
+     * A FUNCTION, NOT A STRING (E6).
+     *
+     * This table used to be built once and then thrown away and rebuilt by
+     * closing and reopening the window after every donation - which took the
+     * GM's scroll position and every checkbox they had ticked but not yet
+     * applied with it. `keepLive` redraws the rows in place instead, so the
+     * roster has to be re-read on each pass: a student who died while this was
+     * open belongs in it.
+     */
+    const buildRows = () => rosterOfDead().map(a => {
         const cub = isMonocub(a);
         const hope = cub ? resourceValue(a, "hope") : null;
         const silenced = cub && isSilenced(a);
@@ -434,13 +446,13 @@ export async function openMonocubDialog() {
                 <th>${game.i18n.localize("DRPG.Monocub.hope")}</th>
                 <th>${game.i18n.localize("DRPG.Monocub.giveHope")}</th>
                 <th>${game.i18n.localize("DRPG.Monocub.silenced")}</th>
-            </tr></thead><tbody>${rows}</tbody></table>
+            </tr></thead><tbody class="drpg-cub-live">${buildRows()}</tbody></table>
             <p class="notes">${game.i18n.localize("DRPG.Monocub.silencedNote")}</p>
         </div>`),
         buttons: [
             {
                 action: "save", label: game.i18n.localize("DRPG.Panel.apply"), default: true,
-                callback: (event, button, dialog) => dead.map(actor => ({
+                callback: (event, button, dialog) => rosterOfDead().map(actor => ({
                     id: actor.id,
                     cub: Boolean(dialog.element.querySelector(`[name="cub:${actor.id}"]`)?.checked),
                     silenced: Boolean(
@@ -453,20 +465,37 @@ export async function openMonocubDialog() {
         // for Apply: they spend a real Despair pool, and a GM who then cancels
         // the rest of the form should not find that donation undone with it.
         render: (event, dialog) => {
-            for (const btn of dialog.element.querySelectorAll("[data-drpg-give]")) {
-                btn.addEventListener("click", async () => {
-                    const id = btn.dataset.drpgGive;
-                    const actor = game.actors.get(id);
-                    const donorId = dialog.element.querySelector(`[name="donor:${id}"]`)?.value;
-                    const amount = Number(dialog.element.querySelector(`[name="amount:${id}"]`)?.value) || 0;
-                    if (actor && donorId && amount > 0) {
+            /*
+             * WIRED IN A FUNCTION, because `keepLive` replaces the tbody and
+             * every listener on it goes with the nodes. A live table whose
+             * buttons stopped working would be worse than a stale one.
+             */
+            const wireGive = () => {
+                for (const btn of dialog.element.querySelectorAll("[data-drpg-give]")) {
+                    btn.addEventListener("click", async () => {
+                        const id = btn.dataset.drpgGive;
+                        const actor = game.actors.get(id);
+                        const donorId = dialog.element.querySelector(`[name="donor:${id}"]`)?.value;
+                        const amount = Number(
+                            dialog.element.querySelector(`[name="amount:${id}"]`)?.value) || 0;
+                        if (!actor || !donorId || amount <= 0) return;
+
                         const { convertDespairToHope } = await import("./despair.mjs");
                         await convertDespairToHope(donorId, actor, amount);
-                        await dialog.close();
-                        await openMonocubDialog();
-                    }
-                });
-            }
+                        // No close and reopen: the donation writes two actors,
+                        // `watch.actors` catches it, and the row redraws with
+                        // the new numbers under the GM's cursor (E6).
+                    });
+                }
+            };
+            wireGive();
+
+            keepLive(dialog, {
+                region: ".drpg-cub-live",
+                build: buildRows,
+                watch: { actors: true },
+                after: wireGive
+            });
         },
         rejectClose: false
     });

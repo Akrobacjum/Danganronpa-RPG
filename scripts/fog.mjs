@@ -34,8 +34,8 @@
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
-import { SETTINGS, iAmTheMastermind } from "./settings.mjs";
-import { roomOfToken } from "./movement.mjs";
+import { SETTINGS, iAmTheMastermind, isEclipse } from "./settings.mjs";
+import { roomOfToken, boundsOf } from "./movement.mjs";
 import { isMastermind } from "./mastermind.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { isPrimaryGm, debug, log, warn, error, plural } from "./utils.mjs";
@@ -2070,7 +2070,7 @@ export function checkRegions() {
 
 /** A point to steer somebody at: the middle of the region's own box. */
 function pointOf(region) {
-    const b = regionBounds(region);
+    const b = boundsOf(region);
     return b ? { x: Math.round(b.x + b.w / 2), y: Math.round(b.y + b.h / 2) } : null;
 }
 
@@ -2668,24 +2668,26 @@ function drawTile(size, paint) {
         base.wrapMode = PIXI.WRAP_MODES.REPEAT;
 
         /*
-         * LINEAR WITH MIPMAPS, NOT NEAREST - and this is a correctness choice,
-         * not a taste one.
+         * LINEAR, NOT NEAREST - and this is a correctness choice, not a taste
+         * one. Mipmaps stay off; the block above says why.
          *
          * NEAREST was picked to match the module's pixel-art voice, and at 1:1
-         * it does. Minified it falls apart: every screen pixel samples exactly
-         * ONE texel, so a one-pixel line either lands on a sample or misses it
-         * entirely. Zoom out and the lines come and go and appear to have
-         * different weights, none of which is in the tile. Worse, as the tile
-         * drifts by a fraction of a pixel per frame the same line hops between
-         * sample columns, and the eye reads that as movement in the OPPOSITE
-         * direction - the wagon-wheel effect, exactly as in film.
+         * it does. It falls apart the moment a texel stops lining up with a
+         * screen pixel: sampling takes exactly ONE texel, so a one-pixel line
+         * either lands on a sample or misses it entirely. That used to show up
+         * under minification, as lines that came and went and appeared to have
+         * weights none of them has in the tile - and worse, as the tile drifts
+         * by a fraction of a pixel per frame the same line hops between sample
+         * columns and the eye reads it as movement in the OPPOSITE direction,
+         * the wagon-wheel effect exactly as in film.
          *
-         * Mipmaps are the answer to minification: the texture is pre-averaged
-         * at each halving, so a zoomed-out line becomes a fainter continuous
-         * band instead of a stroboscopic one. Both tiles are powers of two, so
-         * POW2 generates them and REPEAT keeps working. At full zoom the scale
-         * is 1:1 and linear filtering on an axis-aligned column is still crisp,
-         * so nothing is lost where the crispness was the point.
+         * Minification is `startDrift`'s problem now, and it solved it: the
+         * tile is pinned to a 1:1 scale with the screen at any zoom, which is
+         * why mipmaps could go. What is left for the sampler to do is the drift
+         * itself, and that is still sub-pixel. NEAREST would snap each frame's
+         * offset to whole texels and the motion would judder; LINEAR carries it
+         * smoothly, and on an axis-aligned column at 1:1 it is still crisp, so
+         * nothing is lost where the crispness was the point.
          */
         base.scaleMode = PIXI.SCALE_MODES.LINEAR;
         base.mipmap = PIXI.MIPMAP_MODES.OFF;
@@ -3080,14 +3082,6 @@ function hideLayer() {
     fogTexture = null;
 }
 
-function isEclipse() {
-    try {
-        return game.settings.get(MODULE_ID, SETTINGS.clock)?.eclipse === true;
-    } catch {
-        return false;
-    }
-}
-
 /**
  * Trace a region's real shape onto a Graphics - `RegionDocument#polygons`
  * first, the raw `shapes` array as the fallback, the same ordering
@@ -3476,7 +3470,7 @@ function playDiscoveryAnimation(room, tokenDoc) {
 
     const dims = canvas.dimensions;
     const rect = dims?.rect ?? { x: 0, y: 0 };
-    const bounds = regionBounds(region);
+    const bounds = boundsOf(region);
     const renderer = canvas?.app?.renderer;
 
     // No measurable shape, no renderer, or a viewer who has asked for no
@@ -3756,21 +3750,6 @@ function playDiscoveryAnimation(room, tokenDoc) {
     watchdog(animation, DISCOVERY_MS + 1500, done);
 }
 
-function regionBounds(region) {
-    const polys = region?.polygons;
-    if (!polys?.length) return null;
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const poly of polys) {
-        const pts = poly.points ?? [];
-        for (let i = 0; i < pts.length; i += 2) {
-            minX = Math.min(minX, pts[i]); maxX = Math.max(maxX, pts[i]);
-            minY = Math.min(minY, pts[i + 1]); maxY = Math.max(maxY, pts[i + 1]);
-        }
-    }
-    if (!Number.isFinite(minX)) return null;
-    return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
-}
-
 /**
  * The outline and the room's name, fading out together.
  *
@@ -3788,7 +3767,7 @@ function flashOutline(fx, region, rect) {
 
     const bone = colourOf("--drpg-bone", 0xe8e3ec);
     const grid = canvas?.grid?.size ?? 100;
-    const bounds = regionBounds(region);
+    const bounds = boundsOf(region);
 
     const group = new PIXI.Container();
     group.name = OUTLINE_NAME;
