@@ -1300,7 +1300,10 @@
   const draw = () => {
     let seed = 7;
     document.querySelectorAll(".curtain").forEach(el => { seed += 37; curtain(el, seed); });
-    document.querySelectorAll(".win").forEach(w => { seed += 37; windowGlass(w, seed); });
+    // Windows are seeded on their own counter, so adding a curtain never re-cuts a window.
+    // 155 is where the counter stood after the four curtains of v13; the windows keep those cuts.
+    let ws = 155;
+    document.querySelectorAll(".win").forEach(w => { ws += 37; windowGlass(w, ws); });
   };
   /* the 1440p viewer: 1:1 with scrolling, or scaled to the page width */
   document.querySelectorAll(".vp").forEach(vp => {
