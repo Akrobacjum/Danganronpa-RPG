@@ -1,0 +1,1224 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found]){display:none!important}</style></head><body>
+<title>Monokuma po V3</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&family=Special+Elite&display=swap">
+<style>
+  :root {
+    --ink: #07070a; --ink-2: #111116; --bone: #f2eee6; --bone-dim: rgba(242, 238, 230, 0.62);
+    --gm: #e0182f; --gm-light: #ff5566; --hope: #ffd23f; --despair: #ff3d8b; --evidence: #3ddc84;
+    --invest: #57b6ff; --eclipse: #a678ff;
+    --h-morning: #bfe3ff; --h-noon: #7fe4ff; --h-afternoon: #ffd38f; --h-evening: #ff8245; --h-night: #7f8cff;
+    --line: rgba(242, 238, 230, 0.14);
+    --font-chrome: "VT323", "Courier New", monospace;
+    --font-title: "Special Elite", "Courier New", monospace;
+    --font-stamp: "VT323", "Courier New", monospace;
+    --font-body: "VT323", "Courier New", monospace;
+    --acc: var(--h-noon);
+  }
+  html { color-scheme: dark; }
+  body {
+    margin: 0; background: var(--ink); color: var(--bone);
+    font-family: var(--font-body); font-size: 19px; line-height: 1.3;
+    background-image: radial-gradient(circle at 1px 1px, rgba(20, 184, 196, 0.10) 1px, transparent 1.6px);
+    background-size: 7px 7px;
+  }
+  .page { max-width: 1120px; margin: 0 auto; padding: 32px 24px 80px; }
+  h1, h2, h3, h4 { text-wrap: balance; margin: 0; }
+  p { max-width: 74ch; }
+  code { font-family: ui-monospace, Consolas, monospace; font-size: 13px; color: var(--h-noon); }
+  .lbl { font-family: var(--font-chrome); font-size: 15px; text-transform: uppercase; line-height: 1.3; letter-spacing: 0.04em; }
+  .note { font-size: 18px; color: var(--bone-dim); }
+  section { margin-top: 56px; }
+  .sec-head { display: flex; align-items: baseline; gap: 16px; margin-bottom: 18px; }
+  .sec-head h2 { font-family: var(--font-title); font-size: 26px; line-height: 1.15; color: var(--hope); }
+  .sec-head .rule { flex: 1; height: 1px; background: linear-gradient(90deg, var(--hope), transparent); opacity: 0.6; }
+  h3.sub { font-family: var(--font-title); font-size: 18px; color: var(--bone); margin: 22px 0 8px; }
+  .grid { display: grid; gap: 18px; }
+  .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  @media (max-width: 820px) { .grid.two, .grid.four { grid-template-columns: minmax(0, 1fr); } }
+  .cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 18px; }
+  @media (max-width: 820px) { .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .cards div { padding: 10px 12px; background: var(--ink-2); border-left: 3px solid var(--hope); font-size: 18px; color: var(--bone-dim); }
+  .cards b { display: block; font-family: var(--font-chrome); font-size: 17px; color: var(--hope); text-transform: uppercase; margin-bottom: 4px; }
+
+  /* ---- hero ---- */
+  .hero { padding: 36px 0 20px; }
+  .hero .eyebrow { font-family: var(--font-chrome); font-size: 16px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--h-noon); }
+  .hero h1 { font-family: var(--font-title); font-size: clamp(32px, 5.2vw, 56px); line-height: 1.08; color: var(--bone); margin-top: 10px; }
+  .hero h1 .p { color: var(--despair); } .hero h1 .y { color: var(--hope); } .hero h1 .c { color: var(--h-noon); } .hero h1 .g { color: var(--evidence); }
+  .hero p.lead { font-size: 21px; color: var(--bone-dim); margin-top: 14px; }
+
+  /* ---- swatches ---- */
+  .swatches { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  .swatches.eight { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+  @media (max-width: 820px) { .swatches, .swatches.eight { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  .sw { padding: 8px; background: var(--ink-2); border: 1px solid var(--line); min-width: 0; }
+  .sw .c { height: 34px; }
+  .sw .n { font-family: var(--font-chrome); font-size: 15px; margin-top: 6px; text-transform: uppercase; display: flex; align-items: center; gap: 5px; }
+  .sw .h { font-size: 13px; color: var(--bone-dim); font-family: ui-monospace, Consolas, monospace; }
+  .sw .w { font-size: 15px; color: var(--bone-dim); margin-top: 4px; }
+
+  /* ---- the brush: one language for everything you click ---- */
+  .ui {
+    position: relative; z-index: 0; display: inline-flex; align-items: center; gap: 8px;
+    padding: 5px 14px; font-family: var(--font-chrome); font-size: 15px; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--bone); border: 1px solid color-mix(in srgb, var(--acc) 60%, transparent); background: rgba(7, 7, 10, 0.5);
+    cursor: pointer; user-select: none; text-decoration: none;
+  }
+  .ui::before { content: ""; position: absolute; inset: 1px -5px; background: var(--acc); filter: url(#brush); z-index: -1; opacity: 0; transition: opacity 120ms; }
+  .ui:hover::before, .ui.is-hover::before { opacity: 0.45; }
+  .ui.on::before, .ui.is-active::before, .ui:active::before, .ui.is-pressed::before { opacity: 1; }
+  .ui.on, .ui.is-active, .ui:active { color: var(--ink); border-color: transparent; }
+  .ui:active::before, .ui.is-pressed::before { background: color-mix(in srgb, var(--acc) 70%, #000); }
+  .ui.is-pressed { color: var(--bone); border-color: transparent; }
+  .ui.is-disabled, .ui:disabled { color: var(--bone-dim); border-style: dashed; cursor: default; }
+  .ui.is-disabled::before, .ui:disabled::before { display: none; }
+  .ui:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+  .ui.gm { --acc: var(--gm-light); border-color: rgba(255, 85, 102, 0.75); background: color-mix(in srgb, var(--gm) 40%, rgba(7, 7, 10, 0.5)); }
+  .ui.gm.hazard { background-image: repeating-linear-gradient(-45deg, rgba(7, 7, 10, 0.5) 0 6px, transparent 6px 12px); }
+  .ui.gm.on, .ui.gm.is-active, .ui.gm:active, .ui.gm.is-pressed { color: var(--bone); }
+  .ui.default { --acc: var(--bone); color: var(--ink); background: var(--bone); border-color: var(--bone); }
+  .ui.default:hover::before, .ui.default.is-hover::before { opacity: 1; background: #fff; }
+  .ui.hope { --acc: var(--hope); } .ui.despair { --acc: var(--despair); } .ui.evidence { --acc: var(--evidence); }
+  .ui.tab { border: 0; background: none; color: var(--ink); }
+  .ui.tab:hover::before, .ui.tab.is-hover::before { opacity: 0.35; }
+  .ui.tab.is-disabled { color: rgba(7, 7, 10, 0.45); }
+  .tabbar { display: inline-flex; gap: 2px; padding: 3px; background: var(--bone); }
+  .ui.tile { flex-direction: column; justify-content: center; gap: 5px; padding: 8px 4px; font-size: 13px; text-align: center; line-height: 1.15; border-color: color-mix(in srgb, var(--acc) 40%, transparent); }
+  .ui.tile small { font-size: 12px; color: var(--bone-dim); }
+  .ui.tile.on small, .ui.tile.is-hover small, .ui.tile.is-active small { color: rgba(7, 7, 10, 0.7); }
+  .ui.tile .pixicon { width: 28px; height: 28px; color: var(--acc); }
+  .ui.tile.on .pixicon, .ui.tile.is-active .pixicon { color: var(--ink); }
+  .ui.tile.gm .pixicon { color: var(--gm-light); }
+  .ui.tile.gm.on .pixicon, .ui.tile.gm.is-pressed .pixicon { color: var(--bone); }
+  .ui.row { display: flex; width: 100%; box-sizing: border-box; justify-content: flex-start; border: 0; background: rgba(255, 255, 255, 0.05); color: var(--bone-dim); }
+  .ui.row.on, .ui.row.is-active { color: var(--ink); }
+  .ui.check { padding: 0; width: 24px; height: 24px; justify-content: center; }
+  .ui.check.on::after { content: ""; width: 14px; height: 14px; background: var(--ink); clip-path: polygon(0 55%, 20% 35%, 40% 55%, 80% 10%, 100% 30%, 40% 95%); }
+  .ui.pip { padding: 0; width: 24px; height: 24px; justify-content: center; border: 0; background: none; }
+  .ui.pip .pixicon { width: 20px; height: 20px; }
+  .ui.ring { width: 44px; height: 44px; padding: 0; justify-content: center; border-radius: 50%; border-width: 2px; font-size: 14px; }
+  .ui.ring::before { border-radius: 50%; inset: -2px; }
+  .ui.sm { padding: 2px 9px; font-size: 14px; }
+  .matrix { display: grid; grid-template-columns: 128px repeat(5, minmax(0, 1fr)); gap: 8px 10px; align-items: center; padding: 12px; background: var(--ink-2); border: 1px solid var(--line); }
+  .matrix > .h { font-family: var(--font-chrome); font-size: 14px; text-transform: uppercase; color: var(--bone-dim); letter-spacing: 0.06em; }
+  .matrix > .r { font-family: var(--font-chrome); font-size: 15px; text-transform: uppercase; color: var(--bone); }
+  .matrix .cell { display: flex; align-items: center; gap: 6px; min-height: 36px; font-family: var(--font-chrome); font-size: 15px; }
+  .pixicon { display: inline-block; width: 24px; height: 24px; flex: 0 0 auto; }
+  .pixicon svg { width: 100%; height: 100%; shape-rendering: crispEdges; display: block; }
+  .pips { display: inline-flex; gap: 3px; align-items: center; }
+  .pips .pixicon { width: 18px; height: 18px; }
+  .rail .pips .pixicon, .dt .pips .pixicon { width: 13px; height: 13px; }
+  .rail .pips { gap: 2px; }
+  .pips .off { opacity: 0.25; }
+  .halftone { background-image: radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--acc) 50%, transparent) 1.1px, transparent 1.6px); background-size: 5px 5px; }
+
+  /* ---- form fields ---- */
+  .fld { display: grid; gap: 3px; font-family: var(--font-chrome); font-size: 14px; text-transform: uppercase; color: var(--bone-dim); letter-spacing: 0.04em; min-width: 0; }
+  .fld .in {
+    font-family: var(--font-body); font-size: 18px; text-transform: none; color: var(--bone);
+    background: rgba(7, 7, 10, 0.5); border: 1px solid color-mix(in srgb, var(--acc) 45%, transparent);
+    border-bottom-width: 2px; padding: 2px 8px; min-height: 26px; display: flex; align-items: center; gap: 8px;
+  }
+  .fld .in.ph { color: rgba(242, 238, 230, 0.4); }
+  .fld.is-focus .in { border-color: var(--acc); box-shadow: 0 0 10px color-mix(in srgb, var(--acc) 30%, transparent); }
+  .fld.is-focus .in::after { content: ""; width: 1px; height: 17px; background: var(--acc); }
+  .fld.is-bad .in { border-color: var(--gm-light); }
+  .fld .msg { color: var(--gm-light); font-size: 13px; text-transform: none; }
+  .fld.is-off .in { border-style: dashed; color: var(--bone-dim); }
+  .fld .num { margin-left: auto; display: flex; gap: 2px; }
+  .fld .hint { font-size: 14px; text-transform: none; color: rgba(242, 238, 230, 0.45); }
+
+  /* ---- data table ---- */
+  .dt { width: 100%; border-collapse: collapse; font-family: var(--font-chrome); font-size: 16px; }
+  .dt th { text-align: left; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--acc); padding: 3px 8px; border-bottom: 1px solid color-mix(in srgb, var(--acc) 45%, transparent); white-space: nowrap; }
+  .dt td { padding: 4px 8px; border-bottom: 1px solid rgba(242, 238, 230, 0.09); vertical-align: middle; }
+  .dt tbody tr:nth-child(even) td { background: rgba(255, 255, 255, 0.035); }
+  .dt td.num, .dt th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .dt td.act { text-align: right; white-space: nowrap; }
+  .dt .name { color: var(--bone); }
+  .chip { display: inline-flex; align-items: center; gap: 5px; padding: 1px 8px; font-family: var(--font-chrome); font-size: 14px; text-transform: uppercase; border: 1px solid var(--line); background: rgba(7, 7, 10, 0.6); color: var(--bone-dim); }
+  .chip .pixicon { width: 16px; height: 16px; }
+  .chip.acc { border-color: var(--acc); color: var(--acc); }
+  .chip.gm { border-color: var(--gm-light); color: var(--gm-light); }
+  .chip.hope { border-color: var(--hope); color: var(--hope); }
+  .chip.despair { border-color: var(--despair); color: var(--despair); }
+  .chip.evidence { border-color: var(--evidence); color: var(--evidence); }
+  .stamp { display: inline-block; position: relative; padding: 2px 10px; font-family: var(--font-chrome); font-size: 14px; text-transform: uppercase; color: var(--ink); z-index: 0; }
+  .stamp::before { content: ""; position: absolute; inset: -7px -15px; background: var(--acc); border-radius: 45% 55% 50% 50% / 55% 45% 55% 45%; filter: url(#ink-blot); z-index: -1; }
+  .stamp::after { content: ""; position: absolute; inset: -3px -9px; background: var(--acc); border-radius: 62% 38% 55% 45% / 55% 62% 38% 45%; z-index: -1; }
+  .stamp.gm { --acc: var(--gm-light); color: var(--bone); }
+
+  /* ---- icons gallery ---- */
+  .icons { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 8px; }
+  @media (max-width: 820px) { .icons { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+  .icon { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 4px; background: var(--ink-2); border: 1px solid var(--line); border-top: 3px solid var(--acc); font-family: var(--font-chrome); font-size: 13px; text-transform: uppercase; color: var(--acc); text-align: center; }
+  .icon .pixicon { width: 48px; height: 48px; }
+  .icon.wide .pixicon { width: 72px; }
+
+  /* ---- fog and the glass window ---- */
+  .fog {
+    position: relative; overflow: hidden; padding: 18px; border: 1px solid var(--line);
+    background-color: #1c1822;
+    background-image:
+      repeating-linear-gradient(45deg, rgba(122, 114, 134, 0.42) 0 2px, transparent 2px 110px),
+      radial-gradient(circle at 1px 1px, rgba(96, 88, 108, 0.42) 0.9px, transparent 1.4px);
+    background-size: auto, 6px 6px;
+  }
+  .win {
+    position: relative; overflow: hidden; isolation: isolate; border-radius: 2px;
+    backdrop-filter: blur(16px) saturate(190%) brightness(1.06) contrast(1.05);
+    -webkit-backdrop-filter: blur(16px) saturate(190%) brightness(1.06) contrast(1.05);
+    background: rgba(5, 4, 9, 0.5);
+    border: 1px solid color-mix(in srgb, var(--acc) 55%, rgba(255, 255, 255, 0.35));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -1px 0 rgba(0, 0, 0, 0.5), 0 0 22px color-mix(in srgb, var(--acc) 30%, transparent), 0 14px 34px rgba(0, 0, 0, 0.5);
+  }
+  .win > canvas.sg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; }
+  .win::after { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(148deg, rgba(255, 255, 255, 0.13) 0 16%, rgba(255, 255, 255, 0.04) 30%, transparent 52%); }
+  /* things lying on the table, under the glass: sharp outside a window, blurred through it */
+  .fog .obj { position: absolute; z-index: 0; pointer-events: none; }
+  .fog .lines { inset: 0; background-image: linear-gradient(90deg, rgba(255, 255, 255, 0.22) 1px, transparent 1px), linear-gradient(rgba(255, 255, 255, 0.22) 1px, transparent 1px); background-size: 52px 52px; }
+  .fog .tok { width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--font-chrome); font-size: 24px; color: #07070a; background: radial-gradient(circle at 35% 30%, #fff6cf, #ffb020 70%, #a35a00); border: 2px solid #ffd23f; box-shadow: 0 0 18px rgba(255, 178, 32, 0.55); }
+  .fog .tok.b { background: radial-gradient(circle at 35% 30%, #d8f4ff, #3aa6ff 70%, #14497f); border-color: #7fe4ff; box-shadow: 0 0 18px rgba(87, 182, 255, 0.5); }
+  .fog .blob { width: 200px; height: 150px; background: radial-gradient(closest-side, rgba(127, 228, 255, 0.5), transparent); }
+  .fog .blob.c { background: radial-gradient(closest-side, rgba(255, 61, 139, 0.45), transparent); }
+
+  /* a window cut like a shard of the glass instead of a rectangle (a test) */
+
+  /* ---- the curtain: one sheet of glass along a screen edge -------------- */
+  .curtain { position: absolute; z-index: 2; overflow: hidden; isolation: isolate;
+    backdrop-filter: blur(16px) saturate(190%) brightness(1.06) contrast(1.05);
+    -webkit-backdrop-filter: blur(16px) saturate(190%) brightness(1.06) contrast(1.05);
+    background: rgba(255, 255, 255, 0.02); }
+  .curtain > canvas.sg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; }
+  .curtain-glow { position: absolute; inset: 0; z-index: 2; pointer-events: none; mix-blend-mode: screen; }
+  .curtain > .stack { position: absolute; inset: 0; z-index: 2; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.85), 0 0 8px rgba(0, 0, 0, 0.6); }
+  .curtain .seam { position: absolute; background: color-mix(in srgb, var(--acc) 30%, transparent); }
+  .curtain .block { position: absolute; }
+  .curtain .event .glyph { position: static; display: block; margin: 0 auto 6px; }
+  .under { position: absolute; z-index: 1; }
+  /* Foundry's own furniture, so the curtain is drawn in the space it leaves */
+  .vtt { position: absolute; z-index: 0; background: rgba(255, 255, 255, 0.045); border: 1px solid rgba(255, 255, 255, 0.09); }
+  .vtt span { position: absolute; bottom: 8px; left: 0; right: 0; text-align: center; font-family: var(--font-chrome); font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(242, 238, 230, 0.4); }
+  .vtt i { display: block; margin: 10px auto; width: 26px; height: 26px; border: 1px solid rgba(255, 255, 255, 0.16); }
+  .curtain .three { display: flex; }
+  .curtain .three > div { flex: 1; text-align: center; padding: 0 6px; }
+  .curtain .three > div + div { border-left: 1px solid color-mix(in srgb, var(--acc) 26%, transparent); }
+  .curtain .three .k { font-family: var(--font-chrome); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--bone-dim); }
+  .curtain .three .v { font-family: var(--font-chrome); font-size: 17px; color: var(--bone); }
+  .curtain .note-block .k { font-family: var(--font-chrome); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--acc); }
+  .curtain .note-block .t { font-size: 17px; line-height: 1.25; }
+  .curtain .note-block .t b { color: var(--hope); }
+
+  /* the roll window is rectangular like every other window */
+  .roll { font-family: var(--font-chrome); text-transform: uppercase; }
+  .roll .dice { display: flex; justify-content: center; gap: 14px; margin: 10px 0 6px; }
+  .roll .die { width: 54px; height: 54px; display: flex; align-items: center; justify-content: center; font-size: 30px; color: var(--ink); background: var(--acc); clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 14px) 100%, 0 100%, 0 16px); }
+  .roll .die.fear { --acc: var(--eclipse); }
+  .roll .total { font-family: var(--font-title); font-size: 26px; color: var(--bone); }
+  .roll .verdict { font-size: 17px; color: var(--acc); letter-spacing: 0.1em; }
+
+  /* ---- the cut applied to the rest of the interface ---------------------- */
+  .cut-ui .ui { clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 7px) 100%, 0 100%, 0 7px); }
+  .cut-ui .ui:nth-of-type(2n) { clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 8px 100%, 0 calc(100% - 7px)); }
+  .cut-ui .ui:nth-of-type(3n) { clip-path: polygon(6px 0, 100% 0, 100% 100%, 0 100%, 0 10px); }
+  .cut-ui .ui.tile { clip-path: polygon(11px 0, 100% 0, 100% calc(100% - 13px), calc(100% - 11px) 100%, 0 100%, 0 11px); }
+  .cut-ui .ui.tile:nth-of-type(3n) { clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 10px 100%, 0 calc(100% - 10px)); }
+  .cut-ui .ui.tile:nth-of-type(4n) { clip-path: polygon(9px 0, 100% 0, 100% 100%, 0 100%, 0 14px); }
+  .cut-ui .ui.ring { border-radius: 0; clip-path: polygon(50% 0, 100% 28%, 100% 72%, 50% 100%, 0 72%, 0 28%); }
+  .cut-ui .ui.ring::before { border-radius: 0; }
+  .cut-ui .chip { clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px); }
+  .cut-ui .chip:nth-of-type(2n) { clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 6px 100%, 0 calc(100% - 5px)); }
+  .cut-ui .tabbar { clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px); }
+  .cut-ui .panel h4 { clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 0 100%); }
+  .cut-ui .popup .title { clip-path: polygon(0 0, 100% 0, calc(100% - 14px) 100%, 0 100%); }
+  .cut-ui .fld .in { clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px); }
+  .cut-ui .hud .phase { clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%); }
+  .cut-ui .traits b { clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px); }
+  .cut-ui .sheet .stat { clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); }
+  .cut-ui .sheet .portrait { clip-path: polygon(0 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%); }
+  .win > .body { position: relative; z-index: 2; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.8), 0 0 6px rgba(0, 0, 0, 0.5); padding: 12px; }
+  .win.spec { height: 260px; }
+  .win.spec .body { position: absolute; left: 12px; bottom: 10px; padding: 0; font-family: var(--font-chrome); font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--bone-dim); }
+  .layers { width: 100%; border-collapse: collapse; font-size: 17px; table-layout: fixed; margin-top: 12px; }
+  .layers col.c1 { width: 22%; } .layers col.c2 { width: 34%; } .layers col.c3 { width: 44%; }
+  .layers th { text-align: left; font-family: var(--font-chrome); font-size: 14px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--hope); padding: 5px 8px; border-bottom: 1px solid var(--line); }
+  .layers td { padding: 5px 8px; border-bottom: 1px solid rgba(242, 238, 230, 0.08); vertical-align: top; }
+  .layers td.k { color: var(--bone); }
+  .layers td.v { font-family: ui-monospace, Consolas, monospace; font-size: 13px; line-height: 1.5; color: var(--h-noon); }
+  .layers .dot { display: inline-block; width: 11px; height: 11px; vertical-align: -1px; margin-right: 3px; border: 1px solid rgba(255,255,255,0.25); }
+
+  .win .neon { position: absolute; left: -20%; width: 140%; height: 1.5px; background: var(--acc); box-shadow: 0 0 6px var(--acc), 0 0 14px color-mix(in srgb, var(--acc) 60%, transparent); pointer-events: none; z-index: 1; }
+  .win .neon.a { top: 16px; transform: rotate(-8deg); } .win .neon.b { bottom: 22px; transform: rotate(5deg); }
+  .sep { border: 0; border-top: 1px solid color-mix(in srgb, var(--acc) 30%, transparent); margin: 9px 0; }
+  .ticker { position: absolute; left: 0; right: 0; overflow: hidden; height: 40px; z-index: 1; pointer-events: none; -webkit-mask-image: linear-gradient(90deg, transparent, #000 15%, #000 85%, transparent); mask-image: linear-gradient(90deg, transparent, #000 15%, #000 85%, transparent); }
+  .ticker span { position: absolute; white-space: nowrap; font-family: var(--font-chrome); font-size: 38px; line-height: 40px; letter-spacing: 0.12em; color: color-mix(in srgb, var(--acc) 10%, transparent); -webkit-text-stroke: 1px var(--acc); text-transform: uppercase; opacity: 0.6; animation: tick 18s linear infinite; }
+  @keyframes tick { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  .win.title-stamp .body::before { content: ""; position: absolute; right: -30px; top: -34px; width: 90px; height: 90px; background: var(--acc); border-radius: 45% 55% 50% 50% / 55% 45% 55% 45%; filter: url(#ink-blot); opacity: 0.3; z-index: -1; }
+  .wtitle { font-family: var(--font-title); font-size: 21px; line-height: 1.1; }
+  .wsub { font-family: var(--font-chrome); font-size: 15px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--acc); margin-top: 2px; }
+  .foot { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .foot .right { margin-left: auto; display: flex; gap: 8px; }
+
+  /* ---- HUD ---- */
+  .hud { position: relative; width: 240px; text-align: center; font-family: var(--font-chrome); text-transform: uppercase; }
+  .hud .campaign { font-family: var(--font-title); font-size: 17px; line-height: 1.2; text-transform: none; }
+  .hud .chapter { font-size: 13px; color: var(--bone-dim); margin-top: 2px; letter-spacing: 0.06em; }
+  .hud .phase { display: inline-flex; align-items: center; gap: 8px; margin: 6px 0 4px; padding: 2px 12px; font-size: 17px; color: var(--ink); background: var(--acc); clip-path: polygon(0 0, 100% 0, 94% 100%, 3% 100%); }
+  .hud .phase .pixicon { width: 18px; height: 18px; color: var(--ink); }
+  .hud .time { display: flex; justify-content: center; align-items: center; gap: 8px; font-size: 15px; letter-spacing: 0.1em; color: var(--acc); }
+  .hud .since { font-size: 12px; color: var(--bone-dim); margin-top: 2px; }
+  .hud .room { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); font-size: 13px; line-height: 1.35; }
+  .screen .hud { width: 300px; }
+  .screen .hud .campaign { font-size: 19px; }
+  .screen .hud .phase { font-size: 18px; }
+  .screen .hud .time { font-size: 17px; }
+  .screen .hud .room { font-size: 14px; }
+  .event { position: relative; font-family: var(--font-chrome); text-transform: uppercase; text-align: center; }
+  .event .k { font-size: 13px; letter-spacing: 0.12em; color: var(--bone-dim); }
+  .event .n { font-family: var(--font-title); font-size: 19px; line-height: 1.15; text-transform: none; color: var(--acc); margin-top: 2px; }
+  .event .s { font-size: 16px; color: var(--bone); margin-top: 2px; }
+  .event .m { font-size: 13px; color: var(--bone-dim); margin-top: 5px; padding-top: 5px; border-top: 1px solid color-mix(in srgb, var(--acc) 30%, transparent); }
+  .event .glyph { position: absolute; left: 12px; top: 12px; width: 34px; height: 34px; color: var(--acc); }
+  .event .ticker { top: 32%; margin-top: -20px; z-index: 0; }
+  .event .ticker span { font-size: 30px; opacity: 0.26; }
+  .hud .ticker { top: 2px; margin-top: 0; z-index: 0; }
+  .hud .ticker span { font-size: 32px; opacity: 0.18; letter-spacing: 0.18em; }
+
+  /* ---- rail, strip, tray, popup, messenger ---- */
+  .rail { font-family: var(--font-chrome); text-transform: uppercase; }
+  .rail .title { font-family: var(--font-title); font-size: 16px; text-transform: none; text-align: center; color: var(--despair); }
+  .rail .row { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 14px; white-space: nowrap; }
+  .rail .name { width: 84px; color: var(--despair); }
+  .rail .count { margin-left: auto; color: var(--bone-dim); }
+  .strip { display: flex; justify-content: space-between; gap: 8px; font-family: var(--font-chrome); text-transform: uppercase; }
+  .strip .f { text-align: center; font-size: 13px; color: var(--bone-dim); line-height: 1.2; }
+  .strip .f b { display: block; font-size: 16px; color: var(--bone); font-weight: 400; }
+  .tray { font-family: var(--font-chrome); }
+  .tray h4 { margin: 0; font-size: 15px; color: var(--acc); text-transform: uppercase; }
+  .tray .proj { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 13px; line-height: 1.3; white-space: nowrap; }
+  .tray .bar { flex: 0 0 34%; height: 8px; position: relative; border: 1px solid color-mix(in srgb, var(--acc) 40%, transparent); }
+  .tray .bar::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: var(--w); background: var(--acc); }
+  .tray .n { color: var(--bone-dim); }
+  .popup .title { display: flex; justify-content: space-between; margin: -12px -12px 8px; padding: 4px 12px; background: rgba(242, 238, 230, 0.92); color: var(--ink); font-family: var(--font-chrome); font-size: 15px; text-transform: uppercase; }
+  .popup .bodytext { font-size: 18px; }
+  .popup .bodytext b { color: var(--hope); }
+  .msg .who { font-family: var(--font-title); font-size: 17px; }
+  .msg .who .cap { color: var(--acc); }
+  .msg .bubble { margin-top: 6px; padding: 8px 10px; background: rgba(0, 0, 0, 0.55); border-left: 2px solid var(--acc); font-size: 18px; line-height: 1.3; }
+  .msg .bubble .qq { color: var(--acc); }
+  .msg .meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+  /* ---- the whole screen ---- */
+  .screen { height: 560px; padding: 0; }
+  .screen .at { position: absolute; z-index: 2; }
+  .screen .cut { position: absolute; height: 1px; left: -12%; width: 124%; pointer-events: none; z-index: 1; background: var(--acc); box-shadow: 0 0 6px var(--acc), 0 0 18px color-mix(in srgb, var(--acc) 60%, transparent), 0 0 40px color-mix(in srgb, var(--acc) 30%, transparent); opacity: 0.5; animation: drift 42s ease-in-out infinite alternate; }
+  .screen .cut.two { animation-duration: 57s; animation-direction: alternate-reverse; }
+  @keyframes drift { from { translate: -18px -6px; } to { translate: 18px 6px; } }
+  @media (prefers-reduced-motion: reduce) { .screen .cut { display: none; } .ticker span { animation: none; } }
+
+  /* ---- the sheet ---- */
+  .sheet { display: grid; grid-template-columns: 186px minmax(0, 1fr); gap: 12px; }
+  .sheet .side { display: flex; flex-direction: column; gap: 10px; }
+  .sheet .side .safe { margin-top: auto; }
+  .sheet .portrait { height: 124px; border: 1px solid color-mix(in srgb, var(--acc) 40%, transparent); background: rgba(0, 0, 0, 0.35); display: flex; align-items: flex-end; justify-content: center; padding: 8px; font-family: var(--font-chrome); font-size: 13px; text-transform: uppercase; color: var(--bone-dim); }
+  .sheet .res { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .sheet .stat { display: grid; gap: 0; text-align: center; background: rgba(7, 7, 10, 0.5); border: 1px solid color-mix(in srgb, var(--c) 45%, transparent); font-family: var(--font-chrome); text-transform: uppercase; }
+  .sheet .stat .k { font-size: 13px; letter-spacing: 0.08em; color: var(--ink); background: var(--c); padding: 0 4px 1px; }
+  .sheet .stat b { font-size: 22px; line-height: 1.1; color: var(--bone); font-weight: 400; padding-top: 2px; }
+  .sheet .stat .bar { display: block; height: 9px; margin: 4px 6px 6px; border: 1px solid color-mix(in srgb, var(--c) 55%, transparent); position: relative; }
+  .sheet .stat .bar i { position: absolute; left: 0; top: 0; bottom: 0; }
+  .sheet .side h4 { font-family: var(--font-chrome); font-size: 15px; text-transform: uppercase; color: var(--acc); }
+  .sheet .side p { font-size: 15px; line-height: 1.25; color: var(--bone-dim); margin: 3px 0 0; }
+  .sheet .name { font-family: var(--font-title); font-size: 24px; }
+  .sheet .name .cap { color: var(--hope); }
+  .sheet .ult { font-family: var(--font-chrome); font-size: 15px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--bone-dim); margin-top: 2px; }
+  .sheet .ult b { color: var(--acc); font-weight: 400; }
+  .sheet .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; align-items: center; }
+  .traits { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; margin-top: 10px; }
+  .traits div { text-align: center; font-family: var(--font-chrome); font-size: 13px; text-transform: uppercase; color: var(--bone-dim); }
+  .traits b { display: block; margin-top: 2px; padding: 3px 0; border: 1px solid color-mix(in srgb, var(--gm) 60%, transparent); font-size: 18px; color: var(--bone); font-weight: 400; }
+  .panel { margin-top: 10px; }
+  .panel h4 { display: flex; justify-content: space-between; font-family: var(--font-chrome); font-size: 15px; text-transform: uppercase; color: var(--ink); background: var(--bone); padding: 1px 8px; }
+  .panel h4 span { color: rgba(7, 7, 10, 0.6); }
+  .tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; margin-top: 7px; }
+  .panel.calls h4 { background: var(--hope); }
+  .panel.calls .ui.tile { --acc: var(--hope); }
+
+  /* ---- prose tables and stages ---- */
+  .tbl { width: 100%; border-collapse: collapse; font-size: 18px; }
+  .tbl th, .tbl td { text-align: left; vertical-align: top; padding: 9px 10px; border-bottom: 1px solid var(--line); }
+  .tbl th { font-family: var(--font-chrome); font-size: 15px; color: var(--hope); text-transform: uppercase; letter-spacing: 0.06em; }
+  .tbl td.k { color: var(--bone); }
+  .tbl .yes { color: var(--evidence); } .tbl .no { color: var(--gm-light); }
+  .wrap { overflow-x: auto; }
+  .stages { counter-reset: st; list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .stages li { position: relative; padding: 10px 14px 10px 54px; background: var(--ink-2); border-left: 3px solid var(--hope); font-size: 18px; }
+  .stages li::before { counter-increment: st; content: counter(st); position: absolute; left: 14px; top: 6px; font-family: var(--font-title); font-size: 24px; color: var(--hope); }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <filter id="ink-blot" x="-30%" y="-30%" width="160%" height="160%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="3" seed="3" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="34" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <filter id="brush" x="-10%" y="-40%" width="120%" height="180%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.02 0.4" numOctaves="2" seed="11" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="16" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <symbol id="px-search" viewBox="0 0 24 24"><path fill="currentColor" d="M9 1h1v1h-1zM6 2h7v1h-7zM4 3h11v1h-11zM3 4h13v1h-13zM3 5h4v1h-4zM12 5h4v1h-4zM2 6h4v1h-4zM13 6h4v1h-4zM2 7h3v1h-3zM14 7h3v1h-3zM2 8h3v1h-3zM14 8h3v1h-3zM1 9h4v1h-4zM14 9h4v1h-4zM2 10h3v1h-3zM14 10h3v1h-3zM2 11h3v1h-3zM14 11h3v1h-3zM2 12h4v1h-4zM13 12h4v1h-4zM3 13h4v1h-4zM12 13h4v1h-4zM3 14h14v1h-14zM4 15h14v1h-14zM6 16h7v1h-7zM14 16h5v1h-5zM9 17h1v1h-1zM15 17h5v1h-5zM16 18h5v1h-5zM17 19h5v1h-5zM18 20h5v1h-5zM19 21h4v1h-4zM20 22h3v1h-3z"/></symbol>
+    <symbol id="px-observe" viewBox="0 0 24 24"><path fill="currentColor" d="M8 5h8v1h-8zM5 6h14v1h-14zM3 7h18v1h-18zM2 8h6v1h-6zM16 8h6v1h-6zM1 9h4v1h-4zM10 9h4v1h-4zM19 9h4v1h-4zM1 10h3v1h-3zM9 10h6v1h-6zM20 10h3v1h-3zM1 11h3v1h-3zM9 11h6v1h-6zM20 11h3v1h-3zM1 12h3v1h-3zM9 12h6v1h-6zM20 12h3v1h-3zM1 13h3v1h-3zM9 13h6v1h-6zM20 13h3v1h-3zM1 14h4v1h-4zM10 14h4v1h-4zM19 14h4v1h-4zM2 15h6v1h-6zM16 15h6v1h-6zM3 16h18v1h-18zM5 17h14v1h-14zM8 18h8v1h-8z"/></symbol>
+    <symbol id="px-analyze" viewBox="0 0 24 24"><path fill="currentColor" d="M9 1h6v1h-6zM9 2h6v1h-6zM9 3h6v1h-6zM10 4h4v1h-4zM9 5h6v1h-6zM9 6h2v1h-2zM12 6h3v1h-3zM8 7h3v1h-3zM13 7h3v1h-3zM8 8h3v1h-3zM13 8h3v1h-3zM8 9h2v1h-2zM14 9h2v1h-2zM7 10h3v1h-3zM14 10h3v1h-3zM7 11h2v1h-2zM15 11h2v1h-2zM6 12h3v1h-3zM15 12h3v1h-3zM6 13h3v1h-3zM15 13h3v1h-3zM5 14h3v1h-3zM16 14h3v1h-3zM5 15h3v1h-3zM16 15h3v1h-3zM5 16h14v1h-14zM4 17h16v1h-16zM4 18h2v1h-2zM7 18h10v1h-10zM18 18h2v1h-2zM3 19h18v1h-18zM3 20h18v1h-18zM4 21h16v1h-16z"/></symbol>
+    <symbol id="px-hourglass" viewBox="0 0 24 24"><path fill="currentColor" d="M2 1h19v1h-19zM2 2h19v1h-19zM2 3h19v1h-19zM4 4h15v1h-15zM5 5h13v1h-13zM6 6h11v1h-11zM8 7h8v1h-8zM9 8h6v1h-6zM10 9h4v1h-4zM11 10h2v1h-2zM11 11h1v1h-1zM11 12h1v1h-1zM11 13h3v1h-3zM10 14h5v1h-5zM8 15h8v1h-8zM7 16h10v1h-10zM5 17h13v1h-13zM2 19h19v1h-19zM2 20h19v1h-19zM2 21h19v1h-19z"/></symbol>
+    <symbol id="px-dynamic" viewBox="0 0 24 24"><path fill="currentColor" d="M14 1h1v1h-1zM13 2h2v1h-2zM13 3h1v1h-1zM12 4h2v1h-2zM11 5h3v1h-3zM10 6h4v1h-4zM10 7h4v1h-4zM9 8h4v1h-4zM8 9h5v1h-5zM7 10h12v1h-12zM7 11h11v1h-11zM6 12h11v1h-11zM11 13h6v1h-6zM11 14h5v1h-5zM10 15h5v1h-5zM10 16h4v1h-4zM10 17h3v1h-3zM10 18h3v1h-3zM9 19h3v1h-3zM9 20h2v1h-2zM9 21h1v1h-1z"/></symbol>
+    <symbol id="px-rest" viewBox="0 0 24 24"><path fill="currentColor" d="M1 4h3v1h-3zM1 5h3v1h-3zM1 6h3v1h-3zM1 7h3v1h-3zM1 8h3v1h-3zM1 9h3v1h-3zM7 9h4v1h-4zM1 10h3v1h-3zM6 10h6v1h-6zM1 11h3v1h-3zM6 11h6v1h-6zM13 11h9v1h-9zM1 12h3v1h-3zM5 12h17v1h-17zM1 13h3v1h-3zM6 13h16v1h-16zM1 14h3v1h-3zM6 14h16v1h-16zM1 15h3v1h-3zM7 15h15v1h-15zM1 16h22v1h-22zM1 17h22v1h-22zM1 18h22v1h-22zM1 19h22v1h-22zM1 20h3v1h-3zM19 20h4v1h-4z"/></symbol>
+    <symbol id="px-listen" viewBox="0 0 24 24"><path fill="currentColor" d="M10 1h6v1h-6zM8 2h10v1h-10zM7 3h12v1h-12zM6 4h4v1h-4zM16 4h4v1h-4zM6 5h3v1h-3zM11 5h4v1h-4zM17 5h3v1h-3zM5 6h4v1h-4zM10 6h5v1h-5zM17 6h4v1h-4zM5 7h3v1h-3zM10 7h3v1h-3zM14 7h1v1h-1zM18 7h3v1h-3zM5 8h3v1h-3zM9 8h3v1h-3zM18 8h3v1h-3zM4 9h4v1h-4zM9 9h3v1h-3zM18 9h4v1h-4zM4 10h3v1h-3zM9 10h2v1h-2zM19 10h3v1h-3zM4 11h3v1h-3zM9 11h3v1h-3zM19 11h3v1h-3zM4 12h4v1h-4zM9 12h3v1h-3zM18 12h4v1h-4zM5 13h3v1h-3zM10 13h3v1h-3zM14 13h1v1h-1zM5 14h3v1h-3zM9 14h6v1h-6zM5 15h10v1h-10zM6 16h6v1h-6zM6 17h8v1h-8zM7 18h8v1h-8zM8 19h7v1h-7zM10 20h5v1h-5zM10 21h5v1h-5zM11 22h3v1h-3z"/></symbol>
+    <symbol id="px-palm" viewBox="0 0 24 24"><path fill="currentColor" d="M5 2h3v1h-3zM9 2h3v1h-3zM13 2h3v1h-3zM5 3h3v1h-3zM9 3h3v1h-3zM13 3h3v1h-3zM5 4h3v1h-3zM9 4h3v1h-3zM13 4h3v1h-3zM5 5h3v1h-3zM9 5h3v1h-3zM13 5h3v1h-3zM17 5h3v1h-3zM5 6h3v1h-3zM9 6h3v1h-3zM13 6h3v1h-3zM17 6h3v1h-3zM4 7h4v1h-4zM9 7h3v1h-3zM13 7h3v1h-3zM17 7h3v1h-3zM4 8h4v1h-4zM9 8h3v1h-3zM13 8h3v1h-3zM17 8h3v1h-3zM3 9h5v1h-5zM9 9h3v1h-3zM13 9h3v1h-3zM17 9h3v1h-3zM3 10h5v1h-5zM9 10h3v1h-3zM13 10h3v1h-3zM17 10h3v1h-3zM2 11h6v1h-6zM9 11h3v1h-3zM13 11h3v1h-3zM17 11h3v1h-3zM2 12h18v1h-18zM3 13h17v1h-17zM4 14h16v1h-16zM4 15h16v1h-16zM4 16h16v1h-16zM4 17h16v1h-16zM4 18h16v1h-16zM4 19h16v1h-16zM5 20h14v1h-14zM5 21h14v1h-14zM6 22h12v1h-12zM7 23h10v1h-10z"/></symbol>
+    <symbol id="px-tamper" viewBox="0 0 24 24"><path fill="currentColor" d="M15 1h5v1h-5zM13 2h9v1h-9zM13 3h8v1h-8zM12 4h4v1h-4zM19 4h1v1h-1zM12 5h3v1h-3zM12 6h3v1h-3zM20 6h3v1h-3zM12 7h4v1h-4zM20 7h3v1h-3zM12 8h5v1h-5zM19 8h4v1h-4zM13 9h9v1h-9zM12 10h10v1h-10zM11 11h9v1h-9zM10 12h5v1h-5zM9 13h5v1h-5zM8 14h5v1h-5zM7 15h5v1h-5zM6 16h5v1h-5zM5 17h5v1h-5zM4 18h5v1h-5zM2 19h6v1h-6zM1 20h6v1h-6zM1 21h5v1h-5zM1 22h5v1h-5zM2 23h3v1h-3z"/></symbol>
+    <symbol id="px-murder" viewBox="0 0 24 24"><path fill="currentColor" d="M12 1h1v1h-1zM11 2h2v1h-2zM11 3h3v1h-3zM10 4h4v1h-4zM10 5h5v1h-5zM9 6h6v1h-6zM9 7h6v1h-6zM9 8h6v1h-6zM9 9h6v1h-6zM9 10h6v1h-6zM9 11h6v1h-6zM9 12h6v1h-6zM4 13h16v1h-16zM4 14h16v1h-16zM4 15h16v1h-16zM10 16h4v1h-4zM10 17h4v1h-4zM10 18h4v1h-4zM10 19h4v1h-4zM8 20h8v1h-8zM8 21h8v1h-8zM8 22h8v1h-8z"/></symbol>
+    <symbol id="px-star" viewBox="0 0 24 24"><path fill="currentColor" d="M11 3h2v1h-2zM11 4h2v1h-2zM11 5h2v1h-2zM10 6h4v1h-4zM10 7h4v1h-4zM10 8h4v1h-4zM2 9h20v1h-20zM3 10h18v1h-18zM5 11h14v1h-14zM6 12h12v1h-12zM7 13h10v1h-10zM8 14h8v1h-8zM7 15h10v1h-10zM7 16h10v1h-10zM7 17h4v1h-4zM13 17h4v1h-4zM6 18h4v1h-4zM14 18h4v1h-4zM6 19h2v1h-2zM16 19h2v1h-2zM6 20h1v1h-1zM17 20h1v1h-1zM5 21h1v1h-1zM18 21h1v1h-1z"/></symbol>
+    <symbol id="px-support" viewBox="0 0 24 24"><path fill="currentColor" d="M6 3h4v1h-4zM14 3h4v1h-4zM4 4h7v1h-7zM13 4h7v1h-7zM3 5h18v1h-18zM3 6h18v1h-18zM2 7h20v1h-20zM2 8h20v1h-20zM2 9h20v1h-20zM3 10h18v1h-18zM3 11h18v1h-18zM4 12h16v1h-16zM5 13h14v1h-14zM6 14h12v1h-12zM7 15h10v1h-10zM7 16h10v1h-10zM8 17h8v1h-8zM9 18h6v1h-6zM10 19h4v1h-4zM10 20h4v1h-4zM11 21h2v1h-2z"/></symbol>
+    <symbol id="px-burst" viewBox="0 0 24 24"><path fill="currentColor" d="M10 0h4v1h-4zM10 1h4v1h-4zM3 2h2v1h-2zM10 2h4v1h-4zM19 2h2v1h-2zM2 3h4v1h-4zM10 3h4v1h-4zM18 3h4v1h-4zM2 4h5v1h-5zM10 4h4v1h-4zM17 4h5v1h-5zM3 5h5v1h-5zM10 5h4v1h-4zM16 5h5v1h-5zM4 6h5v1h-5zM10 6h4v1h-4zM15 6h5v1h-5zM5 7h14v1h-14zM6 8h12v1h-12zM7 9h10v1h-10zM0 10h24v1h-24zM0 11h24v1h-24zM0 12h24v1h-24zM0 13h24v1h-24zM7 14h10v1h-10zM6 15h12v1h-12zM5 16h14v1h-14zM4 17h5v1h-5zM10 17h4v1h-4zM15 17h5v1h-5zM3 18h5v1h-5zM10 18h4v1h-4zM16 18h5v1h-5zM2 19h5v1h-5zM10 19h4v1h-4zM17 19h5v1h-5zM2 20h4v1h-4zM10 20h4v1h-4zM18 20h4v1h-4zM3 21h2v1h-2zM10 21h4v1h-4zM19 21h2v1h-2zM10 22h4v1h-4zM10 23h4v1h-4z"/></symbol>
+    <symbol id="px-reroll" viewBox="0 0 24 24"><path fill="currentColor" d="M11 1h2v1h-2zM11 2h4v1h-4zM9 3h8v1h-8zM7 4h12v1h-12zM6 5h13v1h-13zM5 6h5v1h-5zM11 6h6v1h-6zM4 7h4v1h-4zM11 7h4v1h-4zM3 8h4v1h-4zM11 8h2v1h-2zM17 8h4v1h-4zM3 9h3v1h-3zM18 9h3v1h-3zM3 10h3v1h-3zM18 10h3v1h-3zM3 11h3v1h-3zM18 11h3v1h-3zM2 12h4v1h-4zM18 12h4v1h-4zM3 13h3v1h-3zM18 13h3v1h-3zM3 14h3v1h-3zM18 14h3v1h-3zM3 15h3v1h-3zM18 15h3v1h-3zM3 16h4v1h-4zM17 16h4v1h-4zM4 17h4v1h-4zM16 17h4v1h-4zM5 18h5v1h-5zM14 18h5v1h-5zM6 19h12v1h-12zM7 20h10v1h-10zM9 21h6v1h-6z"/></symbol>
+    <symbol id="px-relief" viewBox="0 0 24 24"><path fill="currentColor" d="M8 2h8v1h-8zM6 3h12v1h-12zM5 4h14v1h-14zM4 5h4v1h-4zM10 5h4v1h-4zM16 5h4v1h-4zM3 6h4v1h-4zM10 6h4v1h-4zM17 6h4v1h-4zM3 7h3v1h-3zM10 7h4v1h-4zM18 7h3v1h-3zM2 8h3v1h-3zM10 8h4v1h-4zM19 8h3v1h-3zM2 9h3v1h-3zM10 9h4v1h-4zM19 9h3v1h-3zM2 10h20v1h-20zM2 11h20v1h-20zM2 12h20v1h-20zM2 13h20v1h-20zM2 14h3v1h-3zM10 14h4v1h-4zM19 14h3v1h-3zM2 15h3v1h-3zM10 15h4v1h-4zM19 15h3v1h-3zM3 16h3v1h-3zM10 16h4v1h-4zM18 16h3v1h-3zM3 17h4v1h-4zM10 17h4v1h-4zM17 17h4v1h-4zM4 18h4v1h-4zM10 18h4v1h-4zM16 18h4v1h-4zM5 19h14v1h-14zM6 20h12v1h-12zM8 21h8v1h-8z"/></symbol>
+    <symbol id="px-sprint" viewBox="0 0 24 24"><path fill="currentColor" d="M12 1h3v1h-3zM11 2h5v1h-5zM11 3h5v1h-5zM11 4h5v1h-5zM11 5h5v1h-5zM5 6h3v1h-3zM11 6h4v1h-4zM5 7h3v1h-3zM11 7h4v1h-4zM5 8h12v1h-12zM6 9h13v1h-13zM6 10h13v1h-13zM6 11h7v1h-7zM16 11h4v1h-4zM7 12h6v1h-6zM17 12h3v1h-3zM8 13h7v1h-7zM17 13h3v1h-3zM7 14h9v1h-9zM17 14h4v1h-4zM6 15h11v1h-11zM18 15h2v1h-2zM5 16h5v1h-5zM13 16h5v1h-5zM3 17h6v1h-6zM14 17h4v1h-4zM2 18h6v1h-6zM15 18h3v1h-3zM1 19h6v1h-6zM15 19h3v1h-3zM1 20h4v1h-4zM15 20h5v1h-5zM1 21h4v1h-4zM15 21h5v1h-5zM15 22h5v1h-5z"/></symbol>
+    <symbol id="px-skull" viewBox="0 0 24 24"><path fill="currentColor" d="M8 2h8v1h-8zM6 3h12v1h-12zM5 4h14v1h-14zM5 5h14v1h-14zM4 6h16v1h-16zM4 7h3v1h-3zM10 7h4v1h-4zM17 7h3v1h-3zM3 8h3v1h-3zM11 8h2v1h-2zM18 8h3v1h-3zM3 9h2v1h-2zM11 9h2v1h-2zM19 9h2v1h-2zM3 10h2v1h-2zM19 10h2v1h-2zM3 11h2v1h-2zM11 11h2v1h-2zM19 11h2v1h-2zM3 12h3v1h-3zM11 12h2v1h-2zM18 12h3v1h-3zM4 13h3v1h-3zM10 13h4v1h-4zM17 13h3v1h-3zM4 14h16v1h-16zM5 15h14v1h-14zM5 16h14v1h-14zM6 19h5v1h-5zM13 19h5v1h-5zM6 20h5v1h-5zM13 20h5v1h-5z"/></symbol>
+    <symbol id="px-bullet" viewBox="0 0 24 24"><path fill="currentColor" d="M11 1h2v1h-2zM10 2h4v1h-4zM10 3h4v1h-4zM9 4h6v1h-6zM8 5h8v1h-8zM7 6h10v1h-10zM7 7h10v1h-10zM7 8h10v1h-10zM7 9h10v1h-10zM7 10h10v1h-10zM7 11h10v1h-10zM7 12h10v1h-10zM7 13h10v1h-10zM7 14h10v1h-10zM7 15h10v1h-10zM7 16h10v1h-10zM6 17h12v1h-12zM6 18h12v1h-12zM6 20h12v1h-12zM6 21h12v1h-12z"/></symbol>
+    <symbol id="px-key" viewBox="0 0 24 24"><path fill="currentColor" d="M5 6h3v1h-3zM3 7h7v1h-7zM2 8h9v1h-9zM1 9h4v1h-4zM8 9h4v1h-4zM1 10h3v1h-3zM9 10h13v1h-13zM1 11h3v1h-3zM9 11h13v1h-13zM1 12h3v1h-3zM9 12h13v1h-13zM1 13h3v1h-3zM9 13h13v1h-13zM1 14h4v1h-4zM8 14h4v1h-4zM16 14h3v1h-3zM20 14h2v1h-2zM2 15h9v1h-9zM16 15h3v1h-3zM20 15h2v1h-2zM3 16h7v1h-7zM16 16h3v1h-3zM20 16h2v1h-2zM5 17h3v1h-3zM16 17h3v1h-3z"/></symbol>
+    <symbol id="px-trap" viewBox="0 0 24 24"><path fill="currentColor" d="M9 4h6v1h-6zM6 5h12v1h-12zM5 6h14v1h-14zM4 7h5v1h-5zM15 7h5v1h-5zM3 8h5v1h-5zM9 8h3v1h-3zM13 8h3v1h-3zM17 8h4v1h-4zM0 9h4v1h-4zM6 9h1v1h-1zM10 9h1v1h-1zM14 9h1v1h-1zM18 9h1v1h-1zM20 9h4v1h-4zM0 10h4v1h-4zM6 10h1v1h-1zM10 10h1v1h-1zM14 10h1v1h-1zM18 10h1v1h-1zM20 10h4v1h-4zM0 11h4v1h-4zM20 11h4v1h-4zM0 12h4v1h-4zM20 12h4v1h-4zM0 13h4v1h-4zM6 13h1v1h-1zM10 13h1v1h-1zM14 13h1v1h-1zM18 13h1v1h-1zM20 13h4v1h-4zM0 14h4v1h-4zM6 14h1v1h-1zM10 14h1v1h-1zM14 14h1v1h-1zM18 14h1v1h-1zM20 14h4v1h-4zM3 15h5v1h-5zM9 15h3v1h-3zM13 15h3v1h-3zM17 15h4v1h-4zM4 16h5v1h-5zM15 16h5v1h-5zM5 17h14v1h-14zM6 18h12v1h-12zM9 19h6v1h-6z"/></symbol>
+    <symbol id="px-bag" viewBox="0 0 24 24"><path fill="currentColor" d="M10 2h4v1h-4zM8 3h8v1h-8zM7 4h10v1h-10zM7 5h4v1h-4zM13 5h4v1h-4zM6 6h4v1h-4zM14 6h4v1h-4zM6 7h3v1h-3zM15 7h3v1h-3zM4 8h16v1h-16zM4 9h16v1h-16zM4 10h16v1h-16zM4 11h2v1h-2zM17 11h3v1h-3zM3 12h3v1h-3zM18 12h3v1h-3zM3 13h3v1h-3zM9 13h6v1h-6zM18 13h3v1h-3zM3 14h3v1h-3zM9 14h6v1h-6zM18 14h3v1h-3zM3 15h3v1h-3zM9 15h6v1h-6zM18 15h3v1h-3zM3 16h3v1h-3zM9 16h6v1h-6zM18 16h3v1h-3zM3 17h2v1h-2zM9 17h6v1h-6zM19 17h2v1h-2zM3 18h2v1h-2zM19 18h2v1h-2zM2 19h20v1h-20zM2 20h20v1h-20zM2 21h20v1h-20z"/></symbol>
+    <symbol id="px-vault" viewBox="0 0 24 24"><path fill="currentColor" d="M1 1h22v1h-22zM1 2h22v1h-22zM1 3h22v1h-22zM1 4h3v1h-3zM20 4h3v1h-3zM1 5h3v1h-3zM11 5h2v1h-2zM20 5h3v1h-3zM1 6h3v1h-3zM5 6h10v1h-10zM16 6h2v1h-2zM20 6h3v1h-3zM1 7h3v1h-3zM6 7h12v1h-12zM20 7h3v1h-3zM1 8h3v1h-3zM6 8h5v1h-5zM13 8h4v1h-4zM20 8h3v1h-3zM1 9h3v1h-3zM6 9h5v1h-5zM13 9h5v1h-5zM20 9h3v1h-3zM1 10h3v1h-3zM5 10h13v1h-13zM20 10h3v1h-3zM1 11h3v1h-3zM5 11h3v1h-3zM10 11h4v1h-4zM15 11h3v1h-3zM20 11h3v1h-3zM1 12h3v1h-3zM5 12h3v1h-3zM10 12h4v1h-4zM15 12h3v1h-3zM20 12h3v1h-3zM1 13h3v1h-3zM5 13h13v1h-13zM20 13h3v1h-3zM1 14h3v1h-3zM6 14h5v1h-5zM13 14h5v1h-5zM20 14h3v1h-3zM1 15h3v1h-3zM6 15h5v1h-5zM13 15h4v1h-4zM20 15h3v1h-3zM1 16h3v1h-3zM6 16h12v1h-12zM20 16h3v1h-3zM1 17h3v1h-3zM5 17h10v1h-10zM16 17h2v1h-2zM20 17h3v1h-3zM1 18h3v1h-3zM11 18h2v1h-2zM20 18h3v1h-3zM1 19h3v1h-3zM20 19h3v1h-3zM1 20h22v1h-22zM1 21h22v1h-22zM1 22h22v1h-22z"/></symbol>
+    <symbol id="px-dice" viewBox="0 0 24 24"><path fill="currentColor" d="M1 1h21v1h-21zM1 2h21v1h-21zM1 3h21v1h-21zM1 4h3v1h-3zM19 4h3v1h-3zM1 5h3v1h-3zM7 5h1v1h-1zM19 5h3v1h-3zM1 6h3v1h-3zM6 6h3v1h-3zM14 6h4v1h-4zM19 6h3v1h-3zM1 7h3v1h-3zM5 7h5v1h-5zM14 7h4v1h-4zM19 7h3v1h-3zM1 8h3v1h-3zM6 8h3v1h-3zM14 8h4v1h-4zM19 8h3v1h-3zM1 9h3v1h-3zM7 9h1v1h-1zM19 9h3v1h-3zM1 10h3v1h-3zM11 10h2v1h-2zM19 10h3v1h-3zM1 11h3v1h-3zM10 11h4v1h-4zM19 11h3v1h-3zM1 12h3v1h-3zM10 12h4v1h-4zM19 12h3v1h-3zM1 13h3v1h-3zM11 13h2v1h-2zM19 13h3v1h-3zM1 14h3v1h-3zM7 14h1v1h-1zM19 14h3v1h-3zM1 15h3v1h-3zM6 15h3v1h-3zM14 15h4v1h-4zM19 15h3v1h-3zM1 16h3v1h-3zM5 16h5v1h-5zM14 16h4v1h-4zM19 16h3v1h-3zM1 17h3v1h-3zM6 17h3v1h-3zM14 17h4v1h-4zM19 17h3v1h-3zM1 18h3v1h-3zM7 18h1v1h-1zM19 18h3v1h-3zM1 19h21v1h-21zM1 20h21v1h-21zM1 21h21v1h-21z"/></symbol>
+    <symbol id="px-note" viewBox="0 0 24 24"><path fill="currentColor" d="M3 1h17v1h-17zM3 2h17v1h-17zM3 3h17v1h-17zM3 4h3v1h-3zM17 4h3v1h-3zM3 5h3v1h-3zM17 5h3v1h-3zM3 6h3v1h-3zM7 6h9v1h-9zM17 6h3v1h-3zM3 7h3v1h-3zM7 7h9v1h-9zM17 7h3v1h-3zM3 8h3v1h-3zM7 8h9v1h-9zM17 8h3v1h-3zM3 9h3v1h-3zM17 9h3v1h-3zM3 10h3v1h-3zM17 10h3v1h-3zM3 11h3v1h-3zM7 11h9v1h-9zM17 11h3v1h-3zM3 12h3v1h-3zM7 12h9v1h-9zM17 12h3v1h-3zM3 13h3v1h-3zM17 13h3v1h-3zM3 14h3v1h-3zM17 14h3v1h-3zM3 15h3v1h-3zM7 15h9v1h-9zM17 15h3v1h-3zM3 16h3v1h-3zM7 16h9v1h-9zM17 16h3v1h-3zM3 17h3v1h-3zM7 17h9v1h-9zM17 17h3v1h-3zM3 18h3v1h-3zM17 18h3v1h-3zM3 19h17v1h-17zM3 20h17v1h-17zM3 21h17v1h-17z"/></symbol>
+    <symbol id="px-sun" viewBox="0 0 24 24"><path fill="currentColor" d="M10 0h4v1h-4zM10 1h4v1h-4zM3 2h2v1h-2zM10 2h4v1h-4zM19 2h2v1h-2zM2 3h4v1h-4zM10 3h4v1h-4zM18 3h4v1h-4zM2 4h5v1h-5zM11 4h2v1h-2zM17 4h5v1h-5zM3 5h4v1h-4zM11 5h2v1h-2zM17 5h4v1h-4zM4 6h3v1h-3zM8 6h8v1h-8zM17 6h3v1h-3zM7 7h10v1h-10zM6 8h12v1h-12zM6 9h12v1h-12zM0 10h4v1h-4zM6 10h12v1h-12zM20 10h4v1h-4zM0 11h24v1h-24zM0 12h24v1h-24zM0 13h4v1h-4zM6 13h12v1h-12zM20 13h4v1h-4zM6 14h12v1h-12zM6 15h12v1h-12zM7 16h10v1h-10zM4 17h3v1h-3zM8 17h8v1h-8zM17 17h3v1h-3zM3 18h4v1h-4zM11 18h2v1h-2zM17 18h4v1h-4zM2 19h5v1h-5zM11 19h2v1h-2zM17 19h5v1h-5zM2 20h4v1h-4zM10 20h4v1h-4zM18 20h4v1h-4zM3 21h2v1h-2zM10 21h4v1h-4zM19 21h2v1h-2zM10 22h4v1h-4zM10 23h4v1h-4z"/></symbol>
+    <symbol id="px-sunset" viewBox="0 0 24 24"><path fill="currentColor" d="M11 2h2v1h-2zM10 3h4v1h-4zM10 4h4v1h-4zM10 5h4v1h-4zM2 6h3v1h-3zM10 6h4v1h-4zM19 6h3v1h-3zM2 7h4v1h-4zM11 7h2v1h-2zM18 7h4v1h-4zM3 8h4v1h-4zM17 8h4v1h-4zM4 9h4v1h-4zM9 9h6v1h-6zM16 9h4v1h-4zM5 10h2v1h-2zM8 10h8v1h-8zM17 10h2v1h-2zM7 11h10v1h-10zM6 12h12v1h-12zM6 13h12v1h-12zM0 14h24v1h-24zM0 15h24v1h-24zM0 16h24v1h-24zM0 17h23v1h-23zM0 18h23v1h-23zM3 20h17v1h-17zM3 21h17v1h-17zM3 22h17v1h-17z"/></symbol>
+    <symbol id="px-moon" viewBox="0 0 24 24"><path fill="currentColor" d="M7 2h3v1h-3zM5 3h4v1h-4zM4 4h5v1h-5zM3 5h5v1h-5zM3 6h5v1h-5zM2 7h6v1h-6zM2 8h6v1h-6zM1 9h7v1h-7zM1 10h7v1h-7zM1 11h7v1h-7zM1 12h8v1h-8zM1 13h8v1h-8zM1 14h9v1h-9zM2 15h9v1h-9zM2 16h10v1h-10zM3 17h11v1h-11zM3 18h17v1h-17zM4 19h15v1h-15zM5 20h13v1h-13zM7 21h9v1h-9zM11 22h1v1h-1z"/></symbol>
+    <symbol id="px-lens" viewBox="0 0 24 24"><path fill="currentColor" d="M6 0h12v1h-12zM5 1h14v1h-14zM4 2h5v1h-5zM15 2h5v1h-5zM3 3h4v1h-4zM9 3h6v1h-6zM17 3h4v1h-4zM2 4h4v1h-4zM7 4h10v1h-10zM18 4h4v1h-4zM1 5h4v1h-4zM6 5h12v1h-12zM19 5h4v1h-4zM1 6h3v1h-3zM5 6h5v1h-5zM14 6h5v1h-5zM20 6h3v1h-3zM1 7h3v1h-3zM5 7h3v1h-3zM10 7h4v1h-4zM16 7h3v1h-3zM20 7h3v1h-3zM0 8h3v1h-3zM4 8h4v1h-4zM9 8h6v1h-6zM16 8h4v1h-4zM21 8h3v1h-3zM0 9h3v1h-3zM4 9h3v1h-3zM8 9h8v1h-8zM17 9h3v1h-3zM21 9h3v1h-3zM0 10h3v1h-3zM4 10h3v1h-3zM8 10h3v1h-3zM13 10h3v1h-3zM17 10h3v1h-3zM21 10h3v1h-3zM0 11h3v1h-3zM4 11h3v1h-3zM8 11h3v1h-3zM13 11h3v1h-3zM17 11h3v1h-3zM21 11h3v1h-3zM0 12h3v1h-3zM4 12h3v1h-3zM8 12h3v1h-3zM13 12h3v1h-3zM17 12h3v1h-3zM21 12h3v1h-3zM0 13h3v1h-3zM4 13h4v1h-4zM9 13h2v1h-2zM13 13h2v1h-2zM16 13h4v1h-4zM21 13h3v1h-3zM1 14h3v1h-3zM5 14h3v1h-3zM10 14h4v1h-4zM16 14h3v1h-3zM20 14h3v1h-3zM1 15h3v1h-3zM5 15h14v1h-14zM20 15h3v1h-3zM1 16h4v1h-4zM6 16h12v1h-12zM19 16h4v1h-4zM2 17h4v1h-4zM7 17h10v1h-10zM18 17h4v1h-4zM3 18h4v1h-4zM9 18h6v1h-6zM17 18h4v1h-4zM4 19h5v1h-5zM10 19h4v1h-4zM15 19h5v1h-5zM5 20h14v1h-14zM6 21h12v1h-12zM9 22h6v1h-6z"/></symbol>
+    <symbol id="px-gavel" viewBox="0 0 24 24"><path fill="currentColor" d="M4 2h3v1h-3zM9 2h3v1h-3zM2 3h5v1h-5zM9 3h5v1h-5zM2 4h5v1h-5zM9 4h5v1h-5zM2 5h5v1h-5zM9 5h5v1h-5zM2 6h5v1h-5zM9 6h5v1h-5zM2 7h5v1h-5zM9 7h6v1h-6zM4 8h3v1h-3zM9 8h7v1h-7zM13 9h4v1h-4zM14 10h4v1h-4zM15 11h4v1h-4zM16 12h4v1h-4zM17 13h4v1h-4zM18 14h4v1h-4zM19 15h3v1h-3zM20 16h1v1h-1zM2 18h16v1h-16zM2 19h16v1h-16zM2 20h16v1h-16zM4 21h12v1h-12zM4 22h12v1h-12z"/></symbol>
+    <symbol id="px-move" viewBox="0 0 24 24"><path fill="currentColor" d="M13 5h1v1h-1zM13 6h3v1h-3zM13 7h4v1h-4zM13 8h5v1h-5zM1 9h18v1h-18zM1 10h20v1h-20zM1 11h21v1h-21zM1 12h21v1h-21zM1 13h20v1h-20zM1 14h18v1h-18zM13 15h5v1h-5zM13 16h4v1h-4zM13 17h3v1h-3zM13 18h1v1h-1z"/></symbol>
+    <symbol id="px-check" viewBox="0 0 24 24"><path fill="currentColor" d="M20 3h3v1h-3zM19 4h4v1h-4zM18 5h5v1h-5zM17 6h5v1h-5zM17 7h4v1h-4zM16 8h5v1h-5zM15 9h5v1h-5zM14 10h5v1h-5zM1 11h3v1h-3zM13 11h5v1h-5zM1 12h4v1h-4zM12 12h5v1h-5zM1 13h5v1h-5zM12 13h4v1h-4zM1 14h6v1h-6zM11 14h5v1h-5zM2 15h6v1h-6zM10 15h5v1h-5zM3 16h11v1h-11zM4 17h9v1h-9zM5 18h7v1h-7zM6 19h5v1h-5zM7 20h4v1h-4z"/></symbol>
+    <symbol id="px-plus" viewBox="0 0 24 24"><path fill="currentColor" d="M10 4h4v1h-4zM10 5h4v1h-4zM10 6h4v1h-4zM10 7h4v1h-4zM10 8h4v1h-4zM10 9h4v1h-4zM4 10h16v1h-16zM4 11h16v1h-16zM4 12h16v1h-16zM4 13h16v1h-16zM10 14h4v1h-4zM10 15h4v1h-4zM10 16h4v1h-4zM10 17h4v1h-4zM10 18h4v1h-4zM10 19h4v1h-4z"/></symbol>
+    <symbol id="px-minus" viewBox="0 0 24 24"><path fill="currentColor" d="M2 10h19v1h-19zM2 11h19v1h-19zM2 12h19v1h-19zM2 13h19v1h-19z"/></symbol>
+    <symbol id="px-left" viewBox="0 0 24 24"><path fill="currentColor" d="M14 2h3v1h-3zM13 3h4v1h-4zM12 4h5v1h-5zM11 5h5v1h-5zM10 6h5v1h-5zM9 7h5v1h-5zM8 8h5v1h-5zM7 9h5v1h-5zM6 10h5v1h-5zM6 11h4v1h-4zM6 12h4v1h-4zM6 13h5v1h-5zM7 14h5v1h-5zM8 15h5v1h-5zM9 16h5v1h-5zM10 17h5v1h-5zM11 18h5v1h-5zM12 19h5v1h-5zM13 20h4v1h-4zM14 21h3v1h-3z"/></symbol>
+    <symbol id="px-right" viewBox="0 0 24 24"><path fill="currentColor" d="M7 2h3v1h-3zM7 3h4v1h-4zM7 4h5v1h-5zM8 5h5v1h-5zM9 6h5v1h-5zM10 7h5v1h-5zM11 8h5v1h-5zM12 9h5v1h-5zM13 10h5v1h-5zM14 11h4v1h-4zM14 12h4v1h-4zM13 13h5v1h-5zM12 14h5v1h-5zM11 15h5v1h-5zM10 16h5v1h-5zM9 17h5v1h-5zM8 18h5v1h-5zM7 19h5v1h-5zM7 20h4v1h-4zM7 21h3v1h-3z"/></symbol>
+    <symbol id="px-close" viewBox="0 0 24 24"><path fill="currentColor" d="M2 2h3v1h-3zM18 2h3v1h-3zM2 3h4v1h-4zM17 3h5v1h-5zM2 4h5v1h-5zM16 4h5v1h-5zM3 5h5v1h-5zM15 5h6v1h-6zM4 6h5v1h-5zM14 6h6v1h-6zM5 7h5v1h-5zM13 7h6v1h-6zM6 8h5v1h-5zM12 8h6v1h-6zM7 9h10v1h-10zM8 10h8v1h-8zM9 11h6v1h-6zM8 12h7v1h-7zM7 13h9v1h-9zM6 14h11v1h-11zM5 15h6v1h-6zM13 15h5v1h-5zM4 16h6v1h-6zM14 16h5v1h-5zM3 17h6v1h-6zM15 17h5v1h-5zM2 18h6v1h-6zM16 18h5v1h-5zM2 19h5v1h-5zM17 19h5v1h-5zM2 20h4v1h-4zM18 20h4v1h-4zM3 21h1v1h-1zM19 21h2v1h-2z"/></symbol>
+    <symbol id="px-sort" viewBox="0 0 24 24"><path fill="currentColor" d="M11 2h2v1h-2zM10 3h4v1h-4zM9 4h6v1h-6zM8 5h8v1h-8zM7 6h10v1h-10zM7 7h10v1h-10zM6 8h12v1h-12zM5 14h14v1h-14zM6 15h12v1h-12zM7 16h10v1h-10zM7 17h10v1h-10zM8 18h8v1h-8zM9 19h6v1h-6zM10 20h4v1h-4zM11 21h2v1h-2z"/></symbol>
+    <symbol id="px-sound" viewBox="0 0 24 24"><path fill="currentColor" d="M15 1h1v1h-1zM15 2h4v1h-4zM12 3h1v1h-1zM15 3h5v1h-5zM11 4h2v1h-2zM16 4h5v1h-5zM10 5h3v1h-3zM15 5h1v1h-1zM18 5h4v1h-4zM9 6h4v1h-4zM15 6h2v1h-2zM19 6h4v1h-4zM8 7h5v1h-5zM15 7h3v1h-3zM20 7h3v1h-3zM7 8h6v1h-6zM15 8h4v1h-4zM20 8h3v1h-3zM2 9h11v1h-11zM16 9h4v1h-4zM21 9h3v1h-3zM2 10h11v1h-11zM17 10h3v1h-3zM21 10h3v1h-3zM2 11h11v1h-11zM17 11h3v1h-3zM21 11h3v1h-3zM2 12h11v1h-11zM17 12h3v1h-3zM21 12h3v1h-3zM2 13h11v1h-11zM17 13h3v1h-3zM21 13h3v1h-3zM2 14h11v1h-11zM16 14h4v1h-4zM21 14h3v1h-3zM7 15h6v1h-6zM15 15h4v1h-4zM20 15h3v1h-3zM8 16h5v1h-5zM15 16h3v1h-3zM20 16h3v1h-3zM9 17h4v1h-4zM15 17h2v1h-2zM19 17h4v1h-4zM10 18h3v1h-3zM15 18h1v1h-1zM18 18h4v1h-4zM11 19h2v1h-2zM16 19h5v1h-5zM12 20h1v1h-1zM15 20h5v1h-5zM15 21h4v1h-4zM15 22h1v1h-1z"/></symbol>
+    <symbol id="px-bell" viewBox="0 0 24 24"><path fill="currentColor" d="M11 2h2v1h-2zM11 3h2v1h-2zM9 4h6v1h-6zM8 5h8v1h-8zM7 6h10v1h-10zM6 7h12v1h-12zM5 8h14v1h-14zM5 9h14v1h-14zM5 10h14v1h-14zM5 11h14v1h-14zM5 12h14v1h-14zM5 13h14v1h-14zM5 14h14v1h-14zM4 15h16v1h-16zM3 16h18v1h-18zM1 17h22v1h-22zM1 18h22v1h-22zM1 19h22v1h-22zM10 20h4v1h-4zM10 21h4v1h-4zM10 22h4v1h-4zM10 23h4v1h-4z"/></symbol>
+    <symbol id="px-calendar" viewBox="0 0 24 24"><path fill="currentColor" d="M6 1h3v1h-3zM15 1h3v1h-3zM6 2h3v1h-3zM15 2h3v1h-3zM6 3h3v1h-3zM15 3h3v1h-3zM1 4h21v1h-21zM1 5h21v1h-21zM1 6h21v1h-21zM1 7h21v1h-21zM1 8h21v1h-21zM1 9h3v1h-3zM19 9h3v1h-3zM1 10h3v1h-3zM19 10h3v1h-3zM1 11h3v1h-3zM19 11h3v1h-3zM1 12h3v1h-3zM6 12h3v1h-3zM10 12h4v1h-4zM15 12h3v1h-3zM19 12h3v1h-3zM1 13h3v1h-3zM6 13h3v1h-3zM10 13h4v1h-4zM15 13h3v1h-3zM19 13h3v1h-3zM1 14h3v1h-3zM6 14h3v1h-3zM10 14h4v1h-4zM15 14h3v1h-3zM19 14h3v1h-3zM1 15h3v1h-3zM19 15h3v1h-3zM1 16h3v1h-3zM6 16h3v1h-3zM11 16h2v1h-2zM19 16h3v1h-3zM1 17h3v1h-3zM6 17h3v1h-3zM10 17h4v1h-4zM19 17h3v1h-3zM1 18h3v1h-3zM6 18h3v1h-3zM10 18h4v1h-4zM19 18h3v1h-3zM1 19h21v1h-21zM1 20h21v1h-21zM1 21h21v1h-21z"/></symbol>
+    <symbol id="px-door" viewBox="0 0 24 24"><path fill="currentColor" d="M4 1h16v1h-16zM4 2h16v1h-16zM4 3h16v1h-16zM4 4h3v1h-3zM17 4h3v1h-3zM4 5h3v1h-3zM17 5h3v1h-3zM4 6h3v1h-3zM17 6h3v1h-3zM4 7h3v1h-3zM17 7h3v1h-3zM4 8h3v1h-3zM17 8h3v1h-3zM4 9h3v1h-3zM17 9h3v1h-3zM4 10h3v1h-3zM14 10h6v1h-6zM4 11h3v1h-3zM14 11h6v1h-6zM4 12h3v1h-3zM14 12h6v1h-6zM4 13h3v1h-3zM14 13h6v1h-6zM4 14h3v1h-3zM17 14h3v1h-3zM4 15h3v1h-3zM17 15h3v1h-3zM4 16h3v1h-3zM17 16h3v1h-3zM4 17h3v1h-3zM17 17h3v1h-3zM4 18h3v1h-3zM17 18h3v1h-3zM4 19h16v1h-16zM4 20h16v1h-16zM1 21h22v1h-22zM1 22h22v1h-22z"/></symbol>
+    <symbol id="px-table" viewBox="0 0 24 24"><path fill="currentColor" d="M1 3h21v1h-21zM1 4h21v1h-21zM1 5h21v1h-21zM1 6h21v1h-21zM1 7h21v1h-21zM1 8h21v1h-21zM1 9h3v1h-3zM11 9h2v1h-2zM19 9h3v1h-3zM1 10h3v1h-3zM11 10h2v1h-2zM19 10h3v1h-3zM1 11h3v1h-3zM11 11h2v1h-2zM19 11h3v1h-3zM1 12h3v1h-3zM11 12h2v1h-2zM19 12h3v1h-3zM1 13h3v1h-3zM11 13h2v1h-2zM19 13h3v1h-3zM1 14h21v1h-21zM1 15h21v1h-21zM1 16h3v1h-3zM11 16h2v1h-2zM19 16h3v1h-3zM1 17h3v1h-3zM11 17h2v1h-2zM19 17h3v1h-3zM1 18h21v1h-21zM1 19h21v1h-21zM1 20h21v1h-21z"/></symbol>
+    <symbol id="px-mask" viewBox="0 0 24 24"><path fill="currentColor" d="M1 2h22v1h-22zM1 3h22v1h-22zM1 4h22v1h-22zM1 5h22v1h-22zM4 6h16v1h-16zM4 7h16v1h-16zM4 8h16v1h-16zM4 9h2v1h-2zM10 9h3v1h-3zM17 9h3v1h-3zM4 10h2v1h-2zM10 10h3v1h-3zM17 10h3v1h-3zM5 11h1v1h-1zM10 11h3v1h-3zM17 11h2v1h-2zM5 12h14v1h-14zM5 13h14v1h-14zM5 14h14v1h-14zM6 15h12v1h-12zM7 16h10v1h-10zM8 17h8v1h-8zM9 18h6v1h-6zM10 19h4v1h-4zM10 20h4v1h-4zM11 21h2v1h-2z"/></symbol>
+    <symbol id="px-trash" viewBox="0 0 24 24"><path fill="currentColor" d="M9 1h6v1h-6zM9 2h6v1h-6zM9 3h6v1h-6zM3 4h18v1h-18zM3 5h18v1h-18zM3 6h18v1h-18zM3 7h18v1h-18zM6 8h12v1h-12zM6 9h12v1h-12zM6 10h3v1h-3zM11 10h2v1h-2zM15 10h3v1h-3zM6 11h3v1h-3zM11 11h2v1h-2zM15 11h3v1h-3zM6 12h3v1h-3zM11 12h2v1h-2zM15 12h3v1h-3zM6 13h3v1h-3zM11 13h2v1h-2zM15 13h2v1h-2zM6 14h3v1h-3zM11 14h2v1h-2zM15 14h2v1h-2zM6 15h3v1h-3zM11 15h2v1h-2zM15 15h2v1h-2zM6 16h3v1h-3zM11 16h2v1h-2zM15 16h2v1h-2zM6 17h3v1h-3zM11 17h2v1h-2zM15 17h2v1h-2zM7 18h2v1h-2zM11 18h2v1h-2zM15 18h2v1h-2zM7 19h2v1h-2zM11 19h2v1h-2zM15 19h2v1h-2zM7 20h10v1h-10zM7 21h10v1h-10z"/></symbol>
+    <symbol id="px-bug" viewBox="0 0 24 24"><path fill="currentColor" d="M5 0h3v1h-3zM16 0h3v1h-3zM5 1h4v1h-4zM15 1h4v1h-4zM6 2h4v1h-4zM14 2h4v1h-4zM8 3h8v1h-8zM9 4h6v1h-6zM9 5h6v1h-6zM1 6h2v1h-2zM9 6h6v1h-6zM21 6h2v1h-2zM1 7h4v1h-4zM9 7h6v1h-6zM19 7h4v1h-4zM2 8h5v1h-5zM8 8h8v1h-8zM17 8h5v1h-5zM4 9h16v1h-16zM5 10h14v1h-14zM7 11h10v1h-10zM7 12h10v1h-10zM1 13h22v1h-22zM1 14h22v1h-22zM7 15h10v1h-10zM7 16h10v1h-10zM5 17h14v1h-14zM4 18h16v1h-16zM2 19h5v1h-5zM8 19h8v1h-8zM17 19h5v1h-5zM1 20h4v1h-4zM9 20h6v1h-6zM19 20h4v1h-4zM1 21h2v1h-2zM11 21h2v1h-2zM21 21h2v1h-2z"/></symbol>
+    <symbol id="px-eclipse" viewBox="0 0 36 24"><path fill="currentColor" d="M23 1h1v1h-1zM19 2h9v1h-9zM19 3h11v1h-11zM20 4h11v1h-11zM21 5h11v1h-11zM22 6h10v1h-10zM22 7h11v1h-11zM23 8h10v1h-10zM23 9h11v1h-11zM23 10h11v1h-11zM23 11h11v1h-11zM23 12h11v1h-11zM23 13h11v1h-11zM23 14h11v1h-11zM23 15h10v1h-10zM22 16h11v1h-11zM22 17h10v1h-10zM21 18h11v1h-11zM20 19h11v1h-11zM19 20h11v1h-11zM19 21h9v1h-9zM23 22h1v1h-1z"/><path fill="currentColor" d="M10 1h5v1h-5zM7 2h11v1h-11zM6 3h13v1h-13zM5 4h5v1h-5zM15 4h5v1h-5zM4 5h4v1h-4zM17 5h4v1h-4zM3 6h4v1h-4zM18 6h4v1h-4zM3 7h3v1h-3zM19 7h3v1h-3zM2 8h4v1h-4zM19 8h4v1h-4zM2 9h3v1h-3zM20 9h3v1h-3zM2 10h3v1h-3zM20 10h3v1h-3zM2 11h3v1h-3zM20 11h3v1h-3zM2 12h3v1h-3zM20 12h3v1h-3zM2 13h3v1h-3zM20 13h3v1h-3zM2 14h3v1h-3zM20 14h3v1h-3zM2 15h4v1h-4zM19 15h4v1h-4zM3 16h3v1h-3zM19 16h3v1h-3zM3 17h4v1h-4zM18 17h4v1h-4zM4 18h4v1h-4zM17 18h4v1h-4zM5 19h5v1h-5zM15 19h5v1h-5zM6 20h13v1h-13zM7 21h11v1h-11zM10 22h5v1h-5z"/></symbol>
+  </defs>
+</svg>
+
+<div class="page">
+  <header class="hero">
+    <div class="eyebrow">Audyt kierunkowy, wersja 13 · Danganronpa RPG · 04.09.2026</div>
+    <h1><span class="p">Krew</span>, <span class="y">nadzieja</span>, <span class="g">dowód</span> i <span class="c">pora dnia</span></h1>
+    <p class="lead">Wersja 13 to szlif, nie zmiana założeń. Kurtyna dostała materiał zamiast koloru: czarne szkło pod treścią, różowe, błękitne i fioletowe szyby jako wypełniacz, światło wpadające od krawędzi ekranu, raster na wypełniaczu i cięcie z ołowiu, fazy i neonowego rdzenia. Pod każdym blokiem leży ciemniejsza płyta przycięta do jego własnej szyby, więc zegar i pule czyta się na każdym kolorze. Rama jest ciężka w rogach i cienka w środku. Okna są z tego samego szkła, co kurtyna: trzy do czterech długich, płytkich szyb pod tym samym kątem. Cały przepis na szybę stoi niżej w liczbach, do przepisania jeden do jednego.</p>
+    <div class="cards">
+      <div><b>Color coding</b>Czerwień to DM, złoto to Hope, róż krwi to Despair, zieleń to dowód. Interfejs bierze kolor pory dnia albo stanu.</div>
+      <div><b>Kroje</b>VT323 na chrome, prozie i stemplach; Special Elite na tytułach. Dwa pliki OFL, DRPG Pixel jako zapas chrome.</div>
+      <div><b>Szkło</b>Jeden materiał na kurtynę i okna: czarne szkło pod treścią, kolorowe szyby jako wypełniacz, cięcie z ołowiu, fazy i neonu, liquid glass pod spodem. Sam ostry, to, co pod nim, rozmyte. Mgły nie ruszamy.</div>
+      <div><b>Klikanie</b>Wszystko, co się klika, ma jeden znak: prostokąt pędzla. Najechane blade, wybrane pełne, wciśnięte ciemniejsze.</div>
+    </div>
+  </header>
+
+  <section>
+    <div class="sec-head"><h2>Color coding: decyzje</h2><div class="rule"></div></div>
+    <div class="swatches">
+      <div class="sw"><div class="c" style="background:var(--gm)"></div><div class="n">DM</div><div class="h">#e0182f</div><div class="w">przez DMa, tylko DM, przyciski DMa, niszczące (z rastrem)</div></div>
+      <div class="sw"><div class="c" style="background:var(--hope)"></div><div class="n">Hope</div><div class="h">#ffd23f</div><div class="w">gwiazdki, Hope Calls, chipy, ton popupu</div></div>
+      <div class="sw"><div class="c" style="background:var(--despair)"></div><div class="n">Despair</div><div class="h">#ff3d8b</div><div class="w">pule, Despair Calls, ton popupu, proces</div></div>
+      <div class="sw"><div class="c" style="background:var(--evidence)"></div><div class="n">Dowód</div><div class="h">#3ddc84</div><div class="w">Truth Bullets, karty dowodów</div></div>
+    </div>
+    <p class="note" style="margin-top:16px"><b style="color:var(--bone)">Interfejs</b> nie ma własnego koloru: bierze kolor stanu. Pory dnia to światło, stany je zastępują, proces ma kolor Despair.</p>
+    <div class="swatches eight" style="margin-top:10px">
+      <div class="sw" style="--acc:var(--h-morning)"><div class="c" style="background:var(--acc)"></div><div class="n"><span class="pixicon" style="width:14px;height:14px;color:var(--acc)"><svg><use href="#px-sun"/></svg></span>Morning</div><div class="h">#bfe3ff</div></div>
+      <div class="sw" style="--acc:var(--h-noon)"><div class="c" style="background:var(--acc)"></div><div class="n"><span class="pixicon" style="width:14px;height:14px;color:var(--acc)"><svg><use href="#px-sun"/></svg></span>Noon</div><div class="h">#7fe4ff</div></div>
+      <div class="sw" style="--acc:var(--h-afternoon)"><div class="c" style="background:var(--acc)"></div><div class="n"><span class="pixicon" style="width:14px;height:14px;color:var(--acc)"><svg><use href="#px-sun"/></svg></span>Aftern.</div><div class="h">#ffd38f</div></div>
+      <div class="sw" style="--acc:var(--h-evening)"><div class="c" style="background:var(--acc)"></div><div class="n"><span class="pixicon" style="width:14px;height:14px;color:var(--acc)"><svg><use href="#px-sunset"/></svg></span>Evening</div><div class="h">#ff8245</div></div>
+      <div class="sw" style="--acc:var(--h-night)"><div class="c" style="background:var(--acc)"></div><div class="n"><span class="pixicon" style="width:14px;height:14px;color:var(--acc)"><svg><use href="#px-moon"/></svg></span>Night</div><div class="h">#7f8cff</div></div>
+      <div class="sw" style="--acc:var(--invest)"><div class="c" style="background:var(--acc)"></div><div class="n"><span class="pixicon" style="width:14px;height:14px;color:var(--acc)"><svg><use href="#px-lens"/></svg></span>Invest.</div><div class="h">#57b6ff</div></div>
+      <div class="sw" style="--acc:var(--eclipse)"><div class="c" style="background:var(--acc)"></div><div class="n"><span class="pixicon" style="width:21px;height:14px;color:var(--acc)"><svg><use href="#px-eclipse"/></svg></span>Eclipse</div><div class="h">#a678ff</div></div>
+      <div class="sw" style="--acc:var(--despair)"><div class="c" style="background:var(--acc)"></div><div class="n"><span class="pixicon" style="width:14px;height:14px;color:var(--acc)"><svg><use href="#px-gavel"/></svg></span>Trial</div><div class="h">= Despair</div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Klikanie: jeden znak dla wszystkiego</h2><div class="rule"></div></div>
+    <p class="note">To, co można kliknąć, jest kliknięte albo ma na sobie kursor, dostaje prostokąt pędzla w kolorze stanu, jak "Open the debate" na wcześniejszej makiecie. Ta sama reguła dla przycisków, zakładek, kafelków, wierszy wyboru, pól wyboru, pipsów i launcherów. Na tej stronie działa naprawdę: naprowadź kursor na dowolną kontrolkę.</p>
+    <div class="matrix" style="margin-top:12px">
+      <span class="h">element</span><span class="h">spoczynek</span><span class="h">najechany</span><span class="h">wybrany</span><span class="h">wciśnięty</span><span class="h">wyłączony</span>
+      <span class="r">przycisk</span><span class="cell"><span class="ui">Observe</span></span><span class="cell"><span class="ui is-hover">Observe</span></span><span class="cell"><span class="ui on">Observe</span></span><span class="cell"><span class="ui is-pressed">Observe</span></span><span class="cell"><span class="ui is-disabled">Observe</span></span>
+      <span class="r">domyślny</span><span class="cell"><span class="ui default">Apply</span></span><span class="cell"><span class="ui default is-hover">Apply</span></span><span class="cell"><span class="ui default on">Apply</span></span><span class="cell"><span class="ui default is-pressed">Apply</span></span><span class="cell"><span class="ui is-disabled">Apply</span></span>
+      <span class="r">przez DMa</span><span class="cell"><span class="ui gm">Ask the GM</span></span><span class="cell"><span class="ui gm is-hover">Ask the GM</span></span><span class="cell"><span class="ui gm on">Ask the GM</span></span><span class="cell"><span class="ui gm is-pressed">Ask the GM</span></span><span class="cell"><span class="ui gm is-disabled">Ask the GM</span></span>
+      <span class="r">niszczący</span><span class="cell"><span class="ui gm hazard">Reset</span></span><span class="cell"><span class="ui gm hazard is-hover">Reset</span></span><span class="cell"><span class="ui gm hazard on">Reset</span></span><span class="cell"><span class="ui gm hazard is-pressed">Reset</span></span><span class="cell"><span class="ui gm hazard is-disabled">Reset</span></span>
+      <span class="r">zakładka</span><span class="cell"><span class="tabbar"><span class="ui tab">Actions</span></span></span><span class="cell"><span class="tabbar"><span class="ui tab is-hover">Actions</span></span></span><span class="cell"><span class="tabbar"><span class="ui tab on">Actions</span></span></span><span class="cell"><span class="tabbar"><span class="ui tab is-pressed">Actions</span></span></span><span class="cell"><span class="tabbar"><span class="ui tab is-disabled">Actions</span></span></span>
+      <span class="r">wiersz wyboru</span><span class="cell"><span class="ui row">Open the debate</span></span><span class="cell"><span class="ui row is-hover">Open the debate</span></span><span class="cell"><span class="ui row on">Open the debate</span></span><span class="cell"><span class="ui row is-pressed">Open the debate</span></span><span class="cell"><span class="ui row is-disabled">Open the debate</span></span>
+      <span class="r">pole wyboru</span><span class="cell"><span class="ui check"></span> Reveal</span><span class="cell"><span class="ui check is-hover"></span> Reveal</span><span class="cell"><span class="ui check on"></span> Reveal</span><span class="cell"><span class="ui check is-pressed"></span> Reveal</span><span class="cell"><span class="ui check is-disabled"></span> Reveal</span>
+      <span class="r">kafelek</span><span class="cell"><span class="ui tile" style="width:64px"><span class="pixicon"><svg><use href="#px-search"/></svg></span>Search</span></span><span class="cell"><span class="ui tile is-hover" style="width:64px"><span class="pixicon"><svg><use href="#px-search"/></svg></span>Search</span></span><span class="cell"><span class="ui tile on" style="width:64px"><span class="pixicon"><svg><use href="#px-search"/></svg></span>Search</span></span><span class="cell"><span class="ui tile is-pressed" style="width:64px"><span class="pixicon"><svg><use href="#px-search"/></svg></span>Search</span></span><span class="cell"><span class="ui tile is-disabled" style="width:64px"><span class="pixicon"><svg><use href="#px-search"/></svg></span>Search</span></span>
+      <span class="r">pips DMa</span><span class="cell"><span class="ui pip despair"><span class="pixicon"><svg><use href="#px-skull"/></svg></span></span></span><span class="cell"><span class="ui pip despair is-hover"><span class="pixicon"><svg><use href="#px-skull"/></svg></span></span></span><span class="cell"><span class="ui pip despair on"><span class="pixicon"><svg><use href="#px-skull"/></svg></span></span></span><span class="cell"><span class="ui pip despair is-pressed"><span class="pixicon"><svg><use href="#px-skull"/></svg></span></span></span><span class="cell"><span class="ui pip despair is-disabled" style="opacity:.4"><span class="pixicon"><svg><use href="#px-skull"/></svg></span></span></span>
+      <span class="r">launcher</span><span class="cell"><span class="ui ring">DM</span></span><span class="cell"><span class="ui ring is-hover">DM</span></span><span class="cell"><span class="ui ring on">DM</span></span><span class="cell"><span class="ui ring is-pressed">DM</span></span><span class="cell"><span class="ui ring is-disabled">DM</span></span>
+    </div>
+    <p class="note" style="margin-top:10px">Reguły: spoczynek to cienka krawędź w kolorze elementu i przezroczysta czerń; najechany to pędzel w 45%; wybrany to pełny pędzel z tekstem w kolorze Ink; wciśnięty to pędzel przyciemniony; wyłączony to krawędź przerywana, bez pędzla; fokus z klawiatury to obrys 2 px. Przycisk domyślny jest pędzlem w Bone już w spoczynku. Czerwień DMa zostaje czerwona w każdym stanie.</p>
+
+    <h3 class="sub">Pola: to samo dla wpisywania</h3>
+    <p class="note">Pola nie dostają pędzla, bo pędzel znaczy "kliknięte". Dostają tę samą krawędź w kolorze stanu, grubszą u dołu. Fokus to pełny kolor stanu z poświatą i kursorem, błąd to krawędź DMa i jedna linia wyjaśnienia, wyłączone to krawędź przerywana. Liczby mają pikselowy stepper, nigdy strzałek przeglądarki.</p>
+    <div class="matrix" style="margin-top:12px">
+      <span class="h">pole</span><span class="h">puste</span><span class="h">wypełnione</span><span class="h">fokus</span><span class="h">błąd</span><span class="h">wyłączone</span>
+      <span class="r">tekst</span>
+      <span class="cell"><span class="fld" style="width:100%"><span class="in ph">Room name</span></span></span>
+      <span class="cell"><span class="fld" style="width:100%"><span class="in">Library</span></span></span>
+      <span class="cell"><span class="fld is-focus" style="width:100%"><span class="in">Librar</span></span></span>
+      <span class="cell"><span class="fld is-bad" style="width:100%"><span class="in">Library</span><span class="msg">Name already used</span></span></span>
+      <span class="cell"><span class="fld is-off" style="width:100%"><span class="in">Library</span></span></span>
+      <span class="r">wybór</span>
+      <span class="cell"><span class="fld" style="width:100%"><span class="in ph">Pick a tier<span class="pixicon" style="width:12px;height:12px;margin-left:auto;color:var(--acc)"><svg><use href="#px-sort"/></svg></span></span></span></span>
+      <span class="cell"><span class="fld" style="width:100%"><span class="in">Tier 2<span class="pixicon" style="width:12px;height:12px;margin-left:auto;color:var(--acc)"><svg><use href="#px-sort"/></svg></span></span></span></span>
+      <span class="cell"><span class="fld is-focus" style="width:100%"><span class="in">Tier 2<span class="pixicon" style="width:12px;height:12px;margin-left:auto;color:var(--acc)"><svg><use href="#px-sort"/></svg></span></span></span></span>
+      <span class="cell"><span class="fld is-bad" style="width:100%"><span class="in ph">Pick a tier<span class="pixicon" style="width:12px;height:12px;margin-left:auto;color:var(--gm-light)"><svg><use href="#px-sort"/></svg></span></span><span class="msg">Required</span></span></span>
+      <span class="cell"><span class="fld is-off" style="width:100%"><span class="in">Tier 2</span></span></span>
+      <span class="r">liczba</span>
+      <span class="cell"><span class="fld" style="width:100%"><span class="in">0<span class="num"><span class="ui pip"><span class="pixicon"><svg><use href="#px-minus"/></svg></span></span><span class="ui pip"><span class="pixicon"><svg><use href="#px-plus"/></svg></span></span></span></span></span></span>
+      <span class="cell"><span class="fld" style="width:100%"><span class="in">4<span class="num"><span class="ui pip"><span class="pixicon"><svg><use href="#px-minus"/></svg></span></span><span class="ui pip"><span class="pixicon"><svg><use href="#px-plus"/></svg></span></span></span></span></span></span>
+      <span class="cell"><span class="fld is-focus" style="width:100%"><span class="in">4<span class="num"><span class="ui pip"><span class="pixicon"><svg><use href="#px-minus"/></svg></span></span><span class="ui pip is-hover"><span class="pixicon"><svg><use href="#px-plus"/></svg></span></span></span></span></span></span>
+      <span class="cell"><span class="fld is-bad" style="width:100%"><span class="in">9<span class="num"><span class="ui pip"><span class="pixicon"><svg><use href="#px-minus"/></svg></span></span><span class="ui pip is-disabled"><span class="pixicon"><svg><use href="#px-plus"/></svg></span></span></span></span><span class="msg">Max 8</span></span></span>
+      <span class="cell"><span class="fld is-off" style="width:100%"><span class="in">4</span></span></span>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Ikony: wszystko pikselowe, 24x24</h2><div class="rule"></div></div>
+    <p class="note">Siatka urosła z 8x8 na 24x24, więc sylwetki są czytelne, a piksel zostaje pikselem. Jedna siatka dla wszystkiego: akcje, Hope Calls, przedmioty, stany, strzałki i plusy w stepperach. Hope to smukła gwiazdka zamiast rombu, Class Trial to młotek sędziego, Zaćmienie to czarna kula z rozświetlonym brzegiem przesuwająca się przed fioletową, więc nie myli się z nocą. Każda ikona jest składana w kodzie z kół, prostokątów, linii i wielokątów rasteryzowanych na siatkę, więc poprawka to jedna liczba, nie przerysowanie.</p>
+    <h3 class="sub">Akcje i Hope Calls</h3>
+    <div class="icons" style="--acc:var(--h-noon)">
+      <div class="icon"><span class="pixicon"><svg><use href="#px-search"/></svg></span>Search</div>
+      <div class="icon"><span class="pixicon"><svg><use href="#px-observe"/></svg></span>Observe</div>
+      <div class="icon"><span class="pixicon"><svg><use href="#px-analyze"/></svg></span>Analyze</div>
+      <div class="icon"><span class="pixicon"><svg><use href="#px-hourglass"/></svg></span>Projects</div>
+      <div class="icon" style="--acc:var(--gm-light)"><span class="pixicon"><svg><use href="#px-dynamic"/></svg></span>Dynamic</div>
+      <div class="icon"><span class="pixicon"><svg><use href="#px-rest"/></svg></span>Rest</div>
+      <div class="icon"><span class="pixicon"><svg><use href="#px-listen"/></svg></span>Listen</div>
+      <div class="icon"><span class="pixicon"><svg><use href="#px-palm"/></svg></span>Palm</div>
+      <div class="icon"><span class="pixicon"><svg><use href="#px-tamper"/></svg></span>Tamper</div>
+      <div class="icon" style="--acc:var(--gm-light)"><span class="pixicon"><svg><use href="#px-murder"/></svg></span>Murder</div>
+      <div class="icon" style="--acc:var(--hope)"><span class="pixicon"><svg><use href="#px-star"/></svg></span>Hope</div>
+      <div class="icon" style="--acc:var(--hope)"><span class="pixicon"><svg><use href="#px-support"/></svg></span>Support</div>
+      <div class="icon" style="--acc:var(--hope)"><span class="pixicon"><svg><use href="#px-burst"/></svg></span>Burst</div>
+      <div class="icon" style="--acc:var(--hope)"><span class="pixicon"><svg><use href="#px-reroll"/></svg></span>Reroll</div>
+      <div class="icon" style="--acc:var(--hope)"><span class="pixicon"><svg><use href="#px-relief"/></svg></span>Relief</div>
+      <div class="icon" style="--acc:var(--hope)"><span class="pixicon"><svg><use href="#px-sprint"/></svg></span>Sprint</div>
+      <div class="icon" style="--acc:var(--despair)"><span class="pixicon"><svg><use href="#px-skull"/></svg></span>Despair</div>
+      <div class="icon" style="--acc:var(--evidence)"><span class="pixicon"><svg><use href="#px-bullet"/></svg></span>Bullet</div>
+      <div class="icon"><span class="pixicon"><svg><use href="#px-key"/></svg></span>Key</div>
+      <div class="icon"><span class="pixicon"><svg><use href="#px-trap"/></svg></span>Trap</div>
+    </div>
+    <h3 class="sub">Stany, przedmioty i chrome</h3>
+    <div class="icons">
+      <div class="icon" style="--acc:var(--h-morning)"><span class="pixicon"><svg><use href="#px-sun"/></svg></span>Morning</div>
+      <div class="icon" style="--acc:var(--h-evening)"><span class="pixicon"><svg><use href="#px-sunset"/></svg></span>Evening</div>
+      <div class="icon" style="--acc:var(--h-night)"><span class="pixicon"><svg><use href="#px-moon"/></svg></span>Night</div>
+      <div class="icon" style="--acc:var(--invest)"><span class="pixicon"><svg><use href="#px-lens"/></svg></span>Investig.</div>
+      <div class="icon wide" style="--acc:var(--eclipse)"><span class="pixicon"><svg><use href="#px-eclipse"/></svg></span>Eclipse</div>
+      <div class="icon" style="--acc:var(--despair)"><span class="pixicon"><svg><use href="#px-gavel"/></svg></span>Trial</div>
+      <div class="icon"><span class="pixicon"><svg><use href="#px-move"/></svg></span>Move</div>
+      <div class="icon" style="--acc:var(--evidence)"><span class="pixicon"><svg><use href="#px-check"/></svg></span>Done</div>
+      <div class="icon"><span class="pixicon"><svg><use href="#px-bag"/></svg></span>Item</div>
+      <div class="icon"><span class="pixicon"><svg><use href="#px-vault"/></svg></span>Vault</div>
+      <div class="icon"><span class="pixicon"><svg><use href="#px-dice"/></svg></span>Roll</div>
+      <div class="icon"><span class="pixicon"><svg><use href="#px-note"/></svg></span>Note</div>
+      <div class="icon"><span class="pixicon"><svg><use href="#px-sound"/></svg></span>Sound</div>
+      <div class="icon"><span class="pixicon"><svg><use href="#px-bell"/></svg></span>Alert</div>
+      <div class="icon"><span class="pixicon"><svg><use href="#px-sort"/></svg></span>Sort</div>
+      <div class="icon"><span class="pixicon"><svg><use href="#px-plus"/></svg></span>Plus</div>
+      <div class="icon"><span class="pixicon"><svg><use href="#px-minus"/></svg></span>Minus</div>
+      <div class="icon"><span class="pixicon"><svg><use href="#px-left"/></svg></span>Prev</div>
+      <div class="icon"><span class="pixicon"><svg><use href="#px-right"/></svg></span>Next</div>
+      <div class="icon"><span class="pixicon"><svg><use href="#px-close"/></svg></span>Close</div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Zegar: tekst-tło i glif stanu</h2><div class="rule"></div></div>
+    <p class="note">Tekst-tło nie w oknie panelu DMa, tylko na zegarze, czyli tam, gdzie widzi je każdy. Nazwa stanu płynie jako obrys za treścią zegara, cicho, przy 22 procentach krycia; przy <code>prefers-reduced-motion</code> stoi. Glif stanu obok nazwy fazy, strzałki godzin jako pikselowe pipsy.</p>
+    <div class="fog" style="margin-top:12px"><div class="grid four" style="gap:14px">
+      <div class="win" style="--acc:var(--h-afternoon)"><canvas class="sg"></canvas><div class="body hud" style="width:auto"><div class="ticker"><span>Daily Life · Daily Life · Daily Life · Daily Life · </span></div><div class="campaign">Hope's Peak, S2</div><div class="chapter">Chapter 1 · Day 11</div><div class="phase"><span class="pixicon"><svg><use href="#px-sun"/></svg></span>Daily Life</div><div class="time"><span class="ui pip" style="width:20px;height:20px"><span class="pixicon" style="width:12px;height:12px"><svg><use href="#px-left"/></svg></span></span>Afternoon<span class="ui pip" style="width:20px;height:20px"><span class="pixicon" style="width:12px;height:12px"><svg><use href="#px-right"/></svg></span></span></div><div class="since">12 min in</div><div class="room">Round Table · Rig the dumbwaiter 2/4</div></div></div>
+      <div class="win" style="--acc:var(--invest)"><canvas class="sg"></canvas><div class="body hud" style="width:auto"><div class="ticker"><span>Investigation · Investigation · Investigation · </span></div><div class="campaign">Hope's Peak, S2</div><div class="chapter">Chapter 1 · Day 11</div><div class="phase"><span class="pixicon"><svg><use href="#px-lens"/></svg></span>Investigation</div><div class="time">Noon</div><div class="since">4 min in</div><div class="room">Library · 3 traces left</div></div></div>
+      <div class="win" style="--acc:var(--despair)"><canvas class="sg"></canvas><div class="body hud" style="width:auto"><div class="ticker"><span>Class Trial · Class Trial · Class Trial · Class Trial · </span></div><div class="campaign">Hope's Peak, S2</div><div class="chapter">Chapter 1 · Day 11</div><div class="phase"><span class="pixicon"><svg><use href="#px-gavel"/></svg></span>Class Trial</div><div class="time">Discussion</div><div class="since">Everyone has the floor</div><div class="room">Rebuttal in 2:40</div></div></div>
+      <div class="win" style="--acc:var(--eclipse)"><canvas class="sg"></canvas><div class="body hud" style="width:auto"><div class="ticker"><span>Eclipse · Eclipse · Eclipse · Eclipse · Eclipse · </span></div><div class="campaign">Hope's Peak, S2</div><div class="chapter">Chapter 1 · Day 11</div><div class="phase"><span class="pixicon" style="width:24px"><svg><use href="#px-eclipse"/></svg></span>Daily Life</div><div class="time">Night Eclipse</div><div class="since">Actions: murder only</div><div class="room">Everyone in their rooms</div></div></div>
+    </div></div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Cała karta postaci</h2><div class="rule"></div></div>
+    <p class="note">Południe, arkusz gracza. Jedno okno-witraż. Lewa kolumna: portret (wybiera go gracz, nie ruszamy), Health i Sanity z rastrem na wydanej części, Equipped, Experience. Nagłówek: imię, gwiazdki Hope, pipsy akcji, cechy w ramkach DMa. Zakładki jako pędzel, kafelki akcji i Hope Calls z pikselowymi ikonami, kafelki DMa w czerwieni, wybrany kafelek pełnym pędzlem.</p>
+    <div class="fog cut-ui" style="margin-top:12px;--acc:var(--h-noon)">
+      <div class="win" style="max-width:780px;margin:0 auto"><div class="body sheet">
+        <div class="side">
+          <div class="portrait">Portret gracza</div>
+          <div class="res">
+            <div class="stat" style="--c:var(--gm-light)"><span class="k">Health</span><b>2/4</b><span class="bar halftone" style="--acc:var(--c)"><i style="width:50%;background:var(--c)"></i></span></div>
+            <div class="stat" style="--c:var(--eclipse)"><span class="k">Sanity</span><b>0/6</b><span class="bar halftone" style="--acc:var(--c)"><i style="width:0"></i></span></div>
+          </div>
+          <div><h4>Equipped</h4><p>Nothing is held ready. Only what is in your hand counts in an incident or a clean-up.</p></div>
+          <div><h4>Experience</h4><p><span class="chip">+2 Experience</span> <span class="chip">+2 Test grit</span></p></div>
+          <div class="safe"><span class="ui gm sm">Misiubombo</span></div>
+        </div>
+        <div>
+          <div class="name"><span class="cap">P</span>layer A</div>
+          <div class="ult">Ultimate <b>Detective</b></div>
+          <div class="chips">
+            <span class="chip hope">Hope <span class="pips"><span class="pixicon"><svg><use href="#px-star"/></svg></span><span class="pixicon"><svg><use href="#px-star"/></svg></span><span class="pixicon"><svg><use href="#px-star"/></svg></span><span class="pixicon"><svg><use href="#px-star"/></svg></span><span class="pixicon off"><svg><use href="#px-star"/></svg></span><span class="pixicon off"><svg><use href="#px-star"/></svg></span></span></span>
+            <span class="chip acc">Actions <span class="pips"><i style="width:11px;height:11px;background:var(--acc)"></i><i style="width:11px;height:11px;background:var(--acc)"></i><i class="halftone" style="width:11px;height:11px;border:1px solid var(--acc)"></i></span></span>
+            <span class="chip acc"><span class="pixicon"><svg><use href="#px-move"/></svg></span> free Move</span>
+            <span class="stamp" style="--acc:var(--hope);margin-left:12px">Ultimate</span>
+          </div>
+          <div class="traits"><div>Leg<b>0</b></div><div>Body<b>0</b></div><div>Hand<b>0</b></div><div>Eye<b>+1</b></div><div>Shadow<b>0</b></div><div>Head<b>0</b></div></div>
+          <div class="tabbar" style="display:flex;margin-top:10px"><span class="ui tab on" style="flex:1;justify-content:center">Actions</span><span class="ui tab" style="flex:1;justify-content:center">Inventory</span><span class="ui tab" style="flex:1;justify-content:center">Biography</span><span class="ui tab" style="flex:1;justify-content:center">Rules</span></div>
+          <div class="panel"><h4>Actions <span>2 of 2 · free Move unused</span></h4>
+            <div class="tiles">
+              <span class="ui tile on"><span class="pixicon"><svg><use href="#px-search"/></svg></span>Search<small>1 action</small></span>
+              <span class="ui tile"><span class="pixicon"><svg><use href="#px-observe"/></svg></span>Observe<small>1 action</small></span>
+              <span class="ui tile"><span class="pixicon"><svg><use href="#px-analyze"/></svg></span>Analyze<small>1 action</small></span>
+              <span class="ui tile"><span class="pixicon"><svg><use href="#px-hourglass"/></svg></span>Projects<small>1 action</small></span>
+              <span class="ui tile gm"><span class="pixicon"><svg><use href="#px-dynamic"/></svg></span>Dynamic<small>1 action · GM</small></span>
+              <span class="ui tile"><span class="pixicon"><svg><use href="#px-rest"/></svg></span>Rest<small>1 action</small></span>
+              <span class="ui tile"><span class="pixicon"><svg><use href="#px-listen"/></svg></span>Listen<small>1 action</small></span>
+              <span class="ui tile"><span class="pixicon"><svg><use href="#px-palm"/></svg></span>Palm<small>1 action</small></span>
+              <span class="ui tile"><span class="pixicon"><svg><use href="#px-tamper"/></svg></span>Tamper<small>1 action</small></span>
+              <span class="ui tile gm is-disabled"><span class="pixicon"><svg><use href="#px-murder"/></svg></span>Direct Murder<small>Eclipse only</small></span>
+            </div>
+          </div>
+          <div class="panel calls"><h4>Hope Calls <span>4 Hope</span></h4>
+            <div class="tiles">
+              <span class="ui tile"><span class="pixicon"><svg><use href="#px-support"/></svg></span>Support<small>1 Hope</small></span>
+              <span class="ui tile"><span class="pixicon"><svg><use href="#px-star"/></svg></span>Experience<small>1 Hope</small></span>
+              <span class="ui tile"><span class="pixicon"><svg><use href="#px-dynamic"/></svg></span>Ultimate<small>1 Hope</small></span>
+              <span class="ui tile"><span class="pixicon"><svg><use href="#px-palm"/></svg></span>Contribution<small>2 Hope</small></span>
+              <span class="ui tile"><span class="pixicon"><svg><use href="#px-sprint"/></svg></span>Sprint<small>2 Hope</small></span>
+              <span class="ui tile"><span class="pixicon"><svg><use href="#px-reroll"/></svg></span>Reroll<small>3 Hope</small></span>
+              <span class="ui tile"><span class="pixicon"><svg><use href="#px-check"/></svg></span>Resolve<small>3 Hope</small></span>
+              <span class="ui tile"><span class="pixicon"><svg><use href="#px-burst"/></svg></span>Burst<small>4 Hope</small></span>
+              <span class="ui tile is-disabled"><span class="pixicon"><svg><use href="#px-relief"/></svg></span>Relief<small>4 Hope</small></span>
+              <span class="ui tile is-disabled"><span class="pixicon"><svg><use href="#px-dice"/></svg></span>Loaded Die<small>6 Hope</small></span>
+            </div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Okna DMa</h2><div class="rule"></div></div>
+    <p class="note">Okna DMa są tam, gdzie moduł ma najwięcej treści na raz: panel, tabele, listy uczniów, formularze sezonu. Zasady są te same co wszędzie: witraż jest tłem okna, tytuł w Special Elite, podtytuł i cała reszta w VT323, czerwień tylko na tym, co robi DM, pędzel na tym, co się klika, pikselowa ikona przy każdej pozycji. Tabele dostają nagłówek w kolorze stanu, zebrę co drugi wiersz i akcje w ostatniej kolumnie.</p>
+
+    <h3 class="sub">Panel DMa</h3>
+    <p class="note">Zawartość i kolejność są takie, jak w module: cztery sekcje (Right now, The case, Between sessions, Repairs), kafelki w tej samej kolejności, ta sama linia "Next" z przyciskiem "Do it" i ta sama tabela postaci. W grze dwie ostatnie sekcje otwierają się zwinięte, bo zegar decyduje, co jest w sezonie; tutaj są rozwinięte, żeby było widać wszystkie kafelki. Jedyne odstępstwo to dwie ikony: młotek zabrał proces, więc zasady dostają księgę, a morderstwo nóż zamiast czaszki, bo czaszka znaczy rozpacz.</p>
+    <div class="fog cut-ui" style="--acc:var(--h-afternoon)">
+      <div class="win" style="max-width:900px;margin:0 auto"><div class="body">
+        <div class="wtitle">Danganronpa - GM Panel</div>
+        <div style="text-align:center;margin-top:6px">
+          <div style="font-family:var(--font-title);font-size:19px">Hope's Peak, Season 2</div>
+          <div class="lbl" style="margin-top:2px"><strong style="font-weight:400;color:var(--bone)">Chapter 1 · Day 11 · Afternoon</strong> <span class="chip acc"><span class="pixicon"><svg><use href="#px-sun"/></svg></span> Daily Life</span></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:10px;padding:6px 10px;border:1px solid color-mix(in srgb, var(--acc) 40%, transparent);background:rgba(7,7,10,.35)">
+          <span class="lbl" style="color:var(--acc)">Next</span>
+          <span style="flex:1">Everyone has spent their actions. Move the clock on.</span>
+          <span class="ui default sm">Do it</span>
+        </div>
+        <table class="dt" style="margin-top:10px">
+          <thead><tr><th>Character</th><th class="num">Actions</th><th class="num">Free Move</th></tr></thead>
+          <tbody>
+            <tr><td class="name">Player A</td><td class="num">0 / 2</td><td class="num"><span class="pixicon" style="width:16px;height:16px;color:var(--acc)"><svg><use href="#px-move"/></svg></span></td></tr>
+            <tr><td class="name">Player B <span style="color:var(--bone-dim)">(a Monocub)</span></td><td class="num">0 / 2</td><td class="num"><span class="pixicon" style="width:16px;height:16px;color:var(--bone-dim);opacity:.45"><svg><use href="#px-move"/></svg></span></td></tr>
+            <tr><td class="name">Player C</td><td class="num">1 / 2</td><td class="num"><span class="pixicon" style="width:16px;height:16px;color:var(--acc)"><svg><use href="#px-move"/></svg></span></td></tr>
+          </tbody>
+        </table>
+
+        <div class="panel"><h4>Right now</h4>
+          <div class="tiles" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+            <span class="ui tile"><span class="pixicon"><svg><use href="#px-support"/></svg></span>Players</span>
+            <span class="ui tile"><span class="pixicon"><svg><use href="#px-hourglass"/></svg></span>Projects</span>
+            <span class="ui tile"><span class="pixicon"><svg><use href="#px-sound"/></svg></span>Sound</span>
+            <span class="ui tile"><span class="pixicon"><svg><use href="#px-note"/></svg></span>Killing game rules</span>
+          </div>
+        </div>
+        <div class="panel"><h4>The case</h4>
+          <div class="tiles" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+            <span class="ui tile gm"><span class="pixicon"><svg><use href="#px-murder"/></svg></span>Murder</span>
+            <span class="ui tile"><span class="pixicon"><svg><use href="#px-lens"/></svg></span>Investigation</span>
+            <span class="ui tile"><span class="pixicon"><svg><use href="#px-gavel"/></svg></span>Class Trial</span>
+          </div>
+        </div>
+        <div class="panel"><h4>Between sessions <span>folded during a scene</span></h4>
+          <div class="tiles" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+            <span class="ui tile"><span class="pixicon"><svg><use href="#px-calendar"/></svg></span>Edit campaign</span>
+            <span class="ui tile"><span class="pixicon"><svg><use href="#px-skull"/></svg></span>Despair Flow</span>
+            <span class="ui tile"><span class="pixicon"><svg><use href="#px-door"/></svg></span>Room setup</span>
+            <span class="ui tile"><span class="pixicon"><svg><use href="#px-table"/></svg></span>Item tables</span>
+            <span class="ui tile"><span class="pixicon"><svg><use href="#px-burst"/></svg></span>Set the season up</span>
+            <span class="ui tile"><span class="pixicon"><svg><use href="#px-mask"/></svg></span>The Mastermind</span>
+            <span class="ui tile gm hazard"><span class="pixicon"><svg><use href="#px-trash"/></svg></span>Reset the season</span>
+          </div>
+        </div>
+        <div class="panel"><h4>Repairs <span>folded during a scene</span></h4>
+          <div class="tiles" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+            <span class="ui tile"><span class="pixicon"><svg><use href="#px-bug"/></svg></span>Debug log</span>
+          </div>
+        </div>
+        <hr class="sep">
+        <div class="foot"><span class="right"><span class="ui default sm">Close</span></span></div>
+      </div></div>
+    </div>
+
+    <div class="grid two" style="margin-top:18px">
+      <figure>
+        <h3 class="sub" style="margin-top:0">Tabela: kto kogo karmi</h3>
+        <div class="fog cut-ui" style="--acc:var(--h-afternoon)"><div class="win"><div class="body">
+          <div class="wtitle">Team</div>
+          <div class="tabbar" style="margin-top:8px"><span class="ui tab on">Who feeds whom</span><span class="ui tab">Monokumas</span></div>
+          <table class="dt" style="margin-top:8px">
+            <thead><tr><th>Student</th><th>Feeds</th><th class="num">Despair</th><th>Last</th><th></th></tr></thead>
+            <tbody>
+              <tr><td class="name">Player A</td><td><span class="chip despair">Monokuma</span></td><td class="num">3</td><td>Day 10</td><td class="act"><span class="ui sm">Change</span></td></tr>
+              <tr><td class="name">Player B</td><td><span class="chip despair">Monokuma</span></td><td class="num">1</td><td>Day 11</td><td class="act"><span class="ui sm">Change</span></td></tr>
+              <tr><td class="name">Player C</td><td><span class="chip">Monominie</span></td><td class="num">2</td><td>Day 9</td><td class="act"><span class="ui sm">Change</span></td></tr>
+              <tr><td class="name">Player D</td><td><span class="chip">nobody</span></td><td class="num">0</td><td>-</td><td class="act"><span class="ui sm">Change</span></td></tr>
+              <tr><td class="name">QA Witness</td><td><span class="chip">Monominie</span></td><td class="num">1</td><td>Day 11</td><td class="act"><span class="ui sm">Change</span></td></tr>
+            </tbody>
+          </table>
+          <hr class="sep">
+          <div class="foot"><span class="ui gm sm">Rebalance</span><span class="right"><span class="ui default sm">Save</span><span class="ui sm">Close</span></span></div>
+        </div></div></div>
+        <p class="note" style="margin-top:8px">Nagłówek w kolorze stanu, zebra co drugi wiersz, liczby wyrównane do prawej, akcja wiersza jako nazwany przycisk w ostatniej kolumnie. Chip mówi, do kogo płynie rozpacz, i nie jest klikalny.</p>
+      </figure>
+      <figure>
+        <h3 class="sub" style="margin-top:0">Tabela: przedmioty i losowanie</h3>
+        <div class="fog cut-ui" style="--acc:var(--h-afternoon)"><div class="win"><div class="body">
+          <div class="wtitle">Item tables</div>
+          <div class="wsub">Tier 2 · Cleaning Tools</div>
+          <table class="dt" style="margin-top:8px">
+            <thead><tr><th>Table</th><th>Kind</th><th class="num">Rows</th><th></th></tr></thead>
+            <tbody>
+              <tr><td class="name"><span class="pixicon" style="width:14px;height:14px;color:var(--acc)"><svg><use href="#px-bag"/></svg></span> Cleaning Tools</td><td><span class="chip acc">Tier 2</span></td><td class="num">12</td><td class="act"><span class="ui sm"><span class="pixicon" style="width:13px;height:13px"><svg><use href="#px-dice"/></svg></span> Roll</span></td></tr>
+              <tr><td class="name"><span class="pixicon" style="width:14px;height:14px;color:var(--acc)"><svg><use href="#px-trap"/></svg></span> Weapons</td><td><span class="chip gm">GM only</span></td><td class="num">9</td><td class="act"><span class="ui gm sm"><span class="pixicon" style="width:13px;height:13px"><svg><use href="#px-dice"/></svg></span> Roll</span></td></tr>
+              <tr><td class="name"><span class="pixicon" style="width:14px;height:14px;color:var(--acc)"><svg><use href="#px-relief"/></svg></span> Healing</td><td><span class="chip">Tier 1</span></td><td class="num">6</td><td class="act"><span class="ui sm"><span class="pixicon" style="width:13px;height:13px"><svg><use href="#px-dice"/></svg></span> Roll</span></td></tr>
+              <tr><td class="name"><span class="pixicon" style="width:14px;height:14px;color:var(--acc)"><svg><use href="#px-key"/></svg></span> Keys</td><td><span class="chip">Tier 3</span></td><td class="num">4</td><td class="act"><span class="ui sm is-disabled">Roll</span></td></tr>
+              <tr><td class="name"><span class="pixicon" style="width:14px;height:14px;color:var(--evidence)"><svg><use href="#px-bullet"/></svg></span> Truth Bullets</td><td><span class="chip evidence">Evidence</span></td><td class="num">18</td><td class="act"><span class="ui evidence sm"><span class="pixicon" style="width:13px;height:13px"><svg><use href="#px-dice"/></svg></span> Roll</span></td></tr>
+            </tbody>
+          </table>
+          <hr class="sep">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <span class="fld"><span>Give to</span><span class="in">Player A<span class="pixicon" style="width:12px;height:12px;margin-left:auto;color:var(--acc)"><svg><use href="#px-sort"/></svg></span></span></span>
+            <span class="fld"><span>How many</span><span class="in">1<span class="num"><span class="ui pip"><span class="pixicon"><svg><use href="#px-minus"/></svg></span></span><span class="ui pip"><span class="pixicon"><svg><use href="#px-plus"/></svg></span></span></span></span></span>
+          </div>
+          <div class="foot" style="margin-top:10px"><span class="ui sm">Preview</span><span class="right"><span class="ui default sm">Roll and give</span><span class="ui sm">Close</span></span></div>
+        </div></div></div>
+        <p class="note" style="margin-top:8px">Ikona przedmiotu w tej samej siatce co akcje, tier jako chip w kolorze stanu, tabela DMa czerwona, dowody zielone. Formularz na dole to te same pola co wszędzie.</p>
+      </figure>
+    </div>
+
+    <h3 class="sub">Panel wydarzenia</h3>
+    <p class="note">Belka pul rozpaczy zostaje bez zmian, także w procesie. Wydarzenia, które dziś siedzą w panelu pory dnia, dostają własny, wąski panel pod pulą: sam mówi, co się dzieje, i nie ma w nim żadnego przycisku. Szerokość ta sama co pula, żeby stały w jednej kolumnie.</p>
+    <div class="fog cut-ui" style="--acc:var(--h-afternoon)"><div class="grid two" style="max-width:760px;margin:0 auto;gap:14px">
+      <div class="win" style="--acc:var(--gm-light)"><div class="body event"><span class="pixicon glyph"><svg><use href="#px-murder"/></svg></span><div class="ticker"><span>Body found · Body found · Body found · Body found · </span></div><div class="k">Chapter 1 · Day 11 · Evening</div><div class="n">A body has been found</div><div class="s">Kaede, in the Library</div><div class="m">Investigation opens when the GM is ready</div></div></div>
+      <div class="win" style="--acc:var(--despair)"><div class="body event"><span class="pixicon glyph"><svg><use href="#px-gavel"/></svg></span><div class="ticker"><span>Class Trial · Class Trial · Class Trial · Class Trial · </span></div><div class="k">Chapter 1 · Class Trial</div><div class="n">Nonstop Debate</div><div class="s">Everyone has the floor</div><div class="m">Rebuttal in 2:40 · 3 ballots out</div></div></div>
+    </div></div>
+
+    <div class="grid two" style="margin-top:18px">
+      <figure>
+        <h3 class="sub" style="margin-top:0">Despair Flow</h3>
+        <div class="fog cut-ui" style="--acc:var(--h-afternoon)"><div class="win" style="--acc:var(--despair)"><div class="body">
+          <div class="wtitle">Despair Flow</div>
+          <div class="wsub">Chapter 1 · pools fill from what the students feed</div>
+          <table class="dt" style="margin-top:8px">
+            <thead><tr><th>Monokuma</th><th>Pool</th><th class="num">Cap</th><th></th></tr></thead>
+            <tbody>
+              <tr><td class="name">Monokuma</td><td><span class="pips" style="color:var(--despair)"><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span></span></td><td class="num">5/12</td><td class="act"><span class="ui pip despair"><span class="pixicon"><svg><use href="#px-minus"/></svg></span></span><span class="ui pip despair"><span class="pixicon"><svg><use href="#px-plus"/></svg></span></span></td></tr>
+              <tr><td class="name">Monominie</td><td><span class="pips" style="color:var(--despair)"><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span></span></td><td class="num">2/12</td><td class="act"><span class="ui pip despair"><span class="pixicon"><svg><use href="#px-minus"/></svg></span></span><span class="ui pip despair"><span class="pixicon"><svg><use href="#px-plus"/></svg></span></span></td></tr>
+            </tbody>
+          </table>
+          <hr class="sep">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="ui check on"></span><span class="lbl">Announce when a pool fills</span></div>
+          <div class="foot" style="margin-top:10px"><span class="ui despair sm">Despair Call</span><span class="right"><span class="ui default sm">Save</span><span class="ui sm">Close</span></span></div>
+        </div></div></div>
+        <p class="note" style="margin-top:8px">Pule liczone czaszkami z tej samej siatki, stepper z pikselowym plusem i minusem, pełny wiersz w kolorze Despair, bo to okno Despair, a nie DMa.</p>
+      </figure>
+      <figure>
+        <h3 class="sub" style="margin-top:0">Season setup: formularz</h3>
+        <div class="fog cut-ui" style="--acc:var(--h-afternoon)"><div class="win"><div class="body">
+          <div class="wtitle">Season setup</div>
+          <div class="wsub">Everything here can be changed later</div>
+          <hr class="sep">
+          <div style="display:grid;gap:10px">
+            <span class="fld"><span>Campaign name</span><span class="in">Hope's Peak, Season 2</span></span>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <span class="fld"><span>Students</span><span class="in">6<span class="num"><span class="ui pip"><span class="pixicon"><svg><use href="#px-minus"/></svg></span></span><span class="ui pip"><span class="pixicon"><svg><use href="#px-plus"/></svg></span></span></span></span></span>
+              <span class="fld"><span>Monokumas</span><span class="in">2<span class="num"><span class="ui pip"><span class="pixicon"><svg><use href="#px-minus"/></svg></span></span><span class="ui pip"><span class="pixicon"><svg><use href="#px-plus"/></svg></span></span></span></span></span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <span class="fld"><span>Hours in a day</span><span class="in">5<span class="pixicon" style="width:12px;height:12px;margin-left:auto;color:var(--acc)"><svg><use href="#px-sort"/></svg></span></span><span class="hint">Morning, Noon, Afternoon, Evening, Night</span></span>
+              <span class="fld is-focus"><span>Eclipse starts at</span><span class="in">Night<span class="pixicon" style="width:12px;height:12px;margin-left:auto;color:var(--acc)"><svg><use href="#px-sort"/></svg></span></span></span>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center">
+              <span style="display:flex;gap:8px;align-items:center"><span class="ui check on"></span><span class="lbl">Motives every chapter</span></span>
+              <span style="display:flex;gap:8px;align-items:center"><span class="ui check"></span><span class="lbl">Public autopsy</span></span>
+              <span style="display:flex;gap:8px;align-items:center"><span class="ui check on"></span><span class="lbl">Glass effects</span></span>
+            </div>
+          </div>
+          <hr class="sep">
+          <div class="foot"><span class="ui gm hazard sm">Reset the season</span><span class="right"><span class="ui default sm">Create</span><span class="ui sm">Cancel</span></span></div>
+        </div></div></div>
+        <p class="note" style="margin-top:8px">Etykiety w VT323 nad polem, podpowiedź pod polem, przełącznik efektów szkła tutaj. Przycisk niszczący jest czerwony i z rastrem, i nigdy nie jest domyślny.</p>
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Witraż: przepis na szybę i cięcie</h2><div class="rule"></div></div>
+    <p class="note">To, co odróżnia szkło od kolorowej plamy, to trzy rzeczy: szyby obok siebie różnią się barwą, cięcie ma grubość i światło, a treść leży na własnej ciemnej płycie. Każda liczba poniżej jest tą, którą używa makieta, więc w Foundry można ją przepisać bez zgadywania. Kąt bazowy cięć to -13 stopni, jak szkło na brzegu ekranu procesu w V3; poziome cięcia odchylają się od niego o najwyżej 0,13 rad, pionowe między kolumnami o najwyżej 24 px na całej wysokości pasa.</p>
+    <div class="fog" style="--acc:var(--despair);margin-top:12px"><div class="win spec"><div class="body">Okno 1:1 · cztery do pięciu szyb · kolor stanu Despair</div></div></div>
+      <div class="wrap"><table class="layers"><colgroup><col class="c1"><col class="c2"><col class="c3"></colgroup>
+        <thead><tr><th>Warstwa</th><th>Wartość</th><th>Po co</th></tr></thead>
+        <tbody>
+          <tr><td class="k">Szyba pod treścią</td><td class="v"><span class="dot" style="background:#050409"></span>#050409 · 62%</td><td>tekst zawsze leży na czarnym szkle, niezależnie od koloru stanu</td></tr>
+          <tr><td class="k">Szyba wypełniacz</td><td class="v"><span class="dot" style="background:#5a0a36"></span><span class="dot" style="background:#7a0d47"></span><span class="dot" style="background:#0a1a5c"></span><span class="dot" style="background:#102a7a"></span><span class="dot" style="background:#2a0a5e"></span><span class="dot" style="background:#063c55"></span> 50%</td><td>róż krwi, błękit procesu, fiolet, jeden zimny cyjan; sąsiadki nigdy w tej samej barwie</td></tr>
+          <tr><td class="k">Światło przez szkło</td><td class="v">biel 11% → czerń 18%</td><td>gradient od zewnętrznej krawędzi ekranu do środka, w każdej szybie osobno</td></tr>
+          <tr><td class="k">Raster</td><td class="v">1,4 px co 6 px · kolor stanu 9%</td><td>tylko na wypełniaczu, co drugi rząd przesunięty o 3 px</td></tr>
+          <tr><td class="k">Płyta pod treścią</td><td class="v">czerń 42% · blur 7 px · +10/8 px</td><td>przycięta do własnej szyby bloku, nigdy nie wychodzi za cięcie</td></tr>
+          <tr><td class="k">Ołów</td><td class="v">2,6 px · #08050d 95%</td><td>ciemna linia, na której leży wszystko inne</td></tr>
+          <tr><td class="k">Faza</td><td class="v">0,8 px · biel 22% · 1,2 px w dół</td><td>jedna jasna krawędź: szkło ma grubość</td></tr>
+          <tr><td class="k">Rdzeń neonu</td><td class="v">1 px · kolor stanu 92%</td><td>cięcie świeci kolorem pory dnia albo stanu</td></tr>
+          <tr><td class="k">Poświata</td><td class="v">18 px 36% · 7 px 40% · 2 px 45%</td><td>trzy przebiegi w trybie lighter, nad maską, więc wychodzi poza brzeg szyby</td></tr>
+          <tr><td class="k">Liquid glass</td><td class="v">blur 16 · saturate 190% · brightness 106%</td><td>pod całością; jasność zbita ze 118%, żeby szkło nie bielało nad mapą</td></tr>
+        </tbody>
+      </table></div>
+    <p class="note" style="margin-top:12px">Kolejność rysowania jest kolejnością tabeli. Szyby i płyty rysuje się raz, przy zmianie rozmiaru okna, do jednej bitmapy; poświata jest drugą bitmapą nad maską. Nic z tego nie liczy się co klatkę.</p>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Cały ekran w czterech stanach</h2><div class="rule"></div></div>
+    <p class="note">Zegar, pule rozpaczy, pasek akcji, tacka projektów, powiadomienia oraz wydarzenia procesu i morderstwa nie są osobnymi oknami. Są blokami na jednej tafli witrażu, która przylega do krawędzi ekranu i ustępuje w środku, żeby mapa została widoczna. Kształt tafli nie jest niczym docinany: witraż to układ długich prostych cięć, a każda szyba albo należy do kurtyny, albo nie, w całości. Cięcia idą tam, gdzie mają coś rozdzielić: cztery wzdłuż krawędzi ekranu na wąską ramkę, po jednym tuż za każdym bokiem każdego bloku, przez co blok siedzi na własnym klinie i sąsiadów dzieli wąski zadzior, plus dwa swobodne dla rytmu. Poziome cięcia są lekko pochylone, żeby podział między blokami stojącymi jeden nad drugim nie czytał się jak linijka w tabeli. Szkło idzie do samej krawędzi ekranu, odsunięta jest tylko treść, o tyle, ile zajmują kafelki Foundry.</p>
+    <p class="note" style="margin-top:8px">Okna zostają dokładnie takie, jak w reszcie audytu: karta postaci, panel DMa, dialogi i popupy to prostokątne tabliczki z liquid glass. Kurtyna jest ramą, okno jest blatem.</p>
+
+    <h3 class="sub">Daily Life, popołudnie, ekran gracza</h3>
+    <div class="fog screen cut-ui" style="--acc:var(--h-afternoon);height:600px">
+      <span class="cut" style="top:330px;transform:rotate(-5deg)"></span>
+      <div class="curtain" style="left:0;right:0;top:0;bottom:0"><canvas class="sg"></canvas><div class="stack"><div class="block hud" style="left:84px;top:10px;width:236px;text-align:center"><div class="ticker"><span>Daily Life &middot; Daily Life &middot; Daily Life &middot; Daily Life &middot; </span></div><div class="campaign">Hope's Peak, S2</div><div class="chapter">Chapter 1 &middot; Day 11</div><div class="phase"><span class="pixicon"><svg><use href="#px-sun"/></svg></span>Daily Life</div><div class="time"><span class="ui pip" style="width:20px;height:20px"><span class="pixicon" style="width:14px;height:14px"><svg><use href="#px-left"/></svg></span></span>Afternoon<span class="ui pip" style="width:20px;height:20px"><span class="pixicon" style="width:14px;height:14px"><svg><use href="#px-right"/></svg></span></span></div><div class="since">12 min in</div><div class="room">Round Table</div></div><div class="block rail" style="left:344px;top:10px;width:334px"><div class="title">Despair Pools</div><div class="row"><span class="name" style="width:80px">Monokuma</span><span class="pips" style="color:var(--despair)"><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span></span><span class="count">5/12</span></div><div class="row"><span class="name" style="width:80px">Monominie</span><span class="pips" style="color:var(--despair)"><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span></span><span class="count">2/12</span></div></div><div class="block three" style="right:74px;top:10px;width:300px"><div><div class="k">Actions</div><div class="v">2</div></div><div><div class="k">Move</div><div class="v"><span class="pixicon" style="width:17px;height:17px;color:var(--bone)"><svg><use href="#px-move"/></svg></span></div></div><div><div class="k">Hope</div><div class="v"><span class="pips" style="color:var(--hope)"><span class="pixicon"><svg><use href="#px-star"/></svg></span><span class="pixicon"><svg><use href="#px-star"/></svg></span><span class="pixicon"><svg><use href="#px-star"/></svg></span><span class="pixicon"><svg><use href="#px-star"/></svg></span></span></div></div></div><div class="block tray" style="right:74px;top:88px;width:300px"><h4>Projects</h4><div class="proj"><span class="pixicon" style="color:var(--acc)"><svg><use href="#px-hourglass"/></svg></span>Rig the dumbwaiter<span class="bar halftone" style="--w:50%"></span><span class="n">2/4</span></div><div class="proj"><span class="pixicon" style="color:var(--acc)"><svg><use href="#px-trap"/></svg></span>Poison the tea<span class="bar halftone" style="--w:17%"></span><span class="n">1/6</span></div></div><div class="block note-block" style="left:74px;bottom:22px;width:340px"><div class="k">The time of day is over</div><div class="t">Kaede found a <b>Tier 2 Cleaning Tool</b> in the Library. A trace was left behind.</div></div><div class="block launch" style="right:74px;bottom:22px;width:172px;display:flex;gap:10px;justify-content:flex-end"><span class="ui ring"><span class="pixicon" style="width:20px;height:20px"><svg><use href="#px-sound"/></svg></span></span><span class="ui ring"><span class="pixicon" style="width:20px;height:20px"><svg><use href="#px-note"/></svg></span></span><span class="ui ring on gm">GM</span></div></div></div>
+      <div class="vtt" style="left:0;top:0;bottom:0;width:54px;z-index:4"><i></i><i></i><i></i><i></i><i></i><span>Tools</span></div><div class="vtt" style="right:0;top:0;bottom:0;width:54px;z-index:4"><i></i><i></i><span>Sidebar</span></div>
+      <div class="win" style="position:absolute;left:330px;top:198px;width:430px;z-index:3;--acc:var(--h-afternoon)">
+        <div class="body msg">
+          <div class="wtitle">Player A &middot; GM chat</div>
+          <div class="wsub">Player A &middot; Monokuma &middot; Monominie</div>
+          <div class="bubble">Looking at the desk. <span class="qq">Is the drawer locked?</span></div>
+          <div class="meta"><span class="chip acc"><span class="pixicon"><svg><use href="#px-observe"/></svg></span> Observe</span><span class="chip">Library</span><span class="chip hope">Instinct &middot; 14</span></div>
+          <div class="foot" style="margin-top:10px"><span class="ui gm sm">Reply</span><span class="ui gm sm">Nothing there</span><span class="right"><span class="ui sm">Close</span></span></div>
+        </div>
+      </div>
+    </div>
+
+    <h3 class="sub">Investigation, ekran DMa</h3>
+    <div class="fog screen cut-ui" style="--acc:var(--invest);height:600px">
+      <span class="cut" style="top:360px;transform:rotate(6deg)"></span>
+      <div class="curtain" style="left:0;right:0;top:0;bottom:0"><canvas class="sg"></canvas><div class="stack"><div class="block hud" style="left:84px;top:10px;width:236px;text-align:center"><div class="ticker"><span>Investigation &middot; Investigation &middot; Investigation &middot; Investigation &middot; </span></div><div class="campaign">Hope's Peak, S2</div><div class="chapter">Chapter 1 &middot; Day 11</div><div class="phase"><span class="pixicon"><svg><use href="#px-lens"/></svg></span>Investigation</div><div class="time">Noon</div><div class="since">4 min in</div><div class="room">Library &middot; 3 traces left</div></div><div class="block rail" style="left:344px;top:10px;width:334px"><div class="title">Despair Pools</div><div class="row"><span class="name" style="width:80px">Monokuma</span><span class="pips" style="color:var(--despair)"><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span></span><span class="count">6/12</span></div></div><div class="block three" style="right:74px;top:10px;width:300px"><div><div class="k">Actions</div><div class="v">1</div></div><div><div class="k">Move</div><div class="v"><span style="color:var(--bone-dim)">-</span></div></div><div><div class="k">Hope</div><div class="v"><span class="pips" style="color:var(--hope)"><span class="pixicon"><svg><use href="#px-star"/></svg></span><span class="pixicon"><svg><use href="#px-star"/></svg></span><span class="pixicon"><svg><use href="#px-star"/></svg></span></span></div></div></div><div class="block tray" style="right:74px;top:88px;width:300px"><h4>Projects</h4><div class="proj"><span class="pixicon" style="color:var(--acc)"><svg><use href="#px-hourglass"/></svg></span>Rig the dumbwaiter<span class="bar halftone" style="--w:50%"></span><span class="n">2/4</span></div></div><div class="block note-block" style="left:74px;bottom:22px;width:340px"><div class="k">A body has been found</div><div class="t">Kaede, in the Library. Everyone may search, analyse and question until the GM closes it.</div></div><div class="block launch" style="right:74px;bottom:22px;width:172px;display:flex;gap:10px;justify-content:flex-end"><span class="ui ring"><span class="pixicon" style="width:20px;height:20px"><svg><use href="#px-sound"/></svg></span></span><span class="ui ring"><span class="pixicon" style="width:20px;height:20px"><svg><use href="#px-note"/></svg></span></span><span class="ui ring gm">GM</span></div></div></div>
+      <div class="vtt" style="left:0;top:0;bottom:0;width:54px;z-index:4"><i></i><i></i><i></i><i></i><i></i><span>Tools</span></div><div class="vtt" style="right:0;top:0;bottom:0;width:54px;z-index:4"><i></i><i></i><span>Sidebar</span></div>
+      <div class="win" style="position:absolute;left:150px;top:190px;width:800px;z-index:3;--acc:var(--invest)">
+        <div class="body">
+          <div class="wtitle">Investigation</div>
+          <div class="wsub">Chapter 1 &middot; Who has what</div>
+          <div class="tabbar" style="margin-top:8px"><span class="ui tab on">Traces</span><span class="ui tab">Key Remnants</span><span class="ui tab">Final Key Remnants</span></div>
+          <table class="dt" style="margin-top:8px">
+            <thead><tr><th>Student</th><th class="num">Truth Bullets</th><th class="num">Key Remnants</th><th>Really has</th><th></th></tr></thead>
+            <tbody>
+              <tr><td class="name">Player A</td><td class="num">2</td><td class="num">0</td><td><span class="chip evidence">Neutral x2</span></td><td class="act"><span class="ui evidence sm">Give</span></td></tr>
+              <tr><td class="name">Player B</td><td class="num">0</td><td class="num">1</td><td><span class="chip gm">Blackened</span></td><td class="act"><span class="ui gm sm">Give</span></td></tr>
+              <tr><td class="name">QA Witness</td><td class="num">3</td><td class="num">0</td><td><span class="chip evidence">Neutral</span></td><td class="act"><span class="ui evidence sm">Give</span></td></tr>
+            </tbody>
+          </table>
+          <hr class="sep">
+          <div class="foot"><span class="ui sm">Sweep Truth Bullets</span><span class="ui evidence sm">Issue Autopsy Truth Bullet</span><span class="right"><span class="ui default sm">Save</span><span class="ui sm">Close</span></span></div>
+        </div>
+      </div>
+    </div>
+
+    <h3 class="sub">Class Trial, ekran DMa</h3>
+    <div class="fog screen cut-ui" style="--acc:var(--despair);height:600px">
+      <span class="cut" style="top:320px;transform:rotate(-7deg)"></span>
+      <div class="curtain" style="left:0;right:0;top:0;bottom:0"><canvas class="sg"></canvas><div class="stack"><div class="block hud" style="left:84px;top:10px;width:236px;text-align:center"><div class="ticker"><span>Class Trial &middot; Class Trial &middot; Class Trial &middot; Class Trial &middot; </span></div><div class="campaign">Hope's Peak, S2</div><div class="chapter">Chapter 1 &middot; Day 11</div><div class="phase"><span class="pixicon"><svg><use href="#px-gavel"/></svg></span>Class Trial</div><div class="time">Discussion</div><div class="since">Everyone has the floor</div><div class="room">Rebuttal in 2:40</div></div><div class="block rail" style="left:344px;top:10px;width:334px"><div class="title">Despair Pools</div><div class="row"><span class="name" style="width:80px">Monokuma</span><span class="pips" style="color:var(--despair)"><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span></span><span class="count">6/12</span></div><div class="row"><span class="name" style="width:80px">Monominie</span><span class="pips" style="color:var(--despair)"><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span></span><span class="count">3/12</span></div></div><div class="block three" style="right:74px;top:10px;width:300px"><div><div class="k">Actions</div><div class="v">-</div></div><div><div class="k">Move</div><div class="v"><span style="color:var(--bone-dim)">-</span></div></div><div><div class="k">Hope</div><div class="v"><span class="pips" style="color:var(--hope)"><span class="pixicon"><svg><use href="#px-star"/></svg></span><span class="pixicon"><svg><use href="#px-star"/></svg></span></span></div></div></div><div class="block note-block" style="left:74px;bottom:22px;width:340px;--acc:var(--despair)"><div class="k">Nonstop Debate</div><div class="t">The floor is open to everyone.</div><div class="k" style="margin-top:4px;color:var(--bone-dim)">Ballots 1 of 3</div></div><div class="block launch" style="right:74px;bottom:22px;width:172px;display:flex;gap:10px;justify-content:flex-end"><span class="ui ring"><span class="pixicon" style="width:20px;height:20px"><svg><use href="#px-sound"/></svg></span></span><span class="ui ring"><span class="pixicon" style="width:20px;height:20px"><svg><use href="#px-note"/></svg></span></span><span class="ui ring gm">GM</span></div></div></div>
+      <div class="vtt" style="left:0;top:0;bottom:0;width:54px;z-index:4"><i></i><i></i><i></i><i></i><i></i><span>Tools</span></div><div class="vtt" style="right:0;top:0;bottom:0;width:54px;z-index:4"><i></i><i></i><span>Sidebar</span></div>
+      <div class="win" style="position:absolute;left:360px;top:206px;width:380px;z-index:3;--acc:var(--despair)">
+        <div class="body">
+          <div class="wtitle">The vote</div>
+          <div class="wsub">3 ballots are out</div>
+          <hr class="sep">
+          <div style="display:grid;gap:6px"><span class="ui row">Player A</span><span class="ui row on">Player B</span><span class="ui row">QA Witness</span></div>
+          <hr class="sep">
+          <div class="foot"><span class="ui default sm">Close and count</span><span class="ui sm">Cancel</span></div>
+        </div>
+      </div>
+    </div>
+
+    <h3 class="sub">Zaćmienie, noc, ekran gracza</h3>
+    <div class="fog screen cut-ui" style="--acc:var(--eclipse);height:520px">
+      <span class="cut" style="top:300px;transform:rotate(4deg)"></span>
+      <div class="curtain" style="left:0;right:0;top:0;bottom:0"><canvas class="sg"></canvas><div class="stack"><div class="block hud" style="left:84px;top:10px;width:236px;text-align:center"><div class="ticker"><span>Daily Life &middot; Daily Life &middot; Daily Life &middot; Daily Life &middot; </span></div><div class="campaign">Hope's Peak, S2</div><div class="chapter">Chapter 1 &middot; Day 11</div><div class="phase"><span class="pixicon"><svg><use href="#px-eclipse"/></svg></span>Daily Life</div><div class="time">Night Eclipse</div><div class="since">Actions: murder only</div><div class="room">Everyone in their rooms</div></div><div class="block rail" style="left:344px;top:10px;width:334px"><div class="title">Despair Pools</div><div class="row"><span class="name" style="width:80px">Monokuma</span><span class="pips" style="color:var(--despair)"><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span></span><span class="count">6/12</span></div><div class="row"><span class="name" style="width:80px">Monominie</span><span class="pips" style="color:var(--despair)"><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span></span><span class="count">3/12</span></div></div><div class="block three" style="right:74px;top:10px;width:300px"><div><div class="k">Actions</div><div class="v">-</div></div><div><div class="k">Move</div><div class="v"><span style="color:var(--bone-dim)">-</span></div></div><div><div class="k">Hope</div><div class="v"><span class="pips" style="color:var(--hope)"><span class="pixicon"><svg><use href="#px-star"/></svg></span><span class="pixicon"><svg><use href="#px-star"/></svg></span></span></div></div></div><div class="block note-block" style="left:74px;bottom:22px;width:340px;--acc:var(--despair)"><div class="k">The lights are out</div><div class="t">Stay where you are, or do what you came here to do.</div><div class="k" style="margin-top:4px;color:var(--bone-dim)">Direct Murder is the only action</div></div><div class="block launch" style="right:74px;bottom:22px;width:172px;display:flex;gap:10px;justify-content:flex-end"><span class="ui ring"><span class="pixicon" style="width:20px;height:20px"><svg><use href="#px-sound"/></svg></span></span><span class="ui ring"><span class="pixicon" style="width:20px;height:20px"><svg><use href="#px-note"/></svg></span></span><span class="ui ring gm">GM</span></div></div></div>
+      <div class="vtt" style="left:0;top:0;bottom:0;width:54px;z-index:4"><i></i><i></i><i></i><i></i><i></i><span>Tools</span></div><div class="vtt" style="right:0;top:0;bottom:0;width:54px;z-index:4"><i></i><i></i><span>Sidebar</span></div>
+    </div>
+    <p class="note" style="margin-top:14px">Koszt jest w działaniu, nie w wyglądzie: kurtyna to jedna warstwa w <code>#interface</code>, więc te sześć rzeczy przestaje być osobnymi oknami Foundry. Nie da się ich przesunąć, zamknąć ani zwinąć osobno, a pozycje przestają być zapamiętywane per gracz. Da się to obejść, dokując prawdziwe okna w gniazda zamiast wtapiać bloki, ale to osobna decyzja. Maska jest bitmapą wielkości ekranu, przeliczaną przy zmianie rozmiaru okna, nie przy renderze.</p>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Spójność: te same funkcje, ten sam kształt</h2><div class="rule"></div></div>
+    <p class="note">Po makietach widać, które rzeczy w module robią to samo, a wyglądają inaczej. Propozycja ośmiu rodzin, żeby każda funkcja miała jeden kształt:</p>
+    <div class="wrap"><table class="tbl">
+      <thead><tr><th>Rodzina</th><th>Gdzie w module</th><th>Jeden kształt</th></tr></thead>
+      <tbody>
+        <tr><td class="k">Przycisk w stopce</td><td>każdy dialog, hub, panel DMa</td><td>domyślny w kolorze Bone, przez DMa czerwony, niszczący z rastrem, reszta neutralna; jeden rząd, akcje zamykające po prawej</td></tr>
+        <tr><td class="k">Zakładka</td><td>arkusz, messenger, hub, Room Setup, Sound, Despair Flow, dashboard śledztwa</td><td>pasek w kolorze Bone z zakładkami-pędzlem; aktywna pełnym pędzlem w kolorze stanu, nigdy czerwona</td></tr>
+        <tr><td class="k">Kafelek</td><td>akcje, Hope Calls, Despair Calls, kafelki panelu DMa</td><td>kwadrat: ikona 8x8, nazwa, koszt; DMa czerwony; wybrany pędzlem; niedostępny przerywany</td></tr>
+        <tr><td class="k">Wiersz wyboru</td><td>warianty akcji, lista tabel, głosowanie, roster, projekty</td><td>ciemny wiersz, wybrany pędzlem, wskaźnik po lewej w kolorze rodzaju</td></tr>
+        <tr><td class="k">Tabela</td><td>Team, Items, Vault, śledztwo, holdings, projekty</td><td>nagłówek w kolorze stanu, zebra co drugi wiersz, liczby do prawej, akcje w ostatniej kolumnie, chip jako stan wiersza</td></tr>
+        <tr><td class="k">Pole i stepper</td><td>Season setup, Room setup, dialogi kluczy, ilości</td><td>etykieta nad polem, krawędź w kolorze stanu grubsza u dołu, błąd czerwony z jedną linią wyjaśnienia, stepper z pikselowym plusem</td></tr>
+        <tr><td class="k">Chip i stempel</td><td>tiery, role, stany kart, GM only, ton popupu</td><td>chip to informacja i nie klika się nigdy; stempel to znaczenie, plama w kolorze znaczenia</td></tr>
+        <tr><td class="k">Launcher</td><td>messenger, dźwięk, panel DMa</td><td>pierścień 44 px w kolorze stanu, z pikselową ikoną albo dwiema literami</td></tr>
+      </tbody>
+    </table></div>
+    <p class="note" style="margin-top:12px">Co z audytu wypadło po Twoich uwagach: portrety w duotonie, linie statyczne, Rubik Glitch, półksiężyc jako Zaćmienie, podmiana belki pul na belkę procesu. Co zostało i jest tu pokazane: raster jako materiał, stemple z tuszu, glify stanów, tekst-tło na zegarze, ekran jako kompozycja z dryfującymi cięciami, oraz nowy panel wydarzenia pod pulą.</p>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Co realnie da się zrobić i w jakiej kolejności</h2><div class="rule"></div></div>
+    <div class="wrap"><table class="tbl">
+      <thead><tr><th>Element</th><th>Technika w Foundry</th><th>Wykonalność</th><th>Uwagi</th></tr></thead>
+      <tbody>
+        <tr><td class="k">Okno-witraż z liquid glass</td><td>jedna bitmapa canvas na okno: szyby według przepisu wyżej (czerń pod treścią, kolorowy wypełniacz, światło, raster, płyta), cięcia jako ołów, faza i rdzeń w kolorze stanu; poświata na drugiej bitmapie; pod tym <code>backdrop-filter: blur(16px) saturate(190%) brightness(1.06)</code>; przeliczenie tylko przy zmianie rozmiaru</td><td class="yes">Tak</td><td>im więcej dzieje się pod oknem, tym mocniej widać szkło; na pustym tle efekt jest niewidoczny</td></tr>
+        <tr><td class="k">Panel wydarzenia</td><td>osobne okno pod pulą rozpaczy, ta sama szerokość, bez przycisków; treść z fazy i stanu rozdziału</td><td class="yes">Tak</td><td>pula zostaje bez zmian; panel pory dnia traci wydarzenia</td></tr>
+        <tr><td class="k">Okno w kształcie szybki</td><td><code>clip-path</code> na oknie plus margines bezpieczeństwa w layoucie</td><td class="yes">Do testu</td><td>pasek tytułu, uchwyt zmiany rozmiaru i przewijanie Foundry są prostokątne; sensowne tylko na oknach o stałej treści</td></tr>
+        <tr><td class="k">Pędzel na klikalnych</td><td>jedna klasa i pseudo-element z filtrem <code>feDisplacementMap</code>; stany przez <code>:hover</code>, <code>:active</code>, <code>[aria-selected]</code>, <code>:disabled</code></td><td class="yes">Tak</td><td>filtr na małych elementach jest tani; dialogi oznaczają domyślny przez <code>autofocus</code></td></tr>
+        <tr><td class="k">Pola i steppery</td><td>jedna klasa pola, natywny <code>input</code> bez strzałek przeglądarki, dwa pipsy obok</td><td class="yes">Tak</td><td>walidacja pisze jedną linię pod polem, nie w tytule okna</td></tr>
+        <tr><td class="k">Tabele</td><td>klasa tabeli w kolorze stanu, zebra, kolumna akcji</td><td class="yes">Tak</td><td>obecne tabele modułu mają cztery różne nagłówki</td></tr>
+        <tr><td class="k">Pikselowe ikony</td><td>SVG z siatek 8x8 generowane skryptem w <code>tools/</code> do <code>icons/</code>, gwiazdka Hope w miejsce rombu</td><td class="yes">Tak</td><td>ta sama siatka co ikony przedmiotów; 32 sztuki na start</td></tr>
+        <tr><td class="k">Tekst-tło na zegarze</td><td>element z <code>-webkit-text-stroke</code> i animacją <code>transform</code></td><td class="yes">Tak</td><td>22 procent krycia, off przy ograniczonym ruchu</td></tr>
+        <tr><td class="k">Linie przez ekran, dryfujące</td><td>dwa elementy w <code>#interface</code> pod oknami modułu, animacja 42 s i 57 s</td><td class="yes">Tak</td><td>nigdy nad mapą, pod przełącznikiem "Glass effects"</td></tr>
+        <tr><td class="k">Kroje</td><td>dwa pliki OFL w <code>fonts/</code>, role przez tokeny <code>--drpg-font-chrome/title/stamp/prose</code></td><td class="yes">Tak</td><td>DRPG Pixel jako zapas chrome</td></tr>
+        <tr><td class="k">Mgła wojny, mapa, cudze okna, sprite'y, portrety</td><td>bez zmian</td><td class="no">Nie</td><td>decyzje</td></tr>
+      </tbody>
+    </table></div>
+    <ol class="stages" style="margin-top:18px">
+      <li><b>Color coding, kroje, pędzel.</b> Tokeny czterech znaczeń plus kolor stanu, zieleń dowodów, dwa kroje w rolach, klasa pędzla na wszystkim klikalnym, klasa pola i steppera. Dzień.</li>
+      <li><b>Okno-witraż.</b> Renderer szyb według przepisu (jedna funkcja dla kurtyny i okien), tafla na oknach modułu, zegarze, pulach, popupach, tacce, przełącznik "Glass effects". Dwa dni.</li>
+      <li><b>Ikony.</b> Skrypt siatek, komplet ikon akcji, Hope Calls, przedmiotów, stanów i chrome, gwiazdka Hope, młotek, Zaćmienie, podmiana klepsydry systemu. Dzień.</li>
+      <li><b>Okna DMa i tabele.</b> Panel według makiety, cztery tabele na jednym kształcie, formularze sezonu i pokoju, arkusz, messenger. Dwa dni.</li>
+      <li><b>Skalowanie interfejsu.</b> Cały moduł skaluje się z rozmiarem okna i rozdzielczością: wspólny współczynnik na rozmiarach czcionek, ikonach, blokach kurtyny i szerokościach okien, plus przeliczenie maski kurtyny przy zmianie rozmiaru. Dzień.</li>
+      <li><b>Ekran i wydajność.</b> Tekst-tło na zegarze, dryfujące cięcia, launchery, raster, pomiar na żywym serwerze, handbook. Dzień.</li>
+    </ol>
+  </section>
+</div>
+
+<script>
+(function () {
+  /* ---- the glass: one material for the curtain and for every window ------
+     V3 glass: black for anything that carries text, blood pink, trial blue,
+     violet and one cold cyan for the filler. Neighbouring panes always differ,
+     so the seam between them has two colours to sit on. */
+  const FILL = ["#050409", "#5a0a36", "#0a1a5c", "#2a0a5e", "#7a0d47", "#102a7a", "#063c55", "#050409"];
+  const TONE = { hud: "#050409", rail: "#5a0a36", three: "#0a1a5c", tray: "#2a0a5e", "note-block": "#3a0724", launch: "#050409" };
+  const SHEAR = -13 * Math.PI / 180;
+  const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+  const rgba = (h, a) => "rgba(" + hex(h).join(",") + "," + a + ")";
+  const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  document.querySelectorAll(".fog").forEach(f => {
+    f.insertAdjacentHTML("afterbegin",
+      '<span class="obj lines"></span>' +
+      '<span class="obj tok" style="left:14%;top:44%">A</span>' +
+      '<span class="obj tok b" style="left:61%;top:12%">B</span>' +
+      '<span class="obj tok" style="left:44%;top:70%">C</span>' +
+      '<span class="obj blob" style="left:28%;top:0"></span>' +
+      '<span class="obj blob c" style="left:54%;top:48%"></span>');
+  });
+
+  const probe = document.createElement("span");
+  probe.style.position = "absolute"; probe.style.visibility = "hidden";
+  document.body.append(probe);
+  const resolveAcc = w => {
+    probe.style.color = getComputedStyle(w).getPropertyValue("--acc") || "#7fe4ff";
+    const m = getComputedStyle(probe).color.match(/[0-9]+/g);
+    return m ? "#" + m.slice(0, 3).map(n => (+n).toString(16).padStart(2, "0")).join("") : "#7fe4ff";
+  };
+
+  /* ---- geometry ---------------------------------------------------------- */
+  const cutX = (c, y) => c.a + c.b * y;                 // a cut: x = a + b*y
+  const meet = (c, e) => {                              // an edge: y = e0 + e1*x
+    const y = (e.e0 + e.e1 * c.a) / (1 - e.e1 * c.b);
+    return [c.a + c.b * y, y];
+  };
+  const bbox = poly => {
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (const [x, y] of poly) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+    return { x0, y0, x1, y1 };
+  };
+  // Split a convex polygon by the line through (px,py) with normal (nx,ny).
+  const split = (poly, px, py, nx, ny) => {
+    const A = [], B = [];
+    const side = ([x, y]) => (x - px) * nx + (y - py) * ny;
+    for (let i = 0; i < poly.length; i++) {
+      const p = poly[i], q = poly[(i + 1) % poly.length];
+      const sp = side(p), sq = side(q);
+      (sp >= 0 ? A : B).push(p);
+      if ((sp >= 0) !== (sq >= 0)) {
+        const t = sp / (sp - sq);
+        const m = [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
+        A.push(m); B.push(m);
+      }
+    }
+    return [A, B].filter(p => p.length >= 3);
+  };
+
+  /* ---- the curtain as a list of panes ------------------------------------ */
+  function curtainShapes(el, W, H, rnd) {
+    const els = [...el.querySelectorAll(".block")];
+    const boxes = els.map((b, i) => ({ i, el: b, x: b.offsetLeft, y: b.offsetTop, w: b.offsetWidth, h: b.offsetHeight }));
+    const PADY = 14, MID = H * 0.5;
+    const top = boxes.filter(b => b.y + b.h < MID).sort((p, q) => p.x - q.x);
+    const bot = boxes.filter(b => b.y + b.h >= MID);
+
+    const cols = [];
+    for (const b of top) {
+      const c = cols.find(c => Math.min(c.x1, b.x + b.w) - Math.max(c.x0, b.x) > 20);
+      if (c) { c.items.push(b); c.x0 = Math.min(c.x0, b.x); c.x1 = Math.max(c.x1, b.x + b.w); }
+      else cols.push({ x0: b.x, x1: b.x + b.w, items: [b] });
+    }
+    cols.sort((p, q) => p.x0 - q.x0);
+    cols.forEach((c, k) => {
+      c.items.sort((p, q) => p.y - q.y);
+      c.depth = Math.max(...c.items.map(b => b.y + b.h)) + PADY + (k % 2 ? 0 : 12) + rnd() * 8;
+    });
+    const bandY = Math.max(...cols.map(c => c.depth));
+
+    const cuts = [{ a: 0, b: 0 }];
+    for (let k = 1; k < cols.length; k++) {
+      const gapL = cols[k - 1].x1, gapR = cols[k].x0;
+      const mid = (gapL + gapR) / 2;
+      const play = Math.max(0, (gapR - gapL) / 2 - 7);
+      const t = Math.min(play, 24) * (rnd() < 0.5 ? -1 : 1);
+      cuts.push({ a: mid - t, b: 2 * t / bandY });
+    }
+    cuts.push({ a: W, b: 0 });
+
+    const panes = [];
+    const push = (poly, el) => panes.push({ poly, content: !!el, tone: el });
+
+    cols.forEach((c, k) => {
+      const cl = cuts[k], cr = cuts[k + 1];
+      const xm = (c.x0 + c.x1) / 2;
+      const e1 = (rnd() - 0.5) * 0.26;
+      const inner = { e1, e0: c.depth - e1 * xm };
+      {
+        const ends = [cutX(cl, c.depth), cutX(cr, c.depth)];
+        const hi = Math.max(...ends.map(x => inner.e0 + inner.e1 * x));
+        inner.e0 += c.depth - hi;
+        for (const b of c.items) for (const x of [b.x, b.x + b.w, ...ends]) {
+          const need = b.y + b.h + 8 - (inner.e0 + inner.e1 * x);
+          if (need > 0) inner.e0 += need;
+        }
+      }
+      const stops = [cl];
+      const slackL = c.x0 - cutX(cl, 0), slackR = cutX(cr, 0) - c.x1;
+      const wedge = (x0, room, dir) => {
+        const lean = Math.min(room - 18, 96) * dir;
+        const foot = x0 + room * (0.42 + rnd() * 0.22);
+        stops.push({ a: foot - lean / 2, b: lean / bandY });
+      };
+      if (slackL > 52) wedge(cutX(cl, 0), slackL, rnd() < 0.65 ? 1 : -1);
+      stops.push(null);
+      if (slackR > 52) wedge(c.x1, slackR, rnd() < 0.65 ? -1 : 1);
+      stops.push(cr);
+
+      const list = stops.filter(Boolean);
+      const own = stops.indexOf(null) - 1;
+      for (let q = 0; q + 1 < list.length; q++) {
+        const A = list[q], B = list[q + 1];
+        if (q !== own) {
+          // filler: the outer part hangs a little deeper than the section, a shard
+          const drop = { e1: inner.e1, e0: inner.e0 + 10 + rnd() * 26 };
+          push([[cutX(A, 0), 0], [cutX(B, 0), 0], meet(B, drop), meet(A, drop)], null);
+          continue;
+        }
+        let yTop = [[cutX(A, 0), 0], [cutX(B, 0), 0]];
+        for (let m = 0; m + 1 < c.items.length; m++) {
+          const up = c.items[m], dn = c.items[m + 1];
+          const lo = up.y + up.h + 4, hi = dn.y - 4;
+          const yc = (lo + hi) / 2;
+          const room = Math.max(0, (hi - lo) / 2 - 2);
+          const d1 = Math.min(room / Math.max(40, (c.x1 - c.x0) / 2), 0.09) * (rnd() < 0.5 ? -1 : 1);
+          const div = { e1: d1, e0: yc - d1 * xm };
+          push([yTop[0], yTop[1], meet(B, div), meet(A, div)], up.el);
+          yTop = [meet(A, div), meet(B, div)];
+        }
+        push([yTop[0], yTop[1], meet(B, inner), meet(A, inner)], c.items[c.items.length - 1].el);
+      }
+    });
+
+    // Bottom sections, then the side strips that join them to the band. The
+    // strips are wide under the band and narrow at the foot, so the frame
+    // reads as heavy at the corners and thin towards the middle of the screen.
+    const strips = [];
+    for (const side of [0, 1]) {
+      const b = bot.find(q => side === 0 ? q.x < W / 2 : q.x + q.w > W / 2);
+      const wall = side === 0 ? 0 : W, dir = side === 0 ? 1 : -1;
+      let joinY = H;
+      if (b) {
+        const e1 = (rnd() - 0.5) * 0.06;
+        const xm = side === 0 ? b.x + b.w : b.x;
+        const topE = { e1, e0: b.y - PADY - e1 * xm };
+        const far = { a: side === 0 ? b.x + b.w + 16 : b.x - 16, b: dir * 18 / H };
+        const wallC = { a: wall, b: 0 };
+        push([meet(wallC, topE), meet(far, topE), [cutX(far, H), H], [wall, H]], b.el);
+        joinY = topE.e0 + topE.e1 * wall;
+      }
+      const swTop = 58 + rnd() * 16, swBot = 18 + rnd() * 8;
+      const span = Math.max(1, joinY - bandY);
+      const y1 = bandY + span * (0.30 + rnd() * 0.12), y2 = bandY + span * (0.66 + rnd() * 0.10);
+      const xAt = y => wall + dir * (swTop + (swBot - swTop) * (y - bandY) / span);
+      const lean1 = dir * (14 + rnd() * 12), lean2 = dir * (10 + rnd() * 10);
+      strips.push([[wall, bandY], [xAt(bandY), bandY], [xAt(y1) + lean1, y1], [wall, y1]]);
+      strips.push([[wall, y1], [xAt(y1) + lean1, y1], [xAt(y2) + lean2, y2], [wall, y2]]);
+      strips.push([[wall, y2], [xAt(y2) + lean2, y2], [xAt(joinY), joinY], [wall, joinY]]);
+    }
+    for (const p of strips) if (p[0][1] < p[3][1] - 4) push(p, null);
+    return panes;
+  }
+
+  /* ---- a window: three or four long shallow shards ------------------------ */
+  function windowShapes(W, H, rnd) {
+    let panes = [[[0, 0], [W, 0], [W, H], [0, H]]];
+    const cutAt = (px, py, ang) => {
+      const nx = -Math.sin(ang), ny = Math.cos(ang);
+      panes = panes.flatMap(p => split(p, px, py, nx, ny));
+    };
+    // two shallow cuts at the V3 angle, then one steep one through the wider half
+    cutAt(W * 0.5, H * (0.28 + rnd() * 0.12), SHEAR + (rnd() - 0.5) * 0.12);
+    if (H > 150) cutAt(W * 0.5, H * (0.68 + rnd() * 0.12), SHEAR + (rnd() - 0.5) * 0.12);
+    cutAt(W * (0.62 + rnd() * 0.22), H * 0.5, Math.PI / 2 + SHEAR * 1.6);
+    if (W > 520) cutAt(W * (0.16 + rnd() * 0.14), H * 0.5, Math.PI / 2 - SHEAR * 1.2);
+    return panes.map(poly => ({ poly, content: false }));
+  }
+
+  /* ---- painting: the same brush for every pane ---------------------------- */
+  const path = (g, poly) => { g.beginPath(); poly.forEach((q, i) => (i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1]))); g.closePath(); };
+  const onEdge = (W, H) => (p, q) => (p[0] < 1 && q[0] < 1) || (p[0] > W - 1 && q[0] > W - 1) || (p[1] < 1 && q[1] < 1) || (p[1] > H - 1 && q[1] > H - 1);
+  const seams = (g, panes, W, H, wdt) => {
+    const edge = onEdge(W, H);
+    g.beginPath();
+    for (const p of panes) for (let i = 0, k = p.poly.length - 1; i < p.poly.length; k = i++) {
+      if (edge(p.poly[k], p.poly[i])) continue;
+      g.moveTo(p.poly[k][0], p.poly[k][1]); g.lineTo(p.poly[i][0], p.poly[i][1]);
+    }
+    g.lineWidth = wdt; g.lineCap = "round"; g.stroke();
+  };
+
+  function paintGlass(ctx, W, H, panes, acc, rnd, { plates = [], glowInside = false } = {}) {
+    ctx.clearRect(0, 0, W, H);
+    // 1. the panes: colour, a light falling through from the outer edge, halftone on the filler
+    panes.forEach((p, i) => {
+      const k = p.tone && Object.keys(TONE).find(k => p.tone.classList.contains(k));
+      p.fill = k ? TONE[k] : (p.content ? "#050409" : FILL[(i * 5 + Math.floor(rnd() * 3)) % FILL.length]);
+      const bb = bbox(p.poly);
+      ctx.save(); path(ctx, p.poly); ctx.clip();
+      ctx.globalAlpha = p.content ? 0.62 : 0.50;
+      ctx.fillStyle = p.fill; ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
+      ctx.globalAlpha = 1;
+      const down = (bb.y0 + bb.y1) / 2 < H / 2;
+      const g = ctx.createLinearGradient(0, down ? bb.y0 : bb.y1, 0, down ? bb.y1 : bb.y0);
+      g.addColorStop(0, "rgba(255,255,255,0.11)"); g.addColorStop(0.55, "rgba(255,255,255,0.02)"); g.addColorStop(1, "rgba(0,0,0,0.18)");
+      ctx.fillStyle = g; ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
+      if (!p.content) {
+        ctx.fillStyle = rgba(acc, 0.09);
+        for (let y = bb.y0 + 3; y < bb.y1; y += 6) for (let x = bb.x0 + 3 + ((y / 6) % 2) * 3; x < bb.x1; x += 6) ctx.fillRect(x, y, 1.4, 1.4);
+      }
+      ctx.restore();
+    });
+    // 2. a darker plate under anything that carries text, inside its own pane only
+    for (const pl of plates) {
+      ctx.save(); path(ctx, pl.pane.poly); ctx.clip();
+      ctx.filter = "blur(7px)"; ctx.fillStyle = "rgba(3,2,7,0.42)";
+      ctx.fillRect(pl.x - 10, pl.y - 8, pl.w + 20, pl.h + 16);
+      ctx.restore();
+    }
+    // 3. seams: lead, the bevel that shows the glass has a thickness, then the neon core
+    if (glowInside) {
+      ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.strokeStyle = acc;
+      for (const [blur, a, wdt] of [[10, 0.22, 3], [4, 0.26, 2]]) { ctx.filter = "blur(" + blur + "px)"; ctx.globalAlpha = a; seams(ctx, panes, W, H, wdt); }
+      ctx.restore();
+    }
+    ctx.globalAlpha = 0.95; ctx.strokeStyle = "#08050d"; seams(ctx, panes, W, H, 2.6);
+    ctx.save(); ctx.translate(0, 1.2); ctx.globalAlpha = 0.22; ctx.strokeStyle = "#ffffff"; seams(ctx, panes, W, H, 0.8); ctx.restore();
+    ctx.globalAlpha = glowInside ? 0.78 : 0.92; ctx.strokeStyle = acc; seams(ctx, panes, W, H, 1);
+    ctx.globalAlpha = 1;
+  }
+
+  /* ---- the curtain ------------------------------------------------------- */
+  function curtain(el, seed) {
+    const c = el.querySelector("canvas.sg");
+    if (!c) return;
+    const W = c.width = Math.max(120, Math.round(c.clientWidth));
+    const H = c.height = Math.max(80, Math.round(c.clientHeight));
+    const ctx = c.getContext("2d");
+    let sd = seed;
+    const rnd = () => { sd = (sd * 1664525 + 1013904223) % 4294967296; return sd / 4294967296; };
+    const panes = curtainShapes(el, W, H, rnd);
+    const acc = resolveAcc(el);
+    const plates = panes.filter(p => p.content).map(p => ({ pane: p, x: p.tone.offsetLeft, y: p.tone.offsetTop, w: p.tone.offsetWidth, h: p.tone.offsetHeight }));
+    paintGlass(ctx, W, H, panes, acc, rnd, { plates });
+
+    // The glow lives outside the mask so it blooms past the edge of a shard.
+    let gl = el.parentElement.querySelector('[data-glow="' + seed + '"]');
+    if (!gl) { gl = document.createElement("canvas"); gl.className = "curtain-glow"; gl.dataset.glow = seed; el.after(gl); }
+    gl.width = W; gl.height = H;
+    const gx = gl.getContext("2d");
+    gx.clearRect(0, 0, W, H);
+    gx.globalCompositeOperation = "lighter"; gx.strokeStyle = acc;
+    for (const [blur, a, wdt] of [[18, 0.36, 3], [7, 0.40, 2], [2, 0.45, 1.2]]) { gx.filter = "blur(" + blur + "px)"; gx.globalAlpha = a; seams(gx, panes, W, H, wdt); }
+    gx.filter = "none"; gx.globalAlpha = 1;
+
+    const mc = document.createElement("canvas"); mc.width = W; mc.height = H;
+    const mx = mc.getContext("2d"); mx.fillStyle = "#fff";
+    for (const p of panes) { path(mx, p.poly); mx.fill(); }
+    const url = "url(" + mc.toDataURL() + ")";
+    el.style.webkitMaskImage = url; el.style.maskImage = url;
+    el.style.webkitMaskSize = "100% 100%"; el.style.maskSize = "100% 100%";
+    el.style.webkitMaskRepeat = "no-repeat"; el.style.maskRepeat = "no-repeat";
+  }
+
+  /* ---- a window ---------------------------------------------------------- */
+  function windowGlass(w, seed) {
+    let c = w.querySelector(":scope > canvas.sg");
+    if (!c) { c = document.createElement("canvas"); c.className = "sg"; w.prepend(c); }
+    const W = c.width = Math.max(60, Math.round(w.clientWidth));
+    const H = c.height = Math.max(40, Math.round(w.clientHeight));
+    let sd = seed;
+    const rnd = () => { sd = (sd * 1664525 + 1013904223) % 4294967296; return sd / 4294967296; };
+    const panes = windowShapes(W, H, rnd);
+    paintGlass(c.getContext("2d"), W, H, panes, resolveAcc(w), rnd, { glowInside: true });
+  }
+
+  const draw = () => {
+    let seed = 7;
+    document.querySelectorAll(".curtain").forEach(el => { seed += 37; curtain(el, seed); });
+    document.querySelectorAll(".win").forEach(w => { seed += 37; windowGlass(w, seed); });
+  };
+  const ready = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
+  ready.then(draw);
+  let t; addEventListener("resize", () => { clearTimeout(t); t = setTimeout(draw, 120); });
+  void REDUCED;
+})();
+</script>
+
+</body></html>
