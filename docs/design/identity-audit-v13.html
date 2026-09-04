@@ -826,14 +826,14 @@
         <tbody>
           <tr><td class="k">Szyba pod treścią</td><td class="v"><span class="dot" style="background:#050409"></span>#050409 · 66%</td><td>tekst zawsze leży na czarnym szkle, niezależnie od koloru stanu</td></tr>
           <tr><td class="k">Szyba wypełniacz</td><td class="v"><span class="dot" style="background:#4a0a2e"></span><span class="dot" style="background:#66093b"></span><span class="dot" style="background:#081548"></span><span class="dot" style="background:#0c2262"></span><span class="dot" style="background:#22084e"></span><span class="dot" style="background:#05303f"></span> 54%</td><td>róż krwi, błękit procesu, fiolet, jeden zimny cyjan; sąsiadki nigdy w tej samej barwie</td></tr>
-          <tr><td class="k">Przyciemnienie</td><td class="v">czerń 26% na każdej szybie</td><td>czerń nad kolorem: barwa i nasycenie zostają, spada tylko jasność</td></tr>
+          <tr><td class="k">Przyciemnienie</td><td class="v">czerń 34% na każdej szybie</td><td>czerń nad kolorem: barwa i nasycenie zostają, spada tylko jasność</td></tr>
           <tr><td class="k">Światło przez szkło</td><td class="v">biel 9% → czerń 22%</td><td>gradient od zewnętrznej krawędzi ekranu do środka, w każdej szybie osobno</td></tr>
           <tr><td class="k">Raster</td><td class="v">1,4 px co 6 px · kolor stanu 9%</td><td>tylko na wypełniaczu, co drugi rząd przesunięty o 3 px</td></tr>
           <tr><td class="k">Płyta pod treścią</td><td class="v">czerń 42% · blur 7 px · +10/8 px</td><td>przycięta do własnej szyby bloku, nigdy nie wychodzi za cięcie</td></tr>
           <tr><td class="k">Ołów</td><td class="v">2,6 px · #08050d 95%</td><td>ciemna linia, na której leży wszystko inne</td></tr>
           <tr><td class="k">Faza</td><td class="v">0,8 px · biel 22% · 1,2 px w dół</td><td>jedna jasna krawędź: szkło ma grubość</td></tr>
           <tr><td class="k">Rdzeń neonu</td><td class="v">1 px · kolor stanu 92%</td><td>cięcie świeci kolorem pory dnia albo stanu</td></tr>
-          <tr><td class="k">Poświata</td><td class="v">18 px 36% · 7 px 40% · 2 px 45%</td><td>trzy przebiegi w trybie lighter, nad maską, więc wychodzi poza brzeg szyby</td></tr>
+          <tr><td class="k">Poświata</td><td class="v">18 px 50% · 7 px 55% · 2 px 62%</td><td>trzy przebiegi w trybie lighter, nad maską, więc wychodzi poza brzeg szyby</td></tr>
           <tr><td class="k">Liquid glass</td><td class="v">blur 16 · saturate 190% · brightness 92% · contrast 108%</td><td>pod całością; to, co pod szkłem, jest ciemniejsze niż obok niego</td></tr>
         </tbody>
       </table></div>
@@ -1217,7 +1217,7 @@
       ctx.globalAlpha = p.content ? 0.66 : 0.54;
       ctx.fillStyle = p.fill; ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
       // the darkening: black over the colour, so the hue and its saturation stay and only the value drops
-      ctx.globalAlpha = 1; ctx.fillStyle = "rgba(0,0,0,0.26)"; ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
+      ctx.globalAlpha = 1; ctx.fillStyle = "rgba(0,0,0,0.34)"; ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
       const down = (bb.y0 + bb.y1) / 2 < H / 2;
       const g = ctx.createLinearGradient(0, down ? bb.y0 : bb.y1, 0, down ? bb.y1 : bb.y0);
       g.addColorStop(0, "rgba(255,255,255,0.09)"); g.addColorStop(0.55, "rgba(255,255,255,0.01)"); g.addColorStop(1, "rgba(0,0,0,0.22)");
@@ -1268,7 +1268,7 @@
     const gx = gl.getContext("2d");
     gx.clearRect(0, 0, W, H);
     gx.globalCompositeOperation = "lighter"; gx.strokeStyle = acc;
-    for (const [blur, a, wdt] of [[18, 0.36, 3], [7, 0.40, 2], [2, 0.45, 1.2]]) { gx.filter = "blur(" + blur + "px)"; gx.globalAlpha = a; seams(gx, panes, W, H, wdt); }
+    for (const [blur, a, wdt] of [[18, 0.50, 3.5], [7, 0.55, 2.4], [2, 0.62, 1.4]]) { gx.filter = "blur(" + blur + "px)"; gx.globalAlpha = a; seams(gx, panes, W, H, wdt); }
     gx.filter = "none"; gx.globalAlpha = 1;
 
     const mc = document.createElement("canvas"); mc.width = W; mc.height = H;
