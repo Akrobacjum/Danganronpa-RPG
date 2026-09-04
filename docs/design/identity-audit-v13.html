@@ -1182,69 +1182,92 @@
 
     /* ---- the break -------------------------------------------------------
        The sections keep their panes. Everything else is glass that was hit:
-       each filler shard gets a tooth on its inner edge, is split by one to
-       three cracks radiating from the nearest corner of the screen, and some
-       of the inner pieces are simply gone. The silhouette comes out jagged
-       and the corners read as the centre of the break, like the trial screen. */
+       each filler shard gets a tooth on its inner edge, a thin needle may hang
+       off it, it is split by cracks radiating from the nearest corner of the
+       screen, and some of the inner pieces are gone. The corners read as the
+       centre of the break, like the trial screen.
+
+       ONE RULE ABOVE ALL: no two pieces of glass ever overlap. Every piece is
+       convex, so a separating-axis test decides it exactly; a tooth, a needle
+       or a strip that would land on glass already there is not made. */
     const impacts = [[W * 0.03, H * 0.04], [W * 0.97, H * 0.04], [W * 0.03, H * 0.96], [W * 0.97, H * 0.96]];
     const cen = poly => poly.reduce((a, q) => [a[0] + q[0] / poly.length, a[1] + q[1] / poly.length], [0, 0]);
     const area = poly => Math.abs(poly.reduce((s, q, i) => { const r = poly[(i + 1) % poly.length]; return s + q[0] * r[1] - r[0] * q[1]; }, 0)) / 2;
     const touchesEdge = poly => poly.some(q => q[0] < 2 || q[0] > W - 2 || q[1] < 2 || q[1] > H - 2);
-    const shatter = (poly, teeth) => {
-      const c = cen(poly);
-      const imp = impacts.reduce((b, p) => Math.hypot(p[0] - c[0], p[1] - c[1]) < Math.hypot(b[0] - c[0], b[1] - c[1]) ? p : b);
-      let out = [poly];
-      if (teeth && rnd() < 0.75) {
-        // the inner edge is the one farthest from the impact; give it a point
-        let k = 0, best = -1;
-        for (let i = 0; i < poly.length; i++) {
-          const a = poly[i], b = poly[(i + 1) % poly.length];
-          const d = Math.hypot((a[0] + b[0]) / 2 - imp[0], (a[1] + b[1]) / 2 - imp[1]);
-          if (d > best) { best = d; k = i; }
-        }
-        const a = poly[k], b = poly[(k + 1) % poly.length];
-        const t = 0.3 + rnd() * 0.4, len = Math.hypot(b[0] - a[0], b[1] - a[1]);
-        const ox = (a[0] + b[0]) / 2 - imp[0], oy = (a[1] + b[1]) / 2 - imp[1], on = Math.hypot(ox, oy) || 1;
-        const reach = Math.min(90, len * 0.35) * (0.4 + rnd() * 0.6);
-        const tip = [a[0] + (b[0] - a[0]) * t + ox / on * reach, a[1] + (b[1] - a[1]) * t + oy / on * reach];
-        out = [[...poly.slice(0, k + 1), tip, ...poly.slice(k + 1)]];
+    const overlaps = (A, B) => {
+      const axes = P => P.map((p, i) => { const q = P[(i + 1) % P.length]; const l = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1; return [-(q[1] - p[1]) / l, (q[0] - p[0]) / l]; });
+      for (const ax of [...axes(A), ...axes(B)]) {
+        let a0 = 1e9, a1 = -1e9, b0 = 1e9, b1 = -1e9;
+        for (const p of A) { const d = p[0] * ax[0] + p[1] * ax[1]; a0 = Math.min(a0, d); a1 = Math.max(a1, d); }
+        for (const p of B) { const d = p[0] * ax[0] + p[1] * ax[1]; b0 = Math.min(b0, d); b1 = Math.max(b1, d); }
+        if (a1 <= b0 + 0.75 || b1 <= a0 + 0.75) return false;   // a shared edge is not an overlap
       }
-      const n = Math.min(6, Math.max(1, Math.round(area(poly) / 16000)));
-      for (let s = 0; s < n; s++) {
-        const bb = bbox(out[Math.floor(rnd() * out.length)]);
-        const q = [bb.x0 + (0.2 + rnd() * 0.6) * (bb.x1 - bb.x0), bb.y0 + (0.2 + rnd() * 0.6) * (bb.y1 - bb.y0)];
-        const dx = q[0] - imp[0], dy = q[1] - imp[1];
-        out = out.flatMap(p => split(p, q[0], q[1], -dy, dx));
-      }
-      // knock out some of the pieces that hang inward; never one on the screen edge
-      return out.filter(p => area(p) > 60 && (touchesEdge(p) || rnd() > 0.35));
+      return true;
     };
-    const needle = poly => {
-      const c = cen(poly);
-      const imp = impacts.reduce((b, p) => Math.hypot(p[0] - c[0], p[1] - c[1]) < Math.hypot(b[0] - c[0], b[1] - c[1]) ? p : b);
+    const nearestImpact = poly => { const c = cen(poly); return impacts.reduce((b, p) => Math.hypot(p[0] - c[0], p[1] - c[1]) < Math.hypot(b[0] - c[0], b[1] - c[1]) ? p : b); };
+    const innerEdge = (poly, imp) => {
       let k = 0, best = -1;
       for (let i = 0; i < poly.length; i++) {
         const a = poly[i], b = poly[(i + 1) % poly.length];
         const d = Math.hypot((a[0] + b[0]) / 2 - imp[0], (a[1] + b[1]) / 2 - imp[1]);
         if (d > best) { best = d; k = i; }
       }
-      const a = poly[k], b = poly[(k + 1) % poly.length];
+      return k;
+    };
+    const inScreen = q => q[0] >= 0 && q[0] <= W && q[1] >= 0 && q[1] <= H;
+
+    // 1. the base partition: sections first, then any filler that lands on nothing
+    const kept = [];
+    const free = (poly, skip) => kept.every(k => k === skip || !overlaps(k.poly, poly));
+    for (const p of panes) if (p.content) kept.push(p);
+    for (const p of panes) if (!p.content && free(p.poly)) kept.push(p);
+
+    // 2. teeth: replace a filler by its toothed version only if the tooth lands on empty ground
+    for (const p of kept) {
+      if (p.content || rnd() > 0.75) continue;
+      const imp = nearestImpact(p.poly), k = innerEdge(p.poly, imp);
+      const a = p.poly[k], b = p.poly[(k + 1) % p.poly.length];
+      const t = 0.3 + rnd() * 0.4, len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      const ox = (a[0] + b[0]) / 2 - imp[0], oy = (a[1] + b[1]) / 2 - imp[1], on = Math.hypot(ox, oy) || 1;
+      const reach = Math.min(90, len * 0.35) * (0.4 + rnd() * 0.6);
+      const tip = [a[0] + (b[0] - a[0]) * t + ox / on * reach, a[1] + (b[1] - a[1]) * t + oy / on * reach];
+      const toothed = [...p.poly.slice(0, k + 1), tip, ...p.poly.slice(k + 1)];
+      if (inScreen(tip) && free(toothed, p)) p.poly = toothed;
+    }
+    // 3. needles: a separate thin shard hanging off the inner edge, only onto empty ground
+    const needles = [];
+    for (const p of kept) {
+      if (p.content || rnd() > 0.45) continue;
+      const imp = nearestImpact(p.poly), k = innerEdge(p.poly, imp);
+      const a = p.poly[k], b = p.poly[(k + 1) % p.poly.length];
       const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
-      if (len < 80) return null;
+      if (len < 80) continue;
       const t = 0.15 + rnd() * 0.6, wdt = (14 + rnd() * 16) / len;
       const p0 = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
       const p1 = [a[0] + (b[0] - a[0]) * (t + wdt), a[1] + (b[1] - a[1]) * (t + wdt)];
       const ox = (p0[0] + p1[0]) / 2 - imp[0], oy = (p0[1] + p1[1]) / 2 - imp[1], on = Math.hypot(ox, oy) || 1;
       const reach = 90 + rnd() * 130, skew = (rnd() - 0.5) * 60;
       const tip = [(p0[0] + p1[0]) / 2 + ox / on * reach + skew, (p0[1] + p1[1]) / 2 + oy / on * reach];
-      if (tip[0] < 0 || tip[0] > W || tip[1] < 0 || tip[1] > H) return null;
-      return [p0, tip, p1];
-    };
+      const nd = [p0, tip, p1];
+      if (inScreen(tip) && free(nd) && needles.every(n => !overlaps(n.poly, nd))) needles.push({ poly: nd, content: false, tone: null });
+    }
+    kept.push(...needles);
+
+    // 4. cracks: a split keeps the partition a partition, so nothing to check here
     const broken = [];
-    for (const p of panes) {
+    for (const p of kept) {
       if (p.content) { broken.push(p); continue; }
-      if (rnd() < 0.45) { const nd = needle(p.poly); if (nd) broken.push({ poly: nd, content: false, tone: null }); }
-      for (const poly of shatter(p.poly, true)) broken.push({ poly, content: false, tone: null });
+      const imp = nearestImpact(p.poly);
+      let out = [p.poly];
+      const n = Math.min(6, Math.max(1, Math.round(area(p.poly) / 16000)));
+      for (let s = 0; s < n; s++) {
+        const bb = bbox(out[Math.floor(rnd() * out.length)]);
+        const q = [bb.x0 + (0.2 + rnd() * 0.6) * (bb.x1 - bb.x0), bb.y0 + (0.2 + rnd() * 0.6) * (bb.y1 - bb.y0)];
+        const dx = q[0] - imp[0], dy = q[1] - imp[1];
+        out = out.flatMap(pp => split(pp, q[0], q[1], -dy, dx));
+      }
+      // 5. knock out some of the pieces that hang inward; never one on the screen edge
+      for (const poly of out) if (area(poly) > 60 && (touchesEdge(poly) || rnd() > 0.35)) broken.push({ poly, content: false, tone: null });
     }
     return broken;
   }
@@ -1330,6 +1353,12 @@
     let sd = seed;
     const rnd = () => { sd = (sd * 1664525 + 1013904223) % 4294967296; return sd / 4294967296; };
     const panes = curtainShapes(el, W, H, rnd);
+    { // self-check: no two panes may overlap; reported on window.__panes for the audit's own tests
+      const axes = P => P.map((p, i) => { const q = P[(i + 1) % P.length]; const l = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1; return [-(q[1] - p[1]) / l, (q[0] - p[0]) / l]; });
+      const ov = (A, B) => [...axes(A), ...axes(B)].every(ax => { let a0 = 1e9, a1 = -1e9, b0 = 1e9, b1 = -1e9; for (const p of A) { const d = p[0] * ax[0] + p[1] * ax[1]; a0 = Math.min(a0, d); a1 = Math.max(a1, d); } for (const p of B) { const d = p[0] * ax[0] + p[1] * ax[1]; b0 = Math.min(b0, d); b1 = Math.max(b1, d); } return !(a1 <= b0 + 0.75 || b1 <= a0 + 0.75); });
+      let n = 0; for (let i = 0; i < panes.length; i++) for (let j = i + 1; j < panes.length; j++) if (ov(panes[i].poly, panes[j].poly)) n++;
+      (window.__panes = window.__panes || []).push({ seed, count: panes.length, overlaps: n });
+    }
     const acc = resolveAcc(el);
     const plates = panes.filter(p => p.content).map(p => ({ pane: p, x: p.tone.offsetLeft, y: p.tone.offsetTop, w: p.tone.offsetWidth, h: p.tone.offsetHeight }));
     paintGlass(ctx, W, H, panes, acc, rnd, { plates });
