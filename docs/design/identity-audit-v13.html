@@ -159,16 +159,19 @@
   /* ---- fog and the glass window ---- */
   .fog {
     position: relative; overflow: hidden; padding: 18px; border: 1px solid var(--line);
-    background-color: #1c1822;
+    /* the module's own fog, to the pixel: --drpg-ink under --drpg-fog-raster,
+       2 px specks every 8 px (inset 3), one 2 px hairline every 64 px, opaque, no alpha */
+    background-color: #1d1a21;
     background-image:
-      repeating-linear-gradient(45deg, rgba(122, 114, 134, 0.42) 0 2px, transparent 2px 110px),
-      radial-gradient(circle at 1px 1px, rgba(96, 88, 108, 0.42) 0.9px, transparent 1.4px);
-    background-size: auto, 6px 6px;
+      repeating-linear-gradient(90deg, #58545d 0 2px, transparent 2px 64px),
+      conic-gradient(from 90deg at 2px 2px, transparent 75%, #58545d 0);
+    background-size: auto, 8px 8px;
+    background-position: 0 0, 3px 0;
   }
   .win {
     position: relative; overflow: hidden; isolation: isolate; border-radius: 2px;
-    backdrop-filter: blur(16px) saturate(190%) brightness(0.92) contrast(1.08);
-    -webkit-backdrop-filter: blur(16px) saturate(190%) brightness(0.92) contrast(1.08);
+    backdrop-filter: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
+    -webkit-backdrop-filter: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
     background: rgba(5, 4, 9, 0.5);
     border: 1px solid color-mix(in srgb, var(--acc) 55%, rgba(255, 255, 255, 0.35));
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -1px 0 rgba(0, 0, 0, 0.5), 0 0 22px color-mix(in srgb, var(--acc) 30%, transparent), 0 14px 34px rgba(0, 0, 0, 0.5);
@@ -187,8 +190,8 @@
 
   /* ---- the curtain: one sheet of glass along a screen edge -------------- */
   .curtain { position: absolute; z-index: 2; overflow: hidden; isolation: isolate;
-    backdrop-filter: blur(16px) saturate(190%) brightness(0.92) contrast(1.08);
-    -webkit-backdrop-filter: blur(16px) saturate(190%) brightness(0.92) contrast(1.08);
+    backdrop-filter: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
+    -webkit-backdrop-filter: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
     background: rgba(255, 255, 255, 0.02); }
   .curtain > canvas.sg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; }
   .curtain-glow { position: absolute; inset: 0; z-index: 2; pointer-events: none; mix-blend-mode: screen; }
@@ -461,7 +464,7 @@
     <div class="cards">
       <div><b>Color coding</b>Czerwień to DM, złoto to Hope, róż krwi to Despair, zieleń to dowód. Interfejs bierze kolor pory dnia albo stanu.</div>
       <div><b>Kroje</b>VT323 na chrome, prozie i stemplach; Special Elite na tytułach. Dwa pliki OFL, DRPG Pixel jako zapas chrome.</div>
-      <div><b>Szkło</b>Jeden materiał na kurtynę i okna: czarne szkło pod treścią, kolorowe szyby jako wypełniacz, cięcie z ołowiu, fazy i neonu, liquid glass pod spodem. Sam ostry, to, co pod nim, rozmyte. Mgły nie ruszamy.</div>
+      <div><b>Szkło</b>Jeden materiał na kurtynę i okna: czarne szkło pod treścią, przygaszone kolorowe szyby jako wypełniacz, cięcie z ołowiu, fazy i neonu, liquid glass pod spodem. Mgła pod wszystkim jest mgłą modułu co do piksela: atrament, kropki co 8 px, linia co 64 px.</div>
       <div><b>Klikanie</b>Wszystko, co się klika, ma jeden znak: prostokąt pędzla. Najechane blade, wybrane pełne, wciśnięte ciemniejsze.</div>
     </div>
   </header>
@@ -826,15 +829,15 @@
         <tbody>
           <tr><td class="k">Szyba pod treścią</td><td class="v"><span class="dot" style="background:#050409"></span>#050409 · 66%</td><td>tekst zawsze leży na czarnym szkle, niezależnie od koloru stanu</td></tr>
           <tr><td class="k">Szyba wypełniacz</td><td class="v"><span class="dot" style="background:#4a0a2e"></span><span class="dot" style="background:#66093b"></span><span class="dot" style="background:#081548"></span><span class="dot" style="background:#0c2262"></span><span class="dot" style="background:#22084e"></span><span class="dot" style="background:#05303f"></span> 54%</td><td>róż krwi, błękit procesu, fiolet, jeden zimny cyjan; sąsiadki nigdy w tej samej barwie</td></tr>
-          <tr><td class="k">Przyciemnienie</td><td class="v">czerń 34% na każdej szybie</td><td>czerń nad kolorem: barwa i nasycenie zostają, spada tylko jasność</td></tr>
+          <tr><td class="k">Przyciemnienie</td><td class="v">czerń 40% + atrament mgły #1d1a21 30%</td><td>czerń obniża jasność; atrament mgły ściąga nasycenie każdej barwy w stronę jednej szaro-fioletowej</td></tr>
           <tr><td class="k">Światło przez szkło</td><td class="v">biel 9% → czerń 22%</td><td>gradient od zewnętrznej krawędzi ekranu do środka, w każdej szybie osobno</td></tr>
-          <tr><td class="k">Raster</td><td class="v">1,4 px co 6 px · kolor stanu 9%</td><td>tylko na wypełniaczu, co drugi rząd przesunięty o 3 px</td></tr>
+          <tr><td class="k">Raster</td><td class="v">1,4 px co 6 px · kolor stanu 7%</td><td>tylko na wypełniaczu, co drugi rząd przesunięty o 3 px</td></tr>
           <tr><td class="k">Płyta pod treścią</td><td class="v">czerń 42% · blur 7 px · +10/8 px</td><td>przycięta do własnej szyby bloku, nigdy nie wychodzi za cięcie</td></tr>
           <tr><td class="k">Ołów</td><td class="v">2,6 px · #08050d 95%</td><td>ciemna linia, na której leży wszystko inne</td></tr>
           <tr><td class="k">Faza</td><td class="v">0,8 px · biel 22% · 1,2 px w dół</td><td>jedna jasna krawędź: szkło ma grubość</td></tr>
           <tr><td class="k">Rdzeń neonu</td><td class="v">1 px · kolor stanu 92%</td><td>cięcie świeci kolorem pory dnia albo stanu</td></tr>
           <tr><td class="k">Poświata</td><td class="v">18 px 50% · 7 px 55% · 2 px 62%</td><td>trzy przebiegi w trybie lighter, nad maską, więc wychodzi poza brzeg szyby</td></tr>
-          <tr><td class="k">Liquid glass</td><td class="v">blur 16 · saturate 190% · brightness 92% · contrast 108%</td><td>pod całością; to, co pod szkłem, jest ciemniejsze niż obok niego</td></tr>
+          <tr><td class="k">Liquid glass</td><td class="v">blur 16 · saturate 140% · brightness 88% · contrast 108%</td><td>pod całością; to, co pod szkłem, jest ciemniejsze niż obok niego</td></tr>
         </tbody>
       </table></div>
     <p class="note" style="margin-top:12px">Kolejność rysowania jest kolejnością tabeli. Szyby i płyty rysuje się raz, przy zmianie rozmiaru okna, do jednej bitmapy; poświata jest drugą bitmapą nad maską. Nic z tego nie liczy się co klatkę.</p>
@@ -968,7 +971,7 @@
     <div class="wrap"><table class="tbl">
       <thead><tr><th>Element</th><th>Technika w Foundry</th><th>Wykonalność</th><th>Uwagi</th></tr></thead>
       <tbody>
-        <tr><td class="k">Okno-witraż z liquid glass</td><td>jedna bitmapa canvas na okno: szyby według przepisu wyżej (czerń pod treścią, kolorowy wypełniacz, światło, raster, płyta), cięcia jako ołów, faza i rdzeń w kolorze stanu; poświata na drugiej bitmapie; pod tym <code>backdrop-filter: blur(16px) saturate(190%) brightness(0.92)</code>; przeliczenie tylko przy zmianie rozmiaru</td><td class="yes">Tak</td><td>im więcej dzieje się pod oknem, tym mocniej widać szkło; na pustym tle efekt jest niewidoczny</td></tr>
+        <tr><td class="k">Okno-witraż z liquid glass</td><td>jedna bitmapa canvas na okno: szyby według przepisu wyżej (czerń pod treścią, kolorowy wypełniacz, światło, raster, płyta), cięcia jako ołów, faza i rdzeń w kolorze stanu; poświata na drugiej bitmapie; pod tym <code>backdrop-filter: blur(16px) saturate(140%) brightness(0.88)</code>; przeliczenie tylko przy zmianie rozmiaru</td><td class="yes">Tak</td><td>im więcej dzieje się pod oknem, tym mocniej widać szkło; na pustym tle efekt jest niewidoczny</td></tr>
         <tr><td class="k">Panel wydarzenia</td><td>osobne okno pod pulą rozpaczy, ta sama szerokość, bez przycisków; treść z fazy i stanu rozdziału</td><td class="yes">Tak</td><td>pula zostaje bez zmian; panel pory dnia traci wydarzenia</td></tr>
         <tr><td class="k">Okno w kształcie szybki</td><td><code>clip-path</code> na oknie plus margines bezpieczeństwa w layoucie</td><td class="yes">Do testu</td><td>pasek tytułu, uchwyt zmiany rozmiaru i przewijanie Foundry są prostokątne; sensowne tylko na oknach o stałej treści</td></tr>
         <tr><td class="k">Pędzel na klikalnych</td><td>jedna klasa i pseudo-element z filtrem <code>feDisplacementMap</code>; stany przez <code>:hover</code>, <code>:active</code>, <code>[aria-selected]</code>, <code>:disabled</code></td><td class="yes">Tak</td><td>filtr na małych elementach jest tani; dialogi oznaczają domyślny przez <code>autofocus</code></td></tr>
@@ -1005,7 +1008,7 @@
   const rgba = (h, a) => "rgba(" + hex(h).join(",") + "," + a + ")";
   const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  document.querySelectorAll(".fog").forEach(f => {
+  document.querySelectorAll(".fog.never").forEach(f => {
     f.insertAdjacentHTML("afterbegin",
       '<span class="obj lines"></span>' +
       '<span class="obj tok" style="left:14%;top:44%">A</span>' +
@@ -1217,13 +1220,15 @@
       ctx.globalAlpha = p.content ? 0.66 : 0.54;
       ctx.fillStyle = p.fill; ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
       // the darkening: black over the colour, so the hue and its saturation stay and only the value drops
-      ctx.globalAlpha = 1; ctx.fillStyle = "rgba(0,0,0,0.34)"; ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
+      ctx.globalAlpha = 1; ctx.fillStyle = "rgba(0,0,0,0.40)"; ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
+      // the desaturation: a wash of the fog's own ink pulls every hue towards the same grey-violet
+      ctx.fillStyle = "rgba(29,26,33,0.30)"; ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
       const down = (bb.y0 + bb.y1) / 2 < H / 2;
       const g = ctx.createLinearGradient(0, down ? bb.y0 : bb.y1, 0, down ? bb.y1 : bb.y0);
       g.addColorStop(0, "rgba(255,255,255,0.09)"); g.addColorStop(0.55, "rgba(255,255,255,0.01)"); g.addColorStop(1, "rgba(0,0,0,0.22)");
       ctx.fillStyle = g; ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
       if (!p.content) {
-        ctx.fillStyle = rgba(acc, 0.09);
+        ctx.fillStyle = rgba(acc, 0.07);
         for (let y = bb.y0 + 3; y < bb.y1; y += 6) for (let x = bb.x0 + 3 + ((y / 6) % 2) * 3; x < bb.x1; x += 6) ctx.fillRect(x, y, 1.4, 1.4);
       }
       ctx.restore();
