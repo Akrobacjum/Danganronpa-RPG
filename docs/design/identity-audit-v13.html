@@ -833,6 +833,7 @@
           <tr><td class="k">Światło przez szkło</td><td class="v">biel 9% → czerń 22%</td><td>gradient od zewnętrznej krawędzi ekranu do środka, w każdej szybie osobno</td></tr>
           <tr><td class="k">Raster</td><td class="v">1,4 px co 6 px · kolor stanu 7%</td><td>tylko na wypełniaczu, co drugi rząd przesunięty o 3 px</td></tr>
           <tr><td class="k">Płyta pod treścią</td><td class="v">czerń 42% · blur 7 px · +10/8 px</td><td>przycięta do własnej szyby bloku, nigdy nie wychodzi za cięcie</td></tr>
+          <tr><td class="k">Stłuczenie</td><td class="v">ząb do 90 px · 1-6 pęknięć od rogu · igły 90-220 px · 35% wybitych</td><td>tylko wypełniacz; sekcje zostają na całych szybach, pęknięcia biegną promieniście od najbliższego rogu ekranu</td></tr>
           <tr><td class="k">Ołów</td><td class="v">2,6 px · #08050d 95%</td><td>ciemna linia, na której leży wszystko inne</td></tr>
           <tr><td class="k">Faza</td><td class="v">0,8 px · biel 22% · 1,2 px w dół</td><td>jedna jasna krawędź: szkło ma grubość</td></tr>
           <tr><td class="k">Rdzeń neonu</td><td class="v">1 px · kolor stanu 92%</td><td>cięcie świeci kolorem pory dnia albo stanu</td></tr>
@@ -845,7 +846,7 @@
 
   <section>
     <div class="sec-head"><h2>Cały ekran w czterech stanach</h2><div class="rule"></div></div>
-    <p class="note">Zegar, pule rozpaczy, pasek akcji, tacka projektów, powiadomienia oraz wydarzenia procesu i morderstwa nie są osobnymi oknami. Są blokami na jednej tafli witrażu, która przylega do krawędzi ekranu i ustępuje w środku, żeby mapa została widoczna. Kształt tafli nie jest niczym docinany: witraż to układ długich prostych cięć, a każda szyba albo należy do kurtyny, albo nie, w całości. Cięcia idą tam, gdzie mają coś rozdzielić: cztery wzdłuż krawędzi ekranu na wąską ramkę, po jednym tuż za każdym bokiem każdego bloku, przez co blok siedzi na własnym klinie i sąsiadów dzieli wąski zadzior, plus dwa swobodne dla rytmu. Poziome cięcia są lekko pochylone, żeby podział między blokami stojącymi jeden nad drugim nie czytał się jak linijka w tabeli. Szkło idzie do samej krawędzi ekranu, odsunięta jest tylko treść, o tyle, ile zajmują kafelki Foundry.</p>
+    <p class="note">Zegar, pule rozpaczy, pasek akcji, tacka projektów, powiadomienia oraz wydarzenia procesu i morderstwa nie są osobnymi oknami. Są blokami na jednej tafli witrażu, która przylega do krawędzi ekranu i ustępuje w środku, żeby mapa została widoczna. Kształt tafli nie jest niczym docinany: witraż to układ długich prostych cięć, a każda szyba albo należy do kurtyny, albo nie, w całości. Cięcia idą tam, gdzie mają coś rozdzielić: po jednym tuż za każdym bokiem każdego bloku, przez co blok siedzi na własnej, całej szybie. Reszta tafli jest stłuczona: każdy odłamek wypełniacza dostaje ząb na wewnętrznym brzegu, jest rozbity jednym do trzech pęknięć biegnących promieniście od najbliższego rogu ekranu, a część odłamków od wewnętrznej strony po prostu wypadła. Rogi czyta się jako miejsce uderzenia, brzeg ramy jest wyszczerbiony, a od górnych rogów biegną przez ekran cienkie pęknięcia bez szkła, jak na ekranie procesu w V3. Poziome cięcia są lekko pochylone, żeby podział między blokami stojącymi jeden nad drugim nie czytał się jak linijka w tabeli. Szkło idzie do samej krawędzi ekranu, odsunięta jest tylko treść, o tyle, ile zajmują kafelki Foundry.</p>
     <p class="note" style="margin-top:8px">Okna zostają dokładnie takie, jak w reszcie audytu: karta postaci, panel DMa, dialogi i popupy to prostokątne tabliczki z liquid glass. Kurtyna jest ramą, okno jest blatem.</p>
 
     <h3 class="sub">Daily Life, popołudnie, ekran gracza</h3>
@@ -1081,7 +1082,7 @@
       const gapL = cols[k - 1].x1, gapR = cols[k].x0;
       const mid = (gapL + gapR) / 2;
       const play = Math.max(0, (gapR - gapL) / 2 - 7);
-      const t = Math.min(play, 24) * (rnd() < 0.5 ? -1 : 1);
+      const t = Math.min(play, 56) * (rnd() < 0.5 ? -1 : 1);
       cuts.push({ a: mid - t, b: 2 * t / bandY });
     }
     cuts.push({ a: W, b: 0 });
@@ -1092,7 +1093,7 @@
     cols.forEach((c, k) => {
       const cl = cuts[k], cr = cuts[k + 1];
       const xm = (c.x0 + c.x1) / 2;
-      const e1 = (rnd() - 0.5) * 0.26;
+      const e1 = (rnd() - 0.5) * 0.42;
       const inner = { e1, e0: c.depth - e1 * xm };
       {
         const ends = [cutX(cl, c.depth), cutX(cr, c.depth)];
@@ -1178,7 +1179,74 @@
       strips.push([[wall, y2], [xAt(y2) + lean2, y2], [xAt(joinY), joinY], [wall, joinY]]);
     }
     for (const p of strips) if (p[0][1] < p[3][1] - 4) push(p, null);
-    return panes;
+
+    /* ---- the break -------------------------------------------------------
+       The sections keep their panes. Everything else is glass that was hit:
+       each filler shard gets a tooth on its inner edge, is split by one to
+       three cracks radiating from the nearest corner of the screen, and some
+       of the inner pieces are simply gone. The silhouette comes out jagged
+       and the corners read as the centre of the break, like the trial screen. */
+    const impacts = [[W * 0.03, H * 0.04], [W * 0.97, H * 0.04], [W * 0.03, H * 0.96], [W * 0.97, H * 0.96]];
+    const cen = poly => poly.reduce((a, q) => [a[0] + q[0] / poly.length, a[1] + q[1] / poly.length], [0, 0]);
+    const area = poly => Math.abs(poly.reduce((s, q, i) => { const r = poly[(i + 1) % poly.length]; return s + q[0] * r[1] - r[0] * q[1]; }, 0)) / 2;
+    const touchesEdge = poly => poly.some(q => q[0] < 2 || q[0] > W - 2 || q[1] < 2 || q[1] > H - 2);
+    const shatter = (poly, teeth) => {
+      const c = cen(poly);
+      const imp = impacts.reduce((b, p) => Math.hypot(p[0] - c[0], p[1] - c[1]) < Math.hypot(b[0] - c[0], b[1] - c[1]) ? p : b);
+      let out = [poly];
+      if (teeth && rnd() < 0.75) {
+        // the inner edge is the one farthest from the impact; give it a point
+        let k = 0, best = -1;
+        for (let i = 0; i < poly.length; i++) {
+          const a = poly[i], b = poly[(i + 1) % poly.length];
+          const d = Math.hypot((a[0] + b[0]) / 2 - imp[0], (a[1] + b[1]) / 2 - imp[1]);
+          if (d > best) { best = d; k = i; }
+        }
+        const a = poly[k], b = poly[(k + 1) % poly.length];
+        const t = 0.3 + rnd() * 0.4, len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        const ox = (a[0] + b[0]) / 2 - imp[0], oy = (a[1] + b[1]) / 2 - imp[1], on = Math.hypot(ox, oy) || 1;
+        const reach = Math.min(90, len * 0.35) * (0.4 + rnd() * 0.6);
+        const tip = [a[0] + (b[0] - a[0]) * t + ox / on * reach, a[1] + (b[1] - a[1]) * t + oy / on * reach];
+        out = [[...poly.slice(0, k + 1), tip, ...poly.slice(k + 1)]];
+      }
+      const n = Math.min(6, Math.max(1, Math.round(area(poly) / 16000)));
+      for (let s = 0; s < n; s++) {
+        const bb = bbox(out[Math.floor(rnd() * out.length)]);
+        const q = [bb.x0 + (0.2 + rnd() * 0.6) * (bb.x1 - bb.x0), bb.y0 + (0.2 + rnd() * 0.6) * (bb.y1 - bb.y0)];
+        const dx = q[0] - imp[0], dy = q[1] - imp[1];
+        out = out.flatMap(p => split(p, q[0], q[1], -dy, dx));
+      }
+      // knock out some of the pieces that hang inward; never one on the screen edge
+      return out.filter(p => area(p) > 60 && (touchesEdge(p) || rnd() > 0.35));
+    };
+    const needle = poly => {
+      const c = cen(poly);
+      const imp = impacts.reduce((b, p) => Math.hypot(p[0] - c[0], p[1] - c[1]) < Math.hypot(b[0] - c[0], b[1] - c[1]) ? p : b);
+      let k = 0, best = -1;
+      for (let i = 0; i < poly.length; i++) {
+        const a = poly[i], b = poly[(i + 1) % poly.length];
+        const d = Math.hypot((a[0] + b[0]) / 2 - imp[0], (a[1] + b[1]) / 2 - imp[1]);
+        if (d > best) { best = d; k = i; }
+      }
+      const a = poly[k], b = poly[(k + 1) % poly.length];
+      const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (len < 80) return null;
+      const t = 0.15 + rnd() * 0.6, wdt = (14 + rnd() * 16) / len;
+      const p0 = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+      const p1 = [a[0] + (b[0] - a[0]) * (t + wdt), a[1] + (b[1] - a[1]) * (t + wdt)];
+      const ox = (p0[0] + p1[0]) / 2 - imp[0], oy = (p0[1] + p1[1]) / 2 - imp[1], on = Math.hypot(ox, oy) || 1;
+      const reach = 90 + rnd() * 130, skew = (rnd() - 0.5) * 60;
+      const tip = [(p0[0] + p1[0]) / 2 + ox / on * reach + skew, (p0[1] + p1[1]) / 2 + oy / on * reach];
+      if (tip[0] < 0 || tip[0] > W || tip[1] < 0 || tip[1] > H) return null;
+      return [p0, tip, p1];
+    };
+    const broken = [];
+    for (const p of panes) {
+      if (p.content) { broken.push(p); continue; }
+      if (rnd() < 0.45) { const nd = needle(p.poly); if (nd) broken.push({ poly: nd, content: false, tone: null }); }
+      for (const poly of shatter(p.poly, true)) broken.push({ poly, content: false, tone: null });
+    }
+    return broken;
   }
 
   /* ---- a window: three or four long shallow shards ------------------------ */
@@ -1274,6 +1342,19 @@
     gx.clearRect(0, 0, W, H);
     gx.globalCompositeOperation = "lighter"; gx.strokeStyle = acc;
     for (const [blur, a, wdt] of [[18, 0.50, 3.5], [7, 0.55, 2.4], [2, 0.62, 1.4]]) { gx.filter = "blur(" + blur + "px)"; gx.globalAlpha = a; seams(gx, panes, W, H, wdt); }
+    // cracks: a few hairlines running from each top corner across the screen, glass that is not there any more
+    gx.filter = "none";
+    for (const [cx, cy, dir] of [[0, 0, 1], [W, 0, -1]]) {
+      for (let k = 0; k < 3; k++) {
+        const ang = (0.18 + rnd() * 0.5) * Math.PI / 2;
+        const x0 = cx + dir * rnd() * 40, y0 = cy + rnd() * 30;
+        const L = Math.hypot(W, H);
+        for (const [a, wdt, blur] of [[0.14, 1, 0], [0.10, 2.5, 4]]) {
+          gx.filter = blur ? "blur(" + blur + "px)" : "none"; gx.globalAlpha = a; gx.lineWidth = wdt;
+          gx.beginPath(); gx.moveTo(x0, y0); gx.lineTo(x0 + dir * Math.cos(ang) * L, y0 + Math.sin(ang) * L); gx.stroke();
+        }
+      }
+    }
     gx.filter = "none"; gx.globalAlpha = 1;
 
     const mc = document.createElement("canvas"); mc.width = W; mc.height = H;
