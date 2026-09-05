@@ -347,8 +347,10 @@ body.drpg-theme-stained-glass [class*="drpg-"] i.fa-note-sticky,
 body.drpg-theme-stained-glass i.drpg-action-icon.fa-note-sticky,
 body.drpg-theme-stained-glass [class*="drpg-"] .fa-note-sticky:is(i, span) {
     display: inline-block;
-    width: 1.15em;
-    height: 1.15em;
+    width: max(1.15em, 22px);
+    height: max(1.15em, 22px);
+    min-width: 22px;
+    min-height: 22px;
     vertical-align: -0.2em;
     background-color: currentColor;
     -webkit-mask: var(--drpg-px-mask) center / contain no-repeat;

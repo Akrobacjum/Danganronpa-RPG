@@ -314,8 +314,10 @@ css.append('}')
 sel = lambda fa: f'body.drpg-theme-stained-glass [class*="drpg-"] i.fa-{fa},\nbody.drpg-theme-stained-glass i.drpg-action-icon.fa-{fa},\nbody.drpg-theme-stained-glass [class*="drpg-"] .fa-{fa}:is(i, span)'
 css.append(',\n'.join(sel(fa) for fa in FA) + ''' {
     display: inline-block;
-    width: 1.15em;
-    height: 1.15em;
+    width: max(1.15em, 22px);
+    height: max(1.15em, 22px);
+    min-width: 22px;
+    min-height: 22px;
     vertical-align: -0.2em;
     background-color: currentColor;
     -webkit-mask: var(--drpg-px-mask) center / contain no-repeat;

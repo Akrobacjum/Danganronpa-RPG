@@ -562,8 +562,13 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     // the curtain's own box in viewport pixels (it is a fixed child of the body, so this is the viewport);
     // never the canvas's client size, which a zoomed ancestor would inflate
     const rc = el.getBoundingClientRect();
-    const W = Math.round(rc.width || innerWidth), H = Math.round(rc.height || innerHeight);
-    LAST.frame = { W, H, left: rc.left, top: rc.top, inner: [innerWidth, innerHeight], canvas: [c.clientWidth, c.clientHeight] };
+    // an expanded sidebar is a wall: the glass is cut up to its left edge, so the blocks beside it
+    // hug it as they would hug the screen's edge instead of standing in the open
+    const sbEl = document.getElementById("sidebar"), sbr = sbEl && sbEl.offsetWidth > 120 ? sbEl.getBoundingClientRect() : null;
+    const fullW = Math.round(rc.width || innerWidth);
+    const W = sbr && sbr.left - rc.left > 400 ? Math.round(sbr.left - rc.left) : fullW, H = Math.round(rc.height || innerHeight);
+    LAST.frame = { W, H, left: rc.left, top: rc.top, inner: [innerWidth, innerHeight], canvas: [c.clientWidth, c.clientHeight], wall: W !== fullW };
+    el.style.width = W + "px";   // the canvases are 100% of the curtain: the curtain is as wide as the glass
     const sig = W + "x" + H;
     if (job.sig === sig) return true;
     job.sig = sig; job.W = W; job.H = H;
@@ -724,7 +729,7 @@ function unmount() {
   document.querySelectorAll("#scene-controls, #sidebar-tabs").forEach(e => { e.style.transform = ""; e.style.transformOrigin = ""; });
   BLOCKS.forEach(b => document.querySelectorAll(b.sel).forEach(e => { e.style.transform = ""; e.style.transformOrigin = ""; }));
   document.body.classList.remove("drpg-curtain-on", "drpg-turning");
-  document.querySelectorAll(".drpg-curtain-ghost").forEach(g => g.remove());
+  document.querySelectorAll(".drpg-curtain-ghost, #drpg-curtain > canvas.morph").forEach(g => g.remove());
   if (rotSheet) { rotSheet.remove(); rotSheet = null; }
 }
 /* ---- nothing on the glass ever jumps ---------------------------------------------------------
@@ -733,54 +738,102 @@ function unmount() {
    new glass fades in. A rebuild that changes nothing (the same panes, the same colour) repaints
    nothing, so the observers' constant rebuilds cost a geometry pass and no paint. */
 const TURN = () => { const v = parseFloat(getComputedStyle(document.body).getPropertyValue("--drpg-t-turn")); return Number.isFinite(v) && v > 0 ? v : 840; };
-function ghostOf(j) {
-  if (!j.el.isConnected || REDUCED() || !effectsOn()) return null;
-  const sg = j.el.querySelector(":scope > canvas.sg"); if (!sg || !sg.width) return null;
-  const W = sg.width, H = sg.height;
-  const g = document.createElement("div"); g.className = "drpg-curtain-ghost";
-  g.style.cssText = STYLE + "z-index:" + j.el.style.zIndex + ";clip-path:" + j.el.style.clipPath + ";transition:opacity " + TURN() + "ms linear;opacity:1;";
-  const c = document.createElement("canvas"); c.width = W; c.height = H; c.style.cssText = "position:absolute;inset:0;width:100%;height:100%;";
-  const x = c.getContext("2d");
-  for (const cls of ["sg", "pulse", "seamline"]) { const src = j.el.querySelector(":scope > canvas." + cls); if (src && src.width) x.drawImage(src, 0, 0, W, H); }
-  g.append(c);
-  const gl = document.querySelector('[data-glow="' + j.seed + '"]');
-  if (gl && gl.width) {
-    const gc = document.createElement("canvas"); gc.width = gl.width; gc.height = gl.height; gc.getContext("2d").drawImage(gl, 0, 0);
-    gc.style.cssText = "position:absolute;inset:0;width:100%;height:100%;mix-blend-mode:screen;";
-    const wrap = document.createElement("div"); wrap.className = "drpg-curtain-ghost";
-    wrap.style.cssText = STYLE + "z-index:" + j.el.style.zIndex + ";transition:opacity " + TURN() + "ms linear;opacity:1;";
-    wrap.append(gc); g.glow = wrap;
+const EASE = t => 1 - Math.pow(1 - t, 3);
+const lerp = (a, b, t) => a + (b - a) * t;
+const lerpHex = (h1, h2, t) => { const a = hex(h1), b = hex(h2); return "rgb(" + a.map((v, i) => Math.round(lerp(v, b[i], t))).join(",") + ")"; };
+/* a polygon as N points along its perimeter, starting at its topmost-leftmost vertex, so two
+   polygons of different vertex counts can be interpolated point by point without twisting */
+function resample(poly, N) {
+  let start = 0;
+  for (let i = 1; i < poly.length; i++) if (poly[i][1] < poly[start][1] - 0.5 || (Math.abs(poly[i][1] - poly[start][1]) <= 0.5 && poly[i][0] < poly[start][0])) start = i;
+  const pts = poly.map((_, i) => poly[(start + i) % poly.length]);
+  const segs = pts.map((p, i) => { const q = pts[(i + 1) % pts.length]; return Math.hypot(q[0] - p[0], q[1] - p[1]); });
+  const total = segs.reduce((a, b) => a + b, 0) || 1;
+  const out = []; let k = 0, acc = 0;
+  for (let n = 0; n < N; n++) {
+    const target = total * n / N;
+    while (k < segs.length - 1 && acc + segs[k] < target) { acc += segs[k]; k++; }
+    const p = pts[k], q = pts[(k + 1) % pts.length], u = segs[k] ? Math.min(1, (target - acc) / segs[k]) : 0;
+    out.push([lerp(p[0], q[0], u), lerp(p[1], q[1], u)]);
   }
-  return g;
+  return out;
 }
-function crossfade(j, ghost) {
-  if (!ghost) return;
-  j.el.before(ghost); if (ghost.glow) j.el.before(ghost.glow);
-  const fresh = [j.el, document.querySelector('[data-glow="' + j.seed + '"]')].filter(Boolean);
-  for (const f of fresh) { f.style.transition = "none"; f.style.opacity = "0"; }
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    for (const f of fresh) { f.style.transition = "opacity " + TURN() + "ms linear"; f.style.opacity = "1"; }
-    ghost.style.opacity = "0"; if (ghost.glow) ghost.glow.style.opacity = "0";
-    setTimeout(() => { ghost.remove(); ghost.glow?.remove(); for (const f of fresh) f.style.transition = ""; }, TURN() + 80);
-  }));
+const centroid = poly => { const bb = bbox(poly); return [(bb.x0 + bb.x1) / 2, (bb.y0 + bb.y1) / 2]; };
+function snapshotPanes(j) {
+  if (!j.panes) return null;
+  return j.panes.map(p => ({ poly: p.poly, content: p.content, tone: p.tone, stained: p.stained, plain: p.plain, kind: p.kind }));
+}
+/* The morph: over the turn, every new pane grows out of the old pane nearest to it, the seams travel
+   with the edges and take the new colour on the way; the silhouette follows frame by frame, so the
+   blur under the glass moves with it. Nothing fades: the glass is recut in front of you. */
+function morph(j, oldPanes, oldAcc) {
+  if (!oldPanes || !j.panes || REDUCED() || !effectsOn()) return;
+  const el = j.el, W = j.W, H = j.H, N = 16;
+  const newAcc = j.acc || oldAcc || "#ffd38f";
+  const pairs = j.panes.map(p => {
+    const c = centroid(p.poly);
+    let best = null, bd = Infinity;
+    for (const o of oldPanes) { if (o.content !== p.content) continue; const oc = centroid(o.poly); const d = Math.hypot(oc[0] - c[0], oc[1] - c[1]) + (o.tone === p.tone ? 0 : 200); if (d < bd) { bd = d; best = o; } }
+    if (!best) for (const o of oldPanes) { const oc = centroid(o.poly); const d = Math.hypot(oc[0] - c[0], oc[1] - c[1]); if (d < bd) { bd = d; best = o; } }
+    const to = resample(p.poly, N);
+    let from = resample(best ? best.poly : p.poly.map(() => c), N);
+    // align the two rings: start `from` where it lies closest to `to`, so no pane twists on the way
+    let bestK = 0, bestD = Infinity;
+    for (let k = 0; k < N; k++) { let d = 0; for (let i = 0; i < N; i++) { const f = from[(i + k) % N]; d += (f[0] - to[i][0]) ** 2 + (f[1] - to[i][1]) ** 2; } if (d < bestD) { bestD = d; bestK = k; } }
+    from = from.map((_, i) => from[(i + bestK) % N]);
+    return { from, to, p };
+  });
+  const finalClip = el.style.clipPath;
+  const layers = [...el.querySelectorAll(":scope > canvas")];
+  const glow = document.querySelector('[data-glow="' + j.seed + '"]');
+  const mc = document.createElement("canvas"); mc.className = "morph"; mc.width = W; mc.height = H;
+  mc.style.cssText = "position:absolute;inset:0;width:100%;height:100%;z-index:4;";
+  el.append(mc);
+  for (const c of layers) c.style.visibility = "hidden";
+  if (glow) glow.style.visibility = "hidden";
+  const g = mc.getContext("2d"), t0 = performance.now(), dur = TURN();
+  const step = now => {
+    const u = Math.min(1, (now - t0) / dur), e = EASE(u);
+    if (!el.isConnected) return;
+    const polys = pairs.map(q => q.from.map((pt, i) => [lerp(pt[0], q.to[i][0], e), lerp(pt[1], q.to[i][1], e)]));
+    el.style.clipPath = "path('" + polys.map(pl => "M" + pl.map(q => q[0].toFixed(1) + " " + q[1].toFixed(1)).join("L") + "Z").join("") + "')";
+    g.clearRect(0, 0, W, H);
+    const acc = lerpHex(oldAcc || newAcc, newAcc, e);
+    polys.forEach((pl, i) => {
+      const p = pairs[i].p;
+      g.globalAlpha = p.content ? 0.72 : p.stained ? 0.62 : 0.6;
+      g.fillStyle = p.content ? (TONE[p.tone] || "#050409") : p.stained ? (STAIN[i % STAIN.length]) : "#0b0812";
+      path(g, pl); g.fill();
+      if (p.stained) { g.globalAlpha = 0.3; g.fillStyle = "#000"; path(g, pl); g.fill(); }
+    });
+    g.globalAlpha = 0.95; g.strokeStyle = "#08050d"; g.lineWidth = 1.2; g.lineCap = "round";
+    g.beginPath(); for (const pl of polys) for (let i = 0; i < pl.length; i++) { const a = pl[i], b = pl[(i + 1) % pl.length]; g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); } g.stroke();
+    g.globalAlpha = 0.92; g.strokeStyle = acc; g.lineWidth = 0.9; g.stroke();
+    g.globalAlpha = 1;
+    if (u < 1) { requestAnimationFrame(step); return; }
+    el.style.clipPath = finalClip;
+    mc.remove();
+    for (const c of layers) c.style.visibility = "";
+    if (glow) glow.style.visibility = "";
+  };
+  requestAnimationFrame(step);
 }
 function rebuild() {
   for (const j of curtains) {
-    const before = CHECKS.at(-1)?.sig, wasPainted = j.painted, oldAcc = j.acc;
-    // the ghost copies the canvases and the silhouette as they are now, before the new geometry lands
-    const ghost = wasPainted ? ghostOf(j) : null;
+    const before = CHECKS[CHECKS.length - 1]?.sig, wasPainted = j.painted, oldAcc = j.acc;
+    const oldPanes = wasPainted ? snapshotPanes(j) : null;
     j.sig = null; CHECKS.length = 0;
     if (curtainGeometry(j)) {
       // Foundry's tiles must start below the corner panes to own a shard of the strip;
       // when they do not, push them down once and cut the glass again
       if (!j.placed && placeTiles(j.panes.meta)) { j.placed = true; j.sig = null; curtainGeometry(j); }
       const acc = resolveAcc(j.el);
-      const changed = !wasPainted || before !== CHECKS.at(-1)?.sig || acc !== oldAcc;
+      const changed = !wasPainted || before !== CHECKS[CHECKS.length - 1]?.sig || acc !== oldAcc;
       if (changed) {
         curtainPaint(j); document.body.classList.add("drpg-curtain-on");
         const gl = document.querySelector('[data-glow="' + j.seed + '"]');
-        if (gl) gl.style.cssText = STYLE + "z-index:" + j.el.style.zIndex + ";mix-blend-mode:screen;";
-        crossfade(j, ghost);
+        if (gl) gl.style.cssText = STYLE + "z-index:" + j.el.style.zIndex + ";mix-blend-mode:screen;width:" + j.W + "px;";
+        morph(j, oldPanes, oldAcc);
       } else { j.painted = true; document.body.classList.add("drpg-curtain-on"); }
     }
   }

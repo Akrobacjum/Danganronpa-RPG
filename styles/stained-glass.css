@@ -1152,3 +1152,88 @@ body.drpg-theme-stained-glass .drpg-popup-body b { color: var(--acc); }
 body.drpg-pixel-font.drpg-theme-stained-glass .drpg-popup-body { font-size: 13px; line-height: 1.35; }
 body.drpg-pixel-font.drpg-theme-stained-glass .drpg-popup-title { font-size: 11px; }
 body.drpg-pixel-font.drpg-theme-stained-glass .drpg-panel .window-content { font-size: 13px; }
+
+/* ==========================================================================
+   Corrections from the live screens of 1.2.25.
+   ========================================================================== */
+/* The pixel face has taller capitals than the boxes the base sheet sized for its labels, so
+   uppercase and tracking - the audit's rule for VT323 - clip the tops of letters and push the
+   rail's names into an ellipsis. Under the pixel face the chrome keeps the base's case. */
+body.drpg-pixel-font.drpg-theme-stained-glass #drpg-hud,
+body.drpg-pixel-font.drpg-theme-stained-glass #drpg-despair,
+body.drpg-pixel-font.drpg-theme-stained-glass #drpg-player-status,
+body.drpg-pixel-font.drpg-theme-stained-glass #countdowns,
+body.drpg-pixel-font.drpg-theme-stained-glass #drpg-events,
+body.drpg-pixel-font.drpg-theme-stained-glass #drpg-hud .drpg-hud-chapter,
+body.drpg-pixel-font.drpg-theme-stained-glass #drpg-hud .drpg-hud-day,
+body.drpg-pixel-font.drpg-theme-stained-glass #drpg-hud .drpg-hud-phase,
+body.drpg-pixel-font.drpg-theme-stained-glass #drpg-hud .drpg-hud-elapsed,
+body.drpg-pixel-font.drpg-theme-stained-glass #drpg-hud .drpg-hud-room {
+    letter-spacing: 0;
+}
+body.drpg-pixel-font.drpg-theme-stained-glass #drpg-player-status .drpg-status-label,
+body.drpg-pixel-font.drpg-theme-stained-glass #drpg-hud .drpg-hud-time,
+body.drpg-pixel-font.drpg-theme-stained-glass #drpg-hud .drpg-hud-elapsed,
+body.drpg-pixel-font.drpg-theme-stained-glass #drpg-despair .drpg-despair-name,
+body.drpg-pixel-font.drpg-theme-stained-glass #countdowns .countdowns-header {
+    text-transform: none;
+    letter-spacing: 0;
+    line-height: 1.35;
+    overflow: visible;
+}
+body.drpg-theme-stained-glass #drpg-despair .drpg-despair-name { max-width: 20ch; }
+body.drpg-pixel-font.drpg-theme-stained-glass .drpg-hud-ticker { opacity: 0.14; }
+
+/* Foundry's own tiles under the pixel face: the base's glyph masks, in the theme's colour */
+body.drpg-theme-stained-glass .drpg-action-button.unaffordable .drpg-action-name,
+body.drpg-theme-stained-glass .drpg-call-button.unaffordable .drpg-action-name { text-decoration: none; }
+
+/* ---- the sheet's Daggerheart parts speak the chrome face: section titles as quiet caps over a hairline,
+   item rows on dark glass, the free-text parts in the prose face ---- */
+body.drpg-theme-stained-glass .application.sheet.actor section[data-application-part] *:not(i):not([class*="fa-"]):not(.editor-content):not(.editor-content *):not(prose-mirror):not(prose-mirror *) {
+    font-family: var(--drpg-font-chrome);
+}
+body.drpg-pixel-font.drpg-theme-stained-glass .application.sheet.actor section[data-application-part] *:not(i):not([class*="fa-"]):not(.editor-content):not(.editor-content *):not(prose-mirror):not(prose-mirror *) {
+    font-family: var(--drpg-font-pixel);
+}
+body.drpg-theme-stained-glass .application.sheet.actor section[data-application-part] :is(.editor-content, .editor-content *, .description, .description *) {
+    font-family: var(--drpg-font-prose) !important;
+    font-size: 16px;
+    line-height: 1.3;
+}
+body.drpg-theme-stained-glass .application.sheet.actor section[data-application-part="inventory"] :is(.items-section > .title, .inventory-section > .title, fieldset > legend, .section-header, h3, h4) {
+    font-weight: 400;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--drpg-glass-accent) !important;
+    background: none !important;
+    border: 0 !important;
+    border-bottom: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 35%, transparent) !important;
+    border-radius: 0 !important;
+    padding: 2px 0 !important;
+}
+body.drpg-theme-stained-glass .application.sheet.actor section[data-application-part="inventory"] :is(.item, .inventory-item, .items-list > li, .item-row, li[data-item-id]) {
+    background: rgba(7, 7, 10, 0.45) !important;
+    border: 1px solid rgba(242, 238, 230, 0.08) !important;
+    border-radius: 0 !important;
+}
+body.drpg-theme-stained-glass .application.sheet.actor section[data-application-part="inventory"] :is(.item, .inventory-item, li[data-item-id]):hover {
+    border-color: color-mix(in srgb, var(--drpg-glass-accent) 45%, transparent) !important;
+}
+/* the trait plates: the name in the chrome face on dark, the value framed in GM red as before */
+body.drpg-theme-stained-glass .character-header-sheet .character-traits .trait .trait-name,
+body.drpg-theme-stained-glass .character-header-sheet .character-traits .trait .trait-name span {
+    font-family: var(--drpg-font-chrome);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    background: rgba(7, 7, 10, 0.6) !important;
+    color: var(--drpg-sg-bone-dim) !important;
+    border-radius: 0 !important;
+}
+body.drpg-pixel-font.drpg-theme-stained-glass .character-header-sheet .character-traits .trait .trait-name,
+body.drpg-pixel-font.drpg-theme-stained-glass .character-header-sheet .character-traits .trait .trait-name span { font-family: var(--drpg-font-pixel); text-transform: none; letter-spacing: 0; }
+body.drpg-theme-stained-glass .character-header-sheet .drpg-ultimate-row .drpg-ultimate-value { font-family: var(--drpg-font-title); color: var(--drpg-glass-accent) !important; font-style: normal; }
+body.drpg-theme-stained-glass .character-header-sheet .drpg-actions h4,
+body.drpg-theme-stained-glass .character-header-sheet .drpg-calls-panel h4 { background: none !important; color: var(--drpg-glass-accent) !important; }

@@ -43,8 +43,13 @@ must('const el = job.el, host = el.parentElement, c = el.querySelector("canvas.s
 must('    const W = Math.round(c.clientWidth), H = Math.round(c.clientHeight);', '''    // the curtain's own box in viewport pixels (it is a fixed child of the body, so this is the viewport);
     // never the canvas's client size, which a zoomed ancestor would inflate
     const rc = el.getBoundingClientRect();
-    const W = Math.round(rc.width || innerWidth), H = Math.round(rc.height || innerHeight);
-    LAST.frame = { W, H, left: rc.left, top: rc.top, inner: [innerWidth, innerHeight], canvas: [c.clientWidth, c.clientHeight] };''')
+    // an expanded sidebar is a wall: the glass is cut up to its left edge, so the blocks beside it
+    // hug it as they would hug the screen's edge instead of standing in the open
+    const sbEl = document.getElementById("sidebar"), sbr = sbEl && sbEl.offsetWidth > 120 ? sbEl.getBoundingClientRect() : null;
+    const fullW = Math.round(rc.width || innerWidth);
+    const W = sbr && sbr.left - rc.left > 400 ? Math.round(sbr.left - rc.left) : fullW, H = Math.round(rc.height || innerHeight);
+    LAST.frame = { W, H, left: rc.left, top: rc.top, inner: [innerWidth, innerHeight], canvas: [c.clientWidth, c.clientHeight], wall: W !== fullW };
+    el.style.width = W + "px";   // the canvases are 100% of the curtain: the curtain is as wide as the glass''')
 # the page's Foundry-tile mock becomes the real scene controls and sidebar tabs
 must('''      const tb = tileBox(side ? ".f-side" : ".f-ctl",''', '''      const tb = tileBox(side ? "#sidebar-tabs" : "#scene-controls",''')
 must('''    for (const [sel, side] of [[".f-ctl", "left"], [".f-side", "right"]]) {
