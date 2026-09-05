@@ -1279,7 +1279,7 @@ export async function openSoundDialog() {
         // about effects, they are about this browser - and putting them in a
         // tab would leave a player looking at a tab bar with one tab in it.
         content: dialogContent(`<form>
-            ${soundSlidersHtml()}
+            ${document.body.classList.contains("drpg-theme-stained-glass") ? "" : soundSlidersHtml()}
             ${panelTabs([
                 { key: "play", label: game.i18n.localize("DRPG.Sound.tabPlay"), html: playPane },
                 { key: "music", label: game.i18n.localize("DRPG.Sound.tabMusic"), html: playlistsPane },

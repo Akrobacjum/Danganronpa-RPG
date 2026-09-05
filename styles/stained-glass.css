@@ -10,10 +10,13 @@
    "Theme" client setting toggles. The other value, "Monokuma Legacy", is the
    stylesheet as it was; this file then does nothing at all.
 
-   Milestone 1 (this file): fonts, tokens, the curtain layer, the blocks on
-   their panes, Foundry's own tiles cut to the same corners, the UI scale.
-   Windows (header band glass, calm body), the settings launcher and the
-   animation pass follow in the next milestones. See docs/design/typography.md.
+   Milestone 1: fonts, tokens, the curtain layer, the blocks on their panes,
+   Foundry's own tiles cut to the same corners, the UI scale.
+   Milestone 2: the seam colour follows the hour and the phase the HUD writes on
+   the body, the sound launcher becomes the settings launcher (look.mjs), module
+   windows carry the glass on their title band only, the tiles are pushed
+   below the corner panes and turned with their shard (glass.mjs).
+   Still to come: the animation pass from the audit. See docs/design/typography.md.
    ========================================================================== */
 
 /* ---- fonts: two OFL faces, shipped with the module, latin + latin-ext ------ */
@@ -70,6 +73,7 @@ body.drpg-theme-stained-glass {
        the default is the afternoon gold, the Eclipse overrides it below. */
     --drpg-glass-accent: var(--drpg-sg-afternoon);
     --drpg-ui-scale: 1;
+    --drpg-pix-gear: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 1h2v1h-2zM14 1h2v1h-2zM6 2h4v1h-4zM14 2h4v1h-4zM6 3h4v1h-4zM11 3h2v1h-2zM14 3h4v1h-4zM7 4h10v1h-10zM6 5h12v1h-12zM2 6h2v1h-2zM5 6h14v1h-14zM20 6h2v1h-2zM2 7h7v1h-7zM15 7h7v1h-7zM1 8h7v1h-7zM16 8h7v1h-7zM1 9h6v1h-6zM17 9h6v1h-6zM4 10h3v1h-3zM17 10h3v1h-3zM3 11h4v1h-4zM17 11h4v1h-4zM3 12h4v1h-4zM17 12h4v1h-4zM4 13h3v1h-3zM17 13h3v1h-3zM1 14h6v1h-6zM17 14h6v1h-6zM1 15h7v1h-7zM16 15h7v1h-7zM2 16h7v1h-7zM15 16h7v1h-7zM2 17h2v1h-2zM5 17h14v1h-14zM20 17h2v1h-2zM6 18h12v1h-12zM7 19h10v1h-10zM6 20h4v1h-4zM11 20h2v1h-2zM14 20h4v1h-4zM6 21h4v1h-4zM14 21h4v1h-4zM8 22h2v1h-2zM14 22h2v1h-2z'/%3E%3C/svg%3E");
 }
 body.drpg-theme-stained-glass[data-drpg-time="morning"] { --drpg-glass-accent: var(--drpg-sg-morning); }
 body.drpg-theme-stained-glass[data-drpg-time="noon"] { --drpg-glass-accent: var(--drpg-sg-noon); }
@@ -77,7 +81,8 @@ body.drpg-theme-stained-glass[data-drpg-time="afternoon"] { --drpg-glass-accent:
 body.drpg-theme-stained-glass[data-drpg-time="evening"] { --drpg-glass-accent: var(--drpg-sg-evening); }
 body.drpg-theme-stained-glass[data-drpg-time="night"] { --drpg-glass-accent: var(--drpg-sg-night); }
 body.drpg-theme-stained-glass[data-drpg-phase="investigation"] { --drpg-glass-accent: var(--drpg-sg-investigation); }
-body.drpg-theme-stained-glass[data-drpg-phase="trial"] { --drpg-glass-accent: var(--drpg-sg-despair); }
+body.drpg-theme-stained-glass[data-drpg-phase="classTrial"] { --drpg-glass-accent: var(--drpg-sg-despair); }
+body.drpg-theme-stained-glass[data-drpg-phase="eclipse"] { --drpg-glass-accent: var(--drpg-sg-eclipse); }
 body.drpg-theme-stained-glass.drpg-eclipse { --drpg-glass-accent: var(--drpg-sg-eclipse); }
 
 /* ---- the UI scale: one factor on the interface, never on the canvas -------- */
@@ -205,4 +210,47 @@ body.drpg-theme-stained-glass.drpg-no-glass-effects #drpg-curtain > canvas.pulse
 body.drpg-theme-stained-glass.drpg-no-glass-effects #drpg-curtain {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
+}
+
+/* ---- the settings launcher: the sound button wears a gear and opens the Look dialog ---- */
+body.drpg-theme-stained-glass #drpg-sound-launcher i {
+    -webkit-mask-image: var(--drpg-pix-gear);
+    mask-image: var(--drpg-pix-gear);
+}
+body.drpg-theme-stained-glass #drpg-sound-launcher.drpg-muted {
+    border-color: color-mix(in srgb, var(--drpg-glass-accent) 60%, transparent) !important;
+    color: inherit !important;
+}
+.drpg-look fieldset { margin-top: 8px; }
+.drpg-look label { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
+.drpg-look label > span:first-child { flex: 0 0 11ch; }
+.drpg-look input[type="range"] { flex: 1; }
+.drpg-look output { min-width: 4ch; text-align: right; }
+
+/* ---- module windows: the stained glass on the title band, the body calm dark glass ---- */
+body.drpg-theme-stained-glass .drpg-panel .window-header {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    --acc: var(--drpg-glass-accent);
+    background: rgba(5, 4, 9, 0.5);
+    border-bottom: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 40%, transparent);
+}
+body.drpg-theme-stained-glass .drpg-panel .window-header > canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+}
+body.drpg-theme-stained-glass .drpg-panel .window-header > :not(canvas) {
+    position: relative;
+    z-index: 1;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.8), 0 0 6px rgba(0, 0, 0, 0.5);
+}
+body.drpg-theme-stained-glass .drpg-panel .window-content {
+    background: rgba(9, 8, 13, 0.84);
+    backdrop-filter: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
+    -webkit-backdrop-filter: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
 }

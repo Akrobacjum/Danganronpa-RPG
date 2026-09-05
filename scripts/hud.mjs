@@ -309,6 +309,9 @@ export function renderHud() {
         // reason `matchStripToDespair` publishes a custom property: it survives
         // every redraw those two widgets do on their own.
         document.body.dataset.drpgPhase = phase;
+        // …and the time of day, for the Stained Glass theme: the seams of the
+        // curtain take the colour of the hour unless a phase overrides it.
+        document.body.dataset.drpgTime = clock.timeOfDay ?? "";
 
         hud.append(
             line("drpg-hud-campaign", campaignName(clock)),

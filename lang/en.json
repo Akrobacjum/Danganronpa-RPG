@@ -817,6 +817,15 @@
       "startTrialNote": "The clock starts over: the campaign's elapsed timer restarts with the trial, and again when it ends.",
       "openDebateIntro": "How long is this debate worth? Each one in a trial gets its own budget, and the last number you used is offered."
     },
+    "Look": {
+      "title": "Settings",
+      "launcherTooltip": "Settings",
+      "legend": "Look",
+      "theme": "Theme",
+      "glassEffects": "Glass effects",
+      "uiScale": "Interface scale",
+      "note": "Everything in this window is this browser's own. Nobody else sees or hears the difference."
+    },
     "Sound": {
       "title": "Sound",
       "launcherTooltip": "Sound and music",

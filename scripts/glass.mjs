@@ -587,8 +587,8 @@ function moduleLayout(W, H) {
   }
 
   function pulseFrame(t) {
-    for (const j of curtains) {
-      if (!j.pulse || !j.panes) continue;
+    for (const j of [...curtains, ...windows]) {
+      if (!j.pulse || !j.panes || !j.el.isConnected) continue;
       const g = j.pulse.getContext("2d"), k = j.pulseK;
       g.clearRect(0, 0, j.pulse.width, j.pulse.height);
       const accRGB = hex(j.acc).join(",");
@@ -607,7 +607,7 @@ function moduleLayout(W, H) {
   }
 
 /* ---- lifecycle -------------------------------------------------------------- */
-const curtains = [];
+const curtains = [], windows = [];
 let raf = 0, last = 0, observers = [], timer = 0;
 const REDUCED = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -624,17 +624,69 @@ function mount() {
 function unmount() {
   for (const j of curtains) { j.el.remove(); document.querySelectorAll("#interface > .curtain-glow").forEach(g => g.remove()); }
   curtains.length = 0;
+  for (const j of windows) j.el.querySelectorAll(":scope > canvas").forEach(c => c.remove());
+  windows.length = 0;
+  document.querySelectorAll("#scene-controls, #sidebar").forEach(e => { e.style.marginTop = ""; });
   BLOCKS.forEach(b => document.querySelectorAll(b.sel).forEach(e => { e.style.transform = ""; e.style.transformOrigin = ""; }));
   document.body.classList.remove("drpg-curtain-on");
 }
 function rebuild() {
   for (const j of curtains) {
     j.sig = null; CHECKS.length = 0;
-    if (curtainGeometry(j)) { curtainPaint(j); document.body.classList.add("drpg-curtain-on"); }
+    if (curtainGeometry(j)) {
+      // Foundry's tiles must start below the corner panes to own a shard of the strip;
+      // when they do not, push them down once and cut the glass again
+      if (!j.placed && placeTiles(j.panes.meta)) { j.placed = true; j.sig = null; curtainGeometry(j); }
+      curtainPaint(j); document.body.classList.add("drpg-curtain-on");
+    }
   }
   const c = CHECKS[0];
   if (c && (c.overlaps || c.nonconvex || c.blockFails || c.edgeGaps)) log("curtain self-check", c);
 }
+/* the scene controls and the sidebar tabs start below the corner panes, 24 px under the strip's top */
+function placeTiles(meta) {
+  const t = meta?.tiles || {};
+  let moved = false;
+  for (const [target, probe, side] of [["#scene-controls", "#scene-controls", "left"], ["#sidebar", "#sidebar-tabs", "right"]]) {
+    const el = document.querySelector(target), pr = document.querySelector(probe), info = t[side];
+    if (!el || !pr || !info) continue;
+    const keep = pr.style.transform; pr.style.transform = "";
+    const top = pr.getBoundingClientRect().top; pr.style.transform = keep;
+    const need = Math.round(info.yTop + 24 - top);
+    if (need > 2) { el.style.marginTop = ((parseFloat(el.style.marginTop) || 0) + need) + "px"; moved = true; }
+  }
+  return moved;
+}
+
+/* ---- module windows: the stained glass on the title band only --------------- */
+function paintBand(job) {
+  const w = job.el, c = w.querySelector(":scope > canvas.sg");
+  if (!c || w.clientWidth < 10) return;
+  const W = c.width = Math.max(60, Math.round(w.clientWidth)), H = c.height = Math.max(24, Math.round(w.clientHeight));
+  const panes = windowShapes(W, H, rng(job.seed)), acc = resolveAcc(w);
+  const seamCanvas = layerAfter(c, "seamline", W, H);
+  paintGlass(c.getContext("2d"), W, H, panes, acc, { glowInside: true, inset: 0, seamCtx: seamCanvas.getContext("2d") });
+  const pc = layerAfter(c, "pulse", W, H); job.pulseK = 1;
+  for (const p of panes) { const cx = (p.bb.x0 + p.bb.x1) / 2 - W / 2; p.phase = cx / 140 + p.hsh * 1.4; p.omega = 2 * Math.PI / (9 + p.hsh * 7); }
+  job.panes = panes; job.pulse = pc; job.acc = acc;
+}
+/** Every module window (`.drpg-panel`) gets glass on its header band; called from renderApplicationV2. */
+export function dressWindow(app) {
+  if (!themeOn()) return;
+  const el = app?.element;
+  if (!el?.classList?.contains("drpg-panel")) return;
+  const header = el.querySelector(".window-header");
+  if (!header) return;
+  let job = windows.find(j => j.el === header);
+  if (!job) {
+    const c = document.createElement("canvas"); c.className = "sg"; header.prepend(c);
+    job = { el: header, seed: 155 + windows.length * 37 };
+    windows.push(job);
+  }
+  requestAnimationFrame(() => paintBand(job));
+}
+function pruneWindows() { for (let i = windows.length - 1; i >= 0; i--) if (!windows[i].el.isConnected) windows.splice(i, 1); }
+
 const schedule = () => { clearTimeout(timer); timer = setTimeout(() => { if (themeOn()) rebuild(); }, 150); };
 function observe() {
   observers.forEach(o => o.disconnect()); observers = [];
@@ -672,4 +724,6 @@ export function registerGlass() {
   setTimeout(() => { if (themeOn()) rebuild(); }, 1500);
   Hooks.on("canvasReady", schedule);
   Hooks.on("collapseSidebar", schedule);
+  Hooks.on("renderApplicationV2", dressWindow);
+  Hooks.on("closeApplicationV2", pruneWindows);
 }

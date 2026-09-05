@@ -1217,4 +1217,5 @@ export function applyTheme() {
     const scale = Number(getSetting(SETTINGS.uiScale)) || 1;
     document.documentElement.style.setProperty("--drpg-ui-scale", String(Math.min(1.4, Math.max(0.8, scale))));
     import("./glass.mjs").then(m => m.refreshGlass()).catch(() => {});
+    import("./sfx.mjs").then(m => m.renderSoundLauncher?.()).catch(() => {});
 }
