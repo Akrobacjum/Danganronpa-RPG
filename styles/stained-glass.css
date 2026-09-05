@@ -344,6 +344,7 @@ body.drpg-theme-stained-glass .drpg-event + .drpg-event {
 }
 body.drpg-theme-stained-glass .drpg-event[data-kind="incident"] { --acc: var(--drpg-sg-gm-light); }
 body.drpg-theme-stained-glass .drpg-event[data-kind="motive"] { --acc: var(--drpg-sg-hope); }
+body.drpg-theme-stained-glass .drpg-event[data-kind="trial"] { --acc: var(--drpg-sg-despair); }
 body.drpg-theme-stained-glass .drpg-event-kicker {
     font-size: 11px;
     letter-spacing: 0.12em;

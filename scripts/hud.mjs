@@ -1175,7 +1175,10 @@ function buildRoom() {
         // their own - who gets no room block at all the rest of the time - must
         // still see whose floor it is.
         const trial = trialSlot();
-        if (trial) return buildTrialSpeaker(trial);
+        // Under Stained Glass whose floor it is belongs to the Event panel
+        // (events.mjs); the clock keeps the mode in its time row and, as in any
+        // trial, no room block - everybody is in the courtroom.
+        if (trial) return eventsWindowActive() ? null : buildTrialSpeaker(trial);
 
         const actor = hudActor();
         if (!actor) return null;

@@ -820,7 +820,8 @@
     "Events": {
       "incidentTitle": "A killing in the dark",
       "incidentSub": "{killer} against {victim}",
-      "incidentSubRoom": "{killer} against {victim}, in {room}"
+      "incidentSubRoom": "{killer} against {victim}, in {room}",
+      "trialFloorOpen": "Everyone has the floor"
     },
     "Look": {
       "title": "Settings",

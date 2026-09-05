@@ -26,6 +26,7 @@ import { remaining } from "./character.mjs";
 import { motive } from "./rules.mjs";
 import { pendingGather } from "./call-effects.mjs";
 import { roomOfActor } from "./movement.mjs";
+import { trialFloor, floorHolder, floorTarget, FLOOR_MODES } from "./trial-floor.mjs";
 
 const WIDGET_ID = "drpg-events";
 
@@ -121,6 +122,37 @@ function incidentCard() {
     return { kind: "incident", mine: Boolean(myTurn), title: game.i18n.localize("DRPG.Events.incidentTitle"), sub, meta: `${turn} · ${left}` };
 }
 
+/**
+ * Whose floor it is in the Class Trial: the mode, the speaker, and who they
+ * aimed at. The same reading hud.mjs `trialSlot` makes for the time row; here
+ * it is a card, so the clock can stay a clock.
+ */
+function trialCard(clock) {
+    try {
+        if (clock.phase !== "classTrial") return null;
+        const floor = trialFloor();
+        const key = floor ? floor.mode : "discussion";
+        const unknown = "-";
+        let speaker = game.i18n.localize("DRPG.Hud.trialEveryone");
+        let versus = null;
+        if (floor?.mode === FLOOR_MODES.objection) {
+            speaker = floorHolder(floor)?.name ?? unknown;
+        } else if (floor?.mode === FLOOR_MODES.rebuttal) {
+            speaker = floorTarget(floor)?.name ?? unknown;
+            versus = game.i18n.format("DRPG.Hud.trialVersus", { who: floorHolder(floor)?.name ?? unknown });
+        }
+        return {
+            kind: "trial",
+            title: game.i18n.localize(`DRPG.Hud.trial.${key}`),
+            sub: speaker,
+            meta: versus ?? game.i18n.localize("DRPG.Events.trialFloorOpen")
+        };
+    } catch (err) {
+        error("Could not read the trial's state for the Event panel", err);
+        return null;
+    }
+}
+
 /* ---- the panel ------------------------------------------------------------ */
 
 function cardElement(card, clock) {
@@ -151,7 +183,7 @@ export function renderEvents() {
         if (!eventsWindowActive() || !game.user) { existing?.remove(); return; }
 
         const clock = getClock() ?? {};
-        const cards = [incidentCard(), assemblyCard(), motiveCard()].filter(Boolean);
+        const cards = [trialCard(clock), incidentCard(), assemblyCard(), motiveCard()].filter(Boolean);
         if (!cards.length) { existing?.remove(); return; }
 
         // Redraw only when something changed: the panel is on the curtain, and
