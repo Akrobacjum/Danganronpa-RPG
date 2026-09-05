@@ -11730,7 +11730,9 @@ form:has(select[name="trigger"] option[value="sabotage"]:checked) [data-drpg-whe
  * it fires at, and only the current reading is withheld.
  */
 .drpg-overflow-caption {
-    font-family: var(--drpg-font, inherit);
+    /* `--drpg-font` never existed - the caption was inheriting by accident. The chrome
+       token is the one it meant, and it resolves under both themes. */
+    font-family: var(--drpg-font-ui, inherit);
     font-size: 11px;
     letter-spacing: 0.04em;
     text-align: center;

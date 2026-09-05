@@ -1609,3 +1609,49 @@ body.drpg-theme-stained-glass #drpg-despair .drpg-despair-count {
     font-variant-numeric: tabular-nums;
 }
 body.drpg-theme-stained-glass #drpg-despair .drpg-despair-button { flex: 0 0 auto; }
+
+/* ---- A8. The faces reach the rest of the module -----------------------------------------
+   The audit walked the base sheet looking for `font-family` rules the theme never answers,
+   and found eleven surfaces still speaking Signika, Bahnschrift or the pixel face while the
+   window beside them spoke VT323. They are all module surfaces or module-adjacent chrome the
+   player reads as ours; Foundry's own configuration windows are left alone on purpose - they
+   are Foundry's, and a settings dialog in a five-pixel face is a worse read, not a better
+   one. Icon elements are excluded from every sweep here for the reason in A9 above. */
+body.drpg-theme-stained-glass :is(#drpg-gm-launcher, .drpg-camera-dock, #players,
+    .drpg-messenger-note-text, .drpg-messenger-participants, .drpg-messenger-roster-name,
+    #drpg-messenger-roster h4, .drpg-item-sheet, .drpg-overflow-caption, .drpg-check-report,
+    #tooltip, #notifications),
+body.drpg-theme-stained-glass :is(#drpg-gm-launcher, .drpg-camera-dock, #players,
+    .drpg-messenger-participants, #drpg-messenger-roster, .drpg-item-sheet, #tooltip,
+    #notifications) *:not(i):not([class*="fa-"]) {
+    font-family: var(--drpg-font-chrome);
+}
+/* the prose inside an item's sheet is prose, and the base sheet says so with `!important` */
+body.drpg-theme-stained-glass .drpg-item-sheet :is(.editor-content, .editor-content *, .description, .description *, prose-mirror, prose-mirror *) {
+    font-family: var(--drpg-font-prose) !important;
+}
+/* a message's own words stay prose; only the card's chrome - the roll's heading - is chrome */
+body.drpg-theme-stained-glass .chat-message :is(.roll-part-title, .roll-part-header, .dice-formula, .dice-total) {
+    font-family: var(--drpg-font-chrome);
+    font-weight: 400;
+}
+body.drpg-theme-stained-glass .chat-message .message-content { font-family: var(--drpg-font-prose); }
+/* the sheet's stray two: a `.label` and a bare `button`, which the base sheet leaves in
+   Bahnschrift because it lists them by element rather than by class */
+body.drpg-theme-stained-glass .application.sheet.actor :is(.label, button):not([class*="fa-"]) {
+    font-family: var(--drpg-font-chrome);
+}
+/* the latency and frame counter read as a caption, not as a number nobody can place */
+body.drpg-theme-stained-glass #players :is(#performance-stats, .player-name, .player) {
+    font-size: var(--drpg-sg-floor);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+/* Foundry's tooltip is the one piece of its chrome that appears INSIDE our windows */
+body.drpg-theme-stained-glass #tooltip {
+    border-radius: 0;
+    border: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 45%, transparent);
+    background: rgba(7, 7, 10, 0.92);
+    color: var(--drpg-sg-bone);
+    clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+}
