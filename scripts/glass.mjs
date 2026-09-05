@@ -22,6 +22,8 @@ import { log } from "./utils.mjs";
 
 /** Self-check results of the last geometry pass, for diagnostics. */
 export const CHECKS = [];
+/** What the last pass measured: the frame and every block. `drpgGlassDebug()` in the console prints it. */
+export const LAST = { frame: null, blocks: [] };
 
 /* ---- the blocks: the module's own elements, measured untransformed ------- */
 const BLOCKS = [
@@ -36,16 +38,19 @@ const BLOCKS = [
 ];
 function moduleLayout(W, H) {
   const els = BLOCKS.map(b => [...document.querySelectorAll(b.sel)].filter(e => e.offsetWidth > 0 && e.offsetHeight > 0));
-  // measure with the rotation off, so a pane is cut for the block as laid out
+  // measure with the rotation off, so a pane is cut for the block as laid out, and against the
+  // curtain's own box, so a curtain that does not start at the viewport's corner still fits
   els.flat().forEach(e => { e.style.transform = ""; });
+  const cur = document.getElementById("drpg-curtain")?.getBoundingClientRect();
+  const ox = cur?.left ?? 0, oy = cur?.top ?? 0;
   const rects = {}, out = [];
   BLOCKS.forEach((b, i) => {
     const list = els[i];
     let r = null;
     if (list.length) {
       const rs = list.map(e => e.getBoundingClientRect());
-      const x0 = Math.min(...rs.map(q => q.left)), y0 = Math.min(...rs.map(q => q.top));
-      const x1 = Math.max(...rs.map(q => q.right)), y1 = Math.max(...rs.map(q => q.bottom));
+      const x0 = Math.min(...rs.map(q => q.left)) - ox, y0 = Math.min(...rs.map(q => q.top)) - oy;
+      const x1 = Math.max(...rs.map(q => q.right)) - ox, y1 = Math.max(...rs.map(q => q.bottom)) - oy;
       r = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
     }
     if (!r && !b.fallback) return;                 // an event panel that is not there cuts no pane
@@ -53,8 +58,16 @@ function moduleLayout(W, H) {
     rects[b.cls] = box;
     out.push({ cls: b.cls, x: box.x, y: box.y, w: box.w, h: box.h, el: list[0] ?? null, els: list, r });
   });
+  LAST.blocks = out.map(b => ({ cls: b.cls, x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.w), h: Math.round(b.h), measured: Boolean(b.r), n: b.els.length }));
   return out;
 }
+/** Console helper: `drpgGlassDebug()` prints the frame, the blocks and the self-check of the last pass. */
+export function debugGlass() {
+  const out = { frame: LAST.frame, blocks: LAST.blocks, checks: CHECKS.slice(), theme: document.body.className, viewport: [innerWidth, innerHeight], curtain: document.getElementById("drpg-curtain")?.getBoundingClientRect?.() };
+  console.log("[DRPG] curtain", JSON.stringify(out, null, 1));
+  return out;
+}
+globalThis.drpgGlassDebug = debugGlass;
 
   /* ---- the glass ------------------------------------------------------------
      Black glass. Colour lives in the seams and in a few stained cells; a panel's
@@ -497,7 +510,11 @@ function moduleLayout(W, H) {
   function curtainGeometry(job) {
     const el = job.el, host = document, c = el.querySelector("canvas.sg");
     if (!c || c.clientWidth < 10) return false;
-    const W = Math.round(c.clientWidth), H = Math.round(c.clientHeight);
+    // the curtain's own box, not the canvas's client size: a fixed element inside a transformed
+    // or zoomed ancestor is sized by that ancestor, and the blocks are measured against the same box
+    const rc = el.getBoundingClientRect();
+    const W = Math.round(rc.width || c.clientWidth || innerWidth), H = Math.round(rc.height || c.clientHeight || innerHeight);
+    LAST.frame = { W, H, left: rc.left, top: rc.top, inner: [innerWidth, innerHeight] };
     const sig = W + "x" + H;
     if (job.sig === sig) return true;
     job.sig = sig; job.W = W; job.H = H;

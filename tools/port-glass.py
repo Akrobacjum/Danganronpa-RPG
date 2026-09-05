@@ -38,6 +38,11 @@ must('''      for (const b of c.items) if (b.el) {
 must('''      if (b.el && (b.el.offsetLeft < b.x - 0.5 || b.el.offsetTop < b.y - 0.5 || b.el.offsetLeft + b.el.offsetWidth > b.x + b.w + 0.5 || b.el.offsetTop + b.el.offsetHeight > b.y + b.h + 0.5)) fitFails++;''',
      '''      if (b.r && (b.r.x < b.x - 0.5 || b.r.y < b.y - 0.5 || b.r.x + b.r.w > b.x + b.w + 0.5 || b.r.y + b.r.h > b.y + b.h + 0.5)) fitFails++;''')
 must('const el = job.el, host = el.parentElement, c = el.querySelector("canvas.sg");', 'const el = job.el, host = document, c = el.querySelector("canvas.sg");')
+must('    const W = Math.round(c.clientWidth), H = Math.round(c.clientHeight);', '''    // the curtain's own box, not the canvas's client size: a fixed element inside a transformed
+    // or zoomed ancestor is sized by that ancestor, and the blocks are measured against the same box
+    const rc = el.getBoundingClientRect();
+    const W = Math.round(rc.width || c.clientWidth || innerWidth), H = Math.round(rc.height || c.clientHeight || innerHeight);
+    LAST.frame = { W, H, left: rc.left, top: rc.top, inner: [innerWidth, innerHeight] };''')
 # the page's Foundry-tile mock becomes the real scene controls and sidebar tabs
 must('''    for (const [sel, side] of [[".f-ctl", "left"], [".f-side", "right"]]) {''', '''    for (const [sel, side] of [["#scene-controls", "left"], ["#sidebar-tabs", "right"]]) {''')
 a = core.index('  /* the layout the curtain is cut for:'); b = core.index('  function curtainShapes(host, W, H, rnd) {')

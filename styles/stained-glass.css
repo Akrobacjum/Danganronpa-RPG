@@ -74,7 +74,6 @@ body.drpg-theme-stained-glass {
        The clock writes `data-drpg-time` on the body (Milestone 2); until then
        the default is the afternoon gold, the Eclipse overrides it below. */
     --drpg-glass-accent: var(--drpg-sg-afternoon);
-    --drpg-ui-scale: 1;
     --drpg-pix-gear: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 1h2v1h-2zM14 1h2v1h-2zM6 2h4v1h-4zM14 2h4v1h-4zM6 3h4v1h-4zM11 3h2v1h-2zM14 3h4v1h-4zM7 4h10v1h-10zM6 5h12v1h-12zM2 6h2v1h-2zM5 6h14v1h-14zM20 6h2v1h-2zM2 7h7v1h-7zM15 7h7v1h-7zM1 8h7v1h-7zM16 8h7v1h-7zM1 9h6v1h-6zM17 9h6v1h-6zM4 10h3v1h-3zM17 10h3v1h-3zM3 11h4v1h-4zM17 11h4v1h-4zM3 12h4v1h-4zM17 12h4v1h-4zM4 13h3v1h-3zM17 13h3v1h-3zM1 14h6v1h-6zM17 14h6v1h-6zM1 15h7v1h-7zM16 15h7v1h-7zM2 16h7v1h-7zM15 16h7v1h-7zM2 17h2v1h-2zM5 17h14v1h-14zM20 17h2v1h-2zM6 18h12v1h-12zM7 19h10v1h-10zM6 20h4v1h-4zM11 20h2v1h-2zM14 20h4v1h-4zM6 21h4v1h-4zM14 21h4v1h-4zM8 22h2v1h-2zM14 22h2v1h-2z'/%3E%3C/svg%3E");
 }
 body.drpg-theme-stained-glass[data-drpg-time="morning"] { --drpg-glass-accent: var(--drpg-sg-morning); }
@@ -387,9 +386,10 @@ body.drpg-theme-stained-glass .drpg-event.due .drpg-event-meta {
 }
 
 /* ---- the pause band: a pane of the curtain, breathing slowly ------------------------------- */
+/* Foundry positions #pause itself (fixed, full width); the theme only paints it. `position` is left
+   alone on purpose: setting it made the band fall out of place on a tablet (v1.2.15). */
 body.drpg-theme-stained-glass #pause.paused {
     --acc: var(--drpg-glass-accent);
-    position: relative;
     overflow: hidden;
     isolation: isolate;
     background: rgba(5, 4, 9, 0.6);

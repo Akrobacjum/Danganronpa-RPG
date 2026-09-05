@@ -1215,7 +1215,11 @@ export function applyTheme() {
     document.body.classList.toggle("drpg-theme-monokuma-legacy", theme !== "stainedGlass");
     document.body.classList.toggle("drpg-no-glass-effects", getSetting(SETTINGS.glassEffects) === false);
     const scale = Number(getSetting(SETTINGS.uiScale)) || 1;
-    document.documentElement.style.setProperty("--drpg-ui-scale", String(Math.min(1.4, Math.max(0.8, scale))));
+    // On the body, where the theme's own rules live: a value on <html> was shadowed by
+    // the sheet's default on body (v1.2.15), so the scale never applied.
+    const clamped = String(Math.min(1.4, Math.max(0.8, scale)));
+    document.body.style.setProperty("--drpg-ui-scale", clamped);
+    document.documentElement.style.setProperty("--drpg-ui-scale", clamped);
     import("./glass.mjs").then(m => m.refreshGlass()).catch(() => {});
     import("./sfx.mjs").then(m => m.renderSoundLauncher?.()).catch(() => {});
 }
