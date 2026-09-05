@@ -810,6 +810,7 @@ function morph(j, oldPanes, oldAcc) {
   if (!oldPanes || !j.panes || REDUCED() || !effectsOn()) return;
   const el = j.el, W = j.W, H = j.H, N = 16;
   const newAcc = j.acc || oldAcc || "#ffd38f";
+  const recoloured = Boolean(oldAcc && j.acc && oldAcc !== j.acc);
   const pairs = j.panes.map(p => {
     const c = centroid(p.poly);
     let best = null, bd = Infinity;
@@ -823,6 +824,15 @@ function morph(j, oldPanes, oldAcc) {
     from = from.map((_, i) => from[(i + bestK) % N]);
     return { from, to, p };
   });
+  /* HOW MUCH ACTUALLY MOVED.
+     Folding the Projects tray recuts a corner of the glass, and the whole curtain was
+     swapped for the morph canvas - flat fills, no texture, no bloom - for 840 ms to show
+     it. The morph is worth that when the screen changes state (the hour, a trial, the
+     Eclipse: everything recolours) or when the shape really did change; a corner is not
+     worth washing the screen for. */
+  const MOVED = 2;
+  const moved = pairs.filter(q => q.from.some((pt, i) => Math.hypot(pt[0] - q.to[i][0], pt[1] - q.to[i][1]) > MOVED)).length;
+  if (!recoloured && moved < pairs.length * 0.3) return;
   const finalClip = el.style.clipPath;
   const layers = [...el.querySelectorAll(":scope > canvas")];
   const glow = document.querySelector('[data-glow="' + j.seed + '"]');

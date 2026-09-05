@@ -3076,6 +3076,55 @@ const INVARIANTS = [
         ok(!missing.length, `missing: ${missing.slice(0, 8).join(", ")}`);
     }],
 
+    /* ---- the audit of 1.2.27: the three things it could not check by reading ------------
+       Each of these was a defect nobody saw until a screenshot arrived from a tablet, and
+       each is cheap to measure on a live client. They only run under the theme they are
+       about; under Monokuma Legacy they pass by saying so. */
+    ["the curtain cuts a clean partition", async () => {
+        const { CHECKS, refreshGlass } = await import("./glass.mjs");
+        if (!document.body.classList.contains("drpg-theme-stained-glass")) return;
+        refreshGlass();
+        await wait(300);
+        const c = CHECKS[CHECKS.length - 1];
+        ok(c, "the curtain never reported a self-check - it did not cut");
+        ok(!c.overlaps && !c.nonconvex && !c.blockFails && !c.edgeGaps,
+            `overlaps ${c.overlaps}, non-convex ${c.nonconvex}, blocks off their pane ${c.blockFails}, gaps at the edge ${c.edgeGaps}`);
+    }],
+
+    ["no chrome label is cut off", () => {
+        if (!document.body.classList.contains("drpg-theme-stained-glass")) return;
+        // A box one pixel shorter than the text inside it is the "MUNUKUMA" defect: VT323's
+        // capitals are tall for its em, and a box sized in another face clips them.
+        const cut = [];
+        for (const sel of ["#drpg-hud", "#drpg-despair", "#drpg-player-status", "#drpg-events", "#countdowns"]) {
+            const host = document.querySelector(sel);
+            if (!host) continue;
+            for (const el of host.querySelectorAll("div, span, b, h4")) {
+                if (!el.offsetWidth || el.children.length) continue;
+                if (getComputedStyle(el).overflow === "visible") continue;
+                if (el.scrollHeight > el.clientHeight + 1) cut.push(`${sel} ${el.className || el.tagName} ${el.scrollHeight}>${el.clientHeight}`);
+            }
+        }
+        ok(!cut.length, cut.slice(0, 4).join("; "));
+    }],
+
+    ["nothing in the chrome is set under the floor", () => {
+        if (!document.body.classList.contains("drpg-theme-stained-glass")) return;
+        // 11 px, at every interface scale - see docs/design/typography.md.
+        const floor = parseFloat(getComputedStyle(document.body).getPropertyValue("--drpg-sg-floor")) || 11;
+        const small = [];
+        for (const sel of ["#drpg-hud", "#drpg-despair", "#drpg-player-status", "#drpg-events", "#countdowns", ".drpg-panel"]) {
+            for (const host of document.querySelectorAll(sel)) {
+                for (const el of host.querySelectorAll("*")) {
+                    if (!el.offsetWidth || !el.textContent.trim() || el.matches("i, [class*='fa-']")) continue;
+                    const size = parseFloat(getComputedStyle(el).fontSize);
+                    if (size && size < floor - 0.5) small.push(`${el.className || el.tagName} ${size.toFixed(1)}px`);
+                }
+            }
+        }
+        ok(!small.length, small.slice(0, 4).join("; "));
+    }],
+
     ["the theme tokens resolve", () => {
         const root = getComputedStyle(document.documentElement);
         for (const token of ["--drpg-ink", "--drpg-bone", "--drpg-eye", "--drpg-blood",

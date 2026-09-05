@@ -186,6 +186,10 @@ body.drpg-theme-stained-glass #sidebar-tabs {
 body.drpg-theme-stained-glass #scene-controls,
 body.drpg-theme-stained-glass #sidebar-tabs {
     transform-origin: 50% 50%;
+}
+/* `will-change` only while something is actually turning: left on, it holds a composited
+   layer for each rail for the whole session, which on a tablet is memory spent on nothing. */
+body.drpg-theme-stained-glass.drpg-turning :is(#scene-controls, #sidebar-tabs) {
     will-change: transform;
 }
 
@@ -623,14 +627,22 @@ body.drpg-no-glass-effects .drpg-hud-ticker { display: none; }
    element that takes it (glass.mjs puts `drpg-turning` on the body for the
    duration), the blocks turn with their panes, the tiles with their edge.
    ========================================================================== */
-body.drpg-theme-stained-glass.drpg-turning [class*="drpg-"],
-body.drpg-theme-stained-glass.drpg-turning [class*="drpg-"] *,
-body.drpg-theme-stained-glass.drpg-turning #countdowns,
-body.drpg-theme-stained-glass.drpg-turning #countdowns *,
-body.drpg-theme-stained-glass.drpg-turning #scene-controls button.ui-control,
-body.drpg-theme-stained-glass.drpg-turning #sidebar-tabs button.ui-control,
-body.drpg-theme-stained-glass.drpg-turning .drpg-panel .window-header,
-body.drpg-theme-stained-glass.drpg-turning .drpg-panel .window-header * {
+/* The list is named rather than swept. `[class*="drpg-"] *` put a transition on every
+   descendant of every module element for the length of a turn - some hundreds of nodes on a
+   tablet, all of them animating properties most of them do not have. These are the elements
+   that actually take a colour from the state. */
+body.drpg-theme-stained-glass.drpg-turning :is(#drpg-hud, #drpg-despair, #drpg-events,
+    #drpg-player-status, #countdowns, #drpg-notice, #drpg-popups, #drpg-gm-launcher,
+    #drpg-messenger-launcher, #drpg-sound-launcher, #drpg-settings-launcher, #pause),
+body.drpg-theme-stained-glass.drpg-turning :is(#drpg-hud, #drpg-despair, #drpg-events,
+    #drpg-player-status, #countdowns, #drpg-notice) :is(.drpg-hud-phase, .drpg-hud-time,
+    .drpg-hud-elapsed, .drpg-hud-room, .drpg-hud-ticker, .drpg-despair-pip, .drpg-despair-name,
+    .drpg-status-value, .drpg-event, .drpg-event-title, .drpg-event-glyph, .countdowns-header,
+    .drpg-projects-bar, .drpg-popup),
+body.drpg-theme-stained-glass.drpg-turning :is(#scene-controls, #sidebar-tabs) button.ui-control,
+body.drpg-theme-stained-glass.drpg-turning :is(.drpg-panel .window-header,
+    .drpg-panel .window-header .window-title, .drpg-action-button, .drpg-call-button,
+    .drpg-tb-badge, .drpg-chip) {
     transition-property: color, border-color, background-color, box-shadow, outline-color, -webkit-text-stroke-color, fill, stroke;
     transition-duration: var(--drpg-t-turn, 840ms);
     transition-timing-function: linear;
@@ -1561,7 +1573,7 @@ body.drpg-theme-stained-glass :is(#drpg-hud, #drpg-despair, #drpg-player-status,
 }
 body.drpg-theme-stained-glass :is(#drpg-hud .drpg-hud-campaign, #drpg-hud .drpg-hud-chapter,
     #drpg-hud .drpg-hud-day, #drpg-hud .drpg-hud-phase, #drpg-hud .drpg-hud-time,
-    #drpg-hud .drpg-hud-elapsed, #drpg-hud .drpg-hud-room, #drpg-hud .drpg-hud-time-slot,
+    #drpg-hud .drpg-hud-elapsed, #drpg-hud .drpg-hud-room,
     #drpg-despair .drpg-despair-name, #drpg-despair .drpg-despair-count,
     #drpg-despair .drpg-despair-overflow, #drpg-player-status .drpg-status-label,
     #drpg-player-status .drpg-status-value, #countdowns .countdowns-header,
@@ -1595,6 +1607,10 @@ body.drpg-theme-stained-glass #drpg-player-status .drpg-status-label {
    from the word they step; the audit page has them 8 px off it. The slot still clips, because
    the turn-over slides two labels through it, but it is only as wide as the label it holds. */
 body.drpg-theme-stained-glass #drpg-hud .drpg-hud-time-row { gap: 8px; }
+/* The slot is the one box in the clock that still clips, and must: the turn-over slides the
+   outgoing label out of it while the incoming one arrives. It is not in the list above for
+   that reason - what it needed was to stop reserving 9ch, and the line box of 1.35 from the
+   rule above is what keeps the capitals off its edges. */
 body.drpg-theme-stained-glass #drpg-hud .drpg-hud-time-slot {
     min-width: 0;
     padding: 0 2px;
