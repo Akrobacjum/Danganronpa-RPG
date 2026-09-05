@@ -278,7 +278,7 @@
       },
       "pixelFont": {
         "name": "Pixel font",
-        "hint": "Press Start 2P on interface chrome: HUD, Despair, character name, statistic labels, tabs. Journals, chat and editable fields keep the normal face so long text stays readable."
+        "hint": "Monokuma Legacy only, and on by default there: Press Start 2P on interface chrome - HUD, Despair, character name, statistic labels, tabs. Journals, chat and editable fields keep the normal face so long text stays readable. The Stained Glass theme has its own two faces and ignores this."
       },
       "theme": {
         "name": "Theme",
@@ -830,6 +830,7 @@
       "theme": "Theme",
       "glassEffects": "Glass effects",
       "uiScale": "Interface scale",
+      "pixelFont": "Pixel font",
       "note": "Everything in this window is this browser's own. Nobody else sees or hears the difference.",
       "redraw": "Redraw the glass"
     },

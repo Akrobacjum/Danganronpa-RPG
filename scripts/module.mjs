@@ -68,7 +68,7 @@ import { registerSafeword } from "./safeword.mjs";
 import { registerDiceSync } from "./dice-sync.mjs";
 import { registerSync } from "./sync.mjs";
 import { registerTraps } from "./traps.mjs";
-import { SETTINGS, getSetting, applyTheme } from "./settings.mjs";
+import { SETTINGS, getSetting, applyTheme, pixelFontOn } from "./settings.mjs";
 import { registerGlass } from "./glass.mjs";
 import { registerApi } from "./api.mjs";
 import { requirementsMet, announceMissingRequirements } from "./requirements.mjs";
@@ -388,7 +388,9 @@ function sealProjects() {
  */
 function applyBodyClasses() {
     document.body.classList.toggle("drpg-hide-system-fear", getSetting(SETTINGS.hideSystemFear));
-    document.body.classList.toggle("drpg-pixel-font", getSetting(SETTINGS.pixelFont));
+    // The pixel face is Monokuma Legacy's, so the theme decides with the setting
+    // (settings.mjs `pixelFontOn`); this runs after `applyTheme` and must agree with it.
+    document.body.classList.toggle("drpg-pixel-font", pixelFontOn());
     // CSS uses this to make Hope and traits display-only for players.
     document.body.classList.toggle("drpg-gm", game.user.isGM);
     /*

@@ -8,8 +8,9 @@
  * it is `scope: "client"`; nothing here reaches another player or the world.
  *
  * The GM's Sound window keeps its playlists and effect files and loses the
- * sliders, which live here now. Under "Monokuma Legacy" this file is not used
- * and the launcher opens the Sound window as before.
+ * sliders, which live here now. The launcher opens this window under both
+ * themes: it is a player's only door to the theme switch, and under Monokuma
+ * Legacy it is also where the pixel face is turned on and off.
  */
 
 import { MODULE_ID } from "./config.mjs";
@@ -27,13 +28,19 @@ function lookFieldset() {
     const theme = getSetting(SETTINGS.theme);
     const effects = getSetting(SETTINGS.glassEffects) !== false;
     const scale = Number(getSetting(SETTINGS.uiScale)) || 1;
+    /* The pixel face belongs to Monokuma Legacy, where it is the identity and the default,
+       so the switch is only shown to a browser wearing that theme. Under Stained Glass it
+       would be a switch that does nothing (settings.mjs `pixelFontOn`). */
+    const legacy = theme !== "stainedGlass";
+    const pixel = legacy ? `<label><span>${t("pixelFont")}</span>
+            <input type="checkbox" name="look:pixelFont"${getSetting(SETTINGS.pixelFont) !== false ? " checked" : ""}></label>` : "";
     const opt = (value, label) => `<option value="${value}"${theme === value ? " selected" : ""}>${
         foundry.utils.escapeHTML(game.i18n.localize(label))}</option>`;
     return `<fieldset class="drpg-look">
         <legend>${t("legend")}</legend>
         <label><span>${t("theme")}</span>
             <select name="look:theme">${opt("stainedGlass", "DRPG.Settings.theme.stainedGlass")}${opt("monokumaLegacy", "DRPG.Settings.theme.monokumaLegacy")}</select></label>
-        <label><span>${t("glassEffects")}</span>
+        ${pixel}<label><span>${t("glassEffects")}</span>
             <input type="checkbox" name="look:glassEffects"${effects ? " checked" : ""}></label>
         <label><span>${t("uiScale")}</span>
             <input type="range" name="look:uiScale" min="0.8" max="1.4" step="0.05" value="${scale}">
@@ -58,6 +65,8 @@ function wireLook(root) {
         setSetting(SETTINGS.theme, ev.currentTarget.value).catch(err => error("Could not change the theme", err)));
     root.querySelector("[name='look:glassEffects']")?.addEventListener("change", ev =>
         setSetting(SETTINGS.glassEffects, ev.currentTarget.checked).catch(err => error("Could not change the glass effects", err)));
+    root.querySelector("[name='look:pixelFont']")?.addEventListener("change", ev =>
+        setSetting(SETTINGS.pixelFont, ev.currentTarget.checked).catch(err => error("Could not change the pixel font", err)));
     const range = root.querySelector("[name='look:uiScale']");
     if (range) {
         const out = range.parentElement.querySelector("output");
