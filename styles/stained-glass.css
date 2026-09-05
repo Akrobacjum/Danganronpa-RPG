@@ -1237,3 +1237,267 @@ body.drpg-pixel-font.drpg-theme-stained-glass .character-header-sheet .character
 body.drpg-theme-stained-glass .character-header-sheet .drpg-ultimate-row .drpg-ultimate-value { font-family: var(--drpg-font-title); color: var(--drpg-glass-accent) !important; font-style: normal; }
 body.drpg-theme-stained-glass .character-header-sheet .drpg-actions h4,
 body.drpg-theme-stained-glass .character-header-sheet .drpg-calls-panel h4 { background: none !important; color: var(--drpg-glass-accent) !important; }
+
+/* ==========================================================================
+   Milestone 8: the audit's remaining families - the choice row, the other tab bars, the footer row,
+   the GM panel's sections, the chip and the stamp.
+   ========================================================================== */
+/* 1. the choice row: a dark row, the chosen one a brush in the kind's colour, an indicator on the
+   left edge in that colour. Variants of an action, the Rest picker, and every list that picks. */
+body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option) {
+    --kind: var(--drpg-glass-accent);
+    position: relative;
+    isolation: isolate;
+    margin: 3px 0;
+    padding: 6px 10px 6px 14px;
+    border: 1px solid rgba(242, 238, 230, 0.16);
+    border-radius: 0;
+    background: rgba(7, 7, 10, 0.55);
+    font-family: var(--drpg-font-chrome);
+    color: var(--drpg-sg-bone);
+    clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
+    transition: border-color var(--drpg-t-snap, 120ms), color var(--drpg-t-snap, 120ms);
+}
+body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option).drpg-gm-route { --kind: var(--drpg-sg-gm); }
+/* the indicator: a 4 px strip along the left edge in the kind's colour */
+body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option)::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: var(--kind);
+    opacity: 0.45;
+    transition: opacity var(--drpg-t-snap, 120ms);
+}
+/* the brush behind the chosen row */
+body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option)::before {
+    content: "";
+    position: absolute;
+    inset: 1px 2px;
+    z-index: -1;
+    background: var(--kind);
+    opacity: 0;
+    clip-path: polygon(0 12%, 3% 0, 97% 4%, 100% 20%, 99% 88%, 96% 100%, 4% 96%, 0 84%);
+    transition: opacity var(--drpg-t-snap, 120ms);
+}
+body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option):hover:not(.unavailable) {
+    border-color: color-mix(in srgb, var(--kind) 70%, transparent);
+    background: rgba(7, 7, 10, 0.55);
+}
+body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option):hover:not(.unavailable)::after { opacity: 1; }
+body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option):has(input:checked) {
+    border-color: var(--kind);
+    background: rgba(7, 7, 10, 0.55);
+    color: var(--drpg-sg-ink);
+}
+body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option):has(input:checked)::before { opacity: 1; }
+body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option):has(input:checked)::after { opacity: 1; background: var(--drpg-sg-ink); }
+body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option):has(input:checked) :is(i, small, strong, span) { color: inherit; }
+body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option) > i { color: var(--kind); }
+body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option) small { opacity: 0.75; }
+body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option) input:is([type="radio"], [type="checkbox"]) {
+    accent-color: var(--kind);
+    margin: 0;
+}
+/* unavailable: a dashed edge and no brush, like every disabled thing under the theme */
+body.drpg-theme-stained-glass .drpg-choice.unavailable {
+    border-style: dashed;
+    color: var(--drpg-sg-bone-dim);
+    cursor: not-allowed;
+}
+body.drpg-theme-stained-glass .drpg-choice.unavailable::after { opacity: 0.2; }
+body.drpg-theme-stained-glass .drpg-choice.unavailable > i { color: var(--drpg-sg-bone-dim); }
+
+/* 2. the other tab bars: the dashboard's and the hubs' become the sheet's Bone strip. Ink text at rest,
+   the active tab a full brush in the state colour, never red. The hub bar's buttons used to be
+   free-standing brushes; a bar is one shape here, so they lose their own edge and ground. */
+body.drpg-theme-stained-glass :is(.drpg-dashboard-tabs, .drpg-gmt-tabs) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    padding: 3px;
+    margin: 0.6em 0;
+    background: var(--drpg-sg-bone);
+    border: 0;
+    border-radius: 0;
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+body.drpg-theme-stained-glass :is(.drpg-dashboard-tabs .drpg-dashboard-tab, .drpg-gmt-tabs button) {
+    --brush: var(--drpg-glass-accent);
+    --brush-on: 0;
+    --brush-edge: transparent;
+    --brush-ink: var(--drpg-sg-ink);
+    flex: 1 1 auto;
+    position: relative;
+    isolation: isolate;
+    padding: 4px 12px;
+    font-family: var(--drpg-font-chrome);
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--drpg-sg-ink) !important;
+    text-shadow: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: none !important;
+    box-shadow: none !important;
+    clip-path: none;
+    transition: color var(--drpg-t-snap, 120ms);
+}
+body.drpg-theme-stained-glass :is(.drpg-dashboard-tabs .drpg-dashboard-tab, .drpg-gmt-tabs button)::before {
+    content: "";
+    position: absolute;
+    inset: 1px 2px;
+    z-index: -1;
+    background: var(--brush);
+    opacity: 0;
+    filter: none;
+    clip-path: polygon(0 12%, 3% 0, 97% 4%, 100% 20%, 99% 88%, 96% 100%, 4% 96%, 0 84%);
+    transition: opacity var(--drpg-t-snap, 120ms);
+}
+body.drpg-theme-stained-glass :is(.drpg-dashboard-tabs .drpg-dashboard-tab, .drpg-gmt-tabs button):hover:not(.active)::before { opacity: 0.35; }
+body.drpg-theme-stained-glass :is(.drpg-dashboard-tabs .drpg-dashboard-tab, .drpg-gmt-tabs button).active::before { opacity: 1; }
+body.drpg-theme-stained-glass :is(.drpg-dashboard-tabs .drpg-dashboard-tab, .drpg-gmt-tabs button).active {
+    color: var(--drpg-sg-ink) !important;
+    background: none !important;
+}
+body.drpg-theme-stained-glass :is(.drpg-dashboard-tabs .drpg-dashboard-tab, .drpg-gmt-tabs button):focus-visible {
+    outline: 2px solid var(--brush);
+    outline-offset: -2px;
+}
+
+/* 3. the footer row: one row, the closing actions on the right; the default a Bone brush at rest,
+   the GM route red on a red edge, the destructive one under the raster. The base sheet paints the
+   footer's edges with !important, so the theme says its own again. */
+body.drpg-theme-stained-glass .application.dialog footer.form-footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+    border-top: 1px solid rgba(242, 238, 230, 0.12);
+    padding-top: 10px;
+    margin-top: 12px;
+}
+body.drpg-theme-stained-glass .application.dialog footer.form-footer button {
+    flex: 0 1 auto;
+    min-width: 7em;
+    background: rgba(7, 7, 10, 0.55) !important;
+    color: var(--brush-ink, var(--drpg-sg-bone)) !important;
+    border-color: var(--brush-edge, rgba(242, 238, 230, 0.35)) !important;
+    border-radius: 0 !important;
+}
+body.drpg-theme-stained-glass .application.dialog footer.form-footer button:hover:not(:disabled) {
+    background: rgba(7, 7, 10, 0.55) !important;
+    border-color: var(--brush) !important;
+}
+body.drpg-theme-stained-glass .application.dialog footer.form-footer button:disabled {
+    background: rgba(7, 7, 10, 0.4) !important;
+    color: var(--drpg-sg-bone-dim) !important;
+    border-style: dashed;
+}
+body.drpg-theme-stained-glass .application.dialog :is(button, footer.form-footer button).drpg-gm-route {
+    --brush: var(--drpg-sg-gm);
+    --brush-edge: var(--drpg-sg-gm);
+    color: var(--brush-ink, var(--drpg-sg-gm-light)) !important;
+    border-color: var(--drpg-sg-gm) !important;
+    background: rgba(7, 7, 10, 0.55) !important;
+    box-shadow: none;
+}
+body.drpg-theme-stained-glass .application.dialog :is(button, footer.form-footer button).drpg-gm-route:hover:not(:disabled) {
+    --brush-on: 0.45;
+    color: var(--drpg-sg-bone) !important;
+    border-color: var(--drpg-sg-gm-light) !important;
+    box-shadow: 0 0 10px color-mix(in srgb, var(--drpg-sg-gm) 55%, transparent);
+}
+/* destructive: the raster the audit gives every spent thing, in GM red. Foundry's own `.danger`
+   and the module's `drpg-destructive` both mean it. */
+body.drpg-theme-stained-glass .application.dialog footer.form-footer button:is(.danger, .drpg-destructive, [data-action="delete"], [data-action="wipe"], [data-action="reset"]) {
+    --brush: var(--drpg-sg-gm);
+    --brush-edge: var(--drpg-sg-gm);
+    color: var(--drpg-sg-gm-light) !important;
+    background-color: rgba(7, 7, 10, 0.55) !important;
+    background-image: radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--drpg-sg-gm) 45%, transparent) 1px, transparent 1.5px) !important;
+    background-size: 4px 4px !important;
+}
+
+/* 4. the GM panel's sections: the base sheet makes the summary a Bone plate with Ink text, and that is
+   where the white of the theme lives, so it stays Bone - in the chrome face, its corner cut, with the
+   phase's colour as a strip along its left edge: dim while folded, full while open, glowing on the
+   section that matches the clock. The tools section is a quieter plate. */
+body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-section > summary {
+    --kind: var(--drpg-glass-accent);
+    position: relative;
+    display: flex;
+    align-items: center;
+    padding: 5px 10px 5px 16px !important;
+    margin: 6px 0 0;
+    font-family: var(--drpg-font-chrome);
+    font-size: 15px !important;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--drpg-sg-ink) !important;
+    background: var(--drpg-sg-bone) !important;
+    border: 0 !important;
+    border-radius: 0;
+    clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+    transition: background-color var(--drpg-t-snap, 120ms);
+}
+body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-section > summary::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    background: var(--kind);
+    opacity: 0.4;
+    transition: opacity var(--drpg-t-snap, 120ms);
+}
+body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-section > summary::before {
+    content: "";
+    flex: 0 0 8px;
+    width: 8px;
+    height: 8px;
+    margin-right: 10px;
+    background: currentColor;
+    clip-path: polygon(0 0, 100% 50%, 0 100%);
+    transition: transform var(--drpg-t-snap, 120ms);
+}
+body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-section > summary:hover::after { opacity: 0.8; }
+body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-section[open] > summary::after { opacity: 1; }
+body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-section.in-season > summary::after { opacity: 1; box-shadow: 0 0 10px var(--kind); }
+body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-section.dim > summary { --kind: rgba(7, 7, 10, 0.35); background: var(--drpg-sg-bone-dim) !important; }
+body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-section.dim { opacity: 1; }
+body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-section > .drpg-gmp-grid { padding: 8px 2px 4px; }
+
+/* 5. the chip and the stamp: a chip is information and never clicks - a hairline plate in the chrome
+   face; a stamp (role, tier, GM only) a plate in its meaning's colour with Ink text. */
+body.drpg-theme-stained-glass :is(.drpg-tb-badge, .drpg-sfx-badge, .drpg-duality-badge, .drpg-role-label) {
+    font-family: var(--drpg-font-chrome);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    line-height: 1.1;
+    padding: 2px 6px;
+    border-radius: 0;
+    border: 1px solid rgba(242, 238, 230, 0.25);
+    background: rgba(7, 7, 10, 0.6);
+    color: var(--drpg-sg-bone);
+    clip-path: polygon(3px 0, 100% 0, 100% calc(100% - 3px), calc(100% - 3px) 100%, 0 100%, 0 3px);
+}
+body.drpg-theme-stained-glass .drpg-tb-badge.type.key { background: var(--drpg-sg-evidence); border-color: var(--drpg-sg-evidence); color: var(--drpg-sg-ink); }
+body.drpg-theme-stained-glass .drpg-tb-badge:is(.drpg-role-crimeTool, .drpg-role-cleaningTool, .drpg-role-tool, .drpg-role-healing, .drpg-role-stress) { color: var(--drpg-sg-ink); border-color: transparent; }
+body.drpg-theme-stained-glass .drpg-tb-badge.drpg-role-crimeTool { background: var(--drpg-sg-gm-light); }
+body.drpg-theme-stained-glass .drpg-tb-badge.drpg-role-cleaningTool { background: var(--drpg-sg-investigation); }
+body.drpg-theme-stained-glass .drpg-tb-badge.drpg-role-tool { background: var(--drpg-sg-afternoon); }
+body.drpg-theme-stained-glass .drpg-tb-badge.drpg-role-healing { background: var(--drpg-sg-hope); }
+body.drpg-theme-stained-glass .drpg-tb-badge.drpg-role-stress { background: var(--drpg-sg-despair); }
+body.drpg-theme-stained-glass .drpg-tb-badge.type.prep { background: var(--drpg-sg-gm); border-color: var(--drpg-sg-gm); color: var(--drpg-sg-bone); }
+body.drpg-theme-stained-glass .drpg-tb-badge.type.incident { background: var(--drpg-sg-gm-light); border-color: var(--drpg-sg-gm-light); color: var(--drpg-sg-ink); }
+body.drpg-theme-stained-glass .drpg-tb-badge.type.resolution { background: var(--drpg-sg-eclipse); border-color: var(--drpg-sg-eclipse); color: var(--drpg-sg-ink); }
+body.drpg-theme-stained-glass .drpg-tb-badge.type.autopsy { background: var(--drpg-sg-night); border-color: var(--drpg-sg-night); color: var(--drpg-sg-ink); }
+body.drpg-theme-stained-glass .drpg-tb-badge.type.faint { background: transparent; border-color: rgba(242, 238, 230, 0.35); color: var(--drpg-sg-bone-dim); }
+body.drpg-theme-stained-glass .drpg-tb-badge.type.neutral { background: transparent; border-color: rgba(242, 238, 230, 0.35); }
+body.drpg-theme-stained-glass .drpg-tb-badge.type.final { background: var(--drpg-sg-bone); border-color: var(--drpg-sg-bone); color: var(--drpg-sg-ink); }
