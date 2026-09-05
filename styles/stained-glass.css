@@ -91,46 +91,22 @@ body.drpg-theme-stained-glass #interface {
     zoom: var(--drpg-ui-scale, 1);
 }
 
-/* ---- the curtain layer ----------------------------------------------------- */
-body.drpg-theme-stained-glass #drpg-curtain {
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    overflow: hidden;
-    isolation: isolate;
-    --acc: var(--drpg-glass-accent);
+/* ---- the curtain layer ----------------------------------------------------
+   glass.mjs mounts `#drpg-curtain` in the BODY, right before #interface, and writes its box and
+   its z-index inline (see `mount()` there): a fixed element inside a zoomed interface was sized
+   in the wrong pixels. What is left to the sheet is the material. */
+#drpg-curtain {
+    --acc: var(--drpg-glass-accent, #ffd38f);
     backdrop-filter: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
     -webkit-backdrop-filter: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
     background: rgba(255, 255, 255, 0.02);
 }
-body.drpg-theme-stained-glass #drpg-curtain > canvas {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-}
-body.drpg-theme-stained-glass #drpg-curtain > canvas.sg { z-index: 0; }
-body.drpg-theme-stained-glass #drpg-curtain > canvas.pulse { z-index: 1; }
-body.drpg-theme-stained-glass #drpg-curtain > canvas.seamline { z-index: 2; }
-body.drpg-theme-stained-glass #interface > .curtain-glow {
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-    mix-blend-mode: screen;
-}
-/* the interface columns paint above the glass */
-body.drpg-theme-stained-glass #ui-left,
-body.drpg-theme-stained-glass #ui-top,
-body.drpg-theme-stained-glass #ui-middle,
-body.drpg-theme-stained-glass #ui-right,
-body.drpg-theme-stained-glass #ui-bottom {
-    position: relative;
-    z-index: 1;
-}
+#drpg-curtain > canvas.sg { z-index: 0; }
+#drpg-curtain > canvas.pulse { z-index: 1; }
+#drpg-curtain > canvas.seamline { z-index: 2; }
+#drpg-curtain > canvas.flash { z-index: 3; mix-blend-mode: screen; }
+body:not(.drpg-theme-stained-glass) #drpg-curtain,
+body:not(.drpg-theme-stained-glass) .curtain-glow { display: none; }
 
 /* ---- the blocks on their panes: no plates, the glass is the background ------ */
 body.drpg-curtain-on #drpg-hud,
@@ -167,21 +143,27 @@ body.drpg-theme-stained-glass .application .window-title {
     font-size: 21px;
 }
 
-/* ---- Foundry's own tiles, cut like everything else and sitting on the glass -- */
-body.drpg-theme-stained-glass #scene-controls button,
-body.drpg-theme-stained-glass #scene-controls .control-tool,
-body.drpg-theme-stained-glass #sidebar-tabs .item,
-body.drpg-theme-stained-glass #sidebar-tabs button {
-    border: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 34%, transparent);
-    background: rgba(8, 7, 12, 0.72);
-    border-radius: 0;
+/* ---- Foundry's own tiles, cut like everything else and sitting on the glass --
+   `!important` against the base sheet's own, which this file follows in the same layer. */
+body.drpg-theme-stained-glass #scene-controls button.ui-control,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control,
+body.drpg-theme-stained-glass #sidebar .tabs button.ui-control {
+    border: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 34%, transparent) !important;
+    background: rgba(8, 7, 12, 0.72) !important;
+    border-radius: 0 !important;
     clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
 }
-body.drpg-theme-stained-glass #scene-controls button.active,
-body.drpg-theme-stained-glass #scene-controls .control-tool.active,
-body.drpg-theme-stained-glass #sidebar-tabs .item.active {
-    border-color: var(--drpg-glass-accent);
-    background: color-mix(in srgb, var(--drpg-glass-accent) 22%, rgba(8, 7, 12, 0.8));
+body.drpg-theme-stained-glass #scene-controls button.ui-control:hover,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control:hover {
+    border-color: color-mix(in srgb, var(--drpg-glass-accent) 70%, transparent) !important;
+    background: rgba(8, 7, 12, 0.8) !important;
+}
+body.drpg-theme-stained-glass #scene-controls button.ui-control.active,
+body.drpg-theme-stained-glass #scene-controls button.ui-control[aria-pressed="true"],
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control.active,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control[aria-pressed="true"] {
+    border-color: var(--drpg-glass-accent) !important;
+    background: color-mix(in srgb, var(--drpg-glass-accent) 22%, rgba(8, 7, 12, 0.8)) !important;
 }
 body.drpg-theme-stained-glass #sidebar-tabs {
     background: transparent;
@@ -206,10 +188,10 @@ body.drpg-theme-stained-glass #drpg-settings-launcher {
 
 /* ---- motion: the pulse is a canvas, everything else stands still ------------- */
 @media (prefers-reduced-motion: reduce) {
-    body.drpg-theme-stained-glass #drpg-curtain > canvas.pulse { display: none; }
+    #drpg-curtain > canvas.pulse { display: none; }
 }
-body.drpg-theme-stained-glass.drpg-no-glass-effects #drpg-curtain > canvas.pulse { display: none; }
-body.drpg-theme-stained-glass.drpg-no-glass-effects #drpg-curtain {
+body.drpg-no-glass-effects #drpg-curtain > canvas.pulse { display: none; }
+body.drpg-no-glass-effects #drpg-curtain {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
 }
@@ -287,7 +269,6 @@ body.drpg-theme-stained-glass #drpg-hud .drpg-hud-time.is-objection {
     body.drpg-theme-stained-glass .drpg-call-button.drpg-call-pending::after,
     body.drpg-theme-stained-glass #drpg-hud .drpg-hud-time.is-objection { animation: none; }
 }
-body.drpg-theme-stained-glass #drpg-curtain > canvas.flash,
 body.drpg-theme-stained-glass .drpg-panel .window-header > canvas.flash,
 body.drpg-theme-stained-glass .drpg-glass-band > canvas.flash { z-index: 3; mix-blend-mode: screen; }
 
@@ -416,3 +397,4 @@ body.drpg-theme-stained-glass .application:not(.drpg-panel) .window-header {
     background: rgba(5, 4, 9, 0.7);
     border-bottom: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 35%, transparent);
 }
+.drpg-look-report code { font-size: 11px; opacity: .8; word-break: break-word; }

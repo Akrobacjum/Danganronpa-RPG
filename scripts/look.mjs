@@ -39,10 +39,21 @@ function lookFieldset() {
             <input type="range" name="look:uiScale" min="0.8" max="1.4" step="0.05" value="${scale}">
             <output>${Math.round(scale * 100)}%</output></label>
         <p class="notes">${t("note")}</p>
+        <p class="notes drpg-look-report"><code data-glass-report>-</code> <button type="button" data-action="drpg-redraw">${t("redraw")}</button></p>
     </fieldset>`;
 }
 
+async function report(root) {
+    const out = root.querySelector("[data-glass-report]");
+    if (!out) return;
+    try { const m = await import("./glass.mjs"); out.textContent = m.glassReport(); } catch (err) { out.textContent = String(err); }
+}
+
 function wireLook(root) {
+    report(root);
+    root.querySelector("[data-action='drpg-redraw']")?.addEventListener("click", async () => {
+        try { const m = await import("./glass.mjs"); m.refreshGlass(); setTimeout(() => report(root), 400); } catch (err) { error("Could not redraw the curtain", err); }
+    });
     root.querySelector("[name='look:theme']")?.addEventListener("change", ev =>
         setSetting(SETTINGS.theme, ev.currentTarget.value).catch(err => error("Could not change the theme", err)));
     root.querySelector("[name='look:glassEffects']")?.addEventListener("change", ev =>

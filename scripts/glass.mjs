@@ -68,6 +68,7 @@ export function debugGlass() {
   return out;
 }
 globalThis.drpgGlassDebug = debugGlass;
+globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGlass());
 
   /* ---- the glass ------------------------------------------------------------
      Black glass. Colour lives in the seams and in a few stained cells; a panel's
@@ -344,7 +345,7 @@ globalThis.drpgGlassDebug = debugGlass;
       const wall = side ? W : 0, dir = side ? -1 : 1;
       const wTop = 136 + rnd() * 34, wMid = 62 + rnd() * 10, wBot = 116 + rnd() * 34;
       const wCtl = wTop - 22, yCtl = 640;                     // one straight edge under the tiles: 22 px of lean over its run
-      const tb = tileBox(side ? ".f-side" : ".f-ctl", side ? { x0: W - 68, y0: 290, x1: W - 20, y1: 620 } : { x0: 20, y0: 320, x1: 92, y1: 608 });
+      const tb = tileBox(side ? "#sidebar-tabs" : "#scene-controls", side ? { x0: W - 68, y0: 290, x1: W - 20, y1: 620 } : { x0: 20, y0: 320, x1: 92, y1: 608 });
       const cT = top.length ? top[side ? top.length - 1 : 0] : null, cB = bot.length ? bot[side ? bot.length - 1 : 0] : null;
       const hugT = cT && (side ? cT.hugR : cT.hugL), hugB = cB && (side ? cB.hugR : cB.hugL);
       let yTop = 0, yBot = H;
@@ -510,11 +511,11 @@ globalThis.drpgGlassDebug = debugGlass;
   function curtainGeometry(job) {
     const el = job.el, host = document, c = el.querySelector("canvas.sg");
     if (!c || c.clientWidth < 10) return false;
-    // the curtain's own box, not the canvas's client size: a fixed element inside a transformed
-    // or zoomed ancestor is sized by that ancestor, and the blocks are measured against the same box
+    // the curtain's own box in viewport pixels (it is a fixed child of the body, so this is the viewport);
+    // never the canvas's client size, which a zoomed ancestor would inflate
     const rc = el.getBoundingClientRect();
-    const W = Math.round(rc.width || c.clientWidth || innerWidth), H = Math.round(rc.height || c.clientHeight || innerHeight);
-    LAST.frame = { W, H, left: rc.left, top: rc.top, inner: [innerWidth, innerHeight] };
+    const W = Math.round(rc.width || innerWidth), H = Math.round(rc.height || innerHeight);
+    LAST.frame = { W, H, left: rc.left, top: rc.top, inner: [innerWidth, innerHeight], canvas: [c.clientWidth, c.clientHeight] };
     const sig = W + "x" + H;
     if (job.sig === sig) return true;
     job.sig = sig; job.W = W; job.H = H;
@@ -633,19 +634,45 @@ const REDUCED = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 function themeOn() { try { return getSetting(SETTINGS.theme) === "stainedGlass"; } catch { return false; } }
 function effectsOn() { try { return getSetting(SETTINGS.glassEffects) !== false; } catch { return true; } }
 
+/* the curtain lives in the BODY, never inside #interface: a fixed element inside a zoomed or
+   transformed ancestor is sized and clipped in that ancestor's pixels, and on a client that scales
+   its interface the glass came out as one jagged column (v1.2.15/16). In the body its box is the
+   viewport, the blocks are measured in the same pixels, and its stacking is settled here in code
+   rather than left to whichever stylesheet loads last: just under #interface, above the board. */
+const STYLE = "position:fixed;inset:0;width:100vw;height:100vh;margin:0;padding:0;border:0;pointer-events:none;overflow:hidden;isolation:isolate;box-sizing:border-box;";
+function layerIndex() {
+  const iface = document.getElementById("interface");
+  if (!iface) return 1;
+  const cs = getComputedStyle(iface);
+  const z = parseInt(cs.zIndex, 10);
+  if (cs.position !== "static" && Number.isFinite(z)) return Math.max(0, z);   // same index, earlier in the tree: under it
+  // an interface that is not a stacking context would paint under a positioned curtain, so it gets one
+  if (cs.position === "static") iface.style.position = "relative";
+  if (!Number.isFinite(z)) iface.style.zIndex = "1";
+  return 1;
+}
+function place(el) {
+  const iface = document.getElementById("interface");
+  const parent = iface?.parentElement ?? document.body;
+  if (el.parentElement !== parent) { if (iface) iface.before(el); else parent.append(el); }
+}
 function mount() {
-  const iface = document.getElementById("interface") ?? document.body;
   let el = document.getElementById("drpg-curtain");
-  if (!el) { el = document.createElement("div"); el.id = "drpg-curtain"; el.innerHTML = '<canvas class="sg"></canvas>'; iface.prepend(el); }
+  if (!el) { el = document.createElement("div"); el.id = "drpg-curtain"; el.innerHTML = '<canvas class="sg"></canvas>'; }
+  place(el);
+  const z = layerIndex();
+  el.style.cssText = STYLE + "z-index:" + z + ";" + (el.style.clipPath ? "clip-path:" + el.style.clipPath + ";" : "");
+  el.querySelectorAll(":scope > canvas").forEach(c => { c.style.cssText = "position:absolute;inset:0;width:100%;height:100%;"; });
   if (!curtains.length) curtains.push({ el, seed: 44 });
   rebuild();
 }
 function unmount() {
-  for (const j of curtains) { j.el.remove(); document.querySelectorAll("#interface > .curtain-glow").forEach(g => g.remove()); }
+  for (const j of curtains) { j.el.remove(); document.querySelectorAll(".curtain-glow").forEach(g => g.remove()); }
   curtains.length = 0;
   for (const j of windows) j.el.querySelectorAll(":scope > canvas").forEach(c => c.remove());
   windows.length = 0;
-  document.querySelectorAll("#scene-controls, #sidebar").forEach(e => { e.style.marginTop = ""; });
+  document.querySelectorAll("#scene-controls, #sidebar").forEach(e => { e.style.marginTop = ""; e.style.paddingTop = ""; e.style.boxSizing = ""; });
+  document.querySelectorAll("#scene-controls, #sidebar-tabs").forEach(e => { e.style.transform = ""; e.style.transformOrigin = ""; });
   BLOCKS.forEach(b => document.querySelectorAll(b.sel).forEach(e => { e.style.transform = ""; e.style.transformOrigin = ""; }));
   document.body.classList.remove("drpg-curtain-on");
 }
@@ -657,12 +684,19 @@ function rebuild() {
       // when they do not, push them down once and cut the glass again
       if (!j.placed && placeTiles(j.panes.meta)) { j.placed = true; j.sig = null; curtainGeometry(j); }
       curtainPaint(j); document.body.classList.add("drpg-curtain-on");
+      // the glow sits right after the curtain, in the same layer
+      const gl = document.querySelector('[data-glow="' + j.seed + '"]');
+      if (gl) gl.style.cssText = STYLE + "z-index:" + j.el.style.zIndex + ";mix-blend-mode:screen;";
     }
   }
   const c = CHECKS[0];
   if (c && (c.overlaps || c.nonconvex || c.blockFails || c.edgeGaps)) log("curtain self-check", c);
 }
-/* the scene controls and the sidebar tabs start below the corner panes, 24 px under the strip's top */
+/* the scene controls and the sidebar tabs start below the corner panes, 24 px under the strip's top.
+   The shift is capped: the GM's sidebar is a column of real work, and 160 px is as much of it as the
+   glass may take. Padding (with border-box), not margin, so a column sized to the screen shrinks
+   instead of running off its bottom. */
+const MAX_SHIFT = 160;
 function placeTiles(meta) {
   const t = meta?.tiles || {};
   let moved = false;
@@ -671,10 +705,27 @@ function placeTiles(meta) {
     if (!el || !pr || !info) continue;
     const keep = pr.style.transform; pr.style.transform = "";
     const top = pr.getBoundingClientRect().top; pr.style.transform = keep;
-    const need = Math.round(info.yTop + 24 - top);
-    if (need > 2) { el.style.marginTop = ((parseFloat(el.style.marginTop) || 0) + need) + "px"; moved = true; }
+    const have = parseFloat(el.style.paddingTop) || 0;
+    const need = Math.min(MAX_SHIFT - have, Math.round(info.yTop + 24 - top));
+    if (need > 2) { el.style.boxSizing = "border-box"; el.style.paddingTop = (have + need) + "px"; moved = true; }
   }
   return moved;
+}
+
+/** A one-line account of the curtain for the Look dialog: frame, panes, the self-check, the tiles. */
+export function glassReport() {
+  const j = curtains[0], c = CHECKS[0];
+  if (!j) return themeOn() ? "no curtain mounted" : "theme off";
+  const el = j.el, r = el.getBoundingClientRect();
+  const parts = [
+    "frame " + (LAST.frame ? LAST.frame.W + "x" + LAST.frame.H : "-") + " / viewport " + innerWidth + "x" + innerHeight,
+    "box " + Math.round(r.left) + "," + Math.round(r.top) + " " + Math.round(r.width) + "x" + Math.round(r.height),
+    "z " + el.style.zIndex + " in " + (el.parentElement?.tagName || "-").toLowerCase(),
+    "panes " + (j.panes ? j.panes.length : 0) + (j.painted ? " painted" : " unpainted"),
+    c ? "check ov" + c.overlaps + " nc" + c.nonconvex + " bf" + c.blockFails + " eg" + c.edgeGaps + " ff" + c.fitFails : "no check",
+    "blocks " + LAST.blocks.filter(b => b.measured).map(b => b.cls).join(",")
+  ];
+  return parts.join(" · ");
 }
 
 /* ---- module windows: the stained glass on the title band only --------------- */
@@ -764,6 +815,7 @@ function loop(t) {
 /** Mount or unmount the curtain according to the theme setting. */
 export function refreshGlass() {
   if (!themeOn()) { unmount(); return; }
+  if (curtains.length) { rebuild(); return; }
   const go = () => { mount(); observe(); };
   (document.fonts?.ready ?? Promise.resolve()).then(go, go);
 }
@@ -772,8 +824,14 @@ export function refreshGlass() {
 export function registerGlass() {
   refreshGlass();
   if (!raf) raf = requestAnimationFrame(loop);
-  // late blocks: the launchers and the tray arrive after ready on some clients
+  // late blocks: the launchers and the tray arrive after ready on some clients; and a watchdog,
+  // because a curtain that measured nothing (a hidden canvas, a frame of 0) must try again
   setTimeout(() => { if (themeOn()) rebuild(); }, 1500);
+  for (const ms of [4000, 9000]) setTimeout(() => {
+    const j = curtains[0];
+    if (!themeOn()) return;
+    if (!j || !j.painted || Math.abs(j.el.getBoundingClientRect().width - innerWidth) > 2) { log("curtain watchdog: rebuilding", glassReport()); if (j) j.placed = false; mount(); }
+  }, ms);
   Hooks.on("canvasReady", schedule);
   Hooks.on("collapseSidebar", schedule);
   Hooks.on("renderApplicationV2", dressWindow);

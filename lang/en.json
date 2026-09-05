@@ -830,7 +830,8 @@
       "theme": "Theme",
       "glassEffects": "Glass effects",
       "uiScale": "Interface scale",
-      "note": "Everything in this window is this browser's own. Nobody else sees or hears the difference."
+      "note": "Everything in this window is this browser's own. Nobody else sees or hears the difference.",
+      "redraw": "Redraw the glass"
     },
     "Sound": {
       "title": "Sound",
