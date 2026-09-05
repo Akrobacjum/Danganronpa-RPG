@@ -423,12 +423,30 @@
         const g2 = t.getContext("2d"); g2.translate(-bb.x0, -bb.y0); path(g2, p.poly); g2.clip();
         const cx = (bb.x0 + bb.x1) / 2, cy = (bb.y0 + bb.y1) / 2, span = Math.hypot(tw, th);
         g2.save(); g2.translate(cx, cy); g2.rotate(SHEAR + Math.PI / 2 + (hsh - 0.5) * 0.3);
-        for (let i = -span; i < span; i += 7) { g2.fillStyle = "rgba(255,255,255," + (0.09 + (Math.round(i / 7) % 3 === 0 ? 0.08 : 0)) + ")"; g2.fillRect(i, -span, 1.2, 2 * span); }
-        for (let j = 0; j < 3; j++) { const x = (hash(cx + j * 31, cy - j * 17) - 0.5) * span * 0.9; g2.fillStyle = rgba(acc, 0.22); g2.fillRect(x, -span, 2.2 + j, 2 * span); g2.fillStyle = "rgba(255,255,255,0.26)"; g2.fillRect(x + 3 + j, -span, 0.8, 2 * span); }
+        for (let i = -span; i < span; i += 7) { g2.fillStyle = "rgba(255,255,255," + (0.12 + (Math.round(i / 7) % 3 === 0 ? 0.09 : 0)) + ")"; g2.fillRect(i, -span, 1.2, 2 * span); }
+        for (let j = 0; j < 3; j++) { const x = (hash(cx + j * 31, cy - j * 17) - 0.5) * span * 0.9; g2.fillStyle = rgba(acc, 0.26); g2.fillRect(x, -span, 2.2 + j, 2 * span); g2.fillStyle = "rgba(255,255,255,0.3)"; g2.fillRect(x + 3 + j, -span, 0.8, 2 * span); }
+        // INK: the glass was coloured with ink, not dye. Along the shear, five or six dark veins that
+        // wander and thicken, and a few pools where the ink settled; a grain of darker specks over it.
+        g2.lineCap = "round";
+        for (let v = 0; v < 6; v++) {
+          const h1 = hash(cx * 1.7 + v * 53, cy + v * 29), h2 = hash(cy * 1.3 - v * 41, cx + v * 67);
+          const x = (h1 - 0.5) * span * 0.95, wob = 6 + h2 * 14;
+          g2.strokeStyle = "rgba(4,2,8," + (0.28 + h2 * 0.22) + ")"; g2.lineWidth = 0.8 + h1 * 3.2;
+          g2.beginPath(); g2.moveTo(x, -span);
+          for (let y = -span; y <= span; y += span / 3) g2.quadraticCurveTo(x + (hash(x + y, v) - 0.5) * wob * 2, y - span / 6, x + (hash(y, x + v) - 0.5) * wob, y);
+          g2.stroke();
+        }
         g2.restore();
-        g2.fillStyle = rgba(acc, 0.16);
-        for (let y = bb.y0 + 3; y < bb.y1; y += 6) for (let x = bb.x0 + 3 + (Math.floor(y / 6) % 2) * 3; x < bb.x1; x += 6) g2.fillRect(x, y, 1.2, 1.2);
+        for (let k = 0; k < 3; k++) {
+          const px = bb.x0 + hash(cx + k * 97, cy) * tw, py = bb.y0 + hash(cy - k * 71, cx) * th, r = 12 + hash(k, cx + cy) * Math.min(tw, th) * 0.35;
+          const pool = g2.createRadialGradient(px, py, 0, px, py, r);
+          pool.addColorStop(0, "rgba(4,2,8,0.34)"); pool.addColorStop(0.6, "rgba(4,2,8,0.12)"); pool.addColorStop(1, "rgba(4,2,8,0)");
+          g2.fillStyle = pool; g2.fillRect(px - r, py - r, 2 * r, 2 * r);
+        }
+        for (let y = bb.y0 + 3; y < bb.y1; y += 6) for (let x = bb.x0 + 3 + (Math.floor(y / 6) % 2) * 3; x < bb.x1; x += 6) { g2.fillStyle = hash(x, y) > 0.5 ? rgba(acc, 0.18) : "rgba(4,2,8,0.3)"; g2.fillRect(x, y, 1.2, 1.2); }
         p.tex = t;
+        // the ink is in the glass at all times, half strength; the pulse layer adds the rest while the pane is lit
+        ctx.save(); path(ctx, p.poly); ctx.clip(); ctx.globalAlpha = 0.5; ctx.drawImage(t, bb.x0, bb.y0); ctx.restore(); ctx.globalAlpha = 1;
       }
     });
     if (seamCtx) seamCtx.clearRect(0, 0, W, H);

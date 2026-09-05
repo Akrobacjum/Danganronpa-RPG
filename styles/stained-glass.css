@@ -658,3 +658,203 @@ body.drpg-theme-stained-glass #countdowns .countdowns-header {
     font-size: 15px;
     letter-spacing: 0.1em;
 }
+
+
+/* ==========================================================================
+   Milestone 6: the right column off the tiles' shard, the clock's hierarchy,
+   light on the launchers' seams, the sheet's tiles, tables and windows.
+   ========================================================================== */
+/* 1. the right column narrows and steps away from the sidebar's shard */
+body.drpg-theme-stained-glass #ui-right-column-1 {
+    margin-right: 22px;
+}
+body.drpg-theme-stained-glass #ui-right-column-1 > #drpg-player-status,
+body.drpg-theme-stained-glass #ui-right-column-1 > #countdowns {
+    width: 280px;
+    max-width: 280px;
+}
+
+/* 3. the clock reads top-down: campaign (title face), chapter and day (dim), the phase (state
+   colour, tracked), the hour (Bone), how long ago (state colour, small), the room (dim, small) */
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-chapter,
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-day {
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    color: var(--drpg-sg-bone-dim);
+}
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-phase {
+    font-size: 15px;
+    letter-spacing: 0.14em;
+    color: var(--drpg-glass-accent);
+    margin-top: 2px;
+}
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-time {
+    color: var(--drpg-sg-bone);
+}
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-elapsed {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    color: color-mix(in srgb, var(--drpg-glass-accent) 80%, var(--drpg-sg-bone));
+    opacity: 1;
+}
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-room {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--drpg-sg-bone-dim);
+    margin-top: 5px;
+    padding-top: 5px;
+    border-top: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 26%, transparent);
+}
+
+/* 4. the launchers: the ring's seam lights up under the cursor */
+body.drpg-theme-stained-glass #drpg-messenger-launcher,
+body.drpg-theme-stained-glass #drpg-sound-launcher,
+body.drpg-theme-stained-glass #drpg-settings-launcher {
+    transition: border-color var(--drpg-t-snap, 120ms), box-shadow var(--drpg-t-snap, 120ms), color var(--drpg-t-snap, 120ms);
+}
+body.drpg-theme-stained-glass #drpg-messenger-launcher:hover,
+body.drpg-theme-stained-glass #drpg-sound-launcher:hover,
+body.drpg-theme-stained-glass #drpg-settings-launcher:hover,
+body.drpg-theme-stained-glass #drpg-messenger-launcher:focus-visible,
+body.drpg-theme-stained-glass #drpg-sound-launcher:focus-visible {
+    border-color: var(--drpg-glass-accent) !important;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--drpg-glass-accent) 60%, transparent), 0 0 22px color-mix(in srgb, var(--drpg-glass-accent) 65%, transparent), inset 0 0 12px color-mix(in srgb, var(--drpg-glass-accent) 25%, transparent);
+    color: var(--drpg-glass-accent);
+}
+body.drpg-theme-stained-glass #scene-controls button.ui-control:hover,
+body.drpg-theme-stained-glass #sidebar-tabs button.ui-control:hover {
+    box-shadow: 0 0 10px color-mix(in srgb, var(--drpg-glass-accent) 45%, transparent);
+}
+
+/* ---- the sheet's tiles: the audit's tile. Icon, name, cost; the edge in the tile's colour, the
+   brush on hover and on the chosen one, GM red for the GM's, dashed when out of reach. ---- */
+body.drpg-theme-stained-glass .drpg-action-button,
+body.drpg-theme-stained-glass .drpg-call-button {
+    --brush: var(--drpg-glass-accent);
+    position: relative;
+    isolation: isolate;
+    font-family: var(--drpg-font-chrome);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--drpg-sg-bone);
+    background: rgba(7, 7, 10, 0.5) !important;
+    border: 1px solid color-mix(in srgb, var(--brush) 45%, transparent) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+    transition: color var(--drpg-t-snap, 120ms), border-color var(--drpg-t-snap, 120ms);
+}
+body.drpg-theme-stained-glass .drpg-call-button.drpg-hope-call,
+body.drpg-theme-stained-glass .drpg-hope-panel .drpg-call-button { --brush: var(--drpg-sg-hope); }
+body.drpg-theme-stained-glass .drpg-call-button.drpg-despair-call,
+body.drpg-theme-stained-glass .drpg-despair-panel .drpg-call-button { --brush: var(--drpg-sg-despair); }
+body.drpg-theme-stained-glass .drpg-action-button.drpg-gm-action,
+body.drpg-theme-stained-glass .drpg-action-button[data-drpg-gm] { --brush: var(--drpg-sg-gm-light); }
+body.drpg-theme-stained-glass .drpg-action-button::before,
+body.drpg-theme-stained-glass .drpg-call-button::before {
+    content: "";
+    position: absolute;
+    inset: 2px 3px;
+    z-index: -1;
+    background: var(--brush);
+    opacity: var(--brush-on, 0);
+    clip-path: polygon(0 10%, 4% 0, 96% 3%, 100% 16%, 99% 90%, 95% 100%, 5% 97%, 0 86%);
+    transition: opacity var(--drpg-t-snap, 120ms);
+}
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):hover:not(:disabled):not(.unaffordable) {
+    --brush-on: 0.45;
+    border-color: var(--brush) !important;
+    color: var(--drpg-sg-bone);
+}
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):is(.active, .selected, [aria-pressed="true"]) {
+    --brush-on: 1;
+    color: var(--drpg-sg-ink);
+    border-color: var(--brush) !important;
+}
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):is(.active, .selected, [aria-pressed="true"]) .drpg-action-icon { color: var(--drpg-sg-ink); }
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):is(:disabled, .unaffordable) {
+    --brush-on: 0;
+    border-style: dashed !important;
+    border-color: color-mix(in srgb, var(--brush) 30%, transparent) !important;
+    color: var(--drpg-sg-bone-dim);
+    opacity: 1;
+}
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button) .drpg-action-icon {
+    color: var(--brush);
+    font-size: 22px;
+    width: 1.15em;
+    height: 1.15em;
+    margin-bottom: 2px;
+}
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button) .drpg-action-name {
+    font-size: 12px;
+    line-height: 1.1;
+}
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button) .drpg-action-cost {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: var(--drpg-sg-bone-dim);
+}
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):is(.active, .selected, [aria-pressed="true"]) .drpg-action-cost { color: rgba(7, 7, 10, 0.7); }
+
+/* ---- the sheet: text on the glass band reads through a shadow, section heads are quiet caps over a
+   hairline, the tab bar is the brush's, the left column's headings take the state colour ---- */
+body.drpg-theme-stained-glass .character-header-sheet.drpg-glass-band > :not(canvas) {
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.85), 0 0 8px rgba(0, 0, 0, 0.55);
+}
+body.drpg-theme-stained-glass .character-header-sheet .name-row h1 {
+    font-family: var(--drpg-font-title);
+    text-transform: none;
+    letter-spacing: 0;
+}
+body.drpg-theme-stained-glass .character-header-sheet .drpg-actions h4,
+body.drpg-theme-stained-glass .character-sidebar-sheet h4,
+body.drpg-theme-stained-glass .drpg-panel h2,
+body.drpg-theme-stained-glass .drpg-panel h3,
+body.drpg-theme-stained-glass .drpg-panel h4 {
+    font-family: var(--drpg-font-chrome);
+    font-weight: 400;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--drpg-glass-accent);
+    border-bottom: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 35%, transparent);
+    padding-bottom: 2px;
+}
+body.drpg-theme-stained-glass .drpg-panel .window-content {
+    font-family: var(--drpg-font-prose);
+    font-size: 17px;
+    line-height: 1.3;
+}
+body.drpg-theme-stained-glass .drpg-panel label,
+body.drpg-theme-stained-glass .drpg-panel .notes,
+body.drpg-theme-stained-glass .drpg-panel small {
+    font-family: var(--drpg-font-chrome);
+}
+body.drpg-theme-stained-glass .drpg-panel .notes,
+body.drpg-theme-stained-glass .drpg-panel small {
+    color: var(--drpg-sg-bone-dim);
+    text-transform: none;
+    letter-spacing: 0;
+}
+/* the row a table marks as chosen, and the row under the cursor, in the brush's language */
+body.drpg-theme-stained-glass .drpg-panel table tbody tr.active td,
+body.drpg-theme-stained-glass .drpg-panel table tbody tr.selected td,
+body.drpg-theme-stained-glass .drpg-panel table tbody tr[aria-selected="true"] td {
+    background: color-mix(in srgb, var(--drpg-glass-accent) 22%, transparent);
+    color: var(--drpg-sg-bone);
+}
+body.drpg-theme-stained-glass .drpg-panel table td:first-child { color: var(--drpg-sg-bone); }
+body.drpg-theme-stained-glass .drpg-panel table td.num,
+body.drpg-theme-stained-glass .drpg-panel table th.num { text-align: right; }
+/* Foundry's window controls on module windows: the brush's edge, no plate */
+body.drpg-theme-stained-glass .drpg-panel .window-header .header-control {
+    color: var(--drpg-sg-bone-dim);
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+}
+body.drpg-theme-stained-glass .drpg-panel .window-header .header-control:hover { color: var(--drpg-glass-accent); }
+/* the scrollbar of a module window in the theme's colour */
+body.drpg-theme-stained-glass .drpg-panel .window-content::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--drpg-glass-accent) 45%, transparent); border-radius: 0; }
+body.drpg-theme-stained-glass .drpg-panel .window-content::-webkit-scrollbar-track { background: rgba(7, 7, 10, 0.4); }

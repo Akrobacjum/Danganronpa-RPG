@@ -1127,7 +1127,7 @@
      Black glass. Colour lives in the seams and in a few stained cells; a panel's
      pane is always plain black so text reads the same everywhere. */
   const STAIN = ["#5c1238", "#142a66"];
-  const TONE = { hud: "#050409", rail: "#2a0a1e", three: "#08103a", tray: "#1a0838", "note-block": "#24061a", launch: "#050409" };
+  const TONE = { hud: "#050409", gmbar: "#050409", rail: "#2a0a1e", event: "#24061a", three: "#08103a", tray: "#1a0838", "note-block": "#24061a", launch: "#050409" };
   const SHEAR = -13 * Math.PI / 180;
   const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
   const rgba = (h, a) => "rgba(" + hex(h).join(",") + "," + a + ")";
@@ -1233,7 +1233,7 @@
     const buildColumn = (c, cols, band) => {
       const cx = (c.x0 + c.x1) / 2, h = c.y1 - c.y0;
       const s0 = field(cx, W, band);
-      let theta = Math.abs(cx - W / 2) < 0.1 * W ? 0 : Math.min(12 * DEG, Math.max(6 * DEG, Math.atan(Math.abs(s0))));
+      let theta = Math.abs(cx - W / 2) < 0.1 * W ? 0 : Math.min(8 * DEG, Math.max(6 * DEG, Math.atan(Math.abs(s0))));
       // a neighbour too close forbids the tilt that would swing the pane into it
       for (const o of cols) if (o !== c) { const gap = o.x0 > c.x1 ? o.x0 - c.x1 : c.x0 - o.x1; if (gap >= 0) theta = Math.min(theta, Math.atan(Math.max(0, gap - 2 * PAD_SIDE - 2) / Math.max(h, 1))); }
       const s = Math.sign(s0) * Math.tan(theta);
@@ -1266,7 +1266,7 @@
       let piece = clipRect(rect, W, H);
       for (let m = 0; m + 1 < c.items.length && piece; m++) {
         const up = c.items[m], dn = c.items[m + 1];
-        if (dn.y < up.y + up.h - 1) continue;                  // overlapping blocks share one pane
+        if (dn.y < up.y + up.h - 12) continue;                 // blocks that truly overlap share one pane; a touch does not
         const Ydiv = ((up.y + up.h) + dn.y) / 2 - py;
         const pt = rot(0, Ydiv);
         const [below, above] = split(piece, pt[0], pt[1], -sn, cs);
@@ -1408,24 +1408,29 @@
     for (const side of [0, 1]) {
       const wall = side ? W : 0, dir = side ? -1 : 1;
       const wTop = 136 + rnd() * 34, wMid = 62 + rnd() * 10, wBot = 116 + rnd() * 34;
-      const wCtl = wTop - 22, yCtl = 640;                     // one straight edge under the tiles: 22 px of lean over its run
       const tb = tileBox(side ? ".f-side" : ".f-ctl", side ? { x0: W - 68, y0: 290, x1: W - 20, y1: 620 } : { x0: 20, y0: 320, x1: 92, y1: 608 });
+      // one straight edge under the tiles: 22 px of lean over its run, and never inside them - the edge
+      // runs at least 14 px clear of the tiles' far side and past their bottom, however tall the rail is
+      const tileFar = side ? W - tb.x0 : tb.x1;
+      const wTopFit = Math.max(wTop, tileFar + 14 + 22);
+      const wCtl = Math.max(wTopFit - 22, tileFar + 14), yCtl = Math.max(640, tb.y1 + 24);
       const cT = top.length ? top[side ? top.length - 1 : 0] : null, cB = bot.length ? bot[side ? bot.length - 1 : 0] : null;
       const hugT = cT && (side ? cT.hugR : cT.hugL), hugB = cB && (side ? cB.hugR : cB.hugL);
       let yTop = 0, yBot = H;
-      if (hugT) yTop = Math.max(lineY(cT, wall), lineY(cT, wall + dir * wTop));
-      else for (const p of panes) { const bb = bbox(p.poly); if ((side ? bb.x1 > W - wTop - 40 : bb.x0 < wTop + 40) && bb.y1 < H / 2) yTop = Math.max(yTop, bb.y1); }
+      if (hugT) yTop = Math.max(lineY(cT, wall), lineY(cT, wall + dir * wTopFit));
+      else for (const p of panes) { const bb = bbox(p.poly); if ((side ? bb.x1 > W - wTopFit - 40 : bb.x0 < wTopFit + 40) && bb.y1 < H / 2) yTop = Math.max(yTop, bb.y1); }
       if (hugB) yBot = Math.min(lineY(cB, wall), lineY(cB, wall + dir * wBot));
       else for (const p of panes) { const bb = bbox(p.poly); if ((side ? bb.x1 > W - wBot - 40 : bb.x0 < wBot + 40) && bb.y0 >= H / 2) yBot = Math.min(yBot, bb.y0); }
       if (yBot - yTop < 240) continue;
-      const yMid = yTop + (yBot - yTop) * (0.5 + (rnd() - 0.5) * 0.16);
+      // the mid seam sits below the tiles' shard, so the shard is cut from the upper quad alone
+      const yMid = Math.min(yBot - 120, Math.max(yTop + (yBot - yTop) * (0.5 + (rnd() - 0.5) * 0.16), yCtl + 60));
       const tilt = (5 + rnd() * 5) * DEG * (rnd() < 0.5 ? 1 : -1);
       const M = [wall + dir * wMid, yMid], Wm = [wall, yMid - wMid * Math.tan(tilt)];
-      const yT0 = hugT ? Math.min(lineY(cT, wall), lineY(cT, wall + dir * wTop)) - 1 : yTop;
+      const yT0 = hugT ? Math.min(lineY(cT, wall), lineY(cT, wall + dir * wTopFit)) - 1 : yTop;
       const yB0 = hugB ? Math.max(lineY(cB, wall), lineY(cB, wall + dir * wBot)) + 1 : yBot;
-      let upperQ = clipRect([[wall, yT0], [wall + dir * wTop, yT0], ...(yCtl < yMid - 40 ? [[wall + dir * wCtl, yCtl]] : []), M, Wm], W, H);
+      let upperQ = clipRect([[wall, yT0], [wall + dir * wTopFit, yT0], ...(yCtl < yMid - 40 ? [[wall + dir * wCtl, yCtl]] : []), M, Wm], W, H);
       // the angle of that edge, for the tiles that sit on it (clockwise on the left, the mirror on the right)
-      tiles[side ? "right" : "left"] = { angle: Math.atan((wTop - wCtl) / Math.max(1, yCtl - yTop)) * (side ? -1 : 1), yTop, wTop, wCtl, yCtl };
+      tiles[side ? "right" : "left"] = { angle: Math.atan((wTopFit - wCtl) / Math.max(1, yCtl - yTop)) * (side ? -1 : 1), yTop, wTop: wTopFit, wCtl, yCtl };
       let lowerQ = clipRect([Wm, M, [wall + dir * wBot, yB0], [wall, yB0]], W, H);
       if (hugT && upperQ) { const [fx, fy] = cT.far.p; upperQ = clipHP(upperQ, fx, fy, -cT.sn, cT.cs); }
       if (hugB && lowerQ) { const [fx, fy] = cB.far.p; lowerQ = clipHP(lowerQ, fx, fy, cB.sn, -cB.cs); }
@@ -1513,7 +1518,7 @@
       const k = p.tone && TONE[p.tone] ? p.tone : null;
       const bb = bbox(p.poly);
       const hsh = hash((bb.x0 + bb.x1) / 2, (bb.y0 + bb.y1) / 2);
-      const stained = !p.content && !p.plain && hsh > (p.kind === "window" ? 0.62 : 0.72);
+      const stained = !p.content && !p.plain && hsh > 0.72;   // the same share of coloured panes on a window band as on the curtain
       ctx.save(); path(ctx, p.poly); ctx.clip();
       // black glass first, then a little colour: a panel keeps its tone, most filler a faint tint, one in five stained
       const lum = hash((bb.x0 + bb.x1) / 2 + 17, (bb.y0 + bb.y1) / 2 - 31);
@@ -1541,12 +1546,30 @@
         const g2 = t.getContext("2d"); g2.translate(-bb.x0, -bb.y0); path(g2, p.poly); g2.clip();
         const cx = (bb.x0 + bb.x1) / 2, cy = (bb.y0 + bb.y1) / 2, span = Math.hypot(tw, th);
         g2.save(); g2.translate(cx, cy); g2.rotate(SHEAR + Math.PI / 2 + (hsh - 0.5) * 0.3);
-        for (let i = -span; i < span; i += 7) { g2.fillStyle = "rgba(255,255,255," + (0.09 + (Math.round(i / 7) % 3 === 0 ? 0.08 : 0)) + ")"; g2.fillRect(i, -span, 1.2, 2 * span); }
-        for (let j = 0; j < 3; j++) { const x = (hash(cx + j * 31, cy - j * 17) - 0.5) * span * 0.9; g2.fillStyle = rgba(acc, 0.22); g2.fillRect(x, -span, 2.2 + j, 2 * span); g2.fillStyle = "rgba(255,255,255,0.26)"; g2.fillRect(x + 3 + j, -span, 0.8, 2 * span); }
+        for (let i = -span; i < span; i += 7) { g2.fillStyle = "rgba(255,255,255," + (0.12 + (Math.round(i / 7) % 3 === 0 ? 0.09 : 0)) + ")"; g2.fillRect(i, -span, 1.2, 2 * span); }
+        for (let j = 0; j < 3; j++) { const x = (hash(cx + j * 31, cy - j * 17) - 0.5) * span * 0.9; g2.fillStyle = rgba(acc, 0.26); g2.fillRect(x, -span, 2.2 + j, 2 * span); g2.fillStyle = "rgba(255,255,255,0.3)"; g2.fillRect(x + 3 + j, -span, 0.8, 2 * span); }
+        // INK: the glass was coloured with ink, not dye. Along the shear, five or six dark veins that
+        // wander and thicken, and a few pools where the ink settled; a grain of darker specks over it.
+        g2.lineCap = "round";
+        for (let v = 0; v < 6; v++) {
+          const h1 = hash(cx * 1.7 + v * 53, cy + v * 29), h2 = hash(cy * 1.3 - v * 41, cx + v * 67);
+          const x = (h1 - 0.5) * span * 0.95, wob = 6 + h2 * 14;
+          g2.strokeStyle = "rgba(4,2,8," + (0.28 + h2 * 0.22) + ")"; g2.lineWidth = 0.8 + h1 * 3.2;
+          g2.beginPath(); g2.moveTo(x, -span);
+          for (let y = -span; y <= span; y += span / 3) g2.quadraticCurveTo(x + (hash(x + y, v) - 0.5) * wob * 2, y - span / 6, x + (hash(y, x + v) - 0.5) * wob, y);
+          g2.stroke();
+        }
         g2.restore();
-        g2.fillStyle = rgba(acc, 0.16);
-        for (let y = bb.y0 + 3; y < bb.y1; y += 6) for (let x = bb.x0 + 3 + (Math.floor(y / 6) % 2) * 3; x < bb.x1; x += 6) g2.fillRect(x, y, 1.2, 1.2);
+        for (let k = 0; k < 3; k++) {
+          const px = bb.x0 + hash(cx + k * 97, cy) * tw, py = bb.y0 + hash(cy - k * 71, cx) * th, r = 12 + hash(k, cx + cy) * Math.min(tw, th) * 0.35;
+          const pool = g2.createRadialGradient(px, py, 0, px, py, r);
+          pool.addColorStop(0, "rgba(4,2,8,0.34)"); pool.addColorStop(0.6, "rgba(4,2,8,0.12)"); pool.addColorStop(1, "rgba(4,2,8,0)");
+          g2.fillStyle = pool; g2.fillRect(px - r, py - r, 2 * r, 2 * r);
+        }
+        for (let y = bb.y0 + 3; y < bb.y1; y += 6) for (let x = bb.x0 + 3 + (Math.floor(y / 6) % 2) * 3; x < bb.x1; x += 6) { g2.fillStyle = hash(x, y) > 0.5 ? rgba(acc, 0.18) : "rgba(4,2,8,0.3)"; g2.fillRect(x, y, 1.2, 1.2); }
         p.tex = t;
+        // the ink is in the glass at all times, half strength; the pulse layer adds the rest while the pane is lit
+        ctx.save(); path(ctx, p.poly); ctx.clip(); ctx.globalAlpha = 0.5; ctx.drawImage(t, bb.x0, bb.y0); ctx.restore(); ctx.globalAlpha = 1;
       }
     });
     if (seamCtx) seamCtx.clearRect(0, 0, W, H);
@@ -1556,7 +1579,7 @@
     if (glowInside) {
       sx.save(); sx.globalCompositeOperation = "lighter"; sx.strokeStyle = acc;
       const nds = junctions(panes, W, H);
-      for (const [blur, a, wdt] of [[10, 0.20, 2.2], [4, 0.24, 1.4]]) { sx.filter = "blur(" + blur + "px)"; sx.globalAlpha = a; seams(sx, panes, W, H, wdt); nodeArms(sx, nds, 12, wdt * 1.6); }
+      for (const [blur, a, wdt] of [[10, 0.10, 2.0], [4, 0.12, 1.2]]) { sx.filter = "blur(" + blur + "px)"; sx.globalAlpha = a; seams(sx, panes, W, H, wdt); nodeArms(sx, nds, 12, wdt * 1.6); }
       sx.restore();
     }
     // lead, the bevel, the neon core: thin lines, a little heavier along the arms of every junction
@@ -1762,6 +1785,7 @@
     apply(innerWidth < 2600 ? "fit" : "1");
   });
 })();
+</script>
 </script>
 
 </body></html>
