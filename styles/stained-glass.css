@@ -385,3 +385,34 @@ body.drpg-theme-stained-glass .drpg-event.due .drpg-event-meta {
     body.drpg-theme-stained-glass .drpg-event.mine .drpg-event-meta,
     body.drpg-theme-stained-glass .drpg-event.due .drpg-event-meta { animation: none; }
 }
+
+/* ---- the pause band: a pane of the curtain, breathing slowly ------------------------------- */
+body.drpg-theme-stained-glass #pause.paused {
+    --acc: var(--drpg-glass-accent);
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    background: rgba(5, 4, 9, 0.6);
+    border-top: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 40%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 40%, transparent);
+}
+body.drpg-theme-stained-glass #pause.paused figcaption {
+    font-family: var(--drpg-font-title);
+    text-transform: none;
+    letter-spacing: 0.04em;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.85), 0 0 10px rgba(0, 0, 0, 0.6);
+}
+body.drpg-theme-stained-glass #pause.paused figcaption::before,
+body.drpg-theme-stained-glass #pause.paused figcaption::after {
+    background: linear-gradient(90deg, transparent, var(--drpg-glass-accent) 15%, var(--drpg-glass-accent) 85%, transparent);
+    animation-duration: 16s;
+}
+
+/* ---- Foundry's own windows: calm dark glass, the title in the title face ------------------- */
+body.drpg-theme-stained-glass .application:not(.drpg-panel) .window-content {
+    background: rgba(9, 8, 13, 0.84);
+}
+body.drpg-theme-stained-glass .application:not(.drpg-panel) .window-header {
+    background: rgba(5, 4, 9, 0.7);
+    border-bottom: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 35%, transparent);
+}

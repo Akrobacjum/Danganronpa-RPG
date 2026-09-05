@@ -1,61 +1,5 @@
-/**
- * Danganronpa RPG - the stained-glass curtain (theme "Stained Glass").
- * ---------------------------------------------------------------------------
- * One sheet of broken black glass along the screen edges, cut for the module's
- * own layout: the clock and GM bar in the left column, the Despair rail in the
- * top centre, the status strip and Projects tray in the right column, the
- * launchers in the bottom-right, a notice pane in the bottom-left. Every block
- * sits on its own pane and is rotated with it; the filler between panes is a
- * pencil of rays from a single slope field; the side strips cover Foundry's
- * scene controls and sidebar tabs. The geometry is a partition of convex
- * polygons (checked after every cut), painted once to a bitmap, with a glow
- * bitmap over it and a pulse bitmap that darkens every pane towards black and
- * back on its own slow rhythm. The recipe, with every number, is
- * docs/design/identity-audit-v13.html; this file is that recipe, running.
- *
- * Nothing here touches the fog, the canvas or another module's window. When
- * the theme is "Monokuma Legacy" this file mounts nothing.
- */
-
-import { SETTINGS, getSetting } from "./settings.mjs";
-import { log } from "./utils.mjs";
-
-/** Self-check results of the last geometry pass, for diagnostics. */
-export const CHECKS = [];
-
-/* ---- the blocks: the module's own elements, measured untransformed ------- */
-const BLOCKS = [
-  { cls: "hud", sel: "#drpg-hud", fallback: (W, H) => ({ x: 16, y: 22, w: 312, h: 150 }) },
-  { cls: "gmbar", sel: "#drpg-gm-launcher", fallback: (W, H, r) => ({ x: 16, y: (r.hud ? r.hud.y + r.hud.h : 172) + 6, w: 74, h: 34 }) },
-  { cls: "rail", sel: "#drpg-despair", fallback: (W, H) => ({ x: Math.round(W / 2 - 206), y: 22, w: 412, h: 90 }) },
-  { cls: "event", sel: "#drpg-events", fallback: null },
-  { cls: "three", sel: "#drpg-player-status", fallback: (W, H) => ({ x: W - 64 - 300, y: 22, w: 300, h: 78 }) },
-  { cls: "tray", sel: "#ui-right-column-1 > #countdowns, #countdowns", fallback: (W, H, r) => ({ x: W - 64 - 300, y: (r.three ? r.three.y + r.three.h : 100) + 10, w: 300, h: 62 }) },
-  { cls: "note-block", sel: "#drpg-notice", fallback: (W, H) => ({ x: 16, y: H - 100 - 80, w: 330, h: 80 }) },
-  { cls: "launch", sel: "#drpg-messenger-launcher, #drpg-sound-launcher, #drpg-settings-launcher", union: true, fallback: (W, H) => ({ x: W - 22 - 66, y: H - 22 - 134, w: 66, h: 134 }) },
-];
-function moduleLayout(W, H) {
-  const els = BLOCKS.map(b => [...document.querySelectorAll(b.sel)].filter(e => e.offsetWidth > 0 && e.offsetHeight > 0));
-  // measure with the rotation off, so a pane is cut for the block as laid out
-  els.flat().forEach(e => { e.style.transform = ""; });
-  const rects = {}, out = [];
-  BLOCKS.forEach((b, i) => {
-    const list = els[i];
-    let r = null;
-    if (list.length) {
-      const rs = list.map(e => e.getBoundingClientRect());
-      const x0 = Math.min(...rs.map(q => q.left)), y0 = Math.min(...rs.map(q => q.top));
-      const x1 = Math.max(...rs.map(q => q.right)), y1 = Math.max(...rs.map(q => q.bottom));
-      r = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
-    }
-    if (!r && !b.fallback) return;                 // an event panel that is not there cuts no pane
-    const box = r ? { ...r } : b.fallback(W, H, rects);
-    rects[b.cls] = box;
-    out.push({ cls: b.cls, x: box.x, y: box.y, w: box.w, h: box.h, el: list[0] ?? null, els: list, r });
-  });
-  return out;
-}
-
+<script>
+(function () {
   /* ---- the glass ------------------------------------------------------------
      Black glass. Colour lives in the seams and in a few stained cells; a panel's
      pane is always plain black so text reads the same everywhere. */
@@ -125,8 +69,20 @@ function moduleLayout(W, H) {
   };
   const PAD_SIDE = 12, PAD_FAR = 10, HUG = 120;
 
+  /* the layout the curtain is cut for: the module's own positions at 2560 x 1440, the same on
+     every screen, so the glass has ONE shape and only its colour changes; a screen that lacks
+     a block (no tray, no GM bar) keeps that block's pane empty */
+  const LAYOUT = (W, H) => [
+    { cls: "hud", x: 16, y: 22, w: 312, h: 150 },
+    { cls: "gmbar", x: 16, y: 178, w: 74, h: 34 },
+    { cls: "rail", x: Math.round(W / 2 - 206), y: 22, w: 412, h: 90 },
+    { cls: "three", x: W - 64 - 300, y: 22, w: 300, h: 78 },
+    { cls: "tray", x: W - 64 - 300, y: 110, w: 300, h: 62 },
+    { cls: "note-block", x: 16, y: H - 100 - 80, w: 330, h: 80 },
+    { cls: "launch", x: W - 22 - 66, y: H - 22 - 134, w: 66, h: 134 },
+  ];
   function curtainShapes(host, W, H, rnd) {
-    const boxes = moduleLayout(W, H);
+    const boxes = LAYOUT(W, H).map(t => ({ ...t, el: host.querySelector(".stack .block." + t.cls) }));
     const panes = [];
     const push = (poly, tone, kind, rank) => {
       if (!poly || poly.length < 3) return null;
@@ -163,10 +119,9 @@ function moduleLayout(W, H) {
       const py = band === "top" ? c.y0 : c.y1;
       const cs = Math.cos(phi), sn = Math.sin(phi);
       const rot = (X, Y) => [px + X * cs - Y * sn, py + X * sn + Y * cs];
-      for (const b of c.items) if (b.el && b.r) for (const e of b.els) {
-        const er = e.getBoundingClientRect();
-        e.style.transformOrigin = (px - er.left) + "px " + (py - er.top) + "px";
-        e.style.transform = Math.abs(phi) < 0.004 ? "" : "rotate(" + phi + "rad)";
+      for (const b of c.items) if (b.el) {
+        b.el.style.transformOrigin = (px - b.el.offsetLeft) + "px " + (py - b.el.offsetTop) + "px";
+        b.el.style.transform = Math.abs(phi) < 0.004 ? "" : "rotate(" + phi + "rad)";
       }
       let X0 = c.x0 - px - PAD_SIDE, X1 = c.x1 - px + PAD_SIDE;
       const Yn = (band === "top" ? c.y0 - py : c.y1 - py) + (band === "top" ? -3000 : 3000);
@@ -495,7 +450,7 @@ function moduleLayout(W, H) {
   /* ---- the curtain: geometry now, paint when it is looked at -------------------- */
   const rng = seed => { let sd = seed; return () => { sd = (sd * 1664525 + 1013904223) % 4294967296; return sd / 4294967296; }; };
   function curtainGeometry(job) {
-    const el = job.el, host = document, c = el.querySelector("canvas.sg");
+    const el = job.el, host = el.parentElement, c = el.querySelector("canvas.sg");
     if (!c || c.clientWidth < 10) return false;
     const W = Math.round(c.clientWidth), H = Math.round(c.clientHeight);
     const sig = W + "x" + H;
@@ -508,7 +463,7 @@ function moduleLayout(W, H) {
     el.style.clipPath = "path('" + d + "')";
     el.style.visibility = "";
     const t = panes.meta.tiles || {};
-    for (const [sel, side] of [["#scene-controls", "left"], ["#sidebar-tabs", "right"]]) {
+    for (const [sel, side] of [[".f-ctl", "left"], [".f-side", "right"]]) {
       const tile = host.querySelector(sel); if (!tile) continue;
       tile.style.transformOrigin = "50% 50%";
       tile.style.transform = t[side] ? "rotate(" + t[side].angle + "rad)" : "";
@@ -518,7 +473,7 @@ function moduleLayout(W, H) {
     for (let i = 0; i < panes.length; i++) { if (!convex(panes[i].poly)) { nonconvex++; ncv.push(panes[i].kind + ':' + panes[i].poly.map(q => q.map(v => Math.round(v)).join(',')).join(' ')); } for (let j = i + 1; j < panes.length; j++) if (overlaps(panes[i].poly, panes[j].poly)) ov++; }
     for (const col of [...panes.meta.top, ...panes.meta.bot]) for (const b of col.items) {
       const own = panes.filter(p => p.content && col.items.some(i => i.cls === p.tone));
-      if (b.r && (b.r.x < b.x - 0.5 || b.r.y < b.y - 0.5 || b.r.x + b.r.w > b.x + b.w + 0.5 || b.r.y + b.r.h > b.y + b.h + 0.5)) fitFails++;
+      if (b.el && (b.el.offsetLeft < b.x - 0.5 || b.el.offsetTop < b.y - 0.5 || b.el.offsetLeft + b.el.offsetWidth > b.x + b.w + 0.5 || b.el.offsetTop + b.el.offsetHeight > b.y + b.h + 0.5)) fitFails++;
       const qs = [[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h]].map(([x, y]) => col.rot(x - col.px, y - col.py)).filter(q => q[0] > 1 && q[0] < W - 1 && q[1] > 1 && q[1] < H - 1);
       for (const q of qs) {
         if (!own.some(p => inside(p.poly, q[0], q[1]))) blockFails++;
@@ -528,7 +483,7 @@ function moduleLayout(W, H) {
     const cover = (x, y) => panes.some(p => inside(p.poly, x, y));
     for (let x = 4; x < W; x += 8) { if (!cover(x, 0.5)) edgeGaps++; if (!cover(x, H - 0.5)) edgeGaps++; }
     for (let y = 4; y < H; y += 8) { if (!cover(0.5, y)) edgeGaps++; if (!cover(W - 0.5, y)) edgeGaps++; }
-    CHECKS.push({ seed: job.seed, count: panes.length, overlaps: ov, nonconvex, ncv, blockFails, edgeGaps, fitFails, sig: panes.map(p => p.poly.map(q => q.map(v => Math.round(v)).join(',')).join(' ')).join('|').length });
+    (window.__panes = window.__panes || []).push({ seed: job.seed, count: panes.length, overlaps: ov, nonconvex, ncv, blockFails, edgeGaps, fitFails, sig: panes.map(p => p.poly.map(q => q.map(v => Math.round(v)).join(',')).join(' ')).join('|').length });
     job.painted = false;
     return true;
   }
@@ -587,10 +542,10 @@ function moduleLayout(W, H) {
     job.painted = true;
     return true;
   }
-
+  const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
   function pulseFrame(t) {
     for (const j of [...curtains, ...windows]) {
-      if (!j.pulse || !j.panes || !j.el.isConnected) continue;
+      if (!j.pulse || !j.panes || !inView.has(j.el)) continue;
       const g = j.pulse.getContext("2d"), k = j.pulseK;
       g.clearRect(0, 0, j.pulse.width, j.pulse.height);
       const accRGB = hex(j.acc).join(",");
@@ -607,166 +562,81 @@ function moduleLayout(W, H) {
       g.globalCompositeOperation = "source-over";
     }
   }
+  { let last = 0; const loop = t => { if (!REDUCED && !document.hidden && t - last > 66) { last = t; pulseFrame(t); } requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
 
-/* ---- lifecycle -------------------------------------------------------------- */
-const curtains = [], windows = [];
-let raf = 0, last = 0, observers = [], timer = 0;
-const REDUCED = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-function themeOn() { try { return getSetting(SETTINGS.theme) === "stainedGlass"; } catch { return false; } }
-function effectsOn() { try { return getSetting(SETTINGS.glassEffects) !== false; } catch { return true; } }
-
-function mount() {
-  const iface = document.getElementById("interface") ?? document.body;
-  let el = document.getElementById("drpg-curtain");
-  if (!el) { el = document.createElement("div"); el.id = "drpg-curtain"; el.innerHTML = '<canvas class="sg"></canvas>'; iface.prepend(el); }
-  if (!curtains.length) curtains.push({ el, seed: 44 });
-  rebuild();
-}
-function unmount() {
-  for (const j of curtains) { j.el.remove(); document.querySelectorAll("#interface > .curtain-glow").forEach(g => g.remove()); }
-  curtains.length = 0;
-  for (const j of windows) j.el.querySelectorAll(":scope > canvas").forEach(c => c.remove());
-  windows.length = 0;
-  document.querySelectorAll("#scene-controls, #sidebar").forEach(e => { e.style.marginTop = ""; });
-  BLOCKS.forEach(b => document.querySelectorAll(b.sel).forEach(e => { e.style.transform = ""; e.style.transformOrigin = ""; }));
-  document.body.classList.remove("drpg-curtain-on");
-}
-function rebuild() {
-  for (const j of curtains) {
-    j.sig = null; CHECKS.length = 0;
-    if (curtainGeometry(j)) {
-      // Foundry's tiles must start below the corner panes to own a shard of the strip;
-      // when they do not, push them down once and cut the glass again
-      if (!j.placed && placeTiles(j.panes.meta)) { j.placed = true; j.sig = null; curtainGeometry(j); }
-      curtainPaint(j); document.body.classList.add("drpg-curtain-on");
+  function windowGlass(job) {
+    const w = job.el;
+    let c = w.querySelector(":scope > canvas.sg");
+    if (!c) { c = document.createElement("canvas"); c.className = "sg"; w.prepend(c); }
+    if (w.clientWidth < 10) return false;
+    const W = c.width = Math.max(60, Math.round(w.clientWidth)), H = c.height = Math.max(24, Math.round(w.clientHeight));
+    const band = w.classList.contains("gband");
+    const panes = windowShapes(W, H, rng(job.seed)), acc = resolveAcc(w);
+    const seamCanvas = layerAfter(c, "seamline", W, H);
+    paintGlass(c.getContext("2d"), W, H, panes, acc, { glowInside: true, inset: (band || w.classList.contains("spec")) ? 0 : 10, seamCtx: seamCanvas.getContext("2d") });
+    const pc = layerAfter(c, "pulse", W, H); job.pulseK = 1;
+    for (const p of panes) {
+      const cx = (p.bb.x0 + p.bb.x1) / 2 - W / 2, cy = (p.bb.y0 + p.bb.y1) / 2 - H / 2;
+      p.phase = cx / 140 + p.hsh * 1.4; p.omega = 2 * Math.PI / (9 + p.hsh * 7);
     }
+    job.panes = panes; job.pulse = pc; job.acc = acc;
+    job.painted = true;
+    return true;
   }
-  const c = CHECKS[0];
-  if (c && (c.overlaps || c.nonconvex || c.blockFails || c.edgeGaps)) log("curtain self-check", c);
-}
-/* the scene controls and the sidebar tabs start below the corner panes, 24 px under the strip's top */
-function placeTiles(meta) {
-  const t = meta?.tiles || {};
-  let moved = false;
-  for (const [target, probe, side] of [["#scene-controls", "#scene-controls", "left"], ["#sidebar", "#sidebar-tabs", "right"]]) {
-    const el = document.querySelector(target), pr = document.querySelector(probe), info = t[side];
-    if (!el || !pr || !info) continue;
-    const keep = pr.style.transform; pr.style.transform = "";
-    const top = pr.getBoundingClientRect().top; pr.style.transform = keep;
-    const need = Math.round(info.yTop + 24 - top);
-    if (need > 2) { el.style.marginTop = ((parseFloat(el.style.marginTop) || 0) + need) + "px"; moved = true; }
-  }
-  return moved;
-}
-
-/* ---- module windows: the stained glass on the title band only --------------- */
-function paintBand(job) {
-  const w = job.el, c = w.querySelector(":scope > canvas.sg");
-  if (!c || w.clientWidth < 10) return;
-  const W = c.width = Math.max(60, Math.round(w.clientWidth)), H = c.height = Math.max(24, Math.round(w.clientHeight));
-  const panes = windowShapes(W, H, rng(job.seed)), acc = resolveAcc(w);
-  const seamCanvas = layerAfter(c, "seamline", W, H);
-  paintGlass(c.getContext("2d"), W, H, panes, acc, { glowInside: true, inset: 0, seamCtx: seamCanvas.getContext("2d") });
-  const pc = layerAfter(c, "pulse", W, H); job.pulseK = 1;
-  for (const p of panes) { const cx = (p.bb.x0 + p.bb.x1) / 2 - W / 2; p.phase = cx / 140 + p.hsh * 1.4; p.omega = 2 * Math.PI / (9 + p.hsh * 7); }
-  job.panes = panes; job.pulse = pc; job.acc = acc; job.W = W; job.H = H;
-}
-/* a flash of every seam in Bone (or the accent) that fades over `ms`: the glass has just set */
-function flashSeams(job, color, ms) {
-  if (REDUCED() || !effectsOn() || !job.panes) return;
-  const host = job.el, ref = host.querySelector(":scope > canvas.seamline") ?? host.querySelector(":scope > canvas.sg");
-  if (!ref) return;
-  const W = ref.width, H = ref.height, k = W / Math.max(1, job.W || host.clientWidth || W);
-  const fc = layerAfter(ref, "flash", W, H), g = fc.getContext("2d");
-  const t0 = performance.now();
-  const step = t => {
-    const u = (t - t0) / ms;
-    g.clearRect(0, 0, W, H);
-    if (u >= 1 || !fc.isConnected) { fc.remove(); return; }
-    g.globalAlpha = u < 0.2 ? 1 : 1 - (u - 0.2) / 0.8;
-    g.strokeStyle = color; seams(g, job.panes, W / k, H / k, 1.6, k);
-    requestAnimationFrame(step);
-  };
-  requestAnimationFrame(step);
-}
-/** Glass on a band: a window's title bar or the character sheet's header. */
-function dressBand(band, seedBase) {
-  let job = windows.find(j => j.el === band);
-  if (!job) {
-    const c = document.createElement("canvas"); c.className = "sg"; band.prepend(c);
-    job = { el: band, seed: seedBase + windows.length * 37 };
-    windows.push(job);
-  }
-  requestAnimationFrame(() => { paintBand(job); flashSeams(job, job.acc || "#f2eee6", 420); });
-  return job;
-}
-/** Every module window (`.drpg-panel`) gets glass on its header band, the character sheet on its
-    header; called from renderApplicationV2. */
-export function dressWindow(app) {
-  if (!themeOn()) return;
-  const el = app?.element;
-  if (!el?.querySelector) return;
-  if (el.classList?.contains("drpg-panel")) { const h = el.querySelector(".window-header"); if (h) dressBand(h, 155); }
-  const sheetHead = el.querySelector(".character-header-sheet");
-  if (sheetHead) { sheetHead.classList.add("drpg-glass-band"); dressBand(sheetHead, 999); }
-}
-/* the state changed (hour, phase, Eclipse): every seam flashes Bone and the glass takes the new colour */
-let stateTimer = 0;
-function onStateChange() {
-  clearTimeout(stateTimer);
-  stateTimer = setTimeout(() => {
-    for (const j of curtains) { if (!j.panes) continue; const acc = resolveAcc(j.el); if (acc === j.acc) continue; flashSeams(j, "#f2eee6", 420); curtainPaint(j); }
-    for (const j of windows) { if (!j.el.isConnected) continue; const acc = resolveAcc(j.el); if (acc === j.acc) continue; flashSeams(j, "#f2eee6", 420); paintBand(j); }
-  }, 60);
-}
-function pruneWindows() { for (let i = windows.length - 1; i >= 0; i--) if (!windows[i].el.isConnected) windows.splice(i, 1); }
-
-const schedule = () => { clearTimeout(timer); timer = setTimeout(() => { if (themeOn()) rebuild(); }, 150); };
-function observe() {
-  observers.forEach(o => o.disconnect()); observers = [];
-  addEventListener("resize", schedule);
-  const mo = new MutationObserver(schedule);
-  for (const sel of ["#ui-left-column-1", "#ui-top", "#ui-right-column-1", "#ui-bottom", "#interface"]) {
-    const h = document.querySelector(sel); if (h) mo.observe(h, { childList: true });
-  }
-  observers.push(mo);
-  if ("ResizeObserver" in window) {
-    const ro = new ResizeObserver(schedule);
-    BLOCKS.forEach(b => document.querySelectorAll(b.sel).forEach(e => ro.observe(e)));
-    observers.push(ro);
-  }
-}
-function loop(t) {
-  raf = requestAnimationFrame(loop);
-  if (!curtains.length || document.hidden || REDUCED() || !effectsOn()) return;
-  if (t - last < 66) return;
-  last = t; pulseFrame(t);
-}
-
-/** Mount or unmount the curtain according to the theme setting. */
-export function refreshGlass() {
-  if (!themeOn()) { unmount(); return; }
-  const go = () => { mount(); observe(); };
-  (document.fonts?.ready ?? Promise.resolve()).then(go, go);
-}
-
-/** Called once at ready. */
-export function registerGlass() {
-  refreshGlass();
-  if (!raf) raf = requestAnimationFrame(loop);
-  // late blocks: the launchers and the tray arrive after ready on some clients
-  setTimeout(() => { if (themeOn()) rebuild(); }, 1500);
-  Hooks.on("canvasReady", schedule);
-  Hooks.on("collapseSidebar", schedule);
-  Hooks.on("renderApplicationV2", dressWindow);
-  Hooks.on("closeApplicationV2", pruneWindows);
-  // the pause band is a pane of the curtain while the game is paused, breathing with the slow pulse
-  Hooks.on("pauseGame", paused => {
-    const band = document.getElementById("pause");
-    if (!band || !themeOn()) return;
-    if (paused) { band.classList.add("drpg-glass-band"); dressBand(band, 777); }
-    else { band.querySelectorAll(":scope > canvas").forEach(c => c.remove()); band.classList.remove("drpg-glass-band"); pruneWindows(); }
+  /* which windows carry glass all over (the material samples: the spec window, the clocks, the
+     event cards - all of them curtain blocks shown alone) and which only on their header band */
+  document.querySelectorAll(".win > .body").forEach(b => {
+    const win = b.parentElement;
+    if (win.matches(".spec, .clocks .win, .events .win")) { win.classList.add("glassfull"); return; }
+    const t = b.querySelector(":scope > .wtitle");
+    if (!t) return;
+    const wrap = document.createElement("div"); wrap.className = "whead gband";
+    b.insertBefore(wrap, t); wrap.append(t);
+    const s = wrap.nextElementSibling; if (s && s.classList.contains("wsub")) wrap.append(s);
   });
-  new MutationObserver(onStateChange).observe(document.body, { attributes: true, attributeFilter: ["data-drpg-phase", "data-drpg-time", "class"] });
-}
+  document.querySelectorAll(".sheet > div:last-child").forEach(col => {
+    const wrap = document.createElement("div"); wrap.className = "shead gband";
+    col.insertBefore(wrap, col.firstElementChild);
+    while (wrap.nextElementSibling && !wrap.nextElementSibling.classList.contains("tabbar")) wrap.append(wrap.nextElementSibling);
+  });
+
+  /* ---- lifecycle: measure after the real faces, geometry eagerly, paint lazily ---- */
+  const curtains = [], windows = [];
+  { document.querySelectorAll(".curtain").forEach(el => { el.style.visibility = "hidden"; curtains.push({ el, seed: 44 }); }); }
+  { let ws = 155; document.querySelectorAll(".win.glassfull, .gband").forEach(el => { ws += 37; windows.push({ el, seed: ws }); }); }
+  const idle = fn => ("requestIdleCallback" in window) ? requestIdleCallback(fn, { timeout: 800 }) : setTimeout(fn, 16);
+  const geometryAll = () => { window.__panes = []; curtains.forEach(curtainGeometry); };
+  const inView = new Set();
+  const paintVisible = () => { for (const j of curtains) if (inView.has(j.el) && j.panes && !j.painted) idle(() => curtainPaint(j)); for (const j of windows) if (inView.has(j.el) && !j.painted) idle(() => windowGlass(j)); };
+  const io = new IntersectionObserver(entries => {
+    for (const e of entries) { if (e.isIntersecting) inView.add(e.target); else inView.delete(e.target); e.target.closest(".fog") && e.target.closest(".fog").classList.toggle("is-off", !e.isIntersecting); }
+    paintVisible();
+  }, { rootMargin: "600px" });
+  const fonts = document.fonts ? Promise.all([document.fonts.load('16px "VT323"'), document.fonts.load('16px "Special Elite"')]).catch(() => null) : Promise.resolve();
+  Promise.race([fonts, new Promise(r => setTimeout(r, 3000))]).then(() => {
+    geometryAll();
+    curtains.forEach(j => io.observe(j.el)); windows.forEach(j => io.observe(j.el));
+    if (document.fonts) document.fonts.addEventListener("loadingdone", () => { geometryAll(); curtains.forEach(j => { j.painted = false; }); paintVisible(); });
+  });
+  let t; addEventListener("resize", () => { clearTimeout(t); t = setTimeout(() => { geometryAll(); windows.forEach(j => { j.painted = false; }); paintVisible(); }, 150); });
+
+  /* ---- the 1:1 viewer ------------------------------------------------------------- */
+  document.querySelectorAll(".vp").forEach(vp => {
+    const stage = vp.querySelector(".stage");
+    const bar = vp.previousElementSibling;
+    const apply = mode => {
+      if (mode === "fit") { const s = vp.clientWidth / 2560; vp.classList.add("fit"); stage.style.transform = "scale(" + s + ")"; vp.style.height = Math.round(1440 * s) + "px"; }
+      else { vp.classList.remove("fit"); stage.style.transform = ""; vp.style.height = ""; }
+      bar.querySelectorAll("[data-vp]").forEach(b => b.classList.toggle("on", b.dataset.vp === mode));
+      vp.dataset.mode = mode;
+    };
+    bar.querySelectorAll("[data-vp]").forEach(b => b.addEventListener("click", () => {
+      if (b.dataset.vp === "full") { (vp.requestFullscreen ? vp.requestFullscreen() : Promise.reject()).then(() => apply("1")).catch(() => apply("1")); return; }
+      apply(b.dataset.vp);
+    }));
+    document.addEventListener("fullscreenchange", () => { if (document.fullscreenElement !== vp && vp.dataset.mode === "1" && innerWidth < 2600) apply("fit"); });
+    addEventListener("resize", () => { if (vp.dataset.mode === "fit") apply("fit"); });
+    apply(innerWidth < 2600 ? "fit" : "1");
+  });
+})();
+</script>
