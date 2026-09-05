@@ -1497,3 +1497,32 @@ body.drpg-theme-stained-glass :is(#drpg-hud, #drpg-despair, #drpg-player-status,
     font-weight: 400;
     font-style: normal;
 }
+
+/* ---- B1. The notice pane, and something under it ---------------------------------------
+   The curtain cuts a pane for the module's notices in the bottom-left corner, as the audit
+   page draws it. It was cut for `#drpg-notice`, an element no script builds, so the pane was
+   always empty and the real notices - `#drpg-popups` - floated over the map in the middle of
+   the screen with no glass under them. The cards move onto their pane: bottom-left, the
+   width the pane is cut for, and rising rather than falling because they now sit at the
+   bottom. Foundry's own toasts (#notifications) are untouched. */
+body.drpg-theme-stained-glass #drpg-popups {
+    top: auto;
+    bottom: 100px;
+    left: 16px;
+    right: auto;
+    transform: none;
+    align-items: stretch;
+    width: 330px;
+    max-width: calc(100vw - 32px);
+}
+body.drpg-theme-stained-glass #drpg-popups .drpg-popup {
+    width: 100%;
+    border-radius: 0;
+    /* the pane behind it is the plate; the card states its edge with one hairline */
+    background: transparent;
+    border: 0;
+    border-left: 3px solid var(--drpg-glass-accent);
+    box-shadow: none;
+    transform: translateY(calc(var(--drpg-slide) * 0.5));
+}
+body.drpg-theme-stained-glass #drpg-popups .drpg-popup.visible { transform: none; }

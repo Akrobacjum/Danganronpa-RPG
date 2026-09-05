@@ -33,7 +33,12 @@ const BLOCKS = [
   { cls: "event", sel: "#drpg-events", fallback: null },
   { cls: "three", sel: "#drpg-player-status", fallback: (W, H) => ({ x: W - 64 - 300, y: 22, w: 300, h: 78 }) },
   { cls: "tray", sel: "#ui-right-column-1 > #countdowns, #countdowns", fallback: (W, H, r) => ({ x: W - 64 - 300, y: (r.three ? r.three.y + r.three.h : 100) + 10, w: 300, h: 62 }) },
-  { cls: "note-block", sel: "#drpg-notice", fallback: (W, H) => ({ x: 16, y: H - 100 - 80, w: 330, h: 80 }) },
+  /* The notice pane was cut for `#drpg-notice`, which no script has ever built: the module's
+     notices are `#drpg-popups` (popup.mjs), and they were floating over the map with no glass
+     under them while an empty 330x80 pane sat in the corner on every screen. The pane belongs
+     to the real container, and it has NO fallback on purpose - an empty popup stack has no
+     height, so it is not measured, and a screen with nothing to say cuts no pane. */
+  { cls: "note-block", sel: "#drpg-popups", fallback: null },
   { cls: "launch", sel: "#drpg-messenger-launcher, #drpg-sound-launcher, #drpg-settings-launcher", union: true, fallback: (W, H) => ({ x: W - 22 - 66, y: H - 22 - 134, w: 66, h: 134 }) },
 ];
 /* ---- the rotations: one stylesheet, rewritten after every geometry pass ----------------------
@@ -162,8 +167,11 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
   };
   const PAD_SIDE = 12, PAD_FAR = 10, HUG = 120;
 
-  function curtainShapes(host, W, H, rnd) {
-    const boxes = moduleLayout(W, H);
+  /* `W` is where the glass ENDS (an expanded sidebar is a wall); `FW` is the screen. The slope
+     field and the upright zone in the middle belong to the screen: read off the wall instead,
+     the Despair rail - centred on the window - fell 158 px off the middle of a 1685 px wall and
+     took a full 8 degrees of tilt, which is the leaning rail on the tablet screenshot. */
+  function curtainShapes(host, W, H, rnd, boxes, FW) {
     const panes = [];
     const push = (poly, tone, kind, rank) => {
       if (!poly || poly.length < 3) return null;
@@ -190,8 +198,12 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
        the same angle around the same pivot, so glass and panel agree exactly */
     const buildColumn = (c, cols, band) => {
       const cx = (c.x0 + c.x1) / 2, h = c.y1 - c.y0;
-      const s0 = field(cx, W, band);
-      let theta = Math.abs(cx - W / 2) < 0.1 * W ? 0 : Math.min(8 * DEG, Math.max(6 * DEG, Math.atan(Math.abs(s0))));
+      const s0 = field(cx, FW, band);
+      let theta = Math.abs(cx - FW / 2) < 0.1 * FW ? 0 : Math.min(8 * DEG, Math.max(6 * DEG, Math.atan(Math.abs(s0))));
+      // A tablet is not a 2560 px monitor: at 8 degrees the clock's two faces are read at an
+      // angle across a third of the screen. Below 2200 px the blocks stand straight and only
+      // the glass around them is cut.
+      if (FW < 2200) theta = 0;
       // a neighbour too close forbids the tilt that would swing the pane into it
       for (const o of cols) if (o !== c) { const gap = o.x0 > c.x1 ? o.x0 - c.x1 : c.x0 - o.x1; if (gap >= 0) theta = Math.min(theta, Math.atan(Math.max(0, gap - 2 * PAD_SIDE - 2) / Math.max(h, 1))); }
       const s = Math.sign(s0) * Math.tan(theta);
@@ -359,11 +371,14 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     // Foundry's tiles, measured with their rotation off and in the curtain's own pixels (the page may be scaled)
     const cv = host.querySelector(".curtain > canvas.sg, #drpg-curtain > canvas.sg");
     const tileBox = (sel, fallback) => {
-      const t = host.querySelector(sel); if (!t || !t.offsetWidth || !cv) return fallback;   // the shard is cut even when the tiles are not shown: one shape everywhere
+      // The shard is cut even when the tiles are not shown, so the curtain has ONE shape on
+      // every screen; but a shard with nothing on it is not kept plain black - `real` says
+      // which is which, and an empty one is painted like any other piece of filler.
+      const t = host.querySelector(sel); if (!t || !t.offsetWidth || !cv) return { ...fallback, real: false };
       const keep = t.style.transform; t.style.transform = "";
       const r = t.getBoundingClientRect(), o = cv.getBoundingClientRect(), s = o.width / W || 1;
       t.style.transform = keep;
-      return { x0: (r.left - o.left) / s, y0: (r.top - o.top) / s, x1: (r.right - o.left) / s, y1: (r.bottom - o.top) / s };
+      return { x0: (r.left - o.left) / s, y0: (r.top - o.top) / s, x1: (r.right - o.left) / s, y1: (r.bottom - o.top) / s, real: true };
     };
     const lineY = (c, x) => { const [fx, fy] = c.far.p, [dx, dy] = c.far.d; return fy + (x - fx) * dy / dx; };
     for (const side of [0, 1]) {
@@ -402,7 +417,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
           for (const [yy, tilt] of [[box.y0 - 14, -0.10], [box.y1 + 14, 0.10]]) pieces = pieces.flatMap(pp => split(pp, wall, yy, -tilt, dir).filter(Boolean));
           const cx = (box.x0 + box.x1) / 2, cy = (box.y0 + box.y1) / 2;
           const k = pieces.findIndex(pp => inside(pp, cx, cy));
-          if (k >= 0) { const shard = push(pieces.splice(k, 1)[0], null, "strip", 9); if (shard) shard.plain = true; }
+          if (k >= 0) { const shard = push(pieces.splice(k, 1)[0], null, "strip", 9); if (shard) shard.plain = box.real !== false; }
         }
         let y = y0 + (y0 === yTop ? 320 + rnd() * 160 : 120 + rnd() * 200);
         while (y < y1 - 60) {
@@ -562,18 +577,34 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     // the curtain's own box in viewport pixels (it is a fixed child of the body, so this is the viewport);
     // never the canvas's client size, which a zoomed ancestor would inflate
     const rc = el.getBoundingClientRect();
-    // an expanded sidebar is a wall: the glass is cut up to its left edge, so the blocks beside it
-    // hug it as they would hug the screen's edge instead of standing in the open
-    const sbEl = document.getElementById("sidebar"), sbr = sbEl && sbEl.offsetWidth > 120 ? sbEl.getBoundingClientRect() : null;
+    /* AN EXPANDED SIDEBAR IS A WALL, AND FOUNDRY IS ASKED WHETHER IT IS EXPANDED.
+       The glass is cut up to the sidebar's left edge so the blocks beside it hug it as they
+       would hug the screen. Measuring its WIDTH to decide that was the bug behind "the glass
+       does not come back": Foundry collapses the sidebar with a transition, so for a few
+       hundred milliseconds after the click it is still 300 px wide, the one rebuild the
+       collapse hook scheduled measured it mid-animation, and nothing measured again - the
+       wall stayed at 1685 px with the right-hand column beyond it. `ui.sidebar.expanded` is
+       true or false the moment the click lands; the width is only the fallback. */
+    const sbEl = document.getElementById("sidebar");
+    const expanded = typeof ui !== "undefined" && ui?.sidebar
+      ? ui.sidebar.expanded !== false
+      : Boolean(sbEl && sbEl.offsetWidth > 120);
+    const sbr = expanded && sbEl ? sbEl.getBoundingClientRect() : null;
     const fullW = Math.round(rc.width || innerWidth);
     const W = sbr && sbr.left - rc.left > 400 ? Math.round(sbr.left - rc.left) : fullW, H = Math.round(rc.height || innerHeight);
     LAST.frame = { W, H, left: rc.left, top: rc.top, inner: [innerWidth, innerHeight], canvas: [c.clientWidth, c.clientHeight], wall: W !== fullW };
     el.style.width = W + "px";   // the canvases are 100% of the curtain: the curtain is as wide as the glass
-    const sig = W + "x" + H;
-    if (job.sig === sig) return true;
+    /* THE BLOCKS ARE PART OF THE SIGNATURE, NOT ONLY THE FRAME.
+       A block that MOVES without changing size - the right-hand column sliding over when the
+       sidebar collapses, the tray folding, the Event panel arriving - left the signature at
+       the same "W x H" and the glass was never recut. Measuring the layout first costs eight
+       rectangles and settles it. */
+    const boxes = moduleLayout(W, H);
+    const sig = W + "x" + H + "|" + boxes.map(b => b.cls + Math.round(b.x) + "," + Math.round(b.y) + "," + Math.round(b.w) + "," + Math.round(b.h)).join(";");
+    if (job.sig === sig) { applyRotations(); return true; }   // `moduleLayout` switched the rotations off to measure
     job.sig = sig; job.W = W; job.H = H;
     ROT.length = 0;
-    const panes = curtainShapes(host, W, H, rng(job.seed));
+    const panes = curtainShapes(host, W, H, rng(job.seed), boxes, fullW);
     job.panes = panes;
     // the silhouette: one clip path of every pane, crisp at any scale, no bitmap
     const d = panes.map(p => "M" + p.poly.map(q => q[0].toFixed(1) + " " + q[1].toFixed(1)).join("L") + "Z").join("");
@@ -839,6 +870,9 @@ function rebuild() {
   }
   const c = CHECKS[0];
   if (c && (c.overlaps || c.nonconvex || c.blockFails || c.edgeGaps)) log("curtain self-check", c);
+  // what the interface looks like now that the blocks are rotated: the baseline the drift
+  // watch compares against, taken after the rotations have been written, never before
+  requestAnimationFrame(() => { for (const j of curtains) { j.live = liveSignature(); j.pending = null; } });
 }
 /* the scene controls and the sidebar tabs start below the corner panes, 24 px under the strip's top.
    The shift is capped: the GM's sidebar is a column of real work, and 160 px is as much of it as the
@@ -982,6 +1016,10 @@ function onStateChange() {
 function pruneWindows() { for (let i = windows.length - 1; i >= 0; i--) if (!windows[i].el.isConnected) windows.splice(i, 1); }
 
 const schedule = () => { clearTimeout(timer); timer = setTimeout(() => { if (themeOn()) rebuild(); }, 150); };
+/* A sidebar or a column does not finish moving when the click lands; it finishes when its
+   transition ends. One rebuild now (so a resize still feels immediate) and one after the
+   animation could have finished, whether or not a `transitionend` arrives. */
+const scheduleSettled = () => { schedule(); setTimeout(() => { if (themeOn()) rebuild(); }, 700); };
 function observe() {
   observers.forEach(o => o.disconnect()); observers = [];
   addEventListener("resize", schedule);
@@ -993,12 +1031,54 @@ function observe() {
   if ("ResizeObserver" in window) {
     const ro = new ResizeObserver(schedule);
     BLOCKS.forEach(b => document.querySelectorAll(b.sel).forEach(e => ro.observe(e)));
+    /* The wall and the columns that stand beside it. Watching only the module's own blocks
+       missed the collapse entirely: the sidebar is not one of them, and the right-hand
+       column slides sideways without changing size. */
+    for (const sel of ["#sidebar", "#sidebar-content", "#ui-right-column-1", "#ui-left-column-1"]) {
+      const e = document.querySelector(sel); if (e) ro.observe(e);
+    }
     observers.push(ro);
   }
+  const sb = document.getElementById("sidebar");
+  if (sb) sb.addEventListener("transitionend", schedule);
+}
+/* WHAT THE GLASS IS CUT FOR, AS IT STANDS NOW.
+   The rectangles of every block and the wall, rounded, in the pixels they are drawn in (so
+   with the rotation on - this is compared against itself, never against the cut). Sampled
+   twice a second: an interface that has moved without telling anybody is the one case the
+   observers above cannot catch, and it costs a handful of rectangles. */
+function liveSignature() {
+  let out = "";
+  for (const b of BLOCKS) for (const e of document.querySelectorAll(b.sel)) {
+    const r = e.getBoundingClientRect();
+    if (!r.width && !r.height) continue;
+    out += b.cls + Math.round(r.left) + "," + Math.round(r.top) + "," + Math.round(r.width) + "," + Math.round(r.height) + ";";
+  }
+  const sb = document.getElementById("sidebar");
+  const expanded = typeof ui !== "undefined" && ui?.sidebar ? ui.sidebar.expanded !== false : Boolean(sb && sb.offsetWidth > 120);
+  if (sb) out += "sb" + Math.round(sb.getBoundingClientRect().left) + "," + (expanded ? 1 : 0);
+  return out + "|" + Math.round(innerWidth) + "x" + Math.round(innerHeight);
+}
+let driftAt = 0;
+function watchDrift(t) {
+  if (t - driftAt < 500) return;
+  driftAt = t;
+  const j = curtains[0];
+  if (!j || !j.painted) return;
+  const now = liveSignature();
+  if (j.live === undefined) { j.live = now; return; }
+  if (now === j.live) { j.pending = null; return; }
+  /* Twice in a row before a recut: a sidebar in the middle of its transition changes on
+     every sample, and cutting the glass for a half-collapsed panel is the fault this watch
+     exists to fix. A settled new layout reads the same twice, half a second apart. */
+  if (j.pending !== now) { j.pending = now; return; }
+  j.live = now; j.pending = null; schedule();
 }
 function loop(t) {
   raf = requestAnimationFrame(loop);
-  if (!curtains.length || document.hidden || REDUCED() || !effectsOn()) return;
+  if (!curtains.length || document.hidden) return;
+  watchDrift(t);
+  if (REDUCED() || !effectsOn()) return;
   if (t - last < 66) return;
   last = t; scanUrgent(t); pulseFrame(t);
 }
@@ -1024,7 +1104,7 @@ export function registerGlass() {
     if (!j || !j.painted || Math.abs(j.el.getBoundingClientRect().width - innerWidth) > 2) { log("curtain watchdog: rebuilding", glassReport()); if (j) j.placed = false; mount(); }
   }, ms);
   Hooks.on("canvasReady", schedule);
-  Hooks.on("collapseSidebar", schedule);
+  Hooks.on("collapseSidebar", scheduleSettled);
   Hooks.on("renderApplicationV2", dressWindow);
   Hooks.on("closeApplicationV2", pruneWindows);
   // the pause band is a pane of the curtain while the game is paused, breathing with the slow pulse
