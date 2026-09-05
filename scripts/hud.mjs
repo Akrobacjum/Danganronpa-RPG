@@ -327,10 +327,18 @@ export function renderHud() {
             ticker.append(run, run.cloneNode(true));
             hud.append(ticker);
         }
+        /* CHAPTER AND DAY ARE ONE LINE UNDER THE THEME.
+           Two rows for six words, in a pane whose height the curtain is cut around: the
+           audit page draws them as one line with a divider, which is a row of glass
+           saved on every screen. Monokuma Legacy keeps its two rows. */
+        const chapterText = game.i18n.format("DRPG.Hud.chapter", { n: clock.chapter });
+        const dayText = game.i18n.format("DRPG.Hud.day", { n: clock.day ?? 1 });
+        const dateLines = eventsWindowActive()
+            ? [line("drpg-hud-chapter", `${chapterText} · ${dayText}`)]
+            : [line("drpg-hud-chapter", chapterText), line("drpg-hud-day", dayText)];
         hud.append(
             line("drpg-hud-campaign", campaignName(clock)),
-            line("drpg-hud-chapter", game.i18n.format("DRPG.Hud.chapter", { n: clock.chapter })),
-            line("drpg-hud-day", game.i18n.format("DRPG.Hud.day", { n: clock.day ?? 1 })),
+            ...dateLines,
             line("drpg-hud-phase", phaseLabel(clock.phase)),
             buildTimeRow(clock, isGM),
             buildElapsed()

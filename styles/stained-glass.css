@@ -567,7 +567,10 @@ body.drpg-theme-stained-glass .drpg-panel table tbody tr:hover td { background: 
 /* ---- the ticker behind the clock: the state's name as an outline, quietly, 18 s a pass ------ */
 body.drpg-theme-stained-glass #drpg-hud {
     position: relative;
-    overflow: hidden;
+    /* NOT `overflow: hidden`. The ticker clips itself (it has its own `overflow` below), and
+       the clock's own clip was cutting the tops off the uppercase it carries - "AFTERNOON"
+       lost its ascenders on a tablet. Nothing else here is allowed to outgrow its box. */
+    overflow: visible;
 }
 body.drpg-theme-stained-glass #drpg-hud > :not(.drpg-hud-ticker) { position: relative; z-index: 1; }
 body.drpg-theme-stained-glass .drpg-hud-ticker {
@@ -583,7 +586,8 @@ body.drpg-theme-stained-glass .drpg-hud-ticker {
     z-index: 0;
     font-family: var(--drpg-font-chrome);
     font-size: 32px;
-    line-height: 1;
+    /* 1.0 cut the outline's caps top and bottom; the box is centred, so it can afford it */
+    line-height: 1.25;
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: color-mix(in srgb, var(--drpg-glass-accent) 10%, transparent);
@@ -1526,3 +1530,79 @@ body.drpg-theme-stained-glass #drpg-popups .drpg-popup {
     transform: translateY(calc(var(--drpg-slide) * 0.5));
 }
 body.drpg-theme-stained-glass #drpg-popups .drpg-popup.visible { transform: none; }
+
+/* ---- A1. Uppercase that fits its box ----------------------------------------------------
+   The headline defect of 1.2.27, and the one on the tablet screenshot: "MONOKUMA" read as
+   "MUNUKUMA", and the same on "AFTERNOON", "STILL TO ACT" and "DESPAIR OVERFLOW". VT323's
+   capitals are tall for its em, the boxes came from the base sheet (sized for lowercase in
+   another face) and clip, and this theme adds uppercase and 0.06-0.16em of tracking on top.
+
+   The correction existed in 1.2.26 - and was written under `body.drpg-pixel-font`, so the
+   face it was needed for never got it. It applies to the chrome, full stop:
+
+     - a line box of at least 1.3, and a hair of padding for the ascenders;
+     - no `overflow: hidden` on a box that only holds a label;
+     - an ellipsis is for a NAME somebody typed, never for a label the module wrote. */
+body.drpg-theme-stained-glass :is(#drpg-hud, #drpg-despair, #drpg-player-status, #drpg-events,
+    #countdowns, #drpg-notice, #drpg-gm-launcher) :is(div, span, b, h4, button) {
+    line-height: 1.35;
+    overflow-wrap: break-word;
+}
+body.drpg-theme-stained-glass :is(#drpg-hud .drpg-hud-campaign, #drpg-hud .drpg-hud-chapter,
+    #drpg-hud .drpg-hud-day, #drpg-hud .drpg-hud-phase, #drpg-hud .drpg-hud-time,
+    #drpg-hud .drpg-hud-elapsed, #drpg-hud .drpg-hud-room, #drpg-hud .drpg-hud-time-slot,
+    #drpg-despair .drpg-despair-name, #drpg-despair .drpg-despair-count,
+    #drpg-despair .drpg-despair-overflow, #drpg-player-status .drpg-status-label,
+    #drpg-player-status .drpg-status-value, #countdowns .countdowns-header,
+    #countdowns .countdowns-header .window-title, #drpg-events .drpg-event-kicker,
+    #drpg-events .drpg-event-title, #drpg-events .drpg-event-sub, #drpg-events .drpg-event-meta) {
+    overflow: visible;
+    text-overflow: clip;
+    padding-top: 0.08em;
+}
+/* The one place an ellipsis is still right: a campaign name and a pool name are typed by a
+   person and can be any length. They wrap now instead of being cut mid-word. */
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-campaign {
+    white-space: normal;
+    text-wrap: balance;
+}
+body.drpg-theme-stained-glass #drpg-despair .drpg-despair-name {
+    max-width: 18ch;
+    min-width: 10ch;
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+/* A9b. The status strip's label was 10 px - under the floor - in a box that clipped it. */
+body.drpg-theme-stained-glass #drpg-player-status .drpg-status-label {
+    font-size: var(--drpg-sg-floor);
+    white-space: normal;
+    max-width: none;
+}
+
+/* ---- A5a. The hour and its two arrows ---------------------------------------------------
+   `min-width: 9ch` on the label plus 0.16em of tracking pushed the chevrons some 30 px away
+   from the word they step; the audit page has them 8 px off it. The slot still clips, because
+   the turn-over slides two labels through it, but it is only as wide as the label it holds. */
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-time-row { gap: 8px; }
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-time-slot {
+    min-width: 0;
+    padding: 0 2px;
+}
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-time { min-width: 0; }
+
+/* ---- A5b. The pools line up with each other ---------------------------------------------
+   Two rows, one above the other, whose pips started at a different x because the name column
+   was elastic: the row is a set of columns now, so Monokuma's twelve skulls and Monominie's
+   sit in the same place and the steppers make one column down the right. */
+body.drpg-theme-stained-glass #drpg-despair .drpg-despair-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+body.drpg-theme-stained-glass #drpg-despair .drpg-despair-pips { flex: 0 0 auto; }
+body.drpg-theme-stained-glass #drpg-despair .drpg-despair-count {
+    flex: 0 0 5ch;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+body.drpg-theme-stained-glass #drpg-despair .drpg-despair-button { flex: 0 0 auto; }
