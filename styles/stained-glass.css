@@ -586,6 +586,10 @@ body.drpg-theme-stained-glass #drpg-hud {
 }
 body.drpg-theme-stained-glass #drpg-hud > :not(.drpg-hud-ticker) { position: relative; z-index: 1; }
 body.drpg-theme-stained-glass .drpg-hud-ticker {
+    /* The outline fades out at both ends rather than being cut by the clock's edge, as on
+       the audit page: a hard end reads as a rendering fault, a fade reads as depth. */
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
     position: absolute;
     left: 0;
     right: 0;
@@ -1590,10 +1594,17 @@ body.drpg-theme-stained-glass #drpg-hud .drpg-hud-campaign {
     text-wrap: balance;
 }
 body.drpg-theme-stained-glass #drpg-despair .drpg-despair-name {
-    max-width: 18ch;
-    min-width: 10ch;
-    flex: 0 0 auto;
+    /* A FIXED column, not a minimum: with `min-width` the longer of two pool names still
+       grew its own box, and the two rows' pips started 1-2 px apart - which across twelve
+       skulls is the kind of misalignment the eye catches and cannot name. Measured, not
+       guessed: 118 px holds the longest default name ("Monominie") in uppercase with this
+       theme's tracking, and `ch` will not do it - VT323's digit is narrow next to its caps.
+       A name longer than that is a name somebody typed, so it may end in an ellipsis, as it
+       did before. The interface scale carries it, like every other size here. */
+    flex: 0 0 calc(118px * var(--drpg-sg-scale));
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 /* A9b. The status strip's label was 10 px - under the floor - in a box that clipped it. */
 body.drpg-theme-stained-glass #drpg-player-status .drpg-status-label {
