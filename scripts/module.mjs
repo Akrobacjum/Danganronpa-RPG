@@ -68,7 +68,8 @@ import { registerSafeword } from "./safeword.mjs";
 import { registerDiceSync } from "./dice-sync.mjs";
 import { registerSync } from "./sync.mjs";
 import { registerTraps } from "./traps.mjs";
-import { SETTINGS, getSetting } from "./settings.mjs";
+import { SETTINGS, getSetting, applyTheme } from "./settings.mjs";
+import { registerGlass } from "./glass.mjs";
 import { registerApi } from "./api.mjs";
 import { requirementsMet, announceMissingRequirements } from "./requirements.mjs";
 import { warnAboutPageTinting, verifyStylesheet } from "./diagnostics.mjs";
@@ -237,6 +238,10 @@ Hooks.once("ready", () => {
     // they exist would show a dash until the next redraw.
     safely("private cards", registerSecrets);
     safely("the API", registerApi);
+    // The look: theme class, glass effects, UI scale, then the curtain that
+    // depends on all three. After the API, before anything that renders a block.
+    safely("the theme", applyTheme);
+    safely("the stained glass", registerGlass);
     // Before the other socket listeners: this is the one that carries world-state
     // changes to the players. Without it `broadcast()` emits into a socket nobody
     // is listening on, and the clock, the Eclipse and every Despair Call

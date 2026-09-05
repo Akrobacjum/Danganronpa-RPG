@@ -50,6 +50,7 @@
   "styles": [
     "styles/motion.css",
     "styles/danganronpa.css",
+    "styles/stained-glass.css",
     "styles/messenger.css"
   ],
   "languages": [

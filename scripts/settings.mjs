@@ -54,6 +54,9 @@ export const SETTINGS = {
     restrictions: "restrictions",
     hideSystemFear: "hideSystemFear",
     pixelFont: "pixelFont",
+    theme: "theme",
+    glassEffects: "glassEffects",
+    uiScale: "uiScale",
     projectsCollapsed: "projectsCollapsed",
     debug: "debug",
     /** Regions become LiveKit breakout rooms - off by default, needs avclient-livekit. */
@@ -503,6 +506,43 @@ export function registerSettings() {
         type: Boolean,
         default: true,
         onChange: () => document.body.classList.toggle("drpg-pixel-font", getSetting(SETTINGS.pixelFont))
+    });
+
+    /* ---- the look: theme, glass effects, UI scale. All three are this
+       browser's own (scope "client"); the GM's choice never reaches a player. */
+    game.settings.register(MODULE_ID, SETTINGS.theme, {
+        name: "DRPG.Settings.theme.name",
+        hint: "DRPG.Settings.theme.hint",
+        scope: "client",
+        config: true,
+        type: String,
+        choices: {
+            stainedGlass: "DRPG.Settings.theme.stainedGlass",
+            monokumaLegacy: "DRPG.Settings.theme.monokumaLegacy"
+        },
+        default: "stainedGlass",
+        onChange: () => applyTheme()
+    });
+
+    game.settings.register(MODULE_ID, SETTINGS.glassEffects, {
+        name: "DRPG.Settings.glassEffects.name",
+        hint: "DRPG.Settings.glassEffects.hint",
+        scope: "client",
+        config: true,
+        type: Boolean,
+        default: true,
+        onChange: () => applyTheme()
+    });
+
+    game.settings.register(MODULE_ID, SETTINGS.uiScale, {
+        name: "DRPG.Settings.uiScale.name",
+        hint: "DRPG.Settings.uiScale.hint",
+        scope: "client",
+        config: true,
+        type: Number,
+        range: { min: 0.8, max: 1.4, step: 0.05 },
+        default: 1,
+        onChange: () => applyTheme()
     });
 
     game.settings.register(MODULE_ID, SETTINGS.debug, {
@@ -1161,4 +1201,20 @@ export function iAmTheMastermind() {
         // client that never received the whisper. Not the Mastermind.
         return false;
     }
+}
+
+/**
+ * The look, applied to the body: the theme class, the glass-effects class and
+ * the UI scale. Idempotent; called at ready and from every onChange above.
+ * The curtain itself (scripts/glass.mjs) listens to the same three settings
+ * through `refreshGlass`, which this calls when it is loaded.
+ */
+export function applyTheme() {
+    const theme = getSetting(SETTINGS.theme);
+    document.body.classList.toggle("drpg-theme-stained-glass", theme === "stainedGlass");
+    document.body.classList.toggle("drpg-theme-monokuma-legacy", theme !== "stainedGlass");
+    document.body.classList.toggle("drpg-no-glass-effects", getSetting(SETTINGS.glassEffects) === false);
+    const scale = Number(getSetting(SETTINGS.uiScale)) || 1;
+    document.documentElement.style.setProperty("--drpg-ui-scale", String(Math.min(1.4, Math.max(0.8, scale))));
+    import("./glass.mjs").then(m => m.refreshGlass()).catch(() => {});
 }

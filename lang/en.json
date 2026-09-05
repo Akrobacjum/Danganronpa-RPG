@@ -280,6 +280,20 @@
         "name": "Pixel font",
         "hint": "Press Start 2P on interface chrome: HUD, Despair, character name, statistic labels, tabs. Journals, chat and editable fields keep the normal face so long text stays readable."
       },
+      "theme": {
+        "name": "Theme",
+        "hint": "How the module looks on this browser. Stained Glass is the current identity: black broken glass along the screen edges, colour in the seams. Monokuma Legacy is the look before it.",
+        "stainedGlass": "Stained Glass",
+        "monokumaLegacy": "Monokuma Legacy"
+      },
+      "glassEffects": {
+        "name": "Glass effects",
+        "hint": "The blur behind the glass and the slow pulse of the panes. Off, the curtain is still there but still and flat. This client only."
+      },
+      "uiScale": {
+        "name": "Interface scale",
+        "hint": "One factor on the whole interface, 80% to 140%. The map is never scaled. This client only."
+      },
       "debug": {
         "name": "Verbose console logging",
         "hint": "Print Danganronpa RPG diagnostics to the browser console. This client only."

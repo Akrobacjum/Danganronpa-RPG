@@ -1,0 +1,202 @@
+/* ==========================================================================
+   Danganronpa RPG - theme "Stained Glass"
+   --------------------------------------------------------------------------
+   The look from docs/design/identity-audit-v13.html: black stained glass along
+   the screen edges (scripts/glass.mjs draws it), colour in the seams and in a
+   few coloured panes, VT323 on chrome, Special Elite on titles, the state
+   colour on everything the interface needs to point at.
+
+   Everything in here is scoped to `body.drpg-theme-stained-glass`, which the
+   "Theme" client setting toggles. The other value, "Monokuma Legacy", is the
+   stylesheet as it was; this file then does nothing at all.
+
+   Milestone 1 (this file): fonts, tokens, the curtain layer, the blocks on
+   their panes, Foundry's own tiles cut to the same corners, the UI scale.
+   Windows (header band glass, calm body), the settings launcher and the
+   animation pass follow in the next milestones. See docs/design/typography.md.
+   ========================================================================== */
+
+/* ---- fonts: two OFL faces, shipped with the module, latin + latin-ext ------ */
+@font-face {
+    font-family: "VT323";
+    src: url("../fonts/VT323-Regular.woff2") format("woff2");
+    font-display: swap;
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+    font-family: "VT323";
+    src: url("../fonts/VT323-LatinExt.woff2") format("woff2");
+    font-display: swap;
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+    font-family: "Special Elite";
+    src: url("../fonts/SpecialElite-Regular.woff2") format("woff2");
+    font-display: swap;
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+    font-family: "Special Elite";
+    src: url("../fonts/SpecialElite-LatinExt.woff2") format("woff2");
+    font-display: swap;
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* ---- tokens ---------------------------------------------------------------- */
+body.drpg-theme-stained-glass {
+    --drpg-font-chrome: "VT323", "DRPG Pixel", "Courier New", monospace;
+    --drpg-font-title: "Special Elite", "Courier New", monospace;
+    --drpg-font-stamp: "VT323", "Courier New", monospace;
+    --drpg-font-prose: "VT323", "Courier New", monospace;
+
+    --drpg-sg-ink: #07070a;
+    --drpg-sg-bone: #f2eee6;
+    --drpg-sg-bone-dim: rgba(242, 238, 230, 0.62);
+    --drpg-sg-gm: #e0182f;
+    --drpg-sg-gm-light: #ff5566;
+    --drpg-sg-hope: #ffd23f;
+    --drpg-sg-despair: #ff3d8b;
+    --drpg-sg-evidence: #3ddc84;
+    --drpg-sg-morning: #bfe3ff;
+    --drpg-sg-noon: #7fe4ff;
+    --drpg-sg-afternoon: #ffd38f;
+    --drpg-sg-evening: #ff8245;
+    --drpg-sg-night: #7f8cff;
+    --drpg-sg-investigation: #57b6ff;
+    --drpg-sg-eclipse: #a678ff;
+
+    /* the colour the seams glow with: the time of day, replaced by the state.
+       The clock writes `data-drpg-time` on the body (Milestone 2); until then
+       the default is the afternoon gold, the Eclipse overrides it below. */
+    --drpg-glass-accent: var(--drpg-sg-afternoon);
+    --drpg-ui-scale: 1;
+}
+body.drpg-theme-stained-glass[data-drpg-time="morning"] { --drpg-glass-accent: var(--drpg-sg-morning); }
+body.drpg-theme-stained-glass[data-drpg-time="noon"] { --drpg-glass-accent: var(--drpg-sg-noon); }
+body.drpg-theme-stained-glass[data-drpg-time="afternoon"] { --drpg-glass-accent: var(--drpg-sg-afternoon); }
+body.drpg-theme-stained-glass[data-drpg-time="evening"] { --drpg-glass-accent: var(--drpg-sg-evening); }
+body.drpg-theme-stained-glass[data-drpg-time="night"] { --drpg-glass-accent: var(--drpg-sg-night); }
+body.drpg-theme-stained-glass[data-drpg-phase="investigation"] { --drpg-glass-accent: var(--drpg-sg-investigation); }
+body.drpg-theme-stained-glass[data-drpg-phase="trial"] { --drpg-glass-accent: var(--drpg-sg-despair); }
+body.drpg-theme-stained-glass.drpg-eclipse { --drpg-glass-accent: var(--drpg-sg-eclipse); }
+
+/* ---- the UI scale: one factor on the interface, never on the canvas -------- */
+body.drpg-theme-stained-glass #interface {
+    zoom: var(--drpg-ui-scale, 1);
+}
+
+/* ---- the curtain layer ----------------------------------------------------- */
+body.drpg-theme-stained-glass #drpg-curtain {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+    isolation: isolate;
+    --acc: var(--drpg-glass-accent);
+    backdrop-filter: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
+    -webkit-backdrop-filter: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
+    background: rgba(255, 255, 255, 0.02);
+}
+body.drpg-theme-stained-glass #drpg-curtain > canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+body.drpg-theme-stained-glass #drpg-curtain > canvas.sg { z-index: 0; }
+body.drpg-theme-stained-glass #drpg-curtain > canvas.pulse { z-index: 1; }
+body.drpg-theme-stained-glass #interface > .curtain-glow {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    mix-blend-mode: screen;
+}
+/* the interface columns paint above the glass */
+body.drpg-theme-stained-glass #ui-left,
+body.drpg-theme-stained-glass #ui-top,
+body.drpg-theme-stained-glass #ui-middle,
+body.drpg-theme-stained-glass #ui-right,
+body.drpg-theme-stained-glass #ui-bottom {
+    position: relative;
+    z-index: 1;
+}
+
+/* ---- the blocks on their panes: no plates, the glass is the background ------ */
+body.drpg-curtain-on #drpg-hud,
+body.drpg-curtain-on #drpg-despair,
+body.drpg-curtain-on #drpg-player-status,
+body.drpg-curtain-on #countdowns,
+body.drpg-curtain-on #drpg-notice {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.85), 0 0 8px rgba(0, 0, 0, 0.6);
+}
+body.drpg-theme-stained-glass #drpg-hud,
+body.drpg-theme-stained-glass #drpg-despair,
+body.drpg-theme-stained-glass #drpg-player-status,
+body.drpg-theme-stained-glass #countdowns {
+    font-family: var(--drpg-font-chrome);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-campaign {
+    font-family: var(--drpg-font-title);
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 400;
+    font-size: 18px;
+}
+body.drpg-theme-stained-glass .window-app .window-title,
+body.drpg-theme-stained-glass .application .window-title {
+    font-family: var(--drpg-font-title);
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 21px;
+}
+
+/* ---- Foundry's own tiles, cut like everything else and sitting on the glass -- */
+body.drpg-theme-stained-glass #scene-controls button,
+body.drpg-theme-stained-glass #scene-controls .control-tool,
+body.drpg-theme-stained-glass #sidebar-tabs .item,
+body.drpg-theme-stained-glass #sidebar-tabs button {
+    border: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 34%, transparent);
+    background: rgba(8, 7, 12, 0.72);
+    border-radius: 0;
+    clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+}
+body.drpg-theme-stained-glass #scene-controls button.active,
+body.drpg-theme-stained-glass #scene-controls .control-tool.active,
+body.drpg-theme-stained-glass #sidebar-tabs .item.active {
+    border-color: var(--drpg-glass-accent);
+    background: color-mix(in srgb, var(--drpg-glass-accent) 22%, rgba(8, 7, 12, 0.8));
+}
+body.drpg-theme-stained-glass #sidebar-tabs {
+    background: transparent;
+    border: 0;
+}
+
+/* ---- the launchers: rings 66 and 52 px, the seam colour on the ring ---------- */
+body.drpg-theme-stained-glass #drpg-messenger-launcher,
+body.drpg-theme-stained-glass #drpg-sound-launcher,
+body.drpg-theme-stained-glass #drpg-settings-launcher {
+    border-color: color-mix(in srgb, var(--drpg-glass-accent) 60%, transparent) !important;
+    background: rgba(7, 7, 10, 0.55);
+    border-radius: 0;
+    clip-path: polygon(50% 0, 100% 28%, 100% 72%, 50% 100%, 0 72%, 0 28%);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--drpg-glass-accent) 35%, transparent);
+}
+
+/* ---- motion: the pulse is a canvas, everything else stands still ------------- */
+@media (prefers-reduced-motion: reduce) {
+    body.drpg-theme-stained-glass #drpg-curtain > canvas.pulse { display: none; }
+}
+body.drpg-theme-stained-glass.drpg-no-glass-effects #drpg-curtain > canvas.pulse { display: none; }
+body.drpg-theme-stained-glass.drpg-no-glass-effects #drpg-curtain {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}

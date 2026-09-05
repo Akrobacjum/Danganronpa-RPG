@@ -202,6 +202,7 @@
   .gband { position: relative; }
   .gband > canvas.sg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; }
   .gband > :not(canvas) { position: relative; z-index: 1; }
+  .win > canvas.pulse, .gband > canvas.pulse { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
   .whead { margin: -12px -12px 10px; padding: 10px 12px 8px; overflow: hidden; border-bottom: 1px solid color-mix(in srgb, var(--acc) 40%, transparent); }
   .shead { margin: -12px -12px 8px 0; padding: 10px 12px 10px; overflow: hidden; border-bottom: 1px solid color-mix(in srgb, var(--acc) 40%, transparent); }
   .sheet .side { margin: -12px 0 -12px -12px; padding: 12px; background-color: rgba(10, 9, 14, 0.92); background-image: radial-gradient(circle at 1px 1px, rgba(242, 238, 230, 0.055) 1px, transparent 1.6px); background-size: 6px 6px; border-right: 1px solid var(--line); }
@@ -466,7 +467,7 @@
   <header class="hero">
     <div class="eyebrow">Audyt kierunkowy, wersja 16 · Danganronpa RPG · 04.09.2026</div>
     <h1><span class="p">Krew</span>, <span class="y">nadzieja</span>, <span class="g">dowód</span> i <span class="c">pora dnia</span></h1>
-    <p class="lead">Wersja 16: kurtyna ma jeden kształt na każdym ekranie, zmienia się tylko kolor. Szyby oddychają jak w V3: każda po swoim rytmie ciemnieje do czerni i wraca, a fala idzie spiralą dookoła ramy; kolorowe szyby, i tylko one, dostały przezroczystą teksturę smug. Kafelki Foundry siedzą na szkle, więc paski boczne są odpowiednio szersze. Dryfujące linie z mgły zniknęły. W oknach witraż jest akcentem na belce tytułowej, a nie tłem; karta postaci ma spokojną lewą kolumnę i witraż w nagłówku. Do tego audyt animacji modułu i plan ustawień gracza z wyborem motywu.</p>
+    <p class="lead">Wersja 16: kurtyna ma jeden kształt na każdym ekranie, zmienia się tylko kolor. Szyby oddychają jak w V3: każda po swoim rytmie ciemnieje do czerni i wraca, a fala idzie spiralą dookoła ramy; kolorowe szyby, i tylko one, dostały przezroczystą teksturę smug. Kafelki Foundry siedzą na szkle, więc paski boczne są odpowiednio szersze. Dryfujące linie z mgły zniknęły. W oknach witraż jest akcentem na belce tytułowej, a nie tłem; karta postaci ma spokojną lewą kolumnę i witraż w nagłówku. Do tego audyt animacji modułu i plan ustawień gracza z wyborem motywu. Wersja 17: szwy cieńsze (ołów 1,2 px, neon 0,7 px), z delikatnym zgrubieniem tam, gdzie trzy szwy się schodzą, także w poświacie; tekstura kolorowego szkła pojawia się tylko w jasnej fazie pulsu, na kurtynie i w oknach; spisane zasady krojów.</p>
     <div class="cards">
       <div><b>Color coding</b>Czerwień to DM, złoto to Hope, róż krwi to Despair, zieleń to dowód. Interfejs bierze kolor pory dnia albo stanu.</div>
       <div><b>Kroje</b>VT323 na chrome, prozie i stemplach; Special Elite na tytułach. Dwa pliki OFL, DRPG Pixel jako zapas chrome.</div>
@@ -494,6 +495,22 @@
       <div class="sw" style="--acc:var(--eclipse)"><div class="c" style="background:var(--acc)"></div><div class="n"><span class="pixicon" style="width:21px;height:14px;color:var(--acc)"><svg><use href="#px-eclipse"/></svg></span>Eclipse</div><div class="h">#a678ff</div></div>
       <div class="sw" style="--acc:var(--despair)"><div class="c" style="background:var(--acc)"></div><div class="n"><span class="pixicon" style="width:14px;height:14px;color:var(--acc)"><svg><use href="#px-gavel"/></svg></span>Trial</div><div class="h">= Despair</div></div>
     </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Kroje: Special Elite i VT323</h2><div class="rule"></div></div>
+    <p class="note">Dwa kroje, oba na licencji OFL, oba jako pliki w <code>fonts/</code> modułu (nie z Google Fonts w grze, bo stół nie zawsze ma sieć), ładowane przez <code>@font-face</code> z <code>font-display: swap</code>. Geometria kurtyny czeka na <code>document.fonts</code>, bo szerokość bloków zależy od kroju. Zapasem dla obu jest <code>"Courier New", monospace</code>, a dla chrome dodatkowo DRPG Pixel, dotychczasowy pikselowy krój modułu.</p>
+    <div class="wrap"><table class="tbl">
+      <thead><tr><th>Krój</th><th>Rola i token</th><th>Gdzie</th><th>Zasady</th></tr></thead>
+      <tbody>
+        <tr><td class="k">Special Elite<br><span style="font-family:var(--font-title);font-size:22px;color:var(--bone)">Class Trial</span></td><td>tytuł · <code>--drpg-font-title</code></td><td>tytuł okna (21 px), nazwa kampanii na zegarze (18 px), nazwa wydarzenia na panelu wydarzenia (19 px), imię na karcie postaci (24 px), nagłówki sekcji tego audytu (26 px), "Player A · GM chat" w messengerze</td><td>nigdy wersalikami, nigdy poniżej 16 px, bez letter-spacing, jedna linia; to krój maszyny do pisania z akt sprawy, więc występuje raz na okno: tam, gdzie jest nazwa rzeczy</td></tr>
+        <tr><td class="k">VT323<br><span style="font-family:var(--font-chrome);font-size:20px;letter-spacing:0.08em;text-transform:uppercase;color:var(--bone)">Despair pools · 5/12</span></td><td>chrome · <code>--drpg-font-chrome</code></td><td>etykiety zegara, nazwy i liczniki pul, pasek stanu, tacka projektów, przyciski, zakładki, chipy, tabele, etykiety pól, powiadomienia, launchery, kafelki akcji, ticker za zegarem</td><td>wersalikami z letter-spacing 0,04-0,18 em na etykietach (im mniejszy stopień, tym większy odstęp); stopnie w chrome 11-15 px na 1440p, 11 px to dół; liczby tabelaryczne; bez kursywy i bez pogrubienia (krój ich nie ma, przeglądarka by je sfałszowała); kolor stanu na wartościach, Bone Dim na etykietach</td></tr>
+        <tr><td class="k">VT323</td><td>proza · <code>--drpg-font-prose</code></td><td>treść okien (18 px), opisy przedmiotów, wiadomości w messengerze, ten audyt (19 px, interlinia 1,3)</td><td>bez wersalików, bez letter-spacing, maks. 74 znaki w wierszu; wyróżnienie kolorem stanu (<code>.qq</code>, <code>b</code>), nie wagą</td></tr>
+        <tr><td class="k">VT323</td><td>stempel · <code>--drpg-font-stamp</code></td><td>stemple znaczeń (Ultimate, GM only, Blackened), faza dnia na zegarze, głosy w procesie</td><td>wersalikami, 14-15 px, na plamie w kolorze znaczenia, tekst w kolorze Ink</td></tr>
+        <tr><td class="k">tekst-tło</td><td>VT323, obrys</td><td>za zegarem (32 px) i za panelem wydarzenia (30 px)</td><td><code>-webkit-text-stroke</code> 1 px w kolorze stanu, wypełnienie 10%, krycie 18-26%, płynie w lewo 18 s; stoi przy ograniczonym ruchu</td></tr>
+      </tbody>
+    </table></div>
+    <p class="note" style="margin-top:12px">Skala: wszystkie stopnie wyżej są dla 2560 na 1440 przy skali 100%. Ustawienie skali interfejsu (80-140%) mnoży je jednym współczynnikiem na <code>html</code>, więc proporcje między tytułem, chrome i prozą nie zmieniają się nigdy. Rozmiary poniżej 11 px nie występują przy żadnej skali: przy 80% chrome schodzi do 11 px i tam się zatrzymuje.</p>
   </section>
 
   <section>
@@ -837,8 +854,8 @@
         <tbody>
           <tr><td class="k">Szyba pod treścią</td><td class="v"><span class="dot" style="background:#050409"></span>#050409 · 68%</td><td>panel zawsze leży na czarnym szkle; pula, akcje, tacka i powiadomienie mają własny, ledwo zabarwiony ton (#2a0a1e, #08103a, #1a0838, #24061a); szyba przy ścianie dochodzi do niej pod sidebarem</td></tr>
           <tr><td class="k">Szyba wypełniacz</td><td class="v"><span class="dot" style="background:#0b0812"></span>#0b0812 · 62% + barwa 8%</td><td>czarne szkło z ledwo widocznym odcieniem; kolor niesie szew, nie szyba</td></tr>
-          <tr><td class="k">Puls</td><td class="v">okres 9-16 s · czerń do 72% (pod treścią 42%) · faza = 1,6·kąt + r/420</td><td>każda szyba po swoim rytmie ciemnieje do czerni i wraca, fala idzie spiralą dookoła ramy; w jasnej fazie kolorowa szyba dostaje 16% koloru stanu; osobna półrozdzielcza bitmapa nad szkłem, 15 kl/s, stoi przy ograniczonym ruchu i w ukrytej karcie</td></tr>
-          <tr><td class="k">Tekstura witrażu</td><td class="v">smugi co 7 px · biel 3-6% · 3 smugi koloru 11% · raster 6%</td><td>tylko na kolorowych szybach: przezroczyste smugi wzdłuż ścięcia, jak szkło z V3; czarne szyby zostają gładkie</td></tr>
+          <tr><td class="k">Puls</td><td class="v">okres 9-16 s · czerń do 72% (pod treścią 42%) · faza = 1,6·kąt + r/420</td><td>każda szyba po swoim rytmie ciemnieje do czerni i wraca, fala idzie spiralą dookoła ramy; w jasnej fazie kolorowa szyba dostaje 16% koloru stanu; osobna półrozdzielcza bitmapa nad szkłem, 15 kl/s, stoi przy ograniczonym ruchu i w ukrytej karcie; belki okien pulsują tak samo (w pełnej rozdzielczości, faza z położenia w belce)</td></tr>
+          <tr><td class="k">Tekstura witrażu</td><td class="v">smugi co 7 px · biel 9-17% · 3 smugi koloru 30% · raster 16% · krycie = (1 - v)³</td><td>tylko na kolorowych szybach i tylko gdy szyba jest podświetlona: tekstura jest wyrenderowana raz na szybę i rysowana przez warstwę pulsu z kryciem jasnej fazy, więc pojawia się i znika razem ze światłem; na kurtynie i na każdej szybie w oknach tak samo</td></tr>
           <tr><td class="k">Szyby witrażowe</td><td class="v"><span class="dot" style="background:#4a0a2e"></span><span class="dot" style="background:#66093b"></span><span class="dot" style="background:#081548"></span><span class="dot" style="background:#0c2262"></span><span class="dot" style="background:#22084e"></span><span class="dot" style="background:#05303f"></span> 26% · co piąta</td><td>wybór przez hasz przestrzenny środka szyby, więc skupiają się grupami zamiast przemieniać co drugą; tylko na nich raster 1,4 px co 6 px</td></tr>
           <tr><td class="k">Przyciemnienie i światło</td><td class="v">czerń 30% · biel 8% → czerń 20%</td><td>czerń nad barwą obniża jasność; gradient od krawędzi ekranu do środka w każdej szybie osobno</td></tr>
           <tr><td class="k">Pole nachylenia</td><td class="v">s(x) = 0,30 · sgn(W/2 - x) · |u|^1,4</td><td>dx/dy każdego szwu pasa zależy tylko od miejsca na krawędzi: "\" przy lewym rogu, "/" przy prawym, pion pośrodku; dół lustrzany</td></tr>
@@ -848,10 +865,11 @@
           <tr><td class="k">Igły</td><td class="v">podstawa 24-36 px · 170-260 px · min 400 px od siebie</td><td>wąska drzazga odcięta od jednego promienia, nigdy przy panelu ani przy ścianie; dwie, trzy na ekran</td></tr>
           <tr><td class="k">Pierścienie</td><td class="v">2 na połowę pasa · 26-34% i 58-70% · 5-12° ku środkowi</td><td>długie poprzeczne pęknięcia od rogu; tną tylko wypełniacz, co czwarty wewnętrzny kawałek wypada, nigdy przy panelu ani na ścianie</td></tr>
           <tr><td class="k">Paski boczne</td><td class="v">136-170 → 62-72 → 116-150 px · lewy 112 px do y=600 · cięcia 0,28-0,40 co 180-420 px</td><td>dwa wypukłe czworokąty na bok: zaczynają się na dalszej krawędzi szyby narożnej, spotykają się w jednym wierzchołku na pochyłym szwie w połowie wysokości; dwie rodziny równoległych cięć</td></tr>
-          <tr><td class="k">Ołów</td><td class="v">1,8 px · #08050d 95%</td><td>ciemna linia, na której leży wszystko inne</td></tr>
-          <tr><td class="k">Faza</td><td class="v">0,7 px · biel 22% · 1 px w dół</td><td>jedna jasna krawędź: szkło ma grubość</td></tr>
-          <tr><td class="k">Rdzeń neonu</td><td class="v">1 px · kolor stanu 92%</td><td>cięcie świeci kolorem pory dnia albo stanu</td></tr>
-          <tr><td class="k">Poświata</td><td class="v">½ rozdzielczości · 9 px 50% · 3,5 px 55% · 1 px 62%</td><td>trzy przebiegi w trybie lighter na osobnej bitmapie nad przycięciem, więc wychodzi poza brzeg szyby</td></tr>
+          <tr><td class="k">Ołów</td><td class="v">1,2 px · #08050d 95%</td><td>ciemna linia, na której leży wszystko inne; cieńsza niż w wersji 15</td></tr>
+          <tr><td class="k">Węzły</td><td class="v">≥3 kierunki w jednym punkcie · ramiona 16 px o 1,7 px i 7 px o 2,2 px (ołów) · 14 px o 1,0 i 6 px o 1,35 (neon)</td><td>tam, gdzie trzy lub więcej szwów się schodzi, linia delikatnie grubieje wzdłuż każdego ramienia; poświata dostaje to samo zgrubienie; zwykły narożnik szyby (dwa kierunki) zostaje cienki</td></tr>
+          <tr><td class="k">Faza</td><td class="v">0,5 px · biel 22% · 1 px w dół</td><td>jedna jasna krawędź: szkło ma grubość</td></tr>
+          <tr><td class="k">Rdzeń neonu</td><td class="v">0,7 px · kolor stanu 92%</td><td>cięcie świeci kolorem pory dnia albo stanu</td></tr>
+          <tr><td class="k">Poświata</td><td class="v">½ rozdzielczości · 9 px 46% · 3,5 px 50% · 1 px 58% · szerokości 1,3 / 0,9 / 0,6 px · węzły ×1,7</td><td>trzy przebiegi w trybie lighter na osobnej bitmapie nad przycięciem, więc wychodzi poza brzeg szyby</td></tr>
           <tr><td class="k">Pęknięcia bez szkła</td><td class="v">3 na górny róg · 1 na dolny · 480-840 px · 24% → 0</td><td>krawędź panelu narożnego przedłużona z jego rogu, jedno strome (22°), jedno płaskie (64°), jedno z dołu (40°); gasną w drodze i omijają panele</td></tr>
           <tr><td class="k">Sylwetka</td><td class="v">clip-path: path() z wielokątów</td><td>bez bitmapy maski: ostra przy każdej skali, kilka KB zamiast obrazu 2560 na 1440</td></tr>
           <tr><td class="k">Liquid glass</td><td class="v">blur 16 · saturate 140% · brightness 88% · contrast 108%</td><td>pod całością; to, co pod szkłem, jest ciemniejsze niż obok niego</td></tr>
@@ -1359,6 +1377,28 @@
     }
     g.lineWidth = wdt; g.lineCap = "round"; g.stroke();
   };
+  /* junctions: vertices where three or more seam directions meet; the seam is drawn a little
+     heavier there, along each arm, so a crack reads as glass that broke rather than a drawing */
+  const junctions = (panes, W, H) => {
+    const edge = onEdge(W, H), map = new Map();
+    for (const p of panes) for (let i = 0, j = p.poly.length - 1; i < p.poly.length; j = i++) {
+      const a = p.poly[j], b = p.poly[i];
+      if (edge(a, b)) continue;
+      const L = Math.hypot(b[0] - a[0], b[1] - a[1]); if (L < 1) continue;
+      for (const [s, t] of [[a, b], [b, a]]) {
+        const key = Math.round(s[0]) + "," + Math.round(s[1]);
+        let n = map.get(key); if (!n) { n = { x: s[0], y: s[1], dirs: [] }; map.set(key, n); }
+        const ang = Math.atan2(t[1] - s[1], t[0] - s[0]);
+        if (!n.dirs.some(d => Math.abs(Math.atan2(Math.sin(d - ang), Math.cos(d - ang))) < 0.06)) n.dirs.push(ang);
+      }
+    }
+    return [...map.values()].filter(n => n.dirs.length >= 3 && n.x > 1 && n.x < W - 1 && n.y > 1 && n.y < H - 1);
+  };
+  const nodeArms = (g, nodes, len, wdt, k = 1) => {
+    g.beginPath();
+    for (const n of nodes) for (const d of n.dirs) { g.moveTo(n.x * k, n.y * k); g.lineTo((n.x + Math.cos(d) * len) * k, (n.y + Math.sin(d) * len) * k); }
+    g.lineWidth = wdt; g.lineCap = "round"; g.stroke();
+  };
   const hash = (x, y) => { const v = Math.sin(x * 0.0137 + y * 0.0221) * 43758.5453; return v - Math.floor(v); };
 
   function paintGlass(ctx, W, H, panes, acc, { glowInside = false, inset = 0 } = {}) {
@@ -1367,7 +1407,7 @@
       const k = p.tone && TONE[p.tone] ? p.tone : null;
       const bb = bbox(p.poly);
       const hsh = hash((bb.x0 + bb.x1) / 2, (bb.y0 + bb.y1) / 2);
-      const stained = !p.content && hsh > 0.8;
+      const stained = !p.content && hsh > (p.kind === "window" ? 0.66 : 0.8);
       ctx.save(); path(ctx, p.poly); ctx.clip();
       // black glass first, then a little colour: a panel keeps its tone, most filler a faint tint, one in five stained
       const lum = hash((bb.x0 + bb.x1) / 2 + 17, (bb.y0 + bb.y1) / 2 - 31);
@@ -1384,33 +1424,41 @@
       const g = ctx.createLinearGradient(0, down ? bb.y0 : bb.y1, 0, down ? bb.y1 : bb.y0);
       g.addColorStop(0, "rgba(255,255,255,0.08)"); g.addColorStop(0.55, "rgba(255,255,255,0.01)"); g.addColorStop(1, "rgba(0,0,0,0.20)");
       ctx.fillStyle = g; ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
-      if (stained) {
-        // the texture of coloured glass, and only of coloured glass: fine translucent streaks along the
-        // shear, three brighter ones in the state colour, and a faint grain
-        const cx = (bb.x0 + bb.x1) / 2, cy = (bb.y0 + bb.y1) / 2, span = Math.hypot(bb.x1 - bb.x0, bb.y1 - bb.y0);
-        ctx.save(); ctx.translate(cx, cy); ctx.rotate(SHEAR + Math.PI / 2 + (hsh - 0.5) * 0.3);
-        for (let i = -span; i < span; i += 7) { ctx.fillStyle = "rgba(255,255,255," + (0.028 + (Math.round(i / 7) % 3 === 0 ? 0.03 : 0)) + ")"; ctx.fillRect(i, -span, 1.2, 2 * span); }
-        for (let j = 0; j < 3; j++) { const x = (hash(cx + j * 31, cy - j * 17) - 0.5) * span * 0.9; ctx.fillStyle = rgba(acc, 0.11); ctx.fillRect(x, -span, 2.2 + j, 2 * span); ctx.fillStyle = "rgba(255,255,255,0.10)"; ctx.fillRect(x + 3 + j, -span, 0.8, 2 * span); }
-        ctx.restore();
-        ctx.fillStyle = rgba(acc, 0.06);
-        for (let y = bb.y0 + 3; y < bb.y1; y += 6) for (let x = bb.x0 + 3 + (Math.floor(y / 6) % 2) * 3; x < bb.x1; x += 6) ctx.fillRect(x, y, 1.2, 1.2);
-      }
-      p.stained = stained; p.hsh = hsh;
       ctx.restore();
+      p.stained = stained; p.hsh = hsh; p.bb = bb; p.tex = null;
+      if (stained && bb.x1 - bb.x0 > 2 && bb.y1 - bb.y0 > 2) {
+        // the texture of coloured glass, and only of coloured glass: fine translucent streaks along the
+        // shear, three brighter ones in the state colour, a faint grain. Pre-rendered here, shown by the
+        // pulse layer only while the pane is lit.
+        const tw = Math.ceil(bb.x1 - bb.x0), th = Math.ceil(bb.y1 - bb.y0);
+        const t = document.createElement("canvas"); t.width = tw; t.height = th;
+        const g2 = t.getContext("2d"); g2.translate(-bb.x0, -bb.y0); path(g2, p.poly); g2.clip();
+        const cx = (bb.x0 + bb.x1) / 2, cy = (bb.y0 + bb.y1) / 2, span = Math.hypot(tw, th);
+        g2.save(); g2.translate(cx, cy); g2.rotate(SHEAR + Math.PI / 2 + (hsh - 0.5) * 0.3);
+        for (let i = -span; i < span; i += 7) { g2.fillStyle = "rgba(255,255,255," + (0.09 + (Math.round(i / 7) % 3 === 0 ? 0.08 : 0)) + ")"; g2.fillRect(i, -span, 1.2, 2 * span); }
+        for (let j = 0; j < 3; j++) { const x = (hash(cx + j * 31, cy - j * 17) - 0.5) * span * 0.9; g2.fillStyle = rgba(acc, 0.30); g2.fillRect(x, -span, 2.2 + j, 2 * span); g2.fillStyle = "rgba(255,255,255,0.26)"; g2.fillRect(x + 3 + j, -span, 0.8, 2 * span); }
+        g2.restore();
+        g2.fillStyle = rgba(acc, 0.16);
+        for (let y = bb.y0 + 3; y < bb.y1; y += 6) for (let x = bb.x0 + 3 + (Math.floor(y / 6) % 2) * 3; x < bb.x1; x += 6) g2.fillRect(x, y, 1.2, 1.2);
+        p.tex = t;
+      }
     });
     if (inset > 0) {   // the seams (not the glass) are kept out of the content box
       ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.rect(inset, inset * 2.6, W - 2 * inset, H - inset * 3.4); ctx.clip("evenodd");
     }
     if (glowInside) {
       ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.strokeStyle = acc;
-      for (const [blur, a, wdt] of [[10, 0.22, 3], [4, 0.26, 2]]) { ctx.filter = "blur(" + blur + "px)"; ctx.globalAlpha = a; seams(ctx, panes, W, H, wdt); }
+      const nds = junctions(panes, W, H);
+      for (const [blur, a, wdt] of [[10, 0.20, 2.2], [4, 0.24, 1.4]]) { ctx.filter = "blur(" + blur + "px)"; ctx.globalAlpha = a; seams(ctx, panes, W, H, wdt); nodeArms(ctx, nds, 12, wdt * 1.6); }
       ctx.restore();
     }
-    // lead, the bevel, the neon core
-    ctx.globalAlpha = 0.95; ctx.strokeStyle = "#08050d"; seams(ctx, panes, W, H, 1.8);
-    ctx.save(); ctx.translate(0, 1); ctx.globalAlpha = 0.22; ctx.strokeStyle = "#ffffff"; seams(ctx, panes, W, H, 0.7); ctx.restore();
-    ctx.globalAlpha = glowInside ? 0.78 : 0.92; ctx.strokeStyle = acc; seams(ctx, panes, W, H, 1);
+    // lead, the bevel, the neon core: thin lines, a little heavier along the arms of every junction
+    const nodes = junctions(panes, W, H);
+    ctx.globalAlpha = 0.95; ctx.strokeStyle = "#08050d"; seams(ctx, panes, W, H, 1.2); nodeArms(ctx, nodes, 16, 1.7); nodeArms(ctx, nodes, 7, 2.2);
+    ctx.save(); ctx.translate(0, 1); ctx.globalAlpha = 0.22; ctx.strokeStyle = "#ffffff"; seams(ctx, panes, W, H, 0.5); ctx.restore();
+    ctx.globalAlpha = glowInside ? 0.78 : 0.92; ctx.strokeStyle = acc; seams(ctx, panes, W, H, 0.7); nodeArms(ctx, nodes, 14, 1.0); nodeArms(ctx, nodes, 6, 1.35);
     ctx.globalAlpha = 1;
+    panes.nodes = nodes;
     if (inset > 0) ctx.restore();
   }
 
@@ -1461,7 +1509,7 @@
     const gx = gl.getContext("2d");
     gx.clearRect(0, 0, gl.width, gl.height);
     gx.globalCompositeOperation = "lighter"; gx.strokeStyle = acc;
-    for (const [blur, a, wdt] of [[9, 0.5, 1.8], [3.5, 0.55, 1.2], [1, 0.62, 0.8]]) { gx.filter = "blur(" + blur + "px)"; gx.globalAlpha = a; seams(gx, panes, W, H, wdt, k); }
+    for (const [blur, a, wdt] of [[9, 0.46, 1.3], [3.5, 0.5, 0.9], [1, 0.58, 0.6]]) { gx.filter = "blur(" + blur + "px)"; gx.globalAlpha = a; seams(gx, panes, W, H, wdt, k); nodeArms(gx, panes.nodes || [], 14, wdt * 1.7, k); }
     gx.filter = "none";
     // hairline cracks: the fan's own lines carried across the screen, never over a panel
     gx.save();
@@ -1493,7 +1541,7 @@
     // darkening travels round the frame as a slow spiral; periods 9-16 s per pane
     let pc = el.querySelector("canvas.pulse");
     if (!pc) { pc = document.createElement("canvas"); pc.className = "pulse"; c.after(pc); }
-    pc.width = Math.round(W * 0.5); pc.height = Math.round(H * 0.5);
+    pc.width = Math.round(W * 0.5); pc.height = Math.round(H * 0.5); job.pulseK = 0.5;
     for (const p of panes) {
       const bb = bbox(p.poly), cx = (bb.x0 + bb.x1) / 2 - W / 2, cy = (bb.y0 + bb.y1) / 2 - H / 2;
       const h = p.hsh == null ? hash(cx, cy) : p.hsh;
@@ -1506,17 +1554,20 @@
   }
   const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
   function pulseFrame(t) {
-    for (const j of curtains) {
+    for (const j of [...curtains, ...windows]) {
       if (!j.pulse || !j.panes || !inView.has(j.el)) continue;
-      const g = j.pulse.getContext("2d"), k = 0.5;
+      const g = j.pulse.getContext("2d"), k = j.pulseK;
       g.clearRect(0, 0, j.pulse.width, j.pulse.height);
       const accRGB = hex(j.acc).join(",");
       for (const p of j.panes) {
         const v = 0.5 - 0.5 * Math.cos(t / 1000 * p.omega + p.phase);      // 0 bright ... 1 dark
         const dark = (p.content ? 0.42 : 0.72) * Math.pow(v, 1.6);
         if (dark > 0.01) { g.globalCompositeOperation = "source-over"; g.fillStyle = "rgba(2,1,4," + dark.toFixed(3) + ")"; path(g, p.poly.map(q => [q[0] * k, q[1] * k])); g.fill(); }
-        const light = (p.stained ? 0.16 : 0.05) * Math.pow(1 - v, 3);
+        const lit = Math.pow(1 - v, 3);
+        const light = (p.stained ? 0.16 : 0.05) * lit;
         if (light > 0.005) { g.globalCompositeOperation = "lighter"; g.fillStyle = "rgba(" + accRGB + "," + light.toFixed(3) + ")"; path(g, p.poly.map(q => [q[0] * k, q[1] * k])); g.fill(); }
+        // the texture of coloured glass shows only while the pane is lit
+        if (p.tex && lit > 0.02) { g.globalCompositeOperation = "lighter"; g.globalAlpha = Math.min(1, lit * 1.1); g.drawImage(p.tex, p.bb.x0 * k, p.bb.y0 * k, p.tex.width * k, p.tex.height * k); g.globalAlpha = 1; }
       }
       g.globalCompositeOperation = "source-over";
     }
@@ -1530,7 +1581,16 @@
     if (w.clientWidth < 10) return false;
     const W = c.width = Math.max(60, Math.round(w.clientWidth)), H = c.height = Math.max(24, Math.round(w.clientHeight));
     const band = w.classList.contains("gband");
-    paintGlass(c.getContext("2d"), W, H, windowShapes(W, H, rng(job.seed)), resolveAcc(w), { glowInside: true, inset: (band || w.classList.contains("spec")) ? 0 : 10 });
+    const panes = windowShapes(W, H, rng(job.seed)), acc = resolveAcc(w);
+    paintGlass(c.getContext("2d"), W, H, panes, acc, { glowInside: true, inset: (band || w.classList.contains("spec")) ? 0 : 10 });
+    let pc = w.querySelector(":scope > canvas.pulse");
+    if (!pc) { pc = document.createElement("canvas"); pc.className = "pulse"; c.after(pc); }
+    pc.width = W; pc.height = H; job.pulseK = 1;
+    for (const p of panes) {
+      const cx = (p.bb.x0 + p.bb.x1) / 2 - W / 2, cy = (p.bb.y0 + p.bb.y1) / 2 - H / 2;
+      p.phase = cx / 140 + p.hsh * 1.4; p.omega = 2 * Math.PI / (9 + p.hsh * 7);
+    }
+    job.panes = panes; job.pulse = pc; job.acc = acc;
     job.painted = true;
     return true;
   }
