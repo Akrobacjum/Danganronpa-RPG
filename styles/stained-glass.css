@@ -993,3 +993,60 @@ body.drpg-theme-stained-glass .application:not(.drpg-panel) .window-content .for
 body.drpg-theme-stained-glass .application:not(.drpg-panel) .window-content input[type="range"],
 body.drpg-theme-stained-glass .application:not(.drpg-panel) .window-content input[type="checkbox"],
 body.drpg-theme-stained-glass .application:not(.drpg-panel) .window-content input[type="radio"] { accent-color: var(--drpg-glass-accent); }
+
+/* ---- corrections from the full mock (every module sheet loaded) ------------------------------ */
+/* the window title reads on the glass band */
+body.drpg-theme-stained-glass .drpg-panel .window-header .window-title,
+body.drpg-theme-stained-glass .drpg-panel .window-header h1,
+body.drpg-theme-stained-glass .drpg-panel .window-header h2 {
+    color: var(--drpg-sg-bone) !important;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.9), 0 0 8px rgba(0, 0, 0, 0.7) !important;
+    opacity: 1 !important;
+}
+/* the sheet's left column stands on matt ink whatever the base sheet's own rule says */
+body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet {
+    background-color: rgba(10, 9, 14, 0.94) !important;
+    background-image: radial-gradient(circle at 1px 1px, rgba(242, 238, 230, 0.055) 1px, transparent 1.6px) !important;
+    background-size: 6px 6px !important;
+    color: var(--drpg-sg-bone);
+}
+/* the tab bar's tabs: the base sheet's border and colour give way to the brush */
+body.drpg-theme-stained-glass .application.sheet.actor .character-header-sheet .tab-navigation nav.sheet-tabs a,
+body.drpg-theme-stained-glass .application.sheet.actor .character-header-sheet .tab-navigation nav.sheet-tabs a.active {
+    border: 0 !important;
+    box-shadow: none !important;
+    background: none !important;
+    border-radius: 0 !important;
+    color: var(--drpg-sg-ink) !important;
+    -webkit-text-fill-color: var(--drpg-sg-ink);
+    text-shadow: none !important;
+}
+body.drpg-theme-stained-glass .application.sheet.actor .character-header-sheet .tab-navigation nav.sheet-tabs a span,
+body.drpg-theme-stained-glass .application.sheet.actor .character-header-sheet .tab-navigation nav.sheet-tabs a.active span {
+    color: var(--drpg-sg-ink) !important;
+    -webkit-text-fill-color: var(--drpg-sg-ink);
+    text-shadow: none !important;
+}
+/* tile labels fit a narrow sheet: no tracking, wrapping allowed, the cost one size down */
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button) .drpg-action-name {
+    font-size: 11px;
+    letter-spacing: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    max-width: 100%;
+}
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button) .drpg-action-cost {
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    white-space: normal;
+}
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button) { padding: 4px 2px; }
+/* tile labels break between words only; the pixel face, wider than VT323, goes one size down */
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button) .drpg-action-name {
+    overflow-wrap: normal;
+    word-break: normal;
+    hyphens: manual;
+    line-height: 1.15;
+}
+body.drpg-pixel-font.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button) .drpg-action-name { font-size: 9px; }
+body.drpg-pixel-font.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button) .drpg-action-cost { font-size: 8px; }
