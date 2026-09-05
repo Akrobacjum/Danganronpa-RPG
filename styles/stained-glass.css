@@ -106,6 +106,7 @@ body.drpg-theme-stained-glass #drpg-curtain > canvas {
 }
 body.drpg-theme-stained-glass #drpg-curtain > canvas.sg { z-index: 0; }
 body.drpg-theme-stained-glass #drpg-curtain > canvas.pulse { z-index: 1; }
+body.drpg-theme-stained-glass #drpg-curtain > canvas.seamline { z-index: 2; }
 body.drpg-theme-stained-glass #interface > .curtain-glow {
     position: fixed;
     inset: 0;
@@ -178,6 +179,11 @@ body.drpg-theme-stained-glass #sidebar-tabs .item.active {
 body.drpg-theme-stained-glass #sidebar-tabs {
     background: transparent;
     border: 0;
+}
+body.drpg-theme-stained-glass #scene-controls,
+body.drpg-theme-stained-glass #sidebar-tabs {
+    transform-origin: 50% 50%;
+    will-change: transform;
 }
 
 /* ---- the launchers: rings 66 and 52 px, the seam colour on the ring ---------- */

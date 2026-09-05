@@ -57,7 +57,7 @@ function moduleLayout(W, H) {
   /* ---- the glass ------------------------------------------------------------
      Black glass. Colour lives in the seams and in a few stained cells; a panel's
      pane is always plain black so text reads the same everywhere. */
-  const STAIN = ["#4a0a2e", "#081548", "#22084e", "#66093b", "#0c2262", "#05303f"];
+  const STAIN = ["#8a1044", "#123a9e", "#4a1a9e", "#b0165c", "#1b4fc4", "#0a5c78"];
   const TONE = { hud: "#050409", rail: "#2a0a1e", three: "#08103a", tray: "#1a0838", "note-block": "#24061a", launch: "#050409" };
   const SHEAR = -13 * Math.PI / 180;
   const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
@@ -161,9 +161,10 @@ function moduleLayout(W, H) {
       const py = band === "top" ? c.y0 : c.y1;
       const cs = Math.cos(phi), sn = Math.sin(phi);
       const rot = (X, Y) => [px + X * cs - Y * sn, py + X * sn + Y * cs];
-      for (const b of c.items) if (b.el && b.r) {
-        b.el.style.transformOrigin = (px - b.r.x) + "px " + (py - b.r.y) + "px";
-        b.el.style.transform = Math.abs(phi) < 0.004 ? "" : "rotate(" + phi + "rad)";
+      for (const b of c.items) if (b.el && b.r) for (const e of b.els) {
+        const er = e.getBoundingClientRect();
+        e.style.transformOrigin = (px - er.left) + "px " + (py - er.top) + "px";
+        e.style.transform = Math.abs(phi) < 0.004 ? "" : "rotate(" + phi + "rad)";
       }
       let X0 = c.x0 - px - PAD_SIDE, X1 = c.x1 - px + PAD_SIDE;
       const Yn = (band === "top" ? c.y0 - py : c.y1 - py) + (band === "top" ? -3000 : 3000);
@@ -313,11 +314,12 @@ function moduleLayout(W, H) {
        line), the top one begins on the far edge of the corner pane and the bottom one
        ends on the far edge of the bottom corner pane, so the wall is covered without a
        gap; then one family of parallel cuts per half: a partition by construction */
+    const tiles = {};
     const lineY = (c, x) => { const [fx, fy] = c.far.p, [dx, dy] = c.far.d; return fy + (x - fx) * dy / dx; };
     for (const side of [0, 1]) {
       const wall = side ? W : 0, dir = side ? -1 : 1;
       const wTop = 136 + rnd() * 34, wMid = 62 + rnd() * 10, wBot = 116 + rnd() * 34;
-      const wCtl = 112, yCtl = 600;           // the left strip stays 112 px wide down past the scene controls
+      const wCtl = wTop - 26, yCtl = side === 0 ? 600 : 420;   // one straight edge under the tiles: 26 px of lean over its run
       const cT = top.length ? top[side ? top.length - 1 : 0] : null, cB = bot.length ? bot[side ? bot.length - 1 : 0] : null;
       const hugT = cT && (side ? cT.hugR : cT.hugL), hugB = cB && (side ? cB.hugR : cB.hugL);
       let yTop = 0, yBot = H;
@@ -331,7 +333,9 @@ function moduleLayout(W, H) {
       const M = [wall + dir * wMid, yMid], Wm = [wall, yMid - wMid * Math.tan(tilt)];
       const yT0 = hugT ? Math.min(lineY(cT, wall), lineY(cT, wall + dir * wTop)) - 1 : yTop;
       const yB0 = hugB ? Math.max(lineY(cB, wall), lineY(cB, wall + dir * wBot)) + 1 : yBot;
-      let upperQ = clipRect([[wall, yT0], [wall + dir * wTop, yT0], ...(side === 0 && yCtl < yMid - 40 ? [[wall + dir * wCtl, yCtl]] : []), M, Wm], W, H);
+      let upperQ = clipRect([[wall, yT0], [wall + dir * wTop, yT0], ...(yCtl < yMid - 40 ? [[wall + dir * wCtl, yCtl]] : []), M, Wm], W, H);
+      // the angle of that edge, for the tiles that sit on it (clockwise on the left, the mirror on the right)
+      tiles[side ? "right" : "left"] = { angle: Math.atan((wTop - wCtl) / Math.max(1, yCtl - yTop)) * (side ? -1 : 1), yTop, wTop, wCtl, yCtl };
       let lowerQ = clipRect([Wm, M, [wall + dir * wBot, yB0], [wall, yB0]], W, H);
       if (hugT && upperQ) { const [fx, fy] = cT.far.p; upperQ = clipHP(upperQ, fx, fy, -cT.sn, cT.cs); }
       if (hugB && lowerQ) { const [fx, fy] = cB.far.p; lowerQ = clipHP(lowerQ, fx, fy, cB.sn, -cB.cs); }
@@ -354,7 +358,7 @@ function moduleLayout(W, H) {
     const kept = [];
     for (const p of panes) if (p.content) kept.push(p);
     for (const p of panes) if (!p.content && kept.every(k => !overlaps(k.poly, p.poly))) kept.push(p);
-    kept.meta = { top, bot, rings: ringLines };
+    kept.meta = { top, bot, rings: ringLines, tiles };
     return kept;
   }
 
@@ -406,25 +410,26 @@ function moduleLayout(W, H) {
   };
   const hash = (x, y) => { const v = Math.sin(x * 0.0137 + y * 0.0221) * 43758.5453; return v - Math.floor(v); };
 
-  function paintGlass(ctx, W, H, panes, acc, { glowInside = false, inset = 0 } = {}) {
+  function paintGlass(ctx, W, H, panes, acc, { glowInside = false, inset = 0, seamCtx = null } = {}) {
+    const sx = seamCtx || ctx;   // the seams may live on a canvas above the pulse layer
     ctx.clearRect(0, 0, W, H);
     panes.forEach((p, i) => {
       const k = p.tone && TONE[p.tone] ? p.tone : null;
       const bb = bbox(p.poly);
       const hsh = hash((bb.x0 + bb.x1) / 2, (bb.y0 + bb.y1) / 2);
-      const stained = !p.content && hsh > (p.kind === "window" ? 0.66 : 0.8);
+      const stained = !p.content && hsh > (p.kind === "window" ? 0.62 : 0.72);
       ctx.save(); path(ctx, p.poly); ctx.clip();
       // black glass first, then a little colour: a panel keeps its tone, most filler a faint tint, one in five stained
       const lum = hash((bb.x0 + bb.x1) / 2 + 17, (bb.y0 + bb.y1) / 2 - 31);
-      ctx.globalAlpha = (p.content ? 0.68 : 0.58) + (lum - 0.5) * 0.08;
+      ctx.globalAlpha = (p.content ? 0.68 : stained ? 0.30 : 0.58) + (lum - 0.5) * 0.08;
       ctx.fillStyle = p.content ? (k ? TONE[k] : "#050409") : (lum > 0.5 ? "#0c0a14" : "#0a0810");
       ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
       if (!p.content) {
-        ctx.globalAlpha = stained ? 0.26 : 0.05 + lum * 0.07;
+        ctx.globalAlpha = stained ? 0.62 : 0.05 + lum * 0.07;
         ctx.fillStyle = STAIN[Math.floor(hsh * 1000) % STAIN.length];
         ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
       }
-      ctx.globalAlpha = 1; ctx.fillStyle = "rgba(0,0,0,0.30)"; ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
+      ctx.globalAlpha = 1; ctx.fillStyle = stained ? "rgba(0,0,0,0.12)" : "rgba(0,0,0,0.30)"; ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
       const down = (bb.y0 + bb.y1) / 2 < H / 2;
       const g = ctx.createLinearGradient(0, down ? bb.y0 : bb.y1, 0, down ? bb.y1 : bb.y0);
       g.addColorStop(0, "rgba(255,255,255,0.08)"); g.addColorStop(0.55, "rgba(255,255,255,0.01)"); g.addColorStop(1, "rgba(0,0,0,0.20)");
@@ -448,25 +453,27 @@ function moduleLayout(W, H) {
         p.tex = t;
       }
     });
+    if (seamCtx) seamCtx.clearRect(0, 0, W, H);
     if (inset > 0) {   // the seams (not the glass) are kept out of the content box
-      ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.rect(inset, inset * 2.6, W - 2 * inset, H - inset * 3.4); ctx.clip("evenodd");
+      sx.save(); sx.beginPath(); sx.rect(0, 0, W, H); sx.rect(inset, inset * 2.6, W - 2 * inset, H - inset * 3.4); sx.clip("evenodd");
     }
     if (glowInside) {
-      ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.strokeStyle = acc;
+      sx.save(); sx.globalCompositeOperation = "lighter"; sx.strokeStyle = acc;
       const nds = junctions(panes, W, H);
-      for (const [blur, a, wdt] of [[10, 0.20, 2.2], [4, 0.24, 1.4]]) { ctx.filter = "blur(" + blur + "px)"; ctx.globalAlpha = a; seams(ctx, panes, W, H, wdt); nodeArms(ctx, nds, 12, wdt * 1.6); }
-      ctx.restore();
+      for (const [blur, a, wdt] of [[10, 0.20, 2.2], [4, 0.24, 1.4]]) { sx.filter = "blur(" + blur + "px)"; sx.globalAlpha = a; seams(sx, panes, W, H, wdt); nodeArms(sx, nds, 12, wdt * 1.6); }
+      sx.restore();
     }
     // lead, the bevel, the neon core: thin lines, a little heavier along the arms of every junction
     const nodes = junctions(panes, W, H);
-    ctx.globalAlpha = 0.95; ctx.strokeStyle = "#08050d"; seams(ctx, panes, W, H, 1.2); nodeArms(ctx, nodes, 16, 1.7); nodeArms(ctx, nodes, 7, 2.2);
-    ctx.save(); ctx.translate(0, 1); ctx.globalAlpha = 0.22; ctx.strokeStyle = "#ffffff"; seams(ctx, panes, W, H, 0.5); ctx.restore();
-    ctx.globalAlpha = glowInside ? 0.78 : 0.92; ctx.strokeStyle = acc; seams(ctx, panes, W, H, 0.7); nodeArms(ctx, nodes, 14, 1.0); nodeArms(ctx, nodes, 6, 1.35);
-    ctx.globalAlpha = 1;
+    sx.globalAlpha = 0.95; sx.strokeStyle = "#08050d"; seams(sx, panes, W, H, 1.2); nodeArms(sx, nodes, 16, 1.7); nodeArms(sx, nodes, 7, 2.2);
+    sx.save(); sx.translate(0, 1); sx.globalAlpha = 0.22; sx.strokeStyle = "#ffffff"; seams(sx, panes, W, H, 0.5); sx.restore();
+    sx.globalAlpha = glowInside ? 0.78 : 0.92; sx.strokeStyle = acc; seams(sx, panes, W, H, 0.7); nodeArms(sx, nodes, 14, 1.0); nodeArms(sx, nodes, 6, 1.35);
+    sx.globalAlpha = 1;
     panes.nodes = nodes;
-    if (inset > 0) ctx.restore();
+    if (inset > 0) sx.restore();
   }
 
+  const layerAfter = (after, cls, W, H) => { let c = after.parentElement.querySelector(":scope > canvas." + cls); if (!c) { c = document.createElement("canvas"); c.className = cls; after.after(c); } c.width = W; c.height = H; return c; };
   /* ---- the curtain: geometry now, paint when it is looked at -------------------- */
   const rng = seed => { let sd = seed; return () => { sd = (sd * 1664525 + 1013904223) % 4294967296; return sd / 4294967296; }; };
   function curtainGeometry(job) {
@@ -482,6 +489,12 @@ function moduleLayout(W, H) {
     const d = panes.map(p => "M" + p.poly.map(q => q[0].toFixed(1) + " " + q[1].toFixed(1)).join("L") + "Z").join("");
     el.style.clipPath = "path('" + d + "')";
     el.style.visibility = "";
+    const t = panes.meta.tiles || {};
+    for (const [sel, side] of [["#scene-controls", "left"], ["#sidebar-tabs", "right"]]) {
+      const tile = host.querySelector(sel); if (!tile) continue;
+      tile.style.transformOrigin = "50% 50%";
+      tile.style.transform = t[side] ? "rotate(" + t[side].angle + "rad)" : "";
+    }
     // self-check: C1 no overlaps, convexity, C2 every block inside its own pane and no other, C3 the top edge covered
     let ov = 0, nonconvex = 0, blockFails = 0, edgeGaps = 0, fitFails = 0; const ncv = [];
     for (let i = 0; i < panes.length; i++) { if (!convex(panes[i].poly)) { nonconvex++; ncv.push(panes[i].kind + ':' + panes[i].poly.map(q => q.map(v => Math.round(v)).join(',')).join(' ')); } for (let j = i + 1; j < panes.length; j++) if (overlaps(panes[i].poly, panes[j].poly)) ov++; }
@@ -506,7 +519,8 @@ function moduleLayout(W, H) {
     if (!panes) return false;
     const W = c.width = job.W, H = c.height = job.H;
     const acc = resolveAcc(el);
-    paintGlass(c.getContext("2d"), W, H, panes, acc);
+    const seamCanvas = layerAfter(c, "seamline", W, H);
+    paintGlass(c.getContext("2d"), W, H, panes, acc, { seamCtx: seamCanvas.getContext("2d") });
     // the glow and the cracks live outside the clip, at half resolution: a bloom is soft anyway
     let gl = el.parentElement.querySelector('[data-glow="' + job.seed + '"]');
     if (!gl) { gl = document.createElement("canvas"); gl.className = "curtain-glow"; gl.dataset.glow = job.seed; el.after(gl); }
@@ -544,9 +558,7 @@ function moduleLayout(W, H) {
     gx.restore(); gx.filter = "none"; gx.globalAlpha = 1;
     // the pulse layer: phases from the angle round the screen centre plus the distance, so the
     // darkening travels round the frame as a slow spiral; periods 9-16 s per pane
-    let pc = el.querySelector("canvas.pulse");
-    if (!pc) { pc = document.createElement("canvas"); pc.className = "pulse"; c.after(pc); }
-    pc.width = Math.round(W * 0.5); pc.height = Math.round(H * 0.5); job.pulseK = 0.5;
+    const pc = layerAfter(c, "pulse", Math.round(W * 0.5), Math.round(H * 0.5)); job.pulseK = 0.5;
     for (const p of panes) {
       const bb = bbox(p.poly), cx = (bb.x0 + bb.x1) / 2 - W / 2, cy = (bb.y0 + bb.y1) / 2 - H / 2;
       const h = p.hsh == null ? hash(cx, cy) : p.hsh;
@@ -566,7 +578,7 @@ function moduleLayout(W, H) {
       const accRGB = hex(j.acc).join(",");
       for (const p of j.panes) {
         const v = 0.5 - 0.5 * Math.cos(t / 1000 * p.omega + p.phase);      // 0 bright ... 1 dark
-        const dark = (p.content ? 0.42 : 0.72) * Math.pow(v, 1.6);
+        const dark = (p.content ? 0.42 : p.stained ? 0.62 : 0.72) * Math.pow(v, p.stained ? 2.2 : 1.6);
         if (dark > 0.01) { g.globalCompositeOperation = "source-over"; g.fillStyle = "rgba(2,1,4," + dark.toFixed(3) + ")"; path(g, p.poly.map(q => [q[0] * k, q[1] * k])); g.fill(); }
         const lit = Math.pow(1 - v, 3);
         const light = (p.stained ? 0.16 : 0.05) * lit;
