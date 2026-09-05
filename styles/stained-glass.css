@@ -254,3 +254,67 @@ body.drpg-theme-stained-glass .drpg-panel .window-content {
     backdrop-filter: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
     -webkit-backdrop-filter: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
 }
+
+/* ---- motion under the theme: the glass and the light on its seams move, the elements stand ----
+   (see the audit's animation table). The window entrance keeps its fade and loses the scale;
+   the header band flashes its seams instead. Waiting states glow at the seam rather than
+   fading the element. */
+body.drpg-theme-stained-glass { --drpg-scale-in: 1; }
+@keyframes drpg-sg-seam-glow {
+    0%, 100% { box-shadow: 0 0 0 1px color-mix(in srgb, var(--drpg-glass-accent) 35%, transparent), 0 0 6px color-mix(in srgb, var(--drpg-glass-accent) 20%, transparent); }
+    50%      { box-shadow: 0 0 0 1px var(--drpg-glass-accent), 0 0 14px color-mix(in srgb, var(--drpg-glass-accent) 70%, transparent); }
+}
+body.drpg-theme-stained-glass .drpg-pending-call,
+body.drpg-theme-stained-glass .drpg-hud-motive.due .drpg-hud-motive-left {
+    animation: drpg-sg-seam-glow 1.6s ease-in-out infinite;
+    opacity: 1;
+}
+body.drpg-theme-stained-glass .drpg-call-button.drpg-call-pending::after {
+    animation: drpg-sg-seam-glow 1.6s ease-in-out infinite;
+    opacity: 1;
+}
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-time.is-objection {
+    --drpg-glass-accent: var(--drpg-sg-gm-light);
+    animation: drpg-sg-seam-glow var(--drpg-t-eclipse, 1400ms) ease-in-out infinite;
+    opacity: 1;
+    padding: 0 6px;
+}
+@media (prefers-reduced-motion: reduce) {
+    body.drpg-theme-stained-glass .drpg-pending-call,
+    body.drpg-theme-stained-glass .drpg-hud-motive.due .drpg-hud-motive-left,
+    body.drpg-theme-stained-glass .drpg-call-button.drpg-call-pending::after,
+    body.drpg-theme-stained-glass #drpg-hud .drpg-hud-time.is-objection { animation: none; }
+}
+body.drpg-theme-stained-glass #drpg-curtain > canvas.flash,
+body.drpg-theme-stained-glass .drpg-panel .window-header > canvas.flash,
+body.drpg-theme-stained-glass .drpg-glass-band > canvas.flash { z-index: 3; mix-blend-mode: screen; }
+
+/* ---- the character sheet: two materials --------------------------------------------
+   The left column (portrait, Health and Sanity, Equipped, Experience) stands on matt ink with
+   the module's raster and no glass, so the portrait and the resource bars are the only colour
+   on that side. The header (name, Ultimate, Hope, actions, traits) is a glass band. */
+body.drpg-theme-stained-glass .character-sidebar-sheet {
+    background-color: rgba(10, 9, 14, 0.92);
+    background-image: radial-gradient(circle at 1px 1px, rgba(242, 238, 230, 0.055) 1px, transparent 1.6px);
+    background-size: 6px 6px;
+    border-right: 1px solid rgba(242, 238, 230, 0.14);
+}
+body.drpg-theme-stained-glass .character-header-sheet.drpg-glass-band {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    --acc: var(--drpg-glass-accent);
+    border-bottom: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 40%, transparent);
+}
+body.drpg-theme-stained-glass .drpg-glass-band > canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+}
+body.drpg-theme-stained-glass .drpg-glass-band > :not(canvas) {
+    position: relative;
+    z-index: 1;
+}

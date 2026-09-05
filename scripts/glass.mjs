@@ -668,22 +668,55 @@ function paintBand(job) {
   paintGlass(c.getContext("2d"), W, H, panes, acc, { glowInside: true, inset: 0, seamCtx: seamCanvas.getContext("2d") });
   const pc = layerAfter(c, "pulse", W, H); job.pulseK = 1;
   for (const p of panes) { const cx = (p.bb.x0 + p.bb.x1) / 2 - W / 2; p.phase = cx / 140 + p.hsh * 1.4; p.omega = 2 * Math.PI / (9 + p.hsh * 7); }
-  job.panes = panes; job.pulse = pc; job.acc = acc;
+  job.panes = panes; job.pulse = pc; job.acc = acc; job.W = W; job.H = H;
 }
-/** Every module window (`.drpg-panel`) gets glass on its header band; called from renderApplicationV2. */
+/* a flash of every seam in Bone (or the accent) that fades over `ms`: the glass has just set */
+function flashSeams(job, color, ms) {
+  if (REDUCED() || !effectsOn() || !job.panes) return;
+  const host = job.el, ref = host.querySelector(":scope > canvas.seamline") ?? host.querySelector(":scope > canvas.sg");
+  if (!ref) return;
+  const W = ref.width, H = ref.height, k = W / Math.max(1, job.W || host.clientWidth || W);
+  const fc = layerAfter(ref, "flash", W, H), g = fc.getContext("2d");
+  const t0 = performance.now();
+  const step = t => {
+    const u = (t - t0) / ms;
+    g.clearRect(0, 0, W, H);
+    if (u >= 1 || !fc.isConnected) { fc.remove(); return; }
+    g.globalAlpha = u < 0.2 ? 1 : 1 - (u - 0.2) / 0.8;
+    g.strokeStyle = color; seams(g, job.panes, W / k, H / k, 1.6, k);
+    requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+/** Glass on a band: a window's title bar or the character sheet's header. */
+function dressBand(band, seedBase) {
+  let job = windows.find(j => j.el === band);
+  if (!job) {
+    const c = document.createElement("canvas"); c.className = "sg"; band.prepend(c);
+    job = { el: band, seed: seedBase + windows.length * 37 };
+    windows.push(job);
+  }
+  requestAnimationFrame(() => { paintBand(job); flashSeams(job, job.acc || "#f2eee6", 420); });
+  return job;
+}
+/** Every module window (`.drpg-panel`) gets glass on its header band, the character sheet on its
+    header; called from renderApplicationV2. */
 export function dressWindow(app) {
   if (!themeOn()) return;
   const el = app?.element;
-  if (!el?.classList?.contains("drpg-panel")) return;
-  const header = el.querySelector(".window-header");
-  if (!header) return;
-  let job = windows.find(j => j.el === header);
-  if (!job) {
-    const c = document.createElement("canvas"); c.className = "sg"; header.prepend(c);
-    job = { el: header, seed: 155 + windows.length * 37 };
-    windows.push(job);
-  }
-  requestAnimationFrame(() => paintBand(job));
+  if (!el?.querySelector) return;
+  if (el.classList?.contains("drpg-panel")) { const h = el.querySelector(".window-header"); if (h) dressBand(h, 155); }
+  const sheetHead = el.querySelector(".character-header-sheet");
+  if (sheetHead) { sheetHead.classList.add("drpg-glass-band"); dressBand(sheetHead, 999); }
+}
+/* the state changed (hour, phase, Eclipse): every seam flashes Bone and the glass takes the new colour */
+let stateTimer = 0;
+function onStateChange() {
+  clearTimeout(stateTimer);
+  stateTimer = setTimeout(() => {
+    for (const j of curtains) { if (!j.panes) continue; const acc = resolveAcc(j.el); if (acc === j.acc) continue; flashSeams(j, "#f2eee6", 420); curtainPaint(j); }
+    for (const j of windows) { if (!j.el.isConnected) continue; const acc = resolveAcc(j.el); if (acc === j.acc) continue; flashSeams(j, "#f2eee6", 420); paintBand(j); }
+  }, 60);
 }
 function pruneWindows() { for (let i = windows.length - 1; i >= 0; i--) if (!windows[i].el.isConnected) windows.splice(i, 1); }
 
@@ -726,4 +759,5 @@ export function registerGlass() {
   Hooks.on("collapseSidebar", schedule);
   Hooks.on("renderApplicationV2", dressWindow);
   Hooks.on("closeApplicationV2", pruneWindows);
+  new MutationObserver(onStateChange).observe(document.body, { attributes: true, attributeFilter: ["data-drpg-phase", "data-drpg-time", "class"] });
 }
