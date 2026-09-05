@@ -102,7 +102,14 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
      Black glass. Colour lives in the seams and in a few stained cells; a panel's
      pane is always plain black so text reads the same everywhere. */
   const STAIN = ["#5c1238", "#142a66"];
-  const TONE = { hud: "#050409", gmbar: "#050409", rail: "#2a0a1e", event: "#24061a", three: "#08103a", tray: "#1a0838", "note-block": "#24061a", launch: "#050409" };
+  /* A PANEL'S PANE IS GLASS, NOT A PLATE.
+     Every tone here went up a step after the audit: at #050409 under 68 % alpha, with a
+     further 30 % of black over it and `brightness(0.88)` under it, a pane over a dark map
+     is not dark glass - it is a black rectangle with writing on it, which is what the
+     tablet screenshot shows behind the clock and the tray. The lift is small (a panel's
+     pane must still read as the calmest thing on the screen) and it is paid for by the
+     black layer in `paintGlass`, which is thinner over content than over filler. */
+  const TONE = { hud: "#0d0b16", gmbar: "#0d0b16", rail: "#3a1230", event: "#33102a", three: "#12204d", tray: "#281448", "note-block": "#33102a", launch: "#0d0b16" };
   const SHEAR = -13 * Math.PI / 180;
   const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
   const rgba = (h, a) => "rgba(" + hex(h).join(",") + "," + a + ")";
@@ -498,15 +505,17 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       ctx.save(); path(ctx, p.poly); ctx.clip();
       // black glass first, then a little colour: a panel keeps its tone, most filler a faint tint, one in five stained
       const lum = hash((bb.x0 + bb.x1) / 2 + 17, (bb.y0 + bb.y1) / 2 - 31);
-      ctx.globalAlpha = (p.content ? 0.68 : stained ? 0.30 : 0.58) + (lum - 0.5) * 0.08;
-      ctx.fillStyle = p.content ? (k ? TONE[k] : "#050409") : (lum > 0.5 ? "#0c0a14" : "#0a0810");
+      ctx.globalAlpha = (p.content ? 0.55 : stained ? 0.30 : 0.58) + (lum - 0.5) * 0.08;
+      ctx.fillStyle = p.content ? (k ? TONE[k] : "#0d0b16") : (lum > 0.5 ? "#0c0a14" : "#0a0810");
       ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
       if (!p.content) {
         ctx.globalAlpha = stained ? 0.60 : 0.05 + lum * 0.07;
         ctx.fillStyle = STAIN[Math.floor(hsh * 1000) % STAIN.length];
         ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
       }
-      ctx.globalAlpha = 1; ctx.fillStyle = stained ? "rgba(0,0,0,0.16)" : "rgba(0,0,0,0.30)"; ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
+      // the black over the colour: full weight on filler, half of it over content, where the
+      // pane already carries the darkest tone and the text carries its own shadow
+      ctx.globalAlpha = 1; ctx.fillStyle = p.content ? "rgba(0,0,0,0.12)" : stained ? "rgba(0,0,0,0.16)" : "rgba(0,0,0,0.30)"; ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
       const down = (bb.y0 + bb.y1) / 2 < H / 2;
       const g = ctx.createLinearGradient(0, down ? bb.y0 : bb.y1, 0, down ? bb.y1 : bb.y0);
       g.addColorStop(0, "rgba(255,255,255,0.08)"); g.addColorStop(0.55, "rgba(255,255,255,0.01)"); g.addColorStop(1, "rgba(0,0,0,0.20)");
@@ -832,8 +841,8 @@ function morph(j, oldPanes, oldAcc) {
     const acc = lerpHex(oldAcc || newAcc, newAcc, e);
     polys.forEach((pl, i) => {
       const p = pairs[i].p;
-      g.globalAlpha = p.content ? 0.72 : p.stained ? 0.62 : 0.6;
-      g.fillStyle = p.content ? (TONE[p.tone] || "#050409") : p.stained ? (STAIN[i % STAIN.length]) : "#0b0812";
+      g.globalAlpha = p.content ? 0.58 : p.stained ? 0.62 : 0.6;
+      g.fillStyle = p.content ? (TONE[p.tone] || "#0d0b16") : p.stained ? (STAIN[i % STAIN.length]) : "#0b0812";
       path(g, pl); g.fill();
       if (p.stained) { g.globalAlpha = 0.3; g.fillStyle = "#000"; path(g, pl); g.fill(); }
     });

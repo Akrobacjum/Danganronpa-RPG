@@ -655,8 +655,11 @@ body.drpg-theme-stained-glass #countdowns,
 body.drpg-theme-stained-glass #countdowns * {
     font-family: var(--drpg-font-chrome) !important;
 }
+/* A4. The tray's pane is the size of the tray. A floor of 150 px was there to balance the
+   clock's corner, but a season with one project - or none - paid for that balance with a
+   black rectangle carrying a single line. The corners are balanced by the filler between
+   the panes, which is what filler is for. */
 body.drpg-theme-stained-glass #ui-right-column-1 > #countdowns {
-    min-height: 150px;
     box-sizing: border-box;
 }
 body.drpg-theme-stained-glass #countdowns .countdowns-header {
