@@ -336,10 +336,23 @@ export function renderHud() {
         const dateLines = eventsWindowActive()
             ? [line("drpg-hud-chapter", `${chapterText} · ${dayText}`)]
             : [line("drpg-hud-chapter", chapterText), line("drpg-hud-day", dayText)];
+        /* THE PHASE IS A STAMP WITH A GLYPH ON IT.
+           The audit page's clock names the phase on a plate in the state colour with the
+           hour's own pixel glyph beside it - a sun, a lens, a gavel, the eclipse - because
+           that is the one line on the clock that can be read without reading. Ours was a
+           line of tinted text. The glyph is a masked sprite; which sprite is the
+           stylesheet's business, from the phase and hour already on the body. */
+        const phaseLine = line("drpg-hud-phase", phaseLabel(clock.phase));
+        if (eventsWindowActive()) {
+            const glyph = document.createElement("span");
+            glyph.className = "drpg-hud-phase-glyph drpg-pxi";
+            glyph.setAttribute("aria-hidden", "true");
+            phaseLine.prepend(glyph);
+        }
         hud.append(
             line("drpg-hud-campaign", campaignName(clock)),
             ...dateLines,
-            line("drpg-hud-phase", phaseLabel(clock.phase)),
+            phaseLine,
             buildTimeRow(clock, isGM),
             buildElapsed()
         );

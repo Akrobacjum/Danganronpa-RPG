@@ -162,6 +162,14 @@ function cardElement(card, clock) {
     if (card.due) el.classList.add("due");
     if (card.mine) el.classList.add("mine");
     if (card.tooltip) el.dataset.tooltip = card.tooltip;
+    /* Every card carries the glyph of what it is, as the audit page draws it: the knife for
+       an open incident, the envelope for a motive, the horn for an assembly, the gavel for
+       the floor of a trial. A masked pixel sprite, chosen by `data-kind` in the stylesheet,
+       so a new kind of card needs one rule and no icon file. */
+    const glyph = document.createElement("span");
+    glyph.className = "drpg-event-glyph drpg-pxi";
+    glyph.setAttribute("aria-hidden", "true");
+    el.append(glyph);
     const add = (cls, text) => {
         if (!text) return;
         const line = document.createElement("div");
