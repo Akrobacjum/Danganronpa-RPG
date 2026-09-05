@@ -1222,4 +1222,7 @@ export function applyTheme() {
     document.documentElement.style.setProperty("--drpg-ui-scale", clamped);
     import("./glass.mjs").then(m => m.refreshGlass()).catch(() => {});
     import("./sfx.mjs").then(m => m.renderSoundLauncher?.()).catch(() => {});
+    // The clock carries the theme's ticker and, under Monokuma Legacy, the three
+    // rows the Event panel takes over; a switch redraws it so neither lingers.
+    if (game.ready) import("./hud.mjs").then(m => m.renderHud?.()).catch(() => {});
 }

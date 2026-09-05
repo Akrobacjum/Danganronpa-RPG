@@ -191,7 +191,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     const buildColumn = (c, cols, band) => {
       const cx = (c.x0 + c.x1) / 2, h = c.y1 - c.y0;
       const s0 = field(cx, W, band);
-      let theta = Math.abs(cx - W / 2) < 0.1 * W ? 0 : Math.min(12 * DEG, Math.max(6 * DEG, Math.atan(Math.abs(s0))));
+      let theta = Math.abs(cx - W / 2) < 0.1 * W ? 0 : Math.min(8 * DEG, Math.max(6 * DEG, Math.atan(Math.abs(s0))));
       // a neighbour too close forbids the tilt that would swing the pane into it
       for (const o of cols) if (o !== c) { const gap = o.x0 > c.x1 ? o.x0 - c.x1 : c.x0 - o.x1; if (gap >= 0) theta = Math.min(theta, Math.atan(Math.max(0, gap - 2 * PAD_SIDE - 2) / Math.max(h, 1))); }
       const s = Math.sign(s0) * Math.tan(theta);
