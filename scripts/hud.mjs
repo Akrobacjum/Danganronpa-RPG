@@ -39,6 +39,7 @@ import { isMonokuma, poolUserFor } from "./monokuma.mjs";
 import { murderState, participantIds } from "./murder.mjs";
 import { motive } from "./rules.mjs";
 import { pendingGather } from "./call-effects.mjs";
+import { renderEvents, eventsWindowActive } from "./events.mjs";
 // The fifth, added when the trial's own bar was folded into this widget. Walked
 // like the four above and clean: trial-floor.mjs reaches config, settings and
 // utils and nothing else - it stopped importing trial.mjs when the evidence
@@ -332,14 +333,19 @@ export function renderHud() {
          * Appended conditionally and returning null when idle, so the column
          * below keeps its height on an ordinary time of day. `alignRightColumn`
          * measures what is actually here, after this. */
-        const motiveRow = buildMotive();
-        if (motiveRow) hud.append(motiveRow);
+        // Under the Stained Glass theme these three are the Event panel's, under
+        // the Despair rail (events.mjs); the clock stays a clock. Under Monokuma
+        // Legacy they are rows here, as they were.
+        if (!eventsWindowActive()) {
+            const motiveRow = buildMotive();
+            if (motiveRow) hud.append(motiveRow);
 
-        const assembly = buildAssembly();
-        if (assembly) hud.append(assembly);
+            const assembly = buildAssembly();
+            if (assembly) hud.append(assembly);
 
-        const incident = buildIncident();
-        if (incident) hud.append(incident);
+            const incident = buildIncident();
+            if (incident) hud.append(incident);
+        }
 
         // Last, under the timer: where you are standing is the most local thing
         // on a widget that otherwise describes the whole world.
@@ -352,6 +358,9 @@ export function renderHud() {
         // the slot, the other measures what is in it.
         fitTimeSlot(hud);
         slideTimeOfDay(hud, previous, previousTime);
+        // The Event panel redraws on the same triggers as the clock: it reads the
+        // same settings and has no source of its own.
+        renderEvents();
     } catch (err) {
         error("Could not render the campaign HUD", err);
     }

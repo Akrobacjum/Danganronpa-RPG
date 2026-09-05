@@ -817,6 +817,11 @@
       "startTrialNote": "The clock starts over: the campaign's elapsed timer restarts with the trial, and again when it ends.",
       "openDebateIntro": "How long is this debate worth? Each one in a trial gets its own budget, and the last number you used is offered."
     },
+    "Events": {
+      "incidentTitle": "A killing in the dark",
+      "incidentSub": "{killer} against {victim}",
+      "incidentSubRoom": "{killer} against {victim}, in {room}"
+    },
     "Look": {
       "title": "Settings",
       "launcherTooltip": "Settings",

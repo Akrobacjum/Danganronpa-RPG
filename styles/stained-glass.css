@@ -16,7 +16,9 @@
    the body, the sound launcher becomes the settings launcher (look.mjs), module
    windows carry the glass on their title band only, the tiles are pushed
    below the corner panes and turned with their shard (glass.mjs).
-   Still to come: the animation pass from the audit. See docs/design/typography.md.
+   Milestone 3: the motion pass (light on the seams, elements stand), the sheet in
+   two materials, and the Event panel under the Despair rail (events.mjs), which
+   takes the clock's three standing threats. See docs/design/typography.md.
    ========================================================================== */
 
 /* ---- fonts: two OFL faces, shipped with the module, latin + latin-ext ------ */
@@ -134,6 +136,7 @@ body.drpg-theme-stained-glass #ui-bottom {
 /* ---- the blocks on their panes: no plates, the glass is the background ------ */
 body.drpg-curtain-on #drpg-hud,
 body.drpg-curtain-on #drpg-despair,
+body.drpg-curtain-on #drpg-events,
 body.drpg-curtain-on #drpg-player-status,
 body.drpg-curtain-on #countdowns,
 body.drpg-curtain-on #drpg-notice {
@@ -317,4 +320,67 @@ body.drpg-theme-stained-glass .drpg-glass-band > canvas {
 body.drpg-theme-stained-glass .drpg-glass-band > :not(canvas) {
     position: relative;
     z-index: 1;
+}
+
+/* ---- the Event panel: under the Despair rail, as wide as it, no button in it -------------- */
+body.drpg-theme-stained-glass #drpg-events {
+    width: 412px;
+    max-width: 100%;
+    margin: 8px auto 0;
+    padding: 0;
+    font-family: var(--drpg-font-chrome);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    text-align: center;
+    pointer-events: auto;
+}
+body.drpg-theme-stained-glass .drpg-event {
+    --acc: var(--drpg-glass-accent);
+    padding: 8px 12px 9px;
+    animation: drpg-sg-event-in var(--drpg-t-enter, 180ms) var(--drpg-ease-arrive, ease-out) both;
+}
+body.drpg-theme-stained-glass .drpg-event + .drpg-event {
+    border-top: 1px solid color-mix(in srgb, var(--acc) 30%, transparent);
+}
+body.drpg-theme-stained-glass .drpg-event[data-kind="incident"] { --acc: var(--drpg-sg-gm-light); }
+body.drpg-theme-stained-glass .drpg-event[data-kind="motive"] { --acc: var(--drpg-sg-hope); }
+body.drpg-theme-stained-glass .drpg-event-kicker {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    color: var(--drpg-sg-bone-dim);
+}
+body.drpg-theme-stained-glass .drpg-event-title {
+    font-family: var(--drpg-font-title);
+    font-size: 19px;
+    line-height: 1.15;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--acc);
+    margin-top: 2px;
+}
+body.drpg-theme-stained-glass .drpg-event-sub {
+    font-size: 14px;
+    color: var(--drpg-sg-bone);
+    margin-top: 2px;
+}
+body.drpg-theme-stained-glass .drpg-event-meta {
+    font-size: 11px;
+    color: var(--drpg-sg-bone-dim);
+    margin-top: 5px;
+    padding-top: 5px;
+    border-top: 1px solid color-mix(in srgb, var(--acc) 30%, transparent);
+}
+body.drpg-theme-stained-glass .drpg-event.mine .drpg-event-meta,
+body.drpg-theme-stained-glass .drpg-event.due .drpg-event-meta {
+    color: var(--acc);
+    animation: drpg-sg-seam-glow 1.6s ease-in-out infinite;
+}
+@keyframes drpg-sg-event-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+    body.drpg-theme-stained-glass .drpg-event { animation: none; }
+    body.drpg-theme-stained-glass .drpg-event.mine .drpg-event-meta,
+    body.drpg-theme-stained-glass .drpg-event.due .drpg-event-meta { animation: none; }
 }

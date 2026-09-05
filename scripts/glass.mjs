@@ -28,6 +28,7 @@ const BLOCKS = [
   { cls: "hud", sel: "#drpg-hud", fallback: (W, H) => ({ x: 16, y: 22, w: 312, h: 150 }) },
   { cls: "gmbar", sel: "#drpg-gm-launcher", fallback: (W, H, r) => ({ x: 16, y: (r.hud ? r.hud.y + r.hud.h : 172) + 6, w: 74, h: 34 }) },
   { cls: "rail", sel: "#drpg-despair", fallback: (W, H) => ({ x: Math.round(W / 2 - 206), y: 22, w: 412, h: 90 }) },
+  { cls: "event", sel: "#drpg-events", fallback: null },
   { cls: "three", sel: "#drpg-player-status", fallback: (W, H) => ({ x: W - 64 - 300, y: 22, w: 300, h: 78 }) },
   { cls: "tray", sel: "#ui-right-column-1 > #countdowns, #countdowns", fallback: (W, H, r) => ({ x: W - 64 - 300, y: (r.three ? r.three.y + r.three.h : 100) + 10, w: 300, h: 62 }) },
   { cls: "note-block", sel: "#drpg-notice", fallback: (W, H) => ({ x: 16, y: H - 100 - 80, w: 330, h: 80 }) },
@@ -47,6 +48,7 @@ function moduleLayout(W, H) {
       const x1 = Math.max(...rs.map(q => q.right)), y1 = Math.max(...rs.map(q => q.bottom));
       r = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
     }
+    if (!r && !b.fallback) return;                 // an event panel that is not there cuts no pane
     const box = r ? { ...r } : b.fallback(W, H, rects);
     rects[b.cls] = box;
     out.push({ cls: b.cls, x: box.x, y: box.y, w: box.w, h: box.h, el: list[0] ?? null, els: list, r });
@@ -58,7 +60,7 @@ function moduleLayout(W, H) {
      Black glass. Colour lives in the seams and in a few stained cells; a panel's
      pane is always plain black so text reads the same everywhere. */
   const STAIN = ["#5c1238", "#142a66"];
-  const TONE = { hud: "#050409", rail: "#2a0a1e", three: "#08103a", tray: "#1a0838", "note-block": "#24061a", launch: "#050409" };
+  const TONE = { hud: "#050409", gmbar: "#050409", rail: "#2a0a1e", event: "#24061a", three: "#08103a", tray: "#1a0838", "note-block": "#24061a", launch: "#050409" };
   const SHEAR = -13 * Math.PI / 180;
   const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
   const rgba = (h, a) => "rgba(" + hex(h).join(",") + "," + a + ")";
