@@ -398,3 +398,200 @@ body.drpg-theme-stained-glass .application:not(.drpg-panel) .window-header {
     border-bottom: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 35%, transparent);
 }
 .drpg-look-report code { font-size: 11px; opacity: .8; word-break: break-word; }
+
+/* ==========================================================================
+   Milestone 4: the brush on everything clickable, one field, one table, the
+   ticker behind the clock, GM windows in red. See the audit's "Pędzel" rules:
+   rest is a thin edge in the element's colour over transparent black; hover a
+   brush at 45 %; selected the full brush with Ink text; pressed the brush
+   darkened; disabled a dashed edge and no brush; keyboard focus a 2 px outline.
+   The default button is a brush in Bone already at rest. GM red stays red.
+
+   The states write four custom properties (--brush-on, --brush-ink, --brush-edge,
+   --brush-style) and the base rule reads them, so a state selector never has to
+   out-rank the base rule's `:not()` chain.
+   ========================================================================== */
+body.drpg-theme-stained-glass .drpg-panel button:not(.drpg-action-button):not(.drpg-call-button),
+body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-button,
+body.drpg-theme-stained-glass .drpg-mini-button,
+body.drpg-theme-stained-glass .drpg-gmt-tabs button,
+body.drpg-theme-stained-glass .drpg-messenger button {
+    --brush: var(--drpg-glass-accent);
+    position: relative;
+    isolation: isolate;
+    font-family: var(--drpg-font-chrome);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--brush-ink, var(--drpg-sg-bone));
+    background: rgba(7, 7, 10, 0.55);
+    border: 1px var(--brush-style, solid) var(--brush-edge, color-mix(in srgb, var(--brush) 55%, transparent));
+    border-radius: 0;
+    box-shadow: none;
+    text-shadow: none;
+    opacity: 1;
+    clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
+    transition: color var(--drpg-t-snap, 120ms), border-color var(--drpg-t-snap, 120ms);
+}
+/* the brush: a pseudo-element behind the label, its edge torn by a clip path */
+body.drpg-theme-stained-glass .drpg-panel button:not(.drpg-action-button):not(.drpg-call-button)::before,
+body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-button::before,
+body.drpg-theme-stained-glass .drpg-mini-button::before,
+body.drpg-theme-stained-glass .drpg-gmt-tabs button::before,
+body.drpg-theme-stained-glass .drpg-messenger button::before {
+    content: "";
+    position: absolute;
+    inset: 1px 2px;
+    z-index: -1;
+    background: var(--brush);
+    opacity: var(--brush-on, 0);
+    filter: brightness(var(--brush-dim, 1));
+    clip-path: polygon(0 12%, 3% 0, 97% 4%, 100% 20%, 99% 88%, 96% 100%, 4% 96%, 0 84%);
+    transition: opacity var(--drpg-t-snap, 120ms);
+}
+/* hover: the brush at 45 %, the edge full */
+body.drpg-theme-stained-glass :is(.drpg-panel button, .drpg-gmp-button, .drpg-mini-button, .drpg-gmt-tabs button, .drpg-messenger button):hover:not(:disabled):not(.active) {
+    --brush-on: 0.45;
+    --brush-edge: var(--brush);
+}
+/* selected and the default: the full brush, Ink text */
+body.drpg-theme-stained-glass :is(.drpg-panel button, .drpg-gmt-tabs button):is(.active, .default, [aria-selected="true"], [aria-pressed="true"], [autofocus]) {
+    --brush-on: 1;
+    --brush-ink: var(--drpg-sg-ink);
+    --brush-edge: var(--brush);
+}
+body.drpg-theme-stained-glass .drpg-panel button:not(.drpg-action-button):not(.drpg-call-button):is(.default, [autofocus]) { --brush: var(--drpg-sg-bone); }
+/* pressed: the brush darkened */
+body.drpg-theme-stained-glass :is(.drpg-panel button, .drpg-gmp-button, .drpg-mini-button, .drpg-gmt-tabs button):active:not(:disabled) {
+    --brush-on: 1;
+    --brush-dim: 0.7;
+    --brush-ink: var(--drpg-sg-ink);
+}
+/* disabled: a dashed edge, no brush */
+body.drpg-theme-stained-glass :is(.drpg-panel button, .drpg-gmp-button, .drpg-mini-button):is(:disabled, [disabled]) {
+    --brush-on: 0;
+    --brush-style: dashed;
+    --brush-edge: color-mix(in srgb, var(--brush) 35%, transparent);
+    --brush-ink: var(--drpg-sg-bone-dim);
+    cursor: not-allowed;
+}
+body.drpg-theme-stained-glass :is(.drpg-panel button, .drpg-mini-button, .drpg-gmt-tabs button):focus-visible {
+    outline: 2px solid var(--brush);
+    outline-offset: 1px;
+}
+/* GM red stays red: the GM's own windows and buttons take the GM colour as their brush */
+body.drpg-theme-stained-glass .drpg-gm-panel,
+body.drpg-theme-stained-glass .drpg-gm-panel-window,
+body.drpg-theme-stained-glass .drpg-monokuma-panel,
+body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-button,
+body.drpg-theme-stained-glass .drpg-panel .drpg-gmp-button {
+    --drpg-glass-accent: var(--drpg-sg-gm);
+    --brush: var(--drpg-sg-gm);
+}
+
+/* ---- fields and steppers: one class of field ---------------------------------------------
+   Rest is the same edge in the state colour, thicker at the bottom; focus the full colour with a
+   glow; error the GM edge; disabled dashed. Numbers lose the browser's arrows (the module's own
+   steppers stand beside them). */
+body.drpg-theme-stained-glass .drpg-panel :is(input[type="text"], input[type="number"], input[type="search"], select, textarea) {
+    font-family: var(--drpg-font-chrome);
+    color: var(--drpg-sg-bone);
+    background: rgba(7, 7, 10, 0.55);
+    border: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 40%, transparent);
+    border-bottom-width: 2px;
+    border-radius: 0;
+    box-shadow: none;
+    transition: border-color var(--drpg-t-snap, 120ms), box-shadow var(--drpg-t-snap, 120ms);
+}
+body.drpg-theme-stained-glass .drpg-panel :is(input[type="text"], input[type="number"], input[type="search"], select, textarea):focus-visible {
+    outline: none;
+    border-color: var(--drpg-glass-accent);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--drpg-glass-accent) 45%, transparent);
+    caret-color: var(--drpg-glass-accent);
+}
+body.drpg-theme-stained-glass .drpg-panel :is(input, select, textarea):user-invalid,
+body.drpg-theme-stained-glass .drpg-panel :is(input, select, textarea).error {
+    border-color: var(--drpg-sg-gm);
+}
+body.drpg-theme-stained-glass .drpg-panel :is(input, select, textarea):disabled {
+    border-style: dashed;
+    color: var(--drpg-sg-bone-dim);
+}
+body.drpg-theme-stained-glass .drpg-panel input[type="number"] {
+    appearance: textfield;
+    -moz-appearance: textfield;
+}
+body.drpg-theme-stained-glass .drpg-panel input[type="number"]::-webkit-outer-spin-button,
+body.drpg-theme-stained-glass .drpg-panel input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+body.drpg-theme-stained-glass .drpg-panel input[type="range"] { accent-color: var(--drpg-glass-accent); }
+body.drpg-theme-stained-glass .drpg-panel input[type="checkbox"],
+body.drpg-theme-stained-glass .drpg-panel input[type="radio"] { accent-color: var(--drpg-glass-accent); }
+
+/* ---- tables: one class, the state colour on the header, zebra rows ------------------------- */
+body.drpg-theme-stained-glass .drpg-panel table {
+    border-collapse: collapse;
+    font-family: var(--drpg-font-chrome);
+    font-variant-numeric: tabular-nums;
+}
+body.drpg-theme-stained-glass .drpg-panel table thead th,
+body.drpg-theme-stained-glass .drpg-panel table tr:first-child th {
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 12px;
+    color: var(--drpg-glass-accent);
+    background: rgba(7, 7, 10, 0.5);
+    border-bottom: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 50%, transparent);
+    text-align: left;
+    padding: 4px 8px;
+}
+body.drpg-theme-stained-glass .drpg-panel table td {
+    padding: 4px 8px;
+    border: 0;
+    border-bottom: 1px solid rgba(242, 238, 230, 0.06);
+}
+body.drpg-theme-stained-glass .drpg-panel table tbody tr:nth-child(even) td { background: rgba(242, 238, 230, 0.035); }
+body.drpg-theme-stained-glass .drpg-panel table tbody tr:hover td { background: color-mix(in srgb, var(--drpg-glass-accent) 10%, transparent); }
+
+/* ---- the ticker behind the clock: the state's name as an outline, quietly, 18 s a pass ------ */
+body.drpg-theme-stained-glass #drpg-hud {
+    position: relative;
+    overflow: hidden;
+}
+body.drpg-theme-stained-glass #drpg-hud > :not(.drpg-hud-ticker) { position: relative; z-index: 1; }
+body.drpg-theme-stained-glass .drpg-hud-ticker {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    white-space: nowrap;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 0;
+    font-family: var(--drpg-font-chrome);
+    font-size: 32px;
+    line-height: 1;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--drpg-glass-accent) 10%, transparent);
+    -webkit-text-stroke: 1px var(--drpg-glass-accent);
+    opacity: 0.22;
+    text-shadow: none;
+}
+body.drpg-theme-stained-glass .drpg-hud-ticker > span {
+    flex: 0 0 auto;
+    padding-right: 0.5em;
+    animation: drpg-sg-ticker 18s linear infinite;
+}
+@keyframes drpg-sg-ticker {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-100%); }
+}
+@media (prefers-reduced-motion: reduce) {
+    body.drpg-theme-stained-glass .drpg-hud-ticker > span { animation: none; }
+}
+body.drpg-no-glass-effects .drpg-hud-ticker { display: none; }

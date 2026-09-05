@@ -1443,6 +1443,16 @@ function armRendererFailsafe() {
 }
 
 /** Resolve a CSS custom property to the integer PIXI wants. */
+/** The seam colour of the Stained Glass theme, read off the body where the theme sets it. */
+function accentColour(fallback) {
+    try {
+        const raw = getComputedStyle(document.body).getPropertyValue("--drpg-glass-accent").trim();
+        return raw ? foundry.utils.Color.from(raw).valueOf() : fallback;
+    } catch {
+        return fallback;
+    }
+}
+
 function colourOf(name, fallback) {
     try {
         const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -3765,7 +3775,11 @@ function flashOutline(fx, region, rect) {
     // Whatever was outlined before, take it down - see `fadeRoomOutline`.
     fadeRoomOutline();
 
-    const bone = colourOf("--drpg-bone", 0xe8e3ec);
+    // Under the Stained Glass theme the line is a seam: the state colour, the one the curtain's
+    // seams wear right now. Bone otherwise, as it always was.
+    const bone = document.body.classList.contains("drpg-theme-stained-glass")
+        ? accentColour(colourOf("--drpg-bone", 0xe8e3ec))
+        : colourOf("--drpg-bone", 0xe8e3ec);
     const grid = canvas?.grid?.size ?? 100;
     const bounds = boundsOf(region);
 

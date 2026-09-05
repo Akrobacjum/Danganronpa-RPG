@@ -314,6 +314,19 @@ export function renderHud() {
         // curtain take the colour of the hour unless a phase overrides it.
         document.body.dataset.drpgTime = clock.timeOfDay ?? "";
 
+        // Stained Glass: the name of the state runs as an outline behind the clock's content,
+        // quietly (22 % opacity, 18 s a pass, still under reduced motion). Text, not a picture,
+        // so it says what the seams' colour means. The stylesheet positions and moves it.
+        if (eventsWindowActive()) {
+            const ticker = document.createElement("div");
+            ticker.className = "drpg-hud-ticker";
+            ticker.setAttribute("aria-hidden", "true");
+            const word = phase === "eclipse" ? game.i18n.localize("DRPG.Explain.phase.eclipseTitle") : phaseLabel(clock.phase);
+            const run = document.createElement("span");
+            run.textContent = Array(6).fill(word).join(" · ") + " · ";
+            ticker.append(run, run.cloneNode(true));
+            hud.append(ticker);
+        }
         hud.append(
             line("drpg-hud-campaign", campaignName(clock)),
             line("drpg-hud-chapter", game.i18n.format("DRPG.Hud.chapter", { n: clock.chapter })),

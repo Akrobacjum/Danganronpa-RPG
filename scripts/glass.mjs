@@ -728,6 +728,40 @@ export function glassReport() {
   return parts.join(" · ");
 }
 
+/* ---- the glass answers the interface -------------------------------------------
+   `beatAt(el)`: the pane under an element runs one fast cycle (a pip just spent). The urgent
+   scan marks the panes under anything waiting (a pending call, a due motive, a card that is
+   "mine") for as long as it waits; the objection opens with one white snap of every seam. */
+function paneAt(x, y) {
+  const j = curtains[0]; if (!j?.panes) return null;
+  const r = j.el.getBoundingClientRect();
+  const px = x - r.left, py = y - r.top;
+  return j.panes.find(p => inside(p.poly, px, py)) ?? null;
+}
+/** One fast beat of the pane under `el` (or under a point), in the state colour. */
+export function beatAt(el, ms = 1600) {
+  if (!themeOn() || !effectsOn() || REDUCED()) return;
+  const r = el?.getBoundingClientRect?.(); if (!r || (!r.width && !r.height)) return;
+  const p = paneAt(r.left + r.width / 2, r.top + r.height / 2);
+  if (p) p.urgentUntil = Math.max(p.urgentUntil || 0, performance.now() + ms);
+}
+const URGENT = ".drpg-event.mine, .drpg-event.due, .drpg-pending-call, .drpg-call-button.drpg-call-pending, #drpg-hud .drpg-hud-time.is-objection";
+let urgentAt = 0, objectionOn = false;
+function scanUrgent(t) {
+  if (t - urgentAt < 500) return;
+  urgentAt = t;
+  const now = performance.now();
+  for (const el of document.querySelectorAll(URGENT)) {
+    const r = el.getBoundingClientRect(); if (!r.width && !r.height) continue;
+    const p = paneAt(r.left + r.width / 2, r.top + r.height / 2);
+    if (p) p.urgentUntil = Math.max(p.urgentUntil || 0, now + 700);
+  }
+  const obj = Boolean(document.querySelector("#drpg-hud .drpg-hud-time.is-objection"));
+  if (obj && !objectionOn) for (const j of curtains) flashSeams(j, "#ffffff", 90);   // the V3 cut, once
+  objectionOn = obj;
+}
+globalThis.drpgGlassBeat = beatAt;
+
 /* ---- module windows: the stained glass on the title band only --------------- */
 function paintBand(job) {
   const w = job.el, c = w.querySelector(":scope > canvas.sg");
@@ -809,7 +843,7 @@ function loop(t) {
   raf = requestAnimationFrame(loop);
   if (!curtains.length || document.hidden || REDUCED() || !effectsOn()) return;
   if (t - last < 66) return;
-  last = t; pulseFrame(t);
+  last = t; scanUrgent(t); pulseFrame(t);
 }
 
 /** Mount or unmount the curtain according to the theme setting. */
