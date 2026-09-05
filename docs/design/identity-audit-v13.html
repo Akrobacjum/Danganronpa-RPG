@@ -109,7 +109,7 @@
   .pips { display: inline-flex; gap: 3px; align-items: center; }
   .pips .pixicon { width: 18px; height: 18px; }
   .rail .pips .pixicon { width: 18px; height: 18px; } .dt .pips .pixicon { width: 13px; height: 13px; }
-  .rail .pips { gap: 2px; }
+  .rail .pips { gap: 3px; }
   .pips .off { opacity: 0.25; }
   .halftone { background-image: radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--acc) 50%, transparent) 1.1px, transparent 1.6px); background-size: 5px 5px; }
 
@@ -194,6 +194,18 @@
     -webkit-backdrop-filter: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
     background: rgba(255, 255, 255, 0.02); }
   .curtain > canvas.sg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; }
+  .curtain > canvas.pulse { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+  .screen .cut { display: none; }
+  /* glass as an accent: a window's header band and the sheet's header carry the shards, the rest is calm dark glass */
+  .win:not(.glassfull) { background: rgba(9, 8, 13, 0.84); }
+  .win:not(.glassfull)::after { background: linear-gradient(148deg, rgba(255, 255, 255, 0.07) 0 12%, rgba(255, 255, 255, 0.02) 30%, transparent 52%); }
+  .gband { position: relative; }
+  .gband > canvas.sg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; }
+  .gband > :not(canvas) { position: relative; z-index: 1; }
+  .whead { margin: -12px -12px 10px; padding: 10px 12px 8px; overflow: hidden; border-bottom: 1px solid color-mix(in srgb, var(--acc) 40%, transparent); }
+  .shead { margin: -12px -12px 8px 0; padding: 10px 12px 10px; overflow: hidden; border-bottom: 1px solid color-mix(in srgb, var(--acc) 40%, transparent); }
+  .sheet .side { margin: -12px 0 -12px -12px; padding: 12px; background-color: rgba(10, 9, 14, 0.92); background-image: radial-gradient(circle at 1px 1px, rgba(242, 238, 230, 0.055) 1px, transparent 1.6px); background-size: 6px 6px; border-right: 1px solid var(--line); }
+  .rail .row { justify-content: center; }
   .curtain-glow { position: absolute; inset: 0; z-index: 2; pointer-events: none; mix-blend-mode: screen; }
   .curtain > .stack { position: absolute; inset: 0; z-index: 2; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.85), 0 0 8px rgba(0, 0, 0, 0.6); }
   .curtain .seam { position: absolute; background: color-mix(in srgb, var(--acc) 30%, transparent); }
@@ -207,8 +219,11 @@
   .stack .three { display: flex; }
   .stack .three > div { flex: 1; text-align: center; padding: 0 6px; }
   .stack .three > div + div { border-left: 1px solid color-mix(in srgb, var(--acc) 26%, transparent); }
-  .stack .three .k { font-family: var(--font-chrome); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--bone-dim); }
-  .stack .three .v { font-family: var(--font-chrome); font-size: 15px; color: var(--bone); }
+  .stack .three .k { font-family: var(--font-chrome); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--bone-dim); }
+  .stack .three .v { font-family: var(--font-chrome); font-size: 14px; color: var(--bone); }
+  .stack .three .v .pips { gap: 2px; } .stack .three .v .pixicon { width: 11.5px; height: 11.5px; }
+  .stack .gmbar { display: flex; align-items: center; justify-content: center; font-family: var(--font-chrome); font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--bone); background: color-mix(in srgb, var(--gm) 55%, rgba(7, 7, 10, 0.6)); border: 1px solid rgba(255, 85, 102, 0.75); box-shadow: 0 0 10px color-mix(in srgb, var(--gm-light) 35%, transparent); }
+  .stack .launch .ui.ring { border-width: 2px; }
   .stack .note-block .k { font-family: var(--font-chrome); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--acc); }
   .stack .note-block .t { font-size: 15px; line-height: 1.25; }
   .stack .note-block .t b { color: var(--hope); }
@@ -287,7 +302,7 @@
   .curtain-glow { width: 100%; height: 100%; }
   .fog.is-off .cut, .fog.is-off .ticker span { animation-play-state: paused; }
   .events { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; }
-  .events .win { width: 400px; }
+  .events .win { width: 355px; }
   .events .event { padding-top: 6px; }
   .events .event .glyph { position: static; display: block; margin: 0 auto 6px; }
   .clocks { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; }
@@ -296,12 +311,12 @@
 
   /* ---- rail, strip, tray, popup, messenger ---- */
   .rail { font-family: var(--font-chrome); text-transform: uppercase; }
-  .rail .title { font-family: var(--font-chrome); font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; text-align: center; color: var(--despair); }
+  .rail .title { font-family: var(--font-chrome); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; text-align: center; color: var(--despair); }
   .rail .row { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 12px; white-space: nowrap; }
   .rail .name { min-width: 7ch; max-width: 16ch; text-align: right; color: var(--despair); }
-  .rail .count { min-width: 5ch; text-align: center; color: var(--bone-dim); }
+  .rail .count { min-width: 4ch; text-align: center; color: var(--bone-dim); }
   .rail .overflow { margin-top: 4px; text-align: center; font-size: 12px; letter-spacing: 0.1em; color: var(--despair); }
-  .rail .ui.pip { width: 18px; height: 18px; } .rail .ui.pip .pixicon { width: 14px; height: 14px; }
+  .rail .ui.pip { width: 22px; height: 22px; } .rail .ui.pip .pixicon { width: 14px; height: 14px; }
   .strip { display: flex; justify-content: space-between; gap: 8px; font-family: var(--font-chrome); text-transform: uppercase; }
   .strip .f { text-align: center; font-size: 13px; color: var(--bone-dim); line-height: 1.2; }
   .strip .f b { display: block; font-size: 16px; color: var(--bone); font-weight: 400; }
@@ -335,14 +350,14 @@
   .vp.fit { overflow: hidden; }
   .s1440 { width: 2560px; height: 1440px; border: 0; }
   /* Foundry's own furniture, at Foundry's own sizes */
-  .s1440 .f-ctl { position: absolute; left: 8px; top: 214px; display: grid; gap: 6px; z-index: 4; }
-  .s1440 .f-ctl i { display: block; width: 36px; height: 36px; border: 1px solid rgba(255,255,255,0.14); background: rgba(10, 9, 14, 0.7); border-radius: 4px; }
-  .s1440 .f-ctl i.on { border-color: rgba(255,255,255,0.4); background: rgba(40, 36, 52, 0.85); }
-  .s1440 .f-side { position: absolute; right: 0; top: 0; bottom: 0; width: 26px; background: rgba(10, 9, 14, 0.75); border-left: 1px solid rgba(255,255,255,0.08); z-index: 4; }
-  .s1440 .f-side i { display: block; width: 16px; height: 16px; margin: 10px auto 12px; border: 1px solid rgba(255,255,255,0.2); border-radius: 3px; }
+  .s1440 .f-ctl { position: absolute; left: 16px; top: 214px; grid-template-columns: 36px 36px; grid-auto-flow: column; grid-template-rows: repeat(7, 36px); display: grid; gap: 6px; z-index: 4; }
+  .s1440 .f-ctl i { display: block; width: 36px; height: 36px; border: 1px solid color-mix(in srgb, var(--acc) 34%, transparent); background: rgba(8, 7, 12, 0.72); clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px); }
+  .s1440 .f-ctl i.on { border-color: var(--acc); background: color-mix(in srgb, var(--acc) 22%, rgba(8, 7, 12, 0.8)); }
+  .s1440 .f-side { position: absolute; right: 0; top: 0; bottom: 0; width: 48px; padding-top: 22px; z-index: 4; }
+  .s1440 .f-side i { display: block; width: 36px; height: 36px; margin: 0 auto 6px; border: 1px solid color-mix(in srgb, var(--acc) 34%, transparent); background: rgba(8, 7, 12, 0.72); clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 5px 100%, 0 calc(100% - 5px)); }
   .s1440 .f-hot { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); display: flex; gap: 4px; padding: 6px 10px; background: rgba(10, 9, 14, 0.8); border: 1px solid rgba(255,255,255,0.1); border-bottom: 0; z-index: 4; }
   .s1440 .f-hot i { display: block; width: 50px; height: 50px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.04); }
-  .s1440 .f-lat { position: absolute; left: 8px; bottom: 8px; width: 150px; padding: 6px 10px; font-family: var(--font-chrome); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(242, 238, 230, 0.5); background: rgba(10, 9, 14, 0.7); border: 1px solid rgba(255,255,255,0.1); z-index: 4; }
+  .s1440 .f-lat { position: absolute; left: 16px; bottom: 16px; width: 150px; padding: 6px 10px; font-family: var(--font-chrome); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(242, 238, 230, 0.5); background: rgba(10, 9, 14, 0.7); border: 1px solid rgba(255,255,255,0.1); z-index: 4; }
   .s1440 .f-players { position: absolute; left: 8px; bottom: 52px; padding: 4px 10px; font-family: var(--font-chrome); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(242, 238, 230, 0.6); background: rgba(10, 9, 14, 0.7); border: 1px solid rgba(255,255,255,0.1); z-index: 4; }
   .vp-bar { display: flex; gap: 8px; align-items: center; margin: 0 0 10px; }
   .vp-bar .n { color: var(--bone-dim); font-size: 16px; margin-left: 6px; }
@@ -434,6 +449,7 @@
     <symbol id="px-right" viewBox="0 0 24 24"><path fill="currentColor" d="M7 2h3v1h-3zM7 3h4v1h-4zM7 4h5v1h-5zM8 5h5v1h-5zM9 6h5v1h-5zM10 7h5v1h-5zM11 8h5v1h-5zM12 9h5v1h-5zM13 10h5v1h-5zM14 11h4v1h-4zM14 12h4v1h-4zM13 13h5v1h-5zM12 14h5v1h-5zM11 15h5v1h-5zM10 16h5v1h-5zM9 17h5v1h-5zM8 18h5v1h-5zM7 19h5v1h-5zM7 20h4v1h-4zM7 21h3v1h-3z"/></symbol>
     <symbol id="px-close" viewBox="0 0 24 24"><path fill="currentColor" d="M2 2h3v1h-3zM18 2h3v1h-3zM2 3h4v1h-4zM17 3h5v1h-5zM2 4h5v1h-5zM16 4h5v1h-5zM3 5h5v1h-5zM15 5h6v1h-6zM4 6h5v1h-5zM14 6h6v1h-6zM5 7h5v1h-5zM13 7h6v1h-6zM6 8h5v1h-5zM12 8h6v1h-6zM7 9h10v1h-10zM8 10h8v1h-8zM9 11h6v1h-6zM8 12h7v1h-7zM7 13h9v1h-9zM6 14h11v1h-11zM5 15h6v1h-6zM13 15h5v1h-5zM4 16h6v1h-6zM14 16h5v1h-5zM3 17h6v1h-6zM15 17h5v1h-5zM2 18h6v1h-6zM16 18h5v1h-5zM2 19h5v1h-5zM17 19h5v1h-5zM2 20h4v1h-4zM18 20h4v1h-4zM3 21h1v1h-1zM19 21h2v1h-2z"/></symbol>
     <symbol id="px-sort" viewBox="0 0 24 24"><path fill="currentColor" d="M11 2h2v1h-2zM10 3h4v1h-4zM9 4h6v1h-6zM8 5h8v1h-8zM7 6h10v1h-10zM7 7h10v1h-10zM6 8h12v1h-12zM5 14h14v1h-14zM6 15h12v1h-12zM7 16h10v1h-10zM7 17h10v1h-10zM8 18h8v1h-8zM9 19h6v1h-6zM10 20h4v1h-4zM11 21h2v1h-2z"/></symbol>
+    <symbol id="px-gear" viewBox="0 0 24 24"><path fill="currentColor" d="M8 1h2v1h-2zM14 1h2v1h-2zM6 2h4v1h-4zM14 2h4v1h-4zM6 3h4v1h-4zM11 3h2v1h-2zM14 3h4v1h-4zM7 4h10v1h-10zM6 5h12v1h-12zM2 6h2v1h-2zM5 6h14v1h-14zM20 6h2v1h-2zM2 7h7v1h-7zM15 7h7v1h-7zM1 8h7v1h-7zM16 8h7v1h-7zM1 9h6v1h-6zM17 9h6v1h-6zM4 10h3v1h-3zM17 10h3v1h-3zM3 11h4v1h-4zM17 11h4v1h-4zM3 12h4v1h-4zM17 12h4v1h-4zM4 13h3v1h-3zM17 13h3v1h-3zM1 14h6v1h-6zM17 14h6v1h-6zM1 15h7v1h-7zM16 15h7v1h-7zM2 16h7v1h-7zM15 16h7v1h-7zM2 17h2v1h-2zM5 17h14v1h-14zM20 17h2v1h-2zM6 18h12v1h-12zM7 19h10v1h-10zM6 20h4v1h-4zM11 20h2v1h-2zM14 20h4v1h-4zM6 21h4v1h-4zM14 21h4v1h-4zM8 22h2v1h-2zM14 22h2v1h-2z"/></symbol>
     <symbol id="px-sound" viewBox="0 0 24 24"><path fill="currentColor" d="M15 1h1v1h-1zM15 2h4v1h-4zM12 3h1v1h-1zM15 3h5v1h-5zM11 4h2v1h-2zM16 4h5v1h-5zM10 5h3v1h-3zM15 5h1v1h-1zM18 5h4v1h-4zM9 6h4v1h-4zM15 6h2v1h-2zM19 6h4v1h-4zM8 7h5v1h-5zM15 7h3v1h-3zM20 7h3v1h-3zM7 8h6v1h-6zM15 8h4v1h-4zM20 8h3v1h-3zM2 9h11v1h-11zM16 9h4v1h-4zM21 9h3v1h-3zM2 10h11v1h-11zM17 10h3v1h-3zM21 10h3v1h-3zM2 11h11v1h-11zM17 11h3v1h-3zM21 11h3v1h-3zM2 12h11v1h-11zM17 12h3v1h-3zM21 12h3v1h-3zM2 13h11v1h-11zM17 13h3v1h-3zM21 13h3v1h-3zM2 14h11v1h-11zM16 14h4v1h-4zM21 14h3v1h-3zM7 15h6v1h-6zM15 15h4v1h-4zM20 15h3v1h-3zM8 16h5v1h-5zM15 16h3v1h-3zM20 16h3v1h-3zM9 17h4v1h-4zM15 17h2v1h-2zM19 17h4v1h-4zM10 18h3v1h-3zM15 18h1v1h-1zM18 18h4v1h-4zM11 19h2v1h-2zM16 19h5v1h-5zM12 20h1v1h-1zM15 20h5v1h-5zM15 21h4v1h-4zM15 22h1v1h-1z"/></symbol>
     <symbol id="px-bell" viewBox="0 0 24 24"><path fill="currentColor" d="M11 2h2v1h-2zM11 3h2v1h-2zM9 4h6v1h-6zM8 5h8v1h-8zM7 6h10v1h-10zM6 7h12v1h-12zM5 8h14v1h-14zM5 9h14v1h-14zM5 10h14v1h-14zM5 11h14v1h-14zM5 12h14v1h-14zM5 13h14v1h-14zM5 14h14v1h-14zM4 15h16v1h-16zM3 16h18v1h-18zM1 17h22v1h-22zM1 18h22v1h-22zM1 19h22v1h-22zM10 20h4v1h-4zM10 21h4v1h-4zM10 22h4v1h-4zM10 23h4v1h-4z"/></symbol>
     <symbol id="px-calendar" viewBox="0 0 24 24"><path fill="currentColor" d="M6 1h3v1h-3zM15 1h3v1h-3zM6 2h3v1h-3zM15 2h3v1h-3zM6 3h3v1h-3zM15 3h3v1h-3zM1 4h21v1h-21zM1 5h21v1h-21zM1 6h21v1h-21zM1 7h21v1h-21zM1 8h21v1h-21zM1 9h3v1h-3zM19 9h3v1h-3zM1 10h3v1h-3zM19 10h3v1h-3zM1 11h3v1h-3zM19 11h3v1h-3zM1 12h3v1h-3zM6 12h3v1h-3zM10 12h4v1h-4zM15 12h3v1h-3zM19 12h3v1h-3zM1 13h3v1h-3zM6 13h3v1h-3zM10 13h4v1h-4zM15 13h3v1h-3zM19 13h3v1h-3zM1 14h3v1h-3zM6 14h3v1h-3zM10 14h4v1h-4zM15 14h3v1h-3zM19 14h3v1h-3zM1 15h3v1h-3zM19 15h3v1h-3zM1 16h3v1h-3zM6 16h3v1h-3zM11 16h2v1h-2zM19 16h3v1h-3zM1 17h3v1h-3zM6 17h3v1h-3zM10 17h4v1h-4zM19 17h3v1h-3zM1 18h3v1h-3zM6 18h3v1h-3zM10 18h4v1h-4zM19 18h3v1h-3zM1 19h21v1h-21zM1 20h21v1h-21zM1 21h21v1h-21z"/></symbol>
@@ -448,9 +464,9 @@
 
 <div class="page">
   <header class="hero">
-    <div class="eyebrow">Audyt kierunkowy, wersja 15 · Danganronpa RPG · 04.09.2026</div>
+    <div class="eyebrow">Audyt kierunkowy, wersja 16 · Danganronpa RPG · 04.09.2026</div>
     <h1><span class="p">Krew</span>, <span class="y">nadzieja</span>, <span class="g">dowód</span> i <span class="c">pora dnia</span></h1>
-    <p class="lead">Wersja 15: kurtyna przeprojektowana od kształtu. Zamiast losowych odłamków jedno pole nachylenia, z którego wynika każdy szew: pęknięcia promieniują z rogów, sekcje siedzą na obróconych szybach dopasowanych do ich objętości, a same panele są obrócone razem ze szkłem. Bez czarnych płyt pod treścią. Wszystkie ekrany w skali 1:1, 2560 na 1440. Poprzednie wersje: przepis na szybę w liczbach, mgła modułu co do piksela, ciemniejsze i przygaszone szkło.</p>
+    <p class="lead">Wersja 16: kurtyna ma jeden kształt na każdym ekranie, zmienia się tylko kolor. Szyby oddychają jak w V3: każda po swoim rytmie ciemnieje do czerni i wraca, a fala idzie spiralą dookoła ramy; kolorowe szyby, i tylko one, dostały przezroczystą teksturę smug. Kafelki Foundry siedzą na szkle, więc paski boczne są odpowiednio szersze. Dryfujące linie z mgły zniknęły. W oknach witraż jest akcentem na belce tytułowej, a nie tłem; karta postaci ma spokojną lewą kolumnę i witraż w nagłówku. Do tego audyt animacji modułu i plan ustawień gracza z wyborem motywu.</p>
     <div class="cards">
       <div><b>Color coding</b>Czerwień to DM, złoto to Hope, róż krwi to Despair, zieleń to dowód. Interfejs bierze kolor pory dnia albo stanu.</div>
       <div><b>Kroje</b>VT323 na chrome, prozie i stemplach; Special Elite na tytułach. Dwa pliki OFL, DRPG Pixel jako zapas chrome.</div>
@@ -564,6 +580,7 @@
       <div class="icon"><span class="pixicon"><svg><use href="#px-dice"/></svg></span>Roll</div>
       <div class="icon"><span class="pixicon"><svg><use href="#px-note"/></svg></span>Note</div>
       <div class="icon"><span class="pixicon"><svg><use href="#px-sound"/></svg></span>Sound</div>
+      <div class="icon"><span class="pixicon"><svg><use href="#px-gear"/></svg></span>Settings</div>
       <div class="icon"><span class="pixicon"><svg><use href="#px-bell"/></svg></span>Alert</div>
       <div class="icon"><span class="pixicon"><svg><use href="#px-sort"/></svg></span>Sort</div>
       <div class="icon"><span class="pixicon"><svg><use href="#px-plus"/></svg></span>Plus</div>
@@ -587,7 +604,7 @@
 
   <section>
     <div class="sec-head"><h2>Cała karta postaci</h2><div class="rule"></div></div>
-    <p class="note">Południe, arkusz gracza. Jedno okno-witraż. Lewa kolumna: portret (wybiera go gracz, nie ruszamy), Health i Sanity z rastrem na wydanej części, Equipped, Experience. Nagłówek: imię, gwiazdki Hope, pipsy akcji, cechy w ramkach DMa. Zakładki jako pędzel, kafelki akcji i Hope Calls z pikselowymi ikonami, kafelki DMa w czerwieni, wybrany kafelek pełnym pędzlem.</p>
+    <p class="note">Południe, arkusz gracza. Okno ma dwa materiały. Lewa kolumna (portret, Health i Sanity, Equipped, Experience, Misiubombo) stoi na matowym atramencie z rastrem modułu, bez witrażu, żeby portret i paski zasobów były jedyną barwą po tej stronie. Nagłówek po prawej (imię, Ultimate, Hope, akcje, free Move, cechy) leży na witrażu, bo to belka stanu postaci. Zakładki i kafelki poniżej stoją na ciemnym szkle. Portret wybiera gracz, nie ruszamy; Health i Sanity z rastrem na wydanej części; cechy w ramkach DMa. Zakładki jako pędzel, kafelki akcji i Hope Calls z pikselowymi ikonami, kafelki DMa w czerwieni, wybrany kafelek pełnym pędzlem.</p>
     <div class="fog cut-ui" style="margin-top:12px;--acc:var(--h-noon)">
       <div class="win" style="max-width:780px;margin:0 auto"><div class="body sheet">
         <div class="side">
@@ -646,7 +663,7 @@
 
   <section>
     <div class="sec-head"><h2>Okna DMa</h2><div class="rule"></div></div>
-    <p class="note">Okna DMa są tam, gdzie moduł ma najwięcej treści na raz: panel, tabele, listy uczniów, formularze sezonu. Zasady są te same co wszędzie: witraż jest tłem okna, tytuł w Special Elite, podtytuł i cała reszta w VT323, czerwień tylko na tym, co robi DM, pędzel na tym, co się klika, pikselowa ikona przy każdej pozycji. Tabele dostają nagłówek w kolorze stanu, zebrę co drugi wiersz i akcje w ostatniej kolumnie.</p>
+    <p class="note">Okna DMa są tam, gdzie moduł ma najwięcej treści na raz: panel, tabele, listy uczniów, formularze sezonu. Zasady są te same co wszędzie: witraż jest belką tytułową okna, reszta okna to spokojne ciemne szkło, tytuł w Special Elite, podtytuł i cała reszta w VT323, czerwień tylko na tym, co robi DM, pędzel na tym, co się klika, pikselowa ikona przy każdej pozycji. Tabele dostają nagłówek w kolorze stanu, zebrę co drugi wiersz i akcje w ostatniej kolumnie.</p>
 
     <h3 class="sub">Panel DMa</h3>
     <p class="note">Zawartość i kolejność są takie, jak w module: cztery sekcje (Right now, The case, Between sessions, Repairs), kafelki w tej samej kolejności, ta sama linia "Next" z przyciskiem "Do it" i ta sama tabela postaci. W grze dwie ostatnie sekcje otwierają się zwinięte, bo zegar decyduje, co jest w sezonie; tutaj są rozwinięte, żeby było widać wszystkie kafelki. Jedyne odstępstwo to dwie ikony: młotek zabrał proces, więc zasady dostają księgę, a morderstwo nóż zamiast czaszki, bo czaszka znaczy rozpacz.</p>
@@ -755,7 +772,7 @@
     </div>
 
     <h3 class="sub">Panel wydarzenia</h3>
-    <p class="note">Belka pul rozpaczy zostaje bez zmian, także w procesie. Wydarzenia, które dziś siedzą w panelu pory dnia, dostają własny, wąski panel pod pulą: sam mówi, co się dzieje, i nie ma w nim żadnego przycisku. Szerokość ta sama co pula (400 px), żeby stały w jednej kolumnie. Trzy przykłady: otwarty incydent morderstwa (nazwy z modułu: "A killing in the dark", etap 5, Finishing Blow), odkrycie ciała i Nonstop Debate w procesie.</p>
+    <p class="note">Belka pul rozpaczy zostaje bez zmian, także w procesie. Wydarzenia, które dziś siedzą w panelu pory dnia, dostają własny, wąski panel pod pulą: sam mówi, co się dzieje, i nie ma w nim żadnego przycisku. Szerokość ta sama co pula na ekranie gracza (355 px), żeby stały w jednej kolumnie. Trzy przykłady: otwarty incydent morderstwa (nazwy z modułu: "A killing in the dark", etap 5, Finishing Blow), odkrycie ciała i Nonstop Debate w procesie.</p>
     <div class="fog cut-ui" style="--acc:var(--h-afternoon)"><div class="events">
       <div class="win" style="--acc:var(--gm-light)"><div class="body event"><span class="pixicon glyph"><svg><use href="#px-murder"/></svg></span><div class="ticker"><span>Incident &middot; Incident &middot; Incident &middot; Incident &middot; </span></div><div class="k">Chapter 1 &middot; Night Eclipse</div><div class="n">A killing in the dark</div><div class="s">Kaede against Rantaro, in the Kitchen</div><div class="m">Stage 5 &middot; the incident is open &middot; a Finishing Blow ends it</div></div></div>
       <div class="win" style="--acc:var(--gm-light)"><div class="body event"><span class="pixicon glyph"><svg><use href="#px-murder"/></svg></span><div class="ticker"><span>Body found · Body found · Body found · Body found · </span></div><div class="k">Chapter 1 · Day 11 · Evening</div><div class="n">A body is discovered</div><div class="s">Kaede, in the Library</div><div class="m">Investigation opens when the GM is ready</div></div></div>
@@ -814,26 +831,28 @@
   <section>
     <div class="sec-head"><h2>Witraż: przepis na szybę i cięcie</h2><div class="rule"></div></div>
     <p class="note">To, co odróżnia szkło od kolorowej plamy, to trzy rzeczy: szyby obok siebie różnią się barwą, cięcie ma grubość i światło, a treść leży na własnej czarnej szybie, bez dodatkowej płyty. Każda liczba poniżej jest tą, którą używa makieta, więc w Foundry można ją przepisać bez zgadywania. Na kurtynie każdy szew wynika z jednego pola nachylenia, a szyba panelu jest jego własnym, obróconym prostokątem; w oknach cięcia idą pod kątem -13 stopni, jak szkło na brzegu ekranu procesu w V3.</p>
-    <div class="fog" style="--acc:var(--despair);margin-top:12px"><div class="win spec"><div class="body">Okno 1:1 · cztery do pięciu szyb · kolor stanu Despair</div></div></div>
+    <div class="fog" style="--acc:var(--despair);margin-top:12px"><div class="win spec"><div class="body">Próbka materiału 1:1 · cztery do pięciu szyb · kolor stanu Despair</div></div></div>
       <div class="wrap"><table class="layers"><colgroup><col class="c1"><col class="c2"><col class="c3"></colgroup>
         <thead><tr><th>Warstwa</th><th>Wartość</th><th>Po co</th></tr></thead>
         <tbody>
-          <tr><td class="k">Szyba pod treścią</td><td class="v"><span class="dot" style="background:#050409"></span>#050409 · 68%</td><td>panel zawsze leży na czarnym szkle; pula, akcje i powiadomienie mają własny, ledwo zabarwiony ton (#2a0a1e, #08103a, #24061a)</td></tr>
+          <tr><td class="k">Szyba pod treścią</td><td class="v"><span class="dot" style="background:#050409"></span>#050409 · 68%</td><td>panel zawsze leży na czarnym szkle; pula, akcje, tacka i powiadomienie mają własny, ledwo zabarwiony ton (#2a0a1e, #08103a, #1a0838, #24061a); szyba przy ścianie dochodzi do niej pod sidebarem</td></tr>
           <tr><td class="k">Szyba wypełniacz</td><td class="v"><span class="dot" style="background:#0b0812"></span>#0b0812 · 62% + barwa 8%</td><td>czarne szkło z ledwo widocznym odcieniem; kolor niesie szew, nie szyba</td></tr>
+          <tr><td class="k">Puls</td><td class="v">okres 9-16 s · czerń do 72% (pod treścią 42%) · faza = 1,6·kąt + r/420</td><td>każda szyba po swoim rytmie ciemnieje do czerni i wraca, fala idzie spiralą dookoła ramy; w jasnej fazie kolorowa szyba dostaje 16% koloru stanu; osobna półrozdzielcza bitmapa nad szkłem, 15 kl/s, stoi przy ograniczonym ruchu i w ukrytej karcie</td></tr>
+          <tr><td class="k">Tekstura witrażu</td><td class="v">smugi co 7 px · biel 3-6% · 3 smugi koloru 11% · raster 6%</td><td>tylko na kolorowych szybach: przezroczyste smugi wzdłuż ścięcia, jak szkło z V3; czarne szyby zostają gładkie</td></tr>
           <tr><td class="k">Szyby witrażowe</td><td class="v"><span class="dot" style="background:#4a0a2e"></span><span class="dot" style="background:#66093b"></span><span class="dot" style="background:#081548"></span><span class="dot" style="background:#0c2262"></span><span class="dot" style="background:#22084e"></span><span class="dot" style="background:#05303f"></span> 26% · co piąta</td><td>wybór przez hasz przestrzenny środka szyby, więc skupiają się grupami zamiast przemieniać co drugą; tylko na nich raster 1,4 px co 6 px</td></tr>
           <tr><td class="k">Przyciemnienie i światło</td><td class="v">czerń 30% · biel 8% → czerń 20%</td><td>czerń nad barwą obniża jasność; gradient od krawędzi ekranu do środka w każdej szybie osobno</td></tr>
           <tr><td class="k">Pole nachylenia</td><td class="v">s(x) = 0,30 · sgn(W/2 - x) · |u|^1,4</td><td>dx/dy każdego szwu pasa zależy tylko od miejsca na krawędzi: "\" przy lewym rogu, "/" przy prawym, pion pośrodku; dół lustrzany</td></tr>
           <tr><td class="k">Panel i jego szyba</td><td class="v">obrót 6-12°, 0° w środkowych 20% · margines 12/10 px</td><td>blok obrócony wokół górnego narożnika od strony środka ekranu, szyba to ten sam prostokąt z marginesem, bok zbiegający do krawędzi ekranu; sąsiad za blisko ogranicza kąt</td></tr>
-          <tr><td class="k">Krawędź wewnętrzna</td><td class="v">panel → ukos → listwa 22-40 px</td><td>komórka przy panelu na jego głębokości, potem długi ukos w dół do listwy przez trzy komórki co ~120 px; w otwartym pasie cięcie co ~340 px</td></tr>
+          <tr><td class="k">Krawędź wewnętrzna</td><td class="v">panel → ukos → listwa 22-40 px</td><td>od rogu szyby jeden długi ukos (do 45% luki, 520-760 px) do listwy, promienie co 230-290 px, w otwartym pasie cięcie co ~460 px; każdy promień odchyla listwę o ±5-7 px, żeby krawędź była pęknięta, nie narysowana</td></tr>
           <tr><td class="k">Pęk promieni</td><td class="v">interpolacja x i s między bokami sąsiadów · ±0,08</td><td>wszystkie promienie jednej luki zbiegają w jednym punkcie albo nigdy, więc żadne dwa nie skrzyżują się w pasie; krawędź nie przekracza 80% tej głębokości</td></tr>
           <tr><td class="k">Igły</td><td class="v">podstawa 24-36 px · 170-260 px · min 400 px od siebie</td><td>wąska drzazga odcięta od jednego promienia, nigdy przy panelu ani przy ścianie; dwie, trzy na ekran</td></tr>
           <tr><td class="k">Pierścienie</td><td class="v">2 na połowę pasa · 26-34% i 58-70% · 5-12° ku środkowi</td><td>długie poprzeczne pęknięcia od rogu; tną tylko wypełniacz, co czwarty wewnętrzny kawałek wypada, nigdy przy panelu ani na ścianie</td></tr>
-          <tr><td class="k">Paski boczne</td><td class="v">130-170 → 32-44 → 110-150 px · cięcia 0,28-0,40 co 180-420 px</td><td>szerokie pod górnym panelem, wąskie w połowie, szerokie nad dolnym; dwie rodziny równoległych cięć rozdzielone pochyłym pierścieniem w połowie wysokości</td></tr>
+          <tr><td class="k">Paski boczne</td><td class="v">136-170 → 62-72 → 116-150 px · lewy 112 px do y=600 · cięcia 0,28-0,40 co 180-420 px</td><td>dwa wypukłe czworokąty na bok: zaczynają się na dalszej krawędzi szyby narożnej, spotykają się w jednym wierzchołku na pochyłym szwie w połowie wysokości; dwie rodziny równoległych cięć</td></tr>
           <tr><td class="k">Ołów</td><td class="v">1,8 px · #08050d 95%</td><td>ciemna linia, na której leży wszystko inne</td></tr>
           <tr><td class="k">Faza</td><td class="v">0,7 px · biel 22% · 1 px w dół</td><td>jedna jasna krawędź: szkło ma grubość</td></tr>
           <tr><td class="k">Rdzeń neonu</td><td class="v">1 px · kolor stanu 92%</td><td>cięcie świeci kolorem pory dnia albo stanu</td></tr>
           <tr><td class="k">Poświata</td><td class="v">½ rozdzielczości · 9 px 50% · 3,5 px 55% · 1 px 62%</td><td>trzy przebiegi w trybie lighter na osobnej bitmapie nad przycięciem, więc wychodzi poza brzeg szyby</td></tr>
-          <tr><td class="k">Pęknięcia bez szkła</td><td class="v">4 na górny róg · 1 na dolny · 30% → 0</td><td>promień panelu narożnego przedłużony, jedno strome (22°), jedno płaskie (64°), jedno z dołu (40°); gasną w drodze i omijają panele</td></tr>
+          <tr><td class="k">Pęknięcia bez szkła</td><td class="v">3 na górny róg · 1 na dolny · 480-840 px · 24% → 0</td><td>krawędź panelu narożnego przedłużona z jego rogu, jedno strome (22°), jedno płaskie (64°), jedno z dołu (40°); gasną w drodze i omijają panele</td></tr>
           <tr><td class="k">Sylwetka</td><td class="v">clip-path: path() z wielokątów</td><td>bez bitmapy maski: ostra przy każdej skali, kilka KB zamiast obrazu 2560 na 1440</td></tr>
           <tr><td class="k">Liquid glass</td><td class="v">blur 16 · saturate 140% · brightness 88% · contrast 108%</td><td>pod całością; to, co pod szkłem, jest ciemniejsze niż obok niego</td></tr>
         </tbody>
@@ -843,8 +862,8 @@
 
   <section>
     <div class="sec-head"><h2>Cały ekran w czterech stanach</h2><div class="rule"></div></div>
-    <p class="note">Zegar, pule rozpaczy, pasek akcji, tacka projektów, powiadomienia oraz wydarzenia procesu i morderstwa nie są osobnymi oknami. Są blokami na jednej tafli stłuczonego witrażu, która przylega do krawędzi ekranu i ustępuje w środku, żeby mapa została widoczna. Wszystkie cztery ekrany mają dokładnie 2560 na 1440 px, a wymiary bloków pochodzą z modułu i Foundry: zegar 312 px z kampanią 18 px, pasek Despair z czaszkami 1,1 rem i stepperem DMa, kontrolki sceny 36 px, hotbar 50 px, zwinięty sidebar 26 px, launchery 44 px. Gracz widzi pule jako znaki zapytania, tak jak dziś w module.</p>
-    <p class="note" style="margin-top:8px">Kształt szkła ma jedną zasadę zamiast losowości: pole nachylenia. Każdy szew pasa ma pochylenie zależne tylko od tego, gdzie dotyka krawędzi ekranu: przy lewym rogu pochyla się jak "\", przy prawym jak "/", pośrodku stoi prosto, więc wszystkie pęknięcia należą do jednego układu promieniującego z rogów. Szyba sekcji to prostokąt bloku z marginesem, obrócony zgodnie z polem i przycięty do ekranu: blok jest obrócony tym samym kątem, więc szyba obejmuje dokładnie jego objętość i nic więcej. Wypełniacz między sekcjami to pęk promieni interpolowanych między bokami sąsiednich szyb: komórka przy panelu trzyma jego głębokość, kolejne trzy schodzą długim ukosem do listwy 22-40 px, a w otwartym pasie cięcia są rzadkie. Dwie, trzy igły na ekran, dwa poprzeczne pierścienie od każdego rogu, co czwarty wewnętrzny kawałek wypadł. Boczne paski są szerokie pod górnym panelem, wąskie w połowie i szerokie nad dolnym, cięte dwiema rodzinami równoległych ukosów. Kilka pęknięć bez szkła biegnie przez ekran i gaśnie w drodze, omijając panele. Żadne dwa kawałki nigdy na siebie nie nachodzą, każdy jest wypukły, każdy blok leży w całości na własnej szybie, a górna krawędź jest pokryta bez przerw: strona sama to sprawdza po każdym rysowaniu.</p>
+    <p class="note">Zegar, pule rozpaczy, pasek akcji, tacka projektów, powiadomienia oraz wydarzenia procesu i morderstwa nie są osobnymi oknami. Są blokami na jednej tafli stłuczonego witrażu, która przylega do krawędzi ekranu i ustępuje w środku, żeby mapa została widoczna. Wszystkie cztery ekrany mają dokładnie 2560 na 1440 px, a wymiary i pozycje bloków pochodzą z modułu i Foundry: 16 px od boków i 22 px od góry, zegar 312 px z kampanią 18 px, pasek Despair wyśrodkowany na szerokość treści z czaszkami 1,1 rem i stepperem DMa 22 px, pasek stanu i tacka projektów 300 px, kontrolki sceny w dwóch kolumnach po 36 px, launchery 66 (messenger) i 52 px (ustawienia) jeden nad drugim 22 px od rogu, belka DMa 72 na 32 px pod zegarem, sidebar 48 px tylko u DMa (prawa kolumna stoi 64 px od brzegu także u gracza, żeby szkło miało jeden kształt), hotbar ukryty tak jak w module. Gracz widzi pule jako znaki zapytania, a DM zamiast akcji widzi, kto ma jeszcze ruch, tak jak dziś w module.</p>
+    <p class="note" style="margin-top:8px">Kurtyna ma jeden kształt. Szkło jest cięte dla jednego układu, tego z modułu (zegar, belka DMa, pula, pasek stanu, tacka, powiadomienie, launchery), z jednym ziarnem, więc na ekranie gracza i DMa krawędzie są identyczne co do piksela, a zmienia się tylko kolor i to, które szyby niosą treść; pusta szyba tacki albo belki DMa zostaje szybą. Kafelki Foundry (kontrolki sceny po lewej, zakładki sidebara po prawej) siedzą na szkle: lewy pasek trzyma 112 px szerokości do wysokości 600 px, a najwęższe miejsce pasków ma 62-72 px, tyle, ile sidebar. Kształt szkła ma jedną zasadę zamiast losowości: pole nachylenia. Każdy szew pasa ma pochylenie zależne tylko od tego, gdzie dotyka krawędzi ekranu: przy lewym rogu pochyla się jak "\", przy prawym jak "/", pośrodku stoi prosto, więc wszystkie pęknięcia należą do jednego układu promieniującego z rogów. Szyba sekcji to prostokąt bloku z marginesem, obrócony zgodnie z polem i przycięty do ekranu: blok jest obrócony tym samym kątem, więc szyba obejmuje dokładnie jego objętość i nic więcej. Wypełniacz między sekcjami to pęk promieni interpolowanych między bokami sąsiednich szyb: komórka przy panelu trzyma jego głębokość, kolejne trzy schodzą długim ukosem do listwy 22-40 px, a w otwartym pasie cięcia są rzadkie. Dwie, trzy igły na ekran, dwa poprzeczne pierścienie od każdego rogu, co czwarty wewnętrzny kawałek wypadł. Boczne paski są szerokie pod górnym panelem, wąskie w połowie i szerokie nad dolnym, cięte dwiema rodzinami równoległych ukosów. Kilka pęknięć bez szkła biegnie przez ekran i gaśnie w drodze, omijając panele. Żadne dwa kawałki nigdy na siebie nie nachodzą, każdy jest wypukły, każdy blok leży w całości na własnej szybie, a górna krawędź jest pokryta bez przerw: strona sama to sprawdza po każdym rysowaniu.</p>
     <p class="note" style="margin-top:8px">Okna zostają dokładnie takie, jak w reszcie audytu: karta postaci, panel DMa, dialogi i popupy to prostokątne tabliczki z liquid glass. Kurtyna jest ramą, okno jest blatem.</p>
 
 
@@ -852,33 +871,32 @@
     <div class="vp-bar"><span class="ui" data-vp="full">Pełny ekran</span><span class="ui" data-vp="1">1:1</span><span class="ui on" data-vp="fit">Dopasuj do strony</span><span class="n">2560 x 1440 px. Pełny ekran na monitorze 1440p to dokładnie piksel w piksel; 1:1 w kolumnie strony trzeba przewijać.</span></div>
     <div class="vp"><div class="stage">
     <div class="fog screen cut-ui s1440" style="--acc:var(--h-afternoon)">
-      <span class="cut" style="top:760px;transform:rotate(-4deg)"></span>
       <div class="curtain" style="left:0;right:0;top:0;bottom:0"><canvas class="sg"></canvas></div><div class="stack">
-        <div class="block hud" style="left:8px;top:8px;width:312px;text-align:center"><div class="ticker"><span>Daily Life &middot; Daily Life &middot; Daily Life &middot; Daily Life &middot; </span></div><div class="campaign">Hope's Peak, S2</div><div class="chapter">Chapter 1 &middot; Day 11</div><div class="phase"><span class="pixicon"><svg><use href="#px-sun"/></svg></span>Daily Life</div><div class="time"><span class="ui pip" style="width:26px;height:26px"><span class="pixicon" style="width:14px;height:14px"><svg><use href="#px-left"/></svg></span></span>Afternoon<span class="ui pip" style="width:26px;height:26px"><span class="pixicon" style="width:14px;height:14px"><svg><use href="#px-right"/></svg></span></span></div><div class="since">12 min in</div><div class="room">Round Table</div></div>
-        <div class="block rail" style="left:1080px;top:8px;width:400px"><div class="title">Despair Pools</div><div class="row"><span class="name">Monokuma</span><span class="pips" style="color:var(--despair)"><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span></span><span class="count">?/12</span></div><div class="row"><span class="name">Monominie</span><span class="pips" style="color:var(--despair)"><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span></span><span class="count">?/12</span></div><div class="overflow">Despair overflow &middot; ?/20</div></div>
-        <div class="block three" style="right:44px;top:8px;width:220px"><div><div class="k">Actions</div><div class="v">2</div></div><div><div class="k">Move</div><div class="v"><span class="pixicon" style="width:16px;height:16px;color:var(--bone)"><svg><use href="#px-move"/></svg></span></div></div><div><div class="k">Hope</div><div class="v"><span class="pips" style="color:var(--hope)"><span class="pixicon"><svg><use href="#px-star"/></svg></span><span class="pixicon"><svg><use href="#px-star"/></svg></span><span class="pixicon"><svg><use href="#px-star"/></svg></span><span class="pixicon"><svg><use href="#px-star"/></svg></span></span></div></div></div>
-        <div class="block tray" style="right:44px;top:86px;width:220px"><h4>Projects</h4><div class="proj"><span class="pixicon" style="width:16px;height:16px;color:var(--acc)"><svg><use href="#px-hourglass"/></svg></span>Rig the dumbwaiter<span class="bar halftone" style="--w:50%"></span><span class="n">2/4</span></div><div class="proj"><span class="pixicon" style="width:16px;height:16px;color:var(--acc)"><svg><use href="#px-trap"/></svg></span>Poison the tea<span class="bar halftone" style="--w:17%"></span><span class="n">1/6</span></div></div>
-        <div class="block note-block" style="left:8px;bottom:96px;width:330px"><div class="k">The time of day is over</div><div class="t">Kaede found a <b>Tier 2 Cleaning Tool</b> in the Library. A trace was left behind.</div></div>
-        <div class="block launch" style="right:44px;bottom:36px;width:118px;display:flex;gap:10px;justify-content:flex-end"><span class="ui ring"><span class="pixicon" style="width:20px;height:20px"><svg><use href="#px-sound"/></svg></span></span><span class="ui ring"><span class="pixicon" style="width:20px;height:20px"><svg><use href="#px-note"/></svg></span></span></div>
+        <div class="block hud" style="left:16px;top:22px;width:312px;text-align:center"><div class="ticker"><span>Daily Life &middot; Daily Life &middot; Daily Life &middot; Daily Life &middot; </span></div><div class="campaign">Hope's Peak, S2</div><div class="chapter">Chapter 1 &middot; Day 11</div><div class="phase"><span class="pixicon"><svg><use href="#px-sun"/></svg></span>Daily Life</div><div class="time"><span class="ui pip" style="width:26px;height:26px"><span class="pixicon" style="width:14px;height:14px"><svg><use href="#px-left"/></svg></span></span>Afternoon<span class="ui pip" style="width:26px;height:26px"><span class="pixicon" style="width:14px;height:14px"><svg><use href="#px-right"/></svg></span></span></div><div class="since">12 min in</div><div class="room">Round Table</div></div>
+        <div class="block rail" style="left:0;right:0;margin:0 auto;top:22px;width:412px;box-sizing:border-box;min-height:90px"><div class="title">Despair Pools</div><div class="row"><span class="name">Monokuma</span><span class="pips" style="color:var(--despair)"><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span></span><span class="count">?/12</span></div><div class="row"><span class="name">Monominie</span><span class="pips" style="color:var(--despair)"><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span></span><span class="count">?/12</span></div><div class="overflow">Despair overflow &middot; ?/20</div></div>
+        <div class="block three" style="right:64px;top:22px;width:300px;min-height:78px;align-items:center"><div><div class="k">Actions</div><div class="v">2</div></div><div><div class="k">Move</div><div class="v"><span class="pixicon" style="width:14px;height:14px;color:var(--bone)"><svg><use href="#px-move"/></svg></span></div></div><div><div class="k">Hope</div><div class="v"><span class="pips" style="color:var(--hope)"><span class="pixicon"><svg><use href="#px-star"/></svg></span><span class="pixicon"><svg><use href="#px-star"/></svg></span><span class="pixicon"><svg><use href="#px-star"/></svg></span><span class="pixicon"><svg><use href="#px-star"/></svg></span></span></div></div></div>
+        <div class="block tray" style="right:64px;top:110px;width:300px"><h4>Projects</h4><div class="proj"><span class="pixicon" style="width:16px;height:16px;color:var(--acc)"><svg><use href="#px-hourglass"/></svg></span><span class="pn">Rig the dumbwaiter</span><span class="bar halftone" style="--w:50%"></span><span class="n">2/4</span></div><div class="proj"><span class="pixicon" style="width:16px;height:16px;color:var(--acc)"><svg><use href="#px-trap"/></svg></span><span class="pn">Poison the tea</span><span class="bar halftone" style="--w:17%"></span><span class="n">1/6</span></div></div>
+        <div class="block note-block" style="left:16px;bottom:100px;width:330px"><div class="k">The time of day is over</div><div class="t">Kaede found a <b>Tier 2 Cleaning Tool</b> in the Library. A trace was left behind.</div></div>
+        <div class="block launch" style="right:22px;bottom:22px;width:66px;display:flex;flex-direction:column;align-items:center;gap:8px"><span class="ui ring" style="width:52px;height:52px"><span class="pixicon" style="width:22px;height:22px"><svg><use href="#px-gear"/></svg></span></span><span class="ui ring" style="width:66px;height:66px"><span class="pixicon" style="width:28px;height:28px"><svg><use href="#px-note"/></svg></span></span></div>
       </div>
-      <div class="f-ctl"><i class="on"></i><i></i><i></i><i></i><i></i><i></i></div><div class="f-side"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="f-hot"><i></i></div><div class="f-lat">Latency 65 ms<br>FPS 62</div>
-      <div class="win" style="position:absolute;left:1008px;top:560px;width:544px;z-index:3;--acc:var(--h-afternoon)"><div class="body msg"><div class="wtitle">Player A &middot; GM chat</div><div class="wsub">Player A &middot; Monokuma &middot; Monominie</div><div class="bubble">Looking at the desk. <span class="qq">Is the drawer locked?</span></div><div class="meta"><span class="chip acc"><span class="pixicon"><svg><use href="#px-observe"/></svg></span> Observe</span><span class="chip">Library</span><span class="chip hope">Instinct &middot; 14</span></div><div class="foot" style="margin-top:10px"><span class="ui gm sm">Reply</span><span class="ui gm sm">Nothing there</span><span class="right"><span class="ui sm">Close</span></span></div></div></div>
+      <div class="f-ctl" style="top:240px"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="f-lat">Latency 65 ms<br>FPS 62</div>
+      <div class="win" style="position:absolute;left:1008px;top:460px;width:544px;height:520px;z-index:3;--acc:var(--h-afternoon)"><div class="body msg" style="height:100%;box-sizing:border-box;display:flex;flex-direction:column"><div class="wtitle">Player A &middot; GM chat</div><div class="wsub">Player A &middot; Monokuma &middot; Monominie</div><div class="bubble">Looking at the desk. <span class="qq">Is the drawer locked?</span></div><div class="meta"><span class="chip acc"><span class="pixicon"><svg><use href="#px-observe"/></svg></span> Observe</span><span class="chip">Library</span><span class="chip hope">Instinct &middot; 14</span></div><div class="who" style="margin-top:14px">Monokuma <span class="cap">GM</span></div><div class="bubble" style="--acc:var(--gm-light)">Upupu. Locked, and the key is not in this room. <span class="qq">Search elsewhere, or break it and leave a trace.</span></div><div class="who" style="margin-top:14px">Player A</div><div class="bubble">The shelf behind the desk first, then.</div><div style="flex:1"></div><div class="foot" style="margin-top:10px"><span class="ui gm sm">Reply</span><span class="ui gm sm">Nothing there</span><span class="right"><span class="ui sm">Close</span></span></div></div></div>
     </div>
     </div></div>
     <h3 class="sub">Investigation, ekran DMa</h3>
     <div class="vp-bar"><span class="ui" data-vp="full">Pełny ekran</span><span class="ui" data-vp="1">1:1</span><span class="ui on" data-vp="fit">Dopasuj do strony</span><span class="n">2560 x 1440 px. Pełny ekran na monitorze 1440p to dokładnie piksel w piksel; 1:1 w kolumnie strony trzeba przewijać.</span></div>
     <div class="vp"><div class="stage">
     <div class="fog screen cut-ui s1440" style="--acc:var(--invest)">
-      <span class="cut" style="top:820px;transform:rotate(5deg)"></span>
       <div class="curtain" style="left:0;right:0;top:0;bottom:0"><canvas class="sg"></canvas></div><div class="stack">
-        <div class="block hud" style="left:8px;top:8px;width:312px;text-align:center"><div class="ticker"><span>Investigation &middot; Investigation &middot; Investigation &middot; Investigation &middot; </span></div><div class="campaign">Hope's Peak, S2</div><div class="chapter">Chapter 1 &middot; Day 11</div><div class="phase"><span class="pixicon"><svg><use href="#px-lens"/></svg></span>Investigation</div><div class="time">Noon</div><div class="since">4 min in</div><div class="room">Library &middot; 3 traces left</div></div>
-        <div class="block rail" style="left:1080px;top:8px;width:400px"><div class="title">Despair Pools</div><div class="row"><span class="name">Monokuma</span><span class="pips" style="color:var(--despair)"><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span></span><span class="count">6/12</span><span class="ui pip despair"><span class="pixicon"><svg><use href="#px-minus"/></svg></span></span><span class="ui pip despair"><span class="pixicon"><svg><use href="#px-plus"/></svg></span></span></div><div class="row"><span class="name">Monominie</span><span class="pips" style="color:var(--despair)"><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span></span><span class="count">2/12</span><span class="ui pip despair"><span class="pixicon"><svg><use href="#px-minus"/></svg></span></span><span class="ui pip despair"><span class="pixicon"><svg><use href="#px-plus"/></svg></span></span></div><div class="overflow">Despair overflow &middot; 9/20</div></div>
-        <div class="block three" style="right:44px;top:8px;width:220px"><div><div class="k">Actions</div><div class="v">1</div></div><div><div class="k">Move</div><div class="v"><span style="color:var(--bone-dim)">-</span></div></div><div><div class="k">Hope</div><div class="v"><span class="pips" style="color:var(--hope)"><span class="pixicon"><svg><use href="#px-star"/></svg></span><span class="pixicon"><svg><use href="#px-star"/></svg></span><span class="pixicon"><svg><use href="#px-star"/></svg></span></span></div></div></div>
-        <div class="block tray" style="right:44px;top:86px;width:220px"><h4>Projects</h4><div class="proj"><span class="pixicon" style="width:16px;height:16px;color:var(--acc)"><svg><use href="#px-hourglass"/></svg></span>Rig the dumbwaiter<span class="bar halftone" style="--w:50%"></span><span class="n">2/4</span></div></div>
-        <div class="block note-block" style="left:8px;bottom:96px;width:330px"><div class="k">A body has been found</div><div class="t">Kaede, in the Library. Everyone may search, analyse and question until the GM closes it.</div></div>
-        <div class="block launch" style="right:44px;bottom:36px;width:172px;display:flex;gap:10px;justify-content:flex-end"><span class="ui ring"><span class="pixicon" style="width:20px;height:20px"><svg><use href="#px-sound"/></svg></span></span><span class="ui ring"><span class="pixicon" style="width:20px;height:20px"><svg><use href="#px-note"/></svg></span></span><span class="ui ring gm">GM</span></div>
+        <div class="block hud" style="left:16px;top:22px;width:312px;text-align:center"><div class="ticker"><span>Investigation &middot; Investigation &middot; Investigation &middot; Investigation &middot; </span></div><div class="campaign">Hope's Peak, S2</div><div class="chapter">Chapter 1 &middot; Day 11</div><div class="phase"><span class="pixicon"><svg><use href="#px-lens"/></svg></span>Investigation</div><div class="time">Noon</div><div class="since">4 min in</div><div class="room">Library &middot; 3 traces left</div></div>
+        <div class="block rail" style="left:0;right:0;margin:0 auto;top:22px;width:412px;box-sizing:border-box;min-height:90px"><div class="title">Despair Pools</div><div class="row"><span class="name">Monokuma</span><span class="pips" style="color:var(--despair)"><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span></span><span class="count">6/12</span><span class="ui pip despair"><span class="pixicon"><svg><use href="#px-minus"/></svg></span></span><span class="ui pip despair"><span class="pixicon"><svg><use href="#px-plus"/></svg></span></span></div><div class="row"><span class="name">Monominie</span><span class="pips" style="color:var(--despair)"><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span></span><span class="count">2/12</span><span class="ui pip despair"><span class="pixicon"><svg><use href="#px-minus"/></svg></span></span><span class="ui pip despair"><span class="pixicon"><svg><use href="#px-plus"/></svg></span></span></div><div class="overflow">Despair overflow &middot; 9/20</div></div>
+        <div class="block three" style="right:64px;top:22px;width:300px;min-height:78px;align-items:center"><div><div class="k">Still to act</div><div class="v">3 / 4</div></div></div>
+        <div class="block tray" style="right:64px;top:110px;width:300px"><h4>Projects</h4><div class="proj"><span class="pixicon" style="width:16px;height:16px;color:var(--acc)"><svg><use href="#px-hourglass"/></svg></span><span class="pn">Rig the dumbwaiter</span><span class="bar halftone" style="--w:50%"></span><span class="n">2/4</span></div></div>
+        <div class="block gmbar" style="left:16px;top:178px;width:72px;height:32px">GM</div>
+        <div class="block note-block" style="left:16px;bottom:100px;width:330px"><div class="k">A body has been found</div><div class="t">Kaede, in the Library. Everyone may search, analyse and question until the GM closes it.</div></div>
+        <div class="block launch" style="right:22px;bottom:22px;width:66px;display:flex;flex-direction:column;align-items:center;gap:8px"><span class="ui ring" style="width:52px;height:52px"><span class="pixicon" style="width:22px;height:22px"><svg><use href="#px-gear"/></svg></span></span><span class="ui ring" style="width:66px;height:66px"><span class="pixicon" style="width:28px;height:28px"><svg><use href="#px-note"/></svg></span></span></div>
       </div>
-      <div class="f-ctl"><i class="on"></i><i></i><i></i><i></i><i></i><i></i></div><div class="f-side"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="f-hot"><i></i></div><div class="f-lat">Latency 65 ms<br>FPS 62</div>
+      <div class="f-ctl" style="top:284px"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="f-side"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="f-lat">Latency 65 ms<br>FPS 62</div>
       <div class="win" style="position:absolute;left:880px;top:440px;width:800px;z-index:3;--acc:var(--invest)"><div class="body"><div class="wtitle">Investigation</div><div class="wsub">Chapter 1 &middot; Who has what</div><div class="tabbar" style="margin-top:8px"><span class="ui tab on">Traces</span><span class="ui tab">Key Remnants</span><span class="ui tab">Final Key Remnants</span></div><table class="dt" style="margin-top:8px"><thead><tr><th>Student</th><th class="num">Truth Bullets</th><th class="num">Key Remnants</th><th>Really has</th><th></th></tr></thead><tbody><tr><td class="name">Player A</td><td class="num">2</td><td class="num">0</td><td><span class="chip evidence">Neutral x2</span></td><td class="act"><span class="ui evidence sm">Give</span></td></tr><tr><td class="name">Player B</td><td class="num">0</td><td class="num">1</td><td><span class="chip gm">Blackened</span></td><td class="act"><span class="ui gm sm">Give</span></td></tr><tr><td class="name">QA Witness</td><td class="num">3</td><td class="num">0</td><td><span class="chip evidence">Neutral</span></td><td class="act"><span class="ui evidence sm">Give</span></td></tr></tbody></table><hr class="sep"><div class="foot"><span class="ui sm">Sweep Truth Bullets</span><span class="ui evidence sm">Issue Autopsy Truth Bullet</span><span class="right"><span class="ui default sm">Save</span><span class="ui sm">Close</span></span></div></div></div>
     </div>
     </div></div>
@@ -886,15 +904,15 @@
     <div class="vp-bar"><span class="ui" data-vp="full">Pełny ekran</span><span class="ui" data-vp="1">1:1</span><span class="ui on" data-vp="fit">Dopasuj do strony</span><span class="n">2560 x 1440 px. Pełny ekran na monitorze 1440p to dokładnie piksel w piksel; 1:1 w kolumnie strony trzeba przewijać.</span></div>
     <div class="vp"><div class="stage">
     <div class="fog screen cut-ui s1440" style="--acc:var(--despair)">
-      <span class="cut" style="top:700px;transform:rotate(-6deg)"></span>
       <div class="curtain" style="left:0;right:0;top:0;bottom:0"><canvas class="sg"></canvas></div><div class="stack">
-        <div class="block hud" style="left:8px;top:8px;width:312px;text-align:center"><div class="ticker"><span>Class Trial &middot; Class Trial &middot; Class Trial &middot; Class Trial &middot; </span></div><div class="campaign">Hope's Peak, S2</div><div class="chapter">Chapter 1 &middot; Day 11</div><div class="phase"><span class="pixicon"><svg><use href="#px-gavel"/></svg></span>Class Trial</div><div class="time">Discussion</div><div class="since">Everyone has the floor</div><div class="room">Rebuttal in 2:40</div></div>
-        <div class="block rail" style="left:1080px;top:8px;width:400px"><div class="title">Despair Pools</div><div class="row"><span class="name">Monokuma</span><span class="pips" style="color:var(--despair)"><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span></span><span class="count">6/12</span><span class="ui pip despair"><span class="pixicon"><svg><use href="#px-minus"/></svg></span></span><span class="ui pip despair"><span class="pixicon"><svg><use href="#px-plus"/></svg></span></span></div><div class="row"><span class="name">Monominie</span><span class="pips" style="color:var(--despair)"><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span></span><span class="count">3/12</span><span class="ui pip despair"><span class="pixicon"><svg><use href="#px-minus"/></svg></span></span><span class="ui pip despair"><span class="pixicon"><svg><use href="#px-plus"/></svg></span></span></div><div class="overflow">Despair overflow &middot; 9/20</div></div>
-        <div class="block three" style="right:44px;top:8px;width:220px"><div><div class="k">Actions</div><div class="v">-</div></div><div><div class="k">Move</div><div class="v"><span style="color:var(--bone-dim)">-</span></div></div><div><div class="k">Hope</div><div class="v"><span class="pips" style="color:var(--hope)"><span class="pixicon"><svg><use href="#px-star"/></svg></span><span class="pixicon"><svg><use href="#px-star"/></svg></span></span></div></div></div>
-        <div class="block note-block" style="left:8px;bottom:96px;width:330px;--acc:var(--despair)"><div class="k">Nonstop Debate</div><div class="t">The floor is open to everyone.</div><div class="k" style="margin-top:4px;color:var(--bone-dim)">Ballots 1 of 3</div></div>
-        <div class="block launch" style="right:44px;bottom:36px;width:172px;display:flex;gap:10px;justify-content:flex-end"><span class="ui ring"><span class="pixicon" style="width:20px;height:20px"><svg><use href="#px-sound"/></svg></span></span><span class="ui ring"><span class="pixicon" style="width:20px;height:20px"><svg><use href="#px-note"/></svg></span></span><span class="ui ring gm">GM</span></div>
+        <div class="block hud" style="left:16px;top:22px;width:312px;text-align:center"><div class="ticker"><span>Class Trial &middot; Class Trial &middot; Class Trial &middot; Class Trial &middot; </span></div><div class="campaign">Hope's Peak, S2</div><div class="chapter">Chapter 1 &middot; Day 11</div><div class="phase"><span class="pixicon"><svg><use href="#px-gavel"/></svg></span>Class Trial</div><div class="time">Discussion</div><div class="since">Everyone has the floor</div><div class="room">Rebuttal in 2:40</div></div>
+        <div class="block rail" style="left:0;right:0;margin:0 auto;top:22px;width:412px;box-sizing:border-box;min-height:90px"><div class="title">Despair Pools</div><div class="row"><span class="name">Monokuma</span><span class="pips" style="color:var(--despair)"><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span></span><span class="count">6/12</span><span class="ui pip despair"><span class="pixicon"><svg><use href="#px-minus"/></svg></span></span><span class="ui pip despair"><span class="pixicon"><svg><use href="#px-plus"/></svg></span></span></div><div class="row"><span class="name">Monominie</span><span class="pips" style="color:var(--despair)"><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span></span><span class="count">3/12</span><span class="ui pip despair"><span class="pixicon"><svg><use href="#px-minus"/></svg></span></span><span class="ui pip despair"><span class="pixicon"><svg><use href="#px-plus"/></svg></span></span></div><div class="overflow">Despair overflow &middot; 9/20</div></div>
+        <div class="block three" style="right:64px;top:22px;width:300px;min-height:78px;align-items:center"><div><div class="k">Still to act</div><div class="v">0 / 4</div></div></div>
+        <div class="block gmbar" style="left:16px;top:178px;width:72px;height:32px">GM</div>
+        <div class="block note-block" style="left:16px;bottom:100px;width:330px;--acc:var(--despair)"><div class="k">Nonstop Debate</div><div class="t">The floor is open to everyone.</div><div class="k" style="margin-top:4px;color:var(--bone-dim)">Ballots 1 of 3</div></div>
+        <div class="block launch" style="right:22px;bottom:22px;width:66px;display:flex;flex-direction:column;align-items:center;gap:8px"><span class="ui ring" style="width:52px;height:52px"><span class="pixicon" style="width:22px;height:22px"><svg><use href="#px-gear"/></svg></span></span><span class="ui ring" style="width:66px;height:66px"><span class="pixicon" style="width:28px;height:28px"><svg><use href="#px-note"/></svg></span></span></div>
       </div>
-      <div class="f-ctl"><i class="on"></i><i></i><i></i><i></i><i></i><i></i></div><div class="f-side"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="f-hot"><i></i></div><div class="f-lat">Latency 65 ms<br>FPS 62</div>
+      <div class="f-ctl" style="top:284px"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="f-side"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="f-lat">Latency 65 ms<br>FPS 62</div>
       <div class="win" style="position:absolute;left:1090px;top:520px;width:380px;z-index:3;--acc:var(--despair)"><div class="body"><div class="wtitle">The vote</div><div class="wsub">3 ballots are out</div><hr class="sep"><div style="display:grid;gap:6px"><span class="ui row">Player A</span><span class="ui row on">Player B</span><span class="ui row">QA Witness</span></div><hr class="sep"><div class="foot"><span class="ui default sm">Close and count</span><span class="ui sm">Cancel</span></div></div></div>
     </div>
     </div></div>
@@ -902,15 +920,14 @@
     <div class="vp-bar"><span class="ui" data-vp="full">Pełny ekran</span><span class="ui" data-vp="1">1:1</span><span class="ui on" data-vp="fit">Dopasuj do strony</span><span class="n">2560 x 1440 px. Pełny ekran na monitorze 1440p to dokładnie piksel w piksel; 1:1 w kolumnie strony trzeba przewijać.</span></div>
     <div class="vp"><div class="stage">
     <div class="fog screen cut-ui s1440" style="--acc:var(--eclipse)">
-      <span class="cut" style="top:780px;transform:rotate(4deg)"></span>
       <div class="curtain" style="left:0;right:0;top:0;bottom:0"><canvas class="sg"></canvas></div><div class="stack">
-        <div class="block hud" style="left:8px;top:8px;width:312px;text-align:center"><div class="ticker"><span>Daily Life &middot; Daily Life &middot; Daily Life &middot; Daily Life &middot; </span></div><div class="campaign">Hope's Peak, S2</div><div class="chapter">Chapter 1 &middot; Day 11</div><div class="phase"><span class="pixicon" style="width:24px"><svg><use href="#px-eclipse"/></svg></span>Daily Life</div><div class="time">Night Eclipse</div><div class="since">Actions: murder only</div><div class="room">Everyone in their rooms</div></div>
-        <div class="block rail" style="left:1080px;top:8px;width:400px"><div class="title">Despair Pools</div><div class="row"><span class="name">Monokuma</span><span class="pips" style="color:var(--despair)"><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span></span><span class="count">?/12</span></div><div class="row"><span class="name">Monominie</span><span class="pips" style="color:var(--despair)"><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span></span><span class="count">?/12</span></div><div class="overflow">Despair overflow &middot; ?/20</div></div>
-        <div class="block three" style="right:44px;top:8px;width:220px"><div><div class="k">Actions</div><div class="v">-</div></div><div><div class="k">Move</div><div class="v"><span style="color:var(--bone-dim)">-</span></div></div><div><div class="k">Hope</div><div class="v"><span class="pips" style="color:var(--hope)"><span class="pixicon"><svg><use href="#px-star"/></svg></span><span class="pixicon"><svg><use href="#px-star"/></svg></span></span></div></div></div>
-        <div class="block note-block" style="left:8px;bottom:96px;width:330px;--acc:var(--despair)"><div class="k">The lights are out</div><div class="t">Stay where you are, or do what you came here to do.</div><div class="k" style="margin-top:4px;color:var(--bone-dim)">Direct Murder is the only action</div></div>
-        <div class="block launch" style="right:44px;bottom:36px;width:118px;display:flex;gap:10px;justify-content:flex-end"><span class="ui ring"><span class="pixicon" style="width:20px;height:20px"><svg><use href="#px-sound"/></svg></span></span><span class="ui ring"><span class="pixicon" style="width:20px;height:20px"><svg><use href="#px-note"/></svg></span></span></div>
+        <div class="block hud" style="left:16px;top:22px;width:312px;text-align:center"><div class="ticker"><span>Daily Life &middot; Daily Life &middot; Daily Life &middot; Daily Life &middot; </span></div><div class="campaign">Hope's Peak, S2</div><div class="chapter">Chapter 1 &middot; Day 11</div><div class="phase"><span class="pixicon" style="width:24px"><svg><use href="#px-eclipse"/></svg></span>Daily Life</div><div class="time">Night Eclipse</div><div class="since">Actions: murder only</div><div class="room">Everyone in their rooms</div></div>
+        <div class="block rail" style="left:0;right:0;margin:0 auto;top:22px;width:412px;box-sizing:border-box;min-height:90px"><div class="title">Despair Pools</div><div class="row"><span class="name">Monokuma</span><span class="pips" style="color:var(--despair)"><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span></span><span class="count">?/12</span></div><div class="row"><span class="name">Monominie</span><span class="pips" style="color:var(--despair)"><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span><span class="pixicon off"><svg><use href="#px-skull"/></svg></span></span><span class="count">?/12</span></div><div class="overflow">Despair overflow &middot; ?/20</div></div>
+        <div class="block three" style="right:64px;top:22px;width:300px;min-height:78px;align-items:center"><div><div class="k">Actions</div><div class="v">-</div></div><div><div class="k">Move</div><div class="v"><span style="color:var(--bone-dim)">-</span></div></div><div><div class="k">Hope</div><div class="v"><span class="pips" style="color:var(--hope)"><span class="pixicon"><svg><use href="#px-star"/></svg></span><span class="pixicon"><svg><use href="#px-star"/></svg></span></span></div></div></div>
+        <div class="block note-block" style="left:16px;bottom:100px;width:330px;--acc:var(--despair)"><div class="k">The lights are out</div><div class="t">Stay where you are, or do what you came here to do.</div><div class="k" style="margin-top:4px;color:var(--bone-dim)">Direct Murder is the only action</div></div>
+        <div class="block launch" style="right:22px;bottom:22px;width:66px;display:flex;flex-direction:column;align-items:center;gap:8px"><span class="ui ring" style="width:52px;height:52px"><span class="pixicon" style="width:22px;height:22px"><svg><use href="#px-gear"/></svg></span></span><span class="ui ring" style="width:66px;height:66px"><span class="pixicon" style="width:28px;height:28px"><svg><use href="#px-note"/></svg></span></span></div>
       </div>
-      <div class="f-ctl"><i class="on"></i><i></i><i></i><i></i><i></i><i></i></div><div class="f-side"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="f-hot"><i></i></div><div class="f-lat">Latency 65 ms<br>FPS 62</div>
+      <div class="f-ctl" style="top:240px"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="f-lat">Latency 65 ms<br>FPS 62</div>
       
     </div>
     </div></div>
@@ -930,10 +947,43 @@
         <tr><td class="k">Tabela</td><td>Team, Items, Vault, śledztwo, holdings, projekty</td><td>nagłówek w kolorze stanu, zebra co drugi wiersz, liczby do prawej, akcje w ostatniej kolumnie, chip jako stan wiersza</td></tr>
         <tr><td class="k">Pole i stepper</td><td>Season setup, Room setup, dialogi kluczy, ilości</td><td>etykieta nad polem, krawędź w kolorze stanu grubsza u dołu, błąd czerwony z jedną linią wyjaśnienia, stepper z pikselowym plusem</td></tr>
         <tr><td class="k">Chip i stempel</td><td>tiery, role, stany kart, GM only, ton popupu</td><td>chip to informacja i nie klika się nigdy; stempel to znaczenie, plama w kolorze znaczenia</td></tr>
-        <tr><td class="k">Launcher</td><td>messenger, dźwięk, panel DMa</td><td>pierścień 44 px w kolorze stanu, z pikselową ikoną albo dwiema literami</td></tr>
+        <tr><td class="k">Launcher</td><td>messenger, ustawienia, panel DMa</td><td>pierścień 66 px (messenger) i 52 px (ustawienia, koło zębate; dawny głośnik) w kolorze stanu, jeden nad drugim 22 px od prawego dolnego rogu, jak w module; panel DMa to czerwona belka 72 na 32 px pod zegarem</td></tr>
       </tbody>
     </table></div>
-    <p class="note" style="margin-top:12px">Co z audytu wypadło po Twoich uwagach: portrety w duotonie, linie statyczne, Rubik Glitch, półksiężyc jako Zaćmienie, podmiana belki pul na belkę procesu. Co zostało i jest tu pokazane: raster jako materiał, stemple z tuszu, glify stanów, tekst-tło na zegarze, ekran jako kompozycja z dryfującymi cięciami, oraz nowy panel wydarzenia pod pulą.</p>
+    <p class="note" style="margin-top:12px">Co z audytu wypadło po Twoich uwagach: portrety w duotonie, linie statyczne, Rubik Glitch, półksiężyc jako Zaćmienie, podmiana belki pul na belkę procesu. Wypadły też, w wersji 16, dryfujące linie w kolorze pory dnia nad mgłą. Co zostało i jest tu pokazane: raster jako materiał, stemple z tuszu, glify stanów, tekst-tło na zegarze, puls szyb kurtyny, oraz nowy panel wydarzenia pod pulą.</p>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Animacje: audyt modułu i propozycje pod Stained Glass</h2><div class="rule"></div></div>
+    <p class="note">Moduł ma już porządny system ruchu: pięć czasów i dwie krzywe w <code>styles/motion.css</code> (snap 90 ms, enter 180 ms, beat 420 ms, turn 840 ms, eclipse 1400 ms; arrive <code>cubic-bezier(0.16, 0.84, 0.28, 1)</code>, leave <code>cubic-bezier(0.55, 0, 0.9, 0.35)</code>), jedno wejście <code>play()</code> w <code>scripts/motion.mjs</code>, wszystko zerowane przy <code>prefers-reduced-motion</code>. Tego nie zmieniamy. Zmienia się to, co się rusza: w V3 rusza się szkło i światło na jego krawędziach, a nie elementy interfejsu. Poniżej każda animacja, która dziś jest w module, i co z nią zrobić.</p>
+    <div class="wrap"><table class="tbl">
+      <thead><tr><th>Animacja dziś</th><th>Gdzie</th><th>Ocena</th><th>Propozycja</th></tr></thead>
+      <tbody>
+        <tr><td class="k">Wejście okna</td><td><code>animateWindowIn</code>: tylko pierwszy render, krycie i lekkie uniesienie w czasie enter</td><td class="yes">zostaje</td><td>dochodzi jedno: belka tytułowa okna zapala szwy w kolorze stanu i gasi je do ołowiu w czasie beat, jak szkło, które właśnie zastygło. Bez skalowania okna.</td></tr>
+        <tr><td class="k">Wydanie i zysk zasobu</td><td><code>drpg-spent-out</code>, <code>drpg-spent-veil</code>, <code>drpg-gained-in</code>, <code>drpg-spent-paint</code>, <code>drpg-spent-ink</code>: rozbłysk pipsa (Bone, potem kolor, potem znika), bez klatki końcowej, jeden strzał</td><td class="yes">zostaje</td><td>najbliższe V3 ze wszystkiego, co jest. Jedna zmiana: poświata rozbłysku bierze kolor stanu z tokenu (<code>--drpg-spent-glow</code> już to umie), a na kurtynie szyba pod pipsem dostaje ten sam beat w warstwie pulsu, więc szkło "przyjmuje" wydatek.</td></tr>
+        <tr><td class="k">Rozbłysk paska zasobu</td><td><code>drpg-bar-flare</code>: białe uderzenie, które rozpuszcza się w kolor</td><td class="yes">zostaje</td><td>bez zmian; to ten sam gest, co na pipsach.</td></tr>
+        <tr><td class="k">Pulsowanie oczekiwania</td><td><code>drpg-pending-pulse</code> 2,4 s i 1,6 s: wezwanie Despair czekające na DMa, motyw do odebrania</td><td class="no">do zamiany</td><td>zamiast skalowania elementu pulsuje jego szyba: w warstwie pulsu kurtyny ta jedna szyba przechodzi cykl ciemnienia w 1,6 s zamiast 9-16 s, a szew wokół niej trzyma pełny kolor. Element stoi, świeci szkło.</td></tr>
+        <tr><td class="k">Sprzeciw w procesie</td><td><code>drpg-objection-pulse</code> na godzinie zegara, 1400 ms, karmazyn, rozstrzelone litery</td><td class="yes">zostaje, inaczej</td><td>litery i karmazyn zostają; puls przenosi się ze skali napisu na szew szyby zegara (rdzeń neonu i poświata w karmazynie), okres eclipse. To jest moment, w którym w V3 tnie się ekran, więc dopuszczamy jedno białe mgnienie wszystkich szwów kurtyny na 90 ms (snap) przy otwarciu sprzeciwu.</td></tr>
+        <tr><td class="k">Oddech pauzy</td><td><code>drpg-pause-breathe</code> 4 s na opasce pauzy</td><td class="yes">zostaje</td><td>opaska pauzy staje się szybą kurtyny (czarne szkło, szew w kolorze stanu) i oddycha tym samym pulsem, co reszta szkła, tylko wolniej (16 s).</td></tr>
+        <tr><td class="k">Odsłanianie pokoju i mgła</td><td><code>fog.mjs</code>: <code>CanvasAnimation</code> na odsłonięciu, podskok tokena "w górę i w prawo", nazwa pokoju gaśnie, obrys zostaje</td><td class="yes">zostaje</td><td>na krawędzi odsłanianego regionu przez czas beat biegnie szew w kolorze stanu i gaśnie do niczego: cięcie, nie rozpływanie. Mgła sama, co do piksela, bez zmian.</td></tr>
+        <tr><td class="k">Messenger i popup</td><td>klasa <code>visible</code> po dwóch klatkach; karta popupu tak samo</td><td class="yes">zostaje</td><td>to samo wejście, co okno (krycie i uniesienie w czasie enter), belka zapala szwy. Popup DMa (czerwony) zapala je w czerwieni.</td></tr>
+        <tr><td class="k">Osiadanie arkusza</td><td><code>drpg-settling</code> zdejmowane po klatce</td><td class="yes">zostaje</td><td>bez zmian.</td></tr>
+        <tr><td class="k">Liczniki</td><td>czas od zmiany pory dnia co sekundę (<code>hud.mjs</code>), ticker sali procesu (<code>trial-floor.mjs</code>)</td><td class="yes">zostaje</td><td>bez ruchu, tylko cyfry; przy zmianie minuty cyfra nie skacze, zmienia się w czasie snap.</td></tr>
+        <tr><td class="k">Dryfujące linie nad mgłą</td><td>ta makieta, wersje 13-15</td><td class="no">wypada</td><td>usunięte w wersji 16. Nad mapą nic się nie rusza poza mgłą i tokenami.</td></tr>
+      </tbody>
+    </table></div>
+    <h3 class="sub">Nowe, w duchu V3</h3>
+    <div class="wrap"><table class="tbl">
+      <thead><tr><th>Ruch</th><th>Kiedy</th><th>Jak</th><th>Czas</th></tr></thead>
+      <tbody>
+        <tr><td class="k">Puls szyb</td><td>zawsze, gdy kurtyna jest widoczna</td><td>każda szyba ciemnieje do czerni i wraca po swoim rytmie, fala idzie spiralą dookoła ramy; kolorowe szyby w jasnej fazie dostają kolor stanu; szwy nie gasną</td><td>9-16 s na szybę, 15 klatek na sekundę</td></tr>
+        <tr><td class="k">Zmiana stanu</td><td>Daily Life → Investigation → Class Trial → Zaćmienie</td><td>kształt szkła nie zmienia się nigdy; wszystkie szwy kurtyny mgną Bone, po czym zastygają w nowym kolorze; szyby przetapiają barwę w czasie turn; tekst-tło zegara podmienia się bez ruchu</td><td>snap na mgnienie, turn na barwę</td></tr>
+        <tr><td class="k">Wydarzenie</td><td>ciało, incydent, otwarcie debaty, nowy motyw</td><td>panel wydarzenia wjeżdża na swojej szybie spod pasa (uniesienie 8 px, krycie), jego szew trzyma pełny kolor przez eclipse, potem wraca do pulsu</td><td>enter, potem eclipse</td></tr>
+        <tr><td class="k">Najechanie i klik</td><td>przyciski, kafelki, launchery, kafelki Foundry na kurtynie</td><td>pędzel jak dotąd (45% → 100%); na launcherach i kafelkach Foundry dodatkowo szew pierścienia świeci pełnym kolorem</td><td>snap</td></tr>
+        <tr><td class="k">Ograniczony ruch i "Glass effects"</td><td>ustawienie systemu albo gracza</td><td>puls stoi na losowej klatce, mgnienia i szwy zmieniają kolor bez przejścia, wejścia okien są natychmiastowe; w ukrytej karcie puls nie liczy klatek (moduł już wie, że <code>requestAnimationFrame</code> tam nie chodzi)</td><td>0 ms</td></tr>
+      </tbody>
+    </table></div>
+    <p class="note" style="margin-top:12px">Zasada nadrzędna: rusza się szkło i światło na szwach, elementy interfejsu stoją. Skalowanie i podskoki elementów, poza podskokiem tokena na mapie, wypadają; każdy nowy ruch bierze czas i krzywą z tokenów w <code>motion.css</code>, więc audyt ruchu jest audytem jednego pliku.</p>
   </section>
 
   <section>
@@ -949,7 +999,8 @@
         <tr><td class="k">Tabele</td><td>klasa tabeli w kolorze stanu, zebra, kolumna akcji</td><td class="yes">Tak</td><td>obecne tabele modułu mają cztery różne nagłówki</td></tr>
         <tr><td class="k">Pikselowe ikony</td><td>SVG z siatek 8x8 generowane skryptem w <code>tools/</code> do <code>icons/</code>, gwiazdka Hope w miejsce rombu</td><td class="yes">Tak</td><td>ta sama siatka co ikony przedmiotów; 32 sztuki na start</td></tr>
         <tr><td class="k">Tekst-tło na zegarze</td><td>element z <code>-webkit-text-stroke</code> i animacją <code>transform</code></td><td class="yes">Tak</td><td>22 procent krycia, off przy ograniczonym ruchu</td></tr>
-        <tr><td class="k">Linie przez ekran, dryfujące</td><td>dwa elementy w <code>#interface</code> pod oknami modułu, animacja 42 s i 57 s</td><td class="yes">Tak</td><td>nigdy nad mapą, pod przełącznikiem "Glass effects"</td></tr>
+        <tr><td class="k">Puls szyb</td><td>jedna bitmapa nad szkłem kurtyny, 15 klatek na sekundę, wielokąty szyb wypełniane czernią i kolorem stanu z fazą liczoną z położenia</td><td class="yes">Tak</td><td>pod przełącznikiem "Glass effects", stoi przy ograniczonym ruchu i w ukrytej karcie; koszt to kilkadziesiąt wielokątów na klatkę</td></tr>
+        <tr><td class="k">Ustawienia gracza</td><td>launcher z kołem zębatym zamiast głośnika; okno z suwakami głośności (dziś), skalą interfejsu i wyborem motywu; ustawienia <code>scope: "client"</code></td><td class="yes">Tak</td><td>gracz dalej nie widzi ustawień Foundry; suwaki znikają z panelu DMa</td></tr>
         <tr><td class="k">Kroje</td><td>dwa pliki OFL w <code>fonts/</code>, role przez tokeny <code>--drpg-font-chrome/title/stamp/prose</code></td><td class="yes">Tak</td><td>DRPG Pixel jako zapas chrome</td></tr>
         <tr><td class="k">Mgła wojny, mapa, cudze okna, sprite'y, portrety</td><td>bez zmian</td><td class="no">Nie</td><td>decyzje</td></tr>
       </tbody>
@@ -960,7 +1011,8 @@
       <li><b>Ikony.</b> Skrypt siatek, komplet ikon akcji, Hope Calls, przedmiotów, stanów i chrome, gwiazdka Hope, młotek, Zaćmienie, podmiana klepsydry systemu. Dzień.</li>
       <li><b>Okna DMa i tabele.</b> Panel według makiety, cztery tabele na jednym kształcie, formularze sezonu i pokoju, arkusz, messenger. Dwa dni.</li>
       <li><b>Skalowanie interfejsu.</b> Cały moduł skaluje się z rozmiarem okna i rozdzielczością: wspólny współczynnik na rozmiarach czcionek, ikonach, blokach kurtyny i szerokościach okien, plus przeliczenie maski kurtyny przy zmianie rozmiaru. Dzień.</li>
-      <li><b>Ekran i wydajność.</b> Tekst-tło na zegarze, dryfujące cięcia, launchery, raster, pomiar na żywym serwerze, handbook. Dzień.</li>
+      <li><b>Ustawienia gracza i motywy.</b> Launcher z głośnikiem staje się launcherem ustawień (koło zębate). W oknie zostaje to, co jest, czyli suwaki głośności (muzyka, efekty, głos), a dochodzą: skala interfejsu (80-140%, jeden współczynnik z punktu 5) i wybór motywu: <b>Stained Glass</b> (domyślny, ten audyt) albo <b>Monokuma Legacy</b> (obecny wygląd z repozytorium; motyw to klasa na <code>body</code> i osobny arkusz, więc oba żyją obok siebie). Do tego, jako ustawienia lokalne gracza (<code>scope: "client"</code>): efekty szkła i puls włącz/wyłącz, ograniczony ruch niezależnie od systemu, pikselowa czcionka per klient (dziś <code>world</code>), tekst-tło na zegarze włącz/wyłącz, dźwięk powiadomienia messengera, pozycje okien i zwinięcie tacki (już są). Gracz dalej nie widzi ustawień Foundry w kafelkach po prawej; ustawienia świata (anonimowość, prywatne rzuty, mgła pokoi) zostają u DMa. Suwaki głośności znikają z panelu DMa, zostaje tam okno Sound z plikami. Dzień.</li>
+      <li><b>Ekran i wydajność.</b> Tekst-tło na zegarze, puls szyb, launchery, raster, pomiar na żywym serwerze, handbook. Dzień.</li>
     </ol>
   </section>
 </div>
@@ -988,7 +1040,7 @@
 
   /* ---- geometry: convex polygons, half-planes, and nothing stitched ---------- */
   const EPS = 0.004;
-  const dedupe = poly => poly.filter((q, i) => { const p = poly[(i + poly.length - 1) % poly.length]; return Math.hypot(q[0] - p[0], q[1] - p[1]) > 1e-3; });
+  const dedupe = poly => poly.filter((q, i) => { const p = poly[(i + poly.length - 1) % poly.length]; return Math.hypot(q[0] - p[0], q[1] - p[1]) > 0.5; });
   // Split a convex polygon by the line through (px,py) with normal (nx,ny): [side >= 0, side < 0].
   const split = (poly, px, py, nx, ny) => {
     const A = [], B = [];
@@ -1034,11 +1086,22 @@
     const s = -K * Math.sign(u) * Math.pow(Math.min(1, Math.abs(u)), P);
     return band === "top" ? s : -s;
   };
-  const PAD_SIDE = 12, PAD_FAR = 10;
+  const PAD_SIDE = 12, PAD_FAR = 10, HUG = 120;
 
+  /* the layout the curtain is cut for: the module's own positions at 2560 x 1440, the same on
+     every screen, so the glass has ONE shape and only its colour changes; a screen that lacks
+     a block (no tray, no GM bar) keeps that block's pane empty */
+  const LAYOUT = (W, H) => [
+    { cls: "hud", x: 16, y: 22, w: 312, h: 150 },
+    { cls: "gmbar", x: 16, y: 178, w: 74, h: 34 },
+    { cls: "rail", x: Math.round(W / 2 - 206), y: 22, w: 412, h: 90 },
+    { cls: "three", x: W - 64 - 300, y: 22, w: 300, h: 78 },
+    { cls: "tray", x: W - 64 - 300, y: 110, w: 300, h: 62 },
+    { cls: "note-block", x: 16, y: H - 100 - 80, w: 330, h: 80 },
+    { cls: "launch", x: W - 22 - 66, y: H - 22 - 134, w: 66, h: 134 },
+  ];
   function curtainShapes(host, W, H, rnd) {
-    const els = [...host.querySelectorAll(".stack .block")];
-    const boxes = els.map(b => ({ el: b, x: b.offsetLeft, y: b.offsetTop, w: b.offsetWidth, h: b.offsetHeight }));
+    const boxes = LAYOUT(W, H).map(t => ({ ...t, el: host.querySelector(".stack .block." + t.cls) }));
     const panes = [];
     const push = (poly, tone, kind, rank) => {
       if (!poly || poly.length < 3) return null;
@@ -1050,7 +1113,7 @@
     const columnsOf = list => {
       const cols = [];
       for (const b of list) {
-        const c = cols.find(c => Math.min(c.x1, b.x + b.w) - Math.max(c.x0, b.x) > 20);
+        const c = cols.find(c => Math.min(c.x1, b.x + b.w) - Math.max(c.x0, b.x) > -(2 * PAD_SIDE + 10));
         if (c) { c.items.push(b); c.x0 = Math.min(c.x0, b.x); c.x1 = Math.max(c.x1, b.x + b.w); c.y0 = Math.min(c.y0, b.y); c.y1 = Math.max(c.y1, b.y + b.h); }
         else cols.push({ x0: b.x, x1: b.x + b.w, y0: b.y, y1: b.y + b.h, items: [b] });
       }
@@ -1068,20 +1131,25 @@
       const s0 = field(cx, W, band);
       let theta = Math.abs(cx - W / 2) < 0.1 * W ? 0 : Math.min(12 * DEG, Math.max(6 * DEG, Math.atan(Math.abs(s0))));
       // a neighbour too close forbids the tilt that would swing the pane into it
-      for (const o of cols) if (o !== c) { const gap = o.x0 > c.x1 ? o.x0 - c.x1 : c.x0 - o.x1; if (gap > 0) theta = Math.min(theta, Math.atan(Math.max(0, gap - 2 * PAD_SIDE - 2) / Math.max(h, 1))); }
+      for (const o of cols) if (o !== c) { const gap = o.x0 > c.x1 ? o.x0 - c.x1 : c.x0 - o.x1; if (gap >= 0) theta = Math.min(theta, Math.atan(Math.max(0, gap - 2 * PAD_SIDE - 2) / Math.max(h, 1))); }
       const s = Math.sign(s0) * Math.tan(theta);
       const phi = -Math.atan(s);
       const px = cx < W / 2 ? c.x1 : c.x0;
       const py = band === "top" ? c.y0 : c.y1;
       const cs = Math.cos(phi), sn = Math.sin(phi);
       const rot = (X, Y) => [px + X * cs - Y * sn, py + X * sn + Y * cs];
-      for (const b of c.items) {
-        b.el.style.transformOrigin = (px - b.x) + "px " + (py - b.y) + "px";
+      for (const b of c.items) if (b.el) {
+        b.el.style.transformOrigin = (px - b.el.offsetLeft) + "px " + (py - b.el.offsetTop) + "px";
         b.el.style.transform = Math.abs(phi) < 0.004 ? "" : "rotate(" + phi + "rad)";
       }
-      const X0 = c.x0 - px - PAD_SIDE, X1 = c.x1 - px + PAD_SIDE;
+      let X0 = c.x0 - px - PAD_SIDE, X1 = c.x1 - px + PAD_SIDE;
       const Yn = (band === "top" ? c.y0 - py : c.y1 - py) + (band === "top" ? -3000 : 3000);
       const Yf = band === "top" ? c.y1 - py + PAD_FAR : c.y0 - py - PAD_FAR;
+      // a column near a wall (under Foundry's sidebar too) runs its pane into the wall: the far corner is
+      // pushed past the screen edge by the gap and by the swing of the rotation, so no bare wedge is left
+      c.hugL = c.x0 - PAD_SIDE < HUG; c.hugR = c.x1 + PAD_SIDE > W - HUG;
+      if (c.hugL) { const over = rot(X0, Yf)[0] + 2; if (over > 0) X0 -= over / cs; }
+      if (c.hugR) { const over = W + 2 - rot(X1, Yf)[0]; if (over > 0) X1 += over / cs; }
       const rect = band === "top" ? [rot(X0, Yn), rot(X1, Yn), rot(X1, Yf), rot(X0, Yf)] : [rot(X0, Yf), rot(X1, Yf), rot(X1, Yn), rot(X0, Yn)];
       const edgeY = band === "top" ? 0 : H;
       const at = (X) => { const q = rot(X, 0); return { x0: q[0] + s * (edgeY - q[1]), s, edgeY }; };
@@ -1089,17 +1157,18 @@
       c.farL = rot(X0, Yf); c.farR = rot(X1, Yf);
       c.far = { p: c.farL, d: [cs, sn] };
       c.depthL = Math.abs(c.farL[1] - edgeY); c.depthR = Math.abs(c.farR[1] - edgeY);
-      c.s = s; c.phi = phi; c.rot = rot;
+      c.s = s; c.phi = phi; c.rot = rot; c.px = px; c.py = py; c.cs = cs; c.sn = sn;
       c.corners = [rot(c.x0 - px, c.y0 - py), rot(c.x1 - px, c.y0 - py), rot(c.x1 - px, c.y1 - py), rot(c.x0 - px, c.y1 - py)].filter(q => q[0] > 1 && q[0] < W - 1 && q[1] > 1 && q[1] < H - 1);
       let piece = clipRect(rect, W, H);
       for (let m = 0; m + 1 < c.items.length && piece; m++) {
         const up = c.items[m], dn = c.items[m + 1];
+        if (dn.y < up.y + up.h - 1) continue;                  // overlapping blocks share one pane
         const Ydiv = ((up.y + up.h) + dn.y) / 2 - py;
         const pt = rot(0, Ydiv);
         const [below, above] = split(piece, pt[0], pt[1], -sn, cs);
-        push(above, up.el, "section", 0); piece = below;
+        push(above, up.cls, "section", 0); piece = below;
       }
-      c.pane = push(piece, c.items[c.items.length - 1].el, "section", 0);
+      c.pane = push(piece, c.items[c.items.length - 1].cls, "section", 0);
     };
     top.forEach(c => buildColumn(c, top, "top"));
     bot.forEach(c => buildColumn(c, bot, "bottom"));
@@ -1114,35 +1183,38 @@
       rA = { ...rA, edgeY }; rB = { ...rB, edgeY };
       const gap = rB.x0 - rA.x0;
       if (gap < 8) return;
-      // ray positions: three cells of ~120 px beside each pane (the diagonal), then the
-      // open stretch cut every ~340 px, so the comb is dense only where something hangs
+      // beside each pane ONE long straight diagonal runs from the pane's far corner down to the
+      // ledge; one or two rays cross it. The open stretch is cut rarely. Few lines, all long.
+      const LA = dA > 0 ? Math.min(gap * 0.45, 520 + rnd() * 240) : 0;
+      const LB = dB > 0 ? Math.min(gap * 0.45, 520 + rnd() * 240) : 0;
       const xs = [];
-      const near = 118 + rnd() * 30;
-      if (dA > 0) for (let i = 1; i <= 3 && i * near < gap - 80; i++) xs.push(rA.x0 + i * near * (0.9 + rnd() * 0.2));
-      if (dB > 0) for (let i = 1; i <= 3 && i * near < gap - 80; i++) xs.push(rB.x0 - i * near * (0.9 + rnd() * 0.2));
-      xs.sort((p, q) => p - q);
-      const lo = xs.filter(x => x < rA.x0 + gap / 2), hi = xs.filter(x => x >= rA.x0 + gap / 2);
-      const openL = lo.length ? Math.max(...lo) : rA.x0, openR = hi.length ? Math.min(...hi) : rB.x0;
-      const open = openR - openL;
-      if (open > 200) { const m = Math.max(1, Math.round(open / 340)); for (let i = 1; i < m; i++) xs.push(openL + open * (i / m) + (rnd() - 0.5) * 60); }
+      const step = 230 + rnd() * 60;
+      for (let x = rA.x0 + step; LA > 0 && x < rA.x0 + LA - 60; x += step) xs.push(x + (rnd() - 0.5) * 50);
+      for (let x = rB.x0 - step; LB > 0 && x > rB.x0 - LB + 60; x -= step) xs.push(x + (rnd() - 0.5) * 50);
+      const openL = rA.x0 + LA, openR = rB.x0 - LB, open = openR - openL;
+      if (open > 300) { const m = Math.max(1, Math.round(open / 460)); for (let i = 1; i < m; i++) xs.push(openL + open * (i / m) + (rnd() - 0.5) * 80); }
+      if (LA > 0 && open > 40) xs.push(openL + (rnd() - 0.5) * 20);   // the kink where the diagonal meets the ledge
+      if (LB > 0 && open > 40) xs.push(openR + (rnd() - 0.5) * 20);
       xs.sort((p, q) => p - q);
       const rays = [rA];
-      for (const x of xs) { if (x - rays[rays.length - 1].x0 < 40 || rB.x0 - x < 40) continue; const u = (x - rA.x0) / gap; rays.push({ x0: x, s: rA.s + u * (rB.s - rA.s) + (rnd() - 0.5) * 0.08, edgeY }); }
+      for (const x of xs) { if (x - rays[rays.length - 1].x0 < 40 || rB.x0 - x < 40) continue; const u = (x - rA.x0) / gap; rays.push({ x0: x, s: rA.s + u * (rB.s - rA.s) + (rnd() - 0.5) * 0.12, edgeY }); }
       rays.push(rB);
-      const spacing = near;
+      const spacing = step;
       // one crossing depth for the whole pencil (or none)
       let ystar = 1e9;
       for (let i = 0; i + 1 < rays.length; i++) { const a = rays[i], b = rays[i + 1]; if (a.s - b.s > 1e-6) ystar = Math.min(ystar, (b.x0 - a.x0) / (a.s - b.s)); }
       const cap = ystar * 0.8;
-      // depth at a ray: the pane's depth at its own side, a diagonal down to the ledge over ~3 cells
-      const reach = Math.min(gap / 2, 3 * spacing);
+      // depth where a ray meets the straight diagonal (solved exactly, so the far edge of every
+      // cell beside a pane lies on ONE line from the pane's corner to the ledge)
       const ledge = ledgeDepth;
-      const D = x => {
-        const fromA = dA > 0 ? dA * (1 - (x - rA.x0) / Math.max(1, reach)) : 0;
-        const fromB = dB > 0 ? dB * (1 - (rB.x0 - x) / Math.max(1, reach)) : 0;
-        return Math.max(ledge, fromA, fromB);
+      const onLine = (r, xf, df, L, dir) => {           // line from (xf, df) falling to (xf + dir*L, ledge)
+        if (L <= 0) return 0;
+        const m = (ledge - df) / (dir * L);
+        const y = (df + (r.x0 - xf) * m) / (1 - r.s * m * sgn);
+        return Math.max(ledge, Math.min(df, y));
       };
-      const depths = rays.map(r => Math.min(cap, D(r.x0)));
+      const D = r => Math.max(ledge, onLine(r, rA.x0, dA, LA, 1), onLine(r, rB.x0, dB, LB, -1));
+      const depths = rays.map(r => { const d = D(r); return Math.min(cap, Math.max(6, d + (rnd() - 0.5) * (d > ledge + 4 ? 10 : 14))); });
       const wall = rA.x0 <= 0 || rB.x0 >= W;
       for (let i = 0; i + 1 < rays.length; i++) {
         const a = rays[i], b = rays[i + 1];
@@ -1155,7 +1227,7 @@
           const w = 24 + rnd() * 12, side = rnd() < 0.5;
           const xs = side ? a.x0 + w : b.x0 - w;
           const r2 = { x0: xs, s: (a.s + b.s) / 2, edgeY };
-          const deep = Math.min(cap, 170 + rnd() * 90);
+          const deep = Math.min(cap, 110 + rnd() * 60);
           const yd = edgeY + sgn * deep;
           const nd = side ? [[a.x0, edgeY], [xs, edgeY], [rayX(r2, yd), yd], [rayX(a, ya), ya]] : [[xs, edgeY], [b.x0, edgeY], [rayX(b, yb), yb], [rayX(r2, yd), yd]];
           const rest = side ? [[xs, edgeY], [b.x0, edgeY], [rayX(b, yb), yb], [rayX(r2, ya), ya]] : [[a.x0, edgeY], [xs, edgeY], [rayX(r2, yb), yb], [rayX(a, ya), ya]];
@@ -1166,27 +1238,23 @@
         push(clipRect([[a.x0, edgeY], [b.x0, edgeY], [rayX(b, yb), yb], [rayX(a, ya), ya]], W, H), null, "sector", rank);
       }
     };
-    const ledgeFor = () => 22 + rnd() * 18;
+    const ledgeFor = () => 22 + rnd() * 18, REACH = 360;
     if (top.length) {
       const first = top[0], last = top[top.length - 1];
       const L = ledgeFor();
-      sectors("top", { x0: 0, s: field(0, W, "top") }, first.rayL, first.depthL, first.depthL, L);
+      sectors("top", { x0: 0, s: 0 }, first.rayL, 0, first.rayL.x0 < REACH ? first.depthL : 0, L);
       for (let k = 0; k + 1 < top.length; k++) sectors("top", top[k].rayR, top[k + 1].rayL, top[k].depthR, top[k + 1].depthL, L);
-      sectors("top", last.rayR, { x0: W, s: field(W, W, "top") }, last.depthR, last.depthR, L);
+      sectors("top", last.rayR, { x0: W, s: 0 }, last.rayR.x0 > W - REACH ? last.depthR : 0, 0, L);
     } else {
-      sectors("top", { x0: 0, s: field(0, W, "top") }, { x0: W, s: field(W, W, "top") }, 0, 0, ledgeFor());
+      sectors("top", { x0: 0, s: 0 }, { x0: W, s: 0 }, 0, 0, ledgeFor());
     }
-    for (const c of bot) {
-      // the bottom middle is Foundry's hotbar: a short run of cells next to each corner pane, then nothing
-      const inward = (c.x0 + c.x1) / 2 < W / 2;
-      const span = 300 + rnd() * 120;
-      if (inward) {
-        sectors("bottom", { x0: 0, s: field(0, W, "bottom") }, c.rayL, c.depthL, c.depthL, 26);
-        sectors("bottom", c.rayR, { x0: c.rayR.x0 + span, s: field(c.rayR.x0 + span, W, "bottom") }, c.depthR, 0, 0);
-      } else {
-        sectors("bottom", { x0: c.rayL.x0 - span, s: field(c.rayL.x0 - span, W, "bottom") }, c.rayL, 0, c.depthL, 0);
-        sectors("bottom", c.rayR, { x0: W, s: field(W, W, "bottom") }, c.depthR, c.depthR, 26);
-      }
+    if (bot.length) {
+      const first = bot[0], last = bot[bot.length - 1], L = 20 + rnd() * 14;
+      sectors("bottom", { x0: 0, s: 0 }, first.rayL, 0, first.rayL.x0 < REACH ? first.depthL : 0, L);
+      for (let k = 0; k + 1 < bot.length; k++) sectors("bottom", bot[k].rayR, bot[k + 1].rayL, bot[k].depthR, bot[k + 1].depthL, L);
+      sectors("bottom", last.rayR, { x0: W, s: 0 }, last.rayR.x0 > W - REACH ? last.depthR : 0, 0, L);
+    } else {
+      sectors("bottom", { x0: 0, s: 0 }, { x0: W, s: 0 }, 0, 0, 20 + rnd() * 14);
     }
 
     /* rings: two long transverse cracks per half of the top band, starting at the
@@ -1216,29 +1284,38 @@
       }
     }
 
-    /* side strips: one trapezoid per half-height between the wall and a straight
-       inner line, wide under the top panel, thin at mid-height, wide again above
-       the bottom panel; split by the mid ring, then by one family of parallel cuts
-       per half, so it is a partition by construction */
+    /* side strips: two convex quads per side between the wall and a straight inner line,
+       wide under the top panel, thin at mid-height, wide again above the bottom panel.
+       The quads share the mid seam exactly (one vertex on the wall, one on the inner
+       line), the top one begins on the far edge of the corner pane and the bottom one
+       ends on the far edge of the bottom corner pane, so the wall is covered without a
+       gap; then one family of parallel cuts per half: a partition by construction */
+    const lineY = (c, x) => { const [fx, fy] = c.far.p, [dx, dy] = c.far.d; return fy + (x - fx) * dy / dx; };
     for (const side of [0, 1]) {
       const wall = side ? W : 0, dir = side ? -1 : 1;
-      const wTop = 130 + rnd() * 40, wMid = 32 + rnd() * 12, wBot = 110 + rnd() * 40;
+      const wTop = 136 + rnd() * 34, wMid = 62 + rnd() * 10, wBot = 116 + rnd() * 34;
+      const wCtl = 112, yCtl = 600;           // the left strip stays 112 px wide down past the scene controls
+      const cT = top.length ? top[side ? top.length - 1 : 0] : null, cB = bot.length ? bot[side ? bot.length - 1 : 0] : null;
+      const hugT = cT && (side ? cT.hugR : cT.hugL), hugB = cB && (side ? cB.hugR : cB.hugL);
       let yTop = 0, yBot = H;
-      for (const p of panes) { const bb = bbox(p.poly); if (side ? bb.x1 > W - wTop - 40 : bb.x0 < wTop + 40) { if (bb.y1 < H / 2) yTop = Math.max(yTop, bb.y1); else yBot = Math.min(yBot, bb.y0); } }
+      if (hugT) yTop = Math.max(lineY(cT, wall), lineY(cT, wall + dir * wTop));
+      else for (const p of panes) { const bb = bbox(p.poly); if ((side ? bb.x1 > W - wTop - 40 : bb.x0 < wTop + 40) && bb.y1 < H / 2) yTop = Math.max(yTop, bb.y1); }
+      if (hugB) yBot = Math.min(lineY(cB, wall), lineY(cB, wall + dir * wBot));
+      else for (const p of panes) { const bb = bbox(p.poly); if ((side ? bb.x1 > W - wBot - 40 : bb.x0 < wBot + 40) && bb.y0 >= H / 2) yBot = Math.min(yBot, bb.y0); }
       if (yBot - yTop < 240) continue;
       const yMid = yTop + (yBot - yTop) * (0.5 + (rnd() - 0.5) * 0.16);
       const tilt = (5 + rnd() * 5) * DEG * (rnd() < 0.5 ? 1 : -1);
-      const midL = { p: [wall, yMid], d: [dir * Math.cos(tilt), Math.sin(tilt)] };
-      const lerpX = (wa, ya, wb, yb, y) => wall + dir * (wa + (wb - wa) * (y - ya) / (yb - ya));
-      const upperQ = clipRect([[wall, yTop], [wall + dir * wTop, yTop], [lerpX(wTop, yTop, wMid, yMid, yMid + 300), yMid + 300], [wall, yMid + 300]], W, H);
-      const lowerQ = clipRect([[wall, yMid - 300], [lerpX(wMid, yMid, wBot, yBot, yMid - 300), yMid - 300], [wall + dir * wBot, yBot], [wall, yBot]], W, H);
-      const up = midL.d[0] > 0 ? [midL.d[1], -midL.d[0]] : [-midL.d[1], midL.d[0]];   // the side above the line, whichever way it runs
-      const upperHalf = clipHP(upperQ, midL.p[0], midL.p[1], up[0], up[1]);
-      const lowerHalf = clipHP(lowerQ, midL.p[0], midL.p[1], -up[0], -up[1]);
+      const M = [wall + dir * wMid, yMid], Wm = [wall, yMid - wMid * Math.tan(tilt)];
+      const yT0 = hugT ? Math.min(lineY(cT, wall), lineY(cT, wall + dir * wTop)) - 1 : yTop;
+      const yB0 = hugB ? Math.max(lineY(cB, wall), lineY(cB, wall + dir * wBot)) + 1 : yBot;
+      let upperQ = clipRect([[wall, yT0], [wall + dir * wTop, yT0], ...(side === 0 && yCtl < yMid - 40 ? [[wall + dir * wCtl, yCtl]] : []), M, Wm], W, H);
+      let lowerQ = clipRect([Wm, M, [wall + dir * wBot, yB0], [wall, yB0]], W, H);
+      if (hugT && upperQ) { const [fx, fy] = cT.far.p; upperQ = clipHP(upperQ, fx, fy, -cT.sn, cT.cs); }
+      if (hugB && lowerQ) { const [fx, fy] = cB.far.p; lowerQ = clipHP(lowerQ, fx, fy, cB.sn, -cB.cs); }
       const cutFamily = (poly, slope, y0, y1) => {
         if (!poly) return;
         let pieces = [poly];
-        let y = y0 + 120 + rnd() * 200;
+        let y = y0 + (y0 === yTop ? 320 + rnd() * 160 : 120 + rnd() * 200);
         while (y < y1 - 60) {
           const nx = 1, ny = -slope;                 // line x = wall + slope*(yy - y): normal (1, -slope)
           pieces = pieces.flatMap(pp => split(pp, wall, y, nx, ny).filter(Boolean));
@@ -1246,8 +1323,8 @@
         }
         for (const pp of pieces) push(pp, null, "strip", 9);
       };
-      cutFamily(upperHalf, dir * (0.28 + rnd() * 0.12), yTop, yMid);
-      cutFamily(lowerHalf, -dir * (0.28 + rnd() * 0.12), yMid, yBot);
+      cutFamily(upperQ, dir * (0.28 + rnd() * 0.12), yTop, yMid);
+      cutFamily(lowerQ, -dir * (0.28 + rnd() * 0.12), yMid, yBot);
     }
 
     /* the partition, enforced twice: sections first, then only filler that lands on nothing */
@@ -1262,10 +1339,11 @@
   function windowShapes(W, H, rnd) {
     let panes = [[[0, 0], [W, 0], [W, H], [0, H]]];
     const cutAt = (px, py, ang) => { const nx = -Math.sin(ang), ny = Math.cos(ang); panes = panes.flatMap(p => split(p, px, py, nx, ny).filter(Boolean)); };
-    cutAt(W * 0.5, H * (0.28 + rnd() * 0.12), SHEAR + (rnd() - 0.5) * 0.12);
+    if (H > 90) cutAt(W * 0.5, H * (0.28 + rnd() * 0.12), SHEAR + (rnd() - 0.5) * 0.12);
     if (H > 150) cutAt(W * 0.5, H * (0.68 + rnd() * 0.12), SHEAR + (rnd() - 0.5) * 0.12);
     cutAt(W * (0.62 + rnd() * 0.22), H * 0.5, Math.PI / 2 + SHEAR * 1.6);
     if (W > 520) cutAt(W * (0.16 + rnd() * 0.14), H * 0.5, Math.PI / 2 - SHEAR * 1.2);
+    if (W > 300) cutAt(W * (0.38 + rnd() * 0.16), H * 0.5, Math.PI / 2 + SHEAR * (rnd() < 0.5 ? 1.1 : -1.3));
     return panes.map(poly => ({ poly, content: false, kind: "window" }));
   }
 
@@ -1276,27 +1354,28 @@
     const edge = onEdge(W, H);
     g.beginPath();
     for (const p of panes) for (let i = 0, j = p.poly.length - 1; i < p.poly.length; j = i++) {
-      if (edge(p.poly[j], p.poly[i])) continue;
+      if (edge(p.poly[j], p.poly[i]) || Math.hypot(p.poly[i][0] - p.poly[j][0], p.poly[i][1] - p.poly[j][1]) < 1) continue;
       g.moveTo(p.poly[j][0] * k, p.poly[j][1] * k); g.lineTo(p.poly[i][0] * k, p.poly[i][1] * k);
     }
     g.lineWidth = wdt; g.lineCap = "round"; g.stroke();
   };
   const hash = (x, y) => { const v = Math.sin(x * 0.0137 + y * 0.0221) * 43758.5453; return v - Math.floor(v); };
 
-  function paintGlass(ctx, W, H, panes, acc, { glowInside = false } = {}) {
+  function paintGlass(ctx, W, H, panes, acc, { glowInside = false, inset = 0 } = {}) {
     ctx.clearRect(0, 0, W, H);
     panes.forEach((p, i) => {
-      const k = p.tone && Object.keys(TONE).find(k => p.tone.classList.contains(k));
+      const k = p.tone && TONE[p.tone] ? p.tone : null;
       const bb = bbox(p.poly);
       const hsh = hash((bb.x0 + bb.x1) / 2, (bb.y0 + bb.y1) / 2);
       const stained = !p.content && hsh > 0.8;
       ctx.save(); path(ctx, p.poly); ctx.clip();
       // black glass first, then a little colour: a panel keeps its tone, most filler a faint tint, one in five stained
-      ctx.globalAlpha = p.content ? 0.68 : 0.62;
-      ctx.fillStyle = p.content ? (k ? TONE[k] : "#050409") : "#0b0812";
+      const lum = hash((bb.x0 + bb.x1) / 2 + 17, (bb.y0 + bb.y1) / 2 - 31);
+      ctx.globalAlpha = (p.content ? 0.68 : 0.58) + (lum - 0.5) * 0.08;
+      ctx.fillStyle = p.content ? (k ? TONE[k] : "#050409") : (lum > 0.5 ? "#0c0a14" : "#0a0810");
       ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
       if (!p.content) {
-        ctx.globalAlpha = stained ? 0.26 : 0.08;
+        ctx.globalAlpha = stained ? 0.26 : 0.05 + lum * 0.07;
         ctx.fillStyle = STAIN[Math.floor(hsh * 1000) % STAIN.length];
         ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
       }
@@ -1306,11 +1385,22 @@
       g.addColorStop(0, "rgba(255,255,255,0.08)"); g.addColorStop(0.55, "rgba(255,255,255,0.01)"); g.addColorStop(1, "rgba(0,0,0,0.20)");
       ctx.fillStyle = g; ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
       if (stained) {
-        ctx.fillStyle = rgba(acc, 0.08);
-        for (let y = bb.y0 + 3; y < bb.y1; y += 6) for (let x = bb.x0 + 3 + (Math.floor(y / 6) % 2) * 3; x < bb.x1; x += 6) ctx.fillRect(x, y, 1.4, 1.4);
+        // the texture of coloured glass, and only of coloured glass: fine translucent streaks along the
+        // shear, three brighter ones in the state colour, and a faint grain
+        const cx = (bb.x0 + bb.x1) / 2, cy = (bb.y0 + bb.y1) / 2, span = Math.hypot(bb.x1 - bb.x0, bb.y1 - bb.y0);
+        ctx.save(); ctx.translate(cx, cy); ctx.rotate(SHEAR + Math.PI / 2 + (hsh - 0.5) * 0.3);
+        for (let i = -span; i < span; i += 7) { ctx.fillStyle = "rgba(255,255,255," + (0.028 + (Math.round(i / 7) % 3 === 0 ? 0.03 : 0)) + ")"; ctx.fillRect(i, -span, 1.2, 2 * span); }
+        for (let j = 0; j < 3; j++) { const x = (hash(cx + j * 31, cy - j * 17) - 0.5) * span * 0.9; ctx.fillStyle = rgba(acc, 0.11); ctx.fillRect(x, -span, 2.2 + j, 2 * span); ctx.fillStyle = "rgba(255,255,255,0.10)"; ctx.fillRect(x + 3 + j, -span, 0.8, 2 * span); }
+        ctx.restore();
+        ctx.fillStyle = rgba(acc, 0.06);
+        for (let y = bb.y0 + 3; y < bb.y1; y += 6) for (let x = bb.x0 + 3 + (Math.floor(y / 6) % 2) * 3; x < bb.x1; x += 6) ctx.fillRect(x, y, 1.2, 1.2);
       }
+      p.stained = stained; p.hsh = hsh;
       ctx.restore();
     });
+    if (inset > 0) {   // the seams (not the glass) are kept out of the content box
+      ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.rect(inset, inset * 2.6, W - 2 * inset, H - inset * 3.4); ctx.clip("evenodd");
+    }
     if (glowInside) {
       ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.strokeStyle = acc;
       for (const [blur, a, wdt] of [[10, 0.22, 3], [4, 0.26, 2]]) { ctx.filter = "blur(" + blur + "px)"; ctx.globalAlpha = a; seams(ctx, panes, W, H, wdt); }
@@ -1321,6 +1411,7 @@
     ctx.save(); ctx.translate(0, 1); ctx.globalAlpha = 0.22; ctx.strokeStyle = "#ffffff"; seams(ctx, panes, W, H, 0.7); ctx.restore();
     ctx.globalAlpha = glowInside ? 0.78 : 0.92; ctx.strokeStyle = acc; seams(ctx, panes, W, H, 1);
     ctx.globalAlpha = 1;
+    if (inset > 0) ctx.restore();
   }
 
   /* ---- the curtain: geometry now, paint when it is looked at -------------------- */
@@ -1329,7 +1420,7 @@
     const el = job.el, host = el.parentElement, c = el.querySelector("canvas.sg");
     if (!c || c.clientWidth < 10) return false;
     const W = Math.round(c.clientWidth), H = Math.round(c.clientHeight);
-    const sig = W + "x" + H + ":" + [...host.querySelectorAll(".stack .block")].map(b => [b.offsetLeft, b.offsetTop, b.offsetWidth, b.offsetHeight].join(",")).join(";");
+    const sig = W + "x" + H;
     if (job.sig === sig) return true;
     job.sig = sig; job.W = W; job.H = H;
     const panes = curtainShapes(host, W, H, rng(job.seed));
@@ -1339,15 +1430,21 @@
     el.style.clipPath = "path('" + d + "')";
     el.style.visibility = "";
     // self-check: C1 no overlaps, convexity, C2 every block inside its own pane and no other, C3 the top edge covered
-    let ov = 0, nonconvex = 0, blockFails = 0, edgeGaps = 0; const ncv = [];
+    let ov = 0, nonconvex = 0, blockFails = 0, edgeGaps = 0, fitFails = 0; const ncv = [];
     for (let i = 0; i < panes.length; i++) { if (!convex(panes[i].poly)) { nonconvex++; ncv.push(panes[i].kind + ':' + panes[i].poly.map(q => q.map(v => Math.round(v)).join(',')).join(' ')); } for (let j = i + 1; j < panes.length; j++) if (overlaps(panes[i].poly, panes[j].poly)) ov++; }
-    for (const col of [...panes.meta.top, ...panes.meta.bot]) for (const q of col.corners) {
-      const own = panes.filter(p => p.content && col.items.some(b => b.el === p.tone));
-      if (!own.some(p => inside(p.poly, q[0], q[1]))) blockFails++;
-      if (panes.some(p => !own.includes(p) && inside(p.poly, q[0], q[1]))) blockFails++;
+    for (const col of [...panes.meta.top, ...panes.meta.bot]) for (const b of col.items) {
+      const own = panes.filter(p => p.content && col.items.some(i => i.cls === p.tone));
+      if (b.el && (b.el.offsetLeft < b.x - 0.5 || b.el.offsetTop < b.y - 0.5 || b.el.offsetLeft + b.el.offsetWidth > b.x + b.w + 0.5 || b.el.offsetTop + b.el.offsetHeight > b.y + b.h + 0.5)) fitFails++;
+      const qs = [[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h]].map(([x, y]) => col.rot(x - col.px, y - col.py)).filter(q => q[0] > 1 && q[0] < W - 1 && q[1] > 1 && q[1] < H - 1);
+      for (const q of qs) {
+        if (!own.some(p => inside(p.poly, q[0], q[1]))) blockFails++;
+        if (panes.some(p => !own.includes(p) && inside(p.poly, q[0], q[1]))) blockFails++;
+      }
     }
-    for (let x = 4; x < W; x += 8) if (!panes.some(p => inside(p.poly, x, 0.5))) edgeGaps++;
-    (window.__panes = window.__panes || []).push({ seed: job.seed, count: panes.length, overlaps: ov, nonconvex, ncv, blockFails, edgeGaps });
+    const cover = (x, y) => panes.some(p => inside(p.poly, x, y));
+    for (let x = 4; x < W; x += 8) { if (!cover(x, 0.5)) edgeGaps++; if (!cover(x, H - 0.5)) edgeGaps++; }
+    for (let y = 4; y < H; y += 8) { if (!cover(0.5, y)) edgeGaps++; if (!cover(W - 0.5, y)) edgeGaps++; }
+    (window.__panes = window.__panes || []).push({ seed: job.seed, count: panes.length, overlaps: ov, nonconvex, ncv, blockFails, edgeGaps, fitFails, sig: panes.map(p => p.poly.map(q => q.map(v => Math.round(v)).join(',')).join(' ')).join('|').length });
     job.painted = false;
     return true;
   }
@@ -1378,40 +1475,86 @@
     for (const side of [0, 1]) {
       const x0 = side ? W : 0, dir = side ? -1 : 1;
       const cols = panes.meta.top.filter(c => side ? (c.x0 + c.x1) / 2 >= W / 2 : (c.x0 + c.x1) / 2 < W / 2);
-      if (cols.length) { const c = side ? cols[cols.length - 1] : cols[0]; const r = side ? c.rayL : c.rayR; lines.push([r.x0, 0, r.x0 + r.s * H * 1.2, H * 1.2]); }
-      for (const ang of [22, 64]) { const a = (ang + (rnd() - 0.5) * 10) * DEG; const y0 = rnd() * 50; lines.push([x0 + dir * rnd() * 30, y0, x0 + dir * Math.sin(a) * 2600, y0 + Math.cos(a) * 2600]); }
-      { const a = (40 + (rnd() - 0.5) * 16) * DEG; lines.push([x0 + dir * rnd() * 30, H - rnd() * 50, x0 + dir * Math.sin(a) * 2600, H - Math.cos(a) * 2600]); }
+      if (cols.length) { const c = side ? cols[cols.length - 1] : cols[0]; const f = side ? c.farL : c.farR; const n = Math.hypot(c.s, 1), L = 480 + rnd() * 160; lines.push([f[0], f[1], f[0] + c.s / n * L, f[1] + L / n]); }
+      for (const [ang, L] of [[22, 720], [64, 840]]) { const a = (ang + (rnd() - 0.5) * 10) * DEG; const y0 = rnd() * 50; lines.push([x0 + dir * rnd() * 30, y0, x0 + dir * Math.sin(a) * L, y0 + Math.cos(a) * L]); }
+      { const a = (40 + (rnd() - 0.5) * 16) * DEG, L = 600; lines.push([x0 + dir * rnd() * 30, H - rnd() * 50, x0 + dir * Math.sin(a) * L, H - Math.cos(a) * L]); }
     }
-    for (const r of panes.meta.rings) if (rnd() < 0.5) lines.push([r.p[0], r.p[1], r.p[0] + r.d[0] * 2600, r.p[1] + r.d[1] * 2600]);
     const accRGB = hex(acc).join(",");
-    for (const [a, wdt, blur] of [[0.30, 0.8, 0], [0.14, 1.6, 2]]) {
+    for (const [a, wdt, blur] of [[0.24, 0.8, 0], [0.11, 1.6, 2]]) {
       gx.filter = blur ? "blur(" + blur + "px)" : "none"; gx.globalAlpha = 1; gx.lineWidth = wdt;
       for (const l of lines) {
         const g = gx.createLinearGradient(l[0] * k, l[1] * k, l[2] * k, l[3] * k);
-        g.addColorStop(0, "rgba(" + accRGB + "," + a + ")"); g.addColorStop(0.55, "rgba(" + accRGB + "," + (a * 0.45) + ")"); g.addColorStop(1, "rgba(" + accRGB + ",0)");
+        g.addColorStop(0, "rgba(" + accRGB + "," + a + ")"); g.addColorStop(0.5, "rgba(" + accRGB + "," + (a * 0.4) + ")"); g.addColorStop(1, "rgba(" + accRGB + ",0)");
         gx.strokeStyle = g; gx.beginPath(); gx.moveTo(l[0] * k, l[1] * k); gx.lineTo(l[2] * k, l[3] * k); gx.stroke();
       }
     }
     gx.restore(); gx.filter = "none"; gx.globalAlpha = 1;
+    // the pulse layer: phases from the angle round the screen centre plus the distance, so the
+    // darkening travels round the frame as a slow spiral; periods 9-16 s per pane
+    let pc = el.querySelector("canvas.pulse");
+    if (!pc) { pc = document.createElement("canvas"); pc.className = "pulse"; c.after(pc); }
+    pc.width = Math.round(W * 0.5); pc.height = Math.round(H * 0.5);
+    for (const p of panes) {
+      const bb = bbox(p.poly), cx = (bb.x0 + bb.x1) / 2 - W / 2, cy = (bb.y0 + bb.y1) / 2 - H / 2;
+      const h = p.hsh == null ? hash(cx, cy) : p.hsh;
+      p.phase = Math.atan2(cy, cx) * 1.6 + Math.hypot(cx, cy) / 420 + h * 1.2;
+      p.omega = 2 * Math.PI / (9 + h * 7);
+    }
+    job.pulse = pc; job.acc = acc;
     job.painted = true;
     return true;
   }
+  const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function pulseFrame(t) {
+    for (const j of curtains) {
+      if (!j.pulse || !j.panes || !inView.has(j.el)) continue;
+      const g = j.pulse.getContext("2d"), k = 0.5;
+      g.clearRect(0, 0, j.pulse.width, j.pulse.height);
+      const accRGB = hex(j.acc).join(",");
+      for (const p of j.panes) {
+        const v = 0.5 - 0.5 * Math.cos(t / 1000 * p.omega + p.phase);      // 0 bright ... 1 dark
+        const dark = (p.content ? 0.42 : 0.72) * Math.pow(v, 1.6);
+        if (dark > 0.01) { g.globalCompositeOperation = "source-over"; g.fillStyle = "rgba(2,1,4," + dark.toFixed(3) + ")"; path(g, p.poly.map(q => [q[0] * k, q[1] * k])); g.fill(); }
+        const light = (p.stained ? 0.16 : 0.05) * Math.pow(1 - v, 3);
+        if (light > 0.005) { g.globalCompositeOperation = "lighter"; g.fillStyle = "rgba(" + accRGB + "," + light.toFixed(3) + ")"; path(g, p.poly.map(q => [q[0] * k, q[1] * k])); g.fill(); }
+      }
+      g.globalCompositeOperation = "source-over";
+    }
+  }
+  { let last = 0; const loop = t => { if (!REDUCED && !document.hidden && t - last > 66) { last = t; pulseFrame(t); } requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
 
   function windowGlass(job) {
     const w = job.el;
     let c = w.querySelector(":scope > canvas.sg");
     if (!c) { c = document.createElement("canvas"); c.className = "sg"; w.prepend(c); }
     if (w.clientWidth < 10) return false;
-    const W = c.width = Math.max(60, Math.round(w.clientWidth)), H = c.height = Math.max(40, Math.round(w.clientHeight));
-    paintGlass(c.getContext("2d"), W, H, windowShapes(W, H, rng(job.seed)), resolveAcc(w), { glowInside: true });
+    const W = c.width = Math.max(60, Math.round(w.clientWidth)), H = c.height = Math.max(24, Math.round(w.clientHeight));
+    const band = w.classList.contains("gband");
+    paintGlass(c.getContext("2d"), W, H, windowShapes(W, H, rng(job.seed)), resolveAcc(w), { glowInside: true, inset: (band || w.classList.contains("spec")) ? 0 : 10 });
     job.painted = true;
     return true;
   }
+  /* which windows carry glass all over (the material samples: the spec window, the clocks, the
+     event cards - all of them curtain blocks shown alone) and which only on their header band */
+  document.querySelectorAll(".win > .body").forEach(b => {
+    const win = b.parentElement;
+    if (win.matches(".spec, .clocks .win, .events .win")) { win.classList.add("glassfull"); return; }
+    const t = b.querySelector(":scope > .wtitle");
+    if (!t) return;
+    const wrap = document.createElement("div"); wrap.className = "whead gband";
+    b.insertBefore(wrap, t); wrap.append(t);
+    const s = wrap.nextElementSibling; if (s && s.classList.contains("wsub")) wrap.append(s);
+  });
+  document.querySelectorAll(".sheet > div:last-child").forEach(col => {
+    const wrap = document.createElement("div"); wrap.className = "shead gband";
+    col.insertBefore(wrap, col.firstElementChild);
+    while (wrap.nextElementSibling && !wrap.nextElementSibling.classList.contains("tabbar")) wrap.append(wrap.nextElementSibling);
+  });
 
   /* ---- lifecycle: measure after the real faces, geometry eagerly, paint lazily ---- */
   const curtains = [], windows = [];
-  { let seed = 7; document.querySelectorAll(".curtain").forEach(el => { seed += 37; el.style.visibility = "hidden"; curtains.push({ el, seed }); }); }
-  { let ws = 155; document.querySelectorAll(".win").forEach(el => { ws += 37; windows.push({ el, seed: ws }); }); }
+  { document.querySelectorAll(".curtain").forEach(el => { el.style.visibility = "hidden"; curtains.push({ el, seed: 44 }); }); }
+  { let ws = 155; document.querySelectorAll(".win.glassfull, .gband").forEach(el => { ws += 37; windows.push({ el, seed: ws }); }); }
   const idle = fn => ("requestIdleCallback" in window) ? requestIdleCallback(fn, { timeout: 800 }) : setTimeout(fn, 16);
   const geometryAll = () => { window.__panes = []; curtains.forEach(curtainGeometry); };
   const inView = new Set();
