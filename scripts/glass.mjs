@@ -36,11 +36,34 @@ const BLOCKS = [
   { cls: "note-block", sel: "#drpg-notice", fallback: (W, H) => ({ x: 16, y: H - 100 - 80, w: 330, h: 80 }) },
   { cls: "launch", sel: "#drpg-messenger-launcher, #drpg-sound-launcher, #drpg-settings-launcher", union: true, fallback: (W, H) => ({ x: W - 22 - 66, y: H - 22 - 134, w: 66, h: 134 }) },
 ];
+/* ---- the rotations: one stylesheet, rewritten after every geometry pass ----------------------
+   A block is rotated with its pane. Written as a rule on the block's selector (not an inline
+   style), the rotation survives the module rebuilding that block from scratch - the status strip
+   and the Event panel do - and a new element wears it the moment it is in the tree. The sheet is
+   switched off while the blocks are measured, so a pane is cut for the block as laid out. */
+const ROT = [];
+let rotSheet = null;
+function rotationSheet() {
+  if (!rotSheet || !rotSheet.isConnected) { rotSheet = document.createElement("style"); rotSheet.id = "drpg-glass-rotation"; document.head.append(rotSheet); }
+  return rotSheet;
+}
+function applyRotations() {
+  const rules = [];
+  for (const r of ROT) {
+    if (r.sel) rules.push(`body.drpg-theme-stained-glass :is(${r.sel}) { transform-origin: ${r.origin}; transform: ${r.transform}; }`);
+    else if (r.el) { r.el.style.transformOrigin = r.origin; r.el.style.transform = r.transform === "none" ? "" : r.transform; }
+  }
+  const sheet = rotationSheet();
+  sheet.textContent = rules.join("\n");
+  sheet.disabled = false;
+}
 function moduleLayout(W, H) {
   const els = BLOCKS.map(b => [...document.querySelectorAll(b.sel)].filter(e => e.offsetWidth > 0 && e.offsetHeight > 0));
   // measure with the rotation off, so a pane is cut for the block as laid out, and against the
   // curtain's own box, so a curtain that does not start at the viewport's corner still fits
+  rotationSheet().disabled = true;
   els.flat().forEach(e => { e.style.transform = ""; });
+  document.querySelectorAll("#scene-controls, #sidebar-tabs").forEach(e => { e.style.transform = ""; });
   const cur = document.getElementById("drpg-curtain")?.getBoundingClientRect();
   const ox = cur?.left ?? 0, oy = cur?.top ?? 0;
   const rects = {}, out = [];
@@ -56,7 +79,7 @@ function moduleLayout(W, H) {
     if (!r && !b.fallback) return;                 // an event panel that is not there cuts no pane
     const box = r ? { ...r } : b.fallback(W, H, rects);
     rects[b.cls] = box;
-    out.push({ cls: b.cls, x: box.x, y: box.y, w: box.w, h: box.h, el: list[0] ?? null, els: list, r });
+    out.push({ cls: b.cls, sel: b.sel, x: box.x, y: box.y, w: box.w, h: box.h, el: list[0] ?? null, els: list, r });
   });
   LAST.blocks = out.map(b => ({ cls: b.cls, x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.w), h: Math.round(b.h), measured: Boolean(b.r), n: b.els.length }));
   return out;
@@ -177,10 +200,12 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       const py = band === "top" ? c.y0 : c.y1;
       const cs = Math.cos(phi), sn = Math.sin(phi);
       const rot = (X, Y) => [px + X * cs - Y * sn, py + X * sn + Y * cs];
+      // the rotation goes into a stylesheet rule keyed by the block's selector (applyRotations), so a
+      // block the module re-renders from scratch wears it the moment it appears; a union of several
+      // elements gets inline styles, because each has its own origin
       for (const b of c.items) if (b.el && b.r) for (const e of b.els) {
         const er = e.getBoundingClientRect();
-        e.style.transformOrigin = (px - er.left) + "px " + (py - er.top) + "px";
-        e.style.transform = Math.abs(phi) < 0.004 ? "" : "rotate(" + phi + "rad)";
+        ROT.push({ sel: b.els.length === 1 ? b.sel : null, el: e, origin: (px - er.left) + "px " + (py - er.top) + "px", transform: Math.abs(phi) < 0.004 ? "none" : "rotate(" + phi + "rad)" });
       }
       let X0 = c.x0 - px - PAD_SIDE, X1 = c.x1 - px + PAD_SIDE;
       const Yn = (band === "top" ? c.y0 - py : c.y1 - py) + (band === "top" ? -3000 : 3000);
@@ -202,7 +227,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       let piece = clipRect(rect, W, H);
       for (let m = 0; m + 1 < c.items.length && piece; m++) {
         const up = c.items[m], dn = c.items[m + 1];
-        if (dn.y < up.y + up.h - 1) continue;                  // overlapping blocks share one pane
+        if (dn.y < up.y + up.h - 12) continue;                 // blocks that truly overlap share one pane; a touch does not
         const Ydiv = ((up.y + up.h) + dn.y) / 2 - py;
         const pt = rot(0, Ydiv);
         const [below, above] = split(piece, pt[0], pt[1], -sn, cs);
@@ -344,24 +369,29 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     for (const side of [0, 1]) {
       const wall = side ? W : 0, dir = side ? -1 : 1;
       const wTop = 136 + rnd() * 34, wMid = 62 + rnd() * 10, wBot = 116 + rnd() * 34;
-      const wCtl = wTop - 22, yCtl = 640;                     // one straight edge under the tiles: 22 px of lean over its run
       const tb = tileBox(side ? "#sidebar-tabs" : "#scene-controls", side ? { x0: W - 68, y0: 290, x1: W - 20, y1: 620 } : { x0: 20, y0: 320, x1: 92, y1: 608 });
+      // one straight edge under the tiles: 22 px of lean over its run, and never inside them - the edge
+      // runs at least 14 px clear of the tiles' far side and past their bottom, however tall the rail is
+      const tileFar = side ? W - tb.x0 : tb.x1;
+      const wTopFit = Math.max(wTop, tileFar + 14 + 22);
+      const wCtl = Math.max(wTopFit - 22, tileFar + 14), yCtl = Math.max(640, tb.y1 + 24);
       const cT = top.length ? top[side ? top.length - 1 : 0] : null, cB = bot.length ? bot[side ? bot.length - 1 : 0] : null;
       const hugT = cT && (side ? cT.hugR : cT.hugL), hugB = cB && (side ? cB.hugR : cB.hugL);
       let yTop = 0, yBot = H;
-      if (hugT) yTop = Math.max(lineY(cT, wall), lineY(cT, wall + dir * wTop));
-      else for (const p of panes) { const bb = bbox(p.poly); if ((side ? bb.x1 > W - wTop - 40 : bb.x0 < wTop + 40) && bb.y1 < H / 2) yTop = Math.max(yTop, bb.y1); }
+      if (hugT) yTop = Math.max(lineY(cT, wall), lineY(cT, wall + dir * wTopFit));
+      else for (const p of panes) { const bb = bbox(p.poly); if ((side ? bb.x1 > W - wTopFit - 40 : bb.x0 < wTopFit + 40) && bb.y1 < H / 2) yTop = Math.max(yTop, bb.y1); }
       if (hugB) yBot = Math.min(lineY(cB, wall), lineY(cB, wall + dir * wBot));
       else for (const p of panes) { const bb = bbox(p.poly); if ((side ? bb.x1 > W - wBot - 40 : bb.x0 < wBot + 40) && bb.y0 >= H / 2) yBot = Math.min(yBot, bb.y0); }
       if (yBot - yTop < 240) continue;
-      const yMid = yTop + (yBot - yTop) * (0.5 + (rnd() - 0.5) * 0.16);
+      // the mid seam sits below the tiles' shard, so the shard is cut from the upper quad alone
+      const yMid = Math.min(yBot - 120, Math.max(yTop + (yBot - yTop) * (0.5 + (rnd() - 0.5) * 0.16), yCtl + 60));
       const tilt = (5 + rnd() * 5) * DEG * (rnd() < 0.5 ? 1 : -1);
       const M = [wall + dir * wMid, yMid], Wm = [wall, yMid - wMid * Math.tan(tilt)];
-      const yT0 = hugT ? Math.min(lineY(cT, wall), lineY(cT, wall + dir * wTop)) - 1 : yTop;
+      const yT0 = hugT ? Math.min(lineY(cT, wall), lineY(cT, wall + dir * wTopFit)) - 1 : yTop;
       const yB0 = hugB ? Math.max(lineY(cB, wall), lineY(cB, wall + dir * wBot)) + 1 : yBot;
-      let upperQ = clipRect([[wall, yT0], [wall + dir * wTop, yT0], ...(yCtl < yMid - 40 ? [[wall + dir * wCtl, yCtl]] : []), M, Wm], W, H);
+      let upperQ = clipRect([[wall, yT0], [wall + dir * wTopFit, yT0], ...(yCtl < yMid - 40 ? [[wall + dir * wCtl, yCtl]] : []), M, Wm], W, H);
       // the angle of that edge, for the tiles that sit on it (clockwise on the left, the mirror on the right)
-      tiles[side ? "right" : "left"] = { angle: Math.atan((wTop - wCtl) / Math.max(1, yCtl - yTop)) * (side ? -1 : 1), yTop, wTop, wCtl, yCtl };
+      tiles[side ? "right" : "left"] = { angle: Math.atan((wTopFit - wCtl) / Math.max(1, yCtl - yTop)) * (side ? -1 : 1), yTop, wTop: wTopFit, wCtl, yCtl };
       let lowerQ = clipRect([Wm, M, [wall + dir * wBot, yB0], [wall, yB0]], W, H);
       if (hugT && upperQ) { const [fx, fy] = cT.far.p; upperQ = clipHP(upperQ, fx, fy, -cT.sn, cT.cs); }
       if (hugB && lowerQ) { const [fx, fy] = cB.far.p; lowerQ = clipHP(lowerQ, fx, fy, cB.sn, -cB.cs); }
@@ -449,7 +479,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       const k = p.tone && TONE[p.tone] ? p.tone : null;
       const bb = bbox(p.poly);
       const hsh = hash((bb.x0 + bb.x1) / 2, (bb.y0 + bb.y1) / 2);
-      const stained = !p.content && !p.plain && hsh > (p.kind === "window" ? 0.62 : 0.72);
+      const stained = !p.content && !p.plain && hsh > 0.72;   // the same share of coloured panes on a window band as on the curtain
       ctx.save(); path(ctx, p.poly); ctx.clip();
       // black glass first, then a little colour: a panel keeps its tone, most filler a faint tint, one in five stained
       const lum = hash((bb.x0 + bb.x1) / 2 + 17, (bb.y0 + bb.y1) / 2 - 31);
@@ -492,7 +522,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     if (glowInside) {
       sx.save(); sx.globalCompositeOperation = "lighter"; sx.strokeStyle = acc;
       const nds = junctions(panes, W, H);
-      for (const [blur, a, wdt] of [[10, 0.20, 2.2], [4, 0.24, 1.4]]) { sx.filter = "blur(" + blur + "px)"; sx.globalAlpha = a; seams(sx, panes, W, H, wdt); nodeArms(sx, nds, 12, wdt * 1.6); }
+      for (const [blur, a, wdt] of [[10, 0.10, 2.0], [4, 0.12, 1.2]]) { sx.filter = "blur(" + blur + "px)"; sx.globalAlpha = a; seams(sx, panes, W, H, wdt); nodeArms(sx, nds, 12, wdt * 1.6); }
       sx.restore();
     }
     // lead, the bevel, the neon core: thin lines, a little heavier along the arms of every junction
@@ -519,6 +549,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     const sig = W + "x" + H;
     if (job.sig === sig) return true;
     job.sig = sig; job.W = W; job.H = H;
+    ROT.length = 0;
     const panes = curtainShapes(host, W, H, rng(job.seed));
     job.panes = panes;
     // the silhouette: one clip path of every pane, crisp at any scale, no bitmap
@@ -528,9 +559,9 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     const t = panes.meta.tiles || {};
     for (const [sel, side] of [["#scene-controls", "left"], ["#sidebar-tabs", "right"]]) {
       const tile = host.querySelector(sel); if (!tile) continue;
-      tile.style.transformOrigin = "50% 50%";
-      tile.style.transform = t[side] ? "rotate(" + t[side].angle + "rad)" : "";
+      ROT.push({ sel, el: tile, origin: "50% 50%", transform: t[side] ? "rotate(" + t[side].angle + "rad)" : "none" });
     }
+    applyRotations();
     // self-check: C1 no overlaps, convexity, C2 every block inside its own pane and no other, C3 the top edge covered
     let ov = 0, nonconvex = 0, blockFails = 0, edgeGaps = 0, fitFails = 0; const ncv = [];
     for (let i = 0; i < panes.length; i++) { if (!convex(panes[i].poly)) { nonconvex++; ncv.push(panes[i].kind + ':' + panes[i].poly.map(q => q.map(v => Math.round(v)).join(',')).join(' ')); } for (let j = i + 1; j < panes.length; j++) if (overlaps(panes[i].poly, panes[j].poly)) ov++; }
@@ -674,19 +705,65 @@ function unmount() {
   document.querySelectorAll("#scene-controls, #sidebar").forEach(e => { e.style.marginTop = ""; e.style.paddingTop = ""; e.style.boxSizing = ""; });
   document.querySelectorAll("#scene-controls, #sidebar-tabs").forEach(e => { e.style.transform = ""; e.style.transformOrigin = ""; });
   BLOCKS.forEach(b => document.querySelectorAll(b.sel).forEach(e => { e.style.transform = ""; e.style.transformOrigin = ""; }));
-  document.body.classList.remove("drpg-curtain-on");
+  document.body.classList.remove("drpg-curtain-on", "drpg-turning");
+  document.querySelectorAll(".drpg-curtain-ghost").forEach(g => g.remove());
+  if (rotSheet) { rotSheet.remove(); rotSheet = null; }
+}
+/* ---- nothing on the glass ever jumps ---------------------------------------------------------
+   Before the curtain is recut or recoloured, what it looks like now is copied onto one canvas (the
+   ghost), placed under the new glass with the old silhouette, and faded out over the turn while the
+   new glass fades in. A rebuild that changes nothing (the same panes, the same colour) repaints
+   nothing, so the observers' constant rebuilds cost a geometry pass and no paint. */
+const TURN = () => { const v = parseFloat(getComputedStyle(document.body).getPropertyValue("--drpg-t-turn")); return Number.isFinite(v) && v > 0 ? v : 840; };
+function ghostOf(j) {
+  if (!j.el.isConnected || REDUCED() || !effectsOn()) return null;
+  const sg = j.el.querySelector(":scope > canvas.sg"); if (!sg || !sg.width) return null;
+  const W = sg.width, H = sg.height;
+  const g = document.createElement("div"); g.className = "drpg-curtain-ghost";
+  g.style.cssText = STYLE + "z-index:" + j.el.style.zIndex + ";clip-path:" + j.el.style.clipPath + ";transition:opacity " + TURN() + "ms linear;opacity:1;";
+  const c = document.createElement("canvas"); c.width = W; c.height = H; c.style.cssText = "position:absolute;inset:0;width:100%;height:100%;";
+  const x = c.getContext("2d");
+  for (const cls of ["sg", "pulse", "seamline"]) { const src = j.el.querySelector(":scope > canvas." + cls); if (src && src.width) x.drawImage(src, 0, 0, W, H); }
+  g.append(c);
+  const gl = document.querySelector('[data-glow="' + j.seed + '"]');
+  if (gl && gl.width) {
+    const gc = document.createElement("canvas"); gc.width = gl.width; gc.height = gl.height; gc.getContext("2d").drawImage(gl, 0, 0);
+    gc.style.cssText = "position:absolute;inset:0;width:100%;height:100%;mix-blend-mode:screen;";
+    const wrap = document.createElement("div"); wrap.className = "drpg-curtain-ghost";
+    wrap.style.cssText = STYLE + "z-index:" + j.el.style.zIndex + ";transition:opacity " + TURN() + "ms linear;opacity:1;";
+    wrap.append(gc); g.glow = wrap;
+  }
+  return g;
+}
+function crossfade(j, ghost) {
+  if (!ghost) return;
+  j.el.before(ghost); if (ghost.glow) j.el.before(ghost.glow);
+  const fresh = [j.el, document.querySelector('[data-glow="' + j.seed + '"]')].filter(Boolean);
+  for (const f of fresh) { f.style.transition = "none"; f.style.opacity = "0"; }
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    for (const f of fresh) { f.style.transition = "opacity " + TURN() + "ms linear"; f.style.opacity = "1"; }
+    ghost.style.opacity = "0"; if (ghost.glow) ghost.glow.style.opacity = "0";
+    setTimeout(() => { ghost.remove(); ghost.glow?.remove(); for (const f of fresh) f.style.transition = ""; }, TURN() + 80);
+  }));
 }
 function rebuild() {
   for (const j of curtains) {
+    const before = CHECKS.at(-1)?.sig, wasPainted = j.painted, oldAcc = j.acc;
+    // the ghost copies the canvases and the silhouette as they are now, before the new geometry lands
+    const ghost = wasPainted ? ghostOf(j) : null;
     j.sig = null; CHECKS.length = 0;
     if (curtainGeometry(j)) {
       // Foundry's tiles must start below the corner panes to own a shard of the strip;
       // when they do not, push them down once and cut the glass again
       if (!j.placed && placeTiles(j.panes.meta)) { j.placed = true; j.sig = null; curtainGeometry(j); }
-      curtainPaint(j); document.body.classList.add("drpg-curtain-on");
-      // the glow sits right after the curtain, in the same layer
-      const gl = document.querySelector('[data-glow="' + j.seed + '"]');
-      if (gl) gl.style.cssText = STYLE + "z-index:" + j.el.style.zIndex + ";mix-blend-mode:screen;";
+      const acc = resolveAcc(j.el);
+      const changed = !wasPainted || before !== CHECKS.at(-1)?.sig || acc !== oldAcc;
+      if (changed) {
+        curtainPaint(j); document.body.classList.add("drpg-curtain-on");
+        const gl = document.querySelector('[data-glow="' + j.seed + '"]');
+        if (gl) gl.style.cssText = STYLE + "z-index:" + j.el.style.zIndex + ";mix-blend-mode:screen;";
+        crossfade(j, ghost);
+      } else { j.painted = true; document.body.classList.add("drpg-curtain-on"); }
     }
   }
   const c = CHECKS[0];
@@ -815,11 +892,19 @@ export function dressWindow(app) {
 }
 /* the state changed (hour, phase, Eclipse): every seam flashes Bone and the glass takes the new colour */
 let stateTimer = 0;
+let turningTimer = 0;
+function turning() {
+  // every colour the interface takes from the state slides over the turn (stained-glass.css)
+  document.body.classList.add("drpg-turning");
+  clearTimeout(turningTimer); turningTimer = setTimeout(() => document.body.classList.remove("drpg-turning"), TURN() + 120);
+}
 function onStateChange() {
   clearTimeout(stateTimer);
   stateTimer = setTimeout(() => {
-    for (const j of curtains) { if (!j.panes) continue; const acc = resolveAcc(j.el); if (acc === j.acc) continue; flashSeams(j, "#f2eee6", 420); curtainPaint(j); }
-    for (const j of windows) { if (!j.el.isConnected) continue; const acc = resolveAcc(j.el); if (acc === j.acc) continue; flashSeams(j, "#f2eee6", 420); paintBand(j); }
+    let moved = false;
+    for (const j of curtains) { if (!j.panes) continue; const acc = resolveAcc(j.el); if (acc === j.acc) continue; moved = true; flashSeams(j, "#f2eee6", 420); }
+    if (moved) { turning(); rebuild(); }
+    for (const j of windows) { if (!j.el.isConnected) continue; const acc = resolveAcc(j.el); if (acc === j.acc) continue; turning(); flashSeams(j, "#f2eee6", 420); paintBand(j); }
   }, 60);
 }
 function pruneWindows() { for (let i = windows.length - 1; i >= 0; i--) if (!windows[i].el.isConnected) windows.splice(i, 1); }

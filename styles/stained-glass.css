@@ -217,7 +217,7 @@ body.drpg-theme-stained-glass .drpg-panel .window-header {
     overflow: hidden;
     isolation: isolate;
     --acc: var(--drpg-glass-accent);
-    background: rgba(5, 4, 9, 0.5);
+    background: rgba(5, 4, 9, 0.78);
     border-bottom: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 40%, transparent);
 }
 body.drpg-theme-stained-glass .drpg-panel .window-header > canvas {
@@ -595,3 +595,62 @@ body.drpg-theme-stained-glass .drpg-hud-ticker > span {
     body.drpg-theme-stained-glass .drpg-hud-ticker > span { animation: none; }
 }
 body.drpg-no-glass-effects .drpg-hud-ticker { display: none; }
+
+
+/* ==========================================================================
+   Milestone 5: nothing jumps. The state colour slides over the turn on every
+   element that takes it (glass.mjs puts `drpg-turning` on the body for the
+   duration), the blocks turn with their panes, the tiles with their edge.
+   ========================================================================== */
+body.drpg-theme-stained-glass.drpg-turning [class*="drpg-"],
+body.drpg-theme-stained-glass.drpg-turning [class*="drpg-"] *,
+body.drpg-theme-stained-glass.drpg-turning #countdowns,
+body.drpg-theme-stained-glass.drpg-turning #countdowns *,
+body.drpg-theme-stained-glass.drpg-turning #scene-controls button.ui-control,
+body.drpg-theme-stained-glass.drpg-turning #sidebar-tabs button.ui-control,
+body.drpg-theme-stained-glass.drpg-turning .drpg-panel .window-header,
+body.drpg-theme-stained-glass.drpg-turning .drpg-panel .window-header * {
+    transition-property: color, border-color, background-color, box-shadow, outline-color, -webkit-text-stroke-color, fill, stroke;
+    transition-duration: var(--drpg-t-turn, 840ms);
+    transition-timing-function: linear;
+}
+body.drpg-theme-stained-glass #scene-controls,
+body.drpg-theme-stained-glass #sidebar-tabs,
+body.drpg-theme-stained-glass #drpg-hud,
+body.drpg-theme-stained-glass #drpg-gm-launcher,
+body.drpg-theme-stained-glass #drpg-despair,
+body.drpg-theme-stained-glass #drpg-events,
+body.drpg-theme-stained-glass #drpg-player-status,
+body.drpg-theme-stained-glass #countdowns,
+body.drpg-theme-stained-glass #drpg-notice {
+    transition: transform var(--drpg-t-turn, 840ms) var(--drpg-ease-arrive, ease-out);
+}
+@media (prefers-reduced-motion: reduce) {
+    body.drpg-theme-stained-glass * { transition-duration: 0s !important; }
+}
+
+/* ---- the scene navigation leaves the clock's pane. Under the theme the GM changes scenes from the
+   sidebar's Scenes tab, which the base sheet hides and the theme shows again for the GM. */
+body.drpg-theme-stained-glass #scene-navigation,
+body.drpg-theme-stained-glass #scene-navigation.drpg-gm-nav { display: none !important; }
+body.drpg-theme-stained-glass:not(.drpg-player) #sidebar-tabs button.ui-control[data-tab="scenes"],
+body.drpg-theme-stained-glass:not(.drpg-player) #sidebar .tabs button.ui-control[data-tab="scenes"] { display: inline-flex !important; }
+
+/* ---- the Projects tray: the chrome face like the rest of the rail, and a pane the size of the clock's,
+   so the two top corners of the glass weigh the same */
+body.drpg-theme-stained-glass #countdowns,
+body.drpg-theme-stained-glass #countdowns * {
+    font-family: var(--drpg-font-chrome) !important;
+}
+body.drpg-pixel-font.drpg-theme-stained-glass #countdowns,
+body.drpg-pixel-font.drpg-theme-stained-glass #countdowns * {
+    font-family: var(--drpg-font-pixel) !important;
+}
+body.drpg-theme-stained-glass #ui-right-column-1 > #countdowns {
+    min-height: 150px;
+    box-sizing: border-box;
+}
+body.drpg-theme-stained-glass #countdowns .countdowns-header {
+    font-size: 15px;
+    letter-spacing: 0.1em;
+}

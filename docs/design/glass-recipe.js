@@ -143,7 +143,7 @@
       let piece = clipRect(rect, W, H);
       for (let m = 0; m + 1 < c.items.length && piece; m++) {
         const up = c.items[m], dn = c.items[m + 1];
-        if (dn.y < up.y + up.h - 1) continue;                  // overlapping blocks share one pane
+        if (dn.y < up.y + up.h - 12) continue;                 // blocks that truly overlap share one pane; a touch does not
         const Ydiv = ((up.y + up.h) + dn.y) / 2 - py;
         const pt = rot(0, Ydiv);
         const [below, above] = split(piece, pt[0], pt[1], -sn, cs);
@@ -285,24 +285,29 @@
     for (const side of [0, 1]) {
       const wall = side ? W : 0, dir = side ? -1 : 1;
       const wTop = 136 + rnd() * 34, wMid = 62 + rnd() * 10, wBot = 116 + rnd() * 34;
-      const wCtl = wTop - 22, yCtl = 640;                     // one straight edge under the tiles: 22 px of lean over its run
       const tb = tileBox(side ? ".f-side" : ".f-ctl", side ? { x0: W - 68, y0: 290, x1: W - 20, y1: 620 } : { x0: 20, y0: 320, x1: 92, y1: 608 });
+      // one straight edge under the tiles: 22 px of lean over its run, and never inside them - the edge
+      // runs at least 14 px clear of the tiles' far side and past their bottom, however tall the rail is
+      const tileFar = side ? W - tb.x0 : tb.x1;
+      const wTopFit = Math.max(wTop, tileFar + 14 + 22);
+      const wCtl = Math.max(wTopFit - 22, tileFar + 14), yCtl = Math.max(640, tb.y1 + 24);
       const cT = top.length ? top[side ? top.length - 1 : 0] : null, cB = bot.length ? bot[side ? bot.length - 1 : 0] : null;
       const hugT = cT && (side ? cT.hugR : cT.hugL), hugB = cB && (side ? cB.hugR : cB.hugL);
       let yTop = 0, yBot = H;
-      if (hugT) yTop = Math.max(lineY(cT, wall), lineY(cT, wall + dir * wTop));
-      else for (const p of panes) { const bb = bbox(p.poly); if ((side ? bb.x1 > W - wTop - 40 : bb.x0 < wTop + 40) && bb.y1 < H / 2) yTop = Math.max(yTop, bb.y1); }
+      if (hugT) yTop = Math.max(lineY(cT, wall), lineY(cT, wall + dir * wTopFit));
+      else for (const p of panes) { const bb = bbox(p.poly); if ((side ? bb.x1 > W - wTopFit - 40 : bb.x0 < wTopFit + 40) && bb.y1 < H / 2) yTop = Math.max(yTop, bb.y1); }
       if (hugB) yBot = Math.min(lineY(cB, wall), lineY(cB, wall + dir * wBot));
       else for (const p of panes) { const bb = bbox(p.poly); if ((side ? bb.x1 > W - wBot - 40 : bb.x0 < wBot + 40) && bb.y0 >= H / 2) yBot = Math.min(yBot, bb.y0); }
       if (yBot - yTop < 240) continue;
-      const yMid = yTop + (yBot - yTop) * (0.5 + (rnd() - 0.5) * 0.16);
+      // the mid seam sits below the tiles' shard, so the shard is cut from the upper quad alone
+      const yMid = Math.min(yBot - 120, Math.max(yTop + (yBot - yTop) * (0.5 + (rnd() - 0.5) * 0.16), yCtl + 60));
       const tilt = (5 + rnd() * 5) * DEG * (rnd() < 0.5 ? 1 : -1);
       const M = [wall + dir * wMid, yMid], Wm = [wall, yMid - wMid * Math.tan(tilt)];
-      const yT0 = hugT ? Math.min(lineY(cT, wall), lineY(cT, wall + dir * wTop)) - 1 : yTop;
+      const yT0 = hugT ? Math.min(lineY(cT, wall), lineY(cT, wall + dir * wTopFit)) - 1 : yTop;
       const yB0 = hugB ? Math.max(lineY(cB, wall), lineY(cB, wall + dir * wBot)) + 1 : yBot;
-      let upperQ = clipRect([[wall, yT0], [wall + dir * wTop, yT0], ...(yCtl < yMid - 40 ? [[wall + dir * wCtl, yCtl]] : []), M, Wm], W, H);
+      let upperQ = clipRect([[wall, yT0], [wall + dir * wTopFit, yT0], ...(yCtl < yMid - 40 ? [[wall + dir * wCtl, yCtl]] : []), M, Wm], W, H);
       // the angle of that edge, for the tiles that sit on it (clockwise on the left, the mirror on the right)
-      tiles[side ? "right" : "left"] = { angle: Math.atan((wTop - wCtl) / Math.max(1, yCtl - yTop)) * (side ? -1 : 1), yTop, wTop, wCtl, yCtl };
+      tiles[side ? "right" : "left"] = { angle: Math.atan((wTopFit - wCtl) / Math.max(1, yCtl - yTop)) * (side ? -1 : 1), yTop, wTop: wTopFit, wCtl, yCtl };
       let lowerQ = clipRect([Wm, M, [wall + dir * wBot, yB0], [wall, yB0]], W, H);
       if (hugT && upperQ) { const [fx, fy] = cT.far.p; upperQ = clipHP(upperQ, fx, fy, -cT.sn, cT.cs); }
       if (hugB && lowerQ) { const [fx, fy] = cB.far.p; lowerQ = clipHP(lowerQ, fx, fy, cB.sn, -cB.cs); }
@@ -390,7 +395,7 @@
       const k = p.tone && TONE[p.tone] ? p.tone : null;
       const bb = bbox(p.poly);
       const hsh = hash((bb.x0 + bb.x1) / 2, (bb.y0 + bb.y1) / 2);
-      const stained = !p.content && !p.plain && hsh > (p.kind === "window" ? 0.62 : 0.72);
+      const stained = !p.content && !p.plain && hsh > 0.72;   // the same share of coloured panes on a window band as on the curtain
       ctx.save(); path(ctx, p.poly); ctx.clip();
       // black glass first, then a little colour: a panel keeps its tone, most filler a faint tint, one in five stained
       const lum = hash((bb.x0 + bb.x1) / 2 + 17, (bb.y0 + bb.y1) / 2 - 31);
@@ -433,7 +438,7 @@
     if (glowInside) {
       sx.save(); sx.globalCompositeOperation = "lighter"; sx.strokeStyle = acc;
       const nds = junctions(panes, W, H);
-      for (const [blur, a, wdt] of [[10, 0.20, 2.2], [4, 0.24, 1.4]]) { sx.filter = "blur(" + blur + "px)"; sx.globalAlpha = a; seams(sx, panes, W, H, wdt); nodeArms(sx, nds, 12, wdt * 1.6); }
+      for (const [blur, a, wdt] of [[10, 0.10, 2.0], [4, 0.12, 1.2]]) { sx.filter = "blur(" + blur + "px)"; sx.globalAlpha = a; seams(sx, panes, W, H, wdt); nodeArms(sx, nds, 12, wdt * 1.6); }
       sx.restore();
     }
     // lead, the bevel, the neon core: thin lines, a little heavier along the arms of every junction

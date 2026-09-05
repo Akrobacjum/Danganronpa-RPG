@@ -30,10 +30,12 @@ must('    const boxes = LAYOUT(W, H).map(t => ({ ...t, el: host.querySelector(".
 must('''      for (const b of c.items) if (b.el) {
         b.el.style.transformOrigin = (px - b.el.offsetLeft) + "px " + (py - b.el.offsetTop) + "px";
         b.el.style.transform = Math.abs(phi) < 0.004 ? "" : "rotate(" + phi + "rad)";
-      }''', '''      for (const b of c.items) if (b.el && b.r) for (const e of b.els) {
+      }''', '''      // the rotation goes into a stylesheet rule keyed by the block's selector (applyRotations), so a
+      // block the module re-renders from scratch wears it the moment it appears; a union of several
+      // elements gets inline styles, because each has its own origin
+      for (const b of c.items) if (b.el && b.r) for (const e of b.els) {
         const er = e.getBoundingClientRect();
-        e.style.transformOrigin = (px - er.left) + "px " + (py - er.top) + "px";
-        e.style.transform = Math.abs(phi) < 0.004 ? "" : "rotate(" + phi + "rad)";
+        ROT.push({ sel: b.els.length === 1 ? b.sel : null, el: e, origin: (px - er.left) + "px " + (py - er.top) + "px", transform: Math.abs(phi) < 0.004 ? "none" : "rotate(" + phi + "rad)" });
       }''')
 must('''      if (b.el && (b.el.offsetLeft < b.x - 0.5 || b.el.offsetTop < b.y - 0.5 || b.el.offsetLeft + b.el.offsetWidth > b.x + b.w + 0.5 || b.el.offsetTop + b.el.offsetHeight > b.y + b.h + 0.5)) fitFails++;''',
      '''      if (b.r && (b.r.x < b.x - 0.5 || b.r.y < b.y - 0.5 || b.r.x + b.r.w > b.x + b.w + 0.5 || b.r.y + b.r.h > b.y + b.h + 0.5)) fitFails++;''')
@@ -45,7 +47,17 @@ must('    const W = Math.round(c.clientWidth), H = Math.round(c.clientHeight);',
     LAST.frame = { W, H, left: rc.left, top: rc.top, inner: [innerWidth, innerHeight], canvas: [c.clientWidth, c.clientHeight] };''')
 # the page's Foundry-tile mock becomes the real scene controls and sidebar tabs
 must('''      const tb = tileBox(side ? ".f-side" : ".f-ctl",''', '''      const tb = tileBox(side ? "#sidebar-tabs" : "#scene-controls",''')
-must('''    for (const [sel, side] of [[".f-ctl", "left"], [".f-side", "right"]]) {''', '''    for (const [sel, side] of [["#scene-controls", "left"], ["#sidebar-tabs", "right"]]) {''')
+must('''    for (const [sel, side] of [[".f-ctl", "left"], [".f-side", "right"]]) {
+      const tile = host.querySelector(sel); if (!tile) continue;
+      tile.style.transformOrigin = "50% 50%";
+      tile.style.transform = t[side] ? "rotate(" + t[side].angle + "rad)" : "";
+    }''', '''    for (const [sel, side] of [["#scene-controls", "left"], ["#sidebar-tabs", "right"]]) {
+      const tile = host.querySelector(sel); if (!tile) continue;
+      ROT.push({ sel, el: tile, origin: "50% 50%", transform: t[side] ? "rotate(" + t[side].angle + "rad)" : "none" });
+    }
+    applyRotations();''')
+must('''    const panes = curtainShapes(host, W, H, rng(job.seed));''', '''    ROT.length = 0;
+    const panes = curtainShapes(host, W, H, rng(job.seed));''')
 a = core.index('  /* the layout the curtain is cut for:'); b = core.index('  function curtainShapes(host, W, H, rnd) {')
 core = core[:a] + core[b:]
 core = core.replace('(window.__panes = window.__panes || []).push({', 'CHECKS.push({')
