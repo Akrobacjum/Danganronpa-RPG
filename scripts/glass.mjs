@@ -904,7 +904,8 @@ export function dressWindow(app) {
   if (!themeOn()) return;
   const el = app?.element;
   if (!el?.querySelector) return;
-  if (el.classList?.contains("drpg-panel")) { const h = el.querySelector(".window-header"); if (h) dressBand(h, 155); }
+  // module windows (`.drpg-panel`) and the messenger carry the glass on their title band
+  if (el.classList?.contains("drpg-panel") || el.classList?.contains("drpg-messenger")) { const h = el.querySelector(".window-header"); if (h) dressBand(h, 155); }
   const sheetHead = el.querySelector(".character-header-sheet");
   if (sheetHead) { sheetHead.classList.add("drpg-glass-band"); dressBand(sheetHead, 999); }
 }
