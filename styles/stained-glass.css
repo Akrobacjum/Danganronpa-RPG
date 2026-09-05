@@ -731,6 +731,11 @@ body.drpg-theme-stained-glass #sidebar-tabs button.ui-control:hover {
 body.drpg-theme-stained-glass .drpg-action-button,
 body.drpg-theme-stained-glass .drpg-call-button {
     --brush: var(--drpg-glass-accent);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
     position: relative;
     isolation: isolate;
     font-family: var(--drpg-font-chrome);
@@ -858,3 +863,133 @@ body.drpg-theme-stained-glass .drpg-panel .window-header .header-control:hover {
 /* the scrollbar of a module window in the theme's colour */
 body.drpg-theme-stained-glass .drpg-panel .window-content::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--drpg-glass-accent) 45%, transparent); border-radius: 0; }
 body.drpg-theme-stained-glass .drpg-panel .window-content::-webkit-scrollbar-track { background: rgba(7, 7, 10, 0.4); }
+
+/* ==========================================================================
+   Milestone 7: the sheet's tab bar, the resource bars, the fields of every window.
+   ========================================================================== */
+/* 1. the tab bar: a Bone strip, tabs as brushes. Ink text at rest, the chosen tab a full brush in
+   the state colour, the one under the cursor a third of it. The base sheet paints these Bone with
+   !important, so the theme says it again, later in the same layer. */
+body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs {
+    display: inline-flex;
+    gap: 2px;
+    padding: 3px;
+    background: var(--drpg-sg-bone);
+    border: 0;
+    border-radius: 0;
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs a {
+    --brush: var(--drpg-glass-accent);
+    position: relative;
+    isolation: isolate;
+    padding: 3px 12px;
+    font-family: var(--drpg-font-chrome);
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--drpg-sg-ink) !important;
+    text-shadow: none !important;
+    border: 0;
+    background: none;
+    transition: color var(--drpg-t-snap, 120ms);
+}
+body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs a span {
+    color: inherit !important;
+    text-shadow: none !important;
+}
+body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs a::before {
+    content: "";
+    position: absolute;
+    inset: 1px 2px;
+    z-index: -1;
+    background: var(--brush);
+    opacity: 0;
+    clip-path: polygon(0 12%, 3% 0, 97% 4%, 100% 20%, 99% 88%, 96% 100%, 4% 96%, 0 84%);
+    transition: opacity var(--drpg-t-snap, 120ms);
+}
+body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs a:hover:not(.active)::before { opacity: 0.35; }
+body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs a.active::before { opacity: 1; }
+body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs a.active,
+body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs a.active span {
+    color: var(--drpg-sg-ink) !important;
+    text-shadow: none !important;
+}
+body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs a:focus-visible {
+    outline: 2px solid var(--brush);
+    outline-offset: -2px;
+}
+
+/* 2. Health and Sanity: the bar the module paints (`paintResourceBars`), in the theme's two colours,
+   the spent part under the raster the audit gives every spent thing, the edge in the bar's colour. */
+body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet .resources-section .status-bar:nth-child(1) { --drpg-bar-fill: var(--drpg-sg-gm-light); }
+body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet .resources-section .status-bar:nth-child(2) { --drpg-bar-fill: var(--drpg-sg-eclipse); }
+body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet .drpg-resource-bar {
+    height: 10px;
+    border: 1px solid color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-sg-gm-light)) 55%, transparent);
+    background-color: rgba(7, 7, 10, 0.7);
+    background-image: radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-sg-gm-light)) 45%, transparent) 1px, transparent 1.5px);
+    background-size: 4px 4px;
+    box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.6);
+}
+body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet .drpg-resource-fill {
+    display: block;
+    position: absolute;
+    inset: 0 auto 0 0;
+    background-color: var(--drpg-bar-fill, var(--drpg-sg-gm-light));
+    box-shadow: 0 0 8px color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-sg-gm-light)) 55%, transparent);
+}
+body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet .resources-section .status-label,
+body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet .resources-section .slot-label {
+    font-family: var(--drpg-font-chrome);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 12px;
+    background: color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-sg-gm-light)) 85%, #000) !important;
+    color: var(--drpg-sg-ink) !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+}
+body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet .resources-section .status-label *,
+body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet .resources-section .slot-label * {
+    color: var(--drpg-sg-ink) !important;
+    text-shadow: none !important;
+}
+body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet .resources-section .status-value span:not(:where(.drpg-resource-fill, .drpg-resource-delta)) {
+    font-family: var(--drpg-font-chrome);
+    font-variant-numeric: tabular-nums;
+}
+
+/* 3. the fields of Foundry's own windows and of the sheet: the theme's one field, the same edge in the
+   state colour, thicker at the bottom, the full colour on focus. The browser's number arrows are left
+   to those windows: their steppers are their own. */
+body.drpg-theme-stained-glass .application:not(.drpg-panel) .window-content :is(input[type="text"], input[type="number"], input[type="search"], input[type="password"], select, textarea) {
+    font-family: var(--drpg-font-chrome);
+    color: var(--drpg-sg-bone);
+    background: rgba(7, 7, 10, 0.55);
+    border: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 40%, transparent);
+    border-bottom-width: 2px;
+    border-radius: 0;
+    box-shadow: none;
+    transition: border-color var(--drpg-t-snap, 120ms), box-shadow var(--drpg-t-snap, 120ms);
+}
+body.drpg-theme-stained-glass .application:not(.drpg-panel) .window-content :is(input, select, textarea):focus-visible {
+    outline: none;
+    border-color: var(--drpg-glass-accent);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--drpg-glass-accent) 45%, transparent);
+    caret-color: var(--drpg-glass-accent);
+}
+body.drpg-theme-stained-glass .application:not(.drpg-panel) .window-content :is(input, select, textarea):disabled {
+    border-style: dashed;
+    color: var(--drpg-sg-bone-dim);
+}
+body.drpg-theme-stained-glass .application:not(.drpg-panel) .window-content .form-group > label {
+    font-family: var(--drpg-font-chrome);
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--drpg-sg-bone-dim);
+}
+body.drpg-theme-stained-glass .application:not(.drpg-panel) .window-content input[type="range"],
+body.drpg-theme-stained-glass .application:not(.drpg-panel) .window-content input[type="checkbox"],
+body.drpg-theme-stained-glass .application:not(.drpg-panel) .window-content input[type="radio"] { accent-color: var(--drpg-glass-accent); }
