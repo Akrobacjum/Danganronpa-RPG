@@ -352,7 +352,7 @@
   .vp.fit { overflow: hidden; }
   .s1440 { width: 2560px; height: 1440px; border: 0; }
   /* Foundry's own furniture, at Foundry's own sizes */
-  .s1440 .f-ctl { position: absolute; left: 24px; top: 214px; grid-template-columns: 36px 36px; grid-auto-flow: column; grid-template-rows: repeat(7, 36px); display: grid; gap: 6px; z-index: 4; }
+  .s1440 .f-ctl { position: absolute; left: 20px; top: 214px; grid-template-columns: 36px 36px; grid-auto-flow: column; grid-template-rows: repeat(7, 36px); display: grid; gap: 6px; z-index: 4; }
   .s1440 .f-ctl i { display: block; width: 36px; height: 36px; border: 1px solid color-mix(in srgb, var(--acc) 34%, transparent); background: rgba(8, 7, 12, 0.72); clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px); }
   .s1440 .f-ctl i.on { border-color: var(--acc); background: color-mix(in srgb, var(--acc) 22%, rgba(8, 7, 12, 0.8)); }
   .s1440 .f-side { position: absolute; right: 20px; top: 22px; width: 48px; z-index: 4; }
@@ -468,7 +468,7 @@
   <header class="hero">
     <div class="eyebrow">Audyt kierunkowy, wersja 16 · Danganronpa RPG · 04.09.2026</div>
     <h1><span class="p">Krew</span>, <span class="y">nadzieja</span>, <span class="g">dowód</span> i <span class="c">pora dnia</span></h1>
-    <p class="lead">Wersja 16: kurtyna ma jeden kształt na każdym ekranie, zmienia się tylko kolor. Szyby oddychają jak w V3: każda po swoim rytmie ciemnieje do czerni i wraca, a fala idzie spiralą dookoła ramy; kolorowe szyby, i tylko one, dostały przezroczystą teksturę smug. Kafelki Foundry siedzą na szkle, więc paski boczne są odpowiednio szersze. Dryfujące linie z mgły zniknęły. W oknach witraż jest akcentem na belce tytułowej, a nie tłem; karta postaci ma spokojną lewą kolumnę i witraż w nagłówku. Do tego audyt animacji modułu i plan ustawień gracza z wyborem motywu. Wersja 17: szwy cieńsze (ołów 1,2 px, neon 0,7 px), z delikatnym zgrubieniem tam, gdzie trzy szwy się schodzą, także w poświacie; tekstura kolorowego szkła pojawia się tylko w jasnej fazie pulsu, na kurtynie i w oknach; spisane zasady krojów. Wersja 18: kolorowe szyby znów są kolorowe (jaśniejsza paleta, mniej czerni nad barwą, 28% szyb), szwy leżą na własnej warstwie nad pulsem, więc ciemna szyba trzyma krawędzie, a kafelki Foundry stoją na prostej krawędzi szkła, obrócone równolegle do niej.</p>
+    <p class="lead">Wersja 16: kurtyna ma jeden kształt na każdym ekranie, zmienia się tylko kolor. Szyby oddychają jak w V3: każda po swoim rytmie ciemnieje do czerni i wraca, a fala idzie spiralą dookoła ramy; kolorowe szyby, i tylko one, dostały przezroczystą teksturę smug. Kafelki Foundry siedzą na szkle, więc paski boczne są odpowiednio szersze. Dryfujące linie z mgły zniknęły. W oknach witraż jest akcentem na belce tytułowej, a nie tłem; karta postaci ma spokojną lewą kolumnę i witraż w nagłówku. Do tego audyt animacji modułu i plan ustawień gracza z wyborem motywu. Wersja 17: szwy cieńsze (ołów 1,2 px, neon 0,7 px), z delikatnym zgrubieniem tam, gdzie trzy szwy się schodzą, także w poświacie; tekstura kolorowego szkła pojawia się tylko w jasnej fazie pulsu, na kurtynie i w oknach; spisane zasady krojów. Wersja 18: kolorowe szyby znów są kolorowe, szwy leżą na własnej warstwie nad pulsem, więc ciemna szyba trzyma krawędzie, a kafelki Foundry stoją na prostej krawędzi szkła, obrócone równolegle do niej. Wersja 19: dwa kolory szkła zamiast sześciu (jeden błękit, jedna magenta, ciemniejsze i spokojniejsze), a każda grupa kafelków Foundry dostała własny odłamek, którego nie przecina żadne cięcie.</p>
     <div class="cards">
       <div><b>Color coding</b>Czerwień to DM, złoto to Hope, róż krwi to Despair, zieleń to dowód. Interfejs bierze kolor pory dnia albo stanu.</div>
       <div><b>Kroje</b>VT323 na chrome, prozie i stemplach; Special Elite na tytułach. Dwa pliki OFL, DRPG Pixel jako zapas chrome.</div>
@@ -857,7 +857,7 @@
           <tr><td class="k">Szyba wypełniacz</td><td class="v"><span class="dot" style="background:#0b0812"></span>#0b0812 · 62% + barwa 8%</td><td>czarne szkło z ledwo widocznym odcieniem; kolor niesie szew, nie szyba</td></tr>
           <tr><td class="k">Puls</td><td class="v">okres 9-16 s · czerń do 72% (pod treścią 42%) · faza = 1,6·kąt + r/420</td><td>każda szyba po swoim rytmie ciemnieje do czerni i wraca, fala idzie spiralą dookoła ramy; w jasnej fazie kolorowa szyba dostaje 16% koloru stanu; osobna półrozdzielcza bitmapa nad szkłem, 15 kl/s, stoi przy ograniczonym ruchu i w ukrytej karcie; belki okien pulsują tak samo (w pełnej rozdzielczości, faza z położenia w belce)</td></tr>
           <tr><td class="k">Tekstura witrażu</td><td class="v">smugi co 7 px · biel 9-17% · 3 smugi koloru 30% · raster 16% · krycie = (1 - v)³</td><td>tylko na kolorowych szybach i tylko gdy szyba jest podświetlona: tekstura jest wyrenderowana raz na szybę i rysowana przez warstwę pulsu z kryciem jasnej fazy, więc pojawia się i znika razem ze światłem; na kurtynie i na każdej szybie w oknach tak samo</td></tr>
-          <tr><td class="k">Szyby witrażowe</td><td class="v"><span class="dot" style="background:#8a1044"></span><span class="dot" style="background:#b0165c"></span><span class="dot" style="background:#123a9e"></span><span class="dot" style="background:#1b4fc4"></span><span class="dot" style="background:#4a1a9e"></span><span class="dot" style="background:#0a5c78"></span> 62% na czerni 30% · czerń nad barwą 12% · 28% szyb (w belkach okien 38%)</td><td>wybór przez hasz przestrzenny środka szyby, więc skupiają się grupami zamiast przemieniać co drugą; tylko na nich raster 1,4 px co 6 px</td></tr>
+          <tr><td class="k">Szyby witrażowe</td><td class="v"><span class="dot" style="background:#5c1238"></span>#5c1238 magenta · <span class="dot" style="background:#142a66"></span>#142a66 błękit · 60% na czerni 30% · czerń nad barwą 16% · 28% szyb (w belkach okien 38%)</td><td>wybór przez hasz przestrzenny środka szyby, więc skupiają się grupami zamiast przemieniać co drugą; tylko na nich raster 1,4 px co 6 px</td></tr>
           <tr><td class="k">Przyciemnienie i światło</td><td class="v">czerń 30% · biel 8% → czerń 20%</td><td>czerń nad barwą obniża jasność; gradient od krawędzi ekranu do środka w każdej szybie osobno</td></tr>
           <tr><td class="k">Pole nachylenia</td><td class="v">s(x) = 0,30 · sgn(W/2 - x) · |u|^1,4</td><td>dx/dy każdego szwu pasa zależy tylko od miejsca na krawędzi: "\" przy lewym rogu, "/" przy prawym, pion pośrodku; dół lustrzany</td></tr>
           <tr><td class="k">Panel i jego szyba</td><td class="v">obrót 6-12°, 0° w środkowych 20% · margines 12/10 px</td><td>blok obrócony wokół górnego narożnika od strony środka ekranu, szyba to ten sam prostokąt z marginesem, bok zbiegający do krawędzi ekranu; sąsiad za blisko ogranicza kąt</td></tr>
@@ -882,7 +882,7 @@
   <section>
     <div class="sec-head"><h2>Cały ekran w czterech stanach</h2><div class="rule"></div></div>
     <p class="note">Zegar, pule rozpaczy, pasek akcji, tacka projektów, powiadomienia oraz wydarzenia procesu i morderstwa nie są osobnymi oknami. Są blokami na jednej tafli stłuczonego witrażu, która przylega do krawędzi ekranu i ustępuje w środku, żeby mapa została widoczna. Wszystkie cztery ekrany mają dokładnie 2560 na 1440 px, a wymiary i pozycje bloków pochodzą z modułu i Foundry: 16 px od boków i 22 px od góry, zegar 312 px z kampanią 18 px, pasek Despair wyśrodkowany na szerokość treści z czaszkami 1,1 rem i stepperem DMa 22 px, pasek stanu i tacka projektów 300 px, kontrolki sceny w dwóch kolumnach po 36 px, launchery 66 (messenger) i 52 px (ustawienia) jeden nad drugim 22 px od rogu, belka DMa 72 na 32 px pod zegarem, sidebar 48 px tylko u DMa (prawa kolumna stoi 64 px od brzegu także u gracza, żeby szkło miało jeden kształt), hotbar ukryty tak jak w module. Gracz widzi pule jako znaki zapytania, a DM zamiast akcji widzi, kto ma jeszcze ruch, tak jak dziś w module.</p>
-    <p class="note" style="margin-top:8px">Kurtyna ma jeden kształt. Szkło jest cięte dla jednego układu, tego z modułu (zegar, belka DMa, pula, pasek stanu, tacka, powiadomienie, launchery), z jednym ziarnem, więc na ekranie gracza i DMa krawędzie są identyczne co do piksela, a zmienia się tylko kolor i to, które szyby niosą treść; pusta szyba tacki albo belki DMa zostaje szybą. Kafelki Foundry (kontrolki sceny po lewej, zakładki sidebara po prawej, te drugie tylko u DMa, bo moduł chowa sidebar graczom) siedzą na szkle: pod kafelkami szkło jest ścięte do jednej prostej (26 px pochylenia na 330 px po lewej, na 150 px po prawej), a same kafelki są obrócone o kąt tej krawędzi wokół własnego środka, więc stoją do niej równolegle; najwęższe miejsce pasków ma 62-72 px, tyle, ile sidebar. Kształt szkła ma jedną zasadę zamiast losowości: pole nachylenia. Każdy szew pasa ma pochylenie zależne tylko od tego, gdzie dotyka krawędzi ekranu: przy lewym rogu pochyla się jak "\", przy prawym jak "/", pośrodku stoi prosto, więc wszystkie pęknięcia należą do jednego układu promieniującego z rogów. Szyba sekcji to prostokąt bloku z marginesem, obrócony zgodnie z polem i przycięty do ekranu: blok jest obrócony tym samym kątem, więc szyba obejmuje dokładnie jego objętość i nic więcej. Wypełniacz między sekcjami to pęk promieni interpolowanych między bokami sąsiednich szyb: komórka przy panelu trzyma jego głębokość, kolejne trzy schodzą długim ukosem do listwy 22-40 px, a w otwartym pasie cięcia są rzadkie. Dwie, trzy igły na ekran, dwa poprzeczne pierścienie od każdego rogu, co czwarty wewnętrzny kawałek wypadł. Boczne paski są szerokie pod górnym panelem, wąskie w połowie i szerokie nad dolnym, cięte dwiema rodzinami równoległych ukosów. Kilka pęknięć bez szkła biegnie przez ekran i gaśnie w drodze, omijając panele. Żadne dwa kawałki nigdy na siebie nie nachodzą, każdy jest wypukły, każdy blok leży w całości na własnej szybie, a górna krawędź jest pokryta bez przerw: strona sama to sprawdza po każdym rysowaniu.</p>
+    <p class="note" style="margin-top:8px">Kurtyna ma jeden kształt. Szkło jest cięte dla jednego układu, tego z modułu (zegar, belka DMa, pula, pasek stanu, tacka, powiadomienie, launchery), z jednym ziarnem, więc na ekranie gracza i DMa krawędzie są identyczne co do piksela, a zmienia się tylko kolor i to, które szyby niosą treść; pusta szyba tacki albo belki DMa zostaje szybą. Kafelki Foundry (kontrolki sceny po lewej, zakładki sidebara po prawej, te drugie tylko u DMa, bo moduł chowa sidebar graczom) siedzą na szkle: pod kafelkami szkło jest ścięte do jednej prostej (22 px pochylenia na ~370 px), a same kafelki są obrócone o kąt tej krawędzi wokół własnego środka, więc stoją do niej równolegle; każda grupa kafelków ma własny odłamek: dwa płytkie cięcia 14 px nad i pod nią, żadne inne cięcie przez niego nie przechodzi, a odłamek jest zawsze czarny; kontrolki sceny zaczynają się pod szybą zegara i belki DMa (320 px), zakładki sidebara pod szybą paska stanu (290 px); odłamki są cięte także na ekranie gracza, gdzie sidebara nie ma, żeby kształt kurtyny był jeden; najwęższe miejsce pasków ma 62-72 px, tyle, ile sidebar. Kształt szkła ma jedną zasadę zamiast losowości: pole nachylenia. Każdy szew pasa ma pochylenie zależne tylko od tego, gdzie dotyka krawędzi ekranu: przy lewym rogu pochyla się jak "\", przy prawym jak "/", pośrodku stoi prosto, więc wszystkie pęknięcia należą do jednego układu promieniującego z rogów. Szyba sekcji to prostokąt bloku z marginesem, obrócony zgodnie z polem i przycięty do ekranu: blok jest obrócony tym samym kątem, więc szyba obejmuje dokładnie jego objętość i nic więcej. Wypełniacz między sekcjami to pęk promieni interpolowanych między bokami sąsiednich szyb: komórka przy panelu trzyma jego głębokość, kolejne trzy schodzą długim ukosem do listwy 22-40 px, a w otwartym pasie cięcia są rzadkie. Dwie, trzy igły na ekran, dwa poprzeczne pierścienie od każdego rogu, co czwarty wewnętrzny kawałek wypadł. Boczne paski są szerokie pod górnym panelem, wąskie w połowie i szerokie nad dolnym, cięte dwiema rodzinami równoległych ukosów. Kilka pęknięć bez szkła biegnie przez ekran i gaśnie w drodze, omijając panele. Żadne dwa kawałki nigdy na siebie nie nachodzą, każdy jest wypukły, każdy blok leży w całości na własnej szybie, a górna krawędź jest pokryta bez przerw: strona sama to sprawdza po każdym rysowaniu.</p>
     <p class="note" style="margin-top:8px">Okna zostają dokładnie takie, jak w reszcie audytu: karta postaci, panel DMa, dialogi i popupy to prostokątne tabliczki z liquid glass. Kurtyna jest ramą, okno jest blatem.</p>
 
 
@@ -898,7 +898,7 @@
         <div class="block note-block" style="left:16px;bottom:100px;width:330px"><div class="k">The time of day is over</div><div class="t">Kaede found a <b>Tier 2 Cleaning Tool</b> in the Library. A trace was left behind.</div></div>
         <div class="block launch" style="right:22px;bottom:22px;width:66px;display:flex;flex-direction:column;align-items:center;gap:8px"><span class="ui ring" style="width:52px;height:52px"><span class="pixicon" style="width:22px;height:22px"><svg><use href="#px-gear"/></svg></span></span><span class="ui ring" style="width:66px;height:66px"><span class="pixicon" style="width:28px;height:28px"><svg><use href="#px-note"/></svg></span></span></div>
       </div>
-      <div class="f-ctl" style="top:240px"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="f-lat">Latency 65 ms<br>FPS 62</div>
+      <div class="f-ctl" style="top:320px"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="f-lat">Latency 65 ms<br>FPS 62</div>
       <div class="win" style="position:absolute;left:1008px;top:460px;width:544px;height:520px;z-index:3;--acc:var(--h-afternoon)"><div class="body msg" style="height:100%;box-sizing:border-box;display:flex;flex-direction:column"><div class="wtitle">Player A &middot; GM chat</div><div class="wsub">Player A &middot; Monokuma &middot; Monominie</div><div class="bubble">Looking at the desk. <span class="qq">Is the drawer locked?</span></div><div class="meta"><span class="chip acc"><span class="pixicon"><svg><use href="#px-observe"/></svg></span> Observe</span><span class="chip">Library</span><span class="chip hope">Instinct &middot; 14</span></div><div class="who" style="margin-top:14px">Monokuma <span class="cap">GM</span></div><div class="bubble" style="--acc:var(--gm-light)">Upupu. Locked, and the key is not in this room. <span class="qq">Search elsewhere, or break it and leave a trace.</span></div><div class="who" style="margin-top:14px">Player A</div><div class="bubble">The shelf behind the desk first, then.</div><div style="flex:1"></div><div class="foot" style="margin-top:10px"><span class="ui gm sm">Reply</span><span class="ui gm sm">Nothing there</span><span class="right"><span class="ui sm">Close</span></span></div></div></div>
     </div>
     </div></div>
@@ -915,7 +915,7 @@
         <div class="block note-block" style="left:16px;bottom:100px;width:330px"><div class="k">A body has been found</div><div class="t">Kaede, in the Library. Everyone may search, analyse and question until the GM closes it.</div></div>
         <div class="block launch" style="right:22px;bottom:22px;width:66px;display:flex;flex-direction:column;align-items:center;gap:8px"><span class="ui ring" style="width:52px;height:52px"><span class="pixicon" style="width:22px;height:22px"><svg><use href="#px-gear"/></svg></span></span><span class="ui ring" style="width:66px;height:66px"><span class="pixicon" style="width:28px;height:28px"><svg><use href="#px-note"/></svg></span></span></div>
       </div>
-      <div class="f-ctl" style="top:284px"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="f-side"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="f-lat">Latency 65 ms<br>FPS 62</div>
+      <div class="f-ctl" style="top:320px"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="f-side" style="top:290px"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="f-lat">Latency 65 ms<br>FPS 62</div>
       <div class="win" style="position:absolute;left:880px;top:440px;width:800px;z-index:3;--acc:var(--invest)"><div class="body"><div class="wtitle">Investigation</div><div class="wsub">Chapter 1 &middot; Who has what</div><div class="tabbar" style="margin-top:8px"><span class="ui tab on">Traces</span><span class="ui tab">Key Remnants</span><span class="ui tab">Final Key Remnants</span></div><table class="dt" style="margin-top:8px"><thead><tr><th>Student</th><th class="num">Truth Bullets</th><th class="num">Key Remnants</th><th>Really has</th><th></th></tr></thead><tbody><tr><td class="name">Player A</td><td class="num">2</td><td class="num">0</td><td><span class="chip evidence">Neutral x2</span></td><td class="act"><span class="ui evidence sm">Give</span></td></tr><tr><td class="name">Player B</td><td class="num">0</td><td class="num">1</td><td><span class="chip gm">Blackened</span></td><td class="act"><span class="ui gm sm">Give</span></td></tr><tr><td class="name">QA Witness</td><td class="num">3</td><td class="num">0</td><td><span class="chip evidence">Neutral</span></td><td class="act"><span class="ui evidence sm">Give</span></td></tr></tbody></table><hr class="sep"><div class="foot"><span class="ui sm">Sweep Truth Bullets</span><span class="ui evidence sm">Issue Autopsy Truth Bullet</span><span class="right"><span class="ui default sm">Save</span><span class="ui sm">Close</span></span></div></div></div>
     </div>
     </div></div>
@@ -931,7 +931,7 @@
         <div class="block note-block" style="left:16px;bottom:100px;width:330px;--acc:var(--despair)"><div class="k">Nonstop Debate</div><div class="t">The floor is open to everyone.</div><div class="k" style="margin-top:4px;color:var(--bone-dim)">Ballots 1 of 3</div></div>
         <div class="block launch" style="right:22px;bottom:22px;width:66px;display:flex;flex-direction:column;align-items:center;gap:8px"><span class="ui ring" style="width:52px;height:52px"><span class="pixicon" style="width:22px;height:22px"><svg><use href="#px-gear"/></svg></span></span><span class="ui ring" style="width:66px;height:66px"><span class="pixicon" style="width:28px;height:28px"><svg><use href="#px-note"/></svg></span></span></div>
       </div>
-      <div class="f-ctl" style="top:284px"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="f-side"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="f-lat">Latency 65 ms<br>FPS 62</div>
+      <div class="f-ctl" style="top:320px"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="f-side" style="top:290px"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="f-lat">Latency 65 ms<br>FPS 62</div>
       <div class="win" style="position:absolute;left:1090px;top:520px;width:380px;z-index:3;--acc:var(--despair)"><div class="body"><div class="wtitle">The vote</div><div class="wsub">3 ballots are out</div><hr class="sep"><div style="display:grid;gap:6px"><span class="ui row">Player A</span><span class="ui row on">Player B</span><span class="ui row">QA Witness</span></div><hr class="sep"><div class="foot"><span class="ui default sm">Close and count</span><span class="ui sm">Cancel</span></div></div></div>
     </div>
     </div></div>
@@ -946,7 +946,7 @@
         <div class="block note-block" style="left:16px;bottom:100px;width:330px;--acc:var(--despair)"><div class="k">The lights are out</div><div class="t">Stay where you are, or do what you came here to do.</div><div class="k" style="margin-top:4px;color:var(--bone-dim)">Direct Murder is the only action</div></div>
         <div class="block launch" style="right:22px;bottom:22px;width:66px;display:flex;flex-direction:column;align-items:center;gap:8px"><span class="ui ring" style="width:52px;height:52px"><span class="pixicon" style="width:22px;height:22px"><svg><use href="#px-gear"/></svg></span></span><span class="ui ring" style="width:66px;height:66px"><span class="pixicon" style="width:28px;height:28px"><svg><use href="#px-note"/></svg></span></span></div>
       </div>
-      <div class="f-ctl" style="top:240px"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="f-lat">Latency 65 ms<br>FPS 62</div>
+      <div class="f-ctl" style="top:320px"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="f-lat">Latency 65 ms<br>FPS 62</div>
       
     </div>
     </div></div>
@@ -1041,7 +1041,7 @@
   /* ---- the glass ------------------------------------------------------------
      Black glass. Colour lives in the seams and in a few stained cells; a panel's
      pane is always plain black so text reads the same everywhere. */
-  const STAIN = ["#8a1044", "#123a9e", "#4a1a9e", "#b0165c", "#1b4fc4", "#0a5c78"];
+  const STAIN = ["#5c1238", "#142a66"];
   const TONE = { hud: "#050409", rail: "#2a0a1e", three: "#08103a", tray: "#1a0838", "note-block": "#24061a", launch: "#050409" };
   const SHEAR = -13 * Math.PI / 180;
   const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
@@ -1310,11 +1310,21 @@
        ends on the far edge of the bottom corner pane, so the wall is covered without a
        gap; then one family of parallel cuts per half: a partition by construction */
     const tiles = {};
+    // Foundry's tiles, measured with their rotation off and in the curtain's own pixels (the page may be scaled)
+    const cv = host.querySelector(".curtain > canvas.sg, #drpg-curtain > canvas.sg");
+    const tileBox = (sel, fallback) => {
+      const t = host.querySelector(sel); if (!t || !t.offsetWidth || !cv) return fallback;   // the shard is cut even when the tiles are not shown: one shape everywhere
+      const keep = t.style.transform; t.style.transform = "";
+      const r = t.getBoundingClientRect(), o = cv.getBoundingClientRect(), s = o.width / W || 1;
+      t.style.transform = keep;
+      return { x0: (r.left - o.left) / s, y0: (r.top - o.top) / s, x1: (r.right - o.left) / s, y1: (r.bottom - o.top) / s };
+    };
     const lineY = (c, x) => { const [fx, fy] = c.far.p, [dx, dy] = c.far.d; return fy + (x - fx) * dy / dx; };
     for (const side of [0, 1]) {
       const wall = side ? W : 0, dir = side ? -1 : 1;
       const wTop = 136 + rnd() * 34, wMid = 62 + rnd() * 10, wBot = 116 + rnd() * 34;
-      const wCtl = wTop - 26, yCtl = side === 0 ? 600 : 420;   // one straight edge under the tiles: 26 px of lean over its run
+      const wCtl = wTop - 22, yCtl = 640;                     // one straight edge under the tiles: 22 px of lean over its run
+      const tb = tileBox(side ? ".f-side" : ".f-ctl", side ? { x0: W - 68, y0: 290, x1: W - 20, y1: 620 } : { x0: 20, y0: 320, x1: 92, y1: 608 });
       const cT = top.length ? top[side ? top.length - 1 : 0] : null, cB = bot.length ? bot[side ? bot.length - 1 : 0] : null;
       const hugT = cT && (side ? cT.hugR : cT.hugL), hugB = cB && (side ? cB.hugR : cB.hugL);
       let yTop = 0, yBot = H;
@@ -1334,9 +1344,15 @@
       let lowerQ = clipRect([Wm, M, [wall + dir * wBot, yB0], [wall, yB0]], W, H);
       if (hugT && upperQ) { const [fx, fy] = cT.far.p; upperQ = clipHP(upperQ, fx, fy, -cT.sn, cT.cs); }
       if (hugB && lowerQ) { const [fx, fy] = cB.far.p; lowerQ = clipHP(lowerQ, fx, fy, cB.sn, -cB.cs); }
-      const cutFamily = (poly, slope, y0, y1) => {
+      const cutFamily = (poly, slope, y0, y1, box) => {
         if (!poly) return;
         let pieces = [poly];
+        if (box) {   // two shallow cuts just above and below the tiles; the piece between them is theirs alone
+          for (const [yy, tilt] of [[box.y0 - 14, -0.10], [box.y1 + 14, 0.10]]) pieces = pieces.flatMap(pp => split(pp, wall, yy, -tilt, dir).filter(Boolean));
+          const cx = (box.x0 + box.x1) / 2, cy = (box.y0 + box.y1) / 2;
+          const k = pieces.findIndex(pp => inside(pp, cx, cy));
+          if (k >= 0) { const shard = push(pieces.splice(k, 1)[0], null, "strip", 9); if (shard) shard.plain = true; }
+        }
         let y = y0 + (y0 === yTop ? 320 + rnd() * 160 : 120 + rnd() * 200);
         while (y < y1 - 60) {
           const nx = 1, ny = -slope;                 // line x = wall + slope*(yy - y): normal (1, -slope)
@@ -1345,7 +1361,7 @@
         }
         for (const pp of pieces) push(pp, null, "strip", 9);
       };
-      cutFamily(upperQ, dir * (0.28 + rnd() * 0.12), yTop, yMid);
+      cutFamily(upperQ, dir * (0.28 + rnd() * 0.12), yTop, yMid, tb);
       cutFamily(lowerQ, -dir * (0.28 + rnd() * 0.12), yMid, yBot);
     }
 
@@ -1412,7 +1428,7 @@
       const k = p.tone && TONE[p.tone] ? p.tone : null;
       const bb = bbox(p.poly);
       const hsh = hash((bb.x0 + bb.x1) / 2, (bb.y0 + bb.y1) / 2);
-      const stained = !p.content && hsh > (p.kind === "window" ? 0.62 : 0.72);
+      const stained = !p.content && !p.plain && hsh > (p.kind === "window" ? 0.62 : 0.72);
       ctx.save(); path(ctx, p.poly); ctx.clip();
       // black glass first, then a little colour: a panel keeps its tone, most filler a faint tint, one in five stained
       const lum = hash((bb.x0 + bb.x1) / 2 + 17, (bb.y0 + bb.y1) / 2 - 31);
@@ -1420,11 +1436,11 @@
       ctx.fillStyle = p.content ? (k ? TONE[k] : "#050409") : (lum > 0.5 ? "#0c0a14" : "#0a0810");
       ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
       if (!p.content) {
-        ctx.globalAlpha = stained ? 0.62 : 0.05 + lum * 0.07;
+        ctx.globalAlpha = stained ? 0.60 : 0.05 + lum * 0.07;
         ctx.fillStyle = STAIN[Math.floor(hsh * 1000) % STAIN.length];
         ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
       }
-      ctx.globalAlpha = 1; ctx.fillStyle = stained ? "rgba(0,0,0,0.12)" : "rgba(0,0,0,0.30)"; ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
+      ctx.globalAlpha = 1; ctx.fillStyle = stained ? "rgba(0,0,0,0.16)" : "rgba(0,0,0,0.30)"; ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
       const down = (bb.y0 + bb.y1) / 2 < H / 2;
       const g = ctx.createLinearGradient(0, down ? bb.y0 : bb.y1, 0, down ? bb.y1 : bb.y0);
       g.addColorStop(0, "rgba(255,255,255,0.08)"); g.addColorStop(0.55, "rgba(255,255,255,0.01)"); g.addColorStop(1, "rgba(0,0,0,0.20)");
@@ -1441,7 +1457,7 @@
         const cx = (bb.x0 + bb.x1) / 2, cy = (bb.y0 + bb.y1) / 2, span = Math.hypot(tw, th);
         g2.save(); g2.translate(cx, cy); g2.rotate(SHEAR + Math.PI / 2 + (hsh - 0.5) * 0.3);
         for (let i = -span; i < span; i += 7) { g2.fillStyle = "rgba(255,255,255," + (0.09 + (Math.round(i / 7) % 3 === 0 ? 0.08 : 0)) + ")"; g2.fillRect(i, -span, 1.2, 2 * span); }
-        for (let j = 0; j < 3; j++) { const x = (hash(cx + j * 31, cy - j * 17) - 0.5) * span * 0.9; g2.fillStyle = rgba(acc, 0.30); g2.fillRect(x, -span, 2.2 + j, 2 * span); g2.fillStyle = "rgba(255,255,255,0.26)"; g2.fillRect(x + 3 + j, -span, 0.8, 2 * span); }
+        for (let j = 0; j < 3; j++) { const x = (hash(cx + j * 31, cy - j * 17) - 0.5) * span * 0.9; g2.fillStyle = rgba(acc, 0.22); g2.fillRect(x, -span, 2.2 + j, 2 * span); g2.fillStyle = "rgba(255,255,255,0.26)"; g2.fillRect(x + 3 + j, -span, 0.8, 2 * span); }
         g2.restore();
         g2.fillStyle = rgba(acc, 0.16);
         for (let y = bb.y0 + 3; y < bb.y1; y += 6) for (let x = bb.x0 + 3 + (Math.floor(y / 6) % 2) * 3; x < bb.x1; x += 6) g2.fillRect(x, y, 1.2, 1.2);

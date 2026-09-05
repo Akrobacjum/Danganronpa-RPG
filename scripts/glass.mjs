@@ -57,7 +57,7 @@ function moduleLayout(W, H) {
   /* ---- the glass ------------------------------------------------------------
      Black glass. Colour lives in the seams and in a few stained cells; a panel's
      pane is always plain black so text reads the same everywhere. */
-  const STAIN = ["#8a1044", "#123a9e", "#4a1a9e", "#b0165c", "#1b4fc4", "#0a5c78"];
+  const STAIN = ["#5c1238", "#142a66"];
   const TONE = { hud: "#050409", rail: "#2a0a1e", three: "#08103a", tray: "#1a0838", "note-block": "#24061a", launch: "#050409" };
   const SHEAR = -13 * Math.PI / 180;
   const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
@@ -315,11 +315,21 @@ function moduleLayout(W, H) {
        ends on the far edge of the bottom corner pane, so the wall is covered without a
        gap; then one family of parallel cuts per half: a partition by construction */
     const tiles = {};
+    // Foundry's tiles, measured with their rotation off and in the curtain's own pixels (the page may be scaled)
+    const cv = host.querySelector(".curtain > canvas.sg, #drpg-curtain > canvas.sg");
+    const tileBox = (sel, fallback) => {
+      const t = host.querySelector(sel); if (!t || !t.offsetWidth || !cv) return fallback;   // the shard is cut even when the tiles are not shown: one shape everywhere
+      const keep = t.style.transform; t.style.transform = "";
+      const r = t.getBoundingClientRect(), o = cv.getBoundingClientRect(), s = o.width / W || 1;
+      t.style.transform = keep;
+      return { x0: (r.left - o.left) / s, y0: (r.top - o.top) / s, x1: (r.right - o.left) / s, y1: (r.bottom - o.top) / s };
+    };
     const lineY = (c, x) => { const [fx, fy] = c.far.p, [dx, dy] = c.far.d; return fy + (x - fx) * dy / dx; };
     for (const side of [0, 1]) {
       const wall = side ? W : 0, dir = side ? -1 : 1;
       const wTop = 136 + rnd() * 34, wMid = 62 + rnd() * 10, wBot = 116 + rnd() * 34;
-      const wCtl = wTop - 26, yCtl = side === 0 ? 600 : 420;   // one straight edge under the tiles: 26 px of lean over its run
+      const wCtl = wTop - 22, yCtl = 640;                     // one straight edge under the tiles: 22 px of lean over its run
+      const tb = tileBox(side ? ".f-side" : ".f-ctl", side ? { x0: W - 68, y0: 290, x1: W - 20, y1: 620 } : { x0: 20, y0: 320, x1: 92, y1: 608 });
       const cT = top.length ? top[side ? top.length - 1 : 0] : null, cB = bot.length ? bot[side ? bot.length - 1 : 0] : null;
       const hugT = cT && (side ? cT.hugR : cT.hugL), hugB = cB && (side ? cB.hugR : cB.hugL);
       let yTop = 0, yBot = H;
@@ -339,9 +349,15 @@ function moduleLayout(W, H) {
       let lowerQ = clipRect([Wm, M, [wall + dir * wBot, yB0], [wall, yB0]], W, H);
       if (hugT && upperQ) { const [fx, fy] = cT.far.p; upperQ = clipHP(upperQ, fx, fy, -cT.sn, cT.cs); }
       if (hugB && lowerQ) { const [fx, fy] = cB.far.p; lowerQ = clipHP(lowerQ, fx, fy, cB.sn, -cB.cs); }
-      const cutFamily = (poly, slope, y0, y1) => {
+      const cutFamily = (poly, slope, y0, y1, box) => {
         if (!poly) return;
         let pieces = [poly];
+        if (box) {   // two shallow cuts just above and below the tiles; the piece between them is theirs alone
+          for (const [yy, tilt] of [[box.y0 - 14, -0.10], [box.y1 + 14, 0.10]]) pieces = pieces.flatMap(pp => split(pp, wall, yy, -tilt, dir).filter(Boolean));
+          const cx = (box.x0 + box.x1) / 2, cy = (box.y0 + box.y1) / 2;
+          const k = pieces.findIndex(pp => inside(pp, cx, cy));
+          if (k >= 0) { const shard = push(pieces.splice(k, 1)[0], null, "strip", 9); if (shard) shard.plain = true; }
+        }
         let y = y0 + (y0 === yTop ? 320 + rnd() * 160 : 120 + rnd() * 200);
         while (y < y1 - 60) {
           const nx = 1, ny = -slope;                 // line x = wall + slope*(yy - y): normal (1, -slope)
@@ -350,7 +366,7 @@ function moduleLayout(W, H) {
         }
         for (const pp of pieces) push(pp, null, "strip", 9);
       };
-      cutFamily(upperQ, dir * (0.28 + rnd() * 0.12), yTop, yMid);
+      cutFamily(upperQ, dir * (0.28 + rnd() * 0.12), yTop, yMid, tb);
       cutFamily(lowerQ, -dir * (0.28 + rnd() * 0.12), yMid, yBot);
     }
 
@@ -417,7 +433,7 @@ function moduleLayout(W, H) {
       const k = p.tone && TONE[p.tone] ? p.tone : null;
       const bb = bbox(p.poly);
       const hsh = hash((bb.x0 + bb.x1) / 2, (bb.y0 + bb.y1) / 2);
-      const stained = !p.content && hsh > (p.kind === "window" ? 0.62 : 0.72);
+      const stained = !p.content && !p.plain && hsh > (p.kind === "window" ? 0.62 : 0.72);
       ctx.save(); path(ctx, p.poly); ctx.clip();
       // black glass first, then a little colour: a panel keeps its tone, most filler a faint tint, one in five stained
       const lum = hash((bb.x0 + bb.x1) / 2 + 17, (bb.y0 + bb.y1) / 2 - 31);
@@ -425,11 +441,11 @@ function moduleLayout(W, H) {
       ctx.fillStyle = p.content ? (k ? TONE[k] : "#050409") : (lum > 0.5 ? "#0c0a14" : "#0a0810");
       ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
       if (!p.content) {
-        ctx.globalAlpha = stained ? 0.62 : 0.05 + lum * 0.07;
+        ctx.globalAlpha = stained ? 0.60 : 0.05 + lum * 0.07;
         ctx.fillStyle = STAIN[Math.floor(hsh * 1000) % STAIN.length];
         ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
       }
-      ctx.globalAlpha = 1; ctx.fillStyle = stained ? "rgba(0,0,0,0.12)" : "rgba(0,0,0,0.30)"; ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
+      ctx.globalAlpha = 1; ctx.fillStyle = stained ? "rgba(0,0,0,0.16)" : "rgba(0,0,0,0.30)"; ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
       const down = (bb.y0 + bb.y1) / 2 < H / 2;
       const g = ctx.createLinearGradient(0, down ? bb.y0 : bb.y1, 0, down ? bb.y1 : bb.y0);
       g.addColorStop(0, "rgba(255,255,255,0.08)"); g.addColorStop(0.55, "rgba(255,255,255,0.01)"); g.addColorStop(1, "rgba(0,0,0,0.20)");
@@ -446,7 +462,7 @@ function moduleLayout(W, H) {
         const cx = (bb.x0 + bb.x1) / 2, cy = (bb.y0 + bb.y1) / 2, span = Math.hypot(tw, th);
         g2.save(); g2.translate(cx, cy); g2.rotate(SHEAR + Math.PI / 2 + (hsh - 0.5) * 0.3);
         for (let i = -span; i < span; i += 7) { g2.fillStyle = "rgba(255,255,255," + (0.09 + (Math.round(i / 7) % 3 === 0 ? 0.08 : 0)) + ")"; g2.fillRect(i, -span, 1.2, 2 * span); }
-        for (let j = 0; j < 3; j++) { const x = (hash(cx + j * 31, cy - j * 17) - 0.5) * span * 0.9; g2.fillStyle = rgba(acc, 0.30); g2.fillRect(x, -span, 2.2 + j, 2 * span); g2.fillStyle = "rgba(255,255,255,0.26)"; g2.fillRect(x + 3 + j, -span, 0.8, 2 * span); }
+        for (let j = 0; j < 3; j++) { const x = (hash(cx + j * 31, cy - j * 17) - 0.5) * span * 0.9; g2.fillStyle = rgba(acc, 0.22); g2.fillRect(x, -span, 2.2 + j, 2 * span); g2.fillStyle = "rgba(255,255,255,0.26)"; g2.fillRect(x + 3 + j, -span, 0.8, 2 * span); }
         g2.restore();
         g2.fillStyle = rgba(acc, 0.16);
         for (let y = bb.y0 + 3; y < bb.y1; y += 6) for (let x = bb.x0 + 3 + (Math.floor(y / 6) % 2) * 3; x < bb.x1; x += 6) g2.fillRect(x, y, 1.2, 1.2);
