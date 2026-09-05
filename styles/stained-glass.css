@@ -92,9 +92,17 @@ body.drpg-theme-stained-glass[data-drpg-phase="classTrial"] { --drpg-glass-accen
 body.drpg-theme-stained-glass[data-drpg-phase="eclipse"] { --drpg-glass-accent: var(--drpg-sg-eclipse); }
 body.drpg-theme-stained-glass.drpg-eclipse { --drpg-glass-accent: var(--drpg-sg-eclipse); }
 
-/* ---- the UI scale: one factor on the interface, never on the canvas -------- */
-body.drpg-theme-stained-glass #interface {
-    zoom: var(--drpg-ui-scale, 1);
+/* ---- the UI scale: a factor on the theme's own sizes, never `zoom` ---------
+   It was `zoom: var(--drpg-ui-scale)` on `#interface`, which scaled the wrong set of things:
+   module windows and dialogs live on `document.body`, not inside `#interface`, and so does
+   the curtain, so the one thing that DID scale was the chrome the glass is measured around -
+   and Foundry then saved window positions in pixels that were not the ones they were drawn
+   in. The factor multiplies the theme's own type and block sizes instead (every `font-size`
+   below is written `max(var(--drpg-sg-floor), calc(N px * var(--drpg-ui-scale)))`), so 140 %
+   makes the interface bigger and 80 % never takes a label under the floor. The curtain needs
+   no special case: the blocks change size, the drift watch sees it, the glass is recut. */
+body.drpg-theme-stained-glass {
+    --drpg-sg-scale: var(--drpg-ui-scale, 1);
 }
 
 /* ---- the curtain layer ----------------------------------------------------
@@ -139,14 +147,14 @@ body.drpg-theme-stained-glass #drpg-hud .drpg-hud-campaign {
     text-transform: none;
     letter-spacing: 0;
     font-weight: 400;
-    font-size: 18px;
+    font-size: max(var(--drpg-sg-floor), calc(18px * var(--drpg-sg-scale)));
 }
 body.drpg-theme-stained-glass .window-app .window-title,
 body.drpg-theme-stained-glass .application .window-title {
     font-family: var(--drpg-font-title);
     text-transform: none;
     letter-spacing: 0;
-    font-size: 21px;
+    font-size: max(var(--drpg-sg-floor), calc(21px * var(--drpg-sg-scale)));
 }
 
 /* ---- Foundry's own tiles, cut like everything else and sitting on the glass --
@@ -334,13 +342,13 @@ body.drpg-theme-stained-glass .drpg-event[data-kind="incident"] { --acc: var(--d
 body.drpg-theme-stained-glass .drpg-event[data-kind="motive"] { --acc: var(--drpg-sg-hope); }
 body.drpg-theme-stained-glass .drpg-event[data-kind="trial"] { --acc: var(--drpg-sg-despair); }
 body.drpg-theme-stained-glass .drpg-event-kicker {
-    font-size: 11px;
+    font-size: max(var(--drpg-sg-floor), calc(11px * var(--drpg-sg-scale)));
     letter-spacing: 0.12em;
     color: var(--drpg-sg-bone-dim);
 }
 body.drpg-theme-stained-glass .drpg-event-title {
     font-family: var(--drpg-font-title);
-    font-size: 19px;
+    font-size: max(var(--drpg-sg-floor), calc(19px * var(--drpg-sg-scale)));
     line-height: 1.15;
     text-transform: none;
     letter-spacing: 0;
@@ -348,12 +356,12 @@ body.drpg-theme-stained-glass .drpg-event-title {
     margin-top: 2px;
 }
 body.drpg-theme-stained-glass .drpg-event-sub {
-    font-size: 14px;
+    font-size: max(var(--drpg-sg-floor), calc(14px * var(--drpg-sg-scale)));
     color: var(--drpg-sg-bone);
     margin-top: 2px;
 }
 body.drpg-theme-stained-glass .drpg-event-meta {
-    font-size: 11px;
+    font-size: max(var(--drpg-sg-floor), calc(11px * var(--drpg-sg-scale)));
     color: var(--drpg-sg-bone-dim);
     margin-top: 5px;
     padding-top: 5px;
@@ -406,7 +414,7 @@ body.drpg-theme-stained-glass .application:not(.drpg-panel) .window-header {
     background: rgba(5, 4, 9, 0.7);
     border-bottom: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 35%, transparent);
 }
-.drpg-look-report code { font-size: 11px; opacity: .8; word-break: break-word; }
+.drpg-look-report code { font-size: max(var(--drpg-sg-floor), calc(11px * var(--drpg-sg-scale))); opacity: .8; word-break: break-word; }
 
 /* ==========================================================================
    Milestone 4: the brush on everything clickable, one field, one table, the
@@ -549,7 +557,7 @@ body.drpg-theme-stained-glass .drpg-panel table tr:first-child th {
     font-weight: 400;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    font-size: 12px;
+    font-size: max(var(--drpg-sg-floor), calc(12px * var(--drpg-sg-scale)));
     color: var(--drpg-glass-accent);
     background: rgba(7, 7, 10, 0.5);
     border-bottom: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 50%, transparent);
@@ -585,7 +593,7 @@ body.drpg-theme-stained-glass .drpg-hud-ticker {
     pointer-events: none;
     z-index: 0;
     font-family: var(--drpg-font-chrome);
-    font-size: 32px;
+    font-size: max(var(--drpg-sg-floor), calc(32px * var(--drpg-sg-scale)));
     /* 1.0 cut the outline's caps top and bottom; the box is centred, so it can afford it */
     line-height: 1.25;
     letter-spacing: 0.06em;
@@ -663,7 +671,7 @@ body.drpg-theme-stained-glass #ui-right-column-1 > #countdowns {
     box-sizing: border-box;
 }
 body.drpg-theme-stained-glass #countdowns .countdowns-header {
-    font-size: 15px;
+    font-size: max(var(--drpg-sg-floor), calc(15px * var(--drpg-sg-scale)));
     letter-spacing: 0.1em;
 }
 
@@ -678,20 +686,20 @@ body.drpg-theme-stained-glass #ui-right-column-1 {
 }
 body.drpg-theme-stained-glass #ui-right-column-1 > #drpg-player-status,
 body.drpg-theme-stained-glass #ui-right-column-1 > #countdowns {
-    width: 280px;
-    max-width: 280px;
+    width: calc(280px * var(--drpg-sg-scale));
+    max-width: calc(280px * var(--drpg-sg-scale));
 }
 
 /* 3. the clock reads top-down: campaign (title face), chapter and day (dim), the phase (state
    colour, tracked), the hour (Bone), how long ago (state colour, small), the room (dim, small) */
 body.drpg-theme-stained-glass #drpg-hud .drpg-hud-chapter,
 body.drpg-theme-stained-glass #drpg-hud .drpg-hud-day {
-    font-size: 12px;
+    font-size: max(var(--drpg-sg-floor), calc(12px * var(--drpg-sg-scale)));
     letter-spacing: 0.12em;
     color: var(--drpg-sg-bone-dim);
 }
 body.drpg-theme-stained-glass #drpg-hud .drpg-hud-phase {
-    font-size: 15px;
+    font-size: max(var(--drpg-sg-floor), calc(15px * var(--drpg-sg-scale)));
     letter-spacing: 0.14em;
     color: var(--drpg-glass-accent);
     margin-top: 2px;
@@ -700,13 +708,13 @@ body.drpg-theme-stained-glass #drpg-hud .drpg-hud-time {
     color: var(--drpg-sg-bone);
 }
 body.drpg-theme-stained-glass #drpg-hud .drpg-hud-elapsed {
-    font-size: 11px;
+    font-size: max(var(--drpg-sg-floor), calc(11px * var(--drpg-sg-scale)));
     letter-spacing: 0.12em;
     color: color-mix(in srgb, var(--drpg-glass-accent) 80%, var(--drpg-sg-bone));
     opacity: 1;
 }
 body.drpg-theme-stained-glass #drpg-hud .drpg-hud-room {
-    font-size: 11px;
+    font-size: max(var(--drpg-sg-floor), calc(11px * var(--drpg-sg-scale)));
     letter-spacing: 0.1em;
     color: var(--drpg-sg-bone-dim);
     margin-top: 5px;
@@ -794,17 +802,17 @@ body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):is(:di
 }
 body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button) .drpg-action-icon {
     color: var(--brush);
-    font-size: 22px;
+    font-size: max(var(--drpg-sg-floor), calc(22px * var(--drpg-sg-scale)));
     width: 1.15em;
     height: 1.15em;
     margin-bottom: 2px;
 }
 body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button) .drpg-action-name {
-    font-size: 12px;
+    font-size: max(var(--drpg-sg-floor), calc(12px * var(--drpg-sg-scale)));
     line-height: 1.1;
 }
 body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button) .drpg-action-cost {
-    font-size: 11px;
+    font-size: max(var(--drpg-sg-floor), calc(11px * var(--drpg-sg-scale)));
     letter-spacing: 0.08em;
     color: var(--drpg-sg-bone-dim);
 }
@@ -827,7 +835,7 @@ body.drpg-theme-stained-glass .drpg-panel h3,
 body.drpg-theme-stained-glass .drpg-panel h4 {
     font-family: var(--drpg-font-chrome);
     font-weight: 400;
-    font-size: 13px;
+    font-size: max(var(--drpg-sg-floor), calc(13px * var(--drpg-sg-scale)));
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--drpg-glass-accent);
@@ -836,7 +844,7 @@ body.drpg-theme-stained-glass .drpg-panel h4 {
 }
 body.drpg-theme-stained-glass .drpg-panel .window-content {
     font-family: var(--drpg-font-prose);
-    font-size: 17px;
+    font-size: max(var(--drpg-sg-floor), calc(17px * var(--drpg-sg-scale)));
     line-height: 1.3;
 }
 body.drpg-theme-stained-glass .drpg-panel label,
@@ -893,7 +901,7 @@ body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-
     isolation: isolate;
     padding: 3px 12px;
     font-family: var(--drpg-font-chrome);
-    font-size: 15px;
+    font-size: max(var(--drpg-sg-floor), calc(15px * var(--drpg-sg-scale)));
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--drpg-sg-ink) !important;
@@ -952,7 +960,7 @@ body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet 
     font-family: var(--drpg-font-chrome);
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    font-size: 12px;
+    font-size: max(var(--drpg-sg-floor), calc(12px * var(--drpg-sg-scale)));
     background: color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-sg-gm-light)) 85%, #000) !important;
     color: var(--drpg-sg-ink) !important;
     border: 0 !important;
@@ -993,7 +1001,7 @@ body.drpg-theme-stained-glass .application:not(.drpg-panel) .window-content :is(
 }
 body.drpg-theme-stained-glass .application:not(.drpg-panel) .window-content .form-group > label {
     font-family: var(--drpg-font-chrome);
-    font-size: 13px;
+    font-size: max(var(--drpg-sg-floor), calc(13px * var(--drpg-sg-scale)));
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--drpg-sg-bone-dim);
@@ -1037,7 +1045,7 @@ body.drpg-theme-stained-glass .application.sheet.actor .character-header-sheet .
 }
 /* tile labels fit a narrow sheet: no tracking, wrapping allowed, the cost one size down */
 body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button) .drpg-action-name {
-    font-size: 11px;
+    font-size: max(var(--drpg-sg-floor), calc(11px * var(--drpg-sg-scale)));
     letter-spacing: 0;
     white-space: normal;
     overflow-wrap: anywhere;
@@ -1070,7 +1078,7 @@ body.drpg-theme-stained-glass .drpg-messenger .window-header > canvas { position
 body.drpg-theme-stained-glass .drpg-messenger .window-header > :not(canvas) { position: relative; z-index: 1; }
 body.drpg-theme-stained-glass .drpg-messenger .window-header .window-title {
     font-family: var(--drpg-font-title);
-    font-size: 21px;
+    font-size: max(var(--drpg-sg-floor), calc(21px * var(--drpg-sg-scale)));
     text-transform: none;
     letter-spacing: 0;
     color: var(--drpg-sg-bone) !important;
@@ -1091,7 +1099,7 @@ body.drpg-theme-stained-glass .drpg-messenger-tabs button {
     isolation: isolate;
     padding: 3px 12px;
     font-family: var(--drpg-font-chrome);
-    font-size: 15px;
+    font-size: max(var(--drpg-sg-floor), calc(15px * var(--drpg-sg-scale)));
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--drpg-sg-ink) !important;
@@ -1119,7 +1127,7 @@ body.drpg-theme-stained-glass .drpg-messenger-bubble {
 }
 body.drpg-theme-stained-glass .drpg-messenger-bubble.gm { border-color: color-mix(in srgb, var(--drpg-sg-gm-light) 55%, transparent); }
 body.drpg-theme-stained-glass .drpg-messenger-bubble.mine { border-color: color-mix(in srgb, var(--drpg-glass-accent) 55%, transparent); }
-body.drpg-theme-stained-glass .drpg-messenger-author { font-family: var(--drpg-font-title); text-transform: none; letter-spacing: 0; font-size: 15px; }
+body.drpg-theme-stained-glass .drpg-messenger-author { font-family: var(--drpg-font-title); text-transform: none; letter-spacing: 0; font-size: max(var(--drpg-sg-floor), calc(15px * var(--drpg-sg-scale))); }
 body.drpg-theme-stained-glass .drpg-messenger-input textarea {
     font-family: var(--drpg-font-prose);
     background: rgba(7, 7, 10, 0.55);
@@ -1147,13 +1155,13 @@ body.drpg-theme-stained-glass .drpg-popup-title {
     font-family: var(--drpg-font-chrome);
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    font-size: 14px;
+    font-size: max(var(--drpg-sg-floor), calc(14px * var(--drpg-sg-scale)));
     background: var(--acc);
     color: var(--drpg-sg-ink);
     clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
     padding-right: 20px;
 }
-body.drpg-theme-stained-glass .drpg-popup-body { font-family: var(--drpg-font-prose); font-size: 17px; line-height: 1.3; color: var(--drpg-sg-bone); }
+body.drpg-theme-stained-glass .drpg-popup-body { font-family: var(--drpg-font-prose); font-size: max(var(--drpg-sg-floor), calc(17px * var(--drpg-sg-scale))); line-height: 1.3; color: var(--drpg-sg-bone); }
 body.drpg-theme-stained-glass .drpg-popup-body b { color: var(--acc); }
 
 /* ==========================================================================
@@ -1172,12 +1180,12 @@ body.drpg-theme-stained-glass .application.sheet.actor section[data-application-
 }
 body.drpg-theme-stained-glass .application.sheet.actor section[data-application-part] :is(.editor-content, .editor-content *, .description, .description *) {
     font-family: var(--drpg-font-prose) !important;
-    font-size: 16px;
+    font-size: max(var(--drpg-sg-floor), calc(16px * var(--drpg-sg-scale)));
     line-height: 1.3;
 }
 body.drpg-theme-stained-glass .application.sheet.actor section[data-application-part="inventory"] :is(.items-section > .title, .inventory-section > .title, fieldset > legend, .section-header, h3, h4) {
     font-weight: 400;
-    font-size: 12px;
+    font-size: max(var(--drpg-sg-floor), calc(12px * var(--drpg-sg-scale)));
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: var(--drpg-glass-accent) !important;
@@ -1199,7 +1207,7 @@ body.drpg-theme-stained-glass .application.sheet.actor section[data-application-
 body.drpg-theme-stained-glass .character-header-sheet .character-traits .trait .trait-name,
 body.drpg-theme-stained-glass .character-header-sheet .character-traits .trait .trait-name span {
     font-family: var(--drpg-font-chrome);
-    font-size: 11px;
+    font-size: max(var(--drpg-sg-floor), calc(11px * var(--drpg-sg-scale)));
     text-transform: uppercase;
     letter-spacing: 0.1em;
     background: rgba(7, 7, 10, 0.6) !important;
@@ -1306,7 +1314,7 @@ body.drpg-theme-stained-glass :is(.drpg-dashboard-tabs .drpg-dashboard-tab, .drp
     isolation: isolate;
     padding: 4px 12px;
     font-family: var(--drpg-font-chrome);
-    font-size: 15px;
+    font-size: max(var(--drpg-sg-floor), calc(15px * var(--drpg-sg-scale)));
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--drpg-sg-ink) !important;
@@ -1406,7 +1414,7 @@ body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-section > summary {
     padding: 5px 10px 5px 16px !important;
     margin: 6px 0 0;
     font-family: var(--drpg-font-chrome);
-    font-size: 15px !important;
+    font-size: max(var(--drpg-sg-floor), calc(15px * var(--drpg-sg-scale))) !important;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--drpg-sg-ink) !important;
@@ -1448,7 +1456,7 @@ body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-section > .drpg-gmp-grid 
    face; a stamp (role, tier, GM only) a plate in its meaning's colour with Ink text. */
 body.drpg-theme-stained-glass :is(.drpg-tb-badge, .drpg-sfx-badge, .drpg-duality-badge, .drpg-role-label) {
     font-family: var(--drpg-font-chrome);
-    font-size: 12px;
+    font-size: max(var(--drpg-sg-floor), calc(12px * var(--drpg-sg-scale)));
     letter-spacing: 0.06em;
     text-transform: uppercase;
     line-height: 1.1;
@@ -1519,7 +1527,7 @@ body.drpg-theme-stained-glass #drpg-popups {
     right: auto;
     transform: none;
     align-items: stretch;
-    width: 330px;
+    width: calc(330px * var(--drpg-sg-scale));
     max-width: calc(100vw - 32px);
 }
 body.drpg-theme-stained-glass #drpg-popups .drpg-popup {
@@ -1704,7 +1712,7 @@ body.drpg-theme-stained-glass[data-drpg-phase="eclipse"] .drpg-hud-phase-glyph {
    355 px, not the rail's 412: the audit page sizes it to the pool bar on a PLAYER's screen,
    where the rail carries no steppers. The glyph sits above the kicker, centred, as drawn. */
 body.drpg-theme-stained-glass #drpg-events {
-    width: 355px;
+    width: calc(355px * var(--drpg-sg-scale));
 }
 body.drpg-theme-stained-glass .drpg-event-glyph {
     display: block;

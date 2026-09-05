@@ -292,7 +292,7 @@
       },
       "uiScale": {
         "name": "Interface scale",
-        "hint": "One factor on the whole interface, 80% to 140%. The map is never scaled. This client only."
+        "hint": "One factor on the module's own type and panels, 80% to 140%. The map, Foundry's own windows and the 11px floor are never scaled. This client only."
       },
       "debug": {
         "name": "Verbose console logging",
