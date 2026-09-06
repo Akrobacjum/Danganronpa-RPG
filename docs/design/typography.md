@@ -48,3 +48,12 @@ in `stained-glass.css`, so the two faces cannot share a client: `pixelFontOn()`
 in `settings.mjs` returns true only under Legacy, and the switch is shown in
 the Look window only there. See `fonts/README.md` for the files and the
 licences.
+
+## The screen's own factor
+
+Every size above is for 2560 x 1440 at 100 %. Since 1.2.35 `applyTheme()`
+multiplies the slider by the screen's factor - the short side against 1440p,
+between 0.7 and 1 - so a 1280 x 800 tablet draws the panes at 70 % of the
+monitor's and a 1080p screen at 75 %, while the 11 px floor keeps the type
+readable at every factor. The Look window shows both numbers. Streaks and
+veins on a coloured pane run parallel to the pane's longest edge.

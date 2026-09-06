@@ -14,7 +14,7 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
+import { SETTINGS, getSetting, setSetting, autoScale, effectiveScale } from "./settings.mjs";
 import { alreadyOpen } from "./live.mjs";
 import { error } from "./utils.mjs";
 
@@ -53,6 +53,7 @@ function lookFieldset() {
         <label><span>${t("uiScale")}</span>
             <input type="range" name="look:uiScale" min="0.8" max="1.4" step="0.05" value="${scale}">
             <output>${Math.round(scale * 100)}%</output></label>
+        <p class="notes" data-drpg-scale-note>${game.i18n.format("DRPG.Look.uiScaleAuto", { auto: Math.round(autoScale() * 100), total: Math.round(effectiveScale() * 100), w: innerWidth, h: innerHeight })}</p>
         ${glassOnly}${always}
         <p class="notes">${t("note")}</p>
         <p class="notes drpg-look-report"><code data-glass-report>-</code> <button type="button" data-action="drpg-redraw">${t("redraw")}</button></p>
@@ -89,7 +90,11 @@ function wireLook(root) {
     const range = root.querySelector("[name='look:uiScale']");
     if (range) {
         const out = range.parentElement.querySelector("output");
-        range.addEventListener("input", () => { if (out) out.textContent = `${Math.round(range.valueAsNumber * 100)}%`; });
+        const note = root.querySelector("[data-drpg-scale-note]");
+        range.addEventListener("input", () => {
+            if (out) out.textContent = `${Math.round(range.valueAsNumber * 100)}%`;
+            if (note) note.textContent = game.i18n.format("DRPG.Look.uiScaleAuto", { auto: Math.round(autoScale() * 100), total: Math.round(range.valueAsNumber * autoScale() * 100), w: innerWidth, h: innerHeight });
+        });
         range.addEventListener("change", () =>
             setSetting(SETTINGS.uiScale, Math.round(range.valueAsNumber * 20) / 20).catch(err => error("Could not change the interface scale", err)));
     }

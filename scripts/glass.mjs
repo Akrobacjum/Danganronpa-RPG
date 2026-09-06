@@ -552,6 +552,19 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
   };
   const hash = (x, y) => { const v = Math.sin(x * 0.0137 + y * 0.0221) * 43758.5453; return v - Math.floor(v); };
 
+  /* the direction of a pane's longest edge that does not lie on the screen's edge; the longest
+     edge of all when every edge is on the screen (a band's full-width pane) */
+  function grainAngle(poly, W, H) {
+    const edge = onEdge(W, H);
+    let best = null, bl = -1, any = null, al = -1;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const a = poly[j], b = poly[i], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (L > al) { al = L; any = [a, b]; }
+      if (!edge(a, b) && L > bl) { bl = L; best = [a, b]; }
+    }
+    const [a, b] = best || any || [[0, 0], [1, 0]];
+    return Math.atan2(b[1] - a[1], b[0] - a[0]);
+  }
   function paintGlass(ctx, W, H, panes, acc, { glowInside = false, inset = 0, seamCtx = null } = {}) {
     const sx = seamCtx || ctx;   // the seams may live on a canvas above the pulse layer
     ctx.clearRect(0, 0, W, H);
@@ -588,7 +601,11 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
         const t = document.createElement("canvas"); t.width = tw; t.height = th;
         const g2 = t.getContext("2d"); g2.translate(-bb.x0, -bb.y0); path(g2, p.poly); g2.clip();
         const cx = (bb.x0 + bb.x1) / 2, cy = (bb.y0 + bb.y1) / 2, span = Math.hypot(tw, th);
-        g2.save(); g2.translate(cx, cy); g2.rotate(SHEAR + Math.PI / 2 + (hsh - 0.5) * 0.3);
+        /* THE STREAKS RUN WITH THE PANE. They ran along one shear for every pane, which on a
+           shard cut at another angle reads as a texture pasted over the glass. Each pane's
+           streaks and veins lie parallel to its longest edge that is not the screen's, so the
+           grain follows the cut - as the audit page asks, "lines parallel to the edge". */
+        g2.save(); g2.translate(cx, cy); g2.rotate(grainAngle(p.poly, W, H) - Math.PI / 2);
         for (let i = -span; i < span; i += 7) { g2.fillStyle = "rgba(255,255,255," + (0.12 + (Math.round(i / 7) % 3 === 0 ? 0.09 : 0)) + ")"; g2.fillRect(i, -span, 1.2, 2 * span); }
         for (let j = 0; j < 3; j++) { const x = (hash(cx + j * 31, cy - j * 17) - 0.5) * span * 0.9; g2.fillStyle = rgba(acc, 0.26); g2.fillRect(x, -span, 2.2 + j, 2 * span); g2.fillStyle = "rgba(255,255,255,0.3)"; g2.fillRect(x + 3 + j, -span, 0.8, 2 * span); }
         // INK: the glass was coloured with ink, not dye. Along the shear, five or six dark veins that
@@ -855,7 +872,7 @@ function unmount() {
   document.querySelectorAll("#scene-controls, #sidebar-tabs").forEach(e => { e.style.transform = ""; e.style.transformOrigin = ""; });
   BLOCKS.forEach(b => document.querySelectorAll(b.sel).forEach(e => { e.style.transform = ""; e.style.transformOrigin = ""; }));
   document.body.classList.remove("drpg-curtain-on", "drpg-turning");
-  document.querySelectorAll(".drpg-curtain-ghost, #drpg-curtain > canvas.morph").forEach(g => g.remove());
+  document.querySelectorAll(".drpg-curtain-ghost, #drpg-curtain > canvas.morph, #drpg-curtain > canvas.ghost").forEach(g => g.remove());
   if (rotSheet) { rotSheet.remove(); rotSheet = null; }
 }
 /* ---- nothing on the glass ever jumps ---------------------------------------------------------
@@ -867,21 +884,26 @@ const TURN = () => { const v = parseFloat(getComputedStyle(document.body).getPro
 const EASE = t => 1 - Math.pow(1 - t, 3);
 const lerp = (a, b, t) => a + (b - a) * t;
 const lerpHex = (h1, h2, t) => { const a = hex(h1), b = hex(h2); return "rgb(" + a.map((v, i) => Math.round(lerp(v, b[i], t))).join(",") + ")"; };
-/* a polygon as N points along its perimeter, starting at its topmost-leftmost vertex, so two
-   polygons of different vertex counts can be interpolated point by point without twisting */
+/* A polygon as N points along its perimeter, starting at its topmost-leftmost vertex, so two
+   polygons of different vertex counts can be interpolated point by point without twisting.
+   EVERY VERTEX IS KEPT. The first version dropped N evenly spaced points along the perimeter
+   and let the corners fall between them, so a pane on its way was a rounded sixteen-gon - the
+   "circles floating over the screen" of 1.2.34. The corners are the points now; the rest are
+   spread along the edges by length, so a pane stays a pane at every frame. */
 function resample(poly, N) {
   let start = 0;
   for (let i = 1; i < poly.length; i++) if (poly[i][1] < poly[start][1] - 0.5 || (Math.abs(poly[i][1] - poly[start][1]) <= 0.5 && poly[i][0] < poly[start][0])) start = i;
   const pts = poly.map((_, i) => poly[(start + i) % poly.length]);
   const segs = pts.map((p, i) => { const q = pts[(i + 1) % pts.length]; return Math.hypot(q[0] - p[0], q[1] - p[1]); });
   const total = segs.reduce((a, b) => a + b, 0) || 1;
-  const out = []; let k = 0, acc = 0;
-  for (let n = 0; n < N; n++) {
-    const target = total * n / N;
-    while (k < segs.length - 1 && acc + segs[k] < target) { acc += segs[k]; k++; }
-    const p = pts[k], q = pts[(k + 1) % pts.length], u = segs[k] ? Math.min(1, (target - acc) / segs[k]) : 0;
-    out.push([lerp(p[0], q[0], u), lerp(p[1], q[1], u)]);
-  }
+  const extra = Math.max(0, N - pts.length);
+  const want = segs.map(L => extra * L / total);
+  const alloc = want.map(Math.floor);
+  let rem = extra - alloc.reduce((a, b) => a + b, 0);
+  const order = want.map((w, i) => [w - alloc[i], i]).sort((u, v) => v[0] - u[0]);
+  for (let k = 0; rem > 0 && k < order.length; k++, rem--) alloc[order[k][1]]++;
+  const out = [];
+  pts.forEach((p, i) => { const q = pts[(i + 1) % pts.length]; out.push(p); for (let k = 1; k <= alloc[i]; k++) out.push([lerp(p[0], q[0], k / (alloc[i] + 1)), lerp(p[1], q[1], k / (alloc[i] + 1))]); });
   return out;
 }
 const centroid = poly => { const bb = bbox(poly); return [(bb.x0 + bb.x1) / 2, (bb.y0 + bb.y1) / 2]; };
@@ -889,12 +911,29 @@ function snapshotPanes(j) {
   if (!j.panes) return null;
   return j.panes.map(p => ({ poly: p.poly, content: p.content, tone: p.tone, stained: p.stained, plain: p.plain, kind: p.kind }));
 }
-/* The morph: over the turn, every new pane grows out of the old pane nearest to it, the seams travel
-   with the edges and take the new colour on the way; the silhouette follows frame by frame, so the
-   blur under the glass moves with it. Nothing fades: the glass is recut in front of you. */
-function morph(j, oldPanes, oldAcc) {
+/* what the glass looks like right now - fills, texture, the pulse's frame, the seams - on one canvas */
+function snapshotLook(j) {
+  if (!j.panes || !j.painted) return null;
+  const el = j.el, sg = el.querySelector(":scope > canvas.sg");
+  if (!sg || !sg.width) return null;
+  const c = document.createElement("canvas"); c.width = sg.width; c.height = sg.height;
+  const g = c.getContext("2d");
+  for (const cls of ["sg", "pulse", "seamline"]) { const l = el.querySelector(":scope > canvas." + cls); if (l && l.width) g.drawImage(l, 0, 0, c.width, c.height); }
+  return c;
+}
+/* THE MORPH: THE GLASS STAYS, THE EDGES TRAVEL.
+   The first morph swapped the whole curtain for flat fills for the length of the turn: no
+   texture, no pulse, every pane a plain colour, and the panes themselves rounded off on the
+   way (see `resample`). It is the other way round now. The new glass is painted at once and
+   stays visible - its texture, its pulse - with a copy of the old glass laid over it that
+   fades out over the turn, so the fills cross from one look to the other without a plain
+   frame in between; and over both, the seams alone are redrawn each frame on their way from
+   the old cut to the new one, in lead and in the colour on its way from the old state's to
+   the new. The silhouette follows the seams. The static seam layer and the glow are held
+   back until the seams have arrived, then shown in their place. */
+function morph(j, oldPanes, oldAcc, ghost) {
   if (!oldPanes || !j.panes || REDUCED() || !effectsOn()) return;
-  const el = j.el, W = j.W, H = j.H, N = 16;
+  const el = j.el, W = j.W, H = j.H;
   const newAcc = j.acc || oldAcc || "#ffd38f";
   const recoloured = Boolean(oldAcc && j.acc && oldAcc !== j.acc);
   const pairs = j.panes.map(p => {
@@ -902,6 +941,7 @@ function morph(j, oldPanes, oldAcc) {
     let best = null, bd = Infinity;
     for (const o of oldPanes) { if (o.content !== p.content) continue; const oc = centroid(o.poly); const d = Math.hypot(oc[0] - c[0], oc[1] - c[1]) + (o.tone === p.tone ? 0 : 200); if (d < bd) { bd = d; best = o; } }
     if (!best) for (const o of oldPanes) { const oc = centroid(o.poly); const d = Math.hypot(oc[0] - c[0], oc[1] - c[1]); if (d < bd) { bd = d; best = o; } }
+    const N = Math.max(24, p.poly.length, best ? best.poly.length : 0);
     const to = resample(p.poly, N);
     let from = resample(best ? best.poly : p.poly.map(() => c), N);
     // align the two rings: start `from` where it lies closest to `to`, so no pane twists on the way
@@ -910,46 +950,45 @@ function morph(j, oldPanes, oldAcc) {
     from = from.map((_, i) => from[(i + bestK) % N]);
     return { from, to, p };
   });
-  /* HOW MUCH ACTUALLY MOVED.
-     Folding the Projects tray recuts a corner of the glass, and the whole curtain was
-     swapped for the morph canvas - flat fills, no texture, no bloom - for 840 ms to show
-     it. The morph is worth that when the screen changes state (the hour, a trial, the
-     Eclipse: everything recolours) or when the shape really did change; a corner is not
-     worth washing the screen for. */
+  /* HOW MUCH ACTUALLY MOVED. Folding the Projects tray recuts a corner of the glass; a corner
+     is not worth a turn. The morph runs when the screen changes state (everything recolours)
+     or when the shape really did change. */
   const MOVED = 2;
   const moved = pairs.filter(q => q.from.some((pt, i) => Math.hypot(pt[0] - q.to[i][0], pt[1] - q.to[i][1]) > MOVED)).length;
   if (!recoloured && moved < pairs.length * 0.3) return;
   const finalClip = el.style.clipPath;
-  const layers = [...el.querySelectorAll(":scope > canvas")];
+  const seamLayer = el.querySelector(":scope > canvas.seamline");
   const glow = document.querySelector('[data-glow="' + j.seed + '"]');
   const mc = document.createElement("canvas"); mc.className = "morph"; mc.width = W; mc.height = H;
   mc.style.cssText = "position:absolute;inset:0;width:100%;height:100%;z-index:4;";
+  let gc = null;
+  if (ghost) { gc = ghost; gc.className = "ghost"; gc.style.cssText = "position:absolute;inset:0;width:100%;height:100%;z-index:3;"; el.append(gc); }
   el.append(mc);
-  for (const c of layers) c.style.visibility = "hidden";
+  if (seamLayer) seamLayer.style.visibility = "hidden";
   if (glow) glow.style.visibility = "hidden";
   const g = mc.getContext("2d"), t0 = performance.now(), dur = TURN();
+  const strokeAll = (polys, alpha, style, width) => {
+    g.globalAlpha = alpha; g.strokeStyle = style; g.lineWidth = width; g.lineCap = "round";
+    g.beginPath(); for (const pl of polys) for (let i = 0; i < pl.length; i++) { const a = pl[i], b = pl[(i + 1) % pl.length]; g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); } g.stroke();
+  };
   const step = now => {
     const u = Math.min(1, (now - t0) / dur), e = EASE(u);
     if (!el.isConnected) return;
     const polys = pairs.map(q => q.from.map((pt, i) => [lerp(pt[0], q.to[i][0], e), lerp(pt[1], q.to[i][1], e)]));
     el.style.clipPath = "path('" + polys.map(pl => "M" + pl.map(q => q[0].toFixed(1) + " " + q[1].toFixed(1)).join("L") + "Z").join("") + "')";
+    if (gc) gc.style.opacity = String(1 - e);
     g.clearRect(0, 0, W, H);
     const acc = lerpHex(oldAcc || newAcc, newAcc, e);
-    polys.forEach((pl, i) => {
-      const p = pairs[i].p;
-      g.globalAlpha = p.content ? 0.58 : p.stained ? 0.62 : 0.6;
-      g.fillStyle = p.content ? (TONE[p.tone] || "#0d0b16") : p.stained ? (STAIN[i % STAIN.length]) : "#0b0812";
-      path(g, pl); g.fill();
-      if (p.stained) { g.globalAlpha = 0.3; g.fillStyle = "#000"; path(g, pl); g.fill(); }
-    });
-    g.globalAlpha = 0.95; g.strokeStyle = "#08050d"; g.lineWidth = 1.2; g.lineCap = "round";
-    g.beginPath(); for (const pl of polys) for (let i = 0; i < pl.length; i++) { const a = pl[i], b = pl[(i + 1) % pl.length]; g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); } g.stroke();
-    g.globalAlpha = 0.92; g.strokeStyle = acc; g.lineWidth = 0.9; g.stroke();
+    // the seams on their way: a soft light under them (the glow's part), the lead, the bevel, the colour
+    g.save(); g.filter = "blur(4px)"; g.globalCompositeOperation = "lighter"; strokeAll(polys, 0.35, acc, 2.2); g.restore();
+    strokeAll(polys, 0.95, "#08050d", 1.2);
+    g.save(); g.translate(0, 1); strokeAll(polys, 0.22, "#ffffff", 0.5); g.restore();
+    strokeAll(polys, 0.92, acc, 0.7);
     g.globalAlpha = 1;
     if (u < 1) { requestAnimationFrame(step); return; }
     el.style.clipPath = finalClip;
-    mc.remove();
-    for (const c of layers) c.style.visibility = "";
+    mc.remove(); if (gc) gc.remove();
+    if (seamLayer) seamLayer.style.visibility = "";
     if (glow) glow.style.visibility = "";
   };
   requestAnimationFrame(step);
@@ -961,6 +1000,7 @@ function rebuildAll() {
   for (const j of curtains) {
     const wasPainted = j.painted, oldAcc = j.acc;
     const oldPanes = wasPainted ? snapshotPanes(j) : null;
+    const oldLook = wasPainted && !REDUCED() && effectsOn() ? snapshotLook(j) : null;
     j.sig = null; CHECKS.length = 0;
     if (curtainGeometry(j)) {
       // Foundry's tiles must start below the corner panes to own a shard of the strip;
@@ -973,7 +1013,7 @@ function rebuildAll() {
         curtainPaint(j); document.body.classList.add("drpg-curtain-on");
         const gl = document.querySelector('[data-glow="' + j.seed + '"]');
         if (gl) gl.style.cssText = STYLE + "z-index:" + j.el.style.zIndex + ";mix-blend-mode:screen;width:" + j.W + "px;";
-        morph(j, oldPanes, oldAcc);
+        morph(j, oldPanes, oldAcc, oldLook);
       } else { j.painted = true; document.body.classList.add("drpg-curtain-on"); }
     }
   }

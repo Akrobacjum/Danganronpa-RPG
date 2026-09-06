@@ -308,7 +308,7 @@
       },
       "uiScale": {
         "name": "Interface scale",
-        "hint": "One factor on the module's own type and panels, 80% to 140%. The map, Foundry's own windows and the 11px floor are never scaled. This client only."
+        "hint": "One factor on the module's own type and panels, 80% to 140%, on top of the screen's own factor (2560 x 1440 is 100%; a smaller screen draws smaller, down to 70%). The map, Foundry's own windows and the 11px floor are never scaled. This client only."
       },
       "debug": {
         "name": "Verbose console logging",
@@ -857,6 +857,7 @@
       "theme": "Theme",
       "glassEffects": "Glass effects",
       "uiScale": "Interface scale",
+      "uiScaleAuto": "This screen ({w} x {h}) is drawn at {auto}% of 1440p on its own; with the slider, {total}%.",
       "pixelFont": "Pixel font",
       "pulse": "Glass pulse",
       "reducedMotion": "Reduced motion",

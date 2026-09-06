@@ -2581,3 +2581,39 @@ body.drpg-theme-stained-glass .application.drpg-panel .window-header .window-tit
 body.drpg-theme-stained-glass .drpg-panel button:not(.drpg-action-button):not(.drpg-call-button):is(.default, [autofocus]) {
     border-color: color-mix(in srgb, var(--drpg-sg-bone) 70%, transparent) !important;
 }
+
+/* ==========================================================================
+   Milestone 11: the screen's factor, the morph that keeps the glass, two faces only (1.2.35)
+   ========================================================================== */
+/* ---- two faces, and no third -------------------------------------------------------------
+   The base sheet names its own faces through two tokens (`--drpg-font-pixel` for Press Start
+   2P, `--drpg-font-ui` for Foundry's Signika) and a code face for the check report. Under
+   this theme those tokens ARE the chrome face, so any rule of the base sheet that reaches for
+   them - the roll card's headings, the safeword button, the camera dock's names, the sheet's
+   labels, the messenger's roster - lands on VT323 without being listed here one by one. The
+   icon fonts are untouched (see A9: an icon's family is its glyph). */
+body.drpg-theme-stained-glass {
+    --drpg-font-pixel: var(--drpg-font-chrome);
+    --drpg-font-ui: var(--drpg-font-chrome);
+}
+body.drpg-theme-stained-glass .drpg-check-report { font-family: var(--drpg-font-chrome); }
+body.drpg-theme-stained-glass :is(#drpg-hud, .drpg-messenger-note-text, .drpg-popup-title, .drpg-safeword-button,
+    .drpg-hud-incident, .drpg-camera-dock .player-name, .drpg-camera-dock .charname) { font-family: var(--drpg-font-chrome); }
+/* the clock's pane is the audit page's 312 px, not "as wide as its longest line" */
+body.drpg-theme-stained-glass #ui-left-column-1 > #drpg-hud,
+body.drpg-theme-stained-glass #drpg-hud {
+    width: calc(312px * var(--drpg-sg-scale));
+    max-width: calc(100vw - 32px);
+    box-sizing: border-box;
+}
+/* the morph's two transient layers: the old look fading over the new glass, the seams on their way */
+#drpg-curtain > canvas.ghost { z-index: 3; pointer-events: none; }
+#drpg-curtain > canvas.morph { z-index: 4; pointer-events: none; }
+/* form controls inside the module's surfaces: a bare `button` falls to the browser's own face */
+body.drpg-theme-stained-glass :is(#drpg-hud, #drpg-despair, #drpg-player-status, #countdowns, #drpg-popups, #drpg-events,
+    .drpg-panel, .drpg-popup, .drpg-messenger, #drpg-messenger-launcher, #drpg-sound-launcher, #drpg-settings-launcher,
+    #drpg-gm-launcher, #players),
+body.drpg-theme-stained-glass :is(#drpg-hud, #drpg-despair, #drpg-player-status, #countdowns, #drpg-popups, #drpg-events,
+    .drpg-panel, .drpg-popup, .drpg-messenger, #players) :is(button, input, select, textarea, output, a):not([class*="fa-"]) {
+    font-family: var(--drpg-font-chrome);
+}

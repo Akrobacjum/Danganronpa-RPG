@@ -1290,6 +1290,39 @@ export function pixelFontOn() {
  * every onChange above. The curtain itself (scripts/glass.mjs) listens to the
  * same settings through `refreshGlass`, which this calls when it is loaded.
  */
+/**
+ * The screen's own factor under the slider.
+ *
+ * Every size in the theme is drawn for 2560 x 1440 at 100 % (the audit page's rule), and
+ * until 1.2.35 that was the only size: a 1280 x 800 tablet got the same 330 px notice pane
+ * as a 1440p monitor, a quarter of its width. The factor is the screen's short side against
+ * 1440p's - never above 1, never under 0.7 (below that the 11 px floor holds the type
+ * anyway and only the panes would keep shrinking) - and the slider multiplies it. The Look
+ * dialog shows both numbers so nobody has to guess why 100 % is not 100 %.
+ */
+export function autoScale() {
+    const w = Math.max(320, innerWidth || 0), h = Math.max(240, innerHeight || 0);
+    const f = Math.min(w / 2560, h / 1440);
+    return Math.round(Math.min(1, Math.max(0.7, f)) * 100) / 100;
+}
+/** The factor the theme actually uses: the slider on the screen's own factor. */
+export function effectiveScale() {
+    const slider = Math.min(1.4, Math.max(0.8, Number(getSetting(SETTINGS.uiScale)) || 1));
+    return Math.round(slider * autoScale() * 100) / 100;
+}
+/* The screen's factor changes when the window does; the theme follows once the resize has
+   settled, and only when the factor actually differs. */
+let screenWatched = false, screenTimer = 0, screenFactor = 0;
+function watchScreen() {
+    screenFactor = autoScale();
+    if (screenWatched) return;
+    screenWatched = true;
+    addEventListener("resize", () => {
+        clearTimeout(screenTimer);
+        screenTimer = setTimeout(() => { if (autoScale() !== screenFactor) applyTheme(); }, 250);
+    });
+}
+
 export function applyTheme() {
     const theme = getSetting(SETTINGS.theme);
     document.body.classList.toggle("drpg-theme-stained-glass", theme === "stainedGlass");
@@ -1299,12 +1332,12 @@ export function applyTheme() {
     document.body.classList.toggle("drpg-no-pulse", getSetting(SETTINGS.glassPulse) === false);
     document.body.classList.toggle("drpg-no-ticker", getSetting(SETTINGS.hudTicker) === false);
     document.body.classList.toggle("drpg-reduced-motion", getSetting(SETTINGS.reducedMotion) === true);
-    const scale = Number(getSetting(SETTINGS.uiScale)) || 1;
     // On the body, where the theme's own rules live: a value on <html> was shadowed by
     // the sheet's default on body (v1.2.15), so the scale never applied.
-    const clamped = String(Math.min(1.4, Math.max(0.8, scale)));
-    document.body.style.setProperty("--drpg-ui-scale", clamped);
-    document.documentElement.style.setProperty("--drpg-ui-scale", clamped);
+    const total = String(effectiveScale());
+    document.body.style.setProperty("--drpg-ui-scale", total);
+    document.documentElement.style.setProperty("--drpg-ui-scale", total);
+    watchScreen();
     import("./glass.mjs").then(m => m.refreshGlass()).catch(() => {});
     import("./sfx.mjs").then(m => m.renderSoundLauncher?.()).catch(() => {});
     // The clock carries the theme's ticker and, under Monokuma Legacy, the three
