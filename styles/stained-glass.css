@@ -2080,3 +2080,76 @@ body.drpg-theme-stained-glass .drpg-panel .drpg-despair-button:hover:not(:disabl
     color: var(--drpg-sg-ink);
     background: color-mix(in srgb, var(--drpg-sg-despair) 65%, transparent);
 }
+
+/* ---- A6. The three dots under the room line ----------------------------------------------
+   The audit could not name them from the code and listed them as "to check". They are the
+   room's SEARCH TOKENS - three pips saying how many Searches the room has left - drawn as
+   7 px circles by the base sheet. Under this theme they read as an artefact rather than as a
+   count: the theme has no circles anywhere else, and nothing near them says what they are.
+   So they take the theme's own shape and the state's colour, like every other pip family in
+   the module, and a spent one is an outline rather than a fainter dot. The tooltip has always
+   said "2 of 3 left"; now the row looks like something that would have a tooltip. */
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-room-tokens {
+    justify-content: center;
+    gap: 4px;
+    margin-top: 3px;
+}
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-pip {
+    width: 9px;
+    height: 9px;
+    border-radius: 0;
+    border: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 55%, transparent);
+    background: transparent;
+    opacity: 1;
+    clip-path: polygon(2px 0, 100% 0, 100% calc(100% - 2px), calc(100% - 2px) 100%, 0 100%, 0 2px);
+}
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-pip.full {
+    background: var(--drpg-glass-accent);
+    border-color: var(--drpg-glass-accent);
+}
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-room-tokens.is-sealed .drpg-hud-pip {
+    border-color: color-mix(in srgb, var(--drpg-sg-gm-light) 60%, transparent);
+}
+
+/* ---- C-J2. The Event panel's own ticker --------------------------------------------------
+   The clock runs the state's name behind itself; a card runs the kind of thing it is. Same
+   treatment, one size down, and it stops with everything else under reduced motion. */
+body.drpg-theme-stained-glass .drpg-event { position: relative; overflow: hidden; }
+body.drpg-theme-stained-glass .drpg-event > :not(.drpg-event-ticker) { position: relative; z-index: 1; }
+body.drpg-theme-stained-glass .drpg-event-ticker {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    white-space: nowrap;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 0;
+    font-family: var(--drpg-font-chrome);
+    font-size: max(var(--drpg-sg-floor), calc(26px * var(--drpg-sg-scale)));
+    line-height: 1.25;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--acc) 10%, transparent);
+    -webkit-text-stroke: 1px var(--acc);
+    opacity: 0.2;
+    text-shadow: none;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+}
+body.drpg-theme-stained-glass .drpg-event-ticker > span {
+    flex: 0 0 auto;
+    padding-right: 0.5em;
+    animation: drpg-sg-ticker 22s linear infinite;
+}
+body.drpg-no-ticker .drpg-event-ticker,
+body.drpg-no-glass-effects .drpg-event-ticker { display: none; }
+@media (prefers-reduced-motion: reduce) {
+    body.drpg-theme-stained-glass .drpg-event-ticker > span { animation: none; }
+}
+body.drpg-reduced-motion .drpg-event-ticker > span { animation: none; }
+/* the body-found card is the killing seen from outside: the GM's red, like the incident */
+body.drpg-theme-stained-glass .drpg-event[data-kind="body"] { --acc: var(--drpg-sg-gm-light); }
+body.drpg-theme-stained-glass .drpg-event[data-kind="body"] .drpg-event-glyph { --drpg-px-mask: var(--drpg-px-murder); }

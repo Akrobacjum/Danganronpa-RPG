@@ -27,6 +27,7 @@ import { motive } from "./rules.mjs";
 import { pendingGather } from "./call-effects.mjs";
 import { roomOfActor } from "./movement.mjs";
 import { trialFloor, floorHolder, floorTarget, FLOOR_MODES } from "./trial-floor.mjs";
+import { keyPlanStatus } from "./investigation.mjs";
 
 const WIDGET_ID = "drpg-events";
 
@@ -153,6 +154,50 @@ function trialCard(clock) {
     }
 }
 
+/**
+ * A BODY HAS BEEN FOUND, which is the one part of a killing that is public.
+ *
+ * The incident card above is shown to its participants and to nobody else; this
+ * one is shown to everybody, because the discovery is what opens the
+ * investigation and the whole table is in it. It stands while the clock is in
+ * the investigation phase and there is a killing that has finished.
+ *
+ * What it says is deliberately thin for a player: who, and where. How many
+ * traces are still out there is the GM's number - a player who could read
+ * "3 traces left" off the frame would know when to stop searching, which is
+ * the one thing the investigation is supposed to cost them.
+ */
+function bodyCard(clock) {
+    if (clock.phase !== "investigation") return null;
+    if (!game.settings.settings.has(`${MODULE_ID}.murderState`)) return null;
+    const state = game.settings.get(MODULE_ID, "murderState") ?? {};
+    if (state.stage !== "resolution" || !state.victimId) return null;
+    const victim = game.actors.get(state.victimId);
+    if (!victim) return null;
+
+    let room = null;
+    try { room = roomOfActor(victim)?.name ?? null; } catch { /* a victim outside every room */ }
+
+    let meta = game.i18n.localize("DRPG.Events.bodyMeta");
+    if (game.user.isGM) {
+        try {
+            const status = keyPlanStatus();
+            if (status.entries.length) {
+                meta = game.i18n.format("DRPG.Events.bodyMetaGm", { found: status.found, total: status.entries.length });
+            }
+        } catch { /* the plan is the GM's and may not exist yet */ }
+    }
+
+    return {
+        kind: "body",
+        title: game.i18n.localize("DRPG.Events.bodyTitle"),
+        sub: room
+            ? game.i18n.format("DRPG.Events.bodySubRoom", { victim: victim.name, room })
+            : victim.name,
+        meta
+    };
+}
+
 /* ---- the panel ------------------------------------------------------------ */
 
 function cardElement(card, clock) {
@@ -170,6 +215,19 @@ function cardElement(card, clock) {
     glyph.className = "drpg-event-glyph drpg-pxi";
     glyph.setAttribute("aria-hidden", "true");
     el.append(glyph);
+    /* The same outline the clock runs behind itself, for the same reason: the card's colour
+       says a state has changed and the word says which. One word, repeated, at the opacity
+       the audit page sets - it is a texture, not a label, and the label is right underneath. */
+    const word = game.i18n.localize(`DRPG.Events.ticker.${card.kind}`);
+    if (word && word.indexOf("DRPG.") !== 0) {
+        const ticker = document.createElement("div");
+        ticker.className = "drpg-event-ticker";
+        ticker.setAttribute("aria-hidden", "true");
+        const run = document.createElement("span");
+        run.textContent = Array(6).fill(word).join(" · ") + " · ";
+        ticker.append(run, run.cloneNode(true));
+        el.append(ticker);
+    }
     const add = (cls, text) => {
         if (!text) return;
         const line = document.createElement("div");
@@ -191,7 +249,7 @@ export function renderEvents() {
         if (!eventsWindowActive() || !game.user) { existing?.remove(); return; }
 
         const clock = getClock() ?? {};
-        const cards = [trialCard(clock), incidentCard(), assemblyCard(), motiveCard()].filter(Boolean);
+        const cards = [trialCard(clock), incidentCard(), bodyCard(clock), assemblyCard(), motiveCard()].filter(Boolean);
         if (!cards.length) { existing?.remove(); return; }
 
         // Redraw only when something changed: the panel is on the curtain, and

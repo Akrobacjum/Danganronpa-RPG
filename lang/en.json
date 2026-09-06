@@ -834,6 +834,17 @@
       "openDebateIntro": "How long is this debate worth? Each one in a trial gets its own budget, and the last number you used is offered."
     },
     "Events": {
+      "bodyTitle": "A body is discovered",
+      "bodySubRoom": "{victim}, in the {room}",
+      "bodyMeta": "The investigation is open",
+      "bodyMetaGm": "{found} of {total} Key Remnants found",
+      "ticker": {
+        "incident": "Incident",
+        "body": "Body found",
+        "trial": "Class Trial",
+        "assembly": "Assembly",
+        "motive": "Motive"
+      },
       "incidentTitle": "A killing in the dark",
       "incidentSub": "{killer} against {victim}",
       "incidentSubRoom": "{killer} against {victim}, in {room}",

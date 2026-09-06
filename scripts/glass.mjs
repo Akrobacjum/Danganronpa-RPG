@@ -28,7 +28,7 @@ export const LAST = { frame: null, blocks: [] };
 /* ---- the blocks: the module's own elements, measured untransformed ------- */
 const BLOCKS = [
   { cls: "hud", sel: "#drpg-hud", fallback: (W, H) => ({ x: 16, y: 22, w: 312, h: 150 }) },
-  { cls: "gmbar", sel: "#drpg-gm-launcher", fallback: (W, H, r) => ({ x: 16, y: (r.hud ? r.hud.y + r.hud.h : 172) + 6, w: 74, h: 34 }) },
+  { cls: "gmbar", sel: "#drpg-gm-launcher", fallback: (W, H, r) => ({ x: 16, y: (r.hud ? r.hud.y + r.hud.h : 172) + 6, w: 72, h: 32 }) },
   { cls: "rail", sel: "#drpg-despair", fallback: (W, H) => ({ x: Math.round(W / 2 - 206), y: 22, w: 412, h: 90 }) },
   { cls: "event", sel: "#drpg-events", fallback: null },
   { cls: "three", sel: "#drpg-player-status", fallback: (W, H) => ({ x: W - 64 - 300, y: 22, w: 300, h: 78 }) },
