@@ -2182,3 +2182,119 @@ body.drpg-measuring #drpg-popups,
 body.drpg-measuring #drpg-messenger-launcher,
 body.drpg-measuring #drpg-sound-launcher,
 body.drpg-measuring #drpg-settings-launcher { transition: none !important; }
+
+/* ==========================================================================
+   The two filters: the brush's torn edge and the stamp's ink.
+   chrome.mjs puts both <filter>s in the body (`injectFilters`); off with the
+   glass effects, where the clip-path polygon carries the edge on its own.
+   ========================================================================== */
+/* ---- C-B3. The brush is a brush --------------------------------------------------------
+   The audit page's rule for everything you click: a rectangle of the state colour behind the
+   label, its edge torn by a displacement map, so no two brushes are the same and none is a
+   box. The polygon clip stays underneath as the shape the filter tears from, and is what a
+   browser without SVG filters, or a player with the effects off, still gets. */
+body.drpg-theme-stained-glass:not(.drpg-no-glass-effects) .drpg-panel button:not(.drpg-action-button):not(.drpg-call-button)::before,
+body.drpg-theme-stained-glass:not(.drpg-no-glass-effects) .drpg-gm-panel .drpg-gmp-button::before,
+body.drpg-theme-stained-glass:not(.drpg-no-glass-effects) .drpg-mini-button::before,
+body.drpg-theme-stained-glass:not(.drpg-no-glass-effects) .drpg-gmt-tabs button::before,
+body.drpg-theme-stained-glass:not(.drpg-no-glass-effects) .drpg-messenger button::before {
+    inset: 1px -3px;
+    clip-path: none;
+    filter: url(#drpg-brush) brightness(var(--brush-dim, 1));
+}
+
+/* ---- C-E2. A stamp is a blot of ink ------------------------------------------------------
+   The Ultimate on the sheet and the typed plates on a Truth Bullet's card are the audit page's
+   stamps: the meaning on a blot in the meaning's colour, the text in ink. The blot is a
+   pseudo-element behind the plate, blown out by the ink filter, and a second, smaller one that
+   is not filtered so the plate always has a solid heart under the letters. */
+body.drpg-theme-stained-glass:not(.drpg-no-glass-effects) :is(.character-header-sheet .drpg-ultimate-row .drpg-ultimate-label,
+    .drpg-tb-badge.type.key, .drpg-tb-badge.type.prep, .drpg-tb-badge.type.incident, .drpg-tb-badge.type.resolution) {
+    position: relative;
+    z-index: 0;
+    isolation: isolate;
+    background: transparent !important;
+    border-color: transparent !important;
+    clip-path: none;
+    --stamp: var(--drpg-glass-accent);
+}
+body.drpg-theme-stained-glass:not(.drpg-no-glass-effects) .character-header-sheet .drpg-ultimate-row .drpg-ultimate-label { --stamp: var(--drpg-sg-hope); }
+body.drpg-theme-stained-glass:not(.drpg-no-glass-effects) .drpg-tb-badge.type.key { --stamp: var(--drpg-sg-evidence); }
+body.drpg-theme-stained-glass:not(.drpg-no-glass-effects) .drpg-tb-badge.type.prep { --stamp: var(--drpg-sg-gm); }
+body.drpg-theme-stained-glass:not(.drpg-no-glass-effects) .drpg-tb-badge.type.incident { --stamp: var(--drpg-sg-gm-light); }
+body.drpg-theme-stained-glass:not(.drpg-no-glass-effects) .drpg-tb-badge.type.resolution { --stamp: var(--drpg-sg-eclipse); }
+body.drpg-theme-stained-glass:not(.drpg-no-glass-effects) :is(.character-header-sheet .drpg-ultimate-row .drpg-ultimate-label,
+    .drpg-tb-badge.type.key, .drpg-tb-badge.type.prep, .drpg-tb-badge.type.incident, .drpg-tb-badge.type.resolution)::before {
+    content: "";
+    position: absolute;
+    inset: -5px -10px;
+    z-index: -1;
+    background: var(--stamp);
+    border-radius: 45% 55% 50% 50% / 55% 45% 55% 45%;
+    filter: url(#drpg-ink-blot);
+}
+body.drpg-theme-stained-glass:not(.drpg-no-glass-effects) :is(.character-header-sheet .drpg-ultimate-row .drpg-ultimate-label,
+    .drpg-tb-badge.type.key, .drpg-tb-badge.type.prep, .drpg-tb-badge.type.incident, .drpg-tb-badge.type.resolution)::after {
+    content: "";
+    position: absolute;
+    inset: -2px -6px;
+    z-index: -1;
+    background: var(--stamp);
+    border-radius: 62% 38% 55% 45% / 55% 62% 38% 45%;
+}
+
+/* ---- C-I4. The roll's two faces are cut dice --------------------------------------------
+   The module's own roll card (action-rolls.mjs) prints the Hope die and the Despair die as two
+   spans; the audit page's roll window draws them as two cut dice, the Hope one in the state
+   colour and the Despair one in the Eclipse's violet, the total under them in the title face
+   and the verdict tracked out in the state colour. */
+body.drpg-theme-stained-glass .drpg-duality-die {
+    display: inline-grid;
+    place-content: center;
+    width: 54px;
+    height: 54px;
+    margin: 0 4px;
+    font-family: var(--drpg-font-chrome);
+    font-size: max(var(--drpg-sg-floor), calc(30px * var(--drpg-sg-scale)));
+    line-height: 1;
+    color: var(--drpg-sg-ink);
+    background: var(--drpg-glass-accent);
+    border: 0;
+    border-radius: 0;
+    text-shadow: none;
+    clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 14px) 100%, 0 100%, 0 16px);
+}
+body.drpg-theme-stained-glass .drpg-duality-die.is-despair {
+    background: var(--drpg-sg-eclipse);
+    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 16px, 100% 100%, 14px 100%, 0 calc(100% - 16px));
+}
+body.drpg-theme-stained-glass .drpg-duality-total {
+    font-family: var(--drpg-font-title);
+    font-size: max(var(--drpg-sg-floor), calc(26px * var(--drpg-sg-scale)));
+    font-weight: 400;
+    color: var(--drpg-sg-bone);
+}
+body.drpg-theme-stained-glass .drpg-duality-badge {
+    font-family: var(--drpg-font-chrome);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--drpg-glass-accent);
+    background: transparent;
+    border: 0;
+}
+body.drpg-theme-stained-glass .drpg-duality[data-side="despair"] .drpg-duality-badge { color: var(--drpg-sg-despair); }
+body.drpg-theme-stained-glass .drpg-duality[data-side="hope"] .drpg-duality-badge { color: var(--drpg-sg-hope); }
+body.drpg-theme-stained-glass .drpg-duality-formula {
+    font-family: var(--drpg-font-chrome);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--drpg-sg-bone-dim);
+}
+/* the base sheet colours each face after its side (gold, blood) and dims the Ultimate's label to
+   0.55; on a stamp and on a cut die the plate carries the colour, so the letters are ink */
+body.drpg-theme-stained-glass .drpg-duality .drpg-duality-die:is(.is-hope, .is-despair),
+body.drpg-theme-stained-glass .drpg-duality[data-side] .drpg-duality-die { color: var(--drpg-sg-ink); }
+body.drpg-theme-stained-glass .character-header-sheet .drpg-ultimate-row .drpg-ultimate-label {
+    color: var(--drpg-sg-ink) !important;
+    opacity: 1;
+}

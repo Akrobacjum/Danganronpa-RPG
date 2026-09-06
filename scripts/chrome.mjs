@@ -136,6 +136,35 @@ function dressTable(table) {
     }
 }
 
+/* ---- the two filters the audit page draws with -------------------------------
+   The brush is a rectangle whose edge is torn by a displacement map, and a stamp
+   is an ink blot: both are SVG filters, and a filter has to exist in the document
+   before `filter: url(#id)` can find it. One hidden <svg> with two <filter>s, put
+   in the body once. Cheap: a displacement map on a button-sized box costs less
+   than the box's own text. Stained Glass only; the sheet gates the `url()`s on
+   the theme and on the glass-effects switch. */
+const FILTERS_ID = "drpg-filters";
+export function injectFilters() {
+    if (document.getElementById(FILTERS_ID)) return;
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.id = FILTERS_ID;
+    svg.setAttribute("width", "0");
+    svg.setAttribute("height", "0");
+    svg.setAttribute("aria-hidden", "true");
+    svg.style.cssText = "position:absolute;width:0;height:0;overflow:hidden;pointer-events:none;";
+    svg.innerHTML = `<defs>
+        <filter id="drpg-brush" x="-10%" y="-40%" width="120%" height="180%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.02 0.4" numOctaves="2" seed="11" result="n"/>
+            <feDisplacementMap in="SourceGraphic" in2="n" scale="16" xChannelSelector="R" yChannelSelector="G"/>
+        </filter>
+        <filter id="drpg-ink-blot" x="-30%" y="-30%" width="160%" height="160%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="3" seed="3" result="n"/>
+            <feDisplacementMap in="SourceGraphic" in2="n" scale="34" xChannelSelector="R" yChannelSelector="G"/>
+        </filter>
+    </defs>`;
+    document.body.append(svg);
+}
+
 /* ---- one pass over a window ------------------------------------------------ */
 
 /** Decorate one rendered window. Safe to call on the same element repeatedly. */
@@ -155,6 +184,7 @@ export function dressChrome(root) {
 
 /** Called once at ready. */
 export function registerChrome() {
+    injectFilters();
     Hooks.on("renderApplicationV2", app => dressChrome(app?.element));
     // A window that redraws part of itself keeps its decorations, because the pass is
     // idempotent and marks what it has done; this catches the parts drawn after the render.
