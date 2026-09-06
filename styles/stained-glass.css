@@ -1826,3 +1826,69 @@ body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-popup, .drpg-messenger) inp
     outline: 2px solid var(--drpg-glass-accent);
     outline-offset: 2px;
 }
+
+/* ---- C-H. The header's own widgets ------------------------------------------------------
+   The sheet's two materials landed in 1.2.26, but the things standing ON the glass band kept
+   the base sheet's look: Hope was still Daggerheart's diamond, the action pips and the free
+   Move were the base's grey, the Ultimate was a line of text where the audit page draws a
+   stamp, and the name had no cap. Every mask below already exists - what was missing was the
+   theme saying which one, and in what colour. */
+/* Hope is a star, not a diamond: the one glyph swap the audit page calls for by name. */
+body.drpg-theme-stained-glass .character-header-sheet .hope-section .hope-value::before {
+    -webkit-mask-image: var(--drpg-px-star);
+    mask-image: var(--drpg-px-star);
+    background-color: var(--drpg-sg-hope);
+    opacity: 0.25;
+}
+body.drpg-theme-stained-glass .character-header-sheet .hope-section .hope-value:has(> i.fa-solid)::before {
+    -webkit-mask-image: var(--drpg-px-star);
+    mask-image: var(--drpg-px-star);
+    opacity: 1;
+}
+body.drpg-theme-stained-glass .character-header-sheet .hope-section .hope-value.scar::before {
+    background-color: var(--drpg-sg-bone-dim);
+    opacity: 0.3;
+}
+/* the action budget and the free Move take the state colour, spent stays an outline */
+body.drpg-theme-stained-glass .character-header-sheet .drpg-action-pip::before { background-color: var(--drpg-glass-accent); }
+body.drpg-theme-stained-glass .character-header-sheet .drpg-action-pip.locked::before { background-color: var(--drpg-sg-gm-light); }
+body.drpg-theme-stained-glass .character-header-sheet .drpg-free-move {
+    color: var(--drpg-glass-accent);
+    padding: 0 6px;
+    border: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 45%, transparent);
+    clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+}
+/* the Ultimate is a stamp: the meaning on a plate in the meaning's colour, as everywhere else */
+body.drpg-theme-stained-glass .character-header-sheet .drpg-ultimate-row .drpg-ultimate-label {
+    padding: 1px 8px 2px;
+    color: var(--drpg-sg-ink);
+    background: var(--drpg-sg-hope);
+    clip-path: polygon(0 0, 100% 0, 96% 100%, 2% 100%);
+}
+/* the name carries its first letter in Hope's gold, the way the audit page prints it */
+body.drpg-theme-stained-glass .character-header-sheet .name-row h1::first-letter { color: var(--drpg-sg-hope); }
+/* the safeword is the one button on the sheet that is always the GM's red */
+body.drpg-theme-stained-glass .drpg-safeword-button {
+    font-family: var(--drpg-font-chrome);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--drpg-sg-bone);
+    background: color-mix(in srgb, var(--drpg-sg-gm) 40%, rgba(7, 7, 10, 0.5));
+    border: 1px solid rgba(255, 85, 102, 0.75);
+    border-radius: 0;
+    clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+}
+/* Equipped and Experience: the ink column's headings in the state colour over a hairline */
+body.drpg-theme-stained-glass .character-sidebar-sheet :is(h3, h4, .section-header, fieldset > legend) {
+    font-family: var(--drpg-font-chrome);
+    font-size: max(var(--drpg-sg-floor), calc(12px * var(--drpg-sg-scale)));
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--drpg-glass-accent);
+    background: none;
+    border: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 30%, transparent);
+    border-radius: 0;
+    padding: 2px 0;
+}
