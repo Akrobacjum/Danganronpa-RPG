@@ -38,9 +38,15 @@ const BLOCKS = [
      under them while an empty 330x80 pane sat in the corner on every screen. The pane belongs
      to the real container, and it has NO fallback on purpose - an empty popup stack has no
      height, so it is not measured, and a screen with nothing to say cuts no pane. */
-  { cls: "note-block", sel: "#drpg-popups", fallback: null },
+  { cls: "note-block", sel: "#drpg-popups", fallback: (W, H) => { const s = uiScale(); return { x: 16, y: H - (100 + 88) * s, w: 330 * s, h: 88 * s }; } },
   { cls: "launch", sel: "#drpg-messenger-launcher, #drpg-sound-launcher, #drpg-settings-launcher", union: true, fallback: (W, H) => ({ x: W - 22 - 66, y: H - 22 - 134, w: 66, h: 134 }) },
 ];
+/* THE NOTICE TILE IS ALWAYS CUT. 1.2.30 cut it only while a card was on screen ("a screen
+   with nothing to say cuts no pane"), which meant every notice recut the curtain and took it
+   away again - the corner tile came and went with the news. It is a fixed tile of the glass
+   now, at the audit page's place and size (scaled with the screen), and the cards land on it;
+   a taller stack of cards is measured and the tile grows to hold it. */
+const uiScale = () => { const v = parseFloat(getComputedStyle(document.body).getPropertyValue("--drpg-sg-scale")); return Number.isFinite(v) && v > 0 ? v : 1; };
 /* ---- the rotations: one stylesheet, rewritten after every geometry pass ----------------------
    A block is rotated with its pane. Written as a rule on the block's selector (not an inline
    style), the rotation survives the module rebuilding that block from scratch - the status strip

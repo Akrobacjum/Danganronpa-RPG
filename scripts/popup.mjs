@@ -85,6 +85,10 @@ const WIDGET_GAP = 8;
 
 function positionBelowWidgets(el) {
     try {
+        /* Under Stained Glass the cards have a tile of their own - bottom-left, cut by the
+           curtain (glass.mjs, "note-block") - and the sheet places the stack on it. An inline
+           `top` here put the stack just under the clock instead, over the glass and the map. */
+        if (document.body.classList.contains("drpg-theme-stained-glass")) { el.style.top = ""; return; }
         let bottom = 0;
         for (const selector of WIDGET_SELECTORS) {
             const widget = document.querySelector(selector);
