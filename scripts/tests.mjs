@@ -3125,6 +3125,35 @@ const INVARIANTS = [
         ok(!small.length, small.slice(0, 4).join("; "));
     }],
 
+    ["the theme speaks two faces", () => {
+        if (!document.body.classList.contains("drpg-theme-stained-glass")) return;
+        // Stained Glass is VT323 and Special Elite and nothing else (docs/design/typography.md):
+        // the first family every module surface resolves to is one of the two. Icon elements
+        // are their own face by design, and are skipped.
+        const other = new Set();
+        for (const sel of ["#drpg-hud", "#drpg-gm-launcher", "#drpg-despair", "#drpg-player-status", "#drpg-events",
+                           "#countdowns", "#drpg-popups", ".drpg-panel", ".drpg-messenger", "#players"]) {
+            for (const host of document.querySelectorAll(sel)) {
+                for (const el of [host, ...host.querySelectorAll("*")]) {
+                    if (el.matches("i, canvas, [class*='fa-']")) continue;
+                    const family = getComputedStyle(el).fontFamily.split(",")[0].replace(/["']/g, "").trim();
+                    if (!/^(VT323|Special Elite)$/.test(family)) other.add(`${sel} ${el.tagName.toLowerCase()}.${String(el.className).split(" ")[0]} -> ${family}`);
+                }
+            }
+        }
+        ok(!other.size, [...other].slice(0, 4).join("; "));
+    }],
+
+    ["the notice tile is always cut", async () => {
+        const { LAST } = await import("./glass.mjs");
+        if (!document.body.classList.contains("drpg-theme-stained-glass")) return;
+        // The bottom-left tile is part of the curtain's one shape, with or without a card on
+        // it (1.2.36): a notice lands on glass that was already there.
+        const tile = LAST.blocks.find(b => b.cls === "note-block");
+        ok(tile, "no pane was cut for the notices");
+        ok(tile.x === 16 && tile.w > 100, `the notice tile is at ${tile.x},${tile.y} ${tile.w}x${tile.h}`);
+    }],
+
     ["the theme tokens resolve", () => {
         const root = getComputedStyle(document.documentElement);
         for (const token of ["--drpg-ink", "--drpg-bone", "--drpg-eye", "--drpg-blood",

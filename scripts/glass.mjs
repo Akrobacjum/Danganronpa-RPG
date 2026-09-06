@@ -294,9 +294,10 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
         const Ydiv = ((up.y + up.h) + dn.y) / 2 - py;
         const pt = rot(0, Ydiv);
         const [below, above] = split(piece, pt[0], pt[1], -sn, cs);
-        push(above, up.cls, "section", 0); piece = below;
+        const sec = push(above, up.cls, "section", 0); if (sec) sec.empty = !up.r; piece = below;
       }
       c.pane = push(piece, c.items[c.items.length - 1].cls, "section", 0);
+      if (c.pane) c.pane.empty = !c.items[c.items.length - 1].r;
     };
     top.forEach(c => buildColumn(c, top, "top"));
     bot.forEach(c => buildColumn(c, bot, "bottom"));
@@ -578,21 +579,25 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       const k = p.tone && TONE[p.tone] ? p.tone : null;
       const bb = bbox(p.poly);
       const hsh = hash((bb.x0 + bb.x1) / 2, (bb.y0 + bb.y1) / 2);
-      const stained = !p.content && !p.plain && hsh > 0.72;   // the same share of coloured panes on a window band as on the curtain
+      /* AN EMPTY TILE IS GLASS. A pane cut for a block that is not there (the notice tile
+         between notices, the GM bar on a player's screen) keeps its place in the partition
+         but is painted like the filler around it - never a dark plate with nothing on it. */
+      const content = p.content && !p.empty;
+      const stained = !content && !p.plain && hsh > 0.72;   // the same share of coloured panes on a window band as on the curtain
       ctx.save(); path(ctx, p.poly); ctx.clip();
       // black glass first, then a little colour: a panel keeps its tone, most filler a faint tint, one in five stained
       const lum = hash((bb.x0 + bb.x1) / 2 + 17, (bb.y0 + bb.y1) / 2 - 31);
-      ctx.globalAlpha = (p.content ? 0.55 : stained ? 0.30 : 0.58) + (lum - 0.5) * 0.08;
-      ctx.fillStyle = p.content ? (k ? TONE[k] : "#0d0b16") : (lum > 0.5 ? "#0c0a14" : "#0a0810");
+      ctx.globalAlpha = (content ? 0.55 : stained ? 0.30 : 0.58) + (lum - 0.5) * 0.08;
+      ctx.fillStyle = content ? (k ? TONE[k] : "#0d0b16") : (lum > 0.5 ? "#0c0a14" : "#0a0810");
       ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
-      if (!p.content) {
+      if (!content) {
         ctx.globalAlpha = stained ? 0.60 : 0.05 + lum * 0.07;
         ctx.fillStyle = STAIN[Math.floor(hsh * 1000) % STAIN.length];
         ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
       }
       // the black over the colour: full weight on filler, half of it over content, where the
       // pane already carries the darkest tone and the text carries its own shadow
-      ctx.globalAlpha = 1; ctx.fillStyle = p.content ? "rgba(0,0,0,0.12)" : stained ? "rgba(0,0,0,0.16)" : "rgba(0,0,0,0.30)"; ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
+      ctx.globalAlpha = 1; ctx.fillStyle = content ? "rgba(0,0,0,0.12)" : stained ? "rgba(0,0,0,0.16)" : "rgba(0,0,0,0.30)"; ctx.fillRect(bb.x0, bb.y0, bb.x1 - bb.x0, bb.y1 - bb.y0);
       const down = (bb.y0 + bb.y1) / 2 < H / 2;
       const g = ctx.createLinearGradient(0, down ? bb.y0 : bb.y1, 0, down ? bb.y1 : bb.y0);
       g.addColorStop(0, "rgba(255,255,255,0.08)"); g.addColorStop(0.55, "rgba(255,255,255,0.01)"); g.addColorStop(1, "rgba(0,0,0,0.20)");
@@ -745,7 +750,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     for (let y = 4; y < H; y += 8) { if (!cover(0.5, y)) edgeGaps++; if (!cover(W - 0.5, y)) edgeGaps++; }
     CHECKS.push({ seed: job.seed, count: panes.length, overlaps: ov, nonconvex, ncv, blockFails, edgeGaps, fitFails, sig: d.length, same });
     // every pane, for `drpgGlassDebug()`: what was cut, and where
-    LAST.panes = panes.map(p => { const bb = bbox(p.poly); return { kind: p.kind, tone: p.tone || null, plain: !!p.plain, x0: Math.round(bb.x0), y0: Math.round(bb.y0), x1: Math.round(bb.x1), y1: Math.round(bb.y1) }; });
+    LAST.panes = panes.map(p => { const bb = bbox(p.poly); return { kind: p.kind, tone: p.tone || null, plain: !!p.plain, empty: !!p.empty, x0: Math.round(bb.x0), y0: Math.round(bb.y0), x1: Math.round(bb.x1), y1: Math.round(bb.y1) }; });
     LAST.tiles = Object.fromEntries(Object.entries(t).map(([k, v]) => [k, v && { yTop: Math.round(v.yTop), yCtl: Math.round(v.yCtl), wTop: Math.round(v.wTop), angle: +v.angle.toFixed(3) }]));
     if (!same) job.painted = false;
     return true;
@@ -814,7 +819,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       const accRGB = hex(j.acc).join(",");
       for (const p of j.panes) {
         const v = 0.5 - 0.5 * Math.cos(t / 1000 * p.omega + p.phase);      // 0 bright ... 1 dark
-        const dark = (p.content ? 0.42 : p.stained ? 0.62 : 0.72) * Math.pow(v, p.stained ? 2.2 : 1.6);
+        const dark = (p.content && !p.empty ? 0.42 : p.stained ? 0.62 : 0.72) * Math.pow(v, p.stained ? 2.2 : 1.6);
         if (dark > 0.01) { g.globalCompositeOperation = "source-over"; g.fillStyle = "rgba(2,1,4," + dark.toFixed(3) + ")"; path(g, p.poly.map(q => [q[0] * k, q[1] * k])); g.fill(); }
         const lit = Math.pow(1 - v, 3);
         const light = (p.stained ? 0.16 : 0.05) * lit;
@@ -915,7 +920,7 @@ function resample(poly, N) {
 const centroid = poly => { const bb = bbox(poly); return [(bb.x0 + bb.x1) / 2, (bb.y0 + bb.y1) / 2]; };
 function snapshotPanes(j) {
   if (!j.panes) return null;
-  return j.panes.map(p => ({ poly: p.poly, content: p.content, tone: p.tone, stained: p.stained, plain: p.plain, kind: p.kind }));
+  return j.panes.map(p => ({ poly: p.poly, content: p.content, empty: p.empty, tone: p.tone, stained: p.stained, plain: p.plain, kind: p.kind }));
 }
 /* what the glass looks like right now - fills, texture, the pulse's frame, the seams - on one canvas */
 function snapshotLook(j) {
