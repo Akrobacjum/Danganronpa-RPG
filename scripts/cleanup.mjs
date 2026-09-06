@@ -61,6 +61,7 @@
 import { MODULE_ID, FLAGS, CLEANUP, RESOLUTION_STRESS_COST, REMNANT_VISIBILITY }
     from "./config.mjs";
 import { getClock } from "./clock.mjs";
+import { bodyDiscovery } from "./settings.mjs";
 import { murderState, killerIds, refOf } from "./murder.mjs";
 import {
     REMNANT_FLAGS, remnantsInRoom, remnantData, removeRemnant, dropRemnant
@@ -305,10 +306,11 @@ export function cleanupDc(visibility, actor) {
 /**
  * −3 while the body is still lying where it fell (Z5).
  *
- * Read off the clock rather than stored, because the clock already carries this
- * fact and one fact with two homes is one fact that will disagree with itself:
- * `discoverBody` sets the phase to `investigation`, and that IS the moment the
- * corridor fills with people.
+ * Read off the world rather than stored here, because the world already carries
+ * this fact and one fact with two homes is one fact that will disagree with
+ * itself: `discoverBody` writes `SETTINGS.bodyFound`, and that IS the moment
+ * the corridor fills with people. The phase is the second half of the same
+ * answer, for the stretch after the record has been cleared.
  *
  * Exported so the briefing can say WHY the number in front of the player is
  * lower than the one in the handbook. A discount nobody is told about is not a
@@ -318,6 +320,11 @@ export function freshSceneBonus() {
     const rule = CLEANUP.freshScene;
     if (!rule?.bonus) return 0;
     try {
+        // THE CORRIDOR IS FULL OF PEOPLE THE MOMENT THE BODY IS FOUND, and
+        // since D5 that is no longer the same event as the phase moving. The
+        // record is cleared when Stage 7 starts, which is exactly when the
+        // phase read below takes over.
+        if (bodyDiscovery()) return 0;
         const phase = getClock().phase;
         return rule.until?.includes(phase) ? 0 : rule.bonus;
     } catch {

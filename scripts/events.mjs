@@ -28,6 +28,7 @@ import { pendingGather } from "./call-effects.mjs";
 import { roomOfActor } from "./movement.mjs";
 import { trialFloor, floorHolder, floorTarget, FLOOR_MODES } from "./trial-floor.mjs";
 import { keyPlanStatus } from "./investigation.mjs";
+import { bodyDiscovery, bodyDiscoveryFresh } from "./settings.mjs";
 
 const WIDGET_ID = "drpg-events";
 
@@ -186,8 +187,9 @@ function trialCard(clock) {
  *
  * The incident card above is shown to its participants and to nobody else; this
  * one is shown to everybody, because the discovery is what opens the
- * investigation and the whole table is in it. It stands while the clock is in
- * the investigation phase and there is a killing that has finished.
+ * investigation and the whole table is in it. It goes up the moment the body is
+ * found - which since D5 is no longer the moment Stage 7 starts - and stays up
+ * for the whole of the investigation that follows.
  *
  * What it says is deliberately thin for a player: who, and where. How many
  * traces are still out there is the GM's number - a player who could read
@@ -195,32 +197,79 @@ function trialCard(clock) {
  * the one thing the investigation is supposed to cost them.
  */
 function bodyCard(clock) {
-    if (clock.phase !== "investigation") return null;
-    if (!game.settings.settings.has(`${MODULE_ID}.murderState`)) return null;
-    const state = game.settings.get(MODULE_ID, "murderState") ?? {};
-    if (state.stage !== "resolution" || !state.victimId) return null;
-    const victim = game.actors.get(state.victimId);
-    if (!victim) return null;
+    /*
+     * TWO STATES, ONE CARD (D5).
+     *
+     * `bodyDiscovery()` is the HOLDING state: the body is found, the GM has not
+     * answered, and the clock is still in Daily Life. It carries the room and
+     * the victim itself, and that is not duplication - the incident state this
+     * card used to be read from is wiped by `endMurder` (`restoreState({})`,
+     * murder.mjs) BEFORE the GM ever presses anything, so in the ordinary flow
+     * `state.stage === "resolution"` was false and this card never appeared at
+     * all. The record is the only thing that still knows who and where.
+     *
+     * Once the Investigation starts the record is cleared (see `setClock`) and
+     * the old reading takes over, so the frame still stands for the whole of
+     * Stage 7 when the GM has parked an incident at Stage 6.
+     */
+    /* The record is written even when the phase moved first (see `discoverBody`), so "is the
+       game being held?" is the record AND the clock: with Stage 7 already running nothing is
+       waiting, and the card goes back to being the investigation's own frame. */
+    const record = bodyDiscovery();
+    const found = clock.phase === "investigation" ? null : record;
+    let victimId = found?.victimId ?? record?.victimId ?? null;
+    let room = found?.room ?? record?.room ?? null;
 
-    let room = null;
-    try { room = roomOfActor(victim)?.name ?? null; } catch { /* a victim outside every room */ }
+    if (!found) {
+        if (clock.phase !== "investigation") return null;
+        // The record still names the victim and the room that the wiped incident cannot, so it
+        // is only when there is no record at all that the old reading has to answer.
+        if (!victimId) {
+            if (!game.settings.settings.has(`${MODULE_ID}.murderState`)) return null;
+            const state = game.settings.get(MODULE_ID, "murderState") ?? {};
+            if (state.stage !== "resolution" || !state.victimId) return null;
+            victimId = state.victimId;
+        }
+    }
 
-    let meta = game.i18n.localize("DRPG.Events.bodyMeta");
-    if (game.user.isGM) {
-        try {
-            const status = keyPlanStatus();
-            if (status.entries.length) {
-                meta = game.i18n.format("DRPG.Events.bodyMetaGm", { found: status.found, total: status.entries.length });
-            }
-        } catch { /* the plan is the GM's and may not exist yet */ }
+    const victim = victimId ? game.actors.get(victimId) : null;
+    if (!victim && !room) return null;
+    if (!room && victim) {
+        try { room = roomOfActor(victim)?.name ?? null; } catch { /* a victim outside every room */ }
+    }
+
+    // WHAT THE META SAYS DEPENDS ON WHO IS WAITING FOR WHAT. While the game is
+    // held, the players are told the room has stopped and the GM is told what
+    // to press; once the investigation is running it goes back to the count of
+    // Key Remnants for the GM, which is a number no player may read.
+    let meta;
+    if (found) {
+        meta = game.i18n.localize(game.user.isGM
+            ? "DRPG.Events.bodyHoldMetaGm" : "DRPG.Events.bodyHoldMeta");
+    } else {
+        meta = game.i18n.localize("DRPG.Events.bodyMeta");
+        if (game.user.isGM) {
+            try {
+                const status = keyPlanStatus();
+                if (status.entries.length) {
+                    meta = game.i18n.format("DRPG.Events.bodyMetaGm",
+                        { found: status.found, total: status.entries.length });
+                }
+            } catch { /* the plan is the GM's and may not exist yet */ }
+        }
     }
 
     return {
         kind: "body",
+        // The same pulse the motive's card uses when it is due: this card is
+        // waiting on somebody, and `.due` is how this panel already says so.
+        // The FRESH reader, not the standing one - the record outlives the hour
+        // it was written in, and a card that pulses all evening is wallpaper.
+        due: Boolean(bodyDiscoveryFresh()),
         title: game.i18n.localize("DRPG.Events.bodyTitle"),
-        sub: room
+        sub: room && victim
             ? game.i18n.format("DRPG.Events.bodySubRoom", { victim: victim.name, room })
-            : victim.name,
+            : (victim?.name ?? room),
         meta
     };
 }

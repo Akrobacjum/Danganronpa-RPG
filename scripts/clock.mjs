@@ -19,7 +19,7 @@
  */
 
 import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES } from "./config.mjs";
-import { SETTINGS, getClock } from "./settings.mjs";
+import { SETTINGS, getClock, clearBodyDiscovery } from "./settings.mjs";
 import { resetAllActions } from "./actions.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { announce, log, warn, plural } from "./utils.mjs";
@@ -103,6 +103,22 @@ export async function setClock(patch = {}) {
     }
 
     await game.settings.set(MODULE_ID, SETTINGS.clock, next);
+
+    /*
+     * STAGE 7 STARTING IS WHAT ENDS THE DISCOVERY (D5).
+     *
+     * `setPhase` and "Edit campaign" both come through here, and they are the
+     * only two answers that end the record. A time-of-day change deliberately
+     * does NOT: the record is also what stops `maybeBodyFound` announcing the
+     * same corpse a second time and what holds `freshSceneBonus` at zero, and
+     * clearing it on the hour would hand both of those back - a re-announcement
+     * and a re-gathering on the next token move, and the killer's -3 restored.
+     * The hour ends the SILENCE, and it does that by the stamp in the record
+     * going stale (`bodyDiscoveryFresh`), not by a write here.
+     */
+    if (patch.phase !== undefined && patch.phase !== before.phase) {
+        await clearBodyDiscovery();
+    }
 
     /*
      * A NEW SESSION USED TO BE A REMINDER HERE, and is nothing at all now (Z7).

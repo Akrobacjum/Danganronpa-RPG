@@ -30,7 +30,8 @@
  */
 
 import { MODULE_ID, FLAGS, REMNANT_TYPES } from "./config.mjs";
-import { getClock, setPhase } from "./clock.mjs";
+import { getClock } from "./clock.mjs";
+import { bodyDiscovery, setBodyDiscovery, clearBodyDiscovery } from "./settings.mjs";
 import { TRUTH_BULLET_FLAGS, bulletsOf, secretOf, dropSecret } from "./truth-bullets.mjs";
 import { remnantsOn, remnantData, REMNANT_FLAGS } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
@@ -407,7 +408,7 @@ async function promoteFaintPrep() {
 
 /**
  * The body discovery announcement: promote the traces, call everyone to the
- * scene, and turn the phase over to Investigation.
+ * scene, and hold the game there until the GM answers.
  *
  * @param {object} options
  * @param {string} options.room     Where the body is.
@@ -457,7 +458,17 @@ export async function discoverBody({ room, victim = null } = {}) {
         </div>`
     });
 
-    await setPhase("investigation");
+    /*
+     * THE DISCOVERY IS NOT THE INVESTIGATION (D5).
+     *
+     * This used to move the phase, which meant finding a body ended Daily
+     * Life on the spot. It is a held state now: the card stands, the music
+     * stops, and the phase waits for the GM to start the Investigation.
+     * Written on every route, including one that reaches here with the phase
+     * already at `investigation` - the card has nothing else to read, since
+     * `endMurder` wipes `murderState` before the GM presses anything.
+     */
+    await setBodyDiscovery({ room, victimId: victim?.id ?? null });
 
     ui.notifications.info(plural("DRPG.Chapter.bodyDone", { moved, promoted }, "promoted"));
     log(`Body discovered in ${room}: ${promoted} trace(s) promoted, ${moved} token(s) gathered.`);
@@ -491,7 +502,9 @@ let bodyCheckRunning = false;
 
 export async function maybeBodyFound(tokenDoc) {
     if (!game.user.isGM || bodyCheckRunning) return null;
-    if (getClock().phase === "investigation") return null;   // already in Stage 7
+    // Already in Stage 7, or a body found and waiting on the GM. Both are
+    // "this has already been discovered"; the second is the whole of D5.
+    if (getClock().phase === "investigation" || bodyDiscovery()) return null;
 
     // The Eclipse is everyone crossing the map with their eyes shut - the guide
     // gives that window to placement, not to the cast stumbling over a body
@@ -818,6 +831,11 @@ export async function openChapterEndDialog() {
             session: move.session ?? clock.session
         }));
     }
+
+    // Nothing outlives its chapter. Ordinarily the trial's phase change cleared
+    // this long ago; a GM who ended a chapter straight out of Daily Life would
+    // otherwise carry a body card into the next one.
+    await clearBodyDiscovery();
 
     if (!done.length) return null;
 

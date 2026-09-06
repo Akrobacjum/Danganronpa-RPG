@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json - the suite fails if it does not. */
-    --drpg-css-version: "1.2.38";
+    --drpg-css-version: "1.2.39";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -4329,6 +4329,42 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
 
 .drpg-project-portrait:hover {
     box-shadow: 0 0 6px var(--drpg-eye-glow, rgba(var(--drpg-eye-rgb), 0.45));
+}
+
+/* ---- the tray glyph, and the grid that chooses it ------------------------
+   Under Stained Glass the Projects tray does not draw a project's portrait at
+   all: it draws a 24x24 pixel sprite masked in the interface's state colour.
+   So the portrait above is no longer the answer to "what does this row look
+   like", and this is.
+   Layout only. Each cell is a `.drpg-choice`, so both themes dress it exactly
+   as they dress every other list that picks, and the swatch is a Font Awesome
+   `<i>` - the base sheet draws it, Stained Glass masks it to the sprite the
+   tray will use. Nothing here needs to know a pixel glyph exists. */
+.drpg-glyph-picker {
+    margin: 0.4rem 0;
+}
+
+.drpg-glyph-picker > summary {
+    cursor: pointer;
+}
+
+.drpg-glyph-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+    gap: 3px;
+    margin-top: 0.3rem;
+}
+
+.drpg-glyph-grid > .drpg-choice {
+    margin: 0;
+    min-width: 0;
+}
+
+.drpg-glyph-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* A checkbox that deletes a project on Save is not the same weight as the

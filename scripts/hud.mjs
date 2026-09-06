@@ -24,7 +24,7 @@ import { isPrimaryGm, error, plural } from "./utils.mjs";
 // character.mjs reaches config and utils. These two readers used to be
 // private copies here "for the cycle" (audit C3) - the cycle was real, the
 // copies were the wrong cure.
-import { incomingTimeOfDay } from "./settings.mjs";
+import { incomingTimeOfDay, bodyDiscovery } from "./settings.mjs";
 import { remaining } from "./character.mjs";
 // Static, and checked before adding: this file avoids static imports because it
 // sits on the render path the clock itself calls back into, so a cycle here
@@ -375,7 +375,7 @@ export function renderHud() {
          * Appended conditionally and returning null when idle, so the column
          * below keeps its height on an ordinary time of day. `alignRightColumn`
          * measures what is actually here, after this. */
-        // Under the Stained Glass theme these three are the Event panel's, under
+        // Under the Stained Glass theme these four are the Event panel's, under
         // the Despair rail (events.mjs); the clock stays a clock. Under Monokuma
         // Legacy they are rows here, as they were.
         if (!eventsWindowActive()) {
@@ -387,6 +387,9 @@ export function renderHud() {
 
             const incident = buildIncident();
             if (incident) hud.append(incident);
+
+            const body = buildBody();
+            if (body) hud.append(body);
         }
 
         // Last, under the timer: where you are standing is the most local thing
@@ -1400,6 +1403,37 @@ function buildAssembly() {
     el.dataset.tooltip = game.i18n.format("DRPG.Calls.gatherBody", {
         room: foundry.utils.escapeHTML(order.room)
     });
+
+    return el;
+}
+
+/**
+ * A body found, and the GM has not answered it yet (D5).
+ *
+ * The Event panel carries this for the Stained Glass theme; this row is the
+ * same fact for the other two. It matters more here than either row above it,
+ * because finding a body no longer moves the phase - the clock goes on reading
+ * Daily Life, which used to be the table's only notice that Stage 7 had begun.
+ * Without this a Monokuma Legacy screen would have a corpse on the floor and
+ * nothing anywhere that says so once the chat card has scrolled away.
+ *
+ * The room rather than the victim: the discovery is a place everybody has been
+ * called to, and the name is already in the announcement.
+ */
+function buildBody() {
+    const found = bodyDiscovery();
+    if (!found) return null;
+
+    const el = document.createElement("div");
+    // The assembly's own classes, not a fourth pair of its own. It is the same
+    // row - a label and one word - and a set of selectors that says exactly
+    // what `.drpg-hud-assembly` already says is a stylesheet to keep in step
+    // for nothing.
+    el.className = "drpg-hud-assembly";
+    el.innerHTML = `<span class="drpg-hud-assembly-label">${
+        game.i18n.localize("DRPG.Hud.bodyFound")}</span><span class="drpg-hud-assembly-room">${
+        foundry.utils.escapeHTML(found.room ?? "")}</span>`;
+    el.dataset.tooltip = game.i18n.localize("DRPG.Hud.bodyFoundTooltip");
 
     return el;
 }

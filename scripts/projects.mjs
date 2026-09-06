@@ -11,14 +11,14 @@
  * rolling on it costs the killer (see INDIRECT_MURDER in config.mjs).
  */
 
-import { MODULE_ID, PROJECT_SCALE } from "./config.mjs";
+import { MODULE_ID, PROJECT_SCALE, isProjectGlyph } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { announce, log, error, whisperToOwner, gmIds } from "./utils.mjs";
 
 const DH = "daggerheart";
 const COUNTDOWNS = "Countdowns";
 
-/** Raw per-project metadata: { [countdownId]: { room, indirectMurder, scale } }. */
+/** Raw per-project metadata: { [countdownId]: { room, indirectMurder, scale, glyph } }. */
 export function projectMeta() {
     return game.settings.get(MODULE_ID, SETTINGS.projectMeta) ?? {};
 }
@@ -113,6 +113,14 @@ export function allProjects() {
                 condition: metaFor(id).condition ?? "",
                 killerId: metaFor(id).killerId ?? null,
                 trait: metaFor(id).trait ?? null,
+                // WHICH PIXEL GLYPH THE TRAY DRAWS FOR THIS ROW.
+                //
+                // `null` for every project made before this existed, and for
+                // every countdown built in Daggerheart's own window - both of
+                // which the tray's own rule then draws as the hourglass they
+                // have always been. Nothing here invents a default: naming it
+                // twice is how the picker and the tray drift apart.
+                glyph: metaFor(id).glyph ?? null,
                 frozen: Boolean(metaFor(id).frozenBy),
                 repairs: metaFor(id).repairs ?? null,
                 // Full. Not the same as gone: a finished project sits on the
@@ -337,10 +345,13 @@ export async function addProgress(countdownId, amount, { by = null } = {}) {
  * @param {boolean} [data.secret]
  * @param {string[]} [data.viewers]   Users who may see it when secret.
  * @param {string} [data.img]         Portrait/icon. Defaults to the hourglass.
+ * @param {string} [data.glyph]       Tray glyph, a PROJECT_GLYPHS key. The
+ *   Stained Glass tray draws this instead of `img`; null means the hourglass.
  */
 export async function createProject({
     name, target = 4, room = null, indirectMurder = false, secret = false,
     viewers = [], trait = null, img = "icons/magic/time/hourglass-yellow-green.webp",
+    glyph = null,
     // Whose trap this is, and what sets it off. Both only mean anything on an
     // indirect murder, and both are what the guide asks for in place of a named
     // victim: "you do not name the victim - you name a condition".
@@ -413,6 +424,10 @@ export async function createProject({
     // stays explicit in the data, not just in this file's assumptions.
     await setProjectMeta(id, {
         room, indirectMurder, secret: hidden, trait, countsUp: true,
+        // Gated on the way IN, not on the way out: a name the sprite set does
+        // not have would reach the tray as `var(--drpg-px-nonsense)`, which is
+        // an invalid mask and therefore NO glyph at all - not the hourglass.
+        glyph: isProjectGlyph(glyph) ? glyph : null,
         by: by ?? null,
         killerId: indirectMurder ? killerId : null,
         condition: indirectMurder ? condition : "",
@@ -480,7 +495,10 @@ export async function sabotageProject(targetId, difficulty = 3) {
         room: roomOf(targetId),
         trait: metaFor(targetId).trait ?? null,
         indirectMurder: false,
-        secret: false
+        secret: false,
+        // A repair is not the thing it repairs, and the tray is where a player
+        // has to see that at a glance.
+        glyph: "tamper"
     });
     if (!repair) return null;
 
@@ -752,7 +770,7 @@ export async function setProjectImage(countdownId, img) {
  * current progress is clamped down with it.
  *
  * @param {string} countdownId
- * @param {object} patch  Any of { name, target, img, room, trait, indirectMurder }
+ * @param {object} patch  Any of { name, target, img, glyph, room, trait, indirectMurder }
  */
 export async function updateProject(countdownId, patch = {}) {
     if (!game.user.isGM) return null;
@@ -794,6 +812,9 @@ export async function updateProject(countdownId, patch = {}) {
     const meta = {};
     if (patch.room !== undefined) meta.room = patch.room || null;
     if (patch.trait !== undefined) meta.trait = patch.trait || null;
+    // Same gate as `createProject`, and for the same reason. An explicit null
+    // is a GM clearing the choice, which is the hourglass again.
+    if (patch.glyph !== undefined) meta.glyph = isProjectGlyph(patch.glyph) ? patch.glyph : null;
     if (patch.indirectMurder !== undefined) meta.indirectMurder = Boolean(patch.indirectMurder);
     // The whole trigger travels as one object - see traps.mjs. Written through
     // `updateProject` as well as `setProjectMeta` so the manager window can

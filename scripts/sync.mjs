@@ -86,6 +86,10 @@ const SETTING_KINDS = {
     // An incident turn changes what both participants may do right now, so the
     // sheets have to redraw the moment the state moves.
     murderState: SYNC.restrictions,
+    // The body card is a card on the Event panel, which `renderHud` redraws -
+    // and the music state machine reads this too. `restrictions` already
+    // redraws the HUD and every open sheet, which is the whole of what changes.
+    bodyFound: SYNC.restrictions,
     // The floor passing to somebody else changes a countdown every client is
     // watching, so it has to land everywhere at once.
     trialQueue: SYNC.trial,

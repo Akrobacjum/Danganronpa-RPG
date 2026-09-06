@@ -2996,12 +2996,14 @@ async function afterIncident(state) {
             })}</p>` : ""}
         </div>`),
         buttons: [
+            // THE BODY FIRST, AND IT NO LONGER STARTS STAGE 7 (D5). Announcing
+            // the discovery and starting the investigation are two decisions
+            // now, and this window offers them in that order.
+            { action: "body", label: game.i18n.localize("DRPG.Chapter.bodyTitle"), default: true },
             ...(alreadyInvestigating ? [] : [{
-                action: "investigation", default: true,
+                action: "investigation",
                 label: game.i18n.localize("DRPG.Murder.afterGoInvestigation")
             }]),
-            { action: "body", label: game.i18n.localize("DRPG.Chapter.bodyTitle"),
-              default: alreadyInvestigating },
             { action: "autopsy", label: game.i18n.localize("DRPG.TruthBullet.autopsyTitle") },
             ...(traitor ? [{
                 action: "betrayal", class: "drpg-gm-route",
@@ -3015,13 +3017,11 @@ async function afterIncident(state) {
 
     if (action === "betrayal") return openBetrayal(traitor, killer);
     if (action === "investigation") {
+        // Only the phase. Announcing the body is its own button above, and
+        // since D5 it is its own beat: the discovery holds the game in Daily
+        // Life until a GM presses this or moves the clock.
         const { setPhase } = await import("./clock.mjs");
-        await setPhase("investigation");
-        // Straight on to the body: moving the phase and announcing the body are
-        // the same beat at the table, and splitting them is what made this two
-        // trips through the GM panel.
-        const { openBodyDiscoveryDialog } = await import("./chapter.mjs");
-        return openBodyDiscoveryDialog();
+        return setPhase("investigation");
     }
     if (action === "body") {
         const { openBodyDiscoveryDialog } = await import("./chapter.mjs");

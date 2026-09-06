@@ -894,7 +894,8 @@ async function wipeSeason({ alsoChat = false } = {}) {
         // the withdrawal in chat. Nobody needs to be told a motive is over
         // during a reset that is also clearing the chat it would be posted in.
         ["the motive", SETTINGS.motive, {}],
-        ["the trial's progress", SETTINGS.trialProgress, {}]
+        ["the trial's progress", SETTINGS.trialProgress, {}],
+        ["the body waiting to be answered", SETTINGS.bodyFound, {}]
     ]) {
         await step(label, () => game.settings.set(MODULE_ID, key, value));
     }

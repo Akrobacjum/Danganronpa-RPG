@@ -7,7 +7,8 @@
  */
 
 import { DRPG, MODULE_ID, TRAITS, TRAIT_BY_DH } from "./config.mjs";
-import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
+import { SETTINGS, getSetting, setSetting, bodyDiscovery, clearBodyDiscovery }
+    from "./settings.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { getUltimate, setUltimate, findDuplicateUltimates } from "./sheet.mjs";
 import { openAdvancement, openAdvancementFor, applyAdvancement } from "./level-up.mjs";
@@ -715,8 +716,14 @@ export const DrpgApi = {
     /** Un-mark a mis-click. Does NOT bring the destroyed inventory back. */
     reviveCharacter,
 
-    /** Promote the traces, call everyone in, switch to Investigation. */
+    /** Promote the traces, call everyone in, and hold the game there. */
     discoverBody,
+
+    /** The body found and not yet answered, and the way to unstick it: since D5
+     *  the discovery is a record rather than a phase change, and a GM who wants
+     *  the card and the silence gone without moving the clock says so here. */
+    bodyDiscovery,
+    clearBodyDiscovery,
 
     /** Chapter's end: every bullet gives up what it really was. */
     revealAllBulletTypes,

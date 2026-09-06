@@ -6,7 +6,7 @@
  * the room it belongs to, and who is allowed to know it exists.
  */
 
-import { MODULE_ID, PROJECT_SCALE, TRAITS, TRAP_TRIGGERS, TRAP_MODIFIERS } from "./config.mjs";
+import { MODULE_ID, PROJECT_SCALE, PROJECT_GLYPHS, isProjectGlyph, TRAITS, TRAP_TRIGGERS, TRAP_MODIFIERS } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import {
     allProjects, setProjectMeta, metaFor, roomOf, isIndirectMurder, isSecret,
@@ -182,31 +182,74 @@ function localiseRawKeys(root) {
 }
 
 /**
- * How full each project is, written on its row as `--w` for the theme's bar.
+ * How full each project is, written on its row as `--w` for the theme's bar,
+ * and WHICH GLYPH the row is drawn with, as `--drpg-project-glyph`.
  *
- * The Stained Glass tray draws a project as the audit page does: a glyph, the
- * name, a bar filled to the project's progress, the count. Daggerheart's own
- * row has the count as text and no bar, and a stylesheet cannot read a number
- * out of a text node - so the share is written here, on every render, as a
- * custom property the bar's rule reads. Read off the tag the system rendered
- * ("2 / 4"), which is what the player sees and therefore what the bar must
- * agree with; when the tag says something else, the project's own record.
+ * Neither number is a thing a stylesheet can read: the share lives in a text
+ * node ("2 / 4") and the glyph lives in our own world setting, which the
+ * system knows nothing about - so both are written here, on every render, as
+ * custom properties the theme's rules read.
+ *
+ * The share is read off the tag the system rendered, which is what the player
+ * sees and therefore what the bar must agree with; when the tag says something
+ * else, the project's own record.
+ *
+ * The glyph is a REFERENCE, `var(--drpg-px-key)`, not the sprite itself: the
+ * tokens sit on the body under Stained Glass and a row inherits them, so one
+ * copy of each sprite serves every row. A row whose project has no glyph has
+ * the property REMOVED rather than set to the hourglass - the rule's own
+ * `var(..., var(--drpg-px-hourglass))` fallback is the single place the
+ * default is named.
+ *
+ * `allProjects()` is read once per render and only when there is something to
+ * paint: it is eight metadata reads per project (projects.mjs), and this runs
+ * on every client every time a countdown moves.
  */
 function paintProgress(root) {
-    let projects = null;
-    for (const row of root.querySelectorAll(".countdown-container")) {
+    const rows = root.querySelectorAll(".countdown-container");
+    if (!rows.length) return;
+    const projects = allProjects();
+
+    for (const row of rows) {
+        const project = projectForRow(row, projects);
+
         const tag = row.querySelector(".progress-tag")?.textContent ?? "";
         const m = tag.match(/(\d+)\s*\/\s*(\d+)/);
         let share = m && Number(m[2]) > 0 ? Number(m[1]) / Number(m[2]) : null;
-        if (share === null) {
-            projects ??= allProjects();
-            const name = row.querySelector(".countdown-content > header")?.textContent?.trim();
-            const p = projects.find(x => x.name === name);
-            if (p && p.start > 0) share = p.current / p.start;
+        if (share === null && project && project.start > 0) share = project.current / project.start;
+
+        if (share === null) row.style.removeProperty("--w");
+        else row.style.setProperty("--w", `${Math.round(Math.max(0, Math.min(1, share)) * 100)}%`);
+
+        // Gated again here, cheaply: this string is being written into CSS, and
+        // an unknown name makes the whole `mask` shorthand invalid at
+        // computed-value time - which is not "no glyph" but an UNMASKED box,
+        // i.e. a solid block of the state colour on the row.
+        if (isProjectGlyph(project?.glyph)) {
+            row.style.setProperty("--drpg-project-glyph",
+                `var(--drpg-px-${project.glyph}, var(--drpg-px-hourglass))`);
+        } else {
+            row.style.removeProperty("--drpg-project-glyph");
         }
-        if (share === null) { row.style.removeProperty("--w"); continue; }
-        row.style.setProperty("--w", `${Math.round(Math.max(0, Math.min(1, share)) * 100)}%`);
     }
+}
+
+/**
+ * Which project is this row?
+ *
+ * By id when the system gives us one, by the name it rendered otherwise -
+ * which is what the share above has always fallen back to. The id attribute is
+ * read through three spellings and none is required, because it is
+ * Daggerheart's markup and not ours.
+ */
+function projectForRow(row, projects) {
+    const id = row.dataset.countdown ?? row.dataset.countdownId ?? row.dataset.id ?? null;
+    if (id) {
+        const byId = projects.find(p => p.id === id);
+        if (byId) return byId;
+    }
+    const name = row.querySelector(".countdown-content > header")?.textContent?.trim();
+    return name ? projects.find(p => p.name === name) ?? null : null;
 }
 
 /* ==========================================================================
@@ -438,6 +481,54 @@ export async function openProjectManager() {
 }
 
 /**
+ * The glyph grid: every glyph the tray can draw, the chosen one lit.
+ *
+ * Radios and not a <select>, and each cell is a `.drpg-choice` - the module's
+ * one idiom for picking, which both themes already dress (danganronpa.css,
+ * stained-glass.css "the choice row"). What is being chosen is a picture, and
+ * a dropdown of twenty-one words is a list of NAMES for pictures.
+ *
+ * The swatch is a Font Awesome icon, which is what makes it right under both
+ * looks without a line of theme code: Monokuma Legacy draws the FA glyph, and
+ * Stained Glass masks that same element to the pixel sprite through the rules
+ * pixel-icons.css already ships - the very sprite the tray will paint the row
+ * with. It needs no wiring, unlike the portrait beside it: the form is read on
+ * Save like every other field.
+ *
+ * The first cell is the DEFAULT, and its value is the empty string, not
+ * "hourglass": a GM who never touches the grid must leave the project with no
+ * stored choice, or every edited project silently acquires a glyph and "no
+ * choice" stops being tellable from "chose the hourglass".
+ *
+ * `<details>` rather than `<fieldset>`: this form is a `DialogV2.wait`, not
+ * `tableDialog`, so nothing measures or caps its height - twenty-one open
+ * cells push Save off a 1080p screen. It opens itself when a glyph is already
+ * set, so an edit shows the choice that exists.
+ */
+function glyphGrid(current) {
+    const chosen = isProjectGlyph(current) ? current : "";
+    const cell = (value, fa, label) => `<label class="drpg-choice drpg-glyph-choice">
+            <input type="radio" name="glyph" value="${value}"${value === chosen ? " checked" : ""} />
+            <i class="fa-solid ${fa}" inert></i>
+            <span class="drpg-glyph-name">${foundry.utils.escapeHTML(label)}</span>
+        </label>`;
+
+    const cells = [cell("", PROJECT_GLYPHS.hourglass.fa,
+        game.i18n.localize("DRPG.Project.glyphDefault"))];
+    for (const [key, def] of Object.entries(PROJECT_GLYPHS)) {
+        if (key === "hourglass") continue;   // it IS the default, offered once
+        const i18n = `DRPG.Project.glyph.${key}`;
+        cells.push(cell(key, def.fa, game.i18n.has(i18n) ? game.i18n.localize(i18n) : def.label));
+    }
+
+    return `<details class="drpg-glyph-picker"${chosen ? " open" : ""}>
+        <summary>${game.i18n.localize("DRPG.Project.glyphLabel")}</summary>
+        <div class="drpg-glyph-grid">${cells.join("")}</div>
+        <small class="notes">${game.i18n.localize("DRPG.Project.glyphNote")}</small>
+    </details>`;
+}
+
+/**
  * Create a project, or edit one - the same form either way.
  *
  * Deliberately one function rather than two that drift apart. The GM asks the
@@ -539,6 +630,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
                            value="${foundry.utils.escapeHTML(start?.name ?? "")}"
                            placeholder="${game.i18n.localize("DRPG.Project.namePlaceholder")}" /></label>
             </div>
+            ${glyphGrid(start?.glyph ?? null)}
             <label>${game.i18n.localize("DRPG.Project.scale")}
                 <select name="target">${offScale}${scaleOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Project.room")}
@@ -603,7 +695,12 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
                     },
                     secret: f.secret.checked,
                     viewer: f.viewer?.value || null,
-                    img: f.img.value || null
+                    img: f.img.value || null,
+                    // A RadioNodeList's `.value` is the checked one, and the
+                    // default cell's value is "" - so an untouched grid reads
+                    // as "no choice" and the tray's own fallback names the
+                    // hourglass, in one place.
+                    glyph: f.glyph?.value || null
                 };
             }
         }
@@ -652,6 +749,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
             name: result.name,
             target: result.target,
             img: result.img,
+            glyph: result.glyph,
             room: result.room,
             trait: result.trait,
             indirectMurder: result.murder,
@@ -685,6 +783,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         trigger: result.trigger,
         secret: result.secret || result.murder,
         img: result.img,
+        glyph: result.glyph,
         viewers: result.viewer ? [result.viewer] : [],
         // Whose trap it is: the player it was made visible to, when the GM
         // named one. `startProject` fills this in properly for the player's own

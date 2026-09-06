@@ -41,7 +41,7 @@
  */
 
 import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, SITUATIONAL_PLAYLIST } from "./config.mjs";
-import { SETTINGS, getSetting } from "./settings.mjs";
+import { SETTINGS, getSetting, bodyDiscoveryFresh } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import { trialFloor, FLOOR_MODES } from "./trial-floor.mjs";
 import { isPrimaryGm, debug, log, warn, error, plural } from "./utils.mjs";
@@ -157,6 +157,27 @@ export const MUSIC_STATES = [
         randomTrack: true,
         test: () => getClock().phase === "classTrial"
     },
+    /*
+     * A BODY ON THE FLOOR, AND NOBODY HAS DECIDED WHAT HAPPENS NEXT (D5).
+     *
+     * The one state whose default is SILENCE. Everywhere else "nothing mapped"
+     * means "leave the room alone", which is wrong for the sixty seconds after
+     * the announcement. `silence` is read in `apply` and is only reached when
+     * nothing is mapped, so a GM with a drone for the discovery still gets it.
+     *
+     * Whatever was playing is PAUSED, not stopped, so the afternoon comes back
+     * at the bar it left off.
+     */
+    {
+        key: "bodyFound", labelKey: "DRPG.Music.state.bodyFound",
+        silence: true, immediate: true,
+        // The hour it was found in, and only while the game is still in Daily
+        // Life. The first half is what lets the GM answer by moving the clock -
+        // the clock write fires the watcher below and this test simply stops
+        // being true. The second stops a GM who started Stage 7 before
+        // announcing the body from silencing an investigation already running.
+        test: () => bodyDiscoveryFresh() !== null && getClock().phase === "dailyLife"
+    },
     { key: "search", labelKey: "DRPG.Music.state.search", test: () => getClock().phase === "investigation" },
     ...TIMES_OF_DAY.map(time => ({
         key: `time.${time}`,
@@ -223,6 +244,9 @@ let playingState = null;
  */
 let interrupted = null;
 
+/** The playlists this file stopped for a silent state, and is holding for it. */
+let silenced = null;
+
 export function registerMusic() {
     Hooks.on("drpgTimeOfDayChanged", () => schedule());
     /*
@@ -246,7 +270,8 @@ export function registerMusic() {
     Hooks.on("updateSetting", setting => {
         const key = setting?.key;
         if (key !== `${MODULE_ID}.${SETTINGS.trialQueue}`
-            && key !== `${MODULE_ID}.${SETTINGS.clock}`) return;
+            && key !== `${MODULE_ID}.${SETTINGS.clock}`
+            && key !== `${MODULE_ID}.${SETTINGS.bodyFound}`) return;
         // Asked AFTER the setting has landed, so this is the state we are
         // moving TO rather than the one we are leaving.
         schedule({ now: stateDef(currentState())?.immediate === true });
@@ -432,6 +457,27 @@ async function apply() {
     if (!state || state === playingState) return;
 
     const next = playlistFor(state);
+
+    // SILENCE IS A DECISION TOO - see the `bodyFound` entry in MUSIC_STATES.
+    // Below `next`, so a playlist mapped to a silent state still wins.
+    if (!next && stateDef(state)?.silence === true) {
+        if (!silenced) silenced = { held: await holdEverything() };
+        playingState = state;
+        log(`Music: ${state} -> silence (${silenced.held.length} playlist(s) held).`);
+        return;
+    }
+
+    // Coming back out of one, and only what THIS branch took. `HELD_FLAG` is
+    // shared with the GM-cue path (`startInterruption`, `adoptRunningInterruption`),
+    // so `playlistsHolding()` here would resume playlists a running cue is still
+    // holding. `resetMusic` owns the after-a-reload case and guards it with
+    // `!anythingPlaying()`, which this branch has no equivalent of.
+    if (silenced) {
+        const held = silenced.held;
+        silenced = null;
+        await resumeHeld(held);
+    }
+
     if (!next) {
         debug(`Music: nothing mapped for "${state}"; leaving the current track alone.`);
         return;
@@ -1096,6 +1142,10 @@ export async function resetMusic() {
 
     const record = interrupted;
     interrupted = null;
+    // Reset gives back everything holding and then calls `schedule()`, which
+    // re-silences if the body is still unanswered. The flag must not survive
+    // that, or the resume below would be the last one this state ever gets.
+    silenced = null;
 
     // Everything the cue could be coming out of: the playlist it was started
     // from, and the cue playlist itself - the same one nine times out of ten.
@@ -1437,6 +1487,7 @@ export function musicStatus() {
         playing: game.playlists.filter(p => p.playing).map(p => p.name),
         situational: situationalPlaylist()?.name ?? null,
         interrupted: Boolean(interrupted),
+        silenced: Boolean(silenced),
         // What a reset would stop, and what it would give back.
         cue: cue?.sounds.get(interrupted.soundId)?.name ?? null,
         held: (interrupted?.held ?? []).map(id => game.playlists.get(id)?.name ?? id)

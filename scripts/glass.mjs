@@ -139,20 +139,73 @@ function moduleLayout(W, H) {
     if (!r && !b.fallback) return;                 // an event panel that is not there cuts no pane
     const box = r ? { ...r } : b.fallback(W, H, rects);
     rects[b.cls] = box;
-    out.push({ cls: b.cls, sel: b.sel, x: box.x, y: box.y, w: box.w, h: box.h, el: list[0] ?? null, els: list, r });
+    out.push({ cls: b.cls, sel: b.sel, fixed: Boolean(b.fixed), x: box.x, y: box.y, w: box.w, h: box.h, el: list[0] ?? null, els: list, r });
   });
   LAST.blocks = out.map(b => ({ cls: b.cls, x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.w), h: Math.round(b.h), measured: Boolean(b.r), n: b.els.length }));
   return out;
 }
-/** Console helper: `drpgGlassDebug()` prints the frame, the blocks and the self-check of the last pass. */
-/** What the pointer would hit at a few points of the map: the answer to "the map takes no clicks". */
-function onTop() {
-  const W = innerWidth, H = innerHeight, name = e => e ? e.tagName.toLowerCase() + (e.id ? "#" + e.id : "") + (e.classList?.length ? "." + [...e.classList].slice(0, 2).join(".") : "") + " (pointer-events " + getComputedStyle(e).pointerEvents + ")" : "nothing";
-  const at = (x, y) => { try { return name(document.elementFromPoint(x, y)); } catch { return "?"; } };
-  return { centre: at(W / 2, H / 2), left: at(W * 0.3, H * 0.6), right: at(W * 0.7, H * 0.45), low: at(W / 2, H * 0.85) };
+/* THE INTERFACE LAYER IS A LID, AND SOMETIMES IT TAKES THE MAP'S CLICKS.
+   Foundry paints `#interface` over the board and relies on it not being hit-testable; on the
+   reporter's client it computed to `pointer-events: auto`, so every click meant for the map -
+   panning, selecting a token - landed on the lid and did nothing. Nothing in this module sets
+   it (checked rule by rule), so rather than guess at the cause this repairs the symptom, and
+   only when it is really there: if the middle of the map hits `#interface` itself, the lid is
+   made transparent to the pointer and every child that was hit-testable is pinned to `auto`,
+   so not one control changes behaviour and the board gets its clicks back. Undone on unmount. */
+const LID = { el: null, prev: "", pinned: [], promoted: false };
+function freeTheBoard() {
+  const iface = document.getElementById("interface");
+  if (!iface || !themeOn()) return;
+  const active = LID.el === iface;
+  if (!active) {
+    /* Unconditional when the promotion above is ours, because then the lid is ours by
+       construction. Otherwise it is a repair, and a repair only happens when the fault is
+       really there - probed at FOUR points, since the middle of the screen is where a window
+       sits and one probe there would report the dialog and miss the lid entirely. */
+    let lid = LID.promoted;
+    if (!lid) {
+      const W = innerWidth, H = innerHeight;
+      try {
+        for (const [x, y] of [[W * 0.5, H * 0.5], [W * 0.3, H * 0.72], [W * 0.7, H * 0.28], [W * 0.5, H * 0.85]]) {
+          if (document.elementFromPoint(Math.round(x), Math.round(y)) === iface) { lid = true; break; }
+        }
+      } catch { return; }
+    }
+    if (!lid) return;                                // the map is reachable: nothing to repair
+    LID.el = iface; LID.prev = iface.style.pointerEvents;
+  }
+  // read the children with the lid transparent again, so what they ask for is not hidden by inheritance
+  iface.style.pointerEvents = "";
+  const wants = [...iface.children].map(c => [c, getComputedStyle(c).pointerEvents]);
+  iface.style.pointerEvents = "none";
+  for (const [c, pe] of wants) if (pe !== "none" && !c.style.pointerEvents) { LID.pinned.push(c); c.style.pointerEvents = "auto"; }
+  if (!active && !LID.promoted) log("the interface layer was taking the map's clicks; the board has them back");
 }
+function restoreLid() {
+  const iface = LID.el ?? document.getElementById("interface");
+  if (LID.promoted && iface) { iface.style.position = ""; iface.style.zIndex = ""; }
+  LID.promoted = false;
+  if (!LID.el) return;
+  LID.el.style.pointerEvents = LID.prev;
+  for (const c of LID.pinned) c.style.pointerEvents = "";
+  LID.el = null; LID.prev = ""; LID.pinned.length = 0;
+}
+/** What the pointer finds over the map, top to bottom: the answer to "the map takes no clicks". */
+function hitStack() {
+  const W = innerWidth, H = innerHeight;
+  const name = e => e ? e.tagName.toLowerCase() + (e.id ? "#" + e.id : "") + (e.classList?.length ? "." + [...e.classList].slice(0, 2).join(".") : "") + " [" + getComputedStyle(e).pointerEvents + "]" : "nothing";
+  const at = (x, y) => { try { return [...(document.elementsFromPoint(x, y) || [])].slice(0, 6).map(name); } catch { return ["?"]; } };
+  const iface = document.getElementById("interface"), board = document.getElementById("board");
+  return {
+    centre: at(Math.round(W / 2), Math.round(H / 2)),
+    lower: at(Math.round(W * 0.35), Math.round(H * 0.75)),
+    boardInsideInterface: Boolean(iface && board && iface !== board && iface.contains(board)),
+    lid: LID.el ? "freed by the module" : "not needed"
+  };
+}
+/** Console helper: `drpgGlassDebug()` prints the frame, the blocks and the self-check of the last pass. */
 export function debugGlass() {
-  const out = { onTop: onTop(), frame: LAST.frame, rightColumn: { pinned: document.getElementById("ui-right-column-1")?.dataset.drpgPinned === "1", right: PIN.rail }, blocks: LAST.blocks, checks: CHECKS.slice(), theme: document.body.className, viewport: [innerWidth, innerHeight], curtain: document.getElementById("drpg-curtain")?.getBoundingClientRect?.() };
+  const out = { pointer: hitStack(), frame: LAST.frame, rightColumn: { pinned: document.getElementById("ui-right-column-1")?.dataset.drpgPinned === "1", right: PIN.rail }, blocks: LAST.blocks, checks: CHECKS.slice(), theme: document.body.className, viewport: [innerWidth, innerHeight], curtain: document.getElementById("drpg-curtain")?.getBoundingClientRect?.() };
   console.log("[DRPG] curtain", JSON.stringify(out, null, 1));
   return out;
 }
@@ -279,9 +332,20 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       // the rotation goes into a stylesheet rule keyed by the block's selector (applyRotations), so a
       // block the module re-renders from scratch wears it the moment it appears; a union of several
       // elements gets inline styles, because each has its own origin
-      for (const b of c.items) if (b.el && b.r) for (const e of b.els) {
-        const er = e.getBoundingClientRect();
-        ROT.push({ sel: b.els.length === 1 ? b.sel : null, el: e, origin: (px - er.left) + "px " + (py - er.top) + "px", transform: Math.abs(phi) < 0.004 ? "none" : "rotate(" + phi + "rad)" });
+      const turn = Math.abs(phi) < 0.004 ? "none" : "rotate(" + phi + "rad)";
+      for (const b of c.items) {
+        /* A FIXED BLOCK IS STILL A BLOCK ON THE GLASS. Its box is a constant - the notice tile is
+           cut once and never recut, whatever arrives in it - but its element must still turn with
+           its pane, or the cards stand upright inside a tilted piece of glass (1.2.38). The rule
+           is keyed to the SELECTOR and computed from the fixed box, so it holds even though the
+           element is not measured and may not exist yet: popup.mjs builds the stack on the first
+           card of the session, long after the glass was cut. */
+        if (b.fixed) { ROT.push({ sel: b.sel, el: null, origin: (px - b.x) + "px " + (py - b.y) + "px", transform: turn }); continue; }
+        if (!b.el) continue;
+        for (const e of b.els) {
+          const er = e.getBoundingClientRect();
+          ROT.push({ sel: b.els.length === 1 ? b.sel : null, el: e, origin: (px - er.left) + "px " + (py - er.top) + "px", transform: turn });
+        }
       }
       let X0 = c.x0 - px - PAD_SIDE, X1 = c.x1 - px + PAD_SIDE;
       const Yn = (band === "top" ? c.y0 - py : c.y1 - py) + (band === "top" ? -3000 : 3000);
@@ -831,7 +895,16 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       g.clearRect(0, 0, j.pulse.width, j.pulse.height);
       const accRGB = hex(j.acc).join(",");
       for (const p of j.panes) {
-        const v = 0.5 - 0.5 * Math.cos(t / 1000 * p.omega + p.phase);      // 0 bright ... 1 dark
+        let v = 0.5 - 0.5 * Math.cos(t / 1000 * p.omega + p.phase);        // 0 bright ... 1 dark
+        /* THE PANE UNDER SOMETHING WAITING BEATS FASTER. `scanUrgent` and `beatAt` have written
+           `urgentUntil` since 1.2.27 and nothing ever read it, so the audit page's "the element
+           stands still and its glass answers" drew exactly nothing. The fast rhythm is blended
+           in and out over a third of a second, so the pane changes tempo instead of jumping. */
+        if (p.urgentUntil) {
+          const k = Math.max(0, Math.min(1, (p.urgentUntil - t) / 300));
+          if (k > 0) v = v + (0.5 - 0.5 * Math.cos(t / 1000 * (2 * Math.PI / 1.6) + p.phase) - v) * k;
+          else p.urgentUntil = 0;
+        }
         const dark = (p.content && !p.empty ? 0.42 : p.stained ? 0.62 : 0.72) * Math.pow(v, p.stained ? 2.2 : 1.6);
         if (dark > 0.01) { g.globalCompositeOperation = "source-over"; g.fillStyle = "rgba(2,1,4," + dark.toFixed(3) + ")"; path(g, p.poly.map(q => [q[0] * k, q[1] * k])); g.fill(); }
         const lit = Math.pow(1 - v, 3);
@@ -866,9 +939,19 @@ function layerIndex() {
   const cs = getComputedStyle(iface);
   const z = parseInt(cs.zIndex, 10);
   if (cs.position !== "static" && Number.isFinite(z)) return Math.max(0, z);   // same index, earlier in the tree: under it
-  // an interface that is not a stacking context would paint under a positioned curtain, so it gets one
-  if (cs.position === "static") iface.style.position = "relative";
-  if (!Number.isFinite(z)) iface.style.zIndex = "1";
+  /* THE INTERFACE IS PROMOTED, AND THE MODULE PAYS FOR IT.
+     The curtain is a fixed sibling at z-index 1, which paints over every positioned element that
+     has no z-index of its own - and parts of Foundry's interface are exactly that, so without a
+     stacking context of its own the whole UI would go under the glass. Hence the promotion; it
+     has been here since the theme shipped and it is why the interface reads above the curtain.
+     What it also does is turn a full-screen box into a POSITIONED full-screen box over the
+     board, and a positioned full-screen box that still takes pointer events is a lid: on the
+     reporter's GM client every click meant for the map - panning, selecting a token - landed on
+     `#interface` and did nothing. The layer is ours to fix, not Foundry's: `freeTheBoard()`
+     makes the lid transparent to the pointer and pins every child that was hit-testable, so the
+     interface keeps its clicks and the board gets its own back. */
+  if (cs.position === "static") { iface.style.position = "relative"; LID.promoted = true; }
+  if (!Number.isFinite(z)) { iface.style.zIndex = "1"; LID.promoted = true; }
   return 1;
 }
 function place(el) {
@@ -893,6 +976,7 @@ function unmount() {
   windows.length = 0;
   document.querySelectorAll("#scene-controls, #sidebar").forEach(e => { e.style.marginTop = ""; e.style.paddingTop = ""; e.style.boxSizing = ""; });
   unpinRightColumn();
+  restoreLid();
   document.querySelectorAll("#scene-controls, #sidebar-tabs").forEach(e => { e.style.transform = ""; e.style.transformOrigin = ""; });
   BLOCKS.forEach(b => document.querySelectorAll(b.sel).forEach(e => { e.style.transform = ""; e.style.transformOrigin = ""; }));
   document.body.classList.remove("drpg-curtain-on", "drpg-turning");
@@ -905,6 +989,7 @@ function unmount() {
    new glass fades in. A rebuild that changes nothing (the same panes, the same colour) repaints
    nothing, so the observers' constant rebuilds cost a geometry pass and no paint. */
 const TURN = () => { const v = parseFloat(getComputedStyle(document.body).getPropertyValue("--drpg-t-turn")); return Number.isFinite(v) && v > 0 ? v : 840; };
+const ECLIPSE = () => { const v = parseFloat(getComputedStyle(document.body).getPropertyValue("--drpg-t-eclipse")); return Number.isFinite(v) && v > 0 ? v : 1400; };
 const EASE = t => 1 - Math.pow(1 - t, 3);
 const lerp = (a, b, t) => a + (b - a) * t;
 const lerpHex = (h1, h2, t) => { const a = hex(h1), b = hex(h2); return "rgb(" + a.map((v, i) => Math.round(lerp(v, b[i], t))).join(",") + ")"; };
@@ -936,6 +1021,13 @@ function snapshotPanes(j) {
   return j.panes.map(p => ({ poly: p.poly, content: p.content, empty: p.empty, tone: p.tone, stained: p.stained, plain: p.plain, kind: p.kind }));
 }
 /* what the glass looks like right now - fills, texture, the pulse's frame, the seams - on one canvas */
+/** A copy of a canvas as it stands, for a layer that is about to be repainted. */
+function snapshotCanvas(src) {
+  if (!src || !src.width || !src.height) return null;
+  const c = document.createElement("canvas"); c.width = src.width; c.height = src.height;
+  c.getContext("2d").drawImage(src, 0, 0);
+  return c;
+}
 function snapshotLook(j) {
   if (!j.panes || !j.painted) return null;
   const el = j.el, sg = el.querySelector(":scope > canvas.sg");
@@ -955,7 +1047,7 @@ function snapshotLook(j) {
    the old cut to the new one, in lead and in the colour on its way from the old state's to
    the new. The silhouette follows the seams. The static seam layer and the glow are held
    back until the seams have arrived, then shown in their place. */
-function morph(j, oldPanes, oldAcc, ghost) {
+function morph(j, oldPanes, oldAcc, ghost, glowGhost) {
   if (!oldPanes || !j.panes || REDUCED() || !effectsOn()) return;
   const el = j.el, W = j.W, H = j.H;
   const newAcc = j.acc || oldAcc || "#ffd38f";
@@ -983,13 +1075,28 @@ function morph(j, oldPanes, oldAcc, ghost) {
   const finalClip = el.style.clipPath;
   const seamLayer = el.querySelector(":scope > canvas.seamline");
   const glow = document.querySelector('[data-glow="' + j.seed + '"]');
+  // a morph already running is over: its cleanup must not undo this one's (a second state change
+  // inside the turn, a rebuild while the light is still travelling)
+  const my = (j.morphId = (j.morphId || 0) + 1);
+  el.querySelectorAll(":scope > canvas.morph, :scope > canvas.ghost").forEach(c => c.remove());
+  document.querySelectorAll(".drpg-glow-ghost").forEach(c => c.remove());
   const mc = document.createElement("canvas"); mc.className = "morph"; mc.width = W; mc.height = H;
   mc.style.cssText = "position:absolute;inset:0;width:100%;height:100%;z-index:4;";
   let gc = null;
   if (ghost) { gc = ghost; gc.className = "ghost"; gc.style.cssText = "position:absolute;inset:0;width:100%;height:100%;z-index:3;"; el.append(gc); }
   el.append(mc);
   if (seamLayer) seamLayer.style.visibility = "hidden";
-  if (glow) glow.style.visibility = "hidden";
+  /* THE BLOOM NEVER GOES OUT. The glow was hidden for the length of the turn, so the light along
+     every seam vanished and came back - the one thing on screen that says "glass". The new glow
+     is painted by `curtainPaint` before this runs, so the OLD one is a snapshot taken beside the
+     ghost: they cross over, and the light changes colour without ever leaving. */
+  let gg = null;
+  if (glow && glowGhost) {
+    gg = glowGhost; gg.className = "curtain-glow drpg-glow-ghost";
+    gg.style.cssText = glow.style.cssText;
+    glow.after(gg);
+    glow.style.opacity = "0";
+  }
   const g = mc.getContext("2d"), t0 = performance.now(), dur = TURN();
   const strokeAll = (polys, alpha, style, width) => {
     g.globalAlpha = alpha; g.strokeStyle = style; g.lineWidth = width; g.lineCap = "round";
@@ -997,10 +1104,11 @@ function morph(j, oldPanes, oldAcc, ghost) {
   };
   const step = now => {
     const u = Math.min(1, (now - t0) / dur), e = EASE(u);
-    if (!el.isConnected) return;
+    if (!el.isConnected || j.morphId !== my) { done(); return; }
     const polys = pairs.map(q => q.from.map((pt, i) => [lerp(pt[0], q.to[i][0], e), lerp(pt[1], q.to[i][1], e)]));
     el.style.clipPath = "path('" + polys.map(pl => "M" + pl.map(q => q[0].toFixed(1) + " " + q[1].toFixed(1)).join("L") + "Z").join("") + "')";
     if (gc) gc.style.opacity = String(1 - e);
+    if (gg) { gg.style.opacity = String(1 - e); if (glow) glow.style.opacity = String(e); }
     g.clearRect(0, 0, W, H);
     const acc = lerpHex(oldAcc || newAcc, newAcc, e);
     // the seams on their way: a soft light under them (the glow's part), the lead, the bevel, the colour
@@ -1011,9 +1119,12 @@ function morph(j, oldPanes, oldAcc, ghost) {
     g.globalAlpha = 1;
     if (u < 1) { requestAnimationFrame(step); return; }
     el.style.clipPath = finalClip;
-    mc.remove(); if (gc) gc.remove();
+    done();
+  };
+  const done = () => {
+    mc.remove(); if (gc) gc.remove(); if (gg) gg.remove();
     if (seamLayer) seamLayer.style.visibility = "";
-    if (glow) glow.style.visibility = "";
+    if (glow) { glow.style.visibility = ""; glow.style.opacity = ""; }
   };
   requestAnimationFrame(step);
 }
@@ -1025,6 +1136,7 @@ function rebuildAll() {
     const wasPainted = j.painted, oldAcc = j.acc;
     const oldPanes = wasPainted ? snapshotPanes(j) : null;
     const oldLook = wasPainted && !REDUCED() && effectsOn() ? snapshotLook(j) : null;
+    const oldGlow = oldLook ? snapshotCanvas(document.querySelector('[data-glow="' + j.seed + '"]')) : null;
     j.sig = null; CHECKS.length = 0;
     if (curtainGeometry(j)) {
       // Foundry's tiles must start below the corner panes to own a shard of the strip;
@@ -1037,10 +1149,11 @@ function rebuildAll() {
         curtainPaint(j); document.body.classList.add("drpg-curtain-on");
         const gl = document.querySelector('[data-glow="' + j.seed + '"]');
         if (gl) gl.style.cssText = STYLE + "z-index:" + j.el.style.zIndex + ";mix-blend-mode:screen;width:" + j.W + "px;";
-        morph(j, oldPanes, oldAcc, oldLook);
+        morph(j, oldPanes, oldAcc, oldLook, oldGlow);
       } else { j.painted = true; document.body.classList.add("drpg-curtain-on"); }
     }
   }
+  freeTheBoard();
   const c = CHECKS[0];
   if (c && (c.overlaps || c.nonconvex || c.blockFails || c.edgeGaps)) log("curtain self-check", c);
   // what the interface looks like now that the blocks are rotated: the baseline the drift
@@ -1085,7 +1198,7 @@ export function glassReport() {
     "panes " + (j.panes ? j.panes.length : 0) + (j.painted ? " painted" : " unpainted"),
     c ? "check ov" + c.overlaps + " nc" + c.nonconvex + " bf" + c.blockFails + " eg" + c.edgeGaps + " ff" + c.fitFails : "no check",
     "blocks " + LAST.blocks.filter(b => b.measured).map(b => b.cls).join(","),
-    "on top at the centre: " + onTop().centre
+    "over the map: " + hitStack().centre[0]
   ];
   return parts.join(" · ");
 }
@@ -1108,7 +1221,7 @@ export function beatAt(el, ms = 1600) {
   if (p) p.urgentUntil = Math.max(p.urgentUntil || 0, performance.now() + ms);
 }
 const URGENT = ".drpg-event.mine, .drpg-event.due, .drpg-pending-call, .drpg-call-button.drpg-call-pending, #drpg-hud .drpg-hud-time.is-objection";
-let urgentAt = 0, objectionOn = false;
+let urgentAt = 0;
 function scanUrgent(t) {
   if (t - urgentAt < 500) return;
   urgentAt = t;
@@ -1118,10 +1231,23 @@ function scanUrgent(t) {
     const p = paneAt(r.left + r.width / 2, r.top + r.height / 2);
     if (p) p.urgentUntil = Math.max(p.urgentUntil || 0, now + 700);
   }
+}
+/* THE CUT IS NOT THE PULSE'S BUSINESS. The objection was found inside `scanUrgent`, and `loop()`
+   gates that whole scan behind `pulseOn()` - so on a client that had turned the glass pulse off,
+   the loudest moment of a trial did nothing at all, which is one of the ways "it looks broken".
+   It is watched here instead, before the gate, and levelled rather than latched so the second
+   objection of a trial cuts exactly like the first. */
+let objectionOn = false, objectionAt = 0;
+function objectionEdge(t) {
+  if (t - objectionAt < 250) return;
+  objectionAt = t;
   const obj = Boolean(document.querySelector("#drpg-hud .drpg-hud-time.is-objection"));
-  // the V3 cut, once: white on every seam, held for a fifth of it and fading over the rest of
-  // 700 ms. At 90 ms it read as a glitch, not a gesture.
-  if (obj && !objectionOn) for (const j of curtains) flashSeams(j, "#ffffff", 700);
+  if (obj && !objectionOn && !REDUCED() && effectsOn()) {
+    const ms = ECLIPSE();
+    for (const j of curtains) flashSeams(j, "#ffffff", ms, { bloom: true });
+    // the open windows answer it a little quicker, so the cut is the screen and not one layer
+    for (const j of windows) if (j.el.isConnected) flashSeams(j, "#ffffff", Math.round(ms * 0.72), { bloom: true });
+  }
   objectionOn = obj;
 }
 globalThis.drpgGlassBeat = beatAt;
@@ -1143,19 +1269,38 @@ function paintBand(job) {
   job.panes = panes; job.pulse = pc; job.acc = acc; job.W = W; job.H = H;
 }
 /* a flash of every seam in Bone (or the accent) that fades over `ms`: the glass has just set */
-function flashSeams(job, color, ms) {
+/* The light rises, is held, and goes out slowly. The first version snapped to full white and
+   fell away linearly in 90 ms, which reads as a rendering fault rather than as a cut; lengthening
+   it alone did not help, because what looked wrong was the shape of it. A gesture has three parts:
+   it arrives (a twelfth of the time), it stands (a quarter), and it leaves - the last on a cubic
+   ease, so the end approaches nothing instead of arriving at it. `bloom` adds a wide blurred pass
+   under the line, which is what makes the glass look lit rather than outlined. */
+function flashSeams(job, color, ms, { bloom = false } = {}) {
   if (REDUCED() || !effectsOn() || !job.panes) return;
   const host = job.el, ref = host.querySelector(":scope > canvas.seamline") ?? host.querySelector(":scope > canvas.sg");
   if (!ref) return;
   const W = ref.width, H = ref.height, k = W / Math.max(1, job.W || host.clientWidth || W);
-  const fc = layerAfter(ref, "flash", W, H), g = fc.getContext("2d");
+  /* ITS OWN CANVAS, NOT THE SHARED ONE. `layerAfter` hands back the layer that is already
+     there, so two flashes on one job shared a canvas and a single `remove()`: whichever ended
+     first took the other's light away with it - a 1400 ms cut ending after 420. */
+  const fc = document.createElement("canvas"); fc.className = "flash"; fc.width = W; fc.height = H;
+  fc.style.cssText = LAYER; ref.after(fc);
+  const g = fc.getContext("2d");
   const t0 = performance.now();
+  const RISE = 0.08, HOLD = 0.32;
   const step = t => {
     const u = (t - t0) / ms;
     g.clearRect(0, 0, W, H);
     if (u >= 1 || !fc.isConnected) { fc.remove(); return; }
-    g.globalAlpha = u < 0.2 ? 1 : 1 - (u - 0.2) / 0.8;
-    g.strokeStyle = color; seams(g, job.panes, W / k, H / k, 1.6, k);
+    const a = u < RISE ? u / RISE : u < HOLD ? 1 : Math.pow(1 - (u - HOLD) / (1 - HOLD), 3);
+    g.strokeStyle = color;
+    if (bloom) {
+      g.save(); g.globalCompositeOperation = "lighter";
+      for (const [blur, mul, wdt] of [[12, 0.30, 3.0], [5, 0.42, 1.6]]) { g.filter = "blur(" + blur + "px)"; g.globalAlpha = a * mul; seams(g, job.panes, W / k, H / k, wdt, k); }
+      g.restore();
+    }
+    g.globalAlpha = a; seams(g, job.panes, W / k, H / k, 1.6, k);
+    g.globalAlpha = 1;
     requestAnimationFrame(step);
   };
   requestAnimationFrame(step);
@@ -1264,6 +1409,7 @@ function loop(t) {
   raf = requestAnimationFrame(loop);
   if (!curtains.length || document.hidden) return;
   watchDrift(t);
+  objectionEdge(t);
   if (REDUCED() || !effectsOn() || !pulseOn()) return;
   if (t - last < 66) return;
   last = t; scanUrgent(t); pulseFrame(t);
@@ -1291,7 +1437,7 @@ export function registerGlass() {
   }, ms);
   Hooks.on("canvasReady", schedule);
   // the sidebar is deliberately NOT a signal: opening it moves nothing and recuts nothing
-  addEventListener("resize", () => { if (themeOn()) pinRightColumn(); });
+  addEventListener("resize", () => { if (themeOn()) { pinRightColumn(); freeTheBoard(); } });
   Hooks.on("renderApplicationV2", dressWindow);
   Hooks.on("closeApplicationV2", pruneWindows);
   // the pause band is a pane of the curtain while the game is paused, breathing with the slow pulse

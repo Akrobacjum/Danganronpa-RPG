@@ -122,7 +122,8 @@ body.drpg-theme-stained-glass {
 #drpg-curtain > canvas.sg { z-index: 0; }
 #drpg-curtain > canvas.pulse { z-index: 1; }
 #drpg-curtain > canvas.seamline { z-index: 2; }
-#drpg-curtain > canvas.flash { z-index: 3; mix-blend-mode: screen; }
+/* above the morph's own two layers (3 and 4): a cut that arrives during a recut is still a cut */
+#drpg-curtain > canvas.flash { z-index: 5; mix-blend-mode: screen; }
 body:not(.drpg-theme-stained-glass) #drpg-curtain,
 body:not(.drpg-theme-stained-glass) .curtain-glow { display: none; }
 
@@ -1310,6 +1311,9 @@ body.drpg-theme-stained-glass .drpg-choice.unavailable {
 }
 body.drpg-theme-stained-glass .drpg-choice.unavailable::after { opacity: 0.2; }
 body.drpg-theme-stained-glass .drpg-choice.unavailable > i { color: var(--drpg-sg-bone-dim); }
+/* The project glyph picker's cells are choice rows in a grid, so the row
+   margin the family carries is the grid's gap's job instead. */
+body.drpg-theme-stained-glass .drpg-glyph-grid > .drpg-choice { margin: 0; }
 
 /* 2. the other tab bars: the dashboard's and the hubs' become the sheet's Bone strip. Ink text at rest,
    the active tab a full brush in the state colour, never red. The hub bar's buttons used to be
@@ -2359,11 +2363,14 @@ body.drpg-theme-stained-glass #players {
     text-shadow: 0 1px 0 rgba(0, 0, 0, 0.85), 0 0 8px rgba(0, 0, 0, 0.6);
 }
 /* the tray's rows: the project's portrait is a dark square on the pane; the theme draws
-   the row with a glyph instead (below), and the row's own boxes are already clear */
+   the row with the project's own chosen glyph instead (below), and the row's own boxes
+   are already clear. The portrait is still set and still shown under Monokuma Legacy -
+   it is this theme that swaps a picture for a glyph in the state colour. */
 body.drpg-theme-stained-glass #countdowns .countdown-container img { display: none !important; }
 
 /* ---- 4. The Projects tray as the audit page draws it -------------------------------------
-   A heading in the state colour, then one line per project: a 16 px hourglass, the name, a
+   A heading in the state colour, then one line per project: a 16 px glyph the GM chose (the
+   hourglass by default, as the audit page draws it), the name, a
    halftone bar filled to the project's progress, the count in Bone Dim. Daggerheart's row
    is three nested boxes with a 34 px portrait, a name on one line and the count on a second;
    the boxes are laid out as one row here, the bar is the tools box's own `::before`, and
@@ -2393,14 +2400,22 @@ body.drpg-theme-stained-glass #countdowns .countdown-container {
     border: 0;
     box-shadow: none;
 }
+/* The glyph the GM chose for this project, and the hourglass for every project
+   that predates the choice. `--drpg-project-glyph` is written on the row by
+   paintProgress() in projects-ui.mjs, exactly as `--w` is for the bar below,
+   and is REMOVED rather than set when there is no choice - which is what puts
+   the default here, in one place, instead of in the script as well. The colour
+   is the interface's state colour and not the sprite's: this is a mask painted
+   with the accent, so a project's icon changes colour with everything else on
+   the glass. */
 body.drpg-theme-stained-glass #countdowns .countdown-container::before {
     content: "";
     flex: 0 0 auto;
     width: calc(16px * var(--drpg-sg-scale));
     height: calc(16px * var(--drpg-sg-scale));
     background-color: var(--drpg-glass-accent);
-    -webkit-mask: var(--drpg-px-hourglass) center / contain no-repeat;
-    mask: var(--drpg-px-hourglass) center / contain no-repeat;
+    -webkit-mask: var(--drpg-project-glyph, var(--drpg-px-hourglass)) center / contain no-repeat;
+    mask: var(--drpg-project-glyph, var(--drpg-px-hourglass)) center / contain no-repeat;
     image-rendering: pixelated;
 }
 body.drpg-theme-stained-glass #countdowns .countdown-main-container,
@@ -2758,3 +2773,49 @@ body.drpg-theme-stained-glass .application.drpg-panel .window-header .header-con
 body.drpg-theme-stained-glass .application.drpg-messenger .window-header .header-control { color: var(--drpg-sg-bone-dim) !important; }
 body.drpg-theme-stained-glass .application.drpg-panel .window-header .header-control:hover,
 body.drpg-theme-stained-glass .application.drpg-messenger .window-header .header-control:hover { color: var(--drpg-glass-accent) !important; }
+
+/* ==========================================================================
+   Milestone 14: the window is as wide as it needs, the tile turns, the bloom stays (1.2.39)
+   ========================================================================== */
+/* ---- A window grows to its content -------------------------------------------------------
+   The base sheet pins every prose window in the module to `--drpg-popup` (544 px) with
+   `!important`, because ApplicationV2 writes its width inline and nothing else can outrank
+   that. Under this theme the face is wider than the one that number was chosen for - VT323 at
+   17 px, chrome tracked out - so the same window holds less, and raising the number in
+   `look.mjs` did nothing at all: the sheet won. The width is `fit-content` here, floored at
+   exactly what it is today (so no window is ever narrower than before) and capped at the
+   screen; the prose inside is capped at a readable measure so a long paragraph settles instead
+   of running to the edge. Table windows are excluded: they are measured in `utils.mjs`, and a
+   rule with `!important` would fight that measurement every frame - see the base sheet's note. */
+body.drpg-theme-stained-glass .application.dialog:is(
+    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
+    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
+    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-summary-dialog, .drpg-safeword-dialog
+):not(.drpg-wide):not(.drpg-gm-panel-window):not(.drpg-table-window) {
+    width: fit-content !important;
+    min-width: min(var(--drpg-popup), 92vw) !important;
+    max-width: 92vw !important;
+}
+/* the cap that makes `fit-content` settle: prose stops at a readable measure instead of
+   running to the edge of the screen. On the content box, so the frame's own fit-content
+   computation sees it; never on a table window, whose table decides its width. */
+body.drpg-theme-stained-glass .application.dialog:is(
+    .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
+    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
+    .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-summary-dialog, .drpg-safeword-dialog
+):not(.drpg-wide):not(.drpg-gm-panel-window):not(.drpg-table-window) .window-content {
+    max-width: 74ch;
+}
+/* a control that can be squeezed states what it needs, so the window above can grow for it
+   instead of the row silently getting narrower (the Look window's sliders were the report) */
+/* The explainers the clock and the Despair rail open are the other half of the report: their
+   prose is capped at 46 ch by the base sheet, so a 544 px frame leaves a third of itself empty
+   in either theme. They keep `fit-content` and get a lower floor, so the window is the size of
+   the card - never narrower than the measure, because the cap decides the width, not this. */
+body.drpg-theme-stained-glass .application.dialog.drpg-explain:not(.drpg-wide):not(.drpg-table-window) {
+    min-width: min(26rem, 92vw) !important;
+}
+body.drpg-theme-stained-glass .drpg-look input[type="range"] { min-width: 14ch; }
+body.drpg-theme-stained-glass .drpg-look select,
+body.drpg-theme-stained-glass .drpg-look .drpg-select { min-width: 18ch; }
+body.drpg-theme-stained-glass .drpg-look label { gap: 12px; }

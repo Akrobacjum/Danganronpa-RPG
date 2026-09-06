@@ -13,6 +13,7 @@ import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
 import { dialogContent, error, plural, tableDialog, esc} from "./utils.mjs";
 import { keepLive, alreadyOpen } from "./live.mjs";
+import { bodyDiscovery } from "./settings.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -248,7 +249,14 @@ const PANEL_SECTIONS = [
  * told, and the "Do it" beside it should work.
  */
 const EXTRA_ACTIONS = {
-    eclipse: { key: "eclipse", run: () => toggleEclipse() }
+    eclipse: { key: "eclipse", run: () => toggleEclipse() },
+    // Starting Stage 7 has never had a tile - it was a side effect of finding
+    // the body - so the suggestion line points at something the grid does not
+    // carry, which is what EXTRA_ACTIONS is for.
+    startInvestigation: {
+        key: "startInvestigation",
+        run: () => import("./clock.mjs").then(m => m.setPhase("investigation"))
+    }
 };
 
 /**
@@ -939,6 +947,19 @@ function nextStep(clock) {
                 : game.i18n.format("DRPG.Panel.nextFloor", { mode }),
             action: "trial"
         };
+    }
+
+    /* A body found and not yet answered. The phase has deliberately NOT moved (D5), so nothing
+       else in this function would notice it - and it is the one state where the game is
+       genuinely waiting on the GM.
+       The phase is read as well, because there is one route that reaches the discovery with
+       Stage 7 already running: a GM who moves the phase first and announces the body second.
+       The record is written on that route too (it is the only thing that still knows the victim
+       and the room, since `endMurder` wipes the incident before any of this), but the game is
+       not waiting on anybody - and a "Do it" that calls `setPhase("investigation")` when the
+       phase is already investigation is a button that does nothing. */
+    if (bodyDiscovery() && clock.phase !== "investigation") {
+        return { text: game.i18n.localize("DRPG.Panel.nextBodyFound"), action: "startInvestigation" };
     }
 
     if (clock.phase === "investigation") {

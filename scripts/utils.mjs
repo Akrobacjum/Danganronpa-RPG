@@ -677,7 +677,20 @@ export function fitWindowToTable(dialog) {
                 // either case.
                 widest = Math.max(widest, table.scrollWidth, table.getBoundingClientRect().width);
             }
-            if (!widest) return;                       // no table: leave it alone
+            if (!widest) {
+                /* NO TABLE, AND STILL A WINDOW THAT HAS TO HOLD WHAT IS IN IT.
+                   The Look window is the case that showed it up: sliders, a select and a row of
+                   switches, no table anywhere, so this measured nothing and left the window at
+                   whatever `position.width` guessed - and under a wider face that was too narrow
+                   for its own rows. What is measured instead is the overflow: if the content is
+                   being clipped sideways, the window grows by exactly that much. GROW ONLY - a
+                   window that already fits is left alone to the pixel, so nothing that looks
+                   right today can get narrower. */
+                const cs = getComputedStyle(content);
+                const pad = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+                if (content.scrollWidth - content.clientWidth <= 1) return;
+                widest = Math.max(0, content.scrollWidth - pad);
+            }
 
             const settled = fitted.has(dialog);
             fitted.add(dialog);

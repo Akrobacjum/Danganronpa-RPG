@@ -2150,6 +2150,58 @@ export const PROJECT_SCALE = {
 };
 
 /* ==========================================================================
+ * WHAT A PROJECT LOOKS LIKE IN THE TRAY
+ * --------------------------------------------------------------------------
+ * Under Stained Glass the tray does not draw a project's portrait - it draws a
+ * 24x24 pixel glyph masked in the interface's state colour (stained-glass.css,
+ * "4. The Projects tray as the audit page draws it"). Since 1.2.34 that glyph
+ * was one constant hourglass for every row, which is four identical rows in a
+ * tray whose whole job is telling projects apart - the same complaint that
+ * took "Toggle Icon Only" out (projects-ui.mjs).
+ *
+ * So the GM chooses one. Each entry names a FONT AWESOME icon and not a
+ * sprite, because that is the module's one way of drawing an icon: the base
+ * sheet draws the Font Awesome glyph, and Stained Glass masks that same
+ * element to the pixel sprite (tools/pixel-icons.py's FA table, emitted as the
+ * rules in pixel-icons.css). Naming the FA icon therefore gets both looks for
+ * free and makes it impossible for the picker's swatch and the tray's row to
+ * draw different pictures. `key` is the sprite name the tray's mask needs.
+ *
+ * Adding one: the FA name must be in tools/pixel-icons.py's `FA` map, or the
+ * swatch stays Font Awesome under a theme where everything else is pixels.
+ * That is why `vault`, `bag` and `trap` are not offered although their sprites
+ * exist - add them to `FA`, regenerate, and they can be.
+ * ========================================================================== */
+export const PROJECT_GLYPHS = {
+    hourglass: { label: "Hourglass", fa: "fa-hourglass" },
+    checklist: { label: "Checklist", fa: "fa-list-check" },
+    gear:      { label: "Gear",      fa: "fa-gear" },
+    tamper:    { label: "Tools",     fa: "fa-screwdriver-wrench" },
+    broom:     { label: "Broom",     fa: "fa-broom" },
+    wand:      { label: "Wand",      fa: "fa-wand-magic-sparkles" },
+    key:       { label: "Key",       fa: "fa-key" },
+    lock:      { label: "Lock",      fa: "fa-lock" },
+    door:      { label: "Door",      fa: "fa-door-closed" },
+    box:       { label: "Crate",     fa: "fa-box" },
+    gift:      { label: "Gift",      fa: "fa-gift" },
+    envelope:  { label: "Envelope",  fa: "fa-envelope" },
+    note:      { label: "Note",      fa: "fa-note-sticky" },
+    calendar:  { label: "Calendar",  fa: "fa-calendar-days" },
+    table:     { label: "Table",     fa: "fa-table-list" },
+    scale:     { label: "Scales",    fa: "fa-scale-balanced" },
+    barrier:   { label: "Barrier",   fa: "fa-road-barrier" },
+    chain:     { label: "Chain",     fa: "fa-link" },
+    bug:       { label: "Bug",       fa: "fa-bug" },
+    brain:     { label: "Brain",     fa: "fa-brain" },
+    murder:    { label: "Blade",     fa: "fa-khanda" }
+};
+
+/** Is this a glyph the tray can actually draw? The one gate on the stored value. */
+export function isProjectGlyph(name) {
+    return Boolean(name) && Object.hasOwn(PROJECT_GLYPHS, name);
+}
+
+/* ==========================================================================
  * WHAT A TRAP WATCHES FOR
  * --------------------------------------------------------------------------
  * Dawid, 28.08: "nie jest mozliwe, by GM monitorowal jeden pokoj przez dwie
@@ -3066,9 +3118,10 @@ export const CLEANUP = {
      * The discount is time, and time is the one currency this stage always had
      * and never spent. Before the body is found the killer is alone in a room
      * with a mess; afterwards the corridor is full of people who watched them
-     * arrive. Reading it off the clock's own phase means nothing new is stored:
-     * `discoverBody` moves the phase to `investigation`, and that IS the moment
-     * the room stops being theirs.
+     * arrive. Reading it off the world rather than storing a second copy on the
+     * killer: `discoverBody` writes `SETTINGS.bodyFound`, and that IS the moment
+     * the room stops being theirs. The phase in `until` below carries the rest
+     * of it, for the stretch after the GM has started Stage 7.
      */
     freshScene: { bonus: 3, until: ["investigation", "classTrial"] },
 
@@ -3938,6 +3991,8 @@ export const DRPG = {
     DESPAIR_CALLS,
     MOTIVE,
     PROJECT_SCALE,
+    PROJECT_GLYPHS,
+    isProjectGlyph,
     TRAP_TRIGGERS,
     TRAP_MODIFIERS,
     STATES,

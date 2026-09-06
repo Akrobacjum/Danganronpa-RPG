@@ -242,6 +242,21 @@ export const SETTINGS = {
      */
     pendingGather: "pendingGather",
     /**
+     * A BODY HAS BEEN FOUND AND THE GM HAS NOT ANSWERED YET, or `{}` (D5).
+     *
+     * Shape: `{ room, victimId, chapter, day, timeOfDay, at }` - the same shape
+     * and the same reasoning as `pendingGather` above. Finding a body used to
+     * BE starting the investigation: `discoverBody` moved the phase, and Stage 7
+     * began whether or not the table was ready for it. It is a holding state
+     * now - the card stands, the music stops, Daily Life carries on - until the
+     * GM either starts the Investigation or moves the clock on.
+     *
+     * World-scoped and public on purpose, like the assembly: the discovery is
+     * announced in chat to everybody, so there is nothing in here that is not
+     * already on screen. Cleared in `setClock`; see the note there.
+     */
+    bodyFound: "bodyFound",
+    /**
      * The murder currently in progress, or `{}`.
      *
      * World-scoped, and that is a real exposure: a player reading the console
@@ -824,6 +839,16 @@ export function registerSettings() {
         onChange: () => onWorldChange(SETTINGS.pendingGather)
     });
 
+    // The body found and not yet answered. Public for the same reason the
+    // assembly above it is: the discovery is announced to the whole table.
+    game.settings.register(MODULE_ID, SETTINGS.bodyFound, {
+        scope: "world",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => onWorldChange(SETTINGS.bodyFound)
+    });
+
     game.settings.register(MODULE_ID, SETTINGS.murderState, {
         scope: "world",
         config: false,
@@ -1216,6 +1241,58 @@ export function isEclipse() {
 export function incomingTimeOfDay(clock = getClock()) {
     const index = TIMES_OF_DAY.indexOf(clock?.timeOfDay);
     return TIMES_OF_DAY[(index < 0 ? 0 : index + 1) % TIMES_OF_DAY.length];
+}
+
+/*
+ * THE BODY FOUND, READ FROM THE SAME LEAF (D5).
+ *
+ * Not a clock reader, but here for the reason the three above it are: clock.mjs,
+ * chapter.mjs, events.mjs, music.mjs, cleanup.mjs and hud.mjs all need the
+ * answer, and every one of them is already downstream of somebody who would
+ * close a cycle if the record lived anywhere else. This file imports config.mjs
+ * and nothing else.
+ */
+
+/** The body found and not yet answered, or `null`. Never a throw before `ready`. */
+export function bodyDiscovery() {
+    try {
+        const record = game.settings.get(MODULE_ID, SETTINGS.bodyFound) ?? {};
+        return record.at ? record : null;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Is the discovery still the LOUD one - found this hour, nobody has moved yet?
+ *
+ * The record is two facts and they do not end together. "A body has been found
+ * and Stage 7 has not started" lasts until the phase moves: it is what stops the
+ * token watch re-announcing the same corpse (`maybeBodyFound`) and what ends the
+ * killer's fresh-scene discount (`freshSceneBonus`), and neither of those is
+ * undone by the hour turning. What the hour DOES end is the noise - the silence
+ * and the pulsing card. Stamped with the time of day it was written in, which is
+ * the same question `pendingGather` above it asks of its own stamp.
+ */
+export function bodyDiscoveryFresh() {
+    const record = bodyDiscovery();
+    return record && record.timeOfDay === getClock().timeOfDay ? record : null;
+}
+
+/** Record a discovery the GM has still to answer. GM-side. */
+export function setBodyDiscovery({ room = null, victimId = null } = {}) {
+    const clock = getClock();
+    return game.settings.set(MODULE_ID, SETTINGS.bodyFound, {
+        room, victimId,
+        chapter: clock.chapter, day: clock.day ?? 1, timeOfDay: clock.timeOfDay,
+        at: Date.now()
+    });
+}
+
+/** The GM has answered. Safe to call when there is nothing to clear. */
+export async function clearBodyDiscovery() {
+    if (!game.user.isGM || !bodyDiscovery()) return null;
+    return game.settings.set(MODULE_ID, SETTINGS.bodyFound, {});
 }
 
 /** Convenience reader. */
