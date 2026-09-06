@@ -107,7 +107,10 @@ function positionBelowWidgets(el) {
 function trimStack() {
     const cards = Array.from(container().querySelectorAll(".drpg-popup:not(.leaving)"));
     const droppable = cards.filter(c => !c.classList.contains("drpg-popup-sticky"));
-    const excess = cards.length - MAX_VISIBLE;
+    // Under Stained Glass the stack lives on a tile of the curtain cut for two short cards or one
+    // long one (glass.mjs, "note-block"), so two is the most it may hold.
+    const max = document.body.classList.contains("drpg-theme-stained-glass") ? 2 : MAX_VISIBLE;
+    const excess = cards.length - max;
 
     for (let i = 0; i < excess && i < droppable.length; i++) {
         droppable[i].dispatchEvent(new CustomEvent("drpg-dismiss"));

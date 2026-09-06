@@ -110,7 +110,7 @@ export async function openLookDialog() {
     return tableDialog({
         window: { title: game.i18n.localize("DRPG.Look.title") },
         classes: ["drpg-panel", "drpg-projects", "drpg-sound", "drpg-sound-player", "drpg-window-look"],
-        position: { width: 460 },
+        position: { width: 560 },
         content: dialogContent(`<form>${soundSlidersHtml()}${lookFieldset()}</form>`),
         buttons: [{ action: "close", label: game.i18n.localize("DRPG.Panel.close") }],
         render: (event, dialog) => { wireSoundPanel(dialog.element); wireLook(dialog.element); },

@@ -38,7 +38,10 @@ const BLOCKS = [
      under them while an empty 330x80 pane sat in the corner on every screen. The pane belongs
      to the real container, and it has NO fallback on purpose - an empty popup stack has no
      height, so it is not measured, and a screen with nothing to say cuts no pane. */
-  { cls: "note-block", sel: "#drpg-popups", fallback: (W, H) => { const s = uiScale(); return { x: 16, y: H - (100 + 88) * s, w: 330 * s, h: 88 * s }; } },
+  /* THE NOTICE TILE IS A CONSTANT. Not measured: two short cards or one long one fit it, the
+     stack is clipped to it (stained-glass.css, popup.mjs), and a card arriving or leaving never
+     recuts the glass. 330 x 160 at 100 %, at the audit page's place, scaled with the screen. */
+  { cls: "note-block", sel: "#drpg-popups", fixed: true, fallback: (W, H) => { const s = uiScale(); return { x: 16, y: H - (100 + 160) * s, w: 330 * s, h: 160 * s }; } },
   { cls: "launch", sel: "#drpg-messenger-launcher, #drpg-sound-launcher, #drpg-settings-launcher", union: true, fallback: (W, H) => ({ x: W - 22 - 66, y: H - 22 - 134, w: 66, h: 134 }) },
 ];
 /* THE NOTICE TILE IS ALWAYS CUT. 1.2.30 cut it only while a card was on screen ("a screen
@@ -92,14 +95,18 @@ function pinRightColumn() {
   col.style.top = "0";
   col.style.right = right + "px";
   col.style.left = "auto";
+  col.style.bottom = "auto";
+  col.style.height = "auto";
   col.style.width = "auto";
   col.style.zIndex = "-1";
+  // the column itself takes no clicks; the strip and the tray opt back in (stained-glass.css)
+  col.style.pointerEvents = "none";
 }
 function unpinRightColumn() {
   const col = document.getElementById("ui-right-column-1");
   if (!col || col.dataset.drpgPinned !== "1") return;
   delete col.dataset.drpgPinned; PIN.rail = null;
-  for (const k of ["position", "top", "right", "left", "width", "zIndex"]) col.style[k] = "";
+  for (const k of ["position", "top", "right", "left", "bottom", "height", "width", "zIndex", "pointerEvents"]) col.style[k] = "";
 }
 /* Measuring turns the rotation off for one style pass, and the blocks carry an 840 ms
    transition on `transform` - so without this every measurement animated every block from
@@ -111,7 +118,7 @@ function measuring(on) {
 }
 function moduleLayout(W, H) {
   measuring(true);
-  const els = BLOCKS.map(b => [...document.querySelectorAll(b.sel)].filter(e => e.offsetWidth > 0 && e.offsetHeight > 0));
+  const els = BLOCKS.map(b => b.fixed ? [] : [...document.querySelectorAll(b.sel)].filter(e => e.offsetWidth > 0 && e.offsetHeight > 0));
   // measure with the rotation off, so a pane is cut for the block as laid out, and against the
   // curtain's own box, so a curtain that does not start at the viewport's corner still fits
   rotationSheet().disabled = true;
@@ -138,8 +145,14 @@ function moduleLayout(W, H) {
   return out;
 }
 /** Console helper: `drpgGlassDebug()` prints the frame, the blocks and the self-check of the last pass. */
+/** What the pointer would hit at a few points of the map: the answer to "the map takes no clicks". */
+function onTop() {
+  const W = innerWidth, H = innerHeight, name = e => e ? e.tagName.toLowerCase() + (e.id ? "#" + e.id : "") + (e.classList?.length ? "." + [...e.classList].slice(0, 2).join(".") : "") + " (pointer-events " + getComputedStyle(e).pointerEvents + ")" : "nothing";
+  const at = (x, y) => { try { return name(document.elementFromPoint(x, y)); } catch { return "?"; } };
+  return { centre: at(W / 2, H / 2), left: at(W * 0.3, H * 0.6), right: at(W * 0.7, H * 0.45), low: at(W / 2, H * 0.85) };
+}
 export function debugGlass() {
-  const out = { frame: LAST.frame, rightColumn: { pinned: document.getElementById("ui-right-column-1")?.dataset.drpgPinned === "1", right: PIN.rail }, blocks: LAST.blocks, checks: CHECKS.slice(), theme: document.body.className, viewport: [innerWidth, innerHeight], curtain: document.getElementById("drpg-curtain")?.getBoundingClientRect?.() };
+  const out = { onTop: onTop(), frame: LAST.frame, rightColumn: { pinned: document.getElementById("ui-right-column-1")?.dataset.drpgPinned === "1", right: PIN.rail }, blocks: LAST.blocks, checks: CHECKS.slice(), theme: document.body.className, viewport: [innerWidth, innerHeight], curtain: document.getElementById("drpg-curtain")?.getBoundingClientRect?.() };
   console.log("[DRPG] curtain", JSON.stringify(out, null, 1));
   return out;
 }
@@ -1071,7 +1084,8 @@ export function glassReport() {
     "z " + el.style.zIndex + " in " + (el.parentElement?.tagName || "-").toLowerCase(),
     "panes " + (j.panes ? j.panes.length : 0) + (j.painted ? " painted" : " unpainted"),
     c ? "check ov" + c.overlaps + " nc" + c.nonconvex + " bf" + c.blockFails + " eg" + c.edgeGaps + " ff" + c.fitFails : "no check",
-    "blocks " + LAST.blocks.filter(b => b.measured).map(b => b.cls).join(",")
+    "blocks " + LAST.blocks.filter(b => b.measured).map(b => b.cls).join(","),
+    "on top at the centre: " + onTop().centre
   ];
   return parts.join(" · ");
 }
@@ -1105,7 +1119,9 @@ function scanUrgent(t) {
     if (p) p.urgentUntil = Math.max(p.urgentUntil || 0, now + 700);
   }
   const obj = Boolean(document.querySelector("#drpg-hud .drpg-hud-time.is-objection"));
-  if (obj && !objectionOn) for (const j of curtains) flashSeams(j, "#ffffff", 90);   // the V3 cut, once
+  // the V3 cut, once: white on every seam, held for a fifth of it and fading over the rest of
+  // 700 ms. At 90 ms it read as a glitch, not a gesture.
+  if (obj && !objectionOn) for (const j of curtains) flashSeams(j, "#ffffff", 700);
   objectionOn = obj;
 }
 globalThis.drpgGlassBeat = beatAt;
@@ -1180,7 +1196,10 @@ function onStateChange() {
     let moved = false;
     for (const j of curtains) { if (!j.panes) continue; const acc = resolveAcc(j.el); if (acc === j.acc) continue; moved = true; flashSeams(j, "#f2eee6", 420); }
     if (moved) { turning(); rebuild(); }
-    for (const j of windows) { if (!j.el.isConnected) continue; const acc = resolveAcc(j.el); if (acc === j.acc) continue; turning(); flashSeams(j, "#f2eee6", 420); paintBand(j); }
+    for (const j of windows) { if (!j.el.isConnected) continue; const acc = resolveAcc(j.el); if (acc === j.acc) continue; turning(); flashSeams(j, "#f2eee6", 420); }
+    // a band's colour is inherited through the fading token (stained-glass.css @property), so it is
+    // read and painted once the fade has ended; the flash above covers the seams in between
+    setTimeout(() => { for (const j of windows) { if (!j.el.isConnected) continue; const acc = resolveAcc(j.el); if (acc !== j.acc) paintBand(j); } }, TURN() + 80);
   }, 60);
 }
 function pruneWindows() { for (let i = windows.length - 1; i >= 0; i--) if (!windows[i].el.isConnected) windows.splice(i, 1); }
@@ -1205,15 +1224,27 @@ function observe() {
    with the rotation on - this is compared against itself, never against the cut). Sampled
    twice a second: an interface that has moved without telling anybody is the one case the
    observers above cannot catch, and it costs a handful of rectangles. */
+/* THE GLASS IS CUT FOR A LAYOUT, NOT FOR A PIXEL. The watch used to compare rounded rectangles
+   as strings, so a counter ticking from "9 min in" to "10 min in", a roll card widening the
+   status strip by a pixel, a card sliding into the notice stack - each was a recut and a morph
+   in the middle of play. A block has to move or grow by more than DRIFT px, twice in a row,
+   before the curtain is cut again; the fixed tiles are not measured at all. */
+const DRIFT = 4;
 function liveSignature() {
-  let out = "";
-  for (const b of BLOCKS) for (const e of document.querySelectorAll(b.sel)) {
+  const out = [];
+  for (const b of BLOCKS) { if (b.fixed) continue; for (const e of document.querySelectorAll(b.sel)) {
     const r = e.getBoundingClientRect();
     if (!r.width && !r.height) continue;
-    out += b.cls + Math.round(r.left) + "," + Math.round(r.top) + "," + Math.round(r.width) + "," + Math.round(r.height) + ";";
-  }
-  return out + "|" + Math.round(innerWidth) + "x" + Math.round(innerHeight);
+    out.push(b.cls, r.left, r.top, r.width, r.height);
+  } }
+  out.push("vp", innerWidth, innerHeight);
+  return out;
 }
+const drifted = (a, b) => {
+  if (!a || !b || a.length !== b.length) return true;
+  for (let i = 0; i < a.length; i++) { if (typeof a[i] === "string" ? a[i] !== b[i] : Math.abs(a[i] - b[i]) > DRIFT) return true; }
+  return false;
+};
 let driftAt = 0;
 function watchDrift(t) {
   if (t - driftAt < 500) return;
@@ -1222,11 +1253,11 @@ function watchDrift(t) {
   if (!j || !j.painted) return;
   const now = liveSignature();
   if (j.live === undefined) { j.live = now; return; }
-  if (now === j.live) { j.pending = null; return; }
+  if (!drifted(now, j.live)) { j.pending = null; return; }
   /* Twice in a row before a recut: a sidebar in the middle of its transition changes on
      every sample, and cutting the glass for a half-collapsed panel is the fault this watch
      exists to fix. A settled new layout reads the same twice, half a second apart. */
-  if (j.pending !== now) { j.pending = now; return; }
+  if (!j.pending || drifted(now, j.pending)) { j.pending = now; return; }
   j.live = now; j.pending = null; schedule();
 }
 function loop(t) {

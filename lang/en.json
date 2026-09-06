@@ -846,6 +846,8 @@
         "motive": "Motive"
       },
       "incidentTitle": "A killing in the dark",
+      "openingTitle": "A murder is under way",
+      "openingMeta": "The opening roll decides how it begins",
       "incidentSub": "{killer} against {victim}",
       "incidentSubRoom": "{killer} against {victim}, in {room}",
       "trialFloorOpen": "Everyone has the floor"

@@ -74,6 +74,33 @@ function assemblyCard() {
  * who is a participant - see hud.mjs `buildIncident` for why not
  * `game.user.character`.
  */
+/**
+ * A murder that has opened but not yet reached its incident: the GM's own card, and the
+ * participants'. The panel showed nothing for the whole opening stage, which on the GM's
+ * screen read as "the Event panel does not show at a murder".
+ */
+function openingCard() {
+    if (!game.settings.settings.has(`${MODULE_ID}.murderState`)) return null;
+    const state = game.settings.get(MODULE_ID, "murderState") ?? {};
+    if (!state.active || state.stage !== "openingRoll") return null;
+    const ids = new Set(game.actors
+        .filter(a => a.type === "character" && a.testUserPermission(game.user, "OWNER"))
+        .map(a => a.id));
+    if (game.user.character?.id) ids.add(game.user.character.id);
+    const seats = [state.killerId, state.victimId, state.thirdId].filter(Boolean);
+    if (!game.user.isGM && !seats.some(id => ids.has(id))) return null;
+    const victim = game.actors.get(state.victimId), killer = game.actors.get(state.killerId);
+    let room = null;
+    try { room = victim ? (roomOfActor(victim)?.name ?? null) : null; } catch { /* a victim outside every room */ }
+    const who = game.user.isGM && killer && victim ? `${killer.name} → ${victim.name}` : (victim?.name ?? "");
+    return {
+        kind: "incident",
+        mine: !game.user.isGM,
+        title: game.i18n.localize("DRPG.Events.openingTitle"),
+        sub: room ? `${who} · ${room}` : who,
+        meta: game.i18n.localize("DRPG.Events.openingMeta")
+    };
+}
 function incidentCard() {
     if (!game.settings.settings.has(`${MODULE_ID}.murderState`)) return null;
     const state = game.settings.get(MODULE_ID, "murderState") ?? {};
@@ -249,7 +276,7 @@ export function renderEvents() {
         if (!eventsWindowActive() || !game.user) { existing?.remove(); return; }
 
         const clock = getClock() ?? {};
-        const cards = [trialCard(clock), incidentCard(), bodyCard(clock), assemblyCard(), motiveCard()].filter(Boolean);
+        const cards = [trialCard(clock), openingCard(), incidentCard(), bodyCard(clock), assemblyCard(), motiveCard()].filter(Boolean);
         if (!cards.length) { existing?.remove(); return; }
 
         // Redraw only when something changed: the panel is on the curtain, and
