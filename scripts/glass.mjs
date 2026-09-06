@@ -61,8 +61,48 @@ function applyRotations() {
   const sheet = rotationSheet();
   sheet.textContent = rules.join("\n");
   sheet.disabled = false;
+  if (document.body.classList.contains("drpg-measuring")) { void document.body.offsetWidth; measuring(false); }
+}
+/* WHERE THE SIDEBAR IS, AND WHETHER IT IS OPEN.
+   Everything the wall decision rests on, in one place, and everything `drpgGlassDebug()` prints
+   about it. Three readings, because the first fix for the wall (1.2.30) trusted one of them
+   without being able to check it existed: `ui.sidebar.expanded` is taken as the truth ONLY when
+   it is actually a boolean; otherwise the part of the sidebar that collapses (`#sidebar-content`)
+   is measured, and the tab rail alone is never a wall. A wall also has to be WIDE - a 48 px rail
+   standing 1900 px from the left is far from the left and is still not a wall. */
+function sidebarState(rc) {
+  const sb = document.getElementById("sidebar"), content = document.getElementById("sidebar-content");
+  const api = typeof ui !== "undefined" ? ui?.sidebar?.expanded : undefined;
+  const el = content || sb;
+  const r = el ? el.getBoundingClientRect() : null;
+  const visible = Boolean(el && el.offsetWidth > 0 && getComputedStyle(el).visibility !== "hidden");
+  return {
+    api: typeof api === "boolean" ? api : null,
+    element: el ? el.id : null,
+    width: r ? Math.round(r.width) : 0,
+    left: r ? Math.round(r.left - (rc?.left ?? 0)) : null,
+    visible,
+    sidebarWidth: sb ? Math.round(sb.getBoundingClientRect().width) : 0
+  };
+}
+function wallOf(rc) {
+  const st = sidebarState(rc);
+  const open = st.api === null ? (st.visible && st.width > 120) : st.api;
+  if (!open || !st.width || st.left === null) return null;
+  // measured, not trusted: an "open" sidebar whose content has no width yet is not a wall either
+  if (st.width <= 120 || st.left <= 400) return null;
+  return { x: Math.round(st.left) };
+}
+/* Measuring turns the rotation off for one style pass, and the blocks carry an 840 ms
+   transition on `transform` - so without this every measurement animated every block from
+   0 degrees back to its tilt: the "wobble" of 1.2.30. The class holds transitions still for
+   exactly the passes in which the rotation is toggled. */
+function measuring(on) {
+  document.body.classList.toggle("drpg-measuring", on);
+  if (!on) void document.body.offsetWidth;   // settle the style pass with the transition still off
 }
 function moduleLayout(W, H) {
+  measuring(true);
   const els = BLOCKS.map(b => [...document.querySelectorAll(b.sel)].filter(e => e.offsetWidth > 0 && e.offsetHeight > 0));
   // measure with the rotation off, so a pane is cut for the block as laid out, and against the
   // curtain's own box, so a curtain that does not start at the viewport's corner still fits
@@ -91,7 +131,7 @@ function moduleLayout(W, H) {
 }
 /** Console helper: `drpgGlassDebug()` prints the frame, the blocks and the self-check of the last pass. */
 export function debugGlass() {
-  const out = { frame: LAST.frame, blocks: LAST.blocks, checks: CHECKS.slice(), theme: document.body.className, viewport: [innerWidth, innerHeight], curtain: document.getElementById("drpg-curtain")?.getBoundingClientRect?.() };
+  const out = { frame: LAST.frame, sidebar: sidebarState(document.getElementById("drpg-curtain")?.getBoundingClientRect?.()), blocks: LAST.blocks, checks: CHECKS.slice(), theme: document.body.className, viewport: [innerWidth, innerHeight], curtain: document.getElementById("drpg-curtain")?.getBoundingClientRect?.() };
   console.log("[DRPG] curtain", JSON.stringify(out, null, 1));
   return out;
 }
@@ -207,10 +247,6 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       const cx = (c.x0 + c.x1) / 2, h = c.y1 - c.y0;
       const s0 = field(cx, FW, band);
       let theta = Math.abs(cx - FW / 2) < 0.1 * FW ? 0 : Math.min(8 * DEG, Math.max(6 * DEG, Math.atan(Math.abs(s0))));
-      // A tablet is not a 2560 px monitor: at 8 degrees the clock's two faces are read at an
-      // angle across a third of the screen. Below 2200 px the blocks stand straight and only
-      // the glass around them is cut.
-      if (FW < 2200) theta = 0;
       // a neighbour too close forbids the tilt that would swing the pane into it
       for (const o of cols) if (o !== c) { const gap = o.x0 > c.x1 ? o.x0 - c.x1 : c.x0 - o.x1; if (gap >= 0) theta = Math.min(theta, Math.atan(Math.max(0, gap - 2 * PAD_SIDE - 2) / Math.max(h, 1))); }
       const s = Math.sign(s0) * Math.tan(theta);
@@ -594,14 +630,10 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
        collapse hook scheduled measured it mid-animation, and nothing measured again - the
        wall stayed at 1685 px with the right-hand column beyond it. `ui.sidebar.expanded` is
        true or false the moment the click lands; the width is only the fallback. */
-    const sbEl = document.getElementById("sidebar");
-    const expanded = typeof ui !== "undefined" && ui?.sidebar
-      ? ui.sidebar.expanded !== false
-      : Boolean(sbEl && sbEl.offsetWidth > 120);
-    const sbr = expanded && sbEl ? sbEl.getBoundingClientRect() : null;
+    const wall = wallOf(rc);
     const fullW = Math.round(rc.width || innerWidth);
-    const W = sbr && sbr.left - rc.left > 400 ? Math.round(sbr.left - rc.left) : fullW, H = Math.round(rc.height || innerHeight);
-    LAST.frame = { W, H, left: rc.left, top: rc.top, inner: [innerWidth, innerHeight], canvas: [c.clientWidth, c.clientHeight], wall: W !== fullW };
+    const W = wall ? wall.x : fullW, H = Math.round(rc.height || innerHeight);
+    LAST.frame = { W, H, left: rc.left, top: rc.top, inner: [innerWidth, innerHeight], canvas: [c.clientWidth, c.clientHeight], wall: W !== fullW, sidebar: sidebarState(rc) };
     el.style.width = W + "px";   // the canvases are 100% of the curtain: the curtain is as wide as the glass
     /* THE BLOCKS ARE PART OF THE SIGNATURE, NOT ONLY THE FRAME.
        A block that MOVES without changing size - the right-hand column sliding over when the
@@ -871,6 +903,9 @@ function morph(j, oldPanes, oldAcc) {
   requestAnimationFrame(step);
 }
 function rebuild() {
+  try { rebuildAll(); } finally { if (document.body.classList.contains("drpg-measuring")) measuring(false); }
+}
+function rebuildAll() {
   for (const j of curtains) {
     const before = CHECKS[CHECKS.length - 1]?.sig, wasPainted = j.painted, oldAcc = j.acc;
     const oldPanes = wasPainted ? snapshotPanes(j) : null;
@@ -1075,9 +1110,8 @@ function liveSignature() {
     if (!r.width && !r.height) continue;
     out += b.cls + Math.round(r.left) + "," + Math.round(r.top) + "," + Math.round(r.width) + "," + Math.round(r.height) + ";";
   }
-  const sb = document.getElementById("sidebar");
-  const expanded = typeof ui !== "undefined" && ui?.sidebar ? ui.sidebar.expanded !== false : Boolean(sb && sb.offsetWidth > 120);
-  if (sb) out += "sb" + Math.round(sb.getBoundingClientRect().left) + "," + (expanded ? 1 : 0);
+  const st = sidebarState(curtains[0]?.el.getBoundingClientRect());
+  out += "sb" + st.left + "," + st.width + "," + (st.api === null ? "-" : st.api ? 1 : 0);
   return out + "|" + Math.round(innerWidth) + "x" + Math.round(innerHeight);
 }
 let driftAt = 0;

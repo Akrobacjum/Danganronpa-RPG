@@ -2153,3 +2153,21 @@ body.drpg-reduced-motion .drpg-event-ticker > span { animation: none; }
 /* the body-found card is the killing seen from outside: the GM's red, like the incident */
 body.drpg-theme-stained-glass .drpg-event[data-kind="body"] { --acc: var(--drpg-sg-gm-light); }
 body.drpg-theme-stained-glass .drpg-event[data-kind="body"] .drpg-event-glyph { --drpg-px-mask: var(--drpg-px-murder); }
+
+/* ---- the measuring pass holds still --------------------------------------------------------
+   glass.mjs toggles the blocks' rotation off for one style pass to measure them as laid out.
+   With an 840 ms transition on `transform`, that pass was an animation: every recut swung
+   every block from 0 degrees back to its tilt. For the length of the pass, no transitions. */
+body.drpg-measuring #scene-controls,
+body.drpg-measuring #sidebar-tabs,
+body.drpg-measuring #drpg-hud,
+body.drpg-measuring #drpg-gm-launcher,
+body.drpg-measuring #drpg-despair,
+body.drpg-measuring #drpg-events,
+body.drpg-measuring #drpg-player-status,
+body.drpg-measuring #countdowns,
+body.drpg-measuring #drpg-notice,
+body.drpg-measuring #drpg-popups,
+body.drpg-measuring #drpg-messenger-launcher,
+body.drpg-measuring #drpg-sound-launcher,
+body.drpg-measuring #drpg-settings-launcher { transition: none !important; }

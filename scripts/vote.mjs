@@ -311,18 +311,32 @@ let picksRequired = 1;
 async function castBallot(candidates, voterActorId, picks = 1) {
     if (!Array.isArray(candidates) || !candidates.length) return;
 
-    const options = candidates.map(c =>
-        `<option value="${c.id}">${foundry.utils.escapeHTML(c.name)}${
-            c.dead ? ` - ${game.i18n.localize("DRPG.Chapter.deadShort")}` : ""
-        }</option>`).join("");
+    /* THE BALLOT IS A LIST OF PEOPLE, NOT A DROP-DOWN.
+       It was one `select` per pick, which is the one control in this module that hides its
+       own options: the names of everyone you could accuse were behind a click, and the
+       accusation is the single most consequential thing a player does all game. The audit
+       page draws it as choice rows, the shape this module already uses wherever an answer
+       matters (`.drpg-choice`, in use-items, rest and the action rolls), and rows have
+       another property a drop-down does not: nothing is chosen until somebody chooses it.
+       No row is checked here on purpose - a pre-selected ballot is a vote nobody cast. */
+    const rows = i => candidates.map(c => `
+                <label class="drpg-choice">
+                    <input type="radio" name="choice${i}" value="${c.id}">
+                    <span class="drpg-choice-text">
+                        <strong>${foundry.utils.escapeHTML(c.name)}</strong>
+                        ${c.dead ? `<small>${game.i18n.localize("DRPG.Chapter.deadShort")}</small>` : ""}
+                    </span>
+                </label>`).join("");
 
-    // One select per name the night demands. Two Blackened means two answers,
+    // One list per name the night demands. Two Blackened means two answers,
     // and the guide is explicit that half an answer is not one.
     const fields = Array.from({ length: Math.max(1, picks) }, (_, i) => `
-            <label>${picks > 1
-                ? game.i18n.format("DRPG.Vote.whoNth", { n: i + 1 })
-                : game.i18n.localize("DRPG.Vote.who")}
-                <select name="choice${i}">${options}</select></label>`).join("");
+            <fieldset class="drpg-ballot">
+                <legend>${picks > 1
+                    ? game.i18n.format("DRPG.Vote.whoNth", { n: i + 1 })
+                    : game.i18n.localize("DRPG.Vote.who")}</legend>
+                <div class="drpg-choice-list">${rows(i)}</div>
+            </fieldset>`).join("");
 
     const choice = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Vote.ballotTitle") },
@@ -337,8 +351,11 @@ async function castBallot(candidates, voterActorId, picks = 1) {
         buttons: [
             {
                 action: "ok", label: game.i18n.localize("DRPG.Vote.cast"), default: true,
+                // `:checked`, because a list of radios has no value of its own - and an
+                // unanswered ballot must come back short rather than come back with the
+                // first name on it, which is what `sendBallots` checks below.
                 callback: (e, b, d) => Array.from({ length: Math.max(1, picks) }, (_, i) =>
-                    d.element.querySelector(`[name=choice${i}]`)?.value).filter(Boolean)
+                    d.element.querySelector(`input[name="choice${i}"]:checked`)?.value).filter(Boolean)
             }
         ],
         rejectClose: false
