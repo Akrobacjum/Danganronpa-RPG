@@ -317,7 +317,7 @@ export function renderHud() {
         // Stained Glass: the name of the state runs as an outline behind the clock's content,
         // quietly (22 % opacity, 18 s a pass, still under reduced motion). Text, not a picture,
         // so it says what the seams' colour means. The stylesheet positions and moves it.
-        if (eventsWindowActive()) {
+        if (eventsWindowActive() && !document.body.classList.contains("drpg-no-ticker")) {
             const ticker = document.createElement("div");
             ticker.className = "drpg-hud-ticker";
             ticker.setAttribute("aria-hidden", "true");

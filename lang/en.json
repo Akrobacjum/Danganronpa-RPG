@@ -286,6 +286,22 @@
         "stainedGlass": "Stained Glass",
         "monokumaLegacy": "Monokuma Legacy"
       },
+      "glassPulse": {
+        "name": "Glass pulse",
+        "hint": "The slow darkening that travels around the frame. Turn it off to keep the glass and stop it breathing. This client only."
+      },
+      "reducedMotion": {
+        "name": "Reduced motion",
+        "hint": "Hold the interface still on this browser, whatever the operating system says. This client only."
+      },
+      "hudTicker": {
+        "name": "State name behind the clock",
+        "hint": "The name of the phase running as a faint outline behind the clock. This client only."
+      },
+      "messengerSound": {
+        "name": "Messenger sounds",
+        "hint": "The three sounds the messenger plays - sent, received, a question for the GM. Mutes them on this browser alone; nobody else is affected. This client only."
+      },
       "glassEffects": {
         "name": "Glass effects",
         "hint": "The blur behind the glass and the slow pulse of the panes. Off, the curtain is still there but still and flat. This client only."
@@ -831,6 +847,10 @@
       "glassEffects": "Glass effects",
       "uiScale": "Interface scale",
       "pixelFont": "Pixel font",
+      "pulse": "Glass pulse",
+      "reducedMotion": "Reduced motion",
+      "ticker": "State name behind the clock",
+      "messengerSound": "Messenger sounds",
       "stepUp": "One more",
       "stepDown": "One fewer",
       "atMost": "At most {n}",

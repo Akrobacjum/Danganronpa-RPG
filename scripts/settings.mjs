@@ -56,7 +56,15 @@ export const SETTINGS = {
     pixelFont: "pixelFont",
     theme: "theme",
     glassEffects: "glassEffects",
+    /** The slow darkening of the glass, separately from the glass itself. */
+    glassPulse: "glassPulse",
     uiScale: "uiScale",
+    /** This browser's own "reduced motion", independent of what the system says. */
+    reducedMotion: "reducedMotion",
+    /** The state's name running as an outline behind the clock. */
+    hudTicker: "hudTicker",
+    /** The three messenger sounds, muted for this browser alone. */
+    messengerSound: "messengerSound",
     projectsCollapsed: "projectsCollapsed",
     debug: "debug",
     /** Regions become LiveKit breakout rooms - off by default, needs avclient-livekit. */
@@ -546,6 +554,48 @@ export function registerSettings() {
         type: Boolean,
         default: true,
         onChange: () => applyTheme()
+    });
+
+    /* The audit asked for four switches the Look window promised and never had. All four
+       are this browser's own, like the theme: what one player can bear to look at and
+       listen to is not a thing a GM decides for the table. */
+    game.settings.register(MODULE_ID, SETTINGS.glassPulse, {
+        name: "DRPG.Settings.glassPulse.name",
+        hint: "DRPG.Settings.glassPulse.hint",
+        scope: "client",
+        config: true,
+        type: Boolean,
+        default: true,
+        onChange: () => applyTheme()
+    });
+
+    game.settings.register(MODULE_ID, SETTINGS.reducedMotion, {
+        name: "DRPG.Settings.reducedMotion.name",
+        hint: "DRPG.Settings.reducedMotion.hint",
+        scope: "client",
+        config: true,
+        type: Boolean,
+        default: false,
+        onChange: () => applyTheme()
+    });
+
+    game.settings.register(MODULE_ID, SETTINGS.hudTicker, {
+        name: "DRPG.Settings.hudTicker.name",
+        hint: "DRPG.Settings.hudTicker.hint",
+        scope: "client",
+        config: true,
+        type: Boolean,
+        default: true,
+        onChange: () => applyTheme()
+    });
+
+    game.settings.register(MODULE_ID, SETTINGS.messengerSound, {
+        name: "DRPG.Settings.messengerSound.name",
+        hint: "DRPG.Settings.messengerSound.hint",
+        scope: "client",
+        config: true,
+        type: Boolean,
+        default: true
     });
 
     game.settings.register(MODULE_ID, SETTINGS.uiScale, {
@@ -1246,6 +1296,9 @@ export function applyTheme() {
     document.body.classList.toggle("drpg-theme-monokuma-legacy", theme !== "stainedGlass");
     document.body.classList.toggle("drpg-pixel-font", pixelFontOn());
     document.body.classList.toggle("drpg-no-glass-effects", getSetting(SETTINGS.glassEffects) === false);
+    document.body.classList.toggle("drpg-no-pulse", getSetting(SETTINGS.glassPulse) === false);
+    document.body.classList.toggle("drpg-no-ticker", getSetting(SETTINGS.hudTicker) === false);
+    document.body.classList.toggle("drpg-reduced-motion", getSetting(SETTINGS.reducedMotion) === true);
     const scale = Number(getSetting(SETTINGS.uiScale)) || 1;
     // On the body, where the theme's own rules live: a value on <html> was shadowed by
     // the sheet's default on body (v1.2.15), so the scale never applied.

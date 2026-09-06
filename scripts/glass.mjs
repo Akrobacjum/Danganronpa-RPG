@@ -723,7 +723,9 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
 /* ---- lifecycle -------------------------------------------------------------- */
 const curtains = [], windows = [];
 let raf = 0, last = 0, observers = [], timer = 0;
-const REDUCED = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+const REDUCED = () => document.body.classList.contains("drpg-reduced-motion") || matchMedia("(prefers-reduced-motion: reduce)").matches;
+/** The pulse is switchable on its own: the glass can stay and stop breathing. */
+const pulseOn = () => !document.body.classList.contains("drpg-no-pulse");
 
 function themeOn() { try { return getSetting(SETTINGS.theme) === "stainedGlass"; } catch { return false; } }
 function effectsOn() { try { return getSetting(SETTINGS.glassEffects) !== false; } catch { return true; } }
@@ -1097,7 +1099,7 @@ function loop(t) {
   raf = requestAnimationFrame(loop);
   if (!curtains.length || document.hidden) return;
   watchDrift(t);
-  if (REDUCED() || !effectsOn()) return;
+  if (REDUCED() || !effectsOn() || !pulseOn()) return;
   if (t - last < 66) return;
   last = t; scanUrgent(t); pulseFrame(t);
 }

@@ -32,8 +32,16 @@ function lookFieldset() {
        so the switch is only shown to a browser wearing that theme. Under Stained Glass it
        would be a switch that does nothing (settings.mjs `pixelFontOn`). */
     const legacy = theme !== "stainedGlass";
-    const pixel = legacy ? `<label><span>${t("pixelFont")}</span>
-            <input type="checkbox" name="look:pixelFont"${getSetting(SETTINGS.pixelFont) !== false ? " checked" : ""}></label>` : "";
+    const check = (key, setting, on) => `<label><span>${t(key)}</span>
+            <input type="checkbox" name="look:${setting}"${on ? " checked" : ""}></label>`;
+    const pixel = legacy ? check("pixelFont", SETTINGS.pixelFont, getSetting(SETTINGS.pixelFont) !== false) : "";
+    /* The glass's own two switches are shown to the browsers that have glass. The other two
+       belong to every theme: motion and sound are not the glass's to own. */
+    const glassOnly = legacy ? "" :
+        check("pulse", SETTINGS.glassPulse, getSetting(SETTINGS.glassPulse) !== false)
+        + check("ticker", SETTINGS.hudTicker, getSetting(SETTINGS.hudTicker) !== false);
+    const always = check("reducedMotion", SETTINGS.reducedMotion, getSetting(SETTINGS.reducedMotion) === true)
+        + check("messengerSound", SETTINGS.messengerSound, getSetting(SETTINGS.messengerSound) !== false);
     const opt = (value, label) => `<option value="${value}"${theme === value ? " selected" : ""}>${
         foundry.utils.escapeHTML(game.i18n.localize(label))}</option>`;
     return `<fieldset class="drpg-look">
@@ -45,6 +53,7 @@ function lookFieldset() {
         <label><span>${t("uiScale")}</span>
             <input type="range" name="look:uiScale" min="0.8" max="1.4" step="0.05" value="${scale}">
             <output>${Math.round(scale * 100)}%</output></label>
+        ${glassOnly}${always}
         <p class="notes">${t("note")}</p>
         <p class="notes drpg-look-report"><code data-glass-report>-</code> <button type="button" data-action="drpg-redraw">${t("redraw")}</button></p>
     </fieldset>`;
@@ -65,8 +74,18 @@ function wireLook(root) {
         setSetting(SETTINGS.theme, ev.currentTarget.value).catch(err => error("Could not change the theme", err)));
     root.querySelector("[name='look:glassEffects']")?.addEventListener("change", ev =>
         setSetting(SETTINGS.glassEffects, ev.currentTarget.checked).catch(err => error("Could not change the glass effects", err)));
-    root.querySelector("[name='look:pixelFont']")?.addEventListener("change", ev =>
-        setSetting(SETTINGS.pixelFont, ev.currentTarget.checked).catch(err => error("Could not change the pixel font", err)));
+    /* Every switch above writes one client setting and nothing else; `applyTheme` (their
+       `onChange`) does the rest, so this list stays a list. */
+    for (const [name, setting, label] of [
+        [SETTINGS.pixelFont, SETTINGS.pixelFont, "the pixel font"],
+        [SETTINGS.glassPulse, SETTINGS.glassPulse, "the glass pulse"],
+        [SETTINGS.hudTicker, SETTINGS.hudTicker, "the clock's ticker"],
+        [SETTINGS.reducedMotion, SETTINGS.reducedMotion, "reduced motion"],
+        [SETTINGS.messengerSound, SETTINGS.messengerSound, "the messenger sounds"]
+    ]) {
+        root.querySelector(`[name='look:${name}']`)?.addEventListener("change", ev =>
+            setSetting(setting, ev.currentTarget.checked).catch(err => error(`Could not change ${label}`, err)));
+    }
     const range = root.querySelector("[name='look:uiScale']");
     if (range) {
         const out = range.parentElement.querySelector("output");

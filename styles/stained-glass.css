@@ -1979,3 +1979,11 @@ body.drpg-theme-stained-glass .drpg-panel table :is(td, th).act {
     text-align: right;
     white-space: nowrap;
 }
+
+/* ---- C-N. The switches the Look window promised ------------------------------------------
+   The pulse can go while the glass stays; the ticker can go while the clock stays; and a
+   browser can hold still without its owner changing an operating-system setting. */
+body.drpg-no-pulse #drpg-curtain > canvas.pulse { display: none; }
+body.drpg-reduced-motion #drpg-curtain > canvas.pulse { display: none; }
+body.drpg-no-ticker .drpg-hud-ticker { display: none !important; }
+body.drpg-reduced-motion .drpg-hud-ticker > span { animation: none; }
