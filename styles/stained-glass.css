@@ -1892,3 +1892,90 @@ body.drpg-theme-stained-glass .character-sidebar-sheet :is(h3, h4, .section-head
     border-radius: 0;
     padding: 2px 0;
 }
+
+/* ---- C-C. The number field, the select, and the table's figures --------------------------
+   The three families that needed one more element than the markup had; `scripts/chrome.mjs`
+   adds it, and this is what it looks like. The stepper is the audit page's: a pixel minus
+   and plus either side of the value, the browser's own arrows gone, and one line of
+   explanation under the field when the value is out of the range the field itself declares. */
+body.drpg-theme-stained-glass .drpg-stepper {
+    display: inline-flex;
+    align-items: stretch;
+    gap: 2px;
+}
+body.drpg-theme-stained-glass .drpg-stepper input[type="number"] {
+    text-align: center;
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+body.drpg-theme-stained-glass .drpg-stepper input[type="number"]::-webkit-outer-spin-button,
+body.drpg-theme-stained-glass .drpg-stepper input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+body.drpg-theme-stained-glass .drpg-step {
+    display: inline-grid;
+    place-content: center;
+    width: 24px;
+    min-width: 24px;
+    padding: 0;
+    color: var(--drpg-glass-accent);
+    background: rgba(7, 7, 10, 0.5);
+    border: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 45%, transparent);
+    border-radius: 0;
+    cursor: pointer;
+    clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
+    transition: color var(--drpg-t-snap, 90ms), background-color var(--drpg-t-snap, 90ms);
+}
+body.drpg-theme-stained-glass .drpg-step:hover {
+    color: var(--drpg-sg-ink);
+    background: color-mix(in srgb, var(--drpg-glass-accent) 70%, transparent);
+}
+body.drpg-theme-stained-glass .drpg-step .drpg-pxi { width: 14px; height: 14px; }
+body.drpg-theme-stained-glass .drpg-step-minus .drpg-pxi { --drpg-px-mask: var(--drpg-px-minus); }
+body.drpg-theme-stained-glass .drpg-step-plus .drpg-pxi { --drpg-px-mask: var(--drpg-px-plus); }
+body.drpg-theme-stained-glass .drpg-field-msg {
+    display: block;
+    font-family: var(--drpg-font-chrome);
+    font-size: var(--drpg-sg-floor);
+    letter-spacing: 0.04em;
+    color: var(--drpg-sg-gm-light);
+}
+body.drpg-theme-stained-glass .drpg-field-msg:empty { display: none; }
+body.drpg-theme-stained-glass input.is-bad { border-color: var(--drpg-sg-gm-light) !important; }
+
+/* the select keeps the field's edge and wears the sprite's own arrow */
+body.drpg-theme-stained-glass .drpg-select {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+body.drpg-theme-stained-glass .drpg-select select {
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 22px;
+    width: 100%;
+}
+body.drpg-theme-stained-glass .drpg-select::after {
+    content: "";
+    position: absolute;
+    right: 7px;
+    width: 12px;
+    height: 12px;
+    pointer-events: none;
+    background-color: var(--drpg-glass-accent);
+    -webkit-mask: var(--drpg-px-sort) center / contain no-repeat;
+    mask: var(--drpg-px-sort) center / contain no-repeat;
+    image-rendering: pixelated;
+}
+
+/* the figures line up, and the actions read from the right - the rule was written in 1.2.18
+   and no row in the module ever carried the class it needed */
+body.drpg-theme-stained-glass .drpg-panel table :is(td, th).num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+body.drpg-theme-stained-glass .drpg-panel table :is(td, th).act {
+    text-align: right;
+    white-space: nowrap;
+}

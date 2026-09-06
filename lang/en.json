@@ -831,6 +831,10 @@
       "glassEffects": "Glass effects",
       "uiScale": "Interface scale",
       "pixelFont": "Pixel font",
+      "stepUp": "One more",
+      "stepDown": "One fewer",
+      "atMost": "At most {n}",
+      "atLeast": "At least {n}",
       "note": "Everything in this window is this browser's own. Nobody else sees or hears the difference.",
       "redraw": "Redraw the glass"
     },

@@ -70,6 +70,7 @@ import { registerSync } from "./sync.mjs";
 import { registerTraps } from "./traps.mjs";
 import { SETTINGS, getSetting, applyTheme, pixelFontOn } from "./settings.mjs";
 import { registerGlass } from "./glass.mjs";
+import { registerChrome } from "./chrome.mjs";
 import { registerApi } from "./api.mjs";
 import { requirementsMet, announceMissingRequirements } from "./requirements.mjs";
 import { warnAboutPageTinting, verifyStylesheet } from "./diagnostics.mjs";
@@ -119,6 +120,7 @@ Hooks.once("init", () => {
 
     // A paint-path workaround, not decoration - see the note on the function.
     safely("the select picker skin", injectSelectPickerSkin);
+    safely("the theme's own controls", registerChrome);
     // Every window, not a list of them - see `guardTextFields`.
     safely("the text field guard", registerTextGuard);
     safely("private rolls", registerPrivateRolls);
