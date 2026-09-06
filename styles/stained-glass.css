@@ -423,7 +423,20 @@ body.drpg-theme-stained-glass .application:not(.drpg-panel) .window-header {
     background: rgba(5, 4, 9, 0.7);
     border-bottom: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 35%, transparent);
 }
-.drpg-look-report code { font-size: max(var(--drpg-sg-floor), calc(11px * var(--drpg-sg-scale))); opacity: .8; word-break: break-word; }
+/* The glass diagnostic is one unbroken line of `key value · key value`, and Foundry sets
+   `white-space: nowrap` on `p code` in its own typography layer. `word-break: break-word`
+   cannot undo a nowrap - the line has no wrap opportunity to take - so the whole Settings
+   window was stretched to the line's 1500 px min-content and everything above it, the
+   interface-scale slider included, was dragged off the right edge and clipped. It wraps here.
+   `anywhere`, not `break-word`: only `anywhere` also shrinks the line's MIN-CONTENT, which is
+   what a `fieldset` (min-inline-size: min-content) actually measures itself from. */
+.drpg-look-report code {
+    font-size: max(var(--drpg-sg-floor), calc(11px * var(--drpg-sg-scale)));
+    opacity: .8;
+    white-space: normal;
+    word-break: normal;
+    overflow-wrap: anywhere;
+}
 
 /* ==========================================================================
    Milestone 4: the brush on everything clickable, one field, one table, the
@@ -2314,16 +2327,22 @@ body.drpg-theme-stained-glass .character-header-sheet .drpg-ultimate-row .drpg-u
    else is here.
    ========================================================================== */
 
-/* ---- 1. The GM launcher: centred under the clock, its own size ------------------------
+/* ---- 1. The GM launcher: on the tiles' edge, its own size -----------------------------
    The base sheet stretches it across `#ui-left-column-1`, which was right when the column
    was the scene controls' width and wrong since the clock moved in: the button ran the full
-   width of the clock's pane, a 338 px red bar under a 312 px clock. The audit page draws it
-   72 x 32 under the clock's left edge; the request is under its middle. It keeps the base
+   width of the clock's pane, a 338 px red bar under a 312 px clock. It kept its own size and
+   was centred under the clock; the request now is the audit page's placement, under the
+   clock's LEFT edge, so the button sits over the scene-control tiles rather than beside them.
+   ALIGNED BY EDGE, NOT BY A NUDGE. `#ui-left-column-1` aligns its children to `start` and
+   `#scene-controls` takes that, so the column's start edge IS the tiles' left edge: sharing
+   it is exact at any interface scale and whatever width the column ends up. The offset this
+   replaces was half the column's leftover space - 105 px on a 312 px column, 19 px on a
+   139 px one - so no single nudge could ever have been right for both. It keeps the base
    sheet's margins, so the seam between its pane and the clock's - cut halfway across the
    20 px between them - stays 10 px off either block. */
 body.drpg-theme-stained-glass #ui-left-column-1 > #drpg-gm-launcher,
 body.drpg-theme-stained-glass #drpg-gm-launcher {
-    align-self: center;
+    align-self: start;
     width: max-content;
     min-width: calc(72px * var(--drpg-sg-scale));
     height: calc(32px * var(--drpg-sg-scale));
@@ -2794,26 +2813,47 @@ body.drpg-theme-stained-glass .application.dialog:is(
 ):not(.drpg-wide):not(.drpg-gm-panel-window):not(.drpg-table-window) {
     width: fit-content !important;
     min-width: min(var(--drpg-popup), 92vw) !important;
-    max-width: 92vw !important;
+    max-width: min(var(--drpg-popup-wide), 92vw) !important;
 }
-/* the cap that makes `fit-content` settle: prose stops at a readable measure instead of
-   running to the edge of the screen. On the content box, so the frame's own fit-content
-   computation sees it; never on a table window, whose table decides its width. */
+/* THE CAP GOES ON `.dialog-content`, AND `ch` IS NOT A UNIT THIS THEME CAN MEASURE IN.
+   1.2.39 put `max-width: 74ch` on `.window-content` - the very box the frame's `fit-content`
+   measures itself from - and left the frame floored at 544 px. Under this face 74ch is 385 px,
+   so the frame came out 544 wide around 353 px of content: a 174 px dead band down the right
+   of every prose window, which is the "widened windows are glitched" report. Two things were
+   wrong with it. `ch` resolves against each element's OWN font, and one dialog here has three
+   (the content box 13 px, `.dialog-content` 14 px, a blockquote larger still), so 74ch was
+   three different edges - 385, 444 and 576 px - in one window. And capping `.window-content`
+   stops it stretching to the frame, which is what leaves the band beside it.
+   So: `.window-content` is left alone and fills the frame, and the measure sits on
+   `.dialog-content` as ONE length, the same token the floor uses. The frame then shrink-wraps
+   to the measure instead of standing wider than it, and because it is a length rather than a
+   list of text elements it also holds for content that is not a paragraph - a bare div of
+   prose used to escape the cap entirely and run edge to edge. Never on a table window, whose
+   table decides its width, and the base sheet's deliberate 42rem measure for dialogs that
+   contain a table is left to win on its own selector. */
 body.drpg-theme-stained-glass .application.dialog:is(
     .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-summary-dialog, .drpg-safeword-dialog
-):not(.drpg-wide):not(.drpg-gm-panel-window):not(.drpg-table-window) .window-content {
-    max-width: 74ch;
+):not(.drpg-wide):not(.drpg-gm-panel-window):not(.drpg-table-window) .dialog-content {
+    max-width: var(--drpg-popup);
 }
 /* a control that can be squeezed states what it needs, so the window above can grow for it
    instead of the row silently getting narrower (the Look window's sliders were the report) */
-/* The explainers the clock and the Despair rail open are the other half of the report: their
-   prose is capped at 46 ch by the base sheet, so a 544 px frame leaves a third of itself empty
-   in either theme. They keep `fit-content` and get a lower floor, so the window is the size of
-   the card - never narrower than the measure, because the cap decides the width, not this. */
-body.drpg-theme-stained-glass .application.dialog.drpg-explain:not(.drpg-wide):not(.drpg-table-window) {
-    min-width: min(26rem, 92vw) !important;
+/* THE EXPLAINERS THE CLOCK AND THE DESPAIR RAIL OPEN: THE CARD GROWS, THE FRAME STAYS.
+   These are the two windows the report named, and the fault in them is the `ch` fault again
+   one level down. The base sheet caps the card at 46 ch, which under a normal face is a
+   sensible measure and under VT323 at 13 px is 239 px - a thin ribbon of text down the middle
+   of a 544 px window with a third of the frame empty beside it. 1.2.39 answered that by
+   lowering the FRAME to the card, which was the wrong way round twice over: it made a window
+   the report calls too narrow narrower still, and the rule was inert anyway - one class short
+   of the floor above it, so it never won and never did anything at all.
+   The card is what grows. With the 46 ch cap lifted it fills `.dialog-content`, which the rule
+   above holds at 544 px, so the frame keeps the width it has and the text inside it roughly
+   doubles. Nothing here needs `!important`: the base sheet's cap is a plain declaration and
+   this is more specific than it. */
+body.drpg-theme-stained-glass .application.dialog.drpg-explain .drpg-explain-body {
+    max-width: none;
 }
 body.drpg-theme-stained-glass .drpg-look input[type="range"] { min-width: 14ch; }
 body.drpg-theme-stained-glass .drpg-look select,

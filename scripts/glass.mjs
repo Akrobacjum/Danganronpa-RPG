@@ -29,7 +29,11 @@ export const LAST = { frame: null, blocks: [] };
 const BLOCKS = [
   { cls: "hud", sel: "#drpg-hud", fallback: (W, H) => ({ x: 16, y: 22, w: 312, h: 150 }) },
   { cls: "gmbar", sel: "#drpg-gm-launcher", fallback: (W, H, r) => ({ x: 16, y: (r.hud ? r.hud.y + r.hud.h : 172) + 6, w: 72, h: 32 }) },
-  { cls: "rail", sel: "#drpg-despair", fallback: (W, H) => ({ x: Math.round(W / 2 - 206), y: 22, w: 412, h: 90 }) },
+  /* The fallback is the box to cut when the rail cannot be measured at all. 412x90 was smaller
+     than the rail has ever been - measured 454x102 at 100% and 540x109 at 140% - and it did not
+     scale, so on a large interface it cut a pane the rail stood outside of. Sized from the
+     measurement and scaled like the note block, since that is the only honest guess available. */
+  { cls: "rail", sel: "#drpg-despair", fallback: (W, H) => { const s = uiScale(); return { x: Math.round(W / 2 - 240 * s), y: 22, w: 480 * s, h: 104 * s }; } },
   { cls: "event", sel: "#drpg-events", fallback: null },
   { cls: "three", sel: "#drpg-player-status", fallback: (W, H) => ({ x: W - 64 - 300, y: 22, w: 300, h: 78 }) },
   { cls: "tray", sel: "#ui-right-column-1 > #countdowns, #countdowns", fallback: (W, H, r) => ({ x: W - 64 - 300, y: (r.three ? r.three.y + r.three.h : 100) + 10, w: 300, h: 62 }) },
@@ -152,60 +156,94 @@ function moduleLayout(W, H) {
    only when it is really there: if the middle of the map hits `#interface` itself, the lid is
    made transparent to the pointer and every child that was hit-testable is pinned to `auto`,
    so not one control changes behaviour and the board gets its clicks back. Undone on unmount. */
-const LID = { el: null, prev: "", pinned: [], promoted: false };
+const LID = { el: null, prev: "", pinned: [] };
 function freeTheBoard() {
   const iface = document.getElementById("interface");
   if (!iface || !themeOn()) return;
   const active = LID.el === iface;
   if (!active) {
-    /* Unconditional when the promotion above is ours, because then the lid is ours by
-       construction. Otherwise it is a repair, and a repair only happens when the fault is
-       really there - probed at FOUR points, since the middle of the screen is where a window
-       sits and one probe there would report the dialog and miss the lid entirely. */
-    let lid = LID.promoted;
-    if (!lid) {
-      const W = innerWidth, H = innerHeight;
-      try {
-        for (const [x, y] of [[W * 0.5, H * 0.5], [W * 0.3, H * 0.72], [W * 0.7, H * 0.28], [W * 0.5, H * 0.85]]) {
-          if (document.elementFromPoint(Math.round(x), Math.round(y)) === iface) { lid = true; break; }
-        }
-      } catch { return; }
-    }
+    /* Purely a repair now, and a repair only happens when the fault is really there - probed at
+       FOUR points, since the middle of the screen is where a window sits and one probe there
+       would report the dialog and miss the lid entirely. The module no longer creates the lid
+       itself (see `layerIndex`), but a third party that gives `#interface` a z-index of its own
+       recreates it exactly, and this is what catches that. */
+    let lid = false;
+    const W = innerWidth, H = innerHeight;
+    try {
+      for (const [x, y] of [[W * 0.5, H * 0.5], [W * 0.3, H * 0.72], [W * 0.7, H * 0.28], [W * 0.5, H * 0.85]]) {
+        if (document.elementFromPoint(Math.round(x), Math.round(y)) === iface) { lid = true; break; }
+      }
+    } catch { return; }
     if (!lid) return;                                // the map is reachable: nothing to repair
     LID.el = iface; LID.prev = iface.style.pointerEvents;
   }
-  // read the children with the lid transparent again, so what they ask for is not hidden by inheritance
+  /* Read the children with the lid transparent, because that is what each child ASKS for -
+     reading them after the lid is off would report the `none` they merely inherit from it, and
+     pinning nothing is the same as making every child that relies on inheritance click-dead.
+     What was missing was the other half: a child that COVERS THE BOARD is not a control, it is
+     the next lid down, and pinning it just moves the fault one level deeper. That is the bug
+     1.2.39 shipped - it wrote an explicit `pointer-events: auto` onto anything full-screen that
+     had no rule of its own, Foundry's own main menu included. */
   iface.style.pointerEvents = "";
   const wants = [...iface.children].map(c => [c, getComputedStyle(c).pointerEvents]);
   iface.style.pointerEvents = "none";
-  for (const [c, pe] of wants) if (pe !== "none" && !c.style.pointerEvents) { LID.pinned.push(c); c.style.pointerEvents = "auto"; }
-  if (!active && !LID.promoted) log("the interface layer was taking the map's clicks; the board has them back");
+  const bb = document.getElementById("board")?.getBoundingClientRect();
+  const coversBoard = c => {
+    const r = c.getBoundingClientRect();
+    return Boolean(bb) && r.width >= bb.width * 0.9 && r.height >= bb.height * 0.9;
+  };
+  for (const [c, pe] of wants) {
+    if (pe === "none" || c.style.pointerEvents) continue;
+    if (coversBoard(c)) { log("not pinning a child that covers the board: " + (c.id || c.tagName)); continue; }
+    LID.pinned.push(c); c.style.pointerEvents = "auto";
+  }
+  if (!active) log("the interface layer was taking the map's clicks; the board has them back");
 }
 function restoreLid() {
-  const iface = LID.el ?? document.getElementById("interface");
-  if (LID.promoted && iface) { iface.style.position = ""; iface.style.zIndex = ""; }
-  LID.promoted = false;
   if (!LID.el) return;
   LID.el.style.pointerEvents = LID.prev;
   for (const c of LID.pinned) c.style.pointerEvents = "";
   LID.el = null; LID.prev = ""; LID.pinned.length = 0;
 }
-/** What the pointer finds over the map, top to bottom: the answer to "the map takes no clicks". */
+/* What the pointer finds over the map, top to bottom: the answer to "the map takes no clicks".
+   `elementsFromPoint` SKIPS anything at `pointer-events: none`, so the curtain itself never
+   appears here - its absence is not evidence of anything.
+   `targetId` against `needsId` is the whole question in one line: Foundry refuses to hover a
+   placeable in, and refuses to zoom, unless the element under the pointer IS the board canvas,
+   so `targetId !== needsId` means no token can be picked up no matter what else is true. */
 function hitStack() {
   const W = innerWidth, H = innerHeight;
   const name = e => e ? e.tagName.toLowerCase() + (e.id ? "#" + e.id : "") + (e.classList?.length ? "." + [...e.classList].slice(0, 2).join(".") : "") + " [" + getComputedStyle(e).pointerEvents + "]" : "nothing";
   const at = (x, y) => { try { return [...(document.elementsFromPoint(x, y) || [])].slice(0, 6).map(name); } catch { return ["?"]; } };
   const iface = document.getElementById("interface"), board = document.getElementById("board");
+  const cx = Math.round(W / 2), cy = Math.round(H / 2);
+  let target = null;
+  try { target = document.elementFromPoint(cx, cy); } catch { /* detached */ }
   return {
-    centre: at(Math.round(W / 2), Math.round(H / 2)),
+    centre: at(cx, cy),
     lower: at(Math.round(W * 0.35), Math.round(H * 0.75)),
+    targetId: target?.id || target?.tagName?.toLowerCase() || null,
+    needsId: globalThis.canvas?.app?.view?.id ?? "board",
     boardInsideInterface: Boolean(iface && board && iface !== board && iface.contains(board)),
+    interfaceZ: iface ? getComputedStyle(iface).zIndex : null,
+    interfaceInline: iface?.getAttribute("style") || null,
+    children: iface ? [...iface.children].map(c => (c.id || c.tagName.toLowerCase()) + " computed=" + getComputedStyle(c).pointerEvents + " inline=" + (c.style.pointerEvents || "-")) : [],
+    pinned: LID.pinned.map(c => (c.id || c.tagName.toLowerCase()) + "=" + (c.style.pointerEvents || "-")),
     lid: LID.el ? "freed by the module" : "not needed"
   };
 }
 /** Console helper: `drpgGlassDebug()` prints the frame, the blocks and the self-check of the last pass. */
 export function debugGlass() {
-  const out = { pointer: hitStack(), frame: LAST.frame, rightColumn: { pinned: document.getElementById("ui-right-column-1")?.dataset.drpgPinned === "1", right: PIN.rail }, blocks: LAST.blocks, checks: CHECKS.slice(), theme: document.body.className, viewport: [innerWidth, innerHeight], curtain: document.getElementById("drpg-curtain")?.getBoundingClientRect?.() };
+  /* `panes` and `live` are here for one question: does the pane cut for a block actually
+     straddle the block? A tone missing from `panes` means that block lost its pane to a
+     neighbour's column; a pane whose x0/x1 do not sit either side of the block's live box
+     means it was cut for something else, or the block moved after it was cut. */
+  const live = {};
+  for (const sel of ["#drpg-despair", "#drpg-events", "#drpg-hud", "#drpg-player-status", "#countdowns"]) {
+    const r = document.querySelector(sel)?.getBoundingClientRect();
+    if (r) live[sel] = [Math.round(r.left), Math.round(r.right), Math.round(r.width), Math.round(r.height), getComputedStyle(document.querySelector(sel)).transform === "none" ? "upright" : "tilted"];
+  }
+  const out = { pointer: hitStack(), frame: LAST.frame, rightColumn: { pinned: document.getElementById("ui-right-column-1")?.dataset.drpgPinned === "1", right: PIN.rail }, blocks: LAST.blocks, panes: (LAST.panes || []).filter(p => p.tone).map(p => p.tone + " " + p.x0 + ".." + p.x1), live, checks: CHECKS.slice(), theme: document.body.className, viewport: [innerWidth, innerHeight], curtain: document.getElementById("drpg-curtain")?.getBoundingClientRect?.() };
   console.log("[DRPG] curtain", JSON.stringify(out, null, 1));
   return out;
 }
@@ -814,7 +852,12 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     let ov = 0, nonconvex = 0, blockFails = 0, edgeGaps = 0, fitFails = 0; const ncv = [];
     for (let i = 0; i < panes.length; i++) { if (!convex(panes[i].poly)) { nonconvex++; ncv.push(panes[i].kind + ':' + panes[i].poly.map(q => q.map(v => Math.round(v)).join(',')).join(' ')); } for (let j = i + 1; j < panes.length; j++) if (overlaps(panes[i].poly, panes[j].poly)) ov++; }
     for (const col of [...panes.meta.top, ...panes.meta.bot]) for (const b of col.items) {
-      const own = panes.filter(p => p.content && col.items.some(i => i.cls === p.tone));
+      /* THE BLOCK'S OWN PANE, NOT ITS COLUMN-MATE'S.
+         This used to accept a pane toned for ANY member of the merged column, so a block that
+         had been absorbed into a neighbour's pane and lost its own passed the check by standing
+         inside the neighbour's glass. That is exactly the failure this check exists to catch,
+         and it is why the Despair rail could lose its pane on a narrow screen and report clean. */
+      const own = panes.filter(p => p.content && p.tone === b.cls);
       if (b.r && (b.r.x < b.x - 0.5 || b.r.y < b.y - 0.5 || b.r.x + b.r.w > b.x + b.w + 0.5 || b.r.y + b.r.h > b.y + b.h + 0.5)) fitFails++;
       const qs = [[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h]].map(([x, y]) => col.rot(x - col.px, y - col.py)).filter(q => q[0] > 1 && q[0] < W - 1 && q[1] > 1 && q[1] < H - 1);
       for (const q of qs) {
@@ -935,23 +978,36 @@ function effectsOn() { try { return getSetting(SETTINGS.glassEffects) !== false;
 const STYLE = "position:fixed;inset:0;width:100vw;height:100vh;margin:0;padding:0;border:0;pointer-events:none;overflow:hidden;isolation:isolate;box-sizing:border-box;";
 function layerIndex() {
   const iface = document.getElementById("interface");
+  const board = document.getElementById("board");
+  /* THE ONE ARRANGEMENT A BODY-LEVEL CURTAIN CANNOT BE LAYERED INTO.
+     If the board is INSIDE `#interface`, nothing mounted in the body can sit between it and the
+     interface's own columns: everything in that subtree shares `#interface`'s index, and an
+     earlier sibling at the same index always loses. Foundry does not do this today - the board
+     is a LATER SIBLING of `#interface`, put there by `board.replaceWith(canvas)` on the
+     `<template id="board">` - but the module is verified against a major whose markup was not
+     readable from here, so this says so out loud rather than mis-stacking in silence. */
+  if (iface && board && iface !== board && iface.contains(board)) {
+    const bz = parseInt(getComputedStyle(board).zIndex, 10);
+    log("the board is inside #interface: the curtain cannot be layered from the body");
+    return Number.isFinite(bz) ? bz + 1 : 1;
+  }
   if (!iface) return 1;
   const cs = getComputedStyle(iface);
   const z = parseInt(cs.zIndex, 10);
   if (cs.position !== "static" && Number.isFinite(z)) return Math.max(0, z);   // same index, earlier in the tree: under it
-  /* THE INTERFACE IS PROMOTED, AND THE MODULE PAYS FOR IT.
-     The curtain is a fixed sibling at z-index 1, which paints over every positioned element that
-     has no z-index of its own - and parts of Foundry's interface are exactly that, so without a
-     stacking context of its own the whole UI would go under the glass. Hence the promotion; it
-     has been here since the theme shipped and it is why the interface reads above the curtain.
-     What it also does is turn a full-screen box into a POSITIONED full-screen box over the
-     board, and a positioned full-screen box that still takes pointer events is a lid: on the
-     reporter's GM client every click meant for the map - panning, selecting a token - landed on
-     `#interface` and did nothing. The layer is ours to fix, not Foundry's: `freeTheBoard()`
-     makes the lid transparent to the pointer and pins every child that was hit-testable, so the
-     interface keeps its clicks and the board gets its own back. */
-  if (cs.position === "static") { iface.style.position = "relative"; LID.promoted = true; }
-  if (!Number.isFinite(z)) { iface.style.zIndex = "1"; LID.promoted = true; }
+  /* NOTHING IS PROMOTED HERE, AND THAT IS THE FIX OF 1.2.40.
+     Until now this wrote `z-index: 1` onto `#interface`, on the stated grounds that without a
+     stacking context of its own the whole UI would go under the glass. THAT WAS WRONG, and it
+     was wrong because the harness it was checked against modelled Foundry's DOM incorrectly -
+     the board on the wrong side of `#interface`, and none of the interface's columns carrying
+     the `z-index: var(--z-index-app)` = 30 that Foundry actually gives them. With the real
+     numbers the curtain at 1 is already above the board at 0 and already below the columns at
+     30, and removing the promotion changes the rendered page by zero pixels.
+     What the promotion DID do was make a full-screen box into a POSITIONED full-screen box
+     over the board - a lid, which is what took the map's clicks - and, worse, it is the only
+     arrangement in which a board that ever moved inside `#interface` would paint ABOVE the
+     glass and make the theme vanish over the map. So it goes. `freeTheBoard()` stays, as a
+     repair for a lid somebody ELSE puts there. */
   return 1;
 }
 function place(el) {

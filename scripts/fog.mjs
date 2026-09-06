@@ -312,6 +312,36 @@ export function registerFog() {
      */
     Hooks.on("drpgEclipseChanged", () => repaintFog());
 
+    /*
+     * THE SEAM COLOUR IS A DOM FACT, SO IT IS WATCHED IN THE DOM.
+     *
+     * Under Stained Glass the room outline and the doorway glow wear
+     * `--drpg-glass-accent`, which the stylesheet derives from `data-drpg-time`,
+     * `data-drpg-phase` and the `drpg-eclipse` class on `<body>`. A standing outline
+     * has to follow the hour, and nothing else here would make it.
+     *
+     * NOT `drpgTimeOfDayChanged`, AND THE REASON IS A RACE. That hook is fired from
+     * `sync.mjs` in the same fire-and-forget batch as the `renderHud()` that WRITES
+     * the attribute the colour is derived from, and `run()` there awaits nothing - so
+     * a listener that reads the computed accent off the hook can be handed the hour
+     * on its way out. There is no phase hook at all. The ATTRIBUTE CHANGING IS THE
+     * COLOUR CHANGING, with nothing in between to get the order wrong. Same filter
+     * and the same 60 ms settle as the curtain's own observer; the `class` entry is
+     * what catches the Eclipse and the theme itself, so an outline left standing when
+     * someone leaves Stained Glass goes back to Bone on its own.
+     */
+    let accentTimer = 0;
+    new MutationObserver(() => {
+        clearTimeout(accentTimer);
+        accentTimer = setTimeout(() => {
+            try { recolourRoomOutline(); }
+            catch (err) { debug("Fog: could not recolour the room outline", err); }
+        }, 60);
+    }).observe(document.body, {
+        attributes: true,
+        attributeFilter: ["data-drpg-phase", "data-drpg-time", "class"]
+    });
+
     // Every scene with rooms, once a session, on the one GM entitled to write.
     // `canvasReady` still covers the scene in front of the GM; this covers the
     // ones nobody has opened yet, which is where the trap was.
@@ -1444,10 +1474,38 @@ function armRendererFailsafe() {
 
 /** Resolve a CSS custom property to the integer PIXI wants. */
 /** The seam colour of the Stained Glass theme, read off the body where the theme sets it. */
+/**
+ * The seam colour of the Stained Glass theme, read off the body where the theme
+ * sets it.
+ *
+ * NOT `Color.from` ALONE, AND THAT IS THE WHOLE OF WHY THIS PAINTED NOTHING.
+ * `--drpg-glass-accent` is a REGISTERED custom property - `@property` with
+ * `syntax: "<color>"` - which is what lets the interface interpolate it through a
+ * colour change. A registered `<color>` computes to its RESOLVED form, so this
+ * reads back `rgb(255, 211, 143)`, never the `#ffd38f` the token was written in.
+ * `Color.fromString` is `parseInt(string, 16)`. Every hour of the day parsed to
+ * NaN, and NaN went straight to `lineStyle` and to the room label's `fill`.
+ * The rgb() form is read here directly; `Color.from` stays as the second chance
+ * in case the token is ever a plain hex again, and is now checked for the NaN it
+ * used to hand back in silence.
+ *
+ * Note the fallback below is close to dead: because the property is registered
+ * WITH an initial value, the computed value is never the empty string - it
+ * answers even with the theme switched off. The theme class is the real gate, and
+ * it lives in `outlineColour`. Read this through that, never directly.
+ */
 function accentColour(fallback) {
     try {
         const raw = getComputedStyle(document.body).getPropertyValue("--drpg-glass-accent").trim();
-        return raw ? foundry.utils.Color.from(raw).valueOf() : fallback;
+        if (!raw) return fallback;
+        // `rgb(r, g, b)` and `rgba(r, g, b, a)` alike: the first three numbers are the colour.
+        const parts = raw.startsWith("rgb") ? raw.match(/[\d.]+/g) : null;
+        if (parts && parts.length >= 3) {
+            const [r, g, b] = parts.slice(0, 3).map(n => Math.min(255, Math.max(0, Math.round(Number(n)))));
+            if ([r, g, b].every(Number.isFinite)) return (r << 16) | (g << 8) | b;
+        }
+        const parsed = foundry.utils.Color.from(raw).valueOf();
+        return Number.isFinite(parsed) ? parsed : fallback;
     } catch {
         return fallback;
     }
@@ -3401,6 +3459,15 @@ function announceRoom(room) {
 
 const FX_GROUP = "drpgFogFx";
 const OUTLINE_NAME = "drpgRoomOutline";
+
+/**
+ * The doorway glow, named so it can be found again.
+ *
+ * It is a Sprite over a render texture and its colour is a `tint` - a uniform,
+ * free to reassign - so when the hour turns it does not have to be rebuilt, only
+ * found. See `recolourRoomOutline`.
+ */
+const GLOW_NAME = "drpgDoorwayGlow";
 /** How long the outline and name take to land after a room is entered. */
 const BOUNCE_MS = 520;
 /**
@@ -3496,7 +3563,15 @@ function playDiscoveryAnimation(room, tokenDoc) {
     clearReveals();
 
     const ink = colourOf("--drpg-ink", 0x1a1620);
-    const bone = colourOf("--drpg-bone", 0xe8e3ec);
+    /* The reveal's own lines take the seam colour too, because `flashOutline` runs INSIDE the
+       reveal rather than after it - the file's rule for itself here is one gesture in one
+       colour rather than three things taking turns. Left at bone these would be white lines
+       with an accent-coloured border drawn straight across them for five seconds, which is
+       exactly what that rule forbids. Unlike the standing outline this is baked into a render
+       texture and destroyed when the reveal ends, so it is deliberately NOT wired into
+       `recolourRoomOutline`: it has no handle to recolour and never lives long enough to go
+       stale by more than its own run. */
+    const bone = outlineColour();
     const grid = canvas.grid?.size ?? 100;
 
     const width = Math.max(1, Math.ceil(bounds.w));
@@ -3776,10 +3851,9 @@ function flashOutline(fx, region, rect) {
     fadeRoomOutline();
 
     // Under the Stained Glass theme the line is a seam: the state colour, the one the curtain's
-    // seams wear right now. Bone otherwise, as it always was.
-    const bone = document.body.classList.contains("drpg-theme-stained-glass")
-        ? accentColour(colourOf("--drpg-bone", 0xe8e3ec))
-        : colourOf("--drpg-bone", 0xe8e3ec);
+    // seams wear right now. Bone otherwise, as it always was. See `outlineColour`.
+    const glass = document.body.classList.contains("drpg-theme-stained-glass");
+    const bone = outlineColour();
     const grid = canvas?.grid?.size ?? 100;
     const bounds = boundsOf(region);
 
@@ -3809,8 +3883,41 @@ function flashOutline(fx, region, rect) {
     // there is no white line and there must be no black one either, or the
     // keyline would draw a lid across the doorway the glow is marking as a way
     // out. One trace, one set of gaps, and the two can never disagree.
-    const boneWidth = Math.max(7, Math.round(grid * 0.11));
-    const inkWidth = boneWidth + Math.max(4, Math.round(grid * 0.05));
+    /*
+     * THINNER UNDER STAINED GLASS, AND ONLY UNDER IT.
+     *
+     * The chunky line above is Dawid's decision of 26.08 against a 4px stroke that
+     * read thin and soft at play zoom, and Monokuma Legacy keeps it to the pixel.
+     * The Stained Glass theme asks the opposite of the same border: there the line
+     * is not a pixel-art sprite outline, it is a SEAM - the same thing the curtain
+     * draws, in the same colour - and a seam is thin. Roughly half, and deliberately
+     * NOT back to the flat 4px that was rejected: at grid 100 the bright line goes
+     * 11px to 6px and the whole ribbon 16px to 10px, which at a play zoom of 0.4 is
+     * still four screen pixels of colour with a keyline under them.
+     *
+     * THE KEYLINE THINS WITH IT rather than being left behind. Held at the Legacy
+     * margin it would out-weigh the line it exists to key - 8px of ink around 8px of
+     * colour at grid 150 - and the border would read as ink with a coloured core,
+     * which is the opposite of a seam. The ratio is what carries the look, and it
+     * stays near 1.6 against Legacy's 1.45.
+     */
+    const boneWidth = glass
+        ? Math.max(4, Math.round(grid * 0.055))
+        : Math.max(7, Math.round(grid * 0.11));
+    const inkWidth = boneWidth + (glass
+        ? Math.max(3, Math.round(grid * 0.035))
+        : Math.max(4, Math.round(grid * 0.05)));
+    /*
+     * THE STUB FLOOR IS NOT A LINE WIDTH, SO IT DOES NOT FOLLOW ONE.
+     *
+     * `traceOutlineGapped`'s last argument discards a walled stretch shorter than
+     * itself - the fix for the wedges Dawid photographed on 28.08. That threshold is
+     * a statement about stray samples on a map, not about how heavy the pen is, and
+     * letting it shrink with the theme's thinner line would start drawing the specks
+     * the wide one was hiding. So it stays at Legacy's ink width at every grid, which
+     * under Legacy is `inkWidth` itself, to the pixel.
+     */
+    const stubFloor = Math.max(7, Math.round(grid * 0.11)) + Math.max(4, Math.round(grid * 0.05));
     // Measured off the WIDER pass, and used by both: the gaps have to clear
     // the ink, and a bone line cut back to a different margin would poke out
     // past the keyline at every opening.
@@ -3842,7 +3949,7 @@ function flashOutline(fx, region, rect) {
     // if the ink dropped a stretch the bone kept, the bone line would stand
     // there with no keyline under it.
     const trace = () => {
-        if (edges.length) traceOutlineGapped(outline, edges, rect, gapPad, inkWidth);
+        if (edges.length) traceOutlineGapped(outline, edges, rect, gapPad, stubFloor);
         else traceRegionPathsAt(outline, region, rect);
     };
 
@@ -3882,7 +3989,27 @@ function flashOutline(fx, region, rect) {
     group.setChildIndex(label, group.children.length - 1);
     fx.addChild(group);
 
-    roomOutline = { group, outline, room: region.name };
+    roomOutline = {
+        group, outline, room: region.name, colour: bone,
+        /*
+         * RE-STROKE IN A NEW SEAM COLOUR WITHOUT MEASURING THE ROOM AGAIN.
+         *
+         * `edges` cost a movement-polygon test per border edge to find, and the two
+         * widths and the gap margin were all settled against them. Capturing them
+         * here means a turn of the day costs two traces of one border rather than a
+         * fresh `flashOutline` with its doorway measurement, its render texture, its
+         * bounce and its name. It closes over `outline`, never `group`, so it can
+         * never reach the label - which is destroyed long before this is called.
+         */
+        recolour: colour => {
+            if (outline.destroyed) return;
+            outline.clear();
+            stroke(inkWidth, colourOf("--drpg-ink", 0x1a1620));
+            trace();
+            stroke(boneWidth, colour);
+            trace();
+        }
+    };
 
     /*
      * THE LANDING. Two decreasing hops rather than one, because a single arc
@@ -5053,7 +5180,13 @@ function addDoorwayGlow(group, region, edges, rect) {
         renderer.render(eraser, { renderTexture: field, clear: false });
 
         const glow = new PIXI.Sprite(field);
-        glow.tint = colourOf("--drpg-bone", 0xe8e3ec);
+        glow.name = GLOW_NAME;
+        /* The gradient thrown out of a doorway is the same seam colour as the outline that
+           stops either side of it - Bone under Legacy, the state colour under Stained Glass,
+           and it would read as a different object in any other colour. A Sprite's tint is a
+           shader uniform, which also makes this the one thing on the layer that can follow the
+           hour for nothing at all. See `recolourRoomOutline`. */
+        glow.tint = outlineColour();
         glow.position.set(box.x, box.y);
         // `destroy({children: true})` does not free a texture - see `freeOwned`.
         glow.drpgOwnedTexture = field;
@@ -5261,6 +5394,62 @@ function fadeRoomOutline() {
         }
     });
     watchdog(animation, outlineFadeMs() + 750, drop);
+}
+
+/**
+ * The seam colour the room outline and the doorway glow should be wearing now.
+ *
+ * One function, because three copies of this test is how they drift apart. Bone
+ * under Monokuma Legacy, exactly as it always was; the state colour the curtain's
+ * seams are wearing under Stained Glass.
+ *
+ * THE THEME CLASS IS THE GATE AND HAS TO STAY THE GATE. `--drpg-glass-accent` is
+ * registered with an initial value, so it answers with the afternoon gold even
+ * when the theme is off - `accentColour`'s own fallback can never fire on its own.
+ */
+function outlineColour() {
+    const bone = colourOf("--drpg-bone", 0xe8e3ec);
+    return document.body.classList.contains("drpg-theme-stained-glass")
+        ? accentColour(bone)
+        : bone;
+}
+
+/**
+ * THE OUTLINE CARRIES THE HOUR, AND THE HOUR MOVES WITHOUT ANYBODY WALKING.
+ *
+ * `flashOutline` reads the seam colour once, when the room is entered, and the
+ * outline then stands until you walk out - which, without this, meant it stood in
+ * the colour of whatever hour it was drawn in. Nothing else was going to correct
+ * it: `repaintFog` only ever takes an outline DOWN, and its signature carries no
+ * colour term at all, so a repaint on a clock change returns at the first guard.
+ *
+ * THE COLOUR IS RE-APPLIED, THE ROOM IS NOT RE-DRAWN, and the two halves are not
+ * equally cheap. The glow is a Sprite over a render texture, so its `tint` is a
+ * uniform and costs one assignment. The outline is stroked geometry with the
+ * colour baked into the batch, so it has to be walked again - which is why
+ * `flashOutline` leaves behind a closure that can walk it WITHOUT measuring the
+ * doorways a second time. Calling `flashOutline` again would re-run a
+ * movement-polygon test per border edge, rebuild the glow's texture and replay the
+ * bounce and the room's name, none of which a change of colour should do.
+ *
+ * IT SNAPS RATHER THAN FADING, deliberately. The interface fades because the
+ * accent interpolates on elements; the curtain is held out of that fade on purpose
+ * because it paints a canvas and needs the target colour at once. This layer is a
+ * canvas too, and it turns with the curtain rather than behind it.
+ */
+function recolourRoomOutline() {
+    const standing = roomOutline;
+    if (!standing || standing.group?.destroyed) return;
+
+    const colour = outlineColour();
+    // By far the commonest case: the body's class list changed for some other reason
+    // entirely. One computed-style read, one integer compare, and out.
+    if (colour === standing.colour) return;
+    standing.colour = colour;
+
+    standing.recolour?.(colour);
+    const glow = standing.group.children.find(c => c?.name === GLOW_NAME);
+    if (glow && !glow.destroyed) glow.tint = colour;
 }
 
 

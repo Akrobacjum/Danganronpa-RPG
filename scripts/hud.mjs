@@ -522,7 +522,12 @@ function clearSceneList(hud) {
  */
 export function matchStripToDespair() {
     const despair = document.getElementById("drpg-despair");
-    const height = Math.round(despair?.getBoundingClientRect().height ?? 0);
+    /* LAID OUT, NOT AS PAINTED. Under the Stained Glass theme the curtain leans this rail with
+       the rest of its column, and `getBoundingClientRect` on a rotated element returns the
+       AXIS-ALIGNED box that contains it - 149px around a rail that is 102px tall. The strip
+       next door takes this number as its `min-height`, so the tilt was making an unrelated
+       panel half as tall again. `offsetHeight` is the layout height and ignores the transform. */
+    const height = Math.round(despair?.offsetHeight ?? 0);
     if (height > 0) document.body.style.setProperty("--drpg-despair-height", `${height}px`);
     else document.body.style.removeProperty("--drpg-despair-height");
 }

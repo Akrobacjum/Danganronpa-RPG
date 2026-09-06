@@ -13,8 +13,15 @@
 <style>
   html,body{margin:0;background:#2a2430;min-height:100vh;overflow:hidden}
   body{background-image:linear-gradient(90deg,rgba(255,255,255,.12) 1px,transparent 1px),linear-gradient(rgba(255,255,255,.12) 1px,transparent 1px),radial-gradient(circle at 30% 60%,rgba(127,228,255,.35),transparent 30%),radial-gradient(circle at 70% 40%,rgba(255,61,139,.3),transparent 30%);background-size:52px 52px,52px 52px,auto,auto}
-  #interface{position:absolute;inset:0}
-  #board{background:transparent}
+  /* Foundry's own stacking, which the harness used to leave out and which is why the curtain's
+     layering was reasoned about wrongly for two releases. `#interface` is `position: relative`
+     with NO z-index, so it is not a stacking context and its columns compete in the root one at
+     `--z-index-app` = 30; `canvas#board` is `--z-index-canvas` = 0. That is what puts the
+     curtain at z-index 1 above the board and under the whole interface with nothing promoted. */
+  body{display:flex}
+  #interface{position:relative;flex:1}
+  #board{background:transparent;z-index:0}
+  #ui-left-column-1,#ui-top,#ui-right{z-index:30}
   /* Foundry's left column: a flex column, 16 px gap, items at the start */
   #ui-left-column-1{position:absolute;left:16px;top:16px;display:flex;flex-direction:column;gap:16px;align-items:start}
   #scene-controls{display:flex;gap:8px}
@@ -45,9 +52,6 @@
   .countdown-tools{display:flex;align-items:center;gap:6px}
 </style></head>
 <body class="drpg-theme-stained-glass drpg-gm" data-drpg-time="afternoon" data-drpg-phase="dailyLife">
-<!-- Foundry's board: a sibling BEFORE #interface, painted under it. #interface is a full-screen
-     lid, so a client where it takes pointer events swallows every click meant for the map. -->
-<canvas id="board" width="400" height="300" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
 <div id="interface">
 <div id="ui-left-column-1">
   <div id="drpg-hud"><div class="drpg-hud-ticker" aria-hidden="true"><span>Daily Life · Daily Life · Daily Life · </span><span>Daily Life · Daily Life · Daily Life · </span></div>
@@ -76,6 +80,11 @@
 </div>
 <div id="drpg-popups"><div class="drpg-popup drpg-popup-tone-hope"><div class="drpg-popup-title"><span>The time of day is over</span></div><div class="drpg-popup-body">Kaede found a <b>Tier 2 Cleaning Tool</b> in the Library.</div></div></div>
 </div>
+<!-- Foundry's board: a sibling AFTER #interface, at z-index 0. Core puts it here by replacing a
+     `<template id="board">` that sits after the interface, so the board paints ABOVE #interface
+     and the curtain has to be layered between the two by index, not by promoting anything. The
+     harness used to place it BEFORE #interface, which made the promotion look necessary. -->
+<canvas id="board" width="400" height="300" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
 <button id="drpg-messenger-launcher"></button><button id="drpg-sound-launcher"></button>
 <div class="application dialog drpg-panel"><header class="window-header"><h1 class="window-title">Danganronpa - Advance the clock</h1><button class="header-control" data-action="close">x</button></header>
   <section class="window-content"><p>The afternoon ends. Everyone is placed for the Evening Eclipse.</p><footer class="form-footer"><button type="button" class="default">Advance the clock</button><button type="button">Not yet</button><button type="button" disabled>Rewind</button></footer></section></div>
