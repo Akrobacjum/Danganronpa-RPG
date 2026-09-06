@@ -1987,3 +1987,96 @@ body.drpg-no-pulse #drpg-curtain > canvas.pulse { display: none; }
 body.drpg-reduced-motion #drpg-curtain > canvas.pulse { display: none; }
 body.drpg-no-ticker .drpg-hud-ticker { display: none !important; }
 body.drpg-reduced-motion .drpg-hud-ticker > span { animation: none; }
+
+/* ==========================================================================
+   D. The audit's readability list: the same information, easier to read.
+   ========================================================================== */
+
+/* ---- D1. Bone Dim is for values nobody has to read ---------------------------------------
+   62 % Bone on a pane at 55 % over a lit map is under 4.5:1 at 11-12 px, which is most of
+   the chrome. The labels take a brighter Bone; what stays dim is what stays optional. */
+body.drpg-theme-stained-glass :is(#drpg-hud .drpg-hud-chapter, #drpg-hud .drpg-hud-day,
+    #drpg-hud .drpg-hud-room, #drpg-events .drpg-event-kicker, #drpg-events .drpg-event-meta,
+    #drpg-player-status .drpg-status-label, #countdowns .countdowns-header) {
+    color: color-mix(in srgb, var(--drpg-sg-bone) 84%, transparent);
+}
+/* THE RAIL STATES ITS OWN COLOUR.
+   Measured on a page carrying the module's markup and nothing else: the pool counter computes
+   to BLACK at 70 % over a near-black pane, because the base sheet gives it an opacity and no
+   colour and it inherits from whatever encloses the rail. Inside Foundry something always
+   does set one, so this has never been visible - it is a colour the theme does not control,
+   sitting on the one number in the rail a player actually reads. It controls it now. */
+body.drpg-theme-stained-glass #drpg-despair { color: var(--drpg-sg-bone); }
+body.drpg-theme-stained-glass #drpg-despair :is(.drpg-despair-count, .drpg-despair-overflow) {
+    color: color-mix(in srgb, var(--drpg-sg-bone) 84%, transparent);
+    opacity: 1;
+}
+
+/* ---- D2. The campaign name keeps to one line --------------------------------------------- */
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-campaign.is-long {
+    font-size: max(var(--drpg-sg-floor), calc(16px * var(--drpg-sg-scale)));
+}
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-campaign.is-very-long {
+    font-size: max(var(--drpg-sg-floor), calc(14px * var(--drpg-sg-scale)));
+}
+
+/* ---- D3. Foundry's tiles: red is the GM's, not the scene controls' ------------------------
+   The glyphs inside the rails were inheriting the module's red at 34 % of an edge, which
+   spends the one colour that is supposed to mean "the GM did this" on a pan tool. */
+body.drpg-theme-stained-glass :is(#scene-controls, #sidebar-tabs) button.ui-control {
+    color: var(--drpg-sg-bone-dim);
+}
+body.drpg-theme-stained-glass :is(#scene-controls, #sidebar-tabs) button.ui-control:hover { color: var(--drpg-sg-bone); }
+body.drpg-theme-stained-glass :is(#scene-controls, #sidebar-tabs) button.ui-control:is(.active, [aria-pressed="true"]) {
+    color: var(--drpg-glass-accent);
+}
+
+/* ---- C-I2. The GM panel's "Next" line ----------------------------------------------------
+   The one line in the panel that says what to do next, and the only part of it the audit
+   found still wearing the base sheet's look. The plate is the state's, the button is the
+   default one - it is the thing the panel is recommending. */
+body.drpg-theme-stained-glass .drpg-gmp-next {
+    background: rgba(7, 7, 10, 0.35);
+    border: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 40%, transparent);
+    border-radius: 0;
+    clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+}
+body.drpg-theme-stained-glass .drpg-gmp-next-label {
+    font-family: var(--drpg-font-chrome);
+    font-size: max(var(--drpg-sg-floor), calc(12px * var(--drpg-sg-scale)));
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--drpg-glass-accent);
+}
+body.drpg-theme-stained-glass .drpg-gmp-next-text { font-family: var(--drpg-font-prose); }
+body.drpg-theme-stained-glass .drpg-gmp-next-go {
+    --brush: var(--drpg-sg-bone);
+    color: var(--drpg-sg-ink);
+    background: var(--drpg-sg-bone);
+    border: 1px solid var(--drpg-sg-bone);
+    border-radius: 0;
+    clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+}
+
+/* ---- C-I3. Despair, wherever it is counted ----------------------------------------------
+   The rail's pips were themed in the last pass; the same pips appear in the Despair Flow
+   window, where they were still the base sheet's. One rule for both, so a pool reads the
+   same on the rail and in the window that edits it. */
+body.drpg-theme-stained-glass .drpg-panel .drpg-despair-pip {
+    width: 18px;
+    height: 18px;
+    color: var(--drpg-sg-despair);
+    opacity: 0.25;
+}
+body.drpg-theme-stained-glass .drpg-panel .drpg-despair-pip.filled { opacity: 1; }
+body.drpg-theme-stained-glass .drpg-panel .drpg-despair-button {
+    color: var(--drpg-sg-despair);
+    border: 0;
+    background: none;
+    border-radius: 0;
+}
+body.drpg-theme-stained-glass .drpg-panel .drpg-despair-button:hover:not(:disabled) {
+    color: var(--drpg-sg-ink);
+    background: color-mix(in srgb, var(--drpg-sg-despair) 65%, transparent);
+}

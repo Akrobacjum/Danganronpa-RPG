@@ -349,8 +349,16 @@ export function renderHud() {
             glyph.setAttribute("aria-hidden", "true");
             phaseLine.prepend(glyph);
         }
+        /* A campaign name is somebody's sentence, and Special Elite is a wide face: at 18 px
+           "DanganRPG: Safe Havens Bleed" runs to two lines in a 312 px pane, and the audit
+           page's rule for the title face is one line. Two steps down by length rather than
+           by measurement - the pane's width is a constant, so the count is enough. */
+        const campaign = line("drpg-hud-campaign", campaignName(clock));
+        const nameLength = (campaignName(clock) ?? "").length;
+        if (nameLength > 32) campaign.classList.add("is-very-long");
+        else if (nameLength > 22) campaign.classList.add("is-long");
         hud.append(
-            line("drpg-hud-campaign", campaignName(clock)),
+            campaign,
             ...dateLines,
             phaseLine,
             buildTimeRow(clock, isGM),
