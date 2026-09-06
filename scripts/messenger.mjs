@@ -24,6 +24,17 @@ import { SETTINGS } from "./settings.mjs";
 import { gmIds, error, warn } from "./utils.mjs";
 import { playSfx } from "./sfx.mjs";
 
+/**
+ * Whether this browser hears the messenger at all.
+ *
+ * A per-client mute for the three messenger sounds and nothing else: the world's
+ * mapping and everyone else's ears are untouched, which is the whole point - one
+ * player at a shared table wanting quiet is not a decision about the sound design.
+ */
+function messengerSoundOn() {
+    try { return game.settings.get(MODULE_ID, SETTINGS.messengerSound) !== false; } catch { return true; }
+}
+
 /** Flag keys, all stored under `flags["danganronpa-rpg"]` on a ChatMessage. */
 export const MESSENGER_FLAGS = {
     /** Which player's thread this message belongs to - a User id. */
@@ -166,7 +177,7 @@ async function createThreadMessage(playerUserId, content, kind, gmAsk = false) {
     // the message already plays `chatReceive` for everyone it reaches, and the
     // sender is one of those people. Played here instead, on the one client
     // that is doing the sending.
-    playSfx("chatSend");
+    if (messengerSoundOn()) playSfx("chatSend");
 
     try {
         return await ChatMessage.create({
@@ -221,7 +232,7 @@ function onCreateChatMessage(message) {
      * to stop hearing either.
      */
     if (game.user.isGM && message.getFlag(MODULE_ID, MESSENGER_FLAGS.gmAsk)) {
-        playSfx("gmAsk");
+        if (messengerSoundOn()) playSfx("gmAsk");
         return;
     }
 
@@ -230,7 +241,7 @@ function onCreateChatMessage(message) {
     // has not been through the Sound panel hears nothing here. That is the
     // bargain the playlists already make, and Season setup carries the row that
     // says so. `playSfx` swallows its own failures; there is nothing to guard.
-    playSfx("chatReceive");
+    if (messengerSoundOn()) playSfx("chatReceive");
 }
 
 /**

@@ -87,6 +87,9 @@ export const LEAVE = () => motionEase("--drpg-ease-leave");
  */
 export function reducedMotion() {
     try {
+        // This browser's own switch first: a player who wants the interface to hold still
+        // should not have to change an operating-system setting to say so (the Look window).
+        if (document.body.classList.contains("drpg-reduced-motion")) return true;
         return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     } catch {
         return false;

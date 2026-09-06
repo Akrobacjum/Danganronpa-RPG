@@ -115,3 +115,20 @@
         --drpg-slide: 0px;
     }
 }
+
+/* The same, said by this browser rather than by its operating system: the Look window's
+   "Reduced motion" (a client setting) puts `drpg-reduced-motion` on the body, and everything
+   that reads the media query above reads this class too - `reducedMotion()` in motion.mjs and
+   `REDUCED()` in glass.mjs. A player should not have to change a system setting to ask one
+   module to hold still. */
+body.drpg-reduced-motion {
+    --drpg-t-snap: 0ms;
+    --drpg-t-enter: 0ms;
+    --drpg-t-beat: 0ms;
+    --drpg-t-turn: 0ms;
+    --drpg-t-eclipse: 0ms;
+
+    --drpg-scale-in: 1;
+    --drpg-scale-out: 1;
+    --drpg-slide: 0px;
+}
