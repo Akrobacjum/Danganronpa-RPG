@@ -63,35 +63,37 @@ function applyRotations() {
   sheet.disabled = false;
   if (document.body.classList.contains("drpg-measuring")) { void document.body.offsetWidth; measuring(false); }
 }
-/* WHERE THE SIDEBAR IS, AND WHETHER IT IS OPEN.
-   Everything the wall decision rests on, in one place, and everything `drpgGlassDebug()` prints
-   about it. Three readings, because the first fix for the wall (1.2.30) trusted one of them
-   without being able to check it existed: `ui.sidebar.expanded` is taken as the truth ONLY when
-   it is actually a boolean; otherwise the part of the sidebar that collapses (`#sidebar-content`)
-   is measured, and the tab rail alone is never a wall. A wall also has to be WIDE - a 48 px rail
-   standing 1900 px from the left is far from the left and is still not a wall. */
-function sidebarState(rc) {
-  const sb = document.getElementById("sidebar"), content = document.getElementById("sidebar-content");
-  const api = typeof ui !== "undefined" ? ui?.sidebar?.expanded : undefined;
-  const el = content || sb;
-  const r = el ? el.getBoundingClientRect() : null;
-  const visible = Boolean(el && el.offsetWidth > 0 && getComputedStyle(el).visibility !== "hidden");
-  return {
-    api: typeof api === "boolean" ? api : null,
-    element: el ? el.id : null,
-    width: r ? Math.round(r.width) : 0,
-    left: r ? Math.round(r.left - (rc?.left ?? 0)) : null,
-    visible,
-    sidebarWidth: sb ? Math.round(sb.getBoundingClientRect().width) : 0
-  };
+/* THE RIGHT-HAND COLUMN STANDS STILL.
+   Foundry lays `#ui-right-column-1` out beside the sidebar, so opening the sidebar pushes the
+   status strip and the Projects tray 300 px to the left - and a curtain cut around them would
+   have to be recut, which is the whole story of the last two releases. Pinned, the column
+   stays where it stands with the sidebar closed: `right` is the tab rail's own distance from
+   the screen's edge (measured, so Foundry's paddings need not be known), `top: 0` under the
+   `margin-top` hud.mjs already keeps level with the Despair rail, and a z-index below the
+   sidebar so an open sidebar slides over the column instead of under it. Legacy is untouched. */
+const PIN = { rail: null };
+function pinRightColumn() {
+  const col = document.getElementById("ui-right-column-1");
+  if (!col) return;
+  if (!themeOn()) { unpinRightColumn(); return; }
+  const rail = document.getElementById("sidebar-tabs");
+  const r = rail && rail.offsetWidth ? rail.getBoundingClientRect() : null;
+  const right = r ? Math.max(0, Math.round(innerWidth - r.left)) : 0;
+  if (col.dataset.drpgPinned === "1" && PIN.rail === right) return;
+  PIN.rail = right;
+  col.dataset.drpgPinned = "1";
+  col.style.position = "fixed";
+  col.style.top = "0";
+  col.style.right = right + "px";
+  col.style.left = "auto";
+  col.style.width = "auto";
+  col.style.zIndex = "-1";
 }
-function wallOf(rc) {
-  const st = sidebarState(rc);
-  const open = st.api === null ? (st.visible && st.width > 120) : st.api;
-  if (!open || !st.width || st.left === null) return null;
-  // measured, not trusted: an "open" sidebar whose content has no width yet is not a wall either
-  if (st.width <= 120 || st.left <= 400) return null;
-  return { x: Math.round(st.left) };
+function unpinRightColumn() {
+  const col = document.getElementById("ui-right-column-1");
+  if (!col || col.dataset.drpgPinned !== "1") return;
+  delete col.dataset.drpgPinned; PIN.rail = null;
+  for (const k of ["position", "top", "right", "left", "width", "zIndex"]) col.style[k] = "";
 }
 /* Measuring turns the rotation off for one style pass, and the blocks carry an 840 ms
    transition on `transform` - so without this every measurement animated every block from
@@ -131,7 +133,7 @@ function moduleLayout(W, H) {
 }
 /** Console helper: `drpgGlassDebug()` prints the frame, the blocks and the self-check of the last pass. */
 export function debugGlass() {
-  const out = { frame: LAST.frame, sidebar: sidebarState(document.getElementById("drpg-curtain")?.getBoundingClientRect?.()), blocks: LAST.blocks, checks: CHECKS.slice(), theme: document.body.className, viewport: [innerWidth, innerHeight], curtain: document.getElementById("drpg-curtain")?.getBoundingClientRect?.() };
+  const out = { frame: LAST.frame, rightColumn: { pinned: document.getElementById("ui-right-column-1")?.dataset.drpgPinned === "1", right: PIN.rail }, blocks: LAST.blocks, checks: CHECKS.slice(), theme: document.body.className, viewport: [innerWidth, innerHeight], curtain: document.getElementById("drpg-curtain")?.getBoundingClientRect?.() };
   console.log("[DRPG] curtain", JSON.stringify(out, null, 1));
   return out;
 }
@@ -613,7 +615,17 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     if (inset > 0) sx.restore();
   }
 
-  const layerAfter = (after, cls, W, H) => { let c = after.parentElement.querySelector(":scope > canvas." + cls); if (!c) { c = document.createElement("canvas"); c.className = cls; after.after(c); } c.width = W; c.height = H; return c; };
+  /* A LAYER IS POSITIONED THE MOMENT IT EXISTS.
+     The pulse and the seams are created here, after `mount()` has already written its inline
+     positioning onto the canvases it found - so they had none, and the sheet gave them only a
+     z-index. An unpositioned canvas is an inline box in flow: the seam layer happened to land
+     at 0,0 at the curtain's own size and looked right, and the half-size pulse wrapped onto
+     the next line, under the bottom edge, invisible. In 1.2.27 the watchdog re-mounted the
+     curtain on a GM's screen (the wall made its width differ from the viewport) and stamped
+     the positioning onto every canvas by then - which is the only reason the pulse was ever
+     seen. It is stamped here, on creation, and the sheet says the same. */
+  const LAYER = "position:absolute;inset:0;width:100%;height:100%;";
+  const layerAfter = (after, cls, W, H) => { let c = after.parentElement.querySelector(":scope > canvas." + cls); if (!c) { c = document.createElement("canvas"); c.className = cls; c.style.cssText = LAYER; after.after(c); } c.width = W; c.height = H; return c; };
   /* ---- the curtain: geometry now, paint when it is looked at -------------------- */
   const rng = seed => { let sd = seed; return () => { sd = (sd * 1664525 + 1013904223) % 4294967296; return sd / 4294967296; }; };
   function curtainGeometry(job) {
@@ -630,11 +642,17 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
        collapse hook scheduled measured it mid-animation, and nothing measured again - the
        wall stayed at 1685 px with the right-hand column beyond it. `ui.sidebar.expanded` is
        true or false the moment the click lands; the width is only the fallback. */
-    const wall = wallOf(rc);
+    /* THE SIDEBAR DOES NOT EXIST FOR THE CURTAIN.
+       Two releases tried to treat an expanded sidebar as a wall the glass is cut up to, and
+       neither could tell reliably when it was open. The rule is simpler now and it is the
+       table's: the glass is the screen, always; the right-hand column is pinned where it
+       stands with the sidebar closed (`pinRightColumn`); and an expanded sidebar slides over
+       both without moving anything or recutting anything. */
     const fullW = Math.round(rc.width || innerWidth);
-    const W = wall ? wall.x : fullW, H = Math.round(rc.height || innerHeight);
-    LAST.frame = { W, H, left: rc.left, top: rc.top, inner: [innerWidth, innerHeight], canvas: [c.clientWidth, c.clientHeight], wall: W !== fullW, sidebar: sidebarState(rc) };
+    const W = fullW, H = Math.round(rc.height || innerHeight);
+    LAST.frame = { W, H, left: rc.left, top: rc.top, inner: [innerWidth, innerHeight], canvas: [c.clientWidth, c.clientHeight] };
     el.style.width = W + "px";   // the canvases are 100% of the curtain: the curtain is as wide as the glass
+    pinRightColumn();
     /* THE BLOCKS ARE PART OF THE SIGNATURE, NOT ONLY THE FRAME.
        A block that MOVES without changing size - the right-hand column sliding over when the
        sidebar collapses, the tray folding, the Event panel arriving - left the signature at
@@ -646,10 +664,19 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     job.sig = sig; job.W = W; job.H = H;
     ROT.length = 0;
     const panes = curtainShapes(host, W, H, rng(job.seed), boxes, fullW);
-    job.panes = panes;
     // the silhouette: one clip path of every pane, crisp at any scale, no bitmap
     const d = panes.map(p => "M" + p.poly.map(q => q[0].toFixed(1) + " " + q[1].toFixed(1)).join("L") + "Z").join("");
-    el.style.clipPath = "path('" + d + "')";
+    /* AN IDENTICAL CUT KEEPS ITS PAINTED PANES.
+       The pane objects carry more than their polygon once `curtainPaint` has been over them:
+       the phase and period of their pulse, whether they are stained, their texture. A rebuild
+       that recut the same geometry used to replace them with fresh objects and then, because
+       nothing had changed, not repaint - so the pulse read `undefined` phases, computed NaN,
+       and drew nothing from that moment on. In 1.2.27 that took the first rebuild after the
+       layout settled; in 1.2.30, which recuts on every drift, it was immediate. The path string
+       is the whole geometry, so equal strings mean the old panes are exactly right. */
+    const same = job.pathD === d && Array.isArray(job.panes);
+    job.pathD = d;
+    if (!same) { job.panes = panes; el.style.clipPath = "path('" + d + "')"; }
     el.style.visibility = "";
     const t = panes.meta.tiles || {};
     for (const [sel, side] of [["#scene-controls", "left"], ["#sidebar-tabs", "right"]]) {
@@ -672,8 +699,8 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     const cover = (x, y) => panes.some(p => inside(p.poly, x, y));
     for (let x = 4; x < W; x += 8) { if (!cover(x, 0.5)) edgeGaps++; if (!cover(x, H - 0.5)) edgeGaps++; }
     for (let y = 4; y < H; y += 8) { if (!cover(0.5, y)) edgeGaps++; if (!cover(W - 0.5, y)) edgeGaps++; }
-    CHECKS.push({ seed: job.seed, count: panes.length, overlaps: ov, nonconvex, ncv, blockFails, edgeGaps, fitFails, sig: panes.map(p => p.poly.map(q => q.map(v => Math.round(v)).join(',')).join(' ')).join('|').length });
-    job.painted = false;
+    CHECKS.push({ seed: job.seed, count: panes.length, overlaps: ov, nonconvex, ncv, blockFails, edgeGaps, fitFails, sig: d.length, same });
+    if (!same) job.painted = false;
     return true;
   }
   function curtainPaint(job) {
@@ -800,6 +827,7 @@ function unmount() {
   for (const j of windows) j.el.querySelectorAll(":scope > canvas").forEach(c => c.remove());
   windows.length = 0;
   document.querySelectorAll("#scene-controls, #sidebar").forEach(e => { e.style.marginTop = ""; e.style.paddingTop = ""; e.style.boxSizing = ""; });
+  unpinRightColumn();
   document.querySelectorAll("#scene-controls, #sidebar-tabs").forEach(e => { e.style.transform = ""; e.style.transformOrigin = ""; });
   BLOCKS.forEach(b => document.querySelectorAll(b.sel).forEach(e => { e.style.transform = ""; e.style.transformOrigin = ""; }));
   document.body.classList.remove("drpg-curtain-on", "drpg-turning");
@@ -907,7 +935,7 @@ function rebuild() {
 }
 function rebuildAll() {
   for (const j of curtains) {
-    const before = CHECKS[CHECKS.length - 1]?.sig, wasPainted = j.painted, oldAcc = j.acc;
+    const wasPainted = j.painted, oldAcc = j.acc;
     const oldPanes = wasPainted ? snapshotPanes(j) : null;
     j.sig = null; CHECKS.length = 0;
     if (curtainGeometry(j)) {
@@ -915,7 +943,8 @@ function rebuildAll() {
       // when they do not, push them down once and cut the glass again
       if (!j.placed && placeTiles(j.panes.meta)) { j.placed = true; j.sig = null; curtainGeometry(j); }
       const acc = resolveAcc(j.el);
-      const changed = !wasPainted || before !== CHECKS[CHECKS.length - 1]?.sig || acc !== oldAcc;
+      const check = CHECKS[CHECKS.length - 1];
+      const changed = !wasPainted || !check?.same || acc !== oldAcc;
       if (changed) {
         curtainPaint(j); document.body.classList.add("drpg-curtain-on");
         const gl = document.querySelector('[data-glow="' + j.seed + '"]');
@@ -1072,10 +1101,6 @@ function onStateChange() {
 function pruneWindows() { for (let i = windows.length - 1; i >= 0; i--) if (!windows[i].el.isConnected) windows.splice(i, 1); }
 
 const schedule = () => { clearTimeout(timer); timer = setTimeout(() => { if (themeOn()) rebuild(); }, 150); };
-/* A sidebar or a column does not finish moving when the click lands; it finishes when its
-   transition ends. One rebuild now (so a resize still feels immediate) and one after the
-   animation could have finished, whether or not a `transitionend` arrives. */
-const scheduleSettled = () => { schedule(); setTimeout(() => { if (themeOn()) rebuild(); }, 700); };
 function observe() {
   observers.forEach(o => o.disconnect()); observers = [];
   addEventListener("resize", schedule);
@@ -1087,16 +1112,8 @@ function observe() {
   if ("ResizeObserver" in window) {
     const ro = new ResizeObserver(schedule);
     BLOCKS.forEach(b => document.querySelectorAll(b.sel).forEach(e => ro.observe(e)));
-    /* The wall and the columns that stand beside it. Watching only the module's own blocks
-       missed the collapse entirely: the sidebar is not one of them, and the right-hand
-       column slides sideways without changing size. */
-    for (const sel of ["#sidebar", "#sidebar-content", "#ui-right-column-1", "#ui-left-column-1"]) {
-      const e = document.querySelector(sel); if (e) ro.observe(e);
-    }
     observers.push(ro);
   }
-  const sb = document.getElementById("sidebar");
-  if (sb) sb.addEventListener("transitionend", schedule);
 }
 /* WHAT THE GLASS IS CUT FOR, AS IT STANDS NOW.
    The rectangles of every block and the wall, rounded, in the pixels they are drawn in (so
@@ -1110,8 +1127,6 @@ function liveSignature() {
     if (!r.width && !r.height) continue;
     out += b.cls + Math.round(r.left) + "," + Math.round(r.top) + "," + Math.round(r.width) + "," + Math.round(r.height) + ";";
   }
-  const st = sidebarState(curtains[0]?.el.getBoundingClientRect());
-  out += "sb" + st.left + "," + st.width + "," + (st.api === null ? "-" : st.api ? 1 : 0);
   return out + "|" + Math.round(innerWidth) + "x" + Math.round(innerHeight);
 }
 let driftAt = 0;
@@ -1159,7 +1174,8 @@ export function registerGlass() {
     if (!j || !j.painted || Math.abs(j.el.getBoundingClientRect().width - innerWidth) > 2) { log("curtain watchdog: rebuilding", glassReport()); if (j) j.placed = false; mount(); }
   }, ms);
   Hooks.on("canvasReady", schedule);
-  Hooks.on("collapseSidebar", scheduleSettled);
+  // the sidebar is deliberately NOT a signal: opening it moves nothing and recuts nothing
+  addEventListener("resize", () => { if (themeOn()) pinRightColumn(); });
   Hooks.on("renderApplicationV2", dressWindow);
   Hooks.on("closeApplicationV2", pruneWindows);
   // the pause band is a pane of the curtain while the game is paused, breathing with the slow pulse

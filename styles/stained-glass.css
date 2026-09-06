@@ -115,6 +115,10 @@ body.drpg-theme-stained-glass {
     -webkit-backdrop-filter: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
     background: rgba(255, 255, 255, 0.02);
 }
+/* every layer of the curtain fills it: the sheet says so as well as the inline style glass.mjs
+   writes on creation, because a layer that is only z-indexed and never positioned is an inline
+   box in flow - which is how the pulse spent 1.2.30 wrapped onto a second line under the screen */
+#drpg-curtain > canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 #drpg-curtain > canvas.sg { z-index: 0; }
 #drpg-curtain > canvas.pulse { z-index: 1; }
 #drpg-curtain > canvas.seamline { z-index: 2; }
@@ -2153,6 +2157,13 @@ body.drpg-reduced-motion .drpg-event-ticker > span { animation: none; }
 /* the body-found card is the killing seen from outside: the GM's red, like the incident */
 body.drpg-theme-stained-glass .drpg-event[data-kind="body"] { --acc: var(--drpg-sg-gm-light); }
 body.drpg-theme-stained-glass .drpg-event[data-kind="body"] .drpg-event-glyph { --drpg-px-mask: var(--drpg-px-murder); }
+
+/* ---- the right-hand column stands still --------------------------------------------------
+   glass.mjs pins `#ui-right-column-1` (position, right, z-index inline) so an opening sidebar
+   slides over the strip and the tray instead of pushing them, and the curtain never has to
+   answer for the sidebar. The transition is the one Foundry puts on the column's movement,
+   and there is nothing left for it to animate. */
+body.drpg-theme-stained-glass #ui-right-column-1[data-drpg-pinned="1"] { transition: none; }
 
 /* ---- the measuring pass holds still --------------------------------------------------------
    glass.mjs toggles the blocks' rotation off for one style pass to measure them as laid out.
