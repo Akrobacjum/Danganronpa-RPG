@@ -1058,7 +1058,12 @@ export function renderSoundLauncher() {
         button.type = "button";
         button.id = LAUNCHER_ID;
 
-        const tip = game.i18n.localize("DRPG.Sound.launcherTooltip");
+        // Under the Stained Glass theme this is the settings button: the two
+        // volumes plus the look of this browser, in one window (see look.mjs).
+        // Under both themes this is the settings button: the two volumes plus the
+        // look of this browser (theme, glass effects, scale), in one window (look.mjs).
+        // A player has no other door to the theme switch.
+        const tip = game.i18n.localize("DRPG.Look.launcherTooltip");
         button.dataset.tooltip = tip;
         button.setAttribute("aria-label", tip);
         // `inert` so the mask element cannot become the click target and eat
@@ -1069,8 +1074,8 @@ export function renderSoundLauncher() {
             event.preventDefault();
             event.stopPropagation();
             try {
-                const { openSoundDialog } = await import("./music.mjs");
-                await openSoundDialog();
+                const { openLookDialog } = await import("./look.mjs");
+                await openLookDialog();
             } catch (err) {
                 error("Could not open the Sound panel", err);
             }

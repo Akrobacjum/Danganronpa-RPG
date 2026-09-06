@@ -42,3 +42,17 @@ module's dialogs.
 Deliberately **not** applied to journals, chat message bodies, biography text,
 or any editable field. A 5x7 pixel face is punishing to read in paragraphs, and
 this game runs on written investigation notes.
+
+## Stained Glass theme faces
+
+Two more OFL faces, used only when the *Theme* setting is **Stained Glass**
+(see `styles/stained-glass.css` and `docs/design/typography.md`):
+
+    VT323-Regular.woff2            latin       chrome, prose, stamps
+    VT323-LatinExt.woff2           latin-ext   (Polish letters)
+    SpecialElite-Regular.woff2     latin       titles only
+    SpecialElite-LatinExt.woff2    latin-ext
+
+VT323 by Peter Hull, Special Elite by Astigmatic, both under the **SIL Open
+Font License 1.1**. Split into latin and latin-ext the same way Google Fonts
+serves them, for the same reason as the pixel font above.

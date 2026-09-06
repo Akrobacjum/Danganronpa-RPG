@@ -39,6 +39,7 @@ import { isMonokuma, poolUserFor } from "./monokuma.mjs";
 import { murderState, participantIds } from "./murder.mjs";
 import { motive } from "./rules.mjs";
 import { pendingGather } from "./call-effects.mjs";
+import { renderEvents, eventsWindowActive } from "./events.mjs";
 // The fifth, added when the trial's own bar was folded into this widget. Walked
 // like the four above and clean: trial-floor.mjs reaches config, settings and
 // utils and nothing else - it stopped importing trial.mjs when the evidence
@@ -309,12 +310,49 @@ export function renderHud() {
         // reason `matchStripToDespair` publishes a custom property: it survives
         // every redraw those two widgets do on their own.
         document.body.dataset.drpgPhase = phase;
+        // …and the time of day, for the Stained Glass theme: the seams of the
+        // curtain take the colour of the hour unless a phase overrides it.
+        document.body.dataset.drpgTime = clock.timeOfDay ?? "";
 
+        // Stained Glass: the name of the state runs as an outline behind the clock's content,
+        // quietly (22 % opacity, 18 s a pass, still under reduced motion). Text, not a picture,
+        // so it says what the seams' colour means. The stylesheet positions and moves it.
+        if (eventsWindowActive()) {
+            const ticker = document.createElement("div");
+            ticker.className = "drpg-hud-ticker";
+            ticker.setAttribute("aria-hidden", "true");
+            const word = phase === "eclipse" ? game.i18n.localize("DRPG.Explain.phase.eclipseTitle") : phaseLabel(clock.phase);
+            const run = document.createElement("span");
+            run.textContent = Array(6).fill(word).join(" · ") + " · ";
+            ticker.append(run, run.cloneNode(true));
+            hud.append(ticker);
+        }
+        /* CHAPTER AND DAY ARE ONE LINE UNDER THE THEME.
+           Two rows for six words, in a pane whose height the curtain is cut around: the
+           audit page draws them as one line with a divider, which is a row of glass
+           saved on every screen. Monokuma Legacy keeps its two rows. */
+        const chapterText = game.i18n.format("DRPG.Hud.chapter", { n: clock.chapter });
+        const dayText = game.i18n.format("DRPG.Hud.day", { n: clock.day ?? 1 });
+        const dateLines = eventsWindowActive()
+            ? [line("drpg-hud-chapter", `${chapterText} · ${dayText}`)]
+            : [line("drpg-hud-chapter", chapterText), line("drpg-hud-day", dayText)];
+        /* THE PHASE IS A STAMP WITH A GLYPH ON IT.
+           The audit page's clock names the phase on a plate in the state colour with the
+           hour's own pixel glyph beside it - a sun, a lens, a gavel, the eclipse - because
+           that is the one line on the clock that can be read without reading. Ours was a
+           line of tinted text. The glyph is a masked sprite; which sprite is the
+           stylesheet's business, from the phase and hour already on the body. */
+        const phaseLine = line("drpg-hud-phase", phaseLabel(clock.phase));
+        if (eventsWindowActive()) {
+            const glyph = document.createElement("span");
+            glyph.className = "drpg-hud-phase-glyph drpg-pxi";
+            glyph.setAttribute("aria-hidden", "true");
+            phaseLine.prepend(glyph);
+        }
         hud.append(
             line("drpg-hud-campaign", campaignName(clock)),
-            line("drpg-hud-chapter", game.i18n.format("DRPG.Hud.chapter", { n: clock.chapter })),
-            line("drpg-hud-day", game.i18n.format("DRPG.Hud.day", { n: clock.day ?? 1 })),
-            line("drpg-hud-phase", phaseLabel(clock.phase)),
+            ...dateLines,
+            phaseLine,
             buildTimeRow(clock, isGM),
             buildElapsed()
         );
@@ -329,14 +367,19 @@ export function renderHud() {
          * Appended conditionally and returning null when idle, so the column
          * below keeps its height on an ordinary time of day. `alignRightColumn`
          * measures what is actually here, after this. */
-        const motiveRow = buildMotive();
-        if (motiveRow) hud.append(motiveRow);
+        // Under the Stained Glass theme these three are the Event panel's, under
+        // the Despair rail (events.mjs); the clock stays a clock. Under Monokuma
+        // Legacy they are rows here, as they were.
+        if (!eventsWindowActive()) {
+            const motiveRow = buildMotive();
+            if (motiveRow) hud.append(motiveRow);
 
-        const assembly = buildAssembly();
-        if (assembly) hud.append(assembly);
+            const assembly = buildAssembly();
+            if (assembly) hud.append(assembly);
 
-        const incident = buildIncident();
-        if (incident) hud.append(incident);
+            const incident = buildIncident();
+            if (incident) hud.append(incident);
+        }
 
         // Last, under the timer: where you are standing is the most local thing
         // on a widget that otherwise describes the whole world.
@@ -349,6 +392,9 @@ export function renderHud() {
         // the slot, the other measures what is in it.
         fitTimeSlot(hud);
         slideTimeOfDay(hud, previous, previousTime);
+        // The Event panel redraws on the same triggers as the clock: it reads the
+        // same settings and has no source of its own.
+        renderEvents();
     } catch (err) {
         error("Could not render the campaign HUD", err);
     }
@@ -1163,7 +1209,10 @@ function buildRoom() {
         // their own - who gets no room block at all the rest of the time - must
         // still see whose floor it is.
         const trial = trialSlot();
-        if (trial) return buildTrialSpeaker(trial);
+        // Under Stained Glass whose floor it is belongs to the Event panel
+        // (events.mjs); the clock keeps the mode in its time row and, as in any
+        // trial, no room block - everybody is in the courtroom.
+        if (trial) return eventsWindowActive() ? null : buildTrialSpeaker(trial);
 
         const actor = hudActor();
         if (!actor) return null;

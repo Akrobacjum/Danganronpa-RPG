@@ -278,7 +278,21 @@
       },
       "pixelFont": {
         "name": "Pixel font",
-        "hint": "Press Start 2P on interface chrome: HUD, Despair, character name, statistic labels, tabs. Journals, chat and editable fields keep the normal face so long text stays readable."
+        "hint": "Monokuma Legacy only, and on by default there: Press Start 2P on interface chrome - HUD, Despair, character name, statistic labels, tabs. Journals, chat and editable fields keep the normal face so long text stays readable. The Stained Glass theme has its own two faces and ignores this."
+      },
+      "theme": {
+        "name": "Theme",
+        "hint": "How the module looks on this browser. Stained Glass is the current identity: black broken glass along the screen edges, colour in the seams. Monokuma Legacy is the look before it.",
+        "stainedGlass": "Stained Glass",
+        "monokumaLegacy": "Monokuma Legacy"
+      },
+      "glassEffects": {
+        "name": "Glass effects",
+        "hint": "The blur behind the glass and the slow pulse of the panes. Off, the curtain is still there but still and flat. This client only."
+      },
+      "uiScale": {
+        "name": "Interface scale",
+        "hint": "One factor on the module's own type and panels, 80% to 140%. The map, Foundry's own windows and the 11px floor are never scaled. This client only."
       },
       "debug": {
         "name": "Verbose console logging",
@@ -802,6 +816,23 @@
       "gateDone": "The verdict is in. The chapter can end.",
       "startTrialNote": "The clock starts over: the campaign's elapsed timer restarts with the trial, and again when it ends.",
       "openDebateIntro": "How long is this debate worth? Each one in a trial gets its own budget, and the last number you used is offered."
+    },
+    "Events": {
+      "incidentTitle": "A killing in the dark",
+      "incidentSub": "{killer} against {victim}",
+      "incidentSubRoom": "{killer} against {victim}, in {room}",
+      "trialFloorOpen": "Everyone has the floor"
+    },
+    "Look": {
+      "title": "Settings",
+      "launcherTooltip": "Settings",
+      "legend": "Look",
+      "theme": "Theme",
+      "glassEffects": "Glass effects",
+      "uiScale": "Interface scale",
+      "pixelFont": "Pixel font",
+      "note": "Everything in this window is this browser's own. Nobody else sees or hears the difference.",
+      "redraw": "Redraw the glass"
     },
     "Sound": {
       "title": "Sound",

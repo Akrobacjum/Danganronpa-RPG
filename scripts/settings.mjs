@@ -54,6 +54,9 @@ export const SETTINGS = {
     restrictions: "restrictions",
     hideSystemFear: "hideSystemFear",
     pixelFont: "pixelFont",
+    theme: "theme",
+    glassEffects: "glassEffects",
+    uiScale: "uiScale",
     projectsCollapsed: "projectsCollapsed",
     debug: "debug",
     /** Regions become LiveKit breakout rooms - off by default, needs avclient-livekit. */
@@ -495,14 +498,65 @@ export function registerSettings() {
         onChange: () => document.body.classList.toggle("drpg-hide-system-fear", getSetting(SETTINGS.hideSystemFear))
     });
 
+    /* THE PIXEL FACE BELONGS TO ONE THEME, AND TO ONE BROWSER.
+       ----------------------------------------------------------------------
+       It was a world setting, on by default, and the two `!important` sweeps
+       it switches on in danganronpa.css outrank almost every font rule in
+       stained-glass.css. So a table on the defaults saw Press Start 2P under
+       BOTH themes: Stained Glass never showed VT323 or Special Elite unless a
+       GM turned the pixel face off for the whole world - which took the pixel
+       face away from everyone still on Monokuma Legacy. One switch could not
+       serve two themes, so it does not try to any more.
+
+       `scope: "client"`, like the theme it belongs to, and `pixelFontOn()`
+       below reads it only under Monokuma Legacy. Legacy therefore keeps Press
+       Start 2P as its default face with nothing to turn on, and Stained Glass
+       is VT323 and Special Elite for everybody. */
     game.settings.register(MODULE_ID, SETTINGS.pixelFont, {
         name: "DRPG.Settings.pixelFont.name",
         hint: "DRPG.Settings.pixelFont.hint",
-        scope: "world",
+        scope: "client",
         config: true,
         type: Boolean,
         default: true,
-        onChange: () => document.body.classList.toggle("drpg-pixel-font", getSetting(SETTINGS.pixelFont))
+        onChange: () => applyTheme()
+    });
+
+    /* ---- the look: theme, glass effects, UI scale. All three are this
+       browser's own (scope "client"); the GM's choice never reaches a player. */
+    game.settings.register(MODULE_ID, SETTINGS.theme, {
+        name: "DRPG.Settings.theme.name",
+        hint: "DRPG.Settings.theme.hint",
+        scope: "client",
+        config: true,
+        type: String,
+        choices: {
+            stainedGlass: "DRPG.Settings.theme.stainedGlass",
+            monokumaLegacy: "DRPG.Settings.theme.monokumaLegacy"
+        },
+        default: "stainedGlass",
+        onChange: () => applyTheme()
+    });
+
+    game.settings.register(MODULE_ID, SETTINGS.glassEffects, {
+        name: "DRPG.Settings.glassEffects.name",
+        hint: "DRPG.Settings.glassEffects.hint",
+        scope: "client",
+        config: true,
+        type: Boolean,
+        default: true,
+        onChange: () => applyTheme()
+    });
+
+    game.settings.register(MODULE_ID, SETTINGS.uiScale, {
+        name: "DRPG.Settings.uiScale.name",
+        hint: "DRPG.Settings.uiScale.hint",
+        scope: "client",
+        config: true,
+        type: Number,
+        range: { min: 0.8, max: 1.4, step: 0.05 },
+        default: 1,
+        onChange: () => applyTheme()
     });
 
     game.settings.register(MODULE_ID, SETTINGS.debug, {
@@ -1161,4 +1215,46 @@ export function iAmTheMastermind() {
         // client that never received the whisper. Not the Mastermind.
         return false;
     }
+}
+
+/**
+ * Whether this browser draws the module's chrome in the pixel face.
+ *
+ * True only under Monokuma Legacy, where Press Start 2P is the identity and
+ * the default. Stained Glass has its own two faces and never mixes: the pixel
+ * sweeps in danganronpa.css carry `!important`, so a client wearing both
+ * classes would render the new theme in the old face - which is exactly what
+ * 1.2.27 did on a default world.
+ */
+export function pixelFontOn() {
+    try {
+        return getSetting(SETTINGS.theme) !== "stainedGlass" && getSetting(SETTINGS.pixelFont) !== false;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * The look, applied to the body: the theme class, the pixel-face class, the
+ * glass-effects class and the UI scale. Idempotent; called at ready and from
+ * every onChange above. The curtain itself (scripts/glass.mjs) listens to the
+ * same settings through `refreshGlass`, which this calls when it is loaded.
+ */
+export function applyTheme() {
+    const theme = getSetting(SETTINGS.theme);
+    document.body.classList.toggle("drpg-theme-stained-glass", theme === "stainedGlass");
+    document.body.classList.toggle("drpg-theme-monokuma-legacy", theme !== "stainedGlass");
+    document.body.classList.toggle("drpg-pixel-font", pixelFontOn());
+    document.body.classList.toggle("drpg-no-glass-effects", getSetting(SETTINGS.glassEffects) === false);
+    const scale = Number(getSetting(SETTINGS.uiScale)) || 1;
+    // On the body, where the theme's own rules live: a value on <html> was shadowed by
+    // the sheet's default on body (v1.2.15), so the scale never applied.
+    const clamped = String(Math.min(1.4, Math.max(0.8, scale)));
+    document.body.style.setProperty("--drpg-ui-scale", clamped);
+    document.documentElement.style.setProperty("--drpg-ui-scale", clamped);
+    import("./glass.mjs").then(m => m.refreshGlass()).catch(() => {});
+    import("./sfx.mjs").then(m => m.renderSoundLauncher?.()).catch(() => {});
+    // The clock carries the theme's ticker and, under Monokuma Legacy, the three
+    // rows the Event panel takes over; a switch redraws it so neither lingers.
+    if (game.ready) import("./hud.mjs").then(m => m.renderHud?.()).catch(() => {});
 }

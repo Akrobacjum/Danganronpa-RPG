@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json - the suite fails if it does not. */
-    --drpg-css-version: "1.2.14";
+    --drpg-css-version: "1.2.28";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -11730,7 +11730,9 @@ form:has(select[name="trigger"] option[value="sabotage"]:checked) [data-drpg-whe
  * it fires at, and only the current reading is withheld.
  */
 .drpg-overflow-caption {
-    font-family: var(--drpg-font, inherit);
+    /* `--drpg-font` never existed - the caption was inheriting by accident. The chrome
+       token is the one it meant, and it resolves under both themes. */
+    font-family: var(--drpg-font-ui, inherit);
     font-size: 11px;
     letter-spacing: 0.04em;
     text-align: center;

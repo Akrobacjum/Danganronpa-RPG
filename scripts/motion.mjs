@@ -242,6 +242,11 @@ export function markSpent(element, change, index = 1) {
     if (index < change.from || index > change.to) return element;
 
     element.classList.add(change.kind === "gained" ? "drpg-gained" : "drpg-spent");
+    // Under the Stained Glass theme the glass takes the spend too: the pane under the pip runs
+    // one fast cycle (glass.mjs `beatAt`). A dynamic import, so this file stays free of the theme.
+    if (document.body.classList.contains("drpg-theme-stained-glass") && change.age < 400) {
+        import("./glass.mjs").then(m => m.beatAt(element)).catch(() => {});
+    }
     if (change.age > 0) {
         const offset = `-${Math.round(change.age)}ms`;
         element.style.animationDelay = offset;
