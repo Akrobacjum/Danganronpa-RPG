@@ -84,6 +84,7 @@ function onRenderCountdowns(app, element) {
         leaveIconOnly(app, root);
 
         localiseRawKeys(root);
+        paintProgress(root);
 
         // Folding the tray away is everybody's, not the GM's - a player with
         // four projects on a 1080p screen wants the map back, and the tray sits
@@ -177,6 +178,34 @@ function localiseRawKeys(root) {
             if (!value || !KEYLIKE.test(value) || !game.i18n.has(value)) continue;
             element.setAttribute(attribute, game.i18n.localize(value));
         }
+    }
+}
+
+/**
+ * How full each project is, written on its row as `--w` for the theme's bar.
+ *
+ * The Stained Glass tray draws a project as the audit page does: a glyph, the
+ * name, a bar filled to the project's progress, the count. Daggerheart's own
+ * row has the count as text and no bar, and a stylesheet cannot read a number
+ * out of a text node - so the share is written here, on every render, as a
+ * custom property the bar's rule reads. Read off the tag the system rendered
+ * ("2 / 4"), which is what the player sees and therefore what the bar must
+ * agree with; when the tag says something else, the project's own record.
+ */
+function paintProgress(root) {
+    let projects = null;
+    for (const row of root.querySelectorAll(".countdown-container")) {
+        const tag = row.querySelector(".progress-tag")?.textContent ?? "";
+        const m = tag.match(/(\d+)\s*\/\s*(\d+)/);
+        let share = m && Number(m[2]) > 0 ? Number(m[1]) / Number(m[2]) : null;
+        if (share === null) {
+            projects ??= allProjects();
+            const name = row.querySelector(".countdown-content > header")?.textContent?.trim();
+            const p = projects.find(x => x.name === name);
+            if (p && p.start > 0) share = p.current / p.start;
+        }
+        if (share === null) { row.style.removeProperty("--w"); continue; }
+        row.style.setProperty("--w", `${Math.round(Math.max(0, Math.min(1, share)) * 100)}%`);
     }
 }
 

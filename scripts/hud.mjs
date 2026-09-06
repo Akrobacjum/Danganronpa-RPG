@@ -553,6 +553,12 @@ let slide = null;
  * Kept for the session and never reduced. See `fitTimeSlot`.
  */
 let widestTime = 0;
+/* WHAT THE WIDTH WAS MEASURED IN. The cache lived for the whole session, and the font does
+   not: the theme swaps the face, the interface scale changes its size, and a label measured
+   in Signika at 100 % was the width the slot kept after VT323 at 140 % arrived - so the slot
+   clipped the very label it was sized for ("the time of day is cut", 1.2.33). The width is
+   remembered together with the font it was measured in, and measured again when that changes. */
+let widestTimeFont = "";
 
 /**
  * Stop the slot resizing under the label.
@@ -584,7 +590,11 @@ function fitTimeSlot(hud) {
     // is no need to wait and find out. The times of day are a fixed list, each
     // has an Eclipse form, and both can be measured against the real font
     // before the clock has ever changed.
-    if (!widestTime) widestTime = measureEveryLabel(slot);
+    const cs = getComputedStyle(label);
+    const font = `${cs.fontFamily}|${cs.fontSize}|${cs.letterSpacing}|${cs.textTransform}|${cs.fontWeight}`;
+    if (!widestTime || font !== widestTimeFont) { widestTime = measureEveryLabel(slot); widestTimeFont = font; }
+    // measured before the face arrived: measure again once it has
+    if (document.fonts?.status === "loading") document.fonts.ready.then(() => { if (hud.isConnected) { widestTime = 0; fitTimeSlot(hud); } });
 
     // …and a floor under it anyway, in case a label arrives that this did not
     // predict: a renamed time of day, a language with longer words, a pixel

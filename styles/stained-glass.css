@@ -2298,3 +2298,286 @@ body.drpg-theme-stained-glass .character-header-sheet .drpg-ultimate-row .drpg-u
     color: var(--drpg-sg-ink) !important;
     opacity: 1;
 }
+
+/* ==========================================================================
+   Milestone 10: the second look at the screen (1.2.34)
+   --------------------------------------------------------------------------
+   Nine things seen on Forge after 1.2.33, in the order they were reported:
+   the GM launcher, the seams, the plates, the tray, the window bands, the
+   tiles, the brush, the campaign name, the hour. The tiles are in glass.mjs
+   (the shard is cut around the tiles now, not their padded rail); everything
+   else is here.
+   ========================================================================== */
+
+/* ---- 1. The GM launcher: centred under the clock, its own size ------------------------
+   The base sheet stretches it across `#ui-left-column-1`, which was right when the column
+   was the scene controls' width and wrong since the clock moved in: the button ran the full
+   width of the clock's pane, a 338 px red bar under a 312 px clock. The audit page draws it
+   72 x 32 under the clock's left edge; the request is under its middle. It keeps the base
+   sheet's margins, so the seam between its pane and the clock's - cut halfway across the
+   20 px between them - stays 10 px off either block. */
+body.drpg-theme-stained-glass #ui-left-column-1 > #drpg-gm-launcher,
+body.drpg-theme-stained-glass #drpg-gm-launcher {
+    align-self: center;
+    width: max-content;
+    min-width: calc(72px * var(--drpg-sg-scale));
+    height: calc(32px * var(--drpg-sg-scale));
+    padding: 0 12px;
+    font-size: max(var(--drpg-sg-floor), calc(13px * var(--drpg-sg-scale)));
+    letter-spacing: 0.14em;
+    line-height: 1;
+    color: var(--drpg-sg-bone);
+    background: color-mix(in srgb, var(--drpg-sg-gm) 55%, rgba(7, 7, 10, 0.6));
+    border: 1px solid rgba(255, 85, 102, 0.75);
+    border-radius: 0;
+    box-shadow: 0 0 10px color-mix(in srgb, var(--drpg-sg-gm-light) 35%, transparent);
+    clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
+}
+body.drpg-theme-stained-glass #drpg-gm-launcher:hover {
+    background: color-mix(in srgb, var(--drpg-sg-gm) 75%, rgba(7, 7, 10, 0.6));
+    box-shadow: 0 0 14px color-mix(in srgb, var(--drpg-sg-gm-light) 55%, transparent);
+}
+
+/* ---- 3. Nothing black under anything on the glass ---------------------------------------
+   Foundry's own rails and its player list stand on the curtain too. The scene controls'
+   menus and the sidebar's tab rail carry a dark backing in Foundry's sheet, the player list
+   carries the base sheet's panel ground - all three are plates under elements the glass is
+   the ground for. The tiles keep their own cut faces; the rails and the list go clear. */
+body.drpg-theme-stained-glass #scene-controls,
+body.drpg-theme-stained-glass #scene-controls menu,
+body.drpg-theme-stained-glass #sidebar-tabs,
+body.drpg-theme-stained-glass #sidebar-tabs menu,
+body.drpg-theme-stained-glass #players,
+body.drpg-theme-stained-glass #players :is(ol, li, #performance-stats) {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+}
+body.drpg-theme-stained-glass #players {
+    color: var(--drpg-sg-bone-dim);
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.85), 0 0 8px rgba(0, 0, 0, 0.6);
+}
+/* the tray's rows: the project's portrait is a dark square on the pane; the theme draws
+   the row with a glyph instead (below), and the row's own boxes are already clear */
+body.drpg-theme-stained-glass #countdowns .countdown-container img { display: none !important; }
+
+/* ---- 4. The Projects tray as the audit page draws it -------------------------------------
+   A heading in the state colour, then one line per project: a 16 px hourglass, the name, a
+   halftone bar filled to the project's progress, the count in Bone Dim. Daggerheart's row
+   is three nested boxes with a 34 px portrait, a name on one line and the count on a second;
+   the boxes are laid out as one row here, the bar is the tools box's own `::before`, and
+   projects-ui.mjs writes each row's share as `--w` for it to fill by. */
+body.drpg-theme-stained-glass #countdowns .countdowns-header {
+    padding: 4px 8px 2px;
+    gap: 6px;
+}
+body.drpg-theme-stained-glass #countdowns .countdowns-header > i { display: none; }
+body.drpg-theme-stained-glass #countdowns .countdowns-header .window-title {
+    font-size: max(var(--drpg-sg-floor), calc(13px * var(--drpg-sg-scale)));
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--drpg-glass-accent);
+}
+body.drpg-theme-stained-glass #countdowns {
+    --drpg-project-row: calc(22px * var(--drpg-sg-scale));
+    --drpg-project-gap: 4px;
+}
+body.drpg-theme-stained-glass #countdowns .countdowns-container { padding: 2px 8px 8px; }
+body.drpg-theme-stained-glass #countdowns .countdown-container {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: var(--drpg-project-row);
+    padding: 0;
+    border: 0;
+    box-shadow: none;
+}
+body.drpg-theme-stained-glass #countdowns .countdown-container::before {
+    content: "";
+    flex: 0 0 auto;
+    width: calc(16px * var(--drpg-sg-scale));
+    height: calc(16px * var(--drpg-sg-scale));
+    background-color: var(--drpg-glass-accent);
+    -webkit-mask: var(--drpg-px-hourglass) center / contain no-repeat;
+    mask: var(--drpg-px-hourglass) center / contain no-repeat;
+    image-rendering: pixelated;
+}
+body.drpg-theme-stained-glass #countdowns .countdown-main-container,
+body.drpg-theme-stained-glass #countdowns .countdown-content {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 0;
+}
+body.drpg-theme-stained-glass #countdowns .countdown-content > header {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    font-size: max(var(--drpg-sg-floor), calc(13px * var(--drpg-sg-scale)));
+    line-height: 1.35;
+    letter-spacing: 0.04em;
+    text-transform: none;     /* the audit page's rows are not shouted; the heading is */
+    color: var(--drpg-sg-bone);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;   /* a name somebody typed, as in A1 */
+}
+body.drpg-theme-stained-glass #countdowns .countdown-tools {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+    margin: 0;
+    padding: 0;
+}
+body.drpg-theme-stained-glass #countdowns .countdown-tools::before {
+    content: "";
+    flex: 0 0 auto;
+    width: calc(48px * var(--drpg-sg-scale));
+    height: 8px;
+    box-sizing: border-box;
+    border: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 40%, transparent);
+    background-image: linear-gradient(var(--drpg-glass-accent), var(--drpg-glass-accent)),
+        radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--drpg-glass-accent) 50%, transparent) 1.1px, transparent 1.6px);
+    background-size: var(--w, 0%) 100%, 5px 5px;
+    background-repeat: no-repeat, repeat;
+}
+body.drpg-theme-stained-glass #countdowns .countdown-tools .progress-tag {
+    flex: 0 0 auto;
+    order: 1;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font-size: max(var(--drpg-sg-floor), calc(12px * var(--drpg-sg-scale)));
+    line-height: 1.35;
+    letter-spacing: 0.06em;
+    color: var(--drpg-sg-bone-dim);
+    font-variant-numeric: tabular-nums;
+}
+body.drpg-theme-stained-glass #countdowns .countdown-tool-controls {
+    order: 2;
+    display: flex;
+    gap: 2px;
+    flex: 0 0 auto;
+}
+body.drpg-theme-stained-glass #countdowns .countdown-tool-controls a {
+    font-size: max(var(--drpg-sg-floor), calc(12px * var(--drpg-sg-scale)));
+    color: var(--drpg-glass-accent);
+    padding: 0 3px;
+}
+
+/* ---- 5. A window's band is the curtain's glass, not a lighter copy of it -------------------
+   Three things made the band brighter than the curtain. The base sheet paints the header of
+   every module dialog Bone with `!important` at a specificity this file's own header rule
+   never reached, so the glass was painted over a near-white plate. The window's own ground
+   showed through the band as well. And paintBand lit the seams with an additive glow the
+   curtain does not have (glass.mjs). Under the band there is now exactly what is under the
+   curtain: the same 2 % white, the same backdrop filter, and nothing else. */
+body.drpg-theme-stained-glass .application.dialog:is(.drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
+    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog, .drpg-despair-dialog, .drpg-monokuma-panel,
+    .drpg-gm-panel-window, .drpg-summary-dialog, .drpg-safeword-dialog) .window-header,
+body.drpg-theme-stained-glass .application.drpg-panel .window-header,
+body.drpg-theme-stained-glass .application.drpg-messenger .window-header {
+    background: rgba(255, 255, 255, 0.02) !important;
+    background-image: none !important;
+    backdrop-filter: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
+    -webkit-backdrop-filter: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
+}
+body.drpg-theme-stained-glass .application.drpg-panel,
+body.drpg-theme-stained-glass .application.drpg-messenger {
+    background: transparent !important;
+    background-image: none !important;
+}
+/* the sheet's header band, the same */
+body.drpg-theme-stained-glass .character-header-sheet.drpg-glass-band {
+    background: rgba(255, 255, 255, 0.02) !important;
+    background-image: none !important;
+    backdrop-filter: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
+    -webkit-backdrop-filter: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
+}
+
+/* ---- 7. The brush keeps off the letters -------------------------------------------------
+   The brush's edge is torn by a displacement of up to 8 px, and it sat 1 px inside the top
+   and bottom of the button: on a 28 px button the tear could bite 9 px into the label's line
+   and take the top off a capital. And Foundry's own `button` clips (`overflow: hidden`) in a
+   fixed height that VT323's 1.35 line does not fit. So: the button is as tall as its label,
+   nothing in it clips, the label sits 14 px in from the sides, and the brush begins 4 px
+   outside the box, where the tear lands on the clip-path's straight edge instead of the
+   letters. The small icon buttons are exempt - they have no label to keep. */
+body.drpg-theme-stained-glass .drpg-panel button:not(.drpg-action-button):not(.drpg-call-button):not(.drpg-mini-button):not(.header-control),
+body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-button,
+body.drpg-theme-stained-glass .drpg-gmt-tabs button,
+body.drpg-theme-stained-glass .drpg-messenger button:not(.drpg-mini-button):not(.header-control) {
+    height: auto;
+    min-height: calc(28px * var(--drpg-sg-scale));
+    line-height: 1.35;
+    overflow: visible;
+    text-overflow: clip;
+}
+body.drpg-theme-stained-glass .drpg-panel button:not(.drpg-action-button):not(.drpg-call-button):not(.drpg-mini-button):not(.header-control):not(.drpg-gmp-button),
+body.drpg-theme-stained-glass .drpg-gmt-tabs button,
+body.drpg-theme-stained-glass .drpg-messenger button:not(.drpg-mini-button):not(.header-control) {
+    padding: 3px 14px 2px;
+    white-space: nowrap;
+}
+body.drpg-theme-stained-glass:not(.drpg-no-glass-effects) .drpg-panel button:not(.drpg-action-button):not(.drpg-call-button)::before,
+body.drpg-theme-stained-glass:not(.drpg-no-glass-effects) .drpg-gm-panel .drpg-gmp-button::before,
+body.drpg-theme-stained-glass:not(.drpg-no-glass-effects) .drpg-gmt-tabs button::before,
+body.drpg-theme-stained-glass:not(.drpg-no-glass-effects) .drpg-messenger button::before {
+    inset: -4px -5px;
+}
+
+/* ---- 8. The campaign name is the clock's title ------------------------------------------
+   18 px, stepped down to 16 and 14 for a long name, was the smallest thing in the corner: a
+   title face at the size of the chrome under it. The audit page's window titles are 21 px,
+   and that is what the clock's is now, with two steps for a long name that still leave it
+   the largest line on the clock. A name may take two lines; three is what the steps prevent. */
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-campaign {
+    font-size: max(var(--drpg-sg-floor), calc(21px * var(--drpg-sg-scale)));
+    line-height: 1.15;
+}
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-campaign.is-long {
+    font-size: max(var(--drpg-sg-floor), calc(19px * var(--drpg-sg-scale)));
+}
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-campaign.is-very-long {
+    font-size: max(var(--drpg-sg-floor), calc(17px * var(--drpg-sg-scale)));
+}
+
+/* ---- 9. The hour is never cut -----------------------------------------------------------
+   The slot clips, and must, for the length of a turn-over: two labels slide through it. The
+   rest of the time there is nothing to clip and no reason to - so the clip is on only while
+   the outgoing label (the ghost) is in the slot. hud.mjs, for its part, measures the slot's
+   width again whenever the font it measured in changes (the theme, the scale). */
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-time-slot {
+    padding: 0.1em 3px;
+    flex: 0 1 auto;
+}
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-time-slot:not(:has(.drpg-hud-time-ghost)) {
+    overflow: visible;
+}
+
+/* ---- 5b. A dialog's title is a title -----------------------------------------------------
+   The base sheet sets every module dialog's title in 11 px uppercase chrome with `!important`,
+   at a specificity the theme's title rule (Special Elite, 21 px, as the audit page's `.wtitle`)
+   never reached - so every dialog opened under the theme wore a caption for a title. */
+body.drpg-theme-stained-glass .application.dialog:is(.drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
+    .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog, .drpg-despair-dialog, .drpg-monokuma-panel,
+    .drpg-gm-panel-window, .drpg-summary-dialog, .drpg-safeword-dialog) .window-header .window-title,
+body.drpg-theme-stained-glass .application.drpg-panel .window-header .window-title {
+    font-family: var(--drpg-font-title);
+    font-size: max(var(--drpg-sg-floor), calc(21px * var(--drpg-sg-scale))) !important;
+    line-height: 1.1;
+    letter-spacing: 0;
+    text-transform: none;
+    padding: 4px 0 3px;
+}
+/* the default button's edge is its brush's colour, not the base sheet's crimson under a Bone brush */
+body.drpg-theme-stained-glass .drpg-panel button:not(.drpg-action-button):not(.drpg-call-button):is(.default, [autofocus]) {
+    border-color: color-mix(in srgb, var(--drpg-sg-bone) 70%, transparent) !important;
+}

@@ -421,9 +421,19 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       // which is which, and an empty one is painted like any other piece of filler.
       const t = host.querySelector(sel); if (!t || !t.offsetWidth || !cv) return { ...fallback, real: false };
       const keep = t.style.transform; t.style.transform = "";
+      /* THE TILES, NOT THEIR CONTAINER. `placeTiles` pushes the rail down under the clock's
+         pane with `padding-top` on the container itself, so the container's box began some
+         80-160 px above the first tile - and the shard was cut around that box, the rotation
+         pivoted on its middle rather than the tiles', and the tiles swung out of the shard
+         cut for them (1.2.33 on the GM's screen). The box is the union of the tiles that are
+         shown; the pivot is written back for `applyRotations` in the container's own
+         coordinates, so the rail turns about the tiles' centre. */
+      const kids = tileButtons(t).map(e => e.getBoundingClientRect());
       const r = t.getBoundingClientRect(), o = cv.getBoundingClientRect(), s = o.width / W || 1;
+      const u = kids.length ? { left: Math.min(...kids.map(q => q.left)), top: Math.min(...kids.map(q => q.top)), right: Math.max(...kids.map(q => q.right)), bottom: Math.max(...kids.map(q => q.bottom)) } : r;
       t.style.transform = keep;
-      return { x0: (r.left - o.left) / s, y0: (r.top - o.top) / s, x1: (r.right - o.left) / s, y1: (r.bottom - o.top) / s, real: true };
+      return { x0: (u.left - o.left) / s, y0: (u.top - o.top) / s, x1: (u.right - o.left) / s, y1: (u.bottom - o.top) / s, real: true,
+        origin: [((u.left + u.right) / 2 - r.left), ((u.top + u.bottom) / 2 - r.top)] };
     };
     const lineY = (c, x) => { const [fx, fy] = c.far.p, [dx, dy] = c.far.d; return fy + (x - fx) * dy / dx; };
     for (const side of [0, 1]) {
@@ -442,18 +452,28 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       else for (const p of panes) { const bb = bbox(p.poly); if ((side ? bb.x1 > W - wTopFit - 40 : bb.x0 < wTopFit + 40) && bb.y1 < H / 2) yTop = Math.max(yTop, bb.y1); }
       if (hugB) yBot = Math.min(lineY(cB, wall), lineY(cB, wall + dir * wBot));
       else for (const p of panes) { const bb = bbox(p.poly); if ((side ? bb.x1 > W - wBot - 40 : bb.x0 < wBot + 40) && bb.y0 >= H / 2) yBot = Math.min(yBot, bb.y0); }
-      if (yBot - yTop < 240) continue;
+      if (yBot - yTop < 160) continue;
+      /* A SHORT STRIP IS THE TILES' ALONE. Between a tall clock column (a long campaign name,
+         a large interface scale) and the notice pane there can be too little of the edge for
+         a mid seam with the tiles' shard above it: the seam was forced under the tiles, and
+         the family cut across them. Under 420 px the strip has no mid seam and no lower
+         family - it is one upper quad, and the tiles' shard is cut from that. The same
+         applies to the skip above: a strip is dropped only when even the tiles cannot stand
+         in it (and at 240 the left rail lost its shard at 140 % on a 900 px screen). */
+      const short = yBot - yTop < 420;
       // the mid seam sits below the tiles' shard, so the shard is cut from the upper quad alone
-      const yMid = Math.min(yBot - 120, Math.max(yTop + (yBot - yTop) * (0.5 + (rnd() - 0.5) * 0.16), yCtl + 60));
+      const yMid = short ? yBot : Math.min(yBot - 120, Math.max(yTop + (yBot - yTop) * (0.5 + (rnd() - 0.5) * 0.16), yCtl + 60));
       const tilt = (5 + rnd() * 5) * DEG * (rnd() < 0.5 ? 1 : -1);
       const M = [wall + dir * wMid, yMid], Wm = [wall, yMid - wMid * Math.tan(tilt)];
       const yT0 = hugT ? Math.min(lineY(cT, wall), lineY(cT, wall + dir * wTopFit)) - 1 : yTop;
       const yB0 = hugB ? Math.max(lineY(cB, wall), lineY(cB, wall + dir * wBot)) + 1 : yBot;
       let upperQ = clipRect([[wall, yT0], [wall + dir * wTopFit, yT0], ...(yCtl < yMid - 40 ? [[wall + dir * wCtl, yCtl]] : []), M, Wm], W, H);
       // the angle of that edge, for the tiles that sit on it (clockwise on the left, the mirror on the right)
-      tiles[side ? "right" : "left"] = { angle: Math.atan((wTopFit - wCtl) / Math.max(1, yCtl - yTop)) * (side ? -1 : 1), yTop, wTop: wTopFit, wCtl, yCtl };
-      let lowerQ = clipRect([Wm, M, [wall + dir * wBot, yB0], [wall, yB0]], W, H);
+      tiles[side ? "right" : "left"] = { angle: Math.atan((wTopFit - wCtl) / Math.max(1, yCtl - yTop)) * (side ? -1 : 1), yTop, wTop: wTopFit, wCtl, yCtl, origin: tb.origin || null };
+      let lowerQ = short ? null : clipRect([Wm, M, [wall + dir * wBot, yB0], [wall, yB0]], W, H);
       if (hugT && upperQ) { const [fx, fy] = cT.far.p; upperQ = clipHP(upperQ, fx, fy, -cT.sn, cT.cs); }
+      // a short strip reaches the bottom column's pane, and is clipped by its far edge as the lower quad would be
+      if (short && hugB && upperQ) { const [fx, fy] = cB.far.p; upperQ = clipHP(upperQ, fx, fy, cB.sn, -cB.cs); }
       if (hugB && lowerQ) { const [fx, fy] = cB.far.p; lowerQ = clipHP(lowerQ, fx, fy, cB.sn, -cB.cs); }
       const cutFamily = (poly, slope, y0, y1, box) => {
         if (!poly) return;
@@ -681,7 +701,8 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     const t = panes.meta.tiles || {};
     for (const [sel, side] of [["#scene-controls", "left"], ["#sidebar-tabs", "right"]]) {
       const tile = host.querySelector(sel); if (!tile) continue;
-      ROT.push({ sel, el: tile, origin: "50% 50%", transform: t[side] ? "rotate(" + t[side].angle + "rad)" : "none" });
+      const o = t[side]?.origin;
+      ROT.push({ sel, el: tile, origin: o ? Math.round(o[0]) + "px " + Math.round(o[1]) + "px" : "50% 50%", transform: t[side] ? "rotate(" + t[side].angle + "rad)" : "none" });
     }
     applyRotations();
     // self-check: C1 no overlaps, convexity, C2 every block inside its own pane and no other, C3 the top edge covered
@@ -700,6 +721,9 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     for (let x = 4; x < W; x += 8) { if (!cover(x, 0.5)) edgeGaps++; if (!cover(x, H - 0.5)) edgeGaps++; }
     for (let y = 4; y < H; y += 8) { if (!cover(0.5, y)) edgeGaps++; if (!cover(W - 0.5, y)) edgeGaps++; }
     CHECKS.push({ seed: job.seed, count: panes.length, overlaps: ov, nonconvex, ncv, blockFails, edgeGaps, fitFails, sig: d.length, same });
+    // every pane, for `drpgGlassDebug()`: what was cut, and where
+    LAST.panes = panes.map(p => { const bb = bbox(p.poly); return { kind: p.kind, tone: p.tone || null, plain: !!p.plain, x0: Math.round(bb.x0), y0: Math.round(bb.y0), x1: Math.round(bb.x1), y1: Math.round(bb.y1) }; });
+    LAST.tiles = Object.fromEntries(Object.entries(t).map(([k, v]) => [k, v && { yTop: Math.round(v.yTop), yCtl: Math.round(v.yCtl), wTop: Math.round(v.wTop), angle: +v.angle.toFixed(3) }]));
     if (!same) job.painted = false;
     return true;
   }
@@ -964,6 +988,10 @@ function rebuildAll() {
    glass may take. Padding (with border-box), not margin, so a column sized to the screen shrinks
    instead of running off its bottom. */
 const MAX_SHIFT = 160;
+/** The tiles shown in a rail: Foundry's `button.ui-control`s (v13+), any earlier markup's `.control`s. */
+function tileButtons(rail) {
+  return [...rail.querySelectorAll("button.ui-control, .ui-control, .control")].filter(e => e.offsetWidth > 0 && e.offsetHeight > 0);
+}
 function placeTiles(meta) {
   const t = meta?.tiles || {};
   let moved = false;
@@ -971,7 +999,9 @@ function placeTiles(meta) {
     const el = document.querySelector(target), pr = document.querySelector(probe), info = t[side];
     if (!el || !pr || !info) continue;
     const keep = pr.style.transform; pr.style.transform = "";
-    const top = pr.getBoundingClientRect().top; pr.style.transform = keep;
+    // the first tile's top, not the rail's: the rail already carries whatever padding an earlier pass gave it
+    const tops = tileButtons(pr).map(e => e.getBoundingClientRect().top);
+    const top = tops.length ? Math.min(...tops) : pr.getBoundingClientRect().top; pr.style.transform = keep;
     const have = parseFloat(el.style.paddingTop) || 0;
     const need = Math.min(MAX_SHIFT - have, Math.round(info.yTop + 24 - top));
     if (need > 2) { el.style.boxSizing = "border-box"; el.style.paddingTop = (have + need) + "px"; moved = true; }
@@ -1036,7 +1066,11 @@ function paintBand(job) {
   const W = c.width = Math.max(60, Math.round(w.clientWidth)), H = c.height = Math.max(24, Math.round(w.clientHeight));
   const panes = windowShapes(W, H, rng(job.seed)), acc = resolveAcc(w);
   const seamCanvas = layerAfter(c, "seamline", W, H);
-  paintGlass(c.getContext("2d"), W, H, panes, acc, { glowInside: true, inset: 0, seamCtx: seamCanvas.getContext("2d") });
+  /* THE SAME GLASS AS THE CURTAIN. `glowInside` laid a blurred, additive glow along every seam
+     of a band, which is a third of what made a window's title read brighter than the curtain
+     beside it (the other two are in the sheet: the base sheet's Bone header under the canvas,
+     and the window's own ground). One paint, one material. */
+  paintGlass(c.getContext("2d"), W, H, panes, acc, { glowInside: false, inset: 0, seamCtx: seamCanvas.getContext("2d") });
   const pc = layerAfter(c, "pulse", W, H); job.pulseK = 1;
   for (const p of panes) { const cx = (p.bb.x0 + p.bb.x1) / 2 - W / 2; p.phase = cx / 140 + p.hsh * 1.4; p.omega = 2 * Math.PI / (9 + p.hsh * 7); }
   job.panes = panes; job.pulse = pc; job.acc = acc; job.W = W; job.H = H;
