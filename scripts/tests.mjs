@@ -320,7 +320,18 @@ function boundNames(text) {
     return names;
 }
 
-/** Names that are simply there, on any page, in any Foundry world. */
+/**
+ * Names that are simply there, on any page, in any Foundry world.
+ *
+ * WINDOW'S OWN METHODS COUNT, CALLED BARE. `window` was in this list and
+ * `addEventListener` was not, so the three places this module attaches a listener to the
+ * window without writing `window.` - and the one `matchMedia` behind the reduced-motion
+ * check - were reported as names the module calls and does not have. Two false accusations
+ * in every run of the suite since R22 was written, which is exactly the noise that teaches
+ * a person to stop reading a failure. `removeEventListener` and `dispatchEvent` are here
+ * for the same reason ahead of time: this list over-collecting is only a miss, and under-
+ * collecting is a lie.
+ */
 const AMBIENT = new Set(`
 game ui canvas CONFIG CONST Hooks foundry console Handlebars PIXI jQuery
 Object Array String Number Boolean Symbol Math JSON Promise Set Map WeakMap WeakSet
@@ -329,6 +340,7 @@ parseInt parseFloat isNaN isFinite encodeURIComponent decodeURIComponent encodeU
 setTimeout clearTimeout setInterval clearInterval requestAnimationFrame cancelAnimationFrame
 queueMicrotask structuredClone fetch atob btoa alert confirm prompt open getComputedStyle
 document window navigator location history localStorage sessionStorage performance crypto
+addEventListener removeEventListener dispatchEvent matchMedia
 URL URLSearchParams Blob File FileReader FormData Headers Request Response AbortController
 Image Audio AudioContext Event CustomEvent EventTarget MutationObserver ResizeObserver
 Element HTMLElement Node NodeList DOMParser Range CSS

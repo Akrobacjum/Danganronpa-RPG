@@ -756,6 +756,17 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
          GM button's height on top of a height already measured from its top counted it twice
          and ran the band down into the notice tile's column, which then stopped hugging the
          wall and left a wedge of bare map there. */
+      /* THREE CORNERS OF EIGHTY ARE STILL ON THE NOTICE TILE'S PANE AT 1080p, AND WIDENING
+         THIS IS NOT WHAT FIXES THEM. Reserving the whole wall the rail may use was tried on
+         09.09 and changed the tally by exactly nothing, which is the measurement that says
+         where the fault really is: `push()` exempts `section` panes from the rail's band
+         entirely, so however much band is asked for, a section already covering it keeps it.
+         The exemption is right in general - it is what stopped the clock, the GM button and the
+         notice tile losing their glass on 07.09 - and too broad here. What it wants is a rule
+         it does not have: a section may lose the band ABOVE AND BELOW the block it was cut for,
+         never where that block stands. `push` would have to be given the block's own box, which
+         both call sites already hold as `up.r`. A solver change, not a patch; see the note
+         beside BLOCKS about what teaching this partition costs. */
       const wantH = Math.max((r.top + rail.offsetHeight) - top, btns.length * 1);
       /* HOW MANY COLUMNS THE TILES CAN ACTUALLY REACH, not the worst case on any screen.
          Foundry wraps a control's tools into another column only when they run out of the

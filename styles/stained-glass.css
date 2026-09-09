@@ -816,11 +816,15 @@ body.drpg-theme-stained-glass.drpg-turning :is(#drpg-hud, #drpg-despair, #drpg-e
     #drpg-player-status, #countdowns, #drpg-notice) :is(.drpg-hud-phase, .drpg-hud-time,
     .drpg-hud-elapsed, .drpg-hud-room, .drpg-hud-ticker, .drpg-despair-pip, .drpg-despair-name,
     .drpg-status-value, .drpg-event, .drpg-event-title, .drpg-event-glyph, .countdowns-header,
-    .drpg-projects-bar, .drpg-popup),
+    /* `.drpg-projects-bar` stood here and nothing has ever worn it; the tray's own parts are
+       the fold and the gear, which is what the turn should carry. */
+    .drpg-projects-fold, .drpg-projects-gear, .drpg-popup),
 body.drpg-theme-stained-glass.drpg-turning :is(#scene-controls, #sidebar-tabs) button.ui-control,
 body.drpg-theme-stained-glass.drpg-turning :is(.drpg-panel .window-header,
     .drpg-panel .window-header .window-title, .drpg-action-button, .drpg-call-button,
-    .drpg-tb-badge, .drpg-chip) {
+    /* `.drpg-chip` was the audit page's name for these; the module's are these five. */
+    .drpg-tb-badge, .drpg-sfx-badge, .drpg-duality-badge, .drpg-overflow-badge,
+    .drpg-role-label) {
     transition-property: color, border-color, background-color, box-shadow, outline-color, -webkit-text-stroke-color, fill, stroke;
     transition-duration: var(--drpg-t-turn, 840ms);
     transition-timing-function: linear;
@@ -961,11 +965,13 @@ body.drpg-theme-stained-glass .drpg-call-button {
     clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
     transition: color var(--drpg-t-snap, 120ms), border-color var(--drpg-t-snap, 120ms);
 }
-body.drpg-theme-stained-glass .drpg-call-button.drpg-hope-call,
+/* THE CALL'S KIND COMES FROM ITS PANEL, NOT FROM A CLASS ON THE BUTTON.
+   `.drpg-hope-call`, `.drpg-despair-call` and `.drpg-gm-action` were carried here beside the
+   selectors that do the work, and no script has ever written any of the three - the panel is
+   the discriminator for a Call and a data attribute for a GM tile. Three names that read like
+   an API and were never one; R2 has been reporting them since it was written. */
 body.drpg-theme-stained-glass .drpg-hope-panel .drpg-call-button { --brush: var(--drpg-sg-hope); }
-body.drpg-theme-stained-glass .drpg-call-button.drpg-despair-call,
 body.drpg-theme-stained-glass .drpg-despair-panel .drpg-call-button { --brush: var(--drpg-sg-despair); }
-body.drpg-theme-stained-glass .drpg-action-button.drpg-gm-action,
 /* `data-drpg-gm` is an attribute the module never writes - the tiles carry
    `data-drpg-cost-kind="gm"` - so this rule matched nothing until 1.2.41. */
 body.drpg-theme-stained-glass .drpg-action-button[data-drpg-cost-kind="gm"] { --brush: var(--drpg-sg-gm-light); }
@@ -1791,7 +1797,7 @@ body.drpg-theme-stained-glass :is(#drpg-hud .drpg-hud-campaign, #drpg-hud .drpg-
     #drpg-hud .drpg-hud-day, #drpg-hud .drpg-hud-phase, #drpg-hud .drpg-hud-time,
     #drpg-hud .drpg-hud-elapsed, #drpg-hud .drpg-hud-room,
     #drpg-despair .drpg-despair-name, #drpg-despair .drpg-despair-count,
-    #drpg-despair .drpg-despair-overflow, #drpg-player-status .drpg-status-label,
+    #drpg-despair .drpg-overflow-caption, #drpg-player-status .drpg-status-label,
     #drpg-player-status .drpg-status-value, #countdowns .countdowns-header,
     #countdowns .countdowns-header .window-title, #drpg-events .drpg-event-kicker,
     #drpg-events .drpg-event-title, #drpg-events .drpg-event-sub, #drpg-events .drpg-event-meta) {
@@ -2223,7 +2229,9 @@ body.drpg-theme-stained-glass :is(#drpg-hud .drpg-hud-chapter, #drpg-hud .drpg-h
    does set one, so this has never been visible - it is a colour the theme does not control,
    sitting on the one number in the rail a player actually reads. It controls it now. */
 body.drpg-theme-stained-glass #drpg-despair { color: var(--drpg-sg-bone); }
-body.drpg-theme-stained-glass #drpg-despair :is(.drpg-despair-count, .drpg-despair-overflow) {
+/* `.drpg-overflow-caption`, which is what `despair.mjs` writes; `.drpg-despair-overflow` was
+   a name from an earlier shape of that row and never reached the DOM. */
+body.drpg-theme-stained-glass #drpg-despair :is(.drpg-despair-count, .drpg-overflow-caption) {
     color: color-mix(in srgb, var(--drpg-sg-bone) 84%, transparent);
     opacity: 1;
 }
@@ -4331,11 +4339,21 @@ body.drpg-theme-stained-glass .drpg-panel :is(.dialog-form, .standard-form) > fo
    `text-overflow: clip` - so a long speaker's name simply ends mid-letter with nothing to say
    it was cut. A grid item will not shrink below its content unless it is told it may, which is
    what `min-width: 0` is for; with that in place the ellipsis has room to appear. */
-body.drpg-theme-stained-glass :is(li.chat-message, li.drpg-chat-card) > header > div {
-    min-width: 0;
-}
-body.drpg-theme-stained-glass :is(li.chat-message, li.drpg-chat-card) > header > div > * {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
+/* THE CHAT CARD'S HEADER STILL CLIPS, AND THREE ATTEMPTS SAY WHY IT IS NOT A CSS FIX.
+   Foundry owns this markup. `.message-header-main` is a two-column grid that fits; inside it
+   `.subtitle` is a flex row 226 px wide holding 273 px of content, under `overflow: hidden`
+   and `text-overflow: clip`, so a long speaker's name ends mid-letter with nothing to mark it.
+
+   What was tried, and what each cost, measured at 2560x1440 and 1920x1080:
+     - `min-width: 0` on the grid's children: no change at all (47 px before, 47 after) - the
+       row that overflows is one level further in.
+     - `min-width: 0` on the flex row's children: the overflow went, and the whisper target
+       collapsed to a clientWidth of ZERO. "To: Player A" disappeared, which is worse than a
+       cut name.
+     - `flex-wrap: wrap` on the row: still 51 px over, and six elements at zero width.
+
+   Each swap trades one defect for another because the row's real constraint is which of its
+   items may shrink and by how much, and that is a property of what Foundry puts in it - a
+   sender, a timestamp, a whisper list, a roll mode - not of the box. It needs the chat card's
+   own template, not another selector. Left alone deliberately (09.09); the clip is the least
+   harmful of the four states measured. */
