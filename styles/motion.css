@@ -65,6 +65,14 @@
        the arithmetic: this is two beats, and it moves when the beat moves. */
     --drpg-t-turn: 840ms;
 
+    /* THE SIXTH TIME, AND IT IS SEPARATE ON PURPOSE.
+       The curtain crossfades a whole screen of glass when the world changes state, and at the
+       interface's own beat that was over before the eye had followed it. It is not a sixth
+       value for buttons to reach for: `--drpg-t-turn` stays the interface's beat, this is the
+       curtain's alone, and it lives here so that an audit of movement is still an audit of
+       one file. Zeroed with the rest under reduced motion, below. */
+    --drpg-t-curtain: 1800ms;
+
     /* Not one of the three, and deliberately apart from them.
        The Eclipse draining the colour out of the map is the world changing
        mood, not the interface answering anybody - it belongs to the scene and
@@ -108,6 +116,7 @@
         --drpg-t-enter: 0ms;
         --drpg-t-beat: 0ms;
         --drpg-t-turn: 0ms;
+    --drpg-t-curtain: 0ms;
         --drpg-t-eclipse: 0ms;
 
         --drpg-scale-in: 1;
@@ -126,6 +135,7 @@ body.drpg-reduced-motion {
     --drpg-t-enter: 0ms;
     --drpg-t-beat: 0ms;
     --drpg-t-turn: 0ms;
+    --drpg-t-curtain: 0ms;
     --drpg-t-eclipse: 0ms;
 
     --drpg-scale-in: 1;

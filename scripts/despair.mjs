@@ -641,20 +641,30 @@ function buildRow(user, showName) {
      */
     const ghost = !isGM;
     row.append(
-        stepper("fa-minus", () => adjustDespair(user.id, -1), held <= 0, ghost),
-        stepper("fa-plus", () => adjustDespair(user.id, +1), held >= max, ghost)
+        stepper("fa-minus", () => adjustDespair(user.id, -1), held <= 0, ghost,
+            game.i18n.localize("DRPG.Look.stepDown")),
+        stepper("fa-plus", () => adjustDespair(user.id, +1), held >= max, ghost,
+            game.i18n.localize("DRPG.Look.stepUp"))
     );
     if (isGM && isOwnPool) row.classList.add("own");
 
     return row;
 }
 
-function stepper(icon, handler, disabled, ghost = false) {
+function stepper(icon, handler, disabled, ghost = false, label = "") {
     const button = document.createElement("button");
     button.type = "button";
     button.className = `drpg-despair-button${ghost ? " is-ghost" : ""}`;
     button.disabled = disabled || ghost;
     button.innerHTML = `<i class="fa-solid ${icon}" inert></i>`;
+    /* A GLYPH IS NOT A NAME. These four were the module's only icon-only controls
+       with nothing to read out or hover (audit, 08.09): a plus and a minus beside a
+       Monokuma's count, which is a number a GM changes under time pressure. The two
+       strings already existed for the Look window's own steppers. */
+    if (label) {
+        button.dataset.tooltip = label;
+        button.setAttribute("aria-label", label);
+    }
 
     // A shape, not a control. See `buildRow`.
     if (ghost) {

@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json - the suite fails if it does not. */
-    --drpg-css-version: "1.2.40";
+    --drpg-css-version: "1.2.41";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -1959,7 +1959,7 @@ section[data-application-part="inventory"] .items-section:not(.drpg-inventory-gr
 /* Call names run much longer than action names - "Behind Closed Doors" against
    "Search" - so the label alone is scaled down and allowed to break mid-word.
    Everything else about the tile is the action template untouched. */
-.drpg-call-button .drpg-action-name {
+body.drpg-theme-monokuma-legacy .drpg-call-button .drpg-action-name {
     font-size: calc(var(--drpg-text-xs) * var(--drpg-tile-text, 1)) !important;
     line-height: 1.05;
     letter-spacing: 0;
@@ -7038,27 +7038,27 @@ body.drpg-pixel-font .application.sheet.actor prose-mirror * {
    costs rather than widen the sheet. The type on such a panel does go under
    11px, deliberately, and only there. */
 
-.drpg-action-button .drpg-action-name,
-.drpg-call-button .drpg-action-name {
+body.drpg-theme-monokuma-legacy .drpg-action-button .drpg-action-name,
+body.drpg-theme-monokuma-legacy .drpg-call-button .drpg-action-name {
     font-size: calc(var(--drpg-text-xs) * var(--drpg-tile-text, 1)) !important;
     line-height: 1.25;
 }
 
-.drpg-action-button .drpg-action-cost,
-.drpg-call-button .drpg-action-cost {
+body.drpg-theme-monokuma-legacy .drpg-action-button .drpg-action-cost,
+body.drpg-theme-monokuma-legacy .drpg-call-button .drpg-action-cost {
     font-size: calc(var(--drpg-text-xs) * var(--drpg-tile-text, 1)) !important;
 }
 
-#drpg-player-status .drpg-status-label,
-#drpg-despair .drpg-despair-name,
-.drpg-tb-badge,
-.drpg-group-count {
+body.drpg-theme-monokuma-legacy #drpg-player-status .drpg-status-label,
+body.drpg-theme-monokuma-legacy #drpg-despair .drpg-despair-name,
+body.drpg-theme-monokuma-legacy .drpg-tb-badge,
+body.drpg-theme-monokuma-legacy .drpg-group-count {
     font-size: var(--drpg-text-xs) !important;
 }
 
-.character-header-sheet .status-bar .status-label h4,
-.character-header-sheet .trait-name,
-.tab-navigation nav.sheet-tabs a {
+body.drpg-theme-monokuma-legacy .character-header-sheet .status-bar .status-label h4,
+body.drpg-theme-monokuma-legacy .character-header-sheet .trait-name,
+body.drpg-theme-monokuma-legacy .tab-navigation nav.sheet-tabs a {
     font-size: var(--drpg-text-xs) !important;
 }
 
@@ -7192,7 +7192,7 @@ body.drpg-pixel-font .application.sheet.actor prose-mirror * {
    built for a dark ground, and Bone text on Bone is not a subtle bug.
    ========================================================================== */
 
-.application.sheet.actor .character-sidebar-sheet {
+body.drpg-theme-monokuma-legacy .application.sheet.actor .character-sidebar-sheet {
     background: var(--drpg-bone) !important;
     background-image: none !important;
     color: var(--drpg-ink) !important;
@@ -7212,7 +7212,7 @@ body.drpg-pixel-font .application.sheet.actor prose-mirror * {
    both captions ink-on-ink: invisible, and nothing to do with the bar.
    `:where()` weighs nothing, so the exclusion lands without moving anything
    else. */
-.application.sheet.actor .character-sidebar-sheet *:not(i):not([class*="fa-"]):not(:where(.drpg-resource-bar, .drpg-resource-fill, .drpg-resource-delta)) {
+body.drpg-theme-monokuma-legacy .application.sheet.actor .character-sidebar-sheet *:not(i):not([class*="fa-"]):not(:where(.drpg-resource-bar, .drpg-resource-fill, .drpg-resource-delta)) {
     color: var(--drpg-ink) !important;
     border-color: rgba(var(--drpg-shadow-rgb), 0.22) !important;
 }
@@ -7220,7 +7220,7 @@ body.drpg-pixel-font .application.sheet.actor prose-mirror * {
 /* The section titles in the rail are Daggerheart's h3 at 20px. On white they
    become the rail's own headings - heavy, uppercase, and sized off the scale
    rather than off nothing. */
-.application.sheet.actor .character-sidebar-sheet .title h3 {
+body.drpg-theme-monokuma-legacy .application.sheet.actor .character-sidebar-sheet .title h3 {
     font-size: var(--drpg-text-md) !important;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -7230,20 +7230,20 @@ body.drpg-pixel-font .application.sheet.actor prose-mirror * {
 
 /* The resource chips invert inside the rail: Ink block, Bone numerals, so the
    two things a player checks most often are the darkest marks on the white. */
-.application.sheet.actor .character-sidebar-sheet .status-label,
-.application.sheet.actor .character-sidebar-sheet .status-bar .status-label {
+body.drpg-theme-monokuma-legacy .application.sheet.actor .character-sidebar-sheet .status-label,
+body.drpg-theme-monokuma-legacy .application.sheet.actor .character-sidebar-sheet .status-bar .status-label {
     background-color: var(--drpg-ink) !important;
 }
 
-.application.sheet.actor .character-sidebar-sheet .status-label h4,
-.application.sheet.actor .character-sidebar-sheet .status-label * {
+body.drpg-theme-monokuma-legacy .application.sheet.actor .character-sidebar-sheet .status-label h4,
+body.drpg-theme-monokuma-legacy .application.sheet.actor .character-sidebar-sheet .status-label * {
     color: var(--drpg-bone) !important;
 }
 
 /* The safeword keeps its own colour - it is the one control that must not
    blend into whatever it is sitting on. */
-.application.sheet.actor .character-sidebar-sheet .drpg-safeword-button,
-.application.sheet.actor .character-sidebar-sheet .drpg-safeword-button * {
+body.drpg-theme-monokuma-legacy .application.sheet.actor .character-sidebar-sheet .drpg-safeword-button,
+body.drpg-theme-monokuma-legacy .application.sheet.actor .character-sidebar-sheet .drpg-safeword-button * {
     color: var(--drpg-bone) !important;
 }
 
@@ -9091,7 +9091,7 @@ details.drpg-calls-panel[open] > .drpg-action-grid {
     overflow: hidden;
 }
 
-.drpg-action-button[data-drpg-cost-kind]::before {
+body.drpg-theme-monokuma-legacy .drpg-action-button[data-drpg-cost-kind]::before {
     content: "";
     position: absolute;
     left: 0;
@@ -11941,19 +11941,26 @@ form:has(select[name="trigger"] option[value="sabotage"]:checked) [data-drpg-whe
 
 /* One switch for the whole panel, sitting with the sliders rather than in the
    forty-row table - a control buried at the top of forty rows is not found. */
+/* `!important`, for the reason `.drpg-sound-slider` states below: this sheet is imported
+   into a cascade layer and Foundry's unlayered `.standard-form label { display: flex }`
+   beats a plain `display: grid` here however specific it is. Without it the row was a flex
+   line of three - box, name, hint - and the name was squeezed into whatever the hint left:
+   measured at 59 px, so "Vary the sounds you hear often" came out six lines tall in a
+   486 px window. The slider rows next door had already been given this treatment; the
+   switch rows had not. */
 .drpg-sound-switch {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 2px 8px;
-    align-items: center;
+    display: grid !important;
+    grid-template-columns: auto 1fr !important;
+    gap: 2px 8px !important;
+    align-items: center !important;
     margin-top: 10px;
     padding-top: 10px;
     border-top: 1px solid rgba(var(--drpg-bone-rgb), 0.12);
 }
 
 .drpg-sound-switch .notes {
-    grid-column: 2;
-    margin: 0;
+    grid-column: 2 !important;
+    margin: 0 !important;
 }
 
 .drpg-sound-volumes {
@@ -12477,11 +12484,22 @@ form:has(select[name="trigger"] option[value="sabotage"]:checked) [data-drpg-whe
        a section heading. `clamp` because the viewport is its container - a
        fixed size right on a 27" monitor runs off a laptop. */
     font-size: clamp(2rem, 7vw, 4.5rem);
-    /* The flat double frame: two rules with the ground between them, which is
-       how every title card in this game's source material is drawn. Built from
-       one border and one shadow rather than a wrapper, because the element is
-       Foundry's and this file does not get to add a box around it. */
     padding: 0.35em 0.9em;
+}
+
+/* THE DOUBLE GOLD FRAME IS MONOKUMA LEGACY'S, AND ONLY ITS.
+   --------------------------------------------------------------------------
+   Two rules with the ground between them, which is how every title card in this
+   game's source material is drawn. Built from one border and one shadow rather
+   than a wrapper, because the element is Foundry's and this file does not get to
+   add a box around it.
+
+   It was written unscoped, so Stained Glass wore it too - and Foundry starts
+   PAUSED, which made a 3 px gold frame with a gold ring the first thing anybody
+   saw of a theme whose whole grammar is one-pixel seams and no radius (audit,
+   08.09). It also spent Hope's gold on something that is not Hope. The theme has
+   its own pane for this now; see stained-glass.css. */
+body.drpg-theme-monokuma-legacy #pause.paused figcaption {
     border: 3px solid var(--drpg-gold);
     box-shadow:
         0 0 0 3px rgba(var(--drpg-veil-rgb), 0.95),
@@ -12727,15 +12745,15 @@ body.drpg-pixel-font #pause.paused figcaption {
 
 /* The GM panel's tiles: Bone wash on Ink, the panel rule as the edge, red on
    hover - what this file has always said they are, now said with weight. */
-.drpg-panel .drpg-gmp-button,
-.drpg-gm-panel .drpg-gmp-button {
+body.drpg-theme-monokuma-legacy .drpg-panel .drpg-gmp-button,
+body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button {
     background: rgba(var(--drpg-bone-rgb), 0.12) !important;
     border: 1px solid rgba(var(--drpg-bone-rgb), 0.45) !important;
     border-radius: 4px !important;
 }
 
-.drpg-panel .drpg-gmp-button:hover,
-.drpg-gm-panel .drpg-gmp-button:hover {
+body.drpg-theme-monokuma-legacy .drpg-panel .drpg-gmp-button:hover,
+body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button:hover {
     background: rgba(var(--drpg-eye-rgb), 0.3) !important;
     border-color: var(--drpg-eye) !important;
 }
@@ -12760,8 +12778,8 @@ body.drpg-pixel-font #pause.paused figcaption {
    window itself already takes the dialog ground from the block above.
    ========================================================================== */
 
-.drpg-projects :is(input, select, textarea),
-.drpg-panel :is(input[type="text"], input[type="number"], select, textarea) {
+body.drpg-theme-monokuma-legacy .drpg-projects :is(input, select, textarea),
+body.drpg-theme-monokuma-legacy .drpg-panel :is(input[type="text"], input[type="number"], select, textarea) {
     background: rgba(var(--drpg-ink-rgb), 0.55) !important;
     background-image: none !important;
     border: 1px solid var(--drpg-line-strong) !important;
@@ -12769,8 +12787,8 @@ body.drpg-pixel-font #pause.paused figcaption {
     color: var(--drpg-bone) !important;
 }
 
-.drpg-projects :is(input, select, textarea):focus-visible,
-.drpg-panel :is(input[type="text"], input[type="number"], select, textarea):focus-visible {
+body.drpg-theme-monokuma-legacy .drpg-projects :is(input, select, textarea):focus-visible,
+body.drpg-theme-monokuma-legacy .drpg-panel :is(input[type="text"], input[type="number"], select, textarea):focus-visible {
     outline: 2px solid var(--drpg-gold);
     outline-offset: 1px;
 }
@@ -13042,8 +13060,8 @@ body.drpg-pixel-font #pause.paused figcaption {
    that hands the turn to somebody else, or destroys something.
    ========================================================================== */
 
-body .drpg-gm-panel .drpg-gmp-button,
-body .drpg-panel .drpg-gmp-button {
+body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button,
+body.drpg-theme-monokuma-legacy .drpg-panel .drpg-gmp-button {
     background: rgba(var(--drpg-eye-rgb), 0.18) !important;
     background-image: none !important;
     border: 1px solid var(--drpg-eye) !important;
@@ -13052,40 +13070,40 @@ body .drpg-panel .drpg-gmp-button {
     box-shadow: none !important;
 }
 
-body .drpg-gm-panel .drpg-gmp-button i,
-body .drpg-panel .drpg-gmp-button i {
+body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button i,
+body.drpg-theme-monokuma-legacy .drpg-panel .drpg-gmp-button i {
     color: var(--drpg-eye-light) !important;
 }
 
-body .drpg-gm-panel .drpg-gmp-button:hover:not(:disabled),
-body .drpg-panel .drpg-gmp-button:hover:not(:disabled) {
+body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button:hover:not(:disabled),
+body.drpg-theme-monokuma-legacy .drpg-panel .drpg-gmp-button:hover:not(:disabled) {
     background: rgba(var(--drpg-eye-rgb), 0.34) !important;
     border-color: var(--drpg-eye-light) !important;
 }
 
 /* The tile that destroys a season keeps crimson - a different red for a
    different promise, and the one place the two are told apart on this screen. */
-body .drpg-gm-panel .drpg-gmp-button.drpg-gm-route {
+body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-gm-route {
     background: rgba(var(--drpg-crimson-rgb), 0.20) !important;
     border-color: var(--drpg-crimson) !important;
 }
 
-body .drpg-gm-panel .drpg-gmp-button.drpg-gm-route i {
+body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-gm-route i {
     color: var(--drpg-crimson-light) !important;
 }
 
 /* A tile that cannot be pressed says so by going quiet, not by going grey-
    purple: same red, drained. */
-body .drpg-gm-panel .drpg-gmp-button:disabled,
-body .drpg-gm-panel .drpg-gmp-button.drpg-disabled {
+body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button:disabled,
+body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-disabled {
     background: rgba(var(--drpg-eye-rgb), 0.07) !important;
     border-color: rgba(var(--drpg-eye-rgb), 0.35) !important;
     color: var(--drpg-dim) !important;
     opacity: 1;
 }
 
-body .drpg-gm-panel .drpg-gmp-button:disabled i,
-body .drpg-gm-panel .drpg-gmp-button.drpg-disabled i {
+body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button:disabled i,
+body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-disabled i {
     color: var(--drpg-dim) !important;
 }
 
@@ -13234,7 +13252,7 @@ body .drpg-gm-panel .drpg-gmp-button.drpg-disabled i {
    the viewport, which is what `position: fixed` already does.
    ========================================================================== */
 
-#pause.paused {
+body.drpg-theme-monokuma-legacy #pause.paused {
     /* Core hands `#pause` a `margin: 16px 0` its own band layout wanted. On
        this module's full-viewport box that margin was a 16px letterbox of bare
        map above the veil - and 16px of veil pushed uselessly past the bottom.
@@ -13283,15 +13301,15 @@ body .drpg-gm-panel .drpg-gmp-button.drpg-disabled i {
    pointer, where a fill means "this one, now".
    ========================================================================== */
 
-body .drpg-gm-panel .drpg-gmp-button,
-body .drpg-panel .drpg-gmp-button {
+body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button,
+body.drpg-theme-monokuma-legacy .drpg-panel .drpg-gmp-button {
     background: transparent !important;
     background-image: none !important;
     border: 1px solid var(--drpg-eye) !important;
 }
 
-body .drpg-gm-panel .drpg-gmp-button:hover:not(:disabled),
-body .drpg-panel .drpg-gmp-button:hover:not(:disabled) {
+body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button:hover:not(:disabled),
+body.drpg-theme-monokuma-legacy .drpg-panel .drpg-gmp-button:hover:not(:disabled) {
     background: rgba(var(--drpg-eye-rgb), 0.30) !important;
     border-color: var(--drpg-eye-light) !important;
 }
@@ -13308,12 +13326,12 @@ body .drpg-panel .drpg-gmp-button:hover:not(:disabled) {
 }
 
 /* The season-reset tile keeps crimson, and keeps it the same way round. */
-body .drpg-gm-panel .drpg-gmp-button.drpg-gm-route {
+body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-gm-route {
     background: transparent !important;
     border-color: var(--drpg-crimson) !important;
 }
 
-body .drpg-gm-panel .drpg-gmp-button.drpg-gm-route:hover:not(:disabled) {
+body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-gm-route:hover:not(:disabled) {
     background: rgba(var(--drpg-crimson-rgb), 0.28) !important;
 }
 
@@ -14849,3 +14867,10 @@ body.drpg-explainers :is(#drpg-hud, #drpg-despair, #drpg-player-status, #countdo
 }
 .drpg-trace-filters select { min-width: 9rem; }
 .drpg-trace-filters .notes { margin-left: auto; align-self: center; }
+
+/* A SWITCH THAT CANNOT CHANGE ANYTHING IS NOT SHOWN.
+   The glass pulse, the ticker and reduced motion exist only under Stained Glass; the pixel
+   face exists only under Monokuma Legacy, which has no second face of its own. They used to
+   be dimmed here through `.drpg-setting-inert`; they are hidden now, in the one window that
+   still showed them, and the class went with the rule - see `renderSettingsConfig` in
+   settings.mjs for why. */

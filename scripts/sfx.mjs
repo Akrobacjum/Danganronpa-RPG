@@ -1131,11 +1131,28 @@ export function soundSlidersHtml() {
         </label>`
         : "";
 
+    /*
+     * The messenger's three sounds are muted here now, not in the Look window.
+     *
+     * They were one of two switches in a fieldset called "Look", which is where nobody
+     * goes to turn a sound off (Dawid, 08.09). This fieldset is called Volume and holds
+     * everything else that decides what this browser hears. Client-scoped like the
+     * sliders, so it is shown to a player and a GM alike - unlike the variation switch
+     * above it, which is the world's.
+     */
+    const messenger = `<label class="drpg-sound-switch">
+            <input type="checkbox" name="messengerSound"${
+                getSetting(SETTINGS.messengerSound) !== false ? " checked" : ""} />
+            <span>${game.i18n.localize("DRPG.Look.messengerSound")}</span>
+            <span class="notes">${game.i18n.localize(
+                "DRPG.Settings.messengerSound.hint")}</span>
+        </label>`;
+
     return `<fieldset class="drpg-sound-volumes">
         <legend>${game.i18n.localize("DRPG.Sound.volumes")}</legend>
         ${rows}
         <p class="notes">${game.i18n.localize("DRPG.Sound.volumeNote")}</p>
-        ${variation}
+        ${messenger}${variation}
     </fieldset>`;
 }
 
@@ -1233,6 +1250,13 @@ export function wireSoundPanel(root) {
                 .catch(err => error(`Could not set the ${key} volume`, err));
         });
     }
+
+    /* ---- the messenger's sounds -------------------------------------- */
+    const messengerBox = root.querySelector('input[name="messengerSound"]');
+    messengerBox?.addEventListener("change", () => {
+        setSetting(SETTINGS.messengerSound, messengerBox.checked)
+            .catch(err => error("Could not change the messenger sounds", err));
+    });
 
     /* ---- the variation switch ---------------------------------------- */
     const varyBox = root.querySelector('input[name="sfxVary"]');

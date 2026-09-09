@@ -26,7 +26,6 @@ export function isStainedGlass() {
 function lookFieldset() {
     const t = key => game.i18n.localize(`DRPG.Look.${key}`);
     const theme = getSetting(SETTINGS.theme);
-    const effects = getSetting(SETTINGS.glassEffects) !== false;
     const scale = Number(getSetting(SETTINGS.uiScale)) || 1;
     /* The pixel face belongs to Monokuma Legacy, where it is the identity and the default,
        so the switch is only shown to a browser wearing that theme. Under Stained Glass it
@@ -35,54 +34,64 @@ function lookFieldset() {
     const check = (key, setting, on) => `<label><span>${t(key)}</span>
             <input type="checkbox" name="look:${setting}"${on ? " checked" : ""}></label>`;
     const pixel = legacy ? check("pixelFont", SETTINGS.pixelFont, getSetting(SETTINGS.pixelFont) !== false) : "";
-    /* The glass's own two switches are shown to the browsers that have glass. The other two
-       belong to every theme: motion and sound are not the glass's to own. */
+    /* The glass's own switches are shown to the browsers that have glass, and nothing else
+       is left in this group. Reduced motion joined it on 08.09 (Dawid): what it damps down
+       is the curtain, the pulse and the panes turning, all of which Monokuma Legacy does
+       not have - so under that theme it was a third switch that changed nothing.
+       The messenger sounds went the other way, to the Volume fieldset above (sfx.mjs),
+       which is where a sound switch is looked for.
+       Foundry's own settings window hides the same three through `renderSettingsConfig`
+       in settings.mjs; the two windows show the same set. */
     const glassOnly = legacy ? "" :
         check("pulse", SETTINGS.glassPulse, getSetting(SETTINGS.glassPulse) !== false)
-        + check("ticker", SETTINGS.hudTicker, getSetting(SETTINGS.hudTicker) !== false);
-    const always = check("reducedMotion", SETTINGS.reducedMotion, getSetting(SETTINGS.reducedMotion) === true)
-        + check("messengerSound", SETTINGS.messengerSound, getSetting(SETTINGS.messengerSound) !== false);
+        + check("ticker", SETTINGS.hudTicker, getSetting(SETTINGS.hudTicker) !== false)
+        + check("reducedMotion", SETTINGS.reducedMotion, getSetting(SETTINGS.reducedMotion) === true);
     const opt = (value, label) => `<option value="${value}"${theme === value ? " selected" : ""}>${
         foundry.utils.escapeHTML(game.i18n.localize(label))}</option>`;
     return `<fieldset class="drpg-look">
         <legend>${t("legend")}</legend>
         <label><span>${t("theme")}</span>
             <select name="look:theme">${opt("stainedGlass", "DRPG.Settings.theme.stainedGlass")}${opt("monokumaLegacy", "DRPG.Settings.theme.monokumaLegacy")}</select></label>
-        ${pixel}<label><span>${t("glassEffects")}</span>
-            <input type="checkbox" name="look:glassEffects"${effects ? " checked" : ""}></label>
+        ${pixel}
         <label><span>${t("uiScale")}</span>
             <input type="range" name="look:uiScale" min="0.8" max="1.4" step="0.05" value="${scale}">
             <output>${Math.round(scale * 100)}%</output></label>
         <p class="notes" data-drpg-scale-note>${game.i18n.format("DRPG.Look.uiScaleAuto", { auto: Math.round(autoScale() * 100), total: Math.round(effectiveScale() * 100), w: innerWidth, h: innerHeight })}</p>
-        ${glassOnly}${always}
+        ${glassOnly}
         <p class="notes">${t("note")}</p>
-        <p class="notes drpg-look-report"><code data-glass-report>-</code> <button type="button" data-action="drpg-redraw">${t("redraw")}</button></p>
     </fieldset>`;
 }
 
-async function report(root) {
-    const out = root.querySelector("[data-glass-report]");
-    if (!out) return;
-    try { const m = await import("./glass.mjs"); out.textContent = m.glassReport(); } catch (err) { out.textContent = String(err); }
-}
-
 function wireLook(root) {
-    report(root);
-    root.querySelector("[data-action='drpg-redraw']")?.addEventListener("click", async () => {
-        try { const m = await import("./glass.mjs"); m.refreshGlass(); setTimeout(() => report(root), 400); } catch (err) { error("Could not redraw the curtain", err); }
+    /* The glass report and its "Redraw the glass" button were taken out on 07.09: a diagnostic
+       does not belong in a player's settings window, and `drpgGlassDebug()` in the console
+       still prints every number it printed, to the person who actually wants it. */
+    /* THE SWITCH SET FOLLOWS THE THEME WITHOUT A REOPEN.
+       `lookFieldset` is built for one theme - the glass group under Stained Glass, the pixel
+       face under Monokuma Legacy - and nothing re-renders this window when the theme changes,
+       so picking the other theme used to leave the old theme's switches sitting there until
+       somebody closed and reopened the window. The fieldset is rebuilt in place instead, and
+       rewired: every listener above hangs off nodes that just went, this select included, so
+       there is nothing left to bind twice. */
+    root.querySelector("[name='look:theme']")?.addEventListener("change", async ev => {
+        try { await setSetting(SETTINGS.theme, ev.currentTarget.value); }
+        catch (err) { error("Could not change the theme", err); return; }
+        const field = root.querySelector("fieldset.drpg-look");
+        if (!field) return;
+        const holder = document.createElement("div");
+        holder.innerHTML = lookFieldset();
+        const fresh = holder.firstElementChild;
+        if (!fresh) return;
+        field.replaceWith(fresh);
+        wireLook(root);
     });
-    root.querySelector("[name='look:theme']")?.addEventListener("change", ev =>
-        setSetting(SETTINGS.theme, ev.currentTarget.value).catch(err => error("Could not change the theme", err)));
-    root.querySelector("[name='look:glassEffects']")?.addEventListener("change", ev =>
-        setSetting(SETTINGS.glassEffects, ev.currentTarget.checked).catch(err => error("Could not change the glass effects", err)));
     /* Every switch above writes one client setting and nothing else; `applyTheme` (their
        `onChange`) does the rest, so this list stays a list. */
     for (const [name, setting, label] of [
         [SETTINGS.pixelFont, SETTINGS.pixelFont, "the pixel font"],
         [SETTINGS.glassPulse, SETTINGS.glassPulse, "the glass pulse"],
         [SETTINGS.hudTicker, SETTINGS.hudTicker, "the clock's ticker"],
-        [SETTINGS.reducedMotion, SETTINGS.reducedMotion, "reduced motion"],
-        [SETTINGS.messengerSound, SETTINGS.messengerSound, "the messenger sounds"]
+        [SETTINGS.reducedMotion, SETTINGS.reducedMotion, "reduced motion"]
     ]) {
         root.querySelector(`[name='look:${name}']`)?.addEventListener("change", ev =>
             setSetting(setting, ev.currentTarget.checked).catch(err => error(`Could not change ${label}`, err)));

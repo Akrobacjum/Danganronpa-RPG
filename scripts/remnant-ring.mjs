@@ -31,8 +31,32 @@ import { TRUTH_BULLET_FLAGS, isIdentified } from "./truth-bullets.mjs";
 // file, so the static import is safe.
 import { myBulletForRemnant } from "./visibility.mjs";
 import { debug, error, esc} from "./utils.mjs";
+import { SETTINGS, getSetting } from "./settings.mjs";
+/* The room border's own hairline. A ring under this theme is the same seam as the
+   border the token is standing inside, so it takes the same number from the same place
+   rather than a second copy of the formula that could drift from it. */
+import { seamWidth } from "./fog.mjs";
 
 const RING_NAME = "drpgRemnantRing";
+/* The seam's light, told apart from the seam - the same reason `SEAM_GLOW_NAME` exists
+   in fog.mjs: anything measuring "the ring" by taking the first child would measure the
+   bloom instead, which is strokes two to three times wider under a blur. */
+const RING_GLOW_NAME = "drpgRemnantRingGlow";
+
+/** The zoom the rings were last struck at - see the `canvasPan` guard below. */
+let ringZoom = 0;
+
+/** True when this browser wears Stained Glass. The SETTING first, then the class: the
+    class lands at ready and tokens are drawn before that - fog.mjs `flashOutline` records
+    in full what reading the class alone cost there. */
+function glassOn() {
+    try {
+        return getSetting(SETTINGS.theme) === "stainedGlass"
+            || document.body.classList.contains("drpg-theme-stained-glass");
+    } catch {
+        return document.body.classList.contains("drpg-theme-stained-glass");
+    }
+}
 
 /**
  * Which token each type borrows. Same assignments the `.drpg-tb-badge.type.*`
@@ -53,7 +77,35 @@ const FALLBACK = 0x8a8296;   // --drpg-dim, for a type nobody has named yet
 
 export function registerRemnantRings() {
     Hooks.on("refreshToken", token => paint(token));
-    Hooks.on("canvasReady", () => repaintAll());
+    Hooks.on("canvasReady", () => { ringZoom = 0; repaintAll(); });
+
+    /* A SEAM HOLDS ONE WEIGHT WHILE THE MAP IS ZOOMED, and nothing else here would
+       redraw it: `refreshToken` fires when a token moves or changes, never when the
+       view does. The ring is drawn in scene units, so without this it would fatten as
+       you zoom in and vanish as you zoom out - the opposite of what quoting the curtain
+       means. Same guard as `rezoomRoomOutline`: a fifth of a zoom step, never on a plain
+       pan. Legacy's pixel frame is a statement about the token's own 12-cell grid and
+       holds still, so it is not redrawn at all. */
+    Hooks.on("canvasPan", () => {
+        if (!glassOn()) return;
+        const zoom = canvas?.stage?.scale?.x;
+        if (!Number.isFinite(zoom) || zoom <= 0.05) return;
+        if (ringZoom && Math.abs(Math.log(zoom / ringZoom)) < 0.18) return;
+        ringZoom = zoom;
+        repaintAll();
+    });
+
+    /* The theme itself, and the hour with it. The two themes draw different rings, so a
+       switch is a redraw rather than a re-tint. Same observer and the same 60 ms settle
+       fog.mjs uses for the room outline, for the reason written out there: the attribute
+       changing IS the colour changing, with nothing in between to get the order wrong. */
+    let themeTimer = 0;
+    new MutationObserver(() => {
+        clearTimeout(themeTimer);
+        themeTimer = setTimeout(() => {
+            try { repaintAll(); } catch (err) { debug("Could not repaint the Remnant rings", err); }
+        }, 60);
+    }).observe(document.body, { attributes: true, attributeFilter: ["class", "data-drpg-phase", "data-drpg-time"] });
     Hooks.on("updateToken", (doc, changes) => {
         // A type change has to redraw immediately; a move does not, because the
         // refresh that follows it already will.
@@ -337,6 +389,29 @@ function repaintAll() {
 }
 
 /**
+ * The ring's two pieces, made once and kept.
+ *
+ * A Graphics was enough while the ring was four filled bars; the seam needs a second one
+ * under an additive blend and a blur, and those belong to a display object rather than to a
+ * draw call. Both are cleared and redrawn on every refresh, exactly as the single Graphics
+ * was - what is NOT rebuilt is the container, the blend mode and the filter, none of which a
+ * token taking a step has any reason to allocate again.
+ */
+function ringParts(token) {
+    let group = token[RING_NAME];
+    if (!group || group.destroyed) {
+        group = token.addChild(new PIXI.Container());
+        group.name = RING_NAME;
+        const halo = new PIXI.Graphics();
+        halo.name = RING_GLOW_NAME;
+        halo.blendMode = PIXI.BLEND_MODES?.ADD ?? 1;
+        group.addChild(halo, new PIXI.Graphics());
+        token[RING_NAME] = group;
+    }
+    return { group, halo: group.children[0], core: group.children[1] };
+}
+
+/**
  * Draw, update or remove one token's ring.
  *
  * Everything is rebuilt each refresh rather than cached: a token that changes
@@ -352,7 +427,7 @@ function paint(token) {
 
         if (!isRemnant) {
             if (existing) {
-                existing.destroy();
+                existing.destroy({ children: true });
                 token[RING_NAME] = null;
             }
             return;
@@ -371,27 +446,77 @@ function paint(token) {
             return;
         }
 
-        const ring = existing ?? token.addChild(new PIXI.Graphics());
-        token[RING_NAME] = ring;
-        ring.visible = true;
-        ring.clear();
+        const { group, halo, core } = ringParts(token);
+        group.visible = true;
+        core.clear();
+        halo.clear();
 
         const w = Math.round(token.w ?? token.document.width * (canvas.grid?.size ?? 100));
         const h = Math.round(token.h ?? token.document.height * (canvas.grid?.size ?? 100));
+        const colour = colourOf(type);
 
-        // A square pixel frame: four filled bars on integer coordinates, one
-        // cell of the sprite's own 12-cell grid thick - hard edges, no
-        // antialiased stroke. A reinforced trace cannot be cleaned up, so it
-        // gets the heavier frame (two cells) - the one distinction a GM acts
-        // on without opening anything.
-        const cell = Math.max(1, Math.round(Math.min(w, h) / 12));
-        const t = (reinforced ? 2 : 1) * cell;
-        ring.beginFill(colourOf(type), 0.95);
-        ring.drawRect(0, 0, w, t);
-        ring.drawRect(0, h - t, w, t);
-        ring.drawRect(0, t, t, h - 2 * t);
-        ring.drawRect(w - t, t, t, h - 2 * t);
-        ring.endFill();
+        if (!glassOn()) {
+            halo.visible = false;
+            // A square pixel frame: four filled bars on integer coordinates, one
+            // cell of the sprite's own 12-cell grid thick - hard edges, no
+            // antialiased stroke. A reinforced trace cannot be cleaned up, so it
+            // gets the heavier frame (two cells) - the one distinction a GM acts
+            // on without opening anything.
+            const cell = Math.max(1, Math.round(Math.min(w, h) / 12));
+            const t = (reinforced ? 2 : 1) * cell;
+            core.beginFill(colour, 0.95);
+            core.drawRect(0, 0, w, t);
+            core.drawRect(0, h - t, w, t);
+            core.drawRect(0, t, t, h - 2 * t);
+            core.drawRect(w - t, t, t, h - 2 * t);
+            core.endFill();
+            return;
+        }
+
+        /*
+         * UNDER STAINED GLASS THE FRAME IS A SEAM, AND IT IS THE SAME SEAM AS THE ROOM'S.
+         *
+         * The pixel frame above is Dawid's decision of 26.08 and Monokuma Legacy keeps it to
+         * the pixel - four filled bars a twelfth of the token thick, which at grid 100 is an
+         * 8 px slab. This theme asks the opposite of the same marker: not a sprite outline but
+         * a join between two pieces of glass, which is a hairline core carrying a wide, faint
+         * light. The numbers are the curtain's, taken off `flashOutline` rather than invented a
+         * second time: `seamWidth()` for the core, three additive passes at 2.6 / 1.8 / 1.2
+         * times it at alpha 0.46 / 0.50 / 0.58, and a blur six times the core in SCREEN pixels,
+         * so the light weighs the same at any zoom exactly as it does on the curtain.
+         *
+         * THE COLOUR IS STILL THE TYPE'S. What changes is the material, not the meaning - a ring
+         * says what the trace is, and the room border beside it says the hour. Reading both as
+         * glass is the point; reading them as the same colour would not be.
+         *
+         * THE REINFORCED WEIGHT SURVIVES as a doubled core. It is the one distinction a GM acts
+         * on without opening anything, and at 1 px against 2 px on the display it is still the
+         * difference between a hairline and a line - which is the difference the curtain itself
+         * draws between a seam and a crossing.
+         *
+         * ONE RECTANGLE, FOUR STROKES. Every pass traces the path the core traces, inset by half
+         * the CORE width, so the light straddles the line instead of sitting beside it. Inset by
+         * its own half-width each pass would have drawn four rectangles of four different sizes.
+         */
+        halo.visible = true;
+        const seam = seamWidth() * (reinforced ? 2 : 1);
+        const rect = [seam / 2, seam / 2, Math.max(1, w - seam), Math.max(1, h - seam)];
+        core.lineStyle({ width: seam, color: colour, alpha: 1, cap: "square", join: "miter", miterLimit: 2 });
+        core.drawRect(...rect);
+        for (const [k, alpha] of [[2.6, 0.46], [1.8, 0.50], [1.2, 0.58]]) {
+            halo.lineStyle({ width: seam * k, color: colour, alpha, cap: "round", join: "round" });
+            halo.drawRect(...rect);
+        }
+        const Blur = PIXI.BlurFilter ?? PIXI.filters?.BlurFilter;
+        if (Blur) {
+            /* The filter is kept and retuned rather than rebuilt: `refreshToken` fires on every
+               step a token takes, and a new filter per step is a new shader uniform buffer per
+               step on a scene that can carry a dozen traces. */
+            let filter = halo.filters?.[0];
+            if (!(filter instanceof Blur)) { filter = new Blur(Math.max(6, seam * 6), 3); halo.filters = [filter]; }
+            else filter.blur = Math.max(6, seam * 6);
+            filter.padding = seam * 14;
+        }
     } catch (err) {
         debug("Could not paint a Remnant ring", err);
     }

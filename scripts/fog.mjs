@@ -34,7 +34,7 @@
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
-import { SETTINGS, iAmTheMastermind, isEclipse } from "./settings.mjs";
+import { SETTINGS, getSetting, iAmTheMastermind, isEclipse } from "./settings.mjs";
 import { roomOfToken, boundsOf } from "./movement.mjs";
 import { isMastermind } from "./mastermind.mjs";
 import { isMonokuma } from "./monokuma.mjs";
@@ -263,6 +263,12 @@ export function registerFog() {
      */
     // Started here so it is settled long before any room needs naming.
     ensurePixelFont();
+
+    /* The theme's room outline is a seam, and a seam keeps its weight on the display however
+       far the map is zoomed - so the one thing that has to follow the zoom is re-struck here.
+       `rezoomRoomOutline` is its own guard: it does nothing on a pan, nothing under Legacy,
+       and nothing until the zoom has moved by a fifth. */
+    Hooks.on("canvasPan", () => { try { rezoomRoomOutline(); } catch (err) { debug("Fog: could not restrike the outline", err); } });
 
     Hooks.on("canvasReady", () => {
         step("scene vision mode", () => applySceneVisionMode());
@@ -3459,6 +3465,7 @@ function announceRoom(room) {
 
 const FX_GROUP = "drpgFogFx";
 const OUTLINE_NAME = "drpgRoomOutline";
+const SEAM_GLOW_NAME = "drpgRoomOutlineGlow";
 
 /**
  * The doorway glow, named so it can be found again.
@@ -3563,6 +3570,10 @@ function playDiscoveryAnimation(room, tokenDoc) {
     clearReveals();
 
     const ink = colourOf("--drpg-ink", 0x1a1620);
+    /* THE SAME READING `flashOutline` MAKES, AND FOR THE SAME REASON: the setting first,
+       the class as the fallback. A reveal can be the first thing a session draws. */
+    const glass = getSetting(SETTINGS.theme) === "stainedGlass"
+        || document.body.classList.contains("drpg-theme-stained-glass");
     /* The reveal's own lines take the seam colour too, because `flashOutline` runs INSIDE the
        reveal rather than after it - the file's rule for itself here is one gesture in one
        colour rather than three things taking turns. Left at bone these would be white lines
@@ -3577,6 +3588,27 @@ function playDiscoveryAnimation(room, tokenDoc) {
     const width = Math.max(1, Math.ceil(bounds.w));
     const height = Math.max(1, Math.ceil(bounds.h));
     const resolution = Math.min(1, 1024 / Math.max(width, height));
+
+    /*
+     * A SEAM UNDER STAINED GLASS, THE 26.08 PIXEL LINE UNDER LEGACY.
+     *
+     * `grid * 0.07` is a 7 px bar at grid 100 - the pixel-art register the reveal was drawn
+     * in, and Legacy keeps it. Under this theme the lines are the same thing the room border
+     * and the curtain draw, and they are it exactly: `seamWidth()`, one display pixel, the
+     * same call `flashOutline` makes.
+     *
+     * A TWO-TEXEL FLOOR STOOD HERE AND IT WAS THE BUG (Dawid, 08.09: "wydaja sie za grube").
+     * The lines were baked into a render texture, and a texture whose `resolution` drops to
+     * 0.25 on a wide room cannot carry a line thinner than four scene units - so the floor
+     * was raised to two texels and the line came out at up to five times the border it was
+     * quoting, thickest exactly where the room was biggest. The floor is gone because the
+     * texture is gone: under this theme the lines are STROKED INTO THE SCENE GRAPH under a
+     * mask, like the border, where a hairline is a hairline at any zoom and any room size.
+     */
+    const lineWidth = glass ? seamWidth() : Math.max(2, grid * 0.07);
+    /* The curtain's three glow passes, quoted from `flashOutline`: widths as multiples of
+       the core, and the alphas that go with them. */
+    const GLOW = [[2.6, 0.46], [1.8, 0.50], [1.2, 0.58]];
 
     /*
      * TWO TEXTURES, BOTH THE SIZE OF THE ROOM'S BOUNDING BOX.
@@ -3601,6 +3633,40 @@ function playDiscoveryAnimation(room, tokenDoc) {
     let lineTex = null;
     let fogSprite = null;
     let lineSprite = null;
+    /*
+     * UNDER STAINED GLASS THE LINES ARE GEOMETRY, NOT A TEXTURE.
+     *
+     * Legacy keeps the render texture: its line is a 7 px bar and a bar bakes perfectly.
+     * A seam does not - see the note on `lineWidth` - so this theme strokes the lines
+     * straight into the scene graph and clips them with a MASK of the room's own shape.
+     *
+     * A mask, in a file whose rule is "start from the room's shape and erase". The rule
+     * was written about textures, where erasing is the only clip available; a display
+     * object has a real one. And the reason to want it is not tidiness: a stroked line is
+     * the only kind that can be one display pixel wide whatever the zoom and whatever the
+     * size of the room, which is the whole of what quoting the curtain means here.
+     *
+     * The light is three strokes under a blur - `flashOutline`'s recipe, unchanged. A
+     * single blurred copy of the core stood here first and was invisible: blurring spreads
+     * a hairline's own brightness over twelve pixels and leaves nothing to see. The three
+     * passes exist to give the bloom something to be made of.
+     */
+    let lineLayer = null, lineMask = null, lineCore = null, lineHalo = null;
+    /*
+     * THE SPACES BETWEEN THE LINES ARE PANES, AND A PANE ON THE CURTAIN CARRIES A STAIN.
+     *
+     * One texture per stain colour, because a texture is filled ONCE with one colour and
+     * then cut - the file's one reliable way to keep a shape inside the room (see the note
+     * on the two textures above). Two of them, because the curtain's palette is two:
+     * `STAIN` in glass.mjs, quoted here rather than exported because it lives inside the
+     * curtain's own closure. Each is cut to the bands drawn in its colour, so between them
+     * they paint every stained band and nothing else.
+     */
+    const STAIN = [0x5c1238, 0x142a66];
+    const stains = glass ? STAIN.map(colour => ({
+        colour, scratch: new PIXI.Container(), fill: new PIXI.Graphics(),
+        cut: new PIXI.Graphics(), tex: null, sprite: null
+    })) : [];
 
     try {
         const shapes = regionShapes(region, { x: bounds.x, y: bounds.y });
@@ -3615,33 +3681,80 @@ function playDiscoveryAnimation(room, tokenDoc) {
         // veil it reads as "there is something here", which is the sentence the
         // gesture is trying to say anyway, and the curtain still delivers the
         // room at full colour.
-        fogFill.beginFill(ink, VEIL_ALPHA);
+        /* THE VEIL IS THE CURTAIN'S OWN GLASS UNDER STAINED GLASS, not the sheet's ink.
+           `paintGlass` fills a filler pane with #0c0a14 / #0a0810 before anything else goes
+           on it; ink is a page colour and reads as paint over a map. Legacy keeps ink to the
+           byte. VEIL_ALPHA is unchanged either way - the argument for it (a large room going
+           black reads as the map going out, not as a room opening) has nothing to do with
+           which theme is on. */
+        fogFill.beginFill(glass ? 0x0a0810 : ink, VEIL_ALPHA);
         for (const points of shapes) fogFill.drawPolygon(points);
         fogFill.endFill();
         fogCut.blendMode = PIXI.BLEND_MODES.ERASE;
         fogScratch.addChild(fogFill, fogCut);
 
-        lineFill.beginFill(bone, 1);
-        for (const points of shapes) lineFill.drawPolygon(points);
-        lineFill.endFill();
-        lineCut.blendMode = PIXI.BLEND_MODES.ERASE;
-        lineScratch.addChild(lineFill, lineCut);
+        if (!glass) {
+            lineFill.beginFill(bone, 1);
+            for (const points of shapes) lineFill.drawPolygon(points);
+            lineFill.endFill();
+            lineCut.blendMode = PIXI.BLEND_MODES.ERASE;
+            lineScratch.addChild(lineFill, lineCut);
+        }
+
+        for (const stain of stains) {
+            /* 0.60 is the curtain's own alpha for a stained pane (`paintGlass`). The band is
+               laid over the veil exactly as the curtain lays its stain over black glass. */
+            stain.fill.beginFill(stain.colour, 0.6);
+            for (const points of shapes) stain.fill.drawPolygon(points);
+            stain.fill.endFill();
+            stain.cut.blendMode = PIXI.BLEND_MODES.ERASE;
+            stain.scratch.addChild(stain.fill, stain.cut);
+        }
 
         fogTex = PIXI.RenderTexture.create({ width, height, resolution });
-        lineTex = PIXI.RenderTexture.create({ width, height, resolution });
+        if (!glass) lineTex = PIXI.RenderTexture.create({ width, height, resolution });
+        for (const stain of stains) stain.tex = PIXI.RenderTexture.create({ width, height, resolution });
 
         fogSprite = new PIXI.Sprite(fogTex);
-        lineSprite = new PIXI.Sprite(lineTex);
-        for (const sprite of [fogSprite, lineSprite]) {
-            sprite.position.set(bounds.x - rect.x, bounds.y - rect.y);
+        if (lineTex) lineSprite = new PIXI.Sprite(lineTex);
+        for (const stain of stains) stain.sprite = new PIXI.Sprite(stain.tex);
+        if (glass) {
+            lineLayer = new PIXI.Container();
+            lineMask = new PIXI.Graphics();
+            lineMask.beginFill(0xffffff, 1);
+            for (const points of shapes) lineMask.drawPolygon(points);
+            lineMask.endFill();
+            lineHalo = new PIXI.Graphics();
+            lineHalo.blendMode = PIXI.BLEND_MODES?.ADD ?? 1;
+            /* The room border's own bloom, to the number: a blur six times the core, in
+               screen pixels, so the light weighs the same at any zoom. */
+            const Blur = PIXI.BlurFilter ?? PIXI.filters?.BlurFilter;
+            if (Blur) {
+                const filter = new Blur(Math.max(6, lineWidth * 6), 3);
+                filter.padding = Math.max(14, lineWidth * 14);
+                lineHalo.filters = [filter];
+            }
+            lineCore = new PIXI.Graphics();
+            /* The mask is a CHILD of what it masks: PIXI only honours a mask that is in the
+               scene graph, and this way it moves and dies with the layer. */
+            lineLayer.addChild(lineMask, lineHalo, lineCore);
+            lineLayer.mask = lineMask;
         }
-        fx.addChild(fogSprite, lineSprite);
+        for (const node of [fogSprite, lineSprite, lineLayer, ...stains.map(s => s.sprite)]) {
+            if (node) node.position.set(bounds.x - rect.x, bounds.y - rect.y);
+        }
+        /* Order is the curtain's: glass, then the colour in it, then the seam and its light
+           on top - the one thing that must stay a hard edge. */
+        fx.addChild(fogSprite, ...stains.map(s => s.sprite));
+        fx.addChild(lineLayer ?? lineSprite);
     } catch (err) {
         debug("Fog: could not set up the reveal", err);
         fogScratch.destroy({ children: true });
         lineScratch.destroy({ children: true });
-        for (const texture of [fogTex, lineTex]) if (texture && !texture.destroyed) texture.destroy(true);
-        for (const sprite of [fogSprite, lineSprite]) if (sprite && !sprite.destroyed) sprite.destroy();
+        for (const stain of stains) stain.scratch.destroy({ children: true });
+        for (const texture of [fogTex, lineTex, ...stains.map(s => s.tex)]) if (texture && !texture.destroyed) texture.destroy(true);
+        for (const sprite of [fogSprite, lineSprite, ...stains.map(s => s.sprite)]) if (sprite && !sprite.destroyed) sprite.destroy();
+        if (lineLayer && !lineLayer.destroyed) lineLayer.destroy({ children: true });
         flashOutline(fx, region, rect);
         return;
     }
@@ -3653,8 +3766,6 @@ function playDiscoveryAnimation(room, tokenDoc) {
     const cMid = cMax / 2;
     const cLow = -cMax;
     const cHigh = cMax * 2;
-    const lineWidth = Math.max(2, grid * 0.07);
-
     /*
      * THE LINES ARE PAIRED ABOUT THE MIDDLE, AND THAT IS THE WHOLE TRICK.
      *
@@ -3682,6 +3793,47 @@ function playDiscoveryAnimation(room, tokenDoc) {
     const tMin = -height;
     const tMax = height * 2;
 
+    /*
+     * WHICH BANDS ARE STAINED, AND IN WHICH COLOUR - settled before anything moves.
+     *
+     * A band keeps its colour for the whole reveal. The lines slide apart and never cross,
+     * so band `i` is always the gap between line `i-1` and line `i`; deciding the colour per
+     * frame would make the room flicker through the palette instead of opening.
+     *
+     * ONE BAND IN THREE, where the curtain stains about one filler pane in five
+     * (`hsh > 0.72` in `paintGlass`). There are seven to twenty-seven bands here against a
+     * hundred-odd panes there, and at one in five a small room drew none at all - a rule
+     * that silently does nothing on half the rooms is not the rule the curtain follows.
+     * Seeded from the room's name, so a room breathes the same colours every time.
+     */
+    const seed = [...room].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) % 100000, 7);
+    const bandStain = new Array(lines + 1);
+    for (let i = 0; i <= lines; i++) {
+        const x = Math.sin((i + 1) * 12.9898 + seed) * 43758.5453;
+        const h = x - Math.floor(x);
+        bandStain[i] = h > 0.66 ? (h > 0.83 ? 1 : 0) : -1;
+    }
+
+    /*
+     * THE CURTAIN'S PULSE, SHAPE FOR SHAPE.
+     *
+     * `pulseFrame` in glass.mjs runs every pane on `0.5 - 0.5 * cos(t * omega + phase)` at a
+     * period of nine to sixteen seconds - `v` is 0 with the pane lit and 1 with it dark. The
+     * three layers here take three periods out of that range and three phases off the room's
+     * seed, so the glass breathes against itself instead of blinking as one sheet.
+     *
+     * SHALLOWER THAN THE CURTAIN'S, deliberately. It darkens black glass towards black; this
+     * is a veil over a lit map, and its 0.72 would put the room out for the length of the
+     * reveal - the same objection VEIL_ALPHA is already there to answer.
+     *
+     * IT FOLLOWS THE PULSE SWITCH. A browser that asked the glass to stop breathing did not
+     * ask this one thing to carry on; `drpg-no-pulse` is the class settings.mjs writes for it.
+     */
+    const breathing = glass && !document.body.classList.contains("drpg-no-pulse");
+    const phase = (seed % 628) / 100;
+    const wave = (ms, period, offset) =>
+        0.5 - 0.5 * Math.cos(ms / 1000 * (2 * Math.PI / period) + phase + offset);
+
     // Phase boundaries as fractions of the whole run.
     const slashEnd = REVEAL_SLASH_MS / DISCOVERY_MS;
     const holdEnd = (REVEAL_SLASH_MS + REVEAL_HOLD_MS) / DISCOVERY_MS;
@@ -3694,15 +3846,24 @@ function playDiscoveryAnimation(room, tokenDoc) {
     const done = () => {
         fogScratch.destroy({ children: true });
         lineScratch.destroy({ children: true });
-        for (const sprite of [fogSprite, lineSprite]) if (sprite && !sprite.destroyed) sprite.destroy();
-        for (const texture of [fogTex, lineTex]) if (texture && !texture.destroyed) texture.destroy(true);
+        for (const stain of stains) stain.scratch.destroy({ children: true });
+        if (lineLayer && !lineLayer.destroyed) lineLayer.destroy({ children: true });
+        /* Sprites first, textures after: a texture freed while a sprite still holds it is a
+           sprite drawing from nothing. */
+        for (const sprite of [fogSprite, lineSprite, ...stains.map(s => s.sprite)]) {
+            if (sprite && !sprite.destroyed) sprite.destroy();
+        }
+        for (const texture of [fogTex, lineTex, ...stains.map(s => s.tex)]) {
+            if (texture && !texture.destroyed) texture.destroy(true);
+        }
     };
 
     const animation = CanvasAnimation.animate([{ parent: state, attribute: "t", to: 1 }], {
         duration: DISCOVERY_MS,
         ontick: () => {
-            if (!fogSprite || fogSprite.destroyed || !lineSprite || lineSprite.destroyed) return;
-            if (!fogTex || fogTex.destroyed || !lineTex || lineTex.destroyed) return;
+            if (!fogSprite || fogSprite.destroyed || !fogTex || fogTex.destroyed) return;
+            if (glass) { if (!lineLayer || lineLayer.destroyed) return; }
+            else if (!lineSprite || lineSprite.destroyed || !lineTex || lineTex.destroyed) return;
 
             const t = state.t;
             let opening = 0;                    // half-width of the opened band
@@ -3798,35 +3959,108 @@ function playDiscoveryAnimation(room, tokenDoc) {
                 fogCut.endFill();
             }
 
-            // The lines: a room-shaped sheet of white with the gaps taken out.
-            lineCut.clear();
-            lineCut.beginFill(0xffffff, 1);
-
-            // Everything between the lines goes.
             const sorted = at.slice().sort((a, b) => a - b);
-            let edge = cLow;
-            for (const c of sorted) {
-                const from = c - lineWidth / 2;
-                if (from > edge) lineCut.drawPolygon(bandQuad(edge, from, tMin, tMax));
-                edge = c + lineWidth / 2;
-            }
-            lineCut.drawPolygon(bandQuad(edge, cHigh, tMin, tMax));
 
-            // And whatever falls outside each line's own stretch - above its
-            // leading end, and below the end still trailing it.
-            for (let i = 0; i < lines; i++) {
-                const x = at[i] - lineWidth;
-                const w = lineWidth * 3;
-                if (top[i] > tMin) lineCut.drawRect(x, tMin, w, top[i] - tMin);
-                if (bottom[i] < tMax) lineCut.drawRect(x, bottom[i], w, tMax - bottom[i]);
+            if (glass) {
+                /*
+                 * STROKED, AND AT THE SEAM'S OWN WIDTH READ FRESH EACH FRAME.
+                 *
+                 * `seamWidth()` is one display pixel expressed in scene units, so it moves
+                 * with the zoom - and a viewer who scrolls the map mid-reveal should see the
+                 * same hairline they saw before, exactly as the room border does through
+                 * `rezoomRoomOutline`. The light is the border's three passes under the
+                 * blur set up above, on the same paths as the core.
+                 */
+                const w = seamWidth();
+                lineCore.clear();
+                lineHalo.clear();
+                for (let i = 0; i < lines; i++) {
+                    if (bottom[i] <= top[i]) continue;
+                    for (const [k, alpha] of GLOW) {
+                        lineHalo.lineStyle({ width: w * k, color: bone, alpha, cap: "round" });
+                        lineHalo.moveTo(at[i], top[i]);
+                        lineHalo.lineTo(at[i], bottom[i]);
+                    }
+                    lineCore.lineStyle({ width: w, color: bone, alpha: 1, cap: "square" });
+                    lineCore.moveTo(at[i], top[i]);
+                    lineCore.lineTo(at[i], bottom[i]);
+                }
+            } else {
+                // The lines: a room-shaped sheet of white with the gaps taken out.
+                lineCut.clear();
+                lineCut.beginFill(0xffffff, 1);
+
+                // Everything between the lines goes.
+                let edge = cLow;
+                for (const c of sorted) {
+                    const from = c - lineWidth / 2;
+                    if (from > edge) lineCut.drawPolygon(bandQuad(edge, from, tMin, tMax));
+                    edge = c + lineWidth / 2;
+                }
+                lineCut.drawPolygon(bandQuad(edge, cHigh, tMin, tMax));
+
+                // And whatever falls outside each line's own stretch - above its
+                // leading end, and below the end still trailing it.
+                for (let i = 0; i < lines; i++) {
+                    const x = at[i] - lineWidth;
+                    const w = lineWidth * 3;
+                    if (top[i] > tMin) lineCut.drawRect(x, tMin, w, top[i] - tMin);
+                    if (bottom[i] < tMax) lineCut.drawRect(x, bottom[i], w, tMax - bottom[i]);
+                }
+                lineCut.endFill();
             }
-            lineCut.endFill();
+
+            /*
+             * THE STAINED BANDS: each texture is a room-shaped sheet in its own colour, and
+             * everything that is not one of ITS bands is erased. Same fill-and-cut the fog
+             * and the lines use, and for the same reason - it is the one way in this file to
+             * keep a shape inside the walls.
+             *
+             * The opening goes with it. A band the curtain has already drawn back is not
+             * glass any more, and leaving the colour there would paint a lid over the room
+             * the reveal has just opened.
+             */
+            for (let s = 0; s < stains.length; s++) {
+                const cut = stains[s].cut;
+                cut.clear();
+                cut.beginFill(0xffffff, 1);
+                let kept = cLow;
+                for (let i = 0; i <= lines; i++) {
+                    if (bandStain[i] !== s) continue;
+                    const from = i === 0 ? cLow : sorted[i - 1] + lineWidth / 2;
+                    const to = i === lines ? cHigh : sorted[i] - lineWidth / 2;
+                    if (to <= from) continue;
+                    if (from > kept) cut.drawPolygon(bandQuad(kept, from, tMin, tMax));
+                    kept = Math.max(kept, to);
+                }
+                if (kept < cHigh) cut.drawPolygon(bandQuad(kept, cHigh, tMin, tMax));
+                if (opening > 0) cut.drawPolygon(bandQuad(cMid - opening, cMid + opening, tMin, tMax));
+                cut.endFill();
+            }
 
             // The lines bow out over the last third rather than snapping off.
-            lineSprite.alpha = clamp01((1 - t) / 0.3);
+            const fade = clamp01((1 - t) / 0.3);
+            if (glass) lineLayer.alpha = fade;
+            else lineSprite.alpha = fade;
+            if (breathing) {
+                const ms = t * DISCOVERY_MS;
+                // 13 s for the glass, 9 and 16 for the two stains: the curtain's own range.
+                fogSprite.alpha = 0.82 + 0.18 * wave(ms, 13, 0);
+                for (let s = 0; s < stains.length; s++) {
+                    const sprite = stains[s].sprite;
+                    if (!sprite || sprite.destroyed) continue;
+                    sprite.alpha = 0.55 + 0.45 * (1 - wave(ms, s ? 16 : 9, s * 2.1));
+                }
+            }
 
             renderer.render(fogScratch, { renderTexture: fogTex, clear: true });
-            renderer.render(lineScratch, { renderTexture: lineTex, clear: true });
+            for (const stain of stains) {
+                if (stain.tex && !stain.tex.destroyed) {
+                    renderer.render(stain.scratch, { renderTexture: stain.tex, clear: true });
+                }
+            }
+            // Under Stained Glass the lines are in the scene graph and need no render pass.
+            if (lineTex && !lineTex.destroyed) renderer.render(lineScratch, { renderTexture: lineTex, clear: true });
         }
     });
 
@@ -3852,7 +4086,17 @@ function flashOutline(fx, region, rect) {
 
     // Under the Stained Glass theme the line is a seam: the state colour, the one the curtain's
     // seams wear right now. Bone otherwise, as it always was. See `outlineColour`.
-    const glass = document.body.classList.contains("drpg-theme-stained-glass");
+    /* THE SETTING, NOT THE CLASS ON THE BODY.
+       `applyTheme()` puts `drpg-theme-stained-glass` on `<body>` at ready, and the first room
+       outline of a session is drawn while the scene is still coming up - before that class
+       lands. Reading the class meant the outline took the Legacy branch (the thick pixel-art
+       stroke, no seam glow) and then stood there unchanged for the rest of the session,
+       because nothing redraws an outline that is already correct for the room you are in.
+       That is why the border looked untouched after two rounds of changing it (Dawid, 07.09).
+       The client setting is readable the moment settings are registered, which is earlier
+       than any of this; the class stays as the fallback for a client mid-switch. */
+    const glass = getSetting(SETTINGS.theme) === "stainedGlass"
+        || document.body.classList.contains("drpg-theme-stained-glass");
     const bone = outlineColour();
     const grid = canvas?.grid?.size ?? 100;
     const bounds = boundsOf(region);
@@ -3901,12 +4145,31 @@ function flashOutline(fx, region, rect) {
      * which is the opposite of a seam. The ratio is what carries the look, and it
      * stays near 1.6 against Legacy's 1.45.
      */
-    const boneWidth = glass
-        ? Math.max(4, Math.round(grid * 0.055))
-        : Math.max(7, Math.round(grid * 0.11));
-    const inkWidth = boneWidth + (glass
-        ? Math.max(3, Math.round(grid * 0.035))
-        : Math.max(4, Math.round(grid * 0.05)));
+    /* A SEAM IS THIN, AND 1.2.41 FIRST MADE IT THICKER BY ACCIDENT.
+       Adding the glow without touching the line gave the border more total weight, not less,
+       which is the opposite of the curtain it is supposed to quote: there the seam is a
+       hairline core carrying a wide, faint light. So the coloured line halves again (grid 100:
+       6 px to 3 px) and the keyline with it, and the light below does the work of being seen. */
+/* THE CURTAIN'S OWN NUMBERS, TAKEN OFF THE CURTAIN.
+       Two rounds of "thinner" still did not look like a seam, so this stopped guessing and
+       read `curtainPaint`: the seam there is a 1.2 px core in screen pixels carrying three
+       BLURRED additive passes at 2.6 / 1.8 / 1.2 px and alpha 0.46 / 0.50 / 0.58. Two things
+       follow that the outline was getting wrong. The core is far thinner than anything tried
+       here - at a play zoom of 0.4 a 3 px scene line is already 1.2 px on screen, and the
+       glass line was double that. And there is NO dark keyline anywhere in a seam: the
+       curtain's light sits straight on the glass, so an ink line under it is what made the
+       border read as a drawn edge rather than a join between two pieces of glass.
+       Legacy is not touched by any of this: its own branch is the 26.08 pixel-art stroke,
+       `max(7, grid * 0.11)` of bone over `+ max(4, grid * 0.05)` of ink, to the pixel. */
+    /* AND IT IS MEASURED IN SCREEN PIXELS, WHICH IS WHY THE GRID CANNOT SET IT.
+       The curtain's seam is 1.2 px on the display and stays 1.2 px however far the map is
+       zoomed - it is drawn on a screen-space canvas. This is drawn in SCENE units, so the
+       same seam has to be divided by the zoom, and the grid has nothing to do with it: at
+       grid 20 a grid-relative hairline came out at 0.7 px on screen and vanished, at grid
+       150 the same rule drew 2 px of line and Dawid called it thick. Both were the same
+       formula asking the wrong question. Re-struck on zoom (see `rezoomRoomOutline`). */
+    const boneWidth = glass ? seamWidth() : Math.max(7, Math.round(grid * 0.11));
+    const inkWidth = glass ? 0 : boneWidth + Math.max(4, Math.round(grid * 0.05));
     /*
      * THE STUB FLOOR IS NOT A LINE WIDTH, SO IT DOES NOT FOLLOW ONE.
      *
@@ -3921,7 +4184,7 @@ function flashOutline(fx, region, rect) {
     // Measured off the WIDER pass, and used by both: the gaps have to clear
     // the ink, and a bone line cut back to a different margin would poke out
     // past the keyline at every opening.
-    const gapPad = grid * 0.05 + inkWidth / 2;
+    const gapPad = grid * 0.05 + (inkWidth || Math.max(7, Math.round(grid * 0.11))) / 2;
 
     const outline = new PIXI.Graphics();
     /*
@@ -3953,16 +4216,21 @@ function flashOutline(fx, region, rect) {
         else traceRegionPathsAt(outline, region, rect);
     };
 
-    stroke(inkWidth, colourOf("--drpg-ink", 0x1a1620));
-    trace();
+    if (inkWidth) { stroke(inkWidth, colourOf("--drpg-ink", 0x1a1620)); trace(); }
     stroke(boneWidth, bone);
     trace();
 
     // Sized from the grid rather than fixed. A flat 28px in scene units is
     // eleven pixels on screen at a zoom of 0.4, which is where this label spent
     // its life being unreadable.
+    /* THE THEME'S OWN FACE, AND NOT THE ONE MONOKUMA LEGACY USES.
+       The room's name is drawn on the canvas by PIXI, not by the sheet, so it never saw the
+       theme's typography and both themes showed the same five-pixel DRPG Pixel. Under Stained
+       Glass a room's name is exactly what the audit page reserves the title face for - "tam,
+       gdzie jest nazwa rzeczy" - so it takes Special Elite, with the same fallbacks the CSS
+       has. Legacy keeps the pixel face to the letter. */
     const label = new PIXI.Text(region.name, {
-        fontFamily: "DRPG Pixel, monospace",
+        fontFamily: glass ? '"Special Elite", "Courier New", monospace' : "DRPG Pixel, monospace",
         fontSize: Math.max(28, Math.round(grid * 1.1)),
         fill: bone,
         stroke: colourOf("--drpg-ink", 0x1a1620),
@@ -3982,6 +4250,60 @@ function flashOutline(fx, region, rect) {
         label.position.set(bounds.x - rect.x + bounds.w / 2, bounds.y - rect.y + bounds.h / 2);
     }
 
+    /*
+     * THE SEAM'S LIGHT, AND ONLY UNDER STAINED GLASS.
+     *
+     * The curtain draws every seam as a thin core sitting inside an additive airbrush at
+     * two radii, which is why its crossings glow brighter than the runs between them. The
+     * room border already wore the seam's colour and the seam's thickness and was the one
+     * place that had the core without the light (Dawid, 2026-09-07).
+     *
+     * ITS OWN CONTAINER, because a blend mode belongs to a display object and the ink
+     * keyline underneath must stay opaque - additive ink is no ink at all, and the border
+     * would dissolve over a bright floor, which is exactly what the keyline exists to stop.
+     * Round caps and joins here rather than the line's square/miter: this pass is light,
+     * not a sprite edge, and a mitred spike in an additive layer reads as a flare.
+     *
+     * Drawn on the SAME gapped path, so a doorway stays dark in the glow too. Anything
+     * else would paint a lid of light across the opening.
+     */
+    if (glass) {
+        const halo = new PIXI.Graphics();
+        /* NAMED, because it has to be told apart from the outline itself. The glow strokes the
+           same path four to seven times wider, so anything that measures "the outline" by
+           picking the group's first Graphics would measure the light instead - which is what
+           the stub test did the moment this was added. */
+        halo.name = SEAM_GLOW_NAME;
+        halo.blendMode = PIXI.BLEND_MODES?.ADD ?? 1;
+        halo.eventMode = "none";
+        const pass = (width, alpha) => {
+            halo.lineStyle({ width, color: bone, alpha, cap: "round", join: "round" });
+            if (edges.length) traceOutlineGapped(halo, edges, rect, gapPad, stubFloor);
+            else traceRegionPathsAt(halo, region, rect);
+        };
+        /* THE CURTAIN'S THREE PASSES, AND THE BLUR THAT MAKES THEM A BLOOM.
+           These were hard-edged strokes seven and three times the line's width, which is a
+           pair of wide flat bands, not light - "glow jest o wiele sztuczniejszy" (07.09).
+           The curtain blurs each pass by 18 / 7 / 2 screen px; a `BlurFilter` here is in
+           screen pixels too, so the light stays the same weight at any zoom, as it does on
+           the curtain. Alphas are the curtain's, halved: it is compositing over its own dark
+           glass and this sits over a lit floor - but the alphas are the curtain's own now,
+           unchanged, because the point is that it reads as the same material and it was the
+           hard edge, not the brightness, that made it read as paint. */
+        /* THE CURTAIN'S PROPORTIONS, READ OFF IT PROPERLY THIS TIME.
+           Its glow is drawn at HALF resolution and blurred by 9 / 3.5 / 1 of those pixels -
+           18 / 7 / 2 on screen - over strokes of 2.6 / 1.8 / 1.2. So the light is two or three
+           pixels of line under twenty of bloom. This was five times the core wide and blurred
+           by two: a wide flat band, which is why the border still read as thick next to the
+           seams it is quoting. Narrow strokes, a blur six times the core. */
+        pass(boneWidth * 2.6, 0.46);
+        pass(boneWidth * 1.8, 0.50);
+        pass(boneWidth * 1.2, 0.58);
+        const Blur = PIXI.BlurFilter ?? PIXI.filters?.BlurFilter;
+        if (Blur) { const f = new Blur(Math.max(6, boneWidth * 6), 3); f.padding = boneWidth * 14; halo.filters = [f]; }
+        group.addChild(halo);
+    }
+
     group.addChild(outline, label);
     // Under the outline and the name, so neither is softened by it.
     addDoorwayGlow(group, region, edges, rect);
@@ -3991,6 +4313,14 @@ function flashOutline(fx, region, rect) {
 
     roomOutline = {
         group, outline, room: region.name, colour: bone,
+        /* WHICH THEME DREW IT, AND WHAT FROM.
+           Switching theme recoloured the standing outline and nothing else, so the line kept
+           the WIDTH of the theme it was drawn under until the player walked into another
+           room: leave Stained Glass and the hairline seam stayed, arrive in it and the thick
+           pixel-art stroke stayed. Two different borders, each in the wrong theme, which is
+           exactly what Dawid described on 07.09. The three arguments are kept so the outline
+           can simply be drawn again. */
+        glass, fx, region, rect,
         /*
          * RE-STROKE IN A NEW SEAM COLOUR WITHOUT MEASURING THE ROOM AGAIN.
          *
@@ -4004,11 +4334,28 @@ function flashOutline(fx, region, rect) {
         recolour: colour => {
             if (outline.destroyed) return;
             outline.clear();
-            stroke(inkWidth, colourOf("--drpg-ink", 0x1a1620));
+            if (inkWidth) { stroke(inkWidth, colourOf("--drpg-ink", 0x1a1620)); trace(); }
+            stroke(glass ? seamWidth() : boneWidth, colour);
             trace();
-            stroke(boneWidth, colour);
+        },
+        /* Only the theme's seam has a width that depends on the zoom; Legacy's pixel-art
+           stroke is a statement about the grid and holds still, so it has no `rewidth`. */
+        rewidth: glass ? () => {
+            if (outline.destroyed) return;
+            const w = seamWidth();
+            outline.clear();
+            stroke(w, roomOutline?.colour ?? bone);
             trace();
-        }
+            const halo = group.children.find(c => c?.name === SEAM_GLOW_NAME);
+            if (halo && !halo.destroyed) {
+                halo.clear();
+                for (const [k, a] of [[2.6, 0.46], [1.8, 0.50], [1.2, 0.58]]) {
+                    halo.lineStyle({ width: w * k, color: roomOutline?.colour ?? bone, alpha: a, cap: "round", join: "round" });
+                    if (edges.length) traceOutlineGapped(halo, edges, rect, gapPad, stubFloor);
+                    else traceRegionPathsAt(halo, region, rect);
+                }
+            }
+        } : null
     };
 
     /*
@@ -5355,9 +5702,13 @@ function ensurePixelFont() {
     try {
         // Both faces: the module declares latin and latin-ext separately, and
         // `load` resolves for the characters asked about, not for the family.
+        // Special Elite as well as the pixel face: PIXI measures a glyph at draw time and a
+        // face that is not loaded yet is silently swapped for the fallback, once, forever.
         pixelFontReady = Promise.all([
             document.fonts.load('32px "DRPG Pixel"'),
-            document.fonts.load('32px "DRPG Pixel"', "ĄĆĘŁŃÓŚŹŻ")
+            document.fonts.load('32px "DRPG Pixel"', "ĄĆĘŁŃÓŚŹŻ"),
+            document.fonts.load('32px "Special Elite"'),
+            document.fonts.load('32px "Special Elite"', "ĄĆĘŁŃÓŚŹŻ")
         ]).then(() => document.fonts.ready);
     } catch (err) {
         debug("Fog: could not wait for the pixel font", err);
@@ -5437,9 +5788,44 @@ function outlineColour() {
  * because it paints a canvas and needs the target colour at once. This layer is a
  * canvas too, and it turns with the curtain rather than behind it.
  */
+/** The curtain's seam core, 1.3 px on the display, in the scene units this layer draws in.
+    EXPORTED because the Remnant rings are seams too under this theme and must be the same
+    hairline as the room border they stand inside - one number, one home. */
+export function seamWidth() {
+    const zoom = canvas?.stage?.scale?.x;
+    return 1.0 / (Number.isFinite(zoom) && zoom > 0.05 ? zoom : 1);
+}
+
+/* A SEAM HELD AT ONE WEIGHT WHILE THE MAP IS ZOOMED.
+   The line is drawn in scene units, so zooming in would fatten it and zooming out would lose
+   it - and the whole point of quoting the curtain is that its seams are the same hairline at
+   every scale. Foundry fires `canvasPan` for every zoom step, so the outline is re-struck
+   when the zoom has moved enough to be worth a redraw (a fifth), and never on a pan. */
+let outlineZoom = 0;
+export function rezoomRoomOutline() {
+    const standing = roomOutline;
+    if (!standing || standing.group?.destroyed || !standing.rewidth) return;
+    const zoom = canvas?.stage?.scale?.x;
+    if (!Number.isFinite(zoom) || zoom <= 0.05) return;
+    if (outlineZoom && Math.abs(Math.log(zoom / outlineZoom)) < 0.18) return;
+    outlineZoom = zoom;
+    standing.rewidth();
+}
+
 function recolourRoomOutline() {
     const standing = roomOutline;
     if (!standing || standing.group?.destroyed) return;
+
+    /* A THEME CHANGE IS NOT A COLOUR CHANGE. The two themes draw different borders - Legacy
+       the 26.08 pixel-art stroke, Stained Glass the curtain's hairline seam - so when the
+       setting has moved the outline is drawn again from the room it was drawn from, rather
+       than re-tinted. Everything else on this path is still one computed-style read. */
+    const glassNow = getSetting(SETTINGS.theme) === "stainedGlass"
+        || document.body.classList.contains("drpg-theme-stained-glass");
+    if (standing.glass !== glassNow && standing.region && standing.fx && !standing.fx.destroyed) {
+        flashOutline(standing.fx, standing.region, standing.rect);
+        return;
+    }
 
     const colour = outlineColour();
     // By far the commonest case: the body's class list changed for some other reason

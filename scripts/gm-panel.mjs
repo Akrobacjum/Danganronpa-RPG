@@ -162,7 +162,7 @@ const PANEL_SECTIONS = [
             // through this tile.
             { key: "murder", icon: "fa-skull", labelKey: "DRPG.Murder.openTitle",
               disabled: () => isEclipse(), disabledReason: "DRPG.Eclipse.panelLocked",
-              run: () => import("./murder.mjs").then(m => m.openMurderDialog()) },
+              run: () => import("./murder.mjs").then(m => m.openMurderDialog()), gmRoute: true },
             // "A body is discovered" is a button on the dashboard: a GM
             // announces the body while looking at the case, not while deciding
             // which screen to open. Same for the autopsy and the evidence log.
@@ -210,7 +210,7 @@ const PANEL_SECTIONS = [
             // Last in the section and red: it is the only control here that
             // destroys anything, and it destroys a chapter's worth at once.
             { key: "seasonReset", icon: "fa-trash-arrow-up", labelKey: "DRPG.Season.resetTitle",
-              gmRoute: true,
+              gmRoute: true, destructive: true,
               run: () => import("./season-setup.mjs").then(m => m.resetSeason()) }
         ]
     },
@@ -291,7 +291,8 @@ function buildSections() {
                 const blocked = Boolean(item.disabled?.());
                 return `
                 <button type="button" class="drpg-gmp-button${
-                    item.gmRoute ? " drpg-gm-route" : ""}${blocked ? " drpg-disabled" : ""}" data-drpg-run="${item.key}"${
+                    item.gmRoute ? " drpg-gm-route" : ""}${item.destructive ? " drpg-destructive" : ""}${
+                    blocked ? " drpg-disabled" : ""}" data-drpg-run="${item.key}"${
                     blocked ? ` disabled title="${foundry.utils.escapeHTML(game.i18n.localize(item.disabledReason))}"` : ""}>
                     <i class="fa-solid ${item.icon}" inert></i>
                     <span>${game.i18n.localize(item.labelKey)}</span>
@@ -1041,10 +1042,8 @@ function buildPanelContent() {
 
     return `<div class="drpg-gmp-standing">
                 <h3>${foundry.utils.escapeHTML(campaignName(clock))}</h3>
-                <p><strong>${game.i18n.format("DRPG.Hud.chapter", { n: clock.chapter })}
-                   · ${phaseLabel(clock.phase)}
-                   · ${timeOfDayLabel(clock.timeOfDay)}</strong></p>
-                <p>${clockSummary(clock)}</p>
+                <p><strong>${clockSummary(clock)}</strong>
+                   <span class="drpg-gmp-phase">${phaseLabel(clock.phase)}</span></p>
                 ${suggestion}
                 ${table}
             </div>`;

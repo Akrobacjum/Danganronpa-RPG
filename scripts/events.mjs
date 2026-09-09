@@ -276,6 +276,10 @@ function bodyCard(clock) {
 
 /* ---- the panel ------------------------------------------------------------ */
 
+/* The state each card showed last time it was drawn, so a redraw can tell a change
+   from a first sight. Keyed by card kind: two cards never share one. */
+const LAST_SUB = new Map();
+
 function cardElement(card, clock) {
     const el = document.createElement("div");
     el.className = "drpg-event";
@@ -313,7 +317,25 @@ function cardElement(card, clock) {
     };
     add("drpg-event-kicker", kicker(clock));
     add("drpg-event-title", card.title);
+    /*
+     * THE STATE ARRIVES THE WAY THE HOUR DOES.
+     *
+     * The clock slides a new time of day in from the edge of its slot rather than
+     * swapping the word in place, because a label that simply changes is a label
+     * nobody saw change. A trial's state moves faster and matters more - discussion,
+     * debate, an Objection, a rebuttal - and it was the one that swapped silently
+     * (Dawid, 2026-09-07).
+     *
+     * Only when it CHANGES, and only when there was something before it: arriving at
+     * a table where the debate is already running is not a state change, and animating
+     * it on the first draw would announce a moment that has not happened.
+     */
+    const before = LAST_SUB.get(card.kind);
     add("drpg-event-sub", card.sub);
+    if (card.sub && before !== undefined && before !== card.sub) {
+        el.querySelector(".drpg-event-sub")?.classList.add("drpg-event-swap");
+    }
+    LAST_SUB.set(card.kind, card.sub ?? "");
     add("drpg-event-meta", card.meta);
     return el;
 }

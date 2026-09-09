@@ -302,10 +302,6 @@
         "name": "Messenger sounds",
         "hint": "The three sounds the messenger plays - sent, received, a question for the GM. Mutes them on this browser alone; nobody else is affected. This client only."
       },
-      "glassEffects": {
-        "name": "Glass effects",
-        "hint": "The blur behind the glass and the slow pulse of the panes. Off, the curtain is still there but still and flat. This client only."
-      },
       "uiScale": {
         "name": "Interface scale",
         "hint": "One factor on the module's own type and panels, 80% to 140%, on top of the screen's own factor (2560 x 1440 is 100%; a smaller screen draws smaller, down to 70%). The map, Foundry's own windows and the 11px floor are never scaled. This client only."
@@ -861,7 +857,6 @@
       "launcherTooltip": "Settings",
       "legend": "Look",
       "theme": "Theme",
-      "glassEffects": "Glass effects",
       "uiScale": "Interface scale",
       "uiScaleAuto": "This screen ({w} x {h}) is drawn at {auto}% of 1440p on its own; with the slider, {total}%.",
       "pixelFont": "Pixel font",
@@ -1784,8 +1779,8 @@
       "chainedNotice": "Monokuma chained you here. You cannot leave until this time of day ends.",
       "chainedBlocked": "You are chained here until this time of day ends.",
       "sealedBlocked": "{room} is sealed for this time of day. Nobody gets in.",
-      "freeCritTitle": "Free Critical",
-      "freeCritUsed": "{name} takes the action and scores an automatic critical - no roll.",
+      "freeCritTitle": "Loaded Die",
+      "freeCritUsed": "{name} takes the action with one die already set to 12 and throws the other.",
       "grants": {
         "advantage": "advantage",
         "disadvantage": "disadvantage",
@@ -2077,7 +2072,7 @@
       "modeLocked": "Roll privacy is enforced by the module.",
       "reactionLocked": "A statistic rolled on its own is a reaction: it costs nothing and earns nothing. Hope and Despair come from actions.",
       "unlockedByCall": "Unlocked by a Call you paid for.",
-      "freeCritArmed": "Free Critical is armed. One die is set to 12 and the other is thrown - a very high total, and a critical only if that one comes up 12 as well.",
+      "freeCritArmed": "Loaded Die is armed. One die is set to 12 and the other is thrown - a very high total, and a critical only if that one comes up 12 as well.",
       "forcedByCall": "Set by a Call you paid for. It cannot be turned off.",
       "forcedBySituation": "Set by where you are and what you are looking for. It cannot be turned off.",
       "forcedByState": "You are in Breakdown - every roll is at disadvantage until some Sanity comes back. It cannot be turned off.",

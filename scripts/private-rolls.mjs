@@ -19,7 +19,7 @@
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
-import { SETTINGS, incidentParticipants } from "./settings.mjs";
+import { SETTINGS, getSetting, incidentParticipants } from "./settings.mjs";
 import { roomOfActor, occupantsOf } from "./movement.mjs";
 import { gmIds, ownerOf, error, debug, MESSAGE_FLAG } from "./utils.mjs";
 import { play, ENTER, ARRIVE } from "./motion.mjs";
@@ -278,7 +278,21 @@ function markFrame(element) {
     // `light-dark()` for itself instead of getting whatever this browser
     // happened to compute at the moment the card rendered.
     element.style.setProperty("border", "1px solid var(--drpg-window-edge)", "important");
-    element.style.setProperty("border-radius", "4px", "important");
+    /* THE CORNER FOLLOWS THE THEME, and it did not until 09.09. Stained Glass took every
+       rounded corner out in 1.2.41, but this radius is written INLINE and with `!important`
+       (see the note above for why the border has to be), so no rule in the theme could reach
+       it - the audit found seven rounded chat cards on a screen with no other radius on it.
+       Legacy keeps its 4 px.
+
+       THE SETTING, NOT THE CLASS - and the first go used the class and left seven rounded
+       cards on screen. `applyTheme()` puts `drpg-theme-stained-glass` on `<body>` at ready and
+       the chat log renders at ready too, so which of the two lands first is a race. It is the
+       same trap `flashOutline` in fog.mjs has written out at length. */
+    const square = (() => {
+        try { return getSetting(SETTINGS.theme) === "stainedGlass"; }
+        catch { return document.body.classList.contains("drpg-theme-stained-glass"); }
+    })();
+    element.style.setProperty("border-radius", square ? "0px" : "4px", "important");
     return true;
 }
 

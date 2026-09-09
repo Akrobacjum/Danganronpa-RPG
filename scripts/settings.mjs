@@ -55,7 +55,6 @@ export const SETTINGS = {
     hideSystemFear: "hideSystemFear",
     pixelFont: "pixelFont",
     theme: "theme",
-    glassEffects: "glassEffects",
     /** The slow darkening of the glass, separately from the glass itself. */
     glassPulse: "glassPulse",
     uiScale: "uiScale",
@@ -558,16 +557,6 @@ export function registerSettings() {
             monokumaLegacy: "DRPG.Settings.theme.monokumaLegacy"
         },
         default: "stainedGlass",
-        onChange: () => applyTheme()
-    });
-
-    game.settings.register(MODULE_ID, SETTINGS.glassEffects, {
-        name: "DRPG.Settings.glassEffects.name",
-        hint: "DRPG.Settings.glassEffects.hint",
-        scope: "client",
-        config: true,
-        type: Boolean,
-        default: true,
         onChange: () => applyTheme()
     });
 
@@ -1382,10 +1371,37 @@ export function autoScale() {
     const f = Math.min(w / 2560, h / 1440);
     return Math.round(Math.min(1, Math.max(0.7, f)) * 100) / 100;
 }
-/** The factor the theme actually uses: the slider on the screen's own factor. */
+/** The slider on its own, 0.8 to 1.4, with no screen factor in it. */
+export function sliderScale() {
+    return Math.min(1.4, Math.max(0.8, Number(getSetting(SETTINGS.uiScale)) || 1));
+}
+/**
+ * The factor the theme's TYPE uses: the slider, with a gentle screen term under it.
+ *
+ * The two factors were split apart on 07.09 because type on the full `autoScale` was
+ * broken - see the note in `applyTheme`. That fixed the slider and left a new problem,
+ * measured in the 08.09 audit: at 1920 x 1080 the geometry runs at 0.75 and the type at
+ * 1.00, so every box is a quarter smaller with the same words in it. That ratio, and
+ * nothing else, is what cuts the sheet's Actions tab by 151 px, the action tiles' labels,
+ * the item-table names by 22 px and the chat card's header by 47.
+ *
+ * So type takes the screen term back, CLAMPED AT 0.85 rather than following it down to
+ * `autoScale`'s own 0.7 floor. Two reasons for the clamp and both are measured. It gives
+ * back about two thirds of the quarter the boxes lost, which is what the cuts needed. And
+ * it keeps the slider audible: at 1080p the floor runs 14.3 px at 80 % and 25.0 px at
+ * 140 %, where the full screen term would have flattened the low end.
+ *
+ * THE OLD TRAP IS GONE AND IT WAS NOT THIS FACTOR. What killed the slider in 1.2.41 was
+ * the readability floor written `max(1, scale)`, which no multiplier under 1 could reach.
+ * The floor is a plain multiply now (`--drpg-sg-floor` in stained-glass.css), so a screen
+ * term below 1 shrinks it honestly instead of being swallowed.
+ */
+export function typeScale() {
+    return Math.round(sliderScale() * Math.max(0.85, autoScale()) * 100) / 100;
+}
+/** The factor the theme's GEOMETRY uses: the slider on the screen's own factor. */
 export function effectiveScale() {
-    const slider = Math.min(1.4, Math.max(0.8, Number(getSetting(SETTINGS.uiScale)) || 1));
-    return Math.round(slider * autoScale() * 100) / 100;
+    return Math.round(sliderScale() * autoScale() * 100) / 100;
 }
 /* The screen's factor changes when the window does; the theme follows once the resize has
    settled, and only when the factor actually differs. */
@@ -1405,7 +1421,6 @@ export function applyTheme() {
     document.body.classList.toggle("drpg-theme-stained-glass", theme === "stainedGlass");
     document.body.classList.toggle("drpg-theme-monokuma-legacy", theme !== "stainedGlass");
     document.body.classList.toggle("drpg-pixel-font", pixelFontOn());
-    document.body.classList.toggle("drpg-no-glass-effects", getSetting(SETTINGS.glassEffects) === false);
     document.body.classList.toggle("drpg-no-pulse", getSetting(SETTINGS.glassPulse) === false);
     document.body.classList.toggle("drpg-no-ticker", getSetting(SETTINGS.hudTicker) === false);
     document.body.classList.toggle("drpg-reduced-motion", getSetting(SETTINGS.reducedMotion) === true);
@@ -1414,6 +1429,23 @@ export function applyTheme() {
     const total = String(effectiveScale());
     document.body.style.setProperty("--drpg-ui-scale", total);
     document.documentElement.style.setProperty("--drpg-ui-scale", total);
+    /* TYPE DOES NOT SHRINK WITH THE SCREEN, ONLY WITH THE SLIDER.
+       `autoScale` is the screen's short side against 1440p, and it is right for the panes:
+       a 1280 px tablet should not be given a 330 px notice tile. It is wrong for text. On
+       any screen under 1440p it is pinned at its 0.7 floor, so the whole type scale was
+       multiplied by 0.7 before the slider ever touched it - and since the readability floor
+       is written `max(1, scale)`, the slider could not reach it either: 100 % and 140 %
+       measured 18 px on both settings (07.09). The two factors are separate tokens now.
+       Geometry keeps `--drpg-ui-scale`; type reads `typeScale()`, which is the slider on a
+       screen term clamped at 0.85 - see the note there for why the clamp, and why the old
+       trap cannot come back. */
+    document.body.style.setProperty("--drpg-type-scale", String(typeScale()));
+    document.documentElement.style.setProperty("--drpg-type-scale", String(typeScale()));
+    // the windows standing open when the slider moved, which will not render again on their own
+    for (const app of foundry.applications.instances.values()) {
+        const el = app.element instanceof HTMLElement ? app.element : app.element?.[0];
+        if (el) { delete el.dataset.drpgScaled; scaleWindow(app, el); }
+    }
     watchScreen();
     import("./glass.mjs").then(m => m.refreshGlass()).catch(() => {});
     import("./sfx.mjs").then(m => m.renderSoundLauncher?.()).catch(() => {});
@@ -1421,3 +1453,107 @@ export function applyTheme() {
     // rows the Event panel takes over; a switch redraws it so neither lingers.
     if (game.ready) import("./hud.mjs").then(m => m.renderHud?.()).catch(() => {});
 }
+
+/*
+ * THE OTHER THEME'S SWITCHES ARE NOT SHOWN.
+ *
+ * Three of the look settings only exist under Stained Glass - the pulse, the ticker and
+ * reduced motion - and the pixel face only exists under Monokuma Legacy, which has no
+ * second face of its own to swap. Whichever theme is on, the other's switches still sat
+ * in Foundry's settings window looking live, and changing one did nothing.
+ *
+ * HIDDEN, not greyed (Dawid, 08.09). They were greyed here and simply absent from the
+ * Look window, which builds the same switches from the same settings - so the two
+ * windows disagreed about whether a switch existed at all. One of them had to change,
+ * and the Look window is the one a player actually opens. The row is hidden, never
+ * disabled: a disabled field is left out of the form Foundry submits on Save, and a
+ * setting that is merely irrelevant to this theme must keep the value it has.
+ *
+ * Off the SELECT, not the stored setting. Somebody who picks the other theme in this
+ * window has not saved yet, and the switches follow the choice as it is made.
+ */
+/* ==========================================================================
+   A WINDOW IS PART OF THE INTERFACE, SO THE SLIDER MOVES IT TOO
+   ==========================================================================
+   The scale multiplies the theme's own type and block sizes, which is what makes the
+   CONTENTS of a window grow - and for a window that sizes itself to its contents that was
+   the whole job. Sheets and dialogs do not: Foundry writes their width and height in pixels
+   from the class's own defaults, so at 140 % the text grew inside a box that did not, and at
+   80 % nothing moved at all ("zawartosc okien poprawnie sie powieksza, ale same okna juz
+   nie", 07.09). The box is scaled here, once per render, from the size the application asked
+   for rather than from whatever it is now - so re-rendering never compounds it, and a window
+   the user has dragged wider keeps that width until it is rendered again.
+   `auto` is left alone: a window that measures itself is already right. */
+function scaleWindow(app, element) {
+    const el = element instanceof HTMLElement ? element : element?.[0];
+    if (!el || !document.body.classList.contains("drpg-theme-stained-glass")) return;
+    const s = sliderScale();
+    const key = String(s);
+    if (el.dataset.drpgScaled === key) return;
+    el.dataset.drpgScaled = key;
+    const want = { ...(app?.constructor?.DEFAULT_OPTIONS?.position ?? {}), ...(app?.options?.position ?? {}) };
+    let fixed = false;
+    /* THE CHARACTER SHEET HAS A SIZE OF ITS OWN.
+       Daggerheart opens it at 850 x 800, which was right for its own type; at the theme's
+       floor the five-tile action grid does not fit that width and the last column is cut off
+       at the frame (Dawid's screen, 07.09). The theme states the size the sheet is DRAWN for
+       - the audit page's proportions, one grid wide and one deep - and the interface scale
+       multiplies it like everything else, so 140 % opens a bigger sheet rather than the same
+       box with bigger text in it. */
+    if (/actor/i.test(app?.constructor?.name ?? "") || app?.element?.classList?.contains("actor")
+        || app?.document?.documentName === "Actor") {
+        want.width = 1120;
+        /* 1160, NOT 940. Measured on the sheet: the tallest tab wants 820 px of room and was
+           given 607, so the last row of Hope Calls was simply below the fold - the window was
+           sized for the old, smaller type. The extra 213 px is that shortfall. */
+        want.height = 1160;
+        fixed = true;
+    }
+    const size = {};
+    for (const dim of ["width", "height"]) {
+        const n = Number(want[dim]);
+        if (Number.isFinite(n) && n > 0) size[dim] = Math.round(n * s);
+    }
+    /* A window may not be taller than the screen it is on. At 140 % a 1160 px sheet asks for
+       1624, and Foundry will happily place a window whose bottom is off the display. */
+    if (size.height) size.height = Math.min(size.height, Math.round(window.innerHeight - 48));
+    if (size.width) size.width = Math.min(size.width, Math.round(window.innerWidth - 48));
+    /* THE SHEET IS NOT RESIZED BY HAND. Its size is a statement of the theme now - the grids
+       inside it are five tiles wide and the tallest tab is 820 px - so a dragged corner can
+       only cut content off or leave a hole. The handle goes with the ability. */
+    if (fixed && app?.options?.window) {
+        app.options.window.resizable = false;
+        el.querySelector(".window-resize-handle")?.remove();
+    }
+    if (!Object.keys(size).length) return;
+    /* THROUGH `setPosition`, NOT THE ELEMENT'S STYLE. An ApplicationV2 writes its own
+       `position` onto the element after every render, so an inline width set from the render
+       hook was overwritten a moment later and the box never moved at all. Going through the
+       application means the number it will write IS the scaled one, and it stays through the
+       next re-render and through a drag. */
+    if (typeof app.setPosition === "function") app.setPosition(size);
+    else for (const [k, v] of Object.entries(size)) el.style[k] = v + "px";
+}
+Hooks.on("renderApplicationV2", scaleWindow);
+Hooks.on("renderApplication", scaleWindow);
+
+Hooks.on("renderSettingsConfig", (_app, element) => {
+    const root = element instanceof HTMLElement ? element : element?.[0];
+    if (!root) return;
+    const themeField = root.querySelector(`[name="${MODULE_ID}.${SETTINGS.theme}"]`);
+    const show = (key, on) => {
+        const field = root.querySelector(`[name="${MODULE_ID}.${key}"]`);
+        const row = field?.closest(".form-group");
+        /* Inline, not a class: `.form-group` is `display: flex` in Foundry's own sheet,
+           which outranks the `[hidden]` attribute's `display: none`. */
+        if (row) row.style.display = on ? "" : "none";
+    };
+    const sync = () => {
+        const glass = (themeField?.value ?? getSetting(SETTINGS.theme)) === "stainedGlass";
+        for (const key of [SETTINGS.glassPulse, SETTINGS.hudTicker, SETTINGS.reducedMotion])
+            show(key, glass);
+        show(SETTINGS.pixelFont, !glass);
+    };
+    sync();
+    themeField?.addEventListener("change", sync);
+});

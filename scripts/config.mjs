@@ -1730,7 +1730,7 @@ export const HOPE_CALLS = {
         // `grants` stays "critical", because that is the key the roll dialog and
         // the action pipeline recognise THIS Call by; what changes is what it
         // does to the dice.
-        label: "Free Critical", icon: "fa-burst", cost: 6, target: "none", grants: "critical",
+        label: "Loaded Die", icon: "fa-burst", cost: 6, target: "none", grants: "critical",
         effect: "On the next roll one die is set to 12 and the other is thrown. A very high total, and a critical only if that other die comes up 12 too."
     }
 };

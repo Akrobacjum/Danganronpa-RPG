@@ -49,11 +49,54 @@
 
 /* ---- tokens ---------------------------------------------------------------- */
 body.drpg-theme-stained-glass {
-    --drpg-font-chrome: "VT323", "DRPG Pixel", "Courier New", monospace;
-    /* THE FLOOR. 11 px is the smallest the chrome face is ever set at scale 100 %:
-       below it VT323's five-pixel strokes start dropping out on a laptop panel. The
-       interface scale multiplies against it and `max()` keeps the floor honest. */
-    --drpg-sg-floor: 11px;
+    --drpg-font-chrome: "VT323", "Courier New", monospace;
+    /* THE FLOOR, AND IT IS A CAP HEIGHT, NOT A FONT SIZE. VT323's capitals stand
+       0.56 em tall against 0.70 for Special Elite and for Foundry's own Signika
+       (measured off the shipped files), so the same number sets this face a fifth
+       smaller than the interface it sits in. At 11 px that was a 7 px capital: the
+       audit measured 18 strings under 4.5:1 and "MURDER" reading as "NURDER" in the
+       item tables. 14 px is the size at which VT323's capital matches Signika at 11.
+
+       MICRO 5 TRIAL (07.09, Dawid's pick): Micro 5's capital is 0.45 em against VT323's
+       0.56, so the same number would set it a further fifth smaller - a 6 px capital,
+       which is worse than what the floor was raised to cure. 17 px is where Micro 5's
+       capital measures the same 7.8 px VT323 reached at 14. The face is about 4 % narrower
+       per character at a given size, but 17 against 14 still costs roughly 17 % of width,
+       so the fixed columns had to be re-measured with it. RAISED AGAIN TO 20 px (07.09):
+       matching VT323's old capital was not the same as being readable, and Dawid still read
+       the whole module as too small. 20 px puts Micro 5's capital at 9 px, which is above
+       where Foundry's own Signika sits at its default 14.
+       The interface scale multiplies against it and `max()` keeps the floor honest. */
+    /* THE FLOOR SCALES UP, NEVER DOWN, and that is what makes the slider work at all.
+       Written as a constant it swallowed the whole range: every size here is
+       `max(floor, calc(N * scale))`, and with the floor at 20 px no N * 1.4 could reach it,
+       so 140 % and 100 % measured identical on every element (07.09). Multiplying the floor by
+       anything above 1 lets the slider lift the whole interface, while 80 % still cannot take
+       a label under the size it was raised to. */
+/* MICRO 5 AND PIXELIFY SANS WERE TRIED AND SENT BACK (07.09), AND THEIR FACES OUTLIVED THEM.
+   Four `@font-face` blocks and four woff2 files stayed behind after VT323 was chosen, declared
+   and never named by a single rule - 28.5 KB shipped to every player to be ignored. The
+   measurements that decided it are in the type note further down and they stay; the faces go.
+   Same call the audit made about `icons/pixel-sprite.svg`. */
+/* BACK TO VT323 (07.09, after trying Micro 5 and Pixelify Sans in turn).
+       Its capital is 0.56 em against Pixelify's 0.65, so it needs a bigger number for the
+       same letter on screen: 21 px here is the 11.7 px capital Pixelify had at 18. It is
+       also the narrowest of the three, which is what stops a tile's name wrapping.
+       AND IT SCALES BOTH WAYS. `max(1, scale)` meant the slider could only ever make the
+       interface bigger - "pomniejszanie nie dziala" - so the floor is now the slider's own
+       factor, and 80 % is 80 % of it. */
+    --drpg-sg-floor: calc(21px * var(--drpg-sg-scale, 1));
+    /* THE LADDER, AND THE FLOOR IS ITS BOTTOM RUNG RATHER THAN THE WHOLE THING.
+       Every size used to be `max(floor, N px)`, which is a floor doing two jobs: it kept the
+       smallest type readable AND, because the floor was raised to 21, it flattened every role
+       onto one number. Measured 08.09: the window title, the chapter line, a pool's name and
+       an action's name were all 21 px, so the ratio between a NAME and a LABEL was 1.0 - the
+       audit page's "proporcje między tytułem, chrome i prozą nie zmieniają się nigdy" broken
+       in the plainest way. The floor is the chrome rung now and the rest are multiples of it,
+       so the whole ladder moves together with the slider and the proportions are fixed. */
+    --drpg-sg-prose: calc(var(--drpg-sg-floor) * 1.15);
+    --drpg-sg-title: calc(var(--drpg-sg-floor) * 1.35);
+    --drpg-sg-name: calc(var(--drpg-sg-floor) * 1.9);
     --drpg-font-title: "Special Elite", "Courier New", monospace;
     --drpg-font-stamp: "VT323", "Courier New", monospace;
     --drpg-font-prose: "VT323", "Courier New", monospace;
@@ -102,7 +145,98 @@ body.drpg-theme-stained-glass.drpg-eclipse { --drpg-glass-accent: var(--drpg-sg-
    makes the interface bigger and 80 % never takes a label under the floor. The curtain needs
    no special case: the blocks change size, the drift watch sees it, the glass is recut. */
 body.drpg-theme-stained-glass {
-    --drpg-sg-scale: var(--drpg-ui-scale, 1);
+    /* The TYPE factor, which is the slider and nothing else. `--drpg-ui-scale` carries the
+       screen factor as well and still sizes the panes; see applyTheme in settings.mjs. */
+    --drpg-sg-scale: var(--drpg-type-scale, 1);
+}
+
+/* ---- ONE TYPE SCALE, AND EVERY SURFACE IS ON IT ---------------------------
+   "Fonty maja niespojne rozmiary miedzy gm panel, czatem, karta postaci - chcemy by byly
+   spojne i WIEKSZE" (07.09). They were, and measuring said why: the module's own surfaces
+   were on the theme's scale, and everything Foundry or Daggerheart draws was not. A scan of
+   every visible text node found chat timestamps at 11 px in Montserrat, whisper labels at 12
+   in Signika, message senders in Cinzel at 16, and the whole Settings window at 12-14 - four
+   faces and six sizes on one screen, none of them the theme's.
+   None of that is worth fighting selector by selector. Foundry sizes its chrome from
+   `--font-size-8` ... `--font-size-46` and Daggerheart names its three faces in `--dh-font-*`,
+   so the theme redefines the VARIABLES and every rule that reads them follows: no
+   `!important`, no specificity war, and a rule further down this file that wants a different
+   size still gets it. Everything Foundry set below the floor is raised TO the floor - that is
+   what makes the interface uniform - and everything above it keeps its step and takes the
+   interface scale, which is what keeps a heading a heading. */
+body.drpg-theme-stained-glass {
+    --font-size-8: var(--drpg-sg-floor);
+    --font-size-9: var(--drpg-sg-floor);
+    --font-size-10: var(--drpg-sg-floor);
+    --font-size-11: var(--drpg-sg-floor);
+    --font-size-12: var(--drpg-sg-floor);
+    --font-size-13: var(--drpg-sg-floor);
+    --font-size-14: var(--drpg-sg-floor);
+    --font-size-15: var(--drpg-sg-floor);
+    --font-size-16: var(--drpg-sg-floor);
+    --font-size-17: var(--drpg-sg-floor);
+    --font-size-18: var(--drpg-sg-prose);
+    --font-size-19: var(--drpg-sg-prose);
+    --font-size-20: var(--drpg-sg-title);
+    --font-size-22: var(--drpg-sg-title);
+    --font-size-24: var(--drpg-sg-title);
+    --font-size-26: var(--drpg-sg-name);
+    --font-size-28: var(--drpg-sg-name);
+    --font-size-30: var(--drpg-sg-name);
+    --font-size-32: var(--drpg-sg-name);
+    --font-size-36: var(--drpg-sg-name);
+    --font-size-40: var(--drpg-sg-name);
+    --font-size-46: var(--drpg-sg-name);
+
+    /* Daggerheart's three faces, and with them the sender line, the timestamps and the
+       Duality cards, which are drawn by the system and never saw this file. */
+    --dh-font-body: var(--drpg-font-prose);
+    --dh-font-subtitle: var(--drpg-font-title);
+    --dh-font-title: var(--drpg-font-title);
+}
+/* Foundry's own chrome names Signika directly rather than through a variable, and it does it
+   from a cascade layer above this one, so this is the one place the sweep needs `!important`.
+   It is deliberately weak - two classes - so every rule in this file overrides it. */
+body.drpg-theme-stained-glass :where(.application, .dialog, #sidebar, #players, #chat-notifications,
+    #ui-left, #ui-right, #ui-bottom, .drpg-panel, #tooltip, #context-menu, .notification),
+body.drpg-theme-stained-glass :where(.application, .dialog, #sidebar, #players, #chat-notifications,
+    #ui-left, #ui-right, #ui-bottom, .drpg-panel, #tooltip, #context-menu, .notification)
+    /* The two faces are Special Elite for names and VT323 for everything else, and the
+       sweep must not flatten that: a title carrier is named here so it keeps the typewriter.
+       (It cost the Settings window's own title its face the first time round.) */
+    :where(*):not(:where(i, .fa, .fas, .far, .fal, .fab, [class*="fa-"], [class*="icon"],
+        .window-title, .drpg-hud-campaign, .actor-name, .drpg-ultimate-value)) {
+    font-family: var(--drpg-font-prose) !important;
+}
+/* THE LAST FEW THE VARIABLES CANNOT REACH. Each of these is sized in `em` against a parent
+   the theme also sizes, so it comes out a fraction of the floor however the floor is set:
+   the GM panel's footer at 11 px, its campaign heading at 13, the cost stripe on an action
+   at 17. Named here, at the floor, because "spojne" has to mean every label on the screen. */
+body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-gm-panel) :is(h3, .drpg-gmp-version, span, label, button),
+body.drpg-theme-stained-glass .application.sheet.actor .drpg-action-gm {
+    font-size: var(--drpg-sg-floor) !important;
+}
+/* THE COST GOES WITH THE NAME, and this line is why the tile read backwards for two rounds.
+   The cost was pinned to the floor here, when the round was about making every label the same
+   size; the name was pinned a rung UNDER the floor later, when a round was about fitting
+   "CONTRIBUTION" into its tile. Two decisions, each right on its own day, made in different
+   places, and between them the tile said "1 ACTION" louder than it said "SEARCH" (audit,
+   08.09). They are one statement now. Same multiplier as the name, same `!important` - it is
+   overriding the same `span` pin above. */
+body.drpg-theme-stained-glass .application.sheet.actor .drpg-action-cost {
+    font-size: calc(var(--drpg-sg-floor) * 0.85) !important;
+}
+body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-gm-panel) h2 {
+    font-size: var(--drpg-sg-title) !important;
+}
+
+/* and the two places a fixed size survives the variables: Foundry's own hard-coded `pre`
+   and the interface's smallest print, both of which the audit page sets at the floor */
+/* `.hint` and `.notes` are NOT in this list: they are running text and belong on the prose
+   rung (see THE PROSE RUNG at the end of this file). Kept here they were pinned to the chrome
+   floor by an `!important`, which is why a paragraph measured the same as a pool's label. */
+body.drpg-theme-stained-glass :where(pre, code, kbd, samp, time, .count, small) {
+    font-size: var(--drpg-sg-floor) !important;
 }
 
 /* ---- the curtain layer ----------------------------------------------------
@@ -152,14 +286,14 @@ body.drpg-theme-stained-glass #drpg-hud .drpg-hud-campaign {
     text-transform: none;
     letter-spacing: 0;
     font-weight: 400;
-    font-size: max(var(--drpg-sg-floor), calc(18px * var(--drpg-sg-scale)));
+    font-size: var(--drpg-sg-title);
 }
 body.drpg-theme-stained-glass .window-app .window-title,
 body.drpg-theme-stained-glass .application .window-title {
     font-family: var(--drpg-font-title);
     text-transform: none;
     letter-spacing: 0;
-    font-size: max(var(--drpg-sg-floor), calc(21px * var(--drpg-sg-scale)));
+    font-size: var(--drpg-sg-title);
 }
 
 /* ---- Foundry's own tiles, cut like everything else and sitting on the glass --
@@ -415,28 +549,19 @@ body.drpg-theme-stained-glass #pause.paused figcaption::after {
     animation-duration: 16s;
 }
 
-/* ---- Foundry's own windows: calm dark glass, the title in the title face ------------------- */
-body.drpg-theme-stained-glass .application:not(.drpg-panel) .window-content {
-    background: rgba(9, 8, 13, 0.84);
-}
+/* ---- Foundry's own windows: the title in the title face ------------------------------------
+   THE 0.84 GROUND THAT STOOD HERE IS GONE, AND IT HAD NOT PAINTED ANYTHING SINCE 07.09.
+   It was this file's first answer for a window - the audit page's own number for a pane that
+   is not `glassfull`. Dawid's call that day made liquid glass the ground of EVERY window, and
+   that rule (`.application[class] .window-content`, 0.58, `!important`) has the same
+   specificity and comes later, so this one lost every contest it entered. Two statements about
+   the same surface, one of them silent: the audit of 08.09 found it by measuring the pixels
+   rather than reading the file, which is the only way a dead rule is ever found. */
 body.drpg-theme-stained-glass .application:not(.drpg-panel) .window-header {
     background: rgba(5, 4, 9, 0.7);
     border-bottom: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 35%, transparent);
 }
-/* The glass diagnostic is one unbroken line of `key value · key value`, and Foundry sets
-   `white-space: nowrap` on `p code` in its own typography layer. `word-break: break-word`
-   cannot undo a nowrap - the line has no wrap opportunity to take - so the whole Settings
-   window was stretched to the line's 1500 px min-content and everything above it, the
-   interface-scale slider included, was dragged off the right edge and clipped. It wraps here.
-   `anywhere`, not `break-word`: only `anywhere` also shrinks the line's MIN-CONTENT, which is
-   what a `fieldset` (min-inline-size: min-content) actually measures itself from. */
-.drpg-look-report code {
-    font-size: max(var(--drpg-sg-floor), calc(11px * var(--drpg-sg-scale)));
-    opacity: .8;
-    white-space: normal;
-    word-break: normal;
-    overflow-wrap: anywhere;
-}
+
 
 /* ==========================================================================
    Milestone 4: the brush on everything clickable, one field, one table, the
@@ -454,6 +579,7 @@ body.drpg-theme-stained-glass .drpg-panel button:not(.drpg-action-button):not(.d
 body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-button,
 body.drpg-theme-stained-glass .drpg-mini-button,
 body.drpg-theme-stained-glass .drpg-gmt-tabs button,
+body.drpg-theme-stained-glass .application.sheet.actor :is(button, li.inventory-item, nav.tabs > a, .tabs > a):not(:where(.header-control, .drpg-action-button, .drpg-call-button)),
 body.drpg-theme-stained-glass .drpg-messenger button:not(.header-control) {
     --brush: var(--drpg-glass-accent);
     position: relative;
@@ -476,55 +602,82 @@ body.drpg-theme-stained-glass .drpg-panel button:not(.drpg-action-button):not(.d
 body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-button::before,
 body.drpg-theme-stained-glass .drpg-mini-button::before,
 body.drpg-theme-stained-glass .drpg-gmt-tabs button::before,
+body.drpg-theme-stained-glass .application.sheet.actor :is(button, li.inventory-item, nav.tabs > a, .tabs > a):not(:where(.header-control, .drpg-action-button, .drpg-call-button))::before,
 body.drpg-theme-stained-glass .drpg-messenger button:not(.header-control)::before {
     content: "";
     position: absolute;
-    inset: 1px 2px;
+    /* THE AUDIT PAGE'S OWN BRUSH, WHICH IS AN SVG FILTER AND NOT A CSS SHAPE.
+       Two attempts at this went the wrong way entirely: a `clip-path` polygon (straight sides,
+       so a shaved rectangle) and then a mask of soft ellipses (a lozenge). The audit page does
+       something neither can - it takes a plain rectangle and DISPLACES its pixels with
+       fractal noise, `feTurbulence` stretched along x (`baseFrequency="0.02 0.4"`) into
+       `feDisplacementMap scale="16"`. That is what tears the edge into bristle marks instead
+       of smoothing it. The filter is already in the module, injected by `chrome.mjs` as
+       `#drpg-brush` and byte-identical to the audit's; it was simply never used here.
+       `inset: 1px -5px` is the audit's too: the stroke overhangs the ends of its box. */
+    content: "";
+    position: absolute;
+    inset: 1px -5px;
     z-index: -1;
     background: var(--brush);
     opacity: var(--brush-on, 0);
-    filter: brightness(var(--brush-dim, 1));
-    clip-path: polygon(0 12%, 3% 0, 97% 4%, 100% 20%, 99% 88%, 96% 100%, 4% 96%, 0 84%);
+    filter: url(#drpg-brush) brightness(var(--brush-dim, 1));
+    clip-path: none;
     transition: opacity var(--drpg-t-snap, 120ms);
 }
-/* hover: the brush at 45 %, the edge full */
-body.drpg-theme-stained-glass :is(.drpg-panel button, .drpg-gmp-button, .drpg-mini-button, .drpg-gmt-tabs button, .drpg-messenger button):hover:not(:disabled):not(.active) {
-    --brush-on: 0.45;
+/* HOVER IS A WHOLE BRUSH STROKE, NOT A WASH OF ONE.
+   It was 45 % here, and the mockup paints hover at full opacity - the same stroke the
+   selected tab wears, which is the point of "one mark for everything" (Dawid, 07.09). The
+   text turns to Ink with it, or a bone label would sit on its own colour and disappear. */
+body.drpg-theme-stained-glass :is(.drpg-panel button, .drpg-gmp-button, .drpg-mini-button, .drpg-gmt-tabs button, .drpg-messenger button,
+    .application.sheet.actor :is(button, li.inventory-item, nav.tabs > a, .tabs > a):not(:where(.header-control, .drpg-action-button, .drpg-call-button))):hover:not(:disabled):not(.active) {
+    --brush-on: 1;
+    --brush-ink: var(--drpg-sg-ink);
     --brush-edge: var(--brush);
 }
 /* selected and the default: the full brush, Ink text */
-body.drpg-theme-stained-glass :is(.drpg-panel button, .drpg-gmt-tabs button):is(.active, .default, [aria-selected="true"], [aria-pressed="true"], [autofocus]) {
+body.drpg-theme-stained-glass :is(.drpg-panel button, .drpg-gmt-tabs button,
+    .application.sheet.actor :is(button, li.inventory-item, nav.tabs > a, .tabs > a):not(:where(.header-control, .drpg-action-button, .drpg-call-button))):is(.active, .default, [aria-selected="true"], [aria-pressed="true"], [autofocus]) {
     --brush-on: 1;
     --brush-ink: var(--drpg-sg-ink);
     --brush-edge: var(--brush);
 }
 body.drpg-theme-stained-glass .drpg-panel button:not(.drpg-action-button):not(.drpg-call-button):is(.default, [autofocus]) { --brush: var(--drpg-sg-bone); }
 /* pressed: the brush darkened */
-body.drpg-theme-stained-glass :is(.drpg-panel button, .drpg-gmp-button, .drpg-mini-button, .drpg-gmt-tabs button):active:not(:disabled) {
+body.drpg-theme-stained-glass :is(.drpg-panel button, .drpg-gmp-button, .drpg-mini-button, .drpg-gmt-tabs button,
+    .application.sheet.actor :is(button, li.inventory-item, nav.tabs > a, .tabs > a):not(:where(.header-control, .drpg-action-button, .drpg-call-button))):active:not(:disabled) {
     --brush-on: 1;
     --brush-dim: 0.7;
     --brush-ink: var(--drpg-sg-ink);
 }
 /* disabled: a dashed edge, no brush */
-body.drpg-theme-stained-glass :is(.drpg-panel button, .drpg-gmp-button, .drpg-mini-button):is(:disabled, [disabled]) {
+body.drpg-theme-stained-glass :is(.drpg-panel button, .drpg-gmp-button, .drpg-mini-button,
+    .application.sheet.actor :is(button, li.inventory-item, nav.tabs > a, .tabs > a):not(:where(.header-control, .drpg-action-button, .drpg-call-button))):is(:disabled, [disabled]) {
     --brush-on: 0;
     --brush-style: dashed;
     --brush-edge: color-mix(in srgb, var(--brush) 35%, transparent);
     --brush-ink: var(--drpg-sg-bone-dim);
     cursor: not-allowed;
 }
-body.drpg-theme-stained-glass :is(.drpg-panel button, .drpg-mini-button, .drpg-gmt-tabs button):focus-visible {
+body.drpg-theme-stained-glass :is(.drpg-panel button, .drpg-mini-button, .drpg-gmt-tabs button,
+    .application.sheet.actor :is(button, li.inventory-item, nav.tabs > a, .tabs > a):not(:where(.header-control, .drpg-action-button, .drpg-call-button))):focus-visible {
     outline: 2px solid var(--brush);
     outline-offset: 1px;
 }
-/* GM red stays red: the GM's own windows and buttons take the GM colour as their brush */
-body.drpg-theme-stained-glass .drpg-gm-panel,
-body.drpg-theme-stained-glass .drpg-gm-panel-window,
-body.drpg-theme-stained-glass .drpg-monokuma-panel,
-body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-button,
-body.drpg-theme-stained-glass .drpg-panel .drpg-gmp-button {
+/* RED IS FOR THE ROUTES, NOT FOR THE WHOLE PANEL.
+   This used to paint the entire GM panel in the GM's red - accent and brush both - and the
+   audit page does not: there the panel wears the state colour like every other surface, its
+   tiles are outlined in the hour, and red appears on exactly two buttons, Murder and Reset
+   the season. Red on everything says nothing; red on two things says "these two are
+   different". The Monokuma panel keeps the red, because that window IS the GM's side.
+   `--brush` is left alone on the buttons so a press still flares red where it should. */
+body.drpg-theme-stained-glass .drpg-monokuma-panel {
     --drpg-glass-accent: var(--drpg-sg-gm);
     --brush: var(--drpg-sg-gm);
+}
+body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-button.drpg-gm-route,
+body.drpg-theme-stained-glass .drpg-panel .drpg-gmp-button.drpg-gm-route {
+    --brush: var(--drpg-sg-gm-light);
 }
 
 /* ---- fields and steppers: one class of field ---------------------------------------------
@@ -611,15 +764,18 @@ body.drpg-theme-stained-glass .drpg-hud-ticker {
     position: absolute;
     left: 0;
     right: 0;
-    top: 50%;
-    transform: translateY(-50%);
+    /* TOP, NOT MIDDLE. Centred, the band crossed every row that changes - chapter,
+       the phase stamp, the time of day with its two arrows, the elapsed line and the
+       room - which is the one place in the module where an ornament lay on the text.
+       The audit page puts it at the top, behind the campaign name, which never moves. */
+    top: 4px;
     display: flex;
     white-space: nowrap;
     overflow: hidden;
     pointer-events: none;
     z-index: 0;
     font-family: var(--drpg-font-chrome);
-    font-size: max(var(--drpg-sg-floor), calc(32px * var(--drpg-sg-scale)));
+    font-size: var(--drpg-sg-name);
     /* 1.0 cut the outline's caps top and bottom; the box is centred, so it can afford it */
     line-height: 1.25;
     letter-spacing: 0.06em;
@@ -720,9 +876,14 @@ body.drpg-theme-stained-glass #ui-right-column-1 {
 }
 body.drpg-theme-stained-glass #ui-right-column-1 > #drpg-player-status,
 body.drpg-theme-stained-glass #ui-right-column-1 > #countdowns {
-    /* the audit page's 300 px; 280 was "off the tiles' shard", which the shard no longer needs */
-    width: calc(300px * var(--drpg-sg-scale));
-    max-width: calc(300px * var(--drpg-sg-scale));
+    /* 360, up from the audit page's 300 (Dawid, 08.09). Not a fix for anything cut off -
+       measured at 100 %, Still to act wanted 158 px of the 298 it had and the player's three
+       fields wanted 249, with nothing truncated. It is width the two blocks are given on
+       purpose: they carry the numbers a player reads every turn and they were the smallest
+       panes on the glass. The curtain follows on its own - both are measured blocks, so the
+       pane is cut to whatever the block turns out to be (glass.mjs BLOCKS). */
+    width: calc(360px * var(--drpg-sg-scale));
+    max-width: calc(360px * var(--drpg-sg-scale));
 }
 
 /* 3. the clock reads top-down: campaign (title face), chapter and day (dim), the phase (state
@@ -805,22 +966,46 @@ body.drpg-theme-stained-glass .drpg-hope-panel .drpg-call-button { --brush: var(
 body.drpg-theme-stained-glass .drpg-call-button.drpg-despair-call,
 body.drpg-theme-stained-glass .drpg-despair-panel .drpg-call-button { --brush: var(--drpg-sg-despair); }
 body.drpg-theme-stained-glass .drpg-action-button.drpg-gm-action,
-body.drpg-theme-stained-glass .drpg-action-button[data-drpg-gm] { --brush: var(--drpg-sg-gm-light); }
+/* `data-drpg-gm` is an attribute the module never writes - the tiles carry
+   `data-drpg-cost-kind="gm"` - so this rule matched nothing until 1.2.41. */
+body.drpg-theme-stained-glass .drpg-action-button[data-drpg-cost-kind="gm"] { --brush: var(--drpg-sg-gm-light); }
 body.drpg-theme-stained-glass .drpg-action-button::before,
 body.drpg-theme-stained-glass .drpg-call-button::before {
     content: "";
     position: absolute;
-    inset: 2px 3px;
+    /* WIDTH AND HEIGHT ARE STATED, and that is not belt and braces. The base sheet draws the
+       cost-kind stripe on this same pseudo-element - `left: 0; width: 3px` - and a stripe and
+       a brush cannot share one box: the inset said 3 px from each side, the stripe said 3 px
+       wide, and the brush came out as a 3 px sliver that faded in on hover. It looked exactly
+       like no brush at all, which is what Dawid reported twice before this was found. */
+    width: auto;
+    height: auto;
+    /* THE SAME STROKE AS EVERY OTHER BUTTON, from the same filter.
+       The action and call tiles carry their own `::before` (see the stripe note above) and
+       were left behind when the rest of the module moved to `#drpg-brush`: they still had the
+       hand-cut polygon, which is a rectangle with shaved corners and reads as one. The audit
+       page has no separate rule for these - `.ui.tile` is a `.ui`, and wears `.ui::before`
+       unchanged - so they take the same filter and the same overhanging inset, which fills
+       the 5 px gap between tiles the way the audit's grid does. */
+    inset: 1px -5px;
     z-index: -1;
     background: var(--brush);
     opacity: var(--brush-on, 0);
-    clip-path: polygon(0 10%, 4% 0, 96% 3%, 100% 16%, 99% 90%, 95% 100%, 5% 97%, 0 86%);
+    filter: url(#drpg-brush) brightness(var(--brush-dim, 1));
+    clip-path: none;
     transition: opacity var(--drpg-t-snap, 120ms);
 }
 body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):hover:not(:disabled):not(.unaffordable) {
-    --brush-on: 0.45;
+    /* full, like every other hover in the theme since 07.09 - and with a whole stroke under
+       it the label has to turn to Ink, exactly as it does when the tile is selected. Left
+       bone, it was pale text on its own colour. */
+    --brush-on: 1;
+    --brush-ink: var(--drpg-sg-ink);
     border-color: var(--brush) !important;
-    color: var(--drpg-sg-bone);
+    color: var(--drpg-sg-ink);
+}
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):hover:not(:disabled):not(.unaffordable) :is(.drpg-action-icon, .drpg-action-name, .drpg-action-cost, .drpg-action-gm) {
+    color: var(--drpg-sg-ink);
 }
 body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):is(.active, .selected, [aria-pressed="true"]) {
     --brush-on: 1;
@@ -837,7 +1022,7 @@ body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):is(:di
 }
 body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button) .drpg-action-icon {
     color: var(--brush);
-    font-size: max(var(--drpg-sg-floor), calc(22px * var(--drpg-sg-scale)));
+    font-size: var(--drpg-sg-title);
     width: 1.15em;
     height: 1.15em;
     margin-bottom: 2px;
@@ -952,14 +1137,16 @@ body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-
 body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs a::before {
     content: "";
     position: absolute;
-    inset: 1px 2px;
+    /* the shared stroke, not a hand-cut one - see `#drpg-brush` */
+    inset: 1px -5px;
     z-index: -1;
     background: var(--brush);
     opacity: 0;
-    clip-path: polygon(0 12%, 3% 0, 97% 4%, 100% 20%, 99% 88%, 96% 100%, 4% 96%, 0 84%);
+    filter: url(#drpg-brush);
+    clip-path: none;
     transition: opacity var(--drpg-t-snap, 120ms);
 }
-body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs a:hover:not(.active)::before { opacity: 0.35; }
+body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs a:hover:not(.active)::before { opacity: 1; }
 body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs a.active::before { opacity: 1; }
 body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs a.active,
 body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs a.active span {
@@ -1113,7 +1300,7 @@ body.drpg-theme-stained-glass .drpg-messenger .window-header > canvas { position
 body.drpg-theme-stained-glass .drpg-messenger .window-header > :not(canvas) { position: relative; z-index: 1; }
 body.drpg-theme-stained-glass .drpg-messenger .window-header .window-title {
     font-family: var(--drpg-font-title);
-    font-size: max(var(--drpg-sg-floor), calc(21px * var(--drpg-sg-scale)));
+    font-size: var(--drpg-sg-title);
     text-transform: none;
     letter-spacing: 0;
     color: var(--drpg-sg-bone) !important;
@@ -1147,14 +1334,16 @@ body.drpg-theme-stained-glass .drpg-messenger-tabs button {
 body.drpg-theme-stained-glass .drpg-messenger-tabs button::before {
     content: "";
     position: absolute;
-    inset: 1px 2px;
+    /* the shared stroke, not a hand-cut one - see `#drpg-brush` */
+    inset: 1px -5px;
     z-index: -1;
     background: var(--brush);
     opacity: 0;
-    clip-path: polygon(0 12%, 3% 0, 97% 4%, 100% 20%, 99% 88%, 96% 100%, 4% 96%, 0 84%);
+    filter: url(#drpg-brush);
+    clip-path: none;
     transition: opacity var(--drpg-t-snap, 120ms);
 }
-body.drpg-theme-stained-glass .drpg-messenger-tabs button:hover:not(.active)::before { opacity: 0.35; }
+body.drpg-theme-stained-glass .drpg-messenger-tabs button:hover:not(.active)::before { opacity: 1; }
 body.drpg-theme-stained-glass .drpg-messenger-tabs button.active::before { opacity: 1; }
 body.drpg-theme-stained-glass .drpg-messenger-bubble {
     border-radius: 0;
@@ -1290,11 +1479,12 @@ body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option)::after {
 body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option)::before {
     content: "";
     position: absolute;
-    inset: 1px 2px;
+    inset: 1px -5px;
     z-index: -1;
     background: var(--kind);
     opacity: 0;
-    clip-path: polygon(0 12%, 3% 0, 97% 4%, 100% 20%, 99% 88%, 96% 100%, 4% 96%, 0 84%);
+    filter: url(#drpg-brush);
+    clip-path: none;
     transition: opacity var(--drpg-t-snap, 120ms);
 }
 body.drpg-theme-stained-glass :is(.drpg-choice, .drpg-rest-option):hover:not(.unavailable) {
@@ -1367,15 +1557,15 @@ body.drpg-theme-stained-glass :is(.drpg-dashboard-tabs .drpg-dashboard-tab, .drp
 body.drpg-theme-stained-glass :is(.drpg-dashboard-tabs .drpg-dashboard-tab, .drpg-gmt-tabs button)::before {
     content: "";
     position: absolute;
-    inset: 1px 2px;
+    inset: 1px -5px;
     z-index: -1;
     background: var(--brush);
     opacity: 0;
-    filter: none;
-    clip-path: polygon(0 12%, 3% 0, 97% 4%, 100% 20%, 99% 88%, 96% 100%, 4% 96%, 0 84%);
+    filter: url(#drpg-brush);
+    clip-path: none;
     transition: opacity var(--drpg-t-snap, 120ms);
 }
-body.drpg-theme-stained-glass :is(.drpg-dashboard-tabs .drpg-dashboard-tab, .drpg-gmt-tabs button):hover:not(.active)::before { opacity: 0.35; }
+body.drpg-theme-stained-glass :is(.drpg-dashboard-tabs .drpg-dashboard-tab, .drpg-gmt-tabs button):hover:not(.active)::before { opacity: 1; }
 body.drpg-theme-stained-glass :is(.drpg-dashboard-tabs .drpg-dashboard-tab, .drpg-gmt-tabs button).active::before { opacity: 1; }
 body.drpg-theme-stained-glass :is(.drpg-dashboard-tabs .drpg-dashboard-tab, .drpg-gmt-tabs button).active {
     color: var(--drpg-sg-ink) !important;
@@ -1619,11 +1809,15 @@ body.drpg-theme-stained-glass #drpg-despair .drpg-despair-name {
     /* A FIXED column, not a minimum: with `min-width` the longer of two pool names still
        grew its own box, and the two rows' pips started 1-2 px apart - which across twelve
        skulls is the kind of misalignment the eye catches and cannot name. Measured, not
-       guessed: 118 px holds the longest default name ("Monominie") in uppercase with this
-       theme's tracking, and `ch` will not do it - VT323's digit is narrow next to its caps.
+       guessed - but it was measured against the WIDE pixel face, not against VT323, and VT323
+       advances 0.4 em per character: "MONOMINIE" in caps at the chrome floor is 63 px, not
+       118. The column was therefore twice the width of its own text, and the 56 px of dead
+       space at the left of every row is what read as the pools sitting off-centre on their
+       pane (Dawid, 07.09). 76 px holds the longest default name with room to spare and keeps
+       the two rows' pips aligned, which is the whole reason this is fixed and not a minimum.
        A name longer than that is a name somebody typed, so it may end in an ellipsis, as it
        did before. The interface scale carries it, like every other size here. */
-    flex: 0 0 calc(118px * var(--drpg-sg-scale));
+    flex: 0 0 calc(76px * var(--drpg-sg-scale));
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -2574,7 +2768,7 @@ body.drpg-theme-stained-glass:not(.drpg-no-glass-effects) .drpg-messenger button
    and that is what the clock's is now, with two steps for a long name that still leave it
    the largest line on the clock. A name may take two lines; three is what the steps prevent. */
 body.drpg-theme-stained-glass #drpg-hud .drpg-hud-campaign {
-    font-size: max(var(--drpg-sg-floor), calc(21px * var(--drpg-sg-scale)));
+    font-size: var(--drpg-sg-title);
     line-height: 1.15;
 }
 body.drpg-theme-stained-glass #drpg-hud .drpg-hud-campaign.is-long {
@@ -2724,6 +2918,17 @@ body.drpg-theme-stained-glass #drpg-popups .drpg-popup { flex: 0 0 auto; max-hei
 
 /* ---- 4. The Look window fits its rows ---------------------------------------------------- */
 body.drpg-theme-stained-glass .drpg-look label > span:first-child { flex: 0 0 15ch; }
+/* EXCEPT A SWITCH'S NAME, WHICH TAKES THE ROW.
+   The fixed column exists so the Theme select and the scale slider start at the same x. A
+   checkbox has nothing to line up with - its control is one 18 px box - and a name longer
+   than the column simply wrapped inside it: "State name behind the clock" came out three
+   lines tall beside a tick. The name spans the row instead and the boxes settle on the
+   right, where all three of them line up with each other. Both themes: the fieldset is the
+   same fieldset, and Monokuma Legacy's own column is 11ch, which is narrower still. */
+.drpg-look label:has(input[type="checkbox"]) > span:first-child,
+body.drpg-theme-stained-glass .drpg-look label:has(input[type="checkbox"]) > span:first-child {
+    flex: 1 1 auto;
+}
 body.drpg-theme-stained-glass .drpg-window-look .window-content { min-width: 0; }
 
 /* ---- 5. The state colour fades, on everything at once ----------------------------------
@@ -2859,3 +3064,1278 @@ body.drpg-theme-stained-glass .drpg-look input[type="range"] { min-width: 14ch; 
 body.drpg-theme-stained-glass .drpg-look select,
 body.drpg-theme-stained-glass .drpg-look .drpg-select { min-width: 18ch; }
 body.drpg-theme-stained-glass .drpg-look label { gap: 12px; }
+
+/* ==========================================================================
+   AUDIT "SZKLO POD LUPA", ROUND 1.2.41
+   --------------------------------------------------------------------------
+   Four things the audit found on a running client that no rule had covered.
+   ========================================================================== */
+
+/* THE STRAY DOTS UNDER THE ACTION PIPS.
+   `danganronpa.css` hides the Font Awesome glyph inside an action pip
+   (`.drpg-action-pip > i { display: none }`) because the pip draws its own pixel
+   sprite through `::before`. `pixel-icons.css` then matches the same `<i>` as
+   `[class*="drpg-"] i.fa-circle`, sets `display: inline-block` and a hard
+   `min-width/min-height: 22px` - and, loading after this file, wins. The glyph came
+   back as a 22 px bone disc hanging 19 px below a 16.8 px pip. The extra classes are
+   what beats the generated sheet on specificity, since it cannot be edited by hand. */
+body.drpg-theme-stained-glass .application.sheet.actor .character-header-sheet .drpg-action-pip > i {
+    display: none;
+}
+
+/* THE FROST BELONGS TO THE WINDOW, NOT TO EVERY BOX INSIDE IT.
+   Daggerheart gives its inline-edit fields `backdrop-filter: blur(9.5px)`. Inside a
+   header that is already a sheet of glass that is frost on frost, and on the name it
+   read as a 427 px blurred slab behind an eight-character name, because the field is
+   sized to its row and not to its text. The window keeps its glass; the fields do not
+   add a second one. */
+body.drpg-theme-stained-glass .application.sheet.actor :is(.input, input, textarea) {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+/* NOTHING IN THIS THEME IS A CIRCLE.
+   The trait tier marks are Daggerheart's 15 px bone discs at 50 % radius, sitting in a
+   row of cut rectangles. Squared off, they read as part of the same set. */
+body.drpg-theme-stained-glass .application.sheet.actor .tier-mark {
+    border-radius: 0;
+}
+
+/* CAPITALS STAY, AND THIS IS A REVERSAL.
+   I took them off the pool names and the room name in this same round, on the readability
+   argument that a narrow pixel face set in capitals with tracking is hard going. It was a
+   deviation from the audit page, which uppercases both - and it broke something with it:
+   the pool name column is a FIXED 118 px measured to hold "Monominie" IN CAPS, so lowercase
+   names left 56 px of dead space at the left of every row. That void is what read as the
+   pools sitting off-centre on their pane. The mockup is the authority here. */
+
+/* A8a. THE TABS STAND BELOW THE GLASS, NOT ON IT.
+   Daggerheart puts the tab navigation inside `.character-header-sheet`, so the band's
+   seams ran straight across ACTIONS / INVENTORY / BIOGRAPHY / RULES. The audit page is
+   explicit about the split: name, Ultimate, Hope, actions and traits ride the stained
+   glass; the tabs and everything under them stand on the window's own dark glass. */
+body.drpg-theme-stained-glass .character-header-sheet .tab-navigation {
+    position: relative;
+    z-index: 1;
+    background: rgba(9, 8, 13, 0.84);
+}
+
+/* A8b. ROOM FOR THE BLOT.
+   The Ultimate stamp's ink blot is a `::before` at `inset: -5px -10px` plus the spread
+   the displacement filter adds, so it reached over the Ultimate's own title and ate the
+   first letters of it. The label keeps the blot; the row gives it somewhere to land. */
+body.drpg-theme-stained-glass .character-header-sheet .drpg-ultimate-row .drpg-ultimate-label {
+    margin-right: 18px;
+}
+
+/* A1b. THE TICKER IS THE CAMPAIGN LINE'S BACKGROUND, AND NOTHING ELSE'S.
+   Moved to the top it stopped crossing the time of day and the room, but at its natural
+   height it still reached the chapter and the phase stamp. Held to its own line, it backs
+   the one row of the clock that never changes. */
+body.drpg-theme-stained-glass .drpg-hud-ticker {
+    height: 1.9em;
+}
+
+/* B. THE FLOOR HAS TO REACH THE TEXT IT WAS RAISED FOR.
+   The base sheet pinned the curtain's smallest labels to `--drpg-text-xs` with
+   `!important`, so raising `--drpg-sg-floor` from 11 px to 14 px changed nothing on
+   the despair names, the status strip or the sheet's tabs - the very strings the audit
+   measured at a 7 px capital. Those rules now belong to Legacy, and the three elements
+   the theme had never sized get the floor here. */
+body.drpg-theme-stained-glass :is(#drpg-despair .drpg-despair-name, .drpg-group-count,
+    .character-header-sheet .status-bar .status-label h4) {
+    font-size: max(var(--drpg-sg-floor), calc(11px * var(--drpg-sg-scale)));
+}
+
+/* ...and three more the floor still could not reach, each for its own reason: the overflow
+   caption and the room name are sized only by the base sheet (which Legacy owns), and the
+   trait labels are sized by a rule further down that names them more precisely. All three
+   are chrome, so all three take the chrome floor. */
+body.drpg-theme-stained-glass :is(.drpg-overflow-caption, .drpg-hud-room-name,
+    .character-header-sheet .trait-name, .character-header-sheet .trait-name span) {
+    font-size: max(var(--drpg-sg-floor), calc(11px * var(--drpg-sg-scale)));
+}
+
+/* ...and the trait labels need the shout, because the fight is not with this module.
+   Foundry v14 puts the system's sheet CSS in a cascade layer above the module's, so a
+   plain declaration here loses to Daggerheart's own 11 px however specific it is - which
+   is why the base sheet reached for `!important` on these in the first place. Scoping
+   that rule to Legacy handed the labels back to Daggerheart; this takes them back. */
+body.drpg-theme-stained-glass .character-header-sheet .character-traits .trait .trait-name,
+body.drpg-theme-stained-glass .character-header-sheet .character-traits .trait .trait-name span {
+    font-size: max(var(--drpg-sg-floor), calc(11px * var(--drpg-sg-scale))) !important;
+}
+
+/* THE PROJECTS TRAY SITS ON THE GLASS, NOT ON DAGGERHEART'S PANEL ART.
+   `#countdowns::before` carries a background IMAGE - the system's own dark tray plate -
+   which read as a black rectangle laid over the curtain's pane. The pane behind it is the
+   plate; the tray only needs its content. */
+body.drpg-theme-stained-glass #countdowns::before {
+    background-image: none;
+    background-color: transparent;
+}
+
+/* HOPE IS A STAR, NOT A DIAMOND, AND NOT A DOT.
+   Daggerheart draws the Hope track with `fa-diamond`, and `fa-diamond` is the one glyph
+   the pixel sprite has no entry for, so it stayed Font Awesome: at pip size a filled
+   diamond reads as a dot. It takes the star the audit settled on. The declarations
+   mirror the generated sheet's own, since this glyph is missing from it. */
+body.drpg-theme-stained-glass [class*="drpg-"] i.fa-diamond,
+body.drpg-theme-stained-glass [class*="drpg-"] .fa-diamond:is(i, span) {
+    /* NO `display` HERE, deliberately. The generated sheet sets `display: inline-block` on
+       every glyph it masks, which is what resurrects an `<i>` the module had hidden on
+       purpose - the stray dots under the action pips came from exactly that. On the
+       character sheet the Hope track's `<i>` is hidden and the pip draws its own star, so
+       forcing it visible drew the star twice. Masked if shown, still hidden if hidden. */
+    width: max(1.15em, 22px);
+    height: max(1.15em, 22px);
+    vertical-align: -0.2em;
+    background-color: currentColor;
+    -webkit-mask: var(--drpg-px-star) center / contain no-repeat;
+    mask: var(--drpg-px-star) center / contain no-repeat;
+    image-rendering: pixelated;
+}
+body.drpg-theme-stained-glass [class*="drpg-"] i.fa-diamond::before,
+body.drpg-theme-stained-glass [class*="drpg-"] .fa-diamond:is(i, span)::before {
+    content: none;
+}
+
+/* A LONG NOTICE SCROLLS INSTEAD OF BEING CUT.
+   The cards are clipped to the notice tile, which is a constant, so anything longer than
+   two short lines simply lost its end. The tile keeps its size and the card keeps its
+   text: what does not fit scrolls, and the scrollbar is the theme's own hairline. */
+body.drpg-theme-stained-glass #drpg-popups .drpg-popup {
+    max-height: calc(148px * var(--drpg-sg-scale));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--drpg-glass-accent) 55%, transparent) transparent;
+}
+
+/* ACTION AND CALL NAMES: THE FITTER MAY SHRINK, BUT NOT PAST READING SIZE.
+   The base sheet shrinks a tile's label with `--drpg-tile-text` so a long Call name
+   fits its tile, and pinned it with `!important` - which under this theme meant the
+   names sat below the chrome floor and, as Dawid put it, could not be read. The knob
+   stays: the fitter still turns it, and the tiles still take long names. What changes
+   is where it bottoms out. Below the floor the label wraps instead of shrinking, which
+   is what the tile has room for - `white-space: normal` is already set above. */
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button) .drpg-action-name {
+    font-size: max(var(--drpg-sg-floor),
+                   calc(11px * var(--drpg-sg-scale) * var(--drpg-tile-text, 1)));
+    line-height: 1.2;
+}
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button) .drpg-action-cost {
+    font-size: max(calc(var(--drpg-sg-floor) - 1px),
+                   calc(11px * var(--drpg-sg-scale) * var(--drpg-tile-text, 1)));
+}
+
+/* THE TRIAL'S STATE SLIDES IN FROM OFF THE PANEL.
+   Same gesture as the clock's time of day and the same duration, so the two moments
+   read as one language. The card clips, so the line travels through a window rather
+   than across the map; the ticker behind it is masked already and loses nothing. */
+body.drpg-theme-stained-glass .drpg-event {
+    overflow: hidden;
+}
+@keyframes drpg-sg-event-swap {
+    from { transform: translateX(115%); opacity: 0; }
+    60%  { opacity: 1; }
+    to   { transform: none; opacity: 1; }
+}
+body.drpg-theme-stained-glass .drpg-event-sub.drpg-event-swap {
+    animation: drpg-sg-event-swap var(--drpg-t-turn, 840ms) var(--drpg-ease-arrive, ease-out) both;
+}
+@media (prefers-reduced-motion: reduce) {
+    body.drpg-theme-stained-glass .drpg-event-sub.drpg-event-swap { animation: none; }
+}
+body.drpg-reduced-motion .drpg-event-sub.drpg-event-swap { animation: none; }
+
+/* ...and the last four the suite's own floor test caught: the hour in the clock, the
+   project line under the room, the pools' caption and their counter. Each was written
+   at its design size before the floor moved under it. The test is the list. */
+body.drpg-theme-stained-glass :is(.drpg-hud-room-project, .drpg-despair-title) {
+    font-size: max(var(--drpg-sg-floor), calc(11px * var(--drpg-sg-scale)));
+}
+/* THE ID IS THE POINT. The base sheet sizes the hour, the pool counter and the tray's
+   tool row through `#drpg-hud`, `#drpg-despair` and `#countdowns`, so a class-only rule
+   here never reached them however late it came. No `!important` needed: the theme's own
+   body class carries it past a plain id rule. */
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-time,
+body.drpg-theme-stained-glass #drpg-despair .drpg-despair-count,
+body.drpg-theme-stained-glass #countdowns .countdown-tools,
+body.drpg-theme-stained-glass #countdowns .countdown-tools .progress-tag {
+    font-size: max(var(--drpg-sg-floor), calc(11px * var(--drpg-sg-scale)));
+}
+
+/* THE TABLE LISTS SCROLL DOWN, NEVER SIDEWAYS.
+   Both lists in the Item tables window reported four pixels of horizontal scroll with
+   nothing actually sticking out - measured every descendant, none reaches past the
+   scrollport - so it is a rounding artefact of the scrollport itself, not content. It
+   still counts as a sideways-scrolling box to R12, and a vertical list of table names
+   has no business scrolling sideways in any case. `clip` rather than `hidden`: it kills
+   the phantom axis without turning the box into a second scroll container. */
+body.drpg-theme-stained-glass :is(.drpg-tables-list, .drpg-table-items) {
+    overflow-x: clip;
+}
+
+/* THE PANEL'S OWN CHROME TAKES THE FLOOR TOO.
+   The floor test walks `.drpg-panel` as well as the curtain, and a module window's header,
+   body and section headings still carried Foundry's 13 px - which is the base size every
+   unstyled string inside a panel inherits. Raised at the container, so the panels' prose
+   moves with it instead of one label at a time. */
+body.drpg-theme-stained-glass .drpg-panel :is(.window-header, .window-content, .standard-form, .dialog-form, h4) {
+    font-size: max(var(--drpg-sg-floor), calc(13px * var(--drpg-sg-scale)));
+}
+
+/* HEALTH AND SANITY IN THE MOCKUP'S ORDER.
+   The audit page draws each resource as label, number, bar - the coloured plate on top with
+   Ink on it, the count under it, the raster track along the bottom. The base sheet stacks it
+   the other way round (number first, plate last) and the track rides above the number, which
+   is what Dawid kept reading as the wrong label. Order only: no colour, no size, no markup. */
+body.drpg-theme-stained-glass .character-sidebar-sheet .status-bar {
+    display: flex;
+    flex-direction: column;
+}
+body.drpg-theme-stained-glass .character-sidebar-sheet .status-bar .status-label {
+    order: -1;
+}
+/* The count and the track share the box; the track is sent to its own line at the foot of
+   it, which is the audit page's order: plate, number, bar. Ordering rather than absolute
+   positioning, because the count is three inline boxes (input, slash, maximum) and taking
+   the track out of the flow left it sitting between the plate and the number. */
+body.drpg-theme-stained-glass .character-sidebar-sheet .status-value {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0 2px;
+}
+body.drpg-theme-stained-glass .character-sidebar-sheet .status-value .drpg-resource-bar {
+    order: 9;
+    flex: 0 0 100%;
+    margin: 4px 6px 2px;
+}
+/* the frame takes the resource's own colour, as the plate above it does - one red box
+   around a violet label was the sheet saying two things about one number */
+body.drpg-theme-stained-glass .character-sidebar-sheet .status-bar {
+    border-color: color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-sg-gm)) 55%, transparent);
+}
+
+/* ==========================================================================
+   NOTHING IN THIS THEME IS ROUNDED
+   --------------------------------------------------------------------------
+   The audit page has not one rounded corner on it: every box is square, and the
+   ones that are not square are CUT, never filleted. The module kept eighteen
+   families of rounded corner inherited from the base sheet and from Daggerheart -
+   window headers at 2 px, the fold and gear buttons at 4, the countdown containers
+   at 6, the Look and Sound fieldsets at 8, the actor name at 6, the Hope section at
+   6, `thead` at 8 - and each one on its own is invisible while all of them together
+   are most of why the module does not read as the mockup.
+
+   One declaration, and it has to shout: the radii it is overruling are `!important`
+   in the base sheet, and Foundry v14 puts the system's sheet in a cascade layer
+   above the module's. Circles that are meant to be circles keep theirs by name.
+   ========================================================================== */
+body.drpg-theme-stained-glass :is(.application.sheet.actor, .drpg-panel, .drpg-messenger,
+    #drpg-hud, #drpg-despair, #countdowns, #drpg-player-status, #drpg-events, #drpg-popups) :not(
+    .drpg-despair-pip):not(.drpg-action-pip):not(img):not([class*="avatar"]):not([class*="token-"]) {
+    border-radius: 0 !important;
+}
+body.drpg-theme-stained-glass :is(.application.sheet.actor, .drpg-panel, .drpg-messenger) {
+    border-radius: 0 !important;
+}
+
+/* ---- the sheet, brought to the audit page point by point --------------------------------- */
+
+/* THE SAFEWORD KEEPS ITS CORNER. Bringing every clickable thing under the brush gave this one
+   `position: relative` (the brush needs a containing block) and it left the bottom-left corner
+   the audit page puts it in, stretching across the whole column. Absolute is just as good a
+   containing block for the pseudo-element, and it is where this button belongs. */
+body.drpg-theme-stained-glass .application.sheet.actor .drpg-safeword-button {
+    /* the shout is against the brush base rule above, whose `:not()` chain outweighs any
+       honest selector for one button; the button lives in `.window-content`, not in the
+       sidebar, which is why the first attempt at this matched nothing at all */
+    position: absolute !important;
+    width: auto !important;
+}
+
+/* NO TIER MARKS ON THE TRAITS. Daggerheart puts a disc beside every trait name; the audit
+   page's trait plate is the label and the value, nothing else. Squaring them off (1.2.41)
+   only made them louder - the mockup has none at all. */
+body.drpg-theme-stained-glass .character-header-sheet .character-traits .tier-mark {
+    display: none;
+}
+
+/* A GM TILE IS A RED PLATE, not a dark tile wearing a badge. On the audit page "Dynamic" and
+   "Direct Murder" are filled in the GM's red with the reason as their sub-label, and that
+   fill is what makes them readable as somebody else's decision at a glance. */
+body.drpg-theme-stained-glass .drpg-action-button[data-drpg-cost-kind="gm"] {
+    background: color-mix(in srgb, var(--drpg-sg-gm) 34%, rgba(7, 7, 10, 0.55)) !important;
+    border-color: color-mix(in srgb, var(--drpg-sg-gm-light) 70%, transparent) !important;
+    --brush: var(--drpg-sg-gm-light);
+}
+body.drpg-theme-stained-glass .drpg-action-button[data-drpg-cost-kind="gm"] :is(.drpg-action-name, .drpg-action-cost) {
+    color: var(--drpg-sg-bone);
+}
+
+/* ---- the checkbox: the audit page's, not Foundry's -------------------------------------- */
+/* The mockup draws a checkbox as a square in the state colour with a pixel tick cut out of the
+   brush; the module was still handing Foundry an `accent-color`, which paints an amber rounded
+   check - a colour this theme does not contain and a corner it does not have. The tick is the
+   audit page's own polygon, and the box follows the field rules: state edge, no radius. */
+body.drpg-theme-stained-glass :is(.drpg-panel, .application.sheet.actor) input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    /* 22, up from 18 (audit, 08.09). The audit page draws `.ui.check` at 24 and every other
+       control in this theme clears 24; the box was the smallest thing on screen that has to be
+       hit. 22 rather than 24 because the label rows are built around the old height and grow
+       with it - measured. The tick below goes up with it or it rattles in the box. */
+    width: 22px;
+    height: 22px;
+    margin: 0;
+    padding: 0;
+    display: inline-grid;
+    place-content: center;
+    background: rgba(7, 7, 10, 0.55);
+    background-image: none;
+    accent-color: var(--drpg-glass-accent);
+    border: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 55%, transparent);
+    border-radius: 0;
+    cursor: pointer;
+    transition: border-color var(--drpg-t-snap, 120ms), background var(--drpg-t-snap, 120ms);
+}
+body.drpg-theme-stained-glass :is(.drpg-panel, .application.sheet.actor) input[type="checkbox"]:hover:not(:disabled) {
+    border-color: var(--drpg-glass-accent);
+    background: color-mix(in srgb, var(--drpg-glass-accent) 20%, rgba(7, 7, 10, 0.55));
+}
+body.drpg-theme-stained-glass :is(.drpg-panel, .application.sheet.actor) input[type="checkbox"]:checked {
+    /* the shout is against Foundry's own checked styling, which paints the amber straight
+       through `appearance: none`; `accent-color` goes with it or the tick comes back amber */
+    background: var(--drpg-glass-accent) !important;
+    background-image: none !important;
+    border-color: var(--drpg-glass-accent) !important;
+    accent-color: var(--drpg-glass-accent);
+}
+body.drpg-theme-stained-glass :is(.drpg-panel, .application.sheet.actor) input[type="checkbox"]:checked::before {
+    content: "";
+    width: 15px;
+    height: 15px;
+    background: var(--drpg-sg-ink);
+    clip-path: polygon(0 55%, 20% 35%, 40% 55%, 80% 10%, 100% 30%, 40% 95%);
+}
+body.drpg-theme-stained-glass :is(.drpg-panel, .application.sheet.actor) input[type="checkbox"]:disabled {
+    border-style: dashed;
+    cursor: not-allowed;
+}
+body.drpg-theme-stained-glass :is(.drpg-panel, .application.sheet.actor) input[type="checkbox"]:focus-visible {
+    outline: 2px solid var(--drpg-glass-accent);
+    outline-offset: 2px;
+}
+
+/* ==========================================================================
+   THREE POINTS THE SHEET STILL OWED THE AUDIT PAGE
+   ========================================================================== */
+
+/* 1. THE CHOSEN TILE IS FILLED, not merely outlined.
+   The audit page shows "Search" selected as a solid brush with Ink on it, and the theme has
+   carried that state for action tiles all along - `:is(.active, .selected, [aria-pressed])`.
+   Nothing in the module ever wrote those, so the state was unreachable. The module's real
+   "chosen" is an ARMED CALL, which `sheet.mjs` marks `drpg-call-pending`, so that is the
+   class that earns the fill. */
+/* CORRECTED AFTER READING THE CODE. There is no persistent "selected action" in this module:
+   you do not pick a tile, you press it. `drpg-call-pending` turned out to mean something
+   narrower - a DEFERRED Call waiting on contributions - which is genuinely a held tile and
+   earns the fill on its own merit. The reachable full-brush moment for every other tile is
+   the press, and the theme had a hover state and a selected state but no pressed one.
+   The label was the last thing still in Bone while the icon and the cost had already gone
+   to Ink: `.drpg-action-name` carries its own colour and overrode the button's. */
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):is(.active, .selected, [aria-pressed="true"], .drpg-call-pending) .drpg-action-name {
+    color: var(--drpg-sg-ink);
+}
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button).drpg-call-pending {
+    --brush-on: 1;
+    color: var(--drpg-sg-ink);
+    border-color: var(--brush) !important;
+}
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button).drpg-call-pending :is(.drpg-action-icon, .drpg-action-name) {
+    color: var(--drpg-sg-ink);
+}
+/* pressed: the full brush, darkened, exactly as the click matrix has it */
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):active:not(:disabled):not(.unaffordable) {
+    --brush-on: 1;
+    --brush-dim: 0.7;
+    color: var(--drpg-sg-ink);
+}
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):active:not(:disabled):not(.unaffordable)::before {
+    filter: brightness(var(--brush-dim, 1));
+}
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):active:not(:disabled):not(.unaffordable) :is(.drpg-action-icon, .drpg-action-name) {
+    color: var(--drpg-sg-ink);
+}
+
+/* 2. THE ULTIMATE LINE IS TEXT, and the ink blot belongs to the Hope Call of that name.
+   The audit page prints "ULTIMATE Detective" as a plain line under the character's name -
+   the word in Bone Dim, the title itself in the state colour - and spends its one ink blot
+   on the Ultimate BUTTON in the row above. The module put the blot on the line, where it
+   overlapped the title it was supposed to introduce. */
+body.drpg-theme-stained-glass .application.sheet.actor .character-header-sheet .drpg-ultimate-row .drpg-ultimate-label {
+    margin-right: 8px;
+    padding: 0 !important;
+    background: none !important;
+    clip-path: none !important;
+    color: var(--drpg-sg-bone-dim) !important;
+    letter-spacing: 0.1em;
+}
+body.drpg-theme-stained-glass:not(.drpg-no-glass-effects) .character-header-sheet .drpg-ultimate-row .drpg-ultimate-label::before,
+body.drpg-theme-stained-glass:not(.drpg-no-glass-effects) .character-header-sheet .drpg-ultimate-row .drpg-ultimate-label::after {
+    content: none;
+}
+
+/* 3. THE ACTION PIPS ARE SQUARES IN A LABELLED BOX.
+   The audit page draws the remaining actions as square pips inside one bordered box with the
+   word ACTIONS beside them, the same box the free Move gets. The module had the label as a
+   Bone plate and the pips loose beside it, drawn through the sprite's round dot. */
+body.drpg-theme-stained-glass .character-header-sheet .drpg-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 10px;
+    border: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 45%, transparent);
+    clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+}
+body.drpg-theme-stained-glass .application.sheet.actor .character-header-sheet .drpg-actions h4 {
+    background: none !important;
+    background-image: none !important;
+    color: var(--drpg-sg-bone-dim) !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    clip-path: none !important;
+    letter-spacing: 0.1em;
+}
+/* the pip: a square, not the sprite's dot - mask off, the box IS the shape */
+body.drpg-theme-stained-glass .character-header-sheet .drpg-action-pip::before {
+    -webkit-mask-image: none;
+    mask-image: none;
+    width: 11px;
+    height: 11px;
+    background: var(--drpg-glass-accent);
+}
+body.drpg-theme-stained-glass .character-header-sheet .drpg-action-pip:not(.filled)::before {
+    background: none;
+    border: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 50%, transparent);
+}
+
+/* Raising the floor for Micro 5 exposed four more containers sitting at 15 px: the clock's
+   time row and its slot, and the despair rows. They carry text of their own as far as the
+   floor test is concerned, so they take the floor like everything else in the chrome. */
+body.drpg-theme-stained-glass :is(#drpg-hud .drpg-hud-time-row, #drpg-hud .drpg-hud-time-slot,
+    #drpg-despair .drpg-despair-row) {
+    font-size: max(var(--drpg-sg-floor), calc(11px * var(--drpg-sg-scale)));
+}
+
+/* THE FLOOR AT THE ROOT OF EVERY SURFACE, so inheritance carries it.
+   Chasing the floor test element by element peels an onion: each pass named four more
+   containers sitting a pixel or two under, because they inherit rather than declare. Setting
+   it once on each surface root means anything that does not declare its own size arrives at
+   the floor already, and anything that declares one is a size somebody chose. The four the
+   test named last are containers of exactly that kind. */
+body.drpg-theme-stained-glass :is(#drpg-hud, #drpg-despair, #countdowns, #drpg-player-status,
+    #drpg-events, #drpg-popups, #drpg-notice) {
+    font-size: max(var(--drpg-sg-floor), calc(13px * var(--drpg-sg-scale)));
+}
+body.drpg-theme-stained-glass :is(#drpg-player-status .drpg-status-field,
+    #drpg-player-status .drpg-status-value, #countdowns .countdowns-container,
+    #countdowns .countdown-category-container) {
+    font-size: max(var(--drpg-sg-floor), calc(13px * var(--drpg-sg-scale)));
+}
+
+/* ---- three more points, measured against the audit page ---------------------------------- */
+
+/* THE TAB BAR RUNS THE FULL WIDTH. The audit page's tabs fill the sheet's working column and
+   share it between them; the module had an `inline-flex` bar hugging its four words, 217 px
+   in a 518 px column. */
+body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs {
+    display: flex;
+    width: 100%;
+    box-sizing: border-box;
+}
+body.drpg-theme-stained-glass .character-header-sheet .tab-navigation nav.sheet-tabs a {
+    flex: 1 1 0;
+    text-align: center;
+}
+
+/* THE STAT FRAME TAKES ITS RESOURCE'S COLOUR AND THE THEME'S CORNER.
+   `--drpg-bar-fill` is already correct per block (#ff5566 on Health, #a678ff on Sanity) and
+   the frame was drawing crimson on both, because a red border rule outranked the one that
+   reads the token. The audit page frames each block in its own resource at 45 % and cuts the
+   corner like everything else. */
+body.drpg-theme-stained-glass .character-sidebar-sheet .status-bar {
+    border: 1px solid color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-sg-gm)) 45%, transparent) !important;
+    background: rgba(7, 7, 10, 0.5);
+    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+}
+/* the label plate spans the block, as it does on the audit page */
+body.drpg-theme-stained-glass .character-sidebar-sheet .status-bar .status-label {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+}
+/* and the track wears its resource, not the interface */
+body.drpg-theme-stained-glass .character-sidebar-sheet .drpg-resource-bar {
+    border: 1px solid color-mix(in srgb, var(--drpg-bar-fill, var(--drpg-sg-gm)) 55%, transparent);
+}
+
+/* ==========================================================================
+   THE ROUND OF 07.09: eight things, one by one
+   ========================================================================== */
+
+/* 4. THE LABELS THAT THE FLOOR NEVER REACHED.
+   Raising `--drpg-sg-floor` only moves what is written in terms of it. These four are the
+   ones Dawid named as still unreadable, and every one of them was a plain 11 or 15 px: the
+   sidebar's section headings (EQUIPPED, EXPERIENCE), the resource captions (HEALTH, SANITY -
+   "so small the word is practically invisible"), and both halves of the Ultimate line. */
+body.drpg-theme-stained-glass .application.sheet.actor :is(
+    .character-sidebar-sheet h4,
+    .character-sidebar-sheet .status-label h4,
+    .character-sidebar-sheet .status-label,
+    .drpg-ultimate-row .drpg-ultimate-label,
+    .drpg-ultimate-row .drpg-ultimate-value) {
+    font-size: max(var(--drpg-sg-floor), calc(13px * var(--drpg-sg-scale))) !important;
+}
+/* the chat is read as much as the sheet is */
+body.drpg-theme-stained-glass :is(#chat-log, #chat) :is(.chat-message, .message-content, .message-header) {
+    font-size: max(var(--drpg-sg-floor), calc(13px * var(--drpg-sg-scale)));
+}
+
+/* 5. THE TRAIT AND EXPERIENCE FRAMES TAKE THE STATE'S COLOUR.
+   They were Bone (and before that the GM's red, inherited from the base sheet). Neither says
+   anything: the interface colour in this theme has no value of its own, it IS the state, so
+   the frames around a character's numbers move with the hour like everything else. */
+/* MEASURED, NOT GUESSED: the red is on `.trait-name` and on `.trait-value-area`, which is
+   also `.drpg-trait-frame`. My first attempt named `.trait`, `.trait-value` and `.traits b` -
+   three selectors this markup does not contain - which is why the frames stayed red through a
+   whole round of "fixing" them. */
+body.drpg-theme-stained-glass .application.sheet.actor :is(
+    .character-traits .trait-name,
+    .character-traits .trait-value-area,
+    .character-traits .drpg-trait-frame,
+    .character-sidebar-sheet .experience-item,
+    .character-sidebar-sheet .experience-name,
+    .character-sidebar-sheet .experience-value) {
+    border-color: color-mix(in srgb, var(--drpg-glass-accent) 55%, transparent) !important;
+}
+
+/* THE FLOOR AT THE SHEET'S ROOT, so anything that only inherits arrives at it, and then the
+   handful that declare their own smaller size by name. The sweep that found these reads every
+   leaf with text on every surface the module owns - the suite's own floor test does not scan
+   the character sheet, which is how "Equipped", the experience chips, the Hope and Actions
+   headings and the budget line all stayed at 11-14 px through three rounds of raising sizes. */
+body.drpg-theme-stained-glass .application.sheet.actor {
+    font-size: max(var(--drpg-sg-floor), calc(13px * var(--drpg-sg-scale)));
+}
+body.drpg-theme-stained-glass .application.sheet.actor :is(
+    .drpg-equipped-empty,
+    .experience-name, .experience-value,
+    .drpg-actions h4, .hope-section h4, .resource-section h4,
+    nav.sheet-tabs a span,
+    .drpg-keep, .drpg-budget-line, .notes,
+    .character-sidebar-sheet h3, .character-sidebar-sheet p, .character-sidebar-sheet span) {
+    font-size: max(var(--drpg-sg-floor), calc(13px * var(--drpg-sg-scale))) !important;
+}
+/* the GM badge is a badge: one step down from the floor, never below reading size */
+/* the safeword was the last thing on the sheet still set at 11 px, and it is the one control
+   on it that has to be readable without looking for it */
+body.drpg-theme-stained-glass .application.sheet.actor .drpg-safeword-button,
+body.drpg-theme-stained-glass .application.sheet.actor .drpg-safeword-button span {
+    font-size: max(var(--drpg-sg-floor), calc(13px * var(--drpg-sg-scale))) !important;
+}
+/* The GM badge on an action used to be set three pixels under the floor, on the argument
+   that it is a marker and not a label. It is the last text on the sheet that was, and one
+   exception is exactly what "inconsistent" means, so it takes the floor like everything. */
+
+/* 6. LIQUID GLASS ON THE WINDOWS, which the audit page has and the module never got.
+   The base sheet paints `.window-content` an opaque `rgb(29,26,33)`, so the mockup's recipe -
+   a translucent ground over a blurred, slightly darkened backdrop - had nothing to show
+   through it. Numbers straight off the audit page's `.win`. */
+/* EVERY WINDOW, not three kinds of it. Settings, journals, item sheets, the chat popout and
+   anything else Foundry opens are windows too, and they were left on the base sheet's opaque
+   ground - so the glass was the exception rather than the background of a window. */
+/* `[class]` is not decoration: widening the selector from `:is(.sheet, .dialog, .drpg-panel)`
+   to plain `.application` dropped one class of specificity, and the base sheet's own opaque
+   `rgb(29, 26, 33)` won again - measured, the ground went solid on every window at once. The
+   attribute selector buys the weight back without narrowing the reach. */
+body.drpg-theme-stained-glass .application[class] .window-content {
+    /* 0.58, NOT 0.84 - AND THE SHADOW IS PART OF THE SAME CHANGE.
+       The audit page has two window grounds: `.win` (glass) at `rgba(5,4,9,0.5)` and
+       `.win:not(.glassfull)` (calm) at `rgba(9,8,13,0.84)`, and the module took the calm one
+       everywhere. At 0.84 there is nothing left to filter: 16 % of the backdrop survives, so
+       the blur, the saturation and the contrast are working on something almost invisible and
+       the window reads as a dark plate rather than as glass.
+       What the audit page pays for its 0.5 is a shadow on the text - `.win > .body` carries
+       `text-shadow: 0 1px 0 rgba(0,0,0,0.8), 0 0 6px rgba(0,0,0,0.5)` - and the module had
+       none. Lowering the ground without that shadow turns text over a bright map to mush, so
+       the two are one change. 0.58 rather than 0.5 because our windows sit over a lit
+       Foundry scene, not over the audit page's own dark fog. */
+    background: rgba(7, 6, 11, 0.58) !important;
+    backdrop-filter: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
+    -webkit-backdrop-filter: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.8), 0 0 6px rgba(0, 0, 0, 0.5);
+}
+/* ONE BLUR PER WINDOW. The frame carried its own `backdrop-filter` as well as the content's,
+   and two backdrop filters on nested elements compose: the real blur under the text was more
+   than the number above, and the frame's margin blurred differently from its middle. */
+body.drpg-theme-stained-glass .application[class] {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+body.drpg-theme-stained-glass .application[class] {
+    background: transparent !important;
+    /* 0.45, the audit page's number. 0.28 was a guess made before the page was read. */
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.5),
+                0 0 22px color-mix(in srgb, var(--drpg-glass-accent) 22%, transparent),
+                0 14px 34px rgba(0, 0, 0, 0.5);
+}
+
+/* 7. THE TWO BUTTONS ABOVE THE SHEET ARE ONE PAIR, so they are one size.
+   Measured 42 x 28 beside 44 x 34, which reads as a mistake rather than a hierarchy. */
+body.drpg-theme-stained-glass .application.sheet.actor .drpg-advance-button {
+    min-width: calc(44px * var(--drpg-sg-scale));
+    min-height: calc(34px * var(--drpg-sg-scale));
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ---- 8. the GM panel, against the audit page's own render ------------------------------- */
+
+/* FOUR TILES TO A ROW, not two. The audit page fits four across its 902 px panel and the
+   module was laying out a fixed `330px 330px`, which is why the same panel reads as a
+   different screen. `auto-fit` keeps it honest on a narrow window instead of overflowing. */
+body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-grid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+/* THE TABLE HEADER IS THE STATE'S COLOUR. It was the GM's red, which in this theme means
+   "the GM does this" - and a column heading does nothing. The audit page has it in the hour. */
+body.drpg-theme-stained-glass .drpg-gm-panel table th {
+    color: var(--drpg-glass-accent) !important;
+    border-bottom-color: color-mix(in srgb, var(--drpg-glass-accent) 45%, transparent) !important;
+}
+
+/* A GM ROUTE IS A FILLED PLATE. On the audit page "Murder" is solid red rather than a red
+   outline: it is the one tile that starts something nobody can take back. */
+body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-button.drpg-gm-route {
+    background: color-mix(in srgb, var(--drpg-sg-gm) 38%, rgba(7, 7, 10, 0.55)) !important;
+    border-color: var(--drpg-sg-gm-light) !important;
+}
+/* ...AND A DESTRUCTIVE ONE WEARS THE HAZARD RASTER on top of it. `drpg-destructive` was in
+   this sheet from the first draft and no script had ever put it on anything; the season
+   reset is the button it was written for. */
+body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-button.drpg-destructive {
+    background-image: repeating-linear-gradient(-45deg,
+        rgba(7, 7, 10, 0.55) 0 6px, transparent 6px 12px) !important;
+}
+
+/* the phase rides the clock line as a stamp, the way the audit page prints "DAILY LIFE" */
+body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-phase {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 8px;
+    padding: 1px 9px;
+    color: var(--drpg-sg-ink);
+    background: var(--drpg-glass-accent);
+    clip-path: polygon(0 0, 100% 0, 96% 100%, 3% 100%);
+    letter-spacing: 0.08em;
+}
+
+
+/* THE ICON SITS ABOVE THE LABEL, centred, the way every tile on the audit page does - the
+   module had them side by side, which is why a panel of the same buttons reads as a list. */
+body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-button {
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 6px;
+    text-align: center;
+}
+body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-button > i {
+    margin: 0;
+}
+
+/* ---- the tile rails get a pane of their own ---------------------------------------------- */
+/* THE RAILS ARE CURTAIN BLOCKS NOW (see BLOCKS in glass.mjs), so the curtain cuts them a
+   pane like it cuts one for the clock, and the stand-in pane this rule used to draw is gone.
+   What stays is the fade: Foundry's `faded-ui` dims an idle rail to 0.4, and a tile standing
+   in its own piece of the window is not an overlay to be faded out - it is part of the glass. */
+body.drpg-theme-stained-glass :is(#scene-controls, #sidebar-tabs) {
+    opacity: 1 !important;
+}
+/* with a pane of their own the tiles no longer need a plate each: the glass is the ground */
+body.drpg-theme-stained-glass :is(#scene-controls, #sidebar-tabs) button.ui-control {
+    background: transparent !important;
+    border-color: color-mix(in srgb, var(--drpg-glass-accent) 22%, transparent) !important;
+}
+body.drpg-theme-stained-glass :is(#scene-controls, #sidebar-tabs) button.ui-control:hover {
+    background: color-mix(in srgb, var(--drpg-glass-accent) 14%, transparent) !important;
+}
+
+/* ==========================================================================
+   THE LAST FOUR THINGS THE AUDIT PAGE DOES AND THE MODULE DID NOT (07.09)
+   ========================================================================== */
+
+/* 1. HEALTH AND SANITY WEAR A PLATE, NOT A TAG.
+   Daggerheart gives the label a `.pointy` chevron below the numbers. The audit page puts a
+   solid rectangle of the resource's own colour ABOVE them, with the name in Ink on it, and
+   the count on the dark below - which is why the two never looked the same however the type
+   was set. Order, shape and colour, and nothing about the numbers themselves. */
+body.drpg-theme-stained-glass .application.sheet.actor .status-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+body.drpg-theme-stained-glass .application.sheet.actor .status-label.pointy {
+    order: -1;
+    clip-path: none !important;
+    background: var(--drpg-res, var(--drpg-sg-despair)) !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 2px 8px !important;
+    margin: 0 !important;
+    width: 100%;
+    text-align: center;
+    transform: none !important;
+}
+body.drpg-theme-stained-glass .application.sheet.actor .status-label.pointy :is(h4, span, label) {
+    color: var(--drpg-sg-ink) !important;
+    text-shadow: none !important;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+/* the two resources, by the colour each one carries elsewhere in the module */
+body.drpg-theme-stained-glass .application.sheet.actor .status-bar:has([name*="health"]),
+body.drpg-theme-stained-glass .application.sheet.actor .status-bar:has(h4:is(:first-child)) { --drpg-res: var(--drpg-sg-despair); }
+body.drpg-theme-stained-glass .application.sheet.actor .status-bar:nth-of-type(2) { --drpg-res: var(--drpg-sg-eclipse); }
+body.drpg-theme-stained-glass .application.sheet.actor .status-value {
+    background: rgba(7, 7, 10, 0.55);
+    border: 1px solid color-mix(in srgb, var(--drpg-res, var(--drpg-glass-accent)) 55%, transparent);
+    border-top: none;
+    padding: 3px 6px;
+}
+
+/* 2. THE FIRST LETTER TAKES THE INTERFACE COLOUR.
+   The audit page sets the opening letter of a name in the time of day's own colour - the
+   yellow P of "Player A" - and it is the cheapest thing on the page that says the interface
+   and the character are the same object. Only where a name is a name: headings and the
+   character's own, never a label, a number or a sentence. */
+body.drpg-theme-stained-glass .application.sheet.actor :is(h1.actor-name, .actor-name)::first-letter,
+body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-gm-panel) :is(h1, h2, h3)::first-letter,
+body.drpg-theme-stained-glass #drpg-hud .drpg-hud-campaign::first-letter,
+body.drpg-theme-stained-glass .application .window-title::first-letter {
+    /* the name's own colour is set with `!important` further up, and a pseudo-element
+       does not out-rank that on its own */
+    color: var(--drpg-glass-accent) !important;
+}
+
+/* 3. THE GM PANEL'S ICONS ARE THE INTERFACE COLOUR, like every other mark on the glass.
+   They were inheriting the label's bone, so the one part of the panel that is pure signal
+   read as text. The destructive and route rows keep their own red: there the colour IS the
+   warning, and handing it to the time of day would take that away. */
+body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-gm-panel) :is(i, .fa, [class*="fa-"]) {
+    color: var(--drpg-glass-accent);
+}
+body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-gm-panel)
+    :is(.drpg-destructive, .drpg-gm-route, [data-drpg-gm]) :is(i, .fa, [class*="fa-"]) {
+    color: var(--drpg-sg-gm);
+}
+
+/* 4. THE SHEET'S TAB BAR RUNS THE WHOLE WIDTH, as it does on the audit page: four equal
+   strokes across the sheet, not four labels bunched at the left. */
+body.drpg-theme-stained-glass .application.sheet.actor :is(nav.tabs, .tabs):not(.drpg-gmt-tabs) {
+    display: flex;
+    width: 100%;
+    gap: 4px;
+}
+body.drpg-theme-stained-glass .application.sheet.actor :is(nav.tabs, .tabs):not(.drpg-gmt-tabs) > a {
+    flex: 1 1 0;
+    text-align: center;
+    padding: 4px 6px;
+}
+
+/* NO HYPHENS ON A TILE'S NAME.
+   The type floor made "CONTRIBUTION" wider than the tile it names, and Foundry's own
+   `hyphens: auto` broke it across two lines with a dash - "EXPERI-ENCE". A name on a tile is
+   a label, not prose: it wraps between words or it tightens, and it never takes a hyphen. */
+body.drpg-theme-stained-glass .application.sheet.actor :is(.drpg-action-name, .drpg-action-cost),
+body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-gm-panel) :is(.drpg-gmp-button, button) {
+    hyphens: none !important;
+    -webkit-hyphens: none !important;
+    /* 0.06em, not 0.01. The audit page gives chrome 0.04-0.18 em and more of it the smaller
+       the type gets - in VT323 that tracking is half of what makes uppercase readable. It was
+       dropped to 0.01 to squeeze "CONTRIBUTION" into its tile, which fixed the width by
+       taking away the letterform. The width is handled a rung lower instead (see below). */
+    letter-spacing: 0.06em;
+}
+/* A NAME TOO LONG FOR ITS TILE WRAPS RATHER THAN BEING CUT OFF. "CONTRIBUTION" is one word
+   wider than the tile at the new floor, and with no break allowed it was simply clipped to
+   "CONTRIBUTIO". The tiles are tall enough for two lines; a break with no hyphen is what the
+   audit page does with the long ones. */
+body.drpg-theme-stained-glass .application.sheet.actor .drpg-action-name {
+    overflow-wrap: anywhere;
+    overflow: visible;
+    line-height: 1.15;
+    /* the rung below chrome: a tile's name is the smallest label on the sheet and the only
+       one competing with a fixed column width, so it is the one place the ladder steps down */
+    font-size: calc(var(--drpg-sg-floor) * 0.85) !important;
+}
+
+/* THE SHEET'S TABS SCROLL. Daggerheart gives `section.tab` `overflow: hidden` and sizes it
+   to fit the type it was designed for; at the theme's floor the Inventory ran 588 px into a
+   517 px box and the last rows were simply unreachable (Dawid, 07.09). Bigger type is the
+   decision, so the pane that holds it has to be able to move. */
+body.drpg-theme-stained-glass .application.sheet.actor section.tab,
+body.drpg-theme-stained-glass .application.sheet.actor .tab-body {
+    overflow-y: auto !important;
+    scrollbar-width: thin;
+}
+
+/* ==========================================================================
+   THE PLAYER'S STATUS STRIP GETS THE SAME MARKS AS THE SHEET (07.09)
+   ==========================================================================
+   The square pip, the pixel arrow and the sized star were written for
+   `.character-header-sheet` and never reached `#drpg-player-status`, so the strip in the
+   top right corner still carried Foundry-round dots and a half-size arrow while the sheet
+   two windows away had the audit page's marks. Same rules, one more scope. */
+body.drpg-theme-stained-glass #drpg-player-status .drpg-action-pip::before {
+    -webkit-mask-image: none;
+    mask-image: none;
+    width: 11px;
+    height: 11px;
+    border-radius: 0;
+    background: var(--drpg-glass-accent);
+}
+body.drpg-theme-stained-glass #drpg-player-status .drpg-action-pip:not(.filled)::before {
+    background: none;
+    border: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 50%, transparent);
+}
+body.drpg-theme-stained-glass #drpg-player-status .drpg-status-pip {
+    border-radius: 0 !important;
+}
+/* the free move arrow was set at 11.5 px against 21 px labels either side of it */
+body.drpg-theme-stained-glass #drpg-player-status .drpg-free-move {
+    font-size: var(--drpg-sg-floor) !important;
+    line-height: 1;
+}
+/* THE THREE FIELDS STAND ON ONE LINE.
+   "Napis MOVE jest za wysoko" (07.09): each field sized itself to its own contents, so the
+   Actions label with its two-line box sat 13 px below Move's one-line box and Hope's another
+   16 below that. The strip is one row of three: same column layout, same top, labels on one
+   baseline and the marks under them. */
+body.drpg-theme-stained-glass #drpg-player-status .drpg-status {
+    display: flex;
+    align-items: flex-start;
+    gap: 18px;
+}
+body.drpg-theme-stained-glass #drpg-player-status .drpg-status-field {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 4px;
+}
+body.drpg-theme-stained-glass #drpg-player-status .drpg-status-label {
+    line-height: 1.1;
+    height: auto;
+}
+body.drpg-theme-stained-glass #drpg-player-status .drpg-status-pips {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-height: calc(var(--drpg-sg-floor) * 1.1);
+}
+
+/* ONE STAR PER SLOT, AND THE SLOT DRAWS IT.
+   Daggerheart marks a spent Hope with `fa-regular fa-circle` and a held one with `fa-diamond`,
+   and the module's own rule (above) had already given the FILLED slot's `::before` a star -
+   which is why a full track looked right and every partial one showed circles for the spent
+   ones. Masking the `<i>` as well as the slot drew the star twice: twelve marks for six
+   Hope (Dawid, 07.09). The slot's own mark is the one on screen; the icon inside it is
+   never shown under this theme, in either state. */
+body.drpg-theme-stained-glass :is(.hope-section, #drpg-player-status .is-hope) :is(.hope-value, .drpg-status-hope-pip) > i {
+    display: none !important;
+}
+
+/* AND THE MARK IS DRAWN BY THE SLOT, NOT BY THE ICON IN IT.
+   `.hope-value` carries its own `::before` - a filled box in the Hope colour - and THAT is
+   what is on screen; the `<i>` inside it was already masked to a star and was not what was
+   showing. Same star on the slot's own mark, and a spent slot is the same star at a third. */
+body.drpg-theme-stained-glass :is(.hope-section, #drpg-player-status .is-hope) .hope-value::before {
+    -webkit-mask: var(--drpg-px-star) center / contain no-repeat;
+    mask: var(--drpg-px-star) center / contain no-repeat;
+    border-radius: 0 !important;
+    image-rendering: pixelated;
+}
+body.drpg-theme-stained-glass :is(.hope-section, #drpg-player-status .is-hope) .hope-value:has(> i:is(.fa-circle, .fa-regular))::before {
+    opacity: 0.34;
+}
+
+/* THE TWO BUTTONS IN THE SHEET'S TOP RIGHT ARE ONE SIZE, AND IT IS NOT THE TEXT SIZE.
+   `.drpg-advance-button` carries an icon, not a word, so it was taking the type floor as a
+   GLYPH size - 24 px - and sizing its box to whatever the icon plus its own padding came to:
+   52x36 for one and 50x40 for the other, which is both "za duzy" and "nierowny" (07.09).
+   A square, stated, with the icon set as a fraction of it and the padding gone. */
+body.drpg-theme-stained-glass .application.sheet.actor .drpg-advance-button {
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px;
+    min-height: 34px;
+    padding: 0 !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    font-size: 17px !important;
+    line-height: 1;
+}
+body.drpg-theme-stained-glass .application.sheet.actor .drpg-advance-button > i {
+    font-size: 17px !important;
+    line-height: 1;
+}
+
+
+/* ---- THE PROSE RUNG -------------------------------------------------------
+   Running text is not chrome: the audit page sets it 18 px against chrome's 11-15, with no
+   uppercase and no letter-spacing, and caps the measure at 74 characters. In the module it
+   had been inheriting the chrome floor and the chrome tracking, so a paragraph read as a very
+   long label. `letter-spacing: normal` is stated because tracking INHERITS as a length: a
+   parent at 0.06 em hands its children the same pixels whatever size they are. */
+/* `.notes` and `.hint` are deliberately NOT here. In this module they are caption classes -
+   "2 of 2 actions - free Move unused", "Monokuma's standing rules" - not running text, and the
+   chrome floor is the right rung for a caption. Measured: a real paragraph is 24.2 px, a
+   caption 21, which is the ladder doing exactly what it is for. */
+body.drpg-theme-stained-glass :is(.application, .drpg-panel) :is(p, blockquote),
+body.drpg-theme-stained-glass .application.sheet.actor :is(p, blockquote) {
+    /* `!important` for the size alone, and for the reason the whole file carries it: the rungs
+       above are set that way too, and an unmarked declaration loses to them however specific
+       it is. Measured before this: the paragraph matched this rule and still computed 21 px. */
+    font-size: var(--drpg-sg-prose) !important;
+    letter-spacing: normal;
+    text-transform: none;
+    max-width: 74ch;
+}
+
+/* ---- STEP 4: THE TITLE FACE APPEARS ONCE PER WINDOW ------------------------
+   The audit page: Special Elite "to krój maszyny do pisania z akt sprawy, więc występuje raz
+   na okno: tam, gdzie jest nazwa rzeczy". Measured on the character sheet: three runs - the
+   character's name, the window title (which only repeats the name) and the Ultimate. The name
+   keeps the face; the window title drops to chrome, and the Ultimate goes back to the stamp
+   the audit page designs for it - uppercase VT323 on a blot of the meaning's colour. */
+body.drpg-theme-stained-glass .application.sheet.actor .window-title {
+    font-family: var(--drpg-font-chrome) !important;
+    font-size: var(--drpg-sg-floor) !important;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+body.drpg-theme-stained-glass .application.sheet.actor .drpg-ultimate-value {
+    font-family: var(--drpg-font-stamp) !important;
+    font-size: var(--drpg-sg-floor) !important;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+/* ---- STEP 5: HOVER AND SELECTED ARE TOLD APART BY THE EDGE -----------------
+   Both carry a full brush now (your call, and it stays), so the state that used to be read
+   from the brush's opacity has to be read from something else. The audit page's own rest
+   state is "cienka krawędź w kolorze elementu", so the selected state takes a thick one: two
+   pixels of the state colour all the way round. Hover keeps the hairline. */
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):is(.active, .selected, [aria-pressed="true"]),
+body.drpg-theme-stained-glass .application.sheet.actor :is(nav.tabs > a, .tabs > a):is(.active, [aria-selected="true"]),
+body.drpg-theme-stained-glass .drpg-panel button:is(.active, .default, [aria-pressed="true"]) {
+    border-width: 2px !important;
+    border-style: solid !important;
+    border-color: var(--brush) !important;
+    box-shadow: 0 0 10px color-mix(in srgb, var(--brush) 34%, transparent);
+}
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button):hover:not(:disabled):not(.unaffordable):not(.active):not(.selected) {
+    border-width: 1px !important;
+    box-shadow: none;
+}
+
+/* ---- AND NOTHING OPAQUE ON TOP OF IT --------------------------------------
+   The ground being glass is only half the job: a child painted opaque over it hides it as
+   well as never having had it. Measured on the character sheet: the tab strip covered 56 000
+   px of glass at 0.84 (a number copied from the OLD window ground) and the side column
+   covered 258 000 at 0.94. The audit page does give the sheet's side column a ground of its
+   own, so it keeps one - at a weight the glass reads through, not a lid. The Bone strips (the
+   tab bar, the section headers) stay opaque: there the solid Bone IS the design. */
+body.drpg-theme-stained-glass .application :is(.tab-navigation, .tab-body, section.tab) {
+    background: transparent !important;
+}
+body.drpg-theme-stained-glass .application.sheet.actor .character-sidebar-sheet {
+    background-color: rgba(10, 9, 14, 0.45) !important;
+}
+
+/* ---- THE GM BAR IS A CONSTANT, LIKE THE TILES IT STANDS ON -----------------
+   It rides on the scene rail's shard and reads as one of that group, so it should hold its
+   size the way Foundry's own tiles do - those are 36 px whatever the module's slider says,
+   because the module never scales them. The audit page states this one too: "belka DMa 72 na
+   32 px pod zegarem". Fixed px, deliberately outside `--drpg-sg-scale`. */
+body.drpg-theme-stained-glass #drpg-gm-launcher {
+    font-size: 13px !important;
+    letter-spacing: 0.14em;
+}
+body.drpg-theme-stained-glass #drpg-gm-launcher :is(span, div, i) {
+    font-size: 13px !important;
+    line-height: 1.2;
+}
+/* ON THE ELEMENT, NOT ON A CHILD. `#drpg-gm-launcher` IS the button - there is no button
+   inside it - so a first attempt at `#drpg-gm-launcher button` matched nothing at all and the
+   box went on growing: measured 74x36 at 100 % and 103x51 at 140 %, against a Foundry tile
+   holding 34x34 at every setting. */
+body.drpg-theme-stained-glass #drpg-gm-launcher {
+    width: 72px !important;
+    min-width: 72px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    box-sizing: border-box !important;
+    padding: 0 10px !important;
+}
+body.drpg-theme-stained-glass #drpg-gm-launcher :is(i, .fa, [class*="fa-"]) {
+    font-size: 13px !important;
+}
+
+/* ==========================================================================
+   AUDIT "WITRAZ NA WYLOT" (08.09.2026) - the round this file ends on.
+   --------------------------------------------------------------------------
+   Nine items, in the order the audit ranked them. Item 1 is in settings.mjs
+   (`typeScale`); everything below is here. Each block says what it measured.
+   ========================================================================== */
+
+/* ---- 2. THE VALUE STEP, WHICH THE FLOOR HAD SWALLOWED ---------------------
+   Measured across 263 text leaves: 215 of them sat on exactly one size. The
+   audit page's own hierarchy is not built out of many sizes - it is built out
+   of plates, colour, and ONE step between a label and the value beside it
+   (`.strip .f b` 16 over `.f` 13; `.sheet .stat b` 22 over `.k` 13). That step
+   is what the floor ate, so that step is what comes back. Nothing else grows.
+
+   The traits already had it (value 24.1 over name 17.9) and are left alone. */
+
+/* The strip's three numbers, which a player reads every turn. */
+body.drpg-theme-stained-glass #drpg-player-status .drpg-status-value {
+    font-size: var(--drpg-sg-prose);
+    line-height: 1.1;
+}
+
+/* Health and Sanity. These were Daggerheart's own flat 24 px and 20 px - bigger
+   than their label, which was right, but fixed, so they were the one pair on the
+   sheet that ignored the interface scale entirely. Same ratio, on the ladder. */
+body.drpg-theme-stained-glass .application.sheet.actor .resources-section .status-bar .status-value,
+body.drpg-theme-stained-glass .application.sheet.actor .resources-section .status-bar .status-value :is(input.bar-input, span, .bar-label) {
+    /* `!important` for the layer, not for the specificity: Daggerheart's own sheet rules sit
+       in a cascade layer above this file, so the children measured 20 px against this rule
+       until it shouted. The parent alone took it without. */
+    font-size: var(--drpg-sg-title) !important;
+    line-height: 1.1;
+}
+
+/* THE ACTION TILE READ BACKWARDS. Measured: the name 15.2 px, the cost 17.9 - the tile said
+   "1 ACTION" louder than it said "SEARCH".
+
+   THE NAME IS NOT THE THING TO CHANGE, and a first go at this got it wrong. The name is held
+   a rung under the floor on purpose and with `!important` (see the CONTRIBUTION note further
+   up): it is the one label on the sheet competing with a fixed column width, and raising it
+   is how "CONTRIBUTIO" happened. The cost simply never came down with it.
+
+   So they meet, and the pair separates the way the audit page separates them - `.ui.tile`
+   13 px against `.ui.tile small` 12 px, near enough the same size, told apart by colour. The
+   cost is already `--drpg-sg-bone-dim` and stays so. Nothing gets wider, nothing gets
+   smaller than a 15 px cap. */
+/* ---- 3. ONE BONE ----------------------------------------------------------
+   Three near-whites were on screen at once: #e4ded8 (Monokuma Legacy's, 100
+   uses), #efe6d8 (Foundry's own text token, 41) and #f2eee6 (the theme's own,
+   25). The theme's was the rarest and the brightest. Rather than hunt 141 sites
+   through a cascade layer, the two other tokens are pointed at the theme's for
+   the length of the theme - one rule, and every consumer follows.
+
+   `--drpg-bone-rgb` goes with it or the two drift: it feeds every
+   `rgba(var(--drpg-bone-rgb), a)` in the sheet, and a hairline at 0.14 of one
+   white beside text of another is exactly the kind of drift this is closing. */
+body.drpg-theme-stained-glass {
+    --drpg-bone: #f2eee6;
+    --drpg-bone-rgb: 242, 238, 230;
+    --color-text-primary: #f2eee6;
+}
+
+/* ---- 4. THE FOUR CONTRAST FAMILIES ----------------------------------------
+   Sixteen of 154 strings measured under 4.5:1 on real pixels, and they are not
+   sixteen problems. Three of the four worst share one cause that took a probe to
+   see: the sheet's header labels carry NO text-shadow at all, while every other
+   surface in the theme carries the curtain's. Hope 2.27, Actions 2.60, the GM
+   badge 2.38 - all three are a colour laid straight on a lit backdrop with no
+   halo under it.
+
+   A HALO WAS THE FIRST ANSWER AND THE MEASUREMENT SENT IT BACK. Adding the
+   theme's own shadow to the three took Hope from 2.27 to 2.07 - WORSE. VT323 is
+   a hairline pixel face and a 6 px shadow at 0.75 bleeds through a 13 px cap
+   from both sides, so the glyph's own core darkens faster than its background.
+   The halo stays only on the GM badge, where it works because the badge also
+   gains a ground below.
+
+   The two header labels get what the audit page gives a coloured word instead:
+   a chip. `.chip` there is the colour, an edge of itself and `rgba(7,7,10,0.6)`
+   under it - and these two already sit in a bordered box, so only the ground is
+   missing. Nothing moves, nothing resizes; the box stops being see-through. */
+body.drpg-theme-stained-glass .application.sheet.actor .drpg-action-gm {
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.9), 0 0 6px rgba(0, 0, 0, 0.75);
+}
+body.drpg-theme-stained-glass .application.sheet.actor :is(.hope-section, .drpg-actions) {
+    background-color: rgba(7, 7, 10, 0.72);
+}
+
+/* AND THE GM BADGE BECOMES A CHIP, which is what the audit page does with every
+   coloured word that has to survive on glass: `.chip` is the colour, a 1 px edge
+   of itself, and its own dark ground - `rgba(7,7,10,0.6)`. Red on red at 2.38 is
+   the worst reading in the module and it is a word a GM has to pick out of a grid
+   of ten tiles. `currentColor` for the edge so it needs no token of its own. */
+body.drpg-theme-stained-glass :is(.drpg-action-button, .drpg-call-button) .drpg-action-gm {
+    background: rgba(7, 7, 10, 0.72);
+    border: 1px solid color-mix(in srgb, currentColor 55%, transparent);
+    padding: 0 5px;
+    line-height: 1.35;
+}
+
+/* ---- 5. A SCRIM UNDER RUNNING TEXT -----------------------------------------
+   0.58 stays the rule (Dawid, 07.09: liquid glass is the background of every
+   window). What it costs was measured on the messenger: the empty state sits on a
+   soft amber cloud, and no element in that chain paints anything - it is a lit
+   patch of the MAP, through the alpha and the 16 px blur. Bone on glass came out
+   at 3.58 for the same reason.
+
+   So the tafla stays transparent and only what is directly under the letters
+   gains ground. Blocks of running text, not the window: the glass is still the
+   window's background and still shows the map through it everywhere else. */
+body.drpg-theme-stained-glass :is(.drpg-messenger-log, .drpg-popup-body),
+body.drpg-theme-stained-glass .application.sheet.actor :is(.editor-content, .description) {
+    background-color: rgba(7, 6, 11, 0.42);
+}
+
+/* The always-on blocks keep their promise - no plates, the glass IS the
+   background - so they take a scrim that has no edge: a soft ellipse fading to
+   nothing well inside the block. It darkens under the words and draws no
+   rectangle. `background-image` rather than a pseudo-element, because these
+   blocks already carry `background: transparent !important` and an image slips
+   under the content without touching the stacking order. */
+body.drpg-curtain-on :is(#drpg-hud, #drpg-despair, #countdowns, #drpg-player-status) {
+    background-image: radial-gradient(ellipse at center,
+        rgba(3, 2, 6, 0.66) 0%, rgba(3, 2, 6, 0.40) 55%, rgba(3, 2, 6, 0) 80%) !important;
+}
+
+/* ---- 6. THE SHEEN AND THE EDGE ---------------------------------------------
+   The audit page gives a pane three things: the blur, a diagonal band of light
+   (`linear-gradient(148deg, ...)` on `::after`) and a bright top edge
+   (`inset 0 1px 0 rgba(255,255,255,0.45)`). This file had the blur and the alpha
+   and neither of the other two - which is the difference between a dark panel and
+   a piece of glass, and it costs two declarations.
+
+   AS A BACKGROUND IMAGE, NOT A PSEUDO-ELEMENT. The audit page can afford `::after`
+   because its body is explicitly `z-index: 2`; ours is not, so an `::after` with no
+   stacking context of its own would paint the sheen OVER the text. A background
+   image is under the content by definition. `!important` because the colour above
+   it is set with the shorthand, which sets `background-image: none` with it. */
+body.drpg-theme-stained-glass .application[class] .window-content {
+    background-image: linear-gradient(148deg,
+        rgba(255, 255, 255, 0.10) 0 15%,
+        rgba(255, 255, 255, 0.03) 30%,
+        transparent 52%) !important;
+}
+
+/* ---- 7. THE PAUSE SCREEN IS A PANE ----------------------------------------
+   Foundry starts paused, so this is the module's cover. It wore Legacy's double
+   gold frame (now scoped there, danganronpa.css) at 72 px with a glow ring, over
+   a full-screen veil - three pixels of border and a reserved colour, in a theme
+   built out of hairlines. Same word, same size, same veil; the plate becomes the
+   glass every other surface is made of, and the seam takes the hour's colour. */
+body.drpg-theme-stained-glass #pause.paused figcaption {
+    color: var(--drpg-sg-bone);
+    background: rgba(7, 6, 11, 0.58);
+    backdrop-filter: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
+    -webkit-backdrop-filter: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
+    border: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 55%, transparent);
+    border-radius: 0;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.5),
+                0 0 26px color-mix(in srgb, var(--drpg-glass-accent) 26%, transparent),
+                0 14px 34px rgba(0, 0, 0, 0.5);
+    background-image: linear-gradient(148deg,
+        rgba(255, 255, 255, 0.10) 0 15%,
+        rgba(255, 255, 255, 0.03) 30%,
+        transparent 52%);
+}
+
+/* ---- 8. THINGS THAT ARE CLICKED ------------------------------------------
+   102 controls under 24 px across 33 of 46 surfaces, and sixty of them are one
+   control: the window header's buttons, measured 24 x 15. Fifteen pixels of
+   height on close and minimise, in every window Foundry and this module open.
+   The width was already right, so this is one number. */
+body.drpg-theme-stained-glass .application[class] .window-header button {
+    min-height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+/* The checkbox is sized where it is DEFINED, further up - a rule here could not reach it.
+   `:is()` carries the specificity of its widest arm, so the theme's own
+   `:is(.drpg-panel, .application.sheet.actor) input[type=checkbox]` outranks anything written
+   as `.application[class] input[...]`, whatever the order. Measured the hard way: the rule sat
+   here for a pass and the box stayed 18. */
+
+/* ---- 9. THE SHLIF ---------------------------------------------------------
+   Nineteen boxes still carried a radius after the round that took every rounded
+   corner out. Four of them are invisible under the curtain (the always-on blocks
+   are transparent there) but the rule was alive and would show the moment a block
+   was seen off the glass; three are visible every session in the chat. */
+body.drpg-theme-stained-glass :is(#chat, #chat-log, #chat-notifications, #drpg-hud, #drpg-despair,
+    #drpg-player-status, #countdowns),
+/* NOT SCOPED TO `#chat`: a message renders inside `#chat-log`, `#chat-notifications` and the
+   popped-out chat as well, and the first go at this - which named `#chat` - left seven of them
+   rounded. Measured after, not assumed. */
+body.drpg-theme-stained-glass :is(li.chat-message, li.drpg-chat-card),
+body.drpg-theme-stained-glass :is(li.chat-message, li.drpg-chat-card) :is(img, .avatar, img.actor-img) {
+    border-radius: 0 !important;
+}
+
+/* A MEASURE FOR THE WIDE WINDOWS. The longest line in the module runs 1530 px -
+   Investigation, then Room setup at 1438 - which at the chrome floor is past 120
+   characters, roughly twice a comfortable measure. The cap goes on the PARAGRAPH,
+   never on `.window-content`: 1.2.39 put it on the box and the frame, which sizes
+   itself to its content, came out at three different widths in one window. */
+body.drpg-theme-stained-glass .drpg-panel .window-content :is(p, .notes, .hint) {
+    max-width: 74ch;
+}
+
+/* THE PANEL'S FOOTER WAS WIDER THAN THE PANEL. Measured on the GM panel: the form is 670 px
+   and its own `footer.form-footer` 702, sixteen past each edge - Foundry gives the footer a
+   negative margin so it can sit flush in a dialog that has none. `overflow-x: clip` further up
+   hid it, which is why it never showed as a cut; it was still a footer standing outside its
+   form, and the Close button rode with it. */
+body.drpg-theme-stained-glass .drpg-panel :is(.dialog-form, .standard-form) > footer.form-footer {
+    max-width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    box-sizing: border-box;
+}
+
+/* THE CHAT CARD'S HEADER WAS SLICED, NOT ELLIPSISED. Measured at 1440p: the header is a grid
+   226 px wide holding a `.subtitle` that wants 273, under `overflow: hidden` with
+   `text-overflow: clip` - so a long speaker's name simply ends mid-letter with nothing to say
+   it was cut. A grid item will not shrink below its content unless it is told it may, which is
+   what `min-width: 0` is for; with that in place the ellipsis has room to appear. */
+body.drpg-theme-stained-glass :is(li.chat-message, li.drpg-chat-card) > header > div {
+    min-width: 0;
+}
+body.drpg-theme-stained-glass :is(li.chat-message, li.drpg-chat-card) > header > div > * {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

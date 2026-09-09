@@ -71,6 +71,32 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 /** Let a world write land on this client before reading it back. */
 const settle = () => wait(400);
 
+/**
+ * Wait for a CONDITION rather than for the clock.
+ *
+ * `settle()` is a flat 400 ms and it is the right tool for "nothing should have
+ * happened" - there is no condition to wait for, only time to let pass. It is the
+ * wrong tool for "this should have arrived", and two Tier-2 tests spent 08 and
+ * 09.09 proving it: `a trace and its bullets are one record` and `a trap watches,
+ * fires once` each failed twice and each passed on the very next run of the same
+ * code. Both fail on a value that has to travel TWO hops - an edit on a bullet
+ * reaching its trace, then the trace pushing the correction back down to the other
+ * holder; a room-crossed hook reaching the trap, then the trap posting a card - and
+ * 400 ms was never asked to cover a second round trip.
+ *
+ * Polls, then RETURNS ANYWAY at the deadline instead of throwing, so the assertion
+ * that follows still reports what it actually saw rather than a timeout with no
+ * measurement in it.
+ */
+const until = async (check, ms = 4000) => {
+    const deadline = Date.now() + ms;
+    for (;;) {
+        try { if (check()) return true; } catch { /* not there yet */ }
+        if (Date.now() >= deadline) return false;
+        await wait(50);
+    }
+};
+
 /* ==========================================================================
  * TIER 0 - MODULE-WIDE REGRESSION
  * ========================================================================== */
@@ -4211,6 +4237,7 @@ const SCENARIOS = [
             const said = `Fixture trace ${Date.now() % 100000}`;
             await remnants.setRemnantPublic(token, { name: said, playerText: "A chipped rim." });
             await settle();
+            await until(() => made.every(i => i.actor.items.get(i.id)?.name === said));
             for (const item of made) {
                 const live = item.actor.items.get(item.id);
                 equal(live?.name, said,
@@ -4222,10 +4249,14 @@ const SCENARIOS = [
             await made[0].actor.items.get(made[0].id).update({ name: corrected });
             await settle();
 
+            await until(() => remnants.remnantPublic(token)?.name === corrected);
             equal(remnants.remnantPublic(token)?.name, corrected,
                 "an edit on a bullet never reached the trace it came from");
 
             // ---- AND BACK DOWN, to the copy nobody touched ------------------
+            /* THE SECOND HOP IS THE ONE THAT WAS FLAKY. The trace has the words by the
+               line above; this is the push back down to the holder nobody edited. */
+            await until(() => two.items.get(made[1].id)?.name === corrected);
             equal(two.items.get(made[1].id)?.name, corrected,
                 "the trace took the correction and the other holder never saw it");
 
@@ -4233,6 +4264,7 @@ const SCENARIOS = [
             await made[0].actor.items.get(made[0].id)
                 .update({ "system.description": "<p>Rust in the hinge.</p>" });
             await settle();
+            await until(() => remnants.remnantPublic(token)?.playerText === "Rust in the hinge.");
             equal(remnants.remnantPublic(token)?.playerText, "Rust in the hinge.",
                 "a description typed on the item sheet did not reach the trace");
         } finally {
@@ -4289,7 +4321,9 @@ const SCENARIOS = [
         const group = find(canvas.stage, "drpgRoomOutline");
         ok(group, "the room outline group is not on the canvas");
 
-        const graphics = group.children.find(c => !c.texture && c.geometry);
+        /* NOT the glow: it strokes the same path several times wider, so measuring it
+           would ask whether the LIGHT is shorter than itself, which is not the question. */
+        const graphics = group.children.find(c => !c.texture && c.geometry && c.name !== "drpgRoomOutlineGlow");
         ok(graphics, "the outline has no geometry to read");
 
         const grid = canvas.grid.size;
@@ -4614,7 +4648,13 @@ const SCENARIOS = [
             // 3. somebody else, alone
             count = game.messages.size;
             Hooks.callAll("drpgRoomCrossed", { actor: other, from: null, to: room });
-            await settle();
+            /* WAIT FOR THE CARD, NOT FOR 400 MS. The hook is synchronous, what it starts is
+               not: the trap reads the room, decides, and posts a ChatMessage, which is a world
+               write. This is the assertion that failed twice on 08-09.09 and passed on the
+               re-run both times. The disarm below rides on the same chain, so it is waited for
+               too - and both fall through to the assertion at the deadline. */
+            await until(() => game.messages.size > count);
+            await until(() => T.diagnoseTraps().armed === 0);
             ok(game.messages.size > count, "the trap did not fire on somebody else walking in alone");
             equal(T.diagnoseTraps().armed, 0, "the trap did not disarm itself after speaking");
 
