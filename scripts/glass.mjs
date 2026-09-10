@@ -299,6 +299,55 @@ function applyRotations() {
     if (shift) fixes.push(`body.drpg-theme-stained-glass :is(${r.sel}) { transform-origin: ${r.origin}; transform: translateX(${shift}px) ${r.transform}; }`);
   }
   if (fixes.length) sheet.textContent = rules.concat(fixes).join(" ");
+  tightenGmGap();
+}
+
+/**
+ * The tiles sit under the GM button by the same gap they keep between themselves.
+ *
+ * MEASURED AFTER THE ROTATIONS, BECAUSE THAT IS THE ONLY PLACE THE ANSWER IS. The margin
+ * in `moduleLayout` is computed with the rotations off, deliberately - a position fed back
+ * into the thing being measured is what used to make the tiles creep every recut. But the
+ * rail and the GM button are then both turned, and the button is aligned TO the rail
+ * (`alignTo`), so what the margin asks for and what the screen shows are two different
+ * numbers. Measured on 11.09: the tiles keep 6 px between themselves and stood 37 px under
+ * the button at 1920x1080, 16 at 1600x900 and 73 at 2560x1440 - three different holes from
+ * one constant, which is the signature of a number being read in the wrong frame.
+ *
+ * So the correction is the same shape as `railOverhang` above it: propose, look, answer.
+ * Iterated because moving the rail moves the button with it - the coupling measured about
+ * two thirds, so it converges - and capped, because a correction that has not settled in
+ * three goes is one that never will.
+ *
+ * SAFE FOR THE GLASS, and that is not an accident: the band's top is `min(first tile, the
+ * GM button + GM_DROP)`, and the button is the higher of the two, so the band is already
+ * cut from above the button. Tiles moving UP move further inside their own shard, never
+ * out of it. Verified by the corner tally either side of this landing.
+ */
+function tightenGmGap() {
+  const rail = document.querySelector("#scene-controls");
+  const gm = document.querySelector("#drpg-gm-launcher");
+  if (!rail || !gm || !gm.offsetWidth || !themeOn()) return;
+  const menu = rail.querySelector(":scope > menu");
+  if (!menu) return;
+
+  for (let pass = 0; pass < 3; pass++) {
+    const tiles = [...menu.querySelectorAll("button.ui-control")]
+      .filter(e => e.offsetWidth > 0).map(e => e.getBoundingClientRect());
+    if (tiles.length < 2) return;
+    /* THE TILES' OWN GAP, not a constant: it is Foundry's menu gap at this interface
+       scale, and matching it is the whole request ("z rownym marginesem do przerw miedzy
+       kafelkami", Dawid 11.09). Read from the first pair and sanity-checked, because a
+       wrapped column would put the second tile beside the first rather than under it. */
+    const own = Math.round(tiles[1].top - tiles[0].bottom);
+    if (!(own >= 0 && own < 40)) return;
+    const have = Math.round(tiles[0].top - gm.getBoundingClientRect().bottom);
+    const delta = have - own;
+    if (Math.abs(delta) < 2) return;
+    const base = parseFloat(rail.style.marginTop) || 0;
+    rail.style.marginTop = Math.round(base - delta) + "px";
+    void rail.offsetHeight;
+  }
 }
 /* THE RIGHT-HAND COLUMN STANDS STILL.
    Foundry lays `#ui-right-column-1` out beside the sidebar, so opening the sidebar pushes the
