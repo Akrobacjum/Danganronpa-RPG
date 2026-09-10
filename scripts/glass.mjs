@@ -414,7 +414,20 @@ function moduleLayout(W, H) {
          to wherever the strip beside it ENDS, so a shorter rail pulls the section up with it and
          the last row of tiles lands on the same boundary. The gap that matters is the one the
          band keeps under the tiles, which is `coreY` in `railBox`. */
-      const room = Math.round(H - (100 + 160) * s - 14 - boxTop);
+      /* AND THE CLEARANCE IS OFF THE NOTICE TILE'S GLASS, NOT ITS BOX.
+
+         The tile stands in a column the partition LEANS, so the top of its PANE is well above
+         the top of its box - measured 10.09: 46 px at 1600x900, 48 at 1920x1080, 60 at
+         2560x1440, which is 0.18 to 0.20 of the tile's own width. A rail bounded to the box
+         therefore ends inside the pane. At 2560x1440 with the tools open the tiles ran to
+         1121 and that pane began at 1120.
+
+         The band under the tiles needs its skirt below that again, so the clearance is the
+         lean plus the skirt plus a hair - all three measured rather than guessed, and 0.22
+         over the tile's width covers the worst of the three readings. */
+      const noteW = 330 * s;
+      const notePaneLean = Math.round(noteW * 0.22);
+      const room = Math.round(H - (100 + 160) * s - notePaneLean - 34 - 8 - boxTop);
       /* The bound may never be shorter than the controls themselves. Foundry's control menu
          is `flex-wrap: nowrap` - it cannot wrap, so a bound under its own height only hides
          tiles behind the rail's `overflow: hidden` (four of twenty survived the first attempt).
@@ -767,7 +780,22 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
          never where that block stands. `push` would have to be given the block's own box, which
          both call sites already hold as `up.r`. A solver change, not a patch; see the note
          beside BLOCKS about what teaching this partition costs. */
-      const wantH = Math.max((r.top + rail.offsetHeight) - top, btns.length * 1);
+      /* TO THE LAST TILE, NOT TO THE BOTTOM OF THE BOX.
+
+         `rail.offsetHeight` is the box, and the box is whatever `max-height` left it -
+         the bound in `moduleLayout` sets that to the room available at this wall, not to
+         what the tiles use. Measured on 10.09 at 2560x1440: the box was 525 px tall and
+         held 314 px of tiles, so the band reserved 211 px of empty wall and then asked for
+         a 34 px skirt below THAT. It ran into the notice tile's pane, which is what the
+         seam through the bottom row of tiles was really about.
+
+         The band exists to hold the tiles and the GM button above them. Both are measured;
+         the padding under the last tile is not part of either. `top` is already the higher
+         of the first tile and the GM button, so this is the other end of the same reading. */
+      const tilesBottom = btns.length
+        ? Math.max(...btns.map(e => e.getBoundingClientRect().bottom))
+        : (r.top + rail.offsetHeight);
+      const wantH = Math.max(tilesBottom - top, btns.length * 1);
       /* HOW MANY COLUMNS THE TILES CAN ACTUALLY REACH, not the worst case on any screen.
          Foundry wraps a control's tools into another column only when they run out of the
          height available, so on a tall screen thirteen tools sit in ONE column and reserving
@@ -1129,53 +1157,64 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
          applies to the skip above: a strip is dropped only when even the tiles cannot stand
          in it (and at 240 the left rail lost its shard at 140 % on a 900 px screen).
 
-         WHY THE RAIL STILL STRADDLES, AND SIX THINGS THAT DO NOT FIX IT (10.09).
+         WHY THE RAIL USED TO STRADDLE, AND THE THREE CUTS THAT STOPPED IT (10.09).
 
-         The cause is one line down: `yMid` reads `min(yBot - 120, max(..., yCtl + 60))`. The
-         inner `max` is the rule that keeps the seam BELOW the tiles; the outer `min` overrules
-         it, and on a 1080p screen it does. Measured with the solver printing its own numbers:
-         the left rail's tiles ran y 534 to 847, the seam landed at 700, and the shard - cut
-         from the upper quad alone - stopped at 717. Everything below sat on the strip beneath:
-         15 tile corners of 48 with the tools shut, 29 of 80 with them open.
+         Three faults, each measured with the solver printing its own numbers:
 
-         Underneath that is a second one. The rail's band (`coreY`) claims the rail's own box
-         plus a 34 px skirt, and at this wall the notice tile stands directly below - `fixed`,
-         so it cuts a pane whether or not a card is showing, and leaned, so the top of its PANE
-         is some 33 px above the top of its box. The band and that pane want the same wall and
-         no local rule gives it to both.
+         1 THE SEAM LANDED INSIDE THE RAIL. `yMid` reads `min(yBot - 120, max(..., yCtl + 60))`
+           - the inner `max` keeps the seam below the tiles and the outer `min` overrules it.
+           At 1920x1080 the tiles ran y 534 to 847, the seam landed at 700, and the shard - cut
+           from the upper quad alone - stopped at 717. Answered by `seamFloor` just below.
 
-         What was built and measured, in order, and what each cost:
-           1 seam floored below the tiles   1080p 34/48 -> 48/48 shut and 52/80 -> 76/80 open,
-                                            1440p 70/80 -> 78/80. Costs 2 edge gaps at 1440p:
-                                            dropping the mid seam drops the lower quad with it.
-           2 seam moved down instead        1440p reaches 80/80 and the 2 gaps stay, so they
-                                            are not the lower quad's absence.
-           3 sections clipped, no shield    the wrong pane becomes NO pane - the strip does not
-                                            grow into what a section gives up. 10 of 48 corners
-                                            in a hole at 1600x900.
-           4 + strip covers the whole band  48/48 and 80/80 at 1080p and 1440p - and the notice
-             (`yBot` clamped to `coreY`,    tile loses a corner of its own glass, because it is
-              the bottom column's edge      unmeasured and nothing shields it. Two block
-              not cutting inside it)        failures at every size; the suite fails on it.
-           5 shield by the block's box      no change: the box is upright, the pane is leaned,
-                                            and the failing corner is 33 px above the range.
-           6 shield by the leaned box       the shield grows until the strip overlaps a kept
-                                            section; an overlapping filler pane is thrown away
-                                            whole, so the left strip vanishes - 48 of 48
-                                            corners on nothing, 72 edge gaps.
+         2 THE BAND WAS SIZED TO THE BOX, NOT THE TILES. `rail.offsetHeight` is whatever
+           `max-height` left it, and at 2560x1440 that was 525 px around 314 px of tiles - so
+           the band reserved 211 px of empty wall and asked for a skirt below THAT. Answered by
+           `tilesBottom` in `railBox`.
 
-         Every one of the six was reverted. What would settle it is bounding the RAIL above the
-         notice tile's PANE rather than its box (`room`, in the rotation pass, reads the box),
-         so there is room for the skirt between them - which changes how many tools fit in a
-         column, and is a layout decision rather than a partition one. Left for that decision;
-         the straddle is cosmetic, and every alternative measured worse. */
-      const short = yBot - yTop < 420;
+         3 THE RAIL WAS BOUNDED TO THE NOTICE TILE'S BOX, NOT ITS PANE. That pane is leaned, so
+           its top stands 46 to 60 px above its box; with the tools open at 2560x1440 the tiles
+           ran to 1121 and the pane began at 1120. Answered by `notePaneLean` in `moduleLayout`.
+
+         Dropping the mid seam also drops the LOWER QUAD, and that quad covers wall: doing
+         without it left two gaps at the screen edge. A strip with no mid seam now reaches
+         `yB0` - where the lower quad would have ended - so one quad or two, the same wall is
+         covered.
+
+         WHAT IS LEFT. 2560x1440 is whole, both rails, tools open and shut. 1920x1080 is 46 of
+         48 corners with the tools shut and 76 of 80 with them open; 1600x900 is 38 and 61. The
+         stragglers sit on the notice tile's `section` pane, and they are the one collision
+         these three cuts cannot resolve: Foundry's control column is 314 px and cannot wrap
+         (`flex-wrap: nowrap`), so between the GM button and that pane a 1080p screen is about
+         50 px short and a 900 px screen about 130. Nothing is drawn wrong - the tiles stand on
+         the notice tile's glass rather than on a hole - and the way to close it is to move the
+         notice tile down, which is where the module's own cards live and so Dawid's call.
+
+         FOUR OTHER SHAPES OF THIS WERE BUILT AND REVERTED, all on 10.09: clipping `section`
+         panes out of the band with no shield (the wrong pane becomes NO pane, 10 of 48 corners
+         in a hole), with the strip made to cover the whole band (48/48 and 80/80 - and the
+         notice tile loses a corner of its own glass, two block failures, the suite fails on
+         it), shielding by the block's upright box (no change, the panes are leaned), and by
+         the leaned box (the strip overlaps a kept section and is thrown away whole: 48 of 48
+         corners on nothing, 72 edge gaps). Sections stay exempt. */
+      /* AND "SHORT" IS RELATIVE TO WHAT HAS TO STAND IN IT, WHICH 420 DOES NOT ASK.
+         `yMid` reads `min(yBot - 120, max(..., yCtl + 60))`: the inner `max` keeps the seam
+         below the tiles and the outer `min` can overrule it. Where the seam cannot go below
+         the tiles with its own clearance, the strip has no mid seam at all - the same answer
+         420 gives, reached by measuring the thing that decides it. `coreY[1]` already carries
+         the 34 px skirt; the 60 is the gap the seam keeps below that. */
+      const seamFloor = (tb.real !== false && tb.coreY) ? tb.coreY[1] + 60 : -Infinity;
+      const short = yBot - yTop < 420 || yBot - 120 < seamFloor;
       // the mid seam sits below the tiles' shard, so the shard is cut from the upper quad alone
-      const yMid = short ? yBot : Math.min(yBot - 120, Math.max(yTop + (yBot - yTop) * (0.5 + (rnd() - 0.5) * 0.16), yCtl + 60));
+      /* WHERE THE STRIP'S OWN BOTTOM IS, AND A STRIP WITH NO MID SEAM REACHES IT.
+         `yB0` is where the lower quad would have ENDED, and where `hugB` is true that is below
+         `yBot`. Ending the single quad at `yBot` instead left the difference bare: two gaps at
+         the screen edge at 2560x1440, which the partition's own check found and the suite
+         refused. One quad or two, the strip covers the same wall. */
+      const yB0 = hugB ? Math.max(lineY(cB, wall), lineY(cB, wall + dir * wBot)) + 1 : yBot;
+      const yMid = short ? yB0 : Math.min(yBot - 120, Math.max(yTop + (yBot - yTop) * (0.5 + (rnd() - 0.5) * 0.16), yCtl + 60));
       const tilt = (5 + rnd() * 5) * DEG * (rnd() < 0.5 ? 1 : -1);
       const M = [wall + dir * wMid, yMid], Wm = [wall, yMid - wMid * Math.tan(tilt)];
       const yT0 = hugT ? Math.min(lineY(cT, wall), lineY(cT, wall + dir * wTopFit)) - 1 : yTop;
-      const yB0 = hugB ? Math.max(lineY(cB, wall), lineY(cB, wall + dir * wBot)) + 1 : yBot;
       /* THE CONTROL POINT ONLY EXISTS IF IT IS A CORNER. Once the strip was made to hold the
          tiles' width at its middle, `wCtl` and `wMid` came out equal, and the control vertex
          landed two pixels from `M` - a degenerate edge, which makes the quad non-convex and
