@@ -795,6 +795,11 @@ export async function openChapterEndDialog() {
     const sweepable = bullets.filter(({ item }) =>
         !item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.faint)
         && secretOf(item.uuid).realType !== "final").length;
+    /* AND WHETHER THE TRIAL IS STILL SITTING. The clock is the authority, not the
+       floor: a trial in session with nobody holding the floor has no floor record at
+       all, and it is still a trial - see the note on the HUD's four states. */
+    const trialSitting = getClock().phase === "classTrial";
+
     let faintable = 0, keyable = 0;
     for (const scene of game.scenes) {
         for (const token of remnantsOn(scene)) {
@@ -828,6 +833,9 @@ export async function openChapterEndDialog() {
             <p class="notes">${game.i18n.localize("DRPG.Chapter.tidyNote")}</p>
             <hr />
             <label class="drpg-checkbox">
+                <input type="checkbox" name="endTrial"${trialSitting ? " checked" : " disabled"} />
+                ${game.i18n.localize("DRPG.Chapter.optEndTrial")}</label>
+            <label class="drpg-checkbox">
                 <input type="checkbox" name="nextChapter" checked />
                 ${game.i18n.format("DRPG.Chapter.optNextChapter", {
                     from: getClock().chapter, to: getClock().chapter + 1 })}</label>
@@ -851,6 +859,7 @@ export async function openChapterEndDialog() {
                         sweep: f.sweep.checked,
                         faint: f.faint.checked,
                         keys: f.keys.checked,
+                        endTrial: f.endTrial.checked,
                         nextChapter: f.nextChapter.checked,
                         nextSession: f.nextSession.checked
                     };
@@ -862,6 +871,35 @@ export async function openChapterEndDialog() {
     });
 
     if (!result || result === "cancel") return null;
+
+    return applyChapterEnd(result);
+}
+
+/**
+ * Everything the End of chapter screen does, once the GM has said which parts.
+ *
+ * SEPARATE FROM THE ASKING, and the reason is a test that could not be written.
+ * The wiring here has been wrong twice - the archive that never fired, the trial
+ * left sitting - and both times what caught it was driving a whole chapter through
+ * a browser, which is a fifteen-minute answer to a question the suite should give
+ * in a second. A dialog cannot be called from a test; this can.
+ *
+ * It also gives the console and a macro the same door the screen has:
+ * `game.drpg.applyChapterEnd({ endTrial: true, nextChapter: true })`.
+ *
+ * The world is read HERE rather than passed in from the dialog. Everything below
+ * is scoped to "the chapter that is ending" and "is the trial sitting", and both
+ * are facts about the moment the work runs, not about the moment the GM was asked.
+ *
+ * @param {object} choices Which parts to do. Anything absent is not done, so a
+ *   caller can ask for one step without knowing about the others.
+ */
+export async function applyChapterEnd(choices = {}) {
+    if (!game.user.isGM) return null;
+
+    const result = choices;
+    const endingChapter = getClock().chapter;
+    const trialSitting = getClock().phase === "classTrial";
 
     const done = [];
     if (result.reveal) {
@@ -929,6 +967,29 @@ export async function openChapterEndDialog() {
             chapter: move.chapter ?? clock.chapter,
             session: move.session ?? clock.session
         }));
+    }
+
+    /* AND THE ROOM EMPTIES. LAST, AND THAT ORDER IS THE POINT.
+
+       Everything above is scoped to the chapter that is ending, so it has to run
+       while the clock still says so. This one is scoped to what comes AFTER: the
+       phase the next chapter opens in, and the elapsed clock that the first Daily
+       Life of it is measured against. Closing the trial before the move would start
+       that clock against a chapter that had not begun yet.
+
+       Measured on 10.09, with the whole chapter driven end to end: this screen moved
+       the clock to chapter 2 and left `phase: "classTrial"` with the debate floor
+       open. The GM was told "The debate is open - Nonstop Debate." and pointed back
+       at the trial they had just finished; every player's HUD read "Chapter 2 - Day 2
+       - Class Trial". The way out existed - one button, listed BELOW this screen's
+       own on the trial console - and nothing anywhere said to press it. */
+    if (result.endTrial && trialSitting) {
+        try {
+            const { closeTrial } = await import("./trial-floor-ui.mjs");
+            if (await closeTrial()) done.push(game.i18n.localize("DRPG.Chapter.doneEndTrial"));
+        } catch (err) {
+            error("Could not close the trial at the end of the chapter", err);
+        }
     }
 
     // Nothing outlives its chapter. Ordinarily the trial's phase change cleared

@@ -921,6 +921,24 @@ function nextStep(clock) {
     }
 
     if (clock.phase === "classTrial") {
+        /* A TRIAL THAT HAS OUTLIVED ITS CHAPTER, WHICH IS THE STATE THIS LINE COULD
+           NOT SEE. End the chapter with the trial still sitting and the clock moves
+           while the phase does not - so every question below is asked about a trial
+           whose chapter is over, and the honest answer to all of them is the same
+           one: close it. Measured on 10.09, the line said "The debate is open -
+           Nonstop Debate." and pointed the GM back at the trial they had just
+           finished, one press after they ended the chapter.
+
+           The STORED chapter, because `trialProgress()` answers blank for a record
+           from another chapter and the blank is precisely what hides this. The
+           chapter-end screen now closes the trial itself, so this is the backstop
+           for the GM who unticks that box, ends the chapter from somewhere else, or
+           comes back to a world saved in the middle of it. */
+        const trialWas = game.drpg?.trialProgressChapter?.() ?? null;
+        if (trialWas != null && trialWas < clock.chapter) {
+            return { text: game.i18n.localize("DRPG.Panel.nextTrialOutlived"), action: "trial" };
+        }
+
         // THE TRIAL HAS AN ORDER NOW, so this line follows it rather than
         // asking for a debate for the rest of the trial. The two finished steps
         // are read from the trial's own progress record; see vote.mjs.

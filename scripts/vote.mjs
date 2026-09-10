@@ -64,7 +64,17 @@ let ballots = null;
 /** What has happened in THIS chapter's trial. Never throws; never null. */
 export function trialProgress() {
     const chapter = getClock().chapter;
-    const blank = { chapter, seconds: TRIAL.speakSeconds, voteClosed: false, verdictApplied: false };
+    /* `keysCharged` IS IN THE BLANK because it is in the record. It was not, so a
+       chapter that had charged for its unfound Key Remnants held five fields and a
+       fresh one held four - the same record in two shapes, differing in a field whose
+       whole job is to be read by somebody deciding whether to move Despair. Reading
+       `undefined` happened to be falsy and therefore happened to be right, which is
+       the kind of correctness that stops being correct the first time anyone writes
+       `!== false`. */
+    const blank = {
+        chapter, seconds: TRIAL.speakSeconds,
+        voteClosed: false, verdictApplied: false, keysCharged: false
+    };
     try {
         const stored = game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {};
         // A record from another chapter describes another trial. Read as blank
@@ -74,6 +84,22 @@ export function trialProgress() {
         return { ...blank, ...stored };
     } catch {
         return blank;
+    }
+}
+
+/**
+ * Which chapter the STORED trial record is about, or null if there is none.
+ *
+ * `trialProgress()` deliberately answers blank for a record from another chapter -
+ * a fresh trial must not think its vote is already in. That is right for every
+ * reader but one: the GM panel needs to spot a trial still sitting for a chapter
+ * that has already been ended, and the blank is exactly what hides it.
+ */
+export function trialProgressChapter() {
+    try {
+        return game.settings.get(MODULE_ID, SETTINGS.trialProgress)?.chapter ?? null;
+    } catch {
+        return null;
     }
 }
 

@@ -241,6 +241,29 @@ export async function endClassTrial() {
     });
     if (!confirmed) return null;
 
+    return closeTrial();
+}
+
+/**
+ * The trial closes and the campaign goes back to ordinary play. No asking.
+ *
+ * SPLIT OUT BECAUSE THE CHAPTER'S END NEEDS IT AND HAS ALREADY ASKED. The
+ * confirmation above belongs to the button that says "End the trial" and to
+ * nothing else: a GM who has just ticked a box on the End of chapter screen has
+ * answered this question, and a second dialog behind a checkbox is the module
+ * asking twice.
+ *
+ * Measured on 10.09, which is why the chapter-end screen wanted it: ending a
+ * chapter moved the clock to chapter 2 and left `phase: "classTrial"` with the
+ * debate floor still open. Every player's HUD read "Chapter 2 - Day 2 - Class
+ * Trial", and the GM panel went on saying "The debate is open - Nonstop Debate."
+ * This function was already the only route back - `setPhase("dailyLife")` has no
+ * other caller anywhere in the module - and it was reachable from exactly one
+ * button, below the one that ends the chapter.
+ */
+export async function closeTrial() {
+    if (!game.user.isGM) return null;
+
     await endFloor();
 
     try {

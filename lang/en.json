@@ -1483,7 +1483,9 @@
       "doneSweep": "Collected {n} Truth Bullet(s).",
       "doneFaint": "Cleared {n} Faint Remnant(s).",
       "doneKeys": "Took {n} Key Remnant(s) off the map.",
-      "tidyNote": "These three were only ever reachable from the Investigation window, which is a screen a GM opens in the middle of a case rather than at the end of one."
+      "tidyNote": "These three were only ever reachable from the Investigation window, which is a screen a GM opens in the middle of a case rather than at the end of one.",
+      "optEndTrial": "Close the trial and put the room back into Daily Life",
+      "doneEndTrial": "Closed the trial; the campaign is back in Daily Life."
     },
     "Trial": {
       "presentTooltip": "Present - put this on the table for everyone to see.",
@@ -2287,7 +2289,8 @@
       "whoIsAliveNote": "The dropdown only moves the flags - the repair tool, for a mis-click. The buttons on the right run the real thing: a death destroys Truth Bullets, an invitation makes a Monocub.",
       "doColumn": "Do",
       "nextVerdict": "The vote is counted. Deliver the verdict.",
-      "nextChapterEnd": "The verdict is in. End the chapter."
+      "nextChapterEnd": "The verdict is in. End the chapter.",
+      "nextTrialOutlived": "The chapter has moved on and the trial is still sitting. End the trial."
     },
     "Character": {
       "notACharacter": "That only works on a character.",

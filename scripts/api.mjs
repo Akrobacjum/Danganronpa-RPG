@@ -120,7 +120,8 @@ import {
     startFloor, openObjection, openRebuttal, returnToDebate, advanceFloorNow,
     extendFloor, endFloor
 } from "./trial-floor.mjs";
-import { openVote, closeVote, applyVerdict, openVerdictDialog, trialProgress } from "./vote.mjs";
+import { openVote, closeVote, applyVerdict, openVerdictDialog, trialProgress,
+    trialProgressChapter } from "./vote.mjs";
 import {
     murderState, sideOf, isTheirTurn, availableCrisisActions,
     openMurder, resolveKillerOpening, resolveVictimOpening,
@@ -697,6 +698,12 @@ export const DrpgApi = {
 
     /** Open and close the Nonstop Debate inside a running trial. The player's
      *  Truth Bullet button is a Present outside one and an Objection inside. */
+    // THE ONE STAGE WINDOW WITH NO WAY IN. Every other screen the chapter runs
+    // through is here - the murder, the body, the dashboard, the chapter's end -
+    // and the trial console, which holds five of the steps, was reachable only by
+    // pressing its tile. No macro, no hotbar button, no console.
+    manageClassTrial: (...a) => import("./trial-floor-ui.mjs").then(m => m.manageClassTrial(...a)),
+    closeTrial: (...a) => import("./trial-floor-ui.mjs").then(m => m.closeTrial(...a)),
     openDebate: (...a) => import("./trial-floor-ui.mjs").then(m => m.openDebate(...a)),
     closeDebate: (...a) => import("./trial-floor-ui.mjs").then(m => m.closeDebate(...a)),
 
@@ -735,6 +742,9 @@ export const DrpgApi = {
     deathDialog: openDeathDialog,
     bodyDiscoveryDialog: openBodyDiscoveryDialog,
     chapterEndDialog: openChapterEndDialog,
+    // The same screen without the screen: what a macro, the console or a test
+    // needs. See `applyChapterEnd` in chapter.mjs for why it is a function.
+    applyChapterEnd: (...a) => import("./chapter.mjs").then(m => m.applyChapterEnd(...a)),
 
     /* ---- the GM's Investigation workshop -----------------------------------
      * Five clues, scaled trivial to desperate, and a read-out of who has
@@ -880,6 +890,7 @@ export const DrpgApi = {
      *  budget, whether the vote has been counted and whether the verdict has
      *  been applied. The GM console's two gates read this. */
     trialProgress,
+    trialProgressChapter,
 
     trialHolder: floorHolder,
     trialTarget: floorTarget,

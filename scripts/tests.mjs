@@ -1717,6 +1717,46 @@ const REGRESSIONS = [
         ok(/adjustCritHopeTopUp/.test(reroll),
             "reroll.mjs no longer settles the second Hope for a crit reached by rerolling, "
             + "which the funnel never sees");
+    }],
+
+    ["R21 - the chapter ends by closing the trial, and the panel can say so", async () => {
+        /*
+         * THE LOOP DID NOT CLOSE, and every part of that was one line missing.
+         *
+         * Measured on 10.09 by driving a whole chapter end to end: pressing "End of
+         * chapter / new session" moved the clock to chapter 2 and left the campaign in
+         * `phase: "classTrial"` with the debate floor open. The GM panel then said "The
+         * debate is open - Nonstop Debate." and pointed back at the trial they had just
+         * finished; every player's HUD read "Chapter 2 - Day 2 - Class Trial".
+         *
+         * The way out had existed all along - `closeTrial`, reachable from one button
+         * listed BELOW the chapter-end one on the trial console - and `setPhase
+         * ("dailyLife")` still has no other caller in the module, which is why this
+         * reads for the call by name rather than for a phase string: there is exactly
+         * one route back to ordinary play and this is the test that it is wired to the
+         * screen that needs it.
+         */
+        const sources = new Map(await otherSources());
+        const chapter = stripComments(sources.get("chapter.mjs") ?? "");
+        const panel = stripComments(sources.get("gm-panel.mjs") ?? "");
+        const ui = stripComments(sources.get("trial-floor-ui.mjs") ?? "");
+
+        ok(/export async function closeTrial\s*\(/.test(ui),
+            "trial-floor-ui.mjs no longer exports `closeTrial`, so nothing but its own "
+            + "button can put the room back into Daily Life");
+        ok(/name="endTrial"/.test(chapter),
+            "the End of chapter screen has lost the checkbox that offers to close the "
+            + "trial, so the step below can only be reached from the console");
+        ok(/trialProgressChapter/.test(panel),
+            "nextStep() can no longer see a trial that has outlived its chapter, which "
+            + "is the state it used to answer with \"the debate is open\"");
+
+        /* WHETHER THE CALL IS REACHABLE IS NOT A QUESTION FOR A SOURCE READ, and this
+           test claimed to answer it until the claim was checked. Breaking the wiring
+           by hand - `if (false && result.endTrial ...)` - left the word `closeTrial`
+           sitting in the file, so the grep passed and the suite stayed green over a
+           defect it was written for. The behaviour is owned by "the End of chapter
+           screen closes the trial" in Tier 1, which calls it. */
     }]
 ];
 
@@ -3624,6 +3664,113 @@ const INVARIANTS = [
             for (let i = 0; i < users.length; i++) {
                 if (getDespair(users[i].id) !== before[i]) await setDespair(users[i].id, before[i]);
             }
+        }
+    }],
+
+    ["closing the trial puts the room back into Daily Life", async () => {
+        /*
+         * The one route back, exercised rather than read. A trial that ends without
+         * this leaves the campaign in `classTrial` - which shuts the action economy,
+         * holds every HUD on "Class Trial", and cannot be undone from anywhere except
+         * Edit Campaign by hand.
+         *
+         * The elapsed clock is restarted too, and that is not decoration: the Daily
+         * Life that follows a trial is measured from the trial ending, not from the
+         * afternoon that led up to the body.
+         */
+        const { startFloor, trialFloor } = await import("./trial-floor.mjs");
+        const { closeTrial } = await import("./trial-floor-ui.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        try {
+            await startFloor({});
+            equal(getClock().phase, "classTrial",
+                "opening the floor did not put the campaign into the trial");
+            ok(trialFloor(), "the floor did not open");
+
+            const started = getClock().timeOfDayStartedAt;
+            ok(await closeTrial(), "closeTrial refused");
+            equal(getClock().phase, "dailyLife",
+                "the trial closed and left the campaign in the Class Trial");
+            equal(trialFloor(), null, "the trial closed with the floor still open");
+            ok(getClock().timeOfDayStartedAt !== started,
+                "the elapsed clock did not restart, so the Daily Life after the trial is "
+                + "measured from before the body was found");
+        } finally {
+            await setClock(clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+        }
+    }],
+
+    ["the End of chapter screen closes the trial", async () => {
+        /*
+         * THE WIRING, EXERCISED. `applyChapterEnd` is the screen without the screen -
+         * see its own header for why it was split out - so this asks the question a GM
+         * asks by pressing the button, rather than asking whether a word appears in a
+         * file. The first attempt at this test did the latter and passed against a call
+         * deliberately disabled.
+         *
+         * Only `endTrial` is ticked. The clock deliberately does not move: what is
+         * under test is that the room empties, and a chapter that also advanced would
+         * make the failure harder to read.
+         */
+        const { applyChapterEnd } = await import("./chapter.mjs");
+        const { startFloor, trialFloor } = await import("./trial-floor.mjs");
+        const clock = foundry.utils.deepClone(getClock());
+        try {
+            await startFloor({});
+            equal(getClock().phase, "classTrial", "the fixture did not open a trial");
+
+            await applyChapterEnd({ endTrial: true });
+
+            equal(getClock().phase, "dailyLife",
+                "the chapter ended and left the campaign in the Class Trial - every HUD "
+                + "reads Class Trial into the next chapter and the panel says so too");
+            equal(trialFloor(), null,
+                "the chapter ended with the debate floor still open");
+
+            /* AND IT DOES NOTHING WHEN THERE IS NOTHING TO DO. The box is disabled out
+               of a trial, but a macro can pass anything, and "close the trial" out of
+               Daily Life must not restart the elapsed clock on a time of day that is
+               half spent. */
+            const started = getClock().timeOfDayStartedAt;
+            await applyChapterEnd({ endTrial: true });
+            equal(getClock().timeOfDayStartedAt, started,
+                "closing a trial that was not sitting restarted the time of day");
+        } finally {
+            await setClock(clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialQueue, {});
+        }
+    }],
+
+    ["a trial record remembers the chapter it was stamped with", async () => {
+        /*
+         * `trialProgress()` answers BLANK for a record from another chapter, and it is
+         * right to: a fresh trial must not think its vote is already in. But the blank
+         * is also what hid the state the panel could not name - a trial still sitting
+         * for a chapter that has been ended - so `trialProgressChapter()` reads the
+         * stamp itself. If it ever starts answering from the same blank, the backstop
+         * line goes quiet and nothing says so.
+         */
+        const { trialProgress, trialProgressChapter, setTrialProgress } = await import("./vote.mjs");
+        const stored = foundry.utils.deepClone(
+            game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        const clock = foundry.utils.deepClone(getClock());
+        try {
+            await setTrialProgress({ voteClosed: true, verdictApplied: true });
+            const was = getClock().chapter;
+            equal(trialProgressChapter(), was, "the stamp does not read back");
+
+            await setClock({ chapter: was + 1 });
+            equal(trialProgressChapter(), was,
+                "the stamp followed the clock instead of staying with its own trial");
+            equal(trialProgress().verdictApplied, false,
+                "the new chapter inherited the last trial's verdict");
+            equal(trialProgress().keysCharged, false,
+                "a fresh chapter's record is missing `keysCharged`, so the same record "
+                + "has two shapes depending on whether its trial has been charged");
+        } finally {
+            await setClock(clock);
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored);
         }
     }]
 ];
