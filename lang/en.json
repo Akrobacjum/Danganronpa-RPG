@@ -704,7 +704,7 @@
       "inStash": "in the stash",
       "carriesNothing": "{actor} is carrying nothing and has nothing stashed.",
       "whichCharacterHub": "Which student"
-},
+    },
     "Monocub": {
       "panelTitle": "Monocub",
       "meddleCost": "{hope} Hope, {actions} action.",
@@ -1319,7 +1319,14 @@
       "unfoundKeys": {
         "one": "{n} Key Remnant short of four was never found. {despair} Despair to each pool: {who}.",
         "other": "{n} Key Remnants short of four were never found. {despair} Despair to each pool: {who}."
-      }
+      },
+      "keyNoteLabel": "Your note",
+      "keyNotePlaceholder": "Only you read this",
+      "keyPublicNote": "Name and Player description are what a finder ends up holding - the same two fields the Traces tab edits. Your note stays yours.",
+      "leftoverKeys": "{n} Key Remnant(s) from an earlier chapter are still on the map. This chapter's plan cannot see them; clear them at the end of a chapter or attach them here.",
+      "finalFoundBy": "Found by",
+      "finalNobody": "Nobody has found it",
+      "chargeTooLate": "The clock has already moved to chapter {now}; the plan for chapter {was} is no longer the live one, so nothing was charged for unfound Key Remnants. Charge it from the trial floor before ending the chapter."
     },
     "Vault": {
       "section": "Stash - {room}",
@@ -1469,7 +1476,14 @@
       "typeless": {
         "one": "1 Truth Bullet has no real type recorded, so revealing cannot touch it. Set it from Give / take items.",
         "other": "{n} Truth Bullets have no real type recorded, so revealing cannot touch them. Set them from Give / take items."
-      }
+      },
+      "optSweep": "Collect the Truth Bullets ({n} would go, Faint and Final stay)",
+      "optFaint": "Clear the Faint Remnants ({n} would go)",
+      "optKeys": "Take this chapter's Key Remnants off the map ({n})",
+      "doneSweep": "Collected {n} Truth Bullet(s).",
+      "doneFaint": "Cleared {n} Faint Remnant(s).",
+      "doneKeys": "Took {n} Key Remnant(s) off the map.",
+      "tidyNote": "These three were only ever reachable from the Investigation window, which is a screen a GM opens in the middle of a case rather than at the end of one."
     },
     "Trial": {
       "presentTooltip": "Present - put this on the table for everyone to see.",

@@ -1263,7 +1263,14 @@ export function traceContextLine(data) {
         data.chapter ? `Ch ${data.chapter}` : null,
         data.day ? `D ${data.day}` : null,
         timeOfDay,
-        data.action ? (ACTIONS[data.action]?.label ?? data.action) : null
+        /* "manual" IS THE ABSENCE OF AN ACTION, NOT AN ACTION. It is `placeRemnant`'s own
+           default for a trace nobody performed anything to leave - a GM-placed clue, a planned
+           Key Remnant - and it is not a key in `ACTIONS` at all (the `manual` in config.mjs is
+           a project trigger). So the fallback printed the raw word and every planned clue read
+           "Main Hall - manual" in the dashboard. The ledger's own `label` builder three hundred
+           lines up has skipped it since it was written; this line simply never learned. */
+        data.action && data.action !== "manual"
+            ? (ACTIONS[data.action]?.label ?? data.action) : null
     ].filter(Boolean).join(" · ");
 }
 

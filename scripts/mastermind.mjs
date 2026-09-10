@@ -604,7 +604,8 @@ export function finalRemnants() {
  * Lived on the Investigation Dashboard's third tab until now, which meant two
  * windows could write the same record. One entry, one place it is changed.
  */
-export async function placeFinalRemnant({ room, visibility = "evident", note = "" } = {}) {
+export async function placeFinalRemnant({ room, visibility = "evident", note = "",
+                                          name = "", text = "" } = {}) {
     if (!game.user.isGM || !room) return null;
 
     const scene = canvas?.scene;
@@ -622,14 +623,30 @@ export async function placeFinalRemnant({ room, visibility = "evident", note = "
     const spot = randomPointIn(region, scene);
     const clock = getClock();
 
-    return placeRemnant({
+    /* `subject` STAYS HERE and the difficulty label does not, which is the difference between
+       this and the planner: a Final Remnant's subject really is what it is. `action` goes for
+       the reason it went there - "manual" is a project trigger, not one of `ACTIONS`, so the
+       context line printed the raw word. */
+    const token = await placeRemnant({
         x: spot.x, y: spot.y, sceneId: scene?.id ?? null,
         type: "final", visibility, faint: false,
         tiedToCrime: true, reinforced: true, note,
         subject: game.i18n.localize("DRPG.Remnant.finalSubject"),
-        action: "manual", room,
+        room,
         chapter: clock.chapter, day: clock.day, timeOfDay: clock.timeOfDay
     });
+
+    /* And the words a player will read, for the same reason the planner now writes them: the
+       endgame clue reaching its finder as "Trace" with no description is the worst instance of
+       the fault, not the mildest. */
+    if (token && (name || text)) {
+        const { setRemnantPublic } = await import("./remnants.mjs");
+        await setRemnantPublic(token, {
+            ...(name ? { name } : {}),
+            ...(text ? { playerText: text } : {})
+        });
+    }
+    return token;
 }
 
 /** Has a Final Truth Remnant been placed this chapter, on any scene? */

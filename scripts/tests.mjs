@@ -1276,6 +1276,36 @@ const REGRESSIONS = [
         }
         ok(!dead.length, dead.join("; "));
 
+        /*
+         * AND IT WATCHES WHAT ITS CONTENT IS MADE OF. Reaching `keepLive` is
+         * only half of staying true: the call names which documents wake it,
+         * and a window built out of documents it does not name is live in the
+         * diagnostics and stale on screen.
+         *
+         * Measured on 10.09. The case window reads Truth Bullets on all three
+         * tabs - every "found by" is a bullet somebody holds - and watched
+         * `{ actors: true }` alone. A player copied the Final Remnant down,
+         * `createItem` fired, and the open dashboard went on saying "Nobody
+         * has found it" with `refreshes: 0`, while a freshly opened copy said
+         * the finder's name. The ledger write did not save it either: it is a
+         * setting, and no `updateSetting` reached the listener.
+         *
+         * A rule rather than a named exception, so the next window that starts
+         * reading bullets is covered on the day it does.
+         */
+        const blind = [];
+        for (const file of new Set(Object.values(MUST_BE_LIVE))) {
+            const text = stripComments(
+                await fetch(`/modules/${MODULE_ID}/scripts/${file}.mjs`).then(r => r.text()));
+            if (!/\bbulletsOf\(|\bsecretOf\(/.test(text)) continue;
+            const watches = [...text.matchAll(/keepLive\(/g)].some(m => {
+                const call = text.slice(m.index, m.index + 400);
+                return /items:\s*true/.test(call);
+            });
+            if (!watches) blind.push(`${file}.mjs reads Truth Bullets and does not watch items`);
+        }
+        ok(!blind.length, blind.join("; "));
+
         // And the helper still carries the three things a rebuild would eat.
         const live = stripComments(await fetch(`/modules/${MODULE_ID}/scripts/live.mjs`).then(r => r.text()));
         for (const carried of ["scrolls", "opens", "dirty", "tab"]) {
@@ -3490,6 +3520,111 @@ const INVARIANTS = [
 
         equal(css, shipped,
             "--drpg-css-version in danganronpa.css does not match module.json");
+    }],
+
+    ["a chapter's Key Remnant plan is filed, not dropped, when the chapter ends", async () => {
+        /*
+         * `keyPlan()` MANUFACTURES a plan for whatever chapter the clock says,
+         * which is right - last murder's clues are not this murder's blanks -
+         * and it is exactly why the words a GM wrote had nowhere to go. The
+         * first fold only fired when a plan for a different chapter was saved
+         * OVER the old one, which is not what ending a chapter does, so the
+         * archive measured empty a chapter later. `archiveKeyPlan` is the
+         * explicit fold the chapter-end screen now calls.
+         */
+        const { archiveKeyPlan } = await import("./investigation.mjs");
+        const before = game.settings.get(MODULE_ID, SETTINGS.keyRemnantPlan) ?? {};
+        try {
+            const chapter = getClock().chapter;
+            await game.settings.set(MODULE_ID, SETTINGS.keyRemnantPlan, {
+                chapter,
+                entries: [{ scale: "standard", name: "A muddy print",
+                    text: "It points at the east stair.", note: "Sakura size 9.",
+                    tokenId: null, sceneId: null }]
+            });
+
+            ok(await archiveKeyPlan(chapter), "the plan was not filed");
+            const after = game.settings.get(MODULE_ID, SETTINGS.keyRemnantPlan) ?? {};
+            const kept = after.archive?.[chapter];
+            ok(Array.isArray(kept), `chapter ${chapter} is not in the archive`);
+            equal(kept[0]?.name, "A muddy print", "the archived row lost its name");
+            equal(kept[0]?.text, "It points at the east stair.",
+                "the archived row lost the words the players read");
+
+            // A plan with nothing written in it is not worth a shelf.
+            await game.settings.set(MODULE_ID, SETTINGS.keyRemnantPlan, {
+                chapter, entries: [{ scale: "standard", name: "", text: "", note: "", tokenId: null }]
+            });
+            ok(!await archiveKeyPlan(chapter), "an empty plan was filed anyway");
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.keyRemnantPlan, before);
+        }
+    }],
+
+    ["the unfound-Key charge refuses once the clock has left the chapter", async () => {
+        /*
+         * THIS ONE BILLED A REAL WORLD BEFORE IT WORKED, which is why it is in
+         * the suite. The first guard compared `keyPlan().chapter` with the
+         * clock and could never fire - `keyPlan()` manufactures a plan for the
+         * chapter the clock is on, so the two agree by construction. Run
+         * against a world that had just closed a case it read "0 of 5 found",
+         * concluded the whole bar was missed, and moved 12 Despair.
+         *
+         * The stored setting is the only thing that remembers which chapter was
+         * actually planned, so that is what the guard reads. The pools are
+         * measured either side here, because "returned null" and "charged
+         * nothing" are two different claims and it was the second one that
+         * failed.
+         *
+         * AND `keysCharged` IS CLEARED FIRST, or this test asks nothing. The
+         * function opens with `if (trialProgress().keysCharged) return null`,
+         * and on any world where a trial has already billed for its Key
+         * Remnants that stamp is standing - so the first version of this test
+         * got its `null` from the stamp, passed against the guard that could
+         * never fire, and would have let the whole defect back in. The stamp
+         * is also what the assertions read afterwards: the guard returns
+         * BEFORE `setTrialProgress`, so a charge that got past it leaves the
+         * stamp behind even when the pools happen not to move.
+         */
+        const { chargeForUnfoundKeys } = await import("./investigation.mjs");
+        const { monokumas, getDespair } = await import("./despair.mjs");
+        const { trialProgress, setTrialProgress } = await import("./vote.mjs");
+        const plan = game.settings.get(MODULE_ID, SETTINGS.keyRemnantPlan) ?? {};
+        const charged = trialProgress().keysCharged ?? false;
+        const clock = getClock();
+        const pools = () => monokumas().map(u => getDespair(u.id));
+        const before = pools();
+        try {
+            await setTrialProgress({ keysCharged: false });
+            await game.settings.set(MODULE_ID, SETTINGS.keyRemnantPlan, {
+                chapter: clock.chapter,
+                entries: [{ scale: "standard", name: "A muddy print", text: "",
+                    note: "", tokenId: null, sceneId: null }]
+            });
+            await setClock({ ...clock, chapter: clock.chapter + 1 });
+
+            equal(await chargeForUnfoundKeys(), null,
+                "the charge went through for a chapter nobody can investigate any more");
+            ok(!trialProgress().keysCharged,
+                "the refused charge stamped the trial anyway, so the honest one can never be asked");
+            equal(JSON.stringify(pools()), JSON.stringify(before),
+                "the refused charge moved Despair anyway");
+        } finally {
+            await setClock(clock);
+            await game.settings.set(MODULE_ID, SETTINGS.keyRemnantPlan, plan);
+            await setTrialProgress({ keysCharged: charged });
+            /* AND THE POOLS GO BACK, because the run where this test EARNS its
+               keep is the run where the charge goes through - so the failing
+               path is exactly the one that leaves 12 Despair in a real world.
+               Proved by doing it: the sharpened version of this test billed the
+               QA world on its first honest run. Written as values, since
+               `adjustDespair` takes a delta and the delta is what went wrong. */
+            const { setDespair } = await import("./despair.mjs");
+            const users = monokumas();
+            for (let i = 0; i < users.length; i++) {
+                if (getDespair(users[i].id) !== before[i]) await setDespair(users[i].id, before[i]);
+            }
+        }
     }]
 ];
 
@@ -3537,8 +3672,21 @@ const LITERAL_KEYS = [
  * runs from `finally` in the runner rather than at the end of the test.
  */
 async function snapshot(cast) {
+    /*
+     * DESPAIR AND THE OVERFLOW, for the same reason Hope is here.
+     *
+     * Measured on 10.09: pools 12 / 0 and overflow 75 before a clean 124/0 run,
+     * overflow 76 after. Every scenario that opens a murder generates Despair,
+     * the pools cap, and the excess spills into a counter that drives the
+     * Eclipse - so a suite nobody was watching walked the world one step
+     * towards an event the GM never called. It looks like nothing for a day and
+     * then it is the reason a season went dark early.
+     */
+    const { monokumas, getDespair } = await import("./despair.mjs");
     return {
         clock: foundry.utils.deepClone(getClock()),
+        despair: monokumas().map(user => ({ id: user.id, value: getDespair(user.id) })),
+        overflow: foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.overflow) ?? {}),
         murder: foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {}),
         // The other half of the incident (LIVE-001). Client-scoped, and taken
         // with the world half or a scenario that opens a murder leaves this
@@ -3607,6 +3755,12 @@ async function snapshot(cast) {
 
 async function restore(snap) {
     const { reviveCharacter } = await import("./chapter.mjs");
+    const { setDespair, getDespair } = await import("./despair.mjs");
+    // Written as values, not deltas: the delta is the thing that went wrong.
+    for (const row of snap.despair ?? []) {
+        if (getDespair(row.id) !== row.value) await setDespair(row.id, row.value);
+    }
+    await game.settings.set(MODULE_ID, SETTINGS.overflow, snap.overflow);
     await game.settings.set(MODULE_ID, SETTINGS.murderState, snap.murder);
     await game.settings.set(MODULE_ID, SETTINGS.incidentCast, snap.cast);
     await game.settings.set(MODULE_ID, SETTINGS.motive, snap.motive);

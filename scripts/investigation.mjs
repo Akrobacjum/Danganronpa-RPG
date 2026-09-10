@@ -61,19 +61,65 @@ export function keyPlan() {
     if (stored.chapter !== chapter) {
         return {
             chapter,
+            /* `name` and `text` ARE THE PLAYER'S HALF, and until 1.2.42 a plan row had
+               neither. The one field it did have was labelled "Clue" and placeholdered "What
+               this clue tells them", and it wrote `note` - a GM-private field. Measured: a Key
+               Remnant placed from this planner reached its finder as a Truth Bullet called
+               "Trace" with an empty description, while the sentence the GM wrote sat in the
+               ledger where no player could ever reach it. The three fields say what they are. */
             entries: KEY_REMNANTS.scale.map(scale => ({
-                scale, note: "", tokenId: null, sceneId: null
+                scale, name: "", text: "", note: "", tokenId: null, sceneId: null
             }))
         };
     }
     return stored;
 }
 
-/** Save the plan. GM only. */
+/**
+ * Save the plan, and never lose the one it replaces.
+ *
+ * `keyPlan()` returns a fresh plan the moment the clock leaves the chapter it was written
+ * for, which is right - last murder's clues are not this murder's blanks. What was wrong is
+ * that the old one then went nowhere: measured on 10.09, crossing a chapter took five rows of
+ * text the GM had written and the links to the traces they described, silently, while the
+ * traces themselves stayed on the map. The GM lost the index to their own case.
+ *
+ * So a plan being replaced by one from another chapter is filed under `archive` first. Nothing
+ * reads it yet - it is a record, not a feature - but the words survive, which is the whole
+ * difference between tidying and deleting.
+ */
 export async function setKeyPlan(plan) {
     if (!game.user.isGM) return null;
-    await game.settings.set(MODULE_ID, SETTINGS.keyRemnantPlan, plan);
+    const stored = game.settings.get(MODULE_ID, SETTINGS.keyRemnantPlan) ?? {};
+    const archive = { ...(stored.archive ?? {}) };
+    const worthKeeping = (stored.entries ?? []).some(e => e.name || e.text || e.note || e.tokenId);
+    if (stored.chapter != null && stored.chapter !== plan.chapter && worthKeeping) {
+        archive[stored.chapter] = stored.entries;
+    }
+    await game.settings.set(MODULE_ID, SETTINGS.keyRemnantPlan, { ...plan, archive });
     return plan;
+}
+
+/**
+ * File this chapter's plan under its own number, so ending a chapter does not erase it.
+ *
+ * `setKeyPlan` folds the old plan into `archive` when a plan for a DIFFERENT chapter is
+ * saved over it - which is the right moment when a GM opens the planner in the new chapter,
+ * and never happens if they simply end a chapter and carry on. Measured: the archive was
+ * still empty a chapter later. The end of a chapter says so explicitly instead.
+ */
+export async function archiveKeyPlan(chapter) {
+    if (!game.user.isGM) return false;
+    const stored = game.settings.get(MODULE_ID, SETTINGS.keyRemnantPlan) ?? {};
+    if (stored.chapter !== chapter) return false;
+    const worthKeeping = (stored.entries ?? [])
+        .some(e => e.name || e.text || e.note || e.tokenId);
+    if (!worthKeeping) return false;
+    await game.settings.set(MODULE_ID, SETTINGS.keyRemnantPlan, {
+        ...stored,
+        archive: { ...(stored.archive ?? {}), [chapter]: stored.entries }
+    });
+    return true;
 }
 
 /** Every Key Remnant currently on the map, across every scene. */
@@ -165,6 +211,29 @@ export async function chargeForUnfoundKeys() {
     const { trialProgress, setTrialProgress } = await import("./vote.mjs");
     if (trialProgress().keysCharged) return null;
 
+    /* THE PLAN HAS TO STILL BE THIS CHAPTER'S, OR THERE IS NOTHING HONEST TO CHARGE.
+       `keyPlanStatus` reads `keyPlan()`, which returns five blank rows once the clock has left
+       the chapter the plan was written for - so a charge asked for after the chapter moved
+       would read "0 found", conclude the whole bar was missed, and bill the maximum for a case
+       nobody can look at any more. It stamps `keysCharged` too, so the honest charge could
+       never be asked again afterwards.
+
+       THE STORED PLAN, NOT `keyPlan()`. A first go at this compared `keyPlan().chapter` with
+       the clock and could never fire, because `keyPlan()` MANUFACTURES a plan for whatever
+       chapter the clock says - the two agree by construction. Run against the real thing it
+       billed 12 Despair to two pools for a case that had just been closed. The setting is the
+       only place that remembers which chapter was actually planned.
+
+       A world with no stored plan at all is left alone: that is a GM who never opened the
+       planner, and what they owe is a rules question this guard has no business answering. */
+    const stored = game.settings.get(MODULE_ID, SETTINGS.keyRemnantPlan) ?? {};
+    const now = getClock().chapter;
+    if (stored.chapter != null && stored.chapter !== now) {
+        await whisperToGms(`<p>${game.i18n.format("DRPG.Investigation.chargeTooLate",
+            { now, was: stored.chapter })}</p>`);
+        return null;
+    }
+
     const status = keyPlanStatus();
     const short = Math.max(0, KEY_REMNANTS.unfoundBar - status.found);
 
@@ -211,6 +280,18 @@ async function saveKeyPlan(plan, rows) {
     let created = 0;
     for (const row of rows) {
         if (row.tokenId || !row.createIn) {
+            /* AN EDIT ON A PLACED ROW IS AN EDIT ON THE TRACE. The two public fields are the
+               Remnant's, not the plan's - `setRemnantPublic` writes them to the ledger and
+               pushes them down onto every Truth Bullet already copied from it, which is what
+               the Traces tab has always done and what this tab never did. Only when there is
+               something to say: a blank row must not wipe a name typed on the other tab. */
+            if (row.tokenId && (row.name || row.text)) {
+                const token = game.scenes.get(row.sceneId)?.tokens?.get(row.tokenId);
+                if (token) await setRemnantPublic(token, {
+                    ...(row.name ? { name: row.name } : {}),
+                    ...(row.text ? { playerText: row.text } : {})
+                });
+            }
             entries.push(stripDraft(row));
             continue;
         }
@@ -219,7 +300,7 @@ async function saveKeyPlan(plan, rows) {
         if (token) {
             created += 1;
             entries.push({
-                scale: row.scale, note: row.note,
+                scale: row.scale, name: row.name, text: row.text, note: row.note,
                 tokenId: token.id, sceneId: token.parent?.id ?? canvas?.scene?.id ?? null
             });
         } else {
@@ -234,7 +315,7 @@ async function saveKeyPlan(plan, rows) {
 /** The stored shape - the room/visibility pickers are input, not plan data. */
 function stripDraft(row) {
     return {
-        scale: row.scale, note: row.note,
+        scale: row.scale, name: row.name ?? "", text: row.text ?? "", note: row.note ?? "",
         tokenId: row.tokenId ?? null, sceneId: row.sceneId ?? null
     };
 }
@@ -351,12 +432,33 @@ async function createKeyRemnant(row, scene = workingScene()) {
         tiedToCrime: true,
         reinforced: true,
         note: row.note,
-        subject: SCALE_LABELS[row.scale] ?? row.scale,
-        action: "manual",
+        /* NO `subject`, AND NO `action`. Both were carrying the wrong kind of thing.
+           `subject` elsewhere says what a Search was ABOUT, and this put the difficulty label
+           in it - so the trace card read "Subject: Standardowa", and worse, `createFind` in
+           observe.mjs uses `data.subject` to prefill the name box, so a GM observing a planned
+           clue was offered "Standardowa" as its name and one press away from keeping it. The
+           difficulty lives in the plan, which is where the planner reads it from anyway.
+           `action` was "manual", which is not one of `ACTIONS` at all - it is a project trigger
+           - so `traceContextLine` printed the raw word and every planned clue read
+           "Main Hall - manual". A clue nobody performed an action to leave simply has none. */
         room: row.createIn,
         chapter: clock.chapter,
         day: clock.day,
         timeOfDay: clock.timeOfDay
+    }).then(async token => {
+        /* AND THE WORDS GO WHERE A PLAYER CAN REACH THEM. This is the whole of the 10.09
+           finding: the planner wrote its sentence to `note`, which is the GM's, and never to
+           the public record - so a finder held a bullet called "Trace" with no description
+           while the clue sat in the ledger. `createFind` in observe.mjs has always done this
+           correctly and says why: two names for one object is a false contradiction the table
+           has to spend the trial resolving. Same call, same fields, same reason. */
+        if (token && (row.name || row.text)) {
+            await setRemnantPublic(token, {
+                ...(row.name ? { name: row.name } : {}),
+                ...(row.text ? { playerText: row.text } : {})
+            });
+        }
+        return token;
     });
 }
 
@@ -409,8 +511,14 @@ export async function openKeyRemnantHere({ room = null, note = "", sceneId = nul
     const slotOptions = open.map(({ entry, i }, n) =>
         `<option value="${i}"${n === 0 ? " selected" : ""}>${
             esc(SCALE_LABELS[entry.scale] ?? entry.scale)}${
-            entry.note ? ` · ${esc(entry.note)}` : ""}</option>`).join("");
+            entry.name || entry.text || entry.note
+                ? ` · ${esc(entry.name || entry.text || entry.note)}` : ""}</option>`).join("");
 
+    /* THE PLAYER'S OWN SENTENCE ARRIVES AS THE PLAYER DESCRIPTION, NOT AS A GM NOTE.
+       This dialog is opened from an Observe ruling card, which prefills it with what the player
+       said they were examining - and until 1.2.42 that sentence went into the GM-private note
+       and never reached them. Their words, in the field they will read back; the note beside it
+       is for what the GM keeps. */
     const result = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Investigation.createHereTitle") },
         classes: ["drpg-panel"],
@@ -420,10 +528,17 @@ export async function openKeyRemnantHere({ room = null, note = "", sceneId = nul
                 <select name="room">${roomOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Investigation.difficulty")}
                 <select name="vis">${visOptions}</select></label>
-            <label>${game.i18n.localize("DRPG.Investigation.clue")}
-                <input type="text" name="note" value="${esc(note)}"
+            <label>${game.i18n.localize("DRPG.Investigation.traceName")}
+                <input type="text" name="keyname" value=""
+                       placeholder="${esc(game.i18n.localize("DRPG.Remnant.tokenName"))}" /></label>
+            <label>${game.i18n.localize("DRPG.Investigation.traceText")}
+                <input type="text" name="keytext" value="${esc(note)}"
                        placeholder="${esc(game.i18n.localize(
                            "DRPG.Investigation.notePlaceholder"))}" /></label>
+            <label>${game.i18n.localize("DRPG.Investigation.keyNoteLabel")}
+                <input type="text" name="note" value=""
+                       placeholder="${esc(game.i18n.localize(
+                           "DRPG.Investigation.keyNotePlaceholder"))}" /></label>
             <label>${game.i18n.localize("DRPG.Investigation.whichSlot")}
                 <select name="slot">
                     ${slotOptions}
@@ -440,6 +555,8 @@ export async function openKeyRemnantHere({ room = null, note = "", sceneId = nul
                     return {
                         room: f.room.value,
                         visibility: f.vis.value,
+                        name: f.keyname?.value.trim() ?? "",
+                        text: f.keytext?.value.trim() ?? "",
                         note: f.note.value.trim(),
                         slot: f.slot.value === "" ? null : Number(f.slot.value)
                     };
@@ -457,13 +574,17 @@ export async function openKeyRemnantHere({ room = null, note = "", sceneId = nul
         : plan.entries[result.slot]?.scale ?? "standard";
 
     const token = await createKeyRemnant({
-        createIn: result.room, visibility: result.visibility, note: result.note, scale
+        createIn: result.room, visibility: result.visibility,
+        name: result.name, text: result.text, note: result.note, scale
     }, scene);
     if (!token) return null;
 
     if (result.slot !== null) {
         const entries = plan.entries.map((entry, i) => i === result.slot
-            ? { ...entry, note: result.note || entry.note,
+            ? { ...entry,
+                name: result.name || entry.name,
+                text: result.text || entry.text,
+                note: result.note || entry.note,
                 tokenId: token.id, sceneId: token.parent?.id ?? scene?.id ?? null }
             : entry);
         await setKeyPlan({ chapter: plan.chapter, entries });
@@ -849,9 +970,14 @@ export async function openInvestigationDashboard() {
 
             return `<tr${overLimit ? ' style="opacity:.6"' : ""}>
                 <td><strong>${esc(SCALE_LABELS[entry.scale] ?? entry.scale)}</strong></td>
-                <td><input type="text" name="note:${i}" value="${esc(entry.note ?? "")}"
-                    placeholder="${game.i18n.localize("DRPG.Investigation.notePlaceholder")}" />
+                <td><input type="text" name="keyname:${i}" value="${esc(entry.name ?? "")}"
+                    placeholder="${game.i18n.localize("DRPG.Remnant.tokenName")}" /></td>
+                <td><textarea name="keytext:${i}" rows="2"
+                    placeholder="${game.i18n.localize("DRPG.Investigation.notePlaceholder")}">${
+                    esc(entry.text ?? "")}</textarea>
                     ${context ? `<div class="notes drpg-trace-context">${esc(context)}</div>` : ""}</td>
+                <td><input type="text" name="note:${i}" value="${esc(entry.note ?? "")}"
+                    placeholder="${game.i18n.localize("DRPG.Investigation.keyNotePlaceholder")}" /></td>
                 <td>
                     <select name="token:${i}">
                         <option value=""${live ? "" : " selected"}>${
@@ -981,25 +1107,49 @@ export async function openInvestigationDashboard() {
                     game.i18n.localize("DRPG.Investigation.keyLimitOverride")}</label>` : ""}
                 <table class="drpg-vault-table"><thead><tr>
                     <th>${game.i18n.localize("DRPG.Investigation.difficulty")}</th>
-                    <th>${game.i18n.localize("DRPG.Investigation.clue")}</th>
+                    <th>${game.i18n.localize("DRPG.Investigation.traceName")}</th>
+                    <th>${game.i18n.localize("DRPG.Investigation.traceText")}</th>
+                    <th>${game.i18n.localize("DRPG.Investigation.keyNoteLabel")}</th>
                     <th>${game.i18n.localize("DRPG.Investigation.onMap")}</th>
                     <th>${game.i18n.localize("DRPG.Investigation.createHere")}</th>
                     <th>${game.i18n.localize("DRPG.Investigation.foundBy")}</th>
                 </tr></thead><tbody>${keyRows}</tbody></table>
                 <p class="notes">${game.i18n.localize("DRPG.Investigation.createNote")}</p>
+                <p class="notes">${game.i18n.localize("DRPG.Investigation.keyPublicNote")}</p>
+                ${(() => {
+                    /* THE COUNT THE PLANNER COULD NOT SEE. Its rows reset with the chapter and
+                       Key Remnants do not - they are `reinforced`, so no sweep touches them - so
+                       "0 of 5 found" can be true of the plan and false of the map at the same
+                       time. Counted off the map rather than the plan, which is the only place
+                       the answer is. */
+                    const old = placed.filter(r => r.data.chapter != null
+                        && r.data.chapter !== plan.chapter).length;
+                    return old ? `<p class="notes drpg-warning">${
+                        game.i18n.format("DRPG.Investigation.leftoverKeys", { n: old })}</p>` : "";
+                })()}
             </div>
 
             <div data-drpg-panel="final" style="display:none">
                 <p class="notes">${game.i18n.localize("DRPG.Mastermind.finalRemnantsNote")}</p>
                 ${(() => {
                     const placedFinals = finalRemnants();
+                    /* WHO HAS IT, which this tab alone did not say. The other two carry a
+                       "found by" and this is the one clue whose being missed ends the season
+                       differently. Same reading as `findersByRemnant`, off the ledger. */
+                    const finalFinders = findersByAnyRemnant();
                     return placedFinals.length
-                        ? `<ul class="drpg-final-list">${placedFinals.map(f => `<li>
+                        ? `<ul class="drpg-final-list">${placedFinals.map(f => {
+                            const who = Array.from(finalFinders.get(f.token.id) ?? []);
+                            return `<li>
                             <strong>${esc(f.data.public?.name
                                 || game.i18n.localize("DRPG.Remnant.finalSubject"))}</strong>
                             <span class="notes">${esc(traceContextLine(f.data))}</span>
                             ${f.data.note ? `<span class="notes">${esc(f.data.note)}</span>` : ""}
-                        </li>`).join("")}</ul>`
+                            <span class="notes">${game.i18n.localize(
+                                "DRPG.Investigation.finalFoundBy")}: ${who.length
+                                    ? esc(who.join(", "))
+                                    : `<em>${game.i18n.localize("DRPG.Investigation.finalNobody")}</em>`}</span>
+                        </li>`; }).join("")}</ul>`
                         : `<p class="notes">${game.i18n.localize("DRPG.Mastermind.noFinals")}</p>`;
                 })()}
                 <p class="notes${finalTruthPlacedThisChapter() ? "" : " drpg-warning"}">${game.i18n.localize(
@@ -1012,7 +1162,14 @@ export async function openInvestigationDashboard() {
                     </select></label>
                 <label>${game.i18n.localize("DRPG.Investigation.difficulty")}
                     <select name="finalVis">${visOptions}</select></label>
-                <label>${game.i18n.localize("DRPG.Investigation.clue")}
+                <label>${game.i18n.localize("DRPG.Investigation.traceName")}
+                    <input type="text" name="finalName" value=""
+                        placeholder="${esc(game.i18n.localize("DRPG.Remnant.finalSubject"))}" /></label>
+                <label>${game.i18n.localize("DRPG.Investigation.traceText")}
+                    <input type="text" name="finalText" value=""
+                        placeholder="${esc(game.i18n.localize(
+                            "DRPG.Investigation.notePlaceholder"))}" /></label>
+                <label>${game.i18n.localize("DRPG.Investigation.keyNoteLabel")}
                     <input type="text" name="finalNote"
                         placeholder="${game.i18n.localize(
                             "DRPG.Investigation.finalNotePlaceholder")}" /></label>
@@ -1056,6 +1213,8 @@ export async function openInvestigationDashboard() {
                         // not need a second button to remember.
                         finalRoom: q("finalRoom")?.value ?? "",
                         finalVis: q("finalVis")?.value || "evident",
+                        finalName: q("finalName")?.value.trim() ?? "",
+                        finalText: q("finalText")?.value.trim() ?? "",
                         finalNote: q("finalNote")?.value.trim() ?? "",
                         traces: traces.map(({ token, scene }) => {
                             const key = rowKey(scene.id, token.id);
@@ -1076,6 +1235,8 @@ export async function openInvestigationDashboard() {
                             const [tokenId, sceneId] = raw ? raw.split("|") : [null, null];
                             return {
                                 scale: entry.scale,
+                                name: q(`keyname:${i}`)?.value.trim() ?? "",
+                                text: q(`keytext:${i}`)?.value.trim() ?? "",
                                 note: q(`note:${i}`)?.value.trim() ?? "",
                                 tokenId: tokenId || null,
                                 sceneId: sceneId || null,
@@ -1149,10 +1310,19 @@ export async function openInvestigationDashboard() {
              * "who has what" table at the top of this window is the half a GM
              * looks at while an investigation is running.
              */
+            /* ITEMS TOO, AND THE WINDOW WAS BLIND WITHOUT THEM.
+               A Truth Bullet is an embedded Item, and every "found by" on all three tabs is
+               read off the bullets people hold - so a find, which is the one event a GM has
+               this window open to watch, was the one event it could not see. Measured on 10.09:
+               a player copied down the Final Remnant, `createItem` fired, and the open dashboard
+               went on saying "Nobody has found it" with `refreshes: 0`. A freshly opened copy
+               said "Player A", which is how a rendering bug and a liveness bug tell themselves
+               apart. The ledger write does not save us either - it is a setting, and no
+               `updateSetting` reached the listener for it. */
             live = keepLive(dialog, {
                 region: ".drpg-case-live",
                 build: buildCase,
-                watch: { actors: true },
+                watch: { actors: true, items: true },
                 after: () => { wireAll(); wireFilters(); }
             });
         },
@@ -1193,7 +1363,8 @@ export async function openInvestigationDashboard() {
     if (action.finalRoom) {
         const { placeFinalRemnant } = await import("./mastermind.mjs");
         const placedFinal = await placeFinalRemnant({
-            room: action.finalRoom, visibility: action.finalVis, note: action.finalNote
+            room: action.finalRoom, visibility: action.finalVis, note: action.finalNote,
+            name: action.finalName, text: action.finalText
         });
         if (placedFinal) {
             ui.notifications.info(game.i18n.format("DRPG.Mastermind.finalPlacedIn",

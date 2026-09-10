@@ -728,6 +728,38 @@ export async function sweepTruthBullets() {
  * One screen with counts, because two of these three cannot be undone and a GM
  * deserves to see the number before it happens rather than after.
  */
+/**
+ * Take this chapter's planted Key Remnants off the map.
+ *
+ * NOTHING DID THIS, AND NOTHING COULD. A Key Remnant is placed `reinforced` and
+ * `tiedToCrime` on purpose - it has to survive the killer's clean-up and the Faint sweep,
+ * or the trial it exists to make solvable can be erased by the person it accuses. The cost
+ * of that armour is that no existing sweep can ever remove one: measured on 10.09, chapter
+ * two began with chapter one's five clues still lying about, and the planner - which resets
+ * with the chapter - could no longer see them to say so.
+ *
+ * Scoped to the chapter that is ending, so a clue planted early for a later chapter stays,
+ * and the ledger row goes with the token rather than being left behind as a trace a GM can
+ * see and not read (the same pairing `removeRemnant` makes).
+ */
+export async function clearChapterKeyRemnants(chapter) {
+    if (!game.user.isGM) return 0;
+    const { dropRemnantSecret } = await import("./remnants.mjs");
+    let cleared = 0;
+    for (const scene of game.scenes) {
+        const doomed = remnantsOn(scene).filter(t => {
+            const info = remnantData(t);
+            return info?.type === "key" && info.chapter === chapter;
+        });
+        if (!doomed.length) continue;
+        for (const token of doomed) await dropRemnantSecret(token);
+        await scene.deleteEmbeddedDocuments("Token", doomed.map(t => t.id));
+        cleared += doomed.length;
+    }
+    log(`Took ${cleared} Key Remnant(s) off the map at the end of chapter ${chapter}.`);
+    return cleared;
+}
+
 export async function openChapterEndDialog() {
     if (!game.user.isGM) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
@@ -753,6 +785,26 @@ export async function openChapterEndDialog() {
     const { finalTruthPlacedThisChapter } = await import("./mastermind.mjs");
     const finalTruthPlaced = finalTruthPlacedThisChapter();
 
+    /* WHAT THE THREE CLEAN-UPS WOULD TAKE, COUNTED BEFORE THEY ARE OFFERED.
+       Each count applies the same rule its action does, for the reason the reveal count
+       above already gives: a checkbox that promises work the action will not do is worse
+       than no checkbox. `sweepTruthBullets` keeps Faint and Final; `clearFaintRemnants`
+       keeps anything reinforced or tied to the crime; the Key sweep takes this chapter's
+       own planted clues and nothing older. */
+    const endingChapter = getClock().chapter;
+    const sweepable = bullets.filter(({ item }) =>
+        !item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.faint)
+        && secretOf(item.uuid).realType !== "final").length;
+    let faintable = 0, keyable = 0;
+    for (const scene of game.scenes) {
+        for (const token of remnantsOn(scene)) {
+            const info = remnantData(token);
+            if (!info) continue;
+            if (info.faint && !info.reinforced && !info.tiedToCrime) faintable++;
+            if (info.type === "key" && info.chapter === endingChapter) keyable++;
+        }
+    }
+
     const result = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Chapter.endTitle") },
         classes: ["drpg-panel"],
@@ -763,6 +815,17 @@ export async function openChapterEndDialog() {
                 ${game.i18n.format("DRPG.Chapter.optReveal", { n: hidden })}</label>
             ${typeless ? `<p class="notes drpg-warning">${
                 plural("DRPG.Chapter.typeless", { n: typeless })}</p>` : ""}
+            <hr />
+            <label class="drpg-checkbox">
+                <input type="checkbox" name="sweep"${sweepable ? " checked" : " disabled"} />
+                ${game.i18n.format("DRPG.Chapter.optSweep", { n: sweepable })}</label>
+            <label class="drpg-checkbox">
+                <input type="checkbox" name="faint"${faintable ? " checked" : " disabled"} />
+                ${game.i18n.format("DRPG.Chapter.optFaint", { n: faintable })}</label>
+            <label class="drpg-checkbox">
+                <input type="checkbox" name="keys"${keyable ? " checked" : " disabled"} />
+                ${game.i18n.format("DRPG.Chapter.optKeys", { n: keyable })}</label>
+            <p class="notes">${game.i18n.localize("DRPG.Chapter.tidyNote")}</p>
             <hr />
             <label class="drpg-checkbox">
                 <input type="checkbox" name="nextChapter" checked />
@@ -785,6 +848,9 @@ export async function openChapterEndDialog() {
                     const f = d.element.querySelector("form");
                     return {
                         reveal: f.reveal.checked,
+                        sweep: f.sweep.checked,
+                        faint: f.faint.checked,
+                        keys: f.keys.checked,
                         nextChapter: f.nextChapter.checked,
                         nextSession: f.nextSession.checked
                     };
@@ -800,6 +866,39 @@ export async function openChapterEndDialog() {
     const done = [];
     if (result.reveal) {
         done.push(plural("DRPG.Chapter.doneReveal", { n: await revealAllBulletTypes() }));
+    }
+
+    /* THE THREE CLEAN-UPS, IN THE ORDER THEY HAVE TO HAPPEN.
+       Reveal first (above) - it reads the bullets the sweep is about to take. Then the
+       sweep, then the Remnants, and only then the clock, because everything here is scoped
+       to the chapter that is ENDING and the moment the clock moves, "this chapter" means
+       the next one. Measured on 10.09: crossing a chapter with none of this wired left the
+       map holding the previous case's five clues and the players holding its Truth Bullets,
+       while the plan that described them was silently discarded - the module dropped the
+       GM's knowledge and kept everybody else's. */
+    if (result.sweep) {
+        const { removed } = await sweepTruthBullets();
+        done.push(game.i18n.format("DRPG.Chapter.doneSweep", { n: removed }));
+    }
+    if (result.faint) {
+        const { clearFaintRemnants } = await import("./remnants.mjs");
+        done.push(game.i18n.format("DRPG.Chapter.doneFaint", { n: await clearFaintRemnants() }));
+    }
+    if (result.keys) {
+        done.push(game.i18n.format("DRPG.Chapter.doneKeys",
+            { n: await clearChapterKeyRemnants(endingChapter) }));
+    }
+
+    /* AND THE PLAN IS FILED BEFORE THE CLOCK MOVES. `keyPlan()` returns a fresh set of rows
+       the moment the chapter changes, so whatever the GM wrote about this case is only
+       reachable until the line below runs. Silent, and unconditional: it costs nothing, it
+       cannot fail in a way worth reporting, and the alternative is a GM who ends a chapter
+       and finds their five clues gone. */
+    try {
+        const { archiveKeyPlan } = await import("./investigation.mjs");
+        await archiveKeyPlan(endingChapter);
+    } catch (err) {
+        error("Could not file the chapter's Key Remnant plan", err);
     }
 
     // The register of who killed belongs to the chapter that is ending. Cleared
