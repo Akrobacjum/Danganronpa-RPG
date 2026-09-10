@@ -4334,26 +4334,9 @@ body.drpg-theme-stained-glass .drpg-panel :is(.dialog-form, .standard-form) > fo
     box-sizing: border-box;
 }
 
-/* THE CHAT CARD'S HEADER WAS SLICED, NOT ELLIPSISED. Measured at 1440p: the header is a grid
-   226 px wide holding a `.subtitle` that wants 273, under `overflow: hidden` with
-   `text-overflow: clip` - so a long speaker's name simply ends mid-letter with nothing to say
-   it was cut. A grid item will not shrink below its content unless it is told it may, which is
-   what `min-width: 0` is for; with that in place the ellipsis has room to appear. */
-/* THE CHAT CARD'S HEADER STILL CLIPS, AND THREE ATTEMPTS SAY WHY IT IS NOT A CSS FIX.
-   Foundry owns this markup. `.message-header-main` is a two-column grid that fits; inside it
-   `.subtitle` is a flex row 226 px wide holding 273 px of content, under `overflow: hidden`
-   and `text-overflow: clip`, so a long speaker's name ends mid-letter with nothing to mark it.
-
-   What was tried, and what each cost, measured at 2560x1440 and 1920x1080:
-     - `min-width: 0` on the grid's children: no change at all (47 px before, 47 after) - the
-       row that overflows is one level further in.
-     - `min-width: 0` on the flex row's children: the overflow went, and the whisper target
-       collapsed to a clientWidth of ZERO. "To: Player A" disappeared, which is worse than a
-       cut name.
-     - `flex-wrap: wrap` on the row: still 51 px over, and six elements at zero width.
-
-   Each swap trades one defect for another because the row's real constraint is which of its
-   items may shrink and by how much, and that is a property of what Foundry puts in it - a
-   sender, a timestamp, a whisper list, a roll mode - not of the box. It needs the chat card's
-   own template, not another selector. Left alone deliberately (09.09); the clip is the least
-   harmful of the four states measured. */
+/* THE CHAT CARD'S HEADER IS FIXED IN danganronpa.css, NOT HERE. Four states of it were
+   measured from this file over two days and the last of them - `min-width: 0` on the flex
+   row's children - collapsed the whisper target to nothing, which is worse than a cut name.
+   What settled it was measuring WHICH item overflows rather than which one looks long: it
+   is the recipient list, 277 px of a 226 px cell, and the name is 76. The rule lives in the
+   base sheet because the markup and the clip are Foundry's and Legacy has them too. */

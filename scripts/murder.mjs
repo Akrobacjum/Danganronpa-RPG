@@ -2422,11 +2422,24 @@ export async function passTurn() {
  * The catch-up requests are answered from the answering client's own copy and
  * addressed back to whoever actually asked, so a player asking cannot be handed
  * somebody else's incident.
+ *
+ * `game.user?.isGM`, AND THE QUESTION MARK IS NOT DEFENSIVE PADDING. A socket handler is
+ * live from the moment it is registered until the page goes away, and `game.user` exists
+ * for less than that at both ends. Caught with a stack on 10.09 on a player's client, one
+ * run in three of a whole chapter driven end to end:
+ *
+ *   TypeError: Cannot read properties of null (reading 'isGM')
+ *       at murder.mjs (this handler)  <-  I.emit  <-  socket.io
+ *
+ * It is intermittent because it needs a message in flight while the client is starting or
+ * closing, which is why reading the code found nothing and three targeted probes could not
+ * reproduce it. The same first line opens the other four socket handlers in this module
+ * (mastermind, remnants, safeword, truth-bullets) and they are guarded with it.
  * ========================================================================== */
 function registerIncidentCastSync() {
     // GM to GM. Newest write wins, per the same rule the Remnant ledger uses.
     game.socket.on(SOCKET_EVENT, async (payload, senderId) => {
-        if (!game.user.isGM || !payload) return;
+        if (!game.user?.isGM || !payload) return;
         if (senderId === game.user.id) return;
         if (!game.users.get(senderId)?.isGM) {
             // The one legitimate non-GM message on this channel: a participant

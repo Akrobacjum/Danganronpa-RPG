@@ -1127,7 +1127,48 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
          the family cut across them. Under 420 px the strip has no mid seam and no lower
          family - it is one upper quad, and the tiles' shard is cut from that. The same
          applies to the skip above: a strip is dropped only when even the tiles cannot stand
-         in it (and at 240 the left rail lost its shard at 140 % on a 900 px screen). */
+         in it (and at 240 the left rail lost its shard at 140 % on a 900 px screen).
+
+         WHY THE RAIL STILL STRADDLES, AND SIX THINGS THAT DO NOT FIX IT (10.09).
+
+         The cause is one line down: `yMid` reads `min(yBot - 120, max(..., yCtl + 60))`. The
+         inner `max` is the rule that keeps the seam BELOW the tiles; the outer `min` overrules
+         it, and on a 1080p screen it does. Measured with the solver printing its own numbers:
+         the left rail's tiles ran y 534 to 847, the seam landed at 700, and the shard - cut
+         from the upper quad alone - stopped at 717. Everything below sat on the strip beneath:
+         15 tile corners of 48 with the tools shut, 29 of 80 with them open.
+
+         Underneath that is a second one. The rail's band (`coreY`) claims the rail's own box
+         plus a 34 px skirt, and at this wall the notice tile stands directly below - `fixed`,
+         so it cuts a pane whether or not a card is showing, and leaned, so the top of its PANE
+         is some 33 px above the top of its box. The band and that pane want the same wall and
+         no local rule gives it to both.
+
+         What was built and measured, in order, and what each cost:
+           1 seam floored below the tiles   1080p 34/48 -> 48/48 shut and 52/80 -> 76/80 open,
+                                            1440p 70/80 -> 78/80. Costs 2 edge gaps at 1440p:
+                                            dropping the mid seam drops the lower quad with it.
+           2 seam moved down instead        1440p reaches 80/80 and the 2 gaps stay, so they
+                                            are not the lower quad's absence.
+           3 sections clipped, no shield    the wrong pane becomes NO pane - the strip does not
+                                            grow into what a section gives up. 10 of 48 corners
+                                            in a hole at 1600x900.
+           4 + strip covers the whole band  48/48 and 80/80 at 1080p and 1440p - and the notice
+             (`yBot` clamped to `coreY`,    tile loses a corner of its own glass, because it is
+              the bottom column's edge      unmeasured and nothing shields it. Two block
+              not cutting inside it)        failures at every size; the suite fails on it.
+           5 shield by the block's box      no change: the box is upright, the pane is leaned,
+                                            and the failing corner is 33 px above the range.
+           6 shield by the leaned box       the shield grows until the strip overlaps a kept
+                                            section; an overlapping filler pane is thrown away
+                                            whole, so the left strip vanishes - 48 of 48
+                                            corners on nothing, 72 edge gaps.
+
+         Every one of the six was reverted. What would settle it is bounding the RAIL above the
+         notice tile's PANE rather than its box (`room`, in the rotation pass, reads the box),
+         so there is room for the skirt between them - which changes how many tools fit in a
+         column, and is a layout decision rather than a partition one. Left for that decision;
+         the straddle is cosmetic, and every alternative measured worse. */
       const short = yBot - yTop < 420;
       // the mid seam sits below the tiles' shard, so the shard is cut from the upper quad alone
       const yMid = short ? yBot : Math.min(yBot - 120, Math.max(yTop + (yBot - yTop) * (0.5 + (rnd() - 0.5) * 0.16), yCtl + 60));

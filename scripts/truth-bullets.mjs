@@ -904,7 +904,7 @@ export function registerTruthBullets() {
      * only as a GM's way of ignoring its own broadcast.
      */
     game.socket.on(SOCKET_EVENT, async (payload, senderId) => {
-        if (!game.user.isGM) return;
+        if (!game.user?.isGM) return;
         if (!Object.values(TB).includes(payload?.action)) return;
 
         if (!game.users.get(senderId)?.isGM) {

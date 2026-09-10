@@ -217,7 +217,7 @@ export function registerMastermind() {
      * broadcast, and the reply is addressed to whoever actually asked.
      */
     game.socket.on(SOCKET_EVENT, async (payload, senderId) => {
-        if (!game.user.isGM) return;
+        if (!game.user?.isGM) return;
 
         // A player asking "am I the Mastermind" is the one legitimate non-GM
         // sender on this channel - see the reload note on ACTION_DOOR_REQUEST

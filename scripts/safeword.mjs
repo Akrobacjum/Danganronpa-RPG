@@ -174,7 +174,7 @@ export function registerSafeword() {
     // player's client never sees this packet at all.
     game.socket.on(`module.${MODULE_ID}`, payload => {
         if (payload?.action !== SAFEWORD_ACTION) return;
-        if (!game.user.isGM) return;
+        if (!game.user?.isGM) return;
         showGmDetail(payload.who, payload.room);
     });
 

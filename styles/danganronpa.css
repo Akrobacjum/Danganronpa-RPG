@@ -9789,6 +9789,41 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     color: var(--drpg-bone) !important;
 }
 
+/* THE CHAT CARD'S HEADER WAS SLICED, NOT ELLIPSISED - AND IT IS THE WHISPER LIST THAT
+   SPILLS, NOT THE NAME.
+
+   `.message-header-main` is a grid 226 px wide with `overflow: hidden` and
+   `text-overflow: clip`. Inside it `.subtitle` is a flex row holding `.name` and
+   `.whisper-to`, and it is `overflow: visible`, so the row runs past its grid cell and
+   the CELL does the cutting - with `clip`, which ends a word mid-letter and says nothing.
+
+   Three earlier goes at this failed because they aimed at the wrong item. Measured on
+   10.09 with a three-name whisper: `.name` was 76 px and `.whisper-to` 277, of a 226 px
+   cell - 131 px over, all of it the recipient list. `min-width: 0` on the row's children
+   collapsed `.whisper-to` to a clientWidth of ZERO ("To: ..." gone entirely), because its
+   flex basis is already `0%` and only `min-width: auto` was holding it open. So the two
+   items are told apart instead: the name never shrinks, the list shrinks and ellipsises.
+
+   Not theme-scoped: the markup and the clip are Foundry's, and a name cut mid-letter
+   reads the same in Legacy. */
+.chat-message .message-header-main > .subtitle {
+    min-width: 0;
+}
+
+.chat-message .message-header-main > .subtitle > .name {
+    flex: 0 0 auto;
+}
+
+/* `auto` basis, not the `0%` Foundry sets: the list starts at its natural width and gives
+   way from there. With a `0%` basis it would start at nothing and grow, which is the same
+   collapse by another route. */
+.chat-message .message-header-main > .subtitle > .whisper-to {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 /* Hope and Despair keep their colours - those two mean something. Everything
    else on a card is chrome and goes neutral. */
 .chat-message.duality.hope .roll-result-value,

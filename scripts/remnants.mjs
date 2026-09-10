@@ -1155,7 +1155,7 @@ export function registerRemnantLedger() {
     Hooks.on("drpgEclipseChanged", running => { if (!running) flushTraceDigest(); });
 
     game.socket.on(SOCKET_EVENT, async payload => {
-        if (!game.user.isGM || !payload) return;
+        if (!game.user?.isGM || !payload) return;
         try {
             if (payload.action === RM.secret) {
                 await mergeRemnantEntries({ [payload.key]: payload.entry });
