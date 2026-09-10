@@ -5525,7 +5525,17 @@ const SCENARIOS = [
         const actor = game.actors.filter(a => a.type === "character")[0];
         ok(actor, "no character to whisper to");
 
-        const before = document.querySelectorAll(".drpg-popup").length;
+        /* THE STACK IS CAPPED, so "one more than there was" is not the question this
+           test is asking. `showPopup` keeps at most four notices on screen and only TWO
+           under the stained-glass theme - so once the cap is reached a new notice
+           replaces an old one and the count does not move. Measured on 11.09: posting
+           three notices in a row on a themed client gave 0 -> 1 -> 2 -> 2, and this test
+           failed with "no notice appeared at all" while its notice was on the screen.
+
+           So the stack is cleared first and the assertion below asks for the WORDS, which
+           is what the test is named after and the only thing that distinguishes this
+           notice from every other one a suite run posts. */
+        document.querySelectorAll(".drpg-popup").forEach(node => node.remove());
         const words = `Suite notice ${Date.now() % 100000}`;
         let message = null;
         try {
@@ -5536,8 +5546,8 @@ const SCENARIOS = [
             await wait(900);
 
             const cards = [...document.querySelectorAll(".drpg-popup")];
-            ok(cards.length > before, "no notice appeared at all");
-            const text = cards[cards.length - 1].innerText.replace(/\s+/g, " ");
+            ok(cards.length, "no notice appeared at all");
+            const text = cards.map(c => c.innerText.replace(/\s+/g, " ")).join(" | ");
             ok(text.includes(words),
                 `the notice does not carry the card's words - it reads "${text.trim()}"`);
 
@@ -5548,7 +5558,9 @@ const SCENARIOS = [
             equal(secret.contentOf(message), `<h3>Suite probe</h3><p>${words}</p>`,
                 "the words did not reach the client-side store");
         } finally {
-            for (const card of [...document.querySelectorAll(".drpg-popup")].slice(before)) {
+            // All of them: the stack was emptied on the way in, so anything standing
+            // here arrived during this test.
+            for (const card of [...document.querySelectorAll(".drpg-popup")]) {
                 card.dispatchEvent(new CustomEvent("drpg-dismiss"));
             }
             if (message) await message.delete();

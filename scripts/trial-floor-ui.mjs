@@ -554,8 +554,22 @@ export async function manageClassTrial() {
         return manageClassTrial();
     }
     if (action === "chapterEnd") {
+        const chapterWas = getClock().chapter;
         const { openChapterEndDialog } = await import("./chapter.mjs");
         await openChapterEndDialog();
+        /* THE ONE ACTION ON THIS CONSOLE THAT DOES NOT COME BACK TO IT.
+
+           Every other button here leaves a trial to keep running, so landing back on
+           the screen you pressed it from is right. This one ends the chapter: the trial
+           is closed, the clock has moved, and `trialProgress` answers blank for a record
+           belonging to the chapter before. Reopening left a console standing over the
+           new Daily Life offering to start the NEXT Class Trial - measured at the end of
+           both chapters on 11.09, and it is the last thing on screen at the exact moment
+           the GM is trying to close the scene.
+
+           Read from the clock rather than from the dialog's answer, because a GM who
+           unticked "next chapter" has not ended one and should keep their console. */
+        if (getClock().chapter !== chapterWas) return null;
         return manageClassTrial();
     }
     if (action === "toggleFinal") {
@@ -573,7 +587,7 @@ export async function openVoteDialog() {
         return null;
     }
 
-    const { openVote, closeVote, pendingVoters, remindVoters } = await import("./vote.mjs");
+    const { openVote, closeVote, pendingVoters, remindVoters, votesIn } = await import("./vote.mjs");
 
     // Who is still outstanding, while a vote is running.
     //
@@ -583,6 +597,11 @@ export async function openVoteDialog() {
     // never counted and nobody could tell. Names only: who has voted is not how
     // they voted, and only the second is the secret the guide keeps.
     const pending = pendingVoters();
+    /* A vote is either running or it is not, and every button on this window means
+       something different either way. `pendingVoters` answers null for "no vote", which
+       is the same question - asked once here rather than three times below. */
+    const running = pending !== null;
+    const returned = votesIn() ?? 0;
     const status = pending === null
         ? `<p class="notes">${game.i18n.localize("DRPG.Vote.notRunning")}</p>`
         : pending.length
@@ -601,21 +620,67 @@ export async function openVoteDialog() {
             <p class="notes">${game.i18n.localize("DRPG.Vote.privacyNote")}</p>
         </div>`),
         buttons: [
-            { action: "open", label: game.i18n.localize("DRPG.Vote.send"), default: true },
+            /* NOT `action: "close"`, AND THAT ONE WORD COST THE WHOLE TRIAL.
+
+               ApplicationV2 dispatches centrally on `[data-action]` and case "close" is
+               its own: `event.stopPropagation(); event.preventDefault(); this.close();`
+               - the same handler the window header's X uses. A footer button carrying
+               that action never reaches DialogV2's submit at all, so `DialogV2.wait`
+               resolved as a dismissal and `closeVote()` below was unreachable.
+
+               Measured on 11.09, running a chapter through the interface: press "Close
+               and count" with three ballots in and `voteClosed` stays false, no tally
+               card is posted, and the window simply shuts. The verdict button is gated
+               on `voteClosed`, and the end-of-chapter button on the verdict - so the
+               Class Trial could not be finished from the interface at all. Renaming the
+               action and nothing else was measured to fix it, both directions.
+
+               Every other `action: "close"` in this module is a literal "Close" whose
+               handler returns null anyway, so they behave identically either way. This
+               was the only one that had work to do. */
+            { action: "open", default: !running,
+              label: game.i18n.localize(running ? "DRPG.Vote.sendAgain" : "DRPG.Vote.send") },
             ...(pending?.length
                 ? [{ action: "remind", label: game.i18n.format("DRPG.Vote.remind", { n: pending.length }) }]
                 : []),
-            { action: "close", label: game.i18n.localize("DRPG.Vote.tally") },
+            // THE DEFAULT ONCE THE BALLOTS ARE OUT, because from that moment it is the
+            // only thing left to do here - and because the button it takes the default
+            // FROM restarts the vote. Enter must not be the destructive one.
+            { action: "tally", label: game.i18n.localize("DRPG.Vote.tally"), default: running },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
         ],
         rejectClose: false
     });
 
-    if (action === "open") return openVote();
+    if (action === "open") {
+        /* RE-SENDING IS STARTING OVER, so somebody has to say so out loud.
+
+           `openVote` opens with `ballots = new Map()` - it has to, it is how a vote
+           begins - and this button calls it whether or not one is already running.
+           Measured: one ballot in, press it, and that ballot is gone with no warning
+           and no card. It used to be the DEFAULT button on this window, so the way to
+           lose the room's votes was to open this screen to see who was still out and
+           press Enter.
+
+           "Remind" is what a GM chasing stragglers actually wants and it is right
+           there, so this stays available rather than being taken away: re-sending is a
+           legitimate thing to do to a vote that has gone wrong. It just is not
+           something to do by accident. */
+        if (returned) {
+            const sure = await DialogV2.confirm({
+                classes: ["drpg-panel"],
+                window: { title: game.i18n.localize("DRPG.Vote.sendAgain") },
+                content: `<p>${plural("DRPG.Vote.resendWarning", { n: returned })}</p>`,
+                rejectClose: false
+            });
+            if (!sure) return openVoteDialog();
+        }
+        return openVote();
+    }
     if (action === "remind") {
         ui.notifications.info(plural("DRPG.Vote.reminded", { n: remindVoters() }));
         return openVoteDialog();
     }
-    if (action === "close") return closeVote();
+    if (action === "tally") return closeVote();
     return null;
 }

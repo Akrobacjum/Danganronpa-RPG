@@ -441,6 +441,38 @@ export function alreadyOpen(className) {
     return null;
 }
 
+/**
+ * Shut every copy of a window, because the thing it is about has stopped existing.
+ *
+ * The other half of `alreadyOpen`, and it identifies a window the same way and for the
+ * same reasons. A live region keeps a window TRUE; it cannot decide that a window should
+ * no longer be on screen at all, because "there is nothing here any more" is a sentence
+ * about the world, not about the region - and the caller is the only one who knows it.
+ *
+ * Every copy, not the first: a second GM may have one open too, and on this client that
+ * is a second entry in the same list.
+ *
+ * @param {string} className The window's own class, e.g. `"drpg-window-incident"`.
+ * @returns {number} How many were closed.
+ */
+export function closeOpen(className) {
+    let closed = 0;
+    try {
+        for (const app of [...foundry.applications.instances.values()]) {
+            if (!app?.rendered || !app.element?.isConnected) continue;
+            if (!app.options?.classes?.includes(className)) continue;
+            // Not awaited, and the caller must not await it either: `close()` on a
+            // DialogV2 resolves the promise its opener is sitting inside, and that opener
+            // may well be further up this very call stack.
+            app.close()?.catch?.(err => debug("Could not close a finished window", err));
+            closed++;
+        }
+    } catch (err) {
+        debug("Could not close a finished window", err);
+    }
+    return closed;
+}
+
 /** What is currently keeping itself true. For the diagnostics window. */
 export function diagnoseLive() {
     return [...living].map(r => ({

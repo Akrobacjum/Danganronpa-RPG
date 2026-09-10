@@ -843,6 +843,10 @@ export async function openChapterEndDialog() {
                 <input type="checkbox" name="nextSession" checked />
                 ${game.i18n.format("DRPG.Chapter.optNextSession", {
                     from: getClock().session, to: getClock().session + 1 })}</label>
+            <label class="drpg-checkbox">
+                <input type="checkbox" name="nextMorning" checked />
+                ${game.i18n.format("DRPG.Chapter.optNextMorning", {
+                    day: (getClock().day ?? 1) + 1 })}</label>
             <p class="notes">${game.i18n.localize("DRPG.Chapter.endNote")}</p>
             <p class="notes${finalTruthPlaced ? "" : " drpg-warning"}">${game.i18n.localize(
                 finalTruthPlaced
@@ -861,7 +865,8 @@ export async function openChapterEndDialog() {
                         keys: f.keys.checked,
                         endTrial: f.endTrial.checked,
                         nextChapter: f.nextChapter.checked,
-                        nextSession: f.nextSession.checked
+                        nextSession: f.nextSession.checked,
+                        nextMorning: f.nextMorning.checked
                     };
                 }
             },
@@ -989,6 +994,38 @@ export async function applyChapterEnd(choices = {}) {
             if (await closeTrial()) done.push(game.i18n.localize("DRPG.Chapter.doneEndTrial"));
         } catch (err) {
             error("Could not close the trial at the end of the chapter", err);
+        }
+    }
+
+    /* AND THE NEXT CHAPTER OPENS THE FOLLOWING MORNING.
+
+       This screen moved the chapter and the session and nothing else, which left the
+       clock reading whatever the trial ended on. Measured across two chapters run end
+       to end on 11.09: chapter 1 finished at Day 1 - Night and chapter 2 opened at Day
+       1 - Night, with everybody's actions still spent from the time of day before the
+       murder. The panel duly reported "1 student still has actions to spend", which was
+       true and was a leftover.
+
+       Murders happen at night, so this is not an edge case - it is where every chapter
+       ends. And the fix is not "reset the clock": it is the next MORNING, one day on,
+       which is the beat the table is actually resuming from. Actions and search tokens
+       come back because that is what a new time of day does, through the same call
+       every other advance uses rather than a second copy of the rule.
+
+       LAST, AFTER THE TRIAL IS CLOSED. `closeTrial` puts the phase back to Daily Life
+       and starts the elapsed clock; announcing a new morning before that would post the
+       card into a Class Trial that has not finished. */
+    if (result.nextMorning) {
+        try {
+            const { setClock, setTimeOfDay } = await import("./clock.mjs");
+            await setClock({ day: (getClock().day ?? 1) + 1 });
+            await setTimeOfDay("morning", {
+                resetActions: true, resetSearchTokens: true, announce: true
+            });
+            done.push(game.i18n.format("DRPG.Chapter.doneNextMorning",
+                { day: getClock().day }));
+        } catch (err) {
+            error("Could not open the next chapter on a fresh morning", err);
         }
     }
 

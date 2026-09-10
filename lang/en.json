@@ -900,6 +900,11 @@
       "privacyNote": "Ballots never touch world data. They go to the GMs, are counted in memory and are not kept. The results are published; the votes are not.",
       "send": "Send the ballots",
       "tally": "Close and count",
+      "sendAgain": "Start the vote over",
+      "resendWarning": {
+        "one": "One ballot has already come back. Starting over throws it away and hands everybody a fresh one. To chase the people who have not answered, use Remind instead.",
+        "other": "{n} ballots have already come back. Starting over throws them away and hands everybody a fresh one. To chase the people who have not answered, use Remind instead."
+      },
       "banner": "THE VOTE IS OPEN",
       "opened": "{n} ballots are out. Name who you believe is the Blackened.",
       "noVoters": "No player is connected with a character to vote.",
@@ -1119,6 +1124,7 @@
       "dayNote": "Not night, so the opening roll is unmodified.",
       "keyCount": "This case will leave {n} Key Remnants.",
       "trackerTitle": "Incident tracker",
+      "trackerOver": "This incident is over.",
       "ranOutTitle": "They ran out",
       "ranOut": "{name} is out of Health and out of Sanity. The incident ends and they are dead - no Finishing Blow was needed, and none was earned.",
       "rerollLost": "A Reroll arrived for a crisis action with no record here. Nothing was replayed, so the first result stands. Score the new number by hand.",
@@ -1317,8 +1323,8 @@
       "noSlot": "Not one of the five",
       "createdHere": "Key Remnant placed in {room}.",
       "unfoundKeys": {
-        "one": "{n} Key Remnant short of four was never found. {despair} Despair to each pool: {who}.",
-        "other": "{n} Key Remnants short of four were never found. {despair} Despair to each pool: {who}."
+        "one": "The investigation turned up {found} of the four Key Remnants - one short. {despair} Despair to each pool: {who}.",
+        "other": "The investigation turned up {found} of the four Key Remnants - {n} short. {despair} Despair to each pool: {who}."
       },
       "keyNoteLabel": "Your note",
       "keyNotePlaceholder": "Only you read this",
@@ -1472,6 +1478,7 @@
       },
       "optNextChapter": "Move to chapter {to} (from {from})",
       "optNextSession": "Count this as session {to} (from {from})",
+      "optNextMorning": "Open the next chapter on the morning of day {day}, with actions and search tokens refilled",
       "moved": "The clock now reads chapter {chapter}, session {session}.",
       "typeless": {
         "one": "1 Truth Bullet has no real type recorded, so revealing cannot touch it. Set it from Give / take items.",
@@ -1485,7 +1492,8 @@
       "doneKeys": "Took {n} Key Remnant(s) off the map.",
       "tidyNote": "These three were only ever reachable from the Investigation window, which is a screen a GM opens in the middle of a case rather than at the end of one.",
       "optEndTrial": "Close the trial and put the room back into Daily Life",
-      "doneEndTrial": "Closed the trial; the campaign is back in Daily Life."
+      "doneEndTrial": "Closed the trial; the campaign is back in Daily Life.",
+      "doneNextMorning": "The next chapter opens on the morning of day {day}, with actions and search tokens refilled."
     },
     "Trial": {
       "presentTooltip": "Present - put this on the table for everyone to see.",

@@ -253,8 +253,13 @@ export async function chargeForUnfoundKeys() {
     }
 
     if (paid.length) {
+        // WHAT THEY FOUND, not only what they missed. The line read "4 Key Remnants
+        // short of four were never found", which is a sentence a GM has to decode; the
+        // number they are actually being told about is how much of the case reached the
+        // trial. `short` still drives the plural, because it is what the Despair is for.
         await whisperToGms(`<p>${plural("DRPG.Investigation.unfoundKeys", {
-            n: short, despair: amount, who: foundry.utils.escapeHTML(paid.join(", "))
+            n: short, found: status.found, despair: amount,
+            who: foundry.utils.escapeHTML(paid.join(", "))
         })}</p>`);
     }
     log(`G-32: ${short} Key Remnant(s) unfound - ${amount} Despair to each of ${paid.length} pool(s).`);

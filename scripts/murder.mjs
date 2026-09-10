@@ -55,6 +55,7 @@ import { automatedUpdate } from "./resource-guard.mjs";
 import { carriedFor, ITEM_FLAGS, isBroken } from "./inventory.mjs";
 import { equippedFor, breakOnDespair } from "./use-items.mjs";
 import { dropRemnant, traceFeedback } from "./remnants.mjs";
+import { keepLive, closeOpen } from "./live.mjs";
 import {
     announce, dialogContent, tableDialog, whisperToGms, whisperToOwner, ownerOf, gmIds,
     isPrimaryGm, log, warn, error, plural, debug, esc} from "./utils.mjs";
@@ -2901,6 +2902,24 @@ export async function endMurder({ reason = "closed", followUp = true } = {}) {
     await restoreState({});
     log(`Murder closed (${reason}).`);
 
+    /* AND THE TRACKER GOES WITH IT.
+
+       Measured on 11.09: close the murder and the Incident tracker stays on screen,
+       still showing the fight, still offering "Close the murder" - which then warns
+       "No murder is running" at a GM who is looking straight at a window about it. It
+       is not one window either, over a session: every route into this function leaves
+       another one behind.
+
+       Here rather than at the call sites because there are six of them - the tracker's
+       own button, the after-incident screen, a betrayal, a chapter reset - and the one
+       thing they share is that afterwards there is no incident to track. The live hook
+       on the window would shut it a tick later anyway; this makes it immediate, and
+       covers a tracker opened on another GM's screen, which no hook of ours would.
+
+       AFTER `restoreState`, so a tracker that redraws on its way out reads the cleared
+       state and prints the "this is over" line rather than the fight it is losing. */
+    closeOpen("drpg-window-incident");
+
     // Take back the Stage 4 invitation, if one is still standing.
     //
     // Sent AFTER the state is wiped, so that a client which closes its dialog
@@ -3751,21 +3770,62 @@ export async function openIncidentTracker() {
         return null;
     }
 
-    const killer = game.actors.get(state.killerId);
-    const victim = game.actors.get(state.victimId);
-    const third = state.thirdId ? game.actors.get(state.thirdId) : null;
+    /* AWAITED ONCE, HERE, so the body below can be rebuilt synchronously.
 
-    const left = res => victim
-        ? `${resourceMax(victim, res) - resourceValue(victim, res)} / ${resourceMax(victim, res)}`
-        : "?";
+       `keepLive` calls `build()` and uses what comes back; a promise is not markup. The
+       import has to be dynamic - cleanup.mjs reads the incident state out of this file and
+       a static pair both ways is a cycle - so it is paid for at the door instead of inside
+       the thing that runs sixty times a fight. */
+    const cleanup = await import("./cleanup.mjs");
 
-    const action = await tableDialog({
-        // `cleanupSection()` below puts a table in this window once Stage 6 has
-        // traces to list - `tableDialog` is what sizes the window to it.
-        window: { title: game.i18n.localize("DRPG.Murder.trackerTitle") },
-        classes: ["drpg-panel", "drpg-window-incident"],
-        content: dialogContent(`<div>
-            <p>${state.selfInflicted
+    /**
+     * What the tracker says, read fresh every time it is asked.
+     *
+     * THIS WINDOW WAS A PHOTOGRAPH, AND IT IS THE ONE WINDOW THAT CANNOT BE.
+     *
+     * Measured on 11.09 with one tracker open and nothing touching it: it read "turn 1 -
+     * victim to act, Victim 5/5 Health, 6/6 Sanity" and went on reading exactly that
+     * through a crisis action, through a trace being left, through the victim dying and
+     * through the murder being closed. Every other console in the module is on `keepLive`;
+     * this was the only one that was not, and it is the console for the fastest-moving
+     * scene in the game - the GM watches an incident here while the players drive it from
+     * their sheets, so nothing that changes is a change this client made.
+
+     * The old excuse was that it "reopens itself after every action" - it does, but only
+     * after the GM presses Pass the turn, which is the one move a table with players in the
+     * incident never uses.
+     */
+    const read = () => murderState();
+
+    const bodyFor = now => {
+        const killer = game.actors.get(now.killerId);
+        const victim = game.actors.get(now.victimId);
+        const third = now.thirdId ? game.actors.get(now.thirdId) : null;
+        const left = res => victim
+            ? `${resourceMax(victim, res) - resourceValue(victim, res)} / ${resourceMax(victim, res)}`
+            : "?";
+        return { killer, victim, third, left };
+    };
+
+    /* THE WRAPPER IS PART OF THE ANSWER, not decoration on the call site.
+
+       `keepLive` looks its region up by selector on every round and REPLACES the element
+       it finds - so a `build()` that returns the region's CONTENTS replaces the region
+       with its own first child, and the second refresh has nothing left to find. Measured
+       on 11.09 with exactly that mistake: one Pass the turn and the window read "Player A
+       -> Player B" and nothing else, with `.drpg-incident-live` gone from the DOM.
+       `buildConsole` in trial-floor-ui.mjs carries its own class for the same reason. */
+    const trackerBody = () => {
+        const now = read();
+        // The incident is gone but the window is still up - the live hook below closes it
+        // on the next tick, and until then it says so rather than showing a dead fight.
+        if (!now) {
+            return `<div class="drpg-incident-live"><p class="notes">${
+                game.i18n.localize("DRPG.Murder.trackerOver")}</p></div>`;
+        }
+        const { killer, victim, third, left } = bodyFor(now);
+        return `<div class="drpg-incident-live">
+            <p>${now.selfInflicted
                 // One name, and an arrow pointing at itself would be the only
                 // thing on this line that is not true.
                 ? `<strong>${foundry.utils.escapeHTML(victim?.name ?? "?")}</strong> · ${
@@ -3775,22 +3835,39 @@ export async function openIncidentTracker() {
                     third ? ` · ${game.i18n.format("DRPG.Murder.thirdIs", {
                         name: foundry.utils.escapeHTML(third.name)
                     })}` : ""}`}</p>
-            <p>${state.selfInflicted
+            <p>${now.selfInflicted
                 // No turn and no side to report: there is no Stage 5 in this one.
                 ? game.i18n.format("DRPG.Murder.trackerStateSelf", {
-                    stage: game.i18n.localize(`DRPG.Murder.stage.${state.stage}`)
+                    stage: game.i18n.localize(`DRPG.Murder.stage.${now.stage}`)
                 })
                 : game.i18n.format("DRPG.Murder.trackerState", {
-                    stage: game.i18n.localize(`DRPG.Murder.stage.${state.stage}`),
-                    turn: state.turn,
-                    side: game.i18n.localize(`DRPG.Murder.side.${state.turnSide}`)
+                    stage: game.i18n.localize(`DRPG.Murder.stage.${now.stage}`),
+                    turn: now.turn,
+                    side: game.i18n.localize(`DRPG.Murder.side.${now.turnSide}`)
                 })}</p>
             <p>${game.i18n.format("DRPG.Murder.victimLeft", {
                 hp: left("hitPoints"), stress: left("stress")
             })}</p>
-            <p>${game.i18n.format("DRPG.Murder.keyCount", { n: state.keyRemnants })}</p>
-            ${await cleanupSection(killer)}
-        </div>`),
+            <p>${game.i18n.format("DRPG.Murder.keyCount", { n: now.keyRemnants })}</p>
+            ${cleanupSection(killer, cleanup)}</div>`;
+    };
+
+    /* WHICH BUTTONS ARE ON IT, which `keepLive` cannot change - it replaces a region of
+       the content, not a DialogV2 footer built once. Same answer the trial console reached
+       for the same reason: when the SET of buttons would differ, reopen instead. */
+    const signature = () => {
+        const now = read();
+        return now ? [now.stage, now.selfInflicted].join("|") : null;
+    };
+    const openedWith = signature();
+    let settling = false;
+
+    const action = await tableDialog({
+        // `cleanupSection()` puts a table in this window once Stage 6 has traces to
+        // list - `tableDialog` is what sizes the window to it.
+        window: { title: game.i18n.localize("DRPG.Murder.trackerTitle") },
+        classes: ["drpg-panel", "drpg-window-incident"],
+        content: dialogContent(trackerBody()),
         buttons: [
             // There is no "roll the opening" button, and there must not be one.
             //
@@ -3828,6 +3905,29 @@ export async function openIncidentTracker() {
             { action: "end", label: game.i18n.localize("DRPG.Murder.endMurder") },
             { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
         ],
+        render: (event, dialog) => keepLive(dialog, {
+            region: ".drpg-incident-live",
+            build: trackerBody,
+            /* Actors for the victim's Health and Sanity, tokens for the traces the
+               clean-up table lists, and the murder state itself for the stage and the
+               turn. `incidentCast` is deliberately NOT watched: it is client-scoped, so
+               Foundry writes it straight to localStorage and `updateSetting` never fires
+               for it - and the cast does not change mid-incident anyway. */
+            watch: { actors: true, tokens: true, settings: [SETTINGS.murderState] },
+            after: () => {
+                if (settling) return;
+                const now = signature();
+                if (now === openedWith) return;
+                settling = true;
+                /* The fight is over: shut, rather than reopening onto nothing. The
+                   `endMurder` route closes this window itself; this is the backstop for
+                   every other way an incident can stop existing. */
+                const again = now !== null;
+                dialog.close()
+                    .then(() => (again ? openIncidentTracker() : null))
+                    .catch(err => error("Could not refresh the incident tracker", err));
+            }
+        }),
         rejectClose: false
     });
 
@@ -3858,11 +3958,15 @@ export async function openIncidentTracker() {
  * The thresholds are deliberately shown here and nowhere the killer can see -
  * they are read off the trace's own visibility, which is the answer key.
  */
-async function cleanupSection(killer) {
+/**
+ * @param {Actor|undefined} killer
+ * @param {object} cleanup  cleanup.mjs, imported once by the caller - see the note there.
+ */
+function cleanupSection(killer, cleanup) {
     const state = murderState();
     if (state?.stage !== "resolution" || !killer) return "";
 
-    const { cleanableRemnants, cleaningTier, cleaningTool } = await import("./cleanup.mjs");
+    const { cleanableRemnants, cleaningTier, cleaningTool } = cleanup;
     const traces = cleanableRemnants(killer);
 
     const tool = cleaningTool(killer);

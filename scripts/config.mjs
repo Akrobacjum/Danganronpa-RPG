@@ -3049,6 +3049,17 @@ export const TRIAL = {
     allowVotingForDead: true,
     allowVotingForMonokuma: true,
     allowVotingForSelf: true,
+    /**
+     * Whether the dead CAST a ballot, which is a different question from the three
+     * above and the guide does not grant it. Everything up there is about who may be
+     * NAMED; this is about who gets handed the pen.
+     *
+     * Off, because at one player to one character the person it enfranchises is the
+     * player whose character was murdered - voting in the trial about their own death.
+     * Measured in a full chapter run on 11.09: three living students at the table and
+     * four ballots went out.
+     */
+    deadCastBallots: false,
     /** Consequences of getting it right, and of getting it wrong. */
     correct: { levelUp: "standard" },
     wrong: {

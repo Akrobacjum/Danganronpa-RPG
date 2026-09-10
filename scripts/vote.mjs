@@ -172,8 +172,11 @@ function onBallotCast(payload, senderId) {
     const sender = game.users.get(senderId);
     if (!sender || sender.isGM) return refuseBallot(senderId, "not a player");
 
-    const actor = studentActors().find(a => a.testUserPermission(sender, "OWNER"));
-    if (!actor) return refuseBallot(senderId, "owns no student");
+    // The same answer `eligibleVoters` gave when the ballot went out - not the first
+    // student this person happens to own, which for somebody holding two was a coin flip
+    // over whose candidate list their answer would be checked against.
+    const actor = voterActorFor(sender);
+    if (!actor) return refuseBallot(senderId, "has no living student to vote with");
 
     // A ballot is a LIST of names now - one for an ordinary night, two when the
     // night produced two Blackened. Normalised here so a client on older code,
@@ -282,14 +285,52 @@ function sendBallots(voters) {
     }
 }
 
-/** Everyone with a ballot out who has not returned it. */
+/**
+ * Everybody entitled to a ballot: one each, and none for the dead.
+ *
+ * TWO RULES, AND A WHOLE CHAPTER RUN END TO END FOUND BOTH (11.09).
+ *
+ * ONE PER PERSON, NOT ONE PER STUDENT. The tally is keyed by the SENDER - it has to be,
+ * see `onBallotCast` - so a user holding two students was handed two ballot windows and
+ * exactly one of them could ever count. Measured: three players at the table, "4 ballots
+ * are out" announced to the room, one player returned two and the second silently replaced
+ * the first. `pendingVoters` filters by user as well, so that player also vanished off the
+ * "still to vote" list the moment they answered either window.
+ *
+ * AND THE DEAD DO NOT VOTE. `studentActors()` is everyone who ever enrolled, so the victim
+ * of the very murder being tried was sent a ballot - which at one player to one character
+ * means the murdered player votes in the trial about their own death. Voting FOR the dead
+ * stays exactly as it was (`allowVotingForDead`, guide p. 32); this is the other half of
+ * the sentence, and `TRIAL.deadCastBallots` is where to change your mind about it.
+ */
 function eligibleVoters() {
     const out = [];
+    const seated = new Set();
     for (const actor of studentActors()) {
+        if (!TRIAL.deadCastBallots && isDeceased(actor)) continue;
         const user = game.users.find(u => !u.isGM && u.active && actor.testUserPermission(u, "OWNER"));
-        if (user) out.push({ user, actor });
+        if (!user || seated.has(user.id)) continue;
+        seated.add(user.id);
+        out.push({ user, actor });
     }
     return out;
+}
+
+/**
+ * Which of a person's students is the one holding their ballot.
+ *
+ * Read from `eligibleVoters` rather than worked out again, so the client that SENT the
+ * ballot and the client that COUNTS it cannot disagree about who it belongs to - which is
+ * what decides whose candidate list the answer is checked against.
+ */
+function voterActorFor(user) {
+    return eligibleVoters().find(v => v.user.id === user.id)?.actor ?? null;
+}
+
+/** How many ballots have come back, or null when no vote is running. */
+export function votesIn() {
+    if (!game.user.isGM || !ballots) return null;
+    return ballots.size;
 }
 
 /**
