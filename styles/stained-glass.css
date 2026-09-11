@@ -2067,6 +2067,30 @@ body.drpg-theme-stained-glass .character-header-sheet .hope-section .hope-value:
     mask-image: var(--drpg-px-star);
     opacity: 1;
 }
+/* AND THE SAME STAR IN THE CORNER, which is the other place Hope is drawn.
+
+   The swap above was written for the sheet's header and reached only `.hope-value`.
+   The player strip in the top right draws its own track out of `.drpg-status-hope-pip`,
+   so it went on wearing the base sheet's diamond: measured on a player's client with
+   the theme on, the header said STAR (24x24) and the corner said diamond (8x8), in the
+   same colour - `--drpg-gold` and `--drpg-sg-hope` are both #ffd23f, so the glyph was
+   the whole of the difference. Dawid, 11.09: "w prawym gornym rogu u gracza jest
+   niewlasciwa ikonka hope".
+
+   Both states, because the base sheet gives the empty slot a HOLLOW diamond and the
+   held one a solid one - two glyphs to replace, not one. The theme keeps one mark and
+   says held or spent with weight, exactly as the header does.
+
+   `contain`, not the base sheet's `100% 100%`: the star is a 24 px glyph and these
+   slots are 11 px, so stretching it to the box rounds its points off. Contained, it
+   scales whole and `image-rendering: pixelated` (inherited from the base rule) keeps
+   the edges hard. */
+body.drpg-theme-stained-glass #drpg-player-status .drpg-status-hope-pip::before,
+body.drpg-theme-stained-glass #drpg-player-status .drpg-status-hope-pip.filled::before {
+    -webkit-mask: var(--drpg-px-star) center / contain no-repeat;
+    mask: var(--drpg-px-star) center / contain no-repeat;
+}
+
 body.drpg-theme-stained-glass .character-header-sheet .hope-section .hope-value.scar::before {
     background-color: var(--drpg-sg-bone-dim);
     opacity: 0.3;
