@@ -15,7 +15,7 @@ import {
 } from "./projects.mjs";
 import { allRooms } from "./movement.mjs";
 import { dialogContent, error, tableDialog, wirePortraitPickers } from "./utils.mjs";
-import { alreadyOpen } from "./live.mjs";
+import { alreadyOpen, keepFresh } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -361,7 +361,8 @@ export async function openProjectManager() {
                      data-drpg-portrait="${p.id}" data-tooltip="${game.i18n.localize("DRPG.Project.changeImage")}" />
                 <input type="hidden" name="img.${p.id}" value="${foundry.utils.escapeHTML(p.img ?? "")}" />
             </td>
-            <td>${foundry.utils.escapeHTML(p.name)}<br><small>${p.current}/${p.start}</small></td>
+            <td>${foundry.utils.escapeHTML(p.name)}<br><small data-drpg-progress="${p.id}"
+                >${p.current}/${p.start}</small></td>
             <td><select name="room.${p.id}">${roomOptions(p.id)}</select></td>
             <td style="text-align:center">
                 <input type="checkbox" name="murder.${p.id}" ${isIndirectMurder(p.id) ? "checked" : ""} />
@@ -421,6 +422,33 @@ export async function openProjectManager() {
         // manager first so the two windows never stack.
         render: (event, dialog) => {
             wirePortraitPickers(dialog.element);
+
+            /* PROGRESS MOVES WHILE THIS WINDOW IS OPEN, AND THAT IS WHAT IT IS FOR.
+
+               A player spends an action on a project and the number in here changes -
+               from their client, so nothing tells this window about it. It is the screen
+               a GM has up for most of a Daily Life (see the panel's note on the tile),
+               which is exactly the stretch when the figures move. Measured on 11.09 with
+               the manager open: a project went 0/4 to 1/4 and the cell still read 0/4.
+
+               Only the figures, written in place: every other cell here is a control the
+               GM is editing and Apply is what saves them, so swapping the table out would
+               discard half-finished work and unwire the row buttons below. A project
+               being CREATED or deleted elsewhere still needs the window reopening; that
+               is a rarer event and a louder one. */
+            keepFresh(dialog, {
+                run: root => {
+                    for (const project of allProjects()) {
+                        const cell = root.querySelector(
+                            `[data-drpg-progress="${CSS.escape(project.id)}"]`);
+                        if (!cell) continue;
+                        const text = `${project.current}/${project.start}`;
+                        if (cell.textContent !== text) cell.textContent = text;
+                    }
+                },
+                watch: { settingKeys: ["daggerheart.Countdowns"] }
+            });
+
             for (const btn of dialog.element.querySelectorAll("[data-drpg-edit]")) {
                 btn.addEventListener("click", async ev => {
                     ev.preventDefault();

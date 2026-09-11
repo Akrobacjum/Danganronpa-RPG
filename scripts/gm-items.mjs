@@ -29,7 +29,7 @@ import { ITEM_POOLS, USABLE_GOALS, moduleTables, rolesOfResult, MULTI_ROLE_TIER 
 import { studentActors } from "./monokuma.mjs";
 import { whisperToOwner, dialogContent, panelTabs, wirePanelTabs, workingScene,
     log, error, plural, cardHead, esc} from "./utils.mjs";
-import { alreadyOpen } from "./live.mjs";
+import { alreadyOpen, keepLive } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -149,13 +149,40 @@ export async function openItemManager(actor = null) {
                 always: ["cancel"]
             });
 
-            // The read-out follows the person, or a GM who changes their mind
-            // reads the last student's pockets under a new name.
+            /* WHOSE POCKETS, AND WHAT IS IN THEM - two questions, and only the first
+               of them was ever answered twice.
+
+               The read-out follows the person, or a GM who changes their mind reads the
+               last student's pockets under a new name. It did not follow the POCKETS:
+               giving somebody a thing, taking one away, or a player picking something up
+               mid-Daily-Life all left this line saying what they used to be carrying.
+               Measured on 11.09 - "Usables: 1/3" with two of them in the actor.
+
+               That matters here more than on most windows, because the buttons under it
+               are what CHANGES the holdings: the hub gives an item and comes straight
+               back to itself, so the number it shows is the one the GM is about to act
+               on again.
+
+               `chosen` is looked up fresh each time rather than closed over: the select
+               is the answer now (see the buttons below), and the element itself is
+               re-queried because `keepLive` REPLACES the region and a reference captured
+               at render time would be pointing at a detached node by the second refresh. */
             const form = dialog.element.querySelector("form");
-            const live = dialog.element.querySelector(".drpg-holdings-live");
+            const chosen = () => game.actors.get(form?.elements?.who?.value) ?? target;
+            const holdings = () =>
+                `<div class="drpg-holdings-live">${holdingsFor(chosen())}</div>`;
+
             form?.elements?.who?.addEventListener("change", () => {
-                const who = game.actors.get(form.elements.who.value);
-                if (who && live) live.innerHTML = holdingsFor(who);
+                const live = dialog.element.querySelector(".drpg-holdings-live");
+                if (live) live.outerHTML = holdings();
+            });
+
+            keepLive(dialog, {
+                region: ".drpg-holdings-live",
+                build: holdings,
+                // Items for what they are carrying, actors because a stash lives on the
+                // sheet and the summary counts it.
+                watch: { items: true, actors: true }
             });
         },
         buttons: [

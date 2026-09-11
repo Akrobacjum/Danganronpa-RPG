@@ -34,7 +34,7 @@ import { getClock } from "./clock.mjs";
 import { truthBulletData, isTruthBullet } from "./truth-bullets.mjs";
 import { showPopup } from "./popup.mjs";
 import { announce, dialogContent, isPrimaryGm, log, error, tableDialog } from "./utils.mjs";
-import { alreadyOpen } from "./live.mjs";
+import { alreadyOpen, keepLive } from "./live.mjs";
 
 import { contentOf } from "./secret.mjs";
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -435,29 +435,40 @@ export async function openObjectionLog() {
         return null;
     }
 
-    const entries = presentedThisChapter();
-    if (!entries.length) {
+    if (!presentedThisChapter().length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Trial.logEmpty"));
         return null;
     }
 
-    const rows = entries.map(e => `<tr>
-        <td>${e.objection
-            ? `<strong>${game.i18n.localize("DRPG.Trial.objectionShort")}</strong>`
-            : game.i18n.localize("DRPG.Trial.presentShort")}</td>
-        <td>${foundry.utils.escapeHTML(e.presenter)}</td>
-        <td>${e.target ? foundry.utils.escapeHTML(e.target) : "-"}</td>
-        <td>${new Date(e.timestamp).toLocaleTimeString()}</td>
-    </tr>`).join("");
+    /*
+     * BUILT EVERY TIME, BECAUSE THIS IS THE WINDOW A GM LEAVES OPEN.
+     *
+     * It is the running record of a trial, and a trial is exactly when evidence keeps
+     * arriving - from the PLAYERS, so nothing that lands in here is a change this
+     * client made. It was drawn once and then sat there: measured on 11.09 with the log
+     * open, a sixth presentation went into the world and the window went on saying
+     * "5 presented this chapter".
+     *
+     * The log is read back out of the chat messages themselves (see
+     * `presentedThisChapter`), so the hooks to watch are the message hooks - none of
+     * which `keepLive` carries by default, because no other window in the module is
+     * about chat.
+     */
+    const logBody = () => {
+        const entries = presentedThisChapter();
+        const rows = entries.map(e => `<tr>
+            <td>${e.objection
+                ? `<strong>${game.i18n.localize("DRPG.Trial.objectionShort")}</strong>`
+                : game.i18n.localize("DRPG.Trial.presentShort")}</td>
+            <td>${foundry.utils.escapeHTML(e.presenter)}</td>
+            <td>${e.target ? foundry.utils.escapeHTML(e.target) : "-"}</td>
+            <td>${new Date(e.timestamp).toLocaleTimeString()}</td>
+        </tr>`).join("");
 
-    const objections = entries.filter(e => e.objection).length;
-
-    return tableDialog({
-        window: { title: game.i18n.localize("DRPG.Trial.logTitle") },
-        classes: ["drpg-panel", "drpg-window-objections"],
-        content: dialogContent(`<div>
+        return `<div class="drpg-objection-live">
             <p>${game.i18n.format("DRPG.Trial.logSummary", {
-                total: entries.length, objections
+                total: entries.length,
+                objections: entries.filter(e => e.objection).length
             })}</p>
             <table class="drpg-objection-log"><thead><tr>
                 <th>${game.i18n.localize("DRPG.Trial.logKind")}</th>
@@ -465,8 +476,19 @@ export async function openObjectionLog() {
                 <th>${game.i18n.localize("DRPG.Trial.logAgainst")}</th>
                 <th>${game.i18n.localize("DRPG.Trial.logWhen")}</th>
             </tr></thead><tbody>${rows}</tbody></table>
-        </div>`),
+        </div>`;
+    };
+
+    return tableDialog({
+        window: { title: game.i18n.localize("DRPG.Trial.logTitle") },
+        classes: ["drpg-panel", "drpg-window-objections"],
+        content: dialogContent(logBody()),
         buttons: [{ action: "close", label: game.i18n.localize("DRPG.Panel.close"), default: true }],
+        render: (event, dialog) => keepLive(dialog, {
+            region: ".drpg-objection-live",
+            build: logBody,
+            watch: { hooks: ["createChatMessage", "deleteChatMessage", "updateChatMessage"] }
+        }),
         rejectClose: false
     });
 }

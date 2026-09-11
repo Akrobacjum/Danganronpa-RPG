@@ -578,6 +578,21 @@ export function overflowCrossings(allowance) {
  * ========================================================================== */
 
 /** The pane's HTML, for `panelTabs`. */
+/**
+ * The one line of `overflowSection` that moves on its own.
+ *
+ * Split out so an open window can rewrite it in place: the section around it is a
+ * form of editable rules, and replacing that wholesale would throw away whatever the
+ * GM had typed and not applied. See `keepFresh` in live.mjs.
+ */
+export function overflowNowLine() {
+    const status = overflowStatus();
+    return status.active
+        ? game.i18n.format("DRPG.Overflow.currentDrawn",
+            { count: status.count, max: status.threshold, what: status.effectName })
+        : game.i18n.format("DRPG.Overflow.current", { count: status.count, max: status.threshold });
+}
+
 export function overflowSection() {
     const status = overflowStatus();
     const { min, max } = OVERFLOW.range;
@@ -622,7 +637,7 @@ export function overflowSection() {
             esc(game.i18n.localize("DRPG.Overflow.emptyPool"))}</p>`;
 
     return `<p>${esc(game.i18n.localize("DRPG.Overflow.setupIntro"))}</p>
-        <p class="notes">${esc(nowLine)}</p>
+        <p class="notes drpg-overflow-now">${esc(nowLine)}</p>
 
         <label class="drpg-overflow-threshold">
             <span>${esc(game.i18n.localize("DRPG.Overflow.threshold"))}</span>

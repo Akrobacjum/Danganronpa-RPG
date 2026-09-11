@@ -23,8 +23,10 @@ import {
 import { isMonokuma, setMonokuma, poolFor, setPools } from "./monokuma.mjs";
 import { students, assignments, monokumaFor, setAssignments, autoAssign, NO_MONOKUMA } from "./assignments.mjs";
 import { dialogContent, error, tableDialog, panelTabs, wirePanelTabs } from "./utils.mjs";
-import { overflowStatus, setOverflowRules, overflowSection, readOverflowForm } from "./overflow.mjs";
-import { alreadyOpen } from "./live.mjs";
+import { overflowStatus, setOverflowRules, overflowSection, overflowNowLine,
+    readOverflowForm } from "./overflow.mjs";
+import { alreadyOpen, keepFresh } from "./live.mjs";
+import { SETTINGS } from "./settings.mjs";
 
 /** Open the combined panel. GM only. */
 export async function openGmTeamDialog() {
@@ -112,6 +114,25 @@ export async function openGmTeamDialog() {
             wirePanelTabs(dialog.element);
             wireMonokumaLive(dialog);
             if (roster.length) wireAssignmentLive(dialog, gms);
+
+            /* THE ONE NUMBER ON THIS WINDOW THAT MOVES WHILE IT IS OPEN.
+
+               Everything else here is a setting being edited - pool names, who is a
+               Monokuma, which pool feeds whom, the overflow rules - and none of it
+               changes underneath the GM. The spilled-Despair count does, constantly:
+               every Call that overfills a pool, every Key Remnant shortfall, every
+               boundary. Measured on 11.09 with this window open: the count went from 84
+               to 89 and the line went on reading 84.
+
+               Written in place rather than through `keepLive`, because it sits in the
+               middle of the rules form - see `keepFresh`. */
+            keepFresh(dialog, {
+                run: root => {
+                    const line = root.querySelector(".drpg-overflow-now");
+                    if (line) line.textContent = overflowNowLine();
+                },
+                watch: { settings: [SETTINGS.overflow] }
+            });
         },
         rejectClose: false
     });

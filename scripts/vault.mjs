@@ -31,14 +31,14 @@ import { roomOfActor, ROOM_FLAGS } from "./movement.mjs";
 // Static because the reader is synchronous. From settings.mjs, which is a leaf
 // - this is one client-scoped boolean, and the note above the function there
 // explains why it stopped living in mastermind.mjs.
-import { iAmTheMastermind } from "./settings.mjs";
+import { iAmTheMastermind, SETTINGS } from "./settings.mjs";
 import { SEARCH_FLAGS } from "./search-tokens.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 // Static is safe: tables.mjs only reaches back into this file lazily.
 import { isTierPool } from "./tables.mjs";
 import { dialogContent, tableDialog, whisperToOwner, whisperToGms, announce, log, error, plural,
     workingScene, pinFooterAcrossScroll, wireDashboardTabs } from "./utils.mjs";
-import { alreadyOpen } from "./live.mjs";
+import { alreadyOpen, keepFresh } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -1583,6 +1583,21 @@ export async function resolveStashSearch({ actorId, total = 0, isCritical = fals
  * Every column is a region flag written when the map is built. `rest.mjs` still
  * owns the two rest flags and their readers; this only edits them.
  */
+/**
+ * Write the live search-token count into every cell that has one.
+ *
+ * Read from `SearchTokens` rather than from the cell, so a spend that arrived from a
+ * player's client is reflected instead of overwritten - which is the whole point of
+ * having this run on somebody else's write as well as on the GM's own.
+ */
+function recountTokenCells(root, scene) {
+    for (const cell of root.querySelectorAll("[data-drpg-tokens]")) {
+        const left = SearchTokens.left(cell.dataset.drpgTokens, scene);
+        const text = String(left);
+        if (cell.textContent !== text) cell.textContent = text;
+    }
+}
+
 export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
     // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
@@ -2019,6 +2034,8 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
                 onSwitch: () => requestAnimationFrame(() => pinFooterAcrossScroll(dialog))
             });
 
+            const recount = where => recountTokenCells(where, scene);
+
             /*
              * Cycle a stash cell: none -> open -> hidden -> none.
              *
@@ -2071,11 +2088,32 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
                     const by = button.dataset.drpgTokenBy;
                     const now = SearchTokens.left(room, scene);
                     const want = by === "max" ? SearchTokens.max : now + Number(by);
-                    const stored = await SearchTokens.setFor(room, want, scene);
-                    const cell = root.querySelector(`[data-drpg-tokens="${CSS.escape(room)}"]`);
-                    if (cell && stored !== null) cell.textContent = String(stored);
+                    await SearchTokens.setFor(room, want, scene);
+                    // The write comes back through `recount` below like anybody
+                    // else's, so there is no second copy of "what the cell says".
+                    recount(root);
                 });
             }
+
+            /* AND THE COUNTS FOLLOW THE TABLE THAT IS SPENDING THEM.
+
+               Every Search a player makes writes this number, and this window is open
+               during Daily Life precisely because a GM is watching them do it. Measured
+               on 11.09: with Room Setup open, a room went from 1 token to 0 and the cell
+               went on reading 1.
+
+               `keepFresh` rather than `keepLive`: the count sits in a row that also
+               carries the sealed checkbox and the item-table select, and those are saved
+               on Apply. Swapping the region out would throw away whatever the GM has
+               ticked and not yet applied, and take the three buttons above with it. So
+               the numbers are written in place and nothing else is touched.
+
+               Scoped to the search-token setting: a window this size has no business
+               redrawing because somebody rolled a die. */
+            keepFresh(dialog, {
+                run: recount,
+                watch: { settings: [SETTINGS.searchTokens] }
+            });
         },
         rejectClose: false
     });

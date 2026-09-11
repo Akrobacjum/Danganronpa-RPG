@@ -81,7 +81,7 @@ const living = new Set();
  *                                   still found - which means `build` must
  *                                   return an element carrying the same class.
  * @param {Function} options.build   Returns the replacement: markup, or a node.
- * @param {object}  [options.watch]  `{ actors, tokens, items, settings, hooks }`.
+ * @param {object}  [options.watch]  `{ actors, tokens, items, settings, settingKeys, hooks }`.
  * @param {number}  [options.delay]  Debounce, ms.
  * @param {Function}[options.after]  Run after a successful rebuild, with the new
  *                                   element - for anything the region needs that
@@ -159,8 +159,19 @@ export function keepLive(app, { region, build, watch = {}, delay = 120, after = 
     // world writes settings, and a window has no business redrawing because
     // somebody else's module saved a preference.
     listeners.push(["updateSetting", Hooks.on("updateSetting", setting => {
-        if (!setting?.key?.startsWith(`${MODULE_ID}.`)) return;
-        if (watch.settings && !watch.settings.includes(setting.key.split(".").pop())) return;
+        const key = setting?.key ?? "";
+        /* A KEY THAT IS NOT OURS, NAMED IN FULL.
+
+           The filter below exists so a window does not redraw because some other
+           module saved a preference, and it was right until something of ours was
+           stored somewhere else: a project IS a Daggerheart countdown, kept in
+           `daggerheart.Countdowns`, so every write to one was filtered out as
+           somebody else's business. `settingKeys` is the way to say "this one too",
+           and it takes the whole key because that is what makes it a deliberate
+           exception rather than a wider net. */
+        if (watch.settingKeys?.includes(key)) return schedule();
+        if (!key.startsWith(`${MODULE_ID}.`)) return;
+        if (watch.settings && !watch.settings.includes(key.split(".").pop())) return;
         schedule();
     })]);
 
@@ -439,6 +450,86 @@ export function alreadyOpen(className) {
         debug("Could not check whether a window was already open", err);
     }
     return null;
+}
+
+/**
+ * Keep something true WITHOUT replacing it.
+ *
+ * `keepLive` swaps a region out, which is the right answer when the region is a
+ * read-out and the wrong one when it is part of a form: a swap discards whatever the
+ * GM has typed but not applied, and takes every listener wired to the old nodes with
+ * it. Room Setup is the case that needs this - one number per row is live, and the
+ * same rows carry checkboxes that are only saved on Apply.
+ *
+ * So this is the same subscription with a different body: the caller writes whatever
+ * it wants into the DOM it already has. Everything else is identical, including
+ * stopping when the window closes, so nothing has to remember to unhook.
+ *
+ * NO FOCUS RULE HERE, and that is the point rather than an omission: writing a
+ * number into a span cannot interrupt anybody, and deferring it would leave the one
+ * thing this exists to keep true stale for exactly as long as the GM is reading the
+ * window. Callers must only write nodes nobody edits.
+ *
+ * @param {object}   app            The application.
+ * @param {Function} options.run    Called on every change. Given the window element.
+ * @param {object}  [options.watch] `{ actors, tokens, items, settings, settingKeys, hooks }`.
+ * @param {number}  [options.delay] Debounce, ms.
+ * @returns {Function} Stop listening.
+ */
+export function keepFresh(app, { run, watch = {}, delay = 120 } = {}) {
+    if (!app || typeof run !== "function") return () => {};
+
+    let stopped = false;
+    const tick = () => {
+        if (stopped) return;
+        const root = app.element;
+        if (!root?.isConnected) return stop();
+        try {
+            run(root);
+        } catch (err) {
+            error("live: a keepFresh watcher failed", err);
+            stop();
+        }
+    };
+
+    const schedule = foundry.utils.debounce(tick, delay);
+    const names = [
+        ...WORLD_HOOKS,
+        ...(watch.actors ? ACTOR_HOOKS : []),
+        ...(watch.tokens ? TOKEN_HOOKS : []),
+        ...(watch.items ? ITEM_HOOKS : []),
+        ...(watch.hooks ?? [])
+    ];
+    const listeners = names.map(name => [name, Hooks.on(name, () => schedule())]);
+    listeners.push(["updateSetting", Hooks.on("updateSetting", setting => {
+        const key = setting?.key ?? "";
+        /* A KEY THAT IS NOT OURS, NAMED IN FULL.
+
+           The filter below exists so a window does not redraw because some other
+           module saved a preference, and it was right until something of ours was
+           stored somewhere else: a project IS a Daggerheart countdown, kept in
+           `daggerheart.Countdowns`, so every write to one was filtered out as
+           somebody else's business. `settingKeys` is the way to say "this one too",
+           and it takes the whole key because that is what makes it a deliberate
+           exception rather than a wider net. */
+        if (watch.settingKeys?.includes(key)) return schedule();
+        if (!key.startsWith(`${MODULE_ID}.`)) return;
+        if (watch.settings && !watch.settings.includes(key.split(".").pop())) return;
+        schedule();
+    })]);
+
+    const closeId = Hooks.on("closeApplicationV2", closed => {
+        if (closed === app) stop();
+    });
+
+    function stop() {
+        if (stopped) return;
+        stopped = true;
+        for (const [name, id] of listeners) Hooks.off(name, id);
+        Hooks.off("closeApplicationV2", closeId);
+    }
+
+    return stop;
 }
 
 /**

@@ -4233,10 +4233,42 @@ body.drpg-theme-stained-glass .application.sheet.actor :is(.editor-content, .des
    nothing well inside the block. It darkens under the words and draws no
    rectangle. `background-image` rather than a pseudo-element, because these
    blocks already carry `background: transparent !important` and an image slips
-   under the content without touching the stacking order. */
+   under the content without touching the stacking order.
+
+   CLOSEST-SIDE, AND WITHOUT IT THIS RULE DREW THE RECTANGLE IT PROMISES NOT TO.
+
+   A radial gradient sizes itself `farthest-corner` by default, which puts the
+   100% ellipse through the CORNERS of the block - so the edge midpoints sit at
+   1/sqrt(2) = 70.7% of it, whatever the block's shape. Fading out at 80% meant
+   the scrim was still painting when it ran off the side, and a gradient that
+   stops at an edge instead of at zero IS an edge: a black plate with the ramp
+   visible along it. Dawid, 11.09: "wrocily czarne tla (...) brzydko uciete i
+   widac krawedz gradientu".
+
+   Measured on all four blocks at 1920x1080 - HUD 299x298, Despair 410x127,
+   Projects 313x116, the player strip 321x168 - and every one of them was cut,
+   because 70.7% is where the edge is for any rectangle at all. The HUD wears it
+   worst: the glass tilts that card, so its cut reads as a diagonal.
+
+   `closest-side` puts the 100% ellipse ON the four edge midpoints instead, so
+   ending the fade at 85% finishes it inside the block on every side, and the
+   corners - further out than any side - are past the ellipse and untouched. The
+   middle stop moves with it so the falloff keeps its shape rather than being
+   squeezed.
+
+   AND IT ENDS AT 72%, NOT AT THE EDGE. Measured across the player strip with the
+   three variants set inline on the same frame, reading luminance per column: the
+   old one was still taking 10/255 off the picture where the block ends, and
+   closest-side at 85% still took 9-11. Ending at 72% leaves 4. The middle of the
+   block - which is where the words are - keeps 12-16 of its 17-20, so the reading
+   it was put there for survives and the plate does not.
+
+   These blocks are TILTED by the partition (about 8 degrees), so a scrim that does
+   not finish inside its own box does not merely show an edge - it shows a slanted
+   one, which is what made it read as a black card rather than as shading. */
 body.drpg-curtain-on :is(#drpg-hud, #drpg-despair, #countdowns, #drpg-player-status) {
-    background-image: radial-gradient(ellipse at center,
-        rgba(3, 2, 6, 0.66) 0%, rgba(3, 2, 6, 0.40) 55%, rgba(3, 2, 6, 0) 80%) !important;
+    background-image: radial-gradient(ellipse closest-side at center,
+        rgba(3, 2, 6, 0.66) 0%, rgba(3, 2, 6, 0.34) 40%, rgba(3, 2, 6, 0) 72%) !important;
 }
 
 /* ---- 6. THE SHEEN AND THE EDGE ---------------------------------------------
