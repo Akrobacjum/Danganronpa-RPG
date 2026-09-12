@@ -437,6 +437,7 @@ function cardPreview(html) {
     const wrap = document.createElement("div");
     wrap.innerHTML = html ?? "";
     wrap.querySelectorAll(".drpg-call-actions").forEach(el => el.remove());
+    if (!game.user.isGM) wrap.querySelectorAll(".drpg-gm-only").forEach(el => el.remove());
     return wrap;
 }
 
@@ -476,6 +477,10 @@ function buildBubble(message) {
     // sendMessage() escapes free text before this ever runs, postToThread()
     // is fed the GM-bridge's own escaped ruling cards.
     body.innerHTML = contentOf(message);
+    // The GM's half of a ruling card - the reference table, the "score it
+    // against" line - is not the player's to read (COMM-06). Removed, like
+    // the buttons, rather than hidden.
+    if (!game.user.isGM) body.querySelectorAll(".drpg-gm-only").forEach(el => el.remove());
     wireCallActions(body, message);
     bubble.append(body);
 
@@ -516,7 +521,7 @@ function buildBubble(message) {
  * Removed for a player rather than hidden by CSS: a button that is not in the
  * DOM cannot be clicked by anybody reading their own thread.
  */
-function wireCallActions(body, message = null) {
+export function wireCallActions(body, message = null) {
     const buttons = body.querySelectorAll("[data-drpg-call]");
     if (!buttons.length) return;
 
@@ -573,8 +578,96 @@ function settled(key) {
     return { settled: game.i18n.format(key, { name: game.user.name }) };
 }
 
+/** What a Tier 0 item turned out to do: up to three numbers and a tick. */
+async function askItemEffect(item) {
+    const DialogV2 = foundry.applications.api.DialogV2;
+    const field = (name, key) => `<label>${game.i18n.localize(key)}
+        <input type="number" name="${name}" min="0" max="12" step="1" value="0"></label>`;
+    return DialogV2.wait({
+        classes: ["drpg-panel"],
+        window: { title: game.i18n.format("DRPG.Items.effectTitle", { item: item.name }) },
+        content: `<form class="drpg-item-effect">
+            ${field("hitPoints", "DRPG.Items.effectHealth")}
+            ${field("stress", "DRPG.Items.effectSanity")}
+            ${field("hope", "DRPG.Items.effectHope")}
+            <label><input type="checkbox" name="consume" checked> ${
+                game.i18n.localize("DRPG.Items.effectConsume")}</label>
+        </form>`,
+        buttons: [
+            {
+                action: "ok", label: game.i18n.localize("DRPG.Items.itemWorks"), default: true,
+                callback: (e, b, d) => {
+                    const f = d.element.querySelector("form");
+                    const amounts = {};
+                    for (const key of ["hitPoints", "stress", "hope"]) {
+                        const n = Math.max(0, Math.trunc(Number(f.elements[key]?.value) || 0));
+                        if (n) amounts[key] = n;
+                    }
+                    return { amounts, consume: Boolean(f.elements.consume?.checked) };
+                }
+            },
+            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
+        ],
+        rejectClose: false
+    }).then(r => (r && r !== "cancel" ? r : null));
+}
+
 /** What each button on a ruling card does. GM side, by construction. */
 async function runCallAction(action, data) {
+    // A Hope Call that needed the GM's say-so (COMM-04). The verdict goes back
+    // to the asking client over the packet the old dialog used; the player's
+    // own `spendHopeCall` charges the Hope on a yes.
+    if (action === "approveCall" || action === "refuseCall") {
+        const { answerHopeCall } = await import("./gm-bridge.mjs");
+        const yes = action === "approveCall";
+        if (!answerHopeCall(data.rid, data.asker, yes)) return null;
+        return settled(yes ? "DRPG.Bridge.settledApproved" : "DRPG.Bridge.settledDeclined");
+    }
+
+    // A Dynamic action: the difficulty editor is the old dialog, opened from
+    // the card by whichever GM picks it up; "Refuse" tells the player so.
+    if (action === "setDifficulty") {
+        const { askDynamicDifficulty } = await import("./action-rolls.mjs");
+        const ruling = await askDynamicDifficulty({
+            description: data.desc ?? "", actorName: data.name ?? "?", room: data.room || null
+        });
+        if (!ruling) return null;   // The editor was closed; the card stays open.
+        const { answerDynamic } = await import("./gm-bridge.mjs");
+        if (!answerDynamic(data.rid, data.asker, ruling)) return null;
+        return settled("DRPG.Bridge.settledAnswered");
+    }
+    if (action === "refuseDynamic") {
+        const { answerDynamic } = await import("./gm-bridge.mjs");
+        if (!answerDynamic(data.rid, data.asker, false)) return null;
+        return settled("DRPG.Bridge.settledDeclined");
+    }
+
+    // A Tier 0 item used creatively (ITEM-07). The ruling used to be a console
+    // call - `game.drpg.grantItemEffect(...)` - and so was never made: the
+    // "seemingly useless item" stayed in the bag holding a usable slot.
+    if (action === "itemWorks" || action === "itemNoEffect" || action === "itemRefuse") {
+        const actor = game.actors.get(data.by);
+        const item = actor?.items?.get(data.item);
+        if (!actor || !item) return null;   // Handed over meanwhile; nothing to rule on.
+        const { grantItemEffect } = await import("./use-items.mjs");
+        if (action === "itemRefuse") {
+            const { postToThread } = await import("./messenger.mjs");
+            const owner = ownerOf(actor);
+            const note = `<p><em>${foundry.utils.escapeHTML(
+                game.i18n.format("DRPG.Items.creativeRefused", { item: item.name }))}</em></p>`;
+            if (owner) await postToThread(owner.id, note);
+            return settled("DRPG.Bridge.settledDeclined");
+        }
+        if (action === "itemNoEffect") {
+            await grantItemEffect(actor, item, {}, { consumeItem: true });
+            return settled("DRPG.Bridge.settledHandled");
+        }
+        const ruling = await askItemEffect(item);
+        if (!ruling) return null;
+        await grantItemEffect(actor, item, ruling.amounts, { consumeItem: ruling.consume });
+        return settled("DRPG.Bridge.settledHandled");
+    }
+
     if (action === "openMurder") {
         const { openMurder } = await import("./murder.mjs");
         const opened = await openMurder({ killerId: data.killer, victimId: data.victim });

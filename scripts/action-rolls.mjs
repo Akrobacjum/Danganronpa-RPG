@@ -1091,10 +1091,10 @@ async function performSearch(actor, def, options) {
             // answers stay reachable if the editor is cancelled - and the card
             // says so, because a button that does not close its card looks
             // broken to anyone who does not know that (audit E11).
-            body: `${hit || roll.isCritical
+            gmBody: `<p>${hit || roll.isCritical
                 ? game.i18n.format("DRPG.Action.specificFound", { tier })
                 : game.i18n.localize("DRPG.Action.specificNothing")} <em>${
-                game.i18n.localize("DRPG.Bridge.createItemStays")}</em>`,
+                game.i18n.localize("DRPG.Bridge.createItemStays")}</em></p>`,
             // Three answers, because those are the three a GM actually gives to
             // "I am looking for X": it exists and I will make it, it exists
             // already and here it is, or there is none. Each opens the window
@@ -3131,7 +3131,7 @@ async function performGmAction(actor, actionKey, def, options) {
         request,
         roll,
         room: roomOfActor(actor),
-        body,
+        gmBody: body,
         // Nothing mechanical to apply - Think and Listen end in a sentence - so
         // the card carries the two answers that ARE the ruling: say it, or say
         // there is nothing and hand the action back.
@@ -3377,7 +3377,7 @@ async function ruleObserve(actor, def, roll, request, title = null, cost = 0) {
 
     await callGm(actor, {
         title: label,
-        body: `<p><small>${game.i18n.format("DRPG.Action.observeGm", { total: roll.total })}</small></p>`,
+        gmBody: `<p><small>${game.i18n.format("DRPG.Action.observeGm", { total: roll.total })}</small></p>`,
         roll,
         request,
         room,
@@ -4089,18 +4089,31 @@ async function performDynamic(actor, options) {
     const request = {
         description,
         actorName: actor.name,
+        actorId: actor.id,
         room: roomOfActor(actor)
     };
 
+    // The sticky "waiting" card (COMM-04), raised before the fork so the GM
+    // guard stays within sight of the bridge call (R6).
+    const waiting = game.user.isGM ? () => {} : (await import("./popup.mjs"))
+        .showWaiting(game.i18n.localize("DRPG.Action.dynamicWaiting"), dynDef.label);
     let picked;
-    if (game.user.isGM) {
-        picked = await askDynamicDifficulty(request);
-    } else {
-        ui.notifications.info(game.i18n.localize("DRPG.Action.dynamicWaiting"));
-        const { requestDynamicDifficulty } = await import("./gm-bridge.mjs");
-        picked = await requestDynamicDifficulty(request);
+    try {
+        if (game.user.isGM) {
+            picked = await askDynamicDifficulty(request);
+        } else {
+            const { requestDynamicDifficulty } = await import("./gm-bridge.mjs");
+            picked = await requestDynamicDifficulty(request);
+        }
+    } finally {
+        waiting();
     }
 
+    // `false` is the GM's no (ROLL-08); `null` is silence, already reported.
+    if (picked === false) {
+        await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Action.dynamicRefused")}</p>`);
+        return null;
+    }
     if (!picked) return null;
 
     const band = DYNAMIC_THRESHOLDS[picked.tier];

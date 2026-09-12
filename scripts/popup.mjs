@@ -266,6 +266,26 @@ export function showPopup(bodyHtml, {
     }
 
     if (!sticky) setTimeout(dismiss, AUTO_DISMISS_MS);
+    return dismiss;
+}
+
+/**
+ * A card that says "waiting on the GM", and the function that takes it down.
+ *
+ * A player who asked for a ruling used to get either a toast that faded in
+ * five seconds or nothing at all, and then sat for minutes unable to tell a
+ * GM reading the question from a socket that had dropped it. Sticky, so it
+ * stays until the answer comes; closable, so it never traps anybody.
+ */
+export function showWaiting(text, title = null) {
+    const dismiss = showPopup(`<p>${text}</p>`, { sticky: true, title, kind: "info" });
+    return () => {
+        try {
+            dismiss?.();
+        } catch {
+            // Already gone.
+        }
+    };
 }
 
 /* ==========================================================================

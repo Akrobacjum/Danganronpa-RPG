@@ -182,12 +182,19 @@ async function identify(item, actor, realType, isCritical, dc, total) {
             const { callGm } = await import("./gm-bridge.mjs");
             await callGm(actor, {
                 title: game.i18n.localize("DRPG.Analyze.critTitle"),
-                body: game.i18n.format("DRPG.Analyze.critPrompt", {
+                gmBody: `<p>${game.i18n.format("DRPG.Analyze.critPrompt", {
                     a: article(label),
                     actor: foundry.utils.escapeHTML(actor.name),
                     name: foundry.utils.escapeHTML(item.name),
                     type: foundry.utils.escapeHTML(label)
-                })
+                })}</p>`,
+                // The hint is the answer, so the card carries the way to give
+                // it; nothing to refund, the Analyze already resolved (COMM-07).
+                actions: [
+                    { action: "reply", label: game.i18n.localize("DRPG.Bridge.reply"), data: { by: actor.id } },
+                    { action: "decline", label: game.i18n.localize("DRPG.Bridge.nothingThere"),
+                      data: { by: actor.id, cost: "0" } }
+                ]
             });
         } catch (err) {
             // The old road, so a broken bridge cannot swallow the guide's owed

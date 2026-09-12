@@ -61,6 +61,8 @@ const ACTION_BETRAYAL = "murder.betrayal";
 const ACTION_PARK_MURDER = "murder.park";
 const ACTION_MEDDLE = "monocub.meddle";
 const ACTION_ACK = "bridge.ack";
+/** GM -> player: "your request arrived and was refused" - see `refuse`. */
+const ACTION_REFUSED = "bridge.refused";
 /** A GM's world has finished loading - see `registerGmBridge`. */
 const ACTION_GM_READY = "bridge.gmReady";
 const ACTION_LOOT = "body.loot";
@@ -158,6 +160,19 @@ export function registerGmBridge() {
        asks again. */
     if (game.user.isGM) game.socket.emit(SOCKET_EVENT, { action: ACTION_GM_READY });
     else game.socket.on(SOCKET_EVENT, onGmReady);
+
+    // A ruling card with no thread to live in (see the fallback in `callGm`)
+    // is a chat card, and its buttons need the same wiring a bubble gets.
+    // After the secret swap: the import is a microtask, and the swap ran in
+    // this same hook dispatch.
+    if (game.user.isGM) {
+        Hooks.on("renderChatMessageHTML", (message, element) => {
+            if (!message.getFlag(MODULE_ID, "callCard")) return;
+            import("./messenger-app.mjs")
+                .then(m => m.wireCallActions(element.querySelector(".message-content") ?? element, message))
+                .catch(err => debug("Could not wire a ruling card in the log", err));
+        });
+    }
     game.socket.on(SOCKET_EVENT, onSocket);
     // The answer travels back to the asking player, who is not a GM - so this
     // listener has to sit outside the `isPrimaryGm` gate in `onSocket`.
@@ -169,6 +184,7 @@ export function registerGmBridge() {
     // And again: the chosen Observe target travels back to the observer.
     game.socket.on(SOCKET_EVENT, onObserveTargetResult);
     game.socket.on(SOCKET_EVENT, onHopeCallResult);
+    game.socket.on(SOCKET_EVENT, onRefused);
     // And again: a killer's own cleanable-trace list travels back to them.
     game.socket.on(SOCKET_EVENT, onCleanupTracesResult);
     // The one request that travels the other way - GM to player - so it cannot
@@ -249,7 +265,7 @@ export function requestOpeningResult({ actorId, side, total, isCritical, withHop
     emitToGms({
         action: ACTION_OPENING_RESULT,
         userId: game.user.id,
-        requestId: expectAck("Opening roll"),
+        requestId: expectAck(ACTION_OPENING_RESULT),
         actorId, side, total, isCritical, withHope
     });
     return { pending: true };
@@ -272,13 +288,26 @@ const awaitingAck = new Map();
 const ACK_TIMEOUT_MS = 8000;
 
 /** Watch for a "got it" and complain if none arrives. Returns the request id. */
-function expectAck(label) {
+/**
+ * What a request is called on the player's screen.
+ *
+ * The same name as the thing they pressed, from the language file, rather
+ * than an English literal typed beside each emit (COMM-14): the toast that
+ * says "no GM answered" or "the GM's client refused" has to name the request
+ * in the language the rest of the screen is in.
+ */
+function requestLabel(action) {
+    const key = `DRPG.Bridge.what.${action}`;
+    return game.i18n.has(key) ? game.i18n.localize(key) : String(action ?? "?");
+}
+
+function expectAck(action) {
     const requestId = foundry.utils.randomID();
     const timer = setTimeout(() => {
         if (!awaitingAck.has(requestId)) return;
         awaitingAck.delete(requestId);
-        ui.notifications.warn(game.i18n.format("DRPG.Bridge.noAnswer", { what: label }));
-        warn(`No GM acknowledged "${label}" within ${ACK_TIMEOUT_MS}ms.`);
+        ui.notifications.warn(game.i18n.format("DRPG.Bridge.noAnswer", { what: requestLabel(action) }));
+        warn(`No GM acknowledged "${action}" within ${ACK_TIMEOUT_MS}ms.`);
     }, ACK_TIMEOUT_MS);
     awaitingAck.set(requestId, timer);
     return requestId;
@@ -312,7 +341,8 @@ function onRulingResult(payload, senderId) {
     if (payload?.action !== ACTION_DIFFICULTY_RESULT) return;
     if (!replyForMe(payload, senderId)) return;
 
-    settleRuling(payload.requestId, payload.ruling ?? null);
+    // `false` is the GM saying no; `null` is nobody saying anything.
+    settleRuling(payload.requestId, payload.ruling === false ? false : (payload.ruling ?? null));
 }
 
 /** The GM has answered a Call that needed their say-so. */
@@ -389,10 +419,34 @@ function ownsActor(user, actorId) {
     return Boolean(game.actors.get(actorId)?.testUserPermission(user, "OWNER"));
 }
 
-/** Refuse loudly in the log rather than silently doing the wrong thing. */
-function refuse(action, why) {
+/**
+ * Refuse loudly in the log rather than silently doing the wrong thing - and
+ * tell the asker (COMM-16).
+ *
+ * The acknowledgement leaves before any guard runs, so a request this side
+ * then refuses used to be acknowledged to the player and dropped: a roll that
+ * reported success and a world that did not change, which is the exact
+ * symptom the ack was added to remove. One addressed packet closes it.
+ */
+function refuse(action, why, ctx = null) {
     warn(`Refused a "${action}" request over the socket: ${why}.`);
+    if (ctx?.asker && ctx.asker !== game.user.id) {
+        try {
+            game.socket.emit(SOCKET_EVENT, {
+                action: ACTION_REFUSED, userId: ctx.asker, requestId: ctx.requestId ?? null, what: action
+            }, { recipients: [ctx.asker] });
+        } catch {
+            // A refusal nobody hears is the old behaviour, not a new failure.
+        }
+    }
     return null;
+}
+
+/** The GM's client refused a request this client sent. */
+function onRefused(payload, senderId) {
+    if (payload?.action !== ACTION_REFUSED) return;
+    if (!replyForMe(payload, senderId)) return;
+    ui.notifications.warn(game.i18n.format("DRPG.Bridge.refused", { what: requestLabel(payload.what) }));
 }
 
 async function onSocket(payload, senderId) {
@@ -416,7 +470,8 @@ async function onSocket(payload, senderId) {
         // Falling through would have the primary GM treat its own invitation as
         // a request.
         || payload.action === ACTION_OPENING_ASK
-        || payload.action === ACTION_OPENING_CANCEL) return;
+        || payload.action === ACTION_OPENING_CANCEL
+        || payload.action === ACTION_REFUSED) return;
     if (!isPrimaryGm()) return;
 
     /*
@@ -435,6 +490,8 @@ async function onSocket(payload, senderId) {
      * sabotage. Nothing shared between listeners may be mutated.
      */
     const asker = senderId;
+    // Who to tell when a guard below says no.
+    const ctx = { asker, requestId: payload.requestId ?? null };
 
     // Tell the asker a GM is here and has the request, before doing the work -
     // the point of the acknowledgement is "somebody is listening", and a slow
@@ -450,9 +507,9 @@ async function onSocket(payload, senderId) {
     // is exactly what the observer must not know. See observe.mjs.
     if (payload?.action === ACTION_OBSERVE_TARGET) {
         const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_OBSERVE_TARGET, "unknown sender");
+        if (!sender) return refuse(ACTION_OBSERVE_TARGET, "unknown sender", ctx);
         if (!ownsActor(sender, payload.actorId)) {
-            return refuse(ACTION_OBSERVE_TARGET, "sender does not own that character");
+            return refuse(ACTION_OBSERVE_TARGET, "sender does not own that character", ctx);
         }
 
         const { chooseObserveTarget } = await import("./observe.mjs");
@@ -478,9 +535,9 @@ async function onSocket(payload, senderId) {
     // back down to id, label and the reinforced flag before it goes out.
     if (payload?.action === ACTION_CLEANUP_TRACES) {
         const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_CLEANUP_TRACES, "unknown sender");
+        if (!sender) return refuse(ACTION_CLEANUP_TRACES, "unknown sender", ctx);
         if (!ownsActor(sender, payload.actorId)) {
-            return refuse(ACTION_CLEANUP_TRACES, "sender does not own that character");
+            return refuse(ACTION_CLEANUP_TRACES, "sender does not own that character", ctx);
         }
 
         const { cleanableTracesForPlayer } = await import("./cleanup.mjs");
@@ -499,12 +556,12 @@ async function onSocket(payload, senderId) {
 
     if (payload?.action === ACTION_OBSERVE_RESOLVE) {
         const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_OBSERVE_RESOLVE, "unknown sender");
+        if (!sender) return refuse(ACTION_OBSERVE_RESOLVE, "unknown sender", ctx);
         // The key alone decides which character is affected - it was minted on
         // this client in phase 1 - but the sender still has to be the person who
         // asked for it, or one player could resolve another's Observe.
         if (!ownsActor(sender, payload.actorId)) {
-            return refuse(ACTION_OBSERVE_RESOLVE, "sender does not own that character");
+            return refuse(ACTION_OBSERVE_RESOLVE, "sender does not own that character", ctx);
         }
 
         const { resolveObserve } = await import("./observe.mjs");
@@ -521,9 +578,9 @@ async function onSocket(payload, senderId) {
     // read from what the bullet really is, which is the answer being bought.
     if (payload?.action === ACTION_ANALYZE_RESOLVE) {
         const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_ANALYZE_RESOLVE, "unknown sender");
+        if (!sender) return refuse(ACTION_ANALYZE_RESOLVE, "unknown sender", ctx);
         if (!ownsActor(sender, payload.actorId)) {
-            return refuse(ACTION_ANALYZE_RESOLVE, "sender does not own that character");
+            return refuse(ACTION_ANALYZE_RESOLVE, "sender does not own that character", ctx);
         }
 
         const { resolveAnalyze } = await import("./analyze.mjs");
@@ -542,9 +599,9 @@ async function onSocket(payload, senderId) {
     // again inside handover.mjs - the payload only claims it.
     if (payload?.action === ACTION_SHARE_BULLET || payload?.action === ACTION_GIVE_ITEM) {
         const sender = senderOf(senderId);
-        if (!sender) return refuse(payload.action, "unknown sender");
+        if (!sender) return refuse(payload.action, "unknown sender", ctx);
         if (!ownsActor(sender, payload.fromId)) {
-            return refuse(payload.action, "sender does not own the character giving it away");
+            return refuse(payload.action, "sender does not own the character giving it away", ctx);
         }
 
         const { shareBullet, giveItem } = await import("./handover.mjs");
@@ -557,9 +614,9 @@ async function onSocket(payload, senderId) {
     // the character whose pocket the item is leaving.
     if (payload?.action === ACTION_PLANT) {
         const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_PLANT, "unknown sender");
+        if (!sender) return refuse(ACTION_PLANT, "unknown sender", ctx);
         if (!ownsActor(sender, payload.plannerId)) {
-            return refuse(ACTION_PLANT, "sender does not own the character planting");
+            return refuse(ACTION_PLANT, "sender does not own the character planting", ctx);
         }
 
         const { plantOnPerson } = await import("./vault.mjs");
@@ -581,9 +638,9 @@ async function onSocket(payload, senderId) {
     // stashes, so it happens where the threshold is checked.
     if (payload?.action === ACTION_FIND_STASH) {
         const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_FIND_STASH, "unknown sender");
+        if (!sender) return refuse(ACTION_FIND_STASH, "unknown sender", ctx);
         if (!ownsActor(sender, payload.actorId)) {
-            return refuse(ACTION_FIND_STASH, "sender does not own that character");
+            return refuse(ACTION_FIND_STASH, "sender does not own that character", ctx);
         }
 
         const { resolveStashSearch } = await import("./vault.mjs");
@@ -600,9 +657,9 @@ async function onSocket(payload, senderId) {
     // arithmetic wrong, so it does none of it.
     if (payload?.action === ACTION_STEAL) {
         const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_STEAL, "unknown sender");
+        if (!sender) return refuse(ACTION_STEAL, "unknown sender", ctx);
         if (!ownsActor(sender, payload.thiefId)) {
-            return refuse(ACTION_STEAL, "sender does not own the character stealing");
+            return refuse(ACTION_STEAL, "sender does not own the character stealing", ctx);
         }
 
         const { stealFromPerson } = await import("./vault.mjs");
@@ -622,9 +679,9 @@ async function onSocket(payload, senderId) {
     // which the thief has no business writing to.
     if (payload?.action === ACTION_VAULT_STEAL) {
         const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_VAULT_STEAL, "unknown sender");
+        if (!sender) return refuse(ACTION_VAULT_STEAL, "unknown sender", ctx);
         if (!ownsActor(sender, payload.thiefId)) {
-            return refuse(ACTION_VAULT_STEAL, "sender does not own the character searching");
+            return refuse(ACTION_VAULT_STEAL, "sender does not own the character searching", ctx);
         }
 
         const { stealFromVault } = await import("./vault.mjs");
@@ -650,9 +707,9 @@ async function onSocket(payload, senderId) {
     // player could open somebody else's murder for them.
     if (payload?.action === ACTION_OPENING_RESULT) {
         const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_OPENING_RESULT, "unknown sender");
+        if (!sender) return refuse(ACTION_OPENING_RESULT, "unknown sender", ctx);
         if (!ownsActor(sender, payload.actorId)) {
-            return refuse(ACTION_OPENING_RESULT, "sender does not own that character");
+            return refuse(ACTION_OPENING_RESULT, "sender does not own that character", ctx);
         }
 
         const { resolveOpening } = await import("./murder.mjs");
@@ -670,9 +727,9 @@ async function onSocket(payload, senderId) {
     // the shared incident state. All three are GM-only.
     if (payload?.action === ACTION_CRISIS) {
         const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_CRISIS, "unknown sender");
+        if (!sender) return refuse(ACTION_CRISIS, "unknown sender", ctx);
         if (!ownsActor(sender, payload.actorId)) {
-            return refuse(ACTION_CRISIS, "sender does not own that character");
+            return refuse(ACTION_CRISIS, "sender does not own that character", ctx);
         }
 
         const { resolveCrisisAction, freeResolutionFor, sideOf } = await import("./murder.mjs");
@@ -727,9 +784,9 @@ async function onSocket(payload, senderId) {
     // more would be the leak this change exists to close.
     if (payload?.action === ACTION_PARK_MURDER) {
         const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_PARK_MURDER, "unknown sender");
+        if (!sender) return refuse(ACTION_PARK_MURDER, "unknown sender", ctx);
         if (!ownsActor(sender, payload.killerId)) {
-            return refuse(ACTION_PARK_MURDER, "sender does not own that character");
+            return refuse(ACTION_PARK_MURDER, "sender does not own that character", ctx);
         }
         const eclipse = await import("./eclipse.mjs");
         await eclipse.writeParkedMurder({
@@ -746,9 +803,9 @@ async function onSocket(payload, senderId) {
     // anyone the state does not put in that position.
     if (payload?.action === ACTION_BETRAYAL) {
         const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_BETRAYAL, "unknown sender");
+        if (!sender) return refuse(ACTION_BETRAYAL, "unknown sender", ctx);
         if (!ownsActor(sender, payload.actorId)) {
-            return refuse(ACTION_BETRAYAL, "sender does not own that character");
+            return refuse(ACTION_BETRAYAL, "sender does not own that character", ctx);
         }
         const murder = await import("./murder.mjs");
         await murder.betrayAsPlayer(payload.actorId);
@@ -761,9 +818,9 @@ async function onSocket(payload, senderId) {
     // roll is being measured against. See cleanup.mjs.
     if (payload?.action === ACTION_CLEANUP) {
         const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_CLEANUP, "unknown sender");
+        if (!sender) return refuse(ACTION_CLEANUP, "unknown sender", ctx);
         if (!ownsActor(sender, payload.actorId)) {
-            return refuse(ACTION_CLEANUP, "sender does not own that character");
+            return refuse(ACTION_CLEANUP, "sender does not own that character", ctx);
         }
 
         const cleanup = await import("./cleanup.mjs");
@@ -813,9 +870,9 @@ async function onSocket(payload, senderId) {
     // else's actor.
     if (payload?.action === ACTION_MEDDLE) {
         const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_MEDDLE, "unknown sender");
+        if (!sender) return refuse(ACTION_MEDDLE, "unknown sender", ctx);
         if (!ownsActor(sender, payload.actorId)) {
-            return refuse(ACTION_MEDDLE, "sender does not own that Monocub");
+            return refuse(ACTION_MEDDLE, "sender does not own that Monocub", ctx);
         }
 
         const { resolveMeddle } = await import("./monocub.mjs");
@@ -830,37 +887,23 @@ async function onSocket(payload, senderId) {
     }
 
     if (payload?.action === ACTION_HOPE_CALL) {
-        const { askHopeCallApproval } = await import("./calls.mjs");
-        const verdict = await askHopeCallApproval(payload);
-        game.socket.emit(SOCKET_EVENT, {
-            action: ACTION_HOPE_CALL_RESULT,
-            requestId: payload.requestId,
-            userId: asker,
-            verdict
-        }, { recipients: [asker] });
+        await askHopeCallByCard(payload, asker);
         return;
     }
 
     if (payload?.action === ACTION_DIFFICULTY) {
-        const { askDynamicDifficulty } = await import("./action-rolls.mjs");
-        const ruling = await askDynamicDifficulty(payload);
-        game.socket.emit(SOCKET_EVENT, {
-            action: ACTION_DIFFICULTY_RESULT,
-            requestId: payload.requestId,
-            userId: asker,
-            ruling
-        }, { recipients: [asker] });
+        await askDynamicByCard(payload, asker);
         return;
     }
 
     if (payload?.action === ACTION_PROGRESS) {
-        if (!senderOf(senderId)) return refuse(ACTION_PROGRESS, "unknown sender");
+        if (!senderOf(senderId)) return refuse(ACTION_PROGRESS, "unknown sender", ctx);
 
         // Progress comes from an action or a Call, so it is small by definition.
         // A payload asking for +999 is not the rules asking.
         const amount = Math.trunc(Number(payload.amount));
         if (!Number.isFinite(amount) || amount === 0 || Math.abs(amount) > STARTING.despairMax) {
-            return refuse(ACTION_PROGRESS, `amount ${payload.amount} is out of range`);
+            return refuse(ACTION_PROGRESS, `amount ${payload.amount} is out of range`, ctx);
         }
 
         const { addProgress } = await import("./projects.mjs");
@@ -898,7 +941,7 @@ async function onSocket(payload, senderId) {
 
     if (payload?.action === ACTION_SHARE) {
         const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_SHARE, "unknown sender");
+        if (!sender) return refuse(ACTION_SHARE, "unknown sender", ctx);
 
         // You may only share what you can already see.
         //
@@ -910,7 +953,7 @@ async function onSocket(payload, senderId) {
         // through the front door.
         const { canSee, shareWith } = await import("./projects.mjs");
         if (!canSee(payload.countdownId, sender)) {
-            return refuse(ACTION_SHARE, "sender cannot see that project");
+            return refuse(ACTION_SHARE, "sender cannot see that project", ctx);
         }
 
         await shareWith(payload.countdownId, payload.targetUserId);
@@ -921,7 +964,7 @@ async function onSocket(payload, senderId) {
     if (payload?.action === ACTION_REMNANT) {
         const sender = senderOf(senderId);
         if (!ownsActor(sender, payload.data?.sourceActor)) {
-            return refuse(ACTION_REMNANT, "sender does not own the character leaving it");
+            return refuse(ACTION_REMNANT, "sender does not own the character leaving it", ctx);
         }
         const { placeRemnant } = await import("./remnants.mjs");
         await placeRemnant(payload.data);
@@ -930,7 +973,7 @@ async function onSocket(payload, senderId) {
     }
 
     if (payload?.action === ACTION_TIE_TRACE) {
-        if (!senderOf(senderId)) return refuse(ACTION_TIE_TRACE, "unknown sender");
+        if (!senderOf(senderId)) return refuse(ACTION_TIE_TRACE, "unknown sender", ctx);
         const { tieTraceForItem } = await import("./remnants.mjs");
         await tieTraceForItem(payload.identity);
         return;
@@ -938,7 +981,7 @@ async function onSocket(payload, senderId) {
 
     if (payload?.action === ACTION_REMNANT_EDIT) {
         const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_REMNANT_EDIT, "unknown sender");
+        if (!sender) return refuse(ACTION_REMNANT_EDIT, "unknown sender", ctx);
 
         // Only the character who left it may re-rate it, which is what a reroll
         // of their own action is. Anyone else editing evidence is the one thing
@@ -948,7 +991,7 @@ async function onSocket(payload, senderId) {
         const { REMNANT_FLAGS } = await import("./remnants.mjs");
         const source = token?.getFlag(MODULE_ID, REMNANT_FLAGS.sourceActor);
         if (!ownsActor(sender, source)) {
-            return refuse(ACTION_REMNANT_EDIT, "sender did not leave that Remnant");
+            return refuse(ACTION_REMNANT_EDIT, "sender did not leave that Remnant", ctx);
         }
 
         /*
@@ -980,7 +1023,7 @@ async function onSocket(payload, senderId) {
 
     if (payload?.action === ACTION_SABOTAGE) {
         const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_SABOTAGE, "unknown sender");
+        if (!sender) return refuse(ACTION_SABOTAGE, "unknown sender", ctx);
 
         // Freezing somebody's work is aimed at a project you found, not at an
         // id. Seeing it is the condition the picker is built from
@@ -990,7 +1033,7 @@ async function onSocket(payload, senderId) {
         // sender had no way to learn honestly.
         const { canSee, sabotageProject } = await import("./projects.mjs");
         if (!canSee(payload.targetId, sender)) {
-            return refuse(ACTION_SABOTAGE, "sender cannot see that project");
+            return refuse(ACTION_SABOTAGE, "sender cannot see that project", ctx);
         }
 
         // `difficulty` becomes the repair project's progress target, so it is
@@ -1001,7 +1044,7 @@ async function onSocket(payload, senderId) {
         const hardest = Math.max(...Object.values(PROJECT_SCALE).map(s => s.progress));
         const difficulty = Math.trunc(Number(payload.difficulty));
         if (!Number.isFinite(difficulty) || difficulty < 1 || difficulty > hardest) {
-            return refuse(ACTION_SABOTAGE, `difficulty ${payload.difficulty} is out of range (1–${hardest})`);
+            return refuse(ACTION_SABOTAGE, `difficulty ${payload.difficulty} is out of range (1–${hardest})`, ctx);
         }
 
         const result = await sabotageProject(payload.targetId, difficulty);
@@ -1025,13 +1068,13 @@ async function onSocket(payload, senderId) {
 
     if (payload?.action === ACTION_UNSABOTAGE) {
         const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_UNSABOTAGE, "unknown sender");
+        if (!sender) return refuse(ACTION_UNSABOTAGE, "unknown sender", ctx);
 
         // Same rule as freezing it. Thawing is the completion of a repair
         // project, so the sender has to be able to see what they are thawing.
         const { canSee, undoSabotage } = await import("./projects.mjs");
         if (!canSee(payload.targetId, sender)) {
-            return refuse(ACTION_UNSABOTAGE, "sender cannot see that project");
+            return refuse(ACTION_UNSABOTAGE, "sender cannot see that project", ctx);
         }
 
         await undoSabotage(payload.targetId, payload.repairId);
@@ -1043,7 +1086,7 @@ async function onSocket(payload, senderId) {
         const scene = game.scenes.get(payload.sceneId);
         const token = scene?.tokens?.get(payload.tokenId);
         if (!ownsActor(sender, token?.actorId)) {
-            return refuse(ACTION_SENDBACK, "sender does not own that token");
+            return refuse(ACTION_SENDBACK, "sender does not own that token", ctx);
         }
         const { REVERT } = await import("./movement.mjs");
         if (token) await token.update(payload.position, { animate: false, [REVERT]: true });
@@ -1052,12 +1095,12 @@ async function onSocket(payload, senderId) {
 
     if (payload?.action === ACTION_LOOT) {
         const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_LOOT, "unknown sender");
+        if (!sender) return refuse(ACTION_LOOT, "unknown sender", ctx);
 
         // You may fill your own pockets and nobody else's. Without this, "move
         // that knife onto whoever I like" was a single socket emit away.
         if (!ownsActor(sender, payload.takerId)) {
-            return refuse(ACTION_LOOT, "sender does not own the character doing the taking");
+            return refuse(ACTION_LOOT, "sender does not own the character doing the taking", ctx);
         }
 
         const { lootBody } = await import("./handover.mjs");
@@ -1074,7 +1117,7 @@ async function onSocket(payload, senderId) {
         const actor = game.actors.get(payload.actorId);
         if (!actor) return;
         const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_ARM, "unknown sender");
+        if (!sender) return refuse(ACTION_ARM, "unknown sender", ctx);
 
         // The BUYER has to be the sender's own character - never the
         // beneficiary, who is somebody else's by definition for Support and For
@@ -1083,7 +1126,7 @@ async function onSocket(payload, senderId) {
         // for with nothing.
         const buyerId = payload.call?.from ?? payload.actorId;
         if (!ownsActor(sender, buyerId)) {
-            return refuse(ACTION_ARM, "sender does not own the character paying for it");
+            return refuse(ACTION_ARM, "sender does not own the character paying for it", ctx);
         }
 
         // The Call has to be one the rules define, and `grants` has to be the
@@ -1091,7 +1134,7 @@ async function onSocket(payload, senderId) {
         // face value: "arm me a free critical" was a single socket emit away.
         const call = HOPE_CALLS[payload.call?.key] ?? DESPAIR_CALLS[payload.call?.key];
         if (!call || call.grants !== payload.call?.grants) {
-            return refuse(ACTION_ARM, `"${payload.call?.key}" does not grant "${payload.call?.grants}"`);
+            return refuse(ACTION_ARM, `"${payload.call?.key}" does not grant "${payload.call?.grants}"`, ctx);
         }
 
         const { MODULE_ID: id, FLAGS } = await import("./config.mjs");
@@ -1112,17 +1155,17 @@ async function onSocket(payload, senderId) {
 
     if (payload?.action === ACTION_DESPAIR) {
         const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_DESPAIR, "unknown sender");
+        if (!sender) return refuse(ACTION_DESPAIR, "unknown sender", ctx);
 
         // The only legitimate player-side Despair adjustment is a reroll giving
         // one point back or taking one. Anything larger is not the rules asking.
         const delta = Math.trunc(Number(payload.delta));
         if (!Number.isFinite(delta) || Math.abs(delta) !== 1) {
-            return refuse(ACTION_DESPAIR, `delta ${payload.delta} is out of range`);
+            return refuse(ACTION_DESPAIR, `delta ${payload.delta} is out of range`, ctx);
         }
         const target = game.users.get(payload.targetUserId ?? "");
         if (target?.role !== CONST.USER_ROLES.GAMEMASTER) {
-            return refuse(ACTION_DESPAIR, "target is not a Gamemaster");
+            return refuse(ACTION_DESPAIR, "target is not a Gamemaster", ctx);
         }
 
         const { adjustDespair } = await import("./despair.mjs");
@@ -1134,7 +1177,7 @@ async function onSocket(payload, senderId) {
     if (payload?.action === ACTION_ECLIPSE_MOVE) {
         const sender = senderOf(senderId);
         if (!ownsActor(sender, payload.actorId)) {
-            return refuse(ACTION_ECLIPSE_MOVE, "sender does not own that character");
+            return refuse(ACTION_ECLIPSE_MOVE, "sender does not own that character", ctx);
         }
         const { applyRecordedMove } = await import("./eclipse.mjs");
         await applyRecordedMove(payload.actorId);
@@ -1178,7 +1221,7 @@ export async function requestBodyLoot({ takerId, bodyId, itemId }) {
     if (!hasGm()) return null;
     emitToGms( {
         action: ACTION_LOOT, userId: game.user.id,
-        requestId: expectAck("Take from the body"), takerId, bodyId, itemId
+        requestId: expectAck(ACTION_LOOT), takerId, bodyId, itemId
     });
     return true;
 }
@@ -1211,7 +1254,7 @@ export async function requestDespairAdjust(targetUserId, delta) {
     if (!hasGm()) return null;
     emitToGms( {
         action: ACTION_DESPAIR, userId: game.user.id,
-        requestId: expectAck("Despair"), targetUserId, delta
+        requestId: expectAck(ACTION_DESPAIR), targetUserId, delta
     });
     return { pending: true };
 }
@@ -1256,21 +1299,21 @@ export function requestSabotage(targetId, difficulty) {
  */
 export function requestUndoSabotage(targetId, repairId) {
     if (!hasGm()) return null;
-    emitToGms( { action: ACTION_UNSABOTAGE, userId: game.user.id, requestId: expectAck("Sabotage"), targetId, repairId });
+    emitToGms( { action: ACTION_UNSABOTAGE, userId: game.user.id, requestId: expectAck(ACTION_UNSABOTAGE), targetId, repairId });
     return { pending: true };
 }
 
 /** A player whose token cannot be moved back asks the GM to do it. */
 export function requestSendBack(sceneId, tokenId, position) {
     if (!hasGm()) return null;
-    emitToGms( { action: ACTION_SENDBACK, userId: game.user.id, requestId: expectAck("Move"), sceneId, tokenId, position });
+    emitToGms( { action: ACTION_SENDBACK, userId: game.user.id, requestId: expectAck(ACTION_SENDBACK), sceneId, tokenId, position });
     return { pending: true };
 }
 
 /** Count an Eclipse crossing on the GM's copy of the world setting. */
 export function requestEclipseMove(actorId) {
     if (!hasGm()) return null;
-    emitToGms( { action: ACTION_ECLIPSE_MOVE, userId: game.user.id, requestId: expectAck("Eclipse"), actorId });
+    emitToGms( { action: ACTION_ECLIPSE_MOVE, userId: game.user.id, requestId: expectAck(ACTION_ECLIPSE_MOVE), actorId });
     return { pending: true };
 }
 
@@ -1296,7 +1339,7 @@ export function requestTieTrace(identity) {
 /** Creating tokens is GM-only, so a player's Remnant is placed for them. */
 export function requestRemnant(data) {
     if (!hasGm()) return null;
-    emitToGms( { action: ACTION_REMNANT, userId: game.user.id, requestId: expectAck("Remnant"), data });
+    emitToGms( { action: ACTION_REMNANT, userId: game.user.id, requestId: expectAck(ACTION_REMNANT), data });
     return { pending: true };
 }
 
@@ -1307,7 +1350,7 @@ export function requestRemnant(data) {
  */
 export function requestRemnantEdit(sceneId, tokenId, patch) {
     if (!hasGm()) return null;
-    emitToGms( { action: ACTION_REMNANT_EDIT, userId: game.user.id, requestId: expectAck("Remnant"), sceneId, tokenId, patch });
+    emitToGms( { action: ACTION_REMNANT_EDIT, userId: game.user.id, requestId: expectAck(ACTION_REMNANT_EDIT), sceneId, tokenId, patch });
     return { pending: true };
 }
 
@@ -1353,6 +1396,77 @@ function hasGm() {
  * @returns {Promise<boolean|null>} true to allow, false to refuse, null if
  *   nobody answered.
  */
+/*
+ * A RULING THAT NEEDS A HUMAN IS A CARD, LIKE EVERY OTHER RULING (COMM-04).
+ *
+ * A Hope Call that needs the GM (Experience, Ultimate) and a Dynamic action
+ * used to open a DialogV2 on the primary GM's client and nowhere else: no
+ * card, no popup, no sound, and a second GM never learned the question
+ * existed. If that dialog sat behind a sheet the player waited out the whole
+ * timeout looking at nothing. Now both are `callGm` cards in the player's
+ * thread with the answers on them - any GM may press either - and the answer
+ * travels back over the same result packet the dialog used to send.
+ *
+ * `askedByCard` is the dedupe: a player's client re-sends an unanswered
+ * request when a GM's world finishes loading, and the card is already up.
+ */
+const askedByCard = new Set();
+
+async function askHopeCallByCard(payload, asker) {
+    if (!payload?.requestId || askedByCard.has(payload.requestId)) return;
+    askedByCard.add(payload.requestId);
+    const actor = game.actors.get(payload.actorId ?? "");
+    const data = { rid: payload.requestId, asker, by: payload.actorId ?? "" };
+    await callGm(actor, {
+        title: game.i18n.format("DRPG.Calls.approveTitle", { call: payload.callLabel ?? "" }),
+        request: payload.note ?? "",
+        body: `<p>${esc(payload.effect ?? "")}</p><p class="notes">${
+            game.i18n.format("DRPG.Calls.approveCost", { cost: payload.cost ?? "?" })}</p>`,
+        gmBody: game.i18n.localize("DRPG.Calls.approveHint"),
+        actions: [
+            { action: "approveCall", label: game.i18n.localize("DRPG.Calls.approveYes"), data },
+            { action: "refuseCall", label: game.i18n.localize("DRPG.Calls.approveNo"), data }
+        ]
+    });
+}
+
+async function askDynamicByCard(payload, asker) {
+    if (!payload?.requestId || askedByCard.has(payload.requestId)) return;
+    askedByCard.add(payload.requestId);
+    const actor = game.actors.get(payload.actorId ?? "");
+    const data = {
+        rid: payload.requestId, asker, by: payload.actorId ?? "",
+        room: payload.room ?? "", desc: payload.description ?? "", name: payload.actorName ?? ""
+    };
+    await callGm(actor, {
+        title: game.i18n.localize("DRPG.Action.dynamicTitle"),
+        request: payload.description ?? "",
+        room: payload.room ?? null,
+        actions: [
+            { action: "setDifficulty", label: game.i18n.localize("DRPG.Action.dynamicSet"), data },
+            { action: "refuseDynamic", label: game.i18n.localize("DRPG.Action.dynamicRefuse"), data }
+        ]
+    });
+}
+
+/** A GM's answer to a Hope Call card, sent to the player who asked. */
+export function answerHopeCall(requestId, asker, verdict) {
+    if (!game.user.isGM || !requestId || !asker) return false;
+    game.socket.emit(SOCKET_EVENT, {
+        action: ACTION_HOPE_CALL_RESULT, requestId, userId: asker, verdict: Boolean(verdict)
+    }, { recipients: [asker] });
+    return true;
+}
+
+/** A GM's answer to a Dynamic action card: `{ tier, trait }`, or `false` to refuse. */
+export function answerDynamic(requestId, asker, ruling) {
+    if (!game.user.isGM || !requestId || !asker) return false;
+    game.socket.emit(SOCKET_EVENT, {
+        action: ACTION_DIFFICULTY_RESULT, requestId, userId: asker, ruling: ruling ?? false
+    }, { recipients: [asker] });
+    return true;
+}
+
 export function requestHopeCallApproval(
     { actorId, actorName, key, callLabel, effect, cost, note }, timeoutMs = 300000) {
     if (!hasGm()) return Promise.resolve(null);
@@ -1369,13 +1483,13 @@ export function requestHopeCallApproval(
         setTimeout(() => {
             if (!pendingRulings.has(requestId)) return;
             pendingRulings.delete(requestId);
-            ui.notifications.warn(game.i18n.localize("DRPG.Calls.noRuling"));
+            // No toast here: `spendHopeCall` reports a null with the Call's name.
             resolve(null);
         }, timeoutMs);
     });
 }
 
-export function requestDynamicDifficulty({ description, actorName, room }, timeoutMs = 180000) {
+export function requestDynamicDifficulty({ description, actorName, room, actorId = null }, timeoutMs = 180000) {
     if (!hasGm()) return Promise.resolve(null);
 
     const requestId = foundry.utils.randomID();
@@ -1384,7 +1498,7 @@ export function requestDynamicDifficulty({ description, actorName, room }, timeo
             action: ACTION_DIFFICULTY,
             requestId,
             userId: game.user.id,
-            description, actorName, room
+            description, actorName, room, actorId
         });
 
         setTimeout(() => {
@@ -1492,7 +1606,7 @@ export function requestObserveResolve({ actorId, key, total, isCritical, undo = 
     emitToGms( {
         action: ACTION_OBSERVE_RESOLVE,
         userId: game.user.id,
-        requestId: expectAck("Observe"),
+        requestId: expectAck(ACTION_OBSERVE_RESOLVE),
         actorId, key, total, isCritical, undo
     });
     return { pending: true };
@@ -1514,7 +1628,7 @@ export function requestAnalyzeResolve({ actorId, itemId, total, isCritical, undo
     emitToGms( {
         action: ACTION_ANALYZE_RESOLVE,
         userId: game.user.id,
-        requestId: expectAck("Analyze"),
+        requestId: expectAck(ACTION_ANALYZE_RESOLVE),
         actorId, itemId, total, isCritical, undo
     });
     return { pending: true };
@@ -1535,7 +1649,7 @@ export function requestShareBullet({ fromId, toId, itemId }) {
     emitToGms( {
         action: ACTION_SHARE_BULLET,
         userId: game.user.id,
-        requestId: expectAck("Truth Bullet"),
+        requestId: expectAck(ACTION_SHARE_BULLET),
         fromId, toId, itemId
     });
     return { pending: true };
@@ -1551,7 +1665,7 @@ export function requestGiveItem({ fromId, toId, itemId }) {
     emitToGms( {
         action: ACTION_GIVE_ITEM,
         userId: game.user.id,
-        requestId: expectAck("Item"),
+        requestId: expectAck(ACTION_GIVE_ITEM),
         fromId, toId, itemId
     });
     return { pending: true };
@@ -1586,7 +1700,7 @@ export function requestCrisisResult({
     emitToGms( {
         action: ACTION_CRISIS,
         userId: game.user.id,
-        requestId: expectAck("Incident"),
+        requestId: expectAck(ACTION_CRISIS),
         actorId, key, total, isCritical, withHope, undo, choice, usedItemId, free, swungId
     });
     return { pending: true };
@@ -1629,7 +1743,7 @@ export function requestCleanup({
     emitToGms( {
         action: ACTION_CLEANUP,
         userId: game.user.id,
-        requestId: expectAck("Clean-up"),
+        requestId: expectAck(ACTION_CLEANUP),
         actorId, tokenId, total, isCritical, withHope, undo, key, targetId, transform,
         change, viaAction
     });
@@ -1652,7 +1766,7 @@ export function requestParkMurder({ killerId, room = null, note = "" }) {
     emitToGms( {
         action: ACTION_PARK_MURDER,
         userId: game.user.id,
-        requestId: expectAck("Direct murder"),
+        requestId: expectAck(ACTION_PARK_MURDER),
         killerId, room, note
     });
     return { pending: true };
@@ -1667,7 +1781,7 @@ export function requestBetrayal({ actorId }) {
     emitToGms( {
         action: ACTION_BETRAYAL,
         userId: game.user.id,
-        requestId: expectAck("Betrayal"),
+        requestId: expectAck(ACTION_BETRAYAL),
         actorId
     });
     return { pending: true };
@@ -1684,7 +1798,7 @@ export function requestMeddleResolve({ actorId, targetId, help, total, isCritica
     emitToGms( {
         action: ACTION_MEDDLE,
         userId: game.user.id,
-        requestId: expectAck("Meddle"),
+        requestId: expectAck(ACTION_MEDDLE),
         actorId, targetId, help, total, isCritical
     });
     return { pending: true };
@@ -1706,7 +1820,7 @@ export function requestVaultSteal({ thiefId, ownerId, itemId, viaSearch = false,
     emitToGms( {
         action: ACTION_VAULT_STEAL,
         userId: game.user.id,
-        requestId: expectAck("Stash"),
+        requestId: expectAck(ACTION_VAULT_STEAL),
         thiefId, ownerId, itemId, viaSearch, clumsy
     });
     return { pending: true };
@@ -1733,7 +1847,7 @@ export function requestSteal({
     emitToGms( {
         action: ACTION_STEAL,
         userId: game.user.id,
-        requestId: expectAck("Steal"),
+        requestId: expectAck(ACTION_STEAL),
         thiefId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical
     });
     return { pending: true };
@@ -1762,7 +1876,7 @@ export function requestPlant({
     emitToGms( {
         action: ACTION_PLANT,
         userId: game.user.id,
-        requestId: expectAck("Plant"),
+        requestId: expectAck(ACTION_PLANT),
         plannerId, victimId, itemId, total, isCritical, unseenTotal, unseenCritical
     });
     return { pending: true };
@@ -1785,7 +1899,7 @@ export function requestStashSearch({ actorId, total = 0, isCritical = false }) {
     emitToGms( {
         action: ACTION_FIND_STASH,
         userId: game.user.id,
-        requestId: expectAck("Stash"),
+        requestId: expectAck(ACTION_FIND_STASH),
         actorId, total, isCritical
     });
     return { pending: true };
@@ -1796,7 +1910,7 @@ export function requestProjectProgress(countdownId, amount) {
     if (!hasGm()) return null;
     emitToGms( {
         action: ACTION_PROGRESS, countdownId, amount,
-        userId: game.user.id, requestId: expectAck("Project")
+        userId: game.user.id, requestId: expectAck(ACTION_PROGRESS)
     });
     // `changed` is unknown from here - the GM whispers back what actually
     // happened. Claiming success would be a guess.
@@ -1810,7 +1924,7 @@ export function requestProjectProgress(countdownId, amount) {
  */
 export function requestProjectShare(countdownId, userId) {
     if (!hasGm()) return null;
-    emitToGms( { action: ACTION_SHARE, userId: game.user.id, requestId: expectAck("Project"), countdownId, targetUserId: userId });
+    emitToGms( { action: ACTION_SHARE, userId: game.user.id, requestId: expectAck(ACTION_SHARE), countdownId, targetUserId: userId });
     return { pending: true };
 }
 
@@ -1834,6 +1948,13 @@ export function requestProjectShare(countdownId, userId) {
  */
 export async function callGm(actor, {
     title, body = "", roll = null, request = "", room = null,
+    /**
+     * Prose for the GM alone: a threshold table, "score it against...", a
+     * reminder of what is owed. The card lives in the player's thread, so
+     * anything here is wrapped in `.drpg-gm-only` and taken off the card on a
+     * player's client, the same way the buttons are (COMM-06).
+     */
+    gmBody = "",
     /**
      * Buttons for the GM, rendered into the card itself.
      *
@@ -1884,9 +2005,9 @@ export async function callGm(actor, {
         // The guide owes the player a substantial hint on a critical Observe or
         // Analyze. Say so loudly rather than leaving the GM to remember it.
         if (roll.isCritical) {
-            parts.push(`<p class="drpg-warning"><strong>${
+            parts.push(`<div class="drpg-gm-only"><p class="drpg-warning"><strong>${
                 game.i18n.localize("DRPG.Bridge.criticalHint")
-            }</strong></p>`);
+            }</strong></p></div>`);
         }
     }
 
@@ -1899,6 +2020,7 @@ export async function callGm(actor, {
     // threshold table is the thing you look at last, to price the answer.
     if (request) parts.push(`<blockquote>${esc(request)}</blockquote>`);
     if (body) parts.push(`<p>${body}</p>`);
+    if (gmBody) parts.push(`<div class="drpg-gm-only">${gmBody}</div>`);
     // Classed so `settleCall` can take it off again once the card is answered.
     parts.push(`<p class="drpg-call-awaiting"><em>${
         game.i18n.localize("DRPG.Bridge.awaitingRuling")}</em></p>`);
@@ -1916,8 +2038,21 @@ export async function callGm(actor, {
 
     const owner = gmOnly ? null : ownerOf(actor);
     if (!owner) {
+        /*
+         * NO THREAD TO LIVE IN, so the chat log - and the log has to behave
+         * like a thread for it (COMM-02). Before this a trap alert landed as a
+         * silent sidebar line: no popup (a GM's whispers never raise one
+         * unless the poster insists), no sound, and two buttons nothing wired,
+         * because the only wiring lived in the messenger's bubbles. `callCard`
+         * is what the render hook in `registerGmBridge` keys on.
+         */
         try {
-            await whisperToGms(content);
+            await whisperToGms(content, {
+                flags: { [MODULE_ID]: {
+                    callCard: true, gmPopup: true, popupTitle: title,
+                    sfx: { key: "gmAsk", gm: true }
+                } }
+            });
             return true;
         } catch (err) {
             error("Could not reach the GM", err);
@@ -1973,10 +2108,16 @@ export async function settleCall(message, text) {
 
     try {
         const { MESSENGER_FLAGS } = await import("./messenger.mjs");
-        return await message.update({
-            content: wrap.innerHTML,
-            flags: { [MODULE_ID]: { [MESSENGER_FLAGS.settled]: true } }
-        });
+        const flags = { [MODULE_ID]: { [MESSENGER_FLAGS.settled]: true } };
+        if (message.getFlag(MODULE_ID, "secret")) {
+            // The words live off the document (secret.mjs). Writing them into
+            // `content` here would hand every client the private text in
+            // clear; the receipt travels the road the question did.
+            const { updateSecret } = await import("./secret.mjs");
+            await updateSecret(message, wrap.innerHTML);
+            return await message.update({ flags });
+        }
+        return await message.update({ content: wrap.innerHTML, flags });
     } catch (err) {
         error("Could not close out the ruling card", err);
         return null;

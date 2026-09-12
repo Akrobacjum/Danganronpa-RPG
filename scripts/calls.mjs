@@ -133,12 +133,19 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
              * six-field object literal pushed them apart - the guard was there
              * and it did not read as one.
              */
+            // The sticky "waiting" card, raised before the fork so the GM
+            // guard stays within sight of the bridge call (R6).
+            const waiting = game.user.isGM ? () => {} : await showWaitingCard(call);
             let approved;
-            if (game.user.isGM) {
-                approved = await askHopeCallApproval(ask);
-            } else {
-                const { requestHopeCallApproval } = await import("./gm-bridge.mjs");
-                approved = await requestHopeCallApproval(ask);
+            try {
+                if (game.user.isGM) {
+                    approved = await askHopeCallApproval(ask);
+                } else {
+                    const { requestHopeCallApproval } = await import("./gm-bridge.mjs");
+                    approved = await requestHopeCallApproval(ask);
+                }
+            } finally {
+                waiting();
             }
 
             if (!approved) {
@@ -385,6 +392,20 @@ export async function confirmCall(call, { kind = "hope", held = 0, choice = {} }
  * @returns {Promise<boolean>} true to allow. A closed window is a refusal,
  *   because an unanswered request must not become a yes by default.
  */
+/**
+ * A sticky notice while the GM decides (COMM-04). The player used to see
+ * nothing at all between pressing the tile and the answer, and could not tell
+ * a GM reading the question from a socket that had dropped it.
+ */
+async function showWaitingCard(call) {
+    try {
+        const { showWaiting } = await import("./popup.mjs");
+        return showWaiting(game.i18n.format("DRPG.Calls.waitingGm", { call: call.label }), call.label);
+    } catch {
+        return () => {};
+    }
+}
+
 export async function askHopeCallApproval(payload = {}) {
     if (!game.user.isGM) return false;
 

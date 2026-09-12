@@ -304,6 +304,39 @@ export async function postSecret(data = {}) {
     return message;
 }
 
+/**
+ * Replace a private card's words, on every client that holds them.
+ *
+ * For a card that changes after it was posted - a ruling card settling into a
+ * receipt. `message.update({ content })` would put the words into the
+ * document, which is the leak this file exists to close; so the document is
+ * left alone and the new words travel the road the old ones did.
+ *
+ * @param {ChatMessage} message
+ * @param {string} html
+ * @param {string[]} [recipients]  Who holds the words. Defaults to the card's
+ *   whisper list, which is right for every card that is not veiled.
+ */
+export async function updateSecret(message, html, recipients = null) {
+    if (!message?.id) return null;
+    const readers = [...new Set((recipients ?? message.whisper ?? []).filter(Boolean))];
+    const at = read()[message.id]?.at ?? message.timestamp ?? Date.now();
+    if (readers.includes(game.user.id) || !readers.length) {
+        await remember(message.id, html, at);
+        refresh(message);
+    }
+    const others = readers.filter(id => id !== game.user.id);
+    if (others.length) {
+        try {
+            game.socket.emit(SOCKET_EVENT,
+                { action: ACTION_SECRET, id: message.id, html, at }, { recipients: others });
+        } catch (err) {
+            error("Could not deliver a private card's new words", err);
+        }
+    }
+    return message;
+}
+
 /** Redraw one card in place, once its words have arrived. */
 function refresh(message) {
     try {

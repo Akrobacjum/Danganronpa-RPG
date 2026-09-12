@@ -779,6 +779,9 @@ export function buildApplications(ctx) {
                 const v = typeof queued === "function" ? await queued(config) : queued;
                 return v;
             }
+            // A client told to sit still (the suite runs on the GM alone; a player
+            // auto-answering an opening roll would race it) closes every window.
+            if (globalThis.__dialogAuto === false) return null;
             const buttons = config.buttons ?? [];
             const def = buttons.find(b => b.default) ?? buttons[0];
             if (!def) return null;
@@ -810,6 +813,7 @@ export function buildApplications(ctx) {
             globalThis.__dialogLog.push({ kind: "confirm", title: config.window?.title, content: contentText(config.content).slice(0, 400) });
             const queued = globalThis.__dialogAnswers.shift();
             if (queued !== undefined) return typeof queued === "function" ? queued(config) : queued;
+            if (globalThis.__dialogAuto === false) return null;
             if (config.yes?.callback) { try { return await config.yes.callback(new globalThis.window.Event("click"), { form: makeForm(config) }, { element: makeDialogElement(config) }); } catch { return true; } }
             return true;
         }
@@ -817,6 +821,7 @@ export function buildApplications(ctx) {
             globalThis.__dialogLog.push({ kind: "prompt", title: config.window?.title });
             const queued = globalThis.__dialogAnswers.shift();
             if (queued !== undefined) return typeof queued === "function" ? queued(config) : queued;
+            if (globalThis.__dialogAuto === false) return null;
             if (config.ok?.callback) { try { return await config.ok.callback(new globalThis.window.Event("click"), { form: makeForm(config) }, { element: makeDialogElement(config) }); } catch { return "ok"; } }
             return "ok";
         }

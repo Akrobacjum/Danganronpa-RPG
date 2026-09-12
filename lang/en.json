@@ -472,6 +472,7 @@
       "trialVersus": "vs {who}"
     },
     "Action": {
+      "dynamicRefused": "The GM turned the Dynamic action down. Nothing was spent.",
       "panelTitle": "Actions",
       "unknown": "Unknown action: {key}.",
       "failed": "That action could not be completed. Tell the GM.",
@@ -620,6 +621,15 @@
       "stashSent": "You go over the room looking for anything that does not belong."
     },
     "Items": {
+      "itemWorks": "Works - apply an effect",
+      "itemNoEffect": "Works, no effect - use it up",
+      "itemRefuse": "It does not work",
+      "creativeRefused": "The GM ruled that {item} does nothing here. It stays with you.",
+      "effectTitle": "What does {item} do?",
+      "effectHealth": "Health restored",
+      "effectSanity": "Sanity restored",
+      "effectHope": "Hope gained",
+      "effectConsume": "Use the item up",
       "iconsPinned": "Category icons applied. Items: {items}. Table rows: {rows}.",
       "manage": "Give / take items",
       "hubButton": "Items",
@@ -710,6 +720,7 @@
       "whichCharacterHub": "Which student"
     },
     "Monocub": {
+      "meddleRefused": "Your Confusion could not be applied - the action and the Hope are back.",
       "panelTitle": "Monocub",
       "meddleCost": "{hope} Hope, {actions} action.",
       "cannotMeddle": "Not enough action, or not enough Hope.",
@@ -1751,6 +1762,8 @@
       "noRegions": "This scene has no room regions. Draw them on the Regions layer first."
     },
     "Calls": {
+      "waitingGm": "Waiting on the GM: {call}. The Hope is charged only if they say yes.",
+      "approveCost": "{cost} Hope, charged only on a yes.",
       "hopeTitle": "Hope Calls",
       "despairTitle": "Despair Calls",
       "costsHope": "Costs {cost} Hope. You hold {held}.",
@@ -2119,6 +2132,32 @@
       }
     },
     "Bridge": {
+      "what": {
+        "project.progress": "Project progress",
+        "project.share": "Share a project",
+        "remnant.place": "Leave a trace",
+        "remnant.edit": "Edit a trace",
+        "project.unsabotage": "Repair",
+        "token.sendBack": "Send back",
+        "eclipse.move": "Eclipse move",
+        "despair.adjust": "Despair",
+        "observe.resolve": "Observe",
+        "analyze.resolve": "Analyze",
+        "handover.bullet": "Share a Truth Bullet",
+        "handover.item": "Hand over an item",
+        "vault.steal": "Stash",
+        "action.steal": "Palm",
+        "vault.findStash": "Find a stash",
+        "action.plant": "Plant",
+        "murder.crisis": "Incident",
+        "murder.openingResult": "Opening roll",
+        "murder.cleanup": "Clean-up",
+        "murder.betrayal": "Betrayal",
+        "murder.park": "Direct Murder",
+        "monocub.meddle": "Confusion",
+        "body.loot": "Take from the body"
+      },
+      "refused": "The GM's client refused the “{what}” request. Nothing was applied.",
       "criticalHint": "Critical - this player is owed a substantial hint.",
       "send": "Send to GM",
       "awaitingRuling": "Awaiting a ruling.",

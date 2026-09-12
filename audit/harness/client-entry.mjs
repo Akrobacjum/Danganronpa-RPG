@@ -808,9 +808,11 @@ process.on("message", async msg => {
                 break;
             }
             case "socketMsg": {
+                // Foundry hands a module socket handler `(payload, senderId)`. The
+                // emit's options (`{ recipients }`) are for the server, not the handler.
                 const handlers = game.socket._handlers.get(msg.channel) ?? [];
                 for (const fn of handlers) {
-                    try { await fn(...msg.args); } catch (err) { logLine(`socket handler ${msg.channel}: ${err.stack}`); }
+                    try { await fn(msg.args?.[0], msg.senderId); } catch (err) { logLine(`socket handler ${msg.channel}: ${err.stack}`); }
                 }
                 break;
             }

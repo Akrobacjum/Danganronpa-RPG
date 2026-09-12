@@ -482,6 +482,7 @@
       "trialVersus": "kontra {who}"
     },
     "Action": {
+      "dynamicRefused": "GM odrzucił Dynamic action. Nic nie zostało wydane.",
       "panelTitle": "Akcje",
       "unknown": "Nieznana akcja: {key}.",
       "failed": "Nie udało się wykonać tej akcji. Powiedz GMowi.",
@@ -638,6 +639,15 @@
       "stashSent": "Przeczesujesz pokój w poszukiwaniu czegoś, co tu nie pasuje."
     },
     "Items": {
+      "itemWorks": "Działa - zastosuj efekt",
+      "itemNoEffect": "Działa, bez efektu - zużyj",
+      "itemRefuse": "Nie działa",
+      "creativeRefused": "GM orzekł, że {item} nic tu nie daje. Zostaje u ciebie.",
+      "effectTitle": "Co robi {item}?",
+      "effectHealth": "Przywrócone Health",
+      "effectSanity": "Przywrócone Sanity",
+      "effectHope": "Zyskane Hope",
+      "effectConsume": "Zużyj przedmiot",
       "iconsPinned": "Ikony kategorii nałożone. Przedmioty: {items}. Wiersze tabel: {rows}.",
       "manage": "Daj / zabierz przedmioty",
       "hubButton": "Przedmioty",
@@ -728,6 +738,7 @@
       "whichCharacterHub": "Który uczeń"
     },
     "Monocub": {
+      "meddleRefused": "Twojego Confusion nie dało się zastosować - akcja i Hope wróciły.",
       "panelTitle": "Monocub",
       "meddleCost": "{hope} Hope, {actions} akcja.",
       "cannotMeddle": "Za mało akcji albo za mało Hope.",
@@ -1836,6 +1847,8 @@
       "noRegions": "Ta scena nie ma regionów pokoi. Najpierw narysuj je na warstwie regionów."
     },
     "Calls": {
+      "waitingGm": "Czekam na GMa: {call}. Hope zostanie pobrane tylko przy zgodzie.",
+      "approveCost": "{cost} Hope, pobrane tylko przy zgodzie.",
       "hopeTitle": "Hope Calls",
       "despairTitle": "Despair Calls",
       "costsHope": "Kosztuje {cost} Hope. Masz {held}.",
@@ -2224,6 +2237,32 @@
       }
     },
     "Bridge": {
+      "what": {
+        "project.progress": "Postęp projektu",
+        "project.share": "Udostępnienie projektu",
+        "remnant.place": "Zostawienie śladu",
+        "remnant.edit": "Edycja śladu",
+        "project.unsabotage": "Naprawa",
+        "token.sendBack": "Cofnięcie tokena",
+        "eclipse.move": "Ruch w Eclipse",
+        "despair.adjust": "Despair",
+        "observe.resolve": "Observe",
+        "analyze.resolve": "Analyze",
+        "handover.bullet": "Przekazanie Truth Bulleta",
+        "handover.item": "Przekazanie przedmiotu",
+        "vault.steal": "Skrytka",
+        "action.steal": "Palm",
+        "vault.findStash": "Szukanie skrytki",
+        "action.plant": "Podłożenie",
+        "murder.crisis": "Incydent",
+        "murder.openingResult": "Rzut otwarcia",
+        "murder.cleanup": "Sprzątanie",
+        "murder.betrayal": "Zdrada",
+        "murder.park": "Direct Murder",
+        "monocub.meddle": "Confusion",
+        "body.loot": "Przeszukanie ciała"
+      },
+      "refused": "Klient GMa odrzucił żądanie „{what}”. Nic nie zostało zastosowane.",
       "criticalHint": "Krytyk - temu graczowi należy się solidna podpowiedź.",
       "send": "Wyślij do GMa",
       "awaitingRuling": "Czeka na decyzję.",

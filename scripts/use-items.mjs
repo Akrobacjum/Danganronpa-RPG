@@ -476,13 +476,22 @@ export async function useItem(actor, item) {
 async function useCreatively(actor, item) {
     const { promptAndCallGm } = await import("./gm-bridge.mjs");
 
+    // Three answers on the card (ITEM-07): it works and here is what it does,
+    // it works and is simply used up, or it does not. The ruling used to be a
+    // console call, which meant it was never made.
+    const data = { by: actor.id, item: item.id };
     const request = await promptAndCallGm(actor, {
         title: game.i18n.format("DRPG.Items.useTitle", { item: item.name }),
         prompt: game.i18n.format("DRPG.Items.creativePrompt", {
             item: foundry.utils.escapeHTML(item.name)
         }),
         placeholder: game.i18n.localize("DRPG.Items.creativePlaceholder"),
-        room: (await import("./movement.mjs")).roomOfActor(actor)
+        room: (await import("./movement.mjs")).roomOfActor(actor),
+        actions: [
+            { action: "itemWorks", label: game.i18n.localize("DRPG.Items.itemWorks"), data },
+            { action: "itemNoEffect", label: game.i18n.localize("DRPG.Items.itemNoEffect"), data },
+            { action: "itemRefuse", label: game.i18n.localize("DRPG.Items.itemRefuse"), data }
+        ]
     });
     if (request === null) return null;
 

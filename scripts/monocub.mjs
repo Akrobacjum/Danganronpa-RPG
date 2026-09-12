@@ -29,7 +29,7 @@
  * it exactly as it would to an ordinary action roll.
  */
 
-import { MODULE_ID, FLAGS, MONOCUB, ACTIONS_RESOURCE } from "./config.mjs";
+import { MODULE_ID, FLAGS, MONOCUB, ACTIONS_RESOURCE, STARTING } from "./config.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { isDeceased } from "./chapter.mjs";
 import { isMonokuma } from "./monokuma.mjs";
@@ -219,6 +219,16 @@ export async function performMeddle(actor, targetId, help) {
     const target = game.actors.get(targetId);
     if (!target) return null;
 
+    // Paid on this client, resolved on the GM's: with no GM there is nobody
+    // to resolve it, and the price would simply be gone (DESP-05).
+    if (!game.user.isGM) {
+        const { hasGm } = await import("./gm-bridge.mjs");
+        if (!hasGm()) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Bridge.noGm"));
+            return null;
+        }
+    }
+
     if (!await spendAction(actor, def.cost)) return null;
     await automatedUpdate(actor, { "system.resources.hope.value": hope - def.hopeCost });
 
@@ -297,8 +307,21 @@ export async function resolveMeddle({ actorId, targetId, help, total, isCritical
      * gives: `othersInRoom` reads the canvas and answers for the client that is
      * looking at it, and this client is a GM who is usually somewhere else.
      */
-    const refuse = why => {
+    const refuse = async why => {
         warn(`Refused a Meddle by ${actor.name}: ${why}.`);
+        // The Monocub paid on their own client before asking. A refusal that
+        // kept the price and said nothing looked, from their seat, like an
+        // action that did nothing (DESP-05): hand both back and say so.
+        try {
+            await refundAction(actor, def.cost);
+            const max = resourceMax(actor, "hope") || STARTING.hopeMax;
+            await automatedUpdate(actor, {
+                "system.resources.hope.value": Math.min(max, resourceValue(actor, "hope") + def.hopeCost)
+            });
+            await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Monocub.meddleRefused")}</p>`);
+        } catch (err) {
+            warn(`Could not refund a refused Meddle: ${err?.message ?? err}`);
+        }
         return null;
     };
 

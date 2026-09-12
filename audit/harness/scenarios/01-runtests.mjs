@@ -1,5 +1,10 @@
 /** Run the module's own regression suite, full tier, on the GM client. */
-export async function run({ gm, p1, check, settle }) {
+export async function run({ gm, p1, p2, p3, check, settle }) {
+    // The suite drives the whole table from the GM's client and measures state
+    // between its own steps; a player client auto-answering a dialog it was sent
+    // (an opening roll, a ballot) would race those measurements.
+    for (const c of [p1, p2, p3]) await c.eval(`globalThis.__dialogAuto = false; return true;`);
+
     // players must NOT be able to run it
     const asPlayer = await p1.eval(`const r = await game.drpg.runTests({ tier: 0 }); return r;`, { timeout: 60000 });
     check("p1: suite refuses non-GM", asPlayer === null, JSON.stringify(asPlayer));

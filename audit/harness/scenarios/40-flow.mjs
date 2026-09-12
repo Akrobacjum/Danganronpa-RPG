@@ -84,9 +84,22 @@ export async function run({ gm, p1, p2, p3, check, settle }) {
         await new Promise(res => setTimeout(res, 800));
         return { hope0, hope: actor.system.resources.hope.value, r: r === null ? null : typeof r, notifs: globalThis.__notifications.map(n => n.level + ": " + n.msg) };`, { timeout: 90000 });
     await settle(1500);
-    const gmDialogs = await dialogs(gm);
+    // The ask is a card in p2's thread with two buttons (COMM-04); the GM presses "It applies".
+    const card = await gm.eval(`
+        const msgs = game.drpg.messengerThreadMessages("${p2.userId}");
+        const S = await import("${REPO}/scripts/secret.mjs");
+        for (const m of msgs.slice().reverse()) {
+            const html = S.contentOf(m);
+            const hit = html.match(/data-drpg-call="approveCall"([^>]*)>/);
+            if (!hit) continue;
+            const rid = hit[1].match(/data-rid="([^"]+)"/)?.[1]; const asker = hit[1].match(/data-asker="([^"]+)"/)?.[1];
+            const B = await import("${REPO}/scripts/gm-bridge.mjs");
+            const sent = B.answerHopeCall(rid, asker, true);
+            return { found: true, sent, rid, asker, text: html.replace(/<[^>]+>/g, " ").replace(/\\s+/g, " ").trim().slice(0, 200) };
+        }
+        return { found: false, n: msgs.length };`, { timeout: 30000 });
     const asked = await ask;
-    check("gm: the Ultimate request opened a decision on the GM's screen", gmDialogs.length > 0, JSON.stringify(gmDialogs));
+    check("gm: the Ultimate request arrived as a card with buttons in the player's thread", card.found && card.sent, JSON.stringify(card));
     check("p2: Hope was charged once the GM said yes", asked.hope === asked.hope0 - 1, JSON.stringify(asked));
     console.log("[qa] p2 notifications after Ultimate:", JSON.stringify(asked.notifs));
     const gmNotifs = await notifs(gm);
@@ -94,10 +107,8 @@ export async function run({ gm, p1, p2, p3, check, settle }) {
 
     // ---- 4. messenger both ways -------------------------------------------------------------
     await clearLogs();
-    await p3.eval(`await game.drpg.sendMessengerMessage("${gm.userId}", "Can I ask about the vending machine?"); return true;`, { timeout: 30000 }).catch(async err => {
-        // the player-side signature may be (text) only
-        return p3.eval(`await game.drpg.sendMessengerMessage("Can I ask about the vending machine?"); return true;`, { timeout: 30000 });
-    });
+    // A player's thread is keyed by the PLAYER's user id, whoever writes into it.
+    await p3.eval(`await game.drpg.sendMessengerMessage("${p3.userId}", "Can I ask about the vending machine?"); return true;`, { timeout: 30000 });
     await settle(600);
     const gmUnread = await gm.eval(`return { total: game.drpg.messengerUnreadTotal(), thread: game.drpg.messengerThreadMessages("${p3.userId}").length };`);
     check("gm: a player's message lands in the GM's thread", gmUnread.thread >= 1, JSON.stringify(gmUnread));
@@ -126,6 +137,9 @@ export async function run({ gm, p1, p2, p3, check, settle }) {
         const actor = game.actors.get("${ids.aiko}");
         const hp0 = actor.system.resources.hitPoints.value;
         let err = null, r;
+        // Pain is paid from the pool that feeds this student: point Aiko at this GM's pool, and fill it.
+        await game.drpg.assign(actor.id, game.user.id).catch(() => {});
+        await game.drpg.setDespair(game.user.id, 6).catch(() => {});
         try { r = await game.drpg.spendDespairCallFor(actor, "thisWillHurt", {}); } catch (e) { err = String(e?.stack ?? e).slice(0, 300); }
         await new Promise(res => setTimeout(res, 600));
         return { hp0, hp: actor.system.resources.hitPoints.value, r: r === null ? null : typeof r, err, despair: game.drpg.getDespair(game.user.id) };`, { timeout: 60000 });
