@@ -477,3 +477,47 @@ Workflow `.github/workflows/release.yml` buduje paczkę z `git archive` na commi
 4. Na Forge: Update w Bazaarze albo ponowna instalacja z manifestu; po aktualizacji `game.drpg.runTests({ tier: 1 })` u GMa - test "the stylesheet ships with the version it says it does" musi przejść (przy 1.2.42 nie przechodził, bo CSS mówił 1.2.41).
 
 Nie uruchamiałem workflow z gałęzi - wydanie z niezmergowanej gałęzi zostawiłoby `main` w tyle za `latest`.
+
+---
+
+## 9. Stan po naprawach - gałąź `claude/module-qa-audit-localization-hg1lhu` po 1.2.43
+
+Zadania 1-11 z sekcji 5 są zrobione na gałęzi, po jednym commicie na zadanie. Każdy commit przeszedł suite (`game.drpg.runTests({ tier: 2 })`: 117 przechodzi, 12 pada - te same 12 co przed naprawami, wszystkie wymagają prawdziwego canvasu, CSS albo Dice So Nice) i komplet scenariuszy harnessu (40-flow 35/35, 10-murder 17/17, 11-killer-secrecy 5/5, 12-social 9/9, 20-crit-hope 3/3, 30-security 6/6, 50-lang 43/43).
+
+| Zadanie | Commit | Co weszło |
+| --- | --- | --- |
+| 1 - LIVE-001 | `90c6988` | Karty "veiled" (neutralny mówca, słowa tylko do adresatów), oferta zdrady i użyta broń w `incidentCast`, migracja starych flag z aktorów |
+| 2 - jeden kanał do GMa | `d079a1e` | Karty z przyciskami dla Hope Calli, Dynamic, przedmiotów, Monocuba; każda odmowa GMa dociera do gracza; `Bridge.what.*` po polsku |
+| 3 - messenger | `f6e5a5c` | Wątki jako karty prywatne (`secret.mjs`), nieprzeczytane po stemplu wiadomości |
+| 4 - Reroll | `3734f91` | Reroll powtarza akcję jej własnymi regułami (ślad Search, ulga narzędzia, statystyka z rzutu, `paid`) |
+| 5 - przedmioty | `e38d22a` | Sypialnie z regionów, skrytki blokują handover, pułapki sprzątane z projektem, mord bez zabójcy odmawiany |
+| 6 + 7 - Despair, sprawa | `5c66ffa` | Darkening blokuje Hope, jeden GM zapisuje pule, `remnant.place` zawężony, reask otwarcia, `issuedTo` w głosowaniu, guard końca rozdziału |
+| 8 - mapa | `8d24e21` | Token ukryty do przekroczenia granicy (MAP-02), "not connected" tylko ze znanymi pokojami (MAP-03), cofnięcie do opłaconego pokoju (MAP-11), fog bez pracy per klatka (MAP-07/13/14) |
+| 9 - wydajność | `6e59551` | Jeden `renderHud` na zmianę zamiast czterech (CORE-12), memo kolorów kart (ROLL-17), obserwator arkusza odłączany (UI-14), rail w rAF (UI-16) |
+| 10 - UX | `b708865` | UI-09/10/11/12, ROLL-11/12, COMM-11 (`game.drpg.safeword()` + keybinding), COMM-13, CORE-06/10/13/18 |
+| 11 - higiena | `b3604be` | 10 martwych kluczy, martwe selektory (`#drpg-notice`, `#drpg-settings-launcher`, `.drpg-no-glass-effects`, `.drpg-compact`), jeden `esc`, poprawione komentarze |
+
+Nie wydane: `module.json` nadal mówi 1.2.43. Wydanie 1.2.44 z tej gałęzi wymaga trzech rzeczy z sekcji 8 (wersja w `module.json`, stempel CSS, plik `.github/release-notes/v1.2.44.md`) - notatki są przygotowane w gałęzi, wersja i stempel czekają na decyzję.
+
+### 9.1 Co zostało i wymaga decyzji Dawida (nie kodu)
+
+| # | Pytanie | Wariant A (stan obecny) | Wariant B | Gdzie w kodzie |
+| --- | --- | --- | --- | --- |
+| D1 | **Czy gracz widzi DC?** (TEXT-14) | Mieszanka: `findStashHint` mówi "16+", `frameHint` "15", kafelki kryzysu mają `briefThreshold`, a Observe/Search/Listen nie mówią nic. Podręcznik gracza (docs/handbooks) wypisuje tabele progów z `config.mjs` w sekcji "Reading the difficulty ladder" | Jednolicie: albo wszędzie (dopisać progi do briefingów), albo nigdzie (usunąć `{n}+` z hintów, `briefThreshold` z kafelków, sekcję z podręcznika) | `config.mjs` ACTIONS.*.hint, `action-rolls.mjs` briefingBlock, `docs/handbooks/player-handbook.*.md` |
+| D2 | **Czy ledger odkrytych pokoi jest alibi?** (MAP-12) | Jawny: `SETTINGS.discoveredRooms` to world setting, każdy klient może odczytać, kto gdzie był | Tajny per gracz (wzorzec `incidentCast`: klient GMa trzyma, gracz dostaje swoje po sockecie) - 1 wieczór, dotyka fog.mjs i movement.mjs (`roomsKnownToMe`) | `fog.mjs` ledger, `movement.mjs` roomsKnownToMe |
+| D3 | **Czy pule Despair są publiczne?** (DESP-03) | Rail gracza maskuje liczby "?", karty Calli bez liczb, tooltip pipów nazywa pulę | Wszystko jawne: zdjąć maskę z `buildRow` i pokazać liczby w kartach | `despair.mjs` buildRow, `Despair.spent` |
+| D4 | **Gear: "jedno w ręce"** (ITEM-04) | Wskazówka w hincie, moduł nie wymusza; drugie narzędzie zakładane obok pierwszego | Auto-ready: założenie drugiego zdejmuje pierwsze (jak `TOOL_IN_HAND`) | `use-items.mjs` equip, `config.mjs` TOOL_IN_HAND |
+| D5 | **Auto-wiązanie śladów ze zbrodnią w trakcie incydentu** (CASE-11) | Każdy ślad zostawiony w trakcie incydentu dostaje `tiedToCrime: true`, także ślad przypadkowego świadka | Wiązać tylko ślady uczestników (`participantIds`), reszta `null` do decyzji GMa w dashboardzie | `remnants.mjs` placeRemnant, `murder.mjs` |
+| D6 | **`Action.sabotageSeen` - kto widzi nieudany sabotaż** | Karta publiczna (cały stół) | Tylko pokój (`announce` z `room`) | `action-rolls.mjs` performSabotage |
+| D7 | **Podsłuch przez LiveKit pokazuje kafelek GMa** (COMM-13) | Dialog mówi o tym wprost (stan po zadaniu 10); kafelek GMa nosi imię Monokumy | Nie przemianowywać kafelka GMa w trybie ręcznym (`relabel` w camera-view.mjs), żeby chociaż imię nie było reklamowane | `camera-view.mjs` relabel |
+| D8 | **Redakcja tekstów** (sekcja 3.2 dryf terminologii, 3.3 długości) | Angielskie i polskie zdania jak są | Twoja ręczna redakcja zaplanowana na 1.3.0 - lista kandydatów w 3.1-3.3 nadal aktualna | `lang/*.json`, `config.mjs` |
+| D9 | **Alias `game.drpg.returnToDiscussion` i `SETTINGS.blackened`** | Zostawione (kompatybilność makr i migracji) | Usunąć przy 1.3.0 po ogłoszeniu w notatkach | `api.mjs`, `settings.mjs` |
+| D10 | **Wydanie 1.2.44** | Gałąź niezmergowana, `main` na 1.2.43 | Merge do `main` + workflow Release z tagiem `v1.2.44` (procedura z sekcji 8) | `module.json`, `styles/danganronpa.css` stempel |
+
+### 9.2 Live checks nadal otwarte
+
+Lista z sekcji 7 pozostaje w mocy; harness nie rozstrzyga żadnej z nich. Po zadaniach 8-10 doszły trzy nowe do sprawdzenia na prawdziwym Foundry:
+
+15. **MAP-02 po naprawie:** cudzy token wchodzący do mojego pokoju ma pojawić się dopiero na granicy, nie w starym pokoju.
+16. **UI-10 po naprawie:** trial z dwiema sticky kartami pod Stained Glass - trzecia karta (odmowa) ma wyprzeć najstarszą sticky, nie zniknąć.
+17. **COMM-11:** Controls -> Danganronpa RPG -> "Safeword - stop the scene": przypisać klawisz, nacisnąć bez otwartego arkusza.
