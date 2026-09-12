@@ -1031,10 +1031,12 @@ export async function applyChapterEnd(choices = {}) {
        card into a Class Trial that has not finished. */
     if (result.nextMorning) {
         try {
-            const { setClock, setTimeOfDay } = await import("./clock.mjs");
-            await setClock({ day: (getClock().day ?? 1) + 1 });
+            const { setTimeOfDay } = await import("./clock.mjs");
+            // One write for the day and the hour: each write is a full redraw
+            // on every client (CORE-12).
             await setTimeOfDay("morning", {
-                resetActions: true, resetSearchTokens: true, announce: true
+                resetActions: true, resetSearchTokens: true, announce: true,
+                also: { day: (getClock().day ?? 1) + 1 }
             });
             done.push(game.i18n.format("DRPG.Chapter.doneNextMorning",
                 { day: getClock().day }));

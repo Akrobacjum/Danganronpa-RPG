@@ -20,6 +20,7 @@ import { MODULE_ID, TIMES_OF_DAY, ECLIPSE_FREE_PLACEMENT } from "./config.mjs";
 import { getClock, setClock, campaignName, phaseLabel, timeOfDayLabel, rewindTimeOfDay } from "./clock.mjs";
 import { play, TURN, ARRIVE, LEAVE } from "./motion.mjs";
 import { isPrimaryGm, error, plural } from "./utils.mjs";
+import { isSyncedSetting } from "./sync.mjs";
 // Leaves, both: settings.mjs imports config.mjs and nothing else, and
 // character.mjs reaches config and utils. These two readers used to be
 // private copies here "for the cycle" (audit C3) - the cycle was real, the
@@ -103,9 +104,13 @@ export function registerHud() {
         renderHud();
     });
 
-    // Search tokens are a world setting, and so is the clock that refills them.
+    // Module settings that do not travel the sync bus (that bus redraws the
+    // HUD by name for the ones that do - a clock write was four HUD rebuilds
+    // on the writing client before this asked, CORE-12).
     Hooks.on("updateSetting", setting => {
-        if (!setting?.key?.startsWith(`${MODULE_ID}.`)) return;
+        const key = setting?.key ?? "";
+        if (!key.startsWith(`${MODULE_ID}.`)) return;
+        if (isSyncedSetting(key.slice(MODULE_ID.length + 1))) return;
         renderHud();
     });
 

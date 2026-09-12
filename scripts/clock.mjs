@@ -246,14 +246,18 @@ export async function rewindTimeOfDay() {
 }
 
 /** Jump straight to a specific time of day without rolling the session over. */
-export async function setTimeOfDay(key, options = {}) {
+export async function setTimeOfDay(key, { also = {}, ...options } = {}) {
     if (!game.user.isGM) return null;
     if (!TIMES_OF_DAY.includes(key)) {
         ui.notifications.error(game.i18n.format("DRPG.Clock.unknownTime", { key }));
         return null;
     }
 
-    const next = await setClock({ timeOfDay: key });
+    // `also`: extra clock fields folded into the SAME write, the way
+    // `advanceTimeOfDay` takes them. The end of a chapter moves the day and
+    // the time of day together, and two writes were two full redraws of
+    // every HUD and sheet on every client (CORE-12).
+    const next = await setClock({ ...also, timeOfDay: key });
     await applyTimeOfDayChange(next, options);
     return next;
 }
@@ -396,8 +400,9 @@ async function announceTimeOfDay(clock, summary, { sfx = null } = {}) {
  * setting change fires locally after the world value syncs.
  */
 export function refreshSheets() {
-    import("./hud.mjs").then(m => m.renderHud()).catch(() => {});
-
+    // Sheets only. This used to render the HUD too, and every sync kind that
+    // also ran `renderHud` itself paid for the HUD twice (CORE-12); the kinds
+    // that relied on the side effect now ask for the HUD by name in sync.mjs.
     for (const app of Object.values(ui.windows ?? {})) {
         if (app?.document?.type === "character") app.render(false);
     }

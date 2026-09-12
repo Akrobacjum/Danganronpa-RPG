@@ -739,9 +739,11 @@ async function broadcastEclipse(active) {
 
 export function refreshEclipse() {
     try {
+        // The class alone. The HUD render and the visibility pass this also
+        // ran are already on the sync bus beside it (`SYNC.clock`,
+        // `SYNC.eclipse`), and on their own `ready`/`canvasReady` hooks for
+        // load - so from here they were a second and a third copy (CORE-12).
         document.body.classList.toggle("drpg-eclipse", isEclipse());
-        import("./visibility.mjs").then(m => m.applyAll()).catch(() => {});
-        import("./hud.mjs").then(m => m.renderHud()).catch(() => {});
     } catch (err) {
         error("Could not refresh for the Eclipse", err);
     }

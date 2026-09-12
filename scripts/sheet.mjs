@@ -62,6 +62,13 @@ export function registerSheetTweaks() {
     // ApplicationV2 fires a render hook per class in the inheritance chain,
     // so the concrete Daggerheart sheet class name is the precise target.
     Hooks.on("renderCharacterSheet", onRenderCharacterSheet);
+    // The tile-fit observer dies with its sheet (UI-14): ApplicationV2 builds
+    // a new root on every open, so an observer left on the old root watched a
+    // detached element for the rest of the session, one per open/close.
+    Hooks.on("closeCharacterSheet", app => {
+        try { app?._drpgTileFit?.disconnect(); } catch { /* already gone */ }
+        if (app) app._drpgTileFit = null;
+    });
 
     // The flicker. See the block comment above `onlyResourceKeys` for what
     // these two do and, more importantly, for the measurement that decides
@@ -718,7 +725,7 @@ function onRenderCharacterSheet(app, element, context, options) {
             injectActionPanel(app, element);
             growForCalls(app);
             fitActionTiles(element);
-            watchTileFit(element);
+            watchTileFit(app, element);
             tidySidebar(element);
             paintResourceBars(app, element);
             injectEquippedTools(app, element);
@@ -1009,10 +1016,12 @@ function fitTileText(grids) {
  * larger again. There is no width to hard-code; the only honest answer is to
  * measure whenever the box changes.
  */
-function watchTileFit(element) {
+function watchTileFit(app, element) {
     const root = element instanceof HTMLElement ? element : element?.[0];
     if (!root || root.dataset.drpgTileFit) return;
     root.dataset.drpgTileFit = "1";
+    // A previous root of this app (a re-open) - its observer goes first.
+    try { app?._drpgTileFit?.disconnect(); } catch { /* already gone */ }
 
     // Re-entrancy guard: the fitter changes the height of the very boxes the
     // observer is watching, which would otherwise call it straight back.
@@ -1030,6 +1039,7 @@ function watchTileFit(element) {
     });
 
     observer.observe(root);
+    if (app) app._drpgTileFit = observer;
 }
 
 /* ==========================================================================

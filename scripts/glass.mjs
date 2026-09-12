@@ -2242,7 +2242,16 @@ function observe() {
     /* A RAIL CHANGING SIZE DOES NOT RECUT THE GLASS - that is the whole point of cutting it
        to capacity - but it does move the tiles inside their band, and the GM button rides on
        them. Re-applying the rotation rules is a few string writes and no geometry at all. */
-    const rr = new ResizeObserver(() => { try { applyRotations(); } catch { /* between rebuilds */ } });
+    /* ...and once per frame (UI-16): a tool palette opening resizes the rail several times in
+       one tick, and each notification was a synchronous `applyRotations` with its forced layouts. */
+    let railFrame = 0;
+    const rr = new ResizeObserver(() => {
+      if (railFrame) return;
+      railFrame = requestAnimationFrame(() => {
+        railFrame = 0;
+        try { applyRotations(); } catch { /* between rebuilds */ }
+      });
+    });
     for (const sel of ["#scene-controls", "#sidebar-tabs"]) {
       const e = document.querySelector(sel); if (e) rr.observe(e);
     }

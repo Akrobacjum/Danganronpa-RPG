@@ -145,6 +145,15 @@ export function applyFor(settingKey, data = {}) {
 }
 
 /**
+ * Whether a world setting (by its bare key) travels this bus. The HUD's own
+ * `updateSetting` hook asks, so a key that already redraws it through a sync
+ * kind is not drawn a second time by the hook (CORE-12).
+ */
+export function isSyncedSetting(settingKey) {
+    return Boolean(SETTING_KINDS[settingKey]);
+}
+
+/**
  * Announce a change to every client, and apply it here.
  *
  * Safe to call from any client. The local half runs regardless of who is
@@ -255,6 +264,8 @@ function refresh(kind, data = {}) {
             run("bar", () => import("./despair.mjs").then(m => m.renderDespairBar?.()));
             run("hud", () => import("./hud.mjs").then(m => m.renderHud()));
             run("sheets", () => import("./clock.mjs").then(m => m.refreshSheets()));
+            // The body class only; the HUD and the visibility pass are the two
+            // lines either side of it, once each (CORE-12).
             run("eclipse", () => import("./eclipse.mjs").then(m => m.refreshEclipse()));
             run("visibility", () => import("./visibility.mjs").then(m => m.applyAll()));
             // Local listeners (other modules, macros) still get their hook - but
@@ -301,16 +312,20 @@ function refresh(kind, data = {}) {
             // At most two writes per character per Eclipse, so this is not the
             // per-frame cost that its name suggests.
             run("sheets", () => import("./clock.mjs").then(m => m.refreshSheets()));
+            run("hud", () => import("./hud.mjs").then(m => m.renderHud()));
             break;
 
         case SYNC.projects:
             run("tray", () => import("./projects-ui.mjs").then(m => m.refreshProjects?.()));
             run("sheets", () => import("./clock.mjs").then(m => m.refreshSheets()));
+            // The HUD's project row for this room.
+            run("hud", () => import("./hud.mjs").then(m => m.renderHud()));
             break;
 
         case SYNC.despair:
             run("bar", () => import("./despair.mjs").then(m => m.renderDespairBar?.()));
             run("sheets", () => import("./clock.mjs").then(m => m.refreshSheets()));
+            run("hud", () => import("./hud.mjs").then(m => m.renderHud()));
             break;
 
         case SYNC.overflow:
@@ -328,6 +343,8 @@ function refresh(kind, data = {}) {
             // outlive the value it was standing in for.
             run("cache", () => import("./search-tokens.mjs").then(m => m.SearchTokens.clearFreshCounts()));
             run("sheets", () => import("./clock.mjs").then(m => m.refreshSheets()));
+            // The room pips on the HUD.
+            run("hud", () => import("./hud.mjs").then(m => m.renderHud()));
             break;
 
         case SYNC.restrictions:
