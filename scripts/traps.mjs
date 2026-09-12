@@ -418,8 +418,43 @@ export async function takePlant(room, sceneId = null) {
     delete rest[key];
     await setSetting(SETTINGS.trapPlants, rest);
 
+    // A plant no longer outlives its project (ITEM-08): `deleteProject` and
+    // the season reset prune the store through `pruneTrapsFor` below.
     debug(`A planted item was taken out of ${room}.`);
     return found;
+}
+
+/**
+ * Forget every plant and ledger row of projects that no longer exist. GM
+ * browsers only, where the two client-scoped stores live; called by the
+ * project manager's delete and by the season reset (ITEM-08).
+ *
+ * @param {Set<string>|null} keep  Project ids that still exist; null = none.
+ */
+export async function pruneTrapsFor(keep = null) {
+    if (!game.user.isGM) return 0;
+    const alive = id => Boolean(keep?.has?.(id));
+    let dropped = 0;
+
+    const store = plants();
+    const nextPlants = {};
+    for (const [key, entry] of Object.entries(store)) {
+        if (alive(entry?.projectId)) nextPlants[key] = entry;
+        else dropped += 1;
+    }
+    if (dropped) await setSetting(SETTINGS.trapPlants, nextPlants);
+
+    const rows = ledger();
+    const nextLedger = {};
+    let stale = 0;
+    for (const [itemId, projectId] of Object.entries(rows)) {
+        if (alive(projectId)) nextLedger[itemId] = projectId;
+        else stale += 1;
+    }
+    if (stale) await setSetting(SETTINGS.trapLedger, nextLedger);
+
+    if (dropped || stale) log(`Traps: pruned ${dropped} plant(s) and ${stale} ledger row(s) of deleted projects.`);
+    return dropped + stale;
 }
 
 /**

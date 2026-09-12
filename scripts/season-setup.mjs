@@ -33,7 +33,7 @@ import { listExperiences, initCharacter } from "./character.mjs";
 import { carriableCategories } from "./inventory.mjs";
 // Static, and safe to be: vault.mjs never reaches back here, and `steps()` is
 // synchronous - a `done` that had to await could not answer at all.
-import { sharedRooms, roomsWantedFor } from "./vault.mjs";
+import { sharedRooms, roomsWantedFor, forgetAllStashesFound } from "./vault.mjs";
 import { monokumas } from "./despair.mjs";
 import { mastermindActor } from "./mastermind.mjs";
 import { dialogContent, log, error, plural, workingScene, MESSAGE_FLAG, esc} from "./utils.mjs";
@@ -855,6 +855,12 @@ async function wipeSeason({ alsoChat = false } = {}) {
                 if (actor.getFlag(MODULE_ID, flag) !== undefined) await actor.unsetFlag(MODULE_ID, flag);
             }
         }
+    });
+
+    // "I have found X's hiding place" was written on the finder and cleared by
+    // nothing; next season the same character opened the same drawer for free.
+    await step("stashes found", async () => {
+        await forgetAllStashesFound(studentActors());
     });
 
     await step("Despair pools", async () => {

@@ -212,7 +212,10 @@ export async function grantBedroomKey(actor, room, { silent = false, scene } = {
     // The scene is passed in by the sweep, which walks rooms on scenes nobody
     // is currently looking at - the default lookup would find no owner there
     // and write a dash into the description of a perfectly good key.
-    const owner = game.actors.get(vaultOwnerOf(room, scene ?? workingScene()) ?? "");
+    // The scene the caller named, else wherever the room is drawn: a key shared
+    // while the GM looks at another scene used to read "Owner: -" (ITEM-16).
+    const owner = game.actors.get((scene ? vaultOwnerOf(room, scene) : null)
+        ?? bedroomOwnerAnywhere(room) ?? "");
     const item = await grantItem(actor, {
         name: game.i18n.format("DRPG.Vault.keyName", { room }),
         category: "bedroomKey",
@@ -502,6 +505,40 @@ export async function setStash(room, actorId, { present = undefined, concealed =
 
     await region.update({ [`flags.${MODULE_ID}.${VAULT_FLAGS.stashes}`]: list });
     return list;
+
+    // A hiding place taken away is one nobody has "found" any more (ITEM-09):
+    // the finders' notes pointed at it by room and owner, and left standing
+    // they opened the same drawer for free next season.
+    if (present === false) {
+        try {
+            await forgetStashFound(room, actorId);
+        } catch (err) {
+            error("Could not clear who had found a removed stash", err);
+        }
+    }
+}
+
+/** Every finder's note about one stash, gone. */
+async function forgetStashFound(room, ownerId) {
+    const suffix = `::${room}::${ownerId}`;
+    for (const actor of game.actors) {
+        const found = actor.getFlag?.(MODULE_ID, VAULT_FLAGS.found);
+        if (!Array.isArray(found) || !found.length) continue;
+        const kept = found.filter(key => !String(key).endsWith(suffix));
+        if (kept.length === found.length) continue;
+        await actor.setFlag(MODULE_ID, VAULT_FLAGS.found, kept);
+    }
+}
+
+/** Nobody remembers finding anything: the season reset's step. GM-side. */
+export async function forgetAllStashesFound(actors = game.actors) {
+    let cleared = 0;
+    for (const actor of actors) {
+        if (actor.getFlag?.(MODULE_ID, VAULT_FLAGS.found) === undefined) continue;
+        await actor.unsetFlag(MODULE_ID, VAULT_FLAGS.found);
+        cleared += 1;
+    }
+    return cleared;
 }
 
 /** Has a "build a stash" project made this room's contents hard to find? */
@@ -588,6 +625,32 @@ export function allBedrooms(scene = workingScene()) {
 }
 
 /**
+ * Every bedroom on every scene, first scene wins on a name clash.
+ *
+ * `workingScene()` is the scene the GM is LOOKING AT, and a GM parked on the
+ * trial hall asking to give a key was told there were no keys to give
+ * (ITEM-16). The dorms are usually one scene over.
+ */
+export function allBedroomsAnywhere() {
+    const seen = new Map();
+    for (const scene of game.scenes ?? []) {
+        for (const entry of allBedrooms(scene)) {
+            if (!seen.has(entry.room)) seen.set(entry.room, entry);
+        }
+    }
+    return [...seen.values()];
+}
+
+/** The owner of a bedroom, whichever scene it is drawn on. */
+export function bedroomOwnerAnywhere(room) {
+    for (const scene of game.scenes ?? []) {
+        const id = vaultOwnerOf(room, scene);
+        if (id) return id;
+    }
+    return null;
+}
+
+/**
  * The rooms that count towards the guide's rooms-per-player ratio (audit A21).
  *
  * G-36: about one and a half rooms per player, "corridors and dormitories
@@ -646,7 +709,7 @@ export function allVaults(scene = workingScene()) {
 
 /** GM: point a room at an owner, and say whether it is concealed. */
 export async function setVaultRoom(room, {
-    owner = undefined, concealed = undefined, table = undefined,
+    owner = undefined, table = undefined,
     favours = undefined, hinders = undefined, description = undefined
 } = {}) {
     if (!game.user.isGM) return null;
@@ -656,9 +719,7 @@ export async function setVaultRoom(room, {
 
     const update = {};
     if (owner !== undefined) update[`flags.${MODULE_ID}.${VAULT_FLAGS.owner}`] = owner || null;
-    if (concealed !== undefined) {
-        update[`flags.${MODULE_ID}.${VAULT_FLAGS.concealed}`] = Boolean(concealed);
-    }
+    // `concealed` is never written here any more: `setStash` owns it (ITEM-02).
     if (table !== undefined) update[`flags.${MODULE_ID}.${VAULT_FLAGS.table}`] = table || null;
     if (favours !== undefined) {
         update[`flags.${MODULE_ID}.${VAULT_FLAGS.favours}`] = Array.isArray(favours) ? favours : [];
@@ -1849,8 +1910,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
 
             ${panel("bedrooms", `
                 <p>${game.i18n.localize("DRPG.Vault.bedroomsIntro")}</p>
-                ${tableFor([th("DRPG.Vault.owner"), th("DRPG.Vault.concealed")],
-                    ["owner", "concealed"])}
+                ${tableFor([th("DRPG.Vault.owner")], ["owner"])}
             `)}
 
             ${panel("doors", `
@@ -1915,7 +1975,6 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
                     const roomRows = rooms.map(room => ({
                         room,
                         owner: pick(`owner:${room}`)?.value ?? "",
-                        concealed: Boolean(pick(`concealed:${room}`)?.checked),
                         shortRest: Boolean(pick(`short:${room}`)?.checked),
                         longRest: Boolean(pick(`long:${room}`)?.checked),
                         locked: Boolean(pick(`locked:${room}`)?.checked),
@@ -2163,7 +2222,6 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
 
         const before = {
             owner: region.getFlag(MODULE_ID, VAULT_FLAGS.owner) ?? null,
-            concealed: Boolean(region.getFlag(MODULE_ID, VAULT_FLAGS.concealed)),
             table: region.getFlag(MODULE_ID, VAULT_FLAGS.table) ?? null,
             favours: region.getFlag(MODULE_ID, VAULT_FLAGS.favours) ?? [],
             hinders: region.getFlag(MODULE_ID, VAULT_FLAGS.hinders) ?? [],
@@ -2179,7 +2237,6 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
         const wasNotShared = Boolean(region.getFlag(MODULE_ID, VAULT_FLAGS.notShared));
 
         const same = before.owner === (row.owner || null)
-            && before.concealed === row.concealed
             && before.table === (row.table || null)
             && beforeRest.short === row.shortRest
             && beforeRest.long === row.longRest
@@ -2197,9 +2254,11 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
         }
         if (same) continue;
 
+        // "Stash hidden" is the Stashes tab's business (ITEM-02): the column
+        // this tab used to carry wrote the LEGACY flag, which the Stashes list
+        // then read back and undid in the same Apply.
         await setVaultRoom(row.room, {
             owner: row.owner,
-            concealed: row.concealed,
             table: row.table,
             favours: row.favours,
             hinders: row.hinders,

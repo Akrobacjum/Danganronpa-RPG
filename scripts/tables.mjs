@@ -142,7 +142,12 @@ export async function refreshTableCopy() {
 
         const update = {};
         const wanted = tableName(category, tier, goal);
-        if (table.name !== wanted && !game.tables.getName(wanted)) update.name = wanted;
+        // Only a name this module itself gave the table under an older wording
+        // is brought up to date (ITEM-15). A GM who renamed a pool in the
+        // editor - warned there that the lookup may miss it - keeps their name
+        // rather than finding it silently reverted on the next load.
+        const ours = tableNameCandidates(category, tier, goal).includes(table.name);
+        if (ours && table.name !== wanted && !game.tables.getName(wanted)) update.name = wanted;
 
         const description = tableDescription(category, tier, goal);
         if (table.description !== description && generated.test(table.description ?? "")) {

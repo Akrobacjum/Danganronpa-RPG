@@ -399,9 +399,12 @@ export async function createProject({
     // steps, and skipping the second produced a project the killer could not
     // work on: `projectsAvailableIn` filters on `canSee`, so their own murder
     // was missing from their own Work on Project list.
+    // ...and failing a named killer, the proposer: an indirect murder proposed
+    // by a player and approved without touching "Also visible to" used to be
+    // sealed against everyone, its own proposer included (ITEM-03).
     const audience = viewers.length
         ? viewers
-        : (hidden && killerId ? ownerIdsOf(killerId) : []);
+        : (hidden && (killerId || by) ? ownerIdsOf(killerId ?? by) : []);
 
     countdowns[id] = {
         type: "narrative",
@@ -841,6 +844,14 @@ export async function deleteProject(countdownId) {
     const meta = { ...projectMeta() };
     delete meta[countdownId];
     await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+
+    // Its plant and its ledger row go with it (ITEM-08).
+    try {
+        const { pruneTrapsFor } = await import("./traps.mjs");
+        await pruneTrapsFor(new Set(Object.keys(meta)));
+    } catch (err) {
+        error("Could not prune the deleted project's trap", err);
+    }
     return true;
 }
 
@@ -868,6 +879,14 @@ export async function clearAllProjects() {
     // `deleteProject` does - `countdowns` is one key inside it, not all of it.
     await game.settings.set(DH, COUNTDOWNS, { ...data, countdowns: {} });
     await game.settings.set(MODULE_ID, SETTINGS.projectMeta, {});
+
+    // Nothing planted for a project that no longer exists (ITEM-08).
+    try {
+        const { pruneTrapsFor } = await import("./traps.mjs");
+        await pruneTrapsFor(null);
+    } catch (err) {
+        error("Could not prune the season's traps", err);
+    }
 
     log(`Season reset: cleared ${gone} project(s).`);
     return gone;

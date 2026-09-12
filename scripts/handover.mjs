@@ -21,7 +21,7 @@
  */
 
 import { MODULE_ID, FLAGS, ITEM_CATEGORIES, BEDROOM_KEY_FLAG } from "./config.mjs";
-import { grantItem, canCarry, preservedFlags, capacityLabel } from "./inventory.mjs";
+import { grantItem, canCarry, preservedFlags, capacityLabel, isStashed } from "./inventory.mjs";
 import { createTruthBullet, truthBulletData, secretOf, isTruthBullet } from "./truth-bullets.mjs";
 import { dialogContent, whisperToOwner, log, warn, error } from "./utils.mjs";
 
@@ -347,6 +347,12 @@ export async function lootBody({ takerId, bodyId, itemId } = {}) {
 
     const category = item.getFlag(MODULE_ID, "category");
     if (!category) return null;
+    // The loot picker already filters these out; the authority has to agree
+    // with it (ITEM-06): a stash across the map is not on the body.
+    if (isStashed(item)) {
+        warn(`Refused to loot "${item.name}" from ${body.name}: it is in a stash, not on the body.`);
+        return null;
+    }
 
     const name = item.name;
     const taken = await grantItem(taker, {
@@ -487,6 +493,16 @@ export async function giveItem({ fromId, toId, itemId } = {}) {
     const category = item.getFlag(MODULE_ID, "category");
     if (!category) {
         warn(`Handover refused: "${item.name}" is not an item this module tracks.`);
+        return null;
+    }
+
+    // Something in a stash is not in a hand, and only a hand can give (ITEM-06).
+    // The sheet hides the button on a stash row; the API and a hand-built
+    // packet did not.
+    if (isStashed(item)) {
+        await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.stashed", {
+            name: foundry.utils.escapeHTML(item.name)
+        })}</p>`);
         return null;
     }
 

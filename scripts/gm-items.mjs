@@ -18,7 +18,7 @@ import {
     TRUTH_BULLET_TYPES, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS
 } from "./config.mjs";
 import { grantItem, itemsInCategory, countInCategory, countInGroup, inventorySummary,
-    pickableCategories, isStashed }
+    pickableCategories, isStashed, isBroken }
     from "./inventory.mjs";
 // `BULLET_CATEGORY` went with the hand-rolled category list: excluding Truth
 // Bullets is `pickableCategories`'s job now, not this file's.
@@ -260,7 +260,8 @@ export async function openItemManager(actor = null) {
 async function giveKeyDialog(actor) {
     // Bedrooms, not stashes - a stash in somebody else's room must never
     // produce a key to it. See `allBedrooms` and trap 79.
-    const { allBedrooms, grantBedroomKey, keysHeldBy } = await import("./vault.mjs");
+    // Across every scene (ITEM-16): the dorms are usually not the scene the GM is looking at.
+    const { allBedroomsAnywhere: allBedrooms, grantBedroomKey, keysHeldBy } = await import("./vault.mjs");
 
     const students = studentActors();
     const initial = actor ?? students[0] ?? null;
@@ -304,9 +305,9 @@ async function giveKeyDialog(actor) {
             foundry.utils.escapeHTML(a.name)}</option>`).join("");
 
     const result = await DialogV2.wait({
-        window: { title: actor
-            ? game.i18n.format("DRPG.Vault.giveKeyTo", { actor: actor.name })
-            : game.i18n.localize("DRPG.Vault.giveKey") },
+        // Generic on purpose (ITEM-13): the form carries its own recipient
+        // select, and a title naming the argument lied as soon as it changed.
+        window: { title: game.i18n.localize("DRPG.Vault.giveKey") },
         classes: ["drpg-panel"],
         content: dialogContent(`<form>
             <label>${game.i18n.localize("DRPG.Items.recipient")}
@@ -477,9 +478,7 @@ export async function gmGiveItemDialog(actor) {
         : `<p class="notes">${game.i18n.localize("DRPG.Items.existingEmpty")}</p>`;
 
     const result = await DialogV2.wait({
-        window: { title: actor
-            ? game.i18n.format("DRPG.Items.giveTo", { actor: actor.name })
-            : game.i18n.localize("DRPG.Items.give") },
+        window: { title: game.i18n.localize("DRPG.Items.give") },
         classes: ["drpg-panel"],
         // Two tabs, one verb (Dawid, 2026-08-26). The footer's Give reads
         // whichever pane is showing; the tell-player switch and the cap note
@@ -844,9 +843,7 @@ async function giveTruthBulletDialog(actor) {
         : `<p class="notes">${game.i18n.localize("DRPG.TruthBullet.remnantEmpty")}</p>`;
 
     const result = await DialogV2.wait({
-        window: { title: actor
-            ? game.i18n.format("DRPG.TruthBullet.giveTo", { actor: actor.name })
-            : game.i18n.localize("DRPG.TruthBullet.give") },
+        window: { title: game.i18n.localize("DRPG.TruthBullet.give") },
         classes: ["drpg-panel"],
         content: dialogContent(`<form>${panelTabs([
             { key: "existing", label: game.i18n.localize("DRPG.TruthBullet.tabFromRemnant"),
@@ -1193,9 +1190,13 @@ async function takeItemDialog(actor, { only = null } = {}) {
             // A Truth Bullet carries `tier: null` on purpose, and `!== undefined`
             // let that through - every bullet in this picker read "(Tnull)".
             const tier = item.getFlag(MODULE_ID, "tier");
+            // Where it is and what state it is in, as the holdings list above
+            // says them (ITEM-12): two "Kitchen knife (T1)" rows told the GM
+            // nothing about which was in the drawer or which was ruined.
             const label = `${ITEM_CATEGORIES[category]?.label ?? category} · ${item.name}${
                 tier !== undefined && tier !== null ? ` (T${tier})` : ""
-            }`;
+            }${isStashed(item) ? ` - ${game.i18n.localize("DRPG.Items.inStash")}` : ""}${
+                isBroken(item) ? ` - ${game.i18n.localize("DRPG.Items.broken")}` : ""}`;
             return `<option value="${item.id}">${foundry.utils.escapeHTML(label)}</option>`;
         }).join("");
     };

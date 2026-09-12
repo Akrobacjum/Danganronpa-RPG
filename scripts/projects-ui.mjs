@@ -487,6 +487,17 @@ export async function openProjectManager() {
         // sealed with it - that is the default the guide wants, and the box in
         // this row was rendered before the GM ticked "indirect".
         const newlyMurder = entry.murder && !isIndirectMurder(entry.id);
+        // A tick with nobody behind it arms nothing (ITEM-14): the row's
+        // "Indirect" box is refused, with a reason, until the project has a
+        // killer - the edit dialog is where one is named.
+        if (newlyMurder) {
+            const meta = metaFor(entry.id);
+            if (!meta.killerId && !meta.by) {
+                ui.notifications.warn(game.i18n.format("DRPG.Project.needsKillerNamed", { name: before?.name ?? "?" }));
+                await setProjectMeta(entry.id, { room: entry.room || null });
+                continue;
+            }
+        }
         await setProjectMeta(entry.id, { room: entry.room || null, indirectMurder: entry.murder });
 
         // After that first moment the checkbox is simply the answer.
@@ -797,6 +808,14 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         return { id: project.id, name: result.name };
     }
 
+    // An indirect murder needs somebody to be the killer (ITEM-14): without a
+    // killer the trap never arms and the finished project tells nobody. Said
+    // here, where the GM can still pick a name, rather than logged later.
+    if (result.murder && !killerIdFor(result.viewer, start?.by ?? null)) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Project.needsKiller"));
+        return null;
+    }
+
     const created = await createProject({
         name: result.name,
         target: result.target,
@@ -813,17 +832,24 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         img: result.img,
         glyph: result.glyph,
         viewers: result.viewer ? [result.viewer] : [],
-        // Whose trap it is: the player it was made visible to, when the GM
-        // named one. `startProject` fills this in properly for the player's own
-        // route - see action-rolls.mjs.
-        killerId: result.viewer
-            ? game.actors.find(a => a.type === "character"
-                && a.testUserPermission(game.users.get(result.viewer), "OWNER"))?.id ?? null
-            : null
+        // Whose trap it is: the player it was made visible to when the GM named
+        // one, else the proposer off the card (ITEM-03). A murder with neither
+        // has no killer to arm for - refused above, never sealed silently.
+        killerId: killerIdFor(result.viewer, start?.by ?? null)
     });
 
     if (created) ui.notifications.info(game.i18n.format("DRPG.Project.created", { name: created.name }));
     return created;
+}
+
+/** The actor behind a chosen viewer, else the proposer. */
+function killerIdFor(viewerUserId, byActorId) {
+    if (viewerUserId) {
+        const user = game.users.get(viewerUserId);
+        const owned = user ? game.actors.find(a => a.type === "character" && a.testUserPermission(user, "OWNER")) : null;
+        if (owned) return owned.id;
+    }
+    return byActorId ?? null;
 }
 
 /** Keep the ownership map in step with one boolean. */
