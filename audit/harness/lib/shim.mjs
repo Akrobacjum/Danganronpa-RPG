@@ -761,9 +761,19 @@ export function buildApplications(ctx) {
      * Scenarios push answers via globalThis.__dialogAnswers.push(fnOrValue).
      * Every dialog shown is recorded in globalThis.__dialogLog.
      */
+    // `content` may be a string or an element (the module's `dialogContent` hands over a div).
+    const contentText = c => typeof c === "string" ? c : (c?.outerHTML ?? "");
+    // Headless, a window that reopens itself after its default button (the trial console,
+    // the item tables) would recurse forever: the default is pressed, the callback reopens
+    // the window, the default is pressed again. A human never does that. Past this depth
+    // the window counts as dismissed.
+    const openDepth = new Map();
+    const MAX_DEPTH = 2;
+    const autoAnswered = new Map();
     class DialogV2 {
         static async wait(config = {}) {
-            globalThis.__dialogLog.push({ kind: "wait", title: config.window?.title, content: (config.content ?? "").slice(0, 400), buttons: (config.buttons ?? []).map(b => b.action) });
+            const title = config.window?.title ?? "?";
+            globalThis.__dialogLog.push({ kind: "wait", title, content: contentText(config.content).slice(0, 400), buttons: (config.buttons ?? []).map(b => b.action) });
             const queued = globalThis.__dialogAnswers.shift();
             if (queued !== undefined) {
                 const v = typeof queued === "function" ? await queued(config) : queued;
@@ -772,16 +782,32 @@ export function buildApplications(ctx) {
             const buttons = config.buttons ?? [];
             const def = buttons.find(b => b.default) ?? buttons[0];
             if (!def) return null;
-            if (typeof def.callback === "function") {
-                // Foundry passes (event, button, dialog); button.form?.elements is used to read inputs.
-                const fakeButton = { form: makeForm(config) };
-                try { return await def.callback(new globalThis.window.Event("click"), fakeButton, { element: makeDialogElement(config) }); }
-                catch (err) { ctx.log(`DialogV2 callback threw: ${err.stack}`); return def.action; }
+            const depth = (openDepth.get(title) ?? 0);
+            if (depth >= MAX_DEPTH) return null;
+            // ...and the tail-recursive shape too (window -> action -> window -> the same
+            // action): the same title auto-answered many times in a second is a loop no
+            // human is driving, so the window counts as dismissed.
+            const now = Date.now();
+            const recent = (autoAnswered.get(title) ?? []).filter(t => now - t < 1500);
+            recent.push(now); autoAnswered.set(title, recent);
+            if (recent.length > 6) return null;
+            openDepth.set(title, depth + 1);
+            try {
+                if (typeof def.callback === "function") {
+                    // Foundry passes (event, button, dialog); button.form?.elements is used to read inputs.
+                    const fakeButton = { form: makeForm(config) };
+                    try { return await def.callback(new globalThis.window.Event("click"), fakeButton, { element: makeDialogElement(config) }); }
+                    // A throwing callback is a dialog that produced no answer; treat it as
+                    // dismissed (`rejectClose: false` -> null).
+                    catch (err) { ctx.log(`DialogV2 callback threw: ${err.stack}`); return null; }
+                }
+                return def.action;
+            } finally {
+                openDepth.set(title, (openDepth.get(title) ?? 1) - 1);
             }
-            return def.action;
         }
         static async confirm(config = {}) {
-            globalThis.__dialogLog.push({ kind: "confirm", title: config.window?.title, content: (config.content ?? "").slice(0, 400) });
+            globalThis.__dialogLog.push({ kind: "confirm", title: config.window?.title, content: contentText(config.content).slice(0, 400) });
             const queued = globalThis.__dialogAnswers.shift();
             if (queued !== undefined) return typeof queued === "function" ? queued(config) : queued;
             if (config.yes?.callback) { try { return await config.yes.callback(new globalThis.window.Event("click"), { form: makeForm(config) }, { element: makeDialogElement(config) }); } catch { return true; } }
@@ -800,7 +826,8 @@ export function buildApplications(ctx) {
     function makeDialogElement(config) {
         const doc = globalThis.document;
         const el = doc.createElement("dialog");
-        el.innerHTML = config.content ?? "";
+        if (config.content && typeof config.content !== "string") el.append(config.content.cloneNode(true));
+        else el.innerHTML = config.content ?? "";
         return el;
     }
     function makeForm(config) {

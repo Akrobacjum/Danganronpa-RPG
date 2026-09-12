@@ -1,0 +1,333 @@
+{
+  "scenario": "scenarios/50-lang.mjs",
+  "passed": 43,
+  "total": 43,
+  "ms": 2746,
+  "results": [
+    {
+      "name": "gm: the setting defaults to English",
+      "ok": true,
+      "details": "{\"hint\":\"Loot the room for something you name. Spends one of its search tokens.\",\"tod\":\"Noon\",\"lang\":\"en\"}"
+    },
+    {
+      "name": "gm: the Polish file applied",
+      "ok": true,
+      "details": "{\"applied\":true,\"lang\":\"pl\",\"summary\":\"Rozdział 1 · Dzień 2 · Sesja 3 · Południe\",\"hint\":\"Przeszukaj pokój pod kątem czegoś, co nazwiesz. Wydaje jeden z jego Search Tokenów.\",\"label\":\"Search\",\"tod\":\"Południe\",\"phase\":\"Daily Life\",\"stat\":\"Eye\",\"p1\":\"Zdjęto z mapy 1 Key Remnant.\",\"p2\":\"Zdjęto z mapy 2 Key Remnants.\",\"p5\":\"Zdjęto z mapy 5 Key Remnants.\",\"p22\":\"Zdjęto z mapy 22 Key Remnants.\",\"dh\":\"Despair\"}"
+    },
+    {
+      "name": "gm: a plain string is Polish",
+      "ok": true,
+      "details": "Rozdział 1 · Dzień 2 · Sesja 3 · Południe"
+    },
+    {
+      "name": "gm: config.mjs prose was swapped in place",
+      "ok": true,
+      "details": "Przeszukaj pokój pod kątem czegoś, co nazwiesz. Wydaje jeden z jego Search Tokenów."
+    },
+    {
+      "name": "gm: the glossary stays English",
+      "ok": true,
+      "details": "[\"Search\",\"Daily Life\",\"Eye\"]"
+    },
+    {
+      "name": "gm: the time of day is Polish",
+      "ok": true,
+      "details": "Południe"
+    },
+    {
+      "name": "gm: plural picks one/few/many",
+      "ok": true,
+      "details": "[\"Zdjęto z mapy 1 Key Remnant.\",\"Zdjęto z mapy 2 Key Remnants.\",\"Zdjęto z mapy 5 Key Remnants.\",\"Zdjęto z mapy 22 Key Remnants.\"]"
+    },
+    {
+      "name": "gm: the system override (Fear -> Despair) survived the merge",
+      "ok": true,
+      "details": "Despair"
+    },
+    {
+      "name": "p1: the Polish file applied",
+      "ok": true,
+      "details": "{\"applied\":true,\"lang\":\"pl\",\"summary\":\"Rozdział 1 · Dzień 2 · Sesja 3 · Południe\",\"hint\":\"Przeszukaj pokój pod kątem czegoś, co nazwiesz. Wydaje jeden z jego Search Tokenów.\",\"label\":\"Search\",\"tod\":\"Południe\",\"phase\":\"Daily Life\",\"stat\":\"Eye\",\"p1\":\"Zdjęto z mapy 1 Key Remnant.\",\"p2\":\"Zdjęto z mapy 2 Key Remnants.\",\"p5\":\"Zdjęto z mapy 5 Key Remnants.\",\"p22\":\"Zdjęto z mapy 22 Key Remnants.\",\"dh\":\"Despair\"}"
+    },
+    {
+      "name": "p1: a plain string is Polish",
+      "ok": true,
+      "details": "Rozdział 1 · Dzień 2 · Sesja 3 · Południe"
+    },
+    {
+      "name": "p1: config.mjs prose was swapped in place",
+      "ok": true,
+      "details": "Przeszukaj pokój pod kątem czegoś, co nazwiesz. Wydaje jeden z jego Search Tokenów."
+    },
+    {
+      "name": "p1: the glossary stays English",
+      "ok": true,
+      "details": "[\"Search\",\"Daily Life\",\"Eye\"]"
+    },
+    {
+      "name": "p1: the time of day is Polish",
+      "ok": true,
+      "details": "Południe"
+    },
+    {
+      "name": "p1: plural picks one/few/many",
+      "ok": true,
+      "details": "[\"Zdjęto z mapy 1 Key Remnant.\",\"Zdjęto z mapy 2 Key Remnants.\",\"Zdjęto z mapy 5 Key Remnants.\",\"Zdjęto z mapy 22 Key Remnants.\"]"
+    },
+    {
+      "name": "p1: the system override (Fear -> Despair) survived the merge",
+      "ok": true,
+      "details": "Despair"
+    },
+    {
+      "name": "p2: the Polish file applied",
+      "ok": true,
+      "details": "{\"applied\":true,\"lang\":\"pl\",\"summary\":\"Rozdział 1 · Dzień 2 · Sesja 3 · Południe\",\"hint\":\"Przeszukaj pokój pod kątem czegoś, co nazwiesz. Wydaje jeden z jego Search Tokenów.\",\"label\":\"Search\",\"tod\":\"Południe\",\"phase\":\"Daily Life\",\"stat\":\"Eye\",\"p1\":\"Zdjęto z mapy 1 Key Remnant.\",\"p2\":\"Zdjęto z mapy 2 Key Remnants.\",\"p5\":\"Zdjęto z mapy 5 Key Remnants.\",\"p22\":\"Zdjęto z mapy 22 Key Remnants.\",\"dh\":\"Despair\"}"
+    },
+    {
+      "name": "p2: a plain string is Polish",
+      "ok": true,
+      "details": "Rozdział 1 · Dzień 2 · Sesja 3 · Południe"
+    },
+    {
+      "name": "p2: config.mjs prose was swapped in place",
+      "ok": true,
+      "details": "Przeszukaj pokój pod kątem czegoś, co nazwiesz. Wydaje jeden z jego Search Tokenów."
+    },
+    {
+      "name": "p2: the glossary stays English",
+      "ok": true,
+      "details": "[\"Search\",\"Daily Life\",\"Eye\"]"
+    },
+    {
+      "name": "p2: the time of day is Polish",
+      "ok": true,
+      "details": "Południe"
+    },
+    {
+      "name": "p2: plural picks one/few/many",
+      "ok": true,
+      "details": "[\"Zdjęto z mapy 1 Key Remnant.\",\"Zdjęto z mapy 2 Key Remnants.\",\"Zdjęto z mapy 5 Key Remnants.\",\"Zdjęto z mapy 22 Key Remnants.\"]"
+    },
+    {
+      "name": "p2: the system override (Fear -> Despair) survived the merge",
+      "ok": true,
+      "details": "Despair"
+    },
+    {
+      "name": "p3: the Polish file applied",
+      "ok": true,
+      "details": "{\"applied\":true,\"lang\":\"pl\",\"summary\":\"Rozdział 1 · Dzień 2 · Sesja 3 · Południe\",\"hint\":\"Przeszukaj pokój pod kątem czegoś, co nazwiesz. Wydaje jeden z jego Search Tokenów.\",\"label\":\"Search\",\"tod\":\"Południe\",\"phase\":\"Daily Life\",\"stat\":\"Eye\",\"p1\":\"Zdjęto z mapy 1 Key Remnant.\",\"p2\":\"Zdjęto z mapy 2 Key Remnants.\",\"p5\":\"Zdjęto z mapy 5 Key Remnants.\",\"p22\":\"Zdjęto z mapy 22 Key Remnants.\",\"dh\":\"Despair\"}"
+    },
+    {
+      "name": "p3: a plain string is Polish",
+      "ok": true,
+      "details": "Rozdział 1 · Dzień 2 · Sesja 3 · Południe"
+    },
+    {
+      "name": "p3: config.mjs prose was swapped in place",
+      "ok": true,
+      "details": "Przeszukaj pokój pod kątem czegoś, co nazwiesz. Wydaje jeden z jego Search Tokenów."
+    },
+    {
+      "name": "p3: the glossary stays English",
+      "ok": true,
+      "details": "[\"Search\",\"Daily Life\",\"Eye\"]"
+    },
+    {
+      "name": "p3: the time of day is Polish",
+      "ok": true,
+      "details": "Południe"
+    },
+    {
+      "name": "p3: plural picks one/few/many",
+      "ok": true,
+      "details": "[\"Zdjęto z mapy 1 Key Remnant.\",\"Zdjęto z mapy 2 Key Remnants.\",\"Zdjęto z mapy 5 Key Remnants.\",\"Zdjęto z mapy 22 Key Remnants.\"]"
+    },
+    {
+      "name": "p3: the system override (Fear -> Despair) survived the merge",
+      "ok": true,
+      "details": "Despair"
+    },
+    {
+      "name": "gm: pl.json covers every en.json key",
+      "ok": true,
+      "details": "{\"en\":2317,\"pl\":2955,\"missing\":[],\"extra\":[]}"
+    },
+    {
+      "name": "gm: pl.json carries no stray keys",
+      "ok": true,
+      "details": "[]"
+    },
+    {
+      "name": "gm: the HUD shows the Polish time of day",
+      "ok": true,
+      "details": "Daily Life · Daily Life · Daily Life · Daily Life · Daily Life · Daily Life · Daily Life · Daily Life · Daily Life · Daily Life · Daily Life · Daily Life · DRPG Audit WorldRozdział 1 · Dzień 2Daily LifeWieczór0 minHallBrak dostępnego projektu"
+    },
+    {
+      "name": "gm: no i18n key went missing after the switch",
+      "ok": true,
+      "details": "[]"
+    },
+    {
+      "name": "p1: the HUD shows the Polish time of day",
+      "ok": true,
+      "details": "Daily Life · Daily Life · Daily Life · Daily Life · Daily Life · Daily Life · Daily Life · Daily Life · Daily Life · Daily Life · Daily Life · Daily Life · DRPG Audit WorldRozdział 1 · Dzień 2Daily LifeWieczór0 minDorm ABrak dostępnego projektu"
+    },
+    {
+      "name": "p1: no i18n key went missing after the switch",
+      "ok": true,
+      "details": "[]"
+    },
+    {
+      "name": "p2: the HUD shows the Polish time of day",
+      "ok": true,
+      "details": "Daily Life · Daily Life · Daily Life · Daily Life · Daily Life · Daily Life · Daily Life · Daily Life · Daily Life · Daily Life · Daily Life · Daily Life · DRPG Audit WorldRozdział 1 · Dzień 2Daily LifeWieczór0 minCafeteriaBrak dostępnego projektu"
+    },
+    {
+      "name": "p2: no i18n key went missing after the switch",
+      "ok": true,
+      "details": "[]"
+    },
+    {
+      "name": "p3: the HUD shows the Polish time of day",
+      "ok": true,
+      "details": "Daily Life · Daily Life · Daily Life · Daily Life · Daily Life · Daily Life · Daily Life · Daily Life · Daily Life · Daily Life · Daily Life · Daily Life · DRPG Audit WorldRozdział 1 · Dzień 2Daily LifeWieczór0 minDorm BBrak dostępnego projektu"
+    },
+    {
+      "name": "p3: no i18n key went missing after the switch",
+      "ok": true,
+      "details": "[]"
+    },
+    {
+      "name": "gm: the panel opens with a Polish title",
+      "ok": true,
+      "details": "{\"title\":\"Danganronpa - panel GMa\",\"content\":\"<div><div class=\\\"drpg-gm-panel\\\"> <div class=\\\"drpg-gmp-standing\\\"> <h3>DRPG Audit World</h3> <p><strong>Rozdział 1 · Dzień 2 · Sesja 1 · Wieczór</strong> <span class=\\\"drpg-gmp-phase\\\">Daily Life</span> <button type=\\\"button\\\" class=\\\"drpg-gmp-next-go drpg-gmp-advance\\\" data-drpg-run=\\\"advance\\\" data-tooltip=\"}"
+    },
+    {
+      "name": "gm: the panel's body is Polish",
+      "ok": true,
+      "details": "{\"title\":\"Danganronpa - panel GMa\",\"content\":\"<div><div class=\\\"drpg-gm-panel\\\"> <div class=\\\"drpg-gmp-standing\\\"> <h3>DRPG Audit World</h3> <p><strong>Rozdział 1 · Dzień 2 · Sesja 1 · Wieczór</strong> <span class=\\\"drpg-gmp-phase\\\">Daily Life</span> <button type=\\\"button\\\" class=\\\"drpg-gmp-next-go drpg-gmp-advance\\\" data-drpg-run=\\\"advance\\\" data-tooltip=\"}"
+    },
+    {
+      "name": "p3: switching back is a no-op until reload (the setting says reload)",
+      "ok": true,
+      "details": "{\"lang\":\"en\",\"applied\":false}"
+    },
+    {
+      "name": "p1: another browser keeps its own choice",
+      "ok": true,
+      "details": "pl"
+    }
+  ],
+  "permissionDenials": [],
+  "socketTraffic": [
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 29
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 119
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 119
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 135
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 135
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 135
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 119
+    }
+  ],
+  "bootInfo": {
+    "p3": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 65
+    },
+    "p2": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 65
+    },
+    "gm": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 65
+    },
+    "p1": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 65
+    }
+  }
+}

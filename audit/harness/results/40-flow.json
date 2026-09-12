@@ -1,0 +1,248 @@
+{
+  "scenario": "scenarios/40-flow.mjs",
+  "passed": 16,
+  "total": 18,
+  "ms": 98612,
+  "results": [
+    {
+      "name": "p1: spending an action costs exactly one",
+      "ok": true,
+      "details": "2 -> 1"
+    },
+    {
+      "name": "gm: clock advanced to noon",
+      "ok": true,
+      "details": "{\"eclipse\":false,\"campaignName\":\"\",\"season\":1,\"chapter\":1,\"session\":1,\"day\":1,\"phase\":\"dailyLife\",\"timeOfDay\":\"noon\",\"timeOfDayStartedAt\":1789212807712,\"pausedAt\":null,\"finalTrial\":false,\"campaign\":\"QA season\"}"
+    },
+    {
+      "name": "p1: sees the new time of day",
+      "ok": true,
+      "details": "{\"clock\":\"noon\",\"left\":2,\"max\":2,\"hud\":\"DRPG Audit WorldChapter 1 · Day 1Daily LifeNoon0 min inDorm ANo available project\",\"strip\":\"ActionsMoveDAGGERHEART.GENERAL.hope\"}"
+    },
+    {
+      "name": "p1: actions refilled by the advance",
+      "ok": true,
+      "details": "2/2"
+    },
+    {
+      "name": "p1: HUD names the time of day",
+      "ok": true,
+      "details": "DRPG Audit WorldChapter 1 · Day 1Daily LifeNoon0 min inDorm ANo available project"
+    },
+    {
+      "name": "p2: sees the new time of day",
+      "ok": true,
+      "details": "{\"clock\":\"noon\",\"left\":2,\"max\":2,\"hud\":\"DRPG Audit WorldChapter 1 · Day 1Daily LifeNoon0 min inCafeteriaNo available project\",\"strip\":\"ActionsMoveDAGGERHEART.GENERAL.hope\"}"
+    },
+    {
+      "name": "p2: actions refilled by the advance",
+      "ok": true,
+      "details": "2/2"
+    },
+    {
+      "name": "p2: HUD names the time of day",
+      "ok": true,
+      "details": "DRPG Audit WorldChapter 1 · Day 1Daily LifeNoon0 min inCafeteriaNo available project"
+    },
+    {
+      "name": "p3: sees the new time of day",
+      "ok": true,
+      "details": "{\"clock\":\"noon\",\"left\":2,\"max\":2,\"hud\":\"DRPG Audit WorldChapter 1 · Day 1Daily LifeNoon0 min inDorm BNo available project\",\"strip\":\"ActionsMoveDAGGERHEART.GENERAL.hope\"}"
+    },
+    {
+      "name": "p3: actions refilled by the advance",
+      "ok": true,
+      "details": "2/2"
+    },
+    {
+      "name": "p3: HUD names the time of day",
+      "ok": true,
+      "details": "DRPG Audit WorldChapter 1 · Day 1Daily LifeNoon0 min inDorm BNo available project"
+    },
+    {
+      "name": "p3: the time-of-day card reached a bystander",
+      "ok": true,
+      "details": "[\"Noon Chapter 1 · Day 1 · Session 1 · Noon Actions refilled for 4 characters · Every room restocked with search tokens\"]"
+    },
+    {
+      "name": "p1: Search ran without throwing",
+      "ok": true,
+      "details": ""
+    },
+    {
+      "name": "p1: Search charged one action",
+      "ok": false,
+      "details": "2 -> 2 (dialogs: Search)"
+    },
+    {
+      "name": "gm: Search spent one of the room's tokens",
+      "ok": true,
+      "details": "Dorm A: 3 -> 2"
+    },
+    {
+      "name": "gm: the Search left a card the GM can read",
+      "ok": true,
+      "details": "[{\"w\":[\"USERGM0000000000\"],\"t\":\"-\"},{\"w\":[],\"t\":\"Noon Chapter 1 · Day 1 · Session 1 · Noon Actions refilled for 4 characters · Every room restocked with search tokens\"},{\"w\":[\"USERGM0000000000\",\"USERP10000000000\"],\"t\":\"Duality: 14\"},{\"w\":[\"USERGM0000000000\",\"USERP10000000000\"],\"t\":\"-\"}]"
+    },
+    {
+      "name": "p2: another player was not told what p1 searched for",
+      "ok": true,
+      "details": "[{\"w\":[],\"t\":\"Noon Chapter 1 · Day 1 · Session 1 · Noon Actions refilled for 4 characters · Every room restocked with search tokens\"}]"
+    },
+    {
+      "name": "scenario completed without throwing",
+      "ok": false,
+      "details": "Error: eval timeout on p2: \n        const actor = game.actors.get(\"ACTORBOTAN000000\");\n        const hope0 = actor.system.resources.hope.value;\n   \n    at Timeout._onTimeout (file:///home/user/Danganronpa-RPG/audit/harness/cluster.mjs:350:81)\n    at listOnTimeout (node:internal/timers:585:17)\n    at process.processTimers (node:internal/timers:521:7)"
+    }
+  ],
+  "permissionDenials": [],
+  "socketTraffic": [
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 29
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 119
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 119
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 119
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 135
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 135
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 135
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 51
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 318
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 149
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 150
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 154
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 982
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 313
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 101
+    }
+  ],
+  "bootInfo": {
+    "p1": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 64
+    },
+    "gm": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 64
+    },
+    "p3": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 64
+    },
+    "p2": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 64
+    }
+  }
+}

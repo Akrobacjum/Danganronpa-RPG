@@ -46,6 +46,11 @@ document.fonts ??= { ready: Promise.resolve(), add() {}, load: async () => [], c
 globalThis.Audio = class { constructor(src) { this.src = src; } play() { return Promise.resolve(); } pause() {} addEventListener() {} removeEventListener() {} load() {} };
 globalThis.AudioContext = class { constructor() { this.state = "running"; this.destination = {}; } resume() { return Promise.resolve(); } createGain() { return { connect() {}, gain: { value: 1 } }; } };
 window.scrollTo ??= () => {};
+// Bare `innerWidth` / `innerHeight` (the module reads them as globals, as a
+// browser allows): jsdom keeps them on `window` only.
+for (const k of ["innerWidth", "innerHeight", "outerWidth", "outerHeight", "devicePixelRatio", "scrollX", "scrollY"]) {
+    if (globalThis[k] === undefined) Object.defineProperty(globalThis, k, { get: () => dom.window[k], configurable: true });
+}
 
 /*
  * Serve CSS custom properties from the REAL stylesheets, so the module's
@@ -161,12 +166,15 @@ const apps = buildApplications(ctx);
 
 /* ------------------------------ i18n ------------------------------------- */
 
-const enJson = JSON.parse(fs.readFileSync(path.join(REPO, "lang/en.json"), "utf8"));
+// Foundry expands dotted keys ("step.name" inside "Season") when it merges a
+// language file, so a lookup by path finds them. Mirror that, or the suite's
+// i18n coverage test fails on keys that resolve fine in the real client.
+const enJson = U.expandObject(JSON.parse(fs.readFileSync(path.join(REPO, "lang/en.json"), "utf8")));
 const i18n = {
-    lang: "en",
+    lang: process.env.DRPG_LANG ?? "en",
     translations: enJson,
     localize(key) {
-        const v = U.getProperty(enJson, key);
+        const v = U.getProperty(this.translations, key);
         if (typeof v === "string") return v;
         globalThis.__missingI18n.add(key);
         return key;
@@ -176,7 +184,7 @@ const i18n = {
         for (const [k, v] of Object.entries(data)) s = s.replaceAll(`{${k}}`, String(v));
         return s;
     },
-    has(key) { return typeof U.getProperty(enJson, key) === "string"; }
+    has(key) { return typeof U.getProperty(this.translations, key) === "string"; }
 };
 
 /* ---------------------------- settings ----------------------------------- */
