@@ -841,7 +841,7 @@ function removeSystemCreators(app, element) {
  * Only words too long for the narrowest tile are marked, and only from the
  * fifth character, so the break never leaves an orphaned letter or two.
  */
-const SHY = "­";
+const SHY = "\u00AD"; // soft hyphen, written as an escape so an editor can see it (UI-15)
 const LONG_WORD = 9;      // characters - below this, every label fits a tile
 // Six, not five: it puts the break where the word reads best - "Experi-ence"
 // and "Contri-bution" rather than "Exper-ience" and "Contr-ibution".

@@ -625,10 +625,7 @@ export function overflowSection() {
     const events = Object.entries(OVERFLOW.effects)
         .filter(([, rule]) => rule.kind === "event").map(([key]) => key);
 
-    const nowLine = status.active
-        ? game.i18n.format("DRPG.Overflow.currentDrawn",
-            { count: status.count, max: status.threshold, what: status.effectName })
-        : game.i18n.format("DRPG.Overflow.current", { count: status.count, max: status.threshold });
+    const nowLine = overflowNowLine();
 
     // An empty pool is a real setting and not an error, so it is stated where
     // the GM is looking rather than discovered when nothing ever fires.

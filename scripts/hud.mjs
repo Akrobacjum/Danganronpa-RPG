@@ -11,9 +11,10 @@
  *      Hope's Peak: Drowned Summer      <- campaign name
  *              Chapter 2
  *              Daily Life
- *          ◀   Afternoon   ▶  ⚙        <- GM-only controls
+ *          ◀   Afternoon   ▶            <- the chevrons are GM-only
  *
- * Players see the same four lines without the controls.
+ * Players see the same four lines without the chevrons; the clock is edited
+ * from the GM panel, not from here.
  */
 
 import { MODULE_ID, TIMES_OF_DAY, ECLIPSE_FREE_PLACEMENT } from "./config.mjs";
@@ -1583,4 +1584,4 @@ function control(icon, tooltipKey, handler, { literal = false } = {}) {
     return button;
 }
 
-export { HUD_ID, MODULE_ID };
+export { HUD_ID };

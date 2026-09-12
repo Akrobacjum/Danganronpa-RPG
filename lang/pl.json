@@ -563,10 +563,7 @@
       "callsGmNote": "Tę ocenia GM. Twój rzut i prośba trafiają do GMa.",
       "gmPrompt": "{action} - co próbujesz zrobić? GM zobaczy to razem z twoim rzutem.",
       "placeholder": {
-        "think": "np. Kto mógł wejść na basen niezauważony?",
-        "listen": "np. Podsłuchuję pod drzwiami kuchni.",
         "analyze": "np. Analizuję podarty materiał z korytarza.",
-        "observe": "np. Szukam czegokolwiek wokół ciała.",
         "directMurder": "Kogo, gdzie i jak - tak, jak uzgodniono wcześniej."
       },
       "analyzeGm": "Oceń to według tabeli Analyze dla tego Truth Bulleta. Porażka blokuje go im do końca rozdziału.",
@@ -655,7 +652,6 @@
       "buttonTooltip": "Daj albo zabierz przedmiot",
       "give": "Daj przedmiot",
       "take": "Zabierz przedmiot",
-      "giveTo": "Daj przedmiot: {actor}",
       "takeFrom": "Zabierz przedmiot: {actor}",
       "takeFromWhom": "Zabierz od",
       "whichItem": "Który przedmiot?",
@@ -908,7 +904,6 @@
     },
     "Sound": {
       "title": "Dźwięk",
-      "launcherTooltip": "Dźwięk i muzyka",
       "tabPlay": "Odtwarzanie",
       "tabMusic": "Muzyka",
       "tabEffects": "Efekty",
@@ -1344,7 +1339,6 @@
       "plannerIntro": "Pięć tropów na rozdział {chapter}. Razem powinny zawęzić podejrzanych do {min}-{max} osób.",
       "notePlaceholder": "Co ten trop im mówi",
       "difficulty": "Trudność",
-      "clue": "Trop",
       "onMap": "Który Remnant",
       "notPlaced": "Jeszcze nie postawiony",
       "tokenGone": "Jego Remnant zniknął z mapy",
@@ -1483,7 +1477,6 @@
       "keyGave": "{who} ma teraz kopię twojego klucza do: {room}.",
       "keyMissing": "Drzwi do: {room} są zamknięte. Nie masz tego klucza.",
       "giveKey": "Daj klucz do pokoju",
-      "giveKeyTo": "Daj klucz do pokoju: {actor}",
       "whichKey": "Czyj pokój?",
       "giveKeyNote": "Kopia - właściciel zachowuje swój. Wymienione są tylko pokoje, które do kogoś należą: pokój bez właściciela nie ma drzwi do otwarcia.",
       "keyGivenGm": "{actor} ma teraz klucz do: {room}.",
@@ -1693,7 +1686,6 @@
       "give": "Daj Truth Bullet",
       "takeAway": "Zabierz Truth Bullet",
       "noneToTake": "{actor} nie nosi żadnych Truth Bullets.",
-      "giveTo": "Daj Truth Bullet: {actor}",
       "tabFromRemnant": "Z Remnantu",
       "tabWriteNew": "Napisz nowy",
       "pickRemnant": "Który ślad na tej scenie",
@@ -1878,7 +1870,6 @@
       "approveNo": "Nie tym razem",
       "refused": "{call}: GM powiedział „nie tym razem”. Nic nie wydano.",
       "noAnswer": "{call}: brak odpowiedzi od GMa. Nic nie wydano.",
-      "noRuling": "Nikt nie odpowiedział. Nic nie wydano - zapytaj ponownie, gdy GM będzie wolny.",
       "notEnoughHope": "{call} kosztuje {cost} Hope, a masz {held}.",
       "sprinted": {
         "one": "{n} dodatkowe przejście o tej porze dnia, za darmo.",
@@ -1926,7 +1917,6 @@
         "disadvantage": "utrudnienie",
         "experience": "Experience",
         "trait": "Resolve",
-        "reroll": "przerzut",
         "critical": "Loaded Die (jedna kość ustawiona na 12)",
         "bonus": "stałą premię albo karę"
       },

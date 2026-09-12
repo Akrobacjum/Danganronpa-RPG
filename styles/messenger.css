@@ -12,17 +12,19 @@
 
 #drpg-messenger-launcher {
     position: fixed;
-    right: 16px;
+    /* The module's edge margin, and 52 px: 44 was a comfortable target only if you never
+       miss, and this is a control a player reaches for in the middle of a scene. */
+    right: var(--drpg-edge, 16px);
     /*
      * `--drpg-av-lift` IS THE CAMERA DOCK, measured by camera-view.mjs and zero
      * when there is not one. `#players` rises over the dock on its own because
      * it lives in Foundry's bottom column; this button is pinned to the
      * viewport, so the dock simply covered it until it was told (Dawid, 28.08).
      */
-    bottom: calc(16px + var(--drpg-av-lift, 0px));
+    bottom: calc(var(--drpg-edge, 16px) + var(--drpg-av-lift, 0px));
     z-index: 70;
-    width: 44px;
-    height: 44px;
+    width: 52px;
+    height: 52px;
     padding: 0;
     display: flex;
     align-items: center;
@@ -31,7 +33,7 @@
     border: 1px solid var(--drpg-eye);
     background: light-dark(var(--drpg-paper-alt), var(--drpg-ink));
     color: var(--drpg-eye);
-    font-size: 1.1rem;
+    font-size: 1.15rem;
     cursor: pointer;
     box-shadow: 0 2px 10px rgba(var(--drpg-shadow-rgb), 0.35);
 }
@@ -300,26 +302,3 @@ body.drpg-pixel-font #drpg-messenger-roster h4 {
     font-family: var(--drpg-font-pixel, var(--font-primary, sans-serif));
 }
 
-/* ==========================================================================
-   THE TWO FLOATING LAUNCHERS SHARE THE MODULE'S EDGE MARGIN
-   --------------------------------------------------------------------------
-   These live here rather than in danganronpa.css because the manifest loads
-   messenger.css second: the original `right: 16px` in this file beats anything
-   of equal specificity written earlier, whichever order the rules appear in.
-
-   Bigger, too. 44px is a comfortable target only if you never miss, and this
-   is a control a player reaches for in the middle of a scene.
-
-   There were two. The Casebook was deliberately removed - remnants.mjs records
-   why, and the room tag on a Remnant is what replaced its grouping - but its
-   launcher kept a reserved slot above this one for a button that stopped
-   existing. Gone with it.
-   ========================================================================== */
-
-#drpg-messenger-launcher {
-    right: var(--drpg-edge);
-    bottom: calc(var(--drpg-edge) + var(--drpg-av-lift, 0px));
-    width: 52px;
-    height: 52px;
-    font-size: 1.15rem;
-}

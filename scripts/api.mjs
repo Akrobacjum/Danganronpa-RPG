@@ -324,10 +324,10 @@ export const DrpgApi = {
     rewindTimeOfDay,
     setTimeOfDay,
 
-    /** Open the GM panel (also on the token toolbar as a clock icon). */
+    /** Open the GM panel (also the launcher in the left rail). */
     gmPanel: openGmPanel,
 
-    /** Open the clock editor (also the gear on the HUD). */
+    /** Open the clock editor (also "Edit campaign" on the GM panel). */
     editClock: openClockDialog,
 
     /** Force the top-of-screen HUD to redraw. */

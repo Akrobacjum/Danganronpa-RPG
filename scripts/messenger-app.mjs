@@ -758,7 +758,8 @@ async function runCallAction(action, data) {
 
     // ---------------------------------------------------------------- generic
     //
-    // Every action that calls the GM now carries at least one of these two.
+    // Every ruling card carries at least one of these two, or one of the
+    // named actions above (a Hope Call, a Dynamic threshold, an item's effect).
     // The mechanism was already here and only Direct Murder and Propose a
     // Project used it, so a Search for something specific, an Observe at a
     // point of interest, a Listen, an Analyze hint and a Dynamic action all
@@ -1087,5 +1088,7 @@ function rosterRow(user) {
 }
 
 function stripHtml(html) {
-    return String(html ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    // The same trimming the thread itself does: no ruling buttons, no GM-only
+    // prose for a player, and the browser's own text extraction.
+    return cardPreview(html).textContent.replace(/\s+/g, " ").trim();
 }

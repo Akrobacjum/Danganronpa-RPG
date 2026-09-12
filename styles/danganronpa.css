@@ -3866,8 +3866,8 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    The mode now comes from the content, via `:has()`, not from the class list.
    Nothing has to be remembered at the call site - which is what went wrong the
    last three times this was tuned: a dialog was left out of a list and only its
-   window broke. `drpg-wide` and `drpg-compact` are the manual overrides for the
-   two cases the markup cannot express.
+   window broke. `drpg-wide` is the manual override for the one case the
+   markup cannot express (`.drpg-compact` was the other and nothing ever set it).
    ========================================================================== */
 
 /* Default: ONE width, the same for every window without a table in it.
@@ -3953,7 +3953,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
-):has(.dialog-content table):not(.drpg-compact) :is(p, blockquote, .notes) {
+):has(.dialog-content table) :is(p, blockquote, .notes) {
     max-width: 42rem;
 }
 
@@ -3979,7 +3979,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
-):has(.dialog-content table):not(.drpg-compact)
+):has(.dialog-content table)
     :is(p, .notes, h3, h4):not(td):not(th):not(table *),
 .application.dialog.drpg-wide :is(p, .notes, h3, h4):not(td):not(th):not(table *) {
     margin-inline: auto;
@@ -4031,7 +4031,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
-):has(.dialog-content table):not(.drpg-compact) blockquote,
+):has(.dialog-content table) blockquote,
 .application.dialog.drpg-wide blockquote {
     margin-inline: auto;
 }
@@ -4136,7 +4136,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     .drpg-panel, .drpg-briefing, .drpg-advance, .drpg-assign,
     .drpg-projects, .drpg-rest, .drpg-narrow, .drpg-hope-dialog,
     .drpg-despair-dialog, .drpg-monokuma-panel, .drpg-gm-panel-window
-):has(.dialog-content table):not(.drpg-compact) footer.form-footer {
+):has(.dialog-content table) footer.form-footer {
     position: sticky;
     bottom: calc(-1 * var(--drpg-window-pad));
     left: 0;
@@ -4203,9 +4203,8 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    Scoped on `.drpg-panel` / `.drpg-advance` rather than on the three window
    classes this used to name: every module dialog carries one of those two, so a
    table in a window nobody thought to add to the list is treated the same as
-   one in the Projects manager. `.drpg-compact` opts out - that is the whole
-   point of the flag. */
-.application.dialog:is(.drpg-panel, .drpg-advance):not(.drpg-compact)
+   one in the Projects manager. */
+.application.dialog:is(.drpg-panel, .drpg-advance)
     .dialog-content table {
     width: max-content;
     min-width: 100%;
@@ -4219,7 +4218,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
     table-layout: auto;
 }
 
-.application.dialog:is(.drpg-panel, .drpg-advance):not(.drpg-compact)
+.application.dialog:is(.drpg-panel, .drpg-advance)
     .dialog-content :is(th, td) {
     white-space: nowrap;
 }
@@ -4231,7 +4230,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    Investigation dashboard's "Really" column is a `<td class="notes">` holding a
    comma-separated breakdown of every Truth Bullet a student is carrying, and on
    one unbreakable line that is a window several screens wide. */
-.application.dialog:is(.drpg-panel, .drpg-advance):not(.drpg-compact)
+.application.dialog:is(.drpg-panel, .drpg-advance)
     .dialog-content :is(td, th):is(.notes, :has(input[type="text"], textarea)) {
     white-space: normal;
 }
@@ -4244,7 +4243,7 @@ body:not(.drpg-gm) section[data-application-part="inventory"] legend a[data-acti
    claimed 503px of the Monocub dialog on its own and pushed the table 71px past
    the window. Short headings are unaffected: there is nothing in "Hope" to
    wrap. Measured after: 1312px → 1241px, no scrollbar. */
-.application.dialog:is(.drpg-panel, .drpg-advance):not(.drpg-compact)
+.application.dialog:is(.drpg-panel, .drpg-advance)
     .dialog-content thead th {
     white-space: normal;
 }

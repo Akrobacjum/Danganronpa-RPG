@@ -10,9 +10,11 @@
  *
  * A thread is not a document of its own - it is every ChatMessage whispered
  * to `[playerUserId, ...gmIds()]` and flagged with which player it belongs
- * to. That whisper target is exactly what `whisperToOwner()` in utils.mjs
- * already sends; this file gives it persistence (read with `threadMessages`
- * instead of scrolling past it) and a window instead of the sidebar.
+ * to. Since COMM-03 each of those is a PRIVATE card (secret.mjs): the document
+ * in the world carries a stub, and the words travel over the addressed socket
+ * to the thread's readers alone. This file gives the thread persistence (read
+ * with `threadMessages` instead of scrolling past it) and a window instead of
+ * the sidebar.
  *
  * `callGm()` in gm-bridge.mjs posts into these same threads - an action that
  * needs a human ruling (Observe, Analyze, Direct Murder…) shows up right next

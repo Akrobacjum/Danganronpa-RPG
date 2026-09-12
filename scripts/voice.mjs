@@ -43,7 +43,7 @@ import { SETTINGS, getSetting } from "./settings.mjs";
 // this GM happens to be looking at.
 import { allRooms } from "./movement.mjs";
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
-import { VOICE, ROOM_PREFIX, applyLocally, forgetDesiredRoom } from "./voice-client.mjs";
+import { VOICE, ROOM_PREFIX, applyLocally, forgetDesiredRoom, avclientActive } from "./voice-client.mjs";
 import { isPrimaryGm, primaryGmId, debug, warn, error, plural } from "./utils.mjs";
 import { alreadyOpen } from "./live.mjs";
 
@@ -209,10 +209,6 @@ function suppressBreakoutToasts() {
         patched.__drpgVoicePatched = true;
         ui.notifications[level] = patched;
     }
-}
-
-function avclientActive() {
-    return Boolean(game.modules.get(AV_MODULE)?.active);
 }
 
 /**

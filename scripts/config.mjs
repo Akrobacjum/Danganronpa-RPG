@@ -3598,10 +3598,10 @@ export const SFX_VOLUME_KEYS = Object.entries(SFX_SLIDERS)
 /**
  * Every sound this module can play, and nothing beyond that.
  *
- * Forty-two events: the seventeen Dawid listed, the eighteen the plan proposed
- * on top of them, the safeword - which arrived later and never updated this
- * count, which is why it read "thirty-five" over thirty-six rows for two
- * updates - five that a play-through found missing, and one that waited for
+ * The seventeen Dawid listed, the eighteen the plan proposed on top of them,
+ * the safeword (which arrived later; the count is not written here any more,
+ * because a written count is the one thing a new row never updates), five
+ * that a play-through found missing, and one that waited for
  * the stage that gives it a voice (`projectDone`, E10). Every one of the
  * additions is a moment that ALREADY has its own place in the code - its own
  * card, its own animation, its own status effect - so wiring it is a line, not

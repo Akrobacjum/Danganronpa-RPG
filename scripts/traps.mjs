@@ -56,7 +56,7 @@
 import { MODULE_ID, TRAP_TRIGGERS, TRAP_MODIFIERS, AFTER_DARK,
     TIME_OF_DAY_LABELS } from "./config.mjs";
 import { SETTINGS, getSetting, setSetting } from "./settings.mjs";
-import { isPrimaryGm, debug, log, error } from "./utils.mjs";
+import { isPrimaryGm, debug, log, error, esc } from "./utils.mjs";
 // Statically, because `trapProjects` has to answer synchronously. The
 // dependency only goes this way at load time - projects.mjs reaches back
 // into this file through dynamic imports, which is not a cycle.
@@ -242,7 +242,6 @@ async function alert(trap, actor, why) {
     const room = trap.room ?? roomOf(actor) ?? "?";
     const clock = getSetting(SETTINGS.clock) ?? {};
 
-    const esc = foundry.utils.escapeHTML;
     const triggerLabel = localised(`DRPG.Trap.trigger.${trap.trigger.kind}`, def?.label ?? trap.trigger.kind);
     const body = `<p><strong>${esc(triggerLabel)}</strong></p>
         <p>${game.i18n.format("DRPG.Trap.alertReading", {
@@ -478,7 +477,6 @@ export async function openPlantDialog(projectId) {
     const { allRooms } = await import("./movement.mjs");
 
     const meta = metaFor(projectId);
-    const esc = foundry.utils.escapeHTML;
     const rooms = allRooms();
     const roomOptions = rooms.map(r =>
         `<option value="${esc(r)}"${r === meta.room ? " selected" : ""}>${esc(r)}</option>`).join("");

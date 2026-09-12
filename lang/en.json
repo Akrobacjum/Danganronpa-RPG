@@ -549,10 +549,7 @@
       "callsGmNote": "The GM judges this one. Your roll and your request go to them.",
       "gmPrompt": "{action} - what are you trying to do? The GM sees this with your roll.",
       "placeholder": {
-        "think": "e.g. Who could have got into the pool room unseen?",
-        "listen": "e.g. Listening at the door to the kitchen.",
         "analyze": "e.g. Analyzing the torn cloth from the hallway.",
-        "observe": "e.g. Looking for anything around the body.",
         "directMurder": "Who, where and how - as agreed beforehand."
       },
       "analyzeGm": "Score this against the Analyze table for that Truth Bullet. A failure locks it for them until the chapter ends.",
@@ -637,7 +634,6 @@
       "buttonTooltip": "Give or take an item",
       "give": "Give an item",
       "take": "Take an item away",
-      "giveTo": "Give an item to {actor}",
       "takeFrom": "Take an item from {actor}",
       "takeFromWhom": "Take it from",
       "whichItem": "Which item?",
@@ -890,7 +886,6 @@
     },
     "Sound": {
       "title": "Sound",
-      "launcherTooltip": "Sound and music",
       "tabPlay": "Play",
       "tabMusic": "Music",
       "tabEffects": "Effects",
@@ -1302,7 +1297,6 @@
       "plannerIntro": "Five clues for chapter {chapter}. Together they should narrow the suspects to {min}-{max} people.",
       "notePlaceholder": "What this clue tells them",
       "difficulty": "Difficulty",
-      "clue": "Clue",
       "onMap": "Which Remnant",
       "notPlaced": "Not placed yet",
       "tokenGone": "Its Remnant is gone from the map",
@@ -1431,7 +1425,6 @@
       "keyGave": "{who} now has a copy of your key to {room}.",
       "keyMissing": "The door to {room} is locked. You do not have that key.",
       "giveKey": "Give a room key",
-      "giveKeyTo": "Give {actor} a room key",
       "whichKey": "Whose room?",
       "giveKeyNote": "A copy - the owner keeps theirs. Only rooms that belong to somebody are listed: a room with no owner has no door to unlock.",
       "keyGivenGm": "{actor} now holds the key to {room}.",
@@ -1618,7 +1611,6 @@
       "give": "Give a Truth Bullet",
       "takeAway": "Take a Truth Bullet away",
       "noneToTake": "{actor} is not carrying any Truth Bullets.",
-      "giveTo": "Give a Truth Bullet to {actor}",
       "tabFromRemnant": "From a Remnant",
       "tabWriteNew": "Write a new one",
       "pickRemnant": "Which trace on this scene",
@@ -1793,7 +1785,6 @@
       "approveNo": "Not this time",
       "refused": "{call}: the GM said not this time. Nothing was spent.",
       "noAnswer": "{call}: no answer from the GM. Nothing was spent.",
-      "noRuling": "Nobody answered. Nothing was spent - ask again when a GM is free.",
       "notEnoughHope": "{call} costs {cost} Hope and you hold {held}.",
       "sprinted": {
         "one": "{n} extra crossing this time of day, free of charge.",
@@ -1835,7 +1826,6 @@
         "disadvantage": "disadvantage",
         "experience": "Experience",
         "trait": "Resolve",
-        "reroll": "a reroll",
         "critical": "a loaded die (one die set to 12)",
         "bonus": "a flat bonus or penalty"
       },

@@ -37,7 +37,7 @@ import { SearchTokens } from "./search-tokens.mjs";
 // Static is safe: tables.mjs only reaches back into this file lazily.
 import { isTierPool } from "./tables.mjs";
 import { dialogContent, tableDialog, whisperToOwner, whisperToGms, announce, log, error, plural,
-    workingScene, pinFooterAcrossScroll, wireDashboardTabs } from "./utils.mjs";
+    workingScene, pinFooterAcrossScroll, wireDashboardTabs, esc } from "./utils.mjs";
 import { alreadyOpen, keepFresh } from "./live.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -955,7 +955,6 @@ export async function rifleStashDialog(actor) {
     }
 
     const room = stocked[0].room;
-    const esc = foundry.utils.escapeHTML;
     const describe = i => {
         const tier = i.getFlag(MODULE_ID, ITEM_FLAGS.tier);
         const cat = ITEM_CATEGORIES[i.getFlag(MODULE_ID, ITEM_FLAGS.category)]?.label ?? "";
@@ -1331,7 +1330,6 @@ export async function stealFromPerson({
         }
     }
 
-    const esc = foundry.utils.escapeHTML;
     const took = Boolean(copy);
 
     // The thief always learns what happened to them, including whether they
@@ -1478,7 +1476,6 @@ export async function plantOnPerson({
         }
     }
 
-    const esc = foundry.utils.escapeHTML;
     const done = Boolean(landed);
 
     await whisperToOwner(planter, `<p>${game.i18n.format(
@@ -1608,7 +1605,6 @@ export async function resolveStashSearch({ actorId, total = 0, isCritical = fals
     found.push(foundKey(where.room, target.owner.id, where.scene));
     await actor.setFlag(MODULE_ID, VAULT_FLAGS.found, found);
 
-    const esc = foundry.utils.escapeHTML;
     await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Analyze.stashFound", {
         who: esc(target.owner.name), room: esc(where.room)
     })}</p>`);

@@ -9,7 +9,8 @@
  * excluded: they are helpers, not Monokumas, and the guide gives Despair only
  * to the two people running the killing game.
  *
- * Pools are public. When Monokuma spends Despair the table is meant to see it.
+ * Pools are on every screen, but a player's copy masks the counts (`buildRow`);
+ * the spend itself is announced with the Call, so the table sees it happen.
  */
 
 import { MODULE_ID, STARTING, DESPAIR_CALLS, callEffect } from "./config.mjs";

@@ -13,7 +13,7 @@
 
 import { MODULE_ID, PROJECT_SCALE, isProjectGlyph } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { announce, log, error, whisperToOwner, gmIds } from "./utils.mjs";
+import { announce, log, error, whisperToOwner, gmIds, esc } from "./utils.mjs";
 
 const DH = "daggerheart";
 const COUNTDOWNS = "Countdowns";
@@ -646,7 +646,6 @@ async function announceTrapReady(countdownId, name) {
     const { TRAP_TRIGGERS } = await import("./config.mjs");
     const kind = meta.trigger?.kind ?? "manual";
     const def = TRAP_TRIGGERS[kind];
-    const esc = foundry.utils.escapeHTML;
 
     /*
      * A WATCHED TRAP GOES QUIET INSTEAD OF ASKING (E21).

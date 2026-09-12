@@ -1829,7 +1829,6 @@ async function startProject(actor) {
     // anything before it lands. Nothing exists in the world until they do.
     const scaleLabel = Object.values(PROJECT_SCALE)
         .find(s => s.progress === result.target)?.label ?? `${result.target}`;
-    const esc = foundry.utils.escapeHTML;
 
     const summary = [
         `<strong>${esc(result.name)}</strong>`,
@@ -2604,7 +2603,6 @@ async function performTamper(actor, def, options) {
     // anything from.
     const erasable = mine.filter(t => !t.reinforced);
 
-    const esc = foundry.utils.escapeHTML;
     const picked = await chooseVariant({
         actor,
         title: def.label,
@@ -2861,7 +2859,6 @@ async function performPalm(actor, def, options) {
      */
     const mine = await palmablePool(actor);
 
-    const esc = foundry.utils.escapeHTML;
     const picked = await chooseVariant({
         actor,
         title: def.label,
@@ -3096,7 +3093,6 @@ function describeItem(item) {
 
 /** Which of them. Only ever opened on a critical - see `performPalm`. */
 async function chooseStolenItem(victim, pool) {
-    const esc = foundry.utils.escapeHTML;
     const describe = i => esc(describeItem(i));
 
     const chosen = await DialogV2.wait({
@@ -3871,7 +3867,6 @@ async function performRest(actor) {
  * the GM is the WRITE, like every other world change in this module.
  */
 async function performBetrayal(actor, partner) {
-    const esc = foundry.utils.escapeHTML;
     const confirmed = await DialogV2.confirm({
         classes: ["drpg-panel"],
         window: { title: game.i18n.localize("DRPG.Murder.betrayalTitle") },

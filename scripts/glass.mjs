@@ -49,7 +49,7 @@ const BLOCKS = [
      stack is clipped to it (stained-glass.css, popup.mjs), and a card arriving or leaving never
      recuts the glass. 330 x 160 at 100 %, at the audit page's place, scaled with the screen. */
   { cls: "note-block", sel: "#drpg-popups", fixed: true, fallback: (W, H) => { const s = uiScale(); return { x: 16, y: H - (100 + 160) * s, w: 330 * s, h: 160 * s }; } },
-  { cls: "launch", sel: "#drpg-messenger-launcher, #drpg-sound-launcher, #drpg-settings-launcher", union: true, fallback: (W, H) => ({ x: W - 22 - 66, y: H - 22 - 134, w: 66, h: 134 }) },
+  { cls: "launch", sel: "#drpg-messenger-launcher, #drpg-sound-launcher", union: true, fallback: (W, H) => ({ x: W - 22 - 66, y: H - 22 - 134, w: 66, h: 134 }) },
   /* FOUNDRY'S TWO RAILS ARE NOT BLOCKS, AND THE THREE DAYS SPENT MAKING THEM BLOCKS SAY WHY.
      A block is MEASURED, and every measurement of a rail is a statement about something the
      user is about to change: click a scene control and Foundry opens its tools beside it (the
@@ -125,7 +125,6 @@ const STRIP_LEAN = 26;
 /* How far a rail leans - exactly, not at least. It used to be a floor with MAX_TILT as the
    ceiling, and the band then had to reserve the swing of the ceiling. One number for both. */
 const RAIL_LEAN = 5 * Math.PI / 180;
-const STRIP_SLACK = 14 + STRIP_LEAN;
 /* THE ONE STATE THE TAB RAIL'S RULE HAS TO KNOW ABOUT.
    The tab rail stands flush against the right wall, so leaning it swings its ends past the
    edge of the screen and it has to come inboard by that swing to stay on it. That is right

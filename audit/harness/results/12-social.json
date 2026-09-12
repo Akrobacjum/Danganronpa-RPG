@@ -2,7 +2,7 @@
   "scenario": "scenarios/12-social.mjs",
   "passed": 9,
   "total": 9,
-  "ms": 642,
+  "ms": 643,
   "results": [
     {
       "name": "forcePrivateRolls default state",
@@ -53,17 +53,17 @@
   "permissionDenials": [],
   "socketTraffic": [
     {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
       "from": "p1",
       "channel": "module.danganronpa-rpg",
       "size": 99
     },
     {
       "from": "p3",
-      "channel": "module.danganronpa-rpg",
-      "size": 99
-    },
-    {
-      "from": "p2",
       "channel": "module.danganronpa-rpg",
       "size": 99
     },
@@ -73,12 +73,17 @@
       "size": 29
     },
     {
-      "from": "p1",
+      "from": "p2",
       "channel": "module.danganronpa-rpg",
       "size": 91
     },
     {
-      "from": "p3",
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p1",
       "channel": "module.danganronpa-rpg",
       "size": 91
     },
@@ -90,15 +95,10 @@
     {
       "from": "p3",
       "channel": "module.danganronpa-rpg",
-      "size": 99
-    },
-    {
-      "from": "p2",
-      "channel": "module.danganronpa-rpg",
       "size": 91
     },
     {
-      "from": "p2",
+      "from": "p3",
       "channel": "module.danganronpa-rpg",
       "size": 99
     },
@@ -139,7 +139,7 @@
     }
   ],
   "bootInfo": {
-    "p3": {
+    "p2": {
       "t": "ready",
       "drpg": true,
       "settingsRegistered": 65
@@ -149,7 +149,7 @@
       "drpg": true,
       "settingsRegistered": 65
     },
-    "p2": {
+    "p3": {
       "t": "ready",
       "drpg": true,
       "settingsRegistered": 65

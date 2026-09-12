@@ -1988,9 +1988,10 @@ export async function callGm(actor, {
      * announces it can open the incident without a GM re-picking two names off
      * a list they are already reading.
      *
-     * Safe to render for everybody. The handler is GM-gated on the clicking
-     * client and every action behind it is GM-gated again on arrival, so a
-     * player who forges a click into their own DOM achieves nothing.
+     * Safe to render for everybody: the GM-only buttons are stripped from a
+     * player's copy (`wireCallActions`), and every action behind them is
+     * GM-gated again on arrival, so a player who forges a click into their own
+     * DOM achieves nothing.
      */
     actions = [],
     /**

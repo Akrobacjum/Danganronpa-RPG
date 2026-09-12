@@ -322,10 +322,6 @@ export async function spendDespairCallFor(actor, key, { note = "", choice = {} }
  * ========================================================================== */
 
 /**
- * Confirm a call before paying for it, with room to say what it is aimed at.
- * @returns {Promise<string|null>} the note, or null if cancelled.
- */
-/**
  * Confirm a Call. Just the effect, the price, and what it will be applied to -
  * no free-text box. The Call does the thing; explaining it is what the table is
  * for.

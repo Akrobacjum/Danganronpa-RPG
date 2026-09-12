@@ -119,8 +119,10 @@ export function registerVoiceClient() {
         askWhereIBelong();
     });
 
-    // Registered here rather than at `init`: `game.socket` does not exist yet
-    // when the module wires itself up.
+    // Registered at `ready` rather than `init`: the socket itself is up at
+    // init (sfx.mjs and safeword.mjs listen from there), but a voice packet
+    // arriving before the AV client and the world's users exist has nothing
+    // to act on, so the listener waits for both.
     Hooks.once("ready", () => {
         game.socket.on(SOCKET_EVENT, onVoiceSocket);
         startSelfCheck();
@@ -240,7 +242,8 @@ function enqueue(fn) {
     return chain;
 }
 
-function avclientActive() {
+/** Whether the LiveKit AV client module is enabled at all. Shared with voice.mjs. */
+export function avclientActive() {
     return Boolean(game.modules.get(AV_MODULE)?.active);
 }
 
