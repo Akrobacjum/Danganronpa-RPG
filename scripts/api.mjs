@@ -723,6 +723,10 @@ export const DrpgApi = {
     /** Un-mark a mis-click. Does NOT bring the destroyed inventory back. */
     reviveCharacter,
 
+    /** The safeword, for anyone: no character, no sheet, no reason asked.
+     *  The same confirmation the sheet's button opens (COMM-11). */
+    safeword: () => import("./safeword.mjs").then(m => m.safewordDialog()),
+
     /** Promote the traces, call everyone in, and hold the game there. */
     discoverBody,
 

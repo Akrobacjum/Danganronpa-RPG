@@ -29,7 +29,7 @@
  * truth-bullets.mjs), and only a GM may write to another player's sheet.
  */
 
-import { MODULE_ID, FLAGS, REMNANT_TYPES } from "./config.mjs";
+import { MODULE_ID, FLAGS, REMNANT_TYPES, CHAPTERS_PER_SEASON } from "./config.mjs";
 import { getClock } from "./clock.mjs";
 import { bodyDiscovery, setBodyDiscovery, clearBodyDiscovery } from "./settings.mjs";
 import { TRUTH_BULLET_FLAGS, bulletsOf, secretOf, dropSecret } from "./truth-bullets.mjs";
@@ -260,7 +260,7 @@ async function offerStageSix(victim) {
  * Undo the marking. The inventory does NOT come back - those documents are
  * gone - so this is for a mis-click, not for a resurrection.
  */
-export async function reviveCharacter(actor) {
+export async function reviveCharacter(actor, { quiet = false } = {}) {
     if (!game.user.isGM || !actor) return false;
 
     try {
@@ -271,7 +271,9 @@ export async function reviveCharacter(actor) {
         return false;
     }
 
-    ui.notifications.info(game.i18n.format("DRPG.Chapter.revived", { name: actor.name }));
+    // `quiet`: the season reset revives every corpse in a row and deletes every
+    // Truth Bullet anyway, so a toast per body said nothing (CORE-18).
+    if (!quiet) ui.notifications.info(game.i18n.format("DRPG.Chapter.revived", { name: actor.name }));
     return true;
 }
 
@@ -801,6 +803,9 @@ export async function openChapterEndDialog() {
        floor: a trial in session with nobody holding the floor has no floor record at
        all, and it is still a trial - see the note on the HUD's four states. */
     const trialSitting = getClock().phase === "classTrial";
+    // The season's last chapter (CORE-10): moving on to a seventh is never what
+    // the GM means; the reset lives under Between sessions.
+    const lastChapter = (Number(getClock().chapter) || 1) >= CHAPTERS_PER_SEASON;
 
     let faintable = 0, keyable = 0;
     for (const scene of game.scenes) {
@@ -837,9 +842,11 @@ export async function openChapterEndDialog() {
                 <input type="checkbox" name="endTrial"${trialSitting ? " checked" : " disabled"} />
                 ${game.i18n.localize("DRPG.Chapter.optEndTrial")}</label>
             <label class="drpg-checkbox">
-                <input type="checkbox" name="nextChapter" checked />
+                <input type="checkbox" name="nextChapter"${lastChapter ? "" : " checked"} />
                 ${game.i18n.format("DRPG.Chapter.optNextChapter", {
                     from: getClock().chapter, to: getClock().chapter + 1 })}</label>
+            ${lastChapter ? `<p class="notes drpg-warning">${game.i18n.format("DRPG.Chapter.lastChapter", {
+                    n: getClock().chapter, next: getClock().chapter + 1 })}</p>` : ""}
             <label class="drpg-checkbox">
                 <input type="checkbox" name="nextSession" checked />
                 ${game.i18n.format("DRPG.Chapter.optNextSession", {

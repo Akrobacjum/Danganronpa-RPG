@@ -399,7 +399,13 @@ const CLAUSES = [
          * The old key stays in the language file for exactly this clause to
          * read. It is not used to render anything any more.
          */
-        run: async () => {
+        run: async ({ from }) => {
+            // A WORLD THAT WAS IN PLAY, not a new one (CORE-13). Unstamped
+            // worlds run every clause, and a world created today has never
+            // used the language file's word - so without this line every new
+            // world got it as its safeword, with a card saying it was found.
+            if (!from) return null;
+
             const current = String(getSetting(SETTINGS.safeword) ?? "").trim();
             const { DEFAULT_SAFEWORD } = await import("./settings.mjs");
             if (current && current !== DEFAULT_SAFEWORD) return null;

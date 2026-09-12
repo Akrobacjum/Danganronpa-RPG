@@ -170,6 +170,24 @@ export async function safewordDialog(actor = null) {
 }
 
 export function registerSafeword() {
+    /* A DOOR THAT EXISTS FOR EVERY USER (COMM-11). The only button was on the
+       character sheet, and the promise is "anyone may: player, GM, dead,
+       Monocub, spectator". A keybinding (unbound until the table picks one, in
+       Foundry's Controls) and `game.drpg.safeword()` need no character and no
+       open window. */
+    try {
+        game.keybindings.register(MODULE_ID, "safeword", {
+            name: "DRPG.Safeword.keybinding",
+            hint: "DRPG.Safeword.tooltip",
+            editable: [],
+            onDown: () => { safewordDialog(); return true; },
+            restricted: false,
+            precedence: CONST.KEYBINDING_PRECEDENCE?.PRIORITY ?? 0
+        });
+    } catch (err) {
+        error("Could not register the safeword keybinding", err);
+    }
+
     // The GM-only half. `recipients` on the emit decides who receives it, so a
     // player's client never sees this packet at all.
     game.socket.on(`module.${MODULE_ID}`, (payload, senderId) => {

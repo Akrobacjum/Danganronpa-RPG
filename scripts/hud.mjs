@@ -1502,7 +1502,11 @@ function paintElapsed(el) {
     el.classList.remove("is-trial-clock", "overrun");
     el.dataset.tooltip = game.i18n.localize("DRPG.Hud.elapsedTooltip");
 
-    const clock = getClock();
+    // The DISPLAY clock (CORE-06): during an incident an outsider's label
+    // freezes on the last public hour, and a counter that read the true clock
+    // snapped to "0 min in" the moment the GM moved it - the very tell the
+    // freeze exists to hide.
+    const clock = clockForDisplay(getClock());
     const startedAt = clock.timeOfDayStartedAt;
     el.classList.remove("past-first", "past-second", "paused");
 

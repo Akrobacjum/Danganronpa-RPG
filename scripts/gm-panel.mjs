@@ -1162,7 +1162,9 @@ export async function openClockDialog() {
         .map(([key, p]) => `<option value="${key}"${key === clock.phase ? " selected" : ""}>${p.label}</option>`)
         .join("");
 
-    const chapters = Array.from({ length: CHAPTERS_PER_SEASON }, (_, i) => i + 1)
+    // Never shorter than the clock: a clock past the season's last chapter
+    // found no matching option, the browser selected "1", and Apply wrote it.
+    const chapters = Array.from({ length: Math.max(CHAPTERS_PER_SEASON, Number(clock.chapter) || 1) }, (_, i) => i + 1)
         .map(n => `<option value="${n}"${n === clock.chapter ? " selected" : ""}>${n}</option>`)
         .join("");
 

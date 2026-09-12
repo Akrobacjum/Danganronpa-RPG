@@ -367,7 +367,7 @@ export async function openSeasonSetup() {
                        value="${esc(clock.campaignName ?? "")}"
                        placeholder="${esc(game.i18n.localize("DRPG.Season.campaignPlaceholder"))}" /></label>
             <label>${esc(game.i18n.localize("DRPG.Season.chapter"))}
-                <input type="number" name="chapter" min="1" max="${CHAPTERS_PER_SEASON}"
+                <input type="number" name="chapter" min="1" max="${Math.max(CHAPTERS_PER_SEASON, Number(clock.chapter) || 1)}"
                        value="${Number(clock.chapter) || 1}" /></label>
 
             <!--
@@ -753,7 +753,7 @@ async function wipeSeason({ alsoChat = false } = {}) {
         const { setMonocub } = await import("./monocub.mjs");
         for (const actor of studentActors()) {
             if (actor.getFlag(MODULE_ID, "monocub")) await setMonocub(actor, false);
-            if (actor.getFlag(MODULE_ID, "deceased")) await reviveCharacter(actor);
+            if (actor.getFlag(MODULE_ID, "deceased")) await reviveCharacter(actor, { quiet: true });
         }
     });
 

@@ -1466,45 +1466,6 @@ async function performSearch(actor, def, options) {
  * carries the same three parts.
  * ========================================================================== */
 
-/**
- * The one window Think, Listen and their kin open before the dice: the
- * briefing, the trait (when there is a choice) and the box for what you are
- * actually trying to do.
- *
- * ALWAYS OPENS, even when the action has a single trait and nothing to pick -
- * `chooseTrait` short-circuits in that case, and short-circuiting past this
- * window would take the sentence with it.
- */
-async function askTraitAndRequest(actor, actionKey, def) {
-    const traits = def.traits ?? [];
-
-    const picked = await DialogV2.wait({
-        window: { title: def.label },
-        classes: ["drpg-panel"],
-        content: dialogContent(`${briefingBlock(actor, actionKey, def)}<form>
-            ${requestFieldHtml({
-                prompt: game.i18n.format("DRPG.Action.gmPrompt", { action: def.label }),
-                placeholder: game.i18n.localize(`DRPG.Action.placeholder.${actionKey}`)
-            })}
-            ${traits.length ? traitFieldHtml(actor, traits) : ""}
-        </form>`),
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Action.roll"), default: true,
-                callback: (e, b, d) => ({
-                    trait: traits.length ? readTraitField(d.element, traits) : null,
-                    request: readRequestField(d.element)
-                })
-            },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
-        rejectClose: false
-    });
-
-    if (!picked || picked === "cancel") return null;
-    return picked;
-}
-
 /** The textarea, with whatever prompt the action wants above it. */
 function requestFieldHtml({ prompt, placeholder, optional = true }) {
     return `<label class="drpg-specific-note">
@@ -1677,6 +1638,8 @@ async function performProject(actor, def, options) {
     // here to push - the reason is the useful half of the answer, and a player
     // who cannot see the option cannot tell whether they are in the wrong room
     // or the module has forgotten the project exists.
+    // The trait field serves both rows: a project to push and one to break are
+    // both "a project whose statistic may be open".
     const traitOptions = openTraits(here, def);
 
     /*
@@ -1700,6 +1663,9 @@ async function performProject(actor, def, options) {
     const { isMonokuma } = await import("./monokuma.mjs");
     const { sabotageTargetsIn } = await import("./projects.mjs");
     const breakable = sabotageTargetsIn(room, { anyRoom: isMonokuma(actor) });
+    if (!traitOptions.length && openTraits(breakable, ACTIONS.sabotage).length) {
+        traitOptions.push(...ACTIONS.sabotage.traits);
+    }
 
     const picked = await chooseVariant({
         actor,
@@ -1730,21 +1696,32 @@ async function performProject(actor, def, options) {
                 why: game.i18n.localize("DRPG.Project.nothingToSabotage")
             }
         ],
-        extra: here.length
+        // Both targets ride along (ROLL-12): which project to push, and which
+        // to break. Sabotage used to open a second window that asked for the
+        // same two things this one already showed.
+        extra: `${here.length
             ? `<label class="drpg-specific-note">
                 <span>${game.i18n.localize("DRPG.Project.whichWork")}</span>
                 <select name="project">${projectOptionsHtml(here)}</select>
             </label>`
-            : ""
+            : ""}${breakable.length
+            ? `<label class="drpg-specific-note">
+                <span>${game.i18n.localize("DRPG.Project.whichSabotage")}</span>
+                <select name="sabotage">${projectOptionsHtml(breakable)}</select>
+            </label>`
+            : ""}`
     });
 
     if (!picked) return null;
     if (picked.value === "start") return startProject(actor);
-    // Straight through to the action it always was - its own dialog, its own
-    // concealment roll, its own trace. Nothing about `performSabotage` changed;
-    // only the door into it did.
+    // Straight through to the action it always was - its own concealment roll,
+    // its own trace - with the target and the statistic read off THIS window.
     if (picked.value === "sabotage") {
-        return performSabotage(actor, ACTIONS.sabotage, options);
+        const target = breakable.find(pr => pr.id === picked.form?.querySelector("[name=sabotage]")?.value)
+            ?? breakable[0];
+        const trait = resolveProjectTrait(target, picked.trait, ACTIONS.sabotage.traits ?? []);
+        if (!trait) return null;
+        return performSabotage(actor, ACTIONS.sabotage, options, { project: target, trait });
     }
 
     // The window is closed by now, but `chooseVariant` hands back the form it
@@ -2218,8 +2195,9 @@ async function chooseProjectAndTrait(list, promptKey, actor, def, { disableCompl
         window: { title: game.i18n.localize("DRPG.Project.title") },
         classes: ["drpg-panel"],
         // No briefing here: Work-on-Project already showed one on the window
-        // before this, and Sabotage's own path opens this dialog first. Repeating
-        // it would put the same three paragraphs on two consecutive windows.
+        // before this. Sabotage only reaches this dialog through the API's own
+        // door (the Projects window picks its target itself, ROLL-12), and that
+        // is when the briefing is shown.
         content: dialogContent(`${def === ACTIONS.sabotage ? briefingBlock(actor, "sabotage", def) : ""}<form>
             <label>${game.i18n.localize(promptKey)}
                 <select name="project">${projectOptions}</select></label>
@@ -2264,7 +2242,7 @@ async function chooseProjectAndTrait(list, promptKey, actor, def, { disableCompl
  * SABOTAGE
  * ========================================================================== */
 
-async function performSabotage(actor, def, options) {
+async function performSabotage(actor, def, options, preset = null) {
     const cost = options.free ? 0 : def.cost;
     if (!canAfford(actor, cost)) return null;
 
@@ -2323,7 +2301,10 @@ async function performSabotage(actor, def, options) {
     // one than the people who built it had to use - the trait field in this
     // same dialog only ever matters for a target that left it open, same as
     // Work on Project. See chooseProjectAndTrait().
-    const picked = await chooseProjectAndTrait(targets, "DRPG.Project.whichSabotage", actor, def);
+    // Already chosen on the Projects window (ROLL-12) - as long as the target
+    // is still one that can be broken; the API's direct door still asks here.
+    const chosen = preset?.project && targets.some(p => p.id === preset.project.id) ? preset : null;
+    const picked = chosen ?? await chooseProjectAndTrait(targets, "DRPG.Project.whichSabotage", actor, def);
     if (!picked) return null;
     const { project, trait } = picked;
 
@@ -3144,47 +3125,6 @@ async function chooseStolenItem(victim, pool) {
  * ACTIONS THAT NEED A HUMAN
  * ========================================================================== */
 
-/** Think, Listen, Analyze, Observe: roll, then hand the result to the GM. */
-async function performGmAction(actor, actionKey, def, options) {
-    const cost = options.free ? 0 : def.cost;
-    if (!canAfford(actor, cost)) return null;
-
-    // One window, before anything is thrown: the trait and the sentence.
-    const asked = await askTraitAndRequest(actor, actionKey, def);
-    if (!asked) return null;
-    const { trait, request } = asked;
-    // An action with traits to choose between and none chosen is a dismissal.
-    if ((def.traits?.length ?? 0) && !trait) return null;
-
-    const roll = await rollTrait(actor, trait, { actionKey });
-    if (!roll) return null;
-    if (cost > 0) await spendAction(actor, cost);
-
-    const body = buildGmBody(actionKey, def, roll);
-
-    await callGm(actor, {
-        title: def.label,
-        request,
-        roll,
-        room: roomOfActor(actor),
-        gmBody: body,
-        // Nothing mechanical to apply - Think and Listen end in a sentence - so
-        // the card carries the two answers that ARE the ruling: say it, or say
-        // there is nothing and hand the action back.
-        actions: gmRulingActions(actor, cost)
-    });
-
-    // Ruled by a human. Reroll cannot undo a ruling, so it re-asks - see
-    // `settleGmRuling` in reroll.mjs.
-    await noteRollContext(actor, {
-        actionKey, gmRuled: true, request, label: def.label, room: roomOfActor(actor)
-    });
-
-    await whisperToOwner(actor, `${rollHead(def, roll)}${body}`, rollCardFlags(def, roll));
-
-    return { calledGm: true, roll };
-}
-
 /**
  * The two buttons every ruling gets when there is nothing mechanical to apply.
  *
@@ -3281,15 +3221,14 @@ async function observeRanked(actor, def, cost, options, declaration) {
     // spent. Leave the action in the player's pocket.
     if (!target) return null;
 
-    if (!target.ok) {
-        // Nothing here to find, or the character is not standing in a room:
-        // hand it to the GM the way Observe always used to work.
-        return performGmAction(actor, "observe", def, options);
-    }
-
     const roll = await rollTrait(actor, "eye", { actionKey: "observe" });
     if (!roll) return null;
     if (cost > 0) await spendAction(actor, cost);
+
+    // Nothing here to find, or the character is not standing in a room: the
+    // GM rules on the roll just thrown, as `observeSpecific` does. This used
+    // to open a SECOND declaration window (ROLL-11).
+    if (!target.ok) return ruleObserve(actor, def, roll, "", null, cost);
 
     return settleObserveRoll(actor, def, roll, target.key, declaration);
 }
@@ -3336,7 +3275,7 @@ async function observeSpecific(actor, def, cost, request = "") {
     if (cost > 0) await spendAction(actor, cost);
 
     // Refused, empty room, no room at all: the GM rules on the roll that has
-    // already been thrown. Calling `performGmAction` here would roll a second
+    // already been thrown. Opening a second declaration window would roll a second
     // time for the same action.
     if (!target.ok) return ruleObserve(actor, def, roll, request, null, cost);
 

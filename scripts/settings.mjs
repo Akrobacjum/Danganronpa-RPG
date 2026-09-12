@@ -1534,8 +1534,11 @@ function scaleWindow(app, element) {
        - the audit page's proportions, one grid wide and one deep - and the interface scale
        multiplies it like everything else, so 140 % opens a bigger sheet rather than the same
        box with bigger text in it. */
-    if (/actor/i.test(app?.constructor?.name ?? "") || app?.element?.classList?.contains("actor")
-        || app?.document?.documentName === "Actor") {
+    // THE CHARACTER SHEET, BY ITS DOCUMENT (UI-09). A class-name match on
+    // "actor" also caught Foundry's Actors sidebar tab and any window with the
+    // word in its name, and `documentName === "Actor"` caught NPC sheets - all
+    // of them were forced to 1120 x 1160 and lost their resize handle.
+    if (app?.document?.type === "character") {
         want.width = 1120;
         /* 1160, NOT 940. Measured on the sheet: the tallest tab wants 820 px of room and was
            given 607, so the last row of Hope Calls was simply below the fold - the window was

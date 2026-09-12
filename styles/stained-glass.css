@@ -495,7 +495,10 @@ body.drpg-theme-stained-glass .drpg-event-title {
     line-height: 1.15;
     text-transform: none;
     letter-spacing: 0;
-    color: var(--acc);
+    /* Text in the accent, lifted towards bone (UI-11): night's #7f8cff alone reads at
+       3.7:1 over a bright map, and this is a title. Plates keep the pure accent - ink on
+       them is fine - and so do borders; only words standing on their own take the mix. */
+    color: color-mix(in srgb, var(--acc) 72%, var(--drpg-sg-bone));
     margin-top: 2px;
 }
 body.drpg-theme-stained-glass .drpg-event-sub {
@@ -3751,7 +3754,7 @@ body.drpg-theme-stained-glass .drpg-gm-panel .drpg-gmp-grid {
 /* THE TABLE HEADER IS THE STATE'S COLOUR. It was the GM's red, which in this theme means
    "the GM does this" - and a column heading does nothing. The audit page has it in the hour. */
 body.drpg-theme-stained-glass .drpg-gm-panel table th {
-    color: var(--drpg-glass-accent) !important;
+    color: color-mix(in srgb, var(--drpg-glass-accent) 72%, var(--drpg-sg-bone)) !important;
     border-bottom-color: color-mix(in srgb, var(--drpg-glass-accent) 45%, transparent) !important;
 }
 
@@ -3874,11 +3877,13 @@ body.drpg-theme-stained-glass .application .window-title::first-letter {
    read as text. The destructive and route rows keep their own red: there the colour IS the
    warning, and handing it to the time of day would take that away. */
 body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-gm-panel) :is(i, .fa, [class*="fa-"]) {
-    color: var(--drpg-glass-accent);
+    color: color-mix(in srgb, var(--drpg-glass-accent) 72%, var(--drpg-sg-bone));
 }
+/* The light red, never #e0182f, for a glyph standing alone: the dark red is 2.9:1 on a
+   pane and is a fill colour (UI-11). */
 body.drpg-theme-stained-glass :is(.drpg-panel, .drpg-gm-panel)
     :is(.drpg-destructive, .drpg-gm-route, [data-drpg-gm]) :is(i, .fa, [class*="fa-"]) {
-    color: var(--drpg-sg-gm);
+    color: var(--drpg-sg-gm-light);
 }
 
 /* 4. THE SHEET'S TAB BAR RUNS THE WHOLE WIDTH, as it does on the audit page: four equal

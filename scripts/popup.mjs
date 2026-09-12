@@ -103,17 +103,31 @@ function positionBelowWidgets(el) {
     }
 }
 
-/** Retire the oldest non-sticky cards until the stack fits. */
+/** Retire the oldest cards until the stack fits - non-sticky ones first. */
 function trimStack() {
     const cards = Array.from(container().querySelectorAll(".drpg-popup:not(.leaving)"));
     const droppable = cards.filter(c => !c.classList.contains("drpg-popup-sticky"));
     // Under Stained Glass the stack lives on a tile of the curtain cut for two short cards or one
     // long one (glass.mjs, "note-block"), so two is the most it may hold.
-    const max = document.body.classList.contains("drpg-theme-stained-glass") ? 2 : MAX_VISIBLE;
-    const excess = cards.length - max;
+    const glass = document.body.classList.contains("drpg-theme-stained-glass");
+    const max = glass ? 2 : MAX_VISIBLE;
+    let excess = cards.length - max;
 
     for (let i = 0; i < excess && i < droppable.length; i++) {
         droppable[i].dispatchEvent(new CustomEvent("drpg-dismiss"));
+    }
+
+    /* AND THEN THE OLDEST STICKY ONE (UI-10). The glass tile clips with `overflow: hidden`
+       and fills from the bottom, so with two sticky evidence cards on it every later card -
+       a refusal, a reply, the time of day - was appended out of sight, and the newest card
+       was the one nobody could see until a sticky one was closed by hand. A retired evidence
+       card is still in the chat log; a hidden refusal is nowhere. Legacy scrolls, so it keeps
+       its sticky cards. */
+    excess -= Math.min(excess, droppable.length);
+    if (!glass || excess <= 0) return;
+    const sticky = cards.filter(c => c.classList.contains("drpg-popup-sticky"));
+    for (let i = 0; i < excess && i < sticky.length; i++) {
+        sticky[i].dispatchEvent(new CustomEvent("drpg-dismiss"));
     }
 }
 

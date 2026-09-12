@@ -2932,7 +2932,7 @@ body.drpg-pixel-font [contenteditable] {
 }
 
 .drpg-tb-badge {
-    font-size: 0.7rem;
+    font-size: var(--drpg-text-xs);
     line-height: 1;
     padding: 2px 5px;
     border-radius: 3px;
@@ -5663,7 +5663,9 @@ body.drpg-pixel-font #drpg-player-status .drpg-status-label {
 }
 
 body.drpg-pixel-font #drpg-player-status .drpg-status-value {
-    font-size: 0.72rem;
+    /* 12 px: fonts/README puts the pixel face's readable floor at 11, and a number is
+       the one thing on this strip that has to be read at a glance (UI-12). */
+    font-size: 0.75rem;
 }
 
 body.drpg-pixel-font .drpg-hud-elapsed {
@@ -5786,7 +5788,7 @@ body.drpg-pixel-font .drpg-hud-incident {
 
 /* One footprint, not a track - there is only ever one free Move. */
 #drpg-player-status .drpg-free-move {
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     color: var(--drpg-eye);
 }
 
@@ -11126,7 +11128,7 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     padding: 0 4px;
     border: 1px solid var(--drpg-line);
     border-radius: 2px;
-    font-size: 0.66rem;
+    font-size: var(--drpg-text-xs);
     font-variant-numeric: tabular-nums;
     color: var(--drpg-dim);
     cursor: help;
@@ -11855,7 +11857,7 @@ form:has(select[name="trigger"] option[value="sabotage"]:checked) [data-drpg-whe
 */
 
 .drpg-overflow-badge {
-    font-size: 10px;
+    font-size: var(--drpg-text-xs);
     text-transform: uppercase;
     letter-spacing: 0.08em;
     opacity: 0.9;
@@ -11976,7 +11978,7 @@ form:has(select[name="trigger"] option[value="sabotage"]:checked) [data-drpg-whe
     padding: 0 5px;
     border: 1px solid rgba(var(--drpg-bone-rgb), 0.28);
     border-radius: 2px;
-    font-size: 0.68em;
+    font-size: var(--drpg-text-xs);
     letter-spacing: 0.04em;
     text-transform: uppercase;
     opacity: 0.75;

@@ -2,7 +2,7 @@
   "scenario": "scenarios/20-crit-hope.mjs",
   "passed": 3,
   "total": 3,
-  "ms": 838,
+  "ms": 832,
   "results": [
     {
       "name": "critical is a critical (hope==fear)",
@@ -23,11 +23,6 @@
   "permissionDenials": [],
   "socketTraffic": [
     {
-      "from": "p3",
-      "channel": "module.danganronpa-rpg",
-      "size": 99
-    },
-    {
       "from": "p1",
       "channel": "module.danganronpa-rpg",
       "size": 99
@@ -43,19 +38,14 @@
       "size": 29
     },
     {
-      "from": "p1",
-      "channel": "module.danganronpa-rpg",
-      "size": 91
-    },
-    {
-      "from": "p3",
-      "channel": "module.danganronpa-rpg",
-      "size": 91
-    },
-    {
       "from": "p3",
       "channel": "module.danganronpa-rpg",
       "size": 99
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
     },
     {
       "from": "p1",
@@ -76,6 +66,16 @@
       "from": "gm",
       "channel": "module.danganronpa-rpg",
       "size": 91
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
     },
     {
       "from": "gm",
@@ -109,22 +109,22 @@
     }
   ],
   "bootInfo": {
-    "p1": {
-      "t": "ready",
-      "drpg": true,
-      "settingsRegistered": 65
-    },
-    "p3": {
-      "t": "ready",
-      "drpg": true,
-      "settingsRegistered": 65
-    },
     "p2": {
       "t": "ready",
       "drpg": true,
       "settingsRegistered": 65
     },
+    "p1": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 65
+    },
     "gm": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 65
+    },
+    "p3": {
       "t": "ready",
       "drpg": true,
       "settingsRegistered": 65
