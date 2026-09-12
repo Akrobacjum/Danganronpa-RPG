@@ -3184,6 +3184,41 @@ const INVARIANTS = [
         ok(!missing.length, `missing: ${missing.slice(0, 8).join(", ")}`);
     }],
 
+    ["the Polish file covers every English key", async () => {
+        // A language file that lags behind en.json shows a Polish GM one
+        // English sentence in the middle of a card. Both files are fetched
+        // fresh: the merged runtime table cannot tell which language a key
+        // came from. Plural families may carry `few` and `many`; `DRPG.Config`
+        // holds config.mjs's prose and has no twin in en.json by design.
+        const { MODULE_ID } = await import("./config.mjs");
+        const read = async lang => {
+            const r = await fetch(`modules/${MODULE_ID}/lang/${lang}.json`);
+            ok(r.ok, `${lang}.json: HTTP ${r.status}`);
+            return foundry.utils.expandObject(await r.json());
+        };
+        const flat = (o, p = "") => Object.entries(o ?? {}).flatMap(([k, v]) =>
+            typeof v === "object" && v !== null ? flat(v, p ? `${p}.${k}` : k) : [p ? `${p}.${k}` : k]);
+        const [en, pl] = await Promise.all([read("en"), read("pl")]);
+        const enKeys = flat(en), plKeys = new Set(flat(pl));
+        const missing = enKeys.filter(k => !plKeys.has(k));
+        ok(!missing.length, `pl.json lacks: ${missing.slice(0, 8).join(", ")}`);
+        const stray = [...plKeys].filter(k => !k.startsWith("DRPG.Config.") && !/\.(few|many)$/.test(k) && !enKeys.includes(k));
+        ok(!stray.length, `pl.json has keys en.json does not: ${stray.slice(0, 8).join(", ")}`);
+        // Every placeholder the English sentence carries, the Polish one must carry too -
+        // except the article `{a}`, which Polish has no use for.
+        const flatV = (o, p = "") => Object.entries(o ?? {}).flatMap(([k, v]) =>
+            typeof v === "object" && v !== null ? flatV(v, p ? `${p}.${k}` : k) : [[p ? `${p}.${k}` : k, v]]);
+        const plV = new Map(flatV(pl));
+        const holes = [];
+        for (const [k, v] of flatV(en)) {
+            if (typeof v !== "string" || typeof plV.get(k) !== "string") continue;
+            const want = (v.match(/\{\w+\}/g) ?? []).filter(h => h !== "{a}");
+            const have = new Set(plV.get(k).match(/\{\w+\}/g) ?? []);
+            for (const h of want) if (!have.has(h)) holes.push(`${k} ${h}`);
+        }
+        ok(!holes.length, `placeholders dropped: ${holes.slice(0, 6).join(", ")}`);
+    }],
+
     /* ---- the audit of 1.2.27: the three things it could not check by reading ------------
        Each of these was a defect nobody saw until a screenshot arrived from a tablet, and
        each is cheap to measure on a live client. They only run under the theme they are

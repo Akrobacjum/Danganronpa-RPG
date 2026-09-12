@@ -144,6 +144,14 @@ which one is missing.
 Developed and played on [The Forge](https://forge-vtt.com/); it works the same
 on any Foundry v14 host.
 
+**Language.** The module has its own *Language* setting - English or Polski,
+per browser, English by default - at the top of the Look dialog behind the gear
+in the corner, and under the module's settings. It is separate from Foundry's
+core language on purpose: the layer a Polish table wants in Polish is this one,
+not the whole client. The glossary (Hope, Despair, Sanity, Truth Bullets,
+Remnants, Blackened, Class Trial, Daily Life, the Calls, the actions) stays
+English in every language, as the game's proper names.
+
 ## Starting a season
 
 1. Make a world on the **Daggerheart** system and enable the module and its

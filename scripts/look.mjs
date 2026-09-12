@@ -14,7 +14,8 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { SETTINGS, getSetting, setSetting, autoScale, effectiveScale } from "./settings.mjs";
+import { SETTINGS, getSetting, setSetting, autoScale, effectiveScale, moduleLanguage } from "./settings.mjs";
+import { LANGUAGES, confirmLanguageReload } from "./i18n.mjs";
 import { alreadyOpen } from "./live.mjs";
 import { error } from "./utils.mjs";
 
@@ -42,14 +43,24 @@ function lookFieldset() {
        which is where a sound switch is looked for.
        Foundry's own settings window hides the same three through `renderSettingsConfig`
        in settings.mjs; the two windows show the same set. */
-    const glassOnly = legacy ? "" :
+    /* Reduced motion is shown under both themes: the switch damps the popups, the flares
+       and the clock's turn-over as well as the glass, and Monokuma Legacy has all of those. */
+    const glassOnly = (legacy ? "" :
         check("pulse", SETTINGS.glassPulse, getSetting(SETTINGS.glassPulse) !== false)
-        + check("ticker", SETTINGS.hudTicker, getSetting(SETTINGS.hudTicker) !== false)
+        + check("ticker", SETTINGS.hudTicker, getSetting(SETTINGS.hudTicker) !== false))
         + check("reducedMotion", SETTINGS.reducedMotion, getSetting(SETTINGS.reducedMotion) === true);
     const opt = (value, label) => `<option value="${value}"${theme === value ? " selected" : ""}>${
         foundry.utils.escapeHTML(game.i18n.localize(label))}</option>`;
+    /* The language, first: it is the one row here that changes every other word on the
+       screen, and a player looking for it should not have to read the theme's switches
+       first. The names are the languages' own, never translated. */
+    const lang = moduleLanguage();
+    const langOptions = Object.entries(LANGUAGES).map(([value, name]) =>
+        `<option value="${value}"${lang === value ? " selected" : ""}>${foundry.utils.escapeHTML(name)}</option>`).join("");
     return `<fieldset class="drpg-look">
         <legend>${t("legend")}</legend>
+        <label><span>${t("language")}</span>
+            <select name="look:language">${langOptions}</select></label>
         <label><span>${t("theme")}</span>
             <select name="look:theme">${opt("stainedGlass", "DRPG.Settings.theme.stainedGlass")}${opt("monokumaLegacy", "DRPG.Settings.theme.monokumaLegacy")}</select></label>
         ${pixel}
@@ -63,6 +74,14 @@ function lookFieldset() {
 }
 
 function wireLook(root) {
+    /* A language change is a reload - every open window was built in the old one. The
+       setting is written first, so a declined reload still takes effect next time. */
+    root.querySelector("[name='look:language']")?.addEventListener("change", async ev => {
+        try {
+            await setSetting(SETTINGS.language, ev.currentTarget.value);
+            await confirmLanguageReload();
+        } catch (err) { error("Could not change the language", err); }
+    });
     /* The glass report and its "Redraw the glass" button were taken out on 07.09: a diagnostic
        does not belong in a player's settings window, and `drpgGlassDebug()` in the console
        still prints every number it printed, to the person who actually wants it. */

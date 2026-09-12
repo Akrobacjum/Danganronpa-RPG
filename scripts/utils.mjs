@@ -3,7 +3,7 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { SETTINGS } from "./settings.mjs";
+import { SETTINGS, moduleLanguage } from "./settings.mjs";
 
 /**
  * Escape a value for HTML, treating null and undefined as empty (C3).
@@ -125,7 +125,9 @@ export function activeGmIds() {
  * never fires. Assistants are only used when no full GM is connected.
  */
 export function isPrimaryGm() {
-    return primaryGmId() === game.user.id && game.user.isGM;
+    // `game.user` is null for the first and last moments of a client's life,
+    // and socket packets arrive in both.
+    return Boolean(game.user?.isGM) && primaryGmId() === game.user.id;
 }
 
 /**
@@ -187,7 +189,9 @@ export function plural(key, data = {}, countOn = "n") {
     const n = Number(data[countOn] ?? 0);
     let form = "other";
     try {
-        form = new Intl.PluralRules(game.i18n?.lang || "en").select(n);
+        // The MODULE's language, not Foundry's: the strings come from our
+        // file, and a Polish file carries one/few/many/other.
+        form = new Intl.PluralRules(moduleLanguage()).select(n);
     } catch {
         // An unknown language tag is the only way this throws, and the answer is
         // not to give up on the sentence - English's own rule is one/other, and

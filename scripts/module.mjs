@@ -14,6 +14,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { registerSettings } from "./settings.mjs";
+import { registerLanguage } from "./i18n.mjs";
 import { runMigrationOnLoad } from "./migrate.mjs";
 import { registerSfx } from "./sfx.mjs";
 import { registerPrivateRolls } from "./private-rolls.mjs";
@@ -117,6 +118,9 @@ Hooks.once("init", () => {
     // Settings first and unguarded: every other subsystem reads them, so if this
     // cannot run there is nothing worth continuing to.
     registerSettings();
+    // Straight after, and before anything reads a string: the language file is
+    // fetched now and merged the moment Foundry's own translations exist.
+    safely("the language", registerLanguage);
 
     // A paint-path workaround, not decoration - see the note on the function.
     safely("the select picker skin", injectSelectPickerSkin);

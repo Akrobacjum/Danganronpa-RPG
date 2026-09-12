@@ -55,6 +55,8 @@ export const SETTINGS = {
     hideSystemFear: "hideSystemFear",
     pixelFont: "pixelFont",
     theme: "theme",
+    /** This browser's language for the module's own strings - see i18n.mjs. */
+    language: "language",
     /** The slow darkening of the glass, separately from the glass itself. */
     glassPulse: "glassPulse",
     uiScale: "uiScale",
@@ -542,6 +544,24 @@ export function registerSettings() {
         type: Boolean,
         default: true,
         onChange: () => applyTheme()
+    });
+
+    /* ---- the language of this layer, per browser. English by default, and
+       deliberately NOT Foundry's core language: the file is fetched by the
+       module itself at init and merged at i18nInit (i18n.mjs), so a Polish
+       table on an English Foundry gets the sheet, the panel and the cards in
+       Polish and nothing else changes. A reload, because everything on screen
+       was built in the old language. The glossary stays in English in every
+       language - see the header of i18n.mjs. */
+    game.settings.register(MODULE_ID, SETTINGS.language, {
+        name: "DRPG.Settings.language.name",
+        hint: "DRPG.Settings.language.hint",
+        scope: "client",
+        config: true,
+        type: String,
+        choices: { en: "English", pl: "Polski" },
+        default: "en",
+        requiresReload: true
     });
 
     /* ---- the look: theme, glass effects, UI scale. All three are this
@@ -1285,6 +1305,20 @@ export async function clearBodyDiscovery() {
 }
 
 /** Convenience reader. */
+/**
+ * The language this browser asked the module for: `en` or `pl`, `en` when the
+ * setting is unregistered or holds something unknown. Here rather than in
+ * i18n.mjs because utils.mjs's `plural()` needs it and utils imports this leaf.
+ */
+export function moduleLanguage() {
+    try {
+        const lang = game.settings.get(MODULE_ID, SETTINGS.language);
+        return lang === "pl" ? "pl" : "en";
+    } catch {
+        return "en";
+    }
+}
+
 export function getSetting(key) {
     return game.settings.get(MODULE_ID, key);
 }
@@ -1550,8 +1584,10 @@ Hooks.on("renderSettingsConfig", (_app, element) => {
     };
     const sync = () => {
         const glass = (themeField?.value ?? getSetting(SETTINGS.theme)) === "stainedGlass";
-        for (const key of [SETTINGS.glassPulse, SETTINGS.hudTicker, SETTINGS.reducedMotion])
-            show(key, glass);
+        // Reduced motion is NOT glass-only: motion.css zeroes every motion token
+        // of the module under `drpg-reduced-motion`, popups and flares included,
+        // whichever theme is on.
+        for (const key of [SETTINGS.glassPulse, SETTINGS.hudTicker]) show(key, glass);
         show(SETTINGS.pixelFont, !glass);
     };
     sync();
