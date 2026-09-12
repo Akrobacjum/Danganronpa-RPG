@@ -23,6 +23,7 @@ import { MODULE_ID } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { gmIds, error, warn } from "./utils.mjs";
 import { playSfx } from "./sfx.mjs";
+import { postSecret } from "./secret.mjs";
 
 /**
  * Whether this browser hears the messenger at all.
@@ -121,7 +122,10 @@ export async function markThreadRead(playerUserId) {
     // fires repainted the launcher for nothing each time.
     const newest = Math.max(0, ...threadMessages(playerUserId).map(m => m.timestamp ?? 0));
     if (lastReadAt(playerUserId) >= newest) return;
-    const map = { ...readMap(), [playerUserId]: Date.now() };
+    // The newest message's own stamp, not this browser's clock (COMM-15): a
+    // sender whose clock runs ahead would otherwise leave a bubble unread
+    // while it is on screen, and one running behind would arrive read.
+    const map = { ...readMap(), [playerUserId]: newest };
     await game.settings.set(MODULE_ID, SETTINGS.messengerLastRead, map);
     Hooks.callAll("drpgMessengerRead", playerUserId);
 }
@@ -161,6 +165,16 @@ export async function sendMessage(playerUserId, text, { kind = THREAD_KIND.dm } 
     return createThreadMessage(playerUserId, `<p>${esc}</p>`, kind);
 }
 
+/*
+ * WHAT A LATER GM CANNOT SEE. A private card's words are held by the browsers
+ * that were connected when it was posted, so a GM who joins tomorrow reads a
+ * thread of stubs. That is the trade secret.mjs makes for every private card
+ * and it is the right one here too: a second GM re-reading last week's
+ * conversation is a convenience; a player reading it is the game. The roster
+ * preview tolerates a stub, and the thread's newest cards are the ones that
+ * matter.
+ */
+
 /**
  * Post pre-built HTML - the callGm() ruling cards - into a player's thread.
  * The caller is responsible for escaping anything it interpolated.
@@ -179,8 +193,20 @@ async function createThreadMessage(playerUserId, content, kind, gmAsk = false) {
     // that is doing the sending.
     if (messengerSoundOn()) playSfx("chatSend");
 
+    /*
+     * A PRIVATE CARD, LIKE EVERY OTHER PRIVATE CARD (COMM-03).
+     *
+     * This was the one poster in the module that wrote its words into the
+     * document: `ChatMessage.create` with a whisper list, which Foundry
+     * delivers to every connected client and merely hides. So every player
+     * could read every other player's thread from the console - the parked
+     * murder's note, the project proposals, the GM's typed rulings, the DMs.
+     * The words go over the addressed socket now and live in the readers'
+     * own browsers; the document keeps the thread flag, the kind and the
+     * timestamp, which is all the roster and the badge ever read.
+     */
     try {
-        return await ChatMessage.create({
+        return await postSecret({
             content,
             whisper,
             flags: {

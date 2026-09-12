@@ -1,8 +1,8 @@
 {
   "scenario": "scenarios/40-flow.mjs",
-  "passed": 31,
-  "total": 34,
-  "ms": 9905,
+  "passed": 32,
+  "total": 35,
+  "ms": 9894,
   "results": [
     {
       "name": "p1: spending an action costs exactly one",
@@ -12,7 +12,7 @@
     {
       "name": "gm: clock advanced to noon",
       "ok": true,
-      "details": "{\"eclipse\":false,\"campaignName\":\"\",\"season\":1,\"chapter\":1,\"session\":1,\"day\":1,\"phase\":\"dailyLife\",\"timeOfDay\":\"noon\",\"timeOfDayStartedAt\":1789250214833,\"pausedAt\":null,\"finalTrial\":false,\"campaign\":\"QA season\"}"
+      "details": "{\"eclipse\":false,\"campaignName\":\"\",\"season\":1,\"chapter\":1,\"session\":1,\"day\":1,\"phase\":\"dailyLife\",\"timeOfDay\":\"noon\",\"timeOfDayStartedAt\":1789250548648,\"pausedAt\":null,\"finalTrial\":false,\"campaign\":\"QA season\"}"
     },
     {
       "name": "p1: sees the new time of day",
@@ -92,7 +92,7 @@
     {
       "name": "gm: the Ultimate request arrived as a card with buttons in the player's thread",
       "ok": true,
-      "details": "{\"found\":true,\"sent\":true,\"rid\":\"ltzQH8qIccfkciep\",\"asker\":\"USERP20000000000\",\"text\":\"Ultimate - does it apply? Botan Kage I am the Ultimate Locksmith and this is a lock. Advantage on a roll your Ultimate genuinely applies to. 1 Hope, charged only on a yes. The question is the handbook\"}"
+      "details": "{\"found\":true,\"sent\":true,\"rid\":\"Pry7LwejH5Ldx7KU\",\"asker\":\"USERP20000000000\",\"text\":\"Ultimate - does it apply? Botan Kage I am the Ultimate Locksmith and this is a lock. Advantage on a roll your Ultimate genuinely applies to. 1 Hope, charged only on a yes. The question is the handbook\"}"
     },
     {
       "name": "p2: Hope was charged once the GM said yes",
@@ -115,14 +115,19 @@
       "details": "{\"total\":0,\"thread\":2,\"notifs\":[]}"
     },
     {
-      "name": "p1: cannot read p3's thread with the GM",
+      "name": "p1: holds no words of p3's thread with the GM",
       "ok": true,
-      "details": "p1 sees 0 messages of p3's thread"
+      "details": "{\"n\":0,\"words\":0,\"clear\":0}"
+    },
+    {
+      "name": "p3: holds the words of their own thread",
+      "ok": true,
+      "details": "2 of the thread's cards have words on p3"
     },
     {
       "name": "gm: the safeword reached this client",
       "ok": true,
-      "details": "{\"paused\":true,\"cards\":[\"Can I ask about the vending machine?\",\"Yes - it is out of order.\",\"THE SCENE IS STOPPED Somebody used the safeword. Play stops here. A GM will pick this up, and the sc\"],\"notifs\":[]}"
+      "details": "{\"paused\":true,\"cards\":[\"-\",\"-\",\"THE SCENE IS STOPPED Somebody used the safeword. Play stops here. A GM will pick this up, and the sc\"],\"notifs\":[]}"
     },
     {
       "name": "p1: the safeword reached this client",
@@ -132,7 +137,7 @@
     {
       "name": "p2: the safeword reached this client",
       "ok": true,
-      "details": "{\"paused\":false,\"cards\":[\"Ultimate - does it apply? Botan Kage I am the Ultimate Locksmith and this is a lock. Advantage on a \",\"-\",\"THE SCENE IS STOPPED Somebody used the safeword. Play stops here. A GM will pick this up, and the sc\"],\"notifs\":[]}"
+      "details": "{\"paused\":false,\"cards\":[\"-\",\"-\",\"THE SCENE IS STOPPED Somebody used the safeword. Play stops here. A GM will pick this up, and the sc\"],\"notifs\":[]}"
     },
     {
       "name": "gm: Pain ran",
@@ -178,39 +183,19 @@
   "permissionDenials": [],
   "socketTraffic": [
     {
-      "from": "p2",
-      "channel": "module.danganronpa-rpg",
-      "size": 99
-    },
-    {
-      "from": "p3",
-      "channel": "module.danganronpa-rpg",
-      "size": 99
-    },
-    {
-      "from": "p2",
-      "channel": "module.danganronpa-rpg",
-      "size": 91
-    },
-    {
-      "from": "p2",
-      "channel": "module.danganronpa-rpg",
-      "size": 99
-    },
-    {
-      "from": "p1",
-      "channel": "module.danganronpa-rpg",
-      "size": 99
-    },
-    {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
       "size": 29
     },
     {
-      "from": "p3",
+      "from": "p1",
       "channel": "module.danganronpa-rpg",
-      "size": 91
+      "size": 99
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
     },
     {
       "from": "p3",
@@ -223,12 +208,32 @@
       "size": 91
     },
     {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
       "from": "p1",
       "channel": "module.danganronpa-rpg",
       "size": 91
     },
     {
       "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p3",
       "channel": "module.danganronpa-rpg",
       "size": 99
     },
@@ -290,7 +295,7 @@
     {
       "from": "p1",
       "channel": "module.danganronpa-rpg",
-      "size": 1094
+      "size": 1106
     },
     {
       "from": "p1",
@@ -310,12 +315,27 @@
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
+      "size": 1006
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
       "size": 143
     },
     {
       "from": "p2",
       "channel": "module.danganronpa-rpg",
-      "size": 444
+      "size": 456
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 169
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 158
     },
     {
       "from": "p3",
@@ -329,7 +349,7 @@
       "drpg": true,
       "settingsRegistered": 65
     },
-    "p3": {
+    "gm": {
       "t": "ready",
       "drpg": true,
       "settingsRegistered": 65
@@ -339,7 +359,7 @@
       "drpg": true,
       "settingsRegistered": 65
     },
-    "gm": {
+    "p3": {
       "t": "ready",
       "drpg": true,
       "settingsRegistered": 65

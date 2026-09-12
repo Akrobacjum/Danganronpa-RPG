@@ -117,8 +117,17 @@ export async function run({ gm, p1, p2, p3, check, settle }) {
     await settle(600);
     const p3Unread = await p3.eval(`return { total: game.drpg.messengerUnreadTotal(), thread: game.drpg.messengerThreadMessages("${p3.userId}").length, notifs: globalThis.__notifications.map(n => n.level + ": " + n.msg) };`);
     check("p3: the reply arrives with an unread count", p3Unread.total >= 1 && p3Unread.thread >= 2, JSON.stringify(p3Unread));
-    const p1Thread = await p1.eval(`return game.drpg.messengerThreadMessages("${p3.userId}").length;`);
-    check("p1: cannot read p3's thread with the GM", p1Thread === 0, `p1 sees ${p1Thread} messages of p3's thread`);
+    // The documents travel to every client (Foundry routes on them); the WORDS must not (COMM-03).
+    const p1Thread = await p1.eval(`
+        const S = await import("${REPO}/scripts/secret.mjs");
+        const msgs = game.drpg.messengerThreadMessages("${p3.userId}");
+        return { n: msgs.length, words: msgs.filter(m => S.secretHtml(m)).length,
+                 clear: msgs.filter(m => !/data-drpg-secret/.test(m._source.content ?? "")).length };`);
+    check("p1: holds no words of p3's thread with the GM", p1Thread.words === 0 && p1Thread.clear === 0, JSON.stringify(p1Thread));
+    const p3Words = await p3.eval(`
+        const S = await import("${REPO}/scripts/secret.mjs");
+        return game.drpg.messengerThreadMessages("${p3.userId}").filter(m => S.secretHtml(m)).length;`);
+    check("p3: holds the words of their own thread", p3Words >= 2, `${p3Words} of the thread's cards have words on p3`);
 
     // ---- 5. the safeword ---------------------------------------------------------------------
     await clearLogs();

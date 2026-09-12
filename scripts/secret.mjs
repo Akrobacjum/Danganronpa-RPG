@@ -211,22 +211,35 @@ export function contentOf(message) {
     return secretHtml(message) ?? message?.content ?? "";
 }
 
-async function remember(id, html, at) {
+async function remember(id, html, at, pin = false) {
     // Anything holding a notice open for these words gets them now.
     const pending = waiting.get(id);
     if (pending) pending(html);
 
-    const store = { ...read(), [id]: { html, at: at ?? Date.now() } };
+    const store = { ...read(), [id]: { html, at: at ?? Date.now(), ...(pin ? { pin: true } : {}) } };
 
-    const ids = Object.keys(store);
+    // Oldest first, and only as many as we are over by. A store that emptied
+    // itself on every overflow would lose a whole session's narration to one
+    // busy evening. PINNED cards - the messenger's threads, the longest-lived
+    // cards in the world - are never the ones to go: a thread that aged out
+    // of the store would show its oldest bubbles as dashes.
+    const ids = Object.keys(store).filter(key => !store[key].pin);
     if (ids.length > KEEP) {
-        // Oldest first, and only as many as we are over by. A store that
-        // emptied itself on every overflow would lose a whole session's
-        // narration to one busy evening.
         ids.sort((a, b) => (store[a].at ?? 0) - (store[b].at ?? 0));
         for (const stale of ids.slice(0, ids.length - KEEP)) delete store[stale];
     }
     await write(store);
+
+    // A thread's window draws its bubbles from this store: the one whose
+    // words just landed is redrawn in place, the way a settled card is.
+    const message = game.messages?.get(id);
+    const thread = message?.flags?.[MODULE_ID]?.thread;
+    if (thread) Hooks.callAll("drpgMessengerEdited", thread, message);
+}
+
+/** A card the store must never age out: a messenger thread's. */
+function pinned(flags) {
+    return Boolean(flags?.[MODULE_ID]?.thread);
 }
 
 /** A card that is gone takes its words with it. */
@@ -280,12 +293,13 @@ export async function postSecret(data = {}) {
     if (!message) return null;
 
     const at = message.timestamp ?? Date.now();
+    const pin = pinned(rest.flags);
 
     // Ourselves first and without the socket: a GM posting a card they are a
     // recipient of should never be waiting on their own network round trip to
     // read what they just wrote.
     if (recipients.includes(game.user.id)) {
-        await remember(message.id, html, at);
+        await remember(message.id, html, at, pin);
         refresh(message);
     }
 
@@ -293,7 +307,7 @@ export async function postSecret(data = {}) {
     if (others.length) {
         try {
             game.socket.emit(SOCKET_EVENT,
-                { action: ACTION_SECRET, id: message.id, html, at },
+                { action: ACTION_SECRET, id: message.id, html, at, pin },
                 { recipients: others });
         } catch (err) {
             // The card exists and says nothing. Better than the reverse.
@@ -321,15 +335,16 @@ export async function updateSecret(message, html, recipients = null) {
     if (!message?.id) return null;
     const readers = [...new Set((recipients ?? message.whisper ?? []).filter(Boolean))];
     const at = read()[message.id]?.at ?? message.timestamp ?? Date.now();
+    const pin = pinned(message.flags);
     if (readers.includes(game.user.id) || !readers.length) {
-        await remember(message.id, html, at);
+        await remember(message.id, html, at, pin);
         refresh(message);
     }
     const others = readers.filter(id => id !== game.user.id);
     if (others.length) {
         try {
             game.socket.emit(SOCKET_EVENT,
-                { action: ACTION_SECRET, id: message.id, html, at }, { recipients: others });
+                { action: ACTION_SECRET, id: message.id, html, at, pin }, { recipients: others });
         } catch (err) {
             error("Could not deliver a private card's new words", err);
         }
@@ -356,7 +371,7 @@ export function registerSecrets() {
         if (payload?.action !== ACTION_SECRET) return;
         if (!payload.id || typeof payload.html !== "string") return;
         try {
-            await remember(payload.id, payload.html, payload.at);
+            await remember(payload.id, payload.html, payload.at, Boolean(payload.pin));
             refresh(game.messages.get(payload.id));
         } catch (err) {
             error("Could not keep a private card that arrived", err);

@@ -3,7 +3,9 @@ export async function run({ gm, p1, p2, p3, check, settle }) {
     // The suite drives the whole table from the GM's client and measures state
     // between its own steps; a player client auto-answering a dialog it was sent
     // (an opening roll, a ballot) would race those measurements.
-    for (const c of [p1, p2, p3]) await c.eval(`globalThis.__dialogAuto = false; return true;`);
+    // ...and the module's own socket listeners on those clients are silenced, so a
+    // victim's client does not answer an opening roll the suite is about to score itself.
+    for (const c of [p1, p2, p3]) await c.eval(`globalThis.__dialogAuto = false; (game.socket._handlers.get("module.danganronpa-rpg") ?? []).length = 0; return true;`);
 
     // players must NOT be able to run it
     const asPlayer = await p1.eval(`const r = await game.drpg.runTests({ tier: 0 }); return r;`, { timeout: 60000 });

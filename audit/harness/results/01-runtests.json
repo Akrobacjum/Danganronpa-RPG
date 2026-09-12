@@ -2,7 +2,7 @@
   "scenario": "scenarios/01-runtests.mjs",
   "passed": 2,
   "total": 3,
-  "ms": 66158,
+  "ms": 66309,
   "results": [
     {
       "name": "p1: suite refuses non-GM",
@@ -12,12 +12,12 @@
     {
       "name": "gm: suite ran",
       "ok": true,
-      "details": "{\"passed\":116,\"failed\":13,\"text\":\"Danganronpa RPG - regression suite\\n116 passed, 13 failed\\n\\nTIER 0 - module-wide regression (source is read, not called)\\n  ok    R1 · every translation key the module names out loud resolves\\n  ok    R1b · no socket handler takes a character on somebody's word\\n  "
+      "details": "{\"passed\":117,\"failed\":12,\"text\":\"Danganronpa RPG - regression suite\\n117 passed, 12 failed\\n\\nTIER 0 - module-wide regression (source is read, not called)\\n  ok    R1 · every translation key the module names out loud resolves\\n  ok    R1b · no socket handler takes a character on somebody's word\\n  "
     },
     {
       "name": "gm: suite failures",
       "ok": false,
-      "details": "13 failed"
+      "details": "12 failed"
     }
   ],
   "permissionDenials": [],
@@ -28,27 +28,17 @@
       "size": 99
     },
     {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
       "size": 29
     },
     {
-      "from": "p2",
-      "channel": "module.danganronpa-rpg",
-      "size": 99
-    },
-    {
-      "from": "p1",
-      "channel": "module.danganronpa-rpg",
-      "size": 99
-    },
-    {
       "from": "p3",
-      "channel": "module.danganronpa-rpg",
-      "size": 91
-    },
-    {
-      "from": "gm",
       "channel": "module.danganronpa-rpg",
       "size": 91
     },
@@ -58,6 +48,16 @@
       "size": 99
     },
     {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
       "from": "p2",
       "channel": "module.danganronpa-rpg",
       "size": 91
@@ -125,17 +125,12 @@
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 228
-    },
-    {
-      "from": "p1",
-      "channel": "module.danganronpa-rpg",
-      "size": 220
+      "size": 240
     },
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 120
+      "size": 292
     },
     {
       "from": "gm",
@@ -173,29 +168,14 @@
       "size": 141
     },
     {
-      "from": "p1",
+      "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 221
+      "size": 240
     },
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 228
-    },
-    {
-      "from": "gm",
-      "channel": "module.danganronpa-rpg",
-      "size": 120
-    },
-    {
-      "from": "gm",
-      "channel": "module.danganronpa-rpg",
-      "size": 280
-    },
-    {
-      "from": "gm",
-      "channel": "module.danganronpa-rpg",
-      "size": 280
+      "size": 292
     },
     {
       "from": "gm",
@@ -215,7 +195,7 @@
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 234
+      "size": 246
     },
     {
       "from": "gm",
@@ -235,7 +215,7 @@
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 461
+      "size": 473
     },
     {
       "from": "gm",
@@ -355,27 +335,12 @@
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 228
-    },
-    {
-      "from": "p1",
-      "channel": "module.danganronpa-rpg",
-      "size": 222
+      "size": 240
     },
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 120
-    },
-    {
-      "from": "gm",
-      "channel": "module.danganronpa-rpg",
-      "size": 280
-    },
-    {
-      "from": "gm",
-      "channel": "module.danganronpa-rpg",
-      "size": 280
+      "size": 292
     },
     {
       "from": "gm",
@@ -390,22 +355,22 @@
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 429
+      "size": 441
     },
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 359
+      "size": 371
     },
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 923
+      "size": 909
     },
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 923
+      "size": 909
     },
     {
       "from": "gm",
@@ -430,17 +395,17 @@
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 204
+      "size": 216
     },
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 207
+      "size": 219
     },
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 204
+      "size": 216
     },
     {
       "from": "gm",
@@ -480,7 +445,7 @@
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 228
+      "size": 240
     },
     {
       "from": "gm",
@@ -510,27 +475,12 @@
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 228
-    },
-    {
-      "from": "p1",
-      "channel": "module.danganronpa-rpg",
-      "size": 220
+      "size": 240
     },
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 120
-    },
-    {
-      "from": "gm",
-      "channel": "module.danganronpa-rpg",
-      "size": 280
-    },
-    {
-      "from": "gm",
-      "channel": "module.danganronpa-rpg",
-      "size": 280
+      "size": 292
     },
     {
       "from": "gm",
@@ -550,7 +500,7 @@
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 234
+      "size": 246
     },
     {
       "from": "gm",
@@ -570,7 +520,7 @@
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 461
+      "size": 473
     },
     {
       "from": "gm",
@@ -650,27 +600,12 @@
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 228
-    },
-    {
-      "from": "p1",
-      "channel": "module.danganronpa-rpg",
-      "size": 221
+      "size": 240
     },
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 120
-    },
-    {
-      "from": "gm",
-      "channel": "module.danganronpa-rpg",
-      "size": 280
-    },
-    {
-      "from": "gm",
-      "channel": "module.danganronpa-rpg",
-      "size": 280
+      "size": 292
     },
     {
       "from": "gm",
@@ -710,27 +645,12 @@
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 228
-    },
-    {
-      "from": "p1",
-      "channel": "module.danganronpa-rpg",
-      "size": 221
+      "size": 240
     },
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 120
-    },
-    {
-      "from": "gm",
-      "channel": "module.danganronpa-rpg",
-      "size": 280
-    },
-    {
-      "from": "gm",
-      "channel": "module.danganronpa-rpg",
-      "size": 280
+      "size": 292
     },
     {
       "from": "gm",
@@ -750,7 +670,7 @@
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 234
+      "size": 246
     },
     {
       "from": "gm",
@@ -770,7 +690,7 @@
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 461
+      "size": 473
     },
     {
       "from": "gm",
@@ -860,32 +780,17 @@
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 228
-    },
-    {
-      "from": "p1",
-      "channel": "module.danganronpa-rpg",
-      "size": 222
+      "size": 240
     },
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 120
+      "size": 292
     },
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 280
-    },
-    {
-      "from": "gm",
-      "channel": "module.danganronpa-rpg",
-      "size": 280
-    },
-    {
-      "from": "gm",
-      "channel": "module.danganronpa-rpg",
-      "size": 273
+      "size": 285
     },
     {
       "from": "gm",
@@ -900,47 +805,47 @@
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 919
+      "size": 905
     },
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 919
+      "size": 905
     },
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 919
+      "size": 905
     },
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 919
+      "size": 905
     },
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 291
+      "size": 303
     },
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 919
+      "size": 905
     },
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 919
+      "size": 905
     },
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 919
+      "size": 905
     },
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 919
+      "size": 905
     },
     {
       "from": "gm",
@@ -980,32 +885,17 @@
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 228
-    },
-    {
-      "from": "p1",
-      "channel": "module.danganronpa-rpg",
-      "size": 221
+      "size": 240
     },
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 120
+      "size": 292
     },
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 280
-    },
-    {
-      "from": "gm",
-      "channel": "module.danganronpa-rpg",
-      "size": 280
-    },
-    {
-      "from": "gm",
-      "channel": "module.danganronpa-rpg",
-      "size": 613
+      "size": 625
     },
     {
       "from": "gm",
@@ -1020,7 +910,87 @@
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 346
+      "size": 358
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 994
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 994
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 102
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 102
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 216
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 219
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 216
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 59
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 51
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 296
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 60
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 478
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 172
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 172
     }
   ],
   "bootInfo": {

@@ -32,7 +32,7 @@ import { noteFor, noteStatus, noteTemplate, saveNote } from "./pre-session-note.
 import { markOutcome, rollOutcomeOf } from "./private-rolls.mjs";
 import { playSfx } from "./sfx.mjs";
 
-import { contentOf } from "./secret.mjs";
+import { contentOf, wordsOf } from "./secret.mjs";
 const LAUNCHER_ID = "drpg-messenger-launcher";
 
 export function registerMessengerUi() {
@@ -381,7 +381,7 @@ export class DrpgMessengerApp extends foundry.applications.api.ApplicationV2 {
 
 // The module-level hook lives here, not per instance: one listener regardless
 // of how many windows are open, and nothing to leak when one closes.
-Hooks.on("drpgMessengerMessage", (playerUserId, message) => {
+Hooks.on("drpgMessengerMessage", async (playerUserId, message) => {
     const instance = DrpgMessengerApp.instances.get(playerUserId);
     if (instance) {
         instance.appendMessage(message);
@@ -399,7 +399,9 @@ Hooks.on("drpgMessengerMessage", (playerUserId, message) => {
      * sitting at that screen. Ordinary chatter keeps the badge. */
     if (game.user.isGM) {
         if (!message.getFlag(MODULE_ID, MESSENGER_FLAGS.gmAsk)) return;
-        showPopup(cardPreview(contentOf(message)), {
+        // The words, not the stub: a thread card is a private card now and
+        // its text lands a moment after the document does.
+        showPopup(cardPreview(await wordsOf(message)), {
             title: game.i18n.localize("DRPG.Messenger.gmActionTitle"),
             onClick: () => openMessenger(playerUserId)
         });
@@ -413,7 +415,7 @@ Hooks.on("drpgMessengerMessage", (playerUserId, message) => {
     const authorId = message.author?.id ?? message.user?.id;
     if (authorId === game.user.id) return;
 
-    showPopup(cardPreview(contentOf(message)), {
+    showPopup(cardPreview(await wordsOf(message)), {
         title: game.i18n.localize("DRPG.Messenger.playerWindowTitle"),
         onClick: () => openMessenger(playerUserId)
     });
