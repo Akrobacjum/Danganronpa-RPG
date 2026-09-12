@@ -32,7 +32,7 @@
        only evidence is the interface quietly behaving like an old release.
        One custom property costs nothing and settles it. */
     /* Must equal `version` in module.json - the suite fails if it does not. */
-    --drpg-css-version: "1.2.41";
+    --drpg-css-version: "1.2.43";
 
     /* --- eye: structure and chrome --------------------------------------- */
     /* Monokuma's red eye. It took over from Daggerheart's purple, which was
@@ -10012,6 +10012,15 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
     background: rgba(var(--drpg-eye-rgb), 0.32);
     box-shadow: 0 0 8px var(--drpg-eye-glow);
 }
+
+/* The clock's own button: one press moves the time of day on. Sits at the end
+   of the clock line, sized like the suggestion's "Do it". */
+.drpg-gmp-advance {
+    margin-left: 0.6em;
+    vertical-align: middle;
+    font-size: 0.85em;
+}
+.drpg-gmp-advance i { margin-right: 0.3em; }
 
 /* A footer button is as tall as its label.
    --------------------------------------------------------------------------

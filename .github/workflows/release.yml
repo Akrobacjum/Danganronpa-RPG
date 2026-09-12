@@ -41,6 +41,22 @@ jobs:
             exit 1
           fi
 
+      - name: Check the stylesheet stamp and the notes
+        # `--drpg-css-version` is read back at load by diagnostics.mjs to catch a
+        # stale CDN copy of the stylesheet; a release whose stamp lags the manifest
+        # reports every fresh client as stale. The 1.2.42 package shipped that way.
+        run: |
+          manifest="$(python3 -c "import json; print(json.load(open('module.json'))['version'])")"
+          stamp="$(sed -n 's/.*--drpg-css-version: *"\([^"]*\)".*/\1/p' styles/danganronpa.css | head -1)"
+          if [ "$stamp" != "$manifest" ]; then
+            echo "styles/danganronpa.css stamps --drpg-css-version \"$stamp\" but module.json says $manifest" >&2
+            exit 1
+          fi
+          if [ ! -f ".github/release-notes/${{ inputs.tag }}.md" ]; then
+            echo "no release notes at .github/release-notes/${{ inputs.tag }}.md" >&2
+            exit 1
+          fi
+
       - name: Build the package
         run: git archive --format=zip -o module.zip HEAD
 
