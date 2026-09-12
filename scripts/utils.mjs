@@ -341,7 +341,11 @@ export async function whisperToGms(content, extra = {}) {
  * way it was posted before this file existed.
  */
 async function privately(payload) {
-    if (!payload.whisper?.length) return ChatMessage.create(payload);
+    if (!payload.whisper?.length) {
+        // `veiled` is secret.mjs's word, not a ChatMessage field.
+        delete payload.veiled;
+        return ChatMessage.create(payload);
+    }
     const { postSecret } = await import("./secret.mjs");
     return postSecret(payload);
 }

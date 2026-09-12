@@ -2706,6 +2706,9 @@
       "publicNote": "Wszystkie trzy ogłaszane są wszystkim, słowo w słowo. Motive, którego nikt nie słyszał, nie jest Motive.",
       "migrated": "Motive tego świata ogłoszono, zanim Motive miały termin. Dostał {n} pór dnia, by dalej działać. Wycofaj i ogłoś ponownie, jeśli nie o to chodziło."
     },
+    "Secret": {
+      "speaker": "Monokuma"
+    },
     "Safeword": {
       "word": "MISIUBOMBO",
       "title": "Safeword",

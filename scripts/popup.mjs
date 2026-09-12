@@ -35,7 +35,7 @@ import { MESSENGER_FLAGS } from "./messenger.mjs";
 import { MESSAGE_FLAG } from "./utils.mjs";
 import { play, BEAT, ARRIVE, SNAP } from "./motion.mjs";
 
-import { contentOf, wordsOf } from "./secret.mjs";
+import { contentOf, wordsOf, secretHtml, isVeiled } from "./secret.mjs";
 const CONTAINER_ID = "drpg-popups";
 const AUTO_DISMISS_MS = 12000;
 
@@ -311,6 +311,13 @@ async function onCreateChatMessage(message) {
     // everyone, which is what makes it an announcement.
     const whisper = message.whisper ?? [];
     if (whisper.length && !whisper.includes(game.user.id)) return;
+
+    // A veiled card is addressed to everybody and readable by its readers
+    // alone: wait for the words, and if none came this is not our card.
+    if (isVeiled(message)) {
+        await wordsOf(message);
+        if (!secretHtml(message)) return;
+    }
 
     /* ---- a GM is not an audience for every receipt in the world ----------
      *

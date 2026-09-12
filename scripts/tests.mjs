@@ -2539,8 +2539,12 @@ const INVARIANTS = [
         const at = src.indexOf("export function betrayalTarget");
         ok(at > 0, "betrayalTarget is gone");
         const body = src.slice(at, at + 2600);
-        ok(/FLAGS\.betrayalWindow/.test(body),
-            "betrayalTarget does not read the window, so nothing outlives the incident");
+        // The offer lives in the cast (CASE-04), never on the actor: a flag is
+        // world data every client receives.
+        ok(/readCast\(\)\.betrayal/.test(body),
+            "betrayalTarget does not read the cast's offer, so nothing outlives the incident");
+        ok(!/FLAGS\.betrayalWindow/.test(body),
+            "betrayalTarget reads an actor flag, which names the accomplice to every client");
         /*
          * ORDER, NOT ABSENCE. The first version of this asserted that
          * `betrayalTarget` never mentions the incident at all, and then the
@@ -2552,12 +2556,13 @@ const INVARIANTS = [
          * What actually matters is which one SOURCES the offer. The window is
          * read first; the incident is consulted afterwards, and only to refuse.
          */
-        const flagAt = body.indexOf("FLAGS.betrayalWindow");
+        const flagAt = body.indexOf("readCast().betrayal");
         const stateAt = body.indexOf("murderState()");
         ok(flagAt > 0, "the offer no longer comes from the window");
         ok(stateAt > flagAt,
             "the incident is asked before the window, so the offer is sourced from it again");
-        ok(!/thirdId/.test(body),
+        // `open.thirdId` is the offer's own field; `state.thirdId` would be the incident's.
+        ok(!/(state|running)\??\.thirdId/.test(body),
             "the offer still needs the incident to be naming a third party");
         ok(/getClock\(\)/.test(body),
             "nothing checks the day, so the window never shuts");
@@ -2583,7 +2588,7 @@ const INVARIANTS = [
         // Single use, spent before the attempt rather than after it.
         const bp = src.indexOf("export async function betrayAsPlayer");
         ok(bp > 0, "betrayAsPlayer is gone");
-        ok(/unsetFlag\(MODULE_ID, FLAGS\.betrayalWindow\)/.test(src.slice(bp, bp + 1400)),
+        ok(/clearBetrayalOffer\(\)/.test(src.slice(bp, bp + 1400)),
             "the offer is not spent when it is taken, so it can be taken twice");
     }],
 

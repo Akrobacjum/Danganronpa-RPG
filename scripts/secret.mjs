@@ -31,10 +31,14 @@
  *
  * WHAT STILL LEAKS, said plainly rather than left for somebody to discover: a
  * non-recipient can still see THAT a private card exists, when, from which
- * speaker, and who it was addressed to. That is metadata and it cannot be
- * removed without giving up the chat log itself - the recipient list is what
- * Foundry routes on. The content is the thing that was worth moving, and the
- * content is gone.
+ * speaker, and who it was addressed to. That is metadata, and for most cards
+ * it is harmless - "somebody Searched at 21:03" is not a secret. For an
+ * incident's cards it is the whole secret, and those are posted VEILED (see
+ * `VEILED_FLAG` below): a neutral speaker, the whole table as the recipient
+ * list, and a card that clients holding no words never draw. What a veiled
+ * card still tells a reader of the database is that a private card was posted
+ * at that moment by that user - the author is the one field Foundry stamps
+ * server-side, and every incident card is posted by a GM's client.
  *
  * WHAT IT COSTS. A GM who was not connected when a secret was posted will never
  * see that sentence: there is no server-side copy to catch up from. Before this,
@@ -52,6 +56,29 @@ const ACTION_SECRET = "secret.card";
 
 /** The flag that says "this card's words are somewhere else". */
 export const SECRET_FLAG = "secret";
+
+/**
+ * The flag that says "and its audience is nobody's business either".
+ *
+ * THE OTHER HALF OF THE LEAK, the one the header above admits to: a bystander
+ * could still read WHO a private card was addressed to and WHICH actor it
+ * spoke as. For an incident's cards that metadata is the whole secret - the
+ * recipient list of a crisis card IS the cast. A veiled card carries a neutral
+ * speaker and the whole table as its `whisper` list, so the document says
+ * nothing about anybody; the words still travel only to the real readers,
+ * and a client holding no words hides the card instead of drawing a stub.
+ */
+export const VEILED_FLAG = "veiled";
+
+/** Is this a card whose document deliberately names nobody? */
+export function isVeiled(message) {
+    return Boolean(message?.flags?.[MODULE_ID]?.[VEILED_FLAG]);
+}
+
+/** Everybody: the audience a veiled card is written to. */
+function everyone() {
+    return game.users.filter(u => Boolean(u?.id)).map(u => u.id);
+}
 
 /**
  * What a client that is not holding the words sees in the document.
@@ -223,23 +250,30 @@ async function forget(ids = []) {
  * @param {string}   data.content      The sentence that must not travel.
  * @param {string[]} data.whisper      Who may read it. Required - a secret with
  *                                     no audience is a bug, not a broadcast.
+ * @param {boolean}  [data.veiled]     Hide the audience and the speaker too:
+ *                                     the document is addressed to everybody
+ *                                     and speaks as nobody in particular. For
+ *                                     cards whose recipient list would itself
+ *                                     be a secret - an incident's.
  * @returns {Promise<ChatMessage|null>}
  */
 export async function postSecret(data = {}) {
-    const recipients = [...new Set((data.whisper ?? []).filter(Boolean))];
+    const { veiled = false, ...rest } = data ?? {};
+    const recipients = [...new Set((rest.whisper ?? []).filter(Boolean))];
     if (!recipients.length) {
         error("Refused to post a private card with nobody to read it.");
         return null;
     }
 
-    const html = data.content ?? "";
+    const html = rest.content ?? "";
     const message = await ChatMessage.create({
-        ...data,
+        ...rest,
+        ...(veiled ? { speaker: { alias: game.i18n.localize("DRPG.Secret.speaker") } } : {}),
         content: STUB,
-        whisper: recipients,
+        whisper: veiled ? everyone() : recipients,
         flags: foundry.utils.mergeObject(
-            data.flags ?? {},
-            { [MODULE_ID]: { [SECRET_FLAG]: true } },
+            rest.flags ?? {},
+            { [MODULE_ID]: { [SECRET_FLAG]: true, ...(veiled ? { [VEILED_FLAG]: true } : {}) } },
             { inplace: false }
         )
     });
@@ -303,7 +337,18 @@ export function registerSecrets() {
     Hooks.on("renderChatMessageHTML", (message, element) => {
         try {
             const html = secretHtml(message);
-            if (!html) return;
+            if (!html) {
+                // A veiled card this client was not sent the words of is not
+                // this client's card: hidden, not blanked, so the log shows
+                // neither a dash nor a gap where somebody else's secret sits.
+                if (isVeiled(message)) {
+                    element.classList.add("drpg-veiled");
+                    element.style.display = "none";
+                }
+                return;
+            }
+            element.classList.remove("drpg-veiled");
+            element.style.display = "";
             const body = element.querySelector(".message-content") ?? element;
             body.innerHTML = html;
         } catch (err) {

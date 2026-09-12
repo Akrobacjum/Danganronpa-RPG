@@ -758,10 +758,12 @@ async function wipeSeason({ alsoChat = false } = {}) {
     });
 
     await step("the incident", async () => {
-        const { endMurder, clearBlackened } = await import("./murder.mjs");
+        const { endMurder, clearBlackened, clearBetrayalOffer } = await import("./murder.mjs");
         const { clearParkedMurders } = await import("./eclipse.mjs");
         await endMurder({ reason: "seasonReset", followUp: false });
         await clearBlackened();
+        // The betrayal outlives the incident by design (D18); not the season.
+        await clearBetrayalOffer();
         // A murder declared in the dark and never judged is an incident that
         // has not happened yet. It would open on the first Eclipse of the new
         // season, against a cast that has no idea what it is about.

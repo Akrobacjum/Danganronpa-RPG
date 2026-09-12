@@ -180,6 +180,8 @@ export async function killCharacter(actor, { keepBullets = false } = {}) {
         ${keepBullets ? "" : `<p>${plural("DRPG.Chapter.bulletsGone", { n: removed })}</p>`}
         <p><small>${game.i18n.localize("DRPG.Chapter.vaultPending")}</small></p>`, {
         whisper: deathAudience ?? gmIds(),
+        // The audience of a death card mid-incident is the incident's cast.
+        veiled: true,
         flags: { [MODULE_ID]: { sfx: { key: "death", gm: true } } }
     });
 

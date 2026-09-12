@@ -62,7 +62,7 @@ import { MODULE_ID, FLAGS, CLEANUP, RESOLUTION_STRESS_COST, REMNANT_VISIBILITY }
     from "./config.mjs";
 import { getClock } from "./clock.mjs";
 import { bodyDiscovery } from "./settings.mjs";
-import { murderState, killerIds, refOf } from "./murder.mjs";
+import { murderState, killerIds, refOf, swungWeaponOf } from "./murder.mjs";
 import {
     REMNANT_FLAGS, remnantsInRoom, remnantData, removeRemnant, dropRemnant
 } from "./remnants.mjs";
@@ -75,7 +75,16 @@ import { copiedRemnants } from "./truth-bullets.mjs";
 import { ITEM_FLAGS, isBroken, isStashed } from "./inventory.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
-import { announce, whisperToGms, whisperToOwner, dialogContent, log, error, cardHead } from "./utils.mjs";
+import {
+    announce as announcePlain, whisperToGms, whisperToOwner as whisperToOwnerPlain,
+    dialogContent, log, error, cardHead } from "./utils.mjs";
+
+// Veiled, every one of them: a Stage 6 card's speaker is the killer and its
+// audience is the incident, and the document must not say so. See murder.mjs.
+const whisperToOwner = (actor, content, extra = {}) =>
+    whisperToOwnerPlain(actor, content, { veiled: true, ...extra });
+const announce = data =>
+    announcePlain(data?.whisper?.length ? { veiled: true, ...data } : data);
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -2024,8 +2033,8 @@ export async function destroyCleaningTools() {
  */
 function rememberedTool(actor, category) {
     if (category !== "crimeTool") return null;
-    const id = actor?.getFlag?.(MODULE_ID, FLAGS.swungWeapon);
-    const item = id ? actor.items.get(id) : null;
+    // From the GM's cast, where the crisis packet wrote it (CASE-04).
+    const item = swungWeaponOf(actor);
     // Gone, already ruined, or stashed since: fall back to the hand.
     return item && !isBroken(item) && !isStashed(item) ? item : null;
 }

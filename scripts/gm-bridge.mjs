@@ -696,6 +696,9 @@ async function onSocket(payload, senderId) {
             // item would give a Reroll the run of another sheet.
             usedItemId: game.actors.get(payload.actorId)?.items?.has(payload.usedItemId)
                 ? payload.usedItemId : null,
+            // Same test: the swing memo names an item, and only one the sender holds.
+            swungId: game.actors.get(payload.actorId)?.items?.has(payload.swungId)
+                ? payload.swungId : null,
             /*
              * G-18, AND THIS IS THE ONE FIELD ON THIS SOCKET THAT COULD BUY
              * SOMETHING FOR NOTHING.
@@ -1568,12 +1571,14 @@ export function requestCrisisResult({
     // Which resource a critical Strike takes. Decided by the killer on their own
     // client while the dice are still up, and carried here rather than asked
     // again on the GM's - see `askCriticalTarget`.
-    choice = null
+    choice = null,
+    // The weapon the roll was thrown with. Remembered GM-side for Stage 6.
+    swungId = null
 }) {
     if (game.user.isGM) {
         return import("./murder.mjs")
             .then(m => m.resolveCrisisAction({
-                actorId, key, total, isCritical, withHope, undo, choice, usedItemId, free
+                actorId, key, total, isCritical, withHope, undo, choice, usedItemId, free, swungId
             }));
     }
     if (!hasGm()) return null;
@@ -1582,7 +1587,7 @@ export function requestCrisisResult({
         action: ACTION_CRISIS,
         userId: game.user.id,
         requestId: expectAck("Incident"),
-        actorId, key, total, isCritical, withHope, undo, choice, usedItemId, free
+        actorId, key, total, isCritical, withHope, undo, choice, usedItemId, free, swungId
     });
     return { pending: true };
 }

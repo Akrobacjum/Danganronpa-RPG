@@ -57,8 +57,25 @@ import { equippedFor, breakOnDespair } from "./use-items.mjs";
 import { dropRemnant, traceFeedback } from "./remnants.mjs";
 import { keepLive, closeOpen } from "./live.mjs";
 import {
-    announce, dialogContent, tableDialog, whisperToGms, whisperToOwner, ownerOf, gmIds,
+    announce as announcePlain, dialogContent, tableDialog, whisperToGms,
+    whisperToOwner as whisperToOwnerPlain, ownerOf, gmIds,
     isPrimaryGm, log, warn, error, plural, debug, esc} from "./utils.mjs";
+
+/*
+ * VEILED, ALL OF THEM (LIVE-001, the closing half).
+ *
+ * Every private card this file posts is about an incident, and an incident's
+ * cast is exactly what a card's speaker and recipient list would spell out to
+ * a bystander reading `game.messages` - the words were moved off the document
+ * (secret.mjs), the addressing was not. `veiled` gives the document a neutral
+ * speaker and the whole table as its audience; the words still reach only the
+ * people named here. The two helpers below are the plain ones with that set,
+ * so no call site in this file can forget.
+ */
+const whisperToOwner = (actor, content, extra = {}) =>
+    whisperToOwnerPlain(actor, content, { veiled: true, ...extra });
+const announce = data =>
+    announcePlain(data?.whisper?.length ? { veiled: true, ...data } : data);
 
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -84,7 +101,14 @@ const DialogV2 = foundry.applications.api.DialogV2;
  * hold the cast), and `murderState()` merges it back so every reader is
  * unchanged.
  */
-const CAST_FIELDS = ["killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "lastCrisis"];
+const CAST_FIELDS = [
+    "killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "lastCrisis",
+    // The betrayal offer (`{ thirdId, killerId, chapter, day }`) and the swing
+    // memo (`{ [actorId]: itemId }`). Both used to be actor flags, which are
+    // world data every client receives - so for the whole of Stage 6 anybody
+    // could read who the accomplice was and who swung what (CASE-04).
+    "betrayal", "swung"
+];
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 const CAST_SET = "incident.cast";
@@ -169,8 +193,10 @@ async function restoreState(state = {}) {
 /** Every non-GM user who owns somebody named in a cast. */
 function castOwners(cast) {
     const out = new Set();
-    for (const field of ["killerId", "victimId", "thirdId"]) {
-        const owner = ownerOf(game.actors.get(cast?.[field] ?? ""));
+    // The accomplice keeps their copy for as long as the betrayal is on offer,
+    // which is longer than the incident (D18).
+    for (const id of [cast?.killerId, cast?.victimId, cast?.thirdId, cast?.betrayal?.thirdId]) {
+        const owner = ownerOf(game.actors.get(id ?? ""));
         if (owner && !owner.isGM) out.add(owner.id);
     }
     return out;
@@ -195,9 +221,11 @@ function pushCastToParticipants(cast, previous) {
 }
 
 function sendCast(userId, cast) {
+    // The swing memo is Stage 6's business on the GM's side, not a participant's.
+    const { swung, ...theirs } = cast ?? {};
     try {
         game.socket.emit(SOCKET_EVENT,
-            { action: CAST_MINE, from: game.user.id, cast }, { recipients: [userId] });
+            { action: CAST_MINE, from: game.user.id, cast: theirs }, { recipients: [userId] });
     } catch (err) {
         error("Could not deliver an incident cast to a participant", err);
     }
@@ -280,10 +308,16 @@ async function armBetrayalWindow(state) {
     if (!killer || !third) return null;
 
     const clock = getClock();
-    await third.setFlag(MODULE_ID, FLAGS.betrayalWindow, {
-        killerId: killer.id,
-        chapter: clock?.chapter ?? 1,
-        day: clock?.day ?? 1
+    // In the cast, never on the actor: the offer names the killer and the
+    // accomplice, and an actor flag would name them to every client.
+    await writeCast({
+        ...readCast(),
+        betrayal: {
+            thirdId: third.id,
+            killerId: killer.id,
+            chapter: clock?.chapter ?? 1,
+            day: clock?.day ?? 1
+        }
     });
     log(`Betrayal window open for ${third.name} against ${killer.name} `
         + `(chapter ${clock?.chapter}, day ${clock?.day}).`);
@@ -299,18 +333,29 @@ async function armBetrayalWindow(state) {
  * a murder two chapters ago, and the sheet would light the tile for it.
  */
 async function sweepBetrayalWindows() {
-    if (!game.user.isGM) return;
+    if (!isPrimaryGm()) return;
     const clock = getClock();
-    for (const actor of game.actors) {
-        const open = actor.getFlag(MODULE_ID, FLAGS.betrayalWindow);
-        if (!open) continue;
-        if (open.chapter === clock?.chapter && open.day === clock?.day) continue;
-        try {
-            await actor.unsetFlag(MODULE_ID, FLAGS.betrayalWindow);
-        } catch {
-            // A window that outlives its day is refused on read anyway.
-        }
-    }
+    const cast = readCast();
+    const open = cast.betrayal;
+    if (!open) return;
+    if (open.chapter === clock?.chapter && open.day === clock?.day) return;
+    const { betrayal, ...rest } = cast;
+    await writeCast(rest, cast);
+}
+
+/** Take the betrayal off the table, whoever it was offered to. GM-side. */
+export async function clearBetrayalOffer() {
+    if (!game.user.isGM) return;
+    const cast = readCast();
+    if (!cast.betrayal) return;
+    const { betrayal, ...rest } = cast;
+    await writeCast(rest, cast);
+}
+
+/** The weapon this actor swung in the running incident, if it is still on them. GM-side. */
+export function swungWeaponOf(actor) {
+    const id = readCast().swung?.[actor?.id ?? ""];
+    return id ? (actor.items.get(id) ?? null) : null;
 }
 
 /** Which side is this actor on, if any: "killer" | "victim" | "third" | null. */
@@ -1111,7 +1156,7 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
      *
      *   - the knife never took its Despair wear, so the murder weapon was the
      *     one tool in the game that could not break in the murder;
-     *   - `FLAGS.swungWeapon` stayed empty, so Stage 6's `destroysTools` ruined
+     *   - the swing memo stayed empty, so Stage 6's `destroysTools` ruined
      *     whatever happened to be readied at closing time - the gloves - and
      *     the knife walked away, which is the exact bug that flag was added for;
      *   - and the Search trace that handed the killer the weapon was never tied
@@ -1139,12 +1184,8 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
      * ends, holding the id of the thing that was actually used.
      */
     if (swung) {
-        try {
-            await actor.setFlag(MODULE_ID, FLAGS.swungWeapon, swung.id);
-        } catch {
-            // A weapon nobody wrote down is destroyed by the old rule instead
-            // of not at all. Never let bookkeeping stop a swing.
-        }
+        // The id travels in the crisis packet below and is remembered in the
+        // GM's cast, not on the actor - a flag would be world data (CASE-04).
 
         /*
          * AND THE TRACE THAT HANDED IT OVER IS EVIDENCE NOW (Dawid, 28.08).
@@ -1225,7 +1266,9 @@ export async function takeCrisisAction(actor, key, { itemId = null } = {}) {
         withHope: Boolean(roll.withHope),
         choice,
         // What was actually spent, so a Reroll can give it back.
-        usedItemId
+        usedItemId,
+        // What was swung, so Stage 6 ruins the right thing (E9).
+        swungId: swung?.id ?? null
     });
 
     return { roll, choice };
@@ -1413,6 +1456,8 @@ async function grantImprovisedWeapon(actor, def, band, done) {
  */
 export async function resolveCrisisAction({
     actorId, key, total, isCritical, withHope, undo = false, choice = null, usedItemId = null,
+    // The weapon the roll was thrown with, remembered for Stage 6 (E9, CASE-04).
+    swungId = null,
     // G-18. Not derived here from the state, because by the time this runs the
     // grant may have been consumed by the undo half of a Reroll - the client
     // that pressed the tile is the one that knew.
@@ -1439,6 +1484,12 @@ export async function resolveCrisisAction({
     const actor = game.actors.get(actorId);
     const def = CRISIS_ACTIONS[key];
     if (!state || !actor || !def) return null;
+
+    // The swing memo, in the cast. Only an item the actor actually holds: the
+    // packet is a claim, and a stranger's id would have Stage 6 ruin nothing.
+    if (swungId && actor.items?.has(swungId)) {
+        await writeState({ swung: { ...(readCast().swung ?? {}), [actorId]: swungId } });
+    }
 
     // WHOSE SIDE, not the entry's. One action is written `side: "both"` - using
     // an item is the same act whoever does it - and everything below is about
@@ -2586,6 +2637,26 @@ async function migrateIncidentSecrets() {
         log(`Lifted ${strays.length} incident name(s) out of world data (LIVE-001).`);
     }
 
+    // The betrayal offer and the swing memo used to be actor flags (CASE-04).
+    // A live offer is lifted into the cast; everything else is scrubbed.
+    const clock = getClock();
+    for (const actor of game.actors) {
+        const window = actor.getFlag(MODULE_ID, FLAGS.betrayalWindow);
+        if (window?.killerId && window.chapter === clock?.chapter && window.day === clock?.day
+            && !readCast().betrayal) {
+            await writeCast({ ...readCast(), betrayal: { thirdId: actor.id, ...window } });
+            log(`Lifted ${actor.name}'s betrayal offer out of world data (CASE-04).`);
+        }
+        for (const flag of [FLAGS.betrayalWindow, FLAGS.swungWeapon]) {
+            if (actor.getFlag(MODULE_ID, flag) === undefined) continue;
+            try {
+                await actor.unsetFlag(MODULE_ID, flag);
+            } catch {
+                // Nothing reads the flag any more; a copy that will not go is inert.
+            }
+        }
+    }
+
     const oldRegister = game.settings.get(MODULE_ID, SETTINGS.blackened) ?? [];
     if (oldRegister.length) {
         const merged = [...new Set([...blackenedIds(), ...oldRegister])];
@@ -2888,26 +2959,15 @@ export async function endMurder({ reason = "closed", followUp = true } = {}) {
         }
     }
 
-    /*
-     * The swing memo goes with the incident it belonged to.
-     *
-     * AFTER `endResolution`, which is the one thing that reads it, and for
-     * everybody rather than the killer alone: a victim who fought back swung
-     * something too, and a stale id would have Stage 6 of the NEXT incident
-     * destroying a weapon from this one.
-     */
-    for (const id of participantIds(state ?? {})) {
-        try {
-            await game.actors.get(id)?.unsetFlag(MODULE_ID, FLAGS.swungWeapon);
-        } catch {
-            // A memo that outlives its incident costs one wrong confiscation,
-            // and only if the same character swings nothing in the next one.
-        }
-    }
-
     // Both halves, and the participants' copies with them: an incident that is
-    // over must not leave its cast sitting on anybody's client.
+    // over must not leave its cast sitting on anybody's client. The swing memo
+    // goes with it - `endResolution` above was the one thing that read it.
+    //
+    // THE BETRAYAL DOES NOT (D18): the offer lasts until the end of the day,
+    // which is longer than the incident, so it is the one thing put back.
+    const offer = readCast().betrayal ?? null;
     await restoreState({});
+    if (offer) await writeCast({ betrayal: offer });
     log(`Murder closed (${reason}).`);
 
     /* AND THE TRACKER GOES WITH IT.
@@ -3108,8 +3168,8 @@ export function betrayalTarget(actor) {
      * `betrayalCandidate` and returns the newcomer; returning that here once
      * made the tile offer the accomplice a chance to murder themselves.
      */
-    const open = actor.getFlag(MODULE_ID, FLAGS.betrayalWindow);
-    if (!open?.killerId) return null;
+    const open = readCast().betrayal;
+    if (!open?.killerId || open.thirdId !== actor.id) return null;
 
     const clock = getClock();
     if (open.chapter !== clock?.chapter || open.day !== clock?.day) return null;
@@ -3174,7 +3234,7 @@ export async function betrayAsPlayer(actorId) {
      * failed attempt is an offer that can be attempted again, which is the
      * spam this is here to stop.
      */
-    await actor.unsetFlag(MODULE_ID, FLAGS.betrayalWindow);
+    await clearBetrayalOffer();
     return openBetrayal(actor, target);
 }
 

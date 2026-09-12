@@ -80,23 +80,18 @@ export const FLAGS = {
      */
     swungWeapon: "swungWeapon",
     /**
-     * Character: this student may still turn on the killer they helped.
+     * LEGACY (CASE-04) - the betrayal offer and the swing memo above both live
+     * in the GM's incident cast now (`murder.mjs`, `CAST_FIELDS`). An actor flag
+     * is world data every client receives, so for the whole of Stage 6 these
+     * two named the accomplice, the killer and the weapon to anybody reading
+     * `game.actors`. The keys stay so `migrateIncidentSecrets` can lift a live
+     * offer and scrub the rest off a world that updated mid-chapter.
      *
-     * `{ killerId, chapter, day }`, and it is the ONLY thing that decides
-     * whether the betrayal is on offer - the incident's own state used to,
-     * and could not, because Dawid's rule outlives it (29.08: "niech bedzie
-     * dostepna do konca dnia po morderstwie"). An incident is wiped the moment
-     * it closes; a day is not.
-     *
-     * WHY A FLAG ON THE PERSON rather than a world setting. The offer belongs
-     * to one character, it is single-use, and it has to be readable on that
-     * player's own client while the sheet decides whether to light the tile.
-     * All three of those are what an actor flag is.
-     *
-     * The stamp is the whole expiry mechanism. Nothing counts down: the window
-     * is open while the clock still reads the chapter and day it was written
-     * on, and shut the moment either moves. A GM who rewinds the clock reopens
-     * it, which is the same thing rewinding the clock does to everything else.
+     * The offer itself is unchanged: `{ thirdId, killerId, chapter, day }`,
+     * single-use, open while the clock still reads the chapter and day it was
+     * written on (Dawid, 29.08: "niech bedzie dostepna do konca dnia po
+     * morderstwie"), and the accomplice's own client holds a copy over the
+     * same addressed socket that carries the rest of the cast.
      */
     betrayalWindow: "betrayalWindow",
     /**

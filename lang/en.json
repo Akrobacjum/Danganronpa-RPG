@@ -2569,6 +2569,9 @@
       "publicNote": "All three are announced to everyone, word for word. A motive nobody heard is not a motive.",
       "migrated": "This world's motive was announced before motives had a deadline. It has been given {n} times of day so it keeps working. Withdraw and announce it again if that is not what you meant."
     },
+    "Secret": {
+      "speaker": "Monokuma"
+    },
     "Safeword": {
       "word": "MISIUBOMBO",
       "title": "Safeword",
