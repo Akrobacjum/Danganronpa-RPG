@@ -1141,6 +1141,19 @@ export function registerRemnantLedger() {
     });
 
     /*
+     * EVERY DELETION TOMBSTONES ITS ROW (CASE-12). `removeRemnant` did; the
+     * chapter's Faint sweep, a retune's remove, both Reroll undos and a GM's
+     * own Delete on the token did not, so the ledger kept a live row for every
+     * trace that no longer existed - 685 rows and 174 KB in E17, re-parsed on
+     * every read. One hook on the primary GM covers all of them; the tombstone
+     * is idempotent, so the roads that already do it cost nothing extra.
+     */
+    Hooks.on("deleteToken", doc => {
+        if (!isPrimaryGm() || !doc?.getFlag?.(MODULE_ID, REMNANT_FLAGS.isRemnant)) return;
+        dropRemnantSecret(doc).catch(err => warn("Could not tombstone a deleted Remnant's row", err));
+    });
+
+    /*
      * WHEN THE DIGEST GOES OUT. The turn of the time of day and the end of an
      * Eclipse - the two moments the table already stops at, so the whisper
      * lands in a pause rather than across somebody's turn.

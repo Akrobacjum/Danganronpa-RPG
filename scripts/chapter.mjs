@@ -867,7 +867,10 @@ export async function openChapterEndDialog() {
                         endTrial: f.endTrial.checked,
                         nextChapter: f.nextChapter.checked,
                         nextSession: f.nextSession.checked,
-                        nextMorning: f.nextMorning.checked
+                        nextMorning: f.nextMorning.checked,
+                        // The chapter this window was opened for, so a second
+                        // GM's End of chapter cannot end the next one (CORE-17).
+                        endingChapter: getClock().chapter
                     };
                 }
             },
@@ -906,6 +909,16 @@ export async function applyChapterEnd(choices = {}) {
     const result = choices;
     const endingChapter = getClock().chapter;
     const trialSitting = getClock().phase === "classTrial";
+
+    // Two GMs with the console open pressing End of chapter a few seconds
+    // apart moved the clock two chapters and swept twice (CORE-17). Optional,
+    // so the API and the suite can still call this without naming a chapter.
+    if (choices.endingChapter != null && choices.endingChapter !== endingChapter) {
+        await whisperToGms(`<p class="drpg-warning">${game.i18n.format("DRPG.Chapter.alreadyEnded", {
+            n: choices.endingChapter
+        })}</p>`);
+        return null;
+    }
 
     const done = [];
     if (result.reveal) {

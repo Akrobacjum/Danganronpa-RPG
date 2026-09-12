@@ -28,6 +28,7 @@ export const CONFIG_TABLES = [
 export const PROSE_KEYS = new Set([
     "label", "short", "hint", "description", "effect", "failure", "result", "plural",
     "hope", "despair", "critical", "success", "successWithDespair", "long", "help", "hinder",
+    "helpTarget", "hinderTarget",
     "aloneNote", "chip", "note", "when", "hintFailure", "instruction", "name", "difficulty",
     "morning", "noon", "afternoon", "evening", "night",
     "obvious", "evident", "subtle", "hidden", "trivial", "standard", "complex", "desperate",

@@ -344,6 +344,8 @@ export async function resolveMeddle({ actorId, targetId, help, total, isCritical
     }
 
     const text = help ? hit.help : hit.hinder;
+    // The target's own sentence (DESP-06), never the Monocub's receipt.
+    const targetText = (help ? hit.helpTarget : hit.hinderTarget) ?? text;
 
     if (isCritical) {
         if (help) await refundAction(target, 1);
@@ -383,7 +385,7 @@ export async function resolveMeddle({ actorId, targetId, help, total, isCritical
     // The target is told SOMETHING happened without being told who - the guide
     // has Monocubs act "z boku" (from the sidelines); knowing which dead
     // classmate is pulling the strings is not part of that.
-    await whisperToOwner(target, `<p>${foundry.utils.escapeHTML(text)}</p>`, meddleSfx);
+    await whisperToOwner(target, `<p>${foundry.utils.escapeHTML(targetText)}</p>`, meddleSfx);
 
     log(`${actor.name} used Meddle on ${target.name}: ${text}`);
     return { success: true, text };

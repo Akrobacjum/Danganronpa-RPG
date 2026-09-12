@@ -40,8 +40,8 @@ export { ECLIPSE_MOVES };
  * clock does not move until the Eclipse ends, so the time of day a running
  * Eclipse is leading into is always the NEXT one.
  *
- * That naming is not cosmetic - it is what decides the allowance. Two of the
- * five let you start anywhere on the map (see ECLIPSE_FREE_PLACEMENT); the
+ * That naming is not cosmetic - it is what decides the allowance. The ones in
+ * ECLIPSE_FREE_PLACEMENT (Night, today) let you start anywhere on the map; the
  * other three are the handbook's two connected rooms.
  * ========================================================================== */
 
@@ -622,7 +622,7 @@ export async function judgeEclipseCrossing(actor, from, to) {
     if (!isEclipse()) return true;
 
     /*
-     * A Morning or Night Eclipse is "pick any room to begin in": no budget and
+     * A free-placement Eclipse (ECLIPSE_FREE_PLACEMENT) is "pick any room to begin in": no budget and
      * no adjacency. Both checks below are skipped rather than given a very large
      * number, because the rule is not "many crossings" - it is that you are
      * placing a token, not walking a route.

@@ -240,8 +240,20 @@ export async function spendDespairCallFor(actor, key, { note = "", choice = {} }
             return null;
         }
 
-        const { spendDespairCall } = await import("./despair.mjs");
-        const ok = await spendDespairCall(user.id, key);
+        // A Call that buys Hope while the darkening blocks Hope buys nothing;
+        // refused before the pool is touched (DESP-04).
+        if (call.grantsHope) {
+            const { overflowBlocksHope } = await import("./overflow.mjs");
+            if (overflowBlocksHope()) {
+                ui.notifications.warn(game.i18n.localize("DRPG.Overflow.hopeBlocked"));
+                return null;
+            }
+        }
+
+        const { spendDespairCall, poolLabel } = await import("./despair.mjs");
+        // One card, after the effect (DESP-11): the announcement is this
+        // function's, below, with the effect's own receipt lines on it.
+        const ok = await spendDespairCall(user.id, key, { announce: false });
         if (!ok) return null;
 
         // Despair is now spent. Applying the effect is separated from the
@@ -286,10 +298,14 @@ export async function spendDespairCallFor(actor, key, { note = "", choice = {} }
          * an empty card cannot happen. It wears Blood, because a Despair Call
          * is spent Despair.
          */
-        const body = `${note ? `<blockquote>${esc(note)}</blockquote>` : ""}
-                      ${done.length ? `<ul>${done.map(d => `<li>${esc(d)}</li>`).join("")}</ul>` : ""}`;
+        const body = `<p>${esc(callEffect(call))}</p>
+                      ${note ? `<blockquote>${esc(note)}</blockquote>` : ""}
+                      ${done.length ? `<ul>${done.map(d => `<li>${esc(d)}</li>`).join("")}</ul>` : ""}
+                      <p><em>${game.i18n.format("DRPG.Despair.spent", {
+                          name: esc(poolLabel(user) ?? user?.name ?? "?"), cost: call.cost
+                      })}</em></p>`;
         await announce({
-            content: `<h3>${esc(call.label)}</h3>${body}`,
+            content: `<h3>${game.i18n.localize("DRPG.Despair.callTitle")} - ${esc(call.label)}</h3>${body}`,
             flags: { [MODULE_ID]: { popupTone: "fear", sfx: { key: "despairCall", gm: true } } }
         });
 

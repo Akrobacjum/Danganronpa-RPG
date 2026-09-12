@@ -46,6 +46,8 @@ const ACTION_OPEN = "vote.open";
  */
 let ballots = null;
 
+/** Who the ballots went out to, frozen at `openVote` (CASE-14). */
+let issuedTo = null;
 /* ==========================================================================
  * HOW FAR THROUGH THE TRIAL THE TABLE HAS GOT
  * --------------------------------------------------------------------------
@@ -259,6 +261,11 @@ export async function openVote({ picks = null } = {}) {
         ballots = null;
         return null;
     }
+    // Frozen at the moment they go out (CASE-14): a player who drops after
+    // the ballots are issued is no longer "eligible", and the count then read
+    // "3 of 3" for a room that was told four ballots were out. Remind still
+    // reaches anyone who joins mid-vote; the two lists are unioned at close.
+    issuedTo = new Set(voters.map(({ user }) => user.id));
 
     sendBallots(voters);
     Hooks.callAll("drpgBallotsChanged");
@@ -411,9 +418,15 @@ async function castBallot(candidates, voterActorId, picks = 1) {
                 <div class="drpg-choice-list">${rows(i)}</div>
             </fieldset>`).join("");
 
+    // One ballot window at a time (CASE-14): a Remind that reached a player
+    // whose first window was still open stacked a second, and either counted.
+    for (const app of foundry.applications?.instances?.values?.() ?? []) {
+        if (app.rendered && app.options?.classes?.includes("drpg-ballot")) app.close();
+    }
+
     const choice = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Vote.ballotTitle") },
-        classes: ["drpg-panel"],
+        classes: ["drpg-panel", "drpg-ballot"],
         content: dialogContent(`<form>
             <p>${game.i18n.localize("DRPG.Vote.ballotIntro")}</p>
             ${picks > 1 ? `<p class="drpg-warning">${
@@ -489,9 +502,12 @@ export async function closeVote() {
     // table rather than as two people who never answered. Whether the accusation
     // carries the room is the whole question the card is trying to settle.
     const returned = ballots.size;
-    const silent = pendingVoters()?.length ?? 0;
+    const stillPending = new Set((pendingVoters() ?? []).map(({ user }) => user.id));
+    for (const id of issuedTo ?? []) if (!ballots.has(id)) stillPending.add(id);
+    const silent = stillPending.size;
     const issued = returned + silent;
     ballots = null;
+    issuedTo = null;
 
     if (!returned) {
         ui.notifications.warn(game.i18n.localize("DRPG.Vote.nobodyVoted"));

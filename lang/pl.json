@@ -1153,6 +1153,10 @@
       "transformChange": "Zostaw coś innego"
     },
     "Murder": {
+      "openingReask": "Poproś o rzut otwarcia ponownie",
+      "openingReaskSent": "Zaproszenie do rzutu otwarcia wysłano ponownie.",
+      "openingReaskWait": "Zaproszenie poszło przed chwilą - daj im kilka sekund.",
+      "victimNoticedNext": "Ofiara zauważyła. Nic nie dzieje się samo: ma swój Free Move, a incydent pozostaje otwarty, dopóki nie zakończysz go z trackera.",
       "openTitle": "Morderstwo",
       "openIntro": "Jeden rzut otwarcia, potem incydent na tury. Direct Murder otwiera się rzutem zabójcy; pułapka - rzutem ofiary.",
       "killer": "Zabójca",
@@ -1493,6 +1497,7 @@
       "notSharedNote": "„To nie pokój” jest dla korytarzy, klatek schodowych i miejsc, gdzie nikt nie porozmawia na osobności. Zmienia tylko linię z proporcją powyżej i ten sam wiersz w Ustawieniach sezonu; ruch, przeszukiwanie, odpoczynki i mgła są nietknięte. Sypialnie są już wykluczone, bo mają właściciela."
     },
     "Chapter": {
+      "alreadyEnded": "Rozdział {n} został już zakończony przez innego GMa. Nic nie wykonano dwa razy.",
       "deathTitle": "Postać umiera",
       "whoDied": "Kto zginął?",
       "keepBullets": "Zachowaj ich Truth Bullets (śmierć spoza killing game)",
@@ -1619,6 +1624,7 @@
       "objectionRebuttalTargets": "Każdy może wciąć się w rebuttal, ale tylko wobec dwójki, która już ma głos. Objection przekierowuje głos, a ten, kogo wskażesz, dostaje odpowiadający rebuttal."
     },
     "Handover": {
+      "stashed": "{name} leży w skrytce, nie w twoich rękach. Najpierw go wyjmij.",
       "shareTooltip": "Podziel się kopią z kimś w tym pokoju",
       "giveTooltip": "Przekaż komuś w tym pokoju",
       "share": "Podziel się kopią",
@@ -1975,6 +1981,7 @@
       "saved": "Monokumy i pule zapisane."
     },
     "Overflow": {
+      "hopeBlocked": "Zaciemnienie blokuje Hope w tej porze dnia - nic nie zostało wydane.",
       "title": "Despair overflow",
       "caption": "Despair overflow",
       "cardTitle": "Despair się przelewa",
@@ -2083,6 +2090,8 @@
       "dead": "Nie żyją. Ciało zostaje tam, gdzie upadło."
     },
     "Project": {
+      "needsKiller": "Pośrednie morderstwo potrzebuje zabójcy: wybierz, komu ma być widoczne, albo zatwierdź je z karty propozycji.",
+      "needsKillerNamed": "„{name}” nie może stać się pośrednim morderstwem stąd - otwórz je i wskaż, do kogo należy pułapka.",
       "title": "Projekt",
       "choosePrompt": "Zacząć coś nowego czy popchnąć istniejący projekt?",
       "startNew": "Zaproponuj projekt",
@@ -2380,6 +2389,7 @@
       "woundedNote": "Jedna akcja o tej porze dnia, całe Health zaznaczone: {names}."
     },
     "Panel": {
+      "nextStartTrial": "Wszystkie zaplanowane Key Remnants zostały znalezione. Rozpocznij Class Trial z konsoli trialu.",
       "title": "Danganronpa - panel GMa",
       "launcher": "GM",
       "gmOnly": "Tylko GM może otworzyć panel.",
@@ -3716,16 +3726,22 @@
           "thresholds": {
             "0": {
               "help": "Dajesz graczowi +1 do następnego rzutu.",
-              "hinder": "Nakładasz graczowi −1 na następny rzut."
+              "hinder": "Nakładasz graczowi −1 na następny rzut.",
+              "helpTarget": "Coś uspokaja twoją rękę: +1 do następnego rzutu.",
+              "hinderTarget": "Coś cię rozprasza: −1 do następnego rzutu."
             },
             "1": {
               "help": "Dajesz graczowi przewagę na następny rzut.",
-              "hinder": "Nakładasz graczowi utrudnienie na następny rzut."
+              "hinder": "Nakładasz graczowi utrudnienie na następny rzut.",
+              "helpTarget": "Coś uspokaja twoją rękę: przewaga na następny rzut.",
+              "hinderTarget": "Coś cię rozprasza: utrudnienie na następny rzut."
             }
           },
           "critical": {
             "help": "Gracz odzyskuje akcję.",
-            "hinder": "Gracz marnuje akcję."
+            "hinder": "Gracz marnuje akcję.",
+            "helpTarget": "Chwila szczęścia: odzyskujesz akcję.",
+            "hinderTarget": "Chwila zamętu: akcja przepada."
           },
           "failure": "Próba się nie udaje."
         }

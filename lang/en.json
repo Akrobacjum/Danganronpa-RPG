@@ -1119,6 +1119,10 @@
       "transformChange": "Leave something else"
     },
     "Murder": {
+      "openingReask": "Ask for the opening roll again",
+      "openingReaskSent": "The invitation to throw the opening roll was sent again.",
+      "openingReaskWait": "The invitation was sent a moment ago - give them a few seconds.",
+      "victimNoticedNext": "The victim noticed. Nothing happens by itself now: they have their free Move, and the incident stays open until you end it from the tracker.",
       "openTitle": "Murder",
       "openIntro": "One opening roll, then a turn-based incident. A direct murder opens on the killer's roll; a trap opens on the victim's.",
       "killer": "Killer",
@@ -1414,7 +1418,7 @@
       "rifle": "Go through the stash",
       "rifleTitle": "The stash in {room}",
       "rifleIntro": "This is <strong>{who}</strong>'s stash, in {room}, and it is not hidden. Take one thing.",
-      "rifleNote": "Free, and they will notice it is gone. A concealed stash needs a Search instead.",
+      "rifleNote": "Free. A concealed stash needs a Search instead.",
       "noOpenStashHere": "There is no open stash in this room.",
       "stashEmpty": "{who}'s stash is empty.",
       "openStashSection": "{who}'s stash - {room}",
@@ -1441,6 +1445,7 @@
       "notSharedNote": "“Not a room” is for corridors, stairwells and anywhere nobody can talk privately. It changes only the ratio line above and the same row in Season setup; movement, searching, rests and fog are unaffected. Bedrooms are already excluded, by having an owner."
     },
     "Chapter": {
+      "alreadyEnded": "Chapter {n} was already ended by another GM. Nothing was done twice.",
       "deathTitle": "A character dies",
       "whoDied": "Who died?",
       "keepBullets": "Keep their Truth Bullets (not a killing-game death)",
@@ -1544,6 +1549,7 @@
       "objectionRebuttalTargets": "Anybody may cut into a rebuttal, but only at the two already on the floor. An objection re-points the floor, and whoever you name gets the answering rebuttal."
     },
     "Handover": {
+      "stashed": "{name} is in a stash, not in your hands. Take it out first.",
       "shareTooltip": "Share a copy with someone in this room",
       "giveTooltip": "Hand this to someone in this room",
       "share": "Share a copy",
@@ -1829,7 +1835,7 @@
         "experience": "Experience",
         "trait": "Resolve",
         "reroll": "a reroll",
-        "critical": "an automatic critical",
+        "critical": "a loaded die (one die set to 12)",
         "bonus": "a flat bonus or penalty"
       },
       "pendingTooltip": "Waiting on your next roll: {what}. Spent the moment you roll.",
@@ -1882,6 +1888,7 @@
       "saved": "Monokumas and pools saved."
     },
     "Overflow": {
+      "hopeBlocked": "The darkening blocks Hope this time of day - nothing was spent.",
       "title": "Despair overflow",
       "caption": "Despair overflow",
       "cardTitle": "The Despair overflows",
@@ -1922,7 +1929,7 @@
         "despair": "No Hope is earned at all. Spending what you already hold still works.",
         "silence": "No Hope Calls. Not one, by anybody.",
         "fog": "You cannot find your way for free: no free Move. Crossings still cost actions as usual.",
-        "rot": "Everything the school owns gets worse at once: {n} durability off every item that has any, ruining whatever was on its last point.",
+        "rot": "Everything the school owns gets worse at once: {n} durability off every item with more than one point left. Nothing breaks.",
         "earthquake": "The building shakes and work is undone: every project loses {n} progress."
       },
       "rulesChanged": "The overflow has been retuned. It now fires at {n}.",
@@ -1944,7 +1951,7 @@
         "one": "Now in {room}. {left} crossing left.",
         "other": "Now in {room}. {left} crossings left."
       },
-      "noMovesLeft": "Both Eclipse crossings are used. Your token has been put back.",
+      "noMovesLeft": "Your Eclipse crossings are used up. Your token has been put back.",
       "notConnected": "{to} is not connected to {from}. From here you can reach: {rooms}",
       "actionsLocked": "The Eclipse allows movement only. Your actions are already back - nothing spends them but a Direct Murder, and no Calls at all, until the lights come up.",
       "endPrompt": "End the Eclipse and begin the next time of day? Everyone has placed as follows:",
@@ -1975,13 +1982,15 @@
       },
       "wasFree": "That was your free Move for this time of day.",
       "costAction": "That cost an action - {left} left.",
-      "noBudget": "No free Move and no actions left. Move your token back.",
+      "noBudget": "No free Move and no actions left.",
       "notConnected": "{to} is not connected to {from}. From here you can reach: {rooms}",
       "noBudgetLong": "No free Move and no actions left - this crossing was not paid for. Move back, or ask the GM.",
       "locked": "The door is locked.",
       "dead": "They are dead. The body stays where it fell."
     },
     "Project": {
+      "needsKiller": "An indirect murder needs a killer: pick who it is visible to, or approve it from the proposal card.",
+      "needsKillerNamed": "“{name}” cannot become an indirect murder from here - open it and name who the trap belongs to.",
       "title": "Project",
       "choosePrompt": "Start something new, or push a project that already exists?",
       "startNew": "Propose a project",
@@ -2269,6 +2278,7 @@
       "woundedNote": "Down to one action this time of day, all Health marked: {names}."
     },
     "Panel": {
+      "nextStartTrial": "Every planned Key Remnant has been found. Start the Class Trial from the trial console.",
       "title": "Danganronpa - GM Panel",
       "launcher": "GM",
       "gmOnly": "Only a GM can open the panel.",

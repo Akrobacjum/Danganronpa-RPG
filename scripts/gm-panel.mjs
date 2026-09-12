@@ -14,6 +14,7 @@ import { isEclipse } from "./eclipse.mjs";
 import { dialogContent, error, plural, tableDialog, esc} from "./utils.mjs";
 import { keepLive, alreadyOpen } from "./live.mjs";
 import { bodyDiscovery } from "./settings.mjs";
+import { keyPlanStatus } from "./investigation.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
 
@@ -287,6 +288,11 @@ const EXTRA_ACTIONS = {
     startInvestigation: {
         key: "startInvestigation",
         run: () => import("./clock.mjs").then(m => m.setPhase("investigation"))
+    },
+    // The trial console, for the Next line once the Investigation is done.
+    trial: {
+        key: "trial",
+        run: () => import("./trial-floor-ui.mjs").then(m => m.manageClassTrial())
     }
 };
 
@@ -1013,6 +1019,18 @@ function nextStep(clock) {
     }
 
     if (clock.phase === "investigation") {
+        // Once every planned Key Remnant has been found the one step that ends
+        // the phase is the trial (CORE-19); the line used to describe the
+        // Investigation for the whole of it.
+        let status = null;
+        try {
+            status = keyPlanStatus();
+        } catch {
+            status = null;
+        }
+        if (status?.entries?.length && status.missing === 0) {
+            return { text: game.i18n.localize("DRPG.Panel.nextStartTrial"), action: "trial" };
+        }
         return { text: game.i18n.localize("DRPG.Panel.nextInvestigation"), action: "investigation" };
     }
 

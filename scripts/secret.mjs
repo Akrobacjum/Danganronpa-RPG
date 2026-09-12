@@ -352,6 +352,22 @@ export async function updateSecret(message, html, recipients = null) {
     return message;
 }
 
+/** The document a socket packet named, once Foundry delivers it - or null after a while. */
+function messageArrives(id, ms = 4000) {
+    return new Promise(resolve => {
+        const hook = Hooks.on("createChatMessage", message => {
+            if (message?.id !== id) return;
+            Hooks.off("createChatMessage", hook);
+            clearTimeout(timer);
+            resolve(message);
+        });
+        const timer = setTimeout(() => {
+            Hooks.off("createChatMessage", hook);
+            resolve(game.messages.get(id) ?? null);
+        }, ms);
+    });
+}
+
 /** Redraw one card in place, once its words have arrived. */
 function refresh(message) {
     try {
@@ -367,10 +383,27 @@ function refresh(message) {
  * ========================================================================== */
 
 export function registerSecrets() {
-    game.socket.on(SOCKET_EVENT, async payload => {
+    game.socket.on(SOCKET_EVENT, async (payload, senderId) => {
         if (payload?.action !== ACTION_SECRET) return;
         if (!payload.id || typeof payload.html !== "string") return;
         try {
+            /*
+             * WHO MAY PUT WORDS ON A CARD (CASE-13): a GM, or the card's own
+             * author. Anybody else sending `secret.card` for somebody else's
+             * message was writing spoofed narration - "the GM ruled..." -
+             * into a real card on another player's screen. The document
+             * usually lands before its words; when it has not yet, the check
+             * waits for it rather than trusting the packet.
+             */
+            const sender = game.users.get(senderId ?? "");
+            if (!sender?.isGM) {
+                const message = game.messages.get(payload.id) ?? await messageArrives(payload.id);
+                const author = message?.author?.id ?? message?.user?.id ?? null;
+                if (!message || author !== senderId) {
+                    debug(`Refused private words for ${payload.id} from ${sender?.name ?? senderId}: not the author.`);
+                    return;
+                }
+            }
             await remember(payload.id, payload.html, payload.at, Boolean(payload.pin));
             refresh(game.messages.get(payload.id));
         } catch (err) {

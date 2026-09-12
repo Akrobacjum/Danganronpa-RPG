@@ -240,6 +240,27 @@ export async function setDespair(userId, value) {
  * a GM correcting a number by hand, which should not darken the world.
  */
 export async function adjustDespair(userId, delta) {
+    /*
+     * ONE WRITER (DESP-12). The pools are one world object, written whole from
+     * the local cache; two GM clients writing at once - the primary awarding a
+     * roll's point while an assistant pays a Call from their own pool - lost
+     * one write. An assistant GM's adjustment goes to the primary over the
+     * bridge, like a player's reroll correction does, and is applied there.
+     */
+    if (game.user?.isGM && !isPrimaryGm() && userId) {
+        try {
+            const { requestDespairAdjust, hasGm } = await import("./gm-bridge.mjs");
+            const { primaryGmId } = await import("./utils.mjs");
+            const primary = game.users.get(primaryGmId() ?? "");
+            if (primary?.active && primary.id !== game.user.id && hasGm()) {
+                await requestDespairAdjust(userId, delta);
+                return Math.min(Math.max(getDespair(userId) + delta, 0), despairMax());
+            }
+        } catch (err) {
+            warn("Could not route a Despair adjustment to the primary GM; writing it here", err);
+        }
+    }
+
     const before = getDespair(userId);
     const wanted = before + delta;
     const applied = await setDespair(userId, wanted);
@@ -331,6 +352,15 @@ export async function convertDespairToHope(monokumaUserId, actor, amount) {
         return 0;
     }
 
+    // While the "Despair" darkening runs no Hope can be earned: the actor hook
+    // deletes the increase, and this used to take the Despair and report a
+    // grant that never landed (DESP-04). Asked before anything is paid.
+    const { overflowBlocksHope } = await import("./overflow.mjs");
+    if (overflowBlocksHope()) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Overflow.hopeBlocked"));
+        return 0;
+    }
+
     const { hopeMax } = await import("./calls.mjs");
     const hope = resourceValue(actor, "hope");
     const granted = Math.min(amount, hopeMax(actor) - hope);
@@ -358,7 +388,7 @@ export async function convertDespairToHope(monokumaUserId, actor, amount) {
  * @param {string} userId  Which Monokuma is paying.
  * @param {string} callKey Key from DESPAIR_CALLS.
  */
-export async function spendDespairCall(userId, callKey) {
+export async function spendDespairCall(userId, callKey, { announce: say = true } = {}) {
     const call = DESPAIR_CALLS[callKey];
     if (!call) {
         ui.notifications.error(game.i18n.format("DRPG.Despair.unknownCall", { key: callKey }));
@@ -378,6 +408,11 @@ export async function spendDespairCall(userId, callKey) {
     // The announcement must never be able to swallow the effect. Despair has
     // already been paid at this point; if the chat card fails, the caller still
     // has to go on and apply what was bought.
+    //
+    // `announce: false` is the sheet's route (DESP-11): `spendDespairCallFor`
+    // posts ONE card after the effect lands, so the table never reads "spent"
+    // for a Call that then failed and was refunded. The bare API keeps its own.
+    if (!say) return true;
     try {
         const user = game.users?.get?.(userId) ?? game.users?.find?.(u => u.id === userId);
         await announce({
@@ -529,7 +564,12 @@ function buildOverflowCaption() {
         if (active) {
             const badge = document.createElement("span");
             badge.className = "drpg-overflow-badge";
-            badge.textContent = game.i18n.localize("DRPG.Overflow.activeNow");
+            // WHICH darkening, not only that one runs (DESP-17): the card at
+            // the boundary was the only place the name appeared.
+            const name = overflowStatus().effectName;
+            badge.textContent = name
+                ? `${game.i18n.localize("DRPG.Overflow.activeNow")} · ${name}`
+                : game.i18n.localize("DRPG.Overflow.activeNow");
             line.append(" ", badge);
         }
 
@@ -599,7 +639,7 @@ function buildRow(user, showName) {
         pip.dataset.value = String(i);
 
         if (isGM) {
-            const label = game.i18n.format("DRPG.Despair.pipTooltip", { n: i, name: user.name });
+            const label = game.i18n.format("DRPG.Despair.pipTooltip", { n: i, name: poolLabel(user) });
             pip.dataset.tooltip = label;
             // Same reasoning as the action pips on the sheet: a `<span>` with a
             // click handler cannot be reached from the keyboard, and this is the

@@ -218,6 +218,11 @@ export async function applyCall(actor, key, kind, choice = {}) {
         // credits the Hope. Routing it through `convertDespairToHope` would take
         // the Despair a second time - the exchange rate is the Call's own cost.
         if (call.grantsHope && choice.target) {
+            const { overflowBlocksHope } = await import("./overflow.mjs");
+            if (overflowBlocksHope()) {
+                ui.notifications.warn(game.i18n.localize("DRPG.Overflow.hopeBlocked"));
+                throw new Error("the darkening blocks Hope");
+            }
             const max = resourceMax(choice.target, "hope") || STARTING.hopeMax;
             const held = resourceValue(choice.target, "hope");
             const next = Math.min(max, held + call.grantsHope);
@@ -457,7 +462,9 @@ export async function applyCall(actor, key, kind, choice = {}) {
         // give the price back. Failing quietly is how "Contribution adds no
         // progress, no error" happened.
         error(`Could not fully apply ${key}`, err);
-        ui.notifications.error(game.i18n.format("DRPG.Calls.effectFailed", { call: call.label }));
+        // One message, from the caller: it refunds and says so (DESP-19). A
+        // toast here as well contradicted it a second later ("paid for, but
+        // could not be applied" then "did nothing, so it has been returned").
         done.push(game.i18n.format("DRPG.Calls.effectFailed", { call: call.label }));
         return { lines: done, failed: true };
     }
@@ -740,8 +747,13 @@ export async function gatherEveryone(room) {
     }
 
     const { isMonokuma } = await import("./monokuma.mjs");
+    const { isDeceased } = await import("./chapter.mjs");
+    const { isMonocub } = await import("./monocub.mjs");
+    // Not the dead (DESP-15): a body is evidence, and moving one moves the
+    // crime scene. A Monocub is dead and does walk.
     const tokens = canvas.tokens.placeables
-        .filter(t => t.actor?.type === "character" && !isMonokuma(t.actor))
+        .filter(t => t.actor?.type === "character" && !isMonokuma(t.actor)
+            && !(isDeceased(t.actor) && !isMonocub(t.actor)))
         .map(t => t.document);
 
     if (!tokens.length) return 0;
@@ -822,7 +834,7 @@ export async function pickTarget(actor, call, kind) {
         switch (call.target) {
             case "player": return await pickPlayer(actor, call, kind);
             case "monocub": return await pickMonocub();
-            case "project": return await pickProject(actor);
+            case "project": return await pickProject(actor, kind);
             case "room": return await pickRoom();
             case "item": return await pickItem();
             default: return {};
@@ -1003,7 +1015,7 @@ async function pickPlayer(actor, call, kind) {
     return { target: pool.find(a => a.id === id) };
 }
 
-async function pickProject(actor) {
+async function pickProject(actor, kind = "hope") {
     const { visibleProjects, projectsAvailableIn } = await import("./projects.mjs");
     const { roomOfActor } = await import("./movement.mjs");
 
@@ -1014,9 +1026,12 @@ async function pickProject(actor) {
     // exists. The fallback used to be `allProjects()`, so a player standing in a
     // room with no project was shown a dropdown of every secret plan at the
     // table - the same leak as Work on Project, one dialog further along.
+    //
+    // And the fallback is Monokuma's alone (DESP-14): `kind` used to go unread,
+    // so a student in an empty room could Contribute across the map.
     const room = roomOfActor(actor);
     const here = projectsAvailableIn(room);
-    const pool = here.length ? here : visibleProjects();
+    const pool = here.length ? here : (kind === "despair" ? visibleProjects() : []);
 
     if (!pool.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Project.none"));

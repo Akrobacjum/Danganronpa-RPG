@@ -699,9 +699,11 @@ export async function openMurder({ killerId, victimId, indirect = false } = {}) 
     // long as that player takes. Awaiting it here would leave `openMurder`
     // hanging, and with it the dialog that called it.
     //
-    // The tracker keeps its button. This is the first invitation, not the only
-    // one - a player who dismissed the window, or who was not connected when the
-    // incident opened, still needs a way to be asked again.
+    // This is the first invitation, not the only one: `throwOpeningRoll`
+    // re-offers a dismissed window up to three times on its own, and after
+    // that the tracker's "Ask for the opening roll again" sends it once more
+    // (CASE-10). A player who was not connected when the incident opened has
+    // the roll thrown for them on the GM's client - see `rollOpening`.
     rollOpening(indirect ? "victim" : "killer", murderState())
         .catch(err => error("Could not open the Stage 4 roll", err));
 
@@ -914,7 +916,10 @@ export async function resolveVictimOpening({ total, isCritical, withHope }) {
 
     // The victim sensing it coming does not end the incident by itself - the
     // guide gives them a free Move and lets them use it or not. Ending it is
-    // the GM's call, which is why this reports rather than decides.
+    // the GM's call, which is why this reports rather than decides - and says
+    // so (CASE-10): left at "openingRoll" with no prompt, the incident sat
+    // open, refused every other murder and tied every trace in the building.
+    await whisperToGms(`<p class="drpg-warning">${game.i18n.localize("DRPG.Murder.victimNoticedNext")}</p>`);
     return { success: true, band };
 }
 
@@ -3657,6 +3662,10 @@ async function rollOpening(side, state) {
  */
 let openingRollsInFlight = 0;
 
+/** The tracker's "ask again": once per ten seconds on this client. */
+let lastReask = 0;
+const REASK_COOLDOWN_MS = 10000;
+
 /**
  * Is the invitation this client is answering still wanted?
  *
@@ -3960,6 +3969,13 @@ export async function openIncidentTracker() {
             // And none at all for a self-inflicted death: there is no turn to
             // pass, so the window's DEFAULT button - the one Enter presses -
             // would have been a control for a stage this incident never enters.
+            // ...but an invitation that was declined three times can be sent
+            // once more from here (CASE-10): the alternative was End and open
+            // it again, which repeated the whole three-strike loop. Rate-limited
+            // on this client so a held Enter cannot stack windows again.
+            ...(state.stage === "openingRoll" && !state.selfInflicted ? [
+                { action: "reask", label: game.i18n.localize("DRPG.Murder.openingReask") }
+            ] : []),
             ...(state.stage === "openingRoll" || state.selfInflicted ? [] : [
                 // No "somebody walks in" button. The guide's third party is
                 // whoever "wejdzie do pomieszczenia poprzez akcję ruch", and
@@ -4001,6 +4017,21 @@ export async function openIncidentTracker() {
 
     if (action === "pass") {
         await passTurn();
+        return openIncidentTracker();
+    }
+    if (action === "reask") {
+        const now = Date.now();
+        if (now - lastReask < REASK_COOLDOWN_MS) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Murder.openingReaskWait"));
+        } else {
+            lastReask = now;
+            const current = murderState();
+            if (current?.stage === "openingRoll") {
+                rollOpening(current.indirect ? "victim" : "killer", current)
+                    .catch(err => error("Could not re-send the opening roll", err));
+                ui.notifications.info(game.i18n.localize("DRPG.Murder.openingReaskSent"));
+            }
+        }
         return openIncidentTracker();
     }
     if (action === "end") {

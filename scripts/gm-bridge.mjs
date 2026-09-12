@@ -966,8 +966,23 @@ async function onSocket(payload, senderId) {
         if (!ownsActor(sender, payload.data?.sourceActor)) {
             return refuse(ACTION_REMNANT, "sender does not own the character leaving it", ctx);
         }
+        /*
+         * NARROWED (CASE-13). A player's action leaves a Prep, Incident or
+         * Tamper trace; it never plants a Key, Final Truth or Autopsy Remnant,
+         * never a reinforced one, and never decides for itself that it is tied
+         * to the crime - `placeRemnant` decides that from the incident. Every
+         * other field was taken as sent, and a console could grow the planner
+         * a sixth clue that the sweep would never remove.
+         */
+        const data = { ...(payload.data ?? {}) };
+        if (!sender?.isGM) {
+            const PLAYER_TYPES = new Set(["prep", "incident", "tamper", "resolution"]);
+            if (!PLAYER_TYPES.has(data.type)) data.type = "prep";
+            data.reinforced = false;
+            if (data.tiedToCrime === true) data.tiedToCrime = null;
+        }
         const { placeRemnant } = await import("./remnants.mjs");
-        await placeRemnant(payload.data);
+        await placeRemnant(data);
         debug("Placed a Remnant on behalf of a player.");
         return;
     }
@@ -988,8 +1003,11 @@ async function onSocket(payload, senderId) {
         // an investigation cannot survive.
         const scene = game.scenes.get(payload.sceneId) ?? canvas?.scene;
         const token = scene?.tokens?.get(payload.tokenId);
-        const { REMNANT_FLAGS } = await import("./remnants.mjs");
-        const source = token?.getFlag(MODULE_ID, REMNANT_FLAGS.sourceActor);
+        // From the ledger, which this GM holds - the token has carried no
+        // `sourceActor` flag since the answer key moved off it (CASE-09), so
+        // this read was always undefined and every legitimate edit refused.
+        const { remnantData } = await import("./remnants.mjs");
+        const source = remnantData(token)?.sourceActor ?? null;
         if (!ownsActor(sender, source)) {
             return refuse(ACTION_REMNANT_EDIT, "sender did not leave that Remnant", ctx);
         }
@@ -1160,12 +1178,18 @@ async function onSocket(payload, senderId) {
         // The only legitimate player-side Despair adjustment is a reroll giving
         // one point back or taking one. Anything larger is not the rules asking.
         const delta = Math.trunc(Number(payload.delta));
-        if (!Number.isFinite(delta) || Math.abs(delta) !== 1) {
+        // A GM's own adjustment routed here (DESP-12) may be any size; a
+        // player's is a reroll's single point.
+        const cap = sender.isGM ? STARTING.despairMax : 1;
+        if (!Number.isFinite(delta) || delta === 0 || Math.abs(delta) > cap) {
             return refuse(ACTION_DESPAIR, `delta ${payload.delta} is out of range`, ctx);
         }
+        // Any pool holder (DESP-13): an Assistant GM granted a pool is a
+        // Monokuma too, and their reroll corrections were silently dropped.
         const target = game.users.get(payload.targetUserId ?? "");
-        if (target?.role !== CONST.USER_ROLES.GAMEMASTER) {
-            return refuse(ACTION_DESPAIR, "target is not a Gamemaster", ctx);
+        const { monokumas } = await import("./despair.mjs");
+        if (!target || !monokumas().some(u => u.id === target.id)) {
+            return refuse(ACTION_DESPAIR, "target holds no Despair pool", ctx);
         }
 
         const { adjustDespair } = await import("./despair.mjs");

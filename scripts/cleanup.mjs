@@ -422,7 +422,7 @@ export async function attemptCleanup(actor, tokenId, {
 
     // Somebody is watching. Cover it before you do it - and learn the answer
     // while there is still a choice about how to behave afterwards.
-    if (!await concealFromWitnesses(actor)) return null;
+    if (!await concealFromWitnesses(actor)) return refundResolutionAction(actor, viaAction);
 
     const { rollTrait } = await import("./action-rolls.mjs");
     const calls = await import("./call-effects.mjs");
@@ -457,7 +457,9 @@ export async function attemptCleanup(actor, tokenId, {
     } finally {
         calls.clearSituational();
     }
-    if (!roll) return null;
+    // A closed window is not an attempt (CASE-15): the innocent tamperer, who
+    // pays an action the killer is exempt from, used to lose it here.
+    if (!roll) return refundResolutionAction(actor, viaAction);
 
     // One crime scene, one set of gloves - and Despair is what wears them out
     // early. The reference was taken before the dice; see `breakOnDespair`.
@@ -1280,6 +1282,15 @@ async function spendResolutionAction(actor) {
     if (isCleaner(actor)) return true;
     const { spendAction } = await import("./actions.mjs");
     return spendAction(actor, 1);
+}
+
+/** The Tamper road's action back, when its dice never landed. Returns null for the caller. */
+async function refundResolutionAction(actor, viaAction) {
+    if (viaAction && !isCleaner(actor)) {
+        const { refundAction } = await import("./actions.mjs");
+        await refundAction(actor, 1);
+    }
+    return null;
 }
 
 /** Common guard for the two below. @returns {object|null} the action def. */

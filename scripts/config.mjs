@@ -1846,8 +1846,8 @@ export const OVERFLOW = {
          * would be three kinds, and the durability track carries more than
          * that; "everything with a durability track that is not already broken"
          * is one rule instead of a list that goes stale at the next category.
-         * It goes through `wearItem`, so breaking on the last point behaves
-         * exactly as it does everywhere else.
+         * It goes through `wearItem`, and it deliberately NEVER takes the last
+         * point (D1, overflow.mjs): the school's things get worse, nothing breaks.
          */
         rot: { kind: "event", on: true, by: 1 },
         /**
@@ -2435,16 +2435,25 @@ export const MONOCUB = {
         // roll through the same Call machinery Support/Obstacle already use -
         // which is also how "help a crisis action" falls out for free: an
         // incident roll goes through the identical roll dialog.
+        // `help`/`hinder` are the Monocub's receipt; `helpTarget`/`hinderTarget`
+        // are what the student it happened to reads (DESP-06) - anonymous, in
+        // their own second person, never "the player".
         thresholds: [
             { min: 12, grants: "bonus",
               help: "You grant the player +1 on their next roll.",
-              hinder: "You inflict −1 on the player's next roll." },
+              hinder: "You inflict −1 on the player's next roll.",
+              helpTarget: "Something steadies your hand: +1 on your next roll.",
+              hinderTarget: "Something rattles you: −1 on your next roll." },
             { min: 16, grants: "advantage",
               help: "You grant the player advantage on their next roll.",
-              hinder: "You inflict disadvantage on the player's next roll." }
+              hinder: "You inflict disadvantage on the player's next roll.",
+              helpTarget: "Something steadies your hand: advantage on your next roll.",
+              hinderTarget: "Something rattles you: disadvantage on your next roll." }
         ],
         critical: {
-            help: "The player gets the action back.", hinder: "The player wastes the action."
+            help: "The player gets the action back.", hinder: "The player wastes the action.",
+            helpTarget: "A moment's luck: you get the action back.",
+            hinderTarget: "A moment's confusion: the action is wasted."
         },
         failure: "The attempt fails."
     }
