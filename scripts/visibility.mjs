@@ -19,7 +19,7 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { SETTINGS, isEclipse } from "./settings.mjs";
+import { SETTINGS, isEclipse, incidentParticipants } from "./settings.mjs";
 import { roomOfToken } from "./movement.mjs";
 import { REMNANT_FLAGS, keyOf as remnantKeyOf } from "./remnants.mjs";
 import { TRUTH_BULLET_FLAGS, bulletsOf } from "./truth-bullets.mjs";
@@ -264,18 +264,25 @@ function myIncidentTrace(tokenDoc) {
     try {
         if (!tokenDoc.getFlag(MODULE_ID, REMNANT_FLAGS.fromIncident)) return false;
 
-        const state = game.settings.get(MODULE_ID, "murderState");
+        const state = game.settings.get(MODULE_ID, SETTINGS.murderState);
         if (!state?.active) return false;
 
         /*
-         * MIRRORS `killerIds` + the victim, and the shape matters: the state
-         * stores `killerId` and a single `thirdId` with a `thirdSide`, not a
-         * list. An accomplice who threw in with the killers is `thirdSide ===
-         * "killer"` and was in the room; a third party who merely walked in is
-         * a witness and is not who D11 is about.
+         * THE NAMES ARE NOT IN THE WORLD SETTING ANY MORE (LIVE-001): they live
+         * in the client-scoped cast that only the participants and the GMs
+         * hold. This used to read `killerId`/`victimId`/`thirdId` off the world
+         * half, which has carried none of them since the split - so the set was
+         * always empty and D11's client half silently did nothing, again.
+         *
+         * `incidentParticipants()` is the same leaf reader movement.mjs uses. A
+         * bystander's client gets an empty list, which is the whole point. The
+         * "accomplice who threw in with the killers" distinction needs the
+         * side, which this client's own copy of the cast still carries.
          */
-        const ids = new Set([state.victimId, state.killerId].filter(Boolean));
-        if (state.thirdId && state.thirdSide === "killer") ids.add(state.thirdId);
+        const ids = new Set(incidentParticipants());
+        const cast = game.settings.get(MODULE_ID, SETTINGS.incidentCast) ?? {};
+        if (cast.thirdId && cast.thirdSide !== "killer") ids.delete(cast.thirdId);
+        if (!ids.size) return false;
 
         return game.actors.filter(a => a.isOwner).some(a => ids.has(a.id));
     } catch {

@@ -384,9 +384,11 @@ export async function spendDespairCall(userId, callKey) {
             content: `<h3>${game.i18n.localize("DRPG.Despair.callTitle")}</h3>
                       <p><strong>${foundry.utils.escapeHTML(call.label)}</strong> - ${foundry.utils.escapeHTML(callEffect(call))}</p>
                       <p><em>${game.i18n.format("DRPG.Despair.spent", {
-                          name: foundry.utils.escapeHTML(user?.name ?? "?"),
-                          cost: call.cost,
-                          left: getDespair(userId)
+                          // The pool's label, not the account name; and no
+                          // "left" - the player rail masks the pool for a
+                          // reason, and this card told the room the number.
+                          name: foundry.utils.escapeHTML(poolLabel(user) ?? user?.name ?? "?"),
+                          cost: call.cost
                       })}</em></p>`
         });
     } catch (err) {

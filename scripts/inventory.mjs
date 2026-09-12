@@ -147,6 +147,12 @@ export function preservedFlags(item) {
     const identity = item?.getFlag(MODULE_ID, ITEM_FLAGS.identity);
     if (identity) flags[ITEM_FLAGS.identity] = identity;
 
+    // And the Despair it has already taken. Every transfer is a create-then-
+    // delete, so without this a tool on its last point arrived on the other
+    // sheet brand new - the laundry service this function exists to stop.
+    const worn = wearOf(item);
+    if (worn) flags[ITEM_FLAGS.wear] = worn;
+
     return flags;
 }
 
@@ -723,7 +729,7 @@ export function registerInventoryLimits() {
         if (room.ok) return;
 
         ui.notifications.warn(game.i18n.format("DRPG.Inventory.full", {
-            category: ITEM_CATEGORIES[category]?.plural ?? category,
+            category: capacityLabel(category),
             limit: room.limit
         }));
         return false;

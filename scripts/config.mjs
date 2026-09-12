@@ -3851,7 +3851,7 @@ export const SFX_EVENTS = {
     },
     cleanupFailed: {
         label: "Cleaning up fails",
-        hint: "Heard by the killer. The Sanity is spent either way, and a failure with Despair adds an Obvious trace to the one they were trying to remove.",
+        hint: "Heard by the killer. The Sanity is spent either way, and a failure leaves a Tamper Remnant of its own beside the one they were scrubbing.",
         category: "incident"
     },
     breakdown: {

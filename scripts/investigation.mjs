@@ -1221,7 +1221,15 @@ export async function openInvestigationDashboard() {
                         finalName: q("finalName")?.value.trim() ?? "",
                         finalText: q("finalText")?.value.trim() ?? "",
                         finalNote: q("finalNote")?.value.trim() ?? "",
-                        traces: traces.map(({ token, scene }) => {
+                        // ONLY THE ROWS THAT ARE ON SCREEN. The table renders what the
+                        // filter shows (by default: this chapter), so a trace the filter
+                        // hides has no fields in the form - and `?? ""` / `?? false` on
+                        // an absent field read as "blank the name, untie, un-reinforce".
+                        // Saving with the chapter filter on wiped every earlier chapter's
+                        // Key Remnants that way.
+                        traces: traces.filter(({ token, scene }) =>
+                            q(`name.${rowKey(scene.id, token.id)}`)
+                        ).map(({ token, scene }) => {
                             const key = rowKey(scene.id, token.id);
                             return {
                                 key,

@@ -25,7 +25,7 @@
 
 import { MODULE_ID, ITEM_CATEGORIES, BEDROOM_KEY_FLAG, ACTIONS, VAULT_LIMIT, ROOMS_PER_PLAYER }
     from "./config.mjs";
-import { ITEM_FLAGS, LOCATIONS, isStashed, canCarry, pickableCategories } from "./inventory.mjs";
+import { ITEM_FLAGS, LOCATIONS, isStashed, canCarry, pickableCategories, capacityLabel } from "./inventory.mjs";
 // The one room lookup. movement.mjs does not reach back into this file.
 import { roomOfActor, ROOM_FLAGS } from "./movement.mjs";
 // Static because the reader is synchronous. From settings.mjs, which is a leaf
@@ -759,6 +759,10 @@ export async function stow(actor, item) {
     try {
         await item.update({
             [`flags.${MODULE_ID}.${ITEM_FLAGS.location}`]: LOCATIONS.vault,
+            // Put down as well as put away: a thing in a drawer is not in a
+            // hand, and `retrieve` writes only the location back, so the
+            // readied flag would otherwise come out of the stash with it.
+            [`flags.${MODULE_ID}.equipped`]: false,
             [`flags.${MODULE_ID}.${ITEM_FLAGS.stashRoom}`]: room
         });
     } catch (err) {
@@ -787,7 +791,7 @@ export async function retrieve(actor, item) {
     const room = canCarry(actor, category);
     if (!room.ok) {
         ui.notifications.warn(game.i18n.format("DRPG.Inventory.full", {
-            category: ITEM_CATEGORIES[category]?.plural ?? category,
+            category: capacityLabel(category),
             limit: room.limit
         }));
         return false;

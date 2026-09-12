@@ -21,7 +21,7 @@
  */
 
 import { MODULE_ID, FLAGS, ITEM_CATEGORIES, BEDROOM_KEY_FLAG } from "./config.mjs";
-import { grantItem, canCarry, preservedFlags } from "./inventory.mjs";
+import { grantItem, canCarry, preservedFlags, capacityLabel } from "./inventory.mjs";
 import { createTruthBullet, truthBulletData, secretOf, isTruthBullet } from "./truth-bullets.mjs";
 import { dialogContent, whisperToOwner, log, warn, error } from "./utils.mjs";
 
@@ -494,7 +494,7 @@ export async function giveItem({ fromId, toId, itemId } = {}) {
     if (!room.ok) {
         await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.theirHandsFull", {
             who: foundry.utils.escapeHTML(to.name),
-            category: foundry.utils.escapeHTML(ITEM_CATEGORIES[category]?.plural ?? category),
+            category: foundry.utils.escapeHTML(capacityLabel(category)),
             limit: room.limit
         })}</p>`);
         return null;

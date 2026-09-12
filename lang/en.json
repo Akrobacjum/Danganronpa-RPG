@@ -280,6 +280,10 @@
         "name": "Pixel font",
         "hint": "Monokuma Legacy only, and on by default there: Press Start 2P on interface chrome - HUD, Despair, character name, statistic labels, tabs. Journals, chat and editable fields keep the normal face so long text stays readable. The Stained Glass theme has its own two faces and ignores this."
       },
+      "language": {
+        "name": "Language",
+        "hint": "This client only. The language of this module's own windows, cards and sheet. The game's proper names - Truth Bullets, Remnants, Despair - stay in English in every language. Takes effect after a reload."
+      },
       "theme": {
         "name": "Theme",
         "hint": "How the module looks on this browser. Stained Glass is the current identity: black broken glass along the screen edges, colour in the seams. Monokuma Legacy is the look before it.",
@@ -414,7 +418,7 @@
       "label": "Despair",
       "callTitle": "Despair Call",
       "pipTooltip": "Set {name}'s Despair to {n}. Click the last filled one to spend it.",
-      "spent": "{name} spent {cost} Despair · {left} left",
+      "spent": "{name} spent {cost} Despair",
       "notEnough": "{call} costs {cost} Despair and you hold {held}.",
       "unknownCall": "Unknown Despair Call: {key}.",
       "notEnoughPool": "That pool holds {held} Despair; {needed} was asked for.",
@@ -442,7 +446,7 @@
       "elapsedUnknown": "not started",
       "elapsedTooltip": "How long this time of day has run. Amber at 15 minutes, red at 30.",
       "bodyFound": "Body found",
-      "bodyFoundTooltip": "A body has been found and nobody is searching yet. The clock stays in Daily Life until the GM starts the Investigation or moves the time of day on.",
+      "bodyFoundTooltip": "A body has been found and nobody is searching yet. The game waits for the GM to start the Investigation.",
       "stillToAct": "Still to act",
       "stillToActTooltip": "Students with actions left. The roster on the left says which ones.",
       "stillPlacing": "Still placing",
@@ -853,6 +857,7 @@
       "trialFloorOpen": "Everyone has the floor"
     },
     "Look": {
+      "language": "Language",
       "title": "Settings",
       "launcherTooltip": "Settings",
       "legend": "Look",
@@ -929,7 +934,7 @@
       "majorityLine": "A conviction needs {n} of {issued} votes - more than half the room.",
       "resultBanner": "THE VOTE IS IN",
       "accused": "{name} - {n} of {total} votes.",
-      "tied": "A tie. That is a loss for the students.",
+      "tied": "A tie. Unless the table settles it, that counts as a wrong vote.",
       "verdictTitle": "The verdict",
       "verdictIntro": "Only you know whether they got it right. Name who is executed and who the Blackened really was, then pick the outcome.",
       "executed": "Who is executed",
@@ -1172,7 +1177,7 @@
       "leftRemnant": "Leaves a trace behind.",
       "damaged": "{name} takes {what}.",
       "drained": "{name} loses {n} to the incident.",
-      "killerChooses": "Critical - the killer chooses: 2 Health, 2 Sanity, or 1 of each.",
+      "killerChooses": "Critical - the killer chooses: both marks off Health, or both off Sanity.",
       "hinderedActions": {
         "one": "{n} of their action at disadvantage for {turns} turns.",
         "other": "{n} of their actions at disadvantage for {turns} turns."
@@ -1298,7 +1303,7 @@
       "breakdown": "Really",
       "pickRoom": "- create in -",
       "createHere": "Create on the map",
-      "createNote": "Pick a room on any row not already on the map. Apply places that Key Remnant there: reinforced, tied to the crime, at the centre of the region. Rows already pointing at a token are left alone.",
+      "createNote": "Pick a room on any row not already on the map. Save places that Key Remnant there: reinforced, tied to the crime, somewhere inside the room. Rows already pointing at a token are left alone.",
       "plannerCreated": {
         "one": "Plan saved; {n} Key Remnant placed on the map.",
         "other": "Plan saved; {n} Key Remnants placed on the map."
@@ -1452,7 +1457,7 @@
       "whoseBody": "Whose body? (optional)",
       "unnamedVictim": "Do not name them",
       "noRooms": "This scene has no room regions to gather anyone into.",
-      "bodyNote": "Calls everyone to the scene and holds the game there: the clock stays where it is and the music stops until you start the Investigation or move the time of day on. First it offers you the doubtful Prep traces, so you can say which belong to this murder.",
+      "bodyNote": "Calls everyone to the scene and holds the game there: the phase stays Daily Life and the music stops until you start the Investigation (moving the time of day ends only the silence). First it offers you the doubtful Prep traces, so you can say which belong to this murder.",
       "announce": "Announce it",
       "bodyBanner": "A BODY HAS BEEN DISCOVERED",
       "bodyFound": "A body has been found in {room}.",
@@ -1470,7 +1475,7 @@
       "endTitle": "End of chapter / new session",
       "endIntro": "Chapter {chapter} is wrapping up. Tick what should happen.",
       "optReveal": "Reveal what every Truth Bullet really is ({n} still unidentified)",
-      "endNote": "Revealing the types is permanent. Nothing else here deletes anything: clearing Faint Remnants and sweeping Truth Bullets are the GM's own tools, in the Investigation Dashboard.",
+      "endNote": "Revealing the types is permanent, and so are the three clean-ups above. Nothing else here deletes anything.",
       "endConfirm": "Do it",
       "doneReveal": {
         "one": "Revealed {n} Truth Bullet type.",
@@ -1487,10 +1492,9 @@
       "optSweep": "Collect the Truth Bullets ({n} would go, Faint and Final stay)",
       "optFaint": "Clear the Faint Remnants ({n} would go)",
       "optKeys": "Take this chapter's Key Remnants off the map ({n})",
-      "doneSweep": "Collected {n} Truth Bullet(s).",
-      "doneFaint": "Cleared {n} Faint Remnant(s).",
-      "doneKeys": "Took {n} Key Remnant(s) off the map.",
-      "tidyNote": "These three were only ever reachable from the Investigation window, which is a screen a GM opens in the middle of a case rather than at the end of one.",
+      "doneSweep": { "one": "Collected {n} Truth Bullet.", "other": "Collected {n} Truth Bullets." },
+      "doneFaint": { "one": "Cleared {n} Faint Remnant.", "other": "Cleared {n} Faint Remnants." },
+      "doneKeys": { "one": "Took {n} Key Remnant off the map.", "other": "Took {n} Key Remnants off the map." },
       "optEndTrial": "Close the trial and put the room back into Daily Life",
       "doneEndTrial": "Closed the trial; the campaign is back in Daily Life.",
       "doneNextMorning": "The next chapter opens on the morning of day {day}, with actions and search tokens refilled."
@@ -1818,15 +1822,17 @@
       "noExperiences": "This character has no experiences written down, so this Call has nothing to add.",
       "armedTitle": "A Call was made for you",
       "armedForYou": "Another student spent Hope on you: your next roll has {what}. It applies by itself.",
+      "armedByMonokuma": "Monokuma has {what} on your next roll. It applies by itself.",
+      "armedByNobody": "Your next roll carries {what}. It applies by itself.",
       "newRuleTitle": "New Killing Game Rule",
       "newRulePrompt": "Write the new rule. Every player sees it in chat, word for word.",
       "newRulePlaceholder": "e.g. From now on, nobody may enter the library alone.",
-      "newRuleNote": "Twelve Despair buys a permanent change to the game. Make it count.",
+      "newRuleNote": "{cost} Despair buys a permanent change to the game. Make it count.",
       "newRuleAnnounced": "The new rule was announced to everyone.",
       "noSuchRoom": "There is no region called “{room}” on this scene.",
       "progressedTo": "{name} is now at {current}/{target}.",
       "progressSent": "{name}: {n} progress sent to the GM.",
-      "overflowFed": "{n} Despair poured into the overflow - now {count}/{max}.",
+      "overflowFed": "{n} Despair poured into the overflow.",
       "progressRefused": "{name} could not take the progress - it is already complete.",
       "hopeGranted": "{name} gains {n} Hope.",
       "cannotAfford": "You do not hold enough for this one.",
@@ -1866,7 +1872,7 @@
       "caption": "Despair overflow",
       "cardTitle": "The Despair overflows",
       "cardBody": "{n} points of spilled Despair have found a use. For one time of day, this is what the school becomes:",
-      "cardLeft": "{n} left in the overflow.",
+      "cardLeft": "The overflow keeps what it did not spend.",
       "activeNow": "Darkened · this time of day",
       "hiddenValue": "?",
       "playerHint": "Despair that no Monokuma could hold. At {max} the school gets worse for one time of day. How close it is now is the GMs' to know.",
@@ -2206,7 +2212,7 @@
     "Clock": {
       "summary": "Chapter {chapter} · Day {day} · Session {session} · {time}",
       "summaryEclipse": "{summary} · ECLIPSE",
-      "eclipseStillOn": "The clock moved, but the Eclipse is still running. End it from the GM panel when you are ready - until then tokens place freely and murders are refused.",
+      "eclipseStillOn": "The clock moved, but the Eclipse is still running. End it from the clock's chevron when you are ready - until then tokens place freely and murders are refused.",
       "campaignName": "Campaign name",
       "chapter": "Chapter",
       "day": "Day",
@@ -2232,13 +2238,16 @@
       "nextEclipse": "The Eclipse is open. Close it once everyone has placed.",
       "nextNoFloor": "The trial is in discussion. Open the debate when the room is ready for one.",
       "nextFloor": "The debate is open - {mode}.",
-      "nextBodyFound": "A body has been found. Start the Investigation, or move the clock on.",
+      "nextBodyFound": "A body has been found. Start the Investigation when the room is ready.",
       "nextInvestigation": "Investigation. Check what has been found and what is still out there.",
       "nextStillActing": {
         "one": "{n} student still has actions to spend.",
         "other": "{n} students still have actions to spend."
       },
-      "nextAllDone": "Everyone has spent their actions. Move the clock on.",
+      "nextAllDone": "Everyone has spent their actions. Start the Eclipse - closing it moves the clock and refills everyone.",
+      "advance": "Next time of day",
+      "advanceTooltip": "Move the clock on without an Eclipse: refills actions, free Moves and search tokens. At Night this also starts the next day and session.",
+      "advanceDuringEclipse": "An Eclipse is running - end it from the clock's chevron; its end moves the clock.",
       "jump": "Edit campaign",
       "resetHint": "Leave this off when you are only correcting a typo - refilling hands everyone a fresh set of actions.",
       "section": {
@@ -2392,7 +2401,7 @@
       "nothingOfYours": "You have left nothing in this room.",
       "onlyReinforced": "Everything you left here is too deeply set to remove.",
       "frame": "Misleading trail",
-      "frameHint": "Leave something that points at somebody else. Needs 18 or more, and it plants a trace either way.",
+      "frameHint": "Leave something that points at somebody else. Needs {n} or more, and it plants a trace either way.",
       "whichTrace": "Which trace",
       "coverAction": "Cover your tracks",
       "trailAction": "Misleading trail",
@@ -2728,7 +2737,7 @@
       },
       "phase": {
         "eclipseTitle": "Eclipse",
-        "eclipse": "The lights are out. Everyone moves once, anywhere on the map, and nobody can see who went where. Nothing else happens until it ends - it is the game's one moment of total cover, and it is where a murder usually starts.",
+        "eclipse": "The lights are out. Everyone places their token - up to two connected rooms, or anywhere at night - and nobody can see who went where. Nothing else happens until it ends - it is the game's one moment of total cover, and it is where a murder usually starts.",
         "dailyLife": "Ordinary days inside the school. You have two actions each time of day to search rooms, work on projects, rest, talk, and prepare. Nobody has died yet this chapter - this is the part where you decide who you trust.",
         "investigation": "A body has been found. Observe traces on the map, Analyze what you collect, and every Truth Bullet you build is one you can present at the trial. What you fail to find, you will not have.",
         "classTrial": "Everyone is in the room and one of you did it. Testimony, Objections, and finally the vote. Get it right and the killer is punished; get it wrong and everybody else is."

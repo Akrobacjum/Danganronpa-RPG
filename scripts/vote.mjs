@@ -145,7 +145,7 @@ export function registerVote() {
  * onto everybody else's screen, with a candidate list of their own choosing.
  */
 function onBallotOpened(payload, senderId) {
-    if (game.user.isGM) return;
+    if (!game.user || game.user.isGM) return;
     if (!game.users.get(senderId)?.isGM) return;
 
     castBallot(payload.candidates, payload.voterActorId, Number(payload.picks) || 1)
@@ -166,7 +166,7 @@ function onBallotOpened(payload, senderId) {
  * rather than trusting a `<select>` on a client to have offered honest options.
  */
 function onBallotCast(payload, senderId) {
-    if (!game.user.isGM) return;
+    if (!game.user?.isGM) return;
     if (!ballots) return;
 
     const sender = game.users.get(senderId);
@@ -190,6 +190,10 @@ function onBallotCast(payload, senderId) {
     // adding to the tally - a resend must never double a vote.
     ballots.set(senderId, clean);
     log(`Ballot received with ${clean.length} name(s) (${ballots.size} so far).`);
+    // A ballot is neither a document nor a setting, so nothing that keeps a
+    // window live would notice it. The trial console's "still to vote" line is
+    // the one thing a GM opens that window to read during a vote.
+    Hooks.callAll("drpgBallotsChanged");
 }
 
 function refuseBallot(senderId, why) {
@@ -257,6 +261,7 @@ export async function openVote({ picks = null } = {}) {
     }
 
     sendBallots(voters);
+    Hooks.callAll("drpgBallotsChanged");
 
     await announce({
         flags: { [MODULE_ID]: { sfx: { key: "voteOpen", gm: true } } },
@@ -363,6 +368,7 @@ export function remindVoters() {
     if (!pending?.length) return 0;
 
     sendBallots(pending);
+    Hooks.callAll("drpgBallotsChanged");
     log(`Re-sent ballots to ${pending.length} player(s).`);
     return pending.length;
 }

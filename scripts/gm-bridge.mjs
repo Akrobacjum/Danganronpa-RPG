@@ -15,7 +15,7 @@
 import {
     MODULE_ID, TRAITS, HOPE_CALLS, DESPAIR_CALLS, STARTING, PROJECT_SCALE
 } from "./config.mjs";
-import { announce, whisperToGms, whisperToOwner, ownerOf, isPrimaryGm, dialogContent, debug, warn, error, cardHead, esc} from "./utils.mjs";
+import { announce, whisperToGms, whisperToOwner, ownerOf, isPrimaryGm, activeGmIds, dialogContent, debug, warn, error, cardHead, esc} from "./utils.mjs";
 
 import { contentOf } from "./secret.mjs";
 const SOCKET_EVENT = `module.${MODULE_ID}`;
@@ -98,7 +98,7 @@ function resendPendingRulings() {
     for (const entry of pendingRulings.values()) {
         if (entry.resent || !entry.payload) continue;
         entry.resent = true;
-        game.socket.emit(SOCKET_EVENT, entry.payload);
+        emitToGms(entry.payload);
         debug(`Re-sent a ruling request after a GM reconnected: ${entry.payload.action}`);
     }
 }
@@ -110,10 +110,32 @@ function onGmReady(payload, senderId) {
     resendPendingRulings();
 }
 
+/**
+ * A player's request goes to the GMs, and to nobody else.
+ *
+ * Every request in this file used to be emitted with no `recipients`, so
+ * Foundry relayed it to every connected client. A player's client dropped it
+ * at `onSocket` - but the packet had already arrived, and a console listener
+ * on any player's browser printed, in clear, who parked a direct murder and in
+ * which room, who was stealing what from whom, which project was being
+ * sabotaged, every crisis total and every Hope Call note. The replies were
+ * addressed all along (`recipients: [asker]`); the questions were not.
+ *
+ * Addressed to the GMs who are connected. `hasGm()` runs before every request,
+ * so the list is never empty here; the broadcast fallback is only for the
+ * moment a GM drops between the check and the emit, where a packet to nobody
+ * would otherwise be silently lost.
+ */
+function emitToGms(payload) {
+    const recipients = activeGmIds();
+    if (recipients.length) game.socket.emit(SOCKET_EVENT, payload, { recipients });
+    else game.socket.emit(SOCKET_EVENT, payload);
+}
+
 /** Remember a request, and how to ask it again. */
 function awaitRuling(requestId, resolve, payload) {
     pendingRulings.set(requestId, { resolve, payload, resent: false });
-    game.socket.emit(SOCKET_EVENT, payload);
+    emitToGms(payload);
 }
 
 /** Hand an arrived answer to whoever is waiting for it. */
@@ -224,7 +246,7 @@ export function requestOpeningResult({ actorId, side, total, isCritical, withHop
     }
     if (!hasGm()) return null;
 
-    game.socket.emit(SOCKET_EVENT, {
+    emitToGms({
         action: ACTION_OPENING_RESULT,
         userId: game.user.id,
         requestId: expectAck("Opening roll"),
@@ -378,6 +400,9 @@ async function onSocket(payload, senderId) {
     // handler that has to answer a *player* had to be registered as a separate
     // listener to escape it - a trap for the next one added.
     if (!payload?.action) return;
+    // A packet in flight while this client is still loading or already
+    // closing: `game.user` is null and every branch below reads it.
+    if (!game.user) return;
 
     // Replies travelling back to a player. They carry a requestId and a userId,
     // so letting them fall through would have the primary GM acknowledge its own
@@ -1074,7 +1099,8 @@ async function onSocket(payload, senderId) {
         await whisperToOwner(actor, `${cardHead({
             action: game.i18n.localize("DRPG.Calls.armedTitle")
         })}<p>${
-            game.i18n.format("DRPG.Calls.armedForYou", {
+            game.i18n.format(payload.call?.kind === "despair" ? "DRPG.Calls.armedByMonokuma"
+                : payload.call?.kind === "hope" ? "DRPG.Calls.armedForYou" : "DRPG.Calls.armedByNobody", {
                 what: game.i18n.localize(`DRPG.Calls.grants.${payload.call?.grants}`)
             })
         }</p>`);
@@ -1147,7 +1173,7 @@ export async function requestBodyLoot({ takerId, bodyId, itemId }) {
         return lootBody({ takerId, bodyId, itemId });
     }
     if (!hasGm()) return null;
-    game.socket.emit(SOCKET_EVENT, {
+    emitToGms( {
         action: ACTION_LOOT, userId: game.user.id,
         requestId: expectAck("Take from the body"), takerId, bodyId, itemId
     });
@@ -1163,7 +1189,7 @@ export async function requestArmCall(actorId, call) {
         return true;
     }
     if (!hasGm()) return null;
-    game.socket.emit(SOCKET_EVENT, { action: ACTION_ARM, userId: game.user.id, requestId: expectAck(call?.key ?? "Call"), actorId, call });
+    emitToGms( { action: ACTION_ARM, userId: game.user.id, requestId: expectAck(call?.key ?? "Call"), actorId, call });
     return true;
 }
 
@@ -1180,7 +1206,7 @@ export async function requestDespairAdjust(targetUserId, delta) {
         return adjustDespair(targetUserId, delta);
     }
     if (!hasGm()) return null;
-    game.socket.emit(SOCKET_EVENT, {
+    emitToGms( {
         action: ACTION_DESPAIR, userId: game.user.id,
         requestId: expectAck("Despair"), targetUserId, delta
     });
@@ -1227,21 +1253,21 @@ export function requestSabotage(targetId, difficulty) {
  */
 export function requestUndoSabotage(targetId, repairId) {
     if (!hasGm()) return null;
-    game.socket.emit(SOCKET_EVENT, { action: ACTION_UNSABOTAGE, userId: game.user.id, requestId: expectAck("Sabotage"), targetId, repairId });
+    emitToGms( { action: ACTION_UNSABOTAGE, userId: game.user.id, requestId: expectAck("Sabotage"), targetId, repairId });
     return { pending: true };
 }
 
 /** A player whose token cannot be moved back asks the GM to do it. */
 export function requestSendBack(sceneId, tokenId, position) {
     if (!hasGm()) return null;
-    game.socket.emit(SOCKET_EVENT, { action: ACTION_SENDBACK, userId: game.user.id, requestId: expectAck("Move"), sceneId, tokenId, position });
+    emitToGms( { action: ACTION_SENDBACK, userId: game.user.id, requestId: expectAck("Move"), sceneId, tokenId, position });
     return { pending: true };
 }
 
 /** Count an Eclipse crossing on the GM's copy of the world setting. */
 export function requestEclipseMove(actorId) {
     if (!hasGm()) return null;
-    game.socket.emit(SOCKET_EVENT, { action: ACTION_ECLIPSE_MOVE, userId: game.user.id, requestId: expectAck("Eclipse"), actorId });
+    emitToGms( { action: ACTION_ECLIPSE_MOVE, userId: game.user.id, requestId: expectAck("Eclipse"), actorId });
     return { pending: true };
 }
 
@@ -1259,7 +1285,7 @@ export function requestTieTrace(identity) {
         return import("./remnants.mjs").then(m => m.tieTraceForItem(identity));
     }
     if (!hasGm()) return null;
-    game.socket.emit(SOCKET_EVENT,
+    emitToGms(
         { action: ACTION_TIE_TRACE, userId: game.user.id, identity });
     return { pending: true };
 }
@@ -1267,7 +1293,7 @@ export function requestTieTrace(identity) {
 /** Creating tokens is GM-only, so a player's Remnant is placed for them. */
 export function requestRemnant(data) {
     if (!hasGm()) return null;
-    game.socket.emit(SOCKET_EVENT, { action: ACTION_REMNANT, userId: game.user.id, requestId: expectAck("Remnant"), data });
+    emitToGms( { action: ACTION_REMNANT, userId: game.user.id, requestId: expectAck("Remnant"), data });
     return { pending: true };
 }
 
@@ -1278,7 +1304,7 @@ export function requestRemnant(data) {
  */
 export function requestRemnantEdit(sceneId, tokenId, patch) {
     if (!hasGm()) return null;
-    game.socket.emit(SOCKET_EVENT, { action: ACTION_REMNANT_EDIT, userId: game.user.id, requestId: expectAck("Remnant"), sceneId, tokenId, patch });
+    emitToGms( { action: ACTION_REMNANT_EDIT, userId: game.user.id, requestId: expectAck("Remnant"), sceneId, tokenId, patch });
     return { pending: true };
 }
 
@@ -1460,7 +1486,7 @@ export function requestObserveResolve({ actorId, key, total, isCritical, undo = 
     }
     if (!hasGm()) return null;
 
-    game.socket.emit(SOCKET_EVENT, {
+    emitToGms( {
         action: ACTION_OBSERVE_RESOLVE,
         userId: game.user.id,
         requestId: expectAck("Observe"),
@@ -1482,7 +1508,7 @@ export function requestAnalyzeResolve({ actorId, itemId, total, isCritical, undo
     }
     if (!hasGm()) return null;
 
-    game.socket.emit(SOCKET_EVENT, {
+    emitToGms( {
         action: ACTION_ANALYZE_RESOLVE,
         userId: game.user.id,
         requestId: expectAck("Analyze"),
@@ -1503,7 +1529,7 @@ export function requestShareBullet({ fromId, toId, itemId }) {
     }
     if (!hasGm()) return null;
 
-    game.socket.emit(SOCKET_EVENT, {
+    emitToGms( {
         action: ACTION_SHARE_BULLET,
         userId: game.user.id,
         requestId: expectAck("Truth Bullet"),
@@ -1519,7 +1545,7 @@ export function requestGiveItem({ fromId, toId, itemId }) {
     }
     if (!hasGm()) return null;
 
-    game.socket.emit(SOCKET_EVENT, {
+    emitToGms( {
         action: ACTION_GIVE_ITEM,
         userId: game.user.id,
         requestId: expectAck("Item"),
@@ -1552,7 +1578,7 @@ export function requestCrisisResult({
     }
     if (!hasGm()) return null;
 
-    game.socket.emit(SOCKET_EVENT, {
+    emitToGms( {
         action: ACTION_CRISIS,
         userId: game.user.id,
         requestId: expectAck("Incident"),
@@ -1595,7 +1621,7 @@ export function requestCleanup({
     }
     if (!hasGm()) return null;
 
-    game.socket.emit(SOCKET_EVENT, {
+    emitToGms( {
         action: ACTION_CLEANUP,
         userId: game.user.id,
         requestId: expectAck("Clean-up"),
@@ -1618,7 +1644,7 @@ export function requestParkMurder({ killerId, room = null, note = "" }) {
     }
     if (!hasGm()) return null;
 
-    game.socket.emit(SOCKET_EVENT, {
+    emitToGms( {
         action: ACTION_PARK_MURDER,
         userId: game.user.id,
         requestId: expectAck("Direct murder"),
@@ -1633,7 +1659,7 @@ export function requestBetrayal({ actorId }) {
     }
     if (!hasGm()) return null;
 
-    game.socket.emit(SOCKET_EVENT, {
+    emitToGms( {
         action: ACTION_BETRAYAL,
         userId: game.user.id,
         requestId: expectAck("Betrayal"),
@@ -1650,7 +1676,7 @@ export function requestMeddleResolve({ actorId, targetId, help, total, isCritica
     }
     if (!hasGm()) return null;
 
-    game.socket.emit(SOCKET_EVENT, {
+    emitToGms( {
         action: ACTION_MEDDLE,
         userId: game.user.id,
         requestId: expectAck("Meddle"),
@@ -1672,7 +1698,7 @@ export function requestVaultSteal({ thiefId, ownerId, itemId, viaSearch = false,
     }
     if (!hasGm()) return null;
 
-    game.socket.emit(SOCKET_EVENT, {
+    emitToGms( {
         action: ACTION_VAULT_STEAL,
         userId: game.user.id,
         requestId: expectAck("Stash"),
@@ -1699,7 +1725,7 @@ export function requestSteal({
     }
     if (!hasGm()) return null;
 
-    game.socket.emit(SOCKET_EVENT, {
+    emitToGms( {
         action: ACTION_STEAL,
         userId: game.user.id,
         requestId: expectAck("Steal"),
@@ -1728,7 +1754,7 @@ export function requestPlant({
     }
     if (!hasGm()) return null;
 
-    game.socket.emit(SOCKET_EVENT, {
+    emitToGms( {
         action: ACTION_PLANT,
         userId: game.user.id,
         requestId: expectAck("Plant"),
@@ -1751,7 +1777,7 @@ export function requestStashSearch({ actorId, total = 0, isCritical = false }) {
     }
     if (!hasGm()) return null;
 
-    game.socket.emit(SOCKET_EVENT, {
+    emitToGms( {
         action: ACTION_FIND_STASH,
         userId: game.user.id,
         requestId: expectAck("Stash"),
@@ -1763,7 +1789,7 @@ export function requestStashSearch({ actorId, total = 0, isCritical = false }) {
 /** Ask the GM to add project progress on our behalf. */
 export function requestProjectProgress(countdownId, amount) {
     if (!hasGm()) return null;
-    game.socket.emit(SOCKET_EVENT, {
+    emitToGms( {
         action: ACTION_PROGRESS, countdownId, amount,
         userId: game.user.id, requestId: expectAck("Project")
     });
@@ -1779,7 +1805,7 @@ export function requestProjectProgress(countdownId, amount) {
  */
 export function requestProjectShare(countdownId, userId) {
     if (!hasGm()) return null;
-    game.socket.emit(SOCKET_EVENT, { action: ACTION_SHARE, userId: game.user.id, requestId: expectAck("Project"), countdownId, targetUserId: userId });
+    emitToGms( { action: ACTION_SHARE, userId: game.user.id, requestId: expectAck("Project"), countdownId, targetUserId: userId });
     return { pending: true };
 }
 

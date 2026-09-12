@@ -845,6 +845,14 @@ async function wipeSeason({ alsoChat = false } = {}) {
     await step("the action budget", async () => {
         const { resetAllActions } = await import("./actions.mjs");
         await resetAllActions();
+        // Two stamps keyed to a clock that is about to read session 1, day 1
+        // again: "rested this session" and "may betray this day". Left
+        // standing they refused the first Long Rest of the new season.
+        for (const actor of studentActors()) {
+            for (const flag of [FLAGS.restsTaken, FLAGS.betrayalWindow]) {
+                if (actor.getFlag(MODULE_ID, flag) !== undefined) await actor.unsetFlag(MODULE_ID, flag);
+            }
+        }
     });
 
     await step("Despair pools", async () => {
@@ -895,7 +903,16 @@ async function wipeSeason({ alsoChat = false } = {}) {
         // during a reset that is also clearing the chat it would be posted in.
         ["the motive", SETTINGS.motive, {}],
         ["the trial's progress", SETTINGS.trialProgress, {}],
-        ["the body waiting to be answered", SETTINGS.bodyFound, {}]
+        ["the body waiting to be answered", SETTINGS.bodyFound, {}],
+        // A standing assembly is stamped with the time of day and session it
+        // was called in; the new season's first advance would otherwise find
+        // the stamp stale and teleport the whole new cast into last season's
+        // room. Written directly - `cancelGather` posts a card and a sound
+        // into a chat that is being deleted.
+        ["a called assembly", SETTINGS.pendingGather, {}],
+        // Every New Rule bought last season. The Call that writes here was
+        // paid for with Despair the reset zeroes, so the rules go with it.
+        ["the killing game rules", SETTINGS.killingGameRules, []]
     ]) {
         await step(label, () => game.settings.set(MODULE_ID, key, value));
     }

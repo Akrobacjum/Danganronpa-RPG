@@ -830,7 +830,6 @@ export async function openChapterEndDialog() {
             <label class="drpg-checkbox">
                 <input type="checkbox" name="keys"${keyable ? " checked" : " disabled"} />
                 ${game.i18n.format("DRPG.Chapter.optKeys", { n: keyable })}</label>
-            <p class="notes">${game.i18n.localize("DRPG.Chapter.tidyNote")}</p>
             <hr />
             <label class="drpg-checkbox">
                 <input type="checkbox" name="endTrial"${trialSitting ? " checked" : " disabled"} />
@@ -921,14 +920,14 @@ export async function applyChapterEnd(choices = {}) {
        GM's knowledge and kept everybody else's. */
     if (result.sweep) {
         const { removed } = await sweepTruthBullets();
-        done.push(game.i18n.format("DRPG.Chapter.doneSweep", { n: removed }));
+        done.push(plural("DRPG.Chapter.doneSweep", { n: removed }));
     }
     if (result.faint) {
         const { clearFaintRemnants } = await import("./remnants.mjs");
-        done.push(game.i18n.format("DRPG.Chapter.doneFaint", { n: await clearFaintRemnants() }));
+        done.push(plural("DRPG.Chapter.doneFaint", { n: await clearFaintRemnants() }));
     }
     if (result.keys) {
-        done.push(game.i18n.format("DRPG.Chapter.doneKeys",
+        done.push(plural("DRPG.Chapter.doneKeys",
             { n: await clearChapterKeyRemnants(endingChapter) }));
     }
 

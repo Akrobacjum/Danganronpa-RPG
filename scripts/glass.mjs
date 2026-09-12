@@ -721,7 +721,8 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
          nothing to do with it (Dawid, 07.09: "kawalek szkla przeznaczony na powiadomienia
          zniknal"). A pane is cut into three across the band's own run instead: what is above
          it, what is beside it, and what is below. Only the middle piece loses the band. */
-      let parts = [poly];
+      let parts = [poly];
+
       /* FILLER ONLY. Clipping the SECTIONS - the panes cut for the clock, the GM button and
          the notice tile - is what took their glass away, and the partition's own check said
          so as plainly as Dawid did: two blocks off their pane and seven gaps at the screen
@@ -917,7 +918,8 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
        - 37 of 64 tile corners on panes that were not theirs (measured 07.09). The strip
        covers that band instead, for its whole height, and a column whose own run overlaps
        the band stops at its own edge. Nothing is left bare: the band IS the strip. */
-    const cv = host.querySelector(".curtain > canvas.sg, #drpg-curtain > canvas.sg");
+    const cv = host.querySelector(".curtain > canvas.sg, #drpg-curtain > canvas.sg");
+
     const railBands = {
       left: railBox("#scene-controls", 0, null),
       right: railBox("#sidebar-tabs", 1, null),
@@ -1702,7 +1704,9 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
 /* ---- lifecycle -------------------------------------------------------------- */
 const curtains = [], windows = [];
 let raf = 0, last = 0, observers = [], timer = 0;
-const REDUCED = () => document.body.classList.contains("drpg-reduced-motion") || matchMedia("(prefers-reduced-motion: reduce)").matches;
+// One MediaQueryList, read live: `loop` asked this every frame and `matchMedia` allocates one per call.
+const REDUCED_MQ = matchMedia("(prefers-reduced-motion: reduce)");
+const REDUCED = () => document.body.classList.contains("drpg-reduced-motion") || REDUCED_MQ.matches;
 /** The pulse is switchable on its own: the glass can stay and stop breathing. */
 const pulseOn = () => !document.body.classList.contains("drpg-no-pulse");
 
@@ -1773,7 +1777,7 @@ function unmount() {
   curtains.length = 0;
   for (const j of windows) j.el.querySelectorAll(":scope > canvas").forEach(c => c.remove());
   windows.length = 0;
-  document.querySelectorAll("#scene-controls, #sidebar").forEach(e => { e.style.marginTop = ""; e.style.paddingTop = ""; e.style.boxSizing = ""; });
+  document.querySelectorAll("#scene-controls, #sidebar").forEach(e => { e.style.marginTop = ""; e.style.paddingTop = ""; e.style.boxSizing = ""; e.style.maxHeight = ""; e.style.overflow = ""; });
   unpinRightColumn();
   restoreLid();
   document.querySelectorAll("#scene-controls, #sidebar-tabs").forEach(e => { e.style.transform = ""; e.style.transformOrigin = ""; });
@@ -2080,7 +2084,8 @@ function paneAt(x, y) {
   const j = curtains[0]; if (!j?.panes) return null;
   const r = j.el.getBoundingClientRect();
   const px = x - r.left, py = y - r.top;
-  return j.panes.find(p => inside(p.poly, px, py)) ?? null;
+  // The box first: the polygon walk is the cost, and it runs on every pane every half second.
+  return j.panes.find(p => (!p.bb || (px >= p.bb.x0 && px <= p.bb.x1 && py >= p.bb.y0 && py <= p.bb.y1)) && inside(p.poly, px, py)) ?? null;
 }
 /** One fast beat of the pane under `el` (or under a point), in the state colour. */
 export function beatAt(el, ms = 1600) {
@@ -2219,9 +2224,12 @@ function onStateChange() {
 function pruneWindows() { for (let i = windows.length - 1; i >= 0; i--) if (!windows[i].el.isConnected) windows.splice(i, 1); }
 
 const schedule = () => { clearTimeout(timer); timer = setTimeout(() => { if (themeOn()) rebuild(); }, 150); };
+let resizeWatched = false;
 function observe() {
   observers.forEach(o => o.disconnect()); observers = [];
-  addEventListener("resize", schedule);
+  // Once. `observe()` runs on every mount, and a listener added per mount outlived the
+  // observers it came with - every Legacy -> Glass switch left one more behind.
+  if (!resizeWatched) { resizeWatched = true; addEventListener("resize", schedule); }
   const mo = new MutationObserver(schedule);
   for (const sel of ["#ui-left-column-1", "#ui-top", "#ui-right-column-1", "#ui-bottom", "#interface"]) {
     const h = document.querySelector(sel); if (h) mo.observe(h, { childList: true });
@@ -2314,7 +2322,9 @@ export function registerGlass() {
   }, ms);
   Hooks.on("canvasReady", schedule);
   // the sidebar is deliberately NOT a signal: opening it moves nothing and recuts nothing
-  addEventListener("resize", () => { if (themeOn()) { pinRightColumn(); freeTheBoard(); } });
+  // Debounced like everything else on resize: `rebuild` already pins the right column and
+  // frees the board, and the raw handler did both on every event of a window drag.
+  addEventListener("resize", () => { if (themeOn()) schedule(); });
   Hooks.on("renderApplicationV2", dressWindow);
   Hooks.on("closeApplicationV2", pruneWindows);
   // the pause band is a pane of the curtain while the game is paused, breathing with the slow pulse

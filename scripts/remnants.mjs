@@ -1154,15 +1154,33 @@ export function registerRemnantLedger() {
     Hooks.on("drpgTimeOfDayChanged", () => { flushTraceDigest(); });
     Hooks.on("drpgEclipseChanged", running => { if (!running) flushTraceDigest(); });
 
-    game.socket.on(SOCKET_EVENT, async payload => {
+    /*
+     * GM-TO-GM, CHECKED AT BOTH ENDS - the same rule truth-bullets.mjs states
+     * for its ledger, and for the same reason. This ledger is the answer key to
+     * every trace on every map: type, who left it, whether it is tied to the
+     * crime, the GM's own note. Checking only that THIS client is a GM left the
+     * sender unchecked, so a player's console could ask for the whole ledger
+     * (`rm.ledgerRequest` with their own id in `from`) and be sent it, or push a
+     * forged `rm.secret` that retyped their own trace as Faint on every GM's
+     * browser. `senderId` is Foundry's own argument and cannot be forged; the
+     * reply is addressed to it, never to a field the packet chose.
+     */
+    game.socket.on(SOCKET_EVENT, async (payload, senderId) => {
         if (!game.user?.isGM || !payload) return;
+        if (!Object.values(RM).includes(payload.action)) return;
+        if (!game.users.get(senderId)?.isGM) {
+            warn(`Refused a Remnant ledger "${payload.action}" from a non-GM (${
+                game.users.get(senderId)?.name ?? senderId}).`);
+            return;
+        }
+        if (senderId === game.user.id) return;
         try {
             if (payload.action === RM.secret) {
-                await mergeRemnantEntries({ [payload.key]: payload.entry });
-            } else if (payload.action === RM.request && payload.from !== game.user.id) {
+                if (payload.key) await mergeRemnantEntries({ [payload.key]: payload.entry });
+            } else if (payload.action === RM.request) {
                 game.socket.emit(SOCKET_EVENT,
                     { action: RM.full, from: game.user.id, ledger: readRemnantLedger() },
-                    { recipients: [payload.from] });
+                    { recipients: [senderId] });
             } else if (payload.action === RM.full) {
                 await mergeRemnantEntries(payload.ledger ?? {});
             }

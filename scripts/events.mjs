@@ -28,7 +28,7 @@ import { pendingGather } from "./call-effects.mjs";
 import { roomOfActor } from "./movement.mjs";
 import { trialFloor, floorHolder, floorTarget, FLOOR_MODES } from "./trial-floor.mjs";
 import { keyPlanStatus } from "./investigation.mjs";
-import { bodyDiscovery, bodyDiscoveryFresh } from "./settings.mjs";
+import { SETTINGS, bodyDiscovery, bodyDiscoveryFresh, incidentParticipants } from "./settings.mjs";
 
 const WIDGET_ID = "drpg-events";
 
@@ -82,15 +82,23 @@ function assemblyCard() {
  */
 function openingCard() {
     if (!game.settings.settings.has(`${MODULE_ID}.murderState`)) return null;
-    const state = game.settings.get(MODULE_ID, "murderState") ?? {};
+    const state = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
     if (!state.active || state.stage !== "openingRoll") return null;
     const ids = new Set(game.actors
         .filter(a => a.type === "character" && a.testUserPermission(game.user, "OWNER"))
         .map(a => a.id));
     if (game.user.character?.id) ids.add(game.user.character.id);
-    const seats = [state.killerId, state.victimId, state.thirdId].filter(Boolean);
+    /*
+     * The names are in the client-scoped cast (LIVE-001), which a participant
+     * holds and a bystander does not; reading them off the world half found
+     * nothing and hid this card from the killer as well. And the VICTIM of a
+     * direct murder is never told anything is happening (config.mjs, opening
+     * rules) - their seat does not count. An indirect victim rolls, and may see.
+     */
+    const cast = game.settings.get(MODULE_ID, SETTINGS.incidentCast) ?? {};
+    const seats = incidentParticipants().filter(id => state.indirect || id !== cast.victimId);
     if (!game.user.isGM && !seats.some(id => ids.has(id))) return null;
-    const victim = game.actors.get(state.victimId), killer = game.actors.get(state.killerId);
+    const victim = game.actors.get(cast.victimId), killer = game.actors.get(cast.killerId);
     let room = null;
     try { room = victim ? (roomOfActor(victim)?.name ?? null) : null; } catch { /* a victim outside every room */ }
     const who = game.user.isGM && killer && victim ? `${killer.name} → ${victim.name}` : (victim?.name ?? "");

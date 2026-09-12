@@ -472,8 +472,10 @@ export async function manageClassTrial() {
                     // visible from the first time this window is opened.
                     { action: "verdict", label: game.i18n.localize("DRPG.Vote.verdictTitle"),
                       disabled: !progress.voteClosed, default: isDefault("verdict") },
+                    // Reachable before the verdict (a chapter can end without
+                    // one); only the DEFAULT waits for it.
                     { action: "chapterEnd", label: game.i18n.localize("DRPG.Chapter.endTitle"),
-                      disabled: !progress.verdictApplied, default: isDefault("chapterEnd") }
+                      default: progress.verdictApplied && isDefault("chapterEnd") }
                   ]
                 : []),
             ...(running
@@ -489,6 +491,8 @@ export async function manageClassTrial() {
         render: (event, dialog) => keepLive(dialog, {
             region: ".drpg-trial-console",
             build: buildConsole,
+            // Ballots travel by socket and land in a Map - see `onBallotCast`.
+            watch: { hooks: ["drpgBallotsChanged"] },
             after: () => {
                 if (reopening || signature() === openedWith) return;
                 reopening = true;

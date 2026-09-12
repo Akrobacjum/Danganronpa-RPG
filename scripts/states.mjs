@@ -208,7 +208,7 @@ export async function syncStates(actor) {
 }
 
 /** Which state announces itself, and with which sound. */
-const SFX_FOR_STATE = { breakdown: "breakdown", wounded: "wounded" };
+const SFX_FOR_STATE = { [STATES.breakdown.id]: "breakdown", [STATES.wounded.id]: "wounded" };
 
 async function syncOnce(actor) {
     await clearSystemConditions(actor);

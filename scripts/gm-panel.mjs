@@ -8,7 +8,7 @@
 
 import { MODULE_ID, moduleVersion, FLAGS, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES,
     CHAPTERS_PER_SEASON } from "./config.mjs";
-import { getClock, setClock, setTimeOfDay, clockSummary, timeOfDayLabel, phaseLabel, campaignName } from "./clock.mjs";
+import { getClock, setClock, setTimeOfDay, advanceTimeOfDay, clockSummary, timeOfDayLabel, phaseLabel, campaignName } from "./clock.mjs";
 import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
 import { dialogContent, error, plural, tableDialog, esc} from "./utils.mjs";
@@ -207,6 +207,11 @@ const PANEL_SECTIONS = [
             // Final Key Remnants, all on one window.
             { key: "mastermind", icon: "fa-user-secret", labelKey: "DRPG.Mastermind.dialogTitle",
               run: () => import("./mastermind.mjs").then(m => m.openMastermindDialog()) },
+            // A chapter that ends without a verdict - stretched because nobody
+            // died, closed on a confession, a one-chapter season - had no door
+            // on screen at all: the trial console's button waited on a verdict.
+            { key: "chapterEndTile", icon: "fa-flag-checkered", labelKey: "DRPG.Chapter.endTitle",
+              run: () => import("./chapter.mjs").then(m => m.openChapterEndDialog()) },
             // Last in the section and red: it is the only control here that
             // destroys anything, and it destroys a chapter's worth at once.
             { key: "seasonReset", icon: "fa-trash-arrow-up", labelKey: "DRPG.Season.resetTitle",
@@ -250,6 +255,32 @@ const PANEL_SECTIONS = [
  */
 const EXTRA_ACTIONS = {
     eclipse: { key: "eclipse", run: () => toggleEclipse() },
+    /*
+     * THE MOST REPEATED GESTURE OF A SESSION, IN ONE PRESS.
+     *
+     * "Everyone has spent their actions" used to point at the campaign editor:
+     * six presses, the day and session bumped by hand at Night, and with the
+     * refill box left off (the hint says to) none of the boundary work ran -
+     * no restock, no seals cleared, no motive ticked, no overflow check. This
+     * is the same call the Eclipse's end makes, refilling included; the day
+     * and the session tick over at Night on their own. Refused during an
+     * Eclipse, whose own end already advances - a second budget is exactly
+     * what a table must never be handed.
+     */
+    advance: {
+        key: "advance",
+        run: async () => {
+            if (isEclipse()) {
+                ui.notifications.warn(game.i18n.localize("DRPG.Panel.advanceDuringEclipse"));
+                return null;
+            }
+            return advanceTimeOfDay({ resetActions: true });
+        }
+    },
+    chapterEnd: {
+        key: "chapterEnd",
+        run: () => import("./chapter.mjs").then(m => m.openChapterEndDialog())
+    },
     // Starting Stage 7 has never had a tile - it was a side effect of finding
     // the body - so the suggestion line points at something the grid does not
     // carry, which is what EXTRA_ACTIONS is for.
@@ -944,7 +975,7 @@ function nextStep(clock) {
         // are read from the trial's own progress record; see vote.mjs.
         const progress = game.drpg?.trialProgress?.() ?? {};
         if (progress.verdictApplied) {
-            return { text: game.i18n.localize("DRPG.Panel.nextChapterEnd"), action: "trial" };
+            return { text: game.i18n.localize("DRPG.Panel.nextChapterEnd"), action: "chapterEnd" };
         }
         if (progress.voteClosed) {
             return { text: game.i18n.localize("DRPG.Panel.nextVerdict"), action: "trial" };
@@ -986,10 +1017,14 @@ function nextStep(clock) {
     }
 
     // Daily Life. The one number that decides whether the time of day is over.
+    // The boundary between two times of day IS the Eclipse (`startEclipse`
+    // refills, `endEclipse` advances), so that is what the line suggests; the
+    // "Next time of day" button beside the clock is the road for a table that
+    // skips one. Neither goes near the campaign editor, which is for corrections.
     return stillActing.length
         ? { text: plural("DRPG.Panel.nextStillActing", { n: stillActing.length }),
             action: null }
-        : { text: game.i18n.localize("DRPG.Panel.nextAllDone"), action: "jump" };
+        : { text: game.i18n.localize("DRPG.Panel.nextAllDone"), action: "eclipse" };
 }
 
 /** Current standing: where the clock is and what everyone has left. */
@@ -1021,8 +1056,8 @@ function buildPanelContent() {
             // empty outline says "used" in the one the rest of the interface
             // already speaks.
             const move = `<i class="${hasFreeMove(a) ? "fa-solid" : "fa-regular"} `
-                + `fa-shoe-prints drpg-pix-foot" title="${
-                    hasFreeMove(a) ? "free Move available" : "free Move used"}"></i>`;
+                + `fa-shoe-prints drpg-pix-foot" title="${esc(game.i18n.localize(
+                    hasFreeMove(a) ? "DRPG.Actions.freeMoveAvailable" : "DRPG.Actions.freeMoveSpent"))}"></i>`;
             const cub = a.getFlag(MODULE_ID, FLAGS.monocub)
                 ? ` <span class="notes">(${game.i18n.localize("DRPG.Monocub.isOne")})</span>` : "";
             const low = left === 0 ? ' style="opacity:.55"' : "";
@@ -1058,10 +1093,20 @@ function buildPanelContent() {
                 : ""}
         </div>`;
 
+    // One press for the clock, on the line that shows it. Hidden during an
+    // Eclipse (its end advances) and in a trial (the chapter's end does).
+    const canAdvance = !isEclipse() && clock.phase !== "classTrial";
+    const advance = canAdvance
+        ? `<button type="button" class="drpg-gmp-next-go drpg-gmp-advance" data-drpg-run="advance"
+                data-tooltip="${esc(game.i18n.localize("DRPG.Panel.advanceTooltip"))}">
+               <i class="fa-solid fa-forward-step" inert></i> ${esc(game.i18n.localize("DRPG.Panel.advance"))}</button>`
+        : "";
+
     return `<div class="drpg-gmp-standing">
                 <h3>${foundry.utils.escapeHTML(campaignName(clock))}</h3>
                 <p><strong>${clockSummary(clock)}</strong>
-                   <span class="drpg-gmp-phase">${phaseLabel(clock.phase)}</span></p>
+                   <span class="drpg-gmp-phase">${phaseLabel(clock.phase)}</span>
+                   ${advance}</p>
                 ${suggestion}
                 ${table}
             </div>`;
@@ -1173,7 +1218,8 @@ export async function openClockDialog() {
      * asked for. So: the write goes through, and they are told. The summary line
      * now carries the Eclipse too, so this is a nudge rather than the only sign.
      */
-    const wasEclipse = getClock().eclipse;
+    const before = getClock();
+    const wasEclipse = before.eclipse;
 
     await setClock({
         campaignName: result.campaignName,
@@ -1184,7 +1230,8 @@ export async function openClockDialog() {
         timeOfDay: result.timeOfDay
     });
 
-    if (wasEclipse && result.timeOfDay !== undefined) {
+    // `result.timeOfDay` is a select and always set; only a real move is a nudge.
+    if (wasEclipse && result.timeOfDay !== before.timeOfDay) {
         ui.notifications.warn(game.i18n.localize("DRPG.Clock.eclipseStillOn"));
     }
 

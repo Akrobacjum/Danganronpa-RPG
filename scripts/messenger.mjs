@@ -219,9 +219,6 @@ function onCreateChatMessage(message) {
 
     Hooks.callAll("drpgMessengerMessage", thread, message);
 
-    const authorId = message.author?.id ?? message.user?.id;
-    if (authorId === game.user.id) return; // do not ping yourself
-
     /*
      * A REQUEST FOR A GM GETS ITS OWN SOUND, AND ONLY ONE.
      *
@@ -230,11 +227,19 @@ function onCreateChatMessage(message) {
      * waiting on somebody. The more specific sound REPLACES the general one
      * rather than joining it: two sounds for one message is how a table learns
      * to stop hearing either.
+     *
+     * BEFORE the self-author check: the bridge posts its cards from the primary
+     * GM's own session (a parked murder, a trap that has armed), so that GM was
+     * the author of the one card they most needed to hear. A typed DM carries
+     * no `gmAsk` flag and still does not ping its own writer.
      */
     if (game.user.isGM && message.getFlag(MODULE_ID, MESSENGER_FLAGS.gmAsk)) {
         if (messengerSoundOn()) playSfx("gmAsk");
         return;
     }
+
+    const authorId = message.author?.id ?? message.user?.id;
+    if (authorId === game.user.id) return; // do not ping yourself
 
     // Was a hard-coded chime. It is a mapped event now, and NOT a mapped event
     // by default: this module ships no audio and assigns none, so a world that

@@ -138,10 +138,15 @@ export async function armCall(actor, { key, kind, grants, amount = null, from = 
     // window with disadvantage already switched on and locked, and no reason
     // given. The socket path told them; the path that actually matters did not.
     if (from && from !== actor.id) {
+        // "Another student spent Hope on you" was said for Monokuma's Obstacle
+        // too, and for a Monocub's Meddle - whose author must stay unnamed.
+        const voice = kind === "despair" ? "DRPG.Calls.armedByMonokuma"
+            : kind === "hope" ? "DRPG.Calls.armedForYou"
+            : "DRPG.Calls.armedByNobody";
         await whisperToOwner(actor, `${cardHead({
             action: game.i18n.localize("DRPG.Calls.armedTitle")
         })}<p>${
-            game.i18n.format("DRPG.Calls.armedForYou", {
+            game.i18n.format(voice, {
                 what: game.i18n.localize(`DRPG.Calls.grants.${grants}`)
             })
         }</p>`);
@@ -878,7 +883,7 @@ async function pickText(call) {
             <p>${game.i18n.localize("DRPG.Calls.newRulePrompt")}</p>
             <textarea name="text" rows="3"
                 placeholder="${game.i18n.localize("DRPG.Calls.newRulePlaceholder")}"></textarea>
-            <p class="notes">${game.i18n.localize("DRPG.Calls.newRuleNote")}</p>
+            <p class="notes">${game.i18n.format("DRPG.Calls.newRuleNote", { cost: DESPAIR_CALLS.newRule.cost })}</p>
         </form>`),
         buttons: [
             {

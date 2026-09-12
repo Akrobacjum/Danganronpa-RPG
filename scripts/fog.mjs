@@ -39,7 +39,7 @@ import { roomOfToken, boundsOf } from "./movement.mjs";
 import { isMastermind } from "./mastermind.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { isPrimaryGm, debug, log, warn, error, plural } from "./utils.mjs";
-import { ENTER, BEAT } from "./motion.mjs";
+import { ENTER, BEAT, reducedMotion } from "./motion.mjs";
 import { playSfx } from "./sfx.mjs";
 
 const CanvasAnimation = foundry.canvas.animation.CanvasAnimation;
@@ -1052,7 +1052,12 @@ let fogTexture = null;
  */
 let lastPaintSignature = "";
 
-/** The ledger as this GM last saw it, so growth in it can be noticed. */
+/**
+ * The ledger as this GM last saw it, so growth in it can be noticed - keyed by
+ * scene, because the rooms of one scene compared against the rooms of another
+ * are all "new", and the first paint after a scene switch played the
+ * five-second discovery curtain for a room found weeks ago.
+ */
 let lastLedgerSeen = null;
 
 /** Bumped by every dissolve; anything from an older one stands down. */
@@ -1108,10 +1113,12 @@ function dropSprite(sprite) {
     if (texture === fogTexture) fogTexture = null;
 }
 
-/** Does this viewer want animation kept to a minimum? */
-function reducedMotion() {
-    return Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches);
-}
+/*
+ * `reducedMotion` comes from motion.mjs: it reads the module's own "Reduced
+ * motion" switch as well as the OS setting. A local copy here read only the
+ * OS, so the discovery curtain, the drift and the dissolve kept playing for a
+ * player who had asked the Look window for stillness.
+ */
 
 /**
  * A switch for every animated thing this layer does, and a way out of a bad
@@ -2425,10 +2432,10 @@ export function repaintFog() {
          */
         let opened = [];
         if (game.user.isGM) {
-            if (lastLedgerSeen) {
-                opened = Array.from(current).filter(room => !lastLedgerSeen.has(room));
+            if (lastLedgerSeen?.sceneId === scene.id) {
+                opened = Array.from(current).filter(room => !lastLedgerSeen.rooms.has(room));
             }
-            lastLedgerSeen = new Set(current);
+            lastLedgerSeen = { sceneId: scene.id, rooms: new Set(current) };
         }
         // The room you are standing in is VEILED during an Eclipse, not left
         // under full fog: nothing is cleared, but you can still see the floor
@@ -2447,6 +2454,11 @@ export function repaintFog() {
             Array.from(current).sort().join(","),
             Array.from(discovered).sort().join(",")
         ].join("|");
+
+        // Before the "unchanged" shortcut: a GM's signature does not depend on
+        // where their Monokuma stands, so a walk from a room into a corridor
+        // left that room's outline, name and glow standing until the next paint.
+        if (roomOutline && !mine.has(roomOutline.room)) fadeRoomOutline();
 
         if (signature === lastPaintSignature && findLayer()?.visible) {
             lastFogReason = `unchanged: ${lastFogReason}`;
@@ -2515,6 +2527,7 @@ export function repaintFog() {
 function stand(reason) {
     lastFogReason = reason;
     lastPaintSignature = "";
+    lastLedgerSeen = null;
     hideLayer();
     return false;
 }
@@ -3140,7 +3153,12 @@ function clearLayer(container) {
         // memory for a frame.
         if (child.name === RASTER_GROUP) child.mask = null;
         if (child.name === FOG_SPRITE) dropSprite(child);
-        else child.destroy({ children: true });
+        else {
+            // The FX group's doorway glow owns a render texture that only
+            // `freeOwned` releases; `destroy` alone leaked one per scene change.
+            freeOwned(child);
+            child.destroy({ children: true });
+        }
     }
     fogTexture = null;
 }
@@ -3406,7 +3424,11 @@ function roomEnteredByMe(tokenDoc) {
     // Nothing is ever new to a GM - they know every room on the map, so a
     // Monokuma walking into one gets the outline and the name and none of the
     // five seconds of curtain that discovering a room is worth.
+    // The Mastermind's rows are never written to the ledger (their walks are
+    // nobody's business), so for them "discovered" would read empty in every
+    // room and the curtain would play in rooms their own fog already shows.
     const seen = game.user.isGM
+        || iAmTheMastermind()
         || discoveredFor(scene.id, actor.id).includes(room)
         || animatedAlready.has(key);
     if (!seen) animatedAlready.add(key);

@@ -15,7 +15,7 @@
 
 import {
     MODULE_ID, FLAGS, ACTIONS, TRAITS, DYNAMIC_THRESHOLDS, INDIRECT_MURDER,
-    PROJECT_SCALE, ITEM_CATEGORIES, SABOTAGE_CONCEAL, TOOL_IN_HAND
+    PROJECT_SCALE, ITEM_CATEGORIES, SABOTAGE_CONCEAL, TOOL_IN_HAND, CLEANUP
 } from "./config.mjs";
 import { actionsLeft, spendAction, refundAction, hasFreeMove, canPayFor } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
@@ -2624,7 +2624,7 @@ async function performTamper(actor, def, options) {
             {
                 value: "frame", icon: "fa-signs-post",
                 label: game.i18n.localize("DRPG.Tamper.frame"),
-                hint: game.i18n.localize("DRPG.Tamper.frameHint"),
+                hint: game.i18n.format("DRPG.Tamper.frameHint", { n: CLEANUP.actions.misleadingTrail.threshold }),
                 disabled: !candidates.length,
                 why: game.i18n.localize("DRPG.Cleanup.trailNobody")
             },
@@ -3514,7 +3514,7 @@ async function performAnalyze(actor, def, options) {
     if (choice === "stash") return locateStash(actor, def, roll, asked?.request ?? "");
     return subject
         ? analyseBullet(actor, def, roll, subject)
-        : askForHint(actor, def, roll, asked?.request ?? "");
+        : askForHint(actor, def, roll, asked?.request ?? "", cost);
 }
 
 /**
@@ -3552,7 +3552,7 @@ async function analyseBullet(actor, def, roll, subject) {
 }
 
 /** The other half of the action: no evidence, just a nudge from the GM. */
-async function askForHint(actor, def, roll, request = "") {
+async function askForHint(actor, def, roll, request = "", cost = def.cost ?? 1) {
     const rows = def.hintThresholds.map(t =>
         `<li>${t.min}+ - ${foundry.utils.escapeHTML(t.result)}</li>`).join("");
     const body = `<ul class="drpg-gm-reference">${rows}
@@ -3572,7 +3572,7 @@ async function askForHint(actor, def, roll, request = "") {
         // The hint IS the answer, so it goes back down the thread the question
         // came up. The action has already been spent by the time this runs, so
         // the refusal hands it back - see `decline` in `runCallAction`.
-        actions: gmRulingActions(actor, def.cost ?? 1)
+        actions: gmRulingActions(actor, cost)
     });
 
     await noteRollContext(actor, {
@@ -3959,6 +3959,16 @@ async function performDirectMurder(actor, def, options) {
      * The action is spent here either way, which is the guide's rule and does
      * not change. What the player does not get here is the outcome.
      */
+    // Before the action is spent: the declaration only exists once a GM's
+    // client has written it, and with no GM connected `requestParkMurder`
+    // refuses. Charging first and then telling the player "your move is made"
+    // left them one action down with nothing declared anywhere.
+    const { gmOnline } = await import("./gm-bridge.mjs");
+    if (!game.user.isGM && !gmOnline()) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Bridge.noGm"));
+        return null;
+    }
+
     if (cost > 0 && !await spendAction(actor, cost)) return null;
 
     const note = await promptForNote(actor, {
@@ -3968,7 +3978,13 @@ async function performDirectMurder(actor, def, options) {
     });
 
     const { parkDirectMurder } = await import("./eclipse.mjs");
-    await parkDirectMurder({ killerId: actor.id, room, note });
+    const parked = await parkDirectMurder({ killerId: actor.id, room, note });
+    if (!parked) {
+        // The GM went away between the check and the write. Nothing was
+        // declared, so nothing is owed.
+        await refundAction(actor, cost);
+        return null;
+    }
 
     await whisperToOwner(actor,
         `${cardHead({ action: def.label })}<p>${

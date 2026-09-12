@@ -86,7 +86,7 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
             return null;
         }
 
-        const held = hopeHeld(actor);
+        let held = hopeHeld(actor);
         if (held < call.cost) {
             ui.notifications.warn(game.i18n.format("DRPG.Calls.notEnoughHope", {
                 call: call.label, cost: call.cost, held
@@ -156,6 +156,11 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
                 }));
                 return null;
             }
+            // The write below and the receipt both use `held`: the reading
+            // from before the wait, during which a roll may have granted Hope
+            // or another Call spent it. Charging `held - cost` then either
+            // erased the grant or handed back what was spent.
+            held = now;
         }
 
         await automatedUpdate(actor, { "system.resources.hope.value": held - call.cost });

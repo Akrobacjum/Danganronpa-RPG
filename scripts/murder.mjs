@@ -75,8 +75,16 @@ const DialogV2 = foundry.applications.api.DialogV2;
  * somebody, and on a client that cannot see who the third party is it would be
  * a fact about nobody. Everything else an incident holds is a number, a stage
  * or a list of blocked action keys, and none of that names anyone.
+ *
+ * `lastCrisis` - the Reroll receipt - is here too. It carries `actorId`,
+ * `victimId` and a snapshot of the MERGED state, so a receipt written to the
+ * world half named every participant from the first crisis action until
+ * `endMurder`, undoing LIVE-001 for the whole of Stages 5 and 6. Routed into
+ * the cast it stays on GM browsers (and reaches the participants, who already
+ * hold the cast), and `murderState()` merges it back so every reader is
+ * unchanged.
  */
-const CAST_FIELDS = ["killerId", "killerTurnId", "victimId", "thirdId", "thirdSide"];
+const CAST_FIELDS = ["killerId", "killerTurnId", "victimId", "thirdId", "thirdSide", "lastCrisis"];
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 const CAST_SET = "incident.cast";

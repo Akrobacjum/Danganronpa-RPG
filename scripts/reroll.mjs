@@ -303,6 +303,9 @@ async function replayAction(actor, bookmark, after, done) {
             // other one that goes through there - `cleanupKey` inside the
             // bookmark is what says which of the three it was, and that is
             // read one line down rather than out here.
+            // Palm bookmarks itself as "palm" (the hook and the traps key on
+            // it); the replay is the same as a Steal's.
+            case "palm":
             case "steal": return await settleSteal(actor, bookmark, after, done);
             default:
                 // A trait rolled straight from the sheet, or an action from

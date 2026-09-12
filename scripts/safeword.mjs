@@ -172,10 +172,11 @@ export async function safewordDialog(actor = null) {
 export function registerSafeword() {
     // The GM-only half. `recipients` on the emit decides who receives it, so a
     // player's client never sees this packet at all.
-    game.socket.on(`module.${MODULE_ID}`, payload => {
+    game.socket.on(`module.${MODULE_ID}`, (payload, senderId) => {
         if (payload?.action !== SAFEWORD_ACTION) return;
         if (!game.user?.isGM) return;
-        showGmDetail(payload.who, payload.room);
+        // `senderId` is Foundry's own; `payload.who` was whatever the packet said.
+        showGmDetail(game.users.get(senderId)?.name ?? payload.who ?? "?", payload.room);
     });
 
     Hooks.on("createChatMessage", message => {
