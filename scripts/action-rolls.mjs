@@ -14,17 +14,18 @@
  */
 
 import {
-    MODULE_ID, FLAGS, ACTIONS, TRAITS, DYNAMIC_THRESHOLDS, INDIRECT_MURDER,
+    MODULE_ID, FLAGS, ACTIONS, TRAITS, TRAIT_BY_DH, DYNAMIC_THRESHOLDS, INDIRECT_MURDER,
     PROJECT_SCALE, ITEM_CATEGORIES, SABOTAGE_CONCEAL, TOOL_IN_HAND, CLEANUP
 } from "./config.mjs";
-import { actionsLeft, spendAction, refundAction, hasFreeMove, canPayFor } from "./actions.mjs";
+import { actionsLeft, spendAction, refundAction, hasFreeMove, canPayFor, lastSpendKind } from "./actions.mjs";
+import { leavesTraceFor } from "./inventory.mjs";
 import { isEclipse } from "./eclipse.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
 import { drawItem } from "./tables.mjs";
 import { roomOfActor, othersInRoom, locateActor } from "./movement.mjs";
 import { projectsAvailableIn, addProgress, isIndirectMurder, scaleFor, projectsListedIn } from "./projects.mjs";
 import { callGm, promptAndCallGm } from "./gm-bridge.mjs";
-import { announce, resolveThreshold, whisperToOwner, dialogContent, replaceFlag, log, debug, error, plural, cardHead, esc} from "./utils.mjs";
+import { announce, resolveThreshold, whisperToOwner, dialogContent, replaceFlag, log, debug, error, plural, cardHead, esc, easedBy } from "./utils.mjs";
 // Static, and safe to be: nothing private-rolls.mjs imports leads back here.
 import { supersedingRoll } from "./private-rolls.mjs";
 // One reader, for the Tamper menu's "what you have readied" line. use-items.mjs
@@ -43,11 +44,6 @@ const DialogV2 = foundry.applications.api.DialogV2;
  * report rather than a number nobody can account for. `cleanupDc` chooses the
  * same way, for the same reason.
  */
-function easedBy(thresholds, relief) {
-    if (!relief) return thresholds;
-    return thresholds.map(band => ({ ...band, min: Math.max(0, band.min - relief) }));
-}
-
 /** What a readied Tool takes off a threshold. 0 for bare hands. */
 function toolRelief(tool, tierOf) {
     return TOOL_IN_HAND.tierReducesThreshold && tool ? tierOf(tool) : 0;
@@ -567,7 +563,12 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
     const outcome = {
         total,
         ...dualityOf(roll),
-        trait: drpgTrait,
+        // What the dialog actually rolled, not what was asked for: Search and a
+        // Determination grant unlock the statistic select, and every reader of
+        // this - the card header, the duality chip, the bookmark - mislabelled
+        // a Hand roll as Eye (ROLL-06). Falls back to the argument when the
+        // system's result does not say.
+        trait: traitRolled(result, drpgTrait),
         freeCritical: free,
         raw: result
     };
@@ -582,6 +583,17 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
 
     if (remember) await rememberRoll(actor, outcome, result, actionKey, context);
     return outcome;
+}
+
+/** The module's trait key for whatever statistic the system's result says was rolled. */
+function traitRolled(result, fallback) {
+    const dh = result?.roll?.options?.roll?.trait
+        ?? result?.roll?.options?.trait
+        ?? result?.config?.roll?.trait
+        ?? result?.data?.roll?.trait
+        ?? result?.roll?.trait
+        ?? null;
+    return (dh && TRAIT_BY_DH[dh]) || fallback;
 }
 
 /**
@@ -907,6 +919,18 @@ async function abort(actor, cost) {
     return null;
 }
 
+/**
+ * A later roll of the same action closed unanswered, after an earlier roll of
+ * it already landed. The action stays spent (ROLL-05): the first roll paid
+ * out its Hope, its Despair to the Monokuma, and refunding here made a free
+ * generator of "throw the supporting roll, cancel the main one, repeat".
+ * The first dialog of an action is the one a player may still back out of.
+ */
+async function spentAfterRoll(actor, def) {
+    ui.notifications.warn(game.i18n.format("DRPG.Action.spentAfterRoll", { action: def?.label ?? "" }));
+    return null;
+}
+
 /** Common guard: enough actions left? */
 function canAfford(actor, cost) {
     // `canPayFor`, not `actionsLeft`: a banked Burst pays for this (trap 96).
@@ -1063,7 +1087,9 @@ async function performSearch(actor, def, options) {
         const reallyEmpty = SearchTokens.left(room) <= 0;
         if (!reallyEmpty && cost > 0) await refundAction(actor, cost);
 
-        await noteRollContext(actor, { actionKey: "search", room, category, goal: goalKey, tier: null });
+        // `claimed: false` is what a Reroll reads: a room that was never
+        // searched is not searched by rerolling the dice (ROLL-02).
+        await noteRollContext(actor, { actionKey: "search", room, category, goal: goalKey, tier: null, claimed: false });
         await report(actor, def, roll, {
             text: game.i18n.localize(reallyEmpty
                 ? "DRPG.SearchTokens.pickedClean"
@@ -1303,8 +1329,7 @@ async function performSearch(actor, def, options) {
      * off the granted Item: the carry limit can refuse to grant it, and picking
      * something up and finding you cannot hold it still means you touched it.
      */
-    const roles = new Set([category, ...(drawn?.roles ?? [])]);
-    const leaves = roles.has("crimeTool") || roles.has("cleaningTool");
+    const leaves = leavesTraceFor(category, drawn?.roles);
     const visibility = roll.isCritical ? def.critical?.remnant : hit?.remnant;
 
     let placed = null;
@@ -1934,11 +1959,13 @@ async function workOnProject(actor, def, options, chosen = null) {
 
     // Guide: with someone else in the room, the killer must hide their intent
     // first; alone, the project simply gains +1 progress.
+    let rolledAlready = false;
     if (indirect) {
         if (witnesses.length) {
             const conceal = await rollTrait(actor, INDIRECT_MURDER.concealIntent.trait,
                 { remember: false, title: game.i18n.localize("DRPG.Roll.concealIntent") });
             if (!conceal) return abort(actor, cost);
+            rolledAlready = true;
             const ok = conceal.isCritical || conceal.total >= INDIRECT_MURDER.concealIntent.threshold;
             lines.push(`<p><strong>${INDIRECT_MURDER.concealIntent.label}</strong> - ${conceal.total}: ${
                 ok ? (conceal.withFear
@@ -1988,7 +2015,7 @@ async function workOnProject(actor, def, options, chosen = null) {
         // outlived its roll would attach itself to the next unrelated one.
         calls.clearSituational();
     }
-    if (!roll) return abort(actor, cost);
+    if (!roll) return rolledAlready ? spentAfterRoll(actor, def) : abort(actor, cost);
 
     await breakOnDespair(actor, tool, roll);
 
@@ -2013,6 +2040,10 @@ async function workOnProject(actor, def, options, chosen = null) {
     // indirect murder quietly lost its alone/Despair progress on every reroll.
     await noteRollContext(actor, {
         actionKey: "project", projectId: project.id, progress, bonus: earnedBonus,
+        // What the readied tool took off the bands, so a Reroll scores the new
+        // dice against the same bands (ROLL-04). From here, never from the
+        // inventory at reroll time: the tool may have broken on this roll.
+        relief,
         room: roomOfActor(actor),
         // Whether the critical's free action has already been handed back, so a
         // reroll that loses the critical knows there is one to take away again.
@@ -2308,10 +2339,12 @@ async function performSabotage(actor, def, options) {
     // afterwards turned it into free resources.
     if (cost > 0 && !await spendAction(actor, cost)) return null;
 
+    let rolledAlready = false;
     if (witnesses.length) {
         const conceal = await rollTrait(actor, SABOTAGE_CONCEAL.trait,
             { remember: false, title: game.i18n.localize("DRPG.Roll.concealIntent") });
         if (!conceal) return abort(actor, cost);
+        rolledAlready = true;
 
         const hidden = conceal.isCritical || conceal.total >= SABOTAGE_CONCEAL.threshold;
         if (hidden && conceal.withFear) penalty = SABOTAGE_CONCEAL.despairPenalty;
@@ -2377,7 +2410,7 @@ async function performSabotage(actor, def, options) {
     } finally {
         calls.clearSituational();
     }
-    if (!roll) return abort(actor, cost);
+    if (!roll) return rolledAlready ? spentAfterRoll(actor, def) : abort(actor, cost);
 
     await breakOnDespair(actor, tool, roll);
 
@@ -2502,6 +2535,7 @@ async function performSabotage(actor, def, options) {
         targetProjectId: project.id,
         repairId: repair?.repair?.id ?? null,
         penalty,
+        relief,
         witnesses: witnesses.length,
         ...remnantRef(placed)
     });
@@ -2903,7 +2937,9 @@ async function performPalm(actor, def, options) {
         actionKey: "steal",
         context: { room, victimId: victim.id, unseenTotal: shadow.total }
     });
-    if (!hand) return abort(actor, cost);
+    // The Shadow roll above has landed and paid out; closing this window does
+    // not hand the action back (ROLL-05).
+    if (!hand) return spentAfterRoll(actor, def);
 
     /*
      * A PLANT IS AN EASIER HAND THAN A STEAL (D10a), on both axes.
@@ -3166,7 +3202,9 @@ function gmRulingActions(actor, cost = 0) {
         {
             action: "decline",
             label: game.i18n.localize("DRPG.Bridge.nothingThere"),
-            data: { by: actor.id, cost: String(cost) }
+            // What THIS client charged - a pip or a Burst - so the GM's refund
+            // gives back the right thing (ROLL-13).
+            data: { by: actor.id, cost: String(cost), paid: lastSpendKind(actor) ?? "" }
         }
     ];
 }

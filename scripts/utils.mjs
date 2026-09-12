@@ -185,6 +185,16 @@ export function article(word) {
  * @param {object} data     Substitutions, as for `game.i18n.format`.
  * @param {string} countOn  Which field decides the form. Nearly always `n`.
  */
+/**
+ * Threshold bands lowered by a readied tool's relief. One copy, read by the
+ * action that rolls and by the Reroll that scores the same dice again: two
+ * copies scored a rerolled Work on Project against the raw bands (ROLL-04).
+ */
+export function easedBy(thresholds, relief) {
+    if (!relief) return thresholds;
+    return thresholds.map(band => ({ ...band, min: Math.max(0, band.min - relief) }));
+}
+
 export function plural(key, data = {}, countOn = "n") {
     const n = Number(data[countOn] ?? 0);
     let form = "other";

@@ -482,6 +482,7 @@
       "trialVersus": "kontra {who}"
     },
     "Action": {
+      "spentAfterRoll": "{action}: pierwszy rzut już się odbył, więc akcja pozostaje wydana.",
       "dynamicRefused": "GM odrzucił Dynamic action. Nic nie zostało wydane.",
       "panelTitle": "Akcje",
       "unknown": "Nieznana akcja: {key}.",
@@ -2615,6 +2616,8 @@
       "caughtTrying": "Łapiesz {who} na grzebaniu w twoich kieszeniach. Odchodzą z niczym."
     },
     "Reroll": {
+      "searchNeverRan": "Pokój nie został przeszukany - Search Token odmówiono - więc nie ma czego losować ponownie.",
+      "searchStashStands": "Znalezisko ze skrytki zostaje: nowe kości nie otwierają szuflady drugi raz.",
       "title": "Reroll",
       "nothingToReroll": "Niczym nie rzucałeś, więc nie ma czego cofać.",
       "notARoll": "Twoja ostatnia wiadomość nie zawiera kości.",

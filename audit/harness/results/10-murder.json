@@ -2,7 +2,7 @@
   "scenario": "scenarios/10-murder.mjs",
   "passed": 17,
   "total": 17,
-  "ms": 5023,
+  "ms": 4986,
   "results": [
     {
       "name": "gm: murder opens",
@@ -12,7 +12,7 @@
     {
       "name": "p2: killer identity NOT readable from murderState world setting",
       "ok": true,
-      "details": "{\"active\":true,\"stage\":\"incident\",\"indirect\":false,\"selfInflicted\":false,\"turn\":1,\"turnSide\":\"victim\",\"keyRemnants\":5,\"deniedToVictim\":[],\"hindered\":{\"victim\":{},\"killer\":{}},\"blocked\":{\"victim\":{},\"killer\":{}},\"unlocked\":[],\"drainStopped\":false,\"advantageNext\":{\"victim\":false,\"killer\":false},\"openedAt\":1789250293556}"
+      "details": "{\"active\":true,\"stage\":\"incident\",\"indirect\":false,\"selfInflicted\":false,\"turn\":1,\"turnSide\":\"victim\",\"keyRemnants\":5,\"deniedToVictim\":[],\"hindered\":{\"victim\":{},\"killer\":{}},\"blocked\":{\"victim\":{},\"killer\":{}},\"unlocked\":[],\"drainStopped\":false,\"advantageNext\":{\"victim\":false,\"killer\":false},\"openedAt\":1789250914344}"
     },
     {
       "name": "gm: killer opening resolves",
@@ -42,7 +42,7 @@
     {
       "name": "gm: remnant token placed",
       "ok": true,
-      "details": "{\"r\":\"object\",\"toks\":[{\"id\":\"2Lb5zPVdGSDuEs3Q\",\"name\":\"Trace\"}]}"
+      "details": "{\"r\":\"object\",\"toks\":[{\"id\":\"ItjpcEKmu7fgSwve\",\"name\":\"Trace\"}]}"
     },
     {
       "name": "gm: remnant token name gives nothing away",
@@ -93,12 +93,12 @@
   "permissionDenials": [],
   "socketTraffic": [
     {
-      "from": "p2",
+      "from": "p1",
       "channel": "module.danganronpa-rpg",
       "size": 99
     },
     {
-      "from": "p1",
+      "from": "p3",
       "channel": "module.danganronpa-rpg",
       "size": 99
     },
@@ -108,14 +108,19 @@
       "size": 29
     },
     {
-      "from": "p2",
+      "from": "p1",
       "channel": "module.danganronpa-rpg",
       "size": 91
     },
     {
-      "from": "p2",
+      "from": "p1",
       "channel": "module.danganronpa-rpg",
       "size": 99
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
     },
     {
       "from": "p3",
@@ -123,12 +128,7 @@
       "size": 99
     },
     {
-      "from": "p1",
-      "channel": "module.danganronpa-rpg",
-      "size": 91
-    },
-    {
-      "from": "p1",
+      "from": "p2",
       "channel": "module.danganronpa-rpg",
       "size": 99
     },
@@ -138,12 +138,12 @@
       "size": 91
     },
     {
-      "from": "p3",
+      "from": "p2",
       "channel": "module.danganronpa-rpg",
       "size": 91
     },
     {
-      "from": "p3",
+      "from": "p2",
       "channel": "module.danganronpa-rpg",
       "size": 99
     },
@@ -190,12 +190,12 @@
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 228
+      "size": 240
     },
     {
       "from": "p3",
       "channel": "module.danganronpa-rpg",
-      "size": 221
+      "size": 220
     },
     {
       "from": "gm",
@@ -240,12 +240,12 @@
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 411
+      "size": 423
     },
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 337
+      "size": 349
     },
     {
       "from": "gm",
@@ -279,12 +279,12 @@
     }
   ],
   "bootInfo": {
-    "p2": {
+    "p1": {
       "t": "ready",
       "drpg": true,
       "settingsRegistered": 65
     },
-    "p1": {
+    "p3": {
       "t": "ready",
       "drpg": true,
       "settingsRegistered": 65
@@ -294,7 +294,7 @@
       "drpg": true,
       "settingsRegistered": 65
     },
-    "p3": {
+    "p2": {
       "t": "ready",
       "drpg": true,
       "settingsRegistered": 65

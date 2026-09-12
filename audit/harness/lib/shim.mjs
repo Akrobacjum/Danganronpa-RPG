@@ -431,6 +431,13 @@ export function buildDocumentClasses(ctx) {
 
     class ChatMessageImpl extends BaseDocument {
         static get documentName() { return "ChatMessage"; }
+        // Foundry stamps every message with its creation time; the messenger's
+        // read state and unread badge are built on it.
+        static async create(data, context = {}) {
+            const stamp = d => ({ timestamp: Date.now(), ...d });
+            return super.create(Array.isArray(data) ? data.map(stamp) : stamp(data), context);
+        }
+        get timestamp() { return this._source.timestamp ?? 0; }
         get author() { return ctx.gameRef().users.get(this._source.author ?? this._source.user) ?? null; }
         get user() { return this.author; }
         get speaker() { return this._source.speaker ?? {}; }

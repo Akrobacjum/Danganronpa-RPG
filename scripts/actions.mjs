@@ -186,14 +186,28 @@ export async function spendAction(actor, amount = 1) {
     return true;
 }
 
-/** Hand an action back - criticals on Project and Meddle both do this. */
-export async function refundAction(actor, amount = 1) {
+/** What this client last charged the actor: "grant" (a Burst), "action" (a pip), or null. */
+export function lastSpendKind(actor) {
+    const last = lastSpend.get(actor?.id);
+    return last ? (last.grant ? "grant" : "action") : null;
+}
+
+/**
+ * Hand an action back - criticals on Project and Meddle both do this.
+ *
+ * `paid` says what was charged, when the caller knows: a ruling card carries
+ * it from the player's client, because THIS client's `lastSpend` is whatever
+ * this client last spent for the actor - on a GM's browser that may be a
+ * Burst paid while driving the sheet weeks ago (ROLL-13).
+ */
+export async function refundAction(actor, amount = 1, { paid = null } = {}) {
     if (!actor || amount <= 0) return false;
 
     // Give back what was actually taken. See `lastSpend` above.
     const last = lastSpend.get(actor?.id);
     lastSpend.delete(actor?.id);
-    if (last?.grant) return grantFreeActions(actor, 1);
+    const wasGrant = paid ? paid === "grant" : Boolean(last?.grant);
+    if (wasGrant) return grantFreeActions(actor, 1);
 
     const next = Math.min(actionsMax(actor), actionsLeft(actor) + amount);
     await automatedUpdate(actor, { [`system.resources.${ACTIONS_RESOURCE}.value`]: next });

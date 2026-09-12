@@ -121,6 +121,17 @@ export const ITEM_FLAGS = {
  * per-item state has one place to be added to instead of two to be
  * remembered in.
  */
+/**
+ * Does finding this thing leave a trace? The rule of D-28.08: a trace is
+ * evidence of having handled an OBJECT, so it is read off what was found -
+ * the category plus the roles the table entry declared - and never off the
+ * intention. One copy, used by the Search and by the Reroll that replays it.
+ */
+export function leavesTraceFor(category, roles = []) {
+    const all = new Set([category, ...(roles ?? [])]);
+    return all.has("crimeTool") || all.has("cleaningTool");
+}
+
 export function preservedFlags(item) {
     const flags = {};
     if (isBroken(item)) {

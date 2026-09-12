@@ -472,6 +472,7 @@
       "trialVersus": "vs {who}"
     },
     "Action": {
+      "spentAfterRoll": "{action}: the first roll already landed, so the action stays spent.",
       "dynamicRefused": "The GM turned the Dynamic action down. Nothing was spent.",
       "panelTitle": "Actions",
       "unknown": "Unknown action: {key}.",
@@ -2486,6 +2487,8 @@
       "caughtTrying": "You catch {who} going through your pockets. They come away with nothing."
     },
     "Reroll": {
+      "searchNeverRan": "The room was never searched - the search token was refused - so there is nothing to draw again.",
+      "searchStashStands": "The stash find stands: new dice do not open the drawer twice.",
       "title": "Reroll",
       "nothingToReroll": "You have not rolled anything, so there is nothing to take back.",
       "notARoll": "Your last message carries no dice.",

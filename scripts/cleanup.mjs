@@ -64,7 +64,7 @@ import { getClock } from "./clock.mjs";
 import { bodyDiscovery } from "./settings.mjs";
 import { murderState, killerIds, refOf, swungWeaponOf } from "./murder.mjs";
 import {
-    REMNANT_FLAGS, remnantsInRoom, remnantData, removeRemnant, dropRemnant
+    REMNANT_FLAGS, remnantsInRoom, remnantData, removeRemnant, dropRemnant, setRemnantPublic
 } from "./remnants.mjs";
 import { locateActor } from "./movement.mjs";
 import { equippedFor, breakOnDespair } from "./use-items.mjs";
@@ -1614,26 +1614,35 @@ const lastAttempt = new Map();
  * erased.
  */
 function recreationDataFor(token) {
-    const f = key => token.getFlag(MODULE_ID, REMNANT_FLAGS[key]);
+    // FROM THE LEDGER, NOT THE TOKEN (CASE-06). Since the answer key moved
+    // off the tokens a token carries only `isRemnant`, and reading the flags
+    // here brought every trace back as an Evident Prep Remnant with no
+    // source, no room, no stamp and an explicit "not tied" - a Reroll that
+    // rewrote the evidence. Captured before `removeRemnant` tombstones the row.
+    const d = remnantData(token);
+    if (!d) return null;
     return {
         x: token.x,
         y: token.y,
         sceneId: token.parent?.id ?? null,
-        type: f("type"),
-        visibility: f("visibility"),
-        faint: Boolean(f("faint")),
-        reinforced: Boolean(f("reinforced")),
-        tiedToCrime: Boolean(f("tiedToCrime")),
-        note: f("note") ?? "",
-        action: f("action") ?? "manual",
-        subject: f("subject") ?? "",
-        pointsAt: f("pointsAt") ?? null,
-        sourceActor: f("sourceActor") ?? null,
-        sourceName: f("sourceName") ?? "",
-        room: f("room") ?? null,
-        chapter: f("chapter") ?? null,
-        day: f("day") ?? null,
-        timeOfDay: f("timeOfDay") ?? null
+        type: d.type,
+        visibility: d.visibility,
+        faint: Boolean(d.faint),
+        reinforced: Boolean(d.reinforced),
+        tiedToCrime: Boolean(d.tiedToCrime),
+        note: d.note ?? "",
+        action: d.action ?? "manual",
+        subject: d.subject ?? "",
+        pointsAt: d.pointsAt ?? null,
+        sourceActor: d.sourceActor ?? null,
+        sourceName: d.sourceName ?? "",
+        itemIdentity: d.itemIdentity ?? null,
+        room: d.room ?? null,
+        chapter: d.chapter ?? null,
+        day: d.day ?? null,
+        timeOfDay: d.timeOfDay ?? null,
+        // What a player was to be shown, re-applied after re-placing.
+        public: d.public ?? null
     };
 }
 
@@ -1675,7 +1684,9 @@ async function undoLastCleanup(actor, tokenId) {
     if (receipt.erased) {
         try {
             const { placeRemnant } = await import("./remnants.mjs");
-            await placeRemnant(receipt.erased);
+            const { public: pub, ...data } = receipt.erased;
+            const back = await placeRemnant(data);
+            if (back && pub) await setRemnantPublic(back, pub);
         } catch (err) {
             error("Could not put back the Remnant a rerolled clean-up erased", err);
         }

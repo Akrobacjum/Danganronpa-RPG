@@ -820,7 +820,7 @@ async function runCallAction(action, data) {
         const cost = Number(data.cost) || 0;
         if (cost > 0) {
             const { refundAction } = await import("./actions.mjs");
-            await refundAction(actor, cost);
+            await refundAction(actor, cost, { paid: data.paid || null });
         }
 
         const { postToThread } = await import("./messenger.mjs");

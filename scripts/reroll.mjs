@@ -29,7 +29,8 @@
  */
 
 import { MODULE_ID, FLAGS, ACTIONS, PROJECT_SCALE, DYNAMIC_THRESHOLDS } from "./config.mjs";
-import { resolveThreshold, replaceFlag, log, error, plural } from "./utils.mjs";
+import { resolveThreshold, replaceFlag, log, error, plural, easedBy } from "./utils.mjs";
+import { leavesTraceFor } from "./inventory.mjs";
 
 /**
  * Reroll, with the dice the first roll was actually made with.
@@ -339,7 +340,10 @@ async function settleProgress(actor, bookmark, after, done) {
     }
 
     const def = ACTIONS.project;
-    const hit = after.isCritical ? def.critical : resolveThreshold(after.total, def.thresholds);
+    // The same eased bands the first roll was scored against (ROLL-04).
+    const hit = after.isCritical
+        ? def.critical
+        : resolveThreshold(after.total, easedBy(def.thresholds, bookmark.relief ?? 0));
 
     // The bonus an indirect murder earned - for working alone, or for
     // concealing intent on a Despair roll - is not recomputable from the
@@ -373,6 +377,18 @@ async function settleProgress(actor, bookmark, after, done) {
  * guide's three tokens count attempts, not successes.
  */
 async function settleSearch(actor, bookmark, after, done) {
+    // A Search whose token was refused never searched the room, and a Search
+    // that opened a stash found what the drawer held: neither is a draw from
+    // the room's table, so neither is drawn again on new dice (ROLL-02).
+    if (bookmark.claimed === false) {
+        done.push(game.i18n.localize("DRPG.Reroll.searchNeverRan"));
+        return {};
+    }
+    if (bookmark.fromVault) {
+        done.push(game.i18n.localize("DRPG.Reroll.searchStashStands"));
+        return {};
+    }
+
     const def = ACTIONS.search;
     const hit = resolveThreshold(after.total, def.thresholds);
     const found = Boolean(hit) || after.isCritical;
@@ -399,15 +415,18 @@ async function settleSearch(actor, bookmark, after, done) {
         }
     }
 
-    // 2. Draw again, from the same category and for the same goal.
+    // 2. Draw again, from the same category and for the same goal - and from
+    //    the same ROOM, so the room's own table answers as it did the first time.
     let drawnName = null;
+    let drawn = null;
+    let granted = null;
     if (found && bookmark.category) {
         const { drawItem } = await import("./tables.mjs");
-        const drawn = await drawItem(bookmark.category, tier, { goal: bookmark.goal ?? null });
+        drawn = await drawItem(bookmark.category, tier, { goal: bookmark.goal ?? null, room: bookmark.room ?? null });
         if (drawn?.name) {
             drawnName = drawn.name;
             const { grantItem } = await import("./inventory.mjs");
-            const granted = await grantItem(actor, {
+            granted = await grantItem(actor, {
                 name: drawn.name, category: bookmark.category, tier, goal: bookmark.goal ?? null,
                 roles: drawn.roles ?? []
             });
@@ -418,10 +437,10 @@ async function settleSearch(actor, bookmark, after, done) {
         done.push(game.i18n.localize("DRPG.Reroll.searchNothing"));
     }
 
-    // 3. The trace. Only murder and cleaning gear leaves one, per the guide, and
-    //    only a Search that actually found something - but a Search that failed
-    //    and is now a success has to leave the trace it never earned first time.
-    const leaves = Boolean(bookmark.category) && bookmark.category !== "usable";
+    // 3. The trace, by the same rule the Search itself uses (ROLL-03): what
+    //    was FOUND decides it, and it is tied to the crime only by the object
+    //    being used later - `tieTraceForItem` comes back for the identity.
+    const leaves = found && leavesTraceFor(bookmark.category, drawn?.roles);
     const visibility = found
         ? (after.isCritical ? def.critical?.remnant : hit?.remnant)
         : null;
@@ -430,7 +449,8 @@ async function settleSearch(actor, bookmark, after, done) {
     const trace = await settleRemnant(actor, bookmark, leaves ? (visibility ?? null) : null, done, {
         type: "prep",
         faint: true,
-        tiedToCrime: true,
+        tiedToCrime: null,
+        itemIdentity: granted?.getFlag?.(MODULE_ID, "drpgItemId") ?? null,
         action: "search",
         subject: drawnName ?? "",
         note: game.i18n.format("DRPG.Remnant.searchNote", {
@@ -458,8 +478,10 @@ async function settleSearch(actor, bookmark, after, done) {
 async function settleSabotage(actor, bookmark, after, done) {
     const def = ACTIONS.sabotage;
     const penalty = bookmark.penalty ?? 0;
+    const relief = bookmark.relief ?? 0;
     const score = after.total + penalty;
-    const hit = after.isCritical ? def.critical : resolveThreshold(score, def.thresholds);
+    // The same eased bands the first roll was scored against (ROLL-04).
+    const hit = after.isCritical ? def.critical : resolveThreshold(score, easedBy(def.thresholds, relief));
     const success = Boolean(hit);
 
     const { undoSabotage, sabotageProject, allProjects } = await import("./projects.mjs");
@@ -475,9 +497,11 @@ async function settleSabotage(actor, bookmark, after, done) {
     if (success && bookmark.targetProjectId) {
         // Guide's Sabotage table, by the repair project it demands:
         //   12 -> trivial (3)   18 -> complex (6)   crit -> desperate (8)
+        // The complex band is the last of the table, lowered by the same relief.
+        const complexAt = Math.max(...def.thresholds.map(t => t.min)) - relief;
         const difficulty = after.isCritical
             ? PROJECT_SCALE.desperate.progress
-            : score >= 18 ? PROJECT_SCALE.complex.progress : PROJECT_SCALE.trivial.progress;
+            : score >= complexAt ? PROJECT_SCALE.complex.progress : PROJECT_SCALE.trivial.progress;
 
         const result = await sabotageProject(bookmark.targetProjectId, difficulty);
         repairId = result?.repair?.id ?? null;
