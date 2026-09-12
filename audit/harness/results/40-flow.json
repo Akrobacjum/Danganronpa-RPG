@@ -1,8 +1,8 @@
 {
   "scenario": "scenarios/40-flow.mjs",
-  "passed": 34,
+  "passed": 35,
   "total": 35,
-  "ms": 9917,
+  "ms": 9934,
   "results": [
     {
       "name": "p1: spending an action costs exactly one",
@@ -12,7 +12,7 @@
     {
       "name": "gm: clock advanced to noon",
       "ok": true,
-      "details": "{\"eclipse\":false,\"campaignName\":\"\",\"season\":1,\"chapter\":1,\"session\":1,\"day\":1,\"phase\":\"dailyLife\",\"timeOfDay\":\"noon\",\"timeOfDayStartedAt\":1789250900964,\"pausedAt\":null,\"finalTrial\":false,\"campaign\":\"QA season\"}"
+      "details": "{\"eclipse\":false,\"campaignName\":\"\",\"season\":1,\"chapter\":1,\"session\":1,\"day\":1,\"phase\":\"dailyLife\",\"timeOfDay\":\"noon\",\"timeOfDayStartedAt\":1789252126318,\"pausedAt\":null,\"finalTrial\":false,\"campaign\":\"QA season\"}"
     },
     {
       "name": "p1: sees the new time of day",
@@ -92,7 +92,7 @@
     {
       "name": "gm: the Ultimate request arrived as a card with buttons in the player's thread",
       "ok": true,
-      "details": "{\"found\":true,\"sent\":true,\"rid\":\"5WtVqT0pRIDhkeAa\",\"asker\":\"USERP20000000000\",\"text\":\"Ultimate - does it apply? Botan Kage I am the Ultimate Locksmith and this is a lock. Advantage on a roll your Ultimate genuinely applies to. 1 Hope, charged only on a yes. The question is the handbook\"}"
+      "details": "{\"found\":true,\"sent\":true,\"rid\":\"5TGlDKHqcuXY3mN9\",\"asker\":\"USERP20000000000\",\"text\":\"Ultimate - does it apply? Botan Kage I am the Ultimate Locksmith and this is a lock. Advantage on a roll your Ultimate genuinely applies to. 1 Hope, charged only on a yes. The question is the handbook\"}"
     },
     {
       "name": "p2: Hope was charged once the GM said yes",
@@ -146,13 +146,13 @@
     },
     {
       "name": "gm: Pain took 2 Health from Aiko (Health counts up as damage in Daggerheart)",
-      "ok": false,
-      "details": "{\"hp0\":0,\"hp\":0,\"r\":null,\"err\":null,\"despair\":6}"
+      "ok": true,
+      "details": "{\"hp0\":0,\"hp\":2,\"r\":\"object\",\"err\":null,\"despair\":3}"
     },
     {
       "name": "p1: the victim of the Call was told",
       "ok": true,
-      "details": "{\"notifs\":[],\"cards\":[\"THE SCENE IS STOPPED Somebody used the safeword. Play stops here. A GM will pick this up, and the scene resumes from a point everyone agrees\",\"Despair Call Pain - A player loses 2 Health. GM spent 3 Despair\"]}"
+      "details": "{\"notifs\":[],\"cards\":[\"THE SCENE IS STOPPED Somebody used the safeword. Play stops here. A GM will pick this up, and the scene resumes from a point everyone agrees\",\"Despair Call - Pain A player loses 2 Health. Aiko Hoshino takes 2 Health. GM spent 3 Despair\"]}"
     },
     {
       "name": "p2: the Despair rail on a player shows no number",
@@ -183,12 +183,7 @@
   "permissionDenials": [],
   "socketTraffic": [
     {
-      "from": "p2",
-      "channel": "module.danganronpa-rpg",
-      "size": 99
-    },
-    {
-      "from": "p3",
+      "from": "p1",
       "channel": "module.danganronpa-rpg",
       "size": 99
     },
@@ -198,17 +193,22 @@
       "size": 29
     },
     {
-      "from": "p1",
+      "from": "p2",
       "channel": "module.danganronpa-rpg",
       "size": 99
     },
     {
-      "from": "p2",
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p1",
       "channel": "module.danganronpa-rpg",
       "size": 91
     },
     {
-      "from": "p2",
+      "from": "p1",
       "channel": "module.danganronpa-rpg",
       "size": 99
     },
@@ -218,22 +218,22 @@
       "size": 91
     },
     {
-      "from": "p3",
+      "from": "p2",
       "channel": "module.danganronpa-rpg",
       "size": 91
     },
     {
-      "from": "p3",
+      "from": "p2",
       "channel": "module.danganronpa-rpg",
       "size": 99
     },
     {
-      "from": "p1",
+      "from": "p3",
       "channel": "module.danganronpa-rpg",
       "size": 91
     },
     {
-      "from": "p1",
+      "from": "p3",
       "channel": "module.danganronpa-rpg",
       "size": 99
     },
@@ -344,22 +344,22 @@
     }
   ],
   "bootInfo": {
-    "p2": {
-      "t": "ready",
-      "drpg": true,
-      "settingsRegistered": 65
-    },
     "gm": {
       "t": "ready",
       "drpg": true,
       "settingsRegistered": 65
     },
-    "p3": {
+    "p1": {
       "t": "ready",
       "drpg": true,
       "settingsRegistered": 65
     },
-    "p1": {
+    "p2": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 65
+    },
+    "p3": {
       "t": "ready",
       "drpg": true,
       "settingsRegistered": 65

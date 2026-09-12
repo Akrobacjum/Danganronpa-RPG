@@ -85,12 +85,17 @@ export const LEAVE = () => motionEase("--drpg-ease-leave");
  * moments are worth skipping outright rather than playing at zero length, and
  * one or two want a different shape entirely rather than none.
  */
+// One MediaQueryList, whose `matches` is live; `matchMedia()` allocated a new
+// one on every call, and the fog's ticker and the glass's loop call this per frame.
+let reducedQuery = null;
+
 export function reducedMotion() {
     try {
         // This browser's own switch first: a player who wants the interface to hold still
         // should not have to change an operating-system setting to say so (the Look window).
         if (document.body.classList.contains("drpg-reduced-motion")) return true;
-        return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        reducedQuery ??= window.matchMedia("(prefers-reduced-motion: reduce)");
+        return reducedQuery.matches;
     } catch {
         return false;
     }

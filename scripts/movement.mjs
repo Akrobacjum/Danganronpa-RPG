@@ -235,9 +235,7 @@ function canCross(actor, from, to) {
             if (from && to) {
                 const connected = neighbouringRooms(from);
                 if (connected.length && !connected.includes(to)) {
-                    return game.i18n.format("DRPG.Eclipse.notConnected", {
-                        from, to, rooms: connected.join(", ")
-                    });
+                    return notConnectedText(from, to, connected);
                 }
             }
         }
@@ -292,9 +290,49 @@ function crossingRefused(from, to) {
     const connected = neighbouringRooms(from);
     if (!connected.length || connected.includes(to)) return false;
 
-    return game.i18n.format("DRPG.Move.notConnected", {
-        from, to, rooms: connected.join(", ")
-    });
+    return notConnectedText(from, to, connected);
+}
+
+/**
+ * "{to} is not connected to {from}" - and the list of where you CAN go names
+ * only rooms this viewer has been in (MAP-03). The full list undid the fog's
+ * whole contract: dragging at a black patch printed every neighbour of the
+ * room you stand in, unvisited ones included.
+ */
+function notConnectedText(from, to, connected) {
+    const known = roomsKnownToMe();
+    const shown = known ? connected.filter(r => known.has(r)) : connected;
+    return shown.length
+        ? game.i18n.format("DRPG.Move.notConnected", { from, to, rooms: shown.join(", ") })
+        : game.i18n.format("DRPG.Move.notConnectedShort", { from, to });
+}
+
+/**
+ * The rooms this viewer's own characters have discovered on the current
+ * scene, plus wherever they stand; `null` for a GM or the Mastermind, who know
+ * the whole map. Read off the world ledger fog.mjs writes, so this stays a
+ * leaf and needs nothing from the fog.
+ */
+function roomsKnownToMe() {
+    try {
+        if (game.user.isGM || iAmTheMastermind()) return null;
+        const sceneId = canvas?.scene?.id;
+        if (!sceneId) return null;
+        const ledger = game.settings.get(MODULE_ID, SETTINGS.discoveredRooms) ?? {};
+        const known = new Set();
+        for (const [actorId, rooms] of Object.entries(ledger[sceneId] ?? {})) {
+            if (!game.actors.get(actorId)?.isOwner) continue;
+            for (const room of rooms ?? []) known.add(room);
+        }
+        for (const token of canvas?.tokens?.placeables ?? []) {
+            if (!token.isOwner) continue;
+            const room = roomOfToken(token.document);
+            if (room) known.add(room);
+        }
+        return known;
+    } catch {
+        return null;
+    }
 }
 
 /**
@@ -426,7 +464,7 @@ function bedroomShut(actor, to) {
 }
 
 /** Which room a point falls inside, using the same regions as roomOfToken. */
-function roomAt(x, y, tokenDoc) {
+export function roomAt(x, y, tokenDoc) {
     const scene = tokenDoc?.parent ?? canvas?.scene;
     if (!scene?.regions?.size) return null;
 
@@ -470,14 +508,12 @@ function roomAt(x, y, tokenDoc) {
 
 /**
  * Every named Region a point falls inside - the plural version of `roomAt`,
- * for the one caller that needs ALL of them rather than the alphabetically-
- * first name: a token standing where two rooms overlap is in both at once,
- * and vision restriction (see `visibility.mjs`'s `clipVisionToRoom`) has to
- * clip to their union, not silently pick one. Shares every edge case `roomAt`
- * already worked out - grid size, elevation, the `testPoint` fallback chain -
- * rather than risking the two drifting apart.
+ * and the one place the hit test is written: grid size, elevation, the
+ * `testPoint` fallback chain. `roomAt` takes the alphabetically-first name off
+ * it; nothing outside this file reads the list any more (the vision clip that
+ * did is gone).
  */
-export function regionsAt(scene, x, y, tokenDoc) {
+function regionsAt(scene, x, y, tokenDoc) {
     if (!scene?.regions?.size) return [];
 
     const size = scene.grid?.size ?? canvas?.grid?.size ?? 100;
@@ -537,9 +573,9 @@ function containedBy(region, x, y) {
 }
 
 /**
- * Every token this module places or that a GM drops behaves the same way:
- * no rotation on movement, and free positioning rather than grid snapping.
- * Applied at creation so it also covers tokens dragged from the actor list.
+ * Every token this module places or that a GM drops behaves the same way: no
+ * rotation on movement. Applied at creation so it also covers tokens dragged
+ * from the actor list.
  */
 function onPreCreateToken(token, data) {
     const update = {};
@@ -705,9 +741,16 @@ async function onUpdateToken(tokenDoc, changes, options, userId) {
         // made: the refusal is about the step that could not be afforded, and
         // `sendBack` returns the token to the only position it is certain the
         // character could legally be standing in.
+        // ...and not where the DRAG began, when that is two rooms back (MAP-11):
+        // the veto judges each segment of a multi-room route against the budget
+        // as it stood before any of them was charged, so a route of three rooms
+        // on one free Move passes all three vetoes and fails at the second
+        // crossing here. The token goes to the room that WAS paid for.
+        let standing = previous;
         for (const [from, to] of crossings) {
-            const paid = await chargeForCrossing(actor, from, to, tokenDoc, previous);
+            const paid = await chargeForCrossing(actor, from, to, tokenDoc, standing);
             if (!paid) return;
+            standing = positionIn(to, tokenDoc) ?? standing;
         }
     } catch (err) {
         error("Movement charge failed", err);
@@ -898,6 +941,22 @@ async function sendBack(tokenDoc, previous, room) {
     };
 
     setTimeout(apply, 0);
+}
+
+/** A position inside a named room on the token's scene - its centre, less the token's own size. */
+function positionIn(room, tokenDoc) {
+    try {
+        const scene = tokenDoc?.parent ?? canvas?.scene;
+        const region = Array.from(scene?.regions ?? []).find(r => r.name === room);
+        const box = region ? boundsOf(region) : null;
+        if (!box) return null;
+        const size = scene?.grid?.size ?? canvas?.grid?.size ?? 100;
+        const w = (tokenDoc?.width ?? 1) * size;
+        const h = (tokenDoc?.height ?? 1) * size;
+        return { x: Math.round(box.x + box.w / 2 - w / 2), y: Math.round(box.y + box.h / 2 - h / 2) };
+    } catch {
+        return null;
+    }
 }
 
 /** Marks an update as our own revert, so it is not charged for. */

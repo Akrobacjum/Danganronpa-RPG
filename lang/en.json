@@ -1952,7 +1952,6 @@
         "other": "Now in {room}. {left} crossings left."
       },
       "noMovesLeft": "Your Eclipse crossings are used up. Your token has been put back.",
-      "notConnected": "{to} is not connected to {from}. From here you can reach: {rooms}",
       "actionsLocked": "The Eclipse allows movement only. Your actions are already back - nothing spends them but a Direct Murder, and no Calls at all, until the lights come up.",
       "endPrompt": "End the Eclipse and begin the next time of day? Everyone has placed as follows:",
       "endAndAdvance": "End and start next time of day",
@@ -1971,6 +1970,7 @@
       "panelLocked": "Locked while the Eclipse runs - nobody has finished placing yet."
     },
     "Move": {
+      "notConnectedShort": "{to} is not connected to {from}.",
       "title": "Move",
       "freeAvailable": "Your free Move for this time of day is still there.",
       "freeSpent": "Free Move used - the next room costs an action. You have {left}.",
@@ -1984,7 +1984,7 @@
       "costAction": "That cost an action - {left} left.",
       "noBudget": "No free Move and no actions left.",
       "notConnected": "{to} is not connected to {from}. From here you can reach: {rooms}",
-      "noBudgetLong": "No free Move and no actions left - this crossing was not paid for. Move back, or ask the GM.",
+      "noBudgetLong": "No free Move and no actions left - this crossing was not paid for, so your token was put back.",
       "locked": "The door is locked.",
       "dead": "They are dead. The body stays where it fell."
     },

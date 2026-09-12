@@ -149,7 +149,8 @@ export async function run({ gm, p1, p2, p3, check, settle }) {
         // Pain is paid from the pool that feeds this student: point Aiko at this GM's pool, and fill it.
         await game.drpg.assign(actor.id, game.user.id).catch(() => {});
         await game.drpg.setDespair(game.user.id, 6).catch(() => {});
-        try { r = await game.drpg.spendDespairCallFor(actor, "thisWillHurt", {}); } catch (e) { err = String(e?.stack ?? e).slice(0, 300); }
+        // The Call is spent BY the Monokuma ON a student: the actor is Monokuma's, the target rides the choice.
+        try { r = await game.drpg.spendDespairCallFor(game.actors.get("${ids.monokuma}"), "thisWillHurt", { choice: { target: actor } }); } catch (e) { err = String(e?.stack ?? e).slice(0, 300); }
         await new Promise(res => setTimeout(res, 600));
         return { hp0, hp: actor.system.resources.hitPoints.value, r: r === null ? null : typeof r, err, despair: game.drpg.getDespair(game.user.id) };`, { timeout: 60000 });
     await settle(600);

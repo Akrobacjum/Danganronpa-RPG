@@ -6,10 +6,13 @@ export async function run({ gm, p1, p2, check, settle, permissionDenials }) {
     const xss = await p1.eval(`
         const M = await import("file:///home/user/Danganronpa-RPG/scripts/messenger.mjs");
         const evil = "<img src=x onerror=alert(1)><script>window.__pwned=1<\\/script>";
-        await M.sendMessage(game.user.id, evil);
-        const msgs = game.messages.contents.filter(m => (m._source.content||"").includes("img") || (m._source.content||"").includes("pwned"));
-        const raw = msgs.map(m => m._source.content).join("|");
-        return { stored: raw.slice(0, 300), escaped: raw.includes("&lt;img") || raw.includes("&lt;"), rawTagPresent: /<img|<script/i.test(raw) };
+        const sent = await M.sendMessage(game.user.id, evil);
+        // A thread card is a private card (COMM-03): the document holds a stub and the
+        // words live in the sender's own store - escaped there, or nowhere.
+        const S = await import("file:///home/user/Danganronpa-RPG/scripts/secret.mjs");
+        const raw = sent ? S.contentOf(sent) : "";
+        const doc = sent ? (sent._source.content ?? "") : "";
+        return { id: sent?.id ?? null, stored: raw.slice(0, 300), escaped: raw.includes("&lt;img") || raw.includes("&lt;"), rawTagPresent: /<img|<script/i.test(raw) || /<img|<script/i.test(doc) };
     `, { timeout: 60000 });
     check("XSS: messenger escapes hostile markup at write", xss.escaped && !xss.rawTagPresent, JSON.stringify(xss));
 

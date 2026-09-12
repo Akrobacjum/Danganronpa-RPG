@@ -53,7 +53,12 @@ const CanvasAnimation = foundry.canvas.animation.CanvasAnimation;
  * from the person testing. `diagnoseFog()` prints this, which turns that into a
  * fact. Bump it whenever the drawing behaviour changes.
  */
-const FOG_BUILD = "2026-08-26 · glow-field-trend";
+/**
+ * Which build of this file a browser loaded, for `diagnoseFog`. Derived from
+ * the manifest rather than typed by hand (MAP-14): the hand-typed stamp was
+ * not bumped for three drawing changes, which is the one job it had.
+ */
+const fogBuild = () => `${game?.modules?.get?.(MODULE_ID)?.version ?? "?"} · glow-field`;
 
 const LAYER_NAME = "drpgFog";
 const FOG_SPRITE = "drpgFogSprite";
@@ -1044,13 +1049,15 @@ let fogTexture = null;
  * What the fog was showing at the last successful paint.
  *
  * A repaint that produces the same picture is not free: it rebuilds two
- * textures and runs a 220ms dissolve between two identical states, and that is
+ * textures and runs an `ENTER()`-long dissolve between two identical states, and that is
  * a window in which nothing can change but anything can flicker. It also
  * happens constantly - a GM clears every room, so moving their Monokuma from
  * one to another changes where they ARE without changing one pixel of what is
  * covered.
  */
 let lastPaintSignature = "";
+/** The "can any region be read as a polygon" answer, per scene and region count (MAP-13). */
+let readableCache = { sceneId: null, count: -1, readable: 0 };
 
 /**
  * The ledger as this GM last saw it, so growth in it can be noticed - keyed by
@@ -1485,8 +1492,6 @@ function armRendererFailsafe() {
     }
 }
 
-/** Resolve a CSS custom property to the integer PIXI wants. */
-/** The seam colour of the Stained Glass theme, read off the body where the theme sets it. */
 /**
  * The seam colour of the Stained Glass theme, read off the body where the theme
  * sets it.
@@ -1558,7 +1563,7 @@ export function diagnoseFog() {
     const regions = Array.from(scene?.regions ?? []).filter(r => r.name);
 
     const report = {
-        build: FOG_BUILD,
+        build: fogBuild(),
         settingOn: fogEnabled(),
         isGM: Boolean(game.user.isGM),
         canvasReady: Boolean(canvas?.ready),
@@ -2323,7 +2328,7 @@ export function whyBlack() {
     const dims = canvas?.dimensions;
 
     const report = {
-        build: FOG_BUILD,
+        build: fogBuild(),
         animationsOn,
         scene: `${canvas?.scene?.name} ${Math.round(dims?.rect?.width ?? 0)}x${Math.round(dims?.rect?.height ?? 0)}`,
         layer: describe(container),
@@ -2381,7 +2386,16 @@ export function repaintFog() {
         // behind a state nothing is able to lift. Standing down shows the map
         // as Foundry would - wrong, but visibly wrong, and with a reason
         // `diagnoseFog()` can read out.
-        const readable = regions.filter(r => regionShapes(r, rect).length).length;
+        // Not repeated on every `createToken`/`deleteToken` of anything on the
+        // map (MAP-13): the pass walks every polygon of every region, and the
+        // answer only changes when the scene or its region count does.
+        let readable;
+        if (readableCache.sceneId === scene.id && readableCache.count === regions.length) {
+            readable = readableCache.readable;
+        } else {
+            readable = regions.filter(r => regionShapes(r, rect).length).length;
+            readableCache = { sceneId: scene.id, count: regions.length, readable };
+        }
         if (!readable) {
             warn("Fog: no room geometry could be read on this scene, so nothing was fogged. "
                 + "The Regions may be drawn in a shape the module cannot measure.");
@@ -2528,6 +2542,7 @@ function stand(reason) {
     lastFogReason = reason;
     lastPaintSignature = "";
     lastLedgerSeen = null;
+    readableCache = { sceneId: null, count: -1, readable: 0 };
     hideLayer();
     return false;
 }
@@ -2953,7 +2968,7 @@ function pinToScreen(group) {
         const parent = this.parent;
         if (parent) {
             try {
-                this.transform.setFromMatrix(parent.worldTransform.clone().invert());
+                this.transform.setFromMatrix((scratchMatrix ??= new PIXI.Matrix()).copyFrom(parent.worldTransform).invert());
             } catch {
                 // A degenerate matrix - a zero scale mid-transition, say. Leave
                 // the last good transform rather than throwing inside a render.
@@ -2968,6 +2983,22 @@ function pinToScreen(group) {
 let driftTick = null;
 /** Shared by the fog's raster and the backdrop's, so they never drift apart. */
 const driftOffset = { dots: { x: 0, y: 0 }, lines: { x: 0, y: 0 } };
+
+/**
+ * The ink colour, re-read from the stylesheet at most twice a second rather
+ * than on every frame (MAP-07): `getComputedStyle` is a synchronous style
+ * read, and the ticker was paying for one per frame for a value that changes
+ * with the theme and the time of day - a few times a session.
+ */
+let inkCache = { at: 0, value: 0x1a1620 };
+function inkColour() {
+    const now = Date.now();
+    if (now - inkCache.at > 500) inkCache = { at: now, value: colourOf("--drpg-ink", 0x1a1620) };
+    return inkCache.value;
+}
+
+/** One scratch matrix for `pinToScreen`, instead of a clone per frame per group. Made on first use, after PIXI is up. */
+let scratchMatrix = null;
 
 /*
  * THE TICKER RUNS EVEN WHEN NOTHING IS DRIFTING.
@@ -3033,11 +3064,20 @@ function startDrift() {
 
                 if (sprite instanceof PIXI.Graphics) {
                     // The backdrop's own ground, so this never depends on the
-                    // renderer's clear colour being what we left it.
-                    sprite.clear();
-                    sprite.beginFill(colourOf("--drpg-ink", 0x1a1620), 1);
-                    sprite.drawRect(0, 0, width, height);
-                    sprite.endFill();
+                    // renderer's clear colour being what we left it. Redrawn
+                    // only when its size or colour changed (MAP-07): a
+                    // `clear`/`drawRect` per frame rebuilt and re-uploaded the
+                    // geometry sixty times a second for a rectangle that
+                    // changes a few times a session.
+                    const ink = inkColour();
+                    const drawn = sprite.drpgDrawn;
+                    if (!drawn || drawn.w !== width || drawn.h !== height || drawn.ink !== ink) {
+                        sprite.clear();
+                        sprite.beginFill(ink, 1);
+                        sprite.drawRect(0, 0, width, height);
+                        sprite.endFill();
+                        sprite.drpgDrawn = { w: width, h: height, ink };
+                    }
                     continue;
                 }
 
@@ -3066,7 +3106,8 @@ function stopDrift() {
 
 /**
  * A small clear disc under each of this viewer's own character tokens, in the
- * layer's coordinate space. See pass 4 above for why.
+ * layer's coordinate space. Recorded for `diagnoseFog` alone: the drawing no
+ * longer cuts holes for them (the reveal texture covers the viewer's rooms).
  *
  * A token the GM has hidden outright is skipped: that control means "this is
  * not on the map", and cutting a hole around it would announce where it stands.

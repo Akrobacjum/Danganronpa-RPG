@@ -2051,7 +2051,6 @@
         "other": "Teraz w: {room}. Zostało {left} przejść."
       },
       "noMovesLeft": "Przejścia Eclipse wyczerpane. Twój token wrócił na miejsce.",
-      "notConnected": "{to} nie łączy się z: {from}. Stąd dojdziesz do: {rooms}",
       "actionsLocked": "Eclipse pozwala tylko na ruch. Twoje akcje już wróciły - nic ich nie wydaje poza Direct Murder, a Calle w ogóle, dopóki nie zapali się światło.",
       "endPrompt": "Zakończyć Eclipse i zacząć następną porę dnia? Wszyscy ustawili się tak:",
       "endAndAdvance": "Zakończ i zacznij następną porę dnia",
@@ -2070,6 +2069,7 @@
       "panelLocked": "Zablokowane, dopóki trwa Eclipse - nikt jeszcze nie skończył się ustawiać."
     },
     "Move": {
+      "notConnectedShort": "{to} nie łączy się z {from}.",
       "title": "Move",
       "freeAvailable": "Twój Free Move na tę porę dnia wciąż jest.",
       "freeSpent": "Free Move zużyty - następny pokój kosztuje akcję. Masz {left}.",

@@ -20,7 +20,7 @@
 
 import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, isEclipse, incidentParticipants } from "./settings.mjs";
-import { roomOfToken } from "./movement.mjs";
+import { roomOfToken, roomAt } from "./movement.mjs";
 import { REMNANT_FLAGS, keyOf as remnantKeyOf } from "./remnants.mjs";
 import { TRUTH_BULLET_FLAGS, bulletsOf } from "./truth-bullets.mjs";
 // Static, like movement.mjs's own import of the same file: `applyToToken`
@@ -211,7 +211,24 @@ function applyToToken(token) {
         // rather than hiding the entire cast.
         if (!mine.size && !room) return;
 
-        if (room && mine.has(room)) return;
+        if (room && mine.has(room)) {
+            /*
+             * THE DOCUMENT ARRIVES BEFORE THE SPRITE DOES (MAP-02). A token
+             * walking INTO my room is "in my room" the instant its update
+             * lands, while the mesh is still sliding there from wherever it
+             * came - so it flipped visible at its old position and crossed the
+             * border on screen, which is the direction of the crime scene.
+             * While the sprite is not yet in a room of mine it stays hidden;
+             * `refreshToken` fires every frame of the slide and shows it the
+             * moment it crosses. One region test per animating token per frame.
+             */
+            const sliding = token.x !== token.document.x || token.y !== token.document.y;
+            if (sliding) {
+                const at = roomAt(token.x, token.y, token.document);
+                if (at && !mine.has(at)) hide(token);
+            }
+            return;
+        }
         hide(token);
     } catch {
         // Never break the canvas over this.

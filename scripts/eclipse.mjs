@@ -650,9 +650,9 @@ export async function judgeEclipseCrossing(actor, from, to) {
         if (from && to) {
             const connected = neighbouringRooms(from);
             if (connected.length && !connected.includes(to)) {
-                ui.notifications.warn(game.i18n.format("DRPG.Eclipse.notConnected", {
-                    from: from, to: to, rooms: connected.join(", ")
-                }));
+                // The same sentence the veto uses, and it names only rooms the
+                // viewer has been in - `crossingRefused` in movement.mjs.
+                ui.notifications.warn(game.i18n.format("DRPG.Move.notConnectedShort", { from, to }));
                 return false;
             }
         }

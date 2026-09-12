@@ -2,7 +2,7 @@
   "scenario": "scenarios/11-killer-secrecy.mjs",
   "passed": 5,
   "total": 5,
-  "ms": 3015,
+  "ms": 3028,
   "results": [
     {
       "name": "SECRECY p1 during incident: killerId hidden",
@@ -33,29 +33,14 @@
   "permissionDenials": [],
   "socketTraffic": [
     {
-      "from": "p2",
-      "channel": "module.danganronpa-rpg",
-      "size": 99
-    },
-    {
-      "from": "p1",
-      "channel": "module.danganronpa-rpg",
-      "size": 99
-    },
-    {
-      "from": "p3",
-      "channel": "module.danganronpa-rpg",
-      "size": 99
-    },
-    {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
       "size": 29
     },
     {
-      "from": "p2",
+      "from": "p3",
       "channel": "module.danganronpa-rpg",
-      "size": 91
+      "size": 99
     },
     {
       "from": "p2",
@@ -70,11 +55,6 @@
     {
       "from": "p1",
       "channel": "module.danganronpa-rpg",
-      "size": 91
-    },
-    {
-      "from": "p1",
-      "channel": "module.danganronpa-rpg",
       "size": 99
     },
     {
@@ -84,6 +64,26 @@
     },
     {
       "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p1",
       "channel": "module.danganronpa-rpg",
       "size": 99
     },
@@ -130,7 +130,7 @@
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 228
+      "size": 240
     },
     {
       "from": "p3",
@@ -150,12 +150,12 @@
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 411
+      "size": 423
     },
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 337
+      "size": 349
     },
     {
       "from": "gm",
@@ -174,22 +174,22 @@
     }
   ],
   "bootInfo": {
-    "p2": {
-      "t": "ready",
-      "drpg": true,
-      "settingsRegistered": 65
-    },
-    "p1": {
-      "t": "ready",
-      "drpg": true,
-      "settingsRegistered": 65
-    },
     "gm": {
       "t": "ready",
       "drpg": true,
       "settingsRegistered": 65
     },
     "p3": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 65
+    },
+    "p2": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 65
+    },
+    "p1": {
       "t": "ready",
       "drpg": true,
       "settingsRegistered": 65

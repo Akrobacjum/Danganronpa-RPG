@@ -2,7 +2,7 @@
   "scenario": "scenarios/12-social.mjs",
   "passed": 9,
   "total": 9,
-  "ms": 633,
+  "ms": 634,
   "results": [
     {
       "name": "forcePrivateRolls default state",
@@ -58,37 +58,27 @@
       "size": 99
     },
     {
-      "from": "p3",
-      "channel": "module.danganronpa-rpg",
-      "size": 99
-    },
-    {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
       "size": 29
     },
     {
-      "from": "p1",
-      "channel": "module.danganronpa-rpg",
-      "size": 91
-    },
-    {
-      "from": "p1",
-      "channel": "module.danganronpa-rpg",
-      "size": 99
-    },
-    {
-      "from": "p3",
-      "channel": "module.danganronpa-rpg",
-      "size": 91
-    },
-    {
-      "from": "p3",
-      "channel": "module.danganronpa-rpg",
-      "size": 99
-    },
-    {
       "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p1",
       "channel": "module.danganronpa-rpg",
       "size": 99
     },
@@ -104,6 +94,16 @@
     },
     {
       "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p3",
       "channel": "module.danganronpa-rpg",
       "size": 99
     },
@@ -139,22 +139,22 @@
     }
   ],
   "bootInfo": {
-    "p1": {
-      "t": "ready",
-      "drpg": true,
-      "settingsRegistered": 65
-    },
-    "p3": {
-      "t": "ready",
-      "drpg": true,
-      "settingsRegistered": 65
-    },
     "gm": {
       "t": "ready",
       "drpg": true,
       "settingsRegistered": 65
     },
     "p2": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 65
+    },
+    "p1": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 65
+    },
+    "p3": {
       "t": "ready",
       "drpg": true,
       "settingsRegistered": 65
