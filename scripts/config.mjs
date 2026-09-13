@@ -285,6 +285,43 @@ export const PHASES = {
 export const CHAPTERS_PER_SEASON = 6;
 
 /**
+ * Every timing and size the module used to keep as a local constant in the
+ * file that read it (audit, hygiene: "magic numbers outside config"). None of
+ * these is a rule of the game; they are how long the module waits, how much it
+ * keeps, and how often it looks. Named here so the next tuning is one edit.
+ */
+export const TIMING = {
+    /** A GM's "got it" for a bridge request; past this, no GM is listening. */
+    ackMs: 8000,
+    /** A GM's ruling on a request (a Dynamic threshold, an Observe target, a sabotage's result). */
+    rulingMs: 180000,
+    /** A GM's ruling on a Hope Call - a longer read, so a longer wait. */
+    hopeCallRulingMs: 300000,
+    /** The primary GM's answer to a search-token spend. */
+    searchTokenAckMs: 5000,
+    /** How long the dice are given to land before an action calls itself done. */
+    diceSettleMs: 6000,
+    /** How far back a Reroll's fallback scan looks for its roll, in real minutes. */
+    rerollWindowMinutes: 30,
+    /** How long an Observe waits for its ruling before the bookmark is swept. */
+    pendingObserveTtlMs: 60 * 60 * 1000,
+    /** How many private cards' words a browser keeps; beyond this the oldest go. */
+    secretCardsKept: 500,
+    /** How many times an opening roll is re-offered before the murder is abandoned. */
+    openingAttempts: 3,
+    /** The incident tracker's "ask again", once per this on a client. */
+    reaskCooldownMs: 10000,
+    /** A notice card's life on screen when nobody dismisses it. */
+    popupAutoDismissMs: 12000,
+    /** The sync bus and the live windows coalesce redraws inside this window. */
+    coalesceMs: 120,
+    /** The HUD's minutes counter: amber at the first mark, red at the second. */
+    elapsedMarksMinutes: [15, 30],
+    /** How many chat messages one delete carries. */
+    chatDeleteBatch: 500
+};
+
+/**
  * The character sheet's size, in one place (UI-13). Daggerheart opens it at
  * its own default; `minHeight` is what the Hope Calls panel needs under the
  * Legacy theme (grown once, upwards only - sheet.mjs `growForCalls`), and

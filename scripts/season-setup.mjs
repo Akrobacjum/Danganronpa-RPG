@@ -22,7 +22,7 @@
 // live in `roomsWantedFor`, so both screens that print it agree by
 // construction (audit A21).
 import {
-    MODULE_ID, FLAGS, STARTING, ITEM_CATEGORIES, CHAPTERS_PER_SEASON
+    MODULE_ID, FLAGS, STARTING, ITEM_CATEGORIES, CHAPTERS_PER_SEASON, TIMING
 } from "./config.mjs";
 import { SETTINGS, DEFAULT_SAFEWORD, setSetting } from "./settings.mjs";
 import { safeword } from "./safeword.mjs";
@@ -700,8 +700,8 @@ export async function resetSeason() {
  * single update can carry and short enough that nothing times out.
  */
 async function deleteMessages(ids) {
-    for (let i = 0; i < ids.length; i += 500) {
-        await ChatMessage.deleteDocuments(ids.slice(i, i + 500));
+    for (let i = 0; i < ids.length; i += TIMING.chatDeleteBatch) {
+        await ChatMessage.deleteDocuments(ids.slice(i, i + TIMING.chatDeleteBatch));
     }
     return ids.length;
 }

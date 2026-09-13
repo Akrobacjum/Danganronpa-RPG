@@ -48,7 +48,7 @@
  * worth more than a wide one that has to keep apologising.
  */
 
-import { MODULE_ID } from "./config.mjs";
+import { MODULE_ID, TIMING } from "./config.mjs";
 import { debug, error } from "./utils.mjs";
 
 /**
@@ -89,7 +89,7 @@ const living = new Set();
  * @returns {Function} Stop listening. Idempotent; also called automatically
  *                     when the window closes or the region goes away.
  */
-export function keepLive(app, { region, build, watch = {}, delay = 120, after = null } = {}) {
+export function keepLive(app, { region, build, watch = {}, delay = TIMING.coalesceMs, after = null } = {}) {
     if (!app || typeof build !== "function" || !region) return () => {};
 
     const record = { app, region, at: Date.now(), refreshes: 0, deferred: 0 };
@@ -476,7 +476,7 @@ export function alreadyOpen(className) {
  * @param {number}  [options.delay] Debounce, ms.
  * @returns {Function} Stop listening.
  */
-export function keepFresh(app, { run, watch = {}, delay = 120 } = {}) {
+export function keepFresh(app, { run, watch = {}, delay = TIMING.coalesceMs } = {}) {
     if (!app || typeof run !== "function") return () => {};
 
     let stopped = false;

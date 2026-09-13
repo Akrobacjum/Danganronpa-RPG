@@ -28,7 +28,7 @@
  * already made is re-asked rather than rewritten.
  */
 
-import { MODULE_ID, FLAGS, ACTIONS, PROJECT_SCALE, DYNAMIC_THRESHOLDS } from "./config.mjs";
+import { MODULE_ID, FLAGS, ACTIONS, PROJECT_SCALE, DYNAMIC_THRESHOLDS, TIMING } from "./config.mjs";
 import { resolveThreshold, replaceFlag, log, error, plural, easedBy } from "./utils.mjs";
 import { leavesTraceFor } from "./inventory.mjs";
 
@@ -164,7 +164,7 @@ export async function rerollLastAction(actor) {
  * pass through the action engine.
  */
 /** How far back the fallback scan will look, in real minutes. */
-const REROLL_WINDOW_MINUTES = 30;
+const REROLL_WINDOW_MINUTES = TIMING.rerollWindowMinutes;
 
 function findMessage(actor, bookmark) {
     if (bookmark?.messageId) {

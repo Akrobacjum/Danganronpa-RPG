@@ -17,7 +17,7 @@
  * from the GM panel, not from here.
  */
 
-import { MODULE_ID, TIMES_OF_DAY, ECLIPSE_FREE_PLACEMENT, ECLIPSE_MOVES } from "./config.mjs";
+import { MODULE_ID, TIMES_OF_DAY, ECLIPSE_FREE_PLACEMENT, ECLIPSE_MOVES, TIMING } from "./config.mjs";
 // A leaf (config, settings, utils): the Eclipse allowance under a darkening, for the tooltip.
 import { overflowCrossings } from "./overflow.mjs";
 import { getClock, setClock, campaignName, phaseLabel, timeOfDayLabel, rewindTimeOfDay } from "./clock.mjs";
@@ -1445,8 +1445,8 @@ function buildBody() {
     return el;
 }
 
-const MARK_FIRST_ACTION = 15 * 60 * 1000;
-const MARK_SECOND_ACTION = 30 * 60 * 1000;
+const MARK_FIRST_ACTION = TIMING.elapsedMarksMinutes[0] * 60 * 1000;
+const MARK_SECOND_ACTION = TIMING.elapsedMarksMinutes[1] * 60 * 1000;
 
 let elapsedTimer = null;
 

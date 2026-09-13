@@ -30,14 +30,14 @@
  * the whisper was addressed to, which is almost always what was meant.
  */
 
-import { MODULE_ID } from "./config.mjs";
+import { MODULE_ID, TIMING } from "./config.mjs";
 import { MESSENGER_FLAGS } from "./messenger.mjs";
 import { MESSAGE_FLAG } from "./utils.mjs";
 import { play, BEAT, ARRIVE, SNAP } from "./motion.mjs";
 
 import { contentOf, wordsOf, secretHtml, isVeiled } from "./secret.mjs";
 const CONTAINER_ID = "drpg-popups";
-const AUTO_DISMISS_MS = 12000;
+const AUTO_DISMISS_MS = TIMING.popupAutoDismissMs;
 
 /**
  * How many cards may be on screen at once.

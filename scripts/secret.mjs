@@ -47,7 +47,7 @@
  * player reading it is the game.
  */
 
-import { MODULE_ID } from "./config.mjs";
+import { MODULE_ID, TIMING } from "./config.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
 import { debug, error } from "./utils.mjs";
 
@@ -105,7 +105,7 @@ const STUB = '<p class="notes" data-drpg-secret>-</p>';
 const isStub = content => String(content ?? "").includes("data-drpg-secret");
 
 /** How many secrets a browser keeps. Beyond this the oldest go. */
-const KEEP = 500;
+const KEEP = TIMING.secretCardsKept;
 
 /* ==========================================================================
  * THE STORE

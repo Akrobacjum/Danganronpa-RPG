@@ -494,6 +494,21 @@ const CLAUSES = [
         }
     },
     {
+        key: "questionMarkIcon",
+        since: "1.2.44",
+        /*
+         * The Remnant icon changed from the hazard triangle to the question
+         * mark, and the sweep that moved existing tokens over ran on every
+         * load of every world since (`adoptQuestionMark`), walking each
+         * scene's tokens for a change it had made months ago. Once, here.
+         */
+        run: async () => {
+            const { adoptQuestionMark } = await import("./remnants.mjs");
+            const moved = await adoptQuestionMark();
+            return moved ? { moved } : null;
+        }
+    },
+    {
         key: "openStudentSheets",
         since: "1.1.21",
         /*

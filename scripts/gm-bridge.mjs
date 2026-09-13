@@ -13,7 +13,7 @@
  */
 
 import {
-    MODULE_ID, TRAITS, HOPE_CALLS, DESPAIR_CALLS, STARTING, PROJECT_SCALE
+    MODULE_ID, TRAITS, HOPE_CALLS, DESPAIR_CALLS, STARTING, PROJECT_SCALE, TIMING
 } from "./config.mjs";
 import { announce, whisperToGms, whisperToOwner, ownerOf, isPrimaryGm, primaryGmId, activeGmIds, dialogContent, debug, warn, error, cardHead, esc} from "./utils.mjs";
 
@@ -290,7 +290,7 @@ export function requestOpeningResult({ actorId, side, total, isCritical, withHop
  * ========================================================================== */
 
 const awaitingAck = new Map();
-const ACK_TIMEOUT_MS = 8000;
+const ACK_TIMEOUT_MS = TIMING.ackMs;
 
 /** Watch for a "got it" and complain if none arrives. Returns the request id. */
 /**
@@ -1302,7 +1302,7 @@ export async function requestDespairAdjust(targetUserId, delta) {
  * client answers with what it actually wrote - the same pattern already used
  * for a Dynamic ruling - so the roll does not call itself done until it is.
  */
-export function requestSabotage(targetId, difficulty, timeoutMs = 180000) {
+export function requestSabotage(targetId, difficulty, timeoutMs = TIMING.rulingMs) {
     if (!hasGm()) return Promise.resolve(null);
 
     const requestId = foundry.utils.randomID();
@@ -1515,7 +1515,7 @@ export function answerDynamic(requestId, asker, ruling) {
 }
 
 export function requestHopeCallApproval(
-    { actorId, actorName, key, callLabel, effect, cost, note }, timeoutMs = 300000) {
+    { actorId, actorName, key, callLabel, effect, cost, note }, timeoutMs = TIMING.hopeCallRulingMs) {
     if (!hasGm()) return Promise.resolve(null);
 
     const requestId = foundry.utils.randomID();
@@ -1536,7 +1536,7 @@ export function requestHopeCallApproval(
     });
 }
 
-export function requestDynamicDifficulty({ description, actorName, room, actorId = null }, timeoutMs = 180000) {
+export function requestDynamicDifficulty({ description, actorName, room, actorId = null }, timeoutMs = TIMING.rulingMs) {
     if (!hasGm()) return Promise.resolve(null);
 
     const requestId = foundry.utils.randomID();
@@ -1572,7 +1572,7 @@ export function requestDynamicDifficulty({ description, actorName, room, actorId
  *
  * @returns {Promise<{ok: boolean, key?: string, reason?: string}|null>}
  */
-export function requestObserveTarget({ actorId, declaration, request = "" }, timeoutMs = 180000) {
+export function requestObserveTarget({ actorId, declaration, request = "" }, timeoutMs = TIMING.rulingMs) {
     if (game.user.isGM) {
         return import("./observe.mjs")
             .then(m => m.chooseObserveTarget({ actorId, declaration, request }));
@@ -1608,7 +1608,7 @@ export function requestObserveTarget({ actorId, declaration, request = "" }, tim
  *   Never DC, never `tiedToCrime` - see `cleanableTracesForPlayer` in
  *   cleanup.mjs, which is the only thing that ever builds this array.
  */
-export function requestCleanableTraces(actorId, { mine = false } = {}, timeoutMs = 180000) {
+export function requestCleanableTraces(actorId, { mine = false } = {}, timeoutMs = TIMING.rulingMs) {
     if (game.user.isGM) {
         return import("./cleanup.mjs").then(m => m.cleanableTracesForPlayer(actorId, { mine }));
     }

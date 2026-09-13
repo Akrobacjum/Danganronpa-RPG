@@ -686,7 +686,9 @@ export async function reconcileRemnantActor() {
     if (!game.user.isGM) return;
     const actor = game.actors.getName(REMNANT_ACTOR);
     if (actor) await raiseRemnantOwnership(actor);
-    await adoptQuestionMark(actor);
+    // The icon sweep is a migration clause now (`questionMarkIcon` in
+    // migrate.mjs): it walked every scene's tokens on every load for a world
+    // that had been through it long ago (audit, hygiene).
 }
 
 /**
@@ -699,10 +701,10 @@ export async function reconcileRemnantActor() {
  * and for the same reason: every existing world placed its traces under the
  * old icon, and `placeRemnant` only reaches the ones placed from now on.
  */
-async function adoptQuestionMark(actor) {
+export async function adoptQuestionMark(actor = game.actors.getName(REMNANT_ACTOR)) {
     // One GM does the sweep; the ledger writes reach the others over the
     // socket and the token writes are world data anyway.
-    if (!isPrimaryGm()) return;
+    if (!isPrimaryGm()) return 0;
     try {
         if (actor && actor.img === OLD_ICON) await actor.update({ img: ICON });
 
@@ -725,8 +727,10 @@ async function adoptQuestionMark(actor) {
         }
 
         if (moved) log(`Moved ${moved} Remnant token(s) onto the question-mark icon.`);
+        return moved;
     } catch (err) {
         error("Could not move existing Remnants onto the question-mark icon", err);
+        return 0;
     }
 }
 

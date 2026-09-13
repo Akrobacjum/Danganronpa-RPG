@@ -17,7 +17,7 @@
 import {
     MODULE_ID, FLAGS, ACTIONS, TRAITS, TRAIT_BY_DH, DYNAMIC_THRESHOLDS, INDIRECT_MURDER,
     PROJECT_SCALE, ITEM_CATEGORIES, SABOTAGE_CONCEAL, TOOL_IN_HAND, CLEANUP,
-    OBSERVE_DC, ANALYZE_DC, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, RESOLUTION_STRESS_COST, OBSERVE_FAIL_STRESS
+    OBSERVE_DC, ANALYZE_DC, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, RESOLUTION_STRESS_COST, OBSERVE_FAIL_STRESS, TIMING
 } from "./config.mjs";
 import { actionsLeft, spendAction, refundAction, hasFreeMove, canPayFor, lastSpendKind } from "./actions.mjs";
 import { leavesTraceFor } from "./inventory.mjs";
@@ -891,7 +891,7 @@ function dualityBar(outcome) {
  * reports itself finished - a client that lost focus mid-throw is the ordinary
  * way - must not be able to swallow the result of an action somebody paid for.
  */
-const DICE_SETTLE_MS = 6000;
+const DICE_SETTLE_MS = TIMING.diceSettleMs;
 
 /**
  * Wait for Dice So Nice to finish throwing, if it is throwing at all.

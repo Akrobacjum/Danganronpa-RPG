@@ -24,7 +24,7 @@
  * the difficulty.
  */
 
-import { MODULE_ID, OBSERVE_FAIL_STRESS, TIMES_OF_DAY } from "./config.mjs";
+import { MODULE_ID, OBSERVE_FAIL_STRESS, TIMES_OF_DAY, TIMING } from "./config.mjs";
 import { rankForObserve } from "./remnants.mjs";
 import { createTruthBullet, copiedRemnants, dropSecret } from "./truth-bullets.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
@@ -50,7 +50,7 @@ export const DECLARATIONS = {
  * cannot pile up.
  */
 const pending = new Map();
-const PENDING_TTL_MS = 60 * 60 * 1000;
+const PENDING_TTL_MS = TIMING.pendingObserveTtlMs;
 
 function sweepPending() {
     const cutoff = Date.now() - PENDING_TTL_MS;

@@ -45,7 +45,7 @@
 
 import {
     MODULE_ID, FLAGS, MURDER_OPENING, INCIDENT, CRISIS_ACTIONS, KEY_REMNANTS,
-    RESOLUTION_STRESS_COST, RESOLUTION_HEALTH_COST, TRAITS, callEffect
+    RESOLUTION_STRESS_COST, RESOLUTION_HEALTH_COST, TRAITS, callEffect, TIMING
 } from "./config.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { SETTINGS } from "./settings.mjs";
@@ -3654,7 +3654,7 @@ let openingRollsInFlight = 0;
 
 /** The tracker's "ask again": once per ten seconds on this client. */
 let lastReask = 0;
-const REASK_COOLDOWN_MS = 10000;
+const REASK_COOLDOWN_MS = TIMING.reaskCooldownMs;
 
 /**
  * Is the invitation this client is answering still wanted?
@@ -3740,7 +3740,7 @@ export async function throwOpeningRoll(side, actorId) {
     // every attempt to dismiss it reopened the window twice more - measured:
     // closing it took three closes, and four abandoned incidents left four
     // stacked "Body Roll" windows warning about a murder that no longer existed.
-    const MAX_ATTEMPTS = 3;
+    const MAX_ATTEMPTS = TIMING.openingAttempts;
     let roll = null;
     openingRollsInFlight++;
     try {

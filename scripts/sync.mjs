@@ -17,7 +17,7 @@
  * "works on my machine".
  */
 
-import { MODULE_ID } from "./config.mjs";
+import { MODULE_ID, TIMING } from "./config.mjs";
 import { debug, error } from "./utils.mjs";
 
 const SOCKET_EVENT = `module.${MODULE_ID}`;
@@ -188,7 +188,7 @@ export function broadcast(kind, data = {}) {
  */
 const lastRun = new Map();
 const queued = new Map();
-const COALESCE_MS = 120;
+const COALESCE_MS = TIMING.coalesceMs;
 
 function apply(kind, data = {}) {
     const now = Date.now();
