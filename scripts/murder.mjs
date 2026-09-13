@@ -2336,13 +2336,10 @@ async function clearAdvantage(side) {
 }
 
 async function spendStress(actor, done) {
-    const marks = resourceValue(actor, "stress");
-    const max = resourceMax(actor, "stress");
-
-    if (marks < max) {
-        await automatedUpdate(actor, {
-            "system.resources.stress.value": Math.min(max, marks + RESOLUTION_STRESS_COST)
-        });
+    // The same write the clean-up makes (cleanup.mjs `markResolutionStress`);
+    // `false` means the track was full, and the blood branch below pays instead.
+    const { markResolutionStress } = await import("./cleanup.mjs");
+    if (await markResolutionStress(actor)) {
         done.push(game.i18n.format("DRPG.Murder.spentStress", { n: RESOLUTION_STRESS_COST }));
         return;
     }

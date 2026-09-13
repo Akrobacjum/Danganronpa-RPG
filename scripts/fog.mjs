@@ -4832,6 +4832,15 @@ function doorwayFadeTexture() {
 }
 
 /** Distance from a point to a line SEGMENT, not to the infinite line. */
+/** The run of a polyline, point to point. Four copies of this loop lived in this file. */
+function polylineLength(points) {
+    let run = 0;
+    for (let i = 1; i < points.length; i++) {
+        run += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
+    }
+    return run;
+}
+
 function distanceToSegment(px, py, x1, y1, x2, y2) {
     const dx = x2 - x1;
     const dy = y2 - y1;
@@ -5330,10 +5339,7 @@ function smoothPolyline(points, half) {
  * light nothing at all.
  */
 function trimPolyline(points, cut) {
-    let total = 0;
-    for (let i = 1; i < points.length; i++) {
-        total += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
-    }
+    const total = polylineLength(points);
     const take = Math.min(cut, Math.max(0, (total - 1) / 2));
     if (take <= 0) return points;
 
@@ -5470,13 +5476,7 @@ function addDoorwayGlow(group, region, edges, rect) {
      * sane map - is not touched, because `min` keeps the full depth the moment
      * the opening is longer than one.
      */
-    const lengthOf = chain => {
-        let run = 0;
-        for (let i = 1; i < chain.length; i++) {
-            run += Math.hypot(chain[i].x - chain[i - 1].x, chain[i].y - chain[i - 1].y);
-        }
-        return run;
-    };
+    const lengthOf = polylineLength;
     // A floor, so a genuinely narrow way through still says it is there rather
     // than vanishing into the outline that stops on either side of it.
     const spanFloor = grid * 0.25;

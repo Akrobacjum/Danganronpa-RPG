@@ -38,7 +38,7 @@ import { remaining } from "./character.mjs";
 import { roomOfActor, roomOfToken } from "./movement.mjs";
 import { projectsAvailableIn } from "./projects.mjs";
 import { SearchTokens } from "./search-tokens.mjs";
-import { isMonokuma, poolUserFor } from "./monokuma.mjs";
+import { isMonokuma, poolUserFor, ownStudent } from "./monokuma.mjs";
 // Static, and safe: nothing imports hud.mjs, so no path leads back here.
 import { murderState, participantIds } from "./murder.mjs";
 import { motive } from "./rules.mjs";
@@ -1223,13 +1223,7 @@ function hudActor() {
             a.type === "character" && isMonokuma(a) && poolUserFor(a)?.id === game.user.id) ?? null;
     }
 
-    const assigned = game.user.character;
-    if (assigned && !isMonokuma(assigned)) return assigned;
-    if (assigned) return null;
-
-    const owned = game.actors.filter(a =>
-        a.type === "character" && a.isOwner && !isMonokuma(a));
-    return owned.length === 1 ? owned[0] : null;
+    return ownStudent();
 }
 
 /**

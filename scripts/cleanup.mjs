@@ -1764,14 +1764,25 @@ async function undoLastCleanup(actor, tokenId) {
     return true;
 }
 
-async function spendStress(actor) {
+/**
+ * Mark the resolution's Sanity cost on an actor - the raw write, thrown on
+ * failure. The clean-up's `spendStress` below swallows the error; the
+ * incident's (murder.mjs) lets it surface and pays in Health when the track
+ * is full. Both used to carry their own copy of this line.
+ */
+export async function markResolutionStress(actor) {
     const marks = resourceValue(actor, "stress");
     const max = resourceMax(actor, "stress");
-    if (marks >= max) return;
+    if (marks >= max) return false;
+    await automatedUpdate(actor, {
+        "system.resources.stress.value": Math.min(max, marks + RESOLUTION_STRESS_COST)
+    });
+    return true;
+}
+
+async function spendStress(actor) {
     try {
-        await automatedUpdate(actor, {
-            "system.resources.stress.value": Math.min(max, marks + RESOLUTION_STRESS_COST)
-        });
+        await markResolutionStress(actor);
     } catch (err) {
         error("Could not charge the Sanity for a clean-up", err);
     }

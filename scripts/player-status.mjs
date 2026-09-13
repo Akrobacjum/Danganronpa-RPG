@@ -23,8 +23,8 @@ import { MODULE_ID } from "./config.mjs";
 import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";   // hasFreeMove: player view only
 import { isEclipse, movesLeft as eclipseMovesLeft } from "./eclipse.mjs";
 import { hopeHeld } from "./calls.mjs";
-import { isMonokuma } from "./monokuma.mjs";
-import { isDeceased } from "./chapter.mjs";
+import { isMonokuma, ownStudent } from "./monokuma.mjs";
+import { isDeceased, livingStudents } from "./chapter.mjs";
 import { isMonocub } from "./monocub.mjs";
 import { matchStripToDespair } from "./hud.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
@@ -129,13 +129,7 @@ function hasStatusToShow() {
  * a GM with no character of their own has no budget to show.
  */
 function ownCharacter() {
-    const assigned = game.user.character;
-    if (assigned && !isMonokuma(assigned)) return assigned;
-    if (assigned) return null;   // a Monokuma account: see buildPlayerView
-
-    const owned = game.actors.filter(a =>
-        a.type === "character" && a.isOwner && !isMonokuma(a));
-    return owned.length === 1 ? owned[0] : null;
+    return ownStudent();   // null for a Monokuma account: see buildPlayerView
 }
 
 /**
@@ -438,8 +432,7 @@ function field(className, label, value, tooltipKey, spent) {
 
 /** Living students, which is who the two counts below are about. */
 function trackedStudents() {
-    return game.actors.filter(a =>
-        a.type === "character" && !isMonokuma(a) && !isDeceased(a));
+    return livingStudents();
 }
 
 /**

@@ -13,7 +13,7 @@
 
 import { MODULE_ID, PROJECT_SCALE, isProjectGlyph } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
-import { announce, log, error, whisperToOwner, gmIds, esc } from "./utils.mjs";
+import { announce, log, error, whisperToOwner, gmIds, esc, ownerIdsOf } from "./utils.mjs";
 
 const DH = "daggerheart";
 const COUNTDOWNS = "Countdowns";
@@ -404,7 +404,7 @@ export async function createProject({
     // sealed against everyone, its own proposer included (ITEM-03).
     const audience = viewers.length
         ? viewers
-        : (hidden && (killerId || by) ? ownerIdsOf(killerId ?? by) : []);
+        : (hidden && (killerId || by) ? ownerIdsOfId(killerId ?? by) : []);
 
     countdowns[id] = {
         type: "narrative",
@@ -925,13 +925,7 @@ const OBSERVER = 2;    // CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER
  * player who is not a viewer.
  */
 /** The non-GM users who own this actor - whose eyes "the killer" means. */
-function ownerIdsOf(actorId) {
-    const actor = game.actors.get(actorId ?? "");
-    if (!actor) return [];
-    return game.users
-        .filter(u => !u.isGM && actor.testUserPermission(u, "OWNER"))
-        .map(u => u.id);
-}
+const ownerIdsOfId = actorId => ownerIdsOf(game.actors.get(actorId ?? ""));
 
 function ownershipMap(viewerIds = []) {
     const viewers = new Set(viewerIds.filter(Boolean));

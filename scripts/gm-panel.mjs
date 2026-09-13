@@ -11,6 +11,7 @@ import { MODULE_ID, moduleVersion, FLAGS, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHAS
 import { getClock, setClock, setTimeOfDay, advanceTimeOfDay, clockSummary, timeOfDayLabel, phaseLabel, campaignName } from "./clock.mjs";
 import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
+import { studentActors, actingStudents } from "./monokuma.mjs";
 import { dialogContent, error, plural, tableDialog, esc} from "./utils.mjs";
 import { keepLive, alreadyOpen } from "./live.mjs";
 import { bodyDiscovery } from "./settings.mjs";
@@ -631,7 +632,7 @@ async function openWhoIsAliveDialog() {
      * character created mid-session would otherwise have a row nobody reads on
      * Apply.
      */
-    const roster = () => game.actors.filter(a => a.type === "character" && !isMonokuma(a));
+    const roster = () => studentActors();
     const students = roster();
     if (!students.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Panel.noCharacters"));
@@ -954,10 +955,7 @@ async function toggleEclipse() {
  * @returns {{text: string, action: string|null}}
  */
 function nextStep(clock) {
-    const students = game.actors.filter(a =>
-        a.type === "character"
-        && !a.getFlag(MODULE_ID, FLAGS.monokuma)
-        && (!a.getFlag(MODULE_ID, FLAGS.deceased) || a.getFlag(MODULE_ID, FLAGS.monocub)));
+    const students = actingStudents();
     const stillActing = students.filter(a => actionsLeft(a) > 0);
 
     if (game.drpg?.murderState?.()?.active) {
@@ -1067,12 +1065,7 @@ function buildPanelContent() {
     // design - and so did every corpse. The one question this table answers is
     // "who still has actions left", and neither of those can have any. A
     // Monocub stays: they spend a real budget on Move and Meddle.
-    const roster = game.actors.filter(a => {
-        if (a.type !== "character") return false;
-        if (a.getFlag(MODULE_ID, FLAGS.monokuma)) return false;
-        if (a.getFlag(MODULE_ID, FLAGS.deceased) && !a.getFlag(MODULE_ID, FLAGS.monocub)) return false;
-        return true;
-    });
+    const roster = actingStudents();
 
     const rows = roster
         .map(a => {

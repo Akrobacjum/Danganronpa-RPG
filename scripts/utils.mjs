@@ -239,6 +239,12 @@ export function ownerOf(actor) {
         ?? null;
 }
 
+/** Every non-GM user who owns this actor, by id - the plural of `ownerOf`. */
+export function ownerIdsOf(actor) {
+    if (!actor) return [];
+    return game.users.filter(u => !u.isGM && actor.testUserPermission(u, "OWNER")).map(u => u.id);
+}
+
 /**
  * Marks a chat message as this module's own.
  *

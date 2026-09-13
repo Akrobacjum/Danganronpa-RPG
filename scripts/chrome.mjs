@@ -25,13 +25,12 @@
  */
 
 import { log } from "./utils.mjs";
+import { glassOn } from "./motion.mjs";
 
 const DONE = "drpgChrome";
 
-/** True when this browser wears the Stained Glass theme. */
-function themeOn() {
-    return document.body.classList.contains("drpg-theme-stained-glass");
-}
+/** True when this browser wears the Stained Glass theme - the shared reading in motion.mjs. */
+const themeOn = glassOn;
 
 /* ---- the number field: two pixel buttons, and the browser's arrows gone ---- */
 
