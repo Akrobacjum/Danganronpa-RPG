@@ -451,7 +451,7 @@
       "stillToActTooltip": "Students with actions left. The roster on the left says which ones.",
       "stillPlacing": "Still placing",
       "stillPlacingTooltip": "Students who have a crossing of the Eclipse left to use.",
-      "startEclipseNamed": "Start the {time} Eclipse - lights out, everyone places their token (2 crossings)",
+      "startEclipseNamed": "Start the {time} Eclipse - lights out, everyone places their token ({n} crossings)",
       "startEclipseFree": "Start the {time} Eclipse - lights out, everyone picks any room on the map",
       "startEclipseNewSession": "End the session and open the {time} Eclipse - a new session, and everyone places their token (2 crossings)",
       "eclipseRunningTooltip": "Placement before this time of day. Only a Direct Murder spends an action now.",
@@ -868,6 +868,15 @@
       "openDebateIntro": "How long is this debate worth? Each one in a trial gets its own budget, and the last number you used is offered."
     },
     "Events": {
+      "overflowMetaGm": "{count} of {max} in the hat",
+      "eclipseTitle": "The lights are out",
+      "eclipseFree": "Place your token anywhere on the map",
+      "eclipseCrossings": {
+        "one": "Place your token up to {n} connected room away",
+        "other": "Place your token up to {n} connected rooms away"
+      },
+      "eclipseMeta": "Nobody sees anyone until it ends",
+      "eclipseMetaGm": "{placed} of {total} have placed",
       "bodyTitle": "A body is discovered",
       "bodySubRoom": "{victim}, in the {room}",
       "bodyMeta": "The investigation is open",
@@ -875,6 +884,8 @@
       "bodyHoldMeta": "Everything has stopped. Nobody is searching yet.",
       "bodyHoldMetaGm": "Start the Investigation when the room is ready.",
       "ticker": {
+        "overflow": "Overflow",
+        "eclipse": "Eclipse",
         "incident": "Incident",
         "body": "Body found",
         "trial": "Class Trial",

@@ -29,6 +29,8 @@ import { roomOfActor } from "./movement.mjs";
 import { trialFloor, floorHolder, floorTarget, FLOOR_MODES } from "./trial-floor.mjs";
 import { keyPlanStatus } from "./investigation.mjs";
 import { SETTINGS, bodyDiscovery, bodyDiscoveryFresh, incidentParticipants } from "./settings.mjs";
+import { overflowEffect, overflowStatus, overflowRules } from "./overflow.mjs";
+import { isEclipse, eclipseAllowance, isFreePlacement, placementStatus } from "./eclipse.mjs";
 
 const WIDGET_ID = "drpg-events";
 
@@ -282,6 +284,61 @@ function bodyCard(clock) {
     };
 }
 
+/**
+ * THE DESPAIR OVERFLOW, WHILE IT RUNS (Dawid, 13.09). The rail's caption says
+ * the counter is under an effect, in the small type of a caption; the effect
+ * itself changes what every action costs for a whole time of day, which is
+ * exactly what this panel is for. Everybody sees the card - the effect is
+ * announced to the table when it fires - and only the GM sees the counter
+ * behind it, which stays masked for a player (D3).
+ */
+function overflowCard() {
+    try {
+        const key = overflowEffect();
+        if (!key) return null;
+        const status = overflowStatus();
+        const rule = overflowRules().effects?.[key] ?? {};
+        return {
+            kind: "overflow",
+            due: true,
+            title: game.i18n.localize("DRPG.Overflow.caption"),
+            sub: status.effectName ?? game.i18n.localize(`DRPG.Overflow.name.${key}`),
+            meta: game.user.isGM
+                ? game.i18n.format("DRPG.Events.overflowMetaGm", { count: status.count, max: status.threshold })
+                : game.i18n.format(`DRPG.Overflow.what.${key}`, { n: rule.by ?? 1 })
+        };
+    } catch (err) {
+        error("Could not read the overflow for the Event panel", err);
+        return null;
+    }
+}
+
+/**
+ * THE ECLIPSE. The lights are out and everybody is placing; the clock's own
+ * row says "Eclipse", and this says what that costs and, for the GM, who has
+ * still to place. A player's card stops at the allowance: where the others
+ * went is the one thing an Eclipse hides.
+ */
+function eclipseCard() {
+    try {
+        if (!isEclipse()) return null;
+        const allowance = eclipseAllowance();
+        const sub = isFreePlacement() || allowance === null
+            ? game.i18n.localize("DRPG.Events.eclipseFree")
+            : plural("DRPG.Events.eclipseCrossings", { n: allowance });
+        let meta = game.i18n.localize("DRPG.Events.eclipseMeta");
+        if (game.user.isGM) {
+            const rows = placementStatus();
+            const placed = rows.filter(r => r.moved > 0).length;
+            meta = game.i18n.format("DRPG.Events.eclipseMetaGm", { placed, total: rows.length });
+        }
+        return { kind: "eclipse", title: game.i18n.localize("DRPG.Events.eclipseTitle"), sub, meta };
+    } catch (err) {
+        error("Could not read the Eclipse for the Event panel", err);
+        return null;
+    }
+}
+
 /* ---- the panel ------------------------------------------------------------ */
 
 /* The state each card showed last time it was drawn, so a redraw can tell a change
@@ -355,7 +412,7 @@ export function renderEvents() {
         if (!eventsWindowActive() || !game.user) { existing?.remove(); return; }
 
         const clock = getClock() ?? {};
-        const cards = [trialCard(clock), openingCard(), incidentCard(), bodyCard(clock), assemblyCard(), motiveCard()].filter(Boolean);
+        const cards = [trialCard(clock), openingCard(), incidentCard(), bodyCard(clock), eclipseCard(), overflowCard(), assemblyCard(), motiveCard()].filter(Boolean);
         if (!cards.length) { existing?.remove(); return; }
 
         // Redraw only when something changed: the panel is on the curtain, and

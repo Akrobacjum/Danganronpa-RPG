@@ -17,7 +17,9 @@
  * from the GM panel, not from here.
  */
 
-import { MODULE_ID, TIMES_OF_DAY, ECLIPSE_FREE_PLACEMENT } from "./config.mjs";
+import { MODULE_ID, TIMES_OF_DAY, ECLIPSE_FREE_PLACEMENT, ECLIPSE_MOVES } from "./config.mjs";
+// A leaf (config, settings, utils): the Eclipse allowance under a darkening, for the tooltip.
+import { overflowCrossings } from "./overflow.mjs";
 import { getClock, setClock, campaignName, phaseLabel, timeOfDayLabel, rewindTimeOfDay } from "./clock.mjs";
 import { play, TURN, ARRIVE, LEAVE } from "./motion.mjs";
 import { isPrimaryGm, error, plural } from "./utils.mjs";
@@ -1004,7 +1006,7 @@ function buildTimeRow(clock, isGM) {
                 index === TIMES_OF_DAY.length - 1 ? "DRPG.Hud.startEclipseNewSession"
                     : free ? "DRPG.Hud.startEclipseFree"
                         : "DRPG.Hud.startEclipseNamed",
-                { time: timeOfDayLabel(incoming) });
+                { time: timeOfDayLabel(incoming), n: overflowCrossings(ECLIPSE_MOVES) ?? ECLIPSE_MOVES });
 
         row.append(control(
             eclipseRunning ? "fa-play" : "fa-chevron-right",

@@ -461,7 +461,7 @@
       "stillToActTooltip": "Uczniowie, którym zostały akcje. Lista po lewej mówi którzy.",
       "stillPlacing": "Jeszcze się ustawiają",
       "stillPlacingTooltip": "Uczniowie, którym zostało przejście Eclipse.",
-      "startEclipseNamed": "Zacznij Eclipse ({time}) - gaśnie światło, każdy ustawia swój token (2 przejścia)",
+      "startEclipseNamed": "Zacznij Eclipse ({time}) - gaśnie światło, każdy ustawia swój token ({n} przejścia)",
       "startEclipseFree": "Zacznij Eclipse ({time}) - gaśnie światło, każdy wybiera dowolny pokój na mapie",
       "startEclipseNewSession": "Zakończ sesję i otwórz Eclipse ({time}) - nowa sesja, każdy ustawia swój token (2 przejścia)",
       "eclipseRunningTooltip": "Ustawianie przed tą porą dnia. Tylko Direct Murder wydaje teraz akcję.",
@@ -886,6 +886,17 @@
       "openDebateIntro": "Ile ta debata jest warta? Każda w Class Trial ma własny budżet, a podpowiadana jest ostatnia użyta liczba."
     },
     "Events": {
+      "overflowMetaGm": "{count} z {max} w kapeluszu",
+      "eclipseTitle": "Zgasło światło",
+      "eclipseFree": "Ustaw swój token gdziekolwiek na mapie",
+      "eclipseCrossings": {
+        "one": "Ustaw swój token do {n} połączonego pokoju dalej",
+        "few": "Ustaw swój token do {n} połączonych pokoi dalej",
+        "many": "Ustaw swój token do {n} połączonych pokoi dalej",
+        "other": "Ustaw swój token do {n} połączonych pokoi dalej"
+      },
+      "eclipseMeta": "Nikt nikogo nie widzi, dopóki się nie skończy",
+      "eclipseMetaGm": "Ustawiło się {placed} z {total}",
       "bodyTitle": "Znaleziono ciało",
       "bodySubRoom": "{victim}, w: {room}",
       "bodyMeta": "Investigation otwarte",
@@ -893,6 +904,8 @@
       "bodyHoldMeta": "Wszystko stanęło. Nikt jeszcze nie szuka.",
       "bodyHoldMetaGm": "Rozpocznij Investigation, gdy pokój będzie gotowy.",
       "ticker": {
+        "overflow": "Overflow",
+        "eclipse": "Eclipse",
         "incident": "Incydent",
         "body": "Znaleziono ciało",
         "trial": "Class Trial",
