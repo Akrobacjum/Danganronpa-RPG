@@ -17,7 +17,7 @@
  * the theme is "Monokuma Legacy" this file mounts nothing.
  */
 
-import { SETTINGS, getSetting } from "./settings.mjs";
+import { SETTINGS, getSetting, glassFits, BREAKPOINTS } from "./settings.mjs";
 import { log } from "./utils.mjs";
 
 /** Self-check results of the last geometry pass, for diagnostics. */
@@ -1729,6 +1729,26 @@ const REDUCED = () => document.body.classList.contains("drpg-reduced-motion") ||
 const pulseOn = () => !document.body.classList.contains("drpg-no-pulse");
 
 function themeOn() { try { return getSetting(SETTINGS.theme) === "stainedGlass"; } catch { return false; } }
+/*
+ * A SCREEN CAN BE TOO SMALL FOR GLASS, AND THIS IS WHERE THE CURTAIN ADMITS IT.
+ *
+ * The partition is cut around the module's blocks: a block gets its own pane, the
+ * filler between panes is a pencil of rays, and Foundry's two rails get a strip
+ * down each side. All of that wants room. Measured at every size in
+ * audit/glass-harness.html on 13.09, the cut is clean down to 768 x 1024 and comes
+ * apart below it - 130 edge gaps at 500 x 813, 199 at 360 x 740 - because the
+ * strips and the ledges eat a phone's whole width before any pane is cut. That is
+ * the sawtooth Dawid photographed, and no amount of tuning the ledge fixes it: the
+ * panes are simply thinner than the blocks standing on them.
+ *
+ * So below the gate the curtain does not draw. The theme keeps its palette, its
+ * type and its blocks - which get their own plates back, because those are only
+ * turned off by `drpg-curtain-on` - and the body carries `drpg-glass-flat` for the
+ * flat backdrop in stained-glass.css. Nothing is left running: with no curtain and
+ * no dressed windows the pulse repaints nothing, which is the other half of the
+ * complaint (14 FPS in portrait).
+ */
+function glassRoom() { return themeOn() && glassFits(); }
 /* `effectsOn()` is gone with the setting it read. It gated the pulse, the seam flashes, the
    pane beat and (until 08.09) the state crossfade - which meant one switch could stop the
    theme moving at all, and with it off the curtain was a still picture that nobody could
@@ -2065,7 +2085,14 @@ function placeTiles() {
 /** A one-line account of the curtain for the Look dialog: frame, panes, the self-check, the tiles. */
 export function glassReport() {
   const j = curtains[0], c = CHECKS[0];
-  if (!j) return themeOn() ? "no curtain mounted" : "theme off";
+  // and it says WHY there is no curtain, because "no curtain mounted" on a phone is the
+  // gate doing its job and reads in the Look dialog like a fault
+  if (!j) {
+    if (!themeOn()) return "theme off";
+    if (!glassFits()) return "flat: " + innerWidth + "x" + innerHeight + " is under the curtain's "
+      + BREAKPOINTS.glassW + "x" + BREAKPOINTS.glassH;
+    return "no curtain mounted";
+  }
   const el = j.el, r = el.getBoundingClientRect();
   const parts = [
     "frame " + (LAST.frame ? LAST.frame.W + "x" + LAST.frame.H : "-") + " / viewport " + innerWidth + "x" + innerHeight,
@@ -2196,7 +2223,7 @@ function dressBand(band, seedBase) {
 /** Every module window (`.drpg-panel`) gets glass on its header band, the character sheet on its
     header; called from renderApplicationV2. */
 export function dressWindow(app) {
-  if (!themeOn()) return;
+  if (!glassRoom()) return;
   const el = app?.element;
   if (!el?.querySelector) return;
   // module windows (`.drpg-panel`) and the messenger carry the glass on their title band
@@ -2226,7 +2253,10 @@ function onStateChange() {
 }
 function pruneWindows() { for (let i = windows.length - 1; i >= 0; i--) if (!windows[i].el.isConnected) windows.splice(i, 1); }
 
-const schedule = () => { clearTimeout(timer); timer = setTimeout(() => { if (themeOn()) rebuild(); }, 150); };
+/* `refreshGlass` rather than `rebuild`: a resize can cross the curtain's gate, and then
+   there is nothing to rebuild - the curtain has to go, or come back. With one mounted it
+   still ends in `rebuild`, and an unchanged signature costs a geometry pass and no paint. */
+const schedule = () => { clearTimeout(timer); timer = setTimeout(() => refreshGlass(), 150); };
 let resizeWatched = false;
 function observe() {
   observers.forEach(o => o.disconnect()); observers = [];
@@ -2312,9 +2342,18 @@ function loop(t) {
   last = t; scanUrgent(t); pulseFrame(t);
 }
 
-/** Mount or unmount the curtain according to the theme setting. */
+/** Whether anything of the curtain is currently on the page. */
+function anythingMounted() {
+  return curtains.length > 0 || windows.length > 0 || document.body.classList.contains("drpg-curtain-on");
+}
+
+/** Mount or unmount the curtain according to the theme setting and the screen's room. */
 export function refreshGlass() {
-  if (!themeOn()) { unmount(); return; }
+  const flat = themeOn() && !glassFits();
+  document.body.classList.toggle("drpg-glass-flat", flat);
+  // `unmount` only when there is something to take down: this runs on every DOM
+  // mutation through `schedule`, and it walks the document clearing styles
+  if (!glassRoom()) { if (anythingMounted()) unmount(); return; }
   if (curtains.length) { rebuild(); return; }
   const go = () => { mount(); observe(); };
   (document.fonts?.ready ?? Promise.resolve()).then(go, go);
@@ -2347,10 +2386,10 @@ export function registerGlass() {
   });
   // late blocks: the launchers and the tray arrive after ready on some clients; and a watchdog,
   // because a curtain that measured nothing (a hidden canvas, a frame of 0) must try again
-  setTimeout(() => { if (themeOn()) rebuild(); }, 1500);
+  setTimeout(() => { if (glassRoom()) rebuild(); }, 1500);
   for (const ms of [4000, 9000]) setTimeout(() => {
     const j = curtains[0];
-    if (!themeOn()) return;
+    if (!glassRoom()) return;
     if (!j || !j.painted || Math.abs(j.el.getBoundingClientRect().width - innerWidth) > 2) { log("curtain watchdog: rebuilding", glassReport()); if (j) j.placed = false; mount(); }
   }, ms);
   Hooks.on("canvasReady", schedule);
@@ -2363,7 +2402,7 @@ export function registerGlass() {
   // the pause band is a pane of the curtain while the game is paused, breathing with the slow pulse
   Hooks.on("pauseGame", paused => {
     const band = document.getElementById("pause");
-    if (!band || !themeOn()) return;
+    if (!band || !glassRoom()) return;
     if (paused) { band.classList.add("drpg-glass-band"); dressBand(band, 777); }
     else { band.querySelectorAll(":scope > canvas").forEach(c => c.remove()); band.classList.remove("drpg-glass-band"); pruneWindows(); }
   });

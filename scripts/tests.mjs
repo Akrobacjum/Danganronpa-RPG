@@ -41,7 +41,7 @@ import { MODULE_ID, moduleVersion, CRISIS_ACTIONS, ACTIONS, TRAITS,
 } from "./config.mjs";
 import { rolesOf } from "./inventory.mjs";
 import { vaultContents, stashRoomOfItem, stashIn, allVaults } from "./vault.mjs";
-import { SETTINGS, DEFAULT_SAFEWORD, getSetting } from "./settings.mjs";
+import { SETTINGS, DEFAULT_SAFEWORD, getSetting, BREAKPOINTS, narrowScreen, shortScreen, glassFits } from "./settings.mjs";
 import { safeword } from "./safeword.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { studentActors } from "./monokuma.mjs";
@@ -5809,6 +5809,40 @@ const SCENARIOS = [
         ok(/addEventListener\("visibilitychange"/.test(src),
             "nothing recuts the curtain when the document becomes visible, so a block "
             + "that left while the tab was hidden keeps its pane");
+    }],
+
+    ["a phone is told apart from a desk, and the curtain stands down on it", async () => {
+        /*
+         * The three shapes a screen can have, at the sizes they were measured at
+         * (audit/glass-harness.html, 13.09). The numbers themselves are in
+         * settings.mjs with the measurements that chose them; what this checks is
+         * that they are read the same way everywhere and that a window nobody has
+         * laid out yet - a measurement of zero - never reads as tiny.
+         */
+        ok(!narrowScreen(1920) && !narrowScreen(1366) && !narrowScreen(1280),
+            "a desk is being restacked as if it were a phone");
+        ok(narrowScreen(1024) && narrowScreen(820) && narrowScreen(393),
+            "a screen whose blocks were measured colliding is not being restacked");
+        ok(!shortScreen(993) && shortScreen(386),
+            "a phone held sideways is not being told apart from a desk");
+        ok(glassFits(1920, 993) && glassFits(1280, 800) && glassFits(768, 1024),
+            "the curtain is standing down on a screen it was measured cutting cleanly");
+        ok(!glassFits(500, 813) && !glassFits(393, 852) && !glassFits(980, 386),
+            "the curtain is still being cut on a screen it was measured coming apart on "
+            + "(130 edge gaps at 500 x 813, 169 at 980 x 386)");
+        ok(!narrowScreen(0) && !shortScreen(0) && glassFits(0, 0),
+            "a window that has not been laid out yet reads as a phone, so a client "
+            + "mid-boot restacks itself and unmounts its curtain on a measurement of zero");
+        ok(BREAKPOINTS.narrow === 1200 && BREAKPOINTS.glassW === 700 && BREAKPOINTS.glassH === 500,
+            "the breakpoints moved without the measurements that chose them moving");
+
+        const src = stripComments(
+            await fetch(`/modules/${MODULE_ID}/scripts/glass.mjs`).then(r => r.text()));
+        ok(/drpg-glass-flat/.test(src) && /function glassRoom\(\)/.test(src),
+            "the curtain has no gate of its own, so a phone gets a partition cut for a desk");
+        ok(/export function dressWindow\(app\) \{\s*if \(!glassRoom\(\)\)/.test(src),
+            "windows are still dressed with glass where no curtain is mounted, so the "
+            + "pulse keeps repainting canvases on a phone");
     }],
 
     ["a rebuttal keeps the objection playing and can be cut into", async () => {

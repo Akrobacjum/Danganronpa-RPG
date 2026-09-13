@@ -7,7 +7,8 @@
      gap, as in v13), the status strip and the tray share `#ui-right-column-1` beside the
      sidebar, and the tray carries Daggerheart's own countdown markup. One module dialog and
      one popup stand in for the windows. Not part of the package (audit/ is export-ignored).
-     `?scale=1.4` sets the interface scale; `?theme=legacy` the other theme. -->
+     `?scale=1.4` pins the interface scale (otherwise the screen's own, as applyTheme
+     computes it); `?theme=legacy` the other theme. -->
 <!doctype html><html><head><meta charset="utf-8">
 <link rel="stylesheet" href="/styles/motion.css"><link rel="stylesheet" href="/styles/danganronpa.css"><link rel="stylesheet" href="/styles/stained-glass.css"><link rel="stylesheet" href="/styles/pixel-icons.css">
 <style>
@@ -91,7 +92,6 @@
 <script type="module">
   const q = new URLSearchParams(location.search);
   if (q.get("theme") === "legacy") { document.body.classList.replace("drpg-theme-stained-glass", "drpg-theme-monokuma-legacy"); document.body.classList.add("drpg-pixel-font"); }
-  if (q.get("scale")) document.body.style.setProperty("--drpg-ui-scale", q.get("scale"));
   if (q.get("still")) document.body.classList.add("drpg-reduced-motion");   // no pulse: the glass as painted
   for (const row of document.querySelectorAll(".drpg-despair-pips")) for (let i = 0; i < 12; i++) { const p = document.createElement("span"); p.className = "drpg-despair-pip" + (i < 5 ? " filled" : ""); row.append(p); }
   const defaults = { theme: "stainedGlass", glassEffects: true, glassPulse: true, reducedMotion: false, hudTicker: true, uiScale: Number(q.get("scale") || 1), debug: false, pixelFont: true };
@@ -100,6 +100,22 @@
   globalThis.ui = { sidebar: {} }; globalThis.foundry = { utils: { escapeHTML: s => s } }; globalThis.CONFIG = {};
   const m = await import("/scripts/glass.mjs");
   window.__glass = m;
+  /* applyTheme does not run here, so the harness stamps what it would: the two scale
+     tokens and the two shape classes. They are read from settings.mjs rather than
+     rewritten, so the breakpoints cannot drift apart from the module's own. */
+  const st = await import("/scripts/settings.mjs");
+  window.__settings = st;
+  const stamp = () => {
+    const auto = st.autoScale(), type = Math.round(Math.max(0.85, auto) * 100) / 100;
+    for (const el of [document.body, document.documentElement]) {
+      el.style.setProperty("--drpg-ui-scale", q.get("scale") || String(auto));
+      el.style.setProperty("--drpg-type-scale", q.get("scale") || String(type));
+    }
+    document.body.classList.toggle("drpg-narrow", st.narrowScreen());
+    document.body.classList.toggle("drpg-short", st.shortScreen());
+  };
+  stamp();
+  addEventListener("resize", stamp);
   m.registerGlass();
   const chrome = await import("/scripts/chrome.mjs");
   chrome.injectFilters?.();

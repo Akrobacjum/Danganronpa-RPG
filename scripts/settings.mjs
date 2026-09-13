@@ -1441,6 +1441,54 @@ export function pixelFontOn() {
  * every onChange above. The curtain itself (scripts/glass.mjs) listens to the
  * same settings through `refreshGlass`, which this calls when it is loaded.
  */
+/*
+ * THE THREE SHAPES A SCREEN CAN HAVE, AND THEY ARE MEASURED, NOT GUESSED.
+ *
+ * Foundry lays its interface out in columns that assume a desk: the left column,
+ * the centred top bar and the right column. The module puts its own blocks in
+ * them - the clock in the left, the Despair rail in the top, the status strip and
+ * the Projects tray in the right - and on a wide screen they never meet. On a
+ * narrow one they do, and the measurement is unambiguous (audit/glass-harness.html
+ * at each size, 13.09; overlapping pairs among the module's own blocks):
+ *
+ *   1920x993  none        1366x768  none        1280x800  none
+ *   1024x768  the rail over the status strip and over the tray
+ *   820x1180  and the clock over the rail as well
+ *   393x852   five pairs, and two blocks off the screen entirely
+ *
+ * The rail is centred and about 433 px wide at the scale floor, the right column
+ * about 382 px in from the edge, so the two meet at about 1196 px of width. 1200
+ * is that number rounded up, and nothing wider than it changes at all.
+ *
+ * SHORT IS NOT NARROW, AND THE ANSWER IS NOT THE SAME. A phone held sideways
+ * (980 x 386) has width to spare and no height: stacking would make it worse, and
+ * what it wants is the vertical rhythm squeezed. Two flags, for that reason.
+ *
+ * The curtain needs more room than the blocks do, and it is its own gate rather
+ * than this one. The same measurements have it well cut at 768 x 1024 and falling
+ * apart below about 700 px of width or 500 px of height, where its panes come out
+ * thinner than the blocks standing on them.
+ */
+export const BREAKPOINTS = { narrow: 1200, short: 620, glassW: 700, glassH: 500 };
+
+/* A measurement of zero is a window that has not been laid out yet - a hidden
+   iframe, a client mid-boot - and it must not read as "tiny": nothing stacks,
+   shrinks or unmounts on a number nobody has measured. */
+const measured = v => (Number.isFinite(v) && v > 0 ? v : Infinity);
+
+/** True when the module's blocks must leave Foundry's columns and stack in one. */
+export function narrowScreen(w = innerWidth) {
+    return measured(w) < BREAKPOINTS.narrow;
+}
+/** True when there is too little height for the desk layout's vertical rhythm. */
+export function shortScreen(h = innerHeight) {
+    return measured(h) < BREAKPOINTS.short;
+}
+/** True when the screen has the room the curtain needs to be cut into panes. */
+export function glassFits(w = innerWidth, h = innerHeight) {
+    return measured(w) >= BREAKPOINTS.glassW && measured(h) >= BREAKPOINTS.glassH;
+}
+
 /**
  * The screen's own factor under the slider.
  *
@@ -1490,14 +1538,20 @@ export function effectiveScale() {
 }
 /* The screen's factor changes when the window does; the theme follows once the resize has
    settled, and only when the factor actually differs. */
-let screenWatched = false, screenTimer = 0, screenFactor = 0;
+let screenWatched = false, screenTimer = 0, screenFactor = 0, screenShape = "";
+/* The scale is not the only thing a resize can change: crossing 1200 px of width
+   restacks the module and crossing the curtain's gate puts the glass to sleep, and
+   both can happen without the factor moving a hundredth (it is at its floor on every
+   screen under 1792 x 1008 anyway). One key covers all three. */
+const shapeKey = () => (narrowScreen() ? "n" : "-") + (shortScreen() ? "s" : "-") + (glassFits() ? "g" : "-");
 function watchScreen() {
     screenFactor = autoScale();
+    screenShape = shapeKey();
     if (screenWatched) return;
     screenWatched = true;
     addEventListener("resize", () => {
         clearTimeout(screenTimer);
-        screenTimer = setTimeout(() => { if (autoScale() !== screenFactor) applyTheme(); }, 250);
+        screenTimer = setTimeout(() => { if (autoScale() !== screenFactor || shapeKey() !== screenShape) applyTheme(); }, 250);
     });
 }
 
@@ -1509,6 +1563,12 @@ export function applyTheme() {
     document.body.classList.toggle("drpg-no-pulse", getSetting(SETTINGS.glassPulse) === false);
     document.body.classList.toggle("drpg-no-ticker", getSetting(SETTINGS.hudTicker) === false);
     document.body.classList.toggle("drpg-reduced-motion", getSetting(SETTINGS.reducedMotion) === true);
+    /* The breakpoints live here and nowhere else. The stylesheet keys off these two
+       classes rather than repeating the numbers in a media query, so there is one
+       place to change them and no chance of the sheet and the curtain disagreeing
+       about where a screen stops being a desk. */
+    document.body.classList.toggle("drpg-narrow", narrowScreen());
+    document.body.classList.toggle("drpg-short", shortScreen());
     // On the body, where the theme's own rules live: a value on <html> was shadowed by
     // the sheet's default on body (v1.2.15), so the scale never applied.
     const total = String(effectiveScale());
