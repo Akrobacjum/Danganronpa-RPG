@@ -52,6 +52,7 @@ import { renderEvents, eventsWindowActive } from "./events.mjs";
 // counter went, which is what took popup.mjs and truth-bullets.mjs out of its
 // graph as well.
 import { trialFloor, secondsLeft, floorHolder, floorTarget, FLOOR_MODES } from "./trial-floor.mjs";
+import { narrowColumn, narrowLayout } from "./narrow.mjs";
 
 const HUD_ID = "drpg-hud";
 
@@ -320,7 +321,10 @@ export function renderHud() {
          * `#ui-top` stays as the fallback. A Foundry that renames the column
          * should leave the clock somewhere sensible rather than nowhere.
          */
-        const host = document.querySelector("#ui-left-column-1")
+        // On a screen too narrow for Foundry's columns the clock heads the module's
+        // own stack instead - see narrow.mjs for why and for what else moves.
+        const host = narrowColumn()
+            ?? document.querySelector("#ui-left-column-1")
             ?? document.querySelector("#ui-top")
             ?? document.querySelector("#ui-middle")
             ?? document.body;
@@ -454,6 +458,10 @@ function alignRightColumn(hud) {
     try {
         const column = document.querySelector("#ui-right-column-1");
         if (!column) return;
+        /* Stacked, the column is a row of the stack and starts where the stack puts
+           it; a margin measured from the Despair rail would push it down the page by
+           the height of the box directly above it. */
+        if (narrowLayout()) { column.style.marginTop = ""; matchStripToDespair(); clearSceneList(hud); return; }
 
         /*
          * THE CLOCK IS NO LONGER AN ANCHOR, because it is now IN the column.

@@ -10,7 +10,7 @@
      `?scale=1.4` pins the interface scale (otherwise the screen's own, as applyTheme
      computes it); `?theme=legacy` the other theme. -->
 <!doctype html><html><head><meta charset="utf-8">
-<link rel="stylesheet" href="/styles/motion.css"><link rel="stylesheet" href="/styles/danganronpa.css"><link rel="stylesheet" href="/styles/stained-glass.css"><link rel="stylesheet" href="/styles/pixel-icons.css">
+<link rel="stylesheet" href="/styles/motion.css"><link rel="stylesheet" href="/styles/danganronpa.css"><link rel="stylesheet" href="/styles/stained-glass.css"><link rel="stylesheet" href="/styles/pixel-icons.css"><link rel="stylesheet" href="/styles/narrow.css">
 <style>
   html,body{margin:0;background:#2a2430;min-height:100vh;overflow:hidden}
   body{background-image:linear-gradient(90deg,rgba(255,255,255,.12) 1px,transparent 1px),linear-gradient(rgba(255,255,255,.12) 1px,transparent 1px),radial-gradient(circle at 30% 60%,rgba(127,228,255,.35),transparent 30%),radial-gradient(circle at 70% 40%,rgba(255,61,139,.3),transparent 30%);background-size:52px 52px,52px 52px,auto,auto}
@@ -111,9 +111,13 @@
       el.style.setProperty("--drpg-ui-scale", q.get("scale") || String(auto));
       el.style.setProperty("--drpg-type-scale", q.get("scale") || String(type));
     }
-    document.body.classList.toggle("drpg-narrow", st.narrowScreen());
+    document.body.classList.toggle("drpg-stacked", st.narrowScreen() || st.shortScreen());
     document.body.classList.toggle("drpg-short", st.shortScreen());
+    nr.applyNarrowLayout();
+    m.refreshGlass();
   };
+  const nr = await import("/scripts/narrow.mjs");
+  window.__narrow = nr;
   stamp();
   addEventListener("resize", stamp);
   m.registerGlass();

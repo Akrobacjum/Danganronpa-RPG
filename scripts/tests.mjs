@@ -42,6 +42,7 @@ import { MODULE_ID, moduleVersion, CRISIS_ACTIONS, ACTIONS, TRAITS,
 import { rolesOf } from "./inventory.mjs";
 import { vaultContents, stashRoomOfItem, stashIn, allVaults } from "./vault.mjs";
 import { SETTINGS, DEFAULT_SAFEWORD, getSetting, BREAKPOINTS, narrowScreen, shortScreen, glassFits } from "./settings.mjs";
+import { applyNarrowLayout, narrowLayout } from "./narrow.mjs";
 import { safeword } from "./safeword.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { studentActors } from "./monokuma.mjs";
@@ -5840,9 +5841,63 @@ const SCENARIOS = [
             await fetch(`/modules/${MODULE_ID}/scripts/glass.mjs`).then(r => r.text()));
         ok(/drpg-glass-flat/.test(src) && /function glassRoom\(\)/.test(src),
             "the curtain has no gate of its own, so a phone gets a partition cut for a desk");
+        ok(/function glassRoom\(\)[^\n]*!narrowLayout\(\)/.test(src),
+            "the curtain is still cut while the blocks are stacked, which is a shape its "
+            + "partition is not cut for - it splits them at half the height and a stack "
+            + "puts every one of them in the top half");
         ok(/export function dressWindow\(app\) \{\s*if \(!glassRoom\(\)\)/.test(src),
             "windows are still dressed with glass where no curtain is mounted, so the "
             + "pulse keeps repainting canvases on a phone");
+    }],
+
+    ["the blocks stack instead of piling up, and go back on a desk", async () => {
+        /*
+         * The narrow stack, driven rather than read: the column is made, the three
+         * blocks that move are in it, and a screen back on the desk puts every one
+         * of them where it came from. What cannot be driven here is the breakpoint
+         * itself - `innerWidth` is the harness's window - so the layout is asked
+         * for directly and the shape is checked, which is the part that has gone
+         * wrong before: a block moved and never moved back.
+         */
+        const hud = document.getElementById("drpg-hud");
+        const rail = document.getElementById("drpg-despair");
+        const right = document.getElementById("ui-right-column-1");
+        const homes = [hud, rail, right].map(el => el?.parentElement ?? null);
+        try {
+            applyNarrowLayout();
+            const column = document.getElementById("drpg-column");
+            if (!narrowLayout()) {
+                // a desk: nothing should have been built at all
+                ok(!column, "a column was stacked on a screen wide enough for Foundry's own");
+            } else {
+                ok(!!column, "no column was made on a screen the blocks cannot share");
+                for (const el of [hud, rail, right]) {
+                    if (el) ok(el.parentElement === column, `${el.id} did not move into the stack`);
+                }
+            }
+        } finally {
+            // whatever the screen, the blocks end this test where they started it
+            for (const [i, el] of [hud, rail, right].entries()) {
+                if (el && homes[i] && el.parentElement !== homes[i]) homes[i].append(el);
+            }
+        }
+
+        const src = stripComments(
+            await fetch(`/modules/${MODULE_ID}/scripts/narrow.mjs`).then(r => r.text()));
+        ok(/#ui-right-column-1/.test(src),
+            "the right column is not moved whole, so the Projects tray - which "
+            + "Daggerheart appends into it on every project it advances - is left behind");
+        ok(/marginTop/.test(src),
+            "nothing pushes Foundry's left column below the stack, so the scene "
+            + "controls and the GM launcher stand under it");
+
+        for (const file of ["hud.mjs", "despair.mjs", "events.mjs"]) {
+            const text = stripComments(
+                await fetch(`/modules/${MODULE_ID}/scripts/${file}`).then(r => r.text()));
+            ok(/narrowColumn\(\)/.test(text),
+                `${file} renders its block into a column of Foundry's without asking where `
+                + "the stack is, so a redraw takes it out of the stack and back into the pile");
+        }
     }],
 
     ["a rebuttal keeps the objection playing and can be cut into", async () => {

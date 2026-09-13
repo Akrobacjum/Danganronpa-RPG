@@ -1566,8 +1566,10 @@ export function applyTheme() {
     /* The breakpoints live here and nowhere else. The stylesheet keys off these two
        classes rather than repeating the numbers in a media query, so there is one
        place to change them and no chance of the sheet and the curtain disagreeing
-       about where a screen stops being a desk. */
-    document.body.classList.toggle("drpg-narrow", narrowScreen());
+       about where a screen stops being a desk. One class for "the blocks stack"
+       and one for "and there is no height either", which is the only distinction
+       styles/narrow.css needs to draw. */
+    document.body.classList.toggle("drpg-stacked", narrowScreen() || shortScreen());
     document.body.classList.toggle("drpg-short", shortScreen());
     // On the body, where the theme's own rules live: a value on <html> was shadowed by
     // the sheet's default on body (v1.2.15), so the scale never applied.
@@ -1592,6 +1594,10 @@ export function applyTheme() {
         if (el) { delete el.dataset.drpgScaled; scaleWindow(app, el); }
     }
     watchScreen();
+    /* The stack before the glass: the curtain is cut around where the blocks are,
+       and on a narrow screen this is what decides that. Dynamic, like the curtain's
+       own call, because narrow.mjs reads the breakpoints from this file. */
+    import("./narrow.mjs").then(m => m.applyNarrowLayout()).catch(() => {});
     import("./glass.mjs").then(m => m.refreshGlass()).catch(() => {});
     import("./sfx.mjs").then(m => m.renderSoundLauncher?.()).catch(() => {});
     // The clock carries the theme's ticker and, under Monokuma Legacy, the three

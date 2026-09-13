@@ -18,6 +18,7 @@
  */
 
 import { SETTINGS, getSetting, glassFits, BREAKPOINTS } from "./settings.mjs";
+import { narrowLayout } from "./narrow.mjs";
 import { log } from "./utils.mjs";
 
 /** Self-check results of the last geometry pass, for diagnostics. */
@@ -1747,8 +1748,14 @@ function themeOn() { try { return getSetting(SETTINGS.theme) === "stainedGlass";
  * flat backdrop in stained-glass.css. Nothing is left running: with no curtain and
  * no dressed windows the pulse repaints nothing, which is the other half of the
  * complaint (14 FPS in portrait).
+ *
+ * AND THE SAME OVER A STACKED LAYOUT, which is the wider gate of the two. Below
+ * 1200 px the module's blocks leave Foundry's columns and stack in one of their
+ * own (narrow.mjs) - a shape this partition is not cut for: it splits the blocks
+ * into a top band and a bottom band at half the height, and a stack puts every
+ * one of them in the top. Giving that shape its own cut is its own piece of work.
  */
-function glassRoom() { return themeOn() && glassFits(); }
+function glassRoom() { return themeOn() && glassFits() && !narrowLayout(); }
 /* `effectsOn()` is gone with the setting it read. It gated the pulse, the seam flashes, the
    pane beat and (until 08.09) the state crossfade - which meant one switch could stop the
    theme moving at all, and with it off the curtain was a still picture that nobody could
@@ -2091,6 +2098,7 @@ export function glassReport() {
     if (!themeOn()) return "theme off";
     if (!glassFits()) return "flat: " + innerWidth + "x" + innerHeight + " is under the curtain's "
       + BREAKPOINTS.glassW + "x" + BREAKPOINTS.glassH;
+    if (narrowLayout()) return "flat: the blocks are stacked at " + innerWidth + "x" + innerHeight;
     return "no curtain mounted";
   }
   const el = j.el, r = el.getBoundingClientRect();
@@ -2349,8 +2357,8 @@ function anythingMounted() {
 
 /** Mount or unmount the curtain according to the theme setting and the screen's room. */
 export function refreshGlass() {
-  const flat = themeOn() && !glassFits();
-  document.body.classList.toggle("drpg-glass-flat", flat);
+  // `glassRoom` and not `glassFits`: a stacked layout gets the flat backdrop too
+  document.body.classList.toggle("drpg-glass-flat", themeOn() && !glassRoom());
   // `unmount` only when there is something to take down: this runs on every DOM
   // mutation through `schedule`, and it walks the document clearing styles
   if (!glassRoom()) { if (anythingMounted()) unmount(); return; }

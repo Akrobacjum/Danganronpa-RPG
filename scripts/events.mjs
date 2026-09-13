@@ -30,6 +30,7 @@ import { trialFloor, floorHolder, floorTarget, FLOOR_MODES } from "./trial-floor
 import { keyPlanStatus } from "./investigation.mjs";
 import { SETTINGS, bodyDiscovery, bodyDiscoveryFresh, incidentCast, incidentParticipants } from "./settings.mjs";
 import { overflowEffect, overflowStatus, overflowRules } from "./overflow.mjs";
+import { narrowColumn } from "./narrow.mjs";
 
 const WIDGET_ID = "drpg-events";
 
@@ -413,7 +414,8 @@ export function renderEvents() {
         for (const card of cards) panel.append(cardElement(card, clock));
 
         const rail = document.getElementById("drpg-despair");
-        const host = rail?.parentElement ?? document.querySelector("#ui-top") ?? document.querySelector("#ui-middle");
+        // the card follows the rail wherever it stands, including into the narrow stack
+        const host = rail?.parentElement ?? narrowColumn() ?? document.querySelector("#ui-top") ?? document.querySelector("#ui-middle");
         if (!host) return;
         existing?.remove();
         if (rail) rail.after(panel); else host.append(panel);

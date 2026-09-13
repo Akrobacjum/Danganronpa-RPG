@@ -21,6 +21,7 @@ import { automatedUpdate } from "./resource-guard.mjs";
 import { announce, whisperToOwner, log, warn, error, isPrimaryGm } from "./utils.mjs";
 import { overflowStatus } from "./overflow.mjs";
 import { spentSince, markSpent } from "./motion.mjs";
+import { narrowColumn } from "./narrow.mjs";
 
 const WIDGET_ID = "drpg-despair";
 
@@ -442,7 +443,8 @@ export async function spendDespairCall(userId, callKey, { announce: say = true }
 /** Build or rebuild the Despair rows. Safe to call repeatedly. */
 export function renderDespairBar() {
     try {
-        const host = document.querySelector("#ui-top") ?? document.querySelector("#ui-middle");
+        // the module's own stack on a narrow screen, Foundry's top bar on a desk
+        const host = narrowColumn() ?? document.querySelector("#ui-top") ?? document.querySelector("#ui-middle");
         if (!host) return;
 
         document.getElementById(WIDGET_ID)?.remove();

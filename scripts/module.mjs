@@ -71,6 +71,7 @@ import { registerSync } from "./sync.mjs";
 import { registerTraps } from "./traps.mjs";
 import { SETTINGS, getSetting, applyTheme, pixelFontOn } from "./settings.mjs";
 import { registerGlass } from "./glass.mjs";
+import { registerNarrow } from "./narrow.mjs";
 import { registerChrome } from "./chrome.mjs";
 import { registerApi } from "./api.mjs";
 import { requirementsMet, announceMissingRequirements } from "./requirements.mjs";
@@ -247,6 +248,8 @@ Hooks.once("ready", () => {
     // The look: theme class, glass effects, UI scale, then the curtain that
     // depends on all three. After the API, before anything that renders a block.
     safely("the theme", applyTheme);
+    // before the curtain, which does not draw over a stacked layout
+    safely("the narrow layout", registerNarrow);
     safely("the stained glass", registerGlass);
     // Before the other socket listeners: this is the one that carries world-state
     // changes to the players. Without it `broadcast()` emits into a socket nobody

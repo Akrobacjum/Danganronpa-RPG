@@ -52,7 +52,8 @@
     "styles/danganronpa.css",
     "styles/stained-glass.css",
     "styles/pixel-icons.css",
-    "styles/messenger.css"
+    "styles/messenger.css",
+    "styles/narrow.css"
   ],
   "languages": [
     {

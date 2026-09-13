@@ -1045,15 +1045,11 @@ body.drpg-pixel-font .character-sidebar-sheet .resources-section .slot-label .la
     display: none;
 }
 
-/* Keep the HUD out of the way on narrow screens. */
-@media (max-width: 900px) {
-    #drpg-hud {
-        padding: 4px 10px;
-    }
-    #drpg-hud .drpg-hud-campaign {
-        font-size: var(--font-size-15, 0.95rem);
-    }
-}
+/* The HUD on a narrow screen is not a smaller plaque, it is the head of the
+   module's own stack - see styles/narrow.css. The 900 px media query that used to
+   trim its padding here went with it: the breakpoint is 1200 now, it is decided
+   in settings.mjs, and it arrives as `body.drpg-stacked`. (Not `.drpg-narrow`,
+   which is a dialog class in this file and something else entirely.) */
 
 /* ==========================================================================
    DESPAIR - one row per Monokuma
@@ -14885,3 +14881,4 @@ body.drpg-explainers :is(#drpg-hud, #drpg-despair, #drpg-player-status, #countdo
    be dimmed here through `.drpg-setting-inert`; they are hidden now, in the one window that
    still showed them, and the class went with the rule - see `renderSettingsConfig` in
    settings.mjs for why. */
+
