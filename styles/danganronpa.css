@@ -269,6 +269,247 @@
        grid, encoded as runs) rather than placed by hand - regenerate there,
        do not edit the path. */
     --drpg-g-die-d12: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 0h2v1H11zM9 1h6v1H9zM7 2h2v1H7zM11 2h2v1H11zM15 2h2v1H15zM5 3h2v1H5zM11 3h2v1H11zM17 3h2v1H17zM4 4h1v1H4zM11 4h2v1H11zM19 4h1v1H19zM3 5h1v1H3zM11 5h2v1H11zM20 5h1v1H20zM3 6h1v1H3zM11 6h2v1H11zM20 6h1v1H20zM2 7h1v1H2zM10 7h1v1H10zM13 7h1v1H13zM21 7h1v1H21zM1 8h2v1H1zM8 8h2v1H8zM14 8h2v1H14zM21 8h2v1H21zM1 9h1v1H1zM3 9h2v1H3zM7 9h1v1H7zM16 9h1v1H16zM19 9h2v1H19zM22 9h1v1H22zM1 10h1v1H1zM5 10h2v1H5zM17 10h2v1H17zM22 10h1v1H22zM1 11h1v1H1zM6 11h1v1H6zM17 11h1v1H17zM22 11h1v1H22zM1 12h1v1H1zM7 12h1v1H7zM16 12h1v1H16zM22 12h1v1H22zM1 13h1v1H1zM7 13h1v1H7zM16 13h1v1H16zM22 13h1v1H22zM1 14h1v1H1zM7 14h1v1H7zM16 14h1v1H16zM22 14h1v1H22zM1 15h1v1H1zM8 15h1v1H8zM15 15h1v1H15zM22 15h1v1H22zM2 16h1v1H2zM8 16h8v1H8zM21 16h1v1H21zM3 17h1v1H3zM7 17h1v1H7zM16 17h1v1H16zM20 17h1v1H20zM3 18h1v1H3zM6 18h1v1H6zM17 18h1v1H17zM20 18h1v1H20zM4 19h1v1H4zM6 19h1v1H6zM17 19h1v1H17zM19 19h1v1H19zM5 20h1v1H5zM18 20h1v1H18zM6 21h2v1H6zM16 21h2v1H16zM8 22h2v1H8zM14 22h2v1H14zM10 23h4v1H10z'/%3E%3C/svg%3E");
+
+    /* ---- Tokens added by later stages, merged here: one :root, last value wins. ---- */
+
+    --drpg-edge: 22px;
+
+    /* THE TWO CORNER CIRCLES, AS ONE MEASUREMENT.
+       The chat launcher takes its 66px from the performance gauge at the other
+       end of the bottom edge (Dawid, 26.08) - two ends of the same line that
+       must agree. The sound launcher then takes its size and its offset FROM
+       the chat one, because it is stacked on top of it: hard-coding 52 and 66
+       in three places is how a stack ends up overlapping itself the next time
+       the gauge changes. Which is exactly what happened while this was being
+       built. */
+    --drpg-launcher: 66px;
+    --drpg-launcher-small: 52px;
+
+    /* Bahnschrift ships with Windows 10 and up and is a condensed grotesque -
+       close to the heavy, squared lettering Danganronpa sets its menus in, and
+       nothing like Foundry's Signika. The stack degrades to the platform UI
+       face rather than to a serif, so a Mac or Linux seat still looks
+       deliberate. */
+    --drpg-font-ui: "Bahnschrift", "Segoe UI Variable Display", "Segoe UI",
+                    system-ui, -apple-system, "Helvetica Neue", sans-serif;
+
+    --drpg-text-xs: 0.6875rem;   /* 11px - the floor, never smaller */
+    --drpg-text-sm: 0.8125rem;   /* 13px */
+    --drpg-text-md: 0.9375rem;   /* 15px */
+    --drpg-text-base: 1rem;      /* 16px */
+    --drpg-text-lg: 1.25rem;     /* 20px */
+    --drpg-text-xl: 1.75rem;     /* 28px */
+
+    /* Two window widths, and no third.
+       --------------------------------------------------------------------
+       Every popup the module opens is one of these. Measured before they
+       existed, the same set of windows came out at 360, 400, 544, 723, 736,
+       896 and 1274px - seven sizes for one module, so nothing on screen ever
+       sat where the last thing had been.
+
+       Both are deliberately NARROWER than the character sheet's 850px
+       default. The sheet is the thing you work in; these are the things you
+       answer and dismiss, and a dialog as wide as the sheet reads as another
+       sheet. Wide is for a table with columns to line up - nothing else. */
+    --drpg-popup: 34rem;         /* 544px - every window with prose in it */
+    --drpg-popup-wide: 44rem;    /* 704px - the GM panel and the managers */
+
+    --drpg-g-move:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 2h3v1H6zM10 2h3v1H10zM14 2h3v1H14zM18 2h2v1H18zM6 3h3v1H6zM10 3h3v1H10zM14 3h3v1H14zM18 3h2v1H18zM6 5h13v1H6zM5 6h15v1H5zM5 7h15v1H5zM5 8h15v1H5zM6 9h13v1H6zM7 10h11v1H7zM8 11h9v1H8zM9 12h7v1H9zM9 13h7v1H9zM7 14h11v1H7zM6 15h13v1H6zM6 16h13v1H6zM7 17h11v1H7zM8 18h9v1H8z'/%3E%3C/svg%3E");
+    --drpg-g-search:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M7 2h7v1H7zM5 3h3v1H5zM13 3h3v1H13zM4 4h2v1H4zM14 4h2v1H14zM3 5h2v1H3zM15 5h2v1H15zM3 6h2v1H3zM15 6h2v1H15zM2 7h2v1H2zM16 7h2v1H16zM2 8h2v1H2zM16 8h2v1H16zM2 9h2v1H2zM16 9h2v1H16zM3 10h2v1H3zM15 10h2v1H15zM3 11h2v1H3zM15 11h2v1H15zM4 12h2v1H4zM14 12h2v1H14zM5 13h3v1H5zM13 13h3v1H13zM7 14h7v1H7zM13 15h3v1H13zM14 16h3v1H14zM15 17h3v1H15zM16 18h3v1H16zM17 19h3v1H17zM18 20h3v1H18z'/%3E%3C/svg%3E");
+    --drpg-g-observe:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 7h8v1H8zM5 8h3v1H5zM16 8h3v1H16zM3 9h2v1H3zM10 9h4v1H10zM19 9h2v1H19zM2 10h2v1H2zM9 10h6v1H9zM20 10h2v1H20zM2 11h2v1H2zM9 11h6v1H9zM20 11h2v1H20zM3 12h2v1H3zM10 12h4v1H10zM19 12h2v1H19zM5 13h3v1H5zM16 13h3v1H16zM8 14h8v1H8z'/%3E%3C/svg%3E");
+    --drpg-g-analyze:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 2h4v1H10zM8 3h8v1H8zM7 4h10v1H7zM6 5h12v1H6zM6 6h12v1H6zM6 7h12v1H6zM6 8h12v1H6zM7 9h10v1H7zM7 10h10v1H7zM8 11h8v1H8zM9 12h6v1H9zM9 14h6v1H9zM9 16h6v1H9zM10 18h4v1H10zM10 19h4v1H10z'/%3E%3C/svg%3E");
+    --drpg-g-listen:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 9h4v1H3zM3 10h4v1H3zM3 11h4v1H3zM3 12h4v1H3zM3 13h4v1H3zM10 9h2v1H10zM11 10h2v1H11zM11 11h2v1H11zM11 12h2v1H11zM10 13h2v1H10zM14 7h2v1H14zM15 8h2v1H15zM16 9h2v1H16zM17 10h2v1H17zM17 11h2v1H17zM17 12h2v1H17zM16 13h2v1H16zM15 14h2v1H15zM14 15h2v1H14z'/%3E%3C/svg%3E");
+    --drpg-g-project:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 4h14v1H6zM6 5h14v1H6zM4 6h16v1H4zM4 7h3v1H4zM11 7h9v1H11zM4 8h3v1H4zM11 8h9v1H11zM4 9h3v1H4zM11 9h9v1H11zM12 10h4v1H12zM12 11h4v1H12zM12 12h4v1H12zM12 13h4v1H12zM12 14h4v1H12zM12 15h4v1H12zM12 16h4v1H12zM12 17h4v1H12zM12 18h4v1H12zM12 19h4v1H12zM12 20h4v1H12zM12 21h4v1H12z'/%3E%3C/svg%3E");
+    --drpg-g-sabotage:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M17 1h3v1H17zM16 2h2v1H16zM15 3h2v1H15zM14 4h2v1H14zM13 5h2v1H13zM8 7h8v1H8zM6 8h12v1H6zM5 9h14v1H5zM4 10h16v1H4zM4 11h16v1H4zM4 12h16v1H4zM4 13h16v1H4zM5 14h14v1H5zM6 15h12v1H6zM8 16h8v1H8z'/%3E%3C/svg%3E");
+    --drpg-g-rest:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 7h3v1H2zM2 8h3v1H2zM5 8h5v1H5zM2 9h3v1H2zM5 9h5v1H5zM2 10h20v1H2zM2 11h20v1H2zM2 12h20v1H2zM2 13h2v1H2zM20 13h2v1H20zM2 14h2v1H2zM20 14h2v1H20zM2 15h2v1H2zM20 15h2v1H20z'/%3E%3C/svg%3E");
+    --drpg-g-direct-murder:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M7 3h10v1H7zM5 4h14v1H5zM4 5h16v1H4zM4 6h16v1H4zM3 7h18v1H3zM3 8h4v1H3zM9 8h6v1H9zM17 8h4v1H17zM3 9h3v1H3zM8 9h8v1H8zM18 9h3v1H18zM3 10h3v1H3zM8 10h8v1H8zM18 10h3v1H18zM3 11h4v1H3zM9 11h6v1H9zM17 11h4v1H17zM3 12h18v1H3zM4 13h16v1H4zM5 14h5v1H5zM11 14h3v1H11zM16 14h5v1H16zM5 15h14v1H5zM6 16h12v1H6zM6 17h12v1H6zM6 18h2v1H6zM9 18h2v1H9zM12 18h2v1H12zM15 18h2v1H15z'/%3E%3C/svg%3E");
+    --drpg-g-dynamic:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 1h2v1H11zM11 2h2v1H11zM11 3h2v1H11zM10 4h4v1H10zM5 5h2v1H5zM11 5h2v1H11zM17 5h2v1H17zM6 6h2v1H6zM10 6h4v1H10zM16 6h2v1H16zM7 7h2v1H7zM10 7h4v1H10zM15 7h2v1H15zM9 8h6v1H9zM2 9h20v1H2zM2 10h20v1H2zM9 11h6v1H9zM7 12h2v1H7zM10 12h4v1H10zM15 12h2v1H15zM6 13h2v1H6zM10 13h4v1H10zM16 13h2v1H16zM5 14h2v1H5zM11 14h2v1H11zM17 14h2v1H17zM10 15h4v1H10zM11 16h2v1H11zM11 17h2v1H11zM11 18h2v1H11z'/%3E%3C/svg%3E");
+    --drpg-g-cleanup:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M16 2h3v1H16zM15 3h3v1H15zM14 4h3v1H14zM13 5h3v1H13zM12 6h3v1H12zM11 7h3v1H11zM10 8h3v1H10zM9 9h3v1H9zM6 10h9v1H6zM5 11h11v1H5zM4 12h13v1H4zM4 13h2v1H4zM7 13h2v1H7zM10 13h2v1H10zM13 13h2v1H13zM16 13h1v1H16zM4 14h2v1H4zM7 14h2v1H7zM10 14h2v1H10zM13 14h2v1H13zM16 14h1v1H16zM3 15h2v1H3zM7 15h2v1H7zM10 15h2v1H10zM14 15h2v1H14zM17 15h1v1H17zM3 16h2v1H3zM7 16h2v1H7zM10 16h2v1H10zM14 16h2v1H14zM17 16h1v1H17z'/%3E%3C/svg%3E");
+
+    --drpg-g-sprint:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 5h1v1H2zM12 5h1v1H12zM2 6h2v1H2zM12 6h2v1H12zM2 7h3v1H2zM12 7h3v1H12zM2 8h4v1H2zM12 8h4v1H12zM2 9h5v1H2zM12 9h5v1H12zM2 10h6v1H2zM12 10h6v1H12zM2 11h7v1H2zM12 11h7v1H12zM2 12h7v1H2zM12 12h7v1H12zM2 13h6v1H2zM12 13h6v1H12zM2 14h5v1H2zM12 14h5v1H12zM2 15h4v1H2zM12 15h4v1H12zM2 16h3v1H2zM12 16h3v1H12zM2 17h2v1H2zM12 17h2v1H12zM2 18h1v1H2zM12 18h1v1H12z'/%3E%3C/svg%3E");
+    --drpg-g-burst:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M13 1h5v1H13zM11 2h6v1H11zM10 3h6v1H10zM9 4h6v1H9zM8 5h6v1H8zM7 6h7v1H7zM6 7h10v1H6zM5 8h10v1H5zM10 9h7v1H10zM9 10h6v1H9zM8 11h6v1H8zM7 12h6v1H7zM6 13h6v1H6zM5 14h6v1H5zM4 15h6v1H4zM4 16h4v1H4zM5 17h2v1H5z'/%3E%3C/svg%3E");
+    --drpg-g-relief:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 5h13v1H3zM3 6h13v1H3zM4 7h11v1H4zM4 8h11v1H4zM4 9h11v1H4zM16 9h3v1H16zM4 10h11v1H4zM17 10h2v1H17zM4 11h11v1H4zM17 11h2v1H17zM4 12h11v1H4zM16 12h3v1H16zM4 13h11v1H4zM4 14h11v1H4zM4 15h11v1H4zM4 16h11v1H4zM5 17h9v1H5zM5 18h9v1H5z'/%3E%3C/svg%3E");
+    --drpg-g-palm:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 3h2v1H8zM11 3h2v1H11zM14 3h2v1H14zM8 4h2v1H8zM11 4h2v1H11zM14 4h2v1H14zM8 5h2v1H8zM11 5h2v1H11zM14 5h2v1H14zM8 6h9v1H8zM6 7h11v1H6zM5 8h12v1H5zM5 9h13v1H5zM5 10h13v1H5zM5 11h13v1H5zM6 12h12v1H6zM6 13h12v1H6zM7 14h10v1H7zM8 15h8v1H8zM9 16h6v1H9z'/%3E%3C/svg%3E");
+
+    --drpg-g-support:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 3h4v1H10zM8 4h8v1H8zM8 5h8v1H8zM8 6h8v1H8zM10 7h4v1H10zM2 11h3v1H2zM19 11h3v1H19zM2 12h4v1H2zM18 12h4v1H18zM3 13h5v1H3zM16 13h5v1H16zM4 14h7v1H4zM13 14h7v1H13zM6 15h12v1H6zM8 16h8v1H8z'/%3E%3C/svg%3E");
+    --drpg-g-experience:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 3h2v1H11zM9 4h6v1H9zM7 5h10v1H7zM5 6h14v1H5zM3 7h18v1H3zM1 8h22v1H1zM3 9h18v1H3zM5 10h14v1H5zM7 11h10v1H7zM8 12h8v1H8zM8 13h8v1H8zM9 14h6v1H9zM10 15h4v1H10zM20 10h2v1H20zM20 11h2v1H20zM20 12h2v1H20zM19 13h3v1H19zM19 14h3v1H19z'/%3E%3C/svg%3E");
+    --drpg-g-ultimate:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 1h2v1H11zM11 2h2v1H11zM10 3h4v1H10zM10 4h4v1H10zM9 5h6v1H9zM2 6h20v1H2zM3 7h18v1H3zM4 8h16v1H4zM5 9h14v1H5zM5 10h14v1H5zM4 11h16v1H4zM4 12h6v1H4zM14 12h6v1H14zM3 13h5v1H3zM16 13h5v1H16zM3 14h4v1H3zM17 14h4v1H17zM2 15h4v1H2zM18 15h4v1H18z'/%3E%3C/svg%3E");
+    --drpg-g-contribution:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 1h6v1H9zM9 2h6v1H9zM3 3h4v1H3zM9 3h6v1H9zM17 3h4v1H17zM3 4h4v1H3zM9 4h6v1H9zM17 4h4v1H17zM3 5h18v1H3zM3 6h18v1H3zM5 7h14v1H5zM5 8h5v1H5zM14 8h5v1H14zM1 9h8v1H1zM15 9h8v1H15zM1 10h7v1H1zM16 10h7v1H16zM1 11h7v1H1zM16 11h7v1H16zM1 12h7v1H1zM16 12h7v1H16zM1 13h7v1H1zM16 13h7v1H16zM1 14h8v1H1zM15 14h8v1H15zM5 15h5v1H5zM14 15h5v1H14zM5 16h14v1H5zM3 17h18v1H3zM3 18h18v1H3zM3 19h4v1H3zM9 19h6v1H9zM17 19h4v1H17zM3 20h4v1H3zM9 20h6v1H9zM17 20h4v1H17zM9 21h6v1H9zM9 22h6v1H9z'/%3E%3C/svg%3E");
+    --drpg-g-reroll:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 3h6v1H9zM7 4h10v1H7zM6 5h12v1H6zM5 6h5v1H5zM14 6h5v1H14zM5 7h3v1H5zM16 7h3v1H16zM4 8h4v1H4zM16 8h4v1H16zM4 9h3v1H4zM17 9h3v1H17zM4 10h3v1H4zM17 10h3v1H17zM4 11h3v1H4zM17 11h3v1H17zM4 12h3v1H4zM17 12h3v1H17zM4 13h3v1H4zM17 13h3v1H17zM1 14h9v1H1zM17 14h3v1H17zM1 15h9v1H1zM17 15h3v1H17zM2 16h7v1H2zM17 16h3v1H17zM3 17h5v1H3zM17 17h3v1H17zM4 18h3v1H4zM17 18h3v1H17zM17 19h3v1H17z'/%3E%3C/svg%3E");
+    --drpg-g-determination:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 3h2v1H11zM10 4h4v1H10zM10 5h4v1H10zM9 6h6v1H9zM8 7h8v1H8zM8 8h8v1H8zM7 9h10v1H7zM6 10h12v1H6zM6 11h12v1H6zM5 12h14v1H5zM5 13h14v1H5zM5 14h14v1H5zM6 15h12v1H6zM7 16h10v1H7zM9 17h6v1H9z'/%3E%3C/svg%3E");
+    --drpg-g-free-crit:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 3h4v1H10zM8 4h8v1H8zM6 5h12v1H6zM5 6h6v1H5zM13 6h6v1H13zM4 7h7v1H4zM13 7h7v1H13zM4 8h7v1H4zM13 8h7v1H13zM4 9h7v1H4zM13 9h7v1H13zM4 10h7v1H4zM13 10h7v1H13zM4 11h7v1H4zM13 11h7v1H13zM4 12h6v1H4zM11 12h2v1H11zM14 12h6v1H14zM4 13h5v1H4zM10 13h4v1H10zM15 13h5v1H15zM4 14h4v1H4zM9 14h6v1H9zM16 14h4v1H16zM4 15h3v1H4zM8 15h8v1H8zM17 15h3v1H17zM5 16h14v1H5zM6 17h12v1H6zM8 18h8v1H8zM10 19h4v1H10z'/%3E%3C/svg%3E");
+
+    --drpg-g-obstacle:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 5h20v1H2zM2 6h20v1H2zM2 7h20v1H2zM4 8h3v1H4zM17 8h3v1H17zM4 9h3v1H4zM17 9h3v1H17zM2 10h20v1H2zM2 11h20v1H2zM2 12h20v1H2zM4 13h3v1H4zM17 13h3v1H17zM4 14h3v1H4zM17 14h3v1H17zM4 15h3v1H4zM17 15h3v1H17zM4 16h3v1H4zM17 16h3v1H17z'/%3E%3C/svg%3E");
+    --drpg-g-for-the-game:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 3h4v1H6zM14 3h4v1H14zM5 4h6v1H5zM13 4h6v1H13zM8 5h8v1H8zM3 6h18v1H3zM3 7h18v1H3zM4 8h7v1H4zM13 8h7v1H13zM4 9h7v1H4zM13 9h7v1H13zM4 10h7v1H4zM13 10h7v1H13zM4 11h7v1H4zM13 11h7v1H13zM4 12h7v1H4zM13 12h7v1H13zM4 13h7v1H4zM13 13h7v1H13zM4 14h7v1H4zM13 14h7v1H13zM4 15h7v1H4zM13 15h7v1H13zM4 16h7v1H4zM13 16h7v1H13zM4 17h7v1H4zM13 17h7v1H13z'/%3E%3C/svg%3E");
+    --drpg-g-behind-closed-doors:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 2h16v1H4zM4 3h16v1H4zM4 4h3v1H4zM17 4h3v1H17zM4 5h3v1H4zM17 5h3v1H17zM4 6h3v1H4zM17 6h3v1H17zM4 7h3v1H4zM17 7h3v1H17zM4 8h3v1H4zM17 8h3v1H17zM4 9h3v1H4zM17 9h3v1H17zM4 10h3v1H4zM14 10h2v1H14zM17 10h3v1H17zM4 11h3v1H4zM14 11h2v1H14zM17 11h3v1H17zM4 12h3v1H4zM17 12h3v1H17zM4 13h3v1H4zM17 13h3v1H17zM4 14h3v1H4zM17 14h3v1H17zM4 15h3v1H4zM17 15h3v1H17zM4 16h3v1H4zM17 16h3v1H17zM4 17h3v1H4zM17 17h3v1H17zM4 18h16v1H4zM4 19h16v1H4z'/%3E%3C/svg%3E");
+    --drpg-g-this-will-hurt:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 4h6v1H4zM14 4h6v1H14zM3 5h8v1H3zM13 5h8v1H13zM2 6h9v1H2zM13 6h9v1H13zM2 7h9v1H2zM12 7h10v1H12zM2 8h10v1H2zM13 8h9v1H13zM3 9h9v1H3zM12 9h9v1H12zM4 10h8v1H4zM13 10h7v1H13zM5 11h7v1H5zM12 11h7v1H12zM6 12h6v1H6zM13 12h5v1H13zM7 13h5v1H7zM12 13h5v1H12zM8 14h4v1H8zM13 14h3v1H13zM9 15h3v1H9zM12 15h3v1H12zM10 16h4v1H10zM11 17h2v1H11z'/%3E%3C/svg%3E");
+    --drpg-g-paranoia:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 3h8v1H8zM5 4h4v1H5zM15 4h4v1H15zM4 5h3v1H4zM17 5h3v1H17zM3 6h3v1H3zM18 6h3v1H18zM3 7h3v1H3zM9 7h6v1H9zM18 7h3v1H18zM3 8h3v1H3zM8 8h3v1H8zM13 8h3v1H13zM18 8h3v1H18zM3 9h3v1H3zM8 9h3v1H8zM13 9h3v1H13zM18 9h3v1H18zM3 10h3v1H3zM8 10h3v1H8zM13 10h3v1H13zM18 10h3v1H18zM3 11h3v1H3zM9 11h6v1H9zM18 11h3v1H18zM3 12h3v1H3zM18 12h3v1H18zM4 13h3v1H4zM17 13h3v1H17zM5 14h4v1H5zM15 14h4v1H15zM8 15h8v1H8z'/%3E%3C/svg%3E");
+    --drpg-g-chained:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 2h8v1H8zM7 3h3v1H7zM14 3h3v1H14zM7 4h3v1H7zM14 4h3v1H14zM7 5h3v1H7zM14 5h3v1H14zM8 6h8v1H8zM8 8h8v1H8zM7 9h3v1H7zM14 9h3v1H14zM7 10h3v1H7zM14 10h3v1H14zM7 11h3v1H7zM14 11h3v1H14zM8 12h8v1H8zM8 14h8v1H8zM7 15h3v1H7zM14 15h3v1H14zM7 16h3v1H7zM14 16h3v1H14zM7 17h3v1H7zM14 17h3v1H14zM8 18h8v1H8z'/%3E%3C/svg%3E");
+    --drpg-g-silence:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M5 3h13v1H5zM3 4h13v1H3zM19 4h2v1H19zM2 5h12v1H2zM17 5h5v1H17zM2 6h10v1H2zM15 6h7v1H15zM2 7h8v1H2zM13 7h9v1H13zM2 8h6v1H2zM11 8h11v1H11zM3 9h3v1H3zM9 9h12v1H9zM7 10h12v1H7zM7 11h4v1H7zM7 12h3v1H7zM7 13h2v1H7z'/%3E%3C/svg%3E");
+    --drpg-g-fuel-the-cub:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 3h4v1H6zM13 3h4v1H13zM5 4h6v1H5zM12 4h6v1H12zM4 5h14v1H4zM4 6h14v1H4zM5 7h12v1H5zM6 8h10v1H6zM7 9h8v1H7zM8 10h6v1H8zM9 11h4v1H9zM3 14h18v1H3zM2 15h20v1H2zM3 16h18v1H3zM5 17h14v1H5z'/%3E%3C/svg%3E");
+    --drpg-g-favorite-project:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 4h2v1H11zM10 5h4v1H10zM9 6h6v1H9zM8 7h8v1H8zM7 8h10v1H7zM6 9h12v1H6zM5 10h14v1H5zM4 11h16v1H4zM9 12h6v1H9zM9 13h6v1H9zM9 14h6v1H9zM9 15h6v1H9zM9 16h6v1H9zM9 17h6v1H9zM9 18h6v1H9zM9 19h6v1H9z'/%3E%3C/svg%3E");
+    /* Feed the Overflow: water, because that is what the Call is named after
+       and what the counter does. Three waves, the middle one in counter-phase,
+       running edge to edge - at 24px a stack of identical lines reads as
+       stripes, and the phase shift is the whole difference between stripes and
+       current. */
+    --drpg-g-feed-overflow:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M0 4h3v1H0zM9 4h6v1H9zM21 4h3v1H21zM0 5h4v1H0zM8 5h8v1H8zM20 5h4v1H20zM3 6h6v1H3zM15 6h6v1H15zM4 7h4v1H4zM16 7h4v1H16zM3 10h6v1H3zM15 10h6v1H15zM2 11h8v1H2zM14 11h8v1H14zM0 12h3v1H0zM9 12h6v1H9zM21 12h3v1H21zM0 13h2v1H0zM10 13h4v1H10zM22 13h2v1H22zM0 16h3v1H0zM9 16h6v1H9zM21 16h3v1H21zM0 17h4v1H0zM8 17h8v1H8zM20 17h4v1H20zM3 18h6v1H3zM15 18h6v1H15zM4 19h4v1H4zM16 19h4v1H16z'/%3E%3C/svg%3E");
+    --drpg-g-contraband:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 2h6v1H9zM3 3h18v1H3zM3 4h18v1H3zM4 5h16v1H4zM4 6h3v1H4zM9 6h2v1H9zM13 6h2v1H13zM17 6h3v1H17zM4 7h3v1H4zM9 7h2v1H9zM13 7h2v1H13zM17 7h3v1H17zM4 8h3v1H4zM9 8h2v1H9zM13 8h2v1H13zM17 8h3v1H17zM4 9h3v1H4zM9 9h2v1H9zM13 9h2v1H13zM17 9h3v1H17zM4 10h3v1H4zM9 10h2v1H9zM13 10h2v1H13zM17 10h3v1H17zM4 11h3v1H4zM9 11h2v1H9zM13 11h2v1H13zM17 11h3v1H17zM4 12h3v1H4zM9 12h2v1H9zM13 12h2v1H13zM17 12h3v1H17zM4 13h3v1H4zM9 13h2v1H9zM13 13h2v1H13zM17 13h3v1H17zM4 14h3v1H4zM9 14h2v1H9zM13 14h2v1H13zM17 14h3v1H17zM4 15h3v1H4zM9 15h2v1H9zM13 15h2v1H13zM17 15h3v1H17zM5 16h14v1H5zM6 17h12v1H6z'/%3E%3C/svg%3E");
+    --drpg-g-public-announcement:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 8h4v1H2zM2 9h4v1H2zM2 10h4v1H2zM2 11h4v1H2zM6 7h3v1H6zM6 8h3v1H6zM6 9h3v1H6zM6 10h3v1H6zM6 11h3v1H6zM6 12h3v1H6zM9 6h3v1H9zM9 7h3v1H9zM9 8h3v1H9zM9 9h3v1H9zM9 10h3v1H9zM9 11h3v1H9zM9 12h3v1H9zM9 13h3v1H9zM12 4h3v1H12zM12 5h3v1H12zM12 6h3v1H12zM12 7h3v1H12zM12 8h3v1H12zM12 9h3v1H12zM12 10h3v1H12zM12 11h3v1H12zM12 12h3v1H12zM12 13h3v1H12zM12 14h3v1H12zM12 15h3v1H12zM18 7h2v1H18zM19 9h2v1H19zM19 11h2v1H19zM18 13h2v1H18z'/%3E%3C/svg%3E");
+    --drpg-g-new-rule:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 3h10v1H3zM3 4h10v1H3zM3 5h10v1H3zM3 6h10v1H3zM8 7h4v1H8zM9 8h4v1H9zM10 9h4v1H10zM11 10h4v1H11zM12 11h4v1H12zM13 12h4v1H13zM14 13h4v1H14zM4 16h16v1H4zM3 17h18v1H3zM3 18h18v1H3z'/%3E%3C/svg%3E");
+    /* The falling arrow, on the Call that Dawid renamed Game Integrity
+       on 29.08. The eraser that used to live above this line went with
+       the project wipe - a variable nothing draws is a drawing somebody
+       will eventually wire to the wrong tile. */
+    --drpg-g-game-protection:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 2h6v1H9zM9 3h6v1H9zM9 4h6v1H9zM9 5h6v1H9zM9 6h6v1H9zM9 7h6v1H9zM9 8h6v1H9zM9 9h6v1H9zM9 10h6v1H9zM9 11h6v1H9zM4 12h16v1H4zM5 13h14v1H5zM6 14h12v1H6zM7 15h10v1H7zM8 16h8v1H8zM9 17h6v1H9zM10 18h4v1H10zM11 19h2v1H11z'/%3E%3C/svg%3E");
+    /* The motive: a sealed envelope, its flap a V-shaped GAP rather than
+       a stroke - the rule this whole set follows, and the reason Silence
+       reads at all. Distinct from every other tile in the Despair grid at
+       24px, which a clock face or an hourglass would not have been: the
+       HUD row carries the countdown, the tile only has to say "Monokuma
+       has handed something out". */
+    --drpg-g-motive:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 7h1v1H3zM5 7h14v1H5zM20 7h1v1H20zM3 8h2v1H3zM6 8h12v1H6zM19 8h2v1H19zM3 9h3v1H3zM7 9h10v1H7zM18 9h3v1H18zM3 10h4v1H3zM8 10h8v1H8zM17 10h4v1H17zM3 11h5v1H3zM9 11h6v1H9zM16 11h5v1H16zM3 12h6v1H3zM10 12h4v1H10zM15 12h6v1H15zM3 13h7v1H3zM11 13h2v1H11zM14 13h7v1H14zM3 14h8v1H3zM13 14h8v1H13zM3 15h18v1H3zM3 16h18v1H3zM3 17h18v1H3zM3 18h18v1H3z'/%3E%3C/svg%3E");
+
+    --drpg-g-leave-clue:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 3h8v1H8zM5 4h4v1H5zM15 4h4v1H15zM4 5h3v1H4zM17 5h3v1H17zM3 6h3v1H3zM8 6h8v1H8zM18 6h3v1H18zM3 7h3v1H3zM7 7h3v1H7zM14 7h3v1H14zM18 7h3v1H18zM3 8h3v1H3zM6 8h3v1H6zM10 8h4v1H10zM15 8h3v1H15zM18 8h3v1H18zM3 9h3v1H3zM6 9h3v1H6zM10 9h4v1H10zM15 9h3v1H15zM18 9h3v1H18zM3 10h3v1H3zM6 10h3v1H6zM10 10h4v1H10zM15 10h3v1H15zM18 10h3v1H18zM3 11h3v1H3zM7 11h3v1H7zM10 11h4v1H10zM14 11h3v1H14zM18 11h3v1H18zM4 12h3v1H4zM8 12h8v1H8zM17 12h3v1H17zM5 13h4v1H5zM15 13h4v1H15zM7 14h10v1H7z'/%3E%3C/svg%3E");
+    --drpg-g-secure-trace:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 3h4v1H10zM9 4h6v1H9zM9 5h6v1H9zM10 6h4v1H10zM2 9h4v1H2zM2 10h5v1H2zM3 11h5v1H3zM4 12h6v1H4zM5 13h7v1H5zM18 9h4v1H18zM17 10h5v1H17zM16 11h5v1H16zM14 12h6v1H14zM12 13h7v1H12zM6 14h12v1H6zM7 15h10v1H7zM9 16h6v1H9z'/%3E%3C/svg%3E");
+    --drpg-g-self-defence:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 2h16v1H4zM3 3h18v1H3zM3 4h18v1H3zM3 5h18v1H3zM3 6h18v1H3zM3 7h18v1H3zM3 8h18v1H3zM4 9h16v1H4zM4 10h16v1H4zM5 11h14v1H5zM6 12h12v1H6zM7 13h10v1H7zM8 14h8v1H8zM9 15h6v1H9zM10 16h4v1H10zM11 17h2v1H11z'/%3E%3C/svg%3E");
+    --drpg-g-survive:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M12 2h4v1H12zM11 3h5v1H11zM12 4h4v1H12zM8 6h8v1H8zM6 7h12v1H6zM5 8h6v1H5zM13 8h6v1H13zM7 9h4v1H7zM15 9h4v1H15zM8 10h4v1H8zM9 11h4v1H9zM10 12h4v1H10zM6 13h5v1H6zM13 13h4v1H13zM4 14h5v1H4zM14 14h4v1H14zM3 15h4v1H3zM15 15h5v1H15zM2 16h4v1H2zM17 16h4v1H17zM2 17h4v1H2zM18 17h4v1H18z'/%3E%3C/svg%3E");
+    --drpg-g-role-reversal:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M16 4h2v1H16zM16 5h4v1H16zM2 6h20v1H2zM2 7h20v1H2zM2 8h20v1H2zM16 9h4v1H16zM16 10h2v1H16zM6 13h2v1H6zM4 14h4v1H4zM2 15h20v1H2zM2 16h20v1H2zM2 17h20v1H2zM4 18h4v1H4zM6 19h2v1H6z'/%3E%3C/svg%3E");
+    --drpg-g-strike:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 2h3v1H4zM5 3h3v1H5zM6 4h3v1H6zM7 5h3v1H7zM17 2h3v1H17zM16 3h3v1H16zM15 4h3v1H15zM14 5h3v1H14zM9 7h6v1H9zM7 8h10v1H7zM6 9h12v1H6zM6 10h12v1H6zM7 11h10v1H7zM9 12h6v1H9zM7 14h3v1H7zM6 15h3v1H6zM5 16h3v1H5zM4 17h3v1H4zM14 14h3v1H14zM15 15h3v1H15zM16 16h3v1H16zM17 17h3v1H17z'/%3E%3C/svg%3E");
+    --drpg-g-pin:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 2h4v1H10zM10 3h4v1H10zM10 4h4v1H10zM10 5h4v1H10zM10 6h4v1H10zM5 7h14v1H5zM6 8h12v1H6zM7 9h10v1H7zM8 10h8v1H8zM9 11h6v1H9zM10 12h4v1H10zM2 15h20v1H2zM2 16h20v1H2zM2 17h20v1H2z'/%3E%3C/svg%3E");
+    --drpg-g-keep-distance:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 9h3v1H2zM2 10h3v1H2zM2 11h3v1H2zM2 12h3v1H2zM19 9h3v1H19zM19 10h3v1H19zM19 11h3v1H19zM19 12h3v1H19zM7 8h3v1H7zM6 9h4v1H6zM5 10h5v1H5zM6 11h4v1H6zM7 12h3v1H7zM14 8h3v1H14zM14 9h4v1H14zM14 10h5v1H14zM14 11h4v1H14zM14 12h3v1H14z'/%3E%3C/svg%3E");
+    --drpg-g-weapon-attack:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M15 1h4v1H15zM14 2h5v1H14zM13 3h5v1H13zM12 4h5v1H12zM11 5h5v1H11zM10 6h5v1H10zM9 7h5v1H9zM8 8h5v1H8zM7 9h5v1H7zM6 10h5v1H6zM5 11h5v1H5zM4 12h5v1H4zM3 13h6v1H3zM2 14h6v1H2zM4 15h5v1H4zM5 16h4v1H5zM3 17h7v1H3zM2 18h4v1H2z'/%3E%3C/svg%3E");
+    --drpg-g-finishing-blow:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 2h8v1H8zM6 3h12v1H6zM5 4h14v1H5zM5 5h14v1H5zM5 6h3v1H5zM10 6h4v1H10zM16 6h3v1H16zM5 7h3v1H5zM10 7h4v1H10zM16 7h3v1H16zM5 8h14v1H5zM6 9h12v1H6zM7 10h3v1H7zM11 10h2v1H11zM14 10h3v1H14zM2 13h4v1H2zM18 13h4v1H18zM3 14h5v1H3zM16 14h5v1H16zM5 15h14v1H5zM5 16h14v1H5zM3 17h5v1H3zM16 17h5v1H16zM2 18h4v1H2zM18 18h4v1H18z'/%3E%3C/svg%3E");
+    --drpg-g-shared-escape:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 2h12v1H3zM3 3h3v1H3zM12 3h3v1H12zM3 4h3v1H3zM12 4h3v1H12zM3 5h3v1H3zM12 5h3v1H12zM3 6h3v1H3zM12 6h3v1H12zM3 7h3v1H3zM12 7h3v1H12zM3 8h3v1H3zM12 8h3v1H12zM3 9h3v1H3zM12 9h3v1H12zM3 10h3v1H3zM10 10h2v1H10zM12 10h3v1H12zM3 11h3v1H3zM12 11h3v1H12zM3 12h3v1H3zM12 12h3v1H12zM3 13h3v1H3zM12 13h3v1H12zM3 14h3v1H3zM12 14h3v1H12zM3 15h3v1H3zM12 15h3v1H12zM3 16h3v1H3zM12 16h3v1H12zM3 17h12v1H3zM17 8h4v1H17zM16 9h6v1H16zM16 10h6v1H16zM17 11h4v1H17zM17 12h4v1H17zM16 13h6v1H16z'/%3E%3C/svg%3E");
+    --drpg-g-double-role-reversal:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 4h14v1H3zM3 5h3v1H3zM3 6h3v1H3zM14 3h3v1H14zM13 4h5v1H13zM12 5h7v1H12zM3 10h3v1H3zM3 11h3v1H3zM3 12h14v1H3zM12 10h7v1H12zM13 11h5v1H13zM14 12h3v1H14zM3 16h14v1H3zM3 15h3v1H3zM3 17h3v1H3zM14 15h3v1H14zM13 16h5v1H13zM12 17h7v1H12z'/%3E%3C/svg%3E");
+    --drpg-g-crime-partners:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 3h5v1H4zM3 4h7v1H3zM3 5h7v1H3zM4 6h5v1H4zM15 3h5v1H15zM14 4h7v1H14zM14 5h7v1H14zM15 6h5v1H15zM3 9h7v1H3zM2 10h9v1H2zM2 11h9v1H2zM2 12h9v1H2zM2 13h9v1H2zM2 14h9v1H2zM2 15h9v1H2zM14 9h7v1H14zM13 10h9v1H13zM13 11h9v1H13zM13 12h9v1H13zM13 13h9v1H13zM13 14h9v1H13zM13 15h9v1H13z'/%3E%3C/svg%3E");
+    --drpg-g-averted-eyes:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 8h8v1H8zM5 9h3v1H5zM16 9h3v1H16zM3 10h2v1H3zM20 10h2v1H20zM2 11h20v1H2zM3 12h18v1H3zM6 13h12v1H6zM9 14h6v1H9zM4 16h3v1H4zM10 16h4v1H10zM17 16h3v1H17z'/%3E%3C/svg%3E");
+
+    --drpg-panel-ground: light-dark(rgba(var(--drpg-bone-rgb), 0.85), rgba(var(--drpg-deep-rgb), 0.78));
+    --drpg-panel-radius: 6px;
+    /* `none` since the ground went opaque at the end of this file: a
+       backdrop-filter behind something nothing shows through is a compositing
+       layer per panel, every frame, for an effect that cannot be seen. */
+    --drpg-panel-blur: none;
+    --drpg-panel-shadow: 0 2px 8px rgba(var(--drpg-shadow-rgb), 0.4);
+
+    /* Ink as channels, for the panels that need it at less than full strength.
+       Kept beside the hex rather than derived, the same way Bone carries its
+       own `-rgb`: `rgb(from …)` is not something this file can rely on across
+       every browser Foundry ships to. */
+    --drpg-ink-rgb: 29, 26, 33;
+    --drpg-panel-ground: light-dark(
+        rgb(var(--drpg-bone-rgb)),
+        rgb(var(--drpg-ink-rgb))
+    );
+
+    --drpg-g-projects:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 2h2v1H8zM7 3h3v1H7zM2 4h2v1H2zM6 4h3v1H6zM12 4h10v1H12zM2 5h6v1H2zM12 5h10v1H12zM3 6h4v1H3zM4 7h2v1H4zM8 9h2v1H8zM7 10h3v1H7zM2 11h2v1H2zM6 11h3v1H6zM12 11h10v1H12zM2 12h6v1H2zM12 12h10v1H12zM3 13h4v1H3zM4 14h2v1H4zM8 16h2v1H8zM7 17h3v1H7zM2 18h2v1H2zM6 18h3v1H6zM12 18h10v1H12zM2 19h6v1H2zM12 19h10v1H12zM3 20h4v1H3zM4 21h2v1H4z'/%3E%3C/svg%3E");
+    --drpg-g-jump:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 1h2v1H6zM16 1h2v1H16zM6 2h2v1H6zM16 2h2v1H16zM1 3h22v1H1zM1 4h22v1H1zM1 5h22v1H1zM1 6h22v1H1zM1 7h22v1H1zM1 8h2v1H1zM21 8h2v1H21zM1 9h2v1H1zM21 9h2v1H21zM1 10h2v1H1zM5 10h2v1H5zM9 10h2v1H9zM13 10h2v1H13zM17 10h2v1H17zM21 10h2v1H21zM1 11h2v1H1zM5 11h2v1H5zM9 11h2v1H9zM13 11h2v1H13zM17 11h2v1H17zM21 11h2v1H21zM1 12h2v1H1zM21 12h2v1H21zM1 13h2v1H1zM21 13h2v1H21zM1 14h2v1H1zM5 14h2v1H5zM9 14h2v1H9zM13 14h2v1H13zM17 14h2v1H17zM21 14h2v1H21zM1 15h2v1H1zM5 15h2v1H5zM9 15h2v1H9zM13 15h2v1H13zM17 15h2v1H17zM21 15h2v1H21zM1 16h2v1H1zM21 16h2v1H21zM1 17h2v1H1zM21 17h2v1H21zM1 18h2v1H1zM21 18h2v1H21zM1 19h2v1H1zM21 19h2v1H21zM1 20h22v1H1zM1 21h22v1H1z'/%3E%3C/svg%3E");
+    --drpg-g-items:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 4h22v1H1zM1 5h22v1H1zM1 6h22v1H1zM1 7h22v1H1zM1 8h22v1H1zM3 9h18v1H3zM3 10h2v1H3zM10 10h4v1H10zM19 10h2v1H19zM3 11h2v1H3zM10 11h4v1H10zM19 11h2v1H19zM3 12h2v1H3zM10 12h4v1H10zM19 12h2v1H19zM3 13h2v1H3zM10 13h4v1H10zM19 13h2v1H19zM3 14h2v1H3zM19 14h2v1H19zM3 15h2v1H3zM19 15h2v1H19zM3 16h2v1H3zM19 16h2v1H19zM3 17h2v1H3zM19 17h2v1H19zM3 18h2v1H3zM19 18h2v1H19zM3 19h2v1H3zM19 19h2v1H19zM3 20h18v1H3zM3 21h18v1H3z'/%3E%3C/svg%3E");
+    --drpg-g-music:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 2h13v1H9zM9 3h13v1H9zM9 4h13v1H9zM9 5h13v1H9zM9 6h13v1H9zM9 7h2v1H9zM20 7h2v1H20zM9 8h2v1H9zM20 8h2v1H20zM9 9h2v1H9zM20 9h2v1H20zM9 10h2v1H9zM20 10h2v1H20zM9 11h2v1H9zM20 11h2v1H20zM9 12h2v1H9zM14 12h8v1H14zM9 13h2v1H9zM14 13h8v1H14zM9 14h2v1H9zM14 14h7v1H14zM3 15h8v1H3zM15 15h5v1H15zM3 16h8v1H3zM3 17h7v1H3zM4 18h5v1H4z'/%3E%3C/svg%3E");
+    --drpg-g-who-is-alive:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M5 4h4v1H5zM15 4h4v1H15zM4 5h8v1H4zM14 5h6v1H14zM3 6h18v1H3zM3 7h18v1H3zM3 8h18v1H3zM3 9h6v1H3zM11 9h10v1H11zM3 10h6v1H3zM11 10h10v1H11zM11 11h2v1H11zM11 12h2v1H11zM6 13h5v1H6zM13 13h5v1H13zM7 14h4v1H7zM13 14h4v1H13zM8 15h3v1H8zM13 15h3v1H13zM9 16h6v1H9zM10 17h4v1H10zM11 18h2v1H11z'/%3E%3C/svg%3E");
+    --drpg-g-investigation:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M7 1h6v1H7zM5 2h10v1H5zM4 3h12v1H4zM3 4h14v1H3zM3 5h3v1H3zM9 5h8v1H9zM2 6h4v1H2zM9 6h9v1H9zM2 7h4v1H2zM8 7h10v1H8zM2 8h4v1H2zM8 8h10v1H8zM2 9h16v1H2zM2 10h16v1H2zM2 11h16v1H2zM3 12h14v1H3zM3 13h14v1H3zM4 14h14v1H4zM5 15h14v1H5zM7 16h6v1H7zM15 16h5v1H15zM16 17h5v1H16zM17 18h5v1H17zM18 19h5v1H18zM19 20h4v1H19zM20 21h3v1H20z'/%3E%3C/svg%3E");
+    --drpg-g-trial:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 4h2v1H11zM2 5h21v1H2zM2 6h21v1H2zM2 7h21v1H2zM4 8h2v1H4zM11 8h2v1H11zM18 8h2v1H18zM4 9h2v1H4zM11 9h2v1H11zM18 9h2v1H18zM1 10h8v1H1zM11 10h2v1H11zM15 10h8v1H15zM1 11h8v1H1zM11 11h2v1H11zM15 11h8v1H15zM2 12h6v1H2zM11 12h2v1H11zM16 12h6v1H16zM2 13h6v1H2zM11 13h2v1H11zM16 13h6v1H16zM3 14h4v1H3zM11 14h2v1H11zM17 14h4v1H17zM4 15h2v1H4zM11 15h2v1H11zM18 15h2v1H18zM11 16h2v1H11zM11 17h2v1H11zM11 18h2v1H11zM6 19h13v1H6zM6 20h13v1H6zM6 21h13v1H6z'/%3E%3C/svg%3E");
+    --drpg-g-gm-team:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 4h4v1H6zM5 5h6v1H5zM4 6h8v1H4zM15 6h4v1H15zM4 7h8v1H4zM14 7h6v1H14zM4 8h8v1H4zM14 8h6v1H14zM4 9h8v1H4zM14 9h6v1H14zM5 10h6v1H5zM14 10h6v1H14zM6 11h4v1H6zM15 11h4v1H15zM4 12h8v1H4zM3 13h10v1H3zM15 13h6v1H15zM2 14h20v1H2zM2 15h21v1H2zM2 16h21v1H2zM2 17h21v1H2z'/%3E%3C/svg%3E");
+    --drpg-g-room-setup:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 2h20v1H2zM2 3h20v1H2zM2 4h20v1H2zM2 5h3v1H2zM10 5h3v1H10zM19 5h3v1H19zM2 6h3v1H2zM10 6h3v1H10zM19 6h3v1H19zM2 7h3v1H2zM10 7h3v1H10zM19 7h3v1H19zM2 8h3v1H2zM10 8h3v1H10zM19 8h3v1H19zM2 9h3v1H2zM10 9h3v1H10zM19 9h3v1H19zM2 10h3v1H2zM10 10h3v1H10zM19 10h3v1H19zM2 11h3v1H2zM10 11h3v1H10zM19 11h3v1H19zM2 12h3v1H2zM10 12h3v1H10zM19 12h3v1H19zM2 13h3v1H2zM10 13h3v1H10zM19 13h3v1H19zM2 14h3v1H2zM10 14h3v1H10zM19 14h3v1H19zM2 15h3v1H2zM19 15h3v1H19zM2 16h3v1H2zM19 16h3v1H19zM2 17h3v1H2zM19 17h3v1H19zM2 18h3v1H2zM19 18h3v1H19zM2 19h6v1H2zM14 19h8v1H14zM2 20h6v1H2zM14 20h8v1H14zM2 21h6v1H2zM14 21h8v1H14z'/%3E%3C/svg%3E");
+    --drpg-g-tables:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 3h22v1H1zM1 4h22v1H1zM1 5h22v1H1zM1 6h22v1H1zM1 7h22v1H1zM1 8h22v1H1zM1 9h2v1H1zM10 9h3v1H10zM21 9h2v1H21zM1 10h2v1H1zM10 10h3v1H10zM21 10h2v1H21zM1 11h2v1H1zM10 11h3v1H10zM21 11h2v1H21zM1 12h2v1H1zM10 12h3v1H10zM21 12h2v1H21zM1 13h22v1H1zM1 14h22v1H1zM1 15h2v1H1zM10 15h3v1H10zM21 15h2v1H21zM1 16h2v1H1zM10 16h3v1H10zM21 16h2v1H21zM1 17h2v1H1zM10 17h3v1H10zM21 17h2v1H21zM1 18h2v1H1zM10 18h3v1H10zM21 18h2v1H21zM1 19h22v1H1zM1 20h22v1H1z'/%3E%3C/svg%3E");
+    --drpg-g-season-setup:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M17 1h2v1H17zM4 2h2v1H4zM17 2h2v1H17zM4 3h2v1H4zM15 3h6v1H15zM2 4h6v1H2zM14 4h8v1H14zM2 5h6v1H2zM14 5h8v1H14zM4 6h2v1H4zM15 6h6v1H15zM4 7h2v1H4zM17 7h2v1H17zM15 8h4v1H15zM14 9h4v1H14zM13 10h5v1H13zM12 11h5v1H12zM11 12h5v1H11zM10 13h5v1H10zM9 14h5v1H9zM8 15h5v1H8zM7 16h5v1H7zM2 17h9v1H2zM2 18h8v1H2zM2 19h7v1H2zM2 20h6v1H2zM2 21h6v1H2zM3 22h3v1H3z'/%3E%3C/svg%3E");
+    --drpg-g-mastermind:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M7 1h10v1H7zM7 2h10v1H7zM7 3h10v1H7zM7 4h10v1H7zM7 5h10v1H7zM1 6h22v1H1zM1 7h22v1H1zM1 8h22v1H1zM1 9h22v1H1zM7 10h8v1H7zM6 11h10v1H6zM6 12h10v1H6zM6 13h10v1H6zM6 14h10v1H6zM7 15h8v1H7zM7 16h8v1H7zM9 17h4v1H9zM6 18h12v1H6zM5 19h14v1H5zM4 20h16v1H4zM4 21h16v1H4z'/%3E%3C/svg%3E");
+    --drpg-g-season-reset:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 2h4v1H10zM10 3h4v1H10zM10 4h4v1H10zM6 5h2v1H6zM10 5h4v1H10zM5 6h3v1H5zM10 6h4v1H10zM16 6h1v1H16zM4 7h4v1H4zM10 7h4v1H10zM16 7h2v1H16zM3 8h4v1H3zM10 8h4v1H10zM16 8h3v1H16zM3 9h3v1H3zM10 9h4v1H10zM16 9h3v1H16zM2 10h4v1H2zM10 10h4v1H10zM16 10h4v1H16zM2 11h3v1H2zM10 11h4v1H10zM17 11h3v1H17zM2 12h3v1H2zM10 12h4v1H10zM17 12h3v1H17zM2 13h3v1H2zM10 13h4v1H10zM17 13h3v1H17zM2 14h3v1H2zM17 14h3v1H17zM2 15h4v1H2zM16 15h4v1H16zM3 16h3v1H3zM16 16h3v1H16zM3 17h4v1H3zM15 17h4v1H15zM4 18h5v1H4zM13 18h5v1H13zM5 19h12v1H5zM6 20h10v1H6zM8 21h6v1H8z'/%3E%3C/svg%3E");
+    --drpg-g-failure-log:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M5 2h2v1H5zM18 2h2v1H18zM5 3h2v1H5zM17 3h3v1H17zM5 4h3v1H5zM16 4h3v1H16zM6 5h12v1H6zM7 6h10v1H7zM7 7h10v1H7zM7 8h10v1H7zM6 9h12v1H6zM1 10h10v1H1zM13 10h10v1H13zM1 11h10v1H1zM13 11h10v1H13zM6 12h5v1H6zM13 12h5v1H13zM1 13h10v1H1zM13 13h10v1H13zM1 14h10v1H1zM13 14h10v1H13zM6 15h5v1H6zM13 15h5v1H13zM1 16h10v1H1zM13 16h10v1H13zM1 17h10v1H1zM13 17h10v1H13zM6 18h5v1H6zM13 18h5v1H13zM6 19h12v1H6zM10 20h4v1H10z'/%3E%3C/svg%3E");
+    --drpg-g-clock:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 0h6v1H8zM5 1h12v1H5zM4 2h14v1H4zM3 3h5v1H3zM14 3h5v1H14zM2 4h4v1H2zM16 4h4v1H16zM1 5h4v1H1zM10 5h3v1H10zM17 5h4v1H17zM1 6h3v1H1zM10 6h3v1H10zM18 6h3v1H18zM1 7h3v1H1zM10 7h3v1H10zM18 7h3v1H18zM0 8h3v1H0zM10 8h3v1H10zM19 8h3v1H19zM0 9h3v1H0zM10 9h3v1H10zM19 9h3v1H19zM0 10h3v1H0zM10 10h3v1H10zM19 10h3v1H19zM0 11h3v1H0zM10 11h7v1H10zM19 11h3v1H19zM0 12h3v1H0zM10 12h7v1H10zM19 12h3v1H19zM0 13h3v1H0zM10 13h7v1H10zM19 13h3v1H19zM1 14h3v1H1zM18 14h3v1H18zM1 15h3v1H1zM18 15h3v1H18zM1 16h4v1H1zM17 16h4v1H17zM2 17h4v1H2zM16 17h4v1H16zM3 18h5v1H3zM14 18h5v1H14zM4 19h14v1H4zM5 20h12v1H5zM8 21h6v1H8z'/%3E%3C/svg%3E");
+
+    --drpg-g-confusion:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M19 1h2v1H19zM19 2h2v1H19zM17 3h6v1H17zM17 4h6v1H17zM10 5h2v1H10zM19 5h2v1H19zM10 6h2v1H10zM19 6h2v1H19zM6 7h2v1H6zM10 7h2v1H10zM14 7h2v1H14zM6 8h2v1H6zM10 8h2v1H10zM14 8h2v1H14zM6 9h2v1H6zM10 9h2v1H10zM14 9h2v1H14zM19 9h2v1H19zM6 10h2v1H6zM10 10h2v1H10zM14 10h2v1H14zM18 10h4v1H18zM6 11h2v1H6zM10 11h2v1H10zM14 11h2v1H14zM18 11h4v1H18zM3 12h5v1H3zM10 12h2v1H10zM14 12h2v1H14zM19 12h2v1H19zM3 13h5v1H3zM10 13h2v1H10zM14 13h2v1H14zM3 14h5v1H3zM10 14h2v1H10zM14 14h2v1H14zM3 15h13v1H3zM3 16h13v1H3zM3 17h13v1H3zM6 18h10v1H6zM6 19h10v1H6zM6 20h10v1H6z'/%3E%3C/svg%3E");
+    --drpg-g-misleading-trail:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 3h3v1H10zM10 4h3v1H10zM4 5h16v1H4zM4 6h17v1H4zM4 7h18v1H4zM4 8h18v1H4zM4 9h17v1H4zM4 10h16v1H4zM10 11h3v1H10zM10 12h3v1H10zM4 13h17v1H4zM3 14h18v1H3zM2 15h19v1H2zM2 16h19v1H2zM3 17h18v1H3zM4 18h17v1H4zM10 19h3v1H10zM10 20h3v1H10zM10 21h3v1H10z'/%3E%3C/svg%3E");
+    --drpg-g-move-body:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 3h4v1H3zM2 4h16v1H2zM1 5h17v1H1zM1 6h17v1H1zM1 7h17v1H1zM1 8h17v1H1zM2 9h16v1H2zM3 10h19v1H3zM14 11h8v1H14zM14 12h8v1H14zM14 13h8v1H14zM16 16h2v1H16zM16 17h4v1H16zM2 18h19v1H2zM2 19h18v1H2zM16 20h2v1H16z'/%3E%3C/svg%3E");
+    --drpg-g-betrayal:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 3h4v1H3zM16 3h4v1H16zM2 4h6v1H2zM15 4h6v1H15zM1 5h8v1H1zM14 5h8v1H14zM1 6h8v1H1zM14 6h8v1H14zM1 7h8v1H1zM14 7h8v1H14zM1 8h8v1H1zM14 8h8v1H14zM2 9h6v1H2zM15 9h6v1H15zM3 10h4v1H3zM16 10h4v1H16zM3 13h6v1H3zM16 13h6v1H16zM2 14h8v1H2zM15 14h8v1H15zM1 15h10v1H1zM14 15h10v1H14zM1 16h10v1H1zM14 16h10v1H14zM1 17h10v1H1zM14 17h10v1H14zM1 20h10v1H1zM14 20h9v1H14zM1 21h10v1H1zM14 21h9v1H14z'/%3E%3C/svg%3E");
+
+    --drpg-g-monokuma-eye: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M23 5h1v1H23zM22 6h2v1H22zM20 7h3v1H20zM19 8h4v1H19zM17 9h6v1H17zM7 10h1v1H7zM16 10h6v1H16zM6 11h3v1H6zM14 11h8v1H14zM5 12h5v1H5zM12 12h9v1H12zM4 13h17v1H4zM4 14h10v1H4zM16 14h4v1H16zM4 15h7v1H4zM17 15h1v1H17zM2 16h7v1H2zM1 17h3v1H1zM8 17h1v1H8zM0 18h2v1H0z'/%3E%3C/svg%3E");
+
+    --drpg-r-flask:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M7 3h10v1H7zM7 4h10v1H7zM10 5h4v1H10zM10 6h4v1H10zM10 7h4v1H10zM10 8h4v1H10zM9 9h6v1H9zM8 10h2v1H8zM14 10h2v1H14zM7 11h2v1H7zM15 11h2v1H15zM6 12h2v1H6zM16 12h2v1H16zM5 13h2v1H5zM17 13h2v1H17zM4 14h2v1H4zM18 14h2v1H18zM4 15h2v1H4zM18 15h2v1H18zM3 16h18v1H3zM2 17h20v1H2zM2 18h20v1H2zM2 19h20v1H2zM3 20h18v1H3z'/%3E%3C/svg%3E");
+    --drpg-r-fist:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 7h4v1H3zM9 7h4v1H9zM15 7h4v1H15zM3 8h4v1H3zM9 8h4v1H9zM15 8h4v1H15zM3 9h16v1H3zM3 10h16v1H3zM3 11h16v1H3zM3 12h16v1H3zM3 13h16v1H3zM4 14h14v1H4zM5 15h12v1H5zM6 16h10v1H6z'/%3E%3C/svg%3E");
+    --drpg-r-trash:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 4h6v1H9zM4 5h16v1H4zM4 6h16v1H4zM6 8h12v1H6zM6 9h12v1H6zM6 10h12v1H6zM6 11h12v1H6zM6 12h12v1H6zM6 13h12v1H6zM7 14h10v1H7zM7 15h10v1H7zM7 16h10v1H7zM7 17h10v1H7zM7 18h10v1H7z'/%3E%3C/svg%3E");
+    --drpg-r-stow:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 3h4v1H10zM10 4h4v1H10zM10 5h4v1H10zM6 6h12v1H6zM7 7h10v1H7zM8 8h8v1H8zM9 9h6v1H9zM10 10h4v1H10zM11 11h2v1H11zM3 13h18v1H3zM3 14h18v1H3zM3 16h18v1H3zM3 17h18v1H3zM3 18h18v1H3zM3 19h18v1H3z'/%3E%3C/svg%3E");
+    --drpg-r-retrieve:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 3h2v1H11zM10 4h4v1H10zM9 5h6v1H9zM8 6h8v1H8zM7 7h10v1H7zM6 8h12v1H6zM10 9h4v1H10zM10 10h4v1H10zM10 11h4v1H10zM3 13h18v1H3zM3 14h18v1H3zM3 16h18v1H3zM3 17h18v1H3zM3 18h18v1H3zM3 19h18v1H3z'/%3E%3C/svg%3E");
+    --drpg-r-share:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M16 0h6v1H16zM16 1h6v1H16zM16 2h6v1H16zM16 3h6v1H16zM16 4h6v1H16zM14 5h8v1H14zM12 6h2v1H12zM10 7h2v1H10zM8 8h2v1H8zM0 9h8v1H0zM0 10h6v1H0zM0 11h6v1H0zM0 12h6v1H0zM0 13h6v1H0zM0 14h8v1H0zM8 15h2v1H8zM10 16h2v1H10zM12 17h2v1H12zM14 18h8v1H14zM16 19h6v1H16zM16 20h6v1H16zM16 21h6v1H16zM16 22h6v1H16zM16 23h6v1H16z'/%3E%3C/svg%3E");
+    --drpg-r-give:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 4h6v1H9zM9 5h6v1H9zM9 6h6v1H9zM9 7h6v1H9zM2 10h2v1H2zM20 10h2v1H20zM2 11h2v1H2zM20 11h2v1H20zM2 12h3v1H2zM19 12h3v1H19zM3 13h3v1H3zM18 13h3v1H18zM4 14h4v1H4zM16 14h4v1H16zM6 15h4v1H6zM14 15h4v1H14zM8 16h8v1H8zM8 17h8v1H8zM10 18h4v1H10zM10 19h4v1H10z'/%3E%3C/svg%3E");
 }
 
 /* Shared pixel-sprite plumbing.
@@ -6325,21 +6566,6 @@ body.drpg-pixel-font .drpg-safeword-button {
    takes its offsets from here.
    ========================================================================== */
 
-:root {
-    --drpg-edge: 22px;
-
-    /* THE TWO CORNER CIRCLES, AS ONE MEASUREMENT.
-       The chat launcher takes its 66px from the performance gauge at the other
-       end of the bottom edge (Dawid, 26.08) - two ends of the same line that
-       must agree. The sound launcher then takes its size and its offset FROM
-       the chat one, because it is stacked on top of it: hard-coding 52 and 66
-       in three places is how a stack ends up overlapping itself the next time
-       the gauge changes. Which is exactly what happened while this was being
-       built. */
-    --drpg-launcher: 66px;
-    --drpg-launcher-small: 52px;
-}
-
 /* Despair and the HUD are flex items in #ui-top, not fixed boxes - `top` on
    them does nothing at all. The margin on the FIRST item is what pushes the
    whole column down, and the HUD follows it for free. */
@@ -6635,14 +6861,6 @@ html body {
     color: var(--drpg-bone) !important;
 }
 
-/* The safeword is the one control on this sheet that has to be found by
-   somebody who is not enjoying themselves. A 14%-alpha wash behind red text at
-   3.94:1 is a decoration; this is a button. */
-.drpg-safeword-button {
-    background: var(--drpg-crimson) !important;
-    border: 1px solid var(--drpg-crimson-light) !important;
-    color: var(--drpg-bone) !important;
-}
 
 .drpg-safeword-button:hover {
     background: var(--drpg-eye) !important;
@@ -6667,16 +6885,6 @@ html body {
 
    Everything below claims a surface outright instead of tinting it.
    ========================================================================== */
-
-:root {
-    /* Bahnschrift ships with Windows 10 and up and is a condensed grotesque -
-       close to the heavy, squared lettering Danganronpa sets its menus in, and
-       nothing like Foundry's Signika. The stack degrades to the platform UI
-       face rather than to a serif, so a Mac or Linux seat still looks
-       deliberate. */
-    --drpg-font-ui: "Bahnschrift", "Segoe UI Variable Display", "Segoe UI",
-                    system-ui, -apple-system, "Helvetica Neue", sans-serif;
-}
 
 /* --- fonts --------------------------------------------------------------- */
 
@@ -6958,29 +7166,6 @@ html body {
    white the game is named for. Every section header is now a solid Bone bar
    with Ink text - Monokuma's split, applied to the furniture.
    ========================================================================== */
-
-:root {
-    --drpg-text-xs: 0.6875rem;   /* 11px - the floor, never smaller */
-    --drpg-text-sm: 0.8125rem;   /* 13px */
-    --drpg-text-md: 0.9375rem;   /* 15px */
-    --drpg-text-base: 1rem;      /* 16px */
-    --drpg-text-lg: 1.25rem;     /* 20px */
-    --drpg-text-xl: 1.75rem;     /* 28px */
-
-    /* Two window widths, and no third.
-       --------------------------------------------------------------------
-       Every popup the module opens is one of these. Measured before they
-       existed, the same set of windows came out at 360, 400, 544, 723, 736,
-       896 and 1274px - seven sizes for one module, so nothing on screen ever
-       sat where the last thing had been.
-
-       Both are deliberately NARROWER than the character sheet's 850px
-       default. The sheet is the thing you work in; these are the things you
-       answer and dismiss, and a dialog as wide as the sheet reads as another
-       sheet. Wide is for a table with columns to line up - nothing else. */
-    --drpg-popup: 34rem;         /* 544px - every window with prose in it */
-    --drpg-popup-wide: 44rem;    /* 704px - the GM panel and the managers */
-}
 
 /* --- the font takes everything ------------------------------------------ */
 
@@ -7725,31 +7910,6 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
    on a thin diagonal reads as a banner so the hammer became a blunt T.
    ========================================================================== */
 
-:root {
-    --drpg-g-move:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 2h3v1H6zM10 2h3v1H10zM14 2h3v1H14zM18 2h2v1H18zM6 3h3v1H6zM10 3h3v1H10zM14 3h3v1H14zM18 3h2v1H18zM6 5h13v1H6zM5 6h15v1H5zM5 7h15v1H5zM5 8h15v1H5zM6 9h13v1H6zM7 10h11v1H7zM8 11h9v1H8zM9 12h7v1H9zM9 13h7v1H9zM7 14h11v1H7zM6 15h13v1H6zM6 16h13v1H6zM7 17h11v1H7zM8 18h9v1H8z'/%3E%3C/svg%3E");
-    --drpg-g-search:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M7 2h7v1H7zM5 3h3v1H5zM13 3h3v1H13zM4 4h2v1H4zM14 4h2v1H14zM3 5h2v1H3zM15 5h2v1H15zM3 6h2v1H3zM15 6h2v1H15zM2 7h2v1H2zM16 7h2v1H16zM2 8h2v1H2zM16 8h2v1H16zM2 9h2v1H2zM16 9h2v1H16zM3 10h2v1H3zM15 10h2v1H15zM3 11h2v1H3zM15 11h2v1H15zM4 12h2v1H4zM14 12h2v1H14zM5 13h3v1H5zM13 13h3v1H13zM7 14h7v1H7zM13 15h3v1H13zM14 16h3v1H14zM15 17h3v1H15zM16 18h3v1H16zM17 19h3v1H17zM18 20h3v1H18z'/%3E%3C/svg%3E");
-    --drpg-g-observe:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 7h8v1H8zM5 8h3v1H5zM16 8h3v1H16zM3 9h2v1H3zM10 9h4v1H10zM19 9h2v1H19zM2 10h2v1H2zM9 10h6v1H9zM20 10h2v1H20zM2 11h2v1H2zM9 11h6v1H9zM20 11h2v1H20zM3 12h2v1H3zM10 12h4v1H10zM19 12h2v1H19zM5 13h3v1H5zM16 13h3v1H16zM8 14h8v1H8z'/%3E%3C/svg%3E");
-    --drpg-g-analyze:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 2h4v1H10zM8 3h8v1H8zM7 4h10v1H7zM6 5h12v1H6zM6 6h12v1H6zM6 7h12v1H6zM6 8h12v1H6zM7 9h10v1H7zM7 10h10v1H7zM8 11h8v1H8zM9 12h6v1H9zM9 14h6v1H9zM9 16h6v1H9zM10 18h4v1H10zM10 19h4v1H10z'/%3E%3C/svg%3E");
-    --drpg-g-listen:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 9h4v1H3zM3 10h4v1H3zM3 11h4v1H3zM3 12h4v1H3zM3 13h4v1H3zM10 9h2v1H10zM11 10h2v1H11zM11 11h2v1H11zM11 12h2v1H11zM10 13h2v1H10zM14 7h2v1H14zM15 8h2v1H15zM16 9h2v1H16zM17 10h2v1H17zM17 11h2v1H17zM17 12h2v1H17zM16 13h2v1H16zM15 14h2v1H15zM14 15h2v1H14z'/%3E%3C/svg%3E");
-    --drpg-g-project:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 4h14v1H6zM6 5h14v1H6zM4 6h16v1H4zM4 7h3v1H4zM11 7h9v1H11zM4 8h3v1H4zM11 8h9v1H11zM4 9h3v1H4zM11 9h9v1H11zM12 10h4v1H12zM12 11h4v1H12zM12 12h4v1H12zM12 13h4v1H12zM12 14h4v1H12zM12 15h4v1H12zM12 16h4v1H12zM12 17h4v1H12zM12 18h4v1H12zM12 19h4v1H12zM12 20h4v1H12zM12 21h4v1H12z'/%3E%3C/svg%3E");
-    --drpg-g-sabotage:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M17 1h3v1H17zM16 2h2v1H16zM15 3h2v1H15zM14 4h2v1H14zM13 5h2v1H13zM8 7h8v1H8zM6 8h12v1H6zM5 9h14v1H5zM4 10h16v1H4zM4 11h16v1H4zM4 12h16v1H4zM4 13h16v1H4zM5 14h14v1H5zM6 15h12v1H6zM8 16h8v1H8z'/%3E%3C/svg%3E");
-    --drpg-g-rest:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 7h3v1H2zM2 8h3v1H2zM5 8h5v1H5zM2 9h3v1H2zM5 9h5v1H5zM2 10h20v1H2zM2 11h20v1H2zM2 12h20v1H2zM2 13h2v1H2zM20 13h2v1H20zM2 14h2v1H2zM20 14h2v1H20zM2 15h2v1H2zM20 15h2v1H20z'/%3E%3C/svg%3E");
-    --drpg-g-direct-murder:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M7 3h10v1H7zM5 4h14v1H5zM4 5h16v1H4zM4 6h16v1H4zM3 7h18v1H3zM3 8h4v1H3zM9 8h6v1H9zM17 8h4v1H17zM3 9h3v1H3zM8 9h8v1H8zM18 9h3v1H18zM3 10h3v1H3zM8 10h8v1H8zM18 10h3v1H18zM3 11h4v1H3zM9 11h6v1H9zM17 11h4v1H17zM3 12h18v1H3zM4 13h16v1H4zM5 14h5v1H5zM11 14h3v1H11zM16 14h5v1H16zM5 15h14v1H5zM6 16h12v1H6zM6 17h12v1H6zM6 18h2v1H6zM9 18h2v1H9zM12 18h2v1H12zM15 18h2v1H15z'/%3E%3C/svg%3E");
-    --drpg-g-dynamic:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 1h2v1H11zM11 2h2v1H11zM11 3h2v1H11zM10 4h4v1H10zM5 5h2v1H5zM11 5h2v1H11zM17 5h2v1H17zM6 6h2v1H6zM10 6h4v1H10zM16 6h2v1H16zM7 7h2v1H7zM10 7h4v1H10zM15 7h2v1H15zM9 8h6v1H9zM2 9h20v1H2zM2 10h20v1H2zM9 11h6v1H9zM7 12h2v1H7zM10 12h4v1H10zM15 12h2v1H15zM6 13h2v1H6zM10 13h4v1H10zM16 13h2v1H16zM5 14h2v1H5zM11 14h2v1H11zM17 14h2v1H17zM10 15h4v1H10zM11 16h2v1H11zM11 17h2v1H11zM11 18h2v1H11z'/%3E%3C/svg%3E");
-    --drpg-g-cleanup:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M16 2h3v1H16zM15 3h3v1H15zM14 4h3v1H14zM13 5h3v1H13zM12 6h3v1H12zM11 7h3v1H11zM10 8h3v1H10zM9 9h3v1H9zM6 10h9v1H6zM5 11h11v1H5zM4 12h13v1H4zM4 13h2v1H4zM7 13h2v1H7zM10 13h2v1H10zM13 13h2v1H13zM16 13h1v1H16zM4 14h2v1H4zM7 14h2v1H7zM10 14h2v1H10zM13 14h2v1H13zM16 14h1v1H16zM3 15h2v1H3zM7 15h2v1H7zM10 15h2v1H10zM14 15h2v1H14zM17 15h1v1H17zM3 16h2v1H3zM7 16h2v1H7zM10 16h2v1H10zM14 16h2v1H14zM17 16h1v1H17z'/%3E%3C/svg%3E");
-}
-
 /* The tile's icon slot becomes a mask box. Font Awesome still ships the
    element, so its glyph has to be switched off explicitly - `content: none`
    on the pseudo-element it draws into. */
@@ -7863,17 +8023,6 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
    background disappears at this size and the same stroke removed from a
    sixteen-pixel mass does not.
    ========================================================================== */
-
-:root {
-    --drpg-g-sprint:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 5h1v1H2zM12 5h1v1H12zM2 6h2v1H2zM12 6h2v1H12zM2 7h3v1H2zM12 7h3v1H12zM2 8h4v1H2zM12 8h4v1H12zM2 9h5v1H2zM12 9h5v1H12zM2 10h6v1H2zM12 10h6v1H12zM2 11h7v1H2zM12 11h7v1H12zM2 12h7v1H2zM12 12h7v1H12zM2 13h6v1H2zM12 13h6v1H12zM2 14h5v1H2zM12 14h5v1H12zM2 15h4v1H2zM12 15h4v1H12zM2 16h3v1H2zM12 16h3v1H12zM2 17h2v1H2zM12 17h2v1H12zM2 18h1v1H2zM12 18h1v1H12z'/%3E%3C/svg%3E");
-    --drpg-g-burst:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M13 1h5v1H13zM11 2h6v1H11zM10 3h6v1H10zM9 4h6v1H9zM8 5h6v1H8zM7 6h7v1H7zM6 7h10v1H6zM5 8h10v1H5zM10 9h7v1H10zM9 10h6v1H9zM8 11h6v1H8zM7 12h6v1H7zM6 13h6v1H6zM5 14h6v1H5zM4 15h6v1H4zM4 16h4v1H4zM5 17h2v1H5z'/%3E%3C/svg%3E");
-    --drpg-g-relief:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 5h13v1H3zM3 6h13v1H3zM4 7h11v1H4zM4 8h11v1H4zM4 9h11v1H4zM16 9h3v1H16zM4 10h11v1H4zM17 10h2v1H17zM4 11h11v1H4zM17 11h2v1H17zM4 12h11v1H4zM16 12h3v1H16zM4 13h11v1H4zM4 14h11v1H4zM4 15h11v1H4zM4 16h11v1H4zM5 17h9v1H5zM5 18h9v1H5z'/%3E%3C/svg%3E");
-    --drpg-g-palm:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 3h2v1H8zM11 3h2v1H11zM14 3h2v1H14zM8 4h2v1H8zM11 4h2v1H11zM14 4h2v1H14zM8 5h2v1H8zM11 5h2v1H11zM14 5h2v1H14zM8 6h9v1H8zM6 7h11v1H6zM5 8h12v1H5zM5 9h13v1H5zM5 10h13v1H5zM5 11h13v1H5zM6 12h12v1H6zM6 13h12v1H6zM7 14h10v1H7zM8 15h8v1H8zM9 16h6v1H9z'/%3E%3C/svg%3E");
-}
 
 .drpg-call-button[data-drpg-call="sprint"] .drpg-action-icon,
 .drpg-call-button[data-drpg-call="burst"] .drpg-action-icon,
@@ -8085,23 +8234,6 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
    crisis set (14) still have Font Awesome.
    ========================================================================== */
 
-:root {
-    --drpg-g-support:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 3h4v1H10zM8 4h8v1H8zM8 5h8v1H8zM8 6h8v1H8zM10 7h4v1H10zM2 11h3v1H2zM19 11h3v1H19zM2 12h4v1H2zM18 12h4v1H18zM3 13h5v1H3zM16 13h5v1H16zM4 14h7v1H4zM13 14h7v1H13zM6 15h12v1H6zM8 16h8v1H8z'/%3E%3C/svg%3E");
-    --drpg-g-experience:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 3h2v1H11zM9 4h6v1H9zM7 5h10v1H7zM5 6h14v1H5zM3 7h18v1H3zM1 8h22v1H1zM3 9h18v1H3zM5 10h14v1H5zM7 11h10v1H7zM8 12h8v1H8zM8 13h8v1H8zM9 14h6v1H9zM10 15h4v1H10zM20 10h2v1H20zM20 11h2v1H20zM20 12h2v1H20zM19 13h3v1H19zM19 14h3v1H19z'/%3E%3C/svg%3E");
-    --drpg-g-ultimate:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 1h2v1H11zM11 2h2v1H11zM10 3h4v1H10zM10 4h4v1H10zM9 5h6v1H9zM2 6h20v1H2zM3 7h18v1H3zM4 8h16v1H4zM5 9h14v1H5zM5 10h14v1H5zM4 11h16v1H4zM4 12h6v1H4zM14 12h6v1H14zM3 13h5v1H3zM16 13h5v1H16zM3 14h4v1H3zM17 14h4v1H17zM2 15h4v1H2zM18 15h4v1H18z'/%3E%3C/svg%3E");
-    --drpg-g-contribution:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 1h6v1H9zM9 2h6v1H9zM3 3h4v1H3zM9 3h6v1H9zM17 3h4v1H17zM3 4h4v1H3zM9 4h6v1H9zM17 4h4v1H17zM3 5h18v1H3zM3 6h18v1H3zM5 7h14v1H5zM5 8h5v1H5zM14 8h5v1H14zM1 9h8v1H1zM15 9h8v1H15zM1 10h7v1H1zM16 10h7v1H16zM1 11h7v1H1zM16 11h7v1H16zM1 12h7v1H1zM16 12h7v1H16zM1 13h7v1H1zM16 13h7v1H16zM1 14h8v1H1zM15 14h8v1H15zM5 15h5v1H5zM14 15h5v1H14zM5 16h14v1H5zM3 17h18v1H3zM3 18h18v1H3zM3 19h4v1H3zM9 19h6v1H9zM17 19h4v1H17zM3 20h4v1H3zM9 20h6v1H9zM17 20h4v1H17zM9 21h6v1H9zM9 22h6v1H9z'/%3E%3C/svg%3E");
-    --drpg-g-reroll:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 3h6v1H9zM7 4h10v1H7zM6 5h12v1H6zM5 6h5v1H5zM14 6h5v1H14zM5 7h3v1H5zM16 7h3v1H16zM4 8h4v1H4zM16 8h4v1H16zM4 9h3v1H4zM17 9h3v1H17zM4 10h3v1H4zM17 10h3v1H17zM4 11h3v1H4zM17 11h3v1H17zM4 12h3v1H4zM17 12h3v1H17zM4 13h3v1H4zM17 13h3v1H17zM1 14h9v1H1zM17 14h3v1H17zM1 15h9v1H1zM17 15h3v1H17zM2 16h7v1H2zM17 16h3v1H17zM3 17h5v1H3zM17 17h3v1H17zM4 18h3v1H4zM17 18h3v1H17zM17 19h3v1H17z'/%3E%3C/svg%3E");
-    --drpg-g-determination:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 3h2v1H11zM10 4h4v1H10zM10 5h4v1H10zM9 6h6v1H9zM8 7h8v1H8zM8 8h8v1H8zM7 9h10v1H7zM6 10h12v1H6zM6 11h12v1H6zM5 12h14v1H5zM5 13h14v1H5zM5 14h14v1H5zM6 15h12v1H6zM7 16h10v1H7zM9 17h6v1H9z'/%3E%3C/svg%3E");
-    --drpg-g-free-crit:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 3h4v1H10zM8 4h8v1H8zM6 5h12v1H6zM5 6h6v1H5zM13 6h6v1H13zM4 7h7v1H4zM13 7h7v1H13zM4 8h7v1H4zM13 8h7v1H13zM4 9h7v1H4zM13 9h7v1H13zM4 10h7v1H4zM13 10h7v1H13zM4 11h7v1H4zM13 11h7v1H13zM4 12h6v1H4zM11 12h2v1H11zM14 12h6v1H14zM4 13h5v1H4zM10 13h4v1H10zM15 13h5v1H15zM4 14h4v1H4zM9 14h6v1H9zM16 14h4v1H16zM4 15h3v1H4zM8 15h8v1H8zM17 15h3v1H17zM5 16h14v1H5zM6 17h12v1H6zM8 18h8v1H8zM10 19h4v1H10z'/%3E%3C/svg%3E");
-}
-
 /* The Call tiles take the same mask treatment as the action tiles. The reset
    is scoped per key, so any Call without a glyph yet keeps its Font Awesome
    icon rather than rendering blank. */
@@ -8240,54 +8372,6 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
    negative space carries it. Same trick gives the gift box its ribbon and the
    bin its ribs - every internal line in this set is a gap, never a stroke.
    ========================================================================== */
-
-:root {
-    --drpg-g-obstacle:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 5h20v1H2zM2 6h20v1H2zM2 7h20v1H2zM4 8h3v1H4zM17 8h3v1H17zM4 9h3v1H4zM17 9h3v1H17zM2 10h20v1H2zM2 11h20v1H2zM2 12h20v1H2zM4 13h3v1H4zM17 13h3v1H17zM4 14h3v1H4zM17 14h3v1H17zM4 15h3v1H4zM17 15h3v1H17zM4 16h3v1H4zM17 16h3v1H17z'/%3E%3C/svg%3E");
-    --drpg-g-for-the-game:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 3h4v1H6zM14 3h4v1H14zM5 4h6v1H5zM13 4h6v1H13zM8 5h8v1H8zM3 6h18v1H3zM3 7h18v1H3zM4 8h7v1H4zM13 8h7v1H13zM4 9h7v1H4zM13 9h7v1H13zM4 10h7v1H4zM13 10h7v1H13zM4 11h7v1H4zM13 11h7v1H13zM4 12h7v1H4zM13 12h7v1H13zM4 13h7v1H4zM13 13h7v1H13zM4 14h7v1H4zM13 14h7v1H13zM4 15h7v1H4zM13 15h7v1H13zM4 16h7v1H4zM13 16h7v1H13zM4 17h7v1H4zM13 17h7v1H13z'/%3E%3C/svg%3E");
-    --drpg-g-behind-closed-doors:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 2h16v1H4zM4 3h16v1H4zM4 4h3v1H4zM17 4h3v1H17zM4 5h3v1H4zM17 5h3v1H17zM4 6h3v1H4zM17 6h3v1H17zM4 7h3v1H4zM17 7h3v1H17zM4 8h3v1H4zM17 8h3v1H17zM4 9h3v1H4zM17 9h3v1H17zM4 10h3v1H4zM14 10h2v1H14zM17 10h3v1H17zM4 11h3v1H4zM14 11h2v1H14zM17 11h3v1H17zM4 12h3v1H4zM17 12h3v1H17zM4 13h3v1H4zM17 13h3v1H17zM4 14h3v1H4zM17 14h3v1H17zM4 15h3v1H4zM17 15h3v1H17zM4 16h3v1H4zM17 16h3v1H17zM4 17h3v1H4zM17 17h3v1H17zM4 18h16v1H4zM4 19h16v1H4z'/%3E%3C/svg%3E");
-    --drpg-g-this-will-hurt:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 4h6v1H4zM14 4h6v1H14zM3 5h8v1H3zM13 5h8v1H13zM2 6h9v1H2zM13 6h9v1H13zM2 7h9v1H2zM12 7h10v1H12zM2 8h10v1H2zM13 8h9v1H13zM3 9h9v1H3zM12 9h9v1H12zM4 10h8v1H4zM13 10h7v1H13zM5 11h7v1H5zM12 11h7v1H12zM6 12h6v1H6zM13 12h5v1H13zM7 13h5v1H7zM12 13h5v1H12zM8 14h4v1H8zM13 14h3v1H13zM9 15h3v1H9zM12 15h3v1H12zM10 16h4v1H10zM11 17h2v1H11z'/%3E%3C/svg%3E");
-    --drpg-g-paranoia:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 3h8v1H8zM5 4h4v1H5zM15 4h4v1H15zM4 5h3v1H4zM17 5h3v1H17zM3 6h3v1H3zM18 6h3v1H18zM3 7h3v1H3zM9 7h6v1H9zM18 7h3v1H18zM3 8h3v1H3zM8 8h3v1H8zM13 8h3v1H13zM18 8h3v1H18zM3 9h3v1H3zM8 9h3v1H8zM13 9h3v1H13zM18 9h3v1H18zM3 10h3v1H3zM8 10h3v1H8zM13 10h3v1H13zM18 10h3v1H18zM3 11h3v1H3zM9 11h6v1H9zM18 11h3v1H18zM3 12h3v1H3zM18 12h3v1H18zM4 13h3v1H4zM17 13h3v1H17zM5 14h4v1H5zM15 14h4v1H15zM8 15h8v1H8z'/%3E%3C/svg%3E");
-    --drpg-g-chained:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 2h8v1H8zM7 3h3v1H7zM14 3h3v1H14zM7 4h3v1H7zM14 4h3v1H14zM7 5h3v1H7zM14 5h3v1H14zM8 6h8v1H8zM8 8h8v1H8zM7 9h3v1H7zM14 9h3v1H14zM7 10h3v1H7zM14 10h3v1H14zM7 11h3v1H7zM14 11h3v1H14zM8 12h8v1H8zM8 14h8v1H8zM7 15h3v1H7zM14 15h3v1H14zM7 16h3v1H7zM14 16h3v1H14zM7 17h3v1H7zM14 17h3v1H14zM8 18h8v1H8z'/%3E%3C/svg%3E");
-    --drpg-g-silence:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M5 3h13v1H5zM3 4h13v1H3zM19 4h2v1H19zM2 5h12v1H2zM17 5h5v1H17zM2 6h10v1H2zM15 6h7v1H15zM2 7h8v1H2zM13 7h9v1H13zM2 8h6v1H2zM11 8h11v1H11zM3 9h3v1H3zM9 9h12v1H9zM7 10h12v1H7zM7 11h4v1H7zM7 12h3v1H7zM7 13h2v1H7z'/%3E%3C/svg%3E");
-    --drpg-g-fuel-the-cub:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 3h4v1H6zM13 3h4v1H13zM5 4h6v1H5zM12 4h6v1H12zM4 5h14v1H4zM4 6h14v1H4zM5 7h12v1H5zM6 8h10v1H6zM7 9h8v1H7zM8 10h6v1H8zM9 11h4v1H9zM3 14h18v1H3zM2 15h20v1H2zM3 16h18v1H3zM5 17h14v1H5z'/%3E%3C/svg%3E");
-    --drpg-g-favorite-project:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 4h2v1H11zM10 5h4v1H10zM9 6h6v1H9zM8 7h8v1H8zM7 8h10v1H7zM6 9h12v1H6zM5 10h14v1H5zM4 11h16v1H4zM9 12h6v1H9zM9 13h6v1H9zM9 14h6v1H9zM9 15h6v1H9zM9 16h6v1H9zM9 17h6v1H9zM9 18h6v1H9zM9 19h6v1H9z'/%3E%3C/svg%3E");
-    /* Feed the Overflow: water, because that is what the Call is named after
-       and what the counter does. Three waves, the middle one in counter-phase,
-       running edge to edge - at 24px a stack of identical lines reads as
-       stripes, and the phase shift is the whole difference between stripes and
-       current. */
-    --drpg-g-feed-overflow:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M0 4h3v1H0zM9 4h6v1H9zM21 4h3v1H21zM0 5h4v1H0zM8 5h8v1H8zM20 5h4v1H20zM3 6h6v1H3zM15 6h6v1H15zM4 7h4v1H4zM16 7h4v1H16zM3 10h6v1H3zM15 10h6v1H15zM2 11h8v1H2zM14 11h8v1H14zM0 12h3v1H0zM9 12h6v1H9zM21 12h3v1H21zM0 13h2v1H0zM10 13h4v1H10zM22 13h2v1H22zM0 16h3v1H0zM9 16h6v1H9zM21 16h3v1H21zM0 17h4v1H0zM8 17h8v1H8zM20 17h4v1H20zM3 18h6v1H3zM15 18h6v1H15zM4 19h4v1H4zM16 19h4v1H16z'/%3E%3C/svg%3E");
-    --drpg-g-contraband:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 2h6v1H9zM3 3h18v1H3zM3 4h18v1H3zM4 5h16v1H4zM4 6h3v1H4zM9 6h2v1H9zM13 6h2v1H13zM17 6h3v1H17zM4 7h3v1H4zM9 7h2v1H9zM13 7h2v1H13zM17 7h3v1H17zM4 8h3v1H4zM9 8h2v1H9zM13 8h2v1H13zM17 8h3v1H17zM4 9h3v1H4zM9 9h2v1H9zM13 9h2v1H13zM17 9h3v1H17zM4 10h3v1H4zM9 10h2v1H9zM13 10h2v1H13zM17 10h3v1H17zM4 11h3v1H4zM9 11h2v1H9zM13 11h2v1H13zM17 11h3v1H17zM4 12h3v1H4zM9 12h2v1H9zM13 12h2v1H13zM17 12h3v1H17zM4 13h3v1H4zM9 13h2v1H9zM13 13h2v1H13zM17 13h3v1H17zM4 14h3v1H4zM9 14h2v1H9zM13 14h2v1H13zM17 14h3v1H17zM4 15h3v1H4zM9 15h2v1H9zM13 15h2v1H13zM17 15h3v1H17zM5 16h14v1H5zM6 17h12v1H6z'/%3E%3C/svg%3E");
-    --drpg-g-public-announcement:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 8h4v1H2zM2 9h4v1H2zM2 10h4v1H2zM2 11h4v1H2zM6 7h3v1H6zM6 8h3v1H6zM6 9h3v1H6zM6 10h3v1H6zM6 11h3v1H6zM6 12h3v1H6zM9 6h3v1H9zM9 7h3v1H9zM9 8h3v1H9zM9 9h3v1H9zM9 10h3v1H9zM9 11h3v1H9zM9 12h3v1H9zM9 13h3v1H9zM12 4h3v1H12zM12 5h3v1H12zM12 6h3v1H12zM12 7h3v1H12zM12 8h3v1H12zM12 9h3v1H12zM12 10h3v1H12zM12 11h3v1H12zM12 12h3v1H12zM12 13h3v1H12zM12 14h3v1H12zM12 15h3v1H12zM18 7h2v1H18zM19 9h2v1H19zM19 11h2v1H19zM18 13h2v1H18z'/%3E%3C/svg%3E");
-    --drpg-g-new-rule:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 3h10v1H3zM3 4h10v1H3zM3 5h10v1H3zM3 6h10v1H3zM8 7h4v1H8zM9 8h4v1H9zM10 9h4v1H10zM11 10h4v1H11zM12 11h4v1H12zM13 12h4v1H13zM14 13h4v1H14zM4 16h16v1H4zM3 17h18v1H3zM3 18h18v1H3z'/%3E%3C/svg%3E");
-    /* The falling arrow, on the Call that Dawid renamed Game Integrity
-       on 29.08. The eraser that used to live above this line went with
-       the project wipe - a variable nothing draws is a drawing somebody
-       will eventually wire to the wrong tile. */
-    --drpg-g-game-protection:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 2h6v1H9zM9 3h6v1H9zM9 4h6v1H9zM9 5h6v1H9zM9 6h6v1H9zM9 7h6v1H9zM9 8h6v1H9zM9 9h6v1H9zM9 10h6v1H9zM9 11h6v1H9zM4 12h16v1H4zM5 13h14v1H5zM6 14h12v1H6zM7 15h10v1H7zM8 16h8v1H8zM9 17h6v1H9zM10 18h4v1H10zM11 19h2v1H11z'/%3E%3C/svg%3E");
-    /* The motive: a sealed envelope, its flap a V-shaped GAP rather than
-       a stroke - the rule this whole set follows, and the reason Silence
-       reads at all. Distinct from every other tile in the Despair grid at
-       24px, which a clock face or an hourglass would not have been: the
-       HUD row carries the countdown, the tile only has to say "Monokuma
-       has handed something out". */
-    --drpg-g-motive:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 7h1v1H3zM5 7h14v1H5zM20 7h1v1H20zM3 8h2v1H3zM6 8h12v1H6zM19 8h2v1H19zM3 9h3v1H3zM7 9h10v1H7zM18 9h3v1H18zM3 10h4v1H3zM8 10h8v1H8zM17 10h4v1H17zM3 11h5v1H3zM9 11h6v1H9zM16 11h5v1H16zM3 12h6v1H3zM10 12h4v1H10zM15 12h6v1H15zM3 13h7v1H3zM11 13h2v1H11zM14 13h7v1H14zM3 14h8v1H3zM13 14h8v1H13zM3 15h18v1H3zM3 16h18v1H3zM3 17h18v1H3zM3 18h18v1H3z'/%3E%3C/svg%3E");
-}
 
 .drpg-call-button[data-drpg-call="obstacle"] .drpg-action-icon {
     width: 24px;
@@ -8662,37 +8746,6 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
    That completes the set: 35 glyphs, and Font Awesome no longer draws anything
    this module puts on screen.
    ========================================================================== */
-
-:root {
-    --drpg-g-leave-clue:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 3h8v1H8zM5 4h4v1H5zM15 4h4v1H15zM4 5h3v1H4zM17 5h3v1H17zM3 6h3v1H3zM8 6h8v1H8zM18 6h3v1H18zM3 7h3v1H3zM7 7h3v1H7zM14 7h3v1H14zM18 7h3v1H18zM3 8h3v1H3zM6 8h3v1H6zM10 8h4v1H10zM15 8h3v1H15zM18 8h3v1H18zM3 9h3v1H3zM6 9h3v1H6zM10 9h4v1H10zM15 9h3v1H15zM18 9h3v1H18zM3 10h3v1H3zM6 10h3v1H6zM10 10h4v1H10zM15 10h3v1H15zM18 10h3v1H18zM3 11h3v1H3zM7 11h3v1H7zM10 11h4v1H10zM14 11h3v1H14zM18 11h3v1H18zM4 12h3v1H4zM8 12h8v1H8zM17 12h3v1H17zM5 13h4v1H5zM15 13h4v1H15zM7 14h10v1H7z'/%3E%3C/svg%3E");
-    --drpg-g-secure-trace:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 3h4v1H10zM9 4h6v1H9zM9 5h6v1H9zM10 6h4v1H10zM2 9h4v1H2zM2 10h5v1H2zM3 11h5v1H3zM4 12h6v1H4zM5 13h7v1H5zM18 9h4v1H18zM17 10h5v1H17zM16 11h5v1H16zM14 12h6v1H14zM12 13h7v1H12zM6 14h12v1H6zM7 15h10v1H7zM9 16h6v1H9z'/%3E%3C/svg%3E");
-    --drpg-g-self-defence:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 2h16v1H4zM3 3h18v1H3zM3 4h18v1H3zM3 5h18v1H3zM3 6h18v1H3zM3 7h18v1H3zM3 8h18v1H3zM4 9h16v1H4zM4 10h16v1H4zM5 11h14v1H5zM6 12h12v1H6zM7 13h10v1H7zM8 14h8v1H8zM9 15h6v1H9zM10 16h4v1H10zM11 17h2v1H11z'/%3E%3C/svg%3E");
-    --drpg-g-survive:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M12 2h4v1H12zM11 3h5v1H11zM12 4h4v1H12zM8 6h8v1H8zM6 7h12v1H6zM5 8h6v1H5zM13 8h6v1H13zM7 9h4v1H7zM15 9h4v1H15zM8 10h4v1H8zM9 11h4v1H9zM10 12h4v1H10zM6 13h5v1H6zM13 13h4v1H13zM4 14h5v1H4zM14 14h4v1H14zM3 15h4v1H3zM15 15h5v1H15zM2 16h4v1H2zM17 16h4v1H17zM2 17h4v1H2zM18 17h4v1H18z'/%3E%3C/svg%3E");
-    --drpg-g-role-reversal:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M16 4h2v1H16zM16 5h4v1H16zM2 6h20v1H2zM2 7h20v1H2zM2 8h20v1H2zM16 9h4v1H16zM16 10h2v1H16zM6 13h2v1H6zM4 14h4v1H4zM2 15h20v1H2zM2 16h20v1H2zM2 17h20v1H2zM4 18h4v1H4zM6 19h2v1H6z'/%3E%3C/svg%3E");
-    --drpg-g-strike:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 2h3v1H4zM5 3h3v1H5zM6 4h3v1H6zM7 5h3v1H7zM17 2h3v1H17zM16 3h3v1H16zM15 4h3v1H15zM14 5h3v1H14zM9 7h6v1H9zM7 8h10v1H7zM6 9h12v1H6zM6 10h12v1H6zM7 11h10v1H7zM9 12h6v1H9zM7 14h3v1H7zM6 15h3v1H6zM5 16h3v1H5zM4 17h3v1H4zM14 14h3v1H14zM15 15h3v1H15zM16 16h3v1H16zM17 17h3v1H17z'/%3E%3C/svg%3E");
-    --drpg-g-pin:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 2h4v1H10zM10 3h4v1H10zM10 4h4v1H10zM10 5h4v1H10zM10 6h4v1H10zM5 7h14v1H5zM6 8h12v1H6zM7 9h10v1H7zM8 10h8v1H8zM9 11h6v1H9zM10 12h4v1H10zM2 15h20v1H2zM2 16h20v1H2zM2 17h20v1H2z'/%3E%3C/svg%3E");
-    --drpg-g-keep-distance:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 9h3v1H2zM2 10h3v1H2zM2 11h3v1H2zM2 12h3v1H2zM19 9h3v1H19zM19 10h3v1H19zM19 11h3v1H19zM19 12h3v1H19zM7 8h3v1H7zM6 9h4v1H6zM5 10h5v1H5zM6 11h4v1H6zM7 12h3v1H7zM14 8h3v1H14zM14 9h4v1H14zM14 10h5v1H14zM14 11h4v1H14zM14 12h3v1H14z'/%3E%3C/svg%3E");
-    --drpg-g-weapon-attack:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M15 1h4v1H15zM14 2h5v1H14zM13 3h5v1H13zM12 4h5v1H12zM11 5h5v1H11zM10 6h5v1H10zM9 7h5v1H9zM8 8h5v1H8zM7 9h5v1H7zM6 10h5v1H6zM5 11h5v1H5zM4 12h5v1H4zM3 13h6v1H3zM2 14h6v1H2zM4 15h5v1H4zM5 16h4v1H5zM3 17h7v1H3zM2 18h4v1H2z'/%3E%3C/svg%3E");
-    --drpg-g-finishing-blow:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 2h8v1H8zM6 3h12v1H6zM5 4h14v1H5zM5 5h14v1H5zM5 6h3v1H5zM10 6h4v1H10zM16 6h3v1H16zM5 7h3v1H5zM10 7h4v1H10zM16 7h3v1H16zM5 8h14v1H5zM6 9h12v1H6zM7 10h3v1H7zM11 10h2v1H11zM14 10h3v1H14zM2 13h4v1H2zM18 13h4v1H18zM3 14h5v1H3zM16 14h5v1H16zM5 15h14v1H5zM5 16h14v1H5zM3 17h5v1H3zM16 17h5v1H16zM2 18h4v1H2zM18 18h4v1H18z'/%3E%3C/svg%3E");
-    --drpg-g-shared-escape:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 2h12v1H3zM3 3h3v1H3zM12 3h3v1H12zM3 4h3v1H3zM12 4h3v1H12zM3 5h3v1H3zM12 5h3v1H12zM3 6h3v1H3zM12 6h3v1H12zM3 7h3v1H3zM12 7h3v1H12zM3 8h3v1H3zM12 8h3v1H12zM3 9h3v1H3zM12 9h3v1H12zM3 10h3v1H3zM10 10h2v1H10zM12 10h3v1H12zM3 11h3v1H3zM12 11h3v1H12zM3 12h3v1H3zM12 12h3v1H12zM3 13h3v1H3zM12 13h3v1H12zM3 14h3v1H3zM12 14h3v1H12zM3 15h3v1H3zM12 15h3v1H12zM3 16h3v1H3zM12 16h3v1H12zM3 17h12v1H3zM17 8h4v1H17zM16 9h6v1H16zM16 10h6v1H16zM17 11h4v1H17zM17 12h4v1H17zM16 13h6v1H16z'/%3E%3C/svg%3E");
-    --drpg-g-double-role-reversal:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 4h14v1H3zM3 5h3v1H3zM3 6h3v1H3zM14 3h3v1H14zM13 4h5v1H13zM12 5h7v1H12zM3 10h3v1H3zM3 11h3v1H3zM3 12h14v1H3zM12 10h7v1H12zM13 11h5v1H13zM14 12h3v1H14zM3 16h14v1H3zM3 15h3v1H3zM3 17h3v1H3zM14 15h3v1H14zM13 16h5v1H13zM12 17h7v1H12z'/%3E%3C/svg%3E");
-    --drpg-g-crime-partners:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M4 3h5v1H4zM3 4h7v1H3zM3 5h7v1H3zM4 6h5v1H4zM15 3h5v1H15zM14 4h7v1H14zM14 5h7v1H14zM15 6h5v1H15zM3 9h7v1H3zM2 10h9v1H2zM2 11h9v1H2zM2 12h9v1H2zM2 13h9v1H2zM2 14h9v1H2zM2 15h9v1H2zM14 9h7v1H14zM13 10h9v1H13zM13 11h9v1H13zM13 12h9v1H13zM13 13h9v1H13zM13 14h9v1H13zM13 15h9v1H13z'/%3E%3C/svg%3E");
-    --drpg-g-averted-eyes:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 8h8v1H8zM5 9h3v1H5zM16 9h3v1H16zM3 10h2v1H3zM20 10h2v1H20zM2 11h20v1H2zM3 12h18v1H3zM6 13h12v1H6zM9 14h6v1H9zM4 16h3v1H4zM10 16h4v1H10zM17 16h3v1H17z'/%3E%3C/svg%3E");
-}
 
 .drpg-action-button[data-drpg-crisis="leaveClue"] .drpg-action-icon {
     width: 24px;
@@ -10484,16 +10537,6 @@ body.drpg-pixel-font .application.sheet.actor .drpg-action-grid {
    Placed at the end of the file on purpose: every rule above sets these same
    properties at the same specificity, so this has to be the later one to win.
    ========================================================================== */
-
-:root {
-    --drpg-panel-ground: light-dark(rgba(var(--drpg-bone-rgb), 0.85), rgba(var(--drpg-deep-rgb), 0.78));
-    --drpg-panel-radius: 6px;
-    /* `none` since the ground went opaque at the end of this file: a
-       backdrop-filter behind something nothing shows through is a compositing
-       layer per panel, every frame, for an effect that cannot be seen. */
-    --drpg-panel-blur: none;
-    --drpg-panel-shadow: 0 2px 8px rgba(var(--drpg-shadow-rgb), 0.4);
-}
 
 #drpg-despair,
 #drpg-hud,
@@ -12635,18 +12678,6 @@ body.drpg-pixel-font #pause.paused figcaption {
    places is for it to stop borrowing from underneath.
    ========================================================================== */
 
-:root {
-    /* Ink as channels, for the panels that need it at less than full strength.
-       Kept beside the hex rather than derived, the same way Bone carries its
-       own `-rgb`: `rgb(from …)` is not something this file can rely on across
-       every browser Foundry ships to. */
-    --drpg-ink-rgb: 29, 26, 33;
-    --drpg-panel-ground: light-dark(
-        rgb(var(--drpg-bone-rgb)),
-        rgb(var(--drpg-ink-rgb))
-    );
-}
-
 /* The module's own dialogs take the sheet's ground. Foundry's dialogs - a
    delete confirmation, a file picker - are left alone: they are not ours to
    repaint, and stage 5's font work already made that split. */
@@ -13620,39 +13651,6 @@ body.drpg-theme-monokuma-legacy .drpg-gm-panel .drpg-gmp-button.drpg-gm-route:ho
    an empty square.
    ========================================================================== */
 
-:root {
-    --drpg-g-projects:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 2h2v1H8zM7 3h3v1H7zM2 4h2v1H2zM6 4h3v1H6zM12 4h10v1H12zM2 5h6v1H2zM12 5h10v1H12zM3 6h4v1H3zM4 7h2v1H4zM8 9h2v1H8zM7 10h3v1H7zM2 11h2v1H2zM6 11h3v1H6zM12 11h10v1H12zM2 12h6v1H2zM12 12h10v1H12zM3 13h4v1H3zM4 14h2v1H4zM8 16h2v1H8zM7 17h3v1H7zM2 18h2v1H2zM6 18h3v1H6zM12 18h10v1H12zM2 19h6v1H2zM12 19h10v1H12zM3 20h4v1H3zM4 21h2v1H4z'/%3E%3C/svg%3E");
-    --drpg-g-jump:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 1h2v1H6zM16 1h2v1H16zM6 2h2v1H6zM16 2h2v1H16zM1 3h22v1H1zM1 4h22v1H1zM1 5h22v1H1zM1 6h22v1H1zM1 7h22v1H1zM1 8h2v1H1zM21 8h2v1H21zM1 9h2v1H1zM21 9h2v1H21zM1 10h2v1H1zM5 10h2v1H5zM9 10h2v1H9zM13 10h2v1H13zM17 10h2v1H17zM21 10h2v1H21zM1 11h2v1H1zM5 11h2v1H5zM9 11h2v1H9zM13 11h2v1H13zM17 11h2v1H17zM21 11h2v1H21zM1 12h2v1H1zM21 12h2v1H21zM1 13h2v1H1zM21 13h2v1H21zM1 14h2v1H1zM5 14h2v1H5zM9 14h2v1H9zM13 14h2v1H13zM17 14h2v1H17zM21 14h2v1H21zM1 15h2v1H1zM5 15h2v1H5zM9 15h2v1H9zM13 15h2v1H13zM17 15h2v1H17zM21 15h2v1H21zM1 16h2v1H1zM21 16h2v1H21zM1 17h2v1H1zM21 17h2v1H21zM1 18h2v1H1zM21 18h2v1H21zM1 19h2v1H1zM21 19h2v1H21zM1 20h22v1H1zM1 21h22v1H1z'/%3E%3C/svg%3E");
-    --drpg-g-items:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 4h22v1H1zM1 5h22v1H1zM1 6h22v1H1zM1 7h22v1H1zM1 8h22v1H1zM3 9h18v1H3zM3 10h2v1H3zM10 10h4v1H10zM19 10h2v1H19zM3 11h2v1H3zM10 11h4v1H10zM19 11h2v1H19zM3 12h2v1H3zM10 12h4v1H10zM19 12h2v1H19zM3 13h2v1H3zM10 13h4v1H10zM19 13h2v1H19zM3 14h2v1H3zM19 14h2v1H19zM3 15h2v1H3zM19 15h2v1H19zM3 16h2v1H3zM19 16h2v1H19zM3 17h2v1H3zM19 17h2v1H19zM3 18h2v1H3zM19 18h2v1H19zM3 19h2v1H3zM19 19h2v1H19zM3 20h18v1H3zM3 21h18v1H3z'/%3E%3C/svg%3E");
-    --drpg-g-music:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 2h13v1H9zM9 3h13v1H9zM9 4h13v1H9zM9 5h13v1H9zM9 6h13v1H9zM9 7h2v1H9zM20 7h2v1H20zM9 8h2v1H9zM20 8h2v1H20zM9 9h2v1H9zM20 9h2v1H20zM9 10h2v1H9zM20 10h2v1H20zM9 11h2v1H9zM20 11h2v1H20zM9 12h2v1H9zM14 12h8v1H14zM9 13h2v1H9zM14 13h8v1H14zM9 14h2v1H9zM14 14h7v1H14zM3 15h8v1H3zM15 15h5v1H15zM3 16h8v1H3zM3 17h7v1H3zM4 18h5v1H4z'/%3E%3C/svg%3E");
-    --drpg-g-who-is-alive:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M5 4h4v1H5zM15 4h4v1H15zM4 5h8v1H4zM14 5h6v1H14zM3 6h18v1H3zM3 7h18v1H3zM3 8h18v1H3zM3 9h6v1H3zM11 9h10v1H11zM3 10h6v1H3zM11 10h10v1H11zM11 11h2v1H11zM11 12h2v1H11zM6 13h5v1H6zM13 13h5v1H13zM7 14h4v1H7zM13 14h4v1H13zM8 15h3v1H8zM13 15h3v1H13zM9 16h6v1H9zM10 17h4v1H10zM11 18h2v1H11z'/%3E%3C/svg%3E");
-    --drpg-g-investigation:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M7 1h6v1H7zM5 2h10v1H5zM4 3h12v1H4zM3 4h14v1H3zM3 5h3v1H3zM9 5h8v1H9zM2 6h4v1H2zM9 6h9v1H9zM2 7h4v1H2zM8 7h10v1H8zM2 8h4v1H2zM8 8h10v1H8zM2 9h16v1H2zM2 10h16v1H2zM2 11h16v1H2zM3 12h14v1H3zM3 13h14v1H3zM4 14h14v1H4zM5 15h14v1H5zM7 16h6v1H7zM15 16h5v1H15zM16 17h5v1H16zM17 18h5v1H17zM18 19h5v1H18zM19 20h4v1H19zM20 21h3v1H20z'/%3E%3C/svg%3E");
-    --drpg-g-trial:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 4h2v1H11zM2 5h21v1H2zM2 6h21v1H2zM2 7h21v1H2zM4 8h2v1H4zM11 8h2v1H11zM18 8h2v1H18zM4 9h2v1H4zM11 9h2v1H11zM18 9h2v1H18zM1 10h8v1H1zM11 10h2v1H11zM15 10h8v1H15zM1 11h8v1H1zM11 11h2v1H11zM15 11h8v1H15zM2 12h6v1H2zM11 12h2v1H11zM16 12h6v1H16zM2 13h6v1H2zM11 13h2v1H11zM16 13h6v1H16zM3 14h4v1H3zM11 14h2v1H11zM17 14h4v1H17zM4 15h2v1H4zM11 15h2v1H11zM18 15h2v1H18zM11 16h2v1H11zM11 17h2v1H11zM11 18h2v1H11zM6 19h13v1H6zM6 20h13v1H6zM6 21h13v1H6z'/%3E%3C/svg%3E");
-    --drpg-g-gm-team:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M6 4h4v1H6zM5 5h6v1H5zM4 6h8v1H4zM15 6h4v1H15zM4 7h8v1H4zM14 7h6v1H14zM4 8h8v1H4zM14 8h6v1H14zM4 9h8v1H4zM14 9h6v1H14zM5 10h6v1H5zM14 10h6v1H14zM6 11h4v1H6zM15 11h4v1H15zM4 12h8v1H4zM3 13h10v1H3zM15 13h6v1H15zM2 14h20v1H2zM2 15h21v1H2zM2 16h21v1H2zM2 17h21v1H2z'/%3E%3C/svg%3E");
-    --drpg-g-room-setup:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M2 2h20v1H2zM2 3h20v1H2zM2 4h20v1H2zM2 5h3v1H2zM10 5h3v1H10zM19 5h3v1H19zM2 6h3v1H2zM10 6h3v1H10zM19 6h3v1H19zM2 7h3v1H2zM10 7h3v1H10zM19 7h3v1H19zM2 8h3v1H2zM10 8h3v1H10zM19 8h3v1H19zM2 9h3v1H2zM10 9h3v1H10zM19 9h3v1H19zM2 10h3v1H2zM10 10h3v1H10zM19 10h3v1H19zM2 11h3v1H2zM10 11h3v1H10zM19 11h3v1H19zM2 12h3v1H2zM10 12h3v1H10zM19 12h3v1H19zM2 13h3v1H2zM10 13h3v1H10zM19 13h3v1H19zM2 14h3v1H2zM10 14h3v1H10zM19 14h3v1H19zM2 15h3v1H2zM19 15h3v1H19zM2 16h3v1H2zM19 16h3v1H19zM2 17h3v1H2zM19 17h3v1H19zM2 18h3v1H2zM19 18h3v1H19zM2 19h6v1H2zM14 19h8v1H14zM2 20h6v1H2zM14 20h8v1H14zM2 21h6v1H2zM14 21h8v1H14z'/%3E%3C/svg%3E");
-    --drpg-g-tables:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M1 3h22v1H1zM1 4h22v1H1zM1 5h22v1H1zM1 6h22v1H1zM1 7h22v1H1zM1 8h22v1H1zM1 9h2v1H1zM10 9h3v1H10zM21 9h2v1H21zM1 10h2v1H1zM10 10h3v1H10zM21 10h2v1H21zM1 11h2v1H1zM10 11h3v1H10zM21 11h2v1H21zM1 12h2v1H1zM10 12h3v1H10zM21 12h2v1H21zM1 13h22v1H1zM1 14h22v1H1zM1 15h2v1H1zM10 15h3v1H10zM21 15h2v1H21zM1 16h2v1H1zM10 16h3v1H10zM21 16h2v1H21zM1 17h2v1H1zM10 17h3v1H10zM21 17h2v1H21zM1 18h2v1H1zM10 18h3v1H10zM21 18h2v1H21zM1 19h22v1H1zM1 20h22v1H1z'/%3E%3C/svg%3E");
-    --drpg-g-season-setup:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M17 1h2v1H17zM4 2h2v1H4zM17 2h2v1H17zM4 3h2v1H4zM15 3h6v1H15zM2 4h6v1H2zM14 4h8v1H14zM2 5h6v1H2zM14 5h8v1H14zM4 6h2v1H4zM15 6h6v1H15zM4 7h2v1H4zM17 7h2v1H17zM15 8h4v1H15zM14 9h4v1H14zM13 10h5v1H13zM12 11h5v1H12zM11 12h5v1H11zM10 13h5v1H10zM9 14h5v1H9zM8 15h5v1H8zM7 16h5v1H7zM2 17h9v1H2zM2 18h8v1H2zM2 19h7v1H2zM2 20h6v1H2zM2 21h6v1H2zM3 22h3v1H3z'/%3E%3C/svg%3E");
-    --drpg-g-mastermind:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M7 1h10v1H7zM7 2h10v1H7zM7 3h10v1H7zM7 4h10v1H7zM7 5h10v1H7zM1 6h22v1H1zM1 7h22v1H1zM1 8h22v1H1zM1 9h22v1H1zM7 10h8v1H7zM6 11h10v1H6zM6 12h10v1H6zM6 13h10v1H6zM6 14h10v1H6zM7 15h8v1H7zM7 16h8v1H7zM9 17h4v1H9zM6 18h12v1H6zM5 19h14v1H5zM4 20h16v1H4zM4 21h16v1H4z'/%3E%3C/svg%3E");
-    --drpg-g-season-reset:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 2h4v1H10zM10 3h4v1H10zM10 4h4v1H10zM6 5h2v1H6zM10 5h4v1H10zM5 6h3v1H5zM10 6h4v1H10zM16 6h1v1H16zM4 7h4v1H4zM10 7h4v1H10zM16 7h2v1H16zM3 8h4v1H3zM10 8h4v1H10zM16 8h3v1H16zM3 9h3v1H3zM10 9h4v1H10zM16 9h3v1H16zM2 10h4v1H2zM10 10h4v1H10zM16 10h4v1H16zM2 11h3v1H2zM10 11h4v1H10zM17 11h3v1H17zM2 12h3v1H2zM10 12h4v1H10zM17 12h3v1H17zM2 13h3v1H2zM10 13h4v1H10zM17 13h3v1H17zM2 14h3v1H2zM17 14h3v1H17zM2 15h4v1H2zM16 15h4v1H16zM3 16h3v1H3zM16 16h3v1H16zM3 17h4v1H3zM15 17h4v1H15zM4 18h5v1H4zM13 18h5v1H13zM5 19h12v1H5zM6 20h10v1H6zM8 21h6v1H8z'/%3E%3C/svg%3E");
-    --drpg-g-failure-log:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M5 2h2v1H5zM18 2h2v1H18zM5 3h2v1H5zM17 3h3v1H17zM5 4h3v1H5zM16 4h3v1H16zM6 5h12v1H6zM7 6h10v1H7zM7 7h10v1H7zM7 8h10v1H7zM6 9h12v1H6zM1 10h10v1H1zM13 10h10v1H13zM1 11h10v1H1zM13 11h10v1H13zM6 12h5v1H6zM13 12h5v1H13zM1 13h10v1H1zM13 13h10v1H13zM1 14h10v1H1zM13 14h10v1H13zM6 15h5v1H6zM13 15h5v1H13zM1 16h10v1H1zM13 16h10v1H13zM1 17h10v1H1zM13 17h10v1H13zM6 18h5v1H6zM13 18h5v1H13zM6 19h12v1H6zM10 20h4v1H10z'/%3E%3C/svg%3E");
-    --drpg-g-clock:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 0h6v1H8zM5 1h12v1H5zM4 2h14v1H4zM3 3h5v1H3zM14 3h5v1H14zM2 4h4v1H2zM16 4h4v1H16zM1 5h4v1H1zM10 5h3v1H10zM17 5h4v1H17zM1 6h3v1H1zM10 6h3v1H10zM18 6h3v1H18zM1 7h3v1H1zM10 7h3v1H10zM18 7h3v1H18zM0 8h3v1H0zM10 8h3v1H10zM19 8h3v1H19zM0 9h3v1H0zM10 9h3v1H10zM19 9h3v1H19zM0 10h3v1H0zM10 10h3v1H10zM19 10h3v1H19zM0 11h3v1H0zM10 11h7v1H10zM19 11h3v1H19zM0 12h3v1H0zM10 12h7v1H10zM19 12h3v1H19zM0 13h3v1H0zM10 13h7v1H10zM19 13h3v1H19zM1 14h3v1H1zM18 14h3v1H18zM1 15h3v1H1zM18 15h3v1H18zM1 16h4v1H1zM17 16h4v1H17zM2 17h4v1H2zM16 17h4v1H16zM3 18h5v1H3zM14 18h5v1H14zM4 19h14v1H4zM5 20h12v1H5zM8 21h6v1H8z'/%3E%3C/svg%3E");
-}
-
 /* The icon slot becomes a mask box. Font Awesome still ships the element, so
    its glyph is switched off explicitly - and the box needs a length rather
    than the `1.1em` it had, because `font-size: 0` makes an em zero. */
@@ -13845,17 +13843,6 @@ i.drpg-pix-foot {
    them, which is also what tells it from Partners in Crime.
    ========================================================================== */
 
-:root {
-    --drpg-g-confusion:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M19 1h2v1H19zM19 2h2v1H19zM17 3h6v1H17zM17 4h6v1H17zM10 5h2v1H10zM19 5h2v1H19zM10 6h2v1H10zM19 6h2v1H19zM6 7h2v1H6zM10 7h2v1H10zM14 7h2v1H14zM6 8h2v1H6zM10 8h2v1H10zM14 8h2v1H14zM6 9h2v1H6zM10 9h2v1H10zM14 9h2v1H14zM19 9h2v1H19zM6 10h2v1H6zM10 10h2v1H10zM14 10h2v1H14zM18 10h4v1H18zM6 11h2v1H6zM10 11h2v1H10zM14 11h2v1H14zM18 11h4v1H18zM3 12h5v1H3zM10 12h2v1H10zM14 12h2v1H14zM19 12h2v1H19zM3 13h5v1H3zM10 13h2v1H10zM14 13h2v1H14zM3 14h5v1H3zM10 14h2v1H10zM14 14h2v1H14zM3 15h13v1H3zM3 16h13v1H3zM3 17h13v1H3zM6 18h10v1H6zM6 19h10v1H6zM6 20h10v1H6z'/%3E%3C/svg%3E");
-    --drpg-g-misleading-trail:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 3h3v1H10zM10 4h3v1H10zM4 5h16v1H4zM4 6h17v1H4zM4 7h18v1H4zM4 8h18v1H4zM4 9h17v1H4zM4 10h16v1H4zM10 11h3v1H10zM10 12h3v1H10zM4 13h17v1H4zM3 14h18v1H3zM2 15h19v1H2zM2 16h19v1H2zM3 17h18v1H3zM4 18h17v1H4zM10 19h3v1H10zM10 20h3v1H10zM10 21h3v1H10z'/%3E%3C/svg%3E");
-    --drpg-g-move-body:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 3h4v1H3zM2 4h16v1H2zM1 5h17v1H1zM1 6h17v1H1zM1 7h17v1H1zM1 8h17v1H1zM2 9h16v1H2zM3 10h19v1H3zM14 11h8v1H14zM14 12h8v1H14zM14 13h8v1H14zM16 16h2v1H16zM16 17h4v1H16zM2 18h19v1H2zM2 19h18v1H2zM16 20h2v1H16z'/%3E%3C/svg%3E");
-    --drpg-g-betrayal:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 3h4v1H3zM16 3h4v1H16zM2 4h6v1H2zM15 4h6v1H15zM1 5h8v1H1zM14 5h8v1H14zM1 6h8v1H1zM14 6h8v1H14zM1 7h8v1H1zM14 7h8v1H14zM1 8h8v1H1zM14 8h8v1H14zM2 9h6v1H2zM15 9h6v1H15zM3 10h4v1H3zM16 10h4v1H16zM3 13h6v1H3zM16 13h6v1H16zM2 14h8v1H2zM15 14h8v1H15zM1 15h10v1H1zM14 15h10v1H14zM1 16h10v1H1zM14 16h10v1H14zM1 17h10v1H1zM14 17h10v1H14zM1 20h10v1H1zM14 20h9v1H14zM1 21h10v1H1zM14 21h9v1H14z'/%3E%3C/svg%3E");
-}
-
 .drpg-action-button i.fa-hand-sparkles,
 .drpg-action-button i.fa-signs-post,
 .drpg-action-button i.fa-person-falling,
@@ -13934,10 +13921,6 @@ i.drpg-pix-foot {
    degrades gracefully instead of turning into a blank square. To change an
    icon, edit its ASCII art in the tool and re-run it.
    ========================================================================== */
-
-:root {
-    --drpg-g-monokuma-eye: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M23 5h1v1H23zM22 6h2v1H22zM20 7h3v1H20zM19 8h4v1H19zM17 9h6v1H17zM7 10h1v1H7zM16 10h6v1H16zM6 11h3v1H6zM14 11h8v1H14zM5 12h5v1H5zM12 12h9v1H12zM4 13h17v1H4zM4 14h10v1H4zM16 14h4v1H16zM4 15h7v1H4zM17 15h1v1H17zM2 16h7v1H2zM1 17h3v1H1zM8 17h1v1H8zM0 18h2v1H0z'/%3E%3C/svg%3E");
-}
 
 #scene-controls button.ui-control.fa-user-large::before,
 #sidebar-tabs button.ui-control.fa-user-large::before,
@@ -14597,23 +14580,6 @@ i.drpg-pix-foot {
    sheet's own row-glyph rule sets a text size the same way), and
    `currentColor` keeps whatever colour the button rules decide. A row button
    added later without a sprite here keeps its vector glyph. */
-
-:root {
-    --drpg-r-flask:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M7 3h10v1H7zM7 4h10v1H7zM10 5h4v1H10zM10 6h4v1H10zM10 7h4v1H10zM10 8h4v1H10zM9 9h6v1H9zM8 10h2v1H8zM14 10h2v1H14zM7 11h2v1H7zM15 11h2v1H15zM6 12h2v1H6zM16 12h2v1H16zM5 13h2v1H5zM17 13h2v1H17zM4 14h2v1H4zM18 14h2v1H18zM4 15h2v1H4zM18 15h2v1H18zM3 16h18v1H3zM2 17h20v1H2zM2 18h20v1H2zM2 19h20v1H2zM3 20h18v1H3z'/%3E%3C/svg%3E");
-    --drpg-r-fist:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M3 7h4v1H3zM9 7h4v1H9zM15 7h4v1H15zM3 8h4v1H3zM9 8h4v1H9zM15 8h4v1H15zM3 9h16v1H3zM3 10h16v1H3zM3 11h16v1H3zM3 12h16v1H3zM3 13h16v1H3zM4 14h14v1H4zM5 15h12v1H5zM6 16h10v1H6z'/%3E%3C/svg%3E");
-    --drpg-r-trash:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 4h6v1H9zM4 5h16v1H4zM4 6h16v1H4zM6 8h12v1H6zM6 9h12v1H6zM6 10h12v1H6zM6 11h12v1H6zM6 12h12v1H6zM6 13h12v1H6zM7 14h10v1H7zM7 15h10v1H7zM7 16h10v1H7zM7 17h10v1H7zM7 18h10v1H7z'/%3E%3C/svg%3E");
-    --drpg-r-stow:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M10 3h4v1H10zM10 4h4v1H10zM10 5h4v1H10zM6 6h12v1H6zM7 7h10v1H7zM8 8h8v1H8zM9 9h6v1H9zM10 10h4v1H10zM11 11h2v1H11zM3 13h18v1H3zM3 14h18v1H3zM3 16h18v1H3zM3 17h18v1H3zM3 18h18v1H3zM3 19h18v1H3z'/%3E%3C/svg%3E");
-    --drpg-r-retrieve:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M11 3h2v1H11zM10 4h4v1H10zM9 5h6v1H9zM8 6h8v1H8zM7 7h10v1H7zM6 8h12v1H6zM10 9h4v1H10zM10 10h4v1H10zM10 11h4v1H10zM3 13h18v1H3zM3 14h18v1H3zM3 16h18v1H3zM3 17h18v1H3zM3 18h18v1H3zM3 19h18v1H3z'/%3E%3C/svg%3E");
-    --drpg-r-share:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M16 0h6v1H16zM16 1h6v1H16zM16 2h6v1H16zM16 3h6v1H16zM16 4h6v1H16zM14 5h8v1H14zM12 6h2v1H12zM10 7h2v1H10zM8 8h2v1H8zM0 9h8v1H0zM0 10h6v1H0zM0 11h6v1H0zM0 12h6v1H0zM0 13h6v1H0zM0 14h8v1H0zM8 15h2v1H8zM10 16h2v1H10zM12 17h2v1H12zM14 18h8v1H14zM16 19h6v1H16zM16 20h6v1H16zM16 21h6v1H16zM16 22h6v1H16zM16 23h6v1H16z'/%3E%3C/svg%3E");
-    --drpg-r-give:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M9 4h6v1H9zM9 5h6v1H9zM9 6h6v1H9zM9 7h6v1H9zM2 10h2v1H2zM20 10h2v1H20zM2 11h2v1H2zM20 11h2v1H20zM2 12h3v1H2zM19 12h3v1H19zM3 13h3v1H3zM18 13h3v1H18zM4 14h4v1H4zM16 14h4v1H16zM6 15h4v1H6zM14 15h4v1H14zM8 16h8v1H8zM8 17h8v1H8zM10 18h4v1H10zM10 19h4v1H10z'/%3E%3C/svg%3E");
-}
 
 .drpg-row-use i,
 .drpg-row-equip i,

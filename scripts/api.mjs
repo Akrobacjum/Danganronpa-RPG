@@ -315,7 +315,7 @@ export const DrpgApi = {
     /** Phase: "dailyLife" | "investigation" | "classTrial". */
     setPhase,
 
-    /** Move to the next time of day: refills actions, free Moves, search tokens. */
+    /** Move to the next time of day. Refills nothing by default; `resetActions` and `resetSearchTokens` are opt-in (see clock.mjs). */
     advanceTimeOfDay,
 
     /** Step back one time of day. A correction - refills nothing. */

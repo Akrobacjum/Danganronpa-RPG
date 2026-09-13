@@ -3880,7 +3880,8 @@ function incidentSignature(now) {
 /** The footer, by stage: re-ask the opening roll, pass the turn, end the incident, close. */
 function incidentButtons(state) {
     return [
-        // There is no "roll the opening" button, and there must not be one.
+        // There is no unconditional "roll the opening" button, and there must not
+        // be one - the rate-limited re-ask at the end of this note is the exception.
         //
         // Stage 4 offers exactly one roll and its owner is not a decision:
         // a direct murder opens on the KILLER's roll, a trap on the VICTIM's.

@@ -1557,8 +1557,8 @@ export const DYNAMIC_THRESHOLDS = [
 /* ==========================================================================
  * REST
  * --------------------------------------------------------------------------
- * Long rest: 2 actions, pick 2, once per session, bedroom only.
- * Short rest: 1 action, pick 1, once per time of day, in designated rooms.
+ * Long rest: 2 actions, pick 2, once per session, in the rooms the GM flags for it.
+ * Short rest: 1 action, pick 1, once per time of day, likewise.
  * ========================================================================== */
 
 /**
@@ -3545,7 +3545,7 @@ export const GAME_WINDOWS =
  *
  * The catalogue of events itself is `SFX_EVENTS` below; the categories come
  * first because the panel groups by them, and a GM hunting for the door sound
- * should not have to read thirty-five rows to find it.
+ * should not have to read forty-odd rows to find it.
  *
  * These are FILING, NOT VOLUME. There are two sliders - see `SFX_SLIDERS` -
  * and they are deliberately not one per category: a per-category mixing desk is

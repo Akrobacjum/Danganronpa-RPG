@@ -9,8 +9,9 @@
  * excluded: they are helpers, not Monokumas, and the guide gives Despair only
  * to the two people running the killing game.
  *
- * Pools are on every screen, but a player's copy masks the counts (`buildRow`);
- * the spend itself is announced with the Call, so the table sees it happen.
+ * Pools are on every screen with their counts public (D3); what a player's copy
+ * masks is the overflow's caption. The spend itself is announced with the Call,
+ * so the table sees it happen.
  */
 
 import { MODULE_ID, STARTING, DESPAIR_CALLS, callEffect } from "./config.mjs";

@@ -9,12 +9,14 @@
  * where the host is picked, further down this file.
  *
  *      Hope's Peak: Drowned Summer      <- campaign name
- *              Chapter 2
+ *            Chapter 2 · Day 3
  *              Daily Life
  *          ◀   Afternoon   ▶            <- the chevrons are GM-only
+ *              43 min in                <- how long this time of day has run
+ *           Dorm · no project           <- where your student stands
  *
- * Players see the same four lines without the chevrons; the clock is edited
- * from the GM panel, not from here.
+ * Players see the same lines without the chevrons; the clock is edited from
+ * the GM panel, not from here.
  */
 
 import { MODULE_ID, TIMES_OF_DAY, ECLIPSE_FREE_PLACEMENT, ECLIPSE_MOVES, TIMING } from "./config.mjs";

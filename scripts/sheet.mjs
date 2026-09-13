@@ -3939,7 +3939,8 @@ export function findDuplicateUltimates() {
 /**
  * Give the sheet room for the Hope Calls.
  *
- * Daggerheart opens a character sheet at 850x830, which fitted when the Calls
+ * Daggerheart opens a character sheet at its own default size (850 wide - see
+ * `scaleWindow` in settings.mjs), which fitted when the Calls
  * were a closed drawer and does not now: the panel sits under ten action tiles
  * and a clean-up block, and a menu a cornered player has to scroll to find is
  * a menu they do not use.

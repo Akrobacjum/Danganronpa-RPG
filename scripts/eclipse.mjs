@@ -41,8 +41,9 @@ export { ECLIPSE_MOVES };
  * Eclipse is leading into is always the NEXT one.
  *
  * That naming is not cosmetic - it is what decides the allowance. The ones in
- * ECLIPSE_FREE_PLACEMENT (Night, today) let you start anywhere on the map; the
- * other three are the handbook's two connected rooms.
+ * ECLIPSE_FREE_PLACEMENT (Night, today) let you start anywhere on the map - unless
+ * the darkening has pulled that back to two crossings (`freeBecomes` in the
+ * overflow table); the other three are the handbook's two connected rooms.
  * ========================================================================== */
 
 /** "Morning Eclipse", "Night Eclipse" - what this placement window is called. */
