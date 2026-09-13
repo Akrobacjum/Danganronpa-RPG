@@ -721,7 +721,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
                 const f = d.element.querySelector("form");
                 return {
                     name: f.name.value.trim(),
-                    target: Number(f.target.value) || 4,
+                    target: Number(f.target.value) || PROJECT_SCALE.everyday.progress,
                     room: f.room.value || null,
                     trait: f.trait.value || null,
                     murder: f.murder.checked,

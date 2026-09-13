@@ -1245,7 +1245,8 @@ let dissolveGeneration = 0;
  *
  * They arrive in pairs on purpose - the move settles, and the GM's write comes
  * back through `SYNC.fog` about 120ms later - so a second repaint always landed
- * inside the first dissolve's 220ms window. Chaining them meant the second read
+ * inside the first dissolve's window (the interface's own enter time, 180ms).
+ * Chaining them meant the second read
  * the first's half-finished mix as its starting point, while the first was
  * still free to destroy that mix underneath it. Generations stopped them
  * corrupting each other; this stops them overlapping at all, which is the only
@@ -1516,7 +1517,7 @@ function swapInFog(container, texture, maskTexture, rect) {
         previous.renderable = false;
         fogTexture = mixTexture;
         // The silhouette does not need dissolving: it is a faint texture's
-        // mask, and 220ms of the incoming shape is invisible on it.
+        // mask, and a fifth of a second of the incoming shape is invisible on it.
         ensureRaster(container, maskTexture);
 
         const state = { t: 0 };
@@ -2519,8 +2520,10 @@ export function whyBlack() {
  *
  * Not incremental on purpose: this only runs on the short list of triggers in
  * `registerFog`, none of them per-frame, so rebuilding is a handful of times
- * per minute at most, never a handful of times per second - see the header
- * note on why this is not hooked to `refreshToken`.
+ * per minute at most, never a handful of times per second. That is why it
+ * hangs off `updateToken`, `createToken` and `deleteToken` rather than the
+ * per-frame `refreshToken`: a rebuild per frame would be a rebuild per
+ * animation step of every token on the scene.
  */
 export function repaintFog() {
     try {

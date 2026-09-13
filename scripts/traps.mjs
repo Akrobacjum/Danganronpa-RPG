@@ -61,6 +61,7 @@ import { isPrimaryGm, debug, log, error, esc } from "./utils.mjs";
 // dependency only goes this way at load time - projects.mjs reaches back
 // into this file through dynamic imports, which is not a cycle.
 import { allProjects } from "./projects.mjs";
+import { newItemIdentity } from "./inventory.mjs";
 
 /* ==========================================================================
  * THE ARMED MAP - trap 157
@@ -377,7 +378,7 @@ const plantKey = (room, sceneId) => `${sceneId ?? game.scenes?.current?.id ?? "-
 export async function plantItem(projectId, room, { sceneId = null, ...item } = {}) {
     if (!game.user.isGM || !projectId || !room) return null;
 
-    const drpgItemId = foundry.utils.randomID(16);
+    const drpgItemId = newItemIdentity();
     const store = { ...plants() };
     store[plantKey(room, sceneId)] = { projectId, drpgItemId, ...item };
     await setSetting(SETTINGS.trapPlants, store);

@@ -1996,7 +1996,7 @@ function rebuildAll() {
     if (curtainGeometry(j)) {
       // Foundry's tiles must start below the corner panes to own a shard of the strip;
       // when they do not, push them down once and cut the glass again
-      if (!j.placed && placeTiles(j.panes.meta)) { j.placed = true; j.sig = null; curtainGeometry(j); }
+      if (!j.placed && placeTiles()) { j.placed = true; j.sig = null; curtainGeometry(j); }
       const acc = resolveAcc(j.el);
       const check = CHECKS[CHECKS.length - 1];
       const changed = !wasPainted || !check?.same || acc !== oldAcc;
@@ -2024,14 +2024,11 @@ function tileButtons(rail) {
   return [...rail.querySelectorAll("button.ui-control, .ui-control, .control")].filter(e => e.offsetWidth > 0 && e.offsetHeight > 0);
 }
 /* NOTHING TO PLACE ONCE THE RAILS ARE BLOCKS.
-   This pushed a rail down with `padding-top` until it stood under the shard the side strip
-   had cut for it, which is what you have to do when the shard's position is decided without
-   reference to the rail. It is decided WITH reference to it now - the rail is a block, the
-   partition cuts its pane where the rail is - so the push has nothing left to correct, and
-   feeding a measured position back into the thing being measured is how a layout oscillates.
-   The padding an older version left on the element is cleared, once. */
-function placeTiles(meta) {
-  const t = meta?.tiles || {};
+   An older version pushed a rail down with `padding-top` until it stood under the shard cut
+   for it, which fed a measured position back into the thing being measured (see the note
+   inside `moduleLayout` on where the push is computed now). All that is left to do is clear
+   the padding that version may have left on the element, once. */
+function placeTiles() {
   let moved = false;
   const side = document.querySelector("#sidebar");
   if (side && side.style.paddingTop) { side.style.paddingTop = ""; moved = true; }

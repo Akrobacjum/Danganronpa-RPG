@@ -349,7 +349,7 @@ export async function addProgress(countdownId, amount, { by = null } = {}) {
  *   Stained Glass tray draws this instead of `img`; null means the hourglass.
  */
 export async function createProject({
-    name, target = 4, room = null, indirectMurder = false, secret = false,
+    name, target = PROJECT_SCALE.everyday.progress, room = null, indirectMurder = false, secret = false,
     viewers = [], trait = null, img = "icons/magic/time/hourglass-yellow-green.webp",
     glyph = null,
     // Whose trap this is, and what sets it off. Both only mean anything on an

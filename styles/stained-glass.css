@@ -2423,8 +2423,8 @@ body.drpg-measuring #drpg-sound-launcher { transition: none !important; }
 
 /* ==========================================================================
    The two filters: the brush's torn edge and the stamp's ink.
-   chrome.mjs puts both <filter>s in the body (`injectFilters`); off with the
-   glass effects, where the clip-path polygon carries the edge on its own.
+   chrome.mjs puts both <filter>s in the body (`injectFilters`), Stained Glass only;
+   under any other theme the clip-path polygon carries the edge on its own.
    ========================================================================== */
 /* ---- C-B3. The brush is a brush --------------------------------------------------------
    The audit page's rule for everything you click: a rectangle of the state colour behind the
