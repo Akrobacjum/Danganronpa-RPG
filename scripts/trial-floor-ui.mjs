@@ -95,19 +95,12 @@ export async function startClassTrial() {
     // - see `resetElapsed` - so the HUD redraws once. Two writes would redraw
     // it twice a few milliseconds apart, and the second redraw would land in
     // the middle of the turn-over animation the first one started.
+    // A fresh trial has not voted and has not delivered a verdict, and G-32
+    // charges for the Key Remnants nobody found. Neither is this button's: they
+    // belong to the phase, and `reconcilePhase` in clock.mjs runs both off the
+    // write above - which is what makes the clock editor and `setPhase` open a
+    // trial the same way this does.
     await setClock({ phase: "classTrial", timeOfDayStartedAt: Date.now() });
-
-    // A fresh trial has not voted and has not delivered a verdict, whatever the
-    // last one did. Stamped with this chapter, so the two cannot be confused.
-    const { resetTrialProgress } = await import("./vote.mjs");
-    await resetTrialProgress();
-
-    // G-32, and it has to be AFTER the reset: the reset blanks this chapter's
-    // trial record, and the "already charged" stamp lives in it. Charged before
-    // it, the stamp would be wiped a line later and the next press would pay
-    // Monokuma twice.
-    const { chargeForUnfoundKeys } = await import("./investigation.mjs");
-    await chargeForUnfoundKeys();
 
     const { announce } = await import("./utils.mjs");
     await announce({
@@ -264,9 +257,9 @@ export async function endClassTrial() {
 export async function closeTrial() {
     if (!game.user.isGM) return null;
 
-    await endFloor();
-
     try {
+        // The floor closes with the phase - `reconcilePhase` in clock.mjs - which
+        // is what makes ending a trial from the clock editor end it properly too.
         await setClock({ phase: "dailyLife", timeOfDayStartedAt: Date.now() });
     } catch (err) {
         // The floor is shut either way. A phase that did not move is something

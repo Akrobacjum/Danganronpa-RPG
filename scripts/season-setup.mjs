@@ -953,7 +953,26 @@ async function wipeSeason({ alsoChat = false } = {}) {
         ["a called assembly", SETTINGS.pendingGather, {}],
         // Every New Rule bought last season. The Call that writes here was
         // paid for with Despair the reset zeroes, so the rules go with it.
-        ["the killing game rules", SETTINGS.killingGameRules, []]
+        ["the killing game rules", SETTINGS.killingGameRules, []],
+        /*
+         * AN INCIDENT LEFT RUNNING OUTLIVED THE SEASON IT BELONGED TO.
+         *
+         * `endMurder` is the one exit and this list went round it, so a season
+         * wiped mid-incident kept `active: true` pointing at a killer and a
+         * victim who may not exist any more: `openMurder` refused every new
+         * murder ("one at a time"), the GM panel's next step read "incident",
+         * and every trace anybody left anywhere was tied to a crime from last
+         * season. Written directly for the same reason the motive and the
+         * assembly above are - `endMurder` records who the Blackened was, kills
+         * a self-inflicted victim and posts its cards, and none of that belongs
+         * in a reset that is deleting the chat and the cast it would name.
+         *
+         * The cast goes with it. It is client-scoped, so this clears the GM's
+         * own copy; a participant's browser drops theirs when the next incident
+         * opens without them in it.
+         */
+        ["the incident", SETTINGS.murderState, {}],
+        ["the incident's cast", SETTINGS.incidentCast, {}]
     ]) {
         await step(label, () => game.settings.set(MODULE_ID, key, value));
     }

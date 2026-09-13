@@ -2324,6 +2324,27 @@ export function refreshGlass() {
 export function registerGlass() {
   refreshGlass();
   if (!raf) raf = requestAnimationFrame(loop);
+  /*
+   * A BLOCK THAT LEAVES WHILE NOBODY IS LOOKING TAKES ITS PANE WITH IT, and
+   * until this line the pane stayed behind (Dawid, 14.09).
+   *
+   * Measured: the Event panel is up, the tab is switched away or the window
+   * minimised, the incident ends and `renderEvents` removes the panel. The DOM
+   * observer does fire and does schedule a recut - but a hidden tab has a
+   * canvas of zero width, so `curtainGeometry` stands down and paints nothing.
+   * And the baseline the drift watch compares against is resampled by the frame
+   * queued at the end of that pass, which runs the instant the tab comes back:
+   * by the time anything looks, the new layout IS the baseline, no drift is
+   * ever seen, and a pane of glass with its blur stands over nothing until
+   * something else happens to recut the curtain.
+   *
+   * One line, and it covers every block rather than that one panel. `schedule`
+   * is debounced and `rebuild` answers an unchanged signature in microseconds,
+   * so a tab switched to and fro costs nothing.
+   */
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && themeOn()) schedule();
+  });
   // late blocks: the launchers and the tray arrive after ready on some clients; and a watchdog,
   // because a curtain that measured nothing (a hidden canvas, a frame of 0) must try again
   setTimeout(() => { if (themeOn()) rebuild(); }, 1500);

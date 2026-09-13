@@ -1247,13 +1247,27 @@ export function discoveryLedger() {
     }
 }
 
-export function incidentParticipants() {
+/**
+ * This client's copy of the incident's cast.
+ *
+ * The names in a murder do not travel in the world setting - they are the one
+ * thing the incident has to keep (LIVE-001). The GM's browser holds the whole
+ * cast; a participant's holds their own seat and nothing else; a spectator's
+ * holds nothing. So every reader has to merge this with `murderState`'s public
+ * half rather than expecting the ids to be in it, and this is the leaf they
+ * all ask.
+ */
+export function incidentCast() {
     try {
-        const cast = game.settings.get(MODULE_ID, SETTINGS.incidentCast) ?? {};
-        return [cast.killerId, cast.victimId, cast.thirdId].filter(Boolean);
+        return game.settings.get(MODULE_ID, SETTINGS.incidentCast) ?? {};
     } catch {
-        return [];
+        return {};
     }
+}
+
+export function incidentParticipants() {
+    const cast = incidentCast();
+    return [cast.killerId, cast.victimId, cast.thirdId].filter(Boolean);
 }
 
 /*

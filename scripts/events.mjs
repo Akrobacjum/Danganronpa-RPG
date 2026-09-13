@@ -28,7 +28,7 @@ import { pendingGather } from "./call-effects.mjs";
 import { roomOfActor } from "./movement.mjs";
 import { trialFloor, floorHolder, floorTarget, FLOOR_MODES } from "./trial-floor.mjs";
 import { keyPlanStatus } from "./investigation.mjs";
-import { SETTINGS, bodyDiscovery, bodyDiscoveryFresh, incidentParticipants } from "./settings.mjs";
+import { SETTINGS, bodyDiscovery, bodyDiscoveryFresh, incidentCast, incidentParticipants } from "./settings.mjs";
 import { overflowEffect, overflowStatus, overflowRules } from "./overflow.mjs";
 
 const WIDGET_ID = "drpg-events";
@@ -85,6 +85,7 @@ function openingCard() {
     if (!game.settings.settings.has(`${MODULE_ID}.murderState`)) return null;
     const state = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
     if (!state.active || state.stage !== "openingRoll") return null;
+    const cast = incidentCast();
     const ids = new Set(game.actors
         .filter(a => a.type === "character" && a.testUserPermission(game.user, "OWNER"))
         .map(a => a.id));
@@ -96,7 +97,6 @@ function openingCard() {
      * direct murder is never told anything is happening (config.mjs, opening
      * rules) - their seat does not count. An indirect victim rolls, and may see.
      */
-    const cast = game.settings.get(MODULE_ID, SETTINGS.incidentCast) ?? {};
     const seats = incidentParticipants().filter(id => state.indirect || id !== cast.victimId);
     if (!game.user.isGM && !seats.some(id => ids.has(id))) return null;
     const victim = game.actors.get(cast.victimId), killer = game.actors.get(cast.killerId);
@@ -113,7 +113,19 @@ function openingCard() {
 }
 function incidentCard() {
     if (!game.settings.settings.has(`${MODULE_ID}.murderState`)) return null;
-    const state = game.settings.get(MODULE_ID, "murderState") ?? {};
+    /*
+     * THE MECHANICS FROM THE WORLD, THE NAMES FROM THIS BROWSER.
+     *
+     * Every id this card reads - who the killer is, who the victim is, whose
+     * turn it is - moved into the client-scoped cast with LIVE-001, and this
+     * card went on reading them off the world setting alone. They were never
+     * there, so `victim` was always undefined and the card returned null the
+     * instant the opening roll ended: the panel simply vanished for the rest of
+     * the incident, on the GM's screen as well as everybody else's. Same merge
+     * `murderState()` makes in murder.mjs, and the same one `openingCard` above
+     * already made.
+     */
+    const state = { ...(game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {}), ...incidentCast() };
     if (!state.active || state.stage !== "incident") return null;
 
     const ids = new Set(game.actors

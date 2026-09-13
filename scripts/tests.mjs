@@ -5708,6 +5708,109 @@ const SCENARIOS = [
         }
     }],
 
+    ["the phase owns the trial's state, whichever route writes it", async () => {
+        /*
+         * THERE ARE FOUR ROUTES TO A PHASE AND ONLY ONE OF THEM WAS A DOOR.
+         *
+         * `startClassTrial` and `closeTrial` did the setting up and the taking
+         * down. The phase is also a select in "Edit campaign", it is `setPhase`
+         * behind the GM panel's Investigation tile and behind `game.drpg`, and
+         * it is one field of the season reset - and none of those three ran any
+         * of it. Dawid, 14.09: a trial ended from the clock editor was not
+         * ended, and the debate floor was still standing.
+         *
+         * So this drives the route that is NOT a door: a bare `setClock`, the
+         * same write those three make, with no console anywhere near it.
+         */
+        const floor = await import("./trial-floor.mjs");
+        const { trialProgress, setTrialProgress } = await import("./vote.mjs");
+
+        const clockBefore = foundry.utils.deepClone(getClock());
+        const progressBefore = foundry.utils.deepClone(trialProgress());
+
+        try {
+            await setClock({ phase: "classTrial" });
+            await floor.startFloor();
+            await settle();
+            ok(floor.trialFloor(), "the fixture floor did not open");
+
+            await setClock({ phase: "dailyLife" });
+            await settle();
+            ok(!floor.trialFloor(),
+                "the phase left the Class Trial and the debate floor stayed open - "
+                + "which is a speaker still holding the floor in Daily Life");
+
+            // ...and the other direction: a trial opened by a bare write starts clean.
+            await setTrialProgress({ voteClosed: true, verdictApplied: true });
+            await setClock({ phase: "classTrial" });
+            await settle();
+            const now = trialProgress();
+            ok(!now.voteClosed && !now.verdictApplied,
+                "a trial opened by moving the phase inherited the last one's vote, so "
+                + "its console offered a verdict before anybody had voted");
+        } finally {
+            await floor.endFloor();
+            await setClock({ phase: clockBefore.phase });
+            await setTrialProgress(progressBefore);
+            await settle();
+        }
+    }],
+
+    ["the Event panel's incident card reads the cast, not the world", async () => {
+        /*
+         * THE PANEL VANISHED THE MOMENT THE OPENING ROLL LANDED (Dawid, 14.09).
+         *
+         * Every id this card needs - the victim, the killer, whose turn it is -
+         * moved into the client-scoped cast with LIVE-001, and the card went on
+         * reading them off the world setting alone. They were never there, so
+         * `victim` came back undefined and the card returned null for the whole
+         * incident, on the GM's screen as well as everybody else's. The opening
+         * card next to it was written against the cast and kept working, which
+         * is why the panel appeared to die exactly at the handover.
+         *
+         * Read from source rather than driven: what regresses is one read, and
+         * the failure is silent - a card that returns null looks exactly like a
+         * card with nothing to say.
+         */
+        const src = stripComments(
+            await fetch(`/modules/${MODULE_ID}/scripts/events.mjs`).then(r => r.text()));
+
+        const at = src.indexOf("function incidentCard");
+        ok(at > 0, "incidentCard is gone from events.mjs");
+        const rest = src.slice(at + 10);
+        const next = rest.search(/^(?:export )?(?:async )?function /m);
+        const body = rest.slice(0, next < 0 ? rest.length : next);
+
+        ok(/incidentCast\(\)/.test(body),
+            "the incident card no longer merges the cast, so every id it reads is "
+            + "undefined and the panel goes blank for the whole incident");
+
+        for (const field of ["victimId", "killerId", "killerTurnId"]) {
+            ok(body.includes(`state.${field}`),
+                `the incident card stopped reading ${field}`);
+        }
+    }],
+
+    ["the curtain is recut when the tab comes back", async () => {
+        /*
+         * A BLOCK THAT LEAVES WHILE NOBODY IS LOOKING TOOK ITS PANE WITH IT, and
+         * the pane stayed (Dawid, 14.09): the Event panel up, the tab switched
+         * away, the incident ends, the panel is removed - and on returning there
+         * is a pane of glass and its blur standing over nothing.
+         *
+         * The DOM observer does fire while hidden, but a hidden tab has a canvas
+         * of zero width, so the geometry stands down and paints nothing; and the
+         * baseline the drift watch compares against is resampled by the frame
+         * that runs the instant the tab comes back, so by the time anything
+         * looks, the new layout IS the baseline and no drift is ever seen.
+         */
+        const src = stripComments(
+            await fetch(`/modules/${MODULE_ID}/scripts/glass.mjs`).then(r => r.text()));
+        ok(/addEventListener\("visibilitychange"/.test(src),
+            "nothing recuts the curtain when the document becomes visible, so a block "
+            + "that left while the tab was hidden keeps its pane");
+    }],
+
     ["a rebuttal keeps the objection playing and can be cut into", async () => {
         /*
          * Two rulings from Dawid, 28.08, and they are one rule read from both

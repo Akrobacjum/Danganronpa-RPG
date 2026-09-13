@@ -2,7 +2,7 @@
   "scenario": "scenarios/40-flow.mjs",
   "passed": 35,
   "total": 35,
-  "ms": 9680,
+  "ms": 9711,
   "results": [
     {
       "name": "p1: spending an action costs exactly one",
@@ -12,7 +12,7 @@
     {
       "name": "gm: clock advanced to noon",
       "ok": true,
-      "details": "{\"eclipse\":false,\"campaignName\":\"\",\"season\":1,\"chapter\":1,\"session\":1,\"day\":1,\"phase\":\"dailyLife\",\"timeOfDay\":\"noon\",\"timeOfDayStartedAt\":1789322187061,\"pausedAt\":null,\"finalTrial\":false,\"campaign\":\"QA season\"}"
+      "details": "{\"eclipse\":false,\"campaignName\":\"\",\"season\":1,\"chapter\":1,\"session\":1,\"day\":1,\"phase\":\"dailyLife\",\"timeOfDay\":\"noon\",\"timeOfDayStartedAt\":1789330401825,\"pausedAt\":null,\"finalTrial\":false,\"campaign\":\"QA season\"}"
     },
     {
       "name": "p1: sees the new time of day",
@@ -92,7 +92,7 @@
     {
       "name": "gm: the Ultimate request arrived as a card with buttons in the player's thread",
       "ok": true,
-      "details": "{\"found\":true,\"sent\":true,\"rid\":\"007e3AF6WOs4jU7C\",\"asker\":\"USERP20000000000\",\"text\":\"Ultimate - does it apply? Botan Kage I am the Ultimate Locksmith and this is a lock. Advantage on a roll your Ultimate genuinely applies to. 1 Hope, charged only on a yes. The question is the handbook\"}"
+      "details": "{\"found\":true,\"sent\":true,\"rid\":\"0nLxNYE4QSNxLOA0\",\"asker\":\"USERP20000000000\",\"text\":\"Ultimate - does it apply? Botan Kage I am the Ultimate Locksmith and this is a lock. Advantage on a roll your Ultimate genuinely applies to. 1 Hope, charged only on a yes. The question is the handbook\"}"
     },
     {
       "name": "p2: Hope was charged once the GM said yes",
@@ -183,46 +183,21 @@
   "permissionDenials": [],
   "socketTraffic": [
     {
-      "from": "p3",
-      "channel": "module.danganronpa-rpg",
-      "size": 99
-    },
-    {
-      "from": "p3",
-      "channel": "module.danganronpa-rpg",
-      "size": 73
-    },
-    {
-      "from": "p3",
-      "channel": "module.danganronpa-rpg",
-      "size": 62
-    },
-    {
-      "from": "p3",
-      "channel": "module.danganronpa-rpg",
-      "size": 91
-    },
-    {
-      "from": "p3",
-      "channel": "module.danganronpa-rpg",
-      "size": 99
-    },
-    {
-      "from": "p2",
-      "channel": "module.danganronpa-rpg",
-      "size": 99
-    },
-    {
-      "from": "p2",
-      "channel": "module.danganronpa-rpg",
-      "size": 73
-    },
-    {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
       "size": 29
     },
     {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 73
+    },
+    {
       "from": "p1",
       "channel": "module.danganronpa-rpg",
       "size": 99
@@ -235,12 +210,12 @@
     {
       "from": "p2",
       "channel": "module.danganronpa-rpg",
-      "size": 62
+      "size": 99
     },
     {
       "from": "p2",
       "channel": "module.danganronpa-rpg",
-      "size": 91
+      "size": 73
     },
     {
       "from": "gm",
@@ -248,17 +223,17 @@
       "size": 27
     },
     {
-      "from": "p2",
+      "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 99
+      "size": 91
     },
     {
       "from": "p3",
       "channel": "module.danganronpa-rpg",
-      "size": 72
+      "size": 62
     },
     {
-      "from": "gm",
+      "from": "p3",
       "channel": "module.danganronpa-rpg",
       "size": 91
     },
@@ -273,6 +248,11 @@
       "size": 91
     },
     {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
       "from": "p1",
       "channel": "module.danganronpa-rpg",
       "size": 99
@@ -280,7 +260,17 @@
     {
       "from": "p2",
       "channel": "module.danganronpa-rpg",
-      "size": 72
+      "size": 62
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
     },
     {
       "from": "gm",
@@ -296,6 +286,26 @@
       "from": "gm",
       "channel": "module.danganronpa-rpg",
       "size": 147
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 72
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 147
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 147
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 150
     },
     {
       "from": "p1",
@@ -305,21 +315,6 @@
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 147
-    },
-    {
-      "from": "gm",
-      "channel": "module.danganronpa-rpg",
-      "size": 150
-    },
-    {
-      "from": "gm",
-      "channel": "module.danganronpa-rpg",
-      "size": 147
-    },
-    {
-      "from": "gm",
-      "channel": "module.danganronpa-rpg",
       "size": 102
     },
     {
@@ -346,6 +341,11 @@
       "from": "gm",
       "channel": "module.danganronpa-rpg",
       "size": 118
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 72
     },
     {
       "from": "gm",
@@ -375,7 +375,7 @@
     {
       "from": "p1",
       "channel": "module.danganronpa-rpg",
-      "size": 1101
+      "size": 1108
     },
     {
       "from": "p1",
@@ -424,22 +424,22 @@
     }
   ],
   "bootInfo": {
-    "p3": {
-      "t": "ready",
-      "drpg": true,
-      "settingsRegistered": 66
-    },
-    "p2": {
-      "t": "ready",
-      "drpg": true,
-      "settingsRegistered": 66
-    },
     "gm": {
       "t": "ready",
       "drpg": true,
       "settingsRegistered": 66
     },
+    "p3": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 66
+    },
     "p1": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 66
+    },
+    "p2": {
       "t": "ready",
       "drpg": true,
       "settingsRegistered": 66
