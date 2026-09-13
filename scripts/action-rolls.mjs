@@ -16,7 +16,8 @@
 
 import {
     MODULE_ID, FLAGS, ACTIONS, TRAITS, TRAIT_BY_DH, DYNAMIC_THRESHOLDS, INDIRECT_MURDER,
-    PROJECT_SCALE, ITEM_CATEGORIES, SABOTAGE_CONCEAL, TOOL_IN_HAND, CLEANUP
+    PROJECT_SCALE, ITEM_CATEGORIES, SABOTAGE_CONCEAL, TOOL_IN_HAND, CLEANUP,
+    OBSERVE_DC, ANALYZE_DC, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS
 } from "./config.mjs";
 import { actionsLeft, spendAction, refundAction, hasFreeMove, canPayFor, lastSpendKind } from "./actions.mjs";
 import { leavesTraceFor } from "./inventory.mjs";
@@ -31,7 +32,7 @@ import { announce, resolveThreshold, whisperToOwner, dialogContent, replaceFlag,
 import { supersedingRoll } from "./private-rolls.mjs";
 // One reader, for the Tamper menu's "what you have readied" line. use-items.mjs
 // does not import this file.
-import { equippedFor } from "./use-items.mjs";
+import { equippedFor, tierOf } from "./use-items.mjs";
 import { playSfx } from "./sfx.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -258,8 +259,8 @@ export async function performAction(actor, actionKey, options = {}) {
  * `briefing()` below still exists for Move, which asks nothing and therefore has
  * no window of its own to fold into.
  */
-export function briefingBlock(actor, actionKey, def) {
-    const facts = briefingFacts(actor, actionKey, def);
+export function briefingBlock(actor, actionKey, def, { extraFacts = [] } = {}) {
+    const facts = briefingFacts(actor, actionKey, def, extraFacts);
 
     const paragraphs = String(def.description ?? def.hint ?? "")
         .split(/\n\s*\n/)
@@ -280,7 +281,7 @@ export function briefingBlock(actor, actionKey, def) {
 }
 
 /** The cost / statistics / room lines every briefing ends with. */
-function briefingFacts(actor, actionKey, def) {
+function briefingFacts(actor, actionKey, def, extraFacts = []) {
     const room = roomOfActor(actor);
     const cost = def.cost ?? 1;
     const facts = [];
@@ -349,6 +350,13 @@ function briefingFacts(actor, actionKey, def) {
         facts.push(game.i18n.format("DRPG.Action.failStress", { n: def.failStress }));
     }
 
+    // THE NUMBERS, FROM THE TABLE THE ROLL WILL BE SCORED AGAINST (D1, Dawid
+    // 13.09): every threshold a briefing can know before the dice, computed
+    // for this character as they stand - tool in hand, witnesses, the state of
+    // the scene - and the ladder where the exact row is the GM's to pick.
+    try { facts.push(...thresholdFacts(actor, actionKey, def)); } catch (err) { error("Could not print the thresholds", err); }
+    facts.push(...extraFacts);
+
     // Same question the tile's stripe asks, and it has to be asked the same
     // way: `callsGm` can be a predicate on the character now. A briefing that
     // says "this waits for the GM" over a tile that does not is worse than
@@ -358,6 +366,77 @@ function briefingFacts(actor, actionKey, def) {
         : Boolean(def.callsGm);
     if (callsGm) facts.push(game.i18n.localize("DRPG.Action.callsGmNote"));
 
+    return facts;
+}
+
+/** "Obvious 9 · Evident 12 · Subtle 15 · Hidden 18" from one column of a DC table. */
+function ladderRows(column) {
+    return REMNANT_VISIBILITY.map(v => game.i18n.format("DRPG.Action.dcLadderRow", {
+        label: REMNANT_VISIBILITY_LABELS[v] ?? v, n: column[v]
+    })).join(" · ");
+}
+
+/** The thresholds an action will be scored against, as the player stands now. */
+function thresholdFacts(actor, actionKey, def) {
+    const facts = [];
+    const f = (key, data) => facts.push(game.i18n.format(key, data));
+    const mins = list => (list ?? []).map(t => t.min);
+
+    switch (actionKey) {
+        case "search": {
+            const rows = (def.thresholds ?? []).map(t =>
+                game.i18n.format("DRPG.Action.dcTierRow", { n: t.min, tier: t.tier })).join(" · ");
+            if (rows) f("DRPG.Action.dcSearch", { rows });
+            break;
+        }
+        case "observe": {
+            const col = key => Object.fromEntries(REMNANT_VISIBILITY.map(v => [v, OBSERVE_DC[v]?.[key]]));
+            f("DRPG.Action.dcObserve", { rows: ladderRows(col("prep")) });
+            f("DRPG.Action.dcObserveKey", { rows: ladderRows(col("key")) });
+            f("DRPG.Action.dcObserveFaint", { rows: ladderRows(col("faint")) });
+            f("DRPG.Action.dcObserveDaily", { rows: ladderRows(col("dailyLife")) });
+            break;
+        }
+        case "analyze": {
+            const col = key => Object.fromEntries(REMNANT_VISIBILITY.map(v => [v, ANALYZE_DC[v]?.[key]]));
+            f("DRPG.Action.dcAnalyze", {
+                rows: ladderRows(col("prep")), faint: ladderRows(col("faint")), daily: ladderRows(col("dailyLife"))
+            });
+            const [a, b] = mins(def.hintThresholds);
+            if (a !== undefined) f("DRPG.Action.dcHint", { a, b: b ?? a });
+            if (def.stashThreshold) f("DRPG.Action.dcStash", { n: def.stashThreshold });
+            break;
+        }
+        case "project": {
+            const relief = toolRelief(equippedFor(actor, "tool"), tierOf);
+            const reliefNote = relief ? game.i18n.format("DRPG.Action.dcRelief", { n: relief }) : "";
+            const [a, b] = mins(def.thresholds).map(n => Math.max(0, n - relief));
+            if (a !== undefined) f("DRPG.Action.dcProject", { a, b: b ?? a, relief: reliefNote });
+            const [sa, sb] = mins(ACTIONS.sabotage?.thresholds).map(n => Math.max(0, n - relief));
+            if (sa !== undefined) f("DRPG.Action.dcSabotage", { a: sa, b: sb ?? sa, relief: reliefNote });
+            if (othersInRoom(actor).length) f("DRPG.Action.dcConceal", { n: SABOTAGE_CONCEAL.threshold });
+            try {
+                const room = roomOfActor(actor);
+                const here = room ? projectsAvailableIn(room) : [];
+                if (here.some(p => isIndirectMurder(p))) f("DRPG.Action.dcIndirect", { n: INDIRECT_MURDER.concealIntent.threshold });
+            } catch { /* no projects here */ }
+            break;
+        }
+        case "listen": {
+            const [a, b] = mins(def.thresholds);
+            if (a !== undefined) f("DRPG.Action.dcListen", { a, b: b ?? a });
+            break;
+        }
+        case "palm": {
+            f("DRPG.Action.dcPalm", {
+                take: def.threshold, unseen: def.unseen?.threshold ?? "-",
+                plant: def.plant?.threshold ?? def.threshold, plantUnseen: def.plant?.unseen ?? def.unseen?.threshold ?? "-"
+            });
+            break;
+        }
+        default:
+            break;
+    }
     return facts;
 }
 
@@ -457,7 +536,15 @@ function dynamicDef() {
  * "rollTrait is not a function" before a single die was thrown.
  */
 export async function rollTrait(actor, drpgTrait,
-    { remember = true, actionKey = null, context = null, title = null } = {}) {
+    { remember = true, actionKey = null, context = null, title = null, dc = null } = {}) {
+    // "Beat 12" on the window that throws the dice (D1). `dc` may be a number
+    // or a ladder written as text ("12 / 18"); a window with no title of its
+    // own takes the action's label so the number has something to hang on.
+    if (dc !== null && dc !== undefined && dc !== "") {
+        const heading = title ?? ACTIONS[actionKey]?.label ?? null;
+        const beat = game.i18n.format("DRPG.Action.beat", { n: dc });
+        title = heading ? `${heading} · ${beat}` : beat;
+    }
     const calls = await import("./call-effects.mjs");
 
     // `remember: false` marks a supporting roll - concealing an intent, hiding
@@ -1037,6 +1124,7 @@ async function performSearch(actor, def, options) {
     try {
         roll = await rollTrait(actor, trait, {
             actionKey: "search",
+            dc: (def.thresholds ?? []).map(t => t.min).join(" / "),
             // Recorded before anything can bail out below, so a Reroll always
             // knows what was being looked for and where.
             context: { room, category, goal: goalKey, request }
@@ -1944,8 +2032,10 @@ async function workOnProject(actor, def, options, chosen = null) {
     let rolledAlready = false;
     if (indirect) {
         if (witnesses.length) {
-            const conceal = await rollTrait(actor, INDIRECT_MURDER.concealIntent.trait,
-                { remember: false, title: game.i18n.localize("DRPG.Roll.concealIntent") });
+            const conceal = await rollTrait(actor, INDIRECT_MURDER.concealIntent.trait, {
+                remember: false, title: game.i18n.localize("DRPG.Roll.concealIntent"),
+                dc: INDIRECT_MURDER.concealIntent.threshold
+            });
             if (!conceal) return abort(actor, cost);
             rolledAlready = true;
             const ok = conceal.isCritical || conceal.total >= INDIRECT_MURDER.concealIntent.threshold;
@@ -1990,6 +2080,7 @@ async function workOnProject(actor, def, options, chosen = null) {
         roll = await rollTrait(actor, trait, {
             actionKey: "project",
             title: game.i18n.localize(indirect ? "DRPG.Roll.murderProject" : "DRPG.Roll.project"),
+            dc: (def.thresholds ?? []).map(t => Math.max(0, t.min - relief)).join(" / "),
             context: { room: roomOfActor(actor), projectId: project.id, bonus, cost }
         });
     } finally {
@@ -2035,8 +2126,10 @@ async function workOnProject(actor, def, options, chosen = null) {
     // Guide: every project action also rolls to hide the traces it leaves.
     let traceLeftTrace = false;
     if (indirect) {
-        const trace = await rollTrait(actor, INDIRECT_MURDER.hideTraces.trait,
-            { remember: false, title: game.i18n.localize("DRPG.Roll.hideTraces") });
+        const trace = await rollTrait(actor, INDIRECT_MURDER.hideTraces.trait, {
+            remember: false, title: game.i18n.localize("DRPG.Roll.hideTraces"),
+            dc: (INDIRECT_MURDER.hideTraces.thresholds ?? []).map(t => t.min).filter(Boolean).join(" / ")
+        });
         if (trace) {
             const band = trace.isCritical
                 ? INDIRECT_MURDER.hideTraces.critical
@@ -2328,7 +2421,7 @@ async function performSabotage(actor, def, options, preset = null) {
     let rolledAlready = false;
     if (witnesses.length) {
         const conceal = await rollTrait(actor, SABOTAGE_CONCEAL.trait,
-            { remember: false, title: game.i18n.localize("DRPG.Roll.concealIntent") });
+            { remember: false, title: game.i18n.localize("DRPG.Roll.concealIntent"), dc: SABOTAGE_CONCEAL.threshold });
         if (!conceal) return abort(actor, cost);
         rolledAlready = true;
 
@@ -2392,6 +2485,7 @@ async function performSabotage(actor, def, options, preset = null) {
     try {
         roll = await rollTrait(actor, trait, {
             actionKey: "sabotage",
+            dc: (def.thresholds ?? []).map(t => Math.max(0, t.min - relief + penalty)).join(" / "),
             context: { room, targetProjectId: project.id, penalty, witnesses: witnesses.length }
         });
     } finally {
@@ -2611,10 +2705,34 @@ async function performTamper(actor, def, options) {
     // anything from.
     const erasable = mine.filter(t => !t.reinforced);
 
+    // The erase ladder for THIS character: the cleaning tool's tier and the
+    // fresh scene come off the table's numbers (D1). Computed here, beside
+    // the module that scores the roll, rather than in the sync briefing.
+    const tamperFacts = (() => {
+        try {
+            const column = Object.fromEntries(REMNANT_VISIBILITY.map(v => [v, cleanup.cleanupDc(v, actor)]));
+            const reliefs = [];
+            const tier = cleanup.cleaningTier(actor);
+            if (CLEANUP.toolTierReducesDc && tier) reliefs.push(game.i18n.format("DRPG.Action.reliefTool", { n: tier }));
+            const fresh = cleanup.freshSceneBonus();
+            if (fresh) reliefs.push(game.i18n.format("DRPG.Action.reliefFresh", { n: fresh }));
+            const facts = [game.i18n.format("DRPG.Action.dcTamper", {
+                rows: ladderRows(column),
+                relief: reliefs.length ? game.i18n.format("DRPG.Action.dcTamperRelief", { what: reliefs.join(", ") }) : ""
+            })];
+            facts.push(game.i18n.format("DRPG.Action.dcFrame", { n: CLEANUP.actions.misleadingTrail.threshold }));
+            if (othersInRoom(actor).length) facts.push(game.i18n.format("DRPG.Action.dcConceal", { n: CLEANUP.conceal.threshold }));
+            return facts;
+        } catch (err) {
+            error("Could not print the Tamper thresholds", err);
+            return [];
+        }
+    })();
+
     const picked = await chooseVariant({
         actor,
         title: def.label,
-        intro: briefingBlock(actor, "tamper", def),
+        intro: briefingBlock(actor, "tamper", def, { extraFacts: tamperFacts }),
         prompt: game.i18n.localize("DRPG.Tamper.prompt"),
         confirm: game.i18n.localize("DRPG.Action.roll"),
         options: [
@@ -2915,12 +3033,14 @@ async function performPalm(actor, def, options) {
 
     const unseen = def.unseen;
     const shadow = await rollTrait(actor, unseen.trait, {
-        remember: false, title: game.i18n.localize("DRPG.Steal.unseenRoll")
+        remember: false, title: game.i18n.localize("DRPG.Steal.unseenRoll"),
+        dc: planting ? (def.plant?.unseen ?? unseen.threshold) : unseen.threshold
     });
     if (!shadow) return abort(actor, cost);
 
     const hand = await rollTrait(actor, def.traits[0], {
         actionKey: "steal",
+        dc: planting ? (def.plant?.threshold ?? def.threshold) : def.threshold,
         context: { room, victimId: victim.id, unseenTotal: shadow.total }
     });
     // The Shadow roll above has landed and paid out; closing this window does
@@ -3483,7 +3603,13 @@ async function performAnalyze(actor, def, options) {
     const subject = ruled ? null : (bullets.find(b => b.id === choice) ?? null);
     if (!ruled && !subject) return null;
 
-    const roll = await rollTrait(actor, "head", { actionKey: "analyze" });
+    const roll = await rollTrait(actor, "head", {
+        actionKey: "analyze",
+        // A bullet's own difficulty is read off its REAL type, which is the
+        // answer the roll exists to find - so only the two ruled routes show one.
+        dc: choice === "hint" ? (def.hintThresholds ?? []).map(t => t.min).join(" / ")
+            : choice === "stash" ? def.stashThreshold : null
+    });
     if (!roll) return null;
     if (cost > 0) await spendAction(actor, cost);
 
@@ -3747,6 +3873,7 @@ async function performListen(actor, def, options) {
 
     const roll = await rollTrait(actor, "shadow", {
         actionKey: "listen",
+        dc: (def.thresholds ?? []).map(t => t.min).join(" / "),
         context: { room: here, target }
     });
     if (!roll) return null;
@@ -4095,6 +4222,7 @@ async function performDynamic(actor, options) {
     if (!band) return null;
     const roll = await rollTrait(actor, picked.trait, {
         actionKey: "dynamic",
+        dc: Array.isArray(band.range) ? `${band.range[0]}-${band.range[1]}` : null,
         context: { bandIndex: picked.tier, description, room: roomOfActor(actor) }
     });
     if (!roll) return null;

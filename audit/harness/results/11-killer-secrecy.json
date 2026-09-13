@@ -2,7 +2,7 @@
   "scenario": "scenarios/11-killer-secrecy.mjs",
   "passed": 5,
   "total": 5,
-  "ms": 2947,
+  "ms": 2935,
   "results": [
     {
       "name": "SECRECY p1 during incident: killerId hidden",
@@ -43,49 +43,39 @@
       "size": 73
     },
     {
-      "from": "p2",
-      "channel": "module.danganronpa-rpg",
-      "size": 99
-    },
-    {
-      "from": "p3",
-      "channel": "module.danganronpa-rpg",
-      "size": 99
-    },
-    {
-      "from": "p3",
-      "channel": "module.danganronpa-rpg",
-      "size": 73
-    },
-    {
-      "from": "p2",
-      "channel": "module.danganronpa-rpg",
-      "size": 73
-    },
-    {
-      "from": "p1",
-      "channel": "module.danganronpa-rpg",
-      "size": 91
-    },
-    {
-      "from": "p1",
-      "channel": "module.danganronpa-rpg",
-      "size": 99
-    },
-    {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
       "size": 29
     },
     {
-      "from": "p3",
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 73
+    },
+    {
+      "from": "p1",
       "channel": "module.danganronpa-rpg",
       "size": 91
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
     },
     {
       "from": "p3",
       "channel": "module.danganronpa-rpg",
       "size": 99
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 73
     },
     {
       "from": "gm",
@@ -96,6 +86,16 @@
       "from": "p2",
       "channel": "module.danganronpa-rpg",
       "size": 91
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
     },
     {
       "from": "p2",
@@ -194,7 +194,7 @@
       "drpg": true,
       "settingsRegistered": 64
     },
-    "p3": {
+    "gm": {
       "t": "ready",
       "drpg": true,
       "settingsRegistered": 64
@@ -204,7 +204,7 @@
       "drpg": true,
       "settingsRegistered": 64
     },
-    "gm": {
+    "p3": {
       "t": "ready",
       "drpg": true,
       "settingsRegistered": 64

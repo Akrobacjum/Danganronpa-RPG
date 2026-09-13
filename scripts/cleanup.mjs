@@ -432,9 +432,22 @@ export async function attemptCleanup(actor, tokenId, {
     const tool = cleaningTool(actor);
     if (CLEANUP.toolAdvantage && tool) calls.armSituational(1);
 
+    // The number this roll will be scored against, on the window (D1): the
+    // same reading `settle` makes below, made once more before the dice.
+    const dcShown = (() => {
+        try {
+            const data = remnantData(findRemnantToken(tokenId));
+            if (!data || data.reinforced) return null;
+            const base = cleanupDc(data.visibility, actor);
+            const relief = mode === "transform" ? (CLEANUP.transformAction?.dcRelief ?? 0) : 0;
+            return base === null ? null : Math.max(0, base - relief);
+        } catch { return null; }
+    })();
+
     let roll;
     try {
         roll = await rollTrait(actor, CLEANUP.traits[0], {
+            dc: dcShown,
             // `cleanupKey` and `cleanupVia` ride along so a Reroll can tell the
             // three Stage 6 actions apart. Without them the bookmark said only
             // "cleanup" and a rerolled misleading trail was replayed as an
@@ -1180,7 +1193,7 @@ async function concealFromWitnesses(actor) {
 
     const { rollTrait } = await import("./action-rolls.mjs");
     const roll = await rollTrait(actor, def.trait,
-        { remember: false, title: game.i18n.localize("DRPG.Roll.concealIntent") });
+        { remember: false, title: game.i18n.localize("DRPG.Roll.concealIntent"), dc: def.threshold });
     if (!roll) return false;
 
     const hidden = roll.isCritical || roll.total >= def.threshold;
@@ -1383,6 +1396,7 @@ export async function attemptStageSix(actor, key, targetId = null, { viaAction =
     let roll;
     try {
         roll = await rollTrait(actor, (def.traits ?? CLEANUP.traits)[0], {
+            dc: def.threshold ?? null,
             // `cleanupKey` names WHICH of the three this was. `cleanup` keeps
             // holding the same value it always did so nothing that reads the
             // old bookmark shape breaks - see `settleCleanup` in reroll.mjs.
