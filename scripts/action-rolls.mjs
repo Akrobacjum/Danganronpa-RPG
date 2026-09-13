@@ -1033,6 +1033,359 @@ function canAfford(actor, cost) {
  * SEARCH
  * ========================================================================== */
 
+/** The stash a Search rifles first, if the room holds one with anything in it. */
+function stashToSearch(actor, room, { stashesIn, stashItemsIn }) {
+    /*
+     * WHICH STASH A SEARCH FINDS, when the room holds more than one.
+     *
+     * Open ones first, then hidden - and within that, the first with anything
+     * in it. Two reasons for that order rather than, say, the richest or a
+     * random pick: a search that turns up the unhidden drawer before the
+     * hiding place is what anybody would expect of a room, and it keeps the
+     * concealment penalty honest. Penalising a roll for a hidden stash while
+     * handing over an open one in the same room would charge for a difficulty
+     * the search never actually met.
+     *
+     * Your own is skipped: you do not search a room to find your own drawer.
+     */
+    const inRoom = stashesIn(room).filter(entry => entry.actorId !== actor.id);
+    const ordered = [...inRoom.filter(e => !e.concealed), ...inRoom.filter(e => e.concealed)];
+
+    let stashOwner = null;
+    let stashLoot = [];
+    let stashConcealed = false;
+    for (const entry of ordered) {
+        const owner = game.actors.get(entry.actorId);
+        if (!owner) continue;
+        const loot = stashItemsIn(owner, room);
+        if (!loot.length) continue;
+        stashOwner = owner;
+        stashLoot = loot;
+        stashConcealed = entry.concealed;
+        break;
+    }
+    return { stashOwner, stashLoot, stashConcealed };
+}
+
+/** The token was refused: an empty room, or nobody there to answer. Which one decides what the player keeps. */
+async function searchUnclaimed(actor, def, roll, { room, category, goalKey, cost }) {
+    // WHY the token was refused decides what the player is told and whether
+    // they keep the action.
+    //
+    // `spend()` answers false for two completely different things: the room
+    // really is empty, and nobody was there to say. A player's spend is a
+    // socket round trip to the GMs, so no GM connected - or one that did not
+    // answer inside five seconds, which a hosted server makes ordinary - came
+    // back as a flat false and was reported as "somebody got here first, 0
+    // tokens left" on a room that still had all three. The action went with
+    // it.
+    //
+    // The counter itself tells them apart. It is authoritative on this point
+    // and, on the unanswered path, uncached: nothing wrote a fresh count,
+    // so this reads the world setting.
+    //
+    // Only the genuinely-empty branch keeps charging. That is the branch the
+    // charge was introduced for - "a room they knew was empty" is the Hope
+    // generator, and it still costs - while an unanswered request is the
+    // module failing the player, not the player gaming it.
+    const reallyEmpty = SearchTokens.left(room) <= 0;
+    if (!reallyEmpty && cost > 0) await refundAction(actor, cost);
+
+    // `claimed: false` is what a Reroll reads: a room that was never
+    // searched is not searched by rerolling the dice (ROLL-02).
+    await noteRollContext(actor, { actionKey: "search", room, category, goal: goalKey, tier: null, claimed: false });
+    await report(actor, def, roll, {
+        text: game.i18n.localize(reallyEmpty
+            ? "DRPG.SearchTokens.pickedClean"
+            : "DRPG.SearchTokens.timeout"),
+        room, tokensLeft: SearchTokens.left(room)
+    });
+    return { success: false, exhausted: reallyEmpty, unanswered: !reallyEmpty };
+}
+
+// "Something specific" is the one goal no table can answer. The roll still
+// happens - and the tier it reaches is exactly the information the GM needs
+// to decide what was really there - so the result goes to them with the
+// player's own description attached.
+async function searchSpecific(actor, def, roll, { room, category, request, tier, hit, cost }) {
+    await callGm(actor, {
+        title: def.label,
+        request,
+        roll,
+        room,
+        // "Create an item" leaves this card open on purpose - the other two
+        // answers stay reachable if the editor is cancelled - and the card
+        // says so, because a button that does not close its card looks
+        // broken to anyone who does not know that (audit E11).
+        gmBody: `<p>${hit || roll.isCritical
+            ? game.i18n.format("DRPG.Action.specificFound", { tier })
+            : game.i18n.localize("DRPG.Action.specificNothing")} <em>${
+            game.i18n.localize("DRPG.Bridge.createItemStays")}</em></p>`,
+        // Three answers, because those are the three a GM actually gives to
+        // "I am looking for X": it exists and I will make it, it exists
+        // already and here it is, or there is none. Each opens the window
+        // that does the thing with everything the card already knows filled
+        // in - see `runCallAction`.
+        //
+        // Lowercase data keys only: `dataset` lowercases everything, so a
+        // `tierWanted` would come back as `tierwanted` and read undefined.
+        actions: [
+            {
+                action: "createItem",
+                label: game.i18n.localize("DRPG.Bridge.createItem"),
+                data: {
+                    by: actor.id, category, tier: String(tier),
+                    room: room ?? "", want: request ?? ""
+                }
+            },
+            {
+                action: "giveItem",
+                label: game.i18n.localize("DRPG.Bridge.giveItem"),
+                data: { by: actor.id }
+            },
+            {
+                action: "decline",
+                label: game.i18n.localize("DRPG.Bridge.nothingThere"),
+                data: { by: actor.id, cost: String(cost) }
+            }
+        ]
+    });
+
+    // Ruled by a human, so Reroll can only re-ask - see reroll.mjs.
+    await noteRollContext(actor, {
+        actionKey: "search", goal: "specific", gmRuled: true,
+        label: def.label, room, request
+    });
+
+    await report(actor, def, roll, {
+        success: Boolean(hit) || roll.isCritical,
+        text: game.i18n.localize("DRPG.Action.specificSent"),
+        room, tokensLeft: SearchTokens.left(room)
+    });
+    return { calledGm: true, roll, tier, request };
+}
+
+/** A miss: recorded for Reroll, sounded, and reported as the action's own failure line. */
+async function searchNothing(actor, def, roll, { room, category, goalKey }) {
+    await noteRollContext(actor, { actionKey: "search", room, category, goal: goalKey, tier: null });
+
+    /*
+     * THE ONE COMMON FAILURE IN THIS GAME THAT WAS COMPLETELY SILENT.
+     *
+     * A Search that finds nothing still costs an action and still burns one
+     * of the room's three tokens, and until now the only sign of either was
+     * a card saying so. Local, on the searcher's client: this branch runs
+     * where the roll was made.
+     *
+     * The two other ways a Search ends nothing are deliberately NOT here. A
+     * critical is not a failure, and a "something specific" request has gone
+     * to a GM rather than come up empty - that one is waiting, not lost.
+     */
+    playSfx("searchNothing");
+
+    await report(actor, def, roll, { text: def.failure, room, tokensLeft: SearchTokens.left(room) });
+    return { success: false };
+}
+
+// Somebody else's stash is searched before the room is.
+//
+// The guide's stash is a place things are hidden IN a room, so a successful
+// search finds what is hidden there first and only falls through to the
+// room's own contents once the stash is empty. Nothing is drawn for a stash
+// - the loot is whatever its owner actually put in it, which is what makes
+// rifling through one worth the action.
+async function searchStash(actor, def, roll, { room, category, goalKey, tier, stashOwner, stashLoot }) {
+    const { requestVaultSteal } = await import("./gm-bridge.mjs");
+
+    // The declaration still counts. Somebody rummaging for a weapon who
+    // finds the hiding place should come out with the weapon if there is
+    // one in there - and with whatever else is in there if not, because
+    // finding the stash at all is the win.
+    const wanted = stashLoot.filter(i =>
+        i.getFlag(MODULE_ID, "category") === category);
+    const pool = wanted.length ? wanted : stashLoot;
+    const taken = pool[Math.floor(Math.random() * pool.length)];
+
+    // `viaSearch`: this is the route that PAYS for a concealed stash - an
+    // action, a search token, and the -1 applied above. Without it the GM
+    // side refuses every concealed stash outright, which made beating the
+    // concealment worth nothing at all. See `stealFromVault`.
+    const got = await requestVaultSteal({
+        thiefId: actor.id, ownerId: stashOwner.id, itemId: taken.id, viaSearch: true,
+        // WAS THE HAND STEADY. The catalogue has said since E5 that `stolen`
+        // is "heard by the victim, and only when the thief was clumsy enough
+        // to be noticed", and there was no clumsiness in the code to read.
+        // This is it, and it is the same test every other fumble in the
+        // module uses: Despair, and a critical is never clumsy.
+        clumsy: Boolean(roll.withFear) && !roll.isCritical
+    });
+
+    await noteRollContext(actor, {
+        actionKey: "search", room, category, goal: goalKey, tier, fromVault: true
+    });
+    // Palm's rule (ROLL-10): the card names what came out only when this
+    // client SAW it come out. A player's request is answered on the GM's
+    // side and can still be refused there (hands full, a rule), and the
+    // old card had already told them "you find {item}".
+    const text = got && !got.pending && got.name
+        ? game.i18n.format("DRPG.Vault.foundInStash", { item: foundry.utils.escapeHTML(got.name) })
+        : got === null
+            ? game.i18n.localize("DRPG.Vault.foundStashNothing")
+            : game.i18n.localize("DRPG.Vault.foundStashPending");
+    await report(actor, def, roll, {
+        success: true, text, room, tokensLeft: SearchTokens.left(room)
+    });
+    return { success: true, roll, tier, fromVault: true };
+}
+
+    /*
+     * SOMEBODY LEFT SOMETHING HERE - E21, traps 165 and 166.
+     *
+     * Dawid, 28.08: if a player plants an item as an indirect murder project,
+     * the FIRST search in that room always pulls out the planted item, whatever
+     * the player was looking for.
+     *
+     * Without it the fifth trigger does not exist. The trap rides an object and
+     * the object is lying in a room where it might not be found for three
+     * sessions or ever, because a Search draws from the room's pool and the
+     * chance of hitting that one thing gets worse the better stocked the room
+     * is. The killer would be paying a project's full price for a lottery
+     * ticket - which is not tension, it is a raffle.
+     *
+     * INSTEAD OF THE DRAW, NEVER ADDED TO IT (trap 165). Dropping the plant
+     * into the room's table would make it likely rather than certain.
+     *
+     * AND DOWN THE `substitute` PATH, which the module has had since v1.1.33
+     * for "the room had none of what you asked for and gave you this instead"
+     * (trap 166). Same sentence, same token, same everything. A planted-item
+     * card that differed by so much as a comma would teach the table the
+     * difference inside three sessions, and then the best defence against an
+     * indirect murder would be reading your own chat more carefully than the
+     * fiction.
+     *
+     * The GM decided this, not us - a player's client is never told a room has
+     * something waiting in it. For a player the answer came back on the spend
+     * that was already being made; for a GM searching their own map it is asked
+     * here, because their `spend` never went near a socket.
+     */
+async function searchDraw(room, category, tier, goalKey) {
+    let plant = SearchTokens.takeFreshPlant();
+    if (!plant && game.user.isGM) {
+        try {
+            const { takePlant } = await import("./traps.mjs");
+            plant = await takePlant(room);
+        } catch (err) {
+            debug("Could not check this room for a planted item", err);
+        }
+    }
+
+    return plant
+        ? {
+            name: plant.name,
+            img: plant.img ?? null,
+            description: plant.description ?? "",
+            roles: plant.roles ?? [],
+            // The one thing that makes the card read like an ordinary
+            // unexpected find rather than an announcement.
+            substitute: true,
+            identity: plant.drpgItemId
+        }
+        : await drawItem(category, tier, { goal: goalKey, room });
+}
+
+    // The item actually goes into the inventory, subject to the carry limits.
+async function grantDrawn(actor, drawn, { category, tier, goalKey }) {
+    let granted = null;
+    if (drawn?.name) {
+        const { grantItem, ITEM_FLAGS } = await import("./inventory.mjs");
+        // The icon and the sentence the GM wrote on the table entry travel with
+        // it - see `drawItem`. Both are `null` for a built-in pool, which is
+        // exactly what `grantItem` already treats as "use the category icon and
+        // the tier line".
+        granted = await grantItem(actor, {
+            name: drawn.name, category, tier, goal: goalKey,
+            img: drawn.img ?? null, description: drawn.description ?? "",
+            // What else it can do, from the table entry it came out of.
+            roles: drawn.roles ?? [],
+            // A planted item arrives with its identity already minted by the
+            // GM, and it has to keep it: the GM's ledger was written against
+            // that name the moment the thing was planted, and an item that is
+            // renamed on the way into somebody's bag is an item the trap will
+            // never recognise again.
+            ...(drawn.identity ? { extraFlags: { [ITEM_FLAGS.identity]: drawn.identity } } : {})
+        });
+    }
+    return granted;
+}
+
+    /*
+     * THE TRACE FOLLOWS WHAT WAS FOUND, NOT WHAT WAS ASKED FOR.
+     *
+     * This read `category !== "usable"`, which was the same answer as the rule
+     * below for as long as the only non-usable things you could ask for were a
+     * crime tool and a cleaning tool. Adding "something to work with" broke it
+     * in both directions at once, and neither was acceptable: counting `tool`
+     * as incriminating buries the investigation under a trace for every hunt
+     * for a screwdriver, while exempting it opens a door - from tier 2 half the
+     * tools ARE weapons, so a killer asking for "something to work with" would
+     * walk out with a crowbar and no trace.
+     *
+     * By the time this runs the dice have settled and the item is known, so the
+     * question can be asked about the object instead of the intention. A trace
+     * is physical evidence of having handled a THING; it has never been
+     * evidence of what you meant. That makes this the more honest rule as well
+     * as the only workable one.
+     *
+     * Read off `category` plus the roles the table entry declared, rather than
+     * off the granted Item: the carry limit can refuse to grant it, and picking
+     * something up and finding you cannot hold it still means you touched it.
+     */
+async function leaveSearchTrace(actor, def, roll, { hit, category, drawn, granted, room, tier }) {
+    const leaves = leavesTraceFor(category, drawn?.roles);
+    const visibility = roll.isCritical ? def.critical?.remnant : hit?.remnant;
+
+    let placed = null;
+    let leftTrace = false;
+    if (leaves && visibility) {
+        const { dropRemnant, traceFeedback } = await import("./remnants.mjs");
+        const catLabel = ITEM_CATEGORIES[category]?.label ?? category;
+        placed = await dropRemnant(actor, {
+            type: "prep",
+            visibility,
+            faint: true,
+            /*
+             * NOT TIED BY CATEGORY ANY MORE (Dawid, 28.08).
+             *
+             * This used to say `true` because the thing found was crime or
+             * cleaning gear - a fact about the category, not about the chapter.
+             * A penknife nobody picked up again sat at the top of the case
+             * dashboard's murder-first sort beside the knife out of the body.
+             *
+             * What ties this trace is the object being USED, which nobody can
+             * know yet. So the trace remembers WHICH object it handed over and
+             * `tieTraceForItem` comes back for it the moment that object is
+             * swung. Left `null` rather than `false`: the incident rule in
+             * `placeRemnant` still gets to say yes if this Search is happening
+             * in the middle of one.
+             */
+            tiedToCrime: null,
+            itemIdentity: granted?.getFlag?.(MODULE_ID, "drpgItemId") ?? null,
+            action: "search",
+            subject: drawn?.name ?? "",
+            note: game.i18n.format("DRPG.Remnant.searchNote", {
+                actor: actor.name,
+                room: room ?? "?",
+                category: catLabel,
+                item: drawn?.name ?? "?",
+                tier,
+                total: roll.total
+            })
+        });
+        leftTrace = traceFeedback(roll, placed);
+    }
+    return { placed, leftTrace };
+}
+
 async function performSearch(actor, def, options) {
     const cost = options.free ? 0 : def.cost;
     if (!canAfford(actor, cost)) return null;
@@ -1074,35 +1427,7 @@ async function performSearch(actor, def, options) {
     const { favoursCategory, hindersCategory, stashesIn, stashItemsIn } =
         await import("./vault.mjs");
 
-    /*
-     * WHICH STASH A SEARCH FINDS, when the room holds more than one.
-     *
-     * Open ones first, then hidden - and within that, the first with anything
-     * in it. Two reasons for that order rather than, say, the richest or a
-     * random pick: a search that turns up the unhidden drawer before the
-     * hiding place is what anybody would expect of a room, and it keeps the
-     * concealment penalty honest. Penalising a roll for a hidden stash while
-     * handing over an open one in the same room would charge for a difficulty
-     * the search never actually met.
-     *
-     * Your own is skipped: you do not search a room to find your own drawer.
-     */
-    const inRoom = stashesIn(room).filter(entry => entry.actorId !== actor.id);
-    const ordered = [...inRoom.filter(e => !e.concealed), ...inRoom.filter(e => e.concealed)];
-
-    let stashOwner = null;
-    let stashLoot = [];
-    let stashConcealed = false;
-    for (const entry of ordered) {
-        const owner = game.actors.get(entry.actorId);
-        if (!owner) continue;
-        const loot = stashItemsIn(owner, room);
-        if (!loot.length) continue;
-        stashOwner = owner;
-        stashLoot = loot;
-        stashConcealed = entry.concealed;
-        break;
-    }
+    const { stashOwner, stashLoot, stashConcealed } = stashToSearch(actor, room, { stashesIn, stashItemsIn });
 
     let situational = 0;
     if (favoursCategory(room, category)) situational += 1;
@@ -1153,318 +1478,21 @@ async function performSearch(actor, def, options) {
     // room somebody else had already picked clean.
     if (cost > 0) await spendAction(actor, cost);
 
-    if (!claimed) {
-        // WHY the token was refused decides what the player is told and whether
-        // they keep the action.
-        //
-        // `spend()` answers false for two completely different things: the room
-        // really is empty, and nobody was there to say. A player's spend is a
-        // socket round trip to the GMs, so no GM connected - or one that did not
-        // answer inside five seconds, which a hosted server makes ordinary - came
-        // back as a flat false and was reported as "somebody got here first, 0
-        // tokens left" on a room that still had all three. The action went with
-        // it.
-        //
-        // The counter itself tells them apart. It is authoritative on this point
-        // and, on the unanswered path, uncached: nothing wrote a fresh count,
-        // so this reads the world setting.
-        //
-        // Only the genuinely-empty branch keeps charging. That is the branch the
-        // charge was introduced for - "a room they knew was empty" is the Hope
-        // generator, and it still costs - while an unanswered request is the
-        // module failing the player, not the player gaming it.
-        const reallyEmpty = SearchTokens.left(room) <= 0;
-        if (!reallyEmpty && cost > 0) await refundAction(actor, cost);
-
-        // `claimed: false` is what a Reroll reads: a room that was never
-        // searched is not searched by rerolling the dice (ROLL-02).
-        await noteRollContext(actor, { actionKey: "search", room, category, goal: goalKey, tier: null, claimed: false });
-        await report(actor, def, roll, {
-            text: game.i18n.localize(reallyEmpty
-                ? "DRPG.SearchTokens.pickedClean"
-                : "DRPG.SearchTokens.timeout"),
-            room, tokensLeft: SearchTokens.left(room)
-        });
-        return { success: false, exhausted: reallyEmpty, unanswered: !reallyEmpty };
-    }
+    if (!claimed) return searchUnclaimed(actor, def, roll, { room, category, goalKey, cost });
 
     const hit = resolveThreshold(roll.total, def.thresholds);
     const baseTier = hit?.tier ?? 0;
     const tier = roll.isCritical ? Math.min(3, baseTier + (def.critical?.tierBonus ?? 1)) : baseTier;
 
-    // "Something specific" is the one goal no table can answer. The roll still
-    // happens - and the tier it reaches is exactly the information the GM needs
-    // to decide what was really there - so the result goes to them with the
-    // player's own description attached.
-    if (goalKey === "specific") {
-        await callGm(actor, {
-            title: def.label,
-            request,
-            roll,
-            room,
-            // "Create an item" leaves this card open on purpose - the other two
-            // answers stay reachable if the editor is cancelled - and the card
-            // says so, because a button that does not close its card looks
-            // broken to anyone who does not know that (audit E11).
-            gmBody: `<p>${hit || roll.isCritical
-                ? game.i18n.format("DRPG.Action.specificFound", { tier })
-                : game.i18n.localize("DRPG.Action.specificNothing")} <em>${
-                game.i18n.localize("DRPG.Bridge.createItemStays")}</em></p>`,
-            // Three answers, because those are the three a GM actually gives to
-            // "I am looking for X": it exists and I will make it, it exists
-            // already and here it is, or there is none. Each opens the window
-            // that does the thing with everything the card already knows filled
-            // in - see `runCallAction`.
-            //
-            // Lowercase data keys only: `dataset` lowercases everything, so a
-            // `tierWanted` would come back as `tierwanted` and read undefined.
-            actions: [
-                {
-                    action: "createItem",
-                    label: game.i18n.localize("DRPG.Bridge.createItem"),
-                    data: {
-                        by: actor.id, category, tier: String(tier),
-                        room: room ?? "", want: request ?? ""
-                    }
-                },
-                {
-                    action: "giveItem",
-                    label: game.i18n.localize("DRPG.Bridge.giveItem"),
-                    data: { by: actor.id }
-                },
-                {
-                    action: "decline",
-                    label: game.i18n.localize("DRPG.Bridge.nothingThere"),
-                    data: { by: actor.id, cost: String(cost) }
-                }
-            ]
-        });
+    if (goalKey === "specific") return searchSpecific(actor, def, roll, { room, category, request, tier, hit, cost });
 
-        // Ruled by a human, so Reroll can only re-ask - see reroll.mjs.
-        await noteRollContext(actor, {
-            actionKey: "search", goal: "specific", gmRuled: true,
-            label: def.label, room, request
-        });
+    if (!hit && !roll.isCritical) return searchNothing(actor, def, roll, { room, category, goalKey });
 
-        await report(actor, def, roll, {
-            success: Boolean(hit) || roll.isCritical,
-            text: game.i18n.localize("DRPG.Action.specificSent"),
-            room, tokensLeft: SearchTokens.left(room)
-        });
-        return { calledGm: true, roll, tier, request };
-    }
+    if (stashLoot.length) return searchStash(actor, def, roll, { room, category, goalKey, tier, stashOwner, stashLoot });
 
-    if (!hit && !roll.isCritical) {
-        await noteRollContext(actor, { actionKey: "search", room, category, goal: goalKey, tier: null });
-
-        /*
-         * THE ONE COMMON FAILURE IN THIS GAME THAT WAS COMPLETELY SILENT.
-         *
-         * A Search that finds nothing still costs an action and still burns one
-         * of the room's three tokens, and until now the only sign of either was
-         * a card saying so. Local, on the searcher's client: this branch runs
-         * where the roll was made.
-         *
-         * The two other ways a Search ends nothing are deliberately NOT here. A
-         * critical is not a failure, and a "something specific" request has gone
-         * to a GM rather than come up empty - that one is waiting, not lost.
-         */
-        playSfx("searchNothing");
-
-        await report(actor, def, roll, { text: def.failure, room, tokensLeft: SearchTokens.left(room) });
-        return { success: false };
-    }
-
-    // Somebody else's stash is searched before the room is.
-    //
-    // The guide's stash is a place things are hidden IN a room, so a successful
-    // search finds what is hidden there first and only falls through to the
-    // room's own contents once the stash is empty. Nothing is drawn for a stash
-    // - the loot is whatever its owner actually put in it, which is what makes
-    // rifling through one worth the action.
-    if (stashLoot.length) {
-        const { requestVaultSteal } = await import("./gm-bridge.mjs");
-
-        // The declaration still counts. Somebody rummaging for a weapon who
-        // finds the hiding place should come out with the weapon if there is
-        // one in there - and with whatever else is in there if not, because
-        // finding the stash at all is the win.
-        const wanted = stashLoot.filter(i =>
-            i.getFlag(MODULE_ID, "category") === category);
-        const pool = wanted.length ? wanted : stashLoot;
-        const taken = pool[Math.floor(Math.random() * pool.length)];
-
-        // `viaSearch`: this is the route that PAYS for a concealed stash - an
-        // action, a search token, and the -1 applied above. Without it the GM
-        // side refuses every concealed stash outright, which made beating the
-        // concealment worth nothing at all. See `stealFromVault`.
-        const got = await requestVaultSteal({
-            thiefId: actor.id, ownerId: stashOwner.id, itemId: taken.id, viaSearch: true,
-            // WAS THE HAND STEADY. The catalogue has said since E5 that `stolen`
-            // is "heard by the victim, and only when the thief was clumsy enough
-            // to be noticed", and there was no clumsiness in the code to read.
-            // This is it, and it is the same test every other fumble in the
-            // module uses: Despair, and a critical is never clumsy.
-            clumsy: Boolean(roll.withFear) && !roll.isCritical
-        });
-
-        await noteRollContext(actor, {
-            actionKey: "search", room, category, goal: goalKey, tier, fromVault: true
-        });
-        // Palm's rule (ROLL-10): the card names what came out only when this
-        // client SAW it come out. A player's request is answered on the GM's
-        // side and can still be refused there (hands full, a rule), and the
-        // old card had already told them "you find {item}".
-        const text = got && !got.pending && got.name
-            ? game.i18n.format("DRPG.Vault.foundInStash", { item: foundry.utils.escapeHTML(got.name) })
-            : got === null
-                ? game.i18n.localize("DRPG.Vault.foundStashNothing")
-                : game.i18n.localize("DRPG.Vault.foundStashPending");
-        await report(actor, def, roll, {
-            success: true, text, room, tokensLeft: SearchTokens.left(room)
-        });
-        return { success: true, roll, tier, fromVault: true };
-    }
-
-    /*
-     * SOMEBODY LEFT SOMETHING HERE - E21, traps 165 and 166.
-     *
-     * Dawid, 28.08: if a player plants an item as an indirect murder project,
-     * the FIRST search in that room always pulls out the planted item, whatever
-     * the player was looking for.
-     *
-     * Without it the fifth trigger does not exist. The trap rides an object and
-     * the object is lying in a room where it might not be found for three
-     * sessions or ever, because a Search draws from the room's pool and the
-     * chance of hitting that one thing gets worse the better stocked the room
-     * is. The killer would be paying a project's full price for a lottery
-     * ticket - which is not tension, it is a raffle.
-     *
-     * INSTEAD OF THE DRAW, NEVER ADDED TO IT (trap 165). Dropping the plant
-     * into the room's table would make it likely rather than certain.
-     *
-     * AND DOWN THE `substitute` PATH, which the module has had since v1.1.33
-     * for "the room had none of what you asked for and gave you this instead"
-     * (trap 166). Same sentence, same token, same everything. A planted-item
-     * card that differed by so much as a comma would teach the table the
-     * difference inside three sessions, and then the best defence against an
-     * indirect murder would be reading your own chat more carefully than the
-     * fiction.
-     *
-     * The GM decided this, not us - a player's client is never told a room has
-     * something waiting in it. For a player the answer came back on the spend
-     * that was already being made; for a GM searching their own map it is asked
-     * here, because their `spend` never went near a socket.
-     */
-    let plant = SearchTokens.takeFreshPlant();
-    if (!plant && game.user.isGM) {
-        try {
-            const { takePlant } = await import("./traps.mjs");
-            plant = await takePlant(room);
-        } catch (err) {
-            debug("Could not check this room for a planted item", err);
-        }
-    }
-
-    const drawn = plant
-        ? {
-            name: plant.name,
-            img: plant.img ?? null,
-            description: plant.description ?? "",
-            roles: plant.roles ?? [],
-            // The one thing that makes the card read like an ordinary
-            // unexpected find rather than an announcement.
-            substitute: true,
-            identity: plant.drpgItemId
-        }
-        : await drawItem(category, tier, { goal: goalKey, room });
-
-    // The item actually goes into the inventory, subject to the carry limits.
-    let granted = null;
-    if (drawn?.name) {
-        const { grantItem, ITEM_FLAGS } = await import("./inventory.mjs");
-        // The icon and the sentence the GM wrote on the table entry travel with
-        // it - see `drawItem`. Both are `null` for a built-in pool, which is
-        // exactly what `grantItem` already treats as "use the category icon and
-        // the tier line".
-        granted = await grantItem(actor, {
-            name: drawn.name, category, tier, goal: goalKey,
-            img: drawn.img ?? null, description: drawn.description ?? "",
-            // What else it can do, from the table entry it came out of.
-            roles: drawn.roles ?? [],
-            // A planted item arrives with its identity already minted by the
-            // GM, and it has to keep it: the GM's ledger was written against
-            // that name the moment the thing was planted, and an item that is
-            // renamed on the way into somebody's bag is an item the trap will
-            // never recognise again.
-            ...(drawn.identity ? { extraFlags: { [ITEM_FLAGS.identity]: drawn.identity } } : {})
-        });
-    }
-
-    /*
-     * THE TRACE FOLLOWS WHAT WAS FOUND, NOT WHAT WAS ASKED FOR.
-     *
-     * This read `category !== "usable"`, which was the same answer as the rule
-     * below for as long as the only non-usable things you could ask for were a
-     * crime tool and a cleaning tool. Adding "something to work with" broke it
-     * in both directions at once, and neither was acceptable: counting `tool`
-     * as incriminating buries the investigation under a trace for every hunt
-     * for a screwdriver, while exempting it opens a door - from tier 2 half the
-     * tools ARE weapons, so a killer asking for "something to work with" would
-     * walk out with a crowbar and no trace.
-     *
-     * By the time this runs the dice have settled and the item is known, so the
-     * question can be asked about the object instead of the intention. A trace
-     * is physical evidence of having handled a THING; it has never been
-     * evidence of what you meant. That makes this the more honest rule as well
-     * as the only workable one.
-     *
-     * Read off `category` plus the roles the table entry declared, rather than
-     * off the granted Item: the carry limit can refuse to grant it, and picking
-     * something up and finding you cannot hold it still means you touched it.
-     */
-    const leaves = leavesTraceFor(category, drawn?.roles);
-    const visibility = roll.isCritical ? def.critical?.remnant : hit?.remnant;
-
-    let placed = null;
-    let leftTrace = false;
-    if (leaves && visibility) {
-        const { dropRemnant, traceFeedback } = await import("./remnants.mjs");
-        const catLabel = ITEM_CATEGORIES[category]?.label ?? category;
-        placed = await dropRemnant(actor, {
-            type: "prep",
-            visibility,
-            faint: true,
-            /*
-             * NOT TIED BY CATEGORY ANY MORE (Dawid, 28.08).
-             *
-             * This used to say `true` because the thing found was crime or
-             * cleaning gear - a fact about the category, not about the chapter.
-             * A penknife nobody picked up again sat at the top of the case
-             * dashboard's murder-first sort beside the knife out of the body.
-             *
-             * What ties this trace is the object being USED, which nobody can
-             * know yet. So the trace remembers WHICH object it handed over and
-             * `tieTraceForItem` comes back for it the moment that object is
-             * swung. Left `null` rather than `false`: the incident rule in
-             * `placeRemnant` still gets to say yes if this Search is happening
-             * in the middle of one.
-             */
-            tiedToCrime: null,
-            itemIdentity: granted?.getFlag?.(MODULE_ID, "drpgItemId") ?? null,
-            action: "search",
-            subject: drawn?.name ?? "",
-            note: game.i18n.format("DRPG.Remnant.searchNote", {
-                actor: actor.name,
-                room: room ?? "?",
-                category: catLabel,
-                item: drawn?.name ?? "?",
-                tier,
-                total: roll.total
-            })
-        });
-        leftTrace = traceFeedback(roll, placed);
-    }
+    const drawn = await searchDraw(room, category, tier, goalKey);
+    const granted = await grantDrawn(actor, drawn, { category, tier, goalKey });
+    const { placed, leftTrace } = await leaveSearchTrace(actor, def, roll, { hit, category, drawn, granted, room, tier });
 
     const outcome = {
         success: true, tier, category,
@@ -2347,37 +2375,7 @@ async function performSabotage(actor, def, options, preset = null) {
     const room = roomOfActor(actor);
     const { sabotageTargetsIn, sabotageProject } = await import("./projects.mjs");
 
-    // WHICH CHARACTER, NOT WHICH ACCOUNT.
-    //
-    // This used to read `game.user.isGM || isMonokuma(actor)`, and the first
-    // half is the bug: it asks who is holding the mouse rather than who is in
-    // the fiction. A GM opening a student's sheet - to test it, to play an
-    // absent player's character, to walk somebody through their turn - got the
-    // whole map as targets, because the ACCOUNT was privileged even though the
-    // CHARACTER was a student standing in one room. That is the "sabotage
-    // reaches projects in other rooms" report, and no player ever saw it,
-    // which is why it looked intermittent.
-    //
-    // A Monokuma still reaches anywhere: they walk the map freely and are not
-    // standing in the players' geography at all. That is a fact about the
-    // character, and it survives whoever is logged in as them.
-    const { isMonokuma } = await import("./monokuma.mjs");
-    const anyRoom = isMonokuma(actor);
-    const targets = sabotageTargetsIn(room, { anyRoom });
-
-    // Say what is being held back and why.
-    //
-    // Two rules quietly remove projects from this list - a project already
-    // frozen by an earlier sabotage, and a repair project, which there is no
-    // sense in breaking. Both are correct and both were invisible, so a Monokuma
-    // saw some projects and not others with nothing to explain the difference.
-    // The SAME reach `sabotageTargetsIn` uses, or this list names projects in
-    // other rooms - which is both a leak and a lie, since they were never
-    // candidates and are not being "held back" from anything.
-    const { visibleProjects, isFrozen, repairs } = await import("./projects.mjs");
-    const withheld = visibleProjects()
-        .filter(p => anyRoom || (room && p.room === room))
-        .filter(p => isFrozen(p.id) || repairs(p.id));
+    const { targets, withheld } = await sabotageTargets(actor, room, { sabotageTargetsIn });
 
     if (!targets.length) {
         ui.notifications.warn(withheld.length
@@ -2406,63 +2404,17 @@ async function performSabotage(actor, def, options, preset = null) {
     if (!picked) return null;
     const { project, trait } = picked;
 
-    // Someone is watching. Cover what you are doing before you do it, exactly
-    // as an indirect murder covers its intent - and learn the answer while
-    // there is still time to walk away.
     const witnesses = othersInRoom(actor);
     const lines = [];
-    let penalty = 0;
 
     // Paid before the concealment roll, for the same reason as Work on Project:
     // that roll grants Hope and feeds a Despair pool, and an uncharged cancel
     // afterwards turned it into free resources.
     if (cost > 0 && !await spendAction(actor, cost)) return null;
 
-    let rolledAlready = false;
-    if (witnesses.length) {
-        const conceal = await rollTrait(actor, SABOTAGE_CONCEAL.trait,
-            { remember: false, title: game.i18n.localize("DRPG.Roll.concealIntent"), dc: SABOTAGE_CONCEAL.threshold });
-        if (!conceal) return abort(actor, cost);
-        rolledAlready = true;
-
-        const hidden = conceal.isCritical || conceal.total >= SABOTAGE_CONCEAL.threshold;
-        if (hidden && conceal.withFear) penalty = SABOTAGE_CONCEAL.despairPenalty;
-
-        lines.push(`<p><strong>${SABOTAGE_CONCEAL.label}</strong> - ${conceal.total}: ${
-            hidden
-                ? (conceal.withFear ? SABOTAGE_CONCEAL.successWithDespair : SABOTAGE_CONCEAL.success)
-                : SABOTAGE_CONCEAL.failure
-        }</p>`);
-
-        // A failure is public: the room saw enough to describe it.
-        if (!hidden) {
-            await announce({
-                content: `<p><em>${game.i18n.format("DRPG.Action.sabotageWatched", {
-                    actor: foundry.utils.escapeHTML(actor.name),
-                    room: foundry.utils.escapeHTML(room ?? "-"),
-                    project: foundry.utils.escapeHTML(project.name)
-                })}</em></p>`,
-                whisper: roomAudience(actor)
-            });
-
-            const carryOn = await DialogV2.confirm({
-                classes: ["drpg-panel"],
-                window: { title: def.label },
-                content: `<p>${SABOTAGE_CONCEAL.failure}</p>
-                          <p>${game.i18n.localize("DRPG.Action.sabotageCarryOn")}</p>`,
-                rejectClose: false
-            });
-            // Walking away is a real choice, not a wasted turn: the roll that
-            // gave them the information has happened, but the sabotage has not,
-            // so the action is returned.
-            if (!carryOn) {
-                await abort(actor, cost);
-                return { aborted: true, seen: true };
-            }
-        }
-    } else {
-        lines.push(`<p><em>${SABOTAGE_CONCEAL.aloneNote}</em></p>`);
-    }
+    const concealment = await concealSabotage(actor, def, { room, project, witnesses, cost, lines });
+    if ("exit" in concealment) return concealment.exit;
+    const { penalty, rolledAlready } = concealment;
 
     // Sabotage is project work with the sign flipped, so the tool counts here
     // too - the guide's own "including sabotage". `performSabotage` did not look
@@ -2515,18 +2467,7 @@ async function performSabotage(actor, def, options, preset = null) {
     // the roll called it frozen before the world setting agreed.
     let repair = null;
     if (success) {
-        // Guide's Sabotage table, by the repair project it demands:
-        //   12 -> trivial (3)   18 -> complex (6)   crit -> desperate (8)
-        // The 12 band was creating a 4-progress "everyday" repair, one scale
-        // step harder than the guide asks for.
-        const difficulty = roll.isCritical
-            ? PROJECT_SCALE.desperate.progress
-            // This 18 is the same band `easedBy` just lowered, read a second
-            // time by hand - so it comes down by the same amount, or a good
-            // tool would buy the band without buying the repair it names.
-            : score >= 18 - relief
-                ? PROJECT_SCALE.complex.progress
-                : PROJECT_SCALE.trivial.progress;
+        const difficulty = sabotageRepairScale(roll, score, relief);
         repair = await sabotageProject(project.id, difficulty);
     }
     // The dice succeeded but nobody was there (or ready in time) to actually
@@ -2536,27 +2477,8 @@ async function performSabotage(actor, def, options, preset = null) {
     const applied = Boolean(repair?.repair);
     const applyFailed = success && !applied;
 
-    // Sabotage always leaves a trace, success or not.
-    const visibility = success ? hit.remnant : def.failureRemnant;
-    const { dropRemnant, traceFeedback } = await import("./remnants.mjs");
-    const placed = await dropRemnant(actor, {
-        type: "prep",
-        // Sabotaging a murder project is working on the murder too.
-        tiedToCrime: project?.indirectMurder ? true : null,
-        visibility,
-        faint: true,
-        action: "sabotage",
-        subject: project.name,
-        note: game.i18n.format("DRPG.Remnant.sabotageNote", {
-            actor: actor.name,
-            project: project.name,
-            room: room ?? "?",
-            total: roll.total,
-            outcome: success
-                ? game.i18n.format("DRPG.Remnant.sabotageWorked", { repair: repair?.repair?.name ?? "?" })
-                : game.i18n.localize("DRPG.Remnant.sabotageFailed")
-        })
-    });
+    const { traceFeedback } = await import("./remnants.mjs");
+    const placed = await dropSabotageTrace(actor, def, roll, { project, room, success, hit, repair });
 
     const outcome = {
         success,
@@ -2575,38 +2497,7 @@ async function performSabotage(actor, def, options, preset = null) {
                   })}`
     };
 
-    /*
-     * ONE SOUND FOR ONE SABOTAGE, and which one depends on who found out.
-     *
-     * These two can both be true - you can fail AND be seen failing - and
-     * played together they would be two sounds for one act. Resolved by
-     * precedence rather than by `yieldsTo`: the reveal is a public card that
-     * arrives whenever the GM's client gets to it, so there is no reliable
-     * window for the yield timer to measure. The branch is deterministic and
-     * decided here, where both facts are already known.
-     *
-     * The reveal wins because it is the bigger event and the wider audience: a
-     * failure is a fact about your own turn, being watched is a fact about the
-     * chapter. And the saboteur is on the announcement's audience too, so
-     * playing only the failure would have left them hearing the smaller half.
-     */
-    if (outcome.revealed) {
-        await announce({
-            content: `<p><em>${game.i18n.format("DRPG.Action.sabotageSeen", {
-                actor: foundry.utils.escapeHTML(actor.name),
-                room: foundry.utils.escapeHTML(room ?? "-")
-            })}</em></p>`,
-            // The room, not the table (D6): the people who saw it and the GMs.
-            // Word of it reaches the rest the way news does in a locked school.
-            whisper: roomAudience(actor),
-            flags: { [MODULE_ID]: { sfx: "sabotageSeen" } }
-        });
-    } else if (!outcome.success) {
-        // Local: this branch runs on the saboteur's own client. A sabotage that
-        // missed still dropped its Remnant a few lines above - the sound is
-        // for the trace, not for the miss.
-        playSfx("sabotageFailed");
-    }
+    await soundSabotage(actor, room, outcome);
 
     // What Reroll has to unpick: the freeze on the target, the repair project it
     // spawned, and the trace. The concealment penalty rides along because the new
@@ -2630,6 +2521,169 @@ async function performSabotage(actor, def, options, preset = null) {
         actor, actionKey: "sabotage", roll, outcome, projectId: project.id
     });
     return outcome;
+}
+
+/** What this character can sabotage from where they stand, and what is being held back from them. */
+async function sabotageTargets(actor, room, { sabotageTargetsIn }) {
+    // WHICH CHARACTER, NOT WHICH ACCOUNT.
+    //
+    // This used to read `game.user.isGM || isMonokuma(actor)`, and the first
+    // half is the bug: it asks who is holding the mouse rather than who is in
+    // the fiction. A GM opening a student's sheet - to test it, to play an
+    // absent player's character, to walk somebody through their turn - got the
+    // whole map as targets, because the ACCOUNT was privileged even though the
+    // CHARACTER was a student standing in one room. That is the "sabotage
+    // reaches projects in other rooms" report, and no player ever saw it,
+    // which is why it looked intermittent.
+    //
+    // A Monokuma still reaches anywhere: they walk the map freely and are not
+    // standing in the players' geography at all. That is a fact about the
+    // character, and it survives whoever is logged in as them.
+    const { isMonokuma } = await import("./monokuma.mjs");
+    const anyRoom = isMonokuma(actor);
+    const targets = sabotageTargetsIn(room, { anyRoom });
+
+    // Say what is being held back and why.
+    //
+    // Two rules quietly remove projects from this list - a project already
+    // frozen by an earlier sabotage, and a repair project, which there is no
+    // sense in breaking. Both are correct and both were invisible, so a Monokuma
+    // saw some projects and not others with nothing to explain the difference.
+    // The SAME reach `sabotageTargetsIn` uses, or this list names projects in
+    // other rooms - which is both a leak and a lie, since they were never
+    // candidates and are not being "held back" from anything.
+    const { visibleProjects, isFrozen, repairs } = await import("./projects.mjs");
+    const withheld = visibleProjects()
+        .filter(p => anyRoom || (room && p.room === room))
+        .filter(p => isFrozen(p.id) || repairs(p.id));
+    return { targets, withheld };
+}
+
+// Someone is watching. Cover what you are doing before you do it, exactly
+// as an indirect murder covers its intent - and learn the answer while
+// there is still time to walk away.
+async function concealSabotage(actor, def, { room, project, witnesses, cost, lines }) {
+    let penalty = 0;
+    let rolledAlready = false;
+    if (witnesses.length) {
+        const conceal = await rollTrait(actor, SABOTAGE_CONCEAL.trait,
+            { remember: false, title: game.i18n.localize("DRPG.Roll.concealIntent"), dc: SABOTAGE_CONCEAL.threshold });
+        if (!conceal) return { exit: await abort(actor, cost) };
+        rolledAlready = true;
+
+        const hidden = conceal.isCritical || conceal.total >= SABOTAGE_CONCEAL.threshold;
+        if (hidden && conceal.withFear) penalty = SABOTAGE_CONCEAL.despairPenalty;
+
+        lines.push(`<p><strong>${SABOTAGE_CONCEAL.label}</strong> - ${conceal.total}: ${
+            hidden
+                ? (conceal.withFear ? SABOTAGE_CONCEAL.successWithDespair : SABOTAGE_CONCEAL.success)
+                : SABOTAGE_CONCEAL.failure
+        }</p>`);
+
+        // A failure is public: the room saw enough to describe it.
+        if (!hidden) {
+            await announce({
+                content: `<p><em>${game.i18n.format("DRPG.Action.sabotageWatched", {
+                    actor: foundry.utils.escapeHTML(actor.name),
+                    room: foundry.utils.escapeHTML(room ?? "-"),
+                    project: foundry.utils.escapeHTML(project.name)
+                })}</em></p>`,
+                whisper: roomAudience(actor)
+            });
+
+            const carryOn = await DialogV2.confirm({
+                classes: ["drpg-panel"],
+                window: { title: def.label },
+                content: `<p>${SABOTAGE_CONCEAL.failure}</p>
+                          <p>${game.i18n.localize("DRPG.Action.sabotageCarryOn")}</p>`,
+                rejectClose: false
+            });
+            // Walking away is a real choice, not a wasted turn: the roll that
+            // gave them the information has happened, but the sabotage has not,
+            // so the action is returned.
+            if (!carryOn) {
+                await abort(actor, cost);
+                return { exit: { aborted: true, seen: true } };
+            }
+        }
+    } else {
+        lines.push(`<p><em>${SABOTAGE_CONCEAL.aloneNote}</em></p>`);
+    }
+    return { penalty, rolledAlready };
+}
+
+    // Guide's Sabotage table, by the repair project it demands:
+    //   12 -> trivial (3)   18 -> complex (6)   crit -> desperate (8)
+    // The 12 band was creating a 4-progress "everyday" repair, one scale
+    // step harder than the guide asks for.
+function sabotageRepairScale(roll, score, relief) {
+    return roll.isCritical
+        ? PROJECT_SCALE.desperate.progress
+        // This 18 is the same band `easedBy` just lowered, read a second
+        // time by hand - so it comes down by the same amount, or a good
+        // tool would buy the band without buying the repair it names.
+        : score >= 18 - relief
+            ? PROJECT_SCALE.complex.progress
+            : PROJECT_SCALE.trivial.progress;
+}
+
+    // Sabotage always leaves a trace, success or not.
+async function dropSabotageTrace(actor, def, roll, { project, room, success, hit, repair }) {
+    const { dropRemnant } = await import("./remnants.mjs");
+    const visibility = success ? hit.remnant : def.failureRemnant;
+    return dropRemnant(actor, {
+        type: "prep",
+        // Sabotaging a murder project is working on the murder too.
+        tiedToCrime: project?.indirectMurder ? true : null,
+        visibility,
+        faint: true,
+        action: "sabotage",
+        subject: project.name,
+        note: game.i18n.format("DRPG.Remnant.sabotageNote", {
+            actor: actor.name,
+            project: project.name,
+            room: room ?? "?",
+            total: roll.total,
+            outcome: success
+                ? game.i18n.format("DRPG.Remnant.sabotageWorked", { repair: repair?.repair?.name ?? "?" })
+                : game.i18n.localize("DRPG.Remnant.sabotageFailed")
+        })
+    });
+}
+
+    /*
+     * ONE SOUND FOR ONE SABOTAGE, and which one depends on who found out.
+     *
+     * These two can both be true - you can fail AND be seen failing - and
+     * played together they would be two sounds for one act. Resolved by
+     * precedence rather than by `yieldsTo`: the reveal is a public card that
+     * arrives whenever the GM's client gets to it, so there is no reliable
+     * window for the yield timer to measure. The branch is deterministic and
+     * decided here, where both facts are already known.
+     *
+     * The reveal wins because it is the bigger event and the wider audience: a
+     * failure is a fact about your own turn, being watched is a fact about the
+     * chapter. And the saboteur is on the announcement's audience too, so
+     * playing only the failure would have left them hearing the smaller half.
+     */
+async function soundSabotage(actor, room, outcome) {
+    if (outcome.revealed) {
+        await announce({
+            content: `<p><em>${game.i18n.format("DRPG.Action.sabotageSeen", {
+                actor: foundry.utils.escapeHTML(actor.name),
+                room: foundry.utils.escapeHTML(room ?? "-")
+            })}</em></p>`,
+            // The room, not the table (D6): the people who saw it and the GMs.
+            // Word of it reaches the rest the way news does in a locked school.
+            whisper: roomAudience(actor),
+            flags: { [MODULE_ID]: { sfx: "sabotageSeen" } }
+        });
+    } else if (!outcome.success) {
+        // Local: this branch runs on the saboteur's own client. A sabotage that
+        // missed still dropped its Remnant a few lines above - the sound is
+        // for the trace, not for the miss.
+        playSfx("sabotageFailed");
+    }
 }
 
 /* ==========================================================================
