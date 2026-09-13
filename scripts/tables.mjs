@@ -1728,12 +1728,12 @@ function wirePaneHeading(pane, root, { current, show, nameEl }) {
  * where `blur` does not.
  *
  * ON THE PANE, NOT ON `root`. The comment that used to stand here
- * said these three were pane-agnostic and could live outside
- * `wirePane`; the code did not agree with it. Every one of them
- * reaches for `bodyEl` and `show`, which are declared inside that
- * function, so the first line of the first handler threw
- * `ReferenceError: bodyEl is not defined` - during render, before
- * Foundry had placed the window.
+ * said these three were pane-agnostic and could live outside the
+ * pane's own wiring; the code did not agree with it. Every one of
+ * them reaches for `show`, which belongs to `wirePoolPane` - it is
+ * handed down as an argument now, and when it was a closure the
+ * first line of the first handler threw `ReferenceError: bodyEl is
+ * not defined` during render, before Foundry had placed the window.
  *
  * That is what pinned this window to the top left corner and made
  * it undraggable: a render that throws never reaches `setPosition`,

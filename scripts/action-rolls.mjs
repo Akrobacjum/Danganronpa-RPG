@@ -2690,8 +2690,8 @@ async function soundSabotage(actor, room, outcome) {
         });
     } else if (!outcome.success) {
         // Local: this branch runs on the saboteur's own client. A sabotage that
-        // missed still dropped its Remnant a few lines above - the sound is
-        // for the trace, not for the miss.
+        // missed still dropped its Remnant (`dropSabotageTrace`, called before
+        // this) - the sound is for the trace, not for the miss.
         playSfx("sabotageFailed");
     }
 }
