@@ -1167,39 +1167,11 @@ function markHopeChange(actor, element, fresh = false) {
     }
 }
 
-function injectActionBar(app, element, fresh = false) {
-    const row = element.querySelector(".character-header-sheet .character-row");
-    if (!row || row.querySelector(".drpg-actions-section")) return;
-
-    const actor = app.document;
-    const left = actionsLeft(actor);
-    const max = actionsMax(actor);
-    const { wounded } = actionBudget(actor);
-
-    // What went out since this sheet last drew itself. Recorded even when it is
-    // not shown - a first draw still has to know where the count started, or
-    // the NEXT draw would flash the whole difference.
-    const spentActions = spentSince("sheet:actions", actor.id, left);
-    const spentMove = spentSince("sheet:move", actor.id, hasFreeMove(actor) ? 1 : 0);
-
-    const section = document.createElement("div");
-    section.className = "drpg-actions-section";
-
-    /* ---- action pips ---- */
-    const actions = document.createElement("div");
-    actions.className = "drpg-actions";
-
-    const label = document.createElement("h4");
-    label.textContent = game.i18n.localize("DRPG.Actions.label");
-    if (wounded) {
-        label.classList.add("drpg-wounded");
-        label.dataset.tooltip = game.i18n.localize("DRPG.Actions.woundedTooltip");
-    }
-    actions.append(label);
-
-    // Always draw the full base budget. A wounded character keeps both circles,
-    // but the one they have lost shows as a locked red slot - clearer than
-    // silently rendering "1 / 1", which reads like an action already spent.
+// Always draw the full base budget. A wounded character keeps both circles,
+// but the one they have lost shows as a locked red slot - clearer than
+// silently rendering "1 / 1", which reads like an action already spent.
+function actionPips(actor, { left, max, spentActions, fresh }) {
+    const pips = [];
     const budget = Math.max(max, 1);
     for (let i = 1; i <= Math.max(STARTING.actions, budget); i++) {
         const locked = i > budget;
@@ -1235,10 +1207,13 @@ function injectActionBar(app, element, fresh = false) {
         } else {
             pip.dataset.tooltip = game.i18n.format("DRPG.Actions.pipReadOnly", { left, max: budget });
         }
-        actions.append(pip);
+        pips.push(pip);
     }
+    return pips;
+}
 
-    /* ---- free move ---- */
+/* ---- free move ---- */
+function freeMovePip(actor, { spentMove, fresh }) {
     const move = document.createElement("span");
     const freeMove = hasFreeMove(actor);
     move.className = `drpg-free-move${freeMove ? " available" : " spent"}`;
@@ -1251,28 +1226,28 @@ function injectActionBar(app, element, fresh = false) {
     // spent Move and a spent action say the same thing in the same way. Foundry
     // ships Font Awesome Pro, which carries every icon in both weights.
     move.innerHTML = `<i class="fa-${freeMove ? "solid" : "regular"} fa-shoe-prints" inert></i>`;
-    actions.append(move);
+    return move;
+}
 
-    section.append(actions);
-
-    /* ---- a Call waiting on the next roll ---- */
-    //
-    // Until now the only place an armed Call was visible was inside the roll
-    // window. That is too late twice over: a player who has banked a Free
-    // Critical forgets it is there, and a player a Monokuma has just saddled
-    // with Obstacle has no idea until the dice are already in front of them.
-    //
-    // BESIDE the pips, not below them.
-    //
-    // Underneath, the badge pushed the whole header down and read as a footnote
-    // to the action count. What it actually is, is the other half of the same
-    // sentence: this is what you have, and this is what is riding on your next
-    // roll. Side by side is where a player reads them together.
-    //
-    // A column, not a single slot: a Hope Call the player armed and a Despair
-    // Call or a Monocub's Meddle landing on them are two different facts about
-    // the same turn, and the layout has room for both stacked without moving
-    // anything else.
+/* ---- a Call waiting on the next roll ---- */
+//
+// Until now the only place an armed Call was visible was inside the roll
+// window. That is too late twice over: a player who has banked a Free
+// Critical forgets it is there, and a player a Monokuma has just saddled
+// with Obstacle has no idea until the dice are already in front of them.
+//
+// BESIDE the pips, not below them.
+//
+// Underneath, the badge pushed the whole header down and read as a footnote
+// to the action count. What it actually is, is the other half of the same
+// sentence: this is what you have, and this is what is riding on your next
+// roll. Side by side is where a player reads them together.
+//
+// A column, not a single slot: a Hope Call the player armed and a Despair
+// Call or a Monocub's Meddle landing on them are two different facts about
+// the same turn, and the layout has room for both stacked without moving
+// anything else.
+function pendingStack(actor) {
     const stack = document.createElement("div");
     stack.className = "drpg-pending-stack";
 
@@ -1315,6 +1290,46 @@ function injectActionBar(app, element, fresh = false) {
                            <span>${foundry.utils.escapeHTML(label)}</span>`;
         stack.append(badge);
     }
+    return stack;
+}
+
+function injectActionBar(app, element, fresh = false) {
+    const row = element.querySelector(".character-header-sheet .character-row");
+    if (!row || row.querySelector(".drpg-actions-section")) return;
+
+    const actor = app.document;
+    const left = actionsLeft(actor);
+    const max = actionsMax(actor);
+    const { wounded } = actionBudget(actor);
+
+    // What went out since this sheet last drew itself. Recorded even when it is
+    // not shown - a first draw still has to know where the count started, or
+    // the NEXT draw would flash the whole difference.
+    const spentActions = spentSince("sheet:actions", actor.id, left);
+    const spentMove = spentSince("sheet:move", actor.id, hasFreeMove(actor) ? 1 : 0);
+
+    const section = document.createElement("div");
+    section.className = "drpg-actions-section";
+
+    /* ---- action pips ---- */
+    const actions = document.createElement("div");
+    actions.className = "drpg-actions";
+
+    const label = document.createElement("h4");
+    label.textContent = game.i18n.localize("DRPG.Actions.label");
+    if (wounded) {
+        label.classList.add("drpg-wounded");
+        label.dataset.tooltip = game.i18n.localize("DRPG.Actions.woundedTooltip");
+    }
+    actions.append(label);
+
+    for (const pip of actionPips(actor, { left, max, spentActions, fresh })) actions.append(pip);
+
+    actions.append(freeMovePip(actor, { spentMove, fresh }));
+
+    section.append(actions);
+
+    const stack = pendingStack(actor);
     if (stack.children.length) section.append(stack);
 
     // Sit right after Hope, before the domains/downtime buttons.
@@ -2109,6 +2124,88 @@ function isBedroomKey(item) {
     return Boolean(item?.getFlag?.(MODULE_ID, BEDROOM_KEY_FLAG));
 }
 
+/** The items of one group, carried (not stashed), in the order the group reads best in. */
+function groupItems(actor, group, inGroup) {
+    // Carried only. What is in the stash gets its own section below, or the
+    // counts would say "Gear 4 / 3" for somebody obeying the rules.
+    const items = actor.items.filter(i => {
+        if (isStashed(i)) return false;
+        const key = i.getFlag(MODULE_ID, "category");
+        return inGroup ? inGroup.has(key) : key === group.key;
+    });
+
+    /*
+     * SORTED BY HOME, so one row still reads like three.
+     *
+     * Weapons, then cleaning gear, then tools - the order they had as
+     * headings, kept as an order within the list. Without it a knife, a rag
+     * and a second knife arrive in creation order and the row is a pile.
+     * Stable within a home, so nothing else anybody cares about moves.
+     */
+    if (inGroup) {
+        const rank = categoriesInGroup(group.group);
+        items.sort((a, b) =>
+            rank.indexOf(a.getFlag(MODULE_ID, "category"))
+            - rank.indexOf(b.getFlag(MODULE_ID, "category")));
+    }
+
+
+    // Evidence of the murder floats to the top of the pack - but only
+    // evidence whose holder has EARNED that fact: `tiedToCrime` sits on
+    // the item exclusively once the bullet is identified (analyze.mjs),
+    // so an unanalysed bullet cannot leak its relevance through its place
+    // in the list. The sort is stable; everything else keeps its order.
+    if (group.key === "truthBullet" && items.length > 1) {
+        const chapter = getClock().chapter;
+        const ofTheMurder = i => Number(isIdentified(i)
+            && i.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.tiedToCrime) === true
+            && i.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.chapter) === chapter);
+        items.sort((a, b) => ofTheMurder(b) - ofTheMurder(a));
+    }
+    return items;
+}
+
+/** One carried item's row: portrait, name, the broken and ready marks, its badges, wear, tier, and the row buttons. */
+function buildItemRow(li, item, app, actor, inGroup) {
+    const tier = item.getFlag(MODULE_ID, "tier");
+    const ready = isEquipped(item);
+    const broken = isBroken(item);
+    const tags = itemTags(item, Boolean(inGroup));
+    if (ready) li.classList.add("drpg-item-equipped");
+    // The row is still the row. A used-up thing is the same
+    // object in the same slot - what changes is that it says so,
+    // and that the two buttons which would use it are refused.
+    if (broken) li.classList.add("drpg-item-broken-row");
+    li.innerHTML = `<img src="${item.img}" alt="" />
+                    <span class="drpg-item-name">${foundry.utils.escapeHTML(item.name)}</span>
+                    ${broken ? `<span class="drpg-item-broken" data-tooltip="${
+                        foundry.utils.escapeHTML(game.i18n.localize("DRPG.Items.brokenTooltip"))
+                    }">${foundry.utils.escapeHTML(
+                        game.i18n.localize("DRPG.Items.broken"))}</span>` : ""}
+                    ${ready ? `<span class="drpg-item-ready" data-tooltip="${
+                        foundry.utils.escapeHTML(game.i18n.localize("DRPG.Items.readyTooltip"))
+                    }"><i class="fa-solid fa-hand-fist" inert></i></span>` : ""}
+                    ${tags.length ? `<span class="drpg-tb-badges">${tags.map(tag =>
+                        `<span class="drpg-tb-badge drpg-role-${tag.key}" data-tooltip="${
+                            foundry.utils.escapeHTML(tag.hint)
+                        }">${foundry.utils.escapeHTML(tag.label)}</span>`).join("")
+                    }</span>` : ""}
+                    ${wearMarkup(item)}
+                    ${tier !== undefined && tier !== null
+                        ? `<span class="drpg-item-tier">T${tier}</span>` : ""}`;
+    addUseButton(li, item, app);
+    addEquipButton(li, item, app);
+    addDiscardButton(li, item, app);
+    // A key is COPIED, like a Truth Bullet: letting somebody
+    // into your room is not the same as giving your room away,
+    // and the guide's whole social engine runs on the first.
+    addHandoverButton(li, item, app, { copying: isBedroomKey(item) });
+    // Any stash anywhere, exactly as before - `stow` is what
+    // decides whether you are standing at one. Location-gating
+    // the button would be a different rule, not a translation.
+    if (stashRoomsFor(actor).length) addStashButton(li, item, app, { stowing: true });
+}
+
 function groupInventory(app, element) {
     const tab = element.querySelector('section[data-application-part="inventory"]');
     if (!tab) return;
@@ -2122,28 +2219,7 @@ function groupInventory(app, element) {
     for (const group of INVENTORY_GROUPS) {
         const cat = group.key ? ITEM_CATEGORIES[group.key] : null;
         const inGroup = group.group ? new Set(categoriesInGroup(group.group)) : null;
-        // Carried only. What is in the stash gets its own section below, or the
-        // counts would say "Gear 4 / 3" for somebody obeying the rules.
-        const items = actor.items.filter(i => {
-            if (isStashed(i)) return false;
-            const key = i.getFlag(MODULE_ID, "category");
-            return inGroup ? inGroup.has(key) : key === group.key;
-        });
-
-        /*
-         * SORTED BY HOME, so one row still reads like three.
-         *
-         * Weapons, then cleaning gear, then tools - the order they had as
-         * headings, kept as an order within the list. Without it a knife, a rag
-         * and a second knife arrive in creation order and the row is a pile.
-         * Stable within a home, so nothing else anybody cares about moves.
-         */
-        if (inGroup) {
-            const rank = categoriesInGroup(group.group);
-            items.sort((a, b) =>
-                rank.indexOf(a.getFlag(MODULE_ID, "category"))
-                - rank.indexOf(b.getFlag(MODULE_ID, "category")));
-        }
+        const items = groupItems(actor, group, inGroup);
 
         /*
          * THE COUNTER IS THE BUDGET, NOT THE ROW (E8, trap 69).
@@ -2158,19 +2234,6 @@ function groupInventory(app, element) {
         const group_ = group.group ?? cat?.limitGroup ?? null;
         const limit = group_ ? LIMIT_GROUPS[group_]?.limit : cat?.limit;
         const counted = group_ ? countInGroup(actor, group_) : items.length;
-
-        // Evidence of the murder floats to the top of the pack - but only
-        // evidence whose holder has EARNED that fact: `tiedToCrime` sits on
-        // the item exclusively once the bullet is identified (analyze.mjs),
-        // so an unanalysed bullet cannot leak its relevance through its place
-        // in the list. The sort is stable; everything else keeps its order.
-        if (group.key === "truthBullet" && items.length > 1) {
-            const chapter = getClock().chapter;
-            const ofTheMurder = i => Number(isIdentified(i)
-                && i.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.tiedToCrime) === true
-                && i.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.chapter) === chapter);
-            items.sort((a, b) => ofTheMurder(b) - ofTheMurder(a));
-        }
 
         const section = document.createElement("div");
         section.className = "drpg-inventory-group";
@@ -2211,43 +2274,7 @@ function groupInventory(app, element) {
                 if (isTruthBullet(item)) {
                     buildBulletRow(li, item, app);
                 } else {
-                    const tier = item.getFlag(MODULE_ID, "tier");
-                    const ready = isEquipped(item);
-                    const broken = isBroken(item);
-                    const tags = itemTags(item, Boolean(inGroup));
-                    if (ready) li.classList.add("drpg-item-equipped");
-                    // The row is still the row. A used-up thing is the same
-                    // object in the same slot - what changes is that it says so,
-                    // and that the two buttons which would use it are refused.
-                    if (broken) li.classList.add("drpg-item-broken-row");
-                    li.innerHTML = `<img src="${item.img}" alt="" />
-                                    <span class="drpg-item-name">${foundry.utils.escapeHTML(item.name)}</span>
-                                    ${broken ? `<span class="drpg-item-broken" data-tooltip="${
-                                        foundry.utils.escapeHTML(game.i18n.localize("DRPG.Items.brokenTooltip"))
-                                    }">${foundry.utils.escapeHTML(
-                                        game.i18n.localize("DRPG.Items.broken"))}</span>` : ""}
-                                    ${ready ? `<span class="drpg-item-ready" data-tooltip="${
-                                        foundry.utils.escapeHTML(game.i18n.localize("DRPG.Items.readyTooltip"))
-                                    }"><i class="fa-solid fa-hand-fist" inert></i></span>` : ""}
-                                    ${tags.length ? `<span class="drpg-tb-badges">${tags.map(tag =>
-                                        `<span class="drpg-tb-badge drpg-role-${tag.key}" data-tooltip="${
-                                            foundry.utils.escapeHTML(tag.hint)
-                                        }">${foundry.utils.escapeHTML(tag.label)}</span>`).join("")
-                                    }</span>` : ""}
-                                    ${wearMarkup(item)}
-                                    ${tier !== undefined && tier !== null
-                                        ? `<span class="drpg-item-tier">T${tier}</span>` : ""}`;
-                    addUseButton(li, item, app);
-                    addEquipButton(li, item, app);
-                    addDiscardButton(li, item, app);
-                    // A key is COPIED, like a Truth Bullet: letting somebody
-                    // into your room is not the same as giving your room away,
-                    // and the guide's whole social engine runs on the first.
-                    addHandoverButton(li, item, app, { copying: isBedroomKey(item) });
-                    // Any stash anywhere, exactly as before - `stow` is what
-                    // decides whether you are standing at one. Location-gating
-                    // the button would be a different rule, not a translation.
-                    if (stashRoomsFor(actor).length) addStashButton(li, item, app, { stowing: true });
+                    buildItemRow(li, item, app, actor, inGroup);
                 }
 
                 // The row's buttons live inside the row, and the row itself opens

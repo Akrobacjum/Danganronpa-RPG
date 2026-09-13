@@ -943,6 +943,30 @@ function tableIndex() {
     return index;
 }
 
+function tableItemsHtml(table) {
+    const results = Array.from(table?.results ?? []);
+    if (!results.length) {
+        return `<p class="notes">${game.i18n.localize("DRPG.Tables.tableEmpty")}</p>`;
+    }
+
+
+    if (isTierPool(table.name)) {
+        const tier = Number(table.getFlag(MODULE_ID, "tier"));
+        const home = table.getFlag(MODULE_ID, "category");
+        return `<ul class="drpg-table-items">${
+            results.map(r => tableRowHtml(table, r, { home, tier })).join("")}</ul>`;
+    }
+
+    const { chips, unfiledChip, body, unfiledHtml } = roomPoolGroupsHtml(table, results);
+
+    return `<div class="drpg-room-summary">${chips}${unfiledChip}
+            <span class="drpg-room-chip drpg-room-chip-total">${
+                esc(game.i18n.localize("DRPG.Tables.roomTotal"))} <b>${results.length}</b></span>
+        </div>
+        <p class="notes">${game.i18n.localize("DRPG.Tables.roomBreakdown")}</p>
+        <div class="drpg-room-groups">${body}${unfiledHtml}</div>`;
+}
+
 /**
  * The entry list for one table.
  *
@@ -952,37 +976,31 @@ function tableIndex() {
  * are in this room, and how good are they" is the question a room pool is for
  * and a flat list of thirty names cannot answer it.
  */
-function tableItemsHtml(table) {
-    const results = Array.from(table?.results ?? []);
-    if (!results.length) {
-        return `<p class="notes">${game.i18n.localize("DRPG.Tables.tableEmpty")}</p>`;
-    }
-
-    // EDITED IN PLACE, not in a second window.
-    //
-    // The list was read-only, which meant fixing a typo in an item's name was:
-    // delete the entry, retype it in the form below, tick the same three tables
-    // again. Every field here is the field itself, saved when it loses focus -
-    // the same pattern the Remnant card on the map uses, and for the same
-    // reason: there is nothing here worth a two-step commit.
-    /*
-     * THE ROLES ARE ON THE ROW, because an entry that cannot be inspected is an
-     * entry nobody can trust. They were settable when an item was ADDED and
-     * invisible ever after - so a GM wanting to know whether their screwdriver
-     * could be swung had to delete it and add it again to find out.
-     *
-     * Gated on the entry's tier: two jobs start at tier 2 (E9), so the boxes on
-     * a Tier 0 or Tier 1 entry are disabled and say why rather than being
-     * absent - a control that vanishes teaches nothing about the rule that
-     * removed it. In a tier pool that tier is the TABLE's; in a room pool it is
-     * whatever the tier pools say about this name, and an entry no pool claims
-     * gets no boxes, because there is no rule to gate them on.
-     *
-     * Only the three equippable categories, and not the one the entry itself
-     * is: something in the Murder Weapons table is already a Murder Weapon, and
-     * a box saying so would be a box that cannot be unticked.
-     */
-    const rowHtml = (r, { home = null, tier = NaN, badge = "" } = {}) => {
+// EDITED IN PLACE, not in a second window.
+//
+// The list was read-only, which meant fixing a typo in an item's name was:
+// delete the entry, retype it in the form below, tick the same three tables
+// again. Every field here is the field itself, saved when it loses focus -
+// the same pattern the Remnant card on the map uses, and for the same
+// reason: there is nothing here worth a two-step commit.
+/*
+ * THE ROLES ARE ON THE ROW, because an entry that cannot be inspected is an
+ * entry nobody can trust. They were settable when an item was ADDED and
+ * invisible ever after - so a GM wanting to know whether their screwdriver
+ * could be swung had to delete it and add it again to find out.
+ *
+ * Gated on the entry's tier: two jobs start at tier 2 (E9), so the boxes on
+ * a Tier 0 or Tier 1 entry are disabled and say why rather than being
+ * absent - a control that vanishes teaches nothing about the rule that
+ * removed it. In a tier pool that tier is the TABLE's; in a room pool it is
+ * whatever the tier pools say about this name, and an entry no pool claims
+ * gets no boxes, because there is no rule to gate them on.
+ *
+ * Only the three equippable categories, and not the one the entry itself
+ * is: something in the Murder Weapons table is already a Murder Weapon, and
+ * a box saying so would be a box that cannot be unticked.
+ */
+function tableRowHtml(table, r, { home = null, tier = NaN, badge = "" } = {}) {
         const name = r.name ?? r.text ?? "";
         const note = r.description && r.description !== name ? r.description : "";
         const roles = r.getFlag(MODULE_ID, "roles") ?? [];
@@ -1019,16 +1037,10 @@ function tableItemsHtml(table) {
                 data-drpg-drop-table="${table.id}" title="${
                     esc(game.i18n.localize("DRPG.Tables.removeItem"))}">✕</button>
         </li>`;
-    };
+}
 
-    if (isTierPool(table.name)) {
-        const tier = Number(table.getFlag(MODULE_ID, "tier"));
-        const home = table.getFlag(MODULE_ID, "category");
-        return `<ul class="drpg-table-items">${
-            results.map(r => rowHtml(r, { home, tier })).join("")}</ul>`;
-    }
-
-    // ---- a room pool: grouped ------------------------------------------
+// ---- a room pool: grouped ------------------------------------------
+function roomPoolGroupsHtml(table, results) {
     const groups = new Map(ROOM_GROUP_ORDER.map(key => [key, []]));
     const unfiled = [];
     for (const r of results) {
@@ -1070,7 +1082,7 @@ function tableItemsHtml(table) {
             ${tiersOf(rows).map(([tier, mine]) => `<div class="drpg-room-tier">
                 <h6>${esc(game.i18n.format("DRPG.Items.tierN", { n: tier }))}
                     <span class="notes">${mine.length}</span></h6>
-                <ul class="drpg-table-items">${mine.map(({ r, found }) => rowHtml(r, {
+                <ul class="drpg-table-items">${mine.map(({ r, found }) => tableRowHtml(table, r, {
                     home, tier,
                     badge: found.others.length
                         ? `<span class="drpg-table-item-also" data-tooltip="${
@@ -1094,16 +1106,10 @@ function tableItemsHtml(table) {
                 unfiled.length}</span></h5>
             <p class="notes">${game.i18n.localize("DRPG.Tables.unfiledNote")}</p>
             <ul class="drpg-table-items">${
-                unfiled.map(({ r }) => rowHtml(r)).join("")}</ul>
+                unfiled.map(({ r }) => tableRowHtml(table, r)).join("")}</ul>
         </section>`
         : "";
-
-    return `<div class="drpg-room-summary">${chips}${unfiledChip}
-            <span class="drpg-room-chip drpg-room-chip-total">${
-                esc(game.i18n.localize("DRPG.Tables.roomTotal"))} <b>${results.length}</b></span>
-        </div>
-        <p class="notes">${game.i18n.localize("DRPG.Tables.roomBreakdown")}</p>
-        <div class="drpg-room-groups">${body}${unfiledHtml}</div>`;
+    return { chips, unfiledChip, body, unfiledHtml };
 }
 
 /**
@@ -1641,79 +1647,23 @@ function wireNewItemForm(root) {
  * lookups are scoped to a pane and the whole thing runs twice. `root`
  * is only for what reaches across panes: the counts in the other list.
  */
-function wirePoolPane(pane, root) {
-    const nameEl = pane.querySelector("[data-drpg-table-name]");
-    const bodyEl = pane.querySelector("[data-drpg-table-body]");
-    const renameButton = pane.querySelector("[data-drpg-rename-table]");
-    const deleteButton = pane.querySelector("[data-drpg-delete-table]");
-
-    const firstButton = pane.querySelector("[data-drpg-table]");
-    let current = game.tables.get(firstButton?.dataset.drpgTable) ?? null;
-
-    /*
-     * WRITE WHAT IS ON SCREEN BEFORE TAKING IT OFF SCREEN.
-     *
-     * Switching tables replaces the whole list, and a field blurred by
-     * that click has already been orphaned by the time its `focusout`
-     * arrives - a detached node bubbles to nothing, so the listener on
-     * `bodyEl` never sees it and the edit is gone. Measured: typed a
-     * description, clicked another table, the entry kept its old text.
-     *
-     * The text guard catches this in a real browser by blurring on
-     * `pointerdown`, before the click. This does not depend on that
-     * order at all: the list is the only thing that knows its rows are
-     * about to stop existing, so it is the thing that writes them.
-     */
-    const flush = async () => {
-        for (const field of bodyEl.querySelectorAll("[data-drpg-field]")) {
-            const value = field.value.trim();
-            if (value === (field.dataset.drpgInitial ?? "")) continue;
-            const table = game.tables.get(field.dataset.drpgOwnsTable);
-            if (!table || !field.dataset.drpgOwnsResult) continue;
-            await editResult(table, field.dataset.drpgOwnsResult,
-                field.dataset.drpgField, value);
-            field.dataset.drpgInitial = value;
-        }
-    };
-
-    const show = async table => {
-        await flush();
-        current = table ?? null;
-        nameEl.textContent = table?.name ?? "";
-        bodyEl.innerHTML = table ? tableItemsHtml(table) : "";
-        // Nothing selected is a real state - an empty world has no
-        // tables at all - and a live button over nothing is a trap.
-        if (renameButton) renameButton.disabled = !table;
-        if (deleteButton) deleteButton.disabled = !table;
-    };
-    show(current);
-
-    for (const button of pane.querySelectorAll("[data-drpg-table]")) {
-        button.addEventListener("click", ev => {
-            ev.preventDefault();
-            for (const b of pane.querySelectorAll("[data-drpg-table]")) {
-                b.classList.toggle("active", b === button);
-            }
-            show(game.tables.get(button.dataset.drpgTable));
-        });
-    }
-
-    /*
-     * RENAMING A TABLE CAN SILENTLY BREAK EVERY DRAW FROM IT.
-     *
-     * This module finds its tables BY NAME - built from the display
-     * labels of a category and a tier (see `tableName`) - so a table
-     * renamed to something the lookup does not build is a table the
-     * game stops drawing from, with nothing on any screen to say so.
-     * That is the whole reason this asks before it writes rather than
-     * being an editable heading.
-     */
+/*
+ * RENAMING A TABLE CAN SILENTLY BREAK EVERY DRAW FROM IT.
+ *
+ * This module finds its tables BY NAME - built from the display
+ * labels of a category and a tier (see `tableName`) - so a table
+ * renamed to something the lookup does not build is a table the
+ * game stops drawing from, with nothing on any screen to say so.
+ * That is the whole reason this asks before it writes rather than
+ * being an editable heading.
+ */
+function wirePaneHeading(pane, root, { current, show, nameEl }) {
     renameButton?.addEventListener("click", async ev => {
         ev.preventDefault();
-        if (!current) return;
+        if (!current()) return;
 
-        const name = await promptForTableName(current.name);
-        if (name === null || name === current.name) return;
+        const name = await promptForTableName(current().name);
+        if (name === null || name === current().name) return;
 
         if (!name) {
             ui.notifications.warn(game.i18n.localize("DRPG.Tables.needsName"));
@@ -1725,10 +1675,10 @@ function wirePoolPane(pane, root) {
         }
 
         try {
-            await current.update({ name });
+            await current().update({ name });
             nameEl.textContent = name;
             const entry = root.querySelector(
-                `[data-drpg-table="${CSS.escape(current.id)}"] span`);
+                `[data-drpg-table="${CSS.escape(current().id)}"] span`);
             if (entry) entry.textContent = name;
             ui.notifications.info(game.i18n.format("DRPG.Tables.renamed", { name }));
         } catch (err) {
@@ -1738,7 +1688,7 @@ function wirePoolPane(pane, root) {
 
     deleteButton?.addEventListener("click", async ev => {
         ev.preventDefault();
-        if (!current) return;
+        if (!current()) return;
 
         // The count is the point of the question. "Delete this table?"
         // and "delete this table and the fourteen items in it?" deserve
@@ -1746,13 +1696,13 @@ function wirePoolPane(pane, root) {
         const ok = await foundry.applications.api.DialogV2.confirm({
             window: { title: game.i18n.localize("DRPG.Tables.deleteTable") },
             content: `<p>${game.i18n.format("DRPG.Tables.deleteConfirm", {
-                name: esc(current.name), n: current.results.size
+                name: esc(current().name), n: current().results.size
             })}</p>`,
             rejectClose: false, modal: true
         });
         if (!ok) return;
 
-        const gone = current;
+        const gone = current();
         try {
             await gone.delete();
         } catch (err) {
@@ -1767,30 +1717,33 @@ function wirePoolPane(pane, root) {
         else show(null);
         ui.notifications.info(game.i18n.format("DRPG.Tables.deleted", { name: gone.name }));
     });
-    /*
-     * DELEGATED, AND BOUND TO THE PANE (Dawid, 01.09).
-     *
-     * The entry list is rebuilt whenever a table is picked or an entry
-     * is dropped, so listeners bound to the rows themselves would go
-     * with them. `focusout` is here for the same reason: it bubbles
-     * where `blur` does not.
-     *
-     * ON THE PANE, NOT ON `root`. The comment that used to stand here
-     * said these three were pane-agnostic and could live outside
-     * `wirePane`; the code did not agree with it. Every one of them
-     * reaches for `bodyEl` and `show`, which are declared inside that
-     * function, so the first line of the first handler threw
-     * `ReferenceError: bodyEl is not defined` - during render, before
-     * Foundry had placed the window.
-     *
-     * That is what pinned this window to the top left corner and made
-     * it undraggable: a render that throws never reaches `setPosition`,
-     * so no `left`/`top` is ever written, and the drag handler has
-     * nothing to add its delta to. Measured at 1440x900: inline style
-     * `z-index: 103` and nothing else, rect at 0,0. Every row control
-     * was dead for the same reason - deleting an entry, ticking a role
-     * and renaming in place are all in these three listeners.
-     */
+}
+
+/*
+ * DELEGATED, AND BOUND TO THE PANE (Dawid, 01.09).
+ *
+ * The entry list is rebuilt whenever a table is picked or an entry
+ * is dropped, so listeners bound to the rows themselves would go
+ * with them. `focusout` is here for the same reason: it bubbles
+ * where `blur` does not.
+ *
+ * ON THE PANE, NOT ON `root`. The comment that used to stand here
+ * said these three were pane-agnostic and could live outside
+ * `wirePane`; the code did not agree with it. Every one of them
+ * reaches for `bodyEl` and `show`, which are declared inside that
+ * function, so the first line of the first handler threw
+ * `ReferenceError: bodyEl is not defined` - during render, before
+ * Foundry had placed the window.
+ *
+ * That is what pinned this window to the top left corner and made
+ * it undraggable: a render that throws never reaches `setPosition`,
+ * so no `left`/`top` is ever written, and the drag handler has
+ * nothing to add its delta to. Measured at 1440x900: inline style
+ * `z-index: 103` and nothing else, rect at 0,0. Every row control
+ * was dead for the same reason - deleting an entry, ticking a role
+ * and renaming in place are all in these three listeners.
+ */
+function wirePaneRows(pane, root, show) {
     pane.addEventListener("click", async ev => {
         const place = ev.target.closest("[data-drpg-place]");
         if (place) {
@@ -1934,6 +1887,67 @@ function wirePoolPane(pane, root) {
             setTimeout(() => field.classList.remove("drpg-saved"), 1200);
         }
     });
+}
+
+function wirePoolPane(pane, root) {
+    const nameEl = pane.querySelector("[data-drpg-table-name]");
+    const bodyEl = pane.querySelector("[data-drpg-table-body]");
+    const renameButton = pane.querySelector("[data-drpg-rename-table]");
+    const deleteButton = pane.querySelector("[data-drpg-delete-table]");
+
+    const firstButton = pane.querySelector("[data-drpg-table]");
+    let current = game.tables.get(firstButton?.dataset.drpgTable) ?? null;
+
+    /*
+     * WRITE WHAT IS ON SCREEN BEFORE TAKING IT OFF SCREEN.
+     *
+     * Switching tables replaces the whole list, and a field blurred by
+     * that click has already been orphaned by the time its `focusout`
+     * arrives - a detached node bubbles to nothing, so the listener on
+     * `bodyEl` never sees it and the edit is gone. Measured: typed a
+     * description, clicked another table, the entry kept its old text.
+     *
+     * The text guard catches this in a real browser by blurring on
+     * `pointerdown`, before the click. This does not depend on that
+     * order at all: the list is the only thing that knows its rows are
+     * about to stop existing, so it is the thing that writes them.
+     */
+    const flush = async () => {
+        for (const field of bodyEl.querySelectorAll("[data-drpg-field]")) {
+            const value = field.value.trim();
+            if (value === (field.dataset.drpgInitial ?? "")) continue;
+            const table = game.tables.get(field.dataset.drpgOwnsTable);
+            if (!table || !field.dataset.drpgOwnsResult) continue;
+            await editResult(table, field.dataset.drpgOwnsResult,
+                field.dataset.drpgField, value);
+            field.dataset.drpgInitial = value;
+        }
+    };
+
+    const show = async table => {
+        await flush();
+        current = table ?? null;
+        nameEl.textContent = table?.name ?? "";
+        bodyEl.innerHTML = table ? tableItemsHtml(table) : "";
+        // Nothing selected is a real state - an empty world has no
+        // tables at all - and a live button over nothing is a trap.
+        if (renameButton) renameButton.disabled = !table;
+        if (deleteButton) deleteButton.disabled = !table;
+    };
+    show(current);
+
+    for (const button of pane.querySelectorAll("[data-drpg-table]")) {
+        button.addEventListener("click", ev => {
+            ev.preventDefault();
+            for (const b of pane.querySelectorAll("[data-drpg-table]")) {
+                b.classList.toggle("active", b === button);
+            }
+            show(game.tables.get(button.dataset.drpgTable));
+        });
+    }
+
+    wirePaneHeading(pane, root, { current: () => current, show, nameEl });
+    wirePaneRows(pane, root, show);
 }
 
 /** Make the pool the Create-table button asked for, or say why not. */

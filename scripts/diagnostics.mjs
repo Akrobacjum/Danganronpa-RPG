@@ -461,28 +461,7 @@ function rastersDiffer(char, family) {
  *
  * Paste the whole output. Every line is a measurement, not a guess.
  */
-export function diagnoseStyles() {
-    const lines = [];
-
-    // ---- 1. The page itself -------------------------------------------------
-    // First, because it makes every measurement below suspect. An extension
-    // repainting the page wins the cascade over everything in a layer, and this
-    // module's entire stylesheet is in one.
-    const tint = detectPageTinting();
-    if (tint) {
-        lines.push(`!! ${tint.name.toUpperCase()} IS REPAINTING THIS PAGE - ${tint.evidence}`);
-        lines.push("   Its rules sit in no cascade layer, and unlayered rules beat layered ones");
-        lines.push("   whatever their specificity. Every colour below may be its choice, not ours.");
-        lines.push("   Turn it off for this site before trusting anything else in this report.");
-        lines.push("");
-    }
-
-    lines.push(`Page: ${location.origin} (${location.protocol})`);
-    lines.push(`Module version Foundry loaded: ${game.modules.get(MODULE_ID)?.version ?? "?"}`);
-    lines.push(`Foundry ${game.version}, system ${game.system.id} ${game.system.version}`);
-    lines.push(`Other active modules: ${game.modules.filter(m => m.active && m.id !== MODULE_ID).map(m => m.id).join(", ") || "none"}`);
-    lines.push("");
-
+function styleSheetLines(lines) {
     // ---- 2. Did the stylesheet arrive, and did it parse? --------------------
     const found = [];
     for (const sheet of Array.from(document.styleSheets ?? [])) findOurSheets(sheet, 0, found);
@@ -503,7 +482,10 @@ export function diagnoseStyles() {
         lines.push("   ← nothing from this module is attached to the page. Check that the module is enabled,");
         lines.push("     then look for danganronpa.css in the resource list below.");
     }
+}
 
+/** The load-bearing tokens, read off :root; answers the computed style for the sections after it. */
+function themeTokenLines(lines) {
     // ---- 3. Do the tokens resolve? -----------------------------------------
     const root = getComputedStyle(document.documentElement);
     const missing = [];
@@ -520,9 +502,10 @@ export function diagnoseStyles() {
     } else if (missing.length) {
         lines.push(`   ← ${missing.length} unresolved: ${missing.join(", ")}`);
     }
+    return root;
+}
 
-    // ---- 4. Did the pixel font arrive, and does it carry its characters? ----
-    lines.push("");
+function pixelFontLines(lines) {
     const pixelOn = document.body.classList.contains("drpg-pixel-font");
     lines.push(`Pixel font setting: ${pixelOn ? "on" : "off (body.drpg-pixel-font absent)"}`);
     const faces = Array.from(document.fonts ?? []).filter(f => f.family.includes("DRPG"));
@@ -539,9 +522,9 @@ export function diagnoseStyles() {
                 : "IDENTICAL TO THE FALLBACK  ← substituted, the font is not being used here"}`);
         }
     }
+}
 
-    // ---- 5. The two things that were reported wrong ------------------------
-    lines.push("");
+function despairBarLines(lines, root) {
     const pip = document.querySelector("#drpg-despair .drpg-despair-pip");
     if (!pip) {
         lines.push("Despair bar: not on screen, so nothing to measure there.");
@@ -565,6 +548,9 @@ export function diagnoseStyles() {
         }
         lines.push(...paintLines("pip", pip, "color"));
     }
+}
+
+function callIconLines(lines, root) {
 
     const callIcon = document.querySelector(".drpg-despair-panel .drpg-call-button .drpg-action-icon");
     if (!callIcon) {
@@ -579,21 +565,9 @@ export function diagnoseStyles() {
         lines.push(`   parent colour: ${getComputedStyle(callIcon.parentElement).color}`);
         lines.push(...paintLines("call icon", callIcon, "color"));
     }
+}
 
-    // The theme the client is actually in. Foundry paints its own chrome from
-    // this, and a module that forces client settings can move it out from under
-    // a player without anyone choosing it.
-    lines.push("");
-    let scheme = "(unreadable)";
-    try {
-        scheme = JSON.stringify(game.settings.get("core", "uiConfig")?.colorScheme ?? "(unset)");
-    } catch { /* older core, or the setting is gone */ }
-    lines.push(`Colour scheme: ${scheme}`);
-    lines.push(`<html> classes: ${document.documentElement.className || "(none)"}`);
-    lines.push(`<body> classes: ${document.body.className || "(none)"}`);
-
-    // ---- 6. What actually came over the wire -------------------------------
-    lines.push("");
+function resourceLines(lines) {
     const resources = (performance.getEntriesByType?.("resource") ?? [])
         .filter(r => r.name.includes(MODULE_ID));
     const origins = [...new Set(resources.map(r => { try { return new URL(r.name).origin; } catch { return "?"; } }))];
@@ -614,6 +588,58 @@ export function diagnoseStyles() {
         lines.push("   no .woff2 was requested at all - either the font setting is off, or no text on screen");
         lines.push("   is using the pixel face yet. Open the Despair bar or a character sheet and run this again.");
     }
+}
+
+export function diagnoseStyles() {
+    const lines = [];
+
+    // ---- 1. The page itself -------------------------------------------------
+    // First, because it makes every measurement below suspect. An extension
+    // repainting the page wins the cascade over everything in a layer, and this
+    // module's entire stylesheet is in one.
+    const tint = detectPageTinting();
+    if (tint) {
+        lines.push(`!! ${tint.name.toUpperCase()} IS REPAINTING THIS PAGE - ${tint.evidence}`);
+        lines.push("   Its rules sit in no cascade layer, and unlayered rules beat layered ones");
+        lines.push("   whatever their specificity. Every colour below may be its choice, not ours.");
+        lines.push("   Turn it off for this site before trusting anything else in this report.");
+        lines.push("");
+    }
+
+    lines.push(`Page: ${location.origin} (${location.protocol})`);
+    lines.push(`Module version Foundry loaded: ${game.modules.get(MODULE_ID)?.version ?? "?"}`);
+    lines.push(`Foundry ${game.version}, system ${game.system.id} ${game.system.version}`);
+    lines.push(`Other active modules: ${game.modules.filter(m => m.active && m.id !== MODULE_ID).map(m => m.id).join(", ") || "none"}`);
+    lines.push("");
+
+    styleSheetLines(lines);
+
+    const root = themeTokenLines(lines);
+
+    // ---- 4. Did the pixel font arrive, and does it carry its characters? ----
+    lines.push("");
+    pixelFontLines(lines);
+
+    // ---- 5. The two things that were reported wrong ------------------------
+    lines.push("");
+    despairBarLines(lines, root);
+    callIconLines(lines, root);
+
+    // The theme the client is actually in. Foundry paints its own chrome from
+    // this, and a module that forces client settings can move it out from under
+    // a player without anyone choosing it.
+    lines.push("");
+    let scheme = "(unreadable)";
+    try {
+        scheme = JSON.stringify(game.settings.get("core", "uiConfig")?.colorScheme ?? "(unset)");
+    } catch { /* older core, or the setting is gone */ }
+    lines.push(`Colour scheme: ${scheme}`);
+    lines.push(`<html> classes: ${document.documentElement.className || "(none)"}`);
+    lines.push(`<body> classes: ${document.body.className || "(none)"}`);
+
+    // ---- 6. What actually came over the wire -------------------------------
+    lines.push("");
+    resourceLines(lines);
 
     return report("Style diagnostics", lines);
 }
