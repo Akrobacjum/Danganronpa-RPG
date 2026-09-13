@@ -456,19 +456,19 @@ const REGRESSIONS = [
          * THE ONE INVARIANT THAT DECIDES WHETHER A PLAYER CAN ACT AS ANOTHER
          * PLAYER'S CHARACTER.
          *
-         * `onSocket` is a chain of `if (payload.action === X)` branches, and
-         * every branch that acts on `payload.actorId` has to establish two
+         * `onSocket` dispatches through `GM_HANDLERS`, one function per request,
+         * and every handler that acts on `payload.actorId` has to establish two
          * things first: who really sent this (`senderOf(senderId)`, from
          * Foundry's own argument, which cannot be forged), and whether that
          * person owns the character named in the payload (`ownsActor`). The
          * payload's own `userId` is a claim and is only ever used as an address.
          *
-         * Twenty-eight branches carry that preamble by hand today and all of
-         * them are correct - measured, not assumed. What this test is for is
-         * the twenty-ninth: a handler added in a hurry, three hundred lines
-         * down a file nobody reads top to bottom, that takes an `actorId` and
-         * simply uses it. Nothing about the module's behaviour would say so,
-         * and the failure is a player moving somebody else's student.
+         * Twelve of the thirty handlers act on a character, and all twelve
+         * carry that preamble by hand - measured, not assumed. What this test
+         * is for is the thirteenth: a handler added in a hurry, in a file nobody reads
+         * top to bottom, that takes an `actorId` and simply uses it. Nothing
+         * about the module's behaviour would say so, and the failure is a
+         * player moving somebody else's student.
          *
          * READ FROM SOURCE rather than exercised, because the thing being
          * checked is the SHAPE of a guard, not its outcome: a handler that
@@ -478,25 +478,31 @@ const REGRESSIONS = [
         const src = stripComments(
             await fetch(`/modules/${MODULE_ID}/scripts/gm-bridge.mjs`).then(r => r.text()));
 
-        const from = src.indexOf("async function onSocket");
-        ok(from > 0, "onSocket is not in gm-bridge.mjs any more");
-        const after = src.slice(from + 10);
-        const next = after.search(/^(?:export )?(?:async )?function /m);
-        const body = next < 0 ? after : after.slice(0, next);
+        const from = src.indexOf("const GM_HANDLERS = {");
+        ok(from > 0, "GM_HANDLERS is not in gm-bridge.mjs any more");
+        const table = src.slice(from, src.indexOf("\n};", from));
+        const rows = [...table.matchAll(/\[(ACTION_\w+)\]: (\w+),/g)];
+        ok(rows.length > 20,
+            `only ${rows.length} socket handlers were found - has GM_HANDLERS been restructured?`);
+        ok(src.includes("GM_HANDLERS[payload.action]"), "onSocket no longer dispatches through GM_HANDLERS");
 
-        const heads = [...body.matchAll(/if \(payload\??\.action === (\w+)\)/g)];
-        ok(heads.length > 20,
-            `only ${heads.length} socket branches were found - has onSocket been restructured?`);
+        // The handler's body: from its declaration to the next top-level function.
+        const bodyOf = name => {
+            const at = src.search(new RegExp(`^async function ${name}\\(`, "m"));
+            if (at < 0) return null;
+            const after = src.slice(at + 10);
+            const next = after.search(/^(?:export )?(?:async )?function |^const \w+ = \{/m);
+            return next < 0 ? after : after.slice(0, next);
+        };
 
         const unguarded = [];
-        for (const [i, head] of heads.entries()) {
-            const start = head.index;
-            const end = i + 1 < heads.length ? heads[i + 1].index : body.length;
-            const branch = body.slice(start, end);
+        for (const [, action, name] of rows) {
+            const branch = bodyOf(name);
+            if (branch === null) { unguarded.push(`${action} (no ${name})`); continue; }
             if (!/payload\.actorId/.test(branch)) continue;
             const checksSender = branch.includes("senderOf(senderId)");
             const checksOwner = /ownsActor\(sender/.test(branch);
-            if (!checksSender || !checksOwner) unguarded.push(head[1]);
+            if (!checksSender || !checksOwner) unguarded.push(action);
         }
 
         ok(!unguarded.length,

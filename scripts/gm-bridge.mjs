@@ -454,6 +454,759 @@ function onRefused(payload, senderId) {
     ui.notifications.warn(game.i18n.format("DRPG.Bridge.refused", { what: requestLabel(payload.what) }));
 }
 
+    // Observe is scored on this side, because everything it is scored against -
+    // which Remnants are in the room, what they are, what the difficulty is -
+    // is exactly what the observer must not know. See observe.mjs.
+async function handleObserveTarget(payload, senderId, ctx) {
+    const { asker } = ctx;
+    const sender = senderOf(senderId);
+    if (!sender) return refuse(ACTION_OBSERVE_TARGET, "unknown sender", ctx);
+    if (!ownsActor(sender, payload.actorId)) {
+        return refuse(ACTION_OBSERVE_TARGET, "sender does not own that character", ctx);
+    }
+
+    const { chooseObserveTarget } = await import("./observe.mjs");
+    const result = await chooseObserveTarget({
+        actorId: payload.actorId,
+        declaration: payload.declaration,
+        request: payload.request
+    });
+
+    game.socket.emit(SOCKET_EVENT, {
+        action: ACTION_OBSERVE_TARGET_RESULT,
+        requestId: payload.requestId,
+        userId: asker,
+        result
+    }, { recipients: [asker] });
+    return;
+}
+
+    // Stage 6's picker. Which traces a killer's own client may act on is
+    // computed here for the same reason Observe is: the ledger - the answer
+    // key `cleanableRemnants` reads to build the list - lives only on a GM
+    // client, and `cleanableTracesForPlayer` (cleanup.mjs) is what strips it
+    // back down to id, label and the reinforced flag before it goes out.
+async function handleCleanupTraces(payload, senderId, ctx) {
+    const { asker } = ctx;
+    const sender = senderOf(senderId);
+    if (!sender) return refuse(ACTION_CLEANUP_TRACES, "unknown sender", ctx);
+    if (!ownsActor(sender, payload.actorId)) {
+        return refuse(ACTION_CLEANUP_TRACES, "sender does not own that character", ctx);
+    }
+
+    const { cleanableTracesForPlayer } = await import("./cleanup.mjs");
+    const result = cleanableTracesForPlayer(payload.actorId, {
+        mine: Boolean(payload.mine)
+    });
+
+    game.socket.emit(SOCKET_EVENT, {
+        action: ACTION_CLEANUP_TRACES_RESULT,
+        requestId: payload.requestId,
+        userId: asker,
+        result
+    }, { recipients: [asker] });
+    return;
+}
+
+async function handleObserveResolve(payload, senderId, ctx) {
+    const sender = senderOf(senderId);
+    if (!sender) return refuse(ACTION_OBSERVE_RESOLVE, "unknown sender", ctx);
+    // The key alone decides which character is affected - it was minted on
+    // this client in phase 1 - but the sender still has to be the person who
+    // asked for it, or one player could resolve another's Observe.
+    if (!ownsActor(sender, payload.actorId)) {
+        return refuse(ACTION_OBSERVE_RESOLVE, "sender does not own that character", ctx);
+    }
+
+    const { resolveObserve } = await import("./observe.mjs");
+    await resolveObserve({
+        key: payload.key,
+        total: Number(payload.total) || 0,
+        isCritical: Boolean(payload.isCritical),
+        undo: Boolean(payload.undo)
+    });
+    return;
+}
+
+    // Analyze is scored here for the same reason as Observe: the difficulty is
+    // read from what the bullet really is, which is the answer being bought.
+async function handleAnalyzeResolve(payload, senderId, ctx) {
+    const sender = senderOf(senderId);
+    if (!sender) return refuse(ACTION_ANALYZE_RESOLVE, "unknown sender", ctx);
+    if (!ownsActor(sender, payload.actorId)) {
+        return refuse(ACTION_ANALYZE_RESOLVE, "sender does not own that character", ctx);
+    }
+
+    const { resolveAnalyze } = await import("./analyze.mjs");
+    await resolveAnalyze({
+        actorId: payload.actorId,
+        itemId: payload.itemId,
+        total: Number(payload.total) || 0,
+        isCritical: Boolean(payload.isCritical),
+        undo: Boolean(payload.undo)
+    });
+    return;
+}
+
+    // Handing something to another character writes to a sheet the sender does
+    // not own, so it can only happen here. The same-room condition is checked
+    // again inside handover.mjs - the payload only claims it.
+async function handleShareBulletOrGiveItem(payload, senderId, ctx) {
+    const sender = senderOf(senderId);
+    if (!sender) return refuse(payload.action, "unknown sender", ctx);
+    if (!ownsActor(sender, payload.fromId)) {
+        return refuse(payload.action, "sender does not own the character giving it away", ctx);
+    }
+
+    const { shareBullet, giveItem } = await import("./handover.mjs");
+    const run = payload.action === ACTION_SHARE_BULLET ? shareBullet : giveItem;
+    await run({ fromId: payload.fromId, toId: payload.toId, itemId: payload.itemId });
+    return;
+}
+
+    // And into them. Same guards as the theft, mirrored - the sender has to own
+    // the character whose pocket the item is leaving.
+async function handlePlant(payload, senderId, ctx) {
+    const sender = senderOf(senderId);
+    if (!sender) return refuse(ACTION_PLANT, "unknown sender", ctx);
+    if (!ownsActor(sender, payload.plannerId)) {
+        return refuse(ACTION_PLANT, "sender does not own the character planting", ctx);
+    }
+
+    const { plantOnPerson } = await import("./vault.mjs");
+    await plantOnPerson({
+        plannerId: payload.plannerId,
+        victimId: payload.victimId,
+        itemId: payload.itemId ?? null,
+        total: Number(payload.total) || 0,
+        isCritical: Boolean(payload.isCritical),
+        unseenTotal: Number(payload.unseenTotal) || 0,
+        unseenCritical: Boolean(payload.unseenCritical)
+    });
+    return;
+}
+
+    // Looking for a hiding place. The finder owns their own sheet and could
+    // write the flag themselves - which is exactly why they do not: that write
+    // is the whole distance between beating a 16 and reading other people's
+    // stashes, so it happens where the threshold is checked.
+async function handleFindStash(payload, senderId, ctx) {
+    const sender = senderOf(senderId);
+    if (!sender) return refuse(ACTION_FIND_STASH, "unknown sender", ctx);
+    if (!ownsActor(sender, payload.actorId)) {
+        return refuse(ACTION_FIND_STASH, "sender does not own that character", ctx);
+    }
+
+    const { resolveStashSearch } = await import("./vault.mjs");
+    await resolveStashSearch({
+        actorId: payload.actorId,
+        total: Number(payload.total) || 0,
+        isCritical: Boolean(payload.isCritical)
+    });
+    return;
+}
+
+    // And out of their pockets. Same reasoning as the stash below, plus one
+    // more: the thief's client is the one that would benefit from getting the
+    // arithmetic wrong, so it does none of it.
+async function handleSteal(payload, senderId, ctx) {
+    const sender = senderOf(senderId);
+    if (!sender) return refuse(ACTION_STEAL, "unknown sender", ctx);
+    if (!ownsActor(sender, payload.thiefId)) {
+        return refuse(ACTION_STEAL, "sender does not own the character stealing", ctx);
+    }
+
+    const { stealFromPerson } = await import("./vault.mjs");
+    await stealFromPerson({
+        thiefId: payload.thiefId,
+        victimId: payload.victimId,
+        itemId: payload.itemId ?? null,
+        total: Number(payload.total) || 0,
+        isCritical: Boolean(payload.isCritical),
+        unseenTotal: Number(payload.unseenTotal) || 0,
+        unseenCritical: Boolean(payload.unseenCritical)
+    });
+    return;
+}
+
+    // Taking something out of somebody else's stash writes to two sheets, one of
+    // which the thief has no business writing to.
+async function handleVaultSteal(payload, senderId, ctx) {
+    const sender = senderOf(senderId);
+    if (!sender) return refuse(ACTION_VAULT_STEAL, "unknown sender", ctx);
+    if (!ownsActor(sender, payload.thiefId)) {
+        return refuse(ACTION_VAULT_STEAL, "sender does not own the character searching", ctx);
+    }
+
+    const { stealFromVault } = await import("./vault.mjs");
+    await stealFromVault({
+        thiefId: payload.thiefId, ownerId: payload.ownerId, itemId: payload.itemId,
+        // Set only by the Search action, which pays for the concealment it is
+        // beating. See the note in `stealFromVault`.
+        viaSearch: Boolean(payload.viaSearch),
+        // Trusted from the sender, and it is worth saying why when nothing
+        // else in this handler is. A client that lied would only ever lie
+        // one way - claiming a steady hand - and the cost of believing it is
+        // that the victim is not told. That is exactly the state this branch
+        // shipped in for four updates, so a forged `false` buys a cheat
+        // nothing it did not already have, while re-rolling the dice here to
+        // check would be a second roll for one action.
+        clumsy: Boolean(payload.clumsy)
+    });
+    return;
+}
+
+    // Stage 4 thrown on the participant's own client. Same guard as a crisis
+    // action: the sender has to own the character the roll is about, or one
+    // player could open somebody else's murder for them.
+async function handleOpeningResult(payload, senderId, ctx) {
+    const sender = senderOf(senderId);
+    if (!sender) return refuse(ACTION_OPENING_RESULT, "unknown sender", ctx);
+    if (!ownsActor(sender, payload.actorId)) {
+        return refuse(ACTION_OPENING_RESULT, "sender does not own that character", ctx);
+    }
+
+    const { resolveOpening } = await import("./murder.mjs");
+    await resolveOpening({
+        actorId: payload.actorId,
+        side: payload.side,
+        total: Number(payload.total) || 0,
+        isCritical: Boolean(payload.isCritical),
+        withHope: Boolean(payload.withHope)
+    });
+    return;
+}
+
+    // A crisis action writes to the other participant's sheet, to the map and to
+    // the shared incident state. All three are GM-only.
+async function handleCrisis(payload, senderId, ctx) {
+    const sender = senderOf(senderId);
+    if (!sender) return refuse(ACTION_CRISIS, "unknown sender", ctx);
+    if (!ownsActor(sender, payload.actorId)) {
+        return refuse(ACTION_CRISIS, "sender does not own that character", ctx);
+    }
+
+    const { resolveCrisisAction, freeResolutionFor, sideOf } = await import("./murder.mjs");
+    const actor = game.actors.get(payload.actorId);
+
+    await resolveCrisisAction({
+        actorId: payload.actorId,
+        key: payload.key,
+        total: Number(payload.total) || 0,
+        isCritical: Boolean(payload.isCritical),
+        withHope: Boolean(payload.withHope),
+        // A Reroll replacing this actor's own last crisis action. The GM
+        // side checks the receipt belongs to them before unwinding anything.
+        undo: Boolean(payload.undo),
+        // Narrowed rather than trusted: the only two answers this can carry
+        // are the two resources a critical Strike may take.
+        choice: payload.choice === "stress" ? "stress"
+            : payload.choice === "hp" ? "hp" : null,
+        // An id, and one the sender's own character actually holds. It only
+        // ever becomes a receipt line, but a receipt naming somebody else's
+        // item would give a Reroll the run of another sheet.
+        usedItemId: game.actors.get(payload.actorId)?.items?.has(payload.usedItemId)
+            ? payload.usedItemId : null,
+        // Same test: the swing memo names an item, and only one the sender holds.
+        swungId: game.actors.get(payload.actorId)?.items?.has(payload.swungId)
+            ? payload.swungId : null,
+        /*
+         * G-18, AND THIS IS THE ONE FIELD ON THIS SOCKET THAT COULD BUY
+         * SOMETHING FOR NOTHING.
+         *
+         * A packet claiming `free` is claiming an automatic success on
+         * Survive or Role reversal - the two actions that end an incident.
+         * So it is not believed. The grant is looked up in the incident
+         * state on THIS side, for the side this actor is actually on, and a
+         * claim with nothing behind it is dropped to false: the action then
+         * scores against its real threshold with a total of zero, which is
+         * a failure. That is the right answer to a forged packet - refusing
+         * outright would let a lost socket message turn a legitimate free
+         * take into silence instead of a result.
+         */
+        free: Boolean(payload.free) && Boolean(freeResolutionFor(sideOf(actor)))
+    });
+    return;
+}
+
+    // A direct murder declared in the dark. The declaration is a world write and
+    // the killer has no permission for one, so it travels; the judgement happens
+    // when the Eclipse ends, on this side, off the final placement.
+    //
+    // Nothing about the outcome is decided here or sent back - that is the whole
+    // point of parking it, and a bridge that answered "recorded" with anything
+    // more would be the leak this change exists to close.
+async function handleParkMurder(payload, senderId, ctx) {
+    const sender = senderOf(senderId);
+    if (!sender) return refuse(ACTION_PARK_MURDER, "unknown sender", ctx);
+    if (!ownsActor(sender, payload.killerId)) {
+        return refuse(ACTION_PARK_MURDER, "sender does not own that character", ctx);
+    }
+    const eclipse = await import("./eclipse.mjs");
+    await eclipse.writeParkedMurder({
+        killerId: payload.killerId,
+        room: payload.room ?? null,
+        note: payload.note ?? ""
+    });
+    return;
+}
+
+    // The newcomer turns on the person they just helped. Opening a murder is a
+    // world write and a second death, so the request travels and the decision
+    // is re-derived from the incident on this side - `betrayAsPlayer` refuses
+    // anyone the state does not put in that position.
+async function handleBetrayal(payload, senderId, ctx) {
+    const sender = senderOf(senderId);
+    if (!sender) return refuse(ACTION_BETRAYAL, "unknown sender", ctx);
+    if (!ownsActor(sender, payload.actorId)) {
+        return refuse(ACTION_BETRAYAL, "sender does not own that character", ctx);
+    }
+    const murder = await import("./murder.mjs");
+    await murder.betrayAsPlayer(payload.actorId);
+    return;
+}
+
+    // Stage 6. Deleting a Remnant token, placing the new one a botched wipe
+    // leaves, and reading how visible the trace was in the first place are all
+    // GM-only - the last of those most of all, since it is the threshold the
+    // roll is being measured against. See cleanup.mjs.
+async function handleCleanup(payload, senderId, ctx) {
+    const sender = senderOf(senderId);
+    if (!sender) return refuse(ACTION_CLEANUP, "unknown sender", ctx);
+    if (!ownsActor(sender, payload.actorId)) {
+        return refuse(ACTION_CLEANUP, "sender does not own that character", ctx);
+    }
+
+    const cleanup = await import("./cleanup.mjs");
+
+    // The two added Stage 6 actions score differently - a flat threshold
+    // rather than one read off a trace's visibility - so they have their own
+    // resolver. Same guard, same sender check; only the maths differs.
+    if (payload.key && payload.key !== "eraseTrace" && payload.key !== "transformTrace") {
+        await cleanup.resolveStageSix({
+            actorId: payload.actorId,
+            key: payload.key,
+            targetId: payload.targetId ?? null,
+            total: Number(payload.total) || 0,
+            isCritical: Boolean(payload.isCritical),
+            withHope: Boolean(payload.withHope),
+            viaAction: Boolean(payload.viaAction)
+        });
+        return;
+    }
+
+    await cleanup.resolveCleanup({
+        actorId: payload.actorId,
+        tokenId: payload.tokenId,
+        total: Number(payload.total) || 0,
+        isCritical: Boolean(payload.isCritical),
+        withHope: Boolean(payload.withHope),
+        // G-20. Passed through as sent and bounded on arrival -
+        // `resolveCleanup` checks both halves against `CLEANUP.transform`
+        // before it touches anything, which is the same check a GM-side
+        // call gets.
+        transform: payload.transform ?? null,
+        // Z5, and the same contract: sent as given, bounded on arrival.
+        mode: payload.key === "transformTrace" ? "transform" : "erase",
+        change: payload.change ?? null,
+        undo: Boolean(payload.undo),
+        // A claim that WAIVES Stage 6's guards and ADDS one of its own: the
+        // trace has to belong to the sender. Forging it costs them the
+        // right to touch anybody else's trace, which is the only thing the
+        // waived guards were protecting.
+        viaAction: Boolean(payload.viaAction)
+    });
+    return;
+}
+
+    // A Meddle writes to the TARGET's sheet, not the Monocub's own - arming a
+    // Call is exactly the write a player has no permission to make on somebody
+    // else's actor.
+async function handleMeddle(payload, senderId, ctx) {
+    const sender = senderOf(senderId);
+    if (!sender) return refuse(ACTION_MEDDLE, "unknown sender", ctx);
+    if (!ownsActor(sender, payload.actorId)) {
+        return refuse(ACTION_MEDDLE, "sender does not own that Monocub", ctx);
+    }
+
+    const { resolveMeddle } = await import("./monocub.mjs");
+    await resolveMeddle({
+        actorId: payload.actorId,
+        targetId: payload.targetId,
+        help: Boolean(payload.help),
+        total: Number(payload.total) || 0,
+        isCritical: Boolean(payload.isCritical)
+    });
+    return;
+}
+
+async function handleHopeCall(payload, senderId, ctx) {
+    const { asker } = ctx;
+    await askHopeCallByCard(payload, asker);
+    return;
+}
+
+async function handleDifficulty(payload, senderId, ctx) {
+    const { asker } = ctx;
+    await askDynamicByCard(payload, asker);
+    return;
+}
+
+async function handleProgress(payload, senderId, ctx) {
+    const { asker } = ctx;
+    if (!senderOf(senderId)) return refuse(ACTION_PROGRESS, "unknown sender", ctx);
+
+    // Progress comes from an action or a Call, so it is small by definition.
+    // A payload asking for +999 is not the rules asking.
+    const amount = Math.trunc(Number(payload.amount));
+    if (!Number.isFinite(amount) || amount === 0 || Math.abs(amount) > STARTING.despairMax) {
+        return refuse(ACTION_PROGRESS, `amount ${payload.amount} is out of range`, ctx);
+    }
+
+    const { addProgress } = await import("./projects.mjs");
+    // Who asked, so a finished project can fall back to them when nobody
+    // recorded who proposed it.
+    const result = await addProgress(payload.countdownId, amount, { by: payload.userId });
+    debug(`Applied ${payload.amount} progress to ${payload.countdownId} on behalf of a player.`, result);
+
+    // Report back to whoever asked.
+    //
+    // A player cannot see whether their request arrived, was applied, or was
+    // clamped to nothing - so a project that refused to move looked exactly
+    // like a socket that never fired. Now it says which of the three it was.
+    const to = asker ? [asker] : [];
+    if (!to.length) return;
+
+    const line = !result
+        ? game.i18n.localize("DRPG.Project.gone")
+        : result.changed === false
+            ? game.i18n.format(result.reason ?? "DRPG.Project.alreadyFull", {
+                  name: result.name, current: result.from, target: result.target
+              })
+            : game.i18n.format("DRPG.Project.now", {
+                  project: result.name, current: result.to, target: result.target
+              });
+
+    await announce({
+        content: `<p><strong>${game.i18n.localize("DRPG.Project.title")}</strong> - ${
+            foundry.utils.escapeHTML(line)
+        }</p>`,
+        whisper: to
+    });
+    return;
+}
+
+async function handleShare(payload, senderId, ctx) {
+    const sender = senderOf(senderId);
+    if (!sender) return refuse(ACTION_SHARE, "unknown sender", ctx);
+
+    // You may only share what you can already see.
+    //
+    // This used to check that the sender was a real user and nothing else,
+    // so "share this project with me" was a single socket emit - aimed at
+    // any project in the world, including somebody else's SECRET one. A
+    // secret project is a murder plan; `resealSecretProjects` exists to keep
+    // players out of exactly these, and this handler let a player back in
+    // through the front door.
+    const { canSee, shareWith } = await import("./projects.mjs");
+    if (!canSee(payload.countdownId, sender)) {
+        return refuse(ACTION_SHARE, "sender cannot see that project", ctx);
+    }
+
+    await shareWith(payload.countdownId, payload.targetUserId);
+    debug(`Shared project ${payload.countdownId} with ${payload.targetUserId} on behalf of a player.`);
+    return;
+}
+
+async function handleRemnant(payload, senderId, ctx) {
+    const sender = senderOf(senderId);
+    if (!ownsActor(sender, payload.data?.sourceActor)) {
+        return refuse(ACTION_REMNANT, "sender does not own the character leaving it", ctx);
+    }
+    /*
+     * NARROWED (CASE-13). A player's action leaves a Prep, Incident or
+     * Tamper trace; it never plants a Key, Final Truth or Autopsy Remnant,
+     * never a reinforced one, and never decides for itself that it is tied
+     * to the crime - `placeRemnant` decides that from the incident. Every
+     * other field was taken as sent, and a console could grow the planner
+     * a sixth clue that the sweep would never remove.
+     */
+    const data = { ...(payload.data ?? {}) };
+    if (!sender?.isGM) {
+        const PLAYER_TYPES = new Set(["prep", "incident", "tamper", "resolution"]);
+        if (!PLAYER_TYPES.has(data.type)) data.type = "prep";
+        data.reinforced = false;
+        if (data.tiedToCrime === true) data.tiedToCrime = null;
+    }
+    const { placeRemnant } = await import("./remnants.mjs");
+    await placeRemnant(data);
+    debug("Placed a Remnant on behalf of a player.");
+    return;
+}
+
+async function handleTieTrace(payload, senderId, ctx) {
+    if (!senderOf(senderId)) return refuse(ACTION_TIE_TRACE, "unknown sender", ctx);
+    const { tieTraceForItem } = await import("./remnants.mjs");
+    await tieTraceForItem(payload.identity);
+    return;
+}
+
+async function handleRemnantEdit(payload, senderId, ctx) {
+    const sender = senderOf(senderId);
+    if (!sender) return refuse(ACTION_REMNANT_EDIT, "unknown sender", ctx);
+
+    // Only the character who left it may re-rate it, which is what a reroll
+    // of their own action is. Anyone else editing evidence is the one thing
+    // an investigation cannot survive.
+    const scene = game.scenes.get(payload.sceneId) ?? canvas?.scene;
+    const token = scene?.tokens?.get(payload.tokenId);
+    // From the ledger, which this GM holds - the token has carried no
+    // `sourceActor` flag since the answer key moved off it (CASE-09), so
+    // this read was always undefined and every legitimate edit refused.
+    const { remnantData } = await import("./remnants.mjs");
+    const source = remnantData(token)?.sourceActor ?? null;
+    if (!ownsActor(sender, source)) {
+        return refuse(ACTION_REMNANT_EDIT, "sender did not leave that Remnant", ctx);
+    }
+
+    /*
+     * NARROWED, NOT FORWARDED.
+     *
+     * This used to hand the player's patch straight to `retuneRemnant`, and
+     * that was survivable while the only field was a visibility band. G-20
+     * gave the function a `type`, and type is a different kind of power: a
+     * killer relabelling their own Incident trace as Faint would have the
+     * chapter-end sweep clear the crime scene for them, and one relabelled
+     * as Key would put a fake anchor into the investigation.
+     *
+     * So the two fields are read out by name and checked against the same
+     * lists the rules use, and everything else in the packet is dropped.
+     * `remove` stays as it was - it is the Reroll's own half and
+     * `retuneRemnant` already refuses to delete a reinforced trace.
+     */
+    const { REMNANT_VISIBILITY_LABELS, CLEANUP } = await import("./config.mjs");
+    const asked = payload.patch ?? {};
+    const narrowed = { remove: Boolean(asked.remove) };
+    if (REMNANT_VISIBILITY_LABELS[asked.visibility]) narrowed.visibility = asked.visibility;
+    if (CLEANUP.transform?.types?.includes(asked.type)) narrowed.type = asked.type;
+
+    const { retuneRemnant } = await import("./remnants.mjs");
+    await retuneRemnant(payload.sceneId, payload.tokenId, narrowed);
+    debug("Retuned a Remnant on behalf of a player.", narrowed);
+    return;
+}
+
+async function handleSabotage(payload, senderId, ctx) {
+    const { asker } = ctx;
+    const sender = senderOf(senderId);
+    if (!sender) return refuse(ACTION_SABOTAGE, "unknown sender", ctx);
+
+    // Freezing somebody's work is aimed at a project you found, not at an
+    // id. Seeing it is the condition the picker is built from
+    // (`sabotageTargetsIn` lists what this user can see), and it was the one
+    // thing this side never asked - so any project in the world could be
+    // frozen from a console, including a secret one whose existence the
+    // sender had no way to learn honestly.
+    const { canSee, sabotageProject } = await import("./projects.mjs");
+    if (!canSee(payload.targetId, sender)) {
+        return refuse(ACTION_SABOTAGE, "sender cannot see that project", ctx);
+    }
+
+    // `difficulty` becomes the repair project's progress target, so it is
+    // how much work the freeze costs its owner to undo. It arrived unread: a
+    // payload asking for a target of 9999 froze a project for the rest of
+    // the season. The ceiling is the hardest scale the rules define, read
+    // from the table rather than written out here.
+    const hardest = Math.max(...Object.values(PROJECT_SCALE).map(s => s.progress));
+    const difficulty = Math.trunc(Number(payload.difficulty));
+    if (!Number.isFinite(difficulty) || difficulty < 1 || difficulty > hardest) {
+        return refuse(ACTION_SABOTAGE, `difficulty ${payload.difficulty} is out of range (1–${hardest})`, ctx);
+    }
+
+    const result = await sabotageProject(payload.targetId, difficulty);
+
+    // Tell the asker what actually happened - not just that the request
+    // arrived. Without this a player's own sabotage always reported success
+    // and a repair project by name, whether or not the freeze and the
+    // repair it depends on were ever written.
+    //
+    // Addressed to them, too. A broadcast announced every sabotage - and the
+    // name of the repair project it created - to the whole table, which is
+    // the one thing a saboteur is buying secrecy for.
+    if (payload.requestId) {
+        game.socket.emit(SOCKET_EVENT, {
+            action: ACTION_SABOTAGE_RESULT, requestId: payload.requestId,
+            userId: senderId, result
+        }, { recipients: [senderId] });
+    }
+    return;
+}
+
+async function handleUnsabotage(payload, senderId, ctx) {
+    const sender = senderOf(senderId);
+    if (!sender) return refuse(ACTION_UNSABOTAGE, "unknown sender", ctx);
+
+    // Same rule as freezing it. Thawing is the completion of a repair
+    // project, so the sender has to be able to see what they are thawing.
+    const { canSee, undoSabotage } = await import("./projects.mjs");
+    if (!canSee(payload.targetId, sender)) {
+        return refuse(ACTION_UNSABOTAGE, "sender cannot see that project", ctx);
+    }
+
+    await undoSabotage(payload.targetId, payload.repairId);
+    return;
+}
+
+async function handleSendback(payload, senderId, ctx) {
+    const sender = senderOf(senderId);
+    const scene = game.scenes.get(payload.sceneId);
+    const token = scene?.tokens?.get(payload.tokenId);
+    if (!ownsActor(sender, token?.actorId)) {
+        return refuse(ACTION_SENDBACK, "sender does not own that token", ctx);
+    }
+    const { REVERT } = await import("./movement.mjs");
+    if (token) await token.update(payload.position, { animate: false, [REVERT]: true });
+    return;
+}
+
+async function handleLoot(payload, senderId, ctx) {
+    const sender = senderOf(senderId);
+    if (!sender) return refuse(ACTION_LOOT, "unknown sender", ctx);
+
+    // You may fill your own pockets and nobody else's. Without this, "move
+    // that knife onto whoever I like" was a single socket emit away.
+    if (!ownsActor(sender, payload.takerId)) {
+        return refuse(ACTION_LOOT, "sender does not own the character doing the taking", ctx);
+    }
+
+    const { lootBody } = await import("./handover.mjs");
+    // Everything else it needs to refuse - the body being alive, the item
+    // being a Truth Bullet - `lootBody` checks itself, because the GM's own
+    // button goes through the same door.
+    await lootBody({
+        takerId: payload.takerId, bodyId: payload.bodyId, itemId: payload.itemId
+    });
+    return;
+}
+
+async function handleArm(payload, senderId, ctx) {
+    const actor = game.actors.get(payload.actorId);
+    if (!actor) return;
+    const sender = senderOf(senderId);
+    if (!sender) return refuse(ACTION_ARM, "unknown sender", ctx);
+
+    // The BUYER has to be the sender's own character - never the
+    // beneficiary, who is somebody else's by definition for Support and For
+    // the Game. Every other handler here checks ownership and this one did
+    // not, so "arm me a Free Critical" was a single socket emit away, paid
+    // for with nothing.
+    const buyerId = payload.call?.from ?? payload.actorId;
+    if (!ownsActor(sender, buyerId)) {
+        return refuse(ACTION_ARM, "sender does not own the character paying for it", ctx);
+    }
+
+    // The Call has to be one the rules define, and `grants` has to be the
+    // one that Call actually buys. Without this the payload was taken at
+    // face value: "arm me a free critical" was a single socket emit away.
+    const call = HOPE_CALLS[payload.call?.key] ?? DESPAIR_CALLS[payload.call?.key];
+    if (!call || call.grants !== payload.call?.grants) {
+        return refuse(ACTION_ARM, `"${payload.call?.key}" does not grant "${payload.call?.grants}"`, ctx);
+    }
+
+    const { MODULE_ID: id, FLAGS } = await import("./config.mjs");
+    await actor.setFlag(id, FLAGS.pendingCall, payload.call);
+    debug(`Armed ${payload.call?.key} on ${actor.name} on behalf of a player.`);
+    // The beneficiary is not the buyer: tell them what they have been given,
+    // or they will meet a locked roll dialog with no idea why it opened up.
+    await whisperToOwner(actor, `${cardHead({
+        action: game.i18n.localize("DRPG.Calls.armedTitle")
+    })}<p>${
+        game.i18n.format(payload.call?.kind === "despair" ? "DRPG.Calls.armedByMonokuma"
+            : payload.call?.kind === "hope" ? "DRPG.Calls.armedForYou" : "DRPG.Calls.armedByNobody", {
+            what: game.i18n.localize(`DRPG.Calls.grants.${payload.call?.grants}`)
+        })
+    }</p>`);
+    return;
+}
+
+async function handleDespair(payload, senderId, ctx) {
+    const sender = senderOf(senderId);
+    if (!sender) return refuse(ACTION_DESPAIR, "unknown sender", ctx);
+
+    // The only legitimate player-side Despair adjustment is a reroll giving
+    // one point back or taking one. Anything larger is not the rules asking.
+    const delta = Math.trunc(Number(payload.delta));
+    // A GM's own adjustment routed here (DESP-12) may be any size; a
+    // player's is a reroll's single point.
+    const cap = sender.isGM ? STARTING.despairMax : 1;
+    if (!Number.isFinite(delta) || delta === 0 || Math.abs(delta) > cap) {
+        return refuse(ACTION_DESPAIR, `delta ${payload.delta} is out of range`, ctx);
+    }
+    // Any pool holder (DESP-13): an Assistant GM granted a pool is a
+    // Monokuma too, and their reroll corrections were silently dropped.
+    const target = game.users.get(payload.targetUserId ?? "");
+    const { monokumas } = await import("./despair.mjs");
+    if (!target || !monokumas().some(u => u.id === target.id)) {
+        return refuse(ACTION_DESPAIR, "target holds no Despair pool", ctx);
+    }
+
+    const { adjustDespair } = await import("./despair.mjs");
+    await adjustDespair(target.id, delta);
+    debug(`Adjusted Despair for ${target.name} by ${delta} on behalf of ${sender.name}.`);
+    return;
+}
+
+async function handleEclipseMove(payload, senderId, ctx) {
+    const sender = senderOf(senderId);
+    if (!ownsActor(sender, payload.actorId)) {
+        return refuse(ACTION_ECLIPSE_MOVE, "sender does not own that character", ctx);
+    }
+    const { applyRecordedMove } = await import("./eclipse.mjs");
+    await applyRecordedMove(payload.actorId);
+    return;
+}
+
+/**
+ * WHAT THE PRIMARY GM ANSWERS, one handler per request. Each handler gets
+ * the packet, Foundry's own `senderId` (who really sent it - `payload.userId`
+ * is a claim and is only ever used as an address) and the reply context.
+ * Every handler that acts on `payload.actorId` first establishes
+ * `senderOf(senderId)` and `ownsActor(sender, ...)`; R1b in tests.mjs reads
+ * this table and holds each of them to it.
+ */
+const GM_HANDLERS = {
+    [ACTION_OBSERVE_TARGET]: handleObserveTarget,
+    [ACTION_CLEANUP_TRACES]: handleCleanupTraces,
+    [ACTION_OBSERVE_RESOLVE]: handleObserveResolve,
+    [ACTION_ANALYZE_RESOLVE]: handleAnalyzeResolve,
+    [ACTION_SHARE_BULLET]: handleShareBulletOrGiveItem,
+    [ACTION_GIVE_ITEM]: handleShareBulletOrGiveItem,
+    [ACTION_PLANT]: handlePlant,
+    [ACTION_FIND_STASH]: handleFindStash,
+    [ACTION_STEAL]: handleSteal,
+    [ACTION_VAULT_STEAL]: handleVaultSteal,
+    [ACTION_OPENING_RESULT]: handleOpeningResult,
+    [ACTION_CRISIS]: handleCrisis,
+    [ACTION_PARK_MURDER]: handleParkMurder,
+    [ACTION_BETRAYAL]: handleBetrayal,
+    [ACTION_CLEANUP]: handleCleanup,
+    [ACTION_MEDDLE]: handleMeddle,
+    [ACTION_HOPE_CALL]: handleHopeCall,
+    [ACTION_DIFFICULTY]: handleDifficulty,
+    [ACTION_PROGRESS]: handleProgress,
+    [ACTION_SHARE]: handleShare,
+    [ACTION_REMNANT]: handleRemnant,
+    [ACTION_TIE_TRACE]: handleTieTrace,
+    [ACTION_REMNANT_EDIT]: handleRemnantEdit,
+    [ACTION_SABOTAGE]: handleSabotage,
+    [ACTION_UNSABOTAGE]: handleUnsabotage,
+    [ACTION_SENDBACK]: handleSendback,
+    [ACTION_LOOT]: handleLoot,
+    [ACTION_ARM]: handleArm,
+    [ACTION_DESPAIR]: handleDespair,
+    [ACTION_ECLIPSE_MOVE]: handleEclipseMove,
+};
+
 async function onSocket(payload, senderId) {
     // The gate is per-action, not blanket. Keeping it up here meant every
     // handler that has to answer a *player* had to be registered as a separate
@@ -507,714 +1260,8 @@ async function onSocket(payload, senderId) {
         }, { recipients: [asker] });
     }
 
-    // Observe is scored on this side, because everything it is scored against -
-    // which Remnants are in the room, what they are, what the difficulty is -
-    // is exactly what the observer must not know. See observe.mjs.
-    if (payload?.action === ACTION_OBSERVE_TARGET) {
-        const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_OBSERVE_TARGET, "unknown sender", ctx);
-        if (!ownsActor(sender, payload.actorId)) {
-            return refuse(ACTION_OBSERVE_TARGET, "sender does not own that character", ctx);
-        }
-
-        const { chooseObserveTarget } = await import("./observe.mjs");
-        const result = await chooseObserveTarget({
-            actorId: payload.actorId,
-            declaration: payload.declaration,
-            request: payload.request
-        });
-
-        game.socket.emit(SOCKET_EVENT, {
-            action: ACTION_OBSERVE_TARGET_RESULT,
-            requestId: payload.requestId,
-            userId: asker,
-            result
-        }, { recipients: [asker] });
-        return;
-    }
-
-    // Stage 6's picker. Which traces a killer's own client may act on is
-    // computed here for the same reason Observe is: the ledger - the answer
-    // key `cleanableRemnants` reads to build the list - lives only on a GM
-    // client, and `cleanableTracesForPlayer` (cleanup.mjs) is what strips it
-    // back down to id, label and the reinforced flag before it goes out.
-    if (payload?.action === ACTION_CLEANUP_TRACES) {
-        const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_CLEANUP_TRACES, "unknown sender", ctx);
-        if (!ownsActor(sender, payload.actorId)) {
-            return refuse(ACTION_CLEANUP_TRACES, "sender does not own that character", ctx);
-        }
-
-        const { cleanableTracesForPlayer } = await import("./cleanup.mjs");
-        const result = cleanableTracesForPlayer(payload.actorId, {
-            mine: Boolean(payload.mine)
-        });
-
-        game.socket.emit(SOCKET_EVENT, {
-            action: ACTION_CLEANUP_TRACES_RESULT,
-            requestId: payload.requestId,
-            userId: asker,
-            result
-        }, { recipients: [asker] });
-        return;
-    }
-
-    if (payload?.action === ACTION_OBSERVE_RESOLVE) {
-        const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_OBSERVE_RESOLVE, "unknown sender", ctx);
-        // The key alone decides which character is affected - it was minted on
-        // this client in phase 1 - but the sender still has to be the person who
-        // asked for it, or one player could resolve another's Observe.
-        if (!ownsActor(sender, payload.actorId)) {
-            return refuse(ACTION_OBSERVE_RESOLVE, "sender does not own that character", ctx);
-        }
-
-        const { resolveObserve } = await import("./observe.mjs");
-        await resolveObserve({
-            key: payload.key,
-            total: Number(payload.total) || 0,
-            isCritical: Boolean(payload.isCritical),
-            undo: Boolean(payload.undo)
-        });
-        return;
-    }
-
-    // Analyze is scored here for the same reason as Observe: the difficulty is
-    // read from what the bullet really is, which is the answer being bought.
-    if (payload?.action === ACTION_ANALYZE_RESOLVE) {
-        const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_ANALYZE_RESOLVE, "unknown sender", ctx);
-        if (!ownsActor(sender, payload.actorId)) {
-            return refuse(ACTION_ANALYZE_RESOLVE, "sender does not own that character", ctx);
-        }
-
-        const { resolveAnalyze } = await import("./analyze.mjs");
-        await resolveAnalyze({
-            actorId: payload.actorId,
-            itemId: payload.itemId,
-            total: Number(payload.total) || 0,
-            isCritical: Boolean(payload.isCritical),
-            undo: Boolean(payload.undo)
-        });
-        return;
-    }
-
-    // Handing something to another character writes to a sheet the sender does
-    // not own, so it can only happen here. The same-room condition is checked
-    // again inside handover.mjs - the payload only claims it.
-    if (payload?.action === ACTION_SHARE_BULLET || payload?.action === ACTION_GIVE_ITEM) {
-        const sender = senderOf(senderId);
-        if (!sender) return refuse(payload.action, "unknown sender", ctx);
-        if (!ownsActor(sender, payload.fromId)) {
-            return refuse(payload.action, "sender does not own the character giving it away", ctx);
-        }
-
-        const { shareBullet, giveItem } = await import("./handover.mjs");
-        const run = payload.action === ACTION_SHARE_BULLET ? shareBullet : giveItem;
-        await run({ fromId: payload.fromId, toId: payload.toId, itemId: payload.itemId });
-        return;
-    }
-
-    // And into them. Same guards as the theft, mirrored - the sender has to own
-    // the character whose pocket the item is leaving.
-    if (payload?.action === ACTION_PLANT) {
-        const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_PLANT, "unknown sender", ctx);
-        if (!ownsActor(sender, payload.plannerId)) {
-            return refuse(ACTION_PLANT, "sender does not own the character planting", ctx);
-        }
-
-        const { plantOnPerson } = await import("./vault.mjs");
-        await plantOnPerson({
-            plannerId: payload.plannerId,
-            victimId: payload.victimId,
-            itemId: payload.itemId ?? null,
-            total: Number(payload.total) || 0,
-            isCritical: Boolean(payload.isCritical),
-            unseenTotal: Number(payload.unseenTotal) || 0,
-            unseenCritical: Boolean(payload.unseenCritical)
-        });
-        return;
-    }
-
-    // Looking for a hiding place. The finder owns their own sheet and could
-    // write the flag themselves - which is exactly why they do not: that write
-    // is the whole distance between beating a 16 and reading other people's
-    // stashes, so it happens where the threshold is checked.
-    if (payload?.action === ACTION_FIND_STASH) {
-        const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_FIND_STASH, "unknown sender", ctx);
-        if (!ownsActor(sender, payload.actorId)) {
-            return refuse(ACTION_FIND_STASH, "sender does not own that character", ctx);
-        }
-
-        const { resolveStashSearch } = await import("./vault.mjs");
-        await resolveStashSearch({
-            actorId: payload.actorId,
-            total: Number(payload.total) || 0,
-            isCritical: Boolean(payload.isCritical)
-        });
-        return;
-    }
-
-    // And out of their pockets. Same reasoning as the stash below, plus one
-    // more: the thief's client is the one that would benefit from getting the
-    // arithmetic wrong, so it does none of it.
-    if (payload?.action === ACTION_STEAL) {
-        const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_STEAL, "unknown sender", ctx);
-        if (!ownsActor(sender, payload.thiefId)) {
-            return refuse(ACTION_STEAL, "sender does not own the character stealing", ctx);
-        }
-
-        const { stealFromPerson } = await import("./vault.mjs");
-        await stealFromPerson({
-            thiefId: payload.thiefId,
-            victimId: payload.victimId,
-            itemId: payload.itemId ?? null,
-            total: Number(payload.total) || 0,
-            isCritical: Boolean(payload.isCritical),
-            unseenTotal: Number(payload.unseenTotal) || 0,
-            unseenCritical: Boolean(payload.unseenCritical)
-        });
-        return;
-    }
-
-    // Taking something out of somebody else's stash writes to two sheets, one of
-    // which the thief has no business writing to.
-    if (payload?.action === ACTION_VAULT_STEAL) {
-        const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_VAULT_STEAL, "unknown sender", ctx);
-        if (!ownsActor(sender, payload.thiefId)) {
-            return refuse(ACTION_VAULT_STEAL, "sender does not own the character searching", ctx);
-        }
-
-        const { stealFromVault } = await import("./vault.mjs");
-        await stealFromVault({
-            thiefId: payload.thiefId, ownerId: payload.ownerId, itemId: payload.itemId,
-            // Set only by the Search action, which pays for the concealment it is
-            // beating. See the note in `stealFromVault`.
-            viaSearch: Boolean(payload.viaSearch),
-            // Trusted from the sender, and it is worth saying why when nothing
-            // else in this handler is. A client that lied would only ever lie
-            // one way - claiming a steady hand - and the cost of believing it is
-            // that the victim is not told. That is exactly the state this branch
-            // shipped in for four updates, so a forged `false` buys a cheat
-            // nothing it did not already have, while re-rolling the dice here to
-            // check would be a second roll for one action.
-            clumsy: Boolean(payload.clumsy)
-        });
-        return;
-    }
-
-    // Stage 4 thrown on the participant's own client. Same guard as a crisis
-    // action: the sender has to own the character the roll is about, or one
-    // player could open somebody else's murder for them.
-    if (payload?.action === ACTION_OPENING_RESULT) {
-        const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_OPENING_RESULT, "unknown sender", ctx);
-        if (!ownsActor(sender, payload.actorId)) {
-            return refuse(ACTION_OPENING_RESULT, "sender does not own that character", ctx);
-        }
-
-        const { resolveOpening } = await import("./murder.mjs");
-        await resolveOpening({
-            actorId: payload.actorId,
-            side: payload.side,
-            total: Number(payload.total) || 0,
-            isCritical: Boolean(payload.isCritical),
-            withHope: Boolean(payload.withHope)
-        });
-        return;
-    }
-
-    // A crisis action writes to the other participant's sheet, to the map and to
-    // the shared incident state. All three are GM-only.
-    if (payload?.action === ACTION_CRISIS) {
-        const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_CRISIS, "unknown sender", ctx);
-        if (!ownsActor(sender, payload.actorId)) {
-            return refuse(ACTION_CRISIS, "sender does not own that character", ctx);
-        }
-
-        const { resolveCrisisAction, freeResolutionFor, sideOf } = await import("./murder.mjs");
-        const actor = game.actors.get(payload.actorId);
-
-        await resolveCrisisAction({
-            actorId: payload.actorId,
-            key: payload.key,
-            total: Number(payload.total) || 0,
-            isCritical: Boolean(payload.isCritical),
-            withHope: Boolean(payload.withHope),
-            // A Reroll replacing this actor's own last crisis action. The GM
-            // side checks the receipt belongs to them before unwinding anything.
-            undo: Boolean(payload.undo),
-            // Narrowed rather than trusted: the only two answers this can carry
-            // are the two resources a critical Strike may take.
-            choice: payload.choice === "stress" ? "stress"
-                : payload.choice === "hp" ? "hp" : null,
-            // An id, and one the sender's own character actually holds. It only
-            // ever becomes a receipt line, but a receipt naming somebody else's
-            // item would give a Reroll the run of another sheet.
-            usedItemId: game.actors.get(payload.actorId)?.items?.has(payload.usedItemId)
-                ? payload.usedItemId : null,
-            // Same test: the swing memo names an item, and only one the sender holds.
-            swungId: game.actors.get(payload.actorId)?.items?.has(payload.swungId)
-                ? payload.swungId : null,
-            /*
-             * G-18, AND THIS IS THE ONE FIELD ON THIS SOCKET THAT COULD BUY
-             * SOMETHING FOR NOTHING.
-             *
-             * A packet claiming `free` is claiming an automatic success on
-             * Survive or Role reversal - the two actions that end an incident.
-             * So it is not believed. The grant is looked up in the incident
-             * state on THIS side, for the side this actor is actually on, and a
-             * claim with nothing behind it is dropped to false: the action then
-             * scores against its real threshold with a total of zero, which is
-             * a failure. That is the right answer to a forged packet - refusing
-             * outright would let a lost socket message turn a legitimate free
-             * take into silence instead of a result.
-             */
-            free: Boolean(payload.free) && Boolean(freeResolutionFor(sideOf(actor)))
-        });
-        return;
-    }
-
-    // A direct murder declared in the dark. The declaration is a world write and
-    // the killer has no permission for one, so it travels; the judgement happens
-    // when the Eclipse ends, on this side, off the final placement.
-    //
-    // Nothing about the outcome is decided here or sent back - that is the whole
-    // point of parking it, and a bridge that answered "recorded" with anything
-    // more would be the leak this change exists to close.
-    if (payload?.action === ACTION_PARK_MURDER) {
-        const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_PARK_MURDER, "unknown sender", ctx);
-        if (!ownsActor(sender, payload.killerId)) {
-            return refuse(ACTION_PARK_MURDER, "sender does not own that character", ctx);
-        }
-        const eclipse = await import("./eclipse.mjs");
-        await eclipse.writeParkedMurder({
-            killerId: payload.killerId,
-            room: payload.room ?? null,
-            note: payload.note ?? ""
-        });
-        return;
-    }
-
-    // The newcomer turns on the person they just helped. Opening a murder is a
-    // world write and a second death, so the request travels and the decision
-    // is re-derived from the incident on this side - `betrayAsPlayer` refuses
-    // anyone the state does not put in that position.
-    if (payload?.action === ACTION_BETRAYAL) {
-        const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_BETRAYAL, "unknown sender", ctx);
-        if (!ownsActor(sender, payload.actorId)) {
-            return refuse(ACTION_BETRAYAL, "sender does not own that character", ctx);
-        }
-        const murder = await import("./murder.mjs");
-        await murder.betrayAsPlayer(payload.actorId);
-        return;
-    }
-
-    // Stage 6. Deleting a Remnant token, placing the new one a botched wipe
-    // leaves, and reading how visible the trace was in the first place are all
-    // GM-only - the last of those most of all, since it is the threshold the
-    // roll is being measured against. See cleanup.mjs.
-    if (payload?.action === ACTION_CLEANUP) {
-        const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_CLEANUP, "unknown sender", ctx);
-        if (!ownsActor(sender, payload.actorId)) {
-            return refuse(ACTION_CLEANUP, "sender does not own that character", ctx);
-        }
-
-        const cleanup = await import("./cleanup.mjs");
-
-        // The two added Stage 6 actions score differently - a flat threshold
-        // rather than one read off a trace's visibility - so they have their own
-        // resolver. Same guard, same sender check; only the maths differs.
-        if (payload.key && payload.key !== "eraseTrace" && payload.key !== "transformTrace") {
-            await cleanup.resolveStageSix({
-                actorId: payload.actorId,
-                key: payload.key,
-                targetId: payload.targetId ?? null,
-                total: Number(payload.total) || 0,
-                isCritical: Boolean(payload.isCritical),
-                withHope: Boolean(payload.withHope),
-                viaAction: Boolean(payload.viaAction)
-            });
-            return;
-        }
-
-        await cleanup.resolveCleanup({
-            actorId: payload.actorId,
-            tokenId: payload.tokenId,
-            total: Number(payload.total) || 0,
-            isCritical: Boolean(payload.isCritical),
-            withHope: Boolean(payload.withHope),
-            // G-20. Passed through as sent and bounded on arrival -
-            // `resolveCleanup` checks both halves against `CLEANUP.transform`
-            // before it touches anything, which is the same check a GM-side
-            // call gets.
-            transform: payload.transform ?? null,
-            // Z5, and the same contract: sent as given, bounded on arrival.
-            mode: payload.key === "transformTrace" ? "transform" : "erase",
-            change: payload.change ?? null,
-            undo: Boolean(payload.undo),
-            // A claim that WAIVES Stage 6's guards and ADDS one of its own: the
-            // trace has to belong to the sender. Forging it costs them the
-            // right to touch anybody else's trace, which is the only thing the
-            // waived guards were protecting.
-            viaAction: Boolean(payload.viaAction)
-        });
-        return;
-    }
-
-    // A Meddle writes to the TARGET's sheet, not the Monocub's own - arming a
-    // Call is exactly the write a player has no permission to make on somebody
-    // else's actor.
-    if (payload?.action === ACTION_MEDDLE) {
-        const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_MEDDLE, "unknown sender", ctx);
-        if (!ownsActor(sender, payload.actorId)) {
-            return refuse(ACTION_MEDDLE, "sender does not own that Monocub", ctx);
-        }
-
-        const { resolveMeddle } = await import("./monocub.mjs");
-        await resolveMeddle({
-            actorId: payload.actorId,
-            targetId: payload.targetId,
-            help: Boolean(payload.help),
-            total: Number(payload.total) || 0,
-            isCritical: Boolean(payload.isCritical)
-        });
-        return;
-    }
-
-    if (payload?.action === ACTION_HOPE_CALL) {
-        await askHopeCallByCard(payload, asker);
-        return;
-    }
-
-    if (payload?.action === ACTION_DIFFICULTY) {
-        await askDynamicByCard(payload, asker);
-        return;
-    }
-
-    if (payload?.action === ACTION_PROGRESS) {
-        if (!senderOf(senderId)) return refuse(ACTION_PROGRESS, "unknown sender", ctx);
-
-        // Progress comes from an action or a Call, so it is small by definition.
-        // A payload asking for +999 is not the rules asking.
-        const amount = Math.trunc(Number(payload.amount));
-        if (!Number.isFinite(amount) || amount === 0 || Math.abs(amount) > STARTING.despairMax) {
-            return refuse(ACTION_PROGRESS, `amount ${payload.amount} is out of range`, ctx);
-        }
-
-        const { addProgress } = await import("./projects.mjs");
-        // Who asked, so a finished project can fall back to them when nobody
-        // recorded who proposed it.
-        const result = await addProgress(payload.countdownId, amount, { by: payload.userId });
-        debug(`Applied ${payload.amount} progress to ${payload.countdownId} on behalf of a player.`, result);
-
-        // Report back to whoever asked.
-        //
-        // A player cannot see whether their request arrived, was applied, or was
-        // clamped to nothing - so a project that refused to move looked exactly
-        // like a socket that never fired. Now it says which of the three it was.
-        const to = asker ? [asker] : [];
-        if (!to.length) return;
-
-        const line = !result
-            ? game.i18n.localize("DRPG.Project.gone")
-            : result.changed === false
-                ? game.i18n.format(result.reason ?? "DRPG.Project.alreadyFull", {
-                      name: result.name, current: result.from, target: result.target
-                  })
-                : game.i18n.format("DRPG.Project.now", {
-                      project: result.name, current: result.to, target: result.target
-                  });
-
-        await announce({
-            content: `<p><strong>${game.i18n.localize("DRPG.Project.title")}</strong> - ${
-                foundry.utils.escapeHTML(line)
-            }</p>`,
-            whisper: to
-        });
-        return;
-    }
-
-    if (payload?.action === ACTION_SHARE) {
-        const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_SHARE, "unknown sender", ctx);
-
-        // You may only share what you can already see.
-        //
-        // This used to check that the sender was a real user and nothing else,
-        // so "share this project with me" was a single socket emit - aimed at
-        // any project in the world, including somebody else's SECRET one. A
-        // secret project is a murder plan; `resealSecretProjects` exists to keep
-        // players out of exactly these, and this handler let a player back in
-        // through the front door.
-        const { canSee, shareWith } = await import("./projects.mjs");
-        if (!canSee(payload.countdownId, sender)) {
-            return refuse(ACTION_SHARE, "sender cannot see that project", ctx);
-        }
-
-        await shareWith(payload.countdownId, payload.targetUserId);
-        debug(`Shared project ${payload.countdownId} with ${payload.targetUserId} on behalf of a player.`);
-        return;
-    }
-
-    if (payload?.action === ACTION_REMNANT) {
-        const sender = senderOf(senderId);
-        if (!ownsActor(sender, payload.data?.sourceActor)) {
-            return refuse(ACTION_REMNANT, "sender does not own the character leaving it", ctx);
-        }
-        /*
-         * NARROWED (CASE-13). A player's action leaves a Prep, Incident or
-         * Tamper trace; it never plants a Key, Final Truth or Autopsy Remnant,
-         * never a reinforced one, and never decides for itself that it is tied
-         * to the crime - `placeRemnant` decides that from the incident. Every
-         * other field was taken as sent, and a console could grow the planner
-         * a sixth clue that the sweep would never remove.
-         */
-        const data = { ...(payload.data ?? {}) };
-        if (!sender?.isGM) {
-            const PLAYER_TYPES = new Set(["prep", "incident", "tamper", "resolution"]);
-            if (!PLAYER_TYPES.has(data.type)) data.type = "prep";
-            data.reinforced = false;
-            if (data.tiedToCrime === true) data.tiedToCrime = null;
-        }
-        const { placeRemnant } = await import("./remnants.mjs");
-        await placeRemnant(data);
-        debug("Placed a Remnant on behalf of a player.");
-        return;
-    }
-
-    if (payload?.action === ACTION_TIE_TRACE) {
-        if (!senderOf(senderId)) return refuse(ACTION_TIE_TRACE, "unknown sender", ctx);
-        const { tieTraceForItem } = await import("./remnants.mjs");
-        await tieTraceForItem(payload.identity);
-        return;
-    }
-
-    if (payload?.action === ACTION_REMNANT_EDIT) {
-        const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_REMNANT_EDIT, "unknown sender", ctx);
-
-        // Only the character who left it may re-rate it, which is what a reroll
-        // of their own action is. Anyone else editing evidence is the one thing
-        // an investigation cannot survive.
-        const scene = game.scenes.get(payload.sceneId) ?? canvas?.scene;
-        const token = scene?.tokens?.get(payload.tokenId);
-        // From the ledger, which this GM holds - the token has carried no
-        // `sourceActor` flag since the answer key moved off it (CASE-09), so
-        // this read was always undefined and every legitimate edit refused.
-        const { remnantData } = await import("./remnants.mjs");
-        const source = remnantData(token)?.sourceActor ?? null;
-        if (!ownsActor(sender, source)) {
-            return refuse(ACTION_REMNANT_EDIT, "sender did not leave that Remnant", ctx);
-        }
-
-        /*
-         * NARROWED, NOT FORWARDED.
-         *
-         * This used to hand the player's patch straight to `retuneRemnant`, and
-         * that was survivable while the only field was a visibility band. G-20
-         * gave the function a `type`, and type is a different kind of power: a
-         * killer relabelling their own Incident trace as Faint would have the
-         * chapter-end sweep clear the crime scene for them, and one relabelled
-         * as Key would put a fake anchor into the investigation.
-         *
-         * So the two fields are read out by name and checked against the same
-         * lists the rules use, and everything else in the packet is dropped.
-         * `remove` stays as it was - it is the Reroll's own half and
-         * `retuneRemnant` already refuses to delete a reinforced trace.
-         */
-        const { REMNANT_VISIBILITY_LABELS, CLEANUP } = await import("./config.mjs");
-        const asked = payload.patch ?? {};
-        const narrowed = { remove: Boolean(asked.remove) };
-        if (REMNANT_VISIBILITY_LABELS[asked.visibility]) narrowed.visibility = asked.visibility;
-        if (CLEANUP.transform?.types?.includes(asked.type)) narrowed.type = asked.type;
-
-        const { retuneRemnant } = await import("./remnants.mjs");
-        await retuneRemnant(payload.sceneId, payload.tokenId, narrowed);
-        debug("Retuned a Remnant on behalf of a player.", narrowed);
-        return;
-    }
-
-    if (payload?.action === ACTION_SABOTAGE) {
-        const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_SABOTAGE, "unknown sender", ctx);
-
-        // Freezing somebody's work is aimed at a project you found, not at an
-        // id. Seeing it is the condition the picker is built from
-        // (`sabotageTargetsIn` lists what this user can see), and it was the one
-        // thing this side never asked - so any project in the world could be
-        // frozen from a console, including a secret one whose existence the
-        // sender had no way to learn honestly.
-        const { canSee, sabotageProject } = await import("./projects.mjs");
-        if (!canSee(payload.targetId, sender)) {
-            return refuse(ACTION_SABOTAGE, "sender cannot see that project", ctx);
-        }
-
-        // `difficulty` becomes the repair project's progress target, so it is
-        // how much work the freeze costs its owner to undo. It arrived unread: a
-        // payload asking for a target of 9999 froze a project for the rest of
-        // the season. The ceiling is the hardest scale the rules define, read
-        // from the table rather than written out here.
-        const hardest = Math.max(...Object.values(PROJECT_SCALE).map(s => s.progress));
-        const difficulty = Math.trunc(Number(payload.difficulty));
-        if (!Number.isFinite(difficulty) || difficulty < 1 || difficulty > hardest) {
-            return refuse(ACTION_SABOTAGE, `difficulty ${payload.difficulty} is out of range (1–${hardest})`, ctx);
-        }
-
-        const result = await sabotageProject(payload.targetId, difficulty);
-
-        // Tell the asker what actually happened - not just that the request
-        // arrived. Without this a player's own sabotage always reported success
-        // and a repair project by name, whether or not the freeze and the
-        // repair it depends on were ever written.
-        //
-        // Addressed to them, too. A broadcast announced every sabotage - and the
-        // name of the repair project it created - to the whole table, which is
-        // the one thing a saboteur is buying secrecy for.
-        if (payload.requestId) {
-            game.socket.emit(SOCKET_EVENT, {
-                action: ACTION_SABOTAGE_RESULT, requestId: payload.requestId,
-                userId: senderId, result
-            }, { recipients: [senderId] });
-        }
-        return;
-    }
-
-    if (payload?.action === ACTION_UNSABOTAGE) {
-        const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_UNSABOTAGE, "unknown sender", ctx);
-
-        // Same rule as freezing it. Thawing is the completion of a repair
-        // project, so the sender has to be able to see what they are thawing.
-        const { canSee, undoSabotage } = await import("./projects.mjs");
-        if (!canSee(payload.targetId, sender)) {
-            return refuse(ACTION_UNSABOTAGE, "sender cannot see that project", ctx);
-        }
-
-        await undoSabotage(payload.targetId, payload.repairId);
-        return;
-    }
-
-    if (payload?.action === ACTION_SENDBACK) {
-        const sender = senderOf(senderId);
-        const scene = game.scenes.get(payload.sceneId);
-        const token = scene?.tokens?.get(payload.tokenId);
-        if (!ownsActor(sender, token?.actorId)) {
-            return refuse(ACTION_SENDBACK, "sender does not own that token", ctx);
-        }
-        const { REVERT } = await import("./movement.mjs");
-        if (token) await token.update(payload.position, { animate: false, [REVERT]: true });
-        return;
-    }
-
-    if (payload?.action === ACTION_LOOT) {
-        const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_LOOT, "unknown sender", ctx);
-
-        // You may fill your own pockets and nobody else's. Without this, "move
-        // that knife onto whoever I like" was a single socket emit away.
-        if (!ownsActor(sender, payload.takerId)) {
-            return refuse(ACTION_LOOT, "sender does not own the character doing the taking", ctx);
-        }
-
-        const { lootBody } = await import("./handover.mjs");
-        // Everything else it needs to refuse - the body being alive, the item
-        // being a Truth Bullet - `lootBody` checks itself, because the GM's own
-        // button goes through the same door.
-        await lootBody({
-            takerId: payload.takerId, bodyId: payload.bodyId, itemId: payload.itemId
-        });
-        return;
-    }
-
-    if (payload?.action === ACTION_ARM) {
-        const actor = game.actors.get(payload.actorId);
-        if (!actor) return;
-        const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_ARM, "unknown sender", ctx);
-
-        // The BUYER has to be the sender's own character - never the
-        // beneficiary, who is somebody else's by definition for Support and For
-        // the Game. Every other handler here checks ownership and this one did
-        // not, so "arm me a Free Critical" was a single socket emit away, paid
-        // for with nothing.
-        const buyerId = payload.call?.from ?? payload.actorId;
-        if (!ownsActor(sender, buyerId)) {
-            return refuse(ACTION_ARM, "sender does not own the character paying for it", ctx);
-        }
-
-        // The Call has to be one the rules define, and `grants` has to be the
-        // one that Call actually buys. Without this the payload was taken at
-        // face value: "arm me a free critical" was a single socket emit away.
-        const call = HOPE_CALLS[payload.call?.key] ?? DESPAIR_CALLS[payload.call?.key];
-        if (!call || call.grants !== payload.call?.grants) {
-            return refuse(ACTION_ARM, `"${payload.call?.key}" does not grant "${payload.call?.grants}"`, ctx);
-        }
-
-        const { MODULE_ID: id, FLAGS } = await import("./config.mjs");
-        await actor.setFlag(id, FLAGS.pendingCall, payload.call);
-        debug(`Armed ${payload.call?.key} on ${actor.name} on behalf of a player.`);
-        // The beneficiary is not the buyer: tell them what they have been given,
-        // or they will meet a locked roll dialog with no idea why it opened up.
-        await whisperToOwner(actor, `${cardHead({
-            action: game.i18n.localize("DRPG.Calls.armedTitle")
-        })}<p>${
-            game.i18n.format(payload.call?.kind === "despair" ? "DRPG.Calls.armedByMonokuma"
-                : payload.call?.kind === "hope" ? "DRPG.Calls.armedForYou" : "DRPG.Calls.armedByNobody", {
-                what: game.i18n.localize(`DRPG.Calls.grants.${payload.call?.grants}`)
-            })
-        }</p>`);
-        return;
-    }
-
-    if (payload?.action === ACTION_DESPAIR) {
-        const sender = senderOf(senderId);
-        if (!sender) return refuse(ACTION_DESPAIR, "unknown sender", ctx);
-
-        // The only legitimate player-side Despair adjustment is a reroll giving
-        // one point back or taking one. Anything larger is not the rules asking.
-        const delta = Math.trunc(Number(payload.delta));
-        // A GM's own adjustment routed here (DESP-12) may be any size; a
-        // player's is a reroll's single point.
-        const cap = sender.isGM ? STARTING.despairMax : 1;
-        if (!Number.isFinite(delta) || delta === 0 || Math.abs(delta) > cap) {
-            return refuse(ACTION_DESPAIR, `delta ${payload.delta} is out of range`, ctx);
-        }
-        // Any pool holder (DESP-13): an Assistant GM granted a pool is a
-        // Monokuma too, and their reroll corrections were silently dropped.
-        const target = game.users.get(payload.targetUserId ?? "");
-        const { monokumas } = await import("./despair.mjs");
-        if (!target || !monokumas().some(u => u.id === target.id)) {
-            return refuse(ACTION_DESPAIR, "target holds no Despair pool", ctx);
-        }
-
-        const { adjustDespair } = await import("./despair.mjs");
-        await adjustDespair(target.id, delta);
-        debug(`Adjusted Despair for ${target.name} by ${delta} on behalf of ${sender.name}.`);
-        return;
-    }
-
-    if (payload?.action === ACTION_ECLIPSE_MOVE) {
-        const sender = senderOf(senderId);
-        if (!ownsActor(sender, payload.actorId)) {
-            return refuse(ACTION_ECLIPSE_MOVE, "sender does not own that character", ctx);
-        }
-        const { applyRecordedMove } = await import("./eclipse.mjs");
-        await applyRecordedMove(payload.actorId);
-        return;
-    }
-
     /*
-     * `project.create` USED TO LIVE HERE, and it is gone rather than mended.
+     * `project.create` USED TO BE IN THIS TABLE, and it is gone rather than mended.
      *
      * Nothing sent it: a project is created by the GM, from the panel or from
      * an Approve button on a proposal card, and a player's proposal reaches
@@ -1224,6 +1271,9 @@ async function onSocket(payload, senderId) {
      * somebody, and created the project. Including one flagged
      * `indirectMurder`. A door nobody used and anybody could open.
      */
+    const handler = GM_HANDLERS[payload.action];
+    if (!handler) return;
+    return handler(payload, senderId, ctx);
 }
 
 /**
