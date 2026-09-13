@@ -764,7 +764,7 @@ export const TRUTH_BULLET_TYPES = {
     },
     neutral: {
         label: "Neutral Truth Bullet",
-        hint: "A trace of undetermined origin. Analyse it to find out what it really is."
+        hint: "A trace of undetermined origin. Analyze it to find out what it really is."
     },
     faint: {
         label: "Faint Truth Bullet",
@@ -1735,7 +1735,7 @@ export const HOPE_CALLS = {
         // the action pipeline recognise THIS Call by; what changes is what it
         // does to the dice.
         label: "Loaded Die", icon: "fa-burst", cost: 6, target: "none", grants: "critical",
-        effect: "On the next roll one die is set to 12 and the other is thrown. A very high total, and a critical only if that other die comes up 12 too."
+        effect: "One die is set to 12, the other is thrown. A critical only if that one is a 12 too."
     }
 };
 
@@ -2519,7 +2519,7 @@ export const MURDER_OPENING = {
         keyRemnants: { hope: 5, despair: 4, critical: 3 },
         hope: "The incident begins.",
         despair: "The incident begins. The victim loses all their Sanity and loses access to "
-            + "Role Reversal for this incident.",
+            + "Role reversal for this incident.",
         critical: "The incident begins, and the victim learns who is attacking them.",
         failure: "No incident, and the victim never learns anything was attempted. The action is "
             + "spent; the attempt can be made again in another time of day.",
@@ -2648,9 +2648,8 @@ export const CRISIS_ACTIONS = {
         threshold: 15, traits: ["hand"],
         hidden: true,
         usesItem: true,
-        hint: "Get something out of your pocket while this is happening. "
-            + "It works on a critical or a success with Hope; a success with Despair "
-            + "leaves a trace and nothing else.",
+        hint: "Get something out while this is happening. Works on a critical or a Hope success; "
+            + "a Despair success only leaves a trace.",
         remnant: { hope: "evident", despair: "subtle", critical: "obvious" },
         criticalReinforced: true,
         // The guide gives the direct victim a second action and the indirect one
@@ -2901,9 +2900,8 @@ export const CRISIS_ACTIONS = {
         // ending the incident on its own. What the roll buys is ending it EARLY,
         // and the critical's free Stage 6 action - neither of which a victim who
         // simply bled out hands over.
-        hint: "End the incident now. Threshold is five times their remaining Health - free at 0 Health. "
-            + "A victim who runs out of both Health and Sanity dies without this, but then nobody "
-            + "earns what a critical here grants.",
+        hint: "End the incident now. Threshold is five times their remaining Health - free at 0. "
+            + "A critical here also buys a free Stage 6 action.",
         endsIncident: true,
         hope: "The incident ends.",
         despair: "The incident ends and leaves one Incident Remnant.",
@@ -3928,7 +3926,7 @@ export const SFX_EVENTS = {
         category: "incident"
     },
     levelUp: {
-        label: "Level up",
+        label: "Level Up",
         hint: "Heard by the survivor it happened to. The only reward in the whole game.",
         category: "incident"
     }

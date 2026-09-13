@@ -64,7 +64,7 @@ The roll window is locked for players: dice, statistic, advantage, experiences a
 
 ### A day, a session, a chapter
 
-One session is one in-fiction day, and a day is five **times of day**: **Morning, Noon, Afternoon, Evening, Night**. Every time of day refills your two actions, your free Move and each room's search tokens. When Night ends, the day turns over.
+One session is one in-fiction day, and a day is five **times of day**: **Morning, Noon, Afternoon, Evening, Night**. Every time of day refills your two actions, your Free Move and each room's search tokens. When Night ends, the day turns over.
 
 A canonical chapter is five sessions: three of **Daily Life** (the third usually carries the murder), one of **Investigation**, one of **Class Trial**. The GM may stretch a chapter when no murder has happened yet. A season is six chapters; a modular season runs a single one.
 
@@ -99,7 +99,7 @@ The school is drawn as rooms. Everything - movement, Search, Listen, who can hea
 | Move | Cost |
 |---|---|
 | Moving inside your own room | free, always |
-| First crossing into a connected room this time of day | your **free Move** |
+| First crossing into a connected room this time of day | your **Free Move** |
 | Every further crossing | **1 action** each |
 | A crossing bought with the Sprint Hope Call | free |
 
@@ -331,7 +331,7 @@ Despair earned past a full pool does not vanish - it collects in one shared coun
 | Panic | 1 fewer action each, on top of Wounded |
 | Despair | no Hope is earned at all - spending still works |
 | Silence | no Hope Calls, by anybody |
-| Fog | no free Move - crossings cost actions as usual |
+| Fog | no Free Move - crossings cost actions as usual |
 | Rot | every item with more than one durability point loses one (one-off, nothing breaks) |
 | Earthquake | every project loses 1 progress (one-off) |
 
@@ -438,7 +438,7 @@ What follows is what a player is allowed to know. Who is doing what to whom is t
 There is exactly one, and the kind of murder decides whose it is.
 
 - **Direct murder:** the killer rolls (Body or Hand, against 8; advantage at Night). On a failure nothing happens and the victim never learns anything was attempted. On a success the incident begins. With Despair the victim loses all their Sanity on the spot and loses Role reversal for this incident. On a critical the victim learns who is attacking them.
-- **Indirect murder (a trap):** the **victim** rolls (Eye or Head, against **20**; disadvantage at Night). Being asked to roll is itself the warning. **Hope:** something is wrong with this room - a free Move and no idea why; spend it and you live. **Despair:** you work out what has been set up here and can tell the others. **Critical:** you spot the trap and know whose hands built it. **Failure:** you notice nothing and the trap closes.
+- **Indirect murder (a trap):** the **victim** rolls (Eye or Head, against **20**; disadvantage at Night). Being asked to roll is itself the warning. **Hope:** something is wrong with this room - a Free Move and no idea why; spend it and you live. **Despair:** you work out what has been set up here and can tell the others. **Critical:** you spot the trap and know whose hands built it. **Failure:** you notice nothing and the trap closes.
 - A death by one's own hand uses the killer's roll and skips straight to the clean-up.
 
 ### If you are the victim
@@ -585,7 +585,7 @@ You do not have to justify it, now or later. There is no reason field. Nobody el
 
 **The HUD** (left column): campaign name, chapter, day, phase and time of day. It also carries the Motive countdown, an assembly order, "Body found", and during a trial the mode and its clock. Click it for an explanation of where things stand and the description of your room.
 
-**The status strip** (right, above the Projects tray): your actions left, whether your free Move is still there, your Hope, Eclipse crossings while one runs, and anything banked with Sprint or Burst. Click it for the explanation.
+**The status strip** (right, above the Projects tray): your actions left, whether your Free Move is still there, your Hope, Eclipse crossings while one runs, and anything banked with Sprint or Burst. Click it for the explanation.
 
 **The Despair rows** show that pools exist, never how full. Click for what Despair is.
 

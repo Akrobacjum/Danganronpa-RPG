@@ -502,7 +502,26 @@ Zadania 1-11 z sekcji 5 są zrobione na gałęzi, po jednym commicie na zadanie.
 
 Nie wydane: `module.json` nadal mówi 1.2.43. Wydanie 1.2.44 z tej gałęzi wymaga trzech rzeczy z sekcji 8 (wersja w `module.json`, stempel CSS, plik `.github/release-notes/v1.2.44.md`) - notatki są przygotowane w gałęzi, wersja i stempel czekają na decyzję.
 
-### 9.1 Co zostało i wymaga decyzji Dawida (nie kodu)
+### 9.1 Decyzje - podjęte 13.09 i wdrożone
+
+| # | Decyzja | Wybór | Commit |
+| --- | --- | --- | --- |
+| D1 | Progi widoczne | **A**, dynamicznie: każdy briefing drukuje progi z tabeli dla tej postaci (narzędzie w ręce, świadkowie, świeża scena), okno rzutu mówi "beat N" | `5858b2a` |
+| D2 | Ledger odkrytych pokoi | **B**, tajny per gracz (unia u GMa, własne wiersze u gracza, pull przy dołączeniu, odbudowa unii z klientów, migracja z world setting; scenariusz 60-ledger 14/14; przekaźnik harnessu honoruje `recipients`) | `f78de10` |
+| D3 | Pule Despair | **C**, liczby jawne, overflow zamaskowany | `1210949` |
+| D4 | Gear "jedno w ręce" | **A**, auto-ready na każdej drodze wejścia z szeptem do właściciela | `1210949` |
+| D5 | Wiązanie śladów w incydencie | **B**, tylko uczestnicy albo pokój incydentu, reszta do decyzji GMa | `1210949` |
+| D6 | Nieudany sabotaż | **B**, tylko pokój i GM | `1210949` |
+| D7 | Podsłuch LiveKit | usunięty w całości; reset głosu jako kafelek w Między sesjami | `1210949` |
+| D8 | Redakcja tekstów | **B**, pierwszy przebieg wg 3.2 i 3.3 (poniżej) | ten commit |
+| D9 | Alias i `SETTINGS.blackened` | **B**, usunięte teraz (wpis w notatkach 1.2.44) | `1210949` |
+| D10 | Wydanie 1.2.44 | **B**, po live checkach - nic nie wydano | - |
+
+Dodatkowo (prośba z 13.09): karty eventów dla Despair overflow i Eclipse na panelu (`1c0dde8`).
+
+**D8 - co weszło z 3.2:** "phase" → pora dnia w `Settings.hudTicker.hint` i `Summary.lede`; `Vote.verdictNoteKnown` "every Blackened"; `Calls.whichPlayer` "Which student?", `Panel.whoIsAlive` "Students" (PL już było "Uczniowie"); "Final Truth Remnant" wszędzie; "Free Move" wielką literą (11 kluczy); OBJECTION wielkimi tylko na banerze, przycisku i trybie; "Analyze" w `config.mjs`; "Role reversal"; "Level Up"; "hiding place"/"drawer" → "stash" (12 kluczy); "Gamemaster" → "GM" poza rolą Foundry; "clue" tylko w planerze Key Remnantów. **Z 3.3:** wszystkie skróty z tabeli (config: `finishingBlow.hint`, `useItem.hint`, `freeCrit.effect`; klucze: `Music.noSituational`, `Eclipse.actionsLocked`, `Anonymity.blocked`, `Assign.title`, `Observe.pickConfirm`, `Eclipse.endAndAdvance`, `Chapter.endTitle`, `Trap.rearm`, `Hud.roomTokens`) w obu językach. **Nie ruszone, do Twojego przebiegu 1.3.0:** masowe ujednolicenie Remnant/trace (56+78 kluczy), GM/Monokuma w prozie, student/character/player poza dwoma kluczami, etykiety kafelków "Behind Closed Doors"/"Public Announcement" (to nazwy z glosariusza - skrócenie ich to Twoja decyzja).
+
+### 9.1a Co zostało do zrobienia (stan po 13.09)
 
 | # | Pytanie | Wariant A (stan obecny) | Wariant B | Gdzie w kodzie |
 | --- | --- | --- | --- | --- |

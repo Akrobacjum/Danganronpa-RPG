@@ -6,8 +6,8 @@
 
 ## Each time of day (Morning, Noon, Afternoon, Evening, Night)
 
-- **2 actions** and **1 free Move**. They refill when the next time of day begins.
-- Moving inside your room is free. The first crossing into a connected room is your free Move; every further crossing costs 1 action. Drag your token - the cost lands when you arrive. Locked doors, sealed rooms, other people's bedrooms (no key) and Chained turn you back.
+- **2 actions** and **1 Free Move**. They refill when the next time of day begins.
+- Moving inside your room is free. The first crossing into a connected room is your Free Move; every further crossing costs 1 action. Drag your token - the cost lands when you arrive. Locked doors, sealed rooms, other people's bedrooms (no key) and Chained turn you back.
 - Before each time of day comes the **Eclipse**: lights out, nobody sees anybody, you place your token up to 2 connected rooms away (any room before Night). Nothing spends an action but a Direct Murder, and no Calls.
 - You see only your room and the people in it; visited rooms are veiled, the rest is fog. Voice follows your token - you hear only your room. Every room has search tokens (usually 3) shared by everybody.
 

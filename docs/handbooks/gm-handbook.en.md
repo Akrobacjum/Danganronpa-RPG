@@ -70,7 +70,7 @@ Above the list sit three fields saved by **Save**: the campaign name (shown at t
 
 ## 3. The GM panel
 
-`scripts/gm-panel.mjs`. Opened from the **GM** launcher under the clock. The top of the panel is the standing: the campaign name, the clock line ("Chapter 2 · Day 3 · Session 3 · Afternoon", with "· ECLIPSE" appended while one runs), the phase, a **Next time of day** button, the **Next** line, and a table of the living cast with actions left and whether the free Move is still there. Monokumas and ordinary corpses are not in the table; a Monocub is, because they spend a real budget.
+`scripts/gm-panel.mjs`. Opened from the **GM** launcher under the clock. The top of the panel is the standing: the campaign name, the clock line ("Chapter 2 · Day 3 · Session 3 · Afternoon", with "· ECLIPSE" appended while one runs), the phase, a **Next time of day** button, the **Next** line, and a table of the living cast with actions left and whether the Free Move is still there. Monokumas and ordinary corpses are not in the table; a Monocub is, because they spend a real budget.
 
 **The Next line** is one instruction, in order of urgency, first match wins:
 
@@ -89,12 +89,12 @@ The tiles, by section:
 
 | Section | Tiles |
 |---|---|
-| Right now (always open) | **Players** (alive / dead / Monocub, Hope for Monocubs, the Items button per row), **Projects**, **Sound**, **Killing game rules** |
+| Right now (always open) | **Students** (alive / dead / Monocub, Hope for Monocubs, the Items button per row), **Projects**, **Sound**, **Killing game rules** |
 | The case (Daily Life, Investigation, Class Trial) | **Murder** (greyed out during an Eclipse), **Investigation** dashboard, **Class Trial** console |
-| Between sessions (collapsed) | **Edit campaign**, **Despair Flow**, **Room Setup**, **Item tables**, **Set the season up**, **Mastermind**, **End of chapter / new session**, **Reset the season** (red) |
+| Between sessions (collapsed) | **Edit campaign**, **Despair Flow**, **Room Setup**, **Item tables**, **Set the season up**, **Mastermind**, **End the chapter**, **Reset the season** (red) |
 | Repairs (collapsed, dim) | **Failure log** - everything that went wrong since this page loaded, with Copy and Clear |
 
-**Players** deserves a note: the dropdown only moves flags and is the repair tool for a misclick. The buttons on the right do the real thing - **A character dies** destroys the character's Truth Bullets and leaves everything else on the body; **Invite as a Monocub** turns a dead student into one. Monocub columns (Hope, Despair to Hope donation, Silenced) appear only once a Monocub exists.
+**Students** deserves a note: the dropdown only moves flags and is the repair tool for a misclick. The buttons on the right do the real thing - **A character dies** destroys the character's Truth Bullets and leaves everything else on the body; **Invite as a Monocub** turns a dead student into one. Monocub columns (Hope, Despair to Hope donation, Silenced) appear only once a Monocub exists.
 
 ---
 
@@ -124,7 +124,7 @@ It does **not** refill actions by itself. The budget comes back when the Eclipse
 
 ## 5. Actions and budgets
 
-`config.mjs ACTIONS`, `STARTING`, `scripts/actions.mjs`. Every student gets **2 actions** per time of day and **1 free Move**. **Wounded** (all Health marked) costs 1 action per time of day; a *Panic* darkening costs 1 more; the two stack but never below 1. The budget is derived, never stored, so a character who heals mid-day gets the action back at the next refill. **Breakdown** (Sanity at 0) gives disadvantage on every roll.
+`config.mjs ACTIONS`, `STARTING`, `scripts/actions.mjs`. Every student gets **2 actions** per time of day and **1 Free Move**. **Wounded** (all Health marked) costs 1 action per time of day; a *Panic* darkening costs 1 more; the two stack but never below 1. The budget is derived, never stored, so a character who heals mid-day gets the action back at the next refill. **Breakdown** (Sanity at 0) gives disadvantage on every roll.
 
 The ten tiles on the sheet, in the order they are drawn:
 
@@ -207,7 +207,7 @@ Obstacle, Approval, Support and a Monocub's Confusion are all "armed" on the tar
 
 ### 6.3 Rulings, cards and the messenger
 
-Every action that needs a human - Analyze hints, dynamic actions, Direct Murder declarations, project proposals, trap alerts, the Calls above - arrives as a **card in the messenger** (`scripts/gm-bridge.mjs`, `scripts/messenger.mjs`). The messenger is one shared thread per player: the player and every GM read and write into the same conversation. A GM opens threads from the launcher bottom-right (a roster with unread badges) or by right-clicking a player in the Players list. A card shows the roll, the player's own words, and a GM-only block with the thresholds; the buttons are GM-only and re-checked on arrival, so a forged click achieves nothing. Once a button is pressed the card is rewritten into a receipt in the thread, so nobody rules twice; you can still answer in words below it. A ruling with no player owner (a Monokuma actor, a trap alert) goes to the GM whisper log instead, with the same buttons.
+Every action that needs a human - Analyze hints, dynamic actions, Direct Murder declarations, project proposals, trap alerts, the Calls above - arrives as a **card in the messenger** (`scripts/gm-bridge.mjs`, `scripts/messenger.mjs`). The messenger is one shared thread per player: the player and every GM read and write into the same conversation. A GM opens threads from the launcher bottom-right (a roster with unread badges) or by right-clicking a player in the Students list. A card shows the roll, the player's own words, and a GM-only block with the thresholds; the buttons are GM-only and re-checked on arrival, so a forged click achieves nothing. Once a button is pressed the card is rewritten into a receipt in the thread, so nobody rules twice; you can still answer in words below it. A ruling with no player owner (a Monokuma actor, a trap alert) goes to the GM whisper log instead, with the same buttons.
 
 Two GMs are normal. One of them is the **primary GM** (the first active Gamemaster), and that client is the one that writes world state: Despair awards, search tokens, discovery, incident results. An assistant's Despair adjustments are routed to the primary. If something "does nothing", check that a primary GM is connected.
 
@@ -221,7 +221,7 @@ Two GMs are normal. One of them is the **primary GM** (the first active Gamemast
 
 **Pools.** Every Monokuma holds a pool capped at **12** (`STARTING.despairMax`). The Despair widget at the top of the screen shows every pool: everyone sees the counts, GMs also get the steppers. **Despair Flow** (Between sessions) is the one window for the team: which actors are Monokumas, which GM's pool each draws on, pool names, extra pool holders (an Assistant GM can be granted a pool), which Monokuma watches which student (with auto-assign and "none"), and the overflow's tuning. The guide's shape is at least two GMs dividing the students strictly between them, but the module works with one.
 
-**Converting Despair into Hope** (1:1) is a GM ruling from the Players window or the Mastermind window, never a self-service button: it is how a Monocub is fuelled and how a Mastermind stays afloat.
+**Converting Despair into Hope** (1:1) is a GM ruling from the Students window or the Mastermind window, never a self-service button: it is how a Monocub is fuelled and how a Mastermind stays afloat.
 
 **The overflow.** Despair earned past a full pool used to evaporate; it now collects in one counter shared by every Monokuma. Feed the Overflow pours Despair in on purpose. At the **threshold** (default **20**, editable between 6 and 60; the hint suggests 12 plus half your player count) the counter pays the threshold, keeps the rest, and draws **one** effect at random from those you have ticked, for one time of day. It is checked on every time-of-day boundary and, ahead of time, when an Eclipse opens. Untick all eight and the counter climbs and never fires - a real setting, the counter as atmosphere.
 
@@ -232,11 +232,11 @@ Two GMs are normal. One of them is the **primary GM** (the first active Gamemast
 | Panic | state | 1 fewer action each, on top of Wounded (floor 1) |
 | Despair | state | No Hope is earned; spending what you hold still works |
 | Silence | state | No Hope Calls, by anybody |
-| Fog | state | No free Move; crossings still cost actions |
+| Fog | state | No Free Move; crossings still cost actions |
 | Rot | one-off | Every item with more than one point of durability left loses 1; nothing breaks |
 | Earthquake | one-off | Every project loses 1 progress |
 
-**A trial verdict empties the overflow** on both outcomes; the season reset does too. Players see the threshold and a "?" for the count - a courtesy, not a secret, since the counter is a world setting.
+**A trial verdict empties the overflow** on both outcomes; the season reset does too. Players see the pools' counts but a "?" for the overflow's count and threshold - when the hat fires stays Monokuma's to know.
 
 ---
 
@@ -244,7 +244,7 @@ Two GMs are normal. One of them is the **primary GM** (the first active Gamemast
 
 **Monokuma** (`scripts/monokuma.mjs`) is a `character` actor carrying a flag, set from Despair Flow. What the flag changes: no action economy and no Hope; the action grid becomes the Despair Calls; movement is unrestricted (no room costs, no walls, no Eclipse limit, no seals); room visibility never hides them from themselves; their rolls are whispered to GMs only and feed no pool; they do not count as witnesses to an incident or a body. The guide has the GMs walking the map as two distinguishable Monokumas; each is pointed at one GM's pool, and per-room voice follows that same mapping.
 
-**Monocub** (`scripts/monocub.mjs`, `MONOCUB`). A dead student's player may join the GMs once their own Class Trial is over - the timing is yours, the module only insists they are dead. Invite them from **Players**. They keep the same sheet and get exactly two things: **Move**, and **Confusion** (1 action + 1 Hope), a flat 2d12 roll with no statistic that nudges a living student in the same room without saying who did it: 12 grants +1 or inflicts -1 on the target's next roll, 16 grants advantage or disadvantage, a critical gives the target the action back or wastes it. A Monocub's Hope comes only from a GM converting Despair (Fuel a Monocub, or the Players window). The **Silenced** checkbox is the guide's rule for a Monocub who stumbled onto a crime scene: they may act but not talk about the crime until the chapter ends; the player is told when it is set and lifted. A Monocub's dice are shown to everyone in their room.
+**Monocub** (`scripts/monocub.mjs`, `MONOCUB`). A dead student's player may join the GMs once their own Class Trial is over - the timing is yours, the module only insists they are dead. Invite them from **Students**. They keep the same sheet and get exactly two things: **Move**, and **Confusion** (1 action + 1 Hope), a flat 2d12 roll with no statistic that nudges a living student in the same room without saying who did it: 12 grants +1 or inflicts -1 on the target's next roll, 16 grants advantage or disadvantage, a critical gives the target the action back or wastes it. A Monocub's Hope comes only from a GM converting Despair (Fuel a Monocub, or the Players window). The **Silenced** checkbox is the guide's rule for a Monocub who stumbled onto a crime scene: they may act but not talk about the crime until the chapter ends; the player is told when it is set and lifted. A Monocub's dice are shown to everyone in their room.
 
 **The Mastermind** (`scripts/mastermind.mjs`). Chosen before the season with the player's consent, from **Between sessions > Mastermind**. The identity never touches an actor or the world: it lives on GM browsers only and is synced GM to GM. The window names the Mastermind, so do not share your screen while it is open. Their **lair** is a room: while standing in it they see every token on the map, as you do; step out and it is gone. Locked doors, seals, other people's bedrooms and hidden stashes are open to them everywhere, and every room counts as already visited for their fog - they built the building. Despair converts to their Hope 1:1 from the same window. The endgame runs on the ordinary trial: one **Final Truth Remnant** per chapter, placed from the Investigation dashboard's Final tab (reinforced by type, so nobody can remove it - the chapter-end screen reminds you if none was placed), the **Final Trial** flag toggled from the trial console, and a final verdict: correct, the Mastermind is executed and the killing game ends; wrong, or the Mastermind already dead, nobody new dies and the table is shown the truth.
 
@@ -282,9 +282,9 @@ For the fog to work a scene needs Foundry's own vision off: token vision disable
 
 ### 9.3 Movement and charging
 
-`scripts/movement.mjs`. Moving inside a room is free. Crossing into a connected room spends the time of day's **free Move**, then **1 action** per crossing (a banked Sprint is spent first). The crossing is vetoed before it is written, so a token that cannot pay snaps back with a red card. The move card names the room, the price, and the room's description if you wrote one; the crossing also fires the trap watcher.
+`scripts/movement.mjs`. Moving inside a room is free. Crossing into a connected room spends the time of day's **Free Move**, then **1 action** per crossing (a banked Sprint is spent first). The crossing is vetoed before it is written, so a token that cannot pay snaps back with a red card. The move card names the room, the price, and the room's description if you wrote one; the crossing also fires the trap watcher.
 
-Some refusals apply whatever the *Crossing rooms costs a Move* setting says: a character inside an incident cannot leave the room; a room sealed by Behind Closed Doors, a Chained player; a locked door (Room Setup > Doors); somebody else's bedroom without its key; the Eclipse's crossing cap and connected-rooms rule. Monokumas walk through all of it. A dead character's token does not move: the body stays where it fell. Turning the setting off hands you only the *economy* - free Move and action - to run by hand.
+Some refusals apply whatever the *Crossing rooms costs a Move* setting says: a character inside an incident cannot leave the room; a room sealed by Behind Closed Doors, a Chained player; a locked door (Room Setup > Doors); somebody else's bedroom without its key; the Eclipse's crossing cap and connected-rooms rule. Monokumas walk through all of it. A dead character's token does not move: the body stays where it fell. Turning the setting off hands you only the *economy* - Free Move and action - to run by hand.
 
 ### 9.4 Voice
 
@@ -348,7 +348,7 @@ Projects are Daggerheart Countdowns that count *up*. Scales: Trivial 3, Standard
 
 Two roads. A player declares a **Direct Murder** during an Eclipse (consent from the victim's player is a table agreement, not a checkbox); it is parked and judged at the lights. Or you open it yourself from **The case > Murder**: killer, victim, and the *indirect* checkbox, which ticks itself when that killer has a finished trap. One incident at a time. One name in both fields opens a death by their own hand: Stage 4 still rolls, Stage 5 cannot run, and the incident goes straight to Stage 6; the death is recorded when you close the incident.
 
-**Stage 4, the opening roll.** A direct murder opens on the **killer's** roll: Body or Hand against **8**, with advantage at Night. Hope: the incident begins and the case will hold **5 Key Remnants**; Despair: it begins, the victim loses all Sanity and Role reversal for this incident, **4** Key Remnants; critical: it begins, the victim learns who is attacking them, **3**; failure: no incident, the victim never learns anything was attempted, the action is spent. The count is floored at **3** (`KEY_REMNANTS.minimum`). A trap opens on the **victim's** roll: Eye or Head against **20**, with disadvantage at Night. Hope: something is wrong - a free Move, spend it and you live; Despair: they work out what was set up and may tell the others, the project stays active; critical: they spot the trap and whose hands built it; failure: the trap closes. Every success leaves an Evident Incident Remnant. The victim is told the incident began only when it actually begins.
+**Stage 4, the opening roll.** A direct murder opens on the **killer's** roll: Body or Hand against **8**, with advantage at Night. Hope: the incident begins and the case will hold **5 Key Remnants**; Despair: it begins, the victim loses all Sanity and Role reversal for this incident, **4** Key Remnants; critical: it begins, the victim learns who is attacking them, **3**; failure: no incident, the victim never learns anything was attempted, the action is spent. The count is floored at **3** (`KEY_REMNANTS.minimum`). A trap opens on the **victim's** roll: Eye or Head against **20**, with disadvantage at Night. Hope: something is wrong - a Free Move, spend it and you live; Despair: they work out what was set up and may tell the others, the project stays active; critical: they spot the trap and whose hands built it; failure: the trap closes. Every success leaves an Evident Incident Remnant. The victim is told the incident began only when it actually begins.
 
 ### 13.2 The incident (Stage 5)
 
@@ -451,7 +451,7 @@ During a **Final Trial** the same floor and vote run; only the verdict is the Ma
 
 ## 16. End of chapter and season reset
 
-**End of chapter / new session** (Between sessions, or the trial console once the verdict is applied) is one screen with checkboxes, each counted before it is offered:
+**End the chapter** (Between sessions, or the trial console once the verdict is applied) is one screen with checkboxes, each counted before it is offered:
 
 - reveal what every Truth Bullet really is (bullets with no real type recorded are named as a loose end);
 - sweep the students' Truth Bullets (Faint and Final stay);

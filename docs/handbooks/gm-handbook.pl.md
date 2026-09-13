@@ -91,7 +91,7 @@ Kafelki, według sekcji:
 |---|---|
 | Teraz (zawsze otwarta) | **Uczniowie** (żyje / nie żyje / Monocub, Hope Monocubów, przycisk Przedmioty w każdym wierszu), **Projekty**, **Dźwięk**, **Zasady killing game** |
 | Sprawa (Daily Life, Investigation, Class Trial) | **Morderstwo** (wyszarzone podczas Eclipse), pulpit **Investigation**, konsola **Class Trial** |
-| Między sesjami (zwinięta) | **Edytuj kampanię**, **Despair Flow**, **Ustawienia pokoi**, **Tabele przedmiotów**, **Ustaw sezon**, **Mastermind**, **Koniec rozdziału / nowa sesja**, **Zresetuj sezon** (czerwony) |
+| Między sesjami (zwinięta) | **Edytuj kampanię**, **Despair Flow**, **Ustawienia pokoi**, **Tabele przedmiotów**, **Ustaw sezon**, **Mastermind**, **Zakończ rozdział**, **Zresetuj sezon** (czerwony) |
 | Diagnostyka (zwinięta, przyciemniona) | **Dziennik błędów** - wszystko, co poszło nie tak od załadowania strony, z Kopiuj i Wyczyść |
 
 O **Uczniach** warto dodać: lista rozwijana tylko przestawia flagi i jest narzędziem naprawczym na pomyłkę. Przyciski po prawej robią to naprawdę - **Postać umiera** niszczy Truth Bullets postaci i zostawia resztę przy ciele; **Zaproś jako Monocuba** robi z martwego ucznia Monocuba. Kolumny Monocuba (Hope, zamiana Despair w Hope, Uciszony) pojawiają się dopiero, gdy jakiś Monocub istnieje.
@@ -236,7 +236,7 @@ Dwóch GMów to norma. Jeden z nich jest **głównym GMem** (pierwszy aktywny Ga
 | Rot | jednorazowy | Każdy przedmiot z więcej niż jednym punktem wytrzymałości traci 1; nic się nie łamie |
 | Earthquake | jednorazowy | Każdy projekt traci 1 postępu |
 
-**Werdykt Class Trial opróżnia overflow** przy obu wynikach; reset sezonu też. Gracze widzą próg i "?" zamiast licznika - uprzejmość, nie tajemnica, bo licznik jest ustawieniem świata.
+**Werdykt Class Trial opróżnia overflow** przy obu wynikach; reset sezonu też. Gracze widzą liczby w pulach, ale "?" zamiast licznika i progu overflow - kiedy kapelusz wystrzeli, wie tylko Monokuma.
 
 ---
 
@@ -451,7 +451,7 @@ Podczas **Final Trial** działa ta sama debata i to samo głosowanie; tylko werd
 
 ## 16. Koniec rozdziału i reset sezonu
 
-**Koniec rozdziału / nowa sesja** (Między sesjami albo konsola Class Trial po zastosowaniu werdyktu) to jeden ekran z polami wyboru, każde policzone, zanim je zaproponuje:
+**Zakończ rozdział** (Między sesjami albo konsola Class Trial po zastosowaniu werdyktu) to jeden ekran z polami wyboru, każde policzone, zanim je zaproponuje:
 
 - ujawnij, czym naprawdę jest każdy Truth Bullet (bullety bez zapisanego prawdziwego typu są wymieniane jako luźny koniec);
 - zbierz Truth Bullets uczniów (Faint i Final zostają);

@@ -300,7 +300,7 @@
       },
       "hudTicker": {
         "name": "Nazwa stanu za zegarem",
-        "hint": "Nazwa trwającej fazy jako blady kontur za zegarem. Tylko ten klient."
+        "hint": "Pora dnia (albo stan, który ją zastępuje: Eclipse, Class Trial) jako blady kontur biegnący za zegarem. Tylko ten klient."
       },
       "messengerSound": {
         "name": "Dźwięki komunikatora",
@@ -412,7 +412,7 @@
       "eclipseFreePlacement": "ustaw gdziekolwiek"
     },
     "Assign": {
-      "title": "Czyj Despair zasila którego Monokumę",
+      "title": "Despair Flow",
       "intro": "Rzut zakończony Despair zasila Monokumę tego ucznia.",
       "monokuma": "Monokuma",
       "save": "Zapisz",
@@ -468,7 +468,7 @@
       "roomNowhere": "Między pokojami",
       "roomProject": "Dostępny projekt",
       "roomNoProject": "Brak dostępnego projektu",
-      "roomTokens": "{left} z {max} Search Tokenów w tym pokoju",
+      "roomTokens": "{left}/{max} przeszukań",
       "roomTokensTooltip": "Search Tokens: {left} z {max} zostało tu o tej porze dnia.",
       "trial": {
         "discussion": "Dyskusja",
@@ -836,9 +836,9 @@
       "finalBanner": "FINAL TRIAL",
       "finalAnnounce": "To ostatni. Na stole leży wszystko, co wam powiedziano o tym miejscu - i ten, kto wam to mówił.",
       "finalRemnantsTitle": "Final Truth Remnants",
-      "finalRemnantsNote": "Tropy, na których obraca się finał. Ich typ je wzmacnia, więc nikt nie może żadnego usunąć.",
+      "finalRemnantsNote": "Remnanty, na których obraca się finał. Ich typ je wzmacnia, więc nikt nie może żadnego usunąć.",
       "noFinals": "Jeszcze nic nie postawiono.",
-      "finalAddNote": "Zostaw pokój pusty, by niczego nie zmieniać. Trop staje na scenie, na którą patrzysz, gdzieś wewnątrz pokoju.",
+      "finalAddNote": "Zostaw pokój pusty, by niczego nie zmieniać. Remnant staje na scenie, na którą patrzysz, gdzieś wewnątrz pokoju.",
       "finalPlacedIn": "Final Truth Remnant postawiony w: {room}."
     },
     "Floor": {
@@ -860,7 +860,7 @@
         "objection": "OBJECTION",
         "rebuttal": "Rebuttal"
       },
-      "discussionNote": "Zegar debaty to twój budżet, nie limit: przekroczenie go zmienia kolor zegara na czerwony i nic więcej. To OBJECTION odbiera debatę stołowi.",
+      "discussionNote": "Zegar debaty to twój budżet, nie limit: przekroczenie go zmienia kolor zegara na czerwony i nic więcej. To Objection odbiera debatę stołowi.",
       "holdingDiscussion": "Otwarta dyskusja - {seconds} s budżetu. Każdy może mówić.",
       "holdingObjection": "{who} ma głos, objection wobec: {target} - {seconds} s. Nikt inny nie mówi; rebuttal następuje automatycznie.",
       "holdingRebuttal": "Rebuttal: {who} i {target}, {seconds} s. Tylko ta dwójka; samo wraca do otwartej dyskusji.",
@@ -873,7 +873,7 @@
       "endNow": "Zakończ ten tryb teraz",
       "openDebate": "Otwórz debatę",
       "closeDebate": "Zamknij debatę",
-      "debateOpened": "Nonstop Debate otwarta. Przedstawienie Truth Bulleta to teraz OBJECTION: zabiera głos.",
+      "debateOpened": "Nonstop Debate otwarta. Przedstawienie Truth Bulleta to teraz Objection: zabiera głos.",
       "debateClosed": "Debata zamknięta. Class Trial toczy się dalej jako otwarta dyskusja.",
       "inDiscussion": "Class Trial toczy się jako otwarta dyskusja - każdy może mówić, a dowody trafiają na stół bez przejmowania głosu.",
       "backToDebate": "Z powrotem do debaty",
@@ -1084,7 +1084,7 @@
       "noTrack": "Najpierw wybierz utwór.",
       "noTracks": "Ta playlista nie ma utworów",
       "playFailed": "Ten utwór nie chciał zagrać. Zajrzyj do konsoli.",
-      "noSituational": "Ten świat nie ma playlisty o nazwie „{name}”. Przycisk poniżej tworzy ją dokładnie z tą nazwą - moduł szuka po nazwie, więc prawie ta sama nazwa to playlista, którą po cichu zignoruje.",
+      "noSituational": "Brak playlisty o nazwie „{name}”. Utwórz ją poniżej.",
       "makeSituational": "Utwórz playlistę „{name}”",
       "situationalMade": "„{name}” już istnieje. Wrzuć do niej utwory scen z panelu Playlisty - stingery, odkrycia, ciche momenty - i pojawią się tutaj.",
       "makeFailed": "Nie udało się utworzyć playlisty. Zajrzyj do konsoli."
@@ -1444,7 +1444,7 @@
       "stowTooltip": "Schowaj w skrytce (musisz być w pokoju)",
       "takeTooltip": "Wyjmij ze skrytki (musisz być w pokoju)",
       "notHere": "Musisz stać we własnym pokoju, by sięgnąć do skrytki.",
-      "noBullets": "Truth Bullets to to, co wiesz, nie rzeczy w szufladzie.",
+      "noBullets": "Truth Bullets to to, co wiesz, nie rzeczy w skrytce.",
       "full": "{room}: skrytka pełna. Mieści {limit} rzeczy - wyjmij coś, zanim coś włożysz.",
       "overflowed": "Miałeś pełne ręce, więc {item} trafił do skrytki. Twój limit ({category}) się nie zmienił.",
       "foundInStash": "Ukryte w tym pokoju znajdujesz: {item}.",
@@ -1452,7 +1452,7 @@
       "noticed": "Ktoś ruszał twoją skrytkę i czegoś w niej brakuje. Nie masz pojęcia, czyje ręce w niej były.",
       "tabStashes": "Skrytki",
       "stashesIntro": "Kto ma skrytkę w którym pokoju i czy jest ukryta. Kliknij komórkę, by przełączać: brak, otwarta, ukryta. Sypialnia daje właścicielowi otwartą skrytkę automatycznie - zacieniona kolumna - i tutaj możesz mu ją odebrać.",
-      "stashesNote": "Otwarta skrytka to szuflada: każdy stojący w pokoju może ją przejrzeć za darmo. Ukrytą trzeba najpierw znaleźć, przez Search z karą. Skrytka w cudzym pokoju nie daje klucza do niego.",
+      "stashesNote": "Otwarta skrytka jest otwarta: każdy stojący w pokoju może ją przejrzeć za darmo. Ukrytą trzeba najpierw znaleźć, przez Search z karą. Skrytka w cudzym pokoju nie daje klucza do niego.",
       "stashCycle": "Kliknij, by przełączać: brak / otwarta / ukryta",
       "stashNotEmpty": {
         "one": "{name} ma jedną rzecz w skrytce w: {room} - wyjmij ją, zanim usuniesz skrytkę.",
@@ -1463,7 +1463,7 @@
       "manageTitle": "Ustawienia pokoi",
       "manageIntro": "Wszystko, czym jest pokój, jeden rodzaj faktów na zakładkę. Zastosuj zapisuje każdą zakładkę naraz, niezależnie od tego, która jest widoczna.",
       "manageNote": "Sprzyjająca kategoria daje przewagę każdemu, kto jej tu szuka; zła daje utrudnienie, a kategoria nigdy nie jest jednym i drugim. Pokój bez własnej tabeli spada do puli globalnej, więc niedokończona konfiguracja jest w porządku.",
-      "bedroomsIntro": "Czyja jest każda sypialnia i czy skrytka w niej ma zbudowany schowek. Jeden uczeń, jedna sypialnia.",
+      "bedroomsIntro": "Czyja jest każda sypialnia i czy skrytka w niej jest ukryta. Jeden uczeń, jedna sypialnia.",
       "doorsIntro": "Które drzwi są teraz zamknięte i które zaczynają sezon zamknięte. Reset sezonu przywraca każde drzwi do kolumny startowej.",
       "roomRatio": "{open} wspólnych pokoi otwartych na {living} żyjących uczniów: {per} na głowę, wobec {target}, na których zbudowano ten sezon. To {want} pokoi.",
       "searchIntro": "Z czego losuje przeszukanie każdego pokoju, ile ma Search Tokenów i czego sensownie w nim szukać.",
@@ -1580,7 +1580,7 @@
       "promoteNote": "Zaznaczone ślady przestają być wątpliwe: liczą się jako dowody powiązane ze zbrodnią, a czyszczenie Faint ich nie zabierze. Resztę zostaw, a pozostaną Faint.",
       "promoteConfirm": "Te należą do niego",
       "promoteSkip": "Żaden z nich",
-      "endTitle": "Koniec rozdziału / nowa sesja",
+      "endTitle": "Zakończ rozdział",
       "endIntro": "Rozdział {chapter} dobiega końca. Zaznacz, co ma się stać.",
       "optReveal": "Ujawnij, czym naprawdę jest każdy Truth Bullet ({n} wciąż niezidentyfikowanych)",
       "endNote": "Ujawnienie typów jest trwałe, tak samo jak trzy porządki powyżej. Nic innego tutaj niczego nie usuwa.",
@@ -1633,7 +1633,7 @@
       "presentIntro": "Zaraz pokażesz wszystkim {name} ({type}). Na kartę trafia tylko to, co sam widzisz. Nigdy notatki GMa.",
       "comment": "Dodaj coś od siebie (opcjonalnie)",
       "commentPlaceholder": "np. Dlatego oś czasu się nie zgadza.",
-      "presentNote": "Debata nie jest otwarta, więc to po prostu trafia na stół - niczyja kolej mówienia się nie zmienia. Gdy GM otworzy debatę, ten sam przycisk stanie się OBJECTION.",
+      "presentNote": "Debata nie jest otwarta, więc to po prostu trafia na stół - niczyja kolej mówienia się nie zmienia. Gdy GM otworzy debatę, ten sam przycisk stanie się Objection.",
       "present": "Przedstaw",
       "presentShort": "Przedstawiono",
       "objection": "OBJECTION!",
@@ -1648,15 +1648,15 @@
       "logEmpty": "W tym rozdziale nic jeszcze nie przedstawiono.",
       "objectionTarget": "Komu zaprzeczasz?",
       "objectionNobody": "Nie ma już nikogo, wobec kogo można wnieść objection.",
-      "objectionWarning": "OBJECTION przejmuje debatę, w przeciwieństwie do pokazania dowodu: {objection} sekund, w których mówisz tylko ty, potem {rebuttal} sekund rebuttalu z osobą, którą wskażesz.",
+      "objectionWarning": "Objection przejmuje debatę, w przeciwieństwie do pokazania dowodu: {objection} sekund, w których mówisz tylko ty, potem {rebuttal} sekund rebuttalu z osobą, którą wskażesz.",
       "objectionNoFloor": "Debata nie jest otwarta, więc nie ma czego przerywać. Zamiast tego pokaż dowód.",
-      "objectionDuringObjection": "Trwa cudze OBJECTION. Poczekaj na ich minutę i rebuttal, który po niej następuje.",
+      "objectionDuringObjection": "Trwa cudze Objection. Poczekaj na ich minutę i rebuttal, który po niej następuje.",
       "objectedTo": "{who} wnosi objection wobec: {target}",
       "logKind": "Co",
       "logWho": "Kto",
       "logAgainst": "Wobec",
       "logWhen": "Kiedy",
-      "objectionTooltip": "OBJECTION - połóż to na stole i przejmij głos.",
+      "objectionTooltip": "Objection - połóż to na stole i przejmij głos.",
       "objectionRebuttalTargets": "Każdy może wciąć się w rebuttal, ale tylko wobec dwójki, która już ma głos. Objection przekierowuje głos, a ten, kogo wskażesz, dostaje odpowiadający rebuttal."
     },
     "Handover": {
@@ -1709,7 +1709,7 @@
       "noRequest": "(brak opisu)",
       "whichRemnant": "Do którego Remnantu jest im najbliżej?",
       "pickNote": "Najpierw ślady powiązane ze zbrodnią, potem od najłatwiejszego do najtrudniejszego. Już rzucili, a ty nie widzisz liczby - wybierz to, co naprawdę pasuje do tego, o co prosili.",
-      "pickConfirm": "Na to patrzą",
+      "pickConfirm": "Ten",
       "pickRefuse": "Nic nie pasuje - odmów",
       "tiedFlag": "powiązany ze zbrodnią",
       "describeTitle": "Observe - co widzą?",
@@ -1928,7 +1928,7 @@
       },
       "hopeSpent": "Wydano {cost} Hope · zostało {left}.",
       "noPool": "Ten Monokuma nie ma puli Despair. Sprawdź pasek Despair.",
-      "whichPlayer": "Która postać?",
+      "whichPlayer": "Który uczeń?",
       "whichProject": "Który projekt?",
       "whichRoom": "Który pokój?",
       "whichItem": "Który przedmiot?",
@@ -2085,9 +2085,9 @@
         "other": "Teraz w: {room}. Zostało {left} przejść."
       },
       "noMovesLeft": "Przejścia Eclipse wyczerpane. Twój token wrócił na miejsce.",
-      "actionsLocked": "Eclipse pozwala tylko na ruch. Twoje akcje już wróciły - nic ich nie wydaje poza Direct Murder, a Calle w ogóle, dopóki nie zapali się światło.",
+      "actionsLocked": "Tylko ustawianie. Akcje już wróciły; nic ich nie wydaje poza Direct Murder, dopóki nie zapali się światło.",
       "endPrompt": "Zakończyć Eclipse i zacząć następną porę dnia? Wszyscy ustawili się tak:",
-      "endAndAdvance": "Zakończ i zacznij następną porę dnia",
+      "endAndAdvance": "Zakończ i przesuń zegar",
       "endOnly": "Zakończ bez przesuwania zegara",
       "ended": "Eclipse się kończy.",
       "movesColumn": "Ustawieni",
@@ -2573,7 +2573,7 @@
     },
     "Anonymity": {
       "aboveLimited": "Udostępnione wszystkim jako Właściciel, więc cenzura nigdy nie działa i każdy gracz czyta cały arkusz, z ekwipunkiem i Truth Bullets: {actors}. Przestaw z powrotem na Obserwatora, chyba że tego właśnie chcesz.",
-      "blocked": "Zablokowano: to oddałoby „{actor}” każdemu graczowi jako Właścicielowi - cenzura nigdy nie działa dla właściciela. Daj Właściciela temu jednemu graczowi, który nią gra.",
+      "blocked": "Zablokowano: każdy gracz byłby właścicielem „{actor}”, a właściciel nigdy nie jest cenzurowany. Daj Właściciela tylko jego jednemu graczowi.",
       "audit": {
         "title": "Kontrola anonimowości arkuszy",
         "clean": "Każdy arkusz postaci jest prywatny. Nie ma czego naprawiać.",
@@ -2662,7 +2662,7 @@
     },
     "Reroll": {
       "searchNeverRan": "Pokój nie został przeszukany - Search Token odmówiono - więc nie ma czego losować ponownie.",
-      "searchStashStands": "Znalezisko ze skrytki zostaje: nowe kości nie otwierają szuflady drugi raz.",
+      "searchStashStands": "Znalezisko ze skrytki zostaje: nowe kości nie otwierają skrytki drugi raz.",
       "title": "Reroll",
       "nothingToReroll": "Niczym nie rzucałeś, więc nie ma czego cofać.",
       "notARoll": "Twoja ostatnia wiadomość nie zawiera kości.",
@@ -3104,7 +3104,7 @@
       "armedBody": "Jest ukończona i uzbrojona. Moduł pilnuje: {trigger} - {room}. Dostaniesz kartę, gdy to zobaczy.",
       "alertTitle": "{name} - coś ją odpaliło",
       "alertReading": "{who}, w: {room}, {when}.",
-      "rearm": "Nie ten - pilnuj dalej",
+      "rearm": "Pilnuj dalej",
       "rearmed": "Pułapka znów czuwa.",
       "plantTitle": "Zostaw coś po sobie",
       "plantPrompt": "Który przedmiot jest pułapką i w którym pokoju czeka? Pierwsze udane Search tam go wyciągnie, a zabija tego, kto go użyje.",
@@ -3522,7 +3522,7 @@
         },
         "freeCrit": {
           "label": "Loaded Die",
-          "effect": "Przy następnym rzucie jedna kość jest ustawiona na 12, a druga rzucana. Bardzo wysoki wynik, a krytyk tylko, jeśli i ta druga wypadnie 12."
+          "effect": "Jedna kość ustawiona na 12, druga rzucana. Krytyk tylko, jeśli i ta wypadnie 12."
         }
       },
       "DESPAIR_CALLS": {
@@ -3801,7 +3801,7 @@
       "CRISIS_ACTIONS": {
         "useItem": {
           "label": "Użyj przedmiotu",
-          "hint": "Wyciągnij coś z kieszeni, gdy to się dzieje. Działa na krytyku albo sukcesie z Hope; sukces z Despair zostawia ślad i nic więcej.",
+          "hint": "Wyciągnij coś, gdy to się dzieje. Działa na krytyku albo sukcesie z Hope; sukces z Despair zostawia tylko ślad.",
           "failure": "Zostaje w kieszeni."
         },
         "leaveClue": {
@@ -3860,7 +3860,7 @@
         },
         "finishingBlow": {
           "label": "Finishing blow",
-          "hint": "Zakończ incydent teraz. Próg to pięciokrotność ich pozostałego Health - za darmo przy 0. Ofiara, której skończą się i Health, i Sanity, umiera bez tego, ale wtedy nikt nie zdobywa tego, co daje tu krytyk.",
+          "hint": "Zakończ incydent teraz. Próg to pięciokrotność ich pozostałego Health - za darmo przy 0. Krytyk daje tu też darmową akcję Etapu 6.",
           "hope": "Incydent się kończy.",
           "despair": "Incydent się kończy i zostawia jeden Incident Remnant.",
           "critical": "Incydent się kończy, a ty zyskujesz jedną darmową akcję w Stage 6."
