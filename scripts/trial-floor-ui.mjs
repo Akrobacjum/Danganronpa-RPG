@@ -298,33 +298,17 @@ export async function closeTrial() {
  * does not work", which is the wrong lesson from the right facts and the reason
  * they go looking for a second window to check.
  */
-export async function manageClassTrial() {
-    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
-    // window each read the world when they opened and neither knows about the
-    // other, so the older one goes on looking authoritative while showing
-    // something that stopped being true. Raised rather than refused: pressing
-    // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-trial")) return null;
-
-    if (!game.user.isGM) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
-        return null;
-    }
-
-    const { inFinalTrial } = await import("./mastermind.mjs");
-    const { pendingVoters, trialProgress } = await import("./vote.mjs");
-
-    /*
-     * READ FRESH EVERY TIME, because this window is open while the floor moves
-     * under it (E22, measured in E17).
-     *
-     * The console used to compute all of this once and then sit there. A player
-     * objecting, a minute running out, the last vote arriving - none of it
-     * reached the screen, and the GM was reading a photograph of the moment they
-     * opened it. Measured before this: the whole window byte-identical across an
-     * Eclipse starting and ending underneath it.
-     */
-    const read = () => {
+/*
+ * READ FRESH EVERY TIME, because this window is open while the floor moves
+ * under it (E22, measured in E17).
+ *
+ * The console used to compute all of this once and then sit there. A player
+ * objecting, a minute running out, the last vote arriving - none of it
+ * reached the screen, and the GM was reading a photograph of the moment they
+ * opened it. Measured before this: the whole window byte-identical across an
+ * Eclipse starting and ending underneath it.
+ */
+function readTrial({ inFinalTrial, pendingVoters, trialProgress }) {
         const floor = trialFloor();
         const running = getClock().phase === "classTrial";
         const progress = trialProgress();
@@ -339,10 +323,11 @@ export async function manageClassTrial() {
             // buttons for it have gone with the phase.
             afterwards: running || progress.voteClosed || progress.verdictApplied
         };
-    };
+}
 
-    const buildConsole = () => {
-        const { floor, running, restrictive, finalNow, progress, pending, afterwards } = read();
+/** The console's three sections, from one reading of the floor. */
+function trialConsoleHtml(view) {
+    const { floor, running, restrictive, finalNow, progress, pending, afterwards } = view;
         const left = floor ? secondsLeft(floor) : 0;
         const holder = floorHolder(floor);
         const target = floorTarget(floor);
@@ -396,27 +381,120 @@ export async function manageClassTrial() {
             ${voteLine}
             ${afterwards ? gateLine : ""}
         </div>`;
-    };
+}
 
-    /*
-     * WHAT THE BUTTONS ARE, IN ONE STRING.
-     *
-     * `keepLive` rebuilds a region of the CONTENT; it cannot add a button to a
-     * DialogV2 footer that was built once. And a window whose text is true while
-     * its buttons are stale is exactly the half-live shape trap 171 is about -
-     * the GM panel's murder tile, all over again.
-     *
-     * So when the SET of available buttons would change, the window opens again
-     * instead. That is not a special case bolted on: every action in this
-     * console already ends with `return manageClassTrial()`, because the GM
-     * should land on the screen they pressed the button from. This makes a
-     * change arriving from somebody else behave the same as one they made.
-     */
-    const signature = () => {
-        const { floor, running, restrictive, finalNow, progress, afterwards } = read();
+/*
+ * WHAT THE BUTTONS ARE, IN ONE STRING.
+ *
+ * `keepLive` rebuilds a region of the CONTENT; it cannot add a button to a
+ * DialogV2 footer that was built once. And a window whose text is true while
+ * its buttons are stale is exactly the half-live shape trap 171 is about -
+ * the GM panel's murder tile, all over again.
+ *
+ * So when the SET of available buttons would change, the window opens again
+ * instead. That is not a special case bolted on: every action in this
+ * console already ends with `return manageClassTrial()`, because the GM
+ * should land on the screen they pressed the button from. This makes a
+ * change arriving from somebody else behave the same as one they made.
+ */
+function trialSignature(view) {
+    const { floor, running, restrictive, finalNow, progress, afterwards } = view;
         return [running, Boolean(floor), restrictive, finalNow, afterwards,
             progress.voteClosed, progress.verdictApplied].join("|");
-    };
+}
+
+/** The footer, by state: the debate toggle, the three closing steps, start or end, the Final Trial switch, close. */
+function trialButtons({ floor, running, restrictive, finalNow, progress, afterwards, isDefault }) {
+    return [
+        ...(running
+            ? [
+                // The debate toggle first: it is the button pressed most
+                // often in a trial, several times in each one.
+                floor
+                    ? { action: "closeDebate", label: game.i18n.localize("DRPG.Floor.closeDebate") }
+                    : { action: "openDebate", default: isDefault("openDebate"),
+                        label: game.i18n.localize("DRPG.Floor.openDebate") },
+                // A debate in free discussion has nothing to cut short - it
+                // deliberately does not expire (see `advanceIfDue`), so
+                // "end now" would have nothing to end.
+                ...(restrictive
+                    ? [{ action: "now", label: game.i18n.localize("DRPG.Floor.endNow"),
+                        default: isDefault("now") },
+                       { action: "debate", label: game.i18n.localize("DRPG.Floor.backToDebate") }]
+                    : []),
+                ...(floor ? [{ action: "extend", label: game.i18n.localize("DRPG.Floor.extend") }] : [])
+              ]
+            : []),
+        ...(afterwards
+            ? [
+                { action: "vote", label: game.i18n.localize("DRPG.Vote.openTitle"),
+                  default: isDefault("vote") },
+                // Disabled rather than hidden, so the order of the trial is
+                // visible from the first time this window is opened.
+                { action: "verdict", label: game.i18n.localize("DRPG.Vote.verdictTitle"),
+                  disabled: !progress.voteClosed, default: isDefault("verdict") },
+                // Reachable before the verdict (a chapter can end without
+                // one); only the DEFAULT waits for it.
+                { action: "chapterEnd", label: game.i18n.localize("DRPG.Chapter.endTitle"),
+                  default: progress.verdictApplied && isDefault("chapterEnd") }
+              ]
+            : []),
+        ...(running
+            ? [{ action: "end", label: game.i18n.localize("DRPG.Floor.endTrial") }]
+            : [{ action: "start", default: isDefault("start"),
+                 label: game.i18n.localize("DRPG.Floor.startTrial") }]),
+        // Labelled by state rather than "start or end": one button doing
+        // two opposite things is a coin flip when the GM reads quickly.
+        { action: "toggleFinal", label: game.i18n.localize(finalNow
+            ? "DRPG.Mastermind.endFinalTrial" : "DRPG.Mastermind.startFinalTrial") },
+        { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
+    ];
+}
+
+/**
+ * What each footer button does. Every one of them leaves a trial to keep
+ * running, so the console reopens after it - see `manageClassTrial`; the
+ * one that ends the chapter is handled there, because it may not come back.
+ */
+const TRIAL_ACTIONS = {
+    start: () => startClassTrial(),
+    end: () => endClassTrial(),
+    openDebate: () => openDebate(),
+    closeDebate: () => closeDebate(),
+    now: () => advanceFloorNow(),
+    debate: () => returnToDebate(),
+    extend: () => extendFloor(30),
+    vote: () => openVoteDialog(),
+    verdict: async () => {
+        const { openVerdictDialog } = await import("./vote.mjs");
+        await openVerdictDialog();
+    },
+    toggleFinal: async () => {
+        const { toggleFinalTrialFlag } = await import("./mastermind.mjs");
+        await toggleFinalTrialFlag();
+    }
+};
+
+export async function manageClassTrial() {
+    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
+    // window each read the world when they opened and neither knows about the
+    // other, so the older one goes on looking authoritative while showing
+    // something that stopped being true. Raised rather than refused: pressing
+    // twice usually means the window is behind something.
+    if (alreadyOpen("drpg-window-trial")) return null;
+
+    if (!game.user.isGM) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
+        return null;
+    }
+
+    const { inFinalTrial } = await import("./mastermind.mjs");
+    const { pendingVoters, trialProgress } = await import("./vote.mjs");
+
+    const deps = { inFinalTrial, pendingVoters, trialProgress };
+    const read = () => readTrial(deps);
+    const buildConsole = () => trialConsoleHtml(read());
+    const signature = () => trialSignature(read());
 
     const view = read();
     const { floor, running, restrictive, finalNow, progress, afterwards } = view;
@@ -444,50 +522,7 @@ export async function manageClassTrial() {
         classes: ["drpg-panel", "drpg-window-trial"],
         window: { title: game.i18n.localize("DRPG.Floor.manageTrial") },
         content: dialogContent(buildConsole()),
-        buttons: [
-            ...(running
-                ? [
-                    // The debate toggle first: it is the button pressed most
-                    // often in a trial, several times in each one.
-                    floor
-                        ? { action: "closeDebate", label: game.i18n.localize("DRPG.Floor.closeDebate") }
-                        : { action: "openDebate", default: isDefault("openDebate"),
-                            label: game.i18n.localize("DRPG.Floor.openDebate") },
-                    // A debate in free discussion has nothing to cut short - it
-                    // deliberately does not expire (see `advanceIfDue`), so
-                    // "end now" would have nothing to end.
-                    ...(restrictive
-                        ? [{ action: "now", label: game.i18n.localize("DRPG.Floor.endNow"),
-                            default: isDefault("now") },
-                           { action: "debate", label: game.i18n.localize("DRPG.Floor.backToDebate") }]
-                        : []),
-                    ...(floor ? [{ action: "extend", label: game.i18n.localize("DRPG.Floor.extend") }] : [])
-                  ]
-                : []),
-            ...(afterwards
-                ? [
-                    { action: "vote", label: game.i18n.localize("DRPG.Vote.openTitle"),
-                      default: isDefault("vote") },
-                    // Disabled rather than hidden, so the order of the trial is
-                    // visible from the first time this window is opened.
-                    { action: "verdict", label: game.i18n.localize("DRPG.Vote.verdictTitle"),
-                      disabled: !progress.voteClosed, default: isDefault("verdict") },
-                    // Reachable before the verdict (a chapter can end without
-                    // one); only the DEFAULT waits for it.
-                    { action: "chapterEnd", label: game.i18n.localize("DRPG.Chapter.endTitle"),
-                      default: progress.verdictApplied && isDefault("chapterEnd") }
-                  ]
-                : []),
-            ...(running
-                ? [{ action: "end", label: game.i18n.localize("DRPG.Floor.endTrial") }]
-                : [{ action: "start", default: isDefault("start"),
-                     label: game.i18n.localize("DRPG.Floor.startTrial") }]),
-            // Labelled by state rather than "start or end": one button doing
-            // two opposite things is a coin flip when the GM reads quickly.
-            { action: "toggleFinal", label: game.i18n.localize(finalNow
-                ? "DRPG.Mastermind.endFinalTrial" : "DRPG.Mastermind.startFinalTrial") },
-            { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
-        ],
+        buttons: trialButtons({ floor, running, restrictive, finalNow, progress, afterwards, isDefault }),
         render: (event, dialog) => keepLive(dialog, {
             region: ".drpg-trial-console",
             build: buildConsole,
@@ -520,43 +555,6 @@ export async function manageClassTrial() {
     // uses for its tiles.
     if (!action || action === "close") return null;
 
-    if (action === "start") {
-        await startClassTrial();
-        return manageClassTrial();
-    }
-    if (action === "end") {
-        await endClassTrial();
-        return manageClassTrial();
-    }
-    if (action === "openDebate") {
-        await openDebate();
-        return manageClassTrial();
-    }
-    if (action === "closeDebate") {
-        await closeDebate();
-        return manageClassTrial();
-    }
-    if (action === "now") {
-        await advanceFloorNow();
-        return manageClassTrial();
-    }
-    if (action === "debate") {
-        await returnToDebate();
-        return manageClassTrial();
-    }
-    if (action === "extend") {
-        await extendFloor(30);
-        return manageClassTrial();
-    }
-    if (action === "vote") {
-        await openVoteDialog();
-        return manageClassTrial();
-    }
-    if (action === "verdict") {
-        const { openVerdictDialog } = await import("./vote.mjs");
-        await openVerdictDialog();
-        return manageClassTrial();
-    }
     if (action === "chapterEnd") {
         const chapterWas = getClock().chapter;
         const { openChapterEndDialog } = await import("./chapter.mjs");
@@ -576,12 +574,10 @@ export async function manageClassTrial() {
         if (getClock().chapter !== chapterWas) return null;
         return manageClassTrial();
     }
-    if (action === "toggleFinal") {
-        const { toggleFinalTrialFlag } = await import("./mastermind.mjs");
-        await toggleFinalTrialFlag();
-        return manageClassTrial();
-    }
-    return null;
+    const run = TRIAL_ACTIONS[action];
+    if (!run) return null;
+    await run();
+    return manageClassTrial();
 }
 
 /** Open or close the vote. One button, because it is one moment either way. */

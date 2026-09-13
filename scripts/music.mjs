@@ -1188,66 +1188,41 @@ export async function resetMusic() {
  * ========================================================================== */
 
 /** Map each state to one of the world's playlists. */
-export async function openSoundDialog() {
-    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
-    // window each read the world when they opened and neither knows about the
-    // other, so the older one goes on looking authoritative while showing
-    // something that stopped being true. Raised rather than refused: pressing
-    // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-sound")) return null;
+/*
+ * A PLAYER GETS THE SLIDERS AND NOTHING ELSE.
+ *
+ * This window used to be refused to them outright, which was right while it
+ * held only a GM's mapping tables. It now also holds the two volumes, and
+ * those are the one thing here that is NOT the GM's business: they are per
+ * browser, they change nothing anybody else hears, and a GM setting them
+ * for a player would be setting them wrong.
+ *
+ * So the same window opens for everybody and simply has less in it. Not a
+ * second, player-shaped window: two windows about the same two sliders is
+ * how the two drift apart.
+ */
+async function openPlayerSoundDialog({ tableDialog, dialogContent, soundSlidersHtml, wireSoundPanel }) {
+    await tableDialog({
+        window: { title: game.i18n.localize("DRPG.Sound.title") },
+        classes: ["drpg-panel", "drpg-projects", "drpg-sound", "drpg-sound-player", "drpg-window-sound"],
+        // NARROW, AND SAID HERE RATHER THAN LEFT TO THE FIT.
+        // `tableDialog` marks every window it makes as a table window,
+        // which is what exempts it from the module's one-width rule so a
+        // measured fit can win. This window has no table to measure, so
+        // the exemption left it with nothing at all and it opened the full
+        // width of the screen. Two sliders need about a third of that.
+        position: { width: 460 },
+        content: dialogContent(`<form>${soundSlidersHtml()}</form>`),
+        buttons: [{ action: "close", label: game.i18n.localize("DRPG.Panel.close") }],
+        render: (event, dialog) => wireSoundPanel(dialog.element),
+        rejectClose: false
+    });
+}
 
-    const { dialogContent, tableDialog, panelTabs, wirePanelTabs } = await import("./utils.mjs");
-    const { soundSlidersHtml, soundEffectsHtml, wireSoundPanel } = await import("./sfx.mjs");
-
-    /*
-     * A PLAYER GETS THE SLIDERS AND NOTHING ELSE.
-     *
-     * This window used to be refused to them outright, which was right while it
-     * held only a GM's mapping tables. It now also holds the two volumes, and
-     * those are the one thing here that is NOT the GM's business: they are per
-     * browser, they change nothing anybody else hears, and a GM setting them
-     * for a player would be setting them wrong.
-     *
-     * So the same window opens for everybody and simply has less in it. Not a
-     * second, player-shaped window: two windows about the same two sliders is
-     * how the two drift apart.
-     */
-    if (!game.user.isGM) {
-        await tableDialog({
-            window: { title: game.i18n.localize("DRPG.Sound.title") },
-            classes: ["drpg-panel", "drpg-projects", "drpg-sound", "drpg-sound-player", "drpg-window-sound"],
-            // NARROW, AND SAID HERE RATHER THAN LEFT TO THE FIT.
-            // `tableDialog` marks every window it makes as a table window,
-            // which is what exempts it from the module's one-width rule so a
-            // measured fit can win. This window has no table to measure, so
-            // the exemption left it with nothing at all and it opened the full
-            // width of the screen. Two sliders need about a third of that.
-            position: { width: 460 },
-            content: dialogContent(`<form>${soundSlidersHtml()}</form>`),
-            buttons: [{ action: "close", label: game.i18n.localize("DRPG.Panel.close") }],
-            render: (event, dialog) => wireSoundPanel(dialog.element),
-            rejectClose: false
-        });
-        return null;
-    }
-
-    /*
-     * A WORLD WITH NO PLAYLISTS STILL OPENS THIS WINDOW.
-     *
-     * It used to be refused at the door with "make one in the Playlists sidebar
-     * first" - which was true right up until the Play tab grew a button that
-     * makes the cue playlist itself. The one action that fixes an empty world
-     * now lives inside the window the empty world was not allowed to open.
-     *
-     * The mapping table below is the part that genuinely needs playlists to
-     * exist, and it says so in place rather than closing the door on the other
-     * tab. Same reasoning as the missing cue playlist: report it where it is,
-     * do not refuse the whole screen over it.
-     */
-    const playlists = Array.from(game.playlists).sort((a, b) => a.name.localeCompare(b.name));
-
+/** One row per music state: its label and a select of the world's playlists. */
+function musicMapRows(playlists) {
     const map = musicMap();
-    const rows = MUSIC_STATES.map(state => {
+    return MUSIC_STATES.map(state => {
         const label = state.label ?? game.i18n.localize(state.labelKey);
         const options = [`<option value="">-</option>`, ...playlists.map(p =>
             `<option value="${p.id}"${map[state.key] === p.id ? " selected" : ""}>${
@@ -1258,21 +1233,15 @@ export async function openSoundDialog() {
             <td><select name="state:${state.key}">${options}</select></td>
         </tr>`;
     }).join("");
+}
 
-    // The cue playlist, if the world has one. Its absence is not an error -
-    // the state-to-playlist table below is the other half of this window and
-    // works perfectly well without it - so it is reported in place rather than
-    // refused at the door.
-    const situational = situationalPlaylist();
-    // An empty cue playlist is the same to this button as a missing one.
-    const canPlay = Boolean(situational?.sounds.size);
-
-    // Three tabs, Play first (Dawid, 26.08): the cue controls a GM reaches
-    // for mid-scene, then the state-to-playlist mapping they set up once, then
-    // the sound-effect files. Apply still reads the mapping selects whichever
-    // tab is showing - panes are hidden by class, never removed; see
-    // `panelTabs` in utils.mjs.
-    const playPane = `
+// Three tabs, Play first (Dawid, 26.08): the cue controls a GM reaches
+// for mid-scene, then the state-to-playlist mapping they set up once, then
+// the sound-effect files. Apply still reads the mapping selects whichever
+// tab is showing - panes are hidden by class, never removed; see
+// `panelTabs` in utils.mjs.
+function soundPlayPane(situational, canPlay) {
+    return `
             <fieldset class="drpg-music-now">
                 <legend>${game.i18n.localize("DRPG.Music.playNow")}</legend>
                 <p class="notes">${game.i18n.format("DRPG.Music.playNowNote",
@@ -1303,8 +1272,11 @@ export async function openSoundDialog() {
                 <button type="button" class="drpg-mini-button" data-drpg-reset-music>${
                     game.i18n.localize("DRPG.Music.reset")}</button>
             </fieldset>`;
+}
 
-    const playlistsPane = `
+/** The mapping tab: the intro, the warnings, and the state-to-playlist table. */
+function soundPlaylistsPane(playlists, rows) {
+    return `
             <p>${game.i18n.localize("DRPG.Music.intro")}</p>
             ${playlists.length ? "" : `<p class="notes drpg-warning">${
                 game.i18n.localize("DRPG.Music.noPlaylists")}</p>`}
@@ -1316,6 +1288,141 @@ export async function openSoundDialog() {
                 <th>${game.i18n.localize("DRPG.Music.playlist")}</th>
             </tr></thead><tbody>${rows}</tbody></table>
             <p class="notes">${game.i18n.localize("DRPG.Music.fadeNote")}</p>`;
+}
+
+/** What Apply hands back: the mapping selects, whichever tab is showing. */
+function readMusicMap(d) {
+    const out = {};
+    for (const select of d.element.querySelectorAll("[name^='state:']")) {
+        const key = select.name.slice("state:".length);
+        if (select.value) out[key] = select.value;
+    }
+    return out;
+}
+
+/** The Play tab acts at once and the window stays open; Apply belongs to the Music tab alone. */
+function wireSoundDialog(root, { wirePanelTabs, wireSoundPanel }) {
+    /*
+     * ONE APPLY, AND IT BELONGS TO ONE TAB.
+     *
+     * The playlist mapping is the only thing in this window that waits
+     * for a button: the cue controls act where they are, and the sound
+     * files and the volumes save as they are touched, because a mapping
+     * you cannot Test until you have closed and reopened the window is
+     * a mapping nobody trusts. So Apply appears on the Music tab and
+     * nowhere else, and nothing is lost by its absence elsewhere.
+     */
+    wirePanelTabs(root, {
+        buttons: { play: [], music: ["save"], effects: [] },
+        always: ["close"]
+    });
+    wireSoundPanel(root);
+    const track = root.querySelector("[name=playTrack]");
+
+    root.querySelector("[data-drpg-play]")?.addEventListener("click", async () => {
+        const sound = await playTrack(track?.value);
+        if (sound) {
+            ui.notifications.info(game.i18n.format("DRPG.Music.playing",
+                { track: sound.name }));
+        }
+    });
+
+    root.querySelector("[data-drpg-reset-music]")?.addEventListener("click", async () => {
+        await resetMusic();
+        ui.notifications.info(game.i18n.localize("DRPG.Music.wasReset"));
+    });
+
+    /*
+     * Make the cue playlist, and swap the fieldset over IN PLACE.
+     *
+     * Not by reopening the window, which is the obvious way and the
+     * wrong one: the Playlists tab beside this holds a table of selects
+     * the GM may already have changed, and Apply has not run yet.
+     * Reopening would throw that away to save a redraw.
+     *
+     * The Play button deliberately stays disabled. A playlist made this
+     * second has no tracks in it, and a button that says it will play
+     * something is lying until the GM has put something there - which
+     * is what the replacement note asks for.
+     */
+    root.querySelector("[data-drpg-make-cue]")?.addEventListener("click", async event => {
+        const button = event.currentTarget;
+        button.disabled = true;
+        try {
+            const made = situationalPlaylist()
+                ?? await Playlist.create({ name: SITUATIONAL_PLAYLIST });
+            if (!made) throw new Error("Playlist.create returned nothing");
+
+            const note = root.querySelector("[data-drpg-no-cue]");
+            if (note) {
+                note.classList.remove("drpg-warning");
+                note.textContent = game.i18n.format("DRPG.Music.situationalMade",
+                    { name: made.name });
+            }
+
+            // The track picker the fieldset would have been built with.
+            const label = document.createElement("label");
+            label.textContent = `${game.i18n.localize("DRPG.Music.track")} `;
+            const select = document.createElement("select");
+            select.name = "playTrack";
+            select.innerHTML = trackOptions(made);
+            label.append(select);
+            note?.after(label);
+
+            button.remove();
+            ui.notifications.info(game.i18n.format("DRPG.Music.situationalMade",
+                { name: made.name }));
+        } catch (err) {
+            button.disabled = false;
+            error("Could not create the cue playlist", err);
+            ui.notifications.error(game.i18n.localize("DRPG.Music.makeFailed"));
+        }
+    });
+}
+
+export async function openSoundDialog() {
+    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
+    // window each read the world when they opened and neither knows about the
+    // other, so the older one goes on looking authoritative while showing
+    // something that stopped being true. Raised rather than refused: pressing
+    // twice usually means the window is behind something.
+    if (alreadyOpen("drpg-window-sound")) return null;
+
+    const { dialogContent, tableDialog, panelTabs, wirePanelTabs } = await import("./utils.mjs");
+    const { soundSlidersHtml, soundEffectsHtml, wireSoundPanel } = await import("./sfx.mjs");
+
+    if (!game.user.isGM) {
+        await openPlayerSoundDialog({ tableDialog, dialogContent, soundSlidersHtml, wireSoundPanel });
+        return null;
+    }
+
+    /*
+     * A WORLD WITH NO PLAYLISTS STILL OPENS THIS WINDOW.
+     *
+     * It used to be refused at the door with "make one in the Playlists sidebar
+     * first" - which was true right up until the Play tab grew a button that
+     * makes the cue playlist itself. The one action that fixes an empty world
+     * now lives inside the window the empty world was not allowed to open.
+     *
+     * The mapping table below is the part that genuinely needs playlists to
+     * exist, and it says so in place rather than closing the door on the other
+     * tab. Same reasoning as the missing cue playlist: report it where it is,
+     * do not refuse the whole screen over it.
+     */
+    const playlists = Array.from(game.playlists).sort((a, b) => a.name.localeCompare(b.name));
+
+    const rows = musicMapRows(playlists);
+
+    // The cue playlist, if the world has one. Its absence is not an error -
+    // the state-to-playlist table below is the other half of this window and
+    // works perfectly well without it - so it is reported in place rather than
+    // refused at the door.
+    const situational = situationalPlaylist();
+    // An empty cue playlist is the same to this button as a missing one.
+    const canPlay = Boolean(situational?.sounds.size);
+
+    const playPane = soundPlayPane(situational, canPlay);
+    const playlistsPane = soundPlaylistsPane(playlists, rows);
 
     const result = await tableDialog({
         window: { title: game.i18n.localize("DRPG.Sound.title") },
@@ -1340,14 +1447,7 @@ export async function openSoundDialog() {
         buttons: [
             {
                 action: "save", label: game.i18n.localize("DRPG.Panel.apply"), default: true,
-                callback: (e, b, d) => {
-                    const out = {};
-                    for (const select of d.element.querySelectorAll("[name^='state:']")) {
-                        const key = select.name.slice("state:".length);
-                        if (select.value) out[key] = select.value;
-                    }
-                    return out;
-                }
+                callback: (e, b, d) => readMusicMap(d)
             },
             { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
         ],
@@ -1355,85 +1455,7 @@ export async function openSoundDialog() {
         // manager's "give Hope": a GM putting a track under a moment at the
         // table is not filling in a form, and Apply is about the mapping table
         // below rather than about what is playing right now.
-        render: (event, dialog) => {
-            const root = dialog.element;
-            /*
-             * ONE APPLY, AND IT BELONGS TO ONE TAB.
-             *
-             * The playlist mapping is the only thing in this window that waits
-             * for a button: the cue controls act where they are, and the sound
-             * files and the volumes save as they are touched, because a mapping
-             * you cannot Test until you have closed and reopened the window is
-             * a mapping nobody trusts. So Apply appears on the Music tab and
-             * nowhere else, and nothing is lost by its absence elsewhere.
-             */
-            wirePanelTabs(root, {
-                buttons: { play: [], music: ["save"], effects: [] },
-                always: ["close"]
-            });
-            wireSoundPanel(root);
-            const track = root.querySelector("[name=playTrack]");
-
-            root.querySelector("[data-drpg-play]")?.addEventListener("click", async () => {
-                const sound = await playTrack(track?.value);
-                if (sound) {
-                    ui.notifications.info(game.i18n.format("DRPG.Music.playing",
-                        { track: sound.name }));
-                }
-            });
-
-            root.querySelector("[data-drpg-reset-music]")?.addEventListener("click", async () => {
-                await resetMusic();
-                ui.notifications.info(game.i18n.localize("DRPG.Music.wasReset"));
-            });
-
-            /*
-             * Make the cue playlist, and swap the fieldset over IN PLACE.
-             *
-             * Not by reopening the window, which is the obvious way and the
-             * wrong one: the Playlists tab beside this holds a table of selects
-             * the GM may already have changed, and Apply has not run yet.
-             * Reopening would throw that away to save a redraw.
-             *
-             * The Play button deliberately stays disabled. A playlist made this
-             * second has no tracks in it, and a button that says it will play
-             * something is lying until the GM has put something there - which
-             * is what the replacement note asks for.
-             */
-            root.querySelector("[data-drpg-make-cue]")?.addEventListener("click", async event => {
-                const button = event.currentTarget;
-                button.disabled = true;
-                try {
-                    const made = situationalPlaylist()
-                        ?? await Playlist.create({ name: SITUATIONAL_PLAYLIST });
-                    if (!made) throw new Error("Playlist.create returned nothing");
-
-                    const note = root.querySelector("[data-drpg-no-cue]");
-                    if (note) {
-                        note.classList.remove("drpg-warning");
-                        note.textContent = game.i18n.format("DRPG.Music.situationalMade",
-                            { name: made.name });
-                    }
-
-                    // The track picker the fieldset would have been built with.
-                    const label = document.createElement("label");
-                    label.textContent = `${game.i18n.localize("DRPG.Music.track")} `;
-                    const select = document.createElement("select");
-                    select.name = "playTrack";
-                    select.innerHTML = trackOptions(made);
-                    label.append(select);
-                    note?.after(label);
-
-                    button.remove();
-                    ui.notifications.info(game.i18n.format("DRPG.Music.situationalMade",
-                        { name: made.name }));
-                } catch (err) {
-                    button.disabled = false;
-                    error("Could not create the cue playlist", err);
-                    ui.notifications.error(game.i18n.localize("DRPG.Music.makeFailed"));
-                }
-            });
-        },
+        render: (event, dialog) => wireSoundDialog(dialog.element, { wirePanelTabs, wireSoundPanel }),
         rejectClose: false
     });
 

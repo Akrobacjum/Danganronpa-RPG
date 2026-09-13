@@ -812,6 +812,219 @@ function visibilityOptions(selected = "evident") {
  * Writing one by hand stays, because a GM inventing evidence that is not on the
  * map yet is a real thing to want.
  */
+/** The traces on the scene as options, marking the ones this student already holds a copy of. */
+function bulletTraceOptions(traces, who, traceContextLine) {
+        const copied = copiedRemnants(who);
+        return traces.map(({ token, data }) => {
+            const name = data.public?.name || game.i18n.localize("DRPG.Remnant.tokenName");
+            const context = traceContextLine(data);
+            // Said rather than hidden. A second copy is a legitimate thing to
+            // hand out - two students may both have seen the same thing - so a
+            // missing row would read as a missing trace.
+            const held = copied.has(token.id)
+                ? ` · ${game.i18n.localize("DRPG.TruthBullet.alreadyHeld")}` : "";
+            return `<option value="${token.id}" data-name="${esc(name)}">${
+                esc(name)}${context ? ` · ${esc(context)}` : ""}${esc(held)}</option>`;
+        }).join("");
+}
+
+/** The "shown as" select: let the rules decide, Neutral, or the real type. */
+function bulletShownSelect(name) {
+    return `<select name="${name}">
+                <option value="auto" selected>${game.i18n.localize("DRPG.TruthBullet.shownAuto")}</option>
+                <option value="neutral">${game.i18n.localize("DRPG.TruthBullet.shownNeutral")}</option>
+                <option value="real">${game.i18n.localize("DRPG.TruthBullet.shownReal")}</option>
+            </select>`;
+}
+
+/** The "from a Remnant" tab: pick a trace, rename it, say how it shows. */
+function bulletExistingPane(traces, initial, traceContextLine) {
+    const firstName = traces.length
+        ? (traces[0].data.public?.name || game.i18n.localize("DRPG.Remnant.tokenName"))
+        : "";
+
+    return traces.length
+        ? `<label>${game.i18n.localize("DRPG.TruthBullet.pickRemnant")}
+                <select name="remnant">${bulletTraceOptions(traces, initial, traceContextLine)}</select></label>
+            <label>${game.i18n.localize("DRPG.TruthBullet.name")}
+                <input type="text" name="exName" value="${esc(firstName)}" /></label>
+            <label>${game.i18n.localize("DRPG.TruthBullet.shown")}
+                ${bulletShownSelect("exShown")}</label>
+            <p class="notes">${game.i18n.localize("DRPG.TruthBullet.remnantNote")}</p>`
+        : `<p class="notes">${game.i18n.localize("DRPG.TruthBullet.remnantEmpty")}</p>`;
+}
+
+/** The "write new" tab: every field a fresh Truth Bullet needs. */
+function bulletCreatePane() {
+    return `
+            <label>${game.i18n.localize("DRPG.TruthBullet.name")}
+                <input type="text" name="name"
+                       placeholder="${game.i18n.localize("DRPG.TruthBullet.namePlaceholder")}" /></label>
+            <label>${game.i18n.localize("DRPG.TruthBullet.realType")}
+                <select name="realType">${typeOptions("neutral")}</select></label>
+            <label>${game.i18n.localize("DRPG.TruthBullet.shown")}
+                ${bulletShownSelect("shown")}</label>
+            <label>${game.i18n.localize("DRPG.TruthBullet.visibility")}
+                <select name="visibility">${visibilityOptions("evident")}</select></label>
+            <label class="drpg-checkbox">
+                <input type="checkbox" name="faint" />
+                ${game.i18n.localize("DRPG.TruthBullet.faintField")}</label>
+            <label class="drpg-checkbox">
+                <input type="checkbox" name="tied" />
+                ${game.i18n.localize("DRPG.TruthBullet.tiedField")}</label>
+            <label>${game.i18n.localize("DRPG.TruthBullet.playerText")}
+                <textarea name="playerText" rows="2"
+                    placeholder="${game.i18n.localize("DRPG.TruthBullet.playerTextPlaceholder")}"></textarea></label>
+            <label>${game.i18n.localize("DRPG.TruthBullet.gmNote")}
+                <textarea name="gmNote" rows="2"
+                    placeholder="${game.i18n.localize("DRPG.TruthBullet.gmNotePlaceholder")}"></textarea></label>`;
+}
+
+/** The name follows the picked trace; the trace list follows the recipient. */
+function wireBulletForm(dialog, traces, traceContextLine) {
+    wirePanelTabs(dialog.element);
+    const form = dialog.element.querySelector("form");
+    if (!form) return;
+
+    // The name field follows the picked trace, because the GM is
+    // renaming a thing rather than naming one: what is already on the
+    // trace is the answer until they say otherwise.
+    const picker = form.elements.remnant;
+    picker?.addEventListener("change", () => {
+        const opt = picker.selectedOptions?.[0];
+        if (opt && form.elements.exName) form.elements.exName.value = opt.dataset.name ?? "";
+    });
+
+    // Whether a trace is already copied is a fact about the recipient,
+    // so the list is rebuilt when the recipient changes - and the
+    // selection is kept across the swap.
+    form.elements.recipient?.addEventListener("change", () => {
+        if (!picker) return;
+        const who = game.actors.get(form.elements.recipient.value);
+        if (!who) return;
+        const keep = picker.value;
+        picker.innerHTML = bulletTraceOptions(traces, who, traceContextLine);
+        if ([...picker.options].some(o => o.value === keep)) picker.value = keep;
+    });
+}
+
+/** What Give hands back: whichever tab is showing, with the recipient and the tell switch. */
+function readBulletForm(d) {
+    const f = d.element.querySelector("form");
+    const active = d.element.querySelector(".drpg-gmt-section.active")
+        ?.dataset.drpgGmtSection ?? "create";
+    const common = {
+        recipient: f.elements.recipient?.value ?? null,
+        tell: f.elements.tell.checked
+    };
+
+    if (active === "existing" && f.elements.remnant) {
+        return { ...common, mode: "existing",
+                 remnantId: f.elements.remnant.value,
+                 name: f.elements.exName.value.trim(),
+                 shown: f.elements.exShown.value };
+    }
+
+    return {
+        ...common,
+        mode: "create",
+        // `f.name` reads this same field - HTMLFormElement
+        // carries [LegacyOverrideBuiltIns], so its named getter
+        // beats the built-in `name`. `f.elements` does not have
+        // that clause, which is the trap two functions down.
+        // Neither collides here; both forms are spelled the
+        // same way for the sake of reading them together.
+        name: f.elements.name.value.trim(),
+        realType: f.elements.realType.value,
+        shown: f.elements.shown.value,
+        visibility: f.elements.visibility.value,
+        faint: f.elements.faint.checked,
+        tied: f.elements.tied.checked,
+        playerText: f.elements.playerText.value.trim(),
+        gmNote: f.elements.gmNote.value.trim()
+    };
+}
+
+/**
+ * The bullet a picked trace becomes. A rename is written back to the trace
+ * first, so the next copy of it carries the same name. Answers null when the
+ * trace is gone.
+ */
+async function bulletFromRemnant(result, traces, scene, { setRemnantPublicById, markRemnantEditedById }) {
+    const entry = traces.find(t => t.token.id === result.remnantId);
+    if (!entry) {
+        ui.notifications.warn(game.i18n.localize("DRPG.TruthBullet.remnantGone"));
+        return null;
+    }
+    const { token, data } = entry;
+    const pub = data.public ?? null;
+
+    // A rename is written back to the trace, the way Observe writes back the
+    // sentence the GM types. Otherwise the second student to be handed this
+    // same trace would get the old name, and the two copies of one object
+    // would disagree in the pack that is meant to prove things.
+    if (result.name !== pub?.name) {
+        try {
+            await setRemnantPublicById(scene?.id, token.id, { name: result.name });
+            // Named by a GM, so it is decided (E7).
+            await markRemnantEditedById(scene?.id, token.id);
+        } catch (err) {
+            error("Could not record the new name on the Remnant", err);
+        }
+    }
+
+    return {
+        name: result.name,
+        realType: data.type,
+        shownType: result.shown === "auto" ? null
+            : (result.shown === "real" ? data.type : "neutral"),
+        visibility: data.visibility,
+        faint: Boolean(data.faint),
+        playerText: pub?.playerText ?? "",
+        img: pub?.img ?? null,
+        tags: pub?.tags ?? [],
+        gmNote: data.note ?? "",
+        remnantId: token.id,
+        sceneId: scene?.id ?? null,
+        // Passed explicitly for the reason Observe passes it: the room
+        // lookup is canvas-bound, and this may not be the scene on screen.
+        room: data.room ?? null,
+        // Both into the bullet's secret; public on the item only once it is
+        // identified, like every other tie.
+        sourceAction: data.action ?? null,
+        tiedToCrime: Boolean(data.tiedToCrime)
+    };
+}
+
+/** The bullet the "write new" tab describes. */
+function bulletFromForm(result) {
+    return {
+        name: result.name,
+        realType: result.realType,
+        // "auto" means "let the rules decide" - Key, Autopsy and Final
+        // bullets arrive identified, everything else starts Neutral. See
+        // createTruthBullet.
+        shownType: result.shown === "auto" ? null
+            : (result.shown === "real" ? result.realType : "neutral"),
+        visibility: result.visibility,
+        faint: result.faint,
+        // The GM's manual verdict (Dawid, 26.08). Into the bullet's secret
+        // at creation; public on the item only once identified.
+        tiedToCrime: result.tied,
+        playerText: result.playerText,
+        gmNote: result.gmNote
+    };
+}
+
+/** The receipt the player sees. */
+async function tellBulletGiven(who, payload) {
+    await whisperToOwner(who, `
+        <h3>${game.i18n.localize("DRPG.TruthBullet.received")}</h3>
+        <p><strong>${esc(payload.name)}</strong></p>
+        ${payload.playerText ? `<p>${esc(payload.playerText)}</p>` : ""}
+        <p><small>${game.i18n.localize("DRPG.TruthBullet.whereToFind")}</small></p>`);
+}
+
 async function giveTruthBulletDialog(actor) {
 
     const students = studentActors();
@@ -835,40 +1048,7 @@ async function giveTruthBulletDialog(actor) {
         .map(token => ({ token, data: remnantData(token) }))
         .filter(entry => entry.data);
 
-    const traceOptionsFor = who => {
-        const copied = copiedRemnants(who);
-        return traces.map(({ token, data }) => {
-            const name = data.public?.name || game.i18n.localize("DRPG.Remnant.tokenName");
-            const context = traceContextLine(data);
-            // Said rather than hidden. A second copy is a legitimate thing to
-            // hand out - two students may both have seen the same thing - so a
-            // missing row would read as a missing trace.
-            const held = copied.has(token.id)
-                ? ` · ${game.i18n.localize("DRPG.TruthBullet.alreadyHeld")}` : "";
-            return `<option value="${token.id}" data-name="${esc(name)}">${
-                esc(name)}${context ? ` · ${esc(context)}` : ""}${esc(held)}</option>`;
-        }).join("");
-    };
-
-    const shownSelect = name => `<select name="${name}">
-                <option value="auto" selected>${game.i18n.localize("DRPG.TruthBullet.shownAuto")}</option>
-                <option value="neutral">${game.i18n.localize("DRPG.TruthBullet.shownNeutral")}</option>
-                <option value="real">${game.i18n.localize("DRPG.TruthBullet.shownReal")}</option>
-            </select>`;
-
-    const firstName = traces.length
-        ? (traces[0].data.public?.name || game.i18n.localize("DRPG.Remnant.tokenName"))
-        : "";
-
-    const existingPane = traces.length
-        ? `<label>${game.i18n.localize("DRPG.TruthBullet.pickRemnant")}
-                <select name="remnant">${traceOptionsFor(initial)}</select></label>
-            <label>${game.i18n.localize("DRPG.TruthBullet.name")}
-                <input type="text" name="exName" value="${esc(firstName)}" /></label>
-            <label>${game.i18n.localize("DRPG.TruthBullet.shown")}
-                ${shownSelect("exShown")}</label>
-            <p class="notes">${game.i18n.localize("DRPG.TruthBullet.remnantNote")}</p>`
-        : `<p class="notes">${game.i18n.localize("DRPG.TruthBullet.remnantEmpty")}</p>`;
+    const existingPane = bulletExistingPane(traces, initial, traceContextLine);
 
     const result = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.TruthBullet.give") },
@@ -876,28 +1056,8 @@ async function giveTruthBulletDialog(actor) {
         content: dialogContent(`<form>${panelTabs([
             { key: "existing", label: game.i18n.localize("DRPG.TruthBullet.tabFromRemnant"),
               html: existingPane },
-            { key: "create", label: game.i18n.localize("DRPG.TruthBullet.tabWriteNew"), html: `
-            <label>${game.i18n.localize("DRPG.TruthBullet.name")}
-                <input type="text" name="name"
-                       placeholder="${game.i18n.localize("DRPG.TruthBullet.namePlaceholder")}" /></label>
-            <label>${game.i18n.localize("DRPG.TruthBullet.realType")}
-                <select name="realType">${typeOptions("neutral")}</select></label>
-            <label>${game.i18n.localize("DRPG.TruthBullet.shown")}
-                ${shownSelect("shown")}</label>
-            <label>${game.i18n.localize("DRPG.TruthBullet.visibility")}
-                <select name="visibility">${visibilityOptions("evident")}</select></label>
-            <label class="drpg-checkbox">
-                <input type="checkbox" name="faint" />
-                ${game.i18n.localize("DRPG.TruthBullet.faintField")}</label>
-            <label class="drpg-checkbox">
-                <input type="checkbox" name="tied" />
-                ${game.i18n.localize("DRPG.TruthBullet.tiedField")}</label>
-            <label>${game.i18n.localize("DRPG.TruthBullet.playerText")}
-                <textarea name="playerText" rows="2"
-                    placeholder="${game.i18n.localize("DRPG.TruthBullet.playerTextPlaceholder")}"></textarea></label>
-            <label>${game.i18n.localize("DRPG.TruthBullet.gmNote")}
-                <textarea name="gmNote" rows="2"
-                    placeholder="${game.i18n.localize("DRPG.TruthBullet.gmNotePlaceholder")}"></textarea></label>` }
+            { key: "create", label: game.i18n.localize("DRPG.TruthBullet.tabWriteNew"),
+              html: bulletCreatePane() }
         ])}
             <label>${game.i18n.localize("DRPG.Items.recipient")}
                 <select name="recipient">${recipients}</select></label>
@@ -906,70 +1066,11 @@ async function giveTruthBulletDialog(actor) {
                 ${game.i18n.localize("DRPG.Items.tellPlayer")}</label>
             <p class="notes">${game.i18n.localize("DRPG.TruthBullet.secretNote")}</p>
         </form>`),
-        render: (event, dialog) => {
-            wirePanelTabs(dialog.element);
-            const form = dialog.element.querySelector("form");
-            if (!form) return;
-
-            // The name field follows the picked trace, because the GM is
-            // renaming a thing rather than naming one: what is already on the
-            // trace is the answer until they say otherwise.
-            const picker = form.elements.remnant;
-            picker?.addEventListener("change", () => {
-                const opt = picker.selectedOptions?.[0];
-                if (opt && form.elements.exName) form.elements.exName.value = opt.dataset.name ?? "";
-            });
-
-            // Whether a trace is already copied is a fact about the recipient,
-            // so the list is rebuilt when the recipient changes - and the
-            // selection is kept across the swap.
-            form.elements.recipient?.addEventListener("change", () => {
-                if (!picker) return;
-                const who = game.actors.get(form.elements.recipient.value);
-                if (!who) return;
-                const keep = picker.value;
-                picker.innerHTML = traceOptionsFor(who);
-                if ([...picker.options].some(o => o.value === keep)) picker.value = keep;
-            });
-        },
+        render: (event, dialog) => wireBulletForm(dialog, traces, traceContextLine),
         buttons: [
             {
                 action: "ok", label: game.i18n.localize("DRPG.TruthBullet.give"), default: true,
-                callback: (e, b, d) => {
-                    const f = d.element.querySelector("form");
-                    const active = d.element.querySelector(".drpg-gmt-section.active")
-                        ?.dataset.drpgGmtSection ?? "create";
-                    const common = {
-                        recipient: f.elements.recipient?.value ?? null,
-                        tell: f.elements.tell.checked
-                    };
-
-                    if (active === "existing" && f.elements.remnant) {
-                        return { ...common, mode: "existing",
-                                 remnantId: f.elements.remnant.value,
-                                 name: f.elements.exName.value.trim(),
-                                 shown: f.elements.exShown.value };
-                    }
-
-                    return {
-                        ...common,
-                        mode: "create",
-                        // `f.name` reads this same field - HTMLFormElement
-                        // carries [LegacyOverrideBuiltIns], so its named getter
-                        // beats the built-in `name`. `f.elements` does not have
-                        // that clause, which is the trap two functions down.
-                        // Neither collides here; both forms are spelled the
-                        // same way for the sake of reading them together.
-                        name: f.elements.name.value.trim(),
-                        realType: f.elements.realType.value,
-                        shown: f.elements.shown.value,
-                        visibility: f.elements.visibility.value,
-                        faint: f.elements.faint.checked,
-                        tied: f.elements.tied.checked,
-                        playerText: f.elements.playerText.value.trim(),
-                        gmNote: f.elements.gmNote.value.trim()
-                    };
-                }
+                callback: (e, b, d) => readBulletForm(d)
             },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
         ],
@@ -984,70 +1085,10 @@ async function giveTruthBulletDialog(actor) {
         return false;
     }
 
-    let payload = null;
-
-    if (result.mode === "existing") {
-        const entry = traces.find(t => t.token.id === result.remnantId);
-        if (!entry) {
-            ui.notifications.warn(game.i18n.localize("DRPG.TruthBullet.remnantGone"));
-            return false;
-        }
-        const { token, data } = entry;
-        const pub = data.public ?? null;
-
-        // A rename is written back to the trace, the way Observe writes back the
-        // sentence the GM types. Otherwise the second student to be handed this
-        // same trace would get the old name, and the two copies of one object
-        // would disagree in the pack that is meant to prove things.
-        if (result.name !== pub?.name) {
-            try {
-                await setRemnantPublicById(scene?.id, token.id, { name: result.name });
-                // Named by a GM, so it is decided (E7).
-                await markRemnantEditedById(scene?.id, token.id);
-            } catch (err) {
-                error("Could not record the new name on the Remnant", err);
-            }
-        }
-
-        payload = {
-            name: result.name,
-            realType: data.type,
-            shownType: result.shown === "auto" ? null
-                : (result.shown === "real" ? data.type : "neutral"),
-            visibility: data.visibility,
-            faint: Boolean(data.faint),
-            playerText: pub?.playerText ?? "",
-            img: pub?.img ?? null,
-            tags: pub?.tags ?? [],
-            gmNote: data.note ?? "",
-            remnantId: token.id,
-            sceneId: scene?.id ?? null,
-            // Passed explicitly for the reason Observe passes it: the room
-            // lookup is canvas-bound, and this may not be the scene on screen.
-            room: data.room ?? null,
-            // Both into the bullet's secret; public on the item only once it is
-            // identified, like every other tie.
-            sourceAction: data.action ?? null,
-            tiedToCrime: Boolean(data.tiedToCrime)
-        };
-    } else {
-        payload = {
-            name: result.name,
-            realType: result.realType,
-            // "auto" means "let the rules decide" - Key, Autopsy and Final
-            // bullets arrive identified, everything else starts Neutral. See
-            // createTruthBullet.
-            shownType: result.shown === "auto" ? null
-                : (result.shown === "real" ? result.realType : "neutral"),
-            visibility: result.visibility,
-            faint: result.faint,
-            // The GM's manual verdict (Dawid, 26.08). Into the bullet's secret
-            // at creation; public on the item only once identified.
-            tiedToCrime: result.tied,
-            playerText: result.playerText,
-            gmNote: result.gmNote
-        };
-    }
+    const payload = result.mode === "existing"
+        ? await bulletFromRemnant(result, traces, scene, { setRemnantPublicById, markRemnantEditedById })
+        : bulletFromForm(result);
+    if (!payload) return false;
 
     const item = await createTruthBullet(who, payload);
 
@@ -1060,13 +1101,7 @@ async function giveTruthBulletDialog(actor) {
         item: payload.name, actor: who.name
     }));
 
-    if (result.tell) {
-        await whisperToOwner(who, `
-            <h3>${game.i18n.localize("DRPG.TruthBullet.received")}</h3>
-            <p><strong>${esc(payload.name)}</strong></p>
-            ${payload.playerText ? `<p>${esc(payload.playerText)}</p>` : ""}
-            <p><small>${game.i18n.localize("DRPG.TruthBullet.whereToFind")}</small></p>`);
-    }
+    if (result.tell) await tellBulletGiven(who, payload);
 
     return true;
 }
