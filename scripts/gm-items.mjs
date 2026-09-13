@@ -374,31 +374,27 @@ async function giveKeyDialog(actor) {
  * on a sheet is making a ruling, and being told "Crime Tools 1/1" is more useful
  * than being refused. Going over the cap is deliberate and flagged.
  */
-export async function gmGiveItemDialog(actor) {
-    // Truth Bullets have their own dialog. They share nothing with a physical
-    // item but the word "give": no tier, no carry limit, and half a dozen fields
-    // this form has no place for.
-    /*
-     * THE CARRY COUNTS BELONG TO A PERSON, so they are built for one rather
-     * than once. Changing the recipient rebuilds them - a row reading "2/2"
-     * about somebody who is no longer getting the item is worse than a row
-     * with no numbers on it at all.
-     */
-    /*
-     * The list itself comes from `pickableCategories` - the one place that
-     * decides which categories a form may offer, and which splits usables into
-     * Healing and Sanity Relief because that split IS what a usable does. This
-     * window had the split first and three others did not; sharing the list is
-     * what stops them drifting again (audit A22-A24).
-     *
-     * What stays here is the only thing that is this window's own: the carry
-     * count on each row.
-     *
-     * `foundry.utils.escapeHTML` rather than the local `esc`, which is declared
-     * further down this function - the first call to this closure happens
-     * before that line runs, so reaching for it would throw.
-     */
-    const categoriesFor = who => pickableCategories().map(choice => {
+/*
+ * THE CARRY COUNTS BELONG TO A PERSON, so they are built for one rather
+ * than once. Changing the recipient rebuilds them - a row reading "2/2"
+ * about somebody who is no longer getting the item is worse than a row
+ * with no numbers on it at all.
+ */
+/*
+ * The list itself comes from `pickableCategories` - the one place that
+ * decides which categories a form may offer, and which splits usables into
+ * Healing and Sanity Relief because that split IS what a usable does. This
+ * window had the split first and three others did not; sharing the list is
+ * what stops them drifting again (audit A22-A24).
+ *
+ * What stays here is the only thing that is this window's own: the carry
+ * count on each row.
+ *
+ * `foundry.utils.escapeHTML` is the same escape `esc` wraps; this was a closure
+ * inside the dialog once, written before `esc` reached it, and the spelling stayed.
+ */
+function giveCategoryOptions(who) {
+    return pickableCategories().map(choice => {
         const cat = ITEM_CATEGORIES[choice.key];
         // The shared budget, where there is one: rows drawing on the same
         // slots have to show the same number, or the GM reads "1/1" beside a
@@ -412,14 +408,266 @@ export async function gmGiveItemDialog(actor) {
         return `<option value="${choice.value}">${
             foundry.utils.escapeHTML(choice.label)}${cap}</option>`;
     }).join("");
+}
 
+/** The entries of one table, as options for the item select. */
+function giveItemOptionsFor(table) {
+    return Array.from(table?.results ?? [])
+        .map(r => `<option value="${r.id}">${esc(r.name ?? r.text ?? "")}</option>`).join("");
+}
+
+/*
+ * THE TABLE FIRST, THEN WHAT IS IN IT (Dawid, 03.09).
+ *
+ * This was one select carrying every result of every table, with the table
+ * as an `<optgroup>` label. A world with the default set installed puts
+ * several hundred rows in it, so a GM who knew exactly which table they
+ * wanted still had to find one line inside a list of everything - and the
+ * category and tier beside it followed the ITEM, which is the wrong end:
+ * the table is what knows those two.
+ *
+ * Two selects, and the second is rebuilt from the first. The item options
+ * are built here rather than rendered hidden, because a `<select>` with
+ * hidden options is a control that reports values nobody can see.
+ */
+function giveExistingPane(catalogue, categories, tiers) {
+    const tableOptions = catalogue.map(table => {
+        const cat = table.getFlag(MODULE_ID, "category") ?? "";
+        const tier = table.getFlag(MODULE_ID, "tier");
+        const goal = table.getFlag(MODULE_ID, "goal") ?? "";
+        return `<option value="${table.id}" data-category="${esc(cat)}" data-tier="${
+            tier ?? ""}" data-goal="${esc(goal)}">${esc(table.name)} (${table.results.size})</option>`;
+    }).join("");
+
+    return catalogue.length
+        ? `<label>${game.i18n.localize("DRPG.Items.pickTable")}
+                <select name="exTable">${tableOptions}</select></label>
+            <label>${game.i18n.localize("DRPG.Items.pickExisting")}
+                <select name="exItem">${giveItemOptionsFor(catalogue[0])}</select></label>
+            <label>${game.i18n.localize("DRPG.Items.category")}
+                <select name="exCategory">${categories}</select></label>
+            <label>${game.i18n.localize("DRPG.Items.tier")}
+                <select name="exTier">${tiers}</select></label>
+            <p class="notes">${game.i18n.localize("DRPG.Items.existingNote")}</p>`
+        : `<p class="notes">${game.i18n.localize("DRPG.Items.existingEmpty")}</p>`;
+}
+
+/** The "create new" tab: category, tier, a name with every built-in as autocomplete, description, roles. */
+function giveCreatePane({ categories, tiers, suggestions }) {
+    return `
+            <label>${game.i18n.localize("DRPG.Items.category")}
+                <select name="category">${categories}</select></label>
+            <label>${game.i18n.localize("DRPG.Items.tier")}
+                <select name="tier">${tiers}</select></label>
+            <label>${game.i18n.localize("DRPG.Items.name")}
+                <input type="text" name="name" list="drpg-item-names"
+                       placeholder="${game.i18n.localize("DRPG.Items.namePlaceholder")}" /></label>
+            <datalist id="drpg-item-names">${
+                suggestions.map(n => `<option value="${esc(n)}"></option>`).join("")
+            }</datalist>
+            <label>${game.i18n.localize("DRPG.Items.description")}
+                <textarea name="description" rows="2"
+                    placeholder="${game.i18n.localize("DRPG.Items.descriptionPlaceholder")}"></textarea></label>
+            <span class="drpg-role-picker" data-drpg-roles>
+                <span class="drpg-role-label">${game.i18n.localize("DRPG.Items.alsoServesAs")}</span>
+                ${EQUIPPABLE.map(key => `<label class="drpg-check"><input type="checkbox"
+                    data-drpg-role="${key}" />${esc(ITEM_CATEGORIES[key]?.label ?? key)}</label>`).join("")}
+            </span>
+            <p class="notes" data-drpg-roles-note></p>`;
+}
+
+/** The give form's own rules: the table drives the item list, category and tier; the recipient rebuilds the counts; the roles follow tier and home. */
+function wireGiveForm(dialog) {
+    wirePanelTabs(dialog.element);
+
+    /*
+     * THE TABLE DRIVES THE OTHER THREE.
+     *
+     * Picking a table refills the item list and moves the category and
+     * tier to whatever that table is. All three stay editable
+     * afterwards: a room pool carries no category of its own, and there
+     * the GM's answer is the only one there is.
+     */
+    const form = dialog.element.querySelector("form");
+    const tableSelect = form?.elements?.exTable;
+    if (!tableSelect) return;
+
+    const syncFromTable = ({ refillItems = true } = {}) => {
+        const opt = tableSelect.selectedOptions?.[0];
+        if (!opt) return;
+
+        if (refillItems) {
+            const table = game.tables.get(tableSelect.value);
+            form.elements.exItem.innerHTML = giveItemOptionsFor(table);
+        }
+
+        const { category, tier, goal } = opt.dataset;
+        if (category) {
+            const value = category === "usable" && goal ? `${category}:${goal}` : category;
+            if (form.elements.exCategory.querySelector(`option[value="${CSS.escape(value)}"]`)) {
+                form.elements.exCategory.value = value;
+            }
+        }
+        if (tier !== "") form.elements.exTier.value = tier;
+    };
+
+    tableSelect.addEventListener("change", () => syncFromTable());
+    // On open the item list is already right, so only the two
+    // read-along selects need moving.
+    syncFromTable({ refillItems: false });
+
+    // Both category selects carry the counts, and both are rebuilt when
+    // the recipient changes. The picked value is kept across the swap.
+    form.elements.recipient?.addEventListener("change", () => {
+        const who = game.actors.get(form.elements.recipient.value);
+        for (const name of ["category", "exCategory"]) {
+            const select = form.elements[name];
+            if (!select) continue;
+            // The chosen value survives the swap - the options are
+            // rebuilt for their counts, not for their identity.
+            const keep = select.value;
+            select.innerHTML = giveCategoryOptions(who);
+            if ([...select.options].some(o => o.value === keep)) select.value = keep;
+        }
+    });
+
+    /*
+     * A SECOND ROLE, ON THE SAME TERMS AS THE TABLES (Dawid, 31.08).
+     *
+     * Two rules, both borrowed rather than reinvented so the two places
+     * a GM can make an item cannot disagree: a role is offered only
+     * from `MULTI_ROLE_TIER` up, because a two-tag item is
+     * unconditionally better than a one-tag one and has no business at
+     * the bottom of the range; and an item is never offered its own
+     * home, which would be a box that cannot be unticked.
+     *
+     * Repainted on every change to either select, because both of them
+     * decide what is on offer.
+     */
+    const rolePicker = form.querySelector("[data-drpg-roles]");
+    const roleNote = form.querySelector("[data-drpg-roles-note]");
+    const paintRoles = () => {
+        if (!rolePicker) return;
+        const [home] = String(form.elements.category?.value ?? "").split(":");
+        const tier = Number(form.elements.tier?.value);
+        const allowed = Number.isFinite(tier) && tier >= MULTI_ROLE_TIER;
+
+        for (const box of rolePicker.querySelectorAll("[data-drpg-role]")) {
+            const isHome = box.dataset.drpgRole === home;
+            const off = isHome || !allowed;
+            box.disabled = off;
+            if (off) box.checked = false;
+            box.closest("label")?.classList.toggle("drpg-locked", off);
+            box.closest("label")?.toggleAttribute("hidden", isHome);
+        }
+        if (roleNote) {
+            roleNote.textContent = allowed
+                ? ""
+                : game.i18n.format("DRPG.Tables.rolesTierOnly", { tier: MULTI_ROLE_TIER });
+        }
+    };
+    form.elements.category?.addEventListener("change", paintRoles);
+    form.elements.tier?.addEventListener("change", paintRoles);
+    paintRoles();
+}
+
+/** What Give hands back: whichever pane is showing, read as one shape with a `mode`. */
+function readGiveForm(d) {
+    const f = d.element.querySelector("form");
+    const active = d.element.querySelector(".drpg-gmt-section.active")
+        ?.dataset.drpgGmtSection ?? "create";
+
+    if (active === "existing" && f.elements.exTable) {
+        const [category, kind = null] = f.elements.exCategory.value.split(":");
+        return {
+            mode: "existing",
+            tableId: f.elements.exTable.value,
+            resultId: f.elements.exItem.value,
+            category, kind,
+            tier: Number(f.elements.exTier.value),
+            tell: f.elements.tell.checked,
+            recipient: f.elements.recipient?.value ?? null
+        };
+    }
+
+    // "usable:healing" carries the kind after the colon; the
+    // plain categories have nothing to split.
+    const [category, kind = null] = f.elements.category.value.split(":");
+    return {
+        mode: "create",
+        category,
+        kind,
+        tier: Number(f.elements.tier.value),
+        name: f.elements.name.value.trim(),
+        description: f.elements.description.value.trim(),
+        roles: [...f.querySelectorAll("[data-drpg-role]:checked")]
+            .map(b => b.dataset.drpgRole),
+        tell: f.elements.tell.checked,
+        recipient: f.elements.recipient?.value ?? null
+    };
+}
+
+    // Both tabs funnel into one shape, so everything below - the grant, the
+    // receipt, the log line - cannot diverge between them.
+function giveFromResult(result) {
+    let give;
+    if (result.mode === "existing") {
+        const entry = game.tables.get(result.tableId)?.results?.get(result.resultId);
+        if (!entry) {
+            ui.notifications.error(game.i18n.localize("DRPG.Items.failed"));
+            return null;
+        }
+        const name = entry.name ?? entry.text ?? "";
+        give = {
+            name,
+            category: result.category,
+            kind: result.kind,
+            tier: result.tier,
+            // The same rule drawItem applies: a description that is only the
+            // name again adds nothing over the tier line the item will get.
+            description: entry.description && entry.description !== name ? entry.description : "",
+            // The same roles a Search would have handed over. Without this the
+            // hammer given by hand and the hammer found in a room were two
+            // different objects.
+            roles: rolesOfResult(entry),
+            img: entry.img ?? null
+        };
+    } else {
+        if (!result.name) {
+            ui.notifications.warn(game.i18n.localize("DRPG.Items.needsName"));
+            return null;
+        }
+        give = { ...result, img: null };
+    }
+    return give;
+}
+
+/** The receipt the player sees: what it is, what it does. */
+async function tellGiven(actor, give) {
+    const effect = USABLE_KIND_EFFECTS[give.kind]?.[give.tier]
+        ?? TIER_EFFECTS[give.category]?.[give.tier] ?? "";
+    const label = USABLE_KINDS[give.kind]
+        ? `${ITEM_CATEGORIES[give.category]?.label} - ${USABLE_KINDS[give.kind].label}`
+        : ITEM_CATEGORIES[give.category]?.label ?? give.category;
+    await whisperToOwner(actor, `
+        <h3>${game.i18n.localize("DRPG.Items.received")}</h3>
+        <p><strong>${esc(give.name)}</strong> - ${esc(label)
+        }, ${game.i18n.format("DRPG.Items.tierN", { n: give.tier })}</p>
+        ${give.description ? `<p>${esc(give.description)}</p>` : ""}
+        ${effect ? `<p><em>${esc(effect)}</em></p>` : ""}`);
+}
+
+export async function gmGiveItemDialog(actor) {
+    // Truth Bullets have their own dialog. They share nothing with a physical
+    // item but the word "give": no tier, no carry limit, and half a dozen fields
+    // this form has no place for.
     // Everyone this can be handed to. The one who came in from the hub is
     // selected; opened from the hub there is nobody, and the first student
     // stands in - so the counts below always describe whoever the select is
     // actually showing.
     const students = studentActors();
     const initial = actor ?? students[0] ?? null;
-    const categories = categoriesFor(initial);
+    const categories = giveCategoryOptions(initial);
     const recipients = recipientOptions(students, initial?.id);
 
     const tiers = ITEM_TIERS
@@ -441,42 +689,7 @@ export async function gmGiveItemDialog(actor) {
     // give retyped an item the tables already knew.)
     const catalogue = moduleTables().filter(t => t.results.size);
 
-    /*
-     * THE TABLE FIRST, THEN WHAT IS IN IT (Dawid, 03.09).
-     *
-     * This was one select carrying every result of every table, with the table
-     * as an `<optgroup>` label. A world with the default set installed puts
-     * several hundred rows in it, so a GM who knew exactly which table they
-     * wanted still had to find one line inside a list of everything - and the
-     * category and tier beside it followed the ITEM, which is the wrong end:
-     * the table is what knows those two.
-     *
-     * Two selects, and the second is rebuilt from the first. The item options
-     * are built here rather than rendered hidden, because a `<select>` with
-     * hidden options is a control that reports values nobody can see.
-     */
-    const tableOptions = catalogue.map(table => {
-        const cat = table.getFlag(MODULE_ID, "category") ?? "";
-        const tier = table.getFlag(MODULE_ID, "tier");
-        const goal = table.getFlag(MODULE_ID, "goal") ?? "";
-        return `<option value="${table.id}" data-category="${esc(cat)}" data-tier="${
-            tier ?? ""}" data-goal="${esc(goal)}">${esc(table.name)} (${table.results.size})</option>`;
-    }).join("");
-
-    const itemOptionsFor = table => Array.from(table?.results ?? [])
-        .map(r => `<option value="${r.id}">${esc(r.name ?? r.text ?? "")}</option>`).join("");
-
-    const existingPane = catalogue.length
-        ? `<label>${game.i18n.localize("DRPG.Items.pickTable")}
-                <select name="exTable">${tableOptions}</select></label>
-            <label>${game.i18n.localize("DRPG.Items.pickExisting")}
-                <select name="exItem">${itemOptionsFor(catalogue[0])}</select></label>
-            <label>${game.i18n.localize("DRPG.Items.category")}
-                <select name="exCategory">${categories}</select></label>
-            <label>${game.i18n.localize("DRPG.Items.tier")}
-                <select name="exTier">${tiers}</select></label>
-            <p class="notes">${game.i18n.localize("DRPG.Items.existingNote")}</p>`
-        : `<p class="notes">${game.i18n.localize("DRPG.Items.existingEmpty")}</p>`;
+    const existingPane = giveExistingPane(catalogue, categories, tiers);
 
     const result = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Items.give") },
@@ -487,26 +700,8 @@ export async function gmGiveItemDialog(actor) {
         content: dialogContent(`<form>${panelTabs([
             { key: "existing", label: game.i18n.localize("DRPG.Items.tabGiveExisting"),
               html: existingPane },
-            { key: "create", label: game.i18n.localize("DRPG.Items.tabCreateNew"), html: `
-            <label>${game.i18n.localize("DRPG.Items.category")}
-                <select name="category">${categories}</select></label>
-            <label>${game.i18n.localize("DRPG.Items.tier")}
-                <select name="tier">${tiers}</select></label>
-            <label>${game.i18n.localize("DRPG.Items.name")}
-                <input type="text" name="name" list="drpg-item-names"
-                       placeholder="${game.i18n.localize("DRPG.Items.namePlaceholder")}" /></label>
-            <datalist id="drpg-item-names">${
-                suggestions.map(n => `<option value="${esc(n)}"></option>`).join("")
-            }</datalist>
-            <label>${game.i18n.localize("DRPG.Items.description")}
-                <textarea name="description" rows="2"
-                    placeholder="${game.i18n.localize("DRPG.Items.descriptionPlaceholder")}"></textarea></label>
-            <span class="drpg-role-picker" data-drpg-roles>
-                <span class="drpg-role-label">${game.i18n.localize("DRPG.Items.alsoServesAs")}</span>
-                ${EQUIPPABLE.map(key => `<label class="drpg-check"><input type="checkbox"
-                    data-drpg-role="${key}" />${esc(ITEM_CATEGORIES[key]?.label ?? key)}</label>`).join("")}
-            </span>
-            <p class="notes" data-drpg-roles-note></p>` }
+            { key: "create", label: game.i18n.localize("DRPG.Items.tabCreateNew"),
+              html: giveCreatePane({ categories, tiers, suggestions }) }
         ])}
             <label>${game.i18n.localize("DRPG.Items.recipient")}
                 <select name="recipient">${recipients}</select></label>
@@ -515,136 +710,11 @@ export async function gmGiveItemDialog(actor) {
                 ${game.i18n.localize("DRPG.Items.tellPlayer")}</label>
             <p class="notes">${game.i18n.localize("DRPG.Items.overCapNote")}</p>
         </form>`),
-        render: (event, dialog) => {
-            wirePanelTabs(dialog.element);
-
-            /*
-             * THE TABLE DRIVES THE OTHER THREE.
-             *
-             * Picking a table refills the item list and moves the category and
-             * tier to whatever that table is. All three stay editable
-             * afterwards: a room pool carries no category of its own, and there
-             * the GM's answer is the only one there is.
-             */
-            const form = dialog.element.querySelector("form");
-            const tableSelect = form?.elements?.exTable;
-            if (!tableSelect) return;
-
-            const syncFromTable = ({ refillItems = true } = {}) => {
-                const opt = tableSelect.selectedOptions?.[0];
-                if (!opt) return;
-
-                if (refillItems) {
-                    const table = game.tables.get(tableSelect.value);
-                    form.elements.exItem.innerHTML = itemOptionsFor(table);
-                }
-
-                const { category, tier, goal } = opt.dataset;
-                if (category) {
-                    const value = category === "usable" && goal ? `${category}:${goal}` : category;
-                    if (form.elements.exCategory.querySelector(`option[value="${CSS.escape(value)}"]`)) {
-                        form.elements.exCategory.value = value;
-                    }
-                }
-                if (tier !== "") form.elements.exTier.value = tier;
-            };
-
-            tableSelect.addEventListener("change", () => syncFromTable());
-            // On open the item list is already right, so only the two
-            // read-along selects need moving.
-            syncFromTable({ refillItems: false });
-
-            // Both category selects carry the counts, and both are rebuilt when
-            // the recipient changes. The picked value is kept across the swap.
-            form.elements.recipient?.addEventListener("change", () => {
-                const who = game.actors.get(form.elements.recipient.value);
-                for (const name of ["category", "exCategory"]) {
-                    const select = form.elements[name];
-                    if (!select) continue;
-                    // The chosen value survives the swap - the options are
-                    // rebuilt for their counts, not for their identity.
-                    const keep = select.value;
-                    select.innerHTML = categoriesFor(who);
-                    if ([...select.options].some(o => o.value === keep)) select.value = keep;
-                }
-            });
-
-            /*
-             * A SECOND ROLE, ON THE SAME TERMS AS THE TABLES (Dawid, 31.08).
-             *
-             * Two rules, both borrowed rather than reinvented so the two places
-             * a GM can make an item cannot disagree: a role is offered only
-             * from `MULTI_ROLE_TIER` up, because a two-tag item is
-             * unconditionally better than a one-tag one and has no business at
-             * the bottom of the range; and an item is never offered its own
-             * home, which would be a box that cannot be unticked.
-             *
-             * Repainted on every change to either select, because both of them
-             * decide what is on offer.
-             */
-            const rolePicker = form.querySelector("[data-drpg-roles]");
-            const roleNote = form.querySelector("[data-drpg-roles-note]");
-            const paintRoles = () => {
-                if (!rolePicker) return;
-                const [home] = String(form.elements.category?.value ?? "").split(":");
-                const tier = Number(form.elements.tier?.value);
-                const allowed = Number.isFinite(tier) && tier >= MULTI_ROLE_TIER;
-
-                for (const box of rolePicker.querySelectorAll("[data-drpg-role]")) {
-                    const isHome = box.dataset.drpgRole === home;
-                    const off = isHome || !allowed;
-                    box.disabled = off;
-                    if (off) box.checked = false;
-                    box.closest("label")?.classList.toggle("drpg-locked", off);
-                    box.closest("label")?.toggleAttribute("hidden", isHome);
-                }
-                if (roleNote) {
-                    roleNote.textContent = allowed
-                        ? ""
-                        : game.i18n.format("DRPG.Tables.rolesTierOnly", { tier: MULTI_ROLE_TIER });
-                }
-            };
-            form.elements.category?.addEventListener("change", paintRoles);
-            form.elements.tier?.addEventListener("change", paintRoles);
-            paintRoles();
-        },
+        render: (event, dialog) => wireGiveForm(dialog),
         buttons: [
             {
                 action: "ok", label: game.i18n.localize("DRPG.Items.give"), default: true,
-                callback: (e, b, d) => {
-                    const f = d.element.querySelector("form");
-                    const active = d.element.querySelector(".drpg-gmt-section.active")
-                        ?.dataset.drpgGmtSection ?? "create";
-
-                    if (active === "existing" && f.elements.exTable) {
-                        const [category, kind = null] = f.elements.exCategory.value.split(":");
-                        return {
-                            mode: "existing",
-                            tableId: f.elements.exTable.value,
-                            resultId: f.elements.exItem.value,
-                            category, kind,
-                            tier: Number(f.elements.exTier.value),
-                            tell: f.elements.tell.checked,
-                            recipient: f.elements.recipient?.value ?? null
-                        };
-                    }
-
-                    // "usable:healing" carries the kind after the colon; the
-                    // plain categories have nothing to split.
-                    const [category, kind = null] = f.elements.category.value.split(":");
-                    return {
-                        mode: "create",
-                        category,
-                        kind,
-                        tier: Number(f.elements.tier.value),
-                        name: f.elements.name.value.trim(),
-                        description: f.elements.description.value.trim(),
-                        roles: [...f.querySelectorAll("[data-drpg-role]:checked")]
-                            .map(b => b.dataset.drpgRole),
-                        tell: f.elements.tell.checked,
-                        recipient: f.elements.recipient?.value ?? null
-                    };
-                }
+                callback: (e, b, d) => readGiveForm(d)
             },
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
         ],
@@ -667,37 +737,8 @@ export async function gmGiveItemDialog(actor) {
     }
     actor = chosen;
 
-    // Both tabs funnel into one shape, so everything below - the grant, the
-    // receipt, the log line - cannot diverge between them.
-    let give;
-    if (result.mode === "existing") {
-        const entry = game.tables.get(result.tableId)?.results?.get(result.resultId);
-        if (!entry) {
-            ui.notifications.error(game.i18n.localize("DRPG.Items.failed"));
-            return false;
-        }
-        const name = entry.name ?? entry.text ?? "";
-        give = {
-            name,
-            category: result.category,
-            kind: result.kind,
-            tier: result.tier,
-            // The same rule drawItem applies: a description that is only the
-            // name again adds nothing over the tier line the item will get.
-            description: entry.description && entry.description !== name ? entry.description : "",
-            // The same roles a Search would have handed over. Without this the
-            // hammer given by hand and the hammer found in a room were two
-            // different objects.
-            roles: rolesOfResult(entry),
-            img: entry.img ?? null
-        };
-    } else {
-        if (!result.name) {
-            ui.notifications.warn(game.i18n.localize("DRPG.Items.needsName"));
-            return false;
-        }
-        give = { ...result, img: null };
-    }
+    const give = giveFromResult(result);
+    if (!give) return false;
 
     const item = await grantItem(actor, {
         name: give.name,
@@ -723,19 +764,7 @@ export async function gmGiveItemDialog(actor) {
         item: give.name, actor: actor.name
     }));
 
-    if (result.tell) {
-        const effect = USABLE_KIND_EFFECTS[give.kind]?.[give.tier]
-            ?? TIER_EFFECTS[give.category]?.[give.tier] ?? "";
-        const label = USABLE_KINDS[give.kind]
-            ? `${ITEM_CATEGORIES[give.category]?.label} - ${USABLE_KINDS[give.kind].label}`
-            : ITEM_CATEGORIES[give.category]?.label ?? give.category;
-        await whisperToOwner(actor, `
-            <h3>${game.i18n.localize("DRPG.Items.received")}</h3>
-            <p><strong>${esc(give.name)}</strong> - ${esc(label)
-            }, ${game.i18n.format("DRPG.Items.tierN", { n: give.tier })}</p>
-            ${give.description ? `<p>${esc(give.description)}</p>` : ""}
-            ${effect ? `<p><em>${esc(effect)}</em></p>` : ""}`);
-    }
+    if (result.tell) await tellGiven(actor, give);
 
     return true;
 }
