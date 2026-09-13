@@ -1667,85 +1667,25 @@ function recountTokenCells(root, scene) {
     }
 }
 
-export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
-    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
-    // window each read the world when they opened and neither knows about the
-    // other, so the older one goes on looking authoritative while showing
-    // something that stopped being true. Raised rather than refused: pressing
-    // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-rooms")) return null;
-
-    if (!game.user.isGM) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
-        return null;
-    }
-
-    // Alphabetical, because a GM opens this looking for ONE room by name. The
-    // order regions come in is the order somebody happened to draw the map,
-    // which is nobody's mental model of the building.
-    const rooms = Array.from(regionsByName().keys()).sort((a, b) => a.localeCompare(b));
-    if (!rooms.length) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Vault.noRooms"));
-        return null;
-    }
-
-    const { studentActors } = await import("./monokuma.mjs");
-    const { REST_FLAGS, setRestRoom } = await import("./rest.mjs");
-    const { discoveredFor, saveDiscoveryMatrix, setDiscovery, sceneUncoveredPercent } =
-        await import("./fog.mjs");
-    const scene = workingScene();
-    const students = studentActors();
-    const { isDeceased } = await import("./chapter.mjs");
-    const living = students.filter(a => !isDeceased(a)).length;
-    // Room pools only. The tier pools (`tableName()`'s family) answer dice
-    // rolls and are never a room's stock - see `isTierPool` in tables.mjs.
-    const tables = Array.from(game.tables ?? [])
-        .map(t => t.name)
-        .filter(n => !isTierPool(n))
-        .sort();
-    /*
-     * WHAT A ROOM CAN BE GOOD OR BAD FOR (audit A24).
-     *
-     * Truth Bullets are not searched for, and neither are bedroom keys - a key
-     * is granted with a room on it, never drawn from a pool - so neither is a
-     * category a room can stock or favour. The key was on offer here because
-     * this list was `ITEM_CATEGORIES` minus Truth Bullets alone; ticking it
-     * bought nothing, because no Search ever asks for that category.
-     *
-     * `splitUsables: false` on purpose, and it is the one place that asks for
-     * it: a Search hands `favoursCategory` the CATEGORY it is drawing on, and
-     * both usable kinds draw on `usable`. Splitting the column would offer a
-     * distinction the lookup cannot honour.
-     */
-    const categories = pickableCategories({ splitUsables: false })
-        .map(c => [c.key, ITEM_CATEGORIES[c.key]]);
-    const regions = regionsByName();
-
-    const uncovered = sceneUncoveredPercent(scene);
-    const maxTokens = SearchTokens.max;
-
-    /*
-     * ROOMS DOWN, PEOPLE ACROSS - the same way round as every other tab here.
-     *
-     * It used to be the other way, and it was the only table in the window that
-     * was: rooms across the top, students down the side. With eighteen rooms the
-     * headings had to be stood on end to fit, and a column heading you read by
-     * tilting your head is one you read twice.
-     *
-     * The shape decides it. A cast is four to eight; a map is six to thirty-six.
-     * The long axis belongs to the side that scrolls, and the short one to the
-     * side that has to stay on screen - so rooms are rows and people are columns
-     * whose names lie down and read at a glance.
-     *
-     * THE INPUT NAMES DO NOT CHANGE. `fog:${room}:${actorId}` carries both
-     * coordinates, so Apply reads the same form it always did and never learns
-     * which way the table was laid out.
-     */
-    const known = new Map(students.map(a => [a.id, new Set(discoveredFor(scene?.id, a.id))]));
-    const fogHeads = students
-        .map(a => `<th>${foundry.utils.escapeHTML(a.name)}</th>`)
-        .join("");
-    const fogRows = rooms.map(room => {
+/*
+ * ROOMS DOWN, PEOPLE ACROSS - the same way round as every other tab here.
+ *
+ * It used to be the other way, and it was the only table in the window that
+ * was: rooms across the top, students down the side. With eighteen rooms the
+ * headings had to be stood on end to fit, and a column heading you read by
+ * tilting your head is one you read twice.
+ *
+ * The shape decides it. A cast is four to eight; a map is six to thirty-six.
+ * The long axis belongs to the side that scrolls, and the short one to the
+ * side that has to stay on screen - so rooms are rows and people are columns
+ * whose names lie down and read at a glance.
+ *
+ * THE INPUT NAMES DO NOT CHANGE. `fog:${room}:${actorId}` carries both
+ * coordinates, so Apply reads the same form it always did and never learns
+ * which way the table was laid out.
+ */
+function fogMatrixRows(rooms, students, known) {
+    return rooms.map(room => {
         const escRoom = foundry.utils.escapeHTML(room);
         const boxes = students.map(actor =>
             `<td style="text-align:center"><input type="checkbox"
@@ -1753,39 +1693,49 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
                 known.get(actor.id)?.has(room) ? "checked" : ""} /></td>`).join("");
         return `<tr><td><strong>${escRoom}</strong></td>${boxes}</tr>`;
     }).join("");
+}
 
-    /*
-     * THE STASH MATRIX. Same shape as the Fog one above - rooms down, students
-     * across - because four tables that look alike read as one window.
-     *
-     * ONE BUTTON PER CELL, NOT TWO CHECKBOXES. A stash cell carries two facts
-     * ("is there one" and "is it hidden") and the obvious encoding is a pair of
-     * boxes. At eight students and twelve rooms that is 192 targets to hit, half
-     * of which are meaningless - "hidden" on a room with no stash - so the cell
-     * cycles through the three states that actually exist instead.
-     *
-     * The state lives in a hidden input rather than on the button, because Apply
-     * reads this form by input NAME and knows nothing about how the cell was
-     * drawn - the same contract the fog matrix keeps.
-     */
-    const stashState = (room, actorId) => {
-        const entry = stashIn(room, actorId, scene);
-        if (!entry) return "";
-        return entry.concealed ? "hidden" : "open";
-    };
-    const stashGlyph = state => state === "open"
-        ? '<i class="fa-solid fa-box-open"></i>'
-        : state === "hidden"
-            ? '<i class="fa-solid fa-box"></i><i class="fa-solid fa-lock drpg-stash-lock"></i>'
-            : '<span class="drpg-stash-none">-</span>';
-    const stashHeads = students
-        .map(a => `<th>${foundry.utils.escapeHTML(a.name)}</th>`)
-        .join("");
-    const stashRows = rooms.map(room => {
+/** One column heading per student, for the two matrices. */
+function studentHeads(students) {
+    return students.map(a => `<th>${foundry.utils.escapeHTML(a.name)}</th>`).join("");
+}
+
+/*
+ * THE STASH MATRIX. Same shape as the Fog one above - rooms down, students
+ * across - because four tables that look alike read as one window.
+ *
+ * ONE BUTTON PER CELL, NOT TWO CHECKBOXES. A stash cell carries two facts
+ * ("is there one" and "is it hidden") and the obvious encoding is a pair of
+ * boxes. At eight students and twelve rooms that is 192 targets to hit, half
+ * of which are meaningless - "hidden" on a room with no stash - so the cell
+ * cycles through the three states that actually exist instead.
+ *
+ * The state lives in a hidden input rather than on the button, because Apply
+ * reads this form by input NAME and knows nothing about how the cell was
+ * drawn - the same contract the fog matrix keeps.
+ */
+const STASH_GLYPHS = {
+    "": '<span class="drpg-stash-none">-</span>',
+    open: '<i class="fa-solid fa-box-open"></i>',
+    hidden: '<i class="fa-solid fa-box"></i><i class="fa-solid fa-lock drpg-stash-lock"></i>'
+};
+
+function stashState(room, actorId, scene) {
+    const entry = stashIn(room, actorId, scene);
+    if (!entry) return "";
+    return entry.concealed ? "hidden" : "open";
+}
+
+function stashGlyph(state) {
+    return STASH_GLYPHS[state] ?? STASH_GLYPHS[""];
+}
+
+function stashMatrixRows(rooms, students, scene) {
+    return rooms.map(room => {
         const escRoom = foundry.utils.escapeHTML(room);
         const bedroomOwner = vaultOwnerOf(room, scene);
         const cells = students.map(actor => {
-            const state = stashState(room, actor.id);
+            const state = stashState(room, actor.id, scene);
             // The bedroom owner's column is shaded so a GM can see at a glance
             // which stash appeared by itself when they assigned the room.
             const own = bedroomOwner === actor.id ? " drpg-stash-bedroom" : "";
@@ -1799,12 +1749,14 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
         }).join("");
         return `<tr><td><strong>${escRoom}</strong></td>${cells}</tr>`;
     }).join("");
+}
 
-    /* One pass gathers every fact about a room; the tabs then deal the same
-     * cells into four thematic tables. The input NAMES are the contract with
-     * the Apply callback below, identical whichever table a cell sits in -
-     * Apply reads the whole form and never asks which tab was showing. */
-    const cells = rooms.map(room => {
+/* One pass gathers every fact about a room; the tabs then deal the same
+ * cells into four thematic tables. The input NAMES are the contract with
+ * the Apply callback below, identical whichever table a cell sits in -
+ * Apply reads the whole form and never asks which tab was showing. */
+function roomCells(rooms, { students, tables, categories, regions, scene, maxTokens, REST_FLAGS }) {
+    return rooms.map(room => {
         const owner = vaultOwnerOf(room) ?? "";
         const table = roomTable(room) ?? "";
         const favours = roomFavours(room);
@@ -1873,42 +1825,33 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
                 >${foundry.utils.escapeHTML(roomDescription(room))}</textarea></td>`
         };
     });
+}
 
+const ROOM_SETUP_TABS = [
+    ["bedrooms", "DRPG.Vault.tabBedrooms"],
+    ["doors", "DRPG.Vault.tabDoors"],
+    ["search", "DRPG.Vault.tabSearching"],
+    ["rest", "DRPG.Vault.tabRest"],
+    ["stashes", "DRPG.Vault.tabStashes"],
+    ["description", "DRPG.Vault.tabDescription"],
+    ["fog", "DRPG.Vault.tabFog"]
+];
+
+/** The window's body: the tab strip and one panel per tab, dealt from the same cells. */
+function roomSetupContent({ initial, cells, students, stashRows, fogRows, uncovered, maxTokens }) {
     const th = key => `<th>${game.i18n.localize(key)}</th>`;
     const tableFor = (heads, cols) => `<table class="drpg-vault-table"><thead><tr>${
         th("DRPG.Vault.room")}${heads.join("")}</tr></thead><tbody>${
         cells.map(c => `<tr>${c.name}${cols.map(k => c[k]).join("")}</tr>`).join("")
     }</tbody></table>`;
 
-    const TABS = [
-        ["bedrooms", "DRPG.Vault.tabBedrooms"],
-        ["doors", "DRPG.Vault.tabDoors"],
-        ["search", "DRPG.Vault.tabSearching"],
-        ["rest", "DRPG.Vault.tabRest"],
-        ["stashes", "DRPG.Vault.tabStashes"],
-        ["description", "DRPG.Vault.tabDescription"],
-        ["fog", "DRPG.Vault.tabFog"]
-    ];
-    const initial = TABS.some(([key]) => key === tab) ? tab : "bedrooms";
-    const nav = TABS.map(([key, label]) =>
+    const nav = ROOM_SETUP_TABS.map(([key, label]) =>
         `<button type="button" class="drpg-dashboard-tab${key === initial ? " active" : ""}"
             data-drpg-tab="${key}">${game.i18n.localize(label)}</button>`).join("");
     const panel = (key, inner) =>
         `<div data-drpg-panel="${key}"${key === initial ? "" : ' style="display:none"'}>${inner}</div>`;
 
-    const result = await tableDialog({
-        window: { title: game.i18n.localize("DRPG.Vault.manageTitle") },
-        // `drpg-projects` as well as `drpg-panel`: that is the class the
-        // stylesheet hangs the table treatment on - full width, a scrolling
-        // window-content and sane select sizing. Without it this dialog asked
-        // for 860px, lost to the 26rem `.drpg-panel` cap, and clipped its own
-        // right-hand columns with no way to scroll to them.
-        classes: ["drpg-panel", "drpg-projects", "drpg-room-setup", "drpg-window-rooms"],
-        // One size for all five tabs, taken from the biggest of them - see
-        // `fitWindowToTabs`. Without it the window is fitted to whichever tab
-        // is showing and jumps between 708px and 1504px as the GM switches.
-        fitTabs: true,
-        content: dialogContent(`<form>
+    return dialogContent(`<form>
             <p class="notes">${game.i18n.localize("DRPG.Vault.manageIntro")}</p>
             <nav class="drpg-dashboard-tabs">${nav}</nav>
 
@@ -1948,7 +1891,7 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
                 <p>${game.i18n.localize("DRPG.Vault.stashesIntro")}</p>
                 <table class="drpg-vault-table"><thead><tr>
                     <th>${game.i18n.localize("DRPG.Vault.room")}</th>
-                    ${stashHeads}
+                    ${studentHeads(students)}
                 </tr></thead><tbody>${stashRows}</tbody></table>
                 <p class="notes">${game.i18n.localize("DRPG.Vault.stashesNote")}</p>
             `)}
@@ -1965,243 +1908,189 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
                     { pct: uncovered })}</p>` : ""}
                 <table class="drpg-vault-table"><thead><tr>
                     <th>${game.i18n.localize("DRPG.Vault.room")}</th>
-                    ${fogHeads}
+                    ${studentHeads(students)}
                 </tr></thead><tbody>${fogRows}</tbody></table>
                 <p class="notes">${game.i18n.localize("DRPG.Vault.fogNote")}</p>
             `)}
-        </form>`),
-        buttons: [
-            {
-                action: "ok", label: game.i18n.localize("DRPG.Panel.apply"), default: true,
-                callback: (e, b, d) => {
-                    const f = d.element.querySelector("form");
-                    const pick = name => f.querySelector(`[name="${CSS.escape(name)}"]`);
-                    const roomRows = rooms.map(room => ({
-                        room,
-                        owner: pick(`owner:${room}`)?.value ?? "",
-                        shortRest: Boolean(pick(`short:${room}`)?.checked),
-                        longRest: Boolean(pick(`long:${room}`)?.checked),
-                        locked: Boolean(pick(`locked:${room}`)?.checked),
-                        lockedAtStart: Boolean(pick(`startlocked:${room}`)?.checked),
-                        noSearch: Boolean(pick(`nosearch:${room}`)?.checked),
-                        notShared: Boolean(pick(`notshared:${room}`)?.checked),
-                        description: (pick(`desc:${room}`)?.value ?? "").trim(),
-                        table: pick(`table:${room}`)?.value ?? "",
-                        favours: categories
-                            .map(([key]) => key)
-                            .filter(key => pick(`fav:${room}:${key}`)?.checked),
-                        // The render hook keeps the two columns exclusive in
-                        // the UI; the filter repeats it here so a row somebody
-                        // edited by other means still cannot say both.
-                        hinders: categories
-                            .map(([key]) => key)
-                            .filter(key => pick(`hin:${room}:${key}`)?.checked
-                                && !pick(`fav:${room}:${key}`)?.checked)
-                    }));
-                    const fogMatrix = {};
-                    for (const actor of students) {
-                        fogMatrix[actor.id] = rooms.filter(room =>
-                            pick(`fog:${room}:${actor.id}`)?.checked);
-                    }
-                    // Room -> the stashes the GM left in it. Empty cells are
-                    // simply absent, which is what "no stash" means.
-                    const stashMatrix = {};
-                    for (const room of rooms) {
-                        stashMatrix[room] = students
-                            .map(actor => ({
-                                actorId: actor.id,
-                                state: pick(`stash:${room}:${actor.id}`)?.value ?? ""
-                            }))
-                            .filter(entry => entry.state)
-                            .map(entry => ({
-                                actorId: entry.actorId,
-                                concealed: entry.state === "hidden"
-                            }));
-                    }
-                    return { rooms: roomRows, fog: fogMatrix, stashes: stashMatrix };
-                }
-            },
-            { action: "discoverAll", label: game.i18n.localize("DRPG.Vault.discoverAll") },
-            { action: "hideAll", label: game.i18n.localize("DRPG.Vault.hideAll") },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
-        ],
-        render: (event, dialog) => {
-            /*
-             * HOW BIG THIS BUILDING IS FOR THE PEOPLE STILL IN IT (Dawid, 31.08).
-             *
-             * G-36 asks for one and a half SHARED rooms per player, and that rule
-             * lives at season setup where nobody reads it again. Students die and
-             * rooms do not: after the third trial eight people rattle around a
-             * building built for sixteen, nobody meets anybody, and there are no
-             * witnesses to anything.
-             *
-             * Deliberately not a mechanic - the GM closes wings by hand, which is
-             * what the locks below are for. This is the number they need while
-             * doing it, and it follows the boxes as they are ticked rather than
-             * reporting the state the window opened in.
-             *
-             * Bedrooms are left out of the count because G-36 counts shared
-             * rooms: a bedroom belongs to one person whether or not anybody else
-             * can get into it.
-             */
-            const ratio = dialog.element.querySelector("[data-drpg-ratio]");
-            if (ratio) {
-                const paintRatio = () => {
-                    const form = dialog.element.querySelector("form");
-                    /*
-                     * READ OFF THE FORM, NOT OFF THE FLAGS (audit A21).
-                     *
-                     * Both exclusions are columns the GM is looking at right
-                     * now - the owner on the Bedrooms tab, "Counts as a room"
-                     * on this one - so the line has to follow the ticks rather
-                     * than the saved state, exactly as it already followed the
-                     * locks. `sharedRooms()` is the same rule read from the
-                     * flags, and is what the season checklist uses; this is
-                     * that rule applied to what is on screen.
-                     */
-                    const ticked = (prefix, room) =>
-                        Boolean(form?.querySelector(
-                            `[name="${CSS.escape(`${prefix}:${room}`)}"]`)?.checked);
-                    const ownedNow = room => Boolean(form?.querySelector(
-                        `[name="${CSS.escape(`owner:${room}`)}"]`)?.value);
+        </form>`);
+}
 
-                    const open = rooms.filter(room =>
-                        !ownedNow(room)
-                        && !ticked("notshared", room)
-                        && !ticked("locked", room));
-                    const want = roomsWantedFor(living);
-                    ratio.textContent = game.i18n.format("DRPG.Vault.roomRatio", {
-                        open: open.length,
-                        living,
-                        per: living ? (open.length / living).toFixed(1) : "?",
-                        target: ROOMS_PER_PLAYER,
-                        want
-                    });
-                    ratio.classList.toggle("drpg-warning", living > 0 && open.length > want);
-                };
-                dialog.element.addEventListener("change", ev => {
-                    const name = String(ev.target?.name ?? "");
-                    if (name.startsWith("locked:") || name.startsWith("notshared:")
-                        || name.startsWith("owner:")) paintRatio();
-                });
-                paintRatio();
-            }
-            const root = dialog.element;
-
-            // Deliberately no REFIT on a switch. The window was measured for
-            // the biggest tab when it opened and keeps that size for all of
-            // them: switching tabs is a comparison, and a window that resizes
-            // under a comparison is the thing being complained about.
-            //
-            // The footer pin is a different question and does have to be
-            // redone: each tab holds a different table, so whether this
-            // window scrolls sideways changes with the tab, and a bar pinned
-            // for the Fog tab is wrong for Bedrooms (C-F5-8).
-            wireDashboardTabs(root, {
-                onSwitch: () => requestAnimationFrame(() => pinFooterAcrossScroll(dialog))
-            });
-
-            const recount = where => recountTokenCells(where, scene);
-
-            /*
-             * Cycle a stash cell: none -> open -> hidden -> none.
-             *
-             * The hidden input is the truth and the glyph follows it, never the
-             * other way round - Apply reads the input, and a cell whose picture
-             * and value could disagree is a cell that lies to whoever saves it.
-             */
-            const GLYPHS = {
-                "": '<span class="drpg-stash-none">-</span>',
-                open: '<i class="fa-solid fa-box-open"></i>',
-                hidden: '<i class="fa-solid fa-box"></i><i class="fa-solid fa-lock drpg-stash-lock"></i>'
-            };
-            const NEXT = { "": "open", open: "hidden", hidden: "" };
-            for (const button of root.querySelectorAll("[data-drpg-stash]")) {
-                button.addEventListener("click", ev => {
-                    ev.preventDefault();
-                    const input = button.parentElement?.querySelector("input[type=hidden]");
-                    if (!input) return;
-                    input.value = NEXT[input.value] ?? "open";
-                    button.innerHTML = GLYPHS[input.value];
-                });
-            }
-
-            // A room cannot favour and hinder the same category. Ticking one
-            // side clears the other quietly - refusing at Apply instead would
-            // send the GM hunting through checkboxes for the contradiction.
-            // The room name may itself contain ":", so the category is read
-            // from the LAST segment and the room is everything between.
-            root.querySelector("form")?.addEventListener("change", ev => {
-                const m = ev.target?.name?.match(/^(fav|hin):(.+):([^:]+)$/);
-                if (!m || !ev.target.checked) return;
-                const twin = root.querySelector(`[name="${
-                    CSS.escape(`${m[1] === "fav" ? "hin" : "fav"}:${m[2]}:${m[3]}`)}"]`);
-                if (twin) twin.checked = false;
-            });
-
-            // The search-token controls act AT ONCE and recount in place.
-            //
-            // They are not part of Apply, for the same reason the Monocub
-            // manager's "give Hope" button is not: this is a counter the table
-            // is currently spending, and a GM who nudges it and then cancels the
-            // rest of the form should not find the nudge undone with it. The
-            // count is re-read from `SearchTokens` after the write rather than
-            // guessed from the cell, so a spend that arrived from a player's
-            // client mid-edit is reflected instead of overwritten.
-            for (const button of root.querySelectorAll("[data-drpg-token]")) {
-                button.addEventListener("click", async ev => {
-                    ev.preventDefault();
-                    const room = button.dataset.drpgToken;
-                    const by = button.dataset.drpgTokenBy;
-                    const now = SearchTokens.left(room, scene);
-                    const want = by === "max" ? SearchTokens.max : now + Number(by);
-                    await SearchTokens.setFor(room, want, scene);
-                    // The write comes back through `recount` below like anybody
-                    // else's, so there is no second copy of "what the cell says".
-                    recount(root);
-                });
-            }
-
-            /* AND THE COUNTS FOLLOW THE TABLE THAT IS SPENDING THEM.
-
-               Every Search a player makes writes this number, and this window is open
-               during Daily Life precisely because a GM is watching them do it. Measured
-               on 11.09: with Room Setup open, a room went from 1 token to 0 and the cell
-               went on reading 1.
-
-               `keepFresh` rather than `keepLive`: the count sits in a row that also
-               carries the sealed checkbox and the item-table select, and those are saved
-               on Apply. Swapping the region out would throw away whatever the GM has
-               ticked and not yet applied, and take the three buttons above with it. So
-               the numbers are written in place and nothing else is touched.
-
-               Scoped to the search-token setting: a window this size has no business
-               redrawing because somebody rolled a die. */
-            keepFresh(dialog, {
-                run: recount,
-                watch: { settings: [SETTINGS.searchTokens] }
-            });
-        },
-        rejectClose: false
-    });
-
-    if (!result || result === "cancel") return null;
-
-    if (result === "discoverAll" || result === "hideAll") {
-        await setDiscovery(scene, { rooms, value: result === "discoverAll" });
-        // Back onto the tab those two buttons act on - reopening at the first
-        // tab made the GM walk back to Fog to see what they just did.
-        return openRoomSetupDialog({ tab: "fog" });
+/** What Apply hands back: every row, the fog matrix and the stash matrix, read off the form by input name. */
+function readRoomSetupForm(d, { rooms, students, categories }) {
+    const f = d.element.querySelector("form");
+    const pick = name => f.querySelector(`[name="${CSS.escape(name)}"]`);
+    const roomRows = rooms.map(room => ({
+        room,
+        owner: pick(`owner:${room}`)?.value ?? "",
+        shortRest: Boolean(pick(`short:${room}`)?.checked),
+        longRest: Boolean(pick(`long:${room}`)?.checked),
+        locked: Boolean(pick(`locked:${room}`)?.checked),
+        lockedAtStart: Boolean(pick(`startlocked:${room}`)?.checked),
+        noSearch: Boolean(pick(`nosearch:${room}`)?.checked),
+        notShared: Boolean(pick(`notshared:${room}`)?.checked),
+        description: (pick(`desc:${room}`)?.value ?? "").trim(),
+        table: pick(`table:${room}`)?.value ?? "",
+        favours: categories
+            .map(([key]) => key)
+            .filter(key => pick(`fav:${room}:${key}`)?.checked),
+        // The render hook keeps the two columns exclusive in
+        // the UI; the filter repeats it here so a row somebody
+        // edited by other means still cannot say both.
+        hinders: categories
+            .map(([key]) => key)
+            .filter(key => pick(`hin:${room}:${key}`)?.checked
+                && !pick(`fav:${room}:${key}`)?.checked)
+    }));
+    const fogMatrix = {};
+    for (const actor of students) {
+        fogMatrix[actor.id] = rooms.filter(room =>
+            pick(`fog:${room}:${actor.id}`)?.checked);
     }
+    // Room -> the stashes the GM left in it. Empty cells are
+    // simply absent, which is what "no stash" means.
+    const stashMatrix = {};
+    for (const room of rooms) {
+        stashMatrix[room] = students
+            .map(actor => ({
+                actorId: actor.id,
+                state: pick(`stash:${room}:${actor.id}`)?.value ?? ""
+            }))
+            .filter(entry => entry.state)
+            .map(entry => ({
+                actorId: entry.actorId,
+                concealed: entry.state === "hidden"
+            }));
+    }
+    return { rooms: roomRows, fog: fogMatrix, stashes: stashMatrix };
+}
 
-    if (result.fog) await saveDiscoveryMatrix(scene, result.fog);
+/*
+ * HOW BIG THIS BUILDING IS FOR THE PEOPLE STILL IN IT (Dawid, 31.08).
+ *
+ * G-36 asks for one and a half SHARED rooms per player, and that rule
+ * lives at season setup where nobody reads it again. Students die and
+ * rooms do not: after the third trial eight people rattle around a
+ * building built for sixteen, nobody meets anybody, and there are no
+ * witnesses to anything.
+ *
+ * Deliberately not a mechanic - the GM closes wings by hand, which is
+ * what the locks below are for. This is the number they need while
+ * doing it, and it follows the boxes as they are ticked rather than
+ * reporting the state the window opened in.
+ *
+ * Bedrooms are left out of the count because G-36 counts shared
+ * rooms: a bedroom belongs to one person whether or not anybody else
+ * can get into it.
+ */
+function wireRoomRatio(dialog, rooms, living) {
+    const ratio = dialog.element.querySelector("[data-drpg-ratio]");
+    if (ratio) {
+        const paintRatio = () => {
+            const form = dialog.element.querySelector("form");
+            /*
+             * READ OFF THE FORM, NOT OFF THE FLAGS (audit A21).
+             *
+             * Both exclusions are columns the GM is looking at right
+             * now - the owner on the Bedrooms tab, "Counts as a room"
+             * on this one - so the line has to follow the ticks rather
+             * than the saved state, exactly as it already followed the
+             * locks. `sharedRooms()` is the same rule read from the
+             * flags, and is what the season checklist uses; this is
+             * that rule applied to what is on screen.
+             */
+            const ticked = (prefix, room) =>
+                Boolean(form?.querySelector(
+                    `[name="${CSS.escape(`${prefix}:${room}`)}"]`)?.checked);
+            const ownedNow = room => Boolean(form?.querySelector(
+                `[name="${CSS.escape(`owner:${room}`)}"]`)?.value);
 
-    const rowResults = result.rooms;
-    if (!Array.isArray(rowResults)) return null;
+            const open = rooms.filter(room =>
+                !ownedNow(room)
+                && !ticked("notshared", room)
+                && !ticked("locked", room));
+            const want = roomsWantedFor(living);
+            ratio.textContent = game.i18n.format("DRPG.Vault.roomRatio", {
+                open: open.length,
+                living,
+                per: living ? (open.length / living).toFixed(1) : "?",
+                target: ROOMS_PER_PLAYER,
+                want
+            });
+            ratio.classList.toggle("drpg-warning", living > 0 && open.length > want);
+        };
+        dialog.element.addEventListener("change", ev => {
+            const name = String(ev.target?.name ?? "");
+            if (name.startsWith("locked:") || name.startsWith("notshared:")
+                || name.startsWith("owner:")) paintRatio();
+        });
+        paintRatio();
+    }
+}
 
-    // One owner, one room. Two bedrooms pointing at the same student would make
-    // `vaultRoomFor` answer differently depending on region order, which is the
-    // kind of bug that only shows up mid-session.
+/*
+ * Cycle a stash cell: none -> open -> hidden -> none.
+ *
+ * The hidden input is the truth and the glyph follows it, never the
+ * other way round - Apply reads the input, and a cell whose picture
+ * and value could disagree is a cell that lies to whoever saves it.
+ */
+function wireStashCells(root) {
+    const NEXT = { "": "open", open: "hidden", hidden: "" };
+    for (const button of root.querySelectorAll("[data-drpg-stash]")) {
+        button.addEventListener("click", ev => {
+            ev.preventDefault();
+            const input = button.parentElement?.querySelector("input[type=hidden]");
+            if (!input) return;
+            input.value = NEXT[input.value] ?? "open";
+            button.innerHTML = stashGlyph(input.value);
+        });
+    }
+}
+
+// A room cannot favour and hinder the same category. Ticking one
+// side clears the other quietly - refusing at Apply instead would
+// send the GM hunting through checkboxes for the contradiction.
+// The room name may itself contain ":", so the category is read
+// from the LAST segment and the room is everything between.
+function wireFavourExclusion(root) {
+    root.querySelector("form")?.addEventListener("change", ev => {
+        const m = ev.target?.name?.match(/^(fav|hin):(.+):([^:]+)$/);
+        if (!m || !ev.target.checked) return;
+        const twin = root.querySelector(`[name="${
+            CSS.escape(`${m[1] === "fav" ? "hin" : "fav"}:${m[2]}:${m[3]}`)}"]`);
+        if (twin) twin.checked = false;
+    });
+}
+
+// The search-token controls act AT ONCE and recount in place.
+//
+// They are not part of Apply, for the same reason the Monocub
+// manager's "give Hope" button is not: this is a counter the table
+// is currently spending, and a GM who nudges it and then cancels the
+// rest of the form should not find the nudge undone with it. The
+// count is re-read from `SearchTokens` after the write rather than
+// guessed from the cell, so a spend that arrived from a player's
+// client mid-edit is reflected instead of overwritten.
+function wireTokenButtons(root, scene, recount) {
+    for (const button of root.querySelectorAll("[data-drpg-token]")) {
+        button.addEventListener("click", async ev => {
+            ev.preventDefault();
+            const room = button.dataset.drpgToken;
+            const by = button.dataset.drpgTokenBy;
+            const now = SearchTokens.left(room, scene);
+            const want = by === "max" ? SearchTokens.max : now + Number(by);
+            await SearchTokens.setFor(room, want, scene);
+            // The write comes back through `recount` below like anybody
+            // else's, so there is no second copy of "what the cell says".
+            recount(root);
+        });
+    }
+}
+
+// One owner, one room. Two bedrooms pointing at the same student would make
+// `vaultRoomFor` answer differently depending on region order, which is the
+// kind of bug that only shows up mid-session.
+function bedroomClaimedTwice(rowResults) {
     const claimed = new Map();
     for (const row of rowResults) {
         if (!row.owner) continue;
@@ -2210,11 +2099,15 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
                 name: game.actors.get(row.owner)?.name ?? "?",
                 a: claimed.get(row.owner), b: row.room
             }));
-            return null;
+            return true;
         }
         claimed.set(row.owner, row.room);
     }
+    return false;
+}
 
+/** Write every row that differs from its region. Answers how many changed and whose bedroom moved. */
+async function applyRoomRows(rowResults, { REST_FLAGS, setRestRoom }) {
     let changed = 0;
     // Rooms whose BEDROOM OWNER moved in this Apply. Collected rather than acted
     // on inline because the seeding below has to run after the stash matrix has
@@ -2311,64 +2204,229 @@ export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
 
         changed++;
     }
+    return { changed, ownerMoved };
+}
 
-    /*
-     * THE STASH MATRIX, and the two rules that make it safe.
-     *
-     * TRAP 77 - A STASH WITH THINGS IN IT IS NOT REMOVED. Taking one away would
-     * leave every item in it pointing at a stash that no longer exists, which is
-     * an item on no list at all: not carried, not in any drawer, gone from the
-     * sheet and findable only by a GM reading flags. So the removal is refused,
-     * with the count, and the GM is told whose things and how many. The cell
-     * snaps back on the next open because the form is redrawn from the flags.
-     */
-    if (result.stashes && typeof result.stashes === "object") {
-        for (const [room, wanted] of Object.entries(result.stashes)) {
-            const current = stashesIn(room, scene);
-            const keep = new Map(wanted.map(entry => [entry.actorId, entry]));
+/*
+ * THE STASH MATRIX, and the two rules that make it safe.
+ *
+ * TRAP 77 - A STASH WITH THINGS IN IT IS NOT REMOVED. Taking one away would
+ * leave every item in it pointing at a stash that no longer exists, which is
+ * an item on no list at all: not carried, not in any drawer, gone from the
+ * sheet and findable only by a GM reading flags. So the removal is refused,
+ * with the count, and the GM is told whose things and how many. The cell
+ * snaps back on the next open because the form is redrawn from the flags.
+ */
+async function applyStashMatrix(stashes, scene) {
+    let changed = 0;
+    for (const [room, wanted] of Object.entries(stashes)) {
+        const current = stashesIn(room, scene);
+        const keep = new Map(wanted.map(entry => [entry.actorId, entry]));
 
-            for (const entry of current) {
-                if (keep.has(entry.actorId)) continue;
-                const owner = game.actors.get(entry.actorId);
-                const held = owner ? stashItemsIn(owner, room, scene).length : 0;
-                if (held) {
-                    ui.notifications.warn(plural("DRPG.Vault.stashNotEmpty", {
-                        name: owner?.name ?? "?", room, n: held
-                    }));
-                    keep.set(entry.actorId, entry);      // refused: leave it alone
-                    continue;
-                }
-                await setStash(room, entry.actorId, { present: false });
-                changed++;
+        for (const entry of current) {
+            if (keep.has(entry.actorId)) continue;
+            const owner = game.actors.get(entry.actorId);
+            const held = owner ? stashItemsIn(owner, room, scene).length : 0;
+            if (held) {
+                ui.notifications.warn(plural("DRPG.Vault.stashNotEmpty", {
+                    name: owner?.name ?? "?", room, n: held
+                }));
+                keep.set(entry.actorId, entry);      // refused: leave it alone
+                continue;
             }
+            await setStash(room, entry.actorId, { present: false });
+            changed++;
+        }
 
-            for (const entry of keep.values()) {
-                const was = current.find(e => e.actorId === entry.actorId);
-                if (was && was.concealed === entry.concealed) continue;
-                await setStash(room, entry.actorId, { concealed: entry.concealed });
-                changed++;
-            }
+        for (const entry of keep.values()) {
+            const was = current.find(e => e.actorId === entry.actorId);
+            if (was && was.concealed === entry.concealed) continue;
+            await setStash(room, entry.actorId, { concealed: entry.concealed });
+            changed++;
         }
     }
+    return changed;
+}
 
-    /*
-     * TRAP 76 - SEEDING RUNS ON AN OWNER CHANGE, NEVER ON EVERY APPLY.
-     *
-     * Giving somebody a bedroom gives them a stash in it, which is what makes
-     * the split invisible to a GM who never opens the new tab. But if it ran
-     * every time the form was saved, then removing a stash on the Stashes tab
-     * and pressing Apply would put it straight back - a button that unclicks
-     * itself, and the GM would have no way to tell it apart from a bug.
-     *
-     * `?? false` rather than a plain create: `setStash` leaves an existing entry
-     * alone when told nothing about concealment, so a GM who already hid the
-     * owner's stash keeps it hidden.
-     */
+/*
+ * TRAP 76 - SEEDING RUNS ON AN OWNER CHANGE, NEVER ON EVERY APPLY.
+ *
+ * Giving somebody a bedroom gives them a stash in it, which is what makes
+ * the split invisible to a GM who never opens the new tab. But if it ran
+ * every time the form was saved, then removing a stash on the Stashes tab
+ * and pressing Apply would put it straight back - a button that unclicks
+ * itself, and the GM would have no way to tell it apart from a bug.
+ *
+ * `?? false` rather than a plain create: `setStash` leaves an existing entry
+ * alone when told nothing about concealment, so a GM who already hid the
+ * owner's stash keeps it hidden.
+ */
+async function seedOwnerStashes(ownerMoved, scene) {
+    let changed = 0;
     for (const { room, owner } of ownerMoved) {
         if (stashIn(room, owner, scene)) continue;
         await setStash(room, owner, { concealed: false });
         changed++;
     }
+    return changed;
+}
+
+export async function openRoomSetupDialog({ tab = "bedrooms" } = {}) {
+    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
+    // window each read the world when they opened and neither knows about the
+    // other, so the older one goes on looking authoritative while showing
+    // something that stopped being true. Raised rather than refused: pressing
+    // twice usually means the window is behind something.
+    if (alreadyOpen("drpg-window-rooms")) return null;
+
+    if (!game.user.isGM) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
+        return null;
+    }
+
+    // Alphabetical, because a GM opens this looking for ONE room by name. The
+    // order regions come in is the order somebody happened to draw the map,
+    // which is nobody's mental model of the building.
+    const rooms = Array.from(regionsByName().keys()).sort((a, b) => a.localeCompare(b));
+    if (!rooms.length) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Vault.noRooms"));
+        return null;
+    }
+
+    const { studentActors } = await import("./monokuma.mjs");
+    const { REST_FLAGS, setRestRoom } = await import("./rest.mjs");
+    const { discoveredFor, saveDiscoveryMatrix, setDiscovery, sceneUncoveredPercent } =
+        await import("./fog.mjs");
+    const scene = workingScene();
+    const students = studentActors();
+    const { isDeceased } = await import("./chapter.mjs");
+    const living = students.filter(a => !isDeceased(a)).length;
+    // Room pools only. The tier pools (`tableName()`'s family) answer dice
+    // rolls and are never a room's stock - see `isTierPool` in tables.mjs.
+    const tables = Array.from(game.tables ?? [])
+        .map(t => t.name)
+        .filter(n => !isTierPool(n))
+        .sort();
+    /*
+     * WHAT A ROOM CAN BE GOOD OR BAD FOR (audit A24).
+     *
+     * Truth Bullets are not searched for, and neither are bedroom keys - a key
+     * is granted with a room on it, never drawn from a pool - so neither is a
+     * category a room can stock or favour. The key was on offer here because
+     * this list was `ITEM_CATEGORIES` minus Truth Bullets alone; ticking it
+     * bought nothing, because no Search ever asks for that category.
+     *
+     * `splitUsables: false` on purpose, and it is the one place that asks for
+     * it: a Search hands `favoursCategory` the CATEGORY it is drawing on, and
+     * both usable kinds draw on `usable`. Splitting the column would offer a
+     * distinction the lookup cannot honour.
+     */
+    const categories = pickableCategories({ splitUsables: false })
+        .map(c => [c.key, ITEM_CATEGORIES[c.key]]);
+    const regions = regionsByName();
+
+    const uncovered = sceneUncoveredPercent(scene);
+    const maxTokens = SearchTokens.max;
+
+    const known = new Map(students.map(a => [a.id, new Set(discoveredFor(scene?.id, a.id))]));
+    const fogRows = fogMatrixRows(rooms, students, known);
+    const stashRows = stashMatrixRows(rooms, students, scene);
+    const cells = roomCells(rooms, { students, tables, categories, regions, scene, maxTokens, REST_FLAGS });
+
+    const initial = ROOM_SETUP_TABS.some(([key]) => key === tab) ? tab : "bedrooms";
+
+    const result = await tableDialog({
+        window: { title: game.i18n.localize("DRPG.Vault.manageTitle") },
+        // `drpg-projects` as well as `drpg-panel`: that is the class the
+        // stylesheet hangs the table treatment on - full width, a scrolling
+        // window-content and sane select sizing. Without it this dialog asked
+        // for 860px, lost to the 26rem `.drpg-panel` cap, and clipped its own
+        // right-hand columns with no way to scroll to them.
+        classes: ["drpg-panel", "drpg-projects", "drpg-room-setup", "drpg-window-rooms"],
+        // One size for all five tabs, taken from the biggest of them - see
+        // `fitWindowToTabs`. Without it the window is fitted to whichever tab
+        // is showing and jumps between 708px and 1504px as the GM switches.
+        fitTabs: true,
+        content: roomSetupContent({ initial, cells, students, stashRows, fogRows, uncovered, maxTokens }),
+        buttons: [
+            {
+                action: "ok", label: game.i18n.localize("DRPG.Panel.apply"), default: true,
+                callback: (e, b, d) => readRoomSetupForm(d, { rooms, students, categories })
+            },
+            { action: "discoverAll", label: game.i18n.localize("DRPG.Vault.discoverAll") },
+            { action: "hideAll", label: game.i18n.localize("DRPG.Vault.hideAll") },
+            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
+        ],
+        render: (event, dialog) => {
+            wireRoomRatio(dialog, rooms, living);
+            const root = dialog.element;
+
+            // Deliberately no REFIT on a switch. The window was measured for
+            // the biggest tab when it opened and keeps that size for all of
+            // them: switching tabs is a comparison, and a window that resizes
+            // under a comparison is the thing being complained about.
+            //
+            // The footer pin is a different question and does have to be
+            // redone: each tab holds a different table, so whether this
+            // window scrolls sideways changes with the tab, and a bar pinned
+            // for the Fog tab is wrong for Bedrooms (C-F5-8).
+            wireDashboardTabs(root, {
+                onSwitch: () => requestAnimationFrame(() => pinFooterAcrossScroll(dialog))
+            });
+
+            const recount = where => recountTokenCells(where, scene);
+
+            wireStashCells(root);
+            wireFavourExclusion(root);
+            wireTokenButtons(root, scene, recount);
+
+            /* AND THE COUNTS FOLLOW THE TABLE THAT IS SPENDING THEM.
+
+               Every Search a player makes writes this number, and this window is open
+               during Daily Life precisely because a GM is watching them do it. Measured
+               on 11.09: with Room Setup open, a room went from 1 token to 0 and the cell
+               went on reading 1.
+
+               `keepFresh` rather than `keepLive`: the count sits in a row that also
+               carries the sealed checkbox and the item-table select, and those are saved
+               on Apply. Swapping the region out would throw away whatever the GM has
+               ticked and not yet applied, and take the three buttons above with it. So
+               the numbers are written in place and nothing else is touched.
+
+               Scoped to the search-token setting: a window this size has no business
+               redrawing because somebody rolled a die. */
+            keepFresh(dialog, {
+                run: recount,
+                watch: { settings: [SETTINGS.searchTokens] }
+            });
+        },
+        rejectClose: false
+    });
+
+    if (!result || result === "cancel") return null;
+
+    if (result === "discoverAll" || result === "hideAll") {
+        await setDiscovery(scene, { rooms, value: result === "discoverAll" });
+        // Back onto the tab those two buttons act on - reopening at the first
+        // tab made the GM walk back to Fog to see what they just did.
+        return openRoomSetupDialog({ tab: "fog" });
+    }
+
+    if (result.fog) await saveDiscoveryMatrix(scene, result.fog);
+
+    const rowResults = result.rooms;
+    if (!Array.isArray(rowResults)) return null;
+
+    if (bedroomClaimedTwice(rowResults)) return null;
+
+    const { changed: rowsChanged, ownerMoved } = await applyRoomRows(rowResults, { REST_FLAGS, setRestRoom });
+    let changed = rowsChanged;
+
+    if (result.stashes && typeof result.stashes === "object") {
+        changed += await applyStashMatrix(result.stashes, scene);
+    }
+
+    changed += await seedOwnerStashes(ownerMoved, scene);
 
     // AFTER the loop, and outside it: keys are issued by sweeping every owned
     // room, not by noticing an owner change. See `reconcileBedroomKeys` for why
