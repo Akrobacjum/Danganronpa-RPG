@@ -2,7 +2,7 @@
   "scenario": "scenarios/12-social.mjs",
   "passed": 9,
   "total": 9,
-  "ms": 668,
+  "ms": 653,
   "results": [
     {
       "name": "forcePrivateRolls default state",
@@ -73,6 +73,26 @@
       "size": 73
     },
     {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 62
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 29
+    },
+    {
       "from": "p3",
       "channel": "module.danganronpa-rpg",
       "size": 99
@@ -83,26 +103,6 @@
       "size": 73
     },
     {
-      "from": "gm",
-      "channel": "module.danganronpa-rpg",
-      "size": 29
-    },
-    {
-      "from": "p1",
-      "channel": "module.danganronpa-rpg",
-      "size": 62
-    },
-    {
-      "from": "p1",
-      "channel": "module.danganronpa-rpg",
-      "size": 91
-    },
-    {
-      "from": "p1",
-      "channel": "module.danganronpa-rpg",
-      "size": 99
-    },
-    {
       "from": "p2",
       "channel": "module.danganronpa-rpg",
       "size": 62
@@ -114,21 +114,6 @@
     },
     {
       "from": "p2",
-      "channel": "module.danganronpa-rpg",
-      "size": 99
-    },
-    {
-      "from": "p3",
-      "channel": "module.danganronpa-rpg",
-      "size": 62
-    },
-    {
-      "from": "p3",
-      "channel": "module.danganronpa-rpg",
-      "size": 91
-    },
-    {
-      "from": "p3",
       "channel": "module.danganronpa-rpg",
       "size": 99
     },
@@ -138,14 +123,29 @@
       "size": 27
     },
     {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 72
+    },
+    {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
       "size": 91
     },
     {
-      "from": "p1",
+      "from": "p3",
       "channel": "module.danganronpa-rpg",
-      "size": 72
+      "size": 62
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
     },
     {
       "from": "p2",
@@ -168,11 +168,6 @@
       "size": 147
     },
     {
-      "from": "p3",
-      "channel": "module.danganronpa-rpg",
-      "size": 72
-    },
-    {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
       "size": 147
@@ -216,6 +211,11 @@
       "from": "gm",
       "channel": "module.danganronpa-rpg",
       "size": 118
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 72
     },
     {
       "from": "gm",
@@ -234,12 +234,12 @@
       "drpg": true,
       "settingsRegistered": 66
     },
-    "p3": {
+    "gm": {
       "t": "ready",
       "drpg": true,
       "settingsRegistered": 66
     },
-    "gm": {
+    "p3": {
       "t": "ready",
       "drpg": true,
       "settingsRegistered": 66

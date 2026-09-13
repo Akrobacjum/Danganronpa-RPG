@@ -2044,7 +2044,6 @@ async function workOnProject(actor, def, options, chosen = null) {
     const indirect = isIndirectMurder(project.id);
     const witnesses = othersInRoom(actor);
     const lines = [];
-    let bonus = 0;
 
     // Pay before any dice are thrown.
     //
@@ -2055,30 +2054,9 @@ async function workOnProject(actor, def, options, chosen = null) {
     // generator anyone could run all day.
     if (cost > 0 && !await spendAction(actor, cost)) return null;
 
-    // Guide: with someone else in the room, the killer must hide their intent
-    // first; alone, the project simply gains +1 progress.
-    let rolledAlready = false;
-    if (indirect) {
-        if (witnesses.length) {
-            const conceal = await rollTrait(actor, INDIRECT_MURDER.concealIntent.trait, {
-                remember: false, title: game.i18n.localize("DRPG.Roll.concealIntent"),
-                dc: INDIRECT_MURDER.concealIntent.threshold
-            });
-            if (!conceal) return abort(actor, cost);
-            rolledAlready = true;
-            const ok = conceal.isCritical || conceal.total >= INDIRECT_MURDER.concealIntent.threshold;
-            lines.push(`<p><strong>${INDIRECT_MURDER.concealIntent.label}</strong> - ${conceal.total}: ${
-                ok ? (conceal.withFear
-                        ? INDIRECT_MURDER.concealIntent.successWithDespair
-                        : INDIRECT_MURDER.concealIntent.success)
-                   : INDIRECT_MURDER.concealIntent.failure
-            }</p>`);
-            if (ok && conceal.withFear) bonus += 1;
-        } else {
-            bonus += INDIRECT_MURDER.concealIntent.aloneBonus;
-            lines.push(`<p><em>${game.i18n.localize("DRPG.Project.aloneBonus")}</em></p>`);
-        }
-    }
+    const concealment = await concealProjectIntent(actor, { indirect, witnesses, cost, lines });
+    if ("exit" in concealment) return concealment.exit;
+    const { bonus, rolledAlready } = concealment;
 
     /*
      * A TOOL IN HAND IS WORTH A DIE (E8).
@@ -2151,50 +2129,7 @@ async function workOnProject(actor, def, options, chosen = null) {
         refunded: Boolean(hit?.refundAction && cost > 0)
     });
 
-    // Guide: every project action also rolls to hide the traces it leaves.
-    let traceLeftTrace = false;
-    if (indirect) {
-        const trace = await rollTrait(actor, INDIRECT_MURDER.hideTraces.trait, {
-            remember: false, title: game.i18n.localize("DRPG.Roll.hideTraces"),
-            dc: (INDIRECT_MURDER.hideTraces.thresholds ?? []).map(t => t.min).filter(Boolean).join(" / ")
-        });
-        if (trace) {
-            const band = trace.isCritical
-                ? INDIRECT_MURDER.hideTraces.critical
-                : resolveThreshold(trace.total, INDIRECT_MURDER.hideTraces.thresholds);
-            const traceRemnant = band?.remnant ?? "obvious";
-
-            const { dropRemnant, traceFeedback } = await import("./remnants.mjs");
-            const placed = await dropRemnant(actor, {
-                type: "prep",
-                visibility: traceRemnant,
-                faint: true,
-                // THE EFFECT OF A PROJECT TIED TO THE MURDER is part of it
-                // (Dawid, 28.08). An indirect murder IS the murder, built in
-                // instalments, so the traces of building it are the traces of
-                // committing it. `null` for every other project, which leaves
-                // the incident rule free to answer.
-                tiedToCrime: project.indirectMurder ? true : null,
-                action: "project",
-                subject: project.name,
-                note: game.i18n.format("DRPG.Remnant.projectNote", {
-                    actor: actor.name,
-                    project: project.name,
-                    room: roomOfActor(actor) ?? "?",
-                    progress,
-                    total: trace.total
-                })
-            });
-            traceLeftTrace = traceFeedback(trace, placed);
-
-            // Just the score - never the band this rolled into (see
-            // `traceFeedback`). Whether anything is said about the trace
-            // itself is `report()`'s generic `outcome.leftTrace` line below,
-            // the same one every other action uses, so this does not print
-            // its own second copy of that sentence.
-            lines.push(`<p><strong>${INDIRECT_MURDER.hideTraces.label}</strong> - ${trace.total}</p>`);
-        }
-    }
+    const traceLeftTrace = indirect ? await hideProjectTraces(actor, project, progress, lines) : false;
 
     // A critical on a project hands the action back. Applied here, where the
     // action was spent, rather than inside `report()`.
@@ -2221,6 +2156,81 @@ async function workOnProject(actor, def, options, chosen = null) {
         actor, actionKey: "project", roll, outcome, projectId: project.id
     });
     return outcome;
+}
+
+// Guide: with someone else in the room, the killer must hide their intent
+// first; alone, the project simply gains +1 progress.
+async function concealProjectIntent(actor, { indirect, witnesses, cost, lines }) {
+    let bonus = 0;
+    let rolledAlready = false;
+    if (indirect) {
+        if (witnesses.length) {
+            const conceal = await rollTrait(actor, INDIRECT_MURDER.concealIntent.trait, {
+                remember: false, title: game.i18n.localize("DRPG.Roll.concealIntent"),
+                dc: INDIRECT_MURDER.concealIntent.threshold
+            });
+            if (!conceal) return { exit: await abort(actor, cost) };
+            rolledAlready = true;
+            const ok = conceal.isCritical || conceal.total >= INDIRECT_MURDER.concealIntent.threshold;
+            lines.push(`<p><strong>${INDIRECT_MURDER.concealIntent.label}</strong> - ${conceal.total}: ${
+                ok ? (conceal.withFear
+                        ? INDIRECT_MURDER.concealIntent.successWithDespair
+                        : INDIRECT_MURDER.concealIntent.success)
+                   : INDIRECT_MURDER.concealIntent.failure
+            }</p>`);
+            if (ok && conceal.withFear) bonus += 1;
+        } else {
+            bonus += INDIRECT_MURDER.concealIntent.aloneBonus;
+            lines.push(`<p><em>${game.i18n.localize("DRPG.Project.aloneBonus")}</em></p>`);
+        }
+    }
+    return { bonus, rolledAlready };
+}
+
+    // Guide: every project action also rolls to hide the traces it leaves.
+async function hideProjectTraces(actor, project, progress, lines) {
+    let traceLeftTrace = false;
+    const trace = await rollTrait(actor, INDIRECT_MURDER.hideTraces.trait, {
+        remember: false, title: game.i18n.localize("DRPG.Roll.hideTraces"),
+        dc: (INDIRECT_MURDER.hideTraces.thresholds ?? []).map(t => t.min).filter(Boolean).join(" / ")
+    });
+    if (trace) {
+        const band = trace.isCritical
+            ? INDIRECT_MURDER.hideTraces.critical
+            : resolveThreshold(trace.total, INDIRECT_MURDER.hideTraces.thresholds);
+        const traceRemnant = band?.remnant ?? "obvious";
+
+        const { dropRemnant, traceFeedback } = await import("./remnants.mjs");
+        const placed = await dropRemnant(actor, {
+            type: "prep",
+            visibility: traceRemnant,
+            faint: true,
+            // THE EFFECT OF A PROJECT TIED TO THE MURDER is part of it
+            // (Dawid, 28.08). An indirect murder IS the murder, built in
+            // instalments, so the traces of building it are the traces of
+            // committing it. `null` for every other project, which leaves
+            // the incident rule free to answer.
+            tiedToCrime: project.indirectMurder ? true : null,
+            action: "project",
+            subject: project.name,
+            note: game.i18n.format("DRPG.Remnant.projectNote", {
+                actor: actor.name,
+                project: project.name,
+                room: roomOfActor(actor) ?? "?",
+                progress,
+                total: trace.total
+            })
+        });
+        traceLeftTrace = traceFeedback(trace, placed);
+
+        // Just the score - never the band this rolled into (see
+        // `traceFeedback`). Whether anything is said about the trace
+        // itself is `report()`'s generic `outcome.leftTrace` line below,
+        // the same one every other action uses, so this does not print
+        // its own second copy of that sentence.
+        lines.push(`<p><strong>${INDIRECT_MURDER.hideTraces.label}</strong> - ${trace.total}</p>`);
+    }
+    return traceLeftTrace;
 }
 
 /**
@@ -2705,85 +2715,33 @@ async function soundSabotage(actor, room, outcome) {
  * remove. One of the two costs a socket round trip: which traces are yours is a
  * question only a GM's client can answer (trap 85).
  */
-async function performTamper(actor, def, options) {
-    /*
-     * FREE FOR THE KILLER, ON THEIR OWN NIGHT (D3).
-     *
-     * The action is not actually spent here - `spendResolutionAction` inside
-     * `attemptCleanup` does that, on both roads - so all this line does is
-     * decide whether to REFUSE for want of one. Left as it was, a killer with
-     * an empty budget would be turned away at the tile from an action that was
-     * about to cost them nothing: the rule would exist and never be reachable
-     * by the people it is for.
-     */
-    const { isCleaner } = await import("./cleanup.mjs");
-    const freeForKiller = isCleaner(actor);
-    const cost = (options.free || freeForKiller) ? 0 : def.cost;
-    if (!canAfford(actor, cost)) return null;
-
-    const room = roomOfActor(actor);
-    if (!room) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Action.noRoom"));
-        return null;
+// The erase ladder for THIS character: the cleaning tool's tier and the
+// fresh scene come off the table's numbers (D1). Computed here, beside
+// the module that scores the roll, rather than in the sync briefing.
+function tamperThresholdFacts(actor, cleanup) {
+    try {
+        const column = Object.fromEntries(REMNANT_VISIBILITY.map(v => [v, cleanup.cleanupDc(v, actor)]));
+        const reliefs = [];
+        const tier = cleanup.cleaningTier(actor);
+        if (CLEANUP.toolTierReducesDc && tier) reliefs.push(game.i18n.format("DRPG.Action.reliefTool", { n: tier }));
+        const fresh = cleanup.freshSceneBonus();
+        if (fresh) reliefs.push(game.i18n.format("DRPG.Action.reliefFresh", { n: fresh }));
+        const facts = [game.i18n.format("DRPG.Action.dcTamper", {
+            rows: ladderRows(column),
+            relief: reliefs.length ? game.i18n.format("DRPG.Action.dcTamperRelief", { what: reliefs.join(", ") }) : ""
+        })];
+        facts.push(game.i18n.format("DRPG.Action.dcFrame", { n: CLEANUP.actions.misleadingTrail.threshold }));
+        if (othersInRoom(actor).length) facts.push(game.i18n.format("DRPG.Action.dcConceal", { n: CLEANUP.conceal.threshold }));
+        return facts;
+    } catch (err) {
+        error("Could not print the Tamper thresholds", err);
+        return [];
     }
+}
 
-    const { requestCleanableTraces } = await import("./gm-bridge.mjs");
-    const cleanup = await import("./cleanup.mjs");
-
-    /*
-     * WHICH STAGE IS THIS TILE STANDING IN.
-     *
-     * Stage 6's three actions used to have a panel of their own under the
-     * action grid; they are these three rows now (Dawid, 28.08). One tile, two
-     * economies, and `isCleaner` is the whole of the difference:
-     *
-     *   the killer, in Stage 6   Sanity and an action, the guide's price. The
-     *                            trace list is the WHOLE ROOM, because the
-     *                            guide opens their eyes to their own scene.
-     *                            Carrying the body is offered.
-     *   anybody, any afternoon   one action. The trace list is only what this
-     *                            character has actually found (see
-     *                            `cleanableTracesForPlayer`). No body.
-     */
-    const stageSix = cleanup.isCleaner(actor);
-
-    const [mine, candidates] = await Promise.all([
-        requestCleanableTraces(actor.id, { mine: !stageSix }),
-        cleanup.framingCandidates(actor)
-    ]);
-
-    // A reinforced trace is not going anywhere, whoever left it. Kept out of
-    // the select rather than shown disabled: Stage 6 shows them because a
-    // killer needs to know what they are stuck with, and that is a fact about
-    // their crime scene. Here it would be a row you can neither pick nor learn
-    // anything from.
-    const erasable = mine.filter(t => !t.reinforced);
-
-    // The erase ladder for THIS character: the cleaning tool's tier and the
-    // fresh scene come off the table's numbers (D1). Computed here, beside
-    // the module that scores the roll, rather than in the sync briefing.
-    const tamperFacts = (() => {
-        try {
-            const column = Object.fromEntries(REMNANT_VISIBILITY.map(v => [v, cleanup.cleanupDc(v, actor)]));
-            const reliefs = [];
-            const tier = cleanup.cleaningTier(actor);
-            if (CLEANUP.toolTierReducesDc && tier) reliefs.push(game.i18n.format("DRPG.Action.reliefTool", { n: tier }));
-            const fresh = cleanup.freshSceneBonus();
-            if (fresh) reliefs.push(game.i18n.format("DRPG.Action.reliefFresh", { n: fresh }));
-            const facts = [game.i18n.format("DRPG.Action.dcTamper", {
-                rows: ladderRows(column),
-                relief: reliefs.length ? game.i18n.format("DRPG.Action.dcTamperRelief", { what: reliefs.join(", ") }) : ""
-            })];
-            facts.push(game.i18n.format("DRPG.Action.dcFrame", { n: CLEANUP.actions.misleadingTrail.threshold }));
-            if (othersInRoom(actor).length) facts.push(game.i18n.format("DRPG.Action.dcConceal", { n: CLEANUP.conceal.threshold }));
-            return facts;
-        } catch (err) {
-            error("Could not print the Tamper thresholds", err);
-            return [];
-        }
-    })();
-
-    const picked = await chooseVariant({
+/** The Tamper menu: cover, reshape, frame, and - for the killer on their own night - the body. */
+async function chooseTamper(actor, def, { erasable, mine, candidates, stageSix, tamperFacts, cleanup }) {
+    return chooseVariant({
         actor,
         title: def.label,
         intro: briefingBlock(actor, "tamper", def, { extraFacts: tamperFacts }),
@@ -2863,13 +2821,10 @@ async function performTamper(actor, def, options) {
                     `<option value="${a.id}">${esc(a.name)}</option>`).join("")}</select>
             </label>` : ""}`
     });
+}
 
-    if (!picked) return null;
-
-    // `viaAction` is the flag that says which economy this is - see the note on
-    // `stageSix` above and the header of cleanup.mjs.
-    const viaAction = !stageSix;
-
+/** Run what the menu chose. Each road charges itself - see the notes on the branches. */
+async function runTamperChoice(actor, picked, { cleanup, erasable, candidates, viaAction }) {
     if (picked.value === "body") {
         // Where the body goes is a decision, not a result, so it is asked
         // before the dice - by the dialog that has always owned that question.
@@ -2900,6 +2855,73 @@ async function performTamper(actor, def, options) {
     const whoId = picked.form?.querySelector("[name=who]")?.value ?? candidates[0]?.id;
     if (!whoId) return null;
     return cleanup.attemptStageSix(actor, "misleadingTrail", whoId, { viaAction });
+}
+
+async function performTamper(actor, def, options) {
+    /*
+     * FREE FOR THE KILLER, ON THEIR OWN NIGHT (D3).
+     *
+     * The action is not actually spent here - `spendResolutionAction` inside
+     * `attemptCleanup` does that, on both roads - so all this line does is
+     * decide whether to REFUSE for want of one. Left as it was, a killer with
+     * an empty budget would be turned away at the tile from an action that was
+     * about to cost them nothing: the rule would exist and never be reachable
+     * by the people it is for.
+     */
+    const { isCleaner } = await import("./cleanup.mjs");
+    const freeForKiller = isCleaner(actor);
+    const cost = (options.free || freeForKiller) ? 0 : def.cost;
+    if (!canAfford(actor, cost)) return null;
+
+    const room = roomOfActor(actor);
+    if (!room) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Action.noRoom"));
+        return null;
+    }
+
+    const { requestCleanableTraces } = await import("./gm-bridge.mjs");
+    const cleanup = await import("./cleanup.mjs");
+
+    /*
+     * WHICH STAGE IS THIS TILE STANDING IN.
+     *
+     * Stage 6's three actions used to have a panel of their own under the
+     * action grid; they are these three rows now (Dawid, 28.08). One tile, two
+     * economies, and `isCleaner` is the whole of the difference:
+     *
+     *   the killer, in Stage 6   Sanity and an action, the guide's price. The
+     *                            trace list is the WHOLE ROOM, because the
+     *                            guide opens their eyes to their own scene.
+     *                            Carrying the body is offered.
+     *   anybody, any afternoon   one action. The trace list is only what this
+     *                            character has actually found (see
+     *                            `cleanableTracesForPlayer`). No body.
+     */
+    const stageSix = cleanup.isCleaner(actor);
+
+    const [mine, candidates] = await Promise.all([
+        requestCleanableTraces(actor.id, { mine: !stageSix }),
+        cleanup.framingCandidates(actor)
+    ]);
+
+    // A reinforced trace is not going anywhere, whoever left it. Kept out of
+    // the select rather than shown disabled: Stage 6 shows them because a
+    // killer needs to know what they are stuck with, and that is a fact about
+    // their crime scene. Here it would be a row you can neither pick nor learn
+    // anything from.
+    const erasable = mine.filter(t => !t.reinforced);
+
+    const tamperFacts = tamperThresholdFacts(actor, cleanup);
+
+    const picked = await chooseTamper(actor, def, { erasable, mine, candidates, stageSix, tamperFacts, cleanup });
+
+    if (!picked) return null;
+
+    // `viaAction` is the flag that says which economy this is - see the note on
+    // `stageSix` above and the header of cleanup.mjs.
+    const viaAction = !stageSix;
+
+    return runTamperChoice(actor, picked, { cleanup, erasable, candidates, viaAction });
 }
 
 /**
@@ -3008,38 +3030,19 @@ async function openCrisisMenu(actor) {
  * stealable, does the victim get told - is made in `stealFromPerson` on a GM's
  * client, against the same table in config.mjs. Same division as Observe.
  */
-async function performPalm(actor, def, options) {
-    const cost = options.free ? 0 : def.cost;
-    if (!canAfford(actor, cost)) return null;
-
-    const room = roomOfActor(actor);
-    if (!room) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Action.noRoom"));
-        return null;
-    }
-
-    // Anybody standing here who is not you. `othersInRoom` already excludes
-    // tokens that do not count as present - see `countsAsPresent`.
-    const targets = othersInRoom(actor).filter(a => a?.type === "character");
-    if (!targets.length) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Steal.nobodyHere"));
-        return null;
-    }
-
-    /*
-     * WHICH WAY, WHO, AND - FOR A PLANT ONLY - WHAT, all in one window.
-     *
-     * The asymmetry in that list is the whole difference between the two
-     * directions, and it is a difference in what the player is allowed to know.
-     * A Steal must not show the victim's pockets: that list is the prize, and
-     * this window opens whether or not the theft is going to work, so a picker
-     * here would hand it over on a miss (trap 93). A Plant shows YOURS, because
-     * they are yours - and choosing what to leave behind is the decision the
-     * action is for.
-     */
-    const mine = await palmablePool(actor);
-
-    const picked = await chooseVariant({
+/*
+ * WHICH WAY, WHO, AND - FOR A PLANT ONLY - WHAT, all in one window.
+ *
+ * The asymmetry in that list is the whole difference between the two
+ * directions, and it is a difference in what the player is allowed to know.
+ * A Steal must not show the victim's pockets: that list is the prize, and
+ * this window opens whether or not the theft is going to work, so a picker
+ * here would hand it over on a miss (trap 93). A Plant shows YOURS, because
+ * they are yours - and choosing what to leave behind is the decision the
+ * action is for.
+ */
+async function choosePalm(actor, def, targets, mine) {
+    return chooseVariant({
         actor,
         title: def.label,
         intro: briefingBlock(actor, "palm", def),
@@ -3069,6 +3072,96 @@ async function performPalm(actor, def, options) {
                     `<option value="${i.id}">${esc(describeItem(i))}</option>`).join("")}</select>
             </label>` : ""}`
     });
+}
+
+/*
+ * A PLANT IS ALREADY DECIDED BY THE TIME THE DICE LAND.
+ *
+ * No picker, no critical branch and nothing to reveal: the item was chosen
+ * in the first window, out of the player's own pockets, and a critical buys
+ * nothing extra because there is nothing extra to buy. Said out loud rather
+ * than left as an absence - the reader's next question after the Steal
+ * branch below is "and what does a critical do here", and the answer is
+ * "nothing, on purpose".
+ */
+async function resolvePlant(actor, def, { victim, planted, hand, shadow, room, seen, success }) {
+    const { requestPlant } = await import("./gm-bridge.mjs");
+    await requestPlant({
+        plannerId: actor.id,
+        victimId: victim.id,
+        itemId: planted.id,
+        total: hand.total,
+        isCritical: Boolean(hand.isCritical),
+        unseenTotal: shadow.total,
+        unseenCritical: Boolean(shadow.isCritical)
+    });
+
+    await noteRollContext(actor, {
+        actionKey: "palm", planting: true, room, victimId: victim.id,
+        seen, success, itemId: planted.id
+    });
+
+    const plantOutcome = {
+        success, seen, target: victim.name,
+        text: game.i18n.format("DRPG.Steal.plantSent", {
+            name: foundry.utils.escapeHTML(victim.name)
+        })
+    };
+    await report(actor, def, hand, plantOutcome);
+    Hooks.callAll("drpgActionResolved", { actor, actionKey: "palm", roll: hand, outcome: plantOutcome });
+    return plantOutcome;
+}
+
+/*
+ * THE CRITICAL IS THE ONLY WAY TO CHOOSE, AND THE PICKER COMES AFTER.
+ *
+ * Built here, on this client, and only once the dice have already said the
+ * theft worked - never before. Opening a list of somebody's pockets is
+ * itself the information the action is about, so a picker that appeared
+ * before the roll would hand it over even on a miss (trap 93). The GM side
+ * re-derives the same pool and refuses anything that is not in it, so the
+ * id travelling from here is a request, not an instruction (trap 92).
+ */
+async function chooseStolen(victim, hand, success) {
+    let chosenId = null;
+    if (success && hand.isCritical) {
+        const pool = await stealablePool(victim);
+        if (!pool.length) {
+            ui.notifications.warn(game.i18n.format("DRPG.Steal.emptyPockets", {
+                name: victim.name
+            }));
+        } else {
+            chosenId = await chooseStolenItem(victim, pool);
+            // Backing out of the picker is not backing out of the theft - the
+            // dice are thrown, the action is spent and the hand is already in
+            // the pocket. It falls back to whatever comes out, which is what an
+            // ordinary success would have got.
+        }
+    }
+    return chosenId;
+}
+
+async function performPalm(actor, def, options) {
+    const cost = options.free ? 0 : def.cost;
+    if (!canAfford(actor, cost)) return null;
+
+    const room = roomOfActor(actor);
+    if (!room) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Action.noRoom"));
+        return null;
+    }
+
+    // Anybody standing here who is not you. `othersInRoom` already excludes
+    // tokens that do not count as present - see `countsAsPresent`.
+    const targets = othersInRoom(actor).filter(a => a?.type === "character");
+    if (!targets.length) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Steal.nobodyHere"));
+        return null;
+    }
+
+    const mine = await palmablePool(actor);
+
+    const picked = await choosePalm(actor, def, targets, mine);
     if (!picked) return null;
 
     const victim = game.actors.get(picked.form?.querySelector("[name=who]")?.value ?? "");
@@ -3116,69 +3209,9 @@ async function performPalm(actor, def, options) {
     const seen = !(shadow.isCritical || shadow.total >= unseenBar);
     const success = hand.isCritical || hand.total >= bar;
 
-    /*
-     * A PLANT IS ALREADY DECIDED BY THE TIME THE DICE LAND.
-     *
-     * No picker, no critical branch and nothing to reveal: the item was chosen
-     * in the first window, out of the player's own pockets, and a critical buys
-     * nothing extra because there is nothing extra to buy. Said out loud rather
-     * than left as an absence - the reader's next question after the Steal
-     * branch below is "and what does a critical do here", and the answer is
-     * "nothing, on purpose".
-     */
-    if (planting) {
-        const { requestPlant } = await import("./gm-bridge.mjs");
-        await requestPlant({
-            plannerId: actor.id,
-            victimId: victim.id,
-            itemId: planted.id,
-            total: hand.total,
-            isCritical: Boolean(hand.isCritical),
-            unseenTotal: shadow.total,
-            unseenCritical: Boolean(shadow.isCritical)
-        });
+    if (planting) return resolvePlant(actor, def, { victim, planted, hand, shadow, room, seen, success });
 
-        await noteRollContext(actor, {
-            actionKey: "palm", planting: true, room, victimId: victim.id,
-            seen, success, itemId: planted.id
-        });
-
-        const plantOutcome = {
-            success, seen, target: victim.name,
-            text: game.i18n.format("DRPG.Steal.plantSent", {
-                name: foundry.utils.escapeHTML(victim.name)
-            })
-        };
-        await report(actor, def, hand, plantOutcome);
-        Hooks.callAll("drpgActionResolved", { actor, actionKey: "palm", roll: hand, outcome: plantOutcome });
-        return plantOutcome;
-    }
-
-    /*
-     * THE CRITICAL IS THE ONLY WAY TO CHOOSE, AND THE PICKER COMES AFTER.
-     *
-     * Built here, on this client, and only once the dice have already said the
-     * theft worked - never before. Opening a list of somebody's pockets is
-     * itself the information the action is about, so a picker that appeared
-     * before the roll would hand it over even on a miss (trap 93). The GM side
-     * re-derives the same pool and refuses anything that is not in it, so the
-     * id travelling from here is a request, not an instruction (trap 92).
-     */
-    let chosenId = null;
-    if (success && hand.isCritical) {
-        const pool = await stealablePool(victim);
-        if (!pool.length) {
-            ui.notifications.warn(game.i18n.format("DRPG.Steal.emptyPockets", {
-                name: victim.name
-            }));
-        } else {
-            chosenId = await chooseStolenItem(victim, pool);
-            // Backing out of the picker is not backing out of the theft - the
-            // dice are thrown, the action is spent and the hand is already in
-            // the pocket. It falls back to whatever comes out, which is what an
-            // ordinary success would have got.
-        }
-    }
+    const chosenId = await chooseStolen(victim, hand, success);
 
     const { requestSteal } = await import("./gm-bridge.mjs");
     await requestSteal({
