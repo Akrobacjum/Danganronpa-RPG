@@ -39,7 +39,7 @@ import { roomOfToken, boundsOf } from "./movement.mjs";
 import { isMastermind } from "./mastermind.mjs";
 import { isMonokuma } from "./monokuma.mjs";
 import { isPrimaryGm, debug, log, warn, error, plural } from "./utils.mjs";
-import { ENTER, BEAT, reducedMotion } from "./motion.mjs";
+import { ENTER, BEAT, reducedMotion, glassOn, SEAM_GLOW } from "./motion.mjs";
 import { playSfx } from "./sfx.mjs";
 
 const CanvasAnimation = foundry.canvas.animation.CanvasAnimation;
@@ -3635,8 +3635,7 @@ function playDiscoveryAnimation(room, tokenDoc) {
     const ink = colourOf("--drpg-ink", 0x1a1620);
     /* THE SAME READING `flashOutline` MAKES, AND FOR THE SAME REASON: the setting first,
        the class as the fallback. A reveal can be the first thing a session draws. */
-    const glass = getSetting(SETTINGS.theme) === "stainedGlass"
-        || document.body.classList.contains("drpg-theme-stained-glass");
+    const glass = glassOn();
     /* The reveal's own lines take the seam colour too, because `flashOutline` runs INSIDE the
        reveal rather than after it - the file's rule for itself here is one gesture in one
        colour rather than three things taking turns. Left at bone these would be white lines
@@ -3671,7 +3670,7 @@ function playDiscoveryAnimation(room, tokenDoc) {
     const lineWidth = glass ? seamWidth() : Math.max(2, grid * 0.07);
     /* The curtain's three glow passes, quoted from `flashOutline`: widths as multiples of
        the core, and the alphas that go with them. */
-    const GLOW = [[2.6, 0.46], [1.8, 0.50], [1.2, 0.58]];
+    const GLOW = SEAM_GLOW;
 
     /*
      * TWO TEXTURES, BOTH THE SIZE OF THE ROOM'S BOUNDING BOX.
@@ -4158,8 +4157,7 @@ function flashOutline(fx, region, rect) {
        That is why the border looked untouched after two rounds of changing it (Dawid, 07.09).
        The client setting is readable the moment settings are registered, which is earlier
        than any of this; the class stays as the fallback for a client mid-switch. */
-    const glass = getSetting(SETTINGS.theme) === "stainedGlass"
-        || document.body.classList.contains("drpg-theme-stained-glass");
+    const glass = glassOn();
     const bone = outlineColour();
     const grid = canvas?.grid?.size ?? 100;
     const bounds = boundsOf(region);
@@ -4412,7 +4410,7 @@ function flashOutline(fx, region, rect) {
             const halo = group.children.find(c => c?.name === SEAM_GLOW_NAME);
             if (halo && !halo.destroyed) {
                 halo.clear();
-                for (const [k, a] of [[2.6, 0.46], [1.8, 0.50], [1.2, 0.58]]) {
+                for (const [k, a] of SEAM_GLOW) {
                     halo.lineStyle({ width: w * k, color: roomOutline?.colour ?? bone, alpha: a, cap: "round", join: "round" });
                     if (edges.length) traceOutlineGapped(halo, edges, rect, gapPad, stubFloor);
                     else traceRegionPathsAt(halo, region, rect);
@@ -5883,8 +5881,7 @@ function recolourRoomOutline() {
        the 26.08 pixel-art stroke, Stained Glass the curtain's hairline seam - so when the
        setting has moved the outline is drawn again from the room it was drawn from, rather
        than re-tinted. Everything else on this path is still one computed-style read. */
-    const glassNow = getSetting(SETTINGS.theme) === "stainedGlass"
-        || document.body.classList.contains("drpg-theme-stained-glass");
+    const glassNow = glassOn();
     if (standing.glass !== glassNow && standing.region && standing.fx && !standing.fx.destroyed) {
         flashOutline(standing.fx, standing.region, standing.rect);
         return;

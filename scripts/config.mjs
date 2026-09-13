@@ -285,6 +285,15 @@ export const PHASES = {
 export const CHAPTERS_PER_SEASON = 6;
 
 /**
+ * The character sheet's size, in one place (UI-13). Daggerheart opens it at
+ * its own default; `minHeight` is what the Hope Calls panel needs under the
+ * Legacy theme (grown once, upwards only - sheet.mjs `growForCalls`), and
+ * `glass` is the size the Stained Glass theme draws the sheet for, scaled by
+ * the interface slider (settings.mjs `scaleWindow`).
+ */
+export const SHEET_SIZE = { minHeight: 980, glass: { width: 1120, height: 1160 } };
+
+/**
  * G-36. Roughly this many rooms per player, corridors and dormitories aside.
  *
  * Advice, not a rule, and the checklist row that reads it says so - the number

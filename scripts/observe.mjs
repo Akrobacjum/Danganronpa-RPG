@@ -342,7 +342,7 @@ async function undoPrevious(actor, entry) {
 }
 
 /**
- * A failed Observe costs 2 Sanity. Sanity is a reverse resource in Daggerheart:
+ * A failed Observe costs OBSERVE_FAIL_STRESS Sanity (1). Sanity is a reverse resource in Daggerheart:
  * marks count up towards the maximum, so a failure raises the value.
  */
 async function applyFailure(actor, total, entry) {
@@ -359,7 +359,7 @@ async function applyFailure(actor, total, entry) {
     }
 
     /*
-     * It costs 2 Sanity and looks exactly like a success until the card is read.
+     * It costs 1 Sanity and looks exactly like a success until the card is read.
      *
      * ON THE CARD. This said "local, on the observer's client" and was wrong the
      * same way `identify` in analyze.mjs was: `resolveObserve` is GM-only, so

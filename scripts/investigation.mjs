@@ -5,6 +5,8 @@
  * Standardową, Skomplikowaną, Desperacką. Ich ostateczna ilość jest zależna od
  * rzutów kością na otwarciu morderstwa, ale nigdy mniejsza, niż 3. Wszystkie 5
  * Key Remnants łącznie powinno zawężać krąg podejrzanych do 3-8 graczy."
+ * (The suspect range has since been ruled 2-4: `KEY_REMNANTS.suspectRange`,
+ * which is what the planner prints. The quotation stays as the source.)
  *
  * Two screens, and between them they answer the only two questions a GM has
  * during an Investigation:
@@ -529,9 +531,9 @@ export async function openKeyRemnantHere({ room = null, note = "", sceneId = nul
         classes: ["drpg-panel"],
         content: dialogContent(`<form>
             <p class="notes">${game.i18n.localize("DRPG.Investigation.createHereIntro")}</p>
-            <label>${game.i18n.localize("DRPG.Investigation.pickRoom")}
+            <label>${game.i18n.localize("DRPG.Investigation.room")}
                 <select name="room">${roomOptions}</select></label>
-            <label>${game.i18n.localize("DRPG.Investigation.difficulty")}
+            <label>${game.i18n.localize("DRPG.Investigation.visibility")}
                 <select name="vis">${visOptions}</select></label>
             <label>${game.i18n.localize("DRPG.Investigation.traceName")}
                 <input type="text" name="keyname" value=""
@@ -1160,12 +1162,12 @@ export async function openInvestigationDashboard() {
                 <p class="notes${finalTruthPlacedThisChapter() ? "" : " drpg-warning"}">${game.i18n.localize(
                     finalTruthPlacedThisChapter() ? "DRPG.Mastermind.finalTruthPlaced"
                         : "DRPG.Mastermind.finalTruthReminder")}</p>
-                <label>${game.i18n.localize("DRPG.Investigation.pickRoom")}
+                <label>${game.i18n.localize("DRPG.Investigation.room")}
                     <select name="finalRoom">
                         <option value="">-</option>
                         ${roomOptions}
                     </select></label>
-                <label>${game.i18n.localize("DRPG.Investigation.difficulty")}
+                <label>${game.i18n.localize("DRPG.Investigation.visibility")}
                     <select name="finalVis">${visOptions}</select></label>
                 <label>${game.i18n.localize("DRPG.Investigation.traceName")}
                     <input type="text" name="finalName" value=""

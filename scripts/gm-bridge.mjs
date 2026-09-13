@@ -15,7 +15,7 @@
 import {
     MODULE_ID, TRAITS, HOPE_CALLS, DESPAIR_CALLS, STARTING, PROJECT_SCALE
 } from "./config.mjs";
-import { announce, whisperToGms, whisperToOwner, ownerOf, isPrimaryGm, activeGmIds, dialogContent, debug, warn, error, cardHead, esc} from "./utils.mjs";
+import { announce, whisperToGms, whisperToOwner, ownerOf, isPrimaryGm, primaryGmId, activeGmIds, dialogContent, debug, warn, error, cardHead, esc} from "./utils.mjs";
 
 import { contentOf } from "./secret.mjs";
 const SOCKET_EVENT = `module.${MODULE_ID}`;
@@ -109,6 +109,11 @@ function resendPendingRulings() {
 function onGmReady(payload, senderId) {
     if (payload?.action !== ACTION_GM_READY) return;
     if (!game.users.get(senderId)?.isGM) return;
+    // The PRIMARY GM's arrival, not any GM's (COMM-05): a second GM joining
+    // while the primary still had the question open made this client ask it
+    // again, and the primary was answering the same request twice. When the
+    // primary role has moved to the newcomer, the newcomer IS the primary.
+    if (senderId !== primaryGmId()) return;
     resendPendingRulings();
 }
 
@@ -1297,7 +1302,7 @@ export async function requestDespairAdjust(targetUserId, delta) {
  * client answers with what it actually wrote - the same pattern already used
  * for a Dynamic ruling - so the roll does not call itself done until it is.
  */
-export function requestSabotage(targetId, difficulty) {
+export function requestSabotage(targetId, difficulty, timeoutMs = 180000) {
     if (!hasGm()) return Promise.resolve(null);
 
     const requestId = foundry.utils.randomID();
@@ -1306,12 +1311,30 @@ export function requestSabotage(targetId, difficulty) {
             action: ACTION_SABOTAGE, userId: game.user.id, requestId, targetId, difficulty
         });
 
+        // Two clocks (COMM-17). The ack says the request ARRIVED, and eight
+        // seconds without one means no GM is listening. The result - two world
+        // writes and a repair project on the GM's client - may take longer than
+        // that on a slow client, and this used to give up on the result at the
+        // ack's deadline: the player was told nothing was applied, and then the
+        // freeze landed anyway.
+        const giveUp = () => {
+            if (!pendingRulings.has(requestId)) return;
+            pendingRulings.delete(requestId);
+            ui.notifications.warn(game.i18n.format("DRPG.Bridge.noAnswer", { what: requestLabel(ACTION_SABOTAGE) }));
+            resolve(null);
+        };
+        const ack = setTimeout(() => {
+            if (!awaitingAck.has(requestId)) return;
+            awaitingAck.delete(requestId);
+            giveUp();
+        }, ACK_TIMEOUT_MS);
+        awaitingAck.set(requestId, ack);
         setTimeout(() => {
             if (!pendingRulings.has(requestId)) return;
             pendingRulings.delete(requestId);
-            ui.notifications.warn(game.i18n.format("DRPG.Bridge.noAnswer", { what: "Sabotage" }));
+            ui.notifications.warn(game.i18n.format("DRPG.Bridge.noAnswer", { what: requestLabel(ACTION_SABOTAGE) }));
             resolve(null);
-        }, ACK_TIMEOUT_MS);
+        }, timeoutMs);
     });
 }
 

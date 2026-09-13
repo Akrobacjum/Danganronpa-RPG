@@ -25,7 +25,25 @@
  */
 
 import { MODULE_ID, GAME_WINDOWS } from "./config.mjs";
+import { SETTINGS, getSetting } from "./settings.mjs";
 import { log, warn } from "./utils.mjs";
+
+/**
+ * Is the Stained Glass theme on? The setting first - readable the moment
+ * settings are registered - and the body class as the fallback for a client
+ * mid-switch. One reading for fog.mjs, remnant-ring.mjs and the rest (MAP-15).
+ */
+export function glassOn() {
+    try {
+        return getSetting(SETTINGS.theme) === "stainedGlass"
+            || document.body.classList.contains("drpg-theme-stained-glass");
+    } catch {
+        return document.body.classList.contains("drpg-theme-stained-glass");
+    }
+}
+
+/** The seam glow's three passes: width as a multiple of the core, and alpha. */
+export const SEAM_GLOW = [[2.6, 0.46], [1.8, 0.50], [1.2, 0.58]];
 import { playSfx } from "./sfx.mjs";
 
 /* ==========================================================================

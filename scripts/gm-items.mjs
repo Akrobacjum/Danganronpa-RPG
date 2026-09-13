@@ -27,6 +27,13 @@ import { createTruthBullet, issueAutopsy, copiedRemnants }
 import { ITEM_POOLS, USABLE_GOALS, moduleTables, rolesOfResult, MULTI_ROLE_TIER }
     from "./tables.mjs";
 import { studentActors } from "./monokuma.mjs";
+
+/** The student <option> list every give/take window opens with (ITEM-18). */
+function recipientOptions(students, selectedId) {
+    return students
+        .map(a => `<option value="${a.id}"${a.id === selectedId ? " selected" : ""}>${esc(a.name)}</option>`)
+        .join("");
+}
 import { whisperToOwner, dialogContent, panelTabs, wirePanelTabs, workingScene,
     log, error, plural, cardHead, esc} from "./utils.mjs";
 import { alreadyOpen, keepLive } from "./live.mjs";
@@ -122,9 +129,7 @@ export async function openItemManager(actor = null) {
                     { actor: who.name }))}</p>`);
     };
 
-    const whoOptions = students
-        .map(a => `<option value="${a.id}"${a.id === target.id ? " selected" : ""}>${
-            esc(a.name)}</option>`).join("");
+    const whoOptions = recipientOptions(students, target.id);
 
     const choice = await DialogV2.wait({
         window: { title: game.i18n.localize("DRPG.Items.manage") },
@@ -300,9 +305,7 @@ async function giveKeyDialog(actor) {
                 foundry.utils.escapeHTML(v.owner.name)}</option>`).join("");
     };
 
-    const recipients = students
-        .map(a => `<option value="${a.id}"${a.id === initial.id ? " selected" : ""}>${
-            foundry.utils.escapeHTML(a.name)}</option>`).join("");
+    const recipients = recipientOptions(students, initial.id);
 
     const result = await DialogV2.wait({
         // Generic on purpose (ITEM-13): the form carries its own recipient
@@ -417,9 +420,7 @@ export async function gmGiveItemDialog(actor) {
     const students = studentActors();
     const initial = actor ?? students[0] ?? null;
     const categories = categoriesFor(initial);
-    const recipients = students
-        .map(a => `<option value="${a.id}"${a.id === initial?.id ? " selected" : ""}>${
-            foundry.utils.escapeHTML(a.name)}</option>`).join("");
+    const recipients = recipientOptions(students, initial?.id);
 
     const tiers = ITEM_TIERS
         .map(t => `<option value="${t}"${t === 2 ? " selected" : ""}>${
@@ -791,9 +792,7 @@ async function giveTruthBulletDialog(actor) {
         return false;
     }
 
-    const recipients = students
-        .map(a => `<option value="${a.id}"${a.id === initial.id ? " selected" : ""}>${
-            esc(a.name)}</option>`).join("");
+    const recipients = recipientOptions(students, initial.id);
 
     const { remnantsOn, remnantData, traceContextLine, setRemnantPublicById,
         markRemnantEditedById } =
@@ -1201,9 +1200,7 @@ async function takeItemDialog(actor, { only = null } = {}) {
         }).join("");
     };
 
-    const recipients = students
-        .map(a => `<option value="${a.id}"${a.id === initial.id ? " selected" : ""}>${
-            foundry.utils.escapeHTML(a.name)}</option>`).join("");
+    const recipients = recipientOptions(students, initial.id);
 
     const result = await DialogV2.wait({
         // The title says which of the three buttons opened this - see

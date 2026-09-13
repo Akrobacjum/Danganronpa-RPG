@@ -129,9 +129,8 @@ async function shareKey({ from, to, item }) {
 
     const already = to.items.some(i => i.getFlag(MODULE_ID, BEDROOM_KEY_FLAG) === room);
     if (already) {
-        await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.alreadyHasIt", {
-            who: foundry.utils.escapeHTML(to.name),
-            name: foundry.utils.escapeHTML(item.name)
+        await whisperToOwner(from, `<p>${game.i18n.format("DRPG.Handover.alreadyHasKey", {
+            who: foundry.utils.escapeHTML(to.name)
         })}</p>`);
         return null;
     }

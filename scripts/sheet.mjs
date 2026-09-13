@@ -15,7 +15,7 @@ import {
     MODULE_ID, FLAGS, ACTIONS, STARTING, ITEM_CATEGORIES, LIMIT_GROUPS, USABLE_KINDS, MONOCUB,
     ECLIPSE_MOVES,
     EQUIPPABLE,
-    BEDROOM_KEY_FLAG, callEffect, HOPE_CALLS, DESPAIR_CALLS } from "./config.mjs";
+    BEDROOM_KEY_FLAG, callEffect, HOPE_CALLS, DESPAIR_CALLS, SHEET_SIZE } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { actionsLeft, actionsMax, actionBudget, hasFreeMove, setActions,
     canPayFor, freeActionsLeft, freeMovesLeft } from "./actions.mjs";
@@ -3927,7 +3927,7 @@ export function findDuplicateUltimates() {
  * would undo a deliberate resize several times a turn.
  */
 const grown = new WeakSet();
-const SHEET_MIN_HEIGHT = 980;
+const SHEET_MIN_HEIGHT = SHEET_SIZE.minHeight;
 
 function growForCalls(app) {
     try {

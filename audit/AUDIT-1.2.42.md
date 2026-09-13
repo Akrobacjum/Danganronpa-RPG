@@ -496,6 +496,9 @@ Zadania 1-11 z sekcji 5 są zrobione na gałęzi, po jednym commicie na zadanie.
 | 9 - wydajność | `6e59551` | Jeden `renderHud` na zmianę zamiast czterech (CORE-12), memo kolorów kart (ROLL-17), obserwator arkusza odłączany (UI-14), rail w rAF (UI-16) |
 | 10 - UX | `b708865` | UI-09/10/11/12, ROLL-11/12, COMM-11 (`game.drpg.safeword()` + keybinding), COMM-13, CORE-06/10/13/18 |
 | 11 - higiena | `b3604be` | 10 martwych kluczy, martwe selektory (`#drpg-notice`, `#drpg-settings-launcher`, `.drpg-no-glass-effects`, `.drpg-compact`), jeden `esc`, poprawione komentarze |
+| 13 - rozliczenie | (ten commit) | Pełne rozliczenie 152 ID z `findings-1.2.42/` kontra kod: 25 znalezisk, które nie weszły do zadań 1-11, domknięte tu (COMM-05/09/17/18, CORE-16, ITEM-17/18, MAP-15, ROLL-10/14/15/16, TEXT-09/11/12/13/15/16/17/18/19, UI-06/07/13). Pozostałe otwarte ID to wyłącznie decyzje z 9.1 (ITEM-04, MAP-12, DESP-03, CASE-11) |
+
+**Bilans po zadaniu 13.** Skrypt rozliczeniowy (każde `### ID` z `findings-1.2.42/*.md` szukane w sekcji 2 tego raportu, w commitach gałęzi i w komentarzach kodu) dał 152 znaleziska: 49 zamknięte w 1.2.43, 78 w zadaniach 1-11 i 13, 4 czekają na decyzję (ITEM-04, MAP-12, DESP-03 i CASE-11 - tabela 9.1), a reszta to pozycje "live check" z sekcji 7 i 9.2, których harness nie rozstrzyga. Wcześniejsze zdanie w tej sekcji, że po zadaniach 1-11 "zostały same decyzje", było za mocne: 25 drobnych ID (teksty, higiena, dwa wyścigi socketów) nie miało swojego zadania i weszło dopiero w 13.
 
 Nie wydane: `module.json` nadal mówi 1.2.43. Wydanie 1.2.44 z tej gałęzi wymaga trzech rzeczy z sekcji 8 (wersja w `module.json`, stempel CSS, plik `.github/release-notes/v1.2.44.md`) - notatki są przygotowane w gałęzi, wersja i stempel czekają na decyzję.
 

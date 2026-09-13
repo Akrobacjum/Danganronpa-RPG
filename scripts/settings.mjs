@@ -6,7 +6,7 @@
  * never clutters the settings window.
  */
 
-import { MODULE_ID, ROOMS, TIMES_OF_DAY, SFX_VOLUME_KEYS } from "./config.mjs";
+import { MODULE_ID, ROOMS, TIMES_OF_DAY, SFX_VOLUME_KEYS, SHEET_SIZE } from "./config.mjs";
 
 /** Setting keys, so nothing else in the module has to spell them out. */
 export const SETTINGS = {
@@ -1539,11 +1539,12 @@ function scaleWindow(app, element) {
     // word in its name, and `documentName === "Actor"` caught NPC sheets - all
     // of them were forced to 1120 x 1160 and lost their resize handle.
     if (app?.document?.type === "character") {
-        want.width = 1120;
-        /* 1160, NOT 940. Measured on the sheet: the tallest tab wants 820 px of room and was
-           given 607, so the last row of Hope Calls was simply below the fold - the window was
-           sized for the old, smaller type. The extra 213 px is that shortfall. */
-        want.height = 1160;
+        /* 1160 high, NOT 940. Measured on the sheet: the tallest tab wants 820 px of room and
+           was given 607, so the last row of Hope Calls was simply below the fold - the window
+           was sized for the old, smaller type. The extra 213 px is that shortfall. The numbers
+           live in config.mjs (SHEET_SIZE) beside the Legacy minimum. */
+        want.width = SHEET_SIZE.glass.width;
+        want.height = SHEET_SIZE.glass.height;
         fixed = true;
     }
     const size = {};

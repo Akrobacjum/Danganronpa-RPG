@@ -40,11 +40,6 @@ const BLOCKS = [
   { cls: "event", sel: "#drpg-events", fallback: null },
   { cls: "three", sel: "#drpg-player-status", fallback: (W, H) => ({ x: W - 64 - 360, y: 22, w: 360, h: 78 }) },
   { cls: "tray", sel: "#ui-right-column-1 > #countdowns, #countdowns", fallback: (W, H, r) => ({ x: W - 64 - 360, y: (r.three ? r.three.y + r.three.h : 100) + 10, w: 360, h: 62 }) },
-  /* The notice pane was cut for `#drpg-notice`, which no script has ever built: the module's
-     notices are `#drpg-popups` (popup.mjs), and they were floating over the map with no glass
-     under them while an empty 330x80 pane sat in the corner on every screen. The pane belongs
-     to the real container, and it has NO fallback on purpose - an empty popup stack has no
-     height, so it is not measured, and a screen with nothing to say cuts no pane. */
   /* THE NOTICE TILE IS A CONSTANT. Not measured: two short cards or one long one fit it, the
      stack is clipped to it (stained-glass.css, popup.mjs), and a card arriving or leaving never
      recuts the glass. 330 x 160 at 100 %, at the audit page's place, scaled with the screen. */
@@ -114,7 +109,7 @@ const MAX_TILT = 9 * Math.PI / 180;
    of 07.09. The lean is clamped to the same number, so the reservation is exact. */
 const railSwing = h => Math.round(Math.max(0, h) * Math.sin(RAIL_LEAN) / 2);
 /* how much wider than the tiles' box the strip carrying them runs: the lean of its outer
-   edge (22) plus the clearance that edge keeps off the tiles (14) */
+   edge (STRIP_LEAN, 26) plus the clearance that edge keeps off the tiles (14) */
 /* THE ANGLE THE AUDIT PAGE GIVES THE EDGE UNDER THE TILES: "szkło jest ścięte do jednej
    prostej (22 px pochylenia na ~370 px)", which is 3.4 degrees, "a same kafelki są obrócone o
    kąt tej krawędzi ... więc stoją do niej równolegle". So the edge is cut to that angle over
@@ -2024,7 +2019,6 @@ function rebuildAll() {
    The shift is capped: the GM's sidebar is a column of real work, and 160 px is as much of it as the
    glass may take. Padding (with border-box), not margin, so a column sized to the screen shrinks
    instead of running off its bottom. */
-const MAX_SHIFT = 160;
 /** The tiles shown in a rail: Foundry's `button.ui-control`s (v13+), any earlier markup's `.control`s. */
 function tileButtons(rail) {
   return [...rail.querySelectorAll("button.ui-control, .ui-control, .control")].filter(e => e.offsetWidth > 0 && e.offsetHeight > 0);
@@ -2044,18 +2038,7 @@ function placeTiles(meta) {
   const left = document.querySelector("#scene-controls");
   if (left && left.style.paddingTop) { left.style.paddingTop = ""; moved = true; }
   return moved;
-  for (const [target, probe, side] of [["#scene-controls", "#scene-controls", "left"], ["#sidebar", "#sidebar-tabs", "right"]]) {
-    const el = document.querySelector(target), pr = document.querySelector(probe), info = t[side];
-    if (!el || !pr || !info) continue;
-    const keep = pr.style.transform; pr.style.transform = "";
-    // the first tile's top, not the rail's: the rail already carries whatever padding an earlier pass gave it
-    const tops = tileButtons(pr).map(e => e.getBoundingClientRect().top);
-    const top = tops.length ? Math.min(...tops) : pr.getBoundingClientRect().top; pr.style.transform = keep;
-    const have = parseFloat(el.style.paddingTop) || 0;
-    const need = Math.min(MAX_SHIFT - have, Math.round(info.yTop + 24 - top));
-    if (need > 2) { el.style.boxSizing = "border-box"; el.style.paddingTop = (have + need) + "px"; moved = true; }
-  }
-  return moved;
+
 }
 
 /** A one-line account of the curtain for the Look dialog: frame, panes, the self-check, the tiles. */

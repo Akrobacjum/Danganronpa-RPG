@@ -828,10 +828,9 @@ function reportContested(contested, byUser) {
         const name = game.users.get(userId)?.name ?? userId;
         const chosen = byUser.get(userId);
         const places = list.map(r => `${r.actor.name} → ${r.room ?? "the main room"}`).join("; ");
-        warn(`Voice: ${name} owns characters in more than one place (${places}). `
-            + `A voice client can only be in one room, so ${name} is being sent to `
-            + `"${chosen?.room ?? "the main room"}" and the rest are ignored. `
-            + `Give the spare characters to another account, or leave their tokens off the map.`);
+        warn(game.i18n.format("DRPG.Voice.contested", {
+            name, places, room: chosen?.room ?? game.i18n.localize("DRPG.Voice.mainRoom")
+        }));
     }
 }
 

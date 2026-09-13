@@ -60,8 +60,9 @@ const SEEDED_CHIME = "sounds/notify.wav";
  * One entry per saved shape this update changes.
  *
  * Each stage that changes a saved shape appends here rather than writing its
- * own migration somewhere else. Keep the entries in the order the stages run:
- * a later clause is allowed to assume the earlier ones have been through.
+ * own migration somewhere else. The clauses are independent of each other -
+ * none assumes another has run - which is why the list is in the order they
+ * were written rather than by `since` (CORE-16).
  *
  *   key    stable identifier, used in the report and in the console
  *   since  the build that introduced the clause. NOT DOCUMENTATION: a clause is
@@ -378,8 +379,9 @@ const CLAUSES = [
         /*
          * TRAP 109 - A WORLD IN PLAY KEEPS THE WORD IT ALREADY USES.
          *
-         * Before E15 the safeword was `DRPG.Safeword.word` in the language
-         * file: one word for every install, and in this project's own worlds
+         * Before E15 the safeword was a string in the language file (now
+         * `DRPG.Legacy.safeword`, kept only for this clause - TEXT-19): one
+         * word for every install, and in this project's own worlds
          * that word is MISIUBOMBO. E15 makes it a setting whose default is
          * plain "Safe Word" - so without this clause, an update would silently
          * change the safeword of a campaign in progress.
@@ -410,7 +412,7 @@ const CLAUSES = [
             const { DEFAULT_SAFEWORD } = await import("./settings.mjs");
             if (current && current !== DEFAULT_SAFEWORD) return null;
 
-            const legacy = String(game.i18n.localize("DRPG.Safeword.word") ?? "").trim();
+            const legacy = String(game.i18n.localize("DRPG.Legacy.safeword") ?? "").trim();
             if (!legacy || legacy === DEFAULT_SAFEWORD) return null;
 
             await setSetting(SETTINGS.safeword, legacy);

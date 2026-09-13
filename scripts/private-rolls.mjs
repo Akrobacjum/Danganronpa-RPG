@@ -600,11 +600,18 @@ function onPreCreateChatMessage(message, data, options, userId) {
             || (data?.rolls?.length ?? 0) > 0;
         if (!hasRoll) return;
 
-        // Already a whisper - respect whatever aimed it there.
-        if (message.whisper?.length) return;
+        // Already a whisper: respected when a GM aimed it (a blind roll on
+        // purpose). A PLAYER's whisper is widened, not respected (ROLL-14): the
+        // roll dialog's mode select is disabled but its value is the client's
+        // own core roll mode, which any player can set to "Self Roll" from the
+        // chat bar - and a self-whispered Despair result never reached the
+        // primary GM, so it never fed a Monokuma's pool.
+        const already = Array.from(message.whisper ?? []);
+        if (already.length && author.isGM) return;
 
         const recipients = gmIds();
         if (!recipients.length) return;
+        for (const id of already) recipients.push(id);
 
         /* ---- who this roll belongs to, and therefore who may read it ------
          *

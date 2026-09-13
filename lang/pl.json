@@ -611,7 +611,7 @@
     },
     "Analyze": {
       "analyseBullet": "Zidentyfikuj Truth Bullet",
-      "askHint": "Skup się na konkretnej sprawie",
+      "askHint": "Poproś o wskazówkę",
       "whichBullet": "Który Truth Bullet?",
       "onBullet": "Analyze: {name}",
       "noBullets": "Nie masz już nic do analizy.",
@@ -1323,6 +1323,8 @@
       "freeResolution": "Zatrzymałeś ich w miejscu. Weź w tej turze Survive albo Role reversal - bez rzutu, po prostu działa."
     },
     "Investigation": {
+      "room": "Pokój",
+      "visibility": "Widoczność",
       "filterOrder": "Kolejność",
       "orderRoom": "Wg pokoju",
       "orderNewest": "Najnowsze najpierw",
@@ -1398,6 +1400,9 @@
       "chargeTooLate": "Zegar przeszedł już do rozdziału {now}; plan rozdziału {was} nie jest już bieżący, więc nic nie policzono za nieznalezione Key Remnants. Policz to z konsoli Class Trial, zanim zakończysz rozdział."
     },
     "Vault": {
+      "foundStashPending": "Znajdujesz czyjąś skrytkę. Co z niej wyjdzie, rozstrzygnie się za chwilę.",
+      "foundStashNothing": "Znajdujesz czyjąś skrytkę, ale nic z niej nie zostaje w twoich rękach.",
+      "handsFull": "Masz pełne ręce: to, co znalazłeś w skrytce, zostaje na miejscu.",
       "section": "Skrytka - {room}",
       "stowTooltip": "Schowaj w skrytce (musisz być w pokoju)",
       "takeTooltip": "Wyjmij ze skrytki (musisz być w pokoju)",
@@ -1618,6 +1623,7 @@
       "objectionRebuttalTargets": "Każdy może wciąć się w rebuttal, ale tylko wobec dwójki, która już ma głos. Objection przekierowuje głos, a ten, kogo wskażesz, dostaje odpowiadający rebuttal."
     },
     "Handover": {
+      "alreadyHasKey": "{who} ma już klucz do tego pokoju.",
       "stashed": "{name} leży w skrytce, nie w twoich rękach. Najpierw go wyjmij.",
       "shareTooltip": "Podziel się kopią z kimś w tym pokoju",
       "giveTooltip": "Przekaż komuś w tym pokoju",
@@ -1636,7 +1642,7 @@
       "theirHandsFull": "{who} nosi już najwięcej, ile może ({category}: {limit}).",
       "failed": "To przekazanie nie doszło do skutku. Powiedz GMowi.",
       "stuck": "{who} przekazał „{name}”, ale nie dało się usunąć jego własnej kopii. Istnieją teraz dwie - usuń jedną z jego karty.",
-      "alreadyHasIt": "{who} już ma ten ślad. {name} byłby tylko duplikatem.",
+      "alreadyHasIt": "Nic nie zmieniło właściciela.",
       "shared": "{who} ma teraz kopię: {name}.",
       "gave": "{name} należy teraz do: {who}.",
       "receivedBullet": "Podzielono się z tobą dowodem",
@@ -2240,6 +2246,7 @@
     "Bridge": {
       "what": {
         "project.progress": "Postęp projektu",
+        "project.sabotage": "Sabotaż",
         "project.share": "Udostępnienie projektu",
         "remnant.place": "Zostawienie śladu",
         "remnant.edit": "Edycja śladu",
@@ -2671,6 +2678,8 @@
       "tabChat": "Czat"
     },
     "Voice": {
+      "contested": "Głos: {name} ma postacie w więcej niż jednym miejscu ({places}). Klient głosowy może być tylko w jednym pokoju, więc {name} trafia do \"{room}\", a reszta jest pomijana. Oddaj zapasowe postacie innemu kontu albo zdejmij ich tokeny z mapy.",
+      "mainRoom": "główny pokój",
       "notActive": "LiveKit AVClient nie jest zainstalowany, włączony ani połączony.",
       "eavesdropFailed": "Nie udało się dołączyć do kanału głosowego tego pokoju. Zajrzyj do konsoli.",
       "noRooms": "Na tej scenie nie ma jeszcze zmapowanych pokoi.",
@@ -2752,8 +2761,10 @@
     "Secret": {
       "speaker": "Monokuma"
     },
+    "Legacy": {
+      "safeword": "MISIUBOMBO"
+    },
     "Safeword": {
-      "word": "MISIUBOMBO",
       "title": "Safeword",
       "tooltip": "Zatrzymaj scenę. Bez powodu i nikt o niego nie zapyta.",
       "keybinding": "Safeword - zatrzymaj scenę",

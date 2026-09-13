@@ -163,7 +163,7 @@ You choose how you are looking:
 
 | Way of looking | What it targets |
 |---|---|
-| Glance for a bullet | whatever is easiest to spot in this room - settled by the dice |
+| Sweep the room | whatever is easiest to spot in this room - settled by the dice |
 | Look past the obvious | the hardest thing here - settled by the dice |
 | Follow my traces | retrace your own steps and find what you left behind |
 | Focus your gaze | say what you are looking for; the GM decides what your gaze lands on |
@@ -176,7 +176,7 @@ You are told what you found, never the difficulty. Traces tied to the crime are 
 Three things behind one tile:
 
 - **Identify a Truth Bullet.** Turns a Neutral Truth Bullet into its real category. **A failure locks that bullet for you until the chapter ends** - hand a copy to somebody else and their copy is not bound by your failure.
-- **Fixate on a specific matter.** No evidence in hand? Ask the GM to point you somewhere. 14+ buys a subtle hint ("you are far from the target"), 18+ a direct one ("search the pool room"), a critical lets them ask you one question ("did the victim really die in this room?"). Below 14, no help.
+- **Ask for a hint.** No evidence in hand? Ask the GM to point you somewhere. 14+ buys a subtle hint ("you are far from the target"), 18+ a direct one ("search the pool room"), a critical lets them ask you one question ("did the victim really die in this room?"). Below 14, no help.
 - **Locate a hidden stash.** 16+ opens one hiding place in this room to you. The GM is told; the owner is not.
 
 ### Projects - Hand, Body, Leg or Head, 1 action

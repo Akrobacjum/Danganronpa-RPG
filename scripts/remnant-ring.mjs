@@ -32,6 +32,7 @@ import { TRUTH_BULLET_FLAGS, isIdentified } from "./truth-bullets.mjs";
 import { myBulletForRemnant } from "./visibility.mjs";
 import { debug, error, esc} from "./utils.mjs";
 import { SETTINGS, getSetting } from "./settings.mjs";
+import { glassOn as motionGlassOn, SEAM_GLOW } from "./motion.mjs";
 /* The room border's own hairline. A ring under this theme is the same seam as the
    border the token is standing inside, so it takes the same number from the same place
    rather than a second copy of the formula that could drift from it. */
@@ -49,14 +50,7 @@ let ringZoom = 0;
 /** True when this browser wears Stained Glass. The SETTING first, then the class: the
     class lands at ready and tokens are drawn before that - fog.mjs `flashOutline` records
     in full what reading the class alone cost there. */
-function glassOn() {
-    try {
-        return getSetting(SETTINGS.theme) === "stainedGlass"
-            || document.body.classList.contains("drpg-theme-stained-glass");
-    } catch {
-        return document.body.classList.contains("drpg-theme-stained-glass");
-    }
-}
+const glassOn = motionGlassOn;
 
 /**
  * Which token each type borrows. Same assignments the `.drpg-tb-badge.type.*`
@@ -503,7 +497,7 @@ function paint(token) {
         const rect = [seam / 2, seam / 2, Math.max(1, w - seam), Math.max(1, h - seam)];
         core.lineStyle({ width: seam, color: colour, alpha: 1, cap: "square", join: "miter", miterLimit: 2 });
         core.drawRect(...rect);
-        for (const [k, alpha] of [[2.6, 0.46], [1.8, 0.50], [1.2, 0.58]]) {
+        for (const [k, alpha] of SEAM_GLOW) {
             halo.lineStyle({ width: seam * k, color: colour, alpha, cap: "round", join: "round" });
             halo.drawRect(...rect);
         }

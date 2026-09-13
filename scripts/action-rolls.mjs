@@ -5,9 +5,10 @@
  * repeatable actions."
  *
  * Every action opens with a briefing of what it does, then either resolves
- * itself (Search, Work on Project, Sabotage, Dynamic) or whispers a ruling
- * request to the GM (Think, Listen, Analyze, Observe, Direct Murder, starting
- * a project) - because those are the ones the guide wants a human to judge.
+ * itself (Search, Work on Project, Sabotage, Palm, Tamper, Rest, Move) or
+ * sends a ruling card to the GM (Observe with nothing to rank, Analyze's hint,
+ * Listen, a Dynamic threshold, Direct Murder) - because those are the ones
+ * the guide wants a human to judge.
  *
  * Movement is not here: crossing a room boundary charges itself, in
  * movement.mjs.
@@ -879,8 +880,8 @@ function readTraitField(element, traits) {
 /**
  * Ask which trait to use, for an action with nothing else to ask.
  *
- * `intro` is the briefing. An action that folds its briefing in (see
- * FOLDS_BRIEFING_IN) has a window of its own to carry it; one that does not
+ * `intro` is the briefing. An action that folds its briefing in (every one
+ * but the keys in NEEDS_OWN_BRIEFING) has a window of its own to carry it; one that does not
  * used to get a briefing window, then this one, then the roll dialog - three
  * windows to answer "Body or Leg?". Passing the briefing here makes it two.
  */
@@ -1209,7 +1210,7 @@ async function performSearch(actor, def, options) {
         // action, a search token, and the -1 applied above. Without it the GM
         // side refuses every concealed stash outright, which made beating the
         // concealment worth nothing at all. See `stealFromVault`.
-        await requestVaultSteal({
+        const got = await requestVaultSteal({
             thiefId: actor.id, ownerId: stashOwner.id, itemId: taken.id, viaSearch: true,
             // WAS THE HAND STEADY. The catalogue has said since E5 that `stolen`
             // is "heard by the victim, and only when the thief was clumsy enough
@@ -1222,12 +1223,17 @@ async function performSearch(actor, def, options) {
         await noteRollContext(actor, {
             actionKey: "search", room, category, goal: goalKey, tier, fromVault: true
         });
+        // Palm's rule (ROLL-10): the card names what came out only when this
+        // client SAW it come out. A player's request is answered on the GM's
+        // side and can still be refused there (hands full, a rule), and the
+        // old card had already told them "you find {item}".
+        const text = got && !got.pending && got.name
+            ? game.i18n.format("DRPG.Vault.foundInStash", { item: foundry.utils.escapeHTML(got.name) })
+            : got === null
+                ? game.i18n.localize("DRPG.Vault.foundStashNothing")
+                : game.i18n.localize("DRPG.Vault.foundStashPending");
         await report(actor, def, roll, {
-            success: true,
-            text: game.i18n.format("DRPG.Vault.foundInStash", {
-                item: foundry.utils.escapeHTML(taken.name)
-            }),
-            room, tokensLeft: SearchTokens.left(room)
+            success: true, text, room, tokensLeft: SearchTokens.left(room)
         });
         return { success: true, roll, tier, fromVault: true };
     }
@@ -3143,26 +3149,6 @@ function gmRulingActions(actor, cost = 0) {
             data: { by: actor.id, cost: String(cost), paid: lastSpendKind(actor) ?? "" }
         }
     ];
-}
-
-/** The reference the GM needs to rule, right next to the roll. */
-function buildGmBody(actionKey, def, roll) {
-    if (def.thresholds?.length) {
-        const rows = def.thresholds.map(t =>
-            `<li>${t.min}+ - ${foundry.utils.escapeHTML(t.result ?? "")}</li>`).join("");
-        const crit = def.critical?.result
-            ? `<li><em>${game.i18n.localize("DRPG.Action.critical")} - ${foundry.utils.escapeHTML(def.critical.result)}</em></li>`
-            : "";
-        return `<ul class="drpg-gm-reference">${rows}${crit}</ul>`;
-    }
-
-    if (actionKey === "observe") {
-        return `<p><small>${game.i18n.format("DRPG.Action.observeGm", { total: roll.total })}</small></p>`;
-    }
-    if (actionKey === "analyze") {
-        return `<p><small>${game.i18n.localize("DRPG.Action.analyzeGm")}</small></p>`;
-    }
-    return "";
 }
 
 /**

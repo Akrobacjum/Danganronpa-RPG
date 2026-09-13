@@ -13,7 +13,6 @@
  * Legacy it is also where the pixel face is turned on and off.
  */
 
-import { MODULE_ID } from "./config.mjs";
 import { SETTINGS, getSetting, setSetting, autoScale, effectiveScale, moduleLanguage } from "./settings.mjs";
 import { LANGUAGES, confirmLanguageReload } from "./i18n.mjs";
 import { alreadyOpen } from "./live.mjs";
@@ -146,4 +145,3 @@ export async function openLookDialog() {
     });
 }
 
-void MODULE_ID;

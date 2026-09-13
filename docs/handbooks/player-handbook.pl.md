@@ -176,7 +176,7 @@ Dowiadujesz się, co znalazłeś, nigdy jak trudne to było. Ślady powiązane z
 Trzy rzeczy za jednym kafelkiem:
 
 - **Zidentyfikuj Truth Bullet.** Zamienia Neutral Truth Bullet w jego prawdziwą kategorię. **Porażka blokuje ten bullet dla ciebie do końca rozdziału** - przekaż kopię komuś innemu, jego kopii twoja porażka nie wiąże.
-- **Skup się na konkretnej sprawie.** Brak dowodów w ręku? Poproś GMa, by cię gdzieś skierował. 14+ kupuje subtelną podpowiedź ("jesteś daleko od celu"), 18+ bezpośrednią ("przeszukaj pomieszczenie z basenem"), krytyk pozwala im zadać ci jedno pytanie ("czy ofiara naprawdę zginęła w tym pokoju?"). Poniżej 14 - bez pomocy.
+- **Poproś o wskazówkę.** Brak dowodów w ręku? Poproś GMa, by cię gdzieś skierował. 14+ kupuje subtelną podpowiedź ("jesteś daleko od celu"), 18+ bezpośrednią ("przeszukaj pomieszczenie z basenem"), krytyk pozwala im zadać ci jedno pytanie ("czy ofiara naprawdę zginęła w tym pokoju?"). Poniżej 14 - bez pomocy.
 - **Znajdź ukrytą skrytkę.** 16+ otwiera przed tobą jedną skrytkę w tym pokoju. GM się dowiaduje; właściciel nie.
 
 ### Projekty - Hand, Body, Leg albo Head, 1 akcja

@@ -1147,7 +1147,7 @@ export function diagnoseCharacters({ toChat = true } = {}) {
     lines.push("");
     if (pending.length) {
         lines.push(`${pending.length} character(s) still need their starting resources.`);
-        lines.push("Each of them counts as Wounded AND Broken Down right now: one action");
+        lines.push("Each of them counts as Wounded AND in Breakdown right now: one action");
         lines.push("instead of two, and disadvantage forced onto every roll.");
         lines.push("");
         lines.push("Fix: open the sheet and press the wand button next to the name,");
@@ -1208,7 +1208,7 @@ export function diagnoseCharacters({ toChat = true } = {}) {
     roll("Everybody carries their opening item", missingItem,
         `One Tier ${STARTING.startingItemTier} item tied to their Ultimate - hand it out from Give / take items.`);
     roll("Everybody is assigned to a Despair pool", unwatched,
-        "Without one, Despair from their rolls has nowhere to go. Fix it in GM Team.");
+        "Without one, Despair from their rolls has nowhere to go. Fix it in the GM panel, under Despair Flow.");
 
     return report("Season setup", lines, { toChat });
 }

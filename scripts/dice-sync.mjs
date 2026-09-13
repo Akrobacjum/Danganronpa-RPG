@@ -25,6 +25,8 @@ const AV_MODULE = "dice-so-nice";
 const APPEARANCE_SETTING = "settings";
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 const ACTION = "diceAppearance";
+/** A player asking the primary GM for the current skin (COMM-09). */
+const ACTION_REQUEST = "diceAppearance.request";
 
 /**
  * Called from module.mjs's own `ready` hook - not wrapped in another
@@ -36,6 +38,21 @@ export function registerDiceSync() {
     game.socket.on(SOCKET_EVENT, onSocket);
 
     if (isPrimaryGm()) pushToEveryone();
+
+    // THE PULL (COMM-09). The push below fires on the GM when the player's
+    // socket connects - before that player's world has loaded and before this
+    // listener exists on their side, so the packet fell on the floor and a
+    // player joining mid-session kept their own dice until the GM reloaded.
+    // The same gap the bridge closes with `bridge.gmReady`: whoever arrives
+    // last asks. The push stays as the backstop.
+    if (!game.user.isGM && active()) {
+        try {
+            const gm = primaryGmId();
+            if (gm) game.socket.emit(SOCKET_EVENT, { action: ACTION_REQUEST }, { recipients: [gm] });
+        } catch (err) {
+            error("Could not ask for the GM's dice appearance", err);
+        }
+    }
 
     // A player joining mid-session gets caught up immediately rather than
     // waiting for the GM's next reload.
@@ -95,6 +112,11 @@ function pushToEveryone() {
  * check every other one makes.
  */
 async function onSocket(data, senderId) {
+    if (data?.action === ACTION_REQUEST) {
+        // Answered by the primary alone, and only for a player.
+        if (isPrimaryGm() && game.users.get(senderId) && !game.users.get(senderId).isGM) pushTo(senderId);
+        return;
+    }
     if (data?.action !== ACTION) return;
     if (game.user.isGM) return; // GMs keep their own choice
     if (!active()) return;

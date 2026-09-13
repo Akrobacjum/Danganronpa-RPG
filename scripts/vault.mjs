@@ -1135,7 +1135,12 @@ export async function stealFromVault({
         // launder a broken murder weapon back into a working one.
         extraFlags: preservedFlags(item)
     });
-    if (!copy) return null;
+    if (!copy) {
+        // The thief is told, or the Search card that follows says "what comes
+        // out settles in a moment" and nothing ever does (ROLL-10).
+        await whisperToOwner(thief, `<p>${game.i18n.localize("DRPG.Vault.handsFull")}</p>`).catch(() => {});
+        return null;
+    }
 
     try {
         await item.delete();

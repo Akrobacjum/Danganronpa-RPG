@@ -582,7 +582,7 @@ export function carriedFor(actor, role) {
  * Create a found item on the character.
  *
  * Refuses when the category is full rather than silently exceeding the limit -
- * the guide caps crime tools at one and cleaning tools at two on purpose.
+ * the carry limits (see LIMIT_GROUPS: one shared two-slot Gear group) are the rule.
  *
  * @param {object} [options.extraFlags]  Further module flags written in the same
  *   creation. Truth Bullets carry a good deal more than a category and a tier,

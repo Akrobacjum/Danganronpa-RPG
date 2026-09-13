@@ -308,7 +308,7 @@
       },
       "uiScale": {
         "name": "Interface scale",
-        "hint": "One factor on the module's own type and panels, 80% to 140%, on top of the screen's own factor (2560 x 1440 is 100%; a smaller screen draws smaller, down to 70%). The map, Foundry's own windows and the 11px floor are never scaled. This client only."
+        "hint": "One factor on the module's own type and panels, 80% to 140%, on top of the screen's own factor (2560 x 1440 is 100%; a smaller screen draws smaller, down to 70%). The map and Foundry's own windows are never scaled. This client only."
       },
       "debug": {
         "name": "Verbose console logging",
@@ -595,7 +595,7 @@
     },
     "Analyze": {
       "analyseBullet": "Identify a Truth Bullet",
-      "askHint": "Fixate on a specific matter",
+      "askHint": "Ask for a hint",
       "whichBullet": "Which Truth Bullet?",
       "onBullet": "Analyze: {name}",
       "noBullets": "You have nothing left to analyze.",
@@ -964,7 +964,7 @@
       "newRule": "The Blackened introduces one new rule of their choosing, with Monokuma's consent.",
       "newRuleWritten": "The Blackened's new rule has been announced, with no name on it.",
       "blackenedRuleTitle": "The Blackened's new rule",
-      "blackenedRuleIntro": "The Blackened walked out of this trial, and the guide gives them one new rule of their choosing with Monokuma's consent. Type what they asked for.",
+      "blackenedRuleIntro": "The Blackened walked out of this trial, and they get one new rule of their choosing with Monokuma's consent. Type what they asked for.",
       "blackenedRuleNote": "Announced to everyone as one of Monokuma's rules. Nothing in the card says who asked for it, and it goes onto every sheet with the others.",
       "whoNth": "Name {n}",
       "twoBlackened": "This chapter produced {n} Blackened. Name all of them - half an answer is not one.",
@@ -1281,6 +1281,8 @@
       "freeResolution": "You stopped them cold. Take Survive or Role reversal this turn - no roll, it simply works."
     },
     "Investigation": {
+      "room": "Room",
+      "visibility": "Visibility",
       "filterOrder": "Order",
       "orderRoom": "By room",
       "orderNewest": "Newest first",
@@ -1350,6 +1352,9 @@
       "chargeTooLate": "The clock has already moved to chapter {now}; the plan for chapter {was} is no longer the live one, so nothing was charged for unfound Key Remnants. Charge it from the trial floor before ending the chapter."
     },
     "Vault": {
+      "foundStashPending": "You find somebody's hiding place. What comes out of it settles in a moment.",
+      "foundStashNothing": "You find somebody's hiding place, but nothing from it stays in your hands.",
+      "handsFull": "Your hands are full: what you found in the hiding place stays where it was.",
       "section": "Stash - {room}",
       "stowTooltip": "Put this in your stash (you must be in the room)",
       "takeTooltip": "Take this back out (you must be in the room)",
@@ -1543,6 +1548,7 @@
       "objectionRebuttalTargets": "Anybody may cut into a rebuttal, but only at the two already on the floor. An objection re-points the floor, and whoever you name gets the answering rebuttal."
     },
     "Handover": {
+      "alreadyHasKey": "{who} already has a key to that room.",
       "stashed": "{name} is in a stash, not in your hands. Take it out first.",
       "shareTooltip": "Share a copy with someone in this room",
       "giveTooltip": "Hand this to someone in this room",
@@ -1561,7 +1567,7 @@
       "theirHandsFull": "{who} already carries the most {category} they can ({limit}).",
       "failed": "That handover did not go through. Tell the GM.",
       "stuck": "{who} handed over “{name}”, but their own copy could not be removed. Two exist now - delete one from their sheet.",
-      "alreadyHasIt": "{who} already found that trace themselves. {name} would only be a duplicate.",
+      "alreadyHasIt": "Nothing changed hands.",
       "shared": "{who} now has a copy of {name}.",
       "gave": "{name} is now {who}'s.",
       "receivedBullet": "Evidence shared with you",
@@ -1571,7 +1577,7 @@
     },
     "Observe": {
       "declarePrompt": "How are you looking?",
-      "general": "Glance for a bullet",
+      "general": "Sweep the room",
       "specific": "Focus your gaze",
       "nonObvious": "Look past the obvious",
       "followTraces": "Follow my traces",
@@ -2135,6 +2141,7 @@
     "Bridge": {
       "what": {
         "project.progress": "Project progress",
+        "project.sabotage": "Sabotage",
         "project.share": "Share a project",
         "remnant.place": "Leave a trace",
         "remnant.edit": "Edit a trace",
@@ -2294,7 +2301,7 @@
       "section": {
         "now": "Right now",
         "case": "The case",
-        "fixes": "Repairs",
+        "fixes": "Diagnostics",
         "between": "Between sessions"
       },
       "close": "Close",
@@ -2340,7 +2347,7 @@
         "other": "{n} characters changed."
       },
       "stateUnchanged": "Nothing changed.",
-      "checksSetup": "Season setup",
+      "checksSetup": "Cast",
       "seasonChecks": "Pre-season checks",
       "nextFloorHeld": "{mode} - {who} holds it.",
       "whoIsAlive": "Players",
@@ -2542,6 +2549,8 @@
       "tabChat": "Chat"
     },
     "Voice": {
+      "contested": "Voice: {name} owns characters in more than one place ({places}). A voice client can only be in one room, so {name} is being sent to \"{room}\" and the rest are ignored. Give the spare characters to another account, or leave their tokens off the map.",
+      "mainRoom": "the main room",
       "notActive": "LiveKit AVClient is not installed, not active, or not connected.",
       "eavesdropFailed": "Could not join that room's voice channel. See the console.",
       "noRooms": "No mapped rooms on that scene yet.",
@@ -2615,8 +2624,10 @@
     "Secret": {
       "speaker": "Monokuma"
     },
+    "Legacy": {
+      "safeword": "MISIUBOMBO"
+    },
     "Safeword": {
-      "word": "MISIUBOMBO",
       "title": "Safeword",
       "tooltip": "Stop the scene. No reason needed, and nobody will ask for one.",
       "keybinding": "Safeword - stop the scene",
@@ -2689,7 +2700,7 @@
       "campaignName": "Campaign name",
       "campaignPlaceholder": "Hope's Peak: Drowned Summer",
       "chapter": "Chapter",
-      "note": "Nothing here is done for you that you would not have done yourself. What it does is say what there is to do, in the order a season is actually built.",
+      "note": "Every row is something a season needs, in the order a season is actually built.",
       "doIt": "Do it",
       "openIt": "Open",
       "fixed": {
