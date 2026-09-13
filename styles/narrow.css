@@ -48,7 +48,23 @@
 #drpg-column > * { pointer-events: auto; }
 /* Sideways on a phone there is no height to give away, so the stack keeps more of
    what little there is and the board gets the rest. */
-body.drpg-short #drpg-column { max-height: 60dvh; gap: 2px; }
+/* ...but never so much of it that the launchers stand in the stack. They are fixed to
+   the bottom-right corner and about 150 px tall with their margin, so at 386 px of height
+   a stack of 60 % reached the messenger button - measured, three overlapping pairs and the
+   Projects tray off the screen at 640 x 360. */
+body.drpg-short #drpg-column { max-height: min(60dvh, calc(100dvh - 170px)); gap: 2px; }
+
+/* THE GAP OPENS EXACTLY WHERE THERE IS GLASS TO PUT IN IT.
+   The seam between two rows of the stack runs the full width and may not reach into
+   either row, so how far it can lean is decided by how far apart they are
+   (`stackShapes` in glass.mjs bounds the angle by exactly that). At four pixels it
+   leans by nothing and the glass comes out as a ruled page. Fourteen buys about a
+   degree, which is the same order as the lean the rails are cut with. Keyed on
+   `drpg-curtain-on`, which glass.mjs puts on the body only where a curtain is
+   actually painted, so a screen with no glass keeps the tighter rhythm and the
+   height it saves. */
+body.drpg-curtain-on #drpg-column,
+body.drpg-curtain-on #drpg-column > #ui-right-column-1 { gap: 14px; }
 
 /* The order of the stack, which is the order of the game: what time it is, how
    much Despair is in the room, what is happening right now, then the table's own

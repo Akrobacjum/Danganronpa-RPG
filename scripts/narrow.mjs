@@ -30,15 +30,18 @@
  * observer below is Foundry rebuilding `#ui-right`, which happens on a scene
  * change and not on a render.
  *
- * The curtain does not draw while this is on - see `glassRoom()` in glass.mjs.
- * The stack is a different shape from the one its partition is cut for, and
- * giving it its own cut is a separate piece of work.
+ * The curtain draws over the stack, cut for it: `stackShapes` in glass.mjs is a
+ * partition for this shape rather than for the desk's three columns. It stands
+ * down only where the stack has to scroll - under 620 px of height - because a
+ * row scrolled under the ceiling can have no glass cut for it.
  */
 
-import { narrowScreen, shortScreen } from "./settings.mjs";
+import { narrowScreen } from "./settings.mjs";
 import { error } from "./utils.mjs";
 
 const COLUMN_ID = "drpg-column";
+/** The stack, for anything that has to measure it - the curtain cuts its panes to it. */
+export const COLUMN_SEL = "#" + COLUMN_ID;
 /** The blocks that stack, in the order they stack in. */
 const STACKED = ["#drpg-hud", "#drpg-despair", "#ui-right-column-1"];
 
@@ -48,7 +51,7 @@ let columnWatch = null, reserveFrame = 0;
 
 /** True when the module's blocks must stack instead of sitting in Foundry's columns. */
 export function narrowLayout() {
-    return narrowScreen() || shortScreen();
+    return narrowScreen();
 }
 
 /**

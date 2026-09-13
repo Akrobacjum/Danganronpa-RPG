@@ -17,8 +17,8 @@
  * the theme is "Monokuma Legacy" this file mounts nothing.
  */
 
-import { SETTINGS, getSetting, glassFits, BREAKPOINTS } from "./settings.mjs";
-import { narrowLayout } from "./narrow.mjs";
+import { SETTINGS, getSetting, shortScreen, BREAKPOINTS } from "./settings.mjs";
+import { narrowLayout, COLUMN_SEL } from "./narrow.mjs";
 import { log } from "./utils.mjs";
 
 /** Self-check results of the last geometry pass, for diagnostics. */
@@ -356,7 +356,12 @@ const PIN = { rail: null };
 function pinRightColumn() {
   const col = document.getElementById("ui-right-column-1");
   if (!col) return;
-  if (!themeOn()) { unpinRightColumn(); return; }
+  /* AND NOT WHEN THE COLUMN IS A ROW OF THE STACK. Pinned, it leaves the flow and
+     stands against the right wall at the top of the screen - which on a stacked
+     layout is where the clock is: the strip and the tray came down on top of it
+     (measured, three overlapping pairs). Stacked, the column is in narrow.mjs's
+     column and belongs to it. */
+  if (!themeOn() || narrowLayout()) { unpinRightColumn(); return; }
   const rail = document.getElementById("sidebar-tabs");
   const r = rail && rail.offsetWidth ? rail.getBoundingClientRect() : null;
   /* AND CLEAR OF THE RAIL'S BAND, NOT JUST OF THE RAIL.
@@ -1288,12 +1293,209 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     return tiles;
   };
 
+  /*
+   * THE STACK'S OWN CUT, BECAUSE THE PARTITION BELOW IS CUT FOR A DESK.
+   *
+   * `curtainShapes` reads the screen as two bands with a pencil of filler between
+   * the columns of blocks in each. On a stacked layout (narrow.mjs) there are no
+   * columns: every block is one full-width row at the top, the whole lower half of
+   * the screen is board, and the desk partition answers that shape with one pane
+   * over the entire stack and two enormous shards under it. Measured with it forced
+   * on at 820 x 1180: 16 blocks off their own pane and 206 gaps at the screen edge.
+   *
+   * So the stacked screen gets its own cut, and it is built the other way round.
+   * The desk partition ASSEMBLES panes and then checks that they tile the screen;
+   * this one starts from the screen and CUTS it, and every cut is a straight line
+   * through a convex piece. A line through a convex polygon gives two convex
+   * polygons and nothing else, so the result is a partition of the whole screen
+   * with no overlap and no gap by construction, whatever the blocks turn out to be.
+   * That is what makes it safe on a shape nobody has measured yet.
+   *
+   * WHAT IT CANNOT DO, AND WHY THAT IS THE SHAPE RATHER THAN THE CODE. A seam
+   * between two full-width rows has to run the full width, and it may not reach
+   * into either row: with 14 px between them it can lean about a degree and no
+   * more. The character has to come from where there is room for it - the field
+   * below the stack, which on a phone in portrait is most of the screen, and the
+   * strips down the two rails. Horizontal slabs at the top and broken glass below
+   * is what a tall screen looks like, and pretending otherwise means cutting
+   * through the clock.
+   *
+   * Nothing here leans a block: `ROT` is left empty, so `applyRotations` writes an
+   * empty sheet and every block stands upright. A full-width pane has nowhere to
+   * lean to.
+   */
+  function stackShapes(host, W, H, rnd, boxes) {
+    let pieces = [[[0, 0], [W, 0], [W, H], [0, H]]];
+    /* one cut: a line through (px, py) at `ang`, applied to the pieces `only` admits.
+       Restricting it to some of the pieces is still a partition - each piece is either
+       left alone or replaced by its own two halves. */
+    /* A PIECE CUT FOR A BLOCK IS FINISHED AND NOTHING CUTS IT AGAIN. Without this the
+       strip down the left wall ran through the notice tile's own piece and the launcher's,
+       and a block standing across two panes is exactly what the self-check calls a
+       blockFail - eight of them, measured, before the claim was added. */
+    const claimed = new Set();
+    const cut = (px, py, ang, only) => {
+      const nx = -Math.sin(ang), ny = Math.cos(ang);
+      const next = [];
+      for (const p of pieces) {
+        if (claimed.has(p) || (only && !only(p))) { next.push(p); continue; }
+        const [a, b] = split(p, px, py, nx, ny);
+        if (a && b) next.push(a, b); else next.push(p);
+      }
+      pieces = next;
+    };
+    /* a box cut out of the field: four lines, each applied only to the pieces the box
+       actually reaches, so the rest of the screen keeps whatever it already was */
+    const cutBox = (x0, y0, x1, y1) => {
+      const near = p => { const b = bbox(p); return b.x1 > x0 + 0.5 && b.x0 < x1 - 0.5 && b.y1 > y0 + 0.5 && b.y0 < y1 - 0.5; };
+      cut(x0, y0, Math.PI / 2, near);
+      cut(x1, y0, Math.PI / 2, near);
+      cut(x0, y0, 0, near);
+      cut(x0, y1, 0, near);
+    };
+
+    /* the stack is the full-width rows; whatever else is measured - the launchers -
+       gets a pane of its own in the field below.
+
+       A RESERVED BOX GETS NO PANE HERE, and that is the one thing this cut does not do
+       that the desk one does. The notice tile is `fixed` in BLOCKS: its box is a constant
+       standing in for a stack of cards that may not exist yet, and that constant is where
+       the cards are ON A DESK. Stacked, styles/narrow.css sends them to the foot of the
+       screen across its whole width, so the constant describes an empty corner - and a
+       pane cut there is a pane cut for nothing. The cards keep their own card look, which
+       `drpg-curtain-on` never took off them. */
+    /* `b.r` is the MEASURED rectangle and the only honest test of "this block is
+       really there": `moduleLayout` gives every box an `x/y/w/h`, a reserved one from
+       its fallback and a measured one from the element. Reading a `measured` flag off
+       these - the name `LAST.blocks` uses - found `undefined` on every box, so the
+       stack came out empty, one pane covered the lot, and the self-check passed
+       because it had nothing left to check. */
+    let rows = boxes.filter(b => b.r && b.w > W * 0.5).sort((p, q) => p.y - q.y);
+    const loose = boxes.filter(b => !rows.includes(b) && b.r);
+
+    /* AND A ROW SCROLLED OUT OF THE STACK HAS NO GLASS.
+       The stack has a ceiling and scrolls past it, and a block scrolled under that
+       ceiling still reports the position it is LAID OUT at - `getBoundingClientRect`
+       knows nothing about the clip above it. A pane cut there is a pane cut over the
+       board, with the block it was cut for nowhere near it: four blockFails at 620 px
+       of height, twenty at 640 x 360, measured. Every row is cut down to the part of
+       it the stack actually shows, and a row with nothing left is not a row. */
+    const frame = document.getElementById("drpg-curtain")?.getBoundingClientRect();
+    const seen = host.querySelector(COLUMN_SEL)?.getBoundingClientRect();
+    if (seen) {
+      const lo = seen.top - (frame?.top ?? 0), hi = seen.bottom - (frame?.top ?? 0);
+      rows = rows.map(b => {
+        const y0 = Math.max(b.y, lo), y1 = Math.min(b.y + b.h, hi);
+        if (y1 - y0 <= 20) return null;
+        // `clipped` tells the self-check not to count the part under the ceiling as the
+        // block overflowing its box: the box is deliberately the smaller of the two
+        return y0 === b.y && y1 === b.y + b.h ? b : { ...b, y: y0, h: y1 - y0, clipped: true };
+      }).filter(Boolean);
+    }
+
+    // 1. a seam down the middle of every gap between two rows, leaning as far as the gap allows
+    for (let i = 0; i + 1 < rows.length; i++) {
+      const a = rows[i], b = rows[i + 1];
+      const gap = Math.max(0, b.y - (a.y + a.h));
+      const rise = Math.max(0, gap / 2 - 3);
+      const ang = (rnd() < 0.5 ? -1 : 1) * Math.min(4 * DEG, Math.atan(rise / (W / 2)));
+      cut(W / 2, (a.y + a.h + b.y) / 2, ang);
+    }
+
+    /* 2. the seam under the stack, which is the one that can lean: there is nothing
+       below it but board, so it only has to clear the last row - and it is pushed down
+       by its own rise so that the high end of it does. */
+    const last = rows[rows.length - 1];
+    const endAng = (rnd() < 0.5 ? -1 : 1) * (3 + rnd() * 3) * DEG;
+    const rise = Math.abs(Math.tan(endAng)) * (W / 2);
+    const yBase = last ? last.y + last.h + PAD_FAR + rise : Math.min(H * 0.3, 160);
+    cut(W / 2, yBase, endAng);
+
+    /* 3. the blocks that are not rows: one box each, claimed so that nothing cut in the
+       field afterwards runs through them. */
+    for (const b of loose) {
+      const x0 = Math.max(0, b.x - PAD_SIDE), y0 = Math.max(0, b.y - PAD_SIDE);
+      const x1 = Math.min(W, b.x + b.w + PAD_SIDE), y1 = Math.min(H, b.y + b.h + PAD_SIDE);
+      cutBox(x0, y0, x1, y1);
+      const own = pieces.find(q => inside(q, b.x + b.w / 2, b.y + b.h / 2));
+      if (own) claimed.add(own);
+    }
+
+    /* 4. the field below the stack, where there is room to break the glass. The rails'
+       bands first - the strip down each wall is the piece between the wall and the
+       band's inner edge, and the tiles stand on it the way they do on a desk - then a
+       few long diagonals across what is left, and a band along the bottom edge. */
+    /* THE FIELD BEGINS AT THE HIGH END OF THAT SEAM, NOT AT ITS MIDDLE.
+       The seam leans, so the piece under it starts `rise` px above the y the cut was
+       made at. Tested against the middle, every piece of the field failed the test and
+       not one of the cuts below was made: the field came out as two enormous panes and
+       the rails got no strip (measured 13.09 - 13 panes, one of them a fifth of the
+       screen and painted as a stained one). */
+    const fieldTop = yBase - rise - 1;
+    const inField = p => bbox(p).y0 >= fieldTop;
+    const cv = host.querySelector(".curtain > canvas.sg, #drpg-curtain > canvas.sg");
+    const bands = [
+      railBox(host, cv, W, "#scene-controls", 0, null),
+      railBox(host, cv, W, "#sidebar-tabs", 1, null)
+    ];
+    for (const band of bands) {
+      if (!band || band.real === false || !Number.isFinite(band.band)) continue;
+      cut(band.band, yBase, Math.PI / 2, inField);
+    }
+    const fieldH = H - yBase;
+    if (fieldH > 120) {
+      for (const at of [0.34 + rnd() * 0.1, 0.66 + rnd() * 0.1]) {
+        const ang = (rnd() < 0.5 ? -1 : 1) * (16 + rnd() * 16) * DEG;
+        cut(W / 2, yBase + fieldH * at, ang, inField);
+      }
+    }
+    if (fieldH > 260) {
+      const ang = Math.PI / 2 + (rnd() - 0.5) * 0.5;
+      cut(W * (0.3 + rnd() * 0.4), yBase + fieldH / 2, ang, p => bbox(p).y0 >= fieldTop + fieldH * 0.15);
+    }
+
+    /* 5. the panes. A piece carrying a block's centre is that block's - its tone, and
+       `empty` when the block is a reserved box with nothing in it today. Every other
+       piece is filler. */
+    /* A BIG PANE IS NEVER A STAINED ONE. One filler pane in five is painted in a colour
+       (`stained` in paintGlass), which reads as a shard of the window on a desk, where the
+       panes are small and there are thirty of them. On a tall screen the field below the
+       stack can be a fifth of the whole display, and one pane that size in cobalt is not a
+       shard, it is a wall. `plain` is what the painter already reads to refuse that. */
+    const BIG = W * H * 0.06;
+    const panes = pieces.filter(p => p && p.length >= 3 && area(p) > 12)
+      .map(poly => ({ poly, content: false, tone: null, kind: "field", rank: 9, plain: area(poly) > BIG }));
+    for (const b of [...rows, ...loose]) {
+      const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+      const home = panes.find(p => !p.content && inside(p.poly, cx, cy));
+      if (!home) continue;
+      home.content = true; home.tone = b.cls; home.kind = "section"; home.rank = 0; home.empty = !b.r;
+    }
+
+    /* the shape the rest of the pass reads. One pseudo-column per block, so the
+       self-check tests every corner of every block against its own pane exactly as it
+       does on a desk; no tiles, because no rail is turned here; no rings. */
+    const kept = panes;
+    kept.meta = {
+      top: [...rows, ...loose].map(b => ({
+        x0: b.x, x1: b.x + b.w, y0: b.y, y1: b.y + b.h, items: [b],
+        rot: (x, y) => [x, y], px: 0, py: 0, s: 0,
+        depthL: 0, depthR: 0, farL: [b.x, b.y + b.h], farR: [b.x + b.w, b.y + b.h]
+      })),
+      bot: [], rings: [], tiles: {}
+    };
+    return kept;
+  }
+
   function curtainShapes(host, W, H, rnd, boxes, FW) {
     const panes = [];
     /* what every cutter reads and writes: the panes so far, the frame, the seed's
        stream, the rails' bands once they are measured, and the needles placed */
     const ctx = { panes, W, H, FW, rnd, railBands: null, needles: [] };
     ctx.push = (poly, tone, kind, rank) => pushPane(ctx, poly, tone, kind, rank);
+
+    // a stacked layout is a different shape and gets a different cut; see stackShapes
+    if (narrowLayout()) return stackShapes(host, W, H, rnd, boxes);
 
     const top = columnsOf(boxes.filter(b => b.y + b.h / 2 < H / 2));
     const bot = columnsOf(boxes.filter(b => b.y + b.h / 2 >= H / 2));
@@ -1613,7 +1815,7 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
          inside the neighbour's glass. That is exactly the failure this check exists to catch,
          and it is why the Despair rail could lose its pane on a narrow screen and report clean. */
       const own = panes.filter(p => p.content && p.tone === b.cls);
-      if (b.r && (b.r.x < b.x - 0.5 || b.r.y < b.y - 0.5 || b.r.x + b.r.w > b.x + b.w + 0.5 || b.r.y + b.r.h > b.y + b.h + 0.5)) fitFails++;
+      if (b.r && !b.clipped && (b.r.x < b.x - 0.5 || b.r.y < b.y - 0.5 || b.r.x + b.r.w > b.x + b.w + 0.5 || b.r.y + b.r.h > b.y + b.h + 0.5)) fitFails++;
       const qs = [[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h]].map(([x, y]) => col.rot(x - col.px, y - col.py)).filter(q => q[0] > 1 && q[0] < W - 1 && q[1] > 1 && q[1] < H - 1);
       for (const q of qs) {
         if (!own.some(p => inside(p.poly, q[0], q[1]))) blockFails++;
@@ -1733,29 +1935,31 @@ function themeOn() { try { return getSetting(SETTINGS.theme) === "stainedGlass";
 /*
  * A SCREEN CAN BE TOO SMALL FOR GLASS, AND THIS IS WHERE THE CURTAIN ADMITS IT.
  *
- * The partition is cut around the module's blocks: a block gets its own pane, the
- * filler between panes is a pencil of rays, and Foundry's two rails get a strip
- * down each side. All of that wants room. Measured at every size in
- * audit/glass-harness.html on 13.09, the cut is clean down to 768 x 1024 and comes
- * apart below it - 130 edge gaps at 500 x 813, 199 at 360 x 740 - because the
- * strips and the ledges eat a phone's whole width before any pane is cut. That is
- * the sawtooth Dawid photographed, and no amount of tuning the ledge fixes it: the
- * panes are simply thinner than the blocks standing on them.
+ * There are two partitions now - the desk's (`curtainShapes`) and the stack's
+ * (`stackShapes`) - and between them they cover every width measured, down to
+ * 280 px, with no overlap, no gap at the screen edge and every block on its own
+ * pane. What neither can answer is a screen with no HEIGHT.
  *
- * So below the gate the curtain does not draw. The theme keeps its palette, its
+ * The stack has a ceiling and scrolls past it, and a block scrolled under that
+ * ceiling still reports the position it is laid out at. `stackShapes` cuts its
+ * rows down to what the stack actually shows, which holds while there is something
+ * left to show; under about 620 px of height there is not, and the launchers
+ * standing in the bottom corner come up into the stack besides (measured at
+ * 980 x 386 and 640 x 360: blocks off their pane and the tray off the screen).
+ *
+ * HEIGHT ONLY MATTERS TO THE STACK, so this is the two conditions together and not
+ * the height on its own. A wide short window - 1600 x 600 - keeps Foundry's three
+ * columns, has no stack to scroll and no collisions to fix, and the desk partition
+ * cuts it exactly as it cuts 1600 x 900.
+ *
+ * So on a stacked layout under that height the curtain does not draw at all. The theme keeps its palette, its
  * type and its blocks - which get their own plates back, because those are only
  * turned off by `drpg-curtain-on` - and the body carries `drpg-glass-flat` for the
  * flat backdrop in stained-glass.css. Nothing is left running: with no curtain and
- * no dressed windows the pulse repaints nothing, which is the other half of the
- * complaint (14 FPS in portrait).
- *
- * AND THE SAME OVER A STACKED LAYOUT, which is the wider gate of the two. Below
- * 1200 px the module's blocks leave Foundry's columns and stack in one of their
- * own (narrow.mjs) - a shape this partition is not cut for: it splits the blocks
- * into a top band and a bottom band at half the height, and a stack puts every
- * one of them in the top. Giving that shape its own cut is its own piece of work.
+ * no dressed windows the pulse repaints nothing, which was the other half of the
+ * complaint (14 frames a second in portrait).
  */
-function glassRoom() { return themeOn() && glassFits() && !narrowLayout(); }
+function glassRoom() { return themeOn() && !(narrowLayout() && shortScreen()); }
 /* `effectsOn()` is gone with the setting it read. It gated the pulse, the seam flashes, the
    pane beat and (until 08.09) the state crossfade - which meant one switch could stop the
    theme moving at all, and with it off the curtain was a still picture that nobody could
@@ -2096,9 +2300,8 @@ export function glassReport() {
   // gate doing its job and reads in the Look dialog like a fault
   if (!j) {
     if (!themeOn()) return "theme off";
-    if (!glassFits()) return "flat: " + innerWidth + "x" + innerHeight + " is under the curtain's "
-      + BREAKPOINTS.glassW + "x" + BREAKPOINTS.glassH;
-    if (narrowLayout()) return "flat: the blocks are stacked at " + innerWidth + "x" + innerHeight;
+    if (narrowLayout() && shortScreen()) return "flat: the stack scrolls at " + innerHeight
+      + " px of height, under the curtain's " + BREAKPOINTS.short;
     return "no curtain mounted";
   }
   const el = j.el, r = el.getBoundingClientRect();
@@ -2357,7 +2560,6 @@ function anythingMounted() {
 
 /** Mount or unmount the curtain according to the theme setting and the screen's room. */
 export function refreshGlass() {
-  // `glassRoom` and not `glassFits`: a stacked layout gets the flat backdrop too
   document.body.classList.toggle("drpg-glass-flat", themeOn() && !glassRoom());
   // `unmount` only when there is something to take down: this runs on every DOM
   // mutation through `schedule`, and it walks the document clearing styles

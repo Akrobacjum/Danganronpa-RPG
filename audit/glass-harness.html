@@ -111,7 +111,7 @@
       el.style.setProperty("--drpg-ui-scale", q.get("scale") || String(auto));
       el.style.setProperty("--drpg-type-scale", q.get("scale") || String(type));
     }
-    document.body.classList.toggle("drpg-stacked", st.narrowScreen() || st.shortScreen());
+    document.body.classList.toggle("drpg-stacked", st.narrowScreen());
     document.body.classList.toggle("drpg-short", st.shortScreen());
     nr.applyNarrowLayout();
     m.refreshGlass();

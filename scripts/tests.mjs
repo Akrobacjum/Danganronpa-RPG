@@ -41,7 +41,7 @@ import { MODULE_ID, moduleVersion, CRISIS_ACTIONS, ACTIONS, TRAITS,
 } from "./config.mjs";
 import { rolesOf } from "./inventory.mjs";
 import { vaultContents, stashRoomOfItem, stashIn, allVaults } from "./vault.mjs";
-import { SETTINGS, DEFAULT_SAFEWORD, getSetting, BREAKPOINTS, narrowScreen, shortScreen, glassFits } from "./settings.mjs";
+import { SETTINGS, DEFAULT_SAFEWORD, getSetting, BREAKPOINTS, narrowScreen, shortScreen } from "./settings.mjs";
 import { applyNarrowLayout, narrowLayout } from "./narrow.mjs";
 import { safeword } from "./safeword.mjs";
 import { getClock, setClock } from "./clock.mjs";
@@ -5826,25 +5826,26 @@ const SCENARIOS = [
             "a screen whose blocks were measured colliding is not being restacked");
         ok(!shortScreen(993) && shortScreen(386),
             "a phone held sideways is not being told apart from a desk");
-        ok(glassFits(1920, 993) && glassFits(1280, 800) && glassFits(768, 1024),
-            "the curtain is standing down on a screen it was measured cutting cleanly");
-        ok(!glassFits(500, 813) && !glassFits(393, 852) && !glassFits(980, 386),
-            "the curtain is still being cut on a screen it was measured coming apart on "
-            + "(130 edge gaps at 500 x 813, 169 at 980 x 386)");
-        ok(!narrowScreen(0) && !shortScreen(0) && glassFits(0, 0),
+        ok(!shortScreen(993) && !shortScreen(813) && !shortScreen(653),
+            "the curtain is standing down on a screen it was measured cutting cleanly "
+            + "(no gaps and every block on its own pane from 280 x 653 up)");
+        ok(shortScreen(386) && shortScreen(360) && shortScreen(568),
+            "the curtain is still being cut where the stack has to scroll and the "
+            + "launchers come up into it - measured at 980 x 386 and 640 x 360");
+        ok(!narrowScreen(0) && !shortScreen(0),
             "a window that has not been laid out yet reads as a phone, so a client "
             + "mid-boot restacks itself and unmounts its curtain on a measurement of zero");
-        ok(BREAKPOINTS.narrow === 1200 && BREAKPOINTS.glassW === 700 && BREAKPOINTS.glassH === 500,
+        ok(BREAKPOINTS.narrow === 1200 && BREAKPOINTS.short === 620,
             "the breakpoints moved without the measurements that chose them moving");
 
         const src = stripComments(
             await fetch(`/modules/${MODULE_ID}/scripts/glass.mjs`).then(r => r.text()));
         ok(/drpg-glass-flat/.test(src) && /function glassRoom\(\)/.test(src),
             "the curtain has no gate of its own, so a phone gets a partition cut for a desk");
-        ok(/function glassRoom\(\)[^\n]*!narrowLayout\(\)/.test(src),
-            "the curtain is still cut while the blocks are stacked, which is a shape its "
-            + "partition is not cut for - it splits them at half the height and a stack "
-            + "puts every one of them in the top half");
+        ok(/if \(narrowLayout\(\)\) return stackShapes\(/.test(src),
+            "a stacked layout is cut by the desk's partition, which splits the blocks at "
+            + "half the height and puts every one of a stack's in the top half - measured "
+            + "with it forced on at 820 x 1180: 16 blocks off their pane and 206 edge gaps");
         ok(/export function dressWindow\(app\) \{\s*if \(!glassRoom\(\)\)/.test(src),
             "windows are still dressed with glass where no curtain is mounted, so the "
             + "pulse keeps repainting canvases on a phone");

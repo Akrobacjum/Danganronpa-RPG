@@ -1460,16 +1460,17 @@ export function pixelFontOn() {
  * about 382 px in from the edge, so the two meet at about 1196 px of width. 1200
  * is that number rounded up, and nothing wider than it changes at all.
  *
- * SHORT IS NOT NARROW, AND THE ANSWER IS NOT THE SAME. A phone held sideways
- * (980 x 386) has width to spare and no height: stacking would make it worse, and
- * what it wants is the vertical rhythm squeezed. Two flags, for that reason.
- *
- * The curtain needs more room than the blocks do, and it is its own gate rather
- * than this one. The same measurements have it well cut at 768 x 1024 and falling
- * apart below about 700 px of width or 500 px of height, where its panes come out
- * thinner than the blocks standing on them.
+ * SHORT IS ITS OWN THING, AND IT IS NOT ABOUT COLLISIONS. A phone held sideways
+ * (980 x 386) is narrow as well, so it stacks for the reason above; what 620 px
+ * decides is different. The stack has a ceiling and scrolls past it, and a block
+ * scrolled under that ceiling is a block the curtain cannot cut a pane for - it
+ * reports the position it is laid out at, which by then is over the board. Under
+ * 620 px of height that starts happening with an ordinary table's blocks, so the
+ * curtain stands down there and the flat backdrop takes over (glass.mjs). It is a
+ * separate number from the one above because a wide short window - 1600 x 600 -
+ * has no collisions to fix and keeps the desk layout it always had.
  */
-export const BREAKPOINTS = { narrow: 1200, short: 620, glassW: 700, glassH: 500 };
+export const BREAKPOINTS = { narrow: 1200, short: 620 };
 
 /* A measurement of zero is a window that has not been laid out yet - a hidden
    iframe, a client mid-boot - and it must not read as "tiny": nothing stacks,
@@ -1484,11 +1485,6 @@ export function narrowScreen(w = innerWidth) {
 export function shortScreen(h = innerHeight) {
     return measured(h) < BREAKPOINTS.short;
 }
-/** True when the screen has the room the curtain needs to be cut into panes. */
-export function glassFits(w = innerWidth, h = innerHeight) {
-    return measured(w) >= BREAKPOINTS.glassW && measured(h) >= BREAKPOINTS.glassH;
-}
-
 /**
  * The screen's own factor under the slider.
  *
@@ -1540,10 +1536,10 @@ export function effectiveScale() {
    settled, and only when the factor actually differs. */
 let screenWatched = false, screenTimer = 0, screenFactor = 0, screenShape = "";
 /* The scale is not the only thing a resize can change: crossing 1200 px of width
-   restacks the module and crossing the curtain's gate puts the glass to sleep, and
+   restacks the module and crossing 620 px of height puts the glass to sleep, and
    both can happen without the factor moving a hundredth (it is at its floor on every
    screen under 1792 x 1008 anyway). One key covers all three. */
-const shapeKey = () => (narrowScreen() ? "n" : "-") + (shortScreen() ? "s" : "-") + (glassFits() ? "g" : "-");
+const shapeKey = () => (narrowScreen() ? "n" : "-") + (shortScreen() ? "s" : "-");
 function watchScreen() {
     screenFactor = autoScale();
     screenShape = shapeKey();
@@ -1569,7 +1565,7 @@ export function applyTheme() {
        about where a screen stops being a desk. One class for "the blocks stack"
        and one for "and there is no height either", which is the only distinction
        styles/narrow.css needs to draw. */
-    document.body.classList.toggle("drpg-stacked", narrowScreen() || shortScreen());
+    document.body.classList.toggle("drpg-stacked", narrowScreen());
     document.body.classList.toggle("drpg-short", shortScreen());
     // On the body, where the theme's own rules live: a value on <html> was shadowed by
     // the sheet's default on body (v1.2.15), so the scale never applied.
