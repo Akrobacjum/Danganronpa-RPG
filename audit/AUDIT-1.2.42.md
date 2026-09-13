@@ -509,6 +509,39 @@ Zadania 1-11 z sekcji 5 są zrobione na gałęzi, po jednym commicie na zadanie.
 
 Wydane jako 1.2.44 (decyzja z 13.09: "na koniec wrzuć całość jako release 1.2.X", co zastąpiło D10 B): `module.json` i stempel CSS mówią 1.2.44, notatki w `.github/release-notes/v1.2.44.md`, `main` przesunięty na tę gałąź, workflow Release uruchomiony z tagiem `v1.2.44`. Live checki z 9.2 pozostają do zrobienia na prawdziwym Foundry po aktualizacji.
 
+### 9.3 Po 1.2.44: cztery stany i ekrany, które nie są biurkiem (wydane jako 1.2.45)
+
+| Commit | Co weszło |
+| --- | --- |
+| `d5f8b0e` | Dwa komentarze wskazujące po podziałach na stary kształt kodu |
+| `d6b069e` | **Faza jest właścicielem swojego stanu**, którąkolwiek drogą ktoś ją zapisze (`setClock` uzgadnia: wyjście z `classTrial` zamyka piętro, wejście resetuje postęp i nalicza za nieznalezione klucze; wygaszony Eclipse czyści swoje ruchy i rozgłasza `SYNC.eclipse`), więc zakończenie triala przez Edit campaign kończy go naprawdę. Karta incydentu na panelu eventów czyta obsadę z `incidentCast`, nie ze świata, więc nie znika po opening rollu. Kurtyna jest przecinana ponownie po powrocie do karty przeglądarki (`visibilitychange`), więc po zniknięciu panelu nie zostaje tafla z blurem nad niczym. Reset sezonu czyści też trwający incydent i jego obsadę. Trzy testy regresji |
+| `c7014db` | **A** - progi ekranu (`BREAKPOINTS` w `settings.mjs`, jedno miejsce; arkusz i kurtyna czytają stamtąd), klasy `drpg-stacked`/`drpg-short` na `body`, kurtyna z własną bramką i płaskim tłem `drpg-glass-flat`, okna bez szkła tam, gdzie nie ma kurtyny (puls nic nie przemalowuje) |
+| `aa9b9a6` | **B** - poniżej 1200 px bloki wychodzą z kolumn Foundry i układają się w stos (`scripts/narrow.mjs`, `styles/narrow.css` ładowany jako ostatni). Prawa kolumna przenoszona w całości, więc kafelek Projektów przychodzi z nią. Zegar jako zawijany wiersz, pipsy Despair 18 → 13 px |
+| `240f0ff` | **C** - `stackShapes` w glass.mjs: partycja dla stosu budowana przez cięcie ekranu prostymi (dwa wypukłe kawałki z jednego, więc brak dziur i nakładek z konstrukcji). Wiersz przewinięty pod sufit stosu przycinany do tego, co widać. `pinRightColumn` nie działa przy stosie |
+
+**Pomiary (harness kurtyny, headless Chromium, każdy rozmiar osobno).** Nakładające się pary bloków / bloki poza własną taflą / dziury przy krawędzi ekranu:
+
+| Ekran | Przed | Po |
+| --- | --- | --- |
+| 1920x993, 1366x768, 1280x800 | 0/0/0, 0/0/0, 0/16/0 | bez zmian (32, 19, 16 tafli) |
+| 1024x768 | 2/12/0 | 0/0/0 |
+| 820x1180 | 3/20/0 | 0/0/0 |
+| 500x813 | 5/14/122 | 0/0/0 |
+| 393x852 | 5/11/131 | 0/0/0 |
+| 360x740 | 5/15/199 | 0/0/0 |
+| 980x386 | 2/16/169 | stos + płaskie tło (bez kurtyny) |
+
+Czysto od 280x653 w górę. Skala (`autoScale`) nie była ruszana: podłoga 0.7 chroni typografię, a za "za duże na telefonie" odpowiadał układ, nie skala - obniżenie podłogi geometrii przy podłodze typografii 0.85 odtworzyłoby regresję z audytu 08.09.
+
+Suite 122/12, osiem scenariuszy zielone, `config-prose` 490/490.
+
+**Nowe live checki** (harness ich nie rozstrzyga, do sprawdzenia na prawdziwym Foundry):
+
+18. Zakończenie triala przez Edit campaign zamyka piętro.
+19. Panel eventu przeżywa opening roll.
+20. Przełączenie karty przeglądarki i powrót: żadnej tafli z blurem nad niczym.
+21. Telefon i tablet: dotyk, przewijanie stosu palcem, i czy Foundry samo przycina pozycję okien do ekranu (`ApplicationV2` klamruje `left`/`top` - założone, nie zmierzone).
+
 ### 9.1 Decyzje - podjęte 13.09 i wdrożone
 
 | # | Decyzja | Wybór | Commit |
