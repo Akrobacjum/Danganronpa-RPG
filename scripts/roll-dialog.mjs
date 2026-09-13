@@ -298,39 +298,38 @@ function stripExperienceCosts(app) {
  * for it. A Hope Call is the permission slip: Ultimate buys advantage,
  * Experience buys the experience chips, Determination buys the trait picker.
  */
-function lockControls(root, app) {
-    const actor = actorOf(app);
-    const armed = actor ? pendingGrants(actor) : null;
-
-    // Dice size: fixed by the rules, always - the advantage die INCLUDED.
-    // This used to skip the advantage selects while advantage was armed, on
-    // the reasoning that the Call had bought the player the controls. It had
-    // bought them the DIE: the guide's advantage is one d6, and the unlocked
-    // selects let the beneficiary quietly upgrade it to four d20s (Dawid,
-    // 26.08: locked).
-    // Both selector shapes on purpose: the hope/fear dice are named
-    // `roll.dice.*`, while the advantage pair (count and faces) sits in the
-    // modifier fieldset's `.nest-inputs` - one net would miss the other.
+// Dice size: fixed by the rules, always - the advantage die INCLUDED.
+// This used to skip the advantage selects while advantage was armed, on
+// the reasoning that the Call had bought the player the controls. It had
+// bought them the DIE: the guide's advantage is one d6, and the unlocked
+// selects let the beneficiary quietly upgrade it to four d20s (Dawid,
+// 26.08: locked).
+// Both selector shapes on purpose: the hope/fear dice are named
+// `roll.dice.*`, while the advantage pair (count and faces) sits in the
+// modifier fieldset's `.nest-inputs` - one net would miss the other.
+function lockDice(root) {
     for (const select of root.querySelectorAll(
         'select[name^="roll.dice."], .modifier-container .nest-inputs select'
     )) {
         disable(select, "DRPG.RollDialog.diceFixed");
     }
+}
 
-    /*
-     * Trait: chosen before this window opened - with two exceptions.
-     *
-     *   Determination (`armed === "trait"`) buys the whole picker. That is what
-     *   the Call is FOR, so nothing is narrowed.
-     *
-     *   An action may open the door part-way: Search offers Eye or Hand and
-     *   nothing else. The options outside the list are removed rather than
-     *   disabled, because a select full of greyed rows reads as a broken menu,
-     *   while a short menu reads as a short menu.
-     *
-     * Order matters. The Call is checked first, so a player who paid for the
-     * picker is never handed the narrower version of it.
-     */
+/*
+ * Trait: chosen before this window opened - with two exceptions.
+ *
+ *   Determination (`armed === "trait"`) buys the whole picker. That is what
+ *   the Call is FOR, so nothing is narrowed.
+ *
+ *   An action may open the door part-way: Search offers Eye or Hand and
+ *   nothing else. The options outside the list are removed rather than
+ *   disabled, because a select full of greyed rows reads as a broken menu,
+ *   while a short menu reads as a short menu.
+ *
+ * Order matters. The Call is checked first, so a player who paid for the
+ * picker is never handed the narrower version of it.
+ */
+function lockTrait(root, app, armed) {
     const trait = root.querySelector('select[name="trait"]');
     const allowed = traitChoiceFor(app);
 
@@ -362,19 +361,21 @@ function lockControls(root, app) {
     } else if (trait) {
         disable(trait, "DRPG.RollDialog.traitFixed");
     }
+}
 
-    // Advantage and disadvantage.
-    //
-    // Neither is offered, both are imposed: the modifier is applied and then the
-    // buttons are locked. Otherwise a player could simply decline the
-    // disadvantage a Monokuma just paid two Despair for.
-    //
-    // Two sources feed in - a Call somebody paid Hope or Despair for, and the
-    // situation itself (searching a fitting room, digging through a hidden
-    // stash). They are added and clamped, so they cancel rather than one
-    // silently outranking the other: a Monokuma's Obstacle against a player
-    // rummaging in exactly the right place is a fair fight, not a loss for
-    // whichever mechanism happens to be read second.
+// Advantage and disadvantage.
+//
+// Neither is offered, both are imposed: the modifier is applied and then the
+// buttons are locked. Otherwise a player could simply decline the
+// disadvantage a Monokuma just paid two Despair for.
+//
+// Two sources feed in - a Call somebody paid Hope or Despair for, and the
+// situation itself (searching a fitting room, digging through a hidden
+// stash). They are added and clamped, so they cancel rather than one
+// silently outranking the other: a Monokuma's Obstacle against a player
+// rummaging in exactly the right place is a fair fight, not a loss for
+// whichever mechanism happens to be read second.
+function lockAdvantage(root, app, actor, armed) {
     const adv = root.querySelectorAll(".advantage-chip");
     const dis = root.querySelectorAll(".disadvantage-chip");
 
@@ -425,9 +426,11 @@ function lockControls(root, app) {
     } else {
         for (const chip of [...adv, ...dis]) lockChip(chip, "DRPG.RollDialog.advantageLocked");
     }
+}
 
-    // Experiences: always visible, greyed out, and selectable only while the
-    // Experience Call is armed - at which point they are selected and frozen.
+// Experiences: always visible, greyed out, and selectable only while the
+// Experience Call is armed - at which point they are selected and frozen.
+function lockExperiences(root, app, armed) {
     const chips = root.querySelectorAll('[data-action="selectExperience"]');
     if (armed === "experience") {
         // The Call buys ONE experience, and which one is the player's choice:
@@ -440,18 +443,14 @@ function lockControls(root, app) {
     } else {
         for (const chip of chips) lockChip(chip, "DRPG.RollDialog.experienceLocked");
     }
+}
 
-    // Selecting an experience normally adds a Hope cost. The Call has already
-    // been paid for, so the cost block is meaningless here - remove it.
-    hideCostSection(root);
-
-    if (armed === "critical") announceFreeCritical(root);
-
-    // Free-text bonus. Ordinarily a back door around everything above, so it
-    // stays disabled - except for `grants: "bonus"`, the one Call that IS a
-    // flat modifier (Monocub's Meddle at its lower tier). Imposed the same way
-    // advantage is: pre-filled and read-only, not offered for the player to
-    // edit or clear.
+// Free-text bonus. Ordinarily a back door around everything above, so it
+// stays disabled - except for `grants: "bonus"`, the one Call that IS a
+// flat modifier (Monocub's Meddle at its lower tier). Imposed the same way
+// advantage is: pre-filled and read-only, not offered for the player to
+// edit or clear.
+function lockBonus(root, actor, armed) {
     const extra = root.querySelector('input[name="extraFormula"]');
     if (extra) {
         const amount = armed === "bonus" ? pendingAmount(actor) : null;
@@ -466,6 +465,24 @@ function lockControls(root, app) {
             disable(extra, "DRPG.RollDialog.bonusLocked");
         }
     }
+}
+
+function lockControls(root, app) {
+    const actor = actorOf(app);
+    const armed = actor ? pendingGrants(actor) : null;
+
+    lockDice(root);
+    lockTrait(root, app, armed);
+    lockAdvantage(root, app, actor, armed);
+    lockExperiences(root, app, armed);
+
+    // Selecting an experience normally adds a Hope cost. The Call has already
+    // been paid for, so the cost block is meaningless here - remove it.
+    hideCostSection(root);
+
+    if (armed === "critical") announceFreeCritical(root);
+
+    lockBonus(root, actor, armed);
 
     // Roll mode: privacy is enforced by the module, not chosen per roll.
     const mode = root.querySelector('select[name="selectedMessageMode"]');

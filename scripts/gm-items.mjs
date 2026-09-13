@@ -49,6 +49,127 @@ const DialogV2 = foundry.applications.api.DialogV2;
  *
  * @param {Actor} [actor]  Skip the character picker when the caller knows who.
  */
+/*
+ * ONE WINDOW: WHO, WHAT THEY HAVE, GIVE OR TAKE (Dawid, 03.09).
+ *
+ * This was a menu of five buttons that each opened somewhere else, and the
+ * one thing a GM wants to see before pressing any of them - what the
+ * student is actually holding, and what is in their stash - was behind a
+ * sixth ("Look inside the stashes"). The holdings are on the window now,
+ * and the only choice left at this level is the verb.
+ *
+ * TWO TABS AND A FOOTER THAT FOLLOWS THEM, which is what `wirePanelTabs`
+ * is for and what Item Tables and Sound already do. Nothing underneath
+ * changed: `gmGiveItemDialog`, `giveTruthBulletDialog`, `giveKeyDialog` and
+ * `takeItemDialog` are the same windows, reached from the tab that matches
+ * what they do.
+ *
+ * A stashed item is an ordinary item on its owner's sheet, so the stash
+ * needs no separate reader - it is a flag on a row this list already walks.
+ * `openVaultInspector` stays on the console for a GM who wants every
+ * stash at once rather than one student's.
+ */
+function holdingsHtml(who) {
+        const groups = [];
+        for (const [key, cat] of Object.entries(ITEM_CATEGORIES)) {
+            const all = itemsInCategory(who, key);
+            if (!all.length) continue;
+            const rows = all.map(item => {
+                const tier = item.getFlag(MODULE_ID, "tier");
+                return `<li>${esc(item.name)}${
+                    tier !== undefined && tier !== null
+                        ? ` <span class="notes">T${tier}</span>` : ""
+                }${isStashed(item)
+                    ? ` <span class="notes">${esc(game.i18n.localize("DRPG.Items.inStash"))}</span>`
+                    : ""}</li>`;
+            }).join("");
+            groups.push(`<div class="drpg-holdings-group"><h4>${esc(cat.label)}</h4>`
+                + `<ul>${rows}</ul></div>`);
+        }
+        return `<p class="notes">${esc(inventorySummary(who))}</p>`
+            + (groups.length
+                ? `<div class="drpg-holdings">${groups.join("")}</div>`
+                : `<p class="notes">${esc(game.i18n.format("DRPG.Items.carriesNothing",
+                    { actor: who.name }))}</p>`);
+}
+
+/** The tabs' buttons, the select that changes whose pockets are shown, and the live read-out. */
+function wireItemManager(dialog, target) {
+    wirePanelTabs(dialog.element, {
+        buttons: {
+            give: ["give", "bullet", "key"],
+            take: ["take", "takeBullet", "takeKey"]
+        },
+        always: ["cancel"]
+    });
+
+    /* WHOSE POCKETS, AND WHAT IS IN THEM - two questions, and only the first
+       of them was ever answered twice.
+
+       The read-out follows the person, or a GM who changes their mind reads the
+       last student's pockets under a new name. It did not follow the POCKETS:
+       giving somebody a thing, taking one away, or a player picking something up
+       mid-Daily-Life all left this line saying what they used to be carrying.
+       Measured on 11.09 - "Usables: 1/3" with two of them in the actor.
+
+       That matters here more than on most windows, because the buttons under it
+       are what CHANGES the holdings: the hub gives an item and comes straight
+       back to itself, so the number it shows is the one the GM is about to act
+       on again.
+
+       `chosen` is looked up fresh each time rather than closed over: the select
+       is the answer now (see the buttons below), and the element itself is
+       re-queried because `keepLive` REPLACES the region and a reference captured
+       at render time would be pointing at a detached node by the second refresh. */
+    const form = dialog.element.querySelector("form");
+    const chosen = () => game.actors.get(form?.elements?.who?.value) ?? target;
+    const holdings = () =>
+        `<div class="drpg-holdings-live">${holdingsHtml(chosen())}</div>`;
+
+    form?.elements?.who?.addEventListener("change", () => {
+        const live = dialog.element.querySelector(".drpg-holdings-live");
+        if (live) live.outerHTML = holdings();
+    });
+
+    keepLive(dialog, {
+        region: ".drpg-holdings-live",
+        build: holdings,
+        // Items for what they are carrying, actors because a stash lives on the
+        // sheet and the summary counts it.
+        watch: { items: true, actors: true }
+    });
+}
+
+/** Six doors and a Close: each answers with what to do and to whom. */
+function itemManagerButtons(target) {
+    return [
+        // Each returns the verb AND who it is about, because the select
+        // above is the answer now - the argument this function was called
+        // with is only its default.
+        ...[["give", "DRPG.Items.give"],
+            ["bullet", "DRPG.TruthBullet.give"],
+            ["key", "DRPG.Vault.giveKey"],
+            ["take", "DRPG.Items.take"],
+            // A FILTER, NOT A SECOND DIALOG. `takeItemDialog` already lists
+            // Truth Bullets - it walks every category - so this is that
+            // window with everything else hidden. A GM removing a bullet is
+            // looking for one of three among fifteen things.
+            ["takeBullet", "DRPG.TruthBullet.takeAway"],
+            // The same filter for keys. Give has a door for them, so Take
+            // has one too (Dawid, 03.09).
+            ["takeKey", "DRPG.Vault.takeKey"]
+        ].map(([action, labelKey]) => ({
+            action,
+            label: game.i18n.localize(labelKey),
+            callback: (e, b, d) => ({
+                go: action,
+                who: d.element.querySelector("[name=who]")?.value ?? target.id
+            })
+        })),
+        { action: "cancel", label: game.i18n.localize("DRPG.Panel.close") }
+    ];
+}
+
 export async function openItemManager(actor = null) {
     // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
@@ -85,49 +206,6 @@ export async function openItemManager(actor = null) {
         return null;
     }
 
-    /*
-     * ONE WINDOW: WHO, WHAT THEY HAVE, GIVE OR TAKE (Dawid, 03.09).
-     *
-     * This was a menu of five buttons that each opened somewhere else, and the
-     * one thing a GM wants to see before pressing any of them - what the
-     * student is actually holding, and what is in their stash - was behind a
-     * sixth ("Look inside the stashes"). The holdings are on the window now,
-     * and the only choice left at this level is the verb.
-     *
-     * TWO TABS AND A FOOTER THAT FOLLOWS THEM, which is what `wirePanelTabs`
-     * is for and what Item Tables and Sound already do. Nothing underneath
-     * changed: `gmGiveItemDialog`, `giveTruthBulletDialog`, `giveKeyDialog` and
-     * `takeItemDialog` are the same windows, reached from the tab that matches
-     * what they do.
-     *
-     * A stashed item is an ordinary item on its owner's sheet, so the stash
-     * needs no separate reader - it is a flag on a row this list already walks.
-     * `openVaultInspector` stays on the console for a GM who wants every
-     * stash at once rather than one student's.
-     */
-    const holdingsFor = who => {
-        const groups = [];
-        for (const [key, cat] of Object.entries(ITEM_CATEGORIES)) {
-            const all = itemsInCategory(who, key);
-            if (!all.length) continue;
-            const rows = all.map(item => {
-                const tier = item.getFlag(MODULE_ID, "tier");
-                return `<li>${esc(item.name)}${
-                    tier !== undefined && tier !== null
-                        ? ` <span class="notes">T${tier}</span>` : ""
-                }${isStashed(item)
-                    ? ` <span class="notes">${esc(game.i18n.localize("DRPG.Items.inStash"))}</span>`
-                    : ""}</li>`;
-            }).join("");
-            groups.push(`<div class="drpg-holdings-group"><h4>${esc(cat.label)}</h4>`
-                + `<ul>${rows}</ul></div>`);
-        }
-        return `<p class="notes">${esc(inventorySummary(who))}</p>`
-            + (groups.length
-                ? `<div class="drpg-holdings">${groups.join("")}</div>`
-                : `<p class="notes">${esc(game.i18n.format("DRPG.Items.carriesNothing",
-                    { actor: who.name }))}</p>`);
-    };
 
     const whoOptions = recipientOptions(students, target.id);
 
@@ -137,7 +215,7 @@ export async function openItemManager(actor = null) {
         content: dialogContent(`<form>
             <label>${game.i18n.localize("DRPG.Items.whichCharacterHub")}
                 <select name="who">${whoOptions}</select></label>
-            <div class="drpg-holdings-live">${holdingsFor(target)}</div>
+            <div class="drpg-holdings-live">${holdingsHtml(target)}</div>
             ${panelTabs([
                 { key: "give", label: game.i18n.localize("DRPG.Items.tabGive"),
                   html: `<p class="notes">${game.i18n.localize("DRPG.Items.giveNote")}</p>` },
@@ -145,77 +223,8 @@ export async function openItemManager(actor = null) {
                   html: `<p class="notes">${game.i18n.localize("DRPG.Items.takeNote")}</p>` }
             ])}
         </form>`),
-        render: (event, dialog) => {
-            wirePanelTabs(dialog.element, {
-                buttons: {
-                    give: ["give", "bullet", "key"],
-                    take: ["take", "takeBullet", "takeKey"]
-                },
-                always: ["cancel"]
-            });
-
-            /* WHOSE POCKETS, AND WHAT IS IN THEM - two questions, and only the first
-               of them was ever answered twice.
-
-               The read-out follows the person, or a GM who changes their mind reads the
-               last student's pockets under a new name. It did not follow the POCKETS:
-               giving somebody a thing, taking one away, or a player picking something up
-               mid-Daily-Life all left this line saying what they used to be carrying.
-               Measured on 11.09 - "Usables: 1/3" with two of them in the actor.
-
-               That matters here more than on most windows, because the buttons under it
-               are what CHANGES the holdings: the hub gives an item and comes straight
-               back to itself, so the number it shows is the one the GM is about to act
-               on again.
-
-               `chosen` is looked up fresh each time rather than closed over: the select
-               is the answer now (see the buttons below), and the element itself is
-               re-queried because `keepLive` REPLACES the region and a reference captured
-               at render time would be pointing at a detached node by the second refresh. */
-            const form = dialog.element.querySelector("form");
-            const chosen = () => game.actors.get(form?.elements?.who?.value) ?? target;
-            const holdings = () =>
-                `<div class="drpg-holdings-live">${holdingsFor(chosen())}</div>`;
-
-            form?.elements?.who?.addEventListener("change", () => {
-                const live = dialog.element.querySelector(".drpg-holdings-live");
-                if (live) live.outerHTML = holdings();
-            });
-
-            keepLive(dialog, {
-                region: ".drpg-holdings-live",
-                build: holdings,
-                // Items for what they are carrying, actors because a stash lives on the
-                // sheet and the summary counts it.
-                watch: { items: true, actors: true }
-            });
-        },
-        buttons: [
-            // Each returns the verb AND who it is about, because the select
-            // above is the answer now - the argument this function was called
-            // with is only its default.
-            ...[["give", "DRPG.Items.give"],
-                ["bullet", "DRPG.TruthBullet.give"],
-                ["key", "DRPG.Vault.giveKey"],
-                ["take", "DRPG.Items.take"],
-                // A FILTER, NOT A SECOND DIALOG. `takeItemDialog` already lists
-                // Truth Bullets - it walks every category - so this is that
-                // window with everything else hidden. A GM removing a bullet is
-                // looking for one of three among fifteen things.
-                ["takeBullet", "DRPG.TruthBullet.takeAway"],
-                // The same filter for keys. Give has a door for them, so Take
-                // has one too (Dawid, 03.09).
-                ["takeKey", "DRPG.Vault.takeKey"]
-            ].map(([action, labelKey]) => ({
-                action,
-                label: game.i18n.localize(labelKey),
-                callback: (e, b, d) => ({
-                    go: action,
-                    who: d.element.querySelector("[name=who]")?.value ?? target.id
-                })
-            })),
-            { action: "cancel", label: game.i18n.localize("DRPG.Panel.close") }
-        ],
+        render: (event, dialog) => wireItemManager(dialog, target),
+        buttons: itemManagerButtons(target),
         rejectClose: false
     });
 

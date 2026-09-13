@@ -593,6 +593,76 @@ function primeRoomCache() {
     }
 }
 
+/**
+ * Settle a route that crossed at least one border: who pays, the Eclipse's
+ * veto, the charge switch, and one charge per crossing.
+ */
+async function settleRoute(tokenDoc, actor, { before, previous, crossings }) {
+    // Exactly one client applies the cost, or two GMs would both spend the
+    // action. Prefer the player who owns the token - but only while they are
+    // actually connected. "Their client pays, even if their client is not
+    // here" meant nobody paid: an absent player's token could be walked
+    // across the whole map for free, which is why one character seemed to
+    // obey the action economy and another did not.
+    const owner = game.users.find(u => !u.isGM && u.active && actor.testUserPermission(u, "OWNER"));
+    const shouldCharge = owner
+        ? owner.id === game.user.id
+        : isPrimaryGm();
+    if (!shouldCharge) return;
+
+    // During an Eclipse the action economy is suspended: two free crossings
+    // instead, judged by eclipse.mjs.
+    //
+    // Deliberately ahead of the `chargeMovement` gate below. The Eclipse is
+    // a mode the GM starts on purpose and its cap is not an action cost, so
+    // switching off "crossing rooms costs a Move" must not also hand every
+    // player unlimited placement moves. This is also where a crossing gets
+    // RECORDED, so skipping it would leave `movesLeft` reading two all the
+    // way through the window.
+    const { isEclipse, judgeEclipseCrossing } = await import("./eclipse.mjs");
+    if (isEclipse()) {
+        // Per crossing, like the economy below: the Eclipse's cap is two
+        // CROSSINGS, and settling a whole route as one would have let a
+        // multi-waypoint drag walk the map on a single allowance.
+        for (const [from, to] of crossings) {
+            const allowed = await judgeEclipseCrossing(actor, from, to);
+            if (!allowed) {
+                await sendBack(tokenDoc, previous, before);
+                return;
+            }
+        }
+        if (tokenDoc) lastPosition.set(tokenDoc.id, { x: tokenDoc.x, y: tokenDoc.y });
+        return;
+    }
+
+    // The cost, and only the cost, is what the setting governs. Everything
+    // above - the room cache, the Eclipse - has to keep running, or turning
+    // the setting back on would find every token's remembered room stale and
+    // charge for a crossing that happened while it was off.
+    if (!game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) {
+        if (tokenDoc) lastPosition.set(tokenDoc.id, { x: tokenDoc.x, y: tokenDoc.y });
+        return;
+    }
+
+    // One at a time, in the order they were crossed. The first one that
+    // cannot be paid for stops the route and puts the token back where the
+    // drag began - the moves already paid for stay paid, because they were
+    // made: the refusal is about the step that could not be afforded, and
+    // `sendBack` returns the token to the only position it is certain the
+    // character could legally be standing in.
+    // ...and not where the DRAG began, when that is two rooms back (MAP-11):
+    // the veto judges each segment of a multi-room route against the budget
+    // as it stood before any of them was charged, so a route of three rooms
+    // on one free Move passes all three vetoes and fails at the second
+    // crossing here. The token goes to the room that WAS paid for.
+    let standing = previous;
+    for (const [from, to] of crossings) {
+        const paid = await chargeForCrossing(actor, from, to, tokenDoc, standing);
+        if (!paid) return;
+        standing = positionIn(to, tokenDoc) ?? standing;
+    }
+}
+
 async function onUpdateToken(tokenDoc, changes, options, userId) {
     try {
         // Our own revert: record where it landed, charge nothing.
@@ -689,69 +759,7 @@ async function onUpdateToken(tokenDoc, changes, options, userId) {
 
         lastRoom.set(tokenDoc.id, after);
 
-        // Exactly one client applies the cost, or two GMs would both spend the
-        // action. Prefer the player who owns the token - but only while they are
-        // actually connected. "Their client pays, even if their client is not
-        // here" meant nobody paid: an absent player's token could be walked
-        // across the whole map for free, which is why one character seemed to
-        // obey the action economy and another did not.
-        const owner = game.users.find(u => !u.isGM && u.active && actor.testUserPermission(u, "OWNER"));
-        const shouldCharge = owner
-            ? owner.id === game.user.id
-            : isPrimaryGm();
-        if (!shouldCharge) return;
-
-        // During an Eclipse the action economy is suspended: two free crossings
-        // instead, judged by eclipse.mjs.
-        //
-        // Deliberately ahead of the `chargeMovement` gate below. The Eclipse is
-        // a mode the GM starts on purpose and its cap is not an action cost, so
-        // switching off "crossing rooms costs a Move" must not also hand every
-        // player unlimited placement moves. This is also where a crossing gets
-        // RECORDED, so skipping it would leave `movesLeft` reading two all the
-        // way through the window.
-        const { isEclipse, judgeEclipseCrossing } = await import("./eclipse.mjs");
-        if (isEclipse()) {
-            // Per crossing, like the economy below: the Eclipse's cap is two
-            // CROSSINGS, and settling a whole route as one would have let a
-            // multi-waypoint drag walk the map on a single allowance.
-            for (const [from, to] of crossings) {
-                const allowed = await judgeEclipseCrossing(actor, from, to);
-                if (!allowed) {
-                    await sendBack(tokenDoc, previous, before);
-                    return;
-                }
-            }
-            if (tokenDoc) lastPosition.set(tokenDoc.id, { x: tokenDoc.x, y: tokenDoc.y });
-            return;
-        }
-
-        // The cost, and only the cost, is what the setting governs. Everything
-        // above - the room cache, the Eclipse - has to keep running, or turning
-        // the setting back on would find every token's remembered room stale and
-        // charge for a crossing that happened while it was off.
-        if (!game.settings.get(MODULE_ID, SETTINGS.chargeMovement)) {
-            if (tokenDoc) lastPosition.set(tokenDoc.id, { x: tokenDoc.x, y: tokenDoc.y });
-            return;
-        }
-
-        // One at a time, in the order they were crossed. The first one that
-        // cannot be paid for stops the route and puts the token back where the
-        // drag began - the moves already paid for stay paid, because they were
-        // made: the refusal is about the step that could not be afforded, and
-        // `sendBack` returns the token to the only position it is certain the
-        // character could legally be standing in.
-        // ...and not where the DRAG began, when that is two rooms back (MAP-11):
-        // the veto judges each segment of a multi-room route against the budget
-        // as it stood before any of them was charged, so a route of three rooms
-        // on one free Move passes all three vetoes and fails at the second
-        // crossing here. The token goes to the room that WAS paid for.
-        let standing = previous;
-        for (const [from, to] of crossings) {
-            const paid = await chargeForCrossing(actor, from, to, tokenDoc, standing);
-            if (!paid) return;
-            standing = positionIn(to, tokenDoc) ?? standing;
-        }
+        await settleRoute(tokenDoc, actor, { before, previous, crossings });
     } catch (err) {
         error("Movement charge failed", err);
     }

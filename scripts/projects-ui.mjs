@@ -326,33 +326,14 @@ function addCollapseControl(root) {
  * creation in one dialog and editing in another meant a new project always
  * needed two trips.
  */
-export async function openProjectManager() {
-    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
-    // window each read the world when they opened and neither knows about the
-    // other, so the older one goes on looking authoritative while showing
-    // something that stopped being true. Raised rather than refused: pressing
-    // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-projects")) return null;
-
-    if (!game.user.isGM) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
-        return;
-    }
-
-    const projects = allProjects();
-    const rooms = allRooms();
-
-    // No projects yet? Go straight to creating one.
-    if (!projects.length) {
-        const made = await openCreateDialog(rooms);
-        return made ? openProjectManager() : undefined;
-    }
+/** One editable row per project: portrait, name and progress, room, the two flags, edit, delete. */
+function projectManagerRows(projects, rooms) {
     const roomOptions = id => [
         `<option value="">${game.i18n.localize("DRPG.Project.anyRoom")}</option>`,
         ...rooms.map(r => `<option value="${foundry.utils.escapeHTML(r)}"${roomOf(id) === r ? " selected" : ""}>${foundry.utils.escapeHTML(r)}</option>`)
     ].join("");
 
-    const rows = projects.map(p => {
+    return projects.map(p => {
         const secret = isSecret(p.id);
         const viewers = viewersOf(p.id).map(u => u.name).join(", ");
         return `<tr data-project="${p.id}">
@@ -382,97 +363,52 @@ export async function openProjectManager() {
             </td>
         </tr>`;
     }).join("");
+}
 
-    const content = dialogContent(`<form>
-            <p>${game.i18n.localize("DRPG.Project.manageIntro")}</p>
-            <table>
-                <thead><tr>
-                    <th></th>
-                    <th>${game.i18n.localize("DRPG.Project.title")}</th>
-                    <th>${game.i18n.localize("DRPG.Project.room")}</th>
-                    <th>${game.i18n.localize("DRPG.Project.indirect")}</th>
-                    <th>${game.i18n.localize("DRPG.Project.secret")}</th>
-                    <th>${game.i18n.localize("DRPG.Project.edit")}</th>
-                    <th>${game.i18n.localize("DRPG.Project.delete")}</th>
-                </tr></thead>
-                <tbody>${rows}</tbody>
-            </table>
-            <p class="notes">${game.i18n.localize("DRPG.Project.secretNote")}</p>
-            <p class="notes">${game.i18n.localize("DRPG.Project.deleteNote")}</p>
-        </form>`);
+/** The portraits, the live progress figures, and the per-row edit buttons. */
+function wireProjectManager(dialog, projects, rooms) {
+    wirePortraitPickers(dialog.element);
 
-    const result = await tableDialog({
-        window: { title: game.i18n.localize("DRPG.Project.manageTitle") },
-        classes: ["drpg-panel", "drpg-projects", "drpg-window-projects"],
-        content,
-        buttons: [
-            {
-                action: "save",
-                label: game.i18n.localize("DRPG.Assign.save"),
-                default: true,
-                callback: (e, b, d) => readManager(d, projects)
-            },
-            { action: "new", label: game.i18n.localize("DRPG.Project.createButton") },
-            { action: "share", label: game.i18n.localize("DRPG.Project.shareButton") },
-            { action: "cancel", label: game.i18n.localize("DRPG.Panel.close") }
-        ],
-        // A FilePicker needs a live click against the dialog's actual DOM -
-        // see wirePortraitPickers() for why this cannot be wired any earlier.
-        // The per-row edit buttons need the same treatment, and they close the
-        // manager first so the two windows never stack.
-        render: (event, dialog) => {
-            wirePortraitPickers(dialog.element);
+    /* PROGRESS MOVES WHILE THIS WINDOW IS OPEN, AND THAT IS WHAT IT IS FOR.
 
-            /* PROGRESS MOVES WHILE THIS WINDOW IS OPEN, AND THAT IS WHAT IT IS FOR.
+       A player spends an action on a project and the number in here changes -
+       from their client, so nothing tells this window about it. It is the screen
+       a GM has up for most of a Daily Life (see the panel's note on the tile),
+       which is exactly the stretch when the figures move. Measured on 11.09 with
+       the manager open: a project went 0/4 to 1/4 and the cell still read 0/4.
 
-               A player spends an action on a project and the number in here changes -
-               from their client, so nothing tells this window about it. It is the screen
-               a GM has up for most of a Daily Life (see the panel's note on the tile),
-               which is exactly the stretch when the figures move. Measured on 11.09 with
-               the manager open: a project went 0/4 to 1/4 and the cell still read 0/4.
-
-               Only the figures, written in place: every other cell here is a control the
-               GM is editing and Apply is what saves them, so swapping the table out would
-               discard half-finished work and unwire the row buttons below. A project
-               being CREATED or deleted elsewhere still needs the window reopening; that
-               is a rarer event and a louder one. */
-            keepFresh(dialog, {
-                run: root => {
-                    for (const project of allProjects()) {
-                        const cell = root.querySelector(
-                            `[data-drpg-progress="${CSS.escape(project.id)}"]`);
-                        if (!cell) continue;
-                        const text = `${project.current}/${project.start}`;
-                        if (cell.textContent !== text) cell.textContent = text;
-                    }
-                },
-                watch: { settingKeys: ["daggerheart.Countdowns"] }
-            });
-
-            for (const btn of dialog.element.querySelectorAll("[data-drpg-edit]")) {
-                btn.addEventListener("click", async ev => {
-                    ev.preventDefault();
-                    const project = projects.find(p => p.id === btn.dataset.drpgEdit);
-                    if (!project) return;
-                    await dialog.close();
-                    await openProjectDialog({ project, rooms });
-                    await openProjectManager();
-                });
+       Only the figures, written in place: every other cell here is a control the
+       GM is editing and Apply is what saves them, so swapping the table out would
+       discard half-finished work and unwire the row buttons below. A project
+       being CREATED or deleted elsewhere still needs the window reopening; that
+       is a rarer event and a louder one. */
+    keepFresh(dialog, {
+        run: root => {
+            for (const project of allProjects()) {
+                const cell = root.querySelector(
+                    `[data-drpg-progress="${CSS.escape(project.id)}"]`);
+                if (!cell) continue;
+                const text = `${project.current}/${project.start}`;
+                if (cell.textContent !== text) cell.textContent = text;
             }
         },
-        rejectClose: false
+        watch: { settingKeys: ["daggerheart.Countdowns"] }
     });
 
-    if (result === "new") {
-        await openCreateDialog(rooms);
-        return openProjectManager();
+    for (const btn of dialog.element.querySelectorAll("[data-drpg-edit]")) {
+        btn.addEventListener("click", async ev => {
+            ev.preventDefault();
+            const project = projects.find(p => p.id === btn.dataset.drpgEdit);
+            if (!project) return;
+            await dialog.close();
+            await openProjectDialog({ project, rooms });
+            await openProjectManager();
+        });
     }
-    if (result === "share") {
-        await openShareDialog();
-        return openProjectManager();
-    }
-    if (!result || result === "cancel") return;
+}
 
+/** Write every row back: deletions first, then image, room, the murder flag and secrecy. Answers how many were deleted. */
+async function applyProjectManager(result, projects) {
     let deleted = 0;
     for (const entry of result) {
         if (entry.delete) {
@@ -513,6 +449,84 @@ export async function openProjectManager() {
             await revealProject(entry.id);
         }
     }
+    return deleted;
+}
+
+export async function openProjectManager() {
+    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
+    // window each read the world when they opened and neither knows about the
+    // other, so the older one goes on looking authoritative while showing
+    // something that stopped being true. Raised rather than refused: pressing
+    // twice usually means the window is behind something.
+    if (alreadyOpen("drpg-window-projects")) return null;
+
+    if (!game.user.isGM) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
+        return;
+    }
+
+    const projects = allProjects();
+    const rooms = allRooms();
+
+    // No projects yet? Go straight to creating one.
+    if (!projects.length) {
+        const made = await openCreateDialog(rooms);
+        return made ? openProjectManager() : undefined;
+    }
+    const rows = projectManagerRows(projects, rooms);
+
+    const content = dialogContent(`<form>
+            <p>${game.i18n.localize("DRPG.Project.manageIntro")}</p>
+            <table>
+                <thead><tr>
+                    <th></th>
+                    <th>${game.i18n.localize("DRPG.Project.title")}</th>
+                    <th>${game.i18n.localize("DRPG.Project.room")}</th>
+                    <th>${game.i18n.localize("DRPG.Project.indirect")}</th>
+                    <th>${game.i18n.localize("DRPG.Project.secret")}</th>
+                    <th>${game.i18n.localize("DRPG.Project.edit")}</th>
+                    <th>${game.i18n.localize("DRPG.Project.delete")}</th>
+                </tr></thead>
+                <tbody>${rows}</tbody>
+            </table>
+            <p class="notes">${game.i18n.localize("DRPG.Project.secretNote")}</p>
+            <p class="notes">${game.i18n.localize("DRPG.Project.deleteNote")}</p>
+        </form>`);
+
+    const result = await tableDialog({
+        window: { title: game.i18n.localize("DRPG.Project.manageTitle") },
+        classes: ["drpg-panel", "drpg-projects", "drpg-window-projects"],
+        content,
+        buttons: [
+            {
+                action: "save",
+                label: game.i18n.localize("DRPG.Assign.save"),
+                default: true,
+                callback: (e, b, d) => readManager(d, projects)
+            },
+            { action: "new", label: game.i18n.localize("DRPG.Project.createButton") },
+            { action: "share", label: game.i18n.localize("DRPG.Project.shareButton") },
+            { action: "cancel", label: game.i18n.localize("DRPG.Panel.close") }
+        ],
+        // A FilePicker needs a live click against the dialog's actual DOM -
+        // see wirePortraitPickers() for why this cannot be wired any earlier.
+        // The per-row edit buttons need the same treatment, and they close the
+        // manager first so the two windows never stack.
+        render: (event, dialog) => wireProjectManager(dialog, projects, rooms),
+        rejectClose: false
+    });
+
+    if (result === "new") {
+        await openCreateDialog(rooms);
+        return openProjectManager();
+    }
+    if (result === "share") {
+        await openShareDialog();
+        return openProjectManager();
+    }
+    if (!result || result === "cancel") return;
+
+    const deleted = await applyProjectManager(result, projects);
 
     ui.notifications.info(deleted
         ? game.i18n.format("DRPG.Project.savedWithDeletions", { n: deleted })

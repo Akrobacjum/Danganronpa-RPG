@@ -384,6 +384,77 @@ export async function toggleFinalTrialFlag() {
     });
 }
 
+/*
+ * FUNCTIONS, BECAUSE A DONATION CHANGES BOTH OF THESE (E6).
+ *
+ * The window used to close and reopen itself after every donation to show
+ * the new numbers, which threw away the room the GM had picked in the
+ * select above and put the window back at its default position. The
+ * fieldset is a live region now, so the two figures a donation moves - the
+ * Mastermind's Hope and the pool it came out of - redraw where they stand.
+ */
+function mastermindHopeBox({ monokumas, poolLabel, getDespair }) {
+    const buildDonors = () => monokumas().map(u =>
+        `<option value="${u.id}">${foundry.utils.escapeHTML(poolLabel(u))} (${getDespair(u.id)})</option>`
+    ).join("");
+
+    return `
+        <p class="notes">${game.i18n.format("DRPG.Mastermind.hopeReadout", {
+            held: mastermindActor()?.system?.resources?.hope?.value ?? 0
+        })}</p>
+        <select name="donor">${buildDonors()}</select>
+        <input type="number" name="amount" min="1" value="1" style="width:4em" />
+        <button type="button" class="drpg-mini-button" data-drpg-give>
+            ${game.i18n.localize("DRPG.Monocub.give")}</button>`;
+}
+
+// Rewired after every redraw: `keepLive` replaces the region's
+// nodes, and the listener would go with the button it was on.
+function wireMastermindGive(dialog, current) {
+        dialog.element.querySelector("[data-drpg-give]")
+            ?.addEventListener("click", async () => {
+                const donorId = dialog.element.querySelector("[name=donor]")?.value;
+                const amount = Number(
+                    dialog.element.querySelector("[name=amount]")?.value) || 0;
+                if (!donorId || amount <= 0 || !current) return;
+
+                const { convertDespairToHope } = await import("./despair.mjs");
+                await convertDespairToHope(donorId, current, amount);
+                // No close and reopen: this writes two actors, and the
+                // region below watches them (E6).
+            });
+}
+
+// Only the Apply button reaches here, and it always brings an object - so
+// an empty `who` is the GM choosing "Nobody" on purpose.
+async function applyMastermindChoice(result, current) {
+    const who = result.who ?? null;
+
+    if (!who) {
+        if (current) {
+            await clearMastermind();
+            ui.notifications.info(game.i18n.localize("DRPG.Mastermind.cleared"));
+        }
+        return null;
+    }
+
+    if (who !== current?.id) {
+        const picked = game.actors.get(who);
+        await setMastermind(picked, { room: result.lair || null });
+        // Setting it used to confirm nothing at all: no notification, no
+        // whisper, no entry. The secret must not go to chat, but the person who
+        // just set it is entitled to know it took.
+        ui.notifications.info(game.i18n.format("DRPG.Mastermind.confirmed",
+            { name: picked?.name ?? "?" }));
+    } else if ((result.lair || null) !== (readStore().room ?? null)) {
+        // Same Mastermind, different lair: the private whisper follows the
+        // room without renaming anybody.
+        await setMastermindLair(result.lair || null);
+    }
+
+    return who;
+}
+
 export async function openMastermindDialog() {
     // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
     // window each read the world when they opened and neither knows about the
@@ -405,27 +476,7 @@ export async function openMastermindDialog() {
             foundry.utils.escapeHTML(a.name)}</option>`).join("");
 
     const { monokumas, poolLabel, getDespair } = await import("./despair.mjs");
-    /*
-     * FUNCTIONS, BECAUSE A DONATION CHANGES BOTH OF THESE (E6).
-     *
-     * The window used to close and reopen itself after every donation to show
-     * the new numbers, which threw away the room the GM had picked in the
-     * select above and put the window back at its default position. The
-     * fieldset is a live region now, so the two figures a donation moves - the
-     * Mastermind's Hope and the pool it came out of - redraw where they stand.
-     */
-    const buildDonors = () => monokumas().map(u =>
-        `<option value="${u.id}">${foundry.utils.escapeHTML(poolLabel(u))} (${getDespair(u.id)})</option>`
-    ).join("");
-
-    const buildHopeBox = () => `
-        <p class="notes">${game.i18n.format("DRPG.Mastermind.hopeReadout", {
-            held: mastermindActor()?.system?.resources?.hope?.value ?? 0
-        })}</p>
-        <select name="donor">${buildDonors()}</select>
-        <input type="number" name="amount" min="1" value="1" style="width:4em" />
-        <button type="button" class="drpg-mini-button" data-drpg-give>
-            ${game.i18n.localize("DRPG.Monocub.give")}</button>`;
+    const hopeBox = () => mastermindHopeBox({ monokumas, poolLabel, getDespair });
 
     const { allRooms } = await import("./movement.mjs");
 
@@ -460,7 +511,7 @@ export async function openMastermindDialog() {
             ${current ? `
             <fieldset>
                 <legend>${game.i18n.localize("DRPG.Monocub.giveHope")}</legend>
-                <div class="drpg-mm-live">${buildHopeBox()}</div>
+                <div class="drpg-mm-live">${hopeBox()}</div>
             </fieldset>` : ""}
         </form>`),
         buttons: [
@@ -494,27 +545,12 @@ export async function openMastermindDialog() {
             { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
         ],
         render: (event, dialog) => {
-            // Rewired after every redraw: `keepLive` replaces the region's
-            // nodes, and the listener would go with the button it was on.
-            const wireGive = () => {
-                dialog.element.querySelector("[data-drpg-give]")
-                    ?.addEventListener("click", async () => {
-                        const donorId = dialog.element.querySelector("[name=donor]")?.value;
-                        const amount = Number(
-                            dialog.element.querySelector("[name=amount]")?.value) || 0;
-                        if (!donorId || amount <= 0 || !current) return;
-
-                        const { convertDespairToHope } = await import("./despair.mjs");
-                        await convertDespairToHope(donorId, current, amount);
-                        // No close and reopen: this writes two actors, and the
-                        // region below watches them (E6).
-                    });
-            };
+            const wireGive = () => wireMastermindGive(dialog, current);
             wireGive();
 
             keepLive(dialog, {
                 region: ".drpg-mm-live",
-                build: buildHopeBox,
+                build: hopeBox,
                 watch: { actors: true },
                 after: wireGive
             });
@@ -535,33 +571,7 @@ export async function openMastermindDialog() {
         return openMastermindDialog();
     }
 
-    // Only the Apply button reaches here, and it always brings an object - so
-    // an empty `who` is the GM choosing "Nobody" on purpose.
-    const who = result.who ?? null;
-
-    if (!who) {
-        if (current) {
-            await clearMastermind();
-            ui.notifications.info(game.i18n.localize("DRPG.Mastermind.cleared"));
-        }
-        return null;
-    }
-
-    if (who !== current?.id) {
-        const picked = game.actors.get(who);
-        await setMastermind(picked, { room: result.lair || null });
-        // Setting it used to confirm nothing at all: no notification, no
-        // whisper, no entry. The secret must not go to chat, but the person who
-        // just set it is entitled to know it took.
-        ui.notifications.info(game.i18n.format("DRPG.Mastermind.confirmed",
-            { name: picked?.name ?? "?" }));
-    } else if ((result.lair || null) !== (readStore().room ?? null)) {
-        // Same Mastermind, different lair: the private whisper follows the
-        // room without renaming anybody.
-        await setMastermindLair(result.lair || null);
-    }
-
-    return who;
+    return applyMastermindChoice(result, current);
 }
 
 /* ==========================================================================

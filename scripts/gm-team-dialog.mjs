@@ -29,41 +29,8 @@ import { alreadyOpen, keepFresh } from "./live.mjs";
 import { SETTINGS } from "./settings.mjs";
 
 /** Open the combined panel. GM only. */
-export async function openGmTeamDialog() {
-    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
-    // window each read the world when they opened and neither knows about the
-    // other, so the older one goes on looking authoritative while showing
-    // something that stopped being true. Raised rather than refused: pressing
-    // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-gmteam")) return null;
-
-    if (!game.user.isGM) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
-        return null;
-    }
-
-    const gms = monokumas();
-    if (!gms.length) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Assign.noMonokumas"));
-        return null;
-    }
-
-    const actors = game.actors
-        .filter(a => a.type === "character")
-        .sort((a, b) => a.name.localeCompare(b.name));
-    if (!actors.length) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Panel.noCharacters"));
-        return null;
-    }
-
-    // Fixed at open time. Flipping a Monokuma flag in the top table does not
-    // live-update the roster below it - reopen once after saving if a change
-    // there should also change who is available to divide up as a student.
-    const roster = students();
-    const candidates = poolCandidates();
-    const extraIds = new Set(extraPoolUserIds());
-    const removable = gms.filter(u => extraIds.has(u.id));
-
+/** Save, the pool add and remove (when there is somebody to add or remove), split evenly, close. */
+function gmTeamButtons({ gms, actors, roster, candidates, removable }) {
     const buttons = [
         {
             action: "save",
@@ -99,6 +66,81 @@ export async function openGmTeamDialog() {
     }
     if (roster.length) buttons.push({ action: "auto", label: game.i18n.localize("DRPG.Assign.splitEvenly") });
     buttons.push({ action: "cancel", label: game.i18n.localize("DRPG.Panel.close") });
+    return buttons;
+}
+
+/** Write the four things the form edits, in the order the reads depend on. */
+async function saveGmTeam(result) {
+    try {
+        for (const [userId, label] of Object.entries(result.pools ?? {})) {
+            await setPoolLabel(userId, label);
+        }
+
+        // The flag first: `setMonokuma` clears the action budget and Hope, and
+        // a pool entry for an actor that is not a Monokuma would be dead state.
+        for (const row of result.monokumas) {
+            const actor = game.actors.get(row.id);
+            if (!actor) continue;
+            if (isMonokuma(actor) !== row.monokuma) await setMonokuma(actor, row.monokuma);
+        }
+
+        const pools = {};
+        for (const row of result.monokumas) {
+            if (row.monokuma && row.pool) pools[row.id] = row.pool;
+        }
+        await setPools(pools);
+
+        if (result.assignments) await setAssignments(result.assignments);
+
+        // Saved through the same button as the rest - every pane stays in the
+        // DOM, which is the whole reason `panelTabs` works this way.
+        if (result.overflow) await setOverflowRules(result.overflow);
+
+        ui.notifications.info(game.i18n.localize("DRPG.Monokuma.saved"));
+        return true;
+    } catch (err) {
+        error("Could not save the GM team panel", err);
+        ui.notifications.error(game.i18n.localize("DRPG.Assign.failed"));
+        return null;
+    }
+}
+
+export async function openGmTeamDialog() {
+    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
+    // window each read the world when they opened and neither knows about the
+    // other, so the older one goes on looking authoritative while showing
+    // something that stopped being true. Raised rather than refused: pressing
+    // twice usually means the window is behind something.
+    if (alreadyOpen("drpg-window-gmteam")) return null;
+
+    if (!game.user.isGM) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
+        return null;
+    }
+
+    const gms = monokumas();
+    if (!gms.length) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Assign.noMonokumas"));
+        return null;
+    }
+
+    const actors = game.actors
+        .filter(a => a.type === "character")
+        .sort((a, b) => a.name.localeCompare(b.name));
+    if (!actors.length) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.noCharacters"));
+        return null;
+    }
+
+    // Fixed at open time. Flipping a Monokuma flag in the top table does not
+    // live-update the roster below it - reopen once after saving if a change
+    // there should also change who is available to divide up as a student.
+    const roster = students();
+    const candidates = poolCandidates();
+    const extraIds = new Set(extraPoolUserIds());
+    const removable = gms.filter(u => extraIds.has(u.id));
+
+    const buttons = gmTeamButtons({ gms, actors, roster, candidates, removable });
 
     const result = await tableDialog({
         window: { title: game.i18n.localize("DRPG.Panel.despairFlow") },
@@ -156,38 +198,7 @@ export async function openGmTeamDialog() {
     }
     if (!result || result === "cancel") return null;
 
-    try {
-        for (const [userId, label] of Object.entries(result.pools ?? {})) {
-            await setPoolLabel(userId, label);
-        }
-
-        // The flag first: `setMonokuma` clears the action budget and Hope, and
-        // a pool entry for an actor that is not a Monokuma would be dead state.
-        for (const row of result.monokumas) {
-            const actor = game.actors.get(row.id);
-            if (!actor) continue;
-            if (isMonokuma(actor) !== row.monokuma) await setMonokuma(actor, row.monokuma);
-        }
-
-        const pools = {};
-        for (const row of result.monokumas) {
-            if (row.monokuma && row.pool) pools[row.id] = row.pool;
-        }
-        await setPools(pools);
-
-        if (result.assignments) await setAssignments(result.assignments);
-
-        // Saved through the same button as the rest - every pane stays in the
-        // DOM, which is the whole reason `panelTabs` works this way.
-        if (result.overflow) await setOverflowRules(result.overflow);
-
-        ui.notifications.info(game.i18n.localize("DRPG.Monokuma.saved"));
-        return true;
-    } catch (err) {
-        error("Could not save the GM team panel", err);
-        ui.notifications.error(game.i18n.localize("DRPG.Assign.failed"));
-        return null;
-    }
+    return saveGmTeam(result);
 }
 
 /* ==========================================================================

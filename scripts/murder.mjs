@@ -3815,6 +3815,132 @@ export async function resolveOpening({ actorId, side, total, isCritical, withHop
 }
 
 /** The live tracker: whose turn, what is left, and the controls. */
+/** The three people in the incident, and the victim's remaining Health and Sanity as text. */
+function incidentPeople(now) {
+        const killer = game.actors.get(now.killerId);
+        const victim = game.actors.get(now.victimId);
+        const third = now.thirdId ? game.actors.get(now.thirdId) : null;
+        const left = res => victim
+            ? `${resourceMax(victim, res) - resourceValue(victim, res)} / ${resourceMax(victim, res)}`
+            : "?";
+        return { killer, victim, third, left };
+}
+
+/* THE WRAPPER IS PART OF THE ANSWER, not decoration on the call site.
+
+   `keepLive` looks its region up by selector on every round and REPLACES the element
+   it finds - so a `build()` that returns the region's CONTENTS replaces the region
+   with its own first child, and the second refresh has nothing left to find. Measured
+   on 11.09 with exactly that mistake: one Pass the turn and the window read "Player A
+   -> Player B" and nothing else, with `.drpg-incident-live` gone from the DOM.
+   `buildConsole` in trial-floor-ui.mjs carries its own class for the same reason. */
+function incidentTrackerHtml(now, cleanup) {
+    // The incident is gone but the window is still up - the live hook below closes it
+    // on the next tick, and until then it says so rather than showing a dead fight.
+    if (!now) {
+        return `<div class="drpg-incident-live"><p class="notes">${
+            game.i18n.localize("DRPG.Murder.trackerOver")}</p></div>`;
+    }
+    const { killer, victim, third, left } = incidentPeople(now);
+    return `<div class="drpg-incident-live">
+        <p>${now.selfInflicted
+            // One name, and an arrow pointing at itself would be the only
+            // thing on this line that is not true.
+            ? `<strong>${foundry.utils.escapeHTML(victim?.name ?? "?")}</strong> · ${
+                game.i18n.localize("DRPG.Murder.selfInflicted")}`
+            : `<strong>${foundry.utils.escapeHTML(killer?.name ?? "?")}</strong> →
+               <strong>${foundry.utils.escapeHTML(victim?.name ?? "?")}</strong>${
+                third ? ` · ${game.i18n.format("DRPG.Murder.thirdIs", {
+                    name: foundry.utils.escapeHTML(third.name)
+                })}` : ""}`}</p>
+        <p>${now.selfInflicted
+            // No turn and no side to report: there is no Stage 5 in this one.
+            ? game.i18n.format("DRPG.Murder.trackerStateSelf", {
+                stage: game.i18n.localize(`DRPG.Murder.stage.${now.stage}`)
+            })
+            : game.i18n.format("DRPG.Murder.trackerState", {
+                stage: game.i18n.localize(`DRPG.Murder.stage.${now.stage}`),
+                turn: now.turn,
+                side: game.i18n.localize(`DRPG.Murder.side.${now.turnSide}`)
+            })}</p>
+        <p>${game.i18n.format("DRPG.Murder.victimLeft", {
+            hp: left("hitPoints"), stress: left("stress")
+        })}</p>
+        <p>${game.i18n.format("DRPG.Murder.keyCount", { n: now.keyRemnants })}</p>
+        ${cleanupSection(killer, cleanup)}</div>`;
+}
+
+/* WHICH BUTTONS ARE ON IT, which `keepLive` cannot change - it replaces a region of
+   the content, not a DialogV2 footer built once. Same answer the trial console reached
+   for the same reason: when the SET of buttons would differ, reopen instead. */
+function incidentSignature(now) {
+    return now ? [now.stage, now.selfInflicted].join("|") : null;
+}
+
+/** The footer, by stage: re-ask the opening roll, pass the turn, end the incident, close. */
+function incidentButtons(state) {
+    return [
+        // There is no "roll the opening" button, and there must not be one.
+        //
+        // Stage 4 offers exactly one roll and its owner is not a decision:
+        // a direct murder opens on the KILLER's roll, a trap on the VICTIM's.
+        // `openMurder` sends that invitation itself the moment the incident
+        // opens, so by the time this window is on screen the roll is already
+        // with whoever owes it.
+        //
+        // A button here only ever sent a SECOND copy. Measured: opening one
+        // incident and pressing it three times left the player with FOUR
+        // stacked roll windows, each of which reopened itself twice more when
+        // dismissed - the retry loop cannot tell an unwanted duplicate from a
+        // refusal. And because the tracker reopens after every action with
+        // this button as `default`, holding Enter sent invitations for as
+        // long as you held it.
+        //
+        // Nothing is lost by its absence. An owner who is offline never gets
+        // an invitation in the first place - `rollOpening` sees that and
+        // throws the roll on the GM's own client - and an owner who is here
+        // is re-offered three times before anyone has to intervene.
+        // And none at all for a self-inflicted death: there is no turn to
+        // pass, so the window's DEFAULT button - the one Enter presses -
+        // would have been a control for a stage this incident never enters.
+        // ...but an invitation that was declined three times can be sent
+        // once more from here (CASE-10): the alternative was End and open
+        // it again, which repeated the whole three-strike loop. Rate-limited
+        // on this client so a held Enter cannot stack windows again.
+        ...(state.stage === "openingRoll" && !state.selfInflicted ? [
+            { action: "reask", label: game.i18n.localize("DRPG.Murder.openingReask") }
+        ] : []),
+        ...(state.stage === "openingRoll" || state.selfInflicted ? [] : [
+            // No "somebody walks in" button. The guide's third party is
+            // whoever "wejdzie do pomieszczenia poprzez akcję ruch", and
+            // `maybeThirdParty` already watches token movement into the
+            // victim's room and registers them the moment it happens. A
+            // second, manual route only invited the GM to nominate somebody
+            // who had not actually walked in - and to do it twice, since the
+            // watcher had usually already fired.
+            { action: "pass", label: game.i18n.localize("DRPG.Murder.passTurn"), default: true }
+        ]),
+        { action: "end", label: game.i18n.localize("DRPG.Murder.endMurder") },
+        { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
+    ];
+}
+
+/** Send the opening roll again, once the cooldown allows. */
+function reaskOpening() {
+    const now = Date.now();
+    if (now - lastReask < REASK_COOLDOWN_MS) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Murder.openingReaskWait"));
+    } else {
+        lastReask = now;
+        const current = murderState();
+        if (current?.stage === "openingRoll") {
+            rollOpening(current.indirect ? "victim" : "killer", current)
+                .catch(err => error("Could not re-send the opening roll", err));
+            ui.notifications.info(game.i18n.localize("DRPG.Murder.openingReaskSent"));
+        }
+    }
+}
+
 export async function openIncidentTracker() {
     /*
      * NO `alreadyOpen` GUARD HERE, and it is the one window that must not have
@@ -3864,68 +3990,8 @@ export async function openIncidentTracker() {
      */
     const read = () => murderState();
 
-    const bodyFor = now => {
-        const killer = game.actors.get(now.killerId);
-        const victim = game.actors.get(now.victimId);
-        const third = now.thirdId ? game.actors.get(now.thirdId) : null;
-        const left = res => victim
-            ? `${resourceMax(victim, res) - resourceValue(victim, res)} / ${resourceMax(victim, res)}`
-            : "?";
-        return { killer, victim, third, left };
-    };
-
-    /* THE WRAPPER IS PART OF THE ANSWER, not decoration on the call site.
-
-       `keepLive` looks its region up by selector on every round and REPLACES the element
-       it finds - so a `build()` that returns the region's CONTENTS replaces the region
-       with its own first child, and the second refresh has nothing left to find. Measured
-       on 11.09 with exactly that mistake: one Pass the turn and the window read "Player A
-       -> Player B" and nothing else, with `.drpg-incident-live` gone from the DOM.
-       `buildConsole` in trial-floor-ui.mjs carries its own class for the same reason. */
-    const trackerBody = () => {
-        const now = read();
-        // The incident is gone but the window is still up - the live hook below closes it
-        // on the next tick, and until then it says so rather than showing a dead fight.
-        if (!now) {
-            return `<div class="drpg-incident-live"><p class="notes">${
-                game.i18n.localize("DRPG.Murder.trackerOver")}</p></div>`;
-        }
-        const { killer, victim, third, left } = bodyFor(now);
-        return `<div class="drpg-incident-live">
-            <p>${now.selfInflicted
-                // One name, and an arrow pointing at itself would be the only
-                // thing on this line that is not true.
-                ? `<strong>${foundry.utils.escapeHTML(victim?.name ?? "?")}</strong> · ${
-                    game.i18n.localize("DRPG.Murder.selfInflicted")}`
-                : `<strong>${foundry.utils.escapeHTML(killer?.name ?? "?")}</strong> →
-                   <strong>${foundry.utils.escapeHTML(victim?.name ?? "?")}</strong>${
-                    third ? ` · ${game.i18n.format("DRPG.Murder.thirdIs", {
-                        name: foundry.utils.escapeHTML(third.name)
-                    })}` : ""}`}</p>
-            <p>${now.selfInflicted
-                // No turn and no side to report: there is no Stage 5 in this one.
-                ? game.i18n.format("DRPG.Murder.trackerStateSelf", {
-                    stage: game.i18n.localize(`DRPG.Murder.stage.${now.stage}`)
-                })
-                : game.i18n.format("DRPG.Murder.trackerState", {
-                    stage: game.i18n.localize(`DRPG.Murder.stage.${now.stage}`),
-                    turn: now.turn,
-                    side: game.i18n.localize(`DRPG.Murder.side.${now.turnSide}`)
-                })}</p>
-            <p>${game.i18n.format("DRPG.Murder.victimLeft", {
-                hp: left("hitPoints"), stress: left("stress")
-            })}</p>
-            <p>${game.i18n.format("DRPG.Murder.keyCount", { n: now.keyRemnants })}</p>
-            ${cleanupSection(killer, cleanup)}</div>`;
-    };
-
-    /* WHICH BUTTONS ARE ON IT, which `keepLive` cannot change - it replaces a region of
-       the content, not a DialogV2 footer built once. Same answer the trial console reached
-       for the same reason: when the SET of buttons would differ, reopen instead. */
-    const signature = () => {
-        const now = read();
-        return now ? [now.stage, now.selfInflicted].join("|") : null;
-    };
+    const trackerBody = () => incidentTrackerHtml(read(), cleanup);
+    const signature = () => incidentSignature(read());
     const openedWith = signature();
     let settling = false;
 
@@ -3935,50 +4001,7 @@ export async function openIncidentTracker() {
         window: { title: game.i18n.localize("DRPG.Murder.trackerTitle") },
         classes: ["drpg-panel", "drpg-window-incident"],
         content: dialogContent(trackerBody()),
-        buttons: [
-            // There is no "roll the opening" button, and there must not be one.
-            //
-            // Stage 4 offers exactly one roll and its owner is not a decision:
-            // a direct murder opens on the KILLER's roll, a trap on the VICTIM's.
-            // `openMurder` sends that invitation itself the moment the incident
-            // opens, so by the time this window is on screen the roll is already
-            // with whoever owes it.
-            //
-            // A button here only ever sent a SECOND copy. Measured: opening one
-            // incident and pressing it three times left the player with FOUR
-            // stacked roll windows, each of which reopened itself twice more when
-            // dismissed - the retry loop cannot tell an unwanted duplicate from a
-            // refusal. And because the tracker reopens after every action with
-            // this button as `default`, holding Enter sent invitations for as
-            // long as you held it.
-            //
-            // Nothing is lost by its absence. An owner who is offline never gets
-            // an invitation in the first place - `rollOpening` sees that and
-            // throws the roll on the GM's own client - and an owner who is here
-            // is re-offered three times before anyone has to intervene.
-            // And none at all for a self-inflicted death: there is no turn to
-            // pass, so the window's DEFAULT button - the one Enter presses -
-            // would have been a control for a stage this incident never enters.
-            // ...but an invitation that was declined three times can be sent
-            // once more from here (CASE-10): the alternative was End and open
-            // it again, which repeated the whole three-strike loop. Rate-limited
-            // on this client so a held Enter cannot stack windows again.
-            ...(state.stage === "openingRoll" && !state.selfInflicted ? [
-                { action: "reask", label: game.i18n.localize("DRPG.Murder.openingReask") }
-            ] : []),
-            ...(state.stage === "openingRoll" || state.selfInflicted ? [] : [
-                // No "somebody walks in" button. The guide's third party is
-                // whoever "wejdzie do pomieszczenia poprzez akcję ruch", and
-                // `maybeThirdParty` already watches token movement into the
-                // victim's room and registers them the moment it happens. A
-                // second, manual route only invited the GM to nominate somebody
-                // who had not actually walked in - and to do it twice, since the
-                // watcher had usually already fired.
-                { action: "pass", label: game.i18n.localize("DRPG.Murder.passTurn"), default: true }
-            ]),
-            { action: "end", label: game.i18n.localize("DRPG.Murder.endMurder") },
-            { action: "close", label: game.i18n.localize("DRPG.Panel.close") }
-        ],
+        buttons: incidentButtons(state),
         render: (event, dialog) => keepLive(dialog, {
             region: ".drpg-incident-live",
             build: trackerBody,
@@ -4010,18 +4033,7 @@ export async function openIncidentTracker() {
         return openIncidentTracker();
     }
     if (action === "reask") {
-        const now = Date.now();
-        if (now - lastReask < REASK_COOLDOWN_MS) {
-            ui.notifications.warn(game.i18n.localize("DRPG.Murder.openingReaskWait"));
-        } else {
-            lastReask = now;
-            const current = murderState();
-            if (current?.stage === "openingRoll") {
-                rollOpening(current.indirect ? "victim" : "killer", current)
-                    .catch(err => error("Could not re-send the opening roll", err));
-                ui.notifications.info(game.i18n.localize("DRPG.Murder.openingReaskSent"));
-            }
-        }
+        reaskOpening();
         return openIncidentTracker();
     }
     if (action === "end") {

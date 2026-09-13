@@ -219,6 +219,84 @@ function clockForDisplay(clock) {
 }
 
 /** Build or rebuild the HUD in place. Safe to call as often as you like. */
+// Stained Glass: the name of the state runs as an outline behind the clock's content,
+// quietly (22 % opacity, 18 s a pass, still under reduced motion). Text, not a picture,
+// so it says what the seams' colour means. The stylesheet positions and moves it.
+function hudTicker(phase, clock) {
+    const ticker = document.createElement("div");
+    ticker.className = "drpg-hud-ticker";
+    ticker.setAttribute("aria-hidden", "true");
+    const word = phase === "eclipse" ? game.i18n.localize("DRPG.Explain.phase.eclipseTitle") : phaseLabel(clock.phase);
+    const run = document.createElement("span");
+    run.textContent = Array(6).fill(word).join(" · ") + " · ";
+    ticker.append(run, run.cloneNode(true));
+    return ticker;
+}
+
+/** The campaign's name, the chapter and day, and the phase line with its glyph. */
+function hudHeader(clock) {
+    /* CHAPTER AND DAY ARE ONE LINE UNDER THE THEME.
+       Two rows for six words, in a pane whose height the curtain is cut around: the
+       audit page draws them as one line with a divider, which is a row of glass
+       saved on every screen. Monokuma Legacy keeps its two rows. */
+    const chapterText = game.i18n.format("DRPG.Hud.chapter", { n: clock.chapter });
+    const dayText = game.i18n.format("DRPG.Hud.day", { n: clock.day ?? 1 });
+    const dateLines = eventsWindowActive()
+        ? [line("drpg-hud-chapter", `${chapterText} · ${dayText}`)]
+        : [line("drpg-hud-chapter", chapterText), line("drpg-hud-day", dayText)];
+    /* THE PHASE IS A STAMP WITH A GLYPH ON IT.
+       The audit page's clock names the phase on a plate in the state colour with the
+       hour's own pixel glyph beside it - a sun, a lens, a gavel, the eclipse - because
+       that is the one line on the clock that can be read without reading. Ours was a
+       line of tinted text. The glyph is a masked sprite; which sprite is the
+       stylesheet's business, from the phase and hour already on the body. */
+    const phaseLine = line("drpg-hud-phase", phaseLabel(clock.phase));
+    if (eventsWindowActive()) {
+        const glyph = document.createElement("span");
+        glyph.className = "drpg-hud-phase-glyph drpg-pxi";
+        glyph.setAttribute("aria-hidden", "true");
+        phaseLine.prepend(glyph);
+    }
+    /* A campaign name is somebody's sentence, and Special Elite is a wide face: at 18 px
+       "DanganRPG: Safe Havens Bleed" runs to two lines in a 312 px pane, and the audit
+       page's rule for the title face is one line. Two steps down by length rather than
+       by measurement - the pane's width is a constant, so the count is enough. */
+    const campaign = line("drpg-hud-campaign", campaignName(clock));
+    const nameLength = (campaignName(clock) ?? "").length;
+    if (nameLength > 32) campaign.classList.add("is-very-long");
+    else if (nameLength > 22) campaign.classList.add("is-long");
+    return [campaign, ...dateLines, phaseLine];
+}
+
+/* MONOKUMA'S TWO STANDING THREATS, WHEN THERE ARE ANY.
+ *
+ * Both are public by design and both were previously a chat card that
+ * scrolled away - which for the motive meant that "how long have we
+ * got" was a memory test, and for a deferred assembly would have meant
+ * the cast being teleported by an order nobody could still see.
+ *
+ * Appended conditionally and returning null when idle, so the column
+ * below keeps its height on an ordinary time of day. `alignRightColumn`
+ * measures what is actually here, after this. */
+// Under the Stained Glass theme these four are the Event panel's, under
+// the Despair rail (events.mjs); the clock stays a clock. Under Monokuma
+// Legacy they are rows here, as they were.
+function appendHudExtras(hud) {
+    if (!eventsWindowActive()) {
+        const motiveRow = buildMotive();
+        if (motiveRow) hud.append(motiveRow);
+
+        const assembly = buildAssembly();
+        if (assembly) hud.append(assembly);
+
+        const incident = buildIncident();
+        if (incident) hud.append(incident);
+
+        const body = buildBody();
+        if (body) hud.append(body);
+    }
+}
+
 export function renderHud() {
     try {
         /*
@@ -322,83 +400,17 @@ export function renderHud() {
         // curtain take the colour of the hour unless a phase overrides it.
         document.body.dataset.drpgTime = clock.timeOfDay ?? "";
 
-        // Stained Glass: the name of the state runs as an outline behind the clock's content,
-        // quietly (22 % opacity, 18 s a pass, still under reduced motion). Text, not a picture,
-        // so it says what the seams' colour means. The stylesheet positions and moves it.
         if (eventsWindowActive() && !document.body.classList.contains("drpg-no-ticker")) {
-            const ticker = document.createElement("div");
-            ticker.className = "drpg-hud-ticker";
-            ticker.setAttribute("aria-hidden", "true");
-            const word = phase === "eclipse" ? game.i18n.localize("DRPG.Explain.phase.eclipseTitle") : phaseLabel(clock.phase);
-            const run = document.createElement("span");
-            run.textContent = Array(6).fill(word).join(" · ") + " · ";
-            ticker.append(run, run.cloneNode(true));
-            hud.append(ticker);
+            hud.append(hudTicker(phase, clock));
         }
-        /* CHAPTER AND DAY ARE ONE LINE UNDER THE THEME.
-           Two rows for six words, in a pane whose height the curtain is cut around: the
-           audit page draws them as one line with a divider, which is a row of glass
-           saved on every screen. Monokuma Legacy keeps its two rows. */
-        const chapterText = game.i18n.format("DRPG.Hud.chapter", { n: clock.chapter });
-        const dayText = game.i18n.format("DRPG.Hud.day", { n: clock.day ?? 1 });
-        const dateLines = eventsWindowActive()
-            ? [line("drpg-hud-chapter", `${chapterText} · ${dayText}`)]
-            : [line("drpg-hud-chapter", chapterText), line("drpg-hud-day", dayText)];
-        /* THE PHASE IS A STAMP WITH A GLYPH ON IT.
-           The audit page's clock names the phase on a plate in the state colour with the
-           hour's own pixel glyph beside it - a sun, a lens, a gavel, the eclipse - because
-           that is the one line on the clock that can be read without reading. Ours was a
-           line of tinted text. The glyph is a masked sprite; which sprite is the
-           stylesheet's business, from the phase and hour already on the body. */
-        const phaseLine = line("drpg-hud-phase", phaseLabel(clock.phase));
-        if (eventsWindowActive()) {
-            const glyph = document.createElement("span");
-            glyph.className = "drpg-hud-phase-glyph drpg-pxi";
-            glyph.setAttribute("aria-hidden", "true");
-            phaseLine.prepend(glyph);
-        }
-        /* A campaign name is somebody's sentence, and Special Elite is a wide face: at 18 px
-           "DanganRPG: Safe Havens Bleed" runs to two lines in a 312 px pane, and the audit
-           page's rule for the title face is one line. Two steps down by length rather than
-           by measurement - the pane's width is a constant, so the count is enough. */
-        const campaign = line("drpg-hud-campaign", campaignName(clock));
-        const nameLength = (campaignName(clock) ?? "").length;
-        if (nameLength > 32) campaign.classList.add("is-very-long");
-        else if (nameLength > 22) campaign.classList.add("is-long");
+
         hud.append(
-            campaign,
-            ...dateLines,
-            phaseLine,
+            ...hudHeader(clock),
             buildTimeRow(clock, isGM),
             buildElapsed()
         );
 
-        /* MONOKUMA'S TWO STANDING THREATS, WHEN THERE ARE ANY.
-         *
-         * Both are public by design and both were previously a chat card that
-         * scrolled away - which for the motive meant that "how long have we
-         * got" was a memory test, and for a deferred assembly would have meant
-         * the cast being teleported by an order nobody could still see.
-         *
-         * Appended conditionally and returning null when idle, so the column
-         * below keeps its height on an ordinary time of day. `alignRightColumn`
-         * measures what is actually here, after this. */
-        // Under the Stained Glass theme these four are the Event panel's, under
-        // the Despair rail (events.mjs); the clock stays a clock. Under Monokuma
-        // Legacy they are rows here, as they were.
-        if (!eventsWindowActive()) {
-            const motiveRow = buildMotive();
-            if (motiveRow) hud.append(motiveRow);
-
-            const assembly = buildAssembly();
-            if (assembly) hud.append(assembly);
-
-            const incident = buildIncident();
-            if (incident) hud.append(incident);
-
-            const body = buildBody();
-            if (body) hud.append(body);
-        }
+        appendHudExtras(hud);
 
         // Last, under the timer: where you are standing is the most local thing
         // on a widget that otherwise describes the whole world.

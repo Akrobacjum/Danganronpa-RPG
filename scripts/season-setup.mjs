@@ -87,6 +87,51 @@ function hasOpeningItem(actor) {
     return actor.items.some(i => carriable.includes(i.getFlag(MODULE_ID, "category")));
 }
 
+/** Put every student's Health and Sanity maxima back to the starting values. Answers how many changed. */
+async function fixResources() {
+    let n = 0;
+    for (const actor of studentActors()) {
+        const hp = actor.system?.resources?.hitPoints?.max ?? 0;
+        const stress = actor.system?.resources?.stress?.max ?? 0;
+        if (hp === STARTING.hp && stress === STARTING.stress) continue;
+        await initCharacter(actor);
+        n++;
+    }
+    return n;
+}
+
+/** Take the GM roles off Foundry's SHOW_CURSOR permission. Answers how many came off. */
+async function fixCursorPermission() {
+    const perms = foundry.utils.deepClone(
+        game.settings.get("core", "permissions") ?? {});
+    const before = perms.SHOW_CURSOR ?? [];
+    const after = before.filter(r => !GM_ROLES.includes(r));
+    if (after.length === before.length) return 0;
+    perms.SHOW_CURSOR = after;
+    await game.settings.set("core", "permissions", perms);
+    return before.length - after.length;
+}
+
+/** The shared-rooms-per-player line under the room count step. */
+function roomCountLine(roster) {
+    return `<div class="notes">${foundry.utils.escapeHTML(
+        game.i18n.format("DRPG.Season.roomCountLine", {
+            rooms: sharedRooms().length,
+            players: roster.length,
+            want: roomsWantedFor(roster.length)
+        }))}</div>`;
+}
+
+/** The room guide and the Check rooms button under the rooms step. */
+function roomGuideHtml() {
+    return `<div class="drpg-room-guide">
+        <p>${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Season.roomGuide"))}</p>
+        <p><button type="button" data-drpg-check>${
+            foundry.utils.escapeHTML(game.i18n.localize("DRPG.Season.checkRooms"))}</button></p>
+        <div data-drpg-check-out class="drpg-room-check"></div>
+    </div>`;
+}
+
 function steps() {
     const roster = studentActors();
     const clock = getClock();
@@ -117,17 +162,7 @@ function steps() {
                 || (a.system?.resources?.stress?.max ?? 0) !== STARTING.stress).map(a => a.name),
             // The one row that can finish itself: the guide's numbers are the
             // guide's numbers, and there is nothing to decide.
-            fix: async () => {
-                let n = 0;
-                for (const actor of studentActors()) {
-                    const hp = actor.system?.resources?.hitPoints?.max ?? 0;
-                    const stress = actor.system?.resources?.stress?.max ?? 0;
-                    if (hp === STARTING.hp && stress === STARTING.stress) continue;
-                    await initCharacter(actor);
-                    n++;
-                }
-                return n;
-            }
+            fix: fixResources
         },
         {
             key: "ultimate",
@@ -210,12 +245,7 @@ function steps() {
              */
             done: sharedRooms().length >= roomsWantedFor(roster.length),
             missing: () => [],
-            extra: () => `<div class="notes">${foundry.utils.escapeHTML(
-                game.i18n.format("DRPG.Season.roomCountLine", {
-                    rooms: sharedRooms().length,
-                    players: roster.length,
-                    want: roomsWantedFor(roster.length)
-                }))}</div>`
+            extra: () => roomCountLine(roster)
         },
         {
             key: "rooms",
@@ -235,12 +265,7 @@ function steps() {
              * errand, and splitting them across two windows is how the second
              * half stops happening.
              */
-            extra: () => `<div class="drpg-room-guide">
-                <p>${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Season.roomGuide"))}</p>
-                <p><button type="button" data-drpg-check>${
-                    foundry.utils.escapeHTML(game.i18n.localize("DRPG.Season.checkRooms"))}</button></p>
-                <div data-drpg-check-out class="drpg-room-check"></div>
-            </div>`
+            extra: () => roomGuideHtml()
         },
         {
             /*
@@ -271,16 +296,7 @@ function steps() {
             optional: true,
             done: !gmRolesSharingCursor().length,
             missing: () => gmRolesSharingCursor().map(roleName),
-            fix: async () => {
-                const perms = foundry.utils.deepClone(
-                    game.settings.get("core", "permissions") ?? {});
-                const before = perms.SHOW_CURSOR ?? [];
-                const after = before.filter(r => !GM_ROLES.includes(r));
-                if (after.length === before.length) return 0;
-                perms.SHOW_CURSOR = after;
-                await game.settings.set("core", "permissions", perms);
-                return before.length - after.length;
-            }
+            fix: fixCursorPermission
         },
         {
             key: "mastermind",
@@ -309,23 +325,9 @@ function openFirstSheet(names) {
  * THE WINDOW
  * ========================================================================== */
 
-export async function openSeasonSetup() {
-    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
-    // window each read the world when they opened and neither knows about the
-    // other, so the older one goes on looking authoritative while showing
-    // something that stopped being true. Raised rather than refused: pressing
-    // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-season")) return null;
-
-    if (!game.user.isGM) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
-        return null;
-    }
-
-    const clock = getClock();
-    const list = steps();
-
-    const rows = list.map(step => {
+/** One line per step: the mark, the name and hint, what is missing, its extra, and a button when it can act. */
+function setupRows(list) {
+    return list.map(step => {
         const names = step.done ? [] : step.missing();
         const detail = names.length
             ? `<div class="drpg-setup-missing">${esc(names.join(", "))}</div>`
@@ -351,6 +353,88 @@ export async function openSeasonSetup() {
             ${button}
         </li>`;
     }).join("");
+}
+
+/** What Save hands back: the campaign name, the chapter and the safeword. */
+function readSeasonForm(d) {
+    const f = d.element.querySelector("form");
+    return {
+        campaignName: f.campaignName.value.trim(),
+        chapter: Number(f.chapter.value) || 1,
+        // Blank means "put the default back", which is what
+        // `safeword()` reads an empty setting as. Written blank
+        // rather than filled in here so the two agree.
+        safeword: f.safeword.value.trim()
+    };
+}
+
+/** The Check rooms button under the rooms step: run the region check and print its findings in place. */
+function wireRoomCheck(dialog) {
+    const checkButton = dialog.element.querySelector("[data-drpg-check]");
+    const checkOut = dialog.element.querySelector("[data-drpg-check-out]");
+    checkButton?.addEventListener("click", async ev => {
+        ev.preventDefault();
+        const { checkRegions } = await import("./fog.mjs");
+        const findings = checkRegions();
+        if (!findings.length) {
+            checkOut.innerHTML = `<p class="notes">${
+                esc(game.i18n.localize("DRPG.Season.checkClean"))}</p>`;
+            return;
+        }
+        const marks = { error: "\u2715", warning: "!", info: "\u00b7" };
+        checkOut.innerHTML = `<table class="drpg-vault-table drpg-room-check-table"><tbody>${
+            findings.map(f => `<tr>
+                <td>${marks[f.level] ?? "\u00b7"}</td>
+                <td>${esc(f.room)}</td>
+                <td><strong>${esc(f.problem)}</strong><br>
+                    <small>${esc(f.detail)}${f.at ? ` (${f.at.x}, ${f.at.y})` : ""}</small></td>
+            </tr>`).join("")
+        }</tbody></table>`;
+    });
+}
+
+/** Each step's Do it / Open it button: fix or open, then come back to a fresh window. */
+function wireSetupSteps(dialog) {
+    for (const button of dialog.element.querySelectorAll(".drpg-setup-do")) {
+        button.addEventListener("click", async ev => {
+            ev.preventDefault();
+            const step = steps().find(s => s.key === button.dataset.step);
+            if (!step) return;
+            try {
+                if (step.fix) {
+                    const n = await step.fix();
+                    ui.notifications.info(plural("DRPG.Season.fixed", { n }));
+                } else {
+                    await step.open(step.missing());
+                }
+            } catch (err) {
+                error(`Could not act on the "${step.key}" setup step`, err);
+            }
+            // Reopen so the marks are current: every one of these can
+            // change what another row reports.
+            await dialog.close();
+            openSeasonSetup();
+        });
+    }
+}
+
+export async function openSeasonSetup() {
+    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
+    // window each read the world when they opened and neither knows about the
+    // other, so the older one goes on looking authoritative while showing
+    // something that stopped being true. Raised rather than refused: pressing
+    // twice usually means the window is behind something.
+    if (alreadyOpen("drpg-window-season")) return null;
+
+    if (!game.user.isGM) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Panel.gmOnly"));
+        return null;
+    }
+
+    const clock = getClock();
+    const list = steps();
+
+    const rows = setupRows(list);
 
     const outstanding = list.filter(s => !s.done && !s.optional).length;
 
@@ -388,17 +472,7 @@ export async function openSeasonSetup() {
         buttons: [
             {
                 action: "save", label: game.i18n.localize("DRPG.Assign.save"), default: true,
-                callback: (e, b, d) => {
-                    const f = d.element.querySelector("form");
-                    return {
-                        campaignName: f.campaignName.value.trim(),
-                        chapter: Number(f.chapter.value) || 1,
-                        // Blank means "put the default back", which is what
-                        // `safeword()` reads an empty setting as. Written blank
-                        // rather than filled in here so the two agree.
-                        safeword: f.safeword.value.trim()
-                    };
-                }
+                callback: (e, b, d) => readSeasonForm(d)
             },
             // The other end of this same list. "What is missing" and "fix it"
             // are one errand, and the checks used to be a GM-panel tile of
@@ -417,49 +491,8 @@ export async function openSeasonSetup() {
              * them not to bother. The console copy stays: it carries the
              * coordinates in a form that can be pasted.
              */
-            const checkButton = dialog.element.querySelector("[data-drpg-check]");
-            const checkOut = dialog.element.querySelector("[data-drpg-check-out]");
-            checkButton?.addEventListener("click", async ev => {
-                ev.preventDefault();
-                const { checkRegions } = await import("./fog.mjs");
-                const findings = checkRegions();
-                if (!findings.length) {
-                    checkOut.innerHTML = `<p class="notes">${
-                        esc(game.i18n.localize("DRPG.Season.checkClean"))}</p>`;
-                    return;
-                }
-                const marks = { error: "\u2715", warning: "!", info: "\u00b7" };
-                checkOut.innerHTML = `<table class="drpg-vault-table drpg-room-check-table"><tbody>${
-                    findings.map(f => `<tr>
-                        <td>${marks[f.level] ?? "\u00b7"}</td>
-                        <td>${esc(f.room)}</td>
-                        <td><strong>${esc(f.problem)}</strong><br>
-                            <small>${esc(f.detail)}${f.at ? ` (${f.at.x}, ${f.at.y})` : ""}</small></td>
-                    </tr>`).join("")
-                }</tbody></table>`;
-            });
-
-            for (const button of dialog.element.querySelectorAll(".drpg-setup-do")) {
-                button.addEventListener("click", async ev => {
-                    ev.preventDefault();
-                    const step = steps().find(s => s.key === button.dataset.step);
-                    if (!step) return;
-                    try {
-                        if (step.fix) {
-                            const n = await step.fix();
-                            ui.notifications.info(plural("DRPG.Season.fixed", { n }));
-                        } else {
-                            await step.open(step.missing());
-                        }
-                    } catch (err) {
-                        error(`Could not act on the "${step.key}" setup step`, err);
-                    }
-                    // Reopen so the marks are current: every one of these can
-                    // change what another row reports.
-                    await dialog.close();
-                    openSeasonSetup();
-                });
-            }
+            wireRoomCheck(dialog);
+            wireSetupSteps(dialog);
         },
         rejectClose: false
     });
