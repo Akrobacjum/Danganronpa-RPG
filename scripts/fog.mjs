@@ -1936,13 +1936,13 @@ export function doorwayReport() {
  */
 /** Depth-first, by display-object name. */
 function findNamed(node, name) {
-        if (!node) return null;
-        if (node.name === name) return node;
-        for (const child of node.children ?? []) {
-            const hit = find(child, name);
-            if (hit) return hit;
-        }
-        return null;
+    if (!node) return null;
+    if (node.name === name) return node;
+    for (const child of node.children ?? []) {
+        const hit = findNamed(child, name);
+        if (hit) return hit;
+    }
+    return null;
 }
 
 /** The stroked outline nearest the point, and whether the stroke covers it. */
