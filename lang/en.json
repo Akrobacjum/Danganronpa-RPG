@@ -870,14 +870,6 @@
     },
     "Events": {
       "overflowMetaGm": "{count} of {max} in the hat",
-      "eclipseTitle": "The lights are out",
-      "eclipseFree": "Place your token anywhere on the map",
-      "eclipseCrossings": {
-        "one": "Place your token up to {n} connected room away",
-        "other": "Place your token up to {n} connected rooms away"
-      },
-      "eclipseMeta": "Nobody sees anyone until it ends",
-      "eclipseMetaGm": "{placed} of {total} have placed",
       "bodyTitle": "A body is discovered",
       "bodySubRoom": "{victim}, in the {room}",
       "bodyMeta": "The investigation is open",
@@ -886,7 +878,6 @@
       "bodyHoldMetaGm": "Start the Investigation when the room is ready.",
       "ticker": {
         "overflow": "Overflow",
-        "eclipse": "Eclipse",
         "incident": "Incident",
         "body": "Body found",
         "trial": "Class Trial",

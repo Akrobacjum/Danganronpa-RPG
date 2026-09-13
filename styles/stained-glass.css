@@ -480,7 +480,6 @@ body.drpg-theme-stained-glass .drpg-event[data-kind="incident"] { --acc: var(--d
 body.drpg-theme-stained-glass .drpg-event[data-kind="motive"] { --acc: var(--drpg-sg-hope); }
 body.drpg-theme-stained-glass .drpg-event[data-kind="trial"] { --acc: var(--drpg-sg-despair); }
 body.drpg-theme-stained-glass .drpg-event[data-kind="overflow"] { --acc: var(--drpg-sg-despair); }
-body.drpg-theme-stained-glass .drpg-event[data-kind="eclipse"] { --acc: var(--drpg-sg-eclipse); }
 body.drpg-theme-stained-glass .drpg-event-kicker {
     font-size: max(var(--drpg-sg-floor), calc(11px * var(--drpg-sg-scale)));
     letter-spacing: 0.12em;
@@ -1973,7 +1972,6 @@ body.drpg-theme-stained-glass .drpg-event[data-kind="motive"] .drpg-event-glyph 
 body.drpg-theme-stained-glass .drpg-event[data-kind="assembly"] .drpg-event-glyph { --drpg-px-mask: var(--drpg-px-horn); }
 body.drpg-theme-stained-glass .drpg-event[data-kind="trial"] .drpg-event-glyph { --drpg-px-mask: var(--drpg-px-gavel); }
 body.drpg-theme-stained-glass .drpg-event[data-kind="overflow"] .drpg-event-glyph { --drpg-px-mask: var(--drpg-px-heartcrack); }
-body.drpg-theme-stained-glass .drpg-event[data-kind="eclipse"] .drpg-event-glyph { --drpg-px-mask: var(--drpg-px-eclipse); }
 
 /* ---- C-I. A popup's title band is Bone --------------------------------------------------
    The audit page gives every popup the same pale band with ink on it, and lets the KIND

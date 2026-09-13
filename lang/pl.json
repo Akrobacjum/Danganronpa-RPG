@@ -888,16 +888,6 @@
     },
     "Events": {
       "overflowMetaGm": "{count} z {max} w kapeluszu",
-      "eclipseTitle": "Zgasło światło",
-      "eclipseFree": "Ustaw swój token gdziekolwiek na mapie",
-      "eclipseCrossings": {
-        "one": "Ustaw swój token do {n} połączonego pokoju dalej",
-        "few": "Ustaw swój token do {n} połączonych pokoi dalej",
-        "many": "Ustaw swój token do {n} połączonych pokoi dalej",
-        "other": "Ustaw swój token do {n} połączonych pokoi dalej"
-      },
-      "eclipseMeta": "Nikt nikogo nie widzi, dopóki się nie skończy",
-      "eclipseMetaGm": "Ustawiło się {placed} z {total}",
       "bodyTitle": "Znaleziono ciało",
       "bodySubRoom": "{victim}, w: {room}",
       "bodyMeta": "Investigation otwarte",
@@ -906,7 +896,6 @@
       "bodyHoldMetaGm": "Rozpocznij Investigation, gdy pokój będzie gotowy.",
       "ticker": {
         "overflow": "Overflow",
-        "eclipse": "Eclipse",
         "incident": "Incydent",
         "body": "Znaleziono ciało",
         "trial": "Class Trial",

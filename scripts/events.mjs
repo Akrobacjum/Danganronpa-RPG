@@ -30,7 +30,6 @@ import { trialFloor, floorHolder, floorTarget, FLOOR_MODES } from "./trial-floor
 import { keyPlanStatus } from "./investigation.mjs";
 import { SETTINGS, bodyDiscovery, bodyDiscoveryFresh, incidentParticipants } from "./settings.mjs";
 import { overflowEffect, overflowStatus, overflowRules } from "./overflow.mjs";
-import { isEclipse, eclipseAllowance, isFreePlacement, placementStatus } from "./eclipse.mjs";
 
 const WIDGET_ID = "drpg-events";
 
@@ -313,32 +312,6 @@ function overflowCard() {
     }
 }
 
-/**
- * THE ECLIPSE. The lights are out and everybody is placing; the clock's own
- * row says "Eclipse", and this says what that costs and, for the GM, who has
- * still to place. A player's card stops at the allowance: where the others
- * went is the one thing an Eclipse hides.
- */
-function eclipseCard() {
-    try {
-        if (!isEclipse()) return null;
-        const allowance = eclipseAllowance();
-        const sub = isFreePlacement() || allowance === null
-            ? game.i18n.localize("DRPG.Events.eclipseFree")
-            : plural("DRPG.Events.eclipseCrossings", { n: allowance });
-        let meta = game.i18n.localize("DRPG.Events.eclipseMeta");
-        if (game.user.isGM) {
-            const rows = placementStatus();
-            const placed = rows.filter(r => r.moved > 0).length;
-            meta = game.i18n.format("DRPG.Events.eclipseMetaGm", { placed, total: rows.length });
-        }
-        return { kind: "eclipse", title: game.i18n.localize("DRPG.Events.eclipseTitle"), sub, meta };
-    } catch (err) {
-        error("Could not read the Eclipse for the Event panel", err);
-        return null;
-    }
-}
-
 /* ---- the panel ------------------------------------------------------------ */
 
 /* The state each card showed last time it was drawn, so a redraw can tell a change
@@ -412,7 +385,7 @@ export function renderEvents() {
         if (!eventsWindowActive() || !game.user) { existing?.remove(); return; }
 
         const clock = getClock() ?? {};
-        const cards = [trialCard(clock), openingCard(), incidentCard(), bodyCard(clock), eclipseCard(), overflowCard(), assemblyCard(), motiveCard()].filter(Boolean);
+        const cards = [trialCard(clock), openingCard(), incidentCard(), bodyCard(clock), overflowCard(), assemblyCard(), motiveCard()].filter(Boolean);
         if (!cards.length) { existing?.remove(); return; }
 
         // Redraw only when something changed: the panel is on the curtain, and
