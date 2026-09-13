@@ -924,6 +924,9 @@ async function wipeSeason({ alsoChat = false } = {}) {
     ]) {
         await step(label, () => game.settings.set(MODULE_ID, key, value));
     }
+    // The fog ledger lives on the GM's browser since D2; the world row above
+    // only clears what an un-migrated world may still carry.
+    await step("the fog ledger", () => import("./fog.mjs").then(m => m.resetLedger()));
 
     await step("the clock", async () => {
         const clock = getClock();

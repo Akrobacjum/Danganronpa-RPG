@@ -5360,27 +5360,28 @@ const SCENARIOS = [
         ok(monokuma && student,
             "need a Monokuma and a student standing in rooms on this scene");
 
-        const before = foundry.utils.deepClone(getSetting(SETTINGS.discoveredRooms) ?? {});
+        // The GM's own store since D2 - the world setting is empty and stays so.
+        const before = foundry.utils.deepClone(getSetting(SETTINGS.discoveryLedger) ?? {});
         try {
             // Both rows emptied, so the seed has something to record and this
             // measures what it CHOOSES rather than what was already there.
             const wiped = { ...(before[scene.id] ?? {}) };
             wiped[monokuma.id] = [];
             wiped[student.id] = [];
-            await game.settings.set(MODULE_ID, SETTINGS.discoveredRooms,
+            await game.settings.set(MODULE_ID, SETTINGS.discoveryLedger,
                 { ...before, [scene.id]: wiped });
             await settle();
 
             await fog.seedDiscovery(scene);
             await settle();
 
-            const now = (getSetting(SETTINGS.discoveredRooms) ?? {})[scene.id] ?? {};
+            const now = (getSetting(SETTINGS.discoveryLedger) ?? {})[scene.id] ?? {};
             equal((now[monokuma.id] ?? []).length, 0,
                 `${monokuma.name} is a Monokuma and put ${JSON.stringify(now[monokuma.id])} in the ledger`);
             ok((now[student.id] ?? []).includes(roomOfActor(student)),
                 `${student.name} is standing in ${roomOfActor(student)} and the ledger did not record it`);
         } finally {
-            await game.settings.set(MODULE_ID, SETTINGS.discoveredRooms, before);
+            await game.settings.set(MODULE_ID, SETTINGS.discoveryLedger, before);
             await settle();
         }
     }],

@@ -16,8 +16,7 @@
 
 import { MODULE_ID, ECLIPSE_MOVES, ECLIPSE_FREE_PLACEMENT, FLAGS,
     ROOM_OWNER_FLAG, BEDROOM_KEY_FLAG } from "./config.mjs";
-import { SETTINGS, iAmTheMastermind, incidentParticipants, incomingTimeOfDay }
-    from "./settings.mjs";
+import { SETTINGS, iAmTheMastermind, incidentParticipants, incomingTimeOfDay, discoveryLedger } from "./settings.mjs";
 import { hasFreeMove, takeMove, actionsLeft, canPayFor, freeMovesLeft } from "./actions.mjs";
 // Statically imported, not lazily: the crossing veto runs inside a synchronous
 // `preUpdateToken` hook, where there is no opportunity to await an import.
@@ -310,7 +309,8 @@ function notConnectedText(from, to, connected) {
 /**
  * The rooms this viewer's own characters have discovered on the current
  * scene, plus wherever they stand; `null` for a GM or the Mastermind, who know
- * the whole map. Read off the world ledger fog.mjs writes, so this stays a
+ * the whole map. Read off this client's own copy of the ledger (D2: a player's
+ * browser holds only their own rows), through settings.mjs, so this stays a
  * leaf and needs nothing from the fog.
  */
 function roomsKnownToMe() {
@@ -318,7 +318,7 @@ function roomsKnownToMe() {
         if (game.user.isGM || iAmTheMastermind()) return null;
         const sceneId = canvas?.scene?.id;
         if (!sceneId) return null;
-        const ledger = game.settings.get(MODULE_ID, SETTINGS.discoveredRooms) ?? {};
+        const ledger = discoveryLedger();
         const known = new Set();
         for (const [actorId, rooms] of Object.entries(ledger[sceneId] ?? {})) {
             if (!game.actors.get(actorId)?.isOwner) continue;

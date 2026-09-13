@@ -413,6 +413,10 @@ export const SETTINGS = {
      * discipline `truth-bullets.mjs` uses for its own ledger writes.
      */
     discoveredRooms: "discoveredRooms",
+    /** The GM's union of every character's discoveries - a CLIENT setting on GM browsers (D2). */
+    discoveryLedger: "discoveryLedger",
+    /** This player's own characters' rows, written by the primary GM over the socket (D2). */
+    discoveryMine: "discoveryMine",
     /**
      * Rooms, not sight lines, decide what a player can see.
      *
@@ -988,9 +992,39 @@ export function registerSettings() {
         }
     });
 
-    // Which rooms each character has discovered. Cleared at season reset.
+    /*
+     * WHICH ROOMS EACH CHARACTER HAS DISCOVERED - AND WHO MAY KNOW IT (D2,
+     * Dawid 13.09; audit MAP-12).
+     *
+     * This used to be one world setting, readable from any player's console:
+     * "which rooms has X been in" for the whole season, which in a killing
+     * game is alibi evidence. It travels the `incidentCast` road now. The
+     * primary GM holds the union in a client setting on their own browser and
+     * mirrors it to the other GMs; each player's browser holds only the rows
+     * of the characters they own, sent to them alone over the addressed
+     * socket (fog.mjs, `shareLedger`). The world setting stays registered so
+     * a world that updates mid-season can be lifted out of it once
+     * (`migrateLedger`), and is empty from then on.
+     *
+     * All three fire the same repaint: the fog reads through
+     * `discoveryLedger()` below, whichever store this client is.
+     */
     game.settings.register(MODULE_ID, SETTINGS.discoveredRooms, {
         scope: "world",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => onWorldChange(SETTINGS.discoveredRooms)
+    });
+    game.settings.register(MODULE_ID, SETTINGS.discoveryLedger, {
+        scope: "client",
+        config: false,
+        type: Object,
+        default: {},
+        onChange: () => onWorldChange(SETTINGS.discoveredRooms)
+    });
+    game.settings.register(MODULE_ID, SETTINGS.discoveryMine, {
+        scope: "client",
         config: false,
         type: Object,
         default: {},
@@ -1198,6 +1232,21 @@ function onWorldChange(key) {
  * is the killer - one asks "is this actor one of them" and the other asks "who
  * are the others" - so neither is given the answer.
  */
+/**
+ * The discovery ledger as THIS client may know it: the union on a GM's
+ * browser, this player's own rows on theirs. Shaped
+ * `{ [sceneId]: { [actorId]: [roomName, ...] } }` either way. A leaf, so
+ * movement.mjs and fog.mjs read the same thing.
+ */
+export function discoveryLedger() {
+    try {
+        const key = game.user?.isGM ? SETTINGS.discoveryLedger : SETTINGS.discoveryMine;
+        return game.settings.get(MODULE_ID, key) ?? {};
+    } catch {
+        return {};
+    }
+}
+
 export function incidentParticipants() {
     try {
         const cast = game.settings.get(MODULE_ID, SETTINGS.incidentCast) ?? {};

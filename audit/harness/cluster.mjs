@@ -321,10 +321,20 @@ function onClientMessage(who, entry, msg) {
             entry.proc.send({ t: "ack", id: msg.id, ok: !error, result: msg.value, error });
             break;
         }
-        case "socket":
+        case "socket": {
             socketTraffic.push({ from: who, channel: msg.channel, size: JSON.stringify(msg.args ?? []).length });
-            broadcast({ t: "socketMsg", channel: msg.channel, args: msg.args, senderId: entry.userId }, { except: who });
+            // Foundry honours `{ recipients: [userId, ...] }` on the emit: the packet reaches
+            // those clients and nobody else. The relay used to broadcast everything, which hid
+            // any module bug that leaned on the address - and made addressed packets land on
+            // the wrong player when a scenario measured who holds what.
+            const recipients = Array.isArray(msg.args?.[1]?.recipients) ? new Set(msg.args[1].recipients) : null;
+            for (const [other, target] of clients) {
+                if (other === who) continue;
+                if (recipients && !recipients.has(target.userId)) continue;
+                target.proc.send({ t: "socketMsg", channel: msg.channel, args: msg.args, senderId: entry.userId });
+            }
             break;
+        }
         case "evalResult": {
             const p = evalPending.get(msg.id);
             if (p) { evalPending.delete(msg.id); msg.ok ? p.resolve(msg.value) : p.reject(new Error(msg.value)); }
