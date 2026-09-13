@@ -31,7 +31,8 @@ Above is a student's view. Below is the GM's - same minute, same hall.
 ![The GM's screen: the whole floor, and the real numbers](docs/img/02-gm-view.png)
 
 The student sees the room they are standing in and a school that has not been
-discovered yet. The Despair pools are on screen, but the numbers are `?`. The
+discovered yet. The Despair pools are on screen with their counts, but the
+overflow under them reads `?`. The
 GM sees the floor, the counters - `4/12`, `6/12`, an overflow sitting at
 `30/20` - and who still has actions left to spend.
 
@@ -138,7 +139,7 @@ which one is missing.
 |---|---|
 | [Dice So Nice!](https://foundryvtt.com/packages/dice-so-nice) | The duality dice you actually watch roll |
 | [Isometric Perspective](https://foundryvtt.com/packages/isometric-perspective) | The school is drawn isometrically |
-| [LiveKit AVClient](https://foundryvtt.com/packages/avclient-livekit) | Per-room voice, and eavesdropping |
+| [LiveKit AVClient](https://foundryvtt.com/packages/avclient-livekit) | Per-room voice |
 | [libWrapper](https://foundryvtt.com/packages/lib-wrapper) | Required by Isometric Perspective |
 
 Developed and played on [The Forge](https://forge-vtt.com/); it works the same

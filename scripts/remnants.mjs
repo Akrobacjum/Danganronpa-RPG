@@ -296,7 +296,28 @@ export async function placeRemnant(data = {}) {
     if (data.tiedToCrime === undefined || data.tiedToCrime === null) {
         try {
             const { murderState } = await import("./murder.mjs");
-            if (murderState()) data = { ...data, tiedToCrime: true };
+            const state = murderState();
+            if (state) {
+                /*
+                 * THE INCIDENT'S OWN TRACES, NOT EVERY TRACE OF THE NIGHT (D5,
+                 * Dawid 13.09; audit CASE-11). This used to tie anything left
+                 * while an incident ran, so a witness Searching a cupboard at
+                 * the far end of the school became "evidence of the murder".
+                 * Tied now: a trace left by a participant, or one left in the
+                 * incident's room. Anything else stays `null` - the dashboard's
+                 * "?" column, for the GM to answer.
+                 */
+                const cast = [state.killerId, state.victimId, state.thirdId].filter(Boolean);
+                let tied = Boolean(data.sourceActor && cast.includes(data.sourceActor));
+                if (!tied) {
+                    const { locateActor } = await import("./movement.mjs");
+                    const where = locateActor(game.actors.get(state.victimId));
+                    const sceneId = data.sceneId ?? data.scene?.id ?? canvas?.scene?.id ?? null;
+                    tied = Boolean(where?.room && data.room && data.room === where.room
+                        && (!where.scene || !sceneId || where.scene.id === sceneId));
+                }
+                data = { ...data, tiedToCrime: tied ? true : null };
+            }
         } catch {
             // No incident module, no incident. The trace stays as it came.
         }

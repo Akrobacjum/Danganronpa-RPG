@@ -712,10 +712,45 @@ export async function grantItem(actor, {
         });
 
         log(`${actor.name} gained ${name} (${category}${hasTier ? `, Tier ${tier}` : ""}).`);
+        if (item && location === LOCATIONS.carried) await keepGearShape(actor, item);
         return item ?? null;
     } catch (err) {
         warn("Could not create the item", err);
         return null;
+    }
+}
+
+/**
+ * ONE IN A HAND, ONE STOWED, NEVER TWO STOWED - on the way IN as well (D4,
+ * Dawid 13.09; audit ITEM-04).
+ *
+ * `LIMIT_GROUPS.gear.maxStowed` used to be enforced in one place: putting the
+ * readied item down was refused while the other was stowed. Every way a piece
+ * of Gear ARRIVES - a Search, a give, a handover, a theft, a plant, the stash -
+ * only counted the two slots, so a character who never readied anything
+ * carried two stowed tools indefinitely, which is the state the rule forbids.
+ *
+ * So the arriving item goes into the hand when the shape needs it, and the
+ * owner is told which - it changes what the incident engine reads as "the
+ * weapon in hand" (`equippedFor`), and that is not a thing to change quietly.
+ */
+export async function keepGearShape(actor, item) {
+    try {
+        const category = item?.getFlag(MODULE_ID, ITEM_FLAGS.category);
+        const group = ITEM_CATEGORIES[category]?.limitGroup;
+        const max = group ? LIMIT_GROUPS[group]?.maxStowed : null;
+        if (max === null || max === undefined) return false;
+        const { stowedInGroup, isEquipped, toggleEquipped } = await import("./use-items.mjs");
+        if (isEquipped(item)) return false;
+        if (stowedInGroup(actor, group).length <= max) return false;
+        if (!await toggleEquipped(actor, item)) return false;
+        await whisperToOwner(actor, `<p>${game.i18n.format("DRPG.Items.autoReadied", {
+            item: foundry.utils.escapeHTML(item.name), group: LIMIT_GROUPS[group].label
+        })}</p>`);
+        return true;
+    } catch (err) {
+        error("Could not keep the Gear shape", err);
+        return false;
     }
 }
 

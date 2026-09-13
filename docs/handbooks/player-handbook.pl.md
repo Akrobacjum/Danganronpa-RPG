@@ -121,9 +121,9 @@ Zawraca cię:
 - Zegar u góry ekranu da się kliknąć: tłumaczy fazę, porę dnia, gdzie jesteś, i wypisuje opis pokoju, jeśli GM go napisał.
 - Karta innego gracza otwiera się ocenzurowana: imię, portret, Health, Sanity i to, co trzyma w rękach. Nic więcej.
 
-### Głos i podsłuchiwanie
+### Głos
 
-Z włączonym głosem per pokój każdy pokój jest własnym kanałem: słyszysz tylko tych, którzy stoją z tobą w pokoju, a twój klient głosowy idzie za tokenem w chwili, gdy przekroczy granicę pokoju. Podczas Eclipse każdy gracz jest sam we własnym kanale. GM może podsłuchiwać dowolny pokój jako wyciszony słuchacz - zakładaj, że Monokuma może słuchać.
+Z włączonym głosem per pokój każdy pokój jest własnym kanałem: słyszysz tylko tych, którzy stoją z tobą w pokoju, a twój klient głosowy idzie za tokenem w chwili, gdy przekroczy granicę pokoju. Podczas Eclipse każdy gracz jest sam we własnym kanale. Monokuma, który wejdzie do twojego pokoju, słyszy cię jak każdy inny - i ty go widzisz.
 
 Żeby dowiedzieć się, kto jest za ścianą, bez wchodzenia, użyj **Listen** (rozdział 4).
 

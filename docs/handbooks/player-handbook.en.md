@@ -121,9 +121,9 @@ You are turned back by:
 - The clock at the top of the screen can be clicked: it explains the phase, the time of day, where you are, and prints the room's description if the GM wrote one.
 - Another player's sheet opens redacted: name, portrait, Health, Sanity and what they hold ready. Nothing else.
 
-### Voice and eavesdropping
+### Voice
 
-With regional voice on, every room is its own voice channel: you hear only whoever stands in the room with you, and your voice client follows your token the moment it crosses into another room. During an Eclipse every player is alone in a channel of their own. A GM can listen in on any room as a muted listener - assume that Monokuma may be listening.
+With regional voice on, every room is its own voice channel: you hear only whoever stands in the room with you, and your voice client follows your token the moment it crosses into another room. During an Eclipse every player is alone in a channel of their own. A Monokuma who walks into your room hears you like anyone else, and you see them.
 
 To find out who is next door without walking in, use **Listen** (chapter 4).
 

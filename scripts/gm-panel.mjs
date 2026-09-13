@@ -141,9 +141,10 @@ const PANEL_SECTIONS = [
             //     several versions; a second door to it was a second thing to
             //     keep in step. `nextStep` still offers it when one is running,
             //     see EXTRA_ACTIONS.
-            //   Listen in on a voice room - reachable from the console
-            //     (`game.drpg.voiceEavesdropDialog()`) and from nowhere a GM
-            //     goes twice a session.
+            //   Listen in on a voice room - removed outright (Dawid, 13.09):
+            //     LiveKit shows the listener's tile to the room, so it never
+            //     was a way to listen unseen. The voice reset it also carried
+            //     is a tile under Between sessions.
         ]
     },
     {
@@ -197,6 +198,16 @@ const PANEL_SECTIONS = [
             // first minute is editing.
             { key: "tables", icon: "fa-table-list", labelKey: "DRPG.Tables.editorTitle",
               run: () => import("./tables.mjs").then(m => m.openItemTables()) },
+            // "Send everybody's voice back to the main room" - the one button the
+            // removed eavesdrop window also carried, kept as its own tile.
+            { key: "voiceReset", icon: "fa-microphone-lines", labelKey: "DRPG.Panel.voiceReset",
+              run: async () => {
+                  const { resetAllVoice } = await import("./voice.mjs");
+                  const n = await resetAllVoice();
+                  ui.notifications[n === null ? "warn" : "info"](n === null
+                      ? game.i18n.localize("DRPG.Voice.resetRefused")
+                      : plural("DRPG.Voice.resetDone", { n }));
+              } },
             // Beside the checks it answers: the season checklist carries the
             // pre-session diagnostics as a button now, because "what is missing"
             // and "fix it" are the same list read from the two ends.

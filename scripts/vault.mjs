@@ -871,6 +871,9 @@ export async function retrieve(actor, item) {
     }
 
     log(`${actor.name} took "${item.name}" out of their stash.`);
+    // The shape rule on the way out of the stash too (D4).
+    const { keepGearShape } = await import("./inventory.mjs");
+    await keepGearShape(actor, item);
     return true;
 }
 

@@ -32,8 +32,8 @@
  * panel already uses (`poolUserFor` in monokuma.mjs) - a Monokuma spends one
  * GM's Despair and speaks with that GM's voice, not two separate assignments
  * to keep in sync. A token dragged off every mapped room sends that GM back
- * to the main room, free to use the eavesdrop dialog below on whatever they
- * like without their own token dragging them back out of it.
+ * to the main room. (There is no "listen in by hand" any more - Dawid, 13.09:
+ * LiveKit shows the listener's tile to the room, so it was never a secret.)
  */
 
 import { MODULE_ID, FLAGS } from "./config.mjs";
@@ -93,8 +93,6 @@ export function registerVoice() {
     Hooks.on("userConnected", (user, connected) => {
         if (!isPrimaryGm()) return;
         forget(user.id);
-        // Their manual choice belonged to the browser session that just ended.
-        manualUsers.delete(user.id);
         if (!connected) return;
         scheduleReconcile({ force: true });
     });
@@ -315,20 +313,6 @@ function send(userId, room, attempt) {
 function onVoiceSocket(payload, senderId) {
     // A GM saying "I picked a room by hand" or "I have stopped".
     //
-    // Accepted from GMs only, and only by the client running the loop. It is a
-    // claim about the SENDER's own voice - like every other message in this
-    // file, whose id is taken from Foundry's own second argument rather than
-    // from anything inside the payload.
-    if (payload?.action === VOICE.manual) {
-        if (!isPrimaryGm()) return;
-        if (!game.users.get(senderId)?.isGM) return;
-        if (payload.manual) manualUsers.add(senderId);
-        else manualUsers.delete(senderId);
-        debug(`Voice: ${game.users.get(senderId)?.name} ${
-            payload.manual ? "is listening in by hand" : "handed their voice back"}.`);
-        return;
-    }
-
     if (payload?.action === VOICE.whoAmI) {
         // Not returned: a socket callback's return value goes nowhere, so an
         // async handler handed back raw becomes an unhandled rejection the first
@@ -407,10 +391,6 @@ async function onWhoAmI(userId) {
     if (!avclientActive()) return;
     if (userId === game.user.id) return;
 
-    // A client that is asking has just come up, so whatever room it had chosen
-    // by hand went with the page it was chosen on.
-    manualUsers.delete(userId);
-
     const room = await targetForUser(userId);
     forget(userId);
     send(userId, room, 0);
@@ -422,10 +402,10 @@ async function onWhoAmI(userId) {
  * One line, because the decision is `voiceTargets()` and there is exactly one of
  * it. This used to be a second implementation of the same rules - the Monokuma
  * mapping, the silence of the dead, the scene the token is actually on - with a
- * comment promising it agreed with the reconcile loop. It did not: the loop had
- * a rule for a GM listening in by hand and this did not, so a GM who refreshed
- * mid-eavesdrop was answered with a room they had not asked for. A promise in a
- * comment is not a shared implementation.
+ * comment promising it agreed with the reconcile loop. It did not: the two
+ * drifted on a rule one of them had and the other lacked, so a GM who refreshed
+ * was answered with a room they had not asked for. A promise in a comment is
+ * not a shared implementation.
  */
 async function targetForUser(userId) {
     const { byUser } = await voiceTargets();
@@ -669,45 +649,6 @@ let reconcileTimer = null;
 let heartbeatTimer = null;
 
 /**
- * GMs who have chosen a room by hand from the eavesdrop dialog.
- *
- * Auto-follow is suppressed for them, and only while their Monokuma is off every
- * mapped room - dragging that token INTO a room always wins over a stale manual
- * choice. Cleared by `stopEavesdropping()`, by `resetAllVoice()`, and by that
- * client asking where it belongs (a client that asks has just come up, so
- * whatever it had chosen is gone with the page).
- *
- * A SET, not a boolean, and that is the fix. It used to be one flag meaning "I,
- * this browser, am listening in" - which worked for the primary GM and for
- * nobody else. An assistant GM holding a Monokuma pool is steered by the primary
- * GM's loop like anyone else, and their own flag lives in their own browser
- * where that loop cannot see it: they picked a room, and within sixty seconds
- * the heartbeat put them back in the main room without either GM being told why.
- * The claim now travels (`VOICE.manual`), so the client running the loop is the
- * client that knows.
- */
-const manualUsers = new Set();
-
-/**
- * Record a manual choice and, when this browser is not the one running the loop,
- * tell the browser that is.
- */
-function setManual(userId, on) {
-    if (on) manualUsers.add(userId);
-    else manualUsers.delete(userId);
-
-    if (userId !== game.user.id) return;
-    const primary = primaryGmId();
-    if (!primary || primary === game.user.id) return;
-    try {
-        game.socket.emit(SOCKET_EVENT,
-            { action: VOICE.manual, manual: on }, { recipients: [primary] });
-    } catch (err) {
-        error("Could not tell the primary GM about a manual voice choice", err);
-    }
-}
-
-/**
  * @param {object} [options]
  * @param {boolean} [options.immediate]  Skip the debounce.
  * @param {boolean} [options.force]      Re-send every assignment even when the
@@ -775,19 +716,13 @@ async function reconcileNow({ force = false } = {}) {
             // single rejection aborted everybody still left to process, and
             // nothing ran again until another token move scheduled a fresh pass.
             try {
-                // Off every mapped room, while listening in by hand: leave them
-                // alone. Dragging the token INTO a room always wins over a stale
-                // choice, so arriving somewhere is what ends the eavesdrop.
-                if (!row.target && manualUsers.has(userId)) continue;
-                if (row.target) manualUsers.delete(userId);
-
                 const didChange = await assignUserToRoom(userId, row.target, { force });
                 if (!didChange) continue;
                 changed += 1;
 
                 // Walking your own Monokuma INTO a room means "let me talk to
-                // these players" - undo the mute an earlier eavesdrop left you in,
-                // so arriving does not silently leave you unheard. Only on the
+                // these players" - undo a mute you may still be wearing from the
+                // main room, so arriving does not silently leave you unheard. Only on the
                 // actual transition, not on every later pass while you are still
                 // standing there - a mute you choose mid-conversation must stick.
                 if (row.monokuma && row.room && userId === game.user.id) {
@@ -878,42 +813,9 @@ function silencedByDeath(actor) {
 }
 
 /* ==========================================================================
- * THE GM'S OWN VOICE - eavesdropping on a room
- * --------------------------------------------------------------------------
- * Same apply as everybody else's (voice-client.mjs), aimed by hand instead of
- * by a token. The one thing that needs care here is WHICH scene's rooms are on
- * offer: a GM listening in is very often looking at a different map from the
- * players, and naming a room on the wrong scene produces a valid LiveKit room
- * that nobody is in.
+ * DIAGNOSTICS - what the loop would do, and why it might not
  * ========================================================================== */
 
-/**
- * The scene whose rooms this GM should be offered.
- *
- * Their own Monokuma's token first - that is where they are in the fiction -
- * then the canvas. Both can be wrong; between them they are right almost always,
- * and the dialog names the scene so a mismatch is visible rather than silent.
- */
-async function eavesdropScene() {
-    const { locateActor } = await import("./movement.mjs");
-
-    const mine = game.actors.find(a =>
-        a.type === "character" && isMonokuma(a) && poolUserFor(a)?.id === game.user.id);
-    const where = mine ? locateActor(mine) : null;
-    return where?.scene ?? canvas?.scene ?? null;
-}
-
-
-/**
- * Rooms that will not do what the GM thinks they do.
- *
- * A scene with no named regions is the failure that looks most like this
- * subsystem being broken: every character on it is "in no room", so everybody
- * shares the main room and the module reports perfect success while doing it.
- * Two regions sharing a name are one voice room, which is usually deliberate -
- * a corridor drawn in two pieces - and occasionally a duplicated region the GM
- * has forgotten about.
- */
 function sceneRoomWarnings() {
     const lines = [];
     for (const scene of game.scenes) {
@@ -950,7 +852,7 @@ function sceneRoomWarnings() {
  * default is the dangerous one: it walks every connected user, starts them at
  * volume 0, and raises them only for tokens carrying its own `userlist` flag
  * near a token you control. Configure nothing and the whole table is at zero.
- * Watch a room you have no token in - which is what eavesdropping IS - and it is
+ * Watch a room you have no token in, and it is
  * zero for you specifically, while LiveKit, Foundry and this module all agree you
  * are correctly connected to the right room.
  */
@@ -1055,12 +957,6 @@ export async function voicePlan({ toChat = false } = {}) {
         for (const line of who) lines.push(`   ${line}`);
     }
 
-    for (const userId of manualUsers) {
-        lines.push("");
-        lines.push(`${game.users.get(userId)?.name ?? userId} is listening in by hand - the loop `
-            + "leaves them where they are until their Monokuma walks into a room.");
-    }
-
     // ONE ACCOUNT, ONE ROOM. Found by this very function on the test world - one
     // account owning a student and a spare template, one in the Closet and one in
     // the Dinner Hall. The loop now picks one of them deterministically instead
@@ -1102,69 +998,6 @@ export async function voicePlan({ toChat = false } = {}) {
     return text;
 }
 
-/**
- * Join a room's LiveKit channel as a listener, muted on entry. Pass `null` to
- * leave, return to the main room, and hand control back to your own
- * Monokuma's token position.
- */
-export async function eavesdropRoom(drpgRoom, scene = null) {
-    if (!game.user.isGM) return false;
-    if (!avclientActive()) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Voice.notActive"));
-        return false;
-    }
-
-    // Refused during an Eclipse rather than silently joining an empty channel.
-    // Every player is alone while the lights are out, so the room this would
-    // connect to has nobody in it - and a GM who heard nothing would reasonably
-    // conclude the eavesdrop was broken rather than that it had worked.
-    if (drpgRoom) {
-        const { isEclipse } = await import("./eclipse.mjs");
-        if (isEclipse()) {
-            ui.notifications.warn(game.i18n.localize("DRPG.Voice.eclipseSilent"));
-            return false;
-        }
-    }
-
-    const target = drpgRoom
-        ? liveKitRoomFor((scene ?? await eavesdropScene())?.id ?? null, drpgRoom)
-        : null;
-
-    const result = await applyLocally(target);
-
-    if (result === "unavailable" || result === "deferred") {
-        ui.notifications.warn(game.i18n.localize("DRPG.Voice.notActive"));
-        return false;
-    }
-    // Anything that is not one of the two success states is a failure. Written
-    // as an allow-list on purpose: the old version listed the failures instead,
-    // so any state it had not thought of - including the `undefined` a swallowed
-    // rejection produced - announced "you are listening in" for a room this
-    // client had not joined.
-    if (result !== "applied" && result !== "unchanged") {
-        ui.notifications.error(game.i18n.localize("DRPG.Voice.eavesdropFailed"));
-        return false;
-    }
-
-    setManual(game.user.id, Boolean(drpgRoom));
-    settled.set(game.user.id, target);
-
-    // Politeness, not a guarantee: mute on entry, only when a reconnect
-    // actually happened. A GM who wants to talk can unmute as always.
-    if (drpgRoom && result === "applied") {
-        try {
-            await game.webrtc.client.toggleAudio(false);
-        } catch {
-            // Not fatal - the room switch itself already succeeded.
-        }
-    }
-    return true;
-}
-
-export function stopEavesdropping() {
-    return eavesdropRoom(null);
-}
-
 /* ==========================================================================
  * RESET
  * ========================================================================== */
@@ -1191,9 +1024,6 @@ export async function resetAllVoice() {
     // own restart. Clearing up front means every user below is unsettled and
     // therefore actually re-sent.
     forgetEveryone();
-    // Every manual claim, not just this browser's: "send everybody back" means
-    // the assistant GM who wandered off into a room by hand as well.
-    for (const userId of [...manualUsers]) setManual(userId, false);
     forgetDesiredRoom();
 
     // Everyone who is actually here, rather than everyone this browser happens
@@ -1209,82 +1039,3 @@ export async function resetAllVoice() {
     return n;
 }
 
-/* ==========================================================================
- * GM DIALOG
- * ========================================================================== */
-
-export async function openEavesdropDialog() {
-    // ONE OF THESE, NOT FOUR - see `alreadyOpen` in live.mjs. Two copies of a
-    // window each read the world when they opened and neither knows about the
-    // other, so the older one goes on looking authoritative while showing
-    // something that stopped being true. Raised rather than refused: pressing
-    // twice usually means the window is behind something.
-    if (alreadyOpen("drpg-window-eavesdrop")) return null;
-
-    if (!game.user.isGM) return;
-    if (!avclientActive()) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Voice.notActive"));
-        return;
-    }
-
-    const scene = await eavesdropScene();
-    const rooms = allRooms(scene);
-    if (!rooms.length) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Voice.noRooms"));
-        return;
-    }
-
-    const options = rooms
-        .map(r => `<option value="${foundry.utils.escapeHTML(r)}">${foundry.utils.escapeHTML(r)}</option>`)
-        .join("");
-
-    const DialogV2 = foundry.applications.api.DialogV2;
-    const choice = await DialogV2.wait({
-        window: { title: game.i18n.localize("DRPG.Voice.eavesdropTitle") },
-        classes: ["drpg-panel", "drpg-window-eavesdrop"],
-        content: `<form>
-            <p>${game.i18n.localize("DRPG.Voice.eavesdropPrompt")}</p>
-            <p class="notes">${game.i18n.format("DRPG.Voice.onScene", {
-                scene: foundry.utils.escapeHTML(scene?.name ?? "-")
-            })}</p>
-            <label>${game.i18n.localize("DRPG.Voice.room")}
-                <select name="room">${options}</select></label>
-        </form>`,
-        buttons: [
-            {
-                action: "join", label: game.i18n.localize("DRPG.Voice.join"), default: true,
-                callback: (event, button, dialog) => dialog.element.querySelector("[name=room]").value
-            },
-            { action: "stop", label: game.i18n.localize("DRPG.Voice.stopEavesdrop") },
-            // Used to be its own GM-panel tile. It is the same subject as this
-            // window - where everybody's voice currently is - and the moment you
-            // want it is the moment you are already looking at this list.
-            { action: "resetAll", label: game.i18n.localize("DRPG.Panel.voiceReset") },
-            { action: "cancel", label: game.i18n.localize("DRPG.Panel.close") }
-        ],
-        rejectClose: false
-    });
-
-    if (!choice || choice === "cancel") return;
-
-    if (choice === "stop") {
-        await stopEavesdropping();
-        ui.notifications.info(game.i18n.localize("DRPG.Voice.stopped"));
-        return;
-    }
-
-    if (choice === "resetAll") {
-        const n = await resetAllVoice();
-        // `null` means it refused - voice is off, LiveKit is inactive, or another
-        // GM's client is the one running it. Reporting "0 sent back" for that is
-        // a success message for a button that did nothing.
-        ui.notifications[n === null ? "warn" : "info"](n === null
-            ? game.i18n.localize("DRPG.Voice.resetRefused")
-            : plural("DRPG.Voice.resetDone", { n }));
-        return;
-    }
-
-    if (await eavesdropRoom(choice, scene)) {
-        ui.notifications.info(game.i18n.format("DRPG.Voice.joined", { room: choice }));
-    }
-}

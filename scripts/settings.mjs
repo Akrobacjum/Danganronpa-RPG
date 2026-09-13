@@ -318,7 +318,6 @@ export const SETTINGS = {
      * upgrading mid-chapter can be read once and emptied. Nothing writes it.
      */
     blackenedLedger: "blackenedLedger",
-    blackened: "blackened",
     /**
      * The speaking queue during a Class Trial: who has the floor and since when.
      *
@@ -885,17 +884,6 @@ export function registerSettings() {
         config: false,
         type: Object,
         default: {}
-    });
-
-    // Same as `pendingMurders` above, and for the same reason: the register of
-    // this chapter's killers is read by `recordBlackened` and by the verdict
-    // window, which asks for it fresh when it opens. No surface holds it, so
-    // there is nothing to redraw and no refresh to promise.
-    game.settings.register(MODULE_ID, SETTINGS.blackened, {
-        scope: "world",
-        config: false,
-        type: Array,
-        default: []
     });
 
     /*

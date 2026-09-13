@@ -2662,13 +2662,6 @@ async function migrateIncidentSecrets() {
         }
     }
 
-    const oldRegister = game.settings.get(MODULE_ID, SETTINGS.blackened) ?? [];
-    if (oldRegister.length) {
-        const merged = [...new Set([...blackenedIds(), ...oldRegister])];
-        await writeBlackened(merged);
-        await game.settings.set(MODULE_ID, SETTINGS.blackened, []);
-        log(`Lifted ${oldRegister.length} Blackened out of world data (LIVE-001).`);
-    }
 }
 
 export function registerMurder() {

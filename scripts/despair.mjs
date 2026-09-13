@@ -454,7 +454,8 @@ export function renderDespairBar() {
         wrapper.classList.toggle("single", gms.length === 1);
         wrapper.classList.toggle("gm-editable", game.user.isGM);
         // Players keep the bar but not the numbers - see `buildRow`.
-        wrapper.classList.toggle("masked", !game.user.isGM);
+        // `masked` used to hide the pips from a player; the count is public since D3.
+        wrapper.classList.remove("masked");
 
         /*
          * A HEADING, BECAUSE THE ROWS DO NOT SAY WHAT THEY ARE.
@@ -588,13 +589,10 @@ function buildRow(user, showName) {
     const isGM = game.user.isGM;
     const isOwnPool = game.user.id === user.id;
 
-    // Only a GM has a reading to lose. A player's bar is question marks by
-    // design (see the note on the pips below), so there is nothing to confirm
-    // and nothing to give away by confirming it - which is also why this is not
-    // even asked on their client: `spentSince` records as it reads, and a
-    // player recording a pool they cannot see would be keeping a copy of the
-    // one number this bar exists to withhold.
-    const spent = isGM ? spentSince("despair", user.id, held) : null;
+    // Everyone has a reading now (D3): the pool's count is shown on every
+    // client, so the pips that were just paid animate on every client too.
+    // Only the OVERFLOW stays masked for a player - see `renderOverflowCaption`.
+    const spent = spentSince("despair", user.id, held);
 
     const row = document.createElement("div");
     row.className = "drpg-despair-row";
@@ -621,17 +619,12 @@ function buildRow(user, showName) {
 
     for (let i = 1; i <= max; i++) {
         const pip = document.createElement("span");
-        // "You will not see that table. You will see its effects." - Player
-        // Handbook, p. 12. The bar stays (a player should know the Monokumas
-        // have a currency and roughly how big it can get) but the reading does
-        // not: every pip renders as a question mark and none of them is marked
-        // `filled`, so counting the DOM gives nothing away either.
-        //
-        // Not a secrecy mechanism, and it is not pretending to be one: the pool
-        // is a world setting, so a determined player can still read it from the
-        // console (see the note on world-scoped data in settings.mjs). This is
-        // about not putting the answer on screen unasked.
-        pip.className = `drpg-despair-pip${isGM && i <= held ? " filled" : ""}`;
+        // THE READING IS PUBLIC (D3, Dawid 13.09). The bar used to show a
+        // player question marks - "you will see its effects, not the table" -
+        // and the table could not tell what its own Despair rolls were feeding.
+        // The count is shown to everyone now; what stays hidden is the
+        // overflow: when the hat fires is still Monokuma's to know.
+        pip.className = `drpg-despair-pip${i <= held ? " filled" : ""}`;
         // The pips between the old reading and the new one: the ones that were
         // just paid. They are built empty, like every other unspent socket, and
         // the class only says how they got that way. See the keyframes in the
@@ -662,8 +655,7 @@ function buildRow(user, showName) {
 
     const count = document.createElement("span");
     count.className = "drpg-despair-count";
-    // The cap is public - the handbook prints it - so only the reading is hidden.
-    count.textContent = isGM ? `${held}/${max}` : `?/${max}`;
+    count.textContent = `${held}/${max}`;
     row.append(count);
 
     /*

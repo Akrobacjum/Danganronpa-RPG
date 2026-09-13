@@ -26,7 +26,7 @@ import { drawItem } from "./tables.mjs";
 import { roomOfActor, othersInRoom, locateActor } from "./movement.mjs";
 import { projectsAvailableIn, addProgress, isIndirectMurder, scaleFor, projectsListedIn } from "./projects.mjs";
 import { callGm, promptAndCallGm } from "./gm-bridge.mjs";
-import { announce, resolveThreshold, whisperToOwner, dialogContent, replaceFlag, log, debug, error, plural, cardHead, esc, easedBy } from "./utils.mjs";
+import { announce, resolveThreshold, whisperToOwner, dialogContent, replaceFlag, log, debug, error, plural, cardHead, esc, easedBy, gmIds, ownerOf } from "./utils.mjs";
 // Static, and safe to be: nothing private-rolls.mjs imports leads back here.
 import { supersedingRoll } from "./private-rolls.mjs";
 // One reader, for the Tamper menu's "what you have readied" line. use-items.mjs
@@ -2348,7 +2348,8 @@ async function performSabotage(actor, def, options, preset = null) {
                     actor: foundry.utils.escapeHTML(actor.name),
                     room: foundry.utils.escapeHTML(room ?? "-"),
                     project: foundry.utils.escapeHTML(project.name)
-                })}</em></p>`
+                })}</em></p>`,
+                whisper: roomAudience(actor)
             });
 
             const carryOn = await DialogV2.confirm({
@@ -2501,8 +2502,9 @@ async function performSabotage(actor, def, options, preset = null) {
                 actor: foundry.utils.escapeHTML(actor.name),
                 room: foundry.utils.escapeHTML(room ?? "-")
             })}</em></p>`,
-            // Public - no whisper list - so the whole table hears it, which is
-            // the whole table that just read it.
+            // The room, not the table (D6): the people who saw it and the GMs.
+            // Word of it reaches the rest the way news does in a locked school.
+            whisper: roomAudience(actor),
             flags: { [MODULE_ID]: { sfx: "sabotageSeen" } }
         });
     } else if (!outcome.success) {
@@ -3126,6 +3128,21 @@ async function chooseStolenItem(victim, pool) {
 /* ==========================================================================
  * ACTIONS THAT NEED A HUMAN
  * ========================================================================== */
+
+/**
+ * Who hears what happened in a room: the GMs, the actor's own player, and the
+ * players of everyone standing in the same room. "You hear only your room"
+ * is the module's rule for voice and dice; a sabotage caught in the act is a
+ * scene in one room too (D6).
+ */
+function roomAudience(actor) {
+    const ids = new Set(gmIds());
+    for (const a of [actor, ...othersInRoom(actor)]) {
+        const owner = ownerOf(a);
+        if (owner) ids.add(owner.id);
+    }
+    return [...ids];
+}
 
 /**
  * The two buttons every ruling gets when there is nothing mechanical to apply.

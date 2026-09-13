@@ -55,13 +55,6 @@ export const VOICE = {
     applied: "voice.applied",
     /** user -> GM: "where do I belong?" - sent on join and on A/V startup. */
     whoAmI: "voice.whoAmI",
-    /**
-     * GM -> primary GM: "I picked a room by hand; leave my voice where it is"
-     * (or "I have stopped, steer me again"). Only a GM sends this, and only the
-     * client running the assignment loop acts on it - see `manualUsers` in
-     * voice.mjs.
-     */
-    manual: "voice.manual"
 };
 
 /**
@@ -425,7 +418,7 @@ async function applyAndReport(room, requestId) {
  *
  * Never resolves to `undefined`: `enqueue` swallows a rejection into one, and a
  * caller reading that as "not one of the failure strings, so it worked" is how
- * the eavesdrop dialog used to announce success for a switch that threw.
+ * a GM window once announced success for a switch that threw.
  */
 export async function applyLocally(room) {
     const state = await enqueue(() => applyBreakout(room));

@@ -1783,7 +1783,7 @@ const STANDING = [
     "openRulesManager", "openMonocubDialog", "openGmTeamDialog",
     "openItemManager", "openGmPanel", "openWhoIsAliveDialog",
     "openFailureLog", "openClockDialog", "openIncidentTracker",
-    "openEavesdropDialog", "openObjectionLog"
+    "openObjectionLog"
 ];
 
 const INVARIANTS = [

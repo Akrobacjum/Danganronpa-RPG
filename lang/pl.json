@@ -637,6 +637,7 @@
       "stashSent": "Przeczesujesz pokój w poszukiwaniu czegoś, co tu nie pasuje."
     },
     "Items": {
+      "autoReadied": "{item} od razu trafia do ręki: schowany może być tylko jeden {group}.",
       "itemWorks": "Działa - zastosuj efekt",
       "itemNoEffect": "Działa, bez efektu - zużyj",
       "itemRefuse": "Nie działa",
@@ -867,7 +868,7 @@
       "bodyMeta": "Investigation otwarte",
       "bodyMetaGm": "Znaleziono {found} z {total} Key Remnants",
       "bodyHoldMeta": "Wszystko stanęło. Nikt jeszcze nie szuka.",
-      "bodyHoldMetaGm": "Rozpocznij Investigation albo przesuń zegar.",
+      "bodyHoldMetaGm": "Rozpocznij Investigation, gdy pokój będzie gotowy.",
       "ticker": {
         "incident": "Incydent",
         "body": "Znaleziono ciało",
@@ -2681,16 +2682,6 @@
       "contested": "Głos: {name} ma postacie w więcej niż jednym miejscu ({places}). Klient głosowy może być tylko w jednym pokoju, więc {name} trafia do \"{room}\", a reszta jest pomijana. Oddaj zapasowe postacie innemu kontu albo zdejmij ich tokeny z mapy.",
       "mainRoom": "główny pokój",
       "notActive": "LiveKit AVClient nie jest zainstalowany, włączony ani połączony.",
-      "eavesdropFailed": "Nie udało się dołączyć do kanału głosowego tego pokoju. Zajrzyj do konsoli.",
-      "noRooms": "Na tej scenie nie ma jeszcze zmapowanych pokoi.",
-      "eavesdropTitle": "Podsłuchaj pokój",
-      "eavesdropPrompt": "Dołącz do kanału głosowego pokoju jako wyciszony słuchacz. Wyjdź, by wrócić do głównego pokoju. Osoby w tym pokoju zobaczą twój kafelek w doku kamer - nie ma trybu ukrytego słuchacza.",
-      "onScene": "Pokoje na scenie {scene} - tej, na której stoi twój Monokuma, albo tej, którą oglądasz.",
-      "room": "Pokój",
-      "join": "Dołącz",
-      "stopEavesdrop": "Wyjdź (wróć do głównego pokoju)",
-      "stopped": "Opuszczono kanał głosowy pokoju.",
-      "joined": "Podsłuchujesz: {room}, wyciszony.",
       "needsAvclient": "Głos per pokój jest włączony, ale LiveKit AVClient nie jest aktywny.",
       "avDisabled": "Głos per pokój jest włączony, ale Audio/Wideo jest wyłączone dla tego świata. Włącz je w Konfiguracji ustawień.",
       "resetDone": {
@@ -2699,8 +2690,7 @@
         "many": "{n} graczy odesłanych do głównego pokoju głosowego.",
         "other": "{n} graczy odesłanych do głównego pokoju głosowego."
       },
-      "resetRefused": "Nie ma czego resetować: głos per pokój jest wyłączony, LiveKit nieaktywny albo prowadzi go klient innego GMa.",
-      "eclipseSilent": "Nie ma kogo podsłuchiwać: trwa Eclipse, więc każdy gracz jest we własnym kanale."
+      "resetRefused": "Nie ma czego resetować: głos per pokój jest wyłączony, LiveKit nieaktywny albo prowadzi go klient innego GMa."
     },
     "States": {
       "drpgBreakdown": {

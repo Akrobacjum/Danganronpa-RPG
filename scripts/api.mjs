@@ -194,10 +194,8 @@ import {
 } from "./messenger.mjs";
 import {
     scheduleReconcile as reconcileVoice,
-    eavesdropRoom, voicePlan, voiceTargets,
-    stopEavesdropping,
-    resetAllVoice,
-    openEavesdropDialog as voiceEavesdropDialog
+    voicePlan, voiceTargets,
+    resetAllVoice
 } from "./voice.mjs";
 import {
     startEclipse, endEclipse, isEclipse, movesLeft, placementStatus, ruleOnParkedMurder
@@ -906,8 +904,6 @@ export const DrpgApi = {
     openObjection,
     openRebuttal,
     returnToDebate,
-    /** Kept under its old name: it always returned to the debate. */
-    returnToDiscussion: returnToDebate,
     /** The transition the clock would have made, made now. */
     advanceFloorNow,
     extendFloor,
@@ -1157,10 +1153,7 @@ export const DrpgApi = {
     /** Re-check every player's room and reassign voice now, skipping the debounce. */
     reconcileVoice,
 
-    /** Join a room's voice channel as a muted listener. `null` leaves it. */
-    eavesdropRoom,
     voicePlan,
-    stopEavesdropping,
 
     /**
      * The raw decision behind `voicePlan()` - one entry per connected account,
@@ -1170,11 +1163,8 @@ export const DrpgApi = {
      */
     voiceTargets,
 
-    /** Send everyone currently assigned back to the main room. */
+    /** Send everyone currently assigned back to the main room (also a tile under Between sessions). */
     resetAllVoice,
-
-    /** Open the room picker (also on the GM panel's "More…" menu). */
-    voiceEavesdropDialog,
 
     /* ---- music -------------------------------------------------------------
      * The playlist follows the state. No socket: playlists are world documents,
