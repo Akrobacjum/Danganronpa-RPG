@@ -1414,67 +1414,33 @@ function watchdog(animation, ms, cleanUp) {
  * through slightly darker than the halfway point, which reads as the fog
  * settling rather than as a dissolve. What matters is that nothing jumps.
  */
-function swapInFog(container, texture, maskTexture, rect) {
-    const outgoing = container.children.filter(c => c.name === FOG_SPRITE);
-
-    const sprite = new PIXI.Sprite(texture);
-    sprite.name = FOG_SPRITE;
-    sprite.drpgTexture = texture;
-    sprite.drpgMaskTexture = maskTexture;
-    sprite.zIndex = 0;
-    // The texture starts a margin above and to the left of the scene rect.
-    sprite.position.set(-FOG_MARGIN, -FOG_MARGIN);
-    container.addChild(sprite);
-    container.position.set(rect.x, rect.y);
-    container.visible = true;
-    fogTexture = texture;
-
-    // The raster rides on the white silhouette, re-pointed here rather than
-    // rebuilt - that is what keeps its drift from snapping back to zero every
-    // time somebody walks through a door.
-    ensureRaster(container, maskTexture);
-
-    const finish = () => {
-        if (!sprite.destroyed) sprite.alpha = 1;
-        for (const old of outgoing) dropSprite(old);
-    };
-
-    // Nothing to fade from, or a viewer who has asked for no motion: swap
-    // outright. A first paint must never arrive as a fade-in from a clear map,
-    // which would show the whole scene for a fifth of a second.
-    if (!outgoing.length || motionOff()) return finish();
-
-    const previous = outgoing[outgoing.length - 1];
-    const previousTexture = previous?.drpgTexture ?? null;
-    const renderer = canvas?.app?.renderer;
-    if (!previousTexture || previousTexture.destroyed || !renderer) return finish();
-
-    /*
-     * A TRUE PER-PIXEL DISSOLVE, NOT TWO SPRITES AT PARTIAL ALPHA.
-     *
-     * The obvious cross-fade - old to zero, new from zero - DIPS. Two layers
-     * that each cover the same floor at half strength leave a quarter of it
-     * showing through, so every repaint flashed the map for a fifth of a
-     * second. Walking across a scene made the fog strobe.
-     *
-     * So the two states are mixed per pixel instead: erase `t` of the old, then
-     * ADD the new at `t`, which is exactly `old·(1−t) + new·t` and never lets
-     * the total drop below either end of the transition. Two blend modes, both
-     * already load-bearing in this file.
-     */
-    /*
-     * ONE DISSOLVE AT A TIME.
-     *
-     * Repaints arrive in bursts - the move settles, then the GM's write comes
-     * back through `SYNC.fog` a moment later - so two dissolves could overlap.
-     * Each held its own idea of which sprites were "the old ones", and whichever
-     * finished first destroyed the other's textures out from under it, leaving a
-     * full-screen sprite pointing at freed GPU memory. That is a black
-     * rectangle over the map with no error attached to it.
-     *
-     * A generation counter settles it: starting a dissolve invalidates every
-     * one before it, and a stale tick or clean-up does nothing at all.
-     */
+/*
+ * A TRUE PER-PIXEL DISSOLVE, NOT TWO SPRITES AT PARTIAL ALPHA.
+ *
+ * The obvious cross-fade - old to zero, new from zero - DIPS. Two layers
+ * that each cover the same floor at half strength leave a quarter of it
+ * showing through, so every repaint flashed the map for a fifth of a
+ * second. Walking across a scene made the fog strobe.
+ *
+ * So the two states are mixed per pixel instead: erase `t` of the old, then
+ * ADD the new at `t`, which is exactly `old·(1−t) + new·t` and never lets
+ * the total drop below either end of the transition. Two blend modes, both
+ * already load-bearing in this file.
+ */
+/*
+ * ONE DISSOLVE AT A TIME.
+ *
+ * Repaints arrive in bursts - the move settles, then the GM's write comes
+ * back through `SYNC.fog` a moment later - so two dissolves could overlap.
+ * Each held its own idea of which sprites were "the old ones", and whichever
+ * finished first destroyed the other's textures out from under it, leaving a
+ * full-screen sprite pointing at freed GPU memory. That is a black
+ * rectangle over the map with no error attached to it.
+ *
+ * A generation counter settles it: starting a dissolve invalidates every
+ * one before it, and a stale tick or clean-up does nothing at all.
+ */
+function startDissolve(container, { sprite, previous, previousTexture, texture, maskTexture, rect, renderer, finish }) {
     const generation = ++dissolveGeneration;
     dissolveBusy = true;
     let mixTexture = null;
@@ -1563,6 +1529,44 @@ function swapInFog(container, texture, maskTexture, rect) {
         if (!sprite.destroyed) sprite.renderable = true;
         finish();
     }
+}
+
+function swapInFog(container, texture, maskTexture, rect) {
+    const outgoing = container.children.filter(c => c.name === FOG_SPRITE);
+
+    const sprite = new PIXI.Sprite(texture);
+    sprite.name = FOG_SPRITE;
+    sprite.drpgTexture = texture;
+    sprite.drpgMaskTexture = maskTexture;
+    sprite.zIndex = 0;
+    // The texture starts a margin above and to the left of the scene rect.
+    sprite.position.set(-FOG_MARGIN, -FOG_MARGIN);
+    container.addChild(sprite);
+    container.position.set(rect.x, rect.y);
+    container.visible = true;
+    fogTexture = texture;
+
+    // The raster rides on the white silhouette, re-pointed here rather than
+    // rebuilt - that is what keeps its drift from snapping back to zero every
+    // time somebody walks through a door.
+    ensureRaster(container, maskTexture);
+
+    const finish = () => {
+        if (!sprite.destroyed) sprite.alpha = 1;
+        for (const old of outgoing) dropSprite(old);
+    };
+
+    // Nothing to fade from, or a viewer who has asked for no motion: swap
+    // outright. A first paint must never arrive as a fade-in from a clear map,
+    // which would show the whole scene for a fifth of a second.
+    if (!outgoing.length || motionOff()) return finish();
+
+    const previous = outgoing[outgoing.length - 1];
+    const previousTexture = previous?.drpgTexture ?? null;
+    const renderer = canvas?.app?.renderer;
+    if (!previousTexture || previousTexture.destroyed || !renderer) return finish();
+
+    startDissolve(container, { sprite, previous, previousTexture, texture, maskTexture, rect, renderer, finish });
 }
 
 /**
@@ -1930,17 +1934,8 @@ export function doorwayReport() {
  * @param {number} [x] Scene x. Defaults to the cursor.
  * @param {number} [y] Scene y.
  */
-export function whatIsHere(x = null, y = null) {
-    const at = (x === null || y === null) ? canvas?.mousePosition : { x, y };
-    if (!at) {
-        console.log(`${MODULE_ID} | whatIsHere: no point to look at.`);
-        return null;
-    }
-
-    const grid = canvas?.grid?.size ?? 100;
-    const report = { at: { x: Math.round(at.x), y: Math.round(at.y) }, grid, found: [] };
-
-    const find = (node, name) => {
+/** Depth-first, by display-object name. */
+function findNamed(node, name) {
         if (!node) return null;
         if (node.name === name) return node;
         for (const child of node.children ?? []) {
@@ -1948,11 +1943,10 @@ export function whatIsHere(x = null, y = null) {
             if (hit) return hit;
         }
         return null;
-    };
+}
 
-    /* ---- the outline: stroked chains, measured in scene units ------------- */
-    const group = find(canvas?.stage, "drpgRoomOutline");
-    report.room = roomOutline?.room ?? null;
+/** The stroked outline nearest the point, and whether the stroke covers it. */
+function nearestOutline(group, at, report) {
     const graphics = group?.children?.find(c => !c.texture && c.geometry);
     if (graphics) {
         let nearest = null;
@@ -1988,8 +1982,10 @@ export function whatIsHere(x = null, y = null) {
             if (report.outline.covers) report.found.push("room outline (a stroked line)");
         }
     }
+}
 
-    /* ---- the glow: one texture pixel, read ------------------------------- */
+/* ---- the glow: one texture pixel, read ------------------------------- */
+function glowAlphaAt(group, at, report) {
     const sprite = group?.children?.find(c => c.texture);
     if (sprite) {
         const px = Math.round(at.x - sprite.x);
@@ -2007,59 +2003,61 @@ export function whatIsHere(x = null, y = null) {
             }
         }
     }
+}
 
-    /* ---- the map underneath, so the answer can be acted on ---------------- */
-    const scene = canvas?.scene;
-    if (scene) {
-        let nearestBorder = null;
-        for (const region of scene.regions ?? []) {
-            if (!region.name) continue;
-            for (const flat of regionShapes(region, { x: 0, y: 0 })) {
-                for (let i = 0; i < flat.length; i += 2) {
-                    const j = (i + 2) % flat.length;
-                    const ax = flat[i], ay = flat[i + 1], bx = flat[j], by = flat[j + 1];
-                    const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy || 1;
-                    let t = ((at.x - ax) * dx + (at.y - ay) * dy) / l2;
-                    t = t < 0 ? 0 : t > 1 ? 1 : t;
-                    const d = Math.hypot(at.x - (ax + dx * t), at.y - (ay + dy * t));
-                    if (!nearestBorder || d < nearestBorder.distance) {
-                        nearestBorder = { room: region.name, distance: d };
-                    }
+/** The nearest room border to the point, in pixels and squares. */
+function nearestBorderTo(scene, at, grid, report) {
+    let nearestBorder = null;
+    for (const region of scene.regions ?? []) {
+        if (!region.name) continue;
+        for (const flat of regionShapes(region, { x: 0, y: 0 })) {
+            for (let i = 0; i < flat.length; i += 2) {
+                const j = (i + 2) % flat.length;
+                const ax = flat[i], ay = flat[i + 1], bx = flat[j], by = flat[j + 1];
+                const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy || 1;
+                let t = ((at.x - ax) * dx + (at.y - ay) * dy) / l2;
+                t = t < 0 ? 0 : t > 1 ? 1 : t;
+                const d = Math.hypot(at.x - (ax + dx * t), at.y - (ay + dy * t));
+                if (!nearestBorder || d < nearestBorder.distance) {
+                    nearestBorder = { room: region.name, distance: d };
                 }
             }
         }
-        if (nearestBorder) {
-            report.border = { room: nearestBorder.room,
-                distance: Math.round(nearestBorder.distance * 10) / 10,
-                inSquares: Math.round(nearestBorder.distance / grid * 100) / 100 };
-        }
+    }
+    if (nearestBorder) {
+        report.border = { room: nearestBorder.room,
+            distance: Math.round(nearestBorder.distance * 10) / 10,
+            inSquares: Math.round(nearestBorder.distance / grid * 100) / 100 };
+    }
+}
 
-        let nearestWall = null;
-        for (const wall of scene.walls ?? []) {
-            const c = wall.c;
-            if (!c || c.length < 4) continue;
-            const dx = c[2] - c[0], dy = c[3] - c[1], l2 = dx * dx + dy * dy || 1;
-            let t = ((at.x - c[0]) * dx + (at.y - c[1]) * dy) / l2;
-            t = t < 0 ? 0 : t > 1 ? 1 : t;
-            const d = Math.hypot(at.x - (c[0] + dx * t), at.y - (c[1] + dy * t));
-            if (!nearestWall || d < nearestWall.distance) {
-                nearestWall = { distance: d, angle: Math.round(Math.atan2(dy, dx) * 180 / Math.PI) };
-            }
-        }
-        if (nearestWall) {
-            report.wall = { distance: Math.round(nearestWall.distance * 10) / 10, angle: nearestWall.angle };
+/** The nearest wall to the point, and the angle it runs at. */
+function nearestWallTo(scene, at, report) {
+    let nearestWall = null;
+    for (const wall of scene.walls ?? []) {
+        const c = wall.c;
+        if (!c || c.length < 4) continue;
+        const dx = c[2] - c[0], dy = c[3] - c[1], l2 = dx * dx + dy * dy || 1;
+        let t = ((at.x - c[0]) * dx + (at.y - c[1]) * dy) / l2;
+        t = t < 0 ? 0 : t > 1 ? 1 : t;
+        const d = Math.hypot(at.x - (c[0] + dx * t), at.y - (c[1] + dy * t));
+        if (!nearestWall || d < nearestWall.distance) {
+            nearestWall = { distance: d, angle: Math.round(Math.atan2(dy, dx) * 180 / Math.PI) };
         }
     }
+    if (nearestWall) {
+        report.wall = { distance: Math.round(nearestWall.distance * 10) / 10, angle: nearestWall.angle };
+    }
+}
 
-    if (!report.found.length) report.found.push("nothing this module drew");
-
-    /*
-     * PRINTED FLAT AS WELL AS FOLDED. A console prints an object collapsed, and
-     * the answer this exists to give is then one click away from the person who
-     * needs it - which has now cost two round trips on the same question. The
-     * lines below are the whole finding; the object is still returned for
-     * anything that wants to read it.
-     */
+/*
+ * PRINTED FLAT AS WELL AS FOLDED. A console prints an object collapsed, and
+ * the answer this exists to give is then one click away from the person who
+ * needs it - which has now cost two round trips on the same question. The
+ * lines below are the whole finding; the object is still returned for
+ * anything that wants to read it.
+ */
+function printWhatIsHere(report, grid) {
     const lines = [
         `${MODULE_ID} | whatIsHere (${report.at.x}, ${report.at.y}) grid ${grid}`,
         `  drew it: ${report.found.join(", ")}`,
@@ -2081,6 +2079,36 @@ export function whatIsHere(x = null, y = null) {
     }
     if (report.wall) lines.push(`  nearest wall: ${report.wall.distance}px, at ${report.wall.angle}°`);
     console.log(lines.join("\n"));
+}
+
+export function whatIsHere(x = null, y = null) {
+    const at = (x === null || y === null) ? canvas?.mousePosition : { x, y };
+    if (!at) {
+        console.log(`${MODULE_ID} | whatIsHere: no point to look at.`);
+        return null;
+    }
+
+    const grid = canvas?.grid?.size ?? 100;
+    const report = { at: { x: Math.round(at.x), y: Math.round(at.y) }, grid, found: [] };
+
+    /* ---- the outline: stroked chains, measured in scene units ------------- */
+    const group = findNamed(canvas?.stage, "drpgRoomOutline");
+    report.room = roomOutline?.room ?? null;
+    nearestOutline(group, at, report);
+
+    glowAlphaAt(group, at, report);
+
+    /* ---- the map underneath, so the answer can be acted on ---------------- */
+    const scene = canvas?.scene;
+    if (scene) {
+        nearestBorderTo(scene, at, grid, report);
+        nearestWallTo(scene, at, report);
+    }
+
+    if (!report.found.length) report.found.push("nothing this module drew");
+
+    printWhatIsHere(report, grid);
+
 
     return report;
 }
@@ -2104,19 +2132,8 @@ export function whatIsHere(x = null, y = null) {
  *
  * @returns {Array<object>} one row per problem, worst first.
  */
-export function checkRegions() {
-    const scene = canvas?.scene;
-    if (!scene) {
-        console.log(`${MODULE_ID} | checkRegions: no scene is on the canvas.`);
-        return [];
-    }
-
-    const grid = canvas?.grid?.size ?? 100;
-    const walls = Array.from(scene.walls ?? []);
-    const findings = [];
-    const add = (level, room, problem, detail, at = null) =>
-        findings.push({ level, room, problem, detail, at });
-
+/** The regions that are rooms, with their polygons; the nameless and the shapeless are reported and skipped. */
+function namedRegions(scene, add) {
     const named = [];
     for (const region of scene.regions ?? []) {
         if (!region.name) {
@@ -2135,6 +2152,180 @@ export function checkRegions() {
         }
         named.push({ region, polys: shapes.map(f => new PIXI.Polygon(f)) });
     }
+    return named;
+}
+
+/* ---- 1. overlapping rooms - the first cause on the list --------------- */
+/*
+ * WITH A MARGIN, IN BOTH DIRECTIONS - and the margins are the engine's own,
+ * not a second set invented here.
+ *
+ * Asking a GM for pixel-perfect regions would be asking for something the
+ * code does not need. `doorwayEdges` samples a quarter of a square inside
+ * the border, so an overlap shallower than that is invisible to it; and it
+ * steps outward to nearly a full square looking for the neighbour, so two
+ * rooms may stand that far apart and still find each other. Anything inside
+ * those two figures is not a fault and is not reported.
+ *
+ * Depth, not area, is what decides. A hair-thin slice along a shared wall is
+ * a rounding artefact however long it runs; a shallow-but-wide overlap is
+ * the one that moves a border onto the neighbour's floor.
+ */
+function overlapCheck(named, grid, add) {
+    const tolerance = grid * DOORWAY_OVERLAP_INSET;
+    for (let i = 0; i < named.length; i++) {
+        for (let j = i + 1; j < named.length; j++) {
+            const hit = overlapArea(named[i].polys, named[j].polys, grid);
+            if (hit.area <= 0) continue;
+            if (hit.depth !== null && hit.depth < tolerance) continue;
+            const squares = hit.area / (grid * grid);
+            add("error", named[i].region.name, `Overlaps "${named[j].region.name}"`,
+                `About ${squares.toFixed(1)} grid square(s) of floor belong to both rooms`
+                + (hit.depth !== null ? `, reaching ${(hit.depth / grid).toFixed(1)} square(s) in` : "")
+                + ". Where they overlap, one room's border runs across the other's floor with no "
+                + "wall anywhere near it, and the whole shared border reads as one doorway. "
+                + "Rooms should touch; a sliver thinner than a quarter square is ignored.",
+                pointOf(named[i].region));
+        }
+    }
+}
+
+/*
+ * 2. BORDER DRAWN AWAY FROM ITS WALLS.
+ *
+ * Asked with the SAME predicate the doorway test uses, and that is the
+ * point: a validator measuring something slightly different can pass a
+ * scene whose glow still misbehaves.
+ *
+ * Measured as the longest CONTIGUOUS stretch, never as a total. Every
+ * room has border with no wall on it - that is what a doorway is - so a
+ * total flags every room on every map and says nothing. See
+ * ADRIFT_WARN_RUN for where the threshold comes from.
+ */
+function adriftCheck(region, edges, walls, grid, add) {
+    let adrift = 0;
+    let adriftAt = null;
+    let run = 0;
+    for (const edge of edges) {
+        if (!edge.length) continue;
+        const ex = edge.dx / edge.length;
+        const ey = edge.dy / edge.length;
+        const steps = Math.max(1, Math.round(edge.length / (grid * 0.25)));
+        for (let k = 0; k < steps; k++) {
+            const t = (k + 0.5) / steps;
+            const mx = edge.ax + edge.dx * t;
+            const my = edge.ay + edge.dy * t;
+            if (wallAlongEdge(mx, my, ex, ey, walls, grid * DOORWAY_WALL_NEAR, edge.trend)) {
+                run = 0;
+                continue;
+            }
+            run += edge.length / steps;
+            if (run > adrift) {
+                adrift = run;
+                adriftAt = { x: Math.round(mx), y: Math.round(my) };
+            }
+        }
+    }
+    if (adrift > grid * ADRIFT_WARN_RUN) {
+        add("warning", region.name, "Border runs away from the walls",
+            `${(adrift / grid).toFixed(1)} squares of border in one stretch have no wall `
+            + "alongside them. A border drawn away from the wall it describes is the second "
+            + "way a whole side of a room turns into a doorway - the wall is never found, so "
+            + "nothing closes it.", adriftAt);
+    }
+}
+
+/*
+ * 3. A ROOM WITH NO WAY OUT AT ALL.
+ *
+ * Found by walking every room on the QA scene rather than by reading
+ * the code: one of them reported not a single open stretch, and the
+ * reason was neither a wall nor an overlap - its region simply sits a
+ * full square from its neighbour's, and the neighbour probe reaches
+ * 0.95. Nothing was wrong with the walls; the two rooms had never been
+ * introduced.
+ *
+ * A player standing in a room the module says has no exit sees a closed
+ * box with no glow anywhere, which is indistinguishable from the fog
+ * being broken. Naming it is the difference between "this map has a
+ * gap" and "this feature does not work".
+ *
+ * Warning, not error: a genuinely sealed room is a thing a killing game
+ * may well want.
+ */
+function noWayOutCheck(scene, region, edges, grid, add) {
+    const openTotal = edges.reduce((a, e) =>
+        a + (e.open ?? []).reduce((b, [from, to]) => b + (to - from) * e.length, 0), 0);
+    if (edges.length && openTotal <= 0) {
+        const others = [];
+        for (const other of scene.regions ?? []) {
+            if (!other.name || other === region) continue;
+            others.push(regionShapes(other, { x: 0, y: 0 }).map(f => new PIXI.Polygon(f)));
+        }
+        const reach = grid * DOORWAY_PROBE_OUT;
+        const anyNeighbour = edges.some(e => {
+            const mx = e.ax + e.dx * 0.5;
+            const my = e.ay + e.dy * 0.5;
+            return Boolean(neighbourBeyond(mx, my, e.nx, e.ny, others, reach));
+        });
+        add("warning", region.name, "No way out",
+            anyNeighbour
+                ? "Every stretch of this room's border is walled, so nothing will glow as a "
+                  + "doorway. If that is deliberate, ignore it; if not, the door is missing."
+                : "No neighbouring room lies within reach of any part of this border - the "
+                  + "next region is more than a square away, so the two rooms never see each "
+                  + "other. Rooms should touch along the edge they share.",
+            pointOf(region));
+    }
+}
+
+/*
+ * 4. CORNERS OFF THE LATTICE - and the lattice is HALF a square.
+ *
+ * Foundry's region tools snap to half-grid, so a room drawn correctly
+ * has most of its corners on a half-square line and almost none on a
+ * whole one. Measured against whole squares this check fired on every
+ * room on the scene, which is a check that has learnt to cry wolf.
+ */
+function latticeCheck(region, polys, lattice, latticeOrigin, add) {
+    const tolerance = Math.max(1, lattice * 0.1);
+    let off = 0;
+    let worst = 0;
+    for (const poly of polys) {
+        const pts = poly.points ?? [];
+        for (let i = 0; i < pts.length; i += 2) {
+            const dx = gridOffset(pts[i], lattice, latticeOrigin);
+            const dy = gridOffset(pts[i + 1], lattice, latticeOrigin);
+            const d = Math.max(dx, dy);
+            if (d > tolerance) {
+                off++;
+                worst = Math.max(worst, d);
+            }
+        }
+    }
+    if (off) {
+        add("info", region.name, "Corners off the map's own lattice",
+            `${off} corner(s) sit up to ${Math.round(worst)}px off the half-square lattice `
+            + "the rest of this scene is drawn to. Draw with snapping on: a corner a "
+            + "fraction of a square out is invisible by eye and is enough to make two "
+            + "rooms overlap or miss.", pointOf(region));
+    }
+}
+
+export function checkRegions() {
+    const scene = canvas?.scene;
+    if (!scene) {
+        console.log(`${MODULE_ID} | checkRegions: no scene is on the canvas.`);
+        return [];
+    }
+
+    const grid = canvas?.grid?.size ?? 100;
+    const walls = Array.from(scene.walls ?? []);
+    const findings = [];
+    const add = (level, room, problem, detail, at = null) =>
+        findings.push({ level, room, problem, detail, at });
+
+    const named = namedRegions(scene, add);
 
     /*
      * WHERE THE LATTICE ACTUALLY IS, read off the map rather than assumed.
@@ -2154,163 +2345,21 @@ export function checkRegions() {
     const lattice = grid / 2;
     const latticeOrigin = commonestOffset(named, lattice);
 
-    /* ---- 1. overlapping rooms - the first cause on the list --------------- */
-    /*
-     * WITH A MARGIN, IN BOTH DIRECTIONS - and the margins are the engine's own,
-     * not a second set invented here.
-     *
-     * Asking a GM for pixel-perfect regions would be asking for something the
-     * code does not need. `doorwayEdges` samples a quarter of a square inside
-     * the border, so an overlap shallower than that is invisible to it; and it
-     * steps outward to nearly a full square looking for the neighbour, so two
-     * rooms may stand that far apart and still find each other. Anything inside
-     * those two figures is not a fault and is not reported.
-     *
-     * Depth, not area, is what decides. A hair-thin slice along a shared wall is
-     * a rounding artefact however long it runs; a shallow-but-wide overlap is
-     * the one that moves a border onto the neighbour's floor.
-     */
-    const tolerance = grid * DOORWAY_OVERLAP_INSET;
-    for (let i = 0; i < named.length; i++) {
-        for (let j = i + 1; j < named.length; j++) {
-            const hit = overlapArea(named[i].polys, named[j].polys, grid);
-            if (hit.area <= 0) continue;
-            if (hit.depth !== null && hit.depth < tolerance) continue;
-            const squares = hit.area / (grid * grid);
-            add("error", named[i].region.name, `Overlaps "${named[j].region.name}"`,
-                `About ${squares.toFixed(1)} grid square(s) of floor belong to both rooms`
-                + (hit.depth !== null ? `, reaching ${(hit.depth / grid).toFixed(1)} square(s) in` : "")
-                + ". Where they overlap, one room's border runs across the other's floor with no "
-                + "wall anywhere near it, and the whole shared border reads as one doorway. "
-                + "Rooms should touch; a sliver thinner than a quarter square is ignored.",
-                pointOf(named[i].region));
-        }
-    }
+    overlapCheck(named, grid, add);
 
     /* ---- 2..4 - per room, measured off the same edges the fog uses -------- */
     for (const { region, polys } of named) {
         const edges = doorwayEdges(region);
 
-        /*
-         * 2. BORDER DRAWN AWAY FROM ITS WALLS.
-         *
-         * Asked with the SAME predicate the doorway test uses, and that is the
-         * point: a validator measuring something slightly different can pass a
-         * scene whose glow still misbehaves.
-         *
-         * Measured as the longest CONTIGUOUS stretch, never as a total. Every
-         * room has border with no wall on it - that is what a doorway is - so a
-         * total flags every room on every map and says nothing. See
-         * ADRIFT_WARN_RUN for where the threshold comes from.
-         */
-        let adrift = 0;
-        let adriftAt = null;
-        let run = 0;
-        for (const edge of edges) {
-            if (!edge.length) continue;
-            const ex = edge.dx / edge.length;
-            const ey = edge.dy / edge.length;
-            const steps = Math.max(1, Math.round(edge.length / (grid * 0.25)));
-            for (let k = 0; k < steps; k++) {
-                const t = (k + 0.5) / steps;
-                const mx = edge.ax + edge.dx * t;
-                const my = edge.ay + edge.dy * t;
-                if (wallAlongEdge(mx, my, ex, ey, walls, grid * DOORWAY_WALL_NEAR, edge.trend)) {
-                    run = 0;
-                    continue;
-                }
-                run += edge.length / steps;
-                if (run > adrift) {
-                    adrift = run;
-                    adriftAt = { x: Math.round(mx), y: Math.round(my) };
-                }
-            }
-        }
-        if (adrift > grid * ADRIFT_WARN_RUN) {
-            add("warning", region.name, "Border runs away from the walls",
-                `${(adrift / grid).toFixed(1)} squares of border in one stretch have no wall `
-                + "alongside them. A border drawn away from the wall it describes is the second "
-                + "way a whole side of a room turns into a doorway - the wall is never found, so "
-                + "nothing closes it.", adriftAt);
-        }
-
-        /*
-         * 3. A ROOM WITH NO WAY OUT AT ALL.
-         *
-         * Found by walking every room on the QA scene rather than by reading
-         * the code: one of them reported not a single open stretch, and the
-         * reason was neither a wall nor an overlap - its region simply sits a
-         * full square from its neighbour's, and the neighbour probe reaches
-         * 0.95. Nothing was wrong with the walls; the two rooms had never been
-         * introduced.
-         *
-         * A player standing in a room the module says has no exit sees a closed
-         * box with no glow anywhere, which is indistinguishable from the fog
-         * being broken. Naming it is the difference between "this map has a
-         * gap" and "this feature does not work".
-         *
-         * Warning, not error: a genuinely sealed room is a thing a killing game
-         * may well want.
-         */
-        const openTotal = edges.reduce((a, e) =>
-            a + (e.open ?? []).reduce((b, [from, to]) => b + (to - from) * e.length, 0), 0);
-        if (edges.length && openTotal <= 0) {
-            const others = [];
-            for (const other of scene.regions ?? []) {
-                if (!other.name || other === region) continue;
-                others.push(regionShapes(other, { x: 0, y: 0 }).map(f => new PIXI.Polygon(f)));
-            }
-            const reach = grid * DOORWAY_PROBE_OUT;
-            const anyNeighbour = edges.some(e => {
-                const mx = e.ax + e.dx * 0.5;
-                const my = e.ay + e.dy * 0.5;
-                return Boolean(neighbourBeyond(mx, my, e.nx, e.ny, others, reach));
-            });
-            add("warning", region.name, "No way out",
-                anyNeighbour
-                    ? "Every stretch of this room's border is walled, so nothing will glow as a "
-                      + "doorway. If that is deliberate, ignore it; if not, the door is missing."
-                    : "No neighbouring room lies within reach of any part of this border - the "
-                      + "next region is more than a square away, so the two rooms never see each "
-                      + "other. Rooms should touch along the edge they share.",
-                pointOf(region));
-        }
+        adriftCheck(region, edges, walls, grid, add);
+        noWayOutCheck(scene, region, edges, grid, add);
 
         // 3. (there is no check on how LONG an opening is. A doorway has no
         //     upper size - see ADRIFT_WARN_RUN. A border that has wandered off
         //     its wall is caught above, which is the fault that check was
         //     standing in for.)
 
-        /*
-         * 4. CORNERS OFF THE LATTICE - and the lattice is HALF a square.
-         *
-         * Foundry's region tools snap to half-grid, so a room drawn correctly
-         * has most of its corners on a half-square line and almost none on a
-         * whole one. Measured against whole squares this check fired on every
-         * room on the scene, which is a check that has learnt to cry wolf.
-         */
-        const tolerance = Math.max(1, lattice * 0.1);
-        let off = 0;
-        let worst = 0;
-        for (const poly of polys) {
-            const pts = poly.points ?? [];
-            for (let i = 0; i < pts.length; i += 2) {
-                const dx = gridOffset(pts[i], lattice, latticeOrigin);
-                const dy = gridOffset(pts[i + 1], lattice, latticeOrigin);
-                const d = Math.max(dx, dy);
-                if (d > tolerance) {
-                    off++;
-                    worst = Math.max(worst, d);
-                }
-            }
-        }
-        if (off) {
-            add("info", region.name, "Corners off the map's own lattice",
-                `${off} corner(s) sit up to ${Math.round(worst)}px off the half-square lattice `
-                + "the rest of this scene is drawn to. Draw with snapping on: a corner a "
-                + "fraction of a square out is invisible by eye and is enough to make two "
-                + "rooms overlap or miss.", pointOf(region));
-        }
+        latticeCheck(region, polys, lattice, latticeOrigin, add);
     }
 
     const order = { error: 0, warning: 1, info: 2 };
@@ -2525,6 +2574,77 @@ export function whyBlack() {
  * per-frame `refreshToken`: a rebuild per frame would be a rebuild per
  * animation step of every token on the scene.
  */
+/*
+ * THE ECLIPSE DIMS EVERYTHING AND CLEARS NOTHING.
+ *
+ * This used to make the fog step aside entirely, on the reasoning that
+ * `visibility.mjs` already hides every token - which left the whole map
+ * uncovered and merely darkened, handing every player the layout of
+ * rooms they had never been in. An Eclipse is the least, not the most,
+ * a player should be able to see.
+ *
+ * So no room counts as CURRENT while one is running: rooms you know
+ * drop to the veil, the room you are standing in included, and rooms
+ * you have never entered stay under full fog. It costs one line,
+ * because "current" was always the only thing that cleared anything.
+ */
+/*
+ * TWO DIFFERENT QUESTIONS, AND FOR A GM THEY HAVE DIFFERENT ANSWERS.
+ *
+ * `mine` is WHERE I AM - it drives the outline and the room name, and
+ * for a GM that is wherever their Monokuma stands. `current` is WHAT IS
+ * CLEARED, and a GM clears every room on the map: they are running the
+ * scene and need to see all of it, tokens included. The fog is there
+ * for them only so that the space belonging to no room reads the same
+ * on their screen as on everybody else's, which is the whole of what
+ * this was ever meant to give them.
+ */
+function fogSets(scene) {
+    const mine = myCurrentRooms();
+    const discovered = myDiscoveredRooms(scene);
+
+    let current;
+    if (game.user.isGM) current = ledgerRooms(scene);
+    else if (isEclipse()) current = new Set();
+    else current = mine;
+
+    /*
+     * A ROOM THE CLASS HAS JUST FOUND OPENS FOR THE GM TOO.
+     *
+     * They do not walk into it, so nothing about their own tokens can
+     * announce it - the signal is the ledger growing, which reaches this
+     * client through `SYNC.fog` like any other world change. The first
+     * paint of a session seeds the comparison silently, or logging in would
+     * replay every discovery the season has ever made.
+     */
+    let opened = [];
+    if (game.user.isGM) {
+        if (lastLedgerSeen?.sceneId === scene.id) {
+            opened = Array.from(current).filter(room => !lastLedgerSeen.rooms.has(room));
+        }
+        lastLedgerSeen = { sceneId: scene.id, rooms: new Set(current) };
+    }
+    // The room you are standing in is VEILED during an Eclipse, not left
+    // under full fog: nothing is cleared, but you can still see the floor
+    // you are on. Adding it to the known set is all that takes, since a
+    // known room that is not current is exactly what the veil is for.
+    if (isEclipse() && !game.user.isGM) for (const room of mine) discovered.add(room);
+    return { mine, discovered, current, opened };
+}
+
+// Everything that is NOT a fog sprite goes now - leftovers from a
+// discovery animation, say. The fog sprites themselves are handed to
+// `swapInFog`, which fades the old one out rather than cutting it.
+function clearLayerLeftovers(container) {
+    for (const child of [...container.children]) {
+        if (child.name === FOG_SPRITE) continue;
+        if (child.name === RASTER_GROUP || child.name === RASTER_MASK) continue;
+        if (child.name === FX_GROUP) continue;
+        container.removeChild(child);
+        child.destroy({ children: true });
+    }
+}
+
 export function repaintFog() {
     try {
         if (dissolveBusy) {
@@ -2575,60 +2695,7 @@ export function repaintFog() {
             return stand("regions exist but none exposed usable polygons");
         }
 
-        /*
-         * THE ECLIPSE DIMS EVERYTHING AND CLEARS NOTHING.
-         *
-         * This used to make the fog step aside entirely, on the reasoning that
-         * `visibility.mjs` already hides every token - which left the whole map
-         * uncovered and merely darkened, handing every player the layout of
-         * rooms they had never been in. An Eclipse is the least, not the most,
-         * a player should be able to see.
-         *
-         * So no room counts as CURRENT while one is running: rooms you know
-         * drop to the veil, the room you are standing in included, and rooms
-         * you have never entered stay under full fog. It costs one line,
-         * because "current" was always the only thing that cleared anything.
-         */
-        /*
-         * TWO DIFFERENT QUESTIONS, AND FOR A GM THEY HAVE DIFFERENT ANSWERS.
-         *
-         * `mine` is WHERE I AM - it drives the outline and the room name, and
-         * for a GM that is wherever their Monokuma stands. `current` is WHAT IS
-         * CLEARED, and a GM clears every room on the map: they are running the
-         * scene and need to see all of it, tokens included. The fog is there
-         * for them only so that the space belonging to no room reads the same
-         * on their screen as on everybody else's, which is the whole of what
-         * this was ever meant to give them.
-         */
-        const mine = myCurrentRooms();
-        const discovered = myDiscoveredRooms(scene);
-
-        let current;
-        if (game.user.isGM) current = ledgerRooms(scene);
-        else if (isEclipse()) current = new Set();
-        else current = mine;
-
-        /*
-         * A ROOM THE CLASS HAS JUST FOUND OPENS FOR THE GM TOO.
-         *
-         * They do not walk into it, so nothing about their own tokens can
-         * announce it - the signal is the ledger growing, which reaches this
-         * client through `SYNC.fog` like any other world change. The first
-         * paint of a session seeds the comparison silently, or logging in would
-         * replay every discovery the season has ever made.
-         */
-        let opened = [];
-        if (game.user.isGM) {
-            if (lastLedgerSeen?.sceneId === scene.id) {
-                opened = Array.from(current).filter(room => !lastLedgerSeen.rooms.has(room));
-            }
-            lastLedgerSeen = { sceneId: scene.id, rooms: new Set(current) };
-        }
-        // The room you are standing in is VEILED during an Eclipse, not left
-        // under full fog: nothing is cleared, but you can still see the floor
-        // you are on. Adding it to the known set is all that takes, since a
-        // known room that is not current is exactly what the veil is for.
-        if (isEclipse() && !game.user.isGM) for (const room of mine) discovered.add(room);
+        const { mine, discovered, current, opened } = fogSets(scene);
         const ink = colourOf("--drpg-ink", 0x1a1620);
 
         // Nothing to do if the picture would come out the same. The layer has
@@ -2674,16 +2741,7 @@ export function repaintFog() {
             return stand("the fog layer could not be mounted on the canvas");
         }
 
-        // Everything that is NOT a fog sprite goes now - leftovers from a
-        // discovery animation, say. The fog sprites themselves are handed to
-        // `swapInFog`, which fades the old one out rather than cutting it.
-        for (const child of [...container.children]) {
-            if (child.name === FOG_SPRITE) continue;
-            if (child.name === RASTER_GROUP || child.name === RASTER_MASK) continue;
-            if (child.name === FX_GROUP) continue;
-            container.removeChild(child);
-            child.destroy({ children: true });
-        }
+        clearLayerLeftovers(container);
         swapInFog(container, built.texture, built.maskTexture, rect);
         // The Eclipse's own dimming stands down while this is on - see the
         // ECLIPSE section of danganronpa.css.
