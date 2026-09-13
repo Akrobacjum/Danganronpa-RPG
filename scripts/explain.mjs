@@ -22,7 +22,7 @@
  * entitled to more from.
  */
 
-import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES } from "./config.mjs";
+import { MODULE_ID, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES, STARTING, OVERFLOW } from "./config.mjs";
 import { getClock, campaignName, phaseLabel, timeOfDayLabel } from "./clock.mjs";
 import { dialogContent, error, workingScene, esc} from "./utils.mjs";
 import { isMonokuma } from "./monokuma.mjs";
@@ -201,7 +201,8 @@ export async function openDespairExplainer() {
          * cannot hold. A player who clicked the pips to ask about the bar reads
          * the caption sitting directly above it on the way.
          */
-        const overflowLines = [esc(t("DRPG.Overflow.explainBody")),
+        const overflowLines = [esc(game.i18n.format("DRPG.Overflow.explainBody",
+                                   { max: STARTING.despairMax, effects: Object.keys(OVERFLOW.effects ?? {}).length })),
                                esc(t("DRPG.Overflow.explainVeil"))];
         if (game.user.isGM) {
             const { overflowStatus } = await import("./overflow.mjs");

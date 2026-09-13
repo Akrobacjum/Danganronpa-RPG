@@ -159,15 +159,15 @@ Zanim zaczniesz redakcję pod 1.3.0, trzy tabele, które warto mieć obok.
 | `Vote.tied` vs `tiedVerdictNote` | remis = przegrana / "unless settled" | sprzeczne | naprawione (obie mówią "unless the table settles it") |
 | `Chapter.endNote` | "Nothing else here deletes anything" pod trzema checkboxami kasującymi | fałsz | naprawione |
 | `Hud.bodyFoundTooltip`, `Panel.nextBodyFound`, `Chapter.bodyNote` | "moving the time of day on" zamyka ciało | zamyka je dopiero start Investigation | naprawione |
-| `Cleanup.gmAttemptsLeft` | "closing destroys the tools" | tylko Crime Tool przy zamknięciu, Cleaning Tool przy odkryciu ciała | **otwarte** (TEXT, sekcja 2 findings-1.2.42/text.md) |
-| `Investigation.unfoundKeys`, `plannerIntro`, `whichSlot`, `noSlot` | "four", "five" na sztywno | `KEY_REMNANTS.unfoundBar` = 4, `prepared` = 5 | **otwarte** - przekazać `{bar}`/`{n}` |
-| `Hud.startEclipseNamed`, `Eclipse.noMovesLeft` | "(2 crossings)", "Both" | Darkness obniża do 1 | **otwarte** - `{n}` z `eclipseAllowance` |
-| `Overflow.explainBody` | "holds twelve", "eight in the hat" | liczby z configu | **otwarte** |
-| `Action.murderConfirm` | "opens a direct murder" | podczas Eclipse tylko parkuje | **otwarte** - dwa zdania na dwie ścieżki |
-| `Settings.uiScale.hint`, `typography.md` | "11px floor never scaled" | floor 21 px i skaluje się z suwakiem | **otwarte** (UI-07) |
-| `Vault.rifleNote` | "they will notice it is gone" | właściciel nigdy nie jest informowany na darmowej ścieżce | **otwarte** (ITEM-10) |
-| `Calls.grants.critical` | "an automatic critical" | Loaded Die: jedna kość na 12 | **otwarte** (DESP-08) |
-| `Overflow.what.rot` | "ruining whatever was on its last point" | kod celowo nie zabiera ostatniego punktu | **otwarte** (DESP-10) |
+| `Cleanup.gmAttemptsLeft` | "closing destroys the tools" | tylko Crime Tool przy zamknięciu, Cleaning Tool przy odkryciu ciała | naprawione (13.09) |
+| `Investigation.unfoundKeys`, `plannerIntro`, `whichSlot`, `noSlot` | "four", "five" na sztywno | `KEY_REMNANTS.unfoundBar` = 4, `prepared` = 5 | naprawione (`{bar}`/`{n}` z configu, 13.09) |
+| `Hud.startEclipseNamed`, `Eclipse.noMovesLeft` | "(2 crossings)", "Both" | Darkness obniża do 1 | naprawione (`{n}` z `overflowCrossings`, zadanie 6 i karty eventów) |
+| `Overflow.explainBody` | "holds twelve", "eight in the hat" | liczby z configu | naprawione (`{max}`, `{effects}`, 13.09) |
+| `Action.murderConfirm` | "opens a direct murder" | podczas Eclipse tylko parkuje | naprawione (`murderConfirmEclipse`, 13.09) |
+| `Settings.uiScale.hint`, `typography.md` | "11px floor never scaled" | floor 21 px i skaluje się z suwakiem | naprawione (zadanie 13) |
+| `Vault.rifleNote` | "they will notice it is gone" | właściciel nigdy nie jest informowany na darmowej ścieżce | naprawione (zadanie 5) |
+| `Calls.grants.critical` | "an automatic critical" | Loaded Die: jedna kość na 12 | naprawione (zadanie 6) |
+| `Overflow.what.rot` | "ruining whatever was on its last point" | kod celowo nie zabiera ostatniego punktu | naprawione (zadanie 6) |
 
 ### 3.2 Dryf terminologii (do ujednolicenia przy redakcji)
 
@@ -210,9 +210,9 @@ Po polsku wszystkie te miejsca są jeszcze ciaśniejsze. Jeśli redagujesz angie
 | --- | --- | --- |
 | `Events.openingTitle/openingMeta` | HUD ofiary bezpośredniego morderstwa w Stage 4 | naprawione (TEXT-03) |
 | karty Despair Call, Feed the Overflow, overflow | dokładny stan puli i licznika na publicznej karcie | naprawione (DESP-03) |
-| proza kart `callGm` (`Bridge.criticalHint`, `Action.observeGm`, tabela progów Think/Listen) | pełne zdania dla GMa w wątku gracza; obcinane są tylko przyciski | **otwarte** (COMM-06, zadanie 2) |
-| `Handover.alreadyHasIt` | "{who} already found that trace themselves" - fakt o cudzych dowodach | **otwarte** (TEXT-09) |
-| `Tamper.frameHint`, `Analyze.findStashHint`, `Murder.thresholdShort` | DC widoczne dla gracza w trzech miejscach, nigdzie indziej | **decyzja projektowa** (TEXT-14): albo DC są jawne wszędzie, albo nigdzie |
+| proza kart `callGm` (`Bridge.criticalHint`, `Action.observeGm`, tabela progów Think/Listen) | pełne zdania dla GMa w wątku gracza; obcinane są tylko przyciski | naprawione (zadanie 2: `gmBody` w `.drpg-gm-only`, obcinane u gracza) |
+| `Handover.alreadyHasIt` | "{who} already found that trace themselves" - fakt o cudzych dowodach | naprawione (zadanie 13) |
+| `Tamper.frameHint`, `Analyze.findStashHint`, `Murder.thresholdShort` | DC widoczne dla gracza w trzech miejscach, nigdzie indziej | rozstrzygnięte: D1 A, progi wszędzie (13.09) |
 | `Hud.trialTooltip`, `Hud.bodyFoundTooltip` | instrukcje dla GMa na HUD gracza | nieszkodliwe; przy redakcji przepisać neutralnie |
 
 ---
@@ -497,6 +497,8 @@ Zadania 1-11 z sekcji 5 są zrobione na gałęzi, po jednym commicie na zadanie.
 | 10 - UX | `b708865` | UI-09/10/11/12, ROLL-11/12, COMM-11 (`game.drpg.safeword()` + keybinding), COMM-13, CORE-06/10/13/18 |
 | 11 - higiena | `b3604be` | 10 martwych kluczy, martwe selektory (`#drpg-notice`, `#drpg-settings-launcher`, `.drpg-no-glass-effects`, `.drpg-compact`), jeden `esc`, poprawione komentarze |
 | 13 - rozliczenie | (ten commit) | Pełne rozliczenie 152 ID z `findings-1.2.42/` kontra kod: 25 znalezisk, które nie weszły do zadań 1-11, domknięte tu (COMM-05/09/17/18, CORE-16, ITEM-17/18, MAP-15, ROLL-10/14/15/16, TEXT-09/11/12/13/15/16/17/18/19, UI-06/07/13). Pozostałe otwarte ID to wyłącznie decyzje z 9.1 (ITEM-04, MAP-12, DESP-03, CASE-11) |
+
+**34 ID zamknięte pod innymi nazwami** (skrypt rozliczeniowy ich nie widzi, bo commit ani komentarz nie wymienia ID; sprawdzone ręcznie w kodzie 13.09): CORE-03/04/09/15, DESP-08/09/10/16/18/20, ITEM-10, MAP-05/06/08/09/10, TEXT-02/04/05/06/07/08/10/11/12/13/15/16/17/18, UI-01/02/04/05.
 
 **Bilans po zadaniu 13.** Skrypt rozliczeniowy (każde `### ID` z `findings-1.2.42/*.md` szukane w sekcji 2 tego raportu, w commitach gałęzi i w komentarzach kodu) dał 152 znaleziska: 49 zamknięte w 1.2.43, 78 w zadaniach 1-11 i 13, 4 czekają na decyzję (ITEM-04, MAP-12, DESP-03 i CASE-11 - tabela 9.1), a reszta to pozycje "live check" z sekcji 7 i 9.2, których harness nie rozstrzyga. Wcześniejsze zdanie w tej sekcji, że po zadaniach 1-11 "zostały same decyzje", było za mocne: 25 drobnych ID (teksty, higiena, dwa wyścigi socketów) nie miało swojego zadania i weszło dopiero w 13.
 

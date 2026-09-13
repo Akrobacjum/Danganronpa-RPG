@@ -444,7 +444,7 @@
       "rewind": "Step back one time of day. A correction - it refills nothing",
       "elapsed": "{minutes} min in",
       "elapsedUnknown": "not started",
-      "elapsedTooltip": "How long this time of day has run. Amber at 15 minutes, red at 30.",
+      "elapsedTooltip": "How long this time of day has run. Amber at {first} minutes, red at {second}.",
       "bodyFound": "Body found",
       "bodyFoundTooltip": "A body has been found and nobody is searching yet. The game waits for the GM to start the Investigation.",
       "stillToAct": "Still to act",
@@ -472,6 +472,7 @@
       "trialVersus": "vs {who}"
     },
     "Action": {
+      "murderConfirmEclipse": "This parks a direct murder for the GM to rule on when the Eclipse ends. It needs prior agreement with the GM and the consent of the other player. The action is spent even if the conditions fail.",
       "beat": "beat {n}",
       "dcLadderRow": "{label} {n}",
       "dcTierRow": "{n}+ Tier {tier}",
@@ -530,7 +531,7 @@
         "other": "{room}: {n} search tokens left this time of day."
       },
       "actionReturned": "Critical - the action is returned.",
-      "observeGm": "Total {total}. Score it against the Observe table for whatever they are looking at. A failure costs them 1 Sanity.",
+      "observeGm": "Total {total}. Score it against the Observe table for whatever they are looking at. A failure costs them {n} Sanity.",
       "searchGoalHint": "What turns up depends on the room and the roll.",
       "goalHealing": "Something to patch me up",
       "goalHealingHint": "Food and medicine. Restores Health.",
@@ -1075,7 +1076,7 @@
       "trailWho": "Frame",
       "trailNobody": "There is nobody left to frame.",
       "moveAction": "Move the body",
-      "moveHint": "Spend 1 Sanity to carry the body out of this room. It always leaves an Evident trace - a body cannot be dragged quietly.",
+      "moveHint": "Spend {n} Sanity to carry the body out of this room. It always leaves an Evident trace - a body cannot be dragged quietly.",
       "bodyNotHere": "The body is not in this room. You have to be standing over it to carry it anywhere.",
       "nothingHere": "Nothing to clean up in this room.",
       "allReinforced": "Every trace here is reinforced. None of it comes off.",
@@ -1085,7 +1086,7 @@
       "reinforced": "The {what} will not come off. Whatever left it, left it for good.",
       "vanished": "The trace you were working on is already gone. The effort still cost you.",
       "removed": "The {what} is gone.",
-      "noStressForThis": "This costs 1 Sanity and you have none left.",
+      "noStressForThis": "This costs {n} Sanity and you have none left.",
       "freeTonight": "Your own scene, tonight: no action, 1 Sanity each.",
       "stillThere": "The trace is still there.",
       "leftTrace": "Your cleaning left a trace of its own.",
@@ -1108,8 +1109,8 @@
       "gmNoTool": "No Cleaning Tool readied - bare hands, no advantage.",
       "gmNothingHere": "No traces in the room the killer is standing in.",
       "gmAttemptsLeft": {
-        "one": "Sanity left for {n} more attempt. Stage 6 ends when that runs out, or when you close the murder - closing destroys the tools that were used.",
-        "other": "Sanity left for {n} more attempts. Stage 6 ends when that runs out, or when you close the murder - closing destroys the tools that were used."
+        "one": "Sanity left for {n} more attempt. Stage 6 ends when that runs out, or when you close the murder - closing destroys the crime tool that was used; the cleaning tool goes when the body is found.",
+        "other": "Sanity left for {n} more attempts. Stage 6 ends when that runs out, or when you close the murder - closing destroys the crime tool that was used; the cleaning tool goes when the body is found."
       },
       "stressBack": "You get {n} Sanity back.",
       "trailPlanted": "Planted a Prep Remnant ({visibility}) pointing at {name}.",
@@ -1331,7 +1332,7 @@
       "neverOnePerson": "A clue narrows the circle, it never names a name: a Key Remnant points at half the cast at most, an ordinary trace at 2-4 people. The last step from circle to name belongs to the trial.",
       "filterCount": "Showing {shown} of {total}.",
       "noneMatch": "No trace matches this filter.",
-      "plannerIntro": "Five clues for chapter {chapter}. Together they should narrow the suspects to {min}-{max} people.",
+      "plannerIntro": "{n} clues for chapter {chapter}. Together they should narrow the suspects to {min}-{max} people.",
       "notePlaceholder": "What this clue tells them",
       "difficulty": "Difficulty",
       "onMap": "Which Remnant",
@@ -1372,11 +1373,11 @@
       "createHereTitle": "Create a Key Remnant here",
       "createHereIntro": "They named a point of interest and you have decided there is something there. This puts it on the map, and can hang it on one of the five clues you planned.",
       "whichSlot": "Which planned clue is this?",
-      "noSlot": "Not one of the five",
+      "noSlot": "Not one of the {n}",
       "createdHere": "Key Remnant placed in {room}.",
       "unfoundKeys": {
-        "one": "The investigation turned up {found} of the four Key Remnants - one short. {despair} Despair to each pool: {who}.",
-        "other": "The investigation turned up {found} of the four Key Remnants - {n} short. {despair} Despair to each pool: {who}."
+        "one": "The investigation turned up {found} of {bar} Key Remnants - one short. {despair} Despair to each pool: {who}.",
+        "other": "The investigation turned up {found} of {bar} Key Remnants - {n} short. {despair} Despair to each pool: {who}."
       },
       "keyNoteLabel": "Your note",
       "keyNotePlaceholder": "Only you read this",
@@ -1966,7 +1967,7 @@
       },
       "rulesChanged": "The overflow has been retuned. It now fires at {n}.",
       "explainTitle": "What is despair overflow",
-      "explainBody": "A Monokuma's pool holds twelve. Despair earned past that collects here, in one counter shared by every Monokuma. At the threshold it pays that much, keeps the rest, and draws ONE effect at random from the eight in the GM's hat, for one time of day. Feed the Overflow pours Despair in deliberately. A trial verdict empties it.",
+      "explainBody": "A Monokuma's pool holds {max}. Despair earned past that collects here, in one counter shared by every Monokuma. At the threshold it pays that much, keeps the rest, and draws ONE effect at random from the {effects} in the GM's hat, for one time of day. Feed the Overflow pours Despair in on purpose. A Class Trial verdict empties it.",
       "explainVeil": "Players see “?” rather than the number. A courtesy, not a secret: the counter is a world setting, so a determined player can read it from their console. Nothing about the investigation lives in it."
     },
     "Eclipse": {

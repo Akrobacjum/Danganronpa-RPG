@@ -17,7 +17,7 @@
 import {
     MODULE_ID, FLAGS, ACTIONS, TRAITS, TRAIT_BY_DH, DYNAMIC_THRESHOLDS, INDIRECT_MURDER,
     PROJECT_SCALE, ITEM_CATEGORIES, SABOTAGE_CONCEAL, TOOL_IN_HAND, CLEANUP,
-    OBSERVE_DC, ANALYZE_DC, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS
+    OBSERVE_DC, ANALYZE_DC, REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, RESOLUTION_STRESS_COST, OBSERVE_FAIL_STRESS
 } from "./config.mjs";
 import { actionsLeft, spendAction, refundAction, hasFreeMove, canPayFor, lastSpendKind } from "./actions.mjs";
 import { leavesTraceFor } from "./inventory.mjs";
@@ -2774,7 +2774,7 @@ async function performTamper(actor, def, options) {
             ...(stageSix ? [{
                 value: "body", icon: "fa-person-falling",
                 label: game.i18n.localize("DRPG.Cleanup.moveAction"),
-                hint: game.i18n.localize("DRPG.Cleanup.moveHint"),
+                hint: game.i18n.format("DRPG.Cleanup.moveHint", { n: RESOLUTION_STRESS_COST }),
                 disabled: !cleanup.bodyIsHere(actor),
                 why: game.i18n.localize("DRPG.Cleanup.bodyNotHere")
             }] : [])
@@ -3473,7 +3473,7 @@ async function ruleObserve(actor, def, roll, request, title = null, cost = 0) {
 
     await callGm(actor, {
         title: label,
-        gmBody: `<p><small>${game.i18n.format("DRPG.Action.observeGm", { total: roll.total })}</small></p>`,
+        gmBody: `<p><small>${game.i18n.format("DRPG.Action.observeGm", { total: roll.total, n: OBSERVE_FAIL_STRESS })}</small></p>`,
         roll,
         request,
         room,
@@ -4031,7 +4031,7 @@ async function performDirectMurder(actor, def, options) {
         window: { title: def.label },
         content: `${briefingBlock(actor, "directMurder", def)}
             <p class="notes">${game.i18n.localize("DRPG.Action.murderSpendsAnyway")}</p>
-            <p>${game.i18n.localize("DRPG.Action.murderConfirm")}</p>`,
+            <p>${game.i18n.localize(isEclipse() ? "DRPG.Action.murderConfirmEclipse" : "DRPG.Action.murderConfirm")}</p>`,
         rejectClose: false
     });
     if (!confirmed) return null;

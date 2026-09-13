@@ -415,7 +415,7 @@ export async function attemptCleanup(actor, tokenId, {
      * both answers are worse than saying no.
      */
     if (resourceValue(actor, "stress") >= resourceMax(actor, "stress")) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.noStressForThis"));
+        ui.notifications.warn(game.i18n.format("DRPG.Cleanup.noStressForThis", { n: RESOLUTION_STRESS_COST }));
         return null;
     }
     if (!await spendResolutionAction(actor)) return null;
@@ -1323,7 +1323,7 @@ function stageSixDef(actor, key, { viaAction = false } = {}) {
         return null;
     }
     if (resourceValue(actor, "stress") >= resourceMax(actor, "stress")) {
-        ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.noStressForThis"));
+        ui.notifications.warn(game.i18n.format("DRPG.Cleanup.noStressForThis", { n: RESOLUTION_STRESS_COST }));
         return null;
     }
     return def;

@@ -454,7 +454,7 @@
       "rewind": "Cofnij o jedną porę dnia. Korekta - niczego nie odnawia",
       "elapsed": "{minutes} min",
       "elapsedUnknown": "nie zaczęto",
-      "elapsedTooltip": "Ile trwa ta pora dnia. Bursztyn po 15 minutach, czerwień po 30.",
+      "elapsedTooltip": "Ile trwa ta pora dnia. Bursztyn po {first} minutach, czerwień po {second}.",
       "bodyFound": "Znaleziono ciało",
       "bodyFoundTooltip": "Znaleziono ciało i nikt jeszcze nie szuka. Gra czeka, aż GM rozpocznie Investigation.",
       "stillToAct": "Jeszcze działają",
@@ -482,6 +482,7 @@
       "trialVersus": "kontra {who}"
     },
     "Action": {
+      "murderConfirmEclipse": "To parkuje Direct Murder do rozstrzygnięcia przez GMa, gdy Eclipse się skończy. Wymaga wcześniejszej zgody GMa i zgody drugiego gracza. Akcja przepada nawet, jeśli warunki nie są spełnione.",
       "beat": "pokonaj {n}",
       "dcLadderRow": "{label} {n}",
       "dcTierRow": "{n}+ Tier {tier}",
@@ -544,7 +545,7 @@
         "other": "{room}: zostało {n} Search Tokenów o tej porze dnia."
       },
       "actionReturned": "Krytyk - akcja wraca.",
-      "observeGm": "Wynik {total}. Oceń go według tabeli Observe dla tego, na co patrzą. Porażka kosztuje ich 1 Sanity.",
+      "observeGm": "Wynik {total}. Oceń go według tabeli Observe dla tego, na co patrzą. Porażka kosztuje ich {n} Sanity.",
       "searchGoalHint": "Co się znajdzie, zależy od pokoju i rzutu.",
       "goalHealing": "Coś, co mnie poskłada",
       "goalHealingHint": "Jedzenie i leki. Przywraca Health.",
@@ -1109,7 +1110,7 @@
       "trailWho": "Wrób",
       "trailNobody": "Nie ma już kogo wrobić.",
       "moveAction": "Przenieś ciało",
-      "moveHint": "Wydaj 1 Sanity, by wynieść ciało z tego pokoju. Zawsze zostawia Evident ślad - ciała nie da się wywlec po cichu.",
+      "moveHint": "Wydaj {n} Sanity, by wynieść ciało z tego pokoju. Zawsze zostawia Evident ślad - ciała nie da się wywlec po cichu.",
       "bodyNotHere": "Ciała nie ma w tym pokoju. Musisz nad nim stać, by je gdziekolwiek zanieść.",
       "nothingHere": "W tym pokoju nie ma czego sprzątać.",
       "allReinforced": "Każdy ślad tutaj jest Reinforced. Nic z tego nie schodzi.",
@@ -1119,7 +1120,7 @@
       "reinforced": "{what} nie schodzi. Cokolwiek to zostawiło, zostawiło na dobre.",
       "vanished": "Ślad, nad którym pracowałeś, już zniknął. Wysiłek i tak cię kosztował.",
       "removed": "{what} zniknął.",
-      "noStressForThis": "To kosztuje 1 Sanity, a nie masz już żadnego.",
+      "noStressForThis": "To kosztuje {n} Sanity, a nie masz już żadnego.",
       "freeTonight": "Twoja własna scena, tej nocy: bez akcji, 1 Sanity za każdy.",
       "stillThere": "Ślad wciąż tam jest.",
       "leftTrace": "Twoje sprzątanie zostawiło własny ślad.",
@@ -1142,10 +1143,10 @@
       "gmNoTool": "Brak narzędzia do sprzątania w ręku - gołe ręce, bez przewagi.",
       "gmNothingHere": "Brak śladów w pokoju, w którym stoi zabójca.",
       "gmAttemptsLeft": {
-        "one": "Sanity starcza na {n} próbę. Stage 6 kończy się, gdy się wyczerpie albo gdy zamkniesz morderstwo - zamknięcie niszczy użyte narzędzia.",
-        "few": "Sanity starcza na {n} próby. Stage 6 kończy się, gdy się wyczerpie albo gdy zamkniesz morderstwo - zamknięcie niszczy użyte narzędzia.",
-        "many": "Sanity starcza na {n} prób. Stage 6 kończy się, gdy się wyczerpie albo gdy zamkniesz morderstwo - zamknięcie niszczy użyte narzędzia.",
-        "other": "Sanity starcza na {n} prób. Stage 6 kończy się, gdy się wyczerpie albo gdy zamkniesz morderstwo - zamknięcie niszczy użyte narzędzia."
+        "one": "Sanity starcza na {n} próbę. Stage 6 kończy się, gdy się wyczerpie albo gdy zamkniesz morderstwo - zamknięcie niszczy użyte narzędzie zbrodni; narzędzie do sprzątania ginie przy znalezieniu ciała.",
+        "few": "Sanity starcza na {n} próby. Stage 6 kończy się, gdy się wyczerpie albo gdy zamkniesz morderstwo - zamknięcie niszczy użyte narzędzie zbrodni; narzędzie do sprzątania ginie przy znalezieniu ciała.",
+        "many": "Sanity starcza na {n} prób. Stage 6 kończy się, gdy się wyczerpie albo gdy zamkniesz morderstwo - zamknięcie niszczy użyte narzędzie zbrodni; narzędzie do sprzątania ginie przy znalezieniu ciała.",
+        "other": "Sanity starcza na {n} prób. Stage 6 kończy się, gdy się wyczerpie albo gdy zamkniesz morderstwo - zamknięcie niszczy użyte narzędzie zbrodni; narzędzie do sprzątania ginie przy znalezieniu ciała."
       },
       "stressBack": "Odzyskujesz {n} Sanity.",
       "trailPlanted": "Podłożono Prep Remnant ({visibility}) wskazujący na: {name}.",
@@ -1375,7 +1376,7 @@
       "neverOnePerson": "Trop zawęża krąg, nigdy nie wskazuje nazwiska: Key Remnant wskazuje najwyżej połowę obsady, zwykły ślad 2-4 osoby. Ostatni krok od kręgu do nazwiska należy do Class Trial.",
       "filterCount": "Pokazano {shown} z {total}.",
       "noneMatch": "Żaden ślad nie pasuje do tego filtra.",
-      "plannerIntro": "Pięć tropów na rozdział {chapter}. Razem powinny zawęzić podejrzanych do {min}-{max} osób.",
+      "plannerIntro": "Tropów na rozdział {chapter}: {n}. Razem powinny zawęzić podejrzanych do {min}-{max} osób.",
       "notePlaceholder": "Co ten trop im mówi",
       "difficulty": "Trudność",
       "onMap": "Który Remnant",
@@ -1420,13 +1421,13 @@
       "createHereTitle": "Utwórz tu Key Remnant",
       "createHereIntro": "Wskazali punkt zainteresowania i uznałeś, że coś tam jest. To stawia to na mapie i może podpiąć pod jeden z pięciu zaplanowanych tropów.",
       "whichSlot": "Który zaplanowany trop to jest?",
-      "noSlot": "Żaden z pięciu",
+      "noSlot": "Żaden z {n}",
       "createdHere": "Key Remnant postawiony w: {room}.",
       "unfoundKeys": {
-        "one": "Investigation ujawniło {found} z czterech Key Remnants - brakuje jednego. {despair} Despair do każdej puli: {who}.",
-        "few": "Investigation ujawniło {found} z czterech Key Remnants - brakuje {n}. {despair} Despair do każdej puli: {who}.",
-        "many": "Investigation ujawniło {found} z czterech Key Remnants - brakuje {n}. {despair} Despair do każdej puli: {who}.",
-        "other": "Investigation ujawniło {found} z czterech Key Remnants - brakuje {n}. {despair} Despair do każdej puli: {who}."
+        "one": "Investigation ujawniło {found} z {bar} Key Remnants - brakuje jednego. {despair} Despair do każdej puli: {who}.",
+        "few": "Investigation ujawniło {found} z {bar} Key Remnants - brakuje {n}. {despair} Despair do każdej puli: {who}.",
+        "many": "Investigation ujawniło {found} z {bar} Key Remnants - brakuje {n}. {despair} Despair do każdej puli: {who}.",
+        "other": "Investigation ujawniło {found} z {bar} Key Remnants - brakuje {n}. {despair} Despair do każdej puli: {who}."
       },
       "keyNoteLabel": "Twoja notatka",
       "keyNotePlaceholder": "Czyta to tylko GM",
@@ -2061,7 +2062,7 @@
       },
       "rulesChanged": "Overflow przestrojony. Odpala teraz przy {n}.",
       "explainTitle": "Czym jest Despair overflow",
-      "explainBody": "Pula Monokumy mieści dwanaście. Despair zdobyty ponad to zbiera się tutaj, w jednym liczniku wspólnym dla wszystkich Monokum. Przy progu płaci tyle, zachowuje resztę i losuje jeden efekt z ośmiu w kapeluszu GMa, na jedną porę dnia. Feed the Overflow wlewa Despair celowo. Werdykt Class Trial go opróżnia.",
+      "explainBody": "Pula Monokumy mieści {max}. Despair zdobyty ponad to zbiera się tutaj, w jednym liczniku wspólnym dla wszystkich Monokum. Przy progu płaci tyle, zachowuje resztę i losuje jeden efekt z {effects} w kapeluszu GMa, na jedną porę dnia. Feed the Overflow wlewa Despair celowo. Werdykt Class Trial go opróżnia.",
       "explainVeil": "Gracze widzą „?” zamiast liczby. Uprzejmość, nie tajemnica: licznik to ustawienie świata, więc zdeterminowany gracz odczyta go z konsoli. Nic ze śledztwa w nim nie mieszka."
     },
     "Eclipse": {

@@ -1459,7 +1459,7 @@ let elapsedTimer = null;
 function buildElapsed() {
     const el = document.createElement("div");
     el.className = "drpg-hud-elapsed";
-    el.dataset.tooltip = game.i18n.localize("DRPG.Hud.elapsedTooltip");
+    el.dataset.tooltip = game.i18n.format("DRPG.Hud.elapsedTooltip", { first: MARK_FIRST_ACTION / 60000, second: MARK_SECOND_ACTION / 60000 });
     paintElapsed(el);
 
     clearInterval(elapsedTimer);
@@ -1503,7 +1503,7 @@ function paintElapsed(el) {
     // Back from a debate. The tooltip is restored with the class, or a line
     // reading "22 min in" keeps explaining how long the debate has left.
     el.classList.remove("is-trial-clock", "overrun");
-    el.dataset.tooltip = game.i18n.localize("DRPG.Hud.elapsedTooltip");
+    el.dataset.tooltip = game.i18n.format("DRPG.Hud.elapsedTooltip", { first: MARK_FIRST_ACTION / 60000, second: MARK_SECOND_ACTION / 60000 });
 
     // The DISPLAY clock (CORE-06): during an incident an outsider's label
     // freezes on the last public hour, and a counter that read the true clock

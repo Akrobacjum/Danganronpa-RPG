@@ -260,7 +260,7 @@ export async function chargeForUnfoundKeys() {
         // number they are actually being told about is how much of the case reached the
         // trial. `short` still drives the plural, because it is what the Despair is for.
         await whisperToGms(`<p>${plural("DRPG.Investigation.unfoundKeys", {
-            n: short, found: status.found, despair: amount,
+            n: short, found: status.found, despair: amount, bar: KEY_REMNANTS.unfoundBar,
             who: foundry.utils.escapeHTML(paid.join(", "))
         })}</p>`);
     }
@@ -549,8 +549,8 @@ export async function openKeyRemnantHere({ room = null, note = "", sceneId = nul
             <label>${game.i18n.localize("DRPG.Investigation.whichSlot")}
                 <select name="slot">
                     ${slotOptions}
-                    <option value="">${game.i18n.localize(
-                        "DRPG.Investigation.noSlot")}</option>
+                    <option value="">${game.i18n.format(
+                        "DRPG.Investigation.noSlot", { n: KEY_REMNANTS.prepared })}</option>
                 </select></label>
         </form>`),
         buttons: [
@@ -1098,7 +1098,7 @@ export async function openInvestigationDashboard() {
 
             <div data-drpg-panel="key" style="display:none">
                 <p>${game.i18n.format("DRPG.Investigation.plannerIntro", {
-                    chapter: plan.chapter,
+                    chapter: plan.chapter, n: KEY_REMNANTS.prepared,
                     min: KEY_REMNANTS.suspectRange[0], max: KEY_REMNANTS.suspectRange[1]
                 })}</p>
                 <p>${game.i18n.format("DRPG.Investigation.keySummary", {
