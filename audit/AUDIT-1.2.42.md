@@ -496,13 +496,18 @@ Zadania 1-11 z sekcji 5 są zrobione na gałęzi, po jednym commicie na zadanie.
 | 9 - wydajność | `6e59551` | Jeden `renderHud` na zmianę zamiast czterech (CORE-12), memo kolorów kart (ROLL-17), obserwator arkusza odłączany (UI-14), rail w rAF (UI-16) |
 | 10 - UX | `b708865` | UI-09/10/11/12, ROLL-11/12, COMM-11 (`game.drpg.safeword()` + keybinding), COMM-13, CORE-06/10/13/18 |
 | 11 - higiena | `b3604be` | 10 martwych kluczy, martwe selektory (`#drpg-notice`, `#drpg-settings-launcher`, `.drpg-no-glass-effects`, `.drpg-compact`), jeden `esc`, poprawione komentarze |
-| 13 - rozliczenie | (ten commit) | Pełne rozliczenie 152 ID z `findings-1.2.42/` kontra kod: 25 znalezisk, które nie weszły do zadań 1-11, domknięte tu (COMM-05/09/17/18, CORE-16, ITEM-17/18, MAP-15, ROLL-10/14/15/16, TEXT-09/11/12/13/15/16/17/18/19, UI-06/07/13). Pozostałe otwarte ID to wyłącznie decyzje z 9.1 (ITEM-04, MAP-12, DESP-03, CASE-11) |
+| 12 - karta eventu | `1c0dde8`, `ffd4543` | Karta overflow na panelu eventów (karta Eclipse dodana i na prośbę z 13.09 zdjęta) |
+| Higiena A | `94fc972` | Zduplikowane helpery scalone: `actingStudents`/`ownStudent`, `markResolutionStress`, `polylineLength`, `glassOn`/`SEAM_GLOW` z motion.mjs, `ownerIdsOf` |
+| Higiena B | `e45abe5`, `e588ee2` | Wszystkie timeouty w `TIMING` (config.mjs), sweep ikon jako klauzula migracji, `PROJECT_SCALE.everyday.progress` zamiast 4, `newItemIdentity` w traps, ostatnie nieaktualne komentarze |
+| Higiena C | `e9971b8` ... `93a89bd` (16 commitów) | Każda funkcja >300 linii z sekcji 6 podzielona (onSocket jako tabela handlerów, openItemTables, openRoomSetupDialog, openInvestigationDashboard, curtainShapes, playDiscoveryAnimation, addDoorwayGlow, flashOutline, performSearch, performSabotage, resolveCleanup, gmGiveItemDialog, openWhoIsAliveDialog, applyCall) i 30 z listy 150-300; ciała przeniesione, nie przepisane; po każdym pliku suite + scenariusze, dla glass.mjs dodatkowo DOM harnessu kurtyny bajt w bajt w 3 rozdzielczościach; zostały `registerSettings` (płaska tabela rejestracji) i `steps()` (tabela danych) |
+| Higiena D | `31599e5` | 15 bloków `:root` w danganronpa.css scalone w jeden (każdy token z tą samą wartością końcową), martwa reguła `.drpg-safeword-button`, 6 ostatnich komentarzy sprzecznych z kodem |
+| 13 - rozliczenie | `7e40243` | Pełne rozliczenie 152 ID z `findings-1.2.42/` kontra kod: 25 znalezisk, które nie weszły do zadań 1-11, domknięte tu (COMM-05/09/17/18, CORE-16, ITEM-17/18, MAP-15, ROLL-10/14/15/16, TEXT-09/11/12/13/15/16/17/18/19, UI-06/07/13). Pozostałe otwarte ID to wyłącznie decyzje z 9.1 (ITEM-04, MAP-12, DESP-03, CASE-11) |
 
 **34 ID zamknięte pod innymi nazwami** (skrypt rozliczeniowy ich nie widzi, bo commit ani komentarz nie wymienia ID; sprawdzone ręcznie w kodzie 13.09): CORE-03/04/09/15, DESP-08/09/10/16/18/20, ITEM-10, MAP-05/06/08/09/10, TEXT-02/04/05/06/07/08/10/11/12/13/15/16/17/18, UI-01/02/04/05.
 
 **Bilans po zadaniu 13.** Skrypt rozliczeniowy (każde `### ID` z `findings-1.2.42/*.md` szukane w sekcji 2 tego raportu, w commitach gałęzi i w komentarzach kodu) dał 152 znaleziska: 49 zamknięte w 1.2.43, 78 w zadaniach 1-11 i 13, 4 czekają na decyzję (ITEM-04, MAP-12, DESP-03 i CASE-11 - tabela 9.1), a reszta to pozycje "live check" z sekcji 7 i 9.2, których harness nie rozstrzyga. Wcześniejsze zdanie w tej sekcji, że po zadaniach 1-11 "zostały same decyzje", było za mocne: 25 drobnych ID (teksty, higiena, dwa wyścigi socketów) nie miało swojego zadania i weszło dopiero w 13.
 
-Nie wydane: `module.json` nadal mówi 1.2.43. Wydanie 1.2.44 z tej gałęzi wymaga trzech rzeczy z sekcji 8 (wersja w `module.json`, stempel CSS, plik `.github/release-notes/v1.2.44.md`) - notatki są przygotowane w gałęzi, wersja i stempel czekają na decyzję.
+Wydane jako 1.2.44 (decyzja z 13.09: "na koniec wrzuć całość jako release 1.2.X", co zastąpiło D10 B): `module.json` i stempel CSS mówią 1.2.44, notatki w `.github/release-notes/v1.2.44.md`, `main` przesunięty na tę gałąź, workflow Release uruchomiony z tagiem `v1.2.44`. Live checki z 9.2 pozostają do zrobienia na prawdziwym Foundry po aktualizacji.
 
 ### 9.1 Decyzje - podjęte 13.09 i wdrożone
 
@@ -517,26 +522,21 @@ Nie wydane: `module.json` nadal mówi 1.2.43. Wydanie 1.2.44 z tej gałęzi wyma
 | D7 | Podsłuch LiveKit | usunięty w całości; reset głosu jako kafelek w Między sesjami | `1210949` |
 | D8 | Redakcja tekstów | **B**, pierwszy przebieg wg 3.2 i 3.3 (poniżej) | ten commit |
 | D9 | Alias i `SETTINGS.blackened` | **B**, usunięte teraz (wpis w notatkach 1.2.44) | `1210949` |
-| D10 | Wydanie 1.2.44 | **B**, po live checkach - nic nie wydano | - |
+| D10 | Wydanie 1.2.44 | **B** zmienione 13.09 na "wydać całość jako 1.2.X" - wydane jako 1.2.44 po higienie | (ten commit) |
 
-Dodatkowo (prośba z 13.09): karty eventów dla Despair overflow i Eclipse na panelu (`1c0dde8`).
+Dodatkowo (prośba z 13.09): karta eventu dla Despair overflow na panelu (`1c0dde8`); karta Eclipse zdjęta na drugą prośbę (`ffd4543`).
 
 **D8 - co weszło z 3.2:** "phase" → pora dnia w `Settings.hudTicker.hint` i `Summary.lede`; `Vote.verdictNoteKnown` "every Blackened"; `Calls.whichPlayer` "Which student?", `Panel.whoIsAlive` "Students" (PL już było "Uczniowie"); "Final Truth Remnant" wszędzie; "Free Move" wielką literą (11 kluczy); OBJECTION wielkimi tylko na banerze, przycisku i trybie; "Analyze" w `config.mjs`; "Role reversal"; "Level Up"; "hiding place"/"drawer" → "stash" (12 kluczy); "Gamemaster" → "GM" poza rolą Foundry; "clue" tylko w planerze Key Remnantów. **Z 3.3:** wszystkie skróty z tabeli (config: `finishingBlow.hint`, `useItem.hint`, `freeCrit.effect`; klucze: `Music.noSituational`, `Eclipse.actionsLocked`, `Anonymity.blocked`, `Assign.title`, `Observe.pickConfirm`, `Eclipse.endAndAdvance`, `Chapter.endTitle`, `Trap.rearm`, `Hud.roomTokens`) w obu językach. **Nie ruszone, do Twojego przebiegu 1.3.0:** masowe ujednolicenie Remnant/trace (56+78 kluczy), GM/Monokuma w prozie, student/character/player poza dwoma kluczami, etykiety kafelków "Behind Closed Doors"/"Public Announcement" (to nazwy z glosariusza - skrócenie ich to Twoja decyzja).
 
-### 9.1a Co zostało do zrobienia (stan po 13.09)
+### 9.1a Co zostało do zrobienia (stan po 13.09, po higienie)
 
-| # | Pytanie | Wariant A (stan obecny) | Wariant B | Gdzie w kodzie |
-| --- | --- | --- | --- | --- |
-| D1 | **Czy gracz widzi DC?** (TEXT-14) | Mieszanka: `findStashHint` mówi "16+", `frameHint` "15", kafelki kryzysu mają `briefThreshold`, a Observe/Search/Listen nie mówią nic. Podręcznik gracza (docs/handbooks) wypisuje tabele progów z `config.mjs` w sekcji "Reading the difficulty ladder" | Jednolicie: albo wszędzie (dopisać progi do briefingów), albo nigdzie (usunąć `{n}+` z hintów, `briefThreshold` z kafelków, sekcję z podręcznika) | `config.mjs` ACTIONS.*.hint, `action-rolls.mjs` briefingBlock, `docs/handbooks/player-handbook.*.md` |
-| D2 | **Czy ledger odkrytych pokoi jest alibi?** (MAP-12) | Jawny: `SETTINGS.discoveredRooms` to world setting, każdy klient może odczytać, kto gdzie był | Tajny per gracz (wzorzec `incidentCast`: klient GMa trzyma, gracz dostaje swoje po sockecie) - 1 wieczór, dotyka fog.mjs i movement.mjs (`roomsKnownToMe`) | `fog.mjs` ledger, `movement.mjs` roomsKnownToMe |
-| D3 | **Czy pule Despair są publiczne?** (DESP-03) | Rail gracza maskuje liczby "?", karty Calli bez liczb, tooltip pipów nazywa pulę | Wszystko jawne: zdjąć maskę z `buildRow` i pokazać liczby w kartach | `despair.mjs` buildRow, `Despair.spent` |
-| D4 | **Gear: "jedno w ręce"** (ITEM-04) | Wskazówka w hincie, moduł nie wymusza; drugie narzędzie zakładane obok pierwszego | Auto-ready: założenie drugiego zdejmuje pierwsze (jak `TOOL_IN_HAND`) | `use-items.mjs` equip, `config.mjs` TOOL_IN_HAND |
-| D5 | **Auto-wiązanie śladów ze zbrodnią w trakcie incydentu** (CASE-11) | Każdy ślad zostawiony w trakcie incydentu dostaje `tiedToCrime: true`, także ślad przypadkowego świadka | Wiązać tylko ślady uczestników (`participantIds`), reszta `null` do decyzji GMa w dashboardzie | `remnants.mjs` placeRemnant, `murder.mjs` |
-| D6 | **`Action.sabotageSeen` - kto widzi nieudany sabotaż** | Karta publiczna (cały stół) | Tylko pokój (`announce` z `room`) | `action-rolls.mjs` performSabotage |
-| D7 | **Podsłuch przez LiveKit pokazuje kafelek GMa** (COMM-13) | Dialog mówi o tym wprost (stan po zadaniu 10); kafelek GMa nosi imię Monokumy | Nie przemianowywać kafelka GMa w trybie ręcznym (`relabel` w camera-view.mjs), żeby chociaż imię nie było reklamowane | `camera-view.mjs` relabel |
-| D8 | **Redakcja tekstów** (sekcja 3.2 dryf terminologii, 3.3 długości) | Angielskie i polskie zdania jak są | Twoja ręczna redakcja zaplanowana na 1.3.0 - lista kandydatów w 3.1-3.3 nadal aktualna | `lang/*.json`, `config.mjs` |
-| D9 | **Alias `game.drpg.returnToDiscussion` i `SETTINGS.blackened`** | Zostawione (kompatybilność makr i migracji) | Usunąć przy 1.3.0 po ogłoszeniu w notatkach | `api.mjs`, `settings.mjs` |
-| D10 | **Wydanie 1.2.44** | Gałąź niezmergowana, `main` na 1.2.43 | Merge do `main` + workflow Release z tagiem `v1.2.44` (procedura z sekcji 8) | `module.json`, `styles/danganronpa.css` stempel |
+Wszystkie 152 ID z `findings-1.2.42/` są zamknięte albo rozstrzygnięte decyzją; sekcja 6 (higiena) jest zrobiona w całości (A-D powyżej). Zostają trzy rzeczy, żadna nie jest kodem do napisania teraz:
+
+| # | Co | Kto | Kiedy |
+| --- | --- | --- | --- |
+| 1 | Live checki z sekcji 7 i 9.2 na prawdziwym Foundry (canvas, CSS, Dice So Nice, LiveKit) | GM przy stole | po aktualizacji do 1.2.44 |
+| 2 | Ręczna redakcja tekstów wg 3.1-3.3 (Remnant/trace 56+78 kluczy, GM/Monokuma w prozie, etykiety "Behind Closed Doors"/"Public Announcement") | Dawid | 1.3.0 "Stained Update" |
+| 3 | `registerSettings` (505 linii kodu, płaska lista rejestracji) i `steps()` (tabela danych) zostają długie z natury; jeśli kiedyś przeszkadzają, naturalny szew to jedna funkcja na grupę ustawień | - | opcjonalnie |
 
 ### 9.2 Live checks nadal otwarte
 
