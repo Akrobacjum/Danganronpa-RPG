@@ -694,396 +694,380 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
      field and the upright zone in the middle belong to the screen: read off the wall instead,
      the Despair rail - centred on the window - fell 158 px off the middle of a 1685 px wall and
      took a full 8 degrees of tilt, which is the leaning rail on the tablet screenshot. */
-  function curtainShapes(host, W, H, rnd, boxes, FW) {
-    const panes = [];
-    /* THE RAILS' BANDS BELONG TO THE STRIPS, AND NOTHING ELSE IS CUT INTO THEM.
-       The side strip is the part of the curtain that runs along a wall, and it is where a
-       rail's shard is cut. Everything else - the columns' panes and the filler sectors
-       between them - used to be free to run into the wall too, and it is the FILLER that
-       finally cost the tab rail its glass: three sectors reached 60 px into the band at the
-       top of the screen, so the strip had to begin 249 px down and the rail's first five
-       tiles sat on them, with a seam across each (measured 07.09, 42 of 64 corners home).
-       Every pane except a strip is clipped out of the bands here, in one place, so the band
-       is the strip's from the top of the screen to the bottom and the shard can be cut
-       wherever the tiles actually are. `clipHP` keeps a convex polygon convex. */
-    const push = (poly, tone, kind, rank) => {
-      if (!poly || poly.length < 3) return null;
-      /* AND ONLY ACROSS THE RUN OF THE TILES.
-         The first version of this clipped every pane out of the band for the WHOLE height of
-         the screen, which took the clock's own glass, the GM button's and - worst - the
-         notice tile's, all three of which live at that wall above or below the rail and had
-         nothing to do with it (Dawid, 07.09: "kawalek szkla przeznaczony na powiadomienia
-         zniknal"). A pane is cut into three across the band's own run instead: what is above
-         it, what is beside it, and what is below. Only the middle piece loses the band. */
-      let parts = [poly];
+  /* THE RAILS' BANDS BELONG TO THE STRIPS, AND NOTHING ELSE IS CUT INTO THEM.
+     The side strip is the part of the curtain that runs along a wall, and it is where a
+     rail's shard is cut. Everything else - the columns' panes and the filler sectors
+     between them - used to be free to run into the wall too, and it is the FILLER that
+     finally cost the tab rail its glass: three sectors reached 60 px into the band at the
+     top of the screen, so the strip had to begin 249 px down and the rail's first five
+     tiles sat on them, with a seam across each (measured 07.09, 42 of 64 corners home).
+     Every pane except a strip is clipped out of the bands here, in one place, so the band
+     is the strip's from the top of the screen to the bottom and the shard can be cut
+     wherever the tiles actually are. `clipHP` keeps a convex polygon convex. */
+  const pushPane = (ctx, poly, tone, kind, rank) => {
+    const { panes, railBands, W, H } = ctx;
+    if (!poly || poly.length < 3) return null;
+    /* AND ONLY ACROSS THE RUN OF THE TILES.
+       The first version of this clipped every pane out of the band for the WHOLE height of
+       the screen, which took the clock's own glass, the GM button's and - worst - the
+       notice tile's, all three of which live at that wall above or below the rail and had
+       nothing to do with it (Dawid, 07.09: "kawalek szkla przeznaczony na powiadomienia
+       zniknal"). A pane is cut into three across the band's own run instead: what is above
+       it, what is beside it, and what is below. Only the middle piece loses the band. */
+    let parts = [poly];
 
-      /* FILLER ONLY. Clipping the SECTIONS - the panes cut for the clock, the GM button and
-         the notice tile - is what took their glass away, and the partition's own check said
-         so as plainly as Dawid did: two blocks off their pane and seven gaps at the screen
-         edge. Those panes belong to blocks standing at the same wall above and below the
-         rail, with nothing to do with it. What crowded the rail was the FILLER between the
-         columns, and filler is exactly what the strip replaces there. */
-      if (kind !== "strip" && kind !== "section") {
-        for (const [b, dir] of [[railBands.left, 1], [railBands.right, -1]]) {
-          if (!b || b.real === false || !b.coreY) continue;
-          const [by0, by1] = b.coreY;
-          parts = parts.flatMap(q => {
-            const bx = bbox(q);
-            if (dir > 0 ? bx.x0 >= b.band : bx.x1 <= b.band) return [q];
-            if (bx.y1 <= by0 || bx.y0 >= by1) return [q];
-            const out = [];
-            let rest = q;
-            if (bx.y0 < by0) { const cut = split(q, 0, by0, 0, -1); if (cut[0]) out.push(cut[0]); rest = cut[1]; }
-            if (rest) {
-              const bx2 = bbox(rest);
-              let mid = rest;
-              if (bx2.y1 > by1) { const cut = split(rest, 0, by1, 0, -1); mid = cut[0]; if (cut[1]) out.push(cut[1]); }
-              const kept = mid ? clipHP(mid, b.band, 0, dir, 0) : null;
-              if (kept) out.push(kept);
-            }
-            return out.filter(Boolean);
-          });
-        }
+    /* FILLER ONLY. Clipping the SECTIONS - the panes cut for the clock, the GM button and
+       the notice tile - is what took their glass away, and the partition's own check said
+       so as plainly as Dawid did: two blocks off their pane and seven gaps at the screen
+       edge. Those panes belong to blocks standing at the same wall above and below the
+       rail, with nothing to do with it. What crowded the rail was the FILLER between the
+       columns, and filler is exactly what the strip replaces there. */
+    if (kind !== "strip" && kind !== "section") {
+      for (const [b, dir] of [[railBands.left, 1], [railBands.right, -1]]) {
+        if (!b || b.real === false || !b.coreY) continue;
+        const [by0, by1] = b.coreY;
+        parts = parts.flatMap(q => {
+          const bx = bbox(q);
+          if (dir > 0 ? bx.x0 >= b.band : bx.x1 <= b.band) return [q];
+          if (bx.y1 <= by0 || bx.y0 >= by1) return [q];
+          const out = [];
+          let rest = q;
+          if (bx.y0 < by0) { const cut = split(q, 0, by0, 0, -1); if (cut[0]) out.push(cut[0]); rest = cut[1]; }
+          if (rest) {
+            const bx2 = bbox(rest);
+            let mid = rest;
+            if (bx2.y1 > by1) { const cut = split(rest, 0, by1, 0, -1); mid = cut[0]; if (cut[1]) out.push(cut[1]); }
+            const kept = mid ? clipHP(mid, b.band, 0, dir, 0) : null;
+            if (kept) out.push(kept);
+          }
+          return out.filter(Boolean);
+        });
       }
-      let first = null;
-      for (const q of parts) {
-        if (!q || q.length < 3) continue;
-        const edge = touchesEdge(q, W, H);
-        if (!edge && (area(q) < 40 || thickness(q) < 6)) continue;
-        const p = { poly: q, content: !!tone, tone, kind, rank: rank == null ? 9 : rank };
-        panes.push(p); first = first || p;
-      }
-      return first;
-    };
+    }
+    let first = null;
+    for (const q of parts) {
+      if (!q || q.length < 3) continue;
+      const edge = touchesEdge(q, W, H);
+      if (!edge && (area(q) < 40 || thickness(q) < 6)) continue;
+      const p = { poly: q, content: !!tone, tone, kind, rank: rank == null ? 9 : rank };
+      panes.push(p); first = first || p;
+    }
+    return first;
+  };
 
-    const columnsOf = list => {
-      const cols = [];
-      for (const b of list) {
-        const c = cols.find(c => Math.min(c.x1, b.x + b.w) - Math.max(c.x0, b.x) > -(2 * PAD_SIDE + 10));
-        if (c) { c.items.push(b); c.x0 = Math.min(c.x0, b.x); c.x1 = Math.max(c.x1, b.x + b.w); c.y0 = Math.min(c.y0, b.y); c.y1 = Math.max(c.y1, b.y + b.h); }
-        else cols.push({ x0: b.x, x1: b.x + b.w, y0: b.y, y1: b.y + b.h, items: [b] });
-      }
-      cols.forEach(c => c.items.sort((p, q) => p.y - q.y));
-      return cols.sort((p, q) => p.x0 - q.x0);
-    };
-    const top = columnsOf(boxes.filter(b => b.y + b.h / 2 < H / 2));
-    const bot = columnsOf(boxes.filter(b => b.y + b.h / 2 >= H / 2));
+  const columnsOf = list => {
+    const cols = [];
+    for (const b of list) {
+      const c = cols.find(c => Math.min(c.x1, b.x + b.w) - Math.max(c.x0, b.x) > -(2 * PAD_SIDE + 10));
+      if (c) { c.items.push(b); c.x0 = Math.min(c.x0, b.x); c.x1 = Math.max(c.x1, b.x + b.w); c.y0 = Math.min(c.y0, b.y); c.y1 = Math.max(c.y1, b.y + b.h); }
+      else cols.push({ x0: b.x, x1: b.x + b.w, y0: b.y, y1: b.y + b.h, items: [b] });
+    }
+    cols.forEach(c => c.items.sort((p, q) => p.y - q.y));
+    return cols.sort((p, q) => p.x0 - q.x0);
+  };
 
-    /* THE ROOM THE TILES COULD EVER NEED, DECIDED ONCE.
-       This used to be the union of the tiles that happen to be shown, and that box is a
-       moving target: opening a scene control's tools takes the left rail from 72 px wide and
-       12 tiles to 112 and 20 (they wrap into a second column when the run is taller than the
-       screen), and expanding the sidebar carries the right rail 300 px inboard. Cut to that,
-       the glass was recut on every click - the glitch and the sidebar regression Dawid
-       reported on 07.09, and the reason three rounds of "make the glass fit the tiles" kept
-       producing a fit that lasted until the next click.
-       The shard is cut to CAPACITY instead. Width: the widest the rail can get, which is one
-       column for the tab rail and three for the scene rail (its controls, plus the two the
-       tools wrap into at their longest). Height: the rail's own run, which is what bounds the
-       wrap in the first place. Anchor: the WALL, not the measured left edge, so a sidebar
-       sliding out over the curtain changes nothing about it. Nothing here is read from a
-       state the user can change with a click. */
-    const railBox = (sel, side, fallback) => {
-      const rail = host.querySelector(sel);
-      const o = cv?.getBoundingClientRect();
-      if (!rail || !rail.offsetWidth || !o) return fallback ? { ...fallback, real: false } : { real: false };
-      const keep = rail.style.transform; rail.style.transform = "";
-      const btns = tileButtons(rail);
-      const r = rail.getBoundingClientRect();
-      const s = o.width / W || 1;
-      const first = btns.length ? btns[0].getBoundingClientRect() : null;
-      const unit = first ? first.width : 32;
-      // the gap between two columns of tiles, read off the rail's own menus (8 px in v13/v14)
-      const menus = [...rail.querySelectorAll(":scope > menu")].filter(m => m.offsetWidth > 0);
-      const gap = menus.length > 1
-        ? Math.max(0, Math.round(menus[1].getBoundingClientRect().left - menus[0].getBoundingClientRect().right))
-        : 8;
-      let top = btns.length ? Math.min(...btns.map(e => e.getBoundingClientRect().top)) : r.top;
-      /* THE GM BUTTON RIDES WITH THE LEFT RAIL. It is laid out directly above the tiles, in
-         the same 72 px of wall, so the shard is measured to hold both and they turn together
-         (Dawid, 07.09: "przerzucmy gm button do tego samego kawalka kurtyny"). */
-      if (!side) {
-        const gm = host.querySelector("#drpg-gm-launcher");
-        if (gm && gm.offsetWidth) {
-          const g = gm.getBoundingClientRect();
-          top = Math.min(top, g.top + GM_DROP);
-        }
+  /* THE ROOM THE TILES COULD EVER NEED, DECIDED ONCE.
+     This used to be the union of the tiles that happen to be shown, and that box is a
+     moving target: opening a scene control's tools takes the left rail from 72 px wide and
+     12 tiles to 112 and 20 (they wrap into a second column when the run is taller than the
+     screen), and expanding the sidebar carries the right rail 300 px inboard. Cut to that,
+     the glass was recut on every click - the glitch and the sidebar regression Dawid
+     reported on 07.09, and the reason three rounds of "make the glass fit the tiles" kept
+     producing a fit that lasted until the next click.
+     The shard is cut to CAPACITY instead. Width: the widest the rail can get, which is one
+     column for the tab rail and three for the scene rail (its controls, plus the two the
+     tools wrap into at their longest). Height: the rail's own run, which is what bounds the
+     wrap in the first place. Anchor: the WALL, not the measured left edge, so a sidebar
+     sliding out over the curtain changes nothing about it. Nothing here is read from a
+     state the user can change with a click. */
+  const railBox = (host, cv, W, sel, side, fallback) => {
+    const rail = host.querySelector(sel);
+    const o = cv?.getBoundingClientRect();
+    if (!rail || !rail.offsetWidth || !o) return fallback ? { ...fallback, real: false } : { real: false };
+    const keep = rail.style.transform; rail.style.transform = "";
+    const btns = tileButtons(rail);
+    const r = rail.getBoundingClientRect();
+    const s = o.width / W || 1;
+    const first = btns.length ? btns[0].getBoundingClientRect() : null;
+    const unit = first ? first.width : 32;
+    // the gap between two columns of tiles, read off the rail's own menus (8 px in v13/v14)
+    const menus = [...rail.querySelectorAll(":scope > menu")].filter(m => m.offsetWidth > 0);
+    const gap = menus.length > 1
+      ? Math.max(0, Math.round(menus[1].getBoundingClientRect().left - menus[0].getBoundingClientRect().right))
+      : 8;
+    let top = btns.length ? Math.min(...btns.map(e => e.getBoundingClientRect().top)) : r.top;
+    /* THE GM BUTTON RIDES WITH THE LEFT RAIL. It is laid out directly above the tiles, in
+       the same 72 px of wall, so the shard is measured to hold both and they turn together
+       (Dawid, 07.09: "przerzucmy gm button do tego samego kawalka kurtyny"). */
+    if (!side) {
+      const gm = host.querySelector("#drpg-gm-launcher");
+      if (gm && gm.offsetWidth) {
+        const g = gm.getBoundingClientRect();
+        top = Math.min(top, g.top + GM_DROP);
       }
-      /* From wherever the shard now STARTS to the bottom of the rail's own run. Adding the
-         GM button's height on top of a height already measured from its top counted it twice
-         and ran the band down into the notice tile's column, which then stopped hugging the
-         wall and left a wedge of bare map there. */
-      /* THREE CORNERS OF EIGHTY ARE STILL ON THE NOTICE TILE'S PANE AT 1080p, AND WIDENING
-         THIS IS NOT WHAT FIXES THEM. Reserving the whole wall the rail may use was tried on
-         09.09 and changed the tally by exactly nothing, which is the measurement that says
-         where the fault really is: `push()` exempts `section` panes from the rail's band
-         entirely, so however much band is asked for, a section already covering it keeps it.
-         The exemption is right in general - it is what stopped the clock, the GM button and the
-         notice tile losing their glass on 07.09 - and too broad here. What it wants is a rule
-         it does not have: a section may lose the band ABOVE AND BELOW the block it was cut for,
-         never where that block stands. `push` would have to be given the block's own box, which
-         both call sites already hold as `up.r`. A solver change, not a patch; see the note
-         beside BLOCKS about what teaching this partition costs. */
-      /* TO THE LAST TILE, NOT TO THE BOTTOM OF THE BOX.
+    }
+    /* From wherever the shard now STARTS to the bottom of the rail's own run. Adding the
+       GM button's height on top of a height already measured from its top counted it twice
+       and ran the band down into the notice tile's column, which then stopped hugging the
+       wall and left a wedge of bare map there. */
+    /* THREE CORNERS OF EIGHTY ARE STILL ON THE NOTICE TILE'S PANE AT 1080p, AND WIDENING
+       THIS IS NOT WHAT FIXES THEM. Reserving the whole wall the rail may use was tried on
+       09.09 and changed the tally by exactly nothing, which is the measurement that says
+       where the fault really is: `push()` exempts `section` panes from the rail's band
+       entirely, so however much band is asked for, a section already covering it keeps it.
+       The exemption is right in general - it is what stopped the clock, the GM button and the
+       notice tile losing their glass on 07.09 - and too broad here. What it wants is a rule
+       it does not have: a section may lose the band ABOVE AND BELOW the block it was cut for,
+       never where that block stands. `push` would have to be given the block's own box, which
+       both call sites already hold as `up.r`. A solver change, not a patch; see the note
+       beside BLOCKS about what teaching this partition costs. */
+    /* TO THE LAST TILE, NOT TO THE BOTTOM OF THE BOX.
 
-         `rail.offsetHeight` is the box, and the box is whatever `max-height` left it -
-         the bound in `moduleLayout` sets that to the room available at this wall, not to
-         what the tiles use. Measured on 10.09 at 2560x1440: the box was 525 px tall and
-         held 314 px of tiles, so the band reserved 211 px of empty wall and then asked for
-         a 34 px skirt below THAT. It ran into the notice tile's pane, which is what the
-         seam through the bottom row of tiles was really about.
+       `rail.offsetHeight` is the box, and the box is whatever `max-height` left it -
+       the bound in `moduleLayout` sets that to the room available at this wall, not to
+       what the tiles use. Measured on 10.09 at 2560x1440: the box was 525 px tall and
+       held 314 px of tiles, so the band reserved 211 px of empty wall and then asked for
+       a 34 px skirt below THAT. It ran into the notice tile's pane, which is what the
+       seam through the bottom row of tiles was really about.
 
-         The band exists to hold the tiles and the GM button above them. Both are measured;
-         the padding under the last tile is not part of either. `top` is already the higher
-         of the first tile and the GM button, so this is the other end of the same reading. */
-      const tilesBottom = btns.length
-        ? Math.max(...btns.map(e => e.getBoundingClientRect().bottom))
-        : (r.top + rail.offsetHeight);
-      const wantH = Math.max(tilesBottom - top, btns.length * 1);
-      /* HOW MANY COLUMNS THE TILES CAN ACTUALLY REACH, not the worst case on any screen.
-         Foundry wraps a control's tools into another column only when they run out of the
-         height available, so on a tall screen thirteen tools sit in ONE column and reserving
-         three was reserving a column of glass that can never be used. */
-      let cols = 1;
-      if (!side) {
-        const tools = Object.values(globalThis.ui?.controls?.controls ?? {})
-          .map(c => Object.keys(c.tools ?? {}).length);
-        const most = tools.length ? Math.max(...tools) : 0;
-        const pitch = unit + gap;
-        const fit = Math.max(1, Math.floor(wantH / Math.max(1, pitch)));
-        cols = 1 + Math.max(1, Math.ceil(most / fit));
-      }
-      /* The container is not the content: `#scene-controls` is 151 px wide with its buttons
-         in the right 99 of it, and reserving glass for that padding is 52 px of empty band. */
-      const seen = btns.map(e => e.getBoundingClientRect());
-      const shown = seen.length ? Math.max(...seen.map(q => q.right)) - Math.min(...seen.map(q => q.left)) : rail.offsetWidth;
-      const coreW = Math.max(shown, cols * unit + (cols - 1) * gap);
-      rail.style.transform = keep;
-      /* IN THE CURTAIN'S OWN PIXELS, AND AROUND THE TILES RATHER THAN THE CONTAINER.
-         The width came from the tiles once the container's 52 px of padding was dropped, but
-         the left edge was still the CONTAINER's - so the band was the right size in the wrong
-         place, sitting half a column left of what it was cut for. Anything centred on the
-         tiles then stood over its edge (Dawid, 08.09: "wychodzi poza swoj panel"). Both from
-         the same measurement now. The right-hand rail stays anchored to its wall, which is
-         what keeps it still while the sidebar slides out over it. */
-      const pad = 8;
-      const tilesLeft = seen.length ? (Math.min(...seen.map(q => q.left)) - o.left) / s : (r.left - o.left) / s;
-      const c1 = side ? (W - pad) : tilesLeft + coreW;
-      const c0 = side ? (W - pad - coreW) : tilesLeft;
-      /* The shard is the core box plus the swing, on BOTH sides: the rail turns about the
-         core's centre, so it leans out over each edge by the same amount, and a shard grown
-         on one side only left the tiles hanging over the other. */
-      const sw = railSwing(wantH), lift = Math.round(coreW * Math.sin(MAX_TILT) / 2);
-      const slack = 14 + Math.round(wantH * Math.tan(STRIP_ANGLE));
-      const x0 = c0 - sw, x1 = c1 + sw;
-      const y0 = (top - o.top) / s - lift, y1 = y0 + (wantH + 2 * lift) / s;
-      /* `band` is the reserved wall zone, and it is the STRIP's width, not the tiles'. The
-         strip's outer edge leans in over its run and keeps a clearance off the tiles, so a
-         band cut to the tiles alone left the strip's own quad hanging over the panes beside
-         it - and a strip piece that overlaps a content pane is thrown away by the partition,
-         which is how the tab rail came to stand on no glass at all. Reserve what it takes. */
-      return { x0, y0, x1, y1, real: true, core: [c0, c1],
-               centre: [(c0 + c1) / 2 * s + o.left, (y0 + y1) / 2 * s + o.top],
-               /* THE BAND BUYS THE ANGLE. A constant slack meant the edge could only lean
-                  as far as whatever was left over, so on a tall rail it came out at 1.5 deg
-                  instead of the 3.4 the audit page draws, and "parallel" was true but
-                  invisible. The slack is what the angle costs on THIS rail - its own run
-                  times the tangent - plus the 14 px the edge keeps off the tiles. */
-               band: side ? x0 - slack : x1 + slack,
-               /* A FEW PIXELS PROUD AT EACH END. The cut used to start exactly at the top of
-                  the GM button, so the button's top edge fell on the far side of it and its
-                  two upper corners stayed on the clock's glass while its lower two were on
-                  the rail's - straddling the seam. What stands in the band has to be inside
-                  the band, edges included. */
-               /* THE SKIRT UNDER THE LAST TILE IS DEEPER THAN THE COLLAR OVER THE FIRST.
-                  14 above and 14 below left the strip's lower edge exactly where the tiles end,
-                  so the seam between the strip and the notice tile's section ran through the
-                  bottom row - three corners of twenty tiles on the wrong pane at 1080p, and none
-                  at 1440p, because there the run ends far above the tile. 34 below puts the seam
-                  clear of the row; above it stays 14, where the GM button needs it tight. */
-               coreY: [(top - o.top) / s - 14, (top - o.top) / s + wantH / s + 34],
-               origin: [(c0 + c1) / 2 * s + o.left - r.left, (y0 + y1) / 2 * s + o.top - r.top] };
-    };
-    /* THE RAILS' BANDS ARE KNOWN BEFORE THE COLUMNS ARE CUT, AND THE COLUMNS RESPECT THEM.
-       A column near a wall runs its pane INTO the wall so no bare wedge is left there
-       (`hugL` / `hugR` below). On a side where a rail stands that is exactly wrong: the
-       Projects tray's pane ran under the tab rail all the way to the edge, so the rail's
-       upper tiles sat on the tray's glass and the seam between it and the strip crossed them
-       - 37 of 64 tile corners on panes that were not theirs (measured 07.09). The strip
-       covers that band instead, for its whole height, and a column whose own run overlaps
-       the band stops at its own edge. Nothing is left bare: the band IS the strip. */
-    const cv = host.querySelector(".curtain > canvas.sg, #drpg-curtain > canvas.sg");
+       The band exists to hold the tiles and the GM button above them. Both are measured;
+       the padding under the last tile is not part of either. `top` is already the higher
+       of the first tile and the GM button, so this is the other end of the same reading. */
+    const tilesBottom = btns.length
+      ? Math.max(...btns.map(e => e.getBoundingClientRect().bottom))
+      : (r.top + rail.offsetHeight);
+    const wantH = Math.max(tilesBottom - top, btns.length * 1);
+    /* HOW MANY COLUMNS THE TILES CAN ACTUALLY REACH, not the worst case on any screen.
+       Foundry wraps a control's tools into another column only when they run out of the
+       height available, so on a tall screen thirteen tools sit in ONE column and reserving
+       three was reserving a column of glass that can never be used. */
+    let cols = 1;
+    if (!side) {
+      const tools = Object.values(globalThis.ui?.controls?.controls ?? {})
+        .map(c => Object.keys(c.tools ?? {}).length);
+      const most = tools.length ? Math.max(...tools) : 0;
+      const pitch = unit + gap;
+      const fit = Math.max(1, Math.floor(wantH / Math.max(1, pitch)));
+      cols = 1 + Math.max(1, Math.ceil(most / fit));
+    }
+    /* The container is not the content: `#scene-controls` is 151 px wide with its buttons
+       in the right 99 of it, and reserving glass for that padding is 52 px of empty band. */
+    const seen = btns.map(e => e.getBoundingClientRect());
+    const shown = seen.length ? Math.max(...seen.map(q => q.right)) - Math.min(...seen.map(q => q.left)) : rail.offsetWidth;
+    const coreW = Math.max(shown, cols * unit + (cols - 1) * gap);
+    rail.style.transform = keep;
+    /* IN THE CURTAIN'S OWN PIXELS, AND AROUND THE TILES RATHER THAN THE CONTAINER.
+       The width came from the tiles once the container's 52 px of padding was dropped, but
+       the left edge was still the CONTAINER's - so the band was the right size in the wrong
+       place, sitting half a column left of what it was cut for. Anything centred on the
+       tiles then stood over its edge (Dawid, 08.09: "wychodzi poza swoj panel"). Both from
+       the same measurement now. The right-hand rail stays anchored to its wall, which is
+       what keeps it still while the sidebar slides out over it. */
+    const pad = 8;
+    const tilesLeft = seen.length ? (Math.min(...seen.map(q => q.left)) - o.left) / s : (r.left - o.left) / s;
+    const c1 = side ? (W - pad) : tilesLeft + coreW;
+    const c0 = side ? (W - pad - coreW) : tilesLeft;
+    /* The shard is the core box plus the swing, on BOTH sides: the rail turns about the
+       core's centre, so it leans out over each edge by the same amount, and a shard grown
+       on one side only left the tiles hanging over the other. */
+    const sw = railSwing(wantH), lift = Math.round(coreW * Math.sin(MAX_TILT) / 2);
+    const slack = 14 + Math.round(wantH * Math.tan(STRIP_ANGLE));
+    const x0 = c0 - sw, x1 = c1 + sw;
+    const y0 = (top - o.top) / s - lift, y1 = y0 + (wantH + 2 * lift) / s;
+    /* `band` is the reserved wall zone, and it is the STRIP's width, not the tiles'. The
+       strip's outer edge leans in over its run and keeps a clearance off the tiles, so a
+       band cut to the tiles alone left the strip's own quad hanging over the panes beside
+       it - and a strip piece that overlaps a content pane is thrown away by the partition,
+       which is how the tab rail came to stand on no glass at all. Reserve what it takes. */
+    return { x0, y0, x1, y1, real: true, core: [c0, c1],
+             centre: [(c0 + c1) / 2 * s + o.left, (y0 + y1) / 2 * s + o.top],
+             /* THE BAND BUYS THE ANGLE. A constant slack meant the edge could only lean
+                as far as whatever was left over, so on a tall rail it came out at 1.5 deg
+                instead of the 3.4 the audit page draws, and "parallel" was true but
+                invisible. The slack is what the angle costs on THIS rail - its own run
+                times the tangent - plus the 14 px the edge keeps off the tiles. */
+             band: side ? x0 - slack : x1 + slack,
+             /* A FEW PIXELS PROUD AT EACH END. The cut used to start exactly at the top of
+                the GM button, so the button's top edge fell on the far side of it and its
+                two upper corners stayed on the clock's glass while its lower two were on
+                the rail's - straddling the seam. What stands in the band has to be inside
+                the band, edges included. */
+             /* THE SKIRT UNDER THE LAST TILE IS DEEPER THAN THE COLLAR OVER THE FIRST.
+                14 above and 14 below left the strip's lower edge exactly where the tiles end,
+                so the seam between the strip and the notice tile's section ran through the
+                bottom row - three corners of twenty tiles on the wrong pane at 1080p, and none
+                at 1440p, because there the run ends far above the tile. 34 below puts the seam
+                clear of the row; above it stays 14, where the GM button needs it tight. */
+             coreY: [(top - o.top) / s - 14, (top - o.top) / s + wantH / s + 34],
+             origin: [(c0 + c1) / 2 * s + o.left - r.left, (y0 + y1) / 2 * s + o.top - r.top] };
+  };
 
-    const railBands = {
-      left: railBox("#scene-controls", 0, null),
-      right: railBox("#sidebar-tabs", 1, null),
-    };
-    const bandOwns = (c, side) => {
-      const b = side ? railBands.right : railBands.left;
-      if (!b || b.real === false) return false;
-      return c.y0 < b.y1 && c.y1 > b.y0;
-    };
-    /* a column's pane: the padded block rectangle rotated with the field, its near
-       side run off the screen edge, clipped to the screen; the block is rotated by
-       the same angle around the same pivot, so glass and panel agree exactly */
-    const buildColumn = (c, cols, band) => {
-      const cx = (c.x0 + c.x1) / 2, h = c.y1 - c.y0;
-      const s0 = field(cx, FW, band);
-      let theta = Math.abs(cx - FW / 2) < 0.1 * FW ? 0 : Math.min(8 * DEG, Math.max(6 * DEG, Math.atan(Math.abs(s0))));
-      // a neighbour too close forbids the tilt that would swing the pane into it
-      for (const o of cols) if (o !== c) { const gap = o.x0 > c.x1 ? o.x0 - c.x1 : c.x0 - o.x1; if (gap >= 0) theta = Math.min(theta, Math.atan(Math.max(0, gap - 2 * PAD_SIDE - 2) / Math.max(h, 1))); }
-      const s = Math.sign(s0) * Math.tan(theta);
-      const phi = -Math.atan(s);
-      const px = cx < W / 2 ? c.x1 : c.x0;
-      const py = band === "top" ? c.y0 : c.y1;
-      const cs = Math.cos(phi), sn = Math.sin(phi);
-      const rot = (X, Y) => [px + X * cs - Y * sn, py + X * sn + Y * cs];
-      // the rotation goes into a stylesheet rule keyed by the block's selector (applyRotations), so a
-      // block the module re-renders from scratch wears it the moment it appears; a union of several
-      // elements gets inline styles, because each has its own origin
-      const turn = Math.abs(phi) < 0.004 ? "none" : "rotate(" + phi + "rad)";
-      for (const b of c.items) {
-        /* A FIXED BLOCK IS STILL A BLOCK ON THE GLASS. Its box is a constant - the notice tile is
-           cut once and never recut, whatever arrives in it - but its element must still turn with
-           its pane, or the cards stand upright inside a tilted piece of glass (1.2.38). The rule
-           is keyed to the SELECTOR and computed from the fixed box, so it holds even though the
-           element is not measured and may not exist yet: popup.mjs builds the stack on the first
-           card of the session, long after the glass was cut. */
-        if (b.fixed) { ROT.push({ sel: b.sel, el: null, origin: (px - b.x) + "px " + (py - b.y) + "px", transform: turn }); continue; }
-        if (!b.el) continue;
-        for (const e of b.els) {
-          const er = e.getBoundingClientRect();
-          ROT.push({ sel: b.els.length === 1 ? b.sel : null, el: e, origin: (px - er.left) + "px " + (py - er.top) + "px", transform: turn });
-        }
+  /* a column's pane: the padded block rectangle rotated with the field, its near
+     side run off the screen edge, clipped to the screen; the block is rotated by
+     the same angle around the same pivot, so glass and panel agree exactly */
+  const buildColumn = (ctx, c, cols, band) => {
+    const { W, H, FW, push } = ctx;
+    const cx = (c.x0 + c.x1) / 2, h = c.y1 - c.y0;
+    const s0 = field(cx, FW, band);
+    let theta = Math.abs(cx - FW / 2) < 0.1 * FW ? 0 : Math.min(8 * DEG, Math.max(6 * DEG, Math.atan(Math.abs(s0))));
+    // a neighbour too close forbids the tilt that would swing the pane into it
+    for (const o of cols) if (o !== c) { const gap = o.x0 > c.x1 ? o.x0 - c.x1 : c.x0 - o.x1; if (gap >= 0) theta = Math.min(theta, Math.atan(Math.max(0, gap - 2 * PAD_SIDE - 2) / Math.max(h, 1))); }
+    const s = Math.sign(s0) * Math.tan(theta);
+    const phi = -Math.atan(s);
+    const px = cx < W / 2 ? c.x1 : c.x0;
+    const py = band === "top" ? c.y0 : c.y1;
+    const cs = Math.cos(phi), sn = Math.sin(phi);
+    const rot = (X, Y) => [px + X * cs - Y * sn, py + X * sn + Y * cs];
+    // the rotation goes into a stylesheet rule keyed by the block's selector (applyRotations), so a
+    // block the module re-renders from scratch wears it the moment it appears; a union of several
+    // elements gets inline styles, because each has its own origin
+    const turn = Math.abs(phi) < 0.004 ? "none" : "rotate(" + phi + "rad)";
+    for (const b of c.items) {
+      /* A FIXED BLOCK IS STILL A BLOCK ON THE GLASS. Its box is a constant - the notice tile is
+         cut once and never recut, whatever arrives in it - but its element must still turn with
+         its pane, or the cards stand upright inside a tilted piece of glass (1.2.38). The rule
+         is keyed to the SELECTOR and computed from the fixed box, so it holds even though the
+         element is not measured and may not exist yet: popup.mjs builds the stack on the first
+         card of the session, long after the glass was cut. */
+      if (b.fixed) { ROT.push({ sel: b.sel, el: null, origin: (px - b.x) + "px " + (py - b.y) + "px", transform: turn }); continue; }
+      if (!b.el) continue;
+      for (const e of b.els) {
+        const er = e.getBoundingClientRect();
+        ROT.push({ sel: b.els.length === 1 ? b.sel : null, el: e, origin: (px - er.left) + "px " + (py - er.top) + "px", transform: turn });
       }
-      let X0 = c.x0 - px - PAD_SIDE, X1 = c.x1 - px + PAD_SIDE;
-      const Yn = (band === "top" ? c.y0 - py : c.y1 - py) + (band === "top" ? -3000 : 3000);
-      const Yf = band === "top" ? c.y1 - py + PAD_FAR : c.y0 - py - PAD_FAR;
-      // a column near a wall (under Foundry's sidebar too) runs its pane into the wall: the far corner is
-      // pushed past the screen edge by the gap and by the swing of the rotation, so no bare wedge is left
-      /* A COLUMN AT A WALL ALWAYS HUGS IT. This used to stand down on a side where a rail
-         has its band, on the argument that the band is the strip's - and that is what left
-         the notice tile's pane 31 px short of the left wall, with a 208 px wedge of bare map
-         down the edge (07.09). It was a second line of defence for something `push` already
-         does: every non-strip pane is clipped out of the band across the tiles' own run, and
-         only across it. Above and below the tiles the column keeps the wall, as it should. */
-      c.hugL = c.x0 - PAD_SIDE < HUG; c.hugR = c.x1 + PAD_SIDE > W - HUG;
-      /* BOTH CORNERS, NOT JUST THE FAR ONE.
-         A column at a wall runs its pane into the wall so no bare wedge is left there, and
-         that was measured on the FAR corner alone. A pane is rotated, so its two corners sit
-         at different distances from the wall: correcting one leaves the other inside, and
-         what is left is exactly a wedge - 208 px of it down the left wall under the notice
-         tile at 1440p, which is the hole in the glass Dawid photographed on 07.09. The
-         filler between the columns used to cover it; once the rails' bands were reserved,
-         there was no filler there to do it. Whichever corner is further in decides. */
-      if (c.hugL) { const over = Math.max(rot(X0, Yf)[0], rot(X0, Yn)[0]) + 2; if (over > 0) X0 -= over / cs; }
-      if (c.hugR) { const over = W + 2 - Math.min(rot(X1, Yf)[0], rot(X1, Yn)[0]); if (over > 0) X1 += over / cs; }
-      const rect = band === "top" ? [rot(X0, Yn), rot(X1, Yn), rot(X1, Yf), rot(X0, Yf)] : [rot(X0, Yf), rot(X1, Yf), rot(X1, Yn), rot(X0, Yn)];
-      /* AND THE TWO CORNERS ON THE WALL GO ON THE FAR SIDE OF IT.
-         A hugging column is pushed into the wall by measuring ONE of its corners, and a
-         rotated pane's corners are at different distances from it: correct one and the other
-         can still finish a few pixels inside, leaving a long thin wedge of bare map down the
-         edge (208 px of it under the notice tile at 1440p - the hole in the glass, 07.09).
-         Here the pane's own wall-side corners are moved past the edge, which is exact rather
-         than computed, and moving two corners of a quad the same way leaves it convex. A
-         blanket version of this - every vertex near any wall - does NOT: it notches the
-         sectors, whose vertices already sit exactly on the edge. */
-      if (c.hugL || c.hugR) {
-        const xs = rect.map(q => q[0]).sort((a, b) => a - b);
-        const near = c.hugL ? xs[1] : xs[2];
-        for (const q of rect) {
-          if (c.hugL && q[0] <= near && q[0] > -2) q[0] = -2;
-          if (c.hugR && q[0] >= near && q[0] < W + 2) q[0] = W + 2;
-        }
+    }
+    let X0 = c.x0 - px - PAD_SIDE, X1 = c.x1 - px + PAD_SIDE;
+    const Yn = (band === "top" ? c.y0 - py : c.y1 - py) + (band === "top" ? -3000 : 3000);
+    const Yf = band === "top" ? c.y1 - py + PAD_FAR : c.y0 - py - PAD_FAR;
+    // a column near a wall (under Foundry's sidebar too) runs its pane into the wall: the far corner is
+    // pushed past the screen edge by the gap and by the swing of the rotation, so no bare wedge is left
+    /* A COLUMN AT A WALL ALWAYS HUGS IT. This used to stand down on a side where a rail
+       has its band, on the argument that the band is the strip's - and that is what left
+       the notice tile's pane 31 px short of the left wall, with a 208 px wedge of bare map
+       down the edge (07.09). It was a second line of defence for something `push` already
+       does: every non-strip pane is clipped out of the band across the tiles' own run, and
+       only across it. Above and below the tiles the column keeps the wall, as it should. */
+    c.hugL = c.x0 - PAD_SIDE < HUG; c.hugR = c.x1 + PAD_SIDE > W - HUG;
+    /* BOTH CORNERS, NOT JUST THE FAR ONE.
+       A column at a wall runs its pane into the wall so no bare wedge is left there, and
+       that was measured on the FAR corner alone. A pane is rotated, so its two corners sit
+       at different distances from the wall: correcting one leaves the other inside, and
+       what is left is exactly a wedge - 208 px of it down the left wall under the notice
+       tile at 1440p, which is the hole in the glass Dawid photographed on 07.09. The
+       filler between the columns used to cover it; once the rails' bands were reserved,
+       there was no filler there to do it. Whichever corner is further in decides. */
+    if (c.hugL) { const over = Math.max(rot(X0, Yf)[0], rot(X0, Yn)[0]) + 2; if (over > 0) X0 -= over / cs; }
+    if (c.hugR) { const over = W + 2 - Math.min(rot(X1, Yf)[0], rot(X1, Yn)[0]); if (over > 0) X1 += over / cs; }
+    const rect = band === "top" ? [rot(X0, Yn), rot(X1, Yn), rot(X1, Yf), rot(X0, Yf)] : [rot(X0, Yf), rot(X1, Yf), rot(X1, Yn), rot(X0, Yn)];
+    /* AND THE TWO CORNERS ON THE WALL GO ON THE FAR SIDE OF IT.
+       A hugging column is pushed into the wall by measuring ONE of its corners, and a
+       rotated pane's corners are at different distances from it: correct one and the other
+       can still finish a few pixels inside, leaving a long thin wedge of bare map down the
+       edge (208 px of it under the notice tile at 1440p - the hole in the glass, 07.09).
+       Here the pane's own wall-side corners are moved past the edge, which is exact rather
+       than computed, and moving two corners of a quad the same way leaves it convex. A
+       blanket version of this - every vertex near any wall - does NOT: it notches the
+       sectors, whose vertices already sit exactly on the edge. */
+    if (c.hugL || c.hugR) {
+      const xs = rect.map(q => q[0]).sort((a, b) => a - b);
+      const near = c.hugL ? xs[1] : xs[2];
+      for (const q of rect) {
+        if (c.hugL && q[0] <= near && q[0] > -2) q[0] = -2;
+        if (c.hugR && q[0] >= near && q[0] < W + 2) q[0] = W + 2;
       }
-      const edgeY = band === "top" ? 0 : H;
-      const at = (X) => { const q = rot(X, 0); return { x0: q[0] + s * (edgeY - q[1]), s, edgeY }; };
-      c.rayL = at(X0); c.rayR = at(X1);
-      c.farL = rot(X0, Yf); c.farR = rot(X1, Yf);
-      c.far = { p: c.farL, d: [cs, sn] };
-      c.depthL = Math.abs(c.farL[1] - edgeY); c.depthR = Math.abs(c.farR[1] - edgeY);
-      c.s = s; c.phi = phi; c.rot = rot; c.px = px; c.py = py; c.cs = cs; c.sn = sn;
-      c.corners = [rot(c.x0 - px, c.y0 - py), rot(c.x1 - px, c.y0 - py), rot(c.x1 - px, c.y1 - py), rot(c.x0 - px, c.y1 - py)].filter(q => q[0] > 1 && q[0] < W - 1 && q[1] > 1 && q[1] < H - 1);
-      let piece = clipRect(rect, W, H);
-      for (let m = 0; m + 1 < c.items.length && piece; m++) {
-        const up = c.items[m], dn = c.items[m + 1];
-        if (dn.y < up.y + up.h - 12) continue;                 // blocks that truly overlap share one pane; a touch does not
-        const Ydiv = ((up.y + up.h) + dn.y) / 2 - py;
-        const pt = rot(0, Ydiv);
-        const [below, above] = split(piece, pt[0], pt[1], -sn, cs);
-        const sec = push(above, up.cls, "section", 0); if (sec) sec.empty = !up.r; piece = below;
-      }
-      c.pane = push(piece, c.items[c.items.length - 1].cls, "section", 0);
-      if (c.pane) c.pane.empty = !c.items[c.items.length - 1].r;
-    };
-    top.forEach(c => buildColumn(c, top, "top"));
-    bot.forEach(c => buildColumn(c, bot, "bottom"));
+    }
+    const edgeY = band === "top" ? 0 : H;
+    const at = (X) => { const q = rot(X, 0); return { x0: q[0] + s * (edgeY - q[1]), s, edgeY }; };
+    c.rayL = at(X0); c.rayR = at(X1);
+    c.farL = rot(X0, Yf); c.farR = rot(X1, Yf);
+    c.far = { p: c.farL, d: [cs, sn] };
+    c.depthL = Math.abs(c.farL[1] - edgeY); c.depthR = Math.abs(c.farR[1] - edgeY);
+    c.s = s; c.phi = phi; c.rot = rot; c.px = px; c.py = py; c.cs = cs; c.sn = sn;
+    c.corners = [rot(c.x0 - px, c.y0 - py), rot(c.x1 - px, c.y0 - py), rot(c.x1 - px, c.y1 - py), rot(c.x0 - px, c.y1 - py)].filter(q => q[0] > 1 && q[0] < W - 1 && q[1] > 1 && q[1] < H - 1);
+    let piece = clipRect(rect, W, H);
+    for (let m = 0; m + 1 < c.items.length && piece; m++) {
+      const up = c.items[m], dn = c.items[m + 1];
+      if (dn.y < up.y + up.h - 12) continue;                 // blocks that truly overlap share one pane; a touch does not
+      const Ydiv = ((up.y + up.h) + dn.y) / 2 - py;
+      const pt = rot(0, Ydiv);
+      const [below, above] = split(piece, pt[0], pt[1], -sn, cs);
+      const sec = push(above, up.cls, "section", 0); if (sec) sec.empty = !up.r; piece = below;
+    }
+    c.pane = push(piece, c.items[c.items.length - 1].cls, "section", 0);
+    if (c.pane) c.pane.empty = !c.items[c.items.length - 1].r;
+  };
 
-    /* filler between two rays of one band: a pencil of rays interpolated between the
-       bounding pair, a far edge that continues the pane's own depth for one cell,
-       falls to a thin ledge over the next two, and stays a ledge in the open */
-    const rayX = (r, y) => r.x0 + r.s * (y - r.edgeY);
-    const needles = [];
-    const sectors = (band, rA, rB, dA, dB, ledgeDepth) => {
-      const edgeY = band === "top" ? 0 : H, sgn = band === "top" ? 1 : -1;
-      rA = { ...rA, edgeY }; rB = { ...rB, edgeY };
-      const gap = rB.x0 - rA.x0;
-      if (gap < 8) return;
-      // beside each pane ONE long straight diagonal runs from the pane's far corner down to the
-      // ledge; one or two rays cross it. The open stretch is cut rarely. Few lines, all long.
-      const LA = dA > 0 ? Math.min(gap * 0.45, 520 + rnd() * 240) : 0;
-      const LB = dB > 0 ? Math.min(gap * 0.45, 520 + rnd() * 240) : 0;
-      const xs = [];
-      const step = 230 + rnd() * 60;
-      for (let x = rA.x0 + step; LA > 0 && x < rA.x0 + LA - 60; x += step) xs.push(x + (rnd() - 0.5) * 50);
-      for (let x = rB.x0 - step; LB > 0 && x > rB.x0 - LB + 60; x -= step) xs.push(x + (rnd() - 0.5) * 50);
-      const openL = rA.x0 + LA, openR = rB.x0 - LB, open = openR - openL;
-      if (open > 300) { const m = Math.max(1, Math.round(open / 460)); for (let i = 1; i < m; i++) xs.push(openL + open * (i / m) + (rnd() - 0.5) * 80); }
-      if (LA > 0 && open > 40) xs.push(openL + (rnd() - 0.5) * 20);   // the kink where the diagonal meets the ledge
-      if (LB > 0 && open > 40) xs.push(openR + (rnd() - 0.5) * 20);
-      xs.sort((p, q) => p - q);
-      const rays = [rA];
-      for (const x of xs) { if (x - rays[rays.length - 1].x0 < 40 || rB.x0 - x < 40) continue; const u = (x - rA.x0) / gap; rays.push({ x0: x, s: rA.s + u * (rB.s - rA.s) + (rnd() - 0.5) * 0.12, edgeY }); }
-      rays.push(rB);
-      const spacing = step;
-      // one crossing depth for the whole pencil (or none)
-      let ystar = 1e9;
-      for (let i = 0; i + 1 < rays.length; i++) { const a = rays[i], b = rays[i + 1]; if (a.s - b.s > 1e-6) ystar = Math.min(ystar, (b.x0 - a.x0) / (a.s - b.s)); }
-      const cap = ystar * 0.8;
-      // depth where a ray meets the straight diagonal (solved exactly, so the far edge of every
-      // cell beside a pane lies on ONE line from the pane's corner to the ledge)
-      const ledge = ledgeDepth;
-      const onLine = (r, xf, df, L, dir) => {           // line from (xf, df) falling to (xf + dir*L, ledge)
-        if (L <= 0) return 0;
-        const m = (ledge - df) / (dir * L);
-        const y = (df + (r.x0 - xf) * m) / (1 - r.s * m * sgn);
-        return Math.max(ledge, Math.min(df, y));
-      };
-      const D = r => Math.max(ledge, onLine(r, rA.x0, dA, LA, 1), onLine(r, rB.x0, dB, LB, -1));
-      const depths = rays.map(r => { const d = D(r); return Math.min(cap, Math.max(6, d + (rnd() - 0.5) * (d > ledge + 4 ? 10 : 14))); });
-      const wall = rA.x0 <= 0 || rB.x0 >= W;
-      for (let i = 0; i + 1 < rays.length; i++) {
-        const a = rays[i], b = rays[i + 1];
-        const ya = edgeY + sgn * depths[i], yb = edgeY + sgn * depths[i + 1];
-        if (depths[i] < 4 && depths[i + 1] < 4) continue;
-        const rank = Math.min(i, rays.length - 2 - i);
-        // a needle: a thin sliver split off one ray of the cell, two or three per screen
-        const nearPane = (dA > 0 && i === 0) || (dB > 0 && i === rays.length - 2);
-        if (!nearPane && !wall && needles.every(nx => Math.abs(nx - a.x0) > 400) && rnd() < 0.22) {
-          const w = 24 + rnd() * 12, side = rnd() < 0.5;
-          const xs = side ? a.x0 + w : b.x0 - w;
-          const r2 = { x0: xs, s: (a.s + b.s) / 2, edgeY };
-          const deep = Math.min(cap, 110 + rnd() * 60);
-          const yd = edgeY + sgn * deep;
-          const nd = side ? [[a.x0, edgeY], [xs, edgeY], [rayX(r2, yd), yd], [rayX(a, ya), ya]] : [[xs, edgeY], [b.x0, edgeY], [rayX(b, yb), yb], [rayX(r2, yd), yd]];
-          const rest = side ? [[xs, edgeY], [b.x0, edgeY], [rayX(b, yb), yb], [rayX(r2, ya), ya]] : [[a.x0, edgeY], [xs, edgeY], [rayX(r2, yb), yb], [rayX(a, ya), ya]];
-          push(clipRect(nd, W, H), null, "needle", rank); push(clipRect(rest, W, H), null, "sector", rank);
-          needles.push(a.x0);
-          continue;
-        }
-        push(clipRect([[a.x0, edgeY], [b.x0, edgeY], [rayX(b, yb), yb], [rayX(a, ya), ya]], W, H), null, "sector", rank);
-      }
+  /* filler between two rays of one band: a pencil of rays interpolated between the
+     bounding pair, a far edge that continues the pane's own depth for one cell,
+     falls to a thin ledge over the next two, and stays a ledge in the open */
+  const rayX = (r, y) => r.x0 + r.s * (y - r.edgeY);
+  const cutSectors = (ctx, band, rA, rB, dA, dB, ledgeDepth) => {
+    const { W, H, rnd, push, needles } = ctx;
+    const edgeY = band === "top" ? 0 : H, sgn = band === "top" ? 1 : -1;
+    rA = { ...rA, edgeY }; rB = { ...rB, edgeY };
+    const gap = rB.x0 - rA.x0;
+    if (gap < 8) return;
+    // beside each pane ONE long straight diagonal runs from the pane's far corner down to the
+    // ledge; one or two rays cross it. The open stretch is cut rarely. Few lines, all long.
+    const LA = dA > 0 ? Math.min(gap * 0.45, 520 + rnd() * 240) : 0;
+    const LB = dB > 0 ? Math.min(gap * 0.45, 520 + rnd() * 240) : 0;
+    const xs = [];
+    const step = 230 + rnd() * 60;
+    for (let x = rA.x0 + step; LA > 0 && x < rA.x0 + LA - 60; x += step) xs.push(x + (rnd() - 0.5) * 50);
+    for (let x = rB.x0 - step; LB > 0 && x > rB.x0 - LB + 60; x -= step) xs.push(x + (rnd() - 0.5) * 50);
+    const openL = rA.x0 + LA, openR = rB.x0 - LB, open = openR - openL;
+    if (open > 300) { const m = Math.max(1, Math.round(open / 460)); for (let i = 1; i < m; i++) xs.push(openL + open * (i / m) + (rnd() - 0.5) * 80); }
+    if (LA > 0 && open > 40) xs.push(openL + (rnd() - 0.5) * 20);   // the kink where the diagonal meets the ledge
+    if (LB > 0 && open > 40) xs.push(openR + (rnd() - 0.5) * 20);
+    xs.sort((p, q) => p - q);
+    const rays = [rA];
+    for (const x of xs) { if (x - rays[rays.length - 1].x0 < 40 || rB.x0 - x < 40) continue; const u = (x - rA.x0) / gap; rays.push({ x0: x, s: rA.s + u * (rB.s - rA.s) + (rnd() - 0.5) * 0.12, edgeY }); }
+    rays.push(rB);
+    const spacing = step;
+    // one crossing depth for the whole pencil (or none)
+    let ystar = 1e9;
+    for (let i = 0; i + 1 < rays.length; i++) { const a = rays[i], b = rays[i + 1]; if (a.s - b.s > 1e-6) ystar = Math.min(ystar, (b.x0 - a.x0) / (a.s - b.s)); }
+    const cap = ystar * 0.8;
+    // depth where a ray meets the straight diagonal (solved exactly, so the far edge of every
+    // cell beside a pane lies on ONE line from the pane's corner to the ledge)
+    const ledge = ledgeDepth;
+    const onLine = (r, xf, df, L, dir) => {           // line from (xf, df) falling to (xf + dir*L, ledge)
+      if (L <= 0) return 0;
+      const m = (ledge - df) / (dir * L);
+      const y = (df + (r.x0 - xf) * m) / (1 - r.s * m * sgn);
+      return Math.max(ledge, Math.min(df, y));
     };
+    const D = r => Math.max(ledge, onLine(r, rA.x0, dA, LA, 1), onLine(r, rB.x0, dB, LB, -1));
+    const depths = rays.map(r => { const d = D(r); return Math.min(cap, Math.max(6, d + (rnd() - 0.5) * (d > ledge + 4 ? 10 : 14))); });
+    const wall = rA.x0 <= 0 || rB.x0 >= W;
+    for (let i = 0; i + 1 < rays.length; i++) {
+      const a = rays[i], b = rays[i + 1];
+      const ya = edgeY + sgn * depths[i], yb = edgeY + sgn * depths[i + 1];
+      if (depths[i] < 4 && depths[i + 1] < 4) continue;
+      const rank = Math.min(i, rays.length - 2 - i);
+      // a needle: a thin sliver split off one ray of the cell, two or three per screen
+      const nearPane = (dA > 0 && i === 0) || (dB > 0 && i === rays.length - 2);
+      if (!nearPane && !wall && needles.every(nx => Math.abs(nx - a.x0) > 400) && rnd() < 0.22) {
+        const w = 24 + rnd() * 12, side = rnd() < 0.5;
+        const xs = side ? a.x0 + w : b.x0 - w;
+        const r2 = { x0: xs, s: (a.s + b.s) / 2, edgeY };
+        const deep = Math.min(cap, 110 + rnd() * 60);
+        const yd = edgeY + sgn * deep;
+        const nd = side ? [[a.x0, edgeY], [xs, edgeY], [rayX(r2, yd), yd], [rayX(a, ya), ya]] : [[xs, edgeY], [b.x0, edgeY], [rayX(b, yb), yb], [rayX(r2, yd), yd]];
+        const rest = side ? [[xs, edgeY], [b.x0, edgeY], [rayX(b, yb), yb], [rayX(r2, ya), ya]] : [[a.x0, edgeY], [xs, edgeY], [rayX(r2, yb), yb], [rayX(a, ya), ya]];
+        push(clipRect(nd, W, H), null, "needle", rank); push(clipRect(rest, W, H), null, "sector", rank);
+        needles.push(a.x0);
+        continue;
+      }
+      push(clipRect([[a.x0, edgeY], [b.x0, edgeY], [rayX(b, yb), yb], [rayX(a, ya), ya]], W, H), null, "sector", rank);
+    }
+  };
+
+  /* the filler of both bands: between the wall and the first column, between
+     neighbouring columns, and between the last column and the wall */
+  const fillBands = (ctx, top, bot) => {
+    const { W, rnd } = ctx;
+    const sectors = (...args) => cutSectors(ctx, ...args);
     const ledgeFor = () => 22 + rnd() * 18, REACH = 360;
     if (top.length) {
       const first = top[0], last = top[top.length - 1];
@@ -1102,10 +1086,13 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     } else {
       sectors("bottom", { x0: 0, s: 0 }, { x0: W, s: 0 }, 0, 0, 20 + rnd() * 14);
     }
+  };
 
-    /* rings: two long transverse cracks per half of the top band, starting at the
-       corner and descending towards the centre; they cut filler only, and a few of
-       the inner pieces are gone, never one beside a panel or on the wall */
+  /* rings: two long transverse cracks per half of the top band, starting at the
+     corner and descending towards the centre; they cut filler only, and a few of
+     the inner pieces are gone, never one beside a panel or on the wall */
+  const cutRings = (ctx, top) => {
+    const { W, H, rnd, panes, push } = ctx;
     const corner = side => { const cs = top.filter(c => side ? (c.x0 + c.x1) / 2 >= W / 2 : (c.x0 + c.x1) / 2 < W / 2); return cs.length ? Math.max(...cs.map(c => Math.max(c.depthL, c.depthR))) : 60; };
     const ringLines = [];
     for (const half of [0, 1]) {
@@ -1129,13 +1116,17 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
         }
       }
     }
+    return ringLines;
+  };
 
-    /* side strips: two convex quads per side between the wall and a straight inner line,
-       wide under the top panel, thin at mid-height, wide again above the bottom panel.
-       The quads share the mid seam exactly (one vertex on the wall, one on the inner
-       line), the top one begins on the far edge of the corner pane and the bottom one
-       ends on the far edge of the bottom corner pane, so the wall is covered without a
-       gap; then one family of parallel cuts per half: a partition by construction */
+  /* side strips: two convex quads per side between the wall and a straight inner line,
+     wide under the top panel, thin at mid-height, wide again above the bottom panel.
+     The quads share the mid seam exactly (one vertex on the wall, one on the inner
+     line), the top one begins on the far edge of the corner pane and the bottom one
+     ends on the far edge of the bottom corner pane, so the wall is covered without a
+     gap; then one family of parallel cuts per half: a partition by construction */
+  const cutStrips = (ctx, top, bot, railBands) => {
+    const { W, H, rnd, panes, push } = ctx;
     const tiles = {};
     // Foundry's tiles, measured with their rotation off and in the curtain's own pixels (the page may be scaled)
     const lineY = (c, x) => { const [fx, fy] = c.far.p, [dx, dy] = c.far.d; return fy + (x - fx) * dy / dx; };
@@ -1293,6 +1284,39 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
       cutFamily(upperQ, dir * (0.28 + rnd() * 0.12), yTop, yMid, tb);
       cutFamily(lowerQ, -dir * (0.28 + rnd() * 0.12), yMid, yBot);
     }
+    return tiles;
+  };
+
+  function curtainShapes(host, W, H, rnd, boxes, FW) {
+    const panes = [];
+    /* what every cutter reads and writes: the panes so far, the frame, the seed's
+       stream, the rails' bands once they are measured, and the needles placed */
+    const ctx = { panes, W, H, FW, rnd, railBands: null, needles: [] };
+    ctx.push = (poly, tone, kind, rank) => pushPane(ctx, poly, tone, kind, rank);
+
+    const top = columnsOf(boxes.filter(b => b.y + b.h / 2 < H / 2));
+    const bot = columnsOf(boxes.filter(b => b.y + b.h / 2 >= H / 2));
+
+    /* THE RAILS' BANDS ARE KNOWN BEFORE THE COLUMNS ARE CUT, AND THE COLUMNS RESPECT THEM.
+       A column near a wall runs its pane INTO the wall so no bare wedge is left there
+       (`hugL` / `hugR` below). On a side where a rail stands that is exactly wrong: the
+       Projects tray's pane ran under the tab rail all the way to the edge, so the rail's
+       upper tiles sat on the tray's glass and the seam between it and the strip crossed them
+       - 37 of 64 tile corners on panes that were not theirs (measured 07.09). The strip
+       covers that band instead, for its whole height, and a column whose own run overlaps
+       the band stops at its own edge. Nothing is left bare: the band IS the strip. */
+    const cv = host.querySelector(".curtain > canvas.sg, #drpg-curtain > canvas.sg");
+    const railBands = {
+      left: railBox(host, cv, W, "#scene-controls", 0, null),
+      right: railBox(host, cv, W, "#sidebar-tabs", 1, null),
+    };
+    ctx.railBands = railBands;
+    top.forEach(c => buildColumn(ctx, c, top, "top"));
+    bot.forEach(c => buildColumn(ctx, c, bot, "bottom"));
+
+    fillBands(ctx, top, bot);
+    const ringLines = cutRings(ctx, top);
+    const tiles = cutStrips(ctx, top, bot, railBands);
 
     /* the partition, enforced twice: sections first, then only filler that lands on nothing */
     const kept = [];
