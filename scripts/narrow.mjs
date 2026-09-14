@@ -42,6 +42,8 @@ import { error } from "./utils.mjs";
 const COLUMN_ID = "drpg-column";
 /** The stack, for anything that has to measure it - the curtain cuts its panes to it. */
 export const COLUMN_SEL = "#" + COLUMN_ID;
+/** The gutter the stack keeps off every wall it stands near. */
+const EDGE = 8;
 /** The blocks that stack, in the order they stack in. */
 const STACKED = ["#drpg-hud", "#drpg-despair", "#ui-right-column-1"];
 
@@ -103,19 +105,83 @@ export function applyNarrowLayout() {
 }
 
 /**
- * Foundry's left column starts below the stack.
+ * The stack keeps clear of Foundry's own two rails, in both directions.
  *
- * Its scene controls and the module's GM launcher are absolutely positioned at
- * the top of the interface, which is where the stack now is. The offset is the
- * stack's measured height, which no media query can know: it is the clock plus
- * however many Monokuma rows this table has plus whatever the tray is showing.
+ * DOWNWARDS: the scene controls and the GM launcher are absolutely positioned at
+ * the top of the interface, which is where the stack now is, so the left column
+ * starts below it. The offset is the stack's measured height, which no media
+ * query can know - it is the clock plus however many Monokuma rows this table has
+ * plus whatever the tray is showing.
+ *
+ * SIDEWAYS, and this one shipped broken in 1.2.45. The stack ran to eight pixels
+ * off the right wall, and the sidebar's tab rail stands in the last fifty or so:
+ * measured at every stacked size, forty-eight pixels of every row were behind it
+ * (48 x 419 at 393 x 852, 48 x 386 at 820 x 1180, 48 x 353 at 1024 x 768), which
+ * on the Despair rail is exactly where the counts are and on the status strip
+ * exactly where Hope is. The column is prepended into `#interface`, so the
+ * sidebar - a later sibling at the same z-index - paints over it.
+ *
+ * MEASURED OFF THE RAIL'S OWN LEFT EDGE, not off a width. The rail sits inside
+ * `#sidebar`, which carries padding of its own and grows to three hundred pixels
+ * when the sidebar is opened; the distance from the wall to the tiles is the
+ * number that actually matters and it is the one that stays put, because an open
+ * sidebar grows INBOARD of its tabs. So an open sidebar slides over the stack
+ * without moving it, which is the same rule the curtain keeps (glass.mjs).
+ *
+ * The clamp is there because this reads a box that may not be laid out yet: a
+ * misread must cost the stack a gutter, never most of its width.
  */
 function reserveRoom() {
     const column = document.getElementById(COLUMN_ID);
     const left = document.getElementById("ui-left-column-1");
-    if (!left) return;
-    const height = column ? Math.round(column.getBoundingClientRect().height) : 0;
-    left.style.marginTop = height > 0 ? `${height + 8}px` : "";
+    if (left) {
+        const height = column ? Math.round(column.getBoundingClientRect().height) : 0;
+        left.style.marginTop = height > 0 ? `${height + EDGE}px` : "";
+    }
+    if (column) column.style.right = `${railInset(column)}px`;
+    noticesClearOfTheTools();
+}
+
+/**
+ * And the notices keep off the tools, which the stack moved under them.
+ *
+ * The notice stack stands at the foot of the screen across its width
+ * (styles/narrow.css). On a desk the scene controls are at the top left and the
+ * two never meet; stacked, the controls have been pushed down to make room and
+ * they end up exactly where the cards are - 80 px of a 393 px screen, measured.
+ * Nothing becomes unclickable, because the notices take no clicks at all
+ * (`pointer-events: none`, stated twice), but a card standing on the tool rail
+ * reads as a card that has landed on top of something.
+ *
+ * Indented past the rail rather than shortened: a notice is prose and wants its
+ * width, and the rail is the narrower of the two. The right-hand side takes the
+ * same inset the stack does, so a card ends where the stack above it ends.
+ */
+function noticesClearOfTheTools() {
+    const notices = document.getElementById("drpg-popups");
+    if (!notices) return;
+    if (!narrowLayout()) { notices.style.removeProperty("left"); notices.style.removeProperty("right"); return; }
+    const rail = document.querySelector("#scene-controls");
+    const r = rail?.offsetWidth ? rail.getBoundingClientRect() : null;
+    const want = r ? Math.round(r.right) + EDGE : EDGE;
+    const left = Math.min(Math.max(EDGE, want), Math.round(innerWidth * 0.4));
+    /* `important`, because the theme states this tile's corner with one: the notice
+       tile is a fixed box on the glass and it is pinned at "the audit page's place"
+       (stained-glass.css). A plain inline value loses to it and the card stays on
+       the tools - which is what the first version of this measured. */
+    notices.style.setProperty("left", `${left}px`, "important");
+    notices.style.setProperty("right", `${railInset(notices)}px`, "important");
+}
+
+/** How far short of the right wall a block stops, so the tab rail keeps its own strip. */
+function railInset(el) {
+    const tabs = document.querySelector("#sidebar-tabs");
+    const host = el.offsetParent ?? document.getElementById("interface") ?? document.documentElement;
+    if (!tabs?.offsetWidth || !host) return EDGE;
+    const wall = host.getBoundingClientRect();
+    const rail = tabs.getBoundingClientRect();
+    const want = Math.round(wall.right - rail.left) + EDGE;
+    return Math.min(Math.max(EDGE, want), Math.round(wall.width * 0.4));
 }
 
 /* The stack changes height whenever anything in it redraws - a Monokuma row is
@@ -129,6 +195,11 @@ function watchColumn(column) {
         reserveFrame = requestAnimationFrame(() => { reserveFrame = 0; reserveRoom(); });
     });
     columnWatch.observe(column);
+    /* The rail is watched too: Foundry wraps its tiles into a second column when
+       the run is taller than the screen, which is exactly what a phone does to it,
+       and a rail that got wider without this would take the stack's edge back. */
+    const tabs = document.querySelector("#sidebar-tabs");
+    if (tabs) columnWatch.observe(tabs);
 }
 
 /** Every moved element back where it came from, and the column gone. */
@@ -144,6 +215,8 @@ function restoreDesk() {
     document.getElementById(COLUMN_ID)?.remove();
     const left = document.getElementById("ui-left-column-1");
     if (left) left.style.marginTop = "";
+    const notices = document.getElementById("drpg-popups");
+    if (notices) { notices.style.removeProperty("left"); notices.style.removeProperty("right"); }
 }
 
 /** Called once at ready. The resize itself is watched in settings.mjs, with the scale. */

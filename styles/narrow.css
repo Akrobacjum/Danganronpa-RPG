@@ -33,6 +33,10 @@
     position: absolute;
     top: 8px;
     left: 8px;
+    /* The starting value only. `reserveRoom` in narrow.mjs measures Foundry's tab
+       rail and writes the real inset here, because how far that rail reaches in is
+       not a number a stylesheet can know - it wraps into a second column when its
+       run is taller than the screen, which is what a phone does to it. */
     right: 8px;
     z-index: 30;
     display: flex;
@@ -98,12 +102,17 @@ body.drpg-stacked #drpg-column > #drpg-despair {
     width: auto !important;
     max-width: 100% !important;
 }
+/* THE ROW DOES NOT WRAP, AND THAT IS WHAT LETS IT FIT.
+   It used to, as a safety net, and the net was the fault: a wrapping flex container
+   places its items on lines BEFORE any of them is allowed to shrink, so the moment
+   the four parts added up to more than the width the stepper went to a line of its
+   own - a stray plus sign under each pool - and the run of pips beside it never gave
+   up a pixel. Held to one line, the pips are the only part that can give and they
+   give exactly as much as is needed. */
 body.drpg-stacked #drpg-despair .drpg-despair-row {
     width: auto;
     justify-content: center;
-    /* The safety net only, not the plan: with the pips at the size below a row
-       measures 290 px on the narrowest phone there is and does not reach it. */
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
 }
 /* And the pips come down with it. Measured on a 393 px phone: the name takes 65,
    the twelve pips 217, the count 36 and the stepper 22, which is 364 with the gaps
@@ -115,6 +124,18 @@ body.drpg-stacked #drpg-despair .drpg-despair-row {
 body.drpg-stacked #drpg-despair .drpg-despair-pip {
     width: calc(13px * var(--drpg-sg-scale, 1));
     height: calc(13px * var(--drpg-sg-scale, 1));
+}
+/* AND THE PIPS ARE THE PART THAT GIVES, which is a rule rather than another measured
+   number. The pool's name, its count and its stepper are each one thing that cannot
+   be broken; twelve pips are twelve things and read as well in two lines of six as
+   in one of twelve. So the run of pips shrinks and wraps inside itself, and the
+   stepper stays beside the count at any width - which is what reserving the
+   sidebar's rail had taken away again, the row having lost 56 px to it. */
+body.drpg-stacked #drpg-despair .drpg-despair-pips {
+    flex: 1 1 auto;
+    min-width: 0;
+    flex-wrap: wrap;
+    justify-content: center;
 }
 
 /* The clock, flattened. On a desk it is a plaque of six stacked lines, which is
@@ -167,6 +188,14 @@ body.drpg-stacked #drpg-popups {
     align-items: stretch;
 }
 body.drpg-stacked #drpg-popups > * { max-width: none; width: auto; }
+/* The tile itself has a STATED width under Stained Glass - the audit page's 330 px,
+   on the scale - and a stated width beats the left/right pair the corner rule sets,
+   so the tile stayed 280 px wide and ran back under the sidebar's tabs. Measured at
+   393 x 852: 48 x 136 of it behind the rail. Here the two insets decide it. */
+body.drpg-stacked #drpg-popups {
+    width: auto;
+    max-width: none;
+}
 
 /* ---- windows -------------------------------------------------------------
    `scaleWindow` in settings.mjs already keeps a window's SIZE inside the screen

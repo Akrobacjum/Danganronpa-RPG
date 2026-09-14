@@ -5891,6 +5891,20 @@ const SCENARIOS = [
         ok(/marginTop/.test(src),
             "nothing pushes Foundry's left column below the stack, so the scene "
             + "controls and the GM launcher stand under it");
+        /*
+         * AND SIDEWAYS, which shipped broken in 1.2.45. The stack ran to eight
+         * pixels off the right wall and the sidebar's tab rail stands in the last
+         * fifty: 48 px of every row was behind it at every stacked size, which on
+         * the Despair rail is where the counts are. Both insets are measured, so
+         * both are checked - a stack that reserves the height and not the width is
+         * exactly the bug that got out.
+         */
+        ok(/function railInset\(/.test(src) && /style\.right = /.test(src),
+            "the stack does not reserve the width of Foundry's tab rail, so the "
+            + "right-hand edge of every row it holds is painted over by the sidebar");
+        ok(/#scene-controls/.test(src),
+            "the notices do not measure the tool rail the stack pushed down onto "
+            + "them, so a notice card stands on the scene controls");
 
         for (const file of ["hud.mjs", "despair.mjs", "events.mjs"]) {
             const text = stripComments(
