@@ -1259,3 +1259,101 @@ function report(title, lines, { toChat = true } = {}) {
 
     return text;
 }
+
+/**
+ * What the theme costs this machine, measured on this machine.
+ *
+ * `game.drpg.perf()`.
+ *
+ * WHY THIS EXISTS AND WHY IT COULD NOT BE ANSWERED ANYWHERE ELSE. Every
+ * performance claim this module makes was measured headlessly, and headless
+ * Chromium composites a canvas in software: the curtain's pulse measured 117 ms
+ * a frame at 1920 x 993 there and 21 ms on a phone-sized window, which says
+ * something about how the cost SCALES and nothing at all about what a real
+ * machine with a real GPU does with it. The only honest number comes from the
+ * screen somebody is actually playing on, so the command that takes it lives
+ * here rather than the number.
+ *
+ * The pulse is measured by holding it off and taking the frames again, which is
+ * the one part of the theme that repaints on its own. Everything else here -
+ * the curtain's cut, the module's own hot lookups - is timed by doing it.
+ *
+ * Nothing is left changed: the pulse goes back to whatever it was, including
+ * off, and a curtain forced to recut settles on the next frame like any other.
+ */
+export async function perfReport({ frames = 60 } = {}) {
+    const lines = [];
+    const round = n => Math.round(n * 100) / 100;
+
+    /* The browser's own beat, which is the number everything else is a share of.
+       Taken over `frames` frames rather than one: a single frame catches whatever
+       else the tab was doing. */
+    const beat = async () => {
+        await new Promise(r => requestAnimationFrame(r));
+        const t0 = performance.now();
+        for (let i = 0; i < frames; i++) await new Promise(r => requestAnimationFrame(r));
+        return (performance.now() - t0) / frames;
+    };
+
+    lines.push(`Screen ${innerWidth} x ${innerHeight}, device pixel ratio ${devicePixelRatio}`);
+    lines.push(`Frames averaged over ${frames}`);
+    lines.push("");
+
+    const themed = document.body.classList.contains("drpg-theme-stained-glass");
+    const hadNoPulse = document.body.classList.contains("drpg-no-pulse");
+
+    const asIs = await beat();
+    lines.push(`As it stands        ${String(round(asIs)).padStart(7)} ms/frame  (${Math.round(1000 / asIs)} fps)`);
+
+    if (themed && !hadNoPulse) {
+        document.body.classList.add("drpg-no-pulse");
+        try {
+            const still = await beat();
+            lines.push(`With the pulse held ${String(round(still)).padStart(7)} ms/frame  (${Math.round(1000 / still)} fps)`);
+            lines.push(`The pulse costs     ${String(round(asIs - still)).padStart(7)} ms/frame`);
+        } finally {
+            document.body.classList.remove("drpg-no-pulse");
+        }
+    } else {
+        lines.push(themed ? "The pulse is already off, so there is nothing to hold." : "Monokuma Legacy: no curtain, no pulse.");
+    }
+
+    /* The cut itself, which happens on a resize and whenever a block changes size -
+       not every frame. Ten of them, because one is dominated by whatever the layout
+       was doing at the time. */
+    if (themed && typeof globalThis.drpgGlassRebuild === "function") {
+        const t0 = performance.now();
+        for (let i = 0; i < 10; i++) await globalThis.drpgGlassRebuild();
+        lines.push(`One recut of the glass ${String(round((performance.now() - t0) / 10)).padStart(6)} ms`);
+    }
+
+    lines.push("");
+    lines.push("The module's own hot lookups, per call:");
+    try {
+        const M = await import("./movement.mjs");
+        const actor = game.actors.find(a => a.type === "character");
+        if (actor) {
+            const time = (fn, runs = 200) => {
+                fn();
+                const t0 = performance.now();
+                for (let i = 0; i < runs; i++) fn();
+                return (performance.now() - t0) / runs;
+            };
+            for (const [name, fn] of [
+                ["roomOfActor", () => M.roomOfActor(actor)],
+                ["othersInRoom", () => M.othersInRoom(actor)]
+            ]) {
+                lines.push(`  ${name.padEnd(16)} ${String(round(time(fn))).padStart(7)} ms`);
+            }
+        } else {
+            lines.push("  (no character on this world to measure against)");
+        }
+    } catch (err) {
+        lines.push(`  (could not measure: ${err?.message ?? err})`);
+    }
+
+    lines.push("");
+    lines.push("A frame budget is 16.7 ms at 60 Hz. Anything the theme costs is spent");
+    lines.push("on top of whatever Foundry and the system are doing with the same frame.");
+    return report("Danganronpa RPG - what the theme costs this machine", lines);
+}

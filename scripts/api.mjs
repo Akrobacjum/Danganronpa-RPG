@@ -68,8 +68,7 @@ import {
 } from "./assignments.mjs";
 import {
     diagnoseDice, diagnoseDespair, diagnoseStyles, diagnoseTruthBullets, diagnoseVoice,
-    diagnoseWindows, traceClicks, fileSizes,
-} from "./diagnostics.mjs";
+    diagnoseWindows, traceClicks, fileSizes, perfReport } from "./diagnostics.mjs";
 import { diagnoseLive } from "./live.mjs";
 import { unregisterCriticalRule } from "./critical.mjs";
 import {
@@ -1219,6 +1218,11 @@ export const DrpgApi = {
      *  chrome that carries no name, after the sweep in a11y.mjs has done what it
      *  can. `game.drpg.a11y()` - empty is the answer to want. */
     a11y: a11yReport,
+    /** What the theme costs THIS machine: the frame budget with the pulse running
+     *  and with it held, one recut of the glass, and the module's hot lookups.
+     *  `game.drpg.perf()` - every performance number in the audit was measured
+     *  headlessly, and this is the only one measured where somebody is playing. */
+    perf: perfReport,
     /** Hide both fog layers for a few seconds, then put them back. Answers
      *  "is that thing on screen ours?" without pasting a chain of lookups. */
     fogPeek,
