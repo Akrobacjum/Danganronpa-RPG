@@ -585,6 +585,8 @@ Przegląd całości po 1.2.45 dał ocenę 8/10 i listę siedmiu punktów. Cztery
 
 **Nie moje:** punkt 3 (live checki - sesja przy stole) i punkt 6 (redakcja tekstów 1.3.0 - Dawid).
 
+Wydane jako 1.2.46: `module.json` i stempel CSS mówią 1.2.46, notatki w `.github/release-notes/v1.2.46.md`, `main` przesunięty na tę gałąź, workflow Release z tagiem `v1.2.46`.
+
 **Znaleziska tego przeglądu, których nie ruszałem:** przyciski launcherów nachodzą na pasek zakładek o 34 px, identycznie przy 1920x993 - to układ biurka sprzed tej pracy, nie stosu. Przy 280-320 px szerokości kafelek Projektów styka się z launcherami.
 
 ### 9.2 Live checks nadal otwarte
