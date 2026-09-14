@@ -571,6 +571,22 @@ Wszystkie 152 ID z `findings-1.2.42/` są zamknięte albo rozstrzygnięte decyzj
 | 2 | Ręczna redakcja tekstów wg 3.1-3.3 (Remnant/trace 56+78 kluczy, GM/Monokuma w prozie, etykiety "Behind Closed Doors"/"Public Announcement") | Dawid | 1.3.0 "Stained Update" |
 | 3 | `registerSettings` (505 linii kodu, płaska lista rejestracji) i `steps()` (tabela danych) zostają długie z natury; jeśli kiedyś przeszkadzają, naturalny szew to jedna funkcja na grupę ustawień | - | opcjonalnie |
 
+### 9.3b Przegląd 14.09 i jego wdrożenie
+
+Przegląd całości po 1.2.45 dał ocenę 8/10 i listę siedmiu punktów. Cztery z nich są kodem i zostały wdrożone tu; trzy nie są moje (live checki przy stole, redakcja tekstów 1.3.0) albo są nimi tylko częściowo (pomiar wydajności na żywo).
+
+| Commit | Punkt | Co weszło |
+| --- | --- | --- |
+| `6693b47` | 1 | **Defekt wydany w 1.2.45.** Stos sięgał 8 px od prawej krawędzi, a pasek zakładek Foundry stoi w ostatnich ~50: 48 px każdego wiersza było za nim (48x419 przy 393x852, 48x386 przy 820x1180, 48x353 przy 1024x768) - na szynie Despair dokładnie tam, gdzie są liczniki. Odstęp mierzony od lewej krawędzi samego paska, nie od szerokości. Ten sam pomiar znalazł drugą kolizję: kafelek powiadomień na szynie narzędzi (80 px z 393). Utrata 56 px zepchnęła stepper Despair do własnej linii - wiersz nie zawija się już wcale, bo to właśnie zawijanie blokowało kurczenie: pipsy są jedyną częścią, która ustępuje |
+| `b85316e` | 2 | **Re-triage 12 akceptowanych porażek.** Trzy to był harness: shim trzymał dane dokumentu w `_source` za garstką ręcznych getterów, więc `wall.c` było `undefined` - stąd "32 kwadraty otwarte" w teście schodkowej ściany. Moduł miał rację od początku. Czwarta to `innerText`, którego jsdom nie ma. Piąta to limit plecaka (test grantuje teraz z `override`). Dziewięć pozostałych naprawdę wymaga przeglądarki i mówi czego: `needs(warunek, dlaczego)` rzuca `Skipped`, runner liczy je osobno. **125→126 przechodzi, 0 pada, 9 pominiętych**; `01-runtests` 4/4 pierwszy raz. Scenariusz pilnuje też, by liczba pominiętych nie rosła |
+| `7d2bff4` | 4 | **Dostępność.** `scripts/a11y.mjs`: jedno przemiecenie nadaje `aria-label` kontrolkom, które mają tylko ikonę i tooltip (tooltip jest rysowany, nie odczytywany); kontrolki, których nie umie nazwać, trafiają do `game.drpg.a11y()` - nazwa zmyślona jest gorsza niż cisza. Stos powiadomień i karta eventu to `aria-live="polite"`. Fokus wchodzi do okna modułu przy otwarciu. `forced-colors`: kurtyna i opaski okien (canvasy, których wymuszona paleta nie dosięgnie) znikają, reszta dostaje systemową ramkę i dwa kolory, pipsy mówią "wydany" obrysem zamiast przezroczystością, pierścień fokusu przez `Highlight`. `prefers-contrast: more` podnosi przygaszony bone. **Korekta do przeglądu:** `--drpg-sg-gm` 4.03 nie było błędem AA - ten token nigdy nie jest literą (52 użycia: tło, ramka, pędzel). Jedyne miejsce, gdzie czerwień niesie słowa, to plakietka prep (bone 4.18, naprawdę za mało) - ma teraz 90% czerwieni na tuszu, bone 4.96 |
+| `4cd10a5` | 5 | **Pomiar wydajności.** Headless: puls kosztuje 91 ms/klatkę przy 1920x993, 55 przy 1366x768, 2 na telefonie - co mówi, jak koszt skaluje się z powierzchnią tafli, i nic o prawdziwej maszynie z GPU (headless Chromium składa canvas programowo). Puls jest już malowany w połowie rozdzielczości, więc oczywista oszczędność była wzięta dawno. `game.drpg.perf()` zdejmuje liczbę tam, gdzie ktoś gra: budżet klatki jak jest, z wstrzymanym pulsem, różnica, jedno przecięcie szkła, gorące lookupy |
+| `df52472` | 7 | `CLAUDE.md` (komendy, co znaczą trzy liczby suite, pułapki, styl, wydanie) i `CONTRIBUTING.md`. Oba `export-ignore` |
+
+**Nie moje:** punkt 3 (live checki - sesja przy stole) i punkt 6 (redakcja tekstów 1.3.0 - Dawid).
+
+**Znaleziska tego przeglądu, których nie ruszałem:** przyciski launcherów nachodzą na pasek zakładek o 34 px, identycznie przy 1920x993 - to układ biurka sprzed tej pracy, nie stosu. Przy 280-320 px szerokości kafelek Projektów styka się z launcherami.
+
 ### 9.2 Live checks nadal otwarte
 
 Lista z sekcji 7 pozostaje w mocy; harness nie rozstrzyga żadnej z nich. Po zadaniach 8-10 doszły trzy nowe do sprawdzenia na prawdziwym Foundry:
