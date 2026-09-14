@@ -104,6 +104,11 @@ body.drpg-theme-stained-glass {
     --drpg-sg-ink: #07070a;
     --drpg-sg-bone: #f2eee6;
     --drpg-sg-bone-dim: rgba(242, 238, 230, 0.62);
+    /* The one colour in the theme deliberately under full strength: the dim bone
+       the secondary lines are set in. It measures 6.81 against a pane, which is
+       comfortably over the 4.5 the standard asks - but "comfortably over the
+       minimum" is not what somebody who has asked for more contrast wants, and
+       this is the only token where the module chose less on purpose. */
     --drpg-sg-gm: #e0182f;
     --drpg-sg-gm-light: #ff5566;
     --drpg-sg-hope: #ffd23f;
@@ -134,6 +139,10 @@ body.drpg-theme-stained-glass[data-drpg-phase="investigation"] { --drpg-glass-ac
 body.drpg-theme-stained-glass[data-drpg-phase="classTrial"] { --drpg-glass-accent: var(--drpg-sg-despair); }
 body.drpg-theme-stained-glass[data-drpg-phase="eclipse"] { --drpg-glass-accent: var(--drpg-sg-eclipse); }
 body.drpg-theme-stained-glass.drpg-eclipse { --drpg-glass-accent: var(--drpg-sg-eclipse); }
+
+@media (prefers-contrast: more) {
+    body.drpg-theme-stained-glass { --drpg-sg-bone-dim: var(--drpg-sg-bone); }
+}
 
 /* ---- the UI scale: a factor on the theme's own sizes, never `zoom` ---------
    It was `zoom: var(--drpg-ui-scale)` on `#interface`, which scaled the wrong set of things:
@@ -1735,7 +1744,17 @@ body.drpg-theme-stained-glass .drpg-tb-badge.drpg-role-cleaningTool { background
 body.drpg-theme-stained-glass .drpg-tb-badge.drpg-role-tool { background: var(--drpg-sg-afternoon); }
 body.drpg-theme-stained-glass .drpg-tb-badge.drpg-role-healing { background: var(--drpg-sg-hope); }
 body.drpg-theme-stained-glass .drpg-tb-badge.drpg-role-stress { background: var(--drpg-sg-despair); }
-body.drpg-theme-stained-glass .drpg-tb-badge.type.prep { background: var(--drpg-sg-gm); border-color: var(--drpg-sg-gm); color: var(--drpg-sg-bone); }
+/* THE ONE PLACE THE GM RED CARRIES WORDS, and it was the one place it was short.
+   Measured 14.09: bone on `--drpg-sg-gm` is 4.18, under WCAG's 4.5 for text this
+   size. The token itself is not moved - everywhere else it is a background, a
+   border or a brush, never a letter, and lightening it to pass as text would have
+   made it worse here, which is the only place that counts. Ninety per cent of it
+   over the ink is the same red, a shade deeper, and bone on it reads 4.96. */
+body.drpg-theme-stained-glass .drpg-tb-badge.type.prep {
+    background: color-mix(in srgb, var(--drpg-sg-gm) 90%, var(--drpg-sg-ink));
+    border-color: var(--drpg-sg-gm);
+    color: var(--drpg-sg-bone);
+}
 body.drpg-theme-stained-glass .drpg-tb-badge.type.incident { background: var(--drpg-sg-gm-light); border-color: var(--drpg-sg-gm-light); color: var(--drpg-sg-ink); }
 body.drpg-theme-stained-glass .drpg-tb-badge.type.resolution { background: var(--drpg-sg-eclipse); border-color: var(--drpg-sg-eclipse); color: var(--drpg-sg-ink); }
 body.drpg-theme-stained-glass .drpg-tb-badge.type.autopsy { background: var(--drpg-sg-night); border-color: var(--drpg-sg-night); color: var(--drpg-sg-ink); }

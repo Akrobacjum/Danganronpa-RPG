@@ -72,7 +72,7 @@
 <div id="ui-right">
   <div id="ui-right-column-1">
     <div id="drpg-player-status"><div class="drpg-status-field"><span class="drpg-status-label">Still to act</span><span class="drpg-status-value">4 / 4</span></div><div class="drpg-status-field"><span class="drpg-status-label">Hope</span><span class="drpg-status-value">3</span></div></div>
-    <div id="countdowns"><div class="countdowns-header"><i class="fa-solid fa-clock"></i><span class="window-title">Projects</span><button class="drpg-projects-gear"><i class="fa-solid fa-gear"></i></button></div>
+    <div id="countdowns"><div class="countdowns-header"><i class="fa-solid fa-clock"></i><span class="window-title">Projects</span><button class="drpg-projects-gear" aria-label="Manage projects"><i class="fa-solid fa-gear" inert></i></button></div>
       <div class="countdowns-container"><div class="countdown-category-container">
         <div class="countdown-container" data-countdown="a"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt=""><div class="countdown-main-container"><div class="countdown-content"><header>Rig the dumbwaiter</header><div class="countdown-tools"><div class="progress-tag">2 / 4</div><div class="countdown-tool-controls"><a>-</a><a>+</a></div></div></div></div></div>
         <div class="countdown-container" data-countdown="b"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt=""><div class="countdown-main-container"><div class="countdown-content"><header>Poison the tea with something long</header><div class="countdown-tools"><div class="progress-tag">1 / 6</div><div class="countdown-tool-controls"><a>-</a><a>+</a></div></div></div></div></div>
@@ -119,9 +119,12 @@
   };
   const nr = await import("/scripts/narrow.mjs");
   window.__narrow = nr;
+  const ax = await import("/scripts/a11y.mjs");
+  window.__a11y = ax;
   stamp();
   addEventListener("resize", stamp);
   m.registerGlass();
+  ax.registerA11y();
   const chrome = await import("/scripts/chrome.mjs");
   chrome.injectFilters?.();
   const win = document.querySelector(".application.drpg-panel");

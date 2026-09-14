@@ -143,6 +143,7 @@ import {
 import { repaintFog, diagnoseFog, applySceneVisionMode, seedDiscovery, prepareScenes,
     restoreSceneVisionMode, diagnoseScenes, whyBlack, fogAnimations, fogPeek, doorwayReport,
     checkRegions, whatIsHere } from "./fog.mjs";
+import { a11yReport } from "./a11y.mjs";
 import {
     isMonocub, monocubActors, eligibleForMonocub, setMonocub, setSilenced, isSilenced,
     meddleTargets, performMeddle, resolveMeddle, meddleDialog,
@@ -1214,6 +1215,10 @@ export const DrpgApi = {
      *  long to be doorways, corners off the grid. Reports, never repairs - the
      *  map belongs to the GM. Also on a button in Room setup ▸ Fog. */
     checkRegions,
+    /** What a screen reader cannot read: every kind of control in the module's own
+     *  chrome that carries no name, after the sweep in a11y.mjs has done what it
+     *  can. `game.drpg.a11y()` - empty is the answer to want. */
+    a11y: a11yReport,
     /** Hide both fog layers for a few seconds, then put them back. Answers
      *  "is that thing on screen ours?" without pasting a chain of lookups. */
     fogPeek,

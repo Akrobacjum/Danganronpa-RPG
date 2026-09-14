@@ -5881,6 +5881,43 @@ const SCENARIOS = [
             + "that left while the tab was hidden keeps its pane");
     }],
 
+    ["every control in the module's own chrome has a name to be read out", async () => {
+        /*
+         * A control whose whole content is a glyph says nothing at all to a screen
+         * reader: Foundry's `data-tooltip` is drawn, not announced. The sweep in
+         * a11y.mjs copies whatever a control already carries into `aria-label`,
+         * and writes down the ones it cannot name - this asserts that the list is
+         * empty for whatever is on screen when the suite runs.
+         *
+         * Both halves, because either alone is worthless: a run that found no
+         * controls would report a clean list and mean nothing by it.
+         */
+        const { nameControls, a11yReport } = await import("./a11y.mjs");
+        nameControls();
+
+        const SURFACES = ["#drpg-hud", "#drpg-despair", "#drpg-player-status", "#countdowns",
+            "#drpg-events", "#drpg-popups", "#drpg-gm-launcher", "#drpg-messenger-launcher",
+            "#drpg-sound-launcher", ".drpg-panel", ".drpg-messenger"];
+        let seen = 0;
+        for (const sel of SURFACES) {
+            for (const host of document.querySelectorAll(sel)) {
+                seen += host.querySelectorAll("button, a[href], [role=\"button\"], input, select, textarea").length;
+            }
+        }
+        needs(seen > 0, "no module control is on screen here: this needs the interface drawn");
+        const report = a11yReport();
+        ok(!/carry no name/.test(report), report);
+
+        /* And the notices are announced when they land. A card that appears in
+           silence is a card a blind player never learns about - polite, so it waits
+           for the reader to finish rather than cutting across it. */
+        const notices = document.getElementById("drpg-popups");
+        if (notices) {
+            equal(notices.getAttribute("aria-live"), "polite",
+                "the notice stack is not a live region, so a notice arrives in silence");
+        }
+    }],
+
     ["a phone is told apart from a desk, and the curtain stands down on it", async () => {
         /*
          * The three shapes a screen can have, at the sizes they were measured at

@@ -14882,3 +14882,67 @@ body.drpg-explainers :is(#drpg-hud, #drpg-despair, #drpg-player-status, #countdo
    still showed them, and the class went with the rule - see `renderSettingsConfig` in
    settings.mjs for why. */
 
+
+/* ==========================================================================
+   FORCED COLOURS - the interface when the browser is repainting it
+   --------------------------------------------------------------------------
+   Windows' high-contrast modes, and anything else that sets `forced-colors`,
+   replace every colour on the page with a small system palette. That is a
+   setting somebody chose, usually because the palette this module is proud of
+   is unreadable to them, so nothing here tries to talk them out of it: the
+   rules below give up the look and keep the meaning.
+
+   THE CURTAIN GOES, and it is the only part that has to. It is painted into a
+   canvas, and forced colours cannot reach inside a canvas - a bitmap of dark
+   glass would simply sit on top of the system's own background, which is the
+   one outcome worse than no theme at all. The flat backdrop is a gradient and
+   goes with it for the same reason.
+
+   Everything else is a box with words in it, and a box is something forced
+   colours can draw: a system border, the system's own two colours, and the
+   effects that only make sense in a palette - the blur, the glow, the scrim -
+   switched off so they cannot muddy what is left.
+   ========================================================================== */
+@media (forced-colors: active) {
+    #drpg-curtain,
+    .curtain-glow,
+    body.drpg-glass-flat::before,
+    /* the same argument one window at a time: a dressed title band is a canvas too */
+    .drpg-glass-band > canvas,
+    .window-header > canvas { display: none !important; }
+
+    /* The ticker is the phase name drawn faintly behind the phase name. Faint is a
+       colour, and there are no faint colours here - it comes out as a second copy
+       of the words, overlapping the first. */
+    .drpg-hud-ticker { display: none !important; }
+
+    #drpg-hud,
+    #drpg-despair,
+    #drpg-player-status,
+    #countdowns,
+    #drpg-events,
+    #drpg-popups .drpg-popup,
+    .drpg-panel {
+        border: 1px solid CanvasText !important;
+        background: Canvas !important;
+        background-image: none !important;
+        color: CanvasText !important;
+        backdrop-filter: none !important;
+        box-shadow: none !important;
+        text-shadow: none !important;
+    }
+
+    /* A Despair pip says "spent" with opacity and a colour, and forced colours
+       take both: twelve identical marks, and no way to read the one number the
+       rail exists for. Filled is solid, unspent is an outline. */
+    .drpg-despair-pip {
+        opacity: 1 !important;
+        outline: 1px solid CanvasText;
+        background: Canvas;
+    }
+    .drpg-despair-pip.filled { background: CanvasText; }
+
+    /* The focus ring is a colour in this theme, so in forced colours there is
+       none - and keyboard is the way most people in this mode are working. */
+    :focus-visible { outline: 2px solid Highlight !important; outline-offset: 2px; }
+}
