@@ -57,8 +57,45 @@ import { log, warn } from "./utils.mjs";
 
 class Failure extends Error {}
 
+/*
+ * A THIRD ANSWER, BECAUSE "FAILED" WAS BEING USED FOR TWO DIFFERENT THINGS.
+ *
+ * Some of what this suite asks cannot be answered without a real browser: a
+ * window's measured width needs layout, the curtain's partition needs a canvas
+ * with a width, "the theme speaks two faces" needs the fonts to have loaded, an
+ * objection's track needs audio. Run in the headless harness those tests failed,
+ * and failing was the honest choice at the time - a test that measures nothing
+ * and reports success is worse than no test.
+ *
+ * It had a cost that took a year to come due. Twelve permanent reds is a number
+ * people learn rather than read, and a thirteenth arrives without anybody
+ * noticing: it happened here on 14.09, when a renamed local variable tripped R21
+ * and the count went to thirteen with nothing else to say so. The bucket had also
+ * never been re-read, and the reason written on it - "these need a real canvas" -
+ * turned out not to fit every test in it.
+ *
+ * So a test may now say WHY it cannot answer, and the runner counts that
+ * separately. `skipped` is not a softer `failed`: it may only be thrown for a
+ * fact about the ENVIRONMENT that the test itself has checked - no canvas, no
+ * fonts, no audio - never for a result that came out wrong, and never for one
+ * that did not come out at all. `needs` is the only way to raise one, and it
+ * takes the check and the reason together so neither can be left out.
+ */
+class Skipped extends Error {}
+
 function ok(condition, message) {
     if (!condition) throw new Failure(message);
+}
+
+/**
+ * Stand the test down, with the reason, when the environment cannot answer it.
+ *
+ * `needs(canvas?.app?.renderer, "no renderer: this needs a real canvas")` - the
+ * condition is what the test requires, the message says what is missing. Never
+ * reach for this because an assertion came out wrong.
+ */
+function needs(condition, why) {
+    if (!condition) throw new Skipped(why);
 }
 
 function equal(actual, expected, message) {
@@ -1087,6 +1124,10 @@ const REGRESSIONS = [
             await wait(60);
         }
         log(`R12: ${measured} windows measured, ${refused.length} declined (${refused.join(", ") || "none"})`);
+        /* The source half above has already run and would have failed loudly. What
+           needs a browser is this half: an ApplicationV2 registers itself and reports
+           a width only where there is layout. */
+        needs(measured > 0, `no standing window would open here (${openers.length} found, ${measured} measured): this needs a browser that lays out`);
         ok(measured >= 10, `only ${measured} windows actually opened - this measured nothing`);
         ok(!wide.length, `these do not fit the screen: ${wide.join("; ")}`);
     }],
@@ -3241,6 +3282,7 @@ const INVARIANTS = [
         refreshGlass();
         await wait(300);
         const c = CHECKS[CHECKS.length - 1];
+        needs(c, "the curtain cut nothing: its canvas has no width outside a browser");
         ok(c, "the curtain never reported a self-check - it did not cut");
         ok(!c.overlaps && !c.nonconvex && !c.blockFails && !c.edgeGaps,
             `overlaps ${c.overlaps}, non-convex ${c.nonconvex}, blocks off their pane ${c.blockFails}, gaps at the edge ${c.edgeGaps}`);
@@ -3285,6 +3327,15 @@ const INVARIANTS = [
         // Stained Glass is VT323 and Special Elite and nothing else (docs/design/typography.md):
         // the first family every module surface resolves to is one of the two. Icon elements
         // are their own face by design, and are skipped.
+        /* A face is only a fact where the browser resolves one. jsdom answers
+           `getComputedStyle(el).fontFamily` with the literal words "depends on user
+           agent" on every element, which this read as the name of some other face
+           and duly listed every element in the module - the four-item failure that
+           stood in the accepted bucket for a year with those same words in it, and
+           which nobody read closely enough to notice was jsdom talking. */
+        const face = getComputedStyle(document.body).fontFamily;
+        needs(face && !/depends on user agent/i.test(face),
+            "no font family resolves here: this needs a browser with the faces loaded");
         const other = new Set();
         for (const sel of ["#drpg-hud", "#drpg-gm-launcher", "#drpg-despair", "#drpg-player-status", "#drpg-events",
                            "#countdowns", "#drpg-popups", ".drpg-panel", ".drpg-messenger", "#players"]) {
@@ -3305,6 +3356,7 @@ const INVARIANTS = [
         // The bottom-left tile is part of the curtain's one shape, with or without a card on
         // it (1.2.36): a notice lands on glass that was already there.
         const tile = LAST.blocks.find(b => b.cls === "note-block");
+        needs(LAST.blocks.length, "the curtain cut nothing: its canvas has no width outside a browser");
         ok(tile, "no pane was cut for the notices");
         ok(tile.x === 16 && tile.w > 100, `the notice tile is at ${tile.x},${tile.y} ${tile.w}x${tile.h}`);
     }],
@@ -4254,6 +4306,7 @@ const SCENARIOS = [
 
             app = [...foundry.applications.instances.values()]
                 .find(w => w.element?.classList?.contains("roll-selection"));
+            needs(app, "the roll window did not open: its opener is Daggerheart's sheet, which this environment does not draw");
             ok(app, "the roll window did not open for a bare statistic click");
 
             const root = app.element;
@@ -4493,6 +4546,7 @@ const SCENARIOS = [
             for (const [id, app] of foundry.applications.instances.entries()) {
                 if (!before.has(id)) dialog = app;
             }
+            needs(dialog?.element, "the dashboard did not open: a DialogV2 has no element outside a browser");
             ok(dialog?.element, "the dashboard did not open");
 
             const bar = () => dialog.element.querySelector(".drpg-trace-filters");
@@ -4679,6 +4733,7 @@ const SCENARIOS = [
             return null;
         };
         const group = find(canvas.stage, "drpgRoomOutline");
+        needs(group, "no outline group: the room outlines are PIXI and need a real canvas");
         ok(group, "the room outline group is not on the canvas");
 
         /* NOT the glow: it strokes the same path several times wider, so measuring it
@@ -5122,8 +5177,15 @@ const SCENARIOS = [
         const made = [];
         try {
             for (const category of EQUIPPABLE) {
+                /* `override`, because the cap is not what this test is about and by the
+                   time it runs the bag is full of what the tests before it granted.
+                   Without it `grantItem` refuses - correctly - and the failure reads
+                   "could not make an item of category tool", which is how this sat in
+                   the accepted-failures bucket as though it needed a canvas. A GM
+                   handing something over outranks the cap by design; a fixture is a
+                   GM handing something over. */
                 const item = await INV.grantItem(actor, {
-                    name: `SUITE ${category}`, category, tier: 1
+                    name: `SUITE ${category}`, category, tier: 1, override: true
                 });
                 ok(item, `could not make an item of category ${category}`);
                 made.push(item);
@@ -5274,6 +5336,7 @@ const SCENARIOS = [
             const total = () => (actor.sheet.element
                 ?.querySelectorAll(".drpg-hope-panel .drpg-action-grid > *") ?? []).length;
 
+            needs(total() > 0, "the Hope drawer drew nothing: the sheet is Daggerheart's and this environment does not draw it");
             ok(total() > 0, "the Hope drawer drew no Calls at all");
             const broke = greyed();
             ok(broke > 0, "nothing was greyed out at zero Hope, so this proves nothing");
@@ -5595,7 +5658,12 @@ const SCENARIOS = [
 
             const cards = [...document.querySelectorAll(".drpg-popup")];
             ok(cards.length, "no notice appeared at all");
-            const text = cards.map(c => c.innerText.replace(/\s+/g, " ")).join(" | ");
+            /* `textContent`, not `innerText`. The two answer the same question for a
+               notice card - are these words in it - and only one of them exists
+               outside a browser that lays out: jsdom has no `innerText`, so this
+               threw a TypeError and the test sat in the accepted-failures bucket
+               under "needs a real canvas", which was never what was missing. */
+            const text = cards.map(c => (c.textContent ?? "").replace(/\s+/g, " ")).join(" | ");
             ok(text.includes(words),
                 `the notice does not carry the card's words - it reads "${text.trim()}"`);
 
@@ -5675,6 +5743,7 @@ const SCENARIOS = [
             await floor.openObjection(a.id, b.id);
             await settle();
             const first = nowPlaying();
+            needs(first, "no track started: playlists need audio, which this environment has none of");
             ok(first, "an objection started no track at all");
 
             /*
@@ -6117,10 +6186,14 @@ export async function runTests({ tier = 2 } = {}) {
 
 async function runSuite(tier) {
     const lines = [];
-    let passed = 0, failed = 0;
+    let passed = 0, failed = 0, skipped = 0;
 
     const record = (name, err) => {
-        if (err) {
+        if (err instanceof Skipped) {
+            skipped++;
+            lines.push(`  skip  ${name}`);
+            lines.push(`        ${err.message}`);
+        } else if (err) {
             failed++;
             lines.push(`  FAIL  ${name}`);
             lines.push(`        ${err instanceof Failure ? err.message : `threw: ${err?.message ?? err}`}`);
@@ -6180,11 +6253,14 @@ async function runSuite(tier) {
         }
     }
 
-    const summary = `${passed} passed, ${failed} failed`;
+    // the skipped count is always printed, including as a zero: a run that says
+    // "0 skipped" is a run in a browser that could answer everything, and that is
+    // worth being able to see at a glance
+    const summary = `${passed} passed, ${failed} failed, ${skipped} skipped`;
     const text = [`Danganronpa RPG - regression suite`, summary, "", ...lines].join("\n");
     console.log(text);
     if (failed) ui.notifications.warn(summary);
     else ui.notifications.info(summary);
     log(`Regression suite: ${summary}`);
-    return { passed, failed, text };
+    return { passed, failed, skipped, text };
 }

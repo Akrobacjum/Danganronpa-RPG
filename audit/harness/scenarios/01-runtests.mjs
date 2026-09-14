@@ -13,7 +13,7 @@ export async function run({ gm, p1, p2, p3, check, settle }) {
 
     const res = await gm.eval(`
         const r = await game.drpg.runTests({ tier: 2 });
-        return { passed: r?.passed, failed: r?.failed, text: (r?.text ?? "").slice(0, 30000) };
+        return { passed: r?.passed, failed: r?.failed, skipped: r?.skipped, text: (r?.text ?? "").slice(0, 30000) };
     `, { timeout: 240000 });
 
     check("gm: suite ran", res && typeof res.passed === "number", JSON.stringify(res).slice(0, 300));
@@ -23,5 +23,11 @@ export async function run({ gm, p1, p2, p3, check, settle }) {
         console.log("----------------------------------------------");
     }
     check("gm: suite failures", (res?.failed ?? 99) === 0, `${res?.failed} failed`);
+    /* The skipped count is checked, not just printed. A test that cannot be answered
+       here says so and is counted apart from the failures (see `needs` in tests.mjs);
+       if that number GROWS, something that used to be answerable has stopped being so
+       - which is a regression wearing the one colour nobody looks at. */
+    check("gm: nothing new went unanswerable", (res?.skipped ?? 99) <= 9,
+        `${res?.skipped} skipped, was 9 on 14.09`);
     await settle(300);
 }

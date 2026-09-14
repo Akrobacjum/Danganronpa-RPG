@@ -104,6 +104,41 @@ export function buildDocumentClasses(ctx) {
                     coll.set(child.id, child);
                 }
             }
+            this._exposeSource();
+        }
+
+        /*
+         * A DOCUMENT'S OWN FIELDS READ AS PROPERTIES, THE WAY FOUNDRY'S DO.
+         *
+         * This class carried getters for the fields the shim happened to need -
+         * `name`, `type`, `flags`, `system` - and everything else lived only in
+         * `_source`. Foundry puts a document's whole schema on the document, so
+         * module code reads `wall.c`, `region.shapes`, `light.config`, and in here
+         * every one of those was `undefined`.
+         *
+         * It cost a real test a year. "A diagonal wall closes the staircase drawn
+         * along it" builds three walls and asks fog.mjs whether the region's border
+         * has walls alongside it - pure geometry, no canvas needed - and it has
+         * failed since the day it was written, reported as "32.0 squares read as
+         * open". The module was right: `wall.c` was undefined, so `wallAlongEdge`
+         * skipped every wall and correctly found none. The test was measuring the
+         * harness. It was carried in the accepted-failures bucket under the label
+         * "needs a real canvas", which was never true of it.
+         *
+         * Defined rather than assigned, so a write goes to `_source` and `update`
+         * keeps working; and never over a name the class already has, so a field
+         * called `update` or `parent` cannot shadow a method.
+         */
+        _exposeSource() {
+            for (const key of Object.keys(this._source)) {
+                if (key === "_id" || key in this) continue;
+                Object.defineProperty(this, key, {
+                    configurable: true,
+                    enumerable: false,
+                    get: () => this._source[key],
+                    set: v => { this._source[key] = v; }
+                });
+            }
         }
         static get documentName() { return this.name.replace(/Document$/, ""); }
         get documentName() { return this.constructor.documentName; }
@@ -160,6 +195,7 @@ export function buildDocumentClasses(ctx) {
 
         updateSource(changes = {}) {
             U.mergeObject(this._source, changes, { performDeletions: true });
+            this._exposeSource();   // a field that only arrives with an update is still a field
             return changes;
         }
         toObject() { return U.deepClone(this._source); }
