@@ -416,18 +416,25 @@ export function renderHud() {
          * of the hour for everybody else - so it is a class rather than a data
          * attribute, and the stylesheet keys off it after the phase rules.
          *
-         * A SEAT, NOT A WITNESS. The GM sees every incident and running one is
-         * their job; painting their whole screen red every time somebody sets a
-         * trap off would be a fixture, not a signal. So this is the seat, which
-         * a GM has only when they have deliberately assigned themselves a
-         * student - and which the killer of a trap never has, because they are
-         * not in the room. See `incidentWitness`.
+         * EVERYONE THE INCIDENT IS HAPPENING TO, AND THE GM (Dawid, 15.09).
+         * The first cut of this keyed off the SEAT rather than the witness, on
+         * the reasoning that a GM runs every incident and a red screen every
+         * time would be a fixture rather than a signal. Overruled, and the
+         * table is right: the GM is the person the red is most useful to,
+         * because they are the one holding two sides of a scene at once.
+         *
+         * So it is the witness, which is the same audience as the Event card
+         * and the murder music - the killer, the victim, THE THIRD PARTY WHO
+         * WALKED IN (`thirdId` joins the cast the moment `thirdPartyEnters`
+         * writes it), and every GM. And which the killer of a trap is not,
+         * because they are not in the room. One predicate, four signals; see
+         * `incidentWitness`.
          *
          * The curtain redraws itself on it for free: glass.mjs already watches
          * `class` on the body alongside the two data attributes.
          */
         document.body.classList.toggle("drpg-incident-here",
-            Boolean(incidentWitness().seat));
+            Boolean(incidentWitness().witness));
 
         if (eventsWindowActive() && !document.body.classList.contains("drpg-no-ticker")) {
             hud.append(hudTicker(phase, clock));

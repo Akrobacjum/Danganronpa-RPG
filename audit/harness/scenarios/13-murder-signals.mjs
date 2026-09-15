@@ -26,7 +26,8 @@ export async function run({ gm, p1, p2, p3, check, settle }) {
 
     const ids = await gm.eval(`return {
         chie: game.actors.getName("Chie Mori").id,
-        aiko: game.actors.getName("Aiko Hoshino").id
+        aiko: game.actors.getName("Aiko Hoshino").id,
+        botan: game.actors.getName("Botan Kage").id
     };`);
 
     /* A playlist for the murder, and a room volume on every browser to duck. */
@@ -45,6 +46,10 @@ export async function run({ gm, p1, p2, p3, check, settle }) {
     const readAll = async () => {
         const out = {};
         for (const [who, c] of [["gm", gm], ["victim", p1], ["bystander", p2], ["killer", p3]]) {
+            // `bystander` is Botan, who is a bystander until step 1b walks them
+            // into the room and a participant afterwards. The checks name which
+            // they are at each point rather than assuming.
+
             if (!c) continue;
             out[who] = await c.eval(`
                 const S = await import("file:///home/user/Danganronpa-RPG/scripts/settings.mjs");
@@ -87,6 +92,12 @@ export async function run({ gm, p1, p2, p3, check, settle }) {
     check("direct: the participants' edges go red",
         direct.killer?.redEdges === true && direct.victim?.redEdges === true,
         JSON.stringify({ killer: direct.killer?.redEdges, victim: direct.victim?.redEdges }));
+    /* The GM's too. The first cut of this keyed off the seat, which a GM does
+       not hold, so their screen stayed the colour of the hour through every
+       killing - and the GM is the person holding two sides of the scene at
+       once, so they are who it is most useful to (Dawid, 15.09). */
+    check("direct: the GM's edges go red as well",
+        direct.gm?.redEdges === true, String(direct.gm?.redEdges));
     check("direct: the bystander's edges do not",
         direct.bystander?.redEdges === false, String(direct.bystander?.redEdges));
 
@@ -97,12 +108,40 @@ export async function run({ gm, p1, p2, p3, check, settle }) {
         direct.bystander?.roomVolume === 0.8 && direct.bystander?.parked === -1,
         JSON.stringify(direct.bystander));
 
+    /* ---- 1b. somebody walks in on it ---------------------------------------
+       The guide gives the scene one third party, and from the moment they are
+       in it they are in it: `thirdPartyEnters` writes `thirdId`, which is a
+       cast field, so the cast reaches their browser and all three signals
+       follow. Asserted BEFORE as well as after, because "they get it" is only
+       half the rule - the other half is that a student standing elsewhere on
+       the map gets nothing, and the same person plays both parts here. */
+    const walkedIn = await gm.eval(`
+        await game.drpg.thirdPartyEnters(game.actors.get("${ids.botan}"));
+        return Boolean(game.drpg.murderState()?.thirdId);
+    `, { timeout: 60000 });
+    check("walk-in: the third party joined the cast", walkedIn === true, String(walkedIn));
+    await settle(900);
+
+    const third = await readAll();
+    check("walk-in: they are a witness now", third.bystander?.witness === true && third.bystander?.seat === true,
+        JSON.stringify(third.bystander));
+    check("walk-in: the card, the edges and the music all follow",
+        third.bystander?.knowsCast === true && third.bystander?.redEdges === true
+        && third.bystander?.roomVolume === 0,
+        JSON.stringify(third.bystander));
+
     /* ---- 2. the same murder, sprung by a trap ------------------------------- */
+    /* THROUGH `endMurder`, NOT BY WRITING THE SETTINGS.
+       The first draft cleared the two settings directly and the trap half then
+       failed: the third party's browser still held the old cast, so they read
+       as a witness to a murder that was over. Not a defect - `writeCast({})` is
+       what tells a participant's client to let go, and setting the world key by
+       hand goes round it. The module's own closing path is also the one worth
+       exercising here. */
     await gm.eval(`
-        await game.settings.set("${MOD}", "murderState", {});
-        await game.settings.set("${MOD}", "incidentCast", {});
+        await game.drpg.endMurder({ reason: "suite", followUp: false });
         return true;
-    `, { timeout: 30000 });
+    `, { timeout: 60000 });
     await settle(700);
 
     await gm.eval(`
@@ -127,11 +166,17 @@ export async function run({ gm, p1, p2, p3, check, settle }) {
         `killer ${JSON.stringify(trap.killer)} vs bystander ${JSON.stringify(trap.bystander)}`);
 
     /* ---- 3. and it all goes back ------------------------------------------- */
+    /* THROUGH `endMurder`, NOT BY WRITING THE SETTINGS.
+       The first draft cleared the two settings directly and the trap half then
+       failed: the third party's browser still held the old cast, so they read
+       as a witness to a murder that was over. Not a defect - `writeCast({})` is
+       what tells a participant's client to let go, and setting the world key by
+       hand goes round it. The module's own closing path is also the one worth
+       exercising here. */
     await gm.eval(`
-        await game.settings.set("${MOD}", "murderState", {});
-        await game.settings.set("${MOD}", "incidentCast", {});
+        await game.drpg.endMurder({ reason: "suite", followUp: false });
         return true;
-    `, { timeout: 30000 });
+    `, { timeout: 60000 });
     await settle(900);
 
     const after = await readAll();

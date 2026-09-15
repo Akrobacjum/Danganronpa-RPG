@@ -1236,9 +1236,10 @@ body.drpg-pixel-font .character-sidebar-sheet .resources-section .slot-label .la
 
 /* THE INTERFACE'S OWN EDGES, WHILE THIS SCREEN IS IN A KILLING.
    ---------------------------------------------------------------------------
-   `drpg-incident-here` is stamped by hud.mjs on the browsers of the people
-   actually in the incident - see `incidentWitness` in settings.mjs for who
-   that is and, in particular, for why the killer of a trap is not one of them.
+   `drpg-incident-here` is stamped by hud.mjs on the browsers of the people the
+   incident is happening to - the killer, the victim, whoever walked in on it,
+   and every GM. See `incidentWitness` in settings.mjs for who that is and, in
+   particular, for why the killer of a TRAP is not one of them.
 
    The colour is `--drpg-eye-light`, which is byte for byte the
    `--drpg-sg-gm-light` the Event card wears under Stained Glass: the card and
