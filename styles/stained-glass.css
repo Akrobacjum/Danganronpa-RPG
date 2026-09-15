@@ -155,6 +155,39 @@ body.drpg-theme-stained-glass {
        +30 % wide, +37 % tall. Three ordinary notices instead of two. */
     --drpg-note-w: 430px;
     --drpg-note-h: 220px;
+
+    /* WHAT THE GLASS DOES TO THE MAP BEHIND IT, AND THE ONE PLACE IT IS SAID.
+       ------------------------------------------------------------------------
+       Six elements carried this filter verbatim: the curtain, a module window's
+       content, the messenger's title band, the character sheet's header, the
+       Look window's ground and the pause caption. It is one material, so it is
+       one token - and this token is what the Look window's "the glass blurs the
+       map" switch turns off (`drpg-no-blur`, stamped by `applyTheme`).
+
+       IT IS THE THEME'S LARGEST SINGLE COST, AND IT IS NOT JAVASCRIPT.
+       A backdrop-filter is recomputed whenever anything over or behind it is
+       redrawn, and under this theme something always is: the pulse every 66 ms,
+       the clock's ticker without stopping, and Foundry's own board every time
+       the map lights or a token moves. Measured in the glass harness at
+       1920 x 1080, in headless Chromium, which rasterises in SOFTWARE:
+
+         nothing on screen moving             16.7 ms a frame
+         the ticker alone, this filter on    150   ms a frame
+         the ticker alone, this filter off    16.7 ms a frame
+         a window opening, filter on         210   ms to the frame it shows in
+         a window opening, filter off         25   ms
+
+       A real GPU blurs in a shader and will be very much faster, so those are a
+       statement about SHAPE and not about anybody's machine: what they say is
+       that this, and not the pulse or the module's own code, is the first thing
+       a table chasing a stutter should turn off. `game.drpg.perf()` takes the
+       number that counts, on the screen somebody is playing on.
+
+       Tried and refuted, so nobody tries them again: the same filter on a
+       separate layer that never repaints (166 ms, no better), `contain: paint`
+       on the curtain (166 ms), `will-change: transform` on it (166 ms). There
+       is no arrangement that makes it cheap - it is on or it is not. */
+    --drpg-glass-backdrop: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
 }
 body {
     --drpg-pix-gear: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' d='M8 1h2v1h-2zM14 1h2v1h-2zM6 2h4v1h-4zM14 2h4v1h-4zM6 3h4v1h-4zM11 3h2v1h-2zM14 3h4v1h-4zM7 4h10v1h-10zM6 5h12v1h-12zM2 6h2v1h-2zM5 6h14v1h-14zM20 6h2v1h-2zM2 7h7v1h-7zM15 7h7v1h-7zM1 8h7v1h-7zM16 8h7v1h-7zM1 9h6v1h-6zM17 9h6v1h-6zM4 10h3v1h-3zM17 10h3v1h-3zM3 11h4v1h-4zM17 11h4v1h-4zM3 12h4v1h-4zM17 12h4v1h-4zM4 13h3v1h-3zM17 13h3v1h-3zM1 14h6v1h-6zM17 14h6v1h-6zM1 15h7v1h-7zM16 15h7v1h-7zM2 16h7v1h-7zM15 16h7v1h-7zM2 17h2v1h-2zM5 17h14v1h-14zM20 17h2v1h-2zM6 18h12v1h-12zM7 19h10v1h-10zM6 20h4v1h-4zM11 20h2v1h-2zM14 20h4v1h-4zM6 21h4v1h-4zM14 21h4v1h-4zM8 22h2v1h-2zM14 22h2v1h-2z'/%3E%3C/svg%3E");
@@ -183,8 +216,9 @@ body.drpg-theme-stained-glass.drpg-eclipse { --drpg-glass-accent: var(--drpg-sg-
    LAST IN THE BLOCK, so it beats the hour and the phase without `!important`:
    a trial or an Eclipse can be running underneath an incident, and while one
    is, the incident is the louder fact. `drpg-incident-here` is stamped by
-   hud.mjs and is a SEAT rather than a witness, so a GM's screen does not turn
-   red every time somebody springs a trap. */
+   hud.mjs on every WITNESS - the killer, the victim, whoever walked in, and
+   every GM - and on nobody else, which notably excludes the killer of a trap.
+   See `incidentWitness` in settings.mjs for the whole of who that is. */
 body.drpg-theme-stained-glass.drpg-incident-here { --drpg-glass-accent: var(--drpg-sg-gm-light); }
 
 @media (prefers-contrast: more) {
@@ -301,8 +335,8 @@ body.drpg-theme-stained-glass :where(pre, code, kbd, samp, time, .count, small) 
    in the wrong pixels. What is left to the sheet is the material. */
 #drpg-curtain {
     --acc: var(--drpg-glass-accent, #ffd38f);
-    backdrop-filter: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
-    -webkit-backdrop-filter: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
+    backdrop-filter: var(--drpg-glass-backdrop);
+    -webkit-backdrop-filter: var(--drpg-glass-backdrop);
     background: rgba(255, 255, 255, 0.02);
 }
 /* every layer of the curtain fills it: the sheet says so as well as the inline style glass.mjs
@@ -476,8 +510,8 @@ body.drpg-theme-stained-glass .drpg-panel .window-header > :not(canvas) {
 }
 body.drpg-theme-stained-glass .drpg-panel .window-content {
     background: rgba(9, 8, 13, 0.84);
-    backdrop-filter: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
-    -webkit-backdrop-filter: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
+    backdrop-filter: var(--drpg-glass-backdrop);
+    -webkit-backdrop-filter: var(--drpg-glass-backdrop);
 }
 
 /* ---- motion under the theme: the glass and the light on its seams move, the elements stand ----
@@ -2326,6 +2360,16 @@ body.drpg-theme-stained-glass .drpg-panel table :is(td, th).act {
 body.drpg-no-pulse #drpg-curtain > canvas.pulse { display: none; }
 body.drpg-reduced-motion #drpg-curtain > canvas.pulse { display: none; }
 body.drpg-no-ticker .drpg-hud-ticker { display: none !important; }
+/* AND THE GLASS CAN STOP BLURRING THE MAP WHILE STAYING GLASS. One line, because the six
+   surfaces that carry the material read it from one token (`--drpg-glass-backdrop` above).
+   Nothing else on the page needs clearing: the blocks look as though they carry their own
+   blur - `#drpg-hud` and `#drpg-despair` each state `blur(3px)` in danganronpa.css - but a
+   later rule there sets all five blocks to `var(--drpg-panel-blur)`, which is `none`, so
+   those two declarations have not drawn anything for some time (asked of Chromium through
+   `CSS.getMatchedStylesForNode`, not read off the file, 15.09).
+   The selector carries the theme class as well as the switch, so it beats the token by
+   weight rather than by being further down the file. */
+body.drpg-theme-stained-glass.drpg-no-blur { --drpg-glass-backdrop: none; }
 body.drpg-reduced-motion .drpg-hud-ticker > span { animation: none; }
 
 /* ==========================================================================
@@ -2838,8 +2882,8 @@ body.drpg-theme-stained-glass .application.drpg-panel .window-header,
 body.drpg-theme-stained-glass .application.drpg-messenger .window-header {
     background: rgba(255, 255, 255, 0.02) !important;
     background-image: none !important;
-    backdrop-filter: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
-    -webkit-backdrop-filter: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
+    backdrop-filter: var(--drpg-glass-backdrop);
+    -webkit-backdrop-filter: var(--drpg-glass-backdrop);
 }
 body.drpg-theme-stained-glass .application.drpg-panel,
 body.drpg-theme-stained-glass .application.drpg-messenger {
@@ -2850,8 +2894,8 @@ body.drpg-theme-stained-glass .application.drpg-messenger {
 body.drpg-theme-stained-glass .character-header-sheet.drpg-glass-band {
     background: rgba(255, 255, 255, 0.02) !important;
     background-image: none !important;
-    backdrop-filter: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
-    -webkit-backdrop-filter: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
+    backdrop-filter: var(--drpg-glass-backdrop);
+    -webkit-backdrop-filter: var(--drpg-glass-backdrop);
 }
 
 /* ---- 7. The brush keeps off the letters -------------------------------------------------
@@ -3798,8 +3842,8 @@ body.drpg-theme-stained-glass .application[class] .window-content {
        the two are one change. 0.58 rather than 0.5 because our windows sit over a lit
        Foundry scene, not over the audit page's own dark fog. */
     background: rgba(7, 6, 11, 0.58) !important;
-    backdrop-filter: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
-    -webkit-backdrop-filter: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
+    backdrop-filter: var(--drpg-glass-backdrop);
+    -webkit-backdrop-filter: var(--drpg-glass-backdrop);
     text-shadow: 0 1px 0 rgba(0, 0, 0, 0.8), 0 0 6px rgba(0, 0, 0, 0.5);
 }
 /* ONE BLUR PER WINDOW. The frame carried its own `backdrop-filter` as well as the content's,
@@ -4415,8 +4459,8 @@ body.drpg-theme-stained-glass .application[class] .window-content {
 body.drpg-theme-stained-glass #pause.paused figcaption {
     color: var(--drpg-sg-bone);
     background: rgba(7, 6, 11, 0.58);
-    backdrop-filter: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
-    -webkit-backdrop-filter: blur(16px) saturate(140%) brightness(0.88) contrast(1.08);
+    backdrop-filter: var(--drpg-glass-backdrop);
+    -webkit-backdrop-filter: var(--drpg-glass-backdrop);
     border: 1px solid color-mix(in srgb, var(--drpg-glass-accent) 55%, transparent);
     border-radius: 0;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45),

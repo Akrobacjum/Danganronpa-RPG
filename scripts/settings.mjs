@@ -59,6 +59,8 @@ export const SETTINGS = {
     language: "language",
     /** The slow darkening of the glass, separately from the glass itself. */
     glassPulse: "glassPulse",
+    /** Whether the glass blurs the map behind it - the theme's largest single cost. */
+    glassBlur: "glassBlur",
     uiScale: "uiScale",
     /** This browser's own "reduced motion", independent of what the system says. */
     reducedMotion: "reducedMotion",
@@ -591,6 +593,26 @@ export function registerSettings() {
     game.settings.register(MODULE_ID, SETTINGS.glassPulse, {
         name: "DRPG.Settings.glassPulse.name",
         hint: "DRPG.Settings.glassPulse.hint",
+        scope: "client",
+        config: true,
+        type: Boolean,
+        default: true,
+        onChange: () => applyTheme()
+    });
+
+    /* THE ONE SWITCH THAT IS ABOUT THE MACHINE RATHER THAN THE TASTE.
+       Every other switch in this group is "what can I bear to look at". This one is
+       "what can this browser draw": a full-screen `backdrop-filter` is recomputed
+       every time anything over or behind it is redrawn, and under this theme the
+       pulse, the clock's ticker and Foundry's own map see to it that something
+       always is. It is the theme's largest single cost and it is not JavaScript -
+       the measurement, and what was tried and did not help, are written on
+       `--drpg-glass-backdrop` in stained-glass.css. Default ON: the blur is what
+       the theme looks like, and a table that does not need to turn it off should
+       never have to know it is there. `game.drpg.perf()` says whether they do. */
+    game.settings.register(MODULE_ID, SETTINGS.glassBlur, {
+        name: "DRPG.Settings.glassBlur.name",
+        hint: "DRPG.Settings.glassBlur.hint",
         scope: "client",
         config: true,
         type: Boolean,
@@ -1661,6 +1683,7 @@ export function applyTheme() {
     document.body.classList.toggle("drpg-pixel-font", pixelFontOn());
     document.body.classList.toggle("drpg-no-pulse", getSetting(SETTINGS.glassPulse) === false);
     document.body.classList.toggle("drpg-no-ticker", getSetting(SETTINGS.hudTicker) === false);
+    document.body.classList.toggle("drpg-no-blur", getSetting(SETTINGS.glassBlur) === false);
     document.body.classList.toggle("drpg-reduced-motion", getSetting(SETTINGS.reducedMotion) === true);
     /* The breakpoints live here and nowhere else. The stylesheet keys off these two
        classes rather than repeating the numbers in a media query, so there is one
@@ -1807,7 +1830,7 @@ Hooks.on("renderSettingsConfig", (_app, element) => {
         // Reduced motion is NOT glass-only: motion.css zeroes every motion token
         // of the module under `drpg-reduced-motion`, popups and flares included,
         // whichever theme is on.
-        for (const key of [SETTINGS.glassPulse, SETTINGS.hudTicker]) show(key, glass);
+        for (const key of [SETTINGS.glassPulse, SETTINGS.hudTicker, SETTINGS.glassBlur]) show(key, glass);
         show(SETTINGS.pixelFont, !glass);
     };
     sync();

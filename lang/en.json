@@ -302,6 +302,10 @@
         "name": "State name behind the clock",
         "hint": "The time of day (or the state that replaces it: Eclipse, Class Trial) as a faint outline running behind the clock. This client only."
       },
+      "glassBlur": {
+        "name": "Glass blurs the map",
+        "hint": "The glass frosts the map behind it. It is the most expensive thing this theme draws, and it is drawn again every time anything on the screen moves. If the interface stutters or windows are slow to appear, turn this off first - game.drpg.perf() will say what it was costing on this machine. This client only."
+      },
       "messengerSound": {
         "name": "Messenger sounds",
         "hint": "The three sounds the messenger plays - sent, received, a question for the GM. Mutes them on this browser alone; nobody else is affected. This client only."
@@ -903,6 +907,7 @@
       "pulse": "Glass pulse",
       "reducedMotion": "Reduced motion",
       "ticker": "State name behind the clock",
+      "blur": "Glass blurs the map",
       "messengerSound": "Messenger sounds",
       "stepUp": "One more",
       "stepDown": "One fewer",

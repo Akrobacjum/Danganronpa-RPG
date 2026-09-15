@@ -114,8 +114,36 @@ export function nameControls(root = document) {
                 if (name) {
                     el.setAttribute("aria-label", name);
                     el.dataset.drpgNamed = "swept";
-                } else if (!unnamed.has(kindOf(el))) {
-                    unnamed.set(kindOf(el), { where: host.id || kindOf(host), html: el.outerHTML.slice(0, 120) });
+                } else {
+                    /*
+                     * MARKED AS WELL, OR THIS ONE IS PAID FOR FOREVER.
+                     *
+                     * The two branches above mark what they settle; this one
+                     * recorded the kind for the report and left the element
+                     * bare, so every later sweep looked at it again - and
+                     * looking is not free: `accessibleName` reads `textContent`,
+                     * which builds the element's whole subtree as a string, and
+                     * `nameFrom` then runs another `querySelector` inside it.
+                     * The sweep runs on every window render and on every
+                     * child-list change in the module's columns, so a control
+                     * the sweep cannot name was the most expensive kind of
+                     * control on the page, in proportion to how long the
+                     * session had been running.
+                     *
+                     * What is given up: a control that gains a name AFTER this
+                     * without being redrawn will not be looked at again. A
+                     * redraw replaces the element and the new one is unmarked,
+                     * which covers every route in this module - nothing here
+                     * fills in a label in place on a node it is keeping.
+                     *
+                     * `a11yReport` is unaffected: it reads the map below, and
+                     * the map is written on the first sight of each kind, which
+                     * is exactly what this branch still does.
+                     */
+                    if (!unnamed.has(kindOf(el))) {
+                        unnamed.set(kindOf(el), { where: host.id || kindOf(host), html: el.outerHTML.slice(0, 120) });
+                    }
+                    el.dataset.drpgNamed = "none";
                 }
             }
         }
@@ -187,11 +215,43 @@ export function registerA11y() {
        and a fresh button arrives nameless. The sweep skips a control it has
        already marked, so a redraw of an unchanged block costs one attribute read
        per control. */
-    Hooks.on("renderApplicationV2", app => {
+    Hooks.on("renderApplicationV2", (app, _element, _context, options) => {
         const el = app?.element instanceof HTMLElement ? app.element : app?.element?.[0];
         if (!el) return;
         nameControls(el);
-        if (el.classList?.contains("drpg-panel") || el.classList?.contains("drpg-messenger")) focusIntoWindow(el);
+        /*
+         * THE FOCUS MOVES WHEN THE WINDOW OPENS, NOT EVERY TIME IT REDRAWS.
+         *
+         * `focusIntoWindow` leaves alone a window somebody is already working in,
+         * and that guard is `el.contains(document.activeElement)` - which cannot
+         * hold on a re-render. ApplicationV2 replaces `.window-content`, so the
+         * field being typed in is destroyed and `activeElement` falls back to
+         * `<body>`; the guard reads "nothing in here has focus", and the focus is
+         * pulled back to the window's first control. A module panel re-renders on
+         * every clock write, every Despair change, every message - so the reader
+         * was being taken back to the top of a window they were part-way down.
+         *
+         * It is also the one thing on this hook that reads layout: the finder
+         * asks each candidate for `offsetParent`, and that is a forced layout
+         * inside Foundry's own render pass, after `scaleWindow` has already moved
+         * the box and `dressChrome` has put new nodes in it.
+         *
+         * `isFirstRender` is Foundry's own answer, asked rather than remembered -
+         * the same argument motion.mjs makes for the entrance animation. A flag
+         * written on the element would say "opened before" for a window reopened
+         * on the same element, which is exactly when the focus must move.
+         */
+        if (!options?.isFirstRender) return;
+        if (!el.classList?.contains("drpg-panel") && !el.classList?.contains("drpg-messenger")) return;
+        /* NEXT FRAME, NOT THIS ONE. The finder asks each candidate for `offsetParent`,
+           which the browser can only answer by laying the window out - and this runs
+           inside Foundry's render, with the subtree just inserted and `dressChrome`
+           having replaced every number field and select a moment earlier, so nothing
+           can be served from cache. A frame later the browser has done that layout for
+           its own reasons and the read is free. The move is invisible either way, and
+           the "somebody is already working in here" guard inside `focusIntoWindow` is
+           read at call time, so deferring makes it more accurate rather than less. */
+        requestAnimationFrame(() => focusIntoWindow(el));
     });
     for (const hook of ["canvasReady", "drpgTimeOfDayChanged", "drpgEclipseChanged"]) {
         Hooks.on(hook, () => nameControls());

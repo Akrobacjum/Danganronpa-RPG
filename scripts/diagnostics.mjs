@@ -16,7 +16,7 @@ import { studentActors } from "./monokuma.mjs";
 import { listExperiences } from "./character.mjs";
 import { carriableCategories } from "./inventory.mjs";
 import { competingModuleWarnings } from "./voice.mjs";
-import { isPrimaryGm, log } from "./utils.mjs";
+import { isPrimaryGm, log, debug } from "./utils.mjs";
 
 /**
  * Why Dice So Nice might be rolling unskinned dice.
@@ -1316,6 +1316,64 @@ export async function perfReport({ frames = 60 } = {}) {
         }
     } else {
         lines.push(themed ? "The pulse is already off, so there is nothing to hold." : "Monokuma Legacy: no curtain, no pulse.");
+    }
+
+    /* AND THE ONE THAT IS USUALLY LARGER THAN THE PULSE.
+       The glass frosts the map behind it, and a `backdrop-filter` is recomputed
+       every time anything over or behind it is redrawn - which under this theme is
+       every frame that anything moves at all. Measured in the glass harness it was
+       the difference between 150 ms a frame and 16.7, and between a window taking
+       210 ms to appear and taking 25; but that was headless Chromium rasterising in
+       software, where a blur costs what a GPU would never charge for it. This line
+       is the reason the harness number is not quoted anywhere a table can read it:
+       the only honest one comes from here.
+       Held the same way as the pulse, by the class the Look window's switch writes,
+       so what is measured is exactly what that switch does. */
+    const hadNoBlur = document.body.classList.contains("drpg-no-blur");
+    if (themed && !hadNoBlur) {
+        document.body.classList.add("drpg-no-blur");
+        try {
+            const clear = await beat();
+            lines.push(`With the blur held  ${String(round(clear)).padStart(7)} ms/frame  (${Math.round(1000 / clear)} fps)`);
+            lines.push(`The blur costs      ${String(round(asIs - clear)).padStart(7)} ms/frame`);
+        } finally {
+            document.body.classList.remove("drpg-no-blur");
+        }
+    } else if (themed) {
+        lines.push("The blur is already off, so there is nothing to hold.");
+    }
+
+    /* WHAT A WINDOW COSTS TO OPEN, WHICH IS THE OTHER HALF OF "IT FEELS SLOW".
+       A window carrying the theme's ground has to have its backdrop rasterised
+       before it can be composited, and it is laid over a full-screen blur that has
+       to be recomputed around it. That is a cost the frame average above cannot
+       see, because it is paid once, at the moment somebody is watching.
+       A PROBE RATHER THAN A REAL WINDOW: opening one of the module's own would run
+       its data preparation, its hooks and its entrance, and this is meant to price
+       the drawing and nothing else. The probe is a bare `.drpg-panel` with the
+       theme's own header and content, shown in the middle of the screen for about
+       a fifth of a second - it will flicker, and that is what it is for. */
+    try {
+        const opens = [];
+        for (let i = 0; i < 6; i++) {
+            const probe = document.createElement("div");
+            probe.className = "application drpg-panel";
+            probe.style.cssText = "position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);"
+                + "width:460px;height:320px;z-index:1;pointer-events:none;";
+            probe.innerHTML = '<div class="window-header"></div><div class="window-content"></div>';
+            const t0 = performance.now();
+            document.body.append(probe);
+            await new Promise(r => requestAnimationFrame(r));
+            await new Promise(r => requestAnimationFrame(r));
+            opens.push(performance.now() - t0);
+            probe.remove();
+            await new Promise(r => requestAnimationFrame(r));
+        }
+        opens.sort((x, y) => x - y);
+        lines.push(`A window reaches the screen in ${String(round(opens[3])).padStart(6)} ms (median of six)`);
+    } catch (err) {
+        lines.push("A window could not be timed here.");
+        debug("The window-open probe failed", err);
     }
 
     /* The cut itself, which happens on a resize and whenever a block changes size -

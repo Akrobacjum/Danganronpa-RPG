@@ -302,6 +302,10 @@
         "name": "Nazwa stanu za zegarem",
         "hint": "Pora dnia (albo stan, który ją zastępuje: Eclipse, Class Trial) jako blady kontur biegnący za zegarem. Tylko ten klient."
       },
+      "glassBlur": {
+        "name": "Szkło rozmywa mapę",
+        "hint": "Szkło matowi mapę, która jest za nim. To najdroższa rzecz, jaką ten motyw rysuje, i rysuje ją od nowa za każdym razem, gdy cokolwiek na ekranie drgnie. Jeśli interfejs się przycina albo okna otwierają się z opóźnieniem, zacznij od wyłączenia tego - game.drpg.perf() powie, ile kosztowało na tej maszynie. Tylko ten klient."
+      },
       "messengerSound": {
         "name": "Dźwięki komunikatora",
         "hint": "Trzy dźwięki komunikatora - wysłano, odebrano, pytanie do GM-a. Wycisza je tylko w tej przeglądarce; nikogo innego to nie dotyczy. Tylko ten klient."
@@ -921,6 +925,7 @@
       "pulse": "Puls szkła",
       "reducedMotion": "Ograniczone animacje",
       "ticker": "Nazwa stanu za zegarem",
+      "blur": "Szkło rozmywa mapę",
       "messengerSound": "Dźwięki komunikatora",
       "stepUp": "O jeden więcej",
       "stepDown": "O jeden mniej",

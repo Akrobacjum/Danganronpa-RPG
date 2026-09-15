@@ -2,7 +2,7 @@
   "scenario": "scenarios/50-lang.mjs",
   "passed": 43,
   "total": 43,
-  "ms": 2579,
+  "ms": 2573,
   "results": [
     {
       "name": "gm: the setting defaults to English",
@@ -152,7 +152,7 @@
     {
       "name": "gm: pl.json covers every en.json key",
       "ok": true,
-      "details": "{\"en\":2385,\"pl\":3029,\"missing\":[],\"extra\":[]}"
+      "details": "{\"en\":2394,\"pl\":3038,\"missing\":[],\"extra\":[]}"
     },
     {
       "name": "gm: pl.json carries no stray keys",
@@ -202,12 +202,12 @@
     {
       "name": "gm: the panel opens with a Polish title",
       "ok": true,
-      "details": "{\"title\":\"Danganronpa - panel GMa\",\"content\":\"<div><div class=\\\"drpg-gm-panel\\\"> <div class=\\\"drpg-gmp-standing\\\"> <h3>DRPG Audit World</h3> <p><strong>Rozdział 1 · Dzień 2 · Sesja 1 · Wieczór</strong> <span class=\\\"drpg-gmp-phase\\\">Daily Life</span> <button type=\\\"button\\\" class=\\\"drpg-gmp-next-go drpg-gmp-advance\\\" data-drpg-run=\\\"advance\\\" data-tooltip=\"}"
+      "details": "{\"title\":\"Danganronpa - panel GM-a\",\"content\":\"<div><div class=\\\"drpg-gm-panel\\\"> <div class=\\\"drpg-gmp-standing\\\"> <h3>DRPG Audit World</h3> <p><strong>Rozdział 1 · Dzień 2 · Sesja 1 · Wieczór</strong> <span class=\\\"drpg-gmp-phase\\\">Daily Life</span> <button type=\\\"button\\\" class=\\\"drpg-gmp-next-go drpg-gmp-advance\\\" data-drpg-run=\\\"advance\\\" data-tooltip=\"}"
     },
     {
       "name": "gm: the panel's body is Polish",
       "ok": true,
-      "details": "{\"title\":\"Danganronpa - panel GMa\",\"content\":\"<div><div class=\\\"drpg-gm-panel\\\"> <div class=\\\"drpg-gmp-standing\\\"> <h3>DRPG Audit World</h3> <p><strong>Rozdział 1 · Dzień 2 · Sesja 1 · Wieczór</strong> <span class=\\\"drpg-gmp-phase\\\">Daily Life</span> <button type=\\\"button\\\" class=\\\"drpg-gmp-next-go drpg-gmp-advance\\\" data-drpg-run=\\\"advance\\\" data-tooltip=\"}"
+      "details": "{\"title\":\"Danganronpa - panel GM-a\",\"content\":\"<div><div class=\\\"drpg-gm-panel\\\"> <div class=\\\"drpg-gmp-standing\\\"> <h3>DRPG Audit World</h3> <p><strong>Rozdział 1 · Dzień 2 · Sesja 1 · Wieczór</strong> <span class=\\\"drpg-gmp-phase\\\">Daily Life</span> <button type=\\\"button\\\" class=\\\"drpg-gmp-next-go drpg-gmp-advance\\\" data-drpg-run=\\\"advance\\\" data-tooltip=\"}"
     },
     {
       "name": "p3: switching back is a no-op until reload (the setting says reload)",
@@ -223,21 +223,46 @@
   "permissionDenials": [],
   "socketTraffic": [
     {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 73
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 62
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 73
+    },
+    {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
       "size": 29
     },
     {
-      "from": "p3",
-      "channel": "module.danganronpa-rpg",
-      "size": 99
-    },
-    {
-      "from": "p3",
-      "channel": "module.danganronpa-rpg",
-      "size": 73
-    },
-    {
       "from": "p2",
       "channel": "module.danganronpa-rpg",
       "size": 99
@@ -248,14 +273,19 @@
       "size": 73
     },
     {
-      "from": "p1",
+      "from": "p3",
       "channel": "module.danganronpa-rpg",
-      "size": 99
+      "size": 62
     },
     {
-      "from": "p1",
+      "from": "p3",
       "channel": "module.danganronpa-rpg",
-      "size": 73
+      "size": 91
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
     },
     {
       "from": "gm",
@@ -263,7 +293,7 @@
       "size": 27
     },
     {
-      "from": "p3",
+      "from": "p2",
       "channel": "module.danganronpa-rpg",
       "size": 62
     },
@@ -271,21 +301,6 @@
       "from": "gm",
       "channel": "module.danganronpa-rpg",
       "size": 91
-    },
-    {
-      "from": "p3",
-      "channel": "module.danganronpa-rpg",
-      "size": 91
-    },
-    {
-      "from": "p3",
-      "channel": "module.danganronpa-rpg",
-      "size": 99
-    },
-    {
-      "from": "p2",
-      "channel": "module.danganronpa-rpg",
-      "size": 62
     },
     {
       "from": "p2",
@@ -299,36 +314,6 @@
     },
     {
       "from": "p1",
-      "channel": "module.danganronpa-rpg",
-      "size": 62
-    },
-    {
-      "from": "p1",
-      "channel": "module.danganronpa-rpg",
-      "size": 91
-    },
-    {
-      "from": "p1",
-      "channel": "module.danganronpa-rpg",
-      "size": 99
-    },
-    {
-      "from": "gm",
-      "channel": "module.danganronpa-rpg",
-      "size": 147
-    },
-    {
-      "from": "gm",
-      "channel": "module.danganronpa-rpg",
-      "size": 150
-    },
-    {
-      "from": "gm",
-      "channel": "module.danganronpa-rpg",
-      "size": 147
-    },
-    {
-      "from": "p3",
       "channel": "module.danganronpa-rpg",
       "size": 72
     },
@@ -350,7 +335,17 @@
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 102
+      "size": 147
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 147
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 150
     },
     {
       "from": "gm",
@@ -365,17 +360,7 @@
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 118
-    },
-    {
-      "from": "gm",
-      "channel": "module.danganronpa-rpg",
-      "size": 118
-    },
-    {
-      "from": "gm",
-      "channel": "module.danganronpa-rpg",
-      "size": 118
+      "size": 102
     },
     {
       "from": "p2",
@@ -383,31 +368,46 @@
       "size": 72
     },
     {
-      "from": "p1",
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 118
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 118
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 118
+    },
+    {
+      "from": "p3",
       "channel": "module.danganronpa-rpg",
       "size": 72
     }
   ],
   "bootInfo": {
+    "p1": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 68
+    },
     "p3": {
       "t": "ready",
       "drpg": true,
-      "settingsRegistered": 66
+      "settingsRegistered": 68
     },
     "gm": {
       "t": "ready",
       "drpg": true,
-      "settingsRegistered": 66
+      "settingsRegistered": 68
     },
     "p2": {
       "t": "ready",
       "drpg": true,
-      "settingsRegistered": 66
-    },
-    "p1": {
-      "t": "ready",
-      "drpg": true,
-      "settingsRegistered": 66
+      "settingsRegistered": 68
     }
   }
 }

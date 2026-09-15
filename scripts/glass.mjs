@@ -1752,7 +1752,22 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
        rectangles and settles it. */
     const boxes = moduleLayout(W, H);
     const sig = W + "x" + H + "|" + boxes.map(b => b.cls + Math.round(b.x) + "," + Math.round(b.y) + "," + Math.round(b.w) + "," + Math.round(b.h)).join(";");
-    if (job.sig === sig) { applyRotations(); return true; }   // `moduleLayout` switched the rotations off to measure
+    /* THE SAME LAYOUT COSTS THE MEASUREMENT AND NOTHING ELSE - and for a year it cost
+       everything, because `rebuildAll` wrote `j.sig = null` one line before calling this and
+       no signature ever matched. Four comments in this file said the fast path was taken; it
+       was unreachable. Measured in Chromium at 1920x1080, 33 panes: a rebuild that changed
+       nothing was 21 ms of blocking JS, and `refreshGlass` is called on every DOM change in
+       Foundry's columns, every resize of a block, every `canvasReady` and every return to the
+       tab - so during play those 21 ms landed several times a minute for no drawn pixel.
+       The check is republished rather than left behind: `rebuildAll` reads `check.same` to
+       decide whether to paint, and an empty CHECKS reads as "changed" and repaints the lot.
+       Everything in it but `same` is the last real pass's reading, which is still the truth
+       about the cut now on the screen - the geometry is what has just been found identical. */
+    if (job.sig === sig) {
+      applyRotations();   // `moduleLayout` switched the rotations off to measure
+      if (job.check) CHECKS.push({ ...job.check, same: true });
+      return true;
+    }
     job.sig = sig; job.W = W; job.H = H;
     ROT.length = 0;
     const panes = curtainShapes(host, W, H, rng(job.seed), boxes, fullW);
@@ -1851,6 +1866,9 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     for (let x = 4; x < W; x += 8) { if (!cover(x, 0.5)) edgeGaps++; if (!cover(x, H - 0.5)) edgeGaps++; }
     for (let y = 4; y < H; y += 8) { if (!cover(0.5, y)) edgeGaps++; if (!cover(W - 0.5, y)) edgeGaps++; }
     CHECKS.push({ seed: job.seed, count: panes.length, overlaps: ov, nonconvex, ncv, blockFails, edgeGaps, fitFails, sig: d.length, same });
+    // kept on the job so a pass that finds the same signature can republish it rather than
+    // cut the whole partition again only to say what this one already says (see above)
+    job.check = CHECKS[CHECKS.length - 1];
     // every pane, for `drpgGlassDebug()`: what was cut, and where
     /* `poly` as well as the bounding box: the rails are not blocks, so the self-check below
        says nothing about whether the scene tiles sit inside one pane - only a point-in-polygon
@@ -2122,8 +2140,10 @@ function snapshotCanvas(src) {
   c.getContext("2d").drawImage(src, 0, 0);
   return c;
 }
-function snapshotLook(j) {
-  if (!j.panes || !j.painted) return null;
+/* `painted` is asked for rather than read off the job: the one caller takes this AFTER the new
+   cut has been made, and a new cut has already set `j.painted` false (see `rebuildAll`). */
+function snapshotLook(j, painted = j.painted) {
+  if (!j.panes || !painted) return null;
   const el = j.el, sg = el.querySelector(":scope > canvas.sg");
   if (!sg || !sg.width) return null;
   const c = document.createElement("canvas"); c.width = sg.width; c.height = sg.height;
@@ -2269,10 +2289,7 @@ function rebuildAll() {
   for (const j of curtains) {
     const wasPainted = j.painted, oldAcc = j.acc;
     const oldPanes = wasPainted ? snapshotPanes(j) : null;
-    // the ghost the morph crossfades from; same gate as the morph, or it fades from nothing
-    const oldLook = wasPainted && !REDUCED() ? snapshotLook(j) : null;
-    const oldGlow = oldLook ? snapshotCanvas(document.querySelector('[data-glow="' + j.seed + '"]')) : null;
-    j.sig = null; CHECKS.length = 0;
+    CHECKS.length = 0;
     if (curtainGeometry(j)) {
       // Foundry's tiles must start below the corner panes to own a shard of the strip;
       // when they do not, push them down once and cut the glass again
@@ -2281,6 +2298,20 @@ function rebuildAll() {
       const check = CHECKS[CHECKS.length - 1];
       const changed = !wasPainted || !check?.same || acc !== oldAcc;
       if (changed) {
+        /* THE GHOST THE MORPH CROSSFADES FROM, TAKEN HERE RATHER THAN AT THE TOP OF THE PASS.
+           Two full-screen canvases - 1920x1080 plus the glow's half-size copy, about 10 MB of
+           backing store - were allocated, blitted into and dropped again on every rebuild, and
+           most rebuilds change nothing. Measured in Chromium: 6.5 ms of the 21 ms a no-change
+           pass cost, and the garbage they made on top of that.
+           SAFE TO TAKE LATE, because nothing between the top of this loop and this line paints
+           the curtain: `curtainGeometry` measures the blocks, cuts the partition and writes the
+           rotation sheet, and `placeTiles` writes padding onto Foundry's rails. The pixels
+           caught here are the pixels that were on the screen when the pass began.
+           The gate is `oldPanes` and not `j.painted`: an identical cut leaves `painted` alone,
+           but a new one has already set it false by the time we are here, and the ghost is
+           exactly what the new cut is supposed to fade in over. */
+        const oldLook = oldPanes && !REDUCED() ? snapshotLook(j, oldPanes) : null;
+        const oldGlow = oldLook ? snapshotCanvas(document.querySelector('[data-glow="' + j.seed + '"]')) : null;
         curtainPaint(j); document.body.classList.add("drpg-curtain-on");
         const gl = document.querySelector('[data-glow="' + j.seed + '"]');
         if (gl) gl.style.cssText = STYLE + "z-index:" + j.el.style.zIndex + ";mix-blend-mode:screen;width:" + j.W + "px;";
@@ -2448,12 +2479,40 @@ function flashSeams(job, color, ms, { bloom = false } = {}) {
 /** Glass on a band: a window's title bar or the character sheet's header. */
 function dressBand(band, seedBase) {
   let job = windows.find(j => j.el === band);
-  if (!job) {
-    const c = document.createElement("canvas"); c.className = "sg"; band.prepend(c);
-    job = { el: band, seed: seedBase + windows.length * 37 };
-    windows.push(job);
+  /* THE FLASH MEANS "THE GLASS HAS JUST SET", SO IT HAPPENS ONCE.
+     `dressWindow` is on `renderApplicationV2`, which fires on every REDRAW of a window as
+     well as on its first render - a module panel redraws on every clock write, every Despair
+     change, every message; the character sheet on every Hope spent and every item added. The
+     repaint and the flash sat outside the block that makes the canvas, so each of those recut the band
+     with `windowShapes`, ran `paintGlass` over it again (the ink texture is drawn into a
+     fresh offscreen canvas per stained pane), and started another 420 ms animation that
+     strokes every seam of the band on every frame. With several windows open those flashes
+     overlap, which is why a busy screen shone rather than sat still.
+     A REDRAW STILL REPAINTS WHEN IT HAS TO, and only then: the band's box changing (a window
+     dragged wider) and the state's colour changing are the two things the painted glass
+     depends on, and both are asked rather than assumed. The colour has a second road in
+     through `onStateChange`, which repaints bands after the token has finished fading; this
+     one catches a window that is redrawn in the middle of that.
+     AND "FRESH" IS ABOUT THE GLASS, NOT ABOUT THE JOB: a band whose canvas has gone - a window
+     that redrew its own header in place, a third party tidying the DOM - has a job with
+     nothing under it, and the repaint below would find no canvas and stand down forever.
+     Asking for the canvas rather than for the job costs one selector and closes that. */
+  const fresh = !job || !band.querySelector(":scope > canvas.sg");
+  if (fresh) {
+    if (job) job.panes = null;
+    else { job = { el: band, seed: seedBase + windows.length * 37 }; windows.push(job); }
+    if (!band.querySelector(":scope > canvas.sg")) {
+      const c = document.createElement("canvas"); c.className = "sg"; band.prepend(c);
+    }
   }
-  requestAnimationFrame(() => { paintBand(job); flashSeams(job, job.acc || "#f2eee6", 420); });
+  requestAnimationFrame(() => {
+    if (fresh) { paintBand(job); flashSeams(job, job.acc || "#f2eee6", 420); return; }
+    // the same two numbers `paintBand` would give the canvas, so this compares like with like
+    const W = Math.max(60, Math.round(job.el.clientWidth));
+    const H = Math.max(24, Math.round(job.el.clientHeight));
+    if (job.W === W && job.H === H && resolveAcc(job.el) === job.acc) return;
+    paintBand(job);
+  });
   return job;
 }
 /** Every module window (`.drpg-panel`) gets glass on its header band, the character sheet on its
@@ -2491,7 +2550,8 @@ function pruneWindows() { for (let i = windows.length - 1; i >= 0; i--) if (!win
 
 /* `refreshGlass` rather than `rebuild`: a resize can cross the curtain's gate, and then
    there is nothing to rebuild - the curtain has to go, or come back. With one mounted it
-   still ends in `rebuild`, and an unchanged signature costs a geometry pass and no paint. */
+   still ends in `rebuild`, and an unchanged signature costs one measurement of the blocks -
+   not the partition, not the self-check and no paint (see the fast path in `curtainGeometry`). */
 const schedule = () => { clearTimeout(timer); timer = setTimeout(() => refreshGlass(), 150); };
 let resizeWatched = false;
 function observe() {
@@ -2613,7 +2673,8 @@ export function registerGlass() {
    * something else happens to recut the curtain.
    *
    * One line, and it covers every block rather than that one panel. `schedule`
-   * is debounced and `rebuild` answers an unchanged signature in microseconds,
+   * is debounced and `rebuild` answers an unchanged signature with one
+   * measurement of the blocks and nothing else,
    * so a tab switched to and fro costs nothing.
    */
   document.addEventListener("visibilitychange", () => {

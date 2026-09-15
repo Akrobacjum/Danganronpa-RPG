@@ -932,6 +932,11 @@ body.drpg-pixel-font .character-sidebar-sheet .resources-section .slot-label .la
     border-radius: 6px;
     border: 1px solid light-dark(rgba(var(--drpg-shadow-rgb), 0.25), rgba(var(--drpg-bone-rgb), 0.18));
     background: light-dark(rgba(var(--drpg-bone-rgb), 0.82), rgba(var(--drpg-deep-rgb), 0.72));
+    /* DEAD, AND KEPT ONLY SO THE NEXT READER DOES NOT COUNT IT: the block rule further
+       down this file - `#drpg-despair, #drpg-hud, #drpg-player-status, #countdowns,
+       #players` - has the same weight and comes later, and it reads
+       `var(--drpg-panel-blur)`, which is `none`. Asked of Chromium through
+       `CSS.getMatchedStylesForNode` rather than read off the file (15.09). */
     backdrop-filter: blur(3px);
     box-shadow: 0 2px 8px rgba(var(--drpg-shadow-rgb), 0.35);
     color: var(--color-text-primary, inherit);
@@ -1096,6 +1101,11 @@ body.drpg-pixel-font .character-sidebar-sheet .resources-section .slot-label .la
     border-radius: 6px;
     border: 1px solid var(--drpg-blood-deep);
     background: light-dark(rgba(var(--drpg-bone-rgb), 0.85), rgba(var(--drpg-deep-rgb), 0.78));
+    /* DEAD, AND KEPT ONLY SO THE NEXT READER DOES NOT COUNT IT: the block rule further
+       down this file - `#drpg-despair, #drpg-hud, #drpg-player-status, #countdowns,
+       #players` - has the same weight and comes later, and it reads
+       `var(--drpg-panel-blur)`, which is `none`. Asked of Chromium through
+       `CSS.getMatchedStylesForNode` rather than read off the file (15.09). */
     backdrop-filter: blur(3px);
     box-shadow: 0 2px 8px rgba(var(--drpg-shadow-rgb), 0.4);
 }

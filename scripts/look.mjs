@@ -46,7 +46,12 @@ function lookFieldset() {
        and the clock's turn-over as well as the glass, and Monokuma Legacy has all of those. */
     const glassOnly = (legacy ? "" :
         check("pulse", SETTINGS.glassPulse, getSetting(SETTINGS.glassPulse) !== false)
-        + check("ticker", SETTINGS.hudTicker, getSetting(SETTINGS.hudTicker) !== false))
+        + check("ticker", SETTINGS.hudTicker, getSetting(SETTINGS.hudTicker) !== false)
+        /* The blur is in this group because it is glass-only, and last in it because it
+           is the only row here that is about what the machine can draw rather than what
+           its owner wants to look at. It is also the row worth reaching for first when a
+           table reports a stutter - see `--drpg-glass-backdrop` in stained-glass.css. */
+        + check("blur", SETTINGS.glassBlur, getSetting(SETTINGS.glassBlur) !== false))
         + check("reducedMotion", SETTINGS.reducedMotion, getSetting(SETTINGS.reducedMotion) === true);
     const opt = (value, label) => `<option value="${value}"${theme === value ? " selected" : ""}>${
         foundry.utils.escapeHTML(game.i18n.localize(label))}</option>`;
@@ -109,6 +114,7 @@ function wireLook(root) {
         [SETTINGS.pixelFont, SETTINGS.pixelFont, "the pixel font"],
         [SETTINGS.glassPulse, SETTINGS.glassPulse, "the glass pulse"],
         [SETTINGS.hudTicker, SETTINGS.hudTicker, "the clock's ticker"],
+        [SETTINGS.glassBlur, SETTINGS.glassBlur, "the glass's blur"],
         [SETTINGS.reducedMotion, SETTINGS.reducedMotion, "reduced motion"]
     ]) {
         root.querySelector(`[name='look:${name}']`)?.addEventListener("change", ev =>
