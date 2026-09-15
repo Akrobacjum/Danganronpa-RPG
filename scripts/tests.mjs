@@ -546,6 +546,62 @@ const REGRESSIONS = [
         ok(!unguarded.length,
             `these socket handlers act on payload.actorId without checking that the `
             + `sender owns it: ${unguarded.join(", ")}`);
+
+        /*
+         * AND EVERY OTHER FILE THAT OPENS A SOCKET, because this test's own name
+         * says "no socket handler" and until 15.09 it read exactly one file.
+         *
+         * Twenty files call `game.socket.on`. The bridge is the big one and the
+         * block above still reads it properly, handler by handler; the rest were
+         * outside the sentence this test claims to be enforcing. That is how
+         * traps.mjs came to be the one handler in the module taking a character
+         * on the packet's word - a forged relay could fire and disarm anybody's
+         * trap - with a green suite the whole time.
+         *
+         * WHAT THIS HALF CAN AND CANNOT DO. It is a coarse read: for each file,
+         * if a socket handler body anywhere in it reaches for an actor id out of
+         * the payload, the file has to name `senderOf` and `ownsActor` somewhere
+         * too. It cannot tell WHICH handler guarded itself, so it would not
+         * catch a second handler added beside a guarded one. It does catch the
+         * thing that actually happened: a whole file that never learnt the rule.
+         *
+         * The exemptions are listed rather than inferred, one line of reason
+         * each, so that adding a file to this list is a decision somebody writes
+         * down instead of a silence.
+         */
+        const EXEMPT = {
+            // Answers only to the sender's own id, never to an id in the packet.
+            "vote.mjs": "keys the tally by senderId; the payload's actor is an address, not a claim",
+            "search-tokens.mjs": "replies to whoever asked; spends against a room, not an actor",
+            "murder.mjs": "GM-to-GM sync plus one request answered from the sender's own cast",
+            "mastermind.mjs": "GM-to-GM sync; the one player request is answered about the sender",
+            "truth-bullets.mjs": "GM-to-GM ledger sync, refused outright from a non-GM",
+            "remnants.mjs": "GM-to-GM ledger sync, refused outright from a non-GM",
+            "secret.mjs": "GM-to-GM sync of private cards",
+            "fog.mjs": "every branch checks sender.isGM and that the packet is addressed to this user",
+            "sync.mjs": "world-state fan-out from a GM; carries no actor id",
+            "safeword.mjs": "deliberately trusts nothing from the packet - reads the sender's name",
+            "dice-sync.mjs": "dice appearance only; no actor anywhere in it",
+            "sfx.mjs": "plays a sound; no actor anywhere in it",
+            "voice.mjs": "room membership, keyed by the sender",
+            "voice-client.mjs": "room membership, keyed by the sender",
+            "call-effects.mjs": "GM-to-GM sync of running effects"
+        };
+
+        const blind = [];
+        for (const [file, raw] of await otherSources()) {
+            const text = stripComments(raw);
+            if (!/game\.socket\.on\(/.test(text)) continue;
+            if (file.endsWith("gm-bridge.mjs")) continue;      // read properly above
+            const name = file.split("/").pop();
+            if (!/payload[?.]*\.actorId|payload\.\w*[Ii]d\b/.test(text)) continue;
+            if (EXEMPT[name]) continue;
+            if (text.includes("senderOf(senderId)") && /ownsActor\(sender/.test(text)) continue;
+            blind.push(name);
+        }
+        ok(!blind.length,
+            `these files open a socket and act on an id from the packet without `
+            + `senderOf/ownsActor, and are not on the exemption list: ${blind.join(", ")}`);
     }],
 
     ["R2 · no styling rule in the sheet has lost its emitter", async () => {
@@ -4695,6 +4751,317 @@ const SCENARIOS = [
         }
     }],
 
+    ["the analysis half of a trace is not on the item until it is bought", async () => {
+        /*
+         * THE SECOND TIER, AND THE ONLY QUESTION THAT MATTERS ABOUT IT IS WHERE
+         * IT IS SITTING BEFORE IT IS EARNED.
+         *
+         * A trace now carries two descriptions: what Observe buys and what
+         * Analyze buys. The second follows exactly the rule `sourceAction` and
+         * `tiedToCrime` already follow - it lives in the bullet's secret from
+         * creation and reaches the ITEM only once the holder has identified it -
+         * and the rule exists because a player's browser holds every one of
+         * their own items in full. A sentence written onto the item at creation
+         * is a sentence readable from the console by anyone who can be bothered
+         * to open one, which in a social-deduction game is the whole point of
+         * the roll gone.
+         *
+         * Nothing about the module's behaviour would say so. The sheet shows
+         * one paragraph before analysis and two after either way; the flag is
+         * the only witness, so the flag is what this reads.
+         *
+         * FOUR PROPERTIES, and the third and fourth are the ones that were not
+         * obvious when this was built:
+         *   1. un-analysed: item empty, secret holds it
+         *   2. analysed: item holds it, description carries both halves
+         *   3. a GM rewriting it afterwards reaches an analysed copy's ITEM and
+         *      an un-analysed copy's SECRET ONLY - one edit, two roads
+         *   4. the description scrape that carries a sheet edit back to the
+         *      trace does not fold the analysis paragraph into `playerText`,
+         *      which would publish it to every holder at once
+         */
+        const remnants = await import("./remnants.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { roomOfToken } = await import("./movement.mjs");
+        const { MODULE_ID } = await import("./config.mjs");
+        const F = bullets.TRUTH_BULLET_FLAGS;
+
+        const scene = canvas?.scene;
+        ok(scene, "no active scene");
+        const anchor = scene?.tokens?.find(t => roomOfToken(t));
+        ok(anchor, "no token on the active scene stands in any room");
+
+        const cast = game.actors.filter(a => a.type === "character").slice(0, 2);
+        ok(cast.length >= 2, "need two characters: one who analyses and one who does not");
+        const [reader, holder] = cast;
+
+        /* NO APOSTROPHE, NO ANGLE BRACKET, and that is not fussiness - the
+           first draft of this fixture read "not the victim's blood" and the
+           description assertion below failed on it. The flag holds the raw
+           sentence and the description holds it through `escapeHTML`, so the
+           two are only comparable for text that escaping leaves alone. The
+           escaping itself is asserted separately further down, where it is the
+           subject rather than an accident of the fixture. */
+        const READING = `Type O and not the victim blood ${Date.now() % 100000}`;
+        let token = null;
+        const made = [];
+        try {
+            token = await remnants.placeRemnant({
+                type: "prep", visibility: "evident", x: anchor.x, y: anchor.y, scene,
+                note: "test fixture - two-tier description"
+            });
+            ok(token, "could not place the fixture trace");
+
+            await remnants.setRemnantPublic(token, {
+                name: "Suite fixture smear", playerText: "A dark smear.", analyzedText: READING
+            });
+            await settle();
+            equal(remnants.remnantPublic(token)?.analyzedText, READING,
+                "the trace did not keep the analysis text it was given");
+
+            for (const actor of [reader, holder]) {
+                const item = await bullets.createTruthBullet(actor, {
+                    name: "Suite fixture smear",
+                    realType: "resolution",          // analysable: not self-evident
+                    visibility: "obvious",
+                    playerText: "A dark smear.",
+                    analyzedText: READING,
+                    remnantId: token.id,
+                    sceneId: scene.id
+                });
+                ok(item, `no bullet was created for ${actor.name}`);
+                made.push(item);
+            }
+            await settle();
+
+            // ---- 1. Before the roll: nothing on the item, everything in the secret
+            for (const item of made) {
+                const live = item.actor.items.get(item.id);
+                equal(live.getFlag(MODULE_ID, F.analyzedText) ?? "", "",
+                    `${item.actor.name}'s un-analysed copy carries the analysis on the item`);
+                ok(!String(live.system?.description ?? "").includes(READING),
+                    `${item.actor.name}'s un-analysed description quotes the analysis`);
+                equal(bullets.secretOf(live.uuid).analyzedText, READING,
+                    `the analysis was not filed in ${item.actor.name}'s bullet secret`);
+            }
+
+            // ---- 2. One of them buys it -------------------------------------
+            const { resolveAnalyze } = await import("./analyze.mjs");
+            const verdict = await resolveAnalyze({
+                actorId: reader.id, itemId: made[0].id, total: 40, isCritical: false
+            });
+            await settle();
+            ok(verdict?.success, "the fixture Analyze did not succeed on a 40");
+
+            const analysed = reader.items.get(made[0].id);
+            equal(analysed.getFlag(MODULE_ID, F.analyzedText), READING,
+                "a successful Analyze did not publish the reading onto the item");
+            ok(String(analysed.system?.description ?? "").includes(READING),
+                "the description did not gain the analysis paragraph");
+            ok(String(analysed.system?.description ?? "").includes("A dark smear."),
+                "the analysis paragraph replaced the Observe half instead of joining it");
+
+            // ---- 3. The GM rewrites it. Two roads, and only two -------------
+            const REWRITTEN = `Type AB after all ${Date.now() % 100000}`;   // escape-safe, as above
+            await remnants.setRemnantPublic(token, { analyzedText: REWRITTEN });
+            await settle();
+            await until(() => reader.items.get(made[0].id)
+                ?.getFlag(MODULE_ID, F.analyzedText) === REWRITTEN);
+
+            equal(reader.items.get(made[0].id).getFlag(MODULE_ID, F.analyzedText), REWRITTEN,
+                "the correction never reached the holder who had analysed it");
+            equal(holder.items.get(made[1].id).getFlag(MODULE_ID, F.analyzedText) ?? "", "",
+                "the correction was published onto a copy nobody has analysed");
+            equal(bullets.secretOf(holder.items.get(made[1].id).uuid).analyzedText, REWRITTEN,
+                "the un-analysed copy's secret was left holding the old reading");
+
+            // ---- 4. A sheet edit must not carry the analysis into playerText -
+            /* The description is two paragraphs now, and `watchBulletEdits`
+               reads it back as plain text to keep the trace in step with a GM
+               typing on the item sheet. Without the cut, that read-back folds
+               the lab reading - and its heading - into `playerText`, which then
+               goes down onto every copy including the un-analysed one. One GM
+               opening a sheet would publish the answer to the table. */
+            const live = reader.items.get(made[0].id);
+            await live.update({
+                "system.description":
+                    `<p>Rust in the hinge.</p><p class="drpg-bullet-analysis"><strong>Analysis:</strong> ${REWRITTEN}</p>`
+            });
+            await settle();
+            await until(() => remnants.remnantPublic(token)?.playerText === "Rust in the hinge.");
+            equal(remnants.remnantPublic(token)?.playerText, "Rust in the hinge.",
+                "the sheet scrape folded the analysis paragraph into the Observe half");
+            equal(remnants.remnantPublic(token)?.analyzedText, REWRITTEN,
+                "the sheet scrape overwrote the trace's analysis text");
+
+            // ---- 5. And the reading is escaped on its way into the markup ----
+            /* The fixtures above are deliberately escape-safe so that a plain
+               `includes` can compare them; this is where that shortcut is paid
+               for. A GM writes this sentence by hand into a textarea, it lands
+               in `system.description` as HTML, and the sheet renders it - so a
+               trace described with a `<script>` in it is a trace that runs on
+               every holder's browser. Asserted on the composer directly, which
+               is the one place all three call sites go through. */
+            const nasty = bullets.bulletDescription("plain", `<img src=x onerror=alert(1)>`);
+            ok(!nasty.includes("<img"), "the analysis half reaches the sheet as live markup");
+            ok(nasty.includes("&lt;img"), "the analysis half was not escaped at all");
+        } finally {
+            for (const item of made) {
+                const live = item.actor?.items?.get(item.id);
+                if (live) await live.delete();
+            }
+            if (token) {
+                await remnants.dropRemnantSecret(token);
+                if (scene.tokens.has(token.id)) {
+                    await scene.deleteEmbeddedDocuments("Token", [token.id]);
+                }
+            }
+        }
+    }],
+
+    ["handing over evidence hands over only what the giver had analysed", async () => {
+        /*
+         * The copy is born with the giver's state - `handoverBullet` passes
+         * `analyzed` through - so an analysed bullet arrives analysed and its
+         * reading arrives with it, which is what sharing findings means. The
+         * half worth a test is the other one: hand over something you have NOT
+         * analysed and the receiver's item must hold nothing, with the reading
+         * waiting in their own secret for their own roll.
+         *
+         * `createTruthBullet` decides this from `identified`, which is derived
+         * rather than passed - so a change to how that is computed silently
+         * changes who can read the answer, and nothing else in the module would
+         * notice.
+         */
+        const remnants = await import("./remnants.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { roomOfToken } = await import("./movement.mjs");
+        const { MODULE_ID } = await import("./config.mjs");
+        const F = bullets.TRUTH_BULLET_FLAGS;
+
+        const scene = canvas?.scene;
+        ok(scene, "no active scene");
+        const anchor = scene?.tokens?.find(t => roomOfToken(t));
+        ok(anchor, "no token on the active scene stands in any room");
+
+        /*
+         * TWO STUDENTS IN ONE ROOM, ARRANGED RATHER THAN HOPED FOR.
+         *
+         * `shareBullet` refuses a handover across rooms, and the seeded world
+         * puts every student in a room of their own - so the first draft of
+         * this test took the first two characters on the list, got `null` back
+         * from a refusal it never noticed, and reported clean without reaching
+         * one assertion.
+         *
+         * Skipping instead would have been worse than useless. A skip in this
+         * suite is a promise that the ENVIRONMENT cannot answer the question
+         * (see `needs`), and "the fixture did not stand the pieces where it
+         * needed them" is not that. It would also have grown the skipped count,
+         * which is the one number nobody looks at.
+         *
+         * So the token is moved, and put back in `finally`. That is fixture
+         * setup, not cheating: what this test asserts is what the COPY carries,
+         * and the cross-room refusal is another test's subject entirely.
+         */
+        const { roomOfActor } = await import("./movement.mjs");
+        const chars = game.actors.filter(a => a.type === "character" && roomOfActor(a));
+        ok(chars.length >= 2, "need two students with tokens standing in named rooms");
+        const [giver, receiver] = chars;
+
+        const giverToken = scene.tokens.find(t => t.actorId === giver.id);
+        const hostToken = scene.tokens.find(t => t.actorId === receiver.id);
+        ok(giverToken && hostToken, "one of the two students has no token on this scene");
+        const wasAt = { x: giverToken.x, y: giverToken.y };
+
+        const READING = `Ash and not soot ${Date.now() % 100000}`;   // escape-safe
+        let token = null;
+        const made = [];
+        try {
+            // Into the receiver's room, and verified rather than assumed: if
+            // the move did not take, every assertion below would be measuring a
+            // refusal instead of a copy.
+            await giverToken.update({ x: hostToken.x, y: hostToken.y });
+            await settle();
+            equal(roomOfActor(giver), roomOfActor(receiver),
+                "the fixture could not stand the two students in one room");
+
+            token = await remnants.placeRemnant({
+                type: "prep", visibility: "evident", x: anchor.x, y: anchor.y, scene,
+                note: "test fixture - handover of an unanalysed reading"
+            });
+            ok(token, "could not place the fixture trace");
+
+            /* THE TRACE IS WRITTEN FIRST, and the first draft of this did not
+               do it: it handed `analyzedText` straight to `createTruthBullet`
+               and asserted on the secret afterwards, which read empty. Not a
+               bug - `revealSourceOf` reconciles a bullet to its trace, and the
+               trace had nothing to say. Every real caller writes the record
+               first (observe.mjs types it into the trace, then copies it back
+               out), so a fixture that skips that step is testing a state the
+               module never produces. See `createTruthBullet`'s note. */
+            await remnants.setRemnantPublic(token, {
+                name: "Suite fixture residue",
+                playerText: "Grey dust on the sill.",
+                analyzedText: READING
+            });
+            await settle();
+
+            const source = await bullets.createTruthBullet(giver, {
+                name: "Suite fixture residue",
+                realType: "resolution",
+                visibility: "obvious",
+                playerText: "Grey dust on the sill.",
+                analyzedText: READING,
+                remnantId: token.id,
+                sceneId: scene.id
+            });
+            ok(source, "no bullet was created for the giver");
+            made.push(source);
+            await settle();
+
+            // The giver's own state, asserted before the handover rather than
+            // assumed by it: if the reading never reached this secret, every
+            // claim below about the copy would be measuring the wrong thing.
+            equal(bullets.secretOf(source.uuid).analyzedText, READING,
+                "the giver's own bullet never carried the reading");
+            equal(source.getFlag(MODULE_ID, F.analyzedText) ?? "", "",
+                "the giver has not analysed it, so their item must hold nothing");
+
+            const { shareBullet } = await import("./handover.mjs");
+            const copy = await shareBullet({
+                fromId: giver.id, toId: receiver.id, itemId: source.id
+            });
+            await settle();
+            ok(copy, "the fixture handover produced no copy");
+            made.push(copy);
+
+            const live = receiver.items.get(copy.id);
+            equal(live.getFlag(MODULE_ID, F.analyzedText) ?? "", "",
+                "an un-analysed bullet handed over its analysis to the receiver's item");
+            ok(!String(live.system?.description ?? "").includes(READING),
+                "the copy's description quotes a reading nobody has bought");
+            equal(bullets.secretOf(live.uuid).analyzedText, READING,
+                "the receiver's own copy cannot pay out - the reading was not filed with it");
+            ok(String(live.system?.description ?? "").includes("Grey dust on the sill."),
+                "the Observe half did not travel with the copy");
+        } finally {
+            // The student goes back where the world put them, first: a fixture
+            // that leaves somebody standing in the wrong room changes what
+            // every later test in this run is looking at.
+            try { await giverToken.update(wasAt); } catch { /* scene already gone */ }
+            for (const item of made) {
+                const live = item?.actor?.items?.get(item.id);
+                if (live) await live.delete();
+            }
+            if (token) {
+                await remnants.dropRemnantSecret(token);
+                if (scene.tokens.has(token.id)) {
+                    await scene.deleteEmbeddedDocuments("Token", [token.id]);
+                }
+            }
+        }
+    }],
+
     ["no piece of a room's outline is shorter than the line it is drawn with", async () => {
         /*
          * THE CUT WHITE WEDGE, STANDING ON ITS OWN IN THE MIDDLE OF A DOORWAY.
@@ -5916,6 +6283,72 @@ const SCENARIOS = [
             equal(notices.getAttribute("aria-live"), "polite",
                 "the notice stack is not a live region, so a notice arrives in silence");
         }
+    }],
+
+    ["the portrait picker is a control a keyboard can reach and a reader can name", async () => {
+        /*
+         * AUDIT 15.09, AND THE TEST ABOVE COULD NOT HAVE CAUGHT IT.
+         *
+         * The picture beside a Project, a trace or a table entry is the only way
+         * to change that image, and it was an `<img alt="">` with a click
+         * listener on it: no role, no tabindex, no name. Unreachable by
+         * keyboard, invisible to a screen reader. Four call sites, all the same.
+         *
+         * `a11yReport()` said the chrome was clean the whole time, because its
+         * sweep looks for `button, a[href], [role=button], input, select,
+         * textarea` and an image with a listener is none of those. The tool
+         * built to find nameless controls was structurally unable to see this
+         * one - a check passing because it measured nothing, which is the
+         * failure this repository opens its own notes with.
+         *
+         * DRIVEN THROUGH THE REAL WIRING, on markup built the way the call sites
+         * build it, and detached from the page so it needs no interface drawn -
+         * unlike the sweep test above, which is one of the nine skips headless.
+         * What is asserted is what a keyboard and a screen reader would find:
+         * something focusable, something with a role, and something with a name
+         * that is not the empty string.
+         */
+        const { wirePortraitPickers } = await import("./utils.mjs");
+
+        const root = document.createElement("div");
+        root.innerHTML = `
+            <img src="icons/svg/mystery-man.svg" alt="" class="drpg-project-portrait"
+                 data-drpg-portrait="p1" data-tooltip="Change the image" />
+            <input type="hidden" name="img.p1" value="icons/svg/mystery-man.svg" />
+            <img src="icons/svg/mystery-man.svg" alt="" class="drpg-project-portrait"
+                 data-drpg-portrait="p2" />
+            <input type="hidden" name="img.p2" value="" />`;
+
+        wirePortraitPickers(root);
+
+        const shots = [...root.querySelectorAll("[data-drpg-portrait]")];
+        equal(shots.length, 2, "the fixture markup did not survive being parsed");
+
+        for (const shot of shots) {
+            equal(shot.getAttribute("role"), "button",
+                "a clickable portrait does not announce itself as a control");
+            equal(shot.getAttribute("tabindex"), "0",
+                "a clickable portrait cannot be reached by keyboard");
+            const name = shot.getAttribute("aria-label") ?? "";
+            ok(name.trim().length > 0,
+                "a clickable portrait carries no name a screen reader could read");
+            ok(!/^DRPG\./.test(name),
+                `the portrait's name is a raw translation key: ${name}`);
+        }
+
+        // The one that had a tooltip keeps ITS words rather than the generic
+        // fallback - the sweep's whole rule is "read what it already carries".
+        equal(shots[0].getAttribute("aria-label"), "Change the image",
+            "the portrait's own tooltip was thrown away in favour of a generic name");
+
+        /* AND THE SWEEP CAN SEE IT NOW. The attributes above are written by
+           `wirePortraitPickers`, which runs from a dialog's `render`; a sweep
+           that reaches the window first would still have to recognise the
+           element. Asserted against a11y.mjs's own selector rather than a copy
+           of it, so the two cannot drift. */
+        const { CONTROLS } = await import("./a11y.mjs");
+        ok(shots.every(s => s.matches(CONTROLS)),
+            "a11y.mjs's control selector still cannot see a portrait picker");
     }],
 
     ["a phone is told apart from a desk, and the curtain stands down on it", async () => {

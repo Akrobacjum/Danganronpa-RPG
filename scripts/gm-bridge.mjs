@@ -413,12 +413,18 @@ function onSabotageResult(payload, senderId) {
  * handler and cannot be set by the sender - see `handleCustomSocket` in the
  * server's `sockets.mjs`, which stamps `this.user.id` on every delivery.
  */
-function senderOf(senderId) {
+/*
+ * EXPORTED SO THE OTHER SOCKET IN THE MODULE CAN USE THE SAME TWO, rather than
+ * grow its own pair a year later that is subtly different. traps.mjs runs the
+ * one socket handler outside this file that acts on a named character; it now
+ * opens with these, and R1b reads both files for the shape.
+ */
+export function senderOf(senderId) {
     const user = game.users.get(senderId ?? "");
     return user?.active ? user : null;
 }
 
-function ownsActor(user, actorId) {
+export function ownsActor(user, actorId) {
     if (!user || !actorId) return false;
     if (user.isGM) return true;
     return Boolean(game.actors.get(actorId)?.testUserPermission(user, "OWNER"));

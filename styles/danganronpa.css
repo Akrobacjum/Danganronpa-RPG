@@ -3148,6 +3148,43 @@ body.drpg-pixel-font [contenteditable] {
     overflow-wrap: anywhere;
 }
 
+/* WHAT ANALYSIS BOUGHT, AND IT HAS TO LOOK BOUGHT.
+   ---------------------------------------------------------------------------
+   The second tier of a trace's description appears in three places that share
+   no markup: the Remnant card, the chat card Analyze sends, and the item's own
+   description as Daggerheart's sheet renders it. The last of those is why this
+   rule is as plain as it is - the system draws that field with its own
+   typography, and anything structural (a panel, a background) fought with it.
+   A rule down the side and an indent survive being dropped into somebody
+   else's markup.
+
+   NO PALETTE COLOUR HERE, AND THAT IS MEASURED RATHER THAN CAUTIOUS.
+   `--drpg-evidence` was the obvious pick - it is already the Truth Bullet's
+   own token, split off from `--drpg-gold` precisely so evidence would stop
+   reading as Hope. On the module's dark ink it is 8.83:1. On the white ground
+   an item sheet can perfectly well have, it is 2.10:1, which is not a colour
+   you can put a word in. `--drpg-eye` is the reverse problem and is the wrong
+   token anyway: Analyze is a Head roll, Eye is a different trait.
+
+   So the accent is `currentColor`, which is whatever the surrounding sheet
+   already proved it could render text in. The paragraph is told apart by the
+   rule, the indent and the bold label instead of by hue - which is also the
+   version that works for a reader who cannot see the hue. */
+.drpg-bullet-analysis {
+    margin: 6px 0 0;
+    padding-inline-start: 8px;
+    /* `color-mix` so the rule is quieter than the text beside it without
+       naming a colour of its own; the plain `currentColor` behind it is for
+       anything that cannot do the mix. */
+    border-inline-start: 2px solid currentColor;
+    border-inline-start-color: color-mix(in srgb, currentColor 45%, transparent);
+    overflow-wrap: anywhere;
+}
+
+.drpg-bullet-analysis strong {
+    margin-inline-end: 4px;
+}
+
 .drpg-remnant-tagrow {
     display: flex;
     flex-wrap: wrap;

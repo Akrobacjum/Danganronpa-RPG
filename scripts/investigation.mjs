@@ -853,6 +853,14 @@ function caseTraceRows(shown, finders) {
                 <div class="notes drpg-trace-context">${esc(traceContextLine(data))}</div>
             </td>
             <td><textarea name="text.${key}" rows="2">${esc(data.public?.playerText || "")}</textarea></td>
+            ${/* The second tier, edited in the same row as the first. Side by
+                  side on purpose: the two sentences describe one object and a
+                  GM writing the lab reading wants the observation in view, not
+                  on another tab. See TRUTH_BULLET_FLAGS.analyzedText for who
+                  ever gets to read this one. */ ""}
+            <td><textarea name="analysis.${key}" rows="2"
+                placeholder="${game.i18n.localize("DRPG.TruthBullet.analyzedTextPlaceholder")}"
+                >${esc(data.public?.analyzedText || "")}</textarea></td>
             <td><input type="text" name="tags.${key}" value="${esc(manualTags.join(", "))}"
                 placeholder="${game.i18n.localize("DRPG.Investigation.traceTagsPlaceholder")}" /></td>
             <td style="text-align:center"><input type="checkbox" name="faint.${key}" ${data.faint ? "checked" : ""} /></td>
@@ -928,6 +936,7 @@ function caseTracesPanel({ traces, shown, finders, reading }) {
         ${shown.length ? `<table class="drpg-vault-table"><thead><tr>
             <th>${game.i18n.localize("DRPG.Investigation.traceName")}</th>
             <th>${game.i18n.localize("DRPG.Investigation.traceText")}</th>
+            <th>${game.i18n.localize("DRPG.Investigation.traceAnalysis")}</th>
             <th>${game.i18n.localize("DRPG.Investigation.traceTags")}</th>
             <th>${game.i18n.localize("DRPG.Remnant.faintColumn")}</th>
             <th>${game.i18n.localize("DRPG.Remnant.crimeColumn")}</th>
@@ -1194,6 +1203,7 @@ function readDashboardForm(d) {
                 img: q(`img.${key}`)?.value ?? "",
                 name: q(`name.${key}`)?.value.trim() ?? "",
                 text: q(`text.${key}`)?.value.trim() ?? "",
+                analysis: q(`analysis.${key}`)?.value.trim() ?? "",
                 tags: (q(`tags.${key}`)?.value ?? "")
                     .split(",").map(t => t.trim()).filter(Boolean),
                 faint: q(`faint.${key}`)?.checked ?? false,
@@ -1451,6 +1461,7 @@ async function applyDashboardSave(result, { traces, plan }) {
         if (row.name !== (data.public?.name ?? "")) publicPatch.name = row.name;
         if (row.img !== (data.public?.img ?? "")) publicPatch.img = row.img;
         if (row.text !== (data.public?.playerText ?? "")) publicPatch.playerText = row.text;
+        if (row.analysis !== (data.public?.analyzedText ?? "")) publicPatch.analyzedText = row.analysis;
         if (row.tags.join("") !== currentTags.join("")) publicPatch.tags = row.tags;
         if (Object.keys(publicPatch).length) {
             await setRemnantPublic(token, publicPatch);

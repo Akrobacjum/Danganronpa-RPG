@@ -884,6 +884,14 @@ function bulletCreatePane() {
             <label>${game.i18n.localize("DRPG.TruthBullet.playerText")}
                 <textarea name="playerText" rows="2"
                     placeholder="${game.i18n.localize("DRPG.TruthBullet.playerTextPlaceholder")}"></textarea></label>
+            ${/* A bullet invented here has no trace to inherit a reading from,
+                  so this is the only place one can be written for it. The
+                  Autopsy dialog further down deliberately has no twin of this
+                  box: an autopsy identifies itself, so no Analyze will ever be
+                  thrown at it - see SELF_EVIDENT in truth-bullets.mjs. */ ""}
+            <label>${game.i18n.localize("DRPG.TruthBullet.analyzedText")}
+                <textarea name="analyzedText" rows="2"
+                    placeholder="${game.i18n.localize("DRPG.TruthBullet.analyzedTextPlaceholder")}"></textarea></label>
             <label>${game.i18n.localize("DRPG.TruthBullet.gmNote")}
                 <textarea name="gmNote" rows="2"
                     placeholder="${game.i18n.localize("DRPG.TruthBullet.gmNotePlaceholder")}"></textarea></label>`;
@@ -950,6 +958,7 @@ function readBulletForm(d) {
         faint: f.elements.faint.checked,
         tied: f.elements.tied.checked,
         playerText: f.elements.playerText.value.trim(),
+        analyzedText: f.elements.analyzedText.value.trim(),
         gmNote: f.elements.gmNote.value.trim()
     };
 }
@@ -990,6 +999,11 @@ async function bulletFromRemnant(result, traces, scene, { setRemnantPublicById, 
         visibility: data.visibility,
         faint: Boolean(data.faint),
         playerText: pub?.playerText ?? "",
+        // The trace's lab reading travels with it. `createTruthBullet` decides
+        // whether it reaches the item or waits in the secret, by the same
+        // `identified` test that governs `sourceAction` below - so a GM handing
+        // this out as Neutral hands out nothing analysis has not been paid for.
+        analyzedText: pub?.analyzedText ?? "",
         img: pub?.img ?? null,
         tags: pub?.tags ?? [],
         gmNote: data.note ?? "",
@@ -1021,6 +1035,10 @@ function bulletFromForm(result) {
         // at creation; public on the item only once identified.
         tiedToCrime: result.tied,
         playerText: result.playerText,
+        // No trace behind this one, so nothing will reconcile it afterwards -
+        // what the GM typed is what the bullet keeps. It still waits in the
+        // secret until the holder identifies it, like every other reading.
+        analyzedText: result.analyzedText,
         gmNote: result.gmNote
     };
 }

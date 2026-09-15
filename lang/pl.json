@@ -1424,7 +1424,8 @@
       "leftoverKeys": "Na mapie wciąż jest {n} Key Remnant(s) z wcześniejszego rozdziału. Plan tego rozdziału ich nie widzi; usuń je na końcu rozdziału albo podepnij tutaj.",
       "finalFoundBy": "Znalazł",
       "finalNobody": "Nikt go nie znalazł",
-      "chargeTooLate": "Zegar przeszedł już do rozdziału {now}; plan rozdziału {was} nie jest już bieżący, więc nic nie policzono za nieznalezione Key Remnants. Policz to z konsoli Class Trial, zanim zakończysz rozdział."
+      "chargeTooLate": "Zegar przeszedł już do rozdziału {now}; plan rozdziału {was} nie jest już bieżący, więc nic nie policzono za nieznalezione Key Remnants. Policz to z konsoli Class Trial, zanim zakończysz rozdział.",
+      "traceAnalysis": "Co ujawnia analiza"
     },
     "Vault": {
       "foundStashPending": "Znajdujesz czyjąś skrytkę. Co z niej wyjdzie, rozstrzygnie się za chwilę.",
@@ -1745,6 +1746,10 @@
       "lockedTooltip": "Analiza nie powiodła się w tym rozdziale. Spróbuj w następnym albo przekaż kopię dalej.",
       "playerText": "Opis dla gracza",
       "playerTextPlaceholder": "Co naprawdę widzi osoba, która to znalazła.",
+      "analyzedText": "Co ujawnia analiza",
+      "analyzedTextPlaceholder": "To, czego nie widać gołym okiem - czyja krew, który mankiet, czym pachnie.",
+      "analyzedTextNote": "Pole opcjonalne. Przeczyta to tylko uczeń, któremu uda się Analyze na tym śladzie. Puste nie psuje niczego - Analyze i tak nazwie kategorię.",
+      "analysisHeading": "Analiza:",
       "gmNote": "Notatka dla GMa (nigdy nie pokazywana graczowi)",
       "gmNotePlaceholder": "Co to naprawdę znaczy dla sprawy.",
       "secretNote": "Prawdziwy typ i twoja notatka zostają po stronie GMa. Nigdy nie trafiają do przedmiotu gracza.",

@@ -430,11 +430,13 @@ async function createFind(actor, entry, isCritical) {
     // description with an empty one.
     let pub = stored;
     if (written?.name && written.name !== described?.name
-        || written?.playerText && written.playerText !== described?.playerText) {
+        || written?.playerText && written.playerText !== described?.playerText
+        || written?.analyzedText && written.analyzedText !== described?.analyzedText) {
         try {
             pub = await setRemnantPublicById(entry.sceneId, entry.tokenId, {
                 name: written.name || described?.name || fallbackName,
-                playerText: written.playerText || described?.playerText || ""
+                playerText: written.playerText || described?.playerText || "",
+                analyzedText: written.analyzedText || described?.analyzedText || ""
             });
         } catch (err) {
             error("Could not record the description on the Remnant", err);
@@ -450,6 +452,11 @@ async function createFind(actor, entry, isCritical) {
         visibility: data.visibility,
         faint: Boolean(data.faint),
         playerText: pub?.playerText ?? written?.playerText ?? "",
+        // What analysis will say, filed with the bullet now so a later Head roll
+        // pays out even if the trace itself is wiped before then. It reaches
+        // this player's ITEM only on a critical, which identifies outright -
+        // `createTruthBullet` is where that is decided, not here.
+        analyzedText: pub?.analyzedText ?? written?.analyzedText ?? "",
         img: pub?.img ?? null,
         tags: pub?.tags ?? [],
         gmNote: data.note ?? "",
@@ -533,13 +540,38 @@ async function describeFind(actor, entry, isCritical, fallbackName, stored = nul
                 <textarea name="playerText" rows="3"${stored ? " autofocus" : ""}
                     placeholder="${game.i18n.localize("DRPG.TruthBullet.playerTextPlaceholder")}"
                     >${foundry.utils.escapeHTML(stored?.playerText ?? "")}</textarea></label>
+            ${/*
+                * THE SECOND BOX IS ASKED HERE AND NOT LATER, and it is optional.
+                *
+                * This is the one moment a GM is already looking at this trace
+                * and thinking about what it is - so it is the cheapest moment
+                * to also write what the lab would say about it. The alternative
+                * is being interrupted weeks later, mid-Investigation, by a
+                * player's Head roll landing on a trace nobody has written a
+                * reading for.
+                *
+                * Left empty it costs nothing: Analyze still identifies the
+                * category, which is exactly what it did before this field
+                * existed. The Remnant card and the Investigation dashboard both
+                * edit the same field afterwards, so nothing is decided here
+                * that cannot be changed at leisure.
+                */ ""}
+            <label>${game.i18n.localize("DRPG.TruthBullet.analyzedText")}
+                <textarea name="analyzedText" rows="3"
+                    placeholder="${game.i18n.localize("DRPG.TruthBullet.analyzedTextPlaceholder")}"
+                    >${foundry.utils.escapeHTML(stored?.analyzedText ?? "")}</textarea></label>
+            <p class="notes">${game.i18n.localize("DRPG.TruthBullet.analyzedTextNote")}</p>
         </form>`),
         buttons: [
             {
                 action: "ok", label: game.i18n.localize("DRPG.Observe.describeConfirm"), default: true,
                 callback: (e, b, d) => {
                     const f = d.element.querySelector("form");
-                    return { name: f.name.value.trim(), playerText: f.playerText.value.trim() };
+                    return {
+                        name: f.name.value.trim(),
+                        playerText: f.playerText.value.trim(),
+                        analyzedText: f.analyzedText.value.trim()
+                    };
                 }
             }
         ],

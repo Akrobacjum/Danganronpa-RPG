@@ -284,6 +284,11 @@ function gmRemnantCard(tokenOrActor, esc) {
                 <textarea rows="3" data-drpg-public="playerText"
                     data-drpg-was="${esc(pub.playerText ?? "")}"
                     placeholder="${esc(t("DRPG.TruthBullet.playerTextPlaceholder"))}">${esc(pub.playerText ?? "")}</textarea></label>
+            <label>${esc(t("DRPG.TruthBullet.analyzedText"))}
+                <textarea rows="3" data-drpg-public="analyzedText"
+                    data-drpg-was="${esc(pub.analyzedText ?? "")}"
+                    placeholder="${esc(t("DRPG.TruthBullet.analyzedTextPlaceholder"))}">${esc(pub.analyzedText ?? "")}</textarea></label>
+            <p class="notes">${esc(t("DRPG.TruthBullet.analyzedTextNote"))}</p>
             ${tagRow}
             <p class="notes">${esc(t("DRPG.Remnant.cardEditNote"))}</p>
         </section>
@@ -310,6 +315,11 @@ function playerRemnantCard(tokenOrActor, esc) {
     const shownType = flag(TRUTH_BULLET_FLAGS.shownType) ?? "neutral";
     const known = isIdentified(bullet);
     const playerText = flag(TRUTH_BULLET_FLAGS.playerText) ?? "";
+    /* Read off the ITEM, not decided here. The flag is empty until this holder
+       has analysed this copy, so the card needs no rule of its own: it prints
+       what their browser is actually allowed to hold. `known` still gates it,
+       because a bullet can be identified with no reading written for it. */
+    const analyzedText = flag(TRUTH_BULLET_FLAGS.analyzedText) ?? "";
     const tags = flag(TRUTH_BULLET_FLAGS.tags) ?? [];
     const visibility = flag(TRUTH_BULLET_FLAGS.visibility) ?? null;
 
@@ -334,8 +344,11 @@ function playerRemnantCard(tokenOrActor, esc) {
                 <div class="drpg-tb-badges">${badges}</div>
             </div>
         </header>
-        ${playerText || !known ? `<section class="drpg-remnant-box">
+        ${playerText || analyzedText || !known ? `<section class="drpg-remnant-box">
             ${playerText ? `<p class="drpg-remnant-text">${esc(playerText)}</p>` : ""}
+            ${known && analyzedText ? `<p class="drpg-remnant-text drpg-bullet-analysis"><strong>${
+                esc(game.i18n.localize("DRPG.TruthBullet.analysisHeading"))
+            }</strong> ${esc(analyzedText)}</p>` : ""}
             ${known ? "" : `<p class="notes">${esc(game.i18n.localize("DRPG.Remnant.cardUnanalyzed"))}</p>`}
         </section>` : ""}
         ${tags.length ? `<div class="drpg-remnant-tagrow">${tags.map(x =>

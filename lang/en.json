@@ -1376,7 +1376,8 @@
       "leftoverKeys": "{n} Key Remnant(s) from an earlier chapter are still on the map. This chapter's plan cannot see them; clear them at the end of a chapter or attach them here.",
       "finalFoundBy": "Found by",
       "finalNobody": "Nobody has found it",
-      "chargeTooLate": "The clock has already moved to chapter {now}; the plan for chapter {was} is no longer the live one, so nothing was charged for unfound Key Remnants. Charge it from the trial floor before ending the chapter."
+      "chargeTooLate": "The clock has already moved to chapter {now}; the plan for chapter {was} is no longer the live one, so nothing was charged for unfound Key Remnants. Charge it from the trial floor before ending the chapter.",
+      "traceAnalysis": "What analysis reveals"
     },
     "Vault": {
       "foundStashPending": "You find somebody's stash. What comes out of it settles in a moment.",
@@ -1670,6 +1671,10 @@
       "lockedTooltip": "Analysis failed this chapter. Try next chapter, or hand a copy on.",
       "playerText": "Description for the player",
       "playerTextPlaceholder": "What the person who found it actually sees.",
+      "analyzedText": "What analysis reveals",
+      "analyzedTextPlaceholder": "What the lab says that the eye could not - whose blood, which cuff, what the smell is.",
+      "analyzedTextNote": "Optional. Only a student who passes Analyze on this trace ever reads it; leave it empty and Analyze still names the category.",
+      "analysisHeading": "Analysis:",
       "gmNote": "Note for the GM (never shown to the player)",
       "gmNotePlaceholder": "What it really means for the case.",
       "secretNote": "The real type and your note stay on the GM side. They never reach the player's item.",

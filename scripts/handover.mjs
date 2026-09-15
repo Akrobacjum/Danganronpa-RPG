@@ -261,8 +261,17 @@ export async function shareBullet({ fromId, toId, itemId } = {}) {
         // From the SECRET, not the item: `createTruthBullet` publishes these
         // onto the copy only if it is born identified, so handing over an
         // unidentified bullet still hands over nothing the giver cannot see.
+        //
+        // `analyzedText` rides the same road for the same reason, and the
+        // symmetry is the point. Hand over evidence you HAVE analysed and the
+        // copy is born identified, so the receiver gets your reading with it -
+        // which is what sharing findings in this game means. Hand over
+        // something you have not, and the copy is born Neutral: the reading is
+        // in its secret, waiting for the receiver's own Head roll, and their
+        // browser holds not one word of it in the meantime.
         sourceAction: secret.sourceAction ?? null,
-        tiedToCrime: secret.tiedToCrime ?? null
+        tiedToCrime: secret.tiedToCrime ?? null,
+        analyzedText: secret.analyzedText ?? ""
     });
 
     if (!copy) {

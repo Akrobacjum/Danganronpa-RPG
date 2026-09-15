@@ -20,7 +20,9 @@
  */
 
 import { MODULE_ID, analyzeDc, TRUTH_BULLET_TYPES } from "./config.mjs";
-import { TRUTH_BULLET_FLAGS, secretOf, isTruthBullet } from "./truth-bullets.mjs";
+import {
+    TRUTH_BULLET_FLAGS, secretOf, isTruthBullet, bulletDescription
+} from "./truth-bullets.mjs";
 import { whisperToOwner, whisperToGms, log, warn, error, article } from "./utils.mjs";
 
 /**
@@ -59,10 +61,18 @@ export async function resolveAnalyze({
         const patch = {
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.shownType}`]: "neutral",
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzed}`]: false,
-            // The two facts `identify` published go back into the secret with
+            // The three facts `identify` published go back into the secret with
             // the rest of the truth - an un-analysed bullet knows nothing.
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.sourceAction}`]: null,
-            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tiedToCrime}`]: null
+            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tiedToCrime}`]: null,
+            // The reading goes back too, ITEM AND DESCRIPTION BOTH. Clearing the
+            // flag and leaving the rendered paragraph would hand the reroll for
+            // free: the player reads the sentence off their own sheet while the
+            // module believes they never bought it. The secret still holds it,
+            // so the second throw can pay out exactly the same words.
+            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzedText}`]: "",
+            "system.description": bulletDescription(
+                item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.playerText) ?? "")
         };
         if (item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.lockedChapter) === chapter) {
             patch[`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.lockedChapter}`] = null;
@@ -121,18 +131,29 @@ async function lockOut(item, actor, chapter, total) {
 
 /** Success converts the bullet: what it really is becomes what the player sees. */
 async function identify(item, actor, realType, isCritical, dc, total) {
-    // The moment of analysis is when two more facts go public - which action
-    // left the source trace (the Remnant token's icon on this player's map)
-    // and whether it belongs to the murder (the pack's sort). Both were
-    // waiting in the bullet's secret since creation, so a trace the killer
-    // has since wiped still identifies completely.
+    // The moment of analysis is when three more facts go public - which action
+    // left the source trace (the Remnant token's icon on this player's map),
+    // whether it belongs to the murder (the pack's sort), and what the lab
+    // actually says about the object. All three were waiting in the bullet's
+    // secret since creation, so a trace the killer has since wiped still
+    // identifies completely.
     const secret = secretOf(item.uuid);
+    const analyzedText = secret.analyzedText ?? "";
     try {
         await item.update({
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.shownType}`]: realType,
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzed}`]: true,
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.sourceAction}`]: secret.sourceAction ?? null,
-            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tiedToCrime}`]: secret.tiedToCrime ?? null
+            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tiedToCrime}`]: secret.tiedToCrime ?? null,
+            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzedText}`]: analyzedText,
+            // Rebuilt from the FLAG rather than patched onto whatever the
+            // description currently holds: a GM may have rewritten the Observe
+            // half since this bullet was created, and the flag is the copy that
+            // followed that edit. Reading the rendered HTML back would make the
+            // description its own source of truth, which is how the two halves
+            // would start to disagree.
+            "system.description": bulletDescription(
+                item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.playerText) ?? "", analyzedText)
         });
     } catch (err) {
         error("Could not identify the Truth Bullet after a successful Analyze", err);
@@ -160,6 +181,20 @@ async function identify(item, actor, realType, isCritical, dc, total) {
      * and leaves GMs out unless the flag says otherwise, which is exactly
      * "heard by the student who ran it".
      */
+    /*
+     * THE CARD CARRIES THE READING, NOT JUST THE CATEGORY.
+     *
+     * The category alone is a label; the sentence the GM wrote for analysis is
+     * the thing the player actually spent a Head roll on, and asking them to go
+     * and reopen their inventory to find out what they bought is the same
+     * mistake the Observe card would be making if it named the trace and left
+     * the description on the sheet. It is on the item as well - this is the
+     * announcement, the item is the record.
+     *
+     * `typeHint` is the module's own line about what this CATEGORY means and it
+     * stays where it was, under the reading: general first-read guidance after
+     * the specific fact, not instead of it.
+     */
     await whisperToOwner(actor, `
         <h3>${game.i18n.localize("DRPG.Analyze.identifiedTitle")}</h3>
         <p>${game.i18n.format("DRPG.Analyze.identified", {
@@ -167,6 +202,9 @@ async function identify(item, actor, realType, isCritical, dc, total) {
             name: foundry.utils.escapeHTML(item.name),
             type: foundry.utils.escapeHTML(label)
         })}</p>
+        ${analyzedText ? `<p class="drpg-bullet-analysis"><strong>${
+            game.i18n.localize("DRPG.TruthBullet.analysisHeading")
+        }</strong> ${foundry.utils.escapeHTML(analyzedText)}</p>` : ""}
         ${hint ? `<p><em>${foundry.utils.escapeHTML(hint)}</em></p>` : ""}`,
         { flags: { [MODULE_ID]: { sfx: "analyzeHit" } } });
 

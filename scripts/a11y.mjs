@@ -34,9 +34,31 @@ import { debug } from "./utils.mjs";
 const SURFACES = [
     "#drpg-hud", "#drpg-despair", "#drpg-player-status", "#countdowns",
     "#drpg-events", "#drpg-popups", "#drpg-gm-launcher", "#drpg-messenger-launcher",
-    "#drpg-sound-launcher", ".drpg-panel", ".drpg-messenger"
+    "#drpg-sound-launcher", ".drpg-panel", ".drpg-messenger",
+    /*
+     * `.drpg-advance` IS A MODULE WINDOW AND THIS LIST WAS THE ONLY PLACE THAT
+     * DID NOT KNOW IT (audit 15.09). The Level Up window is the one dialog of
+     * the module's hundred-odd that does not also carry `.drpg-panel` - see
+     * `classes` in level-up.mjs - so the sweep walked past it and
+     * `focusIntoWindow` never moved focus into it either. utils.mjs's window
+     * group and two width rules in danganronpa.css have listed it beside
+     * `.drpg-panel` all along; this is the file that fell out of step.
+     */
+    ".drpg-advance"
 ];
-const CONTROLS = "button, a[href], [role=\"button\"], input, select, textarea";
+/*
+ * `img[data-drpg-portrait]` IS HERE BECAUSE IT IS A CONTROL, WHATEVER ITS TAG.
+ *
+ * The portrait pickers are clickable images - `wirePortraitPickers` in
+ * utils.mjs gives them `role="button"`, a tabindex and a name, so the
+ * `[role="button"]` clause already catches them once that has run. It is named
+ * explicitly anyway, because the ORDER of those two things is not guaranteed:
+ * a sweep that runs on a dialog before its `render` callback has wired the
+ * pickers would otherwise report a window clean that has a nameless control in
+ * it, which is the exact way this defect stayed invisible for a release.
+ */
+export const CONTROLS = "button, a[href], [role=\"button\"], input, select, textarea, "
+    + "img[data-drpg-portrait]";
 
 /** Controls the sweep could not name, for the report. Keyed so one entry is one kind. */
 const unnamed = new Map();
@@ -136,7 +158,14 @@ export function focusIntoWindow(el) {
         if (!el?.querySelector) return;
         if (el.contains(document.activeElement)) return;
         const first = [...el.querySelectorAll(CONTROLS)].find(c =>
-            !c.disabled && c.offsetParent !== null && c.getAttribute("aria-hidden") !== "true");
+            !c.disabled && c.offsetParent !== null && c.getAttribute("aria-hidden") !== "true"
+            /* NOT ONTO A PORTRAIT. It joined `CONTROLS` so the sweep would name
+               it, which is a different question from where a window should open
+               its focus: the picture is the first cell of several forms, and
+               landing there means the first thing a keyboard user is offered is
+               "change the image" rather than the field the window is about.
+               Same spirit as the rule above about text fields. */
+            && !c.matches("img[data-drpg-portrait]"));
         if (first) first.focus({ preventScroll: true });
     } catch (err) {
         debug("Could not move focus into a window", err);

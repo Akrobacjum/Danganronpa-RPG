@@ -935,6 +935,11 @@ function defaultPublic(entry) {
         name: entry?.described?.name || game.i18n.localize("DRPG.Remnant.tokenName"),
         img: ICON,
         playerText: entry?.described?.playerText || "",
+        // The second tier: what Analyze says about this same object. Empty is
+        // the honest default - a trace nobody has written a lab reading for
+        // pays out its category and nothing else, which is what every trace did
+        // before this field existed.
+        analyzedText: entry?.described?.analyzedText || "",
         tags: []
     };
 }
@@ -983,9 +988,16 @@ export function remnantPublic(tokenDoc) {
  * Change what a player may eventually be shown, and push the change out to
  * every view that reads it.
  *
- * @param {object} patch  Any of `name`, `img`, `playerText`, `tags` - merged
- *   over what is already stored, so a caller changing one field does not have
- *   to resend the other three.
+ * @param {object} patch  Any of `name`, `img`, `playerText`, `analyzedText` or
+ *   `tags` - merged over what is already stored, so a caller changing one field
+ *   does not have to resend the rest.
+ *
+ * `analyzedText` is the one field here that is NOT public to everyone holding a
+ * copy: it reaches an analysed bullet's item and an un-analysed bullet's secret.
+ * It lives in this record anyway because it is a property of the TRACE - one
+ * object, one lab reading, however many people are carrying a copy - and that
+ * is the same argument that put `playerText` here rather than on each bullet.
+ * `propagateRemnantPublic` is where the two roads part.
  */
 export async function setRemnantPublic(tokenDoc, patch = {}) {
     if (!game.user.isGM || !tokenDoc) return null;

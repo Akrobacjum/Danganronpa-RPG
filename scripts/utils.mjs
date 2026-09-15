@@ -997,7 +997,7 @@ export function wirePortraitPickers(root, { defaultImg = null } = {}) {
         const id = portrait.dataset.drpgPortrait || null;
         const hiddenSelector = id ? `[name="img.${CSS.escape(id)}"]` : '[name="img"]';
 
-        portrait.addEventListener("click", () => {
+        const open = () => {
             const hidden = root.querySelector(hiddenSelector);
             new foundry.applications.apps.FilePicker.implementation({
                 type: "image",
@@ -1007,6 +1007,52 @@ export function wirePortraitPickers(root, { defaultImg = null } = {}) {
                     if (hidden) hidden.value = path;
                 }
             }).render(true);
+        };
+
+        portrait.addEventListener("click", open);
+
+        /*
+         * AN <img> THAT DOES SOMETHING IS A CONTROL, AND IT WAS NOT ONE.
+         * ---------------------------------------------------------------------
+         * Audit 15.09. This is the only way to change a Project's, a trace's or
+         * a table entry's picture, and until now it was an `<img alt="">` with a
+         * click listener: not focusable, so unreachable by keyboard at all, and
+         * marked decorative, so a screen reader skipped it in silence. Four call
+         * sites build this markup (investigation.mjs, projects-ui.mjs twice,
+         * tables.mjs) and every one of them had the same hole.
+         *
+         * WORSE, `game.drpg.a11y()` REPORTED IT CLEAN. Its sweep looks at
+         * `button, a[href], [role=button], input, select, textarea` - an image
+         * with a listener matches none of those, so the one tool built to find
+         * nameless controls could not see this one. That is the failure this
+         * repository opens its own notes with: a check that passes because it
+         * measured nothing.
+         *
+         * Fixed here rather than at the four call sites for the reason a11y.mjs
+         * gives for sweeping: an attribute added where the markup is written is
+         * an attribute the NEXT portrait will not have. This function already
+         * has to visit every one of them to attach the listener, so it is the
+         * one place that cannot be forgotten.
+         *
+         * The name comes from the tooltip the markup already carries, and where
+         * there is none from the module's own label - never invented, and never
+         * left blank.
+         */
+        if (!portrait.getAttribute("role")) portrait.setAttribute("role", "button");
+        if (!portrait.hasAttribute("tabindex")) portrait.setAttribute("tabindex", "0");
+        if (!portrait.getAttribute("aria-label")) {
+            const named = portrait.dataset.tooltip
+                ?? portrait.getAttribute("title")
+                ?? game.i18n.localize("DRPG.Project.changeImage");
+            portrait.setAttribute("aria-label", named);
+        }
+        // Enter and Space, because that is what a button does and this now says
+        // it is one. Space is prevented first: on a focusable element inside a
+        // scrolling dialog its default is to page the window.
+        portrait.addEventListener("keydown", event => {
+            if (event.key !== "Enter" && event.key !== " " && event.key !== "Spacebar") return;
+            event.preventDefault();
+            open();
         });
     }
 }
