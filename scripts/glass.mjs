@@ -309,7 +309,7 @@ function applyRotations() {
   sheet.textContent = rules.join("\n");
   sheet.disabled = false;
   watchSidebar();
-  if (document.body.classList.contains("drpg-measuring")) { void document.body.offsetWidth; measuring(false); }
+  if (document.body.hasAttribute("data-drpg-measuring")) { void document.body.offsetWidth; measuring(false); }
   /* the glass proposed the angle; this is the screen's answer to it */
   const fixes = [];
   for (const r of ROT) {
@@ -418,8 +418,16 @@ function unpinRightColumn() {
    transition on `transform` - so without this every measurement animated every block from
    0 degrees back to its tilt: the "wobble" of 1.2.30. The class holds transitions still for
    exactly the passes in which the rotation is toggled. */
+/* AN ATTRIBUTE, NOT A CLASS, AND THAT IS THE WHOLE OF THE CHANGE.
+   Three MutationObservers in this module watch the body with the filter
+   `["data-drpg-phase", "data-drpg-time", "class"]`: this file's own state change, the fog's
+   room outline (fog.mjs) and the Remnant rings (remnant-ring.mjs), the last of which walks
+   every token on the canvas. While this flag rode on `class`, every cut of the curtain woke
+   all three - measured in Chromium: one recut queued three class records and one wake-up, for
+   a flag that means "hold the transitions still for two style passes" and is nobody's business
+   but this file's. The name the observers filter on is `class`, so the flag simply leaves it. */
 function measuring(on) {
-  document.body.classList.toggle("drpg-measuring", on);
+  document.body.toggleAttribute("data-drpg-measuring", on);
   if (!on) void document.body.offsetWidth;   // settle the style pass with the transition still off
 }
 function moduleLayout(W, H) {
@@ -2074,7 +2082,8 @@ function unmount() {
   restoreLid();
   document.querySelectorAll("#scene-controls, #sidebar-tabs").forEach(e => { e.style.transform = ""; e.style.transformOrigin = ""; });
   BLOCKS.forEach(b => document.querySelectorAll(b.sel).forEach(e => { e.style.transform = ""; e.style.transformOrigin = ""; }));
-  document.body.classList.remove("drpg-curtain-on", "drpg-turning");
+  document.body.classList.remove("drpg-curtain-on");
+  document.body.removeAttribute("data-drpg-turning");
   document.querySelectorAll(".drpg-curtain-ghost, #drpg-curtain > canvas.morph, #drpg-curtain > canvas.ghost").forEach(g => g.remove());
   if (rotSheet) { rotSheet.remove(); rotSheet = null; }
 }
@@ -2283,7 +2292,7 @@ function morph(j, oldPanes, oldAcc, ghost, glowGhost) {
   requestAnimationFrame(step);
 }
 function rebuild() {
-  try { rebuildAll(); } finally { if (document.body.classList.contains("drpg-measuring")) measuring(false); }
+  try { rebuildAll(); } finally { if (document.body.hasAttribute("data-drpg-measuring")) measuring(false); }
 }
 function rebuildAll() {
   for (const j of curtains) {
@@ -2312,11 +2321,20 @@ function rebuildAll() {
            exactly what the new cut is supposed to fade in over. */
         const oldLook = oldPanes && !REDUCED() ? snapshotLook(j, oldPanes) : null;
         const oldGlow = oldLook ? snapshotCanvas(document.querySelector('[data-glow="' + j.seed + '"]')) : null;
-        curtainPaint(j); document.body.classList.add("drpg-curtain-on");
+        /* `toggle(name, true)`, NOT `add(name)`, AND THE DIFFERENCE IS NOT STYLE.
+           Measured in Chromium: `classList.add` of a token that is already there queues a
+           MutationRecord anyway, and so does `remove` of one that is not - they run the
+           update steps unconditionally - while `toggle` with a force argument short-circuits
+           and queues nothing. This line runs on every rebuild and the class is already on by
+           the second one, so it was waking all three of the module's body observers (this
+           file's state change, fog.mjs's room outline, remnant-ring.mjs's repaint of every
+           token on the canvas) for an attribute that did not move. Same at the sibling line
+           below, and in `repaintFog` (fog.mjs), which is the other one in a hot path. */
+        curtainPaint(j); document.body.classList.toggle("drpg-curtain-on", true);
         const gl = document.querySelector('[data-glow="' + j.seed + '"]');
         if (gl) gl.style.cssText = STYLE + "z-index:" + j.el.style.zIndex + ";mix-blend-mode:screen;width:" + j.W + "px;";
         morph(j, oldPanes, oldAcc, oldLook, oldGlow);
-      } else { j.painted = true; document.body.classList.add("drpg-curtain-on"); }
+      } else { j.painted = true; document.body.classList.toggle("drpg-curtain-on", true); }
     }
   }
   freeTheBoard();
@@ -2531,8 +2549,13 @@ let stateTimer = 0;
 let turningTimer = 0;
 function turning() {
   // every colour the interface takes from the state slides over the turn (stained-glass.css)
-  document.body.classList.add("drpg-turning");
-  clearTimeout(turningTimer); turningTimer = setTimeout(() => document.body.classList.remove("drpg-turning"), TURN() + 120);
+  /* AN ATTRIBUTE, FOR THE REASON `measuring` IS ONE: this rides on the body for the length of
+     the turn and the three body observers were filtering on `class`, so the turn woke each of
+     them twice more than the state change that caused it. Measured: one change of the hour was
+     three wake-ups - the real one, the one from adding this, the one from taking it away - and
+     each of the three walks every token on the canvas (remnant-ring.mjs). One now. */
+  document.body.toggleAttribute("data-drpg-turning", true);
+  clearTimeout(turningTimer); turningTimer = setTimeout(() => document.body.removeAttribute("data-drpg-turning"), TURN() + 120);
 }
 function onStateChange() {
   clearTimeout(stateTimer);

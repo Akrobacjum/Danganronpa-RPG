@@ -401,10 +401,30 @@ export function renderHud() {
         // stylesheet. A dataset attribute rather than a class for the same
         // reason `matchStripToDespair` publishes a custom property: it survives
         // every redraw those two widgets do on their own.
-        document.body.dataset.drpgPhase = phase;
+        /*
+         * WRITTEN ONLY WHEN IT CHANGES, BECAUSE THREE OBSERVERS ARE LISTENING.
+         *
+         * `data-drpg-phase` and `data-drpg-time` on the body are watched by
+         * three MutationObservers with the same filter - the curtain's state
+         * change (glass.mjs), the fog's room outline (fog.mjs) and the Remnant
+         * rings (remnant-ring.mjs), the last of which walks every token on the
+         * canvas. Setting an attribute to the value it already holds still
+         * queues a record: measured in Chromium, five no-op write pairs queued
+         * ten records and woke the observers. `renderHud` runs on every clock
+         * write, every Despair change and every incident step, and the hour
+         * changes a handful of times a session - so nearly every one of those
+         * wake-ups was for an attribute that had not moved.
+         *
+         * (For contrast, and measured in the same run: `classList.toggle` with
+         * a force argument queues nothing when the token is already in the
+         * state asked for, which is why the incident class below needs no such
+         * guard.)
+         */
+        if (document.body.dataset.drpgPhase !== phase) document.body.dataset.drpgPhase = phase;
         // …and the time of day, for the Stained Glass theme: the seams of the
         // curtain take the colour of the hour unless a phase overrides it.
-        document.body.dataset.drpgTime = clock.timeOfDay ?? "";
+        const timeOfDay = clock.timeOfDay ?? "";
+        if (document.body.dataset.drpgTime !== timeOfDay) document.body.dataset.drpgTime = timeOfDay;
 
         /*
          * …AND WHETHER THIS SCREEN IS IN A KILLING (Dawid, 15.09).
@@ -1511,6 +1531,24 @@ function buildElapsed() {
     return el;
 }
 
+/*
+ * WRITTEN ONLY WHEN THE WORDS CHANGE, BECAUSE SOMEBODY IS WATCHING THE DOM.
+ *
+ * `el.textContent = x` replaces the element's children even when `x` is what is
+ * already there, and that is a childList mutation. `#drpg-hud` lives in
+ * `#ui-left-column-1`, which a11y.mjs observes with `subtree: true`, so every
+ * such write runs the accessibility sweep. The elapsed line is the most regular
+ * writer in the module - a ten-second interval at rest and a one-second one for
+ * the whole length of a Class Trial - and it prints WHOLE MINUTES, so at rest
+ * five of every six writes said exactly what the line already said. The comment
+ * on the interval below already explains that a per-second tick "would repaint
+ * sixty times for each visible change"; this is the other half of that argument,
+ * for the ticks that survived it.
+ */
+function setText(el, text) {
+    if (el.textContent !== text) el.textContent = text;
+}
+
 function paintElapsed(el) {
     // A DEBATE'S CLOCK OUTRANKS THE TIME OF DAY'S.
     //
@@ -1540,7 +1578,7 @@ function paintElapsed(el) {
     el.classList.remove("past-first", "past-second", "paused");
 
     if (!startedAt) {
-        el.textContent = game.i18n.localize("DRPG.Hud.elapsedUnknown");
+        setText(el, game.i18n.localize("DRPG.Hud.elapsedUnknown"));
         el.classList.add("empty");
         return;
     }
@@ -1555,9 +1593,9 @@ function paintElapsed(el) {
 
     el.classList.remove("empty");
     el.classList.toggle("paused", Boolean(game.paused && clock.pausedAt));
-    el.textContent = game.i18n.format("DRPG.Hud.elapsed", {
+    setText(el, game.i18n.format("DRPG.Hud.elapsed", {
         minutes: Math.floor(ms / 60000)
-    });
+    }));
 
     if (ms >= MARK_SECOND_ACTION) el.classList.add("past-second");
     else if (ms >= MARK_FIRST_ACTION) el.classList.add("past-first");
@@ -1582,7 +1620,7 @@ function paintFloorClock(el, floor) {
     el.classList.remove("past-first", "past-second", "paused", "empty");
     el.classList.add("is-trial-clock");
     el.classList.toggle("overrun", over && floor.mode === FLOOR_MODES.debate);
-    el.textContent = `${over ? "+" : ""}${mins}:${secs}`;
+    setText(el, `${over ? "+" : ""}${mins}:${secs}`);
     el.dataset.tooltip = game.i18n.localize("DRPG.Hud.trialClockTooltip");
 }
 

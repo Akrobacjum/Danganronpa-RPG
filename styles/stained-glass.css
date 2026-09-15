@@ -448,7 +448,7 @@ body.drpg-theme-stained-glass #sidebar-tabs {
 }
 /* `will-change` only while something is actually turning: left on, it holds a composited
    layer for each rail for the whole session, which on a tablet is memory spent on nothing. */
-body.drpg-theme-stained-glass.drpg-turning :is(#scene-controls, #sidebar-tabs) {
+body.drpg-theme-stained-glass[data-drpg-turning] :is(#scene-controls, #sidebar-tabs) {
     will-change: transform;
 }
 
@@ -922,25 +922,25 @@ body.drpg-theme-stained-glass .drpg-hud-ticker > span {
 
 /* ==========================================================================
    Milestone 5: nothing jumps. The state colour slides over the turn on every
-   element that takes it (glass.mjs puts `drpg-turning` on the body for the
+   element that takes it (glass.mjs puts `data-drpg-turning` on the body for the
    duration), the blocks turn with their panes, the tiles with their edge.
    ========================================================================== */
 /* The list is named rather than swept. `[class*="drpg-"] *` put a transition on every
    descendant of every module element for the length of a turn - some hundreds of nodes on a
    tablet, all of them animating properties most of them do not have. These are the elements
    that actually take a colour from the state. */
-body.drpg-theme-stained-glass.drpg-turning :is(#drpg-hud, #drpg-despair, #drpg-events,
+body.drpg-theme-stained-glass[data-drpg-turning] :is(#drpg-hud, #drpg-despair, #drpg-events,
     #drpg-player-status, #countdowns, #drpg-popups, #drpg-gm-launcher,
     #drpg-messenger-launcher, #drpg-sound-launcher, #pause),
-body.drpg-theme-stained-glass.drpg-turning :is(#drpg-hud, #drpg-despair, #drpg-events,
+body.drpg-theme-stained-glass[data-drpg-turning] :is(#drpg-hud, #drpg-despair, #drpg-events,
     #drpg-player-status, #countdowns) :is(.drpg-hud-phase, .drpg-hud-time,
     .drpg-hud-elapsed, .drpg-hud-room, .drpg-hud-ticker, .drpg-despair-pip, .drpg-despair-name,
     .drpg-status-value, .drpg-event, .drpg-event-title, .drpg-event-glyph, .countdowns-header,
     /* `.drpg-projects-bar` stood here and nothing has ever worn it; the tray's own parts are
        the fold and the gear, which is what the turn should carry. */
     .drpg-projects-fold, .drpg-projects-gear, .drpg-popup),
-body.drpg-theme-stained-glass.drpg-turning :is(#scene-controls, #sidebar-tabs) button.ui-control,
-body.drpg-theme-stained-glass.drpg-turning :is(.drpg-panel .window-header,
+body.drpg-theme-stained-glass[data-drpg-turning] :is(#scene-controls, #sidebar-tabs) button.ui-control,
+body.drpg-theme-stained-glass[data-drpg-turning] :is(.drpg-panel .window-header,
     .drpg-panel .window-header .window-title, .drpg-action-button, .drpg-call-button,
     /* `.drpg-chip` was the audit page's name for these; the module's are these five. */
     .drpg-tb-badge, .drpg-sfx-badge, .drpg-duality-badge, .drpg-overflow-badge,
@@ -2550,17 +2550,17 @@ body.drpg-theme-stained-glass #ui-right-column-1[data-drpg-pinned="1"] { transit
    glass.mjs toggles the blocks' rotation off for one style pass to measure them as laid out.
    With an 840 ms transition on `transform`, that pass was an animation: every recut swung
    every block from 0 degrees back to its tilt. For the length of the pass, no transitions. */
-body.drpg-measuring #scene-controls,
-body.drpg-measuring #sidebar-tabs,
-body.drpg-measuring #drpg-hud,
-body.drpg-measuring #drpg-gm-launcher,
-body.drpg-measuring #drpg-despair,
-body.drpg-measuring #drpg-events,
-body.drpg-measuring #drpg-player-status,
-body.drpg-measuring #countdowns,
-body.drpg-measuring #drpg-popups,
-body.drpg-measuring #drpg-messenger-launcher,
-body.drpg-measuring #drpg-sound-launcher { transition: none !important; }
+body[data-drpg-measuring] #scene-controls,
+body[data-drpg-measuring] #sidebar-tabs,
+body[data-drpg-measuring] #drpg-hud,
+body[data-drpg-measuring] #drpg-gm-launcher,
+body[data-drpg-measuring] #drpg-despair,
+body[data-drpg-measuring] #drpg-events,
+body[data-drpg-measuring] #drpg-player-status,
+body[data-drpg-measuring] #countdowns,
+body[data-drpg-measuring] #drpg-popups,
+body[data-drpg-measuring] #drpg-messenger-launcher,
+body[data-drpg-measuring] #drpg-sound-launcher { transition: none !important; }
 
 /* ==========================================================================
    The two filters: the brush's torn edge and the stamp's ink.

@@ -1,52 +1,46 @@
 {
-  "scenario": "scenarios/30-security.mjs",
-  "passed": 6,
-  "total": 6,
-  "ms": 617,
+  "scenario": "scenarios/14-quiet.mjs",
+  "passed": 7,
+  "total": 7,
+  "ms": 1496,
   "results": [
     {
-      "name": "XSS: messenger escapes hostile markup at write",
+      "name": "the clock still stamps the phase and the hour on the body",
       "ok": true,
-      "details": "{\"id\":\"mXiSrhPVw5p7ilG8\",\"stored\":\"<p>&lt;img src=x onerror=alert(1)&gt;&lt;script&gt;window.__pwned=1&lt;/script&gt;</p>\",\"escaped\":true,\"rawTagPresent\":false}"
+      "details": "{\"records\":0,\"phase\":\"dailyLife\",\"time\":\"morning\"}"
     },
     {
-      "name": "SECURITY: player cannot write another player's actor",
+      "name": "five identical clock redraws write nothing to the body",
       "ok": true,
-      "details": "denied: User lacks permission: update Actor"
+      "details": "{\"records\":0,\"phase\":\"dailyLife\",\"time\":\"morning\"}"
     },
     {
-      "name": "SECURITY: player cannot write an NPC actor",
+      "name": "the status strip is on the screen",
       "ok": true,
-      "details": "denied: User lacks permission: update Actor"
+      "details": "{\"records\":0,\"same\":true,\"present\":true}"
     },
     {
-      "name": "SECURITY: forged socket for unowned actor did not change state",
+      "name": "five identical strip redraws leave the same node where it was",
       "ok": true,
-      "details": "{\"botanHope\":2}"
+      "details": "{\"records\":0,\"same\":true,\"present\":true}"
     },
     {
-      "name": "SECURITY: player calling adjustDespair does not throw uncaught (write silently denied)",
+      "name": "a control that carries a name is given it",
       "ok": true,
-      "details": "called: null"
+      "details": "{\"namelessMarked\":\"none\",\"namedMarked\":\"swept\",\"namedLabel\":\"Otwórz\",\"namelessLabel\":null}"
     },
     {
-      "name": "SECURITY: server logged permission denials for player writes",
+      "name": "a control the sweep cannot name is marked, not re-read forever",
       "ok": true,
-      "details": "[{\"who\":\"p1\",\"op\":\"update Actor\",\"error\":\"User lacks permission: update Actor\"},{\"who\":\"p1\",\"op\":\"update Actor\",\"error\":\"User lacks permission: update Actor\"}]"
+      "details": "{\"namelessMarked\":\"none\",\"namedMarked\":\"swept\",\"namedLabel\":\"Otwórz\",\"namelessLabel\":null}"
+    },
+    {
+      "name": "and no name was invented for it",
+      "ok": true,
+      "details": "{\"namelessMarked\":\"none\",\"namedMarked\":\"swept\",\"namedLabel\":\"Otwórz\",\"namelessLabel\":null}"
     }
   ],
-  "permissionDenials": [
-    {
-      "who": "p1",
-      "op": "update Actor",
-      "error": "User lacks permission: update Actor"
-    },
-    {
-      "who": "p1",
-      "op": "update Actor",
-      "error": "User lacks permission: update Actor"
-    }
-  ],
+  "permissionDenials": [],
   "socketTraffic": [
     {
       "from": "p1",
@@ -59,6 +53,16 @@
       "size": 73
     },
     {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 73
+    },
+    {
       "from": "p3",
       "channel": "module.danganronpa-rpg",
       "size": 99
@@ -69,32 +73,32 @@
       "size": 73
     },
     {
-      "from": "p3",
+      "from": "p1",
       "channel": "module.danganronpa-rpg",
       "size": 62
     },
     {
-      "from": "p3",
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 62
+    },
+    {
+      "from": "p1",
       "channel": "module.danganronpa-rpg",
       "size": 91
     },
     {
-      "from": "p3",
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p1",
       "channel": "module.danganronpa-rpg",
       "size": 99
     },
     {
-      "from": "p1",
-      "channel": "module.danganronpa-rpg",
-      "size": 62
-    },
-    {
-      "from": "p1",
-      "channel": "module.danganronpa-rpg",
-      "size": 91
-    },
-    {
-      "from": "p1",
+      "from": "p2",
       "channel": "module.danganronpa-rpg",
       "size": 99
     },
@@ -104,14 +108,19 @@
       "size": 29
     },
     {
-      "from": "p2",
+      "from": "p3",
       "channel": "module.danganronpa-rpg",
-      "size": 99
+      "size": 62
     },
     {
-      "from": "p2",
+      "from": "p3",
       "channel": "module.danganronpa-rpg",
-      "size": 73
+      "size": 91
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
     },
     {
       "from": "gm",
@@ -129,26 +138,31 @@
       "size": 72
     },
     {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 72
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 147
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 150
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 147
+    },
+    {
       "from": "p3",
       "channel": "module.danganronpa-rpg",
       "size": 72
     },
     {
-      "from": "p2",
-      "channel": "module.danganronpa-rpg",
-      "size": 62
-    },
-    {
-      "from": "p2",
-      "channel": "module.danganronpa-rpg",
-      "size": 91
-    },
-    {
-      "from": "p2",
-      "channel": "module.danganronpa-rpg",
-      "size": 99
-    },
-    {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
       "size": 147
@@ -166,21 +180,6 @@
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 147
-    },
-    {
-      "from": "gm",
-      "channel": "module.danganronpa-rpg",
-      "size": 147
-    },
-    {
-      "from": "gm",
-      "channel": "module.danganronpa-rpg",
-      "size": 150
-    },
-    {
-      "from": "gm",
-      "channel": "module.danganronpa-rpg",
       "size": 102
     },
     {
@@ -207,30 +206,15 @@
       "from": "gm",
       "channel": "module.danganronpa-rpg",
       "size": 118
-    },
-    {
-      "from": "p2",
-      "channel": "module.danganronpa-rpg",
-      "size": 72
-    },
-    {
-      "from": "p1",
-      "channel": "module.danganronpa-rpg",
-      "size": 212
-    },
-    {
-      "from": "p1",
-      "channel": "module.danganronpa-rpg",
-      "size": 136
-    },
-    {
-      "from": "gm",
-      "channel": "module.danganronpa-rpg",
-      "size": 110
     }
   ],
   "bootInfo": {
     "p1": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 68
+    },
+    "p2": {
       "t": "ready",
       "drpg": true,
       "settingsRegistered": 68
@@ -241,11 +225,6 @@
       "settingsRegistered": 68
     },
     "gm": {
-      "t": "ready",
-      "drpg": true,
-      "settingsRegistered": 68
-    },
-    "p2": {
       "t": "ready",
       "drpg": true,
       "settingsRegistered": 68

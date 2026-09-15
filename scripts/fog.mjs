@@ -2745,7 +2745,13 @@ export function repaintFog() {
         swapInFog(container, built.texture, built.maskTexture, rect);
         // The Eclipse's own dimming stands down while this is on - see the
         // ECLIPSE section of danganronpa.css.
-        document.body.classList.add("drpg-fog-active");
+        /* `toggle(name, true)`, not `add(name)`: in Chromium `add` queues a MutationRecord
+           even when the token is already there, and this runs on every repaint of the fog -
+           every step a token takes. Three observers in this module watch the body's `class`,
+           one of which repaints every Remnant ring on the canvas, so the fog was waking the
+           rings for a class it had already set. Measured and written up at the matching line
+           in glass.mjs (`drpg-curtain-on`). */
+        document.body.classList.toggle("drpg-fog-active", true);
 
         // The outline belongs to the room you are IN. Leaving it - for another
         // room, for a corridor, for nowhere at all - ends it. Measured against
