@@ -75,9 +75,9 @@ export async function run({ gm, p1, p2, p3, check, settle }) {
         const P = await import("${REPO}/scripts/gm-panel.mjs");
         P.openGmPanel?.();
         await new Promise(r => setTimeout(r, 600));
-        const d = globalThis.__dialogLog.find(d => /panel GMa/.test(d.title ?? "")) ?? globalThis.__dialogLog[0] ?? null;
+        const d = globalThis.__dialogLog.find(d => /panel GM-a/.test(d.title ?? "")) ?? globalThis.__dialogLog[0] ?? null;
         return d ? { title: d.title, content: (d.content ?? "").replace(/\\s+/g, " ").slice(0, 300) } : null;`, { timeout: 30000 });
-    check("gm: the panel opens with a Polish title", panel?.title === "Danganronpa - panel GMa", JSON.stringify(panel));
+    check("gm: the panel opens with a Polish title", panel?.title === "Danganronpa - panel GM-a", JSON.stringify(panel));
     check("gm: the panel's body is Polish", !!panel && /Rozdzia|Dzie|pora|Nast/i.test(panel.content), JSON.stringify(panel));
 
     // ---- 5. back to English on one client: the setting is per browser ----------------------
