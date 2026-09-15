@@ -199,7 +199,15 @@ const FOREIGN_SETTING_DEFAULTS = {
     "daggerheart.Appearance": { scope: "world", default: {} },
     "daggerheart.Automation": { scope: "world", default: { hope: true } },
     "dice-so-nice.Appearance": { scope: "client", default: {} },
-    "core.rollMode": { scope: "client", default: "publicroll" }
+    "core.rollMode": { scope: "client", default: "publicroll" },
+    /* How loud playlists are ON THIS BROWSER. Foundry's own, client-scoped, and
+       the module reads and writes it in two places: the Sound panel's Music
+       slider proxies it rather than keeping a second volume beside it
+       (`SFX_SLIDERS.music.proxiesFoundryMusic`), and the murder music ducks it
+       while the incident has this client. Neither path could be exercised
+       headless until the shim modelled it - the first assertion written against
+       the duck died on "Setting core.globalPlaylistVolume is not registered". */
+    "core.globalPlaylistVolume": { scope: "client", default: 1 }
 };
 
 const settingsApi = {
@@ -224,7 +232,17 @@ const settingsApi = {
     },
     async set(ns, key, value) {
         const full = `${ns}.${key}`;
-        const def = settingDefs.get(full);
+        let def = settingDefs.get(full);
+        /* THE SAME FALLBACK `get` HAS, and it was missing here only because
+           nothing had written a foreign setting before. `core.globalPlaylist
+           Volume` is written by the module (the Music slider, and the murder
+           music's duck), so a shim that can read a foreign setting but not
+           write one turned every such write into a thrown scenario. */
+        if (!def && FOREIGN_SETTING_DEFAULTS[full]) {
+            def = FOREIGN_SETTING_DEFAULTS[full];
+            settingDefs.set(full, def);
+            logLine(`(harness) auto-registered foreign setting ${full}`);
+        }
         if (!def) throw new Error(`Setting ${full} is not registered`);
         if (def.scope === "world") {
             await bus.setSetting(full, JSON.parse(JSON.stringify(value ?? null)));

@@ -1234,6 +1234,29 @@ body.drpg-pixel-font .character-sidebar-sheet .resources-section .slot-label .la
     font-style: italic;
 }
 
+/* THE INTERFACE'S OWN EDGES, WHILE THIS SCREEN IS IN A KILLING.
+   ---------------------------------------------------------------------------
+   `drpg-incident-here` is stamped by hud.mjs on the browsers of the people
+   actually in the incident - see `incidentWitness` in settings.mjs for who
+   that is and, in particular, for why the killer of a trap is not one of them.
+
+   The colour is `--drpg-eye-light`, which is byte for byte the
+   `--drpg-sg-gm-light` the Event card wears under Stained Glass: the card and
+   the frame around it have to be the same red or they read as two unrelated
+   alarms. The bright twin rather than `--drpg-eye` itself, because this is
+   drawn against the dark ground and the base red is 3.68:1 there - borders
+   only, by its own note. Stained Glass takes the whole accent as well, which
+   carries the curtain's seams; this line is what makes the window frames turn
+   under BOTH themes, Monokuma Legacy included, where there is no Event panel
+   to take the colour from.
+
+   Scoped to the module's own surfaces on purpose: Foundry's sidebar and the
+   system's sheets are not ours to repaint, and a table that turns red down to
+   the chat log has stopped being a signal and started being a filter. */
+body.drpg-incident-here {
+    --drpg-window-edge: var(--drpg-eye-light);
+}
+
 /* Hide Daggerheart's own single-pool Fear tracker while ours is in charge. */
 body.drpg-hide-system-fear #resources,
 body.drpg-hide-system-fear #resource-fear {
@@ -5290,7 +5313,12 @@ body:not(.drpg-gm) .character-header-sheet .character-traits .trait input[name*=
 
 .drpg-popup {
     pointer-events: auto;
-    width: min(22rem, 86vw);
+    /* 27rem tracks the notice tile's own `--drpg-note-w` (430 px): under
+       Stained Glass the card is stretched to the tile anyway, so this width is
+       what Monokuma Legacy gets, and the two themes should not disagree about
+       how wide a notice is. Widened with the tile on 15.09 - the old 22rem
+       card wrapped a two-clause sentence onto four lines. */
+    width: min(27rem, 92vw);
     border-radius: 6px;
     /* The window edge, not the divider hairline - a popup lands over the map
        and has to state its own boundary. The accent classes below override the

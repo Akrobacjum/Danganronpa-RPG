@@ -191,11 +191,49 @@ async function restoreState(state = {}) {
 }
 
 /** Every non-GM user who owns somebody named in a cast. */
-function castOwners(cast) {
+/**
+ * Whose browsers hold the cast.
+ *
+ * THE KILLER OF A TRAP IS NOT ON THIS LIST WHILE THE TRAP IS RUNNING, and that
+ * is the whole of "an indirect murder does not tell its killer" (Dawid, 15.09).
+ *
+ * Measured before the change, on four clients: an indirect murder opened, and
+ * the killer's player received the cast, the incident Event card and a whisper -
+ * the module announcing, in real time, that the thing they had built had just
+ * worked. They are not in the room. Everything else in this file exists to stop
+ * that fact travelling, and it was travelling straight to the one person who
+ * most wants to know it.
+ *
+ * WITHHELD, NOT REDACTED, and the difference matters. Sending them a cast with
+ * the names stripped would still be a packet arriving at the moment the trap
+ * closed, and a client-scoped setting quietly gaining a timestamp is a tell for
+ * anybody who opens a console. They are sent nothing, which is what a bystander
+ * is sent.
+ *
+ * THEY ARE LET BACK IN AT STAGE 6. The scene becomes theirs to arrange once the
+ * incident is over - cleanup.mjs asks `killerIds(murderState())` whether this
+ * actor may work on the body, and that answer lives in the cast. So the gate is
+ * the STAGE, not the murder: closed while `openingRoll` or `incident` is
+ * running, open the moment it is not.
+ */
+function trapRunning(state) {
+    return Boolean(state?.active) && Boolean(state?.indirect)
+        && (state.stage === "openingRoll" || state.stage === "incident");
+}
+
+function castOwners(cast, state = null) {
     const out = new Set();
-    // The accomplice keeps their copy for as long as the betrayal is on offer,
-    // which is longer than the incident (D18).
-    for (const id of [cast?.killerId, cast?.victimId, cast?.thirdId, cast?.betrayal?.thirdId]) {
+    const live = state ?? game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
+
+    const seats = [
+        trapRunning(live) ? null : cast?.killerId,
+        cast?.victimId,
+        cast?.thirdId,
+        // The accomplice keeps their copy for as long as the betrayal is on
+        // offer, which is longer than the incident (D18).
+        cast?.betrayal?.thirdId
+    ];
+    for (const id of seats) {
         const owner = ownerOf(game.actors.get(id ?? ""));
         if (owner && !owner.isGM) out.add(owner.id);
     }
@@ -210,9 +248,9 @@ function castOwners(cast) {
  * through `incidentAudience`. Narrowing it further is a question about what the
  * victim may know and when, which is a rule, not a leak.
  */
-function pushCastToParticipants(cast, previous) {
-    const now = castOwners(cast);
-    const before = castOwners(previous);
+function pushCastToParticipants(cast, previous, stateNow = null, statePrev = null) {
+    const now = castOwners(cast, stateNow);
+    const before = castOwners(previous, statePrev ?? stateNow);
 
     for (const userId of before) {
         if (!now.has(userId)) sendCast(userId, {});
@@ -260,6 +298,25 @@ async function writeState(patch) {
 
     const publicNext = { ...publicBefore, ...publicPatch };
     await game.settings.set(MODULE_ID, SETTINGS.murderState, publicNext);
+
+    /*
+     * THE STAGE IS ALSO A RECIPIENT LIST, and nothing above notices that.
+     *
+     * `castOwners` withholds the cast from a trap's killer while the trap is
+     * running, so the moment the incident ENDS they have to be sent it - that
+     * is how Stage 6 knows the body is theirs to arrange. But a stage change is
+     * a public-half patch: it touches no cast field, so the `writeCast` above
+     * is skipped entirely and nobody is pushed anything. The killer would have
+     * waited for the next write that happened to move a name.
+     *
+     * So the gate is compared across this write and the cast re-sent when it
+     * moves. Cheap - one socket packet on two transitions in a whole murder -
+     * and it is the only thing standing between "the trap is finished" and a
+     * killer whose cleanup screen does not believe they are the killer.
+     */
+    if (trapRunning(publicNext) !== trapRunning(publicBefore)) {
+        pushCastToParticipants(castNext, castNext, publicNext, publicBefore);
+    }
 
     const next = { ...publicNext, ...castNext };
 

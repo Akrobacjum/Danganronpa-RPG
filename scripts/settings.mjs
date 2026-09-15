@@ -114,6 +114,8 @@ export const SETTINGS = {
      * for Foundry's `globalPlaylistVolume` - see `SFX_SLIDERS`.
      */
     sfxVolumes: "sfxVolumes",
+    /** The room's playlist volume, parked while the murder music has this browser. */
+    musicDuckedFrom: "musicDuckedFrom",
     /**
      * The word that stops the scene - Player Handbook, ch. 13.
      *
@@ -726,6 +728,29 @@ export function registerSettings() {
         default: Object.fromEntries(SFX_VOLUME_KEYS.map(key => [key, 1]))
     });
 
+    /*
+     * WHAT THE PLAYLIST VOLUME WAS BEFORE THE MURDER MUSIC TOOK IT.
+     *
+     * The murder playlist plays on one browser rather than in the world (see
+     * music.mjs), so the room's own playlist has to be ducked on that browser
+     * while it runs - and put back afterwards. Held in a setting rather than in
+     * a variable because the thing that most obviously goes wrong is a client
+     * closing the tab mid-incident: a variable dies with the page and the
+     * player comes back to a world with the music turned off and no way to
+     * know why. `restoreDuckedMusic` reads this at `ready` and, if no incident
+     * is running, puts the number back.
+     *
+     * `-1` for "not ducked" rather than `null`, so a stored 0 - a player who
+     * had genuinely muted the music before any of this - is not read as absent
+     * and quietly turned back up.
+     */
+    game.settings.register(MODULE_ID, SETTINGS.musicDuckedFrom, {
+        scope: "client",
+        config: false,
+        type: Number,
+        default: -1
+    });
+
     // The word that stops the scene. Set in Season setup, shown on every sheet,
     // so a change has to redraw them - otherwise the button keeps offering the
     // old word to everyone who has not reopened their character since.
@@ -1268,6 +1293,84 @@ export function incidentCast() {
 export function incidentParticipants() {
     const cast = incidentCast();
     return [cast.killerId, cast.victimId, cast.thirdId].filter(Boolean);
+}
+
+/**
+ * DOES THIS BROWSER WITNESS THE INCIDENT THAT IS RUNNING - and which seat is it?
+ *
+ * Four things now turn on that one question: the Event card, the HUD's turn
+ * row, the colour of the interface's own edges, and whether this client plays
+ * the murder playlist. Before this existed they each answered it themselves,
+ * in four slightly different ways, and two of them had already drifted - the
+ * HUD was still reading the ids off the world half of `murderState`, where
+ * they have not lived since LIVE-001, so its row rendered for nobody at all
+ * including the GM. The Event card had been fixed; nothing connected the two.
+ *
+ * So it is one function, in the leaf every caller can already reach, and the
+ * rules it states are the whole of the rule:
+ *
+ *   · the names come from `incidentCast`, never from the world setting - a
+ *     bystander's browser holds none of them and must go on holding none
+ *   · a seat is decided by OWNERSHIP, because `game.user.character` is a field
+ *     nothing at this table ever sets (see hud.mjs's own note on that)
+ *   · a GM witnesses every incident, but owns no seat in it - owning every
+ *     actor in the world would otherwise make every incident read as theirs
+ *   · AND THE KILLER OF A TRAP IS NOT A WITNESS. They built it and walked
+ *     away; the whole point of an indirect murder is that they are elsewhere
+ *     when it goes off. A card, a red edge or a change of music arriving on
+ *     their screen is the module telling them the moment it worked, which is
+ *     exactly the fact the rest of this file exists to keep from travelling.
+ *     They are let back in at Stage 6, when the scene becomes theirs to
+ *     arrange - see `castOwners` in murder.mjs, which stops sending them the
+ *     cast at all until then.
+ *
+ * @returns {{running: boolean, witness: boolean, seat: string|null, gm: boolean, indirect: boolean}}
+ */
+export function incidentWitness() {
+    const away = { running: false, witness: false, seat: null, gm: false, indirect: false };
+    let state;
+    try {
+        state = game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {};
+    } catch {
+        return away;
+    }
+    // `openingRoll` counts: the trap's roll and the killer's are both part of
+    // the same held breath, and the Event card has always covered both.
+    if (!state.active || (state.stage !== "incident" && state.stage !== "openingRoll")) return away;
+
+    const cast = incidentCast();
+    const indirect = Boolean(state.indirect);
+    const gm = Boolean(game.user?.isGM);
+
+    const mine = new Set();
+    try {
+        for (const actor of game.actors ?? []) {
+            if (actor.type === "character" && actor.testUserPermission(game.user, "OWNER")) mine.add(actor.id);
+        }
+    } catch {
+        // No actors yet - mid-boot. Not a witness, which is the safe answer.
+    }
+    // Still preferred when it is set: somebody owning two students gets the
+    // turn indicator for the one they are actually playing.
+    const assigned = game.user?.character?.id ?? null;
+    if (assigned) mine.add(assigned);
+
+    // The killer's seat is simply not on the board during their own trap.
+    const seats = [
+        indirect ? null : cast.killerId,
+        cast.victimId,
+        cast.thirdId
+    ].filter(Boolean);
+
+    const owned = (assigned && seats.includes(assigned))
+        ? assigned
+        : (seats.find(id => mine.has(id)) ?? null);
+
+    // A GM's ownership of every actor is not a seat; only a deliberate
+    // assignment is.
+    const seat = gm ? (assigned && seats.includes(assigned) ? assigned : null) : owned;
+
+    return { running: true, witness: gm || Boolean(owned), seat, gm, indirect };
 }
 
 /*

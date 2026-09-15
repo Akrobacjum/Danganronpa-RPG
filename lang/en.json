@@ -1024,6 +1024,7 @@
       },
       "noPlaylists": "This world has no playlists, so there is nothing to map to yet. Make them in the Playlists sidebar; the cue playlist on the Play tab can be made from here.",
       "state": {
+        "murder": "A killing - heard only by the students in it, and the GM",
         "paused": "Game on hold",
         "eclipse": "Eclipse (placement window)",
         "trialObjection": "Objection",

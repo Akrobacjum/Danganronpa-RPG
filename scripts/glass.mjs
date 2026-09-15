@@ -43,8 +43,9 @@ const BLOCKS = [
   { cls: "tray", sel: "#ui-right-column-1 > #countdowns, #countdowns", fallback: (W, H, r) => ({ x: W - 64 - 360, y: (r.three ? r.three.y + r.three.h : 100) + 10, w: 360, h: 62 }) },
   /* THE NOTICE TILE IS A CONSTANT. Not measured: two short cards or one long one fit it, the
      stack is clipped to it (stained-glass.css, popup.mjs), and a card arriving or leaving never
-     recuts the glass. 330 x 160 at 100 %, at the audit page's place, scaled with the screen. */
-  { cls: "note-block", sel: "#drpg-popups", fixed: true, fallback: (W, H) => { const s = uiScale(); return { x: 16, y: H - (100 + 160) * s, w: 330 * s, h: 160 * s }; } },
+     recuts the glass. `--drpg-note-w` x `--drpg-note-h` at 100 % (stained-glass.css owns the
+     two numbers - see `noteTile`), at the audit page's place, scaled with the screen. */
+  { cls: "note-block", sel: "#drpg-popups", fixed: true, fallback: (W, H) => { const s = uiScale(), t = noteTile(); return { x: 16, y: H - (100 + t.h) * s, w: t.w * s, h: t.h * s }; } },
   { cls: "launch", sel: "#drpg-messenger-launcher, #drpg-sound-launcher", union: true, fallback: (W, H) => ({ x: W - 22 - 66, y: H - 22 - 134, w: 66, h: 134 }) },
   /* FOUNDRY'S TWO RAILS ARE NOT BLOCKS, AND THE THREE DAYS SPENT MAKING THEM BLOCKS SAY WHY.
      A block is MEASURED, and every measurement of a rail is a statement about something the
@@ -76,6 +77,29 @@ const uiScale = () => {
     if (Number.isFinite(v) && v > 0) return v;
   }
   return 1;
+};
+
+/* THE NOTICE TILE'S SIZE, FROM THE STYLESHEET RATHER THAN FROM HERE.
+   ---------------------------------------------------------------------------
+   The same constant is needed twice in this file - the pane the tile gets, and
+   the clearance the scene rail is bounded to, which is a fraction of the tile's
+   WIDTH - and twice more in stained-glass.css, where the stack's own box and
+   the per-card height cap are written. Four copies of one number is the shape
+   BREAKPOINTS was moved out of settings.mjs to avoid, and it has the same
+   failure: the tile grows, one copy is missed, and cards are drawn off their
+   own glass with every self-check still reporting clean.
+
+   So the stylesheet owns it (`--drpg-note-w` / `--drpg-note-h`) and this reads
+   it, the same way `uiScale` reads the scale. The fallback is the older
+   size: a client whose stylesheet has not loaded yet gets the geometry the
+   module shipped with rather than a tile of NaN. */
+const noteTile = () => {
+  const cs = getComputedStyle(document.body);
+  const read = (k, whenMissing) => {
+    const v = parseFloat(cs.getPropertyValue(k));
+    return Number.isFinite(v) && v > 0 ? v : whenMissing;
+  };
+  return { w: read("--drpg-note-w", 330), h: read("--drpg-note-h", 160) };
 };
 /* ---- the rotations: one stylesheet, rewritten after every geometry pass ----------------------
    A block is rotated with its pane. Written as a rule on the block's selector (not an inline
@@ -474,9 +498,10 @@ function moduleLayout(W, H) {
          The band under the tiles needs its skirt below that again, so the clearance is the
          lean plus the skirt plus a hair - all three measured rather than guessed, and 0.22
          over the tile's width covers the worst of the three readings. */
-      const noteW = 330 * s;
+      const tile = noteTile();
+      const noteW = tile.w * s;
       const notePaneLean = Math.round(noteW * 0.22);
-      const room = Math.round(H - (100 + 160) * s - notePaneLean - 34 - 8 - boxTop);
+      const room = Math.round(H - (100 + tile.h) * s - notePaneLean - 34 - 8 - boxTop);
       /* The bound may never be shorter than the controls themselves. Foundry's control menu
          is `flex-wrap: nowrap` - it cannot wrap, so a bound under its own height only hides
          tiles behind the rail's `overflow: hidden` (four of twenty survived the first attempt).

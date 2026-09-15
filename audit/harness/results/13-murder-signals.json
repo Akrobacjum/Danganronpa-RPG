@@ -1,0 +1,348 @@
+{
+  "scenario": "scenarios/13-murder-signals.mjs",
+  "passed": 16,
+  "total": 16,
+  "ms": 5119,
+  "results": [
+    {
+      "name": "direct: the killer is in it",
+      "ok": true,
+      "details": "{\"witness\":true,\"seat\":true,\"redEdges\":true,\"knowsCast\":true,\"roomVolume\":0,\"parked\":0.8}"
+    },
+    {
+      "name": "direct: the victim is in it",
+      "ok": true,
+      "details": "{\"witness\":true,\"seat\":true,\"redEdges\":true,\"knowsCast\":true,\"roomVolume\":0,\"parked\":0.8}"
+    },
+    {
+      "name": "direct: the bystander is not",
+      "ok": true,
+      "details": "{\"witness\":false,\"seat\":false,\"redEdges\":false,\"knowsCast\":false,\"roomVolume\":0.8,\"parked\":-1}"
+    },
+    {
+      "name": "direct: the participants' edges go red",
+      "ok": true,
+      "details": "{\"killer\":true,\"victim\":true}"
+    },
+    {
+      "name": "direct: the bystander's edges do not",
+      "ok": true,
+      "details": "false"
+    },
+    {
+      "name": "direct: the murder music takes the participants and the GM",
+      "ok": true,
+      "details": "{\"killer\":0,\"victim\":0,\"gm\":0}"
+    },
+    {
+      "name": "direct: the bystander keeps the room's own playlist",
+      "ok": true,
+      "details": "{\"witness\":false,\"seat\":false,\"redEdges\":false,\"knowsCast\":false,\"roomVolume\":0.8,\"parked\":-1}"
+    },
+    {
+      "name": "trap: the victim is still told",
+      "ok": true,
+      "details": "{\"witness\":true,\"seat\":true,\"redEdges\":true,\"knowsCast\":true,\"roomVolume\":0,\"parked\":0.8}"
+    },
+    {
+      "name": "trap: the GM is still told",
+      "ok": true,
+      "details": "{\"witness\":true,\"seat\":false,\"redEdges\":false,\"knowsCast\":true,\"roomVolume\":0,\"parked\":0.8}"
+    },
+    {
+      "name": "trap: the killer holds no cast",
+      "ok": true,
+      "details": "{\"witness\":false,\"seat\":false,\"redEdges\":false,\"knowsCast\":false,\"roomVolume\":0.8,\"parked\":-1}"
+    },
+    {
+      "name": "trap: the killer is not a witness",
+      "ok": true,
+      "details": "{\"witness\":false,\"seat\":false,\"redEdges\":false,\"knowsCast\":false,\"roomVolume\":0.8,\"parked\":-1}"
+    },
+    {
+      "name": "trap: the killer's edges stay as they were",
+      "ok": true,
+      "details": "false"
+    },
+    {
+      "name": "trap: the killer hears the room, not the murder",
+      "ok": true,
+      "details": "{\"witness\":false,\"seat\":false,\"redEdges\":false,\"knowsCast\":false,\"roomVolume\":0.8,\"parked\":-1}"
+    },
+    {
+      "name": "trap: the killer is indistinguishable from a bystander",
+      "ok": true,
+      "details": "killer {\"witness\":false,\"seat\":false,\"redEdges\":false,\"knowsCast\":false,\"roomVolume\":0.8,\"parked\":-1} vs bystander {\"witness\":false,\"seat\":false,\"redEdges\":false,\"knowsCast\":false,\"roomVolume\":0.8,\"parked\":-1}"
+    },
+    {
+      "name": "after: every browser has its own music back",
+      "ok": true,
+      "details": "{\"gm\":0.8,\"victim\":0.8,\"bystander\":0.8,\"killer\":0.8}"
+    },
+    {
+      "name": "after: nobody's edges are still red",
+      "ok": true,
+      "details": "{\"gm\":false,\"victim\":false,\"bystander\":false,\"killer\":false}"
+    }
+  ],
+  "permissionDenials": [],
+  "socketTraffic": [
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 29
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 73
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 27
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 73
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 73
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 62
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 147
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 150
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 147
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 62
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 62
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 91
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 147
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 147
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 150
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 102
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 102
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 102
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 118
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 118
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 118
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 72
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 72
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 72
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 234
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 234
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 141
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 240
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 292
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 234
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 234
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 102
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 234
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 141
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 240
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 222
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 120
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 312
+    }
+  ],
+  "bootInfo": {
+    "gm": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 67
+    },
+    "p3": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 67
+    },
+    "p2": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 67
+    },
+    "p1": {
+      "t": "ready",
+      "drpg": true,
+      "settingsRegistered": 67
+    }
+  }
+}

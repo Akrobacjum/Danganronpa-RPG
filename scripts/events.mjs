@@ -28,7 +28,8 @@ import { pendingGather } from "./call-effects.mjs";
 import { roomOfActor } from "./movement.mjs";
 import { trialFloor, floorHolder, floorTarget, FLOOR_MODES } from "./trial-floor.mjs";
 import { keyPlanStatus } from "./investigation.mjs";
-import { SETTINGS, bodyDiscovery, bodyDiscoveryFresh, incidentCast, incidentParticipants } from "./settings.mjs";
+import { SETTINGS, bodyDiscovery, bodyDiscoveryFresh, incidentCast, incidentParticipants,
+    incidentWitness } from "./settings.mjs";
 import { overflowEffect, overflowStatus, overflowRules } from "./overflow.mjs";
 import { narrowColumn } from "./narrow.mjs";
 
@@ -94,11 +95,25 @@ function openingCard() {
     /*
      * The names are in the client-scoped cast (LIVE-001), which a participant
      * holds and a bystander does not; reading them off the world half found
-     * nothing and hid this card from the killer as well. And the VICTIM of a
-     * direct murder is never told anything is happening (config.mjs, opening
-     * rules) - their seat does not count. An indirect victim rolls, and may see.
+     * nothing and hid this card from the killer as well.
+     *
+     * EACH KIND OF MURDER HAS EXACTLY ONE PERSON IT DOES NOT TELL, and they are
+     * opposite people. A DIRECT murder does not tell its victim: nobody has
+     * asked them for anything and the first they know of it is the incident
+     * starting (config.mjs, the opening rules). An INDIRECT one does not tell
+     * its killer: they built the trap and are somewhere else, and the victim is
+     * the one who rolls. Stated as one line because it is one rule seen from
+     * two ends.
+     *
+     * The killer's half is belt and braces - `castOwners` in murder.mjs no
+     * longer sends them a cast at all while the trap is running, so
+     * `incidentParticipants()` is already empty on their browser. It is written
+     * here too because this card is also built on a GM's client, where the cast
+     * is complete, and because a rule that lives in one place is a rule that
+     * travels when somebody moves the other place.
      */
-    const seats = incidentParticipants().filter(id => state.indirect || id !== cast.victimId);
+    const seats = incidentParticipants().filter(id =>
+        state.indirect ? id !== cast.killerId : id !== cast.victimId);
     if (!game.user.isGM && !seats.some(id => ids.has(id))) return null;
     const victim = game.actors.get(cast.victimId), killer = game.actors.get(cast.killerId);
     let room = null;
@@ -129,18 +144,14 @@ function incidentCard() {
     const state = { ...(game.settings.get(MODULE_ID, SETTINGS.murderState) ?? {}), ...incidentCast() };
     if (!state.active || state.stage !== "incident") return null;
 
-    const ids = new Set(game.actors
-        .filter(a => a.type === "character" && a.testUserPermission(game.user, "OWNER"))
-        .map(a => a.id));
-    const assigned = game.user.character?.id;
-    if (assigned) ids.add(assigned);
-    const seats = [state.killerId, state.victimId, state.thirdId].filter(Boolean);
-    const ownedSeat = seats.find(id => ids.has(id)) ?? null;
-    const mine = (assigned && seats.includes(assigned)) ? assigned : (game.user.isGM ? null : ownedSeat);
+    // THE GATE: a spectator gets nothing, not even the frame - and neither does
+    // the killer of a trap. One predicate, shared with the HUD's turn row, the
+    // colour of the interface's edges and the murder playlist, so those four
+    // cannot come to disagree about who is in this. See `incidentWitness`.
+    const here = incidentWitness();
+    if (!here.witness) return null;
+    const mine = here.seat;
     const involved = Boolean(mine);
-
-    // THE GATE: a spectator gets nothing, not even the frame.
-    if (!game.user.isGM && !ownedSeat) return null;
 
     const victim = game.actors.get(state.victimId);
     const killer = game.actors.get(state.killerId);

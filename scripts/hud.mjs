@@ -30,7 +30,7 @@ import { isSyncedSetting } from "./sync.mjs";
 // character.mjs reaches config and utils. These two readers used to be
 // private copies here "for the cycle" (audit C3) - the cycle was real, the
 // copies were the wrong cure.
-import { incomingTimeOfDay, bodyDiscovery } from "./settings.mjs";
+import { incomingTimeOfDay, bodyDiscovery, incidentCast, incidentWitness } from "./settings.mjs";
 import { remaining } from "./character.mjs";
 // Static, and checked before adding: this file avoids static imports because it
 // sits on the render path the clock itself calls back into, so a cycle here
@@ -405,6 +405,29 @@ export function renderHud() {
         // …and the time of day, for the Stained Glass theme: the seams of the
         // curtain take the colour of the hour unless a phase overrides it.
         document.body.dataset.drpgTime = clock.timeOfDay ?? "";
+
+        /*
+         * …AND WHETHER THIS SCREEN IS IN A KILLING (Dawid, 15.09).
+         *
+         * The hour and the phase colour the module's edges, and both are facts
+         * about the WORLD: every client wears the same one. This is the first
+         * thing here that is a fact about the BROWSER - the interface turns the
+         * Event card's red for the people in the incident and stays the colour
+         * of the hour for everybody else - so it is a class rather than a data
+         * attribute, and the stylesheet keys off it after the phase rules.
+         *
+         * A SEAT, NOT A WITNESS. The GM sees every incident and running one is
+         * their job; painting their whole screen red every time somebody sets a
+         * trap off would be a fixture, not a signal. So this is the seat, which
+         * a GM has only when they have deliberately assigned themselves a
+         * student - and which the killer of a trap never has, because they are
+         * not in the room. See `incidentWitness`.
+         *
+         * The curtain redraws itself on it for free: glass.mjs already watches
+         * `class` on the body alongside the two data attributes.
+         */
+        document.body.classList.toggle("drpg-incident-here",
+            Boolean(incidentWitness().seat));
 
         if (eventsWindowActive() && !document.body.classList.contains("drpg-no-ticker")) {
             hud.append(hudTicker(phase, clock));
@@ -1082,54 +1105,34 @@ function buildTimeRow(clock, isGM) {
  * numbers - not worth a cycle.
  * ========================================================================== */
 
-/** Participants and GMs only. Nobody else learns an incident is even running. */
+/**
+ * Participants and GMs only. Nobody else learns an incident is even running.
+ *
+ * THIS ROW HAD STOPPED RENDERING FOR ANYBODY, GM INCLUDED (measured 15.09 on
+ * four clients, and then again after the fix). It read the ids straight off the
+ * world half of `murderState` - `state.killerId`, `state.victimId` - and those
+ * moved into the client-scoped cast with LIVE-001. So `seats` was empty on
+ * every browser: a player fell out at the ownership gate, and a GM got as far
+ * as `game.actors.get(undefined)` and returned at `if (!victim)`. The killer
+ * and the victim were playing Stage 5 with no turn indicator at all.
+ *
+ * `incidentCard` in events.mjs had already been repaired, with a note saying
+ * exactly this; nothing carried the repair across to here. Both now ask
+ * `incidentWitness()` - one function, in settings.mjs - so a third reader
+ * cannot drift away again.
+ */
 function buildIncident() {
     if (!game.settings.settings.has(`${MODULE_ID}.murderState`)) return null;
 
-    const state = game.settings.get(MODULE_ID, "murderState") ?? {};
-    if (!state.active || state.stage !== "incident") return null;
+    const here = incidentWitness();
+    if (!here.running || !here.witness) return null;
 
-    /*
-     * WHO AM I IN THIS, read from ownership rather than from `game.user.character`.
-     *
-     * `game.user.character` is the actor picked in Foundry's own user
-     * configuration, and nothing in this game ever asks anybody to set it. A
-     * table that assigns characters by ownership - which is every table, because
-     * that is what the module's own assignment screen writes - left every
-     * player with `game.user.character === null`, so `involved` was false for
-     * all of them and this row was GM-only in practice. The killer and the
-     * victim were playing the tensest scene in the game blind, which is the
-     * exact failure the header above this function describes.
-     *
-     * Ownership is the answer everywhere else in the module (`ownerOf`,
-     * `activeOwnerOf`, the voice loop), so it is the answer here.
-     */
-    const ids = new Set(game.actors
-        .filter(a => a.type === "character" && a.testUserPermission(game.user, "OWNER"))
-        .map(a => a.id));
-    // Still preferred when it is set: a player who owns two characters gets the
-    // turn indicator for the one they are actually playing.
-    const assigned = game.user.character?.id;
-    if (assigned) ids.add(assigned);
+    // The mechanics from the world, the names from this browser's own cast.
+    const state = { ...(game.settings.get(MODULE_ID, "murderState") ?? {}), ...incidentCast() };
+    if (state.stage !== "incident") return null;
 
-    const seats = [
-        state.killerId,
-        state.victimId,
-        state.thirdId
-    ].filter(Boolean);
-    const ownedSeat = seats.find(id => ids.has(id)) ?? null;
-
-    // A GM owns every character in the world, so ownership alone would make
-    // every incident read as theirs and print "your turn" at somebody running
-    // both sides. The seat only counts as YOURS when it is the character you
-    // are actually playing - which for a GM means one they have deliberately
-    // assigned to themselves, and for a player means the one they own.
-    const mine = (assigned && seats.includes(assigned))
-        ? assigned
-        : (game.user.isGM ? null : ownedSeat);
+    const mine = here.seat;
     const involved = Boolean(mine);
-
-    if (!game.user.isGM && !ownedSeat) return null;
 
     const victim = game.actors.get(state.victimId);
     if (!victim) return null;

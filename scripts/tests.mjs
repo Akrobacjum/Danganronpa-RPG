@@ -4652,6 +4652,85 @@ const SCENARIOS = [
         }
     }],
 
+    ["a trap does not tell the person who set it", async () => {
+        /*
+         * FOUR THINGS NOW TURN ON "IS THIS BROWSER IN THE KILLING", and before
+         * `incidentWitness` existed they each answered it themselves. Two had
+         * already drifted apart: `incidentCard` in events.mjs had been repaired
+         * after LIVE-001 moved the names out of the world setting, and
+         * `buildIncident` in hud.mjs had not - so under Monokuma Legacy, where
+         * that row is the only place an incident shows, it rendered for nobody
+         * at all. Measured on four clients before and after: gm/p1/p3 all
+         * false, then gm and the killer true and the bystander still false.
+         *
+         * THE HALF THIS TEST IS REALLY FOR is the indirect murder. A trap's
+         * killer built it and walked away; the module telling them the moment
+         * it worked is the one fact the whole murder engine exists to keep from
+         * travelling, and it was travelling - the cast, the Event card and a
+         * whisper all arrived on their screen (measured 15.09, four clients).
+         *
+         * READ FROM THE PREDICATE rather than from the screen, because what is
+         * being checked is the RULE and not one of the four places that read
+         * it. The screen is exercised by the harness scenarios, which have a
+         * murder and real clients; this is the invariant underneath them, and
+         * it is the thing that would silently stop being true if somebody
+         * added a fifth reader.
+         */
+        const { incidentWitness } = await import("./settings.mjs");
+        const { MODULE_ID: MOD } = await import("./config.mjs");
+
+        const cast = game.actors.filter(a => a.type === "character").slice(0, 3);
+        ok(cast.length >= 3, "need three students: a killer, a victim and a bystander");
+        const [killer, victim] = cast;
+
+        const worldBefore = game.settings.get(MOD, "murderState") ?? {};
+        const castBefore = game.settings.get(MOD, "incidentCast") ?? {};
+        const assignedBefore = game.user.character ?? null;
+        try {
+            // A GM owns every actor, so "the seat I am playing" is the only
+            // thing that can make a GM a participant - which is what the edge
+            // colour keys off. Set deliberately, and put back in `finally`.
+            await game.user.update({ character: killer.id });
+
+            await game.settings.set(MOD, "incidentCast",
+                { killerId: killer.id, victimId: victim.id, thirdId: null, updated: Date.now() });
+
+            // ---- a DIRECT murder: the killer is in the room ------------------
+            await game.settings.set(MOD, "murderState",
+                { active: true, stage: "incident", indirect: false, turn: 1, turnSide: "victim" });
+            const direct = incidentWitness();
+            ok(direct.running, "a running incident does not read as running");
+            ok(direct.witness, "the killer of a direct murder is not a witness to it");
+            equal(direct.seat, killer.id, "the killer's own seat was not recognised");
+
+            // ---- the SAME murder, sprung by a trap ---------------------------
+            await game.settings.set(MOD, "murderState",
+                { active: true, stage: "incident", indirect: true, turn: 1, turnSide: "victim" });
+            const trap = incidentWitness();
+            ok(trap.running, "an indirect incident does not read as running");
+            ok(trap.indirect, "the incident does not know it is a trap");
+            equal(trap.seat, null,
+                "the killer of a TRAP holds a seat in it - they would get the card, "
+                + "the red edges and the murder music the moment it went off");
+
+            // ---- and the victim of that trap is still told -------------------
+            await game.user.update({ character: victim.id });
+            const theirs = incidentWitness();
+            ok(theirs.witness, "the victim of a trap is not a witness to their own incident");
+            equal(theirs.seat, victim.id, "the victim's seat was not recognised");
+
+            // ---- nothing running, nobody is in anything ---------------------
+            await game.settings.set(MOD, "murderState", {});
+            const quiet = incidentWitness();
+            ok(!quiet.running && !quiet.witness && quiet.seat === null,
+                `a world with no incident reads as one: ${JSON.stringify(quiet)}`);
+        } finally {
+            await game.user.update({ character: assignedBefore?.id ?? null });
+            await game.settings.set(MOD, "incidentCast", castBefore);
+            await game.settings.set(MOD, "murderState", worldBefore);
+        }
+    }],
+
     ["a trace and its bullets are one record, edited from either end", async () => {
         /*
          * Dawid, 28.08: "the synchronisation is to be full, continuous,
