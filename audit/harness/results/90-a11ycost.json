@@ -1,53 +1,42 @@
 {
-  "scenario": "scenarios/30-security.mjs",
-  "passed": 6,
-  "total": 6,
-  "ms": 615,
+  "scenario": "/tmp/claude-0/-home-user-Danganronpa-RPG/8affcf6f-9be2-5705-9439-b28d1eb76fc9/scratchpad/90-a11ycost.mjs",
+  "passed": 2,
+  "total": 2,
+  "ms": 510,
   "results": [
     {
-      "name": "XSS: messenger escapes hostile markup at write",
+      "name": "a11y sweep footprint",
       "ok": true,
-      "details": "{\"id\":\"Ys2caiXxjgr9IhxV\",\"stored\":\"<p>&lt;img src=x onerror=alert(1)&gt;&lt;script&gt;window.__pwned=1&lt;/script&gt;</p>\",\"escaped\":true,\"rawTagPresent\":false}"
+      "details": "{\"per\":{\"#drpg-hud\":2,\"#drpg-despair\":14,\"#drpg-player-status\":0,\"#drpg-messenger-launcher\":0,\"#drpg-sound-launcher\":0},\"total\":16,\"named\":16,\"bare\":0,\"docElements\":88,\"hudParent\":\"drpg-column\",\"elapsed\":true,\"report\":\"every control in the module's own chrome has a name\"}"
     },
     {
-      "name": "SECURITY: player cannot write another player's actor",
+      "name": "dumped body",
       "ok": true,
-      "details": "denied: User lacks permission: update Actor"
-    },
-    {
-      "name": "SECURITY: player cannot write an NPC actor",
-      "ok": true,
-      "details": "denied: User lacks permission: update Actor"
-    },
-    {
-      "name": "SECURITY: forged socket for unowned actor did not change state",
-      "ok": true,
-      "details": "{\"botanHope\":2}"
-    },
-    {
-      "name": "SECURITY: player calling adjustDespair does not throw uncaught (write silently denied)",
-      "ok": true,
-      "details": "called: null"
-    },
-    {
-      "name": "SECURITY: server logged permission denials for player writes",
-      "ok": true,
-      "details": "[{\"who\":\"p1\",\"op\":\"update Actor\",\"error\":\"User lacks permission: update Actor\"},{\"who\":\"p1\",\"op\":\"update Actor\",\"error\":\"User lacks permission: update Actor\"}]"
+      "details": "8571"
     }
   ],
-  "permissionDenials": [
-    {
-      "who": "p1",
-      "op": "update Actor",
-      "error": "User lacks permission: update Actor"
-    },
-    {
-      "who": "p1",
-      "op": "update Actor",
-      "error": "User lacks permission: update Actor"
-    }
-  ],
+  "permissionDenials": [],
   "socketTraffic": [
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p2",
+      "channel": "module.danganronpa-rpg",
+      "size": 73
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 73
+    },
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
@@ -56,12 +45,12 @@
     {
       "from": "p1",
       "channel": "module.danganronpa-rpg",
-      "size": 99
+      "size": 62
     },
     {
       "from": "p1",
       "channel": "module.danganronpa-rpg",
-      "size": 73
+      "size": 91
     },
     {
       "from": "gm",
@@ -69,36 +58,26 @@
       "size": 27
     },
     {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 99
+    },
+    {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
       "size": 91
     },
     {
-      "from": "p2",
+      "from": "p3",
       "channel": "module.danganronpa-rpg",
       "size": 99
     },
     {
-      "from": "p2",
+      "from": "p3",
       "channel": "module.danganronpa-rpg",
       "size": 73
     },
     {
-      "from": "p1",
-      "channel": "module.danganronpa-rpg",
-      "size": 62
-    },
-    {
-      "from": "p1",
-      "channel": "module.danganronpa-rpg",
-      "size": 91
-    },
-    {
-      "from": "p1",
-      "channel": "module.danganronpa-rpg",
-      "size": 99
-    },
-    {
       "from": "p2",
       "channel": "module.danganronpa-rpg",
       "size": 62
@@ -112,6 +91,11 @@
       "from": "p2",
       "channel": "module.danganronpa-rpg",
       "size": 99
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 62
     },
     {
       "from": "gm",
@@ -131,12 +115,17 @@
     {
       "from": "p3",
       "channel": "module.danganronpa-rpg",
-      "size": 99
+      "size": 91
     },
     {
       "from": "p3",
       "channel": "module.danganronpa-rpg",
-      "size": 73
+      "size": 99
+    },
+    {
+      "from": "p1",
+      "channel": "module.danganronpa-rpg",
+      "size": 72
     },
     {
       "from": "gm",
@@ -151,47 +140,7 @@
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 102
-    },
-    {
-      "from": "gm",
-      "channel": "module.danganronpa-rpg",
-      "size": 102
-    },
-    {
-      "from": "gm",
-      "channel": "module.danganronpa-rpg",
-      "size": 118
-    },
-    {
-      "from": "gm",
-      "channel": "module.danganronpa-rpg",
-      "size": 118
-    },
-    {
-      "from": "gm",
-      "channel": "module.danganronpa-rpg",
-      "size": 118
-    },
-    {
-      "from": "p3",
-      "channel": "module.danganronpa-rpg",
-      "size": 62
-    },
-    {
-      "from": "p1",
-      "channel": "module.danganronpa-rpg",
-      "size": 72
-    },
-    {
-      "from": "p3",
-      "channel": "module.danganronpa-rpg",
-      "size": 91
-    },
-    {
-      "from": "p3",
-      "channel": "module.danganronpa-rpg",
-      "size": 99
+      "size": 147
     },
     {
       "from": "p2",
@@ -201,7 +150,7 @@
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 147
+      "size": 102
     },
     {
       "from": "gm",
@@ -209,33 +158,38 @@
       "size": 102
     },
     {
-      "from": "p3",
+      "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 72
-    },
-    {
-      "from": "p1",
-      "channel": "module.danganronpa-rpg",
-      "size": 212
-    },
-    {
-      "from": "p1",
-      "channel": "module.danganronpa-rpg",
-      "size": 136
+      "size": 102
     },
     {
       "from": "gm",
       "channel": "module.danganronpa-rpg",
-      "size": 110
+      "size": 118
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 118
+    },
+    {
+      "from": "gm",
+      "channel": "module.danganronpa-rpg",
+      "size": 118
+    },
+    {
+      "from": "p3",
+      "channel": "module.danganronpa-rpg",
+      "size": 72
     }
   ],
   "bootInfo": {
-    "gm": {
+    "p1": {
       "t": "ready",
       "drpg": true,
       "settingsRegistered": 68
     },
-    "p1": {
+    "gm": {
       "t": "ready",
       "drpg": true,
       "settingsRegistered": 68

@@ -306,8 +306,18 @@ function applyRotations() {
     else if (r.el) { r.el.style.transformOrigin = r.origin; r.el.style.transform = r.transform === "none" ? "" : r.transform; }
   }
   const sheet = rotationSheet();
-  sheet.textContent = rules.join("\n");
-  sheet.disabled = false;
+  /* WRITTEN ONLY WHEN THE RULES CHANGE - and the comment above overstated this until now.
+     Assigning `textContent` replaces the element's text node whether or not the string
+     differs, and a `<style>` whose text is replaced is re-parsed and invalidates style for
+     the whole document. `applyRotations` runs on EVERY pass through `curtainGeometry`,
+     including the fast path that exists precisely so an unchanged layout costs nothing, so
+     this was a document-wide restyle on a pass that had just established that nothing moved.
+     The audit's own fix line for UI-16 had two halves - "run `applyRotations` in
+     `requestAnimationFrame` AND skip when the sheet text would be unchanged" - and only the
+     first was implemented (8d24e21). This is the second. */
+  const text = rules.join("\n");
+  if (sheet.textContent !== text) sheet.textContent = text;
+  if (sheet.disabled) sheet.disabled = false;
   watchSidebar();
   if (document.body.hasAttribute("data-drpg-measuring")) { void document.body.offsetWidth; measuring(false); }
   /* the glass proposed the angle; this is the screen's answer to it */
@@ -317,7 +327,14 @@ function applyRotations() {
     const shift = railOverhang(r.el);
     if (shift) fixes.push(`body.drpg-theme-stained-glass :is(${r.sel}) { transform-origin: ${r.origin}; transform: translateX(${shift}px) ${r.transform}; }`);
   }
-  if (fixes.length) sheet.textContent = rules.concat(fixes).join(" ");
+  /* The second write cannot be folded into the first: `railOverhang` above measures the
+     blocks AFTER the rules have been applied - that is what "the screen's answer" means -
+     so the first assignment has to have landed before this one can be computed. It gets the
+     same guard, for the same reason. */
+  if (fixes.length) {
+    const withFixes = rules.concat(fixes).join(" ");
+    if (sheet.textContent !== withFixes) sheet.textContent = withFixes;
+  }
   tightenGmGap();
 }
 
