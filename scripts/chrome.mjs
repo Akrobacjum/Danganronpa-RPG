@@ -208,7 +208,14 @@ export function dressChrome(root) {
 export function registerChrome() {
     injectFilters();
     Hooks.on("renderApplicationV2", app => dressChrome(app?.element));
-    // A window that redraws part of itself keeps its decorations, because the pass is
-    // idempotent and marks what it has done; this catches the parts drawn after the render.
+    /* `drpgWindowUpdated` IS FIRED BY NOBODY, and has not been.
+       The hook was added so a window redrawing part of itself would keep its
+       decorations - the pass is idempotent and marks what it has done - and the
+       other half was never written: `grep -rn drpgWindowUpdated` over the whole
+       tree returns this line and nothing else (16.09).
+       Kept rather than deleted, because the intention is sound and the listener
+       is the cheap half: anything in this module that rebuilds part of an open
+       window can fire it and get its chrome back. If nothing ever does, this is
+       one registration at ready and no cost at all. */
     Hooks.on("drpgWindowUpdated", el => dressChrome(el));
 }

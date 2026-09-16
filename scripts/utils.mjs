@@ -728,10 +728,40 @@ export function fitWindowToTable(dialog) {
             }
 
             dialog.setPosition({ width, height: "auto" });
-            // TWO frames, like the fit itself: one for the new width to land on
-            // the element, a second for the table to reflow inside it. Pinned
-            // after a single frame, the scrollport still measured the old size
-            // and the bar was told there was nothing to stick to.
+            /*
+             * PINNED AT ONCE, AND AGAIN TWO FRAMES LATER. Belt AND braces, on
+             * purpose - this is the one change here that could not be settled
+             * headlessly.
+             *
+             * The note that used to sit here said the two frames were what let
+             * the scrollport measure its NEW size: "pinned after a single frame,
+             * the scrollport still measured the old size and the bar was told
+             * there was nothing to stick to". Measured in Chromium (16.09):
+             * reading `content.clientWidth` immediately after a width is written
+             * returns the new width, 900 where the old one was 400, because the
+             * read forces a layout flush that includes the write. One frame and
+             * two frames give the same answer. So the flush is not what the
+             * frames were buying.
+             *
+             * WHAT COULD NOT BE CHECKED FROM HERE is whether that still holds
+             * through `ApplicationV2#setPosition({ height: "auto" })`, which
+             * writes through Foundry rather than onto the element, and may race
+             * Foundry's own post-render position write. jsdom cannot answer it -
+             * it has no layout, `scrollWidth` is 0, and `pinFooterAcrossScroll`
+             * returns early at `!scrolls`, so a headless test would pass by
+             * measuring nothing. That is the `stackShapes` failure in CLAUDE.md
+             * word for word.
+             *
+             * So both calls stay. The first settles the bar in the frame the
+             * window is resized, which is worth roughly 170 ms of a window
+             * visibly rearranging itself under the reader (two frames at the
+             * 86 ms the curtain's blur costs a frame); the second is exactly
+             * today's behaviour, kept as the net. `pinFooterAcrossScroll` is
+             * idempotent and clears its own properties when nothing scrolls, so
+             * an early call that reads a stale box does no harm and the late one
+             * corrects it - the worst case is what the window does now.
+             */
+            pinFooterAcrossScroll(dialog);
             requestAnimationFrame(() =>
                 requestAnimationFrame(() => pinFooterAcrossScroll(dialog)));
         } catch (err) {
@@ -781,7 +811,9 @@ function windowWidthFor(root, content, widest, settled = false) {
 /**
  * One size for a tabbed window, taken from its biggest tab.
  *
- * Room Setup holds five tables behind five tabs and they are nothing like each
+ * Room Setup holds a table behind each of its seven tabs (`ROOM_SETUP_TABS` in
+ * vault.mjs; this said "five" until 16.09, and had been wrong since the sixth
+ * was added) and they are nothing like each
  * other: Bedrooms is two columns, Fog is one column per room. Fitting the
  * window on every switch made it right for whichever tab was showing and made
  * the window itself jump - measured at 708px on Bedrooms and 1504 on Fog, on
@@ -862,6 +894,9 @@ export function fitWindowToTabs(dialog) {
             }
 
             dialog.setPosition({ width, height });
+            // The same pair, for the reason written out at the end of
+            // `fitWindowToTable` above - this is the tabbed twin of it.
+            pinFooterAcrossScroll(dialog);
             requestAnimationFrame(() =>
                 requestAnimationFrame(() => pinFooterAcrossScroll(dialog)));
         } catch (err) {

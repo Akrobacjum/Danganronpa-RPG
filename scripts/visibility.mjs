@@ -379,7 +379,30 @@ export function applyAll() {
     forgetMyRooms();
 
     for (const token of canvas.tokens?.placeables ?? []) {
-        // Ask Foundry to refresh, which runs applyToToken through the hook.
+        /*
+         * THE FLAG IS THE UN-HIDE PATH, AND THE COMMENT HERE USED TO SAY
+         * SOMETHING ELSE.
+         *
+         * It read "Ask Foundry to refresh, which runs applyToToken through the
+         * hook", which cannot be the reason: `applyToToken` runs on the very
+         * next line whether or not Foundry refreshes anything. A reader who
+         * believed it would delete the line as a duplicate, and deleting it
+         * breaks the feature this file exists for.
+         *
+         * What the flag actually does is give Foundry back the tokens this
+         * module has hidden. `hide()` writes `visible = false` onto seven
+         * display objects by hand, and the only thing in here that reverses it
+         * is `show()` - which returns early for a token the viewer does not own
+         * (see its own note). So nothing in this module ever restores somebody
+         * else's token; Foundry's own visibility pass is what does, and this is
+         * how it is asked to run. Take the line out and an Eclipse ending, the
+         * clock moving, a Truth Bullet arriving and the lair opening all leave
+         * other people's tokens stranded invisible - and no test anywhere would
+         * catch it, because the harness has no canvas.
+         *
+         * Found by a verification pass on 16.09; three readers reached it
+         * independently, which is why it is written down rather than fixed.
+         */
         token.renderFlags?.set?.({ refreshVisibility: true });
         applyToToken(token);
     }

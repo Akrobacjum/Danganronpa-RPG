@@ -264,8 +264,18 @@ function refresh(kind, data = {}) {
             run("bar", () => import("./despair.mjs").then(m => m.renderDespairBar?.()));
             run("hud", () => import("./hud.mjs").then(m => m.renderHud()));
             run("sheets", () => import("./clock.mjs").then(m => m.refreshSheets()));
-            // The body class only; the HUD and the visibility pass are the two
-            // lines either side of it, once each (CORE-12).
+            /* The body class only; the HUD and the visibility pass are the two
+               lines either side of it (CORE-12).
+               NOT "once each", which is what this said until 16.09. `applyAll`
+               is bound to `drpgTimeOfDayChanged` as well (visibility.mjs:57), and
+               that hook is fired eight lines below - so a clock tick runs the
+               visibility pass TWICE on every client, and an Eclipse change does
+               the same through `drpgEclipseChanged`. Left as it is rather than
+               fixed: dropping the direct call would make room visibility depend
+               on hook ordering, and coalescing `applyAll` touches the one path
+               that gives other people's hidden tokens back (see its own note).
+               It is once per time of day, not per frame, and it has not been
+               priced - but the claim had to stop being made. */
             run("eclipse", () => import("./eclipse.mjs").then(m => m.refreshEclipse()));
             run("visibility", () => import("./visibility.mjs").then(m => m.applyAll()));
             // Local listeners (other modules, macros) still get their hook - but
