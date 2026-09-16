@@ -11,7 +11,7 @@ import { SETTINGS } from "./settings.mjs";
 import {
     allProjects, setProjectMeta, metaFor, roomOf, isIndirectMurder, isSecret,
     makeSecret, shareWith, unshareWith, revealProject, viewersOf,
-    createProject, deleteProject, setProjectImage, updateProject
+    createProject, deleteProject, setProjectImage, updateProject, knowsProject
 } from "./projects.mjs";
 import { allRooms } from "./movement.mjs";
 import { dialogContent, error, tableDialog, wirePortraitPickers } from "./utils.mjs";
@@ -84,6 +84,7 @@ function onRenderCountdowns(app, element) {
         leaveIconOnly(app, root);
 
         localiseRawKeys(root);
+        hideUndiscovered(root);
         paintProgress(root);
 
         // Folding the tray away is everybody's, not the GM's - a player with
@@ -179,6 +180,57 @@ function localiseRawKeys(root) {
             element.setAttribute(attribute, game.i18n.localize(value));
         }
     }
+}
+
+/**
+ * ROWS FOR PROJECTS THIS PERSON HAS NOT FOUND YET ARE NOT DRAWN.
+ *
+ * The tray is Daggerheart's, and the system decides what reaches it from the
+ * countdown's own ownership - which is the secrecy gate and nothing else. A
+ * PUBLIC project in a room nobody has walked into is, as far as the system is
+ * concerned, everybody's business, so its row was in the tray from the moment
+ * the GM made it: the class could read off a list of what the season had in
+ * store for them, in order, before setting foot anywhere.
+ *
+ * So the row goes, on the same terms the map token goes (visibility.mjs): one
+ * rule, `knowsProject`, asked per client. Removed rather than hidden with a
+ * class - a hidden row is still in the accessibility tree and still in the
+ * tray's own count, and this file already removes system-owned controls on
+ * every render for the same reason.
+ *
+ * FAILING OPEN IS DELIBERATE, twice over:
+ *   - a row this pass cannot resolve to a project stays, because it may not be
+ *     one of ours at all (a countdown built in Daggerheart's own window);
+ *   - `knowsProject` answers true for a GM, for anyone in on a secret one, and
+ *     for any project with no room set, so those rows are never candidates.
+ * The only row this can ever take out is a public, room-bound project on a
+ * player's client, which is exactly the case it was written for.
+ *
+ * Runs BEFORE `paintProgress`, so the paint pass is not measuring and styling
+ * rows that are about to be thrown away.
+ *
+ * Exported, and takes the reader as an argument, for one reason: the suite runs
+ * as a GM, and a function whose first line is "a GM sees everything" cannot be
+ * tested by one. The default is the only value the render hook ever passes.
+ *
+ * @returns {number} how many rows were taken out - the suite's measurement.
+ */
+export function hideUndiscovered(root, user = game.user) {
+    if (user?.isGM) return 0;
+
+    const rows = root.querySelectorAll(".countdown-container");
+    if (!rows.length) return 0;
+    const projects = allProjects();
+
+    let removed = 0;
+    for (const row of rows) {
+        const project = projectForRow(row, projects);
+        if (!project) continue;
+        if (knowsProject(project.id, user)) continue;
+        row.remove();
+        removed += 1;
+    }
+    return removed;
 }
 
 /**

@@ -330,6 +330,14 @@ function refresh(kind, data = {}) {
             run("sheets", () => import("./clock.mjs").then(m => m.refreshSheets()));
             // The HUD's project row for this room.
             run("hud", () => import("./hud.mjs").then(m => m.renderHud()));
+            /* And the map. `projectMeta` is where a project's ROOM and its
+               SECRECY live, and both decide whether this client may see its
+               token - so a reveal, or a project moved to another room, has to
+               re-ask `knowsProject` here. The token being dragged somewhere
+               else is already covered: that is an `updateToken`, which
+               visibility.mjs hears directly. This is the case that has no
+               document change to hang off. */
+            run("projectTokens", () => import("./visibility.mjs").then(m => m.applyAll?.()));
             break;
 
         case SYNC.despair:
@@ -395,6 +403,21 @@ function refresh(kind, data = {}) {
                 m.reconcileMirror();
                 return m.repaintFog();
             }));
+
+            /* WALKING INTO A ROOM FINDS THE PROJECT IN IT (stage 2).
+               ---------------------------------------------------------------
+               Discovery is what `knowsProject` reads, so the two surfaces that
+               ask it have to be redrawn when the ledger moves, or a player
+               walks into a room and the project appears only when something
+               else happens to redraw - which on a quiet table can be minutes.
+
+               Neither redraw can ride the client's own `updateToken` hook
+               instead: the ledger is written by the PRIMARY GM and comes back
+               round the socket, so by the time this client heard its token had
+               moved, the answer was still "no". This is the moment the answer
+               changes. */
+            run("projectTray", () => import("./projects-ui.mjs").then(m => m.refreshProjects?.()));
+            run("projectTokens", () => import("./visibility.mjs").then(m => m.applyAll?.()));
             break;
 
         default:

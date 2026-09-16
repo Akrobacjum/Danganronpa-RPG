@@ -5083,6 +5083,112 @@ const SCENARIOS = [
         }
     }],
 
+    ["the Projects tray shows a project only once its reader has found it", async () => {
+        /*
+         * STAGE 2: the tray and the map token answer the same question.
+         *
+         * The tray is Daggerheart's, and the system fills it from the
+         * countdown's own ownership - which is secrecy and nothing else, so a
+         * PUBLIC project was listed for everybody from the moment a GM made it.
+         * `hideUndiscovered` takes those rows out per client.
+         *
+         * Two things are measured here and the second is the one worth having:
+         *
+         *   1. the row for an undiscovered project is removed;
+         *   2. a row this pass cannot resolve to a project is LEFT ALONE. That
+         *      is the fail-open half, and it is what stops the tray eating a
+         *      plain Daggerheart countdown somebody built in the system's own
+         *      window. A gate that removes rows is one `projectForRow` miss away
+         *      from emptying a tray, so the miss is tested rather than assumed.
+         *
+         * The markup is built here rather than rendered, because the tray is the
+         * system's template and the suite has no Daggerheart tray to render.
+         * That is the honest limit of this test: it proves the pass does the
+         * right thing to rows of the shape `projectForRow` reads, not that the
+         * system still emits that shape. A scenario at a real table is what
+         * settles the second question.
+         */
+        const projects = await import("./projects.mjs");
+        const tray = await import("./projects-ui.mjs");
+        const fog = await import("./fog.mjs");
+
+        const scene = game.scenes?.current ?? game.scenes?.contents?.[0];
+        ok(scene, "no scene to stand a project in");
+        const room = scene.regions?.contents?.[0]?.name ?? null;
+        needs(room, "the tray gate only bites on a project with a room, and this scene has no regions");
+
+        /* The first player who actually HOLDS somebody: discovery is recorded
+           per character, so an account with no character can never discover
+           anything and would make every assertion below trivially true. */
+        const outsider = game.users.filter(u => !u.isGM).find(u => game.actors
+            .some(a => a.type === "character" && a.testUserPermission(u, "OWNER")));
+        ok(outsider, "this test needs a player account holding a character");
+
+        const mine = game.actors.filter(a => a.type === "character"
+            && a.testUserPermission(outsider, "OWNER")).map(a => a.id);
+
+        const buildRow = (id, name) => {
+            const row = document.createElement("div");
+            row.className = "countdown-container";
+            if (id) row.dataset.countdown = id;
+            const content = document.createElement("div");
+            content.className = "countdown-content";
+            const header = document.createElement("header");
+            header.textContent = name;
+            content.append(header);
+            row.append(content);
+            return row;
+        };
+
+        /* Rebuilt from `discoveredFor` per character, never from a whole-matrix
+           reader: `saveDiscoveryMatrix` overwrites a scene's rows wholesale, so
+           a restore that named only this test's rows would delete everybody
+           else's. Same reason as the token test above. */
+        const before = Object.fromEntries(game.actors
+            .filter(a => a.type === "character")
+            .map(a => [a.id, fog.discoveredFor(scene.id, a.id)]));
+
+        let made = null;
+        try {
+            const open = await projects.createProject({ name: "Suite tray rig", target: 4, room });
+            ok(open?.id, "the fixture project was not created");
+            made = open.id;
+
+            await fog.saveDiscoveryMatrix(scene,
+                { ...before, ...Object.fromEntries(mine.map(id => [id, []])) });
+
+            ok(projects.visibleProjects(outsider).some(p => p.id === made),
+                "a public project should still be VISIBLE to somebody who has not found it");
+            ok(!projects.knownProjects(outsider).some(p => p.id === made),
+                "an undiscovered public project was in `knownProjects`");
+
+            const root = document.createElement("div");
+            root.append(buildRow(made, "Suite tray rig"));
+            root.append(buildRow("suiteNotAProject", "A countdown the module never made"));
+
+            const removed = tray.hideUndiscovered(root, outsider);
+            ok(removed === 1, `the tray gate removed ${removed} rows, expected exactly 1`);
+            ok(!root.querySelector(`[data-countdown="${made}"]`),
+                "an undiscovered project kept its row in the tray");
+            ok(root.querySelector('[data-countdown="suiteNotAProject"]'),
+                "the tray gate ate a row it could not resolve to a project");
+
+            /* And the other way round: walking in puts it back. */
+            await fog.saveDiscoveryMatrix(scene,
+                { ...before, ...Object.fromEntries(mine.map(id => [id, [room]])) });
+
+            const after = document.createElement("div");
+            after.append(buildRow(made, "Suite tray rig"));
+            ok(tray.hideUndiscovered(after, outsider) === 0,
+                "a project whose room has been stood in was still taken out of the tray");
+            ok(projects.knownProjects(outsider).some(p => p.id === made),
+                "a discovered project was missing from `knownProjects`");
+        } finally {
+            await fog.saveDiscoveryMatrix(scene, before);
+            if (made) await projects.deleteProject(made);
+        }
+    }],
+
     ["a GM correcting what a trace is reaches the copies without telling anybody", async () => {
         /*
          * The column that used to hold free-text tags is a type picker now, and

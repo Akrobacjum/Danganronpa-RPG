@@ -219,6 +219,34 @@ export function visibleProjects(user = game.user) {
 }
 
 /**
+ * Every project this user KNOWS is there - `visibleProjects` narrowed by
+ * discovery. See `knowsProject` above for the two roads in.
+ *
+ * The difference between the two lists is the whole of stage 2, so it is worth
+ * saying which question each one answers:
+ *
+ *   · `visibleProjects` is "may this client be told about it at all". It is the
+ *     secrecy gate, and it is what a socket handler has to check, because a
+ *     player who is not in on a secret project must not be able to touch it
+ *     however they learnt the id.
+ *   · `knownProjects` is "is it on this person's map yet". A public project in
+ *     a room nobody has walked into is perfectly legal to know about and simply
+ *     has not been found, so it is absent from the tray and its token is not
+ *     drawn - not greyed, not a neutral marker, absent.
+ *
+ * The lists a character builds FROM WHERE THEY ARE STANDING - `projectsListedIn`
+ * and everything downstream of it - deliberately stay on `visibleProjects`.
+ * Standing in the room IS the discovery, so the only case the two lists could
+ * disagree on is the gap between a token arriving in a region and the primary
+ * GM's ledger write coming back round the socket. Gating there would buy
+ * nothing (you cannot get the list without being in the room anyway) and would
+ * cost a player a turn's work every time that round trip was slow.
+ */
+export function knownProjects(user = game.user) {
+    return allProjects().filter(p => knowsProject(p.id, user));
+}
+
+/**
  * Is this project already full?
  *
  * A project at its target is DONE. Nothing else in the game can be advanced past

@@ -289,8 +289,12 @@ export async function openStatusExplainer() {
 /** The Projects tray: what a project is, and which ones this reader can see. */
 export async function openProjectsExplainer() {
     try {
-        const { visibleProjects } = await import("./projects.mjs");
-        const mine = visibleProjects(game.user);
+        /* `knownProjects`, not `visibleProjects`: this window explains the tray,
+           so it has to list exactly what the tray lists. On `visibleProjects` it
+           named every public project on the board, discovered or not - which
+           made it a way of reading the season's plan off a help window. */
+        const { knownProjects } = await import("./projects.mjs");
+        const mine = knownProjects(game.user);
 
         // `current` counts UP toward `start`, whichever way the underlying
         // countdown is stored - `allProjects()` has already normalised that,

@@ -87,7 +87,8 @@ import {
     migrateRemnants, remnantData, reportRemnants, flushTraceDigest } from "./remnants.mjs";
 import { migrate1_2_0, migrationStatus } from "./migrate.mjs";
 import {
-    allProjects, visibleProjects, canSee, projectsAvailableIn, projectsListedIn,
+    allProjects, visibleProjects, knownProjects, knowsProject, canSee,
+    projectsAvailableIn, projectsListedIn,
     isComplete, addProgress, setProjectMeta,
     makeSecret, shareWith, unshareWith, revealProject, isSecret, viewersOf
 } from "./projects.mjs";
@@ -422,6 +423,14 @@ export const DrpgApi = {
         Anything shown to a player must come from here, never `allProjects`. */
     visibleProjects,
     canSee,
+
+    /** The same list again, narrowed to what this person has actually FOUND: a
+     *  public project in a room nobody has walked into is legal to know about and
+     *  simply has not been discovered yet. The tray and the map token both ask
+     *  `knowsProject`; see the note above it in projects.mjs for which of the
+     *  two questions belongs where. */
+    knownProjects,
+    knowsProject,
     projectsAvailableIn,
 
     /** The same list with finished projects left in, which is what a picker

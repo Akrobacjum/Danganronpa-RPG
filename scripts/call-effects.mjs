@@ -1034,7 +1034,7 @@ async function pickPlayer(actor, call, kind) {
 }
 
 async function pickProject(actor, kind = "hope") {
-    const { visibleProjects, projectsAvailableIn } = await import("./projects.mjs");
+    const { knownProjects, projectsAvailableIn } = await import("./projects.mjs");
     const { roomOfActor } = await import("./movement.mjs");
 
     // Hope's Contribution is "a project being run in your current room";
@@ -1049,7 +1049,12 @@ async function pickProject(actor, kind = "hope") {
     // so a student in an empty room could Contribute across the map.
     const room = roomOfActor(actor);
     const here = projectsAvailableIn(room);
-    const pool = here.length ? here : (kind === "despair" ? visibleProjects() : []);
+    // `knownProjects` rather than `visibleProjects` for the same reason the tray
+    // uses it: the fallback is a list of NAMES, and a public project nobody has
+    // walked into yet is not something this account should be able to read off a
+    // dropdown. It changes nothing for a GM - `knowsProject` answers true for
+    // them - and narrows a player-held Monokuma to the rooms they have found.
+    const pool = here.length ? here : (kind === "despair" ? knownProjects() : []);
 
     if (!pool.length) {
         ui.notifications.warn(game.i18n.localize("DRPG.Project.none"));
