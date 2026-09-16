@@ -28,6 +28,8 @@ import { TRUTH_BULLET_FLAGS, bulletsOf } from "./truth-bullets.mjs";
 // mastermind.mjs does not reach back into this file at load time - its one
 // call to `applyAll` is a dynamic import - so there is no cycle.
 import { myLairRoom } from "./mastermind.mjs";
+import { knowsProject } from "./projects.mjs";
+import { projectIdOf } from "./projects-map.mjs";
 import { debug } from "./utils.mjs";
 
 export function registerVisibility() {
@@ -145,6 +147,19 @@ function applyToToken(token) {
             return;
         }
 
+        /* A PROJECT IS THE OTHER KIND OF TOKEN THIS MODULE PUTS ON THE MAP.
+           Its document reaches every browser carrying a neutral name and one
+           countdown id - see the header of projects-map.mjs for why that is
+           the whole of its secrecy - and who may SEE it is decided here, on
+           each client, by one predicate. A secret project is hidden from
+           anybody not in on it; a public one is hidden until its room has been
+           stood in, and stays visible afterwards. */
+        const projectId = projectIdOf(token?.document);
+        if (projectId) {
+            applyToProjectToken(token, projectId);
+            return;
+        }
+
         if (!token?.actor || token.actor.type !== "character") return;
         // The GM sees the whole cast, always. Not a judgement call and never a
         // setting: they are running the game, not standing in a room.
@@ -243,6 +258,22 @@ function applyToToken(token) {
  * specific trace, and it holds regardless of whether the GM has room
  * enforcement switched on.
  */
+/**
+ * A project's token, hidden from anybody who does not know it is there.
+ *
+ * The GM leaves before anything is asked, exactly as with a trace: they are
+ * running the game, not discovering it. Everyone else answers to
+ * `knowsProject`, which is one predicate over facts the module was already
+ * keeping - the countdown's own ownership for a secret project, and fog.mjs's
+ * record of which rooms a character has stood in for a public one.
+ */
+function applyToProjectToken(token, projectId) {
+    if (game.user.isGM) return;
+    if (token.document.hidden) return;     // a GM has hidden it by hand
+    if (knowsProject(projectId)) return;
+    hide(token);
+}
+
 function applyToRemnantToken(token) {
     if (game.user.isGM) return;
     // Still hidden: Foundry's own flag already keeps it off every screen but

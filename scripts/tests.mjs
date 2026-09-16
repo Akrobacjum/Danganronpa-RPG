@@ -4998,6 +4998,91 @@ const SCENARIOS = [
         }
     }],
 
+    ["a project's token is known to the people who know the project, and to nobody else", async () => {
+        /*
+         * A project token's document reaches EVERY browser on the scene - Foundry
+         * uses ownership for control, not for sight, and its `hidden` flag means
+         * "GM only", which cannot say "these three players". So the whole secrecy
+         * of the feature is one predicate applied on each client, and this is it.
+         *
+         * Two roads in, and both are tested, because they are the two halves of
+         * the design and the second one is the one that would rot: a secret
+         * project is known to the people in on it, and a public one is known once
+         * its room has been stood in. No new state - `canSee` is the countdown's
+         * own ownership and `discoveredFor` is fog.mjs's record of where somebody
+         * has been.
+         */
+        const projects = await import("./projects.mjs");
+        const fog = await import("./fog.mjs");
+        const scene = game.scenes?.current ?? game.scenes?.contents?.[0];
+        ok(scene, "no scene to stand a project in");
+
+        const players = game.users.filter(u => !u.isGM);
+        ok(players.length >= 2, "this test needs two player accounts in the world");
+        const [insider, outsider] = players;
+
+        const room = scene.regions?.contents?.[0]?.name ?? null;
+        const made = [];
+        try {
+            /* ---- the secret road ------------------------------------------- */
+            const secret = await projects.createProject({
+                name: "Suite secret rig", target: 4, room,
+                secret: true, viewers: [insider.id]
+            });
+            ok(secret?.id, "the secret fixture project was not created");
+            made.push(secret.id);
+
+            ok(projects.knowsProject(secret.id, insider) === true,
+                "somebody in on a secret project cannot see its token");
+            ok(projects.knowsProject(secret.id, outsider) === false,
+                "a secret project's token is visible to somebody not in on it");
+
+            /* ---- the public road ------------------------------------------- */
+            const open = await projects.createProject({
+                name: "Suite open rig", target: 4, room
+            });
+            ok(open?.id, "the public fixture project was not created");
+            made.push(open.id);
+
+            if (!room) {
+                /* A project with nowhere to walk into is known as soon as it is
+                   visible - there is nothing to discover. Asserted rather than
+                   skipped: it is a fact about the rule, not about the world. */
+                ok(projects.knowsProject(open.id, outsider) === true,
+                    "a project with no room should need no discovering");
+            } else {
+                const mine = game.actors.filter(a => a.type === "character"
+                    && a.testUserPermission(outsider, "OWNER")).map(a => a.id);
+                ok(mine.length, "the outsider holds no character to discover rooms with");
+
+                /* The whole scene's matrix, rebuilt from the exported reader.
+                   `saveDiscoveryMatrix` overwrites a scene's rows wholesale, so
+                   putting back only the rows this test touched would silently
+                   delete everybody else's - and `allDiscovered` is not exported,
+                   which is right: one reader, per character, is enough to
+                   reconstruct it exactly. */
+                const before = Object.fromEntries(game.actors
+                    .filter(a => a.type === "character")
+                    .map(a => [a.id, fog.discoveredFor(scene.id, a.id)]));
+                try {
+                    await fog.saveDiscoveryMatrix(scene,
+                        { ...before, ...Object.fromEntries(mine.map(id => [id, []])) });
+                    ok(projects.knowsProject(open.id, outsider) === false,
+                        "a public project was known to somebody who has never been in its room");
+
+                    await fog.saveDiscoveryMatrix(scene,
+                        { ...before, ...Object.fromEntries(mine.map(id => [id, [room]])) });
+                    ok(projects.knowsProject(open.id, outsider) === true,
+                        "a public project stayed hidden from somebody who has stood in its room");
+                } finally {
+                    await fog.saveDiscoveryMatrix(scene, before);
+                }
+            }
+        } finally {
+            for (const id of made) await projects.deleteProject(id);
+        }
+    }],
+
     ["a GM correcting what a trace is reaches the copies without telling anybody", async () => {
         /*
          * The column that used to hold free-text tags is a type picker now, and

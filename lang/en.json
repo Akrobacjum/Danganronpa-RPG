@@ -2073,6 +2073,8 @@
       "manageIntro": "A project can belong to a room. Only characters standing there can work on it or sabotage it.",
       "secretNote": "Indirect murder projects are secret by default: only the killer and the GMs see them. Share to bring in a co-conspirator.",
       "changeImage": "Click to change this project's image",
+      "tokenName": "Work in progress",
+      "tokenMoved": "<strong>{project}</strong> now belongs to <strong>{to}</strong> - its token was moved there from {from}.",
       "glyphLabel": "Tray icon",
       "glyphDefault": "Default (hourglass)",
       "glyphNote": "Under the Stained Glass theme the Projects tray draws this instead of the image, in the interface's colour. The image is used everywhere else.",

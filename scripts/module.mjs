@@ -30,6 +30,7 @@ import { registerOverflow } from "./overflow.mjs";
 import { registerDespairAwards } from "./despair-award.mjs";
 import { registerMovement } from "./movement.mjs";
 import { registerProjectsUi } from "./projects-ui.mjs";
+import { registerProjectsMap } from "./projects-map.mjs";
 import { registerGmBridge } from "./gm-bridge.mjs";
 import { registerInventoryLimits } from "./inventory.mjs";
 import { registerTruthBullets } from "./truth-bullets.mjs";
@@ -142,6 +143,7 @@ Hooks.once("init", () => {
     safely("Despair overflow", registerOverflow);
     safely("movement", registerMovement);
     safely("the projects tray", registerProjectsUi);
+    safely("projects on the map", registerProjectsMap);
     safely("inventory limits", registerInventoryLimits);
     safely("the resource guard", registerResourceGuard);
     // Registers the Breakdown/Wounded conditions on `setup` and takes the two

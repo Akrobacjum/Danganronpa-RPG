@@ -15,6 +15,12 @@ import { MODULE_ID, PROJECT_SCALE, isProjectGlyph } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { announce, log, error, whisperToOwner, gmIds, esc, ownerIdsOf } from "./utils.mjs";
 
+/* `discoveredFor` is the per-character record of which rooms somebody has
+   actually stood in - the public half of `knowsProject` below. Imported at the
+   top and not dynamically: the import graph was checked in both directions
+   (16.09) and fog.mjs does not reach this file, so there is no cycle to dodge. */
+import { discoveredFor } from "./fog.mjs";
+
 const DH = "daggerheart";
 const COUNTDOWNS = "Countdowns";
 
@@ -36,6 +42,61 @@ export function roomOf(countdownId) {
 /** Is this project an indirect murder? */
 export function isIndirectMurder(countdownId) {
     return Boolean(metaFor(countdownId).indirectMurder);
+}
+
+/** Where this project's token stands, if it has one: `{ sceneId, tokenId }`. */
+export function tokenRefOf(countdownId) {
+    const meta = metaFor(countdownId);
+    return meta.tokenId && meta.tokenScene
+        ? { sceneId: meta.tokenScene, tokenId: meta.tokenId }
+        : null;
+}
+
+/**
+ * DOES THIS PERSON KNOW THIS PROJECT IS THERE?
+ *
+ * One predicate, two roads in, and NO new state - which is the whole reason it
+ * is worth writing down. Everything it needs was already being tracked:
+ *
+ *   · `canSee` is the ownership gate. A secret project simply does not reach a
+ *     client that is not in on it, and somebody who IS in on it knows about it
+ *     by definition - they proposed it, or it is their own murder.
+ *   · `discoveredFor` (fog.mjs) is the per-character record of which rooms
+ *     somebody has actually stood in. A public project is known once you have
+ *     been in its room, and it stays known afterwards, because knowledge does.
+ *
+ * So a token on the map answers to this and nothing else, and so does the row
+ * in the Projects tray. The alternative was a `discoveredBy` list per project,
+ * a third place for "who knows what" to go stale in.
+ *
+ * A project with no room ("abstract work anywhere") has nowhere to walk into,
+ * so there is nothing to discover: it is known as soon as it is visible.
+ */
+export function knowsProject(countdownId, user = game.user) {
+    if (user?.isGM) return true;
+    if (!canSee(countdownId, user)) return false;
+    // In on a secret one: you are one of the people who made it.
+    if (isSecret(countdownId)) return true;
+
+    const room = roomOf(countdownId);
+    if (!room) return true;
+
+    /* Any character this person holds having been there is enough. A player
+       running two students knows what either of them has seen - the same rule
+       `incidentWitness` uses for the incident's seats. */
+    const sceneId = canvas?.scene?.id ?? null;
+    if (!sceneId) return false;
+    try {
+        for (const actor of game.actors ?? []) {
+            if (actor.type !== "character") continue;
+            if (!actor.testUserPermission(user, "OWNER")) continue;
+            if (discoveredFor(sceneId, actor.id).includes(room)) return true;
+        }
+    } catch {
+        // A world mid-migration, or a scene with no discovery recorded yet.
+        // Answering "no" hides the token, which is the safe direction to fail.
+    }
+    return false;
 }
 
 /** Write metadata for a project. GM only. */
@@ -441,6 +502,18 @@ export async function createProject({
     });
 
     log(`Created project "${name}" (${target} progress)${room ? ` in ${room}` : ""}${trait ? `, ${trait}` : ""}.`);
+
+    /* AND ONTO THE MAP, if it has a room to stand in. Dynamic, because
+       projects-map.mjs reads this file - this cycle is real, unlike the fog one
+       at the top. Failure here is not failure of the project: a project with no
+       token is a project the tray still runs perfectly well. */
+    try {
+        const { placeProjectToken } = await import("./projects-map.mjs");
+        await placeProjectToken(id);
+    } catch (err) {
+        error(`Could not put the new project "${name}" on the map`, err);
+    }
+
     return { id, name, target, trait };
 }
 
@@ -837,6 +910,18 @@ export async function deleteProject(countdownId) {
     const data = game.settings.get(DH, COUNTDOWNS);
     const countdowns = foundry.utils.duplicate(data?.countdowns ?? {});
     if (!countdowns[countdownId]) return null;
+
+    /* THE TOKEN GOES FIRST, while the metadata still says where it is. Deleting
+       the project's row and then looking for its token would leave a two-square
+       marker standing in a room for a project that no longer exists, and
+       nothing left pointing at it to clean it up. */
+    try {
+        const { removeProjectToken } = await import("./projects-map.mjs");
+        await removeProjectToken(countdownId);
+    } catch (err) {
+        error("Could not take the deleted project off the map", err);
+    }
+
     delete countdowns[countdownId];
     await game.settings.set(DH, COUNTDOWNS, { ...data, countdowns });
 

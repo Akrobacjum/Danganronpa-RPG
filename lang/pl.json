@@ -2174,6 +2174,8 @@
       "manageIntro": "Projekt może należeć do pokoju. Tylko postacie, które tam stoją, mogą nad nim pracować albo go sabotować.",
       "secretNote": "Projekty morderstwa pośredniego są domyślnie tajne: widzą je tylko zabójca i GM-owie. Udostępnij, by wciągnąć wspólnika.",
       "changeImage": "Kliknij, by zmienić obrazek projektu",
+      "tokenName": "Coś w robocie",
+      "tokenMoved": "<strong>{project}</strong> należy teraz do pomieszczenia <strong>{to}</strong> - jego token został tam przeniesiony z: {from}.",
       "glyphLabel": "Ikona w zasobniku",
       "glyphDefault": "Domyślna (klepsydra)",
       "glyphNote": "W motywie Stained Glass zasobnik projektów rysuje to zamiast obrazka, w kolorze interfejsu. Obrazek używany jest wszędzie indziej.",

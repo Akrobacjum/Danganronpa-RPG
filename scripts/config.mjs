@@ -2233,6 +2233,38 @@ export const PROJECT_SCALE = {
  * That is why `vault`, `bag` and `trap` are not offered although their sprites
  * exist - add them to `FA`, regenerate, and they can be.
  * ========================================================================== */
+/**
+ * A project's presence on the map.
+ *
+ * Projects were a tray and a countdown and nothing else: a barricade being
+ * built in the Library existed as a bar on a panel, and the room it was in was
+ * a word in its metadata. Giving it a token puts the work where the work is,
+ * which is the whole of the request ("projekty jako większe tokeny na mapie",
+ * Dawid, 16.09).
+ *
+ * TWO SQUARES, not one. A project is a thing being done TO a room - a rigged
+ * dumbwaiter, a barricade, a tea service somebody has been at - not a person
+ * standing in it, and at one square it reads as another member of the cast.
+ * Two is the smallest size that says "this is furniture, not a student" at a
+ * glance, and it is still small enough that four of them in one room do not
+ * cover it.
+ *
+ * `sort` puts it above a Remnant (-10) and below the cast (0): traces are the
+ * finest print on the map, projects are scenery, and people come first.
+ */
+export const PROJECT_TOKEN = {
+    /** Grid squares, square. */
+    size: 2,
+    /** Neutral, and it has to be: this document reaches every browser. */
+    icon: "icons/svg/hazard.svg",
+    /** Scenery, so it does not compete with the cast for attention. */
+    alpha: 0.7,
+    sort: -5,
+    /** A finished project is still there - it is the thing that got built. */
+    doneTint: "#8fd18f",
+    workingTint: "#d8c98a"
+};
+
 export const PROJECT_GLYPHS = {
     hourglass: { label: "Hourglass", fa: "fa-hourglass" },
     checklist: { label: "Checklist", fa: "fa-list-check" },
@@ -4071,6 +4103,7 @@ export const DRPG = {
     MOTIVE,
     PROJECT_SCALE,
     PROJECT_GLYPHS,
+    PROJECT_TOKEN,
     isProjectGlyph,
     TRAP_TRIGGERS,
     TRAP_MODIFIERS,
