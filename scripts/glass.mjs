@@ -455,6 +455,30 @@ function moduleLayout(W, H) {
   rotationSheet().disabled = true;
   els.flat().forEach(e => { e.style.transform = ""; });
   document.querySelectorAll("#scene-controls, #sidebar-tabs").forEach(e => { e.style.transform = ""; });
+  /* THE PIN IS READ OFF AN UPRIGHT RAIL, AND THAT IS WHY IT IS HERE (16.09).
+     -------------------------------------------------------------------------
+     `pinRightColumn` stands the status strip and the tray a measured distance
+     from the wall, and it measures that distance off `#sidebar-tabs` - which is
+     a block, so it wears a rotation, and a rotation is written as a transform
+     with an ORIGIN IN PIXELS computed from the layout of the pass that wrote it.
+     The two lines above are what makes the rail upright again, and the call used
+     to sit before them, in `rebuild`.
+
+     On a fresh load that is invisible: the curtain is cut several times while
+     Foundry settles, and whichever pass happens to read a rail whose origin is
+     still yesterday's is followed by one that does not. A RESIZE gets one
+     debounced pass. Measured in Chromium (audit/glass-harness.html), 1280 ->
+     1440 at 800: the rail's rotated box read x = 1227 when the upright rail
+     stands at 1376, so `right` came out 256 px instead of 107, the strip and
+     the tray were moved 150 px inboard of where they belong, and the glass was
+     cut around them there - 12 block failures and an edge gap at a width that
+     is clean on a fresh load. Calling `refreshGlass()` by hand put it right,
+     which is what named the cause: a stale reading, not a stale layout.
+
+     Here, it reads the rail as laid out, and the blocks measured below - two of
+     which live inside the column it just moved - are measured where they will
+     actually stand. */
+  pinRightColumn();
   /* THE LEFT RAIL STARTS UNDER THE MODULE'S OWN LEFT COLUMN, AND THAT IS A ONE-WAY READ.
      `#drpg-gm-launcher` is laid out over the top of `#scene-controls`, so with nothing done
      the first two tiles sit under the GM badge. The old `placeTiles` pushed the rail down
@@ -811,10 +835,59 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     return first;
   };
 
+  /*
+   * A COLUMN IS A STACK, NOT A NEIGHBOURHOOD (16.09).
+   *
+   * Blocks that share a strip of screen share a column, and a column is cut into one
+   * section per block by horizontal seams between them. That only works if the blocks
+   * are ABOVE AND BELOW each other, which is what "column" is supposed to mean.
+   *
+   * The rule used to be a single number: anything whose box came within
+   * `2 * PAD_SIDE + 10` = 34 px of the column joined it. The distance is the right
+   * concern - two panes each claiming PAD_SIDE out of a 12 px gap would overlap, and an
+   * overlap is the one thing the partition may not produce - but it is not the whole
+   * question, and the half it left out cost a band of desk widths.
+   *
+   * MEASURED, 16.09, Chromium, fresh load at each width (audit/glass-harness.html):
+   *
+   *   1152 - 1184   stacked layout          19 panes, 0 block failures
+   *   1200 - 1312   desk                    15 panes, **16 block failures**
+   *   1328 - 1456   desk                    18-19 panes, 0 block failures
+   *
+   * Every width in that band, and only that band. At 1280 the top row is the Despair
+   * rail at 449..831 and the status strip and tray at 843..1149 - a 12 px gap, because
+   * the rail is centred and the right column is anchored to the wall, so the two close
+   * on each other as the screen narrows and meet at 34 px somewhere around 1328. Under
+   * the old rule the rail joined the tray's column, and then the section loop below
+   * refused to cut it: `three` (y 0..63), `rail` (44..135) and `tray` (67..158) overlap
+   * vertically, and blocks that overlap vertically share one pane by design. One pane,
+   * toned for the last item, so the rail and the status strip had no pane of their own -
+   * eight corners, each failing both halves of the check, sixteen.
+   *
+   * So the distance test keeps its job and gains a second question: are these two blocks
+   * ABOVE one another, or BESIDE one another? Two blocks at the same height are
+   * neighbours whatever the gap, and a column of neighbours cannot be sectioned. Twelve
+   * pixels of vertical overlap is the same tolerance the section loop uses for "a touch
+   * is not an overlap", and it is deliberately the same number: they are two halves of
+   * one decision and they must not drift.
+   *
+   * Blocks whose boxes genuinely overlap horizontally still share a column however they
+   * sit vertically - that is a true stack and the old behaviour is right for it. What
+   * changes is only the case the rule was inferring: a GAP.
+   *
+   * The pane's padding pays for this - see `padSide` in `buildColumn`.
+   */
   const columnsOf = list => {
     const cols = [];
+    const beside = (c, b) => c.items.some(i =>
+      Math.min(i.y + i.h, b.y + b.h) - Math.max(i.y, b.y) > 12);
     for (const b of list) {
-      const c = cols.find(c => Math.min(c.x1, b.x + b.w) - Math.max(c.x0, b.x) > -(2 * PAD_SIDE + 10));
+      const c = cols.find(c => {
+        const over = Math.min(c.x1, b.x + b.w) - Math.max(c.x0, b.x);
+        if (over > 0) return true;                       // a real stack, whatever the heights
+        if (over <= -(2 * PAD_SIDE + 10)) return false;  // far enough apart to pad both panes
+        return !beside(c, b);
+      });
       if (c) { c.items.push(b); c.x0 = Math.min(c.x0, b.x); c.x1 = Math.max(c.x1, b.x + b.w); c.y0 = Math.min(c.y0, b.y); c.y1 = Math.max(c.y1, b.y + b.h); }
       else cols.push({ x0: b.x, x1: b.x + b.w, y0: b.y, y1: b.y + b.h, items: [b] });
     }
@@ -992,7 +1065,33 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
         ROT.push({ sel: b.els.length === 1 ? b.sel : null, el: e, origin: (px - er.left) + "px " + (py - er.top) + "px", transform: turn });
       }
     }
-    let X0 = c.x0 - px - PAD_SIDE, X1 = c.x1 - px + PAD_SIDE;
+    /* TWO COLUMNS SHARE THE GAP BETWEEN THEM, THEY DO NOT EACH CLAIM IT.
+       -----------------------------------------------------------------------
+       A pane is the block's box plus PAD_SIDE on each flank, and that is what the
+       34 px merge rule in `columnsOf` was protecting: with a 12 px gap between
+       two columns, two 12 px pads overlap by 12 and an overlap is the one thing
+       this partition may not produce.
+
+       Now that neighbours are allowed to stay separate columns, the pad has to
+       pay for it: each side takes at most half the gap, so the seam lands in the
+       middle of it and the two panes meet rather than cross. One pixel short of
+       half, so the seam is a seam and not a coincidence of rounding - the
+       self-check counts a shared edge as clean, but only exactly.
+
+       The nearest neighbour decides, so a column with nothing beside it keeps
+       the full 12 and nothing at any other width moves. The tilt was already
+       taking the same gap into account two dozen lines up, and comes out at zero
+       long before the pad does. */
+    const padSide = side => {
+      let free = Infinity;
+      for (const o of cols) {
+        if (o === c) continue;
+        const gap = side < 0 ? c.x0 - o.x1 : o.x0 - c.x1;
+        if (gap >= 0) free = Math.min(free, gap);
+      }
+      return free === Infinity ? PAD_SIDE : Math.max(0, Math.min(PAD_SIDE, free / 2 - 1));
+    };
+    let X0 = c.x0 - px - padSide(-1), X1 = c.x1 - px + padSide(1);
     const Yn = (band === "top" ? c.y0 - py : c.y1 - py) + (band === "top" ? -3000 : 3000);
     const Yf = band === "top" ? c.y1 - py + PAD_FAR : c.y0 - py - PAD_FAR;
     // a column near a wall (under Foundry's sidebar too) runs its pane into the wall: the far corner is
@@ -1748,8 +1847,25 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
   function curtainGeometry(job) {
     const el = job.el, host = document, c = el.querySelector("canvas.sg");
     if (!c || c.clientWidth < 10) return false;
-    // the curtain's own box in viewport pixels (it is a fixed child of the body, so this is the viewport);
-    // never the canvas's client size, which a zoomed ancestor would inflate
+    /* THE WIDTH IS PUT BACK BEFORE IT IS READ, OR THE FRAME IS LAST PASS'S (16.09).
+       -----------------------------------------------------------------------
+       The curtain's own box in viewport pixels - it is a fixed child of the body
+       with `inset: 0; width: 100vw`, so that is the viewport - and never the
+       canvas's client size, which a zoomed ancestor would inflate.
+
+       But the line at the end of this paragraph writes `width` back in pixels,
+       so on every pass AFTER the first, the element is wearing a number this
+       function put there, and reading it asks the last cut how wide the screen
+       is. Resizing the window then changed nothing: measured in Chromium
+       (audit/glass-harness.html), 1280 -> 1440 left the frame at W = 1280, the
+       curtain 160 px short of the right wall and the self-check counting the
+       bare strip (edgeGaps 2 at +160, 4 at +320). It corrected itself only when
+       something else happened to resize the element.
+
+       Putting the stylesheet's own value back first costs one assignment. It is
+       `100vw` rather than "" because the inline STYLE is what states this box at
+       all - the sheet only gives the curtain its material. */
+    el.style.width = "100vw";
     const rc = el.getBoundingClientRect();
     /* AN EXPANDED SIDEBAR IS A WALL, AND FOUNDRY IS ASKED WHETHER IT IS EXPANDED.
        The glass is cut up to the sidebar's left edge so the blocks beside it hug it as they
@@ -1769,7 +1885,6 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     const W = fullW, H = Math.round(rc.height || innerHeight);
     LAST.frame = { W, H, left: rc.left, top: rc.top, inner: [innerWidth, innerHeight], canvas: [c.clientWidth, c.clientHeight] };
     el.style.width = W + "px";   // the canvases are 100% of the curtain: the curtain is as wide as the glass
-    pinRightColumn();
     /* THE BLOCKS ARE PART OF THE SIGNATURE, NOT ONLY THE FRAME.
        A block that MOVES without changing size - the right-hand column sliding over when the
        sidebar collapses, the tray folding, the Event panel arriving - left the signature at
