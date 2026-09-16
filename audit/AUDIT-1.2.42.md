@@ -594,6 +594,27 @@ Przegląd całości po 1.2.45 dał ocenę 8/10 i listę siedmiu punktów. Cztery
 
 Wydane jako 1.2.46: `module.json` i stempel CSS mówią 1.2.46, notatki w `.github/release-notes/v1.2.46.md`, `main` przesunięty na tę gałąź, workflow Release z tagiem `v1.2.46`.
 
+### 9.3c Wydanie 1.2.47
+
+Dwadzieścia commitów, i większość z nich ma ten sam kształt: coś, co moduł trzymał w dwóch miejscach, albo pokazywał w miejscu za małym na to.
+
+| Commit | Co weszło |
+| --- | --- |
+| `1530a7c` | **Dwupoziomowy opis Remnantu.** Observe kupuje pierwszy, Analyze drugi; jeden zapis w kluczu odpowiedzi, publikowany na kopię dopiero temu, kto za niego zapłacił |
+| `e4359e4`, `983b7c6` | **Polski.** Teksty przestają zakładać, kto trzyma kontroler, i przestają mówić o jednym uczniu w liczbie mnogiej |
+| `bf135d9`, `bfa0d2a` | **Morderstwo, które widzą tylko jego ludzie.** Czerwone krawędzie, karta eventu i playlista `murder` dla uczestników, GM-a i strony trzeciej wchodzącej do pokoju - i dla nikogo więcej. Morderstwo pośrednie nie mówi nic swojemu zabójcy: jest gdzie indziej, a rzuca ofiara |
+| `fe22044`, `7bc370b` | **Co kosztuje płynność, zmierzone.** Dominuje pełnoekranowy `backdrop-filter` kurtyny - malowanie, nie skrypt. Trzy optymalizacje obalone tym samym pomiarem i wpisane do arkusza, żeby nikt ich nie powtarzał. `game.drpg.perf()` i `game.drpg.whySlow()` zdejmują liczbę przy stole |
+| `b9b300e`, `b4d198a`, `09280e4` | **Przestaje płacić za nic.** Trzy obserwatory budzone przez rzeczy, które się nie wydarzyły; arkusz rotacji pisany, gdy reguły się zmieniają, a nie co przebieg; stopka przypięta w tej samej klatce |
+| `db108c2`, `35b09de` | **Pack i tagi.** Grupowanie i sortowanie po rozdziale albo po lokacji; Faint staje się typem odkrywanym przez Analyze; tagi znikają, a GM poprawia typ z dashboardu |
+| `217ef6f`, `2f80ffd`, `862ab3f` | **Projekty na mapie.** Token, bramka odkrywania (wejście do pokoju / Observe na sekretny), i jedna reguła `knowsProject` pytana na każdym kliencie - bo dokument tokena dociera do każdej przeglądarki, a `hidden` znaczy "tylko GM" |
+| `19be6a6` | **Trzy samozwrotne pomiary w kurtynie.** Kolumna to stos, nie sąsiedztwo; pin czytany z nieobróconej szyny; klatka czytana z szerokości, którą kurtyna sama wpisała |
+| `fbf870c`, `3bd9cad` | **Dowód.** Niesie opis po analizie, przestaje być ucinany, i dostaje środek ekranu. Panel eventów w obu motywach, z kartami safeworda i otwartego głosowania |
+| `f0ea05f` | **Planner Key Remnantów mówi, co jest na mapie** - a nie jaki był domyślny wybór |
+
+**Nowe live checki:** 23 (czy rig morderstwa pośredniego ma być znajdowany przez Observe), 24 (pasmo 1200-1247 px to kolizja układu, nie geometrii), 25 (gdzie ma naprawdę stać karta dowodu - wybrane rozwiązanie: własne miejsce na czas triala).
+
+Weryfikacja: suite 140 passed, 0 failed, 9 skipped; dziesięć scenariuszy zielonych; proza 492/492; samosprawdzenie kurtyny czyste przy wszystkich ośmiu rozmiarach.
+
 **Znaleziska tego przeglądu, których nie ruszałem:** przyciski launcherów nachodzą na pasek zakładek o 34 px, identycznie przy 1920x993 - to układ biurka sprzed tej pracy, nie stosu. Przy 280-320 px szerokości kafelek Projektów styka się z launcherami.
 
 ### 9.2 Live checks nadal otwarte
