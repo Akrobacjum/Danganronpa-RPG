@@ -21,7 +21,7 @@
 
 import { MODULE_ID, analyzeDc, TRUTH_BULLET_TYPES } from "./config.mjs";
 import {
-    TRUTH_BULLET_FLAGS, secretOf, isTruthBullet, bulletDescription
+    TRUTH_BULLET_FLAGS, secretOf, isTruthBullet, bulletDescription, faintOf
 } from "./truth-bullets.mjs";
 import { whisperToOwner, whisperToGms, log, warn, error, article } from "./utils.mjs";
 
@@ -131,12 +131,12 @@ async function lockOut(item, actor, chapter, total) {
 
 /** Success converts the bullet: what it really is becomes what the player sees. */
 async function identify(item, actor, realType, isCritical, dc, total) {
-    // The moment of analysis is when three more facts go public - which action
+    // The moment of analysis is when four more facts go public - which action
     // left the source trace (the Remnant token's icon on this player's map),
-    // whether it belongs to the murder (the pack's sort), and what the lab
-    // actually says about the object. All three were waiting in the bullet's
-    // secret since creation, so a trace the killer has since wiped still
-    // identifies completely.
+    // whether it belongs to the murder (the pack's sort), whether the connection
+    // is doubtful at all (Faint), and what the lab actually says about the
+    // object. All four were waiting in the bullet's secret since creation, so a
+    // trace the killer has since wiped still identifies completely.
     const secret = secretOf(item.uuid);
     const analyzedText = secret.analyzedText ?? "";
     try {
@@ -145,6 +145,11 @@ async function identify(item, actor, realType, isCritical, dc, total) {
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzed}`]: true,
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.sourceAction}`]: secret.sourceAction ?? null,
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tiedToCrime}`]: secret.tiedToCrime ?? null,
+            /* Faint joined this list in 1.2.47. It used to sit on the item from
+               creation, so the badge announced a doubtful trace to somebody who
+               had not analysed it - `faintOf` knows both roads for a world made
+               before that. */
+            [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.faint}`]: faintOf(item),
             [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzedText}`]: analyzedText,
             // Rebuilt from the FLAG rather than patched onto whatever the
             // description currently holds: a GM may have rewritten the Observe

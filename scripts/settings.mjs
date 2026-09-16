@@ -69,6 +69,8 @@ export const SETTINGS = {
     /** The three messenger sounds, muted for this browser alone. */
     messengerSound: "messengerSound",
     projectsCollapsed: "projectsCollapsed",
+    /** How a player's Truth Bullets are grouped in the inventory: "chapter" or "room". */
+    bulletSort: "bulletSort",
     debug: "debug",
     /** Regions become LiveKit breakout rooms - off by default, needs avclient-livekit. */
     voiceEnabled: "voiceEnabled",
@@ -610,6 +612,26 @@ export function registerSettings() {
        `--drpg-glass-backdrop` in stained-glass.css. Default ON: the blur is what
        the theme looks like, and a table that does not need to turn it off should
        never have to know it is there. `game.drpg.perf()` says whether they do. */
+    /* HOW THIS PLAYER READS THEIR OWN PACK, AND IT IS THEIRS TO DECIDE.
+       Not `config: true`: the switch lives on the inventory itself, beside the
+       evidence it orders, because that is where somebody realises they want it -
+       a setting in Foundry's window would be a control nobody finds while
+       looking at the thing it controls. Client-scoped like the look settings:
+       one player argues a case by room and another by chapter, and neither
+       should move the other's pack. */
+    game.settings.register(MODULE_ID, SETTINGS.bulletSort, {
+        name: "DRPG.Settings.bulletSort.name",
+        hint: "DRPG.Settings.bulletSort.hint",
+        scope: "client",
+        config: false,
+        type: String,
+        choices: {
+            chapter: "DRPG.Sheet.bulletsByChapter",
+            room: "DRPG.Sheet.bulletsByRoom"
+        },
+        default: "chapter"
+    });
+
     game.settings.register(MODULE_ID, SETTINGS.glassBlur, {
         name: "DRPG.Settings.glassBlur.name",
         hint: "DRPG.Settings.glassBlur.hint",

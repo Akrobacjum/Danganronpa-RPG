@@ -302,6 +302,10 @@
         "name": "State name behind the clock",
         "hint": "The time of day (or the state that replaces it: Eclipse, Class Trial) as a faint outline running behind the clock. This client only."
       },
+      "bulletSort": {
+        "name": "How Truth Bullets are grouped",
+        "hint": "Whether your pack is cut into chapters or into rooms. The switch is on the inventory itself, over the evidence; this client only."
+      },
       "glassBlur": {
         "name": "Glass blurs the map",
         "hint": "The glass frosts the map behind it. It is the most expensive thing this theme draws, and it is drawn again every time anything on the screen moves. If the interface stutters or windows are slow to appear, turn this off first - game.drpg.perf() will say what it was costing on this machine. This client only."
@@ -353,6 +357,13 @@
       "groupGear": "Gear",
       "sharedSlots": "Murder Weapons, Cleaning Tools and Tools share these {n} slots between them.",
       "groupTruthBullets": "Truth Bullets",
+      "bulletSortLabel": "Group by",
+      "bulletsByChapter": "Chapter",
+      "bulletsByRoom": "Location",
+      "bulletsNoChapter": "No chapter",
+      "bulletsNoRoom": "No location",
+      "bulletsHereChapter": "The chapter you are in.",
+      "bulletsHereRoom": "The room you are standing in.",
       "groupEmpty": "- empty -",
       "groupKeys": "Room Keys",
       "biographyPlaceholder": "Who they were before the killing game."
@@ -1673,6 +1684,7 @@
       "tiedField": "Tied to the murder - floats to the top of the pack once identified",
       "faint": "Faint",
       "faintTooltip": "Doubtful. Survives into the next session and can be analyzed again.",
+      "roomTooltip": "Where this was picked up.",
       "locked": "Analyzed in vain",
       "lockedTooltip": "Analysis failed this chapter. Try next chapter, or hand a copy on.",
       "playerText": "Description for the player",

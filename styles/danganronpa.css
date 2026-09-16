@@ -1808,6 +1808,115 @@ section[data-application-part="biography"] .experiences .value {
     opacity: 1;
 }
 
+/* ==========================================================================
+   THE PACK'S OWN GROUPS
+   ==========================================================================
+   Truth Bullets are cut into folds - one per chapter or one per room - with the
+   one you are in open and the rest shut. The fold's summary is deliberately the
+   same object as the group heading above it (`.drpg-inventory-group h4`): a
+   player reading down the inventory meets one kind of heading, some of which
+   happen to open. The only things added are the marker and the pointer.
+   ========================================================================== */
+.drpg-bullet-sort {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 0 0 5px;
+    padding: 0 0.15rem;
+    flex-wrap: wrap;
+}
+
+.drpg-bullet-sort-label {
+    font-size: var(--drpg-text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.7;
+}
+
+/* The same chip the Truth Bullets themselves wear, because it is sorting them -
+   one visual grammar, as with the inventory's role tags. */
+.drpg-bullet-sort-button {
+    font-size: var(--drpg-text-xs);
+    line-height: 1;
+    padding: 3px 7px;
+    width: auto;
+    border-radius: 3px;
+    background: rgba(var(--drpg-bone-rgb), 0.06);
+    border: 1px solid rgba(var(--drpg-bone-rgb), 0.15);
+    color: inherit;
+    cursor: pointer;
+}
+
+.drpg-bullet-sort-button:hover {
+    background: rgba(var(--drpg-bone-rgb), 0.14);
+}
+
+/* The one that is down. Not a colour alone: the border carries it as well, so
+   it is still legible to somebody who cannot tell the two backgrounds apart. */
+.drpg-bullet-sort-button.is-on {
+    background: rgba(var(--drpg-evidence-rgb), 0.2);
+    border-color: var(--drpg-evidence);
+    font-weight: 600;
+}
+
+.drpg-bullet-group {
+    margin: 0 0 4px;
+}
+
+.drpg-bullet-group > summary {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin: 0 0 3px;
+    padding: 0 0.15rem 3px;
+    border-bottom: 1px solid var(--drpg-line);
+    font-size: var(--font-size-12, 0.75rem);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--drpg-bone);
+    text-shadow: 0 1px 2px rgba(var(--drpg-shadow-rgb), 0.75);
+    cursor: pointer;
+    /* The default marker is a black triangle sitting outside the flex row and
+       breaking the baseline; the one below is drawn in the row's own colour. */
+    list-style: none;
+}
+
+.drpg-bullet-group > summary::-webkit-details-marker { display: none; }
+
+.drpg-bullet-group > summary .drpg-bullet-group-name::before {
+    content: "\25B8";           /* a small right-pointing triangle */
+    display: inline-block;
+    margin-right: 0.4em;
+    transition: transform var(--drpg-t-snap, 90ms) ease-out;
+    opacity: 0.7;
+}
+
+.drpg-bullet-group[open] > summary .drpg-bullet-group-name::before {
+    transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .drpg-bullet-group > summary .drpg-bullet-group-name::before { transition: none; }
+}
+
+.drpg-bullet-group > summary:hover {
+    background: rgba(var(--drpg-eye-rgb), 0.1);
+}
+
+/* Where you are, or the chapter you are in. A left edge rather than a fill:
+   the fold is already open, so this says WHY it is open without competing with
+   the evidence inside it. */
+.drpg-bullet-group.is-here > summary {
+    border-left: 2px solid var(--drpg-evidence);
+    padding-left: 0.4rem;
+}
+
+.drpg-bullet-group .drpg-group-count {
+    font-variant-numeric: tabular-nums;
+    opacity: 0.65;
+}
+
 /* The action budget, stated above the grid. Reads as a status line rather than
    as prose: tabular numerals so it does not jitter as actions are spent, and it
    turns red only when there is genuinely nothing left to spend. */
@@ -1967,7 +2076,18 @@ section[data-application-part="biography"] .experiences .value {
    the window. Indented to the name, not to the icon. */
 .drpg-inventory-list .drpg-tb-badges {
     order: 2;
-    flex: 0 0 100%;
+    /* THE INDENT IS PART OF THE LINE, SO THE BASIS HAS TO KNOW ABOUT IT.
+       `flex-basis: 100%` is 100% of the row's content box and the 1.8rem indent is
+       added OUTSIDE it, so the chip line was 1.8rem wider than the box it sits in
+       and hung past the card's right edge - visibly, with the GM's "Really:" chip
+       the part that stuck out ("tag wyjeżdża poza ramkę", Dawid, 16.09).
+       Measured in Chromium with the real sheet at four widths: past the frame by
+       0, 14, 29 and 89 px at 560, 440, 360 and 300 px of card, and the card
+       scrolled sideways at every one of them. With the indent subtracted and
+       `min-width: 0` letting the line shrink, nothing leaves the card at any of
+       those four widths. */
+    flex: 0 0 calc(100% - 1.8rem);
+    min-width: 0;
     margin: 2px 0 1px 1.8rem;
 }
 
@@ -3245,6 +3365,16 @@ body.drpg-pixel-font [contenteditable] {
     padding: 2px 5px;
     border-radius: 3px;
     white-space: nowrap;
+    /* ONE CHIP LONGER THAN THE LINE IS SHORTENED, NOT LET OUT.
+       The line wraps, so several chips are never the problem; ONE of them being
+       wider than the whole line is, and there is no shortage of those - a room
+       called "The long corridor behind the kitchen", a GM's "Really: Tamper Truth
+       Bullet". `nowrap` stays, because a chip broken across two lines stops
+       reading as one chip; the text is cut with an ellipsis instead and the full
+       string is on the tooltip, where the badges that can be long already put it. */
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
     background: rgba(var(--drpg-bone-rgb), 0.08);
     border: 1px solid rgba(var(--drpg-bone-rgb), 0.15);
 }

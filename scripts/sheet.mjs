@@ -13,7 +13,7 @@
 
 import {
     MODULE_ID, FLAGS, ACTIONS, STARTING, ITEM_CATEGORIES, LIMIT_GROUPS, USABLE_KINDS, MONOCUB,
-    ECLIPSE_MOVES,
+    ECLIPSE_MOVES, TIMES_OF_DAY,
     EQUIPPABLE,
     BEDROOM_KEY_FLAG, callEffect, HOPE_CALLS, DESPAIR_CALLS, SHEET_SIZE } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
@@ -2150,18 +2150,10 @@ function groupItems(actor, group, inGroup) {
     }
 
 
-    // Evidence of the murder floats to the top of the pack - but only
-    // evidence whose holder has EARNED that fact: `tiedToCrime` sits on
-    // the item exclusively once the bullet is identified (analyze.mjs),
-    // so an unanalysed bullet cannot leak its relevance through its place
-    // in the list. The sort is stable; everything else keeps its order.
-    if (group.key === "truthBullet" && items.length > 1) {
-        const chapter = getClock().chapter;
-        const ofTheMurder = i => Number(isIdentified(i)
-            && i.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.tiedToCrime) === true
-            && i.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.chapter) === chapter);
-        items.sort((a, b) => ofTheMurder(b) - ofTheMurder(a));
-    }
+    // Truth Bullets are not ordered here any more: they are cut into groups by
+    // chapter or by room and ordered inside each one - see `bulletGroups`. The
+    // murder's own evidence still floats, but to the top of its GROUP rather
+    // than to the top of a flat list it no longer has.
     return items;
 }
 
@@ -2258,38 +2250,51 @@ function groupInventory(app, element) {
             section.append(nudge);
         }
 
-        const list = document.createElement("ul");
-        list.className = "drpg-inventory-list";
+        /* ONE ROW BUILDER, WHATEVER IT IS PUT INSIDE. The Truth Bullets group
+           draws its rows inside folds and every other group draws them in one
+           list, and neither may grow its own idea of what a row is. */
+        const rowFor = item => {
+            const li = document.createElement("li");
+            li.dataset.itemUuid = item.uuid;
 
-        if (!items.length) {
-            const empty = document.createElement("li");
-            empty.className = "drpg-inventory-empty";
-            empty.textContent = game.i18n.localize("DRPG.Sheet.groupEmpty");
-            list.append(empty);
-        } else {
-            for (const item of items) {
-                const li = document.createElement("li");
-                li.dataset.itemUuid = item.uuid;
-
-                if (isTruthBullet(item)) {
-                    buildBulletRow(li, item, app);
-                } else {
-                    buildItemRow(li, item, app, actor, inGroup);
-                }
-
-                // The row's buttons live inside the row, and the row itself opens
-                // the item sheet - so each button has to be able to say "not me".
-                // `guardRow` sits in front of all of them; see its own note.
-                guardRow(li, item, app);
-                li.addEventListener("click", event => {
-                    if (event.target.closest("[data-drpg-row-action]")) return;
-                    item.sheet?.render(true);
-                });
-                list.append(li);
+            if (isTruthBullet(item)) {
+                buildBulletRow(li, item, app);
+            } else {
+                buildItemRow(li, item, app, actor, inGroup);
             }
+
+            // The row's buttons live inside the row, and the row itself opens
+            // the item sheet - so each button has to be able to say "not me".
+            // `guardRow` sits in front of all of them; see its own note.
+            guardRow(li, item, app);
+            li.addEventListener("click", event => {
+                if (event.target.closest("[data-drpg-row-action]")) return;
+                item.sheet?.render(true);
+            });
+            return li;
+        };
+
+        if (group.key === "truthBullet" && items.length) {
+            section.append(bulletSortSwitch(app));
+            const { mode, groups } = bulletGroups(items, actor);
+            for (const bullets of groups) {
+                section.append(bulletFold(bullets, rowFor, actor, mode));
+            }
+        } else {
+            const list = document.createElement("ul");
+            list.className = "drpg-inventory-list";
+
+            if (!items.length) {
+                const empty = document.createElement("li");
+                empty.className = "drpg-inventory-empty";
+                empty.textContent = game.i18n.localize("DRPG.Sheet.groupEmpty");
+                list.append(empty);
+            } else {
+                for (const item of items) list.append(rowFor(item));
+            }
+            section.append(list);
         }
 
-        section.append(list);
         box.append(section);
     }
 
@@ -2637,20 +2642,52 @@ export function bulletBadges(data) {
             tooltip ? ` data-tooltip="${foundry.utils.escapeHTML(tooltip)}"` : ""
         }>${foundry.utils.escapeHTML(text)}</span>`;
 
-    const badges = [
-        badge(data.shownLabel, `type ${data.shownType}`, data.shownHint),
-        badge(data.visibilityLabel, "visibility",
-            game.i18n.localize("DRPG.TruthBullet.visibilityTooltip"))
-    ];
+    const badges = [badge(data.shownLabel, `type ${data.shownType}`, data.shownHint)];
+
+    /*
+     * FAINT SITS WITH THE TYPE, AND ONLY ONCE THERE IS A TYPE TO SIT WITH.
+     *
+     * It reads as a second half of what the thing IS - "Prep, and doubtful" -
+     * so it belongs beside the type rather than after the chapter, where it
+     * used to sit between the chapter and the GM's "Really:" chip and read as a
+     * third unrelated fact.
+     *
+     * `identified` and not `faint` alone: since 1.2.47 the flag is published
+     * onto the item only by `identify`, so on a bullet made since then the two
+     * cannot disagree - but a world made before it still carries the flag on
+     * unanalysed bullets until `migrateFaintIntoSecrets` has run, and a player's
+     * client renders from the item. Asking both is what makes the badge correct
+     * on the first load of an old world rather than on the second.
+     */
+    if (data.faint && data.identified) {
+        badges.push(badge(game.i18n.localize("DRPG.TruthBullet.faint"), "faint",
+            game.i18n.localize("DRPG.TruthBullet.faintTooltip")));
+    }
+
+    badges.push(badge(data.visibilityLabel, "visibility",
+        game.i18n.localize("DRPG.TruthBullet.visibilityTooltip")));
 
     if (data.chapter !== null) {
         badges.push(badge(game.i18n.format("DRPG.TruthBullet.chapterShort", { n: data.chapter }),
             "chapter"));
     }
-    if (data.faint) {
-        badges.push(badge(game.i18n.localize("DRPG.TruthBullet.faint"), "faint",
-            game.i18n.localize("DRPG.TruthBullet.faintTooltip")));
-    }
+    /*
+     * WHERE IT WAS PICKED UP, WHICH THE PACK COULD NOT SAY UNTIL NOW.
+     *
+     * The room has been on the bullet since it was created (`TRUTH_BULLET_FLAGS
+     * .room`) and the trial's evidence card has shown it all along; the
+     * inventory row, which is where a player actually reads their pack, did
+     * not. A case is argued in rooms - "who was in the kitchen" - and a pack
+     * that can be sorted by room (see the inventory's grouping) needs to say
+     * the room on the row as well, or the grouping is the only place the fact
+     * exists (Dawid, 16.09).
+     *
+     * Not secret: `room` is written onto the item at creation, unlike
+     * `sourceAction` beside it, because WHERE you found something is what you
+     * were doing when you found it - the finder already knows.
+     */
+    if (data.room) badges.push(badge(data.room, "room",
+        game.i18n.localize("DRPG.TruthBullet.roomTooltip")));
     // A burned attempt is worth showing rather than silently removing the
     // button: "I already tried this one" is information the player needs when
     // deciding what to spend the next action on.
@@ -2666,6 +2703,235 @@ export function bulletBadges(data) {
     }
 
     return badges.join("");
+}
+
+/* ==========================================================================
+   THE PACK, CUT INTO GROUPS THE PLAYER CHOSE
+   ==========================================================================
+   A case is argued in two currencies - "what happened in chapter 2" and "who
+   was in the kitchen" - and a flat list of thirty Truth Bullets serves neither.
+   So the pack is cut into groups, one of them open and the rest folded, and the
+   player says which currency (Dawid, 16.09).
+
+   BOTH MODES HAVE THE SAME SHAPE, which is the whole of the design: the group
+   that is about NOW is open, every other group is a fold with its count on it,
+   and inside every group the newest evidence is at the top. Learn it once and
+   it reads the same whichever switch is down.
+
+   "NOW" is the current chapter in one mode and the room the character is
+   standing in in the other. When they are nowhere the module can name - between
+   rooms, or on a scene with no regions - the group holding the newest evidence
+   opens instead, so the fold is never all shut.
+   ========================================================================== */
+
+/** Which groups this player has folded open, so a re-render does not shut them. */
+const BULLET_FOLDS = new Map();
+
+/** "chapter" or "room", this browser's own. */
+function bulletSortMode() {
+    try {
+        return game.settings.get(MODULE_ID, SETTINGS.bulletSort) === "room" ? "room" : "chapter";
+    } catch {
+        // Before `ready`, or on a client that has never stored it: the default.
+        return "chapter";
+    }
+}
+
+/*
+ * NEWEST BY THE GAME'S CLOCK, NOT BY THE SERVER'S.
+ *
+ * A Truth Bullet is stamped with the chapter, the day and the time of day it
+ * was picked up, and in a game whose endgame is a timeline that is what "newest"
+ * has to mean: the bullet from last night is newer than the one from the morning
+ * whatever order the documents were written in. A copy handed to you carries the
+ * ORIGINAL discovery's stamp (`handover.mjs`), so a pack reads as the story it
+ * came from rather than as the order things landed in your inventory.
+ *
+ * `createdTime` is the tiebreak and not the key, because two finds in the same
+ * time of day is the common case and the clock cannot separate them. The index
+ * in `actor.items` is the last resort: Foundry ids are random, so they order
+ * nothing, but the collection keeps creation order.
+ */
+function bulletRecency(item, index) {
+    const flag = key => item.getFlag(MODULE_ID, key);
+    const tod = TIMES_OF_DAY.indexOf(flag(TRUTH_BULLET_FLAGS.timeOfDay));
+    return [
+        Number(flag(TRUTH_BULLET_FLAGS.chapter) ?? 0),
+        Number(flag(TRUTH_BULLET_FLAGS.day) ?? 0),
+        tod < 0 ? 0 : tod,
+        Number(item._stats?.createdTime ?? 0),
+        index
+    ];
+}
+
+/** Newest first, with the murder's own evidence ahead of it inside a group. */
+function orderBullets(items, chapterNow) {
+    /*
+     * THE MURDER'S EVIDENCE STILL FLOATS, and it floats inside its group now.
+     * `tiedToCrime` reaches a player's item only once they have analysed the
+     * bullet (analyze.mjs), so an unanalysed one cannot leak its relevance
+     * through its place in the list - that rule is older than this grouping and
+     * it is why the test is `isIdentified` and not the flag alone.
+     */
+    const ofTheMurder = i => Number(isIdentified(i)
+        && i.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.tiedToCrime) === true
+        && i.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.chapter) === chapterNow);
+
+    const keyed = items.map((item, index) => ({ item, index, at: bulletRecency(item, index) }));
+    keyed.sort((a, b) => {
+        const float = ofTheMurder(b.item) - ofTheMurder(a.item);
+        if (float) return float;
+        for (let i = 0; i < a.at.length; i++) {
+            if (a.at[i] !== b.at[i]) return b.at[i] - a.at[i];   // descending: newest first
+        }
+        return 0;
+    });
+    return keyed.map(k => k.item);
+}
+
+/**
+ * The pack as groups, in the order they are drawn.
+ *
+ * Exported for the suite and for nothing else: this is the whole of the
+ * grouping rule, and a rule about which evidence a player is shown first is
+ * worth a test that does not have to render a character sheet to ask it.
+ *
+ * @returns {{mode: string, groups: {key: string, label: string, here: boolean, items: Item[]}[]}}
+ */
+export function bulletGroups(items, actor) {
+    const mode = bulletSortMode();
+    const clock = getClock();
+    const chapterNow = clock.chapter;
+
+    const bucket = new Map();
+    items.forEach((item, index) => {
+        const key = mode === "room"
+            ? (item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.room) || "")
+            : String(item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.chapter) ?? "");
+        if (!bucket.has(key)) bucket.set(key, []);
+        bucket.get(key).push({ item, index });
+    });
+
+    let hereKey = mode === "room" ? (roomOfActor(actor) || "") : String(chapterNow ?? "");
+    // Nowhere the module can name, or nothing found there yet: open the group
+    // holding the newest evidence rather than leaving every fold shut.
+    if (!bucket.has(hereKey)) {
+        let best = null;
+        for (const [key, rows] of bucket) {
+            for (const row of rows) {
+                const at = bulletRecency(row.item, row.index);
+                if (!best || compareRecency(at, best.at) > 0) best = { key, at };
+            }
+        }
+        hereKey = best?.key ?? hereKey;
+    }
+
+    const groups = [...bucket.entries()].map(([key, rows]) => ({
+        key,
+        label: key === ""
+            ? game.i18n.localize(mode === "room"
+                ? "DRPG.Sheet.bulletsNoRoom" : "DRPG.Sheet.bulletsNoChapter")
+            : (mode === "room" ? key : game.i18n.format("DRPG.TruthBullet.chapterShort", { n: key })),
+        here: key === hereKey,
+        items: orderBullets(rows.map(r => r.item), chapterNow),
+        newest: rows.reduce((best, row) => {
+            const at = bulletRecency(row.item, row.index);
+            return !best || compareRecency(at, best) > 0 ? at : best;
+        }, null)
+    }));
+
+    /* The open one first, then the rest newest-group-first, and the group with no
+       answer at all last - "no location" is not a place and "no chapter" is not a
+       time, so neither belongs in the middle of an ordering by place or time. */
+    groups.sort((a, b) => {
+        if (a.here !== b.here) return a.here ? -1 : 1;
+        const empty = (a.key === "") - (b.key === "");
+        if (empty) return empty;
+        return compareRecency(b.newest, a.newest);
+    });
+
+    return { mode, groups };
+}
+
+/** Lexicographic on the recency tuples: positive when `a` is newer than `b`. */
+function compareRecency(a, b) {
+    if (!a) return b ? -1 : 0;
+    if (!b) return 1;
+    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] - b[i];
+    return 0;
+}
+
+/** The two-button switch over the pack. Writes one client setting and redraws. */
+function bulletSortSwitch(app) {
+    const mode = bulletSortMode();
+    const box = document.createElement("div");
+    box.className = "drpg-bullet-sort";
+
+    const label = document.createElement("span");
+    label.className = "drpg-bullet-sort-label";
+    label.textContent = game.i18n.localize("DRPG.Sheet.bulletSortLabel");
+    box.append(label);
+
+    for (const [key, labelKey] of [
+        ["chapter", "DRPG.Sheet.bulletsByChapter"],
+        ["room", "DRPG.Sheet.bulletsByRoom"]
+    ]) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `drpg-bullet-sort-button${mode === key ? " is-on" : ""}`;
+        /* `aria-pressed` rather than a disabled button for the one that is on: a
+           reader has to be able to move onto it to hear which of the two is
+           chosen, and a disabled control is not in the tab order. */
+        button.setAttribute("aria-pressed", String(mode === key));
+        button.textContent = game.i18n.localize(labelKey);
+        button.addEventListener("click", async event => {
+            event.stopPropagation();
+            if (mode === key) return;
+            try {
+                await game.settings.set(MODULE_ID, SETTINGS.bulletSort, key);
+            } catch (err) {
+                error("Could not change how Truth Bullets are grouped", err);
+                return;
+            }
+            app.render(false);
+        });
+        box.append(button);
+    }
+    return box;
+}
+
+/** One fold: its name, its count, and the rows inside it. */
+function bulletFold(group, rowFor, actor, mode) {
+    /* Remembered per actor, per mode, per group. The sheet re-renders on every
+       clock write and every item change, and a fold that shut itself each time
+       would be unusable exactly while somebody is reading through their pack.
+       Keyed by mode as well, so the two modes do not inherit each other's folds -
+       "the kitchen is open" says nothing about which chapter should be. */
+    const foldKey = `${actor.id}:${mode}:${group.key}`;
+    const details = document.createElement("details");
+    details.className = `drpg-bullet-group${group.here ? " is-here" : ""}`;
+    details.open = BULLET_FOLDS.get(foldKey) ?? group.here;
+    details.addEventListener("toggle", () => BULLET_FOLDS.set(foldKey, details.open));
+
+    const summary = document.createElement("summary");
+    const name = document.createElement("span");
+    name.className = "drpg-bullet-group-name";
+    name.textContent = group.label;
+    const count = document.createElement("span");
+    count.className = "drpg-group-count";
+    count.textContent = String(group.items.length);
+    summary.append(name, count);
+    if (group.here) {
+        summary.dataset.tooltip = game.i18n.localize(mode === "room"
+            ? "DRPG.Sheet.bulletsHereRoom" : "DRPG.Sheet.bulletsHereChapter");
+    }
+    details.append(summary);
+
+    const list = document.createElement("ul");
+    list.className = "drpg-inventory-list";
+    for (const item of group.items) list.append(rowFor(item));
+    details.append(list);
+    return details;
 }
 
 function buildBulletRow(li, item, app) {

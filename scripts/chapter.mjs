@@ -32,7 +32,7 @@
 import { MODULE_ID, FLAGS, REMNANT_TYPES, CHAPTERS_PER_SEASON } from "./config.mjs";
 import { getClock } from "./clock.mjs";
 import { bodyDiscovery, setBodyDiscovery, clearBodyDiscovery } from "./settings.mjs";
-import { TRUTH_BULLET_FLAGS, bulletsOf, secretOf, dropSecret } from "./truth-bullets.mjs";
+import { TRUTH_BULLET_FLAGS, bulletsOf, secretOf, dropSecret, faintOf } from "./truth-bullets.mjs";
 import { remnantsOn, remnantData, REMNANT_FLAGS } from "./remnants.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { announce, dialogContent, whisperToGms, gmIds, ownerOf, log, error, plural }
@@ -654,7 +654,12 @@ export async function revealAllBulletTypes() {
         try {
             await item.update({
                 [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.shownType}`]: realType,
-                [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzed}`]: true
+                [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzed}`]: true,
+                /* Faint goes public with the type, because this is the same moment
+                   Analyze is - the bullet gives up what it really was. Without this
+                   line the chapter's reveal would leave every doubtful trace looking
+                   solid on the sheets it has just been written onto. */
+                [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.faint}`]: faintOf(item)
             });
             revealed++;
         } catch (err) {
@@ -696,7 +701,14 @@ export async function sweepTruthBullets() {
 
         const doomed = [];
         for (const item of bulletsOf(actor)) {
-            if (item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.faint)) {
+            /* `faintOf`, NOT THE ITEM'S FLAG. Since 1.2.47 Faint is published onto
+               a player's item only once they have analysed the bullet, so the flag
+               reads false for every doubtful trace nobody has spent a Head roll on -
+               and this sweep would have taken exactly the evidence Faint exists to
+               carry across. The ledger is the truth and this runs GM-side, where the
+               ledger is readable; `faintOf` falls back to the item for a world made
+               before the change. */
+            if (faintOf(item)) {
                 kept++;
                 continue;
             }
@@ -797,7 +809,9 @@ export async function openChapterEndDialog() {
        own planted clues and nothing older. */
     const endingChapter = getClock().chapter;
     const sweepable = bullets.filter(({ item }) =>
-        !item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.faint)
+        // the same reader the sweep itself uses, or the count would promise work
+        // the action will not do - which is the whole point of the note above
+        !faintOf(item)
         && secretOf(item.uuid).realType !== "final").length;
     /* AND WHETHER THE TRIAL IS STILL SITTING. The clock is the authority, not the
        floor: a trial in session with nobody holding the floor has no floor record at

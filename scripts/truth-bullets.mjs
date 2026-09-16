@@ -54,7 +54,23 @@ export const TRUTH_BULLET_FLAGS = {
     shownType: "shownType",
     /** obvious | evident | subtle | hidden - the DC input for Observe/Analyze. */
     visibility: "visibility",
-    /** Survives the sweep at the start of the next session. */
+    /**
+     * DOUBTFUL - AND NOT SOMETHING THE FINDER KNOWS YET.
+     *
+     * Faint means two things in the rules: the connection to the case is
+     * doubtful, and the trace is exempt when a GM clears the table's evidence.
+     * Both are facts about the OBJECT, which is exactly the shape of thing
+     * Analyze is for - and until 1.2.47 this flag was written onto the player's
+     * item at creation, one line above `tiedToCrime` and `sourceAction`, which
+     * are gated on `identified` for precisely this reason. So the badge said
+     * "Faint" on a bullet nobody had analysed, and anybody reading their own
+     * item's flags in the console could tell a doubtful trace from a solid one
+     * without spending a Head roll ("usunąć faint", Dawid, 16.09).
+     *
+     * It lives in the bullet's SECRET from creation now and is copied onto the
+     * item by `identify`. `faintOf` is the GM-side reader that knows both
+     * roads, because a world made before this still carries it on the item.
+     */
     faint: "faint",
     /** Is the shown type confirmed rather than a placeholder? */
     analyzed: "analyzed",
@@ -584,7 +600,9 @@ export async function createTruthBullet(actor, {
             [TRUTH_BULLET_FLAGS.isBullet]: true,
             [TRUTH_BULLET_FLAGS.shownType]: shown,
             [TRUTH_BULLET_FLAGS.visibility]: visibility,
-            [TRUTH_BULLET_FLAGS.faint]: !!faint,
+            /* Gated like `tiedToCrime` and `sourceAction` below, and for the
+               same reason - see the note on the flag itself. */
+            [TRUTH_BULLET_FLAGS.faint]: identified ? !!faint : false,
             [TRUTH_BULLET_FLAGS.analyzed]: analyzed ?? selfEvident,
             [TRUTH_BULLET_FLAGS.chapter]: stamp?.chapter ?? clock.chapter,
             [TRUTH_BULLET_FLAGS.room]: room ?? roomOfActor(actor) ?? null,
@@ -608,7 +626,8 @@ export async function createTruthBullet(actor, {
     // that is what lets `identify` publish it later without going back to the
     // Remnant, and what lets a trace the killer has since wiped still pay out.
     await setSecret(item.uuid, {
-        realType, gmNote, remnantId, sceneId, sourceAction, tiedToCrime, analyzedText
+        realType, gmNote, remnantId, sceneId, sourceAction, tiedToCrime, analyzedText,
+        faint: !!faint
     });
 
     /*
@@ -654,6 +673,12 @@ export function truthBulletData(item) {
         visibilityLabel: REMNANT_VISIBILITY_LABELS[visibility] ?? visibility,
         faint: !!flag(TRUTH_BULLET_FLAGS.faint),
         analyzed: !!flag(TRUTH_BULLET_FLAGS.analyzed),
+        /* THE ONE ANSWER TO "HAS THIS BEEN SETTLED", so the four surfaces that
+           ask it - the inventory row, the item window, the trial's pack and the
+           handover card - cannot drift into four spellings of `isIdentified`.
+           Same rule as the function of that name above, read off the data a
+           caller already has rather than off the item again. */
+        identified: !!flag(TRUTH_BULLET_FLAGS.analyzed) || shownType !== "neutral",
         chapter: flag(TRUTH_BULLET_FLAGS.chapter) ?? null,
         room: flag(TRUTH_BULLET_FLAGS.room) ?? null,
         day: flag(TRUTH_BULLET_FLAGS.day) ?? null,
@@ -685,6 +710,23 @@ export function truthBulletData(item) {
         remnantId: game.user.isGM ? (secret.remnantId ?? null) : undefined,
         sceneId: game.user.isGM ? (secret.sceneId ?? null) : undefined
     };
+}
+
+/**
+ * Whether this bullet is Faint, asked of the ledger first and the item second.
+ *
+ * GM-side only, like everything else that reads the ledger. The item is the
+ * fallback and not the answer: a bullet made before 1.2.47 carries the flag
+ * there and has nothing in its secret, and one made since carries it on the
+ * item only once it has been identified. Reading the ledger first and the item
+ * second is right in both worlds, and `migrateFaintIntoSecrets` below closes
+ * the gap for good the first time a GM logs in.
+ */
+export function faintOf(item) {
+    if (!item) return false;
+    const secret = secretOf(item.uuid);
+    if (typeof secret.faint === "boolean") return secret.faint;
+    return !!item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.faint);
 }
 
 /**
@@ -835,6 +877,54 @@ export async function issueAutopsy(actors, { name, playerText = "", gmNote = "" 
  * invent an answer: everything lands as `neutral` and the GMs get a list to
  * correct by hand.
  * ========================================================================== */
+
+/**
+ * Move Faint off the player's item and into the ledger, where it belongs.
+ *
+ * A world made before 1.2.47 carries `faint` on every bullet's item, whether or
+ * not its holder has analysed it - see the note on the flag. That is a fact
+ * about the object sitting in a player's own data, and it is the one kind of
+ * leak this module has spent three releases closing.
+ *
+ * IDEMPOTENT BY CONSTRUCTION, with no marker setting to go stale. For each
+ * bullet the ledger does not yet have a `faint` for, the item's flag is the
+ * truth and is copied in; and where the bullet is NOT identified, the flag is
+ * then cleared, because an unidentified bullet has no business carrying it. A
+ * second run finds `typeof secret.faint === "boolean"` everywhere and does
+ * nothing. A bullet made since the change is already in that state.
+ *
+ * GM-only, like every other reader of the ledger, and quiet: this corrects the
+ * shape of stored data rather than the state of the game, so there is nothing a
+ * GM would want a card about. The count goes to the log.
+ */
+export async function migrateFaintIntoSecrets() {
+    if (!game.user.isGM) return 0;
+
+    let moved = 0;
+    for (const actor of game.actors ?? []) {
+        for (const item of actor.items ?? []) {
+            if (!isTruthBullet(item)) continue;
+            const secret = secretOf(item.uuid);
+            if (typeof secret.faint === "boolean") continue;
+
+            const onItem = !!item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.faint);
+            try {
+                await setSecret(item.uuid, { faint: onItem });
+                if (onItem && !isIdentified(item)) {
+                    await item.update({
+                        [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.faint}`]: false
+                    });
+                }
+                moved++;
+            } catch (err) {
+                error(`Could not move Faint into the ledger for "${item.name}"`, err);
+            }
+        }
+    }
+
+    if (moved) log(`Moved Faint into the ledger for ${moved} Truth Bullet(s).`);
+    return moved;
+}
 
 export async function migrateTruthBullets() {
     if (!game.user.isGM || !isPrimaryGm()) return 0;
@@ -1071,6 +1161,11 @@ export function registerTruthBullets() {
 
     if (game.user.isGM) {
         requestLedger();
-        migrateTruthBullets().catch(err => error("Truth Bullet migration failed", err));
+        migrateTruthBullets()
+            /* After, never beside: the Stage 1 migration writes a fresh secret for
+               every bullet it touches, and this one reads secrets. Running them
+               concurrently would race the ledger. */
+            .then(() => migrateFaintIntoSecrets())
+            .catch(err => error("Truth Bullet migration failed", err));
     }
 }

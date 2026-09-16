@@ -311,8 +311,14 @@ function buildCard(actor, data, { objection, comment, target = null }) {
         badges.push(`<span class="drpg-tb-badge chapter">${
             game.i18n.format("DRPG.TruthBullet.chapterShort", { n: data.chapter })}</span>`);
     }
+    /* The same `room` class the sheet's row uses (`bulletBadges` in sheet.mjs), so
+       one fact is one colour wherever it is read. This card keeps its own badge
+       list rather than calling that function, and deliberately: it is a chat card
+       the whole table sees, so the GM's "Really:" chip and the per-holder "Analyzed
+       in vain" mark - both of which `bulletBadges` adds - would be shown to people
+       they are not about. */
     if (data.room) {
-        badges.push(`<span class="drpg-tb-badge">${foundry.utils.escapeHTML(data.room)}</span>`);
+        badges.push(`<span class="drpg-tb-badge room">${foundry.utils.escapeHTML(data.room)}</span>`);
     }
 
     return `<div class="drpg-evidence-card${objection ? " objection" : ""}">

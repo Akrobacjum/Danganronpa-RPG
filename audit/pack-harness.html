@@ -1,0 +1,132 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Danganronpa RPG - the pack, without Foundry</title>
+<!--
+  THE TRUTH BULLET PACK, WITHOUT FOUNDRY.
+  ===========================================================================
+  The sibling of `glass-harness.html`, and for the same reason: the inventory's
+  evidence rows have rules now - the chip line wraps and is indented, one chip
+  longer than the line is cut with an ellipsis, and the pack is folded into
+  groups - and none of those can be measured in the jsdom harness, which has no
+  layout. This page mounts the real stylesheets over the real markup so the
+  rules can be re-measured at any width.
+
+  HOW TO USE IT
+    python3 -m http.server 8765      (from the repository root)
+    then open /audit/pack-harness.html
+
+  The two numbers worth taking, and what they were when this page was written
+  (Chromium 141, deviceScaleFactor 1, 16.09):
+
+    · nothing leaves the card. Before `flex-basis` learned about the 1.8rem
+      indent, the chip line hung past the right edge by 0, 14, 29 and 89 px at
+      560, 440, 360 and 300 px of card, and the card scrolled sideways at every
+      one of those - 560 included. After: 0 past the edge and no sideways
+      scroll at 640, 520, 440, 360, 300 and 260.
+    · one chip wider than the line is shortened rather than let out - the long
+      room name in the second row is there to be that chip.
+
+  The markup is written by hand and is a COPY of what `bulletBadges` and
+  `bulletFold` in sheet.mjs produce. If those change shape, this changes with
+  them or it is measuring something the module no longer draws.
+-->
+<link rel="stylesheet" href="/styles/motion.css">
+<link rel="stylesheet" href="/styles/danganronpa.css">
+<link rel="stylesheet" href="/styles/stained-glass.css">
+<body class="drpg-theme-stained-glass" style="margin:0;background:#12101a;padding:12px;color:#f2eee6">
+
+<p style="font-family:monospace;font-size:12px;opacity:0.7">
+  card width
+  <input id="w" type="range" min="260" max="640" value="520" style="width:260px">
+  <span id="wv">520</span> px
+</p>
+
+<div class="drpg-inventory-groups" id="frame" style="width:520px;outline:1px dashed #e0a53c">
+  <div class="drpg-inventory-group" data-category="truthBullet">
+    <h4><span>Truth Bullets</span><span class="drpg-group-count">7</span></h4>
+
+    <div class="drpg-bullet-sort">
+      <span class="drpg-bullet-sort-label">Group by</span>
+      <button type="button" class="drpg-bullet-sort-button is-on" aria-pressed="true">Chapter</button>
+      <button type="button" class="drpg-bullet-sort-button" aria-pressed="false">Location</button>
+    </div>
+
+    <details class="drpg-bullet-group is-here" open>
+      <summary><span class="drpg-bullet-group-name">Ch. 2</span><span class="drpg-group-count">3</span></summary>
+      <ul class="drpg-inventory-list">
+        <li class="drpg-truth-bullet">
+          <img src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="">
+          <span class="drpg-item-name">Ash in the grate</span>
+          <span class="drpg-tb-badges">
+            <span class="drpg-tb-badge type prep">Prep Truth Bullet</span>
+            <span class="drpg-tb-badge faint">Faint</span>
+            <span class="drpg-tb-badge visibility">Obvious</span>
+            <span class="drpg-tb-badge chapter">Ch. 2</span>
+            <span class="drpg-tb-badge room">Library</span>
+          </span>
+        </li>
+        <!-- the long-chip row: the room name and the GM's chip are both wider
+             than a narrow card's chip line, which is what the ellipsis is for -->
+        <li class="drpg-truth-bullet">
+          <img src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="">
+          <span class="drpg-item-name">A very long trace name that goes on</span>
+          <span class="drpg-tb-badges">
+            <span class="drpg-tb-badge type neutral">Neutral Truth Bullet</span>
+            <span class="drpg-tb-badge visibility">Barely visible</span>
+            <span class="drpg-tb-badge chapter">Ch. 2</span>
+            <span class="drpg-tb-badge room">The long corridor behind the kitchen</span>
+            <span class="drpg-tb-badge locked">Analyzed in vain</span>
+            <span class="drpg-tb-badge real">Really: Tamper Truth Bullet</span>
+          </span>
+        </li>
+        <li class="drpg-truth-bullet">
+          <img src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="">
+          <span class="drpg-item-name">Chipped mug</span>
+          <span class="drpg-tb-badges">
+            <span class="drpg-tb-badge type neutral">Neutral Truth Bullet</span>
+            <span class="drpg-tb-badge visibility">Evident</span>
+            <span class="drpg-tb-badge chapter">Ch. 2</span>
+            <span class="drpg-tb-badge room">Kitchen</span>
+          </span>
+        </li>
+      </ul>
+    </details>
+
+    <details class="drpg-bullet-group">
+      <summary><span class="drpg-bullet-group-name">Ch. 1</span><span class="drpg-group-count">3</span></summary>
+      <ul class="drpg-inventory-list">
+        <li class="drpg-truth-bullet"><span class="drpg-item-name">Torn cuff</span></li>
+      </ul>
+    </details>
+
+    <details class="drpg-bullet-group">
+      <summary><span class="drpg-bullet-group-name">No chapter</span><span class="drpg-group-count">1</span></summary>
+      <ul class="drpg-inventory-list">
+        <li class="drpg-truth-bullet"><span class="drpg-item-name">Old note</span></li>
+      </ul>
+    </details>
+  </div>
+</div>
+
+<pre id="out" style="font-family:monospace;font-size:12px;opacity:0.8"></pre>
+
+<script>
+  /* The self-check: does anything leave the card, at this width? */
+  const frame = document.getElementById("frame");
+  const range = document.getElementById("w");
+  function check() {
+    frame.style.width = range.value + "px";
+    document.getElementById("wv").textContent = range.value;
+    const fr = frame.getBoundingClientRect();
+    const worst = [...document.querySelectorAll(".drpg-tb-badges")].map(el =>
+      Math.max(0, ...[...el.children].map(c => c.getBoundingClientRect().right)) - fr.right);
+    document.getElementById("out").textContent = JSON.stringify({
+      cardWidth: Math.round(fr.width),
+      pastTheEdge: worst.map(n => Math.round(Math.max(0, n))),
+      scrollsSideways: frame.scrollWidth > frame.clientWidth + 1
+    }, null, 1);
+  }
+  range.addEventListener("input", check);
+  addEventListener("load", check);
+  check();
+</script>

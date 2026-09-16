@@ -250,7 +250,6 @@ export async function shareBullet({ fromId, toId, itemId } = {}) {
         shownType: data.shownType,
         analyzed: data.analyzed,
         visibility: data.visibility,
-        faint: data.faint,
         playerText: data.playerText,
         gmNote: secret.gmNote ?? "",
         remnantId: secret.remnantId ?? null,
@@ -271,7 +270,14 @@ export async function shareBullet({ fromId, toId, itemId } = {}) {
         // browser holds not one word of it in the meantime.
         sourceAction: secret.sourceAction ?? null,
         tiedToCrime: secret.tiedToCrime ?? null,
-        analyzedText: secret.analyzedText ?? ""
+        analyzedText: secret.analyzedText ?? "",
+        /* And `faint` moved onto this road in 1.2.47. Read off the giver's ITEM
+           it would have come back false for every unidentified bullet, so every
+           copy of a doubtful trace would have quietly stopped being doubtful -
+           and the chapter's clear would then have taken it. */
+        faint: typeof secret.faint === "boolean"
+            ? secret.faint
+            : Boolean(data.faint)
     });
 
     if (!copy) {

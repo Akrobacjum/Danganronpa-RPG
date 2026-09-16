@@ -302,6 +302,10 @@
         "name": "Nazwa stanu za zegarem",
         "hint": "Pora dnia (albo stan, który ją zastępuje: Eclipse, Class Trial) jako blady kontur biegnący za zegarem. Tylko ten klient."
       },
+      "bulletSort": {
+        "name": "Jak grupowane są Truth Bullets",
+        "hint": "Czy twój pakiet jest pocięty na rozdziały, czy na pomieszczenia. Przełącznik siedzi w samym ekwipunku, nad dowodami; tylko ten klient."
+      },
       "glassBlur": {
         "name": "Szkło rozmywa mapę",
         "hint": "Szkło matowi mapę, która jest za nim. To najdroższa rzecz, jaką ten motyw rysuje, i rysuje ją od nowa za każdym razem, gdy cokolwiek na ekranie drgnie. Jeśli interfejs się przycina albo okna otwierają się z opóźnieniem, zacznij od wyłączenia tego - game.drpg.perf() powie, ile kosztowało na tej maszynie. Tylko ten klient."
@@ -353,6 +357,13 @@
       "groupGear": "Ekwipunek",
       "sharedSlots": "Narzędzia zbrodni, narzędzia do sprzątania i narzędzia dzielą między sobą te {n} miejsca.",
       "groupTruthBullets": "Truth Bullets",
+      "bulletSortLabel": "Grupuj wg",
+      "bulletsByChapter": "Rozdziału",
+      "bulletsByRoom": "Lokacji",
+      "bulletsNoChapter": "Bez rozdziału",
+      "bulletsNoRoom": "Bez lokacji",
+      "bulletsHereChapter": "Rozdział, w którym jesteście.",
+      "bulletsHereRoom": "Pomieszczenie, w którym stoisz.",
       "groupEmpty": "- pusto -",
       "groupKeys": "Klucze do pokoi",
       "biographyPlaceholder": "Kim byli, zanim zaczęła się killing game."
@@ -1748,6 +1759,7 @@
       "tiedField": "Powiązany z morderstwem - po rozpoznaniu wypływa na wierzch talii",
       "faint": "Faint",
       "faintTooltip": "Wątpliwy. Przetrwa do następnej sesji i można go analizować ponownie.",
+      "roomTooltip": "Gdzie to zostało znalezione.",
       "locked": "Analiza na nic",
       "lockedTooltip": "Analiza nie powiodła się w tym rozdziale. Spróbuj w następnym albo przekaż kopię dalej.",
       "playerText": "Opis dla gracza",

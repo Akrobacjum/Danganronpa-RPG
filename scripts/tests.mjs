@@ -4998,6 +4998,163 @@ const SCENARIOS = [
         }
     }],
 
+    ["Faint stays in the ledger until the bullet has been analysed", async () => {
+        /*
+         * Faint says two things: the connection is doubtful, and the trace is
+         * exempt when a GM clears the table's evidence. Both are facts about the
+         * OBJECT, which is what Analyze buys - and until 1.2.47 the flag was
+         * written onto the player's item at creation, one line above
+         * `tiedToCrime`, which is gated on `identified` for exactly this reason.
+         * So the row's badge said "Faint" on a bullet nobody had analysed.
+         *
+         * Two halves, and the second is the one that would rot quietly: the flag
+         * must be ABSENT before, and PRESENT after, because a fix that only did
+         * the first would silently stop the chapter's clear from carrying
+         * doubtful evidence across - which is the only thing Faint is for.
+         */
+        const bullets = await import("./truth-bullets.mjs");
+        const actor = game.actors.find(a => a.type === "character");
+        ok(actor, "no character to hold a Truth Bullet");
+        const made = [];
+        try {
+            const item = await bullets.createTruthBullet(actor, {
+                name: "Suite faint trace",
+                realType: "prep",
+                faint: true,
+                playerText: "A smear on the handle."
+            });
+            ok(item, "the fixture bullet was not created");
+            made.push(item);
+
+            ok(!item.getFlag(MODULE_ID, bullets.TRUTH_BULLET_FLAGS.faint),
+                "an unanalysed bullet carries Faint on the player's own item");
+            ok(bullets.faintOf(item) === true,
+                "the ledger did not keep Faint, so the chapter's clear would take it");
+
+            const data = bullets.truthBulletData(item);
+            ok(data.identified === false, "the fixture bullet was born identified");
+
+            /* The badge is what the player reads, so it is asked directly rather
+               than inferred from the flag: `bulletBadges` gates on `identified`
+               as well, which is what makes an old world correct on its first
+               load rather than on its second. */
+            const sheet = await import("./sheet.mjs");
+            ok(!sheet.bulletBadges(data).includes(">Faint<"),
+                "the row's badges announced Faint before anybody analysed it");
+
+            /* And the other half. `identify` is not exported - it is reached
+               through a successful Analyze - so this writes what it writes, and
+               the test that the two agree is `analyze.mjs` being the only writer
+               of these three flags, which R1b's sweep over the source covers. */
+            await item.update({
+                [`flags.${MODULE_ID}.${bullets.TRUTH_BULLET_FLAGS.shownType}`]: "prep",
+                [`flags.${MODULE_ID}.${bullets.TRUTH_BULLET_FLAGS.analyzed}`]: true,
+                [`flags.${MODULE_ID}.${bullets.TRUTH_BULLET_FLAGS.faint}`]: bullets.faintOf(item)
+            });
+            const after = bullets.truthBulletData(item);
+            ok(after.identified === true && after.faint === true,
+                "an analysed bullet did not end up wearing Faint");
+            ok(sheet.bulletBadges(after).includes(">Faint<"),
+                "an analysed bullet's row does not say it is Faint");
+        } finally {
+            for (const item of made) {
+                const live = item.actor?.items?.get(item.id);
+                if (live) await live.delete();
+            }
+        }
+    }],
+
+    ["the pack opens on where you are and folds the rest, whichever way it is grouped", async () => {
+        /*
+         * The two modes are one design: the group that is about NOW is open, the
+         * rest are folds, and inside every group the newest evidence is first.
+         * What is worth a test is that both modes really do have that shape -
+         * "both tabs work identically" was the request, and two code paths that
+         * are supposed to agree are exactly the pair that drift.
+         *
+         * NEWEST BY THE GAME'S CLOCK. The stamps are written by hand here rather
+         * than by moving the world's clock between creations: this is a test of
+         * the ORDERING, and making it depend on the clock's write path would be
+         * testing two things and reporting one.
+         */
+        const bullets = await import("./truth-bullets.mjs");
+        const sheet = await import("./sheet.mjs");
+        const { getClock } = await import("./clock.mjs");
+        const actor = game.actors.find(a => a.type === "character");
+        ok(actor, "no character to hold a pack");
+
+        const chapterNow = getClock().chapter;
+        const made = [];
+        try {
+            /* Three finds: two in this chapter from two rooms, one older. The
+               older one is deliberately created LAST, so a list that came out in
+               creation order would fail rather than pass by accident. */
+            const seed = [
+                { name: "Suite newer here", room: "Kitchen",
+                  stamp: { chapter: chapterNow, day: 3, timeOfDay: "night" } },
+                { name: "Suite older here", room: "Kitchen",
+                  stamp: { chapter: chapterNow, day: 3, timeOfDay: "morning" } },
+                { name: "Suite elsewhere", room: "Library",
+                  stamp: { chapter: chapterNow, day: 2, timeOfDay: "noon" } },
+                { name: "Suite last chapter", room: "Kitchen",
+                  stamp: { chapter: Math.max(0, chapterNow - 1), day: 1, timeOfDay: "noon" } }
+            ];
+            for (const row of seed) {
+                const item = await bullets.createTruthBullet(actor, {
+                    name: row.name, realType: "neutral", room: row.room, stamp: row.stamp,
+                    playerText: "-"
+                });
+                ok(item, `the fixture bullet ${row.name} was not created`);
+                made.push(item);
+            }
+
+            const pack = made.slice();
+            const shapeOf = result => {
+                const open = result.groups.filter(g => g.here);
+                return {
+                    mode: result.mode,
+                    groups: result.groups.length,
+                    open: open.length,
+                    openFirst: result.groups[0]?.here === true,
+                    counted: result.groups.reduce((n, g) => n + g.items.length, 0)
+                };
+            };
+
+            await game.settings.set(MODULE_ID, "bulletSort", "chapter");
+            const byChapter = sheet.bulletGroups(pack, actor);
+            await game.settings.set(MODULE_ID, "bulletSort", "room");
+            const byRoom = sheet.bulletGroups(pack, actor);
+            await game.settings.set(MODULE_ID, "bulletSort", "chapter");
+
+            for (const [name, result] of [["chapter", byChapter], ["room", byRoom]]) {
+                const shape = shapeOf(result);
+                ok(shape.counted === pack.length,
+                    `grouping by ${name} lost or duplicated evidence: ${shape.counted} of ${pack.length}`);
+                ok(shape.open === 1,
+                    `grouping by ${name} opened ${shape.open} groups instead of exactly one`);
+                ok(shape.openFirst,
+                    `grouping by ${name} did not draw the open group first`);
+            }
+
+            /* Newest first INSIDE a group, and the two Kitchen finds are the pair
+               that says so: same chapter, same day, different time of day. */
+            const kitchen = byRoom.groups.find(g => g.key === "Kitchen");
+            ok(kitchen, "the room grouping lost the Kitchen");
+            const names = kitchen.items.map(i => i.name);
+            ok(names.indexOf("Suite newer here") < names.indexOf("Suite older here"),
+                `the night find did not come before the morning one: ${names.join(", ")}`);
+
+            const thisChapter = byChapter.groups.find(g => g.key === String(chapterNow));
+            ok(thisChapter && thisChapter.here,
+                "grouping by chapter did not open the chapter the table is in");
+        } finally {
+            for (const item of made) {
+                const live = item.actor?.items?.get(item.id);
+                if (live) await live.delete();
+            }
+        }
+    }],
+
     ["handing over evidence hands over only what the giver had analysed", async () => {
         /*
          * The copy is born with the giver's state - `handoverBullet` passes
