@@ -1412,8 +1412,7 @@
       "tabKeyRemnants": "Key Remnants",
       "traceName": "Nazwa",
       "traceText": "Opis dla gracza",
-      "traceTags": "Tagi",
-      "traceTagsPlaceholder": "rozdzielone, przecinkami",
+      "traceType": "Czym naprawdę jest",
       "noTraces": "Nigdzie nie ma jeszcze śladów.",
       "keyLimitLine": "Użyto {used} z {limit} w tym rozdziale - minimum to {min}.",
       "keyLimitOverride": "Utwórz więcej, niż pozwala rzut otwarcia",
@@ -1820,12 +1819,6 @@
       },
       "foundTitle": "Skopiowano ślad, a nikt nie powiedział, czym jest",
       "reinforcedShort": "Reinforced",
-      "difficulty": {
-        "slight": "Nikły trop",
-        "modest": "Skromny trop",
-        "firm": "Mocny trop",
-        "deep": "Głęboki trop"
-      },
       "faintColumn": "Faint",
       "crimeColumn": "Powiązany ze zbrodnią",
       "reinforcedColumn": "Reinforced",

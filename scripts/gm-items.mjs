@@ -1005,7 +1005,6 @@ async function bulletFromRemnant(result, traces, scene, { setRemnantPublicById, 
         // this out as Neutral hands out nothing analysis has not been paid for.
         analyzedText: pub?.analyzedText ?? "",
         img: pub?.img ?? null,
-        tags: pub?.tags ?? [],
         gmNote: data.note ?? "",
         remnantId: token.id,
         sceneId: scene?.id ?? null,

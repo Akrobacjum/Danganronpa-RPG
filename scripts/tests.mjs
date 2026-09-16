@@ -4998,6 +4998,102 @@ const SCENARIOS = [
         }
     }],
 
+    ["a GM correcting what a trace is reaches the copies without telling anybody", async () => {
+        /*
+         * The column that used to hold free-text tags is a type picker now, and
+         * a type is the answer key. So it has two halves and they pull opposite
+         * ways: the correction MUST reach every copy's secret, or the next
+         * analysis pays out the old category - and it must NOT reach the item of
+         * a copy nobody has analysed, or the correction hands the answer to
+         * everybody holding one.
+         *
+         * `propagateRealType` is called through `setRemnantFlags`, which is how
+         * the dashboard reaches it; this exercises the function directly because
+         * placing a token and opening the dashboard is a scenario's job, not a
+         * unit test's.
+         */
+        const bullets = await import("./truth-bullets.mjs");
+        const actor = game.actors.find(a => a.type === "character");
+        ok(actor, "no character to hold a Truth Bullet");
+
+        const fakeRemnantId = "suiteTraceForType";
+        const made = [];
+        try {
+            const unread = await bullets.createTruthBullet(actor, {
+                name: "Suite uncorrected copy", realType: "prep",
+                remnantId: fakeRemnantId, sceneId: "suiteScene", playerText: "-"
+            });
+            const read = await bullets.createTruthBullet(actor, {
+                name: "Suite analysed copy", realType: "prep", analyzed: true,
+                remnantId: fakeRemnantId, sceneId: "suiteScene", playerText: "-"
+            });
+            ok(unread && read, "the fixture copies were not created");
+            made.push(unread, read);
+
+            ok(bullets.truthBulletData(unread).identified === false,
+                "the unanalysed fixture copy was born identified");
+            ok(bullets.truthBulletData(read).identified === true,
+                "the analysed fixture copy was not born identified");
+
+            const moved = await bullets.propagateRealType(fakeRemnantId, "resolution");
+            ok(moved === 2, `the correction reached ${moved} copies instead of both`);
+
+            /* Both answer keys moved... */
+            ok(bullets.secretOf(unread.uuid).realType === "resolution"
+                && bullets.secretOf(read.uuid).realType === "resolution",
+                "the correction did not reach both answer keys");
+
+            /* ...and only the analysed copy says so to its holder. */
+            const un = bullets.truthBulletData(unread);
+            const rd = bullets.truthBulletData(read);
+            ok(un.shownType === "neutral",
+                `the correction was published onto an unanalysed copy as "${un.shownType}"`);
+            ok(rd.shownType === "resolution",
+                `an analysed copy still shows "${rd.shownType}" after the correction`);
+        } finally {
+            for (const item of made) {
+                const live = item?.actor?.items?.get(item.id);
+                if (live) await live.delete();
+            }
+        }
+    }],
+
+    ["throwing a broken thing away leaves a Prep trace before a murder and a Tamper one after", async () => {
+        /*
+         * It was always Prep, and the note that chose it argued for the other
+         * one - "somebody tidying up around a crime", which is the Tamper type's
+         * own definition. The table put it plainly: you throw things away AFTER.
+         *
+         * Only the decision is exercised, not a whole discard: `discardBroken`
+         * wants a broken item, a trait roll and a token on a scene, and none of
+         * those three is what this is about. What is worth pinning is that the
+         * line is drawn on the world's state and in the right direction.
+         */
+        const { discardRemnantType } = await import("./use-items.mjs");
+        const { BROKEN_ITEMS, REMNANT_TYPES } = await import("./config.mjs");
+
+        ok(REMNANT_TYPES[BROKEN_ITEMS.remnantTypeBefore] && REMNANT_TYPES[BROKEN_ITEMS.remnantTypeAfter],
+            "one of the two discard types is not a Remnant type at all");
+        ok(BROKEN_ITEMS.remnantTypeAfter === "resolution",
+            `after a murder a discard should leave the Tamper type, not "${BROKEN_ITEMS.remnantTypeAfter}"`);
+
+        const settings = await import("./settings.mjs");
+        const hadBody = settings.bodyDiscovery();
+        const murder = await import("./murder.mjs");
+        const running = Boolean(murder.murderState()?.active);
+
+        const now = await discardRemnantType();
+        /* The world the suite runs in decides which answer is correct, so the
+           test asks the same two questions the function does rather than
+           assuming a quiet world - a suite run during an incident must not fail
+           for being right. */
+        const expected = (running || hadBody)
+            ? BROKEN_ITEMS.remnantTypeAfter : BROKEN_ITEMS.remnantTypeBefore;
+        ok(now === expected,
+            `a discard right now should leave "${expected}" and leaves "${now}"`
+            + ` (incident: ${running}, body found: ${Boolean(hadBody)})`);
+    }],
+
     ["Faint stays in the ledger until the bullet has been analysed", async () => {
         /*
          * Faint says two things: the connection is doubtful, and the trace is

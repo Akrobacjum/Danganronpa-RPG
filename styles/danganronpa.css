@@ -3241,10 +3241,6 @@ body.drpg-pixel-font [contenteditable] {
     border-color: var(--drpg-gold-antique);
 }
 
-.drpg-tb-badge.tag {
-    opacity: 0.85;
-}
-
 /* ---- the boxed sections ------------------------------------------------- */
 
 .drpg-remnant-box {
@@ -3337,12 +3333,6 @@ body.drpg-pixel-font [contenteditable] {
 
 .drpg-bullet-analysis strong {
     margin-inline-end: 4px;
-}
-
-.drpg-remnant-tagrow {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
 }
 
 .drpg-truth-bullet {

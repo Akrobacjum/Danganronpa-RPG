@@ -35,6 +35,10 @@ import { usableKindFor } from "./tables.mjs";
 import { ITEM_FLAGS, isStashed, isBroken, breakItem, wearItem, durabilityOf, servesAs }
     from "./inventory.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
+// Only to answer "is there a murder to be tidying up after" - see
+// `discardRemnantType`. `murder.mjs` imports this file back, so it is reached
+// dynamically inside the function; `settings.mjs` does not and can be static.
+import { bodyDiscovery } from "./settings.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
 import { dialogContent, whisperToOwner, resolveThreshold, log, error } from "./utils.mjs";
 
@@ -671,6 +675,41 @@ async function consume(item) {
  *
  * @returns {Promise<object|null>} `{ visibility, told }`, or null if nothing happened.
  */
+/**
+ * Which kind of trace throwing a broken thing away leaves.
+ *
+ * "Zazwyczaj robi się to po morderstwie" - and when it is after, the trace is a
+ * Tamper one: getting rid of the weapon is the same act as wiping the handle,
+ * and the type exists to say so at the trial. Before any of that it is still
+ * preparation, and a snapped lockpick has nothing to do with a murder that has
+ * not happened.
+ *
+ * WHERE THE LINE IS, and why it is these two facts and not the clock's phase.
+ * "After the murder" is not one moment: the killer's disposal happens during
+ * Stage 6, BEFORE anybody has found the body, and that is the most Tamper-ish
+ * discard there is - so waiting for the discovery would misfile exactly the
+ * case this is for. And once a body HAS been found the case is open for
+ * everybody, whoever is throwing what away. Either fact is enough; the clock's
+ * phase is neither, because Daily Life continues after a body is found.
+ *
+ * Both reads are wrapped: a world mid-migration, or a client that has not been
+ * told the murder state yet, must leave a trace rather than throw.
+ *
+ * Async because `murder.mjs` imports this file back, so it is reached through a
+ * dynamic import rather than at the top - the same road `discardBroken` already
+ * takes to `action-rolls` and `remnants`. It costs a microtask on a click.
+ */
+export async function discardRemnantType() {
+    try {
+        const { murderState } = await import("./murder.mjs");
+        if (murderState()?.active) return BROKEN_ITEMS.remnantTypeAfter;
+    } catch { /* no incident readable: fall through to the body */ }
+    try {
+        if (bodyDiscovery()) return BROKEN_ITEMS.remnantTypeAfter;
+    } catch { /* nor a discovery: it is preparation as far as anyone can tell */ }
+    return BROKEN_ITEMS.remnantTypeBefore;
+}
+
 export async function discardBroken(actor, item) {
     if (!actor || !item) return null;
 
@@ -717,7 +756,7 @@ export async function discardBroken(actor, item) {
     const { dropRemnant, traceFeedback } = await import("./remnants.mjs");
     const { roomOfActor } = await import("./movement.mjs");
     const placed = await dropRemnant(actor, {
-        type: BROKEN_ITEMS.remnantType,
+        type: await discardRemnantType(),
         visibility,
         faint: BROKEN_ITEMS.faint,
         action: "discard",

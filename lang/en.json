@@ -1368,8 +1368,7 @@
       "tabKeyRemnants": "Key Remnants",
       "traceName": "Name",
       "traceText": "Player description",
-      "traceTags": "Tags",
-      "traceTagsPlaceholder": "comma, separated",
+      "traceType": "What it really is",
       "noTraces": "No traces anywhere yet.",
       "keyLimitLine": "{used} of {limit} used this chapter - the minimum is {min}.",
       "keyLimitOverride": "Create more than the opening roll allows",
@@ -1737,12 +1736,6 @@
       },
       "foundTitle": "A trace was copied, and nobody has said what it is",
       "reinforcedShort": "reinforced",
-      "difficulty": {
-        "slight": "Slight lead",
-        "modest": "Modest lead",
-        "firm": "Firm lead",
-        "deep": "Deep lead"
-      },
       "faintColumn": "Faint",
       "crimeColumn": "Tied to crime",
       "reinforcedColumn": "Reinforced",

@@ -1501,8 +1501,28 @@ export const BROKEN_ITEMS = {
     label: "Broken",
     /** Not being seen to have done it - the same read as every other cover-up. */
     trait: "shadow",
-    /** A Prep Remnant: this is somebody tidying up around a crime, not the crime. */
-    remnantType: "prep",
+    /*
+     * THE TYPE DEPENDS ON WHEN, AND UNTIL 1.2.47 IT WAS ALWAYS "prep".
+     *
+     * The old note here read "somebody tidying up around a crime, not the
+     * crime" - and tidying up around a crime is the definition of the Tamper
+     * type two tables up ("the too-clean patch, the thing moved back slightly
+     * wrong"), so the reasoning argued for the type it did not pick. The table
+     * put it plainly: throwing a broken thing away is something you do AFTER a
+     * murder, not while preparing one ("wyrzucanie itemów ma złą kategorię",
+     * Dawid, 16.09).
+     *
+     * It is not always, though, and that is why this is a pair rather than one
+     * value: a lockpick that snaps while you are gathering tools is a Prep
+     * trace and nothing else. `discardRemnantType()` in use-items.mjs draws
+     * the line at the only place the module can honestly draw it - whether an
+     * incident is running or a body has been found - so "before" stays Prep.
+     */
+    /** While no incident is running and no body has been found: still preparation. */
+    remnantTypeBefore: "prep",
+    /** From the moment there is a murder to tidy up after. `resolution` is the
+     *  stored key of the type LABELLED "Tamper Remnant" - see REMNANT_TYPES. */
+    remnantTypeAfter: "resolution",
     /**
      * NOT faint. Faint is what a GM's manual clear takes (Z7 stopped it
      * happening on a schedule), and the whole point of this object is that it

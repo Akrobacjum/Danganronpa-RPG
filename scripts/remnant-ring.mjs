@@ -254,11 +254,6 @@ function gmRemnantCard(tokenOrActor, esc) {
         [t("DRPG.Remnant.cardSubject"), esc(data.subject ?? "-")]
     ];
 
-    const pub = data.public ?? {};
-    const tagRow = (pub.tags ?? []).length
-        ? `<div class="drpg-remnant-tagrow">${pub.tags.map(x =>
-            `<span class="drpg-tb-badge tag">${esc(x)}</span>`).join("")}</div>`
-        : "";
 
     return `<div class="drpg-panel drpg-remnant-card">
         <header class="drpg-remnant-head">
@@ -289,7 +284,6 @@ function gmRemnantCard(tokenOrActor, esc) {
                     data-drpg-was="${esc(pub.analyzedText ?? "")}"
                     placeholder="${esc(t("DRPG.TruthBullet.analyzedTextPlaceholder"))}">${esc(pub.analyzedText ?? "")}</textarea></label>
             <p class="notes">${esc(t("DRPG.TruthBullet.analyzedTextNote"))}</p>
-            ${tagRow}
             <p class="notes">${esc(t("DRPG.Remnant.cardEditNote"))}</p>
         </section>
     </div>`;
@@ -320,8 +314,14 @@ function playerRemnantCard(tokenOrActor, esc) {
        what their browser is actually allowed to hold. `known` still gates it,
        because a bullet can be identified with no reading written for it. */
     const analyzedText = flag(TRUTH_BULLET_FLAGS.analyzedText) ?? "";
-    const tags = flag(TRUTH_BULLET_FLAGS.tags) ?? [];
     const visibility = flag(TRUTH_BULLET_FLAGS.visibility) ?? null;
+    /* WHERE IT WAS PICKED UP, as a badge rather than as a tag. The tag row this
+       replaces carried the room and a difficulty band, both appended by
+       `remnantPublic`; the band has gone entirely (it was derived from the REAL
+       type, so it hinted at the answer - see the note in remnants.mjs) and the
+       room is a field on the bullet, so it is drawn from that, the same way the
+       inventory row draws it. */
+    const room = flag(TRUTH_BULLET_FLAGS.room) ?? null;
 
     // The emblem the player has EARNED, exactly as on the map: the action's
     // glyph once their copy is identified, the question mark before -
@@ -333,7 +333,8 @@ function playerRemnantCard(tokenOrActor, esc) {
         `<span class="drpg-tb-badge type ${esc(shownType)}">${
             esc(TRUTH_BULLET_TYPES[shownType]?.label ?? shownType)}</span>`,
         visibility ? `<span class="drpg-tb-badge visibility">${
-            esc(REMNANT_VISIBILITY_LABELS[visibility] ?? visibility)}</span>` : null
+            esc(REMNANT_VISIBILITY_LABELS[visibility] ?? visibility)}</span>` : null,
+        room ? `<span class="drpg-tb-badge room">${esc(room)}</span>` : null
     ].filter(Boolean).join("");
 
     return `<div class="drpg-panel drpg-remnant-card">
@@ -351,8 +352,6 @@ function playerRemnantCard(tokenOrActor, esc) {
             }</strong> ${esc(analyzedText)}</p>` : ""}
             ${known ? "" : `<p class="notes">${esc(game.i18n.localize("DRPG.Remnant.cardUnanalyzed"))}</p>`}
         </section>` : ""}
-        ${tags.length ? `<div class="drpg-remnant-tagrow">${tags.map(x =>
-            `<span class="drpg-tb-badge tag">${esc(x)}</span>`).join("")}</div>` : ""}
     </div>`;
 }
 

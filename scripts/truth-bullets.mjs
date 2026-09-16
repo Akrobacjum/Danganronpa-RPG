@@ -100,8 +100,6 @@ export const TRUTH_BULLET_FLAGS = {
      * `propagateRemnantPublic`.
      */
     analyzedText: "analyzedText",
-    /** Tags from the source Remnant's `public` record - e.g. a difficulty band. */
-    tags: "tags",
     /**
      * `${sceneId}.${tokenId}` of the Remnant this bullet was copied from -
      * PUBLIC, unlike `remnantId` in the secret ledger (see `secretOf`). It
@@ -499,7 +497,6 @@ const SELF_EVIDENT = ["key", "autopsy", "final"];
  *   trace keeps whatever it is given, because there is nothing to disagree
  *   with.
  * @param {string} [data.img]          Portrait. Defaults to the category icon.
- * @param {string[]} [data.tags]       Public tags - e.g. a difficulty band.
  * @param {string} [data.gmNote]       Note for the GM. Never leaves the ledger.
  * @param {string} [data.remnantId]    Source token id, when there is one.
  * @param {string} [data.sceneId]
@@ -547,7 +544,7 @@ async function revealSourceOf(sceneId, remnantId) {
 
 export async function createTruthBullet(actor, {
     name, realType = "neutral", shownType = null, visibility = "evident",
-    faint = false, playerText = "", analyzedText = "", img = null, tags = [], gmNote = "",
+    faint = false, playerText = "", analyzedText = "", img = null, gmNote = "",
     remnantId = null, sceneId = null,
     room = null, analyzed = null, stamp = null,
     sourceAction = null, tiedToCrime = null
@@ -610,7 +607,6 @@ export async function createTruthBullet(actor, {
             [TRUTH_BULLET_FLAGS.timeOfDay]: stamp?.timeOfDay ?? clock.timeOfDay,
             [TRUTH_BULLET_FLAGS.playerText]: playerText,
             [TRUTH_BULLET_FLAGS.analyzedText]: identified ? analyzedText : "",
-            [TRUTH_BULLET_FLAGS.tags]: tags,
             [TRUTH_BULLET_FLAGS.remnantRef]: remnantId && sceneId ? `${sceneId}.${remnantId}` : null,
             [TRUTH_BULLET_FLAGS.sourceAction]: identified ? sourceAction : null,
             [TRUTH_BULLET_FLAGS.tiedToCrime]: identified ? tiedToCrime : null,
@@ -686,7 +682,6 @@ export function truthBulletData(item) {
         playerText: flag(TRUTH_BULLET_FLAGS.playerText) ?? "",
         /* Empty until this holder has analysed it - see TRUTH_BULLET_FLAGS. */
         analyzedText: flag(TRUTH_BULLET_FLAGS.analyzedText) ?? "",
-        tags: flag(TRUTH_BULLET_FLAGS.tags) ?? [],
         remnantRef: flag(TRUTH_BULLET_FLAGS.remnantRef) ?? null,
         /* Null until the bullet is identified - see TRUTH_BULLET_FLAGS. */
         sourceAction: flag(TRUTH_BULLET_FLAGS.sourceAction) ?? null,
@@ -736,7 +731,7 @@ export function faintOf(item) {
  * Called from remnants.mjs's `setRemnantPublic` - never on its own - because
  * finding "every bullet copied from this trace" reads `secretOf(item.uuid)
  * .remnantId`, the answer key, and that only resolves on a GM's client.
- * Which fields move: name, portrait, the description and the tags a player
+ * Which fields move: name, portrait and the description a player
  * reads - never `realType`, `gmNote` or anything else the ledger's secret
  * half holds.
  *
@@ -781,8 +776,7 @@ export async function propagateRemnantPublic(remnantTokenId, pub) {
                     img: pub.img || item.img,
                     "system.description": bulletDescription(pub.playerText ?? "", earned),
                     [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.playerText}`]: pub.playerText ?? "",
-                    [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzedText}`]: earned,
-                    [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.tags}`]: pub.tags ?? []
+                    [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.analyzedText}`]: earned
                 }, { [FROM_REMNANT]: true });
                 touched++;
             } catch (err) {
@@ -820,6 +814,47 @@ export async function propagateCrimeTie(remnantTokenId, tied) {
                 touched++;
             } catch (err) {
                 error(`Could not move the crime tie onto "${item.name}"`, err);
+            }
+        }
+    }
+    return touched;
+}
+
+/**
+ * A GM corrected what a trace really is: move it onto every copy of it.
+ *
+ * The twin of `propagateCrimeTie` above, and the same two halves for the same
+ * reason. The SECRET always: that is the answer key, and a copy whose key
+ * disagrees with the trace it came from would pay out the old category the next
+ * time somebody analysed it. The player's ITEM only where the copy is already
+ * identified: an unanalysed one is showing "Neutral" and must go on showing it,
+ * or a GM's correction would hand the answer to everybody holding a copy.
+ *
+ * `shownType` as well as the secret on an identified copy, because that is what
+ * the row and the card read - without it the dashboard would say Tamper and the
+ * player's pack would still say Prep, and the trial would be spent working out
+ * which of the two is lying.
+ *
+ * @returns {Promise<number>} how many copies moved
+ */
+export async function propagateRealType(remnantTokenId, realType) {
+    if (!game.user.isGM || !remnantTokenId || !realType) return 0;
+
+    let touched = 0;
+    for (const actor of game.actors) {
+        if (actor.type !== "character") continue;
+        for (const item of bulletsOf(actor)) {
+            if (secretOf(item.uuid).remnantId !== remnantTokenId) continue;
+            try {
+                await setSecret(item.uuid, { realType });
+                if (isIdentified(item)) {
+                    await item.update({
+                        [`flags.${MODULE_ID}.${TRUTH_BULLET_FLAGS.shownType}`]: realType
+                    });
+                }
+                touched++;
+            } catch (err) {
+                error(`Could not move the corrected type onto "${item.name}"`, err);
             }
         }
     }
@@ -1041,16 +1076,13 @@ function watchBulletEdits() {
             const [sceneId, tokenId] = String(ref).split(".");
             if (!sceneId || !tokenId) return;
 
-            // Only the three things the trace owns. A GM ticking `identified`
-            // or burning an analysis is not describing the object.
+            // Only the things the trace owns. A GM ticking `identified` or
+            // burning an analysis is not describing the object.
             const patch = {};
             if (changes.name !== undefined) patch.name = item.name;
             const flags = changes.flags?.[MODULE_ID] ?? {};
             if (flags[TRUTH_BULLET_FLAGS.playerText] !== undefined) {
                 patch.playerText = item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.playerText) ?? "";
-            }
-            if (flags[TRUTH_BULLET_FLAGS.tags] !== undefined) {
-                patch.tags = item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.tags) ?? [];
             }
             if (flags[TRUTH_BULLET_FLAGS.analyzedText] !== undefined) {
                 patch.analyzedText = item.getFlag(MODULE_ID, TRUTH_BULLET_FLAGS.analyzedText) ?? "";

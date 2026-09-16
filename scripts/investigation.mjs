@@ -24,13 +24,13 @@
  */
 
 import {
-    MODULE_ID, KEY_REMNANTS, TRUTH_BULLET_TYPES,
+    MODULE_ID, KEY_REMNANTS, TRUTH_BULLET_TYPES, REMNANT_TYPES,
     REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS, TIMES_OF_DAY } from "./config.mjs";
 import { SETTINGS } from "./settings.mjs";
 import { getClock } from "./clock.mjs";
 import {
     remnantsOn, remnantData, setRemnantFlags, setRemnantPublic, markRemnantEdited,
-    confirmClearFaint, difficultyTag,
+    confirmClearFaint,
     traceContextLine
 } from "./remnants.mjs";
 import { bulletsOf, secretOf, truthBulletData } from "./truth-bullets.mjs";
@@ -692,24 +692,6 @@ function evidenceByStudent() {
  * never found is already its own consequence - the trial gets harder - and
  * the "this is getting thin" warning is what a GM actually needs from here.
  */
-/**
- * A trace's tags with the DERIVED ones taken back out - the list a GM should
- * actually be editing.
- *
- * `remnantPublic()` appends the room and the difficulty on every read, so
- * whatever it hands back always carries both. Showing them in the editable
- * field would invite a GM to change or delete a value that is recomputed a
- * moment later; saving them back would freeze the state of a trace the ledger
- * is still free to move. One place decides which tags are derived, and both
- * the form and the save read it.
- */
-function withoutDerivedTags(data) {
-    const derived = new Set([
-        data.room || null,
-        difficultyTag(data.visibility, data.type)
-    ].filter(Boolean));
-    return (data.public?.tags ?? []).filter(t => !derived.has(t));
-}
 
 /**
  * The Truth Bullet sweep, asked for by a person (Z7).
@@ -834,11 +816,6 @@ function caseStudentRows(students) {
 function caseTraceRows(shown, finders) {
     return shown.map(({ token, data, scene }) => {
         const key = rowKey(scene.id, token.id);
-        // The difficulty and room tags are appended live by `remnantPublic()`
-        // and never stored - editing either back into the saved list would
-        // freeze a value that is meant to track the ledger automatically
-        // (`retuneRemnant` moves visibility; a GM can correct the room).
-        const manualTags = withoutDerivedTags(data);
         const who = Array.from(finders.get(token.id) ?? []);
         const found = who.length
             ? esc(who.join(", "))
@@ -861,8 +838,17 @@ function caseTraceRows(shown, finders) {
             <td><textarea name="analysis.${key}" rows="2"
                 placeholder="${game.i18n.localize("DRPG.TruthBullet.analyzedTextPlaceholder")}"
                 >${esc(data.public?.analyzedText || "")}</textarea></td>
-            <td><input type="text" name="tags.${key}" value="${esc(manualTags.join(", "))}"
-                placeholder="${game.i18n.localize("DRPG.Investigation.traceTagsPlaceholder")}" /></td>
+            ${/* WHAT IT REALLY IS, CORRECTED BY HAND. The column that used to be
+                  free-text tags. The module decides the type from whatever action
+                  left the trace and gets the common cases right; the rest are
+                  judgements only the GM can make - the killer moved the body
+                  after the Search, the "cleaning" was actually preparation. The
+                  value written here reaches the answer key of every copy already
+                  in a player's pack (`propagateRealType`), and changes what they
+                  are SHOWN only where they have already analysed it. */ ""}
+            <td><select name="type.${key}">${Object.entries(REMNANT_TYPES).map(([value, def]) =>
+                `<option value="${esc(value)}"${value === data.type ? " selected" : ""}>${
+                    esc(def.label)}</option>`).join("")}</select></td>
             <td style="text-align:center"><input type="checkbox" name="faint.${key}" ${data.faint ? "checked" : ""} /></td>
             <td style="text-align:center"><input type="checkbox" name="crime.${key}" ${data.tiedToCrime ? "checked" : ""} /></td>
             <td style="text-align:center"><input type="checkbox" name="reinf.${key}" ${data.reinforced ? "checked" : ""} /></td>
@@ -937,7 +923,7 @@ function caseTracesPanel({ traces, shown, finders, reading }) {
             <th>${game.i18n.localize("DRPG.Investigation.traceName")}</th>
             <th>${game.i18n.localize("DRPG.Investigation.traceText")}</th>
             <th>${game.i18n.localize("DRPG.Investigation.traceAnalysis")}</th>
-            <th>${game.i18n.localize("DRPG.Investigation.traceTags")}</th>
+            <th>${game.i18n.localize("DRPG.Investigation.traceType")}</th>
             <th>${game.i18n.localize("DRPG.Remnant.faintColumn")}</th>
             <th>${game.i18n.localize("DRPG.Remnant.crimeColumn")}</th>
             <th>${game.i18n.localize("DRPG.Remnant.reinforcedColumn")}</th>
@@ -1204,8 +1190,7 @@ function readDashboardForm(d) {
                 name: q(`name.${key}`)?.value.trim() ?? "",
                 text: q(`text.${key}`)?.value.trim() ?? "",
                 analysis: q(`analysis.${key}`)?.value.trim() ?? "",
-                tags: (q(`tags.${key}`)?.value ?? "")
-                    .split(",").map(t => t.trim()).filter(Boolean),
+                type: q(`type.${key}`)?.value ?? "",
                 faint: q(`faint.${key}`)?.checked ?? false,
                 tiedToCrime: q(`crime.${key}`)?.checked ?? false,
                 reinforced: q(`reinf.${key}`)?.checked ?? false
@@ -1455,14 +1440,11 @@ async function applyDashboardSave(result, { traces, plan }) {
         if (!trace) continue;
         const { token, data } = trace;
 
-        const currentTags = withoutDerivedTags(data);
-
         const publicPatch = {};
         if (row.name !== (data.public?.name ?? "")) publicPatch.name = row.name;
         if (row.img !== (data.public?.img ?? "")) publicPatch.img = row.img;
         if (row.text !== (data.public?.playerText ?? "")) publicPatch.playerText = row.text;
         if (row.analysis !== (data.public?.analyzedText ?? "")) publicPatch.analyzedText = row.analysis;
-        if (row.tags.join("") !== currentTags.join("")) publicPatch.tags = row.tags;
         if (Object.keys(publicPatch).length) {
             await setRemnantPublic(token, publicPatch);
             // A human GM has now decided what this trace says, so a player
@@ -1472,9 +1454,15 @@ async function applyDashboardSave(result, { traces, plan }) {
             tracesChanged++;
         }
 
-        if (row.faint !== data.faint || row.tiedToCrime !== data.tiedToCrime || row.reinforced !== data.reinforced) {
+        /* The type rides with the three verdicts rather than with the public
+           text: all four live in the ledger, all four reach the copies, and none
+           of them is something a player reads off the trace directly. */
+        const typeChanged = row.type && row.type !== data.type;
+        if (typeChanged || row.faint !== data.faint
+            || row.tiedToCrime !== data.tiedToCrime || row.reinforced !== data.reinforced) {
             await setRemnantFlags(token, {
-                faint: row.faint, tiedToCrime: row.tiedToCrime, reinforced: row.reinforced
+                faint: row.faint, tiedToCrime: row.tiedToCrime, reinforced: row.reinforced,
+                type: typeChanged ? row.type : null
             });
             tracesChanged++;
         }

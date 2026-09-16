@@ -458,7 +458,6 @@ async function createFind(actor, entry, isCritical) {
         // `createTruthBullet` is where that is decided, not here.
         analyzedText: pub?.analyzedText ?? written?.analyzedText ?? "",
         img: pub?.img ?? null,
-        tags: pub?.tags ?? [],
         gmNote: data.note ?? "",
         remnantId: entry.tokenId,
         sceneId: entry.sceneId,
