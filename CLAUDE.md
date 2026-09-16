@@ -82,6 +82,13 @@ holds together by construction. Neither is a small change: run
 (`overlaps`, `blockFails`, `edgeGaps`) before and after, and look at a
 screenshot, because the numbers can be clean and the picture wrong.
 
+**The glass harness does not recut for Foundry's own rails.** `liveSignature` reads
+`BLOCKS`, and the two rails are deliberately not blocks - so adding sidebar tabs from
+`page.evaluate` and calling `refreshGlass()` republishes the partition cut for the tabs
+that were there at load. A fifteen-tab rail has to be in the HTML before the page loads
+(rewrite the response with `page.route`). Measured against the stale cut on 16.09, the
+numbers came out plausible and wrong.
+
 **A socket handler that touches an actor must check who sent the message.** R1b
 in the suite reads the source for it. `senderOf(senderId)` and
 `ownsActor(sender, actor)`, both, every time.
