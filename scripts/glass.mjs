@@ -409,8 +409,70 @@ function pinRightColumn() {
      The tab rail leans, so the glass cut for it is the tiles plus the swing that lean costs
      - about 52 px on a 1440p screen. Pinned only to the rail's own left edge, the status
      strip and the Projects tray reached 46 px into that band, the strip had to start below
-     them, and the rail's top eight tiles ended up on somebody else's pane. */
-  const right = r ? Math.max(0, Math.round(innerWidth - r.left) + railSwing(r.height) + 8) : 0;
+     them, and the rail's top eight tiles ended up on somebody else's pane.
+
+     AND THE SWING IS NOT THE WHOLE BAND: THE STRIP'S OWN LEAN IS THE REST (16.09).
+     `railBox` reserves `swing + slack`, where the slack is what the strip's inner edge
+     costs over the rail's run - `14 + run * tan(STRIP_ANGLE)`, about 51 px on a rail of
+     620. Only the swing was reserved here, so the column stood some 43 px inside the
+     band, and everything downstream followed from that one number: the column counted as
+     hugging the wall (`hugR`, which is true within 120 px of it), its section pane ran
+     into the wall under the rail, a strip piece that overlaps a content pane is thrown
+     away - so the rail's upper tiles stood on the tray's glass again, which is the fault
+     this comment says was fixed. Measured 16.09 on the glass harness with a fifteen-tab
+     rail - the length a real client's sidebar runs to, where the harness's own six leave
+     the collision invisible - counting corners of the rail's tiles that stand on their
+     own strip rather than on somebody else's pane:
+
+                      swing only     swing + slack
+       2560 x 1440      60 / 60          60 / 60
+       1920 x 1080      60 / 60          60 / 60
+       1600 x 900       42 / 60          60 / 60
+       1440 x 900       42 / 60          60 / 60
+       1366 x 768       36 / 60          54 / 60
+       1280 x 800       45 / 60          57 / 60
+
+     The last two rows are the room running out, not the rule failing: see below.
+
+     The other way round was tried first and reverted: clipping the SECTION panes out of
+     the band instead (`pushPane` exempts them) puts the rail on a hole rather than on
+     somebody else's glass - 18 corners on nothing and 28 gaps at the screen edge at
+     1600x900 - because the strip starts below the column's pane and nothing then covers
+     what the column gave up. Four earlier shapes of that idea are written up in
+     `cutStrips`. The collision is not in the partition: it is that two things were told
+     to stand in the same 43 px, and one of them is the module's own column.
+
+     AND THE SLACK IS TAKEN ONLY WHERE THERE IS ROOM FOR IT.
+     The column moves left, and on a narrow desk what is to its left is the Despair rail,
+     which is centred on the screen and cannot move: below about 1250 px the two already
+     overlap, which is the band written up in the 1.2.47 notes. Taking the whole slack
+     unconditionally carried that band up with it - swept at 800 px tall, block failures
+     16 from 1248 to 1344 where 1.2.47 has none (and 1200-1247 keeps the 16 it already
+     had). So the pin asks for the band and settles for the room: never less than the old
+     swing-only distance, never so far left that the column crosses the Despair rail with
+     its pad. Where the screen cannot pay, the tiles stand on the tray's glass exactly as
+     they did - which is the same collision, written down in the same place as the rest of
+     that band rather than fixed by moving one of the two things off the screen.
+
+     At 1366 and 1280 that is what the residue in the table above is: the column takes as
+     much of the slack as the Despair rail leaves it, six and three tile corners still
+     stand on the tray's glass, and nothing stands on a hole. Both readings are with a
+     fifteen-tab rail, which is a long one. */
+  const slack = r ? 14 + Math.round(r.height * Math.tan(STRIP_ANGLE)) : 0;
+  const base = r ? Math.max(0, Math.round(innerWidth - r.left) + railSwing(r.height) + 8) : 0;
+  /* NEITHER READING IS OF THIS FUNCTION'S OWN OUTPUT, and that is worth checking rather
+     than asserting - three of the faults in 1.2.47 were measurements taken through a
+     distortion the same code had applied. `width: auto` on a fixed box is shrink-to-fit,
+     which in principle narrows as `right` grows; in fact the strip and the tray state
+     their own width off the interface scale, so the column is 306 px wide whatever is
+     left of it. Measured 16.09, five consecutive passes at 1280, 1366, 1440 and 1920:
+     the width and the pin both settle on the first one and do not move again. The
+     Despair rail is centred on the screen and does not read the column at all. */
+  const own = col.getBoundingClientRect().width;
+  const dsp = document.getElementById("drpg-despair");
+  const dspR = dsp && dsp.offsetWidth ? dsp.getBoundingClientRect().right : null;
+  const room = dspR != null && own ? Math.round(innerWidth - dspR - 2 * 12 - own) : Infinity;
+  const right = Math.max(base, Math.min(base + slack, room));
   if (col.dataset.drpgPinned === "1" && PIN.rail === right) return;
   PIN.rail = right;
   col.dataset.drpgPinned = "1";
@@ -787,13 +849,23 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
   const pushPane = (ctx, poly, tone, kind, rank) => {
     const { panes, railBands, W, H } = ctx;
     if (!poly || poly.length < 3) return null;
-    /* AND ONLY ACROSS THE RUN OF THE TILES.
+    /* THE THREE-WAY CUT, AND WHY IT IS NO LONGER NEEDED HERE (16.09).
        The first version of this clipped every pane out of the band for the WHOLE height of
        the screen, which took the clock's own glass, the GM button's and - worst - the
        notice tile's, all three of which live at that wall above or below the rail and had
        nothing to do with it (Dawid, 07.09: "kawalek szkla przeznaczony na powiadomienia
-       zniknal"). A pane is cut into three across the band's own run instead: what is above
-       it, what is beside it, and what is below. Only the middle piece loses the band. */
+       zniknal"). A pane was cut into three across the band's own run instead - what is
+       above it, what is beside it, what is below - and only the middle piece lost the band.
+
+       All three of those panes are SECTIONS, and the rule below exempts sections outright,
+       so the run limit was protecting nothing and costing a sliver: a filler sector may
+       enter the band above the tiles, and the strip then starts below that sector's BOX
+       while the sector itself only covers the wall as far as its leaning edge. Measured
+       16.09 at 1920x800 with the column pinned clear of the band: the sector reached
+       y = 30 in its bounding box and y = 25 at the wall, the strip began at 30, and the
+       five pixels between them were bare map at the top-right corner - one edge gap at
+       every desk width. Filler is cut out of the band for its whole height now, which is
+       what the note above this function says the band is for. */
     let parts = [poly];
 
     /* FILLER ONLY. Clipping the SECTIONS - the panes cut for the clock, the GM button and
@@ -805,22 +877,11 @@ globalThis.drpgGlassRebuild = () => import("./glass.mjs").then(m => m.refreshGla
     if (kind !== "strip" && kind !== "section") {
       for (const [b, dir] of [[railBands.left, 1], [railBands.right, -1]]) {
         if (!b || b.real === false || !b.coreY) continue;
-        const [by0, by1] = b.coreY;
         parts = parts.flatMap(q => {
           const bx = bbox(q);
           if (dir > 0 ? bx.x0 >= b.band : bx.x1 <= b.band) return [q];
-          if (bx.y1 <= by0 || bx.y0 >= by1) return [q];
-          const out = [];
-          let rest = q;
-          if (bx.y0 < by0) { const cut = split(q, 0, by0, 0, -1); if (cut[0]) out.push(cut[0]); rest = cut[1]; }
-          if (rest) {
-            const bx2 = bbox(rest);
-            let mid = rest;
-            if (bx2.y1 > by1) { const cut = split(rest, 0, by1, 0, -1); mid = cut[0]; if (cut[1]) out.push(cut[1]); }
-            const kept = mid ? clipHP(mid, b.band, 0, dir, 0) : null;
-            if (kept) out.push(kept);
-          }
-          return out.filter(Boolean);
+          const kept = clipHP(q, b.band, 0, dir, 0);
+          return kept ? [kept] : [];
         });
       }
     }

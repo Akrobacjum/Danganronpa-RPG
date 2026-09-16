@@ -617,6 +617,44 @@ Weryfikacja: suite 140 passed, 0 failed, 9 skipped; dziesięć scenariuszy zielo
 
 **Znaleziska tego przeglądu, których nie ruszałem:** przyciski launcherów nachodzą na pasek zakładek o 34 px, identycznie przy 1920x993 - to układ biurka sprzed tej pracy, nie stosu. Przy 280-320 px szerokości kafelek Projektów styka się z launcherami.
 
+### 9.3d Po 1.2.47: trzy uwagi od stołu (niewydane)
+
+Zgłoszone 16.09, po wydaniu 1.2.47. Wszystkie trzy to jedna klasa błędu - element,
+który stoi obok swojego szkła zamiast na nim albo w nim.
+
+| Co zgłoszone | Co się okazało | Czym naprawione |
+| --- | --- | --- |
+| "Powiadomienie jest za małe na swój kafelek" | Karta zajmowała 110 z 165 px kafelka przy 1920x1080 i 86 z 220 przy 2560x1440 - im szerszy kafelek, tym mniej wierszy zawija to samo zdanie, więc luka rośnie z ekranem. Do tego zapomniana reguła z 1.2.27 (`max-height: 148px * --drpg-sg-scale`) stała PÓŹNIEJ w pliku niż ta pisana dla kafelka 220 px, więc wygrywała każdy remis: karty rozwiązywały się do 125,8 px na kafelku o 165 | `flex: 1 0 auto` na karcie (`1 1 auto` sprawdzone i odrzucone: przy dwóch kartach kurczy krótszą do 37 px, bo pojemnik przewijany ma minimalny rozmiar zero), płyta treści rozciągnięta na resztę karty, tekst wyśrodkowany przez `align-content` na kontenerze BLOKOWYM - żeby marginesy akapitów dalej się zlewały. Stara reguła wysokości skasowana, nie poprawiona |
+| "Token projektu nie ma tej samej ramki, co remnanty" | `paint()` w `remnant-ring.mjs` wychodziło na pierwszej fladze: token bez `isRemnant` to był token z zniszczonym pierścieniem | Gałąź projektu w `frameFor()`. Kolor czytany z WŁASNEGO tintu tokenu, który `projects-map.mjs` wpisał ze stanu projektu - jedna liczba, ten sam dokument, żadnego drugiego odczytu z odliczania (ono jest bramkowane własnością i może nie być tego klienta). Jedna waga: "ukończony" mówi już kolor, a ciężka ramka znaczy na tracie "wzmocniony". Test regresji z mutacją sprawdzoną |
+| "Kafelki po prawej nachodzą na sekcję projektów i akcji" | Prawdziwa regresja, i nie tam, gdzie wyglądała. `pinRightColumn` rezerwuje odstęp od szyny zakładek, ale rezerwował tylko SWING (wychylenie obrotu), a `railBox` rezerwuje `swing + slack`, gdzie slack to koszt pochyłej krawędzi tafli na długości szyny - około 51 px przy szynie 620. Kolumna stała 43 px w środku pasma, przez co liczyła się jako przyklejona do ściany (`hugR`, próg 120 px), jej tafla wbiegała pod szynę, a kawałek tafli nachodzący na taflę treści jest wyrzucany przez partycję - więc górne kafelki szyny stały na szkle tacki | Pin rezerwuje `swing + slack`, ale bierze tyle, ile zostawia mu szyna Despair (wyśrodkowana, nie może ustąpić): nigdy mniej niż przedtem, nigdy tak daleko, żeby przeciąć ją swoim paddingiem. Osobno: wypełniacz jest teraz wycinany z pasma na całej wysokości, nie tylko na biegu kafelków - sekcje i tak są z tego zwolnione, a ograniczenie kosztowało 5 px gołej mapy w prawym górnym rogu |
+
+Zmierzone na `audit/glass-harness.html` z szyną piętnastu zakładek (tyle ma prawdziwy
+klient; sześć z harnessu nie pokazuje kolizji w ogóle). Rogi kafelków obu szyn stojące
+na własnej tafli:
+
+| Rozmiar | 1.2.47 | teraz |
+| --- | --- | --- |
+| 2560x1440 | 92/92 | 92/92 |
+| 1920x1080 | 92/92 | 92/92 |
+| 1600x900 | 74/92 | 92/92 |
+| 1440x900 | 74/92 | 92/92 |
+| 1366x768 | 62/92 | 80/92 |
+| 1280x800 | 75/92 | 87/92 |
+
+Reszta przy 1366 i 1280 to pasmo z live checka 24: kolumna bierze tyle slacku, ile
+zostawia jej szyna Despair, a niżej nie ma czego dzielić. Samosprawdzenie kurtyny przy
+ośmiu rozmiarach: `ov0 nc0 bf0 eg0 ff0` wszędzie - w tym dwie stojące szczeliny
+krawędziowe przy 1920 i 2560, które 1.2.47 jeszcze miał.
+
+**Odrzucone po pomiarze, żeby nikt nie próbował trzeci raz:** wycięcie tafli SEKCJI z
+pasma szyny (z osłoną na własny blok albo bez) - szyna przestaje stać na cudzym szkle i
+zaczyna stać na dziurze: 18 rogów na niczym i 28 szczelin krawędziowych przy 1600x900,
+bo tafla paska zaczyna się pod taflą kolumny i nic nie pokrywa tego, co kolumna oddała.
+Cztery wcześniejsze kształty tego samego pomysłu są opisane w `cutStrips`.
+
+Weryfikacja całości: suite **141 passed, 0 failed, 9 skipped**; dziesięć scenariuszy
+zielonych; proza 492/492.
+
 ### 9.2 Live checks nadal otwarte
 
 Lista z sekcji 7 pozostaje w mocy; harness nie rozstrzyga żadnej z nich. Po zadaniach 8-10 doszły trzy nowe do sprawdzenia na prawdziwym Foundry:
