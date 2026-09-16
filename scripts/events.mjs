@@ -20,7 +20,7 @@
  */
 
 import { MODULE_ID } from "./config.mjs";
-import { getClock, timeOfDayLabel } from "./clock.mjs";
+import { getClock } from "./clock.mjs";
 import { error, plural } from "./utils.mjs";
 import { remaining } from "./character.mjs";
 import { motive } from "./rules.mjs";
@@ -40,14 +40,20 @@ export function eventsWindowActive() {
     return document.body.classList.contains("drpg-theme-stained-glass");
 }
 
-function kicker(clock) {
-    const parts = [
-        game.i18n.format("DRPG.Hud.chapter", { n: clock.chapter }),
-        game.i18n.format("DRPG.Hud.day", { n: clock.day ?? 1 })
-    ];
-    try { const t = timeOfDayLabel(clock.timeOfDay); if (t) parts.push(t); } catch { /* the hour is optional */ }
-    return parts.join(" · ");
-}
+/* THE KICKER IS GONE, AND WHAT IT SAID IS THE REASON (16.09).
+   ---------------------------------------------------------------------------
+   Every card in this panel used to open with a line reading
+   "Chapter 1 · Day 3 · Afternoon", built here from the clock. The clock itself
+   stands 300 px to the left and prints the campaign, "Chapter 1 · Day 3", the
+   phase with its glyph, the hour, the elapsed time and the room. So with three
+   cards up, the same six words were on screen four times - once where they
+   belong and three times as a header for something else.
+
+   Nothing replaces it as a header. What the freed line buys is the motive's
+   CONSEQUENCE, which until now lived only in a `data-tooltip`: a tooltip is not
+   readable on a shared screen, is not readable at all by somebody driving with
+   a keyboard, and "or else" is half of what a motive IS. It is `note` on the
+   card now, and the tooltip keeps its copy for the hover. */
 
 /* ---- the three cards ------------------------------------------------------ */
 
@@ -59,7 +65,17 @@ function motiveCard() {
         : plural("DRPG.Motive.left", { n: record.remaining ?? 0 });
     const tooltip = [foundry.utils.escapeHTML(record.text)];
     if (record.consequence) tooltip.push(`<em>${game.i18n.format("DRPG.Motive.orElse", { what: foundry.utils.escapeHTML(record.consequence) })}</em>`);
-    return { kind: "motive", due: Boolean(record.due), title: game.i18n.localize("DRPG.Motive.title"), sub: record.text, meta, tooltip: tooltip.join("<br>") };
+    return {
+        kind: "motive", due: Boolean(record.due),
+        title: game.i18n.localize("DRPG.Motive.title"),
+        sub: record.text,
+        meta,
+        // The half of a motive that says what it costs to ignore.
+        note: record.consequence
+            ? game.i18n.format("DRPG.Motive.orElse", { what: record.consequence })
+            : null,
+        tooltip: tooltip.join("<br>")
+    };
 }
 
 function assemblyCard() {
@@ -342,7 +358,7 @@ function overflowCard() {
    from a first sight. Keyed by card kind: two cards never share one. */
 const LAST_SUB = new Map();
 
-function cardElement(card, clock) {
+function cardElement(card) {
     const el = document.createElement("div");
     el.className = "drpg-event";
     el.dataset.kind = card.kind;
@@ -377,7 +393,6 @@ function cardElement(card, clock) {
         line.textContent = text;
         el.append(line);
     };
-    add("drpg-event-kicker", kicker(clock));
     add("drpg-event-title", card.title);
     /*
      * THE STATE ARRIVES THE WAY THE HOUR DOES.
@@ -399,6 +414,7 @@ function cardElement(card, clock) {
     }
     LAST_SUB.set(card.kind, card.sub ?? "");
     add("drpg-event-meta", card.meta);
+    add("drpg-event-note", card.note);
     return el;
 }
 
@@ -414,7 +430,7 @@ export function renderEvents() {
 
         // Redraw only when something changed: the panel is on the curtain, and
         // every rebuild of it is a recut of the glass around it.
-        const signature = JSON.stringify(cards.map(c => [c.kind, c.title, c.sub, c.meta, c.due, c.mine]));
+        const signature = JSON.stringify(cards.map(c => [c.kind, c.title, c.sub, c.meta, c.note, c.due, c.mine]));
         if (existing && existing.dataset.signature === signature) return;
 
         const panel = document.createElement("div");
@@ -422,7 +438,7 @@ export function renderEvents() {
         panel.className = "drpg-events";
         panel.dataset.signature = signature;
         panel.setAttribute("role", "status");
-        for (const card of cards) panel.append(cardElement(card, clock));
+        for (const card of cards) panel.append(cardElement(card));
 
         const rail = document.getElementById("drpg-despair");
         // the card follows the rail wherever it stands, including into the narrow stack
