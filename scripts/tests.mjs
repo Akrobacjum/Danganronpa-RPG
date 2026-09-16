@@ -5189,6 +5189,112 @@ const SCENARIOS = [
         }
     }],
 
+    ["a secret project is found by looking for what does not belong, and by nothing else", async () => {
+        /*
+         * STAGE 3: the one way into a project nobody has told you about.
+         *
+         * The rule has two halves and this drives both, because half of it is a
+         * negative and a negative is what rots quietly: the non-obvious
+         * declaration carries the room's secret project, and no other one does.
+         * See PROJECT_OBSERVE in config.mjs for why that declaration and no
+         * other - it is the choice with a price, and a check on every Observe
+         * would turn a DC 18 into a matter of time.
+         *
+         * The verdict is measured by BEHAVIOUR rather than by reading the DC:
+         * one point under the bar leaves the project hidden and the bar itself
+         * finds it. Reading the number out of the pending entry would be the
+         * test quoting the implementation back at itself, and `pendingShape`
+         * deliberately does not hand the number over anyway.
+         *
+         * Everything this drags in behind it is put back in `finally`: the
+         * Sanity a missed Observe takes, any Truth Bullet the room's own traces
+         * produced on the successful throw, and the fixture project.
+         */
+        const projects = await import("./projects.mjs");
+        const observe = await import("./observe.mjs");
+        const bullets = await import("./truth-bullets.mjs");
+        const { PROJECT_OBSERVE } = await import("./config.mjs");
+        const { locateActor } = await import("./movement.mjs");
+        const { ownerOf } = await import("./utils.mjs");
+
+        /* Somebody with an account, standing somewhere. Both halves matter:
+           `secretsUnknownIn` is asked about a USER, and a character between
+           rooms has no room for a project to be hiding in. */
+        const actor = game.actors.filter(a => a.type === "character")
+            .find(a => ownerOf(a) && locateActor(a)?.room);
+        ok(actor, "no character with a player account is standing in a room");
+        const user = ownerOf(actor);
+        const room = locateActor(actor).room;
+
+        const stressPath = "system.resources.stress.value";
+        const stressBefore = foundry.utils.getProperty(actor, stressPath) ?? 0;
+        const itemsBefore = new Set(actor.items.map(i => i.id));
+        let id = null;
+        try {
+            const made = await projects.createProject({
+                name: "Suite hidden rig", target: 4, room, secret: true, viewers: []
+            });
+            ok(made?.id, "the fixture project was not created");
+            id = made.id;
+
+            ok(projects.canSee(id, user) === false,
+                "the fixture project was not secret from the observer to begin with");
+            ok(projects.secretsUnknownIn(room, user).some(p => p.id === id),
+                "a secret project in the observer's own room was not a candidate");
+            ok(projects.secretsUnknownIn(room, game.users.find(u => u.isGM)).length === 0,
+                "a GM was offered secret projects to discover, which they are already in on");
+
+            /* ---- the wrong declaration never carries it -------------------- */
+            const sweep = await observe.chooseObserveTarget({
+                actorId: actor.id, declaration: "general"
+            });
+            // Either it found a trace and is not carrying the project, or it
+            // found nothing at all. Both are the same assertion.
+            const sweepShape = sweep?.ok ? observe.pendingShape(sweep.key) : null;
+            ok(!sweepShape?.hasProject,
+                "an ordinary sweep of the room was carrying its secret project");
+
+            /* ---- and the right one does ----------------------------------- */
+            const looking = await observe.chooseObserveTarget({
+                actorId: actor.id, declaration: "nonObvious"
+            });
+            ok(looking?.ok,
+                "looking for what does not belong found nothing to aim at in a room holding a secret project");
+            ok(observe.pendingShape(looking.key)?.hasProject === true,
+                "the non-obvious declaration was not carrying the room's secret project");
+
+            /* ---- one under the bar ---------------------------------------- */
+            await observe.resolveObserve({ key: looking.key, total: PROJECT_OBSERVE.dc - 1 });
+            ok(projects.canSee(id, user) === false,
+                "a roll one under the bar still found the secret project");
+
+            /* ---- and the bar itself --------------------------------------- */
+            const again = await observe.chooseObserveTarget({
+                actorId: actor.id, declaration: "nonObvious"
+            });
+            ok(again?.ok, "the second look found nothing to aim at");
+            await observe.resolveObserve({ key: again.key, total: PROJECT_OBSERVE.dc });
+            ok(projects.canSee(id, user) === true,
+                "a roll that met the bar did not find the secret project");
+        } finally {
+            for (const item of [...actor.items]) {
+                if (itemsBefore.has(item.id)) continue;
+                const uuid = item.uuid;
+                await item.delete();
+                await bullets.dropSecret?.(uuid);
+            }
+            /* A missed Observe costs Sanity, and this test deliberately misses
+               one. Put back rather than left: the suite shares one world with
+               every test after it, and a character quietly a mark closer to a
+               breakdown is the kind of drift that surfaces three tests later
+               as something else's failure. */
+            if ((foundry.utils.getProperty(actor, stressPath) ?? 0) !== stressBefore) {
+                await actor.update({ [stressPath]: stressBefore });
+            }
+            if (id) await projects.deleteProject(id);
+        }
+    }],
+
     ["a GM correcting what a trace is reaches the copies without telling anybody", async () => {
         /*
          * The column that used to hold free-text tags is a type picker now, and

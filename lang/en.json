@@ -1634,6 +1634,8 @@
       "noRuling": "No GM settled what you were looking at. Your action is not spent.",
       "failedTitle": "You find nothing",
       "failed": "Nothing catches your eye. You take {stress} Sanity.",
+      "projectFoundTitle": "Something here is not what it looks like",
+      "projectFound": "Under the surface of the room, somebody has been building: {name}. You know about it now, and you can see how far along it is.",
       "critIdentified": "You found it, and you know what kind of trace it is.",
       "defaultName": "Trace - {room}",
       "pickTitle": "Observe - which trace?",
@@ -1651,7 +1653,7 @@
       "rerollLost": "A Reroll arrived for an Observe with no record here. Score the new number against the same trace by hand, and take back the Truth Bullet if it no longer fits.",
       "alreadyDescribed": "This trace already has a name, and every observer is told the same one - two names for one object is a contradiction the trial has to spend itself resolving. A critical buys a bigger hint, not a new name: add it below.",
       "generalHint": "Take whatever is easiest to spot in this room. Settled by the dice.",
-      "nonObviousHint": "Go for the hardest thing here instead. Settled by the dice.",
+      "nonObviousHint": "Go for the hardest thing here instead, and for whatever does not belong in this room at all. Settled by the dice.",
       "followTracesHint": "Retrace your own steps and find what you left behind. Settled by the dice.",
       "specificHint": "Say what you are looking for. The GM decides what your gaze lands on.",
       "anythingHint": "Something that is not a trace - a person, a machine, the weather. The GM rules on it."

@@ -1709,6 +1709,8 @@
       "noRuling": "Żaden GM nie rozstrzygnął, na co patrzysz. Twoja akcja nie przepada.",
       "failedTitle": "Nic nie znajdujesz",
       "failed": "Nic nie przykuwa twojej uwagi. Tracisz {stress} Sanity.",
+      "projectFoundTitle": "Coś tu nie jest tym, na co wygląda",
+      "projectFound": "Pod powierzchnią tego pokoju ktoś coś buduje: {name}. Już o tym wiesz i widzisz, jak daleko zaszło.",
       "critIdentified": "Masz to - i wiesz, jakiego rodzaju to ślad.",
       "defaultName": "Ślad - {room}",
       "pickTitle": "Observe - który ślad?",
@@ -1726,7 +1728,7 @@
       "rerollLost": "Przyszedł Reroll Observe bez zapisu tutaj. Oceń nową liczbę ręcznie względem tego samego śladu i odbierz Truth Bullet, jeśli już nie pasuje.",
       "alreadyDescribed": "Ten ślad ma już nazwę i każdy obserwator słyszy tę samą - dwie nazwy jednego przedmiotu to fałszywa sprzeczność, którą trzeba by potem rozplątywać w Class Trial. Krytyk kupuje większą podpowiedź, nie nową nazwę: dopisz ją poniżej.",
       "generalHint": "Weź to, co najłatwiej zauważyć w tym pokoju. Rozstrzygają kości.",
-      "nonObviousHint": "Celuj w najtrudniejszą rzecz tutaj. Rozstrzygają kości.",
+      "nonObviousHint": "Celuj w najtrudniejszą rzecz tutaj - i w to, czego w tym pokoju w ogóle nie powinno być. Rozstrzygają kości.",
       "followTracesHint": "Wróć po własnych śladach i znajdź to, co po tobie zostało. Rozstrzygają kości.",
       "specificHint": "Powiedz, czego szukasz. GM decyduje, na czym zatrzyma się twój wzrok.",
       "anythingHint": "Coś, co nie jest śladem - osoba, maszyna, pogoda. GM to rozstrzyga."
@@ -4040,6 +4042,10 @@
         "observeFail": {
           "label": "Observe nie udaje się",
           "hint": "Słyszy obserwujący. Kosztuje Sanity i wygląda dokładnie jak sukces, dopóki nie przeczyta się karty."
+        },
+        "projectFound": {
+          "label": "Ktoś zauważa sekretny projekt",
+          "hint": "Słyszy student, który go wypatrzył, oraz GM-owie. Observe deklarowane jako \"coś nie na miejscu\" znalazło w pokoju rzecz, którą ktoś trzymał dla siebie - zdarza się to rzadziej niż znalezienie tropu i stół powinien usłyszeć, że padło."
         },
         "sabotageFailed": {
           "label": "Sabotaż nie udaje się",

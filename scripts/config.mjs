@@ -887,6 +887,46 @@ export function observeDc(visibility, type) {
 }
 
 /**
+ * SPOTTING A SECRET PROJECT - the only thing Observe finds that is not a trace.
+ *
+ * A project is a physical thing somebody is building in a room, and a secret one
+ * is that thing under a tarp. So it is findable, and the guide already has a
+ * number for exactly this shape of object: `hidden` visibility (it is concealed
+ * on purpose) crossed with the `prep` column (it is a preparation, not evidence
+ * of something that has happened). That is 18, and it is READ from the table
+ * rather than written here, so the two can never drift.
+ *
+ * WHICH DECLARATION is named in observe.mjs, against `DECLARATIONS.nonObvious`,
+ * rather than repeated here as a second string for the two to drift apart on.
+ * The rule is `nonObvious` and nothing else, and it is worth
+ * stating plainly, because the alternative was tried on paper and is worse:
+ *
+ *   · "check on every Observe" turns a DC 18 into a matter of time. A chapter's
+ *     worth of ordinary sweeps in a busy room beats 18 eventually, so the
+ *     project is not found by anybody in particular - it is found by attrition,
+ *     and the GM cannot plan against that.
+ *   · "the declaration that means I am looking for what does not belong" is a
+ *     choice with a price. Non-obvious already gives up the easy trace for the
+ *     hard one; this makes that trade worth taking in a room somebody is hiding
+ *     something in, and worthless everywhere else.
+ *
+ * A non-obvious Observe that beats both numbers gets BOTH - the hardest trace in
+ * the room and the project. That is deliberate: they are different objects at
+ * different difficulties, and a roll that cleared 18 has earned whatever was
+ * standing under it.
+ *
+ * WHAT IS NOT DECIDED HERE is whether an indirect murder's rig should be
+ * findable this way. It is, today, because one rule with no exception is the
+ * only kind this file can keep honest - and because a student noticing the
+ * killer's preparation is the game working, not a leak. It hands the finder the
+ * same access an accomplice has, which is the part that wants a table's opinion;
+ * a GM who disagrees takes it back with `unshareWith`, and it is live check 23.
+ */
+export const PROJECT_OBSERVE = {
+    dc: OBSERVE_DC.hidden.prep
+};
+
+/**
  * Failing an Observe roll costs the player Sanity.
  *
  * ONE, NOT TWO (Z1, from the E18 season run). Observe is the action a player
@@ -3899,6 +3939,11 @@ export const SFX_EVENTS = {
     observeFail: {
         label: "Observe fails",
         hint: "Heard by the observer. It costs Sanity and looks exactly like a success until the card is read.",
+        category: "world"
+    },
+    projectFound: {
+        label: "A secret project is noticed",
+        hint: "Heard by the student who spotted it and by the GMs. A non-obvious Observe found something in the room that somebody had been keeping to themselves - a rarer event than a trace, and one the table should hear land.",
         category: "world"
     },
     sabotageFailed: {

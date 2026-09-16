@@ -247,6 +247,27 @@ export function knownProjects(user = game.user) {
 }
 
 /**
+ * Secret projects standing in this room that this person is NOT in on.
+ *
+ * The candidate list for a non-obvious Observe (observe.mjs), and the reason it
+ * takes a USER rather than reading `game.user`: it is asked on the GM's client,
+ * about somebody else's character. Reading the ambient user there would answer
+ * "the GM is in on all of them" and the list would always be empty - which is
+ * the shape of bug that looks like a rule quietly not existing.
+ *
+ * `canSee`, not `knowsProject`: this is the ownership question. Discovery is
+ * about walking into a room, and the observer is standing in it - asking whether
+ * they have found the room would be asking a question whose answer is yes.
+ */
+export function secretsUnknownIn(room, user) {
+    if (!room || !user || user.isGM) return [];
+    return allProjects()
+        .filter(p => p.room === room)
+        .filter(p => isSecret(p.id))
+        .filter(p => !canSee(p.id, user));
+}
+
+/**
  * Is this project already full?
  *
  * A project at its target is DONE. Nothing else in the game can be advanced past
