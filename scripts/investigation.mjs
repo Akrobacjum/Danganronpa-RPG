@@ -934,8 +934,16 @@ function caseTracesPanel({ traces, shown, finders, reading }) {
     </div>`;
 }
 
-/** The planner's rows: one per planned Key Remnant, with the placed traces to pick from. */
-function caseKeyRows({ plan, status, placed, limit, roomOptions, visOptions }) {
+/**
+ * The planner's rows: one per planned Key Remnant, with the placed traces to
+ * pick from.
+ *
+ * Exported for the suite, which hands it a synthetic plan and a synthetic
+ * placed trace: every input it reads is an argument, so the one thing worth
+ * testing about it - that a placed row's pickers say what is on the map - can
+ * be measured without writing anything to the world.
+ */
+export function caseKeyRows({ plan, status, placed, limit, roomOptionsFor, visOptionsFor }) {
     // The same six facts the trace rows carry, in the same order - see
     // `traceContextLine`. A GM picking which placed trace an entry means was
     // choosing between "Evident · Kitchen · note" lines that said nothing about
@@ -958,8 +966,8 @@ function caseKeyRows({ plan, status, placed, limit, roomOptions, visOptions }) {
         // Read off the placed trace itself rather than off the plan: the plan
         // stores a scale and a sentence, and everything a GM wants to compare
         // between two clues - who left them, where, when - belongs to the trace.
-        const context = traceContextLine(
-            placed.find(r => r.token.id === entry.tokenId)?.data ?? null);
+        const here = placed.find(r => r.token.id === entry.tokenId)?.data ?? null;
+        const context = traceContextLine(here);
         const state = !entry.tokenId
             ? `<em>${game.i18n.localize("DRPG.Investigation.notPlaced")}</em>`
             : !st.placed
@@ -986,11 +994,13 @@ function caseKeyRows({ plan, status, placed, limit, roomOptions, visOptions }) {
                 </select>
             </td>
             <td>
-                <select name="room:${i}" class="${overLimit ? "drpg-key-limited" : ""}"${overLimit ? " disabled" : ""}>
-                    <option value="">${game.i18n.localize("DRPG.Investigation.pickRoom")}</option>
-                    ${roomOptions}
+                <select name="room:${i}" class="${overLimit ? "drpg-key-limited" : ""}"${
+                    here || overLimit ? " disabled" : ""}>
+                    ${here ? "" : `<option value="">${game.i18n.localize("DRPG.Investigation.pickRoom")}</option>`}
+                    ${roomOptionsFor(here?.room ?? null)}
                 </select>
-                <select name="vis:${i}" class="${overLimit ? "drpg-key-limited" : ""}"${overLimit ? " disabled" : ""}>${visOptions}</select>
+                <select name="vis:${i}" class="${overLimit ? "drpg-key-limited" : ""}"${
+                    here || overLimit ? " disabled" : ""}>${visOptionsFor(here?.visibility ?? null)}</select>
             </td>
             <td>${state}</td>
         </tr>`;
@@ -998,8 +1008,8 @@ function caseKeyRows({ plan, status, placed, limit, roomOptions, visOptions }) {
 }
 
 /** The Key Remnants tab: the planner and its warnings. */
-function caseKeyPanel({ plan, status, placed, limit, roomOptions, visOptions }) {
-    const keyRows = caseKeyRows({ plan, status, placed, limit, roomOptions, visOptions });
+function caseKeyPanel({ plan, status, placed, limit, roomOptionsFor, visOptionsFor }) {
+    const keyRows = caseKeyRows({ plan, status, placed, limit, roomOptionsFor, visOptionsFor });
     // The guide's floor is three Key Remnants; the plan's own warning threshold
     // is one above it, so a GM is told the trial is getting thin BEFORE it is
     // actually unsolvable rather than at the moment it already is.
@@ -1108,9 +1118,27 @@ function caseHtml(reading, { allRooms, murderState, finalRemnants, finalTruthPla
     // freely". See `def.keyRemnants` in config.mjs and `murderState()`.
     const limit = murderState()?.keyRemnants ?? null;
 
-    const roomOptions = rooms.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join("");
-    const visOptions = REMNANT_VISIBILITY.map(v =>
-        `<option value="${v}"${v === "evident" ? " selected" : ""}>${
+    /* THE TWO PICKERS SAY WHAT IS THERE, NOT WHAT THE LAST DEFAULT WAS.
+       -----------------------------------------------------------------------
+       Both used to be one string built here and stamped into every row, with
+       `selected` hardcoded on "evident" and no room chosen at all. On an EMPTY
+       row that is right: they are an input, "create this one here, this
+       visible", and Evident is the sensible default.
+
+       On a row whose Key Remnant is already ON THE MAP it was a lie, and the
+       one the GM reported (16.09): a clue placed as Subtle showed "Evident" in
+       its own row, and one placed in the Kitchen showed "Pick a room". The
+       picker is not even an input there - `applyDashboardSave` leaves rows that
+       already point at a token alone, which the note under the table says - so
+       it was a control that did nothing, reading out a value nobody had chosen.
+
+       So a placed row's pickers are the TRACE's own room and visibility,
+       selected and disabled: a fact rather than a control. An empty row keeps
+       the input it was. */
+    const roomOptionsFor = chosen => rooms.map(r =>
+        `<option value="${esc(r)}"${r === chosen ? " selected" : ""}>${esc(r)}</option>`).join("");
+    const visOptionsFor = chosen => REMNANT_VISIBILITY.map(v =>
+        `<option value="${v}"${v === (chosen || "evident") ? " selected" : ""}>${
             esc(REMNANT_VISIBILITY_LABELS[v] ?? v)}</option>`).join("");
 
     const studentRows = caseStudentRows(students);
@@ -1138,9 +1166,14 @@ function caseHtml(reading, { allRooms, murderState, finalRemnants, finalTruthPla
 
         ${caseTracesPanel({ traces, shown, finders, reading })}
 
-        ${caseKeyPanel({ plan, status, placed, limit, roomOptions, visOptions })}
+        ${caseKeyPanel({ plan, status, placed, limit, roomOptionsFor, visOptionsFor })}
 
-        ${caseFinalPanel({ roomOptions, visOptions, finalRemnants, finalTruthPlacedThisChapter })}
+        ${caseFinalPanel({
+            /* The Final Key Remnant is always an input - it is being placed, not
+               read back - so it takes the plain lists: every room, none chosen,
+               and Evident as the default. */
+            roomOptions: roomOptionsFor(null), visOptions: visOptionsFor(null),
+            finalRemnants, finalTruthPlacedThisChapter })}
 
     </form></div>`;
 }

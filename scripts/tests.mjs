@@ -7066,6 +7066,75 @@ const SCENARIOS = [
             "the evidence stage stayed on screen with nothing on it");
     }],
 
+    ["the Key Remnant planner says what is on the map, not what the default was", async () => {
+        /*
+         * REPORTED AT THE TABLE, 16.09: "the dashboard shows different types of
+         * Key Remnant than we really have". It did.
+         *
+         * The planner's room and visibility pickers were one string built once
+         * and stamped into every row, with `selected` hardcoded on "evident"
+         * and no room chosen. On an empty row that is correct - they are an
+         * input, "create this one here, this visible". On a row whose clue is
+         * already ON THE MAP it was a lie twice over: a trace placed as Subtle
+         * read "Evident" in its own row, one placed in the Kitchen read "Pick a
+         * room", and the control did nothing either way, because the save
+         * deliberately leaves rows that already point at a token alone.
+         *
+         * Driven with a synthetic plan and a synthetic trace rather than by
+         * placing one: every input this builder reads is an argument, so the
+         * world is not touched and the test measures the builder rather than
+         * the placement.
+         */
+        const { caseKeyRows } = await import("./investigation.mjs");
+        const { REMNANT_VISIBILITY, REMNANT_VISIBILITY_LABELS } = await import("./config.mjs");
+
+        const roomOptionsFor = chosen => ["Kitchen", "Gym"].map(r =>
+            `<option value="${r}"${r === chosen ? " selected" : ""}>${r}</option>`).join("");
+        const visOptionsFor = chosen => REMNANT_VISIBILITY.map(v =>
+            `<option value="${v}"${v === (chosen || "evident") ? " selected" : ""}>${
+                REMNANT_VISIBILITY_LABELS[v]}</option>`).join("");
+
+        const placed = [{
+            token: { id: "TOKKEY0000000001" },
+            scene: { id: "SCN0000000000001", name: "School" },
+            data: { visibility: "subtle", visibilityLabel: "Subtle", room: "Kitchen", note: "" }
+        }];
+        const plan = { chapter: 1, entries: [
+            { scale: "trivial", name: "", text: "", note: "", tokenId: "TOKKEY0000000001", sceneId: "SCN0000000000001" },
+            { scale: "standard", name: "", text: "", note: "", tokenId: null, sceneId: null }
+        ] };
+        const status = { entries: [
+            { placed: true, found: false, finders: [] },
+            { placed: false, found: false, finders: [] }
+        ] };
+
+        const html = caseKeyRows({ plan, status, placed, limit: null, roomOptionsFor, visOptionsFor });
+        const rows = html.split("<tr").slice(1);
+        equal(rows.length, 2, "the planner did not draw one row per planned clue");
+
+        /* ---- the placed row tells the truth and offers no control ---------- */
+        const on = rows[0];
+        ok(/<select name="vis:0"[^>]*disabled/.test(on),
+            "the visibility picker on a placed Key Remnant is still a control, and pressing it does nothing");
+        ok(/<option value="subtle" selected>/.test(on),
+            "a Key Remnant placed as Subtle is shown as something else in its own row");
+        ok(!/<option value="evident" selected>/.test(on),
+            "the placed row is still defaulting to Evident over the trace's own visibility");
+        ok(/<option value="Kitchen" selected>/.test(on),
+            "a Key Remnant placed in the Kitchen does not say so in its own row");
+        ok(!on.includes(game.i18n.localize("DRPG.Investigation.pickRoom")),
+            "a placed row still offers to pick a room for a clue that is already on the map");
+
+        /* ---- and the empty row is still the input it was ------------------- */
+        const off = rows[1];
+        ok(!/<select name="vis:1"[^>]*disabled/.test(off),
+            "an unplaced row lost the picker it needs to be placed with");
+        ok(/<option value="evident" selected>/.test(off),
+            "an unplaced row stopped defaulting to Evident");
+        ok(off.includes(game.i18n.localize("DRPG.Investigation.pickRoom")),
+            "an unplaced row cannot be given a room");
+    }],
+
     ["the portrait picker is a control a keyboard can reach and a reader can name", async () => {
         /*
          * AUDIT 15.09, AND THE TEST ABOVE COULD NOT HAVE CAUGHT IT.
