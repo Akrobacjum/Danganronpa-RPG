@@ -993,12 +993,8 @@ body.drpg-pixel-font .character-sidebar-sheet .resources-section .slot-label .la
     opacity: 0.85;
 }
 
-#drpg-hud .drpg-hud-day {
-    font-size: var(--font-size-12, 0.75rem);
-    text-transform: uppercase;
-    letter-spacing: 0.14em;
-    opacity: 0.6;
-}
+/* `.drpg-hud-day` stood here. The clock prints "Chapter 1 · Day 3" on one line
+   in both themes since 1.2.47 - `.drpg-hud-chapter` above carries it. */
 
 #drpg-hud .drpg-hud-phase {
     font-size: var(--font-size-15, 0.95rem);
@@ -2738,7 +2734,6 @@ body.drpg-pixel-font #drpg-hud .drpg-hud-campaign {
 }
 
 body.drpg-pixel-font #drpg-hud .drpg-hud-chapter,
-body.drpg-pixel-font #drpg-hud .drpg-hud-day,
 body.drpg-pixel-font #drpg-hud .drpg-hud-time {
     font-size: var(--font-size-10, 0.62rem);
     letter-spacing: 0.02em;
@@ -4183,6 +4178,18 @@ body.drpg-pixel-font [contenteditable] {
     font-size: 1.05rem;
 }
 
+/* THE BADGE STRIP STARTS AT THE LEFT MARGIN ON A CARD, NOT AT THE RIGHT.
+   `.drpg-tb-badges` carries `margin-left: auto`, which is right where it was
+   written for - the inventory's rows, where the badges line up at the right of
+   a name on the same line. An evidence card is a COLUMN, so that margin pushed
+   the whole strip across the card with a hole under the name. */
+.drpg-evidence-card .drpg-tb-badges { margin-left: 0; }
+
+/* On the stage the card is the middle of the screen and the name is what the
+   table is arguing about, so it is sized like a heading rather than like a line
+   of a receipt. In the corner and in the chat log it stays as it was. */
+#drpg-evidence .drpg-evidence-name { font-size: 1.35rem; line-height: 1.2; }
+
 .drpg-evidence-text {
     margin: 0;
 }
@@ -5442,6 +5449,52 @@ body:not(.drpg-gm) .character-header-sheet .character-traits .trait input[name*=
     pointer-events: none;
 }
 
+/* ---- the evidence stage ---------------------------------------------------
+   Where a Class Trial's evidence stands, which is NOT the corner with the
+   receipts. The corner tile is 430 x 220 and cannot grow - it shares that
+   corner with Foundry's tool rail, and every larger size was measured taking
+   the rail's glass away (the sweep is at the top of stained-glass.css) - while
+   an objection carrying a Truth Bullet with its analysis and a comment needs
+   459 px. So the card that is meant to be READ takes the middle of the map,
+   which is the one part of the screen nothing else is using while the table
+   argues. popup.mjs creates this on the first card and removes it with the
+   last, so an empty stage is never a box over the map.
+
+   UNDER THE WINDOWS, ON PURPOSE. `#drpg-popups` sits at 99990 because a notice
+   has to be seen over anything; evidence is the opposite - it stands for
+   minutes, and a ballot, a sheet or the GM's panel opened on top of it must be
+   reachable. One below Foundry's own app layer puts it over the board and the
+   curtain and under every window, with no guessing at a number: Foundry states
+   `--z-index-app` itself. */
+#drpg-evidence {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: calc(var(--z-index-app, 30) - 1);
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    width: min(46rem, calc(100vw - 48px));
+    /* Taller than the screen is the one case the stage itself scrolls; a single
+       card is never clipped, which is the whole point of moving it here. */
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    /* The stage is a hole in the air: only the cards in it take clicks, so the
+       map stays draggable in the gaps between them. */
+    pointer-events: none;
+}
+#drpg-evidence .drpg-popup {
+    pointer-events: auto;
+    width: 100%;
+    /* The corner tile caps its cards; this one does not, and must not - a cap
+       here would put the clipping back where it was taken from. */
+    max-height: none;
+    cursor: default;
+}
+
 .drpg-popup {
     pointer-events: auto;
     /* 27rem tracks the notice tile's own `--drpg-note-w` (430 px): under
@@ -6104,37 +6157,9 @@ body.drpg-pixel-font .drpg-hud-elapsed {
     font-size: var(--drpg-text-xs);
 }
 
-/* The incident line: only participants and GMs ever see this rendered. */
-.drpg-hud-incident {
-    margin-top: 4px;
-    padding-top: 4px;
-    border-top: 1px solid var(--drpg-red);
-    font-size: var(--font-size-11, 0.7rem);
-    line-height: 1.4;
-}
-
-.drpg-hud-incident-turn {
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--drpg-dim);
-}
-
-/* Your turn is the one thing here that needs to interrupt you. */
-.drpg-hud-incident-turn.mine {
-    color: var(--drpg-red);
-    font-weight: 700;
-}
-
-.drpg-hud-incident-left {
-    opacity: 0.75;
-    font-variant-numeric: tabular-nums;
-}
-
-body.drpg-pixel-font .drpg-hud-incident {
-    font-family: var(--drpg-font-pixel);
-    font-size: var(--drpg-text-xs);
-    letter-spacing: 0;
-}
+/* The incident line's four rules stood here. The incident is a card of the
+   Event panel in both themes since 1.2.47 (`incidentCard` in events.mjs), and
+   `.drpg-event[data-kind="incident"]` above is what carries its colour now. */
 
 /* ==========================================================================
    THE STATUS STRIP USES THE SHEET'S OWN MARKS
@@ -8879,47 +8904,175 @@ body.drpg-pixel-font .application:not(.dialog):not(.sheet.actor):not([class*="dr
     .drpg-call-button.drpg-call-pending::after { animation: none; }
 }
 
-/* --- the two HUD rows ----------------------------------------------------
-   Both sit under the elapsed line and both are absent unless there is
-   something to say, which is what keeps the right column where it was on an
-   ordinary time of day (trap 108). Same size and letterspacing as the elapsed
-   row above them, so the block reads as one stack rather than as three
-   different widgets. */
-.drpg-hud-motive,
-.drpg-hud-assembly {
+/* ---- one masked sprite, wherever the module wants a glyph of its own -------
+   pixel-icons.css masks Font Awesome where the module already draws an icon.
+   This is for the places where it draws none and the audit page does: the phase
+   on the clock, and the kind of an event. One class, and the sprite comes from
+   `--drpg-px-mask`.
+
+   HERE RATHER THAN IN pixel-icons.css, which is generated and would eat it, and
+   not in stained-glass.css, where it lived until 1.2.47: both places that use it
+   are in both themes now, and under Legacy an unmasked `.drpg-pxi` came out as a
+   solid square of its own colour. The sprite TOKENS are on the body (the
+   generator states them unscoped for the same reason); the masking of Foundry's
+   own icons stays Stained Glass only. */
+.drpg-pxi {
+    display: inline-block;
+    width: 1.2em;
+    height: 1.2em;
+    flex: 0 0 auto;
+    vertical-align: -0.22em;
+    background-color: currentColor;
+    -webkit-mask: var(--drpg-px-mask) center / contain no-repeat;
+    mask: var(--drpg-px-mask) center / contain no-repeat;
+    image-rendering: pixelated;
+}
+
+/* WHICH SPRITE A FACT WEARS. These were inside `body.drpg-theme-stained-glass`,
+   which made the picture a property of the THEME; it is a property of the fact.
+   An incident is a knife and a motive is an envelope whichever palette is on,
+   and Monokuma Legacy is the pixel-art theme - if either of the two had the
+   weaker claim to a pixel sprite it was not that one. Size and colour stay with
+   each theme. */
+.drpg-hud-phase-glyph { --drpg-px-mask: var(--drpg-px-sun); }
+body[data-drpg-time="noon"] .drpg-hud-phase-glyph { --drpg-px-mask: var(--drpg-px-noon); }
+body[data-drpg-time="afternoon"] .drpg-hud-phase-glyph { --drpg-px-mask: var(--drpg-px-afternoon); }
+body[data-drpg-time="evening"] .drpg-hud-phase-glyph { --drpg-px-mask: var(--drpg-px-sunset); }
+body[data-drpg-time="night"] .drpg-hud-phase-glyph { --drpg-px-mask: var(--drpg-px-moon); }
+body[data-drpg-phase="investigation"] .drpg-hud-phase-glyph { --drpg-px-mask: var(--drpg-px-lens); }
+body[data-drpg-phase="classTrial"] .drpg-hud-phase-glyph { --drpg-px-mask: var(--drpg-px-gavel); }
+body[data-drpg-phase="eclipse"] .drpg-hud-phase-glyph { --drpg-px-mask: var(--drpg-px-eclipse); }
+
+.drpg-event-glyph { --drpg-px-mask: var(--drpg-px-bell); }
+/* The barrier, not the skull: a safeword is a hand up, not a death. */
+.drpg-event[data-kind="safeword"] .drpg-event-glyph { --drpg-px-mask: var(--drpg-px-barrier); }
+.drpg-event[data-kind="incident"] .drpg-event-glyph { --drpg-px-mask: var(--drpg-px-murder); }
+.drpg-event[data-kind="body"] .drpg-event-glyph { --drpg-px-mask: var(--drpg-px-murder); }
+.drpg-event[data-kind="motive"] .drpg-event-glyph { --drpg-px-mask: var(--drpg-px-envelope); }
+.drpg-event[data-kind="assembly"] .drpg-event-glyph { --drpg-px-mask: var(--drpg-px-horn); }
+.drpg-event[data-kind="trial"] .drpg-event-glyph { --drpg-px-mask: var(--drpg-px-gavel); }
+.drpg-event[data-kind="overflow"] .drpg-event-glyph { --drpg-px-mask: var(--drpg-px-heartcrack); }
+
+/* --- the Event panel, in both themes --------------------------------------
+   `.drpg-hud-motive` and `.drpg-hud-assembly` were here: two rows of the clock
+   that Monokuma Legacy used while Stained Glass showed the same facts as cards
+   in the Event panel. Both the rows and the four builders behind them went in
+   1.2.47 (see `appendHudExtras`'s tombstone in hud.mjs) - one set of facts had
+   two implementations and the Legacy one was the poorer of them, missing the
+   opening roll and the Despair overflow outright.
+
+   What is here now is the panel's STRUCTURE, unscoped, so both themes have a
+   panel at all. stained-glass.css keeps its own block for the LOOK and every
+   selector there is theme-scoped, so it wins these on specificity without
+   either file having to know about the other. */
+#drpg-events {
+    width: 412px;
+    max-width: 100%;
+    margin: 8px auto 0;
     display: flex;
+    flex-direction: column;
     gap: 6px;
-    justify-content: center;
-    align-items: baseline;
-    font-size: var(--font-size-11, 0.7rem);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    /* The panel says things; it has no button in it, so it takes no clicks and
+       the map underneath stays draggable through it. */
+    pointer-events: none;
+}
+
+.drpg-event {
+    --acc: var(--drpg-gold-antique);
+    position: relative;
+    overflow: hidden;
+    padding: 8px 10px;
+    text-align: center;
+}
+
+/* THE PLATE IS MONOKUMA LEGACY'S ALONE, and that is not a detail: under Stained
+   Glass a card stands on a pane of the curtain cut for the panel, so the card
+   itself states no background and no border - giving it one here put an opaque
+   plate over the glass and the panel stopped being part of the window. */
+body.drpg-theme-monokuma-legacy .drpg-event {
+    border: 1px solid var(--drpg-window-edge);
+    /* The accent states the kind on the edge rather than by flooding the card:
+       a panel of four cards in four different colours is a fruit bowl. */
+    border-left: 3px solid var(--acc);
+    background: light-dark(var(--drpg-paper-alt), var(--drpg-ink));
+}
+body.drpg-theme-monokuma-legacy .drpg-event-meta {
+    border-top: 1px solid var(--drpg-window-edge);
+}
+
+/* Which fact this is, said as a picture. The sprite is chosen in
+   pixel-icons.css, where the sprites live and where both themes can reach it;
+   here it is only sized and coloured. */
+.drpg-event-glyph {
+    display: block;
+    width: 28px;
+    height: 28px;
+    margin: 0 auto 4px;
+    color: var(--acc);
+}
+
+.drpg-event-title {
+    font-family: var(--drpg-font-title, inherit);
+    font-size: 1rem;
+    line-height: 1.15;
+    color: var(--acc);
+}
+
+.drpg-event-sub {
+    font-size: 0.85rem;
     margin-top: 2px;
 }
 
-.drpg-hud-motive-label,
-.drpg-hud-assembly-label {
-    opacity: 0.55;
-}
-
-.drpg-hud-motive-left,
-.drpg-hud-assembly-room {
-    color: var(--drpg-bone);
-    opacity: 0.95;
+.drpg-event-meta {
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.7;
+    margin-top: 5px;
+    padding-top: 5px;
     font-variant-numeric: tabular-nums;
 }
 
-/* Due is the one moment the countdown was for, so it is the one moment the row
-   is allowed to shout. Blood, because a motive coming due is Monokuma's. */
-.drpg-hud-motive.due .drpg-hud-motive-left {
+/* The half of a motive that says what ignoring it costs. It was a tooltip until
+   1.2.47, which is to say it was unreadable on a shared screen and unreachable
+   from a keyboard. */
+.drpg-event-note {
+    font-size: 0.8rem;
+    font-style: italic;
+    opacity: 0.8;
+    line-height: 1.25;
+    margin-top: 3px;
+}
+
+/* Due, or yours, is the one moment a card is allowed to shout. */
+.drpg-event.due .drpg-event-meta,
+.drpg-event.mine .drpg-event-meta {
     color: var(--drpg-blood);
     opacity: 1;
     animation: drpg-pending-pulse 1.6s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .drpg-hud-motive.due .drpg-hud-motive-left { animation: none; }
+    .drpg-event.due .drpg-event-meta,
+    .drpg-event.mine .drpg-event-meta { animation: none; }
 }
+
+/* The ticker is a faint second copy of the card's own word, drawn behind it -
+   a texture Stained Glass builds out of a faint colour, and Monokuma Legacy has
+   no faint colours (the forced-colours block makes the same point further
+   down). events.mjs still builds the element; here it simply does not show. */
+.drpg-event-ticker { display: none; }
+
+/* Which accent each kind wears. The names are the module's own palette, so the
+   mapping reads the same in both themes even though the colours do not. */
+/* The safeword is the loudest thing this panel ever says. */
+.drpg-event[data-kind="safeword"] { --acc: var(--drpg-blood); }
+.drpg-event[data-kind="incident"] { --acc: var(--drpg-blood); }
+.drpg-event[data-kind="body"] { --acc: var(--drpg-blood); }
+.drpg-event[data-kind="motive"] { --acc: var(--drpg-crimson); }
+.drpg-event[data-kind="assembly"] { --acc: var(--drpg-gold-antique); }
+.drpg-event[data-kind="trial"] { --acc: var(--drpg-crimson); }
+.drpg-event[data-kind="overflow"] { --acc: var(--drpg-crimson); }
 
 /* ==========================================================================
    STAGE 5, THIRD TRANCHE - THE FOURTEEN CRISIS ACTIONS
@@ -15118,6 +15271,7 @@ body.drpg-explainers :is(#drpg-hud, #drpg-despair, #drpg-player-status, #countdo
     #countdowns,
     #drpg-events,
     #drpg-popups .drpg-popup,
+    #drpg-evidence .drpg-popup,
     .drpg-panel {
         border: 1px solid CanvasText !important;
         background: Canvas !important;

@@ -31,13 +31,40 @@ import { keyPlanStatus } from "./investigation.mjs";
 import { SETTINGS, bodyDiscovery, bodyDiscoveryFresh, incidentCast, incidentParticipants,
     incidentWitness } from "./settings.mjs";
 import { overflowEffect, overflowStatus, overflowRules } from "./overflow.mjs";
+import { SAFEWORD_FLAG } from "./safeword.mjs";
+import { trialProgress, VOTE_OPEN_FLAG, votesIn, pendingVoters } from "./vote.mjs";
 import { narrowColumn } from "./narrow.mjs";
 
 const WIDGET_ID = "drpg-events";
 
-/** The panel exists only under the Stained Glass theme. */
+/**
+ * BOTH THEMES, SINCE 1.2.47, AND THE REASON IS NOT DECORATION.
+ * ---------------------------------------------------------------------------
+ * This panel used to be Stained Glass only, and the four standing threats went
+ * back to being rows of the clock under Monokuma Legacy so that theme "stayed
+ * exactly the look it was". What that actually bought was two implementations
+ * of the same four facts - `motiveCard` here and `buildMotive` in hud.mjs, and
+ * so on - and a Legacy screen that was missing information, not just styling:
+ *
+ *   the opening roll     no row at all
+ *   the Despair overflow no row at all
+ *   a body found         a row that vanished the moment the investigation
+ *                        started, because it read `bodyDiscovery()` alone and
+ *                        that record is cleared then; the card here stands for
+ *                        the whole investigation
+ *   the motive           a row whose consequence was in a tooltip only
+ *
+ * So there is one implementation now and both themes get all of it. The clock
+ * is a clock in both, which is what it was always supposed to be. What stays
+ * theme-specific is the LOOK (stained-glass.css and the Legacy block beside it)
+ * and the ticker behind the clock, which is a texture rather than a fact.
+ *
+ * Kept as a function rather than deleted at every call site: it is what the
+ * a11y sweep and the suite name when they ask whether this panel is a thing,
+ * and a predicate that is true everywhere is cheaper to read than an absence.
+ */
 export function eventsWindowActive() {
-    return document.body.classList.contains("drpg-theme-stained-glass");
+    return true;
 }
 
 /* THE KICKER IS GONE, AND WHAT IT SAID IS THE REASON (16.09).
@@ -201,13 +228,112 @@ function incidentCard() {
 }
 
 /**
+ * THE SCENE IS STOPPED, and it stays stopped until somebody says otherwise.
+ *
+ * The safeword's own card is a sticky popup on the client that receives the
+ * announcement, which is right for the moment it lands and wrong for the ten
+ * minutes afterwards: somebody closes it, somebody else joins, and the one
+ * state in this game that means "nothing happens now" is on nobody's screen.
+ *
+ * NO NEW STATE, and that is the whole of why this reads the way it does. The
+ * safeword pauses the game (`game.togglePause`, safeword.mjs) and the clock
+ * stamps `pausedAt` when it does, so "is the game stopped" is already answered
+ * twice over. What is left is "was it stopped BY a safeword", and the chat log
+ * is the record: the announcement carries `SAFEWORD_FLAG` and a timestamp. An
+ * ordinary pause - somebody pressed Foundry's own button - gets no card, and
+ * should not: Foundry draws its own banner for that.
+ *
+ * WHO CALLED IT IS NOT ON THE CARD, ever. The handbook's protection is that
+ * nobody has to explain themselves, and the public announcement says "somebody"
+ * for exactly that reason (safeword.mjs). The name travels to the GMs over a
+ * recipient-addressed socket and stops there; this card is drawn on everybody's
+ * screen, so it knows nothing to leak.
+ *
+ * The slack is for the order of two writes, not for a guess: the message is
+ * posted and the pause follows it, both asynchronously, so a message a few
+ * seconds older than the stamp is still this pause's.
+ */
+const SAFEWORD_SLACK_MS = 15000;
+/* Exported for the suite, which passes a clock of its own rather than moving
+   the world's: both of these take one and read nothing else off it. */
+export function safewordCard(clock) {
+    try {
+        if (!game.paused || !clock.pausedAt) return null;
+        const called = (game.messages ?? []).reduce((newest, m) => {
+            if (!m.getFlag(MODULE_ID, SAFEWORD_FLAG)) return newest;
+            return !newest || m.timestamp > newest.timestamp ? m : newest;
+        }, null);
+        if (!called || called.timestamp < clock.pausedAt - SAFEWORD_SLACK_MS) return null;
+
+        return {
+            kind: "safeword",
+            // It is waiting on a person, and `due` is how this panel says so.
+            due: true,
+            title: game.i18n.localize("DRPG.Events.safewordTitle"),
+            sub: game.i18n.localize("DRPG.Events.safewordSub"),
+            meta: game.i18n.localize(game.user.isGM
+                ? "DRPG.Events.safewordMetaGm" : "DRPG.Events.safewordMeta")
+        };
+    } catch (err) {
+        error("Could not read the safeword for the Event panel", err);
+        return null;
+    }
+}
+
+/**
+ * IS THERE A VOTE OPEN, asked without inventing anywhere new to keep it.
+ *
+ * `ballots` lives on the GM's client and nowhere else, so a player's browser
+ * cannot answer this at all - which is the gap `pendingVoters` exists for: a
+ * player who dismissed their ballot by accident had nothing on screen telling
+ * them the table was waiting. Two facts that are already shared answer it:
+ * the flagged announcement `openVote` posts (the log is the record), and
+ * `voteClosed` in `trialProgress`, which is a world setting and is what
+ * `closeVote` writes. Both are chapter-stamped, because the log outlives the
+ * trial and a record from another chapter describes another vote.
+ */
+function voteIsOpen(clock) {
+    try {
+        if (trialProgress().voteClosed) return false;
+        return (game.messages ?? []).some(m =>
+            m.getFlag(MODULE_ID, VOTE_OPEN_FLAG)
+            && m.getFlag(MODULE_ID, "voteChapter") === clock.chapter);
+    } catch {
+        return false;
+    }
+}
+
+/**
  * Whose floor it is in the Class Trial: the mode, the speaker, and who they
  * aimed at. The same reading hud.mjs `trialSlot` makes for the time row; here
  * it is a card, so the clock can stay a clock.
+ *
+ * THE VOTE IS A MODE OF THIS CARD AND NOT A CARD OF ITS OWN, because it is the
+ * same fact the rest of the time: what the trial is doing right now. A second
+ * card would put two gavels in the panel and leave the reader to work out which
+ * of them is live. What differs is what the two sides may know - everybody is
+ * told the vote is open, and only a GM is told how many ballots are back, since
+ * `votesIn` and `pendingVoters` answer on that client alone. HOW anybody voted
+ * is not here and is not anywhere: that is the one thing the guide keeps.
  */
-function trialCard(clock) {
+export function trialCard(clock) {
     try {
         if (clock.phase !== "classTrial") return null;
+
+        if (voteIsOpen(clock)) {
+            const back = game.user.isGM ? votesIn() : null;
+            const out = game.user.isGM ? (pendingVoters()?.length ?? null) : null;
+            return {
+                kind: "trial",
+                due: true,
+                title: game.i18n.localize("DRPG.Events.voteTitle"),
+                sub: game.i18n.localize("DRPG.Events.voteSub"),
+                meta: back === null || out === null
+                    ? game.i18n.localize("DRPG.Events.voteMeta")
+                    : game.i18n.format("DRPG.Events.voteMetaGm", { back, total: back + out })
+            };
+        }
+
         const floor = trialFloor();
         const key = floor ? floor.mode : "discussion";
         const unknown = "-";
@@ -425,7 +551,10 @@ export function renderEvents() {
         if (!eventsWindowActive() || !game.user) { existing?.remove(); return; }
 
         const clock = getClock() ?? {};
-        const cards = [trialCard(clock), openingCard(), incidentCard(), bodyCard(clock), overflowCard(), assemblyCard(), motiveCard()].filter(Boolean);
+        /* The safeword is first because it outranks everything: while the scene
+           is stopped, nothing else on this panel is happening. */
+        const cards = [safewordCard(clock), trialCard(clock), openingCard(), incidentCard(),
+            bodyCard(clock), overflowCard(), assemblyCard(), motiveCard()].filter(Boolean);
         if (!cards.length) { existing?.remove(); return; }
 
         // Redraw only when something changed: the panel is on the curtain, and

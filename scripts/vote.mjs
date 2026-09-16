@@ -48,6 +48,9 @@ let ballots = null;
 
 /** Who the ballots went out to, frozen at `openVote` (CASE-14). */
 let issuedTo = null;
+
+/** The flag on the "a vote is open" announcement. Read by events.mjs. */
+export const VOTE_OPEN_FLAG = "voteOpen";
 /* ==========================================================================
  * HOW FAR THROUGH THE TRIAL THE TABLE HAS GOT
  * --------------------------------------------------------------------------
@@ -270,8 +273,21 @@ export async function openVote({ picks = null } = {}) {
     sendBallots(voters);
     Hooks.callAll("drpgBallotsChanged");
 
+    /* FLAGGED, SO THE EVENT PANEL CAN SEE IT (1.2.47).
+       `ballots` is a module-level Map on the GM's client and nothing else - a
+       player's browser cannot tell a vote is running at all, which is exactly
+       the gap `pendingVoters` was written for: somebody who dismissed their
+       ballot by accident had nothing anywhere to tell them so. The message is
+       the record, the way the safeword's is: this flag plus `voteClosed` in
+       `trialProgress` (a world setting everybody reads) is "a vote is open" with
+       no new state to keep in step. The chapter rides along because the log
+       outlives the trial. */
     await announce({
-        flags: { [MODULE_ID]: { sfx: { key: "voteOpen", gm: true } } },
+        flags: { [MODULE_ID]: {
+            sfx: { key: "voteOpen", gm: true },
+            [VOTE_OPEN_FLAG]: true,
+            voteChapter: getClock().chapter
+        } },
         content: `<div class="drpg-evidence-card">
             <div class="drpg-objection-banner">${game.i18n.localize("DRPG.Vote.banner")}</div>
             <p>${game.i18n.format("DRPG.Vote.opened", { n: voters.length })}</p>

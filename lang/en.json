@@ -892,6 +892,7 @@
       "bodyHoldMeta": "Everything has stopped. Nobody is searching yet.",
       "bodyHoldMetaGm": "Start the Investigation when the room is ready.",
       "ticker": {
+        "safeword": "Stop",
         "overflow": "Overflow",
         "incident": "Incident",
         "body": "Body found",
@@ -904,6 +905,14 @@
       "openingMeta": "The opening roll decides how it begins",
       "incidentSub": "{killer} against {victim}",
       "incidentSubRoom": "{killer} against {victim}, in {room}",
+      "safewordTitle": "The scene is stopped",
+      "safewordSub": "Somebody called the safeword.",
+      "safewordMeta": "Nothing moves until the table picks it back up.",
+      "safewordMetaGm": "Unpause when everyone is ready, and not before.",
+      "voteTitle": "The vote is open",
+      "voteSub": "Name the blackened.",
+      "voteMeta": "The trial waits on the ballots.",
+      "voteMetaGm": "{back} of {total} ballots back",
       "trialFloorOpen": "Everyone has the floor"
     },
     "Look": {

@@ -24,14 +24,13 @@ import { MODULE_ID, TIMES_OF_DAY, ECLIPSE_FREE_PLACEMENT, ECLIPSE_MOVES, TIMING 
 import { overflowCrossings } from "./overflow.mjs";
 import { getClock, setClock, campaignName, phaseLabel, timeOfDayLabel, rewindTimeOfDay } from "./clock.mjs";
 import { play, TURN, ARRIVE, LEAVE } from "./motion.mjs";
-import { isPrimaryGm, error, plural } from "./utils.mjs";
+import { isPrimaryGm, error } from "./utils.mjs";
 import { isSyncedSetting } from "./sync.mjs";
 // Leaves, both: settings.mjs imports config.mjs and nothing else, and
 // character.mjs reaches config and utils. These two readers used to be
 // private copies here "for the cycle" (audit C3) - the cycle was real, the
 // copies were the wrong cure.
-import { incomingTimeOfDay, bodyDiscovery, incidentCast, incidentWitness } from "./settings.mjs";
-import { remaining } from "./character.mjs";
+import { incomingTimeOfDay, incidentWitness } from "./settings.mjs";
 // Static, and checked before adding: this file avoids static imports because it
 // sits on the render path the clock itself calls back into, so a cycle here
 // would be a load-order problem rather than a lint complaint. None of these
@@ -43,9 +42,7 @@ import { SearchTokens } from "./search-tokens.mjs";
 import { isMonokuma, poolUserFor, ownStudent } from "./monokuma.mjs";
 // Static, and safe: nothing imports hud.mjs, so no path leads back here.
 import { murderState, participantIds } from "./murder.mjs";
-import { motive } from "./rules.mjs";
-import { pendingGather } from "./call-effects.mjs";
-import { renderEvents, eventsWindowActive } from "./events.mjs";
+import { renderEvents } from "./events.mjs";
 // The fifth, added when the trial's own bar was folded into this widget. Walked
 // like the four above and clean: trial-floor.mjs reaches config, settings and
 // utils and nothing else - it stopped importing trial.mjs when the evidence
@@ -238,15 +235,15 @@ function hudTicker(phase, clock) {
 
 /** The campaign's name, the chapter and day, and the phase line with its glyph. */
 function hudHeader(clock) {
-    /* CHAPTER AND DAY ARE ONE LINE UNDER THE THEME.
+    /* CHAPTER AND DAY ARE ONE LINE, IN BOTH THEMES.
        Two rows for six words, in a pane whose height the curtain is cut around: the
        audit page draws them as one line with a divider, which is a row of glass
-       saved on every screen. Monokuma Legacy keeps its two rows. */
+       saved on every screen. Monokuma Legacy kept its two rows until 1.2.47 and
+       has no reason to - the clocks are meant to say the same thing in the same
+       shape now that both themes have the Event panel beside them. */
     const chapterText = game.i18n.format("DRPG.Hud.chapter", { n: clock.chapter });
     const dayText = game.i18n.format("DRPG.Hud.day", { n: clock.day ?? 1 });
-    const dateLines = eventsWindowActive()
-        ? [line("drpg-hud-chapter", `${chapterText} · ${dayText}`)]
-        : [line("drpg-hud-chapter", chapterText), line("drpg-hud-day", dayText)];
+    const dateLines = [line("drpg-hud-chapter", `${chapterText} · ${dayText}`)];
     /* THE PHASE IS A STAMP WITH A GLYPH ON IT.
        The audit page's clock names the phase on a plate in the state colour with the
        hour's own pixel glyph beside it - a sun, a lens, a gavel, the eclipse - because
@@ -254,7 +251,11 @@ function hudHeader(clock) {
        line of tinted text. The glyph is a masked sprite; which sprite is the
        stylesheet's business, from the phase and hour already on the body. */
     const phaseLine = line("drpg-hud-phase", phaseLabel(clock.phase));
-    if (eventsWindowActive()) {
+    /* In both themes: the glyph is a FACT drawn as a picture, not a flourish, and
+       Legacy is the pixel-art theme - the sprite belongs there at least as much.
+       Which sprite is the stylesheet's business, from the phase and hour already
+       on the body. */
+    {
         const glyph = document.createElement("span");
         glyph.className = "drpg-hud-phase-glyph drpg-pxi";
         glyph.setAttribute("aria-hidden", "true");
@@ -271,34 +272,19 @@ function hudHeader(clock) {
     return [campaign, ...dateLines, phaseLine];
 }
 
-/* MONOKUMA'S TWO STANDING THREATS, WHEN THERE ARE ANY.
+/* THE FOUR STANDING THREATS ARE THE EVENT PANEL'S, IN BOTH THEMES (1.2.47).
  *
- * Both are public by design and both were previously a chat card that
- * scrolled away - which for the motive meant that "how long have we
- * got" was a memory test, and for a deferred assembly would have meant
- * the cast being teleported by an order nobody could still see.
+ * The motive, a deferred assembly, the open incident and a body found used to
+ * be rows here under Monokuma Legacy and cards in the panel under Stained
+ * Glass - two implementations of one set of facts, and the Legacy half was the
+ * poorer one: no opening roll, no Despair overflow, and a body row that
+ * vanished the moment the investigation began because it read `bodyDiscovery()`
+ * alone. `buildMotive`, `buildAssembly`, `buildIncident` and `buildBody` went
+ * with this function; `motiveCard` and its three neighbours in events.mjs are
+ * what is left, and they are what both themes now draw.
  *
- * Appended conditionally and returning null when idle, so the column
- * below keeps its height on an ordinary time of day. `alignRightColumn`
- * measures what is actually here, after this. */
-// Under the Stained Glass theme these four are the Event panel's, under
-// the Despair rail (events.mjs); the clock stays a clock. Under Monokuma
-// Legacy they are rows here, as they were.
-function appendHudExtras(hud) {
-    if (!eventsWindowActive()) {
-        const motiveRow = buildMotive();
-        if (motiveRow) hud.append(motiveRow);
-
-        const assembly = buildAssembly();
-        if (assembly) hud.append(assembly);
-
-        const incident = buildIncident();
-        if (incident) hud.append(incident);
-
-        const body = buildBody();
-        if (body) hud.append(body);
-    }
-}
+ * The clock is a clock again in both, which is what this file has been trying
+ * to be since the panel was written. */
 
 export function renderHud() {
     try {
@@ -456,7 +442,15 @@ export function renderHud() {
         document.body.classList.toggle("drpg-incident-here",
             Boolean(incidentWitness().witness));
 
-        if (eventsWindowActive() && !document.body.classList.contains("drpg-no-ticker")) {
+        /* THE ONE THING THAT DOES NOT CROSS. The ticker is the phase's name drawn
+           faintly behind the phase's name - a texture, not a fact - and it is
+           built out of a faint colour, which is the one thing Monokuma Legacy's
+           palette does not have (see the forced-colours note in
+           danganronpa.css: without faintness it comes out as a second copy of
+           the words over the first). Asked of the theme directly, because
+           `eventsWindowActive` stopped being a theme test. */
+        if (document.body.classList.contains("drpg-theme-stained-glass")
+            && !document.body.classList.contains("drpg-no-ticker")) {
             hud.append(hudTicker(phase, clock));
         }
 
@@ -465,8 +459,6 @@ export function renderHud() {
             buildTimeRow(clock, isGM),
             buildElapsed()
         );
-
-        appendHudExtras(hud);
 
         // Last, under the timer: where you are standing is the most local thing
         // on a widget that otherwise describes the whole world.
@@ -1133,82 +1125,6 @@ function buildTimeRow(clock, isGM) {
  * ========================================================================== */
 
 /**
- * Participants and GMs only. Nobody else learns an incident is even running.
- *
- * THIS ROW HAD STOPPED RENDERING FOR ANYBODY, GM INCLUDED (measured 15.09 on
- * four clients, and then again after the fix). It read the ids straight off the
- * world half of `murderState` - `state.killerId`, `state.victimId` - and those
- * moved into the client-scoped cast with LIVE-001. So `seats` was empty on
- * every browser: a player fell out at the ownership gate, and a GM got as far
- * as `game.actors.get(undefined)` and returned at `if (!victim)`. The killer
- * and the victim were playing Stage 5 with no turn indicator at all.
- *
- * `incidentCard` in events.mjs had already been repaired, with a note saying
- * exactly this; nothing carried the repair across to here. Both now ask
- * `incidentWitness()` - one function, in settings.mjs - so a third reader
- * cannot drift away again.
- */
-function buildIncident() {
-    if (!game.settings.settings.has(`${MODULE_ID}.murderState`)) return null;
-
-    const here = incidentWitness();
-    if (!here.running || !here.witness) return null;
-
-    // The mechanics from the world, the names from this browser's own cast.
-    const state = { ...(game.settings.get(MODULE_ID, "murderState") ?? {}), ...incidentCast() };
-    if (state.stage !== "incident") return null;
-
-    const mine = here.seat;
-    const involved = Boolean(mine);
-
-    const victim = game.actors.get(state.victimId);
-    if (!victim) return null;
-
-    const el = document.createElement("div");
-    el.className = "drpg-hud-incident";
-
-    const side = document.createElement("div");
-    side.className = "drpg-hud-incident-turn";
-    // A participant is told whether it is on them; a GM is told which side, since
-    // "yours" means nothing to somebody running both.
-    //
-    // The killers' side may hold two people, and only one of them has the turn.
-    // Read straight off `killerTurnId` rather than from `isTheirTurn`, for the
-    // same reason the state itself is read from the setting here: this file is
-    // on the render path the clock calls back into, and one boolean is not worth
-    // closing that loop. The rule is `passTurn`'s and is one line long.
-    const killers = [state.killerId, state.thirdSide === "killer" ? state.thirdId : null]
-        .filter(Boolean);
-    const killerActing = killers.length > 1
-        ? (state.killerTurnId ?? killers[0])
-        : state.killerId;
-    const myTurn = involved && (
-        (state.turnSide === "victim" && mine === state.victimId)
-        || (state.turnSide === "killer" && mine === killerActing));
-    side.textContent = involved
-        ? game.i18n.localize(myTurn ? "DRPG.Murder.yourTurn" : "DRPG.Murder.theirTurn")
-        : game.i18n.format("DRPG.Murder.trackerState", {
-            stage: game.i18n.localize(`DRPG.Murder.stage.${state.stage}`),
-            turn: state.turn ?? 1,
-            side: game.i18n.localize(`DRPG.Murder.side.${state.turnSide}`)
-        });
-    side.classList.toggle("mine", Boolean(myTurn));
-    el.append(side);
-
-    // The victim's own numbers are on their sheet, but the killer and the GM are
-    // making decisions against them too, and that is the whole shape of Stage 5.
-    const left = document.createElement("div");
-    left.className = "drpg-hud-incident-left";
-    left.textContent = game.i18n.format("DRPG.Murder.victimLeft", {
-        hp: remaining(victim, "hitPoints"),
-        stress: remaining(victim, "stress")
-    });
-    el.append(left);
-
-    return el;
-}
-
-/**
  * THE PAUSE RASTER IS CENTRED ON THE WORD, MEASURED RATHER THAN ASSUMED.
  * ---------------------------------------------------------------------------
  * The stylesheet lays the raster out from the centre of `#pause`, and that is
@@ -1279,8 +1195,11 @@ function hudActor() {
 }
 
 /**
- * Three rows: the room, whether it holds a project, and its search tokens -
- * or, during a Class Trial, who is talking. See `buildTrialSpeaker`.
+ * Three rows: the room, whether it holds a project, and its search tokens.
+ *
+ * During a Class Trial there is no room block at all: whose floor it is belongs
+ * to the Event panel (`trialCard` in events.mjs), and everybody is in the
+ * courtroom anyway, so "which room are you in" has stopped being a question.
  */
 function buildRoom() {
     try {
@@ -1289,10 +1208,10 @@ function buildRoom() {
         // their own - who gets no room block at all the rest of the time - must
         // still see whose floor it is.
         const trial = trialSlot();
-        // Under Stained Glass whose floor it is belongs to the Event panel
-        // (events.mjs); the clock keeps the mode in its time row and, as in any
-        // trial, no room block - everybody is in the courtroom.
-        if (trial) return eventsWindowActive() ? null : buildTrialSpeaker(trial);
+        // Whose floor it is belongs to the Event panel (events.mjs), in both
+        // themes since 1.2.47. The clock keeps the mode in its time row and, as
+        // in any trial, no room block - everybody is in the courtroom.
+        if (trial) return null;
 
         const actor = hudActor();
         if (!actor) return null;
@@ -1329,48 +1248,6 @@ function buildRoom() {
 }
 
 /**
- * The same three rows, saying who is talking instead of where you are.
- *
- * WHY THE ROOM GOES. During a Class Trial everybody is in the same room, so its
- * name is the least useful line on the widget at exactly the moment the most
- * useful one - whose floor is this - has nowhere to live. The rows are reused
- * rather than added, so the clock is the same shape and height in a trial as
- * out of one.
- *
- *   row 1   who is talking. "Everyone" in a discussion or a debate; the
- *           objector alone during an objection; the person answering, during a
- *           rebuttal.
- *   row 2   who they are answering, during a rebuttal. An em dash otherwise -
- *           the row keeps its place rather than collapsing, so the block does
- *           not change height when a rebuttal opens.
- *   row 3   the search pips, greyed. Nothing can be searched from inside a
- *           trial, and removing them would say the room had none left.
- */
-function buildTrialSpeaker(trial) {
-    const box = document.createElement("div");
-    box.className = "drpg-hud-room is-trial";
-
-    box.append(line("drpg-hud-room-name", trial.speaker));
-    // NOT `line()`'s empty branch: an em dash is content, and the `empty` class
-    // it would add fades the row to a third of its opacity.
-    const versus = line("drpg-hud-room-project", trial.versus ?? "-");
-    versus.classList.toggle("is-versus", Boolean(trial.versus));
-    box.append(versus);
-
-    // Whichever room this client's own character is standing in - which during a
-    // trial is the courtroom for everybody. Skipped entirely when there is no
-    // character to ask about, rather than drawn empty.
-    try {
-        const room = roomOfActor(hudActor());
-        if (room) box.append(buildSearchPips(room, { idle: true }));
-    } catch {
-        // A block that is missing its pips is still the block that matters.
-    }
-
-    return box;
-}
-
-/**
  * The room's search tokens, as pips.
  *
  * Drawn as spans with a border-radius rather than as ● and ○, because the two
@@ -1402,99 +1279,6 @@ function buildSearchPips(room, { idle = false } = {}) {
         row.append(pip);
     }
     return row;
-}
-
-/**
- * The motive, and how many times of day are left on it.
- *
- * The demand is the row; the consequence is the tooltip. Two sentences in the
- * corner of the screen is a paragraph, and a paragraph in a HUD is something
- * people stop reading - but the consequence is the half a player actually
- * needs when they decide whether to take the threat seriously, so it has to be
- * one hover away rather than in a chat log two hundred messages back.
- *
- * At zero the row does not disappear. It says the deadline has arrived, which
- * is the only moment the countdown was ever for.
- */
-function buildMotive() {
-    const record = motive();
-    if (!record) return null;
-
-    const el = document.createElement("div");
-    el.className = "drpg-hud-motive";
-    if (record.due) el.classList.add("due");
-
-    const left = record.due
-        ? game.i18n.localize("DRPG.Motive.dueShort")
-        : plural("DRPG.Motive.left", { n: record.remaining ?? 0 });
-
-    el.innerHTML = `<span class="drpg-hud-motive-label">${
-        game.i18n.localize("DRPG.Motive.title")}</span><span class="drpg-hud-motive-left">${
-        foundry.utils.escapeHTML(left)}</span>`;
-
-    const parts = [foundry.utils.escapeHTML(record.text)];
-    if (record.consequence) {
-        parts.push(`<em>${game.i18n.format("DRPG.Motive.orElse", {
-            what: foundry.utils.escapeHTML(record.consequence)
-        })}</em>`);
-    }
-    el.dataset.tooltip = parts.join("<br>");
-
-    return el;
-}
-
-/**
- * The assembly Monokuma has called and not yet held.
- *
- * Deferring Public Announcement created a fact the cast has to plan around,
- * and a fact you plan around cannot live only in scrollback. It names the room
- * and says when - and it is gone the moment the assembly happens.
- */
-function buildAssembly() {
-    const order = pendingGather();
-    if (!order) return null;
-
-    const el = document.createElement("div");
-    el.className = "drpg-hud-assembly";
-    el.innerHTML = `<span class="drpg-hud-assembly-label">${
-        game.i18n.localize("DRPG.Calls.gatherShort")}</span><span class="drpg-hud-assembly-room">${
-        foundry.utils.escapeHTML(order.room)}</span>`;
-    el.dataset.tooltip = game.i18n.format("DRPG.Calls.gatherBody", {
-        room: foundry.utils.escapeHTML(order.room)
-    });
-
-    return el;
-}
-
-/**
- * A body found, and the GM has not answered it yet (D5).
- *
- * The Event panel carries this for the Stained Glass theme; this row is the
- * same fact for the other two. It matters more here than either row above it,
- * because finding a body no longer moves the phase - the clock goes on reading
- * Daily Life, which used to be the table's only notice that Stage 7 had begun.
- * Without this a Monokuma Legacy screen would have a corpse on the floor and
- * nothing anywhere that says so once the chat card has scrolled away.
- *
- * The room rather than the victim: the discovery is a place everybody has been
- * called to, and the name is already in the announcement.
- */
-function buildBody() {
-    const found = bodyDiscovery();
-    if (!found) return null;
-
-    const el = document.createElement("div");
-    // The assembly's own classes, not a fourth pair of its own. It is the same
-    // row - a label and one word - and a set of selectors that says exactly
-    // what `.drpg-hud-assembly` already says is a stylesheet to keep in step
-    // for nothing.
-    el.className = "drpg-hud-assembly";
-    el.innerHTML = `<span class="drpg-hud-assembly-label">${
-        game.i18n.localize("DRPG.Hud.bodyFound")}</span><span class="drpg-hud-assembly-room">${
-        foundry.utils.escapeHTML(found.room ?? "")}</span>`;
-    el.dataset.tooltip = game.i18n.localize("DRPG.Hud.bodyFoundTooltip");
-
-    return el;
 }
 
 const MARK_FIRST_ACTION = TIMING.elapsedMarksMinutes[0] * 60 * 1000;

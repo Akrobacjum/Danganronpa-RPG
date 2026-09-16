@@ -33,7 +33,7 @@ import { debug } from "./utils.mjs";
 /** The module's own surfaces. Foundry's and the system's chrome is theirs to name. */
 const SURFACES = [
     "#drpg-hud", "#drpg-despair", "#drpg-player-status", "#countdowns",
-    "#drpg-events", "#drpg-popups", "#drpg-gm-launcher", "#drpg-messenger-launcher",
+    "#drpg-events", "#drpg-popups", "#drpg-evidence", "#drpg-gm-launcher", "#drpg-messenger-launcher",
     "#drpg-sound-launcher", ".drpg-panel", ".drpg-messenger",
     /*
      * `.drpg-advance` IS A MODULE WINDOW AND THIS LIST WAS THE ONLY PLACE THAT
@@ -162,7 +162,12 @@ export function nameControls(root = document) {
  * else is what comes through here.
  */
 function liveRegions(root) {
-    for (const [sel, role] of [["#drpg-popups", "status"], ["#drpg-events", "status"]]) {
+    /* `#drpg-evidence` sets its own role when popup.mjs creates it, because it is
+       built and torn down between sweeps - but it is named here too, so a stage
+       that outlives the sweep that made it is still found by the one function
+       that owns this question. Both are idempotent (`drpgLive`). */
+    for (const [sel, role] of [["#drpg-popups", "status"], ["#drpg-events", "status"],
+                               ["#drpg-evidence", "status"]]) {
         const el = root.querySelector?.(sel) ?? (root.matches?.(sel) ? root : null);
         if (!el || el.dataset.drpgLive) continue;
         if (!el.getAttribute("role")) el.setAttribute("role", role);

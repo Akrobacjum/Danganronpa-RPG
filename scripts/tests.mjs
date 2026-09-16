@@ -6857,6 +6857,92 @@ const SCENARIOS = [
         }
     }],
 
+    ["the panel says the scene is stopped, and says the vote is open", async () => {
+        /*
+         * TWO CARDS THAT KEEP NO STATE OF THEIR OWN, which is the whole reason
+         * they are worth a test: each is a reading of two facts that were
+         * already being kept somewhere else, and a reading is exactly what rots
+         * silently when one of the two moves.
+         *
+         *   safeword   the game is paused (`game.paused`), the clock stamped
+         *              when (`pausedAt`), and the announcement in the log
+         *              carries the flag. An ordinary pause gets no card.
+         *   vote       the flagged `openVote` announcement for THIS chapter,
+         *              and `voteClosed` in `trialProgress` saying it is still
+         *              running.
+         *
+         * Both builders take a clock, so the world's own clock is not moved to
+         * run this: the only real state touched is the pause, and it is put
+         * back. The negatives are measured as carefully as the positives -
+         * a card that appears when it should not is worse than one that does
+         * not appear, because nobody goes looking for it.
+         */
+        const events = await import("./events.mjs");
+        const { SAFEWORD_FLAG } = await import("./safeword.mjs");
+        const { VOTE_OPEN_FLAG } = await import("./vote.mjs");
+
+        const chapter = getClock().chapter;
+        const wasPaused = game.paused;
+        const made = [];
+        try {
+            /* ---- the safeword ---------------------------------------------- */
+            const now = Date.now();
+            ok(!events.safewordCard({ pausedAt: now }) || game.paused,
+                "a card appeared for a game that is not paused");
+
+            if (!game.paused) await game.togglePause(true);
+            ok(!events.safewordCard({ pausedAt: now }),
+                "an ordinary pause, with nothing in the log, produced a safeword card");
+
+            const call = await ChatMessage.create({
+                content: "<p>suite safeword</p>",
+                flags: { [MODULE_ID]: { [SAFEWORD_FLAG]: true } }
+            });
+            made.push(call);
+            const card = events.safewordCard({ pausedAt: now });
+            ok(card, "the scene is stopped and the panel says nothing about it");
+            equal(card.kind, "safeword", "the safeword card came out as the wrong kind");
+            ok(!JSON.stringify(card).includes(game.user.name),
+                "the safeword card names somebody, and the one promise it makes is that it will not");
+
+            /* A pause that started long after the call is a different pause. */
+            ok(!events.safewordCard({ pausedAt: call.timestamp + 600000 }),
+                "an old safeword is still showing over a pause it has nothing to do with");
+
+            /* ---- the vote --------------------------------------------------- */
+            const trial = { phase: "classTrial", chapter };
+            const before = events.trialCard(trial);
+            ok(!before || before.title !== game.i18n.localize("DRPG.Events.voteTitle"),
+                "the trial card was already showing a vote before one was opened");
+
+            const opened = await ChatMessage.create({
+                content: "<p>suite ballots</p>",
+                flags: { [MODULE_ID]: { [VOTE_OPEN_FLAG]: true, voteChapter: chapter } }
+            });
+            made.push(opened);
+            const voting = events.trialCard(trial);
+            ok(voting, "no trial card during an open vote");
+            equal(voting.kind, "trial",
+                "the vote built a card of its own instead of a mode of the trial's");
+            equal(voting.title, game.i18n.localize("DRPG.Events.voteTitle"),
+                "the trial card did not switch to the vote");
+            ok(voting.due === true, "an open vote is waiting on people and does not say so");
+
+            /* A ballot from another chapter is another trial's. */
+            ok(!events.trialCard({ phase: "classTrial", chapter: chapter + 1 })
+                || events.trialCard({ phase: "classTrial", chapter: chapter + 1 }).title
+                   !== game.i18n.localize("DRPG.Events.voteTitle"),
+                "last chapter's vote is open on this chapter's trial");
+
+            /* And outside a trial there is no card at all, vote or no vote. */
+            ok(!events.trialCard({ phase: "dailyLife", chapter }),
+                "the trial card is showing in Daily Life");
+        } finally {
+            for (const m of made) { try { await m.delete(); } catch { /* already gone */ } }
+            if (game.paused !== wasPaused) await game.togglePause(wasPaused);
+        }
+    }],
+
     ["the curtain is recut when the tab comes back", async () => {
         /*
          * A BLOCK THAT LEAVES WHILE NOBODY IS LOOKING TOOK ITS PANE WITH IT, and
@@ -6892,8 +6978,8 @@ const SCENARIOS = [
         nameControls();
 
         const SURFACES = ["#drpg-hud", "#drpg-despair", "#drpg-player-status", "#countdowns",
-            "#drpg-events", "#drpg-popups", "#drpg-gm-launcher", "#drpg-messenger-launcher",
-            "#drpg-sound-launcher", ".drpg-panel", ".drpg-messenger"];
+            "#drpg-events", "#drpg-popups", "#drpg-evidence", "#drpg-gm-launcher",
+            "#drpg-messenger-launcher", "#drpg-sound-launcher", ".drpg-panel", ".drpg-messenger"];
         let seen = 0;
         for (const sel of SURFACES) {
             for (const host of document.querySelectorAll(sel)) {
@@ -6912,6 +6998,72 @@ const SCENARIOS = [
             equal(notices.getAttribute("aria-live"), "polite",
                 "the notice stack is not a live region, so a notice arrives in silence");
         }
+    }],
+
+    ["evidence takes the middle of the screen and a receipt stays in the corner", async () => {
+        /*
+         * WHY THERE ARE TWO STACKS NOW.
+         *
+         * The corner tile is 430 x 220 and cannot grow: it shares that corner
+         * with Foundry's tool rail, and every larger size was measured taking
+         * the rail's glass away (the sweep is at the top of stained-glass.css).
+         * A Class Trial objection carrying a Truth Bullet with its analysis and
+         * a comment needs 459 px, so in the corner it was a name, four badges
+         * and nothing else. Evidence stands in the middle of the map instead.
+         *
+         * The routing is the whole of the rule and it has three parts, all
+         * measured here because two of them are negatives:
+         *   - sticky evidence goes to the stage,
+         *   - an ordinary notice does not,
+         *   - and neither does a NON-sticky evidence card, which is a caller
+         *     that wanted the colour for a passing message. A passing message
+         *     in the middle of the screen is the interruption the corner exists
+         *     to avoid.
+         *
+         * No layout is needed for any of it, which is why it is here rather
+         * than in the glass harness: this is which parent a node has.
+         */
+        const { showPopup } = await import("./popup.mjs");
+        document.getElementById("drpg-evidence")?.remove();
+        const before = document.getElementById("drpg-popups")?.querySelectorAll(".drpg-popup").length ?? 0;
+
+        const close = [];
+        try {
+            close.push(showPopup("<p>the hinge</p>", { kind: "evidence", sticky: true, title: "Evidence" }));
+            const stage = document.getElementById("drpg-evidence");
+            ok(stage, "a sticky piece of evidence built no stage to stand on");
+            equal(stage.querySelectorAll(".drpg-popup").length, 1,
+                "the evidence card is not on the stage");
+            equal(stage.getAttribute("aria-live"), "polite",
+                "the evidence stage is not a live region, so a card lands in silence");
+
+            close.push(showPopup("<p>you found nothing</p>", { kind: "info" }));
+            equal(stage.querySelectorAll(".drpg-popup").length, 1,
+                "an ordinary notice climbed onto the evidence stage");
+            equal(document.getElementById("drpg-popups").querySelectorAll(".drpg-popup").length,
+                before + 1, "an ordinary notice left the corner");
+
+            close.push(showPopup("<p>a passing remark</p>", { kind: "evidence" }));
+            equal(stage.querySelectorAll(".drpg-popup").length, 1,
+                "a non-sticky evidence card took the middle of the screen");
+
+            /* Two is the cap, and the second is the point: an objection answers
+               a presentation and reading the two together is the move. */
+            close.push(showPopup("<p>objection</p>", { kind: "objection", sticky: true, title: "Objection" }));
+            close.push(showPopup("<p>and another</p>", { kind: "evidence", sticky: true, title: "Evidence" }));
+            const live = [...stage.querySelectorAll(".drpg-popup")].filter(c => !c.classList.contains("leaving"));
+            equal(live.length, 2, "the evidence stage is holding more than the two it is capped at");
+        } finally {
+            for (const dismiss of close) { try { dismiss?.(); } catch { /* already gone */ } }
+        }
+
+        /* And an emptied stage takes itself down rather than leaving an invisible
+           live region over the map. The wait is the card's own removal backstop
+           in popup.mjs, not a guess: there is no transition in this environment,
+           so the timeout is what fires. */
+        await wait(1400);
+        ok(!document.getElementById("drpg-evidence"),
+            "the evidence stage stayed on screen with nothing on it");
     }],
 
     ["the portrait picker is a control a keyboard can reach and a reader can name", async () => {

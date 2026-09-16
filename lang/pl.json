@@ -910,6 +910,7 @@
       "bodyHoldMeta": "Wszystko stanęło. Nikt jeszcze nie szuka.",
       "bodyHoldMetaGm": "Rozpocznij Investigation, gdy pokój będzie gotowy.",
       "ticker": {
+        "safeword": "Stop",
         "overflow": "Overflow",
         "incident": "Incydent",
         "body": "Znaleziono ciało",
@@ -922,6 +923,14 @@
       "openingMeta": "Rzut otwarcia decyduje, jak się zaczyna",
       "incidentSub": "{killer} przeciw {victim}",
       "incidentSubRoom": "{killer} przeciw {victim}, w: {room}",
+      "safewordTitle": "Scena zatrzymana",
+      "safewordSub": "Ktoś użył safeworda.",
+      "safewordMeta": "Nic się nie dzieje, dopóki stół nie podejmie gry z powrotem.",
+      "safewordMetaGm": "Wznów, kiedy wszyscy będą gotowi - nie wcześniej.",
+      "voteTitle": "Głosowanie otwarte",
+      "voteSub": "Wskaż blackened.",
+      "voteMeta": "Trial czeka na głosy.",
+      "voteMetaGm": "{back} z {total} głosów wróciło",
       "trialFloorOpen": "Wszyscy mają głos"
     },
     "Look": {
