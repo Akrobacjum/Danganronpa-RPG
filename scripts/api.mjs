@@ -68,7 +68,7 @@ import {
 } from "./assignments.mjs";
 import {
     diagnoseDice, diagnoseDespair, diagnoseStyles, diagnoseTruthBullets, diagnoseVoice,
-    diagnoseWindows, traceClicks, fileSizes, perfReport } from "./diagnostics.mjs";
+    diagnoseWindows, traceClicks, fileSizes, perfReport, whySlow } from "./diagnostics.mjs";
 import { diagnoseLive } from "./live.mjs";
 import { unregisterCriticalRule } from "./critical.mjs";
 import {
@@ -1223,6 +1223,12 @@ export const DrpgApi = {
      *  `game.drpg.perf()` - every performance number in the audit was measured
      *  headlessly, and this is the only one measured where somebody is playing. */
     perf: perfReport,
+    /** The other half of `perf()`: instead of pricing what the module already
+     *  suspects, this watches for a while and asks the browser to name the file
+     *  and the function every long frame's script time was spent in.
+     *  `game.drpg.whySlow()`, then USE the module for fifteen seconds. An empty
+     *  table is a result too - it means the cost is paint, not JavaScript. */
+    whySlow,
     /** Hide both fog layers for a few seconds, then put them back. Answers
      *  "is that thing on screen ours?" without pasting a chain of lookups. */
     fogPeek,

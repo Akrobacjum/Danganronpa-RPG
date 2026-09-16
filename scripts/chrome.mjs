@@ -166,7 +166,30 @@ export function injectFilters() {
 
 /* ---- one pass over a window ------------------------------------------------ */
 
-/** Decorate one rendered window. Safe to call on the same element repeatedly. */
+/**
+ * Decorate one rendered window. Safe to call on the same element repeatedly.
+ *
+ * PRICED, BECAUSE IT LOOKS EXPENSIVE AND IS NOT. It runs on every
+ * `renderApplicationV2` and it does structural surgery - `replaceWith` per
+ * number field and per select, a regex over every cell of every table - so a
+ * 1.2.47 audit pass proposed rebuilding it on `display: grid` to stop moving
+ * the inputs, on the strength of 25.83 ms measured in JSDOM.
+ *
+ * It does not reproduce in a browser. Measured in Chromium against the glass
+ * harness, median of seven, on windows built to the shapes the module actually
+ * opens:
+ *
+ *     4 fields, 1 select, a 6x4 table     (42 nodes)    0.2 ms
+ *    24 fields, 5 selects, a 24x8 table  (260 nodes)    0.7 ms
+ *    60 fields, 12 selects, a 60x10 table (761 nodes)   2.5 ms
+ *    the same window a second time                        0 ms
+ *
+ * JSDOM's `replaceWith` and `querySelectorAll` are orders of magnitude slower
+ * than a browser's, which is what that 25.83 ms was measuring. The second-pass
+ * zero is the marking doing its job. So: not a window-open cost, and not worth
+ * the risk of rebuilding how every form field in the module is drawn. If it is
+ * ever suspected again, re-take these five numbers before touching it.
+ */
 export function dressChrome(root) {
     if (!themeOn() || !root?.querySelectorAll) return;
     try {

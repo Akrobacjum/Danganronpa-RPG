@@ -1281,6 +1281,102 @@ function report(title, lines, { toChat = true } = {}) {
  * Nothing is left changed: the pulse goes back to whatever it was, including
  * off, and a curtain forced to recut settles on the next frame like any other.
  */
+/**
+ * WHERE THE TIME ACTUALLY GOES, ON THE MACHINE SOMEBODY IS PLAYING ON.
+ *
+ * `perfReport` above prices things this module already suspects - the pulse,
+ * the blur, a recut of the glass. This one does not guess: it asks the browser
+ * to attribute every long frame's script time to the file and the function it
+ * ran in, which is how the audit's own numbers were taken in the harness, and
+ * prints the list. Whatever is at the top of it is the answer, whether or not
+ * anyone had thought of it.
+ *
+ * WHY THIS AND NOT A PROFILE. A profile is the better tool and it is also a
+ * twenty-minute job for somebody who did not write the module; this is one line
+ * in the console, and its output is short enough to paste into a message.
+ *
+ * `long-animation-frame` is Chromium 123 and later. On a browser without it the
+ * command says so rather than printing an empty table that reads like "nothing
+ * is slow" - the one answer it must never give by accident.
+ *
+ * WHAT TO DO WITH IT: run it, then USE the module for the length of the window
+ * - open the panel, open a sheet, walk a token. It reports what ran.
+ */
+export async function whySlow({ seconds = 15 } = {}) {
+    const lines = [];
+    const round = n => Math.round(n * 10) / 10;
+
+    if (typeof PerformanceObserver !== "function"
+        || !PerformanceObserver.supportedEntryTypes?.includes("long-animation-frame")) {
+        const message = "This browser does not report long animation frames, so there is "
+            + "nothing to attribute. Chromium 123 or later does; on anything else the "
+            + "Performance tab of the developer tools is the way in.";
+        log(message);
+        return message;
+    }
+
+    const frames = [];
+    const observer = new PerformanceObserver(list => {
+        for (const entry of list.getEntries()) frames.push(entry.toJSON());
+    });
+    observer.observe({ type: "long-animation-frame", buffered: false });
+
+    log(`Watching for ${seconds}s. Use the module - open a window, open a sheet, move a token.`);
+    try {
+        await new Promise(resolve => setTimeout(resolve, seconds * 1000));
+    } finally {
+        observer.disconnect();
+    }
+
+    /* Grouped by the pair that identifies the work: what invoked it, and where
+       it is. A hook handler and a timer callback in the same file are two
+       different problems and must not be added together. */
+    const byScript = new Map();
+    let total = 0, blocking = 0, longest = 0;
+    for (const frame of frames) {
+        total += frame.duration ?? 0;
+        blocking += frame.blockingDuration ?? 0;
+        longest = Math.max(longest, frame.duration ?? 0);
+        for (const script of frame.scripts ?? []) {
+            const file = String(script.sourceURL || "?").split("/").pop().split("?")[0];
+            const key = `${file} · ${script.sourceFunctionName || "(anonymous)"} · ${
+                script.invoker || script.invokerType || "?"}`;
+            const row = byScript.get(key) ?? { ms: 0, runs: 0 };
+            row.ms += script.duration ?? 0;
+            row.runs++;
+            byScript.set(key, row);
+        }
+    }
+
+    lines.push(`Watched ${seconds}s. ${frames.length} long frames, ${round(total)} ms in them,`
+        + ` ${round(blocking)} ms of that blocking; the longest single frame was ${round(longest)} ms.`);
+
+    if (!byScript.size) {
+        /* NOT "nothing is slow". Long frames with no script attributed to them
+           are frames the browser spent in style, layout, paint or compositing -
+           which is exactly what a full-screen backdrop-filter costs, and it is
+           what `perf()`'s blur line is for. Saying so is the whole value of this
+           branch: an empty table here is a RESULT, not an absence of one. */
+        lines.push("");
+        lines.push(frames.length
+            ? "No script time was attributed to any of them, so the cost is not JavaScript:"
+            + " it is style, layout or paint. `game.drpg.perf()` prices the two the theme"
+            + " is most likely to be spending it on - the blur and the pulse."
+            : "No long frames at all. Whatever is slow was not slow while this was watching -"
+            + " run it again and use the module harder while it does.");
+    } else {
+        lines.push("");
+        lines.push("Script time, worst first:");
+        for (const [key, row] of [...byScript.entries()].sort((a, b) => b[1].ms - a[1].ms).slice(0, 15)) {
+            lines.push(`  ${String(round(row.ms)).padStart(8)} ms  x${String(row.runs).padEnd(4)} ${key}`);
+        }
+    }
+
+    const report = lines.join("\n");
+    log(`\n${report}`);
+    return report;
+}
+
 export async function perfReport({ frames = 60 } = {}) {
     const lines = [];
     const round = n => Math.round(n * 100) / 100;
