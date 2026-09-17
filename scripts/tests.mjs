@@ -1757,6 +1757,85 @@ const REGRESSIONS = [
            sitting in the file, so the grep passed and the suite stayed green over a
            defect it was written for. The behaviour is owned by "the End of chapter
            screen closes the trial" in Tier 1, which calls it. */
+    }],
+
+    ["R27 - the state colour's sweep has no specificity to win with", async () => {
+        /*
+         * A ONE-SECOND STALL ON EVERY WINDOW, WITH NOTHING ON SCREEN TO SAY SO (SG-CLOSE-1000).
+         *
+         * The Stained Glass accent fade hangs on every direct child of the body, and every
+         * window is one. Written as `:not(#a):not(b)` it carried two ids, beat the module's own
+         * exit transition and left ApplicationV2#close waiting out its 1000 ms fallback -
+         * measured at 1017-1113 ms per close on 16.09, which is what made every GM panel tile
+         * open its window a second late. This reads the rule back.
+         */
+        const css = (await fetch(`/modules/${MODULE_ID}/styles/stained-glass.css`).then(r => r.text()))
+            .replace(/\/\*[\s\S]*?\*\//g, " ");
+        const block = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+            .find(m => /transition-property:\s*--drpg-glass-accent\s*;/.test(m[2])
+                && /^\s*body\.drpg-theme-stained-glass\s*>/.test(m[1]));
+        ok(block, "the accent sweep over the body's children is gone, so this test cannot find what to read");
+        const selector = block[1].trim();
+        ok(/>\s*:where\(/.test(selector),
+            `the accent sweep's exclusions count towards its specificity again: ${selector}`);
+        ok(/\.minimizing/.test(selector) && /\.maximizing/.test(selector),
+            "the accent sweep reaches a window that is closing or minimising, and replaces the transition "
+            + "ApplicationV2 waits for");
+    }],
+
+    ["R28 - \"Move the clock on\" runs the Eclipse", async () => {
+        /*
+         * GMP-01, reproduced on 16.09: with every student on 0 actions the panel's Do it opened
+         * Edit campaign, and applying a new time of day there refills nothing. The Eclipse is the
+         * one road that refills.
+         */
+        const panel = stripComments(new Map(await otherSources()).get("gm-panel.mjs") ?? "");
+        ok(/"DRPG\.Panel\.nextAllDone"\)\s*,\s*action:\s*"eclipse"/.test(panel),
+            "the \"Everyone has spent their actions\" suggestion no longer runs the Eclipse");
+    }],
+
+    ["R29 - a body is this chapter's dead, discovered once, and never gathered", async () => {
+        /*
+         * FIVE CARDS FOR ONE BODY, AND A CORPSE CARRIED INTO THE ASSEMBLY (16.09).
+         *
+         * A teleport fired one discovery check per token, and every check got past a flag set
+         * after three awaited imports; the gather itself moved the undiscovered body in front
+         * of everybody. Measured live: fixed, then reviewed - the GM's own announcement had to
+         * join the queue, a Monocub had to stop counting as a body, and so did an earlier
+         * chapter's dead. Behaviour was verified in the sandbox; this keeps the wiring.
+         */
+        const sources = new Map(await otherSources());
+        const chapter = stripComments(sources.get("chapter.mjs") ?? "");
+        const effects = stripComments(sources.get("call-effects.mjs") ?? "");
+        const check = chapter.slice(chapter.indexOf("async function checkBodyFound"),
+            chapter.indexOf("export async function openBodyDiscoveryDialog"));
+        ok(check.length > 200, "checkBodyFound is gone or has moved past openBodyDiscoveryDialog");
+        ok(/FLAGS\.monocub/.test(check), "a Monocub counts as a body again");
+        ok(/deathRecord\(/.test(check), "a body from an earlier chapter counts as a body again");
+        ok(/export function discoverBody[\s\S]{0,240}enqueueBodyWork\(/.test(chapter),
+            "the GM's own announcement no longer waits in the discovery queue");
+        ok(/export function maybeBodyFound[\s\S]{0,240}enqueueBodyWork\(/.test(chapter),
+            "the automatic discovery check no longer waits in the discovery queue");
+        const gather = effects.slice(effects.indexOf("export async function gatherEveryone"),
+            effects.indexOf("async function fallbackGather"));
+        ok(/isDeceased\(/.test(gather), "gatherEveryone moves the dead again");
+    }],
+
+    ["R30 - a verdict is locked before it does anything", async () => {
+        /*
+         * F2, and the review that followed it. The lock used to be written after every Level Up
+         * window and the Blackened's rule had closed, so a second verdict could start in the
+         * meantime. The check and the write have to come before the first execution.
+         */
+        const vote = stripComments(new Map(await otherSources()).get("vote.mjs") ?? "");
+        const apply = vote.slice(vote.indexOf("export async function applyVerdict"));
+        const lock = apply.indexOf("verdictApplied: true");
+        const kill = apply.indexOf("killCharacter(");
+        ok(lock > 0 && kill > 0, "applyVerdict no longer writes the lock or no longer executes anybody");
+        ok(lock < kill, "applyVerdict executes before it writes the verdict lock");
+        ok(apply.indexOf("trialProgress().verdictApplied") > 0
+            && apply.indexOf("trialProgress().verdictApplied") < lock,
+            "applyVerdict no longer refuses a second verdict itself");
     }]
 ];
 
@@ -3772,6 +3851,46 @@ const INVARIANTS = [
             await setClock(clock);
             await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored);
         }
+    }],
+
+    ["a window closes without waiting for a transition that never started", async () => {
+        /*
+         * AWAIT-CLOSE-SITES and RM-CLOSE-1000. Foundry waits up to a second for a close to
+         * finish animating; with no transition running that second is pure stall, and every
+         * tile of the GM panel paid it. Asked of the installed wrapper, on an element nothing
+         * animates.
+         */
+        const proto = foundry.applications.api.ApplicationV2.prototype;
+        equal(proto._awaitTransition?.name, "drpgAwaitTransition", "the transition guard is not installed");
+        equal(proto.close?.name, "drpgClose", "the close wrapper is not installed");
+        const probe = document.createElement("div");
+        document.body.appendChild(probe);
+        try {
+            const started = performance.now();
+            await proto._awaitTransition.call(null, probe, 1000);
+            const ms = performance.now() - started;
+            ok(ms < 250, `a close with no transition running waited ${Math.round(ms)} ms - Foundry's fallback, not a transition`);
+        } finally {
+            probe.remove();
+        }
+    }],
+
+    ["a Level Up is not a sheet waiting to be set up", async () => {
+        /*
+         * SEASON-01, reproduced on 16.09: a student with Health max 5 was listed as not set up,
+         * and one Do it put the maximum back to 4.
+         */
+        const { STARTING } = await import("./config.mjs");
+        const { needsStartingResources } = await import("./character.mjs");
+        const sheet = (hp, stress) => ({ system: { resources: {
+            hitPoints: { max: hp, value: 0 }, stress: { max: stress, value: 0 } } } });
+        ok(needsStartingResources(sheet(0, 0)), "a sheet never set up is not offered its starting resources");
+        ok(!needsStartingResources(sheet(STARTING.hp, STARTING.stress)),
+            "a sheet at the starting numbers is offered them again");
+        ok(!needsStartingResources(sheet(STARTING.hp + 1, STARTING.stress)),
+            "a Level Up in Health reads as a sheet waiting to be set up");
+        ok(!needsStartingResources(sheet(STARTING.hp, STARTING.stress + 1)),
+            "a Level Up in Sanity reads as a sheet waiting to be set up");
     }]
 ];
 
@@ -5798,6 +5917,30 @@ const SCENARIOS = [
         ok(!after.eclipse, "the Eclipse did not end");
         equal([...after.byUser.values()].filter(r => r.room).length, placed.length,
             "the rooms did not come back when the lights did");
+    }],
+
+    ["a trial whose verdict is in does not open another", async () => {
+        /*
+         * F2, reproduced on 16.09: with the verdict applied the console kept The verdict live,
+         * and a second one executed whoever the dropdown held. Raced against a timeout, so a
+         * regression shows up as a failure and not as a suite waiting on a window forever.
+         */
+        const { trialProgress, openVerdictDialog } = await import("./vote.mjs");
+        const stored = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTINGS.trialProgress) ?? {});
+        try {
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, {
+                ...trialProgress(), chapter: getClock().chapter, voteClosed: true, verdictApplied: true });
+            await settle();
+            const answer = await Promise.race([openVerdictDialog(), wait(2500).then(() => "still open")]);
+            if (answer === "still open") {
+                for (const app of [...foundry.applications.instances.values()]) {
+                    if (app.title === game.i18n.localize("DRPG.Vote.verdictTitle")) await app.close({ animate: false });
+                }
+            }
+            equal(answer, null, "the verdict window opened for a trial whose verdict is already in");
+        } finally {
+            await game.settings.set(MODULE_ID, SETTINGS.trialProgress, stored);
+        }
     }]
 ];
 
