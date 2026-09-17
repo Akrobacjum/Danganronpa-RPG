@@ -202,6 +202,7 @@ async function rollFlat() {
  */
 export async function performMeddle(actor, targetId, help) {
     if (!isMonocub(actor)) return null;
+    if (await eclipseLocksMeddle()) return null;
 
     const def = MONOCUB.meddle;
     if (actionsLeft(actor) < def.cost) {
@@ -254,6 +255,7 @@ export async function performMeddle(actor, targetId, help) {
 /** Who to Meddle with, and Help or Hinder. The player's own picker. */
 export async function meddleDialog(actor) {
     if (!isMonocub(actor)) return null;
+    if (await eclipseLocksMeddle()) return null;
 
     const targets = await meddleTargets(actor);
     if (!targets.length) {
@@ -292,6 +294,21 @@ export async function meddleDialog(actor) {
 
     if (!result || result === "cancel") return null;
     return performMeddle(actor, result.targetId, result.help);
+}
+
+/**
+ * The Eclipse locks Confusion like every other spend (CALL-16, 17.09).
+ *
+ * The Monocub's tile calls `meddleDialog` directly, not through `performAction`,
+ * so it missed the Eclipse guard every action and Call goes through - and the
+ * actions refilled when the lights went out could be spent arming advantage and
+ * disadvantage before the time of day had started.
+ */
+async function eclipseLocksMeddle({ quiet = false } = {}) {
+    const { isEclipse } = await import("./eclipse.mjs");
+    if (!isEclipse()) return false;
+    if (!quiet) ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.actionsLocked"));
+    return true;
 }
 
 /** Score and apply a Meddle. GM-side: it writes to another player's sheet. */
