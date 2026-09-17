@@ -1880,6 +1880,7 @@
       "playerHint": "Despair that no Monokuma could hold. At {max} the school gets worse for one time of day. How close it is now is the GMs' to know.",
       "gmHint": "Spilled Despair: {count} of {max}. Fires at the next time of day boundary.",
       "gmHintActive": "This time of day is darkened. {count} of {max} spilled Despair has collected since.",
+      "gmHintActiveFull": "This time of day is darkened. {count} of {max} spilled Despair is waiting, and fires when this time of day ends.",
       "setupIntro": "Despair that will not fit in a full pool stops evaporating and collects here instead. When it reaches the threshold it pays that much, keeps the rest, and ONE thing is drawn from the pool below - never more than one.",
       "threshold": "Threshold (X)",
       "thresholdHint": "Suggested: 12 + half your player count. Sixteen players makes 20, eight makes 16, four makes 14. Range {min}-{max}.",

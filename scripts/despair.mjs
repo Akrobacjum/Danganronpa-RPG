@@ -527,9 +527,12 @@ function buildOverflowCaption() {
         // Two GM sentences, not one: while a darkening is running, "fires at
         // the next boundary" is the wrong half of the truth and the tooltip was
         // saying it over a caption that already read "Darkened".
+        // And a third: a darkened time of day holds a full counter back until it
+        // ends (CALL-06), and a caption at 20/20 with no card needs to say so.
         line.title = isGM
-            ? game.i18n.format(active ? "DRPG.Overflow.gmHintActive" : "DRPG.Overflow.gmHint",
-                               { count, max: threshold })
+            ? game.i18n.format(active
+                ? (count >= threshold ? "DRPG.Overflow.gmHintActiveFull" : "DRPG.Overflow.gmHintActive")
+                : "DRPG.Overflow.gmHint", { count, max: threshold })
             : game.i18n.format("DRPG.Overflow.playerHint", { max: threshold });
 
         if (active) {

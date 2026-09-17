@@ -185,8 +185,13 @@ export async function addOverflow(amount, { reason = "spill" } = {}) {
      * The counter simply waits, still at X or more, and the next boundary's own
      * check fires it - the Eclipse's opening, or the time of day moving on.
      */
+    //
+    // A STATE, NOT AN EVENT (review of CALL-06). Rot and Earthquake happened the
+    // moment they fired and have nothing running to protect, so a stamp of theirs
+    // does not hold the counter back.
     const clock = getClock();
-    if (!clock.eclipse && before.active?.effect && same(before.active, stampOf(clock))) return after;
+    const kind = overflowRules().effects[before.active?.effect]?.kind;
+    if (!clock.eclipse && kind === "state" && same(before.active, stampOf(clock))) return after;
     await armAhead();
     return after;
 }
