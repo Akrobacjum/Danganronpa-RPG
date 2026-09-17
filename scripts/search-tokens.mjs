@@ -317,6 +317,7 @@ const SOCKET_EVENT = `module.${MODULE_ID}`;
 const ACTION_SPEND = "searchTokens.spend";
 const ACTION_RESULT = "searchTokens.result";
 const ACTION_TAKE_PLANT = "searchTokens.takePlant";
+const ACTION_RETURN_PLANT = "searchTokens.returnPlant";
 
 /** Pending player-side promises, keyed by request id. */
 const pending = new Map();
@@ -328,6 +329,18 @@ const pending = new Map();
  */
 const searchedBy = new Map();
 const PLANT_WINDOW_MS = 120000;
+
+/**
+ * Plants handed out and not yet known to have arrived, on the primary GM's
+ * client: `requestId` -> `{ userId, roomName, sceneId, plant, at }`.
+ *
+ * A REPLY THAT LANDS AFTER THE PLAYER GAVE UP (review of ACT-03, 17.09). The
+ * plant leaves the store as it is handed over, and a player who stopped waiting
+ * after five seconds had no request left to give it to - so on a slow server the
+ * item was simply gone. That client now sends the request id back, and only a
+ * plant recorded here, for that same user, goes back into the room.
+ */
+const handedOut = new Map();
 const searchKey = (userId, sceneId, room) => `${userId}::${sceneId ?? "-"}::${room}`;
 
 export function registerSearchTokenSocket() {
@@ -370,6 +383,14 @@ async function onSocketMessage(payload, senderId) {
         const plant = at && Date.now() - at < PLANT_WINDOW_MS
             ? await SearchTokens.takePlant(payload.roomName, sceneId)
             : null;
+        if (plant) {
+            for (const [id, entry] of handedOut) {
+                if (Date.now() - entry.at > PLANT_WINDOW_MS) handedOut.delete(id);
+            }
+            handedOut.set(payload.requestId, {
+                userId: senderId, roomName: payload.roomName, sceneId, plant, at: Date.now()
+            });
+        }
         game.socket.emit(SOCKET_EVENT, {
             action: ACTION_RESULT,
             requestId: payload.requestId,
@@ -377,6 +398,21 @@ async function onSocketMessage(payload, senderId) {
             plant,
             left: SearchTokens.left(payload.roomName, sceneId)
         }, { recipients: [senderId] });
+        return;
+    }
+
+    if (payload.action === ACTION_RETURN_PLANT) {
+        if (!isPrimaryGm()) return;
+        const entry = handedOut.get(payload.requestId);
+        // Only what this GM handed out, to the user who is giving it back.
+        if (!entry || entry.userId !== senderId) return;
+        handedOut.delete(payload.requestId);
+        try {
+            const { restorePlant } = await import("./traps.mjs");
+            await restorePlant(entry.roomName, entry.sceneId, entry.plant);
+        } catch (err) {
+            error("Could not put a planted item back in its room", err);
+        }
         return;
     }
 
@@ -391,7 +427,15 @@ async function onSocketMessage(payload, senderId) {
         // has to come from one.
         if (!game.users.get(senderId)?.isGM) return;
         const resolve = pending.get(payload.requestId);
-        if (!resolve) return;
+        if (!resolve) {
+            // Too late: this client stopped waiting and searched on without it.
+            // Hand the plant back rather than drop it - see `handedOut`.
+            if (payload.plant) {
+                game.socket.emit(SOCKET_EVENT, { action: ACTION_RETURN_PLANT, requestId: payload.requestId },
+                    { recipients: activeGmIds() });
+            }
+            return;
+        }
         pending.delete(payload.requestId);
         resolve({ ok: payload.ok, left: payload.left, plant: payload.plant ?? null });
     }

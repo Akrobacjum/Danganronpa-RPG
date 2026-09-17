@@ -367,6 +367,23 @@ function plants() {
 const plantKey = (room, sceneId) => `${sceneId ?? game.scenes?.current?.id ?? "-"}::${room}`;
 
 /**
+ * Put a plant back where `takePlant` found it - the reply carrying it reached a
+ * player who had already stopped waiting (review of ACT-03). Same identity, same
+ * ledger entry, so the trap still knows its own object. A room that has been
+ * planted again in the meantime keeps the newer plant.
+ */
+export async function restorePlant(room, sceneId, plant) {
+    if (!game.user.isGM || !room || !plant) return false;
+    const store = { ...plants() };
+    const key = plantKey(room, sceneId);
+    if (store[key]) return false;
+    store[key] = plant;
+    await setSetting(SETTINGS.trapPlants, store);
+    debug(`A planted item went back into ${room}: its search had stopped waiting.`);
+    return true;
+}
+
+/**
  * Leave something in a room for the first person who searches it.
  *
  * The identity is minted HERE, by the GM, and travels with the plant - so when
