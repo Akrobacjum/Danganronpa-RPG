@@ -304,10 +304,10 @@ export async function meddleDialog(actor) {
  * actions refilled when the lights went out could be spent arming advantage and
  * disadvantage before the time of day had started.
  */
-async function eclipseLocksMeddle({ quiet = false } = {}) {
+async function eclipseLocksMeddle() {
     const { isEclipse } = await import("./eclipse.mjs");
     if (!isEclipse()) return false;
-    if (!quiet) ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.actionsLocked"));
+    ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.actionsLocked"));
     return true;
 }
 
@@ -349,7 +349,11 @@ export async function resolveMeddle({ actorId, targetId, help, total, isCritical
     // discussing the crime scene they stumbled onto, and the GM's own checkbox
     // says so: "they cannot discuss it until the chapter ends, but Confusion
     // still works". This line used to say the opposite.
-    if (await eclipseLocksMeddle({ quiet: true })) return refuse("the Eclipse is on");
+    //
+    // And no Eclipse check here, deliberately (review of CALL-16). The picker and
+    // the payment both refuse during an Eclipse; a Meddle paid a moment before one
+    // opened and refused here would lose its Hope for good, since the GM side
+    // never refunds (ACT-12).
     if (target.id === actor.id) return refuse("you cannot Meddle with yourself");
     if (target.type !== "character") return refuse("the target is not a character");
     if (isMonocub(target)) return refuse("Monocubs do not Meddle with each other");
