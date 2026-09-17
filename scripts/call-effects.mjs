@@ -181,6 +181,14 @@ export function grants(actor, what) {
  *   Reroll costs 3 Hope, and "there was nothing to reroll" used to keep all
  *   three of them.
  */
+/**
+ * Thrown by a branch whose target is already where the Call would put it - a
+ * full Health track, a room already sealed. The price goes back like any other
+ * failure, but it is not a fault, so nobody is told to "tell the GM"; the branch
+ * has already said what was wrong (CALL-15).
+ */
+class NothingToDo extends Error {}
+
 export async function applyCall(actor, key, kind, choice = {}) {
     const call = kind === "despair" ? DESPAIR_CALLS[key] : HOPE_CALLS[key];
     if (!call) return { lines: [], failed: true };
@@ -220,7 +228,7 @@ export async function applyCall(actor, key, kind, choice = {}) {
             const { overflowBlocksHope } = await import("./overflow.mjs");
             if (overflowBlocksHope()) {
                 ui.notifications.warn(game.i18n.localize("DRPG.Overflow.noHopeNow"));
-                throw new Error("No Hope can be granted while the Despair darkening runs");
+                throw new NothingToDo("No Hope can be granted while the Despair darkening runs");
             }
             const max = resourceMax(choice.target, "hope") || STARTING.hopeMax;
             const held = resourceValue(choice.target, "hope");
@@ -228,7 +236,7 @@ export async function applyCall(actor, key, kind, choice = {}) {
 
             if (next === held) {
                 ui.notifications.warn(game.i18n.localize("DRPG.Despair.hopeAlreadyFull"));
-                throw new Error(`${choice.target.name} is already at maximum Hope`);
+                throw new NothingToDo(`${choice.target.name} is already at maximum Hope`);
             }
 
             await automatedUpdate(choice.target, { "system.resources.hope.value": next });
@@ -267,16 +275,27 @@ export async function applyCall(actor, key, kind, choice = {}) {
         // --- damage and stress ---
         if (call.damage && choice.target) {
             const update = {};
+            // What actually lands, not what the Call is worth: Pain on a student
+            // with one mark left used to report "takes 2 Health" and keep all of
+            // its price, and on a full track it did nothing at all (CALL-15).
+            const landed = [];
             for (const [resource, amount] of Object.entries(call.damage)) {
                 // Health and Sanity are reverse resources: marks count up to max.
                 const marks = resourceValue(choice.target, resource);
                 const max = resourceMax(choice.target, resource);
-                update[`system.resources.${resource}.value`] = Math.min(max, marks + amount);
+                const next = Math.min(max, marks + amount);
+                if (next === marks) continue;
+                update[`system.resources.${resource}.value`] = next;
+                landed.push(`${next - marks} ${resource === "hitPoints" ? "Health" : "Sanity"}`);
+            }
+            if (!landed.length) {
+                ui.notifications.warn(game.i18n.format("DRPG.Calls.nothingToMark", { name: choice.target.name }));
+                throw new NothingToDo(`${choice.target.name} has nothing left to mark`);
             }
             await automatedUpdate(choice.target, update);
             done.push(game.i18n.format("DRPG.Calls.damaged", {
                 name: choice.target.name,
-                what: Object.entries(call.damage).map(([r, n]) => `${n} ${r === "hitPoints" ? "Health" : "Sanity"}`).join(", ")
+                what: landed.join(", ")
             }));
         }
 
@@ -394,12 +413,20 @@ export async function applyCall(actor, key, kind, choice = {}) {
 
         // --- sealed rooms ---
         if (call.sealsRoom && choice.room) {
+            if (isSealed(choice.room)) {
+                ui.notifications.warn(game.i18n.format("DRPG.Calls.alreadySealed", { room: choice.room }));
+                throw new NothingToDo(`${choice.room} is already sealed`);
+            }
             await sealRoom(choice.room);
             done.push(game.i18n.format("DRPG.Calls.sealed", { room: choice.room }));
         }
 
         // --- silence: no Hope Calls until the clock moves ---
         if (call.silences && choice.target) {
+            if (isSilenced(choice.target)) {
+                ui.notifications.warn(game.i18n.format("DRPG.Calls.alreadySilenced", { name: choice.target.name }));
+                throw new NothingToDo(`${choice.target.name} is already silenced`);
+            }
             await restrict(choice.target, { silenced: true });
             done.push(game.i18n.format("DRPG.Calls.silenced", { name: choice.target.name }));
             await tell(choice.target, "DRPG.Calls.silencedNotice");
@@ -407,6 +434,10 @@ export async function applyCall(actor, key, kind, choice = {}) {
 
         // --- chained: pinned to the room they are standing in ---
         if (call.chains && choice.target) {
+            if (isChained(choice.target)) {
+                ui.notifications.warn(game.i18n.format("DRPG.Calls.alreadyChained", { name: choice.target.name }));
+                throw new NothingToDo(`${choice.target.name} is already chained`);
+            }
             const { roomOfActor } = await import("./movement.mjs");
             const here = roomOfActor(choice.target);
             await restrict(choice.target, { chained: true, room: here });
@@ -457,6 +488,7 @@ export async function applyCall(actor, key, kind, choice = {}) {
             done.push(game.i18n.format("DRPG.Calls.destroyed", { item: name }));
         }
     } catch (err) {
+        if (err instanceof NothingToDo) return { lines: done, failed: true };
         // A Call that has been paid for and did nothing must say so, and must
         // give the price back. Failing quietly is how "Contribution adds no
         // progress, no error" happened.

@@ -1791,7 +1791,11 @@
       "noItems": "Nobody carries anything that can be destroyed.",
       "armed": "{name} may now use {what} on their next roll.",
       "damaged": "{name} takes {what}.",
+      "nothingToMark": "{name} has nothing left to mark there.",
       "sealed": "{room} is sealed for this time of day.",
+      "alreadySealed": "{room} is already sealed.",
+      "alreadySilenced": "{name} is already silenced.",
+      "alreadyChained": "{name} is already chained.",
       "gathered": {
         "one": "{n} character moved to {room}.",
         "other": "{n} characters moved to {room}."
