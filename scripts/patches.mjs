@@ -83,6 +83,16 @@ export const PATCHES = [
         }
     },
     {
+        target: "ApplicationV2.prototype._awaitTransition",
+        file: "motion.mjs",
+        why: "Returns at once when the window has no transition running, instead of waiting out Foundry's one-second fallback.",
+        when: "always",
+        probe: () => {
+            const fn = foundry.applications?.api?.ApplicationV2?.prototype?._awaitTransition;
+            return { present: typeof fn === "function", ours: fn?.name === "drpgAwaitTransition" };
+        }
+    },
+    {
         target: "ui.notifications.info and .warn",
         file: "voice.mjs",
         why: "Silences avclient-livekit's own toasts, which the module reports in its own words.",

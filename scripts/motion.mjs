@@ -44,7 +44,7 @@ import { playSfx } from "./sfx.mjs";
  */
 export function motionMs(token) {
     try {
-        const raw = getComputedStyle(document.documentElement)
+        const raw = getComputedStyle(tokenSource())
             .getPropertyValue(token).trim();
         if (!raw) return 0;
         // CSS gives back "420ms" or "0.42s" depending on how it was written.
@@ -59,11 +59,24 @@ export function motionMs(token) {
 /** A curve from the stylesheet, as a string `Element.animate()` accepts. */
 export function motionEase(token) {
     try {
-        return getComputedStyle(document.documentElement)
+        return getComputedStyle(tokenSource())
             .getPropertyValue(token).trim() || "ease";
     } catch {
         return "ease";
     }
+}
+
+/**
+ * Where the tokens are read: the body, not `:root` (17.09, LAT-08).
+ *
+ * The Look window's Reduced motion and the theme both work by putting a class on the
+ * BODY, and motion.css rewrites the tokens under that class. Read off `:root` they were
+ * invisible - the OS preference zeroed `:root` itself, the module's own switch did not -
+ * so a player who ticked Reduced motion still watched every window grow in. The body
+ * inherits everything `:root` declares, so nothing that was right before changes.
+ */
+function tokenSource() {
+    return document.body ?? document.documentElement;
 }
 
 /** The three times, by name, so call sites read as English. */
@@ -302,7 +315,7 @@ function animateWindowIn(app, _element, _context, options) {
     // would otherwise still be wearing the mark from last time.
     el.classList.remove("drpg-closing");
 
-    const scale = getComputedStyle(document.documentElement)
+    const scale = getComputedStyle(tokenSource())
         .getPropertyValue("--drpg-scale-in").trim() || "0.96";
 
     play(el, [
@@ -360,7 +373,54 @@ function markClosingWindows() {
             // A window that closes without the mark closes the way Foundry
             // closes it, which is a perfectly good way to close a window.
         }
+        // REDUCED MOTION CLOSES AT ONCE (17.09, RM-CLOSE-1000). The switch zeroes
+        // `--drpg-t-snap`, and a transition of 0 ms never starts, so Foundry waited out
+        // its full one-second fallback on every close - in both themes, for exactly the
+        // players who asked for a quieter interface. Measured 1274-1298 ms under
+        // Monokuma Legacy against 140-151 ms without the switch.
+        if (options?.animate !== false && reducedMotion()) {
+            return originalClose.call(this, { ...options, animate: false });
+        }
         return originalClose.call(this, options);
+    };
+
+    waitOnlyForRealTransitions(proto);
+}
+
+/**
+ * Do not wait for a transition that never started (17.09, AWAIT-CLOSE-SITES).
+ *
+ * `close`, `minimize` and `maximize` all hand the window to `_awaitTransition`, which
+ * resolves on a `transitionend` from the window itself or after its timeout - one
+ * second for a close. Any stylesheet that takes the transition away (a zero duration,
+ * a `transition-property` that does not name what changed, a rule of higher
+ * specificity) turns that into a one-second stall with nothing on screen, and every
+ * caller that awaits a close before opening the next window pays it. The Stained
+ * Glass accent rule did exactly that to every window until it was rescoped.
+ *
+ * `getAnimations()` flushes the style change the caller just made, so a transition
+ * that is going to run is already listed by the time this asks. Nothing listed means
+ * nothing to wait for. A tab in the background still waits the old way: its
+ * transitions are created and simply do not advance, so they are listed and this
+ * steps aside.
+ */
+function waitOnlyForRealTransitions(proto) {
+    const original = proto?._awaitTransition;
+    if (typeof original !== "function") {
+        warn("ApplicationV2._awaitTransition is not where it was; a window without a running transition will wait out Foundry's timeout.");
+        return;
+    }
+    // Named, so `diagnosePatches` (patches.mjs) can tell it is ours.
+    proto._awaitTransition = function drpgAwaitTransition(element, timeout) {
+        try {
+            const own = element?.getAnimations?.() ?? null;
+            if (own && !own.some(a => a instanceof CSSTransition && a.effect?.target === element)) {
+                return Promise.resolve();
+            }
+        } catch {
+            // Asking failed: wait the way Foundry always has.
+        }
+        return original.call(this, element, timeout);
     };
 }
 

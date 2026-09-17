@@ -2972,8 +2972,19 @@ body.drpg-theme-stained-glass .drpg-window-look .window-content { min-width: 0; 
 @property --drpg-glass-accent { syntax: "<color>"; inherits: true; initial-value: #ffd38f; }
 /* On the body's own children and nowhere below them: a transition on an ancestor AND on a
    descendant would restart the descendant's on every frame of the ancestor's. The curtain
-   and its glow are left out (see above). */
-body.drpg-theme-stained-glass > :not(#drpg-curtain):not(.curtain-glow):not(script):not(style):not(canvas#board) {
+   and its glow are left out (see above).
+
+   ZERO SPECIFICITY, AND NEVER ON A WINDOW THAT IS LEAVING (17.09, SG-CLOSE-1000).
+   Written as `:not(a):not(b)` this selector carried two ids - specificity 2-2-4 - and beat
+   every window rule in the sheet, including `.application.drpg-closing.minimizing`
+   (danganronpa.css), whose transform and opacity are the exit Foundry waits for. With its
+   `transition-property` replaced by the accent alone nothing moved on close, no
+   `transitionend` came, and ApplicationV2#close sat out its full 1000 ms fallback: every
+   GM panel tile opened its window a second late. Measured 1017-1113 ms per close against
+   131-151 ms under Monokuma Legacy. `:where()` takes the selector to 0-1-1, and a window
+   that is closing, minimising, restoring or collapsing is left to the rules written for
+   that moment; the tooltip keeps core's own delayed fade. */
+body.drpg-theme-stained-glass > :where(:not(#drpg-curtain, .curtain-glow, script, style, canvas#board, #tooltip, .minimizing, .maximizing, .collapsing)) {
     transition-property: --drpg-glass-accent;
     transition-duration: var(--drpg-t-turn, 840ms);
     transition-timing-function: linear;
