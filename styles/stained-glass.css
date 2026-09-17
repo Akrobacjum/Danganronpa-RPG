@@ -1805,6 +1805,13 @@ body.drpg-theme-stained-glass :is(#drpg-hud .drpg-hud-campaign, #drpg-hud .drpg-
     text-overflow: clip;
     padding-top: 0.08em;
 }
+/* THE DARKENED BADGE TAKES THE FLOOR (17.09). It is drawn only while an overflow darkening
+   runs, which is why the floor test never met it until a sandbox run left one active:
+   danganronpa.css sizes it at a fixed 10 px, under this theme's floor, beside a caption that
+   is on the floor. */
+body.drpg-theme-stained-glass #drpg-despair .drpg-overflow-badge {
+    font-size: var(--drpg-sg-floor);
+}
 /* The one place an ellipsis is still right: a campaign name and a pool name are typed by a
    person and can be any length. They wrap now instead of being cut mid-word. */
 body.drpg-theme-stained-glass #drpg-hud .drpg-hud-campaign {
