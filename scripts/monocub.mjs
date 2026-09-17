@@ -219,6 +219,26 @@ export async function performMeddle(actor, targetId, help) {
     const target = game.actors.get(targetId);
     if (!target) return null;
 
+    /*
+     * ASKED BEFORE ANYTHING IS PAID (ACT-12, 17.09).
+     *
+     * The GM side refuses a Meddle whose target is not a living student in the
+     * same room, and it used to find that out after this client had taken the
+     * action and the Hope - with nothing said to the Monocub and nothing given
+     * back. The GM cannot give it back either: it cannot see that anything was
+     * paid, and a refund for an unpaid request is Hope for a forged packet. So
+     * the same questions are asked here first, where saying no costs nothing.
+     */
+    const { sameRoom } = await import("./movement.mjs");
+    if (isMonocub(target) || isMonokuma(target) || isDeceased(target) || !sameRoom(actor, target)) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Monocub.nobodyHere"));
+        return null;
+    }
+    if (!game.user.isGM && !game.users.some(u => u.isGM && u.active)) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Bridge.noGm"));
+        return null;
+    }
+
     if (!await spendAction(actor, def.cost)) return null;
     await automatedUpdate(actor, { "system.resources.hope.value": hope - def.hopeCost });
 
@@ -297,13 +317,22 @@ export async function resolveMeddle({ actorId, targetId, help, total, isCritical
      * gives: `othersInRoom` reads the canvas and answers for the client that is
      * looking at it, and this client is a GM who is usually somewhere else.
      */
-    const refuse = why => {
+    const refuse = async why => {
         warn(`Refused a Meddle by ${actor.name}: ${why}.`);
+        // Said to the Monocub as well - a refusal only the GM console heard
+        // looked, from the sheet, like an action and a Hope that vanished.
+        if (isMonocub(actor)) {
+            await whisperToOwner(actor, `<p>${game.i18n.localize("DRPG.Monocub.meddleRefused")}</p>`);
+        }
         return null;
     };
 
     if (!isMonocub(actor)) return refuse("they are not a Monocub");
-    if (isSilenced(actor)) return refuse("they are silenced this chapter");
+    // NOT refused for being silenced (ACT-12). The Monocub silence is about
+    // discussing the crime scene they stumbled onto, and the GM's own checkbox
+    // says so: "they cannot discuss it until the chapter ends, but Confusion
+    // still works". This line used to say the opposite.
+    if (await eclipseLocksMeddle({ quiet: true })) return refuse("the Eclipse is on");
     if (target.id === actor.id) return refuse("you cannot Meddle with yourself");
     if (target.type !== "character") return refuse("the target is not a character");
     if (isMonocub(target)) return refuse("Monocubs do not Meddle with each other");

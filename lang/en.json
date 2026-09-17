@@ -732,6 +732,7 @@
       "hinder": "Hinder",
       "meddledOn": "You used Confusion on {name}.",
       "meddleFailed": "Nothing comes of it.",
+      "meddleRefused": "Confusion does not reach them. The moment passed before it landed.",
       "silencedNoteShort": "You stumbled onto the crime. No discussing it until next chapter.",
       "noneYet": "Nobody has opted in as a Monocub yet.",
       "hopeShort": "{held} Hope",
