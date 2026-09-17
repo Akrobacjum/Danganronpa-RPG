@@ -177,7 +177,16 @@ export async function addOverflow(amount, { reason = "spill" } = {}) {
      *
      * So the card comes now and the bite comes at the boundary, whole. The
      * boundary check then finds the stamp already armed and does not pay twice.
+     *
+     * NOT WHILE A DARKENING IS RUNNING NOW (CALL-06, 17.09). The overflow holds
+     * one stamp, and arming the next hour wrote over the current one: a spill
+     * that reached X in a darkened Morning ended that Morning's Silence, Fog or
+     * Despair on the spot, so the X it had paid for bought less than an hour.
+     * The counter simply waits, still at X or more, and the next boundary's own
+     * check fires it - the Eclipse's opening, or the time of day moving on.
      */
+    const clock = getClock();
+    if (!clock.eclipse && before.active?.effect && same(before.active, stampOf(clock))) return after;
     await armAhead();
     return after;
 }
