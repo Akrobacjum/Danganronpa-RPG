@@ -13,6 +13,25 @@ import { MODULE_ID, FLAGS, STARTING, TRAITS, TRAIT_ARRAY } from "./config.mjs";
 import { log } from "./utils.mjs";
 
 /**
+ * Does this character still need the starting maxima?
+ *
+ * BELOW the starting numbers, not different from them (17.09, SEASON-01). A Level Up
+ * writes +1 Health or +1 Sanity onto the maximum, so strict equality called every
+ * advanced student "not set up": the season checklist listed them, the sheet offered
+ * its set-up wand, and one Do it put the maximum back to the start, zeroed the damage,
+ * reset Hope and re-stamped the season's baseline - the advance gone without a word.
+ * Reproduced on 16.09 with Health max 5. One predicate for the three places that ask.
+ *
+ * With it, a repair only ever reaches a sheet below the starting numbers - never set
+ * up, or reset by Daggerheart's own Reset Character - and re-stamping the season's
+ * baseline is right for exactly those.
+ */
+export function needsStartingResources(actor) {
+    return resourceMax(actor, "hitPoints") < STARTING.hp
+        || resourceMax(actor, "stress") < STARTING.stress;
+}
+
+/**
  * Give an actor the guide's starting resources. Safe to re-run; it only
  * writes the fields it owns.
  *
@@ -27,23 +46,8 @@ import { log } from "./utils.mjs";
  *   meaningfully tied to "Ultimate Baseballista", and should not pretend to.
  *   Omitted, nothing is granted and the GM is reminded.
  */
-/**
- * Does this character still need the starting maxima?
- *
- * BELOW the starting numbers, not different from them (17.09, SEASON-01). A Level Up
- * writes +1 Health or +1 Sanity onto the maximum, so strict equality called every
- * advanced student "not set up": the season checklist listed them, the sheet offered
- * its set-up wand, and one Do it put the maximum back to the start, zeroed the damage,
- * reset Hope and re-stamped the season's baseline - the advance gone without a word.
- * Reproduced on 16.09 with Health max 5. One predicate for the three places that ask.
- */
-export function needsStartingResources(actor) {
-    return resourceMax(actor, "hitPoints") < STARTING.hp
-        || resourceMax(actor, "stress") < STARTING.stress;
-}
-
 export async function initCharacter(actor, {
-    resetValues = true, startingItem = null, quiet = false, keepStamp = false
+    resetValues = true, startingItem = null, quiet = false
 } = {}) {
     if (!actor || actor.type !== "character") {
         ui.notifications.warn(game.i18n.localize("DRPG.Character.notACharacter"));
@@ -98,11 +102,8 @@ export async function initCharacter(actor, {
     }
 
     // What this sheet looks like now, so a season reset has something to come
-    // back to. See `restoreStartingSheet`. `keepStamp` leaves an existing record
-    // alone: a repair must not move the baseline a season reset returns to.
-    if (!(keepStamp && actor.getFlag(MODULE_ID, FLAGS.sheetAtStart))) {
-        await stampStartingSheet(actor);
-    }
+    // back to. See `restoreStartingSheet`.
+    await stampStartingSheet(actor);
 
     log(`Initialised ${actor.name}: Health ${STARTING.hp}, Sanity ${STARTING.stress}, Hope ${STARTING.hope}.`);
     return actor;

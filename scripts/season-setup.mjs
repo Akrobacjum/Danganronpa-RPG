@@ -121,7 +121,7 @@ function steps() {
                 let n = 0;
                 for (const actor of studentActors()) {
                     if (!needsStartingResources(actor)) continue;
-                    await initCharacter(actor, { keepStamp: true });
+                    await initCharacter(actor);
                     n++;
                 }
                 return n;
