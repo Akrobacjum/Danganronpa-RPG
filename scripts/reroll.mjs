@@ -29,7 +29,7 @@
  */
 
 import { MODULE_ID, FLAGS, ACTIONS, PROJECT_SCALE, DYNAMIC_THRESHOLDS } from "./config.mjs";
-import { resolveThreshold, replaceFlag, log, error, plural } from "./utils.mjs";
+import { resolveThreshold, easedBy, replaceFlag, log, error, plural } from "./utils.mjs";
 
 /**
  * Reroll, with the dice the first roll was actually made with.
@@ -336,7 +336,12 @@ async function settleProgress(actor, bookmark, after, done) {
     }
 
     const def = ACTIONS.project;
-    const hit = after.isCritical ? def.critical : resolveThreshold(after.total, def.thresholds);
+    // The tool's relief rides the bookmark (ACT-11). Scored against the bare
+    // bands, a reroll took back progress the tool had earned the first roll.
+    const relief = bookmark.relief ?? 0;
+    const hit = after.isCritical
+        ? def.critical
+        : resolveThreshold(after.total, easedBy(def.thresholds, relief));
 
     // The bonus an indirect murder earned - for working alone, or for
     // concealing intent on a Despair roll - is not recomputable from the
@@ -398,17 +403,21 @@ async function settleSearch(actor, bookmark, after, done) {
 
     // 2. Draw again, from the same category and for the same goal.
     let drawnName = null;
+    let drawnRoles = [];
+    let identity = null;
     if (found && bookmark.category) {
         const { drawItem } = await import("./tables.mjs");
         const drawn = await drawItem(bookmark.category, tier, { goal: bookmark.goal ?? null });
         if (drawn?.name) {
             drawnName = drawn.name;
+            drawnRoles = drawn.roles ?? [];
             const { grantItem } = await import("./inventory.mjs");
             const granted = await grantItem(actor, {
                 name: drawn.name, category: bookmark.category, tier, goal: bookmark.goal ?? null,
                 roles: drawn.roles ?? []
             });
             if (granted) itemId = granted.id;
+            identity = granted?.getFlag?.(MODULE_ID, "drpgItemId") ?? null;
             done.push(game.i18n.format("DRPG.Reroll.itemDrawn", { item: drawn.name, tier }));
         }
     } else {
@@ -418,7 +427,15 @@ async function settleSearch(actor, bookmark, after, done) {
     // 3. The trace. Only murder and cleaning gear leaves one, per the guide, and
     //    only a Search that actually found something - but a Search that failed
     //    and is now a success has to leave the trace it never earned first time.
-    const leaves = Boolean(bookmark.category) && bookmark.category !== "usable";
+    //
+    //    THE ACTION'S RULE, NOT THE ONE IT REPLACED ON 28.08 (ACT-11, 17.09). This
+    //    read `category !== "usable"`, so a rerolled hunt for "something to work
+    //    with" that turned up a plain screwdriver left a Prep Remnant the first
+    //    roll never would have, tied to the crime. What leaves a trace is the
+    //    object in hand - crime or cleaning gear by its category or by the roles
+    //    its table entry declares - and whether it is tied waits for it to be used.
+    const roles = new Set([bookmark.category, ...drawnRoles]);
+    const leaves = roles.has("crimeTool") || roles.has("cleaningTool");
     const visibility = found
         ? (after.isCritical ? def.critical?.remnant : hit?.remnant)
         : null;
@@ -427,7 +444,8 @@ async function settleSearch(actor, bookmark, after, done) {
     const trace = await settleRemnant(actor, bookmark, leaves ? (visibility ?? null) : null, done, {
         type: "prep",
         faint: true,
-        tiedToCrime: true,
+        tiedToCrime: null,
+        itemIdentity: identity,
         action: "search",
         subject: drawnName ?? "",
         note: game.i18n.format("DRPG.Remnant.searchNote", {
@@ -455,8 +473,9 @@ async function settleSearch(actor, bookmark, after, done) {
 async function settleSabotage(actor, bookmark, after, done) {
     const def = ACTIONS.sabotage;
     const penalty = bookmark.penalty ?? 0;
+    const relief = bookmark.relief ?? 0;
     const score = after.total + penalty;
-    const hit = after.isCritical ? def.critical : resolveThreshold(score, def.thresholds);
+    const hit = after.isCritical ? def.critical : resolveThreshold(score, easedBy(def.thresholds, relief));
     const success = Boolean(hit);
 
     const { undoSabotage, sabotageProject, allProjects } = await import("./projects.mjs");
@@ -474,7 +493,7 @@ async function settleSabotage(actor, bookmark, after, done) {
         //   12 -> trivial (3)   18 -> complex (6)   crit -> desperate (8)
         const difficulty = after.isCritical
             ? PROJECT_SCALE.desperate.progress
-            : score >= 18 ? PROJECT_SCALE.complex.progress : PROJECT_SCALE.trivial.progress;
+            : score >= 18 - relief ? PROJECT_SCALE.complex.progress : PROJECT_SCALE.trivial.progress;
 
         const result = await sabotageProject(bookmark.targetProjectId, difficulty);
         repairId = result?.repair?.id ?? null;

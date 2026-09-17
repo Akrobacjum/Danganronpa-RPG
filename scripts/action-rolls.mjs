@@ -24,7 +24,7 @@ import { drawItem } from "./tables.mjs";
 import { roomOfActor, othersInRoom, locateActor } from "./movement.mjs";
 import { projectsAvailableIn, addProgress, isIndirectMurder, scaleFor, projectsListedIn } from "./projects.mjs";
 import { callGm, promptAndCallGm } from "./gm-bridge.mjs";
-import { announce, resolveThreshold, whisperToOwner, dialogContent, replaceFlag, log, debug, error, plural, cardHead, esc} from "./utils.mjs";
+import { announce, resolveThreshold, easedBy, whisperToOwner, dialogContent, replaceFlag, log, debug, error, plural, cardHead, esc} from "./utils.mjs";
 // Static, and safe to be: nothing private-rolls.mjs imports leads back here.
 import { supersedingRoll } from "./private-rolls.mjs";
 // One reader, for the Tamper menu's "what you have readied" line. use-items.mjs
@@ -33,20 +33,6 @@ import { equippedFor } from "./use-items.mjs";
 import { playSfx } from "./sfx.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
-
-/**
- * The same bands with the tool in hand taken off the top.
- *
- * The tier comes off the THRESHOLD rather than being added to the roll. The two
- * are the same arithmetic and are not the same card: this way the total stays
- * the total that was rolled, and the reason it was enough is a line in the
- * report rather than a number nobody can account for. `cleanupDc` chooses the
- * same way, for the same reason.
- */
-function easedBy(thresholds, relief) {
-    if (!relief) return thresholds;
-    return thresholds.map(band => ({ ...band, min: Math.max(0, band.min - relief) }));
-}
 
 /** What a readied Tool takes off a threshold. 0 for bare hands. */
 function toolRelief(tool, tierOf) {
@@ -2028,6 +2014,9 @@ async function workOnProject(actor, def, options, chosen = null) {
     await noteRollContext(actor, {
         actionKey: "project", projectId: project.id, progress, bonus: earnedBonus,
         room: roomOfActor(actor),
+        // The tool's relief, so a Reroll scores the new dice against the same
+        // bands this roll was scored against (ACT-11).
+        relief,
         // Whether the critical's free action has already been handed back, so a
         // reroll that loses the critical knows there is one to take away again.
         refunded: Boolean(hit?.refundAction && cost > 0)
@@ -2516,6 +2505,7 @@ async function performSabotage(actor, def, options) {
         targetProjectId: project.id,
         repairId: repair?.repair?.id ?? null,
         penalty,
+        relief,
         witnesses: witnesses.length,
         ...remnantRef(placed)
     });

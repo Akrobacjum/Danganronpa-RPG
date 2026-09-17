@@ -409,6 +409,24 @@ export function resolveThreshold(total, tiers) {
     return hit;
 }
 
+/**
+ * The same bands with the tool in hand taken off the top.
+ *
+ * The tier comes off the THRESHOLD rather than being added to the roll. The two
+ * are the same arithmetic and are not the same card: this way the total stays
+ * the total that was rolled, and the reason it was enough is a line in the
+ * report rather than a number nobody can account for. `cleanupDc` chooses the
+ * same way, for the same reason.
+ *
+ * Here rather than in action-rolls.mjs since 17.09 (ACT-11): a Reroll scores
+ * the new dice against the same eased bands, and a second copy of this in
+ * reroll.mjs is how the two would drift apart again.
+ */
+export function easedBy(thresholds, relief) {
+    if (!relief) return thresholds;
+    return thresholds.map(band => ({ ...band, min: Math.max(0, band.min - relief) }));
+}
+
 /** Clamp helper. */
 export function clamp(value, min, max) {
     return Math.min(Math.max(value, min), max);
