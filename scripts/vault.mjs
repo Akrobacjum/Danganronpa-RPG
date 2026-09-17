@@ -1376,9 +1376,16 @@ export async function plantOnPerson({
         return refuse(`"${item.name}" is not something they are carrying`);
     }
 
+    // THE PLANT BARS, NOT THE STEAL ONES (ACT-01, 17.09). The player's client
+    // measured against `def.plant` - D10a, planting is easier on both axes - and
+    // this side, which is the one that decides, measured against the theft's:
+    // an 8 or 9 failed to plant and a 13 or 14 was seen, with the victim told
+    // they had caught somebody. Same `??` as the client, so the two cannot drift.
     const def = ACTIONS.palm;
-    const success = Boolean(isCritical) || Number(total) >= def.threshold;
-    const seen = !(Boolean(unseenCritical) || Number(unseenTotal) >= def.unseen.threshold);
+    const bar = def.plant?.threshold ?? def.threshold;
+    const unseenBar = def.plant?.unseen ?? def.unseen.threshold;
+    const success = Boolean(isCritical) || Number(total) >= bar;
+    const seen = !(Boolean(unseenCritical) || Number(unseenTotal) >= unseenBar);
 
     let landed = null;
     let handsFull = false;
