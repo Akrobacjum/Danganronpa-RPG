@@ -32,6 +32,61 @@ export function hopeHeld(actor) {
 }
 
 /**
+ * Is a Hope Call barred right now, whatever it costs? Says why when it is.
+ *
+ * Asked twice by `spendHopeCall` (ACT-09, 17.09): before anything else, and
+ * again after a GM's yes on the two Calls that wait for one. That wait can be
+ * five minutes, and a Silence bought or an Eclipse begun in the meantime used
+ * to be ignored - the Call went through on a ruling given to a different moment.
+ *
+ * @returns {Promise<boolean>}
+ */
+async function hopeCallBarred(actor) {
+    // The Eclipse is placement-only - see the guard in action-rolls.mjs's
+    // `performAction` for the full reasoning. A Call is not a room
+    // crossing, so it waits for the same next time of day everything else
+    // does.
+    if (isEclipse()) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.actionsLocked"));
+        return true;
+    }
+
+    /*
+     * SILENCE, THE WEATHER (Z10) - not to be confused with the Silence
+     * Despair Call checked below, which a Monokuma BUYS and
+     * aims at one player. This one was drawn by the overflow and falls on
+     * everybody, which is why it is checked here rather than in the
+     * per-player restrictions: there is nobody to look up.
+     */
+    const { overflowBlocksCalls } = await import("./overflow.mjs");
+    if (overflowBlocksCalls()) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Overflow.silenced"));
+        return true;
+    }
+
+    // The dead spend nothing. The sheet stops offering them the Calls panel
+    // at all, so this covers the two routes that skip the sheet: a window
+    // left open across the moment of death, and the `game.drpg` API.
+    // A Monocub is deceased but pays Hope for Meddle through its own path
+    // in monocub.mjs, not through here, so it is unaffected.
+    const { isDeceased } = await import("./chapter.mjs");
+    if (isDeceased(actor)) {
+        ui.notifications.warn(game.i18n.format("DRPG.Chapter.deadCannotAct", {
+            name: actor.name
+        }));
+        return true;
+    }
+
+    // Silence, bought with 4 Despair, closes this menu until the clock moves.
+    const { isSilenced } = await import("./call-effects.mjs");
+    if (isSilenced(actor)) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Calls.silencedNotice"));
+        return true;
+    }
+    return false;
+}
+
+/**
  * Spend a Hope Call.
  *
  * @param {Actor} actor
@@ -44,47 +99,7 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
         const call = HOPE_CALLS[key];
         if (!call || !actor) return null;
 
-        // The Eclipse is placement-only - see the guard in action-rolls.mjs's
-        // `performAction` for the full reasoning. A Call is not a room
-        // crossing, so it waits for the same next time of day everything else
-        // does.
-        if (isEclipse()) {
-            ui.notifications.warn(game.i18n.localize("DRPG.Eclipse.actionsLocked"));
-            return null;
-        }
-
-        /*
-         * SILENCE, THE WEATHER (Z10) - not to be confused with the Silence
-         * Despair Call above it in the same file, which a Monokuma BUYS and
-         * aims at one player. This one was drawn by the overflow and falls on
-         * everybody, which is why it is checked here rather than in the
-         * per-player restrictions: there is nobody to look up.
-         */
-        const { overflowBlocksCalls } = await import("./overflow.mjs");
-        if (overflowBlocksCalls()) {
-            ui.notifications.warn(game.i18n.localize("DRPG.Overflow.silenced"));
-            return null;
-        }
-
-        // The dead spend nothing. The sheet stops offering them the Calls panel
-        // at all, so this covers the two routes that skip the sheet: a window
-        // left open across the moment of death, and the `game.drpg` API.
-        // A Monocub is deceased but pays Hope for Meddle through its own path
-        // in monocub.mjs, not through here, so it is unaffected.
-        const { isDeceased } = await import("./chapter.mjs");
-        if (isDeceased(actor)) {
-            ui.notifications.warn(game.i18n.format("DRPG.Chapter.deadCannotAct", {
-                name: actor.name
-            }));
-            return null;
-        }
-
-        // Silence, bought with 4 Despair, closes this menu until the clock moves.
-        const { isSilenced } = await import("./call-effects.mjs");
-        if (isSilenced(actor)) {
-            ui.notifications.warn(game.i18n.localize("DRPG.Calls.silencedNotice"));
-            return null;
-        }
+        if (await hopeCallBarred(actor)) return null;
 
         const held = hopeHeld(actor);
         if (held < call.cost) {
@@ -149,6 +164,7 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
                 return null;
             }
 
+            if (await hopeCallBarred(actor)) return null;
             const now = hopeHeld(actor);
             if (now < call.cost) {
                 ui.notifications.warn(game.i18n.format("DRPG.Calls.notEnoughHope", {
@@ -158,7 +174,12 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
             }
         }
 
-        await automatedUpdate(actor, { "system.resources.hope.value": held - call.cost });
+        // Charged against the Hope held NOW, not at the ask (ACT-09). A GM's
+        // ruling can take minutes, and the number read before it was written back
+        // over anything that moved Hope meanwhile: a Support spent during the wait
+        // came back, and Hope a roll granted was erased.
+        const left = hopeHeld(actor) - call.cost;
+        await automatedUpdate(actor, { "system.resources.hope.value": left });
 
         // Do the thing, not just charge for it.
         const { applyCall } = await import("./call-effects.mjs");
@@ -188,7 +209,7 @@ export async function spendHopeCall(actor, key, { note = "", choice = {} } = {})
             ${note ? `<blockquote>${esc(note)}</blockquote>` : ""}
             ${done.length ? `<ul>${done.map(d => `<li>${esc(d)}</li>`).join("")}</ul>` : ""}
             <p><em>${game.i18n.format("DRPG.Calls.hopeSpent", {
-                cost: call.cost, left: held - call.cost
+                cost: call.cost, left
             })}</em></p>`, { flags: { [MODULE_ID]: { popupTone: "hope", sfx: "hopeCall" } } });
 
         log(`${actor.name} spent ${call.cost} Hope on ${call.label}.`);
