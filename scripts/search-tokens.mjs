@@ -323,6 +323,14 @@ const ACTION_RETURN_PLANT = "searchTokens.returnPlant";
 const pending = new Map();
 
 /**
+ * Plant requests THIS client stopped waiting for. Only these may send a plant
+ * back: another tab of the same user sees the same reply with no request of its
+ * own, and returning it from there duplicated a plant that had been delivered
+ * (review, 17.09).
+ */
+const gaveUp = new Set();
+
+/**
  * Who spent a token where, on the primary GM's client: `user::scene::room` ->
  * when. A plant goes only to a user in this map, once, so asking for one is not
  * a way to empty a room nobody searched.
@@ -407,6 +415,9 @@ async function onSocketMessage(payload, senderId) {
         // Only what this GM handed out, to the user who is giving it back.
         if (!entry || entry.userId !== senderId) return;
         handedOut.delete(payload.requestId);
+        // A late reply comes back within seconds; a return long after the fact is
+        // not one, and would put an item back that has been in a pocket all along.
+        if (Date.now() - entry.at > PLANT_WINDOW_MS) return;
         try {
             const { restorePlant } = await import("./traps.mjs");
             await restorePlant(entry.roomName, entry.sceneId, entry.plant);
@@ -430,7 +441,7 @@ async function onSocketMessage(payload, senderId) {
         if (!resolve) {
             // Too late: this client stopped waiting and searched on without it.
             // Hand the plant back rather than drop it - see `handedOut`.
-            if (payload.plant) {
+            if (payload.plant && gaveUp.delete(payload.requestId)) {
                 game.socket.emit(SOCKET_EVENT, { action: ACTION_RETURN_PLANT, requestId: payload.requestId },
                     { recipients: activeGmIds() });
             }
@@ -483,6 +494,7 @@ function askGm(action, roomName, sceneId, timeoutMs, onTimeout) {
         setTimeout(() => {
             if (!pending.has(requestId)) return;
             pending.delete(requestId);
+            if (action === ACTION_TAKE_PLANT) gaveUp.add(requestId);
             onTimeout?.();
             resolve({ ok: false, left: null, plant: null });
         }, timeoutMs);
