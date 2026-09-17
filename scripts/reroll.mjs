@@ -55,17 +55,18 @@ import { resolveThreshold, easedBy, replaceFlag, log, error, plural } from "./ut
  * modifiers come back with it - this adds the one thing the round trip drops
  * and changes nothing else.
  *
- * The one-die case still goes through `reroll()` untouched. It is the system's
- * own path, it is what every roll in the game before this used, and there is no
- * reason to route it through a reconstruction to arrive at the same place.
+ * The one-die case still goes through `reroll()`, which rebuilds one die
+ * correctly - but without `liveRoll`, so the system settles nothing, and both
+ * branches settle through the one port below (review of CALL-08, 17.09).
+ * The system's own settlement clears a Sanity mark for a critical, which this
+ * game's critical never does, and compensating after its unawaited, clamped
+ * write could not know what it had really moved.
  */
 async function rerollKeepingDice(original) {
     const wanted = advantageDice(original);
     if (wanted <= 1) {
-        const target = await rollTarget(original);
-        const marks = target ? Number(target.system?.resources?.stress?.value ?? 0) : null;
-        const rerolled = await original.reroll({ liveRoll: true });
-        await undoSystemSanity(original, rerolled, target, marks);
+        const rerolled = await original.reroll();
+        await settleDualityReroll(original, rerolled);
         return rerolled;
     }
 
@@ -78,8 +79,7 @@ async function rerollKeepingDice(original) {
 }
 
 /**
- * What `DualityRoll#reroll` does after the dice, for the branch that cannot go
- * through it.
+ * What `DualityRoll#reroll` does after the dice, for every reroll.
  *
  * CALL-08, 17.09. `liveRoll` is read by `DualityRoll#reroll` and by nothing
  * else - `Roll#evaluate` ignores it - so the multi-dice branch above showed no
@@ -165,34 +165,6 @@ async function modifyRollActor(original, updates) {
 }
 
 /**
- * Take back the Sanity the system's own reroll moved, on the one-die path.
- *
- * `DualityRoll#reroll` clears a Sanity mark for a critical it rolls and marks one
- * for a critical it throws away. This game's critical clears none (see
- * `CRITICAL.clearsStress` and critical.mjs, which removes it from a fresh roll),
- * so a reroll that gained or lost a critical moved a mark that was never there
- * to move. Found in review of CALL-08; the multi-dice port above skips the line
- * instead.
- */
-async function undoSystemSanity(original, rerolled, target, marks) {
-    if (CRITICAL.clearsStress || original.options?.actionType === "reaction") return;
-    if (!target || marks === null) return;
-    try {
-        if (!rerollDeltas(original, rerolled).stress) return;
-        // The system does not await its own write, and clamps it: a critical
-        // rolled on a clean track clears nothing. So what is put back is what
-        // actually moved, read once the write has landed.
-        const read = () => Number(target.system?.resources?.stress?.value ?? 0);
-        for (let i = 0; i < 20 && read() === marks; i++) await new Promise(r => setTimeout(r, 50));
-        if (read() === marks) return;
-        const { automatedUpdate } = await import("./resource-guard.mjs");
-        await automatedUpdate(target, { "system.resources.stress.value": marks });
-    } catch (err) {
-        error("Could not put back the Sanity a reroll moved", err);
-    }
-}
-
-/**
  * How many bonus dice this roll was thrown with.
  *
  * Read off the die itself rather than from `advantageNumber`, which is the
@@ -227,8 +199,8 @@ export async function rerollLastAction(actor) {
 
     const before = dualityOfRoll(original);
 
-    // `liveRoll` is what makes the system show the dice again and reverse the
-    // Hope and Sanity the first result granted.
+    // `rerollKeepingDice` shows the dice again and reverses the Hope the first
+    // result granted - see `settleDualityReroll`.
     let rerolled;
     try {
         rerolled = await rerollKeepingDice(original);
