@@ -105,8 +105,10 @@ async function settleDualityReroll(original, rerolled) {
         const stress = (now === 0 ? 1 : 0) - (was === 0 ? 1 : 0);
         const fear = (now === -1 ? 1 : 0) - (was === -1 ? 1 : 0);
 
-        const { hopeFear, countdownAutomation } =
-            game.settings.get(CONFIG.DH.id, CONFIG.DH.SETTINGS.gameSettings.Automation);
+        // The system's own settings map, read off its config rather than named in
+        // this module's `SETTINGS` idiom - R4 treats `SETTINGS.x` as one of ours.
+        const { gameSettings } = CONFIG.DH.SETTINGS ?? {};
+        const { hopeFear, countdownAutomation } = game.settings.get(CONFIG.DH.id, gameSettings.Automation);
 
         if (game.user.isGM ? hopeFear.gm : hopeFear.players) {
             const updates = [];
