@@ -10,7 +10,7 @@ import { MODULE_ID, PROJECT_SCALE, PROJECT_GLYPHS, isProjectGlyph, TRAITS, TRAP_
 import { SETTINGS } from "./settings.mjs";
 import {
     allProjects, setProjectMeta, metaFor, roomOf, isIndirectMurder, isSecret,
-    makeSecret, shareWith, unshareWith, revealProject, viewersOf,
+    makeSecret, shareWith, unshareWith, revealProject, viewersOf, sealAudience,
     createProject, deleteProject, setProjectImage, updateProject
 } from "./projects.mjs";
 import { allRooms } from "./movement.mjs";
@@ -497,7 +497,7 @@ export async function openProjectManager() {
         // sealed and revealed on every other save.
         const shouldBeSecret = entry.secret || newlyMurder;
         if (shouldBeSecret && !isSecret(entry.id)) {
-            await makeSecret(entry.id, viewersOf(entry.id).map(u => u.id));
+            await makeSecret(entry.id, sealAudience(entry.id));
         } else if (!shouldBeSecret && isSecret(entry.id)) {
             await revealProject(entry.id);
         }
@@ -813,13 +813,15 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
         img: result.img,
         glyph: result.glyph,
         viewers: result.viewer ? [result.viewer] : [],
-        // Whose trap it is: the player it was made visible to, when the GM
-        // named one. `startProject` fills this in properly for the player's own
-        // route - see action-rolls.mjs.
-        killerId: result.viewer
+        // Whose trap it is: the student who proposed it, and only when there is
+        // no proposer - a project the GM made from the panel - the player it was
+        // made visible to. The proposer used to be ignored here, so an approved
+        // trap with "Also visible to" left at "-" had no killer and no viewer,
+        // and its own builder could not see it (F3, 17.09).
+        killerId: start?.by ?? (result.viewer
             ? game.actors.find(a => a.type === "character"
                 && a.testUserPermission(game.users.get(result.viewer), "OWNER"))?.id ?? null
-            : null
+            : null)
     });
 
     if (created) ui.notifications.info(game.i18n.format("DRPG.Project.created", { name: created.name }));
@@ -828,7 +830,7 @@ export async function openProjectDialog({ project = null, preset = null, rooms =
 
 /** Keep the ownership map in step with one boolean. */
 async function applySecrecy(id, wanted) {
-    if (wanted && !isSecret(id)) await makeSecret(id, viewersOf(id).map(u => u.id));
+    if (wanted && !isSecret(id)) await makeSecret(id, sealAudience(id));
     else if (!wanted && isSecret(id)) await revealProject(id);
 }
 

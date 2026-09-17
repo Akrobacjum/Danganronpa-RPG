@@ -399,9 +399,15 @@ export async function createProject({
     // steps, and skipping the second produced a project the killer could not
     // work on: `projectsAvailableIn` filters on `canSee`, so their own murder
     // was missing from their own Work on Project list.
-    const audience = viewers.length
-        ? viewers
-        : (hidden && killerId ? ownerIdsOf(killerId) : []);
+    //
+    // AND THE PERSON WHO PROPOSED IT (F3, 17.09). Every player's project reaches
+    // this through the approval window, which named the killer only when the GM
+    // picked somebody under "Also visible to" - left at "-", an indirect murder
+    // was sealed with no viewers at all, and the player who built it could not
+    // see it or work on it. Viewers are now added to the builder, not instead.
+    const audience = hidden
+        ? Array.from(new Set([...viewers, ...ownerIdsOf(killerId ?? by)]))
+        : [];
 
     countdowns[id] = {
         type: "narrative",
@@ -429,7 +435,8 @@ export async function createProject({
         // an invalid mask and therefore NO glyph at all - not the hourglass.
         glyph: isProjectGlyph(glyph) ? glyph : null,
         by: by ?? null,
-        killerId: indirectMurder ? killerId : null,
+        // The builder is the killer unless somebody said otherwise (F3).
+        killerId: indirectMurder ? (killerId ?? by ?? null) : null,
         condition: indirectMurder ? condition : "",
         // Not armed here - armed when the bar fills. A trap that watched from
         // the moment it was proposed would be a trap you can set off while its
@@ -1057,6 +1064,12 @@ export async function unshareWith(countdownId, userId) {
 export async function revealProject(countdownId) {
     if (!game.user.isGM) return null;
 
+    // Who was in on it, kept for the day it is sealed again - see `sealAudience`.
+    // Read before the write below makes the answer "everybody".
+    const insiders = isSecret(countdownId)
+        ? viewersOf(countdownId).map(u => u.id)
+        : (metaFor(countdownId).sealedViewers ?? []);
+
     const cleared = { default: OBSERVER };
     for (const user of game.users) {
         if (user.isGM) continue;
@@ -1064,9 +1077,33 @@ export async function revealProject(countdownId) {
     }
 
     await writeCountdown(countdownId, { ownership: cleared }, { replace: ["ownership"] });
-    await setProjectMeta(countdownId, { secret: false });
+    await setProjectMeta(countdownId, { secret: false, sealedViewers: insiders });
     log(`Project ${countdownId} revealed to everyone.`);
     return true;
+}
+
+/**
+ * Who should see a project if it is sealed now: its viewers, and the student
+ * whose project it is.
+ *
+ * NOT `viewersOf` ON A PUBLIC PROJECT (F4, 17.09). A revealed project names
+ * every player as a viewer - Daggerheart reads `ownership[user.id]` and ignores
+ * `default`, so it has to - and re-sealing it with that list kept the whole
+ * table in while the Secret box and our own flag said sealed. A public project
+ * answers with the viewers it had before it was revealed, and never with
+ * everyone. The builder is added either way (F3): `killerId` on a trap, the
+ * proposer on anything else.
+ *
+ * @param {string} countdownId
+ * @returns {string[]}  User ids, GMs excluded.
+ */
+export function sealAudience(countdownId) {
+    const meta = metaFor(countdownId);
+    const ids = new Set(isSecret(countdownId)
+        ? viewersOf(countdownId).map(u => u.id)
+        : (meta.sealedViewers ?? []));
+    for (const id of ownerIdsOf(meta.killerId ?? meta.by ?? null)) ids.add(id);
+    return Array.from(ids);
 }
 
 /** Is this project hidden from the table at large? */
