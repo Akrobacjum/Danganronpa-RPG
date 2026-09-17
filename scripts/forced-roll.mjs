@@ -49,6 +49,15 @@ import { debug, error } from "./utils.mjs";
 export const LOADED_DIE = "drpgLoadedDie";
 
 /*
+ * AND ONCE PER PURCHASE (review, 17.09). The mark is the Call's own nonce, and a
+ * nonce that has loaded a die is remembered here: two action windows opened while
+ * one Loaded Die was held both carry it, and without this both came up 12 for
+ * one purchase. The first to throw takes it; the other is an honest roll. Each
+ * purchase has a new nonce, so the set never has to be cleared.
+ */
+const spent = new Set();
+
+/*
  * HOW MANY DICE GET THEIR TOP FACE.
  *
  * It was all of them, so 12/12 - a pair, and a critical by the system's own
@@ -75,7 +84,8 @@ export function registerForcedRolls() {
  * for exactly as long as this one roll is being evaluated.
  */
 function onConfigured(roll, config) {
-    if (!config?.[LOADED_DIE]) return;
+    const mark = config?.[LOADED_DIE];
+    if (!mark || spent.has(mark)) return;
     if (typeof roll?.evaluate !== "function") {
         // A Daggerheart that stopped passing the roll. Loud rather than silent:
         // the player paid for this, and "the die was not loaded" needs a reason.
@@ -88,6 +98,13 @@ function onConfigured(roll, config) {
         configurable: true,
         writable: true,
         value: async function (...args) {
+            // Claimed at the throw, not at configuration: a window that is
+            // configured and then abandoned must not use the purchase up.
+            if (spent.has(mark)) {
+                delete this.evaluate;
+                return evaluate.apply(this, args);
+            }
+            spent.add(mark);
             const real = CONFIG.Dice.randomUniform;
             let left = LOADED;
             // Counted down rather than flagged: `randomUniform` is called once

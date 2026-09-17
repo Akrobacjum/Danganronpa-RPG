@@ -521,7 +521,7 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
         [DRPG_ACTION_ROLL]: true,
         // The roll the Loaded Die was bought for, marked on the roll itself -
         // see `LOADED_DIE` in forced-roll.mjs.
-        ...(free ? { [LOADED_DIE]: true } : {}),
+        ...(free ? { [LOADED_DIE]: armed.nonce ?? foundry.utils.randomID() } : {}),
         // Say what the roll is FOR.
         //
         // Left alone, Daggerheart titles the window from the trait - "Body

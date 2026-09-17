@@ -119,7 +119,10 @@ export async function armCall(actor, { key, kind, grants, amount = null, from = 
     // the one caller that needs it, for the +1/-1 tier of its table. Every
     // other grant ignores it; carried through unconditionally so this stays a
     // small, boring change rather than a bonus-specific code path.
-    const payload = { key, kind, grants, amount, from };
+    // `nonce` names this one purchase. The Loaded Die is spent by the first roll
+    // that throws it, and two windows opened on the same Call carry the same
+    // name - see `LOADED_DIE` in forced-roll.mjs.
+    const payload = { key, kind, grants, amount, from, nonce: foundry.utils.randomID() };
 
     if (!actor.isOwner) {
         const { requestArmCall } = await import("./gm-bridge.mjs");

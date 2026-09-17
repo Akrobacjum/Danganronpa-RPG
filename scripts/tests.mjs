@@ -1989,7 +1989,8 @@ const REGRESSIONS = [
             "the Loaded Die is armed for the whole client again");
         ok(/function onConfigured\(roll,\s*config\)[\s\S]{0,80}LOADED_DIE/.test(forced),
             "the dice hook no longer asks the roll whether it carries the Loaded Die");
-        ok(/\[LOADED_DIE\]:\s*true/.test(rolls), "throwDice no longer marks the roll the Loaded Die was bought for");
+        ok(/\[LOADED_DIE\]:\s*armed\.nonce/.test(rolls), "throwDice no longer marks the roll with the purchase it was bought with");
+        ok(/spent\.has\(mark\)/.test(forced), "one Loaded Die can load every roll window opened while it was held");
         const grants = dialog.slice(dialog.indexOf("function grantsFor"));
         ok(/LOADED_DIE/.test(grants.slice(0, 400)),
             "the roll window shows or spends the Loaded Die on a roll that does not carry it");
