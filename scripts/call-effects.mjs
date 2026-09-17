@@ -16,6 +16,7 @@ import { MODULE_ID, FLAGS, HOPE_CALLS, DESPAIR_CALLS, MOTIVE, STARTING, callEffe
 import { SETTINGS } from "./settings.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
+import { overflowBlocksHope } from "./overflow.mjs";
 import {
     announce, whisperToOwner, dialogContent, log, error, plural, cardHead, isPrimaryGm, esc} from "./utils.mjs";
 
@@ -182,6 +183,41 @@ export function grants(actor, what) {
  *   three of them.
  */
 /**
+ * Would this Call change nothing? Asked before a Despair Call is PAID.
+ *
+ * Review of CALL-15 and CALL-05 (17.09): `applyCall` refuses these and hands the
+ * price back, but a Despair Call has already posted its public "spent" card by
+ * then, so the whole table was told about a purchase that did not happen. The
+ * same questions, asked of the picker's answer before the pool is touched.
+ * `applyCall` keeps its own checks: the world can move between the two.
+ *
+ * @returns {string|null}  Why not, ready to show; null when the Call would land.
+ */
+export function refusalBeforePaying(call, choice = {}) {
+    const i18n = game.i18n;
+    const target = choice.target ?? null;
+    if (call?.sealsRoom && choice.room && isSealed(choice.room)) {
+        return i18n.format("DRPG.Calls.alreadySealed", { room: choice.room });
+    }
+    if (call?.silences && target && isSilenced(target)) {
+        return i18n.format("DRPG.Calls.alreadySilenced", { name: target.name });
+    }
+    if (call?.chains && target && isChained(target)) {
+        return i18n.format("DRPG.Calls.alreadyChained", { name: target.name });
+    }
+    if (call?.damage && target && Object.keys(call.damage)
+        .every(resource => resourceValue(target, resource) >= resourceMax(target, resource))) {
+        return i18n.format("DRPG.Calls.nothingToMark", { name: target.name });
+    }
+    if (call?.grantsHope && target) {
+        if (overflowBlocksHope()) return i18n.localize("DRPG.Overflow.noHopeNow");
+        const max = resourceMax(target, "hope") || STARTING.hopeMax;
+        if (resourceValue(target, "hope") >= max) return i18n.localize("DRPG.Despair.hopeAlreadyFull");
+    }
+    return null;
+}
+
+/**
  * Thrown by a branch whose target is already where the Call would put it - a
  * full Health track, a room already sealed. The price goes back like any other
  * failure, but it is not a fault, so nobody is told to "tell the GM"; the branch
@@ -225,7 +261,6 @@ export async function applyCall(actor, key, kind, choice = {}) {
             // earned: the write would be stripped and the Call would still
             // report "gains 1 Hope" and keep its Despair (CALL-05). Refused
             // before the write, so the throw hands the price back.
-            const { overflowBlocksHope } = await import("./overflow.mjs");
             if (overflowBlocksHope()) {
                 ui.notifications.warn(game.i18n.localize("DRPG.Overflow.noHopeNow"));
                 throw new NothingToDo("No Hope can be granted while the Despair darkening runs");

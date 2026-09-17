@@ -249,6 +249,15 @@ export async function spendDespairCallFor(actor, key, { note = "", choice = {} }
             return null;
         }
 
+        // Before the pool is touched: paying posts a public card, and a refund
+        // afterwards cannot take the card back - see `refusalBeforePaying`.
+        const { refusalBeforePaying } = await import("./call-effects.mjs");
+        const refusal = refusalBeforePaying(call, choice);
+        if (refusal) {
+            ui.notifications.warn(refusal);
+            return null;
+        }
+
         const { spendDespairCall } = await import("./despair.mjs");
         const ok = await spendDespairCall(user.id, key);
         if (!ok) return null;
