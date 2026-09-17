@@ -1067,7 +1067,7 @@ export async function revealProject(countdownId) {
     // Who was in on it, kept for the day it is sealed again - see `sealAudience`.
     // Read before the write below makes the answer "everybody".
     const insiders = isSecret(countdownId)
-        ? viewersOf(countdownId).map(u => u.id)
+        ? withoutLeak(countdownId, viewersOf(countdownId).map(u => u.id))
         : (metaFor(countdownId).sealedViewers ?? []);
 
     const cleared = { default: OBSERVER };
@@ -1100,10 +1100,26 @@ export async function revealProject(countdownId) {
 export function sealAudience(countdownId) {
     const meta = metaFor(countdownId);
     const ids = new Set(isSecret(countdownId)
-        ? viewersOf(countdownId).map(u => u.id)
-        : (meta.sealedViewers ?? []));
+        ? withoutLeak(countdownId, viewersOf(countdownId).map(u => u.id))
+        : withoutLeak(countdownId, meta.sealedViewers ?? []));
     for (const id of ownerIdsOf(meta.killerId ?? meta.by ?? null)) ids.add(id);
     return Array.from(ids);
+}
+
+/**
+ * A viewer list that is every player at once, on a table of two or more, is the
+ * F4 leak and not a choice anybody made: a project sealed before the fix kept the
+ * whole table in, and revealing and re-sealing it copied that list forward
+ * (review of F4, 17.09). Such a list is replaced by the builder's owners. A
+ * project somebody really did share with every player loses that share - the
+ * safe way to be wrong about a murder plan.
+ */
+function withoutLeak(countdownId, ids) {
+    const players = game.users.filter(u => !u.isGM).map(u => u.id);
+    const everyone = players.length >= 2 && players.every(id => ids.includes(id));
+    if (!everyone) return ids;
+    const meta = metaFor(countdownId);
+    return ownerIdsOf(meta.killerId ?? meta.by ?? null);
 }
 
 /** Is this project hidden from the table at large? */
