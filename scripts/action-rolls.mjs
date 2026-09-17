@@ -1232,19 +1232,11 @@ async function performSearch(actor, def, options) {
      * fiction.
      *
      * The GM decided this, not us - a player's client is never told a room has
-     * something waiting in it. For a player the answer came back on the spend
-     * that was already being made; for a GM searching their own map it is asked
-     * here, because their `spend` never went near a socket.
+     * something waiting in it until the item is in their hands. Asked HERE, past
+     * every way a Search can end without finding anything: a failure, a request
+     * sent to a GM and a stash find all leave the plant in the room (ACT-03).
      */
-    let plant = SearchTokens.takeFreshPlant();
-    if (!plant && game.user.isGM) {
-        try {
-            const { takePlant } = await import("./traps.mjs");
-            plant = await takePlant(room);
-        } catch (err) {
-            debug("Could not check this room for a planted item", err);
-        }
-    }
+    const plant = await SearchTokens.takePlant(room);
 
     const drawn = plant
         ? {

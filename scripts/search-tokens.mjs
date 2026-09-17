@@ -88,22 +88,36 @@ export class SearchTokens {
     static #freshCounts = new Map();
 
     /**
-     * A planted item the GM handed back with the last spend - E21, trigger 5.
+     * Collect the item somebody planted in this room, if one is waiting - E21,
+     * trigger 5. Called by a Search that has SUCCEEDED, and only then.
      *
-     * A ONE-SHOT, and deliberately not a return value. `spend` answers a
-     * boolean and every call site in the module reads it that way; widening it
-     * would mean touching all of them to serve one caller. So the answer is
-     * parked here for the Search that asked, and `takeFreshPlant` empties it -
-     * which also means a plant that somehow arrives with no one to collect it
-     * is dropped rather than handed to the next search in another room.
+     * IT USED TO RIDE THE TOKEN (ACT-03, 17.09). The GM took the plant out of the
+     * store on every spend, which happens once the dice are down but before
+     * anybody knows what they say - so a failed Search, a "something specific"
+     * request or a stash find used the plant up, and the client kept it parked
+     * and handed it to its next successful Search in any room at all. Now the
+     * store is only touched when the item is actually found.
+     *
+     * A player asks the GM, who hands it over only to somebody who spent a token
+     * in that room a moment ago - see `onSocketMessage`. No answer is no plant:
+     * the room keeps it for the next search, which is the safe way to be wrong.
+     *
+     * @returns {Promise<object|null>}
      */
-    static #freshPlant = null;
-
-    /** Collect the plant from the last spend, once. */
-    static takeFreshPlant() {
-        const plant = this.#freshPlant;
-        this.#freshPlant = null;
-        return plant;
+    static async takePlant(roomName, sceneId = this.currentSceneId) {
+        if (!roomName) return null;
+        if (!game.user.isGM) {
+            const { plant } = await requestPlant(roomName, sceneId);
+            return plant ?? null;
+        }
+        try {
+            const { takePlant } = await import("./traps.mjs");
+            return await takePlant(roomName, sceneId);
+        } catch (err) {
+            // A search that cannot check for a plant is an ordinary search.
+            error("Could not check a room for a planted item", err);
+            return null;
+        }
     }
 
     /**
@@ -172,11 +186,7 @@ export class SearchTokens {
     static async spend(roomName, sceneId = this.currentSceneId) {
         if (!roomName) return false;
         if (!game.user.isGM) {
-            const { ok, left, plant } = await requestSpend(roomName, sceneId);
-            // Handed to the caller through a one-shot rather than a return
-            // value: `spend` answers a boolean and forty call sites read it
-            // that way. See `takeFreshPlant`.
-            if (plant) this.#freshPlant = plant;
+            const { ok, left } = await requestSpend(roomName, sceneId);
             // Bank the true count the GM just computed, so the chat card this
             // spend is about to produce reads it correctly instead of racing
             // the setting's own propagation back to this client.
@@ -306,9 +316,19 @@ export class SearchTokens {
 const SOCKET_EVENT = `module.${MODULE_ID}`;
 const ACTION_SPEND = "searchTokens.spend";
 const ACTION_RESULT = "searchTokens.result";
+const ACTION_TAKE_PLANT = "searchTokens.takePlant";
 
 /** Pending player-side promises, keyed by request id. */
 const pending = new Map();
+
+/**
+ * Who spent a token where, on the primary GM's client: `user::scene::room` ->
+ * when. A plant goes only to a user in this map, once, so asking for one is not
+ * a way to empty a room nobody searched.
+ */
+const searchedBy = new Map();
+const PLANT_WINDOW_MS = 120000;
+const searchKey = (userId, sceneId, room) => `${userId}::${sceneId ?? "-"}::${room}`;
 
 export function registerSearchTokenSocket() {
     game.socket.on(SOCKET_EVENT, onSocketMessage);
@@ -325,39 +345,35 @@ async function onSocketMessage(payload, senderId) {
         // result to somebody else.
         const sceneId = payload.sceneId ?? null;
         const ok = await SearchTokens.spend(payload.roomName, sceneId);
-
-        /*
-         * AND WHETHER SOMEBODY LEFT SOMETHING HERE - E21, trap 165.
-         *
-         * The plant rides the round trip this search was already making. That
-         * is the whole reason it can be a GM-side decision at no cost: every
-         * player Search already asks a GM for a token, so asking "and is there
-         * anything waiting here" costs nothing that was not already being paid,
-         * and no new socket road is opened for the most-used action in the game.
-         *
-         * Only on a spend that SUCCEEDED. A refused search is not a search, and
-         * a plant handed out for one would be a free item from a sealed or
-         * exhausted room.
-         *
-         * The plant comes out of the store as it is handed over - see
-         * `takePlant`. It is one object somebody left, not something the room
-         * has become.
-         */
-        let plant = null;
-        if (ok) {
-            try {
-                const { takePlant } = await import("./traps.mjs");
-                plant = await takePlant(payload.roomName, sceneId);
-            } catch (err) {
-                // A search that cannot check for a plant is an ordinary search.
-                error("Could not check a room for a planted item", err);
-            }
-        }
+        // Only a spend that SUCCEEDED earns a look for a plant: a refused search
+        // is not a search, and a plant handed out for one would be a free item
+        // from a sealed or exhausted room. The look itself comes later, from a
+        // Search that found something - see `SearchTokens.takePlant`.
+        if (ok) searchedBy.set(searchKey(senderId, sceneId, payload.roomName), Date.now());
 
         game.socket.emit(SOCKET_EVENT, {
             action: ACTION_RESULT,
             requestId: payload.requestId,
             ok,
+            left: SearchTokens.left(payload.roomName, sceneId)
+        }, { recipients: [senderId] });
+        return;
+    }
+
+    if (payload.action === ACTION_TAKE_PLANT) {
+        if (!isPrimaryGm()) return;
+        const sceneId = payload.sceneId ?? null;
+        // Once per token: the entry is used up whether or not a plant was there.
+        const key = searchKey(senderId, sceneId, payload.roomName);
+        const at = searchedBy.get(key);
+        searchedBy.delete(key);
+        const plant = at && Date.now() - at < PLANT_WINDOW_MS
+            ? await SearchTokens.takePlant(payload.roomName, sceneId)
+            : null;
+        game.socket.emit(SOCKET_EVENT, {
+            action: ACTION_RESULT,
+            requestId: payload.requestId,
+            ok: Boolean(plant),
             plant,
             left: SearchTokens.left(payload.roomName, sceneId)
         }, { recipients: [senderId] });
@@ -391,14 +407,31 @@ function requestSpend(roomName, sceneId = SearchTokens.currentSceneId, timeoutMs
         ui.notifications.warn(game.i18n.localize("DRPG.SearchTokens.noGm"));
         return Promise.resolve({ ok: false, left: null, plant: null });
     }
+    return askGm(ACTION_SPEND, roomName, sceneId, timeoutMs, () =>
+        ui.notifications.warn(game.i18n.localize("DRPG.SearchTokens.timeout")));
+}
 
+/**
+ * Ask the GM for the plant in a room this user has just searched. Silent when
+ * nobody answers: the search goes on as an ordinary one and the plant stays
+ * where it was left, so there is nothing to tell the player.
+ */
+function requestPlant(roomName, sceneId = SearchTokens.currentSceneId, timeoutMs = 5000) {
+    if (!game.users.some(u => u.isGM && u.active)) {
+        return Promise.resolve({ ok: false, left: null, plant: null });
+    }
+    return askGm(ACTION_TAKE_PLANT, roomName, sceneId, timeoutMs, () =>
+        debug(`No GM answered the plant check for ${roomName}.`));
+}
+
+function askGm(action, roomName, sceneId, timeoutMs, onTimeout) {
     const requestId = foundry.utils.randomID();
     return new Promise(resolve => {
         pending.set(requestId, resolve);
         // Addressed to the GMs. Broadcasting it put the `requestId` in every
         // player's hands, which is all that was needed to forge the answer.
         game.socket.emit(SOCKET_EVENT, {
-            action: ACTION_SPEND,
+            action,
             requestId,
             roomName,
             sceneId
@@ -406,7 +439,7 @@ function requestSpend(roomName, sceneId = SearchTokens.currentSceneId, timeoutMs
         setTimeout(() => {
             if (!pending.has(requestId)) return;
             pending.delete(requestId);
-            ui.notifications.warn(game.i18n.localize("DRPG.SearchTokens.timeout"));
+            onTimeout?.();
             resolve({ ok: false, left: null, plant: null });
         }, timeoutMs);
     });
