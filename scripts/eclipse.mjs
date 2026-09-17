@@ -180,6 +180,24 @@ export async function startEclipse() {
         error("Could not refill the action budget as the Eclipse opened", err);
     }
 
+    /*
+     * AND EVERYTHING BOUGHT "UNTIL THIS TIME OF DAY ENDS" ENDS WITH IT (CALL-09, 17.09).
+     *
+     * Same boundary, same reasoning as the grants above. A sealed room, a Chained
+     * student and a Silence used to be cleared only when the clock itself moved,
+     * which with Eclipses is when the Eclipse ENDS - so a Chained student could
+     * make none of their crossings, a sealed room could not be entered during
+     * placement, and a Call priced for one time of day took the next one's
+     * positioning too. The clear in `applyTimeOfDayChange` stays, for tables
+     * that move the clock without an Eclipse; after this one it clears nothing.
+     */
+    try {
+        const { clearSeals } = await import("./call-effects.mjs");
+        await clearSeals();
+    } catch (err) {
+        error("Could not lift the seals and restrictions as the Eclipse opened", err);
+    }
+
     // Read before the clock moves, which it will not until this Eclipse ends -
     // so these describe the time of day being opened, not the one just closed.
     //
