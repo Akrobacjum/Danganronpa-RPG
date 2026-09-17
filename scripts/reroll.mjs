@@ -216,8 +216,13 @@ export async function rerollLastAction(actor) {
         old: before.total, new: after.total
     }));
 
-    await settleDespair(actor, before, after, done);
-    await settleCritHope(actor, before, after, done);
+    // A reaction roll paid no Despair and no critical Hope, so a reroll of one
+    // has none to move - the same test `settleDualityReroll` makes (review of
+    // CALL-08, 17.09: the one-die path now reaches here for a reaction too).
+    if (original.options?.actionType !== "reaction") {
+        await settleDespair(actor, before, after, done);
+        await settleCritHope(actor, before, after, done);
+    }
 
     // Undo and replay the action itself. Every branch returns the bookmark
     // fields it changed, so the flag is written once, at the end, from the state
