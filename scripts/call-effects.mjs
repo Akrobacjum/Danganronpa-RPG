@@ -372,7 +372,9 @@ export async function applyCall(actor, key, kind, choice = {}) {
             });
             // Backing out of the "what do you want back" picker is a real
             // cancel: nothing was restored, so the five Hope come back.
-            if (!rested) throw new Error("the rest was not taken");
+            // NothingToDo, not a fault: the player chose not to (live check, 17.09 -
+            // the refund arrived under a "Tell the GM" error toast).
+            if (!rested) throw new NothingToDo("the rest was not taken");
             done.push(...(rested.applied ?? []));
         }
 
@@ -380,7 +382,8 @@ export async function applyCall(actor, key, kind, choice = {}) {
         if (call.reroll) {
             const { rerollLastAction } = await import("./reroll.mjs");
             const lines = await rerollLastAction(actor);
-            if (!lines) throw new Error("nothing to reroll");
+            // `rerollLastAction` has already said why.
+            if (!lines) throw new NothingToDo("nothing to reroll");
             done.push(...lines);
         }
 
