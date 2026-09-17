@@ -735,8 +735,17 @@ export async function gatherEveryone(room) {
     }
 
     const { isMonokuma } = await import("./monokuma.mjs");
+    const { isDeceased } = await import("./chapter.mjs");
+    const { isMonocub } = await import("./monocub.mjs");
+    // THE DEAD STAY WHERE THEY FELL (17.09, CALL-01). A murder is secret until the body is
+    // found, and `killCharacter` leaves the corpse token exactly where it is for that reason.
+    // Gathering it with the living carried an undiscovered body into the assembly room in
+    // front of the whole cast - reproduced on 16.09 - and the body discovery itself moved
+    // the victim, and every earlier chapter's dead, off the spot they were found on. A
+    // Monocub is dead and back on the board, so a Monocub still comes.
     const tokens = canvas.tokens.placeables
         .filter(t => t.actor?.type === "character" && !isMonokuma(t.actor))
+        .filter(t => !isDeceased(t.actor) || isMonocub(t.actor))
         .map(t => t.document);
 
     if (!tokens.length) return 0;
