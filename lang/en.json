@@ -931,6 +931,7 @@
       "accused": "{name} - {n} of {total} votes.",
       "tied": "A tie. That is a loss for the students.",
       "verdictTitle": "The verdict",
+      "verdictAlreadyApplied": "The verdict for this trial is already in. End the chapter to go on.",
       "verdictIntro": "Only you know whether they got it right. Name who is executed and who the Blackened really was, then pick the outcome.",
       "executed": "Who is executed",
       "blackened": "Who the Blackened really is",

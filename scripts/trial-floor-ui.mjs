@@ -470,8 +470,12 @@ export async function manageClassTrial() {
                       default: isDefault("vote") },
                     // Disabled rather than hidden, so the order of the trial is
                     // visible from the first time this window is opened.
+                    // Closed again once it is applied (17.09, F2): a second verdict
+                    // executed the dropdown's default, refilled every pool and handed
+                    // out a second round of Level Ups.
                     { action: "verdict", label: game.i18n.localize("DRPG.Vote.verdictTitle"),
-                      disabled: !progress.voteClosed, default: isDefault("verdict") },
+                      disabled: !progress.voteClosed || progress.verdictApplied,
+                      default: isDefault("verdict") },
                     { action: "chapterEnd", label: game.i18n.localize("DRPG.Chapter.endTitle"),
                       disabled: !progress.verdictApplied, default: isDefault("chapterEnd") }
                   ]

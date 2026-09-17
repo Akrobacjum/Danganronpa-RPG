@@ -610,6 +610,16 @@ export async function openVerdictDialog() {
         return null;
     }
 
+    // ONE VERDICT PER TRIAL (17.09, F2). The trial console kept this button live after
+    // the verdict, and nothing here or in `applyVerdict` asked - a second press executed
+    // whoever the dropdown held, refilled every Despair pool and opened a second round of
+    // Level Ups. The console now disables it too; this is the boundary for every other
+    // way in.
+    if (trialProgress().verdictApplied) {
+        ui.notifications.warn(game.i18n.localize("DRPG.Vote.verdictAlreadyApplied"));
+        return null;
+    }
+
     const known = blackenedActors();
     const students = studentActors();
     // Recorded by `closeVote`, because by the time this window opens the tally
