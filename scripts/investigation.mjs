@@ -283,19 +283,36 @@ async function saveKeyPlan(plan, rows) {
     // already been found.
     const entries = [];
     let created = 0;
-    for (const row of rows) {
+    for (const [i, row] of rows.entries()) {
         if (row.tokenId || !row.createIn) {
             /* AN EDIT ON A PLACED ROW IS AN EDIT ON THE TRACE. The two public fields are the
                Remnant's, not the plan's - `setRemnantPublic` writes them to the ledger and
                pushes them down onto every Truth Bullet already copied from it, which is what
                the Traces tab has always done and what this tab never did. Only when there is
-               something to say: a blank row must not wipe a name typed on the other tab. */
-            if (row.tokenId && (row.name || row.text)) {
-                const token = game.scenes.get(row.sceneId)?.tokens?.get(row.tokenId);
-                if (token) await setRemnantPublic(token, {
-                    ...(row.name ? { name: row.name } : {}),
-                    ...(row.text ? { playerText: row.text } : {})
-                });
+               something to say: a blank row must not wipe a name typed on the other tab.
+
+               ONLY WHEN IT IS AN EDIT, EITHER (F6, 17.09). This runs after the Traces tab has
+               been written, and the row still carried the plan's old name - so renaming a Key
+               Remnant on the Traces tab lasted until the next line, and every later Save put
+               the plan's version back onto the trace and every bullet copied from it. A field
+               is pushed now only when it differs from the stored plan, or the row was pointed
+               at a different trace; and the stored plan then takes the trace's words, so this
+               tab stops showing a name the trace no longer has. */
+            const stored = plan.entries?.[i] ?? {};
+            const token = row.tokenId
+                ? game.scenes.get(row.sceneId)?.tokens?.get(row.tokenId) ?? null
+                : null;
+            if (token) {
+                const repointed = row.tokenId !== (stored.tokenId ?? null);
+                const patch = {};
+                if (row.name && (repointed || row.name !== (stored.name ?? ""))) patch.name = row.name;
+                if (row.text && (repointed || row.text !== (stored.text ?? ""))) patch.playerText = row.text;
+                if (Object.keys(patch).length) await setRemnantPublic(token, patch);
+                const now = remnantData(token)?.public ?? {};
+                entries.push(stripDraft({
+                    ...row, name: now.name || row.name, text: now.playerText || row.text
+                }));
+                continue;
             }
             entries.push(stripDraft(row));
             continue;
