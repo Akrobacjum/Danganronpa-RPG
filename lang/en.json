@@ -381,6 +381,7 @@
       "freeMoveAvailable": "Free Move still available this time of day.",
       "freeMoveSpent": "Free Move used. The next crossing costs an action.",
       "allSpent": "No actions left. They come back when the next Eclipse begins.",
+      "keptAfterRoll": "The action stays spent: a roll for it has already counted.",
       "leftOf": "{left} of {max} actions",
       "burstBanked": {
         "one": "{n} action bought with Hope",

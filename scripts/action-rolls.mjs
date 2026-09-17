@@ -901,9 +901,19 @@ async function chooseTrait(actor, def, { intro = "" } = {}) {
  * watched sabotage throws a concealment roll first, and every roll commits its
  * Hope, Sanity and Despair. Charging afterwards let a player collect those and
  * then cancel; charging first means an honest cancel has to be refunded.
+ *
+ * BUT NOT ONCE ONE OF ITS ROLLS HAS LANDED (ACT-05, 17.09). Charging first and
+ * refunding every cancel is the same bargain as charging afterwards: the
+ * concealment roll or Palm's Shadow roll kept its Hope, or a Monokuma's
+ * Despair, and the action came back when the second window was closed. So
+ * `rolled` says a roll for this action already counted, and then the action
+ * stays spent - with a line saying so, because a pip that does not come back
+ * after a closed window looks like a bug.
  */
-async function abort(actor, cost) {
-    if (cost > 0) await refundAction(actor, cost);
+async function abort(actor, cost, { rolled = false } = {}) {
+    if (cost <= 0) return null;
+    if (rolled) ui.notifications.info(game.i18n.localize("DRPG.Actions.keptAfterRoll"));
+    else await refundAction(actor, cost);
     return null;
 }
 
@@ -1980,7 +1990,7 @@ async function workOnProject(actor, def, options, chosen = null) {
         // outlived its roll would attach itself to the next unrelated one.
         calls.clearSituational();
     }
-    if (!roll) return abort(actor, cost);
+    if (!roll) return abort(actor, cost, { rolled: Boolean(indirect && witnesses.length) });
 
     await breakOnDespair(actor, tool, roll);
 
@@ -2369,7 +2379,7 @@ async function performSabotage(actor, def, options) {
     } finally {
         calls.clearSituational();
     }
-    if (!roll) return abort(actor, cost);
+    if (!roll) return abort(actor, cost, { rolled: witnesses.length > 0 });
 
     await breakOnDespair(actor, tool, roll);
 
@@ -2895,7 +2905,7 @@ async function performPalm(actor, def, options) {
         actionKey: "steal",
         context: { room, victimId: victim.id, unseenTotal: shadow.total }
     });
-    if (!hand) return abort(actor, cost);
+    if (!hand) return abort(actor, cost, { rolled: true });
 
     /*
      * A PLANT IS AN EASIER HAND THAN A STEAL (D10a), on both axes.
