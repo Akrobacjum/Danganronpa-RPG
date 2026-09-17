@@ -406,6 +406,31 @@ async function promoteFaintPrep() {
     return promoted;
 }
 
+/*
+ * ONE DISCOVERY AT A TIME, IN ORDER (17.09).
+ *
+ * A teleport moves every token at once, so an assembly or a discovery fires one
+ * `updateToken` per student within the same moment. The guard used to be a flag set just
+ * before `discoverBody` - after three awaited imports - so every one of those checks got
+ * past it before the first had set it, and each announced the same body and gathered the
+ * cast again. Measured on 16.09: five "A BODY HAS BEEN DISCOVERED" cards from one assembly.
+ *
+ * Queued rather than dropped: a check that arrives while another runs may be the one that
+ * completes the count of two witnesses, so it waits its turn, and by then the first has
+ * written the discovery record that makes it a no-op if it was not.
+ *
+ * The GM's own announcement goes through the same queue (BODY-1). It used to call the
+ * discovery directly, so its gather set off automatic checks that ran before its record
+ * was written and announced the body a second time.
+ */
+let bodyWorkQueue = Promise.resolve(null);
+
+function enqueueBodyWork(work) {
+    const next = bodyWorkQueue.catch(() => null).then(work);
+    bodyWorkQueue = next;
+    return next;
+}
+
 /**
  * The body discovery announcement: promote the traces, call everyone to the
  * scene, and hold the game there until the GM answers.
@@ -414,7 +439,12 @@ async function promoteFaintPrep() {
  * @param {string} options.room     Where the body is.
  * @param {Actor} [options.victim]  Named in the announcement when given.
  */
-export async function discoverBody({ room, victim = null } = {}) {
+export function discoverBody(options = {}) {
+    if (!game.user.isGM || !options?.room) return Promise.resolve(null);
+    return enqueueBodyWork(() => runDiscovery(options));
+}
+
+async function runDiscovery({ room, victim = null } = {}) {
     if (!game.user.isGM || !room) return null;
 
     // The Eclipse is a placement window nobody has finished crossing yet - see
@@ -498,26 +528,10 @@ export async function discoverBody({ room, victim = null } = {}) {
  * incident - a room full of nothing but killers and accomplices is not a
  * discovery.
  */
-/*
- * ONE CHECK AT A TIME, IN ORDER (17.09).
- *
- * A teleport moves every token at once, so an assembly or a discovery fires one
- * `updateToken` per student within the same moment. The guard used to be a flag set just
- * before `discoverBody` - after three awaited imports - so every one of those checks got
- * past it before the first had set it, and each announced the same body and gathered the
- * cast again. Measured on 16.09: five "A BODY HAS BEEN DISCOVERED" cards from one assembly.
- *
- * Queued rather than dropped: a check that arrives while another runs may be the one that
- * completes the count of two witnesses, so it waits its turn, and by then the first has
- * written the discovery record that makes it a no-op if it was not.
- */
-let bodyCheckQueue = Promise.resolve(null);
-
+// Queued with the GM's own announcement - see `enqueueBodyWork`.
 export function maybeBodyFound(tokenDoc) {
     if (!game.user.isGM) return Promise.resolve(null);
-    const next = bodyCheckQueue.catch(() => null).then(() => checkBodyFound(tokenDoc));
-    bodyCheckQueue = next;
-    return next;
+    return enqueueBodyWork(() => checkBodyFound(tokenDoc));
 }
 
 async function checkBodyFound(tokenDoc) {
@@ -542,7 +556,16 @@ async function checkBodyFound(tokenDoc) {
     // is standing there. Measured: a student in the room with the body was not
     // counted as a witness for exactly this reason.
     const students = new Set(studentActors().map(a => a.id));
-    const bodies = new Set(studentActors().filter(a => isDeceased(a)).map(a => a.id));
+    // A BODY IS THIS CHAPTER'S DEAD, AND NOT A MONOCUB (17.09, BODY-2, BODY-3). A Monocub keeps
+    // the deceased flag and walks the board, so standing beside two students announced their
+    // own corpse; and a body from an earlier chapter, found and tried long ago, set off a
+    // second discovery the first time two people passed it. The death record carries the
+    // chapter it happened in; a record without one is treated as this chapter's.
+    const chapter = getClock().chapter;
+    const bodies = new Set(studentActors()
+        .filter(a => isDeceased(a) && !a.getFlag(MODULE_ID, FLAGS.monocub)
+            && (deathRecord(a)?.chapter ?? chapter) === chapter)
+        .map(a => a.id));
     if (!bodies.size) return null;
 
     const { roomOfToken } = await import("./movement.mjs");
@@ -573,7 +596,9 @@ async function checkBodyFound(tokenDoc) {
     if (!witnesses.some(w => !involved.has(w.actor.id))) return null;
 
     log(`Body found in ${room}: ${witnesses.map(t => t.actor.name).join(", ")} walked in.`);
-    return await discoverBody({ room, victim: bodyHere.actor });
+    // Already inside the queue: straight to the work, not back through `discoverBody`,
+    // which would wait behind this very call.
+    return await runDiscovery({ room, victim: bodyHere.actor });
 }
 
 /** The body-discovery announcement, from the GM panel. */
