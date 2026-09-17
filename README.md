@@ -148,7 +148,8 @@ on any Foundry v14 host.
 
 Every student feeds the Despair pool of one Monokuma, and the game is written
 for GMs who share the table: two is the usual number and four works. One GM can
-run it too, but then carries every pool, the GM panel and each murder alone.
+run it too, but then takes every student's Despair, the GM panel and each murder
+alone.
 Split the students evenly between the Monokumas.
 
 1. Make a world on the **Daggerheart** system and enable the module and its

@@ -235,8 +235,8 @@ async function write(next) {
  * Introduce a rule.
  *
  * Called by hand from the manager, and by the New Rule Despair Call - which is
- * the reason this is a function and not a dialog: the Call has already taken
- * twelve Despair and asked for the wording by the time it gets here.
+ * the reason this is a function and not a dialog: the Call has already been
+ * paid for and asked for the wording by the time it gets here.
  *
  * @param {string} text
  * @returns {Promise<object|null>} the stored rule.

@@ -1822,7 +1822,7 @@
       "newRuleTitle": "New Killing Game Rule",
       "newRulePrompt": "Write the new rule. Every player sees it in chat, word for word.",
       "newRulePlaceholder": "e.g. From now on, nobody may enter the library alone.",
-      "newRuleNote": "Twelve Despair buys a permanent change to the game. Make it count.",
+      "newRuleNote": "A New Rule is a permanent change to the game. Make it count.",
       "newRuleAnnounced": "The new rule was announced to everyone.",
       "noSuchRoom": "There is no region called “{room}” on this scene.",
       "progressedTo": "{name} is now at {current}/{target}.",
