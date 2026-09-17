@@ -6,8 +6,10 @@
  * a card arriving in the chat log, the time of day turning over in the HUD.
  *
  * READ, NEVER REPEATED. The numbers are not copied here. Every one of them is
- * fetched off `:root` at the moment it is used, which buys two things that a
- * pair of matching constants would not:
+ * fetched off the body at the moment it is used - the body inherits everything
+ * `:root` declares and carries the theme and Reduced motion classes on top (see
+ * `tokenSource`) - which buys two things that a pair of matching constants would
+ * not:
  *
  *   - There is one place to change a duration, and it is the stylesheet. Two
  *     files holding 420 and 450 for the same gesture is precisely the drift
@@ -398,11 +400,17 @@ function markClosingWindows() {
  * caller that awaits a close before opening the next window pays it. The Stained
  * Glass accent rule did exactly that to every window until it was rescoped.
  *
- * `getAnimations()` flushes the style change the caller just made, so a transition
- * that is going to run is already listed by the time this asks. Nothing listed means
- * nothing to wait for. A tab in the background still waits the old way: its
- * transitions are created and simply do not advance, so they are listed and this
- * steps aside.
+ * `getAnimations()` flushes the style changes made so far, so a transition that is
+ * going to run is listed by the time this asks. Nothing listed means nothing to wait
+ * for. A tab in the background still waits the old way: its transitions are created
+ * and simply do not advance, so they are listed and this steps aside.
+ *
+ * ONE MICROTASK FIRST. Not every caller changes the style before it asks: core's
+ * journal sidebar toggle adds `.collapsing`, calls this, and only then writes the new
+ * width and `.expanded` in the same synchronous run. Asked at once, nothing was
+ * listed yet and the sidebar snapped instead of sliding (review of 17.09). Waiting one
+ * microtask lets the caller finish; a `transitionend` cannot be dispatched inside a
+ * microtask, so the listener core attaches afterwards misses nothing.
  */
 function waitOnlyForRealTransitions(proto) {
     const original = proto?._awaitTransition;
@@ -411,11 +419,12 @@ function waitOnlyForRealTransitions(proto) {
         return;
     }
     // Named, so `diagnosePatches` (patches.mjs) can tell it is ours.
-    proto._awaitTransition = function drpgAwaitTransition(element, timeout) {
+    proto._awaitTransition = async function drpgAwaitTransition(element, timeout) {
+        await null;
         try {
             const own = element?.getAnimations?.() ?? null;
             if (own && !own.some(a => a instanceof CSSTransition && a.effect?.target === element)) {
-                return Promise.resolve();
+                return;
             }
         } catch {
             // Asking failed: wait the way Foundry always has.

@@ -1457,8 +1457,9 @@ export function applyTheme() {
 /*
  * THE OTHER THEME'S SWITCHES ARE NOT SHOWN.
  *
- * Three of the look settings only exist under Stained Glass - the pulse, the ticker and
- * reduced motion - and the pixel face only exists under Monokuma Legacy, which has no
+ * Two of the look settings only exist under Stained Glass - the pulse and the ticker
+ * (Reduced motion is for both themes since W-3) - and the pixel face only exists under
+ * Monokuma Legacy, which has no
  * second face of its own to swap. Whichever theme is on, the other's switches still sat
  * in Foundry's settings window looking live, and changing one did nothing.
  *

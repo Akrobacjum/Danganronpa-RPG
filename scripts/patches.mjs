@@ -1,7 +1,7 @@
 /**
  * Danganronpa RPG - the register of every method this module overrides.
  * ---------------------------------------------------------------------------
- * Seven places reach into Foundry's or Daggerheart's objects and put a
+ * Eight places reach into Foundry's or Daggerheart's objects and put a
  * function of ours where theirs was. Each has its reasons written beside it in
  * its own file; what none of them had was a list (audit A18), so a system
  * update that moved one of the targets was found by whichever feature stopped
