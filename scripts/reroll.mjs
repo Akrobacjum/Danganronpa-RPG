@@ -90,13 +90,31 @@ async function rerollKeepingDice(original) {
  *
  * A port of `updateResourcesForDualityReroll` (daggerheart.js, 2.6.5), which
  * the system does not export, ending in the same `modifyResource` the system's
- * own resource map calls. Dice So Nice shows the dice without the system's
- * colour presets, which it does not export either.
+ * own resource map calls. Dice So Nice gets the system's Hope and Fear colours
+ * from `CONFIG.DH.GENERAL.getDiceSoNicePresets`, as a fresh roll does.
  */
 async function settleDualityReroll(original, rerolled) {
     try {
-        if (game.modules.get("dice-so-nice")?.active) await game.dice3d?.showForRoll(rerolled, game.user, true);
-        else foundry.audio.AudioHelper.play({ src: CONFIG.sounds.dice });
+        if (game.modules.get("dice-so-nice")?.active) {
+            // Their own try: a missing dice system makes the preset lookup throw,
+            // and that must not also take the animation with it.
+            try {
+                const extra = rerolled.dAdvantage ?? rerolled.dDisadvantage;
+                const presets = await CONFIG.DH?.GENERAL?.getDiceSoNicePresets?.(rerolled,
+                    rerolled.dHope?.denomination, rerolled.dFear?.denomination,
+                    extra?.denomination ?? "d6", extra?.denomination ?? "d6");
+                const paint = (die, preset) => { if (die && preset?.appearance) die.options.appearance = preset.appearance; };
+                paint(rerolled.dHope, presets?.hope);
+                paint(rerolled.dFear, presets?.fear);
+                paint(rerolled.dAdvantage, presets?.advantage);
+                paint(rerolled.dDisadvantage, presets?.disadvantage);
+            } catch (err) {
+                error("Could not colour the rerolled Hope and Fear dice", err);
+            }
+            await game.dice3d?.showForRoll(rerolled, game.user, true);
+        } else {
+            foundry.audio.AudioHelper.play({ src: CONFIG.sounds.dice });
+        }
     } catch (err) {
         error("Could not show the rerolled dice", err);
     }
