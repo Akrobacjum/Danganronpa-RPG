@@ -718,10 +718,21 @@ export async function openFinalVerdictDialog() {
                 <select name="accused">${options}</select></label>
             <p class="notes">${game.i18n.localize("DRPG.Mastermind.verdictNote")}</p>
         </form>`),
+        /*
+         * CANCEL FIRST, AND CANCEL THE DEFAULT (MM-01, Dawid 17.09).
+         *
+         * Both verdicts are irreversible and public - the Mastermind dies, the
+         * banner goes up, the pick is cleared - and the one that answered Enter
+         * or Space the moment the window opened was "They named the Mastermind".
+         * Enter presses the first submit button in DOM order and `default` only
+         * decides the focus, so Cancel has to be both. The two verdicts stay one
+         * click each; the ordinary trial verdict (G-31, vote.mjs) keeps defaulting
+         * to the likely outcome, because a GM meets that window every chapter.
+         */
         buttons: [
+            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel"), default: true },
             {
                 action: "correct", label: game.i18n.localize("DRPG.Mastermind.correctlyNamed"),
-                default: !alreadyDead,
                 disabled: alreadyDead,
                 callback: (e, b, d) => ({
                     correct: true, accusedId: d.element.querySelector("[name=accused]").value
@@ -729,12 +740,10 @@ export async function openFinalVerdictDialog() {
             },
             {
                 action: "wrong", label: game.i18n.localize("DRPG.Mastermind.notCorrectlyNamed"),
-                default: alreadyDead,
                 callback: (e, b, d) => ({
                     correct: false, accusedId: d.element.querySelector("[name=accused]").value
                 })
-            },
-            { action: "cancel", label: game.i18n.localize("DRPG.Advance.cancel") }
+            }
         ],
         rejectClose: false
     });
