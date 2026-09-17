@@ -669,16 +669,37 @@ export function discoveredFor(sceneId, actorId) {
 }
 
 /**
- * Overwrite one scene's whole discovery matrix in one write - the Fog tab's
- * Apply button, which edits every character's row at once rather than one
- * room at a time the way `recordDiscovery` does during play.
+ * Apply the Fog tab's edits to one scene's ledger - only the cells the GM
+ * changed, laid onto the ledger as it stands when Apply is pressed.
  *
- * @param {object} matrix  `{ [actorId]: [roomName, ...] }`
+ * IT USED TO WRITE THE WHOLE MATRIX BACK (ROOM-01, 17.09). The checkboxes are
+ * drawn when Room Setup opens and never refreshed, while `recordDiscovery`
+ * goes on adding every room a student walks into - and the window is open
+ * during Daily Life because a GM is watching that happen. Every Apply, from
+ * any tab and with the Fog tab untouched, put the open-time snapshot back:
+ * rooms found in the meantime fogged over again on every client.
+ *
+ * @param {{actorId: string, room: string, value: boolean}[]} changes
+ * @returns {Promise<boolean>}  Whether anything was written.
  */
-export async function saveDiscoveryMatrix(scene, matrix) {
-    if (!game.user.isGM || !scene) return;
+export async function applyDiscoveryChanges(scene, changes = []) {
+    if (!game.user.isGM || !scene || !changes.length) return false;
     const all = allDiscovered();
-    await game.settings.set(MODULE_ID, SETTINGS.discoveredRooms, { ...all, [scene.id]: matrix });
+    const forScene = { ...(all[scene.id] ?? {}) };
+    let moved = false;
+    for (const { actorId, room, value } of changes) {
+        const rooms = new Set(forScene[actorId] ?? []);
+        if (rooms.has(room) === Boolean(value)) continue;
+        if (value) rooms.add(room);
+        else rooms.delete(room);
+        forScene[actorId] = Array.from(rooms);
+        moved = true;
+    }
+    // Nothing moved is nothing written: a write here resyncs the fog on every
+    // client, and Apply is pressed far more often for a lock than for the fog.
+    if (!moved) return false;
+    await game.settings.set(MODULE_ID, SETTINGS.discoveredRooms, { ...all, [scene.id]: forScene });
+    return true;
 }
 
 /**
@@ -890,8 +911,9 @@ export function reconcileMirror() {
 
 /**
  * Mark every room on a scene discovered, or forget them all, for one actor -
- * or for everyone at once when `actorId` is omitted. The Fog tab's two
- * buttons in Room Setup.
+ * or for everyone at once when `actorId` is omitted. Written at once; Room
+ * Setup's Discover all / Hide all no longer call it, they tick the Fog tab's
+ * boxes and wait for Apply like everything else in that window (ROOM-03).
  */
 export async function setDiscovery(scene, { actorId = null, rooms = [], value } = {}) {
     if (!game.user.isGM || !scene) return;

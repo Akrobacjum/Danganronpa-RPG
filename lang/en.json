@@ -1389,7 +1389,7 @@
       "tabFog": "Fog",
       "fogIntro": "Which rooms each character has already discovered on this scene. The room they are standing in is always clear; this is only about rooms they have BEEN to, which show as a dim veil rather than full fog.",
       "fogUncovered": "{pct}% of this scene's surface belongs to no room region at all - it will show as permanent fog rather than a wall gap, which usually means a room still needs drawing.",
-      "fogNote": "Discover all / Hide all replace every checkbox above for every character at once. The individual checkboxes are for one room, one character.",
+      "fogNote": "Discover all / Hide all tick or clear every checkbox above for every character at once. Nothing changes until you press Apply. The individual checkboxes are for one room, one character.",
       "discoverAll": "Discover all",
       "hideAll": "Hide all",
       "unlockedAnnounce": "The door to {room} is unlocked.",
