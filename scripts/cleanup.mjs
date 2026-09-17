@@ -409,12 +409,13 @@ export async function attemptCleanup(actor, tokenId, {
         ui.notifications.warn(game.i18n.localize("DRPG.Cleanup.noStressForThis"));
         return null;
     }
-    if (!await spendResolutionAction(actor)) return null;
+    const charge = await spendResolutionAction(actor);
+    if (!charge) return null;
 
     // Somebody is watching. Cover it before you do it - and learn the answer
     // while there is still a choice about how to behave afterwards.
     const cover = await concealFromWitnesses(actor);
-    if (!cover) return refundResolution(actor);
+    if (!cover) return refundResolution(actor, charge);
 
     const { rollTrait } = await import("./action-rolls.mjs");
     const calls = await import("./call-effects.mjs");
@@ -449,7 +450,7 @@ export async function attemptCleanup(actor, tokenId, {
     } finally {
         calls.clearSituational();
     }
-    if (!roll) return refundResolution(actor, { rolled: cover === "rolled" });
+    if (!roll) return refundResolution(actor, charge, { rolled: cover === "rolled" });
 
     // One crime scene, one set of gloves - and Despair is what wears them out
     // early. The reference was taken before the dice; see `breakOnDespair`.
@@ -1223,7 +1224,10 @@ async function concealFromWitnesses(actor) {
         }
     }
 
-    return true;
+    // NOT `true` (review of ACT-04, 17.09). The comment at the top promises
+    // "rolled" here, and the callers only refuse a refund when they see it: with
+    // `true` a closed main roll after this roll had paid out refunded the action.
+    return "rolled";
 }
 
 /**
@@ -1257,13 +1261,18 @@ async function concealFromWitnesses(actor) {
  * stage `resolution`, and this actor one of its killers. Outside it - the
  * Tamper tile on an ordinary Tuesday - the action is charged as it always was.
  *
- * @returns {Promise<boolean>} false when there is nothing left to spend, in
- *   which case `spendAction` has already said so and nothing has been touched.
+ * @returns {Promise<{receipt: object|null}|null>} null when there is nothing
+ *   left to spend, in which case `spendAction` has already said so and nothing
+ *   has been touched. Otherwise what was paid, decided HERE: `receipt` is null
+ *   for a killer on their own night, and the refund reads this rather than
+ *   asking `isCleaner` again after a roll window a GM could have changed the
+ *   incident under (review of ACT-04).
  */
 async function spendResolutionAction(actor) {
-    if (isCleaner(actor)) return true;
+    if (isCleaner(actor)) return { receipt: null };
     const { spendAction } = await import("./actions.mjs");
-    return spendAction(actor, 1);
+    const receipt = await spendAction(actor, 1);
+    return receipt ? { receipt } : null;
 }
 
 /**
@@ -1275,16 +1284,28 @@ async function spendResolutionAction(actor) {
  * concealment roll has landed, though - that roll has paid its Hope or a
  * Monokuma's Despair, and a refund then would be ACT-05's generator again.
  *
+ * AND A KILLER ON THEIR OWN NIGHT PAYS SOMETHING TOO (review, 17.09). Stage 6
+ * charges no action, and its Sanity is taken GM-side only when an attempt is
+ * resolved - so a concealment roll followed by a closed window cost the killer
+ * nothing at all, and could be run for Hope all night. Once that roll has paid
+ * out, the attempt's Sanity is taken here instead.
+ *
+ * @param {{receipt: object|null}} charge  What `spendResolutionAction` returned.
  * @returns {Promise<null>}
  */
-async function refundResolution(actor, { rolled = false } = {}) {
-    if (isCleaner(actor)) return null;
+async function refundResolution(actor, charge, { rolled = false } = {}) {
     if (rolled) {
-        ui.notifications.info(game.i18n.localize("DRPG.Actions.keptAfterRoll"));
+        if (charge?.receipt) {
+            ui.notifications.info(game.i18n.localize("DRPG.Actions.keptAfterRoll"));
+        } else {
+            await spendStress(actor);
+            ui.notifications.info(game.i18n.localize("DRPG.Cleanup.keptSanity"));
+        }
         return null;
     }
+    if (!charge?.receipt) return null;
     const { refundAction } = await import("./actions.mjs");
-    await refundAction(actor, 1);
+    await refundAction(actor, 1, charge.receipt);
     return null;
 }
 
@@ -1353,7 +1374,8 @@ export async function attemptStageSix(actor, key, targetId = null, { viaAction =
         return null;
     }
 
-    if (!await spendResolutionAction(actor)) return null;
+    const charge = await spendResolutionAction(actor);
+    if (!charge) return null;
 
     // The guide's concealment roll covers "akcje rozwiązania" as a whole -
     // planting a false trail or dragging a body past a witness is if anything
@@ -1365,7 +1387,7 @@ export async function attemptStageSix(actor, key, targetId = null, { viaAction =
     // time. Two rolls to move one body, where the first could stop the second
     // from happening at all, was a stack the stage does not need.
     const cover = key === "moveBody" ? "alone" : await concealFromWitnesses(actor);
-    if (!cover) return refundResolution(actor);
+    if (!cover) return refundResolution(actor, charge);
 
     const { rollTrait } = await import("./action-rolls.mjs");
     const calls = await import("./call-effects.mjs");
@@ -1394,7 +1416,7 @@ export async function attemptStageSix(actor, key, targetId = null, { viaAction =
     } finally {
         calls.clearSituational();
     }
-    if (!roll) return refundResolution(actor, { rolled: cover === "rolled" });
+    if (!roll) return refundResolution(actor, charge, { rolled: cover === "rolled" });
 
     // Including "move the body", where the tool lowers the threshold instead of
     // granting advantage: it is still the thing in their hands.

@@ -1954,6 +1954,24 @@ const REGRESSIONS = [
             "Tamper refuses a trace somebody else left again, after its menu offered it");
         ok(/data\.type\s*===\s*"incident"\s*&&\s*incidentParticipant\(actor\)/.test(cleanup),
             "the resolver's incident exemption no longer matches the menu's");
+    }],
+
+    ["R37 - a closed Tamper window after a landed concealment roll refunds nothing", async () => {
+        /*
+         * Review of ACT-04 (17.09). `concealFromWitnesses` ended with `return true`, the
+         * callers refused a refund only for "rolled", and so the concealment roll's Hope
+         * came with the action back. A killer on their own night paid nothing at all.
+         */
+        const cleanup = stripComments(new Map(await otherSources()).get("cleanup.mjs") ?? "");
+        const at = cleanup.indexOf("async function concealFromWitnesses");
+        const conceal = cleanup.slice(at, cleanup.indexOf("\nasync function ", at + 10));
+        ok(at > 0 && /return "rolled";/.test(conceal) && !/return true;/.test(conceal),
+            "concealFromWitnesses no longer tells its callers a concealment roll landed");
+        const refund = cleanup.slice(cleanup.indexOf("async function refundResolution"));
+        ok(/spendStress\(actor\)/.test(refund.slice(0, 900)),
+            "a killer's closed window after a landed concealment roll costs nothing again");
+        ok(!/isCleaner\(/.test(refund.slice(0, 900)),
+            "the refund asks isCleaner again instead of reading what was paid");
     }]
 ];
 

@@ -1015,6 +1015,7 @@
       "title": "Cleaning up",
       "action": "Clean up a trace",
       "intro": "Wiping a trace costs an action and {n} Sanity.",
+      "keptSanity": "The attempt still costs its Sanity: the cover story was already told.",
       "which": "Which trace?",
       "confirm": "Scrub at it",
       "withTool": "{item} (Tier {tier}) in hand - advantage, and that much off the threshold.",
