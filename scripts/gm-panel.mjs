@@ -8,8 +8,8 @@
 
 import { MODULE_ID, moduleVersion, FLAGS, TIMES_OF_DAY, TIME_OF_DAY_LABELS, PHASES,
     CHAPTERS_PER_SEASON } from "./config.mjs";
-import { getClock, setClock, setTimeOfDay, clockSummary, timeOfDayLabel, phaseLabel, campaignName } from "./clock.mjs";
-import { actionsLeft, actionsMax, hasFreeMove } from "./actions.mjs";
+import { getClock, setClock, clockSummary, timeOfDayLabel, phaseLabel, campaignName } from "./clock.mjs";
+import { actionsLeft, actionsMax, hasFreeMove, resetAllActions } from "./actions.mjs";
 import { isEclipse } from "./eclipse.mjs";
 import { dialogContent, error, plural, tableDialog, esc} from "./utils.mjs";
 import { keepLive, alreadyOpen } from "./live.mjs";
@@ -1196,11 +1196,17 @@ export async function openClockDialog() {
 
     // Editing the clock is bookkeeping. Only refill when explicitly asked,
     // otherwise a typo correction would hand everyone fresh actions.
+    //
+    // AND ONLY REFILL (GMP-02, 17.09). This used to run the whole time-of-day
+    // boundary, changed time or not: one time of day off Monokuma's motive
+    // deadline, every seal and chain cleared mid-hour, an overflow check and a
+    // public time-of-day card - for a box that says "also refill actions and
+    // search tokens", in a window whose purpose is correcting mistakes.
+    // Moving the clock on is the panel's Eclipse and next-time-of-day buttons.
     if (result.reset) {
-        await setTimeOfDay(result.timeOfDay, {
-            resetActions: true,
-            resetSearchTokens: true,
-            announce: true
-        });
+        await resetAllActions();
+        const { SearchTokens } = await import("./search-tokens.mjs");
+        await SearchTokens.reset({ notify: false });
+        ui.notifications.info(game.i18n.localize("DRPG.Panel.refilled"));
     }
 }

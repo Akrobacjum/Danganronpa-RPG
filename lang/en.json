@@ -2258,6 +2258,7 @@
       "close": "Close",
       "apply": "Apply",
       "alsoReset": "Also refill actions and search tokens",
+      "refilled": "Actions and search tokens refilled. The clock, the motive and the seals were not touched.",
       "character": "Character",
       "freeMove": "Free Move",
       "noCharacters": "No characters in this world yet.",
