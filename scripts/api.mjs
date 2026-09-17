@@ -1054,7 +1054,7 @@ export const DrpgApi = {
 
     /* ---- the killing game's rules ------------------------------------------
      * Monokuma's standing rules, on every character sheet in the slot the
-     * system uses for Effects. The 12-Despair New Rule Call writes here too. */
+     * system uses for Effects. The New Rule Call writes here too. */
 
     rules,
     addRule,

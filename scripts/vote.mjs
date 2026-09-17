@@ -1,10 +1,12 @@
 /**
  * Danganronpa RPG - the vote, and what it costs.
  * ---------------------------------------------------------------------------
- * Guide, pp. 31–32: "Gracze anonimowo głosują na to, kogo uznać za mordercę.
+ * Guide, pp. 31-32: "Gracze anonimowo głosują na to, kogo uznać za mordercę.
  * Remis jest uznany za porażkę graczy. Wyniki są jawne, ale głosy - nie.
- * Blackened bierze udział w głosowaniu. Można głosować na Monokumę oraz na
- * martwych graczy. Nie można głosować na siebie."
+ * Blackened bierze udział w głosowaniu. Można głosować na siebie. Można głosować
+ * na Monokumę oraz na martwych graczy." (Checked against the guide on 17.09: the
+ * self-vote sentence is "Można", which is what `TRIAL.allowVotingForSelf` says; this
+ * quote used to end "Nie można głosować na siebie".)
  *
  * "Wyniki jawne, głosy nie" is the whole design problem, and D6 is why it is a
  * problem: nothing in Foundry's world data is private, so a ballot written to a

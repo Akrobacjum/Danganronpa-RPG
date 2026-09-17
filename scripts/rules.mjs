@@ -2,7 +2,7 @@
  * Danganronpa RPG - the killing game's rules.
  * ---------------------------------------------------------------------------
  * Monokuma's standing rules: the ones announced at the start, and every one
- * bought since with the 12-Despair "New Rule" Call.
+ * bought since with the "New Rule" Call (its price is DESPAIR_CALLS.newRule).
  *
  * Until now that Call posted its rule to chat and the module forgot it. A rule
  * that scrolls out of the log is a rule nobody can be held to - and being held
