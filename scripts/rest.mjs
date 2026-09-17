@@ -236,7 +236,7 @@ async function choosePicks(kind, count) {
             const off = key === "breath" && noBreath;
             return `<label class="drpg-rest-option"${off
                 ? ` title="${foundry.utils.escapeHTML(game.i18n.localize("DRPG.Overflow.noHopeNow"))}"` : ""}>
-                <input type="${single ? "radio" : "checkbox"}" name="pick" value="${key}"${off ? " disabled" : ""} />
+                <input type="${single ? "radio" : "checkbox"}" name="pick" value="${key}"${off ? " disabled data-drpg-blocked" : ""} />
                 <span><strong>${opt.label}</strong> - ${off
                     ? game.i18n.localize("DRPG.Overflow.noHopeNow")
                     : (kind === "long" ? opt.long : opt.short)}</span>
@@ -260,8 +260,13 @@ async function choosePicks(kind, count) {
                 // Cap, so the third tick cannot happen at all - a box that
                 // refuses the click is clearer than one that accepts it and is
                 // told off later. Radios cap themselves.
-                if (!single) {
-                    for (const b of boxes) b.disabled = !b.checked && on.length >= count;
+                // A blocked pick stays blocked: the cap below rewrote `disabled`
+                // on every box and handed Breath back to a Long Rest under the
+                // Despair darkening (review of CALL-05).
+                for (const b of boxes) {
+                    const blocked = "drpgBlocked" in b.dataset;
+                    if (blocked) b.disabled = true;
+                    else if (!single) b.disabled = !b.checked && on.length >= count;
                 }
                 if (confirm) confirm.disabled = on.length !== count;
             };
