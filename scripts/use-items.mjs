@@ -512,8 +512,11 @@ async function askWhichResource(item, effect) {
         content: dialogContent(`<form>
             <p>${game.i18n.localize("DRPG.Items.usePrompt")}</p>
             <div class="drpg-choice-list">${rows}</div>
-            ${effect.bonus?.hope ? `<p class="notes">${game.i18n.format(
-                "DRPG.Items.choiceBonus", { n: effect.bonus.hope })}</p>` : ""}
+            ${effect.bonus?.hope ? `<p class="notes">${overflowBlocksHope()
+                // The one preview a Tier 3 item gets: under the darkening it must
+                // not promise the Hope `restore` will skip (review of CALL-05).
+                ? game.i18n.localize("DRPG.Overflow.noHopeNow")
+                : game.i18n.format("DRPG.Items.choiceBonus", { n: effect.bonus.hope })}</p>` : ""}
         </form>`),
         buttons: [
             {
