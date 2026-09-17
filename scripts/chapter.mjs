@@ -498,10 +498,30 @@ export async function discoverBody({ room, victim = null } = {}) {
  * incident - a room full of nothing but killers and accomplices is not a
  * discovery.
  */
-let bodyCheckRunning = false;
+/*
+ * ONE CHECK AT A TIME, IN ORDER (17.09).
+ *
+ * A teleport moves every token at once, so an assembly or a discovery fires one
+ * `updateToken` per student within the same moment. The guard used to be a flag set just
+ * before `discoverBody` - after three awaited imports - so every one of those checks got
+ * past it before the first had set it, and each announced the same body and gathered the
+ * cast again. Measured on 16.09: five "A BODY HAS BEEN DISCOVERED" cards from one assembly.
+ *
+ * Queued rather than dropped: a check that arrives while another runs may be the one that
+ * completes the count of two witnesses, so it waits its turn, and by then the first has
+ * written the discovery record that makes it a no-op if it was not.
+ */
+let bodyCheckQueue = Promise.resolve(null);
 
-export async function maybeBodyFound(tokenDoc) {
-    if (!game.user.isGM || bodyCheckRunning) return null;
+export function maybeBodyFound(tokenDoc) {
+    if (!game.user.isGM) return Promise.resolve(null);
+    const next = bodyCheckQueue.catch(() => null).then(() => checkBodyFound(tokenDoc));
+    bodyCheckQueue = next;
+    return next;
+}
+
+async function checkBodyFound(tokenDoc) {
+    if (!game.user.isGM) return null;
     // Already in Stage 7, or a body found and waiting on the GM. Both are
     // "this has already been discovered"; the second is the whole of D5.
     if (getClock().phase === "investigation" || bodyDiscovery()) return null;
@@ -552,13 +572,8 @@ export async function maybeBodyFound(tokenDoc) {
     if (witnesses.length < 2) return null;
     if (!witnesses.some(w => !involved.has(w.actor.id))) return null;
 
-    bodyCheckRunning = true;
-    try {
-        log(`Body found in ${room}: ${witnesses.map(t => t.actor.name).join(", ")} walked in.`);
-        return await discoverBody({ room, victim: bodyHere.actor });
-    } finally {
-        bodyCheckRunning = false;
-    }
+    log(`Body found in ${room}: ${witnesses.map(t => t.actor.name).join(", ")} walked in.`);
+    return await discoverBody({ room, victim: bodyHere.actor });
 }
 
 /** The body-discovery announcement, from the GM panel. */
