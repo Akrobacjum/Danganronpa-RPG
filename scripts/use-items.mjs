@@ -36,6 +36,7 @@ import { ITEM_FLAGS, isStashed, isBroken, breakItem, wearItem, durabilityOf, ser
     from "./inventory.mjs";
 import { resourceValue, resourceMax } from "./character.mjs";
 import { automatedUpdate } from "./resource-guard.mjs";
+import { overflowBlocksHope } from "./overflow.mjs";
 import { dialogContent, whisperToOwner, resolveThreshold, log, error } from "./utils.mjs";
 
 const DialogV2 = foundry.applications.api.DialogV2;
@@ -537,8 +538,13 @@ async function askWhichResource(item, effect) {
  */
 function wouldRestore(actor, amounts) {
     const out = {};
+    // The same darkening rule `restore` applies, or the preview promises Hope the
+    // use will not give and "this would restore nothing" never warns (review of
+    // CALL-05).
+    const hopeBlocked = overflowBlocksHope();
     for (const [key, amount] of Object.entries(amounts)) {
         if (key === "hope") {
+            if (hopeBlocked) continue;
             const max = resourceMax(actor, "hope") || STARTING.hopeMax;
             const gain = Math.min(max, resourceValue(actor, "hope") + amount)
                 - resourceValue(actor, "hope");
@@ -583,8 +589,7 @@ async function restore(actor, amounts) {
     const update = {};
     const done = {};
     // Under the Despair darkening a Hope write is stripped; reporting it as
-    // restored would be the card lying (CALL-05).
-    const { overflowBlocksHope } = await import("./overflow.mjs");
+    // restored would be the card lying (CALL-05). `wouldRestore` asks the same.
     const hopeBlocked = overflowBlocksHope();
 
     for (const [key, amount] of Object.entries(amounts)) {
