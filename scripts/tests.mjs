@@ -1972,6 +1972,27 @@ const REGRESSIONS = [
             "a killer's closed window after a landed concealment roll costs nothing again");
         ok(!/isCleaner\(/.test(refund.slice(0, 900)),
             "the refund asks isCleaner again instead of reading what was paid");
+    }],
+
+    ["R38 - the Loaded Die rides the roll it was bought for", async () => {
+        /*
+         * CALL-03 and its review (17.09). The 12 was armed for the whole client, so a
+         * statistic rolled off the sheet while the action's window was open took it and
+         * the Call stayed bought. Measured after the change: six rolls with the marker
+         * all came up 12 on one die, six without it did not.
+         */
+        const sources = new Map(await otherSources());
+        const forced = stripComments(sources.get("forced-roll.mjs") ?? "");
+        const dialog = stripComments(sources.get("roll-dialog.mjs") ?? "");
+        const rolls = stripComments(sources.get("action-rolls.mjs") ?? "");
+        ok(!/let armed\b/.test(forced) && !/armOneMaximum/.test(rolls),
+            "the Loaded Die is armed for the whole client again");
+        ok(/function onConfigured\(roll,\s*config\)[\s\S]{0,80}LOADED_DIE/.test(forced),
+            "the dice hook no longer asks the roll whether it carries the Loaded Die");
+        ok(/\[LOADED_DIE\]:\s*true/.test(rolls), "throwDice no longer marks the roll the Loaded Die was bought for");
+        const grants = dialog.slice(dialog.indexOf("function grantsFor"));
+        ok(/LOADED_DIE/.test(grants.slice(0, 400)),
+            "the roll window shows or spends the Loaded Die on a roll that does not carry it");
     }]
 ];
 

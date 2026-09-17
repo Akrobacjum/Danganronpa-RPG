@@ -471,10 +471,7 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
     // A Free Critical still throws the dice - it just decides in advance what
     // they will say. See forced-roll.mjs for why a real roll matters.
     const free = armed?.grants === "critical";
-    if (free) {
-        const { armOneMaximum } = await import("./forced-roll.mjs");
-        armOneMaximum();
-    }
+    const { LOADED_DIE } = await import("./forced-roll.mjs");
 
     // Always open the configuration window.
     //
@@ -482,64 +479,59 @@ async function throwDice(actor, drpgTrait, { remember, actionKey, context, title
     // modifier keys off it. Called from our own code there is no event, so the
     // window was being skipped - actions rolled straight to chat with no chance
     // to use a Call. Both are supplied explicitly.
-    let result;
-    try {
-        // The system's own card for this roll is claimed as it is created and
-        // never rendered: this module reports the same roll in its own card,
-        // with the same two faces and the same total. See `supersedingRoll` in
-        // private-rolls.mjs - and note the claim covers only THIS call, so a
-        // trait rolled straight off the sheet keeps Daggerheart's card.
-        result = await supersedingRoll(() => actor.rollTrait(dhTrait, {
-            event: { shiftKey: false, altKey: false, ctrlKey: false },
-            /*
-             * ALWAYS OPEN THE WINDOW - except for the regression suite, which
-             * has nobody to press the button.
-             *
-             * Daggerheart derives `dialog.configure` from `config.event`,
-             * reading modifier keys off it; called from our own code there is
-             * no event, so the window was skipped and actions rolled straight
-             * to chat with no chance to use a Call. Both are supplied
-             * explicitly.
-             *
-             * `suiteRolling` is the one exception and it is not a shortcut: the
-             * scenarios test what the engine does with a NUMBER, and a modal
-             * per roll turns a forty-second run into minutes and times the
-             * scenarios out - measured, three failures, none of them about the
-             * thing under test. Whether the window opens at all is its own
-             * question with its own scenario. See `autoRollForSuite`.
-             */
-            dialog: { configure: !suiteRolling() },
-            /*
-             * THIS ROLL IS AN ACTION, AND SAYING SO IS WHAT MAKES THE OTHER
-             * KIND TELLABLE.
-             *
-             * `actor.rollTrait` is the same door for two very different things:
-             * an action from the grid, and a player clicking a statistic on
-             * their own sheet because a GM asked them to roll Body. Only the
-             * first is part of the economy - it costs an action, it was
-             * declared, and its Hope and Despair are earned. The second is
-             * forced to a reaction roll and pays nothing, which it cannot be
-             * unless something distinguishes them, and the roll's own config is
-             * the only thing that travels all the way to both the dialog and
-             * the chat card. See roll-dialog.mjs and despair-award.mjs.
-             */
-            [DRPG_ACTION_ROLL]: true,
-            // Say what the roll is FOR.
-            //
-            // Left alone, Daggerheart titles the window from the trait - "Body
-            // Roll: Player A" - which is true and useless: the opening roll of
-            // a murder and a shove in a corridor are the same two words. Worse
-            // for the murder project, where three windows open one after the
-            // other, all called "Shadow Roll", and the player answers the same
-            // question three times without being told which is which.
-            ...(title ? { title, headerTitle: title } : {})
-        }));
-    } finally {
-        if (free) {
-            const { disarmMaximum } = await import("./forced-roll.mjs");
-            disarmMaximum();
-        }
-    }
+    // The system's own card for this roll is claimed as it is created and
+    // never rendered: this module reports the same roll in its own card,
+    // with the same two faces and the same total. See `supersedingRoll` in
+    // private-rolls.mjs - and note the claim covers only THIS call, so a
+    // trait rolled straight off the sheet keeps Daggerheart's card.
+    const result = await supersedingRoll(() => actor.rollTrait(dhTrait, {
+        event: { shiftKey: false, altKey: false, ctrlKey: false },
+        /*
+         * ALWAYS OPEN THE WINDOW - except for the regression suite, which
+         * has nobody to press the button.
+         *
+         * Daggerheart derives `dialog.configure` from `config.event`,
+         * reading modifier keys off it; called from our own code there is
+         * no event, so the window was skipped and actions rolled straight
+         * to chat with no chance to use a Call. Both are supplied
+         * explicitly.
+         *
+         * `suiteRolling` is the one exception and it is not a shortcut: the
+         * scenarios test what the engine does with a NUMBER, and a modal
+         * per roll turns a forty-second run into minutes and times the
+         * scenarios out - measured, three failures, none of them about the
+         * thing under test. Whether the window opens at all is its own
+         * question with its own scenario. See `autoRollForSuite`.
+         */
+        dialog: { configure: !suiteRolling() },
+        /*
+         * THIS ROLL IS AN ACTION, AND SAYING SO IS WHAT MAKES THE OTHER
+         * KIND TELLABLE.
+         *
+         * `actor.rollTrait` is the same door for two very different things:
+         * an action from the grid, and a player clicking a statistic on
+         * their own sheet because a GM asked them to roll Body. Only the
+         * first is part of the economy - it costs an action, it was
+         * declared, and its Hope and Despair are earned. The second is
+         * forced to a reaction roll and pays nothing, which it cannot be
+         * unless something distinguishes them, and the roll's own config is
+         * the only thing that travels all the way to both the dialog and
+         * the chat card. See roll-dialog.mjs and despair-award.mjs.
+         */
+        [DRPG_ACTION_ROLL]: true,
+        // The roll the Loaded Die was bought for, marked on the roll itself -
+        // see `LOADED_DIE` in forced-roll.mjs.
+        ...(free ? { [LOADED_DIE]: true } : {}),
+        // Say what the roll is FOR.
+        //
+        // Left alone, Daggerheart titles the window from the trait - "Body
+        // Roll: Player A" - which is true and useless: the opening roll of
+        // a murder and a shove in a corridor are the same two words. Worse
+        // for the murder project, where three windows open one after the
+        // other, all called "Shadow Roll", and the player answers the same
+        // question three times without being told which is which.
+        ...(title ? { title, headerTitle: title } : {})
+    }));
     if (!result) return null;
 
     const roll = result.roll ?? result;

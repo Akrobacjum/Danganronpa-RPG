@@ -35,7 +35,18 @@
 
 import { debug, error } from "./utils.mjs";
 
-let armed = false;
+/**
+ * The roll config key that says "this is the roll the Loaded Die was bought for".
+ *
+ * ON THE ROLL, NOT ON THE CLIENT (review of CALL-03, 17.09). This used to be a
+ * module-level `armed` flag set before the action's roll window opened, and the
+ * hook loaded the first duality roll configured on the client while it was up -
+ * so a statistic rolled off the sheet with the action window still open took the
+ * 12, the Call stayed bought, and the action got an honest roll. `throwDice`
+ * puts this key on its own `rollTrait` config; the hook, the red roll window and
+ * the close hook that spends the Call all read the same key.
+ */
+export const LOADED_DIE = "drpgLoadedDie";
 
 /*
  * HOW MANY DICE GET THEIR TOP FACE.
@@ -51,21 +62,10 @@ let armed = false;
  * One in twelve remains - and rightly, because then it is a real roll rather
  * than a purchase.
  */
-let loaded = 0;
+const LOADED = 1;
 
 export function registerForcedRolls() {
     Hooks.on("daggerheart.postDualityRollConfiguration", onConfigured);
-}
-
-/** Arm the next duality roll so ONE die comes up 12 and the other is thrown. */
-export function armOneMaximum() {
-    armed = true;
-    loaded = 1;
-}
-
-export function disarmMaximum() {
-    armed = false;
-    loaded = 0;
 }
 
 /**
@@ -74,8 +74,8 @@ export function disarmMaximum() {
  * the same shape sheet.mjs uses for `render` - so the loaded randomiser exists
  * for exactly as long as this one roll is being evaluated.
  */
-function onConfigured(roll) {
-    if (!armed) return;
+function onConfigured(roll, config) {
+    if (!config?.[LOADED_DIE]) return;
     if (typeof roll?.evaluate !== "function") {
         // A Daggerheart that stopped passing the roll. Loud rather than silent:
         // the player paid for this, and "the die was not loaded" needs a reason.
@@ -88,12 +88,8 @@ function onConfigured(roll) {
         configurable: true,
         writable: true,
         value: async function (...args) {
-            // Disarmed between configuration and the throw (the Call was
-            // cancelled, say): an honest roll, and the wrapper is inert.
-            if (!armed) return evaluate.apply(this, args);
-
             const real = CONFIG.Dice.randomUniform;
-            let left = loaded;
+            let left = LOADED;
             // Counted down rather than flagged: `randomUniform` is called once
             // per die and knows nothing about which die it is serving, so "the
             // first one" is the only handle there is. Everything after it
@@ -110,10 +106,9 @@ function onConfigured(roll) {
                 return await evaluate.apply(this, args);
             } finally {
                 CONFIG.Dice.randomUniform = real;
-                // Spent on this roll and no other. Whatever happened inside the
-                // throw, the next duality roll on this client is an honest one.
-                armed = false;
-                loaded = 0;
+                // Spent on this roll and no other: the wrapper goes too, so a
+                // second evaluate of the same instance is an honest one.
+                delete this.evaluate;
             }
         }
     });

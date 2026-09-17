@@ -25,6 +25,7 @@ import { debug } from "./utils.mjs";
 // One string, and nothing in action-rolls.mjs reaches back here - the roll
 // dialog is opened BY the system, not by that file.
 import { DRPG_ACTION_ROLL } from "./action-rolls.mjs";
+import { LOADED_DIE } from "./forced-roll.mjs";
 
 export function registerRollDialog() {
     Hooks.on("renderApplicationV2", onRenderApplication);
@@ -527,7 +528,9 @@ function pendingGrants(actor) {
  */
 function grantsFor(app, actor) {
     const grants = actor ? pendingGrants(actor) : null;
-    if (grants === "critical" && !app?.config?.[DRPG_ACTION_ROLL]) return null;
+    // The roll the 12 was put on, not merely an action roll: a supporting roll
+    // of the same action carries no Loaded Die (review of CALL-03).
+    if (grants === "critical" && !app?.config?.[LOADED_DIE]) return null;
     return grants;
 }
 
