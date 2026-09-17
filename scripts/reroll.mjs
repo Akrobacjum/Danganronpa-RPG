@@ -28,7 +28,7 @@
  * already made is re-asked rather than rewritten.
  */
 
-import { MODULE_ID, FLAGS, ACTIONS, PROJECT_SCALE, DYNAMIC_THRESHOLDS } from "./config.mjs";
+import { MODULE_ID, FLAGS, ACTIONS, PROJECT_SCALE, DYNAMIC_THRESHOLDS, CRITICAL } from "./config.mjs";
 import { resolveThreshold, easedBy, replaceFlag, log, error, plural } from "./utils.mjs";
 
 /**
@@ -61,7 +61,13 @@ import { resolveThreshold, easedBy, replaceFlag, log, error, plural } from "./ut
  */
 async function rerollKeepingDice(original) {
     const wanted = advantageDice(original);
-    if (wanted <= 1) return original.reroll({ liveRoll: true });
+    if (wanted <= 1) {
+        const target = await rollTarget(original);
+        const marks = target ? Number(target.system?.resources?.stress?.value ?? 0) : null;
+        const rerolled = await original.reroll({ liveRoll: true });
+        await undoSystemSanity(original, rerolled, target, marks);
+        return rerolled;
+    }
 
     const clone = original.clone();
     clone.advantageNumber = wanted;
@@ -98,26 +104,18 @@ async function settleDualityReroll(original, rerolled) {
     if (original.options?.actionType === "reaction") return;
 
     try {
-        const duality = roll => roll.withHope ? 1 : roll.withFear ? -1 : 0;
-        const was = duality(original);
-        const now = duality(rerolled);
-        const hope = (now >= 0 ? 1 : 0) - (was >= 0 ? 1 : 0);
-        const stress = (now === 0 ? 1 : 0) - (was === 0 ? 1 : 0);
-        const fear = (now === -1 ? 1 : 0) - (was === -1 ? 1 : 0);
-
-        // The system's own settings map, read off its config rather than named in
-        // this module's `SETTINGS` idiom - R4 treats `SETTINGS.x` as one of ours.
-        const { gameSettings } = CONFIG.DH.SETTINGS ?? {};
-        const { hopeFear, countdownAutomation } = game.settings.get(CONFIG.DH.id, gameSettings.Automation);
+        const { hope, stress, fear } = rerollDeltas(original, rerolled);
+        const { hopeFear, countdownAutomation } = dhAutomation();
 
         if (game.user.isGM ? hopeFear.gm : hopeFear.players) {
             const updates = [];
             if (hope) updates.push({ key: "hope", value: hope, enabled: true });
-            if (stress) updates.push({ key: "stress", value: -1 * stress, enabled: true });
+            // NOT the system's Sanity line (review of CALL-08). A critical clears no
+            // Sanity in this game - `CRITICAL.clearsStress`, enforced for a fresh
+            // roll in critical.mjs - so a reroll has none to give back or take.
+            if (stress && CRITICAL.clearsStress) updates.push({ key: "stress", value: -1 * stress, enabled: true });
             if (fear) updates.push({ key: "fear", value: fear, enabled: true });
-            const actor = await foundry.utils.fromUuid(original.options?.source?.actor ?? "");
-            const target = actor?.system?.partner ?? actor;
-            if (updates.length && target?.modifyResource) await target.modifyResource(updates);
+            await modifyRollActor(original, updates);
         }
 
         if (countdownAutomation && fear) {
@@ -128,6 +126,69 @@ async function settleDualityReroll(original, rerolled) {
         }
     } catch (err) {
         error("Could not settle Hope and Sanity after a reroll with extra dice", err);
+    }
+}
+
+/**
+ * What a reroll moves, in the system's own arithmetic (`updateResourcesForDualityReroll`):
+ * +1/-1 per resource, from the old result to the new one. A critical is neither
+ * Hope nor Fear on the dice and counts as Hope here, exactly as it does there.
+ */
+function rerollDeltas(original, rerolled) {
+    const duality = roll => roll.withHope ? 1 : roll.withFear ? -1 : 0;
+    const was = duality(original);
+    const now = duality(rerolled);
+    return {
+        hope: (now >= 0 ? 1 : 0) - (was >= 0 ? 1 : 0),
+        stress: (now === 0 ? 1 : 0) - (was === 0 ? 1 : 0),
+        fear: (now === -1 ? 1 : 0) - (was === -1 ? 1 : 0)
+    };
+}
+
+/** Daggerheart's automation settings, read off its config rather than named in
+ *  this module's `SETTINGS` idiom - R4 treats `SETTINGS.x` as one of ours. */
+function dhAutomation() {
+    const { gameSettings } = CONFIG.DH.SETTINGS ?? {};
+    return game.settings.get(CONFIG.DH.id, gameSettings.Automation);
+}
+
+/** The actor a roll's resources land on - the system's own choice of it. */
+async function rollTarget(original) {
+    const actor = await foundry.utils.fromUuid(original.options?.source?.actor ?? "");
+    return actor?.system?.partner ?? actor ?? null;
+}
+
+async function modifyRollActor(original, updates) {
+    if (!updates.length) return;
+    const target = await rollTarget(original);
+    if (target?.modifyResource) await target.modifyResource(updates);
+}
+
+/**
+ * Take back the Sanity the system's own reroll moved, on the one-die path.
+ *
+ * `DualityRoll#reroll` clears a Sanity mark for a critical it rolls and marks one
+ * for a critical it throws away. This game's critical clears none (see
+ * `CRITICAL.clearsStress` and critical.mjs, which removes it from a fresh roll),
+ * so a reroll that gained or lost a critical moved a mark that was never there
+ * to move. Found in review of CALL-08; the multi-dice port above skips the line
+ * instead.
+ */
+async function undoSystemSanity(original, rerolled, target, marks) {
+    if (CRITICAL.clearsStress || original.options?.actionType === "reaction") return;
+    if (!target || marks === null) return;
+    try {
+        if (!rerollDeltas(original, rerolled).stress) return;
+        // The system does not await its own write, and clamps it: a critical
+        // rolled on a clean track clears nothing. So what is put back is what
+        // actually moved, read once the write has landed.
+        const read = () => Number(target.system?.resources?.stress?.value ?? 0);
+        for (let i = 0; i < 20 && read() === marks; i++) await new Promise(r => setTimeout(r, 50));
+        if (read() === marks) return;
+        const { automatedUpdate } = await import("./resource-guard.mjs");
+        await automatedUpdate(target, { "system.resources.stress.value": marks });
+    } catch (err) {
+        error("Could not put back the Sanity a reroll moved", err);
     }
 }
 
