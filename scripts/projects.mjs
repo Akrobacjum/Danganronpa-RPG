@@ -838,9 +838,29 @@ export async function deleteProject(countdownId) {
     delete countdowns[countdownId];
     await game.settings.set(DH, COUNTDOWNS, { ...data, countdowns });
 
+    /*
+     * A SABOTAGE PAIR GOES WITH EITHER HALF (F5, 17.09).
+     *
+     * The Project Manager lists "Repair: X" like any other bar, and deleting it
+     * left X frozen by a project that no longer existed: gone from every
+     * player's Work on Project list, out of reach of another sabotage, skipped by
+     * the trap watcher, and nothing on any GM screen could thaw it. Deleting a
+     * repair thaws what it was repairing; deleting the broken project takes its
+     * repair with it, because nobody should spend an action mending nothing.
+     */
+    const own = metaFor(countdownId);
     const meta = { ...projectMeta() };
     delete meta[countdownId];
+    const target = own.repairs ?? null;
+    if (target && countdowns[target] && meta[target]?.frozenBy === countdownId) {
+        meta[target] = { ...meta[target], frozenBy: null };
+    }
     await game.settings.set(MODULE_ID, SETTINGS.projectMeta, meta);
+
+    const repair = own.frozenBy ?? null;
+    if (repair && countdowns[repair] && metaFor(repair).repairs === countdownId) {
+        await deleteProject(repair);
+    }
     return true;
 }
 
