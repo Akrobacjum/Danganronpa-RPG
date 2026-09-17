@@ -910,6 +910,17 @@ async function chooseTrait(actor, def, { intro = "" } = {}) {
  * stays spent - with a line saying so, because a pip that does not come back
  * after a closed window looks like a bug.
  */
+/*
+ * AND THE ONE-ROLL ACTIONS PAY FIRST TOO (ACT-07, 17.09).
+ *
+ * Search, Observe, Analyze, Listen, the GM-ruled and generic actions and a
+ * Dynamic action used to charge after the dice and ignore the answer. The sheet
+ * disables only the tile that was clicked and none of these windows is modal,
+ * so a student with one action could open two, roll both, and get both results
+ * for one action - and with more windows, keep every roll's Hope while the
+ * spend was refused. Charging before the roll makes the second window stop at
+ * "not enough actions", and a closed roll window gets its action back here.
+ */
 async function abort(actor, cost, { rolled = false } = {}) {
     if (cost <= 0) return null;
     if (rolled) ui.notifications.info(game.i18n.localize("DRPG.Actions.keptAfterRoll"));
@@ -1007,6 +1018,8 @@ async function performSearch(actor, def, options) {
     if (hindersCategory(room, category)) situational -= 1;
     if (stashLoot.length && stashConcealed) situational -= 1;
 
+    if (cost > 0 && !await spendAction(actor, cost)) return null;
+
     const calls = await import("./call-effects.mjs");
     if (situational) calls.armSituational(situational);
 
@@ -1031,7 +1044,7 @@ async function performSearch(actor, def, options) {
         // roll would silently attach itself to the next unrelated one.
         calls.clearSituational();
     }
-    if (!roll) return null;
+    if (!roll) return abort(actor, cost);
 
     // The token is claimed only once the dice are actually on the table.
     // Spending it up front meant backing out of the trait picker or the roll
@@ -1039,16 +1052,15 @@ async function performSearch(actor, def, options) {
     // the room was closed for the rest of the time of day.
     const claimed = await SearchTokens.spend(room);
 
-    // Charged whatever the token says. The check above the picker reads this
-    // client's copy of the counter, which can be a moment behind the GM's - so
-    // two players searching the same room with one token left both get through
-    // it and both roll. Bailing out here without charging meant the loser kept
-    // their action AND banked whatever the duality granted them: a Hope
-    // generator anybody could run by searching a room they knew was empty.
+    // Kept whatever the token says - it was paid before the roll. The check
+    // above the picker reads this client's copy of the counter, which can be a
+    // moment behind the GM's - so two players searching the same room with one
+    // token left both get through it and both roll. Letting the loser off meant
+    // they kept their action AND banked whatever the duality granted them: a
+    // Hope generator anybody could run by searching a room they knew was empty.
     //
     // Paying for it is also just what happened in the fiction. They searched a
     // room somebody else had already picked clean.
-    if (cost > 0) await spendAction(actor, cost);
 
     if (!claimed) {
         // WHY the token was refused decides what the player is told and whether
@@ -3122,9 +3134,10 @@ async function performGmAction(actor, actionKey, def, options) {
     // An action with traits to choose between and none chosen is a dismissal.
     if ((def.traits?.length ?? 0) && !trait) return null;
 
+    // Paid before the dice - see `abort` and ACT-07 above it.
+    if (cost > 0 && !await spendAction(actor, cost)) return null;
     const roll = await rollTrait(actor, trait, { actionKey });
-    if (!roll) return null;
-    if (cost > 0) await spendAction(actor, cost);
+    if (!roll) return abort(actor, cost);
 
     const body = buildGmBody(actionKey, def, roll);
 
@@ -3251,9 +3264,10 @@ async function observeRanked(actor, def, cost, options, declaration) {
         return performGmAction(actor, "observe", def, options);
     }
 
+    // Paid before the dice - see `abort` and ACT-07 above it.
+    if (cost > 0 && !await spendAction(actor, cost)) return null;
     const roll = await rollTrait(actor, "eye", { actionKey: "observe" });
-    if (!roll) return null;
-    if (cost > 0) await spendAction(actor, cost);
+    if (!roll) return abort(actor, cost);
 
     return settleObserveRoll(actor, def, roll, target.key, declaration);
 }
@@ -3286,8 +3300,10 @@ async function observeSpecific(actor, def, cost, request = "") {
     const declaration = request ? "specific" : "general";
     if (!request) ui.notifications.info(game.i18n.localize("DRPG.Observe.requestSkipped"));
 
+    // Paid before the dice - see `abort` and ACT-07 above it.
+    if (cost > 0 && !await spendAction(actor, cost)) return null;
     const roll = await rollTrait(actor, "eye", { actionKey: "observe" });
-    if (!roll) return null;
+    if (!roll) return abort(actor, cost);
 
     const { requestObserveTarget } = await import("./gm-bridge.mjs");
     const target = await requestObserveTarget({ actorId: actor.id, declaration, request });
@@ -3295,9 +3311,7 @@ async function observeSpecific(actor, def, cost, request = "") {
     // Nobody answered - no GM is listening. `requestObserveTarget` has already
     // said so, and the action stays in the player's pocket: there is nobody to
     // rule on it either, so charging for it would be charging for silence.
-    if (!target) return null;
-
-    if (cost > 0) await spendAction(actor, cost);
+    if (!target) return abort(actor, cost);
 
     // Refused, empty room, no room at all: the GM rules on the roll that has
     // already been thrown. Calling `performGmAction` here would roll a second
@@ -3353,9 +3367,10 @@ async function settleObserveRoll(actor, def, roll, observeKey, declaration) {
  * exist for this branch.
  */
 async function observeAnything(actor, def, cost, request = "") {
+    // Paid before the dice - see `abort` and ACT-07 above it.
+    if (cost > 0 && !await spendAction(actor, cost)) return null;
     const roll = await rollTrait(actor, "eye", { actionKey: "observe" });
-    if (!roll) return null;
-    if (cost > 0) await spendAction(actor, cost);
+    if (!roll) return abort(actor, cost);
 
     // Not the button's own label: "Ask the GM" is clear on a button the player is
     // pressing and meaningless as the title of the window it arrives in. The GM
@@ -3509,9 +3524,10 @@ async function performAnalyze(actor, def, options) {
     const subject = ruled ? null : (bullets.find(b => b.id === choice) ?? null);
     if (!ruled && !subject) return null;
 
+    // Paid before the dice - see `abort` and ACT-07 above it.
+    if (cost > 0 && !await spendAction(actor, cost)) return null;
     const roll = await rollTrait(actor, "head", { actionKey: "analyze" });
-    if (!roll) return null;
-    if (cost > 0) await spendAction(actor, cost);
+    if (!roll) return abort(actor, cost);
 
     if (choice === "stash") return locateStash(actor, def, roll, asked?.request ?? "");
     return subject
@@ -3771,12 +3787,13 @@ async function performListen(actor, def, options) {
 
     if (!target || target === "cancel") return null;
 
+    // Paid before the dice - see `abort` and ACT-07 above it.
+    if (cost > 0 && !await spendAction(actor, cost)) return null;
     const roll = await rollTrait(actor, "shadow", {
         actionKey: "listen",
         context: { room: here, target }
     });
-    if (!roll) return null;
-    if (cost > 0) await spendAction(actor, cost);
+    if (!roll) return abort(actor, cost);
 
     // Listen produces information and nothing else, so Reroll has nothing to
     // undo - it simply asks the walls again with the new number.
@@ -4025,9 +4042,10 @@ async function performGeneric(actor, actionKey, def, options) {
     });
     if (!trait) return null;
 
+    // Paid before the dice - see `abort` and ACT-07 above it.
+    if (cost > 0 && !await spendAction(actor, cost)) return null;
     const roll = await rollTrait(actor, trait, { actionKey });
-    if (!roll) return null;
-    if (cost > 0) await spendAction(actor, cost);
+    if (!roll) return abort(actor, cost);
 
     const hit = roll.isCritical ? def.critical : resolveThreshold(roll.total, def.thresholds ?? []);
     const outcome = {
@@ -4091,12 +4109,14 @@ async function performDynamic(actor, options) {
 
     const band = DYNAMIC_THRESHOLDS[picked.tier];
     if (!band) return null;
+    // Paid before the dice - see `abort` and ACT-07 above it.
+    const cost = options.free ? 0 : 1;
+    if (cost > 0 && !await spendAction(actor, cost)) return null;
     const roll = await rollTrait(actor, picked.trait, {
         actionKey: "dynamic",
         context: { bandIndex: picked.tier, description, room: roomOfActor(actor) }
     });
-    if (!roll) return null;
-    if (!options.free) await spendAction(actor, 1);
+    if (!roll) return abort(actor, cost);
 
     const success = roll.isCritical || roll.total >= band.range[0];
     const visibility = success ? band.remnant : null;
