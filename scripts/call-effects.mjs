@@ -459,7 +459,7 @@ export async function applyCall(actor, key, kind, choice = {}) {
             done.push(game.i18n.format("DRPG.Calls.sealed", { room: choice.room }));
         }
 
-        // --- silence: no Hope Calls until the clock moves ---
+        // --- silence: no Hope Calls until this time of day ends ---
         if (call.silences && choice.target) {
             if (isSilenced(choice.target)) {
                 ui.notifications.warn(game.i18n.format("DRPG.Calls.alreadySilenced", { name: choice.target.name }));
@@ -545,7 +545,8 @@ export async function applyCall(actor, key, kind, choice = {}) {
 /* ==========================================================================
  * ROOM EFFECTS AND RESTRICTIONS
  * --------------------------------------------------------------------------
- * Three Despair Calls buy a restriction that lasts until the clock moves:
+ * Three Despair Calls buy a restriction that lasts until this time of day ends -
+ * at the Eclipse that closes it, or when the clock moves without one:
  * a sealed room nobody may enter, a silenced player who may spend no Hope, and
  * a chained player who may not leave the room they are standing in.
  *
@@ -554,7 +555,7 @@ export async function applyCall(actor, key, kind, choice = {}) {
  * sealed and players walked straight in.
  * ========================================================================== */
 
-/** Rooms sealed for this time of day. Cleared when the clock advances. */
+/** Rooms sealed for this time of day. Cleared when it ends - see `clearSeals`. */
 export function sealedRooms() {
     try {
         return game.settings.get(MODULE_ID, SETTINGS.sealedRooms) ?? [];
@@ -600,7 +601,11 @@ async function restrict(actor, patch) {
     return true;
 }
 
-/** Called when the time of day advances - every restriction lasts one. */
+/**
+ * Called when a time of day ends - every restriction lasts one. That is the
+ * Eclipse opening (CALL-09), or the clock moving on a table that uses no
+ * Eclipse; a rewind and a season reset call it too.
+ */
 export async function clearSeals() {
     if (!game.user.isGM) return null;
     await game.settings.set(MODULE_ID, SETTINGS.sealedRooms, []);

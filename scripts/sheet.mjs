@@ -1320,8 +1320,8 @@ function injectActionBar(app, element, fresh = false) {
  * separate lifetimes, and merging them would be a lie about how long each one
  * lasts:
  *
- *   silenced (Call)   world `restrictions`, until the clock moves
- *   chained           world `restrictions`, until the clock moves
+ *   silenced (Call)   world `restrictions`, until this time of day ends
+ *   chained           world `restrictions`, until this time of day ends
  *   silenced (cub)    a flag on the actor, for the rest of the chapter
  *
  * Read rather than cached: all three can be lifted by somebody else's screen

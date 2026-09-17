@@ -77,7 +77,7 @@ async function hopeCallBarred(actor) {
         return true;
     }
 
-    // Silence, bought with 4 Despair, closes this menu until the clock moves.
+    // Silence, bought with 4 Despair, closes this menu until this time of day ends.
     const { isSilenced } = await import("./call-effects.mjs");
     if (isSilenced(actor)) {
         ui.notifications.warn(game.i18n.localize("DRPG.Calls.silencedNotice"));
