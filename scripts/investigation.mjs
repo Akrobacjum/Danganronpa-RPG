@@ -1223,6 +1223,14 @@ export async function openInvestigationDashboard() {
                         finalNote: q("finalNote")?.value.trim() ?? "",
                         traces: traces.map(({ token, scene }) => {
                             const key = rowKey(scene.id, token.id);
+                            /* A ROW THE FILTER HIDES IS NOT IN THE FORM (F1, 17.09).
+                               Every field of it read as blank and every box as unticked,
+                               and the Save below wrote that as the GM's decision: in
+                               chapter two the dashboard opens on this chapter's traces, so
+                               the first Save emptied every earlier trace's name and text -
+                               down onto the bullets copied from them - and unticked Tied
+                               to the crime and Reinforced on the Final and Key Remnants. */
+                            if (!q(`name.${key}`)) return null;
                             return {
                                 key,
                                 img: q(`img.${key}`)?.value ?? "",
@@ -1234,7 +1242,7 @@ export async function openInvestigationDashboard() {
                                 tiedToCrime: q(`crime.${key}`)?.checked ?? false,
                                 reinforced: q(`reinf.${key}`)?.checked ?? false
                             };
-                        }),
+                        }).filter(Boolean),
                         keyRows: plan.entries.map((entry, i) => {
                             const raw = q(`token:${i}`)?.value ?? "";
                             const [tokenId, sceneId] = raw ? raw.split("|") : [null, null];
