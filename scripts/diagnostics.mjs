@@ -1138,7 +1138,8 @@ export function diagnoseCharacters({ toChat = true } = {}) {
     for (const actor of roster) {
         const hp = actor.system?.resources?.hitPoints?.max ?? 0;
         const stress = actor.system?.resources?.stress?.max ?? 0;
-        const ok = hp === STARTING.hp && stress === STARTING.stress;
+        // At least the starting numbers: a Level Up raises them (SEASON-01).
+        const ok = hp >= STARTING.hp && stress >= STARTING.stress;
         if (!ok) pending.push(actor);
         lines.push(`   ${ok ? "✓" : "✗"} ${actor.name} - Health max ${hp}, Sanity max ${stress}${
             ok ? "" : "  ← not set up"}`);

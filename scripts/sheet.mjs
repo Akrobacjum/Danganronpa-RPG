@@ -19,7 +19,7 @@ import {
 import { SETTINGS } from "./settings.mjs";
 import { actionsLeft, actionsMax, actionBudget, hasFreeMove, setActions,
     canPayFor, freeActionsLeft, freeMovesLeft } from "./actions.mjs";
-import { resourceMax, resourceValue, initCharacter } from "./character.mjs";
+import { resourceMax, resourceValue, initCharacter, needsStartingResources } from "./character.mjs";
 import { isMonokuma, poolUserFor } from "./monokuma.mjs";
 import { getDespair } from "./despair.mjs";
 import { hopeHeld, hopeMax, affordableHopeCalls, despairCallsFor } from "./calls.mjs";
@@ -1366,8 +1366,8 @@ function standingEffects(actor) {
 
 /** Has this character been given the guide's starting resources? */
 function needsInit(actor) {
-    return resourceMax(actor, "hitPoints") !== STARTING.hp
-        || resourceMax(actor, "stress") !== STARTING.stress;
+    // Below, not different: an advanced sheet is a set-up sheet (SEASON-01).
+    return needsStartingResources(actor);
 }
 
 function injectInitButton(app, element) {

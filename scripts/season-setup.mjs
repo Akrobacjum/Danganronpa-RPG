@@ -29,7 +29,7 @@ import { safeword } from "./safeword.mjs";
 import { getClock, setClock } from "./clock.mjs";
 import { studentActors } from "./monokuma.mjs";
 import { monokumaFor } from "./assignments.mjs";
-import { listExperiences, initCharacter } from "./character.mjs";
+import { listExperiences, initCharacter, needsStartingResources } from "./character.mjs";
 import { carriableCategories } from "./inventory.mjs";
 // Static, and safe to be: vault.mjs never reaches back here, and `steps()` is
 // synchronous - a `done` that had to await could not answer at all.
@@ -111,19 +111,17 @@ function steps() {
         },
         {
             key: "resources",
-            done: roster.every(a => (a.system?.resources?.hitPoints?.max ?? 0) === STARTING.hp
-                && (a.system?.resources?.stress?.max ?? 0) === STARTING.stress),
-            missing: () => roster.filter(a => (a.system?.resources?.hitPoints?.max ?? 0) !== STARTING.hp
-                || (a.system?.resources?.stress?.max ?? 0) !== STARTING.stress).map(a => a.name),
+            // Below the starting numbers, not different from them - a Level Up raises
+            // the maximum, and that is not a sheet waiting to be set up (SEASON-01).
+            done: roster.every(a => !needsStartingResources(a)),
+            missing: () => roster.filter(needsStartingResources).map(a => a.name),
             // The one row that can finish itself: the guide's numbers are the
             // guide's numbers, and there is nothing to decide.
             fix: async () => {
                 let n = 0;
                 for (const actor of studentActors()) {
-                    const hp = actor.system?.resources?.hitPoints?.max ?? 0;
-                    const stress = actor.system?.resources?.stress?.max ?? 0;
-                    if (hp === STARTING.hp && stress === STARTING.stress) continue;
-                    await initCharacter(actor);
+                    if (!needsStartingResources(actor)) continue;
+                    await initCharacter(actor, { keepStamp: true });
                     n++;
                 }
                 return n;
