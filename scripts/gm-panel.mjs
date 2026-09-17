@@ -986,10 +986,16 @@ function nextStep(clock) {
     }
 
     // Daily Life. The one number that decides whether the time of day is over.
+    //
+    // THE CLOCK MOVES THROUGH THE ECLIPSE, NOT THE EDITOR (17.09, GMP-01). "Do it" used to
+    // open Edit campaign, which is bookkeeping: applying a new time of day there skips the
+    // placement window, the refill and the restock, so a GM who followed the suggestion
+    // left every student on 0 actions in the new time of day and the line went on saying
+    // everyone had spent theirs. The Eclipse is the one road that refills.
     return stillActing.length
         ? { text: plural("DRPG.Panel.nextStillActing", { n: stillActing.length }),
             action: null }
-        : { text: game.i18n.localize("DRPG.Panel.nextAllDone"), action: "jump" };
+        : { text: game.i18n.localize("DRPG.Panel.nextAllDone"), action: "eclipse" };
 }
 
 /** Current standing: where the clock is and what everyone has left. */
